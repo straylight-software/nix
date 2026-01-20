@@ -1,111 +1,54 @@
-<p align="center">
-  <a href="https://determinate.systems" target="_blank"><img src="https://raw.githubusercontent.com/determinatesystems/.github/main/.github/banner.jpg"></a>
-</p>
-<p align="center">
-  &nbsp;<a href="https://determinate.systems/discord" target="_blank"><img alt="Discord" src="https://img.shields.io/discord/1116012109709463613?style=for-the-badge&logo=discord&logoColor=%23ffffff&label=Discord&labelColor=%234253e8&color=%23e4e2e2"></a>&nbsp;
-  &nbsp;<a href="https://bsky.app/profile/determinate.systems" target="_blank"><img alt="Bluesky" src="https://img.shields.io/badge/Bluesky-0772D8?style=for-the-badge&logo=bluesky&logoColor=%23ffffff"></a>&nbsp;
-  &nbsp;<a href="https://hachyderm.io/@determinatesystems" target="_blank"><img alt="Mastodon" src="https://img.shields.io/badge/Mastodon-6468fa?style=for-the-badge&logo=mastodon&logoColor=%23ffffff"></a>&nbsp;
-  &nbsp;<a href="https://twitter.com/DeterminateSys" target="_blank"><img alt="Twitter" src="https://img.shields.io/badge/Twitter-303030?style=for-the-badge&logo=x&logoColor=%23ffffff"></a>&nbsp;
-  &nbsp;<a href="https://www.linkedin.com/company/determinate-systems" target="_blank"><img alt="LinkedIn" src="https://img.shields.io/badge/LinkedIn-1667be?style=for-the-badge&logo=linkedin&logoColor=%23ffffff"></a>&nbsp;
-</p>
-
-# The Determinate Nix CLI
-
-[![CI](https://github.com/DeterminateSystems/nix-src/workflows/CI/badge.svg)](https://github.com/DeterminateSystems/nix-src/actions/workflows/ci.yml)
-
-**Nix** is a powerful [language], [package manager][package-management], and [build tool][cli] for [macOS](#macos), [Linux](#linux), and other Unix systems.
-It enables you to create fully reproducible [development environments][envs], to build [packages] in sandboxed environments, to build entire Linux systems using [NixOS], and much more.
-
-[**Determinate Nix**][det-nix] is a downstream distribution of [Nix][upstream] created and maintained by [Determinate Systems][detsys].
-It has two components:
-
-- The Determinate Nix CLI, a distribution of the Nix CLI built from this repository.
-    It's based on the [upstream Nix CLI][upstream] and continuously rebased against it, but adds a wide variety of [features] and [improvements][changelog].
-- [Determinate Nixd][dnixd] is a useful daemon for Linux and macOS that handles vital tasks like configuration and enterprise certificate management.
-
-Determinate Nix is built on SOC-2-Type-II-compliant infrastructure using [Determinate Secure Packages][secure-packages], released via a carefully orchestrated process, and, for Determinate Systems customers, backed by formal security response SLAs that meet stringent compliance standards.
-
-> [!NOTE]
-> Determinate Nix, by definition, consists of _both_ the components listed above.
-> While it's possible to use the code in this repository to run just our downstream Nix CLI, we do _not_ officially support this experience and provide none of the guarantees or SLAs that we provide for Determinate Nix proper.
-
-Determinate Nix is part of the [Determinate platform][determinate], which also includes [FlakeHub], a secure flake repository with features like [FlakeHub Cache][cache], [private flakes][private-flakes], and [semantic versioning][semver] (SemVer) for [flakes].
-
-## Installing Determinate Nix
-
-You can install Determinate Nix on [macOS](#macos), non-NixOS [Linux](#linux) and WSL, and [NixOS](#nixos).
-
-### macOS
-
-On macOS, we recommend using the graphical installer from Determinate Systems.
-Click [here][gui] to download and run it.
-
-### Linux
-
-On Linux, including Windows Subsystem for Linux (WSL), we recommend installing Determinate Nix using [Determinate Nix Installer][installer]:
-
-```shell
-curl -fsSL https://install.determinate.systems/nix | sh -s -- install
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                                           // straylight // nix
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
-### NixOS
+a nix fork for the continuity project.
 
-On [NixOS], we recommend following our [dedicated installation guide][nixos-install].
-We also provide both [Amazon Machine Images][amis] (AMIs) and [ISOs] for using Determinate on NixOS.
+*continuity is continuity. continuity is continuity's job.*
 
-## Other resources
+### // `provenance`
 
-Nix was created by [Eelco Dolstra][eelco] and developed as the subject of his 2006 PhD thesis, [The Purely Functional Software Deployment Model][thesis].
-Today, a worldwide developer community contributes to Nix and the ecosystem that has grown around it.
+rebased against [determinate nix](https://github.com/DeterminateSystems/nix-src), which is rebased against [upstream nix](https://github.com/NixOS/nix).
 
-- [Zero to Nix][z2n], Determinate Systems' guide to Nix and [flakes] for beginners
-- [Nixpkgs], a collection of well over 100,000 software packages that you can build and manage using Nix
-- [NixOS] is a Linux distribution that can be configured fully declaratively
-- The Nix, Nixpkgs, and NixOS community on [nixos.org][website]
+### // `changes`
 
-## Reference
+- `ca-derivations` enabled by default
+- `flakes` and `nix-command` enabled by default
+- `wasm` builtins (`builtins.wasm` + `wasm32-wasip1` system type)
+- remote builders disabled (build hook has unsound log streaming)
 
-The primary documentation for Determinate and Determinate Nix is available at [docs.determinate.systems][determinate].
-For deeply technical reference material, see the [Determinate Nix manual][manual] which is based on the upstream Nix manual.
+### // `installation`
 
-## License
+```bash
+# from flakehub (when published)
+nix run "https://flakehub.com/f/straylight-software/nix/*.tar.gz"
 
-[Upstream Nix][upstream] is released under the [LGPL v2.1][license] license.
-[Determinate Nix][det-nix] is also released under LGPL v2.1 in accordance with the terms of the upstream license.
+# from source
+nix build github:straylight-software/nix
+```
 
-## Contributing
+### // `rationale`
 
-Check the [contributing guide][contributing] if you want to get involved with developing Nix.
+the nix daemon is the conceptual computer.
 
-[amis]: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AMIs.html
-[cache]: https://docs.determinate.systems/flakehub/cache
-[changelog]: https://determinate.systems/blog/categories/changelog
-[cli]: https://manual.determinate.systems/command-ref/new-cli/nix.html
-[contributing]: ./CONTRIBUTING.md
-[det-nix]: https://docs.determinate.systems/determinate-nix
-[determinate]: https://docs.determinate.systems
-[detsys]: https://determinate.systems
-[dnixd]: https://docs.determinate.systems/determinate-nix#determinate-nixd
-[eelco]: https://determinate.systems/people/eelco-dolstra
-[envs]: https://zero-to-nix.com/concepts/dev-env
-[features]: https://docs.determinate.systems/determinate-nix/#special-features
-[flakehub]: https://flakehub.com
-[flakes]: https://zero-to-nix.com/concepts/flakes
-[gui]: https://install.determinate.systems/determinate-pkg/stable/Universal
-[installer]: https://github.com/DeterminateSystems/nix-installer
-[isos]: https://github.com/DeterminateSystems/nixos-iso
-[language]: https://zero-to-nix.com/concepts/nix-language
-[license]: ./COPYING
-[manual]: https://manual.determinate.systems
-[nixpkgs]: https://github.com/NixOS/nixpkgs
-[nixos]: https://github.com/NixOS/nixpkgs/tree/master/nixos
-[nixos-install]: https://docs.determinate.systems/guides/advanced-installation#nixos
-[packages]: https://zero-to-nix.com/concepts/packages
-[package-management]: https://zero-to-nix.com/concepts/package-management
-[private-flakes]: https://docs.determinate.systems/flakehub/private-flakes
-[secure-packages]: https://determinate.systems/secure-packages
-[semver]: https://docs.determinate.systems/flakehub/concepts/semver
-[thesis]: https://edolstra.github.io/pubs/phd-thesis.pdf
-[upstream]: https://github.com/NixOS/nix
-[website]: https://nixos.org
-[z2n]: https://zero-to-nix.com
+content addressing is the artifact identity. `ca-derivations` make the hash the truth.
+
+wasm is the portable sandbox. `builtins.wasm` runs pure functions in the evaluator.
+
+the build hook log streaming is unsound. remote builders are disabled until fixed.
+
+### // `upstream`
+
+this fork tracks determinate nix's sync points with upstream. contributions should go upstream when possible.
+
+```
+cbeb167 Disable remote builders - build hook has unsound log streaming
+e5c41c0 Enable stable experimental features by default
+844a213 WASM support (builtins.wasm + wasm32-wasip1 system type)
+```
+
+### // `license`
+
+[LGPL v2.1](./COPYING), same as upstream.
