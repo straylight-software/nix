@@ -47,7 +47,7 @@ jobs:
     runs-on: ${{ inputs.runner }}
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: DeterminateSystems/determinate-nix-action@main
       - uses: DeterminateSystems/flakehub-cache-action@main
       - run: nix build .#packages.${{ inputs.system }}.default .#packages.${{ inputs.system }}.binaryTarball --no-link -L
@@ -65,7 +65,7 @@ jobs:
     runs-on: ${{ inputs.runner }}
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: DeterminateSystems/determinate-nix-action@main
       - uses: DeterminateSystems/flakehub-cache-action@main
       - run: nix flake check -L --system ${{ inputs.system }}
@@ -75,7 +75,7 @@ jobs:
     needs: build
     runs-on: ${{ inputs.runner_for_virt }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: DeterminateSystems/determinate-nix-action@main
       - uses: DeterminateSystems/flakehub-cache-action@main
       - run: |
@@ -91,7 +91,7 @@ jobs:
     needs: build
     runs-on: ${{ inputs.runner_for_virt }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: DeterminateSystems/determinate-nix-action@main
       - uses: DeterminateSystems/flakehub-cache-action@main
       - run: |
@@ -139,14 +139,14 @@ jobs:
 
     steps:
       - name: Checkout nix
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Checkout flake-regressions
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: DeterminateSystems/flake-regressions
           path: flake-regressions
       - name: Checkout flake-regressions-data
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: DeterminateSystems/flake-regressions-data
           path: flake-regressions/tests
@@ -194,7 +194,7 @@ jobs:
       deployments: "write"
     steps:
       - name: Checkout nix
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - uses: DeterminateSystems/determinate-nix-action@main
       - uses: DeterminateSystems/flakehub-cache-action@main
       - name: Build manual
