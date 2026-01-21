@@ -1,8 +1,17 @@
 #include "nix/expr/primops.hh"
 #include "nix/expr/eval-inline.hh"
+#include "nix/expr/eval-settings.hh"
+#include "nix/store/store-api.hh"
+#include "nix/fetchers/fetchers.hh"
+#include "nix/fetchers/attrs.hh"
+#include "nix/fetchers/fetch-to-store.hh"
+#include "nix/fetchers/input-cache.hh"
+#include "nix/fetchers/registry.hh"
+#include "nix/fetchers/tarball.hh"
 
 #include <wasmtime.hh>
 #include <wasi.h>
+#include <thread>
 
 using namespace wasmtime;
 
@@ -97,6 +106,10 @@ struct NixWasmInstance
 
     std::optional<std::string> functionName;
 
+    // Context values for Aleph FFI (set via setContext)
+    ValueId depRegistry = 0xFFFFFFFF;  // The dependency registry attrset
+    ValueId outPath = 0xFFFFFFFF;      // The output path (if in build context)
+
     NixWasmInstance(EvalState & _state, ref<NixWasmModule> _mod)
         : state(_state)
         , mod(_mod)
@@ -127,7 +140,7 @@ struct NixWasmInstance
             throw nix::Error("failed to define WASI: %s", msg.message());
         }
 
-        // Register Nix FFI functions
+        // Register Nix FFI functions - value marshalling
         regFun(linker, "panic", &NixWasmInstance::panic);
         regFun(linker, "warn", &NixWasmInstance::warn);
         regFun(linker, "get_type", &NixWasmInstance::get_type);
@@ -155,9 +168,34 @@ struct NixWasmInstance
         regFun(linker, "get_attr", &NixWasmInstance::get_attr);
         regFun(linker, "call_function", &NixWasmInstance::call_function);
 
+        // Register Aleph FFI functions - fetch operations
+        regFun(linker, "nix_fetch_github", &NixWasmInstance::nix_fetch_github);
+        regFun(linker, "nix_fetch_url", &NixWasmInstance::nix_fetch_url);
+        regFun(linker, "nix_fetch_git", &NixWasmInstance::nix_fetch_git);
+
+        // Register Aleph FFI functions - store operations
+        regFun(linker, "nix_resolve_dep", &NixWasmInstance::nix_resolve_dep);
+        regFun(linker, "nix_add_to_store", &NixWasmInstance::nix_add_to_store);
+
+        // Register Aleph FFI functions - build context
+        regFun(linker, "nix_get_system", &NixWasmInstance::nix_get_system);
+        regFun(linker, "nix_get_cores", &NixWasmInstance::nix_get_cores);
+        regFun(linker, "nix_get_out_path", &NixWasmInstance::nix_get_out_path);
+
         // Instantiate the module (this may call _initialize which needs FFI)
         instance = unwrap(linker.instantiate(wasmCtx, mod->module));
         memory_ = std::get<Memory>(*instance->get(wasmCtx, "memory"));
+    }
+
+    // Set the context for Aleph FFI (depRegistry, outPath)
+    void setContext(Value * depReg, Value * out = nullptr)
+    {
+        if (depReg) {
+            depRegistry = addValue(depReg);
+        }
+        if (out) {
+            outPath = addValue(out);
+        }
     }
 
     ValueId addValue(Value * v)
@@ -473,6 +511,266 @@ struct NixWasmInstance
     {
         auto s = state.forceString(*values.at(valueId), noPos, "while getting string length from WASM");
         return s.size();
+    }
+
+    // =========================================================================
+    // Aleph FFI: Fetch operations
+    // =========================================================================
+
+    // Helper to copy a string to WASM memory, returns actual length
+    uint32_t copyToWasm(std::string_view s, uint32_t ptr, uint32_t maxLen)
+    {
+        if (s.size() <= maxLen) {
+            auto buf = memory().subspan(ptr, maxLen);
+            memcpy(buf.data(), s.data(), s.size());
+        }
+        return s.size();
+    }
+
+    // nix_fetch_github: Fetch from GitHub, return store path
+    // Parameters: owner, owner_len, repo, repo_len, rev, rev_len, hash, hash_len, out_buf, out_buf_len
+    // Returns: actual length of store path (0 on failure)
+    uint32_t nix_fetch_github(
+        uint32_t ownerPtr, uint32_t ownerLen,
+        uint32_t repoPtr, uint32_t repoLen,
+        uint32_t revPtr, uint32_t revLen,
+        uint32_t hashPtr, uint32_t hashLen,
+        uint32_t outPtr, uint32_t outLen)
+    {
+        auto mem = memory();
+        auto owner = std::string(span2string(mem.subspan(ownerPtr, ownerLen)));
+        auto repo = std::string(span2string(mem.subspan(repoPtr, repoLen)));
+        auto rev = std::string(span2string(mem.subspan(revPtr, revLen)));
+        auto hash = std::string(span2string(mem.subspan(hashPtr, hashLen)));
+
+        debug("nix_fetch_github: %s/%s @ %s", owner, repo, rev);
+
+        try {
+            fetchers::Attrs attrs;
+            attrs.emplace("type", "github");
+            attrs.emplace("owner", owner);
+            attrs.emplace("repo", repo);
+            attrs.emplace("rev", rev);
+            if (!hash.empty())
+                attrs.emplace("narHash", hash);
+
+            auto input = fetchers::Input::fromAttrs(state.fetchSettings, std::move(attrs));
+
+            // Mark as final if we have a hash (allows caching)
+            if (!hash.empty())
+                input.attrs.insert_or_assign("__final", Explicit<bool>(true));
+
+            auto cachedInput = state.inputCache->getAccessor(
+                state.fetchSettings, *state.store, input, fetchers::UseRegistries::No);
+
+            auto storePath = state.mountInput(cachedInput.lockedInput, input, cachedInput.accessor, true);
+            auto storePathStr = state.store->printStorePath(storePath);
+
+            debug("nix_fetch_github: fetched to %s", storePathStr);
+            return copyToWasm(storePathStr, outPtr, outLen);
+        } catch (Error & e) {
+            nix::warn("nix_fetch_github failed for %s/%s: %s", owner, repo, e.what());
+            return 0;
+        }
+    }
+
+    // nix_fetch_url: Fetch URL, return store path
+    // Parameters: url, url_len, hash, hash_len, out_buf, out_buf_len
+    // Returns: actual length of store path (0 on failure)
+    uint32_t nix_fetch_url(
+        uint32_t urlPtr, uint32_t urlLen,
+        uint32_t hashPtr, uint32_t hashLen,
+        uint32_t outPtr, uint32_t outLen)
+    {
+        auto mem = memory();
+        auto url = std::string(span2string(mem.subspan(urlPtr, urlLen)));
+        auto hash = std::string(span2string(mem.subspan(hashPtr, hashLen)));
+
+        debug("nix_fetch_url: %s", url);
+
+        try {
+            std::optional<Hash> expectedHash;
+            if (!hash.empty())
+                expectedHash = Hash::parseSRI(hash);
+
+            auto storePath = fetchers::downloadFile(*state.store, state.fetchSettings, url, "source").storePath;
+            auto storePathStr = state.store->printStorePath(storePath);
+
+            debug("nix_fetch_url: fetched to %s", storePathStr);
+            return copyToWasm(storePathStr, outPtr, outLen);
+        } catch (Error & e) {
+            nix::warn("nix_fetch_url failed for %s: %s", url, e.what());
+            return 0;
+        }
+    }
+
+    // nix_fetch_git: Fetch git repo, return store path
+    // Parameters: url, url_len, rev, rev_len, hash, hash_len, out_buf, out_buf_len
+    // Returns: actual length of store path (0 on failure)
+    uint32_t nix_fetch_git(
+        uint32_t urlPtr, uint32_t urlLen,
+        uint32_t revPtr, uint32_t revLen,
+        uint32_t hashPtr, uint32_t hashLen,
+        uint32_t outPtr, uint32_t outLen)
+    {
+        auto mem = memory();
+        auto url = std::string(span2string(mem.subspan(urlPtr, urlLen)));
+        auto rev = std::string(span2string(mem.subspan(revPtr, revLen)));
+        auto hash = std::string(span2string(mem.subspan(hashPtr, hashLen)));
+
+        debug("nix_fetch_git: %s @ %s", url, rev);
+
+        try {
+            fetchers::Attrs attrs;
+            attrs.emplace("type", "git");
+            attrs.emplace("url", url);
+            if (!rev.empty())
+                attrs.emplace("rev", rev);
+            if (!hash.empty())
+                attrs.emplace("narHash", hash);
+            // Default to exportIgnore=true like fetchGit
+            attrs.emplace("exportIgnore", Explicit<bool>{true});
+
+            auto input = fetchers::Input::fromAttrs(state.fetchSettings, std::move(attrs));
+
+            if (!hash.empty())
+                input.attrs.insert_or_assign("__final", Explicit<bool>(true));
+
+            auto cachedInput = state.inputCache->getAccessor(
+                state.fetchSettings, *state.store, input, fetchers::UseRegistries::No);
+
+            auto storePath = state.mountInput(cachedInput.lockedInput, input, cachedInput.accessor, true);
+            auto storePathStr = state.store->printStorePath(storePath);
+
+            debug("nix_fetch_git: fetched to %s", storePathStr);
+            return copyToWasm(storePathStr, outPtr, outLen);
+        } catch (Error & e) {
+            nix::warn("nix_fetch_git failed for %s: %s", url, e.what());
+            return 0;
+        }
+    }
+
+    // =========================================================================
+    // Aleph FFI: Store operations
+    // =========================================================================
+
+    // nix_resolve_dep: Resolve a dependency name to its store path
+    // This looks up the name in the depRegistry attrset passed to builtins.wasm
+    // Parameters: name, name_len, out_buf, out_buf_len
+    // Returns: actual length of store path (0 on failure)
+    //
+    // NOTE: This requires the depRegistry to be passed as part of the WASM context.
+    // The depRegistry is expected to be an attrset where keys are package names
+    // and values are store paths (strings).
+    uint32_t nix_resolve_dep(
+        uint32_t namePtr, uint32_t nameLen,
+        uint32_t outPtr, uint32_t outLen)
+    {
+        auto name = std::string(span2string(memory().subspan(namePtr, nameLen)));
+
+        debug("nix_resolve_dep: %s", name);
+
+        // Look up in the depRegistry (value ID 1, set during initialization)
+        // The depRegistry is expected to be passed as part of the context
+        if (depRegistry == 0xFFFFFFFF) {
+            nix::warn("nix_resolve_dep: no depRegistry available");
+            return 0;
+        }
+
+        auto & registry = *values.at(depRegistry);
+        state.forceAttrs(registry, noPos, "while resolving dependency from WASM");
+
+        auto sym = state.symbols.create(name);
+        auto attr = registry.attrs()->get(sym);
+        if (!attr) {
+            nix::warn("nix_resolve_dep: dependency '%s' not found in registry", name);
+            return 0;
+        }
+
+        // The value should be a string (store path) or a derivation
+        NixStringContext context;
+        auto storePath = state.coerceToString(noPos, *attr->value, context,
+            "while resolving dependency store path", true, true).toOwned();
+
+        debug("nix_resolve_dep: %s -> %s", name, storePath);
+        return copyToWasm(storePath, outPtr, outLen);
+    }
+
+    // nix_add_to_store: Add a path to the store
+    // Parameters: path, path_len, out_buf, out_buf_len
+    // Returns: actual length of store path (0 on failure)
+    uint32_t nix_add_to_store(
+        uint32_t pathPtr, uint32_t pathLen,
+        uint32_t outPtr, uint32_t outLen)
+    {
+        auto pathStr = std::string(span2string(memory().subspan(pathPtr, pathLen)));
+
+        debug("nix_add_to_store: %s", pathStr);
+
+        try {
+            auto path = state.rootPath(CanonPath(pathStr));
+            auto storePath = fetchToStore(
+                state.fetchSettings, *state.store, path, FetchMode::Copy);
+            auto storePathStr = state.store->printStorePath(storePath);
+
+            debug("nix_add_to_store: added as %s", storePathStr);
+            return copyToWasm(storePathStr, outPtr, outLen);
+        } catch (Error & e) {
+            nix::warn("nix_add_to_store failed for %s: %s", pathStr, e.what());
+            return 0;
+        }
+    }
+
+    // =========================================================================
+    // Aleph FFI: Build context
+    // =========================================================================
+
+    // nix_get_system: Get the current system string
+    // Parameters: out_buf, out_buf_len
+    // Returns: actual length
+    uint32_t nix_get_system(uint32_t outPtr, uint32_t outLen)
+    {
+        auto system = state.settings.getCurrentSystem();
+        debug("nix_get_system: %s", system);
+        return copyToWasm(system, outPtr, outLen);
+    }
+
+    // nix_get_cores: Get the number of CPU cores available
+    // Returns: number of cores
+    uint32_t nix_get_cores()
+    {
+        auto cores = std::thread::hardware_concurrency();
+        if (cores == 0) cores = 1;  // fallback
+        debug("nix_get_cores: %d", cores);
+        return cores;
+    }
+
+    // nix_get_out_path: Get the output path for a named output
+    // This is primarily useful in build context; in eval context it returns a placeholder
+    // Parameters: output_name, name_len, out_buf, out_buf_len
+    // Returns: actual length (0 on failure)
+    uint32_t nix_get_out_path(
+        uint32_t namePtr, uint32_t nameLen,
+        uint32_t outPtr, uint32_t outLen)
+    {
+        auto name = std::string(span2string(memory().subspan(namePtr, nameLen)));
+
+        debug("nix_get_out_path: %s", name);
+
+        // In evaluation context, we look up the output path from the context
+        // If we have an outPath set, return it
+        if (outPath == 0xFFFFFFFF) {
+            // Return a placeholder - actual path will be determined at build time
+            auto placeholder = "/nix/store/placeholder-" + name;
+            return copyToWasm(placeholder, outPtr, outLen);
+        }
+
+        auto & out = *values.at(outPath);
+        NixStringContext context;
+        auto path = state.coerceToString(noPos, out, context,
+            "while getting output path", true, true).toOwned();
+
+        return copyToWasm(path, outPtr, outLen);
     }
 };
 
