@@ -1,35 +1,77 @@
-BasedOnStyle: LLVM
-IndentWidth: 4
-BreakBeforeBraces: Custom
-BraceWrapping:
-  AfterStruct: true
-  AfterClass: true
-  AfterFunction: true
-  AfterUnion: true
-  SplitEmptyRecord: false
-PointerAlignment: Middle
-FixNamespaceComments: true
-SortIncludes: Never
-#IndentPPDirectives: BeforeHash
-SpaceAfterCStyleCast: true
-SpaceAfterTemplateKeyword: false
-AccessModifierOffset: -4
-AlignAfterOpenBracket: AlwaysBreak
-AlignEscapedNewlines: Left
-ColumnLimit: 120
-BreakStringLiterals: false
-BitFieldColonSpacing: None
-AllowShortFunctionsOnASingleLine: Empty
+---
+Language: Cpp
+BasedOnStyle: Google
+Standard: c++20
+
+# Naming conventions
+ColumnLimit: 100
+
+# Braces
+BreakBeforeBraces: Attach
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortBlocksOnASingleLine: Never
+AllowShortFunctionsOnASingleLine: None
+AllowShortLambdasOnASingleLine: All
+
+# Indentation
+IndentWidth: 2
+TabWidth: 2
+UseTab: Never
+AccessModifierOffset: -2
+
+# Alignment
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+AlignOperands: true
+AlignTrailingComments: true
+
+# Spacing
+SpaceAfterCStyleCast: false
+SpaceAfterLogicalNot: false
+SpaceAfterTemplateKeyword: true
+SpaceBeforeAssignmentOperators: true
+SpaceBeforeParens: ControlStatements
+SpaceInEmptyParentheses: false
+SpacesInAngles: false
+SpacesInContainerLiterals: false
+SpacesInCStyleCastParentheses: false
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+
+# Line breaks
+AlwaysBreakAfterReturnType: None
+AlwaysBreakBeforeMultilineStrings: false
 AlwaysBreakTemplateDeclarations: Yes
-BinPackParameters: false
-BreakConstructorInitializers: BeforeComma
-EmptyLineAfterAccessModifier: Leave # change to always/never later?
-EmptyLineBeforeAccessModifier: Leave
-#PackConstructorInitializers: BinPack
-BreakBeforeBinaryOperators: NonAssignment
-AlwaysBreakBeforeMultilineStrings: true
-IndentPPDirectives: AfterHash
-PPIndentWidth: 2
-BinPackArguments: false
+BinPackArguments: true
+BinPackParameters: true
+BreakBeforeBinaryOperators: None
 BreakBeforeTernaryOperators: true
-SeparateDefinitionBlocks: Always
+BreakConstructorInitializers: BeforeColon
+BreakInheritanceList: BeforeColon
+BreakStringLiterals: true
+KeepEmptyLinesAtTheStartOfBlocks: true
+MaxEmptyLinesToKeep: 2
+
+# Includes
+IncludeBlocks: Regroup
+SortIncludes: true
+IncludeIsMainRegex: '$'
+IncludeCategories:
+  - Regex: '^"[^/]*\.h"'     # Main header
+    Priority: 1
+  - Regex: '^<[^.]*>'        # C++ stdlib headers (no extension)
+    Priority: 2
+  - Regex: '^<.*\.h>'        # C headers
+    Priority: 3
+  - Regex: '^<.*>'           # Other library headers
+    Priority: 4
+  - Regex: '.*'              # Project headers
+    Priority: 5
+
+# Other
+Cpp11BracedListStyle: true
+DerivePointerAlignment: false
+PointerAlignment: Left
+ReflowComments: true
+SortUsingDeclarations: true
