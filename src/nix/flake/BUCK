@@ -1,0 +1,28 @@
+# src/nix/flake/BUCK
+
+cxx_library(
+    name = "flake",
+    srcs = [
+        "config.cpp",
+        "flake.cpp",
+        "flake-primops.cpp",
+        "flakeref.cpp",
+        "lockfile.cpp",
+        "settings.cpp",
+        "url-name.cpp",
+    ],
+    headers = [
+        "flake.h",
+        "flake-primops.h",
+        "flakeref.h",
+        "lockfile.h",
+        "settings.h",
+        "url-name.h",
+    ],
+    header_namespace = "nix/flake",
+    visibility = ["PUBLIC"],
+    deps = [
+        "//src/nix/util:util",
+        "//src/nix/store:store",
+    ],
+)

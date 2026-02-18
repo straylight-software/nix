@@ -1,0 +1,43 @@
+# src/nix/fetchers/BUCK
+
+cxx_library(
+    name = "fetchers",
+    srcs = [
+        "attrs.cpp",
+        "builtin.cpp",
+        "cache.cpp",
+        "fetchers.cpp",
+        "fetch-settings.cpp",
+        "fetch-to-store.cpp",
+        "filtering-source-accessor.cpp",
+        "git.cpp",
+        "github.cpp",
+        "git-lfs-fetch.cpp",
+        "git-utils.cpp",
+        "indirect.cpp",
+        "input-cache.cpp",
+        "mercurial.cpp",
+        "path.cpp",
+        "registry.cpp",
+        "tarball.cpp",
+    ],
+    headers = [
+        "attrs.h",
+        "cache.h",
+        "fetchers.h",
+        "fetch-settings.h",
+        "fetch-to-store.h",
+        "filtering-source-accessor.h",
+        "git-lfs-fetch.h",
+        "git-utils.h",
+        "input-cache.h",
+        "registry.h",
+        "tarball.h",
+    ],
+    header_namespace = "nix/fetchers",
+    visibility = ["PUBLIC"],
+    deps = [
+        "//src/nix/util:util",
+        "//src/nix/store:store",
+    ],
+)

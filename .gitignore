@@ -50,3 +50,7 @@ flake-regressions
 
 # direnv
 .direnv/
+.nixd.json
+.nil.toml
+.direnv
+.devshell

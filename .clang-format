@@ -1,45 +1,86 @@
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#                                                        // clang-format // law
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
+#     "The sky above the port was the color of television, tuned to a dead
+#      channel."
+#
+#                                                               — Neuromancer
+#
+# Mechanical layout only. No semantic awareness, just pretty-printing.
+# Runs first in the lint pipeline, rewrites files.
+#
+# See: docs/guidelines/03-cpp.md for rationale.
+#
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ---
 Language: Cpp
-BasedOnStyle: Google
-Standard: c++20
+Standard: Latest
+BasedOnStyle: LLVM
 
-# Naming conventions
-ColumnLimit: 100
+# ══════════════════════════════════════════════════════════════════════════════
+#                                                              // indentation
+# ══════════════════════════════════════════════════════════════════════════════
 
-# Braces
-BreakBeforeBraces: Attach
-AllowShortIfStatementsOnASingleLine: Never
-AllowShortLoopsOnASingleLine: false
-AllowShortBlocksOnASingleLine: Never
-AllowShortFunctionsOnASingleLine: None
-AllowShortLambdasOnASingleLine: All
-
-# Indentation
 IndentWidth: 2
 TabWidth: 2
 UseTab: Never
+IndentCaseLabels: true
+IndentPPDirectives: AfterHash
+NamespaceIndentation: None
 AccessModifierOffset: -2
 
-# Alignment
+# ══════════════════════════════════════════════════════════════════════════════
+#                                                                    // braces
+# ══════════════════════════════════════════════════════════════════════════════
+
+BreakBeforeBraces: Attach
+Cpp11BracedListStyle: true
+AllowShortBlocksOnASingleLine: Never
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortLambdasOnASingleLine: All
+AllowShortCaseLabelsOnASingleLine: false
+
+# ══════════════════════════════════════════════════════════════════════════════
+#                                                              // line // length
+# ══════════════════════════════════════════════════════════════════════════════
+
+ColumnLimit: 100
+
+# ══════════════════════════════════════════════════════════════════════════════
+#                                                                 // alignment
+# ══════════════════════════════════════════════════════════════════════════════
+
 AlignConsecutiveAssignments: false
 AlignConsecutiveDeclarations: false
+AlignConsecutiveMacros: false
 AlignOperands: true
 AlignTrailingComments: true
+DerivePointerAlignment: false
+PointerAlignment: Left
 
-# Spacing
+# ══════════════════════════════════════════════════════════════════════════════
+#                                                                   // spacing
+# ══════════════════════════════════════════════════════════════════════════════
+
 SpaceAfterCStyleCast: false
 SpaceAfterLogicalNot: false
 SpaceAfterTemplateKeyword: true
 SpaceBeforeAssignmentOperators: true
 SpaceBeforeParens: ControlStatements
 SpaceInEmptyParentheses: false
-SpacesInAngles: false
+SpacesInAngles: Never
 SpacesInContainerLiterals: false
 SpacesInCStyleCastParentheses: false
 SpacesInParentheses: false
 SpacesInSquareBrackets: false
 
-# Line breaks
+# ══════════════════════════════════════════════════════════════════════════════
+#                                                             // line // breaks
+# ══════════════════════════════════════════════════════════════════════════════
+
 AlwaysBreakAfterReturnType: None
 AlwaysBreakBeforeMultilineStrings: false
 AlwaysBreakTemplateDeclarations: Yes
@@ -50,28 +91,75 @@ BreakBeforeTernaryOperators: true
 BreakConstructorInitializers: BeforeColon
 BreakInheritanceList: BeforeColon
 BreakStringLiterals: true
-KeepEmptyLinesAtTheStartOfBlocks: true
+KeepEmptyLinesAtTheStartOfBlocks: false
 MaxEmptyLinesToKeep: 2
+PackConstructorInitializers: NextLine
 
-# Includes
+# ══════════════════════════════════════════════════════════════════════════════
+#                                                                  // includes
+# ══════════════════════════════════════════════════════════════════════════════
+#
+# Sort order:
+#   1. CUDA/NV headers (cub, thrust, cutlass, cute, nv::std)
+#   2. C++ standard library (<algorithm>, <memory>, etc.)
+#   3. C standard library wrappers (<cstdio>, <cstdlib>)
+#   4. C standard library (<stdio.h>, <stdlib.h>)
+#   5. System/platform headers
+#   6. straylight:: namespace
+#   7. s4:: namespace
+#   8. Local project headers
+#
+# ══════════════════════════════════════════════════════════════════════════════
+
+SortIncludes: CaseSensitive
 IncludeBlocks: Regroup
-SortIncludes: true
 IncludeIsMainRegex: '$'
 IncludeCategories:
-  - Regex: '^"[^/]*\.h"'     # Main header
+  # ── nv // cuda // cccl ───────────────────────────────────────────────────
+  - Regex: '^<(cuda|cub|thrust|cutlass|cute|nv).*>'
     Priority: 1
-  - Regex: '^<[^.]*>'        # C++ stdlib headers (no extension)
-    Priority: 2
-  - Regex: '^<.*\.h>'        # C headers
-    Priority: 3
-  - Regex: '^<.*>'           # Other library headers
-    Priority: 4
-  - Regex: '.*'              # Project headers
-    Priority: 5
+    SortPriority: 1
 
-# Other
-Cpp11BracedListStyle: true
-DerivePointerAlignment: false
-PointerAlignment: Left
+  # ── cpp // standard // library ───────────────────────────────────────────
+  - Regex: '^<[a-z_]+>'
+    Priority: 2
+    SortPriority: 2
+
+  # ── c // wrappers ────────────────────────────────────────────────────────
+  - Regex: '^<c[a-z]+>'
+    Priority: 3
+    SortPriority: 3
+
+  # ── c // headers ─────────────────────────────────────────────────────────
+  - Regex: '^<.*\.h>'
+    Priority: 4
+    SortPriority: 4
+
+  # ── system // headers ────────────────────────────────────────────────────
+  - Regex: '^<.*>'
+    Priority: 5
+    SortPriority: 5
+
+  # ── straylight // namespace ──────────────────────────────────────────────
+  - Regex: '^"straylight/'
+    Priority: 10
+    SortPriority: 10
+
+  # ── s4 // namespace ──────────────────────────────────────────────────────
+  - Regex: '^"s4/'
+    Priority: 11
+    SortPriority: 11
+
+  # ── local // project ─────────────────────────────────────────────────────
+  - Regex: '^"'
+    Priority: 20
+    SortPriority: 20
+
+# ══════════════════════════════════════════════════════════════════════════════
+#                                                                     // other
+# ══════════════════════════════════════════════════════════════════════════════
+
 ReflowComments: true
 SortUsingDeclarations: true
+FixNamespaceComments: true
+CompactNamespaces: false
