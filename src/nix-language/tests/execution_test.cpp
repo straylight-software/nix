@@ -88,6 +88,18 @@ auto expect_null(std::string_view source) -> void {
   REQUIRE(is_null(result.value));
 }
 
+/// helper to check string result
+auto expect_string(std::string_view source, std::string_view expected) -> void {
+  auto result = eval_nix(source);
+  INFO("Source: " << source);
+  INFO("Error: " << result.error);
+  INFO("Formatted: " << result.formatted);
+  REQUIRE(result.success);
+  REQUIRE(is_string(result.value));
+  // The formatted output includes quotes, so check the formatted value
+  REQUIRE(result.formatted == "\"" + std::string(expected) + "\"");
+}
+
 // =============================================================================
 // Integer Literals
 // =============================================================================
@@ -729,4 +741,78 @@ TEST_CASE("exec: builtins.trace", "[execution][builtins]") {
   expect_bool(R"(builtins.trace "testing" true)", true);
   // trace with computed first arg
   expect_int("builtins.trace (1 + 1) 100", 100);
+}
+
+// =============================================================================
+// Attrset Builtins (hasAttr, getAttr, removeAttrs)
+// =============================================================================
+
+TEST_CASE("exec: builtins.hasAttr", "[execution][builtins]") {
+  expect_bool(R"(builtins.hasAttr "x" { x = 1; })", true);
+  expect_bool(R"(builtins.hasAttr "y" { x = 1; })", false);
+  expect_bool(R"(builtins.hasAttr "a" {})", false);
+  expect_bool(R"(builtins.hasAttr "foo" { foo = null; bar = 2; })", true);
+}
+
+TEST_CASE("exec: builtins.getAttr", "[execution][builtins]") {
+  expect_int(R"(builtins.getAttr "x" { x = 42; })", 42);
+  expect_int(R"(builtins.getAttr "b" { a = 1; b = 2; })", 2);
+  expect_bool(R"(builtins.getAttr "flag" { flag = true; })", true);
+  // getAttr on missing attribute should fail
+  auto result = eval_nix(R"(builtins.getAttr "missing" { x = 1; })");
+  REQUIRE_FALSE(result.success);
+  REQUIRE(result.error.find("not found") != std::string::npos);
+}
+
+TEST_CASE("exec: builtins.removeAttrs", "[execution][builtins]") {
+  // Remove single attribute
+  expect_int(
+      R"(builtins.length (builtins.attrNames (builtins.removeAttrs { a = 1; b = 2; } ["a"])))", 1);
+  expect_int(R"((builtins.removeAttrs { a = 1; b = 2; } ["a"]).b)", 2);
+  // Remove multiple attributes
+  expect_int(
+      R"(builtins.length (builtins.attrNames (builtins.removeAttrs { a = 1; b = 2; c = 3; } ["a" "c"])))",
+      1);
+  // Remove non-existent attribute (no-op)
+  expect_int(R"(builtins.length (builtins.attrNames (builtins.removeAttrs { a = 1; } ["b"])))", 1);
+  // Remove all attributes
+  expect_int(R"(builtins.length (builtins.attrNames (builtins.removeAttrs { a = 1; } ["a"])))", 0);
+  // Remove from empty set
+  expect_int(R"(builtins.length (builtins.attrNames (builtins.removeAttrs {} ["a"])))", 0);
+}
+
+// =============================================================================
+// String Builtins (substring)
+// =============================================================================
+
+TEST_CASE("exec: builtins.substring", "[execution][builtins]") {
+  // Basic substring
+  expect_string(R"(builtins.substring 0 3 "hello")", "hel");
+  expect_string(R"(builtins.substring 2 3 "hello")", "llo");
+  expect_string(R"(builtins.substring 0 5 "hello")", "hello");
+  // Start beyond end
+  expect_string(R"(builtins.substring 10 3 "hello")", "");
+  // Length beyond end (clamps to available)
+  expect_string(R"(builtins.substring 3 100 "hello")", "lo");
+  // Negative length means rest of string
+  expect_string(R"(builtins.substring 2 (-1) "hello")", "llo");
+  // Zero length
+  expect_string(R"(builtins.substring 0 0 "hello")", "");
+  // Empty string
+  expect_string(R"(builtins.substring 0 3 "")", "");
+}
+
+TEST_CASE("exec: builtins.sort", "[execution][builtins]") {
+  // Sort integers ascending
+  expect_int("builtins.head (builtins.sort (a: b: a < b) [3 1 2])", 1);
+  expect_int("builtins.elemAt (builtins.sort (a: b: a < b) [3 1 2]) 1", 2);
+  expect_int("builtins.elemAt (builtins.sort (a: b: a < b) [3 1 2]) 2", 3);
+  // Sort integers descending
+  expect_int("builtins.head (builtins.sort (a: b: a > b) [3 1 2])", 3);
+  // Empty list
+  expect_int("builtins.length (builtins.sort (a: b: a < b) [])", 0);
+  // Single element
+  expect_int("builtins.head (builtins.sort (a: b: a < b) [42])", 42);
+  // Already sorted
+  expect_int("builtins.head (builtins.sort (a: b: a < b) [1 2 3])", 1);
 }

@@ -531,6 +531,29 @@ void rt_init_builtins(runtime_context& ctx);
 /// Concatenate a list of lists: concatLists [[a b] [c d]] = [a b c d]
 [[nodiscard]] auto rt_concat_lists(runtime_context& ctx, nix_value lists) -> nix_value;
 
+/// Sort a list using comparator: sort comparator list
+[[nodiscard]] auto rt_sort(runtime_context& ctx, nix_value comparator, nix_value list) -> nix_value;
+
+// --- String Builtins ---
+
+/// Extract substring: substring start len str
+[[nodiscard]] auto rt_substring(runtime_context& ctx, nix_value start, nix_value len, nix_value str)
+    -> nix_value;
+
+// --- Attrset Builtins ---
+
+/// Check if attrset has attribute: hasAttr name set
+[[nodiscard]] auto rt_builtin_has_attr(runtime_context& ctx, nix_value name, nix_value set)
+    -> nix_value;
+
+/// Get attribute from attrset: getAttr name set
+[[nodiscard]] auto rt_builtin_get_attr(runtime_context& ctx, nix_value name, nix_value set)
+    -> nix_value;
+
+/// Remove attributes from attrset: removeAttrs set names
+[[nodiscard]] auto rt_remove_attrs(runtime_context& ctx, nix_value set, nix_value names)
+    -> nix_value;
+
 // --- Error Handling ---
 
 /// Throw an error with message: throw "message"

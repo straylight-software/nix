@@ -9,6 +9,7 @@
 #include <iostream>
 #include <limits>
 #include <sstream>
+#include <unordered_set>
 #include <vector>
 
 namespace nix::language::runtime {
@@ -1107,6 +1108,170 @@ auto rt_string_length(runtime_context& ctx, nix_value s) -> nix_value {
   return make_int(static_cast<std::int32_t>(str.size()));
 }
 
+auto rt_substring(runtime_context& ctx, nix_value start, nix_value len, nix_value str)
+    -> nix_value {
+  start = rt_force(ctx, start);
+  len = rt_force(ctx, len);
+  str = rt_force(ctx, str);
+
+  if (!is_int(start)) {
+    throw type_error("builtins.substring: start must be int, got '" +
+                     std::string(type_name(start)) + "'");
+  }
+  if (!is_int(len)) {
+    throw type_error("builtins.substring: length must be int, got '" + std::string(type_name(len)) +
+                     "'");
+  }
+  if (!is_string(str)) {
+    throw type_error("builtins.substring: expected string, got '" + std::string(type_name(str)) +
+                     "'");
+  }
+
+  auto start_val = static_cast<std::int32_t>(get_payload(start));
+  auto len_val = static_cast<std::int32_t>(get_payload(len));
+  auto s = ctx.read_string(get_payload(str));
+
+  // Nix semantics: negative start treated as 0, negative len means "rest of string"
+  if (start_val < 0) {
+    start_val = 0;
+  }
+
+  auto start_idx = static_cast<std::size_t>(start_val);
+  if (start_idx >= s.size()) {
+    // Start beyond string -> empty string
+    auto ptr = allocate_string(ctx, "");
+    return make_value(value_tag::string, ptr);
+  }
+
+  std::size_t result_len;
+  if (len_val < 0) {
+    // Negative length means rest of string
+    result_len = s.size() - start_idx;
+  } else {
+    result_len = std::min(static_cast<std::size_t>(len_val), s.size() - start_idx);
+  }
+
+  auto result = s.substr(start_idx, result_len);
+  auto ptr = allocate_string(ctx, result);
+  return make_value(value_tag::string, ptr);
+}
+
+// =============================================================================
+// Attrset Builtins (2-arg)
+// =============================================================================
+
+auto rt_builtin_has_attr(runtime_context& ctx, nix_value name, nix_value set) -> nix_value {
+  name = rt_force(ctx, name);
+  set = rt_force(ctx, set);
+
+  if (!is_string(name)) {
+    throw type_error("builtins.hasAttr: name must be string, got '" + std::string(type_name(name)) +
+                     "'");
+  }
+  if (!is_attrset(set)) {
+    throw type_error("builtins.hasAttr: expected set, got '" + std::string(type_name(set)) + "'");
+  }
+
+  auto key = ctx.read_string(get_payload(name));
+  auto attrs_ptr = get_payload(set);
+  auto result = find_attr(ctx, attrs_ptr, key);
+
+  return result.has_value() ? constants::bool_true : constants::bool_false;
+}
+
+auto rt_builtin_get_attr(runtime_context& ctx, nix_value name, nix_value set) -> nix_value {
+  name = rt_force(ctx, name);
+  set = rt_force(ctx, set);
+
+  if (!is_string(name)) {
+    throw type_error("builtins.getAttr: name must be string, got '" + std::string(type_name(name)) +
+                     "'");
+  }
+  if (!is_attrset(set)) {
+    throw type_error("builtins.getAttr: expected set, got '" + std::string(type_name(set)) + "'");
+  }
+
+  auto key = ctx.read_string(get_payload(name));
+  auto attrs_ptr = get_payload(set);
+  auto result = find_attr(ctx, attrs_ptr, key);
+
+  if (!result.has_value()) {
+    throw attr_error("builtins.getAttr: attribute '" + std::string(key) + "' not found");
+  }
+
+  return *result;
+}
+
+auto rt_remove_attrs(runtime_context& ctx, nix_value set, nix_value names) -> nix_value {
+  set = rt_force(ctx, set);
+  names = rt_force(ctx, names);
+
+  if (!is_attrset(set)) {
+    throw type_error("builtins.removeAttrs: expected set, got '" + std::string(type_name(set)) +
+                     "'");
+  }
+  if (!is_list(names)) {
+    throw type_error("builtins.removeAttrs: names must be list, got '" +
+                     std::string(type_name(names)) + "'");
+  }
+
+  auto attrs_ptr = get_payload(set);
+  if (attrs_ptr == 0) {
+    return set; // empty set stays empty
+  }
+
+  // Collect names to remove
+  std::unordered_set<std::string> remove_set;
+  auto names_ptr = get_payload(names);
+  if (names_ptr != 0) {
+    auto names_count = ctx.read_u32(names_ptr + mem::LIST_COUNT_OFFSET);
+    for (std::uint32_t i = 0; i < names_count; ++i) {
+      auto elem = ctx.read_value(names_ptr + mem::LIST_ELEMENTS_OFFSET + i * mem::VALUE_SIZE);
+      elem = rt_force(ctx, elem);
+      if (is_string(elem)) {
+        remove_set.insert(std::string(ctx.read_string(get_payload(elem))));
+      }
+    }
+  }
+
+  if (remove_set.empty()) {
+    return set; // nothing to remove
+  }
+
+  // Collect remaining attributes
+  auto count = ctx.read_u32(attrs_ptr + mem::ATTRSET_COUNT_OFFSET);
+  std::vector<std::pair<std::string, nix_value>> remaining;
+  for (std::uint32_t i = 0; i < count; ++i) {
+    auto entry = attrs_ptr + mem::ATTRSET_ENTRIES_OFFSET + i * mem::ATTRSET_ENTRY_SIZE;
+    auto key_offset = ctx.read_u32(entry + mem::ATTRSET_ENTRY_KEY_OFFSET);
+    auto key = std::string(ctx.read_string(key_offset));
+    if (remove_set.find(key) == remove_set.end()) {
+      auto value = ctx.read_value(entry + mem::ATTRSET_ENTRY_VALUE_OFFSET);
+      remaining.emplace_back(std::move(key), value);
+    }
+  }
+
+  if (remaining.empty()) {
+    return make_value(value_tag::attribute_set, 0);
+  }
+
+  // Allocate new attrset
+  auto new_count = static_cast<std::uint32_t>(remaining.size());
+  auto new_size = mem::attrset_size(new_count);
+  auto new_ptr = ctx.allocate(new_size);
+  ctx.write_i32(new_ptr + mem::ATTRSET_COUNT_OFFSET, static_cast<std::int32_t>(new_count));
+
+  for (std::uint32_t i = 0; i < new_count; ++i) {
+    auto& [key, value] = remaining[i];
+    auto key_ptr = allocate_string(ctx, key);
+    auto entry = new_ptr + mem::ATTRSET_ENTRIES_OFFSET + i * mem::ATTRSET_ENTRY_SIZE;
+    ctx.write_i32(entry + mem::ATTRSET_ENTRY_KEY_OFFSET, static_cast<std::int32_t>(key_ptr));
+    ctx.write_value(entry + mem::ATTRSET_ENTRY_VALUE_OFFSET, value);
+  }
+
+  return make_value(value_tag::attribute_set, new_ptr);
+}
+
 // =============================================================================
 // Higher-Order Functions
 // =============================================================================
@@ -1314,6 +1479,59 @@ auto rt_concat_lists(runtime_context& ctx, nix_value lists) -> nix_value {
       ctx.write_value(result_ptr + mem::LIST_ELEMENTS_OFFSET + dest_idx * mem::VALUE_SIZE, elem);
       ++dest_idx;
     }
+  }
+
+  return make_value(value_tag::list, result_ptr);
+}
+
+auto rt_sort(runtime_context& ctx, nix_value comparator, nix_value list) -> nix_value {
+  list = rt_force(ctx, list);
+
+  if (!is_list(list)) {
+    throw type_error("builtins.sort: expected list, got '" + std::string(type_name(list)) + "'");
+  }
+
+  auto list_ptr = get_payload(list);
+  if (list_ptr == 0) {
+    return make_value(value_tag::list, 0);
+  }
+
+  auto count = ctx.read_u32(list_ptr + mem::LIST_COUNT_OFFSET);
+  if (count <= 1) {
+    return list; // already sorted
+  }
+
+  // Collect elements into a vector
+  std::vector<nix_value> elements;
+  elements.reserve(count);
+  for (std::uint32_t i = 0; i < count; ++i) {
+    auto elem = ctx.read_value(list_ptr + mem::LIST_ELEMENTS_OFFSET + i * mem::VALUE_SIZE);
+    elements.push_back(elem);
+  }
+
+  // Sort using the comparator function
+  // comparator a b should return true if a < b
+  // We use stable_sort for consistency
+  std::stable_sort(elements.begin(), elements.end(),
+                   [&ctx, comparator](nix_value a, nix_value b) -> bool {
+                     // Apply comparator to a, then to b
+                     auto partial = rt_apply(ctx, comparator, a);
+                     auto result = rt_apply(ctx, partial, b);
+                     result = rt_force(ctx, result);
+                     if (!is_bool(result)) {
+                       throw type_error("builtins.sort: comparator must return bool, got '" +
+                                        std::string(type_name(result)) + "'");
+                     }
+                     return result == constants::bool_true;
+                   });
+
+  // Allocate result list
+  auto result_size = mem::list_size(count);
+  auto result_ptr = ctx.allocate(result_size);
+  ctx.write_i32(result_ptr + mem::LIST_COUNT_OFFSET, static_cast<std::int32_t>(count));
+
+  for (std::uint32_t i = 0; i < count; ++i) {
+    ctx.write_value(result_ptr + mem::LIST_ELEMENTS_OFFSET + i * mem::VALUE_SIZE, elements[i]);
   }
 
   return make_value(value_tag::list, result_ptr);
@@ -1550,16 +1768,21 @@ constexpr std::uint32_t primop_arity(std::uint32_t index) {
     // 2-arg primops
     case b::elem: // elem x list
     case BUILTIN_ELEM_AT:
-    case b::map:      // map f list
-    case b::filter:   // filter pred list
-    case b::gen_list: // genList f n
-    case b::trace:    // trace msg val
-    case b::seq:      // seq a b
-    case b::deep_seq: // deepSeq a b
+    case b::map:          // map f list
+    case b::filter:       // filter pred list
+    case b::gen_list:     // genList f n
+    case b::trace:        // trace msg val
+    case b::seq:          // seq a b
+    case b::deep_seq:     // deepSeq a b
+    case b::has_attr:     // hasAttr name set
+    case b::get_attr:     // getAttr name set
+    case b::remove_attrs: // removeAttrs set names
+    case b::sort:         // sort comparator list
       return 2;
 
     // 3-arg primops
-    case b::foldl:
+    case b::foldl:     // foldl' op init list
+    case b::substring: // substring start len str
       return 3;
 
     default:
@@ -1670,6 +1893,14 @@ static auto rt_apply_partial_primop(runtime_context& ctx, std::uint32_t partial_
         return rt_seq(ctx, arg1, arg2);
       case b::deep_seq:
         return rt_deep_seq(ctx, arg1, arg2);
+      case b::has_attr:
+        return rt_builtin_has_attr(ctx, arg1, arg2);
+      case b::get_attr:
+        return rt_builtin_get_attr(ctx, arg1, arg2);
+      case b::remove_attrs:
+        return rt_remove_attrs(ctx, arg1, arg2);
+      case b::sort:
+        return rt_sort(ctx, arg1, arg2);
       default:
         throw runtime_error("unknown 2-arg primop index: " + std::to_string(primop_index));
     }
@@ -1706,6 +1937,8 @@ static auto rt_apply_partial_primop_3arg(runtime_context& ctx, std::uint32_t par
   switch (primop_index) {
     case b::foldl:
       return rt_foldl(ctx, arg1, arg2, arg3);
+    case b::substring:
+      return rt_substring(ctx, arg1, arg2, arg3);
     default:
       throw runtime_error("unknown 3-arg primop index: " + std::to_string(primop_index));
   }
@@ -1748,13 +1981,18 @@ void rt_init_builtins(runtime_context& ctx) {
   entries.emplace_back("foldl'", make_value(value_tag::primop, b::foldl));
   entries.emplace_back("genList", make_value(value_tag::primop, b::gen_list));
   entries.emplace_back("concatLists", make_value(value_tag::primop, BUILTIN_CONCAT_LISTS));
+  entries.emplace_back("sort", make_value(value_tag::primop, b::sort));
 
   // Attrset operations
   entries.emplace_back("attrNames", make_value(value_tag::primop, b::attr_names));
   entries.emplace_back("attrValues", make_value(value_tag::primop, b::attr_values));
+  entries.emplace_back("hasAttr", make_value(value_tag::primop, b::has_attr));
+  entries.emplace_back("getAttr", make_value(value_tag::primop, b::get_attr));
+  entries.emplace_back("removeAttrs", make_value(value_tag::primop, b::remove_attrs));
 
   // String operations
   entries.emplace_back("stringLength", make_value(value_tag::primop, b::string_length));
+  entries.emplace_back("substring", make_value(value_tag::primop, b::substring));
   entries.emplace_back("typeOf", make_value(value_tag::primop, b::type_of));
 
   // Error handling
