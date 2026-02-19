@@ -1,4 +1,4 @@
 builtins.genericClosure {
   startSet = [ { key = 1; } ];
-  operator = x: "not a list";
+  operator = _x: "not a list";
 }

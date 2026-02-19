@@ -1,0 +1,32 @@
+# // straylight // nix // third_party
+#
+# External dependencies - system libraries from Nix devshell
+# Includes come from .buckconfig.local generated system paths
+#
+# TODO: Move to proper prebuilt_cxx_library with Nix store paths
+
+# Core dependencies used by libutil
+filegroup(name = "boost", srcs = [], visibility = ["PUBLIC"])
+filegroup(name = "nlohmann_json", srcs = [], visibility = ["PUBLIC"])
+filegroup(name = "openssl", srcs = [], visibility = ["PUBLIC"])
+filegroup(name = "blake3", srcs = [], visibility = ["PUBLIC"])
+filegroup(name = "brotli", srcs = [], visibility = ["PUBLIC"])
+filegroup(name = "libsodium", srcs = [], visibility = ["PUBLIC"])
+filegroup(name = "libarchive", srcs = [], visibility = ["PUBLIC"])
+
+# Dependencies used by libstore
+filegroup(name = "sqlite", srcs = [], visibility = ["PUBLIC"])
+filegroup(name = "sqlite3", srcs = [], visibility = ["PUBLIC"])  # alias
+filegroup(name = "curl", srcs = [], visibility = ["PUBLIC"])
+filegroup(name = "aws-sdk-cpp", srcs = [], visibility = ["PUBLIC"])
+
+# Dependencies used by libfetchers
+filegroup(name = "libgit2", srcs = [], visibility = ["PUBLIC"])
+
+# Dependencies used by libexpr
+filegroup(name = "gc", srcs = [], visibility = ["PUBLIC"])  # boehm-gc
+filegroup(name = "toml11", srcs = [], visibility = ["PUBLIC"])
+
+# Dependencies used by libmain
+filegroup(name = "editline", srcs = [], visibility = ["PUBLIC"])
+filegroup(name = "lowdown", srcs = [], visibility = ["PUBLIC"])

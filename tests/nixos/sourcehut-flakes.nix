@@ -7,7 +7,7 @@
 }:
 
 let
-  pkgs = config.nodes.sourcehut.nixpkgs.pkgs;
+  inherit (config.nodes.sourcehut.nixpkgs) pkgs;
 
   # Generate a fake root CA and a fake git.sr.ht certificate.
   cert = pkgs.runCommand "cert" { buildInputs = [ pkgs.openssl ]; } ''

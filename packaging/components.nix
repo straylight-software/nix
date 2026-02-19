@@ -9,9 +9,7 @@
 scope:
 
 let
-  inherit (scope)
-    callPackage
-    ;
+  inherit (scope) callPackage;
   inherit
     (scope.callPackage (
       { stdenv }:
@@ -21,11 +19,7 @@ let
     ) { })
     stdenv
     ;
-  inherit (pkgs.buildPackages)
-    meson
-    ninja
-    pkg-config
-    ;
+  inherit (pkgs.buildPackages) meson ninja pkg-config;
 
   baseVersion = lib.fileContents ../.version-determinate;
 
@@ -50,11 +44,10 @@ let
   mkPackageBuilder =
     exts: userFn: stdenv.mkDerivation (lib.extends (lib.composeManyExtensions exts) userFn);
 
-  setVersionLayer = finalAttrs: prevAttrs: {
-  };
+  setVersionLayer = _finalAttrs: _prevAttrs: { };
 
   localSourceLayer =
-    finalAttrs: prevAttrs:
+    _finalAttrs: prevAttrs:
     let
       workDirPath =
         # Ideally we'd pick finalAttrs.workDir, but for now `mkDerivation` has
@@ -84,7 +77,7 @@ let
   resolveRelPath = p: lib.path.removePrefix root p;
 
   makeFetchedSourceLayer =
-    finalScope: finalAttrs: prevAttrs:
+    finalScope: _finalAttrs: prevAttrs:
     let
       workDirPath =
         # Ideally we'd pick finalAttrs.workDir, but for now `mkDerivation` has
@@ -109,7 +102,7 @@ let
       workDir = null;
     };
 
-  mesonLayer = finalAttrs: prevAttrs: {
+  mesonLayer = _finalAttrs: prevAttrs: {
     # NOTE:
     # As of https://github.com/NixOS/nixpkgs/blob/8baf8241cea0c7b30e0b8ae73474cb3de83c1a30/pkgs/by-name/me/meson/setup-hook.sh#L26,
     # `mesonBuildType` defaults to `plain` if not specified. We want our Nix-built binaries to be optimized by default.
@@ -141,20 +134,16 @@ let
       ninja
     ]
     ++ prevAttrs.nativeBuildInputs or [ ];
-    mesonCheckFlags = prevAttrs.mesonCheckFlags or [ ] ++ [
-      "--print-errorlogs"
-    ];
+    mesonCheckFlags = prevAttrs.mesonCheckFlags or [ ] ++ [ "--print-errorlogs" ];
   };
 
-  mesonBuildLayer = finalAttrs: prevAttrs: {
-    nativeBuildInputs = prevAttrs.nativeBuildInputs or [ ] ++ [
-      pkg-config
-    ];
+  mesonBuildLayer = _finalAttrs: prevAttrs: {
+    nativeBuildInputs = prevAttrs.nativeBuildInputs or [ ] ++ [ pkg-config ];
     separateDebugInfo = !stdenv.hostPlatform.isStatic;
     hardeningDisable = lib.optional stdenv.hostPlatform.isStatic "pie";
   };
 
-  mesonLibraryLayer = finalAttrs: prevAttrs: {
+  mesonLibraryLayer = _finalAttrs: prevAttrs: {
     preConfigure =
       let
         interpositionFlags = [
@@ -176,10 +165,10 @@ let
     outputs = prevAttrs.outputs or [ "out" ] ++ [ "dev" ];
   };
 
-  fixupStaticLayer = finalAttrs: prevAttrs: {
+  fixupStaticLayer = _finalAttrs: prevAttrs: {
     postFixup =
       prevAttrs.postFixup or ""
-      + lib.optionalString (stdenv.hostPlatform.isStatic) ''
+      + lib.optionalString stdenv.hostPlatform.isStatic ''
         # HACK: Otherwise the result will have the entire buildInputs closure
         # injected by the pkgsStatic stdenv
         # <https://github.com/NixOS/nixpkgs/issues/83667>
@@ -190,13 +179,13 @@ let
   # Work around weird `--as-needed` linker behavior with BSD, see
   # https://github.com/mesonbuild/meson/issues/3593
   bsdNoLinkAsNeeded =
-    finalAttrs: prevAttrs:
+    _finalAttrs: prevAttrs:
     lib.optionalAttrs stdenv.hostPlatform.isBSD {
       mesonFlags = [ (lib.mesonBool "b_asneeded" false) ] ++ prevAttrs.mesonFlags or [ ];
     };
 
   enableSanitizersLayer =
-    finalAttrs: prevAttrs:
+    _finalAttrs: prevAttrs:
     let
       sanitizers = lib.optional scope.withASan "address" ++ lib.optional scope.withUBSan "undefined";
     in
@@ -204,9 +193,7 @@ let
       mesonFlags =
         (prevAttrs.mesonFlags or [ ])
         ++ lib.optionals (lib.length sanitizers > 0) (
-          [
-            (lib.mesonOption "b_sanitize" (lib.concatStringsSep "," sanitizers))
-          ]
+          [ (lib.mesonOption "b_sanitize" (lib.concatStringsSep "," sanitizers)) ]
           ++ (lib.optionals stdenv.cc.isClang [
             # https://www.github.com/mesonbuild/meson/issues/764
             (lib.mesonBool "b_lundef" false)
@@ -214,7 +201,7 @@ let
         );
     };
 
-  nixDefaultsLayer = finalAttrs: prevAttrs: {
+  nixDefaultsLayer = _finalAttrs: prevAttrs: {
     strictDeps = prevAttrs.strictDeps or true;
     enableParallelBuilding = true;
     pos = builtins.unsafeGetAttrPos "pname" prevAttrs;
@@ -239,11 +226,7 @@ let
   */
   appendPatches =
     scope: patches:
-    scope.overrideScope (
-      finalScope: prevScope: {
-        patches = prevScope.patches ++ patches;
-      }
-    );
+    scope.overrideScope (_finalScope: prevScope: { patches = prevScope.patches ++ patches; });
 
 in
 
@@ -269,7 +252,7 @@ in
   /**
     A user-provided extension function to apply to each component derivation.
   */
-  mesonComponentOverrides = finalAttrs: prevAttrs: { };
+  mesonComponentOverrides = _finalAttrs: _prevAttrs: { };
 
   /**
     An overridable derivation layer for handling the sources.
@@ -288,7 +271,7 @@ in
   overrideAllMesonComponents =
     f:
     scope.overrideScope (
-      finalScope: prevScope: {
+      _finalScope: _prevScope: {
         mesonComponentOverrides = lib.composeExtensions scope.mesonComponentOverrides f;
       }
     );
@@ -306,12 +289,12 @@ in
   overrideSource =
     src:
     scope.overrideScope (
-      finalScope: prevScope: {
+      finalScope: _prevScope: {
         sourceLayer = makeFetchedSourceLayer finalScope;
         /**
           Unpatched source for the build of Nix. Packaging expressions will be ignored.
         */
-        src = src;
+        inherit src;
         /**
           Patches for the whole Nix source. Changes to packaging expressions will be ignored.
         */
@@ -330,7 +313,7 @@ in
               }
             );
         resolvePath = p: finalScope.patchedSrc + "/${resolveRelPath p}";
-        filesetToSource = { root, fileset }: finalScope.resolvePath root;
+        filesetToSource = { root }: finalScope.resolvePath root;
         appendPatches = appendPatches finalScope;
       }
     );
@@ -412,9 +395,7 @@ in
   */
   nix-cli = callPackage ../src/nix/package.nix { version = fineVersion; };
 
-  nix-functional-tests = callPackage ../tests/functional/package.nix {
-    version = fineVersion;
-  };
+  nix-functional-tests = callPackage ../tests/functional/package.nix { version = fineVersion; };
 
   /**
     The manual as would be published on https://nix.dev/reference/nix-manual

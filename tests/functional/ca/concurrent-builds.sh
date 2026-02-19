@@ -12,7 +12,7 @@ export NIX_TESTS_CA_BY_DEFAULT=1
 clearStore
 
 for i in {0..5}; do
-    nix build --no-link --file ./racy.nix &
+  nix build --no-link --file ./racy.nix &
 done
 
 wait

@@ -27,30 +27,30 @@ TODO_NixOS
 # [1]: https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/fs/overlayfs/params.c?id=3006adf3be79cde4d14b1800b963b82b6e5572e0#n549
 export LIBMOUNT_FORCE_MOUNT2=always
 
-requireEnvironment () {
+requireEnvironment() {
   requireSandboxSupport
   [[ $busybox =~ busybox ]] || skipTest "no busybox"
   if [[ $(uname) != Linux ]]; then skipTest "Need Linux for overlayfs"; fi
   needLocalStore "The test uses --store always so we would just be bypassing the daemon"
 }
 
-addConfig () {
-    echo "$1" >> "$test_nix_conf"
+addConfig() {
+  echo "$1" >>"$test_nix_conf"
 }
 
-setupConfig () {
+setupConfig() {
   addConfig "require-drop-supplementary-groups = false"
   addConfig "build-users-group = "
   enableFeatures "local-overlay-store"
 }
 
-setupStoreDirs () {
+setupStoreDirs() {
   # Attempt to create store dirs on tmpfs volume.
   # This ensures lowerdir, upperdir and workdir will be on
   # a consistent filesystem that fully supports OverlayFS.
   storeVolume="$TEST_ROOT/stores"
   mkdir -p "$storeVolume"
-  mount -t tmpfs tmpfs "$storeVolume" || true  # But continue anyway if that fails.
+  mount -t tmpfs tmpfs "$storeVolume" || true # But continue anyway if that fails.
 
   storeA="$storeVolume/store-a"
   storeBTop="$storeVolume/store-b"
@@ -62,15 +62,15 @@ setupStoreDirs () {
 }
 
 # Mounting Overlay Store
-mountOverlayfs () {
+mountOverlayfs() {
   mount -t overlay overlay \
     -o lowerdir="$storeA/nix/store" \
     -o upperdir="$storeBTop" \
     -o workdir="$storeVolume/workdir" \
-    "$storeBRoot/nix/store" \
-    || skipTest "overlayfs is not supported"
+    "$storeBRoot/nix/store" ||
+    skipTest "overlayfs is not supported"
 
-  cleanupOverlay () {
+  cleanupOverlay() {
     # shellcheck disable=2317
     umount -n "$storeBRoot/nix/store"
     # shellcheck disable=2317
@@ -79,18 +79,20 @@ mountOverlayfs () {
   trap cleanupOverlay EXIT
 }
 
-remountOverlayfs () {
+remountOverlayfs() {
   mount -o remount "$storeBRoot/nix/store"
 }
 
-toRealPath () {
-  storeDir=$1; shift
-  storePath=$1; shift
+toRealPath() {
+  storeDir=$1
+  shift
+  storePath=$1
+  shift
   # shellcheck disable=SC2001
   echo "$storeDir""$(echo "$storePath" | sed "s^${NIX_STORE_DIR:-/nix/store}^^")"
 }
 
-initLowerStore () {
+initLowerStore() {
   # Init lower store with some stuff
   nix-store --store "$storeA" --add ../dummy
 
@@ -101,10 +103,13 @@ initLowerStore () {
 }
 
 addTextToStore() {
-  storeDir=$1; shift
-  filename=$1; shift
-  content=$1; shift
+  storeDir=$1
+  shift
+  filename=$1
+  shift
+  content=$1
+  shift
   filePath="$TEST_HOME/$filename"
-  echo "$content" > "$filePath"
+  echo "$content" >"$filePath"
   nix-store --store "$storeDir" --add "$filePath"
 }

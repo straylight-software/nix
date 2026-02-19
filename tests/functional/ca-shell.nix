@@ -1,5 +1,1 @@
-{
-  inNixShell ? false,
-  ...
-}@args:
-import ./shell.nix (args // { contentAddressed = true; })
+args: import ./shell.nix (args // { contentAddressed = true; })

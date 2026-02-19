@@ -4,16 +4,16 @@
 
 # Synopsis
 
-`nix-store` *operation* [*options…*] [*arguments…*]
-  [`--option` *name* *value*]
-  [`--add-root` *path*]
+`nix-store` *operation* \[*options…*\] \[*arguments…*\] \[`--option` *name* *value*\] \[`--add-root`
+*path*\]
 
 # Description
 
-The command `nix-store` performs primitive operations on the Nix store.
-You generally do not need to run this command manually.
+The command `nix-store` performs primitive operations on the Nix store. You generally do not need to
+run this command manually.
 
-`nix-store` takes exactly one *operation* flag which indicates the subcommand to be performed. The following operations are available:
+`nix-store` takes exactly one *operation* flag which indicates the subcommand to be performed. The
+following operations are available:
 
 - [`--realise`](./nix-store/realise.md)
 - [`--serve`](./nix-store/serve.md)

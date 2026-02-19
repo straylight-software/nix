@@ -14,7 +14,7 @@ let
     }).overrideScope
       (
         _: _: {
-          mesonComponentOverrides = finalAttrs: prevAttrs: {
+          mesonComponentOverrides = _finalAttrs: prevAttrs: {
             outputs = (prevAttrs.outputs or [ "out" ]) ++ [ "buildprofile" ];
             nativeBuildInputs = [ pkgs.clangbuildanalyzer ] ++ prevAttrs.nativeBuildInputs or [ ];
             __impure = true;
@@ -62,7 +62,7 @@ let
 
   componentDerivationsToProfile = builtins.intersectAttrs componentsToProfile nixComponentsInstrumented;
   componentBuildProfiles = lib.mapAttrs (
-    n: v: lib.getOutput "buildprofile" v
+    _n: v: lib.getOutput "buildprofile" v
   ) componentDerivationsToProfile;
 
   buildTimeReport =

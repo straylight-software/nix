@@ -6,7 +6,7 @@
 }:
 
 let
-  pkgs = config.nodes.machine.nixpkgs.pkgs;
+  inherit (config.nodes.machine.nixpkgs) pkgs;
 
   nixImage = pkgs.callPackage ../../docker.nix { };
   nixUserImage = pkgs.callPackage ../../docker.nix {

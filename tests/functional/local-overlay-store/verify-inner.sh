@@ -16,7 +16,6 @@ initLowerStore
 
 mountOverlayfs
 
-
 ## Initialise stores for test
 
 # Realise a derivation from the lower store to propagate paths to overlay DB
@@ -36,7 +35,6 @@ backupStore="$storeVolume/backup"
 mkdir "$backupStore"
 cp -ar "$storeBRoot/nix" "$backupStore"
 
-
 ## Deliberately corrupt store paths
 
 # Delete one of the derivation inputs in the lower store
@@ -53,14 +51,13 @@ truncate -s 0 "$storeA/$lowerOnlyPath"
 # Ensure overlayfs is synchronised
 remountOverlayfs
 
-
 ## Now test that verify and repair work as expected
 
 # Verify overlay store without attempting to repair it
 verifyOutput=$(expectStderr 1 nix-store --store "$storeB" --verify --check-contents)
 <<<"$verifyOutput" grepQuiet "path '$inputDrvPath' disappeared, but it still has valid referrers!"
 <<<"$verifyOutput" grepQuiet "path '$dummyPath' was modified! expected hash"
-<<<"$verifyOutput" expectStderr 1 grepQuiet "$lowerOnlyPath"  # Expect no error for corrupted lower-only path
+<<<"$verifyOutput" expectStderr 1 grepQuiet "$lowerOnlyPath" # Expect no error for corrupted lower-only path
 
 # Attempt to repair using backup
 addConfig "substituters = $backupStore"

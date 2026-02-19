@@ -8,5 +8,5 @@ set -e
 [ -n "$HOOK_DEST" ]
 
 for o in $OUT_PATHS; do
-    echo "$o" >> "$HOOK_DEST"
+  echo "$o" >>"$HOOK_DEST"
 done

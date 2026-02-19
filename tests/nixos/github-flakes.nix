@@ -5,7 +5,7 @@
   ...
 }:
 let
-  pkgs = config.nodes.client.nixpkgs.pkgs;
+  inherit (config.nodes.client.nixpkgs) pkgs;
 
   # Generate a fake root CA and a fake api.github.com / github.com / channels.nixos.org certificate.
   cert = pkgs.runCommand "cert" { nativeBuildInputs = [ pkgs.openssl ]; } ''

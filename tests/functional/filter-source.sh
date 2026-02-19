@@ -13,11 +13,11 @@ touch "$TEST_ROOT"/filterin/bla.c.bak
 ln -s xyzzy "$TEST_ROOT/filterin/link"
 
 checkFilter() {
-    test ! -e "$1/foo/bar"
-    test -e "$1/xyzzy"
-    test -e "$1/bak"
-    test ! -e "$1"/bla.c.bak
-    test ! -L "$1/link"
+  test ! -e "$1/foo/bar"
+  test -e "$1/xyzzy"
+  test -e "$1/bak"
+  test ! -e "$1"/bla.c.bak
+  test ! -L "$1/link"
 }
 
 nix-build ./filter-source.nix -o "$TEST_ROOT/filterout1"

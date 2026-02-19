@@ -1,4 +1,4 @@
-{ }:
+_:
 
 with import <nixpkgs> { };
 

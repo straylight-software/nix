@@ -36,9 +36,9 @@ test -e "$storeBRoot/$outPath"
 
 shopt -s nullglob
 for i in "$storeBRoot"/*; do
-    if [[ $i =~ /trash ]]; then continue; fi # compat with old daemon
-    touch "$i".lock
-    touch "$i".chroot
+  if [[ $i =~ /trash ]]; then continue; fi # compat with old daemon
+  touch "$i".lock
+  touch "$i".chroot
 done
 
 nix-collect-garbage

@@ -8,22 +8,28 @@
 
 ## Description
 
-The operation `--export` writes a serialisation of the given [store objects](@docroot@/glossary.md#gloss-store-object) to standard output in a format that can be imported into another [Nix store](@docroot@/store/index.md) with [`nix-store --import`](./import.md).
+The operation `--export` writes a serialisation of the given
+[store objects](@docroot@/glossary.md#gloss-store-object) to standard output in a format that can be
+imported into another [Nix store](@docroot@/store/index.md) with
+[`nix-store --import`](./import.md).
 
 > **Warning**
 >
-> This command *does not* produce a [closure](@docroot@/glossary.md#gloss-closure) of the specified store paths.
-> Trying to import a store object that refers to store paths not available in the target Nix store will fail.
+> This command *does not* produce a [closure](@docroot@/glossary.md#gloss-closure) of the specified
+> store paths. Trying to import a store object that refers to store paths not available in the
+> target Nix store will fail.
 >
-> Use [`nix-store --query`](@docroot@/command-ref/nix-store/query.md) to obtain the closure of a store path.
+> Use [`nix-store --query`](@docroot@/command-ref/nix-store/query.md) to obtain the closure of a
+> store path.
 
-This command is different from [`nix-store --dump`](./dump.md), which produces a [Nix archive](@docroot@/glossary.md#gloss-nar) that *does not* contain the set of [references](@docroot@/glossary.md#gloss-reference) of a given store path.
+This command is different from [`nix-store --dump`](./dump.md), which produces a
+[Nix archive](@docroot@/glossary.md#gloss-nar) that *does not* contain the set of
+[references](@docroot@/glossary.md#gloss-reference) of a given store path.
 
 > **Note**
 >
-> For efficient transfer of closures to remote machines over SSH, use [`nix-copy-closure`](@docroot@/command-ref/nix-copy-closure.md).
-
-[Nix Archive]: @docroot@/store/file-system-object/content-address.md#serial-nix-archive
+> For efficient transfer of closures to remote machines over SSH, use
+> [`nix-copy-closure`](@docroot@/command-ref/nix-copy-closure.md).
 
 {{#include ./opt-common.md}}
 
@@ -51,3 +57,5 @@ This command is different from [`nix-store --dump`](./dump.md), which produces a
 > [bob@scratchy]$ $hello/bin/hello
 > Hello, world!
 > ```
+
+[nix archive]: @docroot@/store/file-system-object/content-address.md#serial-nix-archive

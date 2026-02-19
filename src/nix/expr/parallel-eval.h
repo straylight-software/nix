@@ -19,6 +19,9 @@
 
 namespace nix {
 
+// Forward declaration
+struct EvalSettings;
+
 struct Executor {
   using work_t = std::function<void()>;
 

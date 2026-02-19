@@ -8,7 +8,7 @@ test@{
 }:
 
 let
-  pkgs = config.nodes.client.nixpkgs.pkgs;
+  inherit (config.nodes.client.nixpkgs) pkgs;
 
   # The configuration of the remote builders.
   builder =

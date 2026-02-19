@@ -8,7 +8,7 @@
 }:
 
 let
-  pkgs = config.nodes.machine.nixpkgs.pkgs;
+  inherit (config.nodes.machine.nixpkgs) pkgs;
 
 in
 {

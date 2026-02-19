@@ -2,7 +2,7 @@ with builtins;
 with import <nix/utils.nix>;
 
 let
-  showExperimentalFeature = name: doc: ''
+  showExperimentalFeature = name: _doc: ''
     - [`${name}`](@docroot@/development/experimental-features.md#xp-feature-${name})
   '';
 in

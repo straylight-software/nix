@@ -5,29 +5,30 @@ source common.sh
 set +x
 
 expect_trace() {
-    expr="$1"
-    expect="$2"
-    actual=$(
-        nix-instantiate \
-            --trace-function-calls \
-            --expr "$expr" 2>&1 \
-            | grep "function-trace" \
-            | sed -e 's/ [0-9]*$//' \
-            || true
-    )
+  expr="$1"
+  expect="$2"
+  actual=$(
+    nix-instantiate \
+      --trace-function-calls \
+      --expr "$expr" 2>&1 |
+      grep "function-trace" |
+      sed -e 's/ [0-9]*$//' ||
+      true
+  )
 
-    echo -n "Tracing expression '$expr'"
-    msg=$(diff -swB \
-               <(echo "$expect") \
-               <(echo "$actual")
-    ) && result=0 || result=$?
-    if [ "$result" -eq 0 ]; then
-        echo " ok."
-    else
-        echo " failed. difference:"
-        echo "$msg"
-        return "$result"
-    fi
+  echo -n "Tracing expression '$expr'"
+  msg=$(
+    diff -swB \
+      <(echo "$expect") \
+      <(echo "$actual")
+  ) && result=0 || result=$?
+  if [ "$result" -eq 0 ]; then
+    echo " ok."
+  else
+    echo " failed. difference:"
+    echo "$msg"
+    return "$result"
+  fi
 }
 
 # failure inside a tryEval

@@ -15,7 +15,10 @@ nix-env --version | grep -F "${_NIX_TEST_CLIENT_VERSION:-$version}"
 
 nix_env=$(type -P nix-env)
 # shellcheck disable=SC2123
-(PATH=""; ! $nix_env --help 2>&1 ) | grepQuiet -F "The 'man' command was not found, but it is needed for 'nix-env' and some other 'nix-*' commands' help text. Perhaps you could install the 'man' command?"
+(
+  PATH=""
+  ! $nix_env --help 2>&1
+) | grepQuiet -F "The 'man' command was not found, but it is needed for 'nix-env' and some other 'nix-*' commands' help text. Perhaps you could install the 'man' command?"
 
 # Usage errors.
 expect 1 nix-env --foo 2>&1 | grep "no operation"
@@ -41,11 +44,11 @@ expectStderr 1 nix-instantiate --eval -E '[]' -A '1' | grepQuiet "out of range"
 # NOTE(cole-h): behavior is different depending on the order, which is why we test an unknown option
 # before and after the `'{}'`!
 out="$(expectStderr 0 nix-instantiate --option foobar baz --expr '{}')"
-[[ "$(echo "$out" | grep -c foobar )" = 1 ]]
+[[ "$(echo "$out" | grep -c foobar)" == 1 ]]
 
-out="$(expectStderr 0 nix-instantiate '{}' --option foobar baz --expr )"
-[[ "$(echo "$out" | grep -c foobar )" = 1 ]]
+out="$(expectStderr 0 nix-instantiate '{}' --option foobar baz --expr)"
+[[ "$(echo "$out" | grep -c foobar)" == 1 ]]
 
-if [[ $(uname) = Linux && $(uname -m) = i686 ]]; then
-    [[ $(nix config show system) = i686-linux ]]
+if [[ $(uname) == Linux && $(uname -m) == i686 ]]; then
+  [[ $(nix config show system) == i686-linux ]]
 fi

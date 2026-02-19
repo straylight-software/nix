@@ -14,7 +14,7 @@ let
     inherit b;
   };
 
-  packageOverrides = p: {
+  packageOverrides = _p: {
     b = derivation {
       name = "b-overridden";
       system = builtins.currentSystem;

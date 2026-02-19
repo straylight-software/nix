@@ -1,13 +1,13 @@
 { config, ... }:
 
 let
-  pkgs = config.nodes.machine.nixpkgs.pkgs;
+  inherit (config.nodes.machine.nixpkgs) pkgs;
 
   attacker =
     pkgs.runCommandWith
       {
         name = "attacker";
-        stdenv = pkgs.pkgsStatic.stdenv;
+        inherit (pkgs.pkgsStatic) stdenv;
       }
       ''
         $CC -static -o $out ${./attacker.c}

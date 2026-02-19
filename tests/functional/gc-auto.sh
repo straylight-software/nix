@@ -21,12 +21,13 @@ POSIXLY_CORRECT=1 du "$garbage3"
 
 fake_free=$TEST_ROOT/fake-free
 export _NIX_TEST_FREE_SPACE_FILE=$fake_free
-echo 1100 > "$fake_free"
+echo 1100 >"$fake_free"
 
 fifoLock=$TEST_ROOT/fifoLock
 mkfifo "$fifoLock"
 
-expr=$(cat <<EOF
+expr=$(
+  cat <<EOF
 with import ${config_nix}; mkDerivation {
   name = "gc-A";
   buildCommand = ''
@@ -54,7 +55,8 @@ with import ${config_nix}; mkDerivation {
 EOF
 )
 
-expr2=$(cat <<EOF
+expr2=$(
+  cat <<EOF
 with import ${config_nix}; mkDerivation {
   name = "gc-B";
   buildCommand = ''
@@ -70,20 +72,20 @@ EOF
 )
 
 nix build --impure -v -o "$TEST_ROOT"/result-A -L --expr "$expr" \
-    --min-free 1K --max-free 2K --min-free-check-interval 1 &
+  --min-free 1K --max-free 2K --min-free-check-interval 1 &
 pid1=$!
 
 nix build --impure -v -o "$TEST_ROOT"/result-B -L --expr "$expr2" \
-    --min-free 1K --max-free 2K --min-free-check-interval 1 &
+  --min-free 1K --max-free 2K --min-free-check-interval 1 &
 pid2=$!
 
 # Once the first build is done, unblock the second one.
 # If the first build fails, we need to postpone the failure to still allow
 # the second one to finish
 wait "$pid1" || FIRSTBUILDSTATUS=$?
-echo "unlock" > "$fifoLock"
-( exit "${FIRSTBUILDSTATUS:-0}" )
+echo "unlock" >"$fifoLock"
+(exit "${FIRSTBUILDSTATUS:-0}")
 wait "$pid2"
 
-[[ foo = $(cat "$TEST_ROOT"/result-A/bar) ]]
-[[ foo = $(cat "$TEST_ROOT"/result-B/bar) ]]
+[[ foo == $(cat "$TEST_ROOT"/result-A/bar) ]]
+[[ foo == $(cat "$TEST_ROOT"/result-B/bar) ]]

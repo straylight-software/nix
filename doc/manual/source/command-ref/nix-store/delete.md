@@ -4,19 +4,17 @@
 
 # Synopsis
 
-`nix-store` `--delete` [`--ignore-liveness`] *paths…*
+`nix-store` `--delete` \[`--ignore-liveness`\] *paths…*
 
 # Description
 
-The operation `--delete` deletes the store paths *paths* from the Nix
-store, but only if it is safe to do so; that is, when the path is not
-reachable from a root of the garbage collector. This means that you can
-only delete paths that would also be deleted by `nix-store --gc`. Thus,
-`--delete` is a more targeted version of `--gc`.
+The operation `--delete` deletes the store paths *paths* from the Nix store, but only if it is safe
+to do so; that is, when the path is not reachable from a root of the garbage collector. This means
+that you can only delete paths that would also be deleted by `nix-store --gc`. Thus, `--delete` is a
+more targeted version of `--gc`.
 
-With the option `--ignore-liveness`, reachability from the roots is
-ignored. However, the path still won’t be deleted if there are other
-paths in the store that refer to it (i.e., depend on it).
+With the option `--ignore-liveness`, reachability from the roots is ignored. However, the path still
+won’t be deleted if there are other paths in the store that refer to it (i.e., depend on it).
 
 {{#include ./opt-common.md}}
 

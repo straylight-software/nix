@@ -23,9 +23,9 @@ export XDG_CONFIG_HOME=$TEST_HOME/.config
 git config --global protocol.file.allow always
 
 addGitContent() {
-    echo "lorem ipsum" > "$1"/content
-    git -C "$1" add content
-    git -C "$1" commit -m "Initial commit"
+  echo "lorem ipsum" >"$1"/content
+  git -C "$1" add content
+  git -C "$1" commit -m "Initial commit"
 }
 
 createGitRepo "$subRepo"
@@ -99,7 +99,7 @@ noSubmoduleRepo=$(nix eval --raw --expr "(builtins.fetchGit { url = file://$subR
 [[ $noSubmoduleRepoBaseline == "$noSubmoduleRepo" ]]
 
 # Test .gitmodules with entries that refer to non-existent objects or objects that are not submodules.
-cat >> "$rootRepo"/.gitmodules <<EOF
+cat >>"$rootRepo"/.gitmodules <<EOF
 [submodule "missing"]
         path = missing
         url = https://example.org/missing.git
@@ -108,7 +108,7 @@ cat >> "$rootRepo"/.gitmodules <<EOF
         path = file
         url = https://example.org/file.git
 EOF
-echo foo > "$rootRepo"/file
+echo foo >"$rootRepo"/file
 git -C "$rootRepo" add file
 git -C "$rootRepo" commit -a -m "Add bad submodules"
 
@@ -134,21 +134,21 @@ rm "$TEST_HOME"/.cache/nix/fetcher-cache*
 cloneRepo=$TEST_ROOT/a/b/gitSubmodulesClone # NB /a/b to make the relative path not work relative to $cloneRepo
 git clone "$rootRepo" "$cloneRepo"
 pathIndirect=$(nix eval --raw --expr "(builtins.fetchGit { url = file://$cloneRepo; rev = \"$rev2\"; submodules = true; }).outPath")
-[[ $pathIndirect = "$pathWithRelative" ]]
+[[ $pathIndirect == "$pathWithRelative" ]]
 
 # Test submodule export-ignore interaction
 git -C "$rootRepo"/sub config user.email "foobar@example.com"
 git -C "$rootRepo"/sub config user.name "Foobar"
 
-echo "/exclude-from-root export-ignore" >> "$rootRepo"/.gitattributes
+echo "/exclude-from-root export-ignore" >>"$rootRepo"/.gitattributes
 # TBD possible semantics for submodules + exportIgnore
 # echo "/sub/exclude-deep export-ignore" >> $rootRepo/.gitattributes
-echo nope > "$rootRepo"/exclude-from-root
+echo nope >"$rootRepo"/exclude-from-root
 git -C "$rootRepo" add .gitattributes exclude-from-root
 git -C "$rootRepo" commit -m "Add export-ignore"
 
-echo "/exclude-from-sub export-ignore" >> "$rootRepo"/sub/.gitattributes
-echo nope > "$rootRepo"/sub/exclude-from-sub
+echo "/exclude-from-sub export-ignore" >>"$rootRepo"/sub/.gitattributes
+echo nope >"$rootRepo"/sub/exclude-from-sub
 # TBD possible semantics for submodules + exportIgnore
 # echo aye > $rootRepo/sub/exclude-from-root
 git -C "$rootRepo"/sub add .gitattributes exclude-from-sub
@@ -173,7 +173,6 @@ git -C "$rootRepo" status
 # # root .gitattribute has no power across submodule boundary
 # [[ -e $pathWithExportIgnore/sub/exclude-from-root ]]
 # [[ -e $pathWithExportIgnore/sub/exclude-deep ]]
-
 
 # exportIgnore can be explicitly disabled with submodules
 pathWithoutExportIgnore=$(nix eval --impure --raw --expr "(builtins.fetchGit { url = file://$rootRepo; submodules = true; exportIgnore = false; }).outPath")
@@ -210,7 +209,6 @@ test_submodule_nested() {
   git -C "$repoA" add b
   addGitContent "$repoA"
 
-
   # Check non-worktree fetch
   local rev
   rev=$(git -C "$repoA" rev-parse HEAD)
@@ -226,7 +224,10 @@ test_submodule_nested() {
   git -C "$repoA" submodule update --init --recursive
   out=$(nix eval --impure --raw --expr "(builtins.fetchGit { url = \"file://$repoA\"; submodules = true; }).outPath")
   find "$out"
-  [[ $out == "$nonWorktree" ]] || { find "$out"; false; }
+  [[ $out == "$nonWorktree" ]] || {
+    find "$out"
+    false
+  }
 
 }
 test_submodule_nested

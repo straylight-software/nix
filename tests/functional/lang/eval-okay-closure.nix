@@ -5,7 +5,6 @@ let
     operator =
       {
         key,
-        foo ? false,
       }:
       if builtins.lessThan key 0 then
         [ ]

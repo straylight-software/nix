@@ -21,7 +21,7 @@
 { config, ... }:
 
 let
-  pkgs = config.nodes.machine.nixpkgs.pkgs;
+  inherit (config.nodes.machine.nixpkgs) pkgs;
 
   # Simple C program that sends a a file descriptor to `$out` to a Unix
   # domain socket.
@@ -31,7 +31,7 @@ let
     pkgs.runCommandWith
       {
         name = "sender";
-        stdenv = pkgs.pkgsStatic.stdenv;
+        inherit (pkgs.pkgsStatic) stdenv;
       }
       ''
         $CC -static -o $out ${./sender.c}

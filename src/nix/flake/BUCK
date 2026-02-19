@@ -11,7 +11,8 @@ cxx_library(
         "settings.cpp",
         "url-name.cpp",
     ],
-    headers = [
+    exported_headers = [
+        "call-flake.nix.gen.h",
         "flake.h",
         "flake-primops.h",
         "flakeref.h",
@@ -24,5 +25,7 @@ cxx_library(
     deps = [
         "//src/nix/util:util",
         "//src/nix/store:store",
+        "//src/nix/fetchers:fetchers",
+        "//src/nix/expr:expr",
     ],
 )

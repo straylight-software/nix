@@ -26,14 +26,20 @@ running=$TEST_ROOT/running
 touch "$running"
 
 # Start GC.
-(_NIX_TEST_GC_SYNC_1=$fifo1 _NIX_TEST_GC_SYNC_2=$fifo2 nix-store --gc -vvvvv; rm "$running") &
+(
+  _NIX_TEST_GC_SYNC_1=$fifo1 _NIX_TEST_GC_SYNC_2=$fifo2 nix-store --gc -vvvvv
+  rm "$running"
+) &
 pid=$!
 
 sleep 2
 
 # Delay the start of the root server to check that the build below
 # correctly handles ENOENT when connecting to the root server.
-(sleep 1; echo > "$fifo1") &
+(
+  sleep 1
+  echo >"$fifo1"
+) &
 pid2=$!
 
 # Start a build. This should not be blocked by the GC in progress.

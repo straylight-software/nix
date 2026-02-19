@@ -19,4 +19,4 @@ nix-build ./content-addressed.nix -A rootCA --no-out-link
 oldInode=$(stat -c '%i' "$outPath")
 nix-build ./content-addressed.nix -A rootCA --no-out-link --arg seed 2
 newInode=$(stat -c '%i' "$outPath")
-[[ "$oldInode" == "$newInode" ]]
+[[ $oldInode == "$newInode" ]]

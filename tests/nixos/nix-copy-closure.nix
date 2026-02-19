@@ -8,7 +8,7 @@
 }:
 
 let
-  pkgs = config.nodes.client.nixpkgs.pkgs;
+  inherit (config.nodes.client.nixpkgs) pkgs;
 
   pkgA = pkgs.cowsay;
   pkgB = pkgs.wget;

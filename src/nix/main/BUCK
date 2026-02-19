@@ -9,9 +9,10 @@ cxx_library(
         "progress-bar.cpp",
         "shared.cpp",
     ],
-    headers = [
+    exported_headers = [
         "common-args.h",
         "loggers.h",
+        "main-config-private.h",
         "plugin.h",
         "progress-bar.h",
         "shared.h",
@@ -21,5 +22,6 @@ cxx_library(
     deps = [
         "//src/nix/util:util",
         "//src/nix/store:store",
+        "//src/nix/expr:expr",
     ],
 )

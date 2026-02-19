@@ -30,9 +30,7 @@ rec {
   # fixed-output derivation has changed even if the hash exists in the store (in this
   # case the hash exists because of `fixed.builder2.sh`, but building a derivation
   # with the same hash and a different result must throw an error).
-  check = [
-    (f ./fixed.builder1.sh "recursive" "md5" "3670af73070fa14077ad74e0f5ea4e42")
-  ];
+  check = [ (f ./fixed.builder1.sh "recursive" "md5" "3670af73070fa14077ad74e0f5ea4e42") ];
 
   good2 = [
     # Yes, this looks fscked up: builder2 doesn't have that result.
@@ -45,9 +43,7 @@ rec {
     f ./fixed.builder2.sh "recursive" "sha256"
       "1ixr6yd3297ciyp9im522dfxpqbkhcw0pylkb2aab915278fqaik";
 
-  bad = [
-    (f ./fixed.builder1.sh "flat" "md5" "0ddd8be4b179a529afa5f2ffae4b9858")
-  ];
+  bad = [ (f ./fixed.builder1.sh "flat" "md5" "0ddd8be4b179a529afa5f2ffae4b9858") ];
 
   reallyBad = [
     # Hash too short, and not base-32 either.

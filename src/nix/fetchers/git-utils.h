@@ -154,7 +154,7 @@ struct Setter {
       t = T(p);
   }
 
-  operator typename T::pointer *() { return &p; }
+  operator typename T::pointer*() { return &p; }
 };
 
 /**

@@ -4,11 +4,14 @@ This guide explains how to build and run performance benchmarks in the Nix codeb
 
 ## Overview
 
-Nix uses the [Google Benchmark](https://github.com/google/benchmark) framework for performance testing. Benchmarks help measure and track the performance of critical operations like derivation parsing.
+Nix uses the [Google Benchmark](https://github.com/google/benchmark) framework for performance
+testing. Benchmarks help measure and track the performance of critical operations like derivation
+parsing.
 
 ## Building Benchmarks
 
-Benchmarks are disabled by default and must be explicitly enabled during the build configuration. For accurate results, use a debug-optimized release build.
+Benchmarks are disabled by default and must be explicitly enabled during the build configuration.
+For accurate results, use a debug-optimized release build.
 
 ### Development Environment Setup
 
@@ -28,6 +31,7 @@ meson configure -Dbenchmarks=true -Dbuildtype=debugoptimized
 ```
 
 The `debugoptimized` build type provides:
+
 - Compiler optimizations for realistic performance measurements
 - Debug symbols for profiling and analysis
 - Balance between performance and debuggability
@@ -41,6 +45,7 @@ ninja
 ```
 
 This will create benchmark executables in the build directory. Currently available:
+
 - `build/src/libstore-tests/nix-store-benchmarks` - Store-related performance benchmarks
 
 Additional benchmark executables will be created as more benchmarks are added to the codebase.
@@ -102,12 +107,15 @@ Generate benchmark results in different formats:
 To add new benchmarks:
 
 1. Create a new `.cc` file in the appropriate `*-tests` directory
+
 2. Include the benchmark header:
+
    ```cpp
    #include <benchmark/benchmark.h>
    ```
 
 3. Write benchmark functions:
+
    ```cpp
    static void BM_YourBenchmark(benchmark::State & state)
    {
@@ -121,6 +129,7 @@ To add new benchmarks:
    ```
 
 4. Add the file to the corresponding `meson.build`:
+
    ```meson
    benchmarks_sources = files(
        'your-benchmark.cc',
@@ -140,7 +149,8 @@ perf report
 
 ### Using Valgrind Callgrind
 
-Valgrind's callgrind tool provides detailed profiling information that can be visualized with kcachegrind:
+Valgrind's callgrind tool provides detailed profiling information that can be visualized with
+kcachegrind:
 
 ```bash
 # Profile with callgrind
@@ -151,6 +161,7 @@ kcachegrind callgrind.out.*
 ```
 
 This provides:
+
 - Function call graphs
 - Instruction-level profiling
 - Source code annotation
@@ -171,6 +182,7 @@ This provides:
 ### Benchmarks not building
 
 Ensure benchmarks are enabled:
+
 ```bash
 meson configure build | grep benchmarks
 # Should show: benchmarks true

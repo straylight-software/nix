@@ -1,3 +1,1 @@
-{
-  symlinkedRegularFile = builtins.readDir ./readDir/linked;
-}
+{ symlinkedRegularFile = builtins.readDir ./readDir/linked; }

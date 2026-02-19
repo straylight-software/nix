@@ -6,23 +6,26 @@
 
 ### Prefetch flake inputs in parallel
 
-By @edolstra in [DeterminateSystems/nix-src#127](https://github.com/DeterminateSystems/nix-src/pull/127)
+By @edolstra in
+[DeterminateSystems/nix-src#127](https://github.com/DeterminateSystems/nix-src/pull/127)
 
 This release brings the command `nix flake prefetch-inputs`.
 
-Flake inputs are typically fetched "just in time."
-That means Nix fetches a flake input when the evaluator needs it, and not before.
-When the evaluator needs an input, evaluation is paused until the source is available.
+Flake inputs are typically fetched "just in time." That means Nix fetches a flake input when the
+evaluator needs it, and not before. When the evaluator needs an input, evaluation is paused until
+the source is available.
 
 This causes a significant slow-down on projects with lots of flake inputs.
 
-The new command `nix flake prefetch-inputs` fetches all flake inputs in parallel.
-We expect running this new command before building will dramatically improve evaluation performance for most projects, especially in CI.
-Note that projects which with many unused flake inputs may not benefit from this change, since the new command fetches every input whether they're used or not.
+The new command `nix flake prefetch-inputs` fetches all flake inputs in parallel. We expect running
+this new command before building will dramatically improve evaluation performance for most projects,
+especially in CI. Note that projects which with many unused flake inputs may not benefit from this
+change, since the new command fetches every input whether they're used or not.
 
 ### Deep flake input overrides now work as expected
 
-By @edolstra in [DeterminateSystems/nix-src#108](https://github.com/DeterminateSystems/nix-src/pull/108)
+By @edolstra in
+[DeterminateSystems/nix-src#108](https://github.com/DeterminateSystems/nix-src/pull/108)
 
 An override like:
 
@@ -36,12 +39,13 @@ implicitly set `inputs.foo.inputs.bar` to `flake:bar`, which led to an unexpecte
 error: cannot find flake 'flake:bar' in the flake registries
 ```
 
-We now no longer create a parent override (like for `foo.bar` in the example above) if it doesn't set an explicit ref or follows attribute.
-We only recursively apply its child overrides.
+We now no longer create a parent override (like for `foo.bar` in the example above) if it doesn't
+set an explicit ref or follows attribute. We only recursively apply its child overrides.
 
 ### `nix store delete` now shows you why deletion was not possible
 
-By @edolstra in [DeterminateSystems/nix-src#130](https://github.com/DeterminateSystems/nix-src/pull/130)
+By @edolstra in
+[DeterminateSystems/nix-src#130](https://github.com/DeterminateSystems/nix-src/pull/130)
 
 For example:
 
@@ -58,6 +62,8 @@ error: Cannot delete path '/nix/store/klyng5rpdkwi5kbxkncy4gjwb490dlhb-foo.drv'
 
 ### Lazy-tree improvements
 
-- Improved lazy-tree evaluation caching for flakes accessed with a `path` flakeref by @edolstra in [DeterminateSystems/nix-src#131](https://github.com/DeterminateSystems/nix-src/pull/131)
+- Improved lazy-tree evaluation caching for flakes accessed with a `path` flakeref by @edolstra in
+  [DeterminateSystems/nix-src#131](https://github.com/DeterminateSystems/nix-src/pull/131)
 
-**Full Changelog**: [v3.6.8...v3.7.0](https://github.com/DeterminateSystems/nix-src/compare/v3.6.8...v3.7.0)
+**Full Changelog**:
+[v3.6.8...v3.7.0](https://github.com/DeterminateSystems/nix-src/compare/v3.6.8...v3.7.0)

@@ -5,30 +5,30 @@ source common.sh
 set +x
 
 expect_trace() {
-    expr="$1"
-    expect="$2"
-    actual=$(
-        nix-instantiate \
-            --eval-profiler flamegraph \
-            --eval-profiler-frequency 0 \
-            --eval-profile-file /dev/stdout \
-            --expr "$expr" |
-            grep "«string»" || true
-    )
+  expr="$1"
+  expect="$2"
+  actual=$(
+    nix-instantiate \
+      --eval-profiler flamegraph \
+      --eval-profiler-frequency 0 \
+      --eval-profile-file /dev/stdout \
+      --expr "$expr" |
+      grep "«string»" || true
+  )
 
-    echo -n "Tracing expression '$expr'"
-    msg=$(
-        diff -swB \
-            <(echo "$expect") \
-            <(echo "$actual")
-    ) && result=0 || result=$?
-    if [ "$result" -eq 0 ]; then
-        echo " ok."
-    else
-        echo " failed. difference:"
-        echo "$msg"
-        return "$result"
-    fi
+  echo -n "Tracing expression '$expr'"
+  msg=$(
+    diff -swB \
+      <(echo "$expect") \
+      <(echo "$actual")
+  ) && result=0 || result=$?
+  if [ "$result" -eq 0 ]; then
+    echo " ok."
+  else
+    echo " failed. difference:"
+    echo "$msg"
+    return "$result"
+  fi
 }
 
 # lambda

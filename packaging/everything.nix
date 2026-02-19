@@ -69,9 +69,7 @@ let
       (!stdenv.hostPlatform.isStatic && stdenv.buildPlatform.canExecute stdenv.hostPlatform)
       {
         # Currently fails in static build
-        inherit
-          nix-perl-bindings
-          ;
+        inherit nix-perl-bindings;
       };
 
   devdoc = buildEnv {
@@ -85,7 +83,7 @@ let
 in
 stdenv.mkDerivation (finalAttrs: {
   pname = "determinate-nix";
-  version = nix-cli.version;
+  inherit (nix-cli) version;
 
   /**
     This package uses a multi-output derivation, even though some outputs could
@@ -146,9 +144,7 @@ stdenv.mkDerivation (finalAttrs: {
         nix-perl-bindings
       ];
 
-  nativeBuildInputs = [
-    lndir
-  ];
+  nativeBuildInputs = [ lndir ];
 
   installPhase =
     let
@@ -208,20 +204,18 @@ stdenv.mkDerivation (finalAttrs: {
       See <https://nixos.org/manual/nixpkgs/stable/index.html#var-passthru-tests>
     */
     tests = {
-      pkg-config = testers.hasPkgConfigModules {
-        package = finalAttrs.finalPackage;
-      };
+      pkg-config = testers.hasPkgConfigModules { package = finalAttrs.finalPackage; };
     };
   };
 
   meta = {
     mainProgram = "nix";
     description = "The Nix package manager";
-    longDescription = nix-cli.meta.longDescription;
-    homepage = nix-cli.meta.homepage;
-    license = nix-cli.meta.license;
-    maintainers = maintainers;
-    platforms = nix-cli.meta.platforms;
+    inherit (nix-cli.meta) longDescription;
+    inherit (nix-cli.meta) homepage;
+    inherit (nix-cli.meta) license;
+    inherit maintainers;
+    inherit (nix-cli.meta) platforms;
     outputsToInstall = [
       "out"
       "man"

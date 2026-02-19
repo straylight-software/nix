@@ -8,17 +8,15 @@
 
 # Description
 
-The operation `--repair-path` attempts to “repair” the specified paths
-by redownloading them using the available substituters. If no
-substitutes are available, then repair is not possible.
+The operation `--repair-path` attempts to “repair” the specified paths by redownloading them using
+the available substituters. If no substitutes are available, then repair is not possible.
 
 > **Warning**
 >
-> During repair, there is a very small time window during which the old
-> path (if it exists) is moved out of the way and replaced with the new
-> path. If repair is interrupted in between, then the system may be left
-> in a broken state (e.g., if the path contains a critical system
-> component like the GNU C Library).
+> During repair, there is a very small time window during which the old path (if it exists) is moved
+> out of the way and replaced with the new path. If repair is interrupted in between, then the
+> system may be left in a broken state (e.g., if the path contains a critical system component like
+> the GNU C Library).
 
 # Example
 
@@ -32,4 +30,3 @@ $ nix-store --repair-path /nix/store/dj7a81wsm1ijwwpkks3725661h3263p5-glibc-2.13
 fetching path `/nix/store/d7a81wsm1ijwwpkks3725661h3263p5-glibc-2.13'...
 …
 ```
-

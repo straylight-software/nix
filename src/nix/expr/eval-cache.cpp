@@ -182,8 +182,8 @@ struct AttrDb {
       auto state(_state->lock());
 
       state->insertAttribute
-          .use()(key.first)(symbols[key.second])(AttrType::ListOfStrings)(
-              dropEmptyInitThenConcatStringsSep("\t", l))
+          .use()(key.first)(symbols[key.second])(
+              AttrType::ListOfStrings)(dropEmptyInitThenConcatStringsSep("\t", l))
           .exec();
 
       return state->db.getLastInsertedRowId();

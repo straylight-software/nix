@@ -16,4 +16,4 @@ let
   pkgs = builtins.deepSeq has has;
 in
 # The error message should not be too long.
-''${pkgs}''
+"${pkgs}"

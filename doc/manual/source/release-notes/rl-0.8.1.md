@@ -2,7 +2,7 @@
 
 This is a bug fix release.
 
-  - Patch downloading was broken.
+- Patch downloading was broken.
 
-  - The garbage collector would not delete paths that had references
-    from invalid (but substitutable) paths.
+- The garbage collector would not delete paths that had references from invalid (but substitutable)
+  paths.

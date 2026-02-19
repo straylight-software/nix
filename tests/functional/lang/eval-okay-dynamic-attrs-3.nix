@@ -8,7 +8,6 @@ let
   };
 in
 {
-  inherit ${"a"};
   inherit attrs;
   inherit (attrs) ${"b"} ${"c"} d;
 }

@@ -6,7 +6,7 @@
 
 # shellcheck disable=SC2154
 mkdir "$out"
-echo "$(cat "$input1"/foo)$(cat "$input2"/bar)" > "$out"/foobar
+echo "$(cat "$input1"/foo)$(cat "$input2"/bar)" >"$out"/foobar
 
 ln -s "$input2" "$out"/reference-to-input-2
 
@@ -14,9 +14,9 @@ ln -s "$input2" "$out"/reference-to-input-2
 ln -s "$out" "$out"/self
 
 # Executable.
-echo program > "$out"/program
+echo program >"$out"/program
 chmod +x "$out"/program
 
-echo '1 + 2' > "$out"/foo.nix
+echo '1 + 2' >"$out"/foo.nix
 
 echo FOO

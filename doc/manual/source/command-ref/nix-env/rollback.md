@@ -8,10 +8,9 @@
 
 # Description
 
-This operation switches to the “previous” generation of the active
-profile, that is, the highest numbered generation lower than the current
-generation, if it exists. It is just a convenience wrapper around
-`--list-generations` and `--switch-generation`.
+This operation switches to the “previous” generation of the active profile, that is, the highest
+numbered generation lower than the current generation, if it exists. It is just a convenience
+wrapper around `--list-generations` and `--switch-generation`.
 
 {{#include ./opt-common.md}}
 

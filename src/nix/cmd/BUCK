@@ -21,8 +21,9 @@ cxx_library(
         "repl-interacter.cpp",
     ],
 
-    headers = [
+    exported_headers = [
         "built-path.h",
+        "cmd-config-private.h",
         "command.h",
         "command-installable-value.h",
         "common-eval-args.h",
@@ -48,5 +49,9 @@ cxx_library(
     deps = [
         "//src/nix/util:util",
         "//src/nix/store:store",
+        "//src/nix/fetchers:fetchers",
+        "//src/nix/expr:expr",
+        "//src/nix/flake:flake",
+        "//src/nix/main:main",
     ],
 )

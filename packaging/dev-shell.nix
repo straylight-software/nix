@@ -1,7 +1,4 @@
-{
-  lib,
-  devFlake,
-}:
+{ lib, devFlake }:
 
 let
   # Some helper functions
@@ -114,10 +111,10 @@ in
 
 # TODO: don't use nix-util for this?
 pkgs.nixComponents2.nix-util.overrideAttrs (
-  finalAttrs: prevAttrs:
+  finalAttrs: _prevAttrs:
 
   let
-    stdenv = pkgs.nixDependencies2.stdenv;
+    inherit (pkgs.nixDependencies2) stdenv;
     buildCanExecuteHost = stdenv.buildPlatform.canExecute stdenv.hostPlatform;
     modular = devFlake.getSystem stdenv.buildPlatform.system;
     transformFlag =
@@ -131,14 +128,14 @@ pkgs.nixComponents2.nix-util.overrideAttrs (
     ignoreCrossFile = flags: builtins.filter (flag: !(lib.strings.hasInfix "cross-file" flag)) flags;
 
     availableComponents = lib.filterAttrs (
-      k: v: lib.meta.availableOn pkgs.hostPlatform v
+      _k: v: lib.meta.availableOn pkgs.hostPlatform v
     ) allComponents;
 
     activeComponents = buildInputsClosureCond isInternal (
       lib.attrValues (finalAttrs.passthru.config.getComponents availableComponents)
     );
 
-    allComponents = lib.filterAttrs (k: v: lib.isDerivation v) pkgs.nixComponents2;
+    allComponents = lib.filterAttrs (_k: v: lib.isDerivation v) pkgs.nixComponents2;
     internalDrvs = byDrvPath (
       # Drop the attr names (not present in buildInputs anyway)
       lib.attrValues availableComponents
@@ -190,7 +187,7 @@ pkgs.nixComponents2.nix-util.overrideAttrs (
       withActiveComponents =
         f2:
         finalAttrs.finalPackage.overrideAttrs (
-          finalAttrs: prevAttrs: {
+          _finalAttrs: prevAttrs: {
             passthru = prevAttrs.passthru // {
               config = prevAttrs.passthru.config // {
                 getComponents = f2;

@@ -1,21 +1,13 @@
 {
   inputs,
-  forAllCrossSystems,
   forAllSystems,
   lib,
   linux64BitSystems,
   nixpkgsFor,
   self,
-  officialRelease,
 }:
 let
   inherit (inputs) nixpkgs nixpkgs-regression;
-
-  installScriptFor =
-    tarballs:
-    nixpkgsFor.x86_64-linux.native.callPackage ./installer {
-      inherit tarballs;
-    };
 
   testNixVersions =
     pkgs: daemon:
@@ -64,9 +56,7 @@ let
         "nix-functional-tests"
         "nix-json-schema-checks"
       ]
-      ++ lib.optionals enableBindings [
-        "nix-perl-bindings"
-      ]
+      ++ lib.optionals enableBindings [ "nix-perl-bindings" ]
       ++ lib.optionals enableDocs [
         "nix-manual"
         "nix-manual-manpages-only"
@@ -88,7 +78,7 @@ rec {
         enableDocs = true;
       } (_: null);
       actualPkgs = lib.concatMapAttrs (
-        k: v: if lib.strings.hasPrefix "nix-" k then { ${k} = null; } else { }
+        k: _v: if lib.strings.hasPrefix "nix-" k then { ${k} = null; } else { }
       ) nixpkgsFor.${arbitrarySystem}.native.nixComponents2;
       diff = lib.concatStringsSep "\n" (
         lib.concatLists (
@@ -194,7 +184,7 @@ rec {
       nixpkgsLibTests = forAllSystems (
         system:
         import (nixpkgs + "/lib/tests/test-with-nix.nix") {
-          lib = nixpkgsFor.${system}.native.lib;
+          inherit (nixpkgsFor.${system}.native) lib;
           nix = self.packages.${system}.nix-cli;
           pkgs = nixpkgsFor.${system}.native;
         }
@@ -204,7 +194,7 @@ rec {
         system:
         lib.overrideDerivation
           (import (nixpkgs + "/lib/tests/test-with-nix.nix") {
-            lib = nixpkgsFor.${system}.native.lib;
+            inherit (nixpkgsFor.${system}.native) lib;
             nix = self.packages.${system}.nix-cli;
             pkgs = nixpkgsFor.${system}.native;
           })

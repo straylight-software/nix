@@ -3,7 +3,6 @@
   stdenv,
   rust_1_89,
   fetchFromGitHub,
-  buildPackages,
   cmake,
   installShellFiles,
   nix-update-script,

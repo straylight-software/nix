@@ -8,9 +8,8 @@
 
 # Description
 
-The uninstall operation creates a new user environment, based on the
-current generation of the active profile, from which the store paths
-designated by the symbolic names *drvnames* are removed.
+The uninstall operation creates a new user environment, based on the current generation of the
+active profile, from which the store paths designated by the symbolic names *drvnames* are removed.
 
 {{#include ./opt-common.md}}
 

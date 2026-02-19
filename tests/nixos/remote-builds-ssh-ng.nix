@@ -6,7 +6,7 @@ test@{
 }:
 
 let
-  pkgs = config.nodes.client.nixpkgs.pkgs;
+  inherit (config.nodes.client.nixpkgs) pkgs;
 
   # Trivial Nix expression to build remotely.
   expr =

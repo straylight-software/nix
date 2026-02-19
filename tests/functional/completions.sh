@@ -5,13 +5,13 @@ source common.sh
 cd "$TEST_ROOT"
 
 mkdir -p dep
-cat <<EOF > dep/flake.nix
+cat <<EOF >dep/flake.nix
 {
     outputs = i: { };
 }
 EOF
 mkdir -p foo
-cat <<EOF > foo/flake.nix
+cat <<EOF >foo/flake.nix
 {
     inputs.a.url = "path:$(realpath dep)";
 
@@ -21,7 +21,7 @@ cat <<EOF > foo/flake.nix
 }
 EOF
 mkdir -p bar
-cat <<EOF > bar/flake.nix
+cat <<EOF >bar/flake.nix
 {
     inputs.b.url = "path:$(realpath dep)";
 
@@ -31,7 +31,7 @@ cat <<EOF > bar/flake.nix
 }
 EOF
 mkdir -p err
-cat <<EOF > err/flake.nix
+cat <<EOF >err/flake.nix
 throw "error"
 EOF
 

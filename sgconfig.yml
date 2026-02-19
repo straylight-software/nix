@@ -1,0 +1,4 @@
+# ast-grep configuration for straylight/nix
+# Hypermodern C++ house style enforcement
+ruleDirs:
+  - rules

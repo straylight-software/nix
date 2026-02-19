@@ -7,10 +7,10 @@
     flake-parts.url = "github:hercules-ci/flake-parts";
     treefmt-nix.url = "github:numtide/treefmt-nix";
 
-    # LLVM 22 from git - matches sensenet
-    llvm-project = {
-      url = "github:llvm/llvm-project/bb1f220d534b0f6d80bea36662f5188ff11c2e54";
-      flake = false;
+    # sensenet - Buck2 toolchain infrastructure (local path for dev)
+    sensenet = {
+      url = "path:/home/b7r6/src/straylight/sensenet";
+      inputs.nixpkgs.follows = "nixpkgs";
     };
   };
 
@@ -19,73 +19,101 @@
     flake-parts.lib.mkFlake { inherit inputs; } {
       systems = import systems;
 
-      imports = [ inputs.treefmt-nix.flakeModule ];
+      imports = [
+        inputs.treefmt-nix.flakeModule
+        inputs.sensenet.flakeModules.sensenet
+      ];
 
       perSystem =
-        {
-          config,
-          pkgs,
-          system,
-          ...
-        }:
+        { config, pkgs, ... }:
         let
           lineLength = 100;
           indentWidth = 2;
 
-          # LLVM 22 from git with SM120 Blackwell support
-          llvm-git = pkgs.stdenv.mkDerivation {
-            pname = "llvm-git";
-            version = "22.0.0-git";
+          # Third-party dependencies required by nix
+          nixDeps = {
+            # util deps
+            inherit (pkgs) boost;
+            inherit (pkgs) nlohmann_json;
+            inherit (pkgs) openssl;
+            blake3 = pkgs.libblake3;
+            inherit (pkgs) brotli;
+            inherit (pkgs) libsodium;
+            inherit (pkgs) libarchive;
 
-            src = inputs.llvm-project;
+            # store deps
+            inherit (pkgs) sqlite;
+            inherit (pkgs) curl;
+            inherit (pkgs) aws-sdk-cpp;
 
-            sourceRoot = "source/llvm";
+            # fetchers deps
+            inherit (pkgs) libgit2;
 
-            nativeBuildInputs = [
-              pkgs.cmake
-              pkgs.ninja
-              pkgs.python3
-            ];
+            # expr deps
+            inherit (pkgs) boehmgc;
+            inherit (pkgs) toml11;
 
-            buildInputs = [
-              pkgs.libxml2
-              pkgs.zlib
-              pkgs.ncurses
-              pkgs.libffi
-            ];
-
-            cmakeFlags = [
-              "-DLLVM_ENABLE_PROJECTS=clang;clang-tools-extra;lld"
-              "-DCMAKE_BUILD_TYPE=Release"
-              "-DLLVM_TARGETS_TO_BUILD=X86;NVPTX;AArch64"
-              "-DLLVM_ENABLE_ASSERTIONS=OFF"
-              "-DLLVM_INSTALL_UTILS=ON"
-              "-DLLVM_BUILD_TOOLS=ON"
-              "-DLLVM_INCLUDE_TESTS=OFF"
-              "-DLLVM_INCLUDE_EXAMPLES=OFF"
-              "-DLLVM_INCLUDE_DOCS=OFF"
-            ];
-
-            enableParallelBuilding = true;
-
-            meta = {
-              description = "LLVM/Clang from git with CUDA 13 and SM120 Blackwell support";
-              homepage = "https://llvm.org";
-              license = pkgs.lib.licenses.ncsa;
-              platforms = pkgs.lib.platforms.linux;
-            };
+            # main deps
+            inherit (pkgs) editline;
+            inherit (pkgs) lowdown;
           };
+
+          # Generate -isystem flags for all deps
+          nixIncludePaths = builtins.concatStringsSep " " (
+            pkgs.lib.mapAttrsToList (
+              _name: pkg: if pkg ? dev then "-isystem${pkg.dev}/include" else "-isystem${pkg}/include"
+            ) nixDeps
+          );
+
+          # Generate -L flags for all deps
+          nixLibPaths = builtins.concatStringsSep " " (
+            pkgs.lib.mapAttrsToList (
+              _name: pkg: if pkg ? lib then "-L${pkg.lib}/lib" else "-L${pkg}/lib"
+            ) nixDeps
+          );
         in
         {
+          # ─────────────────────────────────────────────────────────────────
+          # sensenet project: straylight/nix
+          # ─────────────────────────────────────────────────────────────────
+          sensenet.projects.nix = {
+            src = ./.;
+            targets = [
+              "//src/nix/util:util"
+              "//src/nix/store:store"
+              "//src/nix/expr:expr"
+              "//src/nix/fetchers:fetchers"
+              "//src/nix/flake:flake"
+              "//src/nix/main:main"
+              "//src/nix/cmd:cmd"
+              "//src/nix/cli:cli"
+            ];
+            toolchain = {
+              cxx.enable = true;
+            };
+            extrapackages = pkgs.lib.attrValues nixDeps;
+            extrabuckconfigsections = ''
+
+              [cxx.flags]
+              c_flags = ${nixIncludePaths}
+              cxx_flags = ${nixIncludePaths}
+              link_flags = ${nixLibPaths}
+            '';
+            devshellpackages = [
+              pkgs.cppcheck
+              pkgs.include-what-you-use
+              pkgs.ast-grep
+            ];
+          };
+
           # ─────────────────────────────────────────────────────────────────
           # treefmt: formatters and linters
           # ─────────────────────────────────────────────────────────────────
           treefmt = {
             projectRootFile = "flake.nix";
 
-            # `clang-format`: C/C++ formatting (uses llvm-git)
+            # `clang-format`: C/C++ formatting
             programs.clang-format.enable = true;
-            programs.clang-format.package = llvm-git;
             programs.clang-format.includes = [
               "*.c"
               "*.h"
@@ -121,68 +149,6 @@
             programs.mdformat.enable = true;
             programs.mdformat.settings.number = true;
             programs.mdformat.settings.wrap = lineLength;
-          };
-
-          # ─────────────────────────────────────────────────────────────────
-          # packages
-          # ─────────────────────────────────────────────────────────────────
-          packages = {
-            inherit llvm-git;
-            default = llvm-git;
-          };
-
-          # ─────────────────────────────────────────────────────────────────
-          # devShells
-          # ─────────────────────────────────────────────────────────────────
-          devShells.default = pkgs.mkShell {
-            name = "straylight-nix-dev";
-
-            packages = [
-              # C++ toolchain (LLVM 22 from git)
-              llvm-git
-
-              # Build tools
-              pkgs.buck2
-              pkgs.ninja
-              pkgs.pkg-config
-              pkgs.cmake
-              pkgs.meson
-
-              # Static analysis
-              pkgs.cppcheck
-              pkgs.include-what-you-use
-
-              # Dependencies (from original nix)
-              pkgs.boost
-              pkgs.nlohmann_json
-              pkgs.openssl
-              pkgs.libarchive
-              pkgs.sqlite
-              pkgs.curl
-              pkgs.libgit2
-              pkgs.brotli
-              pkgs.editline
-              pkgs.libsodium
-              pkgs.lowdown
-              pkgs.busybox-sandbox-shell
-              pkgs.libcpuid
-              pkgs.toml11
-              pkgs.pegtl
-
-              # Formatters (from treefmt)
-              config.treefmt.build.wrapper
-            ];
-
-            shellHook = ''
-              echo ""
-              echo "  straylight/nix dev shell"
-              echo "  ────────────────────────"
-              echo ""
-              echo "  nix fmt                    # run treefmt"
-              echo "  clang-tidy src/nix/util/*.cpp -- -std=c++23 -I src"
-              echo "  cppcheck --enable=all src/nix/"
-              echo ""
-            '';
           };
 
           # ─────────────────────────────────────────────────────────────────

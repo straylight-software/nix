@@ -1,8 +1,8 @@
 with builtins;
 
 [
-  (isNull null)
-  (isNull (x: x))
+  (null == null)
+  ((x: x) == null)
   (isFunction (x: x))
   (isFunction "fnord")
   (isString ("foo" + "bar"))

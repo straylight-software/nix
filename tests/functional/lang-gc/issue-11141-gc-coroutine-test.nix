@@ -2,10 +2,7 @@
 # GC_INITIAL_HEAP_SIZE=$[1024 * 1024] NIX_SHOW_STATS=1 nix eval -f gc-coroutine-test.nix  -vvvv
 
 let
-  inherit (builtins)
-    foldl'
-    isList
-    ;
+  inherit (builtins) foldl' isList;
 
   # Generate a tree of numbers, n deep, such that the numbers add up to (1 + salt) * 10^n.
   # The salting makes the numbers all different, increasing the likelihood of catching
@@ -42,7 +39,7 @@ builtins.foldl'
       "${builtins.path {
         path = ./src;
         filter =
-          path: type:
+          _path: _type:
           # We're not doing common subexpression elimination, so this reallocates
           # the fairly big tree over and over, producing a lot of garbage during
           # source filtering, whose filter runs in a coroutine.

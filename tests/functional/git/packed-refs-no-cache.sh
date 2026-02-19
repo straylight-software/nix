@@ -29,7 +29,7 @@ git init --initial-branch="master" "$repo"
 git -C "$repo" config user.email "nix-tests@example.com"
 git -C "$repo" config user.name "Nix Tests"
 
-echo "hello world" > "$repo/hello_world"
+echo "hello world" >"$repo/hello_world"
 git -C "$repo" add hello_world
 git -C "$repo" commit -m 'My first commit.'
 
@@ -37,7 +37,7 @@ git -C "$repo" commit -m 'My first commit.'
 nix eval --impure --raw --expr "builtins.fetchGit { url = file://$repo; }"
 
 # test that our eval even worked by checking for the presence of the file
-[[ $(nix eval --impure --raw --expr "builtins.readFile ((builtins.fetchGit { url = file://$repo; }) + \"/hello_world\")") = 'hello world' ]]
+[[ $(nix eval --impure --raw --expr "builtins.readFile ((builtins.fetchGit { url = file://$repo; }) + \"/hello_world\")") == 'hello world' ]]
 
 # Validate that refs/heads/master exists
 shopt -s nullglob
@@ -62,7 +62,7 @@ if [[ ${#matches[@]} -ne 0 ]]; then
 fi
 
 # create a new commit
-echo "hello again" > "$repo/hello_again"
+echo "hello again" >"$repo/hello_again"
 git -C "$repo" add hello_again
 git -C "$repo" commit -m 'Second commit.'
 

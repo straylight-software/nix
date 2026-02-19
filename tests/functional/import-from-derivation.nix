@@ -22,7 +22,7 @@ rec {
 
   addPath = mkDerivation {
     name = "add-path";
-    src = builtins.filterSource (path: type: true) result;
+    src = builtins.filterSource (_path: _type: true) result;
     builder = builtins.toFile "builder.sh" ''
       echo -n BLA$(cat $src) > $out
     '';

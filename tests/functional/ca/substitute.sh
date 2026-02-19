@@ -12,8 +12,8 @@ rm -rf "$TEST_ROOT/binary_cache"
 export REMOTE_STORE_DIR=$TEST_ROOT/binary_cache
 export REMOTE_STORE=file://$REMOTE_STORE_DIR
 
-buildDrvs () {
-    nix build --file ./content-addressed.nix -L --no-link "$@"
+buildDrvs() {
+  nix build --file ./content-addressed.nix -L --no-link "$@"
 }
 
 # Populate the remote cache
@@ -30,9 +30,9 @@ nix realisation info --file ./content-addressed.nix dependentCA
 # nix realisation info --file ./content-addressed.nix rootCA --outputs out
 
 if isDaemonNewer "2.13"; then
-    pushToStore="../push-to-store.sh"
+  pushToStore="../push-to-store.sh"
 else
-    pushToStore="../push-to-store-old.sh"
+  pushToStore="../push-to-store-old.sh"
 fi
 
 # Same thing, but
@@ -54,8 +54,8 @@ nix build --file ../simple.nix -L --no-link --substitute --substituters "$REMOTE
 # realisations have correctly been pushed to the remote store
 nix copy --to "$REMOTE_STORE" --file ../simple.nix
 if [[ -z "$(ls "$REMOTE_STORE_DIR/realisations")" ]]; then
-    echo "Realisations not rebuilt"
-    exit 1
+  echo "Realisations not rebuilt"
+  exit 1
 fi
 
 # Test the local realisation disk cache

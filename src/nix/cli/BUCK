@@ -58,6 +58,12 @@ cxx_library(
     ],
 
     headers = [
+        "crash-handler.h",
+        "flake-command.h",
+        "ls.h",
+        "man-pages.h",
+        "run.h",
+        "self-exe.h",
     ],
 
     header_namespace = "nix/cli",
@@ -66,5 +72,10 @@ cxx_library(
     deps = [
         "//src/nix/util:util",
         "//src/nix/store:store",
+        "//src/nix/fetchers:fetchers",
+        "//src/nix/expr:expr",
+        "//src/nix/flake:flake",
+        "//src/nix/main:main",
+        "//src/nix/cmd:cmd",
     ],
 )

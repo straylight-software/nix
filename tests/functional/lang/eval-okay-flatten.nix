@@ -1,7 +1,6 @@
 with import ./lib.nix;
 
-let {
-
+rec {
   l = [
     "1"
     "2"
@@ -15,6 +14,5 @@ let {
     ]
     "7"
   ];
-
   body = concat (flatten l);
-}
+}.body

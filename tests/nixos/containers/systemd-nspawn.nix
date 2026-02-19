@@ -32,14 +32,12 @@ let
       };
     };
 
-  cfg = (
-    import (nixpkgs + "/nixos/lib/eval-config.nix") {
+  cfg = import (nixpkgs + "/nixos/lib/eval-config.nix") {
       modules = [ machine ];
       system = "x86_64-linux";
-    }
-  );
+    };
 
-  config = cfg.config;
+  inherit (cfg) config;
 
 in
 
@@ -49,7 +47,7 @@ runCommand "test"
   {
     buildInputs = [ config.system.path ];
     requiredSystemFeatures = [ "uid-range" ];
-    toplevel = config.system.build.toplevel;
+    inherit (config.system.build) toplevel;
   }
   ''
     root=$(pwd)/root

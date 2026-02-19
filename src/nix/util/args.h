@@ -12,6 +12,7 @@
 #include "nix/util/experimental-features.h"
 #include "nix/util/ref.h"
 #include "nix/util/types.h"
+#include "nix/util/util.h"
 
 namespace nix {
 

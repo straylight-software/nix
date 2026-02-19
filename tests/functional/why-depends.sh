@@ -27,5 +27,5 @@ echo "$PRECISE_WHY_DEPENDS_OUTPUT" | grepQuiet reference-to-input-2
 
 <<<"$PRECISE_WHY_DEPENDS_OUTPUT" sed -n '2p' | grepQuiet "└───reference-to-input-2 -> "
 <<<"$PRECISE_WHY_DEPENDS_OUTPUT" sed -n '3p' | grep "    →" | grepQuiet "dependencies-input-2"
-<<<"$PRECISE_WHY_DEPENDS_OUTPUT" sed -n '4p' | grepQuiet "    └───input0: …"                          # in input-2, file input0
-<<<"$PRECISE_WHY_DEPENDS_OUTPUT" sed -n '5p' | grep "        →" | grepQuiet "dependencies-input-0"    # is dependencies-input-0 referenced
+<<<"$PRECISE_WHY_DEPENDS_OUTPUT" sed -n '4p' | grepQuiet "    └───input0: …"                       # in input-2, file input0
+<<<"$PRECISE_WHY_DEPENDS_OUTPUT" sed -n '5p' | grep "        →" | grepQuiet "dependencies-input-0" # is dependencies-input-0 referenced

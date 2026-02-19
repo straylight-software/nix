@@ -1,0 +1,10 @@
+# Hypermodern C++ AAA: auto with static_cast
+# T x = static_cast<T>(y) → auto x = static_cast<T>(y)
+id: aaa-static-cast
+language: cpp
+severity: hint
+message: "AAA: Use auto with static_cast"
+note: "Almost Always Auto - the type is already specified in static_cast"
+rule:
+  pattern: $TYPE $VAR = static_cast<$TYPE>($EXPR)
+fix: "auto $VAR = static_cast<$TYPE>($EXPR)"

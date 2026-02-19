@@ -4,47 +4,54 @@
 
 # Synopsis
 
-`nix-channel` {`--add` url [*name*] | `--remove` *name* | `--list` | `--update` [*names…*] | `--list-generations` | `--rollback` [*generation*] }
+`nix-channel` {`--add` url \[*name*\] | `--remove` *name* | `--list` | `--update` \[*names…*\] |
+`--list-generations` | `--rollback` \[*generation*\] }
 
 # Description
 
 > **Warning**
 >
-> nix-channel is deprecated in favor of flakes in Determinate Nix.
-> For a guide on Nix flakes, see: <https://zero-to-nix.com/>.
-> For details and to offer feedback on the deprecation process, see: <https://github.com/DeterminateSystems/nix-src/issues/34>.
+> nix-channel is deprecated in favor of flakes in Determinate Nix. For a guide on Nix flakes, see:
+> <https://zero-to-nix.com/>. For details and to offer feedback on the deprecation process, see:
+> <https://github.com/DeterminateSystems/nix-src/issues/34>.
 
-Channels are a mechanism for referencing remote Nix expressions and conveniently retrieving their latest version.
+Channels are a mechanism for referencing remote Nix expressions and conveniently retrieving their
+latest version.
 
 The moving parts of channels are:
+
 - The official channels listed at <https://channels.nixos.org>
 - The user-specific list of [subscribed channels](#subscribed-channels)
 - The [downloaded channel contents](#channels)
-- The [Nix expression search path](@docroot@/command-ref/conf-file.md#conf-nix-path), set with the [`-I` option](#opt-I) or the [`NIX_PATH` environment variable](#env-NIX_PATH)
+- The [Nix expression search path](@docroot@/command-ref/conf-file.md#conf-nix-path), set with the
+  [`-I` option](#opt-I) or the [`NIX_PATH` environment variable](#env-NIX_PATH)
 
 > **Note**
 >
-> The state of a subscribed channel is external to the Nix expressions relying on it.
-> This may limit reproducibility.
+> The state of a subscribed channel is external to the Nix expressions relying on it. This may limit
+> reproducibility.
 >
 > Dependencies on other Nix expressions can be declared explicitly with:
-> - [`fetchurl`](@docroot@/language/builtins.md#builtins-fetchurl), [`fetchTarball`](@docroot@/language/builtins.md#builtins-fetchTarball), or [`fetchGit`](@docroot@/language/builtins.md#builtins-fetchGit) in Nix expressions
+>
+> - [`fetchurl`](@docroot@/language/builtins.md#builtins-fetchurl),
+>   [`fetchTarball`](@docroot@/language/builtins.md#builtins-fetchTarball), or
+>   [`fetchGit`](@docroot@/language/builtins.md#builtins-fetchGit) in Nix expressions
 > - the [`-I` option](@docroot@/command-ref/opt-common.md#opt-I) in command line invocations
 
 This command has the following operations:
 
 - `--add` *url* \[*name*\]
 
-  Add a channel *name* located at *url* to the list of subscribed channels.
-  If *name* is omitted, default to the last component of *url*, with the suffixes `-stable` or `-unstable` removed.
+  Add a channel *name* located at *url* to the list of subscribed channels. If *name* is omitted,
+  default to the last component of *url*, with the suffixes `-stable` or `-unstable` removed.
 
   > **Note**
   >
-  > `--add` does not automatically perform an update.
-  > Use `--update` explicitly.
+  > `--add` does not automatically perform an update. Use `--update` explicitly.
 
-  A channel URL must point to a directory containing a file `nixexprs.tar.gz`.
-  At the top level, that tarball must contain a single directory with a `default.nix` file that serves as the channel’s entry point.
+  A channel URL must point to a directory containing a file `nixexprs.tar.gz`. At the top level,
+  that tarball must contain a single directory with a `default.nix` file that serves as the
+  channel’s entry point.
 
 - `--remove` *name*
 
@@ -56,28 +63,29 @@ This command has the following operations:
 
 - `--update` \[*names*…\]
 
-  Download the Nix expressions of subscribed channels and create a new generation.
-  Update all channels if none is specified, and only those included in *names* otherwise.
+  Download the Nix expressions of subscribed channels and create a new generation. Update all
+  channels if none is specified, and only those included in *names* otherwise.
 
   > **Note**
   >
-  > Downloaded channel contents are cached.
-  > Use `--tarball-ttl` or the [`tarball-ttl` configuration option](@docroot@/command-ref/conf-file.md#conf-tarball-ttl) to change the validity period of cached downloads.
+  > Downloaded channel contents are cached. Use `--tarball-ttl` or the
+  > [`tarball-ttl` configuration option](@docroot@/command-ref/conf-file.md#conf-tarball-ttl) to
+  > change the validity period of cached downloads.
 
 - `--list-generations`
 
-  Prints a list of all the current existing generations for the
-  channel profile.
+  Prints a list of all the current existing generations for the channel profile.
 
   Works the same way as
+
   ```
   nix-env --profile /nix/var/nix/profiles/per-user/$USER/channels --list-generations
   ```
 
 - `--rollback` \[*generation*\]
 
-  Revert channels to the state before the last call to `nix-channel --update`.
-  Optionally, you can specify a specific channel *generation* number to restore.
+  Revert channels to the state before the last call to `nix-channel --update`. Optionally, you can
+  specify a specific channel *generation* number to restore.
 
 {{#include ./opt-common.md}}
 

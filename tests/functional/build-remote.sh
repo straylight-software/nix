@@ -8,30 +8,30 @@ skipTest "remote builders disabled - build hook is unsound"
 
 requireSandboxSupport
 requiresUnprivilegedUserNamespaces
-[[ "${busybox-}" =~ busybox ]] || skipTest "no busybox"
+[[ ${busybox-} =~ busybox ]] || skipTest "no busybox"
 
 # Avoid store dir being inside sandbox build-dir
 unset NIX_STORE_DIR
 
 function join_by {
-    local d=$1
-    shift
-    echo -n "$1"
-    shift
-    printf "%s" "${@/#/$d}"
+  local d=$1
+  shift
+  echo -n "$1"
+  shift
+  printf "%s" "${@/#/$d}"
 }
 
 EXTRA_SYSTEM_FEATURES=()
-if [[ -n "${NIX_TESTS_CA_BY_DEFAULT-}" ]]; then
-    EXTRA_SYSTEM_FEATURES=("ca-derivations")
+if [[ -n ${NIX_TESTS_CA_BY_DEFAULT-} ]]; then
+  EXTRA_SYSTEM_FEATURES=("ca-derivations")
 fi
 
 builders=(
-    # system-features will automatically be added to the outer URL, but not inner
-    # remote-store URL.
-    "ssh://localhost?remote-store=$TEST_ROOT/machine1?system-features=$(join_by "%20" foo "${EXTRA_SYSTEM_FEATURES[@]}") - - 1 1 $(join_by "," foo "${EXTRA_SYSTEM_FEATURES[@]}")"
-    "$TEST_ROOT/machine2 - - 1 1 $(join_by "," bar "${EXTRA_SYSTEM_FEATURES[@]}")"
-    "ssh-ng://localhost?remote-store=$TEST_ROOT/machine3?system-features=$(join_by "%20" baz "${EXTRA_SYSTEM_FEATURES[@]}") - - 1 1 $(join_by "," baz "${EXTRA_SYSTEM_FEATURES[@]}")"
+  # system-features will automatically be added to the outer URL, but not inner
+  # remote-store URL.
+  "ssh://localhost?remote-store=$TEST_ROOT/machine1?system-features=$(join_by "%20" foo "${EXTRA_SYSTEM_FEATURES[@]}") - - 1 1 $(join_by "," foo "${EXTRA_SYSTEM_FEATURES[@]}")"
+  "$TEST_ROOT/machine2 - - 1 1 $(join_by "," bar "${EXTRA_SYSTEM_FEATURES[@]}")"
+  "ssh-ng://localhost?remote-store=$TEST_ROOT/machine3?system-features=$(join_by "%20" baz "${EXTRA_SYSTEM_FEATURES[@]}") - - 1 1 $(join_by "," baz "${EXTRA_SYSTEM_FEATURES[@]}")"
 )
 
 chmod -R +w "$TEST_ROOT/machine"* || true
@@ -41,19 +41,19 @@ rm -rf "$TEST_ROOT/machine"* || true
 # child process. This allows us to test LegacySSHStore::buildDerivation().
 # ssh-ng://... likewise allows us to test RemoteStore::buildDerivation().
 nix build -L -v -f "$file" -o "$TEST_ROOT/result" --max-jobs 0 \
-    --arg busybox "$busybox" \
-    --store "$TEST_ROOT/machine0" \
-    --builders "$(join_by '; ' "${builders[@]}")"
+  --arg busybox "$busybox" \
+  --store "$TEST_ROOT/machine0" \
+  --builders "$(join_by '; ' "${builders[@]}")"
 
 outPath=$(readlink -f "$TEST_ROOT/result")
 
 grep 'FOO BAR BAZ' "$TEST_ROOT/machine0/$outPath"
 
 testPrintOutPath=$(
-    nix build -L -v -f "$file" --no-link --print-out-paths --max-jobs 0 \
-        --arg busybox "$busybox" \
-        --store "$TEST_ROOT/machine0" \
-        --builders "$(join_by '; ' "${builders[@]}")"
+  nix build -L -v -f "$file" --no-link --print-out-paths --max-jobs 0 \
+    --arg busybox "$busybox" \
+    --store "$TEST_ROOT/machine0" \
+    --builders "$(join_by '; ' "${builders[@]}")"
 )
 
 [[ $testPrintOutPath =~ store.*build-remote ]]
@@ -80,20 +80,20 @@ echo "$output" | grepQuiet builder-build-remote-input-3.sh
 unset output
 
 for i in input1 input3; do
-    nix log --store "$TEST_ROOT/machine0" --file "$file" --arg busybox "$busybox" "passthru.$i" | grep hi-$i
+  nix log --store "$TEST_ROOT/machine0" --file "$file" --arg busybox "$busybox" "passthru.$i" | grep hi-$i
 done
 
 # Behavior of keep-failed
 out="$(nix-build 2>&1 failing.nix \
-    --no-out-link \
-    --builders "$(join_by '; ' "${builders[@]}")" \
-    --keep-failed \
-    --store "$TEST_ROOT/machine0" \
-    -j0 \
-    --arg busybox "$busybox")" || true
+  --no-out-link \
+  --builders "$(join_by '; ' "${builders[@]}")" \
+  --keep-failed \
+  --store "$TEST_ROOT/machine0" \
+  -j0 \
+  --arg busybox "$busybox")" || true
 
-[[ "$out" =~ .*"note: keeping build directory".* ]]
-[[ "$out" =~ .*"The failed build directory was kept on the remote builder due to".* ]]
+[[ $out =~ .*"note: keeping build directory".* ]]
+[[ $out =~ .*"The failed build directory was kept on the remote builder due to".* ]]
 
 build_dir="$(grep "note: keeping build" <<<"$out" | sed -E "s/^(.*)note: keeping build directory '(.*)'(.*)$/\2/")"
-[[ "foo" = $(<"$build_dir"/bar) ]]
+[[ "foo" == $(<"$build_dir"/bar) ]]

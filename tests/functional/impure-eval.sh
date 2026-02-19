@@ -4,12 +4,14 @@ source common.sh
 
 export REMOTE_STORE="dummy://"
 
-simpleTest () {
-    local expr=$1; shift
-    local result=$1; shift
-    # rest, extra args
+simpleTest() {
+  local expr=$1
+  shift
+  local result=$1
+  shift
+  # rest, extra args
 
-    [[ "$(nix eval --impure --raw "$@" --expr "$expr")" == "$result" ]]
+  [[ "$(nix eval --impure --raw "$@" --expr "$expr")" == "$result" ]]
 }
 
 # `builtins.storeDir`

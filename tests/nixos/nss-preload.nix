@@ -7,7 +7,7 @@
 
 let
 
-  pkgs = config.nodes.client.nixpkgs.pkgs;
+  inherit (config.nodes.client.nixpkgs) pkgs;
 
   nix-fetch = pkgs.writeText "fetch.nix" ''
     derivation {

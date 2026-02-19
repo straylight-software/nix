@@ -1,12 +1,12 @@
 let
 
   stdenvFun =
-    { }:
+    _:
     {
       name = "stdenv";
     };
   stdenv2Fun =
-    { }:
+    _:
     {
       name = "stdenv2";
     };
@@ -118,9 +118,7 @@ let
       libXv = callPackage libXvFun { };
     };
 
-in
 
-let
 
   pkgs = allPackages { };
 

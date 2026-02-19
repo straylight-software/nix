@@ -11,13 +11,13 @@ rm -f "$TEST_ROOT"/result
 
 nix-build structured-attrs.nix -A all -o "$TEST_ROOT"/result
 
-[[ $(cat "$TEST_ROOT"/result/foo) = bar ]]
-[[ $(cat "$TEST_ROOT"/result-dev/foo) = foo ]]
+[[ $(cat "$TEST_ROOT"/result/foo) == bar ]]
+[[ $(cat "$TEST_ROOT"/result-dev/foo) == foo ]]
 
 export NIX_BUILD_SHELL=$SHELL
 # shellcheck disable=SC2016
 env NIX_PATH=nixpkgs=shell.nix nix-shell structured-attrs-shell.nix \
-    --run 'test "3" = "$(jq ".my.list|length" < $NIX_ATTRS_JSON_FILE)"'
+  --run 'test "3" = "$(jq ".my.list|length" < $NIX_ATTRS_JSON_FILE)"'
 
 # shellcheck disable=SC2016
 nix develop -f structured-attrs-shell.nix -c bash -c 'test "3" = "$(jq ".my.list|length" < $NIX_ATTRS_JSON_FILE)"'

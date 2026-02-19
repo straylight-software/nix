@@ -7,7 +7,7 @@ TODO_NixOS
 needLocalStore "'--external-builders' can’t be used with the daemon"
 
 expr="$TEST_ROOT/expr.nix"
-cat > "$expr" <<EOF
+cat >"$expr" <<EOF
 with import ${config_nix};
 mkDerivation {
   name = "external";
@@ -20,7 +20,7 @@ mkDerivation {
 EOF
 
 external_builder="$TEST_ROOT/external-builder.sh"
-cat > "$external_builder" <<EOF
+cat >"$external_builder" <<EOF
 #! $SHELL -e
 
 PATH=$PATH
@@ -47,4 +47,4 @@ nix build -L --file "$expr" --out-link "$TEST_ROOT/result" \
   --extra-experimental-features external-builders \
   --external-builders "[{\"systems\": [\"x68_46-xunil\"], \"args\": [\"bla\"], \"program\": \"$external_builder\"}]"
 
-[[ $(cat "$TEST_ROOT/result") = foobar ]]
+[[ $(cat "$TEST_ROOT/result") == foobar ]]

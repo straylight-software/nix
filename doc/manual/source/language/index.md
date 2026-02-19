@@ -1,39 +1,44 @@
 # Nix Language
 
-The Nix language is designed for conveniently creating and composing [derivations](@docroot@/glossary.md#gloss-derivation) – precise descriptions of how contents of existing files are used to derive new files.
+The Nix language is designed for conveniently creating and composing
+[derivations](@docroot@/glossary.md#gloss-derivation) – precise descriptions of how contents of
+existing files are used to derive new files.
 
 > **Tip**
 >
-> These pages are written as a reference.
-> If you are learning Nix, nix.dev has a good [introduction to the Nix language](https://nix.dev/tutorials/nix-language).
+> These pages are written as a reference. If you are learning Nix, nix.dev has a good
+> [introduction to the Nix language](https://nix.dev/tutorials/nix-language).
 
 The language is:
 
 - *domain-specific*
 
-  The Nix language is purpose-built for working with text files.
-  Its most characteristic features are:
+  The Nix language is purpose-built for working with text files. Its most characteristic features
+  are:
 
   - [File system path primitives](@docroot@/language/types.md#type-path), for accessing source files
-  - [Indented strings](@docroot@/language/string-literals.md) and [string interpolation](@docroot@/language/string-interpolation.md), for creating file contents
+  - [Indented strings](@docroot@/language/string-literals.md) and
+    [string interpolation](@docroot@/language/string-interpolation.md), for creating file contents
   - [Strings with contexts](@docroot@/language/string-context.md), for transparently linking files
 
-  It comes with [built-in functions](@docroot@/language/builtins.md) to integrate with the [Nix store](@docroot@/store/index.md), which manages files and enables [realising](@docroot@/glossary.md#gloss-realise) derivations declared in the Nix language.
+  It comes with [built-in functions](@docroot@/language/builtins.md) to integrate with the
+  [Nix store](@docroot@/store/index.md), which manages files and enables
+  [realising](@docroot@/glossary.md#gloss-realise) derivations declared in the Nix language.
 
 - *declarative*
 
-  There is no notion of executing sequential steps.
-  Dependencies between operations are established only through data.
+  There is no notion of executing sequential steps. Dependencies between operations are established
+  only through data.
 
 - *pure*
 
-  Values cannot change during computation.
-  Functions always produce the same output if their input does not change.
+  Values cannot change during computation. Functions always produce the same output if their input
+  does not change.
 
 - *functional*
 
-  Functions are like any other value.
-  Functions can be assigned to names, taken as arguments, or returned by functions.
+  Functions are like any other value. Functions can be assigned to names, taken as arguments, or
+  returned by functions.
 
 - *lazy*
 
@@ -59,580 +64,579 @@ This is an incomplete overview of language features, by example.
  <tr>
   <td>
 
+*Basic values ([primitives](@docroot@/language/types.md#primitives))*
 
-   *Basic values ([primitives](@docroot@/language/types.md#primitives))*
-
-
-  </td>
+</td>
   <td>
 
-
-
-  </td>
+</td>
  </tr>
  <tr>
   <td>
 
-   `"hello world"`
+`"hello world"`
 
-  </td>
+</td>
   <td>
 
-   A [string](@docroot@/language/types.md#type-string)
+A [string](@docroot@/language/types.md#type-string)
 
-  </td>
+</td>
  </tr>
  <tr>
   <td>
 
-   ```
-   ''
-     multi
-      line
-       string
-   ''
-   ```
+```
+''
+  multi
+   line
+    string
+''
+```
 
-  </td>
+</td>
   <td>
 
-   <!-- FIXME: using two no-break spaces, because apparently mdBook swallows the second regular space! -->
-   A multi-line string. Strips common prefixed whitespace. Evaluates to `"multi\n line\n  string"`.
+<!-- FIXME: using two no-break spaces, because apparently mdBook swallows the second regular space! -->
 
-  </td>
+A multi-line string. Strips common prefixed whitespace. Evaluates to `"multi\n line\n  string"`.
+
+</td>
  </tr>
  <tr>
   <td>
 
-   `# Explanation`
+`# Explanation`
 
-  </td>
+</td>
   <td>
 
-   A [comment](@docroot@/language/syntax.md#comments).
+A [comment](@docroot@/language/syntax.md#comments).
 
-  </td>
+</td>
  </tr>
  <tr>
   <td>
 
-   `"hello ${ { a = "world"; }.a }"`
+`"hello ${ { a = "world"; }.a }"`
 
-   `"1 2 ${toString 3}"`
+`"1 2 ${toString 3}"`
 
-   `"${pkgs.bash}/bin/sh"`
+`"${pkgs.bash}/bin/sh"`
 
-  </td>
+</td>
   <td>
 
-   [String interpolation](@docroot@/language/string-interpolation.md) (expands to `"hello world"`, `"1 2 3"`, `"/nix/store/<hash>-bash-<version>/bin/sh"`)
+[String interpolation](@docroot@/language/string-interpolation.md) (expands to `"hello world"`,
+`"1 2 3"`, `"/nix/store/<hash>-bash-<version>/bin/sh"`)
 
-  </td>
+</td>
  </tr>
  <tr>
   <td>
 
-   `true`, `false`
+`true`, `false`
 
-  </td>
+</td>
   <td>
 
-   [Booleans](@docroot@/language/types.md#type-bool)
+[Booleans](@docroot@/language/types.md#type-bool)
 
-  </td>
+</td>
  </tr>
  <tr>
   <td>
 
-   `null`
+`null`
 
-  </td>
+</td>
   <td>
 
-   [Null](@docroot@/language/types.md#type-null) value
+[Null](@docroot@/language/types.md#type-null) value
 
-  </td>
+</td>
  </tr>
  <tr>
   <td>
 
-   `123`
+`123`
 
-  </td>
+</td>
   <td>
 
-   An [integer](@docroot@/language/types.md#type-int)
+An [integer](@docroot@/language/types.md#type-int)
 
-  </td>
+</td>
  </tr>
  <tr>
   <td>
 
-   `3.141`
+`3.141`
 
-  </td>
+</td>
   <td>
 
-   A [floating point number](@docroot@/language/types.md#type-float)
+A [floating point number](@docroot@/language/types.md#type-float)
 
-  </td>
+</td>
  </tr>
  <tr>
   <td>
 
-   `/etc`
+`/etc`
 
-  </td>
+</td>
   <td>
 
-   An absolute [path](@docroot@/language/types.md#type-path)
+An absolute [path](@docroot@/language/types.md#type-path)
 
-  </td>
+</td>
  </tr>
  <tr>
   <td>
 
-   `./foo.png`
+`./foo.png`
 
-  </td>
+</td>
   <td>
 
-   A [path](@docroot@/language/types.md#type-path) relative to the file containing this Nix expression
+A [path](@docroot@/language/types.md#type-path) relative to the file containing this Nix expression
 
-  </td>
+</td>
  </tr>
  <tr>
   <td>
 
-   `~/.config`
+`~/.config`
 
-  </td>
+</td>
   <td>
 
-   A home [path](@docroot@/language/types.md#type-path). Evaluates to the `"<user's home directory>/.config"`.
+A home [path](@docroot@/language/types.md#type-path). Evaluates to the
+`"<user's home directory>/.config"`.
 
-  </td>
+</td>
  </tr>
  <tr>
   <td>
 
-   `<nixpkgs>`
+`<nixpkgs>`
 
-  </td>
+</td>
   <td>
 
-   A [lookup path](@docroot@/language/constructs/lookup-path.md) for Nix files. Value determined by [`$NIX_PATH` environment variable](../command-ref/env-common.md#env-NIX_PATH).
+A [lookup path](@docroot@/language/constructs/lookup-path.md) for Nix files. Value determined by
+[`$NIX_PATH` environment variable](../command-ref/env-common.md#env-NIX_PATH).
 
-  </td>
+</td>
  </tr>
  <tr>
   <td>
 
-   *Compound values*
+*Compound values*
 
-  </td>
+</td>
   <td>
 
-
-
-  </td>
+</td>
  </tr>
  <tr>
   <td>
 
-   `{ x = 1; y = 2; }`
+`{ x = 1; y = 2; }`
 
-  </td>
+</td>
   <td>
 
-   An [attribute set](@docroot@/language/types.md#type-attrs) with attributes named `x` and `y`
+An [attribute set](@docroot@/language/types.md#type-attrs) with attributes named `x` and `y`
 
-  </td>
+</td>
  </tr>
  <tr>
   <td>
 
-   `{ foo.bar = 1; }`
+`{ foo.bar = 1; }`
 
-  </td>
+</td>
   <td>
 
-   A nested set, equivalent to `{ foo = { bar = 1; }; }`
+A nested set, equivalent to `{ foo = { bar = 1; }; }`
 
-  </td>
+</td>
  </tr>
  <tr>
   <td>
 
-   `rec { x = "foo"; y = x + "bar"; }`
+`rec { x = "foo"; y = x + "bar"; }`
 
-  </td>
+</td>
   <td>
 
-   A [recursive set](@docroot@/language/syntax.md#recursive-sets), equivalent to `{ x = "foo"; y = "foobar"; }`.
+A [recursive set](@docroot@/language/syntax.md#recursive-sets), equivalent to
+`{ x = "foo"; y = "foobar"; }`.
 
-  </td>
+</td>
  </tr>
  <tr>
   <td>
 
-   `[ "foo" "bar" "baz" ]`
+`[ "foo" "bar" "baz" ]`
 
-   `[ 1 2 3 ]`
+`[ 1 2 3 ]`
 
-   `[ (f 1) { a = 1; b = 2; } [ "c" ] ]`
+`[ (f 1) { a = 1; b = 2; } [ "c" ] ]`
 
-  </td>
+</td>
   <td>
 
-   [Lists](@docroot@/language/types.md#type-list) with three elements.
+[Lists](@docroot@/language/types.md#type-list) with three elements.
 
-  </td>
+</td>
  </tr>
  <tr>
   <td>
 
-   *Operators*
+*Operators*
 
-  </td>
+</td>
   <td>
 
-
-
-  </td>
+</td>
  </tr>
  <tr>
   <td>
 
-   `"foo" + "bar"`
+`"foo" + "bar"`
 
-  </td>
+</td>
   <td>
 
-   String concatenation
+String concatenation
 
-  </td>
+</td>
  </tr>
  <tr>
   <td>
 
-   `1 + 2`
+`1 + 2`
 
-  </td>
+</td>
   <td>
 
-   Integer addition
+Integer addition
 
-  </td>
+</td>
  </tr>
  <tr>
   <td>
 
-   `"foo" == "f" + "oo"`
+`"foo" == "f" + "oo"`
 
-  </td>
+</td>
   <td>
 
-   Equality test (evaluates to `true`)
+Equality test (evaluates to `true`)
 
-  </td>
+</td>
  </tr>
  <tr>
   <td>
 
-   `"foo" != "bar"`
+`"foo" != "bar"`
 
-  </td>
+</td>
   <td>
 
-   Inequality test (evaluates to `true`)
+Inequality test (evaluates to `true`)
 
-  </td>
+</td>
  </tr>
  <tr>
   <td>
 
-   `!true`
+`!true`
 
-  </td>
+</td>
   <td>
 
-   Boolean negation
+Boolean negation
 
-  </td>
+</td>
  </tr>
  <tr>
   <td>
 
-   `{ x = 1; y = 2; }.x`
+`{ x = 1; y = 2; }.x`
 
-  </td>
+</td>
   <td>
 
-   [Attribute selection](@docroot@/language/types.md#type-attrs) (evaluates to `1`)
+[Attribute selection](@docroot@/language/types.md#type-attrs) (evaluates to `1`)
 
-  </td>
+</td>
  </tr>
  <tr>
   <td>
 
-   `{ x = 1; y = 2; }.z or 3`
+`{ x = 1; y = 2; }.z or 3`
 
-  </td>
+</td>
   <td>
 
-   [Attribute selection](@docroot@/language/types.md#type-attrs) with default (evaluates to `3`)
+[Attribute selection](@docroot@/language/types.md#type-attrs) with default (evaluates to `3`)
 
-  </td>
+</td>
  </tr>
  <tr>
   <td>
 
-   `{ x = 1; y = 2; } // { z = 3; }`
+`{ x = 1; y = 2; } // { z = 3; }`
 
-  </td>
+</td>
   <td>
 
-   Merge two sets (attributes in the right-hand set taking precedence)
+Merge two sets (attributes in the right-hand set taking precedence)
 
-  </td>
+</td>
  </tr>
  <tr>
   <td>
 
-   *Control structures*
+*Control structures*
 
-  </td>
+</td>
   <td>
 
-
-
-  </td>
+</td>
  </tr>
  <tr>
   <td>
 
-   `if 1 + 1 == 2 then "yes!" else "no!"`
+`if 1 + 1 == 2 then "yes!" else "no!"`
 
-  </td>
+</td>
   <td>
 
-   [Conditional expression](@docroot@/language/syntax.md#conditionals).
+[Conditional expression](@docroot@/language/syntax.md#conditionals).
 
-  </td>
+</td>
  </tr>
  <tr>
   <td>
 
-   `assert 1 + 1 == 2; "yes!"`
+`assert 1 + 1 == 2; "yes!"`
 
-  </td>
+</td>
   <td>
 
-   [Assertion](@docroot@/language/syntax.md#assertions) check (evaluates to `"yes!"`).
+[Assertion](@docroot@/language/syntax.md#assertions) check (evaluates to `"yes!"`).
 
-  </td>
+</td>
  </tr>
  <tr>
   <td>
 
-   `let x = "foo"; y = "bar"; in x + y`
+`let x = "foo"; y = "bar"; in x + y`
 
-  </td>
+</td>
   <td>
 
-   Variable definition. See [`let`-expressions](@docroot@/language/syntax.md#let-expressions).
+Variable definition. See [`let`-expressions](@docroot@/language/syntax.md#let-expressions).
 
-  </td>
+</td>
  </tr>
  <tr>
   <td>
 
-   `with builtins; head [ 1 2 3 ]`
+`with builtins; head [ 1 2 3 ]`
 
-  </td>
+</td>
   <td>
 
-   Add all attributes from the given set to the scope (evaluates to `1`).
+Add all attributes from the given set to the scope (evaluates to `1`).
 
-   See [`with`-expressions](@docroot@/language/syntax.md#with-expressions) for details and shadowing caveats.
+See [`with`-expressions](@docroot@/language/syntax.md#with-expressions) for details and shadowing
+caveats.
 
-  </td>
+</td>
  </tr>
  <tr>
   <td>
 
-   `inherit pkgs src;`
+`inherit pkgs src;`
 
-  </td>
+</td>
   <td>
 
-   Adds the variables to the current scope (attribute set or `let` binding).
-   Desugars to `pkgs = pkgs; src = src;`.
-   See [Inheriting attributes](@docroot@/language/syntax.md#inheriting-attributes).
+Adds the variables to the current scope (attribute set or `let` binding). Desugars to
+`pkgs = pkgs; src = src;`. See
+[Inheriting attributes](@docroot@/language/syntax.md#inheriting-attributes).
 
-  </td>
+</td>
  </tr>
  <tr>
   <td>
 
-   `inherit (pkgs) lib stdenv;`
+`inherit (pkgs) lib stdenv;`
 
-  </td>
+</td>
   <td>
 
-   Adds the attributes, from the attribute set in parentheses, to the current scope (attribute set or `let` binding).
-   Desugars to `lib = pkgs.lib; stdenv = pkgs.stdenv;`.
-   See [Inheriting attributes](@docroot@/language/syntax.md#inheriting-attributes).
+Adds the attributes, from the attribute set in parentheses, to the current scope (attribute set or
+`let` binding). Desugars to `lib = pkgs.lib; stdenv = pkgs.stdenv;`. See
+[Inheriting attributes](@docroot@/language/syntax.md#inheriting-attributes).
 
-  </td>
+</td>
  </tr>
  <tr>
   <td>
 
-   *[Functions](@docroot@/language/syntax.md#functions) (lambdas)*
+*[Functions](@docroot@/language/syntax.md#functions) (lambdas)*
 
-  </td>
+</td>
   <td>
 
-
-
-  </td>
+</td>
  </tr>
  <tr>
   <td>
 
-   `x: x + 1`
+`x: x + 1`
 
-  </td>
+</td>
   <td>
 
-   A [function](@docroot@/language/syntax.md#functions) that expects an integer and returns it increased by 1.
+A [function](@docroot@/language/syntax.md#functions) that expects an integer and returns it
+increased by 1.
 
-  </td>
+</td>
  </tr>
  <tr>
   <td>
 
-   `x: y: x + y`
+`x: y: x + y`
 
-  </td>
+</td>
   <td>
 
-   Curried [function](@docroot@/language/syntax.md#functions), equivalent to `x: (y: x + y)`. Can be used like a function that takes two arguments and returns their sum.
+Curried [function](@docroot@/language/syntax.md#functions), equivalent to `x: (y: x + y)`. Can be
+used like a function that takes two arguments and returns their sum.
 
-  </td>
+</td>
  </tr>
  <tr>
   <td>
 
-   `(x: x + 1) 100`
+`(x: x + 1) 100`
 
-  </td>
+</td>
   <td>
 
-   A [function](@docroot@/language/syntax.md#functions) call (evaluates to 101)
+A [function](@docroot@/language/syntax.md#functions) call (evaluates to 101)
 
-  </td>
+</td>
  </tr>
  <tr>
   <td>
 
-   `let inc = x: x + 1; in inc (inc (inc 100))`
+`let inc = x: x + 1; in inc (inc (inc 100))`
 
-  </td>
+</td>
   <td>
 
-   A [function](@docroot@/language/syntax.md#functions) bound to a variable and subsequently called by name (evaluates to 103)
+A [function](@docroot@/language/syntax.md#functions) bound to a variable and subsequently called by
+name (evaluates to 103)
 
-  </td>
+</td>
  </tr>
  <tr>
   <td>
 
-   `{ x, y }: x + y`
+`{ x, y }: x + y`
 
-  </td>
+</td>
   <td>
 
-   A [function](@docroot@/language/syntax.md#functions) that expects a set with required attributes `x` and `y` and concatenates them
+A [function](@docroot@/language/syntax.md#functions) that expects a set with required attributes `x`
+and `y` and concatenates them
 
-  </td>
+</td>
  </tr>
  <tr>
   <td>
 
-   `{ x, y ? "bar" }: x + y`
+`{ x, y ? "bar" }: x + y`
 
-  </td>
+</td>
   <td>
 
-   A [function](@docroot@/language/syntax.md#functions) that expects a set with required attribute `x` and optional `y`, using `"bar"` as default value for `y`
+A [function](@docroot@/language/syntax.md#functions) that expects a set with required attribute `x`
+and optional `y`, using `"bar"` as default value for `y`
 
-  </td>
+</td>
  </tr>
  <tr>
   <td>
 
-   `{ x, y, ... }: x + y`
+`{ x, y, ... }: x + y`
 
-  </td>
+</td>
   <td>
 
-   A [function](@docroot@/language/syntax.md#functions) that expects a set with required attributes `x` and `y` and ignores any other attributes
+A [function](@docroot@/language/syntax.md#functions) that expects a set with required attributes `x`
+and `y` and ignores any other attributes
 
-  </td>
+</td>
  </tr>
  <tr>
   <td>
 
-   `{ x, y } @ args: x + y`
+`{ x, y } @ args: x + y`
 
-   `args @ { x, y }: x + y`
+`args @ { x, y }: x + y`
 
-  </td>
+</td>
   <td>
 
-   A [function](@docroot@/language/syntax.md#functions) that expects a set with required attributes `x` and `y`, and binds the whole set to `args`
+A [function](@docroot@/language/syntax.md#functions) that expects a set with required attributes `x`
+and `y`, and binds the whole set to `args`
 
-  </td>
+</td>
  </tr>
  <tr>
   <td>
 
-   *Built-in functions*
+*Built-in functions*
 
-  </td>
+</td>
   <td>
 
-
-
-  </td>
+</td>
  </tr>
  <tr>
   <td>
 
-   `import ./foo.nix`
+`import ./foo.nix`
 
-  </td>
+</td>
   <td>
 
-   Load and return Nix expression in given file.
-   See [import](@docroot@/language/builtins.md#builtins-import).
+Load and return Nix expression in given file. See
+[import](@docroot@/language/builtins.md#builtins-import).
 
-  </td>
+</td>
  </tr>
  <tr>
   <td>
 
-   `map (x: x + x) [ 1 2 3 ]`
+`map (x: x + x) [ 1 2 3 ]`
 
-  </td>
+</td>
   <td>
 
-   Apply a function to every element of a list (evaluates to `[ 2 4 6 ]`).
-   See [`map`](@docroot@/language/builtins.md#builtins-map).
+Apply a function to every element of a list (evaluates to `[ 2 4 6 ]`). See
+[`map`](@docroot@/language/builtins.md#builtins-map).
 
-  </td>
+</td>
  </tr>
 </table>

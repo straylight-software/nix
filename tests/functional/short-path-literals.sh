@@ -6,7 +6,7 @@ clearStoreIfPossible
 
 # Test 1: Without the setting (default), no warnings should be produced
 nix eval --expr 'test/subdir' 2>"$TEST_ROOT"/stderr
-grepQuietInverse < "$TEST_ROOT/stderr" -E "relative path|path literal" || fail "Should not produce warnings by default"
+grepQuietInverse <"$TEST_ROOT/stderr" -E "relative path|path literal" || fail "Should not produce warnings by default"
 
 # Test 2: With the setting enabled, warnings should be produced for short path literals
 nix eval --warn-short-path-literals --expr 'test/subdir' 2>"$TEST_ROOT"/stderr
@@ -38,7 +38,7 @@ grepQuiet "at «string»:1:1:" "$TEST_ROOT/stderr"
 # Test 8: Test that evaluation still works correctly despite the warning
 result=$(nix eval --warn-short-path-literals --expr 'test/subdir' 2>/dev/null)
 expected="$PWD/test/subdir"
-[[ "$result" == "$expected" ]] || fail "Evaluation result should be correct despite warning"
+[[ $result == "$expected" ]] || fail "Evaluation result should be correct despite warning"
 
 # Test 9: Test with nix-instantiate as well
 nix-instantiate --warn-short-path-literals --eval -E 'foo/bar' 2>"$TEST_ROOT"/stderr

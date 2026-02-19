@@ -16,7 +16,8 @@
 #include <mutex>
 
 #include <unistd.h>
-#include <widechar_width.h>
+
+#include "widechar_width.h"
 
 namespace {
 

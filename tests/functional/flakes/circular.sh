@@ -11,7 +11,7 @@ flakeB=$TEST_ROOT/flakeB
 createGitRepo "$flakeA"
 createGitRepo "$flakeB"
 
-cat > "$flakeA"/flake.nix <<EOF
+cat >"$flakeA"/flake.nix <<EOF
 {
   inputs.b.url = git+file://$flakeB;
   inputs.b.inputs.a.follows = "/";
@@ -25,7 +25,7 @@ EOF
 
 git -C "$flakeA" add flake.nix
 
-cat > "$flakeB"/flake.nix <<EOF
+cat >"$flakeB"/flake.nix <<EOF
 {
   inputs.a.url = git+file://$flakeA;
 
@@ -38,15 +38,14 @@ EOF
 git -C "$flakeB" add flake.nix
 git -C "$flakeB" commit -a -m 'Foo'
 
-[[ $(nix eval "$flakeA#foo") = 1579 ]]
-[[ $(nix eval "$flakeA#foo") = 1579 ]]
+[[ $(nix eval "$flakeA#foo") == 1579 ]]
+[[ $(nix eval "$flakeA#foo") == 1579 ]]
 
 sed -i "$flakeB"/flake.nix -e 's/456/789/'
 git -C "$flakeB" commit -a -m 'Foo'
 
 nix flake update b --flake "$flakeA"
-[[ $(nix eval "$flakeA#foo") = 1912 ]]
+[[ $(nix eval "$flakeA#foo") == 1912 ]]
 
 # Test list-inputs with circular dependencies
 nix flake metadata "$flakeA"
-

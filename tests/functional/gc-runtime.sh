@@ -3,10 +3,10 @@
 source common.sh
 
 case $system in
-    *linux*)
-        ;;
-    *)
-        skipTest "Not running Linux";
+*linux*) ;;
+*)
+  skipTest "Not running Linux"
+  ;;
 esac
 
 set -m # enable job control, needed for kill
@@ -40,8 +40,8 @@ nix-store --gc
 kill -- -$child
 
 if ! test -e "$outPath"; then
-    echo "running program was garbage collected!"
-    exit 1
+  echo "running program was garbage collected!"
+  exit 1
 fi
 
 exit 0

@@ -37,7 +37,7 @@ NIX_CONFIG="
   experimental-features =
   $gatedSetting = true
 " expect 1 nix config show $gatedSetting 1>"$TEST_ROOT"/stdout 2>"$TEST_ROOT"/stderr
-[[ $(cat "$TEST_ROOT/stdout") = '' ]]
+[[ $(cat "$TEST_ROOT/stdout") == '' ]]
 grepQuiet "error: could not find setting '$gatedSetting'" "$TEST_ROOT/stderr"
 
 # Experimental feature is disabled after, ignore and warn.
@@ -45,7 +45,7 @@ NIX_CONFIG="
   $gatedSetting = true
   experimental-features =
 " expect 1 nix config show $gatedSetting 1>"$TEST_ROOT"/stdout 2>"$TEST_ROOT"/stderr
-[[ $(cat "$TEST_ROOT/stdout") = '' ]]
+[[ $(cat "$TEST_ROOT/stdout") == '' ]]
 grepQuiet "error: could not find setting '$gatedSetting'" "$TEST_ROOT/stderr"
 
 # Experimental feature is enabled before, process.
@@ -64,12 +64,12 @@ grepQuiet "true" "$TEST_ROOT/stdout"
 grepQuietInverse "Ignoring setting '$gatedSetting'" "$TEST_ROOT/stderr"
 
 function exit_code_both_ways {
-    expect 1 nix --experimental-features '' "$@" 1>/dev/null
-    nix --experimental-features "$xpFeature" "$@" 1>/dev/null
+  expect 1 nix --experimental-features '' "$@" 1>/dev/null
+  nix --experimental-features "$xpFeature" "$@" 1>/dev/null
 
-    # Also, the order should not matter
-    expect 1 nix "$@" --experimental-features '' 1>/dev/null
-    nix "$@" --experimental-features "$xpFeature" 1>/dev/null
+  # Also, the order should not matter
+  expect 1 nix "$@" --experimental-features '' 1>/dev/null
+  nix "$@" --experimental-features "$xpFeature" 1>/dev/null
 }
 
 exit_code_both_ways config show --auto-allocate-uids

@@ -21,8 +21,9 @@ cxx_library(
         "registry.cpp",
         "tarball.cpp",
     ],
-    headers = [
+    exported_headers = [
         "attrs.h",
+        "builtin-flake-registry.json.gen.h",
         "cache.h",
         "fetchers.h",
         "fetch-settings.h",
@@ -39,5 +40,6 @@ cxx_library(
     deps = [
         "//src/nix/util:util",
         "//src/nix/store:store",
+        "//third_party:libgit2",
     ],
 )

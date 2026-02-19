@@ -1,12 +1,10 @@
 with import ./lib.nix;
 
-let {
-
+rec {
   body = concat [
     "foo"
     "bar"
     "bla"
     "test"
   ];
-
-}
+}.body

@@ -1,20 +1,6 @@
 let
-  inherit (builtins)
-    attrNames
-    listToAttrs
-    concatStringsSep
-    readFile
-    replaceStrings
-    ;
-  inherit (import <nix/utils.nix>)
-    optionalString
-    filterAttrs
-    trim
-    squash
-    toLower
-    unique
-    indent
-    ;
+  inherit (builtins) attrNames replaceStrings;
+  inherit (import <nix/utils.nix>) optionalString squash toLower;
   showSettings = import <nix/generate-settings.nix>;
 in
 
@@ -33,7 +19,6 @@ let
     {
       settings,
       doc,
-      uri-schemes,
       experimentalFeature,
     }:
     let

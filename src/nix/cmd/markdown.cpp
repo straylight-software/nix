@@ -7,8 +7,12 @@
 #include "nix/util/terminal.h"
 
 #if HAVE_LOWDOWN
-#  include <lowdown.h>
+#  include <cstddef>
+#  include <cstdio>
+extern "C" {
 #  include <sys/queue.h>
+}
+#  include <lowdown.h>
 #endif
 
 namespace nix {

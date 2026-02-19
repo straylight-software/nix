@@ -1,7 +1,6 @@
 # Configuration file for json-schema-for-humans
 #
 # https://github.com/coveooss/json-schema-for-humans/blob/main/docs/examples/examples_md_default/Configuration.md
-
 template_name: md
 show_toc: true
 # impure timestamp and distracting

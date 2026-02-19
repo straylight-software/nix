@@ -1,4 +1,4 @@
 builtins.genericClosure {
   startSet = [ { nokey = 1; } ];
-  operator = x: [ ];
+  operator = _x: [ ];
 }

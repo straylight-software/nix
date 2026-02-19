@@ -12,7 +12,6 @@ description: |
   > This JSON format is currently
   > [**experimental**](@docroot@/development/experimental-features.md)
   > and subject to change.
-
 type: object
 required:
   - config
@@ -22,7 +21,6 @@ required:
 properties:
   config:
     "$ref": "#/$defs/storeConfig"
-
   contents:
     type: object
     title: Store Objects
@@ -48,7 +46,6 @@ properties:
               The actual [file system object](@docroot@/store/file-system-object.md) contents of this store path.
         additionalProperties: false
     additionalProperties: false
-
   derivations:
     type: object
     title: Derivations
@@ -58,7 +55,6 @@ properties:
       "^[0123456789abcdfghijklmnpqrsvwxyz]{32}-.+\\.drv$":
         "$ref": "./derivation-v4.yaml"
     additionalProperties: false
-
   buildTrace:
     type: object
     title: Build Trace
@@ -72,7 +68,6 @@ properties:
         additionalProperties:
           "$ref": "./build-trace-entry-v1.yaml#/$defs/value"
     additionalProperties: false
-
 "$defs":
   storeConfig:
     title: Store Configuration

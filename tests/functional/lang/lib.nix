@@ -41,7 +41,7 @@ rec {
       in
       {
         first = [ (head list) ] ++ res.first;
-        second = res.second;
+        inherit (res) second;
       };
 
   # Stable merge sort.

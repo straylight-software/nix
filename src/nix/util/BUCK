@@ -1,10 +1,20 @@
 # src/nix/util/BUCK
 #
 # nix-util: Core utilities library
+#
+# TODO[b7r6]: This library is a mess of NIH reimplementations.
+# Once we have proctological test coverage, replace:
+#   - URL parsing → ada
+#   - custom hash stuff → proper crypto libs
+#   - half the string utilities → std::ranges or abseil
+#
+# Platform: Currently Linux-only (unix/ sources included, windows/ excluded)
 
 cxx_library(
     name = "util",
+
     srcs = [
+        # Core sources
         "archive.cpp",
         "args.cpp",
         "base-n.cpp",
@@ -33,9 +43,9 @@ cxx_library(
         "memory-source-accessor.cpp",
         "mounted-source-accessor.cpp",
         "nar-accessor.cpp",
+        "pos-table.cpp",
         "position.cpp",
         "posix-source-accessor.cpp",
-        "pos-table.cpp",
         "serialise.cpp",
         "source-accessor.cpp",
         "source-path.cpp",
@@ -52,8 +62,29 @@ cxx_library(
         "users.cpp",
         "util.cpp",
         "xml-writer.cpp",
+
+        # Linux-specific
+        "cgroup.cpp",
+        "linux-namespaces.cpp",
+
+        # Unix-specific (Linux is Unix)
+        "unix/current-process.cpp",
+        "unix/environment-variables.cpp",
+        "unix/file-descriptor.cpp",
+        "unix/file-path.cpp",
+        "unix/file-system.cpp",
+        "unix/muxable-pipe.cpp",
+        "unix/os-string.cpp",
+        "unix/processes.cpp",
+        "unix/signals.cpp",
+        "unix/users.cpp",
+
+        # Signature
+        "signature/local-keys.cpp",
+        "signature/signer.cpp",
     ],
-    headers = [
+
+    exported_headers = [
         "abstract-setting-to-json.h",
         "alignment.h",
         "ansicolor.h",
@@ -64,6 +95,7 @@ cxx_library(
         "base-nix-32.h",
         "callback.h",
         "canon-path.h",
+        "cgroup.h",
         "checked-arithmetic.h",
         "chunked-vector.h",
         "closure.h",
@@ -96,24 +128,27 @@ cxx_library(
         "json-impls.h",
         "json-non-null.h",
         "json-utils.h",
+        "linux-namespaces.h",
         "logging.h",
         "lru-cache.h",
         "memory-source-accessor.h",
+        "monitor-fd.h",
         "mounted-source-accessor.h",
         "muxable-pipe.h",
         "nar-accessor.h",
         "os-string.h",
         "pool.h",
         "pos-idx.h",
+        "pos-table.h",
         "position.h",
         "posix-source-accessor.h",
-        "pos-table.h",
         "processes.h",
         "ref.h",
         "regex-combinators.h",
         "repair-flag.h",
         "serialise.h",
         "signals.h",
+        "signals-impl.h",
         "socket.h",
         "sort.h",
         "source-accessor.h",
@@ -135,15 +170,31 @@ cxx_library(
         "url-parts.h",
         "users.h",
         "util.h",
+        "util-config-private.h",
+        "util-unix-config-private.h",
         "variant-wrapper.h",
+        "widechar_width.h",
         "xml-writer.h",
+
+        # Subdirectory headers
+        "args/root.h",
+        "signature/local-keys.h",
+        "signature/signer.h",
+        "unix/monitor-fd.h",
+        "unix/signals-impl.h",
     ],
+
     header_namespace = "nix/util",
+
     visibility = ["PUBLIC"],
+
     deps = [
         "//third_party:boost",
         "//third_party:nlohmann_json",
         "//third_party:openssl",
         "//third_party:blake3",
+        "//third_party:brotli",
+        "//third_party:libsodium",
+        "//third_party:libarchive",
     ],
 )

@@ -54,3 +54,4 @@ flake-regressions
 .nil.toml
 .direnv
 .devshell
+/buck-out/

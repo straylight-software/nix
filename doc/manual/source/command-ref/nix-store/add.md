@@ -8,11 +8,11 @@
 
 # Description
 
-The operation `--add` adds the specified paths to the Nix store. It
-prints the resulting paths in the Nix store on standard output.
+The operation `--add` adds the specified paths to the Nix store. It prints the resulting paths in
+the Nix store on standard output.
 
-*paths* that refer to symlinks are not dereferenced, but added to the store
-as symlinks with the same target.
+*paths* that refer to symlinks are not dereferenced, but added to the store as symlinks with the
+same target.
 
 {{#include ./opt-common.md}}
 

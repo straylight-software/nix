@@ -1,4 +1,4 @@
-builtins.filterAttrs (name: value: name == "a") {
+builtins.filterAttrs (name: _value: name == "a") {
   a = 3;
   b = 6;
   c = 10;

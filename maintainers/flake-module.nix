@@ -6,12 +6,10 @@
 }:
 
 {
-  imports = [
-    inputs.git-hooks-nix.flakeModule
-  ];
+  imports = [ inputs.git-hooks-nix.flakeModule ];
 
   perSystem =
-    { config, pkgs, ... }:
+    { pkgs, ... }:
     {
 
       # https://flake.parts/options/git-hooks-nix#options
@@ -97,7 +95,7 @@
             excludes = [
               # We don't want to format test data
               # ''tests/(?!nixos/).*\.nix''
-              ''^src/[^/]*-tests/data/.*$''
+              "^src/[^/]*-tests/data/.*$"
 
               # Don't format vendored code
               ''^doc/manual/redirects\.js$''

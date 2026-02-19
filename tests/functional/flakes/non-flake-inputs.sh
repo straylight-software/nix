@@ -10,7 +10,7 @@ createFlake2
 nonFlakeDir=$TEST_ROOT/nonFlake
 createGitRepo "$nonFlakeDir" ""
 
-cat > "$nonFlakeDir/README.md" <<EOF
+cat >"$nonFlakeDir/README.md" <<EOF
 FNORD
 EOF
 
@@ -20,7 +20,7 @@ git -C "$nonFlakeDir" commit -m 'Initial'
 flake3Dir=$TEST_ROOT/flake3
 createGitRepo "$flake3Dir" ""
 
-cat > "$flake3Dir/flake.nix" <<EOF
+cat >"$flake3Dir/flake.nix" <<EOF
 {
   inputs = {
     flake1 = {};
@@ -82,7 +82,7 @@ nix build -o "$TEST_ROOT/result" "$flake3Dir#sth" --commit-lock-file
 nix registry add --registry "$registry" flake3 "git+file://$flake3Dir"
 
 _NIX_TEST_BARF_ON_UNCACHEABLE='' nix build -o "$TEST_ROOT/result" flake3#fnord
-[[ $(cat "$TEST_ROOT/result") = FNORD ]]
+[[ $(cat "$TEST_ROOT/result") == FNORD ]]
 
 # Check whether flake input fetching is lazy: flake3#sth does not
 # depend on flake2, so this shouldn't fail.
@@ -114,32 +114,26 @@ nix eval --raw flake3#inputs.relativeNonFlakeFile.outPath
 nix eval --raw flake3#inputs.relativeNonFlakeFile.sourceInfo.outPath
 
 # Check non-flake file inputs have the expected outPaths
-[[
-  $(nix eval --raw flake3#inputs.nonFlake.outPath) \
-  = $(nix eval --raw flake3#inputs.nonFlake.sourceInfo.outPath)
-]]
-[[
-  $(nix eval --raw flake3#inputs.nonFlakeFile.outPath) \
-  = $(nix eval --raw flake3#inputs.nonFlakeFile.sourceInfo.outPath)
-]]
-[[
-  $(nix eval --raw flake3#inputs.nonFlakeFile2.outPath) \
-  = $(nix eval --raw flake3#inputs.nonFlakeFile2.sourceInfo.outPath)
-]]
-[[
-  $(nix eval --raw flake3#inputs.nonFlakeFile3.outPath) \
-  = $(nix eval --raw flake3#inputs.nonFlakeFile3.sourceInfo.outPath)/README.md
-]]
-[[
-  $(nix eval --raw flake3#inputs.relativeNonFlakeFile.outPath) \
-  = $(nix eval --raw flake3#inputs.relativeNonFlakeFile.sourceInfo.outPath)/config.nix
-]]
+[[ 
+  $(nix eval --raw flake3#inputs.nonFlake.outPath) == $(nix eval --raw flake3#inputs.nonFlake.sourceInfo.outPath) ]]
+
+[[ 
+  $(nix eval --raw flake3#inputs.nonFlakeFile.outPath) == $(nix eval --raw flake3#inputs.nonFlakeFile.sourceInfo.outPath) ]]
+
+[[ 
+  $(nix eval --raw flake3#inputs.nonFlakeFile2.outPath) == $(nix eval --raw flake3#inputs.nonFlakeFile2.sourceInfo.outPath) ]]
+
+[[ 
+  $(nix eval --raw flake3#inputs.nonFlakeFile3.outPath) == $(nix eval --raw flake3#inputs.nonFlakeFile3.sourceInfo.outPath)/README.md ]]
+
+[[ 
+  $(nix eval --raw flake3#inputs.relativeNonFlakeFile.outPath) == $(nix eval --raw flake3#inputs.relativeNonFlakeFile.sourceInfo.outPath)/config.nix ]]
 
 # Make branch "removeXyzzy" where flake3 doesn't have xyzzy anymore
 git -C "$flake3Dir" checkout -b removeXyzzy
 rm "$flake3Dir/flake.nix"
 
-cat > "$flake3Dir/flake.nix" <<EOF
+cat >"$flake3Dir/flake.nix" <<EOF
 {
   inputs = {
     nonFlake = {

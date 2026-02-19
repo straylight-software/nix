@@ -11,10 +11,10 @@ createFlake1
 
 repoDir="$TEST_ROOT/repo"
 mkdir -p "$repoDir"
-echo "# foo" >> "$flake1Dir/flake.nix"
+echo "# foo" >>"$flake1Dir/flake.nix"
 git -C "$flake1Dir" commit -a -m bla
 
-cat > "$repoDir"/flake.nix <<EOF
+cat >"$repoDir"/flake.nix <<EOF
 {
   inputs.dep = {
     type = "git";
@@ -27,9 +27,9 @@ cat > "$repoDir"/flake.nix <<EOF
 EOF
 
 # This will do a non-shallow fetch.
-[[ $(nix eval "path:$repoDir#revs") = 2 ]]
+[[ $(nix eval "path:$repoDir#revs") == 2 ]]
 
 # This should re-use the existing non-shallow clone.
 clearStore
 mv "$flake1Dir" "$flake1Dir.moved"
-[[ $(nix eval "path:$repoDir#revs") = 2 ]]
+[[ $(nix eval "path:$repoDir#revs") == 2 ]]
