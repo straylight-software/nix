@@ -14,11 +14,11 @@
 
 namespace nix {
 
-void base_error_t::addTrace(std::shared_ptr<const Pos>&& e, hint_fmt_t hint, trace_print_t print) {
+void base_error_t::add_trace(std::shared_ptr<const pos_t>&& e, hint_fmt_t hint, trace_print_t print) {
   err.traces.push_front(trace_t{.pos = std::move(e), .hint = hint, .print = print});
 }
 
-void throwExceptionSelfCheck() {
+void throw_exception_self_check() {
   // This is meant to be caught in initLibUtil()
   throw Error("C++ exception handling is broken. This would appear to be a problem with the way "
               "Nix was compiled and/or linked and/or loaded.");
@@ -26,18 +26,18 @@ void throwExceptionSelfCheck() {
 
 // c++ std::exception descendants must have a 'const char* what()' function.
 // This stringifies the error and caches it for use by what(), or similarly by msg().
-const std::string& base_error_t::calcWhat() const {
+const std::string& base_error_t::calc_what() const {
   if (what_.has_value())
     return *what_;
   else {
     std::ostringstream oss;
-    showErrorInfo(oss, err, loggerSettings.showTrace);
+    show_error_info(oss, err, logger_settings.show_trace);
     what_ = oss.str();
     return *what_;
   }
 }
 
-std::optional<std::string> error_info_t::programName = std::nullopt;
+std::optional<std::string> error_info_t::program_name = std::nullopt;
 
 std::ostream& operator<<(std::ostream& os, const hint_fmt_t& hf) {
   return os << hf.str();
@@ -64,19 +64,19 @@ inline std::strong_ordering operator<=>(const trace_t& lhs, const trace_t& rhs) 
 }
 
 // print lines of code to the ostream, indicating the error column.
-void printCodeLines(std::ostream& out, const std::string& prefix, const Pos& errPos,
+void print_code_lines(std::ostream& out, const std::string& prefix, const pos_t& err_pos,
                     const lines_of_code_t& loc) {
   // previous line of code.
-  if (loc.prevLineOfCode.has_value()) {
-    out << std::endl << fmt("%1% %|2$5d|| %3%", prefix, (errPos.line - 1), *loc.prevLineOfCode);
+  if (loc.prev_line_of_code.has_value()) {
+    out << std::endl << fmt("%1% %|2$5d|| %3%", prefix, (err_pos.line - 1), *loc.prev_line_of_code);
   }
 
-  if (loc.errLineOfCode.has_value()) {
+  if (loc.err_line_of_code.has_value()) {
     // line of code containing the error.
-    out << std::endl << fmt("%1% %|2$5d|| %3%", prefix, (errPos.line), *loc.errLineOfCode);
+    out << std::endl << fmt("%1% %|2$5d|| %3%", prefix, (err_pos.line), *loc.err_line_of_code);
     // error arrows for the column range.
-    if (errPos.column > 0) {
-      int start = errPos.column;
+    if (err_pos.column > 0) {
+      int start = err_pos.column;
       std::string spaces;
       for (int i = 0; i < start; ++i) {
         spaces.append(" ");
@@ -89,12 +89,12 @@ void printCodeLines(std::ostream& out, const std::string& prefix, const Pos& err
   }
 
   // next line of code.
-  if (loc.nextLineOfCode.has_value()) {
-    out << std::endl << fmt("%1% %|2$5d|| %3%", prefix, (errPos.line + 1), *loc.nextLineOfCode);
+  if (loc.next_line_of_code.has_value()) {
+    out << std::endl << fmt("%1% %|2$5d|| %3%", prefix, (err_pos.line + 1), *loc.next_line_of_code);
   }
 }
 
-static std::string indent(std::string_view indentFirst, std::string_view indentRest,
+static std::string indent(std::string_view indent_first, std::string_view indent_rest,
                           std::string_view s) {
   std::string res;
   bool first = true;
@@ -103,7 +103,7 @@ static std::string indent(std::string_view indentFirst, std::string_view indentR
     auto end = s.find('\n');
     if (!first)
       res += "\n";
-    res += chomp(std::string(first ? indentFirst : indentRest) + std::string(s.substr(0, end)));
+    res += chomp(std::string(first ? indent_first : indent_rest) + std::string(s.substr(0, end)));
     first = false;
     if (end == s.npos)
       break;
@@ -120,50 +120,50 @@ static std::string indent(std::string_view indentFirst, std::string_view indentR
  *     git diff -U20 tests
  *
  */
-static bool printUnknownLocations = getEnv("_NIX_EVAL_SHOW_UNKNOWN_LOCATIONS").has_value();
+static bool print_unknown_locations = get_env("_NIX_EVAL_SHOW_UNKNOWN_LOCATIONS").has_value();
 
 /**
  * Print a position, if it is known.
  *
  * @return true if a position was printed.
  */
-static bool printPosMaybe(std::ostream& oss, std::string_view indent,
-                          const std::shared_ptr<const Pos>& pos) {
-  bool hasPos = pos && *pos;
-  if (hasPos) {
+static bool print_pos_maybe(std::ostream& oss, std::string_view indent,
+                          const std::shared_ptr<const pos_t>& pos) {
+  bool has_pos = pos && *pos;
+  if (has_pos) {
     oss << indent << ANSI_BLUE << "at " ANSI_WARNING << *pos << ANSI_NORMAL << ":";
 
-    if (auto loc = pos->getCodeLines()) {
-      printCodeLines(oss, "", *pos, *loc);
+    if (auto loc = pos->get_code_lines()) {
+      print_code_lines(oss, "", *pos, *loc);
       oss << "\n";
     }
-  } else if (printUnknownLocations) {
+  } else if (print_unknown_locations) {
     oss << "\n"
         << indent << ANSI_BLUE << "at " ANSI_RED << "UNKNOWN LOCATION" << ANSI_NORMAL << "\n";
   }
-  return hasPos;
+  return has_pos;
 }
 
-static void printTrace(std::ostream& output, const std::string_view& indent, size_t& count,
+static void print_trace(std::ostream& output, const std::string_view& indent, size_t& count,
                        const trace_t& trace) {
   output << "\n" << "… " << trace.hint.str() << "\n";
 
-  if (printPosMaybe(output, indent, trace.pos))
+  if (print_pos_maybe(output, indent, trace.pos))
     count++;
 }
 
-void printSkippedTracesMaybe(std::ostream& output, const std::string_view& indent, size_t& count,
-                             std::vector<trace_t>& skippedTraces, std::set<trace_t> tracesSeen) {
-  if (skippedTraces.size() > 0) {
+void print_skipped_traces_maybe(std::ostream& output, const std::string_view& indent, size_t& count,
+                             std::vector<trace_t>& skipped_traces, std::set<trace_t> traces_seen) {
+  if (skipped_traces.size() > 0) {
     // If we only skipped a few frames, print them out normally;
     // messages like "1 duplicate frames omitted" aren't helpful.
-    if (skippedTraces.size() <= 5) {
-      for (auto& trace : skippedTraces) {
-        printTrace(output, indent, count, trace);
+    if (skipped_traces.size() <= 5) {
+      for (auto& trace : skipped_traces) {
+        print_trace(output, indent, count, trace);
       }
     } else {
       output << "\n"
-             << ANSI_WARNING "(" << skippedTraces.size() << " duplicate frames omitted)" ANSI_NORMAL
+             << ANSI_WARNING "(" << skipped_traces.size() << " duplicate frames omitted)" ANSI_NORMAL
              << "\n";
       // Clear the set of "seen" traces after printing a chunk of
       // `duplicate frames omitted`.
@@ -191,50 +191,50 @@ void printSkippedTracesMaybe(std::ostream& output, const std::string_view& inden
       // - (9 duplicate frames omitted)
       //
       // See: `tests/functional/lang/eval-fail-mutual-recursion.nix`
-      tracesSeen.clear();
+      traces_seen.clear();
     }
   }
   // We've either printed each trace in `skippedTraces` normally, or
   // printed a chunk of `duplicate frames omitted`. Either way, we've
   // processed these traces and can clear them.
-  skippedTraces.clear();
+  skipped_traces.clear();
 }
 
-std::ostream& showErrorInfo(std::ostream& out, const error_info_t& einfo, bool showTrace) {
+std::ostream& show_error_info(std::ostream& out, const error_info_t& einfo, bool show_trace) {
   std::string prefix;
   switch (einfo.level) {
-    case verbosity_t::lvlError: {
+    case verbosity_t::lvl_error: {
       prefix = ANSI_RED "error";
       break;
     }
-    case verbosity_t::lvlNotice: {
+    case verbosity_t::lvl_notice: {
       prefix = ANSI_RED "note";
       break;
     }
-    case verbosity_t::lvlWarn: {
-      if (einfo.isFromExpr)
+    case verbosity_t::lvl_warn: {
+      if (einfo.is_from_expr)
         prefix = ANSI_WARNING "evaluation warning";
       else
         prefix = ANSI_WARNING "warning";
       break;
     }
-    case verbosity_t::lvlInfo: {
+    case verbosity_t::lvl_info: {
       prefix = ANSI_GREEN "info";
       break;
     }
-    case verbosity_t::lvlTalkative: {
+    case verbosity_t::lvl_talkative: {
       prefix = ANSI_GREEN "talk";
       break;
     }
-    case verbosity_t::lvlChatty: {
+    case verbosity_t::lvl_chatty: {
       prefix = ANSI_GREEN "chat";
       break;
     }
-    case verbosity_t::lvlVomit: {
+    case verbosity_t::lvl_vomit: {
       prefix = ANSI_GREEN "vomit";
       break;
     }
-    case verbosity_t::lvlDebug: {
+    case verbosity_t::lvl_debug: {
       prefix = ANSI_WARNING "debug";
       break;
     }
@@ -243,8 +243,8 @@ std::ostream& showErrorInfo(std::ostream& out, const error_info_t& einfo, bool s
   }
 
   // FIXME: show the program name as part of the trace?
-  if (einfo.programName && einfo.programName != error_info_t::programName)
-    prefix += fmt(" [%s]:" ANSI_NORMAL " ", einfo.programName.value_or(""));
+  if (einfo.program_name && einfo.program_name != error_info_t::program_name)
+    prefix += fmt(" [%s]:" ANSI_NORMAL " ", einfo.program_name.value_or(""));
   else
     prefix += ":" ANSI_NORMAL " ";
 
@@ -295,7 +295,7 @@ std::ostream& showErrorInfo(std::ostream& out, const error_info_t& einfo, bool s
    *  could always print the full trace, and it would just be small without
    *  the flag.
    *
-   *  One idea I had is for XxxError.addTrace() to perform nothing if one
+   *  One idea I had is for XxxError.add_trace() to perform nothing if one
    *  scope has already been traced. Alternatively, we could stop here when
    *  we encounter such a scope instead of after an arbitrary number of
    *  traces. This however requires to augment traces with the notion of
@@ -305,30 +305,30 @@ std::ostream& showErrorInfo(std::ostream& out, const error_info_t& einfo, bool s
    *  to make a decision between the two following options.
    *
    *  ``` long traces
-   *  inline void EvalState::evalAttrs(Env & env, Expr * e, Value & v, const Pos & pos,
-   * std::string_view errorCtx)
+   *  inline void EvalState::evalAttrs(Env & env, Expr * e, Value & v, const pos_t & pos,
+   * std::string_view error_ctx)
    *  {
    *      try {
    *          e->eval(*this, env, v);
    *          if (v.type() != nAttrs)
    *              error<TypeError>("expected a set but found %1%", v);
    *      } catch (Error & e) {
-   *          e.addTrace(pos, errorCtx);
+   *          e.add_trace(pos, error_ctx);
    *          throw;
    *      }
    *  }
    *  ```
    *
    *  ``` short traces
-   *  inline void EvalState::evalAttrs(Env & env, Expr * e, Value & v, const Pos & pos,
-   * std::string_view errorCtx)
+   *  inline void EvalState::evalAttrs(Env & env, Expr * e, Value & v, const pos_t & pos,
+   * std::string_view error_ctx)
    *  {
    *      e->eval(*this, env, v);
    *      try {
    *          if (v.type() != nAttrs)
    *              error<TypeError>("expected a set but found %1%", v);
    *      } catch (Error & e) {
-   *          e.addTrace(pos, errorCtx);
+   *          e.add_trace(pos, error_ctx);
    *          throw;
    *      }
    *  }
@@ -348,14 +348,14 @@ std::ostream& showErrorInfo(std::ostream& out, const error_info_t& einfo, bool s
 
   // Enough indent to align with with the `... `
   // prepended to each element of the trace
-  auto ellipsisIndent = "  ";
+  auto ellipsis_indent = "  ";
 
   if (!einfo.traces.empty()) {
     // Stack traces seen since we last printed a chunk of `duplicate frames
     // omitted`.
-    std::set<trace_t> tracesSeen;
+    std::set<trace_t> traces_seen;
     // A consecutive sequence of stack traces that are all in `tracesSeen`.
-    std::vector<trace_t> skippedTraces;
+    std::vector<trace_t> skipped_traces;
     size_t count = 0;
     bool truncate = false;
 
@@ -363,27 +363,27 @@ std::ostream& showErrorInfo(std::ostream& out, const error_info_t& einfo, bool s
       if (trace.hint.str().empty())
         continue;
 
-      if (!showTrace && count > 3) {
+      if (!show_trace && count > 3) {
         truncate = true;
       }
 
-      if (!truncate || trace.print == trace_print_t::Always) {
-        if (tracesSeen.count(trace)) {
-          skippedTraces.push_back(trace);
+      if (!truncate || trace.print == trace_print_t::always) {
+        if (traces_seen.count(trace)) {
+          skipped_traces.push_back(trace);
           continue;
         }
 
-        tracesSeen.insert(trace);
+        traces_seen.insert(trace);
 
-        printSkippedTracesMaybe(oss, ellipsisIndent, count, skippedTraces, tracesSeen);
+        print_skipped_traces_maybe(oss, ellipsis_indent, count, skipped_traces, traces_seen);
 
         count++;
 
-        printTrace(oss, ellipsisIndent, count, trace);
+        print_trace(oss, ellipsis_indent, count, trace);
       }
     }
 
-    printSkippedTracesMaybe(oss, ellipsisIndent, count, skippedTraces, tracesSeen);
+    print_skipped_traces_maybe(oss, ellipsis_indent, count, skipped_traces, traces_seen);
 
     if (truncate) {
       oss << "\n"
@@ -397,14 +397,14 @@ std::ostream& showErrorInfo(std::ostream& out, const error_info_t& einfo, bool s
 
   oss << einfo.msg << "\n";
 
-  printPosMaybe(oss, "", einfo.pos);
+  print_pos_maybe(oss, "", einfo.pos);
 
   auto suggestions = einfo.suggestions.trim();
   if (!suggestions.suggestions.empty()) {
     oss << "Did you mean " << suggestions.trim() << "?" << std::endl;
   }
 
-  out << indent(prefix, std::string(filterANSIEscapes(prefix, true).size(), ' '), chomp(oss.str()));
+  out << indent(prefix, std::string(filter_ansi_escapes(prefix, true).size(), ' '), chomp(oss.str()));
 
   return out;
 }
@@ -412,7 +412,7 @@ std::ostream& showErrorInfo(std::ostream& out, const error_info_t& einfo, bool s
 /** Write to stderr in a robust and minimal way, considering that the process
  * may be in a bad state.
  */
-static void writeErr(std::string_view buf) {
+static void write_err(std::string_view buf) {
   while (!buf.empty()) {
     auto n = write(STDERR_FILENO, buf.data(), buf.size());
     if (n < 0) {
@@ -425,10 +425,10 @@ static void writeErr(std::string_view buf) {
 }
 
 void panic(std::string_view msg) {
-  writeErr("\n\n" ANSI_RED
+  write_err("\n\n" ANSI_RED
            "terminating due to unexpected unrecoverable internal error: " ANSI_NORMAL);
-  writeErr(msg);
-  writeErr("\n");
+  write_err(msg);
+  write_err("\n");
   std::terminate();
 }
 

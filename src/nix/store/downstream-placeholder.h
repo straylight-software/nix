@@ -13,7 +13,7 @@ namespace nix {
  * or to an already-registered store object (by `Input`).
  *
  * `Ref<SingleDerivedPath` is a representation of something that can be
- * turned into a placeholder. (Regular own-output placeholder in the
+ * turned into a placeholder. (regular own-output placeholder in the
  * first case, `DownstreamPlaceholder` in the second case.)
  */
 template <typename Input>
@@ -37,7 +37,7 @@ using DrvRef = std::variant<OutputName, Input>;
  * We use them with `Derivation`: the `render()` method is called to
  * render an opaque string which can be used in the derivation, and the
  * resolving logic can substitute those strings for store paths when
- * resolving `Derivation.inputDrvs` to `BasicDerivation.inputSrcs`.
+ * resolving `Derivation.input_drvs` to `BasicDerivation.input_srcs`.
  */
 class DownstreamPlaceholder {
   /**
@@ -65,11 +65,11 @@ public:
    * The derivation itself is known (we have a store path for it), but
    * the output doesn't yet have a known store path.
    *
-   * @param xpSettings Stop-gap to avoid globals during unit tests.
+   * @param xp_settings Stop-gap to avoid globals during unit tests.
    */
   static DownstreamPlaceholder
-  unknownCaOutput(const StorePath& drvPath, OutputNameView outputName,
-                  const experimental_feature_settings_t& xpSettings = experimentalFeatureSettings);
+  unknownCaOutput(const StorePath& drv_path, OutputNameView output_name,
+                  const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
 
   /**
    * Create a placehold for the output of an unknown derivation.
@@ -78,11 +78,11 @@ public:
    * derivaiton --- it is itself an output of another derivation ---
    * and we just have (another) placeholder for it.
    *
-   * @param xpSettings Stop-gap to avoid globals during unit tests.
+   * @param xp_settings Stop-gap to avoid globals during unit tests.
    */
   static DownstreamPlaceholder
-  unknownDerivation(const DownstreamPlaceholder& drvPlaceholder, OutputNameView outputName,
-                    const experimental_feature_settings_t& xpSettings = experimentalFeatureSettings);
+  unknownDerivation(const DownstreamPlaceholder& drvPlaceholder, OutputNameView output_name,
+                    const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
 
   /**
    * Convenience constructor that handles both cases (unknown
@@ -90,11 +90,11 @@ public:
    * needed to `unknownCaOutput` and `unknownDerivation`.
    *
    * Recursively builds up a placeholder from a
-   * `SingleDerivedPath::Built.drvPath` chain.
+   * `SingleDerivedPath::Built.drv_path` chain.
    */
   static DownstreamPlaceholder fromSingleDerivedPathBuilt(
       const SingleDerivedPath::Built& built,
-      const experimental_feature_settings_t& xpSettings = experimentalFeatureSettings);
+      const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
 };
 
 } // namespace nix

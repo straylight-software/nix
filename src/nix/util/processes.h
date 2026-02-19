@@ -27,7 +27,7 @@ struct Source;
 class Pid {
 #ifndef _WIN32
   pid_t pid = -1;
-  bool separatePG = false;
+  bool separate_pg = false;
   int killSignal = SIGKILL;
 #else
   auto_close_fd_t pid = INVALID_DESCRIPTOR;
@@ -48,8 +48,8 @@ public:
 
   // TODO: Implement for Windows
 #ifndef _WIN32
-  void setSeparatePG(bool separatePG);
-  void setKillSignal(int signal);
+  void set_separate_pg(bool separate_pg);
+  void set_kill_signal(int signal);
   pid_t release();
 #endif
 };
@@ -59,7 +59,7 @@ public:
  * Kill all processes running under the specified uid by sending them
  * a SIGKILL.
  */
-void killUser(uid_t uid);
+void kill_user(uid_t uid);
 #endif
 
 /**
@@ -67,30 +67,30 @@ void killUser(uid_t uid);
  * pid to the caller.
  */
 struct process_options_t {
-  std::string errorPrefix = "";
-  bool dieWithParent = true;
-  bool runExitHandlers = false;
-  bool allowVfork = false;
+  std::string error_prefix = "";
+  bool die_with_parent = true;
+  bool run_exit_handlers = false;
+  bool allow_vfork = false;
   /**
    * use clone() with the specified flags (Linux only)
    */
-  int cloneFlags = 0;
+  int clone_flags = 0;
 };
 
 #ifndef _WIN32
-pid_t startProcess(std::function<void()> fun, const process_options_t& options = process_options_t());
+pid_t start_process(std::function<void()> fun, const process_options_t& options = process_options_t());
 #endif
 
 /**
  * Run a program and return its stdout in a string (i.e., like the
  * shell backtick operator).
  */
-std::string runProgram(Path program, bool lookupPath = false, const strings_t& args = strings_t(),
-                       const std::optional<std::string>& input = {}, bool isInteractive = false);
+std::string run_program(Path program, bool lookup_path = false, const strings_t& args = strings_t(),
+                       const std::optional<std::string>& input = {}, bool is_interactive = false);
 
 struct run_options_t {
   Path program;
-  bool lookupPath = true;
+  bool lookup_path = true;
   strings_t args;
 #ifndef _WIN32
   std::optional<uid_t> uid;
@@ -99,15 +99,15 @@ struct run_options_t {
   std::optional<Path> chdir;
   std::optional<string_map_t> environment;
   std::optional<std::string> input;
-  Source* standardIn = nullptr;
-  Sink* standardOut = nullptr;
-  bool mergeStderrToStdout = false;
-  bool isInteractive = false;
+  Source* standard_in = nullptr;
+  Sink* standard_out = nullptr;
+  bool merge_stderr_to_stdout = false;
+  bool is_interactive = false;
 };
 
-std::pair<int, std::string> runProgram(run_options_t&& options);
+std::pair<int, std::string> run_program(run_options_t&& options);
 
-void runProgram2(const run_options_t& options);
+void run_program2(const run_options_t& options);
 
 class exec_error_t : public Error {
 public:
@@ -121,8 +121,8 @@ public:
  * Convert the exit status of a child as returned by wait() into an
  * error string.
  */
-std::string statusToString(int status);
+std::string status_to_string(int status);
 
-bool statusOk(int status);
+bool status_ok(int status);
 
 } // namespace nix

@@ -32,7 +32,7 @@ using std::map;
  */
 struct DerivationGoal : public Goal {
   /** The path of the derivation. */
-  StorePath drvPath;
+  StorePath drv_path;
 
   /**
    * The specific outputs that we need to build.
@@ -42,8 +42,8 @@ struct DerivationGoal : public Goal {
   /**
    * @param storeDerivation See `DerivationBuildingGoal`. This is just passed along.
    */
-  DerivationGoal(const StorePath& drvPath, const Derivation& drv, const OutputName& wantedOutput,
-                 Worker& worker, BuildMode buildMode, bool storeDerivation);
+  DerivationGoal(const StorePath& drv_path, const Derivation& drv, const OutputName& wantedOutput,
+                 Worker& worker, BuildMode build_mode, bool storeDerivation);
   ~DerivationGoal() = default;
 
   void timedOut(Error&& ex) override { unreachable(); };
@@ -54,13 +54,13 @@ struct DerivationGoal : public Goal {
 
 private:
   /**
-   * The derivation stored at drvPath.
+   * The derivation stored at drv_path.
    */
   std::unique_ptr<Derivation> drv;
 
   const Hash outputHash;
 
-  const BuildMode buildMode;
+  const BuildMode build_mode;
 
   /**
    * The remainder is state held during the build.

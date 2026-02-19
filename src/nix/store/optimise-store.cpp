@@ -17,7 +17,7 @@
 
 namespace nix {
 
-static void makeWritable(const Path& path) {
+static void make_writable(const Path& path) {
   auto st = lstat(path);
   if (chmod(path.c_str(), st.st_mode | S_IWUSR) == -1)
     throw sys_error_t("changing writability of '%1%'", path);
@@ -32,9 +32,9 @@ struct make_read_only_t {
     try {
       /* This will make the path read-only. */
       if (path != "")
-        canonicaliseTimestampAndPermissions(path);
+        canonicalise_timestamp_and_permissions(path);
     } catch (...) {
-      ignoreExceptionInDestructor();
+      ignore_exception_in_destructor();
     }
   }
 };
@@ -49,14 +49,14 @@ LocalStore::InodeHash LocalStore::loadInodeHash() {
 
   struct dirent* dirent;
   while (errno = 0, dirent = readdir(dir.get())) { /* sic */
-    checkInterrupt();
+    check_interrupt();
     // We don't care if we hit non-hash files, anything goes
     inodeHash.insert(dirent->d_ino);
   }
   if (errno)
     throw sys_error_t("reading directory '%1%'", linksDir);
 
-  printMsg(lvlTalkative, "loaded %1% hash inodes", inodeHash.size());
+  printMsg(lvl_talkative, "loaded %1% hash inodes", inodeHash.size());
 
   return inodeHash;
 }
@@ -70,7 +70,7 @@ strings_t LocalStore::readDirectoryIgnoringInodes(const Path& path, const InodeH
 
   struct dirent* dirent;
   while (errno = 0, dirent = readdir(dir.get())) { /* sic */
-    checkInterrupt();
+    check_interrupt();
 
     if (inodeHash.count(dirent->d_ino)) {
       debug("'%1%' is already linked", dirent->d_name);
@@ -90,7 +90,7 @@ strings_t LocalStore::readDirectoryIgnoringInodes(const Path& path, const InodeH
 
 void LocalStore::optimisePath_(activity_t* act, OptimiseStats& stats, const Path& path,
                                InodeHash& inodeHash, RepairFlag repair) {
-  checkInterrupt();
+  check_interrupt();
 
   auto st = lstat(path);
 
@@ -137,7 +137,7 @@ void LocalStore::optimisePath_(activity_t* act, OptimiseStats& stats, const Path
     return;
   }
 
-  /* Hash the file.  Note that hashPath() returns the hash over the
+  /* Hash the file.  Note that hash_path() returns the hash over the
      NAR serialisation, which includes the execute bit on the file.
      Thus, executable and non-executable files with the same
      contents *won't* be linked (which is good because otherwise the
@@ -147,22 +147,22 @@ void LocalStore::optimisePath_(activity_t* act, OptimiseStats& stats, const Path
      contents of the symlink (i.e. the result of readlink()), not
      the contents of the target (which may not even exist). */
   Hash hash = ({
-    hashPath({make_ref<posix_source_accessor_t>(), canon_path_t(path)},
-             file_serialisation_method_t::NixArchive, hash_algorithm_t::SHA256)
+    hash_path({make_ref<posix_source_accessor_t>(), canon_path_t(path)},
+             file_serialisation_method_t::nix_archive, hash_algorithm_t::SHA256)
         .hash;
   });
-  debug("'%1%' has hash '%2%'", path, hash.to_string(hash_format_t::Nix32, true));
+  debug("'%1%' has hash '%2%'", path, hash.to_string(hash_format_t::nix32, true));
 
   /* Check if this is a known hash. */
   std::filesystem::path linkPath =
-      std::filesystem::path{linksDir} / hash.to_string(hash_format_t::Nix32, false);
+      std::filesystem::path{linksDir} / hash.to_string(hash_format_t::nix32, false);
 
   /* Maybe delete the link, if it has been corrupted. */
   if (std::filesystem::exists(std::filesystem::symlink_status(linkPath))) {
     auto stLink = lstat(linkPath.string());
     if (st.st_size != stLink.st_size || (repair && hash != ({
-                                                     hashPath(makeFSSourceAccessor(linkPath),
-                                                              file_serialisation_method_t::NixArchive,
+                                                     hash_path(make_fs_source_accessor(linkPath),
+                                                              file_serialisation_method_t::nix_archive,
                                                               hash_algorithm_t::SHA256)
                                                          .hash;
                                                    }))) {
@@ -199,7 +199,7 @@ void LocalStore::optimisePath_(activity_t* act, OptimiseStats& stats, const Path
     }
   }
 
-  /* Yes!  We've seen a file with the same contents.  Replace the
+  /* yes!  We've seen a file with the same contents.  Replace the
      current file with a hard link to that file. */
   auto stLink = lstat(linkPath.string());
 
@@ -208,21 +208,21 @@ void LocalStore::optimisePath_(activity_t* act, OptimiseStats& stats, const Path
     return;
   }
 
-  printMsg(lvlTalkative, "linking '%1%' to %2%", path, linkPath);
+  printMsg(lvl_talkative, "linking '%1%' to %2%", path, linkPath);
 
   /* Make the containing directory writable, but only if it's not
      the store itself (we don't want or need to mess with its
      permissions). */
-  const Path dirOfPath(dirOf(path));
-  bool mustToggle = dirOfPath != config->realStoreDir.get();
+  const Path dirOfPath(dir_of(path));
+  bool mustToggle = dirOfPath != config->real_store_dir.get();
   if (mustToggle)
-    makeWritable(dirOfPath);
+    make_writable(dirOfPath);
 
   /* When we're done, make the directory read-only again and reset
      its timestamp back to 0. */
   make_read_only_t makeReadOnly(mustToggle ? dirOfPath : "");
 
-  std::filesystem::path tempLink = makeTempPath(config->realStoreDir.get(), ".tmp-link");
+  std::filesystem::path tempLink = make_temp_path(config->real_store_dir.get(), ".tmp-link");
 
   try {
     std::filesystem::create_hard_link(linkPath, tempLink);
@@ -260,11 +260,11 @@ void LocalStore::optimisePath_(activity_t* act, OptimiseStats& stats, const Path
     throw;
   }
 
-  stats.filesLinked++;
-  stats.bytesFreed += st.st_size;
+  stats.files_linked++;
+  stats.bytes_freed += st.st_size;
 
   if (act)
-    act->result(resFileLinked, st.st_size
+    act->result(res_file_linked, st.st_size
 #ifndef _WIN32
                 ,
                 st.st_blocks
@@ -273,9 +273,9 @@ void LocalStore::optimisePath_(activity_t* act, OptimiseStats& stats, const Path
 }
 
 void LocalStore::optimiseStore(OptimiseStats& stats) {
-  activity_t act(*logger, actOptimiseStore);
+  activity_t act(*logger, act_optimise_store);
 
-  auto paths = queryAllValidPaths();
+  auto paths = query_all_valid_paths();
   InodeHash inodeHash = loadInodeHash();
 
   act.progress(0, paths.size());
@@ -287,9 +287,9 @@ void LocalStore::optimiseStore(OptimiseStats& stats) {
     if (!isValidPath(i))
       continue; /* path was GC'ed, probably */
     {
-      activity_t act(*logger, lvlTalkative, actUnknown,
+      activity_t act(*logger, lvl_talkative, act_unknown,
                    fmt("optimising path '%s'", printStorePath(i)));
-      optimisePath_(&act, stats, config->realStoreDir + "/" + std::string(i.to_string()), inodeHash,
+      optimisePath_(&act, stats, config->real_store_dir + "/" + std::string(i.to_string()), inodeHash,
                     NoRepair);
     }
     done++;
@@ -302,7 +302,7 @@ void LocalStore::optimiseStore() {
 
   optimiseStore(stats);
 
-  printInfo("%s freed by hard-linking %d files", renderSize(stats.bytesFreed), stats.filesLinked);
+  printInfo("%s freed by hard-linking %d files", render_size(stats.bytes_freed), stats.files_linked);
 }
 
 void LocalStore::optimisePath(const Path& path, RepairFlag repair) {

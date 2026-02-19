@@ -52,8 +52,8 @@ static size_t getFreeMem() {
 #  ifdef __linux__
   {
     std::unordered_map<std::string, std::string> fields;
-    for (auto& line : tokenizeString<std::vector<std::string>>(
-             readFile(std::filesystem::path("/proc/meminfo")), "\n")) {
+    for (auto& line : tokenize_string<std::vector<std::string>>(
+             read_file(std::filesystem::path("/proc/meminfo")), "\n")) {
       auto colon = line.find(':');
       if (colon == line.npos)
         continue;
@@ -64,9 +64,9 @@ static size_t getFreeMem() {
     if (i == fields.end())
       i = fields.find("MemFree");
     if (i != fields.end()) {
-      auto kb = tokenizeString<std::vector<std::string>>(i->second, " ");
+      auto kb = tokenize_string<std::vector<std::string>>(i->second, " ");
       if (kb.size() == 2 && kb[1] == "kB")
-        return string2Int<size_t>(kb[0]).value_or(0) * 1024;
+        return string2_int<size_t>(kb[0]).value_or(0) * 1024;
     }
   }
 #  endif
@@ -167,12 +167,12 @@ static inline void initGCReal() {
      that GC_expand_hp() causes a lot of virtual, but not physical
      (resident) memory to be allocated.  This might be a problem on
      systems that don't overcommit. */
-  if (!getEnv("GC_INITIAL_HEAP_SIZE")) {
+  if (!get_env("GC_INITIAL_HEAP_SIZE")) {
     size_t size = 32 * 1024 * 1024;
 #  if HAVE_SYSCONF && defined(_SC_PAGESIZE) && defined(_SC_PHYS_PAGES)
-    size_t maxSize = 4ULL * 1024 * 1024 * 1024;
+    size_t max_size = 4ULL * 1024 * 1024 * 1024;
     auto free = getFreeMem();
-    size = std::max(size, std::min((size_t)(free * 0.5), maxSize));
+    size = std::max(size, std::min((size_t)(free * 0.5), max_size));
 #  endif
     GC_expand_hp(size);
   }
@@ -181,16 +181,16 @@ static inline void initGCReal() {
 static size_t gcCyclesAfterInit = 0;
 
 size_t getGCCycles() {
-  assertGCInitialized();
+  assert_gc_initialized();
   return static_cast<size_t>(GC_get_gc_no()) - gcCyclesAfterInit;
 }
 
 #endif
 
-static bool gcInitialised = false;
+static bool gc_initialised = false;
 
-void initGC() {
-  if (gcInitialised)
+void init_gc() {
+  if (gc_initialised)
     return;
 
 #if NIX_USE_BOEHMGC
@@ -201,16 +201,16 @@ void initGC() {
 
   // NIX_PATH must override the regular setting
   // See the comment in applyConfig
-  if (auto nixPathEnv = getEnv("NIX_PATH")) {
-    globalConfig.set("nix-path",
-                     concatStringsSep(" ", EvalSettings::parseNixPath(nixPathEnv.value())));
+  if (auto nixPathEnv = get_env("NIX_PATH")) {
+    global_config.set("nix-path",
+                     concat_strings_sep(" ", EvalSettings::parseNixPath(nixPathEnv.value())));
   }
 
-  gcInitialised = true;
+  gc_initialised = true;
 }
 
-void assertGCInitialized() {
-  assert(gcInitialised);
+void assert_gc_initialized() {
+  assert(gc_initialised);
 }
 
 } // namespace nix

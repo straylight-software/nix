@@ -31,18 +31,18 @@ struct RemoteStoreConfig : virtual StoreConfig {
 };
 
 /**
- * \todo RemoteStore is a misnomer - should be something like
+ * \todo remote_store is a misnomer - should be something like
  * DaemonStore.
  */
-struct RemoteStore : public virtual Store,
+struct remote_store : public virtual Store,
                      public virtual GcStore,
                      public virtual LogStore,
                      public virtual QueryActiveBuildsStore {
-  using Config = RemoteStoreConfig;
+  using config_t = RemoteStoreConfig;
 
-  const Config& config;
+  const config_t& config;
 
-  RemoteStore(const Config& config);
+  remote_store(const config_t& config);
 
   /* Implementations of abstract store API methods. */
 
@@ -51,21 +51,21 @@ struct RemoteStore : public virtual Store,
   StorePathSet queryValidPaths(const StorePathSet& paths,
                                SubstituteFlag maybeSubstitute = NoSubstitute) override;
 
-  StorePathSet queryAllValidPaths() override;
+  StorePathSet query_all_valid_paths() override;
 
   void
-  queryPathInfoUncached(const StorePath& path,
+  query_path_info_uncached(const StorePath& path,
                         Callback<std::shared_ptr<const ValidPathInfo>> callback) noexcept override;
 
-  void queryReferrers(const StorePath& path, StorePathSet& referrers) override;
+  void query_referrers(const StorePath& path, StorePathSet& referrers) override;
 
   StorePathSet queryValidDerivers(const StorePath& path) override;
 
   StorePathSet queryDerivationOutputs(const StorePath& path) override;
 
   std::map<std::string, std::optional<StorePath>>
-  queryPartialDerivationOutputMap(const StorePath& path, Store* evalStore = nullptr) override;
-  std::optional<StorePath> queryPathFromHashPart(const std::string& hashPart) override;
+  queryPartialDerivationOutputMap(const StorePath& path, Store* eval_store = nullptr) override;
+  std::optional<StorePath> queryPathFromHashPart(const std::string& hash_part) override;
 
   StorePathSet querySubstitutablePaths(const StorePathSet& paths) override;
 
@@ -76,45 +76,45 @@ struct RemoteStore : public virtual Store,
    * Add a content-addressable store path. `dump` will be drained.
    */
   ref<const ValidPathInfo> addCAToStore(Source& dump, std::string_view name,
-                                        ContentAddressMethod caMethod, hash_algorithm_t hashAlgo,
+                                        ContentAddressMethod ca_method, hash_algorithm_t hash_algo,
                                         const StorePathSet& references, RepairFlag repair);
 
   /**
    * Add a content-addressable store path. `dump` will be drained.
    */
   StorePath
-  addToStoreFromDump(Source& dump, std::string_view name,
-                     file_serialisation_method_t dumpMethod = file_serialisation_method_t::NixArchive,
-                     ContentAddressMethod hashMethod = file_ingestion_method_t::NixArchive,
-                     hash_algorithm_t hashAlgo = hash_algorithm_t::SHA256,
+  add_to_store_from_dump(Source& dump, std::string_view name,
+                     file_serialisation_method_t dump_method = file_serialisation_method_t::nix_archive,
+                     ContentAddressMethod hash_method = file_ingestion_method_t::nix_archive,
+                     hash_algorithm_t hash_algo = hash_algorithm_t::SHA256,
                      const StorePathSet& references = StorePathSet(),
                      RepairFlag repair = NoRepair) override;
 
-  void addToStore(const ValidPathInfo& info, Source& nar, RepairFlag repair,
-                  CheckSigsFlag checkSigs) override;
+  void add_to_store(const ValidPathInfo& info, Source& nar, RepairFlag repair,
+                  CheckSigsFlag check_sigs) override;
 
-  void addMultipleToStore(Source& source, RepairFlag repair, CheckSigsFlag checkSigs) override;
+  void addMultipleToStore(Source& source, RepairFlag repair, CheckSigsFlag check_sigs) override;
 
-  void addMultipleToStore(PathsSource&& pathsToCopy, activity_t& act, RepairFlag repair,
-                          CheckSigsFlag checkSigs) override;
+  void addMultipleToStore(PathsSource&& paths_to_copy, activity_t& act, RepairFlag repair,
+                          CheckSigsFlag check_sigs) override;
 
-  void registerDrvOutput(const Realisation& info) override;
+  void register_drv_output(const Realisation& info) override;
 
-  void queryRealisationUncached(
+  void query_realisation_uncached(
       const DrvOutput&,
       Callback<std::shared_ptr<const UnkeyedRealisation>> callback) noexcept override;
 
-  void buildPaths(const std::vector<DerivedPath>& paths, BuildMode buildMode,
-                  std::shared_ptr<Store> evalStore) override;
+  void build_paths(const std::vector<DerivedPath>& paths, BuildMode build_mode,
+                  std::shared_ptr<Store> eval_store) override;
 
-  std::vector<KeyedBuildResult> buildPathsWithResults(const std::vector<DerivedPath>& paths,
-                                                      BuildMode buildMode,
-                                                      std::shared_ptr<Store> evalStore) override;
+  std::vector<KeyedBuildResult> build_paths_with_results(const std::vector<DerivedPath>& paths,
+                                                      BuildMode build_mode,
+                                                      std::shared_ptr<Store> eval_store) override;
 
-  BuildResult buildDerivation(const StorePath& drvPath, const BasicDerivation& drv,
-                              BuildMode buildMode) override;
+  BuildResult buildDerivation(const StorePath& drv_path, const BasicDerivation& drv,
+                              BuildMode build_mode) override;
 
-  void ensurePath(const StorePath& path) override;
+  void ensure_path(const StorePath& path) override;
 
   void addTempRoot(const StorePath& path) override;
 
@@ -124,11 +124,11 @@ struct RemoteStore : public virtual Store,
 
   void optimiseStore() override;
 
-  bool verifyStore(bool checkContents, RepairFlag repair) override;
+  bool verifyStore(bool check_contents, RepairFlag repair) override;
 
   /**
    * The default instance would schedule the work on the client side, but
-   * for consistency with `buildPaths` and `buildDerivation` it should happen
+   * for consistency with `build_paths` and `buildDerivation` it should happen
    * on the remote side.
    *
    * We make this fail for now so we can add implement this properly later
@@ -136,11 +136,11 @@ struct RemoteStore : public virtual Store,
    */
   void repairPath(const StorePath& path) override { unsupported("repairPath"); }
 
-  void addSignatures(const StorePath& storePath, const string_set_t& sigs) override;
+  void addSignatures(const StorePath& store_path, const string_set_t& sigs) override;
 
-  MissingPaths queryMissing(const std::vector<DerivedPath>& targets) override;
+  MissingPaths query_missing(const std::vector<DerivedPath>& targets) override;
 
-  void addBuildLog(const StorePath& drvPath, std::string_view log) override;
+  void addBuildLog(const StorePath& drv_path, std::string_view log) override;
 
   std::vector<ActiveBuildInfo> queryActiveBuilds() override;
 
@@ -159,7 +159,7 @@ struct RemoteStore : public virtual Store,
   ref<Connection> openConnectionWrapper();
 
 protected:
-  virtual ref<Connection> openConnection() = 0;
+  virtual ref<Connection> open_connection() = 0;
 
   void initConnection(Connection& conn);
 
@@ -175,24 +175,24 @@ protected:
 
   friend struct ConnectionHandle;
 
-  virtual ref<SourceAccessor> getFSAccessor(bool requireValidPath = true) override;
+  virtual ref<SourceAccessor> getFSAccessor(bool require_valid_path = true) override;
 
   virtual std::shared_ptr<SourceAccessor> getFSAccessor(const StorePath& path,
-                                                        bool requireValidPath = true) override;
+                                                        bool require_valid_path = true) override;
 
-  virtual void narFromPath(const StorePath& path, Sink& sink) override;
+  virtual void nar_from_path(const StorePath& path, Sink& sink) override;
 
 private:
   /**
-   * Same as the default implemenation of `RemoteStore::getFSAccessor`, but with a more preceise
+   * Same as the default implemenation of `remote_store::getFSAccessor`, but with a more preceise
    * return type.
    */
-  ref<RemoteFSAccessor> getRemoteFSAccessor(bool requireValidPath = true);
+  ref<RemoteFSAccessor> getRemoteFSAccessor(bool require_valid_path = true);
 
   std::atomic_bool failed{false};
 
   void copyDrvsFromEvalStore(const std::vector<DerivedPath>& paths,
-                             std::shared_ptr<Store> evalStore);
+                             std::shared_ptr<Store> eval_store);
 };
 
 } // namespace nix

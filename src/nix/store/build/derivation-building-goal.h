@@ -37,16 +37,16 @@ struct DerivationBuildingGoal : public Goal {
    * have a permanent record of such a resolved derivation in order to
    * faithfully reconstruct the build history.
    */
-  DerivationBuildingGoal(const StorePath& drvPath, const Derivation& drv, Worker& worker,
-                         BuildMode buildMode, bool storeDerivation);
+  DerivationBuildingGoal(const StorePath& drv_path, const Derivation& drv, Worker& worker,
+                         BuildMode build_mode, bool storeDerivation);
   ~DerivationBuildingGoal();
 
 private:
   /** The path of the derivation. */
-  StorePath drvPath;
+  StorePath drv_path;
 
   /**
-   * The derivation stored at drvPath.
+   * The derivation stored at drv_path.
    */
   std::unique_ptr<Derivation> drv;
 
@@ -90,7 +90,7 @@ private:
   std::unique_ptr<DerivationBuilder> builder;
 #endif
 
-  BuildMode buildMode;
+  BuildMode build_mode;
 
   std::unique_ptr<maintain_count_t<uint64_t>> mcRunningBuilds;
 
@@ -112,7 +112,7 @@ private:
    * Is the build hook willing to perform the build?
    */
   HookReply tryBuildHook(const std::map<std::string, InitialOutput>& initialOutputs,
-                         const DerivationOptions<StorePath>& drvOptions);
+                         const DerivationOptions<StorePath>& drv_options);
 
   /**
    * Open a log file and a pipe to it.
@@ -130,8 +130,8 @@ private:
    * Callback used by the worker to write to the log.
    */
   void handleChildOutput(descriptor_t fd, std::string_view data) override;
-  void handleEOF(descriptor_t fd) override;
-  void flushLine();
+  void handle_eof(descriptor_t fd) override;
+  void flush_line();
 
   /**
    * Wrappers around the corresponding Store methods that first consult the
@@ -152,9 +152,9 @@ private:
   /**
    * Forcibly kill the child process, if any.
    */
-  void killChild();
+  void kill_child();
 
-  done_t doneSuccess(BuildResult::Success::Status status, SingleDrvOutputs builtOutputs);
+  done_t doneSuccess(BuildResult::Success::Status status, SingleDrvOutputs built_outputs);
 
   done_t doneFailure(BuildError ex);
 

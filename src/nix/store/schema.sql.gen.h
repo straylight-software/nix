@@ -8,7 +8,7 @@ create table if not exists ValidPaths (
     hash             text not null, -- base16 representation
     registrationTime integer not null,
     deriver          text,
-    narSize          integer,
+    nar_size          integer,
     ultimate         integer, -- null implies "false"
     sigs             text, -- space-separated
     ca               text -- if not null, an assertion that the path is content-addressed; see ValidPathInfo

@@ -14,12 +14,12 @@ namespace nix {
 /**
  * Create a Unix domain socket.
  */
-auto_close_fd_t createUnixDomainSocket();
+auto_close_fd_t create_unix_domain_socket();
 
 /**
  * Create a Unix domain socket in listen mode.
  */
-auto_close_fd_t createUnixDomainSocket(const Path& path, mode_t mode);
+auto_close_fd_t create_unix_domain_socket(const Path& path, mode_t mode);
 
 /**
  * Bind a Unix domain socket to a path.

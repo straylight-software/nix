@@ -2,8 +2,15 @@
 /// @file nix-language/eval/eval.hh
 /// Tree-walking interpreter for Nix expressions.
 
+#include <algorithm>
+#include <filesystem>
+#include <fstream>
+#include <functional>
+#include <iostream>
+#include <sstream>
 #include <stdexcept>
 #include <string>
+#include <unordered_set>
 
 #include "nix-language/ast/expression.hh"
 #include "nix-language/ast/symbol_table.hh"
@@ -17,6 +24,11 @@ public:
   using std::runtime_error::runtime_error;
 };
 
+/// Function type for parsing a file - returns an expression
+/// This is used to break the circular dependency between eval and parse
+using file_parser =
+    std::function<ast::expression(const std::string& path, const std::string& source)>;
+
 /// The interpreter
 class evaluator {
 public:
@@ -24,6 +36,12 @@ public:
     root_env_ = std::make_shared<environment>();
     setup_builtins();
   }
+
+  /// Set the file parser for import support
+  void set_file_parser(file_parser parser) { file_parser_ = std::move(parser); }
+
+  /// Set the base path for resolving relative imports
+  void set_base_path(const std::filesystem::path& path) { base_path_ = path; }
 
   /// Evaluate an expression
   auto eval(const ast::expression& expr) -> value_ptr { return eval_expr(expr, root_env_); }
@@ -45,6 +63,20 @@ public:
       val = t.cached;
     }
     return val;
+  }
+
+  /// Recursively force all nested values
+  void deep_force(value_ptr val) {
+    val = force(val);
+    if (is_list(val)) {
+      for (const auto& elem : as_list(val).elements) {
+        deep_force(elem);
+      }
+    } else if (is_attrs(val)) {
+      for (const auto& [k, v] : as_attrs(val).attrs) {
+        deep_force(v);
+      }
+    }
   }
 
   /// Convert value to string for display
@@ -95,6 +127,10 @@ public:
 private:
   ast::symbol_table& symbols_;
   env_ptr root_env_;
+  file_parser file_parser_;
+  std::filesystem::path base_path_ = std::filesystem::current_path();
+  std::unordered_set<std::string> imported_files_;    // Track imported files to detect cycles
+  std::vector<ast::expression> imported_expressions_; // Keep parsed expressions alive
 
   void setup_builtins() {
     // Basic builtins
@@ -307,6 +343,382 @@ private:
       return acc;
     });
 
+    // builtins.elem - check if element is in list
+    builtins_map["elem"] = value::make_builtin("elem", 2, [this](std::vector<value_ptr>& args) {
+      auto needle = force(args[0]);
+      auto lst = force(args[1]);
+      if (!is_list(lst))
+        throw eval_error("elem: second arg must be list");
+      for (const auto& elem : as_list(lst).elements) {
+        if (values_equal(needle, force(elem)))
+          return value::make_bool(true);
+      }
+      return value::make_bool(false);
+    });
+
+    // builtins.all - check if predicate holds for all elements
+    builtins_map["all"] = value::make_builtin("all", 2, [this](std::vector<value_ptr>& args) {
+      auto pred = args[0];
+      auto lst = force(args[1]);
+      if (!is_list(lst))
+        throw eval_error("all: second arg must be list");
+      for (const auto& elem : as_list(lst).elements) {
+        auto result = force(apply(pred, elem));
+        if (!is_bool(result))
+          throw eval_error("all: predicate must return bool");
+        if (!as_bool(result))
+          return value::make_bool(false);
+      }
+      return value::make_bool(true);
+    });
+
+    // builtins.any - check if predicate holds for any element
+    builtins_map["any"] = value::make_builtin("any", 2, [this](std::vector<value_ptr>& args) {
+      auto pred = args[0];
+      auto lst = force(args[1]);
+      if (!is_list(lst))
+        throw eval_error("any: second arg must be list");
+      for (const auto& elem : as_list(lst).elements) {
+        auto result = force(apply(pred, elem));
+        if (!is_bool(result))
+          throw eval_error("any: predicate must return bool");
+        if (as_bool(result))
+          return value::make_bool(true);
+      }
+      return value::make_bool(false);
+    });
+
+    // builtins.concatLists - concatenate a list of lists
+    builtins_map["concatLists"] =
+        value::make_builtin("concatLists", 1, [this](std::vector<value_ptr>& args) {
+          auto lists = force(args[0]);
+          if (!is_list(lists))
+            throw eval_error("concatLists: expected list of lists");
+          std::vector<value_ptr> result;
+          for (const auto& lst : as_list(lists).elements) {
+            auto l = force(lst);
+            if (!is_list(l))
+              throw eval_error("concatLists: element is not a list");
+            for (const auto& elem : as_list(l).elements) {
+              result.push_back(elem);
+            }
+          }
+          return value::make_list(std::move(result));
+        });
+
+    // builtins.concatMap - map then concat
+    builtins_map["concatMap"] =
+        value::make_builtin("concatMap", 2, [this](std::vector<value_ptr>& args) {
+          auto func = args[0];
+          auto lst = force(args[1]);
+          if (!is_list(lst))
+            throw eval_error("concatMap: second arg must be list");
+          std::vector<value_ptr> result;
+          for (const auto& elem : as_list(lst).elements) {
+            auto mapped = force(apply(func, elem));
+            if (!is_list(mapped))
+              throw eval_error("concatMap: function must return list");
+            for (const auto& item : as_list(mapped).elements) {
+              result.push_back(item);
+            }
+          }
+          return value::make_list(std::move(result));
+        });
+
+    // builtins.isNull
+    builtins_map["isNull"] = value::make_builtin("isNull", 1, [this](std::vector<value_ptr>& args) {
+      auto v = force(args[0]);
+      return value::make_bool(is_null(v));
+    });
+
+    // builtins.isBool
+    builtins_map["isBool"] = value::make_builtin("isBool", 1, [this](std::vector<value_ptr>& args) {
+      auto v = force(args[0]);
+      return value::make_bool(is_bool(v));
+    });
+
+    // builtins.isInt
+    builtins_map["isInt"] = value::make_builtin("isInt", 1, [this](std::vector<value_ptr>& args) {
+      auto v = force(args[0]);
+      return value::make_bool(is_int(v));
+    });
+
+    // builtins.isFloat
+    builtins_map["isFloat"] =
+        value::make_builtin("isFloat", 1, [this](std::vector<value_ptr>& args) {
+          auto v = force(args[0]);
+          return value::make_bool(is_float(v));
+        });
+
+    // builtins.isString
+    builtins_map["isString"] =
+        value::make_builtin("isString", 1, [this](std::vector<value_ptr>& args) {
+          auto v = force(args[0]);
+          return value::make_bool(is_string(v));
+        });
+
+    // builtins.isList
+    builtins_map["isList"] = value::make_builtin("isList", 1, [this](std::vector<value_ptr>& args) {
+      auto v = force(args[0]);
+      return value::make_bool(is_list(v));
+    });
+
+    // builtins.isAttrs
+    builtins_map["isAttrs"] =
+        value::make_builtin("isAttrs", 1, [this](std::vector<value_ptr>& args) {
+          auto v = force(args[0]);
+          return value::make_bool(is_attrs(v));
+        });
+
+    // builtins.isFunction
+    builtins_map["isFunction"] =
+        value::make_builtin("isFunction", 1, [this](std::vector<value_ptr>& args) {
+          auto v = force(args[0]);
+          return value::make_bool(is_closure(v) || is_builtin(v));
+        });
+
+    // builtins.isPath
+    builtins_map["isPath"] = value::make_builtin("isPath", 1, [this](std::vector<value_ptr>& args) {
+      auto v = force(args[0]);
+      return value::make_bool(is_path(v));
+    });
+
+    // builtins.attrValues - get list of values from attrset
+    builtins_map["attrValues"] =
+        value::make_builtin("attrValues", 1, [this](std::vector<value_ptr>& args) {
+          auto attrs = force(args[0]);
+          if (!is_attrs(attrs))
+            throw eval_error("attrValues: expected attrset");
+          std::vector<value_ptr> values;
+          for (const auto& [k, v] : as_attrs(attrs).attrs) {
+            values.push_back(v);
+          }
+          return value::make_list(std::move(values));
+        });
+
+    // builtins.listToAttrs - convert list of {name, value} to attrset
+    builtins_map["listToAttrs"] =
+        value::make_builtin("listToAttrs", 1, [this](std::vector<value_ptr>& args) {
+          auto lst = force(args[0]);
+          if (!is_list(lst))
+            throw eval_error("listToAttrs: expected list");
+          std::unordered_map<std::string, value_ptr> result;
+          for (const auto& elem : as_list(lst).elements) {
+            auto e = force(elem);
+            if (!is_attrs(e))
+              throw eval_error("listToAttrs: element must be attrset");
+            const auto& attrs = as_attrs(e).attrs;
+            auto name_it = attrs.find("name");
+            auto value_it = attrs.find("value");
+            if (name_it == attrs.end() || value_it == attrs.end())
+              throw eval_error("listToAttrs: element must have 'name' and 'value'");
+            auto name = force(name_it->second);
+            if (!is_string(name))
+              throw eval_error("listToAttrs: 'name' must be string");
+            // First occurrence wins (Nix behavior)
+            if (result.find(as_string(name)) == result.end()) {
+              result[as_string(name)] = value_it->second;
+            }
+          }
+          return value::make_attrs(std::move(result));
+        });
+
+    // builtins.mapAttrs - map over attrset values
+    builtins_map["mapAttrs"] =
+        value::make_builtin("mapAttrs", 2, [this](std::vector<value_ptr>& args) {
+          auto func = args[0];
+          auto attrs = force(args[1]);
+          if (!is_attrs(attrs))
+            throw eval_error("mapAttrs: second arg must be attrset");
+          std::unordered_map<std::string, value_ptr> result;
+          for (const auto& [k, v] : as_attrs(attrs).attrs) {
+            auto f1 = apply(func, value::make_string(k));
+            result[k] = apply(f1, v);
+          }
+          return value::make_attrs(std::move(result));
+        });
+
+    // builtins.genList - generate list from function
+    builtins_map["genList"] =
+        value::make_builtin("genList", 2, [this](std::vector<value_ptr>& args) {
+          auto func = args[0];
+          auto len = force(args[1]);
+          if (!is_int(len))
+            throw eval_error("genList: second arg must be int");
+          auto n = as_int(len);
+          if (n < 0)
+            throw eval_error("genList: length must be non-negative");
+          std::vector<value_ptr> result;
+          result.reserve(static_cast<std::size_t>(n));
+          for (std::int64_t i = 0; i < n; ++i) {
+            result.push_back(apply(func, value::make_int(i)));
+          }
+          return value::make_list(std::move(result));
+        });
+
+    // builtins.sort - sort a list
+    builtins_map["sort"] = value::make_builtin("sort", 2, [this](std::vector<value_ptr>& args) {
+      auto comparator = args[0];
+      auto lst = force(args[1]);
+      if (!is_list(lst))
+        throw eval_error("sort: second arg must be list");
+      std::vector<value_ptr> result = as_list(lst).elements;
+      std::sort(result.begin(), result.end(),
+                [this, &comparator](const value_ptr& a, const value_ptr& b) {
+                  auto f1 = apply(comparator, a);
+                  auto cmp = force(apply(f1, b));
+                  if (!is_bool(cmp))
+                    throw eval_error("sort: comparator must return bool");
+                  return as_bool(cmp);
+                });
+      return value::make_list(std::move(result));
+    });
+
+    // builtins.elemAt - get element at index
+    builtins_map["elemAt"] = value::make_builtin("elemAt", 2, [this](std::vector<value_ptr>& args) {
+      auto lst = force(args[0]);
+      auto idx = force(args[1]);
+      if (!is_list(lst))
+        throw eval_error("elemAt: first arg must be list");
+      if (!is_int(idx))
+        throw eval_error("elemAt: second arg must be int");
+      auto i = as_int(idx);
+      const auto& elements = as_list(lst).elements;
+      if (i < 0 || static_cast<std::size_t>(i) >= elements.size())
+        throw eval_error("elemAt: index out of bounds");
+      return elements[static_cast<std::size_t>(i)];
+    });
+
+    // builtins.stringLength
+    builtins_map["stringLength"] =
+        value::make_builtin("stringLength", 1, [this](std::vector<value_ptr>& args) {
+          auto s = force(args[0]);
+          if (!is_string(s))
+            throw eval_error("stringLength: expected string");
+          return value::make_int(static_cast<std::int64_t>(as_string(s).size()));
+        });
+
+    // builtins.substring
+    builtins_map["substring"] =
+        value::make_builtin("substring", 3, [this](std::vector<value_ptr>& args) {
+          auto start = force(args[0]);
+          auto len = force(args[1]);
+          auto s = force(args[2]);
+          if (!is_int(start))
+            throw eval_error("substring: first arg must be int");
+          if (!is_int(len))
+            throw eval_error("substring: second arg must be int");
+          if (!is_string(s))
+            throw eval_error("substring: third arg must be string");
+          auto st = as_int(start);
+          auto ln = as_int(len);
+          const auto& str = as_string(s);
+          if (st < 0)
+            st = 0;
+          if (static_cast<std::size_t>(st) >= str.size())
+            return value::make_string("");
+          return value::make_string(
+              str.substr(static_cast<std::size_t>(st), static_cast<std::size_t>(ln)));
+        });
+
+    // builtins.replaceStrings
+    builtins_map["replaceStrings"] =
+        value::make_builtin("replaceStrings", 3, [this](std::vector<value_ptr>& args) {
+          auto from_list = force(args[0]);
+          auto to_list = force(args[1]);
+          auto s = force(args[2]);
+          if (!is_list(from_list) || !is_list(to_list))
+            throw eval_error("replaceStrings: first two args must be lists");
+          if (!is_string(s))
+            throw eval_error("replaceStrings: third arg must be string");
+          const auto& froms = as_list(from_list).elements;
+          const auto& tos = as_list(to_list).elements;
+          if (froms.size() != tos.size())
+            throw eval_error("replaceStrings: lists must have same length");
+
+          std::vector<std::string> from_strs, to_strs;
+          for (std::size_t i = 0; i < froms.size(); ++i) {
+            auto f = force(froms[i]);
+            auto t = force(tos[i]);
+            if (!is_string(f) || !is_string(t))
+              throw eval_error("replaceStrings: list elements must be strings");
+            from_strs.push_back(as_string(f));
+            to_strs.push_back(as_string(t));
+          }
+
+          std::string result;
+          std::string input = as_string(s);
+          std::size_t pos = 0;
+          while (pos < input.size()) {
+            bool replaced = false;
+            for (std::size_t i = 0; i < from_strs.size(); ++i) {
+              if (from_strs[i].empty()) {
+                // Empty string matches at current position
+                result += to_strs[i];
+                if (pos < input.size()) {
+                  result += input[pos];
+                  ++pos;
+                }
+                replaced = true;
+                break;
+              }
+              if (input.compare(pos, from_strs[i].size(), from_strs[i]) == 0) {
+                result += to_strs[i];
+                pos += from_strs[i].size();
+                replaced = true;
+                break;
+              }
+            }
+            if (!replaced) {
+              result += input[pos];
+              ++pos;
+            }
+          }
+          // Handle empty string match at end
+          for (std::size_t i = 0; i < from_strs.size(); ++i) {
+            if (from_strs[i].empty()) {
+              result += to_strs[i];
+              break;
+            }
+          }
+          return value::make_string(result);
+        });
+
+    // builtins.seq - force first arg, return second
+    builtins_map["seq"] = value::make_builtin("seq", 2, [this](std::vector<value_ptr>& args) {
+      force(args[0]);
+      return args[1];
+    });
+
+    // builtins.deepSeq - recursively force first arg, return second
+    builtins_map["deepSeq"] =
+        value::make_builtin("deepSeq", 2, [this](std::vector<value_ptr>& args) {
+          deep_force(args[0]);
+          return args[1];
+        });
+
+    // builtins.tryEval - try to evaluate, return { success, value }
+    builtins_map["tryEval"] =
+        value::make_builtin("tryEval", 1, [this](std::vector<value_ptr>& args) {
+          std::unordered_map<std::string, value_ptr> result;
+          try {
+            auto v = force(args[0]);
+            result["success"] = value::make_bool(true);
+            result["value"] = v;
+          } catch (const eval_error&) {
+            result["success"] = value::make_bool(false);
+            result["value"] = value::make_bool(false);
+          }
+          return value::make_attrs(std::move(result));
+        });
+
+    // builtins.trace - print message and return value
+    builtins_map["trace"] = value::make_builtin("trace", 2, [this](std::vector<value_ptr>& args) {
+      auto msg = force(args[0]);
+      std::cerr << "trace: " << print_value(msg) << std::endl;
+      return args[1];
+    });
+
     // builtins.abort
     builtins_map["abort"] =
         value::make_builtin("abort", 1, [this](std::vector<value_ptr>& args) -> value_ptr {
@@ -327,7 +739,190 @@ private:
           throw eval_error("error thrown");
         });
 
+    // builtins.import - load and evaluate a Nix file
+    builtins_map["import"] =
+        value::make_builtin("import", 1, [this](std::vector<value_ptr>& args) -> value_ptr {
+          if (!file_parser_) {
+            throw eval_error("import: file parser not configured");
+          }
+
+          auto path_val = force(args[0]);
+          std::filesystem::path file_path;
+
+          if (is_path(path_val)) {
+            file_path = as_path(path_val).path;
+          } else if (is_string(path_val)) {
+            file_path = as_string(path_val);
+          } else {
+            throw eval_error("import: expected path or string");
+          }
+
+          // Resolve relative paths
+          if (file_path.is_relative()) {
+            file_path = base_path_ / file_path;
+          }
+
+          // Normalize the path
+          file_path = std::filesystem::weakly_canonical(file_path);
+
+          // If it's a directory, look for default.nix
+          if (std::filesystem::is_directory(file_path)) {
+            file_path = file_path / "default.nix";
+          }
+
+          std::string path_str = file_path.string();
+
+          // Check for import cycles
+          if (imported_files_.count(path_str) > 0) {
+            throw eval_error("import: cycle detected importing '" + path_str + "'");
+          }
+
+          // Read the file
+          std::ifstream file(file_path);
+          if (!file) {
+            throw eval_error("import: cannot open file '" + path_str + "'");
+          }
+          std::stringstream buffer;
+          buffer << file.rdbuf();
+          std::string source = buffer.str();
+
+          // Track this import
+          imported_files_.insert(path_str);
+
+          // Save and set the base path for nested imports
+          auto old_base = base_path_;
+          base_path_ = file_path.parent_path();
+
+          try {
+            // Parse and store the expression (must keep it alive for thunks)
+            imported_expressions_.push_back(file_parser_(path_str, source));
+            const ast::expression& expr = imported_expressions_.back();
+            auto result = eval_expr(expr, root_env_);
+
+            // Restore state
+            base_path_ = old_base;
+            imported_files_.erase(path_str);
+
+            return result;
+          } catch (...) {
+            // Restore state on error
+            base_path_ = old_base;
+            imported_files_.erase(path_str);
+            throw;
+          }
+        });
+
+    // builtins.readFile - read file contents as string
+    builtins_map["readFile"] =
+        value::make_builtin("readFile", 1, [this](std::vector<value_ptr>& args) -> value_ptr {
+          auto path_val = force(args[0]);
+          std::filesystem::path file_path;
+
+          if (is_path(path_val)) {
+            file_path = as_path(path_val).path;
+          } else if (is_string(path_val)) {
+            file_path = as_string(path_val);
+          } else {
+            throw eval_error("readFile: expected path or string");
+          }
+
+          // Resolve relative paths
+          if (file_path.is_relative()) {
+            file_path = base_path_ / file_path;
+          }
+
+          std::ifstream file(file_path);
+          if (!file) {
+            throw eval_error("readFile: cannot open file '" + file_path.string() + "'");
+          }
+          std::stringstream buffer;
+          buffer << file.rdbuf();
+          return value::make_string(buffer.str());
+        });
+
+    // builtins.pathExists - check if path exists
+    builtins_map["pathExists"] =
+        value::make_builtin("pathExists", 1, [this](std::vector<value_ptr>& args) -> value_ptr {
+          auto path_val = force(args[0]);
+          std::filesystem::path file_path;
+
+          if (is_path(path_val)) {
+            file_path = as_path(path_val).path;
+          } else if (is_string(path_val)) {
+            file_path = as_string(path_val);
+          } else {
+            throw eval_error("pathExists: expected path or string");
+          }
+
+          // Resolve relative paths
+          if (file_path.is_relative()) {
+            file_path = base_path_ / file_path;
+          }
+
+          return value::make_bool(std::filesystem::exists(file_path));
+        });
+
+    // builtins.baseNameOf - get filename from path
+    builtins_map["baseNameOf"] =
+        value::make_builtin("baseNameOf", 1, [this](std::vector<value_ptr>& args) -> value_ptr {
+          auto path_val = force(args[0]);
+          std::string path_str;
+
+          if (is_path(path_val)) {
+            path_str = as_path(path_val).path;
+          } else if (is_string(path_val)) {
+            path_str = as_string(path_val);
+          } else {
+            throw eval_error("baseNameOf: expected path or string");
+          }
+
+          std::filesystem::path p(path_str);
+          return value::make_string(p.filename().string());
+        });
+
+    // builtins.dirOf - get directory from path
+    builtins_map["dirOf"] =
+        value::make_builtin("dirOf", 1, [this](std::vector<value_ptr>& args) -> value_ptr {
+          auto path_val = force(args[0]);
+          std::string path_str;
+
+          if (is_path(path_val)) {
+            path_str = as_path(path_val).path;
+          } else if (is_string(path_val)) {
+            path_str = as_string(path_val);
+          } else {
+            throw eval_error("dirOf: expected path or string");
+          }
+
+          std::filesystem::path p(path_str);
+          return value::make_string(p.parent_path().string());
+        });
+
+    // builtins.null constant
+    builtins_map["null"] = value::make_null();
+
+    // builtins.true and builtins.false
+    builtins_map["true"] = value::make_bool(true);
+    builtins_map["false"] = value::make_bool(false);
+
+    // Bind import at top level before moving builtins_map
+    // import is a global builtin in Nix (not just builtins.import)
+    root_env_->bind("import", builtins_map["import"]);
+
+    // Also bind other commonly-used builtins at top level
+    root_env_->bind("baseNameOf", builtins_map["baseNameOf"]);
+    root_env_->bind("dirOf", builtins_map["dirOf"]);
+    root_env_->bind("toString", builtins_map["toString"]);
+    root_env_->bind("throw", builtins_map["throw"]);
+    root_env_->bind("abort", builtins_map["abort"]);
+    root_env_->bind("map", builtins_map["map"]);
+
     root_env_->bind("builtins", value::make_attrs(std::move(builtins_map)));
+
+    // Also bind common builtins at top level for convenience
+    root_env_->bind("null", value::make_null());
+    root_env_->bind("true", value::make_bool(true));
+    root_env_->bind("false", value::make_bool(false));
   }
 
   auto eval_expr(const ast::expression& expr, env_ptr env) -> value_ptr {

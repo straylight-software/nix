@@ -41,17 +41,17 @@ struct finish_sink_t : virtual Sink {
  * used from multiple threads concurrently.
  */
 struct buffered_sink_t : virtual Sink {
-  size_t bufSize, bufPos;
+  size_t buf_size, buf_pos;
   std::unique_ptr<char[]> buffer;
 
-  buffered_sink_t(size_t bufSize = 32 * 1024) : bufSize(bufSize), bufPos(0), buffer(nullptr) {}
+  buffered_sink_t(size_t buf_size = 32 * 1024) : buf_size(buf_size), buf_pos(0), buffer(nullptr) {}
 
   void operator()(std::string_view data) override;
 
   void flush();
 
 protected:
-  virtual void writeUnbuffered(std::string_view data) = 0;
+  virtual void write_unbuffered(std::string_view data) = 0;
 };
 
 /**
@@ -77,7 +77,7 @@ struct Source {
 
   virtual bool good() { return true; }
 
-  void drainInto(Sink& sink);
+  void drain_into(Sink& sink);
 
   std::string drain();
 
@@ -89,24 +89,24 @@ struct Source {
  * used from multiple threads concurrently.
  */
 struct buffered_source_t : virtual Source {
-  size_t bufSize, bufPosIn, bufPosOut;
+  size_t buf_size, buf_pos_in, buf_pos_out;
   std::unique_ptr<char[]> buffer;
 
-  buffered_source_t(size_t bufSize = 32 * 1024)
-      : bufSize(bufSize), bufPosIn(0), bufPosOut(0), buffer(nullptr) {}
+  buffered_source_t(size_t buf_size = 32 * 1024)
+      : buf_size(buf_size), buf_pos_in(0), buf_pos_out(0), buffer(nullptr) {}
 
   size_t read(char* data, size_t len) override;
 
   /**
    * Return true if the buffer is not empty.
    */
-  bool hasData();
+  bool has_data();
 
 protected:
   /**
    * Underlying read call, to be overridden.
    */
-  virtual size_t readUnbuffered(char* data, size_t len) = 0;
+  virtual size_t read_unbuffered(char* data, size_t len) = 0;
 };
 
 /**
@@ -139,7 +139,7 @@ struct fd_sink_t : buffered_sink_t {
 
   ~fd_sink_t();
 
-  void writeUnbuffered(std::string_view data) override;
+  void write_unbuffered(std::string_view data) override;
 
   bool good() override;
 
@@ -153,8 +153,8 @@ private:
 struct fd_source_t : buffered_source_t, restartable_source_t {
   descriptor_t fd;
   size_t read = 0;
-  backed_string_view_t endOfFileError{"unexpected end-of-file"};
-  bool isSeekable = true;
+  backed_string_view_t end_of_file_error{"unexpected end-of-file"};
+  bool is_seekable = true;
 
   fd_source_t() : fd(INVALID_DESCRIPTOR) {}
 
@@ -171,12 +171,12 @@ struct fd_source_t : buffered_source_t, restartable_source_t {
    * Return true if the buffer is not empty after a non-blocking
    * read.
    */
-  bool hasData();
+  bool has_data();
 
   void skip(size_t len) override;
 
 protected:
-  size_t readUnbuffered(char* data, size_t len) override;
+  size_t read_unbuffered(char* data, size_t len) override;
 
 private:
   bool _good = true;
@@ -230,7 +230,7 @@ struct string_source_t : restartable_source_t {
 struct compressed_source_t : restartable_source_t {
 private:
   std::string compressedData;
-  std::string compressionMethod;
+  std::string compression_method;
   string_source_t stringSource;
 
 public:
@@ -238,9 +238,9 @@ public:
    * Compress a restartable_source_t using the specified compression method.
    *
    * @param source The source data to compress
-   * @param compressionMethod The compression method to use (e.g., "xz", "br")
+   * @param compression_method The compression method to use (e.g., "xz", "br")
    */
-  compressed_source_t(restartable_source_t& source, const std::string& compressionMethod);
+  compressed_source_t(restartable_source_t& source, const std::string& compression_method);
 
   size_t read(char* data, size_t len) override { return stringSource.read(data, len); }
 
@@ -248,7 +248,7 @@ public:
 
   uint64_t size() const { return compressedData.size(); }
 
-  std::string_view getCompressionMethod() const { return compressionMethod; }
+  std::string_view get_compression_method() const { return compression_method; }
 };
 
 /**
@@ -303,7 +303,7 @@ struct sized_source_t : Source {
   /**
    * Consume the original source until no remain data is left to consume.
    */
-  size_t drainAll() {
+  size_t drain_all() {
     std::vector<char> buf(8192);
     size_t sum = 0;
     while (this->remain > 0) {
@@ -347,16 +347,16 @@ struct lambda_sink_t : Sink {
   typedef std::function<void(std::string_view data)> data_t;
   typedef std::function<void()> cleanup_t;
 
-  data_t dataFun;
-  cleanup_t cleanupFun;
+  data_t data_fun;
+  cleanup_t cleanup_fun;
 
   lambda_sink_t(
-      const data_t& dataFun, const cleanup_t& cleanupFun = []() {})
-      : dataFun(dataFun), cleanupFun(cleanupFun) {}
+      const data_t& data_fun, const cleanup_t& cleanup_fun = []() {})
+      : data_fun(data_fun), cleanup_fun(cleanup_fun) {}
 
-  ~lambda_sink_t() { cleanupFun(); }
+  ~lambda_sink_t() { cleanup_fun(); }
 
-  void operator()(std::string_view data) override { dataFun(data); }
+  void operator()(std::string_view data) override { data_fun(data); }
 };
 
 /**
@@ -378,25 +378,25 @@ struct lambda_source_t : Source {
  */
 struct chain_source_t : Source {
   Source &source1, &source2;
-  bool useSecond = false;
+  bool use_second = false;
 
   chain_source_t(Source& s1, Source& s2) : source1(s1), source2(s2) {}
 
   size_t read(char* data, size_t len) override;
 };
 
-std::unique_ptr<finish_sink_t> sourceToSink(std::function<void(Source&)> fun);
+std::unique_ptr<finish_sink_t> source_to_sink(std::function<void(Source&)> fun);
 
 /**
  * Convert a function that feeds data into a Sink into a Source. The
  * Source executes the function as a coroutine.
  */
-std::unique_ptr<Source> sinkToSource(
+std::unique_ptr<Source> sink_to_source(
     std::function<void(Sink&)> fun,
     std::function<void()> eof = []() { throw EndOfFile("coroutine has finished"); });
 
-void writePadding(size_t len, Sink& sink);
-void writeString(std::string_view s, Sink& sink);
+void write_padding(size_t len, Sink& sink);
+void write_string(std::string_view s, Sink& sink);
 
 inline Sink& operator<<(Sink& sink, uint64_t n) {
   unsigned char buf[8];
@@ -417,14 +417,14 @@ Sink& operator<<(Sink& sink, std::string_view s);
 Sink& operator<<(Sink& sink, const strings_t& s);
 Sink& operator<<(Sink& sink, const string_set_t& s);
 
-MakeError(SerialisationError, Error);
+make_error(SerialisationError, Error);
 
 template <typename T>
-T readNum(Source& source) {
+T read_num(Source& source) {
   unsigned char buf[8];
   source((char*)buf, sizeof(buf));
 
-  auto n = readLittleEndian<uint64_t>(buf);
+  auto n = read_little_endian<uint64_t>(buf);
 
   if (n > (uint64_t)std::numeric_limits<T>::max())
     throw SerialisationError("serialised integer %d is too large for type '%s'", n,
@@ -433,35 +433,35 @@ T readNum(Source& source) {
   return (T)n;
 }
 
-inline unsigned int readInt(Source& source) {
-  return readNum<unsigned int>(source);
+inline unsigned int read_int(Source& source) {
+  return read_num<unsigned int>(source);
 }
 
-inline uint64_t readLongLong(Source& source) {
-  return readNum<uint64_t>(source);
+inline uint64_t read_long_long(Source& source) {
+  return read_num<uint64_t>(source);
 }
 
-void readPadding(size_t len, Source& source);
-size_t readString(char* buf, size_t max, Source& source);
-std::string readString(Source& source, size_t max = std::numeric_limits<size_t>::max());
+void read_padding(size_t len, Source& source);
+size_t read_string(char* buf, size_t max, Source& source);
+std::string read_string(Source& source, size_t max = std::numeric_limits<size_t>::max());
 template <class T>
-T readStrings(Source& source);
+T read_strings(Source& source);
 
 Source& operator>>(Source& in, std::string& s);
 
 template <typename T>
 Source& operator>>(Source& in, T& n) {
-  n = readNum<T>(in);
+  n = read_num<T>(in);
   return in;
 }
 
 template <typename T>
 Source& operator>>(Source& in, bool& b) {
-  b = readNum<uint64_t>(in);
+  b = read_num<uint64_t>(in);
   return in;
 }
 
-Error readError(Source& source);
+Error read_error(Source& source);
 
 /**
  * An adapter that converts a std::basic_istream into a source.
@@ -488,7 +488,7 @@ struct stream_to_source_adapter_t : Source {
  * logical form, in order to guarantee a known state to the original stream,
  * even in the event of errors.
  *
- * Use with framed_sink_t, which also allows the logical stream to be terminated
+ * use with framed_sink_t, which also allows the logical stream to be terminated
  * in the event of an exception.
  */
 struct framed_source_t : Source {
@@ -503,7 +503,7 @@ struct framed_source_t : Source {
     try {
       if (!eof) {
         while (true) {
-          auto n = readInt(from);
+          auto n = read_int(from);
           if (!n)
             break;
           std::vector<char> data(n);
@@ -511,7 +511,7 @@ struct framed_source_t : Source {
         }
       }
     } catch (...) {
-      ignoreExceptionInDestructor();
+      ignore_exception_in_destructor();
     }
   }
 
@@ -520,7 +520,7 @@ struct framed_source_t : Source {
       throw EndOfFile("reached end of FramedSource");
 
     if (pos >= pending.size()) {
-      size_t len = readInt(from);
+      size_t len = read_int(from);
       if (!len) {
         eof = true;
         return 0;
@@ -540,28 +540,28 @@ struct framed_source_t : Source {
 /**
  * Write as chunks in the format expected by framed_source_t.
  *
- * The `checkError` function can be used to terminate the stream when you
+ * The `check_error` function can be used to terminate the stream when you
  * detect that an error has occurred. It does so by throwing an exception.
  */
 struct framed_sink_t : nix::buffered_sink_t {
   buffered_sink_t& to;
-  std::function<void()> checkError;
+  std::function<void()> check_error;
 
-  framed_sink_t(buffered_sink_t& to, std::function<void()>&& checkError)
-      : to(to), checkError(checkError) {}
+  framed_sink_t(buffered_sink_t& to, std::function<void()>&& check_error)
+      : to(to), check_error(check_error) {}
 
   ~framed_sink_t() {
     try {
       to << 0;
       to.flush();
     } catch (...) {
-      ignoreExceptionInDestructor();
+      ignore_exception_in_destructor();
     }
   }
 
-  void writeUnbuffered(std::string_view data) override {
+  void write_unbuffered(std::string_view data) override {
     /* Don't send more data if an error has occurred. */
-    checkError();
+    check_error();
 
     to << data.size();
     to(data);

@@ -14,6 +14,6 @@ struct parsed_url_t;
  * flake output, for example because it is empty or "default".
  * Otherwise returns the extracted name.
  */
-std::optional<std::string> getNameFromURL(const parsed_url_t& url);
+std::optional<std::string> get_name_from_url(const parsed_url_t& url);
 
 } // namespace nix

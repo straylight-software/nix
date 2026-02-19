@@ -50,15 +50,15 @@ struct LegacySSHStoreConfig : std::enable_shared_from_this<LegacySSHStoreConfig>
 
   static std::string doc();
 
-  ref<Store> openStore() const override;
+  ref<Store> open_store() const override;
 
   StoreReference getReference() const override;
 };
 
 struct LegacySSHStore : public virtual Store {
-  using Config = LegacySSHStoreConfig;
+  using config_t = LegacySSHStoreConfig;
 
-  ref<const Config> config;
+  ref<const config_t> config;
 
   struct Connection;
 
@@ -66,20 +66,20 @@ struct LegacySSHStore : public virtual Store {
 
   SSHMaster master;
 
-  LegacySSHStore(ref<const Config>);
+  LegacySSHStore(ref<const config_t>);
 
-  ref<Connection> openConnection();
+  ref<Connection> open_connection();
 
   void
-  queryPathInfoUncached(const StorePath& path,
+  query_path_info_uncached(const StorePath& path,
                         Callback<std::shared_ptr<const ValidPathInfo>> callback) noexcept override;
 
   std::map<StorePath, UnkeyedValidPathInfo> queryPathInfosUncached(const StorePathSet& paths);
 
-  void addToStore(const ValidPathInfo& info, Source& source, RepairFlag repair,
-                  CheckSigsFlag checkSigs) override;
+  void add_to_store(const ValidPathInfo& info, Source& source, RepairFlag repair,
+                  CheckSigsFlag check_sigs) override;
 
-  void narFromPath(const StorePath& path, Sink& sink) override;
+  void nar_from_path(const StorePath& path, Sink& sink) override;
 
   /**
    * Hands over the connection temporarily as source to the given
@@ -89,61 +89,61 @@ struct LegacySSHStore : public virtual Store {
    *
    * This is exposed for sake of Hydra.
    */
-  void narFromPath(const StorePath& path, std::function<void(Source&)> fun);
+  void nar_from_path(const StorePath& path, std::function<void(Source&)> fun);
 
-  std::optional<StorePath> queryPathFromHashPart(const std::string& hashPart) override {
+  std::optional<StorePath> queryPathFromHashPart(const std::string& hash_part) override {
     unsupported("queryPathFromHashPart");
   }
 
-  StorePath addToStore(std::string_view name, const source_path_t& path, ContentAddressMethod method,
-                       hash_algorithm_t hashAlgo, const StorePathSet& references, path_filter_t& filter,
+  StorePath add_to_store(std::string_view name, const source_path_t& path, ContentAddressMethod method,
+                       hash_algorithm_t hash_algo, const StorePathSet& references, path_filter_t& filter,
                        RepairFlag repair) override {
     unsupported("addToStore");
   }
 
   StorePath
-  addToStoreFromDump(Source& dump, std::string_view name,
-                     file_serialisation_method_t dumpMethod = file_serialisation_method_t::NixArchive,
-                     ContentAddressMethod hashMethod = file_ingestion_method_t::NixArchive,
-                     hash_algorithm_t hashAlgo = hash_algorithm_t::SHA256,
+  add_to_store_from_dump(Source& dump, std::string_view name,
+                     file_serialisation_method_t dump_method = file_serialisation_method_t::nix_archive,
+                     ContentAddressMethod hash_method = file_ingestion_method_t::nix_archive,
+                     hash_algorithm_t hash_algo = hash_algorithm_t::SHA256,
                      const StorePathSet& references = StorePathSet(),
                      RepairFlag repair = NoRepair) override {
     unsupported("addToStore");
   }
 
-  void registerDrvOutput(const Realisation& output) override { unsupported("registerDrvOutput"); }
+  void register_drv_output(const Realisation& output) override { unsupported("registerDrvOutput"); }
 
 public:
-  BuildResult buildDerivation(const StorePath& drvPath, const BasicDerivation& drv,
-                              BuildMode buildMode) override;
+  BuildResult buildDerivation(const StorePath& drv_path, const BasicDerivation& drv,
+                              BuildMode build_mode) override;
 
   /**
    * Note, the returned function must only be called once, or we'll
    * try to read from the connection twice.
    *
-   * @todo Use C++23 `std::move_only_function`.
+   * @todo use C++23 `std::move_only_function`.
    */
-  std::function<BuildResult()> buildDerivationAsync(const StorePath& drvPath,
+  std::function<BuildResult()> buildDerivationAsync(const StorePath& drv_path,
                                                     const BasicDerivation& drv,
                                                     const ServeProto::BuildOptions& options);
 
-  void buildPaths(const std::vector<DerivedPath>& drvPaths, BuildMode buildMode,
-                  std::shared_ptr<Store> evalStore) override;
+  void build_paths(const std::vector<DerivedPath>& drv_paths, BuildMode build_mode,
+                  std::shared_ptr<Store> eval_store) override;
 
-  void ensurePath(const StorePath& path) override { unsupported("ensurePath"); }
+  void ensure_path(const StorePath& path) override { unsupported("ensurePath"); }
 
-  ref<SourceAccessor> getFSAccessor(bool requireValidPath) override {
+  ref<SourceAccessor> getFSAccessor(bool require_valid_path) override {
     unsupported("getFSAccessor");
   }
 
   std::shared_ptr<SourceAccessor> getFSAccessor(const StorePath& path,
-                                                bool requireValidPath) override {
+                                                bool require_valid_path) override {
     unsupported("getFSAccessor");
   }
 
   /**
    * The default instance would schedule the work on the client side, but
-   * for consistency with `buildPaths` and `buildDerivation` it should happen
+   * for consistency with `build_paths` and `buildDerivation` it should happen
    * on the remote side.
    *
    * We make this fail for now so we can add implement this properly later
@@ -186,7 +186,7 @@ public:
    */
   std::optional<TrustedFlag> isTrustedClient() override;
 
-  void queryRealisationUncached(
+  void query_realisation_uncached(
       const DrvOutput&,
       Callback<std::shared_ptr<const UnkeyedRealisation>> callback) noexcept override
   // TODO: Implement

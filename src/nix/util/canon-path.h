@@ -15,7 +15,7 @@
 
 namespace nix {
 
-MakeError(BadCanonPath, Error);
+make_error(BadCanonPath, Error);
 
 /**
  * A canonical representation of a path. It ensures the following:
@@ -76,7 +76,7 @@ public:
    */
   canon_path_t(std::string_view raw, const canon_path_t& root);
 
-  bool isRoot() const { return path.size() <= 1; }
+  bool is_root() const { return path.size() <= 1; }
 
   explicit operator std::string_view() const { return path; }
 
@@ -86,9 +86,9 @@ public:
    * Like abs(), but return an empty string if this path is
    * '/'. Thus the returned string never ends in a slash.
    */
-  const std::string& absOrEmpty() const {
+  const std::string& abs_or_empty() const {
     const static std::string epsilon;
-    return isRoot() ? epsilon : path;
+    return is_root() ? epsilon : path;
   }
 
   const char* c_str() const { return path.c_str(); }
@@ -169,14 +169,14 @@ public:
    */
   void pop();
 
-  std::optional<std::string_view> dirOf() const {
-    if (isRoot())
+  std::optional<std::string_view> dir_of() const {
+    if (is_root())
       return std::nullopt;
     return ((std::string_view)path).substr(0, path.rfind('/'));
   }
 
-  std::optional<std::string_view> baseName() const {
-    if (isRoot())
+  std::optional<std::string_view> base_name() const {
+    if (is_root())
       return std::nullopt;
     return ((std::string_view)path).substr(path.rfind('/') + 1);
   }
@@ -211,9 +211,9 @@ public:
    * Return true if `this` is equal to `parent` or a child of
    * `parent`.
    */
-  bool isWithin(const canon_path_t& parent) const;
+  bool is_within(const canon_path_t& parent) const;
 
-  canon_path_t removePrefix(const canon_path_t& prefix) const;
+  canon_path_t remove_prefix(const canon_path_t& prefix) const;
 
   /**
    * Append another path to this one.
@@ -238,13 +238,13 @@ public:
    * the `allowed` paths are within `this`. (The latter condition
    * ensures access to the parents of allowed paths.)
    */
-  bool isAllowed(const std::set<canon_path_t>& allowed) const;
+  bool is_allowed(const std::set<canon_path_t>& allowed) const;
 
   /**
    * Return a representation `x` of `path` relative to `this`, i.e.
-   * `canon_path_t(this.makeRelative(x), this) == path`.
+   * `canon_path_t(this.make_relative(x), this) == path`.
    */
-  std::string makeRelative(const canon_path_t& path) const;
+  std::string make_relative(const canon_path_t& path) const;
 
   friend std::size_t hash_value(const canon_path_t&);
 };

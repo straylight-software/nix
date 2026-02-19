@@ -102,7 +102,7 @@ public:
   /**
    * Whether the goal is finished.
    */
-  ExitCode exitCode = ecBusy;
+  ExitCode exit_code = ecBusy;
 
   /**
    * Build result.
@@ -335,7 +335,7 @@ public:
 
     /**
      * Allows awaiting a @ref Suspend.
-     * Always suspends.
+     * always suspends.
      */
     std::suspend_always await_transform(Suspend) { return {}; };
   };
@@ -389,11 +389,11 @@ public:
 
   virtual void handleChildOutput(descriptor_t fd, std::string_view data) { unreachable(); }
 
-  virtual void handleEOF(descriptor_t fd) { unreachable(); }
+  virtual void handle_eof(descriptor_t fd) { unreachable(); }
 
   void trace(std::string_view s);
 
-  std::string getName() const { return name; }
+  std::string get_name() const { return name; }
 
   /**
    * Callback in case of a timeout.  It should wake up its waiters,
@@ -430,7 +430,7 @@ protected:
   Co yield();
 };
 
-void addToWeakGoals(WeakGoals& goals, GoalPtr p);
+void add_to_weak_goals(WeakGoals& goals, GoalPtr p);
 
 } // namespace nix
 

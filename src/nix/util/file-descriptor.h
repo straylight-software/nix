@@ -39,7 +39,7 @@ const descriptor_t INVALID_DESCRIPTOR =
  *
  * This is a no-op except on Windows.
  */
-static inline descriptor_t toDescriptor(int fd) {
+static inline descriptor_t to_descriptor(int fd) {
 #ifdef _WIN32
   return reinterpret_cast<HANDLE>(_get_osfhandle(fd));
 #else
@@ -53,7 +53,7 @@ static inline descriptor_t toDescriptor(int fd) {
  *
  * This is a no-op except on Windows.
  */
-static inline int fromDescriptorReadOnly(descriptor_t fd) {
+static inline int from_descriptor_read_only(descriptor_t fd) {
 #ifdef _WIN32
   return _open_osfhandle(reinterpret_cast<intptr_t>(fd), _O_RDONLY);
 #else
@@ -64,41 +64,41 @@ static inline int fromDescriptorReadOnly(descriptor_t fd) {
 /**
  * Read the contents of a resource into a string.
  */
-std::string readFile(descriptor_t fd);
+std::string read_file(descriptor_t fd);
 
 /**
  * Wrappers around read()/write() that read/write exactly the
  * requested number of bytes.
  */
-void readFull(descriptor_t fd, char* buf, size_t count);
+void read_full(descriptor_t fd, char* buf, size_t count);
 
-void writeFull(descriptor_t fd, std::string_view s, bool allowInterrupts = true);
+void write_full(descriptor_t fd, std::string_view s, bool allow_interrupts = true);
 
 /**
  * Read a line from a file descriptor.
  *
  * @param fd The file descriptor to read from
- * @param eofOk If true, return an unterminated line if EOF is reached. (e.g. the empty string)
+ * @param eof_ok If true, return an unterminated line if EOF is reached. (e.g. the empty string)
  *
- * @return A line of text ending in `\n`, or a string without `\n` if `eofOk` is true and EOF is
+ * @return A line of text ending in `\n`, or a string without `\n` if `eof_ok` is true and EOF is
  * reached.
  */
-std::string readLine(descriptor_t fd, bool eofOk = false);
+std::string read_line(descriptor_t fd, bool eof_ok = false);
 
 /**
  * Write a line to a file descriptor.
  */
-void writeLine(descriptor_t fd, std::string s);
+void write_line(descriptor_t fd, std::string s);
 
 /**
  * Read a file descriptor until EOF occurs.
  */
-std::string drainFD(descriptor_t fd, bool block = true, const size_t reserveSize = 0);
+std::string drain_fd(descriptor_t fd, bool block = true, const size_t reserve_size = 0);
 
 /**
  * The Windows version is always blocking.
  */
-void drainFD(descriptor_t fd, Sink& sink
+void drain_fd(descriptor_t fd, Sink& sink
 #ifndef _WIN32
              ,
              bool block = true
@@ -109,7 +109,7 @@ void drainFD(descriptor_t fd, Sink& sink
  * Get [Standard Input](https://en.wikipedia.org/wiki/Standard_streams#Standard_input_(stdin))
  */
 [[gnu::always_inline]]
-inline descriptor_t getStandardInput() {
+inline descriptor_t get_standard_input() {
 #ifndef _WIN32
   return STDIN_FILENO;
 #else
@@ -121,7 +121,7 @@ inline descriptor_t getStandardInput() {
  * Get [Standard Output](https://en.wikipedia.org/wiki/Standard_streams#Standard_output_(stdout))
  */
 [[gnu::always_inline]]
-inline descriptor_t getStandardOutput() {
+inline descriptor_t get_standard_output() {
 #ifndef _WIN32
   return STDOUT_FILENO;
 #else
@@ -133,7 +133,7 @@ inline descriptor_t getStandardOutput() {
  * Get [Standard Error](https://en.wikipedia.org/wiki/Standard_streams#Standard_error_(stderr))
  */
 [[gnu::always_inline]]
-inline descriptor_t getStandardError() {
+inline descriptor_t get_standard_error() {
 #ifndef _WIN32
   return STDERR_FILENO;
 #else
@@ -170,12 +170,12 @@ public:
    * the platform. This is just a performance optimization, and
    * fsync must be run later even if this is called.
    */
-  void startFsync() const;
+  void start_fsync() const;
 };
 
 class pipe_t {
 public:
-  auto_close_fd_t readSide, writeSide;
+  auto_close_fd_t read_side, write_side;
   void create();
   void close();
 };
@@ -187,12 +187,12 @@ namespace unix {
  * Close all file descriptors except stdio fds (ie 0, 1, 2).
  * Good practice in child processes.
  */
-void closeExtraFDs();
+void close_extra_f_ds();
 
 /**
  * Set the close-on-exec flag for the given file descriptor.
  */
-void closeOnExec(descriptor_t fd);
+void close_on_exec(descriptor_t fd);
 
 } // namespace unix
 #endif
@@ -212,7 +212,7 @@ v*
  *
  * @return nullopt if openat2 is not supported by the kernel.
  */
-std::optional<descriptor_t> openat2(descriptor_t dirFd, const char* path, uint64_t flags, uint64_t mode,
+std::optional<descriptor_t> openat2(descriptor_t dir_fd, const char* path, uint64_t flags, uint64_t mode,
                                   uint64_t resolve);
 
 } // namespace linux
@@ -241,7 +241,7 @@ struct symlink_not_allowed_t : public Error {
 };
 
 /**
- * Safe(r) function to open \param path file relative to \param dirFd, while
+ * Safe(r) function to open \param path file relative to \param dir_fd, while
  * disallowing escaping from a directory and resolving any symlinks in the
  * process.
  *
@@ -255,16 +255,16 @@ struct symlink_not_allowed_t : public Error {
  * @param flags O_* flags
  * @param mode Mode for O_{CREAT,TMPFILE}
  *
- * @pre path.isRoot() is false
+ * @pre path.is_root() is false
  *
  * @throws symlink_not_allowed_t if any path components
  */
-descriptor_t openFileEnsureBeneathNoSymlinks(descriptor_t dirFd, const canon_path_t& path, int flags,
+descriptor_t open_file_ensure_beneath_no_symlinks(descriptor_t dir_fd, const canon_path_t& path, int flags,
                                            mode_t mode = 0);
 
 } // namespace unix
 #endif
 
-MakeError(EndOfFile, Error);
+make_error(EndOfFile, Error);
 
 } // namespace nix

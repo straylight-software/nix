@@ -55,7 +55,7 @@ public:
    * @param args Function arguments.
    * @param pos Function position.
    */
-  virtual void preFunctionCallHook(EvalState& state, const Value& v, std::span<Value*> args,
+  virtual void pre_function_call_hook(EvalState& state, const Value& v, std::span<Value*> args,
                                    const pos_idx_t pos);
 
   /**
@@ -67,7 +67,7 @@ public:
    * @param args Function arguments.
    * @param pos Function position.
    */
-  virtual void postFunctionCallHook(EvalState& state, const Value& v, std::span<Value*> args,
+  virtual void post_function_call_hook(EvalState& state, const Value& v, std::span<Value*> args,
                                     const pos_idx_t pos);
 
   virtual ~EvalProfiler() = default;
@@ -96,13 +96,13 @@ public:
   /** Register a profiler instance. */
   void addProfiler(ref<EvalProfiler> profiler);
 
-  [[gnu::noinline]] void preFunctionCallHook(EvalState& state, const Value& v,
+  [[gnu::noinline]] void pre_function_call_hook(EvalState& state, const Value& v,
                                              std::span<Value*> args, const pos_idx_t pos) override;
-  [[gnu::noinline]] void postFunctionCallHook(EvalState& state, const Value& v,
+  [[gnu::noinline]] void post_function_call_hook(EvalState& state, const Value& v,
                                               std::span<Value*> args, const pos_idx_t pos) override;
 };
 
-ref<EvalProfiler> makeSampleStackProfiler(EvalState& state, std::filesystem::path profileFile,
+ref<EvalProfiler> make_sample_stack_profiler(EvalState& state, std::filesystem::path profile_file,
                                           uint64_t frequency);
 
 } // namespace nix

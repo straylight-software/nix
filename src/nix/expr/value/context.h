@@ -44,18 +44,18 @@ struct NixStringContextElem {
    * also all outputs of all derivations in that closure (including the
    * root derivation).
    *
-   * Encoded in the form `=<drvPath>`.
+   * Encoded in the form `=<drv_path>`.
    */
   struct DrvDeep {
-    StorePath drvPath;
+    StorePath drv_path;
 
-    GENERATE_CMP(DrvDeep, me->drvPath);
+    GENERATE_CMP(DrvDeep, me->drv_path);
   };
 
   /**
    * Derivation output.
    *
-   * Encoded in the form `!<output>!<drvPath>`.
+   * Encoded in the form `!<output>!<drv_path>`.
    */
   using Built = SingleDerivedPath::Built;
 
@@ -77,9 +77,9 @@ struct NixStringContextElem {
    * special type of context.
    */
   struct Path {
-    StorePath storePath;
+    StorePath store_path;
 
-    GENERATE_CMP(Path, me->storePath);
+    GENERATE_CMP(Path, me->store_path);
   };
 
   using raw_t = std::variant<opaque_t, DrvDeep, Built, Path>;
@@ -96,11 +96,11 @@ struct NixStringContextElem {
    * - `=<path>`
    * - `!<name>!<path>`
    *
-   * @param xpSettings Stop-gap to avoid globals during unit tests.
+   * @param xp_settings Stop-gap to avoid globals during unit tests.
    */
   static NixStringContextElem
   parse(std::string_view s,
-        const experimental_feature_settings_t& xpSettings = experimentalFeatureSettings);
+        const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
   std::string to_string() const;
 };
 
@@ -115,6 +115,6 @@ typedef std::set<NixStringContextElem> NixStringContext;
  * Returns false if `context` has no elements other than
  * `NixStringContextElem::Path`.
  */
-bool hasContext(const NixStringContext& context);
+bool has_context(const NixStringContext& context);
 
 } // namespace nix

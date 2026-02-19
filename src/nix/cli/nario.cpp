@@ -19,14 +19,14 @@ struct cmd_nario_t : NixMultiCommand {
   category_t category() override { return catUtility; }
 };
 
-static auto rCmdNario = registerCommand<cmd_nario_t>("nario");
+static auto r_cmd_nario = registerCommand<cmd_nario_t>("nario");
 
 struct cmd_nario_export_t : StorePathsCommand {
   unsigned int version = 0;
 
   cmd_nario_export_t() {
-    addFlag({
-        .longName = "format",
+    add_flag({
+        .long_name = "format",
         .description = "Version of the nario format to use. Must be `1` or `2`.",
         .labels = {"nario-format"},
         .handler = {&version},
@@ -44,19 +44,19 @@ struct cmd_nario_export_t : StorePathsCommand {
         ;
   }
 
-  void run(ref<Store> store, StorePaths&& storePaths) override {
-    auto fd = getStandardOutput();
+  void run(ref<Store> store, StorePaths&& store_paths) override {
+    auto fd = get_standard_output();
     if (isatty(fd))
       throw UsageError("refusing to write nario to a terminal");
     fd_sink_t sink(std::move(fd));
-    exportPaths(*store, StorePathSet(storePaths.begin(), storePaths.end()), sink, version);
+    export_paths(*store, StorePathSet(store_paths.begin(), store_paths.end()), sink, version);
   }
 };
 
-static auto rCmdNarioExport = registerCommand2<cmd_nario_export_t>({"nario", "export"});
+static auto r_cmd_nario_export = registerCommand2<cmd_nario_export_t>({"nario", "export"});
 
-static fd_source_t getNarioSource() {
-  auto fd = getStandardInput();
+static fd_source_t get_nario_source() {
+  auto fd = get_standard_input();
   if (isatty(fd))
     throw UsageError("refusing to read nario from a terminal");
   return fd_source_t(std::move(fd));
@@ -74,18 +74,18 @@ struct cmd_nario_import_t : StoreCommand, MixNoCheckSigs {
   }
 
   void run(ref<Store> store) override {
-    auto source{getNarioSource()};
-    importPaths(*store, source, checkSigs);
+    auto source{get_nario_source()};
+    import_paths(*store, source, check_sigs);
   }
 };
 
-static auto rCmdNarioImport = registerCommand2<cmd_nario_import_t>({"nario", "import"});
+static auto r_cmd_nario_import = registerCommand2<cmd_nario_import_t>({"nario", "import"});
 
-nlohmann::json listNar(Source& source) {
+nlohmann::json list_nar(Source& source) {
   struct : file_system_object_sink_t {
     nlohmann::json root = nlohmann::json::object();
 
-    nlohmann::json& makeObject(const canon_path_t& path, std::string_view type) {
+    nlohmann::json& make_object(const canon_path_t& path, std::string_view type) {
       auto* cur = &root;
       for (auto& c : path) {
         assert((*cur)["type"] == "directory");
@@ -97,12 +97,12 @@ nlohmann::json listNar(Source& source) {
       return *cur;
     }
 
-    void createDirectory(const canon_path_t& path) override {
-      auto& j = makeObject(path, "directory");
+    void create_directory(const canon_path_t& path) override {
+      auto& j = make_object(path, "directory");
       j["entries"] = nlohmann::json::object();
     }
 
-    void createRegularFile(const canon_path_t& path,
+    void create_regular_file(const canon_path_t& path,
                            std::function<void(create_regular_file_sink_t&)> func) override {
       struct : create_regular_file_sink_t {
         bool executable = false;
@@ -110,39 +110,39 @@ nlohmann::json listNar(Source& source) {
 
         void operator()(std::string_view data) override {}
 
-        void preallocateContents(uint64_t s) override { size = s; }
+        void preallocate_contents(uint64_t s) override { size = s; }
 
-        void isExecutable() override { executable = true; }
+        void is_executable() override { executable = true; }
       } crf;
 
-      crf.skipContents = true;
+      crf.skip_contents = true;
 
       func(crf);
 
-      auto& j = makeObject(path, "regular");
+      auto& j = make_object(path, "regular");
       j.emplace("size", crf.size.value());
       if (crf.executable)
         j.emplace("executable", true);
     }
 
-    void createSymlink(const canon_path_t& path, const std::string& target) override {
-      auto& j = makeObject(path, "symlink");
+    void create_symlink(const canon_path_t& path, const std::string& target) override {
+      auto& j = make_object(path, "symlink");
       j.emplace("target", target);
     }
 
-  } parseSink;
+  } parse_sink;
 
-  parseDump(parseSink, source);
+  parse_dump(parse_sink, source);
 
-  return parseSink.root;
+  return parse_sink.root;
 }
 
-void renderNarListing(const canon_path_t& prefix, const nlohmann::json& root, bool longListing) {
+void render_nar_listing(const canon_path_t& prefix, const nlohmann::json& root, bool long_listing) {
   std::function<void(const nlohmann::json& json, const canon_path_t& path)> recurse;
   recurse = [&](const nlohmann::json& json, const canon_path_t& path) {
     auto type = json["type"];
 
-    if (longListing) {
+    if (long_listing) {
       auto tp = type == "regular"
                     ? (json.find("executable") != json.end() ? "-r-xr-xr-x" : "-r--r--r--")
                 : type == "symlink" ? "lrwxrwxrwx"
@@ -166,14 +166,14 @@ void renderNarListing(const canon_path_t& prefix, const nlohmann::json& root, bo
 }
 
 struct cmd_nario_list_t : command_t, MixJSON, mix_long_listing_t {
-  bool listContents = false;
+  bool list_contents = false;
 
   cmd_nario_list_t() {
-    addFlag({
-        .longName = "recursive",
-        .shortName = 'R',
+    add_flag({
+        .long_name = "recursive",
+        .short_name = 'R',
         .description = "List the contents of NARs inside the nario.",
-        .handler = {&listContents, true},
+        .handler = {&list_contents, true},
     });
   }
 
@@ -186,19 +186,19 @@ struct cmd_nario_list_t : command_t, MixJSON, mix_long_listing_t {
   }
 
   void run() override {
-    struct Config : StoreConfig {
-      Config(const Params& params) : StoreConfig(params) {}
+    struct config_t : StoreConfig {
+      config_t(const Params& params) : StoreConfig(params) {}
 
-      ref<Store> openStore() const override { abort(); }
+      ref<Store> open_store() const override { abort(); }
     };
 
     struct listing_store_t : Store {
       std::optional<nlohmann::json> json;
       cmd_nario_list_t& cmd;
 
-      listing_store_t(ref<const Config> config, cmd_nario_list_t& cmd) : Store{*config}, cmd(cmd) {}
+      listing_store_t(ref<const config_t> config, cmd_nario_list_t& cmd) : Store{*config}, cmd(cmd) {}
 
-      void queryPathInfoUncached(
+      void query_path_info_uncached(
           const StorePath& path,
           Callback<std::shared_ptr<const ValidPathInfo>> callback) noexcept override {
         callback(nullptr);
@@ -206,67 +206,67 @@ struct cmd_nario_list_t : command_t, MixJSON, mix_long_listing_t {
 
       std::optional<TrustedFlag> isTrustedClient() override { return Trusted; }
 
-      std::optional<StorePath> queryPathFromHashPart(const std::string& hashPart) override {
+      std::optional<StorePath> queryPathFromHashPart(const std::string& hash_part) override {
         return std::nullopt;
       }
 
-      void addToStore(const ValidPathInfo& info, Source& source, RepairFlag repair,
-                      CheckSigsFlag checkSigs) override {
+      void add_to_store(const ValidPathInfo& info, Source& source, RepairFlag repair,
+                      CheckSigsFlag check_sigs) override {
         std::optional<nlohmann::json> contents;
-        if (cmd.listContents)
-          contents = listNar(source);
+        if (cmd.list_contents)
+          contents = list_nar(source);
         else
-          source.skip(info.narSize);
+          source.skip(info.nar_size);
 
         if (json) {
           // FIXME: make the JSON format configurable.
-          auto obj = info.toJSON(this, true, PathInfoJsonFormat::V1);
+          auto obj = info.to_json(this, true, PathInfoJsonFormat::V1);
           if (contents)
             obj.emplace("contents", *contents);
           json->emplace(printStorePath(info.path), std::move(obj));
         } else {
           if (contents)
-            renderNarListing(canon_path_t(printStorePath(info.path)), *contents, cmd.longListing);
+            render_nar_listing(canon_path_t(printStorePath(info.path)), *contents, cmd.long_listing);
           else
-            logger->cout(fmt("%s: %d bytes", printStorePath(info.path), info.narSize));
+            logger->cout(fmt("%s: %d bytes", printStorePath(info.path), info.nar_size));
         }
       }
 
-      StorePath addToStoreFromDump(Source& dump, std::string_view name,
-                                   file_serialisation_method_t dumpMethod,
-                                   ContentAddressMethod hashMethod, hash_algorithm_t hashAlgo,
+      StorePath add_to_store_from_dump(Source& dump, std::string_view name,
+                                   file_serialisation_method_t dump_method,
+                                   ContentAddressMethod hash_method, hash_algorithm_t hash_algo,
                                    const StorePathSet& references, RepairFlag repair) override {
         unsupported("addToStoreFromDump");
       }
 
-      void narFromPath(const StorePath& path, Sink& sink) override { unsupported("narFromPath"); }
+      void nar_from_path(const StorePath& path, Sink& sink) override { unsupported("narFromPath"); }
 
-      void queryRealisationUncached(
+      void query_realisation_uncached(
           const DrvOutput&,
           Callback<std::shared_ptr<const UnkeyedRealisation>> callback) noexcept override {
         callback(nullptr);
       }
 
-      ref<SourceAccessor> getFSAccessor(bool requireValidPath) override {
-        return makeEmptySourceAccessor();
+      ref<SourceAccessor> getFSAccessor(bool require_valid_path) override {
+        return make_empty_source_accessor();
       }
 
       std::shared_ptr<SourceAccessor> getFSAccessor(const StorePath& path,
-                                                    bool requireValidPath) override {
+                                                    bool require_valid_path) override {
         unsupported("getFSAccessor");
       }
 
-      void registerDrvOutput(const Realisation& output) override {
+      void register_drv_output(const Realisation& output) override {
         unsupported("registerDrvOutput");
       }
     };
 
-    auto source{getNarioSource()};
-    auto config = make_ref<Config>(StoreConfig::Params());
+    auto source{get_nario_source()};
+    auto config = make_ref<config_t>(StoreConfig::Params());
     listing_store_t lister(config, *this);
     if (json)
       lister.json = nlohmann::json::object();
-    importPaths(lister, source, NoCheckSigs);
+    import_paths(lister, source, NoCheckSigs);
     if (json) {
       auto j = nlohmann::json::object();
       j["version"] = 1;
@@ -276,4 +276,4 @@ struct cmd_nario_list_t : command_t, MixJSON, mix_long_listing_t {
   }
 };
 
-static auto rCmdNarioList = registerCommand2<cmd_nario_list_t>({"nario", "list"});
+static auto r_cmd_nario_list = registerCommand2<cmd_nario_list_t>({"nario", "list"});

@@ -16,53 +16,53 @@
 
 namespace nix {
 
-void copyRecursive(SourceAccessor& accessor, const canon_path_t& from, file_system_object_sink_t& sink,
+void copy_recursive(SourceAccessor& accessor, const canon_path_t& from, file_system_object_sink_t& sink,
                    const canon_path_t& to) {
   auto stat = accessor.lstat(from);
 
   switch (stat.type) {
-    case SourceAccessor::tSymlink: {
-      sink.createSymlink(to, accessor.readLink(from));
+    case SourceAccessor::t_symlink: {
+      sink.create_symlink(to, accessor.read_link(from));
       break;
     }
 
-    case SourceAccessor::tRegular: {
-      sink.createRegularFile(to, [&](create_regular_file_sink_t& crf) {
-        if (stat.isExecutable)
-          crf.isExecutable();
-        accessor.readFile(from, crf, [&](uint64_t size) { crf.preallocateContents(size); });
+    case SourceAccessor::t_regular: {
+      sink.create_regular_file(to, [&](create_regular_file_sink_t& crf) {
+        if (stat.is_executable)
+          crf.is_executable();
+        accessor.read_file(from, crf, [&](uint64_t size) { crf.preallocate_contents(size); });
       });
       break;
     }
 
-    case SourceAccessor::tDirectory: {
-      sink.createDirectory(to, [&](file_system_object_sink_t& dirSink, const canon_path_t& relDirPath) {
-        for (auto& [name, _] : accessor.readDirectory(from)) {
-          copyRecursive(accessor, from / name, dirSink, relDirPath / name);
+    case SourceAccessor::t_directory: {
+      sink.create_directory(to, [&](file_system_object_sink_t& dir_sink, const canon_path_t& rel_dir_path) {
+        for (auto& [name, _] : accessor.read_directory(from)) {
+          copy_recursive(accessor, from / name, dir_sink, rel_dir_path / name);
         }
       });
       break;
     }
 
-    case SourceAccessor::tChar:
-    case SourceAccessor::tBlock:
-    case SourceAccessor::tSocket:
-    case SourceAccessor::tFifo:
-    case SourceAccessor::tUnknown:
+    case SourceAccessor::t_char:
+    case SourceAccessor::t_block:
+    case SourceAccessor::t_socket:
+    case SourceAccessor::t_fifo:
+    case SourceAccessor::t_unknown:
     default:
-      throw Error("file '%1%' has an unsupported type of %2%", from, stat.typeString());
+      throw Error("file '%1%' has an unsupported type of %2%", from, stat.type_string());
   }
 }
 
-struct restore_sink_settings_t : Config {
-  setting_t<bool> preallocateContents{
+struct restore_sink_settings_t : config_t {
+  setting_t<bool> preallocate_contents{
       this, false, "preallocate-contents",
       "Whether to preallocate files when writing objects with known size."};
 };
 
-static restore_sink_settings_t restoreSinkSettings;
+static restore_sink_settings_t restore_sink_settings;
 
-static global_config_t::Register r1(&restoreSinkSettings);
+static global_config_t::Register r1(&restore_sink_settings);
 
 static std::filesystem::path append(const std::filesystem::path& src, const canon_path_t& path) {
   auto dst = src;
@@ -72,38 +72,38 @@ static std::filesystem::path append(const std::filesystem::path& src, const cano
 }
 
 #ifndef _WIN32
-void restore_sink_t::createDirectory(const canon_path_t& path, directory_created_callback_t callback) {
-  if (path.isRoot()) {
-    createDirectory(path);
+void restore_sink_t::create_directory(const canon_path_t& path, directory_created_callback_t callback) {
+  if (path.is_root()) {
+    create_directory(path);
     callback(*this, path);
     return;
   }
 
-  createDirectory(path);
-  assert(dirFd); // If that's not true the above call must have thrown an exception.
+  create_directory(path);
+  assert(dir_fd); // If that's not true the above call must have thrown an exception.
 
-  restore_sink_t dirSink{startFsync};
-  dirSink.dstPath = append(dstPath, path);
-  dirSink.dirFd = unix::openFileEnsureBeneathNoSymlinks(
-      dirFd.get(), path, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+  restore_sink_t dir_sink{start_fsync};
+  dir_sink.dst_path = append(dst_path, path);
+  dir_sink.dir_fd = unix::open_file_ensure_beneath_no_symlinks(
+      dir_fd.get(), path, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
 
-  if (!dirSink.dirFd)
-    throw sys_error_t("opening directory '%s'", dirSink.dstPath.string());
+  if (!dir_sink.dir_fd)
+    throw sys_error_t("opening directory '%s'", dir_sink.dst_path.string());
 
-  callback(dirSink, canon_path_t::root);
+  callback(dir_sink, canon_path_t::root);
 }
 #endif
 
-void restore_sink_t::createDirectory(const canon_path_t& path) {
-  auto p = append(dstPath, path);
+void restore_sink_t::create_directory(const canon_path_t& path) {
+  auto p = append(dst_path, path);
 
 #ifndef _WIN32
-  if (dirFd) {
-    if (path.isRoot())
+  if (dir_fd) {
+    if (path.is_root())
       /* Trying to create a directory that we already have a file descriptor for. */
       throw Error("path '%s' already exists", p.string());
 
-    if (::mkdirat(dirFd.get(), path.rel_c_str(), 0777) == -1)
+    if (::mkdirat(dir_fd.get(), path.rel_c_str(), 0777) == -1)
       throw sys_error_t("creating directory '%s'", p.string());
 
     return;
@@ -114,13 +114,13 @@ void restore_sink_t::createDirectory(const canon_path_t& path) {
     throw Error("path '%s' already exists", p.string());
 
 #ifndef _WIN32
-  if (path.isRoot()) {
-    assert(!dirFd); // Handled above
+  if (path.is_root()) {
+    assert(!dir_fd); // Handled above
 
     /* Open directory for further *at operations relative to the sink root
        directory. */
-    dirFd = open(p.c_str(), O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
-    if (!dirFd)
+    dir_fd = open(p.c_str(), O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+    if (!dir_fd)
       throw sys_error_t("creating directory '%1%'", p.string());
   }
 #endif
@@ -128,28 +128,28 @@ void restore_sink_t::createDirectory(const canon_path_t& path) {
 
 struct restore_regular_file_t : create_regular_file_sink_t {
   auto_close_fd_t fd;
-  bool startFsync = false;
+  bool start_fsync = false;
 
   ~restore_regular_file_t() {
     /* Initiate an fsync operation without waiting for the
        result. The real fsync should be run before registering a
        store path, but this is a performance optimization to allow
        the disk write to start early. */
-    if (fd && startFsync)
-      fd.startFsync();
+    if (fd && start_fsync)
+      fd.start_fsync();
   }
 
   void operator()(std::string_view data) override;
-  void isExecutable() override;
-  void preallocateContents(uint64_t size) override;
+  void is_executable() override;
+  void preallocate_contents(uint64_t size) override;
 };
 
-void restore_sink_t::createRegularFile(const canon_path_t& path,
+void restore_sink_t::create_regular_file(const canon_path_t& path,
                                     std::function<void(create_regular_file_sink_t&)> func) {
-  auto p = append(dstPath, path);
+  auto p = append(dst_path, path);
 
   restore_regular_file_t crf;
-  crf.startFsync = startFsync;
+  crf.start_fsync = start_fsync;
   crf.fd =
 #ifdef _WIN32
       CreateFileW(p.c_str(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
@@ -159,9 +159,9 @@ void restore_sink_t::createRegularFile(const canon_path_t& path,
         /* O_EXCL together with O_CREAT ensures symbolic links in the last
           component are not followed. */
         constexpr int flags = O_CREAT | O_EXCL | O_WRONLY | O_CLOEXEC;
-        if (!dirFd)
+        if (!dir_fd)
           return ::open(p.c_str(), flags, 0666);
-        return unix::openFileEnsureBeneathNoSymlinks(dirFd.get(), path, flags, 0666);
+        return unix::open_file_ensure_beneath_no_symlinks(dir_fd.get(), path, flags, 0666);
       }();
 #endif
       ;
@@ -170,7 +170,7 @@ void restore_sink_t::createRegularFile(const canon_path_t& path,
   func(crf);
 }
 
-void restore_regular_file_t::isExecutable() {
+void restore_regular_file_t::is_executable() {
   // Windows doesn't have a notion of executable file permissions we
   // care about here, right?
 #ifndef _WIN32
@@ -182,8 +182,8 @@ void restore_regular_file_t::isExecutable() {
 #endif
 }
 
-void restore_regular_file_t::preallocateContents(uint64_t len) {
-  if (!restoreSinkSettings.preallocateContents)
+void restore_regular_file_t::preallocate_contents(uint64_t len) {
+  if (!restore_sink_settings.preallocate_contents)
     return;
 
 #if HAVE_POSIX_FALLOCATE
@@ -200,22 +200,22 @@ void restore_regular_file_t::preallocateContents(uint64_t len) {
 }
 
 void restore_regular_file_t::operator()(std::string_view data) {
-  writeFull(fd.get(), data);
+  write_full(fd.get(), data);
 }
 
-void restore_sink_t::createSymlink(const canon_path_t& path, const std::string& target) {
-  auto p = append(dstPath, path);
+void restore_sink_t::create_symlink(const canon_path_t& path, const std::string& target) {
+  auto p = append(dst_path, path);
 #ifndef _WIN32
-  if (dirFd) {
-    if (::symlinkat(requireCString(target), dirFd.get(), path.rel_c_str()) == -1)
+  if (dir_fd) {
+    if (::symlinkat(require_c_string(target), dir_fd.get(), path.rel_c_str()) == -1)
       throw sys_error_t("creating symlink from '%1%' -> '%2%'", p.string(), target);
     return;
   }
 #endif
-  nix::createSymlink(target, p.string());
+  nix::create_symlink(target, p.string());
 }
 
-void regular_file_sink_t::createRegularFile(const canon_path_t& path,
+void regular_file_sink_t::create_regular_file(const canon_path_t& path,
                                         std::function<void(create_regular_file_sink_t&)> func) {
   struct CRF : create_regular_file_sink_t {
     regular_file_sink_t& back;
@@ -224,21 +224,21 @@ void regular_file_sink_t::createRegularFile(const canon_path_t& path,
 
     void operator()(std::string_view data) override { back.sink(data); }
 
-    void isExecutable() override {}
+    void is_executable() override {}
   } crf{*this};
 
   func(crf);
 }
 
-void null_file_system_object_sink_t::createRegularFile(const canon_path_t& path,
+void null_file_system_object_sink_t::create_regular_file(const canon_path_t& path,
                                                  std::function<void(create_regular_file_sink_t&)> func) {
   struct : create_regular_file_sink_t {
     void operator()(std::string_view data) override {}
 
-    void isExecutable() override {}
+    void is_executable() override {}
   } crf;
 
-  crf.skipContents = true;
+  crf.skip_contents = true;
 
   // Even though `NullFileSystemObjectSink` doesn't do anything, it's important
   // that we call the function, to e.g. advance the parser using this

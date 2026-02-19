@@ -34,7 +34,7 @@ struct Fetch {
   Fetch(git_repository* repo, git_oid rev);
   bool shouldFetch(const canon_path_t& path) const;
   void fetch(const std::string& content, const canon_path_t& pointerFilePath, string_sink_t& sink,
-             std::function<void(uint64_t)> sizeCallback) const;
+             std::function<void(uint64_t)> size_callback) const;
   std::vector<nlohmann::json> fetchUrls(const std::vector<Pointer>& pointers) const;
 };
 

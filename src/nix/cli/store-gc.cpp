@@ -11,8 +11,8 @@ struct cmd_store_gc_t : StoreCommand, MixDryRun {
   GCOptions options;
 
   cmd_store_gc_t() {
-    addFlag({
-        .longName = "max",
+    add_flag({
+        .long_name = "max",
         .description = "Stop after freeing *n* bytes of disk space.",
         .labels = {"n"},
         .handler = {&options.maxFreed},
@@ -28,13 +28,13 @@ struct cmd_store_gc_t : StoreCommand, MixDryRun {
   }
 
   void run(ref<Store> store) override {
-    auto& gcStore = require<GcStore>(*store);
+    auto& gc_store = require<GcStore>(*store);
 
-    options.action = dryRun ? GCOptions::gcReturnDead : GCOptions::gcDeleteDead;
+    options.action = dry_run ? GCOptions::gcReturnDead : GCOptions::gcDeleteDead;
     GCResults results;
     PrintFreed freed(options.action == GCOptions::gcDeleteDead, results);
-    gcStore.collectGarbage(options, results);
+    gc_store.collectGarbage(options, results);
   }
 };
 
-static auto rCmdStoreGC = registerCommand2<cmd_store_gc_t>({"store", "gc"});
+static auto r_cmd_store_gc = registerCommand2<cmd_store_gc_t>({"store", "gc"});

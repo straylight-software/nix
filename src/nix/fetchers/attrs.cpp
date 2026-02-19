@@ -6,7 +6,7 @@
 
 namespace nix::fetchers {
 
-Attrs jsonToAttrs(const nlohmann::json& json) {
+Attrs json_to_attrs(const nlohmann::json& json) {
   Attrs attrs;
 
   for (auto& i : json.items()) {
@@ -23,7 +23,7 @@ Attrs jsonToAttrs(const nlohmann::json& json) {
   return attrs;
 }
 
-nlohmann::json attrsToJSON(const Attrs& attrs) {
+nlohmann::json attrs_to_json(const Attrs& attrs) {
   nlohmann::json json;
   for (auto& attr : attrs) {
     if (auto v = std::get_if<uint64_t>(&attr.second)) {
@@ -38,23 +38,23 @@ nlohmann::json attrsToJSON(const Attrs& attrs) {
   return json;
 }
 
-std::optional<std::string> maybeGetStrAttr(const Attrs& attrs, const std::string& name) {
+std::optional<std::string> maybe_get_str_attr(const Attrs& attrs, const std::string& name) {
   auto i = attrs.find(name);
   if (i == attrs.end())
     return {};
   if (auto v = std::get_if<std::string>(&i->second))
     return *v;
-  throw Error("input attribute '%s' is not a string %s", name, attrsToJSON(attrs).dump());
+  throw Error("input attribute '%s' is not a string %s", name, attrs_to_json(attrs).dump());
 }
 
-std::string getStrAttr(const Attrs& attrs, const std::string& name) {
-  auto s = maybeGetStrAttr(attrs, name);
+std::string get_str_attr(const Attrs& attrs, const std::string& name) {
+  auto s = maybe_get_str_attr(attrs, name);
   if (!s)
     throw Error("input attribute '%s' is missing", name);
   return *s;
 }
 
-std::optional<uint64_t> maybeGetIntAttr(const Attrs& attrs, const std::string& name) {
+std::optional<uint64_t> maybe_get_int_attr(const Attrs& attrs, const std::string& name) {
   auto i = attrs.find(name);
   if (i == attrs.end())
     return {};
@@ -63,14 +63,14 @@ std::optional<uint64_t> maybeGetIntAttr(const Attrs& attrs, const std::string& n
   throw Error("input attribute '%s' is not an integer", name);
 }
 
-uint64_t getIntAttr(const Attrs& attrs, const std::string& name) {
-  auto s = maybeGetIntAttr(attrs, name);
+uint64_t get_int_attr(const Attrs& attrs, const std::string& name) {
+  auto s = maybe_get_int_attr(attrs, name);
   if (!s)
     throw Error("input attribute '%s' is missing", name);
   return *s;
 }
 
-std::optional<bool> maybeGetBoolAttr(const Attrs& attrs, const std::string& name) {
+std::optional<bool> maybe_get_bool_attr(const Attrs& attrs, const std::string& name) {
   auto i = attrs.find(name);
   if (i == attrs.end())
     return {};
@@ -79,14 +79,14 @@ std::optional<bool> maybeGetBoolAttr(const Attrs& attrs, const std::string& name
   throw Error("input attribute '%s' is not a Boolean", name);
 }
 
-bool getBoolAttr(const Attrs& attrs, const std::string& name) {
-  auto s = maybeGetBoolAttr(attrs, name);
+bool get_bool_attr(const Attrs& attrs, const std::string& name) {
+  auto s = maybe_get_bool_attr(attrs, name);
   if (!s)
     throw Error("input attribute '%s' is missing", name);
   return *s;
 }
 
-string_map_t attrsToQuery(const Attrs& attrs) {
+string_map_t attrs_to_query(const Attrs& attrs) {
   string_map_t query;
   for (auto& attr : attrs) {
     if (auto v = std::get_if<uint64_t>(&attr.second)) {
@@ -101,8 +101,8 @@ string_map_t attrsToQuery(const Attrs& attrs) {
   return query;
 }
 
-Hash getRevAttr(const Attrs& attrs, const std::string& name) {
-  return Hash::parseAny(getStrAttr(attrs, name), hash_algorithm_t::SHA1);
+Hash get_rev_attr(const Attrs& attrs, const std::string& name) {
+  return Hash::parse_any(get_str_attr(attrs, name), hash_algorithm_t::SHA1);
 }
 
 } // namespace nix::fetchers

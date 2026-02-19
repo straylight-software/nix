@@ -32,14 +32,14 @@ struct StoreFactory {
    * An experimental feature this type store is gated, if it is to be
    * experimental.
    */
-  std::optional<experimental_feature_t> experimentalFeature;
+  std::optional<experimental_feature_t> experimental_feature;
 
   /**
    * The `authorityPath` parameter is `<authority>/<path>`, or really
    * whatever comes after `<scheme>://` and before `?<query-params>`.
    */
   std::function<ref<StoreConfig>(std::string_view scheme, std::string_view authorityPath,
-                                 const Store::Config::Params& params)>
+                                 const Store::config_t::Params& params)>
       parseConfig;
 
   /**
@@ -60,12 +60,12 @@ struct Implementations {
     StoreFactory factory{
         .doc = TConfig::doc(),
         .uriSchemes = TConfig::uriSchemes(),
-        .experimentalFeature = TConfig::experimentalFeature(),
+        .experimental_feature = TConfig::experimental_feature(),
         .parseConfig = ([](auto scheme, auto uri, auto& params) -> ref<StoreConfig> {
           return make_ref<TConfig>(scheme, uri, params);
         }),
         .getConfig =
-            ([]() -> ref<StoreConfig> { return make_ref<TConfig>(Store::Config::Params{}); }),
+            ([]() -> ref<StoreConfig> { return make_ref<TConfig>(Store::config_t::Params{}); }),
     };
     auto [it, didInsert] = registered().insert({TConfig::name(), std::move(factory)});
     if (!didInsert) {

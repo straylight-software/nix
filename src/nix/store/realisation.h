@@ -35,11 +35,11 @@ struct DrvOutput {
   /**
    * The name of the output.
    */
-  OutputName outputName;
+  OutputName output_name;
 
   std::string to_string() const;
 
-  std::string strHash() const { return drvHash.to_string(hash_format_t::Base16, true); }
+  std::string strHash() const { return drvHash.to_string(hash_format_t::base16, true); }
 
   static DrvOutput parse(const std::string&);
 
@@ -48,7 +48,7 @@ struct DrvOutput {
 };
 
 struct UnkeyedRealisation {
-  StorePath outPath;
+  StorePath out_path;
 
   string_set_t signatures;
 
@@ -64,15 +64,15 @@ struct UnkeyedRealisation {
 
   void sign(const DrvOutput& key, const signer_t&);
 
-  bool checkSignature(const DrvOutput& key, const public_keys_t& publicKeys,
+  bool checkSignature(const DrvOutput& key, const public_keys_t& public_keys,
                       const std::string& sig) const;
 
-  size_t checkSignatures(const DrvOutput& key, const public_keys_t& publicKeys) const;
+  size_t checkSignatures(const DrvOutput& key, const public_keys_t& public_keys) const;
 
-  const StorePath& getPath() const { return outPath; }
+  const StorePath& get_path() const { return out_path; }
 
   // TODO sketchy that it avoids signatures
-  GENERATE_CMP(UnkeyedRealisation, me->outPath);
+  GENERATE_CMP(UnkeyedRealisation, me->out_path);
 };
 
 struct Realisation : UnkeyedRealisation {
@@ -108,7 +108,7 @@ typedef std::map<DrvOutput, Realisation> DrvOutputs;
 struct OpaquePath {
   StorePath path;
 
-  const StorePath& getPath() const& { return path; }
+  const StorePath& get_path() const& { return path; }
 
   bool operator==(const OpaquePath&) const = default;
   auto operator<=>(const OpaquePath&) const = default;
@@ -146,13 +146,13 @@ struct RealisedPath {
 
 class MissingRealisation : public Error {
 public:
-  MissingRealisation(DrvOutput& outputId)
-      : MissingRealisation(outputId.outputName, outputId.strHash()) {}
+  MissingRealisation(DrvOutput& output_id)
+      : MissingRealisation(output_id.output_name, output_id.strHash()) {}
 
-  MissingRealisation(std::string_view drv, OutputName outputName)
+  MissingRealisation(std::string_view drv, OutputName output_name)
       : Error("cannot operate on output '%s' of the "
               "unbuilt derivation '%s'",
-              outputName, drv) {}
+              output_name, drv) {}
 };
 
 } // namespace nix

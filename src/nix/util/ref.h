@@ -15,7 +15,7 @@ class ref {
 private:
   std::shared_ptr<T> p;
 
-  void assertNonNull() {
+  void assert_non_null() {
     if (!p)
       throw std::invalid_argument("null pointer cast to ref");
   }
@@ -23,11 +23,11 @@ private:
 public:
   using element_type = T;
 
-  explicit ref(const std::shared_ptr<T>& p) : p(p) { assertNonNull(); }
+  explicit ref(const std::shared_ptr<T>& p) : p(p) { assert_non_null(); }
 
-  explicit ref(std::shared_ptr<T>&& p) : p(std::move(p)) { assertNonNull(); }
+  explicit ref(std::shared_ptr<T>&& p) : p(std::move(p)) { assert_non_null(); }
 
-  explicit ref(T* p) : p(p) { assertNonNull(); }
+  explicit ref(T* p) : p(p) { assert_non_null(); }
 
   T* operator->() const { return &*p; }
 

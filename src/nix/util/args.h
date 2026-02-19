@@ -32,7 +32,7 @@ public:
    */
   virtual std::string description() { return ""; }
 
-  virtual bool forceImpureByDefault() { return false; }
+  virtual bool force_impure_by_default() { return false; }
 
   /**
    * Return documentation about this command, in Markdown format.
@@ -47,9 +47,9 @@ public:
    * @return Generally the working directory, but in case of a shebang
    *         interpreter, returns the directory of the script.
    *
-   * This only returns the correct value after parseCmdline() has run.
+   * This only returns the correct value after parse_cmdline() has run.
    */
-  virtual std::filesystem::path getCommandBaseDir() const;
+  virtual std::filesystem::path get_command_base_dir() const;
 
 protected:
   /**
@@ -57,7 +57,7 @@ protected:
    * handlers/flags/arguments that accept an arbitrary number of
    * arguments.
    */
-  static const size_t ArityAny = std::numeric_limits<size_t>::max();
+  static const size_t arity_any = std::numeric_limits<size_t>::max();
 
   /**
    * Arguments (flags/options and positional) have a "handler" which is
@@ -74,7 +74,7 @@ protected:
     Handler() = default;
 
     Handler(std::function<void(std::vector<std::string>)>&& fun)
-        : fun(std::move(fun)), arity(ArityAny) {}
+        : fun(std::move(fun)), arity(arity_any) {}
 
     Handler(std::function<void()>&& handler)
         : fun([handler{std::move(handler)}](std::vector<std::string>) { handler(); }), arity(0) {}
@@ -92,7 +92,7 @@ protected:
           arity(2) {}
 
     Handler(std::vector<std::string>* dest)
-        : fun([dest](std::vector<std::string> ss) { *dest = ss; }), arity(ArityAny) {}
+        : fun([dest](std::vector<std::string> ss) { *dest = ss; }), arity(arity_any) {}
 
     Handler(std::string* dest)
         : fun([dest](std::vector<std::string> ss) { *dest = ss[0]; }), arity(1) {}
@@ -112,12 +112,12 @@ protected:
 
     template <class I>
     Handler(I* dest)
-        : fun([dest](std::vector<std::string> ss) { *dest = string2IntWithUnitPrefix<I>(ss[0]); }),
+        : fun([dest](std::vector<std::string> ss) { *dest = string2_int_with_unit_prefix<I>(ss[0]); }),
           arity(1) {}
 
     template <class I>
     Handler(std::optional<I>* dest)
-        : fun([dest](std::vector<std::string> ss) { *dest = string2IntWithUnitPrefix<I>(ss[0]); }),
+        : fun([dest](std::vector<std::string> ss) { *dest = string2_int_with_unit_prefix<I>(ss[0]); }),
           arity(1) {}
   };
 
@@ -150,9 +150,9 @@ public:
   struct flag_t {
     using ptr = std::shared_ptr<flag_t>;
 
-    std::string longName;
+    std::string long_name;
     string_set_t aliases;
-    char shortName = 0;
+    char short_name = 0;
     std::string description;
     std::string category;
     strings_t labels;
@@ -160,10 +160,10 @@ public:
     completer_closure_t completer;
     bool required = false;
 
-    std::optional<experimental_feature_t> experimentalFeature;
+    std::optional<experimental_feature_t> experimental_feature;
 
     // FIXME: this should be private, but that breaks designated initializers.
-    size_t timesUsed = 0;
+    size_t times_used = 0;
   };
 
 protected:
@@ -183,7 +183,7 @@ protected:
    * Process a single flag and its arguments, pulling from an iterator
    * of raw CLI args as needed.
    */
-  virtual bool processFlag(strings_t::iterator& pos, strings_t::iterator end);
+  virtual bool process_flag(strings_t::iterator& pos, strings_t::iterator end);
 
 public:
   /**
@@ -230,53 +230,53 @@ protected:
    * arguments left. Used because we accumulate some "pending args" we might
    * have left over.
    */
-  virtual bool processArgs(const strings_t& args, bool finish);
+  virtual bool process_args(const strings_t& args, bool finish);
 
-  virtual strings_t::iterator rewriteArgs(strings_t& args, strings_t::iterator pos) { return pos; }
+  virtual strings_t::iterator rewrite_args(strings_t& args, strings_t::iterator pos) { return pos; }
 
   string_set_t hiddenCategories;
 
-  virtual void checkArgs();
+  virtual void check_args();
 
   /**
    * Called after all command line flags before the first non-flag
    * argument (if any) have been processed.
    */
-  virtual void initialFlagsProcessed() {}
+  virtual void initial_flags_processed() {}
 
 public:
-  void addFlag(flag_t&& flag);
+  void add_flag(flag_t&& flag);
 
-  void removeFlag(const std::string& longName);
+  void remove_flag(const std::string& long_name);
 
-  void expectArgs(expected_arg_t&& arg) { expectedArgs.emplace_back(std::move(arg)); }
+  void expect_args(expected_arg_t&& arg) { expectedArgs.emplace_back(std::move(arg)); }
 
   /**
    * Expect a string argument.
    */
-  void expectArg(const std::string& label, std::string* dest, bool optional = false) {
-    expectArgs({.label = label, .optional = optional, .handler = {dest}});
+  void expect_arg(const std::string& label, std::string* dest, bool optional = false) {
+    expect_args({.label = label, .optional = optional, .handler = {dest}});
   }
 
   /**
    * Expect a path argument.
    */
-  void expectArg(const std::string& label, std::filesystem::path* dest, bool optional = false) {
-    expectArgs({.label = label, .optional = optional, .handler = {dest}});
+  void expect_arg(const std::string& label, std::filesystem::path* dest, bool optional = false) {
+    expect_args({.label = label, .optional = optional, .handler = {dest}});
   }
 
   /**
    * Expect 0 or more arguments.
    */
-  void expectArgs(const std::string& label, std::vector<std::string>* dest) {
-    expectArgs({.label = label, .handler = {dest}});
+  void expect_args(const std::string& label, std::vector<std::string>* dest) {
+    expect_args({.label = label, .handler = {dest}});
   }
 
-  static completer_fun_t completePath;
+  static completer_fun_t complete_path;
 
-  static completer_fun_t completeDir;
+  static completer_fun_t complete_dir;
 
-  virtual nlohmann::json toJSON();
+  virtual nlohmann::json to_json();
 
   friend class multi_command_t;
 
@@ -286,7 +286,7 @@ public:
    * Invariant: An Args with a null parent must also be a root_args_t
    *
    * \todo this would probably be better in the CommandClass.
-   * getRoot() could be an abstract method that peels off at most one
+   * get_root() could be an abstract method that peels off at most one
    * layer before recuring.
    */
   multi_command_t* parent = nullptr;
@@ -295,7 +295,7 @@ public:
    * Traverse parent pointers until we find the \ref root_args_t "root
    * arguments" object.
    */
-  root_args_t& getRoot();
+  root_args_t& get_root();
 };
 
 /**
@@ -314,11 +314,11 @@ struct command_t : virtual public Args {
 
   using category_t = int;
 
-  static constexpr category_t catDefault = 0;
+  static constexpr category_t cat_default = 0;
 
-  virtual std::optional<experimental_feature_t> experimentalFeature();
+  virtual std::optional<experimental_feature_t> experimental_feature();
 
-  virtual category_t category() { return catDefault; }
+  virtual category_t category() { return cat_default; }
 };
 
 using commands_t = std::map<std::string, std::function<ref<command_t>()>>;
@@ -338,19 +338,19 @@ public:
    */
   std::optional<std::pair<std::string, ref<command_t>>> command;
 
-  multi_command_t(std::string_view commandName, const commands_t& commands);
+  multi_command_t(std::string_view command_name, const commands_t& commands);
 
-  bool processFlag(strings_t::iterator& pos, strings_t::iterator end) override;
+  bool process_flag(strings_t::iterator& pos, strings_t::iterator end) override;
 
-  bool processArgs(const strings_t& args, bool finish) override;
+  bool process_args(const strings_t& args, bool finish) override;
 
-  nlohmann::json toJSON() override;
+  nlohmann::json to_json() override;
 
   enum struct alias_status_t {
     /** Aliases that don't go away */
-    AcceptedShorthand,
+    accepted_shorthand,
     /** Aliases that will go away */
-    Deprecated,
+    deprecated,
   };
 
   /** An alias, except for the original syntax, which is in the map key. */
@@ -365,16 +365,16 @@ public:
    */
   std::map<std::string, alias_info_t> aliases;
 
-  strings_t::iterator rewriteArgs(strings_t& args, strings_t::iterator pos) override;
+  strings_t::iterator rewrite_args(strings_t& args, strings_t::iterator pos) override;
 
 protected:
-  std::string commandName = "";
+  std::string command_name = "";
   bool aliasUsed = false;
 
-  void checkArgs() override;
+  void check_args() override;
 };
 
-strings_t argvToStrings(int argc, char** argv);
+strings_t argv_to_strings(int argc, char** argv);
 
 struct completion_t {
   std::string completion;
@@ -398,8 +398,8 @@ public:
    * The type of completion we are collecting.
    */
   enum class Type {
-    Normal,
-    Filenames,
+    normal,
+    filenames,
     Attrs,
   };
 
@@ -408,7 +408,7 @@ public:
    *
    * \todo it should not be possible to change the type after it has been set.
    */
-  virtual void setType(Type type) = 0;
+  virtual void set_type(Type type) = 0;
 
   /**
    * Add a single completion to the collection
@@ -416,6 +416,6 @@ public:
   virtual void add(std::string completion, std::string description = "") = 0;
 };
 
-strings_t parseShebangContent(std::string_view s);
+strings_t parse_shebang_content(std::string_view s);
 
 } // namespace nix

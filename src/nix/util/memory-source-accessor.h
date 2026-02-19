@@ -16,11 +16,11 @@ namespace nix {
 namespace fso {
 
 template <typename RegularContents>
-struct Regular {
+struct regular {
   bool executable = false;
   RegularContents contents;
 
-  auto operator<=>(const Regular&) const = default;
+  auto operator<=>(const regular&) const = default;
 };
 
 /**
@@ -37,10 +37,10 @@ struct directory_t {
   inline std::strong_ordering operator<=>(const directory_t&) const noexcept;
 };
 
-struct Symlink {
+struct symlink {
   std::string target;
 
-  auto operator<=>(const Symlink&) const = default;
+  auto operator<=>(const symlink&) const = default;
 };
 
 /**
@@ -65,16 +65,16 @@ struct variant_t {
   bool operator==(const variant_t&) const noexcept;
   std::strong_ordering operator<=>(const variant_t&) const noexcept;
 
-  using Regular = nix::fso::Regular<RegularContents>;
+  using regular = nix::fso::regular<RegularContents>;
 
   /**
    * In the default case, we do want full file children for our directory.
    */
   using directory_t = nix::fso::directory_t<std::conditional_t<recur, variant_t, opaque_t>>;
 
-  using Symlink = nix::fso::Symlink;
+  using symlink = nix::fso::symlink;
 
-  using raw_t = std::variant<Regular, directory_t, Symlink>;
+  using raw_t = std::variant<regular, directory_t, symlink>;
   raw_t raw;
 
   MAKE_WRAPPER_CONSTRUCTOR(variant_t);
@@ -111,11 +111,11 @@ struct memory_source_accessor_t : virtual SourceAccessor {
 
   bool operator<(const memory_source_accessor_t& other) const noexcept { return root < other.root; }
 
-  std::string readFile(const canon_path_t& path) override;
-  bool pathExists(const canon_path_t& path) override;
-  std::optional<stat_t> maybeLstat(const canon_path_t& path) override;
-  dir_entries_t readDirectory(const canon_path_t& path) override;
-  std::string readLink(const canon_path_t& path) override;
+  std::string read_file(const canon_path_t& path) override;
+  bool path_exists(const canon_path_t& path) override;
+  std::optional<stat_t> maybe_lstat(const canon_path_t& path) override;
+  dir_entries_t read_directory(const canon_path_t& path) override;
+  std::string read_link(const canon_path_t& path) override;
 
   /**
    * @param create If present, create this file and any parent directories
@@ -130,7 +130,7 @@ struct memory_source_accessor_t : virtual SourceAccessor {
    */
   file_t* open(const canon_path_t& path, std::optional<file_t> create);
 
-  source_path_t addFile(canon_path_t path, std::string&& contents);
+  source_path_t add_file(canon_path_t path, std::string&& contents);
 };
 
 /**
@@ -141,22 +141,22 @@ struct memory_sink_t : file_system_object_sink_t {
 
   memory_sink_t(memory_source_accessor_t& dst) : dst(dst) {}
 
-  void createDirectory(const canon_path_t& path) override;
+  void create_directory(const canon_path_t& path) override;
 
-  void createRegularFile(const canon_path_t& path,
+  void create_regular_file(const canon_path_t& path,
                          std::function<void(create_regular_file_sink_t&)>) override;
 
-  void createSymlink(const canon_path_t& path, const std::string& target) override;
+  void create_symlink(const canon_path_t& path, const std::string& target) override;
 };
 
 template <>
-struct json_avoids_null<memory_source_accessor_t::file_t::Regular> : std::true_type {};
+struct json_avoids_null<memory_source_accessor_t::file_t::regular> : std::true_type {};
 
 template <>
 struct json_avoids_null<memory_source_accessor_t::file_t::directory_t> : std::true_type {};
 
 template <>
-struct json_avoids_null<memory_source_accessor_t::file_t::Symlink> : std::true_type {};
+struct json_avoids_null<memory_source_accessor_t::file_t::symlink> : std::true_type {};
 
 template <>
 struct json_avoids_null<memory_source_accessor_t::file_t> : std::true_type {};
@@ -170,7 +170,7 @@ namespace nlohmann {
 
 using namespace nix;
 
-#define ARG fso::Regular<RegularContents>
+#define ARG fso::regular<RegularContents>
 template <typename RegularContents>
 JSON_IMPL_INNER(ARG);
 #undef ARG
@@ -181,7 +181,7 @@ JSON_IMPL_INNER(ARG);
 #undef ARG
 
 template <>
-JSON_IMPL_INNER(fso::Symlink);
+JSON_IMPL_INNER(fso::symlink);
 
 template <>
 JSON_IMPL_INNER(fso::opaque_t);

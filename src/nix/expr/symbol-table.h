@@ -22,14 +22,14 @@ class SymbolValue : protected Value {
 
 struct ContiguousArena {
   const char* data;
-  const size_t maxSize;
+  const size_t max_size;
 
   // Put this in a separate cache line to ensure that a thread
   // adding a symbol doesn't slow down threads dereferencing symbols
   // by invalidating the read-only `data` field.
   alignas(64) std::atomic<size_t> size{0};
 
-  ContiguousArena(size_t maxSize);
+  ContiguousArena(size_t max_size);
 
   size_t allocate(size_t bytes);
 };
@@ -157,7 +157,7 @@ public:
   };
 
   constexpr static size_t computeSize(std::string_view s) {
-    return alignUp(sizeof(Value) + sizeof(StringData) + s.size() + 1, Symbol::alignment);
+    return align_up(sizeof(Value) + sizeof(StringData) + s.size() + 1, Symbol::alignment);
   }
 };
 
@@ -167,16 +167,16 @@ class SymbolTable;
  * Convenience class to statically assign symbol identifiers at compile-time.
  */
 class StaticSymbolTable {
-  static constexpr std::size_t maxSize = 1024;
+  static constexpr std::size_t max_size = 1024;
 
   struct StaticSymbolInfo {
     std::string_view str;
     Symbol sym;
   };
 
-  std::array<StaticSymbolInfo, maxSize> symbols;
+  std::array<StaticSymbolInfo, max_size> symbols;
   std::size_t size = 0;
-  std::size_t nextId = alignof(SymbolValue);
+  std::size_t next_id = alignof(SymbolValue);
 
 public:
   constexpr StaticSymbolTable() = default;
@@ -184,9 +184,9 @@ public:
   constexpr Symbol create(std::string_view str) {
     /* No need to check bounds because out of bounds access is
        a compilation error. */
-    auto sym = Symbol(nextId);
+    auto sym = Symbol(next_id);
     symbols[size++] = {str, sym};
-    nextId += SymbolStr::computeSize(str);
+    next_id += SymbolStr::computeSize(str);
     return sym;
   }
 
@@ -252,7 +252,7 @@ public:
       auto v = reinterpret_cast<const SymbolValue*>(left.data());
       callback(v->string_view());
       left = left.substr(
-          alignUp(sizeof(SymbolValue) + sizeof(StringData) + v->string_view().size() + 1,
+          align_up(sizeof(SymbolValue) + sizeof(StringData) + v->string_view().size() + 1,
                   Symbol::alignment));
     }
   }

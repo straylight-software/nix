@@ -18,7 +18,7 @@ typedef std::map<std::string, DerivationOutput> DerivationOutputs;
 struct StructuredAttrs {
   static constexpr std::string_view envVarName{"__json"};
 
-  nlohmann::json::object_t structuredAttrs;
+  nlohmann::json::object_t structured_attrs;
 
   bool operator==(const StructuredAttrs&) const = default;
 
@@ -46,7 +46,7 @@ struct StructuredAttrs {
   static void checkKeyNotInUse(const string_pairs_t& env);
 
   nlohmann::json::object_t prepareStructuredAttrs(Store& store,
-                                                  const DerivationOptions<StorePath>& drvOptions,
+                                                  const DerivationOptions<StorePath>& drv_options,
                                                   const StorePathSet& inputPaths,
                                                   const DerivationOutputs& outputs) const;
 
@@ -58,7 +58,7 @@ struct StructuredAttrs {
    * arrays or objects are not supported.)
    *
    * @param prepared This should be the result of
-   * `prepareStructuredAttrs`, *not* the original `structuredAttrs`
+   * `prepareStructuredAttrs`, *not* the original `structured_attrs`
    * field.
    */
   static std::string writeShell(const nlohmann::json::object_t& prepared);

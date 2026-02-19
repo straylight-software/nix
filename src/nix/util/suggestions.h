@@ -7,7 +7,7 @@
 
 namespace nix {
 
-int levenshteinDistance(std::string_view first, std::string_view second);
+int levenshtein_distance(std::string_view first, std::string_view second);
 
 /**
  * A potential suggestion for the cli interface.
@@ -30,9 +30,9 @@ public:
 
   std::string to_string() const;
 
-  suggestions_t trim(int limit = 5, int maxDistance = 2) const;
+  suggestions_t trim(int limit = 5, int max_distance = 2) const;
 
-  static suggestions_t bestMatches(const string_set_t& allMatches, std::string_view query);
+  static suggestions_t best_matches(const string_set_t& all_matches, std::string_view query);
 
   suggestions_t& operator+=(const suggestions_t& other);
 };
@@ -68,12 +68,12 @@ public:
 
   static or_suggestions_t<T> failed() { return or_suggestions_t<T>::failed(suggestions_t{}); }
 
-  const suggestions_t& getSuggestions() {
-    static suggestions_t noSuggestions;
+  const suggestions_t& get_suggestions() {
+    static suggestions_t no_suggestions;
     if (const auto& suggestions = std::get_if<suggestions_t>(&raw))
       return *suggestions;
     else
-      return noSuggestions;
+      return no_suggestions;
   }
 };
 

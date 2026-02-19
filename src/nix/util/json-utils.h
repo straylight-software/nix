@@ -15,35 +15,35 @@ enum struct experimental_feature_t;
  * Get the value of a json object at a key safely, failing with a nice
  * error if the key does not exist.
  *
- * Use instead of nlohmann::json::at() to avoid ugly exceptions.
+ * use instead of nlohmann::json::at() to avoid ugly exceptions.
  */
-const nlohmann::json& valueAt(const nlohmann::json::object_t& map, std::string_view key);
+const nlohmann::json& value_at(const nlohmann::json::object_t& map, std::string_view key);
 
 /**
  * @return A pointer to the value assiocated with `key` if `value`
  * contains `key`, otherwise return  `nullptr` (not JSON `null`!).
  */
-const nlohmann::json* optionalValueAt(const nlohmann::json::object_t& value, std::string_view key);
+const nlohmann::json* optional_value_at(const nlohmann::json::object_t& value, std::string_view key);
 
 /**
  * Prevents bugs; see `get` for the same trick.
  */
-const nlohmann::json& valueAt(nlohmann::json::object_t&& map, std::string_view key) = delete;
-const nlohmann::json* optionalValueAt(nlohmann::json::object_t&& value,
+const nlohmann::json& value_at(nlohmann::json::object_t&& map, std::string_view key) = delete;
+const nlohmann::json* optional_value_at(nlohmann::json::object_t&& value,
                                       std::string_view key) = delete;
 
 /**
  * Downcast the json object, failing with a nice error if the conversion fails.
  * See https://json.nlohmann.me/features/types/
  */
-const nlohmann::json* getNullable(const nlohmann::json& value);
-const nlohmann::json::object_t& getObject(const nlohmann::json& value);
-const nlohmann::json::array_t& getArray(const nlohmann::json& value);
-const nlohmann::json::string_t& getString(const nlohmann::json& value);
-const nlohmann::json::number_unsigned_t& getUnsigned(const nlohmann::json& value);
+const nlohmann::json* get_nullable(const nlohmann::json& value);
+const nlohmann::json::object_t& get_object(const nlohmann::json& value);
+const nlohmann::json::array_t& get_array(const nlohmann::json& value);
+const nlohmann::json::string_t& get_string(const nlohmann::json& value);
+const nlohmann::json::number_unsigned_t& get_unsigned(const nlohmann::json& value);
 
 template <typename T>
-auto getInteger(const nlohmann::json& value)
+auto get_integer(const nlohmann::json& value)
     -> std::enable_if_t<std::is_signed_v<T> && std::is_integral_v<T>, T> {
   if (auto ptr = value.get_ptr<const nlohmann::json::number_unsigned_t*>()) {
     if (*ptr <= std::make_unsigned_t<T>(std::numeric_limits<T>::max())) {
@@ -54,8 +54,8 @@ auto getInteger(const nlohmann::json& value)
       return *ptr;
     }
   } else {
-    auto typeName = value.is_number_float() ? "floating point number" : value.type_name();
-    throw Error("Expected JSON value to be an integral number but it is of type '%s': %s", typeName,
+    auto type_name = value.is_number_float() ? "floating point number" : value.type_name();
+    throw Error("Expected JSON value to be an integral number but it is of type '%s': %s", type_name,
                 value.dump());
   }
   throw Error("Out of range: JSON value '%s' cannot be casted to %d-bit integer", value.dump(),
@@ -63,19 +63,19 @@ auto getInteger(const nlohmann::json& value)
 }
 
 template <typename... Args>
-std::map<std::string, Args...> getMap(const nlohmann::json::object_t& jsonObject, auto&& f) {
+std::map<std::string, Args...> get_map(const nlohmann::json::object_t& json_object, auto&& f) {
   std::map<std::string, Args...> map;
 
-  for (const auto& [key, value] : jsonObject)
+  for (const auto& [key, value] : json_object)
     map.insert_or_assign(key, f(value));
 
   return map;
 }
 
-const nlohmann::json::boolean_t& getBoolean(const nlohmann::json& value);
-strings_t getStringList(const nlohmann::json& value);
-string_map_t getStringMap(const nlohmann::json& value);
-string_set_t getStringSet(const nlohmann::json& value);
+const nlohmann::json::boolean_t& get_boolean(const nlohmann::json& value);
+strings_t get_string_list(const nlohmann::json& value);
+string_map_t get_string_map(const nlohmann::json& value);
+string_set_t get_string_set(const nlohmann::json& value);
 
 } // namespace nix
 
@@ -116,7 +116,7 @@ struct adl_serializer<std::optional<T>> {
 };
 
 template <typename T>
-static inline std::optional<T> ptrToOwned(const json* ptr) {
+static inline std::optional<T> ptr_to_owned(const json* ptr) {
   if (ptr)
     return std::optional{*ptr};
   else

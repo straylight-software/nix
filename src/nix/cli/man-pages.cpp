@@ -7,13 +7,13 @@
 
 namespace nix {
 
-std::filesystem::path getNixManDir() {
-  return canonPath(NIX_MAN_DIR);
+std::filesystem::path get_nix_man_dir() {
+  return canon_path(NIX_MAN_DIR);
 }
 
-void showManPage(const std::string& name) {
-  restoreProcessContext();
-  setEnv("MANPATH", (getNixManDir().string() + ":").c_str());
+void show_man_page(const std::string& name) {
+  restore_process_context();
+  set_env("MANPATH", (get_nix_man_dir().string() + ":").c_str());
   execlp("man", "man", name.c_str(), nullptr);
   if (errno == ENOENT) {
     // Not SysError because we don't want to suffix the errno, aka No such file or directory.

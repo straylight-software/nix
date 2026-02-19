@@ -81,7 +81,7 @@ static_assert(std::is_trivially_copy_constructible_v<AttrName>);
 
 typedef std::vector<AttrName> AttrSelectionPath;
 
-std::string showAttrSelectionPath(const SymbolTable& symbols, std::span<const AttrName> attrPath);
+std::string show_attr_selection_path(const SymbolTable& symbols, std::span<const AttrName> attr_path);
 
 /* Abstract syntax of Nix expressions. */
 
@@ -98,7 +98,7 @@ struct Expr {
   virtual void show(const SymbolTable& symbols, std::ostream& str) const;
   virtual void bindVars(EvalState& es, const std::shared_ptr<const StaticEnv>& env);
 
-  /** Normal evaluation, implemented directly by all subclasses. */
+  /** normal evaluation, implemented directly by all subclasses. */
   virtual void eval(EvalState& state, Env& env, Value& v);
 
   /**
@@ -109,9 +109,9 @@ struct Expr {
    */
   virtual Value* maybeThunk(EvalState& state, Env& env);
   virtual void setName(Symbol name);
-  virtual void setDocComment(DocComment docComment) {};
+  virtual void setDocComment(DocComment doc_comment) {};
 
-  virtual pos_idx_t getPos() const { return noPos; }
+  virtual pos_idx_t getPos() const { return no_pos; }
 
   // These are temporary methods to be used only in parser.y
   virtual void resetCursedOr() {};
@@ -233,13 +233,13 @@ struct ExprSelect : Expr {
   AttrName* attrPathStart;
 
   ExprSelect(std::pmr::polymorphic_allocator<char>& alloc, const pos_idx_t& pos, Expr* e,
-             std::span<const AttrName> attrPath, Expr* def)
+             std::span<const AttrName> attr_path, Expr* def)
       : pos(pos),
-        nAttrPath(attrPath.size()),
+        nAttrPath(attr_path.size()),
         e(e),
         def(def),
         attrPathStart(alloc.allocate_object<AttrName>(nAttrPath)) {
-    std::ranges::copy(attrPath, attrPathStart);
+    std::ranges::copy(attr_path, attrPathStart);
   };
 
   ExprSelect(std::pmr::polymorphic_allocator<char>& alloc, const pos_idx_t& pos, Expr* e, Symbol name)
@@ -255,7 +255,7 @@ struct ExprSelect : Expr {
    * Evaluate the `a.b.c` part of `a.b.c.d`. This exists mostly for the purpose of :doc in the repl.
    *
    * @param[out] attrs The attribute set that should contain the last attribute name (if it exists).
-   * @return The last attribute name in `attrPath`
+   * @return The last attribute name in `attr_path`
    *
    * @note This does *not* evaluate the final attribute, and does not fail if that's the only
    * attribute that does not exist.
@@ -267,11 +267,11 @@ struct ExprSelect : Expr {
 
 struct ExprOpHasAttr : Expr {
   Expr* e;
-  std::span<AttrName> attrPath;
+  std::span<AttrName> attr_path;
 
-  ExprOpHasAttr(std::pmr::polymorphic_allocator<char>& alloc, Expr* e, std::span<AttrName> attrPath)
-      : e(e), attrPath({alloc.allocate_object<AttrName>(attrPath.size()), attrPath.size()}) {
-    std::ranges::copy(attrPath, this->attrPath.begin());
+  ExprOpHasAttr(std::pmr::polymorphic_allocator<char>& alloc, Expr* e, std::span<AttrName> attr_path)
+      : e(e), attr_path({alloc.allocate_object<AttrName>(attr_path.size()), attr_path.size()}) {
+    std::ranges::copy(attr_path, this->attr_path.begin());
   };
 
   pos_idx_t getPos() const override { return e->getPos(); }
@@ -361,7 +361,7 @@ struct ExprList : Expr {
   COMMON_METHODS
   Value* maybeThunk(EvalState& state, Env& env) override;
 
-  pos_idx_t getPos() const override { return elems.empty() ? noPos : elems.front()->getPos(); }
+  pos_idx_t getPos() const override { return elems.empty() ? no_pos : elems.front()->getPos(); }
 };
 
 struct Formal {
@@ -427,7 +427,7 @@ public:
   }
 
   Expr* body;
-  DocComment docComment;
+  DocComment doc_comment;
 
   ExprLambda(const pos_table_t& positions, std::pmr::polymorphic_allocator<char>& alloc, pos_idx_t pos,
              Symbol arg, const FormalsBuilder& formals, Expr* body)
@@ -442,7 +442,7 @@ public:
       auto err = Error("too many formal arguments, implementation supports at most %1%",
                        std::numeric_limits<decltype(nFormals)>::max());
       if (pos)
-        err.atPos(positions[pos]);
+        err.at_pos(positions[pos]);
       throw err;
     }
     std::uninitialized_copy_n(formals.formals.begin(), nFormals, formalsStart);
@@ -466,7 +466,7 @@ public:
 
   pos_idx_t getPos() const override { return pos; }
 
-  virtual void setDocComment(DocComment docComment) override;
+  virtual void setDocComment(DocComment doc_comment) override;
   COMMON_METHODS
 };
 

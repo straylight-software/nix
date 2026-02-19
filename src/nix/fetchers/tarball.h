@@ -17,26 +17,26 @@ namespace nix::fetchers {
 struct settings_t;
 
 struct DownloadFileResult {
-  StorePath storePath;
+  StorePath store_path;
   std::string etag;
   std::string effectiveUrl;
   std::optional<std::string> immutableUrl;
 };
 
-DownloadFileResult downloadFile(Store& store, const settings_t& settings, const std::string& url,
+DownloadFileResult download_file(Store& store, const settings_t& settings, const std::string& url,
                                 const std::string& name, const headers_t& headers = {});
 
 struct DownloadTarballResult {
-  Hash treeHash;
-  time_t lastModified;
+  Hash tree_hash;
+  time_t last_modified;
   std::optional<std::string> immutableUrl;
   ref<SourceAccessor> accessor;
 };
 
 /**
- * Download and import a tarball into the Git cache. The result is the
- * Git tree hash of the root directory.
+ * Download and import a tarball into the git cache. The result is the
+ * git tree hash of the root directory.
  */
-ref<SourceAccessor> downloadTarball(Store& store, const settings_t& settings, const std::string& url);
+ref<SourceAccessor> download_tarball(Store& store, const settings_t& settings, const std::string& url);
 
 } // namespace nix::fetchers

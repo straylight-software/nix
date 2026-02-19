@@ -11,11 +11,11 @@ struct settings_t;
 namespace nix::flake::primops {
 
 /**
- * Returns a `builtins.getFlake` primop with the given nix::flake::settings_t.
+ * Returns a `builtins.get_flake` primop with the given nix::flake::settings_t.
  */
-nix::PrimOp getFlake(const settings_t& settings);
+nix::PrimOp get_flake(const settings_t& settings);
 
-extern nix::PrimOp parseFlakeRef;
-extern nix::PrimOp flakeRefToString;
+extern nix::PrimOp parse_flake_ref;
+extern nix::PrimOp flake_ref_to_string;
 
 } // namespace nix::flake::primops

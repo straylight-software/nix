@@ -13,7 +13,7 @@ struct UnkeyedNarInfo : virtual UnkeyedValidPathInfo {
   std::string url;
   std::string compression;
   std::optional<Hash> fileHash;
-  uint64_t fileSize = 0;
+  uint64_t file_size = 0;
 
   UnkeyedNarInfo(UnkeyedValidPathInfo info) : UnkeyedValidPathInfo(std::move(info)) {}
 
@@ -21,9 +21,9 @@ struct UnkeyedNarInfo : virtual UnkeyedValidPathInfo {
   // TODO libc++ 16 (used by darwin) missing `std::optional::operator <=>`, can't do yet
   // auto operator <=>(const NarInfo &) const = default;
 
-  nlohmann::json toJSON(const StoreDirConfig* store, bool includeImpureInfo,
+  nlohmann::json to_json(const StoreDirConfig* store, bool includeImpureInfo,
                         PathInfoJsonFormat format) const override;
-  static UnkeyedNarInfo fromJSON(const StoreDirConfig* store, const nlohmann::json& json);
+  static UnkeyedNarInfo from_json(const StoreDirConfig* store, const nlohmann::json& json);
 };
 
 /**
@@ -43,16 +43,16 @@ struct NarInfo : ValidPathInfo, UnkeyedNarInfo {
         ValidPathInfo{info.path, static_cast<const UnkeyedValidPathInfo&>(*this)},
         UnkeyedNarInfo{static_cast<const UnkeyedValidPathInfo&>(*this)} {}
 
-  NarInfo(const StoreDirConfig& store, StorePath path, Hash narHash)
-      : NarInfo{ValidPathInfo{std::move(path), UnkeyedValidPathInfo{store, narHash}}} {}
+  NarInfo(const StoreDirConfig& store, StorePath path, Hash nar_hash)
+      : NarInfo{ValidPathInfo{std::move(path), UnkeyedValidPathInfo{store, nar_hash}}} {}
 
-  NarInfo(std::string storeDir, StorePath path, Hash narHash)
+  NarInfo(std::string store_dir, StorePath path, Hash nar_hash)
       : NarInfo{
-            ValidPathInfo{std::move(path), UnkeyedValidPathInfo{std::move(storeDir), narHash}}} {}
+            ValidPathInfo{std::move(path), UnkeyedValidPathInfo{std::move(store_dir), nar_hash}}} {}
 
   static NarInfo makeFromCA(const StoreDirConfig& store, std::string_view name,
-                            ContentAddressWithReferences ca, Hash narHash) {
-    return ValidPathInfo::makeFromCA(store, std::move(name), std::move(ca), narHash);
+                            ContentAddressWithReferences ca, Hash nar_hash) {
+    return ValidPathInfo::makeFromCA(store, std::move(name), std::move(ca), nar_hash);
   }
 
   NarInfo(const StoreDirConfig& store, const std::string& s, const std::string& whence);

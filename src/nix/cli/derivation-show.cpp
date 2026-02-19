@@ -16,9 +16,9 @@ struct cmd_show_derivation_t : InstallablesCommand, MixPrintJSON {
   bool recursive = false;
 
   cmd_show_derivation_t() {
-    addFlag({
-        .longName = "recursive",
-        .shortName = 'r',
+    add_flag({
+        .long_name = "recursive",
+        .short_name = 'r',
         .description = "Include the dependencies of the specified derivations.",
         .handler = {&recursive, true},
     });
@@ -35,27 +35,27 @@ struct cmd_show_derivation_t : InstallablesCommand, MixPrintJSON {
   category_t category() override { return catUtility; }
 
   void run(ref<Store> store, Installables&& installables) override {
-    auto drvPaths = Installable::toDerivations(store, installables, true);
+    auto drv_paths = Installable::toDerivations(store, installables, true);
 
     if (recursive) {
       StorePathSet closure;
-      store->computeFSClosure(drvPaths, closure);
-      drvPaths = std::move(closure);
+      store->computeFSClosure(drv_paths, closure);
+      drv_paths = std::move(closure);
     }
 
-    json jsonRoot = json::object();
+    json json_root = json::object();
 
-    for (auto& drvPath : drvPaths) {
-      if (!drvPath.isDerivation())
+    for (auto& drv_path : drv_paths) {
+      if (!drv_path.is_derivation())
         continue;
 
-      jsonRoot[drvPath.to_string()] = store->readDerivation(drvPath);
+      json_root[drv_path.to_string()] = store->read_derivation(drv_path);
     }
     printJSON(nlohmann::json{
         {"version", expectedJsonVersionDerivation},
-        {"derivations", std::move(jsonRoot)},
+        {"derivations", std::move(json_root)},
     });
   }
 };
 
-static auto rCmdShowDerivation = registerCommand2<cmd_show_derivation_t>({"derivation", "show"});
+static auto r_cmd_show_derivation = registerCommand2<cmd_show_derivation_t>({"derivation", "show"});

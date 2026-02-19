@@ -70,7 +70,7 @@ std::vector<T>
 LengthPrefixedProtoHelper<Inner, std::vector<T>>::read(const StoreDirConfig& store,
                                                        typename Inner::ReadConn conn) {
   std::vector<T> resSet;
-  auto size = readNum<size_t>(conn.from);
+  auto size = read_num<size_t>(conn.from);
   while (size--) {
     resSet.push_back(S<T>::read(store, conn));
   }
@@ -92,7 +92,7 @@ std::set<T, Compare>
 LengthPrefixedProtoHelper<Inner, std::set<T, Compare>>::read(const StoreDirConfig& store,
                                                              typename Inner::ReadConn conn) {
   std::set<T, Compare> resSet;
-  auto size = readNum<size_t>(conn.from);
+  auto size = read_num<size_t>(conn.from);
   while (size--) {
     resSet.insert(S<T>::read(store, conn));
   }
@@ -114,7 +114,7 @@ std::map<K, V>
 LengthPrefixedProtoHelper<Inner, std::map<K, V>>::read(const StoreDirConfig& store,
                                                        typename Inner::ReadConn conn) {
   std::map<K, V> resMap;
-  auto size = readNum<size_t>(conn.from);
+  auto size = read_num<size_t>(conn.from);
   while (size--) {
     auto k = S<K>::read(store, conn);
     auto v = S<V>::read(store, conn);

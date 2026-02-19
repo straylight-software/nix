@@ -11,13 +11,13 @@ namespace nix {
 /**
  * Determine whether \param fd is a terminal.
  */
-bool isTTY(descriptor_t fd);
+bool is_tty(descriptor_t fd);
 
 /**
  * Determine whether ANSI escape sequences are appropriate for the
  * present output.
  */
-bool isTTY();
+bool is_tty();
 
 /**
  * Truncate a string to 'width' printable characters. If 'filterAll'
@@ -26,7 +26,7 @@ bool isTTY();
  * included in the character count. Also, tabs are expanded to
  * spaces.
  */
-std::string filterANSIEscapes(std::string_view s, bool filterAll = false,
+std::string filter_ansi_escapes(std::string_view s, bool filter_all = false,
                               unsigned int width = std::numeric_limits<unsigned int>::max());
 
 /**
@@ -34,21 +34,21 @@ std::string filterANSIEscapes(std::string_view s, bool filterAll = false,
  *
  * Used in the `SIGWINCH` signal handler on Unix, for example.
  */
-void updateWindowSize();
+void update_window_size();
 
 /**
  * @return the number of rows and columns of the terminal.
  *
  * The value is cached so this is quick. The cached result is computed
- * by `updateWindowSize()`.
+ * by `update_window_size()`.
  */
-std::pair<unsigned short, unsigned short> getWindowSize();
+std::pair<unsigned short, unsigned short> get_window_size();
 
 /**
  * @return The number of columns of the terminal, or std::numeric_limits<unsigned int>::max() if
  * unknown.
  */
-unsigned int getWindowWidth();
+unsigned int get_window_width();
 
 /**
  * Get the slave name of a pseudoterminal in a thread-safe manner.
@@ -56,6 +56,6 @@ unsigned int getWindowWidth();
  * @param fd The file descriptor of the pseudoterminal master
  * @return The slave device name as a string
  */
-std::string getPtsName(int fd);
+std::string get_pts_name(int fd);
 
 } // namespace nix

@@ -5,27 +5,27 @@
 
 namespace nix {
 
-source_path_t EvalState::rootPath(canon_path_t path) {
-  return {rootFS, std::move(path)};
+source_path_t EvalState::root_path(canon_path_t path) {
+  return {root_fs, std::move(path)};
 }
 
-source_path_t EvalState::rootPath(path_view_t path) {
-  return {rootFS, canon_path_t(absPath(path))};
+source_path_t EvalState::root_path(path_view_t path) {
+  return {root_fs, canon_path_t(abs_path(path))};
 }
 
-source_path_t EvalState::storePath(const StorePath& path) {
-  return {rootFS, canon_path_t{store->printStorePath(path)}};
+source_path_t EvalState::store_path(const StorePath& path) {
+  return {root_fs, canon_path_t{store->printStorePath(path)}};
 }
 
 StorePath EvalState::devirtualize(const StorePath& path, string_map_t* rewrites) {
-  if (auto mount = storeFS->getMount(canon_path_t(store->printStorePath(path)))) {
-    auto storePath =
-        fetchToStore(fetchSettings, *store, source_path_t{ref(mount)},
+  if (auto mount = storeFS->get_mount(canon_path_t(store->printStorePath(path)))) {
+    auto store_path =
+        fetch_to_store(fetch_settings, *store, source_path_t{ref(mount)},
                      settings.readOnlyMode ? FetchMode::DryRun : FetchMode::Copy, path.name());
-    assert(storePath.name() == path.name());
+    assert(store_path.name() == path.name());
     if (rewrites)
-      rewrites->emplace(path.hashPart(), storePath.hashPart());
-    return storePath;
+      rewrites->emplace(path.hash_part(), store_path.hash_part());
+    return store_path;
   } else
     return path;
 }
@@ -44,62 +44,62 @@ std::string EvalState::devirtualize(std::string_view s, const NixStringContext& 
     if (auto o = std::get_if<NixStringContextElem::opaque_t>(&c.raw))
       devirtualize(o->path, &rewrites);
 
-  return rewriteStrings(std::string(s), rewrites);
+  return rewrite_strings(std::string(s), rewrites);
 }
 
 std::string EvalState::computeBaseName(const source_path_t& path, pos_idx_t pos) {
-  if (path.accessor == rootFS) {
-    if (auto storePath = store->maybeParseStorePath(path.path.abs())) {
+  if (path.accessor == root_fs) {
+    if (auto store_path = store->maybeParseStorePath(path.path.abs())) {
       debug("Copying '%s' to the store again.\n"
             "You can make Nix evaluate faster and copy fewer files by replacing `./.` with the "
             "`self` flake input, "
             "or `builtins.path { path = ./.; name = \"source\"; }`.\n",
             path);
       return std::string(
-          fetchToStore(fetchSettings, *store, path, FetchMode::DryRun, storePath->name())
+          fetch_to_store(fetch_settings, *store, path, FetchMode::DryRun, store_path->name())
               .to_string());
     }
   }
-  return std::string(path.baseName());
+  return std::string(path.base_name());
 }
 
-StorePath EvalState::mountInput(fetchers::Input& input, const fetchers::Input& originalInput,
-                                ref<SourceAccessor> accessor, bool requireLockable,
+StorePath EvalState::mountInput(fetchers::Input& input, const fetchers::Input& original_input,
+                                ref<SourceAccessor> accessor, bool require_lockable,
                                 bool forceNarHash) {
-  auto storePath = settings.lazyTrees ? StorePath::random(input.getName())
-                                      : fetchToStore(fetchSettings, *store, accessor,
-                                                     FetchMode::Copy, input.getName());
+  auto store_path = settings.lazyTrees ? StorePath::random(input.get_name())
+                                      : fetch_to_store(fetch_settings, *store, accessor,
+                                                     FetchMode::Copy, input.get_name());
 
-  allowPath(storePath); // FIXME: should just whitelist the entire virtual store
+  allowPath(store_path); // FIXME: should just whitelist the entire virtual store
 
   std::optional<Hash> _narHash;
 
   auto getNarHash = [&]() {
     if (!_narHash) {
-      if (store->isValidPath(storePath))
-        _narHash = store->queryPathInfo(storePath)->narHash;
+      if (store->isValidPath(store_path))
+        _narHash = store->queryPathInfo(store_path)->nar_hash;
       else
         _narHash =
-            fetchToStore2(fetchSettings, *store, accessor, FetchMode::DryRun, input.getName())
+            fetch_to_store2(fetch_settings, *store, accessor, FetchMode::DryRun, input.get_name())
                 .second;
     }
     return _narHash;
   };
 
-  storeFS->mount(canon_path_t(store->printStorePath(storePath)), accessor);
+  storeFS->mount(canon_path_t(store->printStorePath(store_path)), accessor);
 
   if (forceNarHash ||
-      (requireLockable &&
-       (!settings.lazyTrees || !settings.lazyLocks || !input.isLocked(fetchSettings)) &&
+      (require_lockable &&
+       (!settings.lazyTrees || !settings.lazyLocks || !input.isLocked(fetch_settings)) &&
        !input.getNarHash()))
     input.attrs.insert_or_assign("narHash", getNarHash()->to_string(hash_format_t::SRI, true));
 
-  if (originalInput.getNarHash() && *getNarHash() != *originalInput.getNarHash())
+  if (original_input.getNarHash() && *getNarHash() != *original_input.getNarHash())
     throw Error((unsigned int)102, "NAR hash mismatch in input '%s', expected '%s' but got '%s'",
-                originalInput.to_string(), getNarHash()->to_string(hash_format_t::SRI, true),
-                originalInput.getNarHash()->to_string(hash_format_t::SRI, true));
+                original_input.to_string(), getNarHash()->to_string(hash_format_t::SRI, true),
+                original_input.getNarHash()->to_string(hash_format_t::SRI, true));
 
-  return storePath;
+  return store_path;
 }
 
 } // namespace nix

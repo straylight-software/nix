@@ -19,7 +19,7 @@ struct BuiltinBuilderContext {
   std::map<std::string, Path> outputs;
   std::string netrcData;
   std::string caFileData;
-  Path tmpDirInSandbox;
+  Path tmp_dir_in_sandbox;
 
 #if NIX_WITH_AWS_AUTH
   /**

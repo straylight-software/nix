@@ -33,30 +33,30 @@ namespace nix::flake {
 // setting name -> setting value -> allow or ignore.
 typedef std::map<std::string, std::map<std::string, bool>> TrustedList;
 
-std::filesystem::path trustedListPath() {
-  return getDataDir() / "trusted-settings.json";
+std::filesystem::path trusted_list_path() {
+  return get_data_dir() / "trusted-settings.json";
 }
 
-static TrustedList readTrustedList() {
-  auto path = trustedListPath();
-  if (!pathExists(path))
+static TrustedList read_trusted_list() {
+  auto path = trusted_list_path();
+  if (!path_exists(path))
     return {};
-  auto json = nlohmann::json::parse(readFile(path));
+  auto json = nlohmann::json::parse(read_file(path));
   return json;
 }
 
-static void writeTrustedList(const TrustedList& trustedList) {
-  auto path = trustedListPath();
-  createDirs(path.parent_path());
-  writeFile(path, nlohmann::json(trustedList).dump());
+static void write_trusted_list(const TrustedList& trusted_list) {
+  auto path = trusted_list_path();
+  create_dirs(path.parent_path());
+  write_file(path, nlohmann::json(trusted_list).dump());
 }
 
-void ConfigFile::apply(const settings_t& flakeSettings) {
+void ConfigFile::apply(const settings_t& flake_settings) {
   string_set_t whitelist{"bash-prompt",    "bash-prompt-prefix",       "bash-prompt-suffix",
                       "flake-registry", "commit-lock-file-summary", "commit-lockfile-summary"};
 
   for (auto& [name, value] : settings) {
-    auto baseName = hasPrefix(name, "extra-") ? std::string(name, 6) : name;
+    auto base_name = has_prefix(name, "extra-") ? std::string(name, 6) : name;
 
     // FIXME: Move into libutil/config.cc.
     std::string valueS;
@@ -67,14 +67,14 @@ void ConfigFile::apply(const settings_t& flakeSettings) {
     else if (auto* b = std::get_if<Explicit<bool>>(&value))
       valueS = b->t ? "true" : "false";
     else if (auto ss = std::get_if<std::vector<std::string>>(&value))
-      valueS = dropEmptyInitThenConcatStringsSep(" ", *ss); // FIXME: evil
+      valueS = drop_empty_init_then_concat_strings_sep(" ", *ss); // FIXME: evil
     else
       assert(false);
 
-    if (!whitelist.count(baseName) && !flakeSettings.acceptFlakeConfig) {
+    if (!whitelist.count(base_name) && !flake_settings.acceptFlakeConfig) {
       bool trusted = false;
-      auto trustedList = readTrustedList();
-      auto tlname = get(trustedList, name);
+      auto trusted_list = read_trusted_list();
+      auto tlname = get(trusted_list, name);
       if (auto saved = tlname ? get(*tlname, valueS) : nullptr) {
         trusted = *saved;
         printInfo(
@@ -95,8 +95,8 @@ void ConfigFile::apply(const settings_t& flakeSettings) {
                              ->ask(fmt("do you want to permanently mark this value as %s (y/N)?",
                                        trusted ? "trusted" : "untrusted"))
                              .value_or('n')) == 'y') {
-          trustedList[name][valueS] = trusted;
-          writeTrustedList(trustedList);
+          trusted_list[name][valueS] = trusted;
+          write_trusted_list(trusted_list);
         }
       }
       if (!trusted) {
@@ -106,7 +106,7 @@ void ConfigFile::apply(const settings_t& flakeSettings) {
       }
     }
 
-    globalConfig.set(name, valueS);
+    global_config.set(name, valueS);
   }
 }
 

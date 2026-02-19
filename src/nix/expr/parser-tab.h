@@ -84,10 +84,10 @@ namespace nix {
 
 typedef boost::unordered_flat_map<pos_idx_t, DocComment, std::hash<pos_idx_t>> DocCommentMap;
 
-Expr* parseExprFromBuf(char* text, size_t length, Pos::origin_t origin, const source_path_t& basePath,
+Expr* parse_expr_from_buf(char* text, size_t length, pos_t::origin_t origin, const source_path_t& base_path,
                        Exprs& exprs, SymbolTable& symbols, const EvalSettings& settings,
-                       pos_table_t& positions, DocCommentMap& docComments,
-                       const ref<SourceAccessor> rootFS);
+                       pos_table_t& positions, DocCommentMap& doc_comments,
+                       const ref<SourceAccessor> root_fs);
 
 } // namespace nix
 
@@ -481,7 +481,7 @@ public:
     enum token_kind_type {
       YYEMPTY = -2,
       YYEOF = 0,              // "end of file"
-      YYerror = 256,          // error
+      y_yerror = 256,          // error
       YYUNDEF = 257,          // "invalid token"
       ID = 258,               // ID
       STR = 259,              // STR
@@ -537,7 +537,7 @@ public:
       YYNTOKENS = 61, ///< Number of tokens.
       S_YYEMPTY = -2,
       S_YYEOF = 0,                      // "end of file"
-      S_YYerror = 1,                    // error
+      s_y_yerror = 1,                    // error
       S_YYUNDEF = 2,                    // "invalid token"
       S_ID = 3,                         // ID
       S_STR = 4,                        // STR
@@ -598,30 +598,30 @@ public:
       S_59_ = 59,                       // '='
       S_60_ = 60,                       // ','
       S_YYACCEPT = 61,                  // $accept
-      S_start = 62,                     // start
-      S_expr = 63,                      // expr
-      S_expr_function = 64,             // expr_function
-      S_expr_if = 65,                   // expr_if
-      S_expr_pipe_from = 66,            // expr_pipe_from
-      S_expr_pipe_into = 67,            // expr_pipe_into
-      S_expr_op = 68,                   // expr_op
-      S_expr_app = 69,                  // expr_app
-      S_expr_select = 70,               // expr_select
-      S_expr_simple = 71,               // expr_simple
-      S_string_parts = 72,              // string_parts
-      S_string_parts_interpolated = 73, // string_parts_interpolated
-      S_path_start = 74,                // path_start
-      S_ind_string_parts = 75,          // ind_string_parts
-      S_binds = 76,                     // binds
-      S_binds1 = 77,                    // binds1
-      S_attrs = 78,                     // attrs
-      S_attrpath = 79,                  // attrpath
-      S_attr = 80,                      // attr
-      S_string_attr = 81,               // string_attr
-      S_list = 82,                      // list
-      S_formal_set = 83,                // formal_set
-      S_formals = 84,                   // formals
-      S_formal = 85                     // formal
+      s_start = 62,                     // start
+      s_expr = 63,                      // expr
+      s_expr_function = 64,             // expr_function
+      s_expr_if = 65,                   // expr_if
+      s_expr_pipe_from = 66,            // expr_pipe_from
+      s_expr_pipe_into = 67,            // expr_pipe_into
+      s_expr_op = 68,                   // expr_op
+      s_expr_app = 69,                  // expr_app
+      s_expr_select = 70,               // expr_select
+      s_expr_simple = 71,               // expr_simple
+      s_string_parts = 72,              // string_parts
+      s_string_parts_interpolated = 73, // string_parts_interpolated
+      s_path_start = 74,                // path_start
+      s_ind_string_parts = 75,          // ind_string_parts
+      s_binds = 76,                     // binds
+      s_binds1 = 77,                    // binds1
+      s_attrs = 78,                     // attrs
+      s_attrpath = 79,                  // attrpath
+      s_attr = 80,                      // attr
+      s_string_attr = 81,               // string_attr
+      s_list = 82,                      // list
+      s_formal_set = 83,                // formal_set
+      s_formals = 84,                   // formals
+      s_formal = 85                     // formal
     };
   };
 
@@ -650,31 +650,31 @@ public:
     basic_symbol(basic_symbol&& that)
         : Base(std::move(that)), value(), location(std::move(that.location)) {
       switch (this->kind()) {
-        case symbol_kind::S_start:          // start
-        case symbol_kind::S_expr:           // expr
-        case symbol_kind::S_expr_function:  // expr_function
-        case symbol_kind::S_expr_if:        // expr_if
-        case symbol_kind::S_expr_pipe_from: // expr_pipe_from
-        case symbol_kind::S_expr_pipe_into: // expr_pipe_into
-        case symbol_kind::S_expr_op:        // expr_op
-        case symbol_kind::S_expr_app:       // expr_app
-        case symbol_kind::S_expr_select:    // expr_select
-        case symbol_kind::S_expr_simple:    // expr_simple
-        case symbol_kind::S_path_start:     // path_start
+        case symbol_kind::s_start:          // start
+        case symbol_kind::s_expr:           // expr
+        case symbol_kind::s_expr_function:  // expr_function
+        case symbol_kind::s_expr_if:        // expr_if
+        case symbol_kind::s_expr_pipe_from: // expr_pipe_from
+        case symbol_kind::s_expr_pipe_into: // expr_pipe_into
+        case symbol_kind::s_expr_op:        // expr_op
+        case symbol_kind::s_expr_app:       // expr_app
+        case symbol_kind::s_expr_select:    // expr_select
+        case symbol_kind::s_expr_simple:    // expr_simple
+        case symbol_kind::s_path_start:     // path_start
           value.move<Expr*>(std::move(that.value));
           break;
 
-        case symbol_kind::S_binds:  // binds
-        case symbol_kind::S_binds1: // binds1
+        case symbol_kind::s_binds:  // binds
+        case symbol_kind::s_binds1: // binds1
           value.move<ExprAttrs*>(std::move(that.value));
           break;
 
-        case symbol_kind::S_formal: // formal
+        case symbol_kind::s_formal: // formal
           value.move<Formal>(std::move(that.value));
           break;
 
-        case symbol_kind::S_formal_set: // formal_set
-        case symbol_kind::S_formals:    // formals
+        case symbol_kind::s_formal_set: // formal_set
+        case symbol_kind::s_formals:    // formals
           value.move<FormalsBuilder>(std::move(that.value));
           break;
 
@@ -694,32 +694,32 @@ public:
         case symbol_kind::S_SPATH:    // SPATH
         case symbol_kind::S_PATH_END: // PATH_END
         case symbol_kind::S_URI:      // URI
-        case symbol_kind::S_attr:     // attr
+        case symbol_kind::s_attr:     // attr
           value.move<StringToken>(std::move(that.value));
           break;
 
-        case symbol_kind::S_string_parts: // string_parts
-        case symbol_kind::S_string_attr:  // string_attr
+        case symbol_kind::s_string_parts: // string_parts
+        case symbol_kind::s_string_attr:  // string_attr
           value.move<ToBeStringyExpr>(std::move(that.value));
           break;
 
-        case symbol_kind::S_list: // list
+        case symbol_kind::s_list: // list
           value.move<std::pmr::vector<Expr*>>(std::move(that.value));
           break;
 
-        case symbol_kind::S_attrpath: // attrpath
+        case symbol_kind::s_attrpath: // attrpath
           value.move<std::vector<AttrName>>(std::move(that.value));
           break;
 
-        case symbol_kind::S_attrs: // attrs
+        case symbol_kind::s_attrs: // attrs
           value.move<std::vector<std::pair<AttrName, pos_idx_t>>>(std::move(that.value));
           break;
 
-        case symbol_kind::S_string_parts_interpolated: // string_parts_interpolated
+        case symbol_kind::s_string_parts_interpolated: // string_parts_interpolated
           value.move<std::vector<std::pair<pos_idx_t, Expr*>>>(std::move(that.value));
           break;
 
-        case symbol_kind::S_ind_string_parts: // ind_string_parts
+        case symbol_kind::s_ind_string_parts: // ind_string_parts
           value.move<std::vector<std::pair<pos_idx_t, std::variant<Expr*, StringToken>>>>(
               std::move(that.value));
           break;
@@ -870,31 +870,31 @@ public:
 
       // Value type destructor.
       switch (yykind) {
-        case symbol_kind::S_start:          // start
-        case symbol_kind::S_expr:           // expr
-        case symbol_kind::S_expr_function:  // expr_function
-        case symbol_kind::S_expr_if:        // expr_if
-        case symbol_kind::S_expr_pipe_from: // expr_pipe_from
-        case symbol_kind::S_expr_pipe_into: // expr_pipe_into
-        case symbol_kind::S_expr_op:        // expr_op
-        case symbol_kind::S_expr_app:       // expr_app
-        case symbol_kind::S_expr_select:    // expr_select
-        case symbol_kind::S_expr_simple:    // expr_simple
-        case symbol_kind::S_path_start:     // path_start
+        case symbol_kind::s_start:          // start
+        case symbol_kind::s_expr:           // expr
+        case symbol_kind::s_expr_function:  // expr_function
+        case symbol_kind::s_expr_if:        // expr_if
+        case symbol_kind::s_expr_pipe_from: // expr_pipe_from
+        case symbol_kind::s_expr_pipe_into: // expr_pipe_into
+        case symbol_kind::s_expr_op:        // expr_op
+        case symbol_kind::s_expr_app:       // expr_app
+        case symbol_kind::s_expr_select:    // expr_select
+        case symbol_kind::s_expr_simple:    // expr_simple
+        case symbol_kind::s_path_start:     // path_start
           value.template destroy<Expr*>();
           break;
 
-        case symbol_kind::S_binds:  // binds
-        case symbol_kind::S_binds1: // binds1
+        case symbol_kind::s_binds:  // binds
+        case symbol_kind::s_binds1: // binds1
           value.template destroy<ExprAttrs*>();
           break;
 
-        case symbol_kind::S_formal: // formal
+        case symbol_kind::s_formal: // formal
           value.template destroy<Formal>();
           break;
 
-        case symbol_kind::S_formal_set: // formal_set
-        case symbol_kind::S_formals:    // formals
+        case symbol_kind::s_formal_set: // formal_set
+        case symbol_kind::s_formals:    // formals
           value.template destroy<FormalsBuilder>();
           break;
 
@@ -914,32 +914,32 @@ public:
         case symbol_kind::S_SPATH:    // SPATH
         case symbol_kind::S_PATH_END: // PATH_END
         case symbol_kind::S_URI:      // URI
-        case symbol_kind::S_attr:     // attr
+        case symbol_kind::s_attr:     // attr
           value.template destroy<StringToken>();
           break;
 
-        case symbol_kind::S_string_parts: // string_parts
-        case symbol_kind::S_string_attr:  // string_attr
+        case symbol_kind::s_string_parts: // string_parts
+        case symbol_kind::s_string_attr:  // string_attr
           value.template destroy<ToBeStringyExpr>();
           break;
 
-        case symbol_kind::S_list: // list
+        case symbol_kind::s_list: // list
           value.template destroy<std::pmr::vector<Expr*>>();
           break;
 
-        case symbol_kind::S_attrpath: // attrpath
+        case symbol_kind::s_attrpath: // attrpath
           value.template destroy<std::vector<AttrName>>();
           break;
 
-        case symbol_kind::S_attrs: // attrs
+        case symbol_kind::s_attrs: // attrs
           value.template destroy<std::vector<std::pair<AttrName, pos_idx_t>>>();
           break;
 
-        case symbol_kind::S_string_parts_interpolated: // string_parts_interpolated
+        case symbol_kind::s_string_parts_interpolated: // string_parts_interpolated
           value.template destroy<std::vector<std::pair<pos_idx_t, Expr*>>>();
           break;
 
-        case symbol_kind::S_ind_string_parts: // ind_string_parts
+        case symbol_kind::s_ind_string_parts: // ind_string_parts
           value
               .template destroy<std::vector<std::pair<pos_idx_t, std::variant<Expr*, StringToken>>>>();
           break;
@@ -1111,282 +1111,282 @@ public:
 
   // Implementation of make_symbol for each token kind.
 #if 201103L <= YY_CPLUSPLUS
-  static symbol_type make_YYEOF(location_type l) { return symbol_type(token::YYEOF, std::move(l)); }
+  static symbol_type make_yyeof(location_type l) { return symbol_type(token::YYEOF, std::move(l)); }
 #else
-  static symbol_type make_YYEOF(const location_type& l) { return symbol_type(token::YYEOF, l); }
+  static symbol_type make_yyeof(const location_type& l) { return symbol_type(token::YYEOF, l); }
 #endif
 #if 201103L <= YY_CPLUSPLUS
-  static symbol_type make_YYerror(location_type l) {
-    return symbol_type(token::YYerror, std::move(l));
+  static symbol_type make_y_yerror(location_type l) {
+    return symbol_type(token::y_yerror, std::move(l));
   }
 #else
-  static symbol_type make_YYerror(const location_type& l) { return symbol_type(token::YYerror, l); }
+  static symbol_type make_y_yerror(const location_type& l) { return symbol_type(token::y_yerror, l); }
 #endif
 #if 201103L <= YY_CPLUSPLUS
-  static symbol_type make_YYUNDEF(location_type l) {
+  static symbol_type make_yyundef(location_type l) {
     return symbol_type(token::YYUNDEF, std::move(l));
   }
 #else
-  static symbol_type make_YYUNDEF(const location_type& l) { return symbol_type(token::YYUNDEF, l); }
+  static symbol_type make_yyundef(const location_type& l) { return symbol_type(token::YYUNDEF, l); }
 #endif
 #if 201103L <= YY_CPLUSPLUS
-  static symbol_type make_ID(StringToken v, location_type l) {
+  static symbol_type make_id(StringToken v, location_type l) {
     return symbol_type(token::ID, std::move(v), std::move(l));
   }
 #else
-  static symbol_type make_ID(const StringToken& v, const location_type& l) {
+  static symbol_type make_id(const StringToken& v, const location_type& l) {
     return symbol_type(token::ID, v, l);
   }
 #endif
 #if 201103L <= YY_CPLUSPLUS
-  static symbol_type make_STR(StringToken v, location_type l) {
+  static symbol_type make_str(StringToken v, location_type l) {
     return symbol_type(token::STR, std::move(v), std::move(l));
   }
 #else
-  static symbol_type make_STR(const StringToken& v, const location_type& l) {
+  static symbol_type make_str(const StringToken& v, const location_type& l) {
     return symbol_type(token::STR, v, l);
   }
 #endif
 #if 201103L <= YY_CPLUSPLUS
-  static symbol_type make_IND_STR(StringToken v, location_type l) {
+  static symbol_type make_ind_str(StringToken v, location_type l) {
     return symbol_type(token::IND_STR, std::move(v), std::move(l));
   }
 #else
-  static symbol_type make_IND_STR(const StringToken& v, const location_type& l) {
+  static symbol_type make_ind_str(const StringToken& v, const location_type& l) {
     return symbol_type(token::IND_STR, v, l);
   }
 #endif
 #if 201103L <= YY_CPLUSPLUS
-  static symbol_type make_INT_LIT(NixInt v, location_type l) {
+  static symbol_type make_int_lit(NixInt v, location_type l) {
     return symbol_type(token::INT_LIT, std::move(v), std::move(l));
   }
 #else
-  static symbol_type make_INT_LIT(const NixInt& v, const location_type& l) {
+  static symbol_type make_int_lit(const NixInt& v, const location_type& l) {
     return symbol_type(token::INT_LIT, v, l);
   }
 #endif
 #if 201103L <= YY_CPLUSPLUS
-  static symbol_type make_FLOAT_LIT(NixFloat v, location_type l) {
+  static symbol_type make_float_lit(NixFloat v, location_type l) {
     return symbol_type(token::FLOAT_LIT, std::move(v), std::move(l));
   }
 #else
-  static symbol_type make_FLOAT_LIT(const NixFloat& v, const location_type& l) {
+  static symbol_type make_float_lit(const NixFloat& v, const location_type& l) {
     return symbol_type(token::FLOAT_LIT, v, l);
   }
 #endif
 #if 201103L <= YY_CPLUSPLUS
-  static symbol_type make_PATH(StringToken v, location_type l) {
+  static symbol_type make_path(StringToken v, location_type l) {
     return symbol_type(token::PATH, std::move(v), std::move(l));
   }
 #else
-  static symbol_type make_PATH(const StringToken& v, const location_type& l) {
+  static symbol_type make_path(const StringToken& v, const location_type& l) {
     return symbol_type(token::PATH, v, l);
   }
 #endif
 #if 201103L <= YY_CPLUSPLUS
-  static symbol_type make_HPATH(StringToken v, location_type l) {
+  static symbol_type make_hpath(StringToken v, location_type l) {
     return symbol_type(token::HPATH, std::move(v), std::move(l));
   }
 #else
-  static symbol_type make_HPATH(const StringToken& v, const location_type& l) {
+  static symbol_type make_hpath(const StringToken& v, const location_type& l) {
     return symbol_type(token::HPATH, v, l);
   }
 #endif
 #if 201103L <= YY_CPLUSPLUS
-  static symbol_type make_SPATH(StringToken v, location_type l) {
+  static symbol_type make_spath(StringToken v, location_type l) {
     return symbol_type(token::SPATH, std::move(v), std::move(l));
   }
 #else
-  static symbol_type make_SPATH(const StringToken& v, const location_type& l) {
+  static symbol_type make_spath(const StringToken& v, const location_type& l) {
     return symbol_type(token::SPATH, v, l);
   }
 #endif
 #if 201103L <= YY_CPLUSPLUS
-  static symbol_type make_PATH_END(StringToken v, location_type l) {
+  static symbol_type make_path_end(StringToken v, location_type l) {
     return symbol_type(token::PATH_END, std::move(v), std::move(l));
   }
 #else
-  static symbol_type make_PATH_END(const StringToken& v, const location_type& l) {
+  static symbol_type make_path_end(const StringToken& v, const location_type& l) {
     return symbol_type(token::PATH_END, v, l);
   }
 #endif
 #if 201103L <= YY_CPLUSPLUS
-  static symbol_type make_URI(StringToken v, location_type l) {
+  static symbol_type make_uri(StringToken v, location_type l) {
     return symbol_type(token::URI, std::move(v), std::move(l));
   }
 #else
-  static symbol_type make_URI(const StringToken& v, const location_type& l) {
+  static symbol_type make_uri(const StringToken& v, const location_type& l) {
     return symbol_type(token::URI, v, l);
   }
 #endif
 #if 201103L <= YY_CPLUSPLUS
-  static symbol_type make_IF(location_type l) { return symbol_type(token::IF, std::move(l)); }
+  static symbol_type make_if(location_type l) { return symbol_type(token::IF, std::move(l)); }
 #else
-  static symbol_type make_IF(const location_type& l) { return symbol_type(token::IF, l); }
+  static symbol_type make_if(const location_type& l) { return symbol_type(token::IF, l); }
 #endif
 #if 201103L <= YY_CPLUSPLUS
-  static symbol_type make_THEN(location_type l) { return symbol_type(token::THEN, std::move(l)); }
+  static symbol_type make_then(location_type l) { return symbol_type(token::THEN, std::move(l)); }
 #else
-  static symbol_type make_THEN(const location_type& l) { return symbol_type(token::THEN, l); }
+  static symbol_type make_then(const location_type& l) { return symbol_type(token::THEN, l); }
 #endif
 #if 201103L <= YY_CPLUSPLUS
-  static symbol_type make_ELSE(location_type l) { return symbol_type(token::ELSE, std::move(l)); }
+  static symbol_type make_else(location_type l) { return symbol_type(token::ELSE, std::move(l)); }
 #else
-  static symbol_type make_ELSE(const location_type& l) { return symbol_type(token::ELSE, l); }
+  static symbol_type make_else(const location_type& l) { return symbol_type(token::ELSE, l); }
 #endif
 #if 201103L <= YY_CPLUSPLUS
-  static symbol_type make_ASSERT(location_type l) {
+  static symbol_type make_assert(location_type l) {
     return symbol_type(token::ASSERT, std::move(l));
   }
 #else
-  static symbol_type make_ASSERT(const location_type& l) { return symbol_type(token::ASSERT, l); }
+  static symbol_type make_assert(const location_type& l) { return symbol_type(token::ASSERT, l); }
 #endif
 #if 201103L <= YY_CPLUSPLUS
-  static symbol_type make_WITH(location_type l) { return symbol_type(token::WITH, std::move(l)); }
+  static symbol_type make_with(location_type l) { return symbol_type(token::WITH, std::move(l)); }
 #else
-  static symbol_type make_WITH(const location_type& l) { return symbol_type(token::WITH, l); }
+  static symbol_type make_with(const location_type& l) { return symbol_type(token::WITH, l); }
 #endif
 #if 201103L <= YY_CPLUSPLUS
-  static symbol_type make_LET(location_type l) { return symbol_type(token::LET, std::move(l)); }
+  static symbol_type make_let(location_type l) { return symbol_type(token::LET, std::move(l)); }
 #else
-  static symbol_type make_LET(const location_type& l) { return symbol_type(token::LET, l); }
+  static symbol_type make_let(const location_type& l) { return symbol_type(token::LET, l); }
 #endif
 #if 201103L <= YY_CPLUSPLUS
-  static symbol_type make_IN_KW(location_type l) { return symbol_type(token::IN_KW, std::move(l)); }
+  static symbol_type make_in_kw(location_type l) { return symbol_type(token::IN_KW, std::move(l)); }
 #else
-  static symbol_type make_IN_KW(const location_type& l) { return symbol_type(token::IN_KW, l); }
+  static symbol_type make_in_kw(const location_type& l) { return symbol_type(token::IN_KW, l); }
 #endif
 #if 201103L <= YY_CPLUSPLUS
-  static symbol_type make_REC(location_type l) { return symbol_type(token::REC, std::move(l)); }
+  static symbol_type make_rec(location_type l) { return symbol_type(token::REC, std::move(l)); }
 #else
-  static symbol_type make_REC(const location_type& l) { return symbol_type(token::REC, l); }
+  static symbol_type make_rec(const location_type& l) { return symbol_type(token::REC, l); }
 #endif
 #if 201103L <= YY_CPLUSPLUS
-  static symbol_type make_INHERIT(location_type l) {
+  static symbol_type make_inherit(location_type l) {
     return symbol_type(token::INHERIT, std::move(l));
   }
 #else
-  static symbol_type make_INHERIT(const location_type& l) { return symbol_type(token::INHERIT, l); }
+  static symbol_type make_inherit(const location_type& l) { return symbol_type(token::INHERIT, l); }
 #endif
 #if 201103L <= YY_CPLUSPLUS
-  static symbol_type make_EQ(location_type l) { return symbol_type(token::EQ, std::move(l)); }
+  static symbol_type make_eq(location_type l) { return symbol_type(token::EQ, std::move(l)); }
 #else
-  static symbol_type make_EQ(const location_type& l) { return symbol_type(token::EQ, l); }
+  static symbol_type make_eq(const location_type& l) { return symbol_type(token::EQ, l); }
 #endif
 #if 201103L <= YY_CPLUSPLUS
-  static symbol_type make_NEQ(location_type l) { return symbol_type(token::NEQ, std::move(l)); }
+  static symbol_type make_neq(location_type l) { return symbol_type(token::NEQ, std::move(l)); }
 #else
-  static symbol_type make_NEQ(const location_type& l) { return symbol_type(token::NEQ, l); }
+  static symbol_type make_neq(const location_type& l) { return symbol_type(token::NEQ, l); }
 #endif
 #if 201103L <= YY_CPLUSPLUS
-  static symbol_type make_AND(location_type l) { return symbol_type(token::AND, std::move(l)); }
+  static symbol_type make_and(location_type l) { return symbol_type(token::AND, std::move(l)); }
 #else
-  static symbol_type make_AND(const location_type& l) { return symbol_type(token::AND, l); }
+  static symbol_type make_and(const location_type& l) { return symbol_type(token::AND, l); }
 #endif
 #if 201103L <= YY_CPLUSPLUS
-  static symbol_type make_OR(location_type l) { return symbol_type(token::OR, std::move(l)); }
+  static symbol_type make_or(location_type l) { return symbol_type(token::OR, std::move(l)); }
 #else
-  static symbol_type make_OR(const location_type& l) { return symbol_type(token::OR, l); }
+  static symbol_type make_or(const location_type& l) { return symbol_type(token::OR, l); }
 #endif
 #if 201103L <= YY_CPLUSPLUS
-  static symbol_type make_IMPL(location_type l) { return symbol_type(token::IMPL, std::move(l)); }
+  static symbol_type make_impl(location_type l) { return symbol_type(token::IMPL, std::move(l)); }
 #else
-  static symbol_type make_IMPL(const location_type& l) { return symbol_type(token::IMPL, l); }
+  static symbol_type make_impl(const location_type& l) { return symbol_type(token::IMPL, l); }
 #endif
 #if 201103L <= YY_CPLUSPLUS
-  static symbol_type make_OR_KW(location_type l) { return symbol_type(token::OR_KW, std::move(l)); }
+  static symbol_type make_or_kw(location_type l) { return symbol_type(token::OR_KW, std::move(l)); }
 #else
-  static symbol_type make_OR_KW(const location_type& l) { return symbol_type(token::OR_KW, l); }
+  static symbol_type make_or_kw(const location_type& l) { return symbol_type(token::OR_KW, l); }
 #endif
 #if 201103L <= YY_CPLUSPLUS
-  static symbol_type make_PIPE_FROM(location_type l) {
+  static symbol_type make_pipe_from(location_type l) {
     return symbol_type(token::PIPE_FROM, std::move(l));
   }
 #else
-  static symbol_type make_PIPE_FROM(const location_type& l) {
+  static symbol_type make_pipe_from(const location_type& l) {
     return symbol_type(token::PIPE_FROM, l);
   }
 #endif
 #if 201103L <= YY_CPLUSPLUS
-  static symbol_type make_PIPE_INTO(location_type l) {
+  static symbol_type make_pipe_into(location_type l) {
     return symbol_type(token::PIPE_INTO, std::move(l));
   }
 #else
-  static symbol_type make_PIPE_INTO(const location_type& l) {
+  static symbol_type make_pipe_into(const location_type& l) {
     return symbol_type(token::PIPE_INTO, l);
   }
 #endif
 #if 201103L <= YY_CPLUSPLUS
-  static symbol_type make_DOLLAR_CURLY(location_type l) {
+  static symbol_type make_dollar_curly(location_type l) {
     return symbol_type(token::DOLLAR_CURLY, std::move(l));
   }
 #else
-  static symbol_type make_DOLLAR_CURLY(const location_type& l) {
+  static symbol_type make_dollar_curly(const location_type& l) {
     return symbol_type(token::DOLLAR_CURLY, l);
   }
 #endif
 #if 201103L <= YY_CPLUSPLUS
-  static symbol_type make_IND_STRING_OPEN(location_type l) {
+  static symbol_type make_ind_string_open(location_type l) {
     return symbol_type(token::IND_STRING_OPEN, std::move(l));
   }
 #else
-  static symbol_type make_IND_STRING_OPEN(const location_type& l) {
+  static symbol_type make_ind_string_open(const location_type& l) {
     return symbol_type(token::IND_STRING_OPEN, l);
   }
 #endif
 #if 201103L <= YY_CPLUSPLUS
-  static symbol_type make_IND_STRING_CLOSE(location_type l) {
+  static symbol_type make_ind_string_close(location_type l) {
     return symbol_type(token::IND_STRING_CLOSE, std::move(l));
   }
 #else
-  static symbol_type make_IND_STRING_CLOSE(const location_type& l) {
+  static symbol_type make_ind_string_close(const location_type& l) {
     return symbol_type(token::IND_STRING_CLOSE, l);
   }
 #endif
 #if 201103L <= YY_CPLUSPLUS
-  static symbol_type make_ELLIPSIS(location_type l) {
+  static symbol_type make_ellipsis(location_type l) {
     return symbol_type(token::ELLIPSIS, std::move(l));
   }
 #else
-  static symbol_type make_ELLIPSIS(const location_type& l) {
+  static symbol_type make_ellipsis(const location_type& l) {
     return symbol_type(token::ELLIPSIS, l);
   }
 #endif
 #if 201103L <= YY_CPLUSPLUS
-  static symbol_type make_LEQ(location_type l) { return symbol_type(token::LEQ, std::move(l)); }
+  static symbol_type make_leq(location_type l) { return symbol_type(token::LEQ, std::move(l)); }
 #else
-  static symbol_type make_LEQ(const location_type& l) { return symbol_type(token::LEQ, l); }
+  static symbol_type make_leq(const location_type& l) { return symbol_type(token::LEQ, l); }
 #endif
 #if 201103L <= YY_CPLUSPLUS
-  static symbol_type make_GEQ(location_type l) { return symbol_type(token::GEQ, std::move(l)); }
+  static symbol_type make_geq(location_type l) { return symbol_type(token::GEQ, std::move(l)); }
 #else
-  static symbol_type make_GEQ(const location_type& l) { return symbol_type(token::GEQ, l); }
+  static symbol_type make_geq(const location_type& l) { return symbol_type(token::GEQ, l); }
 #endif
 #if 201103L <= YY_CPLUSPLUS
-  static symbol_type make_UPDATE(location_type l) {
+  static symbol_type make_update(location_type l) {
     return symbol_type(token::UPDATE, std::move(l));
   }
 #else
-  static symbol_type make_UPDATE(const location_type& l) { return symbol_type(token::UPDATE, l); }
+  static symbol_type make_update(const location_type& l) { return symbol_type(token::UPDATE, l); }
 #endif
 #if 201103L <= YY_CPLUSPLUS
-  static symbol_type make_NOT(location_type l) { return symbol_type(token::NOT, std::move(l)); }
+  static symbol_type make_not(location_type l) { return symbol_type(token::NOT, std::move(l)); }
 #else
-  static symbol_type make_NOT(const location_type& l) { return symbol_type(token::NOT, l); }
+  static symbol_type make_not(const location_type& l) { return symbol_type(token::NOT, l); }
 #endif
 #if 201103L <= YY_CPLUSPLUS
-  static symbol_type make_CONCAT(location_type l) {
+  static symbol_type make_concat(location_type l) {
     return symbol_type(token::CONCAT, std::move(l));
   }
 #else
-  static symbol_type make_CONCAT(const location_type& l) { return symbol_type(token::CONCAT, l); }
+  static symbol_type make_concat(const location_type& l) { return symbol_type(token::CONCAT, l); }
 #endif
 #if 201103L <= YY_CPLUSPLUS
-  static symbol_type make_NEGATE(location_type l) {
+  static symbol_type make_negate(location_type l) {
     return symbol_type(token::NEGATE, std::move(l));
   }
 #else
-  static symbol_type make_NEGATE(const location_type& l) { return symbol_type(token::NEGATE, l); }
+  static symbol_type make_negate(const location_type& l) { return symbol_type(token::NEGATE, l); }
 #endif
 
 

@@ -29,21 +29,21 @@ typedef std::set<Inode> InodesSeen;
  * encounters files owned by a user outside of the closed interval
  * [uidRange->first, uidRange->second].
  */
-void canonicalisePathMetaData(const Path& path,
+void canonicalise_path_meta_data(const Path& path,
 #ifndef _WIN32
                               std::optional<std::pair<uid_t, uid_t>> uidRange,
 #endif
-                              InodesSeen& inodesSeen);
+                              InodesSeen& inodes_seen);
 
-void canonicalisePathMetaData(const Path& path
+void canonicalise_path_meta_data(const Path& path
 #ifndef _WIN32
                               ,
                               std::optional<std::pair<uid_t, uid_t>> uidRange = std::nullopt
 #endif
 );
 
-void canonicaliseTimestampAndPermissions(const Path& path);
+void canonicalise_timestamp_and_permissions(const Path& path);
 
-MakeError(PathInUse, Error);
+make_error(PathInUse, Error);
 
 } // namespace nix

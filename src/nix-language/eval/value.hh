@@ -133,6 +133,9 @@ struct environment {
 };
 
 /// Type checking helpers
+inline auto is_null(const value_ptr& v) -> bool {
+  return std::holds_alternative<value_null>(v->data);
+}
 inline auto is_bool(const value_ptr& v) -> bool {
   return std::holds_alternative<bool>(v->data);
 }

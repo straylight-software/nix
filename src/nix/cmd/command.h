@@ -11,14 +11,14 @@
 
 namespace nix {
 
-extern std::string programPath;
+extern std::string program_path;
 
-extern char** savedArgv;
+extern char** saved_argv;
 
 class EvalState;
-struct Pos;
+struct pos_t;
 class Store;
-struct LocalFSStore;
+struct local_fs_store;
 
 static constexpr command_t::category_t catHelp = -1;
 static constexpr command_t::category_t catSecondary = 100;
@@ -30,7 +30,7 @@ static constexpr auto installablesCategory =
     "[installables](@docroot@/command-ref/new-cli/nix.md#installables)";
 
 struct NixMultiCommand : multi_command_t, virtual command_t {
-  nlohmann::json toJSON() override;
+  nlohmann::json to_json() override;
 
   using multi_command_t::multi_command_t;
 
@@ -72,7 +72,7 @@ private:
  * Store stores.
  */
 struct CopyCommand : virtual StoreCommand {
-  std::string srcUri, dstUri;
+  std::string srcUri, dst_uri;
 
   CopyCommand();
 
@@ -97,9 +97,9 @@ struct EvalCommand : virtual StoreCommand, MixEvalArgs {
   ref<EvalState> getEvalState();
 
 private:
-  std::shared_ptr<Store> evalStore;
+  std::shared_ptr<Store> eval_store;
 
-  std::shared_ptr<EvalState> evalState;
+  std::shared_ptr<EvalState> eval_state;
 };
 
 /**
@@ -107,7 +107,7 @@ private:
  * flake-related options/flags.
  */
 struct MixFlakeOptions : virtual Args, EvalCommand {
-  flake::LockFlags lockFlags;
+  flake::LockFlags lock_flags;
 
   MixFlakeOptions();
 
@@ -119,7 +119,7 @@ struct MixFlakeOptions : virtual Args, EvalCommand {
    * command is operating with (presumably specified via some other
    * arguments) so that the completions for these flags can use them.
    */
-  virtual std::vector<FlakeRef> getFlakeRefsForCompletion() { return {}; }
+  virtual std::vector<FlakeRef> get_flake_refs_for_completion() { return {}; }
 };
 
 struct SourceExprCommand : virtual Args, MixFlakeOptions {
@@ -167,19 +167,19 @@ struct MixReadOnlyOption : virtual Args {
 struct RawInstallablesCommand : virtual Args, SourceExprCommand {
   RawInstallablesCommand();
 
-  virtual void run(ref<Store> store, std::vector<std::string>&& rawInstallables) = 0;
+  virtual void run(ref<Store> store, std::vector<std::string>&& raw_installables) = 0;
 
   void run(ref<Store> store) override;
 
   // FIXME make const after `CmdRepl`'s override is fixed up
-  virtual void applyDefaultInstallables(std::vector<std::string>& rawInstallables);
+  virtual void applyDefaultInstallables(std::vector<std::string>& raw_installables);
 
   bool readFromStdIn = false;
 
-  std::vector<FlakeRef> getFlakeRefsForCompletion() override;
+  std::vector<FlakeRef> get_flake_refs_for_completion() override;
 
 private:
-  std::vector<std::string> rawInstallables;
+  std::vector<std::string> raw_installables;
 };
 
 /**
@@ -189,7 +189,7 @@ private:
 struct InstallablesCommand : RawInstallablesCommand {
   virtual void run(ref<Store> store, Installables&& installables) = 0;
 
-  void run(ref<Store> store, std::vector<std::string>&& rawInstallables) override;
+  void run(ref<Store> store, std::vector<std::string>&& raw_installables) override;
 };
 
 /**
@@ -204,7 +204,7 @@ struct InstallableCommand : virtual Args, SourceExprCommand {
 
   void run(ref<Store> store) override;
 
-  std::vector<FlakeRef> getFlakeRefsForCompletion() override;
+  std::vector<FlakeRef> get_flake_refs_for_completion() override;
 
 private:
   std::string _installable{"."};
@@ -233,28 +233,28 @@ protected:
 public:
   BuiltPathsCommand(bool recursive = false);
 
-  virtual void run(ref<Store> store, BuiltPaths&& allPaths, BuiltPaths&& rootPaths) = 0;
+  virtual void run(ref<Store> store, BuiltPaths&& all_paths, BuiltPaths&& root_paths) = 0;
 
   void run(ref<Store> store, Installables&& installables) override;
 
-  void applyDefaultInstallables(std::vector<std::string>& rawInstallables) override;
+  void applyDefaultInstallables(std::vector<std::string>& raw_installables) override;
 };
 
 struct StorePathsCommand : public BuiltPathsCommand {
   StorePathsCommand(bool recursive = false);
 
-  virtual void run(ref<Store> store, StorePaths&& storePaths) = 0;
+  virtual void run(ref<Store> store, StorePaths&& store_paths) = 0;
 
-  void run(ref<Store> store, BuiltPaths&& allPaths, BuiltPaths&& rootPaths) override;
+  void run(ref<Store> store, BuiltPaths&& all_paths, BuiltPaths&& root_paths) override;
 };
 
 /**
  * A command that operates on exactly one store path.
  */
 struct StorePathCommand : public StorePathsCommand {
-  virtual void run(ref<Store> store, const StorePath& storePath) = 0;
+  virtual void run(ref<Store> store, const StorePath& store_path) = 0;
 
-  void run(ref<Store> store, StorePaths&& storePaths) override;
+  void run(ref<Store> store, StorePaths&& store_paths) override;
 };
 
 /**
@@ -288,7 +288,7 @@ struct MixProfile : virtual StoreCommand {
   MixProfile();
 
   /* If 'profile' is set, make it point at 'storePath'. */
-  void updateProfile(const StorePath& storePath);
+  void updateProfile(const StorePath& store_path);
 
   /* If 'profile' is set, make it point at the store path produced
      by 'buildables'. */
@@ -317,44 +317,44 @@ struct MixEnvironment : virtual Args {
 };
 
 struct MixNoCheckSigs : virtual Args {
-  CheckSigsFlag checkSigs = CheckSigs;
+  CheckSigsFlag check_sigs = CheckSigs;
 
   MixNoCheckSigs() {
-    addFlag({
-        .longName = "no-check-sigs",
+    add_flag({
+        .long_name = "no-check-sigs",
         .description = "Do not require that paths are signed by trusted keys.",
-        .handler = {&checkSigs, NoCheckSigs},
+        .handler = {&check_sigs, NoCheckSigs},
     });
   }
 };
 
-void completeFlakeInputAttrPath(add_completions_t& completions, ref<EvalState> evalState,
-                                const std::vector<FlakeRef>& flakeRefs, std::string_view prefix);
+void complete_flake_input_attr_path(add_completions_t& completions, ref<EvalState> eval_state,
+                                const std::vector<FlakeRef>& flake_refs, std::string_view prefix);
 
-void completeFlakeRef(add_completions_t& completions, ref<Store> store, std::string_view prefix);
+void complete_flake_ref(add_completions_t& completions, ref<Store> store, std::string_view prefix);
 
-void completeFlakeRefWithFragment(add_completions_t& completions, ref<EvalState> evalState,
-                                  flake::LockFlags lockFlags, strings_t attrPathPrefixes,
-                                  const strings_t& defaultFlakeAttrPaths, std::string_view prefix);
+void complete_flake_ref_with_fragment(add_completions_t& completions, ref<EvalState> eval_state,
+                                  flake::LockFlags lock_flags, strings_t attr_path_prefixes,
+                                  const strings_t& default_flake_attr_paths, std::string_view prefix);
 
-std::string showVersions(const string_set_t& versions);
+std::string show_versions(const string_set_t& versions);
 
-void printClosureDiff(ref<Store> store, const StorePath& beforePath, const StorePath& afterPath,
+void print_closure_diff(ref<Store> store, const StorePath& before_path, const StorePath& after_path,
                       std::string_view indent);
 
 /**
- * Create symlinks prefixed by `outLink` to the store paths in
+ * Create symlinks prefixed by `out_link` to the store paths in
  * `buildables`.
  */
-void createOutLinks(const std::filesystem::path& outLink, const BuiltPaths& buildables,
-                    LocalFSStore& store);
+void create_out_links(const std::filesystem::path& out_link, const BuiltPaths& buildables,
+                    local_fs_store& store);
 
-/** `outLink` parameter, `createOutLinksMaybe` method. See `MixOutLinkByDefault`. */
+/** `out_link` parameter, `createOutLinksMaybe` method. See `MixOutLinkByDefault`. */
 struct MixOutLinkBase : virtual Args {
   /** Prefix for any output symlinks. Empty means do not write an output symlink. */
-  Path outLink;
+  Path out_link;
 
-  MixOutLinkBase(const std::string& defaultOutLink) : outLink(defaultOutLink) {}
+  MixOutLinkBase(const std::string& defaultOutLink) : out_link(defaultOutLink) {}
 
   void createOutLinksMaybe(const std::vector<BuiltPathWithResult>& buildables, ref<Store>& store);
 };
@@ -362,20 +362,20 @@ struct MixOutLinkBase : virtual Args {
 /** `--out-link`, `--no-link`, `createOutLinksMaybe` */
 struct MixOutLinkByDefault : MixOutLinkBase, virtual Args {
   MixOutLinkByDefault() : MixOutLinkBase("result") {
-    addFlag({
-        .longName = "out-link",
-        .shortName = 'o',
+    add_flag({
+        .long_name = "out-link",
+        .short_name = 'o',
         .description =
             "Use *path* as prefix for the symlinks to the build results. It defaults to `result`.",
         .labels = {"path"},
-        .handler = {&outLink},
-        .completer = completePath,
+        .handler = {&out_link},
+        .completer = complete_path,
     });
 
-    addFlag({
-        .longName = "no-link",
+    add_flag({
+        .long_name = "no-link",
         .description = "Do not create symlinks to the build results.",
-        .handler = {&outLink, Path("")},
+        .handler = {&out_link, Path("")},
     });
   }
 };

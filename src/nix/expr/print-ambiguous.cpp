@@ -7,9 +7,9 @@
 namespace nix {
 
 // See: https://github.com/NixOS/nix/issues/9730
-void printAmbiguous(EvalState& state, Value& v, std::ostream& str, std::set<const void*>* seen,
+void print_ambiguous(EvalState& state, Value& v, std::ostream& str, std::set<const void*>* seen,
                     int depth) {
-  checkInterrupt();
+  check_interrupt();
 
   if (depth <= 0) {
     str << "«too deep»";
@@ -20,13 +20,13 @@ void printAmbiguous(EvalState& state, Value& v, std::ostream& str, std::set<cons
       str << v.integer();
       break;
     case nBool:
-      printLiteralBool(str, v.boolean());
+      print_literal_bool(str, v.boolean());
       break;
     case nString: {
       NixStringContext context;
-      copyContext(v, context);
+      copy_context(v, context);
       // FIXME: make devirtualization configurable?
-      printLiteralString(str, state.devirtualize(v.string_view(), context));
+      print_literal_string(str, state.devirtualize(v.string_view(), context));
       break;
     }
     case nPath:
@@ -42,7 +42,7 @@ void printAmbiguous(EvalState& state, Value& v, std::ostream& str, std::set<cons
         str << "{ ";
         for (auto& i : v.attrs()->lexicographicOrder(state.symbols)) {
           str << state.symbols[i->name] << " = ";
-          printAmbiguous(state, *i->value, str, seen, depth - 1);
+          print_ambiguous(state, *i->value, str, seen, depth - 1);
           str << "; ";
         }
         str << "}";
@@ -50,15 +50,15 @@ void printAmbiguous(EvalState& state, Value& v, std::ostream& str, std::set<cons
       break;
     }
     case nList:
-      /* Use pointer to the Value instead of pointer to the elements, because
+      /* use pointer to the Value instead of pointer to the elements, because
          that would need to explicitly handle the case of SmallList. */
-      if (seen && v.listSize() && !seen->insert(&v).second)
+      if (seen && v.list_size() && !seen->insert(&v).second)
         str << "«repeated»";
       else {
         str << "[ ";
-        for (auto v2 : v.listView()) {
+        for (auto v2 : v.list_view()) {
           if (v2)
-            printAmbiguous(state, *v2, str, seen, depth - 1);
+            print_ambiguous(state, *v2, str, seen, depth - 1);
           else
             str << "(nullptr)";
           str << " ";

@@ -19,7 +19,7 @@ namespace nix {
  * Compute the prefix to the hash algorithm which indicates how the
  * files were ingested.
  */
-std::string_view makeFileIngestionPrefix(file_ingestion_method_t m);
+std::string_view make_file_ingestion_prefix(file_ingestion_method_t m);
 
 /**
  * An enumeration of all the ways we can content-address store objects.
@@ -32,39 +32,39 @@ std::string_view makeFileIngestionPrefix(file_ingestion_method_t m);
 struct ContentAddressMethod {
   enum struct raw_t {
     /**
-     * Calculate a store path using the `file_ingestion_method_t::Flat`
+     * Calculate a store path using the `file_ingestion_method_t::flat`
      * hash of the file system objects, and references.
      *
      * See `store-object/content-address.md#method-flat` in the
      * manual.
      */
-    Flat,
+    flat,
 
     /**
      * Calculate a store path using the
-     * `file_ingestion_method_t::NixArchive` hash of the file system
+     * `file_ingestion_method_t::nix_archive` hash of the file system
      * objects, and references.
      *
      * See `store-object/content-address.md#method-flat` in the
      * manual.
      */
-    NixArchive,
+    nix_archive,
 
     /**
-     * Calculate a store path using the `file_ingestion_method_t::Git`
+     * Calculate a store path using the `file_ingestion_method_t::git`
      * hash of the file system objects, and references.
      *
-     * Part of `experimental_feature_t::GitHashing`.
+     * Part of `experimental_feature_t::git_hashing`.
      *
      * See `store-object/content-address.md#method-git` in the
      * manual.
      */
-    Git,
+    git,
 
     /**
-     * Calculate a store path using the `file_ingestion_method_t::Flat`
+     * Calculate a store path using the `file_ingestion_method_t::flat`
      * hash of the file system objects, and references, but in a
-     * different way than `ContentAddressMethod::raw_t::Flat`.
+     * different way than `ContentAddressMethod::raw_t::flat`.
      *
      * See `store-object/content-address.md#method-text` in the
      * manual.
@@ -166,7 +166,7 @@ struct ContentAddress {
   /**
    * Compute the content-addressability assertion
    * (`ValidPathInfo::ca`) for paths created by
-   * `Store::makeFixedOutputPath()` / `Store::addToStore()`.
+   * `Store::makeFixedOutputPath()` / `Store::add_to_store()`.
    */
   std::string render() const;
 
@@ -181,10 +181,10 @@ struct ContentAddress {
  * Render the `ContentAddress` if it exists to a string, return empty
  * string otherwise.
  */
-std::string renderContentAddress(std::optional<ContentAddress> ca);
+std::string render_content_address(std::optional<ContentAddress> ca);
 
 /*
- * Full content address
+ * full content address
  *
  * See the schema for store paths in store-api.cc
  */

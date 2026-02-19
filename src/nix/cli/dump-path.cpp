@@ -5,9 +5,9 @@
 
 using namespace nix;
 
-static fd_sink_t getNarSink() {
-  auto fd = getStandardOutput();
-  if (isTTY(fd))
+static fd_sink_t get_nar_sink() {
+  auto fd = get_standard_output();
+  if (is_tty(fd))
     throw UsageError("refusing to write NAR to a terminal");
   return fd_sink_t(std::move(fd));
 }
@@ -21,19 +21,19 @@ struct cmd_dump_path_t : StorePathCommand {
         ;
   }
 
-  void run(ref<Store> store, const StorePath& storePath) override {
-    auto sink = getNarSink();
-    store->narFromPath(storePath, sink);
+  void run(ref<Store> store, const StorePath& store_path) override {
+    auto sink = get_nar_sink();
+    store->nar_from_path(store_path, sink);
     sink.flush();
   }
 };
 
-static auto rDumpPath = registerCommand2<cmd_dump_path_t>({"store", "dump-path"});
+static auto r_dump_path = registerCommand2<cmd_dump_path_t>({"store", "dump-path"});
 
 struct cmd_dump_path2_t : command_t {
   Path path;
 
-  cmd_dump_path2_t() { expectArgs({.label = "path", .handler = {&path}, .completer = completePath}); }
+  cmd_dump_path2_t() { expect_args({.label = "path", .handler = {&path}, .completer = complete_path}); }
 
   std::string description() override { return "serialise a path to stdout in NAR format"; }
 
@@ -44,8 +44,8 @@ struct cmd_dump_path2_t : command_t {
   }
 
   void run() override {
-    auto sink = getNarSink();
-    dumpPath(path, sink);
+    auto sink = get_nar_sink();
+    dump_path(path, sink);
     sink.flush();
   }
 };
@@ -57,5 +57,5 @@ struct cmd_nar_dump_path_t : cmd_dump_path2_t {
   }
 };
 
-static auto rCmdNarPack = registerCommand2<cmd_dump_path2_t>({"nar", "pack"});
-static auto rCmdNarDumpPath = registerCommand2<cmd_nar_dump_path_t>({"nar", "dump-path"});
+static auto r_cmd_nar_pack = registerCommand2<cmd_dump_path2_t>({"nar", "pack"});
+static auto r_cmd_nar_dump_path = registerCommand2<cmd_nar_dump_path_t>({"nar", "dump-path"});

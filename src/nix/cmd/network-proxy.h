@@ -11,12 +11,12 @@ namespace nix {
  *
  * See the environment_t section of https://curl.se/docs/manpage.html for details.
  */
-extern const string_set_t networkProxyVariables;
+extern const string_set_t network_proxy_variables;
 
 /**
  * Heuristically check if there is a proxy connection by checking for defined
  * proxy variables.
  */
-bool haveNetworkProxyConnection();
+bool have_network_proxy_connection();
 
 } // namespace nix

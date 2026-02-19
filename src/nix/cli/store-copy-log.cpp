@@ -19,19 +19,19 @@ struct cmd_copy_log_t : virtual CopyCommand, virtual InstallablesCommand {
         ;
   }
 
-  void run(ref<Store> srcStore, Installables&& installables) override {
-    auto& srcLogStore = require<LogStore>(*srcStore);
+  void run(ref<Store> src_store, Installables&& installables) override {
+    auto& src_log_store = require<LogStore>(*src_store);
 
-    auto dstStore = getDstStore();
-    auto& dstLogStore = require<LogStore>(*dstStore);
+    auto dst_store = getDstStore();
+    auto& dst_log_store = require<LogStore>(*dst_store);
 
-    for (auto& drvPath : Installable::toDerivations(getEvalStore(), installables, true)) {
-      if (auto log = srcLogStore.getBuildLog(drvPath))
-        dstLogStore.addBuildLog(drvPath, *log);
+    for (auto& drv_path : Installable::toDerivations(getEvalStore(), installables, true)) {
+      if (auto log = src_log_store.getBuildLog(drv_path))
+        dst_log_store.addBuildLog(drv_path, *log);
       else
-        throw Error("build log for '%s' is not available", srcStore->printStorePath(drvPath));
+        throw Error("build log for '%s' is not available", src_store->printStorePath(drv_path));
     }
   }
 };
 
-static auto rCmdCopyLog = registerCommand2<cmd_copy_log_t>({"store", "copy-log"});
+static auto r_cmd_copy_log = registerCommand2<cmd_copy_log_t>({"store", "copy-log"});

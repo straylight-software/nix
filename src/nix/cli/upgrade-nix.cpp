@@ -17,7 +17,7 @@ struct cmd_upgrade_nix_t : MixDryRun, StoreCommand {
   /**
    * This command is stable before the others
    */
-  std::optional<experimental_feature_t> experimentalFeature() override { return std::nullopt; }
+  std::optional<experimental_feature_t> experimental_feature() override { return std::nullopt; }
 
   std::string description() override { return "deprecated in favor of determinate-nixd upgrade"; }
 
@@ -35,4 +35,4 @@ struct cmd_upgrade_nix_t : MixDryRun, StoreCommand {
   }
 };
 
-static auto rCmdUpgradeNix = registerCommand<cmd_upgrade_nix_t>("upgrade-nix");
+static auto r_cmd_upgrade_nix = registerCommand<cmd_upgrade_nix_t>("upgrade-nix");

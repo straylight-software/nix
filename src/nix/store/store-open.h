@@ -16,32 +16,32 @@
 namespace nix {
 
 /**
- * @return The store config denoted by `storeURI` (slight misnomer...).
+ * @return The store config denoted by `store_uri` (slight misnomer...).
  */
-ref<StoreConfig> resolveStoreConfig(StoreReference&& storeURI);
+ref<StoreConfig> resolve_store_config(StoreReference&& store_uri);
 
 /**
  * @return a Store object to access the Nix store denoted by
  * ‘uri’ (slight misnomer...).
  */
-ref<Store> openStore(StoreReference&& storeURI);
+ref<Store> open_store(StoreReference&& store_uri);
 
 /**
  * Opens the store at `uri`, where `uri` is in the format expected by
  * `StoreReference::parse`
  */
-ref<Store> openStore(const std::string& uri,
-                     const StoreReference::Params& extraParams = StoreReference::Params());
+ref<Store> open_store(const std::string& uri,
+                     const StoreReference::Params& extra_params = StoreReference::Params());
 
 /**
  * Short-hand which opens the default store, according to global settings
  */
-ref<Store> openStore();
+ref<Store> open_store();
 
 /**
  * @return the default substituter stores, defined by the
  * ‘substituters’ option and various legacy options.
  */
-std::list<ref<Store>> getDefaultSubstituters();
+std::list<ref<Store>> get_default_substituters();
 
 } // namespace nix

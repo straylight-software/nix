@@ -2,13 +2,13 @@ R"__NIX_STR(
 let
   inherit (builtins)
     attrValues
-    concatStringsSep
+    concat_strings_sep
     isAttrs
     isBool
     mapAttrs
     ;
   inherit (import <nix/utils.nix>)
-    concatStrings
+    concat_strings
     indent
     optionalString
     squash
@@ -28,11 +28,11 @@ let
     prefix: setting:
     {
       description,
-      documentDefault,
-      defaultValue,
+      document_default,
+      default_value,
       aliases,
       value,
-      experimentalFeature,
+      experimental_feature,
     }:
     let
       result = squash ''
@@ -51,38 +51,38 @@ let
 
         ${description}
 
-        **Default:** ${showDefault documentDefault defaultValue}
+        **Default:** ${showDefault document_default default_value}
 
         ${showAliases aliases}
       '';
 
-      experimentalFeatureNote = optionalString (experimentalFeature != null) ''
+      experimentalFeatureNote = optionalString (experimental_feature != null) ''
         > **Warning**
         >
         > This setting is part of an
         > [experimental feature](@docroot@/development/experimental-features.md).
         >
         > To change this setting, make sure the
-        > [`${experimentalFeature}` experimental feature](@docroot@/development/experimental-features.md#xp-feature-${experimentalFeature})
+        > [`${experimental_feature}` experimental feature](@docroot@/development/experimental-features.md#xp-feature-${experimental_feature})
         > is enabled.
         > For example, include the following in [`nix.conf`](@docroot@/command-ref/conf-file.md):
         >
         > ```
-        > extra-experimental-features = ${experimentalFeature}
+        > extra-experimental-features = ${experimental_feature}
         > ${setting} = ...
         > ```
       '';
 
       showDefault =
-        documentDefault: defaultValue:
-        if documentDefault then
-          # a StringMap value type is specified as a string, but
+        document_default: default_value:
+        if document_default then
+          # a string_map_t value type is specified as a string, but
           # this shows the value type. The empty stringmap is `null` in
           # JSON, but that converts to `{ }` here.
-          if defaultValue == "" || defaultValue == [ ] || isAttrs defaultValue then
+          if default_value == "" || default_value == [ ] || isAttrs default_value then
             "*empty*"
-          else if isBool defaultValue then
-            if defaultValue then "`true`" else "`false`"
+          else if isBool default_value then
+            if default_value then "`true`" else "`false`"
           else
             "`${toString defaultValue}`"
         else
@@ -97,5 +97,5 @@ let
     result;
 
 in
-concatStrings (attrValues (mapAttrs (showSetting prefix) settingsInfo))
+concat_strings (attrValues (mapAttrs (showSetting prefix) settingsInfo))
 )__NIX_STR"

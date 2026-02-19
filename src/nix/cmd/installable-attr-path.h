@@ -28,17 +28,17 @@ namespace nix {
 class InstallableAttrPath : public InstallableValue {
   SourceExprCommand& cmd;
   RootValue v;
-  std::string attrPath;
+  std::string attr_path;
   ExtendedOutputsSpec extendedOutputsSpec;
 
   InstallableAttrPath(ref<EvalState> state, SourceExprCommand& cmd, Value* v,
-                      const std::string& attrPath, ExtendedOutputsSpec extendedOutputsSpec);
+                      const std::string& attr_path, ExtendedOutputsSpec extendedOutputsSpec);
 
-  std::string what() const override { return attrPath; };
+  std::string what() const override { return attr_path; };
 
   std::pair<Value*, pos_idx_t> toValue(EvalState& state) override;
 
-  DerivedPathsWithInfo toDerivedPaths() override;
+  DerivedPathsWithInfo to_derived_paths() override;
 
 public:
   static InstallableAttrPath parse(ref<EvalState> state, SourceExprCommand& cmd, Value* v,

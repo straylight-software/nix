@@ -13,7 +13,7 @@ namespace nix {
  * Concretely, an n-ary tree, as described below. A
  * `SingleDerivedPath::opaque_t` maps to the value of an immediate child
  * of the root node. A `SingleDerivedPath::Built` maps to a deeper child
- * node: the `SingleDerivedPath::Built::drvPath` is first mapped to a a
+ * node: the `SingleDerivedPath::Built::drv_path` is first mapped to a a
  * child node (inductively), and then the
  * `SingleDerivedPath::Built::output` is used to look up that child's
  * child via its map. In this manner, every `SingleDerivedPath` is

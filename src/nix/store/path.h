@@ -17,7 +17,7 @@ struct Hash;
  * @throws BadStorePathName if the name is invalid. The message is of the format "name %s is not
  * valid, for this specific reason".
  */
-void checkName(std::string_view name);
+void check_name(std::string_view name);
 
 /**
  * \ref StorePath "Store path" is the fundamental reference type of Nix.
@@ -27,7 +27,7 @@ void checkName(std::string_view name);
  * conceptual level.
  */
 class StorePath {
-  std::string baseName;
+  std::string base_name;
 
 public:
   /**
@@ -40,12 +40,12 @@ public:
   StorePath() = delete;
 
   /** @throws BadStorePath */
-  StorePath(std::string_view baseName);
+  StorePath(std::string_view base_name);
 
   /** @throws BadStorePath */
   StorePath(const Hash& hash, std::string_view name);
 
-  std::string_view to_string() const noexcept { return baseName; }
+  std::string_view to_string() const noexcept { return base_name; }
 
   bool operator==(const StorePath& other) const noexcept = default;
   auto operator<=>(const StorePath& other) const noexcept = default;
@@ -53,16 +53,16 @@ public:
   /**
    * Check whether a file name ends with the extension for derivations.
    */
-  bool isDerivation() const noexcept;
+  bool is_derivation() const noexcept;
 
   /**
-   * Throw an exception if `isDerivation` is false.
+   * Throw an exception if `is_derivation` is false.
    */
   void requireDerivation() const;
 
-  std::string_view name() const { return std::string_view(baseName).substr(HashLen + 1); }
+  std::string_view name() const { return std::string_view(base_name).substr(HashLen + 1); }
 
-  std::string_view hashPart() const { return std::string_view(baseName).substr(0, HashLen); }
+  std::string_view hash_part() const { return std::string_view(base_name).substr(0, HashLen); }
 
   static StorePath dummy;
 

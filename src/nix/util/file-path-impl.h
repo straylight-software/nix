@@ -23,15 +23,15 @@ struct unix_path_trait_t {
 
   using string_view_t = std::string_view;
 
-  constexpr static char preferredSep = '/';
+  constexpr static char preferred_sep = '/';
 
-  static inline bool isPathSep(char c) { return c == '/'; }
+  static inline bool is_path_sep(char c) { return c == '/'; }
 
-  static inline size_t findPathSep(string_view_t path, size_t from = 0) {
+  static inline size_t find_path_sep(string_view_t path, size_t from = 0) {
     return path.find('/', from);
   }
 
-  static inline size_t rfindPathSep(string_view_t path, size_t from = string_view_t::npos) {
+  static inline size_t rfind_path_sep(string_view_t path, size_t from = string_view_t::npos) {
     return path.rfind('/', from);
   }
 };
@@ -56,19 +56,19 @@ struct windows_path_trait_t {
 
   using string_view_t = std::basic_string_view<char_t>;
 
-  constexpr static char_t preferredSep = '\\';
+  constexpr static char_t preferred_sep = '\\';
 
-  static inline bool isPathSep(char_t c) { return c == '/' || c == preferredSep; }
+  static inline bool is_path_sep(char_t c) { return c == '/' || c == preferred_sep; }
 
-  static size_t findPathSep(string_view_t path, size_t from = 0) {
+  static size_t find_path_sep(string_view_t path, size_t from = 0) {
     size_t p1 = path.find('/', from);
-    size_t p2 = path.find(preferredSep, from);
+    size_t p2 = path.find(preferred_sep, from);
     return p1 == String::npos ? p2 : p2 == String::npos ? p1 : std::min(p1, p2);
   }
 
-  static size_t rfindPathSep(string_view_t path, size_t from = String::npos) {
+  static size_t rfind_path_sep(string_view_t path, size_t from = String::npos) {
     size_t p1 = path.rfind('/', from);
-    size_t p2 = path.rfind(preferredSep, from);
+    size_t p2 = path.rfind(preferred_sep, from);
     return p1 == String::npos ? p2 : p2 == String::npos ? p1 : std::max(p1, p2);
   }
 };
@@ -85,7 +85,7 @@ using os_path_trait_t =
 /**
  * Core pure path canonicalization algorithm.
  *
- * @param hookComponent
+ * @param hook_component
  *   A callback which is passed two arguments,
  *   references to
  *
@@ -97,8 +97,8 @@ using os_path_trait_t =
  *   "result" points to a symlink.
  */
 template <class PathDict>
-typename PathDict::String canonPathInner(typename PathDict::string_view_t remaining,
-                                         auto&& hookComponent) {
+typename PathDict::String canon_path_inner(typename PathDict::string_view_t remaining,
+                                         auto&& hook_component) {
   assert(remaining != "");
 
   typename PathDict::String result;
@@ -106,32 +106,32 @@ typename PathDict::String canonPathInner(typename PathDict::string_view_t remain
 
   while (true) {
     /* Skip slashes. */
-    while (!remaining.empty() && PathDict::isPathSep(remaining[0]))
+    while (!remaining.empty() && PathDict::is_path_sep(remaining[0]))
       remaining.remove_prefix(1);
 
     if (remaining.empty())
       break;
 
-    auto nextComp = ({
-      auto nextPathSep = PathDict::findPathSep(remaining);
-      nextPathSep == remaining.npos ? remaining : remaining.substr(0, nextPathSep);
+    auto next_comp = ({
+      auto next_path_sep = PathDict::find_path_sep(remaining);
+      next_path_sep == remaining.npos ? remaining : remaining.substr(0, next_path_sep);
     });
 
     /* Ignore `.'. */
-    if (nextComp == ".")
+    if (next_comp == ".")
       remaining.remove_prefix(1);
 
     /* If `..', delete the last component. */
-    else if (nextComp == "..") {
+    else if (next_comp == "..") {
       if (!result.empty())
-        result.erase(PathDict::rfindPathSep(result));
+        result.erase(PathDict::rfind_path_sep(result));
       remaining.remove_prefix(2);
     }
 
-    /* Normal component; copy it. */
+    /* normal component; copy it. */
     else {
-      result += PathDict::preferredSep;
-      if (const auto slash = PathDict::findPathSep(remaining); slash == result.npos) {
+      result += PathDict::preferred_sep;
+      if (const auto slash = PathDict::find_path_sep(remaining); slash == result.npos) {
         result += remaining;
         remaining = {};
       } else {
@@ -139,12 +139,12 @@ typename PathDict::String canonPathInner(typename PathDict::string_view_t remain
         remaining = remaining.substr(slash);
       }
 
-      hookComponent(result, remaining);
+      hook_component(result, remaining);
     }
   }
 
   if (result.empty())
-    result = typename PathDict::String{PathDict::preferredSep};
+    result = typename PathDict::String{PathDict::preferred_sep};
 
   return result;
 }

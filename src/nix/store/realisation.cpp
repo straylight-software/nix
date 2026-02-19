@@ -9,7 +9,7 @@
 
 namespace nix {
 
-MakeError(InvalidDerivationOutputId, Error);
+make_error(InvalidDerivationOutputId, Error);
 
 DrvOutput DrvOutput::parse(const std::string& strRep) {
   size_t n = strRep.find("!");
@@ -17,13 +17,13 @@ DrvOutput DrvOutput::parse(const std::string& strRep) {
     throw InvalidDerivationOutputId("Invalid derivation output id %s", strRep);
 
   return DrvOutput{
-      .drvHash = Hash::parseAnyPrefixed(strRep.substr(0, n)),
-      .outputName = strRep.substr(n + 1),
+      .drvHash = Hash::parse_any_prefixed(strRep.substr(0, n)),
+      .output_name = strRep.substr(n + 1),
   };
 }
 
 std::string DrvOutput::to_string() const {
-  return strHash() + "!" + outputName;
+  return strHash() + "!" + output_name;
 }
 
 std::set<Realisation> Realisation::closure(Store& store,
@@ -38,7 +38,7 @@ void Realisation::closure(Store& store, const std::set<Realisation>& startOutput
   auto getDeps = [&](const Realisation& current) -> std::set<Realisation> {
     std::set<Realisation> res;
     for (auto& [currentDep, _] : current.dependentRealisations) {
-      if (auto currentRealisation = store.queryRealisation(currentDep))
+      if (auto currentRealisation = store.query_realisation(currentDep))
         res.insert({*currentRealisation, currentDep});
       else
         throw Error("Unrealised derivation '%s'", currentDep.to_string());
@@ -68,33 +68,33 @@ std::string UnkeyedRealisation::fingerprint(const DrvOutput& key) const {
 }
 
 void UnkeyedRealisation::sign(const DrvOutput& key, const signer_t& signer) {
-  signatures.insert(signer.signDetached(fingerprint(key)));
+  signatures.insert(signer.sign_detached(fingerprint(key)));
 }
 
-bool UnkeyedRealisation::checkSignature(const DrvOutput& key, const public_keys_t& publicKeys,
+bool UnkeyedRealisation::checkSignature(const DrvOutput& key, const public_keys_t& public_keys,
                                         const std::string& sig) const {
-  return verifyDetached(fingerprint(key), sig, publicKeys);
+  return verify_detached(fingerprint(key), sig, public_keys);
 }
 
 size_t UnkeyedRealisation::checkSignatures(const DrvOutput& key,
-                                           const public_keys_t& publicKeys) const {
+                                           const public_keys_t& public_keys) const {
   // FIXME: Maybe we should return `maxSigs` if the realisation corresponds to
   // an input-addressed one − because in that case the drv is enough to check
   // it − but we can't know that here.
 
   size_t good = 0;
   for (auto& sig : signatures)
-    if (checkSignature(key, publicKeys, sig))
+    if (checkSignature(key, public_keys, sig))
       good++;
   return good;
 }
 
 const StorePath& RealisedPath::path() const& {
-  return std::visit([](auto& arg) -> auto& { return arg.getPath(); }, raw);
+  return std::visit([](auto& arg) -> auto& { return arg.get_path(); }, raw);
 }
 
 bool Realisation::isCompatibleWith(const UnkeyedRealisation& other) const {
-  if (outPath == other.outPath) {
+  if (out_path == other.out_path) {
     if (dependentRealisations.empty() != other.dependentRealisations.empty()) {
       warn("Encountered a realisation for '%s' with an empty set of "
            "dependencies. This is likely an artifact from an older Nix. "
@@ -137,7 +137,7 @@ namespace nlohmann {
 using namespace nix;
 
 DrvOutput adl_serializer<DrvOutput>::from_json(const json& json) {
-  return DrvOutput::parse(getString(json));
+  return DrvOutput::parse(get_string(json));
 }
 
 void adl_serializer<DrvOutput>::to_json(json& json, const DrvOutput& drvOutput) {
@@ -145,19 +145,19 @@ void adl_serializer<DrvOutput>::to_json(json& json, const DrvOutput& drvOutput) 
 }
 
 UnkeyedRealisation adl_serializer<UnkeyedRealisation>::from_json(const json& json0) {
-  auto json = getObject(json0);
+  auto json = get_object(json0);
 
   string_set_t signatures;
-  if (auto signaturesOpt = optionalValueAt(json, "signatures"))
+  if (auto signaturesOpt = optional_value_at(json, "signatures"))
     signatures = *signaturesOpt;
 
   std::map<DrvOutput, StorePath> dependentRealisations;
-  if (auto jsonDependencies = optionalValueAt(json, "dependentRealisations"))
-    for (auto& [jsonDepId, jsonDepOutPath] : getObject(*jsonDependencies))
+  if (auto jsonDependencies = optional_value_at(json, "dependentRealisations"))
+    for (auto& [jsonDepId, jsonDepOutPath] : get_object(*jsonDependencies))
       dependentRealisations.insert({DrvOutput::parse(jsonDepId), jsonDepOutPath});
 
   return UnkeyedRealisation{
-      .outPath = valueAt(json, "outPath"),
+      .out_path = value_at(json, "outPath"),
       .signatures = signatures,
       .dependentRealisations = dependentRealisations,
   };
@@ -168,18 +168,18 @@ void adl_serializer<UnkeyedRealisation>::to_json(json& json, const UnkeyedRealis
   for (auto& [depId, depOutPath] : r.dependentRealisations)
     jsonDependentRealisations.emplace(depId.to_string(), depOutPath);
   json = {
-      {"outPath", r.outPath},
+      {"outPath", r.out_path},
       {"signatures", r.signatures},
       {"dependentRealisations", jsonDependentRealisations},
   };
 }
 
 Realisation adl_serializer<Realisation>::from_json(const json& json0) {
-  auto json = getObject(json0);
+  auto json = get_object(json0);
 
   return Realisation{
       static_cast<UnkeyedRealisation>(json0),
-      valueAt(json, "id"),
+      value_at(json, "id"),
   };
 }
 

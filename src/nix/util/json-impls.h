@@ -37,7 +37,7 @@
   struct adl_serializer<TYPE> {                                                                    \
     static TYPE                                                                                    \
     from_json(const json& json,                                                                    \
-              const experimental_feature_settings_t& xpSettings = experimentalFeatureSettings);        \
+              const experimental_feature_settings_t& xp_settings = experimental_feature_settings);        \
     static void to_json(json& json, const TYPE& t);                                                \
   };                                                                                               \
   }

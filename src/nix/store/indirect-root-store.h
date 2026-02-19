@@ -16,7 +16,7 @@ namespace nix {
  * To understand the purpose of this class, it might help to do some
  * "closed-world" rather than "open-world" reasoning, and consider the
  * problem it solved for us. This class was factored out from
- * `LocalFSStore` in order to support the following table, which
+ * `local_fs_store` in order to support the following table, which
  * contains 4 concrete store types (non-abstract classes, exposed to the
  * user), and how they implemented the two GC root methods:
  *
@@ -25,7 +25,7 @@ namespace nix {
  * |-------------------|-----------------|---------------------|
  * | `LocalStore`      | local           | local               |
  * | `UDSRemoteStore`  | local           | remote              |
- * | `SSHStore`        | doesn't have    | doesn't have        |
+ * | `ssh_store`        | doesn't have    | doesn't have        |
  * | `mounted_ssh_store_t` | remote          | doesn't have        |
  *
  * @note
@@ -36,11 +36,11 @@ namespace nix {
  * possible implementations many of which make no sense. Having this and
  * that invariant enforced cuts down that space.
  */
-struct IndirectRootStore : public virtual LocalFSStore {
-  inline static std::string operationName = "Indirect GC roots registration";
+struct IndirectRootStore : public virtual local_fs_store {
+  inline static std::string operation_name = "Indirect GC roots registration";
 
   /**
-   * Implementation of `LocalFSStore::addPermRoot` where the permanent
+   * Implementation of `local_fs_store::addPermRoot` where the permanent
    * root is a pair of
    *
    * - The user-facing symlink which all implementations must create
@@ -54,7 +54,7 @@ struct IndirectRootStore : public virtual LocalFSStore {
    * The implementation of this method is concrete, but it delegates
    * to `addIndirectRoot()` which is abstract.
    */
-  Path addPermRoot(const StorePath& storePath, const Path& gcRoot) override final;
+  Path addPermRoot(const StorePath& store_path, const Path& gc_root) override final;
 
   /**
    * Add an indirect root, which is a weak reference to the

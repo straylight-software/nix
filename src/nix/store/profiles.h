@@ -48,7 +48,7 @@ struct Generation {
    * distinct contents to avoid bloat, but nothing stops two
    * non-adjacent generations from having the same contents.
    *
-   * @todo Use `StorePath` instead of `std::filesystem::path`?
+   * @todo use `StorePath` instead of `std::filesystem::path`?
    */
   std::filesystem::path path;
 
@@ -85,7 +85,7 @@ typedef std::list<Generation> Generations;
 std::pair<Generations, std::optional<GenerationNumber>>
 findGenerations(std::filesystem::path profile);
 
-struct LocalFSStore;
+struct local_fs_store;
 
 /**
  * Create a new generation of the given profile
@@ -98,8 +98,8 @@ struct LocalFSStore;
  * The behavior of reusing existing generations like this makes this
  * procedure idempotent. It also avoids clutter.
  */
-std::filesystem::path createGeneration(LocalFSStore& store, std::filesystem::path profile,
-                                       StorePath outPath);
+std::filesystem::path create_generation(local_fs_store& store, std::filesystem::path profile,
+                                       StorePath out_path);
 
 /**
  * Unconditionally delete a generation
@@ -114,7 +114,7 @@ std::filesystem::path createGeneration(LocalFSStore& store, std::filesystem::pat
  *
  * @todo Should we expose this at all?
  */
-void deleteGeneration(const std::filesystem::path& profile, GenerationNumber gen);
+void delete_generation(const std::filesystem::path& profile, GenerationNumber gen);
 
 /**
  * Delete the given set of generations.
@@ -122,17 +122,17 @@ void deleteGeneration(const std::filesystem::path& profile, GenerationNumber gen
  * @param profile The profile, specified by its name and location combined into a path, whose
  * generations we want to delete.
  *
- * @param gensToDelete The generations to delete, specified by a set of
+ * @param gens_to_delete The generations to delete, specified by a set of
  * numbers.
  *
- * @param dryRun Log what would be deleted instead of actually doing
+ * @param dry_run Log what would be deleted instead of actually doing
  * so.
  *
  * Trying to delete the currently active generation will fail, and cause
  * no generations to be deleted.
  */
-void deleteGenerations(const std::filesystem::path& profile,
-                       const std::set<GenerationNumber>& gensToDelete, bool dryRun);
+void delete_generations(const std::filesystem::path& profile,
+                       const std::set<GenerationNumber>& gens_to_delete, bool dry_run);
 
 /**
  * Delete generations older than `max` passed the current generation.
@@ -143,11 +143,11 @@ void deleteGenerations(const std::filesystem::path& profile,
  * @param max How many generations to keep up to the current one. Must
  * be at least 1 so we don't delete the current one.
  *
- * @param dryRun Log what would be deleted instead of actually doing
+ * @param dry_run Log what would be deleted instead of actually doing
  * so.
  */
-void deleteGenerationsGreaterThan(const std::filesystem::path& profile, GenerationNumber max,
-                                  bool dryRun);
+void delete_generations_greater_than(const std::filesystem::path& profile, GenerationNumber max,
+                                  bool dry_run);
 
 /**
  * Delete all generations other than the current one
@@ -155,10 +155,10 @@ void deleteGenerationsGreaterThan(const std::filesystem::path& profile, Generati
  * @param profile The profile, specified by its name and location combined into a path, whose
  * generations we want to delete.
  *
- * @param dryRun Log what would be deleted instead of actually doing
+ * @param dry_run Log what would be deleted instead of actually doing
  * so.
  */
-void deleteOldGenerations(const std::filesystem::path& profile, bool dryRun);
+void delete_old_generations(const std::filesystem::path& profile, bool dry_run);
 
 /**
  * Delete generations older than `t`, except for the most recent one
@@ -167,38 +167,38 @@ void deleteOldGenerations(const std::filesystem::path& profile, bool dryRun);
  * @param profile The profile, specified by its name and location combined into a path, whose
  * generations we want to delete.
  *
- * @param dryRun Log what would be deleted instead of actually doing
+ * @param dry_run Log what would be deleted instead of actually doing
  * so.
  */
-void deleteGenerationsOlderThan(const std::filesystem::path& profile, time_t t, bool dryRun);
+void delete_generations_older_than(const std::filesystem::path& profile, time_t t, bool dry_run);
 
 /**
- * Parse a temp spec intended for `deleteGenerationsOlderThan()`.
+ * Parse a temp spec intended for `delete_generations_older_than()`.
  *
- * Throws an exception if `timeSpec` fails to parse.
+ * Throws an exception if `time_spec` fails to parse.
  */
-time_t parseOlderThanTimeSpec(std::string_view timeSpec);
+time_t parse_older_than_time_spec(std::string_view time_spec);
 
 /**
- * Smaller wrapper around `replaceSymlink` for replacing the current
+ * Smaller wrapper around `replace_symlink` for replacing the current
  * generation of a profile. Does not enforce proper structure.
  *
- * @todo Always use `switchGeneration()` instead, and delete this.
+ * @todo always use `switch_generation()` instead, and delete this.
  */
-void switchLink(std::filesystem::path link, std::filesystem::path target);
+void switch_link(std::filesystem::path link, std::filesystem::path target);
 
 /**
  * Roll back a profile to the specified generation, or to the most
  * recent one older than the current.
  */
-void switchGeneration(const std::filesystem::path& profile, std::optional<GenerationNumber> dstGen,
-                      bool dryRun);
+void switch_generation(const std::filesystem::path& profile, std::optional<GenerationNumber> dst_gen,
+                      bool dry_run);
 
 /**
  * Ensure exclusive access to a profile.  Any command that modifies
  * the profile first acquires this lock.
  */
-void lockProfile(PathLocks& lock, const std::filesystem::path& profile);
+void lock_profile(PathLocks& lock, const std::filesystem::path& profile);
 
 /**
  * Optimistic locking is used by long-running operations like `nix-env
@@ -211,34 +211,34 @@ void lockProfile(PathLocks& lock, const std::filesystem::path& profile);
  * store.  Most of the time, only the user environment has to be
  * rebuilt.
  */
-std::string optimisticLockProfile(const std::filesystem::path& profile);
+std::string optimistic_lock_profile(const std::filesystem::path& profile);
 
 /**
  * Create and return the path to a directory suitable for storing the user’s
  * profiles.
  */
-std::filesystem::path profilesDir();
+std::filesystem::path profiles_dir();
 
 /**
  * Return the path to the profile directory for root (but don't try creating it)
  */
-std::filesystem::path rootProfilesDir();
+std::filesystem::path root_profiles_dir();
 
 /**
  * Create and return the path to the file used for storing the users's channels
  */
-std::filesystem::path defaultChannelsDir();
+std::filesystem::path default_channels_dir();
 
 /**
  * Return the path to the channel directory for root (but don't try creating it)
  */
-std::filesystem::path rootChannelsDir();
+std::filesystem::path root_channels_dir();
 
 /**
  * Resolve the default profile (~/.nix-profile by default,
  * $XDG_STATE_HOME/nix/profile if XDG Base directory_t Support is enabled),
  * and create if doesn't exist
  */
-std::filesystem::path getDefaultProfile();
+std::filesystem::path get_default_profile();
 
 } // namespace nix

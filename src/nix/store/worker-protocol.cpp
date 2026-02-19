@@ -19,7 +19,7 @@ namespace nix {
 
 BuildMode WorkerProto::Serialise<BuildMode>::read(const StoreDirConfig& store,
                                                   WorkerProto::ReadConn conn) {
-  auto temp = readNum<uint8_t>(conn.from);
+  auto temp = read_num<uint8_t>(conn.from);
   switch (temp) {
     case 0:
       return bmNormal;
@@ -34,8 +34,8 @@ BuildMode WorkerProto::Serialise<BuildMode>::read(const StoreDirConfig& store,
 
 void WorkerProto::Serialise<BuildMode>::write(const StoreDirConfig& store,
                                               WorkerProto::WriteConn conn,
-                                              const BuildMode& buildMode) {
-  switch (buildMode) {
+                                              const BuildMode& build_mode) {
+  switch (build_mode) {
     case bmNormal:
       conn.to << uint8_t{0};
       break;
@@ -52,7 +52,7 @@ void WorkerProto::Serialise<BuildMode>::write(const StoreDirConfig& store,
 
 GCAction WorkerProto::Serialise<GCAction>::read(const StoreDirConfig& store,
                                                 WorkerProto::ReadConn conn) {
-  auto temp = readNum<unsigned>(conn.from);
+  auto temp = read_num<unsigned>(conn.from);
   using enum GCAction;
   switch (temp) {
     case 0:
@@ -92,7 +92,7 @@ void WorkerProto::Serialise<GCAction>::write(const StoreDirConfig& store,
 std::optional<TrustedFlag>
 WorkerProto::Serialise<std::optional<TrustedFlag>>::read(const StoreDirConfig& store,
                                                          WorkerProto::ReadConn conn) {
-  auto temp = readNum<uint8_t>(conn.from);
+  auto temp = read_num<uint8_t>(conn.from);
   switch (temp) {
     case 0:
       return std::nullopt;
@@ -127,13 +127,13 @@ void WorkerProto::Serialise<std::optional<TrustedFlag>>::write(
 std::optional<std::chrono::microseconds>
 WorkerProto::Serialise<std::optional<std::chrono::microseconds>>::read(const StoreDirConfig& store,
                                                                        WorkerProto::ReadConn conn) {
-  auto tag = readNum<uint8_t>(conn.from);
+  auto tag = read_num<uint8_t>(conn.from);
   switch (tag) {
     case 0:
       return std::nullopt;
     case 1:
       return std::optional<std::chrono::microseconds>{
-          std::chrono::microseconds(readNum<int64_t>(conn.from))};
+          std::chrono::microseconds(read_num<int64_t>(conn.from))};
     default:
       throw Error("Invalid optional tag from remote");
   }
@@ -151,11 +151,11 @@ void WorkerProto::Serialise<std::optional<std::chrono::microseconds>>::write(
 
 DerivedPath WorkerProto::Serialise<DerivedPath>::read(const StoreDirConfig& store,
                                                       WorkerProto::ReadConn conn) {
-  auto s = readString(conn.from);
+  auto s = read_string(conn.from);
   if (GET_PROTOCOL_MINOR(conn.version) >= 30) {
     return DerivedPath::parseLegacy(store, s);
   } else {
-    return parsePathWithOutputs(store, s).toDerivedPath();
+    return parse_path_with_outputs(store, s).toDerivedPath();
   }
 }
 
@@ -169,10 +169,10 @@ void WorkerProto::Serialise<DerivedPath>::write(const StoreDirConfig& store,
     std::visit(
         overloaded{
             [&](const StorePathWithOutputs& s) { conn.to << s.to_string(store); },
-            [&](const StorePath& drvPath) {
+            [&](const StorePath& drv_path) {
               throw Error("trying to request '%s', but daemon protocol %d.%d is too old (< 1.29) "
                           "to request a derivation file",
-                          store.printStorePath(drvPath), GET_PROTOCOL_MAJOR(conn.version),
+                          store.printStorePath(drv_path), GET_PROTOCOL_MAJOR(conn.version),
                           GET_PROTOCOL_MINOR(conn.version));
             },
             [&](std::monostate) {
@@ -208,22 +208,22 @@ BuildResult WorkerProto::Serialise<BuildResult>::read(const StoreDirConfig& stor
   BuildResult::Success success;
   BuildResult::Failure failure;
 
-  auto rawStatus = readInt(conn.from);
+  auto rawStatus = read_int(conn.from);
   conn.from >> failure.errorMsg;
 
   if (GET_PROTOCOL_MINOR(conn.version) >= 29) {
-    conn.from >> res.timesBuilt >> failure.isNonDeterministic >> res.startTime >> res.stopTime;
+    conn.from >> res.timesBuilt >> failure.isNonDeterministic >> res.start_time >> res.stopTime;
   }
   if (GET_PROTOCOL_MINOR(conn.version) >= 37) {
-    res.cpuUser =
+    res.cpu_user =
         WorkerProto::Serialise<std::optional<std::chrono::microseconds>>::read(store, conn);
-    res.cpuSystem =
+    res.cpu_system =
         WorkerProto::Serialise<std::optional<std::chrono::microseconds>>::read(store, conn);
   }
   if (GET_PROTOCOL_MINOR(conn.version) >= 28) {
-    auto builtOutputs = WorkerProto::Serialise<DrvOutputs>::read(store, conn);
-    for (auto&& [output, realisation] : builtOutputs)
-      success.builtOutputs.insert_or_assign(std::move(output.outputName), std::move(realisation));
+    auto built_outputs = WorkerProto::Serialise<DrvOutputs>::read(store, conn);
+    for (auto&& [output, realisation] : built_outputs)
+      success.built_outputs.insert_or_assign(std::move(output.output_name), std::move(realisation));
   }
 
   if (BuildResult::Success::statusIs(rawStatus)) {
@@ -245,18 +245,18 @@ void WorkerProto::Serialise<BuildResult>::write(const StoreDirConfig& store,
      success- or failure-only fields in both cases. This helper
      function helps support this: in each case, we just pass the old
      default value for the fields that don't exist in that case. */
-  auto common = [&](std::string_view errorMsg, bool isNonDeterministic, const auto& builtOutputs) {
+  auto common = [&](std::string_view errorMsg, bool isNonDeterministic, const auto& built_outputs) {
     conn.to << errorMsg;
     if (GET_PROTOCOL_MINOR(conn.version) >= 29) {
-      conn.to << res.timesBuilt << isNonDeterministic << res.startTime << res.stopTime;
+      conn.to << res.timesBuilt << isNonDeterministic << res.start_time << res.stopTime;
     }
     if (GET_PROTOCOL_MINOR(conn.version) >= 37) {
-      WorkerProto::write(store, conn, res.cpuUser);
-      WorkerProto::write(store, conn, res.cpuSystem);
+      WorkerProto::write(store, conn, res.cpu_user);
+      WorkerProto::write(store, conn, res.cpu_system);
     }
     if (GET_PROTOCOL_MINOR(conn.version) >= 28) {
       DrvOutputs builtOutputsFullKey;
-      for (auto& [output, realisation] : builtOutputs)
+      for (auto& [output, realisation] : built_outputs)
         builtOutputsFullKey.insert_or_assign(realisation.id, realisation);
       WorkerProto::write(store, conn, builtOutputsFullKey);
     }
@@ -265,11 +265,11 @@ void WorkerProto::Serialise<BuildResult>::write(const StoreDirConfig& store,
                  [&](const BuildResult::Failure& failure) {
                    conn.to << failure.status;
                    common(failure.errorMsg, failure.isNonDeterministic,
-                          decltype(BuildResult::Success::builtOutputs){});
+                          decltype(BuildResult::Success::built_outputs){});
                  },
                  [&](const BuildResult::Success& success) {
                    conn.to << success.status;
-                   common(/*errorMsg=*/"", /*isNonDeterministic=*/false, success.builtOutputs);
+                   common(/*errorMsg=*/"", /*isNonDeterministic=*/false, success.built_outputs);
                  },
              },
              res.inner);
@@ -285,36 +285,36 @@ ValidPathInfo WorkerProto::Serialise<ValidPathInfo>::read(const StoreDirConfig& 
 }
 
 void WorkerProto::Serialise<ValidPathInfo>::write(const StoreDirConfig& store, WriteConn conn,
-                                                  const ValidPathInfo& pathInfo) {
-  WorkerProto::write(store, conn, pathInfo.path);
-  WorkerProto::write(store, conn, static_cast<const UnkeyedValidPathInfo&>(pathInfo));
+                                                  const ValidPathInfo& path_info) {
+  WorkerProto::write(store, conn, path_info.path);
+  WorkerProto::write(store, conn, static_cast<const UnkeyedValidPathInfo&>(path_info));
 }
 
 UnkeyedValidPathInfo WorkerProto::Serialise<UnkeyedValidPathInfo>::read(const StoreDirConfig& store,
                                                                         ReadConn conn) {
   auto deriver = WorkerProto::Serialise<std::optional<StorePath>>::read(store, conn);
-  auto narHash = Hash::parseAny(readString(conn.from), hash_algorithm_t::SHA256);
-  UnkeyedValidPathInfo info(store, narHash);
+  auto nar_hash = Hash::parse_any(read_string(conn.from), hash_algorithm_t::SHA256);
+  UnkeyedValidPathInfo info(store, nar_hash);
   info.deriver = std::move(deriver);
   info.references = WorkerProto::Serialise<StorePathSet>::read(store, conn);
-  conn.from >> info.registrationTime >> info.narSize;
+  conn.from >> info.registrationTime >> info.nar_size;
   if (GET_PROTOCOL_MINOR(conn.version) >= 16) {
     conn.from >> info.ultimate;
-    info.sigs = readStrings<string_set_t>(conn.from);
-    info.ca = ContentAddress::parseOpt(readString(conn.from));
+    info.sigs = read_strings<string_set_t>(conn.from);
+    info.ca = ContentAddress::parseOpt(read_string(conn.from));
   }
   return info;
 }
 
 void WorkerProto::Serialise<UnkeyedValidPathInfo>::write(const StoreDirConfig& store,
                                                          WriteConn conn,
-                                                         const UnkeyedValidPathInfo& pathInfo) {
-  WorkerProto::write(store, conn, pathInfo.deriver);
-  conn.to << pathInfo.narHash.to_string(hash_format_t::Base16, false);
-  WorkerProto::write(store, conn, pathInfo.references);
-  conn.to << pathInfo.registrationTime << pathInfo.narSize;
+                                                         const UnkeyedValidPathInfo& path_info) {
+  WorkerProto::write(store, conn, path_info.deriver);
+  conn.to << path_info.nar_hash.to_string(hash_format_t::base16, false);
+  WorkerProto::write(store, conn, path_info.references);
+  conn.to << path_info.registrationTime << path_info.nar_size;
   if (GET_PROTOCOL_MINOR(conn.version) >= 16) {
-    conn.to << pathInfo.ultimate << pathInfo.sigs << renderContentAddress(pathInfo.ca);
+    conn.to << path_info.ultimate << path_info.sigs << render_content_address(path_info.ca);
   }
 }
 
@@ -324,7 +324,7 @@ WorkerProto::Serialise<WorkerProto::ClientHandshakeInfo>::read(const StoreDirCon
   WorkerProto::ClientHandshakeInfo res;
 
   if (GET_PROTOCOL_MINOR(conn.version) >= 33) {
-    res.daemonNixVersion = readString(conn.from);
+    res.daemonNixVersion = read_string(conn.from);
   }
 
   if (GET_PROTOCOL_MINOR(conn.version) >= 35) {

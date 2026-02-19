@@ -2,66 +2,66 @@
 
 namespace nix::flag {
 
-static void hashFormatCompleter(add_completions_t& completions, size_t index,
+static void hash_format_completer(add_completions_t& completions, size_t index,
                                 std::string_view prefix) {
-  for (auto& format : hashFormats) {
-    if (hasPrefix(format, prefix)) {
+  for (auto& format : hash_formats) {
+    if (has_prefix(format, prefix)) {
       completions.add(format);
     }
   }
 }
 
-Args::flag_t hashFormatWithDefault(std::string&& longName, hash_format_t* hf) {
+Args::flag_t hash_format_with_default(std::string&& long_name, hash_format_t* hf) {
   assert(*hf == nix::hash_format_t::SRI);
   return Args::flag_t{
-      .longName = std::move(longName),
+      .long_name = std::move(long_name),
       .description = "Hash format (`base16`, `nix32`, `base64`, `sri`). Default: `sri`.",
       .labels = {"hash-format"},
-      .handler = {[hf](std::string s) { *hf = parseHashFormat(s); }},
-      .completer = hashFormatCompleter,
+      .handler = {[hf](std::string s) { *hf = parse_hash_format(s); }},
+      .completer = hash_format_completer,
   };
 }
 
-Args::flag_t hashFormatOpt(std::string&& longName, std::optional<hash_format_t>* ohf) {
+Args::flag_t hash_format_opt(std::string&& long_name, std::optional<hash_format_t>* ohf) {
   return Args::flag_t{
-      .longName = std::move(longName),
+      .long_name = std::move(long_name),
       .description = "Hash format (`base16`, `nix32`, `base64`, `sri`).",
       .labels = {"hash-format"},
-      .handler = {[ohf](std::string s) { *ohf = std::optional<hash_format_t>{parseHashFormat(s)}; }},
-      .completer = hashFormatCompleter,
+      .handler = {[ohf](std::string s) { *ohf = std::optional<hash_format_t>{parse_hash_format(s)}; }},
+      .completer = hash_format_completer,
   };
 }
 
-static void hashAlgoCompleter(add_completions_t& completions, size_t index, std::string_view prefix) {
-  for (auto& algo : hashAlgorithms)
-    if (hasPrefix(algo, prefix))
+static void hash_algo_completer(add_completions_t& completions, size_t index, std::string_view prefix) {
+  for (auto& algo : hash_algorithms)
+    if (has_prefix(algo, prefix))
       completions.add(algo);
 }
 
-Args::flag_t hashAlgo(std::string&& longName, hash_algorithm_t* ha) {
+Args::flag_t hash_algo(std::string&& long_name, hash_algorithm_t* ha) {
   return Args::flag_t{
-      .longName = std::move(longName),
+      .long_name = std::move(long_name),
       .description = "Hash algorithm (`blake3`, `md5`, `sha1`, `sha256`, or `sha512`).",
       .labels = {"hash-algo"},
-      .handler = {[ha](std::string s) { *ha = parseHashAlgo(s); }},
-      .completer = hashAlgoCompleter,
+      .handler = {[ha](std::string s) { *ha = parse_hash_algo(s); }},
+      .completer = hash_algo_completer,
   };
 }
 
-Args::flag_t hashAlgoOpt(std::string&& longName, std::optional<hash_algorithm_t>* oha) {
+Args::flag_t hash_algo_opt(std::string&& long_name, std::optional<hash_algorithm_t>* oha) {
   return Args::flag_t{
-      .longName = std::move(longName),
+      .long_name = std::move(long_name),
       .description = "Hash algorithm (`blake3`, `md5`, `sha1`, `sha256`, or `sha512`). Can be "
                      "omitted for SRI hashes.",
       .labels = {"hash-algo"},
-      .handler = {[oha](std::string s) { *oha = std::optional<hash_algorithm_t>{parseHashAlgo(s)}; }},
-      .completer = hashAlgoCompleter,
+      .handler = {[oha](std::string s) { *oha = std::optional<hash_algorithm_t>{parse_hash_algo(s)}; }},
+      .completer = hash_algo_completer,
   };
 }
 
-Args::flag_t fileIngestionMethod(file_ingestion_method_t* method) {
+Args::flag_t file_ingestion_method(file_ingestion_method_t* method) {
   return Args::flag_t{
-      .longName = "mode",
+      .long_name = "mode",
       // FIXME indentation carefully made for context, this is messed up.
       .description = R"(
     How to compute the hash of the input.
@@ -78,13 +78,13 @@ Args::flag_t fileIngestionMethod(file_ingestion_method_t* method) {
       it to the hash function.
         )",
       .labels = {"file-ingestion-method"},
-      .handler = {[method](std::string s) { *method = parseFileIngestionMethod(s); }},
+      .handler = {[method](std::string s) { *method = parse_file_ingestion_method(s); }},
   };
 }
 
-Args::flag_t contentAddressMethod(ContentAddressMethod* method) {
+Args::flag_t content_address_method(ContentAddressMethod* method) {
   return Args::flag_t{
-      .longName = "mode",
+      .long_name = "mode",
       // FIXME indentation carefully made for context, this is messed up.
       .description = R"(
     How to compute the content-address of the store object.

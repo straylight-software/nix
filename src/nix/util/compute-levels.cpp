@@ -11,7 +11,7 @@ namespace nix {
 
 #if HAVE_LIBCPUID
 
-string_set_t computeLevels() {
+string_set_t compute_levels() {
   string_set_t levels;
   struct cpu_id_t data;
 
@@ -34,7 +34,7 @@ string_set_t computeLevels() {
 
 #else
 
-string_set_t computeLevels() {
+string_set_t compute_levels() {
   return string_set_t{};
 }
 

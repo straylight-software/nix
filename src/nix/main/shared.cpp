@@ -31,23 +31,23 @@
 
 namespace nix {
 
-char** savedArgv;
+char** saved_argv;
 
-static bool gcWarning = true;
+static bool gc_warning = true;
 
-void printGCWarning() {
-  if (!gcWarning)
+void print_gc_warning() {
+  if (!gc_warning)
     return;
-  static bool haveWarned = false;
-  warnOnce(haveWarned, "you did not specify '--add-root'; "
+  static bool have_warned = false;
+  warnOnce(have_warned, "you did not specify '--add-root'; "
                        "the result might be removed by the garbage collector");
 }
 
-void printMissing(ref<Store> store, const std::vector<DerivedPath>& paths, verbosity_t lvl) {
-  printMissing(store, store->queryMissing(paths), lvl);
+void print_missing(ref<Store> store, const std::vector<DerivedPath>& paths, verbosity_t lvl) {
+  print_missing(store, store->query_missing(paths), lvl);
 }
 
-void printMissing(ref<Store> store, const MissingPaths& missing, verbosity_t lvl) {
+void print_missing(ref<Store> store, const MissingPaths& missing, verbosity_t lvl) {
   if (!missing.willBuild.empty()) {
     if (missing.willBuild.size() == 1)
       printMsg(lvl, "this derivation will be built:");
@@ -62,11 +62,11 @@ void printMissing(ref<Store> store, const MissingPaths& missing, verbosity_t lvl
   if (!missing.willSubstitute.empty()) {
     if (missing.willSubstitute.size() == 1) {
       printMsg(lvl, "this path will be fetched (%s download, %s unpacked):",
-               renderSize(missing.downloadSize), renderSize(missing.narSize));
+               render_size(missing.downloadSize), render_size(missing.nar_size));
     } else {
       printMsg(lvl, "these %d paths will be fetched (%s download, %s unpacked):",
-               missing.willSubstitute.size(), renderSize(missing.downloadSize),
-               renderSize(missing.narSize));
+               missing.willSubstitute.size(), render_size(missing.downloadSize),
+               render_size(missing.nar_size));
     }
     std::vector<const StorePath*> willSubstituteSorted = {};
     std::for_each(missing.willSubstitute.begin(), missing.willSubstitute.end(),
@@ -90,7 +90,7 @@ void printMissing(ref<Store> store, const MissingPaths& missing, verbosity_t lvl
   }
 }
 
-std::string getArg(const std::string& opt, strings_t::iterator& i, const strings_t::iterator& end) {
+std::string get_arg(const std::string& opt, strings_t::iterator& i, const strings_t::iterator& end) {
   ++i;
   if (i == end)
     throw UsageError("'%1%' requires an argument", opt);
@@ -98,20 +98,20 @@ std::string getArg(const std::string& opt, strings_t::iterator& i, const strings
 }
 
 #ifndef _WIN32
-static void sigHandler(int signo) {}
+static void sig_handler(int signo) {}
 #endif
 
-void initNix(bool loadConfig) {
+void init_nix(bool load_config) {
   /* Turn on buffering for cerr. */
 #if HAVE_PUBSETBUF
   static char buf[1024];
   std::cerr.rdbuf()->pubsetbuf(buf, sizeof(buf));
 #endif
 
-  initLibStore(loadConfig);
+  init_lib_store(load_config);
 
 #ifndef _WIN32
-  unix::startSignalHandlerThread();
+  unix::start_signal_handler_thread();
 
   /* Reset SIGCHLD to its default. */
   struct sigaction act;
@@ -123,16 +123,16 @@ void initNix(bool loadConfig) {
     throw sys_error_t("resetting SIGCHLD");
 
   /* Install a dummy SIGUSR1 handler for use with pthread_kill(). */
-  act.sa_handler = sigHandler;
+  act.sa_handler = sig_handler;
   if (sigaction(SIGUSR1, &act, 0))
     throw sys_error_t("handling SIGUSR1");
 #endif
 
 #ifdef __APPLE__
   /* HACK: on darwin, we need can’t use sigprocmask with SIGWINCH.
-   * Instead, add a dummy sigaction handler, and signalHandlerThread
+   * Instead, add a dummy sigaction handler, and signal_handler_thread
    * can handle the rest. */
-  act.sa_handler = sigHandler;
+  act.sa_handler = sig_handler;
   if (sigaction(SIGWINCH, &act, 0))
     throw sys_error_t("handling SIGWINCH");
 
@@ -157,7 +157,7 @@ void initNix(bool loadConfig) {
 
 #ifndef _WIN32
   /* Register a SIGSEGV handler to detect stack overflows.
-     Why not initLibExpr()? initGC() is essentially that, but
+     Why not initLibExpr()? init_gc() is essentially that, but
      detectStackOverflow is not an instance of the init function concept, as
      it may have to be invoked more than once per process. */
   detectStackOverflow();
@@ -170,45 +170,45 @@ void initNix(bool loadConfig) {
 }
 
 LegacyArgs::LegacyArgs(
-    const std::string& programName,
-    std::function<bool(strings_t::iterator& arg, const strings_t::iterator& end)> parseArg)
-    : MixCommonArgs(programName), parseArg(parseArg) {
-  addFlag({
-      .longName = "no-build-output",
-      .shortName = 'Q',
+    const std::string& program_name,
+    std::function<bool(strings_t::iterator& arg, const strings_t::iterator& end)> parse_arg)
+    : MixCommonArgs(program_name), parse_arg(parse_arg) {
+  add_flag({
+      .long_name = "no-build-output",
+      .short_name = 'Q',
       .description = "Do not show build output.",
-      .handler = {[&]() { setLogFormat(LogFormat::raw); }},
+      .handler = {[&]() { set_log_format(LogFormat::raw); }},
   });
 
-  addFlag({
-      .longName = "keep-failed",
-      .shortName = 'K',
+  add_flag({
+      .long_name = "keep-failed",
+      .short_name = 'K',
       .description = "Keep temporary directories of failed builds.",
-      .handler = {&(bool&)settings.keepFailed, true},
+      .handler = {&(bool&)settings.keep_failed, true},
   });
 
-  addFlag({
-      .longName = "keep-going",
-      .shortName = 'k',
+  add_flag({
+      .long_name = "keep-going",
+      .short_name = 'k',
       .description = "Keep going after a build fails.",
-      .handler = {&(bool&)settings.keepGoing, true},
+      .handler = {&(bool&)settings.keep_going, true},
   });
 
-  addFlag({
-      .longName = "fallback",
+  add_flag({
+      .long_name = "fallback",
       .description = "Build from source if substitution fails.",
-      .handler = {&(bool&)settings.tryFallback, true},
+      .handler = {&(bool&)settings.try_fallback, true},
   });
 
-  auto intSettingAlias = [&](char shortName, const std::string& longName,
+  auto intSettingAlias = [&](char short_name, const std::string& long_name,
                              const std::string& description, const std::string& dest) {
-    addFlag({
-        .longName = longName,
-        .shortName = shortName,
+    add_flag({
+        .long_name = long_name,
+        .short_name = short_name,
         .description = description,
         .labels = {"n"},
         .handler = {[=](std::string s) {
-          auto n = string2IntWithUnitPrefix<uint64_t>(s);
+          auto n = string2_int_with_unit_prefix<uint64_t>(s);
           settings.set(dest, std::to_string(n));
         }},
     });
@@ -219,65 +219,65 @@ LegacyArgs::LegacyArgs(
                   "max-silent-time");
   intSettingAlias(0, "timeout", "Number of seconds before a build is killed.", "timeout");
 
-  addFlag({
-      .longName = "readonly-mode",
+  add_flag({
+      .long_name = "readonly-mode",
       .description = "Do not write to the Nix store.",
       .handler = {&settings.readOnlyMode, true},
   });
 
-  addFlag({
-      .longName = "no-gc-warning",
+  add_flag({
+      .long_name = "no-gc-warning",
       .description = "Disable warnings about not using `--add-root`.",
-      .handler = {&gcWarning, false},
+      .handler = {&gc_warning, false},
   });
 
-  addFlag({
-      .longName = "store",
+  add_flag({
+      .long_name = "store",
       .description = "The URL of the Nix store to use.",
       .labels = {"store-uri"},
       .handler = {&(std::string&)settings.storeUri},
   });
 }
 
-bool LegacyArgs::processFlag(strings_t::iterator& pos, strings_t::iterator end) {
-  if (MixCommonArgs::processFlag(pos, end))
+bool LegacyArgs::process_flag(strings_t::iterator& pos, strings_t::iterator end) {
+  if (MixCommonArgs::process_flag(pos, end))
     return true;
-  bool res = parseArg(pos, end);
+  bool res = parse_arg(pos, end);
   if (res)
     ++pos;
   return res;
 }
 
-bool LegacyArgs::processArgs(const strings_t& args, bool finish) {
+bool LegacyArgs::process_args(const strings_t& args, bool finish) {
   if (args.empty())
     return true;
   assert(args.size() == 1);
   strings_t ss(args);
   auto pos = ss.begin();
-  if (!parseArg(pos, ss.end()))
+  if (!parse_arg(pos, ss.end()))
     throw UsageError("unexpected argument '%1%'", args.front());
   return true;
 }
 
-void parseCmdLine(
+void parse_cmd_line(
     int argc, char** argv,
-    std::function<bool(strings_t::iterator& arg, const strings_t::iterator& end)> parseArg) {
-  parseCmdLine(std::string(baseNameOf(argv[0])), argvToStrings(argc, argv), parseArg);
+    std::function<bool(strings_t::iterator& arg, const strings_t::iterator& end)> parse_arg) {
+  parse_cmd_line(std::string(base_name_of(argv[0])), argv_to_strings(argc, argv), parse_arg);
 }
 
-void parseCmdLine(
-    const std::string& programName, const strings_t& args,
-    std::function<bool(strings_t::iterator& arg, const strings_t::iterator& end)> parseArg) {
-  LegacyArgs(programName, parseArg).parseCmdline(args);
+void parse_cmd_line(
+    const std::string& program_name, const strings_t& args,
+    std::function<bool(strings_t::iterator& arg, const strings_t::iterator& end)> parse_arg) {
+  LegacyArgs(program_name, parse_arg).parse_cmdline(args);
 }
 
 std::string version() {
-  return fmt("(Determinate Nix %s) %s", determinateNixVersion, nixVersion);
+  return fmt("(Determinate Nix %s) %s", determinate_nix_version, nix_version);
 }
 
-void printVersion(const std::string& programName) {
-  std::cout << fmt("%s %s", programName, version()) << std::endl;
-  if (verbosity > lvlInfo) {
+void print_version(const std::string& program_name) {
+  std::cout << fmt("%s %s", program_name, version()) << std::endl;
+  if (verbosity > lvl_info) {
     strings_t cfg;
 #if NIX_USE_BOEHMGC
     cfg.push_back("gc");
@@ -285,10 +285,10 @@ void printVersion(const std::string& programName) {
     cfg.push_back("signed-caches");
     std::cout << "System type: " << settings.thisSystem << "\n";
     std::cout << "Additional system types: "
-              << concatStringsSep(", ", settings.extraPlatforms.get()) << "\n";
-    std::cout << "Features: " << concatStringsSep(", ", cfg) << "\n";
+              << concat_strings_sep(", ", settings.extraPlatforms.get()) << "\n";
+    std::cout << "Features: " << concat_strings_sep(", ", cfg) << "\n";
     std::cout << "System configuration file: " << (settings.nixConfDir / "nix.conf") << "\n";
-    std::cout << "User configuration files: " << concatStringsSep(":", settings.nixUserConfFiles)
+    std::cout << "User configuration files: " << concat_strings_sep(":", settings.nixUserConfFiles)
               << "\n";
     std::cout << "Store directory: " << settings.nixStore << "\n";
     std::cout << "State directory: " << settings.nixStateDir << "\n";
@@ -297,10 +297,10 @@ void printVersion(const std::string& programName) {
   throw exit_t();
 }
 
-int handleExceptions(const std::string& programName, std::function<void()> fun) {
-  receive_interrupts_t receiveInterrupts; // FIXME: need better place for this
+int handle_exceptions(const std::string& program_name, std::function<void()> fun) {
+  receive_interrupts_t receive_interrupts; // FIXME: need better place for this
 
-  error_info_t::programName = baseNameOf(programName);
+  error_info_t::program_name = base_name_of(program_name);
 
   std::string error = ANSI_RED "error:" ANSI_NORMAL " ";
   try {
@@ -309,7 +309,7 @@ int handleExceptions(const std::string& programName, std::function<void()> fun) 
     return e.status;
   } catch (UsageError& e) {
     logError(e.info());
-    printError("\nTry '%1% --help' for more information.", programName);
+    printError("\nTry '%1% --help' for more information.", program_name);
     return 1;
   } catch (base_error_t& e) {
     logError(e.info());
@@ -342,12 +342,12 @@ RunPager::RunPager() {
 #ifdef _WIN32 // TODO re-enable on Windows, once we can start processes.
   throw Error("Commit signature verification not implemented on Windows yet");
 #else
-  pid = startProcess([&]() {
-    if (dup2(toPager.readSide.get(), STDIN_FILENO) == -1)
+  pid = start_process([&]() {
+    if (dup2(toPager.read_side.get(), STDIN_FILENO) == -1)
       throw sys_error_t("dupping stdin");
     if (!getenv("LESS"))
-      setEnv("LESS", "FRSXMK");
-    restoreProcessContext();
+      set_env("LESS", "FRSXMK");
+    restore_process_context();
     if (pager)
       execl("/bin/sh", "sh", "-c", pager, nullptr);
     execlp("pager", "pager", nullptr);
@@ -356,9 +356,9 @@ RunPager::RunPager() {
     throw sys_error_t("executing '%1%'", pager);
   });
 
-  pid.setKillSignal(SIGINT);
+  pid.set_kill_signal(SIGINT);
   std_out = fcntl(STDOUT_FILENO, F_DUPFD_CLOEXEC, 0);
-  if (dup2(toPager.writeSide.get(), STDOUT_FILENO) == -1)
+  if (dup2(toPager.write_side.get(), STDOUT_FILENO) == -1)
     throw sys_error_t("dupping standard output");
 #endif
 }
@@ -373,14 +373,14 @@ RunPager::~RunPager() {
     }
 #endif
   } catch (...) {
-    ignoreExceptionInDestructor();
+    ignore_exception_in_destructor();
   }
 }
 
 PrintFreed::~PrintFreed() {
   if (show)
     std::cout << fmt("%d store paths deleted, %s freed\n", results.paths.size(),
-                     renderSize(results.bytesFreed));
+                     render_size(results.bytes_freed));
 }
 
 } // namespace nix

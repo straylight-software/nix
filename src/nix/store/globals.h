@@ -34,13 +34,13 @@ struct base_setting_t<PathsInChroot>::trait {
 };
 
 template <>
-void base_setting_t<PathsInChroot>::appendOrSet(PathsInChroot newValue, bool append);
+void base_setting_t<PathsInChroot>::append_or_set(PathsInChroot new_value, bool append);
 
 struct MaxBuildJobsSetting : public base_setting_t<unsigned int> {
-  MaxBuildJobsSetting(Config* options, unsigned int def, const std::string& name,
+  MaxBuildJobsSetting(config_t* options, unsigned int def, const std::string& name,
                       const std::string& description, const string_set_t& aliases = {})
       : base_setting_t<unsigned int>(def, true, name, description, aliases) {
-    options->addSetting(this);
+    options->add_setting(this);
   }
 
   unsigned int parse(const std::string& str) const override;
@@ -54,7 +54,7 @@ const uint32_t maxIdsPerBuild =
 #endif
     ;
 
-class settings_t : public Config {
+class settings_t : public config_t {
   string_set_t getDefaultSystemFeatures();
 
   string_set_t getDefaultExtraPlatforms();
@@ -102,7 +102,7 @@ public:
    */
   Path nixDaemonSocketFile;
 
-  setting_t<std::string> storeUri{this, getEnv("NIX_REMOTE").value_or("auto"), "store",
+  setting_t<std::string> storeUri{this, get_env("NIX_REMOTE").value_or("auto"), "store",
                                 R"(
           The [URL of the Nix store](@docroot@/store/types/index.md#store-url-format)
           to use for most operations.
@@ -111,13 +111,13 @@ public:
           section of the manual for supported store types and settings.
         )"};
 
-  setting_t<bool> keepFailed{this, false, "keep-failed",
+  setting_t<bool> keep_failed{this, false, "keep-failed",
                            "Whether to keep temporary directories of failed builds."};
 
-  setting_t<bool> keepGoing{this, false, "keep-going",
+  setting_t<bool> keep_going{this, false, "keep-going",
                           "Whether to keep building derivations when another build fails."};
 
-  setting_t<bool> tryFallback{this,
+  setting_t<bool> try_fallback{this,
                             false,
                             "fallback",
                             R"(
@@ -130,20 +130,20 @@ public:
   /**
    * Whether to show build log output in real time.
    */
-  bool verboseBuild = true;
+  bool verbose_build = true;
 
   setting_t<size_t> logLines{this, 25, "log-lines",
                            "The number of lines of the tail of "
                            "the log to show if a build fails."};
 
-  MaxBuildJobsSetting maxBuildJobs{this,
+  MaxBuildJobsSetting max_build_jobs{this,
                                    1,
                                    "max-jobs",
                                    R"(
           Maximum number of jobs that Nix tries to build locally in parallel.
 
           The special value `auto` causes Nix to use the number of CPUs in your system.
-          Use `0` to disable local builds and directly use the remote machines specified in [`builders`](#conf-builders).
+          use `0` to disable local builds and directly use the remote machines specified in [`builders`](#conf-builders).
           This doesn't affect derivations that have [`preferLocalBuild = true`](@docroot@/language/advanced-attributes.md#adv-attr-preferLocalBuild), which are always built locally.
 
           > **Note**
@@ -165,7 +165,7 @@ public:
         )",
                                             {"substitution-max-jobs"}};
 
-  setting_t<unsigned int> buildCores{this,
+  setting_t<unsigned int> build_cores{this,
                                    0,
                                    "cores",
                                    R"(
@@ -215,7 +215,7 @@ public:
           configuration option is set as the empty string.
         )"};
 
-  setting_t<time_t> maxSilentTime{this,
+  setting_t<time_t> max_silent_time{this,
                                 0,
                                 "max-silent-time",
                                 R"(
@@ -422,7 +422,7 @@ public:
       "Whether to call `sync()` before registering a path as valid."};
 #endif
 
-  setting_t<bool> useSubstitutes{this,
+  setting_t<bool> use_substitutes{this,
                                true,
                                "substitute",
                                R"(
@@ -478,7 +478,7 @@ public:
         )",
                                  {},
                                  true,
-                                 xp_t::AutoAllocateUids};
+                                 xp_t::auto_allocate_uids};
 
   setting_t<uint32_t> startId{this,
 #ifdef __linux__
@@ -503,7 +503,7 @@ public:
           Whether to execute builds inside cgroups.
           This is only supported on Linux.
 
-          Cgroups are required and enabled automatically for derivations
+          cgroups are required and enabled automatically for derivations
           that require the `uid-range` system feature.
         )"};
 #endif
@@ -672,7 +672,7 @@ public:
                                 "Whether to disable sandboxing when the kernel doesn't allow it."};
 
 #ifndef _WIN32
-  setting_t<bool> requireDropSupplementaryGroups{this, isRootUser(),
+  setting_t<bool> requireDropSupplementaryGroups{this, is_root_user(),
                                                "require-drop-supplementary-groups",
                                                R"(
           Following the principle of least privilege,
@@ -715,7 +715,7 @@ public:
         )"};
 #endif
 
-  setting_t<std::optional<Path>> buildDir{this, std::nullopt, "build-dir",
+  setting_t<std::optional<Path>> build_dir{this, std::nullopt, "build-dir",
                                         R"(
             Override the `build-dir` store setting for all stores that have this setting.
 
@@ -743,7 +743,7 @@ public:
           line.
         )"};
 
-  optional_path_setting_t diffHook{this, std::nullopt, "diff-hook",
+  optional_path_setting_t diff_hook{this, std::nullopt, "diff-hook",
                                R"(
           Absolute path to an executable capable of diffing build
           results. The hook is executed if `run-diff-hook` is true, and the
@@ -960,7 +960,7 @@ public:
           mismatch if the build isn't reproducible.
         )"};
 
-  setting_t<bool> printMissing{this, true, "print-missing",
+  setting_t<bool> print_missing{this, true, "print-missing",
                              "Whether to print what paths need to be built or downloaded."};
 
   setting_t<std::string> preBuildHook{this, "", "pre-build-hook",
@@ -1055,7 +1055,7 @@ public:
           > `.netrc`.
         )"};
 
-  setting_t<Path> caFile{this,
+  setting_t<Path> ca_file{this,
                        getDefaultSSLCertFile(),
                        "ssl-cert-file",
                        R"(
@@ -1201,7 +1201,7 @@ public:
           ```
         )"};
 
-  setting_t<string_map_t> impureEnv{this,
+  setting_t<string_map_t> impure_env{this,
                                {},
                                "impure-env",
                                R"(
@@ -1219,11 +1219,11 @@ public:
         )",
                                {},   // aliases
                                true, // document default
-                               xp_t::ConfigurableImpureEnv};
+                               xp_t::configurable_impure_env};
 
   setting_t<std::string> upgradeNixStorePathUrl{this, "", "upgrade-nix-store-path-url",
                                               R"(
-          Deprecated. This option was used to configure how `nix upgrade-nix` operated.
+          deprecated. This option was used to configure how `nix upgrade-nix` operated.
 
           Using this setting has no effect. It will be removed in a future release of Determinate Nix.
         )"};
@@ -1236,9 +1236,9 @@ public:
           Set it to 1 to warn on all paths.
         )"};
 
-  using ExternalBuilders = std::vector<ExternalBuilder>;
+  using external_builders = std::vector<ExternalBuilder>;
 
-  setting_t<ExternalBuilders> externalBuilders{
+  setting_t<external_builders> externalBuilders{
       this, {}, "external-builders",
       R"(
           Helper programs that execute derivations.
@@ -1313,12 +1313,12 @@ extern settings_t settings;
  * Load the configuration (from `nix.conf`, `NIX_CONFIG`, etc.) into the
  * given configuration object.
  *
- * Usually called with `globalConfig`.
+ * Usually called with `global_config`.
  */
-void loadConfFile(abstract_config_t& config);
+void load_conf_file(abstract_config_t& config);
 
 // Used by the Settings constructor
-std::vector<Path> getUserConfigFiles();
+std::vector<Path> get_user_config_files();
 
 /**
  * The version of Nix itself.
@@ -1328,22 +1328,22 @@ std::vector<Path> getUserConfigFiles();
  * set of Nix libraries to include that version, even when those libraries are
  * not affected by the change.
  */
-extern std::string nixVersion;
+extern std::string nix_version;
 
-extern const std::string determinateNixVersion;
+extern const std::string determinate_nix_version;
 
 /**
- * @param loadConfig Whether to load configuration from `nix.conf`, `NIX_CONFIG`, etc. May be
+ * @param load_config Whether to load configuration from `nix.conf`, `NIX_CONFIG`, etc. May be
  * disabled for unit tests.
- * @note When using libexpr, and/or libmain, This is not sufficient. See initNix().
+ * @note When using libexpr, and/or libmain, This is not sufficient. See init_nix().
  */
-void initLibStore(bool loadConfig = true);
+void init_lib_store(bool load_config = true);
 
 /**
  * It's important to initialize before doing _anything_, which is why we
  * call upon the programmer to handle this correctly. However, we only add
  * this in a key locations, so as not to litter the code.
  */
-void assertLibStoreInitialized();
+void assert_lib_store_initialized();
 
 } // namespace nix

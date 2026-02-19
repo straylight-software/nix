@@ -8,7 +8,7 @@
 
 namespace nix {
 
-int levenshteinDistance(std::string_view first, std::string_view second) {
+int levenshtein_distance(std::string_view first, std::string_view second) {
   // Implementation borrowed from
   // https://en.wikipedia.org/wiki/Levenshtein_distance#Iterative_with_two_matrix_rows
 
@@ -25,10 +25,10 @@ int levenshteinDistance(std::string_view first, std::string_view second) {
     v1[0] = i + 1;
 
     for (auto j = 0; j < n; j++) {
-      auto deletionCost = v0[j + 1] + 1;
-      auto insertionCost = v1[j] + 1;
-      auto substitutionCost = first[i] == second[j] ? v0[j] : v0[j] + 1;
-      v1[j + 1] = std::min({deletionCost, insertionCost, substitutionCost});
+      auto deletion_cost = v0[j + 1] + 1;
+      auto insertion_cost = v1[j] + 1;
+      auto substitution_cost = first[i] == second[j] ? v0[j] : v0[j] + 1;
+      v1[j + 1] = std::min({deletion_cost, insertion_cost, substitution_cost});
     }
 
     std::swap(v0, v1);
@@ -37,24 +37,24 @@ int levenshteinDistance(std::string_view first, std::string_view second) {
   return v0[n];
 }
 
-suggestions_t suggestions_t::bestMatches(const string_set_t& allMatches, std::string_view query) {
+suggestions_t suggestions_t::best_matches(const string_set_t& all_matches, std::string_view query) {
   std::set<suggestion_t> res;
-  for (const auto& possibleMatch : allMatches) {
+  for (const auto& possible_match : all_matches) {
     res.insert(suggestion_t{
-        .distance = levenshteinDistance(query, possibleMatch),
-        .suggestion = possibleMatch,
+        .distance = levenshtein_distance(query, possible_match),
+        .suggestion = possible_match,
     });
   }
   return suggestions_t{res};
 }
 
-suggestions_t suggestions_t::trim(int limit, int maxDistance) const {
+suggestions_t suggestions_t::trim(int limit, int max_distance) const {
   std::set<suggestion_t> res;
 
   int count = 0;
 
   for (auto& elt : suggestions) {
-    if (count >= limit || elt.distance > maxDistance)
+    if (count >= limit || elt.distance > max_distance)
       break;
     count++;
     res.insert(elt);
@@ -64,7 +64,7 @@ suggestions_t suggestions_t::trim(int limit, int maxDistance) const {
 }
 
 std::string suggestion_t::to_string() const {
-  return ANSI_WARNING + filterANSIEscapes(suggestion) + ANSI_NORMAL;
+  return ANSI_WARNING + filter_ansi_escapes(suggestion) + ANSI_NORMAL;
 }
 
 std::string suggestions_t::to_string() const {

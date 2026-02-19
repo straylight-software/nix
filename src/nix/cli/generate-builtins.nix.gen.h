@@ -1,6 +1,6 @@
 R"__NIX_STR(
 let
-  inherit (builtins) concatStringsSep attrValues mapAttrs;
+  inherit (builtins) concat_strings_sep attrValues mapAttrs;
   inherit (import <nix/utils.nix>) optionalString squash;
 in
 
@@ -49,7 +49,7 @@ let
       ${impureNotice}
       </dd>
     '';
-  listArgs = args: concatStringsSep "" (map (s: " <var>${s}</var>") args);
+  listArgs = args: concat_strings_sep "" (map (s: " <var>${s}</var>") args);
 in
-concatStringsSep "\n" (attrValues (mapAttrs showBuiltin builtinsInfo))
+concat_strings_sep "\n" (attrValues (mapAttrs showBuiltin builtinsInfo))
 )__NIX_STR"

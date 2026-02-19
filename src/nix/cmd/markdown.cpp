@@ -18,12 +18,12 @@ extern "C" {
 namespace nix {
 
 #if HAVE_LOWDOWN
-static std::string doRenderMarkdownToTerminal(std::string_view markdown) {
-  int windowWidth = getWindowSize().second;
+static std::string do_render_markdown_to_terminal(std::string_view markdown) {
+  int window_width = get_window_size().second;
 
 #  if HAVE_LOWDOWN_1_4
   struct lowdown_opts_term opts_term{
-      .cols = (size_t)std::max(windowWidth - 5, 60),
+      .cols = (size_t)std::max(window_width - 5, 60),
       .hmargin = 0,
       .vmargin = 0,
   };
@@ -35,7 +35,7 @@ static std::string doRenderMarkdownToTerminal(std::string_view markdown) {
 #  endif
       .maxdepth = 20,
 #  if !HAVE_LOWDOWN_1_4
-      .cols = (size_t)std::max(windowWidth - 5, 60),
+      .cols = (size_t)std::max(window_width - 5, 60),
       .hmargin = 0,
       .vmargin = 0,
 #  endif
@@ -48,29 +48,29 @@ static std::string doRenderMarkdownToTerminal(std::string_view markdown) {
 #  endif
   };
 
-  if (!isTTY())
+  if (!is_tty())
     opts.oflags |= LOWDOWN_TERM_NOANSI;
 
   auto doc = lowdown_doc_new(&opts);
   if (!doc)
     throw Error("cannot allocate Markdown document");
-  finally_t freeDoc([&]() { lowdown_doc_free(doc); });
+  finally_t free_doc([&]() { lowdown_doc_free(doc); });
 
   size_t maxn = 0;
   auto node = lowdown_doc_parse(doc, &maxn, markdown.data(), markdown.size(), nullptr);
   if (!node)
     throw Error("cannot parse Markdown document");
-  finally_t freeNode([&]() { lowdown_node_free(node); });
+  finally_t free_node([&]() { lowdown_node_free(node); });
 
   auto renderer = lowdown_term_new(&opts);
   if (!renderer)
     throw Error("cannot allocate Markdown renderer");
-  finally_t freeRenderer([&]() { lowdown_term_free(renderer); });
+  finally_t free_renderer([&]() { lowdown_term_free(renderer); });
 
   auto buf = lowdown_buf_new(16384);
   if (!buf)
     throw Error("cannot allocate Markdown output buffer");
-  finally_t freeBuffer([&]() { lowdown_buf_free(buf); });
+  finally_t free_buffer([&]() { lowdown_buf_free(buf); });
 
   int rndr_res = lowdown_term_rndr(buf, renderer, node);
   if (!rndr_res)
@@ -79,15 +79,15 @@ static std::string doRenderMarkdownToTerminal(std::string_view markdown) {
   return std::string(buf->data, buf->size);
 }
 
-std::string renderMarkdownToTerminal(std::string_view markdown) {
-  if (auto e = getEnv("_NIX_TEST_RAW_MARKDOWN"); e && *e == "1")
+std::string render_markdown_to_terminal(std::string_view markdown) {
+  if (auto e = get_env("_NIX_TEST_RAW_MARKDOWN"); e && *e == "1")
     return std::string(markdown);
   else
-    return doRenderMarkdownToTerminal(markdown);
+    return do_render_markdown_to_terminal(markdown);
 }
 
 #else
-std::string renderMarkdownToTerminal(std::string_view markdown) {
+std::string render_markdown_to_terminal(std::string_view markdown) {
   return std::string(markdown);
 }
 #endif

@@ -12,7 +12,7 @@ namespace nix {
 LocalBinaryCacheStoreConfig::LocalBinaryCacheStoreConfig(std::string_view scheme,
                                                          path_view_t binaryCacheDir,
                                                          const StoreReference::Params& params)
-    : Store::Config{params}, BinaryCacheStoreConfig{params}, binaryCacheDir(binaryCacheDir) {}
+    : Store::config_t{params}, BinaryCacheStoreConfig{params}, binaryCacheDir(binaryCacheDir) {}
 
 std::string LocalBinaryCacheStoreConfig::doc() {
   return
@@ -30,50 +30,50 @@ StoreReference LocalBinaryCacheStoreConfig::getReference() const {
   };
 }
 
-struct local_binary_cache_store_t : virtual BinaryCacheStore {
-  using Config = LocalBinaryCacheStoreConfig;
+struct local_binary_cache_store_t : virtual binary_cache_store {
+  using config_t = LocalBinaryCacheStoreConfig;
 
-  ref<Config> config;
+  ref<config_t> config;
 
-  local_binary_cache_store_t(ref<Config> config)
-      : Store{*config}, BinaryCacheStore{*config}, config{config} {}
+  local_binary_cache_store_t(ref<config_t> config)
+      : Store{*config}, binary_cache_store{*config}, config{config} {}
 
   void init() override;
 
 protected:
-  bool fileExists(const std::string& path) override;
+  bool file_exists(const std::string& path) override;
 
-  void upsertFile(const std::string& path, restartable_source_t& source, const std::string& mimeType,
-                  uint64_t sizeHint) override {
+  void upsert_file(const std::string& path, restartable_source_t& source, const std::string& mime_type,
+                  uint64_t size_hint) override {
     auto path2 = config->binaryCacheDir + "/" + path;
     static std::atomic<int> counter{0};
     Path tmp = fmt("%s.tmp.%d.%d", path2, getpid(), ++counter);
     auto_delete_t del(tmp, false);
-    writeFile(tmp, source);
+    write_file(tmp, source);
     std::filesystem::rename(tmp, path2);
     del.cancel();
   }
 
   void getFile(const std::string& path, Sink& sink) override {
     try {
-      readFile(config->binaryCacheDir + "/" + path, sink);
+      read_file(config->binaryCacheDir + "/" + path, sink);
     } catch (sys_error_t& e) {
-      if (e.errNo == ENOENT)
+      if (e.err_no == ENOENT)
         throw NoSuchBinaryCacheFile("file '%s' does not exist in binary cache", path);
       throw;
     }
   }
 
-  StorePathSet queryAllValidPaths() override {
+  StorePathSet query_all_valid_paths() override {
     StorePathSet paths;
 
     for (auto& entry : directory_iterator_t{config->binaryCacheDir}) {
-      checkInterrupt();
+      check_interrupt();
       auto name = entry.path().filename().string();
-      if (name.size() != 40 || !hasSuffix(name, ".narinfo"))
+      if (name.size() != 40 || !has_suffix(name, ".narinfo"))
         continue;
       paths.insert(
-          parseStorePath(storeDir + "/" + name.substr(0, name.size() - 8) + "-" + MissingName));
+          parseStorePath(store_dir + "/" + name.substr(0, name.size() - 8) + "-" + MissingName));
     }
 
     return paths;
@@ -83,33 +83,33 @@ protected:
 };
 
 void local_binary_cache_store_t::init() {
-  createDirs(config->binaryCacheDir + "/nar");
-  createDirs(config->binaryCacheDir + "/" + realisationsPrefix);
+  create_dirs(config->binaryCacheDir + "/nar");
+  create_dirs(config->binaryCacheDir + "/" + realisationsPrefix);
   if (config->writeDebugInfo)
-    createDirs(config->binaryCacheDir + "/debuginfo");
-  createDirs(config->binaryCacheDir + "/log");
-  BinaryCacheStore::init();
+    create_dirs(config->binaryCacheDir + "/debuginfo");
+  create_dirs(config->binaryCacheDir + "/log");
+  binary_cache_store::init();
 }
 
-bool local_binary_cache_store_t::fileExists(const std::string& path) {
-  return pathExists(config->binaryCacheDir + "/" + path);
+bool local_binary_cache_store_t::file_exists(const std::string& path) {
+  return path_exists(config->binaryCacheDir + "/" + path);
 }
 
 string_set_t LocalBinaryCacheStoreConfig::uriSchemes() {
-  if (getEnv("_NIX_FORCE_HTTP") == "1")
+  if (get_env("_NIX_FORCE_HTTP") == "1")
     return {};
   else
     return {"file"};
 }
 
-ref<Store> LocalBinaryCacheStoreConfig::openStore() const {
+ref<Store> LocalBinaryCacheStoreConfig::open_store() const {
   auto store = make_ref<local_binary_cache_store_t>(
       ref{// FIXME we shouldn't actually need a mutable config
-          std::const_pointer_cast<local_binary_cache_store_t::Config>(shared_from_this())});
+          std::const_pointer_cast<local_binary_cache_store_t::config_t>(shared_from_this())});
   store->init();
   return store;
 }
 
-static RegisterStoreImplementation<local_binary_cache_store_t::Config> regLocalBinaryCacheStore;
+static RegisterStoreImplementation<local_binary_cache_store_t::config_t> reg_local_binary_cache_store;
 
 } // namespace nix

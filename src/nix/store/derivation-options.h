@@ -43,7 +43,7 @@ template <typename Input>
 struct DerivationOptions {
   struct OutputChecks {
     bool ignoreSelfRefs = false;
-    std::optional<uint64_t> maxSize, maxClosureSize;
+    std::optional<uint64_t> max_size, maxClosureSize;
 
     using DrvRef = nix::DrvRef<Input>;
 
@@ -84,7 +84,7 @@ struct DerivationOptions {
    * Either one set of checks for all outputs, or separate checks
    * per-output.
    */
-  std::variant<OutputChecks, std::map<std::string, OutputChecks>> outputChecks = OutputChecks{};
+  std::variant<OutputChecks, std::map<std::string, OutputChecks>> output_checks = OutputChecks{};
 
   /**
    * Whether to avoid scanning for references for a given output.
@@ -211,18 +211,18 @@ struct DerivationOutput;
  * (e.g. JSON) but is necessary for supporting old formats (e.g.
  * ATerm).
  */
-DerivationOptions<SingleDerivedPath> derivationOptionsFromStructuredAttrs(
-    const StoreDirConfig& store, const DerivedPathMap<string_set_t>& inputDrvs, const string_map_t& env,
-    const StructuredAttrs* parsed, bool shouldWarn = true,
-    const experimental_feature_settings_t& mockXpSettings = experimentalFeatureSettings);
+DerivationOptions<SingleDerivedPath> derivation_options_from_structured_attrs(
+    const StoreDirConfig& store, const DerivedPathMap<string_set_t>& input_drvs, const string_map_t& env,
+    const StructuredAttrs* parsed, bool should_warn = true,
+    const experimental_feature_settings_t& mock_xp_settings = experimental_feature_settings);
 
-DerivationOptions<StorePath> derivationOptionsFromStructuredAttrs(
+DerivationOptions<StorePath> derivation_options_from_structured_attrs(
     const StoreDirConfig& store, const string_map_t& env, const StructuredAttrs* parsed,
-    bool shouldWarn = true,
-    const experimental_feature_settings_t& mockXpSettings = experimentalFeatureSettings);
+    bool should_warn = true,
+    const experimental_feature_settings_t& mock_xp_settings = experimental_feature_settings);
 
 /**
- * This is the counterpart of `Derivation::tryResolve`. In particular,
+ * This is the counterpart of `Derivation::try_resolve`. In particular,
  * it takes the same sort of callback, which is used to reolve
  * non-constant deriving paths.
  *
@@ -231,9 +231,9 @@ DerivationOptions<StorePath> derivationOptionsFromStructuredAttrs(
  * `DerivationOptions`
  */
 std::optional<DerivationOptions<StorePath>>
-tryResolve(const DerivationOptions<SingleDerivedPath>& drvOptions,
-           std::function<std::optional<StorePath>(ref<const SingleDerivedPath> drvPath,
-                                                  const std::string& outputName)>
+try_resolve(const DerivationOptions<SingleDerivedPath>& drv_options,
+           std::function<std::optional<StorePath>(ref<const SingleDerivedPath> drv_path,
+                                                  const std::string& output_name)>
                queryResolutionChain);
 
 }; // namespace nix

@@ -23,7 +23,7 @@ NarInfo::NarInfo(const StoreDirConfig& store, const std::string& s, const std::s
 
   auto parseHashField = [&](const std::string& s) {
     try {
-      return Hash::parseAnyPrefixed(s);
+      return Hash::parse_any_prefixed(s);
     } catch (BadHash&) {
       throw corrupt("bad hash");
     }
@@ -56,20 +56,20 @@ NarInfo::NarInfo(const StoreDirConfig& store, const std::string& s, const std::s
     else if (name == "FileHash")
       fileHash = parseHashField(value);
     else if (name == "FileSize") {
-      auto n = string2Int<decltype(fileSize)>(value);
+      auto n = string2_int<decltype(file_size)>(value);
       if (!n)
         throw corrupt("invalid FileSize");
-      fileSize = *n;
+      file_size = *n;
     } else if (name == "NarHash") {
-      narHash = parseHashField(value);
+      nar_hash = parseHashField(value);
       haveNarHash = true;
     } else if (name == "NarSize") {
-      auto n = string2Int<decltype(narSize)>(value);
+      auto n = string2_int<decltype(nar_size)>(value);
       if (!n)
         throw corrupt("invalid NarSize");
-      narSize = *n;
+      nar_size = *n;
     } else if (name == "References") {
-      auto refs = tokenizeString<strings_t>(value, " ");
+      auto refs = tokenize_string<strings_t>(value, " ");
       if (!references.empty())
         throw corrupt("extra References");
       for (auto& r : refs)
@@ -93,12 +93,12 @@ NarInfo::NarInfo(const StoreDirConfig& store, const std::string& s, const std::s
   if (compression == "")
     compression = "bzip2";
 
-  if (!havePath || !haveNarHash || url.empty() || narSize == 0) {
+  if (!havePath || !haveNarHash || url.empty() || nar_size == 0) {
     line = 0; // don't include line information in the error
     throw corrupt(!havePath      ? "StorePath missing"
                   : !haveNarHash ? "NarHash missing"
                   : url.empty()  ? "URL missing"
-                  : narSize == 0 ? "NarSize missing or zero"
+                  : nar_size == 0 ? "NarSize missing or zero"
                                  : "?");
   }
 }
@@ -110,13 +110,13 @@ std::string NarInfo::to_string(const StoreDirConfig& store) const {
   assert(compression != "");
   res += "Compression: " + compression + "\n";
   assert(fileHash && fileHash->algo == hash_algorithm_t::SHA256);
-  res += "FileHash: " + fileHash->to_string(hash_format_t::Nix32, true) + "\n";
-  res += "FileSize: " + std::to_string(fileSize) + "\n";
-  assert(narHash.algo == hash_algorithm_t::SHA256);
-  res += "NarHash: " + narHash.to_string(hash_format_t::Nix32, true) + "\n";
-  res += "NarSize: " + std::to_string(narSize) + "\n";
+  res += "FileHash: " + fileHash->to_string(hash_format_t::nix32, true) + "\n";
+  res += "FileSize: " + std::to_string(file_size) + "\n";
+  assert(nar_hash.algo == hash_algorithm_t::SHA256);
+  res += "NarHash: " + nar_hash.to_string(hash_format_t::nix32, true) + "\n";
+  res += "NarSize: " + std::to_string(nar_size) + "\n";
 
-  res += "References: " + concatStringsSep(" ", shortRefs()) + "\n";
+  res += "References: " + concat_strings_sep(" ", shortRefs()) + "\n";
 
   if (deriver)
     res += "Deriver: " + std::string(deriver->to_string()) + "\n";
@@ -125,59 +125,59 @@ std::string NarInfo::to_string(const StoreDirConfig& store) const {
     res += "Sig: " + sig + "\n";
 
   if (ca)
-    res += "CA: " + renderContentAddress(*ca) + "\n";
+    res += "CA: " + render_content_address(*ca) + "\n";
 
   return res;
 }
 
-nlohmann::json UnkeyedNarInfo::toJSON(const StoreDirConfig* store, bool includeImpureInfo,
+nlohmann::json UnkeyedNarInfo::to_json(const StoreDirConfig* store, bool includeImpureInfo,
                                       PathInfoJsonFormat format) const {
   using nlohmann::json;
 
-  auto jsonObject = UnkeyedValidPathInfo::toJSON(store, includeImpureInfo, format);
+  auto json_object = UnkeyedValidPathInfo::to_json(store, includeImpureInfo, format);
 
   if (includeImpureInfo) {
     if (!url.empty())
-      jsonObject["url"] = url;
+      json_object["url"] = url;
     if (!compression.empty())
-      jsonObject["compression"] = compression;
+      json_object["compression"] = compression;
     if (fileHash) {
       if (format == PathInfoJsonFormat::V1)
-        jsonObject["downloadHash"] = fileHash->to_string(hash_format_t::SRI, true);
+        json_object["downloadHash"] = fileHash->to_string(hash_format_t::SRI, true);
       else
-        jsonObject["downloadHash"] = *fileHash;
+        json_object["downloadHash"] = *fileHash;
     }
-    if (fileSize)
-      jsonObject["downloadSize"] = fileSize;
+    if (file_size)
+      json_object["downloadSize"] = file_size;
   }
 
-  return jsonObject;
+  return json_object;
 }
 
-UnkeyedNarInfo UnkeyedNarInfo::fromJSON(const StoreDirConfig* store, const nlohmann::json& json) {
-  UnkeyedNarInfo res{UnkeyedValidPathInfo::fromJSON(store, json)};
+UnkeyedNarInfo UnkeyedNarInfo::from_json(const StoreDirConfig* store, const nlohmann::json& json) {
+  UnkeyedNarInfo res{UnkeyedValidPathInfo::from_json(store, json)};
 
-  auto& obj = getObject(json);
+  auto& obj = get_object(json);
 
   PathInfoJsonFormat format = PathInfoJsonFormat::V1;
-  if (auto* version = optionalValueAt(obj, "version"))
+  if (auto* version = optional_value_at(obj, "version"))
     format = *version;
 
   if (auto* url = get(obj, "url"))
-    res.url = getString(*url);
+    res.url = get_string(*url);
 
   if (auto* compression = get(obj, "compression"))
-    res.compression = getString(*compression);
+    res.compression = get_string(*compression);
 
   if (auto* downloadHash = get(obj, "downloadHash")) {
     if (format == PathInfoJsonFormat::V1)
-      res.fileHash = Hash::parseSRI(getString(*downloadHash));
+      res.fileHash = Hash::parse_sri(get_string(*downloadHash));
     else
       res.fileHash = *downloadHash;
   }
 
   if (auto* downloadSize = get(obj, "downloadSize"))
-    res.fileSize = getUnsigned(*downloadSize);
+    res.file_size = get_unsigned(*downloadSize);
 
   return res;
 }
@@ -189,11 +189,11 @@ namespace nlohmann {
 using namespace nix;
 
 UnkeyedNarInfo adl_serializer<UnkeyedNarInfo>::from_json(const json& json) {
-  return UnkeyedNarInfo::fromJSON(nullptr, json);
+  return UnkeyedNarInfo::from_json(nullptr, json);
 }
 
 void adl_serializer<UnkeyedNarInfo>::to_json(json& json, const UnkeyedNarInfo& c) {
-  json = c.toJSON(nullptr, true, PathInfoJsonFormat::V2);
+  json = c.to_json(nullptr, true, PathInfoJsonFormat::V2);
 }
 
 } // namespace nlohmann

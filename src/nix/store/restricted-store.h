@@ -43,18 +43,18 @@ struct RestrictionContext {
    * (so e.g. you can't do 'nix-store -r /nix/store/<bla>' where
    * /nix/store/<bla> is some arbitrary path in a binary cache).
    */
-  virtual bool isAllowed(const StorePath&) = 0;
-  virtual bool isAllowed(const DrvOutput& id) = 0;
-  bool isAllowed(const DerivedPath& id);
+  virtual bool is_allowed(const StorePath&) = 0;
+  virtual bool is_allowed(const DrvOutput& id) = 0;
+  bool is_allowed(const DerivedPath& id);
 
   /**
    * Add 'path' to the set of paths that may be referenced by the
    * outputs, and make it appear in the sandbox.
    */
   void addDependency(const StorePath& path) {
-    if (isAllowed(path))
+    if (is_allowed(path))
       return;
-    addDependencyImpl(path);
+    add_dependency_impl(path);
   }
 
 protected:
@@ -63,13 +63,13 @@ protected:
    * will ensure that this is only called on newly added dependencies,
    * and that idempotent calls are a no-op.
    */
-  virtual void addDependencyImpl(const StorePath& path) = 0;
+  virtual void add_dependency_impl(const StorePath& path) = 0;
 };
 
 /**
  * Create a shared pointer to a restricted store.
  */
-ref<Store> makeRestrictedStore(ref<LocalStoreConfig> config, ref<LocalStore> next,
+ref<Store> make_restricted_store(ref<LocalStoreConfig> config, ref<LocalStore> next,
                                RestrictionContext& context);
 
 } // namespace nix

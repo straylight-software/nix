@@ -67,7 +67,7 @@ struct ServeProto::BasicClientConnection {
                                                            const StorePathSet& paths);
   ;
 
-  void putBuildDerivationRequest(const StoreDirConfig& store, const StorePath& drvPath,
+  void putBuildDerivationRequest(const StoreDirConfig& store, const StorePath& drv_path,
                                  const BasicDerivation& drv,
                                  const ServeProto::BuildOptions& options);
 
@@ -77,10 +77,10 @@ struct ServeProto::BasicClientConnection {
    */
   BuildResult getBuildDerivationResponse(const StoreDirConfig& store);
 
-  void narFromPath(const StoreDirConfig& store, const StorePath& path,
+  void nar_from_path(const StoreDirConfig& store, const StorePath& path,
                    std::function<void(Source&)> fun);
 
-  void importPaths(const StoreDirConfig& store, std::function<void(Sink&)> fun);
+  void import_paths(const StoreDirConfig& store, std::function<void(Sink&)> fun);
 };
 
 struct ServeProto::BasicServerConnection {

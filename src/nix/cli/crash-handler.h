@@ -7,6 +7,6 @@ namespace nix {
 
 /** Registers the Nix crash handler for std::terminate (currently; will support more crashes later).
  * See also detectStackOverflow().  */
-void registerCrashHandler();
+void register_crash_handler();
 
 } // namespace nix

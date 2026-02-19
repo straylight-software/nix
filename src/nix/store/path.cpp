@@ -5,7 +5,7 @@
 
 namespace nix {
 
-void checkName(std::string_view name) {
+void check_name(std::string_view name) {
   if (name.empty())
     throw BadStorePathName("name must not be empty");
   if (name.size() > StorePath::MaxPathLen)
@@ -33,35 +33,35 @@ void checkName(std::string_view name) {
       throw BadStorePathName("name '%s' contains illegal character '%s'", name, c);
 }
 
-static void checkPathName(std::string_view path, std::string_view name) {
+static void check_path_name(std::string_view path, std::string_view name) {
   try {
-    checkName(name);
+    check_name(name);
   } catch (BadStorePathName& e) {
     throw BadStorePath("path '%s' is not a valid store path: %s", path, uncolored_t(e.message()));
   }
 }
 
-StorePath::StorePath(std::string_view _baseName) : baseName(_baseName) {
-  if (baseName.size() < HashLen + 1)
-    throw BadStorePath("'%s' is too short to be a valid store path", baseName);
-  for (auto c : hashPart())
+StorePath::StorePath(std::string_view _baseName) : base_name(_baseName) {
+  if (base_name.size() < HashLen + 1)
+    throw BadStorePath("'%s' is too short to be a valid store path", base_name);
+  for (auto c : hash_part())
     if (c == 'e' || c == 'o' || c == 'u' || c == 't' ||
         !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'z')))
-      throw BadStorePath("store path '%s' contains illegal base-32 character '%s'", baseName, c);
-  checkPathName(baseName, name());
+      throw BadStorePath("store path '%s' contains illegal base-32 character '%s'", base_name, c);
+  check_path_name(base_name, name());
 }
 
 StorePath::StorePath(const Hash& hash, std::string_view _name)
-    : baseName((hash.to_string(hash_format_t::Nix32, false) + "-").append(std::string(_name))) {
-  checkPathName(baseName, name());
+    : base_name((hash.to_string(hash_format_t::nix32, false) + "-").append(std::string(_name))) {
+  check_path_name(base_name, name());
 }
 
-bool StorePath::isDerivation() const noexcept {
-  return hasSuffix(name(), drvExtension);
+bool StorePath::is_derivation() const noexcept {
+  return has_suffix(name(), drvExtension);
 }
 
 void StorePath::requireDerivation() const {
-  if (!isDerivation())
+  if (!is_derivation())
     throw FormatError("store path '%s' is not a valid derivation path", to_string());
 }
 
@@ -78,11 +78,11 @@ namespace nlohmann {
 using namespace nix;
 
 StorePath adl_serializer<StorePath>::from_json(const json& json) {
-  return StorePath{getString(json)};
+  return StorePath{get_string(json)};
 }
 
-void adl_serializer<StorePath>::to_json(json& json, const StorePath& storePath) {
-  json = storePath.to_string();
+void adl_serializer<StorePath>::to_json(json& json, const StorePath& store_path) {
+  json = store_path.to_string();
 }
 
 } // namespace nlohmann

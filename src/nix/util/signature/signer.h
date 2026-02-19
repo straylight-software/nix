@@ -28,12 +28,12 @@ struct signer_t {
    * signature](https://en.wikipedia.org/wiki/Detached_signature),
    * i.e. just the signature itself without a copy of the signed data.
    */
-  virtual std::string signDetached(std::string_view data) const = 0;
+  virtual std::string sign_detached(std::string_view data) const = 0;
 
   /**
    * View the public key associated with this `signer_t`.
    */
-  virtual const public_key_t& getPublicKey() = 0;
+  virtual const public_key_t& get_public_key() = 0;
 };
 
 using signers_t = std::map<std::string, signer_t*>;
@@ -44,14 +44,14 @@ using signers_t = std::map<std::string, signer_t*>;
  * The private key is held in this machine's RAM
  */
 struct local_signer_t : signer_t {
-  local_signer_t(secret_key_t&& privateKey);
+  local_signer_t(secret_key_t&& private_key);
 
-  std::string signDetached(std::string_view s) const override;
+  std::string sign_detached(std::string_view s) const override;
 
-  const public_key_t& getPublicKey() override;
+  const public_key_t& get_public_key() override;
 
 private:
-  secret_key_t privateKey;
+  secret_key_t private_key;
   public_key_t publicKey;
 };
 

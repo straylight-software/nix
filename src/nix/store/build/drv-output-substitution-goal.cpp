@@ -19,11 +19,11 @@ Goal::Co DrvOutputSubstitutionGoal::init() {
   trace("init");
 
   /* If the derivation already exists, we’re done */
-  if (worker.store.queryRealisation(id)) {
+  if (worker.store.query_realisation(id)) {
     co_return amDone(ecSuccess);
   }
 
-  auto subs = settings.useSubstitutes ? getDefaultSubstituters() : std::list<ref<Store>>();
+  auto subs = settings.use_substitutes ? get_default_substituters() : std::list<ref<Store>>();
 
   bool substituterFailed = false;
 
@@ -42,10 +42,10 @@ Goal::Co DrvOutputSubstitutionGoal::init() {
 
     auto promise = std::make_shared<std::promise<std::shared_ptr<const UnkeyedRealisation>>>();
 
-    sub->queryRealisation(id, {[outPipe(outPipe), promise(promise)](
+    sub->query_realisation(id, {[outPipe(outPipe), promise(promise)](
                                    std::future<std::shared_ptr<const UnkeyedRealisation>> res) {
                             try {
-                              finally_t updateStats([&]() { outPipe->writeSide.close(); });
+                              finally_t updateStats([&]() { outPipe->write_side.close(); });
                               promise->set_value(res.get());
                             } catch (...) {
                               promise->set_exception(std::current_exception());
@@ -55,7 +55,7 @@ Goal::Co DrvOutputSubstitutionGoal::init() {
     worker.childStarted(shared_from_this(),
                         {
 #ifndef _WIN32
-                            outPipe->readSide.get()
+                            outPipe->read_side.get()
 #else
                             &*outPipe
 #endif
@@ -88,13 +88,13 @@ Goal::Co DrvOutputSubstitutionGoal::init() {
 
     for (const auto& [depId, depPath] : outputInfo->dependentRealisations) {
       if (depId != id) {
-        if (auto localOutputInfo = worker.store.queryRealisation(depId);
-            localOutputInfo && localOutputInfo->outPath != depPath) {
+        if (auto localOutputInfo = worker.store.query_realisation(depId);
+            localOutputInfo && localOutputInfo->out_path != depPath) {
           warn("substituter '%s' has an incompatible realisation for '%s', ignoring.\n"
                "Local:  %s\n"
                "Remote: %s",
                sub->config.getHumanReadableURI(), depId.to_string(),
-               worker.store.printStorePath(localOutputInfo->outPath),
+               worker.store.printStorePath(localOutputInfo->out_path),
                worker.store.printStorePath(depPath));
           failed = true;
           break;
@@ -106,7 +106,7 @@ Goal::Co DrvOutputSubstitutionGoal::init() {
     if (failed)
       continue;
 
-    waitees.insert(worker.makePathSubstitutionGoal(outputInfo->outPath));
+    waitees.insert(worker.makePathSubstitutionGoal(outputInfo->out_path));
 
     co_await await(std::move(waitees));
 
@@ -118,7 +118,7 @@ Goal::Co DrvOutputSubstitutionGoal::init() {
       co_return amDone(nrNoSubstituters > 0 ? ecNoSubstituters : ecFailed);
     }
 
-    worker.store.registerDrvOutput({*outputInfo, id});
+    worker.store.register_drv_output({*outputInfo, id});
 
     trace("finished");
     co_return amDone(ecSuccess);
@@ -144,7 +144,7 @@ std::string DrvOutputSubstitutionGoal::key() {
   return "a$" + std::string(id.to_string());
 }
 
-void DrvOutputSubstitutionGoal::handleEOF(descriptor_t fd) {
+void DrvOutputSubstitutionGoal::handle_eof(descriptor_t fd) {
   worker.wakeUp(shared_from_this());
 }
 

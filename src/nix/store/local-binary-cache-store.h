@@ -3,7 +3,7 @@
 namespace nix {
 
 struct LocalBinaryCacheStoreConfig : std::enable_shared_from_this<LocalBinaryCacheStoreConfig>,
-                                     virtual Store::Config,
+                                     virtual Store::config_t,
                                      BinaryCacheStoreConfig {
   using BinaryCacheStoreConfig::BinaryCacheStoreConfig;
 
@@ -22,7 +22,7 @@ struct LocalBinaryCacheStoreConfig : std::enable_shared_from_this<LocalBinaryCac
 
   static std::string doc();
 
-  ref<Store> openStore() const override;
+  ref<Store> open_store() const override;
 
   StoreReference getReference() const override;
 };

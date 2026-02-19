@@ -122,12 +122,12 @@ struct ServeProto::BuildOptions {
    * Default value in this and every other field is so tests pass when
    * testing older deserialisers which do not set all the fields.
    */
-  time_t maxSilentTime = -1;
+  time_t max_silent_time = -1;
   time_t buildTimeout = -1;
   size_t maxLogSize = -1;
   size_t nrRepeats = -1;
   bool enforceDeterminism = -1;
-  bool keepFailed = -1;
+  bool keep_failed = -1;
 
   bool operator==(const ServeProto::BuildOptions&) const = default;
 };

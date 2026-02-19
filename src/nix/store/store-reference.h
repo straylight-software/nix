@@ -93,7 +93,7 @@ struct StoreReference {
   /**
    * Parse a URI into a store reference.
    */
-  static StoreReference parse(const std::string& uri, const Params& extraParams = Params{});
+  static StoreReference parse(const std::string& uri, const Params& extra_params = Params{});
 };
 
 static inline std::ostream& operator<<(std::ostream& os, const StoreReference& ref) {
@@ -103,6 +103,6 @@ static inline std::ostream& operator<<(std::ostream& os, const StoreReference& r
 /**
  * Split URI into protocol+hierarchy part and its parameter set.
  */
-std::pair<std::string, StoreReference::Params> splitUriAndParams(const std::string& uri);
+std::pair<std::string, StoreReference::Params> split_uri_and_params(const std::string& uri);
 
 } // namespace nix

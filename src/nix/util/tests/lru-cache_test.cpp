@@ -53,10 +53,10 @@ TEST_CASE("lru cache upsert overwrites existing value", "[lru-cache]") {
 TEST_CASE("lru cache getOrNullptr returns pointer or nullptr", "[lru-cache]") {
   lru_cache_t<int, std::string> cache(10);
 
-  REQUIRE(cache.getOrNullptr(1) == nullptr);
+  REQUIRE(cache.get_or_nullptr(1) == nullptr);
 
   cache.upsert(1, "one");
-  auto* value_pointer = cache.getOrNullptr(1);
+  auto* value_pointer = cache.get_or_nullptr(1);
   REQUIRE(value_pointer != nullptr);
   REQUIRE(*value_pointer == "one");
 
@@ -143,7 +143,7 @@ TEST_CASE("lru cache getOrNullptr promotes item to most recently used", "[lru-ca
   cache.upsert(3, "three");
 
   // access element 1 via getOrNullptr, making it most recently used
-  REQUIRE(cache.getOrNullptr(1) != nullptr);
+  REQUIRE(cache.get_or_nullptr(1) != nullptr);
 
   // now insert element 4, which should evict element 2 (now oldest)
   cache.upsert(4, "four");
@@ -445,7 +445,7 @@ TEST_CASE("lru cache stress test with mixed operations", "[lru-cache][property]"
           cache.get(key);
           break;
         case 2: // getOrNullptr
-          cache.getOrNullptr(key);
+          cache.get_or_nullptr(key);
           break;
         case 3: // erase
           cache.erase(key);

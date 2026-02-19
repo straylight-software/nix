@@ -14,27 +14,27 @@
 
 namespace nix {
 
-void printElided(std::ostream& output, unsigned int value, const std::string_view single,
-                 const std::string_view plural, bool ansiColors) {
-  if (ansiColors)
+void print_elided(std::ostream& output, unsigned int value, const std::string_view single,
+                 const std::string_view plural, bool ansi_colors) {
+  if (ansi_colors)
     output << ANSI_FAINT;
   output << "«";
   pluralize(output, value, single, plural);
   output << " elided»";
-  if (ansiColors)
+  if (ansi_colors)
     output << ANSI_NORMAL;
 }
 
-std::ostream& printLiteralString(std::ostream& str, const std::string_view string, size_t maxLength,
-                                 bool ansiColors) {
-  size_t charsPrinted = 0;
-  if (ansiColors)
+std::ostream& print_literal_string(std::ostream& str, const std::string_view string, size_t max_length,
+                                 bool ansi_colors) {
+  size_t chars_printed = 0;
+  if (ansi_colors)
     str << ANSI_MAGENTA;
   str << "\"";
   for (auto i = string.begin(); i != string.end(); ++i) {
-    if (charsPrinted >= maxLength) {
+    if (chars_printed >= max_length) {
       str << "\" ";
-      printElided(str, string.length() - charsPrinted, "byte", "bytes", ansiColors);
+      print_elided(str, string.length() - chars_printed, "byte", "bytes", ansi_colors);
       return str;
     }
 
@@ -50,19 +50,19 @@ std::ostream& printLiteralString(std::ostream& str, const std::string_view strin
       str << "\\" << *i;
     else
       str << *i;
-    charsPrinted++;
+    chars_printed++;
   }
   str << "\"";
-  if (ansiColors)
+  if (ansi_colors)
     str << ANSI_NORMAL;
   return str;
 }
 
-std::ostream& printLiteralString(std::ostream& str, const std::string_view string) {
-  return printLiteralString(str, string, std::numeric_limits<size_t>::max(), false);
+std::ostream& print_literal_string(std::ostream& str, const std::string_view string) {
+  return print_literal_string(str, string, std::numeric_limits<size_t>::max(), false);
 }
 
-std::ostream& printLiteralBool(std::ostream& str, bool boolean) {
+std::ostream& print_literal_bool(std::ostream& str, bool boolean) {
   str << (boolean ? "true" : "false");
   return str;
 }
@@ -74,27 +74,27 @@ std::ostream& printLiteralBool(std::ostream& str, bool boolean) {
 // You can test if a keyword needs to be added by running:
 //   $ nix eval --expr '{ <KEYWORD> = 1; }'
 // For example `or' doesn't need to be quoted.
-bool isReservedKeyword(const std::string_view str) {
-  static const boost::unordered_flat_set<std::string_view> reservedKeywords = {
+bool is_reserved_keyword(const std::string_view str) {
+  static const boost::unordered_flat_set<std::string_view> reserved_keywords = {
       "if", "then", "else", "assert", "with", "let", "in", "rec", "inherit"};
-  return reservedKeywords.contains(str);
+  return reserved_keywords.contains(str);
 }
 
-std::ostream& printIdentifier(std::ostream& str, std::string_view s) {
+std::ostream& print_identifier(std::ostream& str, std::string_view s) {
   if (s.empty())
     str << "\"\"";
-  else if (isReservedKeyword(s))
+  else if (is_reserved_keyword(s))
     str << '"' << s << '"';
   else {
     char c = s[0];
     if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_')) {
-      printLiteralString(str, s);
+      print_literal_string(str, s);
       return str;
     }
     for (auto c : s)
       if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
             c == '_' || c == '\'' || c == '-')) {
-        printLiteralString(str, s);
+        print_literal_string(str, s);
         return str;
       }
     str << s;
@@ -102,10 +102,10 @@ std::ostream& printIdentifier(std::ostream& str, std::string_view s) {
   return str;
 }
 
-static bool isVarName(std::string_view s) {
+static bool is_var_name(std::string_view s) {
   if (s.size() == 0)
     return false;
-  if (isReservedKeyword(s))
+  if (is_reserved_keyword(s))
     return false;
   char c = s[0];
   if ((c >= '0' && c <= '9') || c == '-' || c == '\'')
@@ -117,26 +117,26 @@ static bool isVarName(std::string_view s) {
   return true;
 }
 
-std::ostream& printAttributeName(std::ostream& str, std::string_view name) {
-  if (isVarName(name))
+std::ostream& print_attribute_name(std::ostream& str, std::string_view name) {
+  if (is_var_name(name))
     str << name;
   else
-    printLiteralString(str, name);
+    print_literal_string(str, name);
   return str;
 }
 
-bool isImportantAttrName(const std::string& attrName) {
-  return attrName == "type" || attrName == "_type";
+bool is_important_attr_name(const std::string& attr_name) {
+  return attr_name == "type" || attr_name == "_type";
 }
 
 typedef std::pair<std::string, Value*> attr_pair_t;
 
 struct important_first_attr_name_cmp_t {
   bool operator()(const attr_pair_t& lhs, const attr_pair_t& rhs) const {
-    auto lhsIsImportant = isImportantAttrName(lhs.first);
-    auto rhsIsImportant = isImportantAttrName(rhs.first);
-    return std::forward_as_tuple(!lhsIsImportant, lhs.first) <
-           std::forward_as_tuple(!rhsIsImportant, rhs.first);
+    auto lhs_is_important = is_important_attr_name(lhs.first);
+    auto rhs_is_important = is_important_attr_name(rhs.first);
+    return std::forward_as_tuple(!lhs_is_important, lhs.first) <
+           std::forward_as_tuple(!rhs_is_important, rhs.first);
   }
 };
 
@@ -153,13 +153,13 @@ private:
   size_t totalListItemsPrinted = 0;
   std::string indent;
 
-  void increaseIndent() {
+  void increase_indent() {
     if (options.shouldPrettyPrint()) {
       indent.append(options.prettyIndent, ' ');
     }
   }
 
-  void decreaseIndent() {
+  void decrease_indent() {
     if (options.shouldPrettyPrint()) {
       assert(indent.size() >= options.prettyIndent);
       indent.resize(indent.size() - options.prettyIndent);
@@ -172,88 +172,88 @@ private:
    * If pretty-printing is enabled, a newline and the current `indent` is
    * printed instead.
    */
-  void printSpace(bool prettyPrint) {
-    if (prettyPrint) {
+  void print_space(bool pretty_print) {
+    if (pretty_print) {
       output << "\n" << indent;
     } else {
       output << " ";
     }
   }
 
-  void printRepeated() {
-    if (options.ansiColors)
+  void print_repeated() {
+    if (options.ansi_colors)
       output << ANSI_MAGENTA;
     output << "«repeated»";
-    if (options.ansiColors)
+    if (options.ansi_colors)
       output << ANSI_NORMAL;
   }
 
-  void printNullptr() {
-    if (options.ansiColors)
+  void print_nullptr() {
+    if (options.ansi_colors)
       output << ANSI_MAGENTA;
     output << "«nullptr»";
-    if (options.ansiColors)
+    if (options.ansi_colors)
       output << ANSI_NORMAL;
   }
 
-  void printElided(unsigned int value, const std::string_view single,
+  void print_elided(unsigned int value, const std::string_view single,
                    const std::string_view plural) {
-    ::nix::printElided(output, value, single, plural, options.ansiColors);
+    ::nix::print_elided(output, value, single, plural, options.ansi_colors);
   }
 
-  void printInt(Value& v) {
-    if (options.ansiColors)
+  void print_int(Value& v) {
+    if (options.ansi_colors)
       output << ANSI_CYAN;
     output << v.integer();
-    if (options.ansiColors)
+    if (options.ansi_colors)
       output << ANSI_NORMAL;
   }
 
-  void printFloat(Value& v) {
-    if (options.ansiColors)
+  void print_float(Value& v) {
+    if (options.ansi_colors)
       output << ANSI_CYAN;
     output << v.fpoint();
-    if (options.ansiColors)
+    if (options.ansi_colors)
       output << ANSI_NORMAL;
   }
 
-  void printBool(Value& v) {
-    if (options.ansiColors)
+  void print_bool(Value& v) {
+    if (options.ansi_colors)
       output << ANSI_CYAN;
-    printLiteralBool(output, v.boolean());
-    if (options.ansiColors)
+    print_literal_bool(output, v.boolean());
+    if (options.ansi_colors)
       output << ANSI_NORMAL;
   }
 
-  void printString(Value& v) {
+  void print_string(Value& v) {
     NixStringContext context;
-    copyContext(v, context);
+    copy_context(v, context);
     std::ostringstream s;
-    printLiteralString(s, v.string_view(), options.maxStringLength, options.ansiColors);
+    print_literal_string(s, v.string_view(), options.maxStringLength, options.ansi_colors);
     output << state.devirtualize(s.str(), context);
   }
 
-  void printPath(Value& v) {
-    if (options.ansiColors)
+  void print_path(Value& v) {
+    if (options.ansi_colors)
       output << ANSI_GREEN;
     output << v.path().to_string(); // !!! escaping?
-    if (options.ansiColors)
+    if (options.ansi_colors)
       output << ANSI_NORMAL;
   }
 
-  void printNull() {
-    if (options.ansiColors)
+  void print_null() {
+    if (options.ansi_colors)
       output << ANSI_CYAN;
     output << "null";
-    if (options.ansiColors)
+    if (options.ansi_colors)
       output << ANSI_NORMAL;
   }
 
-  void printDerivation(Value& v) {
-    std::optional<StorePath> storePath;
-    if (auto i = v.attrs()->get(state.s.drvPath)) {
+  void print_derivation(Value& v) {
+    std::optional<StorePath> store_path;
+    if (auto i = v.attrs()->get(state.s.drv_path)) {
       NixStringContext context;
-      storePath = state.coerceToStorePath(i->pos, *i->value, context,
+      store_path = state.coerceToStorePath(i->pos, *i->value, context,
                                           "while evaluating the drvPath of a derivation");
     }
 
@@ -261,27 +261,27 @@ private:
        how the pretty printer is used (when pretting printing and warning
        to same terminal / std stream). */
 #if 0
-        if (storePath && !storePath->isDerivation())
+        if (store_path && !store_path->is_derivation())
             warn(
                 "drvPath attribute '%s' is not a valid store path to a derivation, this value not work properly",
-                state.store->printStorePath(*storePath));
+                state.store->printStorePath(*store_path));
 #endif
 
-    if (options.ansiColors)
+    if (options.ansi_colors)
       output << ANSI_GREEN;
     output << "«derivation";
-    if (storePath) {
-      output << " " << state.store->printStorePath(*storePath);
+    if (store_path) {
+      output << " " << state.store->printStorePath(*store_path);
     }
     output << "»";
-    if (options.ansiColors)
+    if (options.ansi_colors)
       output << ANSI_NORMAL;
   }
 
   /**
    * @note This may force items.
    */
-  bool shouldPrettyPrintAttrs(AttrVec& v) {
+  bool should_pretty_print_attrs(AttrVec& v) {
     if (!options.shouldPrettyPrint() || v.empty()) {
       return false;
     }
@@ -297,24 +297,24 @@ private:
     }
 
     // It is ok to force the item(s) here, because they will be printed anyway.
-    state.forceValue(*item, item->determinePos(noPos));
+    state.forceValue(*item, item->determinePos(no_pos));
 
     // Pretty-print single-item attrsets only if they contain nested
     // structures.
-    auto itemType = item->type();
-    return itemType == nList || itemType == nAttrs || itemType == nThunk;
+    auto item_type = item->type();
+    return item_type == nList || item_type == nAttrs || item_type == nThunk;
   }
 
-  void printAttrs(Value& v, size_t depth) {
+  void print_attrs(Value& v, size_t depth) {
     if (seen && !seen->insert(v.attrs()).second) {
-      printRepeated();
+      print_repeated();
       return;
     }
 
-    if (options.force && options.derivationPaths && state.isDerivation(v)) {
-      printDerivation(v);
-    } else if (depth < options.maxDepth) {
-      increaseIndent();
+    if (options.force && options.derivationPaths && state.is_derivation(v)) {
+      print_derivation(v);
+    } else if (depth < options.max_depth) {
+      increase_indent();
       output << "{";
 
       AttrVec sorted;
@@ -326,28 +326,28 @@ private:
       else
         std::sort(sorted.begin(), sorted.end(), important_first_attr_name_cmp_t());
 
-      auto prettyPrint = shouldPrettyPrintAttrs(sorted);
+      auto pretty_print = should_pretty_print_attrs(sorted);
 
-      size_t currentAttrsPrinted = 0;
+      size_t current_attrs_printed = 0;
 
       for (auto& i : sorted) {
-        printSpace(prettyPrint);
+        print_space(pretty_print);
 
         if (totalAttrsPrinted >= options.maxAttrs) {
-          printElided(sorted.size() - currentAttrsPrinted, "attribute", "attributes");
+          print_elided(sorted.size() - current_attrs_printed, "attribute", "attributes");
           break;
         }
 
-        printAttributeName(output, i.first);
+        print_attribute_name(output, i.first);
         output << " = ";
         print(*i.second, depth + 1);
         output << ";";
         totalAttrsPrinted++;
-        currentAttrsPrinted++;
+        current_attrs_printed++;
       }
 
-      decreaseIndent();
-      printSpace(prettyPrint);
+      decrease_indent();
+      print_space(pretty_print);
       output << "}";
     } else {
       output << "{ ... }";
@@ -357,7 +357,7 @@ private:
   /**
    * @note This may force items.
    */
-  bool shouldPrettyPrintList(std::span<Value* const> list) {
+  bool should_pretty_print_list(std::span<Value* const> list) {
     if (!options.shouldPrettyPrint() || list.empty()) {
       return false;
     }
@@ -373,55 +373,55 @@ private:
     }
 
     // It is ok to force the item(s) here, because they will be printed anyway.
-    state.forceValue(*item, item->determinePos(noPos));
+    state.forceValue(*item, item->determinePos(no_pos));
 
     // Pretty-print single-item lists only if they contain nested
     // structures.
-    auto itemType = item->type();
-    return itemType == nList || itemType == nAttrs || itemType == nThunk;
+    auto item_type = item->type();
+    return item_type == nList || item_type == nAttrs || item_type == nThunk;
   }
 
-  void printList(Value& v, size_t depth) {
-    if (seen && v.listSize() && !seen->insert(&v).second) {
-      printRepeated();
+  void print_list(Value& v, size_t depth) {
+    if (seen && v.list_size() && !seen->insert(&v).second) {
+      print_repeated();
       return;
     }
 
-    if (depth < options.maxDepth) {
-      increaseIndent();
+    if (depth < options.max_depth) {
+      increase_indent();
       output << "[";
-      auto listItems = v.listView();
-      auto prettyPrint = shouldPrettyPrintList(listItems.span());
+      auto list_items = v.list_view();
+      auto pretty_print = should_pretty_print_list(list_items.span());
 
-      size_t currentListItemsPrinted = 0;
+      size_t current_list_items_printed = 0;
 
-      for (auto elem : listItems) {
-        printSpace(prettyPrint);
+      for (auto elem : list_items) {
+        print_space(pretty_print);
 
         if (totalListItemsPrinted >= options.maxListItems) {
-          printElided(listItems.size() - currentListItemsPrinted, "item", "items");
+          print_elided(list_items.size() - current_list_items_printed, "item", "items");
           break;
         }
 
         if (elem) {
           print(*elem, depth + 1);
         } else {
-          printNullptr();
+          print_nullptr();
         }
         totalListItemsPrinted++;
-        currentListItemsPrinted++;
+        current_list_items_printed++;
       }
 
-      decreaseIndent();
-      printSpace(prettyPrint);
+      decrease_indent();
+      print_space(pretty_print);
       output << "]";
     } else {
       output << "[ ... ]";
     }
   }
 
-  void printFunction(Value& v) {
-    if (options.ansiColors)
+  void print_function(Value& v) {
+    if (options.ansi_colors)
       output << ANSI_BLUE;
     output << "«";
 
@@ -434,18 +434,18 @@ private:
 
         std::ostringstream s;
         s << state.positions[v.lambda().fun->pos];
-        output << " @ " << filterANSIEscapes(s.view());
+        output << " @ " << filter_ansi_escapes(s.view());
       }
     } else if (v.isPrimOp()) {
-      if (v.primOp())
-        output << *v.primOp();
+      if (v.prim_op())
+        output << *v.prim_op();
       else
         output << "primop";
     } else if (v.isPrimOpApp()) {
       output << "partially applied ";
-      auto primOp = v.primOpAppPrimOp();
-      if (primOp)
-        output << *primOp;
+      auto prim_op = v.primOpAppPrimOp();
+      if (prim_op)
+        output << *prim_op;
       else
         output << "primop";
     } else {
@@ -453,11 +453,11 @@ private:
     }
 
     output << "»";
-    if (options.ansiColors)
+    if (options.ansi_colors)
       output << ANSI_NORMAL;
   }
 
-  void printThunk(Value& v) {
+  void print_thunk(Value& v) {
     if (v.isBlackhole()) {
       // Although we know for sure that it's going to be an infinite recursion
       // when this value is accessed _in the current context_, it's likely
@@ -465,102 +465,102 @@ private:
       // as a definitive statement about the value, while in fact it may be
       // a valid value after `builtins.trace` and perhaps some other steps
       // have completed.
-      if (options.ansiColors)
+      if (options.ansi_colors)
         output << ANSI_RED;
       output << "«potential infinite recursion»";
-      if (options.ansiColors)
+      if (options.ansi_colors)
         output << ANSI_NORMAL;
     } else if (!v.isFinished()) {
-      if (options.ansiColors)
+      if (options.ansi_colors)
         output << ANSI_MAGENTA;
       output << "«thunk»";
-      if (options.ansiColors)
+      if (options.ansi_colors)
         output << ANSI_NORMAL;
     } else {
       unreachable();
     }
   }
 
-  void printFailed(Value& v) { output << "«failed»"; }
+  void print_failed(Value& v) { output << "«failed»"; }
 
-  void printExternal(Value& v) { v.external()->print(output); }
+  void print_external(Value& v) { v.external()->print(output); }
 
-  void printUnknown() {
-    if (options.ansiColors)
+  void print_unknown() {
+    if (options.ansi_colors)
       output << ANSI_RED;
     output << "«unknown»";
-    if (options.ansiColors)
+    if (options.ansi_colors)
       output << ANSI_NORMAL;
   }
 
-  void printError_(Error& e) {
-    if (options.ansiColors)
+  void print_error_(Error& e) {
+    if (options.ansi_colors)
       output << ANSI_RED;
-    output << "«error: " << filterANSIEscapes(e.info().msg.str(), true) << "»";
-    if (options.ansiColors)
+    output << "«error: " << filter_ansi_escapes(e.info().msg.str(), true) << "»";
+    if (options.ansi_colors)
       output << ANSI_NORMAL;
   }
 
   void print(Value& v, size_t depth) {
     output.flush();
-    checkInterrupt();
+    check_interrupt();
 
     try {
       if (options.force) {
-        state.forceValue(v, v.determinePos(noPos));
+        state.forceValue(v, v.determinePos(no_pos));
       }
 
       switch (v.type()) {
         case nInt:
-          printInt(v);
+          print_int(v);
           break;
 
         case nFloat:
-          printFloat(v);
+          print_float(v);
           break;
 
         case nBool:
-          printBool(v);
+          print_bool(v);
           break;
 
         case nString:
-          printString(v);
+          print_string(v);
           break;
 
         case nPath:
-          printPath(v);
+          print_path(v);
           break;
 
         case nNull:
-          printNull();
+          print_null();
           break;
 
         case nAttrs:
-          printAttrs(v, depth);
+          print_attrs(v, depth);
           break;
 
         case nList:
-          printList(v, depth);
+          print_list(v, depth);
           break;
 
         case nFunction:
-          printFunction(v);
+          print_function(v);
           break;
 
         case nThunk:
-          printThunk(v);
+          print_thunk(v);
           break;
 
         case nFailed:
-          printFailed(v);
+          print_failed(v);
           break;
 
         case nExternal:
-          printExternal(v);
+          print_external(v);
           break;
 
         default:
-          printUnknown();
+          print_unknown();
           break;
       }
     } catch (Error& e) {
@@ -568,7 +568,7 @@ private:
           (options.errors == ErrorPrintBehavior::ThrowTopLevel && depth == 0)) {
         throw;
       }
-      printError_(e);
+      print_error_(e);
     }
   }
 
@@ -592,12 +592,12 @@ public:
   }
 };
 
-void printValue(EvalState& state, std::ostream& output, Value& v, PrintOptions options) {
+void print_value(EvalState& state, std::ostream& output, Value& v, PrintOptions options) {
   printer_t(output, state, options).print(v);
 }
 
 std::ostream& operator<<(std::ostream& output, const ValuePrinter& printer) {
-  printValue(printer.state, output, printer.value, printer.options);
+  print_value(printer.state, output, printer.value, printer.options);
   return output;
 }
 

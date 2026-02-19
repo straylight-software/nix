@@ -16,4 +16,4 @@ struct cmd_nar_t : NixMultiCommand {
   category_t category() override { return catUtility; }
 };
 
-static auto rCmdNar = registerCommand<cmd_nar_t>("nar");
+static auto r_cmd_nar = registerCommand<cmd_nar_t>("nar");

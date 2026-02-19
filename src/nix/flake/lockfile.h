@@ -33,23 +33,23 @@ struct Node : std::enable_shared_from_this<Node> {
  * A non-root node in the lock file.
  */
 struct LockedNode : Node {
-  FlakeRef lockedRef, originalRef;
-  bool isFlake = true;
+  FlakeRef locked_ref, original_ref;
+  bool is_flake = true;
   bool buildTime = false;
 
   /* The node relative to which relative source paths
      (e.g. 'path:../foo') are interpreted. */
-  std::optional<InputAttrPath> parentInputAttrPath;
+  std::optional<InputAttrPath> parent_input_attr_path;
 
-  LockedNode(const FlakeRef& lockedRef, const FlakeRef& originalRef, bool isFlake = true,
-             bool buildTime = false, std::optional<InputAttrPath> parentInputAttrPath = {})
-      : lockedRef(std::move(lockedRef)),
-        originalRef(std::move(originalRef)),
-        isFlake(isFlake),
+  LockedNode(const FlakeRef& locked_ref, const FlakeRef& original_ref, bool is_flake = true,
+             bool buildTime = false, std::optional<InputAttrPath> parent_input_attr_path = {})
+      : locked_ref(std::move(locked_ref)),
+        original_ref(std::move(original_ref)),
+        is_flake(is_flake),
         buildTime(buildTime),
-        parentInputAttrPath(std::move(parentInputAttrPath)) {}
+        parent_input_attr_path(std::move(parent_input_attr_path)) {}
 
-  LockedNode(const fetchers::settings_t& fetchSettings, const nlohmann::json& json);
+  LockedNode(const fetchers::settings_t& fetch_settings, const nlohmann::json& json);
 
   StorePath computeStorePath(Store& store) const;
 };
@@ -58,12 +58,12 @@ struct LockFile {
   ref<Node> root = make_ref<Node>();
 
   LockFile() {};
-  LockFile(const fetchers::settings_t& fetchSettings, std::string_view contents,
+  LockFile(const fetchers::settings_t& fetch_settings, std::string_view contents,
            std::string_view path);
 
   typedef std::map<ref<const Node>, std::string> KeyMap;
 
-  std::pair<nlohmann::json, KeyMap> toJSON() const;
+  std::pair<nlohmann::json, KeyMap> to_json() const;
 
   std::pair<std::string, KeyMap> to_string() const;
 
@@ -71,7 +71,7 @@ struct LockFile {
    * Check whether this lock file has any unlocked or non-final
    * inputs. If so, return one.
    */
-  std::optional<FlakeRef> isUnlocked(const fetchers::settings_t& fetchSettings) const;
+  std::optional<FlakeRef> isUnlocked(const fetchers::settings_t& fetch_settings) const;
 
   bool operator==(const LockFile& other) const;
 
@@ -87,10 +87,10 @@ struct LockFile {
   void check();
 };
 
-std::ostream& operator<<(std::ostream& stream, const LockFile& lockFile);
+std::ostream& operator<<(std::ostream& stream, const LockFile& lock_file);
 
-InputAttrPath parseInputAttrPath(std::string_view s);
+InputAttrPath parse_input_attr_path(std::string_view s);
 
-std::string printInputAttrPath(const InputAttrPath& path);
+std::string print_input_attr_path(const InputAttrPath& path);
 
 } // namespace nix::flake

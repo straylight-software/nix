@@ -20,24 +20,24 @@ typedef std::variant<std::string, uint64_t, Explicit<bool>> Attr;
  */
 typedef std::map<std::string, Attr> Attrs;
 
-Attrs jsonToAttrs(const nlohmann::json& json);
+Attrs json_to_attrs(const nlohmann::json& json);
 
-nlohmann::json attrsToJSON(const Attrs& attrs);
+nlohmann::json attrs_to_json(const Attrs& attrs);
 
-std::optional<std::string> maybeGetStrAttr(const Attrs& attrs, const std::string& name);
+std::optional<std::string> maybe_get_str_attr(const Attrs& attrs, const std::string& name);
 
-std::string getStrAttr(const Attrs& attrs, const std::string& name);
+std::string get_str_attr(const Attrs& attrs, const std::string& name);
 
-std::optional<uint64_t> maybeGetIntAttr(const Attrs& attrs, const std::string& name);
+std::optional<uint64_t> maybe_get_int_attr(const Attrs& attrs, const std::string& name);
 
-uint64_t getIntAttr(const Attrs& attrs, const std::string& name);
+uint64_t get_int_attr(const Attrs& attrs, const std::string& name);
 
-std::optional<bool> maybeGetBoolAttr(const Attrs& attrs, const std::string& name);
+std::optional<bool> maybe_get_bool_attr(const Attrs& attrs, const std::string& name);
 
-bool getBoolAttr(const Attrs& attrs, const std::string& name);
+bool get_bool_attr(const Attrs& attrs, const std::string& name);
 
-string_map_t attrsToQuery(const Attrs& attrs);
+string_map_t attrs_to_query(const Attrs& attrs);
 
-Hash getRevAttr(const Attrs& attrs, const std::string& name);
+Hash get_rev_attr(const Attrs& attrs, const std::string& name);
 
 } // namespace nix::fetchers

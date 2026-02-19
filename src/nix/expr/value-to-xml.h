@@ -9,7 +9,7 @@
 
 namespace nix {
 
-void printValueAsXML(EvalState& state, bool strict, bool location, Value& v, std::ostream& out,
+void print_value_as_xml(EvalState& state, bool strict, bool location, Value& v, std::ostream& out,
                      NixStringContext& context, const pos_idx_t pos);
 
 }

@@ -41,9 +41,9 @@ nix::commands_t RegisterCommand::getCommandsFor(const std::vector<std::string>& 
   return res;
 }
 
-nlohmann::json NixMultiCommand::toJSON() {
+nlohmann::json NixMultiCommand::to_json() {
   // FIXME: use Command::toJSON() as well.
-  return multi_command_t::toJSON();
+  return multi_command_t::to_json();
 }
 
 void NixMultiCommand::run() {
@@ -52,9 +52,9 @@ void NixMultiCommand::run() {
     for (auto& [name, _] : commands)
       subCommandTextLines.insert(fmt("- `%s`", name));
     std::string markdownError =
-        fmt("`nix %s` requires a sub-command. Available sub-commands:\n\n%s\n", commandName,
-            concatStringsSep("\n", subCommandTextLines));
-    throw UsageError(renderMarkdownToTerminal(markdownError));
+        fmt("`nix %s` requires a sub-command. Available sub-commands:\n\n%s\n", command_name,
+            concat_strings_sep("\n", subCommandTextLines));
+    throw UsageError(render_markdown_to_terminal(markdownError));
   }
   command->second->run();
 }
@@ -68,7 +68,7 @@ ref<Store> StoreCommand::getStore() {
 }
 
 ref<Store> StoreCommand::createStore() {
-  return openStore();
+  return open_store();
 }
 
 void StoreCommand::run() {
@@ -76,35 +76,35 @@ void StoreCommand::run() {
 }
 
 CopyCommand::CopyCommand() {
-  addFlag({
-      .longName = "from",
+  add_flag({
+      .long_name = "from",
       .description = "URL of the source Nix store.",
       .labels = {"store-uri"},
       .handler = {&srcUri},
   });
 
-  addFlag({
-      .longName = "to",
+  add_flag({
+      .long_name = "to",
       .description = "URL of the destination Nix store.",
       .labels = {"store-uri"},
-      .handler = {&dstUri},
+      .handler = {&dst_uri},
   });
 }
 
 ref<Store> CopyCommand::createStore() {
-  return srcUri.empty() ? StoreCommand::createStore() : openStore(srcUri);
+  return srcUri.empty() ? StoreCommand::createStore() : open_store(srcUri);
 }
 
 ref<Store> CopyCommand::getDstStore() {
-  if (srcUri.empty() && dstUri.empty())
+  if (srcUri.empty() && dst_uri.empty())
     throw UsageError("you must pass '--from' and/or '--to'");
 
-  return dstUri.empty() ? openStore() : openStore(dstUri);
+  return dst_uri.empty() ? open_store() : open_store(dst_uri);
 }
 
 EvalCommand::EvalCommand() {
-  addFlag({
-      .longName = "debugger",
+  add_flag({
+      .long_name = "debugger",
       .description = "Start an interactive environment if evaluation fails.",
       .category = MixEvalArgs::category,
       .handler = {&startReplOnEvalErrors, true},
@@ -112,41 +112,41 @@ EvalCommand::EvalCommand() {
 }
 
 EvalCommand::~EvalCommand() {
-  if (evalState)
-    evalState->maybePrintStats();
+  if (eval_state)
+    eval_state->maybePrintStats();
 }
 
 ref<Store> EvalCommand::getEvalStore() {
-  if (!evalStore)
-    evalStore = evalStoreUrl ? openStore(*evalStoreUrl) : getStore();
-  return ref<Store>(evalStore);
+  if (!eval_store)
+    eval_store = evalStoreUrl ? open_store(*evalStoreUrl) : getStore();
+  return ref<Store>(eval_store);
 }
 
 ref<EvalState> EvalCommand::getEvalState() {
-  if (!evalState) {
-    if (startReplOnEvalErrors && evalSettings.evalCores != 1U) {
+  if (!eval_state) {
+    if (startReplOnEvalErrors && eval_settings.evalCores != 1U) {
       // Disable parallel eval if the debugger is enabled, since
       // they're incompatible at the moment.
       warn("using the debugger disables multi-threaded evaluation");
-      evalSettings.evalCores = 1;
+      eval_settings.evalCores = 1;
     }
 
-    evalState =
-        std::allocate_shared<EvalState>(traceable_allocator<EvalState>(), lookupPath,
-                                        getEvalStore(), fetchSettings, evalSettings, getStore());
+    eval_state =
+        std::allocate_shared<EvalState>(traceable_allocator<EvalState>(), lookup_path,
+                                        getEvalStore(), fetch_settings, eval_settings, getStore());
 
-    evalState->repair = repair;
+    eval_state->repair = repair;
 
     if (startReplOnEvalErrors) {
-      evalState->debugRepl = &AbstractNixRepl::runSimple;
+      eval_state->debugRepl = &AbstractNixRepl::runSimple;
     };
   }
-  return ref<EvalState>(evalState);
+  return ref<EvalState>(eval_state);
 }
 
 MixOperateOnOptions::MixOperateOnOptions() {
-  addFlag({
-      .longName = "derivation",
+  add_flag({
+      .long_name = "derivation",
       .description =
           "Operate on the [store derivation](@docroot@/glossary.md#gloss-store-derivation) rather "
           "than its outputs.",
@@ -157,23 +157,23 @@ MixOperateOnOptions::MixOperateOnOptions() {
 
 BuiltPathsCommand::BuiltPathsCommand(bool recursive) : recursive(recursive) {
   if (recursive)
-    addFlag({
-        .longName = "no-recursive",
+    add_flag({
+        .long_name = "no-recursive",
         .description = "Apply operation to specified paths only.",
         .category = installablesCategory,
         .handler = {&this->recursive, false},
     });
   else
-    addFlag({
-        .longName = "recursive",
-        .shortName = 'r',
+    add_flag({
+        .long_name = "recursive",
+        .short_name = 'r',
         .description = "Apply operation to closure of the specified paths.",
         .category = installablesCategory,
         .handler = {&this->recursive, true},
     });
 
-  addFlag({
-      .longName = "all",
+  add_flag({
+      .long_name = "all",
       .description = "Apply the operation to every store path.",
       .category = installablesCategory,
       .handler = {&all, true},
@@ -181,76 +181,76 @@ BuiltPathsCommand::BuiltPathsCommand(bool recursive) : recursive(recursive) {
 }
 
 void BuiltPathsCommand::run(ref<Store> store, Installables&& installables) {
-  BuiltPaths rootPaths, allPaths;
+  BuiltPaths root_paths, all_paths;
 
   if (all) {
     if (installables.size())
       throw UsageError("'--all' does not expect arguments");
     // XXX: Only uses opaque paths, ignores all the realisations
-    for (auto& p : store->queryAllValidPaths())
-      rootPaths.emplace_back(BuiltPath::opaque_t{p});
-    allPaths = rootPaths;
+    for (auto& p : store->query_all_valid_paths())
+      root_paths.emplace_back(BuiltPath::opaque_t{p});
+    all_paths = root_paths;
   } else {
-    rootPaths =
-        Installable::toBuiltPaths(getEvalStore(), store, realiseMode, operateOn, installables);
-    allPaths = rootPaths;
+    root_paths =
+        Installable::to_built_paths(getEvalStore(), store, realiseMode, operateOn, installables);
+    all_paths = root_paths;
 
     if (recursive) {
       // XXX: This only computes the store path closure, ignoring
       // intermediate realisations
       StorePathSet pathsRoots, pathsClosure;
-      for (auto& root : rootPaths) {
-        auto rootFromThis = root.outPaths();
+      for (auto& root : root_paths) {
+        auto rootFromThis = root.out_paths();
         pathsRoots.insert(rootFromThis.begin(), rootFromThis.end());
       }
       store->computeFSClosure(pathsRoots, pathsClosure);
       for (auto& path : pathsClosure)
-        allPaths.emplace_back(BuiltPath::opaque_t{path});
+        all_paths.emplace_back(BuiltPath::opaque_t{path});
     }
   }
 
-  run(store, std::move(allPaths), std::move(rootPaths));
+  run(store, std::move(all_paths), std::move(root_paths));
 }
 
 StorePathsCommand::StorePathsCommand(bool recursive) : BuiltPathsCommand(recursive) {}
 
-void StorePathsCommand::run(ref<Store> store, BuiltPaths&& allPaths, BuiltPaths&& rootPaths) {
-  StorePathSet storePaths;
-  for (auto& builtPath : allPaths)
-    for (auto& p : builtPath.outPaths())
-      storePaths.insert(p);
+void StorePathsCommand::run(ref<Store> store, BuiltPaths&& all_paths, BuiltPaths&& root_paths) {
+  StorePathSet store_paths;
+  for (auto& builtPath : all_paths)
+    for (auto& p : builtPath.out_paths())
+      store_paths.insert(p);
 
-  auto sorted = store->topoSortPaths(storePaths);
+  auto sorted = store->topoSortPaths(store_paths);
   std::reverse(sorted.begin(), sorted.end());
 
   run(store, std::move(sorted));
 }
 
-void StorePathCommand::run(ref<Store> store, StorePaths&& storePaths) {
-  if (storePaths.size() != 1)
+void StorePathCommand::run(ref<Store> store, StorePaths&& store_paths) {
+  if (store_paths.size() != 1)
     throw UsageError("this command requires exactly one store path");
 
-  run(store, *storePaths.begin());
+  run(store, *store_paths.begin());
 }
 
 MixProfile::MixProfile() {
-  addFlag({
-      .longName = "profile",
+  add_flag({
+      .long_name = "profile",
       .description = "The profile to operate on.",
       .labels = {"path"},
       .handler = {&profile},
-      .completer = completePath,
+      .completer = complete_path,
   });
 }
 
-void MixProfile::updateProfile(const StorePath& storePath) {
+void MixProfile::updateProfile(const StorePath& store_path) {
   if (!profile)
     return;
-  auto store = getDstStore().dynamic_pointer_cast<LocalFSStore>();
+  auto store = getDstStore().dynamic_pointer_cast<local_fs_store>();
   if (!store)
     throw Error("'--profile' is not supported for this Nix store");
-  auto profile2 = absPath(*profile);
-  switchLink(profile2, createGeneration(*store, profile2, storePath));
+  auto profile2 = abs_path(*profile);
+  switch_link(profile2, create_generation(*store, profile2, store_path));
 }
 
 void MixProfile::updateProfile(const BuiltPaths& buildables) {
@@ -280,36 +280,36 @@ void MixProfile::updateProfile(const BuiltPaths& buildables) {
 }
 
 MixDefaultProfile::MixDefaultProfile() {
-  profile = getDefaultProfile().string();
+  profile = get_default_profile().string();
 }
 
 MixEnvironment::MixEnvironment() : ignoreEnvironment(false) {
-  addFlag({
-      .longName = "ignore-env",
+  add_flag({
+      .long_name = "ignore-env",
       .aliases = {"ignore-environment"},
-      .shortName = 'i',
+      .short_name = 'i',
       .description =
           "Clear the entire environment, except for those specified with `--keep-env-var`.",
-      .category = environmentVariablesCategory,
+      .category = environment_variables_category,
       .handler = {&ignoreEnvironment, true},
   });
 
-  addFlag({
-      .longName = "keep-env-var",
+  add_flag({
+      .long_name = "keep-env-var",
       .aliases = {"keep"},
-      .shortName = 'k',
+      .short_name = 'k',
       .description = "Keep the environment variable *name*, when using `--ignore-env`.",
-      .category = environmentVariablesCategory,
+      .category = environment_variables_category,
       .labels = {"name"},
       .handler = {[&](std::string s) { keepVars.insert(s); }},
   });
 
-  addFlag({
-      .longName = "unset-env-var",
+  add_flag({
+      .long_name = "unset-env-var",
       .aliases = {"unset"},
-      .shortName = 'u',
+      .short_name = 'u',
       .description = "Unset the environment variable *name*.",
-      .category = environmentVariablesCategory,
+      .category = environment_variables_category,
       .labels = {"name"},
       .handler = {[&](std::string name) {
         if (setVars.contains(name))
@@ -320,11 +320,11 @@ MixEnvironment::MixEnvironment() : ignoreEnvironment(false) {
       }},
   });
 
-  addFlag({
-      .longName = "set-env-var",
-      .shortName = 's',
+  add_flag({
+      .long_name = "set-env-var",
+      .short_name = 's',
       .description = "Sets an environment variable *name* with *value*.",
-      .category = environmentVariablesCategory,
+      .category = environment_variables_category,
       .labels = {"name", "value"},
       .handler = {[&](std::string name, std::string value) {
         if (unsetVars.contains(name))
@@ -348,7 +348,7 @@ void MixEnvironment::setEnviron() {
   if (!ignoreEnvironment && !keepVars.empty())
     throw UsageError("--keep-env-var does not make sense without --ignore-env");
 
-  auto env = getEnv();
+  auto env = get_env();
 
   if (ignoreEnvironment)
     std::erase_if(env, [&](const auto& var) { return !keepVars.contains(var.first); });
@@ -359,30 +359,30 @@ void MixEnvironment::setEnviron() {
   if (!unsetVars.empty())
     std::erase_if(env, [&](const auto& var) { return unsetVars.contains(var.first); });
 
-  replaceEnv(env);
+  replace_env(env);
 
   return;
 }
 
-void createOutLinks(const std::filesystem::path& outLink, const BuiltPaths& buildables,
-                    LocalFSStore& store) {
+void create_out_links(const std::filesystem::path& out_link, const BuiltPaths& buildables,
+                    local_fs_store& store) {
   for (const auto& [_i, buildable] : enumerate(buildables)) {
     auto i = _i;
     std::visit(overloaded{
                    [&](const BuiltPath::opaque_t& bo) {
-                     auto symlink = outLink;
+                     auto symlink = out_link;
                      if (i)
                        symlink += fmt("-%d", i);
-                     store.addPermRoot(bo.path, absPath(symlink).string());
+                     store.addPermRoot(bo.path, abs_path(symlink).string());
                    },
                    [&](const BuiltPath::Built& bfd) {
                      for (auto& output : bfd.outputs) {
-                       auto symlink = outLink;
+                       auto symlink = out_link;
                        if (i)
                          symlink += fmt("-%d", i);
                        if (output.first != "out")
                          symlink += fmt("-%s", output.first);
-                       store.addPermRoot(output.second, absPath(symlink).string());
+                       store.addPermRoot(output.second, abs_path(symlink).string());
                      }
                    },
                },
@@ -392,9 +392,9 @@ void createOutLinks(const std::filesystem::path& outLink, const BuiltPaths& buil
 
 void MixOutLinkBase::createOutLinksMaybe(const std::vector<BuiltPathWithResult>& buildables,
                                          ref<Store>& store) {
-  if (outLink != "")
-    if (auto store2 = store.dynamic_pointer_cast<LocalFSStore>())
-      createOutLinks(outLink, toBuiltPaths(buildables), *store2);
+  if (out_link != "")
+    if (auto store2 = store.dynamic_pointer_cast<local_fs_store>())
+      create_out_links(out_link, to_built_paths(buildables), *store2);
 }
 
 } // namespace nix

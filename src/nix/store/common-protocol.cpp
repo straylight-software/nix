@@ -16,7 +16,7 @@ namespace nix {
 
 std::string CommonProto::Serialise<std::string>::read(const StoreDirConfig& store,
                                                       CommonProto::ReadConn conn) {
-  return readString(conn.from);
+  return read_string(conn.from);
 }
 
 void CommonProto::Serialise<std::string>::write(const StoreDirConfig& store,
@@ -27,34 +27,34 @@ void CommonProto::Serialise<std::string>::write(const StoreDirConfig& store,
 
 StorePath CommonProto::Serialise<StorePath>::read(const StoreDirConfig& store,
                                                   CommonProto::ReadConn conn) {
-  return conn.shortStorePaths ? StorePath(readString(conn.from))
-                              : store.parseStorePath(readString(conn.from));
+  return conn.shortStorePaths ? StorePath(read_string(conn.from))
+                              : store.parseStorePath(read_string(conn.from));
 }
 
 void CommonProto::Serialise<StorePath>::write(const StoreDirConfig& store,
                                               CommonProto::WriteConn conn,
-                                              const StorePath& storePath) {
-  conn.to << (conn.shortStorePaths ? storePath.to_string() : store.printStorePath(storePath));
+                                              const StorePath& store_path) {
+  conn.to << (conn.shortStorePaths ? store_path.to_string() : store.printStorePath(store_path));
 }
 
 ContentAddress CommonProto::Serialise<ContentAddress>::read(const StoreDirConfig& store,
                                                             CommonProto::ReadConn conn) {
-  return ContentAddress::parse(readString(conn.from));
+  return ContentAddress::parse(read_string(conn.from));
 }
 
 void CommonProto::Serialise<ContentAddress>::write(const StoreDirConfig& store,
                                                    CommonProto::WriteConn conn,
                                                    const ContentAddress& ca) {
-  conn.to << renderContentAddress(ca);
+  conn.to << render_content_address(ca);
 }
 
 Realisation CommonProto::Serialise<Realisation>::read(const StoreDirConfig& store,
                                                       CommonProto::ReadConn conn) {
-  std::string rawInput = readString(conn.from);
+  std::string rawInput = read_string(conn.from);
   try {
     return nlohmann::json::parse(rawInput);
   } catch (Error& e) {
-    e.addTrace({}, "while parsing a realisation object in the remote protocol");
+    e.add_trace({}, "while parsing a realisation object in the remote protocol");
     throw;
   }
 }
@@ -67,7 +67,7 @@ void CommonProto::Serialise<Realisation>::write(const StoreDirConfig& store,
 
 DrvOutput CommonProto::Serialise<DrvOutput>::read(const StoreDirConfig& store,
                                                   CommonProto::ReadConn conn) {
-  return DrvOutput::parse(readString(conn.from));
+  return DrvOutput::parse(read_string(conn.from));
 }
 
 void CommonProto::Serialise<DrvOutput>::write(const StoreDirConfig& store,
@@ -79,7 +79,7 @@ void CommonProto::Serialise<DrvOutput>::write(const StoreDirConfig& store,
 std::optional<StorePath>
 CommonProto::Serialise<std::optional<StorePath>>::read(const StoreDirConfig& store,
                                                        CommonProto::ReadConn conn) {
-  auto s = readString(conn.from);
+  auto s = read_string(conn.from);
   return s == ""                ? std::optional<StorePath>{}
          : conn.shortStorePaths ? StorePath(s)
                                 : store.parseStorePath(s);
@@ -96,13 +96,13 @@ void CommonProto::Serialise<std::optional<StorePath>>::write(
 std::optional<ContentAddress>
 CommonProto::Serialise<std::optional<ContentAddress>>::read(const StoreDirConfig& store,
                                                             CommonProto::ReadConn conn) {
-  return ContentAddress::parseOpt(readString(conn.from));
+  return ContentAddress::parseOpt(read_string(conn.from));
 }
 
 void CommonProto::Serialise<std::optional<ContentAddress>>::write(
     const StoreDirConfig& store, CommonProto::WriteConn conn,
     const std::optional<ContentAddress>& caOpt) {
-  conn.to << (caOpt ? renderContentAddress(*caOpt) : "");
+  conn.to << (caOpt ? render_content_address(*caOpt) : "");
 }
 
 } // namespace nix

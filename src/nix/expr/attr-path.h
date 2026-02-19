@@ -8,16 +8,16 @@
 
 namespace nix {
 
-MakeError(AttrPathNotFound, Error);
-MakeError(NoPositionInfo, Error);
+make_error(AttrPathNotFound, Error);
+make_error(NoPositionInfo, Error);
 
-std::pair<Value*, pos_idx_t> findAlongAttrPath(EvalState& state, const std::string& attrPath,
-                                            Bindings& autoArgs, Value& vIn);
+std::pair<Value*, pos_idx_t> find_along_attr_path(EvalState& state, const std::string& attr_path,
+                                            Bindings& auto_args, Value& v_in);
 
 /**
  * Heuristic to find the filename and lineno or a nix value.
  */
-std::pair<source_path_t, uint32_t> findPackageFilename(EvalState& state, Value& v, std::string what);
+std::pair<source_path_t, uint32_t> find_package_filename(EvalState& state, Value& v, std::string what);
 
 struct AttrPath : std::vector<Symbol> {
   using std::vector<Symbol>::vector;

@@ -11,21 +11,21 @@
 
 namespace nix {
 
-static constexpr auto refLength = StorePath::HashLen;
+static constexpr auto ref_length = StorePath::HashLen;
 
 static void search(std::string_view s, string_set_t& hashes, string_set_t& seen) {
-  for (size_t i = 0; i + refLength <= s.size();) {
+  for (size_t i = 0; i + ref_length <= s.size();) {
     int j;
     bool match = true;
-    for (j = refLength - 1; j >= 0; --j)
-      if (!base_nix32_t::lookupReverse(s[i + j])) {
+    for (j = ref_length - 1; j >= 0; --j)
+      if (!base_nix32_t::lookup_reverse(s[i + j])) {
         i += j + 1;
         match = false;
         break;
       }
     if (!match)
       continue;
-    std::string ref(s.substr(i, refLength));
+    std::string ref(s.substr(i, ref_length));
     if (hashes.erase(ref)) {
       debug("found reference to '%1%' at offset '%2%'", ref, i);
       seen.insert(ref);
@@ -39,23 +39,23 @@ void RefScanSink::operator()(std::string_view data) {
      fragment, so search in the concatenation of the tail of the
      previous fragment and the start of the current fragment. */
   auto s = tail;
-  auto tailLen = std::min(data.size(), refLength);
+  auto tailLen = std::min(data.size(), ref_length);
   s.append(data.data(), tailLen);
   search(s, hashes, seen);
 
   search(data, hashes, seen);
 
-  auto rest = refLength - tailLen;
+  auto rest = ref_length - tailLen;
   if (rest < tail.size())
     tail = tail.substr(tail.size() - rest);
   tail.append(data.data() + data.size() - tailLen, tailLen);
 }
 
-RewritingSink::RewritingSink(const std::string& from, const std::string& to, Sink& nextSink)
-    : RewritingSink({{from, to}}, nextSink) {}
+RewritingSink::RewritingSink(const std::string& from, const std::string& to, Sink& next_sink)
+    : RewritingSink({{from, to}}, next_sink) {}
 
-RewritingSink::RewritingSink(const string_map_t& rewrites, Sink& nextSink)
-    : rewrites(rewrites), nextSink(nextSink) {
+RewritingSink::RewritingSink(const string_map_t& rewrites, Sink& next_sink)
+    : rewrites(rewrites), next_sink(next_sink) {
   std::string::size_type maxRewriteSize = 0;
   for (auto& [from, to] : rewrites) {
     assert(from.size() == to.size());
@@ -68,7 +68,7 @@ void RewritingSink::operator()(std::string_view data) {
   std::string s(prev);
   s.append(data);
 
-  s = rewriteStrings(s, rewrites);
+  s = rewrite_strings(s, rewrites);
 
   prev = s.size() < maxRewriteSize ? s
          : maxRewriteSize == 0     ? ""
@@ -79,19 +79,19 @@ void RewritingSink::operator()(std::string_view data) {
   pos += consumed;
 
   if (consumed)
-    nextSink(s.substr(0, consumed));
+    next_sink(s.substr(0, consumed));
 }
 
 void RewritingSink::flush() {
   if (prev.empty())
     return;
   pos += prev.size();
-  nextSink(prev);
+  next_sink(prev);
   prev.clear();
 }
 
 HashModuloSink::HashModuloSink(hash_algorithm_t ha, const std::string& modulus)
-    : hashSink(ha), rewritingSink(modulus, std::string(modulus.size(), 0), hashSink) {}
+    : hash_sink(ha), rewritingSink(modulus, std::string(modulus.size(), 0), hash_sink) {}
 
 void HashModuloSink::operator()(std::string_view data) {
   rewritingSink(data);
@@ -105,10 +105,10 @@ hash_result_t HashModuloSink::finish() {
      self-references already zeroed out do not produce a hash
      collision. FIXME: proof. */
   for (auto& pos : rewritingSink.matches)
-    hashSink(fmt("|%d", pos));
+    hash_sink(fmt("|%d", pos));
 
-  auto h = hashSink.finish();
-  return {.hash = h.hash, .numBytesDigested = rewritingSink.pos};
+  auto h = hash_sink.finish();
+  return {.hash = h.hash, .num_bytes_digested = rewritingSink.pos};
 }
 
 } // namespace nix

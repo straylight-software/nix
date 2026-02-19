@@ -14,7 +14,7 @@ struct cmd_realisation_t : NixMultiCommand {
   category_t category() override { return catUtility; }
 };
 
-static auto rCmdRealisation = registerCommand<cmd_realisation_t>("realisation");
+static auto r_cmd_realisation = registerCommand<cmd_realisation_t>("realisation");
 
 struct cmd_realisation_info_t : BuiltPathsCommand, MixJSON {
   std::string description() override {
@@ -29,8 +29,8 @@ struct cmd_realisation_info_t : BuiltPathsCommand, MixJSON {
 
   category_t category() override { return catSecondary; }
 
-  void run(ref<Store> store, BuiltPaths&& paths, BuiltPaths&& rootPaths) override {
-    experimentalFeatureSettings.require(xp_t::CaDerivations);
+  void run(ref<Store> store, BuiltPaths&& paths, BuiltPaths&& root_paths) override {
+    experimental_feature_settings.require(xp_t::ca_derivations);
     RealisedPath::Set realisations;
 
     for (auto& builtPath : paths) {
@@ -54,7 +54,7 @@ struct cmd_realisation_info_t : BuiltPathsCommand, MixJSON {
       for (auto& path : realisations) {
         if (auto realisation = std::get_if<Realisation>(&path.raw)) {
           logger->cout("%s %s", realisation->id.to_string(),
-                       store->printStorePath(realisation->outPath));
+                       store->printStorePath(realisation->out_path));
         } else
           logger->cout("%s", store->printStorePath(path.path()));
       }
@@ -62,4 +62,4 @@ struct cmd_realisation_info_t : BuiltPathsCommand, MixJSON {
   }
 };
 
-static auto rCmdRealisationInfo = registerCommand2<cmd_realisation_info_t>({"realisation", "info"});
+static auto r_cmd_realisation_info = registerCommand2<cmd_realisation_info_t>({"realisation", "info"});

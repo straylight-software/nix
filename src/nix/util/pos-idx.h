@@ -30,7 +30,7 @@ public:
   uint32_t get() const { return id; }
 };
 
-inline pos_idx_t noPos = {};
+inline pos_idx_t no_pos = {};
 
 } // namespace nix
 

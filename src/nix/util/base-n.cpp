@@ -9,20 +9,20 @@ using namespace std::literals;
 
 namespace nix {
 
-constexpr static const std::array<char, 16> base16Chars = "0123456789abcdef"_arrayNoNull;
+constexpr static const std::array<char, 16> base16_chars = "0123456789abcdef"_arrayNoNull;
 
 std::string base16::encode(std::span<const std::byte> b) {
   std::string buf;
   buf.reserve(b.size() * 2);
   for (size_t i = 0; i < b.size(); i++) {
-    buf.push_back(base16Chars[(uint8_t)b.data()[i] >> 4]);
-    buf.push_back(base16Chars[(uint8_t)b.data()[i] & 0x0f]);
+    buf.push_back(base16_chars[(uint8_t)b.data()[i] >> 4]);
+    buf.push_back(base16_chars[(uint8_t)b.data()[i] & 0x0f]);
   }
   return buf;
 }
 
 std::string base16::decode(std::string_view s) {
-  auto parseHexDigit = [&](char c) {
+  auto parse_hex_digit = [&](char c) {
     if (c >= '0' && c <= '9')
       return c - '0';
     if (c >= 'A' && c <= 'F')
@@ -33,19 +33,19 @@ std::string base16::decode(std::string_view s) {
   };
 
   assert(s.size() % 2 == 0);
-  auto decodedSize = s.size() / 2;
+  auto decoded_size = s.size() / 2;
 
   std::string res;
-  res.reserve(decodedSize);
+  res.reserve(decoded_size);
 
-  for (unsigned int i = 0; i < decodedSize; i++) {
-    res.push_back(parseHexDigit(s[i * 2]) << 4 | parseHexDigit(s[i * 2 + 1]));
+  for (unsigned int i = 0; i < decoded_size; i++) {
+    res.push_back(parse_hex_digit(s[i * 2]) << 4 | parse_hex_digit(s[i * 2 + 1]));
   }
 
   return res;
 }
 
-constexpr static const std::array<char, 64> base64Chars =
+constexpr static const std::array<char, 64> base64_chars =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"_arrayNoNull;
 
 std::string base64::encode(std::span<const std::byte> s) {
@@ -58,12 +58,12 @@ std::string base64::encode(std::span<const std::byte> s) {
     nbits += 8;
     while (nbits >= 6) {
       nbits -= 6;
-      res.push_back(base64Chars[data >> nbits & 0x3f]);
+      res.push_back(base64_chars[data >> nbits & 0x3f]);
     }
   }
 
   if (nbits)
-    res.push_back(base64Chars[data << (6 - nbits) & 0x3f]);
+    res.push_back(base64_chars[data << (6 - nbits) & 0x3f]);
   while (res.size() % 4)
     res.push_back('=');
 
@@ -72,12 +72,12 @@ std::string base64::encode(std::span<const std::byte> s) {
 
 std::string base64::decode(std::string_view s) {
   constexpr char npos = -1;
-  constexpr std::array<char, 256> base64DecodeChars = [&] {
+  constexpr std::array<char, 256> base64_decode_chars = [&] {
     std::array<char, 256> result{};
     for (auto& c : result)
       c = npos;
     for (int i = 0; i < 64; i++)
-      result[base64Chars[i]] = i;
+      result[base64_chars[i]] = i;
     return result;
   }();
 
@@ -93,7 +93,7 @@ std::string base64::decode(std::string_view s) {
     if (c == '\n')
       continue;
 
-    char digit = base64DecodeChars[(unsigned char)c];
+    char digit = base64_decode_chars[(unsigned char)c];
     if (digit == npos)
       throw FormatError("invalid character in Base64 string: '%c'", c);
 

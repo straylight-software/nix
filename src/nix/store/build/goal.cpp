@@ -42,7 +42,7 @@ std::coroutine_handle<> promise_type::final_awaiter::await_suspend(handle_type h
   if (c) {
     // We still have a continuation, i.e. work to do.
     // We assert that the goal is still busy.
-    assert(goal->exitCode == ecBusy);
+    assert(goal->exit_code == ecBusy);
     assert(goal->top_co);              // Goal must have an active coroutine.
     assert(goal->top_co->handle == h); // The active coroutine must be us.
     assert(p.alive);                   // We must not have been destructed.
@@ -61,7 +61,7 @@ std::coroutine_handle<> promise_type::final_awaiter::await_suspend(handle_type h
   } else {
     // We have no continuation, i.e. no more work to do,
     // so the goal must not be busy anymore.
-    assert(goal->exitCode != ecBusy);
+    assert(goal->exit_code != ecBusy);
 
     // We reset `top_co` for good measure.
     p.goal->top_co = {};
@@ -105,7 +105,7 @@ bool CompareGoalPtrs::operator()(const GoalPtr& a, const GoalPtr& b) const {
   return s1 < s2;
 }
 
-void addToWeakGoals(WeakGoals& goals, GoalPtr p) {
+void add_to_weak_goals(WeakGoals& goals, GoalPtr p) {
   if (goals.find(p) != goals.end())
     return;
   goals.insert(p);
@@ -116,7 +116,7 @@ Co Goal::await(Goals new_waitees) {
   if (!new_waitees.empty()) {
     waitees = std::move(new_waitees);
     for (auto waitee : waitees) {
-      addToWeakGoals(waitee->waiters, shared_from_this());
+      add_to_weak_goals(waitee->waiters, shared_from_this());
     }
     co_await Suspend{};
     assert(waitees.empty());
@@ -127,9 +127,9 @@ Co Goal::await(Goals new_waitees) {
 Goal::done_t Goal::amDone(ExitCode result, std::optional<Error> ex) {
   trace("done");
   assert(top_co);
-  assert(exitCode == ecBusy);
+  assert(exit_code == ecBusy);
   assert(result == ecSuccess || result == ecFailed || result == ecNoSubstituters);
-  exitCode = result;
+  exit_code = result;
 
   if (ex) {
     if (!preserveException && !waiters.empty())
@@ -155,8 +155,8 @@ Goal::done_t Goal::amDone(ExitCode result, std::optional<Error> ex) {
 
       if (goal->waitees.empty()) {
         worker.wakeUp(goal);
-      } else if (result == ecFailed && !settings.keepGoing) {
-        /* If we failed and keepGoing is not set, we remove all
+      } else if (result == ecFailed && !settings.keep_going) {
+        /* If we failed and keep_going is not set, we remove all
            remaining waitees. */
         for (auto& g : goal->waitees) {
           g->waiters.extract(goal);
@@ -168,7 +168,7 @@ Goal::done_t Goal::amDone(ExitCode result, std::optional<Error> ex) {
     }
   }
   waiters.clear();
-  worker.removeGoal(shared_from_this());
+  worker.remove_goal(shared_from_this());
 
   cleanup();
 
@@ -191,7 +191,7 @@ void Goal::work() {
   top_co->handle.resume();
   // We either should be in a state where we can be work()-ed again,
   // or we should be done.
-  assert(top_co || exitCode != ecBusy);
+  assert(top_co || exit_code != ecBusy);
 }
 
 Goal::Co Goal::yield() {

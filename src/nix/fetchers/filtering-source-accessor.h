@@ -15,52 +15,52 @@ typedef std::function<RestrictedPathError(const canon_path_t& path)> MakeNotAllo
 
 /**
  * An abstract wrapping `SourceAccessor` that performs access
- * control. Subclasses should override `isAllowed()` to implement an
+ * control. Subclasses should override `is_allowed()` to implement an
  * access control policy. The error message is customized at construction.
  */
 struct FilteringSourceAccessor : SourceAccessor {
   ref<SourceAccessor> next;
   canon_path_t prefix;
-  MakeNotAllowedError makeNotAllowedError;
+  MakeNotAllowedError make_not_allowed_error;
 
-  FilteringSourceAccessor(const source_path_t& src, MakeNotAllowedError&& makeNotAllowedError)
-      : next(src.accessor), prefix(src.path), makeNotAllowedError(std::move(makeNotAllowedError)) {
-    displayPrefix.clear();
+  FilteringSourceAccessor(const source_path_t& src, MakeNotAllowedError&& make_not_allowed_error)
+      : next(src.accessor), prefix(src.path), make_not_allowed_error(std::move(make_not_allowed_error)) {
+    display_prefix.clear();
   }
 
-  std::optional<std::filesystem::path> getPhysicalPath(const canon_path_t& path) override;
+  std::optional<std::filesystem::path> get_physical_path(const canon_path_t& path) override;
 
-  std::string readFile(const canon_path_t& path) override;
+  std::string read_file(const canon_path_t& path) override;
 
-  void readFile(const canon_path_t& path, Sink& sink,
-                std::function<void(uint64_t)> sizeCallback) override;
+  void read_file(const canon_path_t& path, Sink& sink,
+                std::function<void(uint64_t)> size_callback) override;
 
-  bool pathExists(const canon_path_t& path) override;
+  bool path_exists(const canon_path_t& path) override;
 
   stat_t lstat(const canon_path_t& path) override;
 
-  std::optional<stat_t> maybeLstat(const canon_path_t& path) override;
+  std::optional<stat_t> maybe_lstat(const canon_path_t& path) override;
 
-  dir_entries_t readDirectory(const canon_path_t& path) override;
+  dir_entries_t read_directory(const canon_path_t& path) override;
 
-  std::string readLink(const canon_path_t& path) override;
+  std::string read_link(const canon_path_t& path) override;
 
-  std::string showPath(const canon_path_t& path) override;
+  std::string show_path(const canon_path_t& path) override;
 
-  std::pair<canon_path_t, std::optional<std::string>> getFingerprint(const canon_path_t& path) override;
+  std::pair<canon_path_t, std::optional<std::string>> get_fingerprint(const canon_path_t& path) override;
 
-  void invalidateCache(const canon_path_t& path) override;
+  void invalidate_cache(const canon_path_t& path) override;
 
   /**
-   * Call `makeNotAllowedError` to throw a `RestrictedPathError`
-   * exception if `isAllowed()` returns `false` for `path`.
+   * Call `make_not_allowed_error` to throw a `RestrictedPathError`
+   * exception if `is_allowed()` returns `false` for `path`.
    */
   void checkAccess(const canon_path_t& path);
 
   /**
    * Return `true` iff access to path is allowed.
    */
-  virtual bool isAllowed(const canon_path_t& path) = 0;
+  virtual bool is_allowed(const canon_path_t& path) = 0;
 };
 
 /**
@@ -74,15 +74,15 @@ struct AllowListSourceAccessor : public FilteringSourceAccessor {
   virtual void allowPrefix(canon_path_t prefix) = 0;
 
   static ref<AllowListSourceAccessor> create(ref<SourceAccessor> next,
-                                             std::set<canon_path_t>&& allowedPrefixes,
-                                             boost::unordered_flat_set<canon_path_t>&& allowedPaths,
-                                             MakeNotAllowedError&& makeNotAllowedError);
+                                             std::set<canon_path_t>&& allowed_prefixes,
+                                             boost::unordered_flat_set<canon_path_t>&& allowed_paths,
+                                             MakeNotAllowedError&& make_not_allowed_error);
 
   using FilteringSourceAccessor::FilteringSourceAccessor;
 };
 
 /**
- * A wrapping `SourceAccessor` mix-in where `isAllowed()` caches the result of virtual
+ * A wrapping `SourceAccessor` mix-in where `is_allowed()` caches the result of virtual
  * `isAllowedUncached()`.
  */
 struct CachingFilteringSourceAccessor : FilteringSourceAccessor {
@@ -90,7 +90,7 @@ struct CachingFilteringSourceAccessor : FilteringSourceAccessor {
 
   using FilteringSourceAccessor::FilteringSourceAccessor;
 
-  bool isAllowed(const canon_path_t& path) override;
+  bool is_allowed(const canon_path_t& path) override;
 
   virtual bool isAllowedUncached(const canon_path_t& path) = 0;
 };

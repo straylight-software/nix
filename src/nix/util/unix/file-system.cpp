@@ -14,12 +14,12 @@
 
 namespace nix {
 
-descriptor_t openDirectory(const std::filesystem::path& path) {
+descriptor_t open_directory(const std::filesystem::path& path) {
   return open(path.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
 }
 
-void setWriteTime(const std::filesystem::path& path, time_t accessedTime, time_t modificationTime,
-                  std::optional<bool> optIsSymlink) {
+void set_write_time(const std::filesystem::path& path, time_t accessed_time, time_t modification_time,
+                  std::optional<bool> opt_is_symlink) {
   // Would be nice to use std::filesystem unconditionally, but
   // doesn't support access time just modification time.
   //
@@ -27,11 +27,11 @@ void setWriteTime(const std::filesystem::path& path, time_t accessedTime, time_t
 #if HAVE_UTIMENSAT && HAVE_DECL_AT_SYMLINK_NOFOLLOW
   struct timespec times[2] = {
       {
-          .tv_sec = accessedTime,
+          .tv_sec = accessed_time,
           .tv_nsec = 0,
       },
       {
-          .tv_sec = modificationTime,
+          .tv_sec = modification_time,
           .tv_nsec = 0,
       },
   };
@@ -40,11 +40,11 @@ void setWriteTime(const std::filesystem::path& path, time_t accessedTime, time_t
 #else
   struct timeval times[2] = {
       {
-          .tv_sec = accessedTime,
+          .tv_sec = accessed_time,
           .tv_usec = 0,
       },
       {
-          .tv_sec = modificationTime,
+          .tv_sec = modification_time,
           .tv_usec = 0,
       },
   };
@@ -52,9 +52,9 @@ void setWriteTime(const std::filesystem::path& path, time_t accessedTime, time_t
   if (lutimes(path.c_str(), times) == -1)
     throw sys_error_t("changing modification time of %s", path);
 #  else
-  bool isSymlink = optIsSymlink ? *optIsSymlink : std::filesystem::is_symlink(path);
+  bool is_symlink = opt_is_symlink ? *opt_is_symlink : std::filesystem::is_symlink(path);
 
-  if (!isSymlink) {
+  if (!is_symlink) {
     if (utimes(path.c_str(), times) == -1)
       throw sys_error_t("changing modification time of %s (not a symlink)", path);
   } else {

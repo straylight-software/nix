@@ -8,6 +8,7 @@
 //   nix_eval                     Read from stdin (REPL mode)
 
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -21,6 +22,12 @@ namespace ast = nix::language::ast;
 namespace parse = nix::language::parse;
 namespace eval = nix::language::eval;
 
+auto make_file_parser(ast::symbol_table& symbols) -> eval::file_parser {
+  return [&symbols](const std::string& /* path */, const std::string& source) {
+    return parse::parse(source, symbols);
+  };
+}
+
 void print_usage(const char* program) {
   std::cerr << "Usage:\n";
   std::cerr << "  " << program << " -e 'expression'   Evaluate expression\n";
@@ -28,10 +35,15 @@ void print_usage(const char* program) {
   std::cerr << "  " << program << "                   REPL mode (read from stdin)\n";
 }
 
-auto evaluate_source(const std::string& source, ast::symbol_table& symbols) -> int {
+auto evaluate_source(const std::string& source, ast::symbol_table& symbols,
+                     const std::string& base_path = "") -> int {
   try {
     auto expr = parse::parse(source, symbols);
     eval::evaluator evaluator(symbols);
+    evaluator.set_file_parser(make_file_parser(symbols));
+    if (!base_path.empty()) {
+      evaluator.set_base_path(base_path);
+    }
     auto result = evaluator.eval(expr);
     auto forced = evaluator.force(result);
     std::cout << evaluator.print_value(forced) << "\n";
@@ -62,6 +74,8 @@ auto run_repl(ast::symbol_table& symbols) -> int {
   std::cout << "Nix evaluator (type Ctrl-D to exit)\n";
   std::string line;
   eval::evaluator evaluator(symbols);
+  evaluator.set_file_parser(make_file_parser(symbols));
+  evaluator.set_base_path(std::filesystem::current_path().string());
 
   while (true) {
     std::cout << "nix> " << std::flush;
@@ -109,8 +123,10 @@ auto main(int argc, char** argv) -> int {
     }
 
     try {
-      std::string source = read_file(arg);
-      return evaluate_source(source, symbols);
+      std::filesystem::path file_path = std::filesystem::absolute(arg);
+      std::string base_path = file_path.parent_path().string();
+      std::string source = read_file(file_path.string());
+      return evaluate_source(source, symbols, base_path);
     } catch (const std::exception& e) {
       std::cerr << "Error: " << e.what() << "\n";
       return 1;

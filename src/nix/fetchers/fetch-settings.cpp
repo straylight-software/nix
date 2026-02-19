@@ -10,8 +10,8 @@ settings_t::settings_t() {}
 
 namespace nix {
 
-fetchers::settings_t fetchSettings;
+fetchers::settings_t fetch_settings;
 
-static global_config_t::Register rFetchSettings(&fetchSettings);
+static global_config_t::Register r_fetch_settings(&fetch_settings);
 
 } // namespace nix

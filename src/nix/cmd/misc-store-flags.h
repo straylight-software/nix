@@ -3,21 +3,21 @@
 
 namespace nix::flag {
 
-Args::flag_t hashAlgo(std::string&& longName, hash_algorithm_t* ha);
+Args::flag_t hash_algo(std::string&& long_name, hash_algorithm_t* ha);
 
-static inline Args::flag_t hashAlgo(hash_algorithm_t* ha) {
-  return hashAlgo("hash-algo", ha);
+static inline Args::flag_t hash_algo(hash_algorithm_t* ha) {
+  return hash_algo("hash-algo", ha);
 }
 
-Args::flag_t hashAlgoOpt(std::string&& longName, std::optional<hash_algorithm_t>* oha);
-Args::flag_t hashFormatWithDefault(std::string&& longName, hash_format_t* hf);
-Args::flag_t hashFormatOpt(std::string&& longName, std::optional<hash_format_t>* ohf);
+Args::flag_t hash_algo_opt(std::string&& long_name, std::optional<hash_algorithm_t>* oha);
+Args::flag_t hash_format_with_default(std::string&& long_name, hash_format_t* hf);
+Args::flag_t hash_format_opt(std::string&& long_name, std::optional<hash_format_t>* ohf);
 
-static inline Args::flag_t hashAlgoOpt(std::optional<hash_algorithm_t>* oha) {
-  return hashAlgoOpt("hash-algo", oha);
+static inline Args::flag_t hash_algo_opt(std::optional<hash_algorithm_t>* oha) {
+  return hash_algo_opt("hash-algo", oha);
 }
 
-Args::flag_t fileIngestionMethod(file_ingestion_method_t* method);
-Args::flag_t contentAddressMethod(ContentAddressMethod* method);
+Args::flag_t file_ingestion_method(file_ingestion_method_t* method);
+Args::flag_t content_address_method(ContentAddressMethod* method);
 
 } // namespace nix::flag

@@ -18,27 +18,27 @@ using namespace std::filesystem;
 struct cmd_eval_t : MixJSON, InstallableValueCommand, MixReadOnlyOption {
   bool raw = false;
   std::optional<std::string> apply;
-  std::optional<std::filesystem::path> writeTo;
+  std::optional<std::filesystem::path> write_to;
 
   cmd_eval_t() : InstallableValueCommand() {
-    addFlag({
-        .longName = "raw",
+    add_flag({
+        .long_name = "raw",
         .description = "Print strings without quotes or escaping.",
         .handler = {&raw, true},
     });
 
-    addFlag({
-        .longName = "apply",
+    add_flag({
+        .long_name = "apply",
         .description = "Apply the function *expr* to each argument.",
         .labels = {"expr"},
         .handler = {&apply},
     });
 
-    addFlag({
-        .longName = "write-to",
+    add_flag({
+        .long_name = "write-to",
         .description = "Write a string or attrset of strings to *path*.",
         .labels = {"path"},
-        .handler = {&writeTo},
+        .handler = {&write_to},
     });
   }
 
@@ -62,29 +62,29 @@ struct cmd_eval_t : MixJSON, InstallableValueCommand, MixReadOnlyOption {
     NixStringContext context;
 
     if (apply) {
-      auto vApply = state->allocValue();
-      state->eval(state->parseExprFromString(*apply, state->rootPath(".")), *vApply);
-      auto vRes = state->allocValue();
-      state->callFunction(*vApply, *v, *vRes, noPos);
-      v = vRes;
+      auto v_apply = state->allocValue();
+      state->eval(state->parseExprFromString(*apply, state->root_path(".")), *v_apply);
+      auto v_res = state->allocValue();
+      state->callFunction(*v_apply, *v, *v_res, no_pos);
+      v = v_res;
     }
 
-    if (writeTo) {
+    if (write_to) {
       logger->stop();
 
-      if (pathExists(*writeTo))
-        throw Error("path '%s' already exists", writeTo->string());
+      if (path_exists(*write_to))
+        throw Error("path '%s' already exists", write_to->string());
 
       [&](this const auto& recurse, Value& v, const pos_idx_t pos,
           const std::filesystem::path& path) -> void {
         state->forceValue(v, pos);
         if (v.type() == nString)
           // FIXME: disallow strings with contexts?
-          writeFile(path.string(), v.string_view());
+          write_file(path.string(), v.string_view());
         else if (v.type() == nAttrs) {
-          [[maybe_unused]] bool directoryCreated = std::filesystem::create_directory(path);
+          [[maybe_unused]] bool directory_created = std::filesystem::create_directory(path);
           // Directory should not already exist
-          assert(directoryCreated);
+          assert(directory_created);
           for (auto& attr : *v.attrs()) {
             std::string_view name = state->symbols[attr.name];
             try {
@@ -92,7 +92,7 @@ struct cmd_eval_t : MixJSON, InstallableValueCommand, MixReadOnlyOption {
                 throw Error("invalid file name '%s'", name);
               recurse(*attr.value, attr.pos, path / name);
             } catch (Error& e) {
-              e.addTrace(state->positions[attr.pos],
+              e.add_trace(state->positions[attr.pos],
                          hint_fmt_t("while evaluating the attribute '%s'", name));
               throw;
             }
@@ -102,21 +102,21 @@ struct cmd_eval_t : MixJSON, InstallableValueCommand, MixReadOnlyOption {
               ->error<TypeError>("value at '%s' is not a string or an attribute set",
                                  state->positions[pos])
               .debugThrow();
-      }(*v, pos, *writeTo);
+      }(*v, pos, *write_to);
     }
 
     else if (raw) {
       logger->stop();
-      writeFull(
-          getStandardOutput(),
-          state->devirtualize(*state->coerceToString(noPos, *v, context,
+      write_full(
+          get_standard_output(),
+          state->devirtualize(*state->coerceToString(no_pos, *v, context,
                                                      "while generating the eval command output"),
                               context));
     }
 
     else if (json) {
       // FIXME: use printJSON
-      auto j = printValueAsJSON(*state, true, *v, pos, context, false);
+      auto j = print_value_as_json(*state, true, *v, pos, context, false);
       logger->cout("%s", state->devirtualize(outputPretty ? j.dump(2) : j.dump(), context));
     }
 
@@ -127,4 +127,4 @@ struct cmd_eval_t : MixJSON, InstallableValueCommand, MixReadOnlyOption {
   }
 };
 
-static auto rCmdEval = registerCommand<cmd_eval_t>("eval");
+static auto r_cmd_eval = registerCommand<cmd_eval_t>("eval");

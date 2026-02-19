@@ -63,14 +63,14 @@ directory_iterator_t& directory_iterator_t::operator++() {
   return *this;
 }
 
-bool isAbsolute(path_view_t path) {
+bool is_absolute(path_view_t path) {
   return std::filesystem::path{path}.is_absolute();
 }
 
-Path absPath(path_view_t path, std::optional<path_view_t> dir, bool resolveSymlinks) {
+Path abs_path(path_view_t path, std::optional<path_view_t> dir, bool resolve_symlinks) {
   std::string scratch;
 
-  if (!isAbsolute(path)) {
+  if (!is_absolute(path)) {
     // In this case we need to call `canonPath` on a newly-created
     // string. We set `scratch` to that string first, and then set
     // `path` to `scratch`. This ensures the newly-created string
@@ -87,32 +87,32 @@ Path absPath(path_view_t path, std::optional<path_view_t> dir, bool resolveSymli
       if (!getcwd(buf, sizeof(buf)))
 #endif
         throw sys_error_t("cannot get cwd");
-      scratch = concatStrings(buf, "/", path);
+      scratch = concat_strings(buf, "/", path);
 #ifdef __GNU__
       free(buf);
 #endif
     } else
-      scratch = concatStrings(*dir, "/", path);
+      scratch = concat_strings(*dir, "/", path);
     path = scratch;
   }
-  return canonPath(path, resolveSymlinks);
+  return canon_path(path, resolve_symlinks);
 }
 
-std::filesystem::path absPath(const std::filesystem::path& path, const std::filesystem::path* dir_,
-                              bool resolveSymlinks) {
+std::filesystem::path abs_path(const std::filesystem::path& path, const std::filesystem::path* dir_,
+                              bool resolve_symlinks) {
   std::optional<std::string> dir = dir_ ? std::optional<std::string>{dir_->string()} : std::nullopt;
-  return absPath(path_view_t{path.string()}, dir.transform([](auto& p) { return path_view_t(p); }),
-                 resolveSymlinks);
+  return abs_path(path_view_t{path.string()}, dir.transform([](auto& p) { return path_view_t(p); }),
+                 resolve_symlinks);
 }
 
-Path canonPath(path_view_t path, bool resolveSymlinks) {
+Path canon_path(path_view_t path, bool resolve_symlinks) {
   assert(path != "");
 
-  if (!isAbsolute(path))
+  if (!is_absolute(path))
     throw Error("not an absolute path: '%1%'", path);
 
   // For Windows
-  auto rootName = std::filesystem::path{path}.root_name();
+  auto root_name = std::filesystem::path{path}.root_name();
 
   /* This just exists because we cannot set the target of `remaining`
      (the callback parameter) directly to a newly-constructed string,
@@ -121,22 +121,22 @@ Path canonPath(path_view_t path, bool resolveSymlinks) {
 
   /* Count the number of times we follow a symlink and stop at some
      arbitrary (but high) limit to prevent infinite loops. */
-  unsigned int followCount = 0, maxFollow = 1024;
+  unsigned int follow_count = 0, max_follow = 1024;
 
-  auto ret = canonPathInner<os_path_trait_t<char>>(
-      path, [&followCount, &temp, maxFollow, resolveSymlinks](std::string& result,
+  auto ret = canon_path_inner<os_path_trait_t<char>>(
+      path, [&follow_count, &temp, max_follow, resolve_symlinks](std::string& result,
                                                               std::string_view& remaining) {
-        if (resolveSymlinks && std::filesystem::is_symlink(result)) {
-          if (++followCount >= maxFollow)
+        if (resolve_symlinks && std::filesystem::is_symlink(result)) {
+          if (++follow_count >= max_follow)
             throw Error("infinite symlink recursion in path '%1%'", remaining);
-          remaining = (temp = concatStrings(readLink(result), remaining));
-          if (isAbsolute(remaining)) {
+          remaining = (temp = concat_strings(read_link(result), remaining));
+          if (is_absolute(remaining)) {
             /* restart for symlinks pointing to absolute path */
             result.clear();
           } else {
-            result = dirOf(result);
+            result = dir_of(result);
             if (result == "/") {
-              /* we don’t want trailing slashes here, which `dirOf`
+              /* we don’t want trailing slashes here, which `dir_of`
                  only produces if `result = /` */
               result.clear();
             }
@@ -144,27 +144,27 @@ Path canonPath(path_view_t path, bool resolveSymlinks) {
         }
       });
 
-  if (!rootName.empty())
-    ret = rootName.string() + std::move(ret);
+  if (!root_name.empty())
+    ret = root_name.string() + std::move(ret);
   return ret;
 }
 
-Path dirOf(const path_view_t path) {
-  Path::size_type pos = os_path_trait_t<char>::rfindPathSep(path);
+Path dir_of(const path_view_t path) {
+  Path::size_type pos = os_path_trait_t<char>::rfind_path_sep(path);
   if (pos == path.npos)
     return ".";
   return std::filesystem::path{path}.parent_path().string();
 }
 
-std::string_view baseNameOf(std::string_view path) {
+std::string_view base_name_of(std::string_view path) {
   if (path.empty())
     return "";
 
   auto last = path.size() - 1;
-  while (last > 0 && os_path_trait_t<char>::isPathSep(path[last]))
+  while (last > 0 && os_path_trait_t<char>::is_path_sep(path[last]))
     last -= 1;
 
-  auto pos = os_path_trait_t<char>::rfindPathSep(path, last);
+  auto pos = os_path_trait_t<char>::rfind_path_sep(path, last);
   if (pos == path.npos)
     pos = 0;
   else
@@ -173,7 +173,7 @@ std::string_view baseNameOf(std::string_view path) {
   return path.substr(pos, last - pos + 1);
 }
 
-bool isInDir(const std::filesystem::path& path, const std::filesystem::path& dir) {
+bool is_in_dir(const std::filesystem::path& path, const std::filesystem::path& dir) {
   /* Note that while the standard doesn't guarantee this, the
     `lexically_*` functions should do no IO and not throw. */
   auto rel = path.lexically_relative(dir);
@@ -182,8 +182,8 @@ bool isInDir(const std::filesystem::path& path, const std::filesystem::path& dir
   return !rel.empty() && rel.native()[0] != OS_STR('.');
 }
 
-bool isDirOrInDir(const std::filesystem::path& path, const std::filesystem::path& dir) {
-  return path == dir || isInDir(path, dir);
+bool is_dir_or_in_dir(const std::filesystem::path& path, const std::filesystem::path& dir) {
+  return path == dir || is_in_dir(path, dir);
 }
 
 struct stat stat(const Path& path) {
@@ -206,7 +206,7 @@ struct stat lstat(const Path& path) {
   return st;
 }
 
-std::optional<struct stat> maybeLstat(const Path& path) {
+std::optional<struct stat> maybe_lstat(const Path& path) {
   std::optional<struct stat> st{std::in_place};
   if (STAT(path.c_str(), &*st)) {
     if (errno == ENOENT || errno == ENOTDIR)
@@ -217,46 +217,46 @@ std::optional<struct stat> maybeLstat(const Path& path) {
   return st;
 }
 
-bool pathExists(const std::filesystem::path& path) {
-  return maybeLstat(path.string()).has_value();
+bool path_exists(const std::filesystem::path& path) {
+  return maybe_lstat(path.string()).has_value();
 }
 
-bool pathAccessible(const std::filesystem::path& path) {
+bool path_accessible(const std::filesystem::path& path) {
   try {
-    return pathExists(path.string());
+    return path_exists(path.string());
   } catch (sys_error_t& e) {
     // swallow EPERM
-    if (e.errNo == EPERM)
+    if (e.err_no == EPERM)
       return false;
     throw;
   }
 }
 
-std::filesystem::path readLink(const std::filesystem::path& path) {
-  checkInterrupt();
+std::filesystem::path read_link(const std::filesystem::path& path) {
+  check_interrupt();
   return std::filesystem::read_symlink(path);
 }
 
-Path readLink(const Path& path) {
-  return readLink(std::filesystem::path{path}).string();
+Path read_link(const Path& path) {
+  return read_link(std::filesystem::path{path}).string();
 }
 
-std::string readFile(const Path& path) {
-  auto_close_fd_t fd = toDescriptor(open(path.c_str(), O_RDONLY
+std::string read_file(const Path& path) {
+  auto_close_fd_t fd = to_descriptor(open(path.c_str(), O_RDONLY
 #ifdef O_CLOEXEC
                                                        | O_CLOEXEC
 #endif
                                      ));
   if (!fd)
     throw sys_error_t("opening file '%1%'", path);
-  return readFile(fd.get());
+  return read_file(fd.get());
 }
 
-std::string readFile(const std::filesystem::path& path) {
-  return readFile(os_string_to_string(path_view_ng_t{path}));
+std::string read_file(const std::filesystem::path& path) {
+  return read_file(os_string_to_string(path_view_ng_t{path}));
 }
 
-void readFile(const Path& path, Sink& sink, bool memory_map) {
+void read_file(const Path& path, Sink& sink, bool memory_map) {
   // Memory-map the file for faster processing where possible.
   if (memory_map) {
     try {
@@ -271,18 +271,18 @@ void readFile(const Path& path, Sink& sink, bool memory_map) {
   }
 
   // Stream the file instead if memory-mapping fails or is disabled.
-  auto_close_fd_t fd = toDescriptor(open(path.c_str(), O_RDONLY
+  auto_close_fd_t fd = to_descriptor(open(path.c_str(), O_RDONLY
 #ifdef O_CLOEXEC
                                                        | O_CLOEXEC
 #endif
                                      ));
   if (!fd)
     throw sys_error_t("opening file '%s'", path);
-  drainFD(fd.get(), sink);
+  drain_fd(fd.get(), sink);
 }
 
-void writeFile(const Path& path, std::string_view s, mode_t mode, fs_sync_t sync) {
-  auto_close_fd_t fd = toDescriptor(open(path.c_str(),
+void write_file(const Path& path, std::string_view s, mode_t mode, fs_sync_t sync) {
+  auto_close_fd_t fd = to_descriptor(open(path.c_str(),
                                      O_WRONLY | O_TRUNC | O_CREAT
 #ifdef O_CLOEXEC
                                          | O_CLOEXEC
@@ -292,29 +292,29 @@ void writeFile(const Path& path, std::string_view s, mode_t mode, fs_sync_t sync
   if (!fd)
     throw sys_error_t("opening file '%1%'", path);
 
-  writeFile(fd, path, s, mode, sync);
+  write_file(fd, path, s, mode, sync);
 
   /* Close explicitly to propagate the exceptions. */
   fd.close();
 }
 
-void writeFile(auto_close_fd_t& fd, const Path& origPath, std::string_view s, mode_t mode,
+void write_file(auto_close_fd_t& fd, const Path& orig_path, std::string_view s, mode_t mode,
                fs_sync_t sync) {
   assert(fd);
   try {
-    writeFull(fd.get(), s);
+    write_full(fd.get(), s);
 
-    if (sync == fs_sync_t::Yes)
+    if (sync == fs_sync_t::yes)
       fd.fsync();
 
   } catch (Error& e) {
-    e.addTrace({}, "writing file '%1%'", origPath);
+    e.add_trace({}, "writing file '%1%'", orig_path);
     throw;
   }
 }
 
-void writeFile(const Path& path, Source& source, mode_t mode, fs_sync_t sync) {
-  auto_close_fd_t fd = toDescriptor(open(path.c_str(),
+void write_file(const Path& path, Source& source, mode_t mode, fs_sync_t sync) {
+  auto_close_fd_t fd = to_descriptor(open(path.c_str(),
                                      O_WRONLY | O_TRUNC | O_CREAT
 #ifdef O_CLOEXEC
                                          | O_CLOEXEC
@@ -330,25 +330,25 @@ void writeFile(const Path& path, Source& source, mode_t mode, fs_sync_t sync) {
     while (true) {
       try {
         auto n = source.read(buf.data(), buf.size());
-        writeFull(fd.get(), {buf.data(), n});
+        write_full(fd.get(), {buf.data(), n});
       } catch (EndOfFile&) {
         break;
       }
     }
   } catch (Error& e) {
-    e.addTrace({}, "writing file '%1%'", path);
+    e.add_trace({}, "writing file '%1%'", path);
     throw;
   }
-  if (sync == fs_sync_t::Yes)
+  if (sync == fs_sync_t::yes)
     fd.fsync();
   // Explicitly close to make sure exceptions are propagated.
   fd.close();
-  if (sync == fs_sync_t::Yes)
-    syncParent(path);
+  if (sync == fs_sync_t::yes)
+    sync_parent(path);
 }
 
-void syncParent(const Path& path) {
-  auto_close_fd_t fd = toDescriptor(open(dirOf(path).c_str(), O_RDONLY, 0));
+void sync_parent(const Path& path) {
+  auto_close_fd_t fd = to_descriptor(open(dir_of(path).c_str(), O_RDONLY, 0));
   if (!fd)
     throw sys_error_t("opening file '%1%'", path);
   fd.fsync();
@@ -362,11 +362,11 @@ void syncParent(const Path& path) {
 #  define MOUNTEDPATHS_ARG
 #endif
 
-void recursiveSync(const Path& path) {
+void recursive_sync(const Path& path) {
   /* If it's a file or symlink, just fsync and return. */
   auto st = lstat(path);
   if (S_ISREG(st.st_mode)) {
-    auto_close_fd_t fd = toDescriptor(open(path.c_str(), O_RDONLY, 0));
+    auto_close_fd_t fd = to_descriptor(open(path.c_str(), O_RDONLY, 0));
     if (!fd)
       throw sys_error_t("opening file '%1%'", path);
     fd.fsync();
@@ -376,39 +376,39 @@ void recursiveSync(const Path& path) {
 
   /* Otherwise, perform a depth-first traversal of the directory and
      fsync all the files. */
-  std::deque<std::filesystem::path> dirsToEnumerate;
-  dirsToEnumerate.push_back(path);
-  std::vector<std::filesystem::path> dirsToFsync;
-  while (!dirsToEnumerate.empty()) {
-    auto currentDir = dirsToEnumerate.back();
-    dirsToEnumerate.pop_back();
-    for (auto& entry : directory_iterator_t(currentDir)) {
+  std::deque<std::filesystem::path> dirs_to_enumerate;
+  dirs_to_enumerate.push_back(path);
+  std::vector<std::filesystem::path> dirs_to_fsync;
+  while (!dirs_to_enumerate.empty()) {
+    auto current_dir = dirs_to_enumerate.back();
+    dirs_to_enumerate.pop_back();
+    for (auto& entry : directory_iterator_t(current_dir)) {
       auto st = entry.symlink_status();
       if (std::filesystem::is_directory(st)) {
-        dirsToEnumerate.emplace_back(entry.path());
+        dirs_to_enumerate.emplace_back(entry.path());
       } else if (std::filesystem::is_regular_file(st)) {
-        auto_close_fd_t fd = toDescriptor(open(entry.path().string().c_str(), O_RDONLY, 0));
+        auto_close_fd_t fd = to_descriptor(open(entry.path().string().c_str(), O_RDONLY, 0));
         if (!fd)
           throw sys_error_t("opening file '%1%'", entry.path());
         fd.fsync();
       }
     }
-    dirsToFsync.emplace_back(std::move(currentDir));
+    dirs_to_fsync.emplace_back(std::move(current_dir));
   }
 
   /* Fsync all the directories. */
-  for (auto dir = dirsToFsync.rbegin(); dir != dirsToFsync.rend(); ++dir) {
-    auto_close_fd_t fd = toDescriptor(open(dir->string().c_str(), O_RDONLY, 0));
+  for (auto dir = dirs_to_fsync.rbegin(); dir != dirs_to_fsync.rend(); ++dir) {
+    auto_close_fd_t fd = to_descriptor(open(dir->string().c_str(), O_RDONLY, 0));
     if (!fd)
       throw sys_error_t("opening directory '%1%'", *dir);
     fd.fsync();
   }
 }
 
-static void _deletePath(descriptor_t parentfd, const std::filesystem::path& path,
-                        uint64_t& bytesFreed, std::exception_ptr& ex MOUNTEDPATHS_PARAM) {
+static void delete_path_(descriptor_t parentfd, const std::filesystem::path& path,
+                        uint64_t& bytes_freed, std::exception_ptr& ex MOUNTEDPATHS_PARAM) {
 #ifndef _WIN32
-  checkInterrupt();
+  check_interrupt();
 
 #  ifdef __FreeBSD__
   // In case of emergency (unmount fails for some reason) not recurse into mountpoints.
@@ -432,9 +432,9 @@ static void _deletePath(descriptor_t parentfd, const std::filesystem::path& path
     /* We are about to delete a file. Will it likely free space? */
 
     switch (st.st_nlink) {
-      /* Yes: last link. */
+      /* yes: last link. */
       case 1:
-        bytesFreed += st.st_size;
+        bytes_freed += st.st_size;
         break;
       /* Maybe: yes, if 'auto-optimise-store' or manual optimisation
          was performed. Instead of checking for real let's assume
@@ -444,7 +444,7 @@ static void _deletePath(descriptor_t parentfd, const std::filesystem::path& path
          with exactly two hardlinks for unoptimised packages.
        */
       case 2:
-        bytesFreed += st.st_size;
+        bytes_freed += st.st_size;
         break;
       /* No: 3+ links. */
       default:
@@ -469,11 +469,11 @@ static void _deletePath(descriptor_t parentfd, const std::filesystem::path& path
 
     struct dirent* dirent;
     while (errno = 0, dirent = readdir(dir.get())) { /* sic */
-      checkInterrupt();
-      std::string childName = dirent->d_name;
-      if (childName == "." || childName == "..")
+      check_interrupt();
+      std::string child_name = dirent->d_name;
+      if (child_name == "." || child_name == "..")
         continue;
-      _deletePath(dirfd(dir.get()), path / childName, bytesFreed, ex MOUNTEDPATHS_ARG);
+      delete_path_(dirfd(dir.get()), path / child_name, bytes_freed, ex MOUNTEDPATHS_ARG);
     }
     if (errno)
       throw sys_error_t("reading directory %1%", path);
@@ -489,7 +489,7 @@ static void _deletePath(descriptor_t parentfd, const std::filesystem::path& path
       if (!ex)
         ex = std::current_exception();
       else
-        ignoreExceptionExceptInterrupt();
+        ignore_exception_except_interrupt();
     }
   }
 #else
@@ -498,12 +498,12 @@ static void _deletePath(descriptor_t parentfd, const std::filesystem::path& path
 #endif
 }
 
-static void _deletePath(const std::filesystem::path& path,
-                        uint64_t& bytesFreed MOUNTEDPATHS_PARAM) {
+static void delete_path_(const std::filesystem::path& path,
+                        uint64_t& bytes_freed MOUNTEDPATHS_PARAM) {
   assert(path.is_absolute());
   assert(path.parent_path() != path);
 
-  auto_close_fd_t dirfd = toDescriptor(open(path.parent_path().string().c_str(), O_RDONLY));
+  auto_close_fd_t dirfd = to_descriptor(open(path.parent_path().string().c_str(), O_RDONLY));
   if (!dirfd) {
     if (errno == ENOENT)
       return;
@@ -512,18 +512,18 @@ static void _deletePath(const std::filesystem::path& path,
 
   std::exception_ptr ex;
 
-  _deletePath(dirfd.get(), path, bytesFreed, ex MOUNTEDPATHS_ARG);
+  delete_path_(dirfd.get(), path, bytes_freed, ex MOUNTEDPATHS_ARG);
 
   if (ex)
     std::rethrow_exception(ex);
 }
 
-void deletePath(const std::filesystem::path& path) {
+void delete_path(const std::filesystem::path& path) {
   uint64_t dummy;
-  deletePath(path, dummy);
+  delete_path(path, dummy);
 }
 
-void createDir(const Path& path, mode_t mode) {
+void create_dir(const Path& path, mode_t mode) {
   if (mkdir(path.c_str()
 #ifndef _WIN32
                 ,
@@ -533,7 +533,7 @@ void createDir(const Path& path, mode_t mode) {
     throw sys_error_t("creating directory '%1%'", path);
 }
 
-void createDirs(const std::filesystem::path& path) {
+void create_dirs(const std::filesystem::path& path) {
   try {
     std::filesystem::create_directories(path);
   } catch (std::filesystem::filesystem_error& e) {
@@ -541,7 +541,7 @@ void createDirs(const std::filesystem::path& path) {
   }
 }
 
-void deletePath(const std::filesystem::path& path, uint64_t& bytesFreed) {
+void delete_path(const std::filesystem::path& path, uint64_t& bytes_freed) {
   // Activity act(*logger, lvlDebug, "recursively deleting path '%1%'", path);
 #ifdef __FreeBSD__
   std::set<Path> mountedPaths;
@@ -555,8 +555,8 @@ void deletePath(const std::filesystem::path& path, uint64_t& bytesFreed) {
     mountedPaths.emplace(mntbuf[i].f_mntonname);
   }
 #endif
-  bytesFreed = 0;
-  _deletePath(path, bytesFreed MOUNTEDPATHS_ARG);
+  bytes_freed = 0;
+  delete_path_(path, bytes_freed MOUNTEDPATHS_ARG);
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -572,13 +572,13 @@ auto_delete_t::~auto_delete_t() {
   try {
     if (del) {
       if (recursive)
-        deletePath(_path);
+        delete_path(_path);
       else {
         std::filesystem::remove(_path);
       }
     }
   } catch (...) {
-    ignoreExceptionInDestructor();
+    ignore_exception_in_destructor();
   }
 }
 
@@ -607,7 +607,7 @@ AutoUnmount::~AutoUnmount() {
       }
     }
   } catch (...) {
-    ignoreExceptionInDestructor();
+    ignore_exception_in_destructor();
   }
 }
 
@@ -618,16 +618,16 @@ void AutoUnmount::cancel() {
 
 //////////////////////////////////////////////////////////////////////
 
-std::filesystem::path defaultTempDir() {
-  return getEnvNonEmpty("TMPDIR").value_or("/tmp");
+std::filesystem::path default_temp_dir() {
+  return get_env_non_empty("TMPDIR").value_or("/tmp");
 }
 
-std::filesystem::path createTempDir(const std::filesystem::path& tmpRoot, const std::string& prefix,
+std::filesystem::path create_temp_dir(const std::filesystem::path& tmp_root, const std::string& prefix,
                                     mode_t mode) {
   while (1) {
-    checkInterrupt();
-    std::filesystem::path tmpDir = makeTempPath(tmpRoot, prefix);
-    if (mkdir(tmpDir.string().c_str()
+    check_interrupt();
+    std::filesystem::path tmp_dir = make_temp_path(tmp_root, prefix);
+    if (mkdir(tmp_dir.string().c_str()
 #ifndef _WIN32 // TODO abstract mkdir perms for Windows
                   ,
               mode
@@ -642,28 +642,28 @@ std::filesystem::path createTempDir(const std::filesystem::path& tmpRoot, const 
          will be owned by "wheel"; but if the user is not in
          "wheel", then "tar" will fail to unpack archives that
          have the setgid bit set on directories. */
-      if (chown(tmpDir.c_str(), (uid_t)-1, getegid()) != 0)
-        throw sys_error_t("setting group of directory '%1%'", tmpDir);
+      if (chown(tmp_dir.c_str(), (uid_t)-1, getegid()) != 0)
+        throw sys_error_t("setting group of directory '%1%'", tmp_dir);
 #endif
-      return tmpDir;
+      return tmp_dir;
     }
     if (errno != EEXIST)
-      throw sys_error_t("creating directory '%1%'", tmpDir);
+      throw sys_error_t("creating directory '%1%'", tmp_dir);
   }
 }
 
-auto_close_fd_t createAnonymousTempFile() {
+auto_close_fd_t create_anonymous_temp_file() {
   auto_close_fd_t fd;
 #ifdef O_TMPFILE
-  static std::atomic_flag tmpfileUnsupported{};
-  if (!tmpfileUnsupported.test()) /* Try with O_TMPFILE first. */ {
-    /* Use O_EXCL, because the file is never supposed to be linked into filesystem. */
-    fd = ::open(defaultTempDir().c_str(), O_TMPFILE | O_CLOEXEC | O_RDWR | O_EXCL,
+  static std::atomic_flag tmpfile_unsupported{};
+  if (!tmpfile_unsupported.test()) /* Try with O_TMPFILE first. */ {
+    /* use O_EXCL, because the file is never supposed to be linked into filesystem. */
+    fd = ::open(default_temp_dir().c_str(), O_TMPFILE | O_CLOEXEC | O_RDWR | O_EXCL,
                 S_IWUSR | S_IRUSR);
     if (!fd) {
       /* Not supported by the filesystem or the kernel. */
       if (errno == EOPNOTSUPP || errno == EISDIR)
-        tmpfileUnsupported.test_and_set(); /* Set flag and fall through to createTempFile. */
+        tmpfile_unsupported.test_and_set(); /* Set flag and fall through to create_temp_file. */
       else
         throw sys_error_t("creating anonymous temporary file");
     } else {
@@ -671,46 +671,46 @@ auto_close_fd_t createAnonymousTempFile() {
     }
   }
 #endif
-  auto [fd2, path] = createTempFile("nix-anonymous");
+  auto [fd2, path] = create_temp_file("nix-anonymous");
   if (!fd2)
     throw sys_error_t("creating temporary file '%s'", path);
   fd = std::move(fd2);
 #ifndef _WIN32
-  unlink(requireCString(path)); /* We only care about the file descriptor. */
+  unlink(require_c_string(path)); /* We only care about the file descriptor. */
 #endif
   return fd;
 }
 
-std::pair<auto_close_fd_t, Path> createTempFile(const Path& prefix) {
-  Path tmpl(defaultTempDir().string() + "/" + prefix + ".XXXXXX");
+std::pair<auto_close_fd_t, Path> create_temp_file(const Path& prefix) {
+  Path tmpl(default_temp_dir().string() + "/" + prefix + ".XXXXXX");
   // Strictly speaking, this is UB, but who cares...
   // FIXME: use O_TMPFILE.
   // FIXME: Windows should use FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE
-  auto_close_fd_t fd = toDescriptor(mkstemp((char*)tmpl.c_str()));
+  auto_close_fd_t fd = to_descriptor(mkstemp((char*)tmpl.c_str()));
   if (!fd)
     throw sys_error_t("creating temporary file '%s'", tmpl);
 #ifndef _WIN32
-  unix::closeOnExec(fd.get());
+  unix::close_on_exec(fd.get());
 #endif
   return {std::move(fd), tmpl};
 }
 
-std::filesystem::path makeTempPath(const std::filesystem::path& root, const std::string& suffix) {
+std::filesystem::path make_temp_path(const std::filesystem::path& root, const std::string& suffix) {
   // start the counter at a random value to minimize issues with preexisting temp paths
   static std::atomic<uint32_t> counter(std::random_device{}());
-  auto tmpRoot = canonPath(root.empty() ? defaultTempDir().string() : root.string(), true);
-  return fmt("%1%/%2%-%3%-%4%", tmpRoot, suffix, getpid(),
+  auto tmp_root = canon_path(root.empty() ? default_temp_dir().string() : root.string(), true);
+  return fmt("%1%/%2%-%3%-%4%", tmp_root, suffix, getpid(),
              counter.fetch_add(1, std::memory_order_relaxed));
 }
 
-void createSymlink(const Path& target, const Path& link) {
+void create_symlink(const Path& target, const Path& link) {
   std::error_code ec;
   std::filesystem::create_symlink(target, link, ec);
   if (ec)
     throw sys_error_t(ec.value(), "creating symlink '%1%' -> '%2%'", link, target);
 }
 
-void replaceSymlink(const std::filesystem::path& target, const std::filesystem::path& link) {
+void replace_symlink(const std::filesystem::path& target, const std::filesystem::path& link) {
   for (unsigned int n = 0; true; n++) {
     auto tmp =
         link.parent_path() / std::filesystem::path{fmt(".%d_%s", n, link.filename().string())};
@@ -736,36 +736,36 @@ void replaceSymlink(const std::filesystem::path& target, const std::filesystem::
   }
 }
 
-void setWriteTime(const std::filesystem::path& path, const struct stat& st) {
-  setWriteTime(path, st.st_atime, st.st_mtime, S_ISLNK(st.st_mode));
+void set_write_time(const std::filesystem::path& path, const struct stat& st) {
+  set_write_time(path, st.st_atime, st.st_mtime, S_ISLNK(st.st_mode));
 }
 
-void copyFile(const std::filesystem::path& from, const std::filesystem::path& to, bool andDelete) {
-  auto fromStatus = std::filesystem::symlink_status(from);
+void copy_file(const std::filesystem::path& from, const std::filesystem::path& to, bool and_delete) {
+  auto from_status = std::filesystem::symlink_status(from);
 
   // Mark the directory as writable so that we can delete its children
-  if (andDelete && std::filesystem::is_directory(fromStatus)) {
+  if (and_delete && std::filesystem::is_directory(from_status)) {
     std::filesystem::permissions(from, std::filesystem::perms::owner_write,
                                  std::filesystem::perm_options::add |
                                      std::filesystem::perm_options::nofollow);
   }
 
-  if (std::filesystem::is_symlink(fromStatus) || std::filesystem::is_regular_file(fromStatus)) {
+  if (std::filesystem::is_symlink(from_status) || std::filesystem::is_regular_file(from_status)) {
     std::filesystem::copy(from, to,
                           std::filesystem::copy_options::copy_symlinks |
                               std::filesystem::copy_options::overwrite_existing);
-  } else if (std::filesystem::is_directory(fromStatus)) {
+  } else if (std::filesystem::is_directory(from_status)) {
     std::filesystem::create_directory(to);
     for (auto& entry : directory_iterator_t(from)) {
-      copyFile(entry, to / entry.path().filename(), andDelete);
+      copy_file(entry, to / entry.path().filename(), and_delete);
     }
   } else {
     throw Error("file %s has an unsupported type", from);
   }
 
-  setWriteTime(to, lstat(from.string().c_str()));
-  if (andDelete) {
-    if (!std::filesystem::is_symlink(fromStatus))
+  set_write_time(to, lstat(from.string().c_str()));
+  if (and_delete) {
+    if (!std::filesystem::is_symlink(from_status))
       std::filesystem::permissions(from, std::filesystem::perms::owner_write,
                                    std::filesystem::perm_options::add |
                                        std::filesystem::perm_options::nofollow);
@@ -773,31 +773,31 @@ void copyFile(const std::filesystem::path& from, const std::filesystem::path& to
   }
 }
 
-void moveFile(const Path& oldName, const Path& newName) {
+void move_file(const Path& old_name, const Path& new_name) {
   try {
-    std::filesystem::rename(oldName, newName);
+    std::filesystem::rename(old_name, new_name);
   } catch (std::filesystem::filesystem_error& e) {
-    auto oldPath = std::filesystem::path(oldName);
-    auto newPath = std::filesystem::path(newName);
+    auto old_path = std::filesystem::path(old_name);
+    auto new_path = std::filesystem::path(new_name);
     // For the move to be as atomic as possible, copy to a temporary
     // directory
     std::filesystem::path temp =
-        createTempDir(os_string_to_string(path_view_ng_t{newPath.parent_path()}), "rename-tmp");
-    finally_t removeTemp = [&]() { std::filesystem::remove(temp); };
-    auto tempCopyTarget = temp / "copy-target";
+        create_temp_dir(os_string_to_string(path_view_ng_t{new_path.parent_path()}), "rename-tmp");
+    finally_t remove_temp = [&]() { std::filesystem::remove(temp); };
+    auto temp_copy_target = temp / "copy-target";
     if (e.code().value() == EXDEV) {
-      std::filesystem::remove(newPath);
-      warn("can’t rename %s as %s, copying instead", oldName, newName);
-      copyFile(oldPath, tempCopyTarget, true);
-      std::filesystem::rename(os_string_to_string(path_view_ng_t{tempCopyTarget}),
-                              os_string_to_string(path_view_ng_t{newPath}));
+      std::filesystem::remove(new_path);
+      warn("can’t rename %s as %s, copying instead", old_name, new_name);
+      copy_file(old_path, temp_copy_target, true);
+      std::filesystem::rename(os_string_to_string(path_view_ng_t{temp_copy_target}),
+                              os_string_to_string(path_view_ng_t{new_path}));
     }
   }
 }
 
 //////////////////////////////////////////////////////////////////////
 
-bool isExecutableFileAmbient(const std::filesystem::path& exe) {
+bool is_executable_file_ambient(const std::filesystem::path& exe) {
   // Check file type, because directory being executable means
   // something completely different.
   // `is_regular_file` follows symlinks before checking.
@@ -810,8 +810,8 @@ bool isExecutableFileAmbient(const std::filesystem::path& exe) {
                                                          ) == 0;
 }
 
-std::filesystem::path makeParentCanonical(const std::filesystem::path& rawPath) {
-  std::filesystem::path path(absPath(rawPath));
+std::filesystem::path make_parent_canonical(const std::filesystem::path& raw_path) {
+  std::filesystem::path path(abs_path(raw_path));
   ;
   try {
     auto parent = path.parent_path();
@@ -825,15 +825,15 @@ std::filesystem::path makeParentCanonical(const std::filesystem::path& rawPath) 
   }
 }
 
-bool chmodIfNeeded(const std::filesystem::path& path, mode_t mode, mode_t mask) {
-  auto pathString = path.string();
-  auto prevMode = lstat(pathString).st_mode;
+bool chmod_if_needed(const std::filesystem::path& path, mode_t mode, mode_t mask) {
+  auto path_string = path.string();
+  auto prev_mode = lstat(path_string).st_mode;
 
-  if (((prevMode ^ mode) & mask) == 0)
+  if (((prev_mode ^ mode) & mask) == 0)
     return false;
 
-  if (chmod(pathString.c_str(), mode) != 0)
-    throw sys_error_t("could not set permissions on '%s' to %o", pathString, mode);
+  if (chmod(path_string.c_str(), mode) != 0)
+    throw sys_error_t("could not set permissions on '%s' to %o", path_string, mode);
 
   return true;
 }

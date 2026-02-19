@@ -19,7 +19,7 @@ struct CommonSSHStoreConfig : virtual StoreConfig {
       this, "", "ssh-key",
       "Path to the SSH private key used to authenticate to the remote machine."};
 
-  const setting_t<std::string> sshPublicHostKey{this, "", "base64-ssh-public-host-key",
+  const setting_t<std::string> ssh_public_host_key{this, "", "base64-ssh-public-host-key",
                                               "The public host key of the remote machine."};
 
   const setting_t<bool> compress{this, false, "compress", "Whether to enable SSH compression."};

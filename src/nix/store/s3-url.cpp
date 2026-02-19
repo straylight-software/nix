@@ -21,7 +21,7 @@ ParsedS3URL ParsedS3URL::parse(const parsed_url_t& parsed) try {
      https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucketnamingrules.html#general-purpose-bucket-names
      */
   if (!parsed.authority || parsed.authority->host.empty() ||
-      parsed.authority->hostType != parsed_url_t::authority_t::host_type_t::Name)
+      parsed.authority->host_type != parsed_url_t::authority_t::host_type_t::Name)
     throw BadURL("URI has a missing or invalid bucket name");
 
   /* TODO: Validate the key against:
@@ -55,7 +55,7 @@ ParsedS3URL ParsedS3URL::parse(const parsed_url_t& parsed) try {
 
         /* Try to parse the endpoint as a full-fledged URL with a scheme. */
         try {
-          return parseURL(*endpoint);
+          return parse_url(*endpoint);
         } catch (BadURL&) {
         }
 
@@ -63,7 +63,7 @@ ParsedS3URL ParsedS3URL::parse(const parsed_url_t& parsed) try {
       }(),
   };
 } catch (BadURL& e) {
-  e.addTrace({}, "while parsing S3 URI: '%s'", parsed.to_string());
+  e.add_trace({}, "while parsing S3 URI: '%s'", parsed.to_string());
   throw;
 }
 

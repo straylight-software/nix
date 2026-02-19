@@ -6,7 +6,7 @@ namespace nix {
 
 struct AbstractNixRepl {
   ref<EvalState> state;
-  Bindings* autoArgs;
+  Bindings* auto_args;
 
   AbstractNixRepl(ref<EvalState> state) : state(state) {}
 
@@ -19,27 +19,27 @@ struct AbstractNixRepl {
    *
    * @todo this is a layer violation
    *
-   * @param programName Name of the command, e.g. `nix` or `nix-env`.
+   * @param program_name Name of the command, e.g. `nix` or `nix-env`.
    * @param args aguments to the command.
    */
-  using RunNix = void(const std::string& programName, const strings_t& args,
+  using RunNix = void(const std::string& program_name, const strings_t& args,
                       const std::optional<std::string>& input);
 
   /**
-   * @param runNix Function to run the nix CLI to support various
+   * @param run_nix Function to run the nix CLI to support various
    * `:<something>` commands. Optional; if not provided,
    * everything else will still work fine, but those commands won't.
    */
-  static std::unique_ptr<AbstractNixRepl> create(const LookupPath& lookupPath,
+  static std::unique_ptr<AbstractNixRepl> create(const LookupPath& lookup_path,
                                                  nix::ref<Store> store, ref<EvalState> state,
-                                                 std::function<AnnotatedValues()> getValues,
-                                                 RunNix* runNix = nullptr);
+                                                 std::function<AnnotatedValues()> get_values,
+                                                 RunNix* run_nix = nullptr);
 
-  static ReplExitStatus runSimple(ref<EvalState> evalState, const ValMap& extraEnv);
+  static ReplExitStatus runSimple(ref<EvalState> eval_state, const ValMap& extraEnv);
 
-  virtual void initEnv() = 0;
+  virtual void init_env() = 0;
 
-  virtual ReplExitStatus mainLoop() = 0;
+  virtual ReplExitStatus main_loop() = 0;
 };
 
 } // namespace nix

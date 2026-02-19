@@ -11,27 +11,27 @@
 namespace nix {
 
 struct plugin_files_setting_t : public base_setting_t<std::list<std::filesystem::path>> {
-  bool pluginsLoaded = false;
+  bool plugins_loaded = false;
 
-  plugin_files_setting_t(Config* options, const std::list<std::filesystem::path>& def,
+  plugin_files_setting_t(config_t* options, const std::list<std::filesystem::path>& def,
                      const std::string& name, const std::string& description,
                      const string_set_t& aliases = {})
       : base_setting_t<std::list<std::filesystem::path>>(def, true, name, description, aliases) {
-    options->addSetting(this);
+    options->add_setting(this);
   }
 
   std::list<std::filesystem::path> parse(const std::string& str) const override;
 };
 
 std::list<std::filesystem::path> plugin_files_setting_t::parse(const std::string& str) const {
-  if (pluginsLoaded)
+  if (plugins_loaded)
     throw UsageError("plugin-files set after plugins were loaded, you may need to move the flag "
                      "before the subcommand");
   return base_setting_t<std::list<std::filesystem::path>>::parse(str);
 }
 
-struct plugin_settings_t : Config {
-  plugin_files_setting_t pluginFiles{this,
+struct plugin_settings_t : config_t {
+  plugin_files_setting_t plugin_files{this,
                                  {},
                                  "plugin-files",
                                  R"(
@@ -60,27 +60,27 @@ struct plugin_settings_t : Config {
         )"};
 };
 
-static plugin_settings_t pluginSettings;
+static plugin_settings_t plugin_settings;
 
-static global_config_t::Register rPluginSettings(&pluginSettings);
+static global_config_t::Register r_plugin_settings(&plugin_settings);
 
-void initPlugins() {
-  assert(!pluginSettings.pluginFiles.pluginsLoaded);
-  for (const auto& pluginFile : pluginSettings.pluginFiles.get()) {
-    std::vector<std::filesystem::path> pluginFiles;
+void init_plugins() {
+  assert(!plugin_settings.plugin_files.plugins_loaded);
+  for (const auto& pluginFile : plugin_settings.plugin_files.get()) {
+    std::vector<std::filesystem::path> plugin_files;
     try {
       auto ents = directory_iterator_t{pluginFile};
       for (const auto& ent : ents) {
-        checkInterrupt();
-        pluginFiles.emplace_back(ent.path());
+        check_interrupt();
+        plugin_files.emplace_back(ent.path());
       }
     } catch (sys_error_t& e) {
-      if (e.errNo != ENOTDIR)
+      if (e.err_no != ENOTDIR)
         throw;
-      pluginFiles.emplace_back(pluginFile);
+      plugin_files.emplace_back(pluginFile);
     }
-    for (const auto& file : pluginFiles) {
-      checkInterrupt();
+    for (const auto& file : plugin_files) {
+      check_interrupt();
       /* handle is purposefully leaked as there may be state in the
          DSO needed by the action of the plugin. */
 #ifndef _WIN32 // TODO implement via DLL loading on Windows
@@ -101,11 +101,11 @@ void initPlugins() {
 
   /* Since plugins can add settings, try to re-apply previously
      unknown settings. */
-  globalConfig.reapplyUnknownSettings();
-  globalConfig.warnUnknownSettings();
+  global_config.reapply_unknown_settings();
+  global_config.warn_unknown_settings();
 
   /* Tell the user if they try to set plugin-files after we've already loaded */
-  pluginSettings.pluginFiles.pluginsLoaded = true;
+  plugin_settings.plugin_files.plugins_loaded = true;
 }
 
 } // namespace nix

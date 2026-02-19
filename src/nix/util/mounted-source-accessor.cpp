@@ -8,7 +8,7 @@ struct mounted_source_accessor_impl_t : mounted_source_accessor_t {
   boost::concurrent_flat_map<canon_path_t, ref<SourceAccessor>> mounts;
 
   mounted_source_accessor_impl_t(std::map<canon_path_t, ref<SourceAccessor>> _mounts) {
-    displayPrefix.clear();
+    display_prefix.clear();
 
     // Currently we require a root filesystem. This could be relaxed.
     assert(_mounts.contains(canon_path_t::root));
@@ -19,9 +19,9 @@ struct mounted_source_accessor_impl_t : mounted_source_accessor_t {
     // FIXME: return dummy parent directories automatically?
   }
 
-  std::string readFile(const canon_path_t& path) override {
+  std::string read_file(const canon_path_t& path) override {
     auto [accessor, subpath] = resolve(path);
-    return accessor->readFile(subpath);
+    return accessor->read_file(subpath);
   }
 
   stat_t lstat(const canon_path_t& path) override {
@@ -29,72 +29,72 @@ struct mounted_source_accessor_impl_t : mounted_source_accessor_t {
     return accessor->lstat(subpath);
   }
 
-  std::optional<stat_t> maybeLstat(const canon_path_t& path) override {
+  std::optional<stat_t> maybe_lstat(const canon_path_t& path) override {
     auto [accessor, subpath] = resolve(path);
-    return accessor->maybeLstat(subpath);
+    return accessor->maybe_lstat(subpath);
   }
 
-  dir_entries_t readDirectory(const canon_path_t& path) override {
+  dir_entries_t read_directory(const canon_path_t& path) override {
     auto [accessor, subpath] = resolve(path);
-    return accessor->readDirectory(subpath);
+    return accessor->read_directory(subpath);
   }
 
-  std::string readLink(const canon_path_t& path) override {
+  std::string read_link(const canon_path_t& path) override {
     auto [accessor, subpath] = resolve(path);
-    return accessor->readLink(subpath);
+    return accessor->read_link(subpath);
   }
 
-  std::string showPath(const canon_path_t& path) override {
+  std::string show_path(const canon_path_t& path) override {
     auto [accessor, subpath] = resolve(path);
-    return displayPrefix + accessor->showPath(subpath) + displaySuffix;
+    return display_prefix + accessor->show_path(subpath) + display_suffix;
   }
 
   std::pair<ref<SourceAccessor>, canon_path_t> resolve(canon_path_t path) {
     // Find the nearest parent of `path` that is a mount point.
     std::vector<std::string> subpath;
     while (true) {
-      if (auto mount = getMount(path)) {
+      if (auto mount = get_mount(path)) {
         std::reverse(subpath.begin(), subpath.end());
         return {ref(mount), canon_path_t(subpath)};
       }
 
-      assert(!path.isRoot());
-      subpath.push_back(std::string(*path.baseName()));
+      assert(!path.is_root());
+      subpath.push_back(std::string(*path.base_name()));
       path.pop();
     }
   }
 
-  std::optional<std::filesystem::path> getPhysicalPath(const canon_path_t& path) override {
+  std::optional<std::filesystem::path> get_physical_path(const canon_path_t& path) override {
     auto [accessor, subpath] = resolve(path);
-    return accessor->getPhysicalPath(subpath);
+    return accessor->get_physical_path(subpath);
   }
 
-  void mount(canon_path_t mountPoint, ref<SourceAccessor> accessor) override {
-    mounts.emplace(std::move(mountPoint), std::move(accessor));
+  void mount(canon_path_t mount_point, ref<SourceAccessor> accessor) override {
+    mounts.emplace(std::move(mount_point), std::move(accessor));
   }
 
-  std::shared_ptr<SourceAccessor> getMount(canon_path_t mountPoint) override {
-    if (auto res = getConcurrent(mounts, mountPoint))
+  std::shared_ptr<SourceAccessor> get_mount(canon_path_t mount_point) override {
+    if (auto res = get_concurrent(mounts, mount_point))
       return *res;
     else
       return nullptr;
   }
 
-  std::pair<canon_path_t, std::optional<std::string>> getFingerprint(const canon_path_t& path) override {
+  std::pair<canon_path_t, std::optional<std::string>> get_fingerprint(const canon_path_t& path) override {
     if (fingerprint)
       return {path, fingerprint};
     auto [accessor, subpath] = resolve(path);
-    return accessor->getFingerprint(subpath);
+    return accessor->get_fingerprint(subpath);
   }
 
-  void invalidateCache(const canon_path_t& path) override {
+  void invalidate_cache(const canon_path_t& path) override {
     auto [accessor, subpath] = resolve(path);
-    accessor->invalidateCache(subpath);
+    accessor->invalidate_cache(subpath);
   }
 };
 
 ref<mounted_source_accessor_t>
-makeMountedSourceAccessor(std::map<canon_path_t, ref<SourceAccessor>> mounts) {
+make_mounted_source_accessor(std::map<canon_path_t, ref<SourceAccessor>> mounts) {
   return make_ref<mounted_source_accessor_impl_t>(std::move(mounts));
 }
 

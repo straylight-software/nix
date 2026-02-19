@@ -13,7 +13,7 @@ namespace nix::fetchers {
 
 static const char* schema = R"sql(
 
-create table if not exists Cache (
+create table if not exists cache_t (
     domain    text not null,
     key       text not null,
     value     text not null,
@@ -25,7 +25,7 @@ create table if not exists Cache (
 // FIXME: we should periodically purge/nuke this cache to prevent it
 // from growing too big.
 
-struct cache_impl_t : Cache {
+struct cache_impl_t : cache_t {
   struct State {
     SQLite db;
     SQLiteStmt upsert, lookup;
@@ -36,10 +36,10 @@ struct cache_impl_t : Cache {
   cache_impl_t() {
     auto state(_state.lock());
 
-    auto dbPath = (getCacheDir() / "fetcher-cache-v4.sqlite").string();
-    createDirs(dirOf(dbPath));
+    auto db_path = (get_cache_dir() / "fetcher-cache-v4.sqlite").string();
+    create_dirs(dir_of(db_path));
 
-    state->db = SQLite(dbPath);
+    state->db = SQLite(db_path);
     state->db.isCache();
     state->db.exec(schema);
 
@@ -54,7 +54,7 @@ struct cache_impl_t : Cache {
   void upsert(const Key& key, const Attrs& value) override {
     _state.lock()
         ->upsert
-        .use()(key.first)(attrsToJSON(key.second).dump())(attrsToJSON(value).dump())(time(0))
+        .use()(key.first)(attrs_to_json(key.second).dump())(attrs_to_json(value).dump())(time(0))
         .exec();
   }
 
@@ -68,7 +68,7 @@ struct cache_impl_t : Cache {
     if (auto res = lookupExpired(key)) {
       if (!res->expired)
         return std::move(res->value);
-      debug("ignoring expired cache entry '%s:%s'", key.first, attrsToJSON(key.second).dump());
+      debug("ignoring expired cache entry '%s:%s'", key.first, attrs_to_json(key.second).dump());
     }
     return {};
   }
@@ -76,58 +76,58 @@ struct cache_impl_t : Cache {
   std::optional<Result> lookupExpired(const Key& key) override {
     auto state(_state.lock());
 
-    auto keyJSON = attrsToJSON(key.second).dump();
+    auto key_json = attrs_to_json(key.second).dump();
 
-    auto stmt(state->lookup.use()(key.first)(keyJSON));
+    auto stmt(state->lookup.use()(key.first)(key_json));
     if (!stmt.next()) {
-      debug("did not find cache entry for '%s:%s'", key.first, keyJSON);
+      debug("did not find cache entry for '%s:%s'", key.first, key_json);
       return {};
     }
 
-    auto valueJSON = stmt.getStr(0);
+    auto value_json = stmt.getStr(0);
     auto timestamp = stmt.getInt(1);
 
-    debug("using cache entry '%s:%s' -> '%s'", key.first, keyJSON, valueJSON);
+    debug("using cache entry '%s:%s' -> '%s'", key.first, key_json, value_json);
 
     return Result{
         .expired = settings.tarballTtl.get() == 0 || timestamp + settings.tarballTtl < time(0),
-        .value = jsonToAttrs(nlohmann::json::parse(valueJSON)),
+        .value = json_to_attrs(nlohmann::json::parse(value_json)),
     };
   }
 
-  void upsert(Key key, Store& store, Attrs value, const StorePath& storePath) override {
+  void upsert(Key key, Store& store, Attrs value, const StorePath& store_path) override {
     /* Add the store prefix to the cache key to handle multiple
        store prefixes. */
-    key.second.insert_or_assign("store", store.storeDir);
+    key.second.insert_or_assign("store", store.store_dir);
 
-    value.insert_or_assign("storePath", (std::string)storePath.to_string());
+    value.insert_or_assign("storePath", (std::string)store_path.to_string());
 
     upsert(key, value);
   }
 
   std::optional<ResultWithStorePath> lookupStorePath(Key key, Store& store,
-                                                     bool allowInvalid) override {
-    key.second.insert_or_assign("store", store.storeDir);
+                                                     bool allow_invalid) override {
+    key.second.insert_or_assign("store", store.store_dir);
 
     auto res = lookupExpired(key);
     if (!res)
       return std::nullopt;
 
-    auto storePathS = getStrAttr(res->value, "storePath");
+    auto store_path_s = get_str_attr(res->value, "storePath");
     res->value.erase("storePath");
 
-    ResultWithStorePath res2(*res, StorePath(storePathS));
+    ResultWithStorePath res2(*res, StorePath(store_path_s));
 
-    store.addTempRoot(res2.storePath);
-    if (!allowInvalid && !store.isValidPath(res2.storePath)) {
+    store.addTempRoot(res2.store_path);
+    if (!allow_invalid && !store.isValidPath(res2.store_path)) {
       // FIXME: we could try to substitute 'storePath'.
       debug("ignoring disappeared cache entry '%s:%s' -> '%s'", key.first,
-            attrsToJSON(key.second).dump(), store.printStorePath(res2.storePath));
+            attrs_to_json(key.second).dump(), store.printStorePath(res2.store_path));
       return std::nullopt;
     }
 
-    debug("using cache entry '%s:%s' -> '%s', '%s'", key.first, attrsToJSON(key.second).dump(),
-          attrsToJSON(res2.value).dump(), store.printStorePath(res2.storePath));
+    debug("using cache entry '%s:%s' -> '%s', '%s'", key.first, attrs_to_json(key.second).dump(),
+          attrs_to_json(res2.value).dump(), store.printStorePath(res2.store_path));
 
     return res2;
   }
@@ -138,11 +138,11 @@ struct cache_impl_t : Cache {
   }
 };
 
-ref<Cache> settings_t::getCache() const {
+ref<cache_t> settings_t::get_cache() const {
   auto cache(_cache.lock());
   if (!*cache)
     *cache = std::make_shared<cache_impl_t>();
-  return ref<Cache>(*cache);
+  return ref<cache_t>(*cache);
 }
 
 } // namespace nix::fetchers

@@ -6,9 +6,9 @@
 namespace nix {
 
 std::vector<ref<eval_cache::AttrCursor>> InstallableValue::getCursors(EvalState& state) {
-  auto evalCache = std::make_shared<nix::eval_cache::EvalCache>(
+  auto eval_cache = std::make_shared<nix::eval_cache::EvalCache>(
       std::nullopt, state, [&]() { return toValue(state).first; });
-  return {evalCache->getRoot()};
+  return {eval_cache->get_root()};
 }
 
 ref<eval_cache::AttrCursor> InstallableValue::getCursor(EvalState& state) {
@@ -17,7 +17,7 @@ ref<eval_cache::AttrCursor> InstallableValue::getCursor(EvalState& state) {
   return getCursors(state).at(0);
 }
 
-static UsageError nonValueInstallable(Installable& installable) {
+static UsageError non_value_installable(Installable& installable) {
   return UsageError("installable '%s' does not correspond to a Nix language value",
                     installable.what());
 }
@@ -25,26 +25,26 @@ static UsageError nonValueInstallable(Installable& installable) {
 InstallableValue& InstallableValue::require(Installable& installable) {
   auto* castedInstallable = dynamic_cast<InstallableValue*>(&installable);
   if (!castedInstallable)
-    throw nonValueInstallable(installable);
+    throw non_value_installable(installable);
   return *castedInstallable;
 }
 
 ref<InstallableValue> InstallableValue::require(ref<Installable> installable) {
   auto castedInstallable = installable.dynamic_pointer_cast<InstallableValue>();
   if (!castedInstallable)
-    throw nonValueInstallable(*installable);
+    throw non_value_installable(*installable);
   return ref{castedInstallable};
 }
 
 std::optional<DerivedPathWithInfo>
 InstallableValue::trySinglePathToDerivedPaths(Value& v, const pos_idx_t pos,
-                                              std::string_view errorCtx) {
+                                              std::string_view error_ctx) {
   if (v.type() == nPath) {
-    auto storePath = fetchToStore(state->fetchSettings, *state->store, v.path(), FetchMode::Copy);
+    auto store_path = fetch_to_store(state->fetch_settings, *state->store, v.path(), FetchMode::Copy);
     return {{
         .path =
             DerivedPath::opaque_t{
-                .path = std::move(storePath),
+                .path = std::move(store_path),
             },
         .info = make_ref<ExtraPathInfo>(),
     }};
@@ -53,7 +53,7 @@ InstallableValue::trySinglePathToDerivedPaths(Value& v, const pos_idx_t pos,
   else if (v.type() == nString) {
     return {{
         .path = DerivedPath::fromSingle(
-            state->devirtualize(state->coerceToSingleDerivedPath(pos, v, errorCtx))),
+            state->devirtualize(state->coerceToSingleDerivedPath(pos, v, error_ctx))),
         .info = make_ref<ExtraPathInfo>(),
     }};
   }

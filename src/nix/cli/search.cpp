@@ -23,21 +23,21 @@ using namespace nix;
 using json = nlohmann::json;
 
 std::string wrap(std::string prefix, std::string s) {
-  return concatStrings(prefix, s, ANSI_NORMAL);
+  return concat_strings(prefix, s, ANSI_NORMAL);
 }
 
 struct cmd_search_t : InstallableValueCommand, MixJSON {
   std::vector<std::string> res;
-  std::vector<std::string> excludeRes;
+  std::vector<std::string> exclude_res;
 
   cmd_search_t() {
-    expectArgs("regex", &res);
-    addFlag(flag_t{
-        .longName = "exclude",
-        .shortName = 'e',
+    expect_args("regex", &res);
+    add_flag(flag_t{
+        .long_name = "exclude",
+        .short_name = 'e',
         .description = "Hide packages whose attribute path, name or description contain *regex*.",
         .labels = {"regex"},
-        .handler = {[this](std::string s) { excludeRes.push_back(s); }},
+        .handler = {[this](std::string s) { exclude_res.push_back(s); }},
     });
   }
 
@@ -55,7 +55,7 @@ struct cmd_search_t : InstallableValueCommand, MixJSON {
 
   void run(ref<Store> store, ref<InstallableValue> installable) override {
     settings.readOnlyMode = true;
-    evalSettings.enableImportFromDerivation.setDefault(false);
+    eval_settings.enableImportFromDerivation.set_default(false);
 
     // Recommend "^" here instead of ".*" due to differences in resulting highlighting
     if (res.empty())
@@ -65,12 +65,12 @@ struct cmd_search_t : InstallableValueCommand, MixJSON {
     std::vector<std::regex> regexes;
     std::vector<std::regex> excludeRegexes;
     regexes.reserve(res.size());
-    excludeRegexes.reserve(excludeRes.size());
+    excludeRegexes.reserve(exclude_res.size());
 
     for (auto& re : res)
       regexes.push_back(std::regex(re, std::regex::extended | std::regex::icase));
 
-    for (auto& re : excludeRes)
+    for (auto& re : exclude_res)
       excludeRegexes.emplace_back(re, std::regex::extended | std::regex::icase);
 
     auto state = getEvalState();
@@ -83,23 +83,23 @@ struct cmd_search_t : InstallableValueCommand, MixJSON {
 
     FutureVector futures(*state->executor);
 
-    std::function<void(eval_cache::AttrCursor & cursor, const AttrPath& attrPath,
+    std::function<void(eval_cache::AttrCursor & cursor, const AttrPath& attr_path,
                        bool initialRecurse)>
         visit;
 
-    visit = [&](eval_cache::AttrCursor& cursor, const AttrPath& attrPath, bool initialRecurse) {
-      auto attrPathS = state->symbols.resolve({attrPath});
-      auto attrPathStr = attrPath.to_string(*state);
+    visit = [&](eval_cache::AttrCursor& cursor, const AttrPath& attr_path, bool initialRecurse) {
+      auto attrPathS = state->symbols.resolve({attr_path});
+      auto attrPathStr = attr_path.to_string(*state);
 
       /*
-      activity_t act(*logger, lvlInfo, actUnknown, fmt("evaluating '%s'", attrPathStr));
+      activity_t act(*logger, lvl_info, act_unknown, fmt("evaluating '%s'", attrPathStr));
       */
       try {
         auto recurse = [&]() {
           std::vector<std::pair<Executor::work_t, uint8_t>> work;
           for (const auto& attr : cursor.getAttrs()) {
-            auto cursor2 = cursor.getAttr(state->symbols[attr]);
-            auto attrPath2(attrPath);
+            auto cursor2 = cursor.get_attr(state->symbols[attr]);
+            auto attrPath2(attr_path);
             attrPath2.push_back(attr);
             work.emplace_back([cursor2, attrPath2, visit]() { visit(*cursor2, attrPath2, false); },
                               std::string_view(state->symbols[attr]).find("Packages") !=
@@ -110,12 +110,12 @@ struct cmd_search_t : InstallableValueCommand, MixJSON {
           futures.spawn(std::move(work));
         };
 
-        if (cursor.isDerivation()) {
-          DrvName name(cursor.getAttr(state->s.name)->getString());
+        if (cursor.is_derivation()) {
+          DrvName name(cursor.get_attr(state->s.name)->get_string());
 
           auto aMeta = cursor.maybeGetAttr(state->s.meta);
           auto aDescription = aMeta ? aMeta->maybeGetAttr(state->s.description) : nullptr;
-          auto description = aDescription ? aDescription->getString() : "";
+          auto description = aDescription ? aDescription->get_string() : "";
           std::replace(description.begin(), description.end(), '\n', ' ');
 
           std::vector<std::smatch> attrPathMatches;
@@ -159,33 +159,33 @@ struct cmd_search_t : InstallableValueCommand, MixJSON {
               };
             } else {
               auto out = fmt("%s* %s%s", results > 1 ? "\n" : "",
-                             wrap("\e[0;1m", hiliteMatches(attrPathStr, attrPathMatches, ANSI_GREEN,
+                             wrap("\e[0;1m", hilite_matches(attrPathStr, attrPathMatches, ANSI_GREEN,
                                                            "\e[0;1m")),
-                             optionalBracket(" (", name.version, ")"));
+                             optional_bracket(" (", name.version, ")"));
               if (description != "")
                 out += fmt("\n  %s",
-                           hiliteMatches(description, descriptionMatches, ANSI_GREEN, ANSI_NORMAL));
+                           hilite_matches(description, descriptionMatches, ANSI_GREEN, ANSI_NORMAL));
               logger->cout(out);
             }
           }
         }
 
-        else if (attrPath.size() == 0 ||
-                 (attrPathS[0] == "legacyPackages" && attrPath.size() <= 2) ||
-                 (attrPathS[0] == "packages" && attrPath.size() <= 2))
+        else if (attr_path.size() == 0 ||
+                 (attrPathS[0] == "legacyPackages" && attr_path.size() <= 2) ||
+                 (attrPathS[0] == "packages" && attr_path.size() <= 2))
           recurse();
 
         else if (initialRecurse)
           recurse();
 
-        else if (attrPathS[0] == "legacyPackages" && attrPath.size() > 2) {
+        else if (attrPathS[0] == "legacyPackages" && attr_path.size() > 2) {
           auto attr = cursor.maybeGetAttr(state->s.recurseForDerivations);
           if (attr && attr->getBool())
             recurse();
         }
 
       } catch (EvalError& e) {
-        if (!(attrPath.size() > 0 && attrPathS[0] == "legacyPackages"))
+        if (!(attr_path.size() > 0 && attrPathS[0] == "legacyPackages"))
           throw;
       }
     };
@@ -208,4 +208,4 @@ struct cmd_search_t : InstallableValueCommand, MixJSON {
   }
 };
 
-static auto rCmdSearch = registerCommand<cmd_search_t>("search");
+static auto r_cmd_search = registerCommand<cmd_search_t>("search");

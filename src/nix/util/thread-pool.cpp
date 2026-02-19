@@ -5,14 +5,14 @@
 
 namespace nix {
 
-thread_pool_t::thread_pool_t(size_t _maxThreads) : maxThreads(_maxThreads) {
-  if (!maxThreads) {
-    maxThreads = std::thread::hardware_concurrency();
-    if (!maxThreads)
-      maxThreads = 1;
+thread_pool_t::thread_pool_t(size_t _maxThreads) : max_threads(_maxThreads) {
+  if (!max_threads) {
+    max_threads = std::thread::hardware_concurrency();
+    if (!max_threads)
+      max_threads = 1;
   }
 
-  debug("starting pool of %d threads", maxThreads - 1);
+  debug("starting pool of %d threads", max_threads - 1);
 }
 
 thread_pool_t::~thread_pool_t() {
@@ -44,8 +44,8 @@ void thread_pool_t::enqueue(work_t t) {
     throw ThreadPoolShutDown("cannot enqueue a work item while the thread pool is shutting down");
   state->pending.push(std::move(t));
   /* Note: process() also executes items, so count it as a worker. */
-  if (state->pending.size() > state->workers.size() + 1 && state->workers.size() + 1 < maxThreads)
-    state->workers.emplace_back(&thread_pool_t::doWork, this, false);
+  if (state->pending.size() > state->workers.size() + 1 && state->workers.size() + 1 < max_threads)
+    state->workers.emplace_back(&thread_pool_t::do_work, this, false);
   work.notify_one();
 }
 
@@ -54,7 +54,7 @@ void thread_pool_t::process() {
 
   /* Do work until no more work is pending or active. */
   try {
-    doWork(true);
+    do_work(true);
 
     auto state(state_.lock());
 
@@ -74,15 +74,15 @@ void thread_pool_t::process() {
   }
 }
 
-void thread_pool_t::doWork(bool mainThread) {
-  receive_interrupts_t receiveInterrupts;
+void thread_pool_t::do_work(bool main_thread) {
+  receive_interrupts_t receive_interrupts;
 
 #ifndef _WIN32 // Does Windows need anything similar for async exit handling?
-  if (!mainThread)
-    unix::interruptCheck = [&]() { return (bool)quit; };
+  if (!main_thread)
+    unix::interrupt_check = [&]() { return (bool)quit; };
 #endif
 
-  bool didWork = false;
+  bool did_work = false;
   std::exception_ptr exc;
 
   while (true) {
@@ -90,7 +90,7 @@ void thread_pool_t::doWork(bool mainThread) {
     {
       auto state(state_.lock());
 
-      if (didWork) {
+      if (did_work) {
         assert(state->active);
         state->active--;
 
@@ -113,7 +113,7 @@ void thread_pool_t::doWork(bool mainThread) {
             } catch (const ThreadPoolShutDown&) {
               // Similarly expected.
             } catch (std::exception& e) {
-              ignoreExceptionExceptInterrupt();
+              ignore_exception_except_interrupt();
             }
           }
         }
@@ -151,7 +151,7 @@ void thread_pool_t::doWork(bool mainThread) {
       exc = std::current_exception();
     }
 
-    didWork = true;
+    did_work = true;
   }
 }
 

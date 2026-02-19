@@ -6,21 +6,21 @@ extern char** environ __attribute__((weak));
 
 namespace nix {
 
-std::optional<std::string> getEnv(const std::string& key) {
+std::optional<std::string> get_env(const std::string& key) {
   char* value = getenv(key.c_str());
   if (!value)
     return {};
   return std::string(value);
 }
 
-std::optional<std::string> getEnvNonEmpty(const std::string& key) {
-  auto value = getEnv(key);
+std::optional<std::string> get_env_non_empty(const std::string& key) {
+  auto value = get_env(key);
   if (value == "")
     return {};
   return value;
 }
 
-string_map_t getEnv() {
+string_map_t get_env() {
   string_map_t env;
   for (size_t i = 0; environ[i]; ++i) {
     auto s = environ[i];
@@ -33,15 +33,15 @@ string_map_t getEnv() {
   return env;
 }
 
-void clearEnv() {
-  for (auto& name : getEnv())
+void clear_env() {
+  for (auto& name : get_env())
     unsetenv(name.first.c_str());
 }
 
-void replaceEnv(const string_map_t& newEnv) {
-  clearEnv();
-  for (auto& newEnvVar : newEnv)
-    setEnv(newEnvVar.first.c_str(), newEnvVar.second.c_str());
+void replace_env(const string_map_t& new_env) {
+  clear_env();
+  for (auto& new_env_var : new_env)
+    set_env(new_env_var.first.c_str(), new_env_var.second.c_str());
 }
 
 } // namespace nix

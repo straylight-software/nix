@@ -8,7 +8,7 @@
 
 namespace nix {
 
-static void prim_fetchMercurial(EvalState& state, const pos_idx_t pos, Value** args, Value& v) {
+static void prim_fetch_mercurial(EvalState& state, const pos_idx_t pos, Value** args, Value& v) {
   std::string url;
   std::optional<Hash> rev;
   std::optional<std::string> ref;
@@ -26,15 +26,15 @@ static void prim_fetchMercurial(EvalState& state, const pos_idx_t pos, Value** a
                       attr.pos, *attr.value, context,
                       "while evaluating the `url` attribute passed to builtins.fetchMercurial",
                       false, false)
-                  .toOwned();
+                  .to_owned();
       else if (n == "rev") {
         // Ugly: unlike fetchGit, here the "rev" attribute can
         // be both a revision or a branch/tag name.
         auto value = state.forceStringNoCtx(
             *attr.value, attr.pos,
             "while evaluating the `rev` attribute passed to builtins.fetchMercurial");
-        if (std::regex_match(value.begin(), value.end(), revRegex))
-          rev = Hash::parseAny(value, hash_algorithm_t::SHA1);
+        if (std::regex_match(value.begin(), value.end(), rev_regex))
+          rev = Hash::parse_any(value, hash_algorithm_t::SHA1);
         else
           ref = value;
       } else if (n == "name")
@@ -45,12 +45,12 @@ static void prim_fetchMercurial(EvalState& state, const pos_idx_t pos, Value** a
         state
             .error<EvalError>("unsupported argument '%s' to 'fetchMercurial'",
                               state.symbols[attr.name])
-            .atPos(attr.pos)
+            .at_pos(attr.pos)
             .debugThrow();
     }
 
     if (url.empty())
-      state.error<EvalError>("'url' argument required").atPos(pos).debugThrow();
+      state.error<EvalError>("'url' argument required").at_pos(pos).debugThrow();
 
   } else
     url =
@@ -58,7 +58,7 @@ static void prim_fetchMercurial(EvalState& state, const pos_idx_t pos, Value** a
             .coerceToString(pos, *args[0], context,
                             "while evaluating the first argument passed to builtins.fetchMercurial",
                             false, false)
-            .toOwned();
+            .to_owned();
 
   // FIXME: git externals probably can be used to bypass the URI
   // whitelist. Ah well.
@@ -74,28 +74,28 @@ static void prim_fetchMercurial(EvalState& state, const pos_idx_t pos, Value** a
   if (ref)
     attrs.insert_or_assign("ref", *ref);
   if (rev)
-    attrs.insert_or_assign("rev", rev->gitRev());
-  auto input = fetchers::Input::fromAttrs(state.fetchSettings, std::move(attrs));
+    attrs.insert_or_assign("rev", rev->git_rev());
+  auto input = fetchers::Input::fromAttrs(state.fetch_settings, std::move(attrs));
 
-  auto [storePath, accessor, input2] = input.fetchToStore(state.fetchSettings, *state.store);
+  auto [store_path, accessor, input2] = input.fetch_to_store(state.fetch_settings, *state.store);
 
   auto attrs2 = state.buildBindings(8);
-  state.mkStorePathString(storePath, attrs2.alloc(state.s.outPath));
+  state.mkStorePathString(store_path, attrs2.alloc(state.s.out_path));
   if (input2.getRef())
-    attrs2.alloc("branch").mkString(*input2.getRef(), state.mem);
+    attrs2.alloc("branch").mk_string(*input2.getRef(), state.mem);
   // Backward compatibility: set 'rev' to
   // 0000000000000000000000000000000000000000 for a dirty tree.
   auto rev2 = input2.getRev().value_or(Hash(hash_algorithm_t::SHA1));
-  attrs2.alloc("rev").mkString(rev2.gitRev(), state.mem);
-  attrs2.alloc("shortRev").mkString(rev2.gitRev().substr(0, 12), state.mem);
-  if (auto revCount = input2.getRevCount())
-    attrs2.alloc("revCount").mkInt(*revCount);
+  attrs2.alloc("rev").mk_string(rev2.git_rev(), state.mem);
+  attrs2.alloc("shortRev").mk_string(rev2.git_rev().substr(0, 12), state.mem);
+  if (auto rev_count = input2.get_rev_count())
+    attrs2.alloc("revCount").mkInt(*rev_count);
   v.mkAttrs(attrs2);
 
-  state.allowPath(storePath);
+  state.allowPath(store_path);
 }
 
 static RegisterPrimOp
-    r_fetchMercurial({.name = "fetchMercurial", .arity = 1, .fun = prim_fetchMercurial});
+    r_fetch_mercurial({.name = "fetchMercurial", .arity = 1, .fun = prim_fetch_mercurial});
 
 } // namespace nix

@@ -108,7 +108,7 @@ public:
    * Acquire read access to the inner value. When using
    * `std::shared_mutex`, this will use a shared lock.
    */
-  read_lock_t readLock() const { return read_lock_t(const_cast<sync_base_t*>(this)); }
+  read_lock_t read_lock() const { return read_lock_t(const_cast<sync_base_t*>(this)); }
 };
 
 template <class T>

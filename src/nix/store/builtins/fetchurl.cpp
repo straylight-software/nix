@@ -7,36 +7,36 @@
 
 namespace nix {
 
-static void builtinFetchurl(const BuiltinBuilderContext& ctx) {
+static void builtin_fetchurl(const BuiltinBuilderContext& ctx) {
   /* Make the host's netrc data available. Too bad curl requires
      this to be stored in a file. It would be nice if we could just
      pass a pointer to the data. */
   if (ctx.netrcData != "") {
     settings.netrcFile = "netrc";
-    writeFile(settings.netrcFile, ctx.netrcData, 0600);
+    write_file(settings.netrcFile, ctx.netrcData, 0600);
   }
 
-  settings.caFile = "ca-certificates.crt";
-  writeFile(settings.caFile, ctx.caFileData, 0600);
+  settings.ca_file = "ca-certificates.crt";
+  write_file(settings.ca_file, ctx.caFileData, 0600);
 
   auto out = get(ctx.drv.outputs, "out");
   if (!out)
     throw Error("'builtin:fetchurl' requires an 'out' output");
 
-  if (!(ctx.drv.type().isFixed() || ctx.drv.type().isImpure()))
+  if (!(ctx.drv.type().isFixed() || ctx.drv.type().is_impure()))
     throw Error("'builtin:fetchurl' must be a fixed-output or impure derivation");
 
-  auto storePath = ctx.outputs.at("out");
-  auto mainUrl = ctx.drv.env.at("url");
-  bool unpack = getOr(ctx.drv.env, "unpack", "") == "1";
+  auto store_path = ctx.outputs.at("out");
+  auto main_url = ctx.drv.env.at("url");
+  bool unpack = get_or(ctx.drv.env, "unpack", "") == "1";
 
-  /* Note: have to use a fresh fileTransfer here because we're in
+  /* Note: have to use a fresh file_transfer here because we're in
      a forked process. */
   debug("[pid=%d] builtin:fetchurl creating fresh FileTransfer instance", getpid());
-  auto fileTransfer = makeFileTransfer();
+  auto file_transfer = make_file_transfer();
 
   auto fetch = [&](const std::string& url) {
-    auto source = sinkToSource([&](Sink& sink) {
+    auto source = sink_to_source([&](Sink& sink) {
       FileTransferRequest request(verbatim_url_t{url});
       request.decompress = false;
 
@@ -53,41 +53,41 @@ static void builtinFetchurl(const BuiltinBuilderContext& ctx) {
 #endif
 
       auto decompressor =
-          makeDecompressionSink(unpack && hasSuffix(mainUrl, ".xz") ? "xz" : "none", sink);
-      fileTransfer->download(std::move(request), *decompressor);
+          make_decompression_sink(unpack && has_suffix(main_url, ".xz") ? "xz" : "none", sink);
+      file_transfer->download(std::move(request), *decompressor);
       decompressor->finish();
     });
 
     if (unpack)
-      restorePath(storePath, *source);
+      restore_path(store_path, *source);
     else
-      writeFile(storePath, *source);
+      write_file(store_path, *source);
 
     auto executable = ctx.drv.env.find("executable");
     if (executable != ctx.drv.env.end() && executable->second == "1") {
-      if (chmod(storePath.c_str(), 0755) == -1)
-        throw sys_error_t("making '%1%' executable", storePath);
+      if (chmod(store_path.c_str(), 0755) == -1)
+        throw sys_error_t("making '%1%' executable", store_path);
     }
   };
 
   /* Try the hashed mirrors first. */
   auto dof = std::get_if<DerivationOutput::CAFixed>(&out->raw);
-  if (dof && dof->ca.method.getFileIngestionMethod() == file_ingestion_method_t::Flat)
+  if (dof && dof->ca.method.getFileIngestionMethod() == file_ingestion_method_t::flat)
     for (auto hashedMirror : settings.hashedMirrors.get())
       try {
-        if (!hasSuffix(hashedMirror, "/"))
+        if (!has_suffix(hashedMirror, "/"))
           hashedMirror += '/';
-        fetch(hashedMirror + printHashAlgo(dof->ca.hash.algo) + "/" +
-              dof->ca.hash.to_string(hash_format_t::Base16, false));
+        fetch(hashedMirror + print_hash_algo(dof->ca.hash.algo) + "/" +
+              dof->ca.hash.to_string(hash_format_t::base16, false));
         return;
       } catch (Error& e) {
         debug(e.what());
       }
 
   /* Otherwise try the specified URL. */
-  fetch(mainUrl);
+  fetch(main_url);
 }
 
-static RegisterBuiltinBuilder registerFetchurl("fetchurl", builtinFetchurl);
+static RegisterBuiltinBuilder register_fetchurl("fetchurl", builtin_fetchurl);
 
 } // namespace nix

@@ -5,8 +5,8 @@
 namespace nix {
 
 struct AsyncPathWriter {
-  virtual StorePath addPath(std::string contents, std::string name, StorePathSet references,
-                            RepairFlag repair, bool readOnly = false) = 0;
+  virtual StorePath add_path(std::string contents, std::string name, StorePathSet references,
+                            RepairFlag repair, bool read_only = false) = 0;
 
   virtual void waitForPath(const StorePath& path) = 0;
 

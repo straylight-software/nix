@@ -6,10 +6,10 @@ namespace nix {
 
 memory_source_accessor_t::file_t* memory_source_accessor_t::open(const canon_path_t& path,
                                                        std::optional<file_t> create) {
-  bool hasRoot = root.has_value();
+  bool has_root = root.has_value();
 
   // Special handling of root directory.
-  if (path.isRoot() && !hasRoot) {
+  if (path.is_root() && !has_root) {
     if (create) {
       root = std::move(*create);
       return &root.value();
@@ -18,26 +18,26 @@ memory_source_accessor_t::file_t* memory_source_accessor_t::open(const canon_pat
   }
 
   // Root does not exist.
-  if (!hasRoot)
+  if (!has_root)
     return nullptr;
 
   file_t* cur = &root.value();
 
-  bool newF = false;
+  bool new_f = false;
 
   for (std::string_view name : path) {
-    auto* curDirP = std::get_if<file_t::directory_t>(&cur->raw);
-    if (!curDirP)
+    auto* cur_dir_p = std::get_if<file_t::directory_t>(&cur->raw);
+    if (!cur_dir_p)
       return nullptr;
-    auto& curDir = *curDirP;
+    auto& cur_dir = *cur_dir_p;
 
-    auto i = curDir.entries.find(name);
-    if (i == curDir.entries.end()) {
+    auto i = cur_dir.entries.find(name);
+    if (i == cur_dir.entries.end()) {
       if (!create)
         return nullptr;
       else {
-        newF = true;
-        i = curDir.entries.insert(i, {
+        new_f = true;
+        i = cur_dir.entries.insert(i, {
                                          std::string{name},
                                          file_t::directory_t{},
                                      });
@@ -46,56 +46,56 @@ memory_source_accessor_t::file_t* memory_source_accessor_t::open(const canon_pat
     cur = &i->second;
   }
 
-  if (newF && create)
+  if (new_f && create)
     *cur = std::move(*create);
 
   return cur;
 }
 
-std::string memory_source_accessor_t::readFile(const canon_path_t& path) {
+std::string memory_source_accessor_t::read_file(const canon_path_t& path) {
   auto* f = open(path, std::nullopt);
   if (!f)
     throw Error("file '%s' does not exist", path);
-  if (auto* r = std::get_if<file_t::Regular>(&f->raw))
+  if (auto* r = std::get_if<file_t::regular>(&f->raw))
     return r->contents;
   else
     throw Error("file '%s' is not a regular file", path);
 }
 
-bool memory_source_accessor_t::pathExists(const canon_path_t& path) {
+bool memory_source_accessor_t::path_exists(const canon_path_t& path) {
   return open(path, std::nullopt);
 }
 
 template <>
 SourceAccessor::stat_t memory_source_accessor_t::file_t::lstat() const {
   return std::visit(overloaded{
-                        [](const Regular& r) {
+                        [](const regular& r) {
                           return SourceAccessor::stat_t{
-                              .type = SourceAccessor::tRegular,
-                              .fileSize = r.contents.size(),
-                              .isExecutable = r.executable,
+                              .type = SourceAccessor::t_regular,
+                              .file_size = r.contents.size(),
+                              .is_executable = r.executable,
                           };
                         },
                         [](const directory_t&) {
                           return SourceAccessor::stat_t{
-                              .type = SourceAccessor::tDirectory,
+                              .type = SourceAccessor::t_directory,
                           };
                         },
-                        [](const Symlink&) {
+                        [](const symlink&) {
                           return SourceAccessor::stat_t{
-                              .type = SourceAccessor::tSymlink,
+                              .type = SourceAccessor::t_symlink,
                           };
                         },
                     },
                     this->raw);
 }
 
-std::optional<memory_source_accessor_t::stat_t> memory_source_accessor_t::maybeLstat(const canon_path_t& path) {
+std::optional<memory_source_accessor_t::stat_t> memory_source_accessor_t::maybe_lstat(const canon_path_t& path) {
   const auto* f = open(path, std::nullopt);
   return f ? std::optional{f->lstat()} : std::nullopt;
 }
 
-memory_source_accessor_t::dir_entries_t memory_source_accessor_t::readDirectory(const canon_path_t& path) {
+memory_source_accessor_t::dir_entries_t memory_source_accessor_t::read_directory(const canon_path_t& path) {
   auto* f = open(path, std::nullopt);
   if (!f)
     throw Error("file '%s' does not exist", path);
@@ -109,25 +109,25 @@ memory_source_accessor_t::dir_entries_t memory_source_accessor_t::readDirectory(
   return {};
 }
 
-std::string memory_source_accessor_t::readLink(const canon_path_t& path) {
+std::string memory_source_accessor_t::read_link(const canon_path_t& path) {
   auto* f = open(path, std::nullopt);
   if (!f)
     throw Error("file '%s' does not exist", path);
-  if (auto* s = std::get_if<file_t::Symlink>(&f->raw))
+  if (auto* s = std::get_if<file_t::symlink>(&f->raw))
     return s->target;
   else
     throw Error("file '%s' is not a symbolic link", path);
 }
 
-source_path_t memory_source_accessor_t::addFile(canon_path_t path, std::string&& contents) {
+source_path_t memory_source_accessor_t::add_file(canon_path_t path, std::string&& contents) {
   // Create root directory automatically if necessary as a convenience.
-  if (!root && !path.isRoot())
+  if (!root && !path.is_root())
     open(canon_path_t::root, file_t::directory_t{});
 
-  auto* f = open(path, file_t{file_t::Regular{}});
+  auto* f = open(path, file_t{file_t::regular{}});
   if (!f)
     throw Error("file '%s' cannot be made because some parent file is not a directory", path);
-  if (auto* r = std::get_if<file_t::Regular>(&f->raw))
+  if (auto* r = std::get_if<file_t::regular>(&f->raw))
     r->contents = std::move(contents);
   else
     throw Error("file '%s' is not a regular file", path);
@@ -137,7 +137,7 @@ source_path_t memory_source_accessor_t::addFile(canon_path_t path, std::string&&
 
 using file_t = memory_source_accessor_t::file_t;
 
-void memory_sink_t::createDirectory(const canon_path_t& path) {
+void memory_sink_t::create_directory(const canon_path_t& path) {
   auto* f = dst.open(path, file_t{file_t::directory_t{}});
   if (!f)
     throw Error("file '%s' cannot be made because some parent file is not a directory", path);
@@ -147,58 +147,58 @@ void memory_sink_t::createDirectory(const canon_path_t& path) {
 };
 
 struct create_memory_regular_file_t : create_regular_file_sink_t {
-  file_t::Regular& regularFile;
+  file_t::regular& regular_file;
 
-  create_memory_regular_file_t(file_t::Regular& r) : regularFile(r) {}
+  create_memory_regular_file_t(file_t::regular& r) : regular_file(r) {}
 
   void operator()(std::string_view data) override;
-  void isExecutable() override;
-  void preallocateContents(uint64_t size) override;
+  void is_executable() override;
+  void preallocate_contents(uint64_t size) override;
 };
 
-void memory_sink_t::createRegularFile(const canon_path_t& path,
+void memory_sink_t::create_regular_file(const canon_path_t& path,
                                    std::function<void(create_regular_file_sink_t&)> func) {
-  auto* f = dst.open(path, file_t{file_t::Regular{}});
+  auto* f = dst.open(path, file_t{file_t::regular{}});
   if (!f)
     throw Error("file '%s' cannot be made because some parent file is not a directory", path);
-  if (auto* rp = std::get_if<file_t::Regular>(&f->raw)) {
+  if (auto* rp = std::get_if<file_t::regular>(&f->raw)) {
     create_memory_regular_file_t crf{*rp};
     func(crf);
   } else
     throw Error("file '%s' is not a regular file", path);
 }
 
-void create_memory_regular_file_t::isExecutable() {
-  regularFile.executable = true;
+void create_memory_regular_file_t::is_executable() {
+  regular_file.executable = true;
 }
 
-void create_memory_regular_file_t::preallocateContents(uint64_t len) {
-  regularFile.contents.reserve(len);
+void create_memory_regular_file_t::preallocate_contents(uint64_t len) {
+  regular_file.contents.reserve(len);
 }
 
 void create_memory_regular_file_t::operator()(std::string_view data) {
-  regularFile.contents += data;
+  regular_file.contents += data;
 }
 
-void memory_sink_t::createSymlink(const canon_path_t& path, const std::string& target) {
-  auto* f = dst.open(path, file_t{file_t::Symlink{}});
+void memory_sink_t::create_symlink(const canon_path_t& path, const std::string& target) {
+  auto* f = dst.open(path, file_t{file_t::symlink{}});
   if (!f)
     throw Error("file '%s' cannot be made because some parent file is not a directory", path);
-  if (auto* s = std::get_if<file_t::Symlink>(&f->raw))
+  if (auto* s = std::get_if<file_t::symlink>(&f->raw))
     s->target = target;
   else
     throw Error("file '%s' is not a symbolic link", path);
 }
 
-ref<SourceAccessor> makeEmptySourceAccessor() {
+ref<SourceAccessor> make_empty_source_accessor() {
   static auto empty = []() {
     auto empty = make_ref<memory_source_accessor_t>();
     memory_sink_t sink{*empty};
-    sink.createDirectory(canon_path_t::root);
+    sink.create_directory(canon_path_t::root);
     /* Don't forget to clear the display prefix, as the default constructed
        SourceAccessor has the «unknown» prefix. Since this accessor is supposed
        to mimic an empty root directory the prefix needs to be empty. */
-    empty->setPathDisplay("");
+    empty->set_path_display("");
     return empty.cast<SourceAccessor>();
   }();
   return empty;

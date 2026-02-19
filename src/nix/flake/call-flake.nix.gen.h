@@ -1,11 +1,11 @@
 R"__NIX_STR(
-# This is a helper to callFlake() to lazily fetch flake inputs.
+# This is a helper to call_flake() to lazily fetch flake inputs.
 
 # The contents of the lock file, in JSON format.
 lockFileStr:
 
 # A mapping of lock file node IDs to { sourceInfo, subdir } attrsets,
-# with sourceInfo.outPath providing an SourceAccessor to a previously
+# with sourceInfo.out_path providing an SourceAccessor to a previously
 # fetched tree. This is necessary for possibly unlocked inputs, in
 # particular the root input, but also --override-inputs pointing to
 # unlocked trees.
@@ -14,13 +14,13 @@ overrides:
 let
   inherit (builtins) mapAttrs;
 
-  lockFile = builtins.fromJSON lockFileStr;
+  lock_file = builtins.from_json lockFileStr;
 
   # Resolve a input spec into a node name. An input spec is
   # either a node name, or a 'follows' path from the root
   # node.
   resolveInput =
-    inputSpec: if builtins.isList inputSpec then getInputByPath lockFile.root inputSpec else inputSpec;
+    inputSpec: if builtins.isList inputSpec then getInputByPath lock_file.root inputSpec else inputSpec;
 
   # Follow an input attrpath (e.g. ["dwarffs" "nixpkgs"]) from the
   # root node, returning the final node.
@@ -31,7 +31,7 @@ let
     else
       getInputByPath
         # Since this could be a 'follows' input, call resolveInput.
-        (resolveInput lockFile.nodes.${nodeName}.inputs.${builtins.head path})
+        (resolveInput lock_file.nodes.${nodeName}.inputs.${builtins.head path})
         (builtins.tail path);
 
   allNodes = mapAttrs (
@@ -40,7 +40,7 @@ let
       hasOverride = overrides ? ${key};
       isRelative = node.locked.type or null == "path" && builtins.substring 0 1 node.locked.path != "/";
 
-      parentNode = allNodes.${getInputByPath lockFile.root node.parent};
+      parentNode = allNodes.${getInputByPath lock_file.root node.parent};
 
       sourceInfo =
         if node.buildTime or false then
@@ -51,7 +51,7 @@ let
             __structuredAttrs = true;
             input = node.locked;
             outputHashMode = "recursive";
-            outputHash = node.locked.narHash;
+            outputHash = node.locked.nar_hash;
           }
         else if hasOverride then
           overrides.${key}.sourceInfo
@@ -60,17 +60,17 @@ let
         else
           # FIXME: remove obsolete node.info.
           # Note: lock file entries are always final.
-          builtins.fetchTree (node.info or { } // removeAttrs node.locked [ "dir" ]);
+          builtins.fetch_tree (node.info or { } // removeAttrs node.locked [ "dir" ]);
 
       subdir = overrides.${key}.dir or node.locked.dir or "";
 
-      outPath =
+      out_path =
         if !hasOverride && isRelative then
-          parentNode.outPath + (if node.locked.path == "" then "" else "/" + node.locked.path)
+          parentNode.out_path + (if node.locked.path == "" then "" else "/" + node.locked.path)
         else
-          sourceInfo.outPath + (if subdir == "" then "" else "/" + subdir);
+          sourceInfo.out_path + (if subdir == "" then "" else "/" + subdir);
 
-      flake = import (outPath + "/flake.nix");
+      flake = import (out_path + "/flake.nix");
 
       inputs = mapAttrs (inputName: inputSpec: allNodes.${resolveInput inputSpec}.result) (
         node.inputs or { }
@@ -81,14 +81,14 @@ let
       result =
         outputs
         # We add the sourceInfo attribute for its metadata, as they are
-        # relevant metadata for the flake. However, the outPath of the
-        # sourceInfo does not necessarily match the outPath of the flake,
+        # relevant metadata for the flake. However, the out_path of the
+        # sourceInfo does not necessarily match the out_path of the flake,
         # as the flake may be in a subdirectory of a source.
         # This is shadowed in the next //
         // sourceInfo
         // {
-          # This shadows the sourceInfo.outPath
-          inherit outPath;
+          # This shadows the sourceInfo.out_path
+          inherit out_path;
 
           inherit inputs;
           inherit outputs;
@@ -106,10 +106,10 @@ let
         else
           sourceInfo // { inherit sourceInfo outPath; };
 
-      inherit outPath sourceInfo;
+      inherit out_path sourceInfo;
     }
-  ) lockFile.nodes;
+  ) lock_file.nodes;
 
 in
-allNodes.${lockFile.root}.result
+allNodes.${lock_file.root}.result
 )__NIX_STR"

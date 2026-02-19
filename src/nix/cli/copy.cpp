@@ -6,23 +6,23 @@
 using namespace nix;
 
 struct cmd_copy_t : virtual CopyCommand, virtual BuiltPathsCommand, MixProfile, MixNoCheckSigs {
-  std::optional<std::filesystem::path> outLink;
+  std::optional<std::filesystem::path> out_link;
 
   SubstituteFlag substitute = NoSubstitute;
 
   cmd_copy_t() : BuiltPathsCommand(true) {
-    addFlag({
-        .longName = "out-link",
-        .shortName = 'o',
+    add_flag({
+        .long_name = "out-link",
+        .short_name = 'o',
         .description = "Create symlinks prefixed with *path* to the top-level store paths fetched "
                        "from the source store.",
         .labels = {"path"},
-        .handler = {&outLink},
-        .completer = completePath,
+        .handler = {&out_link},
+        .completer = complete_path,
     });
-    addFlag({
-        .longName = "substitute-on-destination",
-        .shortName = 's',
+    add_flag({
+        .long_name = "substitute-on-destination",
+        .short_name = 's',
         .description =
             "Whether to try substitutes on the destination store (only supported by SSH stores).",
         .handler = {&substitute, Substitute},
@@ -41,27 +41,27 @@ struct cmd_copy_t : virtual CopyCommand, virtual BuiltPathsCommand, MixProfile, 
 
   category_t category() override { return catSecondary; }
 
-  void run(ref<Store> srcStore, BuiltPaths&& allPaths, BuiltPaths&& rootPaths) override {
-    auto dstStore = getDstStore();
+  void run(ref<Store> src_store, BuiltPaths&& all_paths, BuiltPaths&& root_paths) override {
+    auto dst_store = getDstStore();
 
-    RealisedPath::Set stuffToCopy;
+    RealisedPath::Set stuff_to_copy;
 
-    for (auto& builtPath : allPaths) {
-      auto theseRealisations = builtPath.toRealisedPaths(*srcStore);
-      stuffToCopy.insert(theseRealisations.begin(), theseRealisations.end());
+    for (auto& builtPath : all_paths) {
+      auto theseRealisations = builtPath.toRealisedPaths(*src_store);
+      stuff_to_copy.insert(theseRealisations.begin(), theseRealisations.end());
     }
 
-    copyPaths(*srcStore, *dstStore, stuffToCopy, NoRepair, checkSigs, substitute);
+    copy_paths(*src_store, *dst_store, stuff_to_copy, NoRepair, check_sigs, substitute);
 
-    updateProfile(rootPaths);
+    updateProfile(root_paths);
 
-    if (outLink) {
-      if (auto store2 = dstStore.dynamic_pointer_cast<LocalFSStore>())
-        createOutLinks(*outLink, rootPaths, *store2);
+    if (out_link) {
+      if (auto store2 = dst_store.dynamic_pointer_cast<local_fs_store>())
+        create_out_links(*out_link, root_paths, *store2);
       else
         throw Error("'--out-link' is not supported for this Nix store");
     }
   }
 };
 
-static auto rCmdCopy = registerCommand<cmd_copy_t>("copy");
+static auto r_cmd_copy = registerCommand<cmd_copy_t>("copy");

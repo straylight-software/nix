@@ -3,10 +3,10 @@
 namespace nix {
 
 std::optional<std::string> LogStore::getBuildLog(const StorePath& path) {
-  auto maybePath = getBuildDerivationPath(path);
-  if (!maybePath)
+  auto maybe_path = getBuildDerivationPath(path);
+  if (!maybe_path)
     return std::nullopt;
-  return getBuildLogExact(maybePath.value());
+  return getBuildLogExact(maybe_path.value());
 }
 
 } // namespace nix

@@ -40,7 +40,7 @@ struct PrintOptions {
   /**
    * If true, output ANSI color sequences.
    */
-  bool ansiColors = false;
+  bool ansi_colors = false;
 
   /**
    * If true, force values.
@@ -62,7 +62,7 @@ struct PrintOptions {
   /**
    * Maximum depth to evaluate to.
    */
-  size_t maxDepth = std::numeric_limits<size_t>::max();
+  size_t max_depth = std::numeric_limits<size_t>::max();
 
   /**
    * Maximum number of attributes in attribute sets to print.
@@ -108,8 +108,8 @@ struct PrintOptions {
  * to avoid printing "too much" output.
  */
 static constexpr PrintOptions errorPrintOptions = PrintOptions{
-    .ansiColors = true,
-    .maxDepth = 10,
+    .ansi_colors = true,
+    .max_depth = 10,
     .maxAttrs = 10,
     .maxListItems = 10,
     .maxStringLength = 1024,

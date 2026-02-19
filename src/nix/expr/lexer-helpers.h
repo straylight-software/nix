@@ -6,8 +6,8 @@
 
 namespace nix::lexer::internal {
 
-void initLoc(Parser::location_type* loc);
+void init_loc(Parser::location_type* loc);
 
-void adjustLoc(yyscan_t yyscanner, Parser::location_type* loc, const char* s, size_t len);
+void adjust_loc(yyscan_t yyscanner, Parser::location_type* loc, const char* s, size_t len);
 
 } // namespace nix::lexer::internal

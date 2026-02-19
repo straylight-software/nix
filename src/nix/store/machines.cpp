@@ -12,15 +12,15 @@ Machine::Machine(const std::string& storeUri, decltype(systemTypes) systemTypes,
                  decltype(sshKey) sshKey, decltype(maxJobs) maxJobs,
                  decltype(speedFactor) speedFactor, decltype(supportedFeatures) supportedFeatures,
                  decltype(mandatoryFeatures) mandatoryFeatures,
-                 decltype(sshPublicHostKey) sshPublicHostKey)
+                 decltype(ssh_public_host_key) ssh_public_host_key)
     : storeUri(StoreReference::parse(
           // Backwards compatibility: if the URI is schemeless, is not a path,
           // and is not one of the special store connection words, prepend
           // ssh://.
           storeUri.find("://") != std::string::npos || storeUri.find("/") != std::string::npos ||
                   storeUri == "auto" || storeUri == "daemon" || storeUri == "local" ||
-                  hasPrefix(storeUri, "auto?") || hasPrefix(storeUri, "daemon?") ||
-                  hasPrefix(storeUri, "local?") || hasPrefix(storeUri, "?")
+                  has_prefix(storeUri, "auto?") || has_prefix(storeUri, "daemon?") ||
+                  has_prefix(storeUri, "local?") || has_prefix(storeUri, "?")
               ? storeUri
               : "ssh://" + storeUri)),
       systemTypes(systemTypes),
@@ -29,7 +29,7 @@ Machine::Machine(const std::string& storeUri, decltype(systemTypes) systemTypes,
       speedFactor(speedFactor == 0.0f ? 1.0f : speedFactor),
       supportedFeatures(supportedFeatures),
       mandatoryFeatures(mandatoryFeatures),
-      sshPublicHostKey(sshPublicHostKey) {
+      ssh_public_host_key(ssh_public_host_key) {
   if (speedFactor < 0.0)
     throw UsageError("speed factor must be >= 0");
 }
@@ -62,8 +62,8 @@ StoreReference Machine::completeStoreReference() const {
   if (generic && (generic->scheme == "ssh" || generic->scheme == "ssh-ng")) {
     if (sshKey != "")
       storeUri.params["ssh-key"] = sshKey;
-    if (sshPublicHostKey != "")
-      storeUri.params["base64-ssh-public-host-key"] = sshPublicHostKey;
+    if (ssh_public_host_key != "")
+      storeUri.params["base64-ssh-public-host-key"] = ssh_public_host_key;
   }
 
   {
@@ -82,15 +82,15 @@ StoreReference Machine::completeStoreReference() const {
   return storeUri;
 }
 
-ref<Store> Machine::openStore() const {
-  return nix::openStore(completeStoreReference());
+ref<Store> Machine::open_store() const {
+  return nix::open_store(completeStoreReference());
 }
 
-static std::vector<std::string> expandBuilderLines(const std::string& builders) {
+static std::vector<std::string> expand_builder_lines(const std::string& builders) {
   std::vector<std::string> result;
-  for (auto line : tokenizeString<std::vector<std::string>>(builders, "\n")) {
+  for (auto line : tokenize_string<std::vector<std::string>>(builders, "\n")) {
     line.erase(std::find(line.begin(), line.end(), '#'), line.end());
-    for (auto entry : tokenizeString<std::vector<std::string>>(line, ";")) {
+    for (auto entry : tokenize_string<std::vector<std::string>>(line, ";")) {
       entry = trim(entry);
 
       if (entry.empty()) {
@@ -99,15 +99,15 @@ static std::vector<std::string> expandBuilderLines(const std::string& builders) 
         const std::string path = trim(std::string_view{entry}.substr(1));
         std::string text;
         try {
-          text = readFile(path);
+          text = read_file(path);
         } catch (const sys_error_t& e) {
-          if (e.errNo != ENOENT)
+          if (e.err_no != ENOENT)
             throw;
           debug("cannot find machines file '%s'", path);
           continue;
         }
 
-        const auto entrys = expandBuilderLines(text);
+        const auto entrys = expand_builder_lines(text);
         result.insert(end(result), begin(entrys), end(entrys));
       } else {
         result.emplace_back(entry);
@@ -117,46 +117,46 @@ static std::vector<std::string> expandBuilderLines(const std::string& builders) 
   return result;
 }
 
-static Machine parseBuilderLine(const string_set_t& defaultSystems, const std::string& line) {
-  const auto tokens = tokenizeString<std::vector<std::string>>(line);
+static Machine parse_builder_line(const string_set_t& default_systems, const std::string& line) {
+  const auto tokens = tokenize_string<std::vector<std::string>>(line);
 
-  auto isSet = [&](size_t fieldIndex) {
-    return tokens.size() > fieldIndex && tokens[fieldIndex] != "" && tokens[fieldIndex] != "-";
+  auto is_set = [&](size_t field_index) {
+    return tokens.size() > field_index && tokens[field_index] != "" && tokens[field_index] != "-";
   };
 
-  auto parseUnsignedIntField = [&](size_t fieldIndex) {
-    const auto result = string2Int<unsigned int>(tokens[fieldIndex]);
+  auto parse_unsigned_int_field = [&](size_t field_index) {
+    const auto result = string2_int<unsigned int>(tokens[field_index]);
     if (!result) {
       throw FormatError("bad machine specification: failed to convert column #%lu in a row: '%s' "
                         "to 'unsigned int'",
-                        fieldIndex, line);
+                        field_index, line);
     }
     return result.value();
   };
 
-  auto parseFloatField = [&](size_t fieldIndex) {
-    const auto result = string2Float<float>(tokens[fieldIndex]);
+  auto parse_float_field = [&](size_t field_index) {
+    const auto result = string2_float<float>(tokens[field_index]);
     if (!result) {
       throw FormatError(
           "bad machine specification: failed to convert column #%lu in a row: '%s' to 'float'",
-          fieldIndex, line);
+          field_index, line);
     }
     return result.value();
   };
 
-  auto ensureBase64 = [&](size_t fieldIndex) {
-    const auto& str = tokens[fieldIndex];
+  auto ensure_base64 = [&](size_t field_index) {
+    const auto& str = tokens[field_index];
     try {
       base64::decode(str);
     } catch (FormatError& e) {
-      e.addTrace({}, "while parsing machine specification at a column #%lu in a row: '%s'",
-                 fieldIndex, line);
+      e.add_trace({}, "while parsing machine specification at a column #%lu in a row: '%s'",
+                 field_index, line);
       throw;
     }
     return str;
   };
 
-  if (!isSet(0))
+  if (!is_set(0))
     throw FormatError(
         "bad machine specification: store URL was not found at the first column of a row: '%s'",
         line);
@@ -166,35 +166,35 @@ static Machine parseBuilderLine(const string_set_t& defaultSystems, const std::s
   return {// `storeUri`
           tokens[0],
           // `systemTypes`
-          isSet(1) ? tokenizeString<string_set_t>(tokens[1], ",") : defaultSystems,
+          is_set(1) ? tokenize_string<string_set_t>(tokens[1], ",") : default_systems,
           // `sshKey`
-          isSet(2) ? tokens[2] : "",
+          is_set(2) ? tokens[2] : "",
           // `maxJobs`
-          isSet(3) ? parseUnsignedIntField(3) : 1U,
+          is_set(3) ? parse_unsigned_int_field(3) : 1U,
           // `speedFactor`
-          isSet(4) ? parseFloatField(4) : 1.0f,
+          is_set(4) ? parse_float_field(4) : 1.0f,
           // `supportedFeatures`
-          isSet(5) ? tokenizeString<string_set_t>(tokens[5], ",") : string_set_t{},
+          is_set(5) ? tokenize_string<string_set_t>(tokens[5], ",") : string_set_t{},
           // `mandatoryFeatures`
-          isSet(6) ? tokenizeString<string_set_t>(tokens[6], ",") : string_set_t{},
+          is_set(6) ? tokenize_string<string_set_t>(tokens[6], ",") : string_set_t{},
           // `sshPublicHostKey`
-          isSet(7) ? ensureBase64(7) : ""};
+          is_set(7) ? ensure_base64(7) : ""};
 }
 
-static Machines parseBuilderLines(const string_set_t& defaultSystems,
+static Machines parse_builder_lines(const string_set_t& default_systems,
                                   const std::vector<std::string>& builders) {
   Machines result;
   std::transform(builders.begin(), builders.end(), std::back_inserter(result),
-                 [&](auto&& line) { return parseBuilderLine(defaultSystems, line); });
+                 [&](auto&& line) { return parse_builder_line(default_systems, line); });
   return result;
 }
 
-Machines Machine::parseConfig(const string_set_t& defaultSystems, const std::string& s) {
-  const auto builderLines = expandBuilderLines(s);
-  return parseBuilderLines(defaultSystems, builderLines);
+Machines Machine::parseConfig(const string_set_t& default_systems, const std::string& s) {
+  const auto builderLines = expand_builder_lines(s);
+  return parse_builder_lines(default_systems, builderLines);
 }
 
-Machines getMachines() {
+Machines get_machines() {
   return Machine::parseConfig({settings.thisSystem}, settings.builders);
 }
 

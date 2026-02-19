@@ -16,13 +16,13 @@ namespace nix {
  * for cases when the nix executable is installed out-of-store or as a static binary.
  *
  */
-std::filesystem::path getNixManDir();
+std::filesystem::path get_nix_man_dir();
 
 /**
  * Show the manual page for the specified program.
  *
  * @param name Name of the man item.
  */
-void showManPage(const std::string& name);
+void show_man_page(const std::string& name);
 
 } // namespace nix

@@ -91,7 +91,7 @@ Env& EvalMemory::allocEnv(size_t size) {
  * in p0 of pending/awaited thunks. We're not using std::thread::id
  * because it's not guaranteed to fit.
  */
-extern thread_local uint32_t myEvalThreadId;
+extern thread_local uint32_t my_eval_thread_id;
 
 template <std::size_t ptrSize>
 void ValueStorage<ptrSize, std::enable_if_t<detail::useBitPackedValueStorage<ptrSize>>>::force(
@@ -107,7 +107,7 @@ void ValueStorage<ptrSize, std::enable_if_t<detail::useBitPackedValueStorage<ptr
       auto p1_ = p1;
 
       // Atomically set the thunk to "pending".
-      if (!p0.compare_exchange_strong(p0_, pdPending | (myEvalThreadId << discriminatorBits),
+      if (!p0.compare_exchange_strong(p0_, pdPending | (my_eval_thread_id << discriminatorBits),
                                       std::memory_order_acquire, std::memory_order_acquire)) {
         pd = static_cast<PrimaryDiscriminator>(p0_ & discriminatorMask);
         if (pd == pdPending || pd == pdAwaited) {
@@ -147,30 +147,30 @@ done:
 }
 
 [[gnu::always_inline]]
-inline void EvalState::forceAttrs(Value& v, const pos_idx_t pos, std::string_view errorCtx) {
-  forceAttrs(v, [&]() { return pos; }, errorCtx);
+inline void EvalState::forceAttrs(Value& v, const pos_idx_t pos, std::string_view error_ctx) {
+  forceAttrs(v, [&]() { return pos; }, error_ctx);
 }
 
 template <typename Callable>
 [[gnu::always_inline]]
-inline void EvalState::forceAttrs(Value& v, Callable getPos, std::string_view errorCtx) {
+inline void EvalState::forceAttrs(Value& v, Callable getPos, std::string_view error_ctx) {
   pos_idx_t pos = getPos();
   forceValue(v, pos);
   if (v.type() != nAttrs) {
-    error<TypeError>("expected a set but found %1%: %2%", showType(v),
+    error<TypeError>("expected a set but found %1%: %2%", show_type(v),
                      ValuePrinter(*this, v, errorPrintOptions))
-        .withTrace(pos, errorCtx)
+        .withTrace(pos, error_ctx)
         .debugThrow();
   }
 }
 
 [[gnu::always_inline]]
-inline void EvalState::forceList(Value& v, const pos_idx_t pos, std::string_view errorCtx) {
+inline void EvalState::forceList(Value& v, const pos_idx_t pos, std::string_view error_ctx) {
   forceValue(v, pos);
   if (!v.isList()) {
-    error<TypeError>("expected a list but found %1%: %2%", showType(v),
+    error<TypeError>("expected a list but found %1%: %2%", show_type(v),
                      ValuePrinter(*this, v, errorPrintOptions))
-        .withTrace(pos, errorCtx)
+        .withTrace(pos, error_ctx)
         .debugThrow();
   }
 }
@@ -178,7 +178,7 @@ inline void EvalState::forceList(Value& v, const pos_idx_t pos, std::string_view
 [[gnu::always_inline]]
 inline CallDepth EvalState::addCallDepth(const pos_idx_t pos) {
   if (callDepth > settings.maxCallDepth)
-    error<EvalBaseError>("stack overflow; max-call-depth exceeded").atPos(pos).debugThrow();
+    error<EvalBaseError>("stack overflow; max-call-depth exceeded").at_pos(pos).debugThrow();
 
   return CallDepth(callDepth);
 };

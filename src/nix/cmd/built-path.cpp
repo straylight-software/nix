@@ -11,15 +11,15 @@
 namespace nix {
 
 // Custom implementation to avoid `ref` ptr equality
-GENERATE_CMP_EXT(, std::strong_ordering, SingleBuiltPathBuilt, *me->drvPath, me->output);
+GENERATE_CMP_EXT(, std::strong_ordering, SingleBuiltPathBuilt, *me->drv_path, me->output);
 
 // Custom implementation to avoid `ref` ptr equality
 
 // TODO no `GENERATE_CMP_EXT` because no `std::set::operator<=>` on
 // Darwin, per header.
-GENERATE_EQUAL(, BuiltPathBuilt ::, BuiltPathBuilt, *me->drvPath, me->outputs);
+GENERATE_EQUAL(, BuiltPathBuilt ::, BuiltPathBuilt, *me->drv_path, me->outputs);
 
-StorePath SingleBuiltPath::outPath() const {
+StorePath SingleBuiltPath::out_path() const {
   return std::visit(overloaded{
                         [](const SingleBuiltPath::opaque_t& p) { return p.path; },
                         [](const SingleBuiltPath::Built& b) { return b.output.second; },
@@ -27,7 +27,7 @@ StorePath SingleBuiltPath::outPath() const {
                     raw());
 }
 
-StorePathSet BuiltPath::outPaths() const {
+StorePathSet BuiltPath::out_paths() const {
   return std::visit(overloaded{
                         [](const BuiltPath::opaque_t& p) { return StorePathSet{p.path}; },
                         [](const BuiltPath::Built& b) {
@@ -42,7 +42,7 @@ StorePathSet BuiltPath::outPaths() const {
 
 SingleDerivedPath::Built SingleBuiltPath::Built::discardOutputPath() const {
   return SingleDerivedPath::Built{
-      .drvPath = make_ref<SingleDerivedPath>(drvPath->discardOutputPath()),
+      .drv_path = make_ref<SingleDerivedPath>(drv_path->discardOutputPath()),
       .output = output.first,
   };
 }
@@ -57,40 +57,40 @@ SingleDerivedPath SingleBuiltPath::discardOutputPath() const {
                     raw());
 }
 
-nlohmann::json BuiltPath::Built::toJSON(const StoreDirConfig& store) const {
+nlohmann::json BuiltPath::Built::to_json(const StoreDirConfig& store) const {
   nlohmann::json res;
-  res["drvPath"] = drvPath->toJSON(store);
-  for (const auto& [outputName, outputPath] : outputs) {
-    res["outputs"][outputName] = store.printStorePath(outputPath);
+  res["drvPath"] = drv_path->to_json(store);
+  for (const auto& [output_name, output_path] : outputs) {
+    res["outputs"][output_name] = store.printStorePath(output_path);
   }
   return res;
 }
 
-nlohmann::json SingleBuiltPath::Built::toJSON(const StoreDirConfig& store) const {
+nlohmann::json SingleBuiltPath::Built::to_json(const StoreDirConfig& store) const {
   nlohmann::json res;
-  res["drvPath"] = drvPath->toJSON(store);
-  auto& [outputName, outputPath] = output;
-  res["output"] = outputName;
-  res["outputPath"] = store.printStorePath(outputPath);
+  res["drvPath"] = drv_path->to_json(store);
+  auto& [output_name, output_path] = output;
+  res["output"] = output_name;
+  res["outputPath"] = store.printStorePath(output_path);
   return res;
 }
 
-nlohmann::json SingleBuiltPath::toJSON(const StoreDirConfig& store) const {
+nlohmann::json SingleBuiltPath::to_json(const StoreDirConfig& store) const {
   return std::visit(overloaded{
                         [&](const SingleBuiltPath::opaque_t& o) -> nlohmann::json {
                           return store.printStorePath(o.path);
                         },
-                        [&](const SingleBuiltPath::Built& b) { return b.toJSON(store); },
+                        [&](const SingleBuiltPath::Built& b) { return b.to_json(store); },
                     },
                     raw());
 }
 
-nlohmann::json BuiltPath::toJSON(const StoreDirConfig& store) const {
+nlohmann::json BuiltPath::to_json(const StoreDirConfig& store) const {
   return std::visit(overloaded{
                         [&](const BuiltPath::opaque_t& o) -> nlohmann::json {
                           return store.printStorePath(o.path);
                         },
-                        [&](const BuiltPath::Built& b) { return b.toJSON(store); },
+                        [&](const BuiltPath::Built& b) { return b.to_json(store); },
                     },
                     raw());
 }
@@ -100,22 +100,22 @@ RealisedPath::Set BuiltPath::toRealisedPaths(Store& store) const {
   std::visit(overloaded{
                  [&](const BuiltPath::opaque_t& p) { res.insert(p.path); },
                  [&](const BuiltPath::Built& p) {
-                   auto drvHashes =
-                       staticOutputHashes(store, store.readDerivation(p.drvPath->outPath()));
-                   for (auto& [outputName, outputPath] : p.outputs) {
-                     if (experimentalFeatureSettings.isEnabled(xp_t::CaDerivations)) {
-                       auto drvOutput = get(drvHashes, outputName);
+                   auto drv_hashes =
+                       static_output_hashes(store, store.read_derivation(p.drv_path->out_path()));
+                   for (auto& [output_name, output_path] : p.outputs) {
+                     if (experimental_feature_settings.is_enabled(xp_t::ca_derivations)) {
+                       auto drvOutput = get(drv_hashes, output_name);
                        if (!drvOutput)
                          throw Error("the derivation '%s' has unrealised output '%s' "
                                      "(derived-path.cc/toRealisedPaths)",
-                                     store.printStorePath(p.drvPath->outPath()), outputName);
-                       DrvOutput key{*drvOutput, outputName};
-                       auto thisRealisation = store.queryRealisation(key);
+                                     store.printStorePath(p.drv_path->out_path()), output_name);
+                       DrvOutput key{*drvOutput, output_name};
+                       auto thisRealisation = store.query_realisation(key);
                        assert(thisRealisation); // We’ve built it, so we must
                                                 // have the realisation
                        res.insert(Realisation{*thisRealisation, std::move(key)});
                      } else {
-                       res.insert(outputPath);
+                       res.insert(output_path);
                      }
                    }
                  },

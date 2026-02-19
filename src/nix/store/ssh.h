@@ -9,29 +9,29 @@
 
 namespace nix {
 
-strings_t getNixSshOpts();
+strings_t get_nix_ssh_opts();
 
 class SSHMaster {
 private:
   parsed_url_t::authority_t authority;
-  std::string hostnameAndUser;
+  std::string hostname_and_user;
   bool fakeSSH;
   const std::string keyFile;
   /**
-   * raw_t bytes, not Base64 encoding.
+   * raw_t bytes, not base64 encoding.
    */
-  const std::string sshPublicHostKey;
+  const std::string ssh_public_host_key;
   const bool useMaster;
   const bool compress;
   const descriptor_t logFD;
 
-  const ref<const auto_delete_t> tmpDir;
+  const ref<const auto_delete_t> tmp_dir;
 
   struct State {
 #ifndef _WIN32 // TODO re-enable on Windows, once we can start processes.
     Pid sshMaster;
 #endif
-    Path socketPath;
+    Path socket_path;
   };
 
   sync_t<State> state_;
@@ -45,7 +45,7 @@ private:
 
 public:
   SSHMaster(const parsed_url_t::authority_t& authority, std::string_view keyFile,
-            std::string_view sshPublicHostKey, bool useMaster, bool compress,
+            std::string_view ssh_public_host_key, bool useMaster, bool compress,
             descriptor_t logFD = INVALID_DESCRIPTOR);
 
   struct Connection {

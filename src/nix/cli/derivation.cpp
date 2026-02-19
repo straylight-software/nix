@@ -13,4 +13,4 @@ struct cmd_derivation_t : NixMultiCommand {
   category_t category() override { return catUtility; }
 };
 
-static auto rCmdDerivation = registerCommand<cmd_derivation_t>("derivation");
+static auto r_cmd_derivation = registerCommand<cmd_derivation_t>("derivation");

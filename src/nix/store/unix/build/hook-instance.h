@@ -29,7 +29,7 @@ struct HookInstance {
   /**
    * pipe_t for the builder's standard output/error.
    */
-  pipe_t builderOut;
+  pipe_t builder_out;
 
   /**
    * The process ID of the hook.
@@ -43,7 +43,7 @@ struct HookInstance {
    * is the empty string. When it is owned by a `Goal`, this should be
    * set.
    */
-  std::string machineName;
+  std::string machine_name;
 
   fd_sink_t sink;
 

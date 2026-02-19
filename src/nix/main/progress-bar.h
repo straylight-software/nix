@@ -5,6 +5,6 @@
 
 namespace nix {
 
-std::unique_ptr<Logger> makeProgressBar();
+std::unique_ptr<logger_t> make_progress_bar();
 
 }

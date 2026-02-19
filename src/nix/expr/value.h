@@ -53,7 +53,7 @@ typedef enum {
   /* Values that have more type bits in the first word, and the
      payload (a single word) in the second word. */
   tUninitialized = PrimaryDiscriminator::pdSingleDWord | (0 << discriminatorBits),
-  tInt = PrimaryDiscriminator::pdSingleDWord | (1 << discriminatorBits),
+  t_int = PrimaryDiscriminator::pdSingleDWord | (1 << discriminatorBits),
   tFloat = PrimaryDiscriminator::pdSingleDWord | (2 << discriminatorBits),
   tBool = PrimaryDiscriminator::pdSingleDWord | (3 << discriminatorBits),
   tNull = PrimaryDiscriminator::pdSingleDWord | (4 << discriminatorBits),
@@ -77,7 +77,7 @@ typedef enum {
 
   /* Special values. */
   tListN = PrimaryDiscriminator::pdListN,
-  tString = PrimaryDiscriminator::pdString,
+  t_string = PrimaryDiscriminator::pdString,
   tPath = PrimaryDiscriminator::pdPath,
 } InternalType;
 
@@ -121,7 +121,7 @@ struct PrimOp;
 class Symbol;
 class SymbolStr;
 class pos_idx_t;
-struct Pos;
+struct pos_t;
 class StorePath;
 class EvalState;
 class EvalMemory;
@@ -133,7 +133,7 @@ using NixFloat = double;
 
 /**
  * External values must descend from ExternalValueBase, so that
- * type-agnostic nix functions (e.g. showType) can be implemented
+ * type-agnostic nix functions (e.g. show_type) can be implemented
  */
 class ExternalValueBase {
   friend std::ostream& operator<<(std::ostream& str, const ExternalValueBase& v);
@@ -149,7 +149,7 @@ public:
   /**
    * Return a simple string describing the type
    */
-  virtual std::string showType() const = 0;
+  virtual std::string show_type() const = 0;
 
   /**
    * Return a string to be used in builtins.typeOf
@@ -161,7 +161,7 @@ public:
    * error.
    */
   virtual std::string coerceToString(EvalState& state, const pos_idx_t& pos, NixStringContext& context,
-                                     bool copyMore, bool copyToStore) const;
+                                     bool copyMore, bool copy_to_store) const;
 
   /**
    * Compare to another value of the same type. Defaults to uncomparable,
@@ -172,14 +172,14 @@ public:
   /**
    * Print the value as JSON. Defaults to unconvertable, i.e. throws an error
    */
-  virtual nlohmann::json printValueAsJSON(EvalState& state, bool strict, NixStringContext& context,
-                                          bool copyToStore = true) const;
+  virtual nlohmann::json print_value_as_json(EvalState& state, bool strict, NixStringContext& context,
+                                          bool copy_to_store = true) const;
 
   /**
    * Print the value as XML. Defaults to unevaluated
    */
-  virtual void printValueAsXML(EvalState& state, bool strict, bool location, xml_writer_t& doc,
-                               NixStringContext& context, path_set_t& drvsSeen,
+  virtual void print_value_as_xml(EvalState& state, bool strict, bool location, xml_writer_t& doc,
+                               NixStringContext& context, path_set_t& drvs_seen,
                                const pos_idx_t pos) const;
 
   virtual ~ExternalValueBase() {};
@@ -297,14 +297,14 @@ struct ValueBase {
    * to the store).  If we just concatenated the strings without
    * keeping track of the referenced store paths, then if the
    * string is used as a derivation attribute, the derivation
-   * will not have the correct dependencies in its inputDrvs and
-   * inputSrcs.
+   * will not have the correct dependencies in its input_drvs and
+   * input_srcs.
 
    * The semantics of the context is as follows: when a string
    * with context C is used as a derivation attribute, then the
-   * derivations in C will be added to the inputDrvs of the
+   * derivations in C will be added to the input_drvs of the
    * derivation, and the other store paths in C will be added to
-   * the inputSrcs of the derivations.
+   * the input_srcs of the derivations.
 
    * For canonicity, the store paths should be in sorted order.
    */
@@ -410,9 +410,9 @@ struct PayloadTypeToInternalType {};
  * InternalType <-> C++ type.
  */
 #define NIX_VALUE_STORAGE_FOR_EACH_FIELD(MACRO)                                                    \
-  MACRO(NixInt, integer, tInt)                                                                     \
+  MACRO(NixInt, integer, t_int)                                                                     \
   MACRO(bool, boolean, tBool)                                                                      \
-  MACRO(ValueBase::StringWithContext, string, tString)                                             \
+  MACRO(ValueBase::StringWithContext, string, t_string)                                             \
   MACRO(ValueBase::Path, path, tPath)                                                              \
   MACRO(ValueBase::Null, null_, tNull)                                                             \
   MACRO(Bindings*, attrs, tAttrs)                                                                  \
@@ -421,7 +421,7 @@ struct PayloadTypeToInternalType {};
   MACRO(ValueBase::ClosureThunk, thunk, tThunk)                                                    \
   MACRO(ValueBase::FunctionApplicationThunk, app, tApp)                                            \
   MACRO(ValueBase::Lambda, lambda, tLambda)                                                        \
-  MACRO(PrimOp*, primOp, tPrimOp)                                                                  \
+  MACRO(PrimOp*, prim_op, tPrimOp)                                                                  \
   MACRO(ValueBase::PrimOpApplicationThunk, primOpApp, tPrimOpApp)                                  \
   MACRO(ExternalValueBase*, external, tExternal)                                                   \
   MACRO(ValueBase::Failed*, failed, tFailed)                                                       \
@@ -574,7 +574,7 @@ class alignas(16) ValueStorage<ptrSize, std::enable_if_t<detail::useBitPackedVal
    * PrimaryDiscriminator::pdListN - pdPath - Only has 3 available padding bits
    * because:
    * - tListN needs a size, whose lower bits we can't borrow.
-   * - tString and tPath have C-string fields, which don't necessarily need to
+   * - t_string and tPath have C-string fields, which don't necessarily need to
    * be aligned.
    *
    * In this case we reserve their discriminators directly in the PrimaryDiscriminator
@@ -727,7 +727,7 @@ protected:
     external = std::bit_cast<ExternalValueBase*>(p1);
   }
 
-  void getStorage(PrimOp*& primOp) const noexcept { primOp = std::bit_cast<PrimOp*>(p1); }
+  void getStorage(PrimOp*& prim_op) const noexcept { prim_op = std::bit_cast<PrimOp*>(p1); }
 
   void getStorage(Bindings*& attrs) const noexcept { attrs = std::bit_cast<Bindings*>(p1); }
 
@@ -748,7 +748,7 @@ protected:
 
   void getStorage(Failed*& failed) const noexcept { failed = std::bit_cast<Failed*>(p1); }
 
-  void setStorage(NixInt integer) noexcept { setSingleDWordPayload<tInt>(integer.value); }
+  void setStorage(NixInt integer) noexcept { setSingleDWordPayload<t_int>(integer.value); }
 
   void setStorage(bool boolean) noexcept { setSingleDWordPayload<tBool>(boolean); }
 
@@ -762,8 +762,8 @@ protected:
     setSingleDWordPayload<tExternal>(std::bit_cast<PackedPointer>(external));
   }
 
-  void setStorage(PrimOp* primOp) noexcept {
-    setSingleDWordPayload<tPrimOp>(std::bit_cast<PackedPointer>(primOp));
+  void setStorage(PrimOp* prim_op) noexcept {
+    setSingleDWordPayload<tPrimOp>(std::bit_cast<PackedPointer>(prim_op));
   }
 
   void setStorage(Bindings* bindings) noexcept {
@@ -978,7 +978,7 @@ public:
 static_assert(std::random_access_iterator<ListView::iterator>);
 
 struct Value : public ValueStorage<sizeof(void*)> {
-  friend std::string showType(const Value& v);
+  friend std::string show_type(const Value& v);
 
   /**
    * Empty list constant.
@@ -1064,11 +1064,11 @@ public:
     switch (getInternalType()) {
       case tUninitialized:
         break;
-      case tInt:
+      case t_int:
         return nInt;
       case tBool:
         return nBool;
-      case tString:
+      case t_string:
         return nString;
       case tPath:
         return nPath;
@@ -1116,9 +1116,9 @@ public:
     setStorage(StringWithContext{.str = &s, .context = context});
   }
 
-  void mkString(std::string_view s, EvalMemory& mem);
+  void mk_string(std::string_view s, EvalMemory& mem);
 
-  void mkString(std::string_view s, const NixStringContext& context, EvalMemory& mem);
+  void mk_string(std::string_view s, const NixStringContext& context, EvalMemory& mem);
 
   void mkStringMove(const StringData& s, const NixStringContext& context, EvalMemory& mem);
 
@@ -1151,7 +1151,7 @@ public:
     }
   }
 
-  inline void mkThunk(Env* e, Expr* ex) noexcept { setStorage(ClosureThunk{.env = e, .expr = ex}); }
+  inline void mk_thunk(Env* e, Expr* ex) noexcept { setStorage(ClosureThunk{.env = e, .expr = ex}); }
 
   inline void mkApp(Value* l, Value* r) noexcept {
     setStorage(FunctionApplicationThunk{.left = l, .right = r});
@@ -1178,11 +1178,11 @@ public:
 
   bool isList() const noexcept { return isa<tListSmall, tListN>(); }
 
-  ListView listView() const noexcept {
+  ListView list_view() const noexcept {
     return isa<tListSmall>() ? ListView(getStorage<SmallList>()) : ListView(getStorage<List>());
   }
 
-  size_t listSize() const noexcept {
+  size_t list_size() const noexcept {
     return isa<tListSmall>() ? (getStorage<SmallList>()[1] == nullptr ? 1 : 2)
                              : getStorage<List>().size;
   }
@@ -1208,7 +1208,7 @@ public:
 
   const Bindings* attrs() const noexcept { return getStorage<Bindings*>(); }
 
-  const PrimOp* primOp() const noexcept { return getStorage<PrimOp*>(); }
+  const PrimOp* prim_op() const noexcept { return getStorage<PrimOp*>(); }
 
   bool boolean() const noexcept { return getStorage<bool>(); }
 
@@ -1248,7 +1248,7 @@ typedef std::map<Symbol, ValueVector, std::less<Symbol>,
  */
 typedef std::shared_ptr<Value*> RootValue;
 
-RootValue allocRootValue(Value* v);
+RootValue alloc_root_value(Value* v);
 
-void forceNoNullByte(std::string_view s, std::function<Pos()> = nullptr);
+void force_no_null_byte(std::string_view s, std::function<pos_t()> = nullptr);
 } // namespace nix

@@ -42,7 +42,7 @@ struct SingleDerivedPath;
  * path of the given output name.
  */
 struct SingleDerivedPathBuilt {
-  ref<const SingleDerivedPath> drvPath;
+  ref<const SingleDerivedPath> drv_path;
   OutputName output;
 
   /**
@@ -68,11 +68,11 @@ struct SingleDerivedPathBuilt {
   /**
    * The caller splits on the separator, so it works for both variants.
    *
-   * @param xpSettings Stop-gap to avoid globals during unit tests.
+   * @param xp_settings Stop-gap to avoid globals during unit tests.
    */
   static SingleDerivedPathBuilt
-  parse(const StoreDirConfig& store, ref<const SingleDerivedPath> drvPath, OutputNameView outputs,
-        const experimental_feature_settings_t& xpSettings = experimentalFeatureSettings);
+  parse(const StoreDirConfig& store, ref<const SingleDerivedPath> drv_path, OutputNameView outputs,
+        const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
 
   bool operator==(const SingleDerivedPathBuilt&) const noexcept;
   std::strong_ordering operator<=>(const SingleDerivedPathBuilt&) const noexcept;
@@ -126,23 +126,23 @@ struct SingleDerivedPath : _SingleDerivedPathRaw {
   /**
    * Uses `^` as the separator
    *
-   * @param xpSettings Stop-gap to avoid globals during unit tests.
+   * @param xp_settings Stop-gap to avoid globals during unit tests.
    */
   static SingleDerivedPath
   parse(const StoreDirConfig& store, std::string_view,
-        const experimental_feature_settings_t& xpSettings = experimentalFeatureSettings);
+        const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
   /**
    * Uses `!` as the separator
    *
-   * @param xpSettings Stop-gap to avoid globals during unit tests.
+   * @param xp_settings Stop-gap to avoid globals during unit tests.
    */
   static SingleDerivedPath
   parseLegacy(const StoreDirConfig& store, std::string_view,
-              const experimental_feature_settings_t& xpSettings = experimentalFeatureSettings);
+              const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
 };
 
-static inline ref<SingleDerivedPath> makeConstantStorePathRef(StorePath drvPath) {
-  return make_ref<SingleDerivedPath>(SingleDerivedPath::opaque_t{drvPath});
+static inline ref<SingleDerivedPath> makeConstantStorePathRef(StorePath drv_path) {
+  return make_ref<SingleDerivedPath>(SingleDerivedPath::opaque_t{drv_path});
 }
 
 /**
@@ -158,7 +158,7 @@ static inline ref<SingleDerivedPath> makeConstantStorePathRef(StorePath drvPath)
  * output name.
  */
 struct DerivedPathBuilt {
-  ref<const SingleDerivedPath> drvPath;
+  ref<const SingleDerivedPath> drv_path;
   OutputsSpec outputs;
 
   /**
@@ -184,11 +184,11 @@ struct DerivedPathBuilt {
   /**
    * The caller splits on the separator, so it works for both variants.
    *
-   * @param xpSettings Stop-gap to avoid globals during unit tests.
+   * @param xp_settings Stop-gap to avoid globals during unit tests.
    */
   static DerivedPathBuilt
   parse(const StoreDirConfig& store, ref<const SingleDerivedPath>, std::string_view,
-        const experimental_feature_settings_t& xpSettings = experimentalFeatureSettings);
+        const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
 
   bool operator==(const DerivedPathBuilt&) const noexcept;
   // TODO libc++ 16 (used by darwin) missing `std::set::operator <=>`, can't do yet.
@@ -239,19 +239,19 @@ struct DerivedPath : _DerivedPathRaw {
   /**
    * Uses `^` as the separator
    *
-   * @param xpSettings Stop-gap to avoid globals during unit tests.
+   * @param xp_settings Stop-gap to avoid globals during unit tests.
    */
   static DerivedPath
   parse(const StoreDirConfig& store, std::string_view,
-        const experimental_feature_settings_t& xpSettings = experimentalFeatureSettings);
+        const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
   /**
    * Uses `!` as the separator
    *
-   * @param xpSettings Stop-gap to avoid globals during unit tests.
+   * @param xp_settings Stop-gap to avoid globals during unit tests.
    */
   static DerivedPath
   parseLegacy(const StoreDirConfig& store, std::string_view,
-              const experimental_feature_settings_t& xpSettings = experimentalFeatureSettings);
+              const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
 
   /**
    * Convert a `SingleDerivedPath` to a `DerivedPath`.
@@ -268,11 +268,11 @@ typedef std::vector<DerivedPath> DerivedPaths;
  * Somewhat unfortunate this cannot just be an implementation detail for
  * this module.
  *
- * @param xpSettings Stop-gap to avoid globals during unit tests.
+ * @param xp_settings Stop-gap to avoid globals during unit tests.
  */
-void drvRequireExperiment(
+void drv_require_experiment(
     const SingleDerivedPath& drv,
-    const experimental_feature_settings_t& xpSettings = experimentalFeatureSettings);
+    const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
 } // namespace nix
 
 JSON_IMPL(nix::SingleDerivedPath::opaque_t)

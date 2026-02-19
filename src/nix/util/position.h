@@ -2,7 +2,7 @@
 /**
  * @file
  *
- * @brief Pos and AbstractPos
+ * @brief pos_t and AbstractPos
  */
 
 #include <cstdint>
@@ -16,7 +16,7 @@ namespace nix {
 /**
  * A position and an origin for that position (like a source file).
  */
-struct Pos {
+struct pos_t {
   uint32_t line = 0;
   uint32_t column = 0;
 
@@ -44,32 +44,32 @@ struct Pos {
 
   origin_t origin = std::monostate();
 
-  Pos() {}
+  pos_t() {}
 
-  Pos(uint32_t line, uint32_t column, origin_t origin) : line(line), column(column), origin(origin) {}
+  pos_t(uint32_t line, uint32_t column, origin_t origin) : line(line), column(column), origin(origin) {}
 
   explicit operator bool() const { return line > 0; }
 
-  operator std::shared_ptr<const Pos>() const;
+  operator std::shared_ptr<const pos_t>() const;
 
   /**
    * Return the contents of the source file.
    */
-  std::optional<std::string> getSource() const;
+  std::optional<std::string> get_source() const;
 
-  void print(std::ostream& out, bool showOrigin) const;
+  void print(std::ostream& out, bool show_origin) const;
 
-  std::optional<lines_of_code_t> getCodeLines() const;
+  std::optional<lines_of_code_t> get_code_lines() const;
 
-  bool operator==(const Pos& rhs) const = default;
-  auto operator<=>(const Pos& rhs) const = default;
+  bool operator==(const pos_t& rhs) const = default;
+  auto operator<=>(const pos_t& rhs) const = default;
 
-  std::optional<std::string> getSnippetUpTo(const Pos& end) const;
+  std::optional<std::string> get_snippet_up_to(const pos_t& end) const;
 
   /**
    * Get the source_path_t, if the source was loaded from a file.
    */
-  std::optional<source_path_t> getSourcePath() const;
+  std::optional<source_path_t> get_source_path() const;
 
   struct lines_iterator_t {
     using difference_type = size_t;
@@ -112,10 +112,10 @@ struct Pos {
     std::string_view input, curLine;
     bool pastEnd = false;
 
-    void bump(bool atFirst);
+    void bump(bool at_first);
   };
 };
 
-std::ostream& operator<<(std::ostream& str, const Pos& pos);
+std::ostream& operator<<(std::ostream& str, const pos_t& pos);
 
 } // namespace nix

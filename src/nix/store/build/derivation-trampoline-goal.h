@@ -61,8 +61,8 @@ namespace nix {
  * `DerivationGoal`, but that makes `DerivationGoal` more complex.
  * However the more complex `DerivationGoal` has these downsides:
  *
- * 1. It needs to cope with only sometimes knowing a `StorePath drvPath`
- * (as opposed to a more general `SingleDerivedPath drvPath` with will
+ * 1. It needs to cope with only sometimes knowing a `StorePath drv_path`
+ * (as opposed to a more general `SingleDerivedPath drv_path` with will
  * be only resolved to a `StorePath` part way through the control flow).
  *
  * 2. It needs complicated "restarting logic" to cope with the set of
@@ -94,10 +94,10 @@ struct DerivationTrampolineGoal : public Goal {
   OutputsSpec wantedOutputs;
 
   DerivationTrampolineGoal(ref<const SingleDerivedPath> drvReq, const OutputsSpec& wantedOutputs,
-                           Worker& worker, BuildMode buildMode = bmNormal);
+                           Worker& worker, BuildMode build_mode = bmNormal);
 
-  DerivationTrampolineGoal(const StorePath& drvPath, const OutputsSpec& wantedOutputs,
-                           const Derivation& drv, Worker& worker, BuildMode buildMode = bmNormal);
+  DerivationTrampolineGoal(const StorePath& drv_path, const OutputsSpec& wantedOutputs,
+                           const Derivation& drv, Worker& worker, BuildMode build_mode = bmNormal);
 
   virtual ~DerivationTrampolineGoal();
 
@@ -108,10 +108,10 @@ struct DerivationTrampolineGoal : public Goal {
   JobCategory jobCategory() const override { return JobCategory::Administration; };
 
 private:
-  BuildMode buildMode;
+  BuildMode build_mode;
 
   Co init();
-  Co haveDerivation(StorePath drvPath, Derivation drv);
+  Co haveDerivation(StorePath drv_path, Derivation drv);
 
   /**
    * Shared between both constructors

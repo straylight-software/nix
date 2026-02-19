@@ -39,7 +39,7 @@ struct Input {
   Attrs attrs;
 
   /**
-   * Cached result of getFingerprint().
+   * Cached result of get_fingerprint().
    */
   mutable std::optional<std::optional<std::string>> cachedFingerprint;
 
@@ -49,9 +49,9 @@ public:
    *
    * The URL indicate which sort of fetcher, and provides information to that fetcher.
    */
-  static Input fromURL(const settings_t& settings, const std::string& url, bool requireTree = true);
+  static Input fromURL(const settings_t& settings, const std::string& url, bool require_tree = true);
 
-  static Input fromURL(const settings_t& settings, const parsed_url_t& url, bool requireTree = true);
+  static Input fromURL(const settings_t& settings, const parsed_url_t& url, bool require_tree = true);
 
   /**
    * Create an `Input` from a an `Attrs`.
@@ -76,7 +76,7 @@ public:
 
   /**
    * Return whether this is a "locked" input, that is, it has
-   * attributes like a Git revision or NAR hash that uniquely
+   * attributes like a git revision or NAR hash that uniquely
    * identify its contents.
    */
   bool isLocked(const settings_t& settings) const;
@@ -109,7 +109,7 @@ public:
    * Fetch the entire input into the Nix store, returning the
    * location in the Nix store and the locked input.
    */
-  std::tuple<StorePath, ref<SourceAccessor>, Input> fetchToStore(const settings_t& settings,
+  std::tuple<StorePath, ref<SourceAccessor>, Input> fetch_to_store(const settings_t& settings,
                                                                  Store& store) const;
 
   /**
@@ -130,7 +130,7 @@ public:
    * input without copying it to the store. Also return a possibly
    * unlocked input.
    */
-  std::pair<ref<SourceAccessor>, Input> getAccessor(const settings_t& settings, Store& store) const;
+  std::pair<ref<SourceAccessor>, Input> get_accessor(const settings_t& settings, Store& store) const;
 
 private:
   std::pair<ref<SourceAccessor>, Input> getAccessorUnchecked(const settings_t& settings,
@@ -139,18 +139,18 @@ private:
 public:
   Input applyOverrides(std::optional<std::string> ref, std::optional<Hash> rev) const;
 
-  void clone(const settings_t& settings, Store& store, const std::filesystem::path& destDir) const;
+  void clone(const settings_t& settings, Store& store, const std::filesystem::path& dest_dir) const;
 
-  std::optional<std::filesystem::path> getSourcePath() const;
+  std::optional<std::filesystem::path> get_source_path() const;
 
   /**
    * Write a file to this input, for input types that support
-   * writing. Optionally commit the change (for e.g. Git inputs).
+   * writing. Optionally commit the change (for e.g. git inputs).
    */
   void putFile(const canon_path_t& path, std::string_view contents,
-               std::optional<std::string> commitMsg) const;
+               std::optional<std::string> commit_msg) const;
 
-  std::string getName() const;
+  std::string get_name() const;
 
   StorePath computeStorePath(Store& store) const;
 
@@ -159,8 +159,8 @@ public:
   std::optional<Hash> getNarHash() const;
   std::optional<std::string> getRef() const;
   std::optional<Hash> getRev() const;
-  std::optional<uint64_t> getRevCount() const;
-  std::optional<time_t> getLastModified() const;
+  std::optional<uint64_t> get_rev_count() const;
+  std::optional<time_t> get_last_modified() const;
 
   /**
    * For locked inputs, return a string that uniquely specifies the
@@ -170,7 +170,7 @@ public:
    *
    * This is not a stable identifier between Nix versions, but not guaranteed to change either.
    */
-  std::optional<std::string> getFingerprint(Store& store) const;
+  std::optional<std::string> get_fingerprint(Store& store) const;
 };
 
 /**
@@ -186,7 +186,7 @@ struct InputScheme {
   virtual ~InputScheme() {}
 
   virtual std::optional<Input> inputFromURL(const settings_t& settings, const parsed_url_t& url,
-                                            bool requireTree) const = 0;
+                                            bool require_tree) const = 0;
 
   virtual std::optional<Input> inputFromAttrs(const settings_t& settings,
                                               const Attrs& attrs) const = 0;
@@ -219,7 +219,7 @@ struct InputScheme {
    * `type` is not included from this map, because the `type` field is
     parsed first to choose which scheme; `type` is always required.
    */
-  virtual const std::map<std::string, AttributeInfo>& allowedAttrs() const = 0;
+  virtual const std::map<std::string, AttributeInfo>& allowed_attrs() const = 0;
 
   virtual parsed_url_t toURL(const Input& input, bool abbreviate = false) const;
 
@@ -227,24 +227,24 @@ struct InputScheme {
                                std::optional<Hash> rev) const;
 
   virtual void clone(const settings_t& settings, Store& store, const Input& input,
-                     const std::filesystem::path& destDir) const;
+                     const std::filesystem::path& dest_dir) const;
 
-  virtual std::optional<std::filesystem::path> getSourcePath(const Input& input) const;
+  virtual std::optional<std::filesystem::path> get_source_path(const Input& input) const;
 
   virtual void putFile(const Input& input, const canon_path_t& path, std::string_view contents,
-                       std::optional<std::string> commitMsg) const;
+                       std::optional<std::string> commit_msg) const;
 
-  virtual std::pair<ref<SourceAccessor>, Input> getAccessor(const settings_t& settings, Store& store,
+  virtual std::pair<ref<SourceAccessor>, Input> get_accessor(const settings_t& settings, Store& store,
                                                             const Input& input) const = 0;
 
   /**
    * Is this `InputScheme` part of an experimental feature?
    */
-  virtual std::optional<experimental_feature_t> experimentalFeature() const;
+  virtual std::optional<experimental_feature_t> experimental_feature() const;
 
   virtual bool isDirect(const Input& input) const { return true; }
 
-  virtual std::optional<std::string> getFingerprint(Store& store, const Input& input) const {
+  virtual std::optional<std::string> get_fingerprint(Store& store, const Input& input) const {
     return std::nullopt;
   }
 
@@ -259,14 +259,14 @@ struct InputScheme {
   }
 };
 
-void registerInputScheme(std::shared_ptr<InputScheme>&& fetcher);
+void register_input_scheme(std::shared_ptr<InputScheme>&& fetcher);
 
 using InputSchemeMap = std::map<std::string_view, std::shared_ptr<InputScheme>>;
 
 /**
- * Use this for docs, not for finding a specific scheme
+ * use this for docs, not for finding a specific scheme
  */
-const InputSchemeMap& getAllInputSchemes();
+const InputSchemeMap& get_all_input_schemes();
 
 struct public_key_t {
   std::string type = "ssh-ed25519";
@@ -275,7 +275,7 @@ struct public_key_t {
   auto operator<=>(const public_key_t&) const = default;
 };
 
-std::string publicKeys_to_string(const std::vector<public_key_t>&);
+std::string public_keys_to_string(const std::vector<public_key_t>&);
 
 } // namespace nix::fetchers
 

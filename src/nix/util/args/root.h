@@ -12,9 +12,9 @@ namespace nix {
  */
 struct completions_t final : add_completions_t {
   std::set<completion_t> completions;
-  Type type = Type::Normal;
+  Type type = Type::normal;
 
-  void setType(Type type) override;
+  void set_type(Type type) override;
   void add(std::string completion, std::string description = "") override;
 };
 
@@ -31,10 +31,10 @@ protected:
   /**
    * @brief The command's "working directory", but only set when top level.
    *
-   * Use getCommandBaseDir() to get the directory regardless of whether this
+   * use get_command_base_dir() to get the directory regardless of whether this
    * is a top-level command or subcommand.
    *
-   * @see getCommandBaseDir()
+   * @see get_command_base_dir()
    */
   std::filesystem::path commandBaseDir = ".";
 
@@ -42,11 +42,11 @@ public:
   /** Parse the command line, throwing a UsageError if something goes
    * wrong.
    */
-  void parseCmdline(const strings_t& cmdline, bool allowShebang = false);
+  void parse_cmdline(const strings_t& cmdline, bool allow_shebang = false);
 
   std::shared_ptr<completions_t> completions;
 
-  std::filesystem::path getCommandBaseDir() const override;
+  std::filesystem::path get_command_base_dir() const override;
 
 protected:
   friend class Args;
@@ -75,7 +75,7 @@ protected:
   std::set<experimental_feature_t> flagExperimentalFeatures;
 
 private:
-  std::optional<std::string> needsCompletion(std::string_view s);
+  std::optional<std::string> needs_completion(std::string_view s);
 };
 
 } // namespace nix

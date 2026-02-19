@@ -47,7 +47,7 @@ bool DrvName::matches(const DrvName& n) {
   return true;
 }
 
-std::string_view nextComponent(std::string_view::const_iterator& p,
+std::string_view next_component(std::string_view::const_iterator& p,
                                const std::string_view::const_iterator end) {
   /* Skip any dots and dashes (component separators). */
   while (p != end && (*p == '.' || *p == '-'))
@@ -70,9 +70,9 @@ std::string_view nextComponent(std::string_view::const_iterator& p,
   return {s, size_t(p - s)};
 }
 
-static bool componentsLT(const std::string_view c1, const std::string_view c2) {
-  auto n1 = string2Int<int>(c1);
-  auto n2 = string2Int<int>(c2);
+static bool components_lt(const std::string_view c1, const std::string_view c2) {
+  auto n1 = string2_int<int>(c1);
+  auto n2 = string2_int<int>(c2);
 
   if (n1 && n2)
     return *n1 < *n2;
@@ -91,25 +91,25 @@ static bool componentsLT(const std::string_view c1, const std::string_view c2) {
     return c1 < c2;
 }
 
-std::strong_ordering compareVersions(const std::string_view v1, const std::string_view v2) {
+std::strong_ordering compare_versions(const std::string_view v1, const std::string_view v2) {
   auto p1 = v1.begin();
   auto p2 = v2.begin();
 
   while (p1 != v1.end() || p2 != v2.end()) {
-    auto c1 = nextComponent(p1, v1.end());
-    auto c2 = nextComponent(p2, v2.end());
-    if (componentsLT(c1, c2))
+    auto c1 = next_component(p1, v1.end());
+    auto c2 = next_component(p2, v2.end());
+    if (components_lt(c1, c2))
       return std::strong_ordering::less;
-    else if (componentsLT(c2, c1))
+    else if (components_lt(c2, c1))
       return std::strong_ordering::greater;
   }
 
   return std::strong_ordering::equal;
 }
 
-DrvNames drvNamesFromArgs(const strings_t& opArgs) {
+DrvNames drv_names_from_args(const strings_t& op_args) {
   DrvNames result;
-  for (auto& i : opArgs)
+  for (auto& i : op_args)
     result.emplace_back(i);
   return result;
 }

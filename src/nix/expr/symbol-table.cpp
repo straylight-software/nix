@@ -10,20 +10,20 @@ namespace nix {
 #  define MAP_NORESERVE 0
 #endif
 
-static void* allocateLazyMemory(size_t maxSize) {
-  auto p = mmap(nullptr, maxSize, PROT_READ | PROT_WRITE,
+static void* allocate_lazy_memory(size_t max_size) {
+  auto p = mmap(nullptr, max_size, PROT_READ | PROT_WRITE,
                 MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
   if (p == MAP_FAILED)
     throw sys_error_t("allocating arena using mmap");
   return p;
 }
 
-ContiguousArena::ContiguousArena(size_t maxSize)
-    : data((char*)allocateLazyMemory(maxSize)), maxSize(maxSize) {}
+ContiguousArena::ContiguousArena(size_t max_size)
+    : data((char*)allocate_lazy_memory(max_size)), max_size(max_size) {}
 
 size_t ContiguousArena::allocate(size_t bytes) {
   auto offset = size.fetch_add(bytes);
-  if (offset + bytes > maxSize)
+  if (offset + bytes > max_size)
     throw Error("arena ran out of space");
   return offset;
 }

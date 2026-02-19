@@ -36,9 +36,9 @@ namespace nix {
 
 namespace unix {
 
-extern std::atomic<bool> _isInterrupted;
+extern std::atomic<bool> is_interrupted;
 
-extern thread_local std::function<bool()> interruptCheck;
+extern thread_local std::function<bool()> interrupt_check;
 
 void _interrupted();
 
@@ -46,37 +46,36 @@ void _interrupted();
  * Start a thread that handles various signals. Also block those signals
  * on the current thread (and thus any threads created by it).
  * Saves the signal mask before changing the mask to block those signals.
- * See saveSignalMask().
+ * See save_signal_mask().
  */
-void startSignalHandlerThread();
+void start_signal_handler_thread();
 
 /**
  * Saves the signal mask, which is the signal mask that nix will restore
  * before creating child processes.
  */
-void saveSignalMask();
+void save_signal_mask();
 
 /**
- * To use in a process that already called `startSignalHandlerThread()`
- * or `saveSignalMask()` first.
+ * To use in a process that already called `start_signal_handler_thread()`
+ * or `save_signal_mask()` first.
  */
-void restoreSignals();
+void restore_signals();
 
-void triggerInterrupt();
+void trigger_interrupt();
 
 } // namespace unix
 
-static inline void setInterrupted(bool isInterrupted) {
-  unix::_isInterrupted = isInterrupted;
+static inline void set_interrupted(bool is_interrupted) {
+  unix::is_interrupted = is_interrupted;
 }
 
-static inline bool getInterrupted() {
-  return unix::_isInterrupted;
+static inline bool get_interrupted() {
+  return unix::is_interrupted;
 }
 
-static inline bool isInterrupted() {
-  using namespace unix;
-  return _isInterrupted || (interruptCheck && interruptCheck());
+static inline bool is_interrupted() {
+  return unix::is_interrupted || (unix::interrupt_check && unix::interrupt_check());
 }
 
 /**
@@ -85,8 +84,8 @@ static inline bool isInterrupted() {
  * Call this in long-running loops and between slow operations to terminate
  * them as needed.
  */
-inline void checkInterrupt() {
-  if (isInterrupted())
+inline void check_interrupt() {
+  if (is_interrupted())
     unix::_interrupted();
 }
 
@@ -101,7 +100,7 @@ struct receive_interrupts_t {
 
   receive_interrupts_t()
       : target(pthread_self()),
-        callback(createInterruptCallback([&]() { pthread_kill(target, SIGUSR1); })) {}
+        callback(create_interrupt_callback([&]() { pthread_kill(target, SIGUSR1); })) {}
 };
 
 } // namespace nix

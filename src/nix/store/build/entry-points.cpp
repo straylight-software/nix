@@ -7,13 +7,13 @@
 
 namespace nix {
 
-void Store::buildPaths(const std::vector<DerivedPath>& reqs, BuildMode buildMode,
-                       std::shared_ptr<Store> evalStore) {
-  Worker worker(*this, evalStore ? *evalStore : *this);
+void Store::build_paths(const std::vector<DerivedPath>& reqs, BuildMode build_mode,
+                       std::shared_ptr<Store> eval_store) {
+  Worker worker(*this, eval_store ? *eval_store : *this);
 
   Goals goals;
   for (auto& br : reqs)
-    goals.insert(worker.makeGoal(br, buildMode));
+    goals.insert(worker.makeGoal(br, build_mode));
 
   worker.run(goals);
 
@@ -26,35 +26,35 @@ void Store::buildPaths(const std::vector<DerivedPath>& reqs, BuildMode buildMode
       else
         ex = std::move(i->ex);
     }
-    if (i->exitCode != Goal::ecSuccess) {
+    if (i->exit_code != Goal::ecSuccess) {
       if (auto i2 = dynamic_cast<DerivationTrampolineGoal*>(i.get()))
         failed.insert(i2->drvReq->to_string(*this));
       else if (auto i2 = dynamic_cast<PathSubstitutionGoal*>(i.get()))
-        failed.insert(printStorePath(i2->storePath));
+        failed.insert(printStorePath(i2->store_path));
     }
   }
 
   if (failed.size() == 1 && ex) {
-    ex->withExitStatus(worker.failingExitStatus());
+    ex->with_exit_status(worker.failingExitStatus());
     throw std::move(*ex);
   } else if (!failed.empty()) {
     if (ex)
       logError(ex->info());
     throw Error(worker.failingExitStatus(), "build of %s failed",
-                concatStringsSep(", ", quoteStrings(failed)));
+                concat_strings_sep(", ", quote_strings(failed)));
   }
 }
 
-std::vector<KeyedBuildResult> Store::buildPathsWithResults(const std::vector<DerivedPath>& reqs,
-                                                           BuildMode buildMode,
-                                                           std::shared_ptr<Store> evalStore) {
-  Worker worker(*this, evalStore ? *evalStore : *this);
+std::vector<KeyedBuildResult> Store::build_paths_with_results(const std::vector<DerivedPath>& reqs,
+                                                           BuildMode build_mode,
+                                                           std::shared_ptr<Store> eval_store) {
+  Worker worker(*this, eval_store ? *eval_store : *this);
 
   Goals goals;
   std::vector<std::pair<const DerivedPath&, GoalPtr>> state;
 
   for (const auto& req : reqs) {
-    auto goal = worker.makeGoal(req, buildMode);
+    auto goal = worker.makeGoal(req, build_mode);
     goals.insert(goal);
     state.push_back({req, goal});
   }
@@ -73,10 +73,10 @@ std::vector<KeyedBuildResult> Store::buildPathsWithResults(const std::vector<Der
   return results;
 }
 
-BuildResult Store::buildDerivation(const StorePath& drvPath, const BasicDerivation& drv,
-                                   BuildMode buildMode) {
+BuildResult Store::buildDerivation(const StorePath& drv_path, const BasicDerivation& drv,
+                                   BuildMode build_mode) {
   Worker worker(*this, *this);
-  auto goal = worker.makeDerivationTrampolineGoal(drvPath, OutputsSpec::All{}, drv, buildMode);
+  auto goal = worker.makeDerivationTrampolineGoal(drv_path, OutputsSpec::All{}, drv, build_mode);
 
   try {
     worker.run(Goals{goal});
@@ -89,7 +89,7 @@ BuildResult Store::buildDerivation(const StorePath& drvPath, const BasicDerivati
   };
 }
 
-void Store::ensurePath(const StorePath& path) {
+void Store::ensure_path(const StorePath& path) {
   /* If the path is already valid, we're done. */
   if (isValidPath(path))
     return;
@@ -100,9 +100,9 @@ void Store::ensurePath(const StorePath& path) {
 
   worker.run(goals);
 
-  if (goal->exitCode != Goal::ecSuccess) {
+  if (goal->exit_code != Goal::ecSuccess) {
     if (goal->ex) {
-      goal->ex->withExitStatus(worker.failingExitStatus());
+      goal->ex->with_exit_status(worker.failingExitStatus());
       throw std::move(*goal->ex);
     } else
       throw Error(worker.failingExitStatus(), "path '%s' does not exist and cannot be created",
@@ -117,7 +117,7 @@ void Store::repairPath(const StorePath& path) {
 
   worker.run(goals);
 
-  if (goal->exitCode != Goal::ecSuccess) {
+  if (goal->exit_code != Goal::ecSuccess) {
     /* Since substituting the path didn't work, if we have a valid
        deriver, then rebuild the deriver. */
     auto info = queryPathInfo(path);
@@ -125,7 +125,7 @@ void Store::repairPath(const StorePath& path) {
       goals.clear();
       goals.insert(worker.makeGoal(
           DerivedPath::Built{
-              .drvPath = makeConstantStorePathRef(*info->deriver),
+              .drv_path = makeConstantStorePathRef(*info->deriver),
               // FIXME: Should just build the specific output we need.
               .outputs = OutputsSpec::All{},
           },

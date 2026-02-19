@@ -17,7 +17,7 @@ CommonSSHStoreConfig::CommonSSHStoreConfig(std::string_view scheme,
 
 SSHMaster CommonSSHStoreConfig::createSSHMaster(bool useMaster, descriptor_t logFD) const {
   return {
-      authority, sshKey.get(), sshPublicHostKey.get(), useMaster, compress, logFD,
+      authority, sshKey.get(), ssh_public_host_key.get(), useMaster, compress, logFD,
   };
 }
 

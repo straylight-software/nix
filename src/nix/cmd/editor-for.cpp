@@ -5,12 +5,12 @@
 
 namespace nix {
 
-strings_t editorFor(const source_path_t& file, uint32_t line) {
-  auto path = file.getPhysicalPath();
+strings_t editor_for(const source_path_t& file, uint32_t line) {
+  auto path = file.get_physical_path();
   if (!path)
     throw Error("cannot open '%s' in an editor because it has no physical path", file);
-  auto editor = getEnv("EDITOR").value_or("cat");
-  auto args = tokenizeString<strings_t>(editor);
+  auto editor = get_env("EDITOR").value_or("cat");
+  auto args = tokenize_string<strings_t>(editor);
   if (line > 0 &&
       (editor.find("emacs") != std::string::npos || editor.find("nano") != std::string::npos ||
        editor.find("vim") != std::string::npos || editor.find("kak") != std::string::npos))

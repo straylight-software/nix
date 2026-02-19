@@ -7,11 +7,11 @@ namespace nlohmann {
 using namespace nix;
 
 ExternalBuilder adl_serializer<ExternalBuilder>::from_json(const json& json) {
-  auto obj = getObject(json);
+  auto obj = get_object(json);
   return {
-      .systems = valueAt(obj, "systems"),
-      .program = valueAt(obj, "program"),
-      .args = valueAt(obj, "args"),
+      .systems = value_at(obj, "systems"),
+      .program = value_at(obj, "program"),
+      .args = value_at(obj, "args"),
   };
 }
 

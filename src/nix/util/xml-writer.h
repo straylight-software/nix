@@ -25,13 +25,13 @@ public:
 
   void close();
 
-  void openElement(std::string_view name, const xml_attrs_t& attrs = xml_attrs_t());
-  void closeElement();
+  void open_element(std::string_view name, const xml_attrs_t& attrs = xml_attrs_t());
+  void close_element();
 
-  void writeEmptyElement(std::string_view name, const xml_attrs_t& attrs = xml_attrs_t());
+  void write_empty_element(std::string_view name, const xml_attrs_t& attrs = xml_attrs_t());
 
 private:
-  void writeAttrs(const xml_attrs_t& attrs);
+  void write_attrs(const xml_attrs_t& attrs);
 
   void indent_(size_t depth);
 };
@@ -43,10 +43,10 @@ private:
 public:
   xml_open_element_t(xml_writer_t& writer, std::string_view name, const xml_attrs_t& attrs = xml_attrs_t())
       : writer(writer) {
-    writer.openElement(name, attrs);
+    writer.open_element(name, attrs);
   }
 
-  ~xml_open_element_t() { writer.closeElement(); }
+  ~xml_open_element_t() { writer.close_element(); }
 };
 
 } // namespace nix

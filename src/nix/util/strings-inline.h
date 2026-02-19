@@ -5,7 +5,7 @@
 namespace nix {
 
 template <class C, class char_t>
-C basicTokenizeString(std::basic_string_view<char_t> s, std::basic_string_view<char_t> separators) {
+C basic_tokenize_string(std::basic_string_view<char_t> s, std::basic_string_view<char_t> separators) {
   C result;
   auto pos = s.find_first_not_of(separators, 0);
   while (pos != s.npos) {
@@ -19,12 +19,12 @@ C basicTokenizeString(std::basic_string_view<char_t> s, std::basic_string_view<c
 }
 
 template <class C>
-C tokenizeString(std::string_view s, std::string_view separators) {
-  return basicTokenizeString<C, char>(s, separators);
+C tokenize_string(std::string_view s, std::string_view separators) {
+  return basic_tokenize_string<C, char>(s, separators);
 }
 
 template <class C, class char_t>
-void basicSplitStringInto(C& accum, std::basic_string_view<char_t> s,
+void basic_split_string_into(C& accum, std::basic_string_view<char_t> s,
                           std::basic_string_view<char_t> separators) {
   size_t pos = 0;
   while (pos <= s.size()) {
@@ -37,24 +37,24 @@ void basicSplitStringInto(C& accum, std::basic_string_view<char_t> s,
 }
 
 template <typename C>
-void splitStringInto(C& accum, std::string_view s, std::string_view separators) {
-  basicSplitStringInto<C, char>(accum, s, separators);
+void split_string_into(C& accum, std::string_view s, std::string_view separators) {
+  basic_split_string_into<C, char>(accum, s, separators);
 }
 
 template <class C, class char_t>
-C basicSplitString(std::basic_string_view<char_t> s, std::basic_string_view<char_t> separators) {
+C basic_split_string(std::basic_string_view<char_t> s, std::basic_string_view<char_t> separators) {
   C result;
-  basicSplitStringInto(result, s, separators);
+  basic_split_string_into(result, s, separators);
   return result;
 }
 
 template <class C>
-C splitString(std::string_view s, std::string_view separators) {
-  return basicSplitString<C, char>(s, separators);
+C split_string(std::string_view s, std::string_view separators) {
+  return basic_split_string<C, char>(s, separators);
 }
 
 template <class char_t, class C>
-std::basic_string<char_t> basicConcatStringsSep(const std::basic_string_view<char_t> sep,
+std::basic_string<char_t> basic_concat_strings_sep(const std::basic_string_view<char_t> sep,
                                                const C& ss) {
   size_t size = 0;
   bool tail = false;
@@ -78,12 +78,12 @@ std::basic_string<char_t> basicConcatStringsSep(const std::basic_string_view<cha
 }
 
 template <class C>
-std::string concatStringsSep(const std::string_view sep, const C& ss) {
-  return basicConcatStringsSep<char, C>(sep, ss);
+std::string concat_strings_sep(const std::string_view sep, const C& ss) {
+  return basic_concat_strings_sep<char, C>(sep, ss);
 }
 
 template <class C>
-std::string dropEmptyInitThenConcatStringsSep(const std::string_view sep, const C& ss) {
+std::string drop_empty_init_then_concat_strings_sep(const std::string_view sep, const C& ss) {
   size_t size = 0;
 
   // TODO? remove to make sure we don't rely on the empty item ignoring behavior,

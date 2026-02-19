@@ -30,28 +30,28 @@
 
 namespace nix {
 
-unsigned int getMaxCPU() {
+unsigned int get_max_cpu() {
 #ifdef __linux__
   try {
-    auto cgroupFS = getCgroupFS();
-    if (!cgroupFS)
+    auto cgroup_fs = get_cgroup_fs();
+    if (!cgroup_fs)
       return 0;
 
-    auto cpuFile = *cgroupFS + "/" + getCurrentCgroup() + "/cpu.max";
+    auto cpu_file = *cgroup_fs + "/" + get_current_cgroup() + "/cpu.max";
 
-    auto cpuMax = readFile(cpuFile);
-    auto cpuMaxParts = tokenizeString<std::vector<std::string>>(cpuMax, " \n");
+    auto cpu_max = read_file(cpu_file);
+    auto cpu_max_parts = tokenize_string<std::vector<std::string>>(cpu_max, " \n");
 
-    if (cpuMaxParts.size() != 2) {
+    if (cpu_max_parts.size() != 2) {
       return 0;
     }
 
-    auto quota = cpuMaxParts[0];
-    auto period = cpuMaxParts[1];
+    auto quota = cpu_max_parts[0];
+    auto period = cpu_max_parts[1];
     if (quota != "max")
       return std::ceil(std::stoi(quota) / std::stof(period));
   } catch (Error&) {
-    ignoreExceptionInDestructor(lvlDebug);
+    ignore_exception_in_destructor(lvl_debug);
   }
 #endif
 
@@ -61,27 +61,27 @@ unsigned int getMaxCPU() {
 //////////////////////////////////////////////////////////////////////
 
 #ifndef _WIN32
-size_t savedStackSize = 0;
+size_t saved_stack_size = 0;
 
-void setStackSize(size_t stackSize) {
+void set_stack_size(size_t stack_size) {
   struct rlimit limit;
-  if (getrlimit(RLIMIT_STACK, &limit) == 0 && static_cast<size_t>(limit.rlim_cur) < stackSize) {
-    savedStackSize = limit.rlim_cur;
-    if (limit.rlim_max < static_cast<rlim_t>(stackSize)) {
-      if (getEnv("_NIX_TEST_NO_ENVIRONMENT_WARNINGS") != "1") {
-        logger->log(lvlWarn,
+  if (getrlimit(RLIMIT_STACK, &limit) == 0 && static_cast<size_t>(limit.rlim_cur) < stack_size) {
+    saved_stack_size = limit.rlim_cur;
+    if (limit.rlim_max < static_cast<rlim_t>(stack_size)) {
+      if (get_env("_NIX_TEST_NO_ENVIRONMENT_WARNINGS") != "1") {
+        logger->log(lvl_warn,
                     hint_fmt_t("Stack size hard limit is %1%, which is less than the desired %2%. If "
                             "possible, increase the hard limit, e.g. with 'ulimit -Hs %3%'.",
-                            limit.rlim_max, stackSize, stackSize / 1024)
+                            limit.rlim_max, stack_size, stack_size / 1024)
                         .str());
       }
     }
-    auto requestedSize = std::min(static_cast<rlim_t>(stackSize), limit.rlim_max);
-    limit.rlim_cur = requestedSize;
+    auto requested_size = std::min(static_cast<rlim_t>(stack_size), limit.rlim_max);
+    limit.rlim_cur = requested_size;
     if (setrlimit(RLIMIT_STACK, &limit) != 0) {
-      logger->log(lvlError, hint_fmt_t("Failed to increase stack size from %1% to %2% (desired: %3%, "
+      logger->log(lvl_error, hint_fmt_t("Failed to increase stack size from %1% to %2% (desired: %3%, "
                                     "maximum allowed: %4%): %5%",
-                                    savedStackSize, requestedSize, stackSize, limit.rlim_max,
+                                    saved_stack_size, requested_size, stack_size, limit.rlim_max,
                                     std::strerror(errno))
                                 .str());
     }
@@ -89,21 +89,21 @@ void setStackSize(size_t stackSize) {
 }
 #endif
 
-void restoreProcessContext(bool restoreMounts) {
+void restore_process_context(bool restore_mounts) {
 #ifndef _WIN32
-  unix::restoreSignals();
+  unix::restore_signals();
 #endif
-  if (restoreMounts) {
+  if (restore_mounts) {
 #ifdef __linux__
-    restoreMountNamespace();
+    restore_mount_namespace();
 #endif
   }
 
 #ifndef _WIN32
-  if (savedStackSize) {
+  if (saved_stack_size) {
     struct rlimit limit;
     if (getrlimit(RLIMIT_STACK, &limit) == 0) {
-      limit.rlim_cur = savedStackSize;
+      limit.rlim_cur = saved_stack_size;
       setrlimit(RLIMIT_STACK, &limit);
     }
   }
@@ -112,10 +112,10 @@ void restoreProcessContext(bool restoreMounts) {
 
 //////////////////////////////////////////////////////////////////////
 
-std::optional<Path> getSelfExe() {
+std::optional<Path> get_self_exe() {
   static auto cached = []() -> std::optional<Path> {
 #if defined(__linux__) || defined(__GNU__)
-    return readLink(std::filesystem::path{"/proc/self/exe"});
+    return read_link(std::filesystem::path{"/proc/self/exe"});
 #elif defined(__APPLE__)
     char buf[1024];
     uint32_t size = sizeof(buf);
@@ -130,14 +130,14 @@ std::optional<Path> getSelfExe() {
         KERN_PROC_PATHNAME,
         -1,
     };
-    size_t pathLen = 0;
-    if (sysctl(sysctlName, sizeof(sysctlName) / sizeof(sysctlName[0]), nullptr, &pathLen, nullptr,
+    size_t path_len = 0;
+    if (sysctl(sysctlName, sizeof(sysctlName) / sizeof(sysctlName[0]), nullptr, &path_len, nullptr,
                0) < 0) {
       return std::nullopt;
     }
 
-    std::vector<char> path(pathLen);
-    if (sysctl(sysctlName, sizeof(sysctlName) / sizeof(sysctlName[0]), path.data(), &pathLen,
+    std::vector<char> path(path_len);
+    if (sysctl(sysctlName, sizeof(sysctlName) / sizeof(sysctlName[0]), path.data(), &path_len,
                nullptr, 0) < 0) {
       return std::nullopt;
     }

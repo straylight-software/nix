@@ -24,7 +24,7 @@ struct Registry {
 
   struct Entry {
     Input from, to;
-    Attrs extraAttrs;
+    Attrs extra_attrs;
     bool exact = false;
   };
 
@@ -40,23 +40,23 @@ struct Registry {
 
   void write(const std::filesystem::path& path);
 
-  void add(const Input& from, const Input& to, const Attrs& extraAttrs);
+  void add(const Input& from, const Input& to, const Attrs& extra_attrs);
 
   void remove(const Input& input);
 };
 
 typedef std::vector<std::shared_ptr<Registry>> Registries;
 
-std::shared_ptr<Registry> getUserRegistry(const settings_t& settings);
+std::shared_ptr<Registry> get_user_registry(const settings_t& settings);
 
-std::shared_ptr<Registry> getCustomRegistry(const settings_t& settings,
+std::shared_ptr<Registry> get_custom_registry(const settings_t& settings,
                                             const std::filesystem::path& p);
 
-std::filesystem::path getUserRegistryPath();
+std::filesystem::path get_user_registry_path();
 
-Registries getRegistries(const settings_t& settings, Store& store);
+Registries get_registries(const settings_t& settings, Store& store);
 
-void overrideRegistry(const Input& from, const Input& to, const Attrs& extraAttrs);
+void override_registry(const Input& from, const Input& to, const Attrs& extra_attrs);
 
 enum class UseRegistries : int {
   No,
@@ -68,7 +68,7 @@ enum class UseRegistries : int {
  * Rewrite a flakeref using the registries. If `filter` is set, only
  * use the registries for which the filter function returns true.
  */
-std::pair<Input, Attrs> lookupInRegistries(const settings_t& settings, Store& store,
-                                           const Input& input, UseRegistries useRegistries);
+std::pair<Input, Attrs> lookup_in_registries(const settings_t& settings, Store& store,
+                                           const Input& input, UseRegistries use_registries);
 
 } // namespace nix::fetchers

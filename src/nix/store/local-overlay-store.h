@@ -3,7 +3,7 @@
 namespace nix {
 
 /**
- * Configuration for `LocalOverlayStore`.
+ * Configuration for `local_overlay_store`.
  */
 struct LocalOverlayStoreConfig : virtual LocalStoreConfig {
   LocalOverlayStoreConfig(const string_map_t& params)
@@ -54,15 +54,15 @@ struct LocalOverlayStoreConfig : virtual LocalStoreConfig {
 
   static const std::string name() { return "Experimental Local Overlay Store"; }
 
-  static std::optional<experimental_feature_t> experimentalFeature() {
-    return experimental_feature_t::LocalOverlayStore;
+  static std::optional<experimental_feature_t> experimental_feature() {
+    return experimental_feature_t::local_overlay_store;
   }
 
   static string_set_t uriSchemes() { return {"local-overlay"}; }
 
   static std::string doc();
 
-  ref<Store> openStore() const override;
+  ref<Store> open_store() const override;
 
   StoreReference getReference() const override;
 
@@ -77,7 +77,7 @@ protected:
    */
   Path toUpperPath(const StorePath& path) const;
 
-  friend struct LocalOverlayStore;
+  friend struct local_overlay_store;
 };
 
 /**
@@ -86,12 +86,12 @@ protected:
  * Documentation on overridden methods states how they differ from their
  * `LocalStore` counterparts.
  */
-struct LocalOverlayStore : virtual LocalStore {
-  using Config = LocalOverlayStoreConfig;
+struct local_overlay_store : virtual LocalStore {
+  using config_t = LocalOverlayStoreConfig;
 
-  ref<const Config> config;
+  ref<const config_t> config;
 
-  LocalOverlayStore(ref<const Config>);
+  local_overlay_store(ref<const config_t>);
 
 private:
   /**
@@ -101,19 +101,19 @@ private:
    * is that store's store dir, and the upper layer is some
    * scratch storage just for us.
    */
-  ref<LocalFSStore> lowerStore;
+  ref<local_fs_store> lowerStore;
 
   /**
    * First copy up any lower store realisation with the same key, so we
    * merge rather than mask it.
    */
-  void registerDrvOutput(const Realisation& info) override;
+  void register_drv_output(const Realisation& info) override;
 
   /**
    * Check lower store if upper DB does not have.
    */
   void
-  queryPathInfoUncached(const StorePath& path,
+  query_path_info_uncached(const StorePath& path,
                         Callback<std::shared_ptr<const ValidPathInfo>> callback) noexcept override;
 
   /**
@@ -127,7 +127,7 @@ private:
   /**
    * Check the lower store and upper DB.
    */
-  void queryReferrers(const StorePath& path, StorePathSet& referrers) override;
+  void query_referrers(const StorePath& path, StorePathSet& referrers) override;
 
   /**
    * Check the lower store and upper DB.
@@ -137,7 +137,7 @@ private:
   /**
    * Check lower store if upper DB does not have.
    */
-  std::optional<StorePath> queryPathFromHashPart(const std::string& hashPart) override;
+  std::optional<StorePath> queryPathFromHashPart(const std::string& hash_part) override;
 
   /**
    * First copy up any lower store realisation with the same key, so we
@@ -148,7 +148,7 @@ private:
   /**
    * Check lower store if upper DB does not have.
    */
-  void queryRealisationUncached(
+  void query_realisation_uncached(
       const DrvOutput&,
       Callback<std::shared_ptr<const UnkeyedRealisation>> callback) noexcept override;
 
@@ -161,7 +161,7 @@ private:
    * Check which layers the store object exists in to try to avoid
    * needing to remount.
    */
-  void deleteStorePath(const Path& path, uint64_t& bytesFreed) override;
+  void deleteStorePath(const Path& path, uint64_t& bytes_freed) override;
 
   /**
    * Deduplicate by removing store objects from the upper layer that

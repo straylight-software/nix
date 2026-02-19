@@ -20,7 +20,7 @@ struct cmd_config_show_t : command_t, MixJSON {
   std::optional<std::string> name;
 
   cmd_config_show_t() {
-    expectArgs({
+    expect_args({
         .label = {"name"},
         .optional = true,
         .handler = {&name},
@@ -39,8 +39,8 @@ struct cmd_config_show_t : command_t, MixJSON {
         throw UsageError("'--json' is not supported when specifying a setting name");
       }
 
-      std::map<std::string, Config::setting_info_t> settings;
-      globalConfig.getSettings(settings);
+      std::map<std::string, config_t::setting_info_t> settings;
+      global_config.get_settings(settings);
       auto setting = settings.find(*name);
 
       if (setting == settings.end()) {
@@ -55,12 +55,12 @@ struct cmd_config_show_t : command_t, MixJSON {
 
     if (json) {
       // FIXME: use appropriate JSON types (bool, ints, etc).
-      printJSON(globalConfig.toJSON());
+      printJSON(global_config.to_json());
     } else {
-      logger->cout("%s", globalConfig.toKeyValue());
+      logger->cout("%s", global_config.to_key_value());
     }
   }
 };
 
-static auto rCmdConfig = registerCommand<cmd_config_t>("config");
-static auto rShowConfig = registerCommand2<cmd_config_show_t>({"config", "show"});
+static auto r_cmd_config = registerCommand<cmd_config_t>("config");
+static auto r_show_config = registerCommand2<cmd_config_show_t>({"config", "show"});

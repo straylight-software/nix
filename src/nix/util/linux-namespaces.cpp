@@ -15,30 +15,30 @@
 
 namespace nix {
 
-bool userNamespacesSupported() {
+bool user_namespaces_supported() {
   static auto res = [&]() -> bool {
-    if (!pathExists("/proc/self/ns/user")) {
+    if (!path_exists("/proc/self/ns/user")) {
       debug("'/proc/self/ns/user' does not exist; your kernel was likely built without "
             "CONFIG_USER_NS=y");
       return false;
     }
 
-    Path maxUserNamespaces = "/proc/sys/user/max_user_namespaces";
-    if (!pathExists(maxUserNamespaces) || trim(readFile(maxUserNamespaces)) == "0") {
+    Path max_user_namespaces = "/proc/sys/user/max_user_namespaces";
+    if (!path_exists(max_user_namespaces) || trim(read_file(max_user_namespaces)) == "0") {
       debug("user namespaces appear to be disabled; check '/proc/sys/user/max_user_namespaces'");
       return false;
     }
 
-    Path procSysKernelUnprivilegedUsernsClone = "/proc/sys/kernel/unprivileged_userns_clone";
-    if (pathExists(procSysKernelUnprivilegedUsernsClone) &&
-        trim(readFile(procSysKernelUnprivilegedUsernsClone)) == "0") {
+    Path proc_sys_kernel_unprivileged_userns_clone = "/proc/sys/kernel/unprivileged_userns_clone";
+    if (path_exists(proc_sys_kernel_unprivileged_userns_clone) &&
+        trim(read_file(proc_sys_kernel_unprivileged_userns_clone)) == "0") {
       debug("user namespaces appear to be disabled; check "
             "'/proc/sys/kernel/unprivileged_userns_clone'");
       return false;
     }
 
     try {
-      Pid pid = startProcess([&]() { _exit(0); }, {.cloneFlags = CLONE_NEWUSER});
+      Pid pid = start_process([&]() { _exit(0); }, {.clone_flags = CLONE_NEWUSER});
 
       auto r = pid.wait();
       assert(!r);
@@ -52,10 +52,10 @@ bool userNamespacesSupported() {
   return res;
 }
 
-bool mountAndPidNamespacesSupported() {
+bool mount_and_pid_namespaces_supported() {
   static auto res = [&]() -> bool {
     try {
-      Pid pid = startProcess(
+      Pid pid = start_process(
           [&]() {
             /* Make sure we don't remount the parent's /proc. */
             if (mount(0, "/", 0, MS_PRIVATE | MS_REC, 0) == -1)
@@ -70,8 +70,8 @@ bool mountAndPidNamespacesSupported() {
 
             _exit(0);
           },
-          {.cloneFlags =
-               CLONE_NEWNS | CLONE_NEWPID | (userNamespacesSupported() ? CLONE_NEWUSER : 0)});
+          {.clone_flags =
+               CLONE_NEWNS | CLONE_NEWPID | (user_namespaces_supported() ? CLONE_NEWUSER : 0)});
 
       if (pid.wait()) {
         debug("PID namespaces do not work on this system: cannot remount /proc");
@@ -90,42 +90,42 @@ bool mountAndPidNamespacesSupported() {
 
 //////////////////////////////////////////////////////////////////////
 
-static auto_close_fd_t fdSavedMountNamespace;
-static auto_close_fd_t fdSavedRoot;
+static auto_close_fd_t fd_saved_mount_namespace;
+static auto_close_fd_t fd_saved_root;
 
-void saveMountNamespace() {
+void save_mount_namespace() {
   static std::once_flag done;
   std::call_once(done, []() {
-    fdSavedMountNamespace = open("/proc/self/ns/mnt", O_RDONLY);
-    if (!fdSavedMountNamespace)
+    fd_saved_mount_namespace = open("/proc/self/ns/mnt", O_RDONLY);
+    if (!fd_saved_mount_namespace)
       throw sys_error_t("saving parent mount namespace");
 
-    fdSavedRoot = open("/proc/self/root", O_RDONLY);
+    fd_saved_root = open("/proc/self/root", O_RDONLY);
   });
 }
 
-void restoreMountNamespace() {
+void restore_mount_namespace() {
   try {
-    auto savedCwd = std::filesystem::current_path();
+    auto saved_cwd = std::filesystem::current_path();
 
-    if (fdSavedMountNamespace && setns(fdSavedMountNamespace.get(), CLONE_NEWNS) == -1)
+    if (fd_saved_mount_namespace && setns(fd_saved_mount_namespace.get(), CLONE_NEWNS) == -1)
       throw sys_error_t("restoring parent mount namespace");
 
-    if (fdSavedRoot) {
-      if (fchdir(fdSavedRoot.get()))
+    if (fd_saved_root) {
+      if (fchdir(fd_saved_root.get()))
         throw sys_error_t("chdir into saved root");
       if (chroot("."))
         throw sys_error_t("chroot into saved root");
     }
 
-    if (chdir(savedCwd.c_str()) == -1)
+    if (chdir(saved_cwd.c_str()) == -1)
       throw sys_error_t("restoring cwd");
   } catch (Error& e) {
     debug(e.msg());
   }
 }
 
-void tryUnshareFilesystem() {
+void try_unshare_filesystem() {
   if (unshare(CLONE_FS) != 0 && errno != EPERM && errno != ENOSYS)
     throw sys_error_t("unsharing filesystem state");
 }

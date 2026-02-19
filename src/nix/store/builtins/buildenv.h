@@ -37,6 +37,6 @@ public:
 
 typedef std::vector<Package> Packages;
 
-void buildProfile(const Path& out, Packages&& pkgs);
+void build_profile(const Path& out, Packages&& pkgs);
 
 } // namespace nix

@@ -10,7 +10,7 @@
 namespace nix {
 
 HookInstance::HookInstance() {
-  debug("starting build hook '%s'", concatStringsSep(" ", settings.buildHook.get()));
+  debug("starting build hook '%s'", concat_strings_sep(" ", settings.buildHook.get()));
 
   auto buildHookArgs = settings.buildHook.get();
 
@@ -21,9 +21,9 @@ HookInstance::HookInstance() {
   buildHookArgs.pop_front();
 
   try {
-    buildHook = executable_path_t::load().findPath(buildHook);
+    buildHook = executable_path_t::load().find_path(buildHook);
   } catch (ExecutableLookupError& e) {
-    e.addTrace(nullptr, "while resolving the 'build-hook' setting'");
+    e.add_trace(nullptr, "while resolving the 'build-hook' setting'");
     throw;
   }
 
@@ -42,43 +42,43 @@ HookInstance::HookInstance() {
   toHook.create();
 
   /* Create a pipe to get the output of the builder. */
-  builderOut.create();
+  builder_out.create();
 
   /* Fork the hook. */
-  pid = startProcess([&]() {
-    if (dup2(fromHook.writeSide.get(), STDERR_FILENO) == -1)
+  pid = start_process([&]() {
+    if (dup2(fromHook.write_side.get(), STDERR_FILENO) == -1)
       throw sys_error_t("cannot pipe standard error into log file");
 
-    commonChildInit();
+    common_child_init();
 
     if (chdir("/") == -1)
       throw sys_error_t("changing into /");
 
     /* Dup the communication pipes. */
-    if (dup2(toHook.readSide.get(), STDIN_FILENO) == -1)
+    if (dup2(toHook.read_side.get(), STDIN_FILENO) == -1)
       throw sys_error_t("dupping to-hook read side");
 
-    /* Use fd 4 for the builder's stdout/stderr. */
-    if (dup2(builderOut.writeSide.get(), 4) == -1)
+    /* use fd 4 for the builder's stdout/stderr. */
+    if (dup2(builder_out.write_side.get(), 4) == -1)
       throw sys_error_t("dupping builder's stdout/stderr");
 
     /* Hack: pass the read side of that fd to allow build-remote
        to read SSH error messages. */
-    if (dup2(builderOut.readSide.get(), 5) == -1)
+    if (dup2(builder_out.read_side.get(), 5) == -1)
       throw sys_error_t("dupping builder's stdout/stderr");
 
-    execv(buildHook.native().c_str(), stringsToCharPtrs(args).data());
+    execv(buildHook.native().c_str(), strings_to_char_ptrs(args).data());
 
     throw sys_error_t("executing '%s'", buildHook);
   });
 
-  pid.setSeparatePG(true);
-  fromHook.writeSide = -1;
-  toHook.readSide = -1;
+  pid.set_separate_pg(true);
+  fromHook.write_side = -1;
+  toHook.read_side = -1;
 
-  sink = fd_sink_t(toHook.writeSide.get());
-  std::map<std::string, Config::setting_info_t> settings;
-  globalConfig.getSettings(settings);
+  sink = fd_sink_t(toHook.write_side.get());
+  std::map<std::string, config_t::setting_info_t> settings;
+  global_config.get_settings(settings);
   for (auto& setting : settings)
     sink << 1 << setting.first << setting.second.value;
   sink << 0;
@@ -86,11 +86,11 @@ HookInstance::HookInstance() {
 
 HookInstance::~HookInstance() {
   try {
-    toHook.writeSide = -1;
+    toHook.write_side = -1;
     if (pid != -1)
       pid.kill();
   } catch (...) {
-    ignoreExceptionInDestructor();
+    ignore_exception_in_destructor();
   }
 }
 

@@ -16,13 +16,13 @@ static std::span<uint8_t> string2span(std::string_view s) {
 }
 
 struct wasi_derivation_builder_t : derivation_builder_impl_t {
-  wasi_derivation_builder_t(LocalStore& store, std::unique_ptr<DerivationBuilderCallbacks> miscMethods,
+  wasi_derivation_builder_t(LocalStore& store, std::unique_ptr<DerivationBuilderCallbacks> misc_methods,
                         DerivationBuilderParams params)
-      : derivation_builder_impl_t(store, std::move(miscMethods), std::move(params)) {
+      : derivation_builder_impl_t(store, std::move(misc_methods), std::move(params)) {
     // experimentalFeatureSettings.require(Xp::WasiBuilders);
   }
 
-  void execBuilder(const strings_t& args, const strings_t& envStrs) override {
+  void exec_builder(const strings_t& args, const strings_t& env_strs) override {
     using namespace wasmtime;
 
     Engine engine;
@@ -37,17 +37,17 @@ struct wasi_derivation_builder_t : derivation_builder_impl_t {
     {
       std::vector<std::pair<std::string, std::string>> env2;
       for (auto& [k, v] : env)
-        env2.emplace_back(k, rewriteStrings(v, inputRewrites));
+        env2.emplace_back(k, rewrite_strings(v, input_rewrites));
       wasiConfig.env(env2);
     }
-    if (!wasiConfig.preopen_dir(store.config->realStoreDir.get(), store.storeDir,
+    if (!wasiConfig.preopen_dir(store.config->real_store_dir.get(), store.store_dir,
                                 WASMTIME_WASI_DIR_PERMS_READ | WASMTIME_WASI_DIR_PERMS_WRITE,
                                 WASMTIME_WASI_FILE_PERMS_READ | WASMTIME_WASI_FILE_PERMS_WRITE))
       throw Error("cannot add store directory to WASI config");
     // FIXME: add temp dir
 
     auto module =
-        unwrap(Module::compile(engine, string2span(readFile(realPathInHost(drv.builder)))));
+        unwrap(Module::compile(engine, string2span(read_file(real_path_in_host(drv.builder)))));
     wasmtime::Store wasmStore(engine);
     unwrap(wasmStore.context().set_wasi(std::move(wasiConfig)));
     auto instance = unwrap(linker.instantiate(wasmStore, module));

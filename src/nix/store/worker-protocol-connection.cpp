@@ -13,19 +13,19 @@ WorkerProto::BasicClientConnection::~BasicClientConnection() {
   try {
     to.flush();
   } catch (...) {
-    ignoreExceptionInDestructor();
+    ignore_exception_in_destructor();
   }
 }
 
-static Logger::fields_t readFields(Source& from) {
-  Logger::fields_t fields;
-  size_t size = readInt(from);
+static logger_t::fields_t read_fields(Source& from) {
+  logger_t::fields_t fields;
+  size_t size = read_int(from);
   for (size_t n = 0; n < size; n++) {
-    auto type = (decltype(Logger::field_t::type))readInt(from);
-    if (type == Logger::field_t::tInt)
-      fields.push_back(readNum<uint64_t>(from));
-    else if (type == Logger::field_t::tString)
-      fields.push_back(readString(from));
+    auto type = (decltype(logger_t::field_t::type))read_int(from);
+    if (type == logger_t::field_t::t_int)
+      fields.push_back(read_num<uint64_t>(from));
+    else if (type == logger_t::field_t::t_string)
+      fields.push_back(read_string(from));
     else
       throw Error("got unsupported field type %x from Nix daemon", (int)type);
   }
@@ -41,13 +41,13 @@ std::exception_ptr WorkerProto::BasicClientConnection::processStderrReturn(Sink*
   std::exception_ptr ex;
 
   while (true) {
-    if (!block && !from.hasData())
+    if (!block && !from.has_data())
       break;
 
-    auto msg = readNum<uint64_t>(from);
+    auto msg = read_num<uint64_t>(from);
 
     if (msg == STDERR_WRITE) {
-      auto s = readString(from);
+      auto s = read_string(from);
       if (!sink)
         throw Error("no sink");
       (*sink)(s);
@@ -56,45 +56,45 @@ std::exception_ptr WorkerProto::BasicClientConnection::processStderrReturn(Sink*
     else if (msg == STDERR_READ) {
       if (!source)
         throw Error("no source");
-      size_t len = readNum<size_t>(from);
+      size_t len = read_num<size_t>(from);
       auto buf = std::make_unique<char[]>(len);
-      writeString({(const char*)buf.get(), source->read(buf.get(), len)}, to);
+      write_string({(const char*)buf.get(), source->read(buf.get(), len)}, to);
       to.flush();
     }
 
     else if (msg == STDERR_ERROR) {
       if (GET_PROTOCOL_MINOR(protoVersion) >= 26) {
-        ex = std::make_exception_ptr(readError(from));
+        ex = std::make_exception_ptr(read_error(from));
       } else {
-        auto error = readString(from);
-        unsigned int status = readInt(from);
+        auto error = read_string(from);
+        unsigned int status = read_int(from);
         ex = std::make_exception_ptr(Error(status, error));
       }
       break;
     }
 
     else if (msg == STDERR_NEXT)
-      printError(chomp(readString(from)));
+      printError(chomp(read_string(from)));
 
     else if (msg == STDERR_START_ACTIVITY) {
-      auto act = readNum<activity_id_t>(from);
-      auto lvl = (verbosity_t)readInt(from);
-      auto type = (activity_type_t)readInt(from);
-      auto s = readString(from);
-      auto fields = readFields(from);
-      auto parent = readNum<activity_id_t>(from);
-      logger->startActivity(act, lvl, type, s, fields, parent);
+      auto act = read_num<activity_id_t>(from);
+      auto lvl = (verbosity_t)read_int(from);
+      auto type = (activity_type_t)read_int(from);
+      auto s = read_string(from);
+      auto fields = read_fields(from);
+      auto parent = read_num<activity_id_t>(from);
+      logger->start_activity(act, lvl, type, s, fields, parent);
     }
 
     else if (msg == STDERR_STOP_ACTIVITY) {
-      auto act = readNum<activity_id_t>(from);
-      logger->stopActivity(act);
+      auto act = read_num<activity_id_t>(from);
+      logger->stop_activity(act);
     }
 
     else if (msg == STDERR_RESULT) {
-      auto act = readNum<activity_id_t>(from);
-      auto type = (result_type_t)readInt(from);
-      auto fields = readFields(from);
+      auto act = read_num<activity_id_t>(from);
+      auto type = (result_type_t)read_int(from);
+      auto fields = read_fields(from);
       logger->result(act, type, fields);
     }
 
@@ -120,7 +120,7 @@ std::exception_ptr WorkerProto::BasicClientConnection::processStderrReturn(Sink*
       // the old incomprehensible error here, so that we can
       // explain to users what's going on when their daemon is
       // older than #4628 (2023).
-      if (experimentalFeatureSettings.isEnabled(xp_t::DynamicDerivations) &&
+      if (experimental_feature_settings.is_enabled(xp_t::dynamic_derivations) &&
           GET_PROTOCOL_MINOR(protoVersion) <= 35) {
         auto m = e.msg();
         if (m.find("parsing derivation") != std::string::npos &&
@@ -145,7 +145,7 @@ void WorkerProto::BasicClientConnection::processStderr(bool* daemonException, Si
   }
 }
 
-static WorkerProto::FeatureSet intersectFeatures(const WorkerProto::FeatureSet& a,
+static WorkerProto::FeatureSet intersect_features(const WorkerProto::FeatureSet& a,
                                                  const WorkerProto::FeatureSet& b) {
   WorkerProto::FeatureSet res;
   for (auto& x : a)
@@ -161,10 +161,10 @@ WorkerProto::BasicClientConnection::handshake(buffered_sink_t& to, Source& from,
   to << WORKER_MAGIC_1 << localVersion;
   to.flush();
 
-  unsigned int magic = readInt(from);
+  unsigned int magic = read_int(from);
   if (magic != WORKER_MAGIC_2)
     throw Error("nix-daemon protocol mismatch from");
-  auto daemonVersion = readInt(from);
+  auto daemonVersion = read_int(from);
 
   if (GET_PROTOCOL_MAJOR(daemonVersion) != GET_PROTOCOL_MAJOR(PROTOCOL_VERSION))
     throw Error("Nix daemon protocol version not supported");
@@ -178,34 +178,34 @@ WorkerProto::BasicClientConnection::handshake(buffered_sink_t& to, Source& from,
   if (GET_PROTOCOL_MINOR(protoVersion) >= 38) {
     to << supportedFeatures;
     to.flush();
-    daemonFeatures = readStrings<WorkerProto::FeatureSet>(from);
+    daemonFeatures = read_strings<WorkerProto::FeatureSet>(from);
   }
 
-  return {protoVersion, intersectFeatures(daemonFeatures, supportedFeatures)};
+  return {protoVersion, intersect_features(daemonFeatures, supportedFeatures)};
 }
 
 std::tuple<WorkerProto::Version, WorkerProto::FeatureSet>
 WorkerProto::BasicServerConnection::handshake(buffered_sink_t& to, Source& from,
                                               WorkerProto::Version localVersion,
                                               const WorkerProto::FeatureSet& supportedFeatures) {
-  unsigned int magic = readInt(from);
+  unsigned int magic = read_int(from);
   if (magic != WORKER_MAGIC_1)
     throw Error("protocol mismatch");
   to << WORKER_MAGIC_2 << localVersion;
   to.flush();
-  auto clientVersion = readInt(from);
+  auto client_version = read_int(from);
 
-  auto protoVersion = std::min(clientVersion, localVersion);
+  auto protoVersion = std::min(client_version, localVersion);
 
   /* Exchange features. */
   WorkerProto::FeatureSet clientFeatures;
   if (GET_PROTOCOL_MINOR(protoVersion) >= 38) {
-    clientFeatures = readStrings<WorkerProto::FeatureSet>(from);
+    clientFeatures = read_strings<WorkerProto::FeatureSet>(from);
     to << supportedFeatures;
     to.flush();
   }
 
-  return {protoVersion, intersectFeatures(clientFeatures, supportedFeatures)};
+  return {protoVersion, intersect_features(clientFeatures, supportedFeatures)};
 }
 
 WorkerProto::ClientHandshakeInfo
@@ -228,13 +228,13 @@ WorkerProto::BasicClientConnection::postHandshake(const StoreDirConfig& store) {
 
 void WorkerProto::BasicServerConnection::postHandshake(const StoreDirConfig& store,
                                                        const ClientHandshakeInfo& info) {
-  if (GET_PROTOCOL_MINOR(protoVersion) >= 14 && readInt(from)) {
+  if (GET_PROTOCOL_MINOR(protoVersion) >= 14 && read_int(from)) {
     // Obsolete CPU affinity.
-    readInt(from);
+    read_int(from);
   }
 
   if (GET_PROTOCOL_MINOR(protoVersion) >= 11)
-    readInt(from); // obsolete reserveSpace
+    read_int(from); // obsolete reserveSpace
 
   WorkerProto::write(store, *this, info);
 }
@@ -278,17 +278,17 @@ void WorkerProto::BasicClientConnection::addTempRoot(const StoreDirConfig& store
                                                      bool* daemonException, const StorePath& path) {
   to << WorkerProto::Op::AddTempRoot << store.printStorePath(path);
   processStderr(daemonException);
-  readInt(from);
+  read_int(from);
 }
 
 void WorkerProto::BasicClientConnection::putBuildDerivationRequest(const StoreDirConfig& store,
                                                                    bool* daemonException,
-                                                                   const StorePath& drvPath,
+                                                                   const StorePath& drv_path,
                                                                    const BasicDerivation& drv,
-                                                                   BuildMode buildMode) {
-  to << WorkerProto::Op::BuildDerivation << store.printStorePath(drvPath);
-  writeDerivation(to, store, drv);
-  to << buildMode;
+                                                                   BuildMode build_mode) {
+  to << WorkerProto::Op::BuildDerivation << store.printStorePath(drv_path);
+  write_derivation(to, store, drv);
+  to << build_mode;
 }
 
 BuildResult
@@ -297,7 +297,7 @@ WorkerProto::BasicClientConnection::getBuildDerivationResponse(const StoreDirCon
   return WorkerProto::Serialise<BuildResult>::read(store, *this);
 }
 
-void WorkerProto::BasicClientConnection::narFromPath(const StoreDirConfig& store,
+void WorkerProto::BasicClientConnection::nar_from_path(const StoreDirConfig& store,
                                                      bool* daemonException, const StorePath& path,
                                                      std::function<void(Source&)> fun) {
   to << WorkerProto::Op::NarFromPath << store.printStorePath(path);

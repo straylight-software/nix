@@ -84,7 +84,7 @@ static void normalizeDatetimeFormat(toml::value& t) {
 
 #endif
 
-static void prim_fromTOML(EvalState& state, const pos_idx_t pos, Value** args, Value& val) {
+static void prim_from_toml(EvalState& state, const pos_idx_t pos, Value** args, Value& val) {
   auto toml = state.forceStringNoCtx(*args[0], pos,
                                      "while evaluating the argument passed to builtins.fromTOML");
 
@@ -97,7 +97,7 @@ static void prim_fromTOML(EvalState& state, const pos_idx_t pos, Value** args, V
         auto attrs = state.buildBindings(table.size());
 
         for (auto& elem : table) {
-          forceNoNullByte(elem.first);
+          force_no_null_byte(elem.first);
           self(attrs.alloc(elem.first), elem.second);
         }
 
@@ -122,14 +122,14 @@ static void prim_fromTOML(EvalState& state, const pos_idx_t pos, Value** args, V
         break;
       case toml::value_t::string: {
         auto s = toml::get<std::string_view>(t);
-        forceNoNullByte(s);
-        v.mkString(s, state.mem);
+        force_no_null_byte(s);
+        v.mk_string(s, state.mem);
       } break;
       case toml::value_t::local_datetime:
       case toml::value_t::offset_datetime:
       case toml::value_t::local_date:
       case toml::value_t::local_time: {
-        if (experimentalFeatureSettings.isEnabled(xp_t::ParseTomlTimestamps)) {
+        if (experimental_feature_settings.is_enabled(xp_t::parse_toml_timestamps)) {
 #if HAVE_TOML11_4
           normalizeDatetimeFormat(t);
 #endif
@@ -138,8 +138,8 @@ static void prim_fromTOML(EvalState& state, const pos_idx_t pos, Value** args, V
           std::ostringstream s;
           s << t;
           auto str = s.view();
-          forceNoNullByte(str);
-          attrs.alloc("value").mkString(str, state.mem);
+          force_no_null_byte(str);
+          attrs.alloc("value").mk_string(str, state.mem);
           v.mkAttrs(attrs);
         } else {
           throw std::runtime_error("Dates and times are not supported");
@@ -161,11 +161,11 @@ static void prim_fromTOML(EvalState& state, const pos_idx_t pos, Value** args, V
 #endif
                       ));
   } catch (std::exception& e) { // TODO: toml::syntax_error
-    state.error<EvalError>("while parsing TOML: %s", e.what()).atPos(pos).debugThrow();
+    state.error<EvalError>("while parsing TOML: %s", e.what()).at_pos(pos).debugThrow();
   }
 }
 
-static RegisterPrimOp primop_fromTOML({.name = "fromTOML",
+static RegisterPrimOp primop_from_toml({.name = "fromTOML",
                                        .args = {"e"},
                                        .doc = R"(
       Convert a TOML string to a Nix value. For example,
@@ -181,6 +181,6 @@ static RegisterPrimOp primop_fromTOML({.name = "fromTOML",
 
       returns the value `{ s = "a"; table = { y = 2; }; x = 1; }`.
     )",
-                                       .fun = prim_fromTOML});
+                                       .fun = prim_from_toml});
 
 } // namespace nix

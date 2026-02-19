@@ -3,16 +3,16 @@ let
   inherit (builtins)
     attrNames
     listToAttrs
-    concatStringsSep
-    readFile
-    replaceStrings
+    concat_strings_sep
+    read_file
+    replace_strings
     ;
   inherit (import <nix/utils.nix>)
     optionalString
     filterAttrs
     trim
     squash
-    toLower
+    to_lower
     unique
     indent
     ;
@@ -35,7 +35,7 @@ let
       settings,
       doc,
       uri-schemes,
-      experimentalFeature,
+      experimental_feature,
     }:
     let
       result = squash ''
@@ -45,7 +45,7 @@ let
 
         ${doc}
 
-        ## Settings
+        ## settings_t
 
         ${showSettings {
           prefix = "store-${slug}";
@@ -53,19 +53,19 @@ let
         } settings}
       '';
 
-      experimentalFeatureNote = optionalString (experimentalFeature != null) ''
+      experimentalFeatureNote = optionalString (experimental_feature != null) ''
         > **Warning**
         >
         > This store is part of an
         > [experimental feature](@docroot@/development/experimental-features.md).
         >
         > To use this store, make sure the
-        > [`${experimentalFeature}` experimental feature](@docroot@/development/experimental-features.md#xp-feature-${experimentalFeature})
+        > [`${experimental_feature}` experimental feature](@docroot@/development/experimental-features.md#xp-feature-${experimental_feature})
         > is enabled.
         > For example, include the following in [`nix.conf`](@docroot@/command-ref/conf-file.md):
         >
         > ```
-        > extra-experimental-features = ${experimentalFeature}
+        > extra-experimental-features = ${experimental_feature}
         > ```
       '';
     in
@@ -73,7 +73,7 @@ let
 
   storesList = map (name: rec {
     inherit name;
-    slug = replaceStrings [ " " ] [ "-" ] (toLower name);
+    slug = replace_strings [ " " ] [ "-" ] (to_lower name);
     filename = "${slug}.md";
     page = showStore { inherit name slug; } storeInfo.${name};
   }) (attrNames storeInfo);

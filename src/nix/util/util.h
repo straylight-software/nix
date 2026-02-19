@@ -15,28 +15,28 @@
 
 namespace nix {
 
-void initLibUtil();
+void init_lib_util();
 
 /**
  * Convert a list of strings to a null-terminated vector of `char
  * *`s. The result must not be accessed beyond the lifetime of the
  * list of strings.
  */
-std::vector<char*> stringsToCharPtrs(const strings_t& ss);
+std::vector<char*> strings_to_char_ptrs(const strings_t& ss);
 
-MakeError(FormatError, Error);
+make_error(FormatError, Error);
 
 template <class... Parts>
-auto concatStrings(Parts&&... parts)
+auto concat_strings(Parts&&... parts)
     -> std::enable_if_t<(... && std::is_convertible_v<Parts, std::string_view>), std::string> {
   std::string_view views[sizeof...(parts)] = {parts...};
-  return concatStringsSep({}, views);
+  return concat_strings_sep({}, views);
 }
 
 /**
  * Add quotes around a string.
  */
-inline std::string quoteString(std::string_view s, char quote = '\'') {
+inline std::string quote_string(std::string_view s, char quote = '\'') {
   std::string result;
   result.reserve(s.size() + 2);
   result += quote;
@@ -49,16 +49,16 @@ inline std::string quoteString(std::string_view s, char quote = '\'') {
  * Add quotes around a collection of strings.
  */
 template <class C>
-strings_t quoteStrings(const C& c, char quote = '\'') {
+strings_t quote_strings(const C& c, char quote = '\'') {
   strings_t res;
   for (auto& s : c)
-    res.push_back(quoteString(s, quote));
+    res.push_back(quote_string(s, quote));
   return res;
 }
 
-inline strings_t quoteFSPaths(const std::set<std::filesystem::path>& paths, char quote = '\'') {
+inline strings_t quote_fs_paths(const std::set<std::filesystem::path>& paths, char quote = '\'') {
   return paths |
-         std::views::transform([&](const auto& p) { return quoteString(p.string(), quote); }) |
+         std::views::transform([&](const auto& p) { return quote_string(p.string(), quote); }) |
          std::ranges::to<strings_t>();
 }
 
@@ -77,22 +77,22 @@ std::string trim(std::string_view s, std::string_view whitespace = " \n\r\t");
 /**
  * Replace all occurrences of a string inside another string.
  */
-std::string replaceStrings(std::string s, std::string_view from, std::string_view to);
+std::string replace_strings(std::string s, std::string_view from, std::string_view to);
 
-std::string rewriteStrings(std::string s, const string_map_t& rewrites);
+std::string rewrite_strings(std::string s, const string_map_t& rewrites);
 
 /**
  * Parse a string into an integer.
  */
 template <class N>
-std::optional<N> string2Int(const std::string_view s);
+std::optional<N> string2_int(const std::string_view s);
 
 /**
- * Like string2Int(), but support an optional suffix 'K', 'M', 'G' or
+ * Like string2_int(), but support an optional suffix 'K', 'M', 'G' or
  * 'T' denoting a binary unit prefix.
  */
 template <class N>
-N string2IntWithUnitPrefix(std::string_view s) {
+N string2_int_with_unit_prefix(std::string_view s) {
   uint64_t multiplier = 1;
   if (!s.empty()) {
     char u = std::toupper(*s.rbegin());
@@ -110,7 +110,7 @@ N string2IntWithUnitPrefix(std::string_view s) {
       s.remove_suffix(1);
     }
   }
-  if (auto n = string2Int<N>(s))
+  if (auto n = string2_int<N>(s))
     return *n * multiplier;
   throw UsageError("'%s' is not an integer", s);
 }
@@ -133,42 +133,42 @@ enum class SizeUnit {
 #undef NIX_UTIL_DEFINE_SIZE_UNIT
 };
 
-constexpr inline auto sizeUnits = std::to_array<SizeUnit>({
+constexpr inline auto size_units = std::to_array<SizeUnit>({
 #define NIX_UTIL_DEFINE_SIZE_UNIT(name, suffix) SizeUnit::name,
     NIX_UTIL_SIZE_UNITS
 #undef NIX_UTIL_DEFINE_SIZE_UNIT
 });
 
-SizeUnit getSizeUnit(int64_t value);
+SizeUnit get_size_unit(int64_t value);
 
 /**
  * Returns the unit if all values would be rendered using the same unit
  * otherwise returns `std::nullopt`.
  */
-std::optional<SizeUnit> getCommonSizeUnit(std::initializer_list<int64_t> values);
+std::optional<SizeUnit> get_common_size_unit(std::initializer_list<int64_t> values);
 
-std::string renderSizeWithoutUnit(int64_t value, SizeUnit unit, bool align = false);
+std::string render_size_without_unit(int64_t value, SizeUnit unit, bool align = false);
 
-char getSizeUnitSuffix(SizeUnit unit);
+char get_size_unit_suffix(SizeUnit unit);
 
 /**
  * Pretty-print a byte value, e.g. 12433615056 is rendered as `11.6
  * GiB`. If `align` is set, the number will be right-justified by
  * padding with spaces on the left.
  */
-std::string renderSize(int64_t value, bool align = false);
+std::string render_size(int64_t value, bool align = false);
 
 /**
  * Parse a string into a float.
  */
 template <class N>
-std::optional<N> string2Float(const std::string_view s);
+std::optional<N> string2_float(const std::string_view s);
 
 /**
  * Convert a little-endian integer to host order.
  */
 template <typename T>
-T readLittleEndian(unsigned char* p) {
+T read_little_endian(unsigned char* p) {
   T x = 0;
   for (size_t i = 0; i < sizeof(x); ++i, ++p) {
     x |= ((T)*p) << (i * 8);
@@ -179,17 +179,17 @@ T readLittleEndian(unsigned char* p) {
 /**
  * @return true iff `s` starts with `prefix`.
  */
-bool hasPrefix(std::string_view s, std::string_view prefix);
+bool has_prefix(std::string_view s, std::string_view prefix);
 
 /**
  * @return true iff `s` ends in `suffix`.
  */
-bool hasSuffix(std::string_view s, std::string_view suffix);
+bool has_suffix(std::string_view s, std::string_view suffix);
 
 /**
  * Convert a string to lower case.
  */
-std::string toLower(std::string s);
+std::string to_lower(std::string s);
 
 /**
  * Escape a string as a shell word.
@@ -199,19 +199,19 @@ std::string toLower(std::string s);
  * - `"hello world"` -> `"'hello world'"`, which needs escaping because of the space
  * - `"echo"` -> `"'echo'"`, which doesn't need escaping
  */
-std::string escapeShellArgAlways(const std::string_view s);
+std::string escape_shell_arg_always(const std::string_view s);
 
 /**
  * Exception handling in destructors: print an error message, then
  * ignore the exception.
  *
- * If you're not in a destructor, you usually want to use `ignoreExceptionExceptInterrupt()`.
+ * If you're not in a destructor, you usually want to use `ignore_exception_except_interrupt()`.
  *
  * This function might also be used in callbacks whose caller may not handle exceptions,
  * but ideally we propagate the exception using an exception_ptr in such cases.
  * See e.g. `pack_builder_context_t`
  */
-void ignoreExceptionInDestructor(verbosity_t lvl = lvlError);
+void ignore_exception_in_destructor(verbosity_t lvl = lvl_error);
 
 /**
  * Not destructor-safe.
@@ -220,29 +220,29 @@ void ignoreExceptionInDestructor(verbosity_t lvl = lvlError);
  *
  * This may be used in a few places where Interrupt can't happen, but that's ok.
  */
-void ignoreExceptionExceptInterrupt(verbosity_t lvl = lvlError);
+void ignore_exception_except_interrupt(verbosity_t lvl = lvl_error);
 
 /**
  * tree_t formatting.
  */
-constexpr char treeConn[] = "├───";
-constexpr char treeLast[] = "└───";
-constexpr char treeLine[] = "│   ";
-constexpr char treeNull[] = "    ";
+constexpr char tree_conn[] = "├───";
+constexpr char tree_last[] = "└───";
+constexpr char tree_line[] = "│   ";
+constexpr char tree_null[] = "    ";
 
 /**
  * Remove common leading whitespace from the lines in the string
  * 's'. For example, if every line is indented by at least 3 spaces,
  * then we remove 3 spaces from the start of every line.
  */
-std::string stripIndentation(std::string_view s);
+std::string strip_indentation(std::string_view s);
 
 /**
  * Get the prefix of 's' up to and excluding the next line break (LF
  * optionally preceded by CR), and the remainder following the line
  * break.
  */
-std::pair<std::string_view, std::string_view> getLine(std::string_view s);
+std::pair<std::string_view, std::string_view> get_line(std::string_view s);
 
 /**
  * Get a pointer to the contents of a `std::optional` if it is set, or a
@@ -291,7 +291,7 @@ template <class T, typename K>
 typename T::mapped_type* get(T&& map, const K& key) = delete;
 
 template <class T>
-std::optional<typename T::mapped_type> getOptional(const T& map, const typename T::key_type& key) {
+std::optional<typename T::mapped_type> get_optional(const T& map, const typename T::key_type& key) {
   auto i = map.find(key);
   if (i == map.end())
     return std::nullopt;
@@ -299,7 +299,7 @@ std::optional<typename T::mapped_type> getOptional(const T& map, const typename 
 }
 
 template <class T>
-std::optional<typename T::mapped_type> getConcurrent(const T& map,
+std::optional<typename T::mapped_type> get_concurrent(const T& map,
                                                      const typename T::key_type& key) {
   std::optional<typename T::mapped_type> res;
   map.cvisit(key, [&](auto& x) { res = x.second; });
@@ -311,11 +311,11 @@ std::optional<typename T::mapped_type> getConcurrent(const T& map,
  * isn't present.
  */
 template <class T, typename K>
-const typename T::mapped_type& getOr(T& map, const K& key,
-                                     const typename T::mapped_type& defaultValue) {
+const typename T::mapped_type& get_or(T& map, const K& key,
+                                     const typename T::mapped_type& default_value) {
   auto i = map.find(key);
   if (i == map.end())
-    return defaultValue;
+    return default_value;
   return i->second;
 }
 
@@ -324,8 +324,8 @@ const typename T::mapped_type& getOr(T& map, const K& key,
  * set.
  */
 template <class T, typename K>
-const typename T::mapped_type& getOr(T&& map, const K& key,
-                                     const typename T::mapped_type& defaultValue) = delete;
+const typename T::mapped_type& get_or(T&& map, const K& key,
+                                     const typename T::mapped_type& default_value) = delete;
 
 /**
  * Remove and return the first item from a container.
@@ -415,11 +415,11 @@ inline std::string operator+(std::string&& s, std::string_view s2) {
 }
 
 inline std::string operator+(std::string_view s1, const char* s2) {
-  auto s2Size = strlen(s2);
+  auto s2_size = strlen(s2);
   std::string s;
-  s.reserve(s1.size() + s2Size);
+  s.reserve(s1.size() + s2_size);
   s.append(s1);
-  s.append(s2, s2Size);
+  s.append(s2, s2_size);
   return s;
 }
 

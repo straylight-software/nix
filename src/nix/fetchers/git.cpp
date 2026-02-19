@@ -38,15 +38,15 @@ namespace {
 // The value itself does not matter, since we always fetch a specific revision or branch.
 // It is set with `-c init.defaultBranch=` instead of `--initial-branch=` to stay compatible with
 // old version of git, which will ignore unrecognized `-c` options.
-const std::string gitInitialBranch = "__nix_dummy_branch";
+const std::string git_initial_branch = "__nix_dummy_branch";
 
-bool isCacheFileWithinTtl(time_t now, const struct stat& st) {
+bool is_cache_file_within_ttl(time_t now, const struct stat& st) {
   return st.st_mtime + static_cast<time_t>(settings.tarballTtl) > now;
 }
 
-std::filesystem::path getCachePath(std::string_view key, bool shallow) {
-  return getCacheDir() / "gitv3" /
-         (hashString(hash_algorithm_t::SHA256, key).to_string(hash_format_t::Nix32, false) +
+std::filesystem::path get_cache_path(std::string_view key, bool shallow) {
+  return get_cache_dir() / "gitv3" /
+         (hash_string(hash_algorithm_t::SHA256, key).to_string(hash_format_t::nix32, false) +
           (shallow ? "-shallow" : ""));
 }
 
@@ -57,39 +57,39 @@ std::filesystem::path getCachePath(std::string_view key, bool shallow) {
 //
 //   ref: refs/heads/main       HEAD
 //   ...
-std::optional<std::string> readHead(const std::filesystem::path& path) {
-  auto [status, output] = runProgram(run_options_t{
+std::optional<std::string> read_head(const std::filesystem::path& path) {
+  auto [status, output] = run_program(run_options_t{
       .program = "git",
       // FIXME: use 'HEAD' to avoid returning all refs
       .args = {"ls-remote", "--symref", path.string()},
-      .isInteractive = true,
+      .is_interactive = true,
   });
   if (status != 0)
     return std::nullopt;
 
   std::string_view line = output;
   line = line.substr(0, line.find("\n"));
-  if (const auto parseResult = git::parseLsRemoteLine(line);
-      parseResult && parseResult->reference == "HEAD") {
-    switch (parseResult->kind) {
-      case git::ls_remote_ref_line_t::Kind::Symbolic:
-        debug("resolved HEAD ref '%s' for repo '%s'", parseResult->target, path);
+  if (const auto parse_result = git::parse_ls_remote_line(line);
+      parse_result && parse_result->reference == "HEAD") {
+    switch (parse_result->kind) {
+      case git::ls_remote_ref_line_t::Kind::symbolic:
+        debug("resolved HEAD ref '%s' for repo '%s'", parse_result->target, path);
         break;
       case git::ls_remote_ref_line_t::Kind::Object:
-        debug("resolved HEAD rev '%s' for repo '%s'", parseResult->target, path);
+        debug("resolved HEAD rev '%s' for repo '%s'", parse_result->target, path);
         break;
     }
-    return parseResult->target;
+    return parse_result->target;
   }
   return std::nullopt;
 }
 
 // Persist the HEAD ref from the remote repo in the local cached repo.
-bool storeCachedHead(const std::string& actualUrl, bool shallow, const std::string& headRef) {
-  std::filesystem::path cacheDir = getCachePath(actualUrl, shallow);
+bool store_cached_head(const std::string& actual_url, bool shallow, const std::string& head_ref) {
+  std::filesystem::path cache_dir = get_cache_path(actual_url, shallow);
   try {
-    runProgram("git", true,
-               {"-C", cacheDir.string(), "--git-dir", ".", "symbolic-ref", "--", "HEAD", headRef});
+    run_program("git", true,
+               {"-C", cache_dir.string(), "--git-dir", ".", "symbolic-ref", "--", "HEAD", head_ref});
   } catch (exec_error_t& e) {
     if (
 #ifndef WIN32 // TODO abstract over exit status handling on Windows
@@ -106,25 +106,25 @@ bool storeCachedHead(const std::string& actualUrl, bool shallow, const std::stri
   return true;
 }
 
-std::optional<std::string> readHeadCached(const std::string& actualUrl, bool shallow) {
+std::optional<std::string> read_head_cached(const std::string& actual_url, bool shallow) {
   // Create a cache path to store the branch of the HEAD ref. Append something
   // in front of the URL to prevent collision with the repository itself.
-  std::filesystem::path cacheDir = getCachePath(actualUrl, shallow);
-  std::filesystem::path headRefFile = cacheDir / "HEAD";
+  std::filesystem::path cache_dir = get_cache_path(actual_url, shallow);
+  std::filesystem::path head_ref_file = cache_dir / "HEAD";
 
   time_t now = time(0);
   struct stat st;
   std::optional<std::string> cachedRef;
-  if (stat(headRefFile.string().c_str(), &st) == 0) {
-    cachedRef = readHead(cacheDir);
-    if (cachedRef != std::nullopt && *cachedRef != gitInitialBranch &&
-        isCacheFileWithinTtl(now, st)) {
-      debug("using cached HEAD ref '%s' for repo '%s'", *cachedRef, actualUrl);
+  if (stat(head_ref_file.string().c_str(), &st) == 0) {
+    cachedRef = read_head(cache_dir);
+    if (cachedRef != std::nullopt && *cachedRef != git_initial_branch &&
+        is_cache_file_within_ttl(now, st)) {
+      debug("using cached HEAD ref '%s' for repo '%s'", *cachedRef, actual_url);
       return cachedRef;
     }
   }
 
-  auto ref = readHead(actualUrl);
+  auto ref = read_head(actual_url);
   if (ref)
     return ref;
 
@@ -133,7 +133,7 @@ std::optional<std::string> readHeadCached(const std::string& actualUrl, bool sha
     // fails, it falls back to continuing with the most recent version.
     // This function must behave the same way, so we return the expired
     // cached ref here.
-    warn("could not get HEAD ref for repository '%s'; using expired cached ref '%s'", actualUrl,
+    warn("could not get HEAD ref for repository '%s'; using expired cached ref '%s'", actual_url,
          *cachedRef);
     return *cachedRef;
   }
@@ -141,30 +141,30 @@ std::optional<std::string> readHeadCached(const std::string& actualUrl, bool sha
   return std::nullopt;
 }
 
-std::vector<public_key_t> getPublicKeys(const Attrs& attrs) {
-  std::vector<public_key_t> publicKeys;
+std::vector<public_key_t> get_public_keys(const Attrs& attrs) {
+  std::vector<public_key_t> public_keys;
   if (attrs.contains("publicKeys")) {
-    auto pubKeysJson = nlohmann::json::parse(getStrAttr(attrs, "publicKeys"));
-    auto& pubKeys = getArray(pubKeysJson);
+    auto pub_keys_json = nlohmann::json::parse(get_str_attr(attrs, "publicKeys"));
+    auto& pub_keys = get_array(pub_keys_json);
 
-    for (auto& key : pubKeys) {
-      publicKeys.push_back(key);
+    for (auto& key : pub_keys) {
+      public_keys.push_back(key);
     }
   }
   if (attrs.contains("publicKey"))
-    publicKeys.push_back(public_key_t{maybeGetStrAttr(attrs, "keytype").value_or("ssh-ed25519"),
-                                   getStrAttr(attrs, "publicKey")});
-  return publicKeys;
+    public_keys.push_back(public_key_t{maybe_get_str_attr(attrs, "keytype").value_or("ssh-ed25519"),
+                                   get_str_attr(attrs, "publicKey")});
+  return public_keys;
 }
 
 } // end namespace
 
-static const Hash nullRev{hash_algorithm_t::SHA1};
+static const Hash null_rev{hash_algorithm_t::SHA1};
 
 struct git_input_scheme_t : InputScheme {
   std::optional<Input> inputFromURL(const settings_t& settings, const parsed_url_t& url,
-                                    bool requireTree) const override {
-    if (url.scheme != "git" && parseUrlScheme(url.scheme).application != "git")
+                                    bool require_tree) const override {
+    if (url.scheme != "git" && parse_url_scheme(url.scheme).application != "git")
       return {};
 
     auto url2(url);
@@ -192,13 +192,13 @@ struct git_input_scheme_t : InputScheme {
   std::string_view schemeName() const override { return "git"; }
 
   std::string schemeDescription() const override {
-    return stripIndentation(R"(
-          Fetch a Git tree and copy it to the Nix store.
+    return strip_indentation(R"(
+          Fetch a git tree and copy it to the Nix store.
           This is similar to [`builtins.fetchGit`](@docroot@/language/builtins.md#builtins-fetchGit).
         )");
   }
 
-  const std::map<std::string, AttributeInfo>& allowedAttrs() const override {
+  const std::map<std::string, AttributeInfo>& allowed_attrs() const override {
     static const std::map<std::string, AttributeInfo> attrs = {
         {
             "url",
@@ -206,12 +206,12 @@ struct git_input_scheme_t : InputScheme {
                 .type = "String",
                 .required = true,
                 .doc = R"(
-                      The URL formats supported are the same as for Git itself.
+                      The URL formats supported are the same as for git itself.
 
                       > **Example**
                       >
                       > ```nix
-                      > fetchTree {
+                      > fetch_tree {
                       >   type = "git";
                       >   url = "git@github.com:NixOS/nixpkgs.git";
                       > }
@@ -219,7 +219,7 @@ struct git_input_scheme_t : InputScheme {
 
                       > **Note**
                       >
-                      > If the URL points to a local directory, and no `ref` or `rev` is given, Nix only considers files added to the Git index, as listed by `git ls-files` but uses the *current file contents* of the Git working directory.
+                      > If the URL points to a local directory, and no `ref` or `rev` is given, Nix only considers files added to the git index, as listed by `git ls-files` but uses the *current file contents* of the git working directory.
                     )",
             },
         },
@@ -231,7 +231,7 @@ struct git_input_scheme_t : InputScheme {
                 .doc = R"(
                       By default, this has no effect. This becomes relevant only once `shallow` cloning is disabled.
 
-                      A [Git reference](https://git-scm.com/book/en/v2/Git-Internals-Git-References), such as a branch or tag name.
+                      A [git reference](https://git-scm.com/book/en/v2/Git-Internals-Git-References), such as a branch or tag name.
 
                       Default: `"HEAD"`
                     )",
@@ -243,7 +243,7 @@ struct git_input_scheme_t : InputScheme {
                 .type = "String",
                 .required = false,
                 .doc = R"(
-                      A Git revision; a commit hash.
+                      A git revision; a commit hash.
 
                       Default: the tip of `ref`
                     )",
@@ -255,7 +255,7 @@ struct git_input_scheme_t : InputScheme {
                 .type = "Bool",
                 .required = false,
                 .doc = R"(
-                      Make a shallow clone when fetching the Git tree.
+                      Make a shallow clone when fetching the git tree.
                       When this is enabled, the options `ref` and `allRefs` have no effect anymore.
 
                       Default: `true`
@@ -280,7 +280,7 @@ struct git_input_scheme_t : InputScheme {
                 .type = "Bool",
                 .required = false,
                 .doc = R"(
-                      Fetch any [Git LFS](https://git-lfs.com/) files.
+                      Fetch any [git LFS](https://git-lfs.com/) files.
 
                       Default: `false`
                     )",
@@ -299,7 +299,7 @@ struct git_input_scheme_t : InputScheme {
                       Unix timestamp of the fetched commit.
 
                       If set, pass through the value to the output attribute set.
-                      Otherwise, generated from the fetched Git tree.
+                      Otherwise, generated from the fetched git tree.
                     )",
             },
         },
@@ -309,10 +309,10 @@ struct git_input_scheme_t : InputScheme {
                 .type = "Integer",
                 .required = false,
                 .doc = R"(
-                      Number of revisions in the history of the Git repository before the fetched commit.
+                      Number of revisions in the history of the git repository before the fetched commit.
 
                       If set, pass through the value to the output attribute set.
-                      Otherwise, generated from the fetched Git tree.
+                      Otherwise, generated from the fetched git tree.
                     )",
             },
         },
@@ -372,48 +372,48 @@ struct git_input_scheme_t : InputScheme {
     for (auto& [name, _] : attrs)
       if (name == "verifyCommit" || name == "keytype" || name == "publicKey" ||
           name == "publicKeys")
-        experimentalFeatureSettings.require(xp_t::VerifiedFetches);
+        experimental_feature_settings.require(xp_t::verified_fetches);
 
-    maybeGetBoolAttr(attrs, "verifyCommit");
+    maybe_get_bool_attr(attrs, "verifyCommit");
 
-    if (auto ref = maybeGetStrAttr(attrs, "ref"); ref && !isLegalRefName(*ref))
+    if (auto ref = maybe_get_str_attr(attrs, "ref"); ref && !is_legal_ref_name(*ref))
       throw BadURL("invalid Git branch/tag name '%s'", *ref);
 
     Input input{};
     input.attrs = attrs;
-    input.attrs["url"] = fixGitURL(getStrAttr(attrs, "url")).to_string();
-    getShallowAttr(input);
-    getSubmodulesAttr(input);
-    getAllRefsAttr(input);
+    input.attrs["url"] = fix_git_url(get_str_attr(attrs, "url")).to_string();
+    get_shallow_attr(input);
+    get_submodules_attr(input);
+    get_all_refs_attr(input);
     return input;
   }
 
   parsed_url_t toURL(const Input& input, bool abbreviate) const override {
-    auto url = parseURL(getStrAttr(input.attrs, "url"));
+    auto url = parse_url(get_str_attr(input.attrs, "url"));
     if (url.scheme != "git")
       url.scheme = "git+" + url.scheme;
     if (auto rev = input.getRev())
-      url.query.insert_or_assign("rev", rev->gitRev());
+      url.query.insert_or_assign("rev", rev->git_rev());
     if (auto ref = input.getRef()) {
       if (!abbreviate || (*ref != "master" && *ref != "main"))
         url.query.insert_or_assign("ref", *ref);
     }
-    if (getShallowAttr(input))
+    if (get_shallow_attr(input))
       url.query.insert_or_assign("shallow", "1");
-    if (getLfsAttr(input))
+    if (get_lfs_attr(input))
       url.query.insert_or_assign("lfs", "1");
-    if (getSubmodulesAttr(input))
+    if (get_submodules_attr(input))
       url.query.insert_or_assign("submodules", "1");
-    if (maybeGetBoolAttr(input.attrs, "exportIgnore").value_or(false))
+    if (maybe_get_bool_attr(input.attrs, "exportIgnore").value_or(false))
       url.query.insert_or_assign("exportIgnore", "1");
-    if (maybeGetBoolAttr(input.attrs, "verifyCommit").value_or(false))
+    if (maybe_get_bool_attr(input.attrs, "verifyCommit").value_or(false))
       url.query.insert_or_assign("verifyCommit", "1");
-    auto publicKeys = getPublicKeys(input.attrs);
-    if (publicKeys.size() == 1) {
-      url.query.insert_or_assign("keytype", publicKeys.at(0).type);
-      url.query.insert_or_assign("publicKey", publicKeys.at(0).key);
-    } else if (publicKeys.size() > 1)
-      url.query.insert_or_assign("publicKeys", publicKeys_to_string(publicKeys));
+    auto public_keys = get_public_keys(input.attrs);
+    if (public_keys.size() == 1) {
+      url.query.insert_or_assign("keytype", public_keys.at(0).type);
+      url.query.insert_or_assign("publicKey", public_keys.at(0).key);
+    } else if (public_keys.size() > 1)
+      url.query.insert_or_assign("publicKeys", public_keys_to_string(public_keys));
     return url;
   }
 
@@ -421,7 +421,7 @@ struct git_input_scheme_t : InputScheme {
                        std::optional<Hash> rev) const override {
     auto res(input);
     if (rev)
-      res.attrs.insert_or_assign("rev", rev->gitRev());
+      res.attrs.insert_or_assign("rev", rev->git_rev());
     if (ref)
       res.attrs.insert_or_assign("ref", *ref);
     if (!res.getRef() && res.getRev())
@@ -430,12 +430,12 @@ struct git_input_scheme_t : InputScheme {
   }
 
   void clone(const settings_t& settings, Store& store, const Input& input,
-             const std::filesystem::path& destDir) const override {
-    auto repoInfo = getRepoInfo(input);
+             const std::filesystem::path& dest_dir) const override {
+    auto repo_info = get_repo_info(input);
 
     strings_t args = {"clone"};
 
-    args.push_back(repoInfo.locationToArg());
+    args.push_back(repo_info.location_to_arg());
 
     if (auto ref = input.getRef()) {
       args.push_back("--branch");
@@ -445,31 +445,31 @@ struct git_input_scheme_t : InputScheme {
     if (input.getRev())
       throw UnimplementedError("cloning a specific revision is not implemented");
 
-    args.push_back(destDir.string());
+    args.push_back(dest_dir.string());
 
-    runProgram("git", true, args, {}, true);
+    run_program("git", true, args, {}, true);
   }
 
-  std::optional<std::filesystem::path> getSourcePath(const Input& input) const override {
-    return getRepoInfo(input).getPath();
+  std::optional<std::filesystem::path> get_source_path(const Input& input) const override {
+    return get_repo_info(input).get_path();
   }
 
   void putFile(const Input& input, const canon_path_t& path, std::string_view contents,
-               std::optional<std::string> commitMsg) const override {
-    auto repoInfo = getRepoInfo(input);
-    auto repoPath = repoInfo.getPath();
-    if (!repoPath)
+               std::optional<std::string> commit_msg) const override {
+    auto repo_info = get_repo_info(input);
+    auto repo_path = repo_info.get_path();
+    if (!repo_path)
       throw Error("cannot commit '%s' to Git repository '%s' because it's not a working tree", path,
                   input.to_string());
 
-    writeFile(*repoPath / path.rel(), contents);
+    write_file(*repo_path / path.rel(), contents);
 
-    auto result = runProgram(run_options_t{
+    auto result = run_program(run_options_t{
         .program = "git",
-        .args = {"-C", repoPath->string(), "--git-dir", repoInfo.gitDir, "check-ignore", "--quiet",
+        .args = {"-C", repo_path->string(), "--git-dir", repo_info.git_dir, "check-ignore", "--quiet",
                  std::string(path.rel())},
     });
-    auto exitCode =
+    auto exit_code =
 #ifndef WIN32 // TODO abstract over exit status handling on Windows
         WEXITSTATUS(result.first)
 #else
@@ -477,19 +477,19 @@ struct git_input_scheme_t : InputScheme {
 #endif
         ;
 
-    if (exitCode != 0) {
+    if (exit_code != 0) {
       // The path is not `.gitignore`d, we can add the file.
-      runProgram("git", true,
-                 {"-C", repoPath->string(), "--git-dir", repoInfo.gitDir, "add", "--intent-to-add",
+      run_program("git", true,
+                 {"-C", repo_path->string(), "--git-dir", repo_info.git_dir, "add", "--intent-to-add",
                   "--", std::string(path.rel())});
 
-      if (commitMsg) {
+      if (commit_msg) {
         // Pause the logger to allow for user input (such as a gpg passphrase) in `git commit`
         auto suspension = logger->suspend();
-        runProgram("git", true,
-                   {"-C", repoPath->string(), "--git-dir", repoInfo.gitDir, "commit",
+        run_program("git", true,
+                   {"-C", repo_path->string(), "--git-dir", repo_info.git_dir, "commit",
                     std::string(path.rel()), "-F", "-"},
-                   *commitMsg);
+                   *commit_msg);
       }
     }
   }
@@ -501,78 +501,78 @@ struct git_input_scheme_t : InputScheme {
 
     /* Working directory info: the complete list of files, and
        whether the working directory is dirty compared to HEAD. */
-    GitRepo::WorkdirInfo workdirInfo;
+    GitRepo::WorkdirInfo workdir_info;
 
-    std::string locationToArg() const {
+    std::string location_to_arg() const {
       return std::visit(overloaded{[&](const std::filesystem::path& path) { return path.string(); },
                                    [&](const parsed_url_t& url) { return url.to_string(); }},
                         location);
     }
 
-    std::optional<std::filesystem::path> getPath() const {
+    std::optional<std::filesystem::path> get_path() const {
       if (auto path = std::get_if<std::filesystem::path>(&location))
         return *path;
       else
         return std::nullopt;
     }
 
-    void warnDirty(const settings_t& settings) const {
-      if (workdirInfo.isDirty) {
+    void warn_dirty(const settings_t& settings) const {
+      if (workdir_info.isDirty) {
         if (!settings.allowDirty)
-          throw Error("Git tree '%s' has uncommitted changes", locationToArg());
+          throw Error("Git tree '%s' has uncommitted changes", location_to_arg());
 
-        if (settings.warnDirty)
-          warn("Git tree '%s' has uncommitted changes", locationToArg());
+        if (settings.warn_dirty)
+          warn("Git tree '%s' has uncommitted changes", location_to_arg());
       }
     }
 
-    std::string gitDir = ".git";
+    std::string git_dir = ".git";
   };
 
-  bool getShallowAttr(const Input& input) const {
-    return maybeGetBoolAttr(input.attrs, "shallow").value_or(false);
+  bool get_shallow_attr(const Input& input) const {
+    return maybe_get_bool_attr(input.attrs, "shallow").value_or(false);
   }
 
-  bool getSubmodulesAttr(const Input& input) const {
-    return maybeGetBoolAttr(input.attrs, "submodules").value_or(false);
+  bool get_submodules_attr(const Input& input) const {
+    return maybe_get_bool_attr(input.attrs, "submodules").value_or(false);
   }
 
-  bool getLfsAttr(const Input& input) const {
-    return maybeGetBoolAttr(input.attrs, "lfs").value_or(false);
+  bool get_lfs_attr(const Input& input) const {
+    return maybe_get_bool_attr(input.attrs, "lfs").value_or(false);
   }
 
-  bool getExportIgnoreAttr(const Input& input) const {
-    return maybeGetBoolAttr(input.attrs, "exportIgnore").value_or(false);
+  bool get_export_ignore_attr(const Input& input) const {
+    return maybe_get_bool_attr(input.attrs, "exportIgnore").value_or(false);
   }
 
-  bool getAllRefsAttr(const Input& input) const {
-    return maybeGetBoolAttr(input.attrs, "allRefs").value_or(false);
+  bool get_all_refs_attr(const Input& input) const {
+    return maybe_get_bool_attr(input.attrs, "allRefs").value_or(false);
   }
 
-  repo_info_t getRepoInfo(const Input& input) const {
-    auto checkHashAlgorithm = [&](const std::optional<Hash>& hash) {
+  repo_info_t get_repo_info(const Input& input) const {
+    auto check_hash_algorithm = [&](const std::optional<Hash>& hash) {
       if (hash.has_value() &&
           !(hash->algo == hash_algorithm_t::SHA1 || hash->algo == hash_algorithm_t::SHA256))
         throw Error("Hash '%s' is not supported by Git. Supported types are sha1 and sha256.",
-                    hash->to_string(hash_format_t::Base16, true));
+                    hash->to_string(hash_format_t::base16, true));
     };
 
     if (auto rev = input.getRev())
-      checkHashAlgorithm(rev);
+      check_hash_algorithm(rev);
 
-    repo_info_t repoInfo;
+    repo_info_t repo_info;
 
     // file:// URIs are normally not cloned (but otherwise treated the
     // same as remote URIs, i.e. we don't use the working tree or
     // HEAD). Exception: If _NIX_FORCE_HTTP is set, or the repo is a bare git
     // repo, treat as a remote URI to force a clone.
-    static bool forceHttp = getEnv("_NIX_FORCE_HTTP") == "1"; // for testing
-    auto url = parseURL(getStrAttr(input.attrs, "url"));
+    static bool force_http = get_env("_NIX_FORCE_HTTP") == "1"; // for testing
+    auto url = parse_url(get_str_attr(input.attrs, "url"));
 
     // Why are we checking for bare repository?
     // well if it's a bare repository we want to force a git fetch rather than copying the folder
-    auto isBareRepository = [](path_view_t path) {
-      return pathExists(path) && !pathExists(path + "/.git");
+    auto is_bare_repository = [](path_view_t path) {
+      return path_exists(path) && !path_exists(path + "/.git");
     };
 
     // FIXME: here we turn a possibly relative path into an absolute path.
@@ -583,22 +583,22 @@ struct git_input_scheme_t : InputScheme {
     //
     // See: https://discourse.nixos.org/t/57783 and #9708
     //
-    if (url.scheme == "file" && !forceHttp &&
-        !isBareRepository(renderUrlPathEnsureLegal(url.path))) {
-      auto path = renderUrlPathEnsureLegal(url.path);
+    if (url.scheme == "file" && !force_http &&
+        !is_bare_repository(render_url_path_ensure_legal(url.path))) {
+      auto path = render_url_path_ensure_legal(url.path);
 
-      if (!isAbsolute(path)) {
+      if (!is_absolute(path)) {
         warn("Fetching Git repository '%s', which uses a path relative to the current directory. "
              "This is not supported and will stop working in a future release. "
              "See https://github.com/NixOS/nix/issues/12281 for details.",
              url);
       }
 
-      repoInfo.location = std::filesystem::absolute(path);
+      repo_info.location = std::filesystem::absolute(path);
     } else {
       if (url.scheme == "file")
         /* Query parameters are meaningless for file://, but
-           Git interprets them as part of the file name. So get
+           git interprets them as part of the file name. So get
            rid of them. */
         url.query.clear();
       /* Backward compatibility hack: In old versions of Nix, if you had
@@ -631,88 +631,88 @@ struct git_input_scheme_t : InputScheme {
          For this reason, we are filtering the `dir` query parameter from the URL
          before passing it to git. */
       url.query.erase("dir");
-      repoInfo.location = url;
+      repo_info.location = url;
     }
 
     // If this is a local directory and no ref or revision is
     // given, then allow the use of an unclean working tree.
-    if (auto repoPath = repoInfo.getPath(); !input.getRef() && !input.getRev() && repoPath)
-      repoInfo.workdirInfo = GitRepo::getCachedWorkdirInfo(*repoPath);
+    if (auto repo_path = repo_info.get_path(); !input.getRef() && !input.getRev() && repo_path)
+      repo_info.workdir_info = GitRepo::getCachedWorkdirInfo(*repo_path);
 
-    return repoInfo;
+    return repo_info;
   }
 
-  uint64_t getLastModified(const settings_t& settings, const repo_info_t& repoInfo,
-                           const std::filesystem::path& repoDir, const Hash& rev) const {
-    Cache::Key key{"gitLastModified", {{"rev", rev.gitRev()}}};
+  uint64_t get_last_modified(const settings_t& settings, const repo_info_t& repo_info,
+                           const std::filesystem::path& repo_dir, const Hash& rev) const {
+    cache_t::Key key{"gitLastModified", {{"rev", rev.git_rev()}}};
 
-    auto cache = settings.getCache();
+    auto cache = settings.get_cache();
 
     if (auto res = cache->lookup(key))
-      return getIntAttr(*res, "lastModified");
+      return get_int_attr(*res, "lastModified");
 
-    auto lastModified = GitRepo::openRepo(repoDir, {})->getLastModified(rev);
+    auto last_modified = GitRepo::openRepo(repo_dir, {})->get_last_modified(rev);
 
-    cache->upsert(key, {{"lastModified", lastModified}});
+    cache->upsert(key, {{"lastModified", last_modified}});
 
-    return lastModified;
+    return last_modified;
   }
 
-  uint64_t getRevCount(const settings_t& settings, const repo_info_t& repoInfo,
-                       const std::filesystem::path& repoDir, const Hash& rev) const {
-    Cache::Key key{"gitRevCount", {{"rev", rev.gitRev()}}};
+  uint64_t get_rev_count(const settings_t& settings, const repo_info_t& repo_info,
+                       const std::filesystem::path& repo_dir, const Hash& rev) const {
+    cache_t::Key key{"gitRevCount", {{"rev", rev.git_rev()}}};
 
-    auto cache = settings.getCache();
+    auto cache = settings.get_cache();
 
     if (auto revCountAttrs = cache->lookup(key))
-      return getIntAttr(*revCountAttrs, "revCount");
+      return get_int_attr(*revCountAttrs, "revCount");
 
-    activity_t act(*logger, lvlChatty, actUnknown,
-                 fmt("getting Git revision count of '%s'", repoInfo.locationToArg()));
+    activity_t act(*logger, lvl_chatty, act_unknown,
+                 fmt("getting Git revision count of '%s'", repo_info.location_to_arg()));
 
-    auto revCount = GitRepo::openRepo(repoDir, {})->getRevCount(rev);
+    auto rev_count = GitRepo::openRepo(repo_dir, {})->get_rev_count(rev);
 
-    cache->upsert(key, Attrs{{"revCount", revCount}});
+    cache->upsert(key, Attrs{{"revCount", rev_count}});
 
-    return revCount;
+    return rev_count;
   }
 
-  std::string getDefaultRef(const repo_info_t& repoInfo, bool shallow) const {
+  std::string get_default_ref(const repo_info_t& repo_info, bool shallow) const {
     auto head = std::visit(
         overloaded{[&](const std::filesystem::path& path) {
                      return GitRepo::openRepo(path, {})->getWorkdirRef();
                    },
-                   [&](const parsed_url_t& url) { return readHeadCached(url.to_string(), shallow); }},
-        repoInfo.location);
+                   [&](const parsed_url_t& url) { return read_head_cached(url.to_string(), shallow); }},
+        repo_info.location);
     if (!head) {
-      warn("could not read HEAD ref from repo at '%s', using 'master'", repoInfo.locationToArg());
+      warn("could not read HEAD ref from repo at '%s', using 'master'", repo_info.location_to_arg());
       return "master";
     }
     return *head;
   }
 
-  static MakeNotAllowedError makeNotAllowedError(std::filesystem::path repoPath) {
-    return [repoPath{std::move(repoPath)}](const canon_path_t& path) -> RestrictedPathError {
-      if (pathExists(repoPath / path.rel()))
+  static MakeNotAllowedError make_not_allowed_error(std::filesystem::path repo_path) {
+    return [repo_path{std::move(repo_path)}](const canon_path_t& path) -> RestrictedPathError {
+      if (path_exists(repo_path / path.rel()))
         return RestrictedPathError("Path '%1%' in the repository %2% is not tracked by Git.\n"
                                    "\n"
                                    "To make it visible to Nix, run:\n"
                                    "\n"
                                    "git -C %2% add \"%1%\"",
-                                   path.rel(), repoPath);
+                                   path.rel(), repo_path);
       else
         return RestrictedPathError("Path '%s' does not exist in Git repository %s.", path.rel(),
-                                   repoPath);
+                                   repo_path);
     };
   }
 
-  void verifyCommit(const Input& input, std::shared_ptr<GitRepo> repo) const {
-    auto publicKeys = getPublicKeys(input.attrs);
-    auto verifyCommit = maybeGetBoolAttr(input.attrs, "verifyCommit").value_or(!publicKeys.empty());
+  void verify_commit(const Input& input, std::shared_ptr<GitRepo> repo) const {
+    auto public_keys = get_public_keys(input.attrs);
+    auto verify_commit = maybe_get_bool_attr(input.attrs, "verifyCommit").value_or(!public_keys.empty());
 
-    if (verifyCommit) {
+    if (verify_commit) {
       if (input.getRev() && repo)
-        repo->verifyCommit(*input.getRev(), publicKeys);
+        repo->verify_commit(*input.getRev(), public_keys);
       else
         throw Error("commit verification is required for Git repository '%s', but it's dirty",
                     input.to_string());
@@ -721,162 +721,162 @@ struct git_input_scheme_t : InputScheme {
 
   /**
    * Decide whether we can do a shallow clone, which is faster. This is possible if the user
-   * explicitly specified `shallow = true`, or if we already have a `revCount`.
+   * explicitly specified `shallow = true`, or if we already have a `rev_count`.
    */
-  bool canDoShallow(const Input& input) const {
-    bool shallow = getShallowAttr(input);
-    return shallow || input.getRevCount().has_value();
+  bool can_do_shallow(const Input& input) const {
+    bool shallow = get_shallow_attr(input);
+    return shallow || input.get_rev_count().has_value();
   }
 
-  GitAccessorOptions getGitAccessorOptions(const Input& input) const {
+  GitAccessorOptions get_git_accessor_options(const Input& input) const {
     return GitAccessorOptions{
-        .exportIgnore = getExportIgnoreAttr(input),
-        .smudgeLfs = getLfsAttr(input),
-        .submodules = getSubmodulesAttr(input),
+        .export_ignore = get_export_ignore_attr(input),
+        .smudgeLfs = get_lfs_attr(input),
+        .submodules = get_submodules_attr(input),
     };
   }
 
   /**
-   * Get a `SourceAccessor` for the given Git revision using Nix < 2.20 semantics, i.e. using `git
+   * Get a `SourceAccessor` for the given git revision using Nix < 2.20 semantics, i.e. using `git
    * archive` or `git checkout`.
    */
-  ref<SourceAccessor> getLegacyGitAccessor(Store& store, repo_info_t& repoInfo,
-                                           const std::filesystem::path& repoDir, const Hash& rev,
+  ref<SourceAccessor> get_legacy_git_accessor(Store& store, repo_info_t& repo_info,
+                                           const std::filesystem::path& repo_dir, const Hash& rev,
                                            GitAccessorOptions& options) const {
-    auto tmpDir = createTempDir();
-    auto_delete_t delTmpDir(tmpDir, true);
+    auto tmp_dir = create_temp_dir();
+    auto_delete_t del_tmp_dir(tmp_dir, true);
 
-    auto storePath =
+    auto store_path =
         options.submodules ? [&]() {
           // Nix < 2.20 used `git checkout` for repos with submodules.
-          runProgram2({.program = "git", .args = {"init", tmpDir}});
-          runProgram2(
-              {.program = "git", .args = {"-C", tmpDir, "remote", "add", "origin", repoDir}});
-          runProgram2({.program = "git", .args = {"-C", tmpDir, "fetch", "origin", rev.gitRev()}});
-          runProgram2({.program = "git", .args = {"-C", tmpDir, "checkout", rev.gitRev()}});
-          path_filter_t filter = [&](const Path& path) { return baseNameOf(path) != ".git"; };
-          return store.addToStore("source", {getFSSourceAccessor(), canon_path_t(tmpDir.string())},
-                                  ContentAddressMethod::raw_t::NixArchive, hash_algorithm_t::SHA256, {},
+          run_program2({.program = "git", .args = {"init", tmp_dir}});
+          run_program2(
+              {.program = "git", .args = {"-C", tmp_dir, "remote", "add", "origin", repo_dir}});
+          run_program2({.program = "git", .args = {"-C", tmp_dir, "fetch", "origin", rev.git_rev()}});
+          run_program2({.program = "git", .args = {"-C", tmp_dir, "checkout", rev.git_rev()}});
+          path_filter_t filter = [&](const Path& path) { return base_name_of(path) != ".git"; };
+          return store.add_to_store("source", {get_fs_source_accessor(), canon_path_t(tmp_dir.string())},
+                                  ContentAddressMethod::raw_t::nix_archive, hash_algorithm_t::SHA256, {},
                                   filter);
         }()
                            : [&]() {
                                // Nix < 2.20 used `git archive` for repos without submodules.
-                               options.exportIgnore = true;
+                               options.export_ignore = true;
 
-                               auto source = sinkToSource([&](Sink& sink) {
-                                 runProgram2({.program = "git",
-                                              .args = {"-C", repoDir, "--git-dir", repoInfo.gitDir,
-                                                       "archive", rev.gitRev()},
-                                              .standardOut = &sink});
+                               auto source = sink_to_source([&](Sink& sink) {
+                                 run_program2({.program = "git",
+                                              .args = {"-C", repo_dir, "--git-dir", repo_info.git_dir,
+                                                       "archive", rev.git_rev()},
+                                              .standard_out = &sink});
                                });
 
-                               unpackTarfile(*source, tmpDir);
+                               unpack_tarfile(*source, tmp_dir);
 
-                               return store.addToStore(
-                                   "source", {getFSSourceAccessor(), canon_path_t(tmpDir.string())});
+                               return store.add_to_store(
+                                   "source", {get_fs_source_accessor(), canon_path_t(tmp_dir.string())});
                              }();
 
-    auto accessor = store.getFSAccessor(storePath);
+    auto accessor = store.getFSAccessor(store_path);
 
     accessor->fingerprint = options.makeFingerprint(rev) + ";legacy";
 
     return ref{accessor};
   }
 
-  std::pair<ref<SourceAccessor>, Input> getAccessorFromCommit(const settings_t& settings,
-                                                              Store& store, repo_info_t& repoInfo,
+  std::pair<ref<SourceAccessor>, Input> get_accessor_from_commit(const settings_t& settings,
+                                                              Store& store, repo_info_t& repo_info,
                                                               Input&& input) const {
-    assert(!repoInfo.workdirInfo.isDirty);
+    assert(!repo_info.workdir_info.isDirty);
 
-    auto origRev = input.getRev();
+    auto orig_rev = input.getRev();
 
-    auto originalRef = input.getRef();
-    bool shallow = canDoShallow(input);
-    auto ref = originalRef ? *originalRef : getDefaultRef(repoInfo, shallow);
+    auto original_ref = input.getRef();
+    bool shallow = can_do_shallow(input);
+    auto ref = original_ref ? *original_ref : get_default_ref(repo_info, shallow);
     input.attrs.insert_or_assign("ref", ref);
 
-    std::filesystem::path repoDir;
+    std::filesystem::path repo_dir;
 
-    if (auto repoPath = repoInfo.getPath()) {
-      repoDir = *repoPath;
+    if (auto repo_path = repo_info.get_path()) {
+      repo_dir = *repo_path;
       if (!input.getRev())
         input.attrs.insert_or_assign("rev",
-                                     GitRepo::openRepo(repoDir, {})->resolveRef(ref).gitRev());
+                                     GitRepo::openRepo(repo_dir, {})->resolveRef(ref).git_rev());
     } else {
       auto rev = input.getRev();
-      auto repoUrl = std::get<parsed_url_t>(repoInfo.location);
-      std::filesystem::path cacheDir = getCachePath(repoUrl.to_string(), shallow);
-      repoDir = cacheDir;
-      repoInfo.gitDir = ".";
+      auto repo_url = std::get<parsed_url_t>(repo_info.location);
+      std::filesystem::path cache_dir = get_cache_path(repo_url.to_string(), shallow);
+      repo_dir = cache_dir;
+      repo_info.git_dir = ".";
 
       /* If shallow = false, but we have a non-shallow repo that already contains the desired rev,
        * then use that repo instead. */
-      std::filesystem::path cacheDirNonShallow = getCachePath(repoUrl.to_string(), false);
-      if (rev && shallow && pathExists(cacheDirNonShallow)) {
-        auto nonShallowRepo = GitRepo::openRepo(cacheDirNonShallow, {.create = true, .bare = true});
-        if (nonShallowRepo->hasObject(*rev)) {
+      std::filesystem::path cache_dir_non_shallow = get_cache_path(repo_url.to_string(), false);
+      if (rev && shallow && path_exists(cache_dir_non_shallow)) {
+        auto non_shallow_repo = GitRepo::openRepo(cache_dir_non_shallow, {.create = true, .bare = true});
+        if (non_shallow_repo->hasObject(*rev)) {
           debug("using non-shallow cached repo for '%s' since it contains rev '%s'",
-                repoUrl.to_string(), rev->gitRev());
-          repoDir = cacheDirNonShallow;
+                repo_url.to_string(), rev->git_rev());
+          repo_dir = cache_dir_non_shallow;
           goto have_rev;
         }
       }
 
-      std::filesystem::create_directories(cacheDir.parent_path());
-      PathLocks cacheDirLock({cacheDir.string()});
+      std::filesystem::create_directories(cache_dir.parent_path());
+      PathLocks cache_dir_lock({cache_dir.string()});
 
-      auto repo = GitRepo::openRepo(cacheDir, {.create = true, .bare = true});
+      auto repo = GitRepo::openRepo(cache_dir, {.create = true, .bare = true});
 
       // We need to set the origin so resolving submodule URLs works
-      repo->setRemote("origin", repoUrl.to_string());
+      repo->setRemote("origin", repo_url.to_string());
 
-      auto localRefFile =
-          ref.compare(0, 5, "refs/") == 0 ? cacheDir / ref : cacheDir / "refs/heads" / ref;
+      auto local_ref_file =
+          ref.compare(0, 5, "refs/") == 0 ? cache_dir / ref : cache_dir / "refs/heads" / ref;
 
-      bool doFetch = false;
+      bool do_fetch = false;
       time_t now = time(0);
 
       /* If a rev was specified, we need to fetch if it's not in the
          repo. */
       if (rev) {
-        doFetch = !repo->hasObject(*rev);
+        do_fetch = !repo->hasObject(*rev);
       } else {
-        if (getAllRefsAttr(input)) {
-          doFetch = true;
+        if (get_all_refs_attr(input)) {
+          do_fetch = true;
         } else {
           /* If the local ref is older than ‘tarball-ttl’ seconds, do a
              git fetch to update the local ref to the remote ref. */
           struct stat st;
-          doFetch = stat(localRefFile.string().c_str(), &st) != 0 || !isCacheFileWithinTtl(now, st);
+          do_fetch = stat(local_ref_file.string().c_str(), &st) != 0 || !is_cache_file_within_ttl(now, st);
         }
       }
 
-      if (doFetch) {
+      if (do_fetch) {
         try {
-          auto fetchRef = getAllRefsAttr(input)             ? "refs/*:refs/*"
-                          : input.getRev()                  ? input.getRev()->gitRev()
+          auto fetch_ref = get_all_refs_attr(input)             ? "refs/*:refs/*"
+                          : input.getRev()                  ? input.getRev()->git_rev()
                           : ref.compare(0, 5, "refs/") == 0 ? fmt("%1%:%1%", ref)
                           : ref == "HEAD"                   ? "HEAD:HEAD"
                                                             : fmt("%1%:%1%", "refs/heads/" + ref);
 
-          repo->fetch(repoUrl.to_string(), fetchRef, shallow);
+          repo->fetch(repo_url.to_string(), fetch_ref, shallow);
         } catch (Error& e) {
-          if (!std::filesystem::exists(localRefFile))
+          if (!std::filesystem::exists(local_ref_file))
             throw;
           logError(e.info());
           warn("could not update local clone of Git repository '%s'; continuing with the most "
                "recent version",
-               repoInfo.locationToArg());
+               repo_info.location_to_arg());
         }
 
         try {
           if (!input.getRev())
-            setWriteTime(localRefFile, now, now);
+            set_write_time(local_ref_file, now, now);
         } catch (Error& e) {
-          warn("could not update mtime for file %s: %s", localRefFile, e.info().msg);
+          warn("could not update mtime for file %s: %s", local_ref_file, e.info().msg);
         }
-        if (!originalRef && !storeCachedHead(repoUrl.to_string(), shallow, ref))
-          warn("could not update cached head '%s' for '%s'", ref, repoInfo.locationToArg());
+        if (!original_ref && !store_cached_head(repo_url.to_string(), shallow, ref))
+          warn("could not update cached head '%s' for '%s'", ref, repo_info.location_to_arg());
       }
 
       if (rev) {
@@ -886,88 +886,88 @@ struct git_input_scheme_t : InputScheme {
                       " exists on the " ANSI_BOLD "ref" ANSI_NORMAL
                       " you've specified or add " ANSI_BOLD "allRefs = true;" ANSI_NORMAL
                       " to " ANSI_BOLD "fetchGit" ANSI_NORMAL ".",
-                      rev->gitRev(), ref, repoInfo.locationToArg());
+                      rev->git_rev(), ref, repo_info.location_to_arg());
       } else
-        input.attrs.insert_or_assign("rev", repo->resolveRef(ref).gitRev());
+        input.attrs.insert_or_assign("rev", repo->resolveRef(ref).git_rev());
 
       // cache dir lock is removed at scope end; we will only use read-only operations on specific
       // revisions in the remainder
     }
 
   have_rev:
-    auto repo = GitRepo::openRepo(repoDir, {});
+    auto repo = GitRepo::openRepo(repo_dir, {});
 
     // FIXME: check whether rev is an ancestor of ref?
 
     auto rev = *input.getRev();
 
-    /* Skip lastModified computation if it's already supplied by the caller.
+    /* Skip last_modified computation if it's already supplied by the caller.
        We don't care if they specify an incorrect value; it doesn't
-       matter for security, unlike narHash. */
+       matter for security, unlike nar_hash. */
     if (!input.attrs.contains("lastModified"))
       input.attrs.insert_or_assign("lastModified",
-                                   getLastModified(settings, repoInfo, repoDir, rev));
+                                   get_last_modified(settings, repo_info, repo_dir, rev));
 
-    /* Like lastModified, skip revCount if supplied by the caller. */
+    /* Like last_modified, skip rev_count if supplied by the caller. */
     if (!shallow && !input.attrs.contains("revCount")) {
-      auto isShallow = repo->isShallow();
+      auto is_shallow = repo->is_shallow();
 
-      if (isShallow && !shallow)
+      if (is_shallow && !shallow)
         throw Error("'%s' is a shallow Git repository, but shallow repositories are only allowed "
                     "when `shallow = true;` is specified",
-                    repoInfo.locationToArg());
+                    repo_info.location_to_arg());
 
-      input.attrs.insert_or_assign("revCount", getRevCount(settings, repoInfo, repoDir, rev));
+      input.attrs.insert_or_assign("revCount", get_rev_count(settings, repo_info, repo_dir, rev));
     }
 
-    printTalkative("using revision %s of repo '%s'", rev.gitRev(), repoInfo.locationToArg());
+    printTalkative("using revision %s of repo '%s'", rev.git_rev(), repo_info.location_to_arg());
 
-    verifyCommit(input, repo);
+    verify_commit(input, repo);
 
-    auto options = getGitAccessorOptions(input);
+    auto options = get_git_accessor_options(input);
 
-    auto expectedNarHash = input.getNarHash();
+    auto expected_nar_hash = input.getNarHash();
 
-    auto accessor = repo->getAccessor(rev, options, "«" + input.to_string(true) + "»");
+    auto accessor = repo->get_accessor(rev, options, "«" + input.to_string(true) + "»");
 
     if (settings.nix219Compat && !options.smudgeLfs &&
-        accessor->pathExists(canon_path_t(".gitattributes"))) {
-      /* Use Nix 2.19 semantics to generate locks, but if a NAR hash is specified, support Nix
+        accessor->path_exists(canon_path_t(".gitattributes"))) {
+      /* use Nix 2.19 semantics to generate locks, but if a NAR hash is specified, support Nix
        * >= 2.20 semantics as well. */
       warn("Using Nix 2.19 semantics to export Git repository '%s'.", input.to_string());
-      auto accessorModern = accessor;
-      accessor = getLegacyGitAccessor(store, repoInfo, repoDir, rev, options);
-      if (expectedNarHash) {
-        auto narHashLegacy =
-            fetchToStore2(settings, store, {accessor}, FetchMode::DryRun, input.getName()).second;
-        if (expectedNarHash != narHashLegacy) {
-          auto narHashModern =
-              fetchToStore2(settings, store, {accessorModern}, FetchMode::DryRun, input.getName())
+      auto accessor_modern = accessor;
+      accessor = get_legacy_git_accessor(store, repo_info, repo_dir, rev, options);
+      if (expected_nar_hash) {
+        auto nar_hash_legacy =
+            fetch_to_store2(settings, store, {accessor}, FetchMode::DryRun, input.get_name()).second;
+        if (expected_nar_hash != nar_hash_legacy) {
+          auto nar_hash_modern =
+              fetch_to_store2(settings, store, {accessor_modern}, FetchMode::DryRun, input.get_name())
                   .second;
-          if (expectedNarHash == narHashModern)
-            accessor = accessorModern;
+          if (expected_nar_hash == nar_hash_modern)
+            accessor = accessor_modern;
         }
       }
     } else {
       /* Backward compatibility hack for locks produced by Nix < 2.20 that depend on Nix applying
-       * Git filters, `export-ignore` or `export-subst`. Nix >= 2.20 doesn't do those, so we may get
+       * git filters, `export-ignore` or `export-subst`. Nix >= 2.20 doesn't do those, so we may get
        * a NAR hash mismatch. If that happens, try again using `git archive`. */
-      auto narHashNew =
-          fetchToStore2(settings, store, {accessor}, FetchMode::DryRun, input.getName()).second;
-      if (expectedNarHash && accessor->pathExists(canon_path_t(".gitattributes"))) {
-        if (expectedNarHash != narHashNew) {
-          auto accessorLegacy = getLegacyGitAccessor(store, repoInfo, repoDir, rev, options);
-          auto narHashLegacy =
-              fetchToStore2(settings, store, {accessorLegacy}, FetchMode::DryRun, input.getName())
+      auto nar_hash_new =
+          fetch_to_store2(settings, store, {accessor}, FetchMode::DryRun, input.get_name()).second;
+      if (expected_nar_hash && accessor->path_exists(canon_path_t(".gitattributes"))) {
+        if (expected_nar_hash != nar_hash_new) {
+          auto accessor_legacy = get_legacy_git_accessor(store, repo_info, repo_dir, rev, options);
+          auto nar_hash_legacy =
+              fetch_to_store2(settings, store, {accessor_legacy}, FetchMode::DryRun, input.get_name())
                   .second;
-          if (expectedNarHash == narHashLegacy) {
+          if (expected_nar_hash == nar_hash_legacy) {
             warn("Git input '%s' specifies a NAR hash '%s' that was created by Nix < 2.20.\n"
                  "Nix >= 2.20 does not apply Git filters, `export-ignore` and `export-subst` by "
                  "default, which changes the NAR hash.\n"
                  "Please update the NAR hash to '%s'.",
-                 input.to_string(), expectedNarHash->to_string(hash_format_t::SRI, true),
-                 narHashNew.to_string(hash_format_t::SRI, true));
-            accessor = accessorLegacy;
+                 input.to_string(), expected_nar_hash->to_string(hash_format_t::SRI, true),
+                 nar_hash_new.to_string(hash_format_t::SRI, true));
+            accessor = accessor_legacy;
           }
         }
       }
@@ -979,10 +979,10 @@ struct git_input_scheme_t : InputScheme {
     if (options.submodules) {
       std::map<canon_path_t, nix::ref<SourceAccessor>> mounts;
 
-      for (auto& [submodule, submoduleRev] : repo->getSubmodules(rev, options.exportIgnore)) {
+      for (auto& [submodule, submoduleRev] : repo->getSubmodules(rev, options.export_ignore)) {
         auto resolved = repo->resolveSubmoduleUrl(submodule.url);
         debug("Git submodule %s: %s %s %s -> %s", submodule.path, submodule.url, submodule.branch,
-              submoduleRev.gitRev(), resolved);
+              submoduleRev.git_rev(), resolved);
         fetchers::Attrs attrs;
         attrs.insert_or_assign("type", "git");
         attrs.insert_or_assign("url", resolved);
@@ -996,123 +996,123 @@ struct git_input_scheme_t : InputScheme {
             attrs.insert_or_assign("ref", submodule.branch);
           }
         }
-        attrs.insert_or_assign("rev", submoduleRev.gitRev());
-        attrs.insert_or_assign("exportIgnore", Explicit<bool>{options.exportIgnore});
+        attrs.insert_or_assign("rev", submoduleRev.git_rev());
+        attrs.insert_or_assign("exportIgnore", Explicit<bool>{options.export_ignore});
         attrs.insert_or_assign("submodules", Explicit<bool>{true});
         attrs.insert_or_assign("lfs", Explicit<bool>{options.smudgeLfs});
         attrs.insert_or_assign("allRefs", Explicit<bool>{true});
         auto submoduleInput = fetchers::Input::fromAttrs(settings, std::move(attrs));
-        auto [submoduleAccessor, submoduleInput2] = submoduleInput.getAccessor(settings, store);
-        submoduleAccessor->setPathDisplay("«" + submoduleInput.to_string(true) + "»");
+        auto [submoduleAccessor, submoduleInput2] = submoduleInput.get_accessor(settings, store);
+        submoduleAccessor->set_path_display("«" + submoduleInput.to_string(true) + "»");
         mounts.insert_or_assign(submodule.path, submoduleAccessor);
       }
 
       if (!mounts.empty()) {
-        auto newFingerprint = accessor->getFingerprint(canon_path_t::root).second->append(";s");
+        auto new_fingerprint = accessor->get_fingerprint(canon_path_t::root).second->append(";s");
         mounts.insert_or_assign(canon_path_t::root, accessor);
-        accessor = makeMountedSourceAccessor(std::move(mounts));
-        accessor->fingerprint = newFingerprint;
+        accessor = make_mounted_source_accessor(std::move(mounts));
+        accessor->fingerprint = new_fingerprint;
       }
     }
 
-    assert(!origRev || origRev == rev);
+    assert(!orig_rev || orig_rev == rev);
 
     return {accessor, std::move(input)};
   }
 
-  std::pair<ref<SourceAccessor>, Input> getAccessorFromWorkdir(const settings_t& settings,
-                                                               Store& store, repo_info_t& repoInfo,
+  std::pair<ref<SourceAccessor>, Input> get_accessor_from_workdir(const settings_t& settings,
+                                                               Store& store, repo_info_t& repo_info,
                                                                Input&& input) const {
-    auto repoPath = repoInfo.getPath().value();
+    auto repo_path = repo_info.get_path().value();
 
-    if (getSubmodulesAttr(input))
+    if (get_submodules_attr(input))
       /* Create mountpoints for the submodules. */
-      for (auto& submodule : repoInfo.workdirInfo.submodules)
-        repoInfo.workdirInfo.files.insert(submodule.path);
+      for (auto& submodule : repo_info.workdir_info.submodules)
+        repo_info.workdir_info.files.insert(submodule.path);
 
-    auto repo = GitRepo::openRepo(repoPath, {});
+    auto repo = GitRepo::openRepo(repo_path, {});
 
-    auto exportIgnore = getExportIgnoreAttr(input);
+    auto export_ignore = get_export_ignore_attr(input);
 
-    ref<SourceAccessor> accessor = repo->getAccessor(
-        repoInfo.workdirInfo, {.exportIgnore = exportIgnore}, makeNotAllowedError(repoPath));
+    ref<SourceAccessor> accessor = repo->get_accessor(
+        repo_info.workdir_info, {.export_ignore = export_ignore}, make_not_allowed_error(repo_path));
 
     /* If the repo has submodules, return a mounted input accessor
        consisting of the accessor for the top-level repo and the
        accessors for the submodule workdirs. */
-    if (getSubmodulesAttr(input) && !repoInfo.workdirInfo.submodules.empty()) {
+    if (get_submodules_attr(input) && !repo_info.workdir_info.submodules.empty()) {
       std::map<canon_path_t, nix::ref<SourceAccessor>> mounts;
 
-      for (auto& submodule : repoInfo.workdirInfo.submodules) {
-        auto submodulePath = repoPath / submodule.path.rel();
+      for (auto& submodule : repo_info.workdir_info.submodules) {
+        auto submodulePath = repo_path / submodule.path.rel();
         fetchers::Attrs attrs;
         attrs.insert_or_assign("type", "git");
         attrs.insert_or_assign("url", submodulePath.string());
-        attrs.insert_or_assign("exportIgnore", Explicit<bool>{exportIgnore});
+        attrs.insert_or_assign("exportIgnore", Explicit<bool>{export_ignore});
         attrs.insert_or_assign("submodules", Explicit<bool>{true});
         // TODO: fall back to getAccessorFromCommit-like fetch when submodules aren't checked out
         // attrs.insert_or_assign("allRefs", Explicit<bool>{ true });
 
         auto submoduleInput = fetchers::Input::fromAttrs(settings, std::move(attrs));
-        auto [submoduleAccessor, submoduleInput2] = submoduleInput.getAccessor(settings, store);
-        submoduleAccessor->setPathDisplay("«" + submoduleInput.to_string(true) + "»");
+        auto [submoduleAccessor, submoduleInput2] = submoduleInput.get_accessor(settings, store);
+        submoduleAccessor->set_path_display("«" + submoduleInput.to_string(true) + "»");
 
         /* If the submodule is dirty, mark this repo dirty as
            well. */
         if (!submoduleInput2.getRev())
-          repoInfo.workdirInfo.isDirty = true;
+          repo_info.workdir_info.isDirty = true;
 
         mounts.insert_or_assign(submodule.path, submoduleAccessor);
       }
 
       mounts.insert_or_assign(canon_path_t::root, accessor);
-      accessor = makeMountedSourceAccessor(std::move(mounts));
+      accessor = make_mounted_source_accessor(std::move(mounts));
     }
 
-    if (!repoInfo.workdirInfo.isDirty) {
-      auto repo = GitRepo::openRepo(repoPath, {});
+    if (!repo_info.workdir_info.isDirty) {
+      auto repo = GitRepo::openRepo(repo_path, {});
 
       if (auto ref = repo->getWorkdirRef())
         input.attrs.insert_or_assign("ref", *ref);
 
       /* Return a rev of 000... if there are no commits yet. */
-      auto rev = repoInfo.workdirInfo.headRev.value_or(nullRev);
+      auto rev = repo_info.workdir_info.headRev.value_or(null_rev);
 
-      input.attrs.insert_or_assign("rev", rev.gitRev());
-      if (!getShallowAttr(input)) {
+      input.attrs.insert_or_assign("rev", rev.git_rev());
+      if (!get_shallow_attr(input)) {
         input.attrs.insert_or_assign(
-            "revCount", rev == nullRev ? 0 : getRevCount(settings, repoInfo, repoPath, rev));
+            "revCount", rev == null_rev ? 0 : get_rev_count(settings, repo_info, repo_path, rev));
       }
 
-      verifyCommit(input, repo);
+      verify_commit(input, repo);
     } else {
-      repoInfo.warnDirty(settings);
+      repo_info.warn_dirty(settings);
 
-      if (repoInfo.workdirInfo.headRev) {
-        input.attrs.insert_or_assign("dirtyRev", repoInfo.workdirInfo.headRev->gitRev() + "-dirty");
+      if (repo_info.workdir_info.headRev) {
+        input.attrs.insert_or_assign("dirtyRev", repo_info.workdir_info.headRev->git_rev() + "-dirty");
         input.attrs.insert_or_assign("dirtyShortRev",
-                                     repoInfo.workdirInfo.headRev->gitShortRev() + "-dirty");
+                                     repo_info.workdir_info.headRev->git_short_rev() + "-dirty");
       }
 
-      verifyCommit(input, nullptr);
+      verify_commit(input, nullptr);
     }
 
     input.attrs.insert_or_assign(
         "lastModified",
-        repoInfo.workdirInfo.headRev
-            ? getLastModified(settings, repoInfo, repoPath, *repoInfo.workdirInfo.headRev)
+        repo_info.workdir_info.headRev
+            ? get_last_modified(settings, repo_info, repo_path, *repo_info.workdir_info.headRev)
             : 0);
 
     return {accessor, std::move(input)};
   }
 
-  std::pair<ref<SourceAccessor>, Input> getAccessor(const settings_t& settings, Store& store,
+  std::pair<ref<SourceAccessor>, Input> get_accessor(const settings_t& settings, Store& store,
                                                     const Input& _input) const override {
     Input input(_input);
 
-    auto repoInfo = getRepoInfo(input);
+    auto repo_info = get_repo_info(input);
 
-    if (getExportIgnoreAttr(input) && getSubmodulesAttr(input)) {
+    if (get_export_ignore_attr(input) && get_submodules_attr(input)) {
       /* In this situation, we don't have a git CLI behavior that we can copy.
          `git archive` does not support submodules, so it is unclear whether
          rules from the parent should affect the submodule or not.
@@ -1122,37 +1122,37 @@ struct git_input_scheme_t : InputScheme {
     }
 
     auto [accessor, final] =
-        input.getRef() || input.getRev() || !repoInfo.getPath()
-            ? getAccessorFromCommit(settings, store, repoInfo, std::move(input))
-            : getAccessorFromWorkdir(settings, store, repoInfo, std::move(input));
+        input.getRef() || input.getRev() || !repo_info.get_path()
+            ? get_accessor_from_commit(settings, store, repo_info, std::move(input))
+            : get_accessor_from_workdir(settings, store, repo_info, std::move(input));
 
     return {accessor, std::move(final)};
   }
 
-  std::optional<std::string> getFingerprint(Store& store, const Input& input) const override {
-    auto options = getGitAccessorOptions(input);
+  std::optional<std::string> get_fingerprint(Store& store, const Input& input) const override {
+    auto options = get_git_accessor_options(input);
 
     if (auto rev = input.getRev())
       // FIXME: this can return a wrong fingerprint for the legacy (`git archive`) case, since we
       // don't know here whether to append the `;legacy` suffix or not.
       return options.makeFingerprint(*rev);
     else {
-      auto repoInfo = getRepoInfo(input);
-      if (auto repoPath = repoInfo.getPath(); repoPath && repoInfo.workdirInfo.submodules.empty()) {
+      auto repo_info = get_repo_info(input);
+      if (auto repo_path = repo_info.get_path(); repo_path && repo_info.workdir_info.submodules.empty()) {
         /* Calculate a fingerprint that takes into account the
            deleted and modified/added files. */
-        hash_sink_t hashSink{hash_algorithm_t::SHA512};
-        for (auto& file : repoInfo.workdirInfo.dirtyFiles) {
-          writeString("modified:", hashSink);
-          writeString(file.abs(), hashSink);
-          dumpPath((*repoPath / file.rel()).string(), hashSink);
+        hash_sink_t hash_sink{hash_algorithm_t::SHA512};
+        for (auto& file : repo_info.workdir_info.dirtyFiles) {
+          write_string("modified:", hash_sink);
+          write_string(file.abs(), hash_sink);
+          dump_path((*repo_path / file.rel()).string(), hash_sink);
         }
-        for (auto& file : repoInfo.workdirInfo.deletedFiles) {
-          writeString("deleted:", hashSink);
-          writeString(file.abs(), hashSink);
+        for (auto& file : repo_info.workdir_info.deletedFiles) {
+          write_string("deleted:", hash_sink);
+          write_string(file.abs(), hash_sink);
         }
-        return options.makeFingerprint(repoInfo.workdirInfo.headRev.value_or(nullRev)) +
-               ";d=" + hashSink.finish().hash.to_string(hash_format_t::Base16, false);
+        return options.makeFingerprint(repo_info.workdir_info.headRev.value_or(null_rev)) +
+               ";d=" + hash_sink.finish().hash.to_string(hash_format_t::base16, false);
       }
       return std::nullopt;
     }
@@ -1160,11 +1160,11 @@ struct git_input_scheme_t : InputScheme {
 
   bool isLocked(const settings_t& settings, const Input& input) const override {
     auto rev = input.getRev();
-    return rev && rev != nullRev;
+    return rev && rev != null_rev;
   }
 };
 
-static auto rGitInputScheme =
-    on_startup_t([] { registerInputScheme(std::make_unique<git_input_scheme_t>()); });
+static auto r_git_input_scheme =
+    on_startup_t([] { register_input_scheme(std::make_unique<git_input_scheme_t>()); });
 
 } // namespace nix::fetchers

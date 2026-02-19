@@ -14,38 +14,38 @@
 
 namespace nix {
 
-static std::string_view getS(const std::vector<Logger::field_t>& fields, size_t n) {
+static std::string_view get_s(const std::vector<logger_t::field_t>& fields, size_t n) {
   assert(n < fields.size());
-  assert(fields[n].type == Logger::field_t::tString);
+  assert(fields[n].type == logger_t::field_t::t_string);
   return fields[n].s;
 }
 
-static uint64_t getI(const std::vector<Logger::field_t>& fields, size_t n) {
+static uint64_t get_i(const std::vector<logger_t::field_t>& fields, size_t n) {
   assert(n < fields.size());
-  assert(fields[n].type == Logger::field_t::tInt);
+  assert(fields[n].type == logger_t::field_t::t_int);
   return fields[n].i;
 }
 
-static std::string_view storePathToName(std::string_view path) {
-  auto base = baseNameOf(path);
+static std::string_view store_path_to_name(std::string_view path) {
+  auto base = base_name_of(path);
   auto i = base.find('-');
   return i == std::string::npos ? base.substr(0, 0) : base.substr(i + 1);
 }
 
-class progress_bar_t : public Logger {
+class progress_bar_t : public logger_t {
 private:
   struct act_info_t {
-    std::string s, lastLine, phase;
-    activity_type_t type = actUnknown;
+    std::string s, last_line, phase;
+    activity_type_t type = act_unknown;
     uint64_t done = 0;
     uint64_t expected = 0;
     uint64_t running = 0;
     uint64_t failed = 0;
-    std::map<activity_type_t, uint64_t> expectedByType;
+    std::map<activity_type_t, uint64_t> expected_by_type;
     bool visible = true;
     activity_id_t parent;
     std::optional<std::string> name;
-    std::chrono::time_point<std::chrono::steady_clock> startTime;
+    std::chrono::time_point<std::chrono::steady_clock> start_time;
     bool logged = false;
   };
 
@@ -60,17 +60,17 @@ private:
     std::list<act_info_t> activities;
     std::map<activity_id_t, std::list<act_info_t>::iterator> its;
 
-    std::map<activity_type_t, activities_by_type_t> activitiesByType;
+    std::map<activity_type_t, activities_by_type_t> activities_by_type;
 
-    uint64_t filesLinked = 0, bytesLinked = 0;
+    uint64_t files_linked = 0, bytes_linked = 0;
 
-    uint64_t corruptedPaths = 0, untrustedPaths = 0;
+    uint64_t corrupted_paths = 0, untrusted_paths = 0;
 
     bool active = true;
     size_t suspensions = 0;
-    bool haveUpdate = true;
+    bool have_update = true;
 
-    bool isPaused() const { return suspensions > 0; }
+    bool is_paused() const { return suspensions > 0; }
   };
 
   /** Helps avoid unnecessary redraws, see `redraw()` */
@@ -82,19 +82,19 @@ private:
 
   std::condition_variable quitCV, updateCV;
 
-  bool printBuildLogs = false;
-  bool isTTY;
+  bool print_build_logs = false;
+  bool is_tty;
 
 public:
-  progress_bar_t(bool isTTY) : isTTY(isTTY) {
-    state_.lock()->active = isTTY;
+  progress_bar_t(bool is_tty) : is_tty(is_tty) {
+    state_.lock()->active = is_tty;
     updateThread = std::thread([&]() {
       auto state(state_.lock());
-      auto nextWakeup = std::chrono::milliseconds::max();
+      auto next_wakeup = std::chrono::milliseconds::max();
       while (state->active) {
-        if (!state->haveUpdate)
-          state.wait_for(updateCV, nextWakeup);
-        nextWakeup = draw(*state);
+        if (!state->have_update)
+          state.wait_for(updateCV, next_wakeup);
+        next_wakeup = draw(*state);
         state.wait_for(quitCV, std::chrono::milliseconds(50));
       }
     });
@@ -108,7 +108,7 @@ public:
       auto state(state_.lock());
       if (state->active) {
         state->active = false;
-        writeToStderr("\r\e[K");
+        write_to_stderr("\r\e[K");
         updateCV.notify_one();
         quitCV.notify_one();
       }
@@ -126,19 +126,19 @@ public:
     }
 
     if (state->active) {
-      writeToStderr("\r\e[K");
+      write_to_stderr("\r\e[K");
       /* Show activities that were previously only shown on the
          progress bar. Otherwise the user won't know what's
          happening. */
       for (auto& act : state->activities)
-        logActivity(*state, lvlNotice, act);
+        log_activity(*state, lvl_notice, act);
     }
   }
 
   void resume() override {
     auto state(state_.lock());
     if (state->suspensions == 0) {
-      log(lvlError,
+      log(lvl_error,
           "nix::ProgressBar: resume() called without a matching preceding pause(). This is a bug.");
       return;
     } else {
@@ -146,13 +146,13 @@ public:
     }
     if (state->suspensions == 0) {
       if (state->active)
-        writeToStderr("\r\e[K");
-      state->haveUpdate = true;
+        write_to_stderr("\r\e[K");
+      state->have_update = true;
       updateCV.notify_one();
     }
   }
 
-  bool isVerbose() override { return printBuildLogs; }
+  bool is_verbose() override { return print_build_logs; }
 
   void log(verbosity_t lvl, std::string_view s) override {
     if (lvl > verbosity)
@@ -161,85 +161,85 @@ public:
     log(*state, lvl, s);
   }
 
-  void logEI(const error_info_t& ei) override {
+  void log_ei(const error_info_t& ei) override {
     auto state(state_.lock());
 
     std::ostringstream oss;
-    showErrorInfo(oss, ei, loggerSettings.showTrace.get());
+    show_error_info(oss, ei, logger_settings.show_trace.get());
 
     log(*state, ei.level, oss.view());
   }
 
   void log(State& state, verbosity_t lvl, std::string_view s) {
     if (state.active) {
-      writeToStderr("\r\e[K" + filterANSIEscapes(s, !isTTY) + ANSI_NORMAL "\n");
+      write_to_stderr("\r\e[K" + filter_ansi_escapes(s, !is_tty) + ANSI_NORMAL "\n");
       draw(state);
     } else {
-      writeToStderr(filterANSIEscapes(s, !isTTY) + "\n");
+      write_to_stderr(filter_ansi_escapes(s, !is_tty) + "\n");
     }
   }
 
-  void logActivity(State& state, verbosity_t lvl, act_info_t& act) {
-    if (!act.logged && lvl <= verbosity && !act.s.empty() && act.type != actBuildWaiting) {
+  void log_activity(State& state, verbosity_t lvl, act_info_t& act) {
+    if (!act.logged && lvl <= verbosity && !act.s.empty() && act.type != act_build_waiting) {
       log(state, lvl, act.s + "...");
       act.logged = true;
     }
   }
 
-  void startActivity(activity_id_t act, verbosity_t lvl, activity_type_t type, const std::string& s,
+  void start_activity(activity_id_t act, verbosity_t lvl, activity_type_t type, const std::string& s,
                      const fields_t& fields, activity_id_t parent) override {
     auto state(state_.lock());
 
     state->activities.emplace_back(act_info_t{
-        .s = s, .type = type, .parent = parent, .startTime = std::chrono::steady_clock::now()});
+        .s = s, .type = type, .parent = parent, .start_time = std::chrono::steady_clock::now()});
     auto i = std::prev(state->activities.end());
     state->its.emplace(act, i);
-    state->activitiesByType[type].its.emplace(act, i);
+    state->activities_by_type[type].its.emplace(act, i);
 
-    logActivity(*state, lvl, *i);
+    log_activity(*state, lvl, *i);
 
-    if (type == actBuild) {
-      std::string name(storePathToName(getS(fields, 0)));
-      if (hasSuffix(name, ".drv"))
+    if (type == act_build) {
+      std::string name(store_path_to_name(get_s(fields, 0)));
+      if (has_suffix(name, ".drv"))
         name = name.substr(0, name.size() - 4);
       i->s = fmt("building " ANSI_BOLD "%s" ANSI_NORMAL, name);
-      auto machineName = getS(fields, 1);
-      if (machineName != "")
-        i->s += fmt(" on " ANSI_BOLD "%s" ANSI_NORMAL, machineName);
+      auto machine_name = get_s(fields, 1);
+      if (machine_name != "")
+        i->s += fmt(" on " ANSI_BOLD "%s" ANSI_NORMAL, machine_name);
 
       // Used to be curRound and nrRounds, but the
       // implementation was broken for a long time.
-      if (getI(fields, 2) != 1 || getI(fields, 3) != 1) {
+      if (get_i(fields, 2) != 1 || get_i(fields, 3) != 1) {
         throw Error(
             "log message indicated repeating builds, but this is not currently implemented");
       }
       i->name = DrvName(name).name;
     }
 
-    if (type == actSubstitute) {
-      auto name = storePathToName(getS(fields, 0));
-      auto sub = getS(fields, 1);
-      i->s = fmt(hasPrefix(sub, "local") ? "copying " ANSI_BOLD "%s" ANSI_NORMAL " from %s"
+    if (type == act_substitute) {
+      auto name = store_path_to_name(get_s(fields, 0));
+      auto sub = get_s(fields, 1);
+      i->s = fmt(has_prefix(sub, "local") ? "copying " ANSI_BOLD "%s" ANSI_NORMAL " from %s"
                                          : "fetching " ANSI_BOLD "%s" ANSI_NORMAL " from %s",
                  name, sub);
     }
 
-    if (type == actPostBuildHook) {
-      auto name = storePathToName(getS(fields, 0));
-      if (hasSuffix(name, ".drv"))
+    if (type == act_post_build_hook) {
+      auto name = store_path_to_name(get_s(fields, 0));
+      if (has_suffix(name, ".drv"))
         name = name.substr(0, name.size() - 4);
       i->s = fmt("post-build " ANSI_BOLD "%s" ANSI_NORMAL, name);
       i->name = DrvName(name).name;
     }
 
-    if (type == actQueryPathInfo) {
-      auto name = storePathToName(getS(fields, 0));
-      i->s = fmt("querying " ANSI_BOLD "%s" ANSI_NORMAL " on %s", name, getS(fields, 1));
+    if (type == act_query_path_info) {
+      auto name = store_path_to_name(get_s(fields, 0));
+      i->s = fmt("querying " ANSI_BOLD "%s" ANSI_NORMAL " on %s", name, get_s(fields, 1));
     }
 
-    if ((type == actFileTransfer && hasAncestor(*state, actCopyPath, parent)) ||
-        (type == actFileTransfer && hasAncestor(*state, actQueryPathInfo, parent)) ||
-        (type == actCopyPath && hasAncestor(*state, actSubstitute, parent)))
+    if ((type == act_file_transfer && has_ancestor(*state, act_copy_path, parent)) ||
+        (type == act_file_transfer && has_ancestor(*state, act_query_path_info, parent)) ||
+        (type == act_copy_path && has_ancestor(*state, act_substitute, parent)))
       i->visible = false;
 
     update(*state);
@@ -247,7 +247,7 @@ public:
 
   /* Check whether an activity has an ancestor with the specified
      type. */
-  bool hasAncestor(State& state, activity_type_t type, activity_id_t act) {
+  bool has_ancestor(State& state, activity_type_t type, activity_id_t act) {
     while (act != 0) {
       auto i = state.its.find(act);
       if (i == state.its.end())
@@ -259,19 +259,19 @@ public:
     return false;
   }
 
-  void stopActivity(activity_id_t act) override {
+  void stop_activity(activity_id_t act) override {
     auto state(state_.lock());
 
     auto i = state->its.find(act);
     if (i != state->its.end()) {
-      auto& actByType = state->activitiesByType[i->second->type];
-      actByType.done += i->second->done;
-      actByType.failed += i->second->failed;
+      auto& act_by_type = state->activities_by_type[i->second->type];
+      act_by_type.done += i->second->done;
+      act_by_type.failed += i->second->failed;
 
-      for (auto& j : i->second->expectedByType)
-        state->activitiesByType[j.first].expected -= j.second;
+      for (auto& j : i->second->expected_by_type)
+        state->activities_by_type[j.first].expected -= j.second;
 
-      actByType.its.erase(act);
+      act_by_type.its.erase(act);
       state->activities.erase(i->second);
       state->its.erase(i);
     }
@@ -282,84 +282,84 @@ public:
   void result(activity_id_t act, result_type_t type, const std::vector<field_t>& fields) override {
     auto state(state_.lock());
 
-    if (type == resFileLinked) {
-      state->filesLinked++;
-      state->bytesLinked += getI(fields, 0);
+    if (type == res_file_linked) {
+      state->files_linked++;
+      state->bytes_linked += get_i(fields, 0);
       update(*state);
     }
 
-    else if (type == resBuildLogLine || type == resPostBuildLogLine) {
-      auto lastLine = chomp(getS(fields, 0));
+    else if (type == res_build_log_line || type == res_post_build_log_line) {
+      auto last_line = chomp(get_s(fields, 0));
       auto i = state->its.find(act);
       assert(i != state->its.end());
       act_info_t info = *i->second;
-      if (printBuildLogs) {
+      if (print_build_logs) {
         auto suffix = "> ";
-        if (type == resPostBuildLogLine) {
+        if (type == res_post_build_log_line) {
           suffix = " (post)> ";
         }
-        log(*state, lvlInfo,
-            ANSI_FAINT + info.name.value_or("unnamed") + suffix + ANSI_NORMAL + lastLine);
+        log(*state, lvl_info,
+            ANSI_FAINT + info.name.value_or("unnamed") + suffix + ANSI_NORMAL + last_line);
       } else {
         state->activities.erase(i->second);
-        info.lastLine = lastLine;
+        info.last_line = last_line;
         state->activities.emplace_back(info);
         i->second = std::prev(state->activities.end());
         update(*state);
       }
     }
 
-    else if (type == resUntrustedPath) {
-      state->untrustedPaths++;
+    else if (type == res_untrusted_path) {
+      state->untrusted_paths++;
       update(*state);
     }
 
-    else if (type == resCorruptedPath) {
-      state->corruptedPaths++;
+    else if (type == res_corrupted_path) {
+      state->corrupted_paths++;
       update(*state);
     }
 
-    else if (type == resSetPhase) {
+    else if (type == res_set_phase) {
       auto i = state->its.find(act);
       assert(i != state->its.end());
-      i->second->phase = getS(fields, 0);
+      i->second->phase = get_s(fields, 0);
       update(*state);
     }
 
-    else if (type == resProgress) {
+    else if (type == res_progress) {
       auto i = state->its.find(act);
       assert(i != state->its.end());
-      act_info_t& actInfo = *i->second;
-      actInfo.done = getI(fields, 0);
-      actInfo.expected = getI(fields, 1);
-      actInfo.running = getI(fields, 2);
-      actInfo.failed = getI(fields, 3);
+      act_info_t& act_info = *i->second;
+      act_info.done = get_i(fields, 0);
+      act_info.expected = get_i(fields, 1);
+      act_info.running = get_i(fields, 2);
+      act_info.failed = get_i(fields, 3);
       update(*state);
     }
 
-    else if (type == resSetExpected) {
+    else if (type == res_set_expected) {
       auto i = state->its.find(act);
       assert(i != state->its.end());
-      act_info_t& actInfo = *i->second;
-      auto type = (activity_type_t)getI(fields, 0);
-      auto& j = actInfo.expectedByType[type];
-      state->activitiesByType[type].expected -= j;
-      j = getI(fields, 1);
-      state->activitiesByType[type].expected += j;
+      act_info_t& act_info = *i->second;
+      auto type = (activity_type_t)get_i(fields, 0);
+      auto& j = act_info.expected_by_type[type];
+      state->activities_by_type[type].expected -= j;
+      j = get_i(fields, 1);
+      state->activities_by_type[type].expected += j;
       update(*state);
     }
 
-    else if (type == resFetchStatus) {
+    else if (type == res_fetch_status) {
       auto i = state->its.find(act);
       assert(i != state->its.end());
-      act_info_t& actInfo = *i->second;
-      actInfo.lastLine = getS(fields, 0);
+      act_info_t& act_info = *i->second;
+      act_info.last_line = get_s(fields, 0);
       update(*state);
     }
   }
 
   void update(State& state) {
-    state.haveUpdate = true;
+    state.have_update = true;
     updateCV.notify_one();
   }
 
@@ -370,24 +370,24 @@ public:
    * with text selection in some terminals, including libvte-based terminal
    * emulators.
    */
-  void redraw(std::string newOutput) {
-    auto lastOutput(lastOutput_.lock());
-    if (newOutput != *lastOutput) {
-      writeToStderr(newOutput);
-      *lastOutput = std::move(newOutput);
+  void redraw(std::string new_output) {
+    auto last_output(lastOutput_.lock());
+    if (new_output != *last_output) {
+      write_to_stderr(new_output);
+      *last_output = std::move(new_output);
     }
   }
 
   std::chrono::milliseconds draw(State& state) {
-    auto nextWakeup = std::chrono::milliseconds::max();
+    auto next_wakeup = std::chrono::milliseconds::max();
 
-    state.haveUpdate = false;
-    if (state.isPaused() || !state.active)
-      return nextWakeup;
+    state.have_update = false;
+    if (state.is_paused() || !state.active)
+      return next_wakeup;
 
     std::string line;
 
-    std::string status = getStatus(state);
+    std::string status = get_status(state);
     if (!status.empty()) {
       line += '[';
       line += status;
@@ -402,16 +402,16 @@ public:
       auto i = state.activities.rbegin();
 
       while (i != state.activities.rend()) {
-        if (i->visible && (!i->s.empty() || !i->lastLine.empty())) {
+        if (i->visible && (!i->s.empty() || !i->last_line.empty())) {
           /* Don't show activities until some time has
              passed, to avoid displaying very short
              activities. */
           auto delay = std::chrono::milliseconds(10);
-          if (i->startTime + delay < now)
+          if (i->start_time + delay < now)
             break;
           else
-            nextWakeup = std::min(nextWakeup, std::chrono::duration_cast<std::chrono::milliseconds>(
-                                                  delay - (now - i->startTime)));
+            next_wakeup = std::min(next_wakeup, std::chrono::duration_cast<std::chrono::milliseconds>(
+                                                  delay - (now - i->start_time)));
         }
         ++i;
       }
@@ -423,25 +423,25 @@ public:
           line += i->phase;
           line += ")";
         }
-        if (!i->lastLine.empty()) {
+        if (!i->last_line.empty()) {
           if (!i->s.empty())
             line += ": ";
-          line += i->lastLine;
+          line += i->last_line;
         }
       }
     }
 
-    redraw("\r" + filterANSIEscapes(line, false, getWindowWidth()) + ANSI_NORMAL + "\e[K");
+    redraw("\r" + filter_ansi_escapes(line, false, get_window_width()) + ANSI_NORMAL + "\e[K");
 
-    return nextWakeup;
+    return next_wakeup;
   }
 
-  std::string getStatus(State& state) {
+  std::string get_status(State& state) {
     std::string res;
 
-    auto renderActivity = [&] [[nodiscard]] (activity_type_t type, const std::string& itemFmt,
-                                             const std::string& numberFmt = "%d", double unit = 1) {
-      auto& act = state.activitiesByType[type];
+    auto render_activity = [&] [[nodiscard]] (activity_type_t type, const std::string& item_fmt,
+                                             const std::string& number_fmt = "%d", double unit = 1) {
+      auto& act = state.activities_by_type[type];
       uint64_t done = act.done, expected = act.done, running = 0, failed = act.failed;
       for (auto& j : act.its) {
         done += j.second->done;
@@ -457,21 +457,21 @@ public:
       if (running || done || expected || failed) {
         if (running)
           if (expected != 0)
-            s = fmt(ANSI_BLUE + numberFmt + ANSI_NORMAL "/" ANSI_GREEN + numberFmt +
-                        ANSI_NORMAL "/" + numberFmt,
+            s = fmt(ANSI_BLUE + number_fmt + ANSI_NORMAL "/" ANSI_GREEN + number_fmt +
+                        ANSI_NORMAL "/" + number_fmt,
                     running / unit, done / unit, expected / unit);
           else
-            s = fmt(ANSI_BLUE + numberFmt + ANSI_NORMAL "/" ANSI_GREEN + numberFmt + ANSI_NORMAL,
+            s = fmt(ANSI_BLUE + number_fmt + ANSI_NORMAL "/" ANSI_GREEN + number_fmt + ANSI_NORMAL,
                     running / unit, done / unit);
         else if (expected != done)
           if (expected != 0)
-            s = fmt(ANSI_GREEN + numberFmt + ANSI_NORMAL "/" + numberFmt, done / unit,
+            s = fmt(ANSI_GREEN + number_fmt + ANSI_NORMAL "/" + number_fmt, done / unit,
                     expected / unit);
           else
-            s = fmt(ANSI_GREEN + numberFmt + ANSI_NORMAL, done / unit);
+            s = fmt(ANSI_GREEN + number_fmt + ANSI_NORMAL, done / unit);
         else
-          s = fmt(done ? ANSI_GREEN + numberFmt + ANSI_NORMAL : numberFmt, done / unit);
-        s = fmt(itemFmt, s);
+          s = fmt(done ? ANSI_GREEN + number_fmt + ANSI_NORMAL : number_fmt, done / unit);
+        s = fmt(item_fmt, s);
 
         if (failed)
           s += fmt(" (" ANSI_RED "%d failed" ANSI_NORMAL ")", failed / unit);
@@ -480,9 +480,9 @@ public:
       return s;
     };
 
-    auto renderSizeActivity = [&] [[nodiscard]] (activity_type_t type,
-                                                 const std::string& itemFmt = "%s") {
-      auto& act = state.activitiesByType[type];
+    auto render_size_activity = [&] [[nodiscard]] (activity_type_t type,
+                                                 const std::string& item_fmt = "%s") {
+      auto& act = state.activities_by_type[type];
       uint64_t done = act.done, expected = act.done, running = 0, failed = act.failed;
       for (auto& j : act.its) {
         done += j.second->done;
@@ -499,48 +499,48 @@ public:
       if (running || done || expected || failed) {
         if (running)
           if (expected != 0) {
-            commonUnit = getCommonSizeUnit({(int64_t)running, (int64_t)done, (int64_t)expected});
+            commonUnit = get_common_size_unit({(int64_t)running, (int64_t)done, (int64_t)expected});
             s = fmt(ANSI_BLUE "%s" ANSI_NORMAL "/" ANSI_GREEN "%s" ANSI_NORMAL "/%s",
-                    commonUnit ? renderSizeWithoutUnit(running, *commonUnit) : renderSize(running),
-                    commonUnit ? renderSizeWithoutUnit(done, *commonUnit) : renderSize(done),
-                    commonUnit ? renderSizeWithoutUnit(expected, *commonUnit)
-                               : renderSize(expected));
+                    commonUnit ? render_size_without_unit(running, *commonUnit) : render_size(running),
+                    commonUnit ? render_size_without_unit(done, *commonUnit) : render_size(done),
+                    commonUnit ? render_size_without_unit(expected, *commonUnit)
+                               : render_size(expected));
           } else {
-            commonUnit = getCommonSizeUnit({(int64_t)running, (int64_t)done});
+            commonUnit = get_common_size_unit({(int64_t)running, (int64_t)done});
             s = fmt(ANSI_BLUE "%s" ANSI_NORMAL "/" ANSI_GREEN "%s" ANSI_NORMAL,
-                    commonUnit ? renderSizeWithoutUnit(running, *commonUnit) : renderSize(running),
-                    commonUnit ? renderSizeWithoutUnit(done, *commonUnit) : renderSize(done));
+                    commonUnit ? render_size_without_unit(running, *commonUnit) : render_size(running),
+                    commonUnit ? render_size_without_unit(done, *commonUnit) : render_size(done));
           }
         else if (expected != done)
           if (expected != 0) {
-            commonUnit = getCommonSizeUnit({(int64_t)done, (int64_t)expected});
+            commonUnit = get_common_size_unit({(int64_t)done, (int64_t)expected});
             s = fmt(ANSI_GREEN "%s" ANSI_NORMAL "/%s",
-                    commonUnit ? renderSizeWithoutUnit(done, *commonUnit) : renderSize(done),
-                    commonUnit ? renderSizeWithoutUnit(expected, *commonUnit)
-                               : renderSize(expected));
+                    commonUnit ? render_size_without_unit(done, *commonUnit) : render_size(done),
+                    commonUnit ? render_size_without_unit(expected, *commonUnit)
+                               : render_size(expected));
           } else {
-            commonUnit = getSizeUnit(done);
-            s = fmt(ANSI_GREEN "%s" ANSI_NORMAL, renderSizeWithoutUnit(done, *commonUnit));
+            commonUnit = get_size_unit(done);
+            s = fmt(ANSI_GREEN "%s" ANSI_NORMAL, render_size_without_unit(done, *commonUnit));
           }
         else {
-          commonUnit = getSizeUnit(done);
+          commonUnit = get_size_unit(done);
           s = fmt(done ? ANSI_GREEN "%s" ANSI_NORMAL : "%s",
-                  renderSizeWithoutUnit(done, *commonUnit));
+                  render_size_without_unit(done, *commonUnit));
         }
 
         if (commonUnit)
-          s = fmt("%s %siB", s, getSizeUnitSuffix(*commonUnit));
+          s = fmt("%s %siB", s, get_size_unit_suffix(*commonUnit));
 
-        s = fmt(itemFmt, s);
+        s = fmt(item_fmt, s);
 
         if (failed)
-          s += fmt(" (" ANSI_RED "%s failed" ANSI_NORMAL ")", renderSize(failed));
+          s += fmt(" (" ANSI_RED "%s failed" ANSI_NORMAL ")", render_size(failed));
       }
 
       return s;
     };
 
-    auto maybeAppendToResult = [&](std::string_view s) {
+    auto maybe_append_to_result = [&](std::string_view s) {
       if (s.empty())
         return;
       if (!res.empty())
@@ -548,15 +548,15 @@ public:
       res += s;
     };
 
-    auto showActivity = [&](activity_type_t type, const std::string& itemFmt,
-                            const std::string& numberFmt = "%d", double unit = 1) {
-      maybeAppendToResult(renderActivity(type, itemFmt, numberFmt, unit));
+    auto show_activity = [&](activity_type_t type, const std::string& item_fmt,
+                            const std::string& number_fmt = "%d", double unit = 1) {
+      maybe_append_to_result(render_activity(type, item_fmt, number_fmt, unit));
     };
 
-    showActivity(actBuilds, "%s built");
+    show_activity(act_builds, "%s built");
 
-    auto s1 = renderActivity(actCopyPaths, "%s copied");
-    auto s2 = renderSizeActivity(actCopyPath);
+    auto s1 = render_activity(act_copy_paths, "%s copied");
+    auto s2 = render_size_activity(act_copy_path);
 
     if (!s1.empty() || !s2.empty()) {
       if (!res.empty())
@@ -572,12 +572,12 @@ public:
       }
     }
 
-    maybeAppendToResult(renderSizeActivity(actFileTransfer, "%s DL"));
+    maybe_append_to_result(render_size_activity(act_file_transfer, "%s DL"));
 
     {
-      auto s = renderActivity(actOptimiseStore, "%s paths optimised");
+      auto s = render_activity(act_optimise_store, "%s paths optimised");
       if (s != "") {
-        s += fmt(", %s / %d inodes freed", renderSize(state.bytesLinked), state.filesLinked);
+        s += fmt(", %s / %d inodes freed", render_size(state.bytes_linked), state.files_linked);
         if (!res.empty())
           res += ", ";
         res += s;
@@ -585,31 +585,31 @@ public:
     }
 
     // FIXME: don't show "done" paths in green.
-    showActivity(actVerifyPaths, "%s paths verified");
+    show_activity(act_verify_paths, "%s paths verified");
 
-    if (state.corruptedPaths) {
+    if (state.corrupted_paths) {
       if (!res.empty())
         res += ", ";
-      res += fmt(ANSI_RED "%d corrupted" ANSI_NORMAL, state.corruptedPaths);
+      res += fmt(ANSI_RED "%d corrupted" ANSI_NORMAL, state.corrupted_paths);
     }
 
-    if (state.untrustedPaths) {
+    if (state.untrusted_paths) {
       if (!res.empty())
         res += ", ";
-      res += fmt(ANSI_RED "%d untrusted" ANSI_NORMAL, state.untrustedPaths);
+      res += fmt(ANSI_RED "%d untrusted" ANSI_NORMAL, state.untrusted_paths);
     }
 
     return res;
   }
 
-  void writeToStdout(std::string_view s) override {
+  void write_to_stdout(std::string_view s) override {
     auto state(state_.lock());
     if (state->active) {
       std::cerr << "\r\e[K";
-      Logger::writeToStdout(s);
+      logger_t::write_to_stdout(s);
       draw(*state);
     } else {
-      Logger::writeToStdout(s);
+      logger_t::write_to_stdout(s);
     }
   }
 
@@ -618,18 +618,18 @@ public:
     if (!state->active)
       return {};
     std::cerr << fmt("\r\e[K%s ", msg);
-    auto s = trim(readLine(getStandardInput(), true));
+    auto s = trim(read_line(get_standard_input(), true));
     if (s.size() != 1)
       return {};
     draw(*state);
     return s[0];
   }
 
-  void setPrintBuildLogs(bool printBuildLogs) override { this->printBuildLogs = printBuildLogs; }
+  void set_print_build_logs(bool print_build_logs) override { this->print_build_logs = print_build_logs; }
 };
 
-std::unique_ptr<Logger> makeProgressBar() {
-  return std::make_unique<progress_bar_t>(isTTY());
+std::unique_ptr<logger_t> make_progress_bar() {
+  return std::make_unique<progress_bar_t>(is_tty());
 }
 
 } // namespace nix

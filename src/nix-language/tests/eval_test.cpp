@@ -233,3 +233,68 @@ TEST_CASE("eval nested attribute paths", "[eval][attrset]") {
   REQUIRE(evaluate("{ a.b = 1; a.c = 2; }.a.c") == "2");
   REQUIRE(evaluate("rec { a.b = x; x = 5; }.a.b") == "5");
 }
+
+TEST_CASE("eval builtins.elem", "[eval][builtins]") {
+  REQUIRE(evaluate("builtins.elem 3 [ 1 2 3 4 ]") == "true");
+  REQUIRE(evaluate("builtins.elem 5 [ 1 2 3 4 ]") == "false");
+}
+
+TEST_CASE("eval builtins.all and any", "[eval][builtins]") {
+  REQUIRE(evaluate("builtins.all (x: x > 0) [ 1 2 3 ]") == "true");
+  REQUIRE(evaluate("builtins.all (x: x > 1) [ 1 2 3 ]") == "false");
+  REQUIRE(evaluate("builtins.any (x: x > 2) [ 1 2 3 ]") == "true");
+  REQUIRE(evaluate("builtins.any (x: x > 5) [ 1 2 3 ]") == "false");
+}
+
+TEST_CASE("eval builtins.concatLists", "[eval][builtins]") {
+  REQUIRE(evaluate("builtins.concatLists [ [ 1 2 ] [ 3 4 ] ]") == "[ 1 2 3 4 ]");
+  REQUIRE(evaluate("builtins.concatLists [ ]") == "[ ]");
+}
+
+TEST_CASE("eval builtins.genList", "[eval][builtins]") {
+  REQUIRE(evaluate("builtins.genList (x: x * x) 4") == "[ 0 1 4 9 ]");
+  REQUIRE(evaluate("builtins.genList (x: x) 0") == "[ ]");
+}
+
+TEST_CASE("eval builtins.sort", "[eval][builtins]") {
+  REQUIRE(evaluate("builtins.sort (a: b: a < b) [ 3 1 2 ]") == "[ 1 2 3 ]");
+}
+
+TEST_CASE("eval builtins.elemAt", "[eval][builtins]") {
+  REQUIRE(evaluate("builtins.elemAt [ 1 2 3 ] 0") == "1");
+  REQUIRE(evaluate("builtins.elemAt [ 1 2 3 ] 2") == "3");
+}
+
+TEST_CASE("eval builtins.stringLength", "[eval][builtins]") {
+  REQUIRE(evaluate("builtins.stringLength \"hello\"") == "5");
+  REQUIRE(evaluate("builtins.stringLength \"\"") == "0");
+}
+
+TEST_CASE("eval builtins.substring", "[eval][builtins]") {
+  REQUIRE(evaluate("builtins.substring 0 3 \"hello\"") == "\"hel\"");
+  REQUIRE(evaluate("builtins.substring 2 10 \"hello\"") == "\"llo\"");
+}
+
+TEST_CASE("eval builtins.replaceStrings", "[eval][builtins]") {
+  REQUIRE(evaluate("builtins.replaceStrings [\"o\"] [\"0\"] \"foo\"") == "\"f00\"");
+}
+
+TEST_CASE("eval type checking builtins", "[eval][builtins]") {
+  REQUIRE(evaluate("builtins.isNull null") == "true");
+  REQUIRE(evaluate("builtins.isNull 1") == "false");
+  REQUIRE(evaluate("builtins.isBool true") == "true");
+  REQUIRE(evaluate("builtins.isInt 42") == "true");
+  REQUIRE(evaluate("builtins.isString \"hi\"") == "true");
+  REQUIRE(evaluate("builtins.isList [ ]") == "true");
+  REQUIRE(evaluate("builtins.isAttrs { }") == "true");
+  REQUIRE(evaluate("builtins.isFunction (x: x)") == "true");
+}
+
+TEST_CASE("eval builtins.tryEval", "[eval][builtins]") {
+  auto success = evaluate("builtins.tryEval (1 + 1)");
+  REQUIRE(success.find("success = true") != std::string::npos);
+  REQUIRE(success.find("value = 2") != std::string::npos);
+
+  auto failure = evaluate("builtins.tryEval (builtins.throw \"oops\")");
+  REQUIRE(failure.find("success = false") != std::string::npos);
+}

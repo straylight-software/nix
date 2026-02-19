@@ -13,40 +13,40 @@
 
 namespace nix {
 
-int handleExceptions(const std::string& programName, std::function<void()> fun);
+int handle_exceptions(const std::string& program_name, std::function<void()> fun);
 
 /**
- * Don't forget to call initPlugins() after settings are initialized!
- * @param loadConfig Whether to load configuration from `nix.conf`, `NIX_CONFIG`, etc. May be
+ * Don't forget to call init_plugins() after settings are initialized!
+ * @param load_config Whether to load configuration from `nix.conf`, `NIX_CONFIG`, etc. May be
  * disabled for unit tests.
  */
-void initNix(bool loadConfig = true);
+void init_nix(bool load_config = true);
 
-void parseCmdLine(
+void parse_cmd_line(
     int argc, char** argv,
-    std::function<bool(strings_t::iterator& arg, const strings_t::iterator& end)> parseArg);
+    std::function<bool(strings_t::iterator& arg, const strings_t::iterator& end)> parse_arg);
 
-void parseCmdLine(
-    const std::string& programName, const strings_t& args,
-    std::function<bool(strings_t::iterator& arg, const strings_t::iterator& end)> parseArg);
+void parse_cmd_line(
+    const std::string& program_name, const strings_t& args,
+    std::function<bool(strings_t::iterator& arg, const strings_t::iterator& end)> parse_arg);
 
 std::string version();
 
-void printVersion(const std::string& programName);
+void print_version(const std::string& program_name);
 
 /**
  * Ugh.  No better place to put this.
  */
-void printGCWarning();
+void print_gc_warning();
 
 class Store;
 struct MissingPaths;
 
-void printMissing(ref<Store> store, const std::vector<DerivedPath>& paths, verbosity_t lvl = lvlInfo);
+void print_missing(ref<Store> store, const std::vector<DerivedPath>& paths, verbosity_t lvl = lvl_info);
 
-void printMissing(ref<Store> store, const MissingPaths& missing, verbosity_t lvl = lvlInfo);
+void print_missing(ref<Store> store, const MissingPaths& missing, verbosity_t lvl = lvl_info);
 
-std::string getArg(const std::string& opt, strings_t::iterator& i, const strings_t::iterator& end);
+std::string get_arg(const std::string& opt, strings_t::iterator& i, const strings_t::iterator& end);
 
 template <class N>
 N getIntArg(const std::string& opt, strings_t::iterator& i, const strings_t::iterator& end,
@@ -54,18 +54,18 @@ N getIntArg(const std::string& opt, strings_t::iterator& i, const strings_t::ite
   ++i;
   if (i == end)
     throw UsageError("'%1%' requires an argument", opt);
-  return string2IntWithUnitPrefix<N>(*i);
+  return string2_int_with_unit_prefix<N>(*i);
 }
 
 struct LegacyArgs : public MixCommonArgs, public root_args_t {
-  std::function<bool(strings_t::iterator& arg, const strings_t::iterator& end)> parseArg;
+  std::function<bool(strings_t::iterator& arg, const strings_t::iterator& end)> parse_arg;
 
-  LegacyArgs(const std::string& programName,
-             std::function<bool(strings_t::iterator& arg, const strings_t::iterator& end)> parseArg);
+  LegacyArgs(const std::string& program_name,
+             std::function<bool(strings_t::iterator& arg, const strings_t::iterator& end)> parse_arg);
 
-  bool processFlag(strings_t::iterator& pos, strings_t::iterator end) override;
+  bool process_flag(strings_t::iterator& pos, strings_t::iterator end) override;
 
-  bool processArgs(const strings_t& args, bool finish) override;
+  bool process_args(const strings_t& args, bool finish) override;
 };
 
 /**
@@ -117,7 +117,7 @@ void detectStackOverflow();
  * condition. The handler should exit the process.
  * See defaultStackOverflowHandler() for a reference implementation.
  *
- * NOTE: Use with diligence, because this runs in the signal handler, with very
+ * NOTE: use with diligence, because this runs in the signal handler, with very
  * limited stack space and a potentially a corrupted heap, all while the failed
  * thread is blocked indefinitely. All functions called must be reentrant.
  */

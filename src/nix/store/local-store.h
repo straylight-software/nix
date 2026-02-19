@@ -27,8 +27,8 @@ namespace nix {
 const int nixSchemaVersion = 10;
 
 struct OptimiseStats {
-  unsigned long filesLinked = 0;
-  uint64_t bytesFreed = 0;
+  unsigned long files_linked = 0;
+  uint64_t bytes_freed = 0;
 };
 
 struct LocalBuildStoreConfig : virtual LocalFSStoreConfig {
@@ -36,7 +36,7 @@ private:
   /**
     Input for computing the build directory. See `getBuildDir()`.
    */
-  setting_t<std::optional<Path>> buildDir{this, std::nullopt, "build-dir",
+  setting_t<std::optional<Path>> build_dir{this, std::nullopt, "build-dir",
                                         R"(
             The directory on the host, in which derivations' temporary build directories are created.
 
@@ -83,7 +83,7 @@ public:
       this, getDefaultRequireSigs(), "require-sigs",
       "Whether store paths copied into this store should have a trusted signature."};
 
-  setting_t<bool> readOnly{this, false, "read-only",
+  setting_t<bool> read_only{this, false, "read-only",
                          R"(
           Allow this store to be opened when its [database](@docroot@/glossary.md#gloss-nix-database) is on a read-only filesystem.
 
@@ -104,7 +104,7 @@ public:
 
   static std::string doc();
 
-  ref<Store> openStore() const override;
+  ref<Store> open_store() const override;
 
   StoreReference getReference() const override;
 };
@@ -114,7 +114,7 @@ class LocalStore : public virtual IndirectRootStore,
                    public virtual TrackActiveBuildsStore,
                    public virtual QueryActiveBuildsStore {
 public:
-  using Config = LocalStoreConfig;
+  using config_t = LocalStoreConfig;
 
   ref<const LocalStoreConfig> config;
 
@@ -154,7 +154,7 @@ private:
      */
     uint64_t availAfterGC = std::numeric_limits<uint64_t>::max();
 
-    std::unique_ptr<public_keys_t> publicKeys;
+    std::unique_ptr<public_keys_t> public_keys;
   };
 
   /**
@@ -172,7 +172,7 @@ public:
   const Path fnTempRoots;
 
 private:
-  const public_keys_t& getPublicKeys();
+  const public_keys_t& get_public_keys();
 
 public:
   /**
@@ -184,7 +184,7 @@ public:
    * Initialise the local store, upgrading the schema if
    * necessary.
    */
-  LocalStore(ref<const Config> params);
+  LocalStore(ref<const config_t> params);
 
   ~LocalStore();
 
@@ -197,32 +197,32 @@ public:
   StorePathSet queryValidPaths(const StorePathSet& paths,
                                SubstituteFlag maybeSubstitute = NoSubstitute) override;
 
-  StorePathSet queryAllValidPaths() override;
+  StorePathSet query_all_valid_paths() override;
 
   void
-  queryPathInfoUncached(const StorePath& path,
+  query_path_info_uncached(const StorePath& path,
                         Callback<std::shared_ptr<const ValidPathInfo>> callback) noexcept override;
 
-  void queryReferrers(const StorePath& path, StorePathSet& referrers) override;
+  void query_referrers(const StorePath& path, StorePathSet& referrers) override;
 
   StorePathSet queryValidDerivers(const StorePath& path) override;
 
   std::map<std::string, std::optional<StorePath>>
   queryStaticPartialDerivationOutputMap(const StorePath& path) override;
 
-  std::optional<StorePath> queryPathFromHashPart(const std::string& hashPart) override;
+  std::optional<StorePath> queryPathFromHashPart(const std::string& hash_part) override;
 
   StorePathSet querySubstitutablePaths(const StorePathSet& paths) override;
 
   bool pathInfoIsUntrusted(const ValidPathInfo&) override;
   bool realisationIsUntrusted(const Realisation&) override;
 
-  void addToStore(const ValidPathInfo& info, Source& source, RepairFlag repair,
-                  CheckSigsFlag checkSigs) override;
+  void add_to_store(const ValidPathInfo& info, Source& source, RepairFlag repair,
+                  CheckSigsFlag check_sigs) override;
 
-  StorePath addToStoreFromDump(Source& dump, std::string_view name,
-                               file_serialisation_method_t dumpMethod, ContentAddressMethod hashMethod,
-                               hash_algorithm_t hashAlgo, const StorePathSet& references,
+  StorePath add_to_store_from_dump(Source& dump, std::string_view name,
+                               file_serialisation_method_t dump_method, ContentAddressMethod hash_method,
+                               hash_algorithm_t hash_algo, const StorePathSet& references,
                                RepairFlag repair) override;
 
   void addTempRoot(const StorePath& path) override;
@@ -267,20 +267,20 @@ public:
   /**
    * Called by `collectGarbage` to trace in reverse.
    *
-   * Using this rather than `queryReferrers` directly allows us to
+   * Using this rather than `query_referrers` directly allows us to
    * fine-tune which referrers we consider for garbage collection;
    * some store implementations take advantage of this.
    */
   virtual void queryGCReferrers(const StorePath& path, StorePathSet& referrers) {
-    return queryReferrers(path, referrers);
+    return query_referrers(path, referrers);
   }
 
   /**
    * Called by `collectGarbage` to recursively delete a path.
-   * The default implementation simply calls `deletePath`, but it can be
+   * The default implementation simply calls `delete_path`, but it can be
    * overridden by stores that wish to provide their own deletion behaviour.
    */
-  virtual void deleteStorePath(const Path& path, uint64_t& bytesFreed);
+  virtual void deleteStorePath(const Path& path, uint64_t& bytes_freed);
 
   /**
    * Optimise the disk space usage of the Nix store by hard-linking
@@ -296,7 +296,7 @@ public:
    */
   void optimisePath(const Path& path, RepairFlag repair);
 
-  bool verifyStore(bool checkContents, RepairFlag repair) override;
+  bool verifyStore(bool check_contents, RepairFlag repair) override;
 
 protected:
   /**
@@ -339,7 +339,7 @@ public:
 
   void vacuumDB();
 
-  void addSignatures(const StorePath& storePath, const string_set_t& sigs) override;
+  void addSignatures(const StorePath& store_path, const string_set_t& sigs) override;
 
   /**
    * If free disk space in /nix/store if below minFree, delete
@@ -351,15 +351,15 @@ public:
    * Register the store path 'output' as the output named 'outputName' of
    * derivation 'deriver'.
    */
-  void registerDrvOutput(const Realisation& info) override;
-  void registerDrvOutput(const Realisation& info, CheckSigsFlag checkSigs) override;
-  void cacheDrvOutputMapping(State& state, const uint64_t deriver, const std::string& outputName,
+  void register_drv_output(const Realisation& info) override;
+  void register_drv_output(const Realisation& info, CheckSigsFlag check_sigs) override;
+  void cacheDrvOutputMapping(State& state, const uint64_t deriver, const std::string& output_name,
                              const StorePath& output);
 
   std::optional<const UnkeyedRealisation> queryRealisation_(State& state, const DrvOutput& id);
   std::optional<std::pair<int64_t, UnkeyedRealisation>> queryRealisationCore_(State& state,
                                                                               const DrvOutput& id);
-  void queryRealisationUncached(
+  void query_realisation_uncached(
       const DrvOutput&,
       Callback<std::shared_ptr<const UnkeyedRealisation>> callback) noexcept override;
 
@@ -384,7 +384,7 @@ private:
 
   uint64_t queryValidPathId(State& state, const StorePath& path);
 
-  uint64_t addValidPath(State& state, const ValidPathInfo& info, bool checkOutputs = true);
+  uint64_t addValidPath(State& state, const ValidPathInfo& info, bool check_outputs = true);
 
   void invalidatePath(State& state, const StorePath& path);
 
@@ -417,9 +417,9 @@ private:
 
   // Internal versions that are not wrapped in retry_sqlite.
   bool isValidPath_(State& state, const StorePath& path);
-  void queryReferrers(State& state, const StorePath& path, StorePathSet& referrers);
+  void query_referrers(State& state, const StorePath& path, StorePathSet& referrers);
 
-  void addBuildLog(const StorePath& drvPath, std::string_view log) override;
+  void addBuildLog(const StorePath& drv_path, std::string_view log) override;
 
   friend struct PathSubstitutionGoal;
   friend struct DerivationGoal;
@@ -432,7 +432,7 @@ private:
     auto_delete_t del;
   };
 
-  sync_t<std::unordered_map<uint64_t, ActiveBuildFile>> activeBuilds;
+  sync_t<std::unordered_map<uint64_t, ActiveBuildFile>> active_builds;
 
   std::vector<ActiveBuildInfo> queryActiveBuilds() override;
 

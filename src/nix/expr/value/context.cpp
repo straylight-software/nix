@@ -7,7 +7,7 @@
 namespace nix {
 
 NixStringContextElem NixStringContextElem::parse(std::string_view s0,
-                                                 const experimental_feature_settings_t& xpSettings) {
+                                                 const experimental_feature_settings_t& xp_settings) {
   std::string_view s = s0;
 
   auto parseRest = [&](this auto& parseRest) -> SingleDerivedPath {
@@ -22,9 +22,9 @@ NixStringContextElem NixStringContextElem::parse(std::string_view s0,
       // Advance string to parse after the '!'
       s = s.substr(index + 1);
       auto drv = make_ref<SingleDerivedPath>(parseRest());
-      drvRequireExperiment(*drv, xpSettings);
+      drv_require_experiment(*drv, xp_settings);
       return SingleDerivedPath::Built{
-          .drvPath = std::move(drv),
+          .drv_path = std::move(drv),
           .output = std::move(output),
       };
     }
@@ -49,12 +49,12 @@ NixStringContextElem NixStringContextElem::parse(std::string_view s0,
     }
     case '=': {
       return NixStringContextElem::DrvDeep{
-          .drvPath = StorePath{s.substr(1)},
+          .drv_path = StorePath{s.substr(1)},
       };
     }
     case '@': {
       return NixStringContextElem::Path{
-          .storePath = StorePath{s.substr(1)},
+          .store_path = StorePath{s.substr(1)},
       };
     }
     default: {
@@ -78,7 +78,7 @@ std::string NixStringContextElem::to_string() const {
                    [&](const SingleDerivedPath::Built& o) {
                      res += o.output;
                      res += '!';
-                     toStringRest(*o.drvPath);
+                     toStringRest(*o.drv_path);
                    },
                },
                p.raw());
@@ -92,11 +92,11 @@ std::string NixStringContextElem::to_string() const {
                  [&](const NixStringContextElem::opaque_t& o) { toStringRest(o); },
                  [&](const NixStringContextElem::DrvDeep& d) {
                    res += '=';
-                   res += d.drvPath.to_string();
+                   res += d.drv_path.to_string();
                  },
                  [&](const NixStringContextElem::Path& p) {
                    res += '@';
-                   res += p.storePath.to_string();
+                   res += p.store_path.to_string();
                  },
              },
              raw);

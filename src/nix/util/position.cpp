@@ -2,26 +2,26 @@
 
 namespace nix {
 
-Pos::operator std::shared_ptr<const Pos>() const {
-  return std::make_shared<const Pos>(*this);
+pos_t::operator std::shared_ptr<const pos_t>() const {
+  return std::make_shared<const pos_t>(*this);
 }
 
-std::optional<lines_of_code_t> Pos::getCodeLines() const {
+std::optional<lines_of_code_t> pos_t::get_code_lines() const {
   if (line == 0)
     return std::nullopt;
 
-  if (auto source = getSource()) {
+  if (auto source = get_source()) {
     lines_iterator_t lines(*source), end;
     lines_of_code_t loc;
 
     if (line > 1)
       std::advance(lines, line - 2);
     if (lines != end && line > 1)
-      loc.prevLineOfCode = *lines++;
+      loc.prev_line_of_code = *lines++;
     if (lines != end)
-      loc.errLineOfCode = *lines++;
+      loc.err_line_of_code = *lines++;
     if (lines != end)
-      loc.nextLineOfCode = *lines++;
+      loc.next_line_of_code = *lines++;
 
     return loc;
   }
@@ -29,20 +29,20 @@ std::optional<lines_of_code_t> Pos::getCodeLines() const {
   return std::nullopt;
 }
 
-std::optional<std::string> Pos::getSource() const {
+std::optional<std::string> pos_t::get_source() const {
   return std::visit(
       overloaded{[](const std::monostate&) -> std::optional<std::string> { return std::nullopt; },
-                 [](const Pos::Stdin& s) -> std::optional<std::string> {
+                 [](const pos_t::Stdin& s) -> std::optional<std::string> {
                    // Get rid of the null terminators added by the parser.
                    return std::string(s.source->c_str());
                  },
-                 [](const Pos::String& s) -> std::optional<std::string> {
+                 [](const pos_t::String& s) -> std::optional<std::string> {
                    // Get rid of the null terminators added by the parser.
                    return std::string(s.source->c_str());
                  },
                  [](const source_path_t& path) -> std::optional<std::string> {
                    try {
-                     return path.readFile();
+                     return path.read_file();
                    } catch (Error&) {
                      return std::nullopt;
                    }
@@ -50,17 +50,17 @@ std::optional<std::string> Pos::getSource() const {
       origin);
 }
 
-std::optional<source_path_t> Pos::getSourcePath() const {
+std::optional<source_path_t> pos_t::get_source_path() const {
   if (auto* path = std::get_if<source_path_t>(&origin))
     return *path;
   return std::nullopt;
 }
 
-void Pos::print(std::ostream& out, bool showOrigin) const {
-  if (showOrigin) {
+void pos_t::print(std::ostream& out, bool show_origin) const {
+  if (show_origin) {
     std::visit(overloaded{[&](const std::monostate&) { out << "«none»"; },
-                          [&](const Pos::Stdin&) { out << "«stdin»"; },
-                          [&](const Pos::String& s) { out << "«string»"; },
+                          [&](const pos_t::Stdin&) { out << "«stdin»"; },
+                          [&](const pos_t::String& s) { out << "«string»"; },
                           [&](const source_path_t& path) { out << path; }},
                origin);
     out << ":";
@@ -70,13 +70,13 @@ void Pos::print(std::ostream& out, bool showOrigin) const {
     out << ":" << column;
 }
 
-std::ostream& operator<<(std::ostream& str, const Pos& pos) {
+std::ostream& operator<<(std::ostream& str, const pos_t& pos) {
   pos.print(str, true);
   return str;
 }
 
-void Pos::lines_iterator_t::bump(bool atFirst) {
-  if (!atFirst) {
+void pos_t::lines_iterator_t::bump(bool at_first) {
+  if (!at_first) {
     pastEnd = input.empty();
     if (!input.empty() && input[0] == '\r')
       input.remove_prefix(1);
@@ -96,41 +96,41 @@ void Pos::lines_iterator_t::bump(bool atFirst) {
   input.remove_prefix(eol);
 }
 
-std::optional<std::string> Pos::getSnippetUpTo(const Pos& end) const {
+std::optional<std::string> pos_t::get_snippet_up_to(const pos_t& end) const {
   assert(this->origin == end.origin);
 
   if (end.line < this->line)
     return std::nullopt;
 
-  if (auto source = getSource()) {
-    auto firstLine = lines_iterator_t(*source);
+  if (auto source = get_source()) {
+    auto first_line = lines_iterator_t(*source);
     for (uint32_t i = 1; i < this->line; ++i) {
-      ++firstLine;
+      ++first_line;
     }
 
-    auto lastLine = lines_iterator_t(*source);
+    auto last_line = lines_iterator_t(*source);
     for (uint32_t i = 1; i < end.line; ++i) {
-      ++lastLine;
+      ++last_line;
     }
 
-    lines_iterator_t linesEnd;
+    lines_iterator_t lines_end;
 
     std::string result;
-    for (auto i = firstLine; i != linesEnd; ++i) {
-      auto firstColumn = i == firstLine ? (this->column ? this->column - 1 : 0) : 0;
-      if (firstColumn > i->size())
-        firstColumn = i->size();
+    for (auto i = first_line; i != lines_end; ++i) {
+      auto first_column = i == first_line ? (this->column ? this->column - 1 : 0) : 0;
+      if (first_column > i->size())
+        first_column = i->size();
 
-      auto lastColumn =
-          i == lastLine ? (end.column ? end.column - 1 : 0) : std::numeric_limits<int>::max();
-      if (lastColumn < firstColumn)
-        lastColumn = firstColumn;
-      if (lastColumn > i->size())
-        lastColumn = i->size();
+      auto last_column =
+          i == last_line ? (end.column ? end.column - 1 : 0) : std::numeric_limits<int>::max();
+      if (last_column < first_column)
+        last_column = first_column;
+      if (last_column > i->size())
+        last_column = i->size();
 
-      result += i->substr(firstColumn, lastColumn - firstColumn);
+      result += i->substr(first_column, last_column - first_column);
 
-      if (i == lastLine) {
+      if (i == last_line) {
         break;
       } else {
         result += '\n';

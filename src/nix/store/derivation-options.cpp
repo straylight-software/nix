@@ -18,11 +18,11 @@
 
 namespace nix {
 
-static std::optional<std::string> getStringAttr(const string_map_t& env, const StructuredAttrs* parsed,
+static std::optional<std::string> get_string_attr(const string_map_t& env, const StructuredAttrs* parsed,
                                                 const std::string& name) {
   if (parsed) {
-    auto i = parsed->structuredAttrs.find(name);
-    if (i == parsed->structuredAttrs.end())
+    auto i = parsed->structured_attrs.find(name);
+    if (i == parsed->structured_attrs.end())
       return {};
     else {
       if (!i->second.is_string())
@@ -38,11 +38,11 @@ static std::optional<std::string> getStringAttr(const string_map_t& env, const S
   }
 }
 
-static bool getBoolAttr(const string_map_t& env, const StructuredAttrs* parsed,
+static bool get_bool_attr(const string_map_t& env, const StructuredAttrs* parsed,
                         const std::string& name, bool def) {
   if (parsed) {
-    auto i = parsed->structuredAttrs.find(name);
-    if (i == parsed->structuredAttrs.end())
+    auto i = parsed->structured_attrs.find(name);
+    if (i == parsed->structured_attrs.end())
       return def;
     else {
       if (!i->second.is_boolean())
@@ -58,16 +58,16 @@ static bool getBoolAttr(const string_map_t& env, const StructuredAttrs* parsed,
   }
 }
 
-static std::optional<strings_t> getStringsAttr(const string_map_t& env, const StructuredAttrs* parsed,
+static std::optional<strings_t> get_strings_attr(const string_map_t& env, const StructuredAttrs* parsed,
                                              const std::string& name) {
   if (parsed) {
-    auto i = parsed->structuredAttrs.find(name);
-    if (i == parsed->structuredAttrs.end())
+    auto i = parsed->structured_attrs.find(name);
+    if (i == parsed->structured_attrs.end())
       return {};
     else {
       if (!i->second.is_array())
         throw Error("attribute '%s' must be a list of strings", name);
-      auto& a = getArray(i->second);
+      auto& a = get_array(i->second);
       strings_t res;
       for (auto j = a.begin(); j != a.end(); ++j) {
         if (!j->is_string())
@@ -81,13 +81,13 @@ static std::optional<strings_t> getStringsAttr(const string_map_t& env, const St
     if (i == env.end())
       return {};
     else
-      return tokenizeString<strings_t>(i->second);
+      return tokenize_string<strings_t>(i->second);
   }
 }
 
 static std::optional<string_set_t>
-getStringSetAttr(const string_map_t& env, const StructuredAttrs* parsed, const std::string& name) {
-  auto ss = getStringsAttr(env, parsed, name);
+get_string_set_attr(const string_map_t& env, const StructuredAttrs* parsed, const std::string& name) {
+  auto ss = get_strings_attr(env, parsed, name);
   return ss ? (std::optional{string_set_t{ss->begin(), ss->end()}}) : (std::optional<string_set_t>{});
 }
 
@@ -99,19 +99,19 @@ using OutputChecksVariant =
     std::variant<OutputChecks<Inputs>, std::map<std::string, OutputChecks<Inputs>>>;
 
 DerivationOptions<StorePath>
-derivationOptionsFromStructuredAttrs(const StoreDirConfig& store, const string_map_t& env,
-                                     const StructuredAttrs* parsed, bool shouldWarn,
-                                     const experimental_feature_settings_t& mockXpSettings) {
-  /* Use the SingleDerivedPath version with empty inputDrvs, then
+derivation_options_from_structured_attrs(const StoreDirConfig& store, const string_map_t& env,
+                                     const StructuredAttrs* parsed, bool should_warn,
+                                     const experimental_feature_settings_t& mock_xp_settings) {
+  /* use the SingleDerivedPath version with empty input_drvs, then
      resolve. */
-  DerivedPathMap<string_set_t> emptyInputDrvs{};
-  auto singleDerivedPathOptions = derivationOptionsFromStructuredAttrs(
-      store, emptyInputDrvs, env, parsed, shouldWarn, mockXpSettings);
+  DerivedPathMap<string_set_t> empty_input_drvs{};
+  auto single_derived_path_options = derivation_options_from_structured_attrs(
+      store, empty_input_drvs, env, parsed, should_warn, mock_xp_settings);
 
   /* "Resolve" all SingleDerivedPath inputs to StorePath. */
-  auto resolved = tryResolve(singleDerivedPathOptions,
-                             [&](ref<const SingleDerivedPath> drvPath,
-                                 const std::string& outputName) -> std::optional<StorePath> {
+  auto resolved = try_resolve(single_derived_path_options,
+                             [&](ref<const SingleDerivedPath> drv_path,
+                                 const std::string& output_name) -> std::optional<StorePath> {
                                // there should be nothing to resolve
                                assert(false);
                              });
@@ -133,102 +133,102 @@ static void flatten(const nlohmann::json& value, string_set_t& res) {
     throw Error("'exportReferencesGraph' value is not an array or a string");
 }
 
-DerivationOptions<SingleDerivedPath> derivationOptionsFromStructuredAttrs(
-    const StoreDirConfig& store, const DerivedPathMap<string_set_t>& inputDrvs, const string_map_t& env,
-    const StructuredAttrs* parsed, bool shouldWarn,
-    const experimental_feature_settings_t& mockXpSettings) {
+DerivationOptions<SingleDerivedPath> derivation_options_from_structured_attrs(
+    const StoreDirConfig& store, const DerivedPathMap<string_set_t>& input_drvs, const string_map_t& env,
+    const StructuredAttrs* parsed, bool should_warn,
+    const experimental_feature_settings_t& mock_xp_settings) {
   DerivationOptions<SingleDerivedPath> defaults = {};
 
   std::map<std::string, SingleDerivedPath::Built> placeholders;
-  if (mockXpSettings.isEnabled(xp_t::CaDerivations)) {
-    /* Initialize placeholder map from inputDrvs */
-    auto initPlaceholders = [&](this const auto& initPlaceholders,
-                                ref<const SingleDerivedPath> basePath,
+  if (mock_xp_settings.is_enabled(xp_t::ca_derivations)) {
+    /* Initialize placeholder map from input_drvs */
+    auto init_placeholders = [&](this const auto& init_placeholders,
+                                ref<const SingleDerivedPath> base_path,
                                 const DerivedPathMap<string_set_t>::ChildNode& node) -> void {
-      for (const auto& outputName : node.value) {
+      for (const auto& output_name : node.value) {
         auto built = SingleDerivedPath::Built{
-            .drvPath = basePath,
-            .output = outputName,
+            .drv_path = base_path,
+            .output = output_name,
         };
         placeholders.insert_or_assign(
-            DownstreamPlaceholder::fromSingleDerivedPathBuilt(built, mockXpSettings).render(),
+            DownstreamPlaceholder::fromSingleDerivedPathBuilt(built, mock_xp_settings).render(),
             std::move(built));
       }
 
-      for (const auto& [outputName, childNode] : node.childMap) {
-        initPlaceholders(make_ref<const SingleDerivedPath>(SingleDerivedPath::Built{
-                             .drvPath = basePath,
-                             .output = outputName,
+      for (const auto& [output_name, childNode] : node.childMap) {
+        init_placeholders(make_ref<const SingleDerivedPath>(SingleDerivedPath::Built{
+                             .drv_path = base_path,
+                             .output = output_name,
                          }),
                          childNode);
       }
     };
 
-    for (const auto& [drvPath, outputs] : inputDrvs.map) {
-      auto basePath = make_ref<const SingleDerivedPath>(SingleDerivedPath::opaque_t{drvPath});
-      initPlaceholders(basePath, outputs);
+    for (const auto& [drv_path, outputs] : input_drvs.map) {
+      auto base_path = make_ref<const SingleDerivedPath>(SingleDerivedPath::opaque_t{drv_path});
+      init_placeholders(base_path, outputs);
     }
   }
 
-  auto parseSingleDerivedPath = [&](const std::string& pathS) -> SingleDerivedPath {
-    if (auto it = placeholders.find(pathS); it != placeholders.end())
+  auto parse_single_derived_path = [&](const std::string& path_s) -> SingleDerivedPath {
+    if (auto it = placeholders.find(path_s); it != placeholders.end())
       return it->second;
     else
-      return SingleDerivedPath::opaque_t{store.toStorePath(pathS).first};
+      return SingleDerivedPath::opaque_t{store.toStorePath(path_s).first};
   };
 
-  auto parseRef = [&](const std::string& pathS) -> DrvRef<SingleDerivedPath> {
-    if (auto it = placeholders.find(pathS); it != placeholders.end())
+  auto parse_ref = [&](const std::string& path_s) -> DrvRef<SingleDerivedPath> {
+    if (auto it = placeholders.find(path_s); it != placeholders.end())
       return it->second;
-    if (store.isStorePath(pathS))
-      return SingleDerivedPath::opaque_t{store.toStorePath(pathS).first};
+    if (store.isStorePath(path_s))
+      return SingleDerivedPath::opaque_t{store.toStorePath(path_s).first};
     else
-      return pathS;
+      return path_s;
   };
 
-  if (shouldWarn && parsed) {
-    auto& structuredAttrs = parsed->structuredAttrs;
+  if (should_warn && parsed) {
+    auto& structured_attrs = parsed->structured_attrs;
 
-    if (get(structuredAttrs, "allowedReferences")) {
+    if (get(structured_attrs, "allowedReferences")) {
       warn("'structuredAttrs' disables the effect of the top-level attribute 'allowedReferences'; "
            "use 'outputChecks' instead");
     }
-    if (get(structuredAttrs, "allowedRequisites")) {
+    if (get(structured_attrs, "allowedRequisites")) {
       warn("'structuredAttrs' disables the effect of the top-level attribute 'allowedRequisites'; "
            "use 'outputChecks' instead");
     }
-    if (get(structuredAttrs, "disallowedRequisites")) {
+    if (get(structured_attrs, "disallowedRequisites")) {
       warn("'structuredAttrs' disables the effect of the top-level attribute "
            "'disallowedRequisites'; use 'outputChecks' instead");
     }
-    if (get(structuredAttrs, "disallowedReferences")) {
+    if (get(structured_attrs, "disallowedReferences")) {
       warn("'structuredAttrs' disables the effect of the top-level attribute "
            "'disallowedReferences'; use 'outputChecks' instead");
     }
-    if (get(structuredAttrs, "maxSize")) {
+    if (get(structured_attrs, "maxSize")) {
       warn("'structuredAttrs' disables the effect of the top-level attribute 'maxSize'; use "
            "'outputChecks' instead");
     }
-    if (get(structuredAttrs, "maxClosureSize")) {
+    if (get(structured_attrs, "maxClosureSize")) {
       warn("'structuredAttrs' disables the effect of the top-level attribute 'maxClosureSize'; use "
            "'outputChecks' instead");
     }
   }
 
   return {
-      .outputChecks = [&]() -> OutputChecksVariant<SingleDerivedPath> {
+      .output_checks = [&]() -> OutputChecksVariant<SingleDerivedPath> {
         if (parsed) {
-          auto& structuredAttrs = parsed->structuredAttrs;
+          auto& structured_attrs = parsed->structured_attrs;
 
           std::map<std::string, OutputChecks<SingleDerivedPath>> res;
-          if (auto* outputChecks = get(structuredAttrs, "outputChecks")) {
-            for (auto& [outputName, output_] : getObject(*outputChecks)) {
+          if (auto* output_checks = get(structured_attrs, "outputChecks")) {
+            for (auto& [output_name, output_] : get_object(*output_checks)) {
               OutputChecks<SingleDerivedPath> checks;
 
-              auto& output = getObject(output_);
+              auto& output = get_object(output_);
 
-              if (auto maxSize = get(output, "maxSize"))
-                checks.maxSize = maxSize->get<uint64_t>();
+              if (auto max_size = get(output, "maxSize"))
+                checks.max_size = max_size->get<uint64_t>();
 
               if (auto maxClosureSize = get(output, "maxClosureSize"))
                 checks.maxClosureSize = maxClosureSize->get<uint64_t>();
@@ -240,7 +240,7 @@ DerivationOptions<SingleDerivedPath> derivationOptionsFromStructuredAttrs(
                   for (auto j = i->begin(); j != i->end(); ++j) {
                     if (!j->is_string())
                       throw Error("attribute '%s' must be a list of strings", name);
-                    res.insert(parseRef(j->get<std::string>()));
+                    res.insert(parse_ref(j->get<std::string>()));
                   }
                   return res;
                 }
@@ -248,11 +248,11 @@ DerivationOptions<SingleDerivedPath> derivationOptionsFromStructuredAttrs(
               };
 
               res.insert_or_assign(
-                  outputName,
+                  output_name,
                   OutputChecks<SingleDerivedPath>{
-                      .maxSize = [&]() -> std::optional<uint64_t> {
-                        if (auto maxSize = get(output, "maxSize"))
-                          return maxSize->get<uint64_t>();
+                      .max_size = [&]() -> std::optional<uint64_t> {
+                        if (auto max_size = get(output, "maxSize"))
+                          return max_size->get<uint64_t>();
                         else
                           return std::nullopt;
                       }(),
@@ -277,19 +277,19 @@ DerivationOptions<SingleDerivedPath> derivationOptionsFromStructuredAttrs(
               -> std::optional<std::set<DrvRef<SingleDerivedPath>>> {
             if (!optionalStringSet)
               return std::nullopt;
-            auto range = *optionalStringSet | std::views::transform(parseRef);
+            auto range = *optionalStringSet | std::views::transform(parse_ref);
             return std::set<DrvRef<SingleDerivedPath>>(range.begin(), range.end());
           };
           return OutputChecks<SingleDerivedPath>{
               // legacy non-structured-attributes case
               .ignoreSelfRefs = true,
-              .allowedReferences = parseRefSet(getStringSetAttr(env, parsed, "allowedReferences")),
+              .allowedReferences = parseRefSet(get_string_set_attr(env, parsed, "allowedReferences")),
               .disallowedReferences =
-                  parseRefSet(getStringSetAttr(env, parsed, "disallowedReferences"))
+                  parseRefSet(get_string_set_attr(env, parsed, "disallowedReferences"))
                       .value_or(std::set<DrvRef<SingleDerivedPath>>{}),
-              .allowedRequisites = parseRefSet(getStringSetAttr(env, parsed, "allowedRequisites")),
+              .allowedRequisites = parseRefSet(get_string_set_attr(env, parsed, "allowedRequisites")),
               .disallowedRequisites =
-                  parseRefSet(getStringSetAttr(env, parsed, "disallowedRequisites"))
+                  parseRefSet(get_string_set_attr(env, parsed, "disallowedRequisites"))
                       .value_or(std::set<DrvRef<SingleDerivedPath>>{}),
           };
         }
@@ -299,14 +299,14 @@ DerivationOptions<SingleDerivedPath> derivationOptionsFromStructuredAttrs(
             std::map<std::string, bool> res;
 
             if (parsed) {
-              auto& structuredAttrs = parsed->structuredAttrs;
+              auto& structured_attrs = parsed->structured_attrs;
 
-              if (auto* udr = get(structuredAttrs, "unsafeDiscardReferences")) {
-                for (auto& [outputName, output] : getObject(*udr)) {
+              if (auto* udr = get(structured_attrs, "unsafeDiscardReferences")) {
+                for (auto& [output_name, output] : get_object(*udr)) {
                   if (!output.is_boolean())
                     throw Error("attribute 'unsafeDiscardReferences.\"%s\"' must be a Boolean",
-                                outputName);
-                  res.insert_or_assign(outputName, output.get<bool>());
+                                output_name);
+                  res.insert_or_assign(output_name, output.get<bool>());
                 }
               }
             }
@@ -318,12 +318,12 @@ DerivationOptions<SingleDerivedPath> derivationOptionsFromStructuredAttrs(
             string_set_t res;
             if (auto* passAsFileString = get(env, "passAsFile")) {
               if (parsed) {
-                if (shouldWarn) {
+                if (should_warn) {
                   warn("'structuredAttrs' disables the effect of the top-level attribute "
                        "'passAsFile'; because all JSON is always passed via file");
                 }
               } else {
-                res = tokenizeString<string_set_t>(*passAsFileString);
+                res = tokenize_string<string_set_t>(*passAsFileString);
               }
             }
             return res;
@@ -333,48 +333,48 @@ DerivationOptions<SingleDerivedPath> derivationOptionsFromStructuredAttrs(
             std::map<std::string, std::set<SingleDerivedPath>> ret;
 
             if (parsed) {
-              auto* e = optionalValueAt(parsed->structuredAttrs, "exportReferencesGraph");
+              auto* e = optional_value_at(parsed->structured_attrs, "exportReferencesGraph");
               if (!e || !e->is_object())
                 return ret;
-              for (auto& [key, storePathsJson] : getObject(*e)) {
+              for (auto& [key, storePathsJson] : get_object(*e)) {
                 string_set_t ss;
                 flatten(storePathsJson, ss);
-                std::set<SingleDerivedPath> storePaths;
+                std::set<SingleDerivedPath> store_paths;
                 for (auto& s : ss)
-                  storePaths.insert(parseSingleDerivedPath(s));
-                ret.insert_or_assign(key, std::move(storePaths));
+                  store_paths.insert(parse_single_derived_path(s));
+                ret.insert_or_assign(key, std::move(store_paths));
               }
             } else {
-              auto s = getOr(env, "exportReferencesGraph", "");
-              strings_t ss = tokenizeString<strings_t>(s);
+              auto s = get_or(env, "exportReferencesGraph", "");
+              strings_t ss = tokenize_string<strings_t>(s);
               if (ss.size() % 2 != 0)
                 throw Error("odd number of tokens in 'exportReferencesGraph': '%1%'", s);
               for (strings_t::iterator i = ss.begin(); i != ss.end();) {
-                auto fileName = std::move(*i++);
+                auto file_name = std::move(*i++);
                 static std::regex regex("[A-Za-z_][A-Za-z0-9_.-]*");
-                if (!std::regex_match(fileName, regex))
-                  throw Error("invalid file name '%s' in 'exportReferencesGraph'", fileName);
+                if (!std::regex_match(file_name, regex))
+                  throw Error("invalid file name '%s' in 'exportReferencesGraph'", file_name);
 
-                auto& storePathS = *i++;
-                ret.insert_or_assign(std::move(fileName),
-                                     std::set{parseSingleDerivedPath(storePathS)});
+                auto& store_path_s = *i++;
+                ret.insert_or_assign(std::move(file_name),
+                                     std::set{parse_single_derived_path(store_path_s)});
               }
             }
             return ret;
           }(),
-      .additionalSandboxProfile = getStringAttr(env, parsed, "__sandboxProfile")
+      .additionalSandboxProfile = get_string_attr(env, parsed, "__sandboxProfile")
                                       .value_or(defaults.additionalSandboxProfile),
-      .noChroot = getBoolAttr(env, parsed, "__noChroot", defaults.noChroot),
+      .noChroot = get_bool_attr(env, parsed, "__noChroot", defaults.noChroot),
       .impureHostDeps =
-          getStringSetAttr(env, parsed, "__impureHostDeps").value_or(defaults.impureHostDeps),
+          get_string_set_attr(env, parsed, "__impureHostDeps").value_or(defaults.impureHostDeps),
       .impureEnvVars =
-          getStringSetAttr(env, parsed, "impureEnvVars").value_or(defaults.impureEnvVars),
+          get_string_set_attr(env, parsed, "impureEnvVars").value_or(defaults.impureEnvVars),
       .allowLocalNetworking =
-          getBoolAttr(env, parsed, "__darwinAllowLocalNetworking", defaults.allowLocalNetworking),
-      .requiredSystemFeatures = getStringSetAttr(env, parsed, "requiredSystemFeatures")
+          get_bool_attr(env, parsed, "__darwinAllowLocalNetworking", defaults.allowLocalNetworking),
+      .requiredSystemFeatures = get_string_set_attr(env, parsed, "requiredSystemFeatures")
                                     .value_or(defaults.requiredSystemFeatures),
-      .preferLocalBuild = getBoolAttr(env, parsed, "preferLocalBuild", defaults.preferLocalBuild),
-      .allowSubstitutes = getBoolAttr(env, parsed, "allowSubstitutes", defaults.allowSubstitutes),
+      .preferLocalBuild = get_bool_attr(env, parsed, "preferLocalBuild", defaults.preferLocalBuild),
+      .allowSubstitutes = get_bool_attr(env, parsed, "allowSubstitutes", defaults.allowSubstitutes),
   };
 }
 
@@ -396,7 +396,7 @@ bool DerivationOptions<Input>::canBuildLocally(Store& localStore,
       !settings.extraPlatforms.get().count(drv.platform) && !drv.isBuiltin())
     return false;
 
-  if (settings.maxBuildJobs.get() == 0 && !drv.isBuiltin())
+  if (settings.max_build_jobs.get() == 0 && !drv.isBuiltin())
     return false;
 
   for (auto& feature : getRequiredSystemFeatures(drv))
@@ -423,73 +423,73 @@ bool DerivationOptions<Input>::useUidRange(const BasicDerivation& drv) const {
 }
 
 std::optional<DerivationOptions<StorePath>>
-tryResolve(const DerivationOptions<SingleDerivedPath>& drvOptions,
-           std::function<std::optional<StorePath>(ref<const SingleDerivedPath> drvPath,
-                                                  const std::string& outputName)>
+try_resolve(const DerivationOptions<SingleDerivedPath>& drv_options,
+           std::function<std::optional<StorePath>(ref<const SingleDerivedPath> drv_path,
+                                                  const std::string& output_name)>
                queryResolutionChain) {
-  auto tryResolvePath = [&](const SingleDerivedPath& input) -> std::optional<StorePath> {
+  auto try_resolve_path = [&](const SingleDerivedPath& input) -> std::optional<StorePath> {
     return std::visit(
         overloaded{
             [](const SingleDerivedPath::opaque_t& p) -> std::optional<StorePath> { return p.path; },
             [&](const SingleDerivedPath::Built& p) -> std::optional<StorePath> {
-              return queryResolutionChain(p.drvPath, p.output);
+              return queryResolutionChain(p.drv_path, p.output);
             }},
         input.raw());
   };
 
-  auto tryResolveRef =
+  auto try_resolve_ref =
       [&](const DrvRef<SingleDerivedPath>& ref) -> std::optional<DrvRef<StorePath>> {
     return std::visit(
-        overloaded{[](const OutputName& outputName) -> std::optional<DrvRef<StorePath>> {
-                     return outputName;
+        overloaded{[](const OutputName& output_name) -> std::optional<DrvRef<StorePath>> {
+                     return output_name;
                    },
                    [&](const SingleDerivedPath& input) -> std::optional<DrvRef<StorePath>> {
-                     return tryResolvePath(input);
+                     return try_resolve_path(input);
                    }},
         ref);
   };
 
-  auto tryResolveRefSet = [&](const std::set<DrvRef<SingleDerivedPath>>& refSet)
+  auto try_resolve_ref_set = [&](const std::set<DrvRef<SingleDerivedPath>>& refSet)
       -> std::optional<std::set<DrvRef<StorePath>>> {
     std::set<DrvRef<StorePath>> resolvedSet;
     for (const auto& ref : refSet) {
-      auto resolvedRef = tryResolveRef(ref);
-      if (!resolvedRef)
+      auto resolved_ref = try_resolve_ref(ref);
+      if (!resolved_ref)
         return std::nullopt;
-      resolvedSet.insert(*resolvedRef);
+      resolvedSet.insert(*resolved_ref);
     }
     return resolvedSet;
   };
 
   // Helper function to try resolving OutputChecks using functional style
-  auto tryResolveOutputChecks =
+  auto try_resolve_output_checks =
       [&](const DerivationOptions<SingleDerivedPath>::OutputChecks& checks)
       -> std::optional<DerivationOptions<StorePath>::OutputChecks> {
     std::optional<std::set<DrvRef<StorePath>>> resolvedAllowedReferences;
     if (checks.allowedReferences) {
-      resolvedAllowedReferences = tryResolveRefSet(*checks.allowedReferences);
+      resolvedAllowedReferences = try_resolve_ref_set(*checks.allowedReferences);
       if (!resolvedAllowedReferences)
         return std::nullopt;
     }
 
     std::optional<std::set<DrvRef<StorePath>>> resolvedAllowedRequisites;
     if (checks.allowedRequisites) {
-      resolvedAllowedRequisites = tryResolveRefSet(*checks.allowedRequisites);
+      resolvedAllowedRequisites = try_resolve_ref_set(*checks.allowedRequisites);
       if (!resolvedAllowedRequisites)
         return std::nullopt;
     }
 
-    auto resolvedDisallowedReferences = tryResolveRefSet(checks.disallowedReferences);
+    auto resolvedDisallowedReferences = try_resolve_ref_set(checks.disallowedReferences);
     if (!resolvedDisallowedReferences)
       return std::nullopt;
 
-    auto resolvedDisallowedRequisites = tryResolveRefSet(checks.disallowedRequisites);
+    auto resolvedDisallowedRequisites = try_resolve_ref_set(checks.disallowedRequisites);
     if (!resolvedDisallowedRequisites)
       return std::nullopt;
 
     return DerivationOptions<StorePath>::OutputChecks{
         .ignoreSelfRefs = checks.ignoreSelfRefs,
-        .maxSize = checks.maxSize,
+        .max_size = checks.max_size,
         .maxClosureSize = checks.maxClosureSize,
         .allowedReferences = resolvedAllowedReferences,
         .disallowedReferences = *resolvedDisallowedReferences,
@@ -499,14 +499,14 @@ tryResolve(const DerivationOptions<SingleDerivedPath>& drvOptions,
   };
 
   // Helper function to resolve exportReferencesGraph using functional style
-  auto tryResolveExportReferencesGraph =
+  auto try_resolve_export_references_graph =
       [&](const std::map<std::string, std::set<SingleDerivedPath>>& exportGraph)
       -> std::optional<std::map<std::string, std::set<StorePath>>> {
     std::map<std::string, std::set<StorePath>> resolved;
     for (const auto& [name, inputPaths] : exportGraph) {
       std::set<StorePath> resolvedPaths;
       for (const auto& inputPath : inputPaths) {
-        auto resolvedPath = tryResolvePath(inputPath);
+        auto resolvedPath = try_resolve_path(inputPath);
         if (!resolvedPath)
           return std::nullopt;
         resolvedPaths.insert(*resolvedPath);
@@ -517,13 +517,13 @@ tryResolve(const DerivationOptions<SingleDerivedPath>& drvOptions,
   };
 
   // Resolve outputChecks using functional style with std::visit
-  auto resolvedOutputChecks = std::visit(
+  auto resolved_output_checks = std::visit(
       overloaded{
           [&](const DerivationOptions<SingleDerivedPath>::OutputChecks& checks)
               -> std::optional<
                   std::variant<DerivationOptions<StorePath>::OutputChecks,
                                std::map<std::string, DerivationOptions<StorePath>::OutputChecks>>> {
-            auto resolved = tryResolveOutputChecks(checks);
+            auto resolved = try_resolve_output_checks(checks);
             if (!resolved)
               return std::nullopt;
             return std::variant<DerivationOptions<StorePath>::OutputChecks,
@@ -536,40 +536,40 @@ tryResolve(const DerivationOptions<SingleDerivedPath>& drvOptions,
                   std::variant<DerivationOptions<StorePath>::OutputChecks,
                                std::map<std::string, DerivationOptions<StorePath>::OutputChecks>>> {
             std::map<std::string, DerivationOptions<StorePath>::OutputChecks> resolvedMap;
-            for (const auto& [outputName, checks] : checksMap) {
-              auto resolved = tryResolveOutputChecks(checks);
+            for (const auto& [output_name, checks] : checksMap) {
+              auto resolved = try_resolve_output_checks(checks);
               if (!resolved)
                 return std::nullopt;
-              resolvedMap.emplace(outputName, *resolved);
+              resolvedMap.emplace(output_name, *resolved);
             }
             return std::variant<DerivationOptions<StorePath>::OutputChecks,
                                 std::map<std::string, DerivationOptions<StorePath>::OutputChecks>>(
                 resolvedMap);
           }},
-      drvOptions.outputChecks);
+      drv_options.output_checks);
 
-  if (!resolvedOutputChecks)
+  if (!resolved_output_checks)
     return std::nullopt;
 
   // Resolve exportReferencesGraph
-  auto resolvedExportGraph = tryResolveExportReferencesGraph(drvOptions.exportReferencesGraph);
-  if (!resolvedExportGraph)
+  auto resolved_export_graph = try_resolve_export_references_graph(drv_options.exportReferencesGraph);
+  if (!resolved_export_graph)
     return std::nullopt;
 
   // Return resolved DerivationOptions using designated initializers
   return DerivationOptions<StorePath>{
-      .outputChecks = *resolvedOutputChecks,
-      .unsafeDiscardReferences = drvOptions.unsafeDiscardReferences,
-      .passAsFile = drvOptions.passAsFile,
-      .exportReferencesGraph = *resolvedExportGraph,
-      .additionalSandboxProfile = drvOptions.additionalSandboxProfile,
-      .noChroot = drvOptions.noChroot,
-      .impureHostDeps = drvOptions.impureHostDeps,
-      .impureEnvVars = drvOptions.impureEnvVars,
-      .allowLocalNetworking = drvOptions.allowLocalNetworking,
-      .requiredSystemFeatures = drvOptions.requiredSystemFeatures,
-      .preferLocalBuild = drvOptions.preferLocalBuild,
-      .allowSubstitutes = drvOptions.allowSubstitutes,
+      .output_checks = *resolved_output_checks,
+      .unsafeDiscardReferences = drv_options.unsafeDiscardReferences,
+      .passAsFile = drv_options.passAsFile,
+      .exportReferencesGraph = *resolved_export_graph,
+      .additionalSandboxProfile = drv_options.additionalSandboxProfile,
+      .noChroot = drv_options.noChroot,
+      .impureHostDeps = drv_options.impureHostDeps,
+      .impureEnvVars = drv_options.impureEnvVars,
+      .allowLocalNetworking = drv_options.allowLocalNetworking,
+      .requiredSystemFeatures = drv_options.requiredSystemFeatures,
+      .preferLocalBuild = drv_options.preferLocalBuild,
+      .allowSubstitutes = drv_options.allowSubstitutes,
   };
 }
 
@@ -584,14 +584,14 @@ using namespace nix;
 
 DerivationOptions<SingleDerivedPath>
 adl_serializer<DerivationOptions<SingleDerivedPath>>::from_json(const json& json_) {
-  auto& json = getObject(json_);
+  auto& json = get_object(json_);
 
   return {
-      .outputChecks = [&]() -> OutputChecksVariant<SingleDerivedPath> {
-        auto outputChecks = getObject(valueAt(json, "outputChecks"));
+      .output_checks = [&]() -> OutputChecksVariant<SingleDerivedPath> {
+        auto output_checks = get_object(value_at(json, "outputChecks"));
 
-        auto forAllOutputsOpt = optionalValueAt(outputChecks, "forAllOutputs");
-        auto perOutputOpt = optionalValueAt(outputChecks, "perOutput");
+        auto forAllOutputsOpt = optional_value_at(output_checks, "forAllOutputs");
+        auto perOutputOpt = optional_value_at(output_checks, "perOutput");
 
         if (forAllOutputsOpt && !perOutputOpt) {
           return static_cast<OutputChecks<SingleDerivedPath>>(*forAllOutputsOpt);
@@ -602,19 +602,19 @@ adl_serializer<DerivationOptions<SingleDerivedPath>>::from_json(const json& json
         }
       }(),
 
-      .unsafeDiscardReferences = valueAt(json, "unsafeDiscardReferences"),
-      .passAsFile = getStringSet(valueAt(json, "passAsFile")),
-      .exportReferencesGraph = valueAt(json, "exportReferencesGraph"),
+      .unsafeDiscardReferences = value_at(json, "unsafeDiscardReferences"),
+      .passAsFile = get_string_set(value_at(json, "passAsFile")),
+      .exportReferencesGraph = value_at(json, "exportReferencesGraph"),
 
-      .additionalSandboxProfile = getString(valueAt(json, "additionalSandboxProfile")),
-      .noChroot = getBoolean(valueAt(json, "noChroot")),
-      .impureHostDeps = getStringSet(valueAt(json, "impureHostDeps")),
-      .impureEnvVars = getStringSet(valueAt(json, "impureEnvVars")),
-      .allowLocalNetworking = getBoolean(valueAt(json, "allowLocalNetworking")),
+      .additionalSandboxProfile = get_string(value_at(json, "additionalSandboxProfile")),
+      .noChroot = get_boolean(value_at(json, "noChroot")),
+      .impureHostDeps = get_string_set(value_at(json, "impureHostDeps")),
+      .impureEnvVars = get_string_set(value_at(json, "impureEnvVars")),
+      .allowLocalNetworking = get_boolean(value_at(json, "allowLocalNetworking")),
 
-      .requiredSystemFeatures = getStringSet(valueAt(json, "requiredSystemFeatures")),
-      .preferLocalBuild = getBoolean(valueAt(json, "preferLocalBuild")),
-      .allowSubstitutes = getBoolean(valueAt(json, "allowSubstitutes")),
+      .requiredSystemFeatures = get_string_set(value_at(json, "requiredSystemFeatures")),
+      .preferLocalBuild = get_boolean(value_at(json, "preferLocalBuild")),
+      .allowSubstitutes = get_boolean(value_at(json, "allowSubstitutes")),
   };
 }
 
@@ -623,17 +623,17 @@ void adl_serializer<DerivationOptions<SingleDerivedPath>>::to_json(
   json["outputChecks"] = std::visit(
       overloaded{
           [&](const OutputChecks<SingleDerivedPath>& checks) {
-            nlohmann::json outputChecks;
-            outputChecks["forAllOutputs"] = checks;
-            return outputChecks;
+            nlohmann::json output_checks;
+            output_checks["forAllOutputs"] = checks;
+            return output_checks;
           },
           [&](const std::map<std::string, OutputChecks<SingleDerivedPath>>& checksPerOutput) {
-            nlohmann::json outputChecks;
-            outputChecks["perOutput"] = checksPerOutput;
-            return outputChecks;
+            nlohmann::json output_checks;
+            output_checks["perOutput"] = checksPerOutput;
+            return output_checks;
           },
       },
-      o.outputChecks);
+      o.output_checks);
 
   json["unsafeDiscardReferences"] = o.unsafeDiscardReferences;
   json["passAsFile"] = o.passAsFile;
@@ -652,25 +652,25 @@ void adl_serializer<DerivationOptions<SingleDerivedPath>>::to_json(
 
 OutputChecks<SingleDerivedPath>
 adl_serializer<OutputChecks<SingleDerivedPath>>::from_json(const json& json_) {
-  auto& json = getObject(json_);
+  auto& json = get_object(json_);
 
   return {
-      .ignoreSelfRefs = getBoolean(valueAt(json, "ignoreSelfRefs")),
-      .maxSize = ptrToOwned<uint64_t>(getNullable(valueAt(json, "maxSize"))),
-      .maxClosureSize = ptrToOwned<uint64_t>(getNullable(valueAt(json, "maxClosureSize"))),
-      .allowedReferences = ptrToOwned<std::set<DrvRef<SingleDerivedPath>>>(
-          getNullable(valueAt(json, "allowedReferences"))),
-      .disallowedReferences = valueAt(json, "disallowedReferences"),
-      .allowedRequisites = ptrToOwned<std::set<DrvRef<SingleDerivedPath>>>(
-          getNullable(valueAt(json, "allowedRequisites"))),
-      .disallowedRequisites = valueAt(json, "disallowedRequisites"),
+      .ignoreSelfRefs = get_boolean(value_at(json, "ignoreSelfRefs")),
+      .max_size = ptr_to_owned<uint64_t>(get_nullable(value_at(json, "maxSize"))),
+      .maxClosureSize = ptr_to_owned<uint64_t>(get_nullable(value_at(json, "maxClosureSize"))),
+      .allowedReferences = ptr_to_owned<std::set<DrvRef<SingleDerivedPath>>>(
+          get_nullable(value_at(json, "allowedReferences"))),
+      .disallowedReferences = value_at(json, "disallowedReferences"),
+      .allowedRequisites = ptr_to_owned<std::set<DrvRef<SingleDerivedPath>>>(
+          get_nullable(value_at(json, "allowedRequisites"))),
+      .disallowedRequisites = value_at(json, "disallowedRequisites"),
   };
 }
 
 void adl_serializer<OutputChecks<SingleDerivedPath>>::to_json(
     json& json, const OutputChecks<SingleDerivedPath>& c) {
   json["ignoreSelfRefs"] = c.ignoreSelfRefs;
-  json["maxSize"] = c.maxSize;
+  json["maxSize"] = c.max_size;
   json["maxClosureSize"] = c.maxClosureSize;
   json["allowedReferences"] = c.allowedReferences;
   json["disallowedReferences"] = c.disallowedReferences;

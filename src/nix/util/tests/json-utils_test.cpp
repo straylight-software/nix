@@ -35,21 +35,21 @@ using json = nlohmann::json;
 TEST_CASE("valueAt returns value for existing key", "[json][valueAt]") {
   json::object_t obj = {{"key", "value"}, {"number", 42}};
 
-  REQUIRE(valueAt(obj, "key") == "value");
-  REQUIRE(valueAt(obj, "number") == 42);
+  REQUIRE(value_at(obj, "key") == "value");
+  REQUIRE(value_at(obj, "number") == 42);
 }
 
 TEST_CASE("valueAt throws for missing key", "[json][valueAt]") {
   json::object_t obj = {{"key", "value"}};
 
-  REQUIRE_THROWS_AS(valueAt(obj, "missing"), Error);
+  REQUIRE_THROWS_AS(value_at(obj, "missing"), Error);
 }
 
 TEST_CASE("valueAt works with nested objects", "[json][valueAt]") {
   json::object_t inner = {{"inner_key", "inner_value"}};
   json::object_t obj = {{"nested", inner}};
 
-  const auto& nested = valueAt(obj, "nested");
+  const auto& nested = value_at(obj, "nested");
   REQUIRE(nested.is_object());
   REQUIRE(nested["inner_key"] == "inner_value");
 }
@@ -57,7 +57,7 @@ TEST_CASE("valueAt works with nested objects", "[json][valueAt]") {
 TEST_CASE("valueAt handles empty object", "[json][valueAt]") {
   json::object_t empty;
 
-  REQUIRE_THROWS_AS(valueAt(empty, "anything"), Error);
+  REQUIRE_THROWS_AS(value_at(empty, "anything"), Error);
 }
 
 TEST_CASE("valueAt handles keys with special characters", "[json][valueAt]") {
@@ -67,11 +67,11 @@ TEST_CASE("valueAt handles keys with special characters", "[json][valueAt]") {
                         {"key\"with\"quotes", 4},
                         {"", 5}};
 
-  REQUIRE(valueAt(obj, "key with spaces") == 1);
-  REQUIRE(valueAt(obj, "key\twith\ttabs") == 2);
-  REQUIRE(valueAt(obj, "key\nwith\nnewlines") == 3);
-  REQUIRE(valueAt(obj, "key\"with\"quotes") == 4);
-  REQUIRE(valueAt(obj, "") == 5);
+  REQUIRE(value_at(obj, "key with spaces") == 1);
+  REQUIRE(value_at(obj, "key\twith\ttabs") == 2);
+  REQUIRE(value_at(obj, "key\nwith\nnewlines") == 3);
+  REQUIRE(value_at(obj, "key\"with\"quotes") == 4);
+  REQUIRE(value_at(obj, "") == 5);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -81,7 +81,7 @@ TEST_CASE("valueAt handles keys with special characters", "[json][valueAt]") {
 TEST_CASE("optionalValueAt returns pointer for existing key", "[json][optionalValueAt]") {
   json::object_t obj = {{"key", "value"}};
 
-  const json* result = optionalValueAt(obj, "key");
+  const json* result = optional_value_at(obj, "key");
   REQUIRE(result != nullptr);
   REQUIRE(*result == "value");
 }
@@ -89,14 +89,14 @@ TEST_CASE("optionalValueAt returns pointer for existing key", "[json][optionalVa
 TEST_CASE("optionalValueAt returns nullptr for missing key", "[json][optionalValueAt]") {
   json::object_t obj = {{"key", "value"}};
 
-  const json* result = optionalValueAt(obj, "missing");
+  const json* result = optional_value_at(obj, "missing");
   REQUIRE(result == nullptr);
 }
 
 TEST_CASE("optionalValueAt returns non-null for json null value", "[json][optionalValueAt]") {
   json::object_t obj = {{"null_key", nullptr}};
 
-  const json* result = optionalValueAt(obj, "null_key");
+  const json* result = optional_value_at(obj, "null_key");
   REQUIRE(result != nullptr);
   REQUIRE(result->is_null());
 }
@@ -107,7 +107,7 @@ TEST_CASE("optionalValueAt returns non-null for json null value", "[json][option
 
 TEST_CASE("getNullable returns nullptr for json null", "[json][getNullable]") {
   json null_value = nullptr;
-  REQUIRE(getNullable(null_value) == nullptr);
+  REQUIRE(get_nullable(null_value) == nullptr);
 }
 
 TEST_CASE("getNullable returns pointer for non-null values", "[json][getNullable]") {
@@ -117,17 +117,17 @@ TEST_CASE("getNullable returns pointer for non-null values", "[json][getNullable
   json array_val = json::array({1, 2, 3});
   json object_val = json::object({{"a", 1}});
 
-  REQUIRE(getNullable(string_val) != nullptr);
-  REQUIRE(*getNullable(string_val) == "test");
+  REQUIRE(get_nullable(string_val) != nullptr);
+  REQUIRE(*get_nullable(string_val) == "test");
 
-  REQUIRE(getNullable(number_val) != nullptr);
-  REQUIRE(*getNullable(number_val) == 42);
+  REQUIRE(get_nullable(number_val) != nullptr);
+  REQUIRE(*get_nullable(number_val) == 42);
 
-  REQUIRE(getNullable(bool_val) != nullptr);
-  REQUIRE(*getNullable(bool_val) == true);
+  REQUIRE(get_nullable(bool_val) != nullptr);
+  REQUIRE(*get_nullable(bool_val) == true);
 
-  REQUIRE(getNullable(array_val) != nullptr);
-  REQUIRE(getNullable(object_val) != nullptr);
+  REQUIRE(get_nullable(array_val) != nullptr);
+  REQUIRE(get_nullable(object_val) != nullptr);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -137,23 +137,23 @@ TEST_CASE("getNullable returns pointer for non-null values", "[json][getNullable
 TEST_CASE("getObject returns object reference", "[json][getObject]") {
   json obj = json::object({{"a", 1}, {"b", 2}});
 
-  const auto& result = getObject(obj);
+  const auto& result = get_object(obj);
   REQUIRE(result.size() == 2);
   REQUIRE(result.at("a") == 1);
 }
 
 TEST_CASE("getObject throws for non-object types", "[json][getObject]") {
-  REQUIRE_THROWS_AS(getObject(json(42)), Error);
-  REQUIRE_THROWS_AS(getObject(json("string")), Error);
-  REQUIRE_THROWS_AS(getObject(json::array({1, 2})), Error);
-  REQUIRE_THROWS_AS(getObject(json(true)), Error);
-  REQUIRE_THROWS_AS(getObject(json(nullptr)), Error);
-  REQUIRE_THROWS_AS(getObject(json(3.14)), Error);
+  REQUIRE_THROWS_AS(get_object(json(42)), Error);
+  REQUIRE_THROWS_AS(get_object(json("string")), Error);
+  REQUIRE_THROWS_AS(get_object(json::array({1, 2})), Error);
+  REQUIRE_THROWS_AS(get_object(json(true)), Error);
+  REQUIRE_THROWS_AS(get_object(json(nullptr)), Error);
+  REQUIRE_THROWS_AS(get_object(json(3.14)), Error);
 }
 
 TEST_CASE("getObject handles empty object", "[json][getObject]") {
   json empty = json::object();
-  const auto& result = getObject(empty);
+  const auto& result = get_object(empty);
   REQUIRE(result.empty());
 }
 
@@ -164,29 +164,29 @@ TEST_CASE("getObject handles empty object", "[json][getObject]") {
 TEST_CASE("getArray returns array reference", "[json][getArray]") {
   json arr = json::array({1, 2, 3, 4, 5});
 
-  const auto& result = getArray(arr);
+  const auto& result = get_array(arr);
   REQUIRE(result.size() == 5);
   REQUIRE(result[0] == 1);
   REQUIRE(result[4] == 5);
 }
 
 TEST_CASE("getArray throws for non-array types", "[json][getArray]") {
-  REQUIRE_THROWS_AS(getArray(json(42)), Error);
-  REQUIRE_THROWS_AS(getArray(json("string")), Error);
-  REQUIRE_THROWS_AS(getArray(json::object({{"a", 1}})), Error);
-  REQUIRE_THROWS_AS(getArray(json(true)), Error);
-  REQUIRE_THROWS_AS(getArray(json(nullptr)), Error);
+  REQUIRE_THROWS_AS(get_array(json(42)), Error);
+  REQUIRE_THROWS_AS(get_array(json("string")), Error);
+  REQUIRE_THROWS_AS(get_array(json::object({{"a", 1}})), Error);
+  REQUIRE_THROWS_AS(get_array(json(true)), Error);
+  REQUIRE_THROWS_AS(get_array(json(nullptr)), Error);
 }
 
 TEST_CASE("getArray handles empty array", "[json][getArray]") {
   json empty = json::array();
-  const auto& result = getArray(empty);
+  const auto& result = get_array(empty);
   REQUIRE(result.empty());
 }
 
 TEST_CASE("getArray handles heterogeneous arrays", "[json][getArray]") {
   json arr = json::array({1, "two", true, nullptr, json::object()});
-  const auto& result = getArray(arr);
+  const auto& result = get_array(arr);
   REQUIRE(result.size() == 5);
 }
 
@@ -196,41 +196,41 @@ TEST_CASE("getArray handles heterogeneous arrays", "[json][getArray]") {
 
 TEST_CASE("getString returns string reference", "[json][getString]") {
   json str = "hello world";
-  const auto& result = getString(str);
+  const auto& result = get_string(str);
   REQUIRE(result == "hello world");
 }
 
 TEST_CASE("getString throws for non-string types", "[json][getString]") {
-  REQUIRE_THROWS_AS(getString(json(42)), Error);
-  REQUIRE_THROWS_AS(getString(json::array({1})), Error);
-  REQUIRE_THROWS_AS(getString(json::object({{"a", 1}})), Error);
-  REQUIRE_THROWS_AS(getString(json(true)), Error);
-  REQUIRE_THROWS_AS(getString(json(nullptr)), Error);
+  REQUIRE_THROWS_AS(get_string(json(42)), Error);
+  REQUIRE_THROWS_AS(get_string(json::array({1})), Error);
+  REQUIRE_THROWS_AS(get_string(json::object({{"a", 1}})), Error);
+  REQUIRE_THROWS_AS(get_string(json(true)), Error);
+  REQUIRE_THROWS_AS(get_string(json(nullptr)), Error);
 }
 
 TEST_CASE("getString handles empty string", "[json][getString]") {
   json empty = "";
-  REQUIRE(getString(empty).empty());
+  REQUIRE(get_string(empty).empty());
 }
 
 TEST_CASE("getString handles unicode strings", "[json][getString]") {
   // Basic multilingual plane
   json unicode = "hello 世界 🌍 مرحبا";
-  REQUIRE(getString(unicode) == "hello 世界 🌍 مرحبا");
+  REQUIRE(get_string(unicode) == "hello 世界 🌍 مرحبا");
 
   // Emoji and special characters
   json emoji = "👨‍👩‍👧‍👦 ❤️ 🇺🇸";
-  REQUIRE(getString(emoji) == "👨‍👩‍👧‍👦 ❤️ 🇺🇸");
+  REQUIRE(get_string(emoji) == "👨‍👩‍👧‍👦 ❤️ 🇺🇸");
 
   // Null character in string
   std::string with_null = std::string("before\0after", 12);
   json null_str = with_null;
-  REQUIRE(getString(null_str) == with_null);
+  REQUIRE(get_string(null_str) == with_null);
 }
 
 TEST_CASE("getString handles strings with escape sequences", "[json][getString]") {
   json escaped = "line1\nline2\ttab\\backslash\"quote";
-  REQUIRE(getString(escaped) == "line1\nline2\ttab\\backslash\"quote");
+  REQUIRE(get_string(escaped) == "line1\nline2\ttab\\backslash\"quote");
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -239,34 +239,34 @@ TEST_CASE("getString handles strings with escape sequences", "[json][getString]"
 
 TEST_CASE("getUnsigned returns unsigned value", "[json][getUnsigned]") {
   json num = static_cast<uint64_t>(42);
-  REQUIRE(getUnsigned(num) == 42);
+  REQUIRE(get_unsigned(num) == 42);
 }
 
 TEST_CASE("getUnsigned works with zero", "[json][getUnsigned]") {
   json zero = static_cast<uint64_t>(0);
-  REQUIRE(getUnsigned(zero) == 0);
+  REQUIRE(get_unsigned(zero) == 0);
 }
 
 TEST_CASE("getUnsigned works with max uint64", "[json][getUnsigned]") {
   json max_val = std::numeric_limits<uint64_t>::max();
-  REQUIRE(getUnsigned(max_val) == std::numeric_limits<uint64_t>::max());
+  REQUIRE(get_unsigned(max_val) == std::numeric_limits<uint64_t>::max());
 }
 
 TEST_CASE("getUnsigned throws for negative numbers", "[json][getUnsigned]") {
   json neg = -1;
-  REQUIRE_THROWS_AS(getUnsigned(neg), Error);
+  REQUIRE_THROWS_AS(get_unsigned(neg), Error);
 }
 
 TEST_CASE("getUnsigned throws for non-integer types", "[json][getUnsigned]") {
-  REQUIRE_THROWS_AS(getUnsigned(json("42")), Error);
-  REQUIRE_THROWS_AS(getUnsigned(json::array({42})), Error);
-  REQUIRE_THROWS_AS(getUnsigned(json(true)), Error);
-  REQUIRE_THROWS_AS(getUnsigned(json(nullptr)), Error);
+  REQUIRE_THROWS_AS(get_unsigned(json("42")), Error);
+  REQUIRE_THROWS_AS(get_unsigned(json::array({42})), Error);
+  REQUIRE_THROWS_AS(get_unsigned(json(true)), Error);
+  REQUIRE_THROWS_AS(get_unsigned(json(nullptr)), Error);
 }
 
 TEST_CASE("getUnsigned throws for floating point", "[json][getUnsigned]") {
   json floating = 3.14;
-  REQUIRE_THROWS_AS(getUnsigned(floating), Error);
+  REQUIRE_THROWS_AS(get_unsigned(floating), Error);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -275,98 +275,98 @@ TEST_CASE("getUnsigned throws for floating point", "[json][getUnsigned]") {
 
 TEST_CASE("getInteger returns signed value from positive number", "[json][getInteger]") {
   json num = 42;
-  REQUIRE(getInteger<int32_t>(num) == 42);
-  REQUIRE(getInteger<int64_t>(num) == 42);
+  REQUIRE(get_integer<int32_t>(num) == 42);
+  REQUIRE(get_integer<int64_t>(num) == 42);
 }
 
 TEST_CASE("getInteger returns signed value from negative number", "[json][getInteger]") {
   json neg = -42;
-  REQUIRE(getInteger<int32_t>(neg) == -42);
-  REQUIRE(getInteger<int64_t>(neg) == -42);
+  REQUIRE(get_integer<int32_t>(neg) == -42);
+  REQUIRE(get_integer<int64_t>(neg) == -42);
 }
 
 TEST_CASE("getInteger handles boundary values for int8", "[json][getInteger]") {
   json min_val = std::numeric_limits<int8_t>::min();
   json max_val = std::numeric_limits<int8_t>::max();
 
-  REQUIRE(getInteger<int8_t>(min_val) == std::numeric_limits<int8_t>::min());
-  REQUIRE(getInteger<int8_t>(max_val) == std::numeric_limits<int8_t>::max());
+  REQUIRE(get_integer<int8_t>(min_val) == std::numeric_limits<int8_t>::min());
+  REQUIRE(get_integer<int8_t>(max_val) == std::numeric_limits<int8_t>::max());
 
   // Out of range
   json too_large = static_cast<int64_t>(std::numeric_limits<int8_t>::max()) + 1;
   json too_small = static_cast<int64_t>(std::numeric_limits<int8_t>::min()) - 1;
 
-  REQUIRE_THROWS_AS(getInteger<int8_t>(too_large), Error);
-  REQUIRE_THROWS_AS(getInteger<int8_t>(too_small), Error);
+  REQUIRE_THROWS_AS(get_integer<int8_t>(too_large), Error);
+  REQUIRE_THROWS_AS(get_integer<int8_t>(too_small), Error);
 }
 
 TEST_CASE("getInteger handles boundary values for int16", "[json][getInteger]") {
   json min_val = std::numeric_limits<int16_t>::min();
   json max_val = std::numeric_limits<int16_t>::max();
 
-  REQUIRE(getInteger<int16_t>(min_val) == std::numeric_limits<int16_t>::min());
-  REQUIRE(getInteger<int16_t>(max_val) == std::numeric_limits<int16_t>::max());
+  REQUIRE(get_integer<int16_t>(min_val) == std::numeric_limits<int16_t>::min());
+  REQUIRE(get_integer<int16_t>(max_val) == std::numeric_limits<int16_t>::max());
 
   // Out of range
   json too_large = static_cast<int64_t>(std::numeric_limits<int16_t>::max()) + 1;
   json too_small = static_cast<int64_t>(std::numeric_limits<int16_t>::min()) - 1;
 
-  REQUIRE_THROWS_AS(getInteger<int16_t>(too_large), Error);
-  REQUIRE_THROWS_AS(getInteger<int16_t>(too_small), Error);
+  REQUIRE_THROWS_AS(get_integer<int16_t>(too_large), Error);
+  REQUIRE_THROWS_AS(get_integer<int16_t>(too_small), Error);
 }
 
 TEST_CASE("getInteger handles boundary values for int32", "[json][getInteger]") {
   json min_val = std::numeric_limits<int32_t>::min();
   json max_val = std::numeric_limits<int32_t>::max();
 
-  REQUIRE(getInteger<int32_t>(min_val) == std::numeric_limits<int32_t>::min());
-  REQUIRE(getInteger<int32_t>(max_val) == std::numeric_limits<int32_t>::max());
+  REQUIRE(get_integer<int32_t>(min_val) == std::numeric_limits<int32_t>::min());
+  REQUIRE(get_integer<int32_t>(max_val) == std::numeric_limits<int32_t>::max());
 
   // Out of range
   json too_large = static_cast<int64_t>(std::numeric_limits<int32_t>::max()) + 1;
   json too_small = static_cast<int64_t>(std::numeric_limits<int32_t>::min()) - 1;
 
-  REQUIRE_THROWS_AS(getInteger<int32_t>(too_large), Error);
-  REQUIRE_THROWS_AS(getInteger<int32_t>(too_small), Error);
+  REQUIRE_THROWS_AS(get_integer<int32_t>(too_large), Error);
+  REQUIRE_THROWS_AS(get_integer<int32_t>(too_small), Error);
 }
 
 TEST_CASE("getInteger handles boundary values for int64", "[json][getInteger]") {
   json min_val = std::numeric_limits<int64_t>::min();
   json max_val = std::numeric_limits<int64_t>::max();
 
-  REQUIRE(getInteger<int64_t>(min_val) == std::numeric_limits<int64_t>::min());
-  REQUIRE(getInteger<int64_t>(max_val) == std::numeric_limits<int64_t>::max());
+  REQUIRE(get_integer<int64_t>(min_val) == std::numeric_limits<int64_t>::min());
+  REQUIRE(get_integer<int64_t>(max_val) == std::numeric_limits<int64_t>::max());
 }
 
 TEST_CASE("getInteger converts unsigned to signed when in range", "[json][getInteger]") {
   json unsigned_val = static_cast<uint64_t>(100);
-  REQUIRE(getInteger<int32_t>(unsigned_val) == 100);
+  REQUIRE(get_integer<int32_t>(unsigned_val) == 100);
 }
 
 TEST_CASE("getInteger rejects unsigned values too large for signed type", "[json][getInteger]") {
   // UINT64_MAX cannot fit in int64_t
   json too_large = std::numeric_limits<uint64_t>::max();
-  REQUIRE_THROWS_AS(getInteger<int64_t>(too_large), Error);
+  REQUIRE_THROWS_AS(get_integer<int64_t>(too_large), Error);
 
   // INT32_MAX + 1 as unsigned cannot fit in int32_t
   json over_int32 = static_cast<uint64_t>(std::numeric_limits<int32_t>::max()) + 1;
-  REQUIRE_THROWS_AS(getInteger<int32_t>(over_int32), Error);
+  REQUIRE_THROWS_AS(get_integer<int32_t>(over_int32), Error);
 }
 
 TEST_CASE("getInteger throws for floating point", "[json][getInteger]") {
   json floating = 3.14;
-  REQUIRE_THROWS_AS(getInteger<int32_t>(floating), Error);
+  REQUIRE_THROWS_AS(get_integer<int32_t>(floating), Error);
 
   // Even integral floating point values should fail
   json int_float = 42.0;
-  REQUIRE_THROWS_AS(getInteger<int32_t>(int_float), Error);
+  REQUIRE_THROWS_AS(get_integer<int32_t>(int_float), Error);
 }
 
 TEST_CASE("getInteger throws for non-numeric types", "[json][getInteger]") {
-  REQUIRE_THROWS_AS(getInteger<int32_t>(json("42")), Error);
-  REQUIRE_THROWS_AS(getInteger<int32_t>(json::array({42})), Error);
-  REQUIRE_THROWS_AS(getInteger<int32_t>(json(true)), Error);
-  REQUIRE_THROWS_AS(getInteger<int32_t>(json(nullptr)), Error);
+  REQUIRE_THROWS_AS(get_integer<int32_t>(json("42")), Error);
+  REQUIRE_THROWS_AS(get_integer<int32_t>(json::array({42})), Error);
+  REQUIRE_THROWS_AS(get_integer<int32_t>(json(true)), Error);
+  REQUIRE_THROWS_AS(get_integer<int32_t>(json(nullptr)), Error);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -377,18 +377,18 @@ TEST_CASE("getBoolean returns boolean values", "[json][getBoolean]") {
   json true_val = true;
   json false_val = false;
 
-  REQUIRE(getBoolean(true_val) == true);
-  REQUIRE(getBoolean(false_val) == false);
+  REQUIRE(get_boolean(true_val) == true);
+  REQUIRE(get_boolean(false_val) == false);
 }
 
 TEST_CASE("getBoolean throws for non-boolean types", "[json][getBoolean]") {
-  REQUIRE_THROWS_AS(getBoolean(json(1)), Error);
-  REQUIRE_THROWS_AS(getBoolean(json(0)), Error);
-  REQUIRE_THROWS_AS(getBoolean(json("true")), Error);
-  REQUIRE_THROWS_AS(getBoolean(json("false")), Error);
-  REQUIRE_THROWS_AS(getBoolean(json(nullptr)), Error);
-  REQUIRE_THROWS_AS(getBoolean(json::array()), Error);
-  REQUIRE_THROWS_AS(getBoolean(json::object()), Error);
+  REQUIRE_THROWS_AS(get_boolean(json(1)), Error);
+  REQUIRE_THROWS_AS(get_boolean(json(0)), Error);
+  REQUIRE_THROWS_AS(get_boolean(json("true")), Error);
+  REQUIRE_THROWS_AS(get_boolean(json("false")), Error);
+  REQUIRE_THROWS_AS(get_boolean(json(nullptr)), Error);
+  REQUIRE_THROWS_AS(get_boolean(json::array()), Error);
+  REQUIRE_THROWS_AS(get_boolean(json::object()), Error);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -397,7 +397,7 @@ TEST_CASE("getBoolean throws for non-boolean types", "[json][getBoolean]") {
 
 TEST_CASE("getStringList returns list of strings", "[json][getStringList]") {
   json arr = json::array({"a", "b", "c"});
-  strings_t result = getStringList(arr);
+  strings_t result = get_string_list(arr);
 
   REQUIRE(result.size() == 3);
   auto it = result.begin();
@@ -408,22 +408,22 @@ TEST_CASE("getStringList returns list of strings", "[json][getStringList]") {
 
 TEST_CASE("getStringList returns empty list for empty array", "[json][getStringList]") {
   json empty = json::array();
-  strings_t result = getStringList(empty);
+  strings_t result = get_string_list(empty);
   REQUIRE(result.empty());
 }
 
 TEST_CASE("getStringList throws for non-array", "[json][getStringList]") {
-  REQUIRE_THROWS_AS(getStringList(json("string")), Error);
-  REQUIRE_THROWS_AS(getStringList(json::object()), Error);
-  REQUIRE_THROWS_AS(getStringList(json(42)), Error);
+  REQUIRE_THROWS_AS(get_string_list(json("string")), Error);
+  REQUIRE_THROWS_AS(get_string_list(json::object()), Error);
+  REQUIRE_THROWS_AS(get_string_list(json(42)), Error);
 }
 
 TEST_CASE("getStringList throws for array with non-strings", "[json][getStringList]") {
   json mixed = json::array({"valid", 42, "also valid"});
-  REQUIRE_THROWS_AS(getStringList(mixed), Error);
+  REQUIRE_THROWS_AS(get_string_list(mixed), Error);
 
   json all_numbers = json::array({1, 2, 3});
-  REQUIRE_THROWS_AS(getStringList(all_numbers), Error);
+  REQUIRE_THROWS_AS(get_string_list(all_numbers), Error);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -432,7 +432,7 @@ TEST_CASE("getStringList throws for array with non-strings", "[json][getStringLi
 
 TEST_CASE("getStringMap returns map of strings", "[json][getStringMap]") {
   json obj = json::object({{"key1", "value1"}, {"key2", "value2"}});
-  string_map_t result = getStringMap(obj);
+  string_map_t result = get_string_map(obj);
 
   REQUIRE(result.size() == 2);
   REQUIRE(result.at("key1") == "value1");
@@ -441,19 +441,19 @@ TEST_CASE("getStringMap returns map of strings", "[json][getStringMap]") {
 
 TEST_CASE("getStringMap returns empty map for empty object", "[json][getStringMap]") {
   json empty = json::object();
-  string_map_t result = getStringMap(empty);
+  string_map_t result = get_string_map(empty);
   REQUIRE(result.empty());
 }
 
 TEST_CASE("getStringMap throws for non-object", "[json][getStringMap]") {
-  REQUIRE_THROWS_AS(getStringMap(json::array({"a", "b"})), Error);
-  REQUIRE_THROWS_AS(getStringMap(json("string")), Error);
-  REQUIRE_THROWS_AS(getStringMap(json(42)), Error);
+  REQUIRE_THROWS_AS(get_string_map(json::array({"a", "b"})), Error);
+  REQUIRE_THROWS_AS(get_string_map(json("string")), Error);
+  REQUIRE_THROWS_AS(get_string_map(json(42)), Error);
 }
 
 TEST_CASE("getStringMap throws for object with non-string values", "[json][getStringMap]") {
   json mixed = json::object({{"valid", "string"}, {"invalid", 42}});
-  REQUIRE_THROWS_AS(getStringMap(mixed), Error);
+  REQUIRE_THROWS_AS(get_string_map(mixed), Error);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -462,7 +462,7 @@ TEST_CASE("getStringMap throws for object with non-string values", "[json][getSt
 
 TEST_CASE("getStringSet returns set of strings", "[json][getStringSet]") {
   json arr = json::array({"a", "b", "c"});
-  string_set_t result = getStringSet(arr);
+  string_set_t result = get_string_set(arr);
 
   REQUIRE(result.size() == 3);
   REQUIRE(result.contains("a"));
@@ -472,25 +472,25 @@ TEST_CASE("getStringSet returns set of strings", "[json][getStringSet]") {
 
 TEST_CASE("getStringSet deduplicates strings", "[json][getStringSet]") {
   json arr = json::array({"a", "b", "a", "c", "b"});
-  string_set_t result = getStringSet(arr);
+  string_set_t result = get_string_set(arr);
 
   REQUIRE(result.size() == 3);
 }
 
 TEST_CASE("getStringSet returns empty set for empty array", "[json][getStringSet]") {
   json empty = json::array();
-  string_set_t result = getStringSet(empty);
+  string_set_t result = get_string_set(empty);
   REQUIRE(result.empty());
 }
 
 TEST_CASE("getStringSet throws for non-array", "[json][getStringSet]") {
-  REQUIRE_THROWS_AS(getStringSet(json("string")), Error);
-  REQUIRE_THROWS_AS(getStringSet(json::object()), Error);
+  REQUIRE_THROWS_AS(get_string_set(json("string")), Error);
+  REQUIRE_THROWS_AS(get_string_set(json::object()), Error);
 }
 
 TEST_CASE("getStringSet throws for array with non-strings", "[json][getStringSet]") {
   json mixed = json::array({"valid", 42});
-  REQUIRE_THROWS_AS(getStringSet(mixed), Error);
+  REQUIRE_THROWS_AS(get_string_set(mixed), Error);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -540,14 +540,14 @@ TEST_CASE("optional roundtrip with various types", "[json][optional]") {
 
 TEST_CASE("ptrToOwned returns nullopt for nullptr", "[json][ptrToOwned]") {
   const json* ptr = nullptr;
-  auto result = nlohmann::ptrToOwned<json>(ptr);
+  auto result = nlohmann::ptr_to_owned<json>(ptr);
   REQUIRE_FALSE(result.has_value());
 }
 
 TEST_CASE("ptrToOwned returns value for valid pointer", "[json][ptrToOwned]") {
   json value = 42;
   const json* ptr = &value;
-  auto result = nlohmann::ptrToOwned<json>(ptr);
+  auto result = nlohmann::ptr_to_owned<json>(ptr);
   REQUIRE(result.has_value());
   REQUIRE(result.value() == 42);
 }
@@ -567,7 +567,7 @@ TEST_CASE("handle deeply nested objects", "[json][nested]") {
   (*current)["value"] = "deepest";
 
   // Should be able to getObject at each level without issues
-  const auto& obj = getObject(deep);
+  const auto& obj = get_object(deep);
   REQUIRE(obj.contains("nested"));
 }
 
@@ -582,7 +582,7 @@ TEST_CASE("handle deeply nested arrays", "[json][nested]") {
   current->push_back("deepest");
 
   // Should work
-  const auto& arr = getArray(deep);
+  const auto& arr = get_array(deep);
   REQUIRE(arr.size() == 1);
 }
 
@@ -596,7 +596,7 @@ TEST_CASE("handle very large strings", "[json][large]") {
   std::string large_str(one_megabyte, 'x');
   json j = large_str;
 
-  const auto& result = getString(j);
+  const auto& result = get_string(j);
   REQUIRE(result.size() == one_megabyte);
   REQUIRE(result == large_str);
 }
@@ -608,7 +608,7 @@ TEST_CASE("handle large arrays", "[json][large]") {
     arr.push_back(i);
   }
 
-  const auto& result = getArray(arr);
+  const auto& result = get_array(arr);
   REQUIRE(result.size() == 10000);
 }
 
@@ -618,7 +618,7 @@ TEST_CASE("handle large string arrays", "[json][large]") {
     arr.push_back("string_" + std::to_string(i));
   }
 
-  strings_t result = getStringList(arr);
+  strings_t result = get_string_list(arr);
   REQUIRE(result.size() == 1000);
 }
 
@@ -632,7 +632,7 @@ TEST_CASE("valueAt property tests", "[json][valueAt][property]") {
     auto value = *rc::gen::arbitrary<std::string>();
 
     json::object_t obj = {{key, value}};
-    RC_ASSERT(valueAt(obj, key) == value);
+    RC_ASSERT(value_at(obj, key) == value);
   });
 
   rc::prop("optionalValueAt returns nullptr iff key doesn't exist", []() {
@@ -646,13 +646,13 @@ TEST_CASE("valueAt property tests", "[json][valueAt][property]") {
 
     // Existing keys return non-null
     for (const auto& k : keys) {
-      RC_ASSERT(optionalValueAt(obj, k) != nullptr);
+      RC_ASSERT(optional_value_at(obj, k) != nullptr);
     }
 
     // Non-existing key returns null
     std::string missing = "definitely_not_in_the_object_12345";
     RC_PRE(obj.find(missing) == obj.end());
-    RC_ASSERT(optionalValueAt(obj, missing) == nullptr);
+    RC_ASSERT(optional_value_at(obj, missing) == nullptr);
   });
 }
 
@@ -660,13 +660,13 @@ TEST_CASE("getString property tests", "[json][getString][property]") {
   rc::prop("getString roundtrips arbitrary strings", []() {
     auto str = *rc::gen::arbitrary<std::string>();
     json j = str;
-    RC_ASSERT(getString(j) == str);
+    RC_ASSERT(get_string(j) == str);
   });
 
   rc::prop("getString preserves string length", []() {
     auto str = *rc::gen::arbitrary<std::string>();
     json j = str;
-    RC_ASSERT(getString(j).length() == str.length());
+    RC_ASSERT(get_string(j).length() == str.length());
   });
 }
 
@@ -674,13 +674,13 @@ TEST_CASE("getInteger property tests", "[json][getInteger][property]") {
   rc::prop("getInteger<int32_t> roundtrips int32 values", []() {
     auto val = *rc::gen::arbitrary<int32_t>();
     json j = val;
-    RC_ASSERT(getInteger<int32_t>(j) == val);
+    RC_ASSERT(get_integer<int32_t>(j) == val);
   });
 
   rc::prop("getInteger<int64_t> roundtrips int64 values", []() {
     auto val = *rc::gen::arbitrary<int64_t>();
     json j = val;
-    RC_ASSERT(getInteger<int64_t>(j) == val);
+    RC_ASSERT(get_integer<int64_t>(j) == val);
   });
 
   rc::prop("getInteger<int8_t> rejects out of range values", []() {
@@ -696,7 +696,7 @@ TEST_CASE("getInteger property tests", "[json][getInteger][property]") {
                                      static_cast<int32_t>(std::numeric_limits<int8_t>::min()) - 1);
     }
     json j = val;
-    RC_ASSERT_THROWS_AS(getInteger<int8_t>(j), Error);
+    RC_ASSERT_THROWS_AS(get_integer<int8_t>(j), Error);
   });
 
   rc::prop("getInteger<int16_t> rejects out of range values", []() {
@@ -713,14 +713,14 @@ TEST_CASE("getInteger property tests", "[json][getInteger][property]") {
                                      static_cast<int32_t>(std::numeric_limits<int16_t>::min()) - 1);
     }
     json j = val;
-    RC_ASSERT_THROWS_AS(getInteger<int16_t>(j), Error);
+    RC_ASSERT_THROWS_AS(get_integer<int16_t>(j), Error);
   });
 
   rc::prop("getInteger from unsigned succeeds when value fits", []() {
     // Generate unsigned values that fit in signed range
     auto val = *rc::gen::inRange<uint32_t>(0, std::numeric_limits<int32_t>::max());
     json j = static_cast<uint64_t>(val);
-    RC_ASSERT(getInteger<int32_t>(j) == static_cast<int32_t>(val));
+    RC_ASSERT(get_integer<int32_t>(j) == static_cast<int32_t>(val));
   });
 }
 
@@ -728,7 +728,7 @@ TEST_CASE("getUnsigned property tests", "[json][getUnsigned][property]") {
   rc::prop("getUnsigned roundtrips unsigned values", []() {
     auto val = *rc::gen::arbitrary<uint64_t>();
     json j = val;
-    RC_ASSERT(getUnsigned(j) == val);
+    RC_ASSERT(get_unsigned(j) == val);
   });
 }
 
@@ -736,7 +736,7 @@ TEST_CASE("getBoolean property tests", "[json][getBoolean][property]") {
   rc::prop("getBoolean roundtrips boolean values", []() {
     auto val = *rc::gen::arbitrary<bool>();
     json j = val;
-    RC_ASSERT(getBoolean(j) == val);
+    RC_ASSERT(get_boolean(j) == val);
   });
 }
 
@@ -748,7 +748,7 @@ TEST_CASE("getStringList property tests", "[json][getStringList][property]") {
       arr.push_back(s);
     }
 
-    strings_t result = getStringList(arr);
+    strings_t result = get_string_list(arr);
     RC_ASSERT(result.size() == strings.size());
 
     auto result_it = result.begin();
@@ -761,7 +761,7 @@ TEST_CASE("getStringList property tests", "[json][getStringList][property]") {
   rc::prop("getStringList size matches input size", []() {
     auto strings = *rc::gen::arbitrary<std::vector<std::string>>();
     json arr = strings;
-    strings_t result = getStringList(arr);
+    strings_t result = get_string_list(arr);
     RC_ASSERT(result.size() == strings.size());
   });
 }
@@ -770,7 +770,7 @@ TEST_CASE("getStringSet property tests", "[json][getStringSet][property]") {
   rc::prop("getStringSet contains all unique input strings", []() {
     auto strings = *rc::gen::arbitrary<std::vector<std::string>>();
     json arr = strings;
-    string_set_t result = getStringSet(arr);
+    string_set_t result = get_string_set(arr);
 
     for (const auto& s : strings) {
       RC_ASSERT(result.contains(s));
@@ -780,7 +780,7 @@ TEST_CASE("getStringSet property tests", "[json][getStringSet][property]") {
   rc::prop("getStringSet size <= input size (due to deduplication)", []() {
     auto strings = *rc::gen::arbitrary<std::vector<std::string>>();
     json arr = strings;
-    string_set_t result = getStringSet(arr);
+    string_set_t result = get_string_set(arr);
     RC_ASSERT(result.size() <= strings.size());
   });
 }
@@ -796,7 +796,7 @@ TEST_CASE("getStringMap property tests", "[json][getStringMap][property]") {
       obj[keys[i]] = values[i];
     }
 
-    string_map_t result = getStringMap(obj);
+    string_map_t result = get_string_map(obj);
     RC_ASSERT(result.size() == keys.size());
 
     for (size_t i = 0; i < keys.size(); ++i) {
@@ -859,7 +859,7 @@ TEST_CASE("type mismatch fuzz tests", "[json][fuzz]") {
         j = *rc::gen::arbitrary<double>();
         break;
     }
-    RC_ASSERT_THROWS_AS(getObject(j), Error);
+    RC_ASSERT_THROWS_AS(get_object(j), Error);
   });
 
   rc::prop("getArray rejects all non-array types", []() {
@@ -885,7 +885,7 @@ TEST_CASE("type mismatch fuzz tests", "[json][fuzz]") {
         j = *rc::gen::arbitrary<double>();
         break;
     }
-    RC_ASSERT_THROWS_AS(getArray(j), Error);
+    RC_ASSERT_THROWS_AS(get_array(j), Error);
   });
 
   rc::prop("getString rejects all non-string types", []() {
@@ -911,7 +911,7 @@ TEST_CASE("type mismatch fuzz tests", "[json][fuzz]") {
         j = *rc::gen::arbitrary<double>();
         break;
     }
-    RC_ASSERT_THROWS_AS(getString(j), Error);
+    RC_ASSERT_THROWS_AS(get_string(j), Error);
   });
 
   rc::prop("getBoolean rejects all non-boolean types", []() {
@@ -937,7 +937,7 @@ TEST_CASE("type mismatch fuzz tests", "[json][fuzz]") {
         j = *rc::gen::arbitrary<double>();
         break;
     }
-    RC_ASSERT_THROWS_AS(getBoolean(j), Error);
+    RC_ASSERT_THROWS_AS(get_boolean(j), Error);
   });
 }
 
@@ -948,9 +948,9 @@ TEST_CASE("integer conversion edge cases", "[json][fuzz][integer]") {
 
     // If value fits in int32, should succeed; otherwise throw
     if (val >= std::numeric_limits<int32_t>::min() && val <= std::numeric_limits<int32_t>::max()) {
-      RC_ASSERT(getInteger<int32_t>(j) == static_cast<int32_t>(val));
+      RC_ASSERT(get_integer<int32_t>(j) == static_cast<int32_t>(val));
     } else {
-      RC_ASSERT_THROWS_AS(getInteger<int32_t>(j), Error);
+      RC_ASSERT_THROWS_AS(get_integer<int32_t>(j), Error);
     }
   });
 
@@ -961,7 +961,7 @@ TEST_CASE("integer conversion edge cases", "[json][fuzz][integer]") {
                static_cast<uint64_t>(std::numeric_limits<int64_t>::max()));
     auto val = static_cast<uint64_t>(std::numeric_limits<int64_t>::max()) + offset;
     json j = val;
-    RC_ASSERT_THROWS_AS(getInteger<int64_t>(j), Error);
+    RC_ASSERT_THROWS_AS(get_integer<int64_t>(j), Error);
   });
 }
 
@@ -972,8 +972,8 @@ TEST_CASE("string content fuzz tests", "[json][fuzz][string]") {
     std::string with_null = prefix + '\0' + suffix;
 
     json j = with_null;
-    RC_ASSERT(getString(j) == with_null);
-    RC_ASSERT(getString(j).size() == with_null.size());
+    RC_ASSERT(get_string(j) == with_null);
+    RC_ASSERT(get_string(j).size() == with_null.size());
   });
 
   rc::prop("getString handles strings with all byte values", []() {
@@ -981,7 +981,7 @@ TEST_CASE("string content fuzz tests", "[json][fuzz][string]") {
     std::string str(bytes.begin(), bytes.end());
 
     json j = str;
-    RC_ASSERT(getString(j) == str);
+    RC_ASSERT(get_string(j) == str);
   });
 }
 
@@ -991,7 +991,7 @@ TEST_CASE("unicode fuzz tests", "[json][fuzz][unicode]") {
     auto ascii = *rc::gen::arbitrary<std::string>();
     json j = ascii;
     // Should not throw - ASCII is valid UTF-8
-    RC_ASSERT(getString(j) == ascii);
+    RC_ASSERT(get_string(j) == ascii);
   });
 }
 
@@ -1010,11 +1010,11 @@ TEST_CASE("nested structure stress tests", "[json][fuzz][nested]") {
     // Verify we can descend and getObject at each level
     const json* reader = &root;
     for (int i = 0; i < depth; ++i) {
-      const auto& obj = getObject(*reader);
+      const auto& obj = get_object(*reader);
       RC_ASSERT(obj.contains("child"));
       reader = &obj.at("child");
     }
-    const auto& leaf_obj = getObject(*reader);
+    const auto& leaf_obj = get_object(*reader);
     RC_ASSERT(leaf_obj.contains("leaf"));
   });
 
@@ -1032,11 +1032,11 @@ TEST_CASE("nested structure stress tests", "[json][fuzz][nested]") {
     // Verify we can descend and getArray at each level
     const json* reader = &root;
     for (int i = 0; i < depth; ++i) {
-      const auto& arr = getArray(*reader);
+      const auto& arr = get_array(*reader);
       RC_ASSERT(arr.size() >= 1);
       reader = arr.data();
     }
-    const auto& leaf_arr = getArray(*reader);
+    const auto& leaf_arr = get_array(*reader);
     RC_ASSERT(leaf_arr.size() == 1);
     RC_ASSERT(leaf_arr[0] == "leaf");
   });
@@ -1057,7 +1057,7 @@ TEST_CASE("mixed type array rejection", "[json][fuzz]") {
       }
     }
 
-    RC_ASSERT_THROWS_AS(getStringList(arr), Error);
+    RC_ASSERT_THROWS_AS(get_string_list(arr), Error);
   });
 
   rc::prop("getStringSet rejects arrays containing any non-string", []() {
@@ -1073,7 +1073,7 @@ TEST_CASE("mixed type array rejection", "[json][fuzz]") {
       }
     }
 
-    RC_ASSERT_THROWS_AS(getStringSet(arr), Error);
+    RC_ASSERT_THROWS_AS(get_string_set(arr), Error);
   });
 }
 
@@ -1092,7 +1092,7 @@ TEST_CASE("getStringMap rejects objects with non-string values", "[json][fuzz]")
       }
     }
 
-    RC_ASSERT_THROWS_AS(getStringMap(obj), Error);
+    RC_ASSERT_THROWS_AS(get_string_map(obj), Error);
   });
 }
 
@@ -1104,7 +1104,7 @@ TEST_CASE("error messages include helpful context", "[json][errors]") {
   SECTION("missing key error includes key name") {
     json::object_t obj = {{"existing", "value"}};
     try {
-      valueAt(obj, "missing_key");
+      value_at(obj, "missing_key");
       FAIL("Expected Error to be thrown");
     } catch (const Error& e) {
       std::string msg = e.what();
@@ -1115,7 +1115,7 @@ TEST_CASE("error messages include helpful context", "[json][errors]") {
   SECTION("type mismatch error includes expected and actual types") {
     json j = 42;
     try {
-      getString(j);
+      get_string(j);
       FAIL("Expected Error to be thrown");
     } catch (const Error& e) {
       std::string msg = e.what();
@@ -1127,7 +1127,7 @@ TEST_CASE("error messages include helpful context", "[json][errors]") {
   SECTION("integer range error includes value") {
     json j = 1000;
     try {
-      getInteger<int8_t>(j);
+      get_integer<int8_t>(j);
       FAIL("Expected Error to be thrown");
     } catch (const Error& e) {
       std::string msg = e.what();

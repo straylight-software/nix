@@ -23,13 +23,13 @@ struct RewritingSink : Sink {
   const string_map_t rewrites;
   std::string::size_type maxRewriteSize;
   std::string prev;
-  Sink& nextSink;
+  Sink& next_sink;
   uint64_t pos = 0;
 
   std::vector<uint64_t> matches;
 
-  RewritingSink(const std::string& from, const std::string& to, Sink& nextSink);
-  RewritingSink(const string_map_t& rewrites, Sink& nextSink);
+  RewritingSink(const std::string& from, const std::string& to, Sink& next_sink);
+  RewritingSink(const string_map_t& rewrites, Sink& next_sink);
 
   void operator()(std::string_view data) override;
 
@@ -37,7 +37,7 @@ struct RewritingSink : Sink {
 };
 
 struct HashModuloSink : abstract_hash_sink_t {
-  hash_sink_t hashSink;
+  hash_sink_t hash_sink;
   RewritingSink rewritingSink;
 
   HashModuloSink(hash_algorithm_t ha, const std::string& modulus);

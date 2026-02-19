@@ -13,42 +13,42 @@
 
 namespace nix {
 
-const time_t mtimeStore = 1; /* 1 second into the epoch */
+const time_t mtime_store = 1; /* 1 second into the epoch */
 
-static void canonicaliseTimestampAndPermissions(const Path& path, const struct stat& st) {
+static void canonicalise_timestamp_and_permissions(const Path& path, const struct stat& st) {
   if (!S_ISLNK(st.st_mode)) {
     /* Mask out all type related bits. */
     mode_t mode = st.st_mode & ~S_IFMT;
-    bool isDir = S_ISDIR(st.st_mode);
-    if ((mode != 0444 || isDir) && mode != 0555) {
-      mode = (st.st_mode & S_IFMT) | 0444 | (st.st_mode & S_IXUSR || isDir ? 0111 : 0);
+    bool is_dir = S_ISDIR(st.st_mode);
+    if ((mode != 0444 || is_dir) && mode != 0555) {
+      mode = (st.st_mode & S_IFMT) | 0444 | (st.st_mode & S_IXUSR || is_dir ? 0111 : 0);
       if (chmod(path.c_str(), mode) == -1)
         throw sys_error_t("changing mode of '%1%' to %2$o", path, mode);
     }
   }
 
 #ifndef _WIN32 // TODO implement
-  if (st.st_mtime != mtimeStore) {
+  if (st.st_mtime != mtime_store) {
     struct stat st2 = st;
-    st2.st_mtime = mtimeStore, setWriteTime(path, st2);
+    st2.st_mtime = mtime_store, set_write_time(path, st2);
   }
 #endif
 }
 
-void canonicaliseTimestampAndPermissions(const Path& path) {
-  canonicaliseTimestampAndPermissions(path, lstat(path));
+void canonicalise_timestamp_and_permissions(const Path& path) {
+  canonicalise_timestamp_and_permissions(path, lstat(path));
 }
 
-static void canonicalisePathMetaData_(const Path& path,
+static void canonicalise_path_meta_data_(const Path& path,
 #ifndef _WIN32
                                       std::optional<std::pair<uid_t, uid_t>> uidRange,
 #endif
-                                      InodesSeen& inodesSeen) {
-  checkInterrupt();
+                                      InodesSeen& inodes_seen) {
+  check_interrupt();
 
 #ifdef __APPLE__
   /* Remove flags, in particular UF_IMMUTABLE which would prevent
-     the file from being garbage-collected. FIXME: Use
+     the file from being garbage-collected. FIXME: use
      setattrlist() to remove other attributes as well. */
   if (lchflags(path.c_str(), 0)) {
     if (errno != ENOTSUP)
@@ -76,7 +76,7 @@ static void canonicalisePathMetaData_(const Path& path,
       throw sys_error_t("querying extended attributes of '%s'", path);
 
     for (auto& eaName :
-         tokenizeString<strings_t>(std::string(eaBuf.data(), eaSize), std::string("\000", 1))) {
+         tokenize_string<strings_t>(std::string(eaBuf.data(), eaSize), std::string("\000", 1))) {
       if (settings.ignoredAcls.get().count(eaName))
         continue;
       if (lremovexattr(path.c_str(), eaName.c_str()) == -1)
@@ -93,19 +93,19 @@ static void canonicalisePathMetaData_(const Path& path,
      ensure that we don't fail on hard links within the same build
      (i.e. "touch $out/foo; ln $out/foo $out/bar"). */
   if (uidRange && (st.st_uid < uidRange->first || st.st_uid > uidRange->second)) {
-    if (S_ISDIR(st.st_mode) || !inodesSeen.count(Inode(st.st_dev, st.st_ino)))
+    if (S_ISDIR(st.st_mode) || !inodes_seen.count(Inode(st.st_dev, st.st_ino)))
       throw BuildError(BuildResult::Failure::OutputRejected, "invalid ownership on file '%1%'",
                        path);
     mode_t mode = st.st_mode & ~S_IFMT;
     assert(S_ISLNK(st.st_mode) ||
-           (st.st_uid == geteuid() && (mode == 0444 || mode == 0555) && st.st_mtime == mtimeStore));
+           (st.st_uid == geteuid() && (mode == 0444 || mode == 0555) && st.st_mtime == mtime_store));
     return;
   }
 #endif
 
-  inodesSeen.insert(Inode(st.st_dev, st.st_ino));
+  inodes_seen.insert(Inode(st.st_dev, st.st_ino));
 
-  canonicaliseTimestampAndPermissions(path, st);
+  canonicalise_timestamp_and_permissions(path, st);
 
 #ifndef _WIN32
   /* Change ownership to the current uid.  If it's a symlink, use
@@ -127,26 +127,26 @@ static void canonicalisePathMetaData_(const Path& path,
 
   if (S_ISDIR(st.st_mode)) {
     for (auto& i : directory_iterator_t{path}) {
-      checkInterrupt();
-      canonicalisePathMetaData_(i.path().string(),
+      check_interrupt();
+      canonicalise_path_meta_data_(i.path().string(),
 #ifndef _WIN32
                                 uidRange,
 #endif
-                                inodesSeen);
+                                inodes_seen);
     }
   }
 }
 
-void canonicalisePathMetaData(const Path& path,
+void canonicalise_path_meta_data(const Path& path,
 #ifndef _WIN32
                               std::optional<std::pair<uid_t, uid_t>> uidRange,
 #endif
-                              InodesSeen& inodesSeen) {
-  canonicalisePathMetaData_(path,
+                              InodesSeen& inodes_seen) {
+  canonicalise_path_meta_data_(path,
 #ifndef _WIN32
                             uidRange,
 #endif
-                            inodesSeen);
+                            inodes_seen);
 
 #ifndef _WIN32
   /* On platforms that don't have lchown(), the top-level path can't
@@ -160,18 +160,18 @@ void canonicalisePathMetaData(const Path& path,
 #endif
 }
 
-void canonicalisePathMetaData(const Path& path
+void canonicalise_path_meta_data(const Path& path
 #ifndef _WIN32
                               ,
                               std::optional<std::pair<uid_t, uid_t>> uidRange
 #endif
 ) {
-  InodesSeen inodesSeen;
-  canonicalisePathMetaData_(path,
+  InodesSeen inodes_seen;
+  canonicalise_path_meta_data_(path,
 #ifndef _WIN32
                             uidRange,
 #endif
-                            inodesSeen);
+                            inodes_seen);
 }
 
 } // namespace nix

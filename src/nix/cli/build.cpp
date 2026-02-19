@@ -20,41 +20,41 @@ using namespace nix;
    widely-used command, so that isn't being done at this time just yet.
  */
 
-static nlohmann::json toJSON(Store& store, const SingleDerivedPath::opaque_t& o) {
+static nlohmann::json to_json(Store& store, const SingleDerivedPath::opaque_t& o) {
   return store.printStorePath(o.path);
 }
 
-static nlohmann::json toJSON(Store& store, const SingleDerivedPath& sdp);
-static nlohmann::json toJSON(Store& store, const DerivedPath& dp);
+static nlohmann::json to_json(Store& store, const SingleDerivedPath& sdp);
+static nlohmann::json to_json(Store& store, const DerivedPath& dp);
 
-static nlohmann::json toJSON(Store& store, const SingleDerivedPath::Built& sdpb) {
+static nlohmann::json to_json(Store& store, const SingleDerivedPath::Built& sdpb) {
   nlohmann::json res;
-  res["drvPath"] = toJSON(store, *sdpb.drvPath);
+  res["drvPath"] = to_json(store, *sdpb.drv_path);
   // Fallback for the input-addressed derivation case: We expect to always be
   // able to print the output paths, so let’s do it
   // FIXME try-resolve on drvPath
-  const auto outputMap =
-      store.queryPartialDerivationOutputMap(resolveDerivedPath(store, *sdpb.drvPath));
+  const auto output_map =
+      store.queryPartialDerivationOutputMap(resolve_derived_path(store, *sdpb.drv_path));
   res["output"] = sdpb.output;
-  auto outputPathIter = outputMap.find(sdpb.output);
-  if (outputPathIter == outputMap.end())
+  auto output_path_iter = output_map.find(sdpb.output);
+  if (output_path_iter == output_map.end())
     res["outputPath"] = nullptr;
-  else if (std::optional p = outputPathIter->second)
+  else if (std::optional p = output_path_iter->second)
     res["outputPath"] = store.printStorePath(*p);
   else
     res["outputPath"] = nullptr;
   return res;
 }
 
-static nlohmann::json toJSON(Store& store, const DerivedPath::Built& dpb) {
+static nlohmann::json to_json(Store& store, const DerivedPath::Built& dpb) {
   nlohmann::json res;
-  res["drvPath"] = toJSON(store, *dpb.drvPath);
+  res["drvPath"] = to_json(store, *dpb.drv_path);
   // Fallback for the input-addressed derivation case: We expect to always be
   // able to print the output paths, so let’s do it
   // FIXME try-resolve on drvPath
-  const auto outputMap =
-      store.queryPartialDerivationOutputMap(resolveDerivedPath(store, *dpb.drvPath));
-  for (const auto& [output, outputPathOpt] : outputMap) {
+  const auto output_map =
+      store.queryPartialDerivationOutputMap(resolve_derived_path(store, *dpb.drv_path));
+  for (const auto& [output, outputPathOpt] : output_map) {
     if (!dpb.outputs.contains(output))
       continue;
     if (outputPathOpt)
@@ -65,36 +65,36 @@ static nlohmann::json toJSON(Store& store, const DerivedPath::Built& dpb) {
   return res;
 }
 
-static nlohmann::json toJSON(Store& store, const SingleDerivedPath& sdp) {
-  return std::visit([&](const auto& buildable) { return toJSON(store, buildable); }, sdp.raw());
+static nlohmann::json to_json(Store& store, const SingleDerivedPath& sdp) {
+  return std::visit([&](const auto& buildable) { return to_json(store, buildable); }, sdp.raw());
 }
 
-static nlohmann::json toJSON(Store& store, const DerivedPath& dp) {
-  return std::visit([&](const auto& buildable) { return toJSON(store, buildable); }, dp.raw());
+static nlohmann::json to_json(Store& store, const DerivedPath& dp) {
+  return std::visit([&](const auto& buildable) { return to_json(store, buildable); }, dp.raw());
 }
 
-static nlohmann::json derivedPathsToJSON(const DerivedPaths& paths, Store& store) {
+static nlohmann::json derived_paths_to_json(const DerivedPaths& paths, Store& store) {
   auto res = nlohmann::json::array();
   for (auto& t : paths) {
-    res.push_back(toJSON(store, t));
+    res.push_back(to_json(store, t));
   }
   return res;
 }
 
-static nlohmann::json builtPathsWithResultToJSON(const std::vector<BuiltPathWithResult>& buildables,
+static nlohmann::json built_paths_with_result_to_json(const std::vector<BuiltPathWithResult>& buildables,
                                                  const Store& store) {
   auto res = nlohmann::json::array();
   for (auto& b : buildables) {
-    auto j = b.path.toJSON(store);
+    auto j = b.path.to_json(store);
     if (b.result) {
-      if (b.result->startTime)
-        j["startTime"] = b.result->startTime;
+      if (b.result->start_time)
+        j["startTime"] = b.result->start_time;
       if (b.result->stopTime)
         j["stopTime"] = b.result->stopTime;
-      if (b.result->cpuUser)
-        j["cpuUser"] = ((double)b.result->cpuUser->count()) / 1000000;
-      if (b.result->cpuSystem)
-        j["cpuSystem"] = ((double)b.result->cpuSystem->count()) / 1000000;
+      if (b.result->cpu_user)
+        j["cpuUser"] = ((double)b.result->cpu_user->count()) / 1000000;
+      if (b.result->cpu_system)
+        j["cpuSystem"] = ((double)b.result->cpu_system->count()) / 1000000;
     }
     res.push_back(j);
   }
@@ -102,21 +102,21 @@ static nlohmann::json builtPathsWithResultToJSON(const std::vector<BuiltPathWith
 }
 
 struct cmd_build_t : InstallablesCommand, MixOutLinkByDefault, MixDryRun, MixJSON, MixProfile {
-  bool printOutputPaths = false;
-  BuildMode buildMode = bmNormal;
+  bool print_output_paths = false;
+  BuildMode build_mode = bmNormal;
 
   cmd_build_t() {
-    addFlag({
-        .longName = "print-out-paths",
+    add_flag({
+        .long_name = "print-out-paths",
         .description = "Print the resulting output paths",
-        .handler = {&printOutputPaths, true},
+        .handler = {&print_output_paths, true},
     });
 
-    addFlag({
-        .longName = "rebuild",
+    add_flag({
+        .long_name = "rebuild",
         .description =
             "Rebuild an already built package and compare the result to the existing store paths.",
-        .handler = {&buildMode, bmCheck},
+        .handler = {&build_mode, bmCheck},
     });
   }
 
@@ -129,30 +129,30 @@ struct cmd_build_t : InstallablesCommand, MixOutLinkByDefault, MixDryRun, MixJSO
   }
 
   void run(ref<Store> store, Installables&& installables) override {
-    if (dryRun) {
+    if (dry_run) {
       std::vector<DerivedPath> pathsToBuild;
 
       for (auto& i : installables)
-        for (auto& b : i->toDerivedPaths())
+        for (auto& b : i->to_derived_paths())
           pathsToBuild.push_back(b.path);
 
-      printMissing(store, pathsToBuild, lvlError);
+      print_missing(store, pathsToBuild, lvl_error);
 
       if (json)
-        printJSON(derivedPathsToJSON(pathsToBuild, *store));
+        printJSON(derived_paths_to_json(pathsToBuild, *store));
 
       return;
     }
 
     auto buildables = Installable::build(getEvalStore(), store, Realise::Outputs, installables,
-                                         repair ? bmRepair : buildMode);
+                                         repair ? bmRepair : build_mode);
 
     if (json)
-      logger->cout("%s", builtPathsWithResultToJSON(buildables, *store).dump());
+      logger->cout("%s", built_paths_with_result_to_json(buildables, *store).dump());
 
     createOutLinksMaybe(buildables, store);
 
-    if (printOutputPaths) {
+    if (print_output_paths) {
       logger->stop();
       for (auto& buildable : buildables) {
         std::visit(
@@ -175,4 +175,4 @@ struct cmd_build_t : InstallablesCommand, MixOutLinkByDefault, MixDryRun, MixJSO
   }
 };
 
-static auto rCmdBuild = registerCommand<cmd_build_t>("build");
+static auto r_cmd_build = registerCommand<cmd_build_t>("build");

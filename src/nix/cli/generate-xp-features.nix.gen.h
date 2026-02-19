@@ -3,7 +3,7 @@ with builtins;
 with import <nix/utils.nix>;
 
 let
-  showExperimentalFeature =
+  show_experimental_feature =
     name: doc:
     squash ''
       ## [`${name}`]{#xp-feature-${name}}
@@ -12,5 +12,5 @@ let
     '';
 in
 
-xps: (concatStringsSep "\n" (attrValues (mapAttrs showExperimentalFeature xps)))
+xps: (concat_strings_sep "\n" (attrValues (mapAttrs show_experimental_feature xps)))
 )__NIX_STR"

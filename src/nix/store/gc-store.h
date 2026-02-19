@@ -80,7 +80,7 @@ struct GCResults {
    * For `gcReturnDead`, `gcDeleteDead` and `gcDeleteSpecific`, the
    * number of bytes that would be or was freed.
    */
-  uint64_t bytesFreed = 0;
+  uint64_t bytes_freed = 0;
 };
 
 /**
@@ -102,20 +102,20 @@ struct GCResults {
  *    over ssh, but that doesn't prevent someone from gc-ing that store
  *    accessed via SSH locally).
  *
- *  - The derived `LocalFSStore` class has `LocalFSStore::addPermRoot`,
+ *  - The derived `local_fs_store` class has `local_fs_store::addPermRoot`,
  *    which is not part of this class because it relies on the notion of
  *    an ambient file system. There are stores (`ssh-ng://`, for one),
  *    that *do* support garbage collection but *don't* expose any file
- *    system, and `LocalFSStore::addPermRoot` thus does not make sense
+ *    system, and `local_fs_store::addPermRoot` thus does not make sense
  *    for them.
  */
 struct GcStore : public virtual Store {
-  inline static std::string operationName = "Garbage collection";
+  inline static std::string operation_name = "Garbage collection";
 
   /**
    * Find the roots of the garbage collector.  Each root is a pair
    * `(link, storepath)` where `link` is the path of the symlink
-   * outside of the Nix store that point to `storePath`. If
+   * outside of the Nix store that point to `store_path`. If
    * `censor` is true, privacy-sensitive information about roots
    * found in `/proc` is censored.
    */

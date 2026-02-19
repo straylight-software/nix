@@ -12,7 +12,7 @@ struct experimental_feature_details_t {
   experimental_feature_t tag;
   std::string_view name;
   std::string_view description;
-  std::string_view trackingUrl;
+  std::string_view tracking_url;
 };
 
 /**
@@ -25,11 +25,11 @@ struct experimental_feature_details_t {
  * feature, we either have no issue at all if few features are not added
  * at the end of the list, or a proper merge conflict if they are.
  */
-constexpr size_t numXpFeatures = 1 + static_cast<size_t>(xp_t::ParallelEval);
+constexpr size_t num_xp_features = 1 + static_cast<size_t>(xp_t::parallel_eval);
 
-constexpr std::array<experimental_feature_details_t, numXpFeatures> xpFeatureDetails = {{
+constexpr std::array<experimental_feature_details_t, num_xp_features> xp_feature_details = {{
     {
-        .tag = xp_t::CaDerivations,
+        .tag = xp_t::ca_derivations,
         .name = "ca-derivations",
         .description = R"(
             Allow derivations to be content-addressed in order to prevent
@@ -38,10 +38,10 @@ constexpr std::array<experimental_feature_details_t, numXpFeatures> xpFeatureDet
             [__contentAddressed](@docroot@/language/advanced-attributes.md#adv-attr-__contentAddressed)
             for details.
         )",
-        .trackingUrl = "https://github.com/NixOS/nix/milestone/35",
+        .tracking_url = "https://github.com/NixOS/nix/milestone/35",
     },
     {
-        .tag = xp_t::ImpureDerivations,
+        .tag = xp_t::impure_derivations,
         .name = "impure-derivations",
         .description = R"(
             Allow derivations to produce non-fixed outputs by setting the
@@ -69,34 +69,34 @@ constexpr std::array<experimental_feature_details_t, numXpFeatures> xpFeatureDet
 
             This is a more explicit alternative to using [`builtins.currentTime`](@docroot@/language/builtins.md#builtins-currentTime).
         )",
-        .trackingUrl = "https://github.com/NixOS/nix/milestone/42",
+        .tracking_url = "https://github.com/NixOS/nix/milestone/42",
     },
     {
-        .tag = xp_t::FetchTree,
+        .tag = xp_t::fetch_tree,
         .name = "fetch-tree",
         .description = R"(
             *Enabled for Determinate Nix Installer users since 2.24*
 
-            Enable the use of the [`fetchTree`](@docroot@/language/builtins.md#builtins-fetchTree) built-in function in the Nix language.
+            Enable the use of the [`fetch_tree`](@docroot@/language/builtins.md#builtins-fetch_tree) built-in function in the Nix language.
 
-            `fetchTree` exposes a generic interface for fetching remote file system trees from different types of remote sources.
+            `fetch_tree` exposes a generic interface for fetching remote file system trees from different types of remote sources.
             This built-in was previously guarded by the `flakes` experimental feature because of that overlap.
 
             Enabling just this feature serves as a "release candidate", allowing users to try it out in isolation.
         )",
-        .trackingUrl = "https://github.com/NixOS/nix/milestone/31",
+        .tracking_url = "https://github.com/NixOS/nix/milestone/31",
     },
     {
-        .tag = xp_t::GitHashing,
+        .tag = xp_t::git_hashing,
         .name = "git-hashing",
         .description = R"(
-            Allow creating (content-addressed) store objects which are hashed via Git's hashing algorithm.
+            Allow creating (content-addressed) store objects which are hashed via git's hashing algorithm.
             These store objects aren't understandable by older versions of Nix.
         )",
-        .trackingUrl = "https://github.com/NixOS/nix/milestone/41",
+        .tracking_url = "https://github.com/NixOS/nix/milestone/41",
     },
     {
-        .tag = xp_t::RecursiveNix,
+        .tag = xp_t::recursive_nix,
         .name = "recursive-nix",
         .description = R"(
             Allow derivation builders to call Nix, and thus build derivations
@@ -137,10 +137,10 @@ constexpr std::array<experimental_feature_details_t, numXpFeatures> xpFeatureDet
             already in the build inputs or built by a previous recursive Nix
             call.
         )",
-        .trackingUrl = "https://github.com/NixOS/nix/milestone/47",
+        .tracking_url = "https://github.com/NixOS/nix/milestone/47",
     },
     {
-        .tag = xp_t::NoUrlLiterals,
+        .tag = xp_t::no_url_literals,
         .name = "no-url-literals",
         .description = R"(
             Disallow unquoted URLs as part of the Nix language syntax. The Nix
@@ -179,36 +179,36 @@ constexpr std::array<experimental_feature_details_t, numXpFeatures> xpFeatureDet
             containing parameters have to be quoted anyway, and unquoted URLs
             may confuse external tooling.
         )",
-        .trackingUrl = "https://github.com/NixOS/nix/milestone/44",
+        .tracking_url = "https://github.com/NixOS/nix/milestone/44",
     },
     {
-        .tag = xp_t::FetchClosure,
+        .tag = xp_t::fetch_closure,
         .name = "fetch-closure",
         .description = R"(
             Enable the use of the [`fetchClosure`](@docroot@/language/builtins.md#builtins-fetchClosure) built-in function in the Nix language.
         )",
-        .trackingUrl = "https://github.com/NixOS/nix/milestone/40",
+        .tracking_url = "https://github.com/NixOS/nix/milestone/40",
     },
     {
-        .tag = xp_t::AutoAllocateUids,
+        .tag = xp_t::auto_allocate_uids,
         .name = "auto-allocate-uids",
         .description = R"(
             Allows Nix to automatically pick UIDs for builds, rather than creating
             `nixbld*` user accounts. See the [`auto-allocate-uids`](@docroot@/command-ref/conf-file.md#conf-auto-allocate-uids) setting for details.
         )",
-        .trackingUrl = "https://github.com/NixOS/nix/milestone/34",
+        .tracking_url = "https://github.com/NixOS/nix/milestone/34",
     },
     {
-        .tag = xp_t::Cgroups,
+        .tag = xp_t::cgroups,
         .name = "cgroups",
         .description = R"(
             Allows Nix to execute builds inside cgroups. See
             the [`use-cgroups`](@docroot@/command-ref/conf-file.md#conf-use-cgroups) setting for details.
         )",
-        .trackingUrl = "https://github.com/NixOS/nix/milestone/36",
+        .tracking_url = "https://github.com/NixOS/nix/milestone/36",
     },
     {
-        .tag = xp_t::DaemonTrustOverride,
+        .tag = xp_t::daemon_trust_override,
         .name = "daemon-trust-override",
         .description = R"(
             Allow forcing trusting or not trusting clients with
@@ -216,10 +216,10 @@ constexpr std::array<experimental_feature_details_t, numXpFeatures> xpFeatureDet
             useful for various experiments with `nix-daemon --stdio`
             networking.
         )",
-        .trackingUrl = "https://github.com/NixOS/nix/milestone/38",
+        .tracking_url = "https://github.com/NixOS/nix/milestone/38",
     },
     {
-        .tag = xp_t::DynamicDerivations,
+        .tag = xp_t::dynamic_derivations,
         .name = "dynamic-derivations",
         .description = R"(
             Allow the use of a few things related to dynamic derivations:
@@ -230,39 +230,39 @@ constexpr std::array<experimental_feature_details_t, numXpFeatures> xpFeatureDet
               - dependencies in derivations on the outputs of
                 derivations that are themselves derivations outputs.
         )",
-        .trackingUrl = "https://github.com/NixOS/nix/milestone/39",
+        .tracking_url = "https://github.com/NixOS/nix/milestone/39",
     },
     {
-        .tag = xp_t::ParseTomlTimestamps,
+        .tag = xp_t::parse_toml_timestamps,
         .name = "parse-toml-timestamps",
         .description = R"(
             Allow parsing of timestamps in builtins.fromTOML.
         )",
-        .trackingUrl = "https://github.com/NixOS/nix/milestone/45",
+        .tracking_url = "https://github.com/NixOS/nix/milestone/45",
     },
     {
-        .tag = xp_t::ReadOnlyLocalStore,
+        .tag = xp_t::read_only_local_store,
         .name = "read-only-local-store",
         .description = R"(
             Allow the use of the `read-only` parameter in [local store](@docroot@/store/types/local-store.md) URIs.
         )",
-        .trackingUrl = "https://github.com/NixOS/nix/milestone/46",
+        .tracking_url = "https://github.com/NixOS/nix/milestone/46",
     },
     {
-        .tag = xp_t::LocalOverlayStore,
+        .tag = xp_t::local_overlay_store,
         .name = "local-overlay-store",
         .description = R"(
             Allow the use of [local overlay store](@docroot@/command-ref/new-cli/nix3-help-stores.md#experimental-local-overlay-store).
         )",
-        .trackingUrl = "https://github.com/NixOS/nix/milestone/50",
+        .tracking_url = "https://github.com/NixOS/nix/milestone/50",
     },
     {
-        .tag = xp_t::ConfigurableImpureEnv,
+        .tag = xp_t::configurable_impure_env,
         .name = "configurable-impure-env",
         .description = R"(
             Allow the use of the [impure-env](@docroot@/command-ref/conf-file.md#conf-impure-env) setting.
         )",
-        .trackingUrl = "https://github.com/NixOS/nix/milestone/37",
+        .tracking_url = "https://github.com/NixOS/nix/milestone/37",
     },
     {
         .tag = xp_t::mounted_ssh_store_t,
@@ -270,61 +270,61 @@ constexpr std::array<experimental_feature_details_t, numXpFeatures> xpFeatureDet
         .description = R"(
             Allow the use of the [`mounted SSH store`](@docroot@/command-ref/new-cli/nix3-help-stores.html#experimental-ssh-store-with-filesystem-mounted).
         )",
-        .trackingUrl = "https://github.com/NixOS/nix/milestone/43",
+        .tracking_url = "https://github.com/NixOS/nix/milestone/43",
     },
     {
-        .tag = xp_t::VerifiedFetches,
+        .tag = xp_t::verified_fetches,
         .name = "verified-fetches",
         .description = R"(
             Enables verification of git commit signatures through the [`fetchGit`](@docroot@/language/builtins.md#builtins-fetchGit) built-in.
         )",
-        .trackingUrl = "https://github.com/NixOS/nix/milestone/48",
+        .tracking_url = "https://github.com/NixOS/nix/milestone/48",
     },
     {
-        .tag = xp_t::PipeOperators,
+        .tag = xp_t::pipe_operators,
         .name = "pipe-operators",
         .description = R"(
             Add `|>` and `<|` operators to the Nix language.
         )",
-        .trackingUrl = "https://github.com/NixOS/nix/milestone/55",
+        .tracking_url = "https://github.com/NixOS/nix/milestone/55",
     },
     {
-        .tag = xp_t::ExternalBuilders,
+        .tag = xp_t::external_builders,
         .name = "external-builders",
         .description = R"(
             Enables support for external builders / sandbox providers.
         )",
-        .trackingUrl = "",
+        .tracking_url = "",
     },
     {
-        .tag = xp_t::BLAKE3Hashes,
+        .tag = xp_t::blak_e3_hashes,
         .name = "blake3-hashes",
         .description = R"(
             Enables support for BLAKE3 hashes.
         )",
-        .trackingUrl = "",
+        .tracking_url = "",
     },
     {
-        .tag = xp_t::BuildTimeFetchTree,
+        .tag = xp_t::build_time_fetch_tree,
         .name = "build-time-fetch-tree",
         .description = R"(
             Enable the built-in derivation `builtin:fetch-tree`, as well as the flake input attribute `buildTime`.
         )",
-        .trackingUrl = "",
+        .tracking_url = "",
     },
     {
-        .tag = xp_t::ParallelEval,
+        .tag = xp_t::parallel_eval,
         .name = "parallel-eval",
         .description = R"(
             Enable built-in functions for parallel evaluation.
         )",
-        .trackingUrl = "",
+        .tracking_url = "",
     },
 }};
 
 static_assert(
     []() constexpr {
-      for (auto [index, feature] : enumerate(xpFeatureDetails))
+      for (auto [index, feature] : enumerate(xp_feature_details))
         if (index != (size_t)feature.tag)
           return false;
       return true;
@@ -335,45 +335,45 @@ static_assert(
  * A set of previously experimental features that are now considered
  * stable. We don't warn if users have these in `experimental-features`.
  */
-std::set<std::string> stabilizedFeatures{"flakes", "nix-command"};
+std::set<std::string> stabilized_features{"flakes", "nix-command"};
 
-const std::optional<experimental_feature_t> parseExperimentalFeature(const std::string_view& name) {
+const std::optional<experimental_feature_t> parse_experimental_feature(const std::string_view& name) {
   using reverse_xp_map_t = std::map<std::string_view, experimental_feature_t>;
 
-  static std::unique_ptr<reverse_xp_map_t> reverseXpMap = []() {
-    auto reverseXpMap = std::make_unique<reverse_xp_map_t>();
-    for (auto& xpFeature : xpFeatureDetails)
-      (*reverseXpMap)[xpFeature.name] = xpFeature.tag;
-    return reverseXpMap;
+  static std::unique_ptr<reverse_xp_map_t> reverse_xp_map = []() {
+    auto reverse_xp_map = std::make_unique<reverse_xp_map_t>();
+    for (auto& xp_feature : xp_feature_details)
+      (*reverse_xp_map)[xp_feature.name] = xp_feature.tag;
+    return reverse_xp_map;
   }();
 
-  if (auto feature = get(*reverseXpMap, name))
+  if (auto feature = get(*reverse_xp_map, name))
     return *feature;
   else
     return std::nullopt;
 }
 
-std::string_view showExperimentalFeature(const experimental_feature_t tag) {
-  assert((size_t)tag < xpFeatureDetails.size());
-  return xpFeatureDetails[(size_t)tag].name;
+std::string_view show_experimental_feature(const experimental_feature_t tag) {
+  assert((size_t)tag < xp_feature_details.size());
+  return xp_feature_details[(size_t)tag].name;
 }
 
-nlohmann::json documentExperimentalFeatures() {
+nlohmann::json document_experimental_features() {
   string_map_t res;
-  for (auto& xpFeature : xpFeatureDetails) {
-    std::stringstream docOss;
-    docOss << stripIndentation(xpFeature.description);
-    docOss << fmt("\nRefer to [%1% tracking issue](%2%) for feature tracking.", xpFeature.name,
-                  xpFeature.trackingUrl);
-    res[std::string{xpFeature.name}] = trim(docOss.str());
+  for (auto& xp_feature : xp_feature_details) {
+    std::stringstream doc_oss;
+    doc_oss << strip_indentation(xp_feature.description);
+    doc_oss << fmt("\nRefer to [%1% tracking issue](%2%) for feature tracking.", xp_feature.name,
+                  xp_feature.tracking_url);
+    res[std::string{xp_feature.name}] = trim(doc_oss.str());
   }
   return (nlohmann::json)res;
 }
 
-std::set<experimental_feature_t> parseFeatures(const string_set_t& rawFeatures) {
+std::set<experimental_feature_t> parse_features(const string_set_t& raw_features) {
   std::set<experimental_feature_t> res;
-  for (auto& rawFeature : rawFeatures)
-    if (auto feature = parseExperimentalFeature(rawFeature))
+  for (auto& raw_feature : raw_features)
+    if (auto feature = parse_experimental_feature(raw_feature))
       res.insert(*feature);
   return res;
 }
@@ -382,21 +382,21 @@ missing_experimental_feature_t::missing_experimental_feature_t(experimental_feat
                                                        std::string reason)
     : Error("experimental Nix feature '%1%' is disabled%2%; add '--extra-experimental-features "
             "%1%' to enable it",
-            showExperimentalFeature(feature), uncolored_t(optionalBracket(" (", reason, ")"))),
-      missingFeature(feature),
+            show_experimental_feature(feature), uncolored_t(optional_bracket(" (", reason, ")"))),
+      missing_feature(feature),
       reason{reason} {}
 
 std::ostream& operator<<(std::ostream& str, const experimental_feature_t& feature) {
-  return str << showExperimentalFeature(feature);
+  return str << show_experimental_feature(feature);
 }
 
 void to_json(nlohmann::json& j, const experimental_feature_t& feature) {
-  j = showExperimentalFeature(feature);
+  j = show_experimental_feature(feature);
 }
 
 void from_json(const nlohmann::json& j, experimental_feature_t& feature) {
   const std::string input = j;
-  const auto parsed = parseExperimentalFeature(input);
+  const auto parsed = parse_experimental_feature(input);
 
   if (parsed.has_value())
     feature = *parsed;

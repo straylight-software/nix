@@ -32,7 +32,7 @@ strings_t EvalSettings::parseNixPath(const std::string& s) {
 
     if (*p == ':') {
       auto prefix = std::string(start2, s.end());
-      if (EvalSettings::isPseudoUrl(prefix) || hasPrefix(prefix, "flake:")) {
+      if (EvalSettings::isPseudoUrl(prefix) || has_prefix(prefix, "flake:")) {
         ++p;
         while (p != s.end() && *p != ':')
           ++p;
@@ -50,7 +50,7 @@ strings_t EvalSettings::parseNixPath(const std::string& s) {
 
 EvalSettings::EvalSettings(bool& readOnlyMode, EvalSettings::LookupPathHooks lookupPathHooks)
     : readOnlyMode{readOnlyMode}, lookupPathHooks{lookupPathHooks} {
-  auto var = getEnv("NIX_ABORT_ON_WARN");
+  auto var = get_env("NIX_ABORT_ON_WARN");
   if (var && (var == "1" || var == "yes" || var == "true"))
     builtinsAbortOnWarn = true;
 }
@@ -67,9 +67,9 @@ strings_t EvalSettings::getDefaultNixPath() {
     }
   };
 
-  add(std::filesystem::path{getNixDefExpr()} / "channels");
-  add(rootChannelsDir() / "nixpkgs", "nixpkgs");
-  add(rootChannelsDir());
+  add(std::filesystem::path{get_nix_def_expr()} / "channels");
+  add(root_channels_dir() / "nixpkgs", "nixpkgs");
+  add(root_channels_dir());
 
   return res;
 }
@@ -86,10 +86,10 @@ bool EvalSettings::isPseudoUrl(std::string_view s) {
 }
 
 std::string EvalSettings::resolvePseudoUrl(std::string_view url) {
-  if (hasPrefix(url, "channel:")) {
+  if (has_prefix(url, "channel:")) {
     auto realUrl = "https://channels.nixos.org/" + std::string(url.substr(8)) + "/nixexprs.tar.xz";
-    static bool haveWarned = false;
-    warnOnce(haveWarned,
+    static bool have_warned = false;
+    warnOnce(have_warned,
              "Channels are deprecated in favor of flakes in Determinate Nix. "
              "Instead of '%s', use '%s'. "
              "See https://zero-to-nix.com for a guide to Nix flakes. "
@@ -106,8 +106,8 @@ const std::string& EvalSettings::getCurrentSystem() const {
   return evalSystem != "" ? evalSystem : settings.thisSystem.get();
 }
 
-std::filesystem::path getNixDefExpr() {
-  return settings.useXDGBaseDirectories ? getStateDir() / "defexpr" : getHome() / ".nix-defexpr";
+std::filesystem::path get_nix_def_expr() {
+  return settings.useXDGBaseDirectories ? get_state_dir() / "defexpr" : get_home() / ".nix-defexpr";
 }
 
 } // namespace nix

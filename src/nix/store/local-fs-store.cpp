@@ -17,10 +17,10 @@ Path LocalFSStoreConfig::getDefaultLogDir() {
   return settings.nixLogDir;
 }
 
-LocalFSStoreConfig::LocalFSStoreConfig(path_view_t rootDir, const Params& params)
+LocalFSStoreConfig::LocalFSStoreConfig(path_view_t root_dir, const Params& params)
     : StoreConfig(params)
-      /* Default `?root` from `rootDir` if non set
-       * NOTE: We would like to just do rootDir.set(...), which would take care of
+      /* Default `?root` from `root_dir` if non set
+       * NOTE: We would like to just do root_dir.set(...), which would take care of
        * all normalization and error checking for us. Unfortunately we cannot do
        * that because of the complicated initialization order of other fields with
        * the virtual class hierarchy of nix store configs, and the design of the
@@ -28,65 +28,65 @@ LocalFSStoreConfig::LocalFSStoreConfig(path_view_t rootDir, const Params& params
        * manually repeat the same normalization logic.
        */
       ,
-      rootDir{makeRootDirSetting(*this, !rootDir.empty() && params.count("root") == 0
-                                            ? std::optional<Path>{canonPath(rootDir)}
+      root_dir{makeRootDirSetting(*this, !root_dir.empty() && params.count("root") == 0
+                                            ? std::optional<Path>{canon_path(root_dir)}
                                             : std::nullopt)} {}
 
-LocalFSStore::LocalFSStore(const Config& config)
-    : Store{static_cast<const Store::Config&>(*this)}, config{config} {}
+local_fs_store::local_fs_store(const config_t& config)
+    : Store{static_cast<const Store::config_t&>(*this)}, config{config} {}
 
 struct local_store_accessor_t : posix_source_accessor_t {
-  ref<LocalFSStore> store;
-  bool requireValidPath;
+  ref<local_fs_store> store;
+  bool require_valid_path;
 
-  local_store_accessor_t(ref<LocalFSStore> store, bool requireValidPath)
-      : posix_source_accessor_t(std::filesystem::path{store->config.realStoreDir.get()}),
+  local_store_accessor_t(ref<local_fs_store> store, bool require_valid_path)
+      : posix_source_accessor_t(std::filesystem::path{store->config.real_store_dir.get()}),
         store(store),
-        requireValidPath(requireValidPath) {}
+        require_valid_path(require_valid_path) {}
 
   void requireStoreObject(const canon_path_t& path) {
-    auto [storePath, rest] = store->toStorePath(store->storeDir + path.abs());
-    if (requireValidPath && !store->maybeQueryPathInfo(storePath))
-      throw InvalidPath("path '%1%' is not a valid store path", store->printStorePath(storePath));
+    auto [store_path, rest] = store->toStorePath(store->store_dir + path.abs());
+    if (require_valid_path && !store->maybeQueryPathInfo(store_path))
+      throw InvalidPath("path '%1%' is not a valid store path", store->printStorePath(store_path));
   }
 
-  std::optional<stat_t> maybeLstat(const canon_path_t& path) override {
+  std::optional<stat_t> maybe_lstat(const canon_path_t& path) override {
     /* Also allow `path` to point to the entire store, which is
        needed for resolving symlinks. */
-    if (path.isRoot())
-      return stat_t{.type = tDirectory};
+    if (path.is_root())
+      return stat_t{.type = t_directory};
 
     requireStoreObject(path);
-    return posix_source_accessor_t::maybeLstat(path);
+    return posix_source_accessor_t::maybe_lstat(path);
   }
 
-  dir_entries_t readDirectory(const canon_path_t& path) override {
+  dir_entries_t read_directory(const canon_path_t& path) override {
     requireStoreObject(path);
-    return posix_source_accessor_t::readDirectory(path);
+    return posix_source_accessor_t::read_directory(path);
   }
 
-  void readFile(const canon_path_t& path, Sink& sink,
-                std::function<void(uint64_t)> sizeCallback) override {
+  void read_file(const canon_path_t& path, Sink& sink,
+                std::function<void(uint64_t)> size_callback) override {
     requireStoreObject(path);
-    return posix_source_accessor_t::readFile(path, sink, sizeCallback);
+    return posix_source_accessor_t::read_file(path, sink, size_callback);
   }
 
-  std::string readLink(const canon_path_t& path) override {
+  std::string read_link(const canon_path_t& path) override {
     requireStoreObject(path);
-    return posix_source_accessor_t::readLink(path);
+    return posix_source_accessor_t::read_link(path);
   }
 };
 
-ref<SourceAccessor> LocalFSStore::getFSAccessor(bool requireValidPath) {
+ref<SourceAccessor> local_fs_store::getFSAccessor(bool require_valid_path) {
   return make_ref<local_store_accessor_t>(
-      ref<LocalFSStore>(std::dynamic_pointer_cast<LocalFSStore>(shared_from_this())),
-      requireValidPath);
+      ref<local_fs_store>(std::dynamic_pointer_cast<local_fs_store>(shared_from_this())),
+      require_valid_path);
 }
 
-std::shared_ptr<SourceAccessor> LocalFSStore::getFSAccessor(const StorePath& path,
-                                                            bool requireValidPath) {
-  auto absPath = std::filesystem::path{config.realStoreDir.get()} / path.to_string();
-  if (requireValidPath) {
+std::shared_ptr<SourceAccessor> local_fs_store::getFSAccessor(const StorePath& path,
+                                                            bool require_valid_path) {
+  auto abs_path = std::filesystem::path{config.real_store_dir.get()} / path.to_string();
+  if (require_valid_path) {
     /* Only return non-null if the store object is a fully-valid
        member of the store. */
     if (!isValidPath(path))
@@ -94,29 +94,29 @@ std::shared_ptr<SourceAccessor> LocalFSStore::getFSAccessor(const StorePath& pat
   } else {
     /* Return non-null as long as the some file system data exists,
        even if the store object is not fully registered. */
-    if (!pathExists(absPath))
+    if (!path_exists(abs_path))
       return nullptr;
   }
-  return std::make_shared<posix_source_accessor_t>(std::move(absPath));
+  return std::make_shared<posix_source_accessor_t>(std::move(abs_path));
 }
 
-const std::string LocalFSStore::drvsLogDir = "drvs";
+const std::string local_fs_store::drvsLogDir = "drvs";
 
-std::optional<std::string> LocalFSStore::getBuildLogExact(const StorePath& path) {
-  auto baseName = path.to_string();
+std::optional<std::string> local_fs_store::getBuildLogExact(const StorePath& path) {
+  auto base_name = path.to_string();
 
   for (int j = 0; j < 2; j++) {
     Path logPath = j == 0 ? fmt("%s/%s/%s/%s", config.logDir.get(), drvsLogDir,
-                                baseName.substr(0, 2), baseName.substr(2))
-                          : fmt("%s/%s/%s", config.logDir.get(), drvsLogDir, baseName);
+                                base_name.substr(0, 2), base_name.substr(2))
+                          : fmt("%s/%s/%s", config.logDir.get(), drvsLogDir, base_name);
     Path logBz2Path = logPath + ".bz2";
 
-    if (pathExists(logPath))
-      return readFile(logPath);
+    if (path_exists(logPath))
+      return read_file(logPath);
 
-    else if (pathExists(logBz2Path)) {
+    else if (path_exists(logBz2Path)) {
       try {
-        return decompress("bzip2", readFile(logBz2Path));
+        return decompress("bzip2", read_file(logBz2Path));
       } catch (Error&) {
       }
     }

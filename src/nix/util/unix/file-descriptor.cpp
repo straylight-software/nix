@@ -28,7 +28,7 @@ namespace {
 // remote-building.
 // TODO: get rid of buildhook and remove this function again
 // (https://github.com/NixOS/nix/issues/12688)
-void pollFD(int fd, int events) {
+void poll_fd(int fd, int events) {
   struct pollfd pfd;
   pfd.fd = fd;
   pfd.events = events;
@@ -39,24 +39,24 @@ void pollFD(int fd, int events) {
 }
 } // namespace
 
-std::string readFile(int fd) {
+std::string read_file(int fd) {
   struct stat st;
   if (fstat(fd, &st) == -1)
     throw sys_error_t("statting file");
 
-  return drainFD(fd, true, st.st_size);
+  return drain_fd(fd, true, st.st_size);
 }
 
-void readFull(int fd, char* buf, size_t count) {
+void read_full(int fd, char* buf, size_t count) {
   while (count) {
-    checkInterrupt();
+    check_interrupt();
     ssize_t res = read(fd, buf, count);
     if (res == -1) {
       switch (errno) {
         case EINTR:
           continue;
         case EAGAIN:
-          pollFD(fd, POLLIN);
+          poll_fd(fd, POLLIN);
           continue;
       }
       throw sys_error_t("reading from file");
@@ -68,17 +68,17 @@ void readFull(int fd, char* buf, size_t count) {
   }
 }
 
-void writeFull(int fd, std::string_view s, bool allowInterrupts) {
+void write_full(int fd, std::string_view s, bool allow_interrupts) {
   while (!s.empty()) {
-    if (allowInterrupts)
-      checkInterrupt();
+    if (allow_interrupts)
+      check_interrupt();
     ssize_t res = write(fd, s.data(), s.size());
     if (res == -1) {
       switch (errno) {
         case EINTR:
           continue;
         case EAGAIN:
-          pollFD(fd, POLLOUT);
+          poll_fd(fd, POLLOUT);
           continue;
       }
       throw sys_error_t("writing to file");
@@ -88,10 +88,10 @@ void writeFull(int fd, std::string_view s, bool allowInterrupts) {
   }
 }
 
-std::string readLine(int fd, bool eofOk) {
+std::string read_line(int fd, bool eof_ok) {
   std::string s;
   while (1) {
-    checkInterrupt();
+    check_interrupt();
     char ch;
     // FIXME: inefficient
     ssize_t rd = read(fd, &ch, 1);
@@ -100,14 +100,14 @@ std::string readLine(int fd, bool eofOk) {
         case EINTR:
           continue;
         case EAGAIN: {
-          pollFD(fd, POLLIN);
+          poll_fd(fd, POLLIN);
           continue;
         }
         default:
           throw sys_error_t("reading a line");
       }
     } else if (rd == 0) {
-      if (eofOk)
+      if (eof_ok)
         return s;
       else
         throw EndOfFile("unexpected EOF reading a line");
@@ -119,7 +119,7 @@ std::string readLine(int fd, bool eofOk) {
   }
 }
 
-void drainFD(int fd, Sink& sink, bool block) {
+void drain_fd(int fd, Sink& sink, bool block) {
   // silence GCC maybe-uninitialized warning in finally
   int saved = 0;
 
@@ -138,7 +138,7 @@ void drainFD(int fd, Sink& sink, bool block) {
 
   std::vector<unsigned char> buf(64 * 1024);
   while (1) {
-    checkInterrupt();
+    check_interrupt();
     ssize_t rd = read(fd, buf.data(), buf.size());
     if (rd == -1) {
       if (!block && (errno == EAGAIN || errno == EWOULDBLOCK))
@@ -162,11 +162,11 @@ void pipe_t::create() {
 #else
   if (pipe(fds) != 0)
     throw sys_error_t("creating pipe");
-  unix::closeOnExec(fds[0]);
-  unix::closeOnExec(fds[1]);
+  unix::close_on_exec(fds[0]);
+  unix::close_on_exec(fds[1]);
 #endif
-  readSide = fds[0];
-  writeSide = fds[1];
+  read_side = fds[0];
+  write_side = fds[1];
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -181,7 +181,7 @@ static int unix_close_range(unsigned int first, unsigned int last, int flags) {
 }
 #endif
 
-void unix::closeExtraFDs() {
+void unix::close_extra_f_ds() {
   constexpr int MAX_KEPT_FD = 2;
   static_assert(std::max({STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO}) == MAX_KEPT_FD);
 
@@ -198,7 +198,7 @@ void unix::closeExtraFDs() {
 #ifdef __linux__
   try {
     for (auto& s : directory_iterator_t{"/proc/self/fd"}) {
-      checkInterrupt();
+      check_interrupt();
       auto fd = std::stoi(s.path().filename());
       if (fd > MAX_KEPT_FD) {
         debug("closing leaked FD %d", fd);
@@ -210,15 +210,15 @@ void unix::closeExtraFDs() {
   }
 #endif
 
-  int maxFD = 0;
+  int max_fd = 0;
 #if HAVE_SYSCONF
-  maxFD = sysconf(_SC_OPEN_MAX);
+  max_fd = sysconf(_SC_OPEN_MAX);
 #endif
-  for (int fd = MAX_KEPT_FD + 1; fd < maxFD; ++fd)
+  for (int fd = MAX_KEPT_FD + 1; fd < max_fd; ++fd)
     close(fd); /* ignore result */
 }
 
-void unix::closeOnExec(int fd) {
+void unix::close_on_exec(int fd) {
   int prev;
   if ((prev = fcntl(fd, F_GETFD, 0)) == -1 || fcntl(fd, F_SETFD, prev | FD_CLOEXEC) == -1)
     throw sys_error_t("setting close-on-exec flag");
@@ -228,10 +228,10 @@ void unix::closeOnExec(int fd) {
 
 namespace linux {
 
-std::optional<descriptor_t> openat2(descriptor_t dirFd, const char* path, uint64_t flags, uint64_t mode,
+std::optional<descriptor_t> openat2(descriptor_t dir_fd, const char* path, uint64_t flags, uint64_t mode,
                                   uint64_t resolve) {
 #  if HAVE_OPENAT2
-  /* Cache the result of whether openat2 is not supported. */
+  /* cache_t the result of whether openat2 is not supported. */
   static std::atomic_flag unsupported{};
 
   if (!unsupported.test()) {
@@ -239,8 +239,8 @@ std::optional<descriptor_t> openat2(descriptor_t dirFd, const char* path, uint64
      * https://patchwork.sourceware.org/project/glibc/patch/20251029200519.3203914-1-adhemerval.zanella@linaro.org/
      */
     auto how = ::open_how{.flags = flags, .mode = mode, .resolve = resolve};
-    auto res = ::syscall(__NR_openat2, dirFd, path, &how, sizeof(how));
-    /* Cache that the syscall is not supported. */
+    auto res = ::syscall(__NR_openat2, dir_fd, path, &how, sizeof(how));
+    /* cache_t that the syscall is not supported. */
     if (res < 0 && errno == ENOSYS) {
       unsupported.test_and_set();
       return std::nullopt;
@@ -256,13 +256,13 @@ std::optional<descriptor_t> openat2(descriptor_t dirFd, const char* path, uint64
 
 #endif
 
-static descriptor_t openFileEnsureBeneathNoSymlinksIterative(descriptor_t dirFd, const canon_path_t& path,
+static descriptor_t open_file_ensure_beneath_no_symlinks_iterative(descriptor_t dir_fd, const canon_path_t& path,
                                                            int flags, mode_t mode) {
-  auto_close_fd_t parentFd;
-  auto nrComponents = std::ranges::distance(path);
-  assert(nrComponents >= 1);
-  auto components = std::views::take(path, nrComponents - 1); /* Everything but last component */
-  auto getParentFd = [&]() { return parentFd ? parentFd.get() : dirFd; };
+  auto_close_fd_t parent_fd;
+  auto nr_components = std::ranges::distance(path);
+  assert(nr_components >= 1);
+  auto components = std::views::take(path, nr_components - 1); /* Everything but last component */
+  auto get_parent_fd = [&]() { return parent_fd ? parent_fd.get() : dir_fd; };
 
   /* This rather convoluted loop is necessary to avoid TOCTOU when validating that
      no inner path component is a symlink. */
@@ -271,8 +271,8 @@ static descriptor_t openFileEnsureBeneathNoSymlinksIterative(descriptor_t dirFd,
     assert(component != ".." &&
            !component.starts_with('/')); /* In case invariant is broken somehow.. */
 
-    auto_close_fd_t parentFd2 =
-        ::openat(getParentFd(), /* First iteration uses dirFd. */
+    auto_close_fd_t parent_fd2 =
+        ::openat(get_parent_fd(), /* First iteration uses dir_fd. */
                  component.c_str(),
                  O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC
 #ifdef __linux__
@@ -284,7 +284,7 @@ static descriptor_t openFileEnsureBeneathNoSymlinksIterative(descriptor_t dirFd,
 #endif
         );
 
-    if (!parentFd2) {
+    if (!parent_fd2) {
       /* Construct the canon_path_t for error message. */
       auto path2 =
           std::ranges::fold_left(components.begin(), ++it, canon_path_t::root, [](auto lhs, auto rhs) {
@@ -294,7 +294,7 @@ static descriptor_t openFileEnsureBeneathNoSymlinksIterative(descriptor_t dirFd,
 
       if (errno == ENOTDIR) /* Path component might be a symlink. */ {
         struct ::stat st;
-        if (::fstatat(getParentFd(), component.c_str(), &st, AT_SYMLINK_NOFOLLOW) == 0 &&
+        if (::fstatat(get_parent_fd(), component.c_str(), &st, AT_SYMLINK_NOFOLLOW) == 0 &&
             S_ISLNK(st.st_mode))
           throw unix::symlink_not_allowed_t(path2);
         errno = ENOTDIR; /* Restore the errno. */
@@ -305,30 +305,30 @@ static descriptor_t openFileEnsureBeneathNoSymlinksIterative(descriptor_t dirFd,
       return INVALID_DESCRIPTOR;
     }
 
-    parentFd = std::move(parentFd2);
+    parent_fd = std::move(parent_fd2);
   }
 
-  auto res = ::openat(getParentFd(), std::string(path.baseName().value()).c_str(),
+  auto res = ::openat(get_parent_fd(), std::string(path.base_name().value()).c_str(),
                       flags | O_NOFOLLOW, mode);
   if (res < 0 && errno == ELOOP)
     throw unix::symlink_not_allowed_t(path);
   return res;
 }
 
-descriptor_t unix::openFileEnsureBeneathNoSymlinks(descriptor_t dirFd, const canon_path_t& path, int flags,
+descriptor_t unix::open_file_ensure_beneath_no_symlinks(descriptor_t dir_fd, const canon_path_t& path, int flags,
                                                  mode_t mode) {
   assert(!path.rel().starts_with('/')); /* Just in case the invariant is somehow broken. */
-  assert(!path.isRoot());
+  assert(!path.is_root());
 #ifdef __linux__
-  auto maybeFd = linux::openat2(dirFd, path.rel_c_str(), flags, static_cast<uint64_t>(mode),
+  auto maybe_fd = linux::openat2(dir_fd, path.rel_c_str(), flags, static_cast<uint64_t>(mode),
                                 RESOLVE_BENEATH | RESOLVE_NO_SYMLINKS);
-  if (maybeFd) {
-    if (*maybeFd < 0 && errno == ELOOP)
+  if (maybe_fd) {
+    if (*maybe_fd < 0 && errno == ELOOP)
       throw unix::symlink_not_allowed_t(path);
-    return *maybeFd;
+    return *maybe_fd;
   }
 #endif
-  return openFileEnsureBeneathNoSymlinksIterative(dirFd, path, flags, mode);
+  return open_file_ensure_beneath_no_symlinks_iterative(dir_fd, path, flags, mode);
 }
 
 } // namespace nix

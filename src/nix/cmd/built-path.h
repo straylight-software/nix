@@ -9,7 +9,7 @@ namespace nix {
 struct SingleBuiltPath;
 
 struct SingleBuiltPathBuilt {
-  ref<SingleBuiltPath> drvPath;
+  ref<SingleBuiltPath> drv_path;
   std::pair<std::string, StorePath> output;
 
   SingleDerivedPathBuilt discardOutputPath() const;
@@ -17,7 +17,7 @@ struct SingleBuiltPathBuilt {
   std::string to_string(const StoreDirConfig& store) const;
   static SingleBuiltPathBuilt parse(const StoreDirConfig& store, std::string_view,
                                     std::string_view);
-  nlohmann::json toJSON(const StoreDirConfig& store) const;
+  nlohmann::json to_json(const StoreDirConfig& store) const;
 
   bool operator==(const SingleBuiltPathBuilt&) const noexcept;
   std::strong_ordering operator<=>(const SingleBuiltPathBuilt&) const noexcept;
@@ -37,16 +37,16 @@ struct SingleBuiltPath : _SingleBuiltPathRaw {
 
   inline const raw_t& raw() const { return static_cast<const raw_t&>(*this); }
 
-  StorePath outPath() const;
+  StorePath out_path() const;
 
   SingleDerivedPath discardOutputPath() const;
 
   static SingleBuiltPath parse(const StoreDirConfig& store, std::string_view);
-  nlohmann::json toJSON(const StoreDirConfig& store) const;
+  nlohmann::json to_json(const StoreDirConfig& store) const;
 };
 
-static inline ref<SingleBuiltPath> staticDrv(StorePath drvPath) {
-  return make_ref<SingleBuiltPath>(SingleBuiltPath::opaque_t{drvPath});
+static inline ref<SingleBuiltPath> staticDrv(StorePath drv_path) {
+  return make_ref<SingleBuiltPath>(SingleBuiltPath::opaque_t{drv_path});
 }
 
 /**
@@ -55,7 +55,7 @@ static inline ref<SingleBuiltPath> staticDrv(StorePath drvPath) {
  * See 'BuiltPath' for more an explanation.
  */
 struct BuiltPathBuilt {
-  ref<SingleBuiltPath> drvPath;
+  ref<SingleBuiltPath> drv_path;
   std::map<std::string, StorePath> outputs;
 
   bool operator==(const BuiltPathBuilt&) const noexcept;
@@ -64,7 +64,7 @@ struct BuiltPathBuilt {
 
   std::string to_string(const StoreDirConfig& store) const;
   static BuiltPathBuilt parse(const StoreDirConfig& store, std::string_view, std::string_view);
-  nlohmann::json toJSON(const StoreDirConfig& store) const;
+  nlohmann::json to_json(const StoreDirConfig& store) const;
 };
 
 using _BuiltPathRaw = std::variant<DerivedPath::opaque_t, BuiltPathBuilt>;
@@ -87,10 +87,10 @@ struct BuiltPath : _BuiltPathRaw {
 
   inline const raw_t& raw() const { return static_cast<const raw_t&>(*this); }
 
-  StorePathSet outPaths() const;
+  StorePathSet out_paths() const;
   RealisedPath::Set toRealisedPaths(Store& store) const;
 
-  nlohmann::json toJSON(const StoreDirConfig& store) const;
+  nlohmann::json to_json(const StoreDirConfig& store) const;
 };
 
 typedef std::vector<BuiltPath> BuiltPaths;

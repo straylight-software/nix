@@ -5,29 +5,29 @@ namespace nix {
 struct chroot_derivation_builder_t : virtual derivation_builder_impl_t
 {
     chroot_derivation_builder_t(
-        LocalStore & store, std::unique_ptr<DerivationBuilderCallbacks> miscMethods, DerivationBuilderParams params)
-        : derivation_builder_impl_t{store, std::move(miscMethods), std::move(params)}
+        LocalStore & store, std::unique_ptr<DerivationBuilderCallbacks> misc_methods, DerivationBuilderParams params)
+        : derivation_builder_impl_t{store, std::move(misc_methods), std::move(params)}
     {
     }
 
     /**
      * The root of the chroot environment.
      */
-    Path chrootRootDir;
+    Path chroot_root_dir;
 
     /**
      * RAII object to delete the chroot directory.
      */
-    std::shared_ptr<auto_delete_t> autoDelChroot;
+    std::shared_ptr<auto_delete_t> auto_del_chroot;
 
-    PathsInChroot pathsInChroot;
+    PathsInChroot paths_in_chroot;
 
-    bool needsHashRewrite() override
+    bool needs_hash_rewrite() override
     {
         return false;
     }
 
-    void setBuildTmpDir() override
+    void set_build_tmp_dir() override
     {
         /* If sandboxing is enabled, put the actual TMPDIR underneath
            an inaccessible root-owned directory, to prevent outside
@@ -36,79 +36,79 @@ struct chroot_derivation_builder_t : virtual derivation_builder_impl_t
            On macOS, we don't use an actual chroot, so this isn't
            possible. Any mitigation along these lines would have to be
            done directly in the sandbox profile. */
-        tmpDir = topTmpDir + "/build";
-        createDir(tmpDir, 0700);
+        tmp_dir = topTmpDir + "/build";
+        create_dir(tmp_dir, 0700);
     }
 
-    Path tmpDirInSandbox() override
+    Path tmp_dir_in_sandbox() override
     {
         /* In a sandbox, for determinism, always use the same temporary
            directory. */
         return settings.sandboxBuildDir;
     }
 
-    virtual gid_t sandboxGid()
+    virtual gid_t sandbox_gid()
     {
         return buildUser->getGID();
     }
 
-    void prepareSandbox() override
+    void prepare_sandbox() override
     {
         /* Create a temporary directory in which we set up the chroot
            environment using bind-mounts.  We put it in the Nix store
            so that the build outputs can be moved efficiently from the
            chroot to their final location. */
-        auto chrootParentDir = store.toRealPath(drvPath) + ".chroot";
-        deletePath(chrootParentDir);
+        auto chroot_parent_dir = store.toRealPath(drv_path) + ".chroot";
+        delete_path(chroot_parent_dir);
 
         /* Clean up the chroot directory automatically. */
-        autoDelChroot = std::make_shared<auto_delete_t>(chrootParentDir);
+        auto_del_chroot = std::make_shared<auto_delete_t>(chroot_parent_dir);
 
-        printMsg(lvlChatty, "setting up chroot environment in '%1%'", chrootParentDir);
+        printMsg(lvl_chatty, "setting up chroot environment in '%1%'", chroot_parent_dir);
 
-        if (mkdir(chrootParentDir.c_str(), 0700) == -1)
-            throw sys_error_t("cannot create '%s'", chrootRootDir);
+        if (mkdir(chroot_parent_dir.c_str(), 0700) == -1)
+            throw sys_error_t("cannot create '%s'", chroot_root_dir);
 
-        chrootRootDir = chrootParentDir + "/root";
+        chroot_root_dir = chroot_parent_dir + "/root";
 
-        if (mkdir(chrootRootDir.c_str(), buildUser && buildUser->getUIDCount() != 1 ? 0755 : 0750) == -1)
-            throw sys_error_t("cannot create '%1%'", chrootRootDir);
+        if (mkdir(chroot_root_dir.c_str(), buildUser && buildUser->getUIDCount() != 1 ? 0755 : 0750) == -1)
+            throw sys_error_t("cannot create '%1%'", chroot_root_dir);
 
         if (buildUser
             && chown(
-                   chrootRootDir.c_str(), buildUser->getUIDCount() != 1 ? buildUser->getUID() : 0, buildUser->getGID())
+                   chroot_root_dir.c_str(), buildUser->getUIDCount() != 1 ? buildUser->getUID() : 0, buildUser->getGID())
                    == -1)
-            throw sys_error_t("cannot change ownership of '%1%'", chrootRootDir);
+            throw sys_error_t("cannot change ownership of '%1%'", chroot_root_dir);
 
         /* Create a writable /tmp in the chroot.  Many builders need
            this.  (Of course they should really respect $TMPDIR
            instead.) */
-        Path chrootTmpDir = chrootRootDir + "/tmp";
-        createDirs(chrootTmpDir);
-        chmod_(chrootTmpDir, 01777);
+        Path chroot_tmp_dir = chroot_root_dir + "/tmp";
+        create_dirs(chroot_tmp_dir);
+        chmod_(chroot_tmp_dir, 01777);
 
         /* Create a /etc/passwd with entries for the build user and the
            nobody account.  The latter is kind of a hack to support
            Samba-in-QEMU. */
-        createDirs(chrootRootDir + "/etc");
-        if (drvOptions.useUidRange(drv))
-            chownToBuilder(chrootRootDir + "/etc");
+        create_dirs(chroot_root_dir + "/etc");
+        if (drv_options.useUidRange(drv))
+            chown_to_builder(chroot_root_dir + "/etc");
 
-        if (drvOptions.useUidRange(drv) && (!buildUser || buildUser->getUIDCount() < 65536))
+        if (drv_options.useUidRange(drv) && (!buildUser || buildUser->getUIDCount() < 65536))
             throw Error("feature 'uid-range' requires the setting '%s' to be enabled", settings.autoAllocateUids.name);
 
         /* Declare the build user's group so that programs get a consistent
            view of the system (e.g., "id -gn"). */
-        writeFile(
-            chrootRootDir + "/etc/group",
+        write_file(
+            chroot_root_dir + "/etc/group",
             fmt("root:x:0:\n"
                 "nixbld:!:%1%:\n"
                 "nogroup:x:65534:\n",
-                sandboxGid()));
+                sandbox_gid()));
 
         /* Create /etc/hosts with localhost entry. */
-        if (derivationType.isSandboxed())
-            writeFile(chrootRootDir + "/etc/hosts", "127.0.0.1 localhost\n::1 localhost\n");
+        if (derivation_type.isSandboxed())
+            write_file(chroot_root_dir + "/etc/hosts", "127.0.0.1 localhost\n::1 localhost\n");
 
         /* Make the closure of the inputs available in the chroot,
            rather than the whole Nix store.  This prevents any access
@@ -117,18 +117,18 @@ struct chroot_derivation_builder_t : virtual derivation_builder_impl_t
            can be bind-mounted).  !!! As an extra security
            precaution, make the fake Nix store only writable by the
            build user. */
-        Path chrootStoreDir = chrootRootDir + store.storeDir;
-        createDirs(chrootStoreDir);
-        chmod_(chrootStoreDir, 01775);
+        Path chroot_store_dir = chroot_root_dir + store.store_dir;
+        create_dirs(chroot_store_dir);
+        chmod_(chroot_store_dir, 01775);
 
-        if (buildUser && chown(chrootStoreDir.c_str(), 0, buildUser->getGID()) == -1)
-            throw sys_error_t("cannot change ownership of '%1%'", chrootStoreDir);
+        if (buildUser && chown(chroot_store_dir.c_str(), 0, buildUser->getGID()) == -1)
+            throw sys_error_t("cannot change ownership of '%1%'", chroot_store_dir);
 
-        pathsInChroot = getPathsInSandbox();
+        paths_in_chroot = get_paths_in_sandbox();
 
         for (auto & i : inputPaths) {
             auto p = store.printStorePath(i);
-            pathsInChroot.insert_or_assign(p, ChrootPath{.source = store.toRealPath(p)});
+            paths_in_chroot.insert_or_assign(p, ChrootPath{.source = store.toRealPath(p)});
         }
 
         /* If we're repairing, checking or rebuilding part of a
@@ -143,52 +143,52 @@ struct chroot_derivation_builder_t : virtual derivation_builder_impl_t
                is already in the sandbox, so we don't need to worry about
                removing it.  */
             if (i.second.second)
-                pathsInChroot.erase(store.printStorePath(*i.second.second));
+                paths_in_chroot.erase(store.printStorePath(*i.second.second));
         }
     }
 
-    strings_t getPreBuildHookArgs() override
+    strings_t get_pre_build_hook_args() override
     {
-        assert(!chrootRootDir.empty());
-        return strings_t({store.printStorePath(drvPath), chrootRootDir});
+        assert(!chroot_root_dir.empty());
+        return strings_t({store.printStorePath(drv_path), chroot_root_dir});
     }
 
-    Path realPathInHost(const Path & p) override
+    Path real_path_in_host(const Path & p) override
     {
         // FIXME: why the needsHashRewrite() conditional?
-        return !needsHashRewrite() ? chrootRootDir + p : store.toRealPath(p);
+        return !needs_hash_rewrite() ? chroot_root_dir + p : store.toRealPath(p);
     }
 
-    void cleanupBuild(bool force) override
+    void cleanup_build(bool force) override
     {
-        derivation_builder_impl_t::cleanupBuild(force);
+        derivation_builder_impl_t::cleanup_build(force);
 
         /* Move paths out of the chroot for easier debugging of
            build failures. */
-        if (!force && buildMode == bmNormal)
+        if (!force && build_mode == bmNormal)
             for (auto & [_, status] : initialOutputs) {
                 if (!status.known)
                     continue;
-                if (buildMode != bmCheck && status.known->isValid())
+                if (build_mode != bmCheck && status.known->isValid())
                     continue;
                 auto p = store.toRealPath(status.known->path);
-                if (pathExists(chrootRootDir + p))
-                    std::filesystem::rename((chrootRootDir + p), p);
+                if (path_exists(chroot_root_dir + p))
+                    std::filesystem::rename((chroot_root_dir + p), p);
             }
 
-        autoDelChroot.reset(); /* this runs the destructor */
+        auto_del_chroot.reset(); /* this runs the destructor */
     }
 
-    std::pair<Path, Path> addDependencyPrep(const StorePath & path)
+    std::pair<Path, Path> add_dependency_prep(const StorePath & path)
     {
-        derivation_builder_impl_t::addDependencyImpl(path);
+        derivation_builder_impl_t::add_dependency_impl(path);
 
         debug("materialising '%s' in the sandbox", store.printStorePath(path));
 
         Path source = store.toRealPath(path);
-        Path target = chrootRootDir + store.printStorePath(path);
+        Path target = chroot_root_dir + store.printStorePath(path);
 
-        if (pathExists(target)) {
+        if (path_exists(target)) {
             // There is a similar debug message in doBind, so only run it in this block to not have double messages.
             debug("bind-mounting %s -> %s", target, source);
             throw Error("store path '%s' already exists in the sandbox", store.printStorePath(path));

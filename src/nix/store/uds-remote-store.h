@@ -36,28 +36,28 @@ struct UDSRemoteStoreConfig : std::enable_shared_from_this<UDSRemoteStoreConfig>
 
   static string_set_t uriSchemes() { return {"unix"}; }
 
-  ref<Store> openStore() const override;
+  ref<Store> open_store() const override;
 
   StoreReference getReference() const override;
 };
 
-struct UDSRemoteStore : virtual IndirectRootStore, virtual RemoteStore {
-  using Config = UDSRemoteStoreConfig;
+struct UDSRemoteStore : virtual IndirectRootStore, virtual remote_store {
+  using config_t = UDSRemoteStoreConfig;
 
-  ref<const Config> config;
+  ref<const config_t> config;
 
-  UDSRemoteStore(ref<const Config>);
+  UDSRemoteStore(ref<const config_t>);
 
-  ref<SourceAccessor> getFSAccessor(bool requireValidPath = true) override {
-    return LocalFSStore::getFSAccessor(requireValidPath);
+  ref<SourceAccessor> getFSAccessor(bool require_valid_path = true) override {
+    return local_fs_store::getFSAccessor(require_valid_path);
   }
 
   std::shared_ptr<SourceAccessor> getFSAccessor(const StorePath& path,
-                                                bool requireValidPath = true) override {
-    return LocalFSStore::getFSAccessor(path, requireValidPath);
+                                                bool require_valid_path = true) override {
+    return local_fs_store::getFSAccessor(path, require_valid_path);
   }
 
-  void narFromPath(const StorePath& path, Sink& sink) override { Store::narFromPath(path, sink); }
+  void nar_from_path(const StorePath& path, Sink& sink) override { Store::nar_from_path(path, sink); }
 
   /**
    * Implementation of `IndirectRootStore::addIndirectRoot()` which
@@ -70,12 +70,12 @@ struct UDSRemoteStore : virtual IndirectRootStore, virtual RemoteStore {
   void addIndirectRoot(const Path& path) override;
 
 private:
-  struct Connection : RemoteStore::Connection {
+  struct Connection : remote_store::Connection {
     auto_close_fd_t fd;
     void closeWrite() override;
   };
 
-  ref<RemoteStore::Connection> openConnection() override;
+  ref<remote_store::Connection> open_connection() override;
 };
 
 } // namespace nix

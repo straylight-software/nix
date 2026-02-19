@@ -46,47 +46,47 @@ struct base_setting_t<T>::trait {
 };
 
 template <typename T>
-bool base_setting_t<T>::isAppendable() {
+bool base_setting_t<T>::is_appendable() {
   return trait::appendable;
 }
 
 template <>
-void base_setting_t<strings_t>::appendOrSet(strings_t newValue, bool append);
+void base_setting_t<strings_t>::append_or_set(strings_t new_value, bool append);
 template <>
-void base_setting_t<string_set_t>::appendOrSet(string_set_t newValue, bool append);
+void base_setting_t<string_set_t>::append_or_set(string_set_t new_value, bool append);
 template <>
-void base_setting_t<string_map_t>::appendOrSet(string_map_t newValue, bool append);
+void base_setting_t<string_map_t>::append_or_set(string_map_t new_value, bool append);
 template <>
-void base_setting_t<std::set<experimental_feature_t>>::appendOrSet(std::set<experimental_feature_t> newValue,
+void base_setting_t<std::set<experimental_feature_t>>::append_or_set(std::set<experimental_feature_t> new_value,
                                                              bool append);
 
 template <typename T>
-void base_setting_t<T>::appendOrSet(T newValue, bool append) {
+void base_setting_t<T>::append_or_set(T new_value, bool append) {
   static_assert(!trait::appendable,
                 "using default `appendOrSet` implementation with an appendable type");
   assert(!append);
 
-  value = std::move(newValue);
+  value = std::move(new_value);
 }
 
 template <typename T>
 void base_setting_t<T>::set(const std::string& str, bool append) {
-  if (experimentalFeatureSettings.isEnabled(experimentalFeature))
-    appendOrSet(parse(str), append);
+  if (experimental_feature_settings.is_enabled(experimental_feature))
+    append_or_set(parse(str), append);
   else {
-    assert(experimentalFeature);
+    assert(experimental_feature);
     warn("Ignoring setting '%s' because experimental feature '%s' is not enabled", name,
-         showExperimentalFeature(*experimentalFeature));
+         show_experimental_feature(*experimental_feature));
   }
 }
 
 template <>
-void base_setting_t<bool>::convertToArg(Args& args, const std::string& category);
+void base_setting_t<bool>::convert_to_arg(Args& args, const std::string& category);
 
 template <typename T>
-void base_setting_t<T>::convertToArg(Args& args, const std::string& category) {
-  args.addFlag({
-      .longName = name,
+void base_setting_t<T>::convert_to_arg(Args& args, const std::string& category) {
+  args.add_flag({
+      .long_name = name,
       .aliases = aliases,
       .description = fmt("Set the `%s` setting.", name),
       .category = category,
@@ -95,12 +95,12 @@ void base_setting_t<T>::convertToArg(Args& args, const std::string& category) {
         overridden = true;
         set(s);
       }},
-      .experimentalFeature = experimentalFeature,
+      .experimental_feature = experimental_feature,
   });
 
-  if (isAppendable())
-    args.addFlag({
-        .longName = "extra-" + name,
+  if (is_appendable())
+    args.add_flag({
+        .long_name = "extra-" + name,
         .aliases = aliases,
         .description = fmt("Append to the `%s` setting.", name),
         .category = category,
@@ -109,7 +109,7 @@ void base_setting_t<T>::convertToArg(Args& args, const std::string& category) {
           overridden = true;
           set(s, true);
         }},
-        .experimentalFeature = experimentalFeature,
+        .experimental_feature = experimental_feature,
     });
 }
 
@@ -134,7 +134,7 @@ T base_setting_t<T>::parse(const std::string& str) const {
   static_assert(std::is_integral<T>::value, "Integer required.");
 
   try {
-    return string2IntWithUnitPrefix<T>(str);
+    return string2_int_with_unit_prefix<T>(str);
   } catch (...) {
     throw UsageError("setting '%s' has invalid value '%s'", name, str);
   }

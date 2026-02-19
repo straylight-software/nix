@@ -10,6 +10,6 @@ namespace nix {
  * Helper function to generate args that invoke $EDITOR on
  * filename:lineno.
  */
-strings_t editorFor(const source_path_t& file, uint32_t line);
+strings_t editor_for(const source_path_t& file, uint32_t line);
 
 } // namespace nix

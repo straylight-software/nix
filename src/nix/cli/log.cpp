@@ -23,20 +23,20 @@ struct cmd_log_t : InstallableCommand {
   void run(ref<Store> store, ref<Installable> installable) override {
     settings.readOnlyMode = true;
 
-    auto subs = getDefaultSubstituters();
+    auto subs = get_default_substituters();
 
     subs.push_front(store);
 
     auto b = installable->toDerivedPath();
 
     // For compat with CLI today, TODO revisit
-    auto oneUp = std::visit(
+    auto one_up = std::visit(
         overloaded{
             [&](const DerivedPath::opaque_t& bo) { return make_ref<const SingleDerivedPath>(bo); },
-            [&](const DerivedPath::Built& bfd) { return bfd.drvPath; },
+            [&](const DerivedPath::Built& bfd) { return bfd.drv_path; },
         },
         b.path.raw());
-    auto path = resolveDerivedPath(*store, *oneUp);
+    auto path = resolve_derived_path(*store, *one_up);
 
     RunPager pager;
     for (auto& sub : subs) {
@@ -54,7 +54,7 @@ struct cmd_log_t : InstallableCommand {
       logger->stop();
       printInfo("got build log for '%s' from '%s'", installable->what(),
                 logSub.config.getHumanReadableURI());
-      writeFull(getStandardOutput(), *log);
+      write_full(get_standard_output(), *log);
       return;
     }
 
@@ -62,4 +62,4 @@ struct cmd_log_t : InstallableCommand {
   }
 };
 
-static auto rCmdLog = registerCommand<cmd_log_t>("log");
+static auto r_cmd_log = registerCommand<cmd_log_t>("log");

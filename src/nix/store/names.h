@@ -27,9 +27,9 @@ private:
 
 typedef std::list<DrvName> DrvNames;
 
-std::string_view nextComponent(std::string_view::const_iterator& p,
+std::string_view next_component(std::string_view::const_iterator& p,
                                const std::string_view::const_iterator end);
-std::strong_ordering compareVersions(const std::string_view v1, const std::string_view v2);
-DrvNames drvNamesFromArgs(const strings_t& opArgs);
+std::strong_ordering compare_versions(const std::string_view v1, const std::string_view v2);
+DrvNames drv_names_from_args(const strings_t& op_args);
 
 } // namespace nix

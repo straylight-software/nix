@@ -17,34 +17,34 @@ namespace nix {
  * `.cc` file as well.
  */
 enum struct experimental_feature_t {
-  CaDerivations,
-  ImpureDerivations,
-  FetchTree,
-  GitHashing,
-  RecursiveNix,
-  NoUrlLiterals,
-  FetchClosure,
-  AutoAllocateUids,
-  Cgroups,
-  DaemonTrustOverride,
-  DynamicDerivations,
-  ParseTomlTimestamps,
-  ReadOnlyLocalStore,
-  LocalOverlayStore,
-  ConfigurableImpureEnv,
+  ca_derivations,
+  impure_derivations,
+  fetch_tree,
+  git_hashing,
+  recursive_nix,
+  no_url_literals,
+  fetch_closure,
+  auto_allocate_uids,
+  cgroups,
+  daemon_trust_override,
+  dynamic_derivations,
+  parse_toml_timestamps,
+  read_only_local_store,
+  local_overlay_store,
+  configurable_impure_env,
   mounted_ssh_store_t,
-  VerifiedFetches,
-  PipeOperators,
-  ExternalBuilders,
-  BLAKE3Hashes,
-  BuildTimeFetchTree,
-  ParallelEval,
+  verified_fetches,
+  pipe_operators,
+  external_builders,
+  blak_e3_hashes,
+  build_time_fetch_tree,
+  parallel_eval,
 };
 
-extern std::set<std::string> stabilizedFeatures;
+extern std::set<std::string> stabilized_features;
 
 /**
- * Just because writing `experimental_feature_t::CaDerivations` is way too long
+ * Just because writing `experimental_feature_t::ca_derivations` is way too long
  */
 using xp_t = experimental_feature_t;
 
@@ -52,23 +52,23 @@ using xp_t = experimental_feature_t;
  * Parse an experimental feature (enum value) from its name. Experimental
  * feature flag names are hyphenated and do not contain spaces.
  */
-const std::optional<experimental_feature_t> parseExperimentalFeature(const std::string_view& name);
+const std::optional<experimental_feature_t> parse_experimental_feature(const std::string_view& name);
 
 /**
  * Show the name of an experimental feature. This is the opposite of
- * parseExperimentalFeature().
+ * parse_experimental_feature().
  */
-std::string_view showExperimentalFeature(const experimental_feature_t);
+std::string_view show_experimental_feature(const experimental_feature_t);
 
 /**
  * Compute the documentation of all experimental features.
  *
  * See `doc/manual` for how this information is used.
  */
-nlohmann::json documentExperimentalFeatures();
+nlohmann::json document_experimental_features();
 
 /**
- * Shorthand for `str << showExperimentalFeature(feature)`.
+ * Shorthand for `str << show_experimental_feature(feature)`.
  */
 std::ostream& operator<<(std::ostream& str, const experimental_feature_t& feature);
 
@@ -76,7 +76,7 @@ std::ostream& operator<<(std::ostream& str, const experimental_feature_t& featur
  * Parse a set of strings to the corresponding set of experimental
  * features, ignoring (but warning for) any unknown feature.
  */
-std::set<experimental_feature_t> parseFeatures(const string_set_t&);
+std::set<experimental_feature_t> parse_features(const string_set_t&);
 
 /**
  * An experimental feature was required for some (experimental)
@@ -87,11 +87,11 @@ public:
   /**
    * The experimental feature that was required but not enabled.
    */
-  experimental_feature_t missingFeature;
+  experimental_feature_t missing_feature;
 
   std::string reason;
 
-  missing_experimental_feature_t(experimental_feature_t missingFeature, std::string reason = "");
+  missing_experimental_feature_t(experimental_feature_t missing_feature, std::string reason = "");
 };
 
 /**

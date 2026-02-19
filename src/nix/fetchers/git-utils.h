@@ -11,18 +11,18 @@ struct settings_t;
 } // namespace fetchers
 
 /**
- * A sink that writes into a Git repository. Note that nothing may be written
+ * A sink that writes into a git repository. Note that nothing may be written
  * until `flush()` is called.
  */
 struct GitFileSystemObjectSink : extended_file_system_object_sink_t {
   /**
-   * Flush builder and return a final Git hash.
+   * Flush builder and return a final git hash.
    */
   virtual Hash flush() = 0;
 };
 
 struct GitAccessorOptions {
-  bool exportIgnore = false;
+  bool export_ignore = false;
   bool smudgeLfs = false;
   bool submodules = false; // Currently implemented in GitInputScheme rather than GitAccessor
 
@@ -40,11 +40,11 @@ struct GitRepo {
 
   static ref<GitRepo> openRepo(const std::filesystem::path& path, Options options);
 
-  virtual uint64_t getRevCount(const Hash& rev) = 0;
+  virtual uint64_t get_rev_count(const Hash& rev) = 0;
 
-  virtual uint64_t getLastModified(const Hash& rev) = 0;
+  virtual uint64_t get_last_modified(const Hash& rev) = 0;
 
-  virtual bool isShallow() = 0;
+  virtual bool is_shallow() = 0;
 
   /* Return the commit hash to which a ref points. */
   virtual Hash resolveRef(std::string ref) = 0;
@@ -93,19 +93,19 @@ struct GitRepo {
    * along with the revision of each submodule.
    */
   virtual std::vector<std::tuple<submodule_t, Hash>> getSubmodules(const Hash& rev,
-                                                                 bool exportIgnore) = 0;
+                                                                 bool export_ignore) = 0;
 
   virtual std::string resolveSubmoduleUrl(const std::string& url) = 0;
 
   virtual bool hasObject(const Hash& oid) = 0;
 
-  virtual ref<SourceAccessor> getAccessor(const Hash& rev, const GitAccessorOptions& options,
-                                          std::string displayPrefix) = 0;
+  virtual ref<SourceAccessor> get_accessor(const Hash& rev, const GitAccessorOptions& options,
+                                          std::string display_prefix) = 0;
 
-  virtual ref<SourceAccessor> getAccessor(const WorkdirInfo& wd, const GitAccessorOptions& options,
-                                          MakeNotAllowedError makeNotAllowedError) = 0;
+  virtual ref<SourceAccessor> get_accessor(const WorkdirInfo& wd, const GitAccessorOptions& options,
+                                          MakeNotAllowedError make_not_allowed_error) = 0;
 
-  virtual ref<GitFileSystemObjectSink> getFileSystemObjectSink() = 0;
+  virtual ref<GitFileSystemObjectSink> get_file_system_object_sink() = 0;
 
   virtual void flush() = 0;
 
@@ -113,19 +113,19 @@ struct GitRepo {
 
   /**
    * Verify that commit `rev` is signed by one of the keys in
-   * `publicKeys`. Throw an error if it isn't.
+   * `public_keys`. Throw an error if it isn't.
    */
-  virtual void verifyCommit(const Hash& rev,
-                            const std::vector<fetchers::public_key_t>& publicKeys) = 0;
+  virtual void verify_commit(const Hash& rev,
+                            const std::vector<fetchers::public_key_t>& public_keys) = 0;
 
   /**
-   * Given a Git tree hash, compute the hash of its NAR
+   * Given a git tree hash, compute the hash of its NAR
    * serialisation. This is memoised on-disk.
    */
-  virtual Hash treeHashToNarHash(const fetchers::settings_t& settings, const Hash& treeHash) = 0;
+  virtual Hash treeHashToNarHash(const fetchers::settings_t& settings, const Hash& tree_hash) = 0;
 
   /**
-   * If the specified Git object is a directory with a single entry
+   * If the specified git object is a directory with a single entry
    * that is a directory, return the ID of that object.
    * Otherwise, return the passed ID unchanged.
    */
@@ -163,8 +163,8 @@ struct Setter {
  * like `HEAD`.
  *
  * @note This is a coarse test to make sure that the refname is at least something
- * that Git can make sense of.
+ * that git can make sense of.
  */
-bool isLegalRefName(const std::string& refName);
+bool is_legal_ref_name(const std::string& ref_name);
 
 } // namespace nix

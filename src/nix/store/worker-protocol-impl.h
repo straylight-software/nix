@@ -38,7 +38,7 @@ WORKER_USE_LENGTH_PREFIX_SERIALISER(
     std::map<K WORKER_USE_LENGTH_PREFIX_SERIALISER_COMMA V>)
 
 /**
- * Use `CommonProto` where possible.
+ * use `CommonProto` where possible.
  */
 template <typename T>
 struct WorkerProto::Serialise {

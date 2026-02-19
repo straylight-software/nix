@@ -65,18 +65,18 @@ struct DesugaredEnv {
    * This function assists in doing both parts, so the file name is
    * kept in sync.
    */
-  std::string& atFileEnvPair(std::string_view name, std::string fileName);
+  std::string& atFileEnvPair(std::string_view name, std::string file_name);
 
   /**
    * Given a (resolved) derivation, its options, and the closure of
    * its inputs (which we can get since the derivation is resolved),
    * desugar the environment to create a `DesguaredEnv`.
    *
-   * @todo drvOptions will go away as a separate argument when it is
+   * @todo drv_options will go away as a separate argument when it is
    * just part of `Derivation`.
    */
   static DesugaredEnv create(Store& store, const Derivation& drv,
-                             const DerivationOptions<StorePath>& drvOptions,
+                             const DerivationOptions<StorePath>& drv_options,
                              const StorePathSet& inputPaths);
 };
 

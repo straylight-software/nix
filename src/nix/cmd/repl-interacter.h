@@ -13,7 +13,7 @@ namespace detail {
 /** Provides the completion hooks for the repl, without exposing its complete
  * internals. */
 struct ReplCompleterMixin {
-  virtual string_set_t completePrefix(const std::string& prefix) = 0;
+  virtual string_set_t complete_prefix(const std::string& prefix) = 0;
 };
 }; // namespace detail
 
@@ -28,7 +28,7 @@ public:
 
   virtual Guard init(detail::ReplCompleterMixin* repl) = 0;
   /** Returns a boolean of whether the interacter got EOF */
-  virtual bool getLine(std::string& input, ReplPromptType promptType) = 0;
+  virtual bool get_line(std::string& input, ReplPromptType prompt_type) = 0;
   virtual ~ReplInteracter() {};
 };
 
@@ -39,7 +39,7 @@ public:
   ReadlineLikeInteracter(std::string historyFile) : historyFile(historyFile) {}
 
   virtual Guard init(detail::ReplCompleterMixin* repl) override;
-  virtual bool getLine(std::string& input, ReplPromptType promptType) override;
+  virtual bool get_line(std::string& input, ReplPromptType prompt_type) override;
   virtual ~ReadlineLikeInteracter() override;
 };
 

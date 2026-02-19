@@ -3849,7 +3849,7 @@ static const flex_int32_t yy_nxt[][256] = {
 };
 
 static yy_state_type yy_get_previous_state(yyscan_t yyscanner);
-static yy_state_type yy_try_NUL_trans(yy_state_type current_state, yyscan_t yyscanner);
+static yy_state_type yy_try_nul_trans(yy_state_type current_state, yyscan_t yyscanner);
 static int yy_get_next_buffer(yyscan_t yyscanner);
 static void yynoreturn yy_fatal_error(const char* msg, yyscan_t yyscanner);
 
@@ -3882,7 +3882,7 @@ static const flex_int32_t yy_accept[175] = {
     8,  23, 23, 0,  50, 0,  31, 37, 39, 0,  0,  25, 0,  0,  60, 0,  23, 3,  23, 2,  5,
     45, 50, 40, 0,  0,  23, 23, 57, 4,  23, 9};
 
-static const yy_state_type yy_NUL_trans[175] = {
+static const yy_state_type yy_nul_trans[175] = {
     0, 16, 16, 16,  16,  47,  47,  51,  51,  54,  54,  58,  58,  62,  62,  0,   0,   0, 0, 0, 68,
     0, 0,  0,  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 0, 0, 0,
     0, 0,  0,  0,   0,   108, 0,   108, 114, 115, 115, 115, 0,   0,   0,   0,   0,   0, 0, 0, 0,
@@ -3926,14 +3926,14 @@ namespace nix {
 // we make use of the fact that the parser receives a private copy of the input
 // string and can munge around in it.
 // getting the position is expensive and thus it is implemented lazily.
-static StringToken unescapeStr(char* const s, size_t length, std::function<Pos()>&& pos) {
-  bool noNullByte = true;
+static StringToken unescape_str(char* const s, size_t length, std::function<pos_t()>&& pos) {
+  bool no_null_byte = true;
   char* t = s;
   // the input string is terminated with *two* NULs, so we can safely take
   // *one* character after the one being checked against.
   for (size_t i = 0; i < length; t++) {
     char c = s[i++];
-    noNullByte &= c != '\0';
+    no_null_byte &= c != '\0';
     if (c == '\\') {
       c = s[i++];
       if (c == 'n')
@@ -3952,18 +3952,18 @@ static StringToken unescapeStr(char* const s, size_t length, std::function<Pos()
     } else
       *t = c;
   }
-  if (!noNullByte) {
-    forceNoNullByte({s, size_t(t - s)}, std::move(pos));
+  if (!no_null_byte) {
+    force_no_null_byte({s, size_t(t - s)}, std::move(pos));
   }
   return {s, size_t(t - s)};
 }
 
-static void requireExperimentalFeature(const experimental_feature_t& feature, const Pos& pos) {
-  if (!experimentalFeatureSettings.isEnabled(feature))
+static void require_experimental_feature(const experimental_feature_t& feature, const pos_t& pos) {
+  if (!experimental_feature_settings.is_enabled(feature))
     throw ParseError(error_info_t{
         .msg = hint_fmt_t("experimental Nix feature '%1%' is disabled; add "
                        "'--extra-experimental-features %1%' to enable it",
-                       showExperimentalFeature(feature)),
+                       show_experimental_feature(feature)),
         .pos = pos,
     });
 }
@@ -3977,8 +3977,8 @@ using YYLTYPE = nix::Parser::location_type;
 // yacc generates code that uses unannotated fallthrough.
 #pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
 
-#define YY_USER_INIT initLoc(yylloc)
-#define YY_USER_ACTION adjustLoc(yyscanner, yylloc, yytext, yyleng);
+#define YY_USER_INIT init_loc(yylloc)
+#define YY_USER_ACTION adjust_loc(yyscanner, yylloc, yytext, yyleng);
 
 #define PUSH_STATE(state) yy_push_state(state, yyscanner)
 #define POP_STATE() yy_pop_state(yyscanner)
@@ -4453,7 +4453,7 @@ YY_DECL {
           YY_RULE_SETUP
 #line 138 "lexer.l"
           {
-            requireExperimentalFeature(xp_t::PipeOperators, state->positions[CUR_POS]);
+            require_experimental_feature(xp_t::pipe_operators, state->positions[CUR_POS]);
             return PIPE_FROM;
           }
           YY_BREAK
@@ -4461,7 +4461,7 @@ YY_DECL {
           YY_RULE_SETUP
 #line 141 "lexer.l"
           {
-            requireExperimentalFeature(xp_t::PipeOperators, state->positions[CUR_POS]);
+            require_experimental_feature(xp_t::pipe_operators, state->positions[CUR_POS]);
             return PIPE_INTO;
           }
           YY_BREAK
@@ -4478,7 +4478,7 @@ YY_DECL {
 #line 146 "lexer.l"
           {
             errno = 0;
-            std::optional<int64_t> numMay = string2Int<int64_t>(yytext);
+            std::optional<int64_t> numMay = string2_int<int64_t>(yytext);
             if (numMay.has_value()) {
               yylval->emplace<NixInt>(*numMay);
             } else {
@@ -4556,7 +4556,7 @@ YY_DECL {
                regex because trailing contexts are only valid at the end
                of a rule. (A sane but undocumented limitation.) */
             yylval->emplace<StringToken>(
-                unescapeStr(yytext, yyleng, [&]() { return state->positions[CUR_POS]; }));
+                unescape_str(yytext, yyleng, [&]() { return state->positions[CUR_POS]; }));
             return STR;
           }
           YY_BREAK
@@ -4602,7 +4602,7 @@ YY_DECL {
 #line 200 "lexer.l"
           {
             yylval->emplace<StringToken>(yytext, (size_t)yyleng, true);
-            forceNoNullByte(yylval->as<StringToken>(), [&]() { return state->positions[CUR_POS]; });
+            force_no_null_byte(yylval->as<StringToken>(), [&]() { return state->positions[CUR_POS]; });
             return IND_STR;
           }
           YY_BREAK
@@ -4630,7 +4630,7 @@ YY_DECL {
 #line 214 "lexer.l"
           {
             yylval->emplace<StringToken>(
-                unescapeStr(yytext + 2, yyleng - 2, [&]() { return state->positions[CUR_POS]; }));
+                unescape_str(yytext + 2, yyleng - 2, [&]() { return state->positions[CUR_POS]; }));
             return IND_STR;
           }
           YY_BREAK
@@ -4809,10 +4809,10 @@ YY_DECL {
           YY_RULE_SETUP
 #line 318 "lexer.l"
           /* doc comments */ {
-            LexerState& lexerState = *yyget_extra(yyscanner);
-            lexerState.docCommentDistance = 0;
-            lexerState.lastDocCommentLoc.beginOffset = yylloc->beginOffset;
-            lexerState.lastDocCommentLoc.endOffset = yylloc->endOffset;
+            LexerState& lexer_state = *yyget_extra(yyscanner);
+            lexer_state.docCommentDistance = 0;
+            lexer_state.lastDocCommentLoc.beginOffset = yylloc->beginOffset;
+            lexer_state.lastDocCommentLoc.endOffset = yylloc->endOffset;
           }
           YY_BREAK
 
@@ -4912,7 +4912,7 @@ YY_DECL {
              * will run more slowly).
              */
 
-            yy_next_state = yy_try_NUL_trans(yy_current_state, yyscanner);
+            yy_next_state = yy_try_nul_trans(yy_current_state, yyscanner);
 
             yy_bp = yyg->yytext_ptr + YY_MORE_ADJ;
 
@@ -5123,7 +5123,7 @@ static yy_state_type yy_get_previous_state(yyscan_t yyscanner) {
     if (*yy_cp) {
       yy_current_state = yy_nxt[yy_current_state][YY_SC_TO_UI(*yy_cp)];
     } else
-      yy_current_state = yy_NUL_trans[yy_current_state];
+      yy_current_state = yy_nul_trans[yy_current_state];
     if (yy_accept[yy_current_state]) {
       yyg->yy_last_accepting_state = yy_current_state;
       yyg->yy_last_accepting_cpos = yy_cp;
@@ -5133,18 +5133,18 @@ static yy_state_type yy_get_previous_state(yyscan_t yyscanner) {
   return yy_current_state;
 }
 
-/* yy_try_NUL_trans - try to make a transition on the NUL character
+/* yy_try_nul_trans - try to make a transition on the NUL character
  *
  * synopsis
- *	next_state = yy_try_NUL_trans( current_state );
+ *	next_state = yy_try_nul_trans( current_state );
  */
-static yy_state_type yy_try_NUL_trans(yy_state_type yy_current_state, yyscan_t yyscanner) {
+static yy_state_type yy_try_nul_trans(yy_state_type yy_current_state, yyscan_t yyscanner) {
   int yy_is_jam;
   struct yyguts_t* yyg =
       (struct yyguts_t*)yyscanner; /* This var may be unused depending upon options. */
   char* yy_cp = yyg->yy_c_buf_p;
 
-  yy_current_state = yy_NUL_trans[yy_current_state];
+  yy_current_state = yy_nul_trans[yy_current_state];
   yy_is_jam = (yy_current_state == 0);
 
   if (!yy_is_jam) {

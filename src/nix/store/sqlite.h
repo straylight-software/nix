@@ -17,7 +17,7 @@ enum class SQLiteOpenMode {
    * Open the database in read-write mode.
    * If the database does not exist, it will be created.
    */
-  Normal,
+  normal,
   /**
    * Open the database in read-write mode.
    * Fails with an error if the database does not exist.
@@ -27,7 +27,7 @@ enum class SQLiteOpenMode {
    * Open the database in immutable mode.
    * In addition to the database being read-only,
    * no wal or journal files will be created by sqlite.
-   * Use this mode if the database is on a read-only filesystem.
+   * use this mode if the database is on a read-only filesystem.
    * Fails with an error if the database does not exist.
    */
   Immutable,
@@ -41,7 +41,7 @@ struct SQLite {
 
   SQLite() {}
 
-  SQLite(const std::filesystem::path& path, SQLiteOpenMode mode = SQLiteOpenMode::Normal);
+  SQLite(const std::filesystem::path& path, SQLiteOpenMode mode = SQLiteOpenMode::normal);
   SQLite(const SQLite& from) = delete;
   SQLite& operator=(const SQLite& from) = delete;
 
@@ -86,24 +86,24 @@ struct SQLiteStmt {
   /**
    * Helper for binding / executing statements.
    */
-  class Use {
+  class use_t {
     friend struct SQLiteStmt;
 
   private:
     SQLiteStmt& stmt;
     unsigned int curArg = 1;
-    Use(SQLiteStmt& stmt);
+    use_t(SQLiteStmt& stmt);
 
   public:
-    ~Use();
+    ~use_t();
 
     /**
      * Bind the next parameter.
      */
-    Use& operator()(std::string_view value, bool notNull = true);
-    Use& operator()(const unsigned char* data, size_t len, bool notNull = true);
-    Use& operator()(int64_t value, bool notNull = true);
-    Use& bind(); // null
+    use_t& operator()(std::string_view value, bool notNull = true);
+    use_t& operator()(const unsigned char* data, size_t len, bool notNull = true);
+    use_t& operator()(int64_t value, bool notNull = true);
+    use_t& bind(); // null
 
     int step();
 
@@ -123,7 +123,7 @@ struct SQLiteStmt {
     bool isNull(int col);
   };
 
-  Use use() { return Use(*this); }
+  use_t use() { return use_t(*this); }
 };
 
 /**
@@ -144,28 +144,28 @@ struct SQLiteTxn {
 struct SQLiteError : Error {
   std::string path;
   std::string errMsg;
-  int errNo, extendedErrNo, offset;
+  int err_no, extendedErrNo, offset;
 
   template <typename... Args>
   [[noreturn]] static void throw_(sqlite3* db, const std::string& fs, const Args&... args) {
     throw_(db, hint_fmt_t(fs, args...));
   }
 
-  SQLiteError(const char* path, const char* errMsg, int errNo, int extendedErrNo, int offset,
+  SQLiteError(const char* path, const char* errMsg, int err_no, int extendedErrNo, int offset,
               hint_fmt_t&& hf);
 
 protected:
   template <typename... Args>
-  SQLiteError(const char* path, const char* errMsg, int errNo, int extendedErrNo, int offset,
+  SQLiteError(const char* path, const char* errMsg, int err_no, int extendedErrNo, int offset,
               const std::string& fs, const Args&... args)
-      : SQLiteError(path, errMsg, errNo, extendedErrNo, offset, hint_fmt_t(fs, args...)) {}
+      : SQLiteError(path, errMsg, err_no, extendedErrNo, offset, hint_fmt_t(fs, args...)) {}
 
   [[noreturn]] static void throw_(sqlite3* db, hint_fmt_t&& hf);
 };
 
-MakeError(SQLiteBusy, SQLiteError);
+make_error(SQLiteBusy, SQLiteError);
 
-void handleSQLiteBusy(const SQLiteBusy& e, time_t& nextWarning);
+void handle_sq_lite_busy(const SQLiteBusy& e, time_t& next_warning);
 
 /**
  * Convenience function for retrying a SQLite transaction when the
@@ -173,13 +173,13 @@ void handleSQLiteBusy(const SQLiteBusy& e, time_t& nextWarning);
  */
 template <typename T, typename F>
 T retrySQLite(F&& fun) {
-  time_t nextWarning = time(0) + 1;
+  time_t next_warning = time(0) + 1;
 
   while (true) {
     try {
       return fun();
     } catch (SQLiteBusy& e) {
-      handleSQLiteBusy(e, nextWarning);
+      handle_sq_lite_busy(e, next_warning);
     }
   }
 }

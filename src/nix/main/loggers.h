@@ -13,7 +13,7 @@ enum class LogFormat {
   barWithLogs,
 };
 
-void setLogFormat(const std::string& logFormatStr);
-void setLogFormat(const LogFormat& logFormat);
+void set_log_format(const std::string& log_format_str);
+void set_log_format(const LogFormat& log_format);
 
 } // namespace nix

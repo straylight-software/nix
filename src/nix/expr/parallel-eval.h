@@ -47,9 +47,9 @@ struct Executor {
 
   std::condition_variable wakeup;
 
-  static unsigned int getEvalCores(const EvalSettings& evalSettings);
+  static unsigned int getEvalCores(const EvalSettings& eval_settings);
 
-  Executor(const EvalSettings& evalSettings);
+  Executor(const EvalSettings& eval_settings);
 
   ~Executor();
 

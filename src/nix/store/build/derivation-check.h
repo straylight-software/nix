@@ -17,9 +17,9 @@ namespace nix {
  * output) references of the output must be valid, so we can compute the
  * closure size.
  */
-void checkOutputs(Store& store, const StorePath& drvPath,
-                  const decltype(Derivation::outputs)& drvOutputs,
-                  const decltype(DerivationOptions<StorePath>::outputChecks)& drvOptions,
+void check_outputs(Store& store, const StorePath& drv_path,
+                  const decltype(Derivation::outputs)& drv_outputs,
+                  const decltype(DerivationOptions<StorePath>::output_checks)& drv_options,
                   const std::map<std::string, ValidPathInfo>& outputs, activity_t& act);
 
 } // namespace nix

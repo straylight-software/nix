@@ -108,8 +108,8 @@ struct WorkerProto::BasicClientConnection : WorkerProto::BasicConnection {
                                                     bool* daemonException, const StorePath& path);
 
   void putBuildDerivationRequest(const StoreDirConfig& store, bool* daemonException,
-                                 const StorePath& drvPath, const BasicDerivation& drv,
-                                 BuildMode buildMode);
+                                 const StorePath& drv_path, const BasicDerivation& drv,
+                                 BuildMode build_mode);
 
   /**
    * Get the response, must be paired with
@@ -117,7 +117,7 @@ struct WorkerProto::BasicClientConnection : WorkerProto::BasicConnection {
    */
   BuildResult getBuildDerivationResponse(const StoreDirConfig& store, bool* daemonException);
 
-  void narFromPath(const StoreDirConfig& store, bool* daemonException, const StorePath& path,
+  void nar_from_path(const StoreDirConfig& store, bool* daemonException, const StorePath& path,
                    std::function<void(Source&)> fun);
 };
 

@@ -18,132 +18,132 @@ using nlohmann::json;
  * that is, the sum of the size of the NAR serialisation of each object
  * in the set.
  */
-static uint64_t getStoreObjectsTotalSize(Store& store, const StorePathSet& closure) {
-  uint64_t totalNarSize = 0;
+static uint64_t get_store_objects_total_size(Store& store, const StorePathSet& closure) {
+  uint64_t total_nar_size = 0;
   for (auto& p : closure) {
-    totalNarSize += store.queryPathInfo(p)->narSize;
+    total_nar_size += store.queryPathInfo(p)->nar_size;
   }
-  return totalNarSize;
+  return total_nar_size;
 }
 
 /**
  * Write a JSON representation of store object metadata, such as the
  * hash and the references.
  *
- * @param showClosureSize If true, the closure size of each path is
+ * @param show_closure_size If true, the closure size of each path is
  * included.
  * @param format The JSON format version to use.
  */
-static json pathInfoToJSON(Store& store, const StorePathSet& storePaths, bool showClosureSize,
+static json path_info_to_json(Store& store, const StorePathSet& store_paths, bool show_closure_size,
                            PathInfoJsonFormat format) {
-  json::object_t jsonAllObjects = json::object();
+  json::object_t json_all_objects = json::object();
 
-  auto makeKey = [&](const StorePath& path) {
+  auto make_key = [&](const StorePath& path) {
     return format == PathInfoJsonFormat::V1 ? store.printStorePath(path)
                                             : std::string(path.to_string());
   };
 
-  for (auto& storePath : storePaths) {
-    json jsonObject;
+  for (auto& store_path : store_paths) {
+    json json_object;
 
-    std::string key = makeKey(storePath);
+    std::string key = make_key(store_path);
 
     try {
-      auto info = store.queryPathInfo(storePath);
+      auto info = store.queryPathInfo(store_path);
 
       // `storePath` has the representation `<hash>-x` rather than
       // `<hash>-<name>` in case of binary-cache stores & `--all` because we don't
       // know the name yet until we've read the NAR info.
-      key = makeKey(info->path);
+      key = make_key(info->path);
 
-      jsonObject = info->toJSON(format == PathInfoJsonFormat::V1 ? &store : nullptr, true, format);
+      json_object = info->to_json(format == PathInfoJsonFormat::V1 ? &store : nullptr, true, format);
 
       /* Hack in the store dir for now. TODO update the data type
          instead. */
-      jsonObject["storeDir"] = store.storeDir;
+      json_object["storeDir"] = store.store_dir;
 
-      if (showClosureSize) {
+      if (show_closure_size) {
         StorePathSet closure;
-        store.computeFSClosure(storePath, closure, false, false);
+        store.computeFSClosure(store_path, closure, false, false);
 
-        jsonObject["closureSize"] = getStoreObjectsTotalSize(store, closure);
+        json_object["closureSize"] = get_store_objects_total_size(store, closure);
 
         if (dynamic_cast<const NarInfo*>(&*info)) {
           uint64_t totalDownloadSize = 0;
           for (auto& p : closure) {
             auto depInfo = store.queryPathInfo(p);
             if (auto* depNarInfo = dynamic_cast<const NarInfo*>(&*depInfo))
-              totalDownloadSize += depNarInfo->fileSize;
+              totalDownloadSize += depNarInfo->file_size;
             else
               throw Error("Missing .narinfo for dep %s of %s", store.printStorePath(p),
-                          store.printStorePath(storePath));
+                          store.printStorePath(store_path));
           }
-          jsonObject["closureDownloadSize"] = totalDownloadSize;
+          json_object["closureDownloadSize"] = totalDownloadSize;
         }
       }
     } catch (InvalidPath&) {
-      jsonObject = nullptr;
+      json_object = nullptr;
     }
 
-    jsonAllObjects[key] = std::move(jsonObject);
+    json_all_objects[key] = std::move(json_object);
   }
 
   if (format == PathInfoJsonFormat::V1) {
-    return jsonAllObjects;
+    return json_all_objects;
   } else {
     return {
         {"version", format},
-        {"storeDir", store.storeDir},
-        {"info", std::move(jsonAllObjects)},
+        {"storeDir", store.store_dir},
+        {"info", std::move(json_all_objects)},
     };
   }
 }
 
 struct cmd_path_info_t : StorePathsCommand, MixJSON {
-  bool showSize = false;
-  bool showClosureSize = false;
-  bool humanReadable = false;
-  bool showSigs = false;
-  std::optional<PathInfoJsonFormat> jsonFormat;
+  bool show_size = false;
+  bool show_closure_size = false;
+  bool human_readable = false;
+  bool show_sigs = false;
+  std::optional<PathInfoJsonFormat> json_format;
 
   cmd_path_info_t() {
-    addFlag({
-        .longName = "size",
-        .shortName = 's',
+    add_flag({
+        .long_name = "size",
+        .short_name = 's',
         .description = "Print the size of the NAR serialisation of each path.",
-        .handler = {&showSize, true},
+        .handler = {&show_size, true},
     });
 
-    addFlag({
-        .longName = "closure-size",
-        .shortName = 'S',
+    add_flag({
+        .long_name = "closure-size",
+        .short_name = 'S',
         .description =
             "Print the sum of the sizes of the NAR serialisations of the closure of each path.",
-        .handler = {&showClosureSize, true},
+        .handler = {&show_closure_size, true},
     });
 
-    addFlag({
-        .longName = "human-readable",
-        .shortName = 'h',
+    add_flag({
+        .long_name = "human-readable",
+        .short_name = 'h',
         .description =
             "With `-s` and `-S`, print sizes in a human-friendly format such as `5.67G`.",
-        .handler = {&humanReadable, true},
+        .handler = {&human_readable, true},
     });
 
-    addFlag({
-        .longName = "sigs",
+    add_flag({
+        .long_name = "sigs",
         .description = "Show signatures.",
-        .handler = {&showSigs, true},
+        .handler = {&show_sigs, true},
     });
 
-    addFlag({
-        .longName = "json-format",
+    add_flag({
+        .long_name = "json-format",
         .description = "JSON format version to use (1 or 2). Version 1 uses string hashes and full "
                        "store paths. Version 2 uses structured hashes and store path base names. "
                        "This flag will be required in a future release.",
         .labels = {"version"},
         .handler = {[this](std::string s) {
-          jsonFormat = parsePathInfoJsonFormat(string2IntWithUnitPrefix<uint64_t>(s));
+          json_format = parse_path_info_json_format(string2_int_with_unit_prefix<uint64_t>(s));
         }},
     });
   }
@@ -158,24 +158,24 @@ struct cmd_path_info_t : StorePathsCommand, MixJSON {
 
   category_t category() override { return catSecondary; }
 
-  void printSize(std::ostream& str, uint64_t value) {
-    if (humanReadable)
-      str << fmt("\t%s", renderSize((int64_t)value, true));
+  void print_size(std::ostream& str, uint64_t value) {
+    if (human_readable)
+      str << fmt("\t%s", render_size((int64_t)value, true));
     else
       str << fmt("\t%11d", value);
   }
 
-  void run(ref<Store> store, StorePaths&& storePaths) override {
-    size_t pathLen = 0;
-    for (auto& storePath : storePaths)
-      pathLen = std::max(pathLen, store->printStorePath(storePath).size());
+  void run(ref<Store> store, StorePaths&& store_paths) override {
+    size_t path_len = 0;
+    for (auto& store_path : store_paths)
+      path_len = std::max(path_len, store->printStorePath(store_path).size());
 
     if (json) {
-      printJSON(pathInfoToJSON(
+      printJSON(path_info_to_json(
           *store,
           // FIXME: preserve order?
-          StorePathSet(storePaths.begin(), storePaths.end()), showClosureSize,
-          jsonFormat
+          StorePathSet(store_paths.begin(), store_paths.end()), show_closure_size,
+          json_format
               .or_else([&]() {
                 warn(
                     "'--json' without '--json-format' is deprecated; please specify '--json-format "
@@ -186,36 +186,36 @@ struct cmd_path_info_t : StorePathsCommand, MixJSON {
     }
 
     else {
-      for (auto& storePath : storePaths) {
-        auto info = store->queryPathInfo(storePath);
-        auto storePathS = store->printStorePath(info->path);
+      for (auto& store_path : store_paths) {
+        auto info = store->queryPathInfo(store_path);
+        auto store_path_s = store->printStorePath(info->path);
 
         std::ostringstream str;
 
-        str << storePathS;
+        str << store_path_s;
 
-        if (showSize || showClosureSize || showSigs)
-          str << std::string(std::max(0, (int)pathLen - (int)storePathS.size()), ' ');
+        if (show_size || show_closure_size || show_sigs)
+          str << std::string(std::max(0, (int)path_len - (int)store_path_s.size()), ' ');
 
-        if (showSize)
-          printSize(str, info->narSize);
+        if (show_size)
+          print_size(str, info->nar_size);
 
-        if (showClosureSize) {
+        if (show_closure_size) {
           StorePathSet closure;
-          store->computeFSClosure(storePath, closure, false, false);
-          printSize(str, getStoreObjectsTotalSize(*store, closure));
+          store->computeFSClosure(store_path, closure, false, false);
+          print_size(str, get_store_objects_total_size(*store, closure));
         }
 
-        if (showSigs) {
+        if (show_sigs) {
           str << '\t';
           strings_t ss;
           if (info->ultimate)
             ss.push_back("ultimate");
           if (info->ca)
-            ss.push_back("ca:" + renderContentAddress(*info->ca));
+            ss.push_back("ca:" + render_content_address(*info->ca));
           for (auto& sig : info->sigs)
             ss.push_back(sig);
-          str << concatStringsSep(" ", ss);
+          str << concat_strings_sep(" ", ss);
         }
 
         logger->cout(str.str());
@@ -224,4 +224,4 @@ struct cmd_path_info_t : StorePathsCommand, MixJSON {
   }
 };
 
-static auto rCmdPathInfo = registerCommand<cmd_path_info_t>("path-info");
+static auto r_cmd_path_info = registerCommand<cmd_path_info_t>("path-info");

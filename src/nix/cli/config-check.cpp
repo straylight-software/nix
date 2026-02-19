@@ -19,7 +19,7 @@ using namespace nix;
 
 namespace {
 
-std::string formatProtocol(unsigned int proto) {
+std::string format_protocol(unsigned int proto) {
   if (proto) {
     auto major = GET_PROTOCOL_MAJOR(proto) >> 8;
     auto minor = GET_PROTOCOL_MINOR(proto);
@@ -28,17 +28,17 @@ std::string formatProtocol(unsigned int proto) {
   return "unknown";
 }
 
-bool checkPass(std::string_view msg) {
+bool check_pass(std::string_view msg) {
   notice(ANSI_GREEN "[PASS] " ANSI_NORMAL + msg);
   return true;
 }
 
-bool checkFail(std::string_view msg) {
+bool check_fail(std::string_view msg) {
   notice(ANSI_RED "[FAIL] " ANSI_NORMAL + msg);
   return false;
 }
 
-void checkInfo(std::string_view msg) {
+void check_info(std::string_view msg) {
   notice(ANSI_BLUE "[INFO] " ANSI_NORMAL + msg);
 }
 
@@ -50,7 +50,7 @@ struct cmd_config_check_t : StoreCommand {
   /**
    * This command is stable before the others
    */
-  std::optional<experimental_feature_t> experimentalFeature() override { return std::nullopt; }
+  std::optional<experimental_feature_t> experimental_feature() override { return std::nullopt; }
 
   std::string description() override {
     return "check your system for potential problems and print a PASS or FAIL for each check";
@@ -61,18 +61,18 @@ struct cmd_config_check_t : StoreCommand {
   void run(ref<Store> store) override {
     logger->log("Running checks against store uri: " + store->config.getHumanReadableURI());
 
-    if (store.dynamic_pointer_cast<LocalFSStore>()) {
-      success &= checkNixInPath();
-      success &= checkProfileRoots(store);
+    if (store.dynamic_pointer_cast<local_fs_store>()) {
+      success &= check_nix_in_path();
+      success &= check_profile_roots(store);
     }
-    success &= checkStoreProtocol(store->getProtocol());
-    checkTrustedUser(store);
+    success &= check_store_protocol(store->getProtocol());
+    check_trusted_user(store);
 
     if (!success)
       throw exit_t(2);
   }
 
-  bool checkNixInPath() {
+  bool check_nix_in_path() {
     std::set<std::filesystem::path> dirs;
 
     for (auto& dir : executable_path_t::load().directories) {
@@ -86,19 +86,19 @@ struct cmd_config_check_t : StoreCommand {
       ss << "Multiple versions of nix found in PATH:\n";
       for (auto& dir : dirs)
         ss << "  " << dir << "\n";
-      return checkFail(ss.view());
+      return check_fail(ss.view());
     }
 
-    return checkPass("PATH contains only one nix version.");
+    return check_pass("PATH contains only one nix version.");
   }
 
-  bool checkProfileRoots(ref<Store> store) {
+  bool check_profile_roots(ref<Store> store) {
     std::set<std::filesystem::path> dirs;
 
     for (auto& dir : executable_path_t::load().directories) {
       auto profileDir = dir.parent_path();
       try {
-        auto userEnv = std::filesystem::weakly_canonical(profileDir);
+        auto user_env = std::filesystem::weakly_canonical(profileDir);
 
         auto noContainsProfiles = [&] {
           for (auto&& part : profileDir)
@@ -107,8 +107,8 @@ struct cmd_config_check_t : StoreCommand {
           return true;
         };
 
-        if (store->isStorePath(userEnv.string()) &&
-            hasSuffix(userEnv.string(), "user-environment")) {
+        if (store->isStorePath(user_env.string()) &&
+            has_suffix(user_env.string(), "user-environment")) {
           while (noContainsProfiles() && std::filesystem::is_symlink(profileDir))
             profileDir = std::filesystem::weakly_canonical(
                 profileDir.parent_path() / std::filesystem::read_symlink(profileDir));
@@ -129,40 +129,40 @@ struct cmd_config_check_t : StoreCommand {
       for (auto& dir : dirs)
         ss << "  " << dir << "\n";
       ss << "\n";
-      return checkFail(ss.view());
+      return check_fail(ss.view());
     }
 
-    return checkPass("All profiles are gcroots.");
+    return check_pass("All profiles are gcroots.");
   }
 
-  bool checkStoreProtocol(unsigned int storeProto) {
-    unsigned int clientProto =
-        GET_PROTOCOL_MAJOR(SERVE_PROTOCOL_VERSION) == GET_PROTOCOL_MAJOR(storeProto)
+  bool check_store_protocol(unsigned int store_proto) {
+    unsigned int client_proto =
+        GET_PROTOCOL_MAJOR(SERVE_PROTOCOL_VERSION) == GET_PROTOCOL_MAJOR(store_proto)
             ? SERVE_PROTOCOL_VERSION
             : PROTOCOL_VERSION;
 
-    if (clientProto != storeProto) {
+    if (client_proto != store_proto) {
       std::ostringstream ss;
       ss << "Warning: protocol version of this client does not match the store.\n"
          << "While this is not necessarily a problem it's recommended to keep the client in\n"
          << "sync with the daemon.\n\n"
-         << "Client protocol: " << formatProtocol(clientProto) << "\n"
-         << "Store protocol: " << formatProtocol(storeProto) << "\n\n";
-      return checkFail(ss.view());
+         << "Client protocol: " << format_protocol(client_proto) << "\n"
+         << "Store protocol: " << format_protocol(store_proto) << "\n\n";
+      return check_fail(ss.view());
     }
 
-    return checkPass("Client protocol matches store protocol.");
+    return check_pass("Client protocol matches store protocol.");
   }
 
-  void checkTrustedUser(ref<Store> store) {
+  void check_trusted_user(ref<Store> store) {
     if (auto trustedMay = store->isTrustedClient()) {
       std::string_view trusted = trustedMay.value() ? "trusted" : "not trusted";
-      checkInfo(fmt("You are %s by store uri: %s", trusted, store->config.getHumanReadableURI()));
+      check_info(fmt("You are %s by store uri: %s", trusted, store->config.getHumanReadableURI()));
     } else {
-      checkInfo(fmt("Store uri: %s doesn't have a notion of trusted user",
+      check_info(fmt("Store uri: %s doesn't have a notion of trusted user",
                     store->config.getHumanReadableURI()));
     }
   }
 };
 
-static auto rCmdConfigCheck = registerCommand2<cmd_config_check_t>({"config", "check"});
+static auto r_cmd_config_check = registerCommand2<cmd_config_check_t>({"config", "check"});

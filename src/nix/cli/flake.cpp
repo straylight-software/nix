@@ -40,25 +40,25 @@ using json = nlohmann::json;
 struct cmd_flake_update_t;
 
 flake_command_t::flake_command_t() {
-  expectArgs({.label = "flake-url",
+  expect_args({.label = "flake-url",
               .optional = true,
               .handler = {&flakeUrl},
               .completer = {[&](add_completions_t& completions, size_t, std::string_view prefix) {
-                completeFlakeRef(completions, getStore(), prefix);
+                complete_flake_ref(completions, getStore(), prefix);
               }}});
 }
 
-FlakeRef flake_command_t::getFlakeRef() {
-  return parseFlakeRef(fetchSettings, flakeUrl, std::filesystem::current_path().string()); // FIXME
+FlakeRef flake_command_t::get_flake_ref() {
+  return parse_flake_ref(fetch_settings, flakeUrl, std::filesystem::current_path().string()); // FIXME
 }
 
-LockedFlake flake_command_t::lockFlake() {
-  return flake::lockFlake(flakeSettings, *getEvalState(), getFlakeRef(), lockFlags);
+LockedFlake flake_command_t::lock_flake() {
+  return flake::lock_flake(flake_settings, *getEvalState(), get_flake_ref(), lock_flags);
 }
 
-std::vector<FlakeRef> flake_command_t::getFlakeRefsForCompletion() {
+std::vector<FlakeRef> flake_command_t::get_flake_refs_for_completion() {
   return {// Like getFlakeRef but with expandTilde called first
-          parseFlakeRef(fetchSettings, expandTilde(flakeUrl),
+          parse_flake_ref(fetch_settings, expand_tilde(flakeUrl),
                         std::filesystem::current_path().string())};
 }
 
@@ -68,44 +68,44 @@ public:
 
   cmd_flake_update_t() {
     expectedArgs.clear();
-    addFlag({
-        .longName = "flake",
+    add_flag({
+        .long_name = "flake",
         .description = "The flake to operate on. Default is the current directory.",
         .labels = {"flake-url"},
         .handler = {&flakeUrl},
         .completer = {[&](add_completions_t& completions, size_t, std::string_view prefix) {
-          completeFlakeRef(completions, getStore(), prefix);
+          complete_flake_ref(completions, getStore(), prefix);
         }},
     });
-    expectArgs({
+    expect_args({
         .label = "inputs",
         .optional = true,
-        .handler = {[&](std::vector<std::string> inputsToUpdate) {
-          for (const auto& inputToUpdate : inputsToUpdate) {
+        .handler = {[&](std::vector<std::string> inputs_to_update) {
+          for (const auto& inputToUpdate : inputs_to_update) {
             InputAttrPath inputAttrPath;
             try {
-              inputAttrPath = flake::parseInputAttrPath(inputToUpdate);
+              inputAttrPath = flake::parse_input_attr_path(inputToUpdate);
             } catch (Error& e) {
               warn("Invalid flake input '%s'. To update a specific flake, use 'nix flake update "
                    "--flake %s' instead.",
                    inputToUpdate, inputToUpdate);
               throw e;
             }
-            if (lockFlags.inputUpdates.contains(inputAttrPath))
+            if (lock_flags.inputUpdates.contains(inputAttrPath))
               warn("Input '%s' was specified multiple times. You may have done this by accident.",
-                   printInputAttrPath(inputAttrPath));
-            lockFlags.inputUpdates.insert(inputAttrPath);
+                   print_input_attr_path(inputAttrPath));
+            lock_flags.inputUpdates.insert(inputAttrPath);
           }
         }},
         .completer = {[&](add_completions_t& completions, size_t, std::string_view prefix) {
-          completeFlakeInputAttrPath(completions, getEvalState(), getFlakeRefsForCompletion(),
+          complete_flake_input_attr_path(completions, getEvalState(), get_flake_refs_for_completion(),
                                      prefix);
         }},
     });
 
     /* Remove flags that don't make sense. */
-    removeFlag("no-update-lock-file");
-    removeFlag("no-write-lock-file");
+    remove_flag("no-update-lock-file");
+    remove_flag("no-write-lock-file");
   }
 
   std::string doc() override {
@@ -116,14 +116,14 @@ public:
 
   void run(nix::ref<nix::Store> store) override {
     settings.tarballTtl = 0;
-    auto updateAll = lockFlags.inputUpdates.empty();
+    auto update_all = lock_flags.inputUpdates.empty();
 
-    lockFlags.recreateLockFile = updateAll;
-    lockFlags.writeLockFile = true;
-    lockFlags.applyNixConfig = true;
-    lockFlags.requireLockable = false;
+    lock_flags.recreateLockFile = update_all;
+    lock_flags.writeLockFile = true;
+    lock_flags.applyNixConfig = true;
+    lock_flags.require_lockable = false;
 
-    lockFlake();
+    lock_flake();
   }
 };
 
@@ -132,7 +132,7 @@ struct cmd_flake_lock_t : flake_command_t {
 
   cmd_flake_lock_t() {
     /* Remove flags that don't make sense. */
-    removeFlag("no-write-lock-file");
+    remove_flag("no-write-lock-file");
   }
 
   std::string doc() override {
@@ -144,35 +144,35 @@ struct cmd_flake_lock_t : flake_command_t {
   void run(nix::ref<nix::Store> store) override {
     settings.tarballTtl = 0;
 
-    lockFlags.writeLockFile = true;
-    lockFlags.failOnUnlocked = true;
-    lockFlags.applyNixConfig = true;
-    lockFlags.requireLockable = false;
+    lock_flags.writeLockFile = true;
+    lock_flags.failOnUnlocked = true;
+    lock_flags.applyNixConfig = true;
+    lock_flags.require_lockable = false;
 
-    lockFlake();
+    lock_flake();
   }
 };
 
-static void enumerateOutputs(
-    EvalState& state, Value& vFlake,
+static void enumerate_outputs(
+    EvalState& state, Value& v_flake,
     std::function<void(std::string_view name, Value& vProvide, const pos_idx_t pos)> callback) {
-  auto pos = vFlake.determinePos(noPos);
-  state.forceAttrs(vFlake, pos, "while evaluating a flake to get its outputs");
+  auto pos = v_flake.determinePos(no_pos);
+  state.forceAttrs(v_flake, pos, "while evaluating a flake to get its outputs");
 
-  auto aOutputs = vFlake.attrs()->get(state.symbols.create("outputs"));
-  assert(aOutputs);
+  auto a_outputs = v_flake.attrs()->get(state.symbols.create("outputs"));
+  assert(a_outputs);
 
-  state.forceAttrs(*aOutputs->value, pos, "while evaluating the outputs of a flake");
+  state.forceAttrs(*a_outputs->value, pos, "while evaluating the outputs of a flake");
 
   auto sHydraJobs = state.symbols.create("hydraJobs");
 
   /* Hack: ensure that hydraJobs is evaluated before anything
      else. This way we can disable IFD for hydraJobs and then enable
      it for other outputs. */
-  if (auto attr = aOutputs->value->attrs()->get(sHydraJobs))
+  if (auto attr = a_outputs->value->attrs()->get(sHydraJobs))
     callback(state.symbols[attr->name], *attr->value, attr->pos);
 
-  for (auto& attr : *aOutputs->value->attrs()) {
+  for (auto& attr : *a_outputs->value->attrs()) {
     if (attr.name != sHydraJobs)
       callback(state.symbols[attr.name], *attr.value, attr.pos);
   }
@@ -188,95 +188,95 @@ struct cmd_flake_metadata_t : flake_command_t, MixJSON {
   }
 
   void run(nix::ref<nix::Store> store) override {
-    lockFlags.requireLockable = false;
-    auto lockedFlake = lockFlake();
-    auto& flake = lockedFlake.flake;
+    lock_flags.require_lockable = false;
+    auto locked_flake = lock_flake();
+    auto& flake = locked_flake.flake;
 
     /* Hack to show the store path if available. */
-    std::optional<StorePath> storePath;
+    std::optional<StorePath> store_path;
     if (store->isInStore(flake.path.path.abs())) {
       auto path = store->toStorePath(flake.path.path.abs()).first;
       if (store->isValidPath(path))
-        storePath = path;
+        store_path = path;
     }
 
     if (json) {
       nlohmann::json j;
       if (flake.description)
         j["description"] = *flake.description;
-      j["originalUrl"] = flake.originalRef.to_string();
-      j["original"] = fetchers::attrsToJSON(flake.originalRef.toAttrs());
-      j["resolvedUrl"] = flake.resolvedRef.to_string();
-      j["resolved"] = fetchers::attrsToJSON(flake.resolvedRef.toAttrs());
-      j["url"] = flake.lockedRef.to_string(); // FIXME: rename to lockedUrl
+      j["originalUrl"] = flake.original_ref.to_string();
+      j["original"] = fetchers::attrs_to_json(flake.original_ref.toAttrs());
+      j["resolvedUrl"] = flake.resolved_ref.to_string();
+      j["resolved"] = fetchers::attrs_to_json(flake.resolved_ref.toAttrs());
+      j["url"] = flake.locked_ref.to_string(); // FIXME: rename to lockedUrl
       // "locked" is a misnomer - this is the result of the
       // attempt to lock.
-      j["locked"] = fetchers::attrsToJSON(flake.lockedRef.toAttrs());
-      if (auto rev = flake.lockedRef.input.getRev())
-        j["revision"] = rev->to_string(hash_format_t::Base16, false);
-      if (auto dirtyRev = fetchers::maybeGetStrAttr(flake.lockedRef.toAttrs(), "dirtyRev"))
+      j["locked"] = fetchers::attrs_to_json(flake.locked_ref.toAttrs());
+      if (auto rev = flake.locked_ref.input.getRev())
+        j["revision"] = rev->to_string(hash_format_t::base16, false);
+      if (auto dirtyRev = fetchers::maybe_get_str_attr(flake.locked_ref.toAttrs(), "dirtyRev"))
         j["dirtyRevision"] = *dirtyRev;
-      if (auto revCount = flake.lockedRef.input.getRevCount())
-        j["revCount"] = *revCount;
-      if (auto lastModified = flake.lockedRef.input.getLastModified())
-        j["lastModified"] = *lastModified;
-      if (storePath)
-        j["path"] = store->printStorePath(*storePath);
-      j["locks"] = lockedFlake.lockFile.toJSON().first;
-      if (auto fingerprint = lockedFlake.getFingerprint(*store, fetchSettings))
-        j["fingerprint"] = fingerprint->to_string(hash_format_t::Base16, false);
+      if (auto rev_count = flake.locked_ref.input.get_rev_count())
+        j["revCount"] = *rev_count;
+      if (auto last_modified = flake.locked_ref.input.get_last_modified())
+        j["lastModified"] = *last_modified;
+      if (store_path)
+        j["path"] = store->printStorePath(*store_path);
+      j["locks"] = locked_flake.lock_file.to_json().first;
+      if (auto fingerprint = locked_flake.get_fingerprint(*store, fetch_settings))
+        j["fingerprint"] = fingerprint->to_string(hash_format_t::base16, false);
       printJSON(j);
     } else {
-      logger->cout(ANSI_BOLD "Resolved URL:" ANSI_NORMAL "  %s", flake.resolvedRef.to_string());
-      if (flake.lockedRef.input.isLocked(fetchSettings))
-        logger->cout(ANSI_BOLD "Locked URL:" ANSI_NORMAL "    %s", flake.lockedRef.to_string());
+      logger->cout(ANSI_BOLD "Resolved URL:" ANSI_NORMAL "  %s", flake.resolved_ref.to_string());
+      if (flake.locked_ref.input.isLocked(fetch_settings))
+        logger->cout(ANSI_BOLD "Locked URL:" ANSI_NORMAL "    %s", flake.locked_ref.to_string());
       if (flake.description)
         logger->cout(ANSI_BOLD "Description:" ANSI_NORMAL "   %s", *flake.description);
-      if (storePath)
+      if (store_path)
         logger->cout(ANSI_BOLD "Path:" ANSI_NORMAL "          %s",
-                     store->printStorePath(*storePath));
-      if (auto rev = flake.lockedRef.input.getRev())
+                     store->printStorePath(*store_path));
+      if (auto rev = flake.locked_ref.input.getRev())
         logger->cout(ANSI_BOLD "Revision:" ANSI_NORMAL "      %s",
-                     rev->to_string(hash_format_t::Base16, false));
-      if (auto dirtyRev = fetchers::maybeGetStrAttr(flake.lockedRef.toAttrs(), "dirtyRev"))
+                     rev->to_string(hash_format_t::base16, false));
+      if (auto dirtyRev = fetchers::maybe_get_str_attr(flake.locked_ref.toAttrs(), "dirtyRev"))
         logger->cout(ANSI_BOLD "Revision:" ANSI_NORMAL "      %s", *dirtyRev);
-      if (auto revCount = flake.lockedRef.input.getRevCount())
-        logger->cout(ANSI_BOLD "Revisions:" ANSI_NORMAL "     %s", *revCount);
-      if (auto lastModified = flake.lockedRef.input.getLastModified())
+      if (auto rev_count = flake.locked_ref.input.get_rev_count())
+        logger->cout(ANSI_BOLD "Revisions:" ANSI_NORMAL "     %s", *rev_count);
+      if (auto last_modified = flake.locked_ref.input.get_last_modified())
         logger->cout(ANSI_BOLD "Last modified:" ANSI_NORMAL " %s",
-                     std::put_time(std::localtime(&*lastModified), "%F %T"));
-      if (auto fingerprint = lockedFlake.getFingerprint(*store, fetchSettings))
+                     std::put_time(std::localtime(&*last_modified), "%F %T"));
+      if (auto fingerprint = locked_flake.get_fingerprint(*store, fetch_settings))
         logger->cout(ANSI_BOLD "Fingerprint:" ANSI_NORMAL "   %s",
-                     fingerprint->to_string(hash_format_t::Base16, false));
+                     fingerprint->to_string(hash_format_t::base16, false));
 
-      if (!lockedFlake.lockFile.root->inputs.empty())
+      if (!locked_flake.lock_file.root->inputs.empty())
         logger->cout(ANSI_BOLD "Inputs:" ANSI_NORMAL);
 
-      std::set<ref<Node>> visited{lockedFlake.lockFile.root};
+      std::set<ref<Node>> visited{locked_flake.lock_file.root};
 
       [&](this const auto& recurse, const Node& node, const std::string& prefix) -> void {
         for (const auto& [i, input] : enumerate(node.inputs)) {
           bool last = i + 1 == node.inputs.size();
 
-          if (auto lockedNode = std::get_if<0>(&input.second)) {
+          if (auto locked_node = std::get_if<0>(&input.second)) {
             std::string lastModifiedStr = "";
-            if (auto lastModified = (*lockedNode)->lockedRef.input.getLastModified())
-              lastModifiedStr = fmt(" (%s)", std::put_time(std::gmtime(&*lastModified), "%F %T"));
+            if (auto last_modified = (*locked_node)->locked_ref.input.get_last_modified())
+              lastModifiedStr = fmt(" (%s)", std::put_time(std::gmtime(&*last_modified), "%F %T"));
             logger->cout("%s" ANSI_BOLD "%s" ANSI_NORMAL ": %s%s",
-                         prefix + (last ? treeLast : treeConn), input.first,
-                         (*lockedNode)->lockedRef.to_string(true), lastModifiedStr);
+                         prefix + (last ? tree_last : tree_conn), input.first,
+                         (*locked_node)->locked_ref.to_string(true), lastModifiedStr);
 
-            bool firstVisit = visited.insert(*lockedNode).second;
+            bool firstVisit = visited.insert(*locked_node).second;
 
             if (firstVisit)
-              recurse(**lockedNode, prefix + (last ? treeNull : treeLine));
+              recurse(**locked_node, prefix + (last ? tree_null : tree_line));
           } else if (auto follows = std::get_if<1>(&input.second)) {
             logger->cout("%s" ANSI_BOLD "%s" ANSI_NORMAL " follows input '%s'",
-                         prefix + (last ? treeLast : treeConn), input.first,
-                         printInputAttrPath(*follows));
+                         prefix + (last ? tree_last : tree_conn), input.first,
+                         print_input_attr_path(*follows));
           }
         }
-      }(*lockedFlake.lockFile.root, "");
+      }(*locked_flake.lock_file.root, "");
     }
   }
 };
@@ -290,18 +290,18 @@ struct cmd_flake_info_t : cmd_flake_metadata_t {
 
 struct cmd_flake_check_t : flake_command_t {
   bool build = true;
-  bool checkAllSystems = false;
+  bool check_all_systems = false;
 
   cmd_flake_check_t() {
-    addFlag({
-        .longName = "no-build",
+    add_flag({
+        .long_name = "no-build",
         .description = "Do not build checks.",
         .handler = {&build, false},
     });
-    addFlag({
-        .longName = "all-systems",
+    add_flag({
+        .long_name = "all-systems",
         .description = "Check the outputs for all systems.",
-        .handler = {&checkAllSystems, true},
+        .handler = {&check_all_systems, true},
     });
   }
 
@@ -318,25 +318,25 @@ struct cmd_flake_check_t : flake_command_t {
   void run(nix::ref<nix::Store> store) override {
     if (!build) {
       settings.readOnlyMode = true;
-      evalSettings.enableImportFromDerivation.setDefault(false);
+      eval_settings.enableImportFromDerivation.set_default(false);
     }
 
     auto state = getEvalState();
 
-    lockFlags.applyNixConfig = true;
-    auto flake = lockFlake();
-    auto localSystem = std::string(settings.thisSystem.get());
+    lock_flags.applyNixConfig = true;
+    auto flake = lock_flake();
+    auto local_system = std::string(settings.thisSystem.get());
 
-    std::atomic_bool hasErrors = false;
-    auto reportError = [&](const Error& e) {
+    std::atomic_bool has_errors = false;
+    auto report_error = [&](const Error& e) {
       try {
         throw e;
       } catch (Interrupted& e) {
         throw;
       } catch (Error& e) {
-        if (settings.keepGoing) {
+        if (settings.keep_going) {
           logError(e.info());
-          hasErrors = true;
+          has_errors = true;
         } else
           throw;
       }
@@ -350,20 +350,20 @@ struct cmd_flake_check_t : flake_command_t {
 
     auto resolve = [&](pos_idx_t p) { return state->positions[p]; };
 
-    auto argHasName = [&](Symbol arg, std::string_view expected) {
+    auto arg_has_name = [&](Symbol arg, std::string_view expected) {
       std::string_view name = state->symbols[arg];
       return name == expected || name == "_" ||
-             (hasPrefix(name, "_") && name.substr(1) == expected);
+             (has_prefix(name, "_") && name.substr(1) == expected);
     };
 
-    auto checkSystemName = [&](std::string_view system, const pos_idx_t pos) {
+    auto check_system_name = [&](std::string_view system, const pos_idx_t pos) {
       // FIXME: what's the format of "system"?
       if (system.find('-') == std::string::npos)
-        reportError(Error("'%s' is not a valid system type, at %s", system, resolve(pos)));
+        report_error(Error("'%s' is not a valid system type, at %s", system, resolve(pos)));
     };
 
-    auto checkSystemType = [&](std::string_view system, const pos_idx_t pos) {
-      if (!checkAllSystems && system != localSystem) {
+    auto check_system_type = [&](std::string_view system, const pos_idx_t pos) {
+      if (!check_all_systems && system != local_system) {
         omittedSystems.lock()->insert(std::string(system));
         return false;
       } else {
@@ -371,39 +371,39 @@ struct cmd_flake_check_t : flake_command_t {
       }
     };
 
-    auto checkDerivation = [&](const std::string& attrPath, Value& v,
+    auto check_derivation = [&](const std::string& attr_path, Value& v,
                                const pos_idx_t pos) -> std::optional<StorePath> {
       try {
-        activity_t act(*logger, lvlInfo, actUnknown, fmt("checking derivation %s", attrPath));
-        auto packageInfo = getDerivation(*state, v, false);
-        if (!packageInfo)
-          throw Error("flake attribute '%s' is not a derivation", attrPath);
+        activity_t act(*logger, lvl_info, act_unknown, fmt("checking derivation %s", attr_path));
+        auto package_info = get_derivation(*state, v, false);
+        if (!package_info)
+          throw Error("flake attribute '%s' is not a derivation", attr_path);
         else {
           // FIXME: check meta attributes
-          auto storePath = packageInfo->queryDrvPath();
-          if (storePath) {
-            logger->log(lvlInfo, fmt("derivation evaluated to %s",
-                                     store->printStorePath(storePath.value())));
+          auto store_path = package_info->queryDrvPath();
+          if (store_path) {
+            logger->log(lvl_info, fmt("derivation evaluated to %s",
+                                     store->printStorePath(store_path.value())));
           }
-          return storePath;
+          return store_path;
         }
       } catch (Error& e) {
-        e.addTrace(resolve(pos), hint_fmt_t("while checking the derivation '%s'", attrPath));
-        reportError(e);
+        e.add_trace(resolve(pos), hint_fmt_t("while checking the derivation '%s'", attr_path));
+        report_error(e);
       }
       return std::nullopt;
     };
 
     FutureVector futures(*state->executor);
 
-    auto checkApp = [&](const std::string& attrPath, Value& v, const pos_idx_t pos) {
+    auto check_app = [&](const std::string& attr_path, Value& v, const pos_idx_t pos) {
       try {
-        activity_t act(*logger, lvlInfo, actUnknown, fmt("checking app '%s'", attrPath));
+        activity_t act(*logger, lvl_info, act_unknown, fmt("checking app '%s'", attr_path));
         state->forceAttrs(v, pos, "");
         if (auto attr = v.attrs()->get(state->symbols.create("type")))
           state->forceStringNoCtx(*attr->value, attr->pos, "");
         else
-          throw Error("app '%s' lacks attribute 'type'", attrPath);
+          throw Error("app '%s' lacks attribute 'type'", attr_path);
 
         if (auto attr = v.attrs()->get(state->symbols.create("program"))) {
           if (attr->name == state->symbols.create("program")) {
@@ -411,7 +411,7 @@ struct cmd_flake_check_t : flake_command_t {
             state->forceString(*attr->value, context, attr->pos, "");
           }
         } else
-          throw Error("app '%s' lacks attribute 'program'", attrPath);
+          throw Error("app '%s' lacks attribute 'program'", attr_path);
 
         if (auto attr = v.attrs()->get(state->symbols.create("meta"))) {
           state->forceAttrs(*attr->value, attr->pos, "");
@@ -419,97 +419,97 @@ struct cmd_flake_check_t : flake_command_t {
             state->forceStringNoCtx(*dAttr->value, dAttr->pos, "");
           else
             logWarning({
-                .msg = hint_fmt_t("app '%s' lacks attribute 'meta.description'", attrPath),
+                .msg = hint_fmt_t("app '%s' lacks attribute 'meta.description'", attr_path),
             });
         } else
           logWarning({
-              .msg = hint_fmt_t("app '%s' lacks attribute 'meta'", attrPath),
+              .msg = hint_fmt_t("app '%s' lacks attribute 'meta'", attr_path),
           });
 
         for (auto& attr : *v.attrs()) {
           std::string_view name(state->symbols[attr.name]);
           if (name != "type" && name != "program" && name != "meta")
-            throw Error("app '%s' has unsupported attribute '%s'", attrPath, name);
+            throw Error("app '%s' has unsupported attribute '%s'", attr_path, name);
         }
       } catch (Error& e) {
-        e.addTrace(resolve(pos), hint_fmt_t("while checking the app definition '%s'", attrPath));
-        reportError(e);
+        e.add_trace(resolve(pos), hint_fmt_t("while checking the app definition '%s'", attr_path));
+        report_error(e);
       }
     };
 
-    auto checkOverlay = [&](std::string_view attrPath, Value& v, const pos_idx_t pos) {
+    auto check_overlay = [&](std::string_view attr_path, Value& v, const pos_idx_t pos) {
       try {
-        activity_t act(*logger, lvlInfo, actUnknown, fmt("checking overlay '%s'", attrPath));
+        activity_t act(*logger, lvl_info, act_unknown, fmt("checking overlay '%s'", attr_path));
         state->forceValue(v, pos);
         if (!v.isLambda()) {
-          throw Error("overlay is not a function, but %s instead", showType(v));
+          throw Error("overlay is not a function, but %s instead", show_type(v));
         }
-        if (v.lambda().fun->getFormals() || !argHasName(v.lambda().fun->arg, "final"))
+        if (v.lambda().fun->getFormals() || !arg_has_name(v.lambda().fun->arg, "final"))
           throw Error("overlay does not take an argument named 'final'");
         // FIXME: if we have a 'nixpkgs' input, use it to
         // evaluate the overlay.
       } catch (Error& e) {
-        e.addTrace(resolve(pos), hint_fmt_t("while checking the overlay '%s'", attrPath));
-        reportError(e);
+        e.add_trace(resolve(pos), hint_fmt_t("while checking the overlay '%s'", attr_path));
+        report_error(e);
       }
     };
 
-    auto checkModule = [&](std::string_view attrPath, Value& v, const pos_idx_t pos) {
+    auto check_module = [&](std::string_view attr_path, Value& v, const pos_idx_t pos) {
       try {
-        activity_t act(*logger, lvlInfo, actUnknown, fmt("checking NixOS module '%s'", attrPath));
+        activity_t act(*logger, lvl_info, act_unknown, fmt("checking NixOS module '%s'", attr_path));
         state->forceValue(v, pos);
       } catch (Error& e) {
-        e.addTrace(resolve(pos), hint_fmt_t("while checking the NixOS module '%s'", attrPath));
-        reportError(e);
+        e.add_trace(resolve(pos), hint_fmt_t("while checking the NixOS module '%s'", attr_path));
+        report_error(e);
       }
     };
 
-    std::function<void(const std::string& attrPath, Value& v, const pos_idx_t pos)> checkHydraJobs;
+    std::function<void(const std::string& attr_path, Value& v, const pos_idx_t pos)> checkHydraJobs;
 
-    checkHydraJobs = [&](const std::string& attrPath, Value& v, const pos_idx_t pos) {
+    checkHydraJobs = [&](const std::string& attr_path, Value& v, const pos_idx_t pos) {
       try {
-        activity_t act(*logger, lvlInfo, actUnknown, fmt("checking Hydra job '%s'", attrPath));
+        activity_t act(*logger, lvl_info, act_unknown, fmt("checking Hydra job '%s'", attr_path));
         state->forceAttrs(v, pos, "");
 
-        if (state->isDerivation(v))
+        if (state->is_derivation(v))
           throw Error("jobset should not be a derivation at top-level");
 
         for (auto& attr : *v.attrs())
-          futures.spawn(1, [&, attrPath]() {
+          futures.spawn(1, [&, attr_path]() {
             state->forceAttrs(*attr.value, attr.pos, "");
-            auto attrPath2 = concatStrings(attrPath, ".", state->symbols[attr.name]);
-            if (state->isDerivation(*attr.value)) {
-              activity_t act(*logger, lvlInfo, actUnknown, fmt("checking Hydra job '%s'", attrPath2));
-              checkDerivation(attrPath2, *attr.value, attr.pos);
+            auto attrPath2 = concat_strings(attr_path, ".", state->symbols[attr.name]);
+            if (state->is_derivation(*attr.value)) {
+              activity_t act(*logger, lvl_info, act_unknown, fmt("checking Hydra job '%s'", attrPath2));
+              check_derivation(attrPath2, *attr.value, attr.pos);
             } else
               checkHydraJobs(attrPath2, *attr.value, attr.pos);
           });
 
       } catch (Error& e) {
-        e.addTrace(resolve(pos), hint_fmt_t("while checking the Hydra jobset '%s'", attrPath));
-        reportError(e);
+        e.add_trace(resolve(pos), hint_fmt_t("while checking the Hydra jobset '%s'", attr_path));
+        report_error(e);
       }
     };
 
-    auto checkNixOSConfiguration = [&](const std::string& attrPath, Value& v, const pos_idx_t pos) {
+    auto check_nix_os_configuration = [&](const std::string& attr_path, Value& v, const pos_idx_t pos) {
       try {
-        activity_t act(*logger, lvlInfo, actUnknown,
-                     fmt("checking NixOS configuration '%s'", attrPath));
+        activity_t act(*logger, lvl_info, act_unknown,
+                     fmt("checking NixOS configuration '%s'", attr_path));
         Bindings& bindings = Bindings::emptyBindings;
-        auto vToplevel =
-            findAlongAttrPath(*state, "config.system.build.toplevel", bindings, v).first;
-        state->forceValue(*vToplevel, pos);
-        if (!state->isDerivation(*vToplevel))
+        auto v_toplevel =
+            find_along_attr_path(*state, "config.system.build.toplevel", bindings, v).first;
+        state->forceValue(*v_toplevel, pos);
+        if (!state->is_derivation(*v_toplevel))
           throw Error("attribute 'config.system.build.toplevel' is not a derivation");
       } catch (Error& e) {
-        e.addTrace(resolve(pos), hint_fmt_t("while checking the NixOS configuration '%s'", attrPath));
-        reportError(e);
+        e.add_trace(resolve(pos), hint_fmt_t("while checking the NixOS configuration '%s'", attr_path));
+        report_error(e);
       }
     };
 
-    auto checkTemplate = [&](std::string_view attrPath, Value& v, const pos_idx_t pos) {
+    auto check_template = [&](std::string_view attr_path, Value& v, const pos_idx_t pos) {
       try {
-        activity_t act(*logger, lvlInfo, actUnknown, fmt("checking template '%s'", attrPath));
+        activity_t act(*logger, lvl_info, act_unknown, fmt("checking template '%s'", attr_path));
 
         state->forceAttrs(v, pos, "");
 
@@ -517,57 +517,57 @@ struct cmd_flake_check_t : flake_command_t {
           if (attr->name == state->symbols.create("path")) {
             NixStringContext context;
             auto path = state->coerceToPath(attr->pos, *attr->value, context, "");
-            if (!path.pathExists())
-              throw Error("template '%s' refers to a non-existent path '%s'", attrPath, path);
+            if (!path.path_exists())
+              throw Error("template '%s' refers to a non-existent path '%s'", attr_path, path);
             // TODO: recursively check the flake in 'path'.
           }
         } else
-          throw Error("template '%s' lacks attribute 'path'", attrPath);
+          throw Error("template '%s' lacks attribute 'path'", attr_path);
 
         if (auto attr = v.attrs()->get(state->symbols.create("description")))
           state->forceStringNoCtx(*attr->value, attr->pos, "");
         else
-          throw Error("template '%s' lacks attribute 'description'", attrPath);
+          throw Error("template '%s' lacks attribute 'description'", attr_path);
 
         for (auto& attr : *v.attrs()) {
           std::string_view name(state->symbols[attr.name]);
           if (name != "path" && name != "description" && name != "welcomeText")
-            throw Error("template '%s' has unsupported attribute '%s'", attrPath, name);
+            throw Error("template '%s' has unsupported attribute '%s'", attr_path, name);
         }
       } catch (Error& e) {
-        e.addTrace(resolve(pos), hint_fmt_t("while checking the template '%s'", attrPath));
-        reportError(e);
+        e.add_trace(resolve(pos), hint_fmt_t("while checking the template '%s'", attr_path));
+        report_error(e);
       }
     };
 
-    auto checkBundler = [&](const std::string& attrPath, Value& v, const pos_idx_t pos) {
+    auto check_bundler = [&](const std::string& attr_path, Value& v, const pos_idx_t pos) {
       try {
-        activity_t act(*logger, lvlInfo, actUnknown, fmt("checking bundler '%s'", attrPath));
+        activity_t act(*logger, lvl_info, act_unknown, fmt("checking bundler '%s'", attr_path));
         state->forceValue(v, pos);
         if (!v.isLambda())
           throw Error("bundler must be a function");
         // TODO: check types of inputs/outputs?
       } catch (Error& e) {
-        e.addTrace(resolve(pos), hint_fmt_t("while checking the template '%s'", attrPath));
-        reportError(e);
+        e.add_trace(resolve(pos), hint_fmt_t("while checking the template '%s'", attr_path));
+        report_error(e);
       }
     };
 
-    auto checkFlake = [&]() {
-      activity_t act(*logger, lvlInfo, actUnknown, "evaluating flake");
+    auto check_flake = [&]() {
+      activity_t act(*logger, lvl_info, act_unknown, "evaluating flake");
 
-      auto vFlake = state->allocValue();
-      flake::callFlake(*state, flake, *vFlake);
+      auto v_flake = state->allocValue();
+      flake::call_flake(*state, flake, *v_flake);
 
-      enumerateOutputs(
-          *state, *vFlake, [&](std::string_view name, Value& vOutput, const pos_idx_t pos) {
+      enumerate_outputs(
+          *state, *v_flake, [&](std::string_view name, Value& v_output, const pos_idx_t pos) {
             futures.spawn(2, [&, name, pos]() {
-              activity_t act(*logger, lvlInfo, actUnknown, fmt("checking flake output '%s'", name));
+              activity_t act(*logger, lvl_info, act_unknown, fmt("checking flake output '%s'", name));
 
               try {
-                evalSettings.enableImportFromDerivation.setDefault(name != "hydraJobs");
+                eval_settings.enableImportFromDerivation.set_default(name != "hydraJobs");
 
-                state->forceValue(vOutput, pos);
+                state->forceValue(v_output, pos);
 
                 std::string_view replacement =
                     name == "defaultPackage"    ? "packages.<system>.default"
@@ -583,25 +583,25 @@ struct cmd_flake_check_t : flake_command_t {
                        replacement);
 
                 if (name == "checks") {
-                  state->forceAttrs(vOutput, pos, "");
-                  for (auto& attr : *vOutput.attrs())
+                  state->forceAttrs(v_output, pos, "");
+                  for (auto& attr : *v_output.attrs())
                     futures.spawn(3, [&, name]() {
                       const auto& attr_name = state->symbols[attr.name];
-                      checkSystemName(attr_name, attr.pos);
-                      if (checkSystemType(attr_name, attr.pos)) {
+                      check_system_name(attr_name, attr.pos);
+                      if (check_system_type(attr_name, attr.pos)) {
                         state->forceAttrs(*attr.value, attr.pos, "");
                         for (auto& attr2 : *attr.value->attrs()) {
-                          auto drvPath = checkDerivation(
+                          auto drv_path = check_derivation(
                               fmt("%s.%s.%s", name, attr_name, state->symbols[attr2.name]),
                               *attr2.value, attr2.pos);
-                          if (drvPath && attr_name == settings.thisSystem.get()) {
-                            auto derivedPath = DerivedPath::Built{
-                                .drvPath = makeConstantStorePathRef(*drvPath),
+                          if (drv_path && attr_name == settings.thisSystem.get()) {
+                            auto derived_path = DerivedPath::Built{
+                                .drv_path = makeConstantStorePathRef(*drv_path),
                                 .outputs = OutputsSpec::All{},
                             };
-                            (*derivedPathToAttrPaths_.lock())[derivedPath].push_back(
+                            (*derivedPathToAttrPaths_.lock())[derived_path].push_back(
                                 {state->symbols.create("checks"), attr.name, attr2.name});
-                            drvPaths_.lock()->push_back(std::move(derivedPath));
+                            drvPaths_.lock()->push_back(std::move(derived_path));
                           }
                         }
                       }
@@ -609,26 +609,26 @@ struct cmd_flake_check_t : flake_command_t {
                 }
 
                 else if (name == "formatter") {
-                  state->forceAttrs(vOutput, pos, "");
-                  for (auto& attr : *vOutput.attrs()) {
+                  state->forceAttrs(v_output, pos, "");
+                  for (auto& attr : *v_output.attrs()) {
                     const auto& attr_name = state->symbols[attr.name];
-                    checkSystemName(attr_name, attr.pos);
-                    if (checkSystemType(attr_name, attr.pos)) {
-                      checkDerivation(fmt("%s.%s", name, attr_name), *attr.value, attr.pos);
+                    check_system_name(attr_name, attr.pos);
+                    if (check_system_type(attr_name, attr.pos)) {
+                      check_derivation(fmt("%s.%s", name, attr_name), *attr.value, attr.pos);
                     };
                   }
                 }
 
                 else if (name == "packages" || name == "devShells") {
-                  state->forceAttrs(vOutput, pos, "");
-                  for (auto& attr : *vOutput.attrs())
+                  state->forceAttrs(v_output, pos, "");
+                  for (auto& attr : *v_output.attrs())
                     futures.spawn(3, [&, name]() {
                       const auto& attr_name = state->symbols[attr.name];
-                      checkSystemName(attr_name, attr.pos);
-                      if (checkSystemType(attr_name, attr.pos)) {
+                      check_system_name(attr_name, attr.pos);
+                      if (check_system_type(attr_name, attr.pos)) {
                         state->forceAttrs(*attr.value, attr.pos, "");
                         for (auto& attr2 : *attr.value->attrs())
-                          checkDerivation(
+                          check_derivation(
                               fmt("%s.%s.%s", name, attr_name, state->symbols[attr2.name]),
                               *attr2.value, attr2.pos);
                       };
@@ -636,110 +636,110 @@ struct cmd_flake_check_t : flake_command_t {
                 }
 
                 else if (name == "apps") {
-                  state->forceAttrs(vOutput, pos, "");
-                  for (auto& attr : *vOutput.attrs()) {
+                  state->forceAttrs(v_output, pos, "");
+                  for (auto& attr : *v_output.attrs()) {
                     const auto& attr_name = state->symbols[attr.name];
-                    checkSystemName(attr_name, attr.pos);
-                    if (checkSystemType(attr_name, attr.pos)) {
+                    check_system_name(attr_name, attr.pos);
+                    if (check_system_type(attr_name, attr.pos)) {
                       state->forceAttrs(*attr.value, attr.pos, "");
                       for (auto& attr2 : *attr.value->attrs())
-                        checkApp(fmt("%s.%s.%s", name, attr_name, state->symbols[attr2.name]),
+                        check_app(fmt("%s.%s.%s", name, attr_name, state->symbols[attr2.name]),
                                  *attr2.value, attr2.pos);
                     };
                   }
                 }
 
                 else if (name == "defaultPackage" || name == "devShell") {
-                  state->forceAttrs(vOutput, pos, "");
-                  for (auto& attr : *vOutput.attrs()) {
+                  state->forceAttrs(v_output, pos, "");
+                  for (auto& attr : *v_output.attrs()) {
                     const auto& attr_name = state->symbols[attr.name];
-                    checkSystemName(attr_name, attr.pos);
-                    if (checkSystemType(attr_name, attr.pos)) {
-                      checkDerivation(fmt("%s.%s", name, attr_name), *attr.value, attr.pos);
+                    check_system_name(attr_name, attr.pos);
+                    if (check_system_type(attr_name, attr.pos)) {
+                      check_derivation(fmt("%s.%s", name, attr_name), *attr.value, attr.pos);
                     };
                   }
                 }
 
                 else if (name == "defaultApp") {
-                  state->forceAttrs(vOutput, pos, "");
-                  for (auto& attr : *vOutput.attrs()) {
+                  state->forceAttrs(v_output, pos, "");
+                  for (auto& attr : *v_output.attrs()) {
                     const auto& attr_name = state->symbols[attr.name];
-                    checkSystemName(attr_name, attr.pos);
-                    if (checkSystemType(attr_name, attr.pos)) {
-                      checkApp(fmt("%s.%s", name, attr_name), *attr.value, attr.pos);
+                    check_system_name(attr_name, attr.pos);
+                    if (check_system_type(attr_name, attr.pos)) {
+                      check_app(fmt("%s.%s", name, attr_name), *attr.value, attr.pos);
                     };
                   }
                 }
 
                 else if (name == "legacyPackages") {
-                  state->forceAttrs(vOutput, pos, "");
-                  for (auto& attr : *vOutput.attrs()) {
-                    checkSystemName(state->symbols[attr.name], attr.pos);
-                    checkSystemType(state->symbols[attr.name], attr.pos);
+                  state->forceAttrs(v_output, pos, "");
+                  for (auto& attr : *v_output.attrs()) {
+                    check_system_name(state->symbols[attr.name], attr.pos);
+                    check_system_type(state->symbols[attr.name], attr.pos);
                     // FIXME: do getDerivations?
                   }
                 }
 
                 else if (name == "overlay")
-                  checkOverlay(name, vOutput, pos);
+                  check_overlay(name, v_output, pos);
 
                 else if (name == "overlays") {
-                  state->forceAttrs(vOutput, pos, "");
-                  for (auto& attr : *vOutput.attrs())
-                    checkOverlay(fmt("%s.%s", name, state->symbols[attr.name]), *attr.value,
+                  state->forceAttrs(v_output, pos, "");
+                  for (auto& attr : *v_output.attrs())
+                    check_overlay(fmt("%s.%s", name, state->symbols[attr.name]), *attr.value,
                                  attr.pos);
                 }
 
                 else if (name == "nixosModule")
-                  checkModule(name, vOutput, pos);
+                  check_module(name, v_output, pos);
 
                 else if (name == "nixosModules") {
-                  state->forceAttrs(vOutput, pos, "");
-                  for (auto& attr : *vOutput.attrs())
-                    checkModule(fmt("%s.%s", name, state->symbols[attr.name]), *attr.value,
+                  state->forceAttrs(v_output, pos, "");
+                  for (auto& attr : *v_output.attrs())
+                    check_module(fmt("%s.%s", name, state->symbols[attr.name]), *attr.value,
                                 attr.pos);
                 }
 
                 else if (name == "nixosConfigurations") {
-                  state->forceAttrs(vOutput, pos, "");
-                  for (auto& attr : *vOutput.attrs())
-                    checkNixOSConfiguration(fmt("%s.%s", name, state->symbols[attr.name]),
+                  state->forceAttrs(v_output, pos, "");
+                  for (auto& attr : *v_output.attrs())
+                    check_nix_os_configuration(fmt("%s.%s", name, state->symbols[attr.name]),
                                             *attr.value, attr.pos);
                 }
 
                 else if (name == "hydraJobs")
-                  checkHydraJobs(std::string(name), vOutput, pos);
+                  checkHydraJobs(std::string(name), v_output, pos);
 
                 else if (name == "defaultTemplate")
-                  checkTemplate(name, vOutput, pos);
+                  check_template(name, v_output, pos);
 
                 else if (name == "templates") {
-                  state->forceAttrs(vOutput, pos, "");
-                  for (auto& attr : *vOutput.attrs())
-                    checkTemplate(fmt("%s.%s", name, state->symbols[attr.name]), *attr.value,
+                  state->forceAttrs(v_output, pos, "");
+                  for (auto& attr : *v_output.attrs())
+                    check_template(fmt("%s.%s", name, state->symbols[attr.name]), *attr.value,
                                   attr.pos);
                 }
 
                 else if (name == "defaultBundler") {
-                  state->forceAttrs(vOutput, pos, "");
-                  for (auto& attr : *vOutput.attrs()) {
+                  state->forceAttrs(v_output, pos, "");
+                  for (auto& attr : *v_output.attrs()) {
                     const auto& attr_name = state->symbols[attr.name];
-                    checkSystemName(attr_name, attr.pos);
-                    if (checkSystemType(attr_name, attr.pos)) {
-                      checkBundler(fmt("%s.%s", name, attr_name), *attr.value, attr.pos);
+                    check_system_name(attr_name, attr.pos);
+                    if (check_system_type(attr_name, attr.pos)) {
+                      check_bundler(fmt("%s.%s", name, attr_name), *attr.value, attr.pos);
                     };
                   }
                 }
 
                 else if (name == "bundlers") {
-                  state->forceAttrs(vOutput, pos, "");
-                  for (auto& attr : *vOutput.attrs()) {
+                  state->forceAttrs(v_output, pos, "");
+                  for (auto& attr : *v_output.attrs()) {
                     const auto& attr_name = state->symbols[attr.name];
-                    checkSystemName(attr_name, attr.pos);
-                    if (checkSystemType(attr_name, attr.pos)) {
+                    check_system_name(attr_name, attr.pos);
+                    if (check_system_type(attr_name, attr.pos)) {
                       state->forceAttrs(*attr.value, attr.pos, "");
                       for (auto& attr2 : *attr.value->attrs()) {
-                        checkBundler(fmt("%s.%s.%s", name, attr_name, state->symbols[attr2.name]),
+                        check_bundler(fmt("%s.%s.%s", name, attr_name, state->symbols[attr2.name]),
                                      *attr2.value, attr2.pos);
                       }
                     };
@@ -758,20 +758,20 @@ struct cmd_flake_check_t : flake_command_t {
                   warn("unknown flake output '%s'", name);
 
               } catch (Error& e) {
-                e.addTrace(resolve(pos), hint_fmt_t("while checking flake output '%s'", name));
-                reportError(e);
+                e.add_trace(resolve(pos), hint_fmt_t("while checking flake output '%s'", name));
+                report_error(e);
               }
             });
           });
     };
 
-    futures.spawn(1, checkFlake);
+    futures.spawn(1, check_flake);
     futures.finishAll();
 
-    auto drvPaths(drvPaths_.lock());
-    auto derivedPathToAttrPaths(derivedPathToAttrPaths_.lock());
+    auto drv_paths(drvPaths_.lock());
+    auto derived_path_to_attr_paths(derivedPathToAttrPaths_.lock());
 
-    if (build && !drvPaths->empty()) {
+    if (build && !drv_paths->empty()) {
       // TODO: This filtering of substitutable paths is a temporary workaround until
       // https://github.com/NixOS/nix/issues/5025 (union stores) is implemented.
       //
@@ -784,51 +784,51 @@ struct cmd_flake_check_t : flake_command_t {
       // via substitution, as `nix flake check` only needs to verify buildability,
       // not actually produce the outputs.
       state->waitForAllPaths();
-      auto missing = store->queryMissing(*drvPaths);
+      auto missing = store->query_missing(*drv_paths);
 
       std::vector<DerivedPath> toBuild;
       std::set<DerivedPath> toBuildSet;
       for (auto& path : missing.willBuild) {
-        auto derivedPath = DerivedPath::Built{
-            .drvPath = makeConstantStorePathRef(path),
+        auto derived_path = DerivedPath::Built{
+            .drv_path = makeConstantStorePathRef(path),
             .outputs = OutputsSpec::All{},
         };
-        toBuild.emplace_back(derivedPath);
-        toBuildSet.insert(std::move(derivedPath));
+        toBuild.emplace_back(derived_path);
+        toBuildSet.insert(std::move(derived_path));
       }
 
-      for (auto& [derivedPath, attrPaths] : *derivedPathToAttrPaths)
-        if (!toBuildSet.contains(derivedPath))
-          for (auto& attrPath : attrPaths)
+      for (auto& [derived_path, attrPaths] : *derived_path_to_attr_paths)
+        if (!toBuildSet.contains(derived_path))
+          for (auto& attr_path : attrPaths)
             notice("✅ " ANSI_BOLD "%s" ANSI_NORMAL ANSI_ITALIC ANSI_FAINT
                    " (previously built)" ANSI_NORMAL,
-                   attrPath.to_string(*state));
+                   attr_path.to_string(*state));
 
       // FIXME: should start building while evaluating.
-      activity_t act(*logger, lvlInfo, actUnknown, fmt("running %d flake checks", toBuild.size()));
-      auto buildResults = store->buildPathsWithResults(toBuild);
-      assert(buildResults.size() == toBuild.size());
+      activity_t act(*logger, lvl_info, act_unknown, fmt("running %d flake checks", toBuild.size()));
+      auto build_results = store->build_paths_with_results(toBuild);
+      assert(build_results.size() == toBuild.size());
 
       // Report successes first.
-      for (auto& buildResult : buildResults)
+      for (auto& buildResult : build_results)
         if (buildResult.tryGetSuccess())
-          for (auto& attrPath : (*derivedPathToAttrPaths)[buildResult.path])
-            notice("✅ " ANSI_BOLD "%s" ANSI_NORMAL, attrPath.to_string(*state));
+          for (auto& attr_path : (*derived_path_to_attr_paths)[buildResult.path])
+            notice("✅ " ANSI_BOLD "%s" ANSI_NORMAL, attr_path.to_string(*state));
 
       // Then cancelled builds.
-      for (auto& buildResult : buildResults)
+      for (auto& buildResult : build_results)
         if (buildResult.isCancelled())
-          for (auto& attrPath : (*derivedPathToAttrPaths)[buildResult.path])
+          for (auto& attr_path : (*derived_path_to_attr_paths)[buildResult.path])
             notice("❓ " ANSI_BOLD "%s" ANSI_NORMAL ANSI_FAINT " (cancelled)",
-                   attrPath.to_string(*state));
+                   attr_path.to_string(*state));
 
       // Then failures.
-      for (auto& buildResult : buildResults)
+      for (auto& buildResult : build_results)
         if (auto failure = buildResult.tryGetFailure(); failure && !buildResult.isCancelled())
           try {
-            hasErrors = true;
-            for (auto& attrPath : (*derivedPathToAttrPaths)[buildResult.path])
-              printError("❌ " ANSI_RED "%s" ANSI_NORMAL, attrPath.to_string(*state));
+            has_errors = true;
+            for (auto& attr_path : (*derived_path_to_attr_paths)[buildResult.path])
+              printError("❌ " ANSI_RED "%s" ANSI_NORMAL, attr_path.to_string(*state));
             failure->rethrow();
           } catch (Error& e) {
             logError(e.info());
@@ -839,75 +839,75 @@ struct cmd_flake_check_t : flake_command_t {
       // TODO: empty system is not visible; render all as nix strings?
       warn("The check omitted these incompatible systems: %s\n"
            "Use '--all-systems' to check all.",
-           concatStringsSep(", ", *omittedSystems.lock()));
+           concat_strings_sep(", ", *omittedSystems.lock()));
     }
 
-    if (hasErrors)
+    if (has_errors)
       throw exit_t(1);
   };
 };
 
-static strings_t defaultTemplateAttrPathsPrefixes{"templates."};
-static strings_t defaultTemplateAttrPaths = {"templates.default", "defaultTemplate"};
+static strings_t default_template_attr_paths_prefixes{"templates."};
+static strings_t default_template_attr_paths = {"templates.default", "defaultTemplate"};
 
 struct cmd_flake_init_common_t : virtual Args, EvalCommand {
-  std::string templateUrl = "https://flakehub.com/f/DeterminateSystems/flake-templates/0.1";
-  Path destDir;
+  std::string template_url = "https://flakehub.com/f/DeterminateSystems/flake-templates/0.1";
+  Path dest_dir;
 
-  const LockFlags lockFlags{.writeLockFile = false};
+  const LockFlags lock_flags{.writeLockFile = false};
 
   cmd_flake_init_common_t() {
-    addFlag({
-        .longName = "template",
-        .shortName = 't',
+    add_flag({
+        .long_name = "template",
+        .short_name = 't',
         .description = "The template to use.",
         .labels = {"template"},
-        .handler = {&templateUrl},
+        .handler = {&template_url},
         .completer = {[&](add_completions_t& completions, size_t, std::string_view prefix) {
-          completeFlakeRefWithFragment(completions, getEvalState(), lockFlags,
-                                       defaultTemplateAttrPathsPrefixes, defaultTemplateAttrPaths,
+          complete_flake_ref_with_fragment(completions, getEvalState(), lock_flags,
+                                       default_template_attr_paths_prefixes, default_template_attr_paths,
                                        prefix);
         }},
     });
   }
 
   void run(nix::ref<nix::Store> store) override {
-    auto flakeDir = absPath(destDir);
+    auto flake_dir = abs_path(dest_dir);
 
-    auto evalState = getEvalState();
+    auto eval_state = getEvalState();
 
-    auto [templateFlakeRef, templateName] = parseFlakeRefWithFragment(
-        fetchSettings, templateUrl, std::filesystem::current_path().string());
+    auto [templateFlakeRef, templateName] = parse_flake_ref_with_fragment(
+        fetch_settings, template_url, std::filesystem::current_path().string());
 
     auto installable =
-        InstallableFlake(nullptr, evalState, std::move(templateFlakeRef), templateName,
-                         ExtendedOutputsSpec::Default(), defaultTemplateAttrPaths,
-                         defaultTemplateAttrPathsPrefixes, lockFlags);
+        InstallableFlake(nullptr, eval_state, std::move(templateFlakeRef), templateName,
+                         ExtendedOutputsSpec::Default(), default_template_attr_paths,
+                         default_template_attr_paths_prefixes, lock_flags);
 
-    auto cursor = installable.getCursor(*evalState);
+    auto cursor = installable.getCursor(*eval_state);
 
-    auto templateDirAttr = cursor->getAttr("path")->forceValue();
+    auto template_dir_attr = cursor->get_attr("path")->forceValue();
     NixStringContext context;
-    auto templateDir = evalState->coerceToPath(noPos, templateDirAttr, context, "");
+    auto template_dir = eval_state->coerceToPath(no_pos, template_dir_attr, context, "");
 
     std::vector<std::filesystem::path> changedFiles;
     std::vector<std::filesystem::path> conflictedFiles;
 
-    [&](this const auto& copyDir, const source_path_t& from, const std::filesystem::path& to) -> void {
-      createDirs(to);
+    [&](this const auto& copy_dir, const source_path_t& from, const std::filesystem::path& to) -> void {
+      create_dirs(to);
 
-      for (auto& [name, entry] : from.readDirectory()) {
-        checkInterrupt();
+      for (auto& [name, entry] : from.read_directory()) {
+        check_interrupt();
         auto from2 = from / name;
         auto to2 = to / name;
         auto st = from2.lstat();
         auto to_st = std::filesystem::symlink_status(to2);
-        if (st.type == SourceAccessor::tDirectory)
-          copyDir(from2, to2);
-        else if (st.type == SourceAccessor::tRegular) {
-          auto contents = from2.readFile();
+        if (st.type == SourceAccessor::t_directory)
+          copy_dir(from2, to2);
+        else if (st.type == SourceAccessor::t_regular) {
+          auto contents = from2.read_file();
           if (std::filesystem::exists(to_st)) {
-            auto contents2 = readFile(to2.string());
+            auto contents2 = read_file(to2.string());
             if (contents != contents2) {
               printError(
                   "refusing to overwrite existing file '%s'\n please merge it manually with '%s'",
@@ -918,9 +918,9 @@ struct cmd_flake_init_common_t : virtual Args, EvalCommand {
             }
             continue;
           } else
-            writeFile(to2, contents);
-        } else if (st.type == SourceAccessor::tSymlink) {
-          auto target = from2.readLink();
+            write_file(to2, contents);
+        } else if (st.type == SourceAccessor::t_symlink) {
+          auto target = from2.read_link();
           if (std::filesystem::exists(to_st)) {
             if (std::filesystem::read_symlink(to2) != target) {
               printError(
@@ -932,26 +932,26 @@ struct cmd_flake_init_common_t : virtual Args, EvalCommand {
             }
             continue;
           } else
-            createSymlink(target, os_string_to_string(path_view_ng_t{to2}));
+            create_symlink(target, os_string_to_string(path_view_ng_t{to2}));
         } else
           throw Error("path '%s' needs to be a symlink, file, or directory but instead is a %s",
-                      from2, st.typeString());
+                      from2, st.type_string());
         changedFiles.push_back(to2);
         notice("wrote: %s", to2);
       }
-    }(templateDir, flakeDir);
+    }(template_dir, flake_dir);
 
     if (!changedFiles.empty() &&
-        std::filesystem::exists(std::filesystem::path{flakeDir} / ".git")) {
-      strings_t args = {"-C", flakeDir, "add", "--intent-to-add", "--force", "--"};
+        std::filesystem::exists(std::filesystem::path{flake_dir} / ".git")) {
+      strings_t args = {"-C", flake_dir, "add", "--intent-to-add", "--force", "--"};
       for (auto& s : changedFiles)
         args.emplace_back(s.string());
-      runProgram("git", true, args);
+      run_program("git", true, args);
     }
 
     if (auto welcomeText = cursor->maybeGetAttr("welcomeText")) {
       notice("\n");
-      notice(renderMarkdownToTerminal(welcomeText->getString()));
+      notice(render_markdown_to_terminal(welcomeText->get_string()));
     }
 
     if (!conflictedFiles.empty())
@@ -970,7 +970,7 @@ struct cmd_flake_init_t : cmd_flake_init_common_t {
         ;
   }
 
-  cmd_flake_init_t() { destDir = "."; }
+  cmd_flake_init_t() { dest_dir = "."; }
 };
 
 struct cmd_flake_new_t : cmd_flake_init_common_t {
@@ -985,12 +985,12 @@ struct cmd_flake_new_t : cmd_flake_init_common_t {
   }
 
   cmd_flake_new_t() {
-    expectArgs({.label = "dest-dir", .handler = {&destDir}, .completer = completePath});
+    expect_args({.label = "dest-dir", .handler = {&dest_dir}, .completer = complete_path});
   }
 };
 
 struct cmd_flake_clone_t : flake_command_t {
-  std::filesystem::path destDir;
+  std::filesystem::path dest_dir;
 
   std::string description() override { return "clone flake repository"; }
 
@@ -1001,34 +1001,34 @@ struct cmd_flake_clone_t : flake_command_t {
   }
 
   cmd_flake_clone_t() {
-    addFlag({
-        .longName = "dest",
-        .shortName = 'f',
+    add_flag({
+        .long_name = "dest",
+        .short_name = 'f',
         .description = "Clone the flake to path *dest*.",
         .labels = {"path"},
-        .handler = {&destDir},
+        .handler = {&dest_dir},
     });
   }
 
   void run(nix::ref<nix::Store> store) override {
-    if (destDir.empty())
+    if (dest_dir.empty())
       throw Error("missing flag '--dest'");
 
-    getFlakeRef().resolve(fetchSettings, *store).input.clone(fetchSettings, *store, destDir);
+    get_flake_ref().resolve(fetch_settings, *store).input.clone(fetch_settings, *store, dest_dir);
   }
 };
 
 struct cmd_flake_archive_t : flake_command_t, MixJSON, MixDryRun, MixNoCheckSigs {
-  std::string dstUri;
+  std::string dst_uri;
 
   SubstituteFlag substitute = NoSubstitute;
 
   cmd_flake_archive_t() {
-    addFlag({
-        .longName = "to",
+    add_flag({
+        .long_name = "to",
         .description = "URI of the destination Nix store",
         .labels = {"store-uri"},
-        .handler = {&dstUri},
+        .handler = {&dst_uri},
     });
   }
 
@@ -1041,75 +1041,75 @@ struct cmd_flake_archive_t : flake_command_t, MixJSON, MixDryRun, MixNoCheckSigs
   }
 
   void run(nix::ref<nix::Store> store) override {
-    auto flake = lockFlake();
+    auto flake = lock_flake();
 
     StorePathSet sources;
 
-    auto storePath =
-        dryRun
-            ? flake.flake.lockedRef.input.computeStorePath(*store)
-            : std::get<StorePath>(flake.flake.lockedRef.input.fetchToStore(fetchSettings, *store));
+    auto store_path =
+        dry_run
+            ? flake.flake.locked_ref.input.computeStorePath(*store)
+            : std::get<StorePath>(flake.flake.locked_ref.input.fetch_to_store(fetch_settings, *store));
 
-    sources.insert(storePath);
+    sources.insert(store_path);
 
     // FIXME: use graph output, handle cycles.
     std::function<nlohmann::json(const Node& node)> traverse;
     traverse = [&](const Node& node) {
       nlohmann::json jsonObj2 = json ? json::object() : nlohmann::json(nullptr);
       for (auto& [inputName, input] : node.inputs) {
-        if (auto inputNode = std::get_if<0>(&input)) {
-          std::optional<StorePath> storePath;
-          if (!(*inputNode)->lockedRef.input.isRelative()) {
-            storePath =
-                dryRun ? (*inputNode)->lockedRef.input.computeStorePath(*store)
+        if (auto input_node = std::get_if<0>(&input)) {
+          std::optional<StorePath> store_path;
+          if (!(*input_node)->locked_ref.input.isRelative()) {
+            store_path =
+                dry_run ? (*input_node)->locked_ref.input.computeStorePath(*store)
                        : std::get<StorePath>(
-                             (*inputNode)->lockedRef.input.fetchToStore(fetchSettings, *store));
-            sources.insert(*storePath);
+                             (*input_node)->locked_ref.input.fetch_to_store(fetch_settings, *store));
+            sources.insert(*store_path);
           }
           if (json) {
             auto& jsonObj3 = jsonObj2[inputName];
-            if (storePath)
-              jsonObj3["path"] = store->printStorePath(*storePath);
-            jsonObj3["inputs"] = traverse(**inputNode);
+            if (store_path)
+              jsonObj3["path"] = store->printStorePath(*store_path);
+            jsonObj3["inputs"] = traverse(**input_node);
           } else
-            traverse(**inputNode);
+            traverse(**input_node);
         }
       }
       return jsonObj2;
     };
 
     if (json) {
-      nlohmann::json jsonRoot = {
-          {"path", store->printStorePath(storePath)},
-          {"inputs", traverse(*flake.lockFile.root)},
+      nlohmann::json json_root = {
+          {"path", store->printStorePath(store_path)},
+          {"inputs", traverse(*flake.lock_file.root)},
       };
-      printJSON(jsonRoot);
+      printJSON(json_root);
     } else {
-      traverse(*flake.lockFile.root);
+      traverse(*flake.lock_file.root);
     }
 
-    if (!dryRun && !dstUri.empty()) {
-      ref<Store> dstStore = dstUri.empty() ? openStore() : openStore(dstUri);
+    if (!dry_run && !dst_uri.empty()) {
+      ref<Store> dst_store = dst_uri.empty() ? open_store() : open_store(dst_uri);
 
-      copyPaths(*store, *dstStore, sources, NoRepair, checkSigs, substitute);
+      copy_paths(*store, *dst_store, sources, NoRepair, check_sigs, substitute);
     }
   }
 };
 
 struct cmd_flake_show_t : flake_command_t, MixJSON {
-  bool showLegacy = false;
-  bool showAllSystems = false;
+  bool show_legacy = false;
+  bool show_all_systems = false;
 
   cmd_flake_show_t() {
-    addFlag({
-        .longName = "legacy",
+    add_flag({
+        .long_name = "legacy",
         .description = "Show the contents of the `legacyPackages` output.",
-        .handler = {&showLegacy, true},
+        .handler = {&show_legacy, true},
     });
-    addFlag({
-        .longName = "all-systems",
+    add_flag({
+        .long_name = "all-systems",
         .description = "Show the contents of outputs for all systems.",
-        .handler = {&showAllSystems, true},
+        .handler = {&show_all_systems, true},
     });
   }
 
@@ -1122,13 +1122,13 @@ struct cmd_flake_show_t : flake_command_t, MixJSON {
   }
 
   void run(nix::ref<nix::Store> store) override {
-    evalSettings.enableImportFromDerivation.setDefault(false);
+    eval_settings.enableImportFromDerivation.set_default(false);
 
     auto state = getEvalState();
-    auto flake = make_ref<LockedFlake>(lockFlake());
-    auto localSystem = std::string(settings.thisSystem.get());
+    auto flake = make_ref<LockedFlake>(lock_flake());
+    auto local_system = std::string(settings.thisSystem.get());
 
-    auto cache = openEvalCache(*state, flake);
+    auto cache = open_eval_cache(*state, flake);
 
     auto j = nlohmann::json::object();
 
@@ -1137,37 +1137,37 @@ struct cmd_flake_show_t : flake_command_t, MixJSON {
     FutureVector futures(*state->executor);
 
     visit = [&](eval_cache::AttrCursor& visitor, nlohmann::json& j) {
-      auto attrPath = visitor.getAttrPath();
-      auto attrPathS = attrPath.resolve(*state);
+      auto attr_path = visitor.getAttrPath();
+      auto attrPathS = attr_path.resolve(*state);
 
-      activity_t act(*logger, lvlInfo, actUnknown,
-                   fmt("evaluating '%s'", attrPath.to_string(*state)));
+      activity_t act(*logger, lvl_info, act_unknown,
+                   fmt("evaluating '%s'", attr_path.to_string(*state)));
 
       try {
         auto recurse = [&]() {
           for (const auto& attr : visitor.getAttrs()) {
-            const auto& attrName = state->symbols[attr];
-            auto visitor2 = visitor.getAttr(attrName);
-            auto& j2 = *j.emplace(attrName, nlohmann::json::object()).first;
+            const auto& attr_name = state->symbols[attr];
+            auto visitor2 = visitor.get_attr(attr_name);
+            auto& j2 = *j.emplace(attr_name, nlohmann::json::object()).first;
             futures.spawn(1, [&, visitor2]() { visit(*visitor2, j2); });
           }
         };
 
         auto showDerivation = [&]() {
-          auto name = visitor.getAttr(state->s.name)->getString();
+          auto name = visitor.get_attr(state->s.name)->get_string();
           std::optional<std::string> description;
           if (auto aMeta = visitor.maybeGetAttr(state->s.meta)) {
             if (auto aDescription = aMeta->maybeGetAttr(state->s.description))
-              description = aDescription->getString();
+              description = aDescription->get_string();
           }
           j.emplace("type", "derivation");
           if (!json)
             j.emplace("subtype",
-                      attrPath.size() == 2 && attrPathS[0] == "devShell" ? "development environment"
-                      : attrPath.size() >= 2 && attrPathS[0] == "devShells"
+                      attr_path.size() == 2 && attrPathS[0] == "devShell" ? "development environment"
+                      : attr_path.size() >= 2 && attrPathS[0] == "devShells"
                           ? "development environment"
-                      : attrPath.size() == 3 && attrPathS[0] == "checks"    ? "derivation"
-                      : attrPath.size() >= 1 && attrPathS[0] == "hydraJobs" ? "derivation"
+                      : attr_path.size() == 3 && attrPathS[0] == "checks"    ? "derivation"
+                      : attr_path.size() >= 1 && attrPathS[0] == "hydraJobs" ? "derivation"
                                                                             : "package");
           j.emplace("name", name);
           if (description)
@@ -1176,7 +1176,7 @@ struct cmd_flake_show_t : flake_command_t, MixJSON {
 
         auto omit = [&](std::string_view flag) {
           if (json)
-            logger->warn(fmt("%s omitted (use '%s' to show)", attrPath.to_string(*state), flag));
+            logger->warn(fmt("%s omitted (use '%s' to show)", attr_path.to_string(*state), flag));
           else {
             j.emplace("type", "omitted");
             j.emplace("message",
@@ -1184,28 +1184,28 @@ struct cmd_flake_show_t : flake_command_t, MixJSON {
           }
         };
 
-        if (attrPath.size() == 0 ||
-            (attrPath.size() == 1 &&
+        if (attr_path.size() == 0 ||
+            (attr_path.size() == 1 &&
              (attrPathS[0] == "defaultPackage" || attrPathS[0] == "devShell" ||
               attrPathS[0] == "formatter" || attrPathS[0] == "nixosConfigurations" ||
               attrPathS[0] == "nixosModules" || attrPathS[0] == "defaultApp" ||
               attrPathS[0] == "templates" || attrPathS[0] == "overlays")) ||
-            ((attrPath.size() == 1 || attrPath.size() == 2) &&
+            ((attr_path.size() == 1 || attr_path.size() == 2) &&
              (attrPathS[0] == "checks" || attrPathS[0] == "packages" ||
               attrPathS[0] == "devShells" || attrPathS[0] == "apps"))) {
           recurse();
         }
 
-        else if ((attrPath.size() == 2 &&
+        else if ((attr_path.size() == 2 &&
                   (attrPathS[0] == "defaultPackage" || attrPathS[0] == "devShell" ||
                    attrPathS[0] == "formatter")) ||
-                 (attrPath.size() == 3 && (attrPathS[0] == "checks" || attrPathS[0] == "packages" ||
+                 (attr_path.size() == 3 && (attrPathS[0] == "checks" || attrPathS[0] == "packages" ||
                                            attrPathS[0] == "devShells"))) {
-          if (!showAllSystems && std::string(attrPathS[1]) != localSystem) {
+          if (!show_all_systems && std::string(attrPathS[1]) != local_system) {
             omit("--all-systems");
           } else {
             try {
-              if (visitor.isDerivation())
+              if (visitor.is_derivation())
                 showDerivation();
               else {
                 auto name = visitor.getAttrPathStr(state->s.name);
@@ -1213,87 +1213,87 @@ struct cmd_flake_show_t : flake_command_t, MixJSON {
               }
             } catch (IFDError& e) {
               logger->warn(fmt("%s omitted due to use of import from derivation",
-                               attrPath.to_string(*state)));
+                               attr_path.to_string(*state)));
             }
           }
         }
 
-        else if (attrPath.size() > 0 && attrPathS[0] == "hydraJobs") {
+        else if (attr_path.size() > 0 && attrPathS[0] == "hydraJobs") {
           try {
-            if (visitor.isDerivation())
+            if (visitor.is_derivation())
               showDerivation();
             else
               recurse();
           } catch (IFDError& e) {
             logger->warn(
-                fmt("%s omitted due to use of import from derivation", attrPath.to_string(*state)));
+                fmt("%s omitted due to use of import from derivation", attr_path.to_string(*state)));
           }
         }
 
-        else if (attrPath.size() > 0 && attrPathS[0] == "legacyPackages") {
-          if (attrPath.size() == 1)
+        else if (attr_path.size() > 0 && attrPathS[0] == "legacyPackages") {
+          if (attr_path.size() == 1)
             recurse();
-          else if (!showLegacy) {
+          else if (!show_legacy) {
             omit("--legacy");
-          } else if (!showAllSystems && std::string(attrPathS[1]) != localSystem) {
+          } else if (!show_all_systems && std::string(attrPathS[1]) != local_system) {
             omit("--all-systems");
           } else {
             try {
-              if (visitor.isDerivation())
+              if (visitor.is_derivation())
                 showDerivation();
-              else if (attrPath.size() <= 2)
+              else if (attr_path.size() <= 2)
                 // FIXME: handle recurseIntoAttrs
                 recurse();
             } catch (IFDError& e) {
               logger->warn(fmt("%s omitted due to use of import from derivation",
-                               attrPath.to_string(*state)));
+                               attr_path.to_string(*state)));
             }
           }
         }
 
-        else if ((attrPath.size() == 2 && attrPathS[0] == "defaultApp") ||
-                 (attrPath.size() == 3 && attrPathS[0] == "apps")) {
+        else if ((attr_path.size() == 2 && attrPathS[0] == "defaultApp") ||
+                 (attr_path.size() == 3 && attrPathS[0] == "apps")) {
           auto aType = visitor.maybeGetAttr("type");
           std::optional<std::string> description;
           if (auto aMeta = visitor.maybeGetAttr(state->s.meta)) {
             if (auto aDescription = aMeta->maybeGetAttr(state->s.description))
-              description = aDescription->getString();
+              description = aDescription->get_string();
           }
-          if (!aType || aType->getString() != "app")
+          if (!aType || aType->get_string() != "app")
             state->error<EvalError>("not an app definition").debugThrow();
           j.emplace("type", "app");
           if (description)
             j.emplace("description", *description);
         }
 
-        else if ((attrPath.size() == 1 && attrPathS[0] == "defaultTemplate") ||
-                 (attrPath.size() == 2 && attrPathS[0] == "templates")) {
-          auto description = visitor.getAttr("description")->getString();
+        else if ((attr_path.size() == 1 && attrPathS[0] == "defaultTemplate") ||
+                 (attr_path.size() == 2 && attrPathS[0] == "templates")) {
+          auto description = visitor.get_attr("description")->get_string();
           j.emplace("type", "template");
           j.emplace("description", description);
         }
 
         else {
           auto [type, description] =
-              (attrPath.size() == 1 && attrPathS[0] == "overlay") ||
-                      (attrPath.size() == 2 && attrPathS[0] == "overlays")
+              (attr_path.size() == 1 && attrPathS[0] == "overlay") ||
+                      (attr_path.size() == 2 && attrPathS[0] == "overlays")
                   ? std::make_pair("nixpkgs-overlay", "Nixpkgs overlay")
-              : attrPath.size() == 2 && attrPathS[0] == "nixosConfigurations"
+              : attr_path.size() == 2 && attrPathS[0] == "nixosConfigurations"
                   ? std::make_pair("nixos-configuration", "NixOS configuration")
-              : (attrPath.size() == 1 && attrPathS[0] == "nixosModule") ||
-                      (attrPath.size() == 2 && attrPathS[0] == "nixosModules")
+              : (attr_path.size() == 1 && attrPathS[0] == "nixosModule") ||
+                      (attr_path.size() == 2 && attrPathS[0] == "nixosModules")
                   ? std::make_pair("nixos-module", "NixOS module")
                   : std::make_pair("unknown", "unknown");
           j.emplace("type", type);
           j.emplace("description", description);
         }
       } catch (EvalError& e) {
-        if (!(attrPath.size() > 0 && attrPathS[0] == "legacyPackages"))
+        if (!(attr_path.size() > 0 && attrPathS[0] == "legacyPackages"))
           throw;
       }
     };
 
-    futures.spawn(1, [&]() { visit(*cache->getRoot(), j); });
+    futures.spawn(1, [&]() { visit(*cache->get_root(), j); });
     futures.finishAll();
 
     if (json)
@@ -1354,27 +1354,27 @@ struct cmd_flake_show_t : flake_command_t, MixJSON {
           bool last = i + 1 == nonEmpty.size();
           render(j2.value(),
                  fmt(ANSI_GREEN "%s%s" ANSI_NORMAL ANSI_BOLD "%s" ANSI_NORMAL, nextPrefix,
-                     last ? treeLast : treeConn, j2.key()),
-                 nextPrefix + (last ? treeNull : treeLine));
+                     last ? tree_last : tree_conn, j2.key()),
+                 nextPrefix + (last ? tree_null : tree_line));
         }
       };
 
-      render(j, fmt(ANSI_BOLD "%s" ANSI_NORMAL, flake->flake.lockedRef), "");
+      render(j, fmt(ANSI_BOLD "%s" ANSI_NORMAL, flake->flake.locked_ref), "");
     }
   }
 };
 
 struct cmd_flake_prefetch_t : flake_command_t, MixJSON {
-  std::optional<std::filesystem::path> outLink;
+  std::optional<std::filesystem::path> out_link;
 
   cmd_flake_prefetch_t() {
-    addFlag({
-        .longName = "out-link",
-        .shortName = 'o',
+    add_flag({
+        .long_name = "out-link",
+        .short_name = 'o',
         .description = "Create symlink named *path* to the resulting store path.",
         .labels = {"path"},
-        .handler = {&outLink},
-        .completer = completePath,
+        .handler = {&out_link},
+        .completer = complete_path,
     });
   }
 
@@ -1389,29 +1389,29 @@ struct cmd_flake_prefetch_t : flake_command_t, MixJSON {
   }
 
   void run(ref<Store> store) override {
-    auto originalRef = getFlakeRef();
-    auto resolvedRef = originalRef.resolve(fetchSettings, *store);
-    auto [accessor, lockedRef] = resolvedRef.lazyFetch(getEvalState()->fetchSettings, *store);
-    auto storePath = fetchToStore(getEvalState()->fetchSettings, *store, accessor, FetchMode::Copy,
-                                  lockedRef.input.getName());
-    auto hash = store->queryPathInfo(storePath)->narHash;
+    auto original_ref = get_flake_ref();
+    auto resolved_ref = original_ref.resolve(fetch_settings, *store);
+    auto [accessor, locked_ref] = resolved_ref.lazyFetch(getEvalState()->fetch_settings, *store);
+    auto store_path = fetch_to_store(getEvalState()->fetch_settings, *store, accessor, FetchMode::Copy,
+                                  locked_ref.input.get_name());
+    auto hash = store->queryPathInfo(store_path)->nar_hash;
 
     if (json) {
       auto res = nlohmann::json::object();
-      res["storePath"] = store->printStorePath(storePath);
+      res["storePath"] = store->printStorePath(store_path);
       res["hash"] = hash.to_string(hash_format_t::SRI, true);
-      res["original"] = fetchers::attrsToJSON(resolvedRef.toAttrs());
-      res["locked"] = fetchers::attrsToJSON(lockedRef.toAttrs());
+      res["original"] = fetchers::attrs_to_json(resolved_ref.toAttrs());
+      res["locked"] = fetchers::attrs_to_json(locked_ref.toAttrs());
       res["locked"].erase("__final"); // internal for now
       printJSON(res);
     } else {
-      notice("Downloaded '%s' to '%s' (hash '%s').", lockedRef.to_string(),
-             store->printStorePath(storePath), hash.to_string(hash_format_t::SRI, true));
+      notice("Downloaded '%s' to '%s' (hash '%s').", locked_ref.to_string(),
+             store->printStorePath(store_path), hash.to_string(hash_format_t::SRI, true));
     }
 
-    if (outLink) {
-      if (auto store2 = store.dynamic_pointer_cast<LocalFSStore>())
-        createOutLinks(*outLink, {BuiltPath::opaque_t{storePath}}, *store2);
+    if (out_link) {
+      if (auto store2 = store.dynamic_pointer_cast<local_fs_store>())
+        create_out_links(*out_link, {BuiltPath::opaque_t{store_path}}, *store2);
       else
         throw Error("'--out-link' is not supported for this Nix store");
     }
@@ -1430,15 +1430,15 @@ struct cmd_flake_t : NixMultiCommand {
   }
 };
 
-static auto rCmdFlake = registerCommand<cmd_flake_t>("flake");
-static auto rCmdFlakeArchive = registerCommand2<cmd_flake_archive_t>({"flake", "archive"});
-static auto rCmdFlakeCheck = registerCommand2<cmd_flake_check_t>({"flake", "check"});
-static auto rCmdFlakeClone = registerCommand2<cmd_flake_clone_t>({"flake", "clone"});
-static auto rCmdFlakeInfo = registerCommand2<cmd_flake_info_t>({"flake", "info"});
-static auto rCmdFlakeInit = registerCommand2<cmd_flake_init_t>({"flake", "init"});
-static auto rCmdFlakeLock = registerCommand2<cmd_flake_lock_t>({"flake", "lock"});
-static auto rCmdFlakeMetadata = registerCommand2<cmd_flake_metadata_t>({"flake", "metadata"});
-static auto rCmdFlakeNew = registerCommand2<cmd_flake_new_t>({"flake", "new"});
-static auto rCmdFlakePrefetch = registerCommand2<cmd_flake_prefetch_t>({"flake", "prefetch"});
-static auto rCmdFlakeShow = registerCommand2<cmd_flake_show_t>({"flake", "show"});
-static auto rCmdFlakeUpdate = registerCommand2<cmd_flake_update_t>({"flake", "update"});
+static auto r_cmd_flake = registerCommand<cmd_flake_t>("flake");
+static auto r_cmd_flake_archive = registerCommand2<cmd_flake_archive_t>({"flake", "archive"});
+static auto r_cmd_flake_check = registerCommand2<cmd_flake_check_t>({"flake", "check"});
+static auto r_cmd_flake_clone = registerCommand2<cmd_flake_clone_t>({"flake", "clone"});
+static auto r_cmd_flake_info = registerCommand2<cmd_flake_info_t>({"flake", "info"});
+static auto r_cmd_flake_init = registerCommand2<cmd_flake_init_t>({"flake", "init"});
+static auto r_cmd_flake_lock = registerCommand2<cmd_flake_lock_t>({"flake", "lock"});
+static auto r_cmd_flake_metadata = registerCommand2<cmd_flake_metadata_t>({"flake", "metadata"});
+static auto r_cmd_flake_new = registerCommand2<cmd_flake_new_t>({"flake", "new"});
+static auto r_cmd_flake_prefetch = registerCommand2<cmd_flake_prefetch_t>({"flake", "prefetch"});
+static auto r_cmd_flake_show = registerCommand2<cmd_flake_show_t>({"flake", "show"});
+static auto r_cmd_flake_update = registerCommand2<cmd_flake_update_t>({"flake", "update"});

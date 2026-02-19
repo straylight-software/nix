@@ -40,16 +40,16 @@ public:
  * cached in pure mode. This means that they should not depend on the configuration or the overall
  * environment.
  */
-MakeError(EvalError, EvalBaseError);
-MakeError(ParseError, Error);
-MakeError(AssertionError, EvalError);
-MakeError(ThrownError, AssertionError);
-MakeError(Abort, EvalError);
-MakeError(TypeError, EvalError);
-MakeError(UndefinedVarError, EvalError);
-MakeError(MissingArgumentError, EvalError);
-MakeError(InfiniteRecursionError, EvalError);
-MakeError(IFDError, EvalBaseError);
+make_error(EvalError, EvalBaseError);
+make_error(ParseError, Error);
+make_error(AssertionError, EvalError);
+make_error(ThrownError, AssertionError);
+make_error(Abort, EvalError);
+make_error(TypeError, EvalError);
+make_error(UndefinedVarError, EvalError);
+make_error(MissingArgumentError, EvalError);
+make_error(InfiniteRecursionError, EvalError);
+make_error(IFDError, EvalBaseError);
 
 struct InvalidPathError : public EvalError {
 public:
@@ -74,11 +74,11 @@ class EvalErrorBuilder final {
 public:
   T error;
 
-  [[nodiscard, gnu::noinline]] EvalErrorBuilder<T>& withExitStatus(unsigned int exitStatus);
+  [[nodiscard, gnu::noinline]] EvalErrorBuilder<T>& with_exit_status(unsigned int exitStatus);
 
-  [[nodiscard, gnu::noinline]] EvalErrorBuilder<T>& atPos(pos_idx_t pos);
+  [[nodiscard, gnu::noinline]] EvalErrorBuilder<T>& at_pos(pos_idx_t pos);
 
-  [[nodiscard, gnu::noinline]] EvalErrorBuilder<T>& atPos(Value& value, pos_idx_t fallback = noPos);
+  [[nodiscard, gnu::noinline]] EvalErrorBuilder<T>& at_pos(Value& value, pos_idx_t fallback = no_pos);
 
   [[nodiscard, gnu::noinline]] EvalErrorBuilder<T>& withTrace(pos_idx_t pos,
                                                               const std::string_view text);
@@ -90,13 +90,13 @@ public:
 
   [[nodiscard, gnu::noinline]] EvalErrorBuilder<T>& withFrame(const Env& e, const Expr& ex);
 
-  [[nodiscard, gnu::noinline]] EvalErrorBuilder<T>& addTrace(pos_idx_t pos, hint_fmt_t hint);
+  [[nodiscard, gnu::noinline]] EvalErrorBuilder<T>& add_trace(pos_idx_t pos, hint_fmt_t hint);
 
   [[nodiscard, gnu::noinline]] EvalErrorBuilder<T>& setIsFromExpr();
 
   template <typename... Args>
   [[nodiscard, gnu::noinline]] EvalErrorBuilder<T>&
-  addTrace(pos_idx_t pos, std::string_view formatString, const Args&... formatArgs);
+  add_trace(pos_idx_t pos, std::string_view formatString, const Args&... formatArgs);
 
   /**
    * Delete the `EvalErrorBuilder` and throw the underlying exception.

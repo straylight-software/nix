@@ -20,28 +20,28 @@ enum class symlink_resolution_t {
    *
    * Only the last component of the result is possibly a symlink.
    */
-  Ancestors,
+  ancestors,
 
   /**
    * Resolve symlinks fully, realpath(3)-style.
    *
    * No component of the result will be a symlink.
    */
-  Full,
+  full,
 };
 
-MakeError(FileNotFound, Error);
+make_error(FileNotFound, Error);
 
 /**
  * A read-only filesystem abstraction. This is used by the Nix
  * evaluator and elsewhere for accessing sources in various
  * filesystem-like entities (such as the real filesystem, tarballs or
- * Git repositories).
+ * git repositories).
  */
 struct SourceAccessor : std::enable_shared_from_this<SourceAccessor> {
   const size_t number;
 
-  std::string displayPrefix, displaySuffix;
+  std::string display_prefix, display_suffix;
 
   SourceAccessor();
 
@@ -57,87 +57,87 @@ struct SourceAccessor : std::enable_shared_from_this<SourceAccessor> {
    * targets of symlinks should only occasionally be done, and only
    * with care.
    */
-  virtual std::string readFile(const canon_path_t& path);
+  virtual std::string read_file(const canon_path_t& path);
 
   /**
-   * Write the contents of a file as a sink. `sizeCallback` must be
+   * Write the contents of a file as a sink. `size_callback` must be
    * called with the size of the file before any data is written to
    * the sink.
    *
-   * @note Like the other `readFile`, this method should *not* follow
+   * @note Like the other `read_file`, this method should *not* follow
    * symlinks.
    *
    * @note subclasses of `SourceAccessor` need to implement at least
-   * one of the `readFile()` variants.
+   * one of the `read_file()` variants.
    */
-  virtual void readFile(
+  virtual void read_file(
       const canon_path_t& path, Sink& sink,
-      std::function<void(uint64_t)> sizeCallback = [](uint64_t size) {});
+      std::function<void(uint64_t)> size_callback = [](uint64_t size) {});
 
-  virtual bool pathExists(const canon_path_t& path);
+  virtual bool path_exists(const canon_path_t& path);
 
   enum Type {
-    tRegular,
-    tSymlink,
-    tDirectory,
+    t_regular,
+    t_symlink,
+    t_directory,
     /**
       Any other node types that may be encountered on the file system, such as device nodes,
       sockets, named pipe, and possibly even more exotic things.
 
-      Responsible for `"unknown"` from `builtins.readFileType "/dev/null"`.
+      Responsible for `"unknown"` from `builtins.read_file_type "/dev/null"`.
 
       Unlike `DT_UNKNOWN`, this must not be used for deferring the lookup of types.
     */
-    tChar,
-    tBlock,
-    tSocket,
-    tFifo,
-    tUnknown
+    t_char,
+    t_block,
+    t_socket,
+    t_fifo,
+    t_unknown
   };
 
   struct stat_t {
-    Type type = tUnknown;
+    Type type = t_unknown;
 
     /**
      * For regular files only: the size of the file. Not all
      * accessors return this since it may be too expensive to
      * compute.
      */
-    std::optional<uint64_t> fileSize;
+    std::optional<uint64_t> file_size;
 
     /**
      * For regular files only: whether this is an executable.
      */
-    bool isExecutable = false;
+    bool is_executable = false;
 
     /**
      * For regular files only: the position of the contents of this
      * file in the NAR. Only returned by NAR accessors.
      */
-    std::optional<uint64_t> narOffset;
+    std::optional<uint64_t> nar_offset;
 
-    bool isNotNARSerialisable();
-    std::string typeString();
+    bool is_not_nar_serialisable();
+    std::string type_string();
   };
 
   virtual stat_t lstat(const canon_path_t& path);
 
-  virtual std::optional<stat_t> maybeLstat(const canon_path_t& path) = 0;
+  virtual std::optional<stat_t> maybe_lstat(const canon_path_t& path) = 0;
 
   typedef std::optional<Type> dir_entry_t;
 
   typedef std::map<std::string, dir_entry_t> dir_entries_t;
 
   /**
-   * @note Like `readFile`, this method should *not* follow symlinks.
+   * @note Like `read_file`, this method should *not* follow symlinks.
    */
-  virtual dir_entries_t readDirectory(const canon_path_t& path) = 0;
+  virtual dir_entries_t read_directory(const canon_path_t& path) = 0;
 
-  virtual std::string readLink(const canon_path_t& path) = 0;
+  virtual std::string read_link(const canon_path_t& path) = 0;
 
-  virtual void dumpPath(const canon_path_t& path, Sink& sink, path_filter_t& filter = defaultPathFilter);
+  virtual void dump_path(const canon_path_t& path, Sink& sink, path_filter_t& filter = default_path_filter);
 
-  Hash hashPath(const canon_path_t& path, path_filter_t& filter = defaultPathFilter,
+  Hash hash_path(const canon_path_t& path, path_filter_t& filter = default_path_filter,
                 hash_algorithm_t ha = hash_algorithm_t::SHA256);
 
   /**
@@ -145,7 +145,7 @@ struct SourceAccessor : std::enable_shared_from_this<SourceAccessor> {
    * possible. This is only possible for filesystems that are
    * materialized in the root filesystem.
    */
-  virtual std::optional<std::filesystem::path> getPhysicalPath(const canon_path_t& path) {
+  virtual std::optional<std::filesystem::path> get_physical_path(const canon_path_t& path) {
     return std::nullopt;
   }
 
@@ -153,9 +153,9 @@ struct SourceAccessor : std::enable_shared_from_this<SourceAccessor> {
 
   auto operator<=>(const SourceAccessor& x) const { return number <=> x.number; }
 
-  void setPathDisplay(std::string displayPrefix, std::string displaySuffix = "");
+  void set_path_display(std::string display_prefix, std::string display_suffix = "");
 
-  virtual std::string showPath(const canon_path_t& path);
+  virtual std::string show_path(const canon_path_t& path);
 
   /**
    * Resolve any symlinks in `path` according to the given
@@ -164,12 +164,12 @@ struct SourceAccessor : std::enable_shared_from_this<SourceAccessor> {
    * @param mode might only be a temporary solution for this.
    * See the discussion in https://github.com/NixOS/nix/pull/9985.
    */
-  canon_path_t resolveSymlinks(const canon_path_t& path,
-                            symlink_resolution_t mode = symlink_resolution_t::Full);
+  canon_path_t resolve_symlinks(const canon_path_t& path,
+                            symlink_resolution_t mode = symlink_resolution_t::full);
 
   /**
    * A string that uniquely represents the contents of this
-   * accessor. This is used for caching lookups (see `fetchToStore()`).
+   * accessor. This is used for caching lookups (see `fetch_to_store()`).
    */
   std::optional<std::string> fingerprint;
 
@@ -186,10 +186,10 @@ struct SourceAccessor : std::enable_shared_from_this<SourceAccessor> {
    *
    * For example: in a `mounted_source_accessor_t` that has
    * `/nix/store/foo` mounted,
-   * `getFingerprint("/nix/store/foo/bar")` will return the path
+   * `get_fingerprint("/nix/store/foo/bar")` will return the path
    * `/bar` and the fingerprint of the `/nix/store/foo` accessor.
    */
-  virtual std::pair<canon_path_t, std::optional<std::string>> getFingerprint(const canon_path_t& path) {
+  virtual std::pair<canon_path_t, std::optional<std::string>> get_fingerprint(const canon_path_t& path) {
     return {path, fingerprint};
   }
 
@@ -197,29 +197,29 @@ struct SourceAccessor : std::enable_shared_from_this<SourceAccessor> {
    * Return the maximum last-modified time of the files in this
    * tree, if available.
    */
-  virtual std::optional<time_t> getLastModified() { return std::nullopt; }
+  virtual std::optional<time_t> get_last_modified() { return std::nullopt; }
 
   /**
    * Invalidate any cached value the accessor may have for the specified path.
    */
-  virtual void invalidateCache(const canon_path_t& path) {}
+  virtual void invalidate_cache(const canon_path_t& path) {}
 };
 
 /**
  * Return a source accessor that contains only an empty root directory.
  */
-ref<SourceAccessor> makeEmptySourceAccessor();
+ref<SourceAccessor> make_empty_source_accessor();
 
 /**
  * Exception thrown when accessing a filtered path (see
  * `FilteringSourceAccessor`).
  */
-MakeError(RestrictedPathError, Error);
+make_error(RestrictedPathError, Error);
 
 /**
  * Return an accessor for the root filesystem.
  */
-ref<SourceAccessor> getFSSourceAccessor();
+ref<SourceAccessor> get_fs_source_accessor();
 
 /**
  * Construct an accessor for the filesystem rooted at `root`. Note
@@ -227,12 +227,12 @@ ref<SourceAccessor> getFSSourceAccessor();
  * elements, and that absolute symlinks are resolved relative to
  * `root`.
  */
-ref<SourceAccessor> makeFSSourceAccessor(std::filesystem::path root);
+ref<SourceAccessor> make_fs_source_accessor(std::filesystem::path root);
 
 /**
  * Construct an accessor that presents a "union" view of a vector of
  * underlying accessors. Earlier accessors take precedence over later.
  */
-ref<SourceAccessor> makeUnionSourceAccessor(std::vector<ref<SourceAccessor>>&& accessors);
+ref<SourceAccessor> make_union_source_accessor(std::vector<ref<SourceAccessor>>&& accessors);
 
 } // namespace nix

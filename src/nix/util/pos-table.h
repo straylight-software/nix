@@ -19,14 +19,14 @@ public:
   private:
     uint32_t offset;
 
-    origin_t(Pos::origin_t origin, uint32_t offset, size_t size)
+    origin_t(pos_t::origin_t origin, uint32_t offset, size_t size)
         : offset(offset), origin(origin), size(size) {}
 
   public:
-    const Pos::origin_t origin;
+    const pos_t::origin_t origin;
     const size_t size;
 
-    uint32_t offsetOf(pos_idx_t p) const { return p.id - 1 - offset; }
+    uint32_t offset_of(pos_idx_t p) const { return p.id - 1 - offset; }
   };
 
 private:
@@ -37,11 +37,11 @@ private:
    */
   using lines_t = std::vector<uint32_t>;
   /**
-   * Cache from byte offset in the virtual buffer of Origins -> @ref lines_t in that origin.
+   * cache_t from byte offset in the virtual buffer of Origins -> @ref lines_t in that origin.
    */
   using lines_cache_t = lru_cache_t<uint32_t, lines_t>;
 
-  mutable sync_t<lines_cache_t> linesCache;
+  mutable sync_t<lines_cache_t> lines_cache;
 
   // FIXME: this could be made lock-free (at least for access) if we
   // have a data structure where pointers to existing positions are
@@ -56,19 +56,19 @@ private:
     if (p.id == 0)
       return nullptr;
 
-    auto state(state_.readLock());
+    auto state(state_.read_lock());
     const auto idx = p.id - 1;
     /* We want the last key <= idx, so we'll take prev(first key >
        idx). This is guaranteed to never rewind origin.begin
        because the first key is always 0. */
-    const auto pastOrigin = state->origins.upper_bound(idx);
-    return &std::prev(pastOrigin)->second;
+    const auto past_origin = state->origins.upper_bound(idx);
+    return &std::prev(past_origin)->second;
   }
 
 public:
-  pos_table_t(std::size_t linesCacheCapacity = 65536) : linesCache(linesCacheCapacity) {}
+  pos_table_t(std::size_t linesCacheCapacity = 65536) : lines_cache(linesCacheCapacity) {}
 
-  origin_t addOrigin(Pos::origin_t origin, size_t size) {
+  origin_t add_origin(pos_t::origin_t origin, size_t size) {
     auto state(state_.lock());
     uint32_t offset = 0;
     if (auto it = state->origins.rbegin(); it != state->origins.rend())
@@ -88,19 +88,19 @@ public:
   }
 
   /**
-   * Convert a byte-offset pos_idx_t into a Pos with line/column information.
+   * Convert a byte-offset pos_idx_t into a pos_t with line/column information.
    *
    * @param p Byte offset into the virtual concatenation of all parsed contents
    * @return Position
    *
    * @warning Very expensive to call, as this has to read the entire source
    * into memory each time. Call this only if absolutely necessary. Prefer
-   * to keep pos_idx_t around instead of needlessly converting it into Pos by
+   * to keep pos_idx_t around instead of needlessly converting it into pos_t by
    * using this lookup method.
    */
-  Pos operator[](pos_idx_t p) const;
+  pos_t operator[](pos_idx_t p) const;
 
-  Pos::origin_t originOf(pos_idx_t p) const {
+  pos_t::origin_t origin_of(pos_idx_t p) const {
     if (auto o = resolve(p))
       return o->origin;
     return std::monostate{};
@@ -110,7 +110,7 @@ public:
    * Remove all origins from the table.
    */
   void clear() {
-    auto lines = linesCache.lock();
+    auto lines = lines_cache.lock();
     lines->clear();
     state_.lock()->origins.clear();
   }

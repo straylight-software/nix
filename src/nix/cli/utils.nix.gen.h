@@ -10,7 +10,7 @@ in
 rec {
   splitLines = s: filter (x: !isList x) (split "\n" s);
 
-  concatStrings = concatStringsSep "";
+  concat_strings = concat_strings_sep "";
 
   attrsToList =
     a:
@@ -26,11 +26,11 @@ rec {
     #     replaceStringRec "--" "-" "hello-----world"
     #     => "hello-world"
     let
-      replaced = replaceStrings [ from ] [ to ] string;
+      replaced = replace_strings [ from ] [ to ] string;
     in
     if replaced == string then string else replaceStringsRec from to replaced;
 
-  toLower = replaceStrings upperChars lowerChars;
+  to_lower = replace_strings upperChars lowerChars;
 
   squash = replaceStringsRec "\n\n\n" "\n\n";
 
@@ -50,7 +50,7 @@ rec {
         in
         spaces + replaceStringsRec "  " " " body;
     in
-    concatStringsSep "\n" (map trimLine (splitLines string));
+    concat_strings_sep "\n" (map trimLine (splitLines string));
 
   # FIXME: O(n^2)
   unique = foldl' (acc: e: if elem e acc then acc else acc ++ [ e ]) [ ];
@@ -72,6 +72,6 @@ rec {
   optionalString = cond: string: if cond then string else "";
 
   indent =
-    prefix: s: concatStringsSep "\n" (map (x: if x == "" then x else "${prefix}${x}") (splitLines s));
+    prefix: s: concat_strings_sep "\n" (map (x: if x == "" then x else "${prefix}${x}") (splitLines s));
 }
 )__NIX_STR"

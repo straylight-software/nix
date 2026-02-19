@@ -20,7 +20,7 @@ R"__NIX_STR(
     * When `nix-build` or a similar command is run, it realises the outputs that were requested on its command line.
       See https://nix.dev/manual/nix/2.23/command-ref/nix-build
 
-    * When `import`, `readFile`, `readDir` or some other functions are called, they have to realise the outputs they depend on.
+    * When `import`, `read_file`, `readDir` or some other functions are called, they have to realise the outputs they depend on.
       This is referred to as "import from derivation".
       See https://nix.dev/manual/nix/2.23/language/import-from-derivation
 
@@ -44,13 +44,13 @@ let
       inherit drvAttrs;
     };
 
-  outputToAttrListElement = outputName: {
-    name = outputName;
+  outputToAttrListElement = output_name: {
+    name = output_name;
     value = commonAttrs // {
-      outPath = builtins.getAttr outputName strict;
-      drvPath = strict.drvPath;
+      out_path = builtins.get_attr output_name strict;
+      drv_path = strict.drv_path;
       type = "derivation";
-      inherit outputName;
+      inherit output_name;
     };
   };
 

@@ -18,8 +18,8 @@ struct ExtraPathInfoFlake : ExtraPathInfoValue {
    * Extra struct to get around C++ designated initializer limitations
    */
   struct Flake {
-    FlakeRef originalRef;
-    FlakeRef lockedRef;
+    FlakeRef original_ref;
+    FlakeRef locked_ref;
   };
 
   Flake flake;
@@ -29,22 +29,22 @@ struct ExtraPathInfoFlake : ExtraPathInfoValue {
 };
 
 struct InstallableFlake : InstallableValue {
-  FlakeRef flakeRef;
+  FlakeRef flake_ref;
   strings_t attrPaths;
   strings_t prefixes;
   ExtendedOutputsSpec extendedOutputsSpec;
-  const flake::LockFlags& lockFlags;
+  const flake::LockFlags& lock_flags;
   mutable std::shared_ptr<flake::LockedFlake> _lockedFlake;
 
-  InstallableFlake(SourceExprCommand* cmd, ref<EvalState> state, FlakeRef&& flakeRef,
+  InstallableFlake(SourceExprCommand* cmd, ref<EvalState> state, FlakeRef&& flake_ref,
                    std::string_view fragment, ExtendedOutputsSpec extendedOutputsSpec,
-                   strings_t attrPaths, strings_t prefixes, const flake::LockFlags& lockFlags);
+                   strings_t attrPaths, strings_t prefixes, const flake::LockFlags& lock_flags);
 
-  std::string what() const override { return flakeRef.to_string() + "#" + *attrPaths.begin(); }
+  std::string what() const override { return flake_ref.to_string() + "#" + *attrPaths.begin(); }
 
   std::vector<std::string> getActualAttrPaths();
 
-  DerivedPathsWithInfo toDerivedPaths() override;
+  DerivedPathsWithInfo to_derived_paths() override;
 
   std::pair<Value*, pos_idx_t> toValue(EvalState& state) override;
 
@@ -68,7 +68,7 @@ struct InstallableFlake : InstallableValue {
  * `InstallableFlake::nixpkgsFlakeRef` more places.
  */
 static inline FlakeRef defaultNixpkgsFlakeRef() {
-  return FlakeRef::fromAttrs(fetchSettings, {{"type", "indirect"}, {"id", "nixpkgs"}});
+  return FlakeRef::fromAttrs(fetch_settings, {{"type", "indirect"}, {"id", "nixpkgs"}});
 }
 
 } // namespace nix

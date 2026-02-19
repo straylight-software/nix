@@ -7,19 +7,19 @@ namespace nix {
 
 DerivationTrampolineGoal::DerivationTrampolineGoal(ref<const SingleDerivedPath> drvReq,
                                                    const OutputsSpec& wantedOutputs, Worker& worker,
-                                                   BuildMode buildMode)
-    : Goal(worker, init()), drvReq(drvReq), wantedOutputs(wantedOutputs), buildMode(buildMode) {
+                                                   BuildMode build_mode)
+    : Goal(worker, init()), drvReq(drvReq), wantedOutputs(wantedOutputs), build_mode(build_mode) {
   commonInit();
 }
 
-DerivationTrampolineGoal::DerivationTrampolineGoal(const StorePath& drvPath,
+DerivationTrampolineGoal::DerivationTrampolineGoal(const StorePath& drv_path,
                                                    const OutputsSpec& wantedOutputs,
                                                    const Derivation& drv, Worker& worker,
-                                                   BuildMode buildMode)
-    : Goal(worker, haveDerivation(drvPath, drv)),
-      drvReq(makeConstantStorePathRef(drvPath)),
+                                                   BuildMode build_mode)
+    : Goal(worker, haveDerivation(drv_path, drv)),
+      drvReq(makeConstantStorePathRef(drv_path)),
       wantedOutputs(wantedOutputs),
-      buildMode(buildMode) {
+      build_mode(build_mode) {
   commonInit();
 }
 
@@ -30,7 +30,7 @@ void DerivationTrampolineGoal::commonInit() {
           std::visit(overloaded{
                          [&](const OutputsSpec::All) -> std::string { return "* (all of them)"; },
                          [&](const OutputsSpec::Names os) {
-                           return concatStringsSep(", ", quoteStrings(os));
+                           return concat_strings_sep(", ", quote_strings(os));
                          },
                      },
                      wantedOutputs.raw));
@@ -41,19 +41,19 @@ void DerivationTrampolineGoal::commonInit() {
 
 DerivationTrampolineGoal::~DerivationTrampolineGoal() {}
 
-static StorePath pathPartOfReq(const SingleDerivedPath& req) {
+static StorePath path_part_of_req(const SingleDerivedPath& req) {
   return std::visit(
       overloaded{
           [&](const SingleDerivedPath::opaque_t& bo) { return bo.path; },
-          [&](const SingleDerivedPath::Built& bfd) { return pathPartOfReq(*bfd.drvPath); },
+          [&](const SingleDerivedPath::Built& bfd) { return path_part_of_req(*bfd.drv_path); },
       },
       req.raw());
 }
 
 std::string DerivationTrampolineGoal::key() {
-  return "da$" + std::string(pathPartOfReq(*drvReq).name()) + "$" +
+  return "da$" + std::string(path_part_of_req(*drvReq).name()) + "$" +
          DerivedPath::Built{
-             .drvPath = drvReq,
+             .drv_path = drvReq,
              .outputs = wantedOutputs,
          }
              .to_string(worker.store);
@@ -67,17 +67,17 @@ Goal::Co DerivationTrampolineGoal::init() {
      or merely substituted. We can make goal to get it and not worry
      about which method it takes to get the derivation. */
   if (auto optDrvPath = [this]() -> std::optional<StorePath> {
-        if (buildMode != bmNormal)
+        if (build_mode != bmNormal)
           return std::nullopt;
 
-        auto drvPath = StorePath::dummy;
+        auto drv_path = StorePath::dummy;
         try {
-          drvPath = resolveDerivedPath(worker.store, *drvReq);
+          drv_path = resolve_derived_path(worker.store, *drvReq);
         } catch (MissingRealisation&) {
           return std::nullopt;
         }
-        auto cond = worker.evalStore.isValidPath(drvPath) || worker.store.isValidPath(drvPath);
-        return cond ? std::optional{drvPath} : std::nullopt;
+        auto cond = worker.eval_store.isValidPath(drv_path) || worker.store.isValidPath(drv_path);
+        return cond ? std::optional{drv_path} : std::nullopt;
       }()) {
     trace(fmt("already have drv '%s' for '%s', can go straight to building",
               worker.store.printStorePath(*optDrvPath), drvReq->to_string(worker.store)));
@@ -94,12 +94,12 @@ Goal::Co DerivationTrampolineGoal::init() {
         ecFailed, Error("cannot build missing derivation '%s'", drvReq->to_string(worker.store)));
   }
 
-  StorePath drvPath = resolveDerivedPath(worker.store, *drvReq);
+  StorePath drv_path = resolve_derived_path(worker.store, *drvReq);
 
-  /* `drvPath' should already be a root, but let's be on the safe
+  /* `drv_path' should already be a root, but let's be on the safe
      side: if the user forgot to make it a root, we wouldn't want
      things being garbage collected while we're busy. */
-  worker.evalStore.addTempRoot(drvPath);
+  worker.eval_store.addTempRoot(drv_path);
 
   /* Get the derivation. It is probably in the eval store, but it might be in the main store:
 
@@ -109,16 +109,16 @@ Goal::Co DerivationTrampolineGoal::init() {
        - Dynamic derivations are built, and so are found in the main store.
    */
   auto drv = [&] {
-    for (auto* drvStore : {&worker.evalStore, &worker.store})
-      if (drvStore->isValidPath(drvPath))
-        return drvStore->readDerivation(drvPath);
+    for (auto* drvStore : {&worker.eval_store, &worker.store})
+      if (drvStore->isValidPath(drv_path))
+        return drvStore->read_derivation(drv_path);
     assert(false);
   }();
 
-  co_return haveDerivation(std::move(drvPath), std::move(drv));
+  co_return haveDerivation(std::move(drv_path), std::move(drv));
 }
 
-Goal::Co DerivationTrampolineGoal::haveDerivation(StorePath drvPath, Derivation drv) {
+Goal::Co DerivationTrampolineGoal::haveDerivation(StorePath drv_path, Derivation drv) {
   trace("have derivation, will kick off derivations goals per wanted output");
 
   auto resolvedWantedOutputs =
@@ -126,8 +126,8 @@ Goal::Co DerivationTrampolineGoal::haveDerivation(StorePath drvPath, Derivation 
                      [&](const OutputsSpec::Names& names) -> OutputsSpec::Names { return names; },
                      [&](const OutputsSpec::All&) -> OutputsSpec::Names {
                        string_set_t outputs;
-                       for (auto& [outputName, _] : drv.outputs)
-                         outputs.insert(outputName);
+                       for (auto& [output_name, _] : drv.outputs)
+                         outputs.insert(output_name);
                        return outputs;
                      },
                  },
@@ -138,7 +138,7 @@ Goal::Co DerivationTrampolineGoal::haveDerivation(StorePath drvPath, Derivation 
   /* Build this step! */
 
   for (auto& output : resolvedWantedOutputs) {
-    auto g = upcast_goal(worker.makeDerivationGoal(drvPath, drv, output, buildMode, false));
+    auto g = upcast_goal(worker.makeDerivationGoal(drv_path, drv, output, build_mode, false));
     g->preserveException = true;
     /* We will finish with it ourselves, as if we were the derivational goal. */
     concreteDrvGoals.insert(std::move(g));
@@ -154,10 +154,10 @@ Goal::Co DerivationTrampolineGoal::haveDerivation(StorePath drvPath, Derivation 
   if (auto* successP = buildResult.tryGetSuccess())
     for (auto& g2 : concreteDrvGoals)
       if (auto* successP2 = g2->buildResult.tryGetSuccess())
-        for (auto&& [x, y] : successP2->builtOutputs)
-          successP->builtOutputs.insert_or_assign(x, y);
+        for (auto&& [x, y] : successP2->built_outputs)
+          successP->built_outputs.insert_or_assign(x, y);
 
-  co_return amDone(g->exitCode, g->ex);
+  co_return amDone(g->exit_code, g->ex);
 }
 
 } // namespace nix

@@ -10,7 +10,7 @@ namespace nix {
 class EvalState;
 struct PrimOp;
 
-struct EvalSettings : Config {
+struct EvalSettings : config_t {
   /**
    * Function used to interpret look path entries of a given scheme.
    *
@@ -144,7 +144,7 @@ struct EvalSettings : Config {
             - [`builtins.currentSystem`](@docroot@/language/builtins.md#builtins-currentSystem)
             - [`builtins.currentTime`](@docroot@/language/builtins.md#builtins-currentTime)
             - [`builtins.nixPath`](@docroot@/language/builtins.md#builtins-nixPath)
-            - [`builtins.storePath`](@docroot@/language/builtins.md#builtins-storePath)
+            - [`builtins.store_path`](@docroot@/language/builtins.md#builtins-store_path)
         )"};
 
   setting_t<bool> traceImportFromDerivation{this, false, "trace-import-from-derivation",
@@ -165,7 +165,7 @@ struct EvalSettings : Config {
           regardless of the state of the store.
         )"};
 
-  setting_t<strings_t> allowedUris{this,
+  setting_t<strings_t> allowed_uris{this,
                                {},
                                "allowed-uris",
                                R"(
@@ -193,7 +193,7 @@ struct EvalSettings : Config {
 
           The `undefined position` means the function call is a builtin.
 
-          Use the `contrib/stack-collapse.py` script distributed with the Nix
+          use the `contrib/stack-collapse.py` script distributed with the Nix
           source code to convert the trace logs in to a format suitable for
           `flamegraph.pl`.
         )"};
@@ -204,7 +204,7 @@ struct EvalSettings : Config {
 
           * `flamegraph` stack sampling profiler. Outputs folded format, one line per stack (suitable for `flamegraph.pl` and compatible tools).
 
-          Use [`eval-profile-file`](#conf-eval-profile-file) to specify where the profile is saved.
+          use [`eval-profile-file`](#conf-eval-profile-file) to specify where the profile is saved.
 
           See [Using the `eval-profiler`](@docroot@/advanced-topics/eval-profiler.md).
         )"};
@@ -217,7 +217,7 @@ struct EvalSettings : Config {
   setting_t<uint32_t> evalProfilerFrequency{this, 99, "eval-profiler-frequency",
                                           R"(
           Specifies the sampling rate in hertz for sampling evaluation profilers.
-          Use `0` to sample the stack after each function call.
+          use `0` to sample the stack after each function call.
           See [`eval-profiler`](#conf-eval-profiler).
         )"};
 
@@ -263,7 +263,7 @@ struct EvalSettings : Config {
 
           This is useful for debugging warnings in third-party Nix code.
 
-          Use [`debugger-on-trace`](#conf-debugger-on-trace) to also enter the debugger on legacy warnings that are logged with [`builtins.trace`](@docroot@/language/builtins.md#builtins-trace).
+          use [`debugger-on-trace`](#conf-debugger-on-trace) to also enter the debugger on legacy warnings that are logged with [`builtins.trace`](@docroot@/language/builtins.md#builtins-trace).
         )"};
 
   setting_t<bool> builtinsAbortOnWarn{this, false, "abort-on-warn",
@@ -310,14 +310,14 @@ struct EvalSettings : Config {
 
   setting_t<bool> lazyTrees{this, false, "lazy-trees",
                           R"(
-          If set to true, flakes and trees fetched by [`builtins.fetchTree`](@docroot@/language/builtins.md#builtins-fetchTree) are only copied to the Nix store when they're used as a dependency of a derivation. This avoids copying (potentially large) source trees unnecessarily.
+          If set to true, flakes and trees fetched by [`builtins.fetch_tree`](@docroot@/language/builtins.md#builtins-fetch_tree) are only copied to the Nix store when they're used as a dependency of a derivation. This avoids copying (potentially large) source trees unnecessarily.
         )"};
 
   // FIXME: this setting should really be in libflake, but it's
   // currently needed in mountInput().
   setting_t<bool> lazyLocks{this, false, "lazy-locks",
                           R"(
-          If enabled, Nix only includes NAR hashes in lock file entries if they're necessary to lock the input (i.e. when there is no other attribute that allows the content to be verified, like a Git revision).
+          If enabled, Nix only includes NAR hashes in lock file entries if they're necessary to lock the input (i.e. when there is no other attribute that allows the content to be verified, like a git revision).
           This is not backward compatible with older versions of Nix.
           If disabled, lock file entries always contain a NAR hash.
         )"};
@@ -341,7 +341,7 @@ struct EvalSettings : Config {
 /**
  * Conventionally part of the default nix path in impure mode.
  */
-std::filesystem::path getNixDefExpr();
+std::filesystem::path get_nix_def_expr();
 
 /**
  * Stack size for evaluator threads. This used to be 64 MiB, but macOS as deployed on GitHub Actions

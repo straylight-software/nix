@@ -27,7 +27,7 @@ static constexpr std::array<std::pair<BuildResult::Success::Status, std::string_
 #undef ENUM_ENTRY
     }};
 
-std::string_view BuildResult::Success::statusToString(BuildResult::Success::Status status) {
+std::string_view BuildResult::Success::status_to_string(BuildResult::Success::Status status) {
   for (const auto& [enumVal, str] : successStatusStrings) {
     if (enumVal == status)
       return str;
@@ -62,7 +62,7 @@ static constexpr std::array<std::pair<BuildResult::Failure::Status, std::string_
 #undef ENUM_ENTRY
     }};
 
-std::string_view BuildResult::Failure::statusToString(BuildResult::Failure::Status status) {
+std::string_view BuildResult::Failure::status_to_string(BuildResult::Failure::Status status) {
   for (const auto& [enumVal, str] : failureStatusStrings) {
     if (enumVal == status)
       return str;
@@ -89,26 +89,26 @@ void adl_serializer<BuildResult>::to_json(json& res, const BuildResult& br) {
 
   // Common fields
   res["timesBuilt"] = br.timesBuilt;
-  res["startTime"] = br.startTime;
+  res["startTime"] = br.start_time;
   res["stopTime"] = br.stopTime;
 
-  if (br.cpuUser.has_value()) {
-    res["cpuUser"] = br.cpuUser->count();
+  if (br.cpu_user.has_value()) {
+    res["cpuUser"] = br.cpu_user->count();
   }
-  if (br.cpuSystem.has_value()) {
-    res["cpuSystem"] = br.cpuSystem->count();
+  if (br.cpu_system.has_value()) {
+    res["cpuSystem"] = br.cpu_system->count();
   }
 
   // Handle success or failure variant
   std::visit(overloaded{
                  [&](const BuildResult::Success& success) {
                    res["success"] = true;
-                   res["status"] = BuildResult::Success::statusToString(success.status);
-                   res["builtOutputs"] = success.builtOutputs;
+                   res["status"] = BuildResult::Success::status_to_string(success.status);
+                   res["builtOutputs"] = success.built_outputs;
                  },
                  [&](const BuildResult::Failure& failure) {
                    res["success"] = false;
-                   res["status"] = BuildResult::Failure::statusToString(failure.status);
+                   res["status"] = BuildResult::Failure::status_to_string(failure.status);
                    res["errorMsg"] = failure.errorMsg;
                    res["isNonDeterministic"] = failure.isNonDeterministic;
                  },
@@ -117,36 +117,36 @@ void adl_serializer<BuildResult>::to_json(json& res, const BuildResult& br) {
 }
 
 BuildResult adl_serializer<BuildResult>::from_json(const json& _json) {
-  auto& json = getObject(_json);
+  auto& json = get_object(_json);
 
   BuildResult br;
 
   // Common fields
-  br.timesBuilt = getUnsigned(valueAt(json, "timesBuilt"));
-  br.startTime = getUnsigned(valueAt(json, "startTime"));
-  br.stopTime = getUnsigned(valueAt(json, "stopTime"));
+  br.timesBuilt = get_unsigned(value_at(json, "timesBuilt"));
+  br.start_time = get_unsigned(value_at(json, "startTime"));
+  br.stopTime = get_unsigned(value_at(json, "stopTime"));
 
-  if (auto cpuUser = optionalValueAt(json, "cpuUser")) {
-    br.cpuUser = std::chrono::microseconds(getUnsigned(*cpuUser));
+  if (auto cpu_user = optional_value_at(json, "cpuUser")) {
+    br.cpu_user = std::chrono::microseconds(get_unsigned(*cpu_user));
   }
-  if (auto cpuSystem = optionalValueAt(json, "cpuSystem")) {
-    br.cpuSystem = std::chrono::microseconds(getUnsigned(*cpuSystem));
+  if (auto cpu_system = optional_value_at(json, "cpuSystem")) {
+    br.cpu_system = std::chrono::microseconds(get_unsigned(*cpu_system));
   }
 
   // Determine success or failure based on success field
-  bool success = getBoolean(valueAt(json, "success"));
-  std::string statusStr = getString(valueAt(json, "status"));
+  bool success = get_boolean(value_at(json, "success"));
+  std::string statusStr = get_string(value_at(json, "status"));
 
   if (success) {
     BuildResult::Success s;
     s.status = successStatusFromString(statusStr);
-    s.builtOutputs = valueAt(json, "builtOutputs");
+    s.built_outputs = value_at(json, "builtOutputs");
     br.inner = std::move(s);
   } else {
     BuildResult::Failure f;
     f.status = failureStatusFromString(statusStr);
-    f.errorMsg = getString(valueAt(json, "errorMsg"));
-    f.isNonDeterministic = getBoolean(valueAt(json, "isNonDeterministic"));
+    f.errorMsg = get_string(value_at(json, "errorMsg"));
+    f.isNonDeterministic = get_boolean(value_at(json, "isNonDeterministic"));
     br.inner = std::move(f);
   }
 
@@ -154,11 +154,11 @@ BuildResult adl_serializer<BuildResult>::from_json(const json& _json) {
 }
 
 KeyedBuildResult adl_serializer<KeyedBuildResult>::from_json(const json& json0) {
-  auto json = getObject(json0);
+  auto json = get_object(json0);
 
   return KeyedBuildResult{
       adl_serializer<BuildResult>::from_json(json0),
-      valueAt(json, "path"),
+      value_at(json, "path"),
   };
 }
 

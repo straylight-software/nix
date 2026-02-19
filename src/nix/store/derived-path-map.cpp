@@ -14,7 +14,7 @@ typename DerivedPathMap<V>::ChildNode& DerivedPathMap<V>::ensureSlot(const Singl
                             return map[bo.path];
                           },
                           [&](const SingleDerivedPath::Built& bfd) -> auto& {
-                            auto& n = initIter(*bfd.drvPath);
+                            auto& n = initIter(*bfd.drv_path);
                             return n.childMap[bfd.output];
                           },
                       },
@@ -33,7 +33,7 @@ typename DerivedPathMap<V>::ChildNode* DerivedPathMap<V>::findSlot(const SingleD
                             return it != map.end() ? &it->second : nullptr;
                           },
                           [&](const SingleDerivedPath::Built& bfd) {
-                            auto* n = initIter(*bfd.drvPath);
+                            auto* n = initIter(*bfd.drv_path);
                             if (!n)
                               return (ChildNode*)nullptr;
 

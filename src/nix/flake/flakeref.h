@@ -22,7 +22,7 @@ typedef std::string FlakeId;
 
 /**
  * A flake reference specifies how to fetch a flake or raw source
- * (e.g. from a Git repository).  It is created from a URL-like syntax
+ * (e.g. from a git repository).  It is created from a URL-like syntax
  * (e.g. 'github:NixOS/patchelf'), an attrset representation (e.g. '{
  * type="github"; owner = "NixOS"; repo = "patchelf"; }'), or a local
  * path.
@@ -34,7 +34,7 @@ typedef std::string FlakeId;
  * input description (usually the attrs or a url from the flake file),
  * locating a fetcher for that input, and then capturing the Input
  * object that fetcher generates (usually via
- * FlakeRef::fromAttrs(attrs) or parseFlakeRef(url) calls).
+ * FlakeRef::fromAttrs(attrs) or parse_flake_ref(url) calls).
  *
  * The actual fetch may not have been performed yet (i.e. a FlakeRef may
  * be lazy), but the fetcher can be invoked at any time via the
@@ -64,12 +64,12 @@ struct FlakeRef {
 
   fetchers::Attrs toAttrs() const;
 
-  FlakeRef resolve(const fetchers::settings_t& fetchSettings, Store& store,
-                   fetchers::UseRegistries useRegistries = fetchers::UseRegistries::All) const;
+  FlakeRef resolve(const fetchers::settings_t& fetch_settings, Store& store,
+                   fetchers::UseRegistries use_registries = fetchers::UseRegistries::All) const;
 
-  static FlakeRef fromAttrs(const fetchers::settings_t& fetchSettings, const fetchers::Attrs& attrs);
+  static FlakeRef fromAttrs(const fetchers::settings_t& fetch_settings, const fetchers::Attrs& attrs);
 
-  std::pair<ref<SourceAccessor>, FlakeRef> lazyFetch(const fetchers::settings_t& fetchSettings,
+  std::pair<ref<SourceAccessor>, FlakeRef> lazyFetch(const fetchers::settings_t& fetch_settings,
                                                      Store& store) const;
 
   /**
@@ -79,38 +79,38 @@ struct FlakeRef {
   FlakeRef canonicalize() const;
 };
 
-std::ostream& operator<<(std::ostream& str, const FlakeRef& flakeRef);
+std::ostream& operator<<(std::ostream& str, const FlakeRef& flake_ref);
 
 /**
- * @param baseDir Optional [base
+ * @param base_dir Optional [base
  * directory](https://nix.dev/manual/nix/development/glossary.html#gloss-base-directory)
  */
-FlakeRef parseFlakeRef(const fetchers::settings_t& fetchSettings, const std::string& url,
-                       const std::optional<std::filesystem::path>& baseDir = {},
-                       bool allowMissing = false, bool isFlake = true,
-                       bool preserveRelativePaths = false);
+FlakeRef parse_flake_ref(const fetchers::settings_t& fetch_settings, const std::string& url,
+                       const std::optional<std::filesystem::path>& base_dir = {},
+                       bool allow_missing = false, bool is_flake = true,
+                       bool preserve_relative_paths = false);
 
 /**
- * @param baseDir Optional [base
+ * @param base_dir Optional [base
  * directory](https://nix.dev/manual/nix/development/glossary.html#gloss-base-directory)
  */
 std::pair<FlakeRef, std::string>
-parseFlakeRefWithFragment(const fetchers::settings_t& fetchSettings, const std::string& url,
-                          const std::optional<std::filesystem::path>& baseDir = {},
-                          bool allowMissing = false, bool isFlake = true,
-                          bool preserveRelativePaths = false);
+parse_flake_ref_with_fragment(const fetchers::settings_t& fetch_settings, const std::string& url,
+                          const std::optional<std::filesystem::path>& base_dir = {},
+                          bool allow_missing = false, bool is_flake = true,
+                          bool preserve_relative_paths = false);
 
 /**
- * @param baseDir Optional [base
+ * @param base_dir Optional [base
  * directory](https://nix.dev/manual/nix/development/glossary.html#gloss-base-directory)
  */
 std::tuple<FlakeRef, std::string, ExtendedOutputsSpec>
-parseFlakeRefWithFragmentAndExtendedOutputsSpec(
-    const fetchers::settings_t& fetchSettings, const std::string& url,
-    const std::optional<std::filesystem::path>& baseDir = {}, bool allowMissing = false,
-    bool isFlake = true);
+parse_flake_ref_with_fragment_and_extended_outputs_spec(
+    const fetchers::settings_t& fetch_settings, const std::string& url,
+    const std::optional<std::filesystem::path>& base_dir = {}, bool allow_missing = false,
+    bool is_flake = true);
 
 const static std::string flakeIdRegexS = "[a-zA-Z][a-zA-Z0-9_-]*";
-extern std::regex flakeIdRegex;
+extern std::regex flake_id_regex;
 
 } // namespace nix

@@ -45,6 +45,6 @@ struct InitialOutput {
 /**
  * Format the known outputs of a derivation for use in error messages.
  */
-std::string showKnownOutputs(const StoreDirConfig& store, const Derivation& drv);
+std::string show_known_outputs(const StoreDirConfig& store, const Derivation& drv);
 
 } // namespace nix

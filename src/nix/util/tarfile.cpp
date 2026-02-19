@@ -33,18 +33,18 @@ int callback_close(struct archive*, void* self) {
   return ARCHIVE_OK;
 }
 
-void checkLibArchive(archive* archive, int err, const std::string& reason) {
+void check_lib_archive(archive* archive, int err, const std::string& reason) {
   if (err == ARCHIVE_EOF)
     throw EndOfFile("reached end of archive");
   else if (err != ARCHIVE_OK)
     throw Error(reason, archive_error_string(archive));
 }
 
-constexpr auto defaultBufferSize = std::size_t{65536};
+constexpr auto default_buffer_size = std::size_t{65536};
 } // namespace
 
 void tar_archive_t::check(int err, const std::string& reason) {
-  checkLibArchive(archive, err, reason);
+  check_lib_archive(archive, err, reason);
 }
 
 /// @brief Get filter_code from its name.
@@ -53,36 +53,36 @@ void tar_archive_t::check(int err, const std::string& reason) {
 /// reading. Instead it's necessary to use this kludge to convert method -> code and then use
 /// archive_read_support_filter_by_code. Arguably this is better than hand-rolling the equivalent
 /// function that is better implemented in libarchive.
-int getArchiveFilterCodeByName(const std::string& method) {
+int get_archive_filter_code_by_name(const std::string& method) {
   auto* ar = archive_write_new();
   auto cleanup = finally_t{
-      [&ar]() { checkLibArchive(ar, archive_write_close(ar), "failed to close archive: %s"); }};
+      [&ar]() { check_lib_archive(ar, archive_write_close(ar), "failed to close archive: %s"); }};
   auto err = archive_write_add_filter_by_name(ar, method.c_str());
-  checkLibArchive(ar, err, "failed to get libarchive filter by name: %s");
+  check_lib_archive(ar, err, "failed to get libarchive filter by name: %s");
   auto code = archive_filter_code(ar, 0);
   return code;
 }
 
-static void enableSupportedFormats(struct archive* archive) {
+static void enable_supported_formats(struct archive* archive) {
   archive_read_support_format_tar(archive);
   archive_read_support_format_zip(archive);
 
   /* Enable support for empty files so we don't throw an exception
      for empty HTTP 304 "Not modified" responses. See
-     downloadTarball(). */
+     download_tarball(). */
   archive_read_support_format_empty(archive);
 }
 
 tar_archive_t::tar_archive_t(Source& source, bool raw, std::optional<std::string> compression_method)
-    : archive{archive_read_new()}, source{&source}, buffer(defaultBufferSize) {
+    : archive{archive_read_new()}, source{&source}, buffer(default_buffer_size) {
   if (!compression_method) {
     archive_read_support_filter_all(archive);
   } else {
-    archive_read_support_filter_by_code(archive, getArchiveFilterCodeByName(*compression_method));
+    archive_read_support_filter_by_code(archive, get_archive_filter_code_by_name(*compression_method));
   }
 
   if (!raw)
-    enableSupportedFormats(archive);
+    enable_supported_formats(archive);
   else {
     archive_read_support_format_raw(archive);
     archive_read_support_format_empty(archive);
@@ -94,9 +94,9 @@ tar_archive_t::tar_archive_t(Source& source, bool raw, std::optional<std::string
 }
 
 tar_archive_t::tar_archive_t(const std::filesystem::path& path)
-    : archive{archive_read_new()}, buffer(defaultBufferSize) {
+    : archive{archive_read_new()}, buffer(default_buffer_size) {
   archive_read_support_filter_all(archive);
-  enableSupportedFormats(archive);
+  enable_supported_formats(archive);
   archive_read_set_option(archive, NULL, "mac-ext", NULL);
   check(archive_read_open_filename(archive, path.string().c_str(), 16384),
         "failed to open archive: %s");
@@ -111,7 +111,7 @@ tar_archive_t::~tar_archive_t() {
     archive_read_free(this->archive);
 }
 
-static void extract_archive(tar_archive_t& archive, const std::filesystem::path& destDir) {
+static void extract_archive(tar_archive_t& archive, const std::filesystem::path& dest_dir) {
   int flags =
       ARCHIVE_EXTRACT_TIME | ARCHIVE_EXTRACT_SECURE_SYMLINKS | ARCHIVE_EXTRACT_SECURE_NODOTDOT;
 
@@ -128,7 +128,7 @@ static void extract_archive(tar_archive_t& archive, const std::filesystem::path&
     else
       archive.check(r);
 
-    archive_entry_copy_pathname(entry, (destDir / name).string().c_str());
+    archive_entry_copy_pathname(entry, (dest_dir / name).string().c_str());
 
     // sources can and do contain dirs with no rx bits
     if (archive_entry_filetype(entry) == AE_IFDIR && (archive_entry_mode(entry) & 0500) != 0500)
@@ -137,7 +137,7 @@ static void extract_archive(tar_archive_t& archive, const std::filesystem::path&
     // Patch hardlink path
     const char* original_hardlink = archive_entry_hardlink(entry);
     if (original_hardlink) {
-      archive_entry_copy_hardlink(entry, (destDir / original_hardlink).string().c_str());
+      archive_entry_copy_hardlink(entry, (dest_dir / original_hardlink).string().c_str());
     }
 
     archive.check(archive_read_extract(archive.archive, entry, flags));
@@ -146,24 +146,24 @@ static void extract_archive(tar_archive_t& archive, const std::filesystem::path&
   archive.close();
 }
 
-void unpackTarfile(Source& source, const std::filesystem::path& destDir) {
+void unpack_tarfile(Source& source, const std::filesystem::path& dest_dir) {
   auto archive = tar_archive_t(source);
 
-  createDirs(destDir);
-  extract_archive(archive, destDir);
+  create_dirs(dest_dir);
+  extract_archive(archive, dest_dir);
 }
 
-void unpackTarfile(const std::filesystem::path& tarFile, const std::filesystem::path& destDir) {
-  auto archive = tar_archive_t(tarFile);
+void unpack_tarfile(const std::filesystem::path& tar_file, const std::filesystem::path& dest_dir) {
+  auto archive = tar_archive_t(tar_file);
 
-  createDirs(destDir);
-  extract_archive(archive, destDir);
+  create_dirs(dest_dir);
+  extract_archive(archive, dest_dir);
 }
 
-time_t unpackTarfileToSink(tar_archive_t& archive, extended_file_system_object_sink_t& parseSink) {
-  time_t lastModified = 0;
+time_t unpack_tarfile_to_sink(tar_archive_t& archive, extended_file_system_object_sink_t& parse_sink) {
+  time_t last_modified = 0;
 
-  /* Only allocate the buffer once. Use the heap because 131 KiB is a bit too
+  /* Only allocate the buffer once. use the heap because 131 KiB is a bit too
      much for the stack. */
   std::vector<unsigned char> buf(128 * 1024);
 
@@ -182,27 +182,27 @@ time_t unpackTarfileToSink(tar_archive_t& archive, extended_file_system_object_s
     else
       archive.check(r);
 
-    lastModified = std::max(lastModified, archive_entry_mtime(entry));
+    last_modified = std::max(last_modified, archive_entry_mtime(entry));
 
     if (auto target = archive_entry_hardlink(entry)) {
-      parseSink.createHardlink(cpath, canon_path_t(target));
+      parse_sink.create_hardlink(cpath, canon_path_t(target));
       continue;
     }
 
     switch (auto type = archive_entry_filetype(entry)) {
       case AE_IFDIR:
-        parseSink.createDirectory(cpath);
+        parse_sink.create_directory(cpath);
         break;
 
       case AE_IFREG: {
-        parseSink.createRegularFile(cpath, [&](auto& crf) {
+        parse_sink.create_regular_file(cpath, [&](auto& crf) {
           if (archive_entry_mode(entry) & S_IXUSR)
-            crf.isExecutable();
+            crf.is_executable();
 
           while (true) {
             auto n = archive_read_data(archive.archive, buf.data(), buf.size());
             if (n < 0)
-              checkLibArchive(archive.archive, n, "cannot read file from tarball: %s");
+              check_lib_archive(archive.archive, n, "cannot read file from tarball: %s");
             if (n == 0)
               break;
             crf(std::string_view{
@@ -218,7 +218,7 @@ time_t unpackTarfileToSink(tar_archive_t& archive, extended_file_system_object_s
       case AE_IFLNK: {
         auto target = archive_entry_symlink(entry);
 
-        parseSink.createSymlink(cpath, target);
+        parse_sink.create_symlink(cpath, target);
 
         break;
       }
@@ -228,7 +228,7 @@ time_t unpackTarfileToSink(tar_archive_t& archive, extended_file_system_object_s
     }
   }
 
-  return lastModified;
+  return last_modified;
 }
 
 } // namespace nix

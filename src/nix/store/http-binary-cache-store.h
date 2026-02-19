@@ -11,12 +11,12 @@
 namespace nix {
 
 struct HttpBinaryCacheStoreConfig : std::enable_shared_from_this<HttpBinaryCacheStoreConfig>,
-                                    virtual Store::Config,
+                                    virtual Store::config_t,
                                     BinaryCacheStoreConfig {
   using BinaryCacheStoreConfig::BinaryCacheStoreConfig;
 
   HttpBinaryCacheStoreConfig(std::string_view scheme, std::string_view cacheUri,
-                             const Store::Config::Params& params);
+                             const Store::config_t::Params& params);
 
   parsed_url_t cacheUri;
 
@@ -39,12 +39,12 @@ struct HttpBinaryCacheStoreConfig : std::enable_shared_from_this<HttpBinaryCache
 
   static std::string doc();
 
-  ref<Store> openStore() const override;
+  ref<Store> open_store() const override;
 
   StoreReference getReference() const override;
 };
 
-class HttpBinaryCacheStore : public virtual BinaryCacheStore {
+class http_binary_cache_store : public virtual binary_cache_store {
   struct State {
     bool enabled = true;
     std::chrono::steady_clock::time_point disabledUntil;
@@ -53,25 +53,25 @@ class HttpBinaryCacheStore : public virtual BinaryCacheStore {
   sync_t<State> _state;
 
 public:
-  using Config = HttpBinaryCacheStoreConfig;
+  using config_t = HttpBinaryCacheStoreConfig;
 
-  ref<Config> config;
+  ref<config_t> config;
 
-  HttpBinaryCacheStore(ref<Config> config);
+  http_binary_cache_store(ref<config_t> config);
 
   void init() override;
 
 protected:
-  std::optional<std::string> getCompressionMethod(const std::string& path);
+  std::optional<std::string> get_compression_method(const std::string& path);
 
   void maybeDisable();
 
   void checkEnabled();
 
-  bool fileExists(const std::string& path) override;
+  bool file_exists(const std::string& path) override;
 
-  void upsertFile(const std::string& path, restartable_source_t& source, const std::string& mimeType,
-                  uint64_t sizeHint) override;
+  void upsert_file(const std::string& path, restartable_source_t& source, const std::string& mime_type,
+                  uint64_t size_hint) override;
 
   FileTransferRequest makeRequest(std::string_view path);
 
@@ -84,12 +84,12 @@ protected:
    *
    * @param path The path in the binary cache to upload to
    * @param source The data source (should already be compressed if needed)
-   * @param sizeHint Size hint for the data
-   * @param mimeType The MIME type of the content
+   * @param size_hint Size hint for the data
+   * @param mime_type The MIME type of the content
    * @param contentEncoding Optional Content-Encoding header value (e.g., "xz", "br")
    */
-  void upload(std::string_view path, restartable_source_t& source, uint64_t sizeHint,
-              std::string_view mimeType, std::optional<headers_t> headers);
+  void upload(std::string_view path, restartable_source_t& source, uint64_t size_hint,
+              std::string_view mime_type, std::optional<headers_t> headers);
 
   void getFile(const std::string& path, Sink& sink) override;
 

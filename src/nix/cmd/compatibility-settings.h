@@ -2,7 +2,7 @@
 #include "nix/util/configuration.h"
 
 namespace nix {
-struct CompatibilitySettings : public Config {
+struct CompatibilitySettings : public config_t {
   CompatibilitySettings() = default;
 
   // Added in Nix 2.24, July 2024.

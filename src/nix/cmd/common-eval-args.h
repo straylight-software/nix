@@ -25,22 +25,22 @@ namespace flake {
 struct settings_t;
 }
 
-extern fetchers::settings_t fetchSettings;
+extern fetchers::settings_t fetch_settings;
 
 /**
  * @todo Get rid of global settings variables
  */
-extern EvalSettings evalSettings;
+extern EvalSettings eval_settings;
 
 /**
  * @todo Get rid of global settings variables
  */
-extern flake::settings_t flakeSettings;
+extern flake::settings_t flake_settings;
 
 /**
  * settings_t that control behaviors that have changed since Nix 2.3.
  */
-extern CompatibilitySettings compatibilitySettings;
+extern CompatibilitySettings compatibility_settings;
 
 struct MixEvalArgs : virtual Args, virtual MixRepair {
   static constexpr auto category = "Common evaluation options";
@@ -49,7 +49,7 @@ struct MixEvalArgs : virtual Args, virtual MixRepair {
 
   Bindings* getAutoArgs(EvalState& state);
 
-  LookupPath lookupPath;
+  LookupPath lookup_path;
 
   std::optional<std::string> evalStoreUrl;
 
@@ -70,14 +70,14 @@ private:
 
   using AutoArg = std::variant<AutoArgExpr, AutoArgString, AutoArgFile, AutoArgStdin>;
 
-  std::map<std::string, AutoArg> autoArgs;
+  std::map<std::string, AutoArg> auto_args;
 };
 
 /**
- * @param baseDir Optional [base
+ * @param base_dir Optional [base
  * directory](https://nix.dev/manual/nix/development/glossary#gloss-base-directory)
  */
-source_path_t lookupFileArg(EvalState& state, std::string_view s,
-                         const std::filesystem::path* baseDir = nullptr);
+source_path_t lookup_file_arg(EvalState& state, std::string_view s,
+                         const std::filesystem::path* base_dir = nullptr);
 
 } // namespace nix

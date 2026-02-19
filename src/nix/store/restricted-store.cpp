@@ -7,25 +7,25 @@
 
 namespace nix {
 
-static StorePath pathPartOfReq(const SingleDerivedPath& req) {
+static StorePath path_part_of_req(const SingleDerivedPath& req) {
   return std::visit(
       overloaded{
           [&](const SingleDerivedPath::opaque_t& bo) { return bo.path; },
-          [&](const SingleDerivedPath::Built& bfd) { return pathPartOfReq(*bfd.drvPath); },
+          [&](const SingleDerivedPath::Built& bfd) { return path_part_of_req(*bfd.drv_path); },
       },
       req.raw());
 }
 
-static StorePath pathPartOfReq(const DerivedPath& req) {
+static StorePath path_part_of_req(const DerivedPath& req) {
   return std::visit(overloaded{
                         [&](const DerivedPath::opaque_t& bo) { return bo.path; },
-                        [&](const DerivedPath::Built& bfd) { return pathPartOfReq(*bfd.drvPath); },
+                        [&](const DerivedPath::Built& bfd) { return path_part_of_req(*bfd.drv_path); },
                     },
                     req.raw());
 }
 
-bool RestrictionContext::isAllowed(const DerivedPath& req) {
-  return isAllowed(pathPartOfReq(req));
+bool RestrictionContext::is_allowed(const DerivedPath& req) {
+  return is_allowed(path_part_of_req(req));
 }
 
 /**
@@ -34,66 +34,66 @@ bool RestrictionContext::isAllowed(const DerivedPath& req) {
  * recursive Nix calls.
  */
 struct restricted_store_t : public virtual IndirectRootStore, public virtual GcStore {
-  ref<const LocalStore::Config> config;
+  ref<const LocalStore::config_t> config;
 
   ref<LocalStore> next;
 
   RestrictionContext& goal;
 
-  restricted_store_t(ref<LocalStore::Config> config, ref<LocalStore> next, RestrictionContext& goal)
-      : Store{*config}, LocalFSStore{*config}, config{config}, next(next), goal(goal) {}
+  restricted_store_t(ref<LocalStore::config_t> config, ref<LocalStore> next, RestrictionContext& goal)
+      : Store{*config}, local_fs_store{*config}, config{config}, next(next), goal(goal) {}
 
-  Path getRealStoreDir() override { return next->config->realStoreDir; }
+  Path getRealStoreDir() override { return next->config->real_store_dir; }
 
-  StorePathSet queryAllValidPaths() override;
+  StorePathSet query_all_valid_paths() override;
 
   void
-  queryPathInfoUncached(const StorePath& path,
+  query_path_info_uncached(const StorePath& path,
                         Callback<std::shared_ptr<const ValidPathInfo>> callback) noexcept override;
 
-  void queryReferrers(const StorePath& path, StorePathSet& referrers) override;
+  void query_referrers(const StorePath& path, StorePathSet& referrers) override;
 
   std::map<std::string, std::optional<StorePath>>
-  queryPartialDerivationOutputMap(const StorePath& path, Store* evalStore = nullptr) override;
+  queryPartialDerivationOutputMap(const StorePath& path, Store* eval_store = nullptr) override;
 
-  std::optional<StorePath> queryPathFromHashPart(const std::string& hashPart) override {
+  std::optional<StorePath> queryPathFromHashPart(const std::string& hash_part) override {
     throw Error("queryPathFromHashPart");
   }
 
-  StorePath addToStore(std::string_view name, const source_path_t& srcPath,
-                       ContentAddressMethod method, hash_algorithm_t hashAlgo,
+  StorePath add_to_store(std::string_view name, const source_path_t& src_path,
+                       ContentAddressMethod method, hash_algorithm_t hash_algo,
                        const StorePathSet& references, path_filter_t& filter,
                        RepairFlag repair) override {
     throw Error("addToStore");
   }
 
-  void addToStore(const ValidPathInfo& info, Source& narSource, RepairFlag repair = NoRepair,
-                  CheckSigsFlag checkSigs = CheckSigs) override;
+  void add_to_store(const ValidPathInfo& info, Source& nar_source, RepairFlag repair = NoRepair,
+                  CheckSigsFlag check_sigs = CheckSigs) override;
 
-  StorePath addToStoreFromDump(Source& dump, std::string_view name,
-                               file_serialisation_method_t dumpMethod, ContentAddressMethod hashMethod,
-                               hash_algorithm_t hashAlgo, const StorePathSet& references,
+  StorePath add_to_store_from_dump(Source& dump, std::string_view name,
+                               file_serialisation_method_t dump_method, ContentAddressMethod hash_method,
+                               hash_algorithm_t hash_algo, const StorePathSet& references,
                                RepairFlag repair) override;
 
-  void narFromPath(const StorePath& path, Sink& sink) override;
+  void nar_from_path(const StorePath& path, Sink& sink) override;
 
-  void ensurePath(const StorePath& path) override;
+  void ensure_path(const StorePath& path) override;
 
-  void registerDrvOutput(const Realisation& info) override;
+  void register_drv_output(const Realisation& info) override;
 
-  void queryRealisationUncached(
+  void query_realisation_uncached(
       const DrvOutput& id,
       Callback<std::shared_ptr<const UnkeyedRealisation>> callback) noexcept override;
 
-  void buildPaths(const std::vector<DerivedPath>& paths, BuildMode buildMode,
-                  std::shared_ptr<Store> evalStore) override;
+  void build_paths(const std::vector<DerivedPath>& paths, BuildMode build_mode,
+                  std::shared_ptr<Store> eval_store) override;
 
   std::vector<KeyedBuildResult>
-  buildPathsWithResults(const std::vector<DerivedPath>& paths, BuildMode buildMode = bmNormal,
-                        std::shared_ptr<Store> evalStore = nullptr) override;
+  build_paths_with_results(const std::vector<DerivedPath>& paths, BuildMode build_mode = bmNormal,
+                        std::shared_ptr<Store> eval_store = nullptr) override;
 
-  BuildResult buildDerivation(const StorePath& drvPath, const BasicDerivation& drv,
-                              BuildMode buildMode = bmNormal) override {
+  BuildResult buildDerivation(const StorePath& drv_path, const BasicDerivation& drv,
+                              BuildMode build_mode = bmNormal) override {
     unsupported("buildDerivation");
   }
 
@@ -105,11 +105,11 @@ struct restricted_store_t : public virtual IndirectRootStore, public virtual GcS
 
   void collectGarbage(const GCOptions& options, GCResults& results) override {}
 
-  void addSignatures(const StorePath& storePath, const string_set_t& sigs) override {
+  void addSignatures(const StorePath& store_path, const string_set_t& sigs) override {
     unsupported("addSignatures");
   }
 
-  MissingPaths queryMissing(const std::vector<DerivedPath>& targets) override;
+  MissingPaths query_missing(const std::vector<DerivedPath>& targets) override;
 
   virtual std::optional<std::string> getBuildLogExact(const StorePath& path) override {
     return std::nullopt;
@@ -122,12 +122,12 @@ struct restricted_store_t : public virtual IndirectRootStore, public virtual GcS
   std::optional<TrustedFlag> isTrustedClient() override { return NotTrusted; }
 };
 
-ref<Store> makeRestrictedStore(ref<LocalStore::Config> config, ref<LocalStore> next,
+ref<Store> make_restricted_store(ref<LocalStore::config_t> config, ref<LocalStore> next,
                                RestrictionContext& context) {
   return make_ref<restricted_store_t>(config, next, context);
 }
 
-StorePathSet restricted_store_t::queryAllValidPaths() {
+StorePathSet restricted_store_t::query_all_valid_paths() {
   StorePathSet paths;
   for (auto& p : goal.originalPaths())
     paths.insert(p);
@@ -136,9 +136,9 @@ StorePathSet restricted_store_t::queryAllValidPaths() {
   return paths;
 }
 
-void restricted_store_t::queryPathInfoUncached(
+void restricted_store_t::query_path_info_uncached(
     const StorePath& path, Callback<std::shared_ptr<const ValidPathInfo>> callback) noexcept {
-  if (goal.isAllowed(path)) {
+  if (goal.is_allowed(path)) {
     try {
       /* Censor impure information. */
       auto info = std::make_shared<ValidPathInfo>(*next->queryPathInfo(path));
@@ -154,99 +154,99 @@ void restricted_store_t::queryPathInfoUncached(
     callback(nullptr);
 };
 
-void restricted_store_t::queryReferrers(const StorePath& path, StorePathSet& referrers) {}
+void restricted_store_t::query_referrers(const StorePath& path, StorePathSet& referrers) {}
 
 std::map<std::string, std::optional<StorePath>>
-restricted_store_t::queryPartialDerivationOutputMap(const StorePath& path, Store* evalStore) {
-  if (!goal.isAllowed(path))
+restricted_store_t::queryPartialDerivationOutputMap(const StorePath& path, Store* eval_store) {
+  if (!goal.is_allowed(path))
     throw InvalidPath("cannot query output map for unknown path '%s' in recursive Nix",
                       printStorePath(path));
-  return next->queryPartialDerivationOutputMap(path, evalStore);
+  return next->queryPartialDerivationOutputMap(path, eval_store);
 }
 
-void restricted_store_t::addToStore(const ValidPathInfo& info, Source& narSource, RepairFlag repair,
-                                 CheckSigsFlag checkSigs) {
-  next->addToStore(info, narSource, repair, checkSigs);
+void restricted_store_t::add_to_store(const ValidPathInfo& info, Source& nar_source, RepairFlag repair,
+                                 CheckSigsFlag check_sigs) {
+  next->add_to_store(info, nar_source, repair, check_sigs);
   goal.addDependency(info.path);
 }
 
-StorePath restricted_store_t::addToStoreFromDump(Source& dump, std::string_view name,
-                                              file_serialisation_method_t dumpMethod,
-                                              ContentAddressMethod hashMethod,
-                                              hash_algorithm_t hashAlgo,
+StorePath restricted_store_t::add_to_store_from_dump(Source& dump, std::string_view name,
+                                              file_serialisation_method_t dump_method,
+                                              ContentAddressMethod hash_method,
+                                              hash_algorithm_t hash_algo,
                                               const StorePathSet& references, RepairFlag repair) {
   auto path =
-      next->addToStoreFromDump(dump, name, dumpMethod, hashMethod, hashAlgo, references, repair);
+      next->add_to_store_from_dump(dump, name, dump_method, hash_method, hash_algo, references, repair);
   goal.addDependency(path);
   return path;
 }
 
-void restricted_store_t::narFromPath(const StorePath& path, Sink& sink) {
-  if (!goal.isAllowed(path))
+void restricted_store_t::nar_from_path(const StorePath& path, Sink& sink) {
+  if (!goal.is_allowed(path))
     throw InvalidPath("cannot dump unknown path '%s' in recursive Nix", printStorePath(path));
-  Store::narFromPath(path, sink);
+  Store::nar_from_path(path, sink);
 }
 
-void restricted_store_t::ensurePath(const StorePath& path) {
-  if (!goal.isAllowed(path))
+void restricted_store_t::ensure_path(const StorePath& path) {
+  if (!goal.is_allowed(path))
     throw InvalidPath("cannot substitute unknown path '%s' in recursive Nix", printStorePath(path));
   /* Nothing to be done; 'path' must already be valid. */
 }
 
-void restricted_store_t::registerDrvOutput(const Realisation& info)
+void restricted_store_t::register_drv_output(const Realisation& info)
 // XXX: This should probably be allowed as a no-op if the realisation
 // corresponds to an allowed derivation
 {
   throw Error("registerDrvOutput");
 }
 
-void restricted_store_t::queryRealisationUncached(
+void restricted_store_t::query_realisation_uncached(
     const DrvOutput& id, Callback<std::shared_ptr<const UnkeyedRealisation>> callback) noexcept
 // XXX: This should probably be allowed if the realisation corresponds to
 // an allowed derivation
 {
-  if (!goal.isAllowed(id))
+  if (!goal.is_allowed(id))
     callback(nullptr);
-  next->queryRealisation(id, std::move(callback));
+  next->query_realisation(id, std::move(callback));
 }
 
-void restricted_store_t::buildPaths(const std::vector<DerivedPath>& paths, BuildMode buildMode,
-                                 std::shared_ptr<Store> evalStore) {
-  for (auto& result : buildPathsWithResults(paths, buildMode, evalStore))
+void restricted_store_t::build_paths(const std::vector<DerivedPath>& paths, BuildMode build_mode,
+                                 std::shared_ptr<Store> eval_store) {
+  for (auto& result : build_paths_with_results(paths, build_mode, eval_store))
     if (auto* failureP = result.tryGetFailure())
       failureP->rethrow();
 }
 
 std::vector<KeyedBuildResult>
-restricted_store_t::buildPathsWithResults(const std::vector<DerivedPath>& paths, BuildMode buildMode,
-                                       std::shared_ptr<Store> evalStore) {
-  assert(!evalStore);
+restricted_store_t::build_paths_with_results(const std::vector<DerivedPath>& paths, BuildMode build_mode,
+                                       std::shared_ptr<Store> eval_store) {
+  assert(!eval_store);
 
-  if (buildMode != bmNormal)
+  if (build_mode != bmNormal)
     throw Error("unsupported build mode");
 
-  StorePathSet newPaths;
+  StorePathSet new_paths;
   std::set<Realisation> newRealisations;
 
   for (auto& req : paths) {
-    if (!goal.isAllowed(req))
+    if (!goal.is_allowed(req))
       throw InvalidPath("cannot build '%s' in recursive Nix because path is unknown",
                         req.to_string(*next));
   }
 
-  auto results = next->buildPathsWithResults(paths, buildMode);
+  auto results = next->build_paths_with_results(paths, build_mode);
 
   for (auto& result : results) {
     if (auto* successP = result.tryGetSuccess()) {
-      for (auto& [outputName, output] : successP->builtOutputs) {
-        newPaths.insert(output.outPath);
+      for (auto& [output_name, output] : successP->built_outputs) {
+        new_paths.insert(output.out_path);
         newRealisations.insert(output);
       }
     }
   }
 
   StorePathSet closure;
-  next->computeFSClosure(newPaths, closure);
+  next->computeFSClosure(new_paths, closure);
   for (auto& path : closure)
     goal.addDependency(path);
   for (auto& real : Realisation::closure(*next, newRealisations))
@@ -255,7 +255,7 @@ restricted_store_t::buildPathsWithResults(const std::vector<DerivedPath>& paths,
   return results;
 }
 
-MissingPaths restricted_store_t::queryMissing(const std::vector<DerivedPath>& targets) {
+MissingPaths restricted_store_t::query_missing(const std::vector<DerivedPath>& targets) {
   /* This is slightly impure since it leaks information to the
      client about what paths will be built/substituted or are
      already present. Probably not a big deal. */
@@ -263,13 +263,13 @@ MissingPaths restricted_store_t::queryMissing(const std::vector<DerivedPath>& ta
   std::vector<DerivedPath> allowed;
   StorePathSet unknown;
   for (auto& req : targets) {
-    if (goal.isAllowed(req))
+    if (goal.is_allowed(req))
       allowed.emplace_back(req);
     else
-      unknown.insert(pathPartOfReq(req));
+      unknown.insert(path_part_of_req(req));
   }
 
-  auto res = next->queryMissing(allowed);
+  auto res = next->query_missing(allowed);
 
   for (auto& p : unknown)
     res.unknown.insert(p);

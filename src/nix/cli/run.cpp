@@ -32,37 +32,37 @@ using namespace std::filesystem;
 
 using namespace nix;
 
-std::string chrootHelperName = "__run_in_chroot";
+std::string chroot_helper_name = "__run_in_chroot";
 
 namespace nix {
 
 /* Convert `env` to a list of strings suitable for `execve`'s `envp` argument. */
-strings_t toEnvp(string_map_t env) {
-  strings_t envStrs;
+strings_t to_envp(string_map_t env) {
+  strings_t env_strs;
   for (auto& i : env) {
-    envStrs.push_back(i.first + "=" + i.second);
+    env_strs.push_back(i.first + "=" + i.second);
   }
 
-  return envStrs;
+  return env_strs;
 }
 
-void execProgramInStore(ref<Store> store, use_lookup_path_t useLookupPath, const std::string& program,
+void exec_program_in_store(ref<Store> store, use_lookup_path_t use_lookup_path, const std::string& program,
                         const strings_t& args, std::optional<std::string_view> system,
                         std::optional<string_map_t> env) {
   logger->stop();
 
   char** envp;
-  strings_t envStrs;
+  strings_t env_strs;
   std::vector<char*> envCharPtrs;
   if (env.has_value()) {
-    envStrs = toEnvp(env.value());
-    envCharPtrs = stringsToCharPtrs(envStrs);
+    env_strs = to_envp(env.value());
+    envCharPtrs = strings_to_char_ptrs(env_strs);
     envp = envCharPtrs.data();
   } else {
     envp = environ;
   }
 
-  restoreProcessContext();
+  restore_process_context();
 
   /* If this is a diverted store (i.e. its "logical" location
      (typically /nix/store) differs from its "physical" location
@@ -71,20 +71,20 @@ void execProgramInStore(ref<Store> store, use_lookup_path_t useLookupPath, const
      mount and user namespaces. Unfortunately,
      unshare(CLONE_NEWUSER) doesn't work in a multithreaded program
      (which "nix" is), so we exec() a single-threaded helper program
-     (chrootHelper() below) to do the work. */
-  auto store2 = store.dynamic_pointer_cast<LocalFSStore>();
+     (chroot_helper() below) to do the work. */
+  auto store2 = store.dynamic_pointer_cast<local_fs_store>();
 
   if (!store2)
     throw Error("store '%s' is not a local store so it does not support command execution",
                 store->config.getHumanReadableURI());
 
-  if (store->storeDir != store2->getRealStoreDir()) {
-    strings_t helperArgs = {chrootHelperName, store->storeDir, store2->getRealStoreDir(),
+  if (store->store_dir != store2->getRealStoreDir()) {
+    strings_t helper_args = {chroot_helper_name, store->store_dir, store2->getRealStoreDir(),
                           std::string(system.value_or("")), program};
     for (auto& arg : args)
-      helperArgs.push_back(arg);
+      helper_args.push_back(arg);
 
-    execve(getSelfExe().value_or("nix").c_str(), stringsToCharPtrs(helperArgs).data(), envp);
+    execve(get_self_exe().value_or("nix").c_str(), strings_to_char_ptrs(helper_args).data(), envp);
 
     throw sys_error_t("could not execute chroot helper");
   }
@@ -94,12 +94,12 @@ void execProgramInStore(ref<Store> store, use_lookup_path_t useLookupPath, const
     linux::setPersonality(*system);
 #endif
 
-  if (useLookupPath == use_lookup_path_t::Use) {
+  if (use_lookup_path == use_lookup_path_t::use) {
     // We have to set `environ` by hand because there is no `execvpe` on macOS.
     environ = envp;
-    execvp(program.c_str(), stringsToCharPtrs(args).data());
+    execvp(program.c_str(), strings_to_char_ptrs(args).data());
   } else
-    execve(program.c_str(), stringsToCharPtrs(args).data(), envp);
+    execve(program.c_str(), strings_to_char_ptrs(args).data(), envp);
 
   throw sys_error_t("unable to execute '%s'", program);
 }
@@ -111,7 +111,7 @@ struct cmd_run_t : InstallableValueCommand, MixEnvironment {
 
   std::vector<std::string> args;
 
-  cmd_run_t() { expectArgs({.label = "args", .handler = {&args}, .completer = completePath}); }
+  cmd_run_t() { expect_args({.label = "args", .handler = {&args}, .completer = complete_path}); }
 
   std::string description() override { return "run a Nix application"; }
 
@@ -141,12 +141,12 @@ struct cmd_run_t : InstallableValueCommand, MixEnvironment {
   void run(ref<Store> store, ref<InstallableValue> installable) override {
     auto state = getEvalState();
 
-    lockFlags.applyNixConfig = true;
+    lock_flags.applyNixConfig = true;
     auto app = installable->toApp(*state).resolve(getEvalStore(), store);
 
-    strings_t allArgs{app.program.string()};
+    strings_t all_args{app.program.string()};
     for (auto& i : args)
-      allArgs.push_back(i);
+      all_args.push_back(i);
 
     // Release our references to eval caches to ensure they are persisted to disk, because
     // we are about to exec out of this process without running C++ destructors.
@@ -154,16 +154,16 @@ struct cmd_run_t : InstallableValueCommand, MixEnvironment {
 
     setEnviron();
 
-    execProgramInStore(store, use_lookup_path_t::DontUse, app.program.string(), allArgs);
+    exec_program_in_store(store, use_lookup_path_t::dont_use, app.program.string(), all_args);
   }
 };
 
-static auto rCmdRun = registerCommand<cmd_run_t>("run");
+static auto r_cmd_run = registerCommand<cmd_run_t>("run");
 
-void chrootHelper(int argc, char** argv) {
+void chroot_helper(int argc, char** argv) {
   int p = 1;
-  std::string storeDir = argv[p++];
-  std::string realStoreDir = argv[p++];
+  std::string store_dir = argv[p++];
+  std::string real_store_dir = argv[p++];
   std::string system = argv[p++];
   std::string cmd = argv[p++];
   strings_t args;
@@ -180,27 +180,27 @@ void chrootHelper(int argc, char** argv) {
     if (unshare(CLONE_NEWNS) == -1)
       throw sys_error_t("setting up a private mount namespace");
 
-  /* Bind-mount realStoreDir on /nix/store. If the latter mount
+  /* Bind-mount real_store_dir on /nix/store. If the latter mount
      point doesn't already exists, we have to create a chroot
      environment containing the mount point and bind mounts for the
      children of /.
      Overlayfs for user namespaces is fixed in Linux since ac519625ed
      (v5.11, 14 February 2021) */
-  if (!pathExists(storeDir)) {
+  if (!path_exists(store_dir)) {
     // FIXME: Use overlayfs?
 
-    std::filesystem::path tmpDir = createTempDir();
+    std::filesystem::path tmp_dir = create_temp_dir();
 
-    createDirs(tmpDir + storeDir);
+    create_dirs(tmp_dir + store_dir);
 
-    if (mount(realStoreDir.c_str(), (tmpDir + storeDir).c_str(), "", MS_BIND, 0) == -1)
-      throw sys_error_t("mounting '%s' on '%s'", realStoreDir, storeDir);
+    if (mount(real_store_dir.c_str(), (tmp_dir + store_dir).c_str(), "", MS_BIND, 0) == -1)
+      throw sys_error_t("mounting '%s' on '%s'", real_store_dir, store_dir);
 
     for (const auto& entry : directory_iterator_t{"/"}) {
-      checkInterrupt();
+      check_interrupt();
       const auto& src = entry.path();
-      std::filesystem::path dst = tmpDir / entry.path().filename();
-      if (pathExists(dst))
+      std::filesystem::path dst = tmp_dir / entry.path().filename();
+      if (path_exists(dst))
         continue;
       auto st = entry.symlink_status();
       if (std::filesystem::is_directory(st)) {
@@ -209,38 +209,38 @@ void chrootHelper(int argc, char** argv) {
         if (mount(src.c_str(), dst.c_str(), "", MS_BIND | MS_REC, 0) == -1)
           throw sys_error_t("mounting '%s' on '%s'", src, dst);
       } else if (std::filesystem::is_symlink(st))
-        createSymlink(readLink(src), dst);
+        create_symlink(read_link(src), dst);
     }
 
     char* cwd = getcwd(0, 0);
     if (!cwd)
       throw sys_error_t("getting current directory");
-    finally_t freeCwd([&]() { free(cwd); });
+    finally_t free_cwd([&]() { free(cwd); });
 
-    if (chroot(tmpDir.c_str()) == -1)
-      throw sys_error_t("chrooting into '%s'", tmpDir);
+    if (chroot(tmp_dir.c_str()) == -1)
+      throw sys_error_t("chrooting into '%s'", tmp_dir);
 
     if (chdir(cwd) == -1)
       throw sys_error_t("chdir to '%s' in chroot", cwd);
-  } else if (mount("overlay", storeDir.c_str(), "overlay", MS_MGC_VAL,
-                   fmt("lowerdir=%s:%s", storeDir, realStoreDir).c_str()) == -1)
-    if (mount(realStoreDir.c_str(), storeDir.c_str(), "", MS_BIND, 0) == -1)
-      throw sys_error_t("mounting '%s' on '%s'", realStoreDir, storeDir);
+  } else if (mount("overlay", store_dir.c_str(), "overlay", MS_MGC_VAL,
+                   fmt("lowerdir=%s:%s", store_dir, real_store_dir).c_str()) == -1)
+    if (mount(real_store_dir.c_str(), store_dir.c_str(), "", MS_BIND, 0) == -1)
+      throw sys_error_t("mounting '%s' on '%s'", real_store_dir, store_dir);
 
-  writeFile(std::filesystem::path{"/proc/self/setgroups"}, "deny");
-  writeFile(std::filesystem::path{"/proc/self/uid_map"}, fmt("%d %d %d", uid, uid, 1));
-  writeFile(std::filesystem::path{"/proc/self/gid_map"}, fmt("%d %d %d", gid, gid, 1));
+  write_file(std::filesystem::path{"/proc/self/setgroups"}, "deny");
+  write_file(std::filesystem::path{"/proc/self/uid_map"}, fmt("%d %d %d", uid, uid, 1));
+  write_file(std::filesystem::path{"/proc/self/gid_map"}, fmt("%d %d %d", gid, gid, 1));
 
 #  ifdef __linux__
   if (system != "")
     linux::setPersonality(system);
 #  endif
 
-  execvp(cmd.c_str(), stringsToCharPtrs(args).data());
+  execvp(cmd.c_str(), strings_to_char_ptrs(args).data());
 
   throw sys_error_t("unable to exec '%s'", cmd);
 
 #else
-  throw Error("mounting the Nix store on '%s' is not supported on this platform", storeDir);
+  throw Error("mounting the Nix store on '%s' is not supported on this platform", store_dir);
 #endif
 }

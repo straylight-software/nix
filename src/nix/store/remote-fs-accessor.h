@@ -12,17 +12,17 @@ class RemoteFSAccessor : public SourceAccessor {
 
   std::map<std::string, ref<SourceAccessor>> nars;
 
-  bool requireValidPath;
+  bool require_valid_path;
 
-  Path cacheDir;
+  Path cache_dir;
 
   std::pair<ref<SourceAccessor>, canon_path_t> fetch(const canon_path_t& path);
 
-  friend struct BinaryCacheStore;
+  friend struct binary_cache_store;
 
-  Path makeCacheFile(std::string_view hashPart, const std::string& ext);
+  Path makeCacheFile(std::string_view hash_part, const std::string& ext);
 
-  ref<SourceAccessor> addToCache(std::string_view hashPart, std::string&& nar);
+  ref<SourceAccessor> addToCache(std::string_view hash_part, std::string&& nar);
 
 public:
   /**
@@ -30,16 +30,16 @@ public:
    */
   std::shared_ptr<SourceAccessor> accessObject(const StorePath& path);
 
-  RemoteFSAccessor(ref<Store> store, bool requireValidPath = true,
-                   const /* FIXME: use std::optional */ Path& cacheDir = "");
+  RemoteFSAccessor(ref<Store> store, bool require_valid_path = true,
+                   const /* FIXME: use std::optional */ Path& cache_dir = "");
 
-  std::optional<stat_t> maybeLstat(const canon_path_t& path) override;
+  std::optional<stat_t> maybe_lstat(const canon_path_t& path) override;
 
-  dir_entries_t readDirectory(const canon_path_t& path) override;
+  dir_entries_t read_directory(const canon_path_t& path) override;
 
-  std::string readFile(const canon_path_t& path) override;
+  std::string read_file(const canon_path_t& path) override;
 
-  std::string readLink(const canon_path_t& path) override;
+  std::string read_link(const canon_path_t& path) override;
 };
 
 } // namespace nix

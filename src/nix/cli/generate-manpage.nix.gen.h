@@ -4,20 +4,20 @@ let
     attrNames
     attrValues
     concatMap
-    concatStringsSep
-    fromJSON
+    concat_strings_sep
+    from_json
     groupBy
     length
     lessThan
     listToAttrs
     mapAttrs
     match
-    replaceStrings
+    replace_strings
     sort
     ;
   inherit (import <nix/utils.nix>)
     attrsToList
-    concatStrings
+    concat_strings
     filterAttrs
     optionalString
     squash
@@ -31,7 +31,7 @@ inlineHTML: commandDump:
 
 let
 
-  commandInfo = fromJSON commandDump;
+  commandInfo = from_json commandDump;
 
   showCommand =
     {
@@ -62,7 +62,7 @@ let
         command: args:
         let
           showArgument = arg: "*${arg.label}*" + optionalString (!arg ? arity) "...";
-          arguments = concatStringsSep " " (map showArgument args);
+          arguments = concat_strings_sep " " (map showArgument args);
         in
         ''
           `${command}` [*option*...] ${arguments}
@@ -80,7 +80,7 @@ let
         unique (map (cmd: cmd.category) (attrValues details.commands))
       );
 
-      listCategories = concatStrings (map showCategory categories);
+      listCategories = concat_strings (map showCategory categories);
 
       showCategory = cat: ''
         **${toString cat.description}:**
@@ -88,7 +88,7 @@ let
         ${listSubcommands (filterAttrs (n: v: v.category == cat) details.commands)}
       '';
 
-      listSubcommands = cmds: concatStrings (attrValues (mapAttrs showSubcommand cmds));
+      listSubcommands = cmds: concat_strings (attrValues (mapAttrs showSubcommand cmds));
 
       showSubcommand = name: subcmd: ''
         * [`${command} ${name}`](./${appendName filename name}.md) - ${subcmd.description}
@@ -103,7 +103,7 @@ let
             ${allStores}
           '';
           index =
-            replaceStrings
+            replace_strings
               [ "@store-types@" "./local-store.md" "./local-daemon-store.md" ]
               [ storesOverview "#local-store" "#local-daemon-store" ]
               details.doc;
@@ -111,8 +111,8 @@ let
             let
               showEntry = store: "- [${store.name}](#${store.slug})";
             in
-            concatStringsSep "\n" (map showEntry storesList) + "\n";
-          allStores = concatStringsSep "\n" (attrValues storePages);
+            concat_strings_sep "\n" (map showEntry storesList) + "\n";
+          allStores = concat_strings_sep "\n" (attrValues storePages);
           storePages = listToAttrs (
             map (s: {
               name = s.filename;
@@ -125,7 +125,7 @@ let
           };
           hasInfix =
             infix: content:
-            builtins.stringLength content != builtins.stringLength (replaceStrings [ infix ] [ "" ] content);
+            builtins.stringLength content != builtins.stringLength (replace_strings [ infix ] [ "" ] content);
         in
         optionalString (details ? doc) (
           # An alternate implementation with builtins.match stack overflowed on some systems.
@@ -152,7 +152,7 @@ let
           showCategory = cat: opts: ''
             ${optionalString (cat != "") "## ${cat}"}
 
-            ${concatStringsSep "\n" (attrValues (mapAttrs showOption opts))}
+            ${concat_strings_sep "\n" (attrValues (mapAttrs showOption opts))}
           '';
           showOption =
             name: option:
@@ -164,11 +164,11 @@ let
               '';
               item =
                 if inlineHTML then
-                  ''<span id="opt-${name}">[`--${name}`](#opt-${name})</span> ${shortName} ${labels}''
+                  ''<span id="opt-${name}">[`--${name}`](#opt-${name})</span> ${short_name} ${labels}''
                 else
                   "`--${name}` ${shortName} ${labels}";
-              shortName = optionalString (option ? shortName) ("/ `-${option.shortName}`");
-              labels = optionalString (option ? labels) (concatStringsSep " " (map (s: "*${s}*") option.labels));
+              short_name = optionalString (option ? short_name) ("/ `-${option.shortName}`");
+              labels = optionalString (option ? labels) (concat_strings_sep " " (map (s: "*${s}*") option.labels));
             in
             result;
           categories =
@@ -177,7 +177,7 @@ let
               (_: listToAttrs)
               (groupBy (cmd: cmd.value.category) (attrsToList allOptions));
         in
-        concatStrings (attrValues (mapAttrs showCategory categories));
+        concat_strings (attrValues (mapAttrs showCategory categories));
     in
     squash result;
 
@@ -225,7 +225,7 @@ let
     let
       showEntry = page: "    - [${page.command}](command-ref/new-cli/${page.name})";
     in
-    concatStringsSep "\n" (map showEntry manpages) + "\n";
+    concat_strings_sep "\n" (map showEntry manpages) + "\n";
 
 in
 (listToAttrs manpages) // { "SUMMARY.md" = tableOfContents; }

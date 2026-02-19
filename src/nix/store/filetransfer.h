@@ -18,7 +18,7 @@
 
 namespace nix {
 
-struct FileTransferSettings : Config {
+struct FileTransferSettings : config_t {
   setting_t<bool> enableHttp2{this, true, "http2", "Whether to enable HTTP/2 support."};
 
   setting_t<std::string> userAgentSuffix{this, "", "user-agent-suffix",
@@ -68,7 +68,7 @@ struct FileTransferSettings : Config {
         )"};
 };
 
-extern FileTransferSettings fileTransferSettings;
+extern FileTransferSettings file_transfer_settings;
 
 extern const unsigned int RETRY_TIME_MS_DEFAULT;
 
@@ -95,7 +95,7 @@ struct UsernameAuth {
 
 enum class PauseTransfer : bool {
   No = false,
-  Yes = true,
+  yes = true,
 };
 
 struct FileTransferRequest {
@@ -103,27 +103,27 @@ struct FileTransferRequest {
   headers_t headers;
   std::string expectedETag;
   HttpMethod method = HttpMethod::Get;
-  size_t tries = fileTransferSettings.tries;
+  size_t tries = file_transfer_settings.tries;
   unsigned int baseRetryTimeMs = RETRY_TIME_MS_DEFAULT;
   activity_id_t parentAct;
   bool decompress = true;
 
   struct UploadData {
-    UploadData(string_source_t& s) : sizeHint(s.s.length()), source(&s) {}
+    UploadData(string_source_t& s) : size_hint(s.s.length()), source(&s) {}
 
-    UploadData(std::size_t sizeHint, restartable_source_t& source)
-        : sizeHint(sizeHint), source(&source) {}
+    UploadData(std::size_t size_hint, restartable_source_t& source)
+        : size_hint(size_hint), source(&source) {}
 
-    std::size_t sizeHint = 0;
+    std::size_t size_hint = 0;
     restartable_source_t* source = nullptr;
   };
 
   std::optional<UploadData> data;
-  std::string mimeType;
+  std::string mime_type;
 
   /**
    * Callbacked invoked with a chunk of received data.
-   * Can pause the transfer by returning PauseTransfer::Yes. No data must be consumed
+   * Can pause the transfer by returning PauseTransfer::yes. No data must be consumed
    * if transfer is paused.
    */
   std::function<PauseTransfer(std::string_view data)> dataCallback;
@@ -141,7 +141,7 @@ struct FileTransferRequest {
   std::optional<std::string> preResolvedAwsSessionToken;
 #endif
 
-  FileTransferRequest(verbatim_url_t uri) : uri(std::move(uri)), parentAct(getCurActivity()) {}
+  FileTransferRequest(verbatim_url_t uri) : uri(std::move(uri)), parentAct(get_cur_activity()) {}
 
   /**
    * Returns the method description for logging purposes.
@@ -179,7 +179,7 @@ struct FileTransferRequest {
   void setupForS3();
 
 private:
-  friend struct curlFileTransfer;
+  friend struct curl_file_transfer_t;
 #if NIX_WITH_AWS_AUTH
   std::optional<std::string> awsSigV4Provider;
 #endif
@@ -251,7 +251,7 @@ public:
   /**
    * Unpause a transfer that has been previously paused by a dataCallback.
    */
-  virtual void unpauseTransfer(ItemHandle handle) = 0;
+  virtual void unpause_transfer(ItemHandle handle) = 0;
 
   std::future<FileTransferResult> enqueueFileTransfer(const FileTransferRequest& request);
 
@@ -286,16 +286,16 @@ public:
  * Using this object is preferred because it enables connection reuse
  * and HTTP/2 multiplexing.
  */
-ref<FileTransfer> getFileTransfer();
+ref<FileTransfer> get_file_transfer();
 
 /**
  * @return a new FileTransfer object
  *
- * Prefer getFileTransfer() to this; see its docs for why.
+ * Prefer get_file_transfer() to this; see its docs for why.
  */
-ref<FileTransfer> makeFileTransfer();
+ref<FileTransfer> make_file_transfer();
 
-std::shared_ptr<FileTransfer> resetFileTransfer();
+std::shared_ptr<FileTransfer> reset_file_transfer();
 
 class FileTransferError : public Error {
 public:

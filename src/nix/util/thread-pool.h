@@ -12,7 +12,7 @@
 
 namespace nix {
 
-MakeError(ThreadPoolShutDown, Error);
+make_error(ThreadPoolShutDown, Error);
 
 /**
  * A simple thread pool that executes a queue of work items
@@ -20,7 +20,7 @@ MakeError(ThreadPoolShutDown, Error);
  */
 class thread_pool_t {
 public:
-  thread_pool_t(size_t maxThreads = 0);
+  thread_pool_t(size_t max_threads = 0);
 
   ~thread_pool_t();
 
@@ -57,7 +57,7 @@ public:
   void shutdown();
 
 private:
-  size_t maxThreads;
+  size_t max_threads;
 
   struct State {
     std::queue<work_t> pending;
@@ -73,7 +73,7 @@ private:
 
   std::condition_variable work;
 
-  void doWork(bool mainThread);
+  void do_work(bool main_thread);
 };
 
 /**
@@ -82,9 +82,9 @@ private:
  * its dependencies have been processed.
  */
 template <typename T>
-void processGraph(const std::set<T>& nodes, std::function<std::set<T>(const T&)> getEdges,
-                  std::function<void(const T&)> processNode, bool discoverNodes = false,
-                  size_t maxThreads = 0) {
+void process_graph(const std::set<T>& nodes, std::function<std::set<T>(const T&)> get_edges,
+                  std::function<void(const T&)> process_node, bool discover_nodes = false,
+                  size_t max_threads = 0) {
   struct graph_t {
     std::set<T> known;
     std::set<T> left;
@@ -97,7 +97,7 @@ void processGraph(const std::set<T>& nodes, std::function<std::set<T>(const T&)>
 
   /* Create pool last to ensure threads are stopped before other
      destructors run. */
-  thread_pool_t pool(maxThreads);
+  thread_pool_t pool(max_threads);
 
   worker = [&](const T& node) {
     {
@@ -105,17 +105,17 @@ void processGraph(const std::set<T>& nodes, std::function<std::set<T>(const T&)>
       auto i = graph->refs.find(node);
       if (i == graph->refs.end())
         goto getRefs;
-      goto doWork;
+      goto do_work;
     }
 
   getRefs: {
-    auto refs = getEdges(node);
+    auto refs = get_edges(node);
     refs.erase(node);
 
     {
       auto graph(graph_.lock());
       for (auto& ref : refs) {
-        if (discoverNodes) {
+        if (discover_nodes) {
           auto [i, inserted] = graph->known.insert(ref);
           if (inserted) {
             pool.enqueue(std::bind(worker, std::ref(*i)));
@@ -128,14 +128,14 @@ void processGraph(const std::set<T>& nodes, std::function<std::set<T>(const T&)>
         }
       }
       if (graph->refs[node].empty())
-        goto doWork;
+        goto do_work;
     }
   }
 
     return;
 
-  doWork:
-    processNode(node);
+  do_work:
+    process_node(node);
 
     /* Enqueue work for all nodes that were waiting on this one
        and have no unprocessed dependencies. */

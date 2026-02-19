@@ -15,25 +15,25 @@ namespace nix {
  * These are equivalent:
  *
  * ```
- * formatHelper(formatter, a_0, ..., a_n)
+ * format_helper(formatter, a_0, ..., a_n)
  * formatter % a_0 % ... % a_n
  * ```
  *
- * With a single argument, `formatHelper(s)` is a no-op.
+ * With a single argument, `format_helper(s)` is a no-op.
  */
 template <class F>
-inline void formatHelper(F& f) {}
+inline void format_helper(F& f) {}
 
 template <class F, typename T, typename... Args>
-inline void formatHelper(F& f, const T& x, const Args&... args) {
+inline void format_helper(F& f, const T& x, const Args&... args) {
   // Interpolate one argument and then recurse.
-  formatHelper(f % x, args...);
+  format_helper(f % x, args...);
 }
 
 /**
  * Set the correct exceptions for `fmt`.
  */
-inline void setExceptions(boost::format& fmt) {
+inline void set_exceptions(boost::format& fmt) {
   fmt.exceptions(boost::io::all_error_bits ^ boost::io::too_many_args_bit ^
                  boost::io::too_few_args_bit);
 }
@@ -75,8 +75,8 @@ inline std::string fmt(const char* s) {
 template <typename... Args>
 inline std::string fmt(const std::string& fs, const Args&... args) {
   boost::format f(fs);
-  setExceptions(f);
-  formatHelper(f, args...);
+  set_exceptions(f);
+  format_helper(f, args...);
   return f.str();
 }
 
@@ -133,7 +133,7 @@ public:
    */
   hint_fmt_t(const std::string& literal) : hint_fmt_t("%s", uncolored_t(literal)) {}
 
-  static hint_fmt_t fromFormatString(const std::string& format) {
+  static hint_fmt_t from_format_string(const std::string& format) {
     return hint_fmt_t(boost::format(format));
   }
 
@@ -148,8 +148,8 @@ public:
 
   template <typename... Args>
   hint_fmt_t(boost::format&& fmt, const Args&... args) : fmt(std::move(fmt)) {
-    setExceptions(fmt);
-    formatHelper(*this, args...);
+    set_exceptions(fmt);
+    format_helper(*this, args...);
   }
 
   template <class T>

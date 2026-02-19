@@ -39,16 +39,16 @@ namespace nix {
 /**
  * Initialise the Boehm GC, if applicable.
  */
-void initGC();
+void init_gc();
 
 /**
- * Make sure `initGC` has already been called.
+ * Make sure `init_gc` has already been called.
  */
-void assertGCInitialized();
+void assert_gc_initialized();
 
 #if NIX_USE_BOEHMGC
 /**
- * The number of GC cycles since initGC().
+ * The number of GC cycles since init_gc().
  */
 size_t getGCCycles();
 #endif

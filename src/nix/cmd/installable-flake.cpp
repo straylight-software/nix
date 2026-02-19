@@ -43,7 +43,7 @@ std::vector<std::string> InstallableFlake::getActualAttrPaths() {
   return res;
 }
 
-static std::string showAttrPaths(const std::vector<std::string>& paths) {
+static std::string show_attr_paths(const std::vector<std::string>& paths) {
   std::string s;
   for (const auto& [n, i] : enumerate(paths)) {
     if (n > 0)
@@ -56,42 +56,42 @@ static std::string showAttrPaths(const std::vector<std::string>& paths) {
 }
 
 InstallableFlake::InstallableFlake(SourceExprCommand* cmd, ref<EvalState> state,
-                                   FlakeRef&& flakeRef, std::string_view fragment,
+                                   FlakeRef&& flake_ref, std::string_view fragment,
                                    ExtendedOutputsSpec extendedOutputsSpec, strings_t attrPaths,
-                                   strings_t prefixes, const flake::LockFlags& lockFlags)
+                                   strings_t prefixes, const flake::LockFlags& lock_flags)
     : InstallableValue(state),
-      flakeRef(flakeRef),
+      flake_ref(flake_ref),
       attrPaths(fragment == "" ? attrPaths : strings_t{(std::string)fragment}),
       prefixes(fragment == "" ? strings_t{} : prefixes),
       extendedOutputsSpec(std::move(extendedOutputsSpec)),
-      lockFlags(lockFlags) {
+      lock_flags(lock_flags) {
   if (cmd && cmd->getAutoArgs(*state)->size())
     throw UsageError("'--arg' and '--argstr' are incompatible with flakes");
 }
 
-DerivedPathsWithInfo InstallableFlake::toDerivedPaths() {
-  activity_t act(*logger, lvlTalkative, actUnknown, fmt("evaluating derivation '%s'", what()));
+DerivedPathsWithInfo InstallableFlake::to_derived_paths() {
+  activity_t act(*logger, lvl_talkative, act_unknown, fmt("evaluating derivation '%s'", what()));
 
   auto attr = getCursor(*state);
 
-  auto attrPath = attr->getAttrPathStr();
+  auto attr_path = attr->getAttrPathStr();
 
-  if (!attr->isDerivation()) {
+  if (!attr->is_derivation()) {
     // FIXME: use eval cache?
     auto v = attr->forceValue();
 
     if (std::optional derivedPathWithInfo = trySinglePathToDerivedPaths(
-            v, noPos, fmt("while evaluating the flake output attribute '%s'", attrPath))) {
+            v, no_pos, fmt("while evaluating the flake output attribute '%s'", attr_path))) {
       return {*derivedPathWithInfo};
     } else {
       throw Error(
           "expected flake output attribute '%s' to be a derivation or path but found %s: %s",
-          attrPath, showType(v), ValuePrinter(*this->state, v, errorPrintOptions));
+          attr_path, show_type(v), ValuePrinter(*this->state, v, errorPrintOptions));
     }
   }
 
-  auto drvPath = attr->forceDerivation();
-  state->waitForPath(drvPath);
+  auto drv_path = attr->forceDerivation();
+  state->waitForPath(drv_path);
 
   std::optional<NixInt::Inner> priority;
 
@@ -104,7 +104,7 @@ DerivedPathsWithInfo InstallableFlake::toDerivedPaths() {
   return {{
       .path =
           DerivedPath::Built{
-              .drvPath = makeConstantStorePathRef(std::move(drvPath)),
+              .drv_path = makeConstantStorePathRef(std::move(drv_path)),
               .outputs = std::visit(
                   overloaded{
                       [&](const ExtendedOutputsSpec::Default& d) -> OutputsSpec {
@@ -112,7 +112,7 @@ DerivedPathsWithInfo InstallableFlake::toDerivedPaths() {
                         if (auto aOutputSpecified = attr->maybeGetAttr(state->s.outputSpecified)) {
                           if (aOutputSpecified->getBool()) {
                             if (auto aOutputName = attr->maybeGetAttr("outputName"))
-                              outputsToInstall = {aOutputName->getString()};
+                              outputsToInstall = {aOutputName->get_string()};
                           }
                         } else if (auto aMeta = attr->maybeGetAttr(state->s.meta)) {
                           if (auto aOutputsToInstall = aMeta->maybeGetAttr("outputsToInstall"))
@@ -132,67 +132,67 @@ DerivedPathsWithInfo InstallableFlake::toDerivedPaths() {
       .info = make_ref<ExtraPathInfoFlake>(
           ExtraPathInfoValue::Value{
               .priority = priority,
-              .attrPath = attrPath,
+              .attr_path = attr_path,
               .extendedOutputsSpec = extendedOutputsSpec,
           },
           ExtraPathInfoFlake::Flake{
-              .originalRef = flakeRef,
-              .lockedRef = getLockedFlake()->flake.lockedRef,
+              .original_ref = flake_ref,
+              .locked_ref = getLockedFlake()->flake.locked_ref,
           }),
   }};
 }
 
 std::pair<Value*, pos_idx_t> InstallableFlake::toValue(EvalState& state) {
-  return {&getCursor(state)->forceValue(), noPos};
+  return {&getCursor(state)->forceValue(), no_pos};
 }
 
 std::vector<ref<eval_cache::AttrCursor>> InstallableFlake::getCursors(EvalState& state) {
-  auto evalCache = openEvalCache(state, getLockedFlake());
+  auto eval_cache = open_eval_cache(state, getLockedFlake());
 
-  auto root = evalCache->getRoot();
+  auto root = eval_cache->get_root();
 
   std::vector<ref<eval_cache::AttrCursor>> res;
 
   suggestions_t suggestions;
   auto attrPaths = getActualAttrPaths();
 
-  for (auto& attrPath : attrPaths) {
-    debug("trying flake output attribute '%s'", attrPath);
+  for (auto& attr_path : attrPaths) {
+    debug("trying flake output attribute '%s'", attr_path);
 
-    auto attr = root->findAlongAttrPath(AttrPath::parse(state, attrPath));
+    auto attr = root->find_along_attr_path(AttrPath::parse(state, attr_path));
     if (attr) {
       res.push_back(ref(*attr));
     } else {
-      suggestions += attr.getSuggestions();
+      suggestions += attr.get_suggestions();
     }
   }
 
   if (res.size() == 0)
-    throw Error(suggestions, "flake '%s' does not provide attribute %s", flakeRef,
-                showAttrPaths(attrPaths));
+    throw Error(suggestions, "flake '%s' does not provide attribute %s", flake_ref,
+                show_attr_paths(attrPaths));
 
   return res;
 }
 
 ref<flake::LockedFlake> InstallableFlake::getLockedFlake() const {
   if (!_lockedFlake) {
-    flake::LockFlags lockFlagsApplyConfig = lockFlags;
+    flake::LockFlags lockFlagsApplyConfig = lock_flags;
     // FIXME why this side effect?
     lockFlagsApplyConfig.applyNixConfig = true;
     _lockedFlake = make_ref<flake::LockedFlake>(
-        lockFlake(flakeSettings, *state, flakeRef, lockFlagsApplyConfig));
+        lock_flake(flake_settings, *state, flake_ref, lockFlagsApplyConfig));
   }
   // _lockedFlake is now non-null but still just a shared_ptr
   return ref<flake::LockedFlake>(_lockedFlake);
 }
 
 FlakeRef InstallableFlake::nixpkgsFlakeRef() const {
-  auto lockedFlake = getLockedFlake();
+  auto locked_flake = getLockedFlake();
 
-  if (auto nixpkgsInput = lockedFlake->lockFile.findInput({"nixpkgs"})) {
-    if (auto lockedNode = std::dynamic_pointer_cast<const flake::LockedNode>(nixpkgsInput)) {
-      debug("using nixpkgs flake '%s'", lockedNode->lockedRef);
-      return std::move(lockedNode->lockedRef);
+  if (auto nixpkgsInput = locked_flake->lock_file.findInput({"nixpkgs"})) {
+    if (auto locked_node = std::dynamic_pointer_cast<const flake::LockedNode>(nixpkgsInput)) {
+      debug("using nixpkgs flake '%s'", locked_node->locked_ref);
+      return std::move(locked_node->locked_ref);
     }
   }
 

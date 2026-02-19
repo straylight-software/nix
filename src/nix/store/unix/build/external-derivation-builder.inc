@@ -2,35 +2,35 @@ namespace nix {
 
 struct external_derivation_builder_t : derivation_builder_impl_t
 {
-    ExternalBuilder externalBuilder;
+    ExternalBuilder external_builder;
 
     external_derivation_builder_t(
         LocalStore & store,
-        std::unique_ptr<DerivationBuilderCallbacks> miscMethods,
+        std::unique_ptr<DerivationBuilderCallbacks> misc_methods,
         DerivationBuilderParams params,
-        ExternalBuilder externalBuilder)
-        : derivation_builder_impl_t(store, std::move(miscMethods), std::move(params))
-        , externalBuilder(std::move(externalBuilder))
+        ExternalBuilder external_builder)
+        : derivation_builder_impl_t(store, std::move(misc_methods), std::move(params))
+        , external_builder(std::move(external_builder))
     {
-        experimentalFeatureSettings.require(xp_t::ExternalBuilders);
+        experimental_feature_settings.require(xp_t::external_builders);
     }
 
-    Path tmpDirInSandbox() override
+    Path tmp_dir_in_sandbox() override
     {
         /* In a sandbox, for determinism, always use the same temporary
            directory. */
         return "/build";
     }
 
-    void setBuildTmpDir() override
+    void set_build_tmp_dir() override
     {
-        tmpDir = topTmpDir + "/build";
-        createDir(tmpDir, 0700);
+        tmp_dir = topTmpDir + "/build";
+        create_dir(tmp_dir, 0700);
     }
 
-    void startChild() override
+    void start_child() override
     {
-        if (drvOptions.getRequiredSystemFeatures(drv).count("recursive-nix"))
+        if (drv_options.getRequiredSystemFeatures(drv).count("recursive-nix"))
             throw Error("'recursive-nix' is not supported yet by external derivation builders");
 
         auto json = nlohmann::json::object();
@@ -40,20 +40,20 @@ struct external_derivation_builder_t : derivation_builder_impl_t
         {
             auto l = nlohmann::json::array();
             for (auto & i : drv.args)
-                l.push_back(rewriteStrings(i, inputRewrites));
+                l.push_back(rewrite_strings(i, input_rewrites));
             json.emplace("args", std::move(l));
         }
         {
             auto j = nlohmann::json::object();
             for (auto & [name, value] : env)
-                j.emplace(name, rewriteStrings(value, inputRewrites));
+                j.emplace(name, rewrite_strings(value, input_rewrites));
             json.emplace("env", std::move(j));
         }
         json.emplace("topTmpDir", topTmpDir);
-        json.emplace("tmpDir", tmpDir);
-        json.emplace("tmpDirInSandbox", tmpDirInSandbox());
-        json.emplace("storeDir", store.storeDir);
-        json.emplace("realStoreDir", store.config->realStoreDir.get());
+        json.emplace("tmpDir", tmp_dir);
+        json.emplace("tmpDirInSandbox", tmp_dir_in_sandbox());
+        json.emplace("storeDir", store.store_dir);
+        json.emplace("realStoreDir", store.config->real_store_dir.get());
         json.emplace("system", drv.platform);
         {
             auto l = nlohmann::json::array();
@@ -71,48 +71,48 @@ struct external_derivation_builder_t : derivation_builder_impl_t
         // TODO(cole-h): writing this to stdin is too much effort right now, if we want to revisit
         // that, see this comment by Eelco about how to make it not suck:
         // https://github.com/DeterminateSystems/nix-src/pull/141#discussion_r2205493257
-        auto jsonFile = std::filesystem::path{topTmpDir} / "build.json";
-        writeFile(jsonFile, json.dump());
+        auto json_file = std::filesystem::path{topTmpDir} / "build.json";
+        write_file(json_file, json.dump());
 
-        pid = startProcess([&]() {
-            openSlave();
+        pid = start_process([&]() {
+            open_slave();
             try {
-                commonChildInit();
+                common_child_init();
 
-                strings_t args = {externalBuilder.program};
+                strings_t args = {external_builder.program};
 
-                if (!externalBuilder.args.empty()) {
-                    args.insert(args.end(), externalBuilder.args.begin(), externalBuilder.args.end());
+                if (!external_builder.args.empty()) {
+                    args.insert(args.end(), external_builder.args.begin(), external_builder.args.end());
                 }
 
-                args.insert(args.end(), jsonFile);
+                args.insert(args.end(), json_file);
 
-                if (chdir(tmpDir.c_str()) == -1)
-                    throw sys_error_t("changing into '%1%'", tmpDir);
+                if (chdir(tmp_dir.c_str()) == -1)
+                    throw sys_error_t("changing into '%1%'", tmp_dir);
 
-                chownToBuilder(topTmpDir);
+                chown_to_builder(topTmpDir);
 
-                setUser();
+                set_user();
 
-                debug("executing external builder: %s", concatStringsSep(" ", args));
-                execv(externalBuilder.program.c_str(), stringsToCharPtrs(args).data());
+                debug("executing external builder: %s", concat_strings_sep(" ", args));
+                execv(external_builder.program.c_str(), strings_to_char_ptrs(args).data());
 
-                throw sys_error_t("executing '%s'", externalBuilder.program);
+                throw sys_error_t("executing '%s'", external_builder.program);
             } catch (...) {
-                handleChildException(true);
+                handle_child_exception(true);
                 _exit(1);
             }
         });
     }
 };
 
-std::unique_ptr<DerivationBuilder> makeExternalDerivationBuilder(
+std::unique_ptr<DerivationBuilder> make_external_derivation_builder(
     LocalStore & store,
-    std::unique_ptr<DerivationBuilderCallbacks> miscMethods,
+    std::unique_ptr<DerivationBuilderCallbacks> misc_methods,
     DerivationBuilderParams params,
     const ExternalBuilder & handler)
 {
-    return std::make_unique<external_derivation_builder_t>(store, std::move(miscMethods), std::move(params), handler);
+    return std::make_unique<external_derivation_builder_t>(store, std::move(misc_methods), std::move(params), handler);
 }
 
 } // namespace nix

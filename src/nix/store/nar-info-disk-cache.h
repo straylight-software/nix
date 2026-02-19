@@ -13,21 +13,21 @@ public:
 
   virtual ~NarInfoDiskCache() {}
 
-  virtual int createCache(const std::string& uri, const Path& storeDir, bool wantMassQuery,
+  virtual int createCache(const std::string& uri, const Path& store_dir, bool want_mass_query,
                           int priority) = 0;
 
   struct CacheInfo {
     int id;
-    bool wantMassQuery;
+    bool want_mass_query;
     int priority;
   };
 
   virtual std::optional<CacheInfo> upToDateCacheExists(const std::string& uri) = 0;
 
   virtual std::pair<Outcome, std::shared_ptr<NarInfo>>
-  lookupNarInfo(const std::string& uri, const std::string& hashPart) = 0;
+  lookupNarInfo(const std::string& uri, const std::string& hash_part) = 0;
 
-  virtual void upsertNarInfo(const std::string& uri, const std::string& hashPart,
+  virtual void upsertNarInfo(const std::string& uri, const std::string& hash_part,
                              std::shared_ptr<const ValidPathInfo> info) = 0;
 
   virtual void upsertRealisation(const std::string& uri, const Realisation& realisation) = 0;
@@ -40,8 +40,8 @@ public:
  * Return a singleton cache object that can be used concurrently by
  * multiple threads.
  */
-ref<NarInfoDiskCache> getNarInfoDiskCache();
+ref<NarInfoDiskCache> get_nar_info_disk_cache();
 
-ref<NarInfoDiskCache> getTestNarInfoDiskCache(Path dbPath);
+ref<NarInfoDiskCache> get_test_nar_info_disk_cache(Path db_path);
 
 } // namespace nix

@@ -226,7 +226,7 @@ TEST_CASE("sized_source drain_all", "[serialise][sized_source]") {
   string_source_t inner_source(data);
   sized_source_t sized(inner_source, 5);
 
-  size_t drained = sized.drainAll();
+  size_t drained = sized.drain_all();
   REQUIRE(drained == 5);
 }
 
@@ -362,7 +362,7 @@ TEST_CASE("read uint64_t from source", "[serialise][integer]") {
   data[7] = 0x01;
   string_source_t source(data);
 
-  uint64_t n = readLongLong(source);
+  uint64_t n = read_long_long(source);
   REQUIRE(n == 0x0102030405060708ULL);
 }
 
@@ -379,7 +379,7 @@ TEST_CASE("read unsigned int from source", "[serialise][integer]") {
   data[7] = 0x00;
   string_source_t source(data);
 
-  unsigned int n = readInt(source);
+  unsigned int n = read_int(source);
   REQUIRE(n == 0x12345678);
 }
 
@@ -397,7 +397,7 @@ TEST_CASE("readNum overflow throws", "[serialise][integer]") {
   data[7] = 0x00;
   string_source_t source(data);
 
-  REQUIRE_THROWS_AS(readNum<uint32_t>(source), SerialisationError);
+  REQUIRE_THROWS_AS(read_num<uint32_t>(source), SerialisationError);
 }
 
 // =============================================================================
@@ -417,7 +417,7 @@ TEST_CASE("read string from source", "[serialise][string]") {
   sink << std::string_view("hello");
 
   string_source_t source(sink.s);
-  std::string result = readString(source);
+  std::string result = read_string(source);
   REQUIRE(result == "hello");
 }
 
@@ -434,7 +434,7 @@ TEST_CASE("read empty string", "[serialise][string]") {
   sink << std::string_view("");
 
   string_source_t source(sink.s);
-  std::string result = readString(source);
+  std::string result = read_string(source);
   REQUIRE(result.empty());
 }
 
@@ -443,7 +443,7 @@ TEST_CASE("read string with max limit", "[serialise][string]") {
   sink << std::string_view("hello");
 
   string_source_t source(sink.s);
-  REQUIRE_THROWS_AS(readString(source, 3), SerialisationError);
+  REQUIRE_THROWS_AS(read_string(source, 3), SerialisationError);
 }
 
 TEST_CASE("read string into buffer", "[serialise][string]") {
@@ -452,7 +452,7 @@ TEST_CASE("read string into buffer", "[serialise][string]") {
 
   string_source_t source(sink.s);
   std::array<char, 10> buf{};
-  size_t len = readString(buf.data(), buf.size(), source);
+  size_t len = read_string(buf.data(), buf.size(), source);
   REQUIRE(len == 5);
   REQUIRE(std::string_view(buf.data(), len) == "hello");
 }
@@ -463,7 +463,7 @@ TEST_CASE("read string into buffer too small throws", "[serialise][string]") {
 
   string_source_t source(sink.s);
   std::array<char, 3> buf{};
-  REQUIRE_THROWS_AS(readString(buf.data(), buf.size(), source), SerialisationError);
+  REQUIRE_THROWS_AS(read_string(buf.data(), buf.size(), source), SerialisationError);
 }
 
 // =============================================================================
@@ -474,24 +474,24 @@ TEST_CASE("write padding for various lengths", "[serialise][padding]") {
   // Length % 8 == 0: no padding
   {
     string_sink_t sink;
-    writePadding(0, sink);
+    write_padding(0, sink);
     REQUIRE(sink.s.empty());
   }
   {
     string_sink_t sink;
-    writePadding(8, sink);
+    write_padding(8, sink);
     REQUIRE(sink.s.empty());
   }
   {
     string_sink_t sink;
-    writePadding(16, sink);
+    write_padding(16, sink);
     REQUIRE(sink.s.empty());
   }
 
   // Length % 8 == 1: 7 bytes padding
   {
     string_sink_t sink;
-    writePadding(1, sink);
+    write_padding(1, sink);
     REQUIRE(sink.s.size() == 7);
     for (char c : sink.s) {
       REQUIRE(c == '\0');
@@ -501,7 +501,7 @@ TEST_CASE("write padding for various lengths", "[serialise][padding]") {
   // Length % 8 == 5: 3 bytes padding
   {
     string_sink_t sink;
-    writePadding(5, sink);
+    write_padding(5, sink);
     REQUIRE(sink.s.size() == 3);
     for (char c : sink.s) {
       REQUIRE(c == '\0');
@@ -511,7 +511,7 @@ TEST_CASE("write padding for various lengths", "[serialise][padding]") {
   // Length % 8 == 7: 1 byte padding
   {
     string_sink_t sink;
-    writePadding(7, sink);
+    write_padding(7, sink);
     REQUIRE(sink.s.size() == 1);
     REQUIRE(sink.s[0] == '\0');
   }
@@ -522,7 +522,7 @@ TEST_CASE("read padding validates zeros", "[serialise][padding]") {
   {
     std::string data(3, '\0');
     string_source_t source(data);
-    REQUIRE_NOTHROW(readPadding(5, source));
+    REQUIRE_NOTHROW(read_padding(5, source));
   }
 
   // Invalid padding (non-zero)
@@ -532,7 +532,7 @@ TEST_CASE("read padding validates zeros", "[serialise][padding]") {
     data.push_back('\x01');
     data.push_back('\x00');
     string_source_t source(data);
-    REQUIRE_THROWS_AS(readPadding(5, source), SerialisationError);
+    REQUIRE_THROWS_AS(read_padding(5, source), SerialisationError);
   }
 }
 
@@ -546,7 +546,7 @@ TEST_CASE("write strings to sink", "[serialise][strings]") {
   sink << strings;
 
   string_source_t source(sink.s);
-  auto result = readStrings<strings_t>(source);
+  auto result = read_strings<strings_t>(source);
   REQUIRE(result.size() == 2);
   auto it = result.begin();
   REQUIRE(*it++ == "hello");
@@ -559,7 +559,7 @@ TEST_CASE("write empty strings list", "[serialise][strings]") {
   sink << empty;
 
   string_source_t source(sink.s);
-  auto result = readStrings<strings_t>(source);
+  auto result = read_strings<strings_t>(source);
   REQUIRE(result.empty());
 }
 
@@ -570,7 +570,7 @@ TEST_CASE("write string set to sink", "[serialise][strings]") {
 
   string_source_t source(sink.s);
   // StringSet is sorted
-  auto result = readStrings<string_set_t>(source);
+  auto result = read_strings<string_set_t>(source);
   REQUIRE(result.size() == 3);
   REQUIRE(result.count("alpha") == 1);
   REQUIRE(result.count("beta") == 1);
@@ -607,7 +607,7 @@ TEST_CASE("source drain_into sink", "[serialise][source]") {
   string_source_t source(data);
   string_sink_t sink;
 
-  source.drainInto(sink);
+  source.drain_into(sink);
   REQUIRE(sink.s == "hello world");
 }
 
@@ -623,7 +623,7 @@ TEST_CASE("uint64_t roundtrip property", "[serialise][property][integer]") {
     sink << value;
 
     string_source_t source(sink.s);
-    uint64_t result = readLongLong(source);
+    uint64_t result = read_long_long(source);
 
     RC_ASSERT(result == value);
   });
@@ -637,7 +637,7 @@ TEST_CASE("unsigned int roundtrip property", "[serialise][property][integer]") {
     sink << static_cast<uint64_t>(value);
 
     string_source_t source(sink.s);
-    unsigned int result = readInt(source);
+    unsigned int result = read_int(source);
 
     RC_ASSERT(result == value);
   });
@@ -651,7 +651,7 @@ TEST_CASE("string roundtrip property", "[serialise][property][string]") {
     sink << str;
 
     string_source_t source(sink.s);
-    std::string result = readString(source);
+    std::string result = read_string(source);
 
     RC_ASSERT(result == str);
   });
@@ -666,7 +666,7 @@ TEST_CASE("string with nulls roundtrip", "[serialise][property][string]") {
     sink << str;
 
     string_source_t source(sink.s);
-    std::string result = readString(source);
+    std::string result = read_string(source);
 
     RC_ASSERT(result == str);
   });
@@ -681,7 +681,7 @@ TEST_CASE("strings list roundtrip property", "[serialise][property][strings]") {
     sink << input;
 
     string_source_t source(sink.s);
-    auto result = readStrings<strings_t>(source);
+    auto result = read_strings<strings_t>(source);
 
     RC_ASSERT(result == input);
   });
@@ -760,7 +760,7 @@ TEST_CASE("sized_source limits data", "[serialise][property][sized_source]") {
     string_source_t inner(str);
     sized_source_t sized(inner, limit);
 
-    size_t drained = sized.drainAll();
+    size_t drained = sized.drain_all();
 
     RC_ASSERT(drained == std::min(limit, str.size()));
   });
@@ -788,10 +788,10 @@ TEST_CASE("multiple values roundtrip", "[serialise][property]") {
     sink << val1 << str1 << val2 << str2;
 
     string_source_t source(sink.s);
-    uint64_t r_val1 = readLongLong(source);
-    std::string r_str1 = readString(source);
-    uint64_t r_val2 = readLongLong(source);
-    std::string r_str2 = readString(source);
+    uint64_t r_val1 = read_long_long(source);
+    std::string r_str1 = read_string(source);
+    uint64_t r_val2 = read_long_long(source);
+    std::string r_str2 = read_string(source);
 
     RC_ASSERT(r_val1 == val1);
     RC_ASSERT(r_str1 == str1);
@@ -817,9 +817,9 @@ TEST_CASE("malformed padding detection", "[serialise][fuzz][padding]") {
         string_source_t source(padding);
 
         if (byte0 == 0 && byte1 == 0 && byte2 == 0) {
-          REQUIRE_NOTHROW(readPadding(5, source));
+          REQUIRE_NOTHROW(read_padding(5, source));
         } else {
-          REQUIRE_THROWS_AS(readPadding(5, source), SerialisationError);
+          REQUIRE_THROWS_AS(read_padding(5, source), SerialisationError);
         }
       }
     }
@@ -831,7 +831,7 @@ TEST_CASE("truncated integer read fails", "[serialise][fuzz][integer]") {
     std::string data(len, '\x42');
     string_source_t source(data);
 
-    REQUIRE_THROWS_AS(readLongLong(source), EndOfFile);
+    REQUIRE_THROWS_AS(read_long_long(source), EndOfFile);
   }
 }
 
@@ -841,7 +841,7 @@ TEST_CASE("truncated string length fails", "[serialise][fuzz][string]") {
     std::string data(len, '\x00');
     string_source_t source(data);
 
-    REQUIRE_THROWS_AS(readString(source), EndOfFile);
+    REQUIRE_THROWS_AS(read_string(source), EndOfFile);
   }
 }
 
@@ -861,7 +861,7 @@ TEST_CASE("truncated string data fails", "[serialise][fuzz][string]") {
   // Only 5 bytes of data follow
 
   string_source_t source(data);
-  REQUIRE_THROWS_AS(readString(source), EndOfFile);
+  REQUIRE_THROWS_AS(read_string(source), EndOfFile);
 }
 
 TEST_CASE("string length overflow handling", "[serialise][fuzz][string]") {
@@ -875,7 +875,7 @@ TEST_CASE("string length overflow handling", "[serialise][fuzz][string]") {
 
   string_source_t source(data);
   // Should either throw or try to allocate huge amount
-  REQUIRE_THROWS(readString(source));
+  REQUIRE_THROWS(read_string(source));
 }
 
 TEST_CASE("extreme string lengths property", "[serialise][property][string]") {
@@ -892,7 +892,7 @@ TEST_CASE("extreme string lengths property", "[serialise][property][string]") {
     sink << str;
 
     string_source_t source(sink.s);
-    std::string result = readString(source);
+    std::string result = read_string(source);
 
     RC_ASSERT(result == str);
     RC_ASSERT(sink.s.size() == 8 + len + (len % 8 == 0 ? 0 : 8 - (len % 8)));
@@ -935,7 +935,7 @@ struct TestBufferedSink : buffered_sink_t {
 
   explicit TestBufferedSink(size_t buf_size = 32) : buffered_sink_t(buf_size) {}
 
-  void writeUnbuffered(std::string_view data) override {
+  void write_unbuffered(std::string_view data) override {
     output.append(data);
     write_count++;
   }
@@ -1009,7 +1009,7 @@ struct TestBufferedSource : buffered_source_t {
   explicit TestBufferedSource(std::string_view input, size_t buf_size = 32)
       : buffered_source_t(buf_size), data(input) {}
 
-  size_t readUnbuffered(char* buf, size_t len) override {
+  size_t read_unbuffered(char* buf, size_t len) override {
     if (pos >= data.size()) {
       throw EndOfFile("end of test data");
     }
@@ -1035,12 +1035,12 @@ TEST_CASE("buffered_source buffers reads", "[serialise][buffered_source]") {
 TEST_CASE("buffered_source has_data", "[serialise][buffered_source]") {
   TestBufferedSource source("hello", 32);
 
-  REQUIRE_FALSE(source.hasData()); // Buffer empty initially
+  REQUIRE_FALSE(source.has_data()); // Buffer empty initially
 
   std::array<char, 3> buf{};
   source.read(buf.data(), 3);
 
-  REQUIRE(source.hasData()); // "lo" still in buffer
+  REQUIRE(source.has_data()); // "lo" still in buffer
 }
 
 // =============================================================================
@@ -1052,7 +1052,7 @@ namespace {
 struct MockBufferedSink : buffered_sink_t {
   std::string output;
 
-  void writeUnbuffered(std::string_view data) override { output.append(data); }
+  void write_unbuffered(std::string_view data) override { output.append(data); }
 };
 } // namespace
 
@@ -1137,7 +1137,7 @@ TEST_CASE("binary data roundtrip", "[serialise][property][binary]") {
     sink << binary_data;
 
     string_source_t source(sink.s);
-    std::string result = readString(source);
+    std::string result = read_string(source);
 
     RC_ASSERT(result == binary_data);
   });
@@ -1161,7 +1161,7 @@ TEST_CASE("high entropy data roundtrip", "[serialise][property][binary]") {
     sink << data;
 
     string_source_t source(sink.s);
-    std::string result = readString(source);
+    std::string result = read_string(source);
 
     RC_ASSERT(result == data);
   });
@@ -1179,7 +1179,7 @@ TEST_CASE("large string roundtrip", "[serialise][string]") {
   sink << large_string;
 
   string_source_t source(sink.s);
-  std::string result = readString(source);
+  std::string result = read_string(source);
 
   REQUIRE(result == large_string);
 }
@@ -1194,7 +1194,7 @@ TEST_CASE("many small strings roundtrip", "[serialise][strings]") {
   sink << many_strings;
 
   string_source_t source(sink.s);
-  auto result = readStrings<strings_t>(source);
+  auto result = read_strings<strings_t>(source);
 
   REQUIRE(result == many_strings);
 }
@@ -1214,10 +1214,10 @@ TEST_CASE("interleaved reads from same source", "[serialise][source]") {
   string_source_t source(sink.s);
 
   // Read them back in order
-  REQUIRE(readLongLong(source) == 42);
-  REQUIRE(readString(source) == "hello");
-  REQUIRE(readLongLong(source) == 100);
-  REQUIRE(readString(source) == "world");
+  REQUIRE(read_long_long(source) == 42);
+  REQUIRE(read_string(source) == "hello");
+  REQUIRE(read_long_long(source) == 100);
+  REQUIRE(read_string(source) == "world");
 }
 
 // =============================================================================

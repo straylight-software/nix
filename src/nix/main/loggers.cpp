@@ -5,35 +5,35 @@
 
 namespace nix {
 
-LogFormat defaultLogFormat = LogFormat::raw;
+LogFormat default_log_format = LogFormat::raw;
 
-LogFormat parseLogFormat(const std::string& logFormatStr) {
-  if (logFormatStr == "raw" || getEnv("NIX_GET_COMPLETIONS"))
+LogFormat parse_log_format(const std::string& log_format_str) {
+  if (log_format_str == "raw" || get_env("NIX_GET_COMPLETIONS"))
     return LogFormat::raw;
-  else if (logFormatStr == "raw-with-logs")
+  else if (log_format_str == "raw-with-logs")
     return LogFormat::rawWithLogs;
-  else if (logFormatStr == "internal-json")
+  else if (log_format_str == "internal-json")
     return LogFormat::internalJSON;
-  else if (logFormatStr == "bar")
+  else if (log_format_str == "bar")
     return LogFormat::bar;
-  else if (logFormatStr == "bar-with-logs")
+  else if (log_format_str == "bar-with-logs")
     return LogFormat::barWithLogs;
-  throw Error("option 'log-format' has an invalid value '%s'", logFormatStr);
+  throw Error("option 'log-format' has an invalid value '%s'", log_format_str);
 }
 
-std::unique_ptr<Logger> makeDefaultLogger() {
-  switch (defaultLogFormat) {
+std::unique_ptr<logger_t> make_default_logger() {
+  switch (default_log_format) {
     case LogFormat::raw:
-      return makeSimpleLogger(false);
+      return make_simple_logger(false);
     case LogFormat::rawWithLogs:
-      return makeSimpleLogger(true);
+      return make_simple_logger(true);
     case LogFormat::internalJSON:
-      return makeJSONLogger(getStandardError());
+      return make_json_logger(get_standard_error());
     case LogFormat::bar:
-      return makeProgressBar();
+      return make_progress_bar();
     case LogFormat::barWithLogs: {
-      auto logger = makeProgressBar();
-      logger->setPrintBuildLogs(true);
+      auto logger = make_progress_bar();
+      logger->set_print_build_logs(true);
       return logger;
     }
     default:
@@ -41,13 +41,13 @@ std::unique_ptr<Logger> makeDefaultLogger() {
   }
 }
 
-void setLogFormat(const std::string& logFormatStr) {
-  setLogFormat(parseLogFormat(logFormatStr));
+void set_log_format(const std::string& log_format_str) {
+  set_log_format(parse_log_format(log_format_str));
 }
 
-void setLogFormat(const LogFormat& logFormat) {
-  defaultLogFormat = logFormat;
-  logger = makeDefaultLogger();
+void set_log_format(const LogFormat& log_format) {
+  default_log_format = log_format;
+  logger = make_default_logger();
 }
 
 } // namespace nix

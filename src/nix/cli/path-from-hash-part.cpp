@@ -4,12 +4,12 @@
 using namespace nix;
 
 struct cmd_path_from_hash_part_t : StoreCommand {
-  std::string hashPart;
+  std::string hash_part;
 
   cmd_path_from_hash_part_t() {
-    expectArgs({
+    expect_args({
         .label = "hash-part",
-        .handler = {&hashPart},
+        .handler = {&hash_part},
     });
   }
 
@@ -22,12 +22,12 @@ struct cmd_path_from_hash_part_t : StoreCommand {
   }
 
   void run(ref<Store> store) override {
-    if (auto storePath = store->queryPathFromHashPart(hashPart))
-      logger->cout(store->printStorePath(*storePath));
+    if (auto store_path = store->queryPathFromHashPart(hash_part))
+      logger->cout(store->printStorePath(*store_path));
     else
-      throw Error("there is no store path corresponding to '%s'", hashPart);
+      throw Error("there is no store path corresponding to '%s'", hash_part);
   }
 };
 
-static auto rCmdPathFromHashPart =
+static auto r_cmd_path_from_hash_part =
     registerCommand2<cmd_path_from_hash_part_t>({"store", "path-from-hash-part"});

@@ -17,72 +17,72 @@
 
 namespace nix::lfs {
 
-static void downloadToSink(const std::string& url, const std::optional<std::string>& authHeader,
+static void download_to_sink(const std::string& url, const std::optional<std::string>& auth_header,
                            // FIXME: passing a StringSink is superfluous, we may as well
                            // return a string. Or use an abstract Sink for streaming.
-                           string_sink_t& sink, std::string sha256Expected, size_t sizeExpected) {
-  FileTransferRequest request(parseURL(url));
+                           string_sink_t& sink, std::string sha256_expected, size_t size_expected) {
+  FileTransferRequest request(parse_url(url));
   headers_t headers;
-  if (authHeader.has_value())
-    headers.push_back({"Authorization", *authHeader});
+  if (auth_header.has_value())
+    headers.push_back({"Authorization", *auth_header});
   request.headers = headers;
-  getFileTransfer()->download(std::move(request), sink);
+  get_file_transfer()->download(std::move(request), sink);
 
-  auto sizeActual = sink.s.length();
-  if (sizeExpected != sizeActual)
-    throw Error("size mismatch while fetching %s: expected %d but got %d", url, sizeExpected,
-                sizeActual);
+  auto size_actual = sink.s.length();
+  if (size_expected != size_actual)
+    throw Error("size mismatch while fetching %s: expected %d but got %d", url, size_expected,
+                size_actual);
 
-  auto sha256Actual =
-      hashString(hash_algorithm_t::SHA256, sink.s).to_string(hash_format_t::Base16, false);
-  if (sha256Actual != sha256Expected)
+  auto sha256_actual =
+      hash_string(hash_algorithm_t::SHA256, sink.s).to_string(hash_format_t::base16, false);
+  if (sha256_actual != sha256_expected)
     throw Error("hash mismatch while fetching %s: expected sha256:%s but got sha256:%s", url,
-                sha256Expected, sha256Actual);
+                sha256_expected, sha256_actual);
 }
 
 namespace {
 
 struct lfs_api_info_t {
   std::string endpoint;
-  std::optional<std::string> authHeader;
+  std::optional<std::string> auth_header;
 };
 
 } // namespace
 
-static lfs_api_info_t getLfsApi(const parsed_url_t& url) {
+static lfs_api_info_t get_lfs_api(const parsed_url_t& url) {
   assert(url.authority.has_value());
   if (url.scheme == "ssh") {
-    auto args = getNixSshOpts();
+    auto args = get_nix_ssh_opts();
 
     if (url.authority->port)
       args.push_back(fmt("-p%d", *url.authority->port));
 
-    std::ostringstream hostnameAndUser;
+    std::ostringstream hostname_and_user;
     if (url.authority->user)
-      hostnameAndUser << *url.authority->user << "@";
-    hostnameAndUser << url.authority->host;
-    args.push_back(std::move(hostnameAndUser).str());
+      hostname_and_user << *url.authority->user << "@";
+    hostname_and_user << url.authority->host;
+    args.push_back(std::move(hostname_and_user).str());
 
     args.push_back("--");
     args.push_back("git-lfs-authenticate");
     // FIXME %2F encode slashes? Does this command take/accept percent encoding?
-    args.push_back(url.renderPath(/*encode=*/false));
+    args.push_back(url.render_path(/*encode=*/false));
     args.push_back("download");
 
-    auto [status, output] = runProgram({.program = "ssh", .args = args});
+    auto [status, output] = run_program({.program = "ssh", .args = args});
 
     if (output.empty())
-      throw Error("git-lfs-authenticate: no output (cmd: 'ssh %s')", concatStringsSep(" ", args));
+      throw Error("git-lfs-authenticate: no output (cmd: 'ssh %s')", concat_strings_sep(" ", args));
 
-    auto queryResp = nlohmann::json::parse(output);
-    auto headerIt = queryResp.find("header");
-    if (headerIt == queryResp.end())
+    auto query_resp = nlohmann::json::parse(output);
+    auto header_it = query_resp.find("header");
+    if (header_it == query_resp.end())
       throw Error("no header in git-lfs-authenticate response");
-    auto authIt = headerIt->find("Authorization");
-    if (authIt == headerIt->end())
+    auto auth_it = header_it->find("Authorization");
+    if (auth_it == header_it->end())
       throw Error("no Authorization in git-lfs-authenticate response");
 
-    return {queryResp.at("href").get<std::string>(), authIt->get<std::string>()};
+    return {query_resp.at("href").get<std::string>(), auth_it->get<std::string>()};
   }
 
   return {url.to_string() + "/info/lfs", std::nullopt};
@@ -91,7 +91,7 @@ static lfs_api_info_t getLfsApi(const parsed_url_t& url) {
 typedef std::unique_ptr<git_config, Deleter<git_config_free>> GitConfig;
 typedef std::unique_ptr<git_config_entry, Deleter<git_config_entry_free>> GitConfigEntry;
 
-static std::string getLfsEndpointUrl(git_repository* repo) {
+static std::string get_lfs_endpoint_url(git_repository* repo) {
   GitConfig config;
   if (git_repository_config(Setter(config), repo)) {
     GitConfigEntry entry;
@@ -115,7 +115,7 @@ static std::string getLfsEndpointUrl(git_repository* repo) {
   return std::string(url_c_str);
 }
 
-static std::optional<Pointer> parseLfsPointer(std::string_view content, std::string_view filename) {
+static std::optional<Pointer> parse_lfs_pointer(std::string_view content, std::string_view filename) {
   // https://github.com/git-lfs/git-lfs/blob/2ef4108/docs/spec.md
   //
   // example git-lfs pointer file:
@@ -138,7 +138,7 @@ static std::optional<Pointer> parseLfsPointer(std::string_view content, std::str
   std::string oid;
   std::string size;
 
-  for (auto& line : tokenizeString<strings_t>(content, "\n")) {
+  for (auto& line : tokenize_string<strings_t>(content, "\n")) {
     if (line.starts_with("version ")) {
       continue;
     }
@@ -171,9 +171,9 @@ Fetch::Fetch(git_repository* repo, git_oid rev) {
   this->repo = repo;
   this->rev = rev;
 
-  const auto remoteUrl = lfs::getLfsEndpointUrl(repo);
+  const auto remoteUrl = lfs::get_lfs_endpoint_url(repo);
 
-  this->url = nix::fixGitURL(remoteUrl).canonicalise();
+  this->url = nix::fix_git_url(remoteUrl).canonicalise();
 }
 
 bool Fetch::shouldFetch(const canon_path_t& path) const {
@@ -187,33 +187,33 @@ bool Fetch::shouldFetch(const canon_path_t& path) const {
   return attr != nullptr && !std::string(attr).compare("lfs");
 }
 
-static nlohmann::json pointerToPayload(const std::vector<Pointer>& items) {
-  nlohmann::json jArray = nlohmann::json::array();
+static nlohmann::json pointer_to_payload(const std::vector<Pointer>& items) {
+  nlohmann::json j_array = nlohmann::json::array();
   for (const auto& pointer : items)
-    jArray.push_back({{"oid", pointer.oid}, {"size", pointer.size}});
-  return jArray;
+    j_array.push_back({{"oid", pointer.oid}, {"size", pointer.size}});
+  return j_array;
 }
 
 std::vector<nlohmann::json> Fetch::fetchUrls(const std::vector<Pointer>& pointers) const {
-  auto api = lfs::getLfsApi(this->url);
+  auto api = lfs::get_lfs_api(this->url);
   auto url = api.endpoint + "/objects/batch";
-  const auto& authHeader = api.authHeader;
-  FileTransferRequest request(parseURL(url));
+  const auto& auth_header = api.auth_header;
+  FileTransferRequest request(parse_url(url));
   request.method = HttpMethod::Post;
   headers_t headers;
-  if (authHeader.has_value())
-    headers.push_back({"Authorization", *authHeader});
+  if (auth_header.has_value())
+    headers.push_back({"Authorization", *auth_header});
   headers.push_back({"Content-Type", "application/vnd.git-lfs+json"});
   headers.push_back({"Accept", "application/vnd.git-lfs+json"});
   request.headers = headers;
-  nlohmann::json oidList = pointerToPayload(pointers);
+  nlohmann::json oidList = pointer_to_payload(pointers);
   nlohmann::json data = {{"operation", "download"}};
   data["objects"] = oidList;
   auto payload = data.dump();
   string_source_t source{payload};
   request.data = {source};
 
-  FileTransferResult result = getFileTransfer()->upload(request);
+  FileTransferResult result = get_file_transfer()->upload(request);
   auto responseString = result.data;
 
   std::vector<nlohmann::json> objects;
@@ -230,40 +230,40 @@ std::vector<nlohmann::json> Fetch::fetchUrls(const std::vector<Pointer>& pointer
 
     return objects;
   } catch (const nlohmann::json::parse_error& e) {
-    printMsg(lvlTalkative, "Full response: '%1%'", responseString);
+    printMsg(lvl_talkative, "Full response: '%1%'", responseString);
     throw Error("response did not parse as json: %s", e.what());
   }
 }
 
 void Fetch::fetch(const std::string& content, const canon_path_t& pointerFilePath, string_sink_t& sink,
-                  std::function<void(uint64_t)> sizeCallback) const {
+                  std::function<void(uint64_t)> size_callback) const {
   debug("trying to fetch '%s' using git-lfs", pointerFilePath);
 
   if (content.length() >= 1024) {
     warn("encountered file '%s' that should have been a git-lfs pointer, but is too large",
          pointerFilePath);
-    sizeCallback(content.length());
+    size_callback(content.length());
     sink(content);
     return;
   }
 
-  const auto pointer = parseLfsPointer(content, pointerFilePath.rel());
+  const auto pointer = parse_lfs_pointer(content, pointerFilePath.rel());
   if (pointer == std::nullopt) {
     warn("encountered file '%s' that should have been a git-lfs pointer, but is invalid",
          pointerFilePath);
-    sizeCallback(content.length());
+    size_callback(content.length());
     sink(content);
     return;
   }
 
-  std::filesystem::path cacheDir = getCacheDir() / "git-lfs";
-  std::string key = hashString(hash_algorithm_t::SHA256, pointerFilePath.rel())
-                        .to_string(hash_format_t::Base16, false) +
+  std::filesystem::path cache_dir = get_cache_dir() / "git-lfs";
+  std::string key = hash_string(hash_algorithm_t::SHA256, pointerFilePath.rel())
+                        .to_string(hash_format_t::base16, false) +
                     "/" + pointer->oid;
-  std::filesystem::path cachePath = cacheDir / key;
-  if (pathExists(cachePath)) {
+  std::filesystem::path cachePath = cache_dir / key;
+  if (path_exists(cachePath)) {
     debug("using cache entry %s -> %s", key, cachePath);
-    sink(readFile(cachePath));
+    sink(read_file(cachePath));
     return;
   }
   debug("did not find cache entry for %s", key);
@@ -276,24 +276,24 @@ void Fetch::fetch(const std::string& content, const canon_path_t& pointerFilePat
   try {
     std::string sha256 = obj.at("oid"); // oid is also the sha256
     std::string ourl = obj.at("actions").at("download").at("href");
-    auto authHeader = [&]() -> std::optional<std::string> {
+    auto auth_header = [&]() -> std::optional<std::string> {
       const auto& download = obj.at("actions").at("download");
-      auto headerIt = download.find("header");
-      if (headerIt == download.end())
+      auto header_it = download.find("header");
+      if (header_it == download.end())
         return std::nullopt;
-      auto authIt = headerIt->find("Authorization");
-      if (authIt == headerIt->end())
+      auto auth_it = header_it->find("Authorization");
+      if (auth_it == header_it->end())
         return std::nullopt;
-      return std::string(*authIt);
+      return std::string(*auth_it);
     }();
     const uint64_t size = obj.at("size");
-    sizeCallback(size);
-    downloadToSink(ourl, authHeader, sink, sha256, size);
+    size_callback(size);
+    download_to_sink(ourl, auth_header, sink, sha256, size);
 
     debug("creating cache entry %s -> %s", key, cachePath);
-    if (!pathExists(cachePath.parent_path()))
-      createDirs(cachePath.parent_path());
-    writeFile(cachePath, sink.s);
+    if (!path_exists(cachePath.parent_path()))
+      create_dirs(cachePath.parent_path());
+    write_file(cachePath, sink.s);
 
     debug("%s fetched with git-lfs", pointerFilePath);
   } catch (const nlohmann::json::out_of_range& e) {

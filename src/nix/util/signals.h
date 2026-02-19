@@ -14,27 +14,27 @@ namespace nix {
 /**
  * @note Does nothing on Windows
  */
-static inline void setInterrupted(bool isInterrupted);
+static inline void set_interrupted(bool is_interrupted);
 
 /**
  * @note Does nothing on Windows
  */
-static inline bool getInterrupted();
+static inline bool get_interrupted();
 
 /**
  * @note Does nothing on Windows
  */
-static inline bool isInterrupted();
+static inline bool is_interrupted();
 
 /**
  * @note Does nothing on Windows
  */
-inline void checkInterrupt();
+inline void check_interrupt();
 
 /**
  * @note Never will happen on Windows
  */
-MakeError(Interrupted, base_error_t);
+make_error(Interrupted, base_error_t);
 
 struct interrupt_callback_t {
   virtual ~interrupt_callback_t() {};
@@ -46,7 +46,7 @@ struct interrupt_callback_t {
  *
  * @note Does nothing on Windows
  */
-std::unique_ptr<interrupt_callback_t> createInterruptCallback(std::function<void()> callback);
+std::unique_ptr<interrupt_callback_t> create_interrupt_callback(std::function<void()> callback);
 
 /**
  * A RAII class that causes the current thread to receive SIGUSR1 when

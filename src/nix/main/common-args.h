@@ -11,24 +11,24 @@ static constexpr auto loggingCategory = "Logging-related options";
 static constexpr auto miscCategory = "Miscellaneous global options";
 
 class MixCommonArgs : public virtual Args {
-  void initialFlagsProcessed() override;
+  void initial_flags_processed() override;
 
 public:
-  std::string programName;
-  MixCommonArgs(const std::string& programName);
+  std::string program_name;
+  MixCommonArgs(const std::string& program_name);
 
 protected:
-  virtual void pluginsInited() {}
+  virtual void plugins_inited() {}
 };
 
 struct MixDryRun : virtual Args {
-  bool dryRun = false;
+  bool dry_run = false;
 
   MixDryRun() {
-    addFlag({
-        .longName = "dry-run",
+    add_flag({
+        .long_name = "dry-run",
         .description = "Show what this command would do without doing it.",
-        .handler = {&dryRun, true},
+        .handler = {&dry_run, true},
     });
   }
 };
@@ -44,8 +44,8 @@ struct MixPrintJSON : virtual Args {
   bool outputPretty = isatty(STDOUT_FILENO);
 
   MixPrintJSON() {
-    addFlag({
-        .longName = "pretty",
+    add_flag({
+        .long_name = "pretty",
         .description =
             R"(
                     Print multi-line, indented JSON output for readability.
@@ -56,8 +56,8 @@ struct MixPrintJSON : virtual Args {
                 )",
         .handler = {&outputPretty, true},
     });
-    addFlag({
-        .longName = "no-pretty",
+    add_flag({
+        .long_name = "no-pretty",
         .description =
             R"(
                     Print compact JSON output on a single line, even when the output is a terminal.
@@ -92,8 +92,8 @@ struct MixJSON : virtual Args, virtual MixPrintJSON {
   bool json = false;
 
   MixJSON() {
-    addFlag({
-        .longName = "json",
+    add_flag({
+        .long_name = "json",
         .description =
             "Produce output in JSON format, suitable for consumption by another program.",
         .handler = {&json, true},
@@ -105,8 +105,8 @@ struct MixRepair : virtual Args {
   RepairFlag repair = NoRepair;
 
   MixRepair() {
-    addFlag({
-        .longName = "repair",
+    add_flag({
+        .long_name = "repair",
         .description = "During evaluation, rewrite missing or corrupted files in the Nix store. "
                        "During building, rebuild missing or corrupted store paths.",
         .category = miscCategory,

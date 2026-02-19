@@ -24,7 +24,7 @@ void Store::computeFSClosure(const StorePathSet& startPaths, StorePathSet& paths
     queryDeps = [&](const StorePath& path, std::future<ref<const ValidPathInfo>>& fut) {
       StorePathSet res;
       StorePathSet referrers;
-      queryReferrers(path, referrers);
+      query_referrers(path, referrers);
       for (auto& ref : referrers)
         if (ref != path)
           res.insert(ref);
@@ -33,7 +33,7 @@ void Store::computeFSClosure(const StorePathSet& startPaths, StorePathSet& paths
         for (auto& i : queryValidDerivers(path))
           res.insert(i);
 
-      if (includeDerivers && path.isDerivation())
+      if (includeDerivers && path.is_derivation())
         for (auto& [_, maybeOutPath] : queryPartialDerivationOutputMap(path))
           if (maybeOutPath && isValidPath(*maybeOutPath))
             res.insert(*maybeOutPath);
@@ -47,7 +47,7 @@ void Store::computeFSClosure(const StorePathSet& startPaths, StorePathSet& paths
         if (ref != path)
           res.insert(ref);
 
-      if (includeOutputs && path.isDerivation())
+      if (includeOutputs && path.is_derivation())
         for (auto& [_, maybeOutPath] : queryPartialDerivationOutputMap(path))
           if (maybeOutPath && isValidPath(*maybeOutPath))
             res.insert(*maybeOutPath);
@@ -82,7 +82,7 @@ void Store::computeFSClosure(const StorePath& startPath, StorePathSet& paths_, b
   computeFSClosure(paths, paths_, flipDirection, includeOutputs, includeDerivers);
 }
 
-const ContentAddress* getDerivationCA(const BasicDerivation& drv) {
+const ContentAddress* get_derivation_ca(const BasicDerivation& drv) {
   auto out = drv.outputs.find("out");
   if (out == drv.outputs.end())
     return nullptr;
@@ -92,11 +92,11 @@ const ContentAddress* getDerivationCA(const BasicDerivation& drv) {
   return nullptr;
 }
 
-MissingPaths Store::queryMissing(const std::vector<DerivedPath>& targets) {
-  activity_t act(*logger, lvlDebug, actUnknown, "querying info about missing paths");
+MissingPaths Store::query_missing(const std::vector<DerivedPath>& targets) {
+  activity_t act(*logger, lvl_debug, act_unknown, "querying info about missing paths");
 
   // FIXME: make async.
-  thread_pool_t pool(fileTransferSettings.httpConnections);
+  thread_pool_t pool(file_transfer_settings.httpConnections);
 
   struct State {
     boost::unordered_flat_set<std::string> done;
@@ -106,45 +106,45 @@ MissingPaths Store::queryMissing(const std::vector<DerivedPath>& targets) {
   struct DrvState {
     size_t left;
     bool done = false;
-    StorePathSet outPaths;
+    StorePathSet out_paths;
 
     DrvState(size_t left) : left(left) {}
   };
 
   sync_t<State> state_;
 
-  std::function<void(DerivedPath)> doPath;
+  std::function<void(DerivedPath)> do_path;
 
-  auto enqueueDerivedPaths = [&](this auto self, ref<SingleDerivedPath> inputDrv,
-                                 const DerivedPathMap<string_set_t>::ChildNode& inputNode) -> void {
-    if (!inputNode.value.empty())
-      pool.enqueue(std::bind(doPath, DerivedPath::Built{inputDrv, inputNode.value}));
-    for (const auto& [outputName, childNode] : inputNode.childMap)
-      self(make_ref<SingleDerivedPath>(SingleDerivedPath::Built{inputDrv, outputName}), childNode);
+  auto enqueueDerivedPaths = [&](this auto self, ref<SingleDerivedPath> input_drv,
+                                 const DerivedPathMap<string_set_t>::ChildNode& input_node) -> void {
+    if (!input_node.value.empty())
+      pool.enqueue(std::bind(do_path, DerivedPath::Built{input_drv, input_node.value}));
+    for (const auto& [output_name, childNode] : input_node.childMap)
+      self(make_ref<SingleDerivedPath>(SingleDerivedPath::Built{input_drv, output_name}), childNode);
   };
 
-  auto mustBuildDrv = [&](const StorePath& drvPath, const Derivation& drv) {
+  auto mustBuildDrv = [&](const StorePath& drv_path, const Derivation& drv) {
     {
       auto state(state_.lock());
-      state->res.willBuild.insert(drvPath);
+      state->res.willBuild.insert(drv_path);
     }
 
-    for (const auto& [inputDrv, inputNode] : drv.inputDrvs.map) {
-      enqueueDerivedPaths(makeConstantStorePathRef(inputDrv), inputNode);
+    for (const auto& [input_drv, input_node] : drv.input_drvs.map) {
+      enqueueDerivedPaths(makeConstantStorePathRef(input_drv), input_node);
     }
   };
 
-  auto checkOutput = [&](const StorePath& drvPath, ref<Derivation> drv, const StorePath& outPath,
+  auto checkOutput = [&](const StorePath& drv_path, ref<Derivation> drv, const StorePath& out_path,
                          ref<sync_t<DrvState>> drvState_) {
     if (drvState_->lock()->done)
       return;
 
     SubstitutablePathInfos infos;
-    auto* cap = getDerivationCA(*drv);
+    auto* cap = get_derivation_ca(*drv);
     querySubstitutablePathInfos(
         {
             {
-                outPath,
+                out_path,
                 cap ? std::optional{*cap} : std::nullopt,
             },
         },
@@ -152,7 +152,7 @@ MissingPaths Store::queryMissing(const std::vector<DerivedPath>& targets) {
 
     if (infos.empty()) {
       drvState_->lock()->done = true;
-      mustBuildDrv(drvPath, *drv);
+      mustBuildDrv(drv_path, *drv);
     } else {
       {
         auto drvState(drvState_->lock());
@@ -160,16 +160,16 @@ MissingPaths Store::queryMissing(const std::vector<DerivedPath>& targets) {
           return;
         assert(drvState->left);
         drvState->left--;
-        drvState->outPaths.insert(outPath);
+        drvState->out_paths.insert(out_path);
         if (!drvState->left) {
-          for (auto& path : drvState->outPaths)
-            pool.enqueue(std::bind(doPath, DerivedPath::opaque_t{path}));
+          for (auto& path : drvState->out_paths)
+            pool.enqueue(std::bind(do_path, DerivedPath::opaque_t{path}));
         }
       }
     }
   };
 
-  doPath = [&](const DerivedPath& req) {
+  do_path = [&](const DerivedPath& req) {
     {
       auto state(state_.lock());
       if (!state->done.insert(req.to_string(*this)).second)
@@ -179,20 +179,20 @@ MissingPaths Store::queryMissing(const std::vector<DerivedPath>& targets) {
     std::visit(
         overloaded{
             [&](const DerivedPath::Built& bfd) {
-              auto drvPathP = std::get_if<DerivedPath::opaque_t>(&*bfd.drvPath);
+              auto drvPathP = std::get_if<DerivedPath::opaque_t>(&*bfd.drv_path);
               if (!drvPathP) {
                 // TODO make work in this case.
                 warn("Ignoring dynamic derivation %s while querying missing paths; not yet "
                      "implemented",
-                     bfd.drvPath->to_string(*this));
+                     bfd.drv_path->to_string(*this));
                 return;
               }
-              auto& drvPath = drvPathP->path;
+              auto& drv_path = drvPathP->path;
 
-              if (!isValidPath(drvPath)) {
+              if (!isValidPath(drv_path)) {
                 // FIXME: we could try to substitute the derivation.
                 auto state(state_.lock());
-                state->res.unknown.insert(drvPath);
+                state->res.unknown.insert(drv_path);
                 return;
               }
 
@@ -200,49 +200,49 @@ MissingPaths Store::queryMissing(const std::vector<DerivedPath>& targets) {
               /* true for regular derivations, and CA derivations for which we
                  have a trust mapping for all wanted outputs. */
               auto knownOutputPaths = true;
-              for (auto& [outputName, pathOpt] : queryPartialDerivationOutputMap(drvPath)) {
+              for (auto& [output_name, pathOpt] : queryPartialDerivationOutputMap(drv_path)) {
                 if (!pathOpt) {
                   knownOutputPaths = false;
                   break;
                 }
-                if (bfd.outputs.contains(outputName) && !isValidPath(*pathOpt))
+                if (bfd.outputs.contains(output_name) && !isValidPath(*pathOpt))
                   invalid.insert(*pathOpt);
               }
               if (knownOutputPaths && invalid.empty())
                 return;
 
-              auto drv = make_ref<Derivation>(derivationFromPath(drvPath));
-              DerivationOptions<SingleDerivedPath> drvOptions;
+              auto drv = make_ref<Derivation>(derivationFromPath(drv_path));
+              DerivationOptions<SingleDerivedPath> drv_options;
               try {
                 // FIXME: this is a lot of work just to get the value
                 // of `allowSubstitutes`.
-                drvOptions = derivationOptionsFromStructuredAttrs(*this, drv->inputDrvs, drv->env,
-                                                                  get(drv->structuredAttrs));
+                drv_options = derivation_options_from_structured_attrs(*this, drv->input_drvs, drv->env,
+                                                                  get(drv->structured_attrs));
               } catch (Error& e) {
-                e.addTrace({}, "while parsing derivation '%s'", printStorePath(drvPath));
+                e.add_trace({}, "while parsing derivation '%s'", printStorePath(drv_path));
                 throw;
               }
 
-              if (!knownOutputPaths && settings.useSubstitutes && drvOptions.substitutesAllowed()) {
-                experimentalFeatureSettings.require(xp_t::CaDerivations);
+              if (!knownOutputPaths && settings.use_substitutes && drv_options.substitutesAllowed()) {
+                experimental_feature_settings.require(xp_t::ca_derivations);
 
                 // If there are unknown output paths, attempt to find if the
                 // paths are known to substituters through a realisation.
-                auto outputHashes = staticOutputHashes(*this, *drv);
+                auto output_hashes = static_output_hashes(*this, *drv);
                 knownOutputPaths = true;
 
-                for (auto [outputName, hash] : outputHashes) {
-                  if (!bfd.outputs.contains(outputName))
+                for (auto [output_name, hash] : output_hashes) {
+                  if (!bfd.outputs.contains(output_name))
                     continue;
 
                   bool found = false;
-                  for (auto& sub : getDefaultSubstituters()) {
-                    auto realisation = sub->queryRealisation({hash, outputName});
+                  for (auto& sub : get_default_substituters()) {
+                    auto realisation = sub->query_realisation({hash, output_name});
                     if (!realisation)
                       continue;
                     found = true;
-                    if (!isValidPath(realisation->outPath))
-                      invalid.insert(realisation->outPath);
+                    if (!isValidPath(realisation->out_path))
+                      invalid.insert(realisation->out_path);
                     break;
                   }
                   if (!found) {
@@ -253,12 +253,12 @@ MissingPaths Store::queryMissing(const std::vector<DerivedPath>& targets) {
                 }
               }
 
-              if (knownOutputPaths && settings.useSubstitutes && drvOptions.substitutesAllowed()) {
+              if (knownOutputPaths && settings.use_substitutes && drv_options.substitutesAllowed()) {
                 auto drvState = make_ref<sync_t<DrvState>>(DrvState(invalid.size()));
                 for (auto& output : invalid)
-                  pool.enqueue(std::bind(checkOutput, drvPath, drv, output, drvState));
+                  pool.enqueue(std::bind(checkOutput, drv_path, drv, output, drvState));
               } else
-                mustBuildDrv(drvPath, *drv);
+                mustBuildDrv(drv_path, *drv);
             },
             [&](const DerivedPath::opaque_t& bo) {
               if (isValidPath(bo.path))
@@ -280,18 +280,18 @@ MissingPaths Store::queryMissing(const std::vector<DerivedPath>& targets) {
                 auto state(state_.lock());
                 state->res.willSubstitute.insert(bo.path);
                 state->res.downloadSize += info->second.downloadSize;
-                state->res.narSize += info->second.narSize;
+                state->res.nar_size += info->second.nar_size;
               }
 
               for (auto& ref : info->second.references)
-                pool.enqueue(std::bind(doPath, DerivedPath::opaque_t{ref}));
+                pool.enqueue(std::bind(do_path, DerivedPath::opaque_t{ref}));
             },
         },
         req.raw());
   };
 
   for (auto& path : targets)
-    pool.enqueue(std::bind(doPath, path));
+    pool.enqueue(std::bind(do_path, path));
 
   pool.process();
 
@@ -317,141 +317,141 @@ StorePaths Store::topoSortPaths(const StorePathSet& paths) {
                     result);
 }
 
-std::map<DrvOutput, StorePath> drvOutputReferences(const std::set<Realisation>& inputRealisations,
-                                                   const StorePathSet& pathReferences) {
+std::map<DrvOutput, StorePath> drv_output_references(const std::set<Realisation>& input_realisations,
+                                                   const StorePathSet& path_references) {
   std::map<DrvOutput, StorePath> res;
 
-  for (const auto& input : inputRealisations) {
-    if (pathReferences.count(input.outPath)) {
-      res.insert({input.id, input.outPath});
+  for (const auto& input : input_realisations) {
+    if (path_references.count(input.out_path)) {
+      res.insert({input.id, input.out_path});
     }
   }
 
   return res;
 }
 
-std::map<DrvOutput, StorePath> drvOutputReferences(Store& store, const Derivation& drv,
-                                                   const StorePath& outputPath, Store* evalStore_) {
-  auto& evalStore = evalStore_ ? *evalStore_ : store;
+std::map<DrvOutput, StorePath> drv_output_references(Store& store, const Derivation& drv,
+                                                   const StorePath& output_path, Store* eval_store_) {
+  auto& eval_store = eval_store_ ? *eval_store_ : store;
 
-  std::set<Realisation> inputRealisations;
+  std::set<Realisation> input_realisations;
 
-  auto accumRealisations = [&](this auto& self, const StorePath& inputDrv,
-                               const DerivedPathMap<string_set_t>::ChildNode& inputNode) -> void {
-    if (!inputNode.value.empty()) {
-      auto outputHashes = staticOutputHashes(evalStore, evalStore.readDerivation(inputDrv));
-      for (const auto& outputName : inputNode.value) {
-        auto outputHash = get(outputHashes, outputName);
+  auto accum_realisations = [&](this auto& self, const StorePath& input_drv,
+                               const DerivedPathMap<string_set_t>::ChildNode& input_node) -> void {
+    if (!input_node.value.empty()) {
+      auto output_hashes = static_output_hashes(eval_store, eval_store.read_derivation(input_drv));
+      for (const auto& output_name : input_node.value) {
+        auto outputHash = get(output_hashes, output_name);
         if (!outputHash)
-          throw Error("output '%s' of derivation '%s' isn't realised", outputName,
-                      store.printStorePath(inputDrv));
-        DrvOutput key{*outputHash, outputName};
-        auto thisRealisation = store.queryRealisation(key);
+          throw Error("output '%s' of derivation '%s' isn't realised", output_name,
+                      store.printStorePath(input_drv));
+        DrvOutput key{*outputHash, output_name};
+        auto thisRealisation = store.query_realisation(key);
         if (!thisRealisation)
-          throw Error("output '%s' of derivation '%s' isn’t built", outputName,
-                      store.printStorePath(inputDrv));
-        inputRealisations.insert({*thisRealisation, std::move(key)});
+          throw Error("output '%s' of derivation '%s' isn’t built", output_name,
+                      store.printStorePath(input_drv));
+        input_realisations.insert({*thisRealisation, std::move(key)});
       }
     }
-    if (!inputNode.value.empty()) {
-      auto d = makeConstantStorePathRef(inputDrv);
-      for (const auto& [outputName, childNode] : inputNode.childMap) {
-        SingleDerivedPath next = SingleDerivedPath::Built{d, outputName};
+    if (!input_node.value.empty()) {
+      auto d = makeConstantStorePathRef(input_drv);
+      for (const auto& [output_name, childNode] : input_node.childMap) {
+        SingleDerivedPath next = SingleDerivedPath::Built{d, output_name};
         self(
             // TODO deep resolutions for dynamic derivations, issue #8947, would go here.
-            resolveDerivedPath(store, next, evalStore_), childNode);
+            resolve_derived_path(store, next, eval_store_), childNode);
       }
     }
   };
 
-  for (const auto& [inputDrv, inputNode] : drv.inputDrvs.map)
-    accumRealisations(inputDrv, inputNode);
+  for (const auto& [input_drv, input_node] : drv.input_drvs.map)
+    accum_realisations(input_drv, input_node);
 
-  auto info = store.queryPathInfo(outputPath);
+  auto info = store.queryPathInfo(output_path);
 
-  return drvOutputReferences(Realisation::closure(store, inputRealisations), info->references);
+  return drv_output_references(Realisation::closure(store, input_realisations), info->references);
 }
 
-OutputPathMap resolveDerivedPath(Store& store, const DerivedPath::Built& bfd, Store* evalStore_) {
-  auto drvPath = resolveDerivedPath(store, *bfd.drvPath, evalStore_);
+OutputPathMap resolve_derived_path(Store& store, const DerivedPath::Built& bfd, Store* eval_store_) {
+  auto drv_path = resolve_derived_path(store, *bfd.drv_path, eval_store_);
 
-  auto outputsOpt_ = store.queryPartialDerivationOutputMap(drvPath, evalStore_);
+  auto outputs_opt_ = store.queryPartialDerivationOutputMap(drv_path, eval_store_);
 
-  auto outputsOpt =
+  auto outputs_opt =
       std::visit(overloaded{
                      [&](const OutputsSpec::All&) {
                        // Keep all outputs
-                       return std::move(outputsOpt_);
+                       return std::move(outputs_opt_);
                      },
                      [&](const OutputsSpec::Names& names) {
                        // Get just those mentioned by name
-                       std::map<std::string, std::optional<StorePath>> outputsOpt;
+                       std::map<std::string, std::optional<StorePath>> outputs_opt;
                        for (auto& output : names) {
-                         auto* pOutputPathOpt = get(outputsOpt_, output);
+                         auto* pOutputPathOpt = get(outputs_opt_, output);
                          if (!pOutputPathOpt)
                            throw Error("the derivation '%s' doesn't have an output named '%s'",
-                                       bfd.drvPath->to_string(store), output);
-                         outputsOpt.insert_or_assign(output, std::move(*pOutputPathOpt));
+                                       bfd.drv_path->to_string(store), output);
+                         outputs_opt.insert_or_assign(output, std::move(*pOutputPathOpt));
                        }
-                       return outputsOpt;
+                       return outputs_opt;
                      },
                  },
                  bfd.outputs.raw);
 
   OutputPathMap outputs;
-  for (auto& [outputName, outputPathOpt] : outputsOpt) {
+  for (auto& [output_name, outputPathOpt] : outputs_opt) {
     if (!outputPathOpt)
-      throw MissingRealisation(bfd.drvPath->to_string(store), outputName);
-    auto& outputPath = *outputPathOpt;
-    outputs.insert_or_assign(outputName, outputPath);
+      throw MissingRealisation(bfd.drv_path->to_string(store), output_name);
+    auto& output_path = *outputPathOpt;
+    outputs.insert_or_assign(output_name, output_path);
   }
   return outputs;
 }
 
-StorePath resolveDerivedPath(Store& store, const SingleDerivedPath& req, Store* evalStore_) {
-  auto& evalStore = evalStore_ ? *evalStore_ : store;
+StorePath resolve_derived_path(Store& store, const SingleDerivedPath& req, Store* eval_store_) {
+  auto& eval_store = eval_store_ ? *eval_store_ : store;
 
   return std::visit(overloaded{
                         [&](const SingleDerivedPath::opaque_t& bo) { return bo.path; },
                         [&](const SingleDerivedPath::Built& bfd) {
-                          auto drvPath = resolveDerivedPath(store, *bfd.drvPath, evalStore_);
-                          auto outputPaths =
-                              evalStore.queryPartialDerivationOutputMap(drvPath, evalStore_);
-                          if (outputPaths.count(bfd.output) == 0)
+                          auto drv_path = resolve_derived_path(store, *bfd.drv_path, eval_store_);
+                          auto output_paths =
+                              eval_store.queryPartialDerivationOutputMap(drv_path, eval_store_);
+                          if (output_paths.count(bfd.output) == 0)
                             throw Error("derivation '%s' does not have an output named '%s'",
-                                        store.printStorePath(drvPath), bfd.output);
-                          auto& optPath = outputPaths.at(bfd.output);
+                                        store.printStorePath(drv_path), bfd.output);
+                          auto& optPath = output_paths.at(bfd.output);
                           if (!optPath)
-                            throw MissingRealisation(bfd.drvPath->to_string(store), bfd.output);
+                            throw MissingRealisation(bfd.drv_path->to_string(store), bfd.output);
                           return *optPath;
                         },
                     },
                     req.raw());
 }
 
-OutputPathMap resolveDerivedPath(Store& store, const DerivedPath::Built& bfd) {
-  auto drvPath = resolveDerivedPath(store, *bfd.drvPath);
-  auto outputMap = store.queryDerivationOutputMap(drvPath);
-  auto outputsLeft =
+OutputPathMap resolve_derived_path(Store& store, const DerivedPath::Built& bfd) {
+  auto drv_path = resolve_derived_path(store, *bfd.drv_path);
+  auto output_map = store.queryDerivationOutputMap(drv_path);
+  auto outputs_left =
       std::visit(overloaded{
                      [&](const OutputsSpec::All&) { return string_set_t{}; },
                      [&](const OutputsSpec::Names& names) { return static_cast<string_set_t>(names); },
                  },
                  bfd.outputs.raw);
-  for (auto iter = outputMap.begin(); iter != outputMap.end();) {
-    auto& outputName = iter->first;
-    if (bfd.outputs.contains(outputName)) {
-      outputsLeft.erase(outputName);
+  for (auto iter = output_map.begin(); iter != output_map.end();) {
+    auto& output_name = iter->first;
+    if (bfd.outputs.contains(output_name)) {
+      outputs_left.erase(output_name);
       ++iter;
     } else {
-      iter = outputMap.erase(iter);
+      iter = output_map.erase(iter);
     }
   }
-  if (!outputsLeft.empty())
+  if (!outputs_left.empty())
     throw Error(
-        "derivation '%s' does not have an outputs %s", store.printStorePath(drvPath),
-        concatStringsSep(", ", quoteStrings(std::get<OutputsSpec::Names>(bfd.outputs.raw))));
-  return outputMap;
+        "derivation '%s' does not have an outputs %s", store.printStorePath(drv_path),
+        concat_strings_sep(", ", quote_strings(std::get<OutputsSpec::Names>(bfd.outputs.raw))));
+  return output_map;
 }
 
 } // namespace nix
@@ -461,7 +461,7 @@ namespace nlohmann {
 using namespace nix;
 
 TrustedFlag adl_serializer<TrustedFlag>::from_json(const json& json) {
-  return getBoolean(json) ? TrustedFlag::Trusted : TrustedFlag::NotTrusted;
+  return get_boolean(json) ? TrustedFlag::Trusted : TrustedFlag::NotTrusted;
 }
 
 void adl_serializer<TrustedFlag>::to_json(json& json, const TrustedFlag& trustedFlag) {

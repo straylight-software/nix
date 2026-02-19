@@ -3,9 +3,9 @@ let
   inherit (builtins)
     attrNames
     listToAttrs
-    concatStringsSep
-    readFile
-    replaceStrings
+    concat_strings_sep
+    read_file
+    replace_strings
     ;
   showSettings = import <nix/generate-settings.nix>;
   showStoreDocs = import <nix/generate-store-info.nix>;
@@ -23,17 +23,17 @@ let
     let
       showEntry = store: "- [${store.name}](./${store.filename})";
     in
-    concatStringsSep "\n" (map showEntry storesList);
+    concat_strings_sep "\n" (map showEntry storesList);
 
-  "index.md" = replaceStrings [ "@store-types@" ] [ index ] (
-    readFile ./source/store/types/index.md.in
+  "index.md" = replace_strings [ "@store-types@" ] [ index ] (
+    read_file ./source/store/types/index.md.in
   );
 
   tableOfContents =
     let
       showEntry = store: "    - [${store.name}](store/types/${store.filename})";
     in
-    concatStringsSep "\n" (map showEntry storesList) + "\n";
+    concat_strings_sep "\n" (map showEntry storesList) + "\n";
 
   "SUMMARY.md" = tableOfContents;
 

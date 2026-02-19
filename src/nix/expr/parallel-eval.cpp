@@ -11,19 +11,19 @@ struct alignas(64) waiter_domain_t {
   std::condition_variable cv;
 };
 
-static std::array<sync_t<waiter_domain_t>, 128> waiterDomains;
+static std::array<sync_t<waiter_domain_t>, 128> waiter_domains;
 
 thread_local bool Executor::amWorkerThread{false};
 
-unsigned int Executor::getEvalCores(const EvalSettings& evalSettings) {
-  return evalSettings.evalCores == 0UL ? settings_t::getDefaultCores() : evalSettings.evalCores;
+unsigned int Executor::getEvalCores(const EvalSettings& eval_settings) {
+  return eval_settings.evalCores == 0UL ? settings_t::getDefaultCores() : eval_settings.evalCores;
 }
 
-Executor::Executor(const EvalSettings& evalSettings)
-    : evalCores(getEvalCores(evalSettings)),
+Executor::Executor(const EvalSettings& eval_settings)
+    : evalCores(getEvalCores(eval_settings)),
       enabled(evalCores > 1),
-      interruptCallback(createInterruptCallback([&]() {
-        for (auto& domain : waiterDomains)
+      interruptCallback(create_interrupt_callback([&]() {
+        for (auto& domain : waiter_domains)
           domain.lock()->cv.notify_all();
       })) {
   debug("executor using %d threads", evalCores);
@@ -64,9 +64,9 @@ void Executor::createWorker(State& state) {
 }
 
 void Executor::worker() {
-  receive_interrupts_t receiveInterrupts;
+  receive_interrupts_t receive_interrupts;
 
-  unix::interruptCheck = [&]() { return (bool)quit; };
+  unix::interrupt_check = [&]() { return (bool)quit; };
 
   amWorkerThread = true;
 
@@ -135,7 +135,7 @@ FutureVector::~FutureVector() {
   try {
     finishAll();
   } catch (...) {
-    ignoreExceptionInDestructor();
+    ignore_exception_in_destructor();
   }
 }
 
@@ -162,8 +162,8 @@ void FutureVector::finishAll() {
         future.get();
       } catch (...) {
         if (ex) {
-          if (!getInterrupted())
-            ignoreExceptionExceptInterrupt();
+          if (!get_interrupted())
+            ignore_exception_except_interrupt();
         } else
           ex = std::current_exception();
       }
@@ -172,20 +172,20 @@ void FutureVector::finishAll() {
     std::rethrow_exception(ex);
 }
 
-static sync_t<waiter_domain_t>& getWaiterDomain(detail::ValueBase& v) {
-  auto domain = (((size_t)&v) >> 5) % waiterDomains.size();
-  return waiterDomains[domain];
+static sync_t<waiter_domain_t>& get_waiter_domain(detail::ValueBase& v) {
+  auto domain = (((size_t)&v) >> 5) % waiter_domains.size();
+  return waiter_domains[domain];
 }
 
-static std::atomic<uint32_t> nextEvalThreadId{1};
-thread_local uint32_t myEvalThreadId(nextEvalThreadId++);
+static std::atomic<uint32_t> next_eval_thread_id{1};
+thread_local uint32_t my_eval_thread_id(next_eval_thread_id++);
 
 template <>
 ValueStorage<sizeof(void*)>::PackedPointer
 ValueStorage<sizeof(void*)>::waitOnThunk(EvalState& state, PackedPointer expectedP0) {
   state.nrThunksAwaited++;
 
-  auto domain = getWaiterDomain(*this).lock();
+  auto domain = get_waiter_domain(*this).lock();
 
   auto threadId = expectedP0 >> discriminatorBits;
 
@@ -219,9 +219,9 @@ ValueStorage<sizeof(void*)>::waitOnThunk(EvalState& state, PackedPointer expecte
   }
 
   /* Wait for another thread to finish this value. */
-  if (threadId == myEvalThreadId)
+  if (threadId == my_eval_thread_id)
     state.error<InfiniteRecursionError>("infinite recursion encountered")
-        .atPos(((Value&)*this).determinePos(noPos))
+        .at_pos(((Value&)*this).determinePos(no_pos))
         .debugThrow();
 
   state.nrThunksAwaitedSlow++;
@@ -243,13 +243,13 @@ ValueStorage<sizeof(void*)>::waitOnThunk(EvalState& state, PackedPointer expecte
       return p0_;
     }
     state.nrSpuriousWakeups++;
-    checkInterrupt();
+    check_interrupt();
   }
 }
 
 template <>
 void ValueStorage<sizeof(void*)>::notifyWaiters() {
-  auto domain = getWaiterDomain(*this).lock();
+  auto domain = get_waiter_domain(*this).lock();
 
   domain->cv.notify_all();
 }
@@ -259,10 +259,10 @@ static void prim_parallel(EvalState& state, const pos_idx_t pos, Value** args, V
 
   if (state.executor->evalCores > 1) {
     std::vector<std::pair<Executor::work_t, uint8_t>> work;
-    for (auto value : args[0]->listView())
+    for (auto value : args[0]->list_view())
       if (!value->isFinished())
         work.emplace_back(
-            [value(allocRootValue(value)), &state, pos]() { state.forceValue(**value, pos); }, 0);
+            [value(alloc_root_value(value)), &state, pos]() { state.forceValue(**value, pos); }, 0);
     state.executor->spawn(std::move(work));
   }
 
@@ -279,7 +279,7 @@ static RegisterPrimOp r_parallel({
       Start evaluation of the values `xs` in the background and return `x`.
     )",
     .fun = prim_parallel,
-    .experimentalFeature = xp_t::ParallelEval,
+    .experimental_feature = xp_t::parallel_eval,
 });
 
 } // namespace nix

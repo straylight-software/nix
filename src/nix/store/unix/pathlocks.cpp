@@ -14,7 +14,7 @@
 
 namespace nix {
 
-auto_close_fd_t openLockFile(const std::filesystem::path& path, bool create) {
+auto_close_fd_t open_lock_file(const std::filesystem::path& path, bool create) {
   auto_close_fd_t fd;
 
   fd = open(path.c_str(), O_CLOEXEC | O_RDWR | (create ? O_CREAT : 0), 0600);
@@ -24,31 +24,31 @@ auto_close_fd_t openLockFile(const std::filesystem::path& path, bool create) {
   return fd;
 }
 
-void deleteLockFile(const std::filesystem::path& path, descriptor_t desc) {
+void delete_lock_file(const std::filesystem::path& path, descriptor_t desc) {
   /* Get rid of the lock file.  Have to be careful not to introduce
      races.  Write a (meaningless) token to the file to indicate to
      other processes waiting on this lock that the lock is stale
      (deleted). */
   unlink(path.c_str());
-  writeFull(desc, "d");
+  write_full(desc, "d");
   /* Note that the result of unlink() is ignored; removing the lock
      file is an optimisation, not a necessity. */
 }
 
-bool lockFile(descriptor_t desc, LockType lockType, bool wait) {
+bool lock_file(descriptor_t desc, LockType lock_type, bool wait) {
   int type;
-  if (lockType == ltRead)
+  if (lock_type == ltRead)
     type = LOCK_SH;
-  else if (lockType == ltWrite)
+  else if (lock_type == ltWrite)
     type = LOCK_EX;
-  else if (lockType == ltNone)
+  else if (lock_type == ltNone)
     type = LOCK_UN;
   else
     unreachable();
 
   if (wait) {
     while (flock(desc, type) != 0) {
-      checkInterrupt();
+      check_interrupt();
       if (errno != EINTR)
         throw sys_error_t("acquiring/releasing lock");
       else
@@ -56,7 +56,7 @@ bool lockFile(descriptor_t desc, LockType lockType, bool wait) {
     }
   } else {
     while (flock(desc, type | LOCK_NB) != 0) {
-      checkInterrupt();
+      check_interrupt();
       if (errno == EWOULDBLOCK)
         return false;
       if (errno != EINTR)
@@ -78,7 +78,7 @@ bool PathLocks::lockPaths(const std::set<std::filesystem::path>& paths, const st
      that locks are always acquired in the same order, thus
      preventing deadlocks. */
   for (auto& path : paths) {
-    checkInterrupt();
+    check_interrupt();
     std::filesystem::path lockPath = path + ".lock";
 
     debug("locking path %1%", path);
@@ -87,14 +87,14 @@ bool PathLocks::lockPaths(const std::set<std::filesystem::path>& paths, const st
 
     while (1) {
       /* Open/create the lock file. */
-      fd = openLockFile(lockPath, true);
+      fd = open_lock_file(lockPath, true);
 
       /* Acquire an exclusive lock. */
-      if (!lockFile(fd.get(), ltWrite, false)) {
+      if (!lock_file(fd.get(), ltWrite, false)) {
         if (wait) {
           if (waitMsg != "")
             printError(waitMsg);
-          lockFile(fd.get(), ltWrite, true);
+          lock_file(fd.get(), ltWrite, true);
         } else {
           /* Failed to lock this path; release all other
              locks. */
@@ -120,7 +120,7 @@ bool PathLocks::lockPaths(const std::set<std::filesystem::path>& paths, const st
         break;
     }
 
-    /* Use borrow so that the descriptor isn't closed. */
+    /* use borrow so that the descriptor isn't closed. */
     fds.push_back(FDPair(fd.release(), lockPath));
   }
 
@@ -130,7 +130,7 @@ bool PathLocks::lockPaths(const std::set<std::filesystem::path>& paths, const st
 void PathLocks::unlock() {
   for (auto& i : fds) {
     if (deletePaths)
-      deleteLockFile(i.second, i.first);
+      delete_lock_file(i.second, i.first);
 
     if (close(i.first) == -1)
       printError("error (ignored): cannot close lock file on %1%", i.second);
@@ -141,15 +141,15 @@ void PathLocks::unlock() {
   fds.clear();
 }
 
-FdLock::FdLock(descriptor_t desc, LockType lockType, bool wait, std::string_view waitMsg)
+FdLock::FdLock(descriptor_t desc, LockType lock_type, bool wait, std::string_view waitMsg)
     : desc(desc) {
   if (wait) {
-    if (!lockFile(desc, lockType, false)) {
+    if (!lock_file(desc, lock_type, false)) {
       printInfo("%s", waitMsg);
-      acquired = lockFile(desc, lockType, true);
+      acquired = lock_file(desc, lock_type, true);
     }
   } else
-    acquired = lockFile(desc, lockType, false);
+    acquired = lock_file(desc, lock_type, false);
 }
 
 } // namespace nix

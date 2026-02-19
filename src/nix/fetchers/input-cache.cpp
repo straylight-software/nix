@@ -6,55 +6,55 @@
 
 namespace nix::fetchers {
 
-InputCache::CachedResult InputCache::getAccessor(const settings_t& settings, Store& store,
-                                                 const Input& originalInput,
-                                                 UseRegistries useRegistries) {
-  auto fetched = lookup(originalInput);
-  Input resolvedInput = originalInput;
+InputCache::CachedResult InputCache::get_accessor(const settings_t& settings, Store& store,
+                                                 const Input& original_input,
+                                                 UseRegistries use_registries) {
+  auto fetched = lookup(original_input);
+  Input resolved_input = original_input;
 
   if (!fetched) {
-    if (originalInput.isDirect()) {
-      auto [accessor, lockedInput] = originalInput.getAccessor(settings, store);
+    if (original_input.isDirect()) {
+      auto [accessor, lockedInput] = original_input.get_accessor(settings, store);
       fetched.emplace(CachedInput{.lockedInput = lockedInput, .accessor = accessor});
     } else {
-      if (useRegistries != UseRegistries::No) {
-        auto [res, extraAttrs] = lookupInRegistries(settings, store, originalInput, useRegistries);
-        resolvedInput = std::move(res);
-        fetched = lookup(resolvedInput);
+      if (use_registries != UseRegistries::No) {
+        auto [res, extra_attrs] = lookup_in_registries(settings, store, original_input, use_registries);
+        resolved_input = std::move(res);
+        fetched = lookup(resolved_input);
         if (!fetched) {
-          auto [accessor, lockedInput] = resolvedInput.getAccessor(settings, store);
+          auto [accessor, lockedInput] = resolved_input.get_accessor(settings, store);
           fetched.emplace(CachedInput{
-              .lockedInput = lockedInput, .accessor = accessor, .extraAttrs = extraAttrs});
+              .lockedInput = lockedInput, .accessor = accessor, .extra_attrs = extra_attrs});
         }
-        upsert(resolvedInput, *fetched);
+        upsert(resolved_input, *fetched);
       } else {
         throw Error("'%s' is an indirect flake reference, but registry lookups are not allowed",
-                    originalInput.to_string());
+                    original_input.to_string());
       }
     }
-    upsert(originalInput, *fetched);
+    upsert(original_input, *fetched);
   }
 
   debug("got tree '%s' from '%s'", fetched->accessor, fetched->lockedInput.to_string());
 
-  return {fetched->accessor, resolvedInput, fetched->lockedInput, fetched->extraAttrs};
+  return {fetched->accessor, resolved_input, fetched->lockedInput, fetched->extra_attrs};
 }
 
 struct input_cache_impl_t : InputCache {
   sync_t<std::map<Input, CachedInput>> cache_;
 
-  std::optional<CachedInput> lookup(const Input& originalInput) const override {
-    auto cache(cache_.readLock());
-    auto i = cache->find(originalInput);
+  std::optional<CachedInput> lookup(const Input& original_input) const override {
+    auto cache(cache_.read_lock());
+    auto i = cache->find(original_input);
     if (i == cache->end())
       return std::nullopt;
-    debug("mapping '%s' to previously seen input '%s' -> '%s", originalInput.to_string(),
+    debug("mapping '%s' to previously seen input '%s' -> '%s", original_input.to_string(),
           i->first.to_string(), i->second.lockedInput.to_string());
     return i->second;
   }
 
-  void upsert(Input key, CachedInput cachedInput) override {
-    cache_.lock()->insert_or_assign(std::move(key), std::move(cachedInput));
+  void upsert(Input key, CachedInput cached_input) override {
+    cache_.lock()->insert_or_assign(std::move(key), std::move(cached_input));
   }
 
   void clear() override { cache_.lock()->clear(); }

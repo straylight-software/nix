@@ -28,7 +28,7 @@ struct SSHStoreConfig : std::enable_shared_from_this<SSHStoreConfig>,
 
   static std::string doc();
 
-  ref<Store> openStore() const override;
+  ref<Store> open_store() const override;
 
   StoreReference getReference() const override;
 };
@@ -43,11 +43,11 @@ struct MountedSSHStoreConfig : virtual SSHStoreConfig, virtual LocalFSStoreConfi
 
   static std::string doc();
 
-  static std::optional<experimental_feature_t> experimentalFeature() {
+  static std::optional<experimental_feature_t> experimental_feature() {
     return experimental_feature_t::mounted_ssh_store_t;
   }
 
-  ref<Store> openStore() const override;
+  ref<Store> open_store() const override;
 };
 
 } // namespace nix

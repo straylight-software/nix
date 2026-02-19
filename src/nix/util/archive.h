@@ -8,7 +8,7 @@
 namespace nix {
 
 /**
- * dumpPath creates a Nix archive of the specified path.
+ * dump_path creates a Nix archive of the specified path.
  *
  * @param path the file system data to dump. Dumping is recursive so if
  * this is a directory we dump it and all its children.
@@ -55,31 +55,31 @@ namespace nix {
  *   `+` denotes string concatenation.
  * ```
  */
-void dumpPath(const Path& path, Sink& sink, path_filter_t& filter = defaultPathFilter);
+void dump_path(const Path& path, Sink& sink, path_filter_t& filter = default_path_filter);
 
 /**
- * Same as dumpPath(), but returns the last modified date of the path.
+ * Same as dump_path(), but returns the last modified date of the path.
  */
-time_t dumpPathAndGetMtime(const Path& path, Sink& sink, path_filter_t& filter = defaultPathFilter);
+time_t dump_path_and_get_mtime(const Path& path, Sink& sink, path_filter_t& filter = default_path_filter);
 
 /**
  * Dump an archive with a single file with these contents.
  *
  * @param s Contents of the file.
  */
-void dumpString(std::string_view s, Sink& sink);
+void dump_string(std::string_view s, Sink& sink);
 
-void parseDump(file_system_object_sink_t& sink, Source& source);
+void parse_dump(file_system_object_sink_t& sink, Source& source);
 
-void restorePath(const std::filesystem::path& path, Source& source, bool startFsync = false);
+void restore_path(const std::filesystem::path& path, Source& source, bool start_fsync = false);
 
 /**
  * Read a NAR from 'source' and write it to 'sink'.
  */
-void copyNAR(Source& source, Sink& sink);
+void copy_nar(Source& source, Sink& sink);
 
-inline constexpr std::string_view narVersionMagic1 = "nix-archive-1";
+inline constexpr std::string_view nar_version_magic1 = "nix-archive-1";
 
-inline constexpr std::string_view caseHackSuffix = "~nix~case~hack~";
+inline constexpr std::string_view case_hack_suffix = "~nix~case~hack~";
 
 } // namespace nix

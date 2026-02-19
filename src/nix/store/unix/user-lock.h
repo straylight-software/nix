@@ -32,11 +32,11 @@ struct UserLock {
 };
 
 /**
- * Acquire a user lock for a UID range of size `nrIds`. Note that this
+ * Acquire a user lock for a UID range of size `nr_ids`. Note that this
  * may return nullptr if no user is available.
  */
-std::unique_ptr<UserLock> acquireUserLock(uid_t nrIds, bool useUserNamespace);
+std::unique_ptr<UserLock> acquire_user_lock(uid_t nr_ids, bool use_user_namespace);
 
-bool useBuildUsers();
+bool use_build_users();
 
 } // namespace nix

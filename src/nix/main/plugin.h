@@ -8,6 +8,6 @@ namespace nix {
  * This should be called after settings are initialized, but before
  * anything else
  */
-void initPlugins();
+void init_plugins();
 
 } // namespace nix

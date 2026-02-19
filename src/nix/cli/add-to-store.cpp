@@ -10,39 +10,39 @@ using namespace nix;
 
 struct cmd_add_to_store_t : MixDryRun, StoreCommand {
   Path path;
-  std::optional<std::string> namePart;
-  ContentAddressMethod caMethod = ContentAddressMethod::raw_t::NixArchive;
-  hash_algorithm_t hashAlgo = hash_algorithm_t::SHA256;
+  std::optional<std::string> name_part;
+  ContentAddressMethod ca_method = ContentAddressMethod::raw_t::nix_archive;
+  hash_algorithm_t hash_algo = hash_algorithm_t::SHA256;
 
   cmd_add_to_store_t() {
     // FIXME: completion
-    expectArg("path", &path);
+    expect_arg("path", &path);
 
-    addFlag({
-        .longName = "name",
-        .shortName = 'n',
+    add_flag({
+        .long_name = "name",
+        .short_name = 'n',
         .description = "Override the name component of the store path. It defaults to the base "
                        "name of *path*.",
         .labels = {"name"},
-        .handler = {&namePart},
+        .handler = {&name_part},
     });
 
-    addFlag(flag::contentAddressMethod(&caMethod));
+    add_flag(flag::content_address_method(&ca_method));
 
-    addFlag(flag::hashAlgo(&hashAlgo));
+    add_flag(flag::hash_algo(&hash_algo));
   }
 
   void run(ref<Store> store) override {
-    if (!namePart)
-      namePart = baseNameOf(path);
+    if (!name_part)
+      name_part = base_name_of(path);
 
-    auto sourcePath = posix_source_accessor_t::createAtRoot(makeParentCanonical(path));
+    auto source_path = posix_source_accessor_t::create_at_root(make_parent_canonical(path));
 
-    auto storePath =
-        dryRun ? store->computeStorePath(*namePart, sourcePath, caMethod, hashAlgo, {}).first
-               : store->addToStoreSlow(*namePart, sourcePath, caMethod, hashAlgo, {}).path;
+    auto store_path =
+        dry_run ? store->computeStorePath(*name_part, source_path, ca_method, hash_algo, {}).first
+               : store->addToStoreSlow(*name_part, source_path, ca_method, hash_algo, {}).path;
 
-    logger->cout("%s", store->printStorePath(storePath));
+    logger->cout("%s", store->printStorePath(store_path));
   }
 };
 
@@ -57,7 +57,7 @@ struct cmd_add_t : cmd_add_to_store_t {
 };
 
 struct cmd_add_file_t : cmd_add_to_store_t {
-  cmd_add_file_t() { caMethod = ContentAddressMethod::raw_t::Flat; }
+  cmd_add_file_t() { ca_method = ContentAddressMethod::raw_t::flat; }
 
   std::string description() override {
     return "Deprecated. Use [`nix store add --mode "
@@ -72,6 +72,6 @@ struct cmd_add_path_t : cmd_add_to_store_t {
   }
 };
 
-static auto rCmdAddFile = registerCommand2<cmd_add_file_t>({"store", "add-file"});
-static auto rCmdAddPath = registerCommand2<cmd_add_path_t>({"store", "add-path"});
-static auto rCmdAdd = registerCommand2<cmd_add_t>({"store", "add"});
+static auto r_cmd_add_file = registerCommand2<cmd_add_file_t>({"store", "add-file"});
+static auto r_cmd_add_path = registerCommand2<cmd_add_path_t>({"store", "add-path"});
+static auto r_cmd_add = registerCommand2<cmd_add_t>({"store", "add"});

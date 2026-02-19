@@ -9,11 +9,11 @@
 
 namespace nix {
 
-std::optional<std::filesystem::path> maybePath(path_view_t path) {
+std::optional<std::filesystem::path> maybe_path(path_view_t path) {
   return {path};
 }
 
-std::filesystem::path pathNG(path_view_t path) {
+std::filesystem::path path_ng(path_view_t path) {
   return path;
 }
 

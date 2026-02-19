@@ -43,9 +43,9 @@
 #endif
 
 #ifndef _WIN32
-extern std::string chrootHelperName;
+extern std::string chroot_helper_name;
 
-void chrootHelper(int argc, char** argv);
+void chroot_helper(int argc, char** argv);
 #endif
 
 #include "nix/util/strings.h"
@@ -53,7 +53,7 @@ void chrootHelper(int argc, char** argv);
 namespace nix {
 
 /* Check if we have a non-loopback/link-local network interface. */
-static bool haveInternet() {
+static bool have_internet() {
 #ifndef _WIN32
   struct ifaddrs* addrs;
 
@@ -76,7 +76,7 @@ static bool haveInternet() {
     }
   }
 
-  if (haveNetworkProxyConnection())
+  if (have_network_proxy_connection())
     return true;
 
   return false;
@@ -86,99 +86,99 @@ static bool haveInternet() {
 #endif
 }
 
-static void disableNet() {
+static void disable_net() {
   // FIXME: should check for command line overrides only.
-  if (!settings.useSubstitutes.overridden)
+  if (!settings.use_substitutes.overridden)
     // FIXME: should not disable local substituters (like file:///).
-    settings.useSubstitutes = false;
+    settings.use_substitutes = false;
   if (!settings.tarballTtl.overridden)
     settings.tarballTtl = std::numeric_limits<unsigned int>::max();
-  if (!fileTransferSettings.tries.overridden)
-    fileTransferSettings.tries = 0;
-  if (!fileTransferSettings.connectTimeout.overridden)
-    fileTransferSettings.connectTimeout = 1;
+  if (!file_transfer_settings.tries.overridden)
+    file_transfer_settings.tries = 0;
+  if (!file_transfer_settings.connectTimeout.overridden)
+    file_transfer_settings.connectTimeout = 1;
 }
 
-std::string programPath;
+std::string program_path;
 
 struct nix_args_t : virtual multi_command_t, virtual MixCommonArgs, virtual root_args_t {
-  bool useNet = true;
+  bool use_net = true;
   bool refresh = false;
-  bool helpRequested = false;
-  bool showVersion = false;
+  bool help_requested = false;
+  bool show_version = false;
 
   nix_args_t() : multi_command_t("", RegisterCommand::getCommandsFor({})), MixCommonArgs("nix") {
     categories.clear();
     categories[catHelp] = "Help commands";
-    categories[command_t::catDefault] = "Main commands";
+    categories[command_t::cat_default] = "Main commands";
     categories[catSecondary] = "Infrequently used commands";
     categories[catUtility] = "Utility/scripting commands";
     categories[catNixInstallation] =
         "Commands for upgrading or troubleshooting your Nix installation";
 
-    addFlag({
-        .longName = "help",
+    add_flag({
+        .long_name = "help",
         .description = "Show usage information.",
         .category = miscCategory,
-        .handler = {[this]() { this->helpRequested = true; }},
+        .handler = {[this]() { this->help_requested = true; }},
     });
 
-    addFlag({
-        .longName = "print-build-logs",
-        .shortName = 'L',
+    add_flag({
+        .long_name = "print-build-logs",
+        .short_name = 'L',
         .description = "Print full build logs on standard error.",
         .category = loggingCategory,
-        .handler = {[&]() { logger->setPrintBuildLogs(true); }},
+        .handler = {[&]() { logger->set_print_build_logs(true); }},
     });
 
-    addFlag({
-        .longName = "version",
+    add_flag({
+        .long_name = "version",
         .description = "Show version information.",
         .category = miscCategory,
-        .handler = {[&]() { showVersion = true; }},
+        .handler = {[&]() { show_version = true; }},
     });
 
-    addFlag({
-        .longName = "offline",
+    add_flag({
+        .long_name = "offline",
         .aliases = {"no-net"}, // FIXME: remove
         .description =
             "Disable substituters and consider all previously downloaded files up-to-date.",
         .category = miscCategory,
-        .handler = {[&]() { useNet = false; }},
+        .handler = {[&]() { use_net = false; }},
     });
 
-    addFlag({
-        .longName = "refresh",
+    add_flag({
+        .long_name = "refresh",
         .description = "Consider all previously downloaded files out-of-date.",
         .category = miscCategory,
         .handler = {[&]() { refresh = true; }},
     });
 
     aliases = {
-        {"add-to-store", {alias_status_t::Deprecated, {"store", "add-path"}}},
-        {"cat-nar", {alias_status_t::Deprecated, {"nar", "cat"}}},
-        {"cat-store", {alias_status_t::Deprecated, {"store", "cat"}}},
-        {"copy-sigs", {alias_status_t::Deprecated, {"store", "copy-sigs"}}},
-        {"dev-shell", {alias_status_t::Deprecated, {"develop"}}},
-        {"diff-closures", {alias_status_t::Deprecated, {"store", "diff-closures"}}},
-        {"dump-path", {alias_status_t::Deprecated, {"store", "dump-path"}}},
-        {"hash-file", {alias_status_t::Deprecated, {"hash", "file"}}},
-        {"hash-path", {alias_status_t::Deprecated, {"hash", "path"}}},
-        {"ls-nar", {alias_status_t::Deprecated, {"nar", "ls"}}},
-        {"ls-store", {alias_status_t::Deprecated, {"store", "ls"}}},
+        {"add-to-store", {alias_status_t::deprecated, {"store", "add-path"}}},
+        {"cat-nar", {alias_status_t::deprecated, {"nar", "cat"}}},
+        {"cat-store", {alias_status_t::deprecated, {"store", "cat"}}},
+        {"copy-sigs", {alias_status_t::deprecated, {"store", "copy-sigs"}}},
+        {"dev-shell", {alias_status_t::deprecated, {"develop"}}},
+        {"diff-closures", {alias_status_t::deprecated, {"store", "diff-closures"}}},
+        {"dump-path", {alias_status_t::deprecated, {"store", "dump-path"}}},
+        {"hash-file", {alias_status_t::deprecated, {"hash", "file"}}},
+        {"hash-path", {alias_status_t::deprecated, {"hash", "path"}}},
+        {"ls-nar", {alias_status_t::deprecated, {"nar", "ls"}}},
+        {"ls-store", {alias_status_t::deprecated, {"store", "ls"}}},
         {"make-content-addressable",
-         {alias_status_t::Deprecated, {"store", "make-content-addressed"}}},
-        {"optimise-store", {alias_status_t::Deprecated, {"store", "optimise"}}},
-        {"ping-store", {alias_status_t::Deprecated, {"store", "info"}}},
-        {"sign-paths", {alias_status_t::Deprecated, {"store", "sign"}}},
-        {"shell", {alias_status_t::AcceptedShorthand, {"env", "shell"}}},
-        {"show-derivation", {alias_status_t::Deprecated, {"derivation", "show"}}},
-        {"show-config", {alias_status_t::Deprecated, {"config", "show"}}},
-        {"to-base16", {alias_status_t::Deprecated, {"hash", "to-base16"}}},
-        {"to-base32", {alias_status_t::Deprecated, {"hash", "to-base32"}}},
-        {"to-base64", {alias_status_t::Deprecated, {"hash", "to-base64"}}},
-        {"verify", {alias_status_t::Deprecated, {"store", "verify"}}},
-        {"doctor", {alias_status_t::Deprecated, {"config", "check"}}},
+         {alias_status_t::deprecated, {"store", "make-content-addressed"}}},
+        {"optimise-store", {alias_status_t::deprecated, {"store", "optimise"}}},
+        {"ping-store", {alias_status_t::deprecated, {"store", "info"}}},
+        {"sign-paths", {alias_status_t::deprecated, {"store", "sign"}}},
+        {"shell", {alias_status_t::accepted_shorthand, {"env", "shell"}}},
+        {"show-derivation", {alias_status_t::deprecated, {"derivation", "show"}}},
+        {"show-config", {alias_status_t::deprecated, {"config", "show"}}},
+        {"to-base16", {alias_status_t::deprecated, {"hash", "to-base16"}}},
+        {"to-base32", {alias_status_t::deprecated, {"hash", "to-base32"}}},
+        {"to-base64", {alias_status_t::deprecated, {"hash", "to-base64"}}},
+        {"verify", {alias_status_t::deprecated, {"store", "verify"}}},
+        {"doctor", {alias_status_t::deprecated, {"config", "check"}}},
     };
   };
 
@@ -193,14 +193,14 @@ struct nix_args_t : virtual multi_command_t, virtual MixCommonArgs, virtual root
   }
 
   // Plugins may add new subcommands.
-  void pluginsInited() override { commands = RegisterCommand::getCommandsFor({}); }
+  void plugins_inited() override { commands = RegisterCommand::getCommandsFor({}); }
 
-  std::string dumpCli() {
+  std::string dump_cli() {
     using nlohmann::json;
 
     auto res = json::object();
 
-    res["args"] = toJSON();
+    res["args"] = to_json();
 
     {
       auto& stores = res["stores"] = json::object();
@@ -208,23 +208,23 @@ struct nix_args_t : virtual multi_command_t, virtual MixCommonArgs, virtual root
         auto& j = stores[storeName];
         j["doc"] = implem.doc;
         j["uri-schemes"] = implem.uriSchemes;
-        j["settings"] = implem.getConfig()->toJSON();
-        j["experimentalFeature"] = implem.experimentalFeature;
+        j["settings"] = implem.getConfig()->to_json();
+        j["experimentalFeature"] = implem.experimental_feature;
       }
     }
 
     {
       auto& fetchers = res["fetchers"] = json::object();
 
-      for (const auto& [schemeName, scheme] : fetchers::getAllInputSchemes()) {
+      for (const auto& [schemeName, scheme] : fetchers::get_all_input_schemes()) {
         auto& s = fetchers[schemeName] = json::object();
         s["description"] = scheme->schemeDescription();
         auto& attrs = s["allowedAttrs"] = json::object();
-        for (auto& [fieldName, field] : scheme->allowedAttrs()) {
+        for (auto& [fieldName, field] : scheme->allowed_attrs()) {
           auto& f = attrs[fieldName] = json::object();
           f["type"] = field.type;
           f["required"] = field.required;
-          f["doc"] = stripIndentation(field.doc);
+          f["doc"] = strip_indentation(field.doc);
         }
       }
     };
@@ -235,7 +235,7 @@ struct nix_args_t : virtual multi_command_t, virtual MixCommonArgs, virtual root
 
 /* Render the help for the specified subcommand to stdout using
    lowdown. */
-static void showHelp(std::vector<std::string> subcommand, nix_args_t& toplevel) {
+static void show_help(std::vector<std::string> subcommand, nix_args_t& toplevel) {
   // Check for aliases if subcommand has exactly one element
   if (subcommand.size() == 1) {
     auto alias = toplevel.aliases.find(subcommand[0]);
@@ -244,56 +244,56 @@ static void showHelp(std::vector<std::string> subcommand, nix_args_t& toplevel) 
     }
   }
 
-  auto mdName = subcommand.empty() ? "nix" : fmt("nix3-%s", concatStringsSep("-", subcommand));
+  auto mdName = subcommand.empty() ? "nix" : fmt("nix3-%s", concat_strings_sep("-", subcommand));
 
-  evalSettings.restrictEval = true;
-  evalSettings.pureEval = true;
-  EvalState state({}, openStore("dummy://"), fetchSettings, evalSettings);
+  eval_settings.restrictEval = true;
+  eval_settings.pureEval = true;
+  EvalState state({}, open_store("dummy://"), fetch_settings, eval_settings);
 
   auto vGenerateManpage = state.allocValue();
   state.eval(state.parseExprFromString(
 #include "generate-manpage.nix.gen.h"
-                 , state.rootPath(canon_path_t::root)),
+                 , state.root_path(canon_path_t::root)),
              *vGenerateManpage);
 
-  state.corepkgsFS->addFile(canon_path_t("utils.nix"),
+  state.corepkgsFS->add_file(canon_path_t("utils.nix"),
 #include "utils.nix.gen.h"
   );
 
-  state.corepkgsFS->addFile(canon_path_t("/generate-settings.nix"),
+  state.corepkgsFS->add_file(canon_path_t("/generate-settings.nix"),
 #include "generate-settings.nix.gen.h"
   );
 
-  state.corepkgsFS->addFile(canon_path_t("/generate-store-info.nix"),
+  state.corepkgsFS->add_file(canon_path_t("/generate-store-info.nix"),
 #include "generate-store-info.nix.gen.h"
   );
 
   auto vDump = state.allocValue();
-  vDump->mkString(toplevel.dumpCli(), state.mem);
+  vDump->mk_string(toplevel.dump_cli(), state.mem);
 
-  auto vRes = state.allocValue();
+  auto v_res = state.allocValue();
   Value* args[]{&state.getBuiltin("false"), vDump};
-  state.callFunction(*vGenerateManpage, args, *vRes, noPos);
+  state.callFunction(*vGenerateManpage, args, *v_res, no_pos);
 
-  auto attr = vRes->attrs()->get(state.symbols.create(mdName + ".md"));
+  auto attr = v_res->attrs()->get(state.symbols.create(mdName + ".md"));
   if (!attr)
-    throw UsageError("Nix has no subcommand '%s'", concatStringsSep("", subcommand));
+    throw UsageError("Nix has no subcommand '%s'", concat_strings_sep("", subcommand));
 
-  auto markdown = state.forceString(*attr->value, noPos, "while evaluating the lowdown help text");
+  auto markdown = state.forceString(*attr->value, no_pos, "while evaluating the lowdown help text");
 
   RunPager pager;
-  std::cout << renderMarkdownToTerminal(markdown) << "\n";
+  std::cout << render_markdown_to_terminal(markdown) << "\n";
 }
 
-static nix_args_t& getNixArgs(command_t& cmd) {
-  return dynamic_cast<nix_args_t&>(cmd.getRoot());
+static nix_args_t& get_nix_args(command_t& cmd) {
+  return dynamic_cast<nix_args_t&>(cmd.get_root());
 }
 
 struct cmd_help_t : command_t {
   std::vector<std::string> subcommand;
 
   cmd_help_t() {
-    expectArgs({
+    expect_args({
         .label = "subcommand",
         .handler = {&subcommand},
     });
@@ -314,11 +314,11 @@ struct cmd_help_t : command_t {
     multi_command_t* toplevel = parent;
     while (toplevel->parent)
       toplevel = toplevel->parent;
-    showHelp(subcommand, getNixArgs(*this));
+    show_help(subcommand, get_nix_args(*this));
   }
 };
 
-static auto rCmdHelp = registerCommand<cmd_help_t>("help");
+static auto r_cmd_help = registerCommand<cmd_help_t>("help");
 
 struct cmd_help_stores_t : command_t {
   std::string description() override { return "show help about store types and their settings"; }
@@ -331,28 +331,28 @@ struct cmd_help_stores_t : command_t {
 
   category_t category() override { return catHelp; }
 
-  void run() override { showHelp({"help-stores"}, getNixArgs(*this)); }
+  void run() override { show_help({"help-stores"}, get_nix_args(*this)); }
 };
 
-static auto rCmdHelpStores = registerCommand<cmd_help_stores_t>("help-stores");
+static auto r_cmd_help_stores = registerCommand<cmd_help_stores_t>("help-stores");
 
-void mainWrapped(int argc, char** argv) {
-  savedArgv = argv;
+void main_wrapped(int argc, char** argv) {
+  saved_argv = argv;
 
-  registerCrashHandler();
+  register_crash_handler();
 
   /* The chroot helper needs to be run before any threads have been
      started. */
 #ifndef _WIN32
-  if (argc > 0 && argv[0] == chrootHelperName) {
-    chrootHelper(argc, argv);
+  if (argc > 0 && argv[0] == chroot_helper_name) {
+    chroot_helper(argc, argv);
     return;
   }
 #endif
 
-  initNix();
-  initGC();
-  flakeSettings.configureEvalSettings(evalSettings);
+  init_nix();
+  init_gc();
+  flake_settings.configureEvalSettings(eval_settings);
 
   /* Set the build hook location
 
@@ -360,15 +360,15 @@ void mainWrapped(int argc, char** argv) {
      self-aware. That is, it has to know where it is installed. We
      don't think it's sentient.
    */
-  settings.buildHook.setDefault(strings_t{
-      getNixBin({}).string(),
+  settings.buildHook.set_default(strings_t{
+      get_nix_bin({}).string(),
       "__build-remote",
   });
 
 #ifdef __linux__
-  if (isRootUser()) {
+  if (is_root_user()) {
     try {
-      saveMountNamespace();
+      save_mount_namespace();
       if (unshare(CLONE_NEWNS) == -1)
         throw sys_error_t("setting up a private mount namespace");
     } catch (Error& e) {
@@ -376,92 +376,92 @@ void mainWrapped(int argc, char** argv) {
   }
 #endif
 
-  programPath = argv[0];
-  auto programName = std::string(baseNameOf(programPath));
-  auto extensionPos = programName.find_last_of(".");
-  if (extensionPos != std::string::npos)
-    programName.erase(extensionPos);
+  program_path = argv[0];
+  auto program_name = std::string(base_name_of(program_path));
+  auto extension_pos = program_name.find_last_of(".");
+  if (extension_pos != std::string::npos)
+    program_name.erase(extension_pos);
 
   if (argc > 1 && std::string_view(argv[1]) == "__build-remote") {
-    programName = "build-remote";
+    program_name = "build-remote";
     argv++;
     argc--;
   }
 
   {
-    auto legacy = RegisterLegacyCommand::commands()[programName];
+    auto legacy = RegisterLegacyCommand::commands()[program_name];
     if (legacy)
       return legacy(argc, argv);
   }
 
-  evalSettings.pureEval = true;
+  eval_settings.pureEval = true;
 
-  setLogFormat("bar");
-  settings.verboseBuild = false;
+  set_log_format("bar");
+  settings.verbose_build = false;
 
   // If on a terminal, progress will be displayed via progress bars etc. (thus verbosity=notice)
-  if (nix::isTTY()) {
-    verbosity = lvlNotice;
+  if (nix::is_tty()) {
+    verbosity = lvl_notice;
   } else {
-    verbosity = lvlInfo;
+    verbosity = lvl_info;
   }
 
   nix_args_t args;
 
   if (argc == 2 && std::string(argv[1]) == "__dump-cli") {
-    logger->cout(args.dumpCli());
+    logger->cout(args.dump_cli());
     return;
   }
 
   if (argc == 2 && std::string(argv[1]) == "__dump-language") {
-    experimentalFeatureSettings.experimentalFeatures = {
-        xp_t::FetchClosure,
-        xp_t::DynamicDerivations,
-        xp_t::FetchTree,
+    experimental_feature_settings.experimental_features = {
+        xp_t::fetch_closure,
+        xp_t::dynamic_derivations,
+        xp_t::fetch_tree,
     };
-    evalSettings.pureEval = false;
-    EvalState state({}, openStore("dummy://"), fetchSettings, evalSettings);
-    auto builtinsJson = nlohmann::json::object();
+    eval_settings.pureEval = false;
+    EvalState state({}, open_store("dummy://"), fetch_settings, eval_settings);
+    auto builtins_json = nlohmann::json::object();
     for (auto& builtinPtr : state.getBuiltins().attrs()->lexicographicOrder(state.symbols)) {
       auto& builtin = *builtinPtr;
       auto b = nlohmann::json::object();
       if (!builtin.value->isPrimOp())
         continue;
-      auto primOp = builtin.value->primOp();
-      if (!primOp->doc)
+      auto prim_op = builtin.value->prim_op();
+      if (!prim_op->doc)
         continue;
-      b["args"] = primOp->args;
-      b["doc"] = trim(stripIndentation(*primOp->doc));
-      if (primOp->experimentalFeature)
-        b["experimental-feature"] = primOp->experimentalFeature;
-      builtinsJson.emplace(state.symbols[builtin.name], std::move(b));
+      b["args"] = prim_op->args;
+      b["doc"] = trim(strip_indentation(*prim_op->doc));
+      if (prim_op->experimental_feature)
+        b["experimental-feature"] = prim_op->experimental_feature;
+      builtins_json.emplace(state.symbols[builtin.name], std::move(b));
     }
     for (auto& [name, info] : state.constantInfos) {
       auto b = nlohmann::json::object();
       if (!info.doc)
         continue;
-      b["doc"] = trim(stripIndentation(info.doc));
-      b["type"] = showType(info.type, false);
+      b["doc"] = trim(strip_indentation(info.doc));
+      b["type"] = show_type(info.type, false);
       if (info.impureOnly)
         b["impure-only"] = true;
-      builtinsJson[name] = std::move(b);
+      builtins_json[name] = std::move(b);
     }
-    logger->cout("%s", builtinsJson);
+    logger->cout("%s", builtins_json);
     return;
   }
 
   if (argc == 2 && std::string(argv[1]) == "__dump-xp-features") {
-    logger->cout(documentExperimentalFeatures().dump());
+    logger->cout(document_experimental_features().dump());
     return;
   }
 
-  finally_t printCompletions([&]() {
+  finally_t print_completions([&]() {
     if (args.completions) {
       switch (args.completions->type) {
-        case completions_t::Type::Normal:
+        case completions_t::Type::normal:
           logger->cout("normal");
           break;
-        case completions_t::Type::Filenames:
+        case completions_t::Type::filenames:
           logger->cout("filenames");
           break;
         case completions_t::Type::Attrs:
@@ -473,26 +473,26 @@ void mainWrapped(int argc, char** argv) {
     }
   });
 
-  if (getEnv("NIX_GET_COMPLETIONS"))
+  if (get_env("NIX_GET_COMPLETIONS"))
     /* Avoid fetching stuff during tab completion. We have to this
-       early because we haven't checked `haveInternet()` yet
+       early because we haven't checked `have_internet()` yet
        (below). */
-    disableNet();
+    disable_net();
 
   try {
-    auto isNixCommand = std::regex_search(programName, std::regex("nix$"));
-    auto allowShebang = isNixCommand && argc > 1;
-    args.parseCmdline(argvToStrings(argc, argv), allowShebang);
+    auto is_nix_command = std::regex_search(program_name, std::regex("nix$"));
+    auto allow_shebang = is_nix_command && argc > 1;
+    args.parse_cmdline(argv_to_strings(argc, argv), allow_shebang);
   } catch (UsageError&) {
-    if (!args.helpRequested && !args.completions)
+    if (!args.help_requested && !args.completions)
       throw;
   }
 
-  applyJSONLogger();
+  apply_json_logger();
 
   printTalkative("Nix %s", version());
 
-  if (args.helpRequested) {
+  if (args.help_requested) {
     std::vector<std::string> subcommand;
     multi_command_t* command = &args;
     while (command) {
@@ -502,30 +502,30 @@ void mainWrapped(int argc, char** argv) {
       } else
         break;
     }
-    showHelp(subcommand, args);
+    show_help(subcommand, args);
     return;
   }
 
   if (args.completions)
     return;
 
-  if (args.showVersion) {
-    printVersion(programName);
+  if (args.show_version) {
+    print_version(program_name);
     return;
   }
 
   if (!args.command)
     throw UsageError("no subcommand specified");
 
-  experimentalFeatureSettings.require(args.command->second->experimentalFeature());
+  experimental_feature_settings.require(args.command->second->experimental_feature());
 
-  if (args.useNet && !haveInternet()) {
+  if (args.use_net && !have_internet()) {
     warn("you don't have Internet access; disabling some network-dependent features");
-    args.useNet = false;
+    args.use_net = false;
   }
 
-  if (!args.useNet)
-    disableNet();
+  if (!args.use_net)
+    disable_net();
 
   if (args.refresh) {
     settings.tarballTtl = 0;
@@ -533,8 +533,8 @@ void mainWrapped(int argc, char** argv) {
     settings.ttlPositiveNarInfoCache = 0;
   }
 
-  if (args.command->second->forceImpureByDefault() && !evalSettings.pureEval.overridden) {
-    evalSettings.pureEval = false;
+  if (args.command->second->force_impure_by_default() && !eval_settings.pureEval.overridden) {
+    eval_settings.pureEval = false;
   }
 
   try {
@@ -553,12 +553,12 @@ int main(int argc, char** argv) {
   using namespace nix;
 
   // The CLI has a more detailed version than the libraries; see nixVersion.
-  nixVersion = NIX_CLI_VERSION;
+  nix_version = NIX_CLI_VERSION;
 #ifndef _WIN32
   // Increase the default stack size for the evaluator and for
   // libstdc++'s std::regex.
-  setStackSize(evalStackSize);
+  set_stack_size(evalStackSize);
 #endif
 
-  return handleExceptions(argv[0], [&]() { mainWrapped(argc, argv); });
+  return handle_exceptions(argv[0], [&]() { main_wrapped(argc, argv); });
 }

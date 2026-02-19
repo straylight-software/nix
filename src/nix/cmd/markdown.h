@@ -12,6 +12,6 @@ namespace nix {
  *
  * The renderer takes into account the terminal width, and wraps text accordingly.
  */
-std::string renderMarkdownToTerminal(std::string_view markdown);
+std::string render_markdown_to_terminal(std::string_view markdown);
 
 } // namespace nix

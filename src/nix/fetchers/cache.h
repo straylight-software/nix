@@ -10,8 +10,8 @@ namespace nix::fetchers {
  * A cache for arbitrary `Attrs` -> `Attrs` mappings with a timestamp
  * for expiration.
  */
-struct Cache {
-  virtual ~Cache() {}
+struct cache_t {
+  virtual ~cache_t() {}
 
   /**
    * A domain is a partition of the key/value cache for a particular
@@ -56,18 +56,18 @@ struct Cache {
    * it. Such cache entries are always considered stale if the
    * associated store path is invalid.
    */
-  virtual void upsert(Key key, Store& store, Attrs value, const StorePath& storePath) = 0;
+  virtual void upsert(Key key, Store& store, Attrs value, const StorePath& store_path) = 0;
 
   struct ResultWithStorePath : Result {
-    StorePath storePath;
+    StorePath store_path;
   };
 
   /**
    * Look up a store path in the cache. The returned store path will
-   * be valid (unless `allowInvalid` is true), but it may be expired.
+   * be valid (unless `allow_invalid` is true), but it may be expired.
    */
   virtual std::optional<ResultWithStorePath> lookupStorePath(Key key, Store& store,
-                                                             bool allowInvalid = false) = 0;
+                                                             bool allow_invalid = false) = 0;
 
   /**
    * Look up a store path in the cache. Return nothing if its TTL

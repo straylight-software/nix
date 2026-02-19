@@ -16,7 +16,7 @@ struct PathSubstitutionGoal : public Goal {
   /**
    * The store path that should be realised through a substitute.
    */
-  StorePath storePath;
+  StorePath store_path;
 
   /**
    * Whether to try to repair a valid path.
@@ -46,14 +46,14 @@ struct PathSubstitutionGoal : public Goal {
   done_t doneFailure(ExitCode result, BuildResult::Failure::Status status, std::string errorMsg);
 
 public:
-  PathSubstitutionGoal(const StorePath& storePath, Worker& worker, RepairFlag repair = NoRepair,
+  PathSubstitutionGoal(const StorePath& store_path, Worker& worker, RepairFlag repair = NoRepair,
                        std::optional<ContentAddress> ca = std::nullopt);
   ~PathSubstitutionGoal();
 
   void timedOut(Error&& ex) override { unreachable(); };
 
   std::string key() override {
-    return "a$" + std::string(storePath.name()) + "$" + worker.store.printStorePath(storePath);
+    return "a$" + std::string(store_path.name()) + "$" + worker.store.printStorePath(store_path);
   }
 
   /**
@@ -69,7 +69,7 @@ public:
    * Callback used by the worker to write to the log.
    */
   void handleChildOutput(descriptor_t fd, std::string_view data) override {};
-  void handleEOF(descriptor_t fd) override;
+  void handle_eof(descriptor_t fd) override;
 
   /* Called by destructor, can't be overridden */
   void cleanup() override final;

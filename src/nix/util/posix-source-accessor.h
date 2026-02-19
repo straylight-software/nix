@@ -17,36 +17,36 @@ class posix_source_accessor_t : virtual public SourceAccessor {
    */
   const std::filesystem::path root;
 
-  const bool trackLastModified = false;
+  const bool track_last_modified = false;
 
 public:
   posix_source_accessor_t();
-  posix_source_accessor_t(std::filesystem::path&& root, bool trackLastModified = false);
+  posix_source_accessor_t(std::filesystem::path&& root, bool track_last_modified = false);
 
   /**
    * The most recent mtime seen by lstat(). This is a hack to
-   * support dumpPathAndGetMtime(). Should remove this eventually.
+   * support dump_path_and_get_mtime(). Should remove this eventually.
    */
   time_t mtime = 0;
 
-  void readFile(const canon_path_t& path, Sink& sink,
-                std::function<void(uint64_t)> sizeCallback) override;
+  void read_file(const canon_path_t& path, Sink& sink,
+                std::function<void(uint64_t)> size_callback) override;
 
-  bool pathExists(const canon_path_t& path) override;
+  bool path_exists(const canon_path_t& path) override;
 
-  std::optional<stat_t> maybeLstat(const canon_path_t& path) override;
+  std::optional<stat_t> maybe_lstat(const canon_path_t& path) override;
 
-  dir_entries_t readDirectory(const canon_path_t& path) override;
+  dir_entries_t read_directory(const canon_path_t& path) override;
 
-  std::string readLink(const canon_path_t& path) override;
+  std::string read_link(const canon_path_t& path) override;
 
-  std::optional<std::filesystem::path> getPhysicalPath(const canon_path_t& path) override;
+  std::optional<std::filesystem::path> get_physical_path(const canon_path_t& path) override;
 
   /**
    * Create a `posix_source_accessor_t` and `source_path_t` corresponding to
    * some native path.
    *
-   * @param Whether the accessor should return a non-null getLastModified.
+   * @param Whether the accessor should return a non-null get_last_modified.
    * When true the accessor must be used only by a single thread.
    *
    * The `posix_source_accessor_t` is rooted as far up the tree as
@@ -54,16 +54,16 @@ public:
    * `C:\`). This allows more `..` parent accessing to work.
    *
    * @note When `path` is trusted user input, canonicalize it using
-   * `std::filesystem::canonical`, `makeParentCanonical`, `std::filesystem::weakly_canonical`, etc,
+   * `std::filesystem::canonical`, `make_parent_canonical`, `std::filesystem::weakly_canonical`, etc,
    * as appropriate for the use case. At least weak canonicalization is
    * required for the `source_path_t` to do anything useful at the location it
    * points to.
    *
-   * @note A canonicalizing behavior is not built in `createAtRoot` so that
+   * @note A canonicalizing behavior is not built in `create_at_root` so that
    * callers do not accidentally introduce symlink-related security vulnerabilities.
-   * Furthermore, `createAtRoot` does not know whether the file pointed to by
+   * Furthermore, `create_at_root` does not know whether the file pointed to by
    * `path` should be resolved if it is itself a symlink. In other words,
-   * `createAtRoot` can not decide between aforementioned `canonical`, `makeParentCanonical`, etc.
+   * `create_at_root` can not decide between aforementioned `canonical`, `make_parent_canonical`, etc.
    * for its callers.
    *
    * See
@@ -71,23 +71,23 @@ public:
    * and
    * [`std::filesystem::path::relative_path`](https://en.cppreference.com/w/cpp/filesystem/path/relative_path).
    */
-  static source_path_t createAtRoot(const std::filesystem::path& path, bool trackLastModified = false);
+  static source_path_t create_at_root(const std::filesystem::path& path, bool track_last_modified = false);
 
-  std::optional<std::time_t> getLastModified() override {
-    return trackLastModified ? std::optional{mtime} : std::nullopt;
+  std::optional<std::time_t> get_last_modified() override {
+    return track_last_modified ? std::optional{mtime} : std::nullopt;
   }
 
-  void invalidateCache(const canon_path_t& path) override;
+  void invalidate_cache(const canon_path_t& path) override;
 
 private:
   /**
    * Throw an error if `path` or any of its ancestors are symlinks.
    */
-  void assertNoSymlinks(canon_path_t path);
+  void assert_no_symlinks(canon_path_t path);
 
-  std::optional<struct stat> cachedLstat(const canon_path_t& path);
+  std::optional<struct stat> cached_lstat(const canon_path_t& path);
 
-  std::filesystem::path makeAbsPath(const canon_path_t& path);
+  std::filesystem::path make_abs_path(const canon_path_t& path);
 };
 
 } // namespace nix

@@ -19,9 +19,9 @@ struct GitRepo;
 
 namespace nix::fetchers {
 
-struct Cache;
+struct cache_t;
 
-struct settings_t : public Config {
+struct settings_t : public config_t {
   settings_t();
 
   setting_t<string_map_t> accessTokens{this,
@@ -80,12 +80,12 @@ struct settings_t : public Config {
   setting_t<bool> allowDirty{this, true, "allow-dirty",
                            "Whether to allow dirty Git/Mercurial trees."};
 
-  setting_t<bool> warnDirty{this, true, "warn-dirty",
+  setting_t<bool> warn_dirty{this, true, "warn-dirty",
                           "Whether to warn about dirty Git/Mercurial trees."};
 
   setting_t<bool> allowDirtyLocks{this, false, "allow-dirty-locks",
                                 R"(
-          Whether to allow dirty inputs (such as dirty Git workdirs)
+          Whether to allow dirty inputs (such as dirty git workdirs)
           to be locked via their NAR hash. This is generally bad
           practice since Nix has no way to obtain such inputs if they
           are subsequently modified. Therefore lock files with dirty
@@ -96,15 +96,15 @@ struct settings_t : public Config {
   setting_t<bool> trustTarballsFromGitForges{this, true, "trust-tarballs-from-git-forges",
                                            R"(
           If enabled (the default), Nix considers tarballs from
-          GitHub and similar Git forges to be locked if a Git revision
+          GitHub and similar git forges to be locked if a git revision
           is specified,
           e.g. `github:NixOS/patchelf/7c2f768bf9601268a4e71c2ebe91e2011918a70f`.
           This requires Nix to trust that the provider returns the
-          correct contents for the specified Git revision.
+          correct contents for the specified git revision.
 
           If disabled, such tarballs are only considered locked if a
-          `narHash` attribute is specified,
-          e.g. `github:NixOS/patchelf/7c2f768bf9601268a4e71c2ebe91e2011918a70f?narHash=sha256-PPXqKY2hJng4DBVE0I4xshv/vGLUskL7jl53roB8UdU%3D`.
+          `nar_hash` attribute is specified,
+          e.g. `github:NixOS/patchelf/7c2f768bf9601268a4e71c2ebe91e2011918a70f?nar_hash=sha256-PPXqKY2hJng4DBVE0I4xshv/vGLUskL7jl53roB8UdU%3D`.
         )"};
 
   setting_t<std::string> flakeRegistry{
@@ -119,16 +119,16 @@ struct settings_t : public Config {
   setting_t<bool> nix219Compat{this, false, "nix-219-compat",
                              R"(
           If enabled, Nix will generate lock files that are compatible with Nix 2.19.
-          In particular, Nix will use `git archive` rather than `libgit2` to copy Git inputs.
+          In particular, Nix will use `git archive` rather than `libgit2` to copy git inputs.
           The resulting locks may not be compatible with Nix >= 2.20.
         )"};
 
-  ref<Cache> getCache() const;
+  ref<cache_t> get_cache() const;
 
   ref<GitRepo> getTarballCache() const;
 
 private:
-  mutable sync_t<std::shared_ptr<Cache>> _cache;
+  mutable sync_t<std::shared_ptr<cache_t>> _cache;
 
   mutable sync_t<std::shared_ptr<GitRepo>> _tarballCache;
 };
@@ -140,6 +140,6 @@ namespace nix {
 /**
  * @todo Get rid of global setttings variables
  */
-extern fetchers::settings_t fetchSettings;
+extern fetchers::settings_t fetch_settings;
 
 } // namespace nix

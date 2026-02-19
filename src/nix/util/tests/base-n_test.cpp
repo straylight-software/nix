@@ -63,10 +63,10 @@ TEST_CASE("base16::decode multiple bytes", "[base16]") {
 }
 
 TEST_CASE("base16::encodedLength", "[base16]") {
-  REQUIRE(base16::encodedLength(0) == 0);
-  REQUIRE(base16::encodedLength(1) == 2);
-  REQUIRE(base16::encodedLength(4) == 8);
-  REQUIRE(base16::encodedLength(32) == 64); // SHA256 hash size
+  REQUIRE(base16::encoded_length(0) == 0);
+  REQUIRE(base16::encoded_length(1) == 2);
+  REQUIRE(base16::encoded_length(4) == 8);
+  REQUIRE(base16::encoded_length(32) == 64); // SHA256 hash size
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -105,12 +105,12 @@ TEST_CASE("base64::decode known values", "[base64]") {
 }
 
 TEST_CASE("base64::encodedLength", "[base64]") {
-  REQUIRE(base64::encodedLength(0) == 0);
-  REQUIRE(base64::encodedLength(1) == 4);
-  REQUIRE(base64::encodedLength(2) == 4);
-  REQUIRE(base64::encodedLength(3) == 4);
-  REQUIRE(base64::encodedLength(4) == 8);
-  REQUIRE(base64::encodedLength(32) == 44); // SHA256 hash
+  REQUIRE(base64::encoded_length(0) == 0);
+  REQUIRE(base64::encoded_length(1) == 4);
+  REQUIRE(base64::encoded_length(2) == 4);
+  REQUIRE(base64::encoded_length(3) == 4);
+  REQUIRE(base64::encoded_length(4) == 8);
+  REQUIRE(base64::encoded_length(32) == 44); // SHA256 hash
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -144,7 +144,7 @@ TEST_CASE("base16 property tests", "[base16][property]") {
     }
 
     auto encoded = base16::encode(bytes);
-    RC_ASSERT(encoded.size() == base16::encodedLength(bytes.size()));
+    RC_ASSERT(encoded.size() == base16::encoded_length(bytes.size()));
   });
 
   rc::prop("encode produces only hex chars", []() {

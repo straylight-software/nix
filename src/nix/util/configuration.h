@@ -13,7 +13,7 @@
 namespace nix {
 
 /**
- * The Config class provides Nix runtime configurations.
+ * The config_t class provides Nix runtime configurations.
  *
  * What is a Configuration?
  *   A collection of uniquely named settings_t.
@@ -24,23 +24,23 @@ namespace nix {
  *   with a default and optional aliases.
  *
  * A valid configuration consists of settings that are registered to a
- * `Config` object instance:
+ * `config_t` object instance:
  *
- *   Config config;
+ *   config_t config;
  *   setting_t<std::string> systemSetting{&config, "x86_64-linux", "system", "the current system"};
  *
- * The above creates a `Config` object and registers a setting called "system"
+ * The above creates a `config_t` object and registers a setting called "system"
  * via the variable `systemSetting` with it. The setting defaults to the string
  * "x86_64-linux", it's description is "the current system". All of the
  * registered settings can then be accessed as shown below:
  *
- *   std::map<std::string, Config::setting_info_t> settings;
- *   config.getSettings(settings);
+ *   std::map<std::string, config_t::setting_info_t> settings;
+ *   config.get_settings(settings);
  *   settings["system"].description == "the current system"
  *   settings["system"].value == "x86_64-linux"
  *
  *
- * The above retrieves all currently known settings from the `Config` object
+ * The above retrieves all currently known settings from the `config_t` object
  * and adds them to the `settings` map.
  */
 
@@ -68,76 +68,76 @@ public:
   /**
    * Adds the currently known settings to the given result map `res`.
    * - res: map to store settings in
-   * - overriddenOnly: when set to true only overridden settings will be added to `res`
+   * - overridden_only: when set to true only overridden settings will be added to `res`
    */
-  virtual void getSettings(std::map<std::string, setting_info_t>& res,
-                           bool overriddenOnly = false) const = 0;
+  virtual void get_settings(std::map<std::string, setting_info_t>& res,
+                           bool overridden_only = false) const = 0;
 
   /**
    * Parses the configuration in `contents` and applies it
    * - contents: configuration contents to be parsed and applied
    * - path: location of the configuration file
    */
-  void applyConfig(const std::string& contents, const std::string& path = "<unknown>");
+  void apply_config(const std::string& contents, const std::string& path = "<unknown>");
 
   /**
    * Resets the `overridden` flag of all settings_t
    */
-  virtual void resetOverridden() = 0;
+  virtual void reset_overridden() = 0;
 
   /**
    * Outputs all settings to JSON
    * - out: JSONObject to write the configuration to
    */
-  virtual nlohmann::json toJSON() = 0;
+  virtual nlohmann::json to_json() = 0;
 
   /**
    * Outputs all settings in a key-value pair format suitable to be used as
    * `nix.conf`
    */
-  virtual std::string toKeyValue() = 0;
+  virtual std::string to_key_value() = 0;
 
   /**
    * Converts settings to `Args` to be used on the command line interface
    * - args: args to write to
    * - category: category of the settings
    */
-  virtual void convertToArgs(Args& args, const std::string& category) = 0;
+  virtual void convert_to_args(Args& args, const std::string& category) = 0;
 
   /**
    * Logs a warning for each unregistered setting
    */
-  void warnUnknownSettings();
+  void warn_unknown_settings();
 
   /**
    * Re-applies all previously attempted changes to unknown settings
    */
-  void reapplyUnknownSettings();
+  void reapply_unknown_settings();
 
   virtual ~abstract_config_t() = default;
 };
 
 /**
  * A class to simplify providing configuration settings. The typical
- * use is to inherit Config and add setting_t<T> members:
+ * use is to inherit config_t and add setting_t<T> members:
  *
- * class MyClass : private Config
+ * class MyClass : private config_t
  * {
  *   setting_t<int> foo{this, 123, "foo", "the number of foos to use"};
  *   setting_t<std::string> bar{this, "blabla", "bar", "the name of the bar"};
  *
- *   MyClass() : Config(readConfigFile("/etc/my-app.conf"))
+ *   MyClass() : config_t(readConfigFile("/etc/my-app.conf"))
  *   {
  *     std::cout << foo << "\n"; // will print 123 unless overridden
  *   }
  * };
  */
-class Config : public abstract_config_t {
+class config_t : public abstract_config_t {
   friend class abstract_setting_t;
 
 public:
   struct setting_data_t {
-    bool isAlias;
+    bool is_alias;
     abstract_setting_t* setting;
   };
 
@@ -147,26 +147,26 @@ private:
   settings_t _settings;
 
 public:
-  Config(string_map_t initials = {});
+  config_t(string_map_t initials = {});
 
   bool set(const std::string& name, const std::string& value) override;
 
-  void addSetting(abstract_setting_t* setting);
+  void add_setting(abstract_setting_t* setting);
 
-  void getSettings(std::map<std::string, setting_info_t>& res,
-                   bool overriddenOnly = false) const override;
+  void get_settings(std::map<std::string, setting_info_t>& res,
+                   bool overridden_only = false) const override;
 
-  void resetOverridden() override;
+  void reset_overridden() override;
 
-  nlohmann::json toJSON() override;
+  nlohmann::json to_json() override;
 
-  std::string toKeyValue() override;
+  std::string to_key_value() override;
 
-  void convertToArgs(Args& args, const std::string& category) override;
+  void convert_to_args(Args& args, const std::string& category) override;
 };
 
 class abstract_setting_t {
-  friend class Config;
+  friend class config_t;
 
 public:
   const std::string name;
@@ -177,11 +177,11 @@ public:
 
   bool overridden = false;
 
-  std::optional<experimental_feature_t> experimentalFeature;
+  std::optional<experimental_feature_t> experimental_feature;
 
 protected:
   abstract_setting_t(const std::string& name, const std::string& description, const string_set_t& aliases,
-                  std::optional<experimental_feature_t> experimentalFeature = std::nullopt);
+                  std::optional<experimental_feature_t> experimental_feature = std::nullopt);
 
   virtual ~abstract_setting_t();
 
@@ -191,17 +191,17 @@ protected:
    * Whether the type is appendable; i.e. whether the `append`
    * parameter to `set()` is allowed to be `true`.
    */
-  virtual bool isAppendable() = 0;
+  virtual bool is_appendable() = 0;
 
   virtual std::string to_string() const = 0;
 
-  nlohmann::json toJSON();
+  nlohmann::json to_json();
 
-  virtual std::map<std::string, nlohmann::json> toJSONObject() const;
+  virtual std::map<std::string, nlohmann::json> to_json_object() const;
 
-  virtual void convertToArg(Args& args, const std::string& category);
+  virtual void convert_to_arg(Args& args, const std::string& category);
 
-  bool isOverridden() const;
+  bool is_overridden() const;
 };
 
 /**
@@ -211,8 +211,8 @@ template <typename T>
 class base_setting_t : public abstract_setting_t {
 protected:
   T value;
-  const T defaultValue;
-  const bool documentDefault;
+  const T default_value;
+  const bool document_default;
 
   /**
    * Parse the string into a `T`.
@@ -222,23 +222,23 @@ protected:
   virtual T parse(const std::string& str) const;
 
   /**
-   * Append or overwrite `value` with `newValue`.
+   * Append or overwrite `value` with `new_value`.
    *
    * Some types to do not support appending in which case `append`
    * should never be passed. The default handles this case.
    *
    * @param append Whether to append or overwrite.
    */
-  virtual void appendOrSet(T newValue, bool append);
+  virtual void append_or_set(T new_value, bool append);
 
 public:
-  base_setting_t(const T& def, const bool documentDefault, const std::string& name,
+  base_setting_t(const T& def, const bool document_default, const std::string& name,
               const std::string& description, const string_set_t& aliases = {},
-              std::optional<experimental_feature_t> experimentalFeature = std::nullopt)
-      : abstract_setting_t(name, description, aliases, experimentalFeature),
+              std::optional<experimental_feature_t> experimental_feature = std::nullopt)
+      : abstract_setting_t(name, description, aliases, experimental_feature),
         value(def),
-        defaultValue(def),
-        documentDefault(documentDefault) {}
+        default_value(def),
+        document_default(document_default) {}
 
   operator const T&() const { return value; }
 
@@ -266,7 +266,7 @@ public:
   virtual void assign(const T& v) { value = v; }
 
   template <typename U>
-  void setDefault(const U& v) {
+  void set_default(const U& v) {
     if (!overridden)
       value = v;
   }
@@ -274,7 +274,7 @@ public:
   /**
    * Require any experimental feature the setting depends on
    *
-   * Uses `parse()` to get the value from `str`, and `appendOrSet()`
+   * Uses `parse()` to get the value from `str`, and `append_or_set()`
    * to set it.
    */
   void set(const std::string& str, bool append = false) override final;
@@ -286,10 +286,10 @@ public:
   struct trait;
 
   /**
-   * Always defined based on the C++ magic
+   * always defined based on the C++ magic
    * with `trait` above.
    */
-  bool isAppendable() override final;
+  bool is_appendable() override final;
 
   virtual void override(const T& v) {
     overridden = true;
@@ -298,9 +298,9 @@ public:
 
   std::string to_string() const override;
 
-  void convertToArg(Args& args, const std::string& category) override;
+  void convert_to_arg(Args& args, const std::string& category) override;
 
-  std::map<std::string, nlohmann::json> toJSONObject() const override;
+  std::map<std::string, nlohmann::json> to_json_object() const override;
 };
 
 template <typename T>
@@ -316,12 +316,12 @@ bool operator==(const T& v1, const base_setting_t<T>& v2) {
 template <typename T>
 class setting_t : public base_setting_t<T> {
 public:
-  setting_t(Config* options, const T& def, const std::string& name, const std::string& description,
-          const string_set_t& aliases = {}, const bool documentDefault = true,
-          std::optional<experimental_feature_t> experimentalFeature = std::nullopt)
-      : base_setting_t<T>(def, documentDefault, name, description, aliases,
-                       std::move(experimentalFeature)) {
-    options->addSetting(this);
+  setting_t(config_t* options, const T& def, const std::string& name, const std::string& description,
+          const string_set_t& aliases = {}, const bool document_default = true,
+          std::optional<experimental_feature_t> experimental_feature = std::nullopt)
+      : base_setting_t<T>(def, document_default, name, description, aliases,
+                       std::move(experimental_feature)) {
+    options->add_setting(this);
   }
 
   void operator=(const T& v) { this->assign(v); }
@@ -336,7 +336,7 @@ public:
  */
 class path_setting_t : public base_setting_t<Path> {
 public:
-  path_setting_t(Config* options, const Path& def, const std::string& name,
+  path_setting_t(config_t* options, const Path& def, const std::string& name,
               const std::string& description, const string_set_t& aliases = {});
 
   Path parse(const std::string& str) const override;
@@ -353,7 +353,7 @@ public:
  */
 class optional_path_setting_t : public base_setting_t<std::optional<Path>> {
 public:
-  optional_path_setting_t(Config* options, const std::optional<Path>& def, const std::string& name,
+  optional_path_setting_t(config_t* options, const std::optional<Path>& def, const std::string& name,
                       const std::string& description, const string_set_t& aliases = {});
 
   std::optional<Path> parse(const std::string& str) const override;
@@ -361,8 +361,8 @@ public:
   void operator=(const std::optional<Path>& v);
 };
 
-struct experimental_feature_settings_t : Config {
-  setting_t<std::set<experimental_feature_t>> experimentalFeatures{this,
+struct experimental_feature_settings_t : config_t {
+  setting_t<std::set<experimental_feature_t>> experimental_features{this,
                                                               {},
                                                               "experimental-features",
                                                               R"(
@@ -384,7 +384,7 @@ struct experimental_feature_settings_t : Config {
   /**
    * Check whether the given experimental feature is enabled.
    */
-  bool isEnabled(const experimental_feature_t&) const;
+  bool is_enabled(const experimental_feature_t&) const;
 
   /**
    * Require an experimental feature be enabled, throwing an error if it is
@@ -399,17 +399,17 @@ struct experimental_feature_settings_t : Config {
   template <typename GetReason>
     requires std::invocable<GetReason> &&
              std::convertible_to<std::invoke_result_t<GetReason>, std::string>
-  void require(const experimental_feature_t& feature, GetReason&& getReason) const {
-    if (isEnabled(feature))
+  void require(const experimental_feature_t& feature, GetReason&& get_reason) const {
+    if (is_enabled(feature))
       return;
-    require(feature, getReason());
+    require(feature, get_reason());
   }
 
   /**
    * `std::nullopt` pointer means no feature, which means there is nothing that could be
    * disabled, and so the function returns true in that case.
    */
-  bool isEnabled(const std::optional<experimental_feature_t>&) const;
+  bool is_enabled(const std::optional<experimental_feature_t>&) const;
 
   /**
    * `std::nullopt` pointer means no feature, which means there is nothing that could be
@@ -419,6 +419,6 @@ struct experimental_feature_settings_t : Config {
 };
 
 // FIXME: don't use a global variable.
-extern experimental_feature_settings_t experimentalFeatureSettings;
+extern experimental_feature_settings_t experimental_feature_settings;
 
 } // namespace nix

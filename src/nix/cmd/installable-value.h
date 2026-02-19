@@ -22,8 +22,8 @@ struct App {
 
 struct UnresolvedApp {
   App unresolved;
-  std::vector<BuiltPathWithResult> build(ref<Store> evalStore, ref<Store> store);
-  App resolve(ref<Store> evalStore, ref<Store> store);
+  std::vector<BuiltPathWithResult> build(ref<Store> eval_store, ref<Store> store);
+  App resolve(ref<Store> eval_store, ref<Store> store);
 };
 
 /**
@@ -49,7 +49,7 @@ struct ExtraPathInfoValue : ExtraPathInfo {
      * a larger value, from which we project a smaller value out
      * with this.
      */
-    std::string attrPath;
+    std::string attr_path;
 
     /**
      * \todo merge with DerivedPath's 'outputs' field?
@@ -105,14 +105,14 @@ protected:
    *
    * @param pos Position of value to aid with diagnostics.
    *
-   * @param errorCtx Arbitrary message for use in potential error message when something is wrong
+   * @param error_ctx Arbitrary message for use in potential error message when something is wrong
    * with `v`.
    *
    * @result A derived path (with empty info, for now) if the value
    * matched the above criteria.
    */
   std::optional<DerivedPathWithInfo> trySinglePathToDerivedPaths(Value& v, const pos_idx_t pos,
-                                                                 std::string_view errorCtx);
+                                                                 std::string_view error_ctx);
 };
 
 } // namespace nix

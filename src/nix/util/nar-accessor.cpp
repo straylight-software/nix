@@ -27,11 +27,11 @@ private:
 public:
   nar_member_constructor_t(nar_member_t& nm, uint64_t& pos) : narMember(nm), pos(pos) {}
 
-  void isExecutable() override { narMember.stat.isExecutable = true; }
+  void is_executable() override { narMember.stat.is_executable = true; }
 
-  void preallocateContents(uint64_t size) override {
-    narMember.stat.fileSize = size;
-    narMember.stat.narOffset = pos;
+  void preallocate_contents(uint64_t size) override {
+    narMember.stat.file_size = size;
+    narMember.stat.nar_offset = pos;
   }
 
   void operator()(std::string_view data) override {}
@@ -40,7 +40,7 @@ public:
 struct nar_accessor_t : public SourceAccessor {
   std::optional<const std::string> nar;
 
-  get_nar_bytes_t getNarBytes;
+  get_nar_bytes_t get_nar_bytes;
 
   nar_member_t root;
 
@@ -50,13 +50,13 @@ struct nar_accessor_t : public SourceAccessor {
 
     std::stack<nar_member_t*> parents;
 
-    bool isExec = false;
+    bool is_exec = false;
 
     uint64_t pos = 0;
 
     nar_indexer_t(nar_accessor_t& acc, Source& source) : acc(acc), source(source) {}
 
-    nar_member_t& createMember(const canon_path_t& path, nar_member_t member) {
+    nar_member_t& create_member(const canon_path_t& path, nar_member_t member) {
       size_t level = 0;
       for (auto _ : path) {
         (void)_;
@@ -71,35 +71,35 @@ struct nar_accessor_t : public SourceAccessor {
         parents.push(&acc.root);
         return acc.root;
       } else {
-        if (parents.top()->stat.type != Type::tDirectory)
+        if (parents.top()->stat.type != Type::t_directory)
           throw Error("NAR file missing parent directory of path '%s'", path);
-        auto result = parents.top()->children.emplace(*path.baseName(), std::move(member));
+        auto result = parents.top()->children.emplace(*path.base_name(), std::move(member));
         auto& ref = result.first->second;
         parents.push(&ref);
         return ref;
       }
     }
 
-    void createDirectory(const canon_path_t& path) override {
-      createMember(path, nar_member_t{.stat = {.type = Type::tDirectory,
-                                            .fileSize = 0,
-                                            .isExecutable = false,
-                                            .narOffset = 0}});
+    void create_directory(const canon_path_t& path) override {
+      create_member(path, nar_member_t{.stat = {.type = Type::t_directory,
+                                            .file_size = 0,
+                                            .is_executable = false,
+                                            .nar_offset = 0}});
     }
 
-    void createRegularFile(const canon_path_t& path,
+    void create_regular_file(const canon_path_t& path,
                            std::function<void(create_regular_file_sink_t&)> func) override {
-      auto& nm = createMember(path, nar_member_t{.stat = {.type = Type::tRegular,
-                                                       .fileSize = 0,
-                                                       .isExecutable = false,
-                                                       .narOffset = 0}});
+      auto& nm = create_member(path, nar_member_t{.stat = {.type = Type::t_regular,
+                                                       .file_size = 0,
+                                                       .is_executable = false,
+                                                       .nar_offset = 0}});
       nar_member_constructor_t nmc{nm, pos};
-      nmc.skipContents = true; /* Don't care about contents. */
+      nmc.skip_contents = true; /* Don't care about contents. */
       func(nmc);
     }
 
-    void createSymlink(const canon_path_t& path, const std::string& target) override {
-      createMember(path, nar_member_t{.stat = {.type = Type::tSymlink}, .target = target});
+    void create_symlink(const canon_path_t& path, const std::string& target) override {
+      create_member(path, nar_member_t{.stat = {.type = Type::t_symlink}, .target = target});
     }
 
     size_t read(char* data, size_t len) override {
@@ -112,35 +112,35 @@ struct nar_accessor_t : public SourceAccessor {
   nar_accessor_t(std::string&& _nar) : nar(_nar) {
     string_source_t source(*nar);
     nar_indexer_t indexer(*this, source);
-    parseDump(indexer, indexer);
+    parse_dump(indexer, indexer);
   }
 
   nar_accessor_t(Source& source) {
     nar_indexer_t indexer(*this, source);
-    parseDump(indexer, indexer);
+    parse_dump(indexer, indexer);
   }
 
-  nar_accessor_t(Source& source, get_nar_bytes_t getNarBytes) : getNarBytes(std::move(getNarBytes)) {
+  nar_accessor_t(Source& source, get_nar_bytes_t get_nar_bytes) : get_nar_bytes(std::move(get_nar_bytes)) {
     nar_indexer_t indexer(*this, source);
-    parseDump(indexer, indexer);
+    parse_dump(indexer, indexer);
   }
 
-  nar_accessor_t(const nlohmann::json& listing, get_nar_bytes_t getNarBytes) : getNarBytes(getNarBytes) {
+  nar_accessor_t(const nlohmann::json& listing, get_nar_bytes_t get_nar_bytes) : get_nar_bytes(get_nar_bytes) {
     [&](this const auto& recurse, nar_member_t& member, const nlohmann::json& v) -> void {
       std::string type = v["type"];
 
       if (type == "directory") {
-        member.stat = {.type = Type::tDirectory};
+        member.stat = {.type = Type::t_directory};
         for (const auto& [name, function] : v["entries"].items()) {
           recurse(member.children[name], function);
         }
       } else if (type == "regular") {
-        member.stat = {.type = Type::tRegular,
-                       .fileSize = v["size"],
-                       .isExecutable = v.value("executable", false),
-                       .narOffset = v["narOffset"]};
+        member.stat = {.type = Type::t_regular,
+                       .file_size = v["size"],
+                       .is_executable = v.value("executable", false),
+                       .nar_offset = v["narOffset"]};
       } else if (type == "symlink") {
-        member.stat = {.type = Type::tSymlink};
+        member.stat = {.type = Type::t_symlink};
         member.target = v.value("target", "");
       } else
         return;
@@ -151,7 +151,7 @@ struct nar_accessor_t : public SourceAccessor {
     nar_member_t* current = &root;
 
     for (const auto& i : path) {
-      if (current->stat.type != Type::tDirectory)
+      if (current->stat.type != Type::t_directory)
         return nullptr;
       auto child = current->children.find(std::string(i));
       if (child == current->children.end())
@@ -169,17 +169,17 @@ struct nar_accessor_t : public SourceAccessor {
     return *result;
   }
 
-  std::optional<stat_t> maybeLstat(const canon_path_t& path) override {
+  std::optional<stat_t> maybe_lstat(const canon_path_t& path) override {
     auto i = find(path);
     if (!i)
       return std::nullopt;
     return i->stat;
   }
 
-  dir_entries_t readDirectory(const canon_path_t& path) override {
+  dir_entries_t read_directory(const canon_path_t& path) override {
     auto i = get(path);
 
-    if (i.stat.type != Type::tDirectory)
+    if (i.stat.type != Type::t_directory)
       throw Error("path '%1%' inside NAR file is not a directory", path);
 
     dir_entries_t res;
@@ -189,44 +189,44 @@ struct nar_accessor_t : public SourceAccessor {
     return res;
   }
 
-  std::string readFile(const canon_path_t& path) override {
+  std::string read_file(const canon_path_t& path) override {
     auto i = get(path);
-    if (i.stat.type != Type::tRegular)
+    if (i.stat.type != Type::t_regular)
       throw Error("path '%1%' inside NAR file is not a regular file", path);
 
-    if (getNarBytes)
-      return getNarBytes(*i.stat.narOffset, *i.stat.fileSize);
+    if (get_nar_bytes)
+      return get_nar_bytes(*i.stat.nar_offset, *i.stat.file_size);
 
     assert(nar);
-    return std::string(*nar, *i.stat.narOffset, *i.stat.fileSize);
+    return std::string(*nar, *i.stat.nar_offset, *i.stat.file_size);
   }
 
-  std::string readLink(const canon_path_t& path) override {
+  std::string read_link(const canon_path_t& path) override {
     auto i = get(path);
-    if (i.stat.type != Type::tSymlink)
+    if (i.stat.type != Type::t_symlink)
       throw Error("path '%1%' inside NAR file is not a symlink", path);
     return i.target;
   }
 };
 
-ref<SourceAccessor> makeNarAccessor(std::string&& nar) {
+ref<SourceAccessor> make_nar_accessor(std::string&& nar) {
   return make_ref<nar_accessor_t>(std::move(nar));
 }
 
-ref<SourceAccessor> makeNarAccessor(Source& source) {
+ref<SourceAccessor> make_nar_accessor(Source& source) {
   return make_ref<nar_accessor_t>(source);
 }
 
-ref<SourceAccessor> makeLazyNarAccessor(const nlohmann::json& listing, get_nar_bytes_t getNarBytes) {
-  return make_ref<nar_accessor_t>(listing, getNarBytes);
+ref<SourceAccessor> make_lazy_nar_accessor(const nlohmann::json& listing, get_nar_bytes_t get_nar_bytes) {
+  return make_ref<nar_accessor_t>(listing, get_nar_bytes);
 }
 
-ref<SourceAccessor> makeLazyNarAccessor(Source& source, get_nar_bytes_t getNarBytes) {
-  return make_ref<nar_accessor_t>(source, getNarBytes);
+ref<SourceAccessor> make_lazy_nar_accessor(Source& source, get_nar_bytes_t get_nar_bytes) {
+  return make_ref<nar_accessor_t>(source, get_nar_bytes);
 }
 
-get_nar_bytes_t seekableGetNarBytes(const Path& path) {
-  auto_close_fd_t fd = toDescriptor(open(path.c_str(), O_RDONLY
+get_nar_bytes_t seekable_get_nar_bytes(const Path& path) {
+  auto_close_fd_t fd = to_descriptor(open(path.c_str(), O_RDONLY
 #ifdef O_CLOEXEC
                                                        | O_CLOEXEC
 #endif
@@ -234,17 +234,17 @@ get_nar_bytes_t seekableGetNarBytes(const Path& path) {
   if (!fd)
     throw sys_error_t("opening NAR cache file '%s'", path);
 
-  return [inner = seekableGetNarBytes(fd.get()), fd = make_ref<auto_close_fd_t>(std::move(fd))](
+  return [inner = seekable_get_nar_bytes(fd.get()), fd = make_ref<auto_close_fd_t>(std::move(fd))](
              uint64_t offset, uint64_t length) { return inner(offset, length); };
 }
 
-get_nar_bytes_t seekableGetNarBytes(descriptor_t fd) {
+get_nar_bytes_t seekable_get_nar_bytes(descriptor_t fd) {
   return [fd](uint64_t offset, uint64_t length) {
-    if (::lseek(fromDescriptorReadOnly(fd), offset, SEEK_SET) == -1)
+    if (::lseek(from_descriptor_read_only(fd), offset, SEEK_SET) == -1)
       throw sys_error_t("seeking in file");
 
     std::string buf(length, 0);
-    readFull(fd, buf.data(), length);
+    read_full(fd, buf.data(), length);
 
     return buf;
   };
@@ -254,49 +254,49 @@ template <bool deep>
 using list_nar_result_t = std::conditional_t<deep, nar_listing_t, shallow_nar_listing_t>;
 
 template <bool deep>
-static list_nar_result_t<deep> listNarImpl(SourceAccessor& accessor, const canon_path_t& path) {
+static list_nar_result_t<deep> list_nar_impl(SourceAccessor& accessor, const canon_path_t& path) {
   auto st = accessor.lstat(path);
 
   switch (st.type) {
-    case SourceAccessor::Type::tRegular:
-      return typename list_nar_result_t<deep>::Regular{
-          .executable = st.isExecutable,
+    case SourceAccessor::Type::t_regular:
+      return typename list_nar_result_t<deep>::regular{
+          .executable = st.is_executable,
           .contents =
               nar_listing_regular_file_t{
-                  .fileSize = st.fileSize,
-                  .narOffset = st.narOffset && *st.narOffset ? st.narOffset : std::nullopt,
+                  .file_size = st.file_size,
+                  .nar_offset = st.nar_offset && *st.nar_offset ? st.nar_offset : std::nullopt,
               },
       };
-    case SourceAccessor::Type::tDirectory: {
+    case SourceAccessor::Type::t_directory: {
       typename list_nar_result_t<deep>::directory_t dir;
-      for (const auto& [name, type] : accessor.readDirectory(path)) {
+      for (const auto& [name, type] : accessor.read_directory(path)) {
         if constexpr (deep) {
-          dir.entries.emplace(name, listNarImpl<true>(accessor, path / name));
+          dir.entries.emplace(name, list_nar_impl<true>(accessor, path / name));
         } else {
           dir.entries.emplace(name, fso::opaque_t{});
         }
       }
       return dir;
     }
-    case SourceAccessor::Type::tSymlink:
-      return typename list_nar_result_t<deep>::Symlink{
-          .target = accessor.readLink(path),
+    case SourceAccessor::Type::t_symlink:
+      return typename list_nar_result_t<deep>::symlink{
+          .target = accessor.read_link(path),
       };
-    case SourceAccessor::Type::tBlock:
-    case SourceAccessor::Type::tChar:
-    case SourceAccessor::Type::tSocket:
-    case SourceAccessor::Type::tFifo:
-    case SourceAccessor::Type::tUnknown:
+    case SourceAccessor::Type::t_block:
+    case SourceAccessor::Type::t_char:
+    case SourceAccessor::Type::t_socket:
+    case SourceAccessor::Type::t_fifo:
+    case SourceAccessor::Type::t_unknown:
       assert(false); // cannot happen for NARs
   }
 }
 
-nar_listing_t listNarDeep(SourceAccessor& accessor, const canon_path_t& path) {
-  return listNarImpl<true>(accessor, path);
+nar_listing_t list_nar_deep(SourceAccessor& accessor, const canon_path_t& path) {
+  return list_nar_impl<true>(accessor, path);
 }
 
-shallow_nar_listing_t listNarShallow(SourceAccessor& accessor, const canon_path_t& path) {
-  return listNarImpl<false>(accessor, path);
+shallow_nar_listing_t list_nar_shallow(SourceAccessor& accessor, const canon_path_t& path) {
+  return list_nar_impl<false>(accessor, path);
 }
 
 } // namespace nix

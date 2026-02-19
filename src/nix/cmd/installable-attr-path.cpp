@@ -26,47 +26,47 @@
 namespace nix {
 
 InstallableAttrPath::InstallableAttrPath(ref<EvalState> state, SourceExprCommand& cmd, Value* v,
-                                         const std::string& attrPath,
+                                         const std::string& attr_path,
                                          ExtendedOutputsSpec extendedOutputsSpec)
     : InstallableValue(state),
       cmd(cmd),
-      v(allocRootValue(v)),
-      attrPath(attrPath),
+      v(alloc_root_value(v)),
+      attr_path(attr_path),
       extendedOutputsSpec(std::move(extendedOutputsSpec)) {}
 
 std::pair<Value*, pos_idx_t> InstallableAttrPath::toValue(EvalState& state) {
-  auto [vRes, pos] = findAlongAttrPath(state, attrPath, *cmd.getAutoArgs(state), **v);
-  state.forceValue(*vRes, pos);
-  return {vRes, pos};
+  auto [v_res, pos] = find_along_attr_path(state, attr_path, *cmd.getAutoArgs(state), **v);
+  state.forceValue(*v_res, pos);
+  return {v_res, pos};
 }
 
-DerivedPathsWithInfo InstallableAttrPath::toDerivedPaths() {
+DerivedPathsWithInfo InstallableAttrPath::to_derived_paths() {
   auto [v, pos] = toValue(*state);
 
   if (std::optional derivedPathWithInfo = trySinglePathToDerivedPaths(
-          *v, pos, fmt("while evaluating the attribute '%s'", attrPath))) {
+          *v, pos, fmt("while evaluating the attribute '%s'", attr_path))) {
     return {*derivedPathWithInfo};
   }
 
-  Bindings& autoArgs = *cmd.getAutoArgs(*state);
+  Bindings& auto_args = *cmd.getAutoArgs(*state);
 
-  PackageInfos packageInfos;
-  getDerivations(*state, *v, "", autoArgs, packageInfos, false);
+  PackageInfos package_infos;
+  get_derivations(*state, *v, "", auto_args, package_infos, false);
 
   // Backward compatibility hack: group results by drvPath. This
   // helps keep .all output together.
   std::map<StorePath, OutputsSpec> byDrvPath;
 
-  for (auto& packageInfo : packageInfos) {
-    auto drvPath = packageInfo.queryDrvPath();
-    if (!drvPath)
+  for (auto& package_info : package_infos) {
+    auto drv_path = package_info.queryDrvPath();
+    if (!drv_path)
       throw Error("'%s' is not a derivation", what());
 
     auto newOutputs =
         std::visit(overloaded{
                        [&](const ExtendedOutputsSpec::Default& d) -> OutputsSpec {
                          string_set_t outputsToInstall;
-                         for (auto& output : packageInfo.queryOutputs(false, true))
+                         for (auto& output : package_info.queryOutputs(false, true))
                            outputsToInstall.insert(output.first);
                          if (outputsToInstall.empty())
                            outputsToInstall.insert("out");
@@ -76,19 +76,19 @@ DerivedPathsWithInfo InstallableAttrPath::toDerivedPaths() {
                    },
                    extendedOutputsSpec.raw);
 
-    auto [iter, didInsert] = byDrvPath.emplace(*drvPath, newOutputs);
+    auto [iter, didInsert] = byDrvPath.emplace(*drv_path, newOutputs);
 
     if (!didInsert)
       iter->second = iter->second.union_(newOutputs);
   }
 
   DerivedPathsWithInfo res;
-  for (auto& [drvPath, outputs] : byDrvPath) {
-    state->waitForPath(drvPath);
+  for (auto& [drv_path, outputs] : byDrvPath) {
+    state->waitForPath(drv_path);
     res.push_back({
         .path =
             DerivedPath::Built{
-                .drvPath = makeConstantStorePathRef(drvPath),
+                .drv_path = makeConstantStorePathRef(drv_path),
                 .outputs = outputs,
             },
         .info = make_ref<ExtraPathInfoValue>(ExtraPathInfoValue::Value{

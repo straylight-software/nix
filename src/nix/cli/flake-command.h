@@ -15,11 +15,11 @@ protected:
 public:
   flake_command_t();
 
-  FlakeRef getFlakeRef();
+  FlakeRef get_flake_ref();
 
-  LockedFlake lockFlake();
+  LockedFlake lock_flake();
 
-  std::vector<FlakeRef> getFlakeRefsForCompletion() override;
+  std::vector<FlakeRef> get_flake_refs_for_completion() override;
 };
 
 } // namespace nix

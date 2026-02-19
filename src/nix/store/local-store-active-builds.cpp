@@ -22,49 +22,49 @@
 namespace nix {
 
 #ifdef __linux__
-static ActiveBuildInfo::ProcessInfo getProcessInfo(pid_t pid) {
+static ActiveBuildInfo::ProcessInfo get_process_info(pid_t pid) {
   ActiveBuildInfo::ProcessInfo info;
   info.pid = pid;
-  info.argv = tokenizeString<std::vector<std::string>>(readFile(fmt("/proc/%d/cmdline", pid)),
+  info.argv = tokenize_string<std::vector<std::string>>(read_file(fmt("/proc/%d/cmdline", pid)),
                                                        std::string("\000", 1));
 
-  auto statPath = fmt("/proc/%d/stat", pid);
+  auto stat_path = fmt("/proc/%d/stat", pid);
 
-  auto_close_fd_t statFd = open(statPath.c_str(), O_RDONLY | O_CLOEXEC);
-  if (!statFd)
-    throw sys_error_t("opening '%s'", statPath);
+  auto_close_fd_t stat_fd = open(stat_path.c_str(), O_RDONLY | O_CLOEXEC);
+  if (!stat_fd)
+    throw sys_error_t("opening '%s'", stat_path);
 
   // Get the UID from the ownership of the stat file.
   struct stat st;
-  if (fstat(statFd.get(), &st) == -1)
-    throw sys_error_t("getting ownership of '%s'", statPath);
+  if (fstat(stat_fd.get(), &st) == -1)
+    throw sys_error_t("getting ownership of '%s'", stat_path);
   info.user = UserInfo::fromUid(st.st_uid);
 
   // Read /proc/[pid]/stat for parent PID and CPU times.
   // Format: pid (comm) state ppid ...
   // Note that the comm field can contain spaces, so use a regex to parse it.
-  auto statContent = trim(readFile(statFd.get()));
-  static std::regex statRegex(R"((\d+) \(([^)]*)\) (.*))");
+  auto stat_content = trim(read_file(stat_fd.get()));
+  static std::regex stat_regex(R"((\d+) \(([^)]*)\) (.*))");
   std::smatch match;
-  if (!std::regex_match(statContent, match, statRegex))
+  if (!std::regex_match(stat_content, match, stat_regex))
     throw Error("failed to parse /proc/%d/stat", pid);
 
   // Parse the remaining fields after (comm).
-  auto remainingFields = tokenizeString<std::vector<std::string>>(match[3].str());
+  auto remaining_fields = tokenize_string<std::vector<std::string>>(match[3].str());
 
-  if (remainingFields.size() > 1)
-    info.parentPid = string2Int<pid_t>(remainingFields[1]).value_or(0);
+  if (remaining_fields.size() > 1)
+    info.parentPid = string2_int<pid_t>(remaining_fields[1]).value_or(0);
 
-  static long clkTck = sysconf(_SC_CLK_TCK);
-  if (remainingFields.size() > 14 && clkTck > 0) {
-    if (auto utime = string2Int<uint64_t>(remainingFields[11]))
-      info.utime = std::chrono::microseconds((*utime * 1'000'000) / clkTck);
-    if (auto stime = string2Int<uint64_t>(remainingFields[12]))
-      info.stime = std::chrono::microseconds((*stime * 1'000'000) / clkTck);
-    if (auto cutime = string2Int<uint64_t>(remainingFields[13]))
-      info.cutime = std::chrono::microseconds((*cutime * 1'000'000) / clkTck);
-    if (auto cstime = string2Int<uint64_t>(remainingFields[14]))
-      info.cstime = std::chrono::microseconds((*cstime * 1'000'000) / clkTck);
+  static long clk_tck = sysconf(_SC_CLK_TCK);
+  if (remaining_fields.size() > 14 && clk_tck > 0) {
+    if (auto utime = string2_int<uint64_t>(remaining_fields[11]))
+      info.utime = std::chrono::microseconds((*utime * 1'000'000) / clk_tck);
+    if (auto stime = string2_int<uint64_t>(remaining_fields[12]))
+      info.stime = std::chrono::microseconds((*stime * 1'000'000) / clk_tck);
+    if (auto cutime = string2_int<uint64_t>(remaining_fields[13]))
+      info.cutime = std::chrono::microseconds((*cutime * 1'000'000) / clk_tck);
+    if (auto cstime = string2_int<uint64_t>(remaining_fields[14]))
+      info.cstime = std::chrono::microseconds((*cstime * 1'000'000) / clk_tck);
   }
 
   return info;
@@ -73,19 +73,19 @@ static ActiveBuildInfo::ProcessInfo getProcessInfo(pid_t pid) {
 /**
  * Recursively get all descendant PIDs of a given PID using /proc/[pid]/task/[pid]/children.
  */
-static std::set<pid_t> getDescendantPids(pid_t pid) {
+static std::set<pid_t> get_descendant_pids(pid_t pid) {
   std::set<pid_t> descendants;
 
   [&](this auto self, pid_t pid) -> void {
     try {
       descendants.insert(pid);
-      for (const auto& childPidStr : tokenizeString<std::vector<std::string>>(
-               readFile(fmt("/proc/%d/task/%d/children", pid, pid))))
-        if (auto childPid = string2Int<pid_t>(childPidStr))
+      for (const auto& childPidStr : tokenize_string<std::vector<std::string>>(
+               read_file(fmt("/proc/%d/task/%d/children", pid, pid))))
+        if (auto childPid = string2_int<pid_t>(childPidStr))
           self(*childPid);
     } catch (...) {
       // Process may have exited.
-      ignoreExceptionExceptInterrupt();
+      ignore_exception_except_interrupt();
     }
   }(pid);
 
@@ -94,7 +94,7 @@ static std::set<pid_t> getDescendantPids(pid_t pid) {
 #endif
 
 #ifdef __APPLE__
-static ActiveBuildInfo::ProcessInfo getProcessInfo(pid_t pid) {
+static ActiveBuildInfo::ProcessInfo get_process_info(pid_t pid) {
   ActiveBuildInfo::ProcessInfo info;
   info.pid = pid;
 
@@ -160,7 +160,7 @@ static ActiveBuildInfo::ProcessInfo getProcessInfo(pid_t pid) {
 /**
  * Recursively get all descendant PIDs using sysctl with KERN_PROC.
  */
-static std::set<pid_t> getDescendantPids(pid_t startPid) {
+static std::set<pid_t> get_descendant_pids(pid_t startPid) {
   // Get all processes.
   int mib[4] = {CTL_KERN, KERN_PROC, KERN_PROC_ALL, 0};
   size_t size = 0;
@@ -204,40 +204,40 @@ std::vector<ActiveBuildInfo> LocalStore::queryActiveBuilds() {
 
     try {
       // Open the file. If we can lock it, the build is not active.
-      auto fd = openLockFile(path, false);
-      if (!fd || lockFile(fd.get(), ltRead, false)) {
+      auto fd = open_lock_file(path, false);
+      if (!fd || lock_file(fd.get(), ltRead, false)) {
         auto_delete_t(path, false);
         continue;
       }
 
-      ActiveBuildInfo info(nlohmann::json::parse(readFile(fd.get())).get<ActiveBuild>());
+      ActiveBuildInfo info(nlohmann::json::parse(read_file(fd.get())).get<ActiveBuild>());
 
 #if defined(__linux__) || defined(__APPLE__)
       /* Read process information. */
       try {
 #  ifdef __linux__
         if (info.cgroup) {
-          for (auto pid : getPidsInCgroup(*info.cgroup))
-            info.processes.push_back(getProcessInfo(pid));
+          for (auto pid : get_pids_in_cgroup(*info.cgroup))
+            info.processes.push_back(get_process_info(pid));
 
           /* Read CPU statistics from the cgroup. */
-          auto stats = getCgroupStats(*info.cgroup);
-          info.utime = stats.cpuUser;
-          info.stime = stats.cpuSystem;
+          auto stats = get_cgroup_stats(*info.cgroup);
+          info.utime = stats.cpu_user;
+          info.stime = stats.cpu_system;
         } else
 #  endif
         {
-          for (auto pid : getDescendantPids(info.mainPid))
-            info.processes.push_back(getProcessInfo(pid));
+          for (auto pid : get_descendant_pids(info.mainPid))
+            info.processes.push_back(get_process_info(pid));
         }
       } catch (...) {
-        ignoreExceptionExceptInterrupt();
+        ignore_exception_except_interrupt();
       }
 #endif
 
       result.push_back(std::move(info));
     } catch (...) {
-      ignoreExceptionExceptInterrupt();
+      ignore_exception_except_interrupt();
     }
   }
 
@@ -247,21 +247,21 @@ std::vector<ActiveBuildInfo> LocalStore::queryActiveBuilds() {
 LocalStore::BuildHandle LocalStore::buildStarted(const ActiveBuild& build) {
   // Write info about the active build to the active-builds directory where it can be read by
   // `queryBuilds()`.
-  static std::atomic<uint64_t> nextId{1};
+  static std::atomic<uint64_t> next_id{1};
 
-  auto id = nextId++;
+  auto id = next_id++;
 
   auto infoFileName = fmt("%d-%d", getpid(), id);
   auto infoFilePath = activeBuildsDir / infoFileName;
 
-  auto infoFd = openLockFile(infoFilePath, true);
+  auto infoFd = open_lock_file(infoFilePath, true);
 
   // Lock the file to denote that the build is active.
-  lockFile(infoFd.get(), ltWrite, true);
+  lock_file(infoFd.get(), ltWrite, true);
 
-  writeFile(infoFilePath, nlohmann::json(build).dump(), 0600, fs_sync_t::Yes);
+  write_file(infoFilePath, nlohmann::json(build).dump(), 0600, fs_sync_t::yes);
 
-  activeBuilds.lock()->emplace(id, ActiveBuildFile{
+  active_builds.lock()->emplace(id, ActiveBuildFile{
                                        .fd = std::move(infoFd),
                                        .del = auto_delete_t(infoFilePath, false),
                                    });
@@ -270,7 +270,7 @@ LocalStore::BuildHandle LocalStore::buildStarted(const ActiveBuild& build) {
 }
 
 void LocalStore::buildFinished(const BuildHandle& handle) {
-  activeBuilds.lock()->erase(handle.id);
+  active_builds.lock()->erase(handle.id);
 }
 
 } // namespace nix

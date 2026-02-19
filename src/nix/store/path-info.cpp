@@ -9,7 +9,7 @@
 
 namespace nix {
 
-PathInfoJsonFormat parsePathInfoJsonFormat(uint64_t version) {
+PathInfoJsonFormat parse_path_info_json_format(uint64_t version) {
   switch (version) {
     case 1:
       return PathInfoJsonFormat::V1;
@@ -21,31 +21,31 @@ PathInfoJsonFormat parsePathInfoJsonFormat(uint64_t version) {
   }
 }
 
-UnkeyedValidPathInfo::UnkeyedValidPathInfo(const StoreDirConfig& store, Hash narHash)
-    : UnkeyedValidPathInfo{store.storeDir, narHash} {}
+UnkeyedValidPathInfo::UnkeyedValidPathInfo(const StoreDirConfig& store, Hash nar_hash)
+    : UnkeyedValidPathInfo{store.store_dir, nar_hash} {}
 
-GENERATE_CMP_EXT(, std::weak_ordering, UnkeyedValidPathInfo, me->storeDir, me->deriver, me->narHash,
-                 me->references, me->registrationTime, me->narSize,
+GENERATE_CMP_EXT(, std::weak_ordering, UnkeyedValidPathInfo, me->store_dir, me->deriver, me->nar_hash,
+                 me->references, me->registrationTime, me->nar_size,
                  // me->id,
                  me->ultimate, me->sigs, me->ca);
 
 std::string ValidPathInfo::fingerprint(const StoreDirConfig& store) const {
-  if (narSize == 0)
+  if (nar_size == 0)
     throw Error("cannot calculate fingerprint of path '%s' because its size is not known",
                 store.printStorePath(path));
-  return "1;" + store.printStorePath(path) + ";" + narHash.to_string(hash_format_t::Nix32, true) +
-         ";" + std::to_string(narSize) + ";" +
-         concatStringsSep(",", store.printStorePathSet(references));
+  return "1;" + store.printStorePath(path) + ";" + nar_hash.to_string(hash_format_t::nix32, true) +
+         ";" + std::to_string(nar_size) + ";" +
+         concat_strings_sep(",", store.printStorePathSet(references));
 }
 
 void ValidPathInfo::sign(const Store& store, const signer_t& signer) {
-  sigs.insert(signer.signDetached(fingerprint(store)));
+  sigs.insert(signer.sign_detached(fingerprint(store)));
 }
 
 void ValidPathInfo::sign(const Store& store, const std::vector<std::unique_ptr<signer_t>>& signers) {
   auto fingerprint = this->fingerprint(store);
   for (auto& signer : signers) {
-    sigs.insert(signer->signDetached(fingerprint));
+    sigs.insert(signer->sign_detached(fingerprint));
   }
 }
 
@@ -62,9 +62,9 @@ std::optional<ContentAddressWithReferences> ValidPathInfo::contentAddressWithRef
       };
     }
 
-    case ContentAddressMethod::raw_t::Flat:
-    case ContentAddressMethod::raw_t::NixArchive:
-    case ContentAddressMethod::raw_t::Git:
+    case ContentAddressMethod::raw_t::flat:
+    case ContentAddressMethod::raw_t::nix_archive:
+    case ContentAddressMethod::raw_t::git:
     default: {
       auto refs = references;
       bool hasSelfReference = false;
@@ -103,20 +103,20 @@ bool ValidPathInfo::isContentAddressed(const StoreDirConfig& store) const {
 }
 
 size_t ValidPathInfo::checkSignatures(const StoreDirConfig& store,
-                                      const public_keys_t& publicKeys) const {
+                                      const public_keys_t& public_keys) const {
   if (isContentAddressed(store))
     return maxSigs;
 
   size_t good = 0;
   for (auto& sig : sigs)
-    if (checkSignature(store, publicKeys, sig))
+    if (checkSignature(store, public_keys, sig))
       good++;
   return good;
 }
 
-bool ValidPathInfo::checkSignature(const StoreDirConfig& store, const public_keys_t& publicKeys,
+bool ValidPathInfo::checkSignature(const StoreDirConfig& store, const public_keys_t& public_keys,
                                    const std::string& sig) const {
-  return verifyDetached(fingerprint(store), sig, publicKeys);
+  return verify_detached(fingerprint(store), sig, public_keys);
 }
 
 strings_t ValidPathInfo::shortRefs() const {
@@ -127,10 +127,10 @@ strings_t ValidPathInfo::shortRefs() const {
 }
 
 ValidPathInfo ValidPathInfo::makeFromCA(const StoreDirConfig& store, std::string_view name,
-                                        ContentAddressWithReferences&& ca, Hash narHash) {
+                                        ContentAddressWithReferences&& ca, Hash nar_hash) {
   ValidPathInfo res{
       store.makeFixedOutputPathFromCA(name, ca),
-      UnkeyedValidPathInfo(store, narHash),
+      UnkeyedValidPathInfo(store, nar_hash),
   };
   res.ca = ContentAddress{
       .method = ca.getMethod(),
@@ -149,27 +149,27 @@ ValidPathInfo ValidPathInfo::makeFromCA(const StoreDirConfig& store, std::string
   return res;
 }
 
-nlohmann::json UnkeyedValidPathInfo::toJSON(const StoreDirConfig* store, bool includeImpureInfo,
+nlohmann::json UnkeyedValidPathInfo::to_json(const StoreDirConfig* store, bool includeImpureInfo,
                                             PathInfoJsonFormat format) const {
   using nlohmann::json;
 
   if (format == PathInfoJsonFormat::V1)
     assert(store);
 
-  auto jsonObject = json::object();
+  auto json_object = json::object();
 
-  jsonObject["version"] = format;
+  json_object["version"] = format;
 
-  jsonObject["storeDir"] = storeDir;
+  json_object["storeDir"] = store_dir;
 
-  jsonObject["narHash"] = format == PathInfoJsonFormat::V1
-                              ? static_cast<json>(narHash.to_string(hash_format_t::SRI, true))
-                              : static_cast<json>(narHash);
+  json_object["narHash"] = format == PathInfoJsonFormat::V1
+                              ? static_cast<json>(nar_hash.to_string(hash_format_t::SRI, true))
+                              : static_cast<json>(nar_hash);
 
-  jsonObject["narSize"] = narSize;
+  json_object["narSize"] = nar_size;
 
   {
-    auto& jsonRefs = jsonObject["references"] = json::array();
+    auto& jsonRefs = json_object["references"] = json::array();
     for (auto& ref : references)
       jsonRefs.emplace_back(format == PathInfoJsonFormat::V1
                                 ? static_cast<json>(store->printStorePath(ref))
@@ -177,37 +177,37 @@ nlohmann::json UnkeyedValidPathInfo::toJSON(const StoreDirConfig* store, bool in
   }
 
   if (format == PathInfoJsonFormat::V1)
-    jsonObject["ca"] =
-        ca ? static_cast<json>(renderContentAddress(*ca)) : static_cast<json>(nullptr);
+    json_object["ca"] =
+        ca ? static_cast<json>(render_content_address(*ca)) : static_cast<json>(nullptr);
   else
-    jsonObject["ca"] = ca;
+    json_object["ca"] = ca;
 
   if (includeImpureInfo) {
     if (format == PathInfoJsonFormat::V1) {
-      jsonObject["deriver"] =
+      json_object["deriver"] =
           deriver ? static_cast<json>(store->printStorePath(*deriver)) : static_cast<json>(nullptr);
     } else {
-      jsonObject["deriver"] = deriver;
+      json_object["deriver"] = deriver;
     }
-    jsonObject["registrationTime"] =
+    json_object["registrationTime"] =
         registrationTime ? std::optional{registrationTime} : std::nullopt;
 
-    jsonObject["ultimate"] = ultimate;
+    json_object["ultimate"] = ultimate;
 
-    auto& sigsObj = jsonObject["signatures"] = json::array();
+    auto& sigsObj = json_object["signatures"] = json::array();
     for (auto& sig : sigs)
       sigsObj.push_back(sig);
   }
 
-  return jsonObject;
+  return json_object;
 }
 
-UnkeyedValidPathInfo UnkeyedValidPathInfo::fromJSON(const StoreDirConfig* store,
+UnkeyedValidPathInfo UnkeyedValidPathInfo::from_json(const StoreDirConfig* store,
                                                     const nlohmann::json& _json) {
-  auto& json = getObject(_json);
+  auto& json = get_object(_json);
 
   PathInfoJsonFormat format = PathInfoJsonFormat::V1;
-  if (auto* version = optionalValueAt(json, "version"))
+  if (auto* version = optional_value_at(json, "version"))
     format = *version;
 
   if (format == PathInfoJsonFormat::V1)
@@ -215,63 +215,63 @@ UnkeyedValidPathInfo UnkeyedValidPathInfo::fromJSON(const StoreDirConfig* store,
 
   UnkeyedValidPathInfo res{
       [&] {
-        if (auto* rawStoreDir = optionalValueAt(json, "storeDir"))
-          return getString(*rawStoreDir);
+        if (auto* rawStoreDir = optional_value_at(json, "storeDir"))
+          return get_string(*rawStoreDir);
         else if (format == PathInfoJsonFormat::V1)
-          return store->storeDir;
+          return store->store_dir;
         else
           throw Error("'storeDir' field is required in path info JSON format version 2");
       }(),
       [&] {
         return format == PathInfoJsonFormat::V1
-                   ? Hash::parseSRI(getString(valueAt(json, "narHash")))
-                   : Hash(valueAt(json, "narHash"));
+                   ? Hash::parse_sri(get_string(value_at(json, "narHash")))
+                   : Hash(value_at(json, "narHash"));
       }(),
   };
 
-  res.narSize = getUnsigned(valueAt(json, "narSize"));
+  res.nar_size = get_unsigned(value_at(json, "narSize"));
 
   try {
-    auto& references = getArray(valueAt(json, "references"));
+    auto& references = get_array(value_at(json, "references"));
     for (auto& input : references)
       res.references.insert(format == PathInfoJsonFormat::V1
-                                ? store->parseStorePath(getString(input))
+                                ? store->parseStorePath(get_string(input))
                                 : static_cast<StorePath>(input));
   } catch (Error& e) {
-    e.addTrace({}, "while reading key 'references'");
+    e.add_trace({}, "while reading key 'references'");
     throw;
   }
 
   try {
     if (format == PathInfoJsonFormat::V1) {
-      if (auto* rawCa = getNullable(valueAt(json, "ca")))
-        res.ca = ContentAddress::parse(getString(*rawCa));
+      if (auto* rawCa = get_nullable(value_at(json, "ca")))
+        res.ca = ContentAddress::parse(get_string(*rawCa));
     } else {
-      res.ca = ptrToOwned<ContentAddress>(getNullable(valueAt(json, "ca")));
+      res.ca = ptr_to_owned<ContentAddress>(get_nullable(value_at(json, "ca")));
     }
   } catch (Error& e) {
-    e.addTrace({}, "while reading key 'ca'");
+    e.add_trace({}, "while reading key 'ca'");
     throw;
   }
 
-  if (auto* rawDeriver0 = optionalValueAt(json, "deriver")) {
+  if (auto* rawDeriver0 = optional_value_at(json, "deriver")) {
     if (format == PathInfoJsonFormat::V1) {
-      if (auto* rawDeriver = getNullable(*rawDeriver0))
-        res.deriver = store->parseStorePath(getString(*rawDeriver));
+      if (auto* rawDeriver = get_nullable(*rawDeriver0))
+        res.deriver = store->parseStorePath(get_string(*rawDeriver));
     } else {
-      res.deriver = ptrToOwned<StorePath>(getNullable(*rawDeriver0));
+      res.deriver = ptr_to_owned<StorePath>(get_nullable(*rawDeriver0));
     }
   }
 
-  if (auto* rawRegistrationTime0 = optionalValueAt(json, "registrationTime"))
-    if (auto* rawRegistrationTime = getNullable(*rawRegistrationTime0))
-      res.registrationTime = getInteger<time_t>(*rawRegistrationTime);
+  if (auto* rawRegistrationTime0 = optional_value_at(json, "registrationTime"))
+    if (auto* rawRegistrationTime = get_nullable(*rawRegistrationTime0))
+      res.registrationTime = get_integer<time_t>(*rawRegistrationTime);
 
-  if (auto* rawUltimate = optionalValueAt(json, "ultimate"))
-    res.ultimate = getBoolean(*rawUltimate);
+  if (auto* rawUltimate = optional_value_at(json, "ultimate"))
+    res.ultimate = get_boolean(*rawUltimate);
 
-  if (auto* rawSignatures = optionalValueAt(json, "signatures"))
-    res.sigs = getStringSet(*rawSignatures);
+  if (auto* rawSignatures = optional_value_at(json, "signatures"))
+    res.sigs = get_string_set(*rawSignatures);
 
   return res;
 }
@@ -283,7 +283,7 @@ namespace nlohmann {
 using namespace nix;
 
 PathInfoJsonFormat adl_serializer<PathInfoJsonFormat>::from_json(const json& json) {
-  return parsePathInfoJsonFormat(getUnsigned(json));
+  return parse_path_info_json_format(get_unsigned(json));
 }
 
 void adl_serializer<PathInfoJsonFormat>::to_json(json& json, const PathInfoJsonFormat& format) {
@@ -291,18 +291,18 @@ void adl_serializer<PathInfoJsonFormat>::to_json(json& json, const PathInfoJsonF
 }
 
 UnkeyedValidPathInfo adl_serializer<UnkeyedValidPathInfo>::from_json(const json& json) {
-  return UnkeyedValidPathInfo::fromJSON(nullptr, json);
+  return UnkeyedValidPathInfo::from_json(nullptr, json);
 }
 
 void adl_serializer<UnkeyedValidPathInfo>::to_json(json& json, const UnkeyedValidPathInfo& c) {
-  json = c.toJSON(nullptr, true, PathInfoJsonFormat::V2);
+  json = c.to_json(nullptr, true, PathInfoJsonFormat::V2);
 }
 
 ValidPathInfo adl_serializer<ValidPathInfo>::from_json(const json& json0) {
-  auto json = getObject(json0);
+  auto json = get_object(json0);
 
   return ValidPathInfo{
-      valueAt(json, "path"),
+      value_at(json, "path"),
       adl_serializer<UnkeyedValidPathInfo>::from_json(json0),
   };
 }

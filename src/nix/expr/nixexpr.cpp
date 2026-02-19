@@ -17,7 +17,7 @@ Counter Expr::nrExprs;
 //        textual representation; see printIdentifier()
 std::ostream& operator<<(std::ostream& str, const SymbolStr& symbol) {
   std::string_view s = symbol;
-  return printIdentifier(str, s);
+  return print_identifier(str, s);
 }
 
 void Expr::show(const SymbolTable& symbols, std::ostream& str) const {
@@ -33,7 +33,7 @@ void ExprFloat::show(const SymbolTable& symbols, std::ostream& str) const {
 }
 
 void ExprString::show(const SymbolTable& symbols, std::ostream& str) const {
-  printLiteralString(str, v.string_view());
+  print_literal_string(str, v.string_view());
 }
 
 void ExprPath::show(const SymbolTable& symbols, std::ostream& str) const {
@@ -47,7 +47,7 @@ void ExprVar::show(const SymbolTable& symbols, std::ostream& str) const {
 void ExprSelect::show(const SymbolTable& symbols, std::ostream& str) const {
   str << "(";
   e->show(symbols, str);
-  str << ")." << showAttrSelectionPath(symbols, getAttrPath());
+  str << ")." << show_attr_selection_path(symbols, getAttrPath());
   if (def) {
     str << " or (";
     def->show(symbols, str);
@@ -58,7 +58,7 @@ void ExprSelect::show(const SymbolTable& symbols, std::ostream& str) const {
 void ExprOpHasAttr::show(const SymbolTable& symbols, std::ostream& str) const {
   str << "((";
   e->show(symbols, str);
-  str << ") ? " << showAttrSelectionPath(symbols, attrPath) << ")";
+  str << ") ? " << show_attr_selection_path(symbols, attr_path) << ")";
 }
 
 void ExprAttrs::showBindings(const SymbolTable& symbols, std::ostream& str) const {
@@ -238,10 +238,10 @@ void ExprPos::show(const SymbolTable& symbols, std::ostream& str) const {
   str << "__curPos";
 }
 
-std::string showAttrSelectionPath(const SymbolTable& symbols, std::span<const AttrName> attrPath) {
+std::string show_attr_selection_path(const SymbolTable& symbols, std::span<const AttrName> attr_path) {
   std::ostringstream out;
   bool first = true;
-  for (auto& i : attrPath) {
+  for (auto& i : attr_path) {
     if (!first)
       out << '.';
     else
@@ -313,7 +313,7 @@ void ExprVar::bindVars(EvalState& es, const std::shared_ptr<const StaticEnv>& en
      "undefined variable" error now. */
   if (withLevel == -1)
     es.error<UndefinedVarError>("undefined variable '%1%'", es.symbols[name])
-        .atPos(pos)
+        .at_pos(pos)
         .debugThrow();
   for (auto* e = env.get(); e && !fromWith; e = e->up.get())
     fromWith = e->isWith;
@@ -342,7 +342,7 @@ void ExprOpHasAttr::bindVars(EvalState& es, const std::shared_ptr<const StaticEn
     es.exprEnvs.insert(std::make_pair(this, env));
 
   e->bindVars(es, env);
-  for (auto& i : attrPath)
+  for (auto& i : attr_path)
     if (!i.symbol)
       i.expr->bindVars(es, env);
 }
@@ -384,24 +384,24 @@ void ExprAttrs::bindVars(EvalState& es, const std::shared_ptr<const StaticEnv>& 
     es.exprEnvs.insert(std::make_pair(this, env));
 
   if (recursive) {
-    auto newEnv = [&]() -> std::shared_ptr<const StaticEnv> {
-      auto newEnv = std::make_shared<StaticEnv>(nullptr, env, attrs->size());
+    auto new_env = [&]() -> std::shared_ptr<const StaticEnv> {
+      auto new_env = std::make_shared<StaticEnv>(nullptr, env, attrs->size());
 
       Displacement displ = 0;
       for (auto& i : *attrs)
-        newEnv->vars.emplace_back(i.first, i.second.displ = displ++);
-      return newEnv;
+        new_env->vars.emplace_back(i.first, i.second.displ = displ++);
+      return new_env;
     }();
 
     // No need to sort newEnv since attrs is in sorted order.
 
-    auto inheritFromEnv = bindInheritSources(es, newEnv);
+    auto inheritFromEnv = bindInheritSources(es, new_env);
     for (auto& i : *attrs)
-      i.second.e->bindVars(es, i.second.chooseByKind(newEnv, env, inheritFromEnv));
+      i.second.e->bindVars(es, i.second.chooseByKind(new_env, env, inheritFromEnv));
 
     for (auto& i : *dynamicAttrs) {
-      i.nameExpr->bindVars(es, newEnv);
-      i.valueExpr->bindVars(es, newEnv);
+      i.nameExpr->bindVars(es, new_env);
+      i.valueExpr->bindVars(es, new_env);
     }
   } else {
     auto inheritFromEnv = bindInheritSources(es, env);
@@ -428,26 +428,26 @@ void ExprLambda::bindVars(EvalState& es, const std::shared_ptr<const StaticEnv>&
   if (es.debugRepl)
     es.exprEnvs.insert(std::make_pair(this, env));
 
-  auto newEnv = std::make_shared<StaticEnv>(
+  auto new_env = std::make_shared<StaticEnv>(
       nullptr, env, (getFormals() ? getFormals()->formals.size() : 0) + (!arg ? 0 : 1));
 
   Displacement displ = 0;
 
   if (arg)
-    newEnv->vars.emplace_back(arg, displ++);
+    new_env->vars.emplace_back(arg, displ++);
 
   if (auto formals = getFormals()) {
     for (auto& i : formals->formals)
-      newEnv->vars.emplace_back(i.name, displ++);
+      new_env->vars.emplace_back(i.name, displ++);
 
-    newEnv->sort();
+    new_env->sort();
 
     for (auto& i : formals->formals)
       if (i.def)
-        i.def->bindVars(es, newEnv);
+        i.def->bindVars(es, new_env);
   }
 
-  body->bindVars(es, newEnv);
+  body->bindVars(es, new_env);
 }
 
 void ExprCall::moveDataToAllocator(std::pmr::polymorphic_allocator<char>& alloc) {
@@ -467,25 +467,25 @@ void ExprCall::bindVars(EvalState& es, const std::shared_ptr<const StaticEnv>& e
 
 void ExprLet::bindVars(EvalState& es, const std::shared_ptr<const StaticEnv>& env) {
   attrs->moveDataToAllocator(es.mem.exprs.alloc);
-  auto newEnv = [&]() -> std::shared_ptr<const StaticEnv> {
-    auto newEnv = std::make_shared<StaticEnv>(nullptr, env, attrs->attrs->size());
+  auto new_env = [&]() -> std::shared_ptr<const StaticEnv> {
+    auto new_env = std::make_shared<StaticEnv>(nullptr, env, attrs->attrs->size());
 
     Displacement displ = 0;
     for (auto& i : *attrs->attrs)
-      newEnv->vars.emplace_back(i.first, i.second.displ = displ++);
-    return newEnv;
+      new_env->vars.emplace_back(i.first, i.second.displ = displ++);
+    return new_env;
   }();
 
   // No need to sort newEnv since attrs->attrs is in sorted order.
 
-  auto inheritFromEnv = attrs->bindInheritSources(es, newEnv);
+  auto inheritFromEnv = attrs->bindInheritSources(es, new_env);
   for (auto& i : *attrs->attrs)
-    i.second.e->bindVars(es, i.second.chooseByKind(newEnv, env, inheritFromEnv));
+    i.second.e->bindVars(es, i.second.chooseByKind(new_env, env, inheritFromEnv));
 
   if (es.debugRepl)
-    es.exprEnvs.insert(std::make_pair(this, newEnv));
+    es.exprEnvs.insert(std::make_pair(this, new_env));
 
-  body->bindVars(es, newEnv);
+  body->bindVars(es, new_env);
 }
 
 void ExprWith::bindVars(EvalState& es, const std::shared_ptr<const StaticEnv>& env) {
@@ -510,8 +510,8 @@ void ExprWith::bindVars(EvalState& es, const std::shared_ptr<const StaticEnv>& e
     }
 
   attrs->bindVars(es, env);
-  auto newEnv = std::make_shared<StaticEnv>(this, env);
-  body->bindVars(es, newEnv);
+  auto new_env = std::make_shared<StaticEnv>(this, env);
+  body->bindVars(es, new_env);
 }
 
 void ExprIf::bindVars(EvalState& es, const std::shared_ptr<const StaticEnv>& env) {
@@ -561,15 +561,15 @@ void ExprLambda::setName(Symbol name) {
 }
 
 std::string ExprLambda::showNamePos(const EvalState& state) const {
-  std::string id(name ? concatStrings("'", state.symbols[name], "'") : "anonymous function");
+  std::string id(name ? concat_strings("'", state.symbols[name], "'") : "anonymous function");
   return fmt("%1% at %2%", id, state.positions[pos]);
 }
 
-void ExprLambda::setDocComment(DocComment docComment) {
+void ExprLambda::setDocComment(DocComment doc_comment) {
   // RFC 145 specifies that the innermost doc comment wins.
   // See https://github.com/NixOS/rfcs/blob/master/rfcs/0145-doc-strings.md#ambiguous-placement
-  if (!this->docComment) {
-    this->docComment = docComment;
+  if (!this->doc_comment) {
+    this->doc_comment = doc_comment;
 
     // Curried functions are defined by putting a function directly
     // in the body of another function. To render docs for those, we
@@ -577,14 +577,14 @@ void ExprLambda::setDocComment(DocComment docComment) {
     //
     // If we have our own comment, we've already propagated it, so this
     // belongs in the same conditional.
-    body->setDocComment(docComment);
+    body->setDocComment(doc_comment);
   }
 }
 
 std::string DocComment::getInnerText(const pos_table_t& positions) const {
   auto beginPos = positions[begin];
   auto endPos = positions[end];
-  auto docCommentStr = beginPos.getSnippetUpTo(endPos).value_or("");
+  auto docCommentStr = beginPos.get_snippet_up_to(endPos).value_or("");
 
   // Strip "/**" and "*/"
   constexpr size_t prefixLen = 3;
@@ -596,7 +596,7 @@ std::string DocComment::getInnerText(const pos_table_t& positions) const {
   // Turn the now missing "/**" into indentation
   docStr = "   " + docStr;
   // Strip indentation (for the whole, potentially multi-line string)
-  docStr = stripIndentation(docStr);
+  docStr = strip_indentation(docStr);
   return docStr;
 }
 
@@ -622,7 +622,7 @@ void ExprCall::warnIfCursedOr(const SymbolTable& symbols, const pos_table_t& pos
            "Wrap this entire expression in parentheses to preserve its current meaning:\n"
            "    ("
         << positions[pos]
-               .getSnippetUpTo(positions[*cursedOrEndPos])
+               .get_snippet_up_to(positions[*cursedOrEndPos])
                .value_or("could not read expression")
         << ")\n"
            "Give feedback at https://github.com/NixOS/nix/pull/11121";

@@ -8,118 +8,118 @@
 
 namespace nix {
 
-static xml_attrs_t singletonAttrs(const std::string& name, std::string_view value) {
+static xml_attrs_t singleton_attrs(const std::string& name, std::string_view value) {
   xml_attrs_t attrs;
   attrs[name] = value;
   return attrs;
 }
 
-static void printValueAsXML(EvalState& state, bool strict, bool location, Value& v, xml_writer_t& doc,
-                            NixStringContext& context, path_set_t& drvsSeen, const pos_idx_t pos);
+static void print_value_as_xml(EvalState& state, bool strict, bool location, Value& v, xml_writer_t& doc,
+                            NixStringContext& context, path_set_t& drvs_seen, const pos_idx_t pos);
 
-static void posToXML(EvalState& state, xml_attrs_t& xmlAttrs, const Pos& pos) {
+static void pos_to_xml(EvalState& state, xml_attrs_t& xml_attrs, const pos_t& pos) {
   if (auto path = std::get_if<source_path_t>(&pos.origin))
-    xmlAttrs["path"] = path->path.abs();
-  xmlAttrs["line"] = fmt("%1%", pos.line);
-  xmlAttrs["column"] = fmt("%1%", pos.column);
+    xml_attrs["path"] = path->path.abs();
+  xml_attrs["line"] = fmt("%1%", pos.line);
+  xml_attrs["column"] = fmt("%1%", pos.column);
 }
 
-static void showAttrs(EvalState& state, bool strict, bool location, const Bindings& attrs,
-                      xml_writer_t& doc, NixStringContext& context, path_set_t& drvsSeen) {
+static void show_attrs(EvalState& state, bool strict, bool location, const Bindings& attrs,
+                      xml_writer_t& doc, NixStringContext& context, path_set_t& drvs_seen) {
   string_set_t names;
 
   for (auto& a : attrs.lexicographicOrder(state.symbols)) {
-    xml_attrs_t xmlAttrs;
-    xmlAttrs["name"] = state.symbols[a->name];
+    xml_attrs_t xml_attrs;
+    xml_attrs["name"] = state.symbols[a->name];
     if (location && a->pos)
-      posToXML(state, xmlAttrs, state.positions[a->pos]);
+      pos_to_xml(state, xml_attrs, state.positions[a->pos]);
 
-    xml_open_element_t _(doc, "attr", xmlAttrs);
-    printValueAsXML(state, strict, location, *a->value, doc, context, drvsSeen, a->pos);
+    xml_open_element_t _(doc, "attr", xml_attrs);
+    print_value_as_xml(state, strict, location, *a->value, doc, context, drvs_seen, a->pos);
   }
 }
 
-static void printValueAsXML(EvalState& state, bool strict, bool location, Value& v, xml_writer_t& doc,
-                            NixStringContext& context, path_set_t& drvsSeen, const pos_idx_t pos) {
-  checkInterrupt();
+static void print_value_as_xml(EvalState& state, bool strict, bool location, Value& v, xml_writer_t& doc,
+                            NixStringContext& context, path_set_t& drvs_seen, const pos_idx_t pos) {
+  check_interrupt();
 
   if (strict)
     state.forceValue(v, pos);
 
   switch (v.type()) {
     case nInt:
-      doc.writeEmptyElement("int", singletonAttrs("value", fmt("%1%", v.integer())));
+      doc.write_empty_element("int", singleton_attrs("value", fmt("%1%", v.integer())));
       break;
 
     case nBool:
-      doc.writeEmptyElement("bool", singletonAttrs("value", v.boolean() ? "true" : "false"));
+      doc.write_empty_element("bool", singleton_attrs("value", v.boolean() ? "true" : "false"));
       break;
 
     case nString:
       /* !!! show the context? */
-      copyContext(v, context);
-      doc.writeEmptyElement("string", singletonAttrs("value", v.string_view()));
+      copy_context(v, context);
+      doc.write_empty_element("string", singleton_attrs("value", v.string_view()));
       break;
 
     case nPath:
-      doc.writeEmptyElement("path", singletonAttrs("value", v.path().to_string()));
+      doc.write_empty_element("path", singleton_attrs("value", v.path().to_string()));
       break;
 
     case nNull:
-      doc.writeEmptyElement("null");
+      doc.write_empty_element("null");
       break;
 
     case nAttrs:
-      if (state.isDerivation(v)) {
-        xml_attrs_t xmlAttrs;
+      if (state.is_derivation(v)) {
+        xml_attrs_t xml_attrs;
 
-        Path drvPath;
-        if (auto a = v.attrs()->get(state.s.drvPath)) {
+        Path drv_path;
+        if (auto a = v.attrs()->get(state.s.drv_path)) {
           if (strict)
             state.forceValue(*a->value, a->pos);
           if (a->value->type() == nString)
-            xmlAttrs["drvPath"] = drvPath = a->value->string_view();
+            xml_attrs["drvPath"] = drv_path = a->value->string_view();
         }
 
-        if (auto a = v.attrs()->get(state.s.outPath)) {
+        if (auto a = v.attrs()->get(state.s.out_path)) {
           if (strict)
             state.forceValue(*a->value, a->pos);
           if (a->value->type() == nString)
-            xmlAttrs["outPath"] = a->value->string_view();
+            xml_attrs["outPath"] = a->value->string_view();
         }
 
-        xml_open_element_t _(doc, "derivation", xmlAttrs);
+        xml_open_element_t _(doc, "derivation", xml_attrs);
 
-        if (drvPath != "" && drvsSeen.insert(drvPath).second)
-          showAttrs(state, strict, location, *v.attrs(), doc, context, drvsSeen);
+        if (drv_path != "" && drvs_seen.insert(drv_path).second)
+          show_attrs(state, strict, location, *v.attrs(), doc, context, drvs_seen);
         else
-          doc.writeEmptyElement("repeated");
+          doc.write_empty_element("repeated");
       }
 
       else {
         xml_open_element_t _(doc, "attrs");
-        showAttrs(state, strict, location, *v.attrs(), doc, context, drvsSeen);
+        show_attrs(state, strict, location, *v.attrs(), doc, context, drvs_seen);
       }
 
       break;
 
     case nList: {
       xml_open_element_t _(doc, "list");
-      for (auto v2 : v.listView())
-        printValueAsXML(state, strict, location, *v2, doc, context, drvsSeen, pos);
+      for (auto v2 : v.list_view())
+        print_value_as_xml(state, strict, location, *v2, doc, context, drvs_seen, pos);
       break;
     }
 
     case nFunction: {
       if (!v.isLambda()) {
         // FIXME: Serialize primops and primopapps
-        doc.writeEmptyElement("unevaluated");
+        doc.write_empty_element("unevaluated");
         break;
       }
-      xml_attrs_t xmlAttrs;
+      xml_attrs_t xml_attrs;
       if (location)
-        posToXML(state, xmlAttrs, state.positions[v.lambda().fun->pos]);
-      xml_open_element_t _(doc, "function", xmlAttrs);
+        pos_to_xml(state, xml_attrs, state.positions[v.lambda().fun->pos]);
+      xml_open_element_t _(doc, "function", xml_attrs);
 
       if (auto formals = v.lambda().fun->getFormals()) {
         xml_attrs_t attrs;
@@ -129,43 +129,43 @@ static void printValueAsXML(EvalState& state, bool strict, bool location, Value&
           attrs["ellipsis"] = "1";
         xml_open_element_t _(doc, "attrspat", attrs);
         for (auto& i : formals->lexicographicOrder(state.symbols))
-          doc.writeEmptyElement("attr", singletonAttrs("name", state.symbols[i.name]));
+          doc.write_empty_element("attr", singleton_attrs("name", state.symbols[i.name]));
       } else
-        doc.writeEmptyElement("varpat", singletonAttrs("name", state.symbols[v.lambda().fun->arg]));
+        doc.write_empty_element("varpat", singleton_attrs("name", state.symbols[v.lambda().fun->arg]));
 
       break;
     }
 
     case nExternal:
-      v.external()->printValueAsXML(state, strict, location, doc, context, drvsSeen, pos);
+      v.external()->print_value_as_xml(state, strict, location, doc, context, drvs_seen, pos);
       break;
 
     case nFloat:
-      doc.writeEmptyElement("float", singletonAttrs("value", fmt("%1%", v.fpoint())));
+      doc.write_empty_element("float", singleton_attrs("value", fmt("%1%", v.fpoint())));
       break;
 
     case nThunk:
-      doc.writeEmptyElement("unevaluated");
+      doc.write_empty_element("unevaluated");
       break;
 
     case nFailed:
-      doc.writeEmptyElement("failed");
+      doc.write_empty_element("failed");
       break;
   }
 }
 
-void ExternalValueBase::printValueAsXML(EvalState& state, bool strict, bool location,
+void ExternalValueBase::print_value_as_xml(EvalState& state, bool strict, bool location,
                                         xml_writer_t& doc, NixStringContext& context,
-                                        path_set_t& drvsSeen, const pos_idx_t pos) const {
-  doc.writeEmptyElement("unevaluated");
+                                        path_set_t& drvs_seen, const pos_idx_t pos) const {
+  doc.write_empty_element("unevaluated");
 }
 
-void printValueAsXML(EvalState& state, bool strict, bool location, Value& v, std::ostream& out,
+void print_value_as_xml(EvalState& state, bool strict, bool location, Value& v, std::ostream& out,
                      NixStringContext& context, const pos_idx_t pos) {
   xml_writer_t doc(true, out);
   xml_open_element_t root(doc, "expr");
-  path_set_t drvsSeen;
-  printValueAsXML(state, strict, location, v, doc, context, drvsSeen, pos);
+  path_set_t drvs_seen;
+  print_value_as_xml(state, strict, location, v, doc, context, drvs_seen, pos);
 }
 
 } // namespace nix

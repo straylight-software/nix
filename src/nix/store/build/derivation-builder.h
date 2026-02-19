@@ -52,12 +52,12 @@ typedef std::map<Path, ChrootPath> PathsInChroot; // maps target path to source 
  */
 struct DerivationBuilderParams {
   /** The path of the derivation. */
-  const StorePath& drvPath;
+  const StorePath& drv_path;
 
   BuildResult& buildResult;
 
   /**
-   * The derivation stored at drvPath.
+   * The derivation stored at drv_path.
    */
   const BasicDerivation& drv;
 
@@ -66,7 +66,7 @@ struct DerivationBuilderParams {
    *
    * @todo this should be part of `Derivation`.
    */
-  const DerivationOptions<StorePath>& drvOptions;
+  const DerivationOptions<StorePath>& drv_options;
 
   // The remainder is state held during the build.
 
@@ -78,7 +78,7 @@ struct DerivationBuilderParams {
 
   const std::map<std::string, InitialOutput> initialOutputs;
 
-  const BuildMode& buildMode;
+  const BuildMode& build_mode;
 
   /**
    * Extra paths we want to be in the chroot, regardless of the
@@ -143,7 +143,7 @@ struct DerivationBuilder : RestrictionContext {
    * Master side of the pseudoterminal used for the builder's
    * standard output/error.
    */
-  auto_close_fd_t builderOut;
+  auto_close_fd_t builder_out;
 
   /**
    * Set up build environment / sandbox, acquiring resources (e.g.
@@ -158,7 +158,7 @@ struct DerivationBuilder : RestrictionContext {
    * and start the build. The builder could have immediately exited with
    * failure, and that would still be considered a successful start.
    */
-  virtual std::optional<descriptor_t> startBuild() = 0;
+  virtual std::optional<descriptor_t> start_build() = 0;
 
   /**
    * Tear down build environment after the builder exits (either on
@@ -171,7 +171,7 @@ struct DerivationBuilder : RestrictionContext {
    *
    * @throws BuildError
    */
-  virtual SingleDrvOutputs unprepareBuild() = 0;
+  virtual SingleDrvOutputs unprepare_build() = 0;
 
   /**
    * Forcibly kill the child process, if any.
@@ -179,7 +179,7 @@ struct DerivationBuilder : RestrictionContext {
    * @returns whether the child was still alive and needed to be
    * killed.
    */
-  virtual bool killChild() = 0;
+  virtual bool kill_child() = 0;
 };
 
 struct ExternalBuilder {
@@ -190,7 +190,7 @@ struct ExternalBuilder {
 
 #ifndef _WIN32 // TODO enable `DerivationBuilder` on Windows
 std::unique_ptr<DerivationBuilder>
-makeDerivationBuilder(LocalStore& store, std::unique_ptr<DerivationBuilderCallbacks> miscMethods,
+make_derivation_builder(LocalStore& store, std::unique_ptr<DerivationBuilderCallbacks> misc_methods,
                       DerivationBuilderParams params);
 
 /**
@@ -198,8 +198,8 @@ makeDerivationBuilder(LocalStore& store, std::unique_ptr<DerivationBuilderCallba
  * derivation.
  */
 std::unique_ptr<DerivationBuilder>
-makeExternalDerivationBuilder(LocalStore& store,
-                              std::unique_ptr<DerivationBuilderCallbacks> miscMethods,
+make_external_derivation_builder(LocalStore& store,
+                              std::unique_ptr<DerivationBuilderCallbacks> misc_methods,
                               DerivationBuilderParams params, const ExternalBuilder& handler);
 #endif
 

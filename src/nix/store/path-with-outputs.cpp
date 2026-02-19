@@ -9,19 +9,19 @@ namespace nix {
 
 std::string StorePathWithOutputs::to_string(const StoreDirConfig& store) const {
   return outputs.empty() ? store.printStorePath(path)
-                         : store.printStorePath(path) + "!" + concatStringsSep(",", outputs);
+                         : store.printStorePath(path) + "!" + concat_strings_sep(",", outputs);
 }
 
 DerivedPath StorePathWithOutputs::toDerivedPath() const {
   if (!outputs.empty()) {
     return DerivedPath::Built{
-        .drvPath = makeConstantStorePathRef(path),
+        .drv_path = makeConstantStorePathRef(path),
         .outputs = OutputsSpec::Names{outputs},
     };
-  } else if (path.isDerivation()) {
+  } else if (path.is_derivation()) {
     assert(outputs.empty());
     return DerivedPath::Built{
-        .drvPath = makeConstantStorePathRef(path),
+        .drv_path = makeConstantStorePathRef(path),
         .outputs = OutputsSpec::All{},
     };
   } else {
@@ -29,7 +29,7 @@ DerivedPath StorePathWithOutputs::toDerivedPath() const {
   }
 }
 
-std::vector<DerivedPath> toDerivedPaths(const std::vector<StorePathWithOutputs> ss) {
+std::vector<DerivedPath> to_derived_paths(const std::vector<StorePathWithOutputs> ss) {
   std::vector<DerivedPath> reqs;
   reqs.reserve(ss.size());
   for (auto& s : ss)
@@ -41,7 +41,7 @@ StorePathWithOutputs::ParseResult StorePathWithOutputs::tryFromDerivedPath(const
   return std::visit(
       overloaded{
           [&](const DerivedPath::opaque_t& bo) -> StorePathWithOutputs::ParseResult {
-            if (bo.path.isDerivation()) {
+            if (bo.path.is_derivation()) {
               // drv path gets interpreted as "build", not "get drv file itself"
               return bo.path;
             }
@@ -68,28 +68,28 @@ StorePathWithOutputs::ParseResult StorePathWithOutputs::tryFromDerivedPath(const
                       return std::monostate{};
                     },
                 },
-                bfd.drvPath->raw());
+                bfd.drv_path->raw());
           },
       },
       p.raw());
 }
 
-std::pair<std::string_view, string_set_t> parsePathWithOutputs(std::string_view s) {
+std::pair<std::string_view, string_set_t> parse_path_with_outputs(std::string_view s) {
   size_t n = s.find("!");
   return n == s.npos
              ? std::make_pair(s, string_set_t())
-             : std::make_pair(s.substr(0, n), tokenizeString<string_set_t>(s.substr(n + 1), ","));
+             : std::make_pair(s.substr(0, n), tokenize_string<string_set_t>(s.substr(n + 1), ","));
 }
 
-StorePathWithOutputs parsePathWithOutputs(const StoreDirConfig& store,
-                                          std::string_view pathWithOutputs) {
-  auto [path, outputs] = parsePathWithOutputs(pathWithOutputs);
+StorePathWithOutputs parse_path_with_outputs(const StoreDirConfig& store,
+                                          std::string_view path_with_outputs) {
+  auto [path, outputs] = parse_path_with_outputs(path_with_outputs);
   return StorePathWithOutputs{store.parseStorePath(path), std::move(outputs)};
 }
 
-StorePathWithOutputs followLinksToStorePathWithOutputs(const Store& store,
-                                                       std::string_view pathWithOutputs) {
-  auto [path, outputs] = parsePathWithOutputs(pathWithOutputs);
+StorePathWithOutputs follow_links_to_store_path_with_outputs(const Store& store,
+                                                       std::string_view path_with_outputs) {
+  auto [path, outputs] = parse_path_with_outputs(path_with_outputs);
   return StorePathWithOutputs{store.followLinksToStorePath(path), std::move(outputs)};
 }
 

@@ -22,9 +22,9 @@ namespace nix {
 
 UDSRemoteStoreConfig::UDSRemoteStoreConfig(std::string_view scheme, std::string_view authority,
                                            const StoreReference::Params& params)
-    : Store::Config{params},
-      LocalFSStore::Config{params},
-      RemoteStore::Config{params},
+    : Store::config_t{params},
+      local_fs_store::config_t{params},
+      remote_store::config_t{params},
       path{authority.empty() ? settings.nixDaemonSocketFile : authority} {
   if (uriSchemes().count(scheme) == 0) {
     throw UsageError("Scheme must be 'unix'");
@@ -44,8 +44,8 @@ std::string UDSRemoteStoreConfig::doc() {
 UDSRemoteStoreConfig::UDSRemoteStoreConfig(const Params& params)
     : UDSRemoteStoreConfig(*uriSchemes().begin(), "", params) {}
 
-UDSRemoteStore::UDSRemoteStore(ref<const Config> config)
-    : Store{*config}, LocalFSStore{*config}, RemoteStore{*config}, config{config} {}
+UDSRemoteStore::UDSRemoteStore(ref<const config_t> config)
+    : Store{*config}, local_fs_store{*config}, remote_store{*config}, config{config} {}
 
 StoreReference UDSRemoteStoreConfig::getReference() const {
   /* We specifically return "daemon" here instead of "unix://" or "unix://${path}"
@@ -67,10 +67,10 @@ StoreReference UDSRemoteStoreConfig::getReference() const {
 }
 
 void UDSRemoteStore::Connection::closeWrite() {
-  shutdown(toSocket(fd.get()), SHUT_WR);
+  shutdown(to_socket(fd.get()), SHUT_WR);
 }
 
-ref<RemoteStore::Connection> UDSRemoteStore::openConnection() {
+ref<remote_store::Connection> UDSRemoteStore::open_connection() {
   auto conn = make_ref<Connection>();
 
   /* Connect to a daemon that does the privileged work for us. */
@@ -79,7 +79,7 @@ ref<RemoteStore::Connection> UDSRemoteStore::openConnection() {
   conn->from.fd = conn->fd.get();
   conn->to.fd = conn->fd.get();
 
-  conn->startTime = std::chrono::steady_clock::now();
+  conn->start_time = std::chrono::steady_clock::now();
 
   return conn;
 }
@@ -88,13 +88,13 @@ void UDSRemoteStore::addIndirectRoot(const Path& path) {
   auto conn(getConnection());
   conn->to << WorkerProto::Op::AddIndirectRoot << path;
   conn.processStderr();
-  readInt(conn->from);
+  read_int(conn->from);
 }
 
-ref<Store> UDSRemoteStore::Config::openStore() const {
+ref<Store> UDSRemoteStore::config_t::open_store() const {
   return make_ref<UDSRemoteStore>(ref{shared_from_this()});
 }
 
-static RegisterStoreImplementation<UDSRemoteStore::Config> regUDSRemoteStore;
+static RegisterStoreImplementation<UDSRemoteStore::config_t> reg_uds_remote_store;
 
 } // namespace nix

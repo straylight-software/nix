@@ -22,10 +22,10 @@ PathRefScanSink PathRefScanSink::fromPaths(const StorePathSet& refs) {
   std::map<std::string, StorePath> backMap;
 
   for (auto& i : refs) {
-    std::string hashPart(i.hashPart());
-    auto inserted = backMap.emplace(hashPart, i).second;
+    std::string hash_part(i.hash_part());
+    auto inserted = backMap.emplace(hash_part, i).second;
     assert(inserted);
-    hashes.insert(hashPart);
+    hashes.insert(hash_part);
   }
 
   return PathRefScanSink(std::move(hashes), std::move(backMap));
@@ -43,17 +43,17 @@ StorePathSet PathRefScanSink::getResultPaths() {
   return found;
 }
 
-StorePathSet scanForReferences(Sink& toTee, const Path& path, const StorePathSet& refs) {
-  PathRefScanSink refsSink = PathRefScanSink::fromPaths(refs);
-  tee_sink_t sink{refsSink, toTee};
+StorePathSet scan_for_references(Sink& to_tee, const Path& path, const StorePathSet& refs) {
+  PathRefScanSink refs_sink = PathRefScanSink::fromPaths(refs);
+  tee_sink_t sink{refs_sink, to_tee};
 
   /* Look for the hashes in the NAR dump of the path. */
-  dumpPath(path, sink);
+  dump_path(path, sink);
 
-  return refsSink.getResultPaths();
+  return refs_sink.getResultPaths();
 }
 
-void scanForReferencesDeep(SourceAccessor& accessor, const canon_path_t& rootPath,
+void scan_for_references_deep(SourceAccessor& accessor, const canon_path_t& root_path,
                            const StorePathSet& refs,
                            std::function<void(FileRefScanResult)> callback) {
   // Recursive tree walker
@@ -61,7 +61,7 @@ void scanForReferencesDeep(SourceAccessor& accessor, const canon_path_t& rootPat
     auto stat = accessor.lstat(path);
 
     switch (stat.type) {
-      case SourceAccessor::tRegular: {
+      case SourceAccessor::t_regular: {
         // Create a fresh sink for each file to independently detect references.
         // RefScanSink accumulates found hashes globally - once a hash is found,
         // it remains in the result set. If we reused the same sink across files,
@@ -70,68 +70,68 @@ void scanForReferencesDeep(SourceAccessor& accessor, const canon_path_t& rootPat
         PathRefScanSink sink = PathRefScanSink::fromPaths(refs);
 
         // Scan this file by streaming its contents through the sink
-        accessor.readFile(path, sink);
+        accessor.read_file(path, sink);
 
         // Get the references found in this file
-        auto foundRefs = sink.getResultPaths();
+        auto found_refs = sink.getResultPaths();
 
         // Report if we found anything in this file
-        if (!foundRefs.empty()) {
-          debug("scanForReferencesDeep: found %d references in %s", foundRefs.size(), path.abs());
-          callback(FileRefScanResult{.filePath = path, .foundRefs = std::move(foundRefs)});
+        if (!found_refs.empty()) {
+          debug("scanForReferencesDeep: found %d references in %s", found_refs.size(), path.abs());
+          callback(FileRefScanResult{.filePath = path, .found_refs = std::move(found_refs)});
         }
         break;
       }
 
-      case SourceAccessor::tDirectory: {
+      case SourceAccessor::t_directory: {
         // Recursively scan directory contents
-        auto entries = accessor.readDirectory(path);
+        auto entries = accessor.read_directory(path);
         for (const auto& [name, entryType] : entries) {
           self(path / name);
         }
         break;
       }
 
-      case SourceAccessor::tSymlink: {
+      case SourceAccessor::t_symlink: {
         // Create a fresh sink for the symlink target (same reason as regular files)
         PathRefScanSink sink = PathRefScanSink::fromPaths(refs);
 
         // Scan symlink target for references
-        auto target = accessor.readLink(path);
+        auto target = accessor.read_link(path);
         sink(std::string_view(target));
 
         // Get the references found in this symlink target
-        auto foundRefs = sink.getResultPaths();
+        auto found_refs = sink.getResultPaths();
 
-        if (!foundRefs.empty()) {
-          debug("scanForReferencesDeep: found %d references in symlink %s", foundRefs.size(),
+        if (!found_refs.empty()) {
+          debug("scanForReferencesDeep: found %d references in symlink %s", found_refs.size(),
                 path.abs());
-          callback(FileRefScanResult{.filePath = path, .foundRefs = std::move(foundRefs)});
+          callback(FileRefScanResult{.filePath = path, .found_refs = std::move(found_refs)});
         }
         break;
       }
 
-      case SourceAccessor::tChar:
-      case SourceAccessor::tBlock:
-      case SourceAccessor::tSocket:
-      case SourceAccessor::tFifo:
-      case SourceAccessor::tUnknown:
+      case SourceAccessor::t_char:
+      case SourceAccessor::t_block:
+      case SourceAccessor::t_socket:
+      case SourceAccessor::t_fifo:
+      case SourceAccessor::t_unknown:
       default:
         throw Error("file '%s' has an unsupported type", path.abs());
     }
   };
 
   // Start the recursive walk from the root
-  walk(rootPath);
+  walk(root_path);
 }
 
-std::map<canon_path_t, StorePathSet> scanForReferencesDeep(SourceAccessor& accessor,
-                                                        const canon_path_t& rootPath,
+std::map<canon_path_t, StorePathSet> scan_for_references_deep(SourceAccessor& accessor,
+                                                        const canon_path_t& root_path,
                                                         const StorePathSet& refs) {
   std::map<canon_path_t, StorePathSet> results;
 
-  scanForReferencesDeep(accessor, rootPath, refs, [&](FileRefScanResult result) {
-    results[std::move(result.filePath)] = std::move(result.foundRefs);
+  scan_for_references_deep(accessor, root_path, refs, [&](FileRefScanResult result) {
+    results[std::move(result.filePath)] = std::move(result.found_refs);
   });
 
   return results;

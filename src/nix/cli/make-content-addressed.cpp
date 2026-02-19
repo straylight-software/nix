@@ -23,32 +23,32 @@ struct cmd_make_content_addressed_t : virtual CopyCommand, virtual StorePathsCom
         ;
   }
 
-  void run(ref<Store> srcStore, StorePaths&& storePaths) override {
-    auto dstStore = dstUri.empty() ? openStore() : openStore(dstUri);
+  void run(ref<Store> src_store, StorePaths&& store_paths) override {
+    auto dst_store = dst_uri.empty() ? open_store() : open_store(dst_uri);
 
-    auto remappings = makeContentAddressed(*srcStore, *dstStore,
-                                           StorePathSet(storePaths.begin(), storePaths.end()));
+    auto remappings = make_content_addressed(*src_store, *dst_store,
+                                           StorePathSet(store_paths.begin(), store_paths.end()));
 
     if (json) {
-      auto jsonRewrites = json::object();
-      for (auto& path : storePaths) {
+      auto json_rewrites = json::object();
+      for (auto& path : store_paths) {
         auto i = remappings.find(path);
         assert(i != remappings.end());
-        jsonRewrites[srcStore->printStorePath(path)] = srcStore->printStorePath(i->second);
+        json_rewrites[src_store->printStorePath(path)] = src_store->printStorePath(i->second);
       }
       auto json = json::object();
-      json["rewrites"] = jsonRewrites;
+      json["rewrites"] = json_rewrites;
       printJSON(json);
     } else {
-      for (auto& path : storePaths) {
+      for (auto& path : store_paths) {
         auto i = remappings.find(path);
         assert(i != remappings.end());
-        notice("rewrote '%s' to '%s'", srcStore->printStorePath(path),
-               srcStore->printStorePath(i->second));
+        notice("rewrote '%s' to '%s'", src_store->printStorePath(path),
+               src_store->printStorePath(i->second));
       }
     }
   }
 };
 
-static auto rCmdMakeContentAddressed =
+static auto r_cmd_make_content_addressed =
     registerCommand2<cmd_make_content_addressed_t>({"store", "make-content-addressed"});

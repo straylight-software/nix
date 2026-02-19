@@ -5,40 +5,40 @@
 namespace nix {
 
 std::string InstallableDerivedPath::what() const {
-  return derivedPath.to_string(*store);
+  return derived_path.to_string(*store);
 }
 
-DerivedPathsWithInfo InstallableDerivedPath::toDerivedPaths() {
+DerivedPathsWithInfo InstallableDerivedPath::to_derived_paths() {
   return {{
-      .path = derivedPath,
+      .path = derived_path,
       .info = make_ref<ExtraPathInfo>(),
   }};
 }
 
 std::optional<StorePath> InstallableDerivedPath::getStorePath() {
-  return derivedPath.getBaseStorePath();
+  return derived_path.getBaseStorePath();
 }
 
 InstallableDerivedPath InstallableDerivedPath::parse(ref<Store> store, std::string_view prefix,
                                                      ExtendedOutputsSpec extendedOutputsSpec) {
-  auto derivedPath =
+  auto derived_path =
       std::visit(overloaded{
                      // If the user did not use ^, we treat the output more
                      // liberally: we accept a symlink chain or an actual
                      // store path.
                      [&](const ExtendedOutputsSpec::Default&) -> DerivedPath {
-                       auto storePath = store->followLinksToStorePath(prefix);
+                       auto store_path = store->followLinksToStorePath(prefix);
                        return DerivedPath::opaque_t{
-                           .path = std::move(storePath),
+                           .path = std::move(store_path),
                        };
                      },
                      // If the user did use ^, we just do exactly what is written.
                      [&](const ExtendedOutputsSpec::Explicit& outputSpec) -> DerivedPath {
                        auto drv =
                            make_ref<SingleDerivedPath>(SingleDerivedPath::parse(*store, prefix));
-                       drvRequireExperiment(*drv);
+                       drv_require_experiment(*drv);
                        return DerivedPath::Built{
-                           .drvPath = std::move(drv),
+                           .drv_path = std::move(drv),
                            .outputs = outputSpec,
                        };
                      },
@@ -46,7 +46,7 @@ InstallableDerivedPath InstallableDerivedPath::parse(ref<Store> store, std::stri
                  extendedOutputsSpec.raw);
   return InstallableDerivedPath{
       store,
-      std::move(derivedPath),
+      std::move(derived_path),
   };
 }
 

@@ -19,9 +19,9 @@ struct cmd_flake_prefetch_inputs_t : flake_command_t {
   }
 
   void run(nix::ref<nix::Store> store) override {
-    auto flake = lockFlake();
+    auto flake = lock_flake();
 
-    thread_pool_t pool{fileTransferSettings.httpConnections};
+    thread_pool_t pool{file_transfer_settings.httpConnections};
 
     struct State {
       std::set<const Node*> done;
@@ -35,15 +35,15 @@ struct cmd_flake_prefetch_inputs_t : flake_command_t {
       if (!state_.lock()->done.insert(&node).second)
         return;
 
-      if (auto lockedNode = dynamic_cast<const LockedNode*>(&node)) {
-        if (lockedNode->buildTime)
+      if (auto locked_node = dynamic_cast<const LockedNode*>(&node)) {
+        if (locked_node->buildTime)
           return;
         try {
-          activity_t act(*logger, lvlInfo, actUnknown, fmt("fetching '%s'", lockedNode->lockedRef));
-          auto accessor = lockedNode->lockedRef.input.getAccessor(fetchSettings, *store).first;
-          if (!evalSettings.lazyTrees)
-            fetchToStore(fetchSettings, *store, accessor, FetchMode::Copy,
-                         lockedNode->lockedRef.input.getName());
+          activity_t act(*logger, lvl_info, act_unknown, fmt("fetching '%s'", locked_node->locked_ref));
+          auto accessor = locked_node->locked_ref.input.get_accessor(fetch_settings, *store).first;
+          if (!eval_settings.lazyTrees)
+            fetch_to_store(fetch_settings, *store, accessor, FetchMode::Copy,
+                         locked_node->locked_ref.input.get_name());
         } catch (Error& e) {
           printError("%s", e.what());
           nrFailed++;
@@ -51,12 +51,12 @@ struct cmd_flake_prefetch_inputs_t : flake_command_t {
       }
 
       for (auto& [inputName, input] : node.inputs) {
-        if (auto inputNode = std::get_if<0>(&input))
-          pool.enqueue(std::bind(visit, **inputNode));
+        if (auto input_node = std::get_if<0>(&input))
+          pool.enqueue(std::bind(visit, **input_node));
       }
     };
 
-    pool.enqueue(std::bind(visit, *flake.lockFile.root));
+    pool.enqueue(std::bind(visit, *flake.lock_file.root));
 
     pool.process();
 
@@ -64,5 +64,5 @@ struct cmd_flake_prefetch_inputs_t : flake_command_t {
   }
 };
 
-static auto rCmdFlakePrefetchInputs =
+static auto r_cmd_flake_prefetch_inputs =
     registerCommand2<cmd_flake_prefetch_inputs_t>({"flake", "prefetch-inputs"});

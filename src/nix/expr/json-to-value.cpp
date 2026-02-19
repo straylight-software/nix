@@ -27,13 +27,13 @@ class json_sax_t : nlohmann::json_sax<json> {
 
     explicit json_state_t(std::unique_ptr<json_state_t>&& p) : parent(std::move(p)) {}
 
-    explicit json_state_t(Value* v) : v(allocRootValue(v)) {}
+    explicit json_state_t(Value* v) : v(alloc_root_value(v)) {}
 
     json_state_t(json_state_t& p) = delete;
 
     Value& value(EvalState& state) {
       if (!v)
-        v = allocRootValue(state.allocValue());
+        v = alloc_root_value(state.allocValue());
       return **v;
     }
 
@@ -58,7 +58,7 @@ class json_sax_t : nlohmann::json_sax<json> {
 
   public:
     void key(string_t& name, EvalState& state) {
-      forceNoNullByte(name);
+      force_no_null_byte(name);
       attrs.insert_or_assign(state.symbols.create(name), &value(state));
     }
   };
@@ -126,8 +126,8 @@ public:
   }
 
   bool string(string_t& val) override {
-    forceNoNullByte(val);
-    rs->value(state).mkString(val, state.mem);
+    force_no_null_byte(val);
+    rs->value(state).mk_string(val, state.mem);
     rs->add();
     return true;
   }
@@ -170,7 +170,7 @@ public:
   }
 };
 
-void parseJSON(EvalState& state, const std::string_view& s_, Value& v) {
+void parse_json(EvalState& state, const std::string_view& s_, Value& v) {
   json_sax_t parser(state, v);
   bool res = json::sax_parse(s_, &parser);
   if (!res)

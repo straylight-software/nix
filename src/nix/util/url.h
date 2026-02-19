@@ -29,12 +29,12 @@ struct parsed_url_t {
   struct authority_t {
     enum class host_type_t {
       Name, //< Registered name (can be empty)
-      IPv4,
-      IPv6,
-      IPvFuture
+      i_pv4,
+      i_pv6,
+      i_pv_future
     };
 
-    static authority_t parse(std::string_view encodedAuthority);
+    static authority_t parse(std::string_view encoded_authority);
     auto operator<=>(const authority_t& other) const = default;
     std::string to_string() const;
     friend std::ostream& operator<<(std::ostream& os, const authority_t& self);
@@ -42,12 +42,12 @@ struct parsed_url_t {
     /**
      * Type of the host subcomponent, as specified by rfc3986 3.2.2. Host.
      */
-    host_type_t hostType = host_type_t::Name;
+    host_type_t host_type = host_type_t::Name;
 
     /**
      * Host subcomponent. Either a registered name or IPv{4,6,Future} literal addresses.
      *
-     * IPv6 enclosing brackets are already stripped. Percent encoded characters
+     * i_pv6 enclosing brackets are already stripped. Percent encoded characters
      * in the hostname are decoded.
      */
     std::string host;
@@ -171,7 +171,7 @@ struct parsed_url_t {
    *
    * - `https://foo.com/bar/` is `https://foo.com/bar/baz`
    *
-   * See `parseURLRelative` for more details.
+   * See `parse_url_relative` for more details.
    *
    * For leading slashes, there are some requirements to be aware of.
    *
@@ -200,7 +200,7 @@ struct parsed_url_t {
    *   ```
    *
    * These invariants will be checked in `to_string` and
-   * `renderAuthorityAndPath`.
+   * `render_authority_and_path`.
    */
   std::vector<std::string> path;
 
@@ -216,7 +216,7 @@ struct parsed_url_t {
    * operation, but it ends up coming up with some frequency, probably
    * due to the current design of `StoreReference` in `nix-store`.
    */
-  std::string renderAuthorityAndPath() const;
+  std::string render_authority_and_path() const;
 
   std::string to_string() const;
 
@@ -225,7 +225,7 @@ struct parsed_url_t {
    *
    * @param encode Whether to percent encode path segments.
    */
-  std::string renderPath(bool encode = false) const;
+  std::string render_path(bool encode = false) const;
 
   auto operator<=>(const parsed_url_t& other) const noexcept = default;
 
@@ -237,11 +237,11 @@ struct parsed_url_t {
   /**
    * Get a range of path segments (the substrings separated by '/' characters).
    *
-   * @param skipEmpty Skip all empty path segments
+   * @param skip_empty Skip all empty path segments
    */
-  auto pathSegments(bool skipEmpty) const& {
-    return std::views::filter(path, [skipEmpty](std::string_view segment) {
-      if (skipEmpty)
+  auto path_segments(bool skip_empty) const& {
+    return std::views::filter(path, [skip_empty](std::string_view segment) {
+      if (skip_empty)
         return !segment.empty();
       return true;
     });
@@ -250,10 +250,10 @@ struct parsed_url_t {
 
 std::ostream& operator<<(std::ostream& os, const parsed_url_t& url);
 
-MakeError(BadURL, Error);
+make_error(BadURL, Error);
 
-std::string percentDecode(std::string_view in);
-std::string percentEncode(std::string_view s, std::string_view keep = "");
+std::string percent_decode(std::string_view in);
+std::string percent_encode(std::string_view s, std::string_view keep = "");
 
 /**
  * Get the path part of the URL as an absolute or relative Path.
@@ -263,20 +263,20 @@ std::string percentEncode(std::string_view s, std::string_view keep = "");
  * paths have no escape sequences --- file names cannot contain a
  * `/`.
  */
-Path renderUrlPathEnsureLegal(const std::vector<std::string>& urlPath);
+Path render_url_path_ensure_legal(const std::vector<std::string>& url_path);
 
 /**
  * Percent encode path. `%2F` for "interior slashes" is the most
  * important.
  */
-std::string encodeUrlPath(std::span<const std::string> urlPath);
+std::string encode_url_path(std::span<const std::string> url_path);
 
 /**
- * @param lenient @see parseURL
+ * @param lenient @see parse_url
  */
-string_map_t decodeQuery(std::string_view query, bool lenient = false);
+string_map_t decode_query(std::string_view query, bool lenient = false);
 
-std::string encodeQuery(const string_map_t& query);
+std::string encode_query(const string_map_t& query);
 
 /**
  * Parse a URL into a parsed_url_t.
@@ -286,7 +286,7 @@ std::string encodeQuery(const string_map_t& query);
  * - Fragments can contain unescaped (not URL encoded) '^', '"' or space literals.
  * - Queries may contain unescaped '"' or spaces.
  *
- * @note IPv6 ZoneId literals (RFC4007) are represented in URIs according to RFC6874.
+ * @note i_pv6 ZoneId literals (RFC4007) are represented in URIs according to RFC6874.
  *
  * @throws BadURL
  *
@@ -296,10 +296,10 @@ std::string encodeQuery(const string_map_t& query);
  * that it includes various scheme-specific normalizations / extra steps
  * that we do not implement.
  */
-parsed_url_t parseURL(std::string_view url, bool lenient = false);
+parsed_url_t parse_url(std::string_view url, bool lenient = false);
 
 /**
- * Like `parseURL`, but also accepts relative URLs, which are resolved
+ * Like `parse_url`, but also accepts relative URLs, which are resolved
  * against the given base URL.
  *
  * This is specified in [IETF RFC 3986, section
@@ -309,16 +309,16 @@ parsed_url_t parseURL(std::string_view url, bool lenient = false);
  *
  * Behavior should also match the `new URL(url, base)` JavaScript
  * constructor, except for extra steps specific to the HTTP scheme. See
- * `parseURL` for link to the relevant WHATWG standard.
+ * `parse_url` for link to the relevant WHATWG standard.
  */
-parsed_url_t parseURLRelative(std::string_view url, const parsed_url_t& base);
+parsed_url_t parse_url_relative(std::string_view url, const parsed_url_t& base);
 
 /**
  * Although that’s not really standardized anywhere, an number of tools
  * use a scheme of the form 'x+y' in urls, where y is the “transport layer”
  * scheme, and x is the “application layer” scheme.
  *
- * For example git uses `git+https` to designate remotes using a Git
+ * For example git uses `git+https` to designate remotes using a git
  * protocol over http.
  */
 struct parsed_url_scheme_t {
@@ -326,7 +326,7 @@ struct parsed_url_scheme_t {
   std::string_view transport;
 };
 
-parsed_url_scheme_t parseUrlScheme(std::string_view scheme);
+parsed_url_scheme_t parse_url_scheme(std::string_view scheme);
 
 /**
  * Detects scp-style uris (e.g. `git@github.com:NixOS/nix`) and fixes
@@ -334,7 +334,7 @@ parsed_url_scheme_t parseUrlScheme(std::string_view scheme);
  * drops `git+` from the scheme (e.g. `git+https://` to `https://`)
  * and changes absolute paths into `file://` URLs.
  */
-parsed_url_t fixGitURL(std::string url);
+parsed_url_t fix_git_url(std::string url);
 
 /**
  * Whether a string is valid as RFC 3986 scheme name.
@@ -343,7 +343,7 @@ parsed_url_t fixGitURL(std::string url);
  *
  * Does not check whether the scheme is understood, as that's context-dependent.
  */
-bool isValidSchemeName(std::string_view scheme);
+bool is_valid_scheme_name(std::string_view scheme);
 
 /**
  * Either a parsed_url_t or a verbatim string. This is necessary because in certain cases URI must be
@@ -377,7 +377,7 @@ struct verbatim_url_t {
   }
 
   const parsed_url_t parsed() const {
-    return std::visit(overloaded{[](const std::string& str) { return parseURL(str); },
+    return std::visit(overloaded{[](const std::string& str) { return parse_url(str); },
                                  [](const parsed_url_t& url) { return url; }},
                       raw);
   }
@@ -385,7 +385,7 @@ struct verbatim_url_t {
   std::string_view scheme() const& {
     return std::visit(
         overloaded{[](std::string_view str) {
-                     auto scheme = splitPrefixTo(str, ':');
+                     auto scheme = split_prefix_to(str, ':');
                      if (!scheme)
                        throw BadURL("URL '%s' doesn't have a scheme", str);
                      return *scheme;
@@ -403,7 +403,7 @@ struct verbatim_url_t {
    *
    * @return The last non-empty path segment, or std::nullopt if no such segment exists.
    */
-  std::optional<std::string> lastPathSegment() const;
+  std::optional<std::string> last_path_segment() const;
 };
 
 std::ostream& operator<<(std::ostream& os, const verbatim_url_t& url);

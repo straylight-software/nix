@@ -17,12 +17,12 @@ StorePath StoreDirConfig::parseStorePath(std::string_view path) const {
 #ifdef _WIN32
       path
 #else
-      canonPath(std::string(path))
+      canon_path(std::string(path))
 #endif
       ;
-  if (dirOf(p) != storeDir)
+  if (dir_of(p) != store_dir)
     throw BadStorePath("path '%s' is not in the Nix store", p);
-  return StorePath(baseNameOf(p));
+  return StorePath(base_name_of(p));
 }
 
 std::optional<StorePath> StoreDirConfig::maybeParseStorePath(std::string_view path) const {
@@ -45,7 +45,7 @@ StorePathSet StoreDirConfig::parseStorePathSet(const path_set_t& paths) const {
 }
 
 std::string StoreDirConfig::printStorePath(const StorePath& path) const {
-  return (storeDir + "/").append(path.to_string());
+  return (store_dir + "/").append(path.to_string());
 }
 
 path_set_t StoreDirConfig::printStorePathSet(const StorePathSet& paths) const {
@@ -67,25 +67,25 @@ to match.
 StorePath StoreDirConfig::makeStorePath(std::string_view type, std::string_view hash,
                                         std::string_view name) const {
   /* e.g., "source:sha256:1abc...:/nix/store:foo.tar.gz" */
-  auto s = std::string(type) + ":" + std::string(hash) + ":" + storeDir + ":" + std::string(name);
-  auto h = compressHash(hashString(hash_algorithm_t::SHA256, s), 20);
+  auto s = std::string(type) + ":" + std::string(hash) + ":" + store_dir + ":" + std::string(name);
+  auto h = compress_hash(hash_string(hash_algorithm_t::SHA256, s), 20);
   return StorePath(h, name);
 }
 
 StorePath StoreDirConfig::makeStorePath(std::string_view type, const Hash& hash,
                                         std::string_view name) const {
-  return makeStorePath(type, hash.to_string(hash_format_t::Base16, true), name);
+  return makeStorePath(type, hash.to_string(hash_format_t::base16, true), name);
 }
 
 StorePath StoreDirConfig::makeOutputPath(std::string_view id, const Hash& hash,
                                          std::string_view name) const {
-  return makeStorePath("output:" + std::string{id}, hash, outputPathName(name, id));
+  return makeStorePath("output:" + std::string{id}, hash, output_path_name(name, id));
 }
 
 /* Stuff the references (if any) into the type.  This is a bit
    hacky, but we can't put them in, say, <s2> (per the grammar above)
    since that would be ambiguous. */
-static std::string makeType(const StoreDirConfig& store, std::string&& type,
+static std::string make_type(const StoreDirConfig& store, std::string&& type,
                             const StoreReferences& references) {
   for (auto& i : references.others) {
     type += ":";
@@ -98,14 +98,14 @@ static std::string makeType(const StoreDirConfig& store, std::string&& type,
 
 StorePath StoreDirConfig::makeFixedOutputPath(std::string_view name,
                                               const FixedOutputInfo& info) const {
-  if (info.method == file_ingestion_method_t::Git &&
+  if (info.method == file_ingestion_method_t::git &&
       !(info.hash.algo == hash_algorithm_t::SHA1 || info.hash.algo == hash_algorithm_t::SHA256)) {
     throw Error("Git file ingestion must use SHA-1 or SHA-256 hash, but instead using: %s",
-                printHashAlgo(info.hash.algo));
+                print_hash_algo(info.hash.algo));
   }
 
-  if (info.hash.algo == hash_algorithm_t::SHA256 && info.method == file_ingestion_method_t::NixArchive) {
-    return makeStorePath(makeType(*this, "source", info.references), info.hash, name);
+  if (info.hash.algo == hash_algorithm_t::SHA256 && info.method == file_ingestion_method_t::nix_archive) {
+    return makeStorePath(make_type(*this, "source", info.references), info.hash, name);
   } else {
     if (!info.references.empty()) {
       throw Error("fixed output derivation '%s' is not allowed to refer to other store paths.\nYou "
@@ -114,9 +114,9 @@ StorePath StoreDirConfig::makeFixedOutputPath(std::string_view name,
                   name);
     }
     // make a unique digest based on the parameters for creating this store object
-    auto payload = "fixed:out:" + makeFileIngestionPrefix(info.method) +
-                   info.hash.to_string(hash_format_t::Base16, true) + ":";
-    auto digest = hashString(hash_algorithm_t::SHA256, payload);
+    auto payload = "fixed:out:" + make_file_ingestion_prefix(info.method) +
+                   info.hash.to_string(hash_format_t::base16, true) + ":";
+    auto digest = hash_string(hash_algorithm_t::SHA256, payload);
     return makeStorePath("output:out", digest, name);
   }
 }
@@ -127,7 +127,7 @@ StorePath StoreDirConfig::makeFixedOutputPathFromCA(std::string_view name,
   return std::visit(
       overloaded{[&](const TextInfo& ti) {
                    assert(ti.hash.algo == hash_algorithm_t::SHA256);
-                   return makeStorePath(makeType(*this, "text",
+                   return makeStorePath(make_type(*this, "text",
                                                  StoreReferences{
                                                      .others = ti.references,
                                                      .self = false,
@@ -140,11 +140,11 @@ StorePath StoreDirConfig::makeFixedOutputPathFromCA(std::string_view name,
 
 std::pair<StorePath, Hash>
 StoreDirConfig::computeStorePath(std::string_view name, const source_path_t& path,
-                                 ContentAddressMethod method, hash_algorithm_t hashAlgo,
+                                 ContentAddressMethod method, hash_algorithm_t hash_algo,
                                  const StorePathSet& references, path_filter_t& filter) const {
-  auto [h, size] = hashPath(path, method.getFileIngestionMethod(), hashAlgo, filter);
+  auto [h, size] = hash_path(path, method.getFileIngestionMethod(), hash_algo, filter);
   if (settings.warnLargePathThreshold && size && *size >= settings.warnLargePathThreshold)
-    warn("hashed large path '%s' (%s)", path, renderSize(*size));
+    warn("hashed large path '%s' (%s)", path, render_size(*size));
   return {
       makeFixedOutputPathFromCA(name,
                                 ContentAddressWithReferences::fromParts(method, h,

@@ -34,7 +34,7 @@ R"__NIX_STR(
 
   executable ? false,
   unpack ? false,
-  name ? baseNameOf (toString url),
+  name ? base_name_of (toString url),
   impure ? false,
 }:
 

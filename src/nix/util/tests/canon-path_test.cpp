@@ -24,14 +24,14 @@ using namespace nix;
 
 TEST_CASE("canon path construction from root", "[canon-path][construction]") {
   canon_path_t path("/");
-  REQUIRE(path.isRoot());
+  REQUIRE(path.is_root());
   REQUIRE(path.abs() == "/");
   REQUIRE(path.rel() == "");
 }
 
 TEST_CASE("canon path construction from simple path", "[canon-path][construction]") {
   canon_path_t path("/foo/bar");
-  REQUIRE_FALSE(path.isRoot());
+  REQUIRE_FALSE(path.is_root());
   REQUIRE(path.abs() == "/foo/bar");
   REQUIRE(path.rel() == "foo/bar");
 }
@@ -75,7 +75,7 @@ TEST_CASE("canon path construction resolves dot-dot components", "[canon-path][c
 
   canon_path_t path_to_root("/foo/bar/../..");
   REQUIRE(path_to_root.abs() == "/");
-  REQUIRE(path_to_root.isRoot());
+  REQUIRE(path_to_root.is_root());
 }
 
 TEST_CASE("canon path construction with root context", "[canon-path][construction]") {
@@ -97,7 +97,7 @@ TEST_CASE("canon path construction with root context", "[canon-path][constructio
 TEST_CASE("canon path construction from vector of elements", "[canon-path][construction]") {
   std::vector<std::string> empty_elements;
   canon_path_t empty_path(empty_elements);
-  REQUIRE(empty_path.isRoot());
+  REQUIRE(empty_path.is_root());
   REQUIRE(empty_path.abs() == "/");
 
   std::vector<std::string> elements = {"foo", "bar", "baz"};
@@ -125,10 +125,10 @@ TEST_CASE("canon path abs and rel accessors", "[canon-path][accessor]") {
 
 TEST_CASE("canon path abs_or_empty for root", "[canon-path][accessor]") {
   canon_path_t root("/");
-  REQUIRE(root.absOrEmpty() == "");
+  REQUIRE(root.abs_or_empty() == "");
 
   canon_path_t non_root("/foo");
-  REQUIRE(non_root.absOrEmpty() == "/foo");
+  REQUIRE(non_root.abs_or_empty() == "/foo");
 }
 
 TEST_CASE("canon path string view conversion", "[canon-path][accessor]") {
@@ -138,20 +138,20 @@ TEST_CASE("canon path string view conversion", "[canon-path][accessor]") {
 }
 
 TEST_CASE("canon path basename", "[canon-path][accessor]") {
-  REQUIRE_FALSE(canon_path_t("/").baseName().has_value());
+  REQUIRE_FALSE(canon_path_t("/").base_name().has_value());
 
-  REQUIRE(canon_path_t("/foo").baseName().value() == "foo");
-  REQUIRE(canon_path_t("/foo/bar").baseName().value() == "bar");
-  REQUIRE(canon_path_t("/foo/bar/baz.txt").baseName().value() == "baz.txt");
+  REQUIRE(canon_path_t("/foo").base_name().value() == "foo");
+  REQUIRE(canon_path_t("/foo/bar").base_name().value() == "bar");
+  REQUIRE(canon_path_t("/foo/bar/baz.txt").base_name().value() == "baz.txt");
 }
 
 TEST_CASE("canon path dirname", "[canon-path][accessor]") {
-  REQUIRE_FALSE(canon_path_t("/").dirOf().has_value());
+  REQUIRE_FALSE(canon_path_t("/").dir_of().has_value());
 
   // dirOf returns the parent directory path as string_view
-  REQUIRE(canon_path_t("/foo").dirOf().value() == "");
-  REQUIRE(canon_path_t("/foo/bar").dirOf().value() == "/foo");
-  REQUIRE(canon_path_t("/foo/bar/baz").dirOf().value() == "/foo/bar");
+  REQUIRE(canon_path_t("/foo").dir_of().value() == "");
+  REQUIRE(canon_path_t("/foo/bar").dir_of().value() == "/foo");
+  REQUIRE(canon_path_t("/foo/bar/baz").dir_of().value() == "/foo/bar");
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -163,7 +163,7 @@ TEST_CASE("canon path parent", "[canon-path][hierarchy]") {
 
   auto parent = canon_path_t("/foo").parent();
   REQUIRE(parent.has_value());
-  REQUIRE(parent->isRoot());
+  REQUIRE(parent->is_root());
 
   parent = canon_path_t("/foo/bar").parent();
   REQUIRE(parent.has_value());
@@ -184,7 +184,7 @@ TEST_CASE("canon path pop", "[canon-path][hierarchy]") {
   REQUIRE(path.abs() == "/foo");
 
   path.pop();
-  REQUIRE(path.isRoot());
+  REQUIRE(path.is_root());
 }
 
 TEST_CASE("canon path is_within", "[canon-path][hierarchy]") {
@@ -194,21 +194,21 @@ TEST_CASE("canon path is_within", "[canon-path][hierarchy]") {
   canon_path_t foo_baz("/foo/baz");
 
   // Every path is within root
-  REQUIRE(root.isWithin(root));
-  REQUIRE(foo.isWithin(root));
-  REQUIRE(foo_bar.isWithin(root));
+  REQUIRE(root.is_within(root));
+  REQUIRE(foo.is_within(root));
+  REQUIRE(foo_bar.is_within(root));
 
   // Child is within parent
-  REQUIRE(foo_bar.isWithin(foo));
-  REQUIRE_FALSE(foo.isWithin(foo_bar));
+  REQUIRE(foo_bar.is_within(foo));
+  REQUIRE_FALSE(foo.is_within(foo_bar));
 
   // Path is within itself
-  REQUIRE(foo.isWithin(foo));
-  REQUIRE(foo_bar.isWithin(foo_bar));
+  REQUIRE(foo.is_within(foo));
+  REQUIRE(foo_bar.is_within(foo_bar));
 
   // Sibling paths are not within each other
-  REQUIRE_FALSE(foo_bar.isWithin(foo_baz));
-  REQUIRE_FALSE(foo_baz.isWithin(foo_bar));
+  REQUIRE_FALSE(foo_bar.is_within(foo_baz));
+  REQUIRE_FALSE(foo_baz.is_within(foo_bar));
 }
 
 TEST_CASE("canon path is_within handles prefix correctly", "[canon-path][hierarchy]") {
@@ -216,7 +216,7 @@ TEST_CASE("canon path is_within handles prefix correctly", "[canon-path][hierarc
   canon_path_t foo("/foo");
   canon_path_t foobar("/foobar");
 
-  REQUIRE_FALSE(foobar.isWithin(foo));
+  REQUIRE_FALSE(foobar.is_within(foo));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -281,20 +281,20 @@ TEST_CASE("canon path remove_prefix", "[canon-path][modification]") {
   canon_path_t path("/foo/bar/baz");
   canon_path_t prefix("/foo");
 
-  canon_path_t result = path.removePrefix(prefix);
+  canon_path_t result = path.remove_prefix(prefix);
   REQUIRE(result.abs() == "/bar/baz");
 }
 
 TEST_CASE("canon path remove_prefix with root prefix", "[canon-path][modification]") {
   canon_path_t path("/foo/bar");
-  canon_path_t result = path.removePrefix(canon_path_t::root);
+  canon_path_t result = path.remove_prefix(canon_path_t::root);
   REQUIRE(result.abs() == "/foo/bar");
 }
 
 TEST_CASE("canon path remove_prefix same path", "[canon-path][modification]") {
   canon_path_t path("/foo/bar");
-  canon_path_t result = path.removePrefix(path);
-  REQUIRE(result.isRoot());
+  canon_path_t result = path.remove_prefix(path);
+  REQUIRE(result.is_root());
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -400,37 +400,37 @@ TEST_CASE("canon path iterator with range algorithms", "[canon-path][iterator]")
 
 TEST_CASE("canon path make_relative same path", "[canon-path][relative]") {
   canon_path_t path("/foo/bar");
-  REQUIRE(path.makeRelative(path) == ".");
+  REQUIRE(path.make_relative(path) == ".");
 }
 
 TEST_CASE("canon path make_relative child", "[canon-path][relative]") {
   canon_path_t parent("/foo");
   canon_path_t child("/foo/bar/baz");
-  REQUIRE(parent.makeRelative(child) == "bar/baz");
+  REQUIRE(parent.make_relative(child) == "bar/baz");
 }
 
 TEST_CASE("canon path make_relative parent", "[canon-path][relative]") {
   canon_path_t child("/foo/bar/baz");
   canon_path_t parent("/foo");
-  REQUIRE(child.makeRelative(parent) == "../..");
+  REQUIRE(child.make_relative(parent) == "../..");
 }
 
 TEST_CASE("canon path make_relative sibling", "[canon-path][relative]") {
   canon_path_t path1("/foo/bar");
   canon_path_t path2("/foo/baz");
-  REQUIRE(path1.makeRelative(path2) == "../baz");
+  REQUIRE(path1.make_relative(path2) == "../baz");
 }
 
 TEST_CASE("canon path make_relative from root", "[canon-path][relative]") {
   canon_path_t root("/");
   canon_path_t path("/foo/bar");
-  REQUIRE(root.makeRelative(path) == "foo/bar");
+  REQUIRE(root.make_relative(path) == "foo/bar");
 }
 
 TEST_CASE("canon path make_relative to root", "[canon-path][relative]") {
   canon_path_t path("/foo/bar");
   canon_path_t root("/");
-  REQUIRE(path.makeRelative(root) == "../..");
+  REQUIRE(path.make_relative(root) == "../..");
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -440,33 +440,33 @@ TEST_CASE("canon path make_relative to root", "[canon-path][relative]") {
 TEST_CASE("canon path is_allowed with empty set", "[canon-path][allowed]") {
   canon_path_t path("/foo/bar");
   std::set<canon_path_t> allowed;
-  REQUIRE_FALSE(path.isAllowed(allowed));
+  REQUIRE_FALSE(path.is_allowed(allowed));
 }
 
 TEST_CASE("canon path is_allowed exact match", "[canon-path][allowed]") {
   canon_path_t path("/foo/bar");
   std::set<canon_path_t> allowed = {canon_path_t("/foo/bar")};
-  REQUIRE(path.isAllowed(allowed));
+  REQUIRE(path.is_allowed(allowed));
 }
 
 TEST_CASE("canon path is_allowed parent of allowed", "[canon-path][allowed]") {
   // A parent path is allowed if any of its children are in the allowed set
   canon_path_t parent("/foo");
   std::set<canon_path_t> allowed = {canon_path_t("/foo/bar")};
-  REQUIRE(parent.isAllowed(allowed));
+  REQUIRE(parent.is_allowed(allowed));
 }
 
 TEST_CASE("canon path is_allowed child of allowed", "[canon-path][allowed]") {
   // A child path is allowed if any of its parents are in the allowed set
   canon_path_t child("/foo/bar/baz");
   std::set<canon_path_t> allowed = {canon_path_t("/foo")};
-  REQUIRE(child.isAllowed(allowed));
+  REQUIRE(child.is_allowed(allowed));
 }
 
 TEST_CASE("canon path is_allowed unrelated path", "[canon-path][allowed]") {
   canon_path_t path("/foo/bar");
   std::set<canon_path_t> allowed = {canon_path_t("/baz")};
-  REQUIRE_FALSE(path.isAllowed(allowed));
+  REQUIRE_FALSE(path.is_allowed(allowed));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -510,7 +510,7 @@ TEST_CASE("canon path with special characters", "[canon-path][edge-case]") {
   REQUIRE(path.abs() == "/foo/bar with spaces/baz");
 
   canon_path_t path_unicode("/foo/bar-\xC3\xA9/baz");
-  REQUIRE(path_unicode.baseName().value() == "baz");
+  REQUIRE(path_unicode.base_name().value() == "baz");
 }
 
 TEST_CASE("canon path deeply nested", "[canon-path][edge-case]") {
@@ -538,11 +538,11 @@ TEST_CASE("canon path dot-dot cannot escape root", "[canon-path][edge-case]") {
   REQUIRE(path.abs() == "/foo");
 
   canon_path_t path2("/foo/../../..");
-  REQUIRE(path2.isRoot());
+  REQUIRE(path2.is_root());
 }
 
 TEST_CASE("canon path static root constant", "[canon-path][edge-case]") {
-  REQUIRE(canon_path_t::root.isRoot());
+  REQUIRE(canon_path_t::root.is_root());
   REQUIRE(canon_path_t::root.abs() == "/");
   REQUIRE(canon_path_t::root == canon_path_t("/"));
 }
@@ -578,7 +578,7 @@ TEST_CASE("canon path property tests", "[canon-path][property]") {
   rc::prop("path never ends with slash except root", []() {
     auto components = *generate_path_components();
     canon_path_t path(components);
-    if (!path.isRoot()) {
+    if (!path.is_root()) {
       RC_ASSERT(path.abs().back() != '/');
     }
   });
@@ -594,7 +594,7 @@ TEST_CASE("canon path property tests", "[canon-path][property]") {
     auto components = *rc::gen::nonEmpty(generate_path_components());
     canon_path_t path(components);
     auto parent = path.parent();
-    RC_ASSERT(path.isWithin(*parent));
+    RC_ASSERT(path.is_within(*parent));
   });
 
   rc::prop("extending with a path then removing prefix yields original extension", []() {
@@ -605,7 +605,7 @@ TEST_CASE("canon path property tests", "[canon-path][property]") {
     canon_path_t extension(ext_components);
 
     canon_path_t combined = base / extension;
-    canon_path_t restored = combined.removePrefix(base);
+    canon_path_t restored = combined.remove_prefix(base);
     RC_ASSERT(restored == extension);
   });
 
@@ -638,7 +638,7 @@ TEST_CASE("canon path property tests", "[canon-path][property]") {
     canon_path_t base(base_components);
     canon_path_t target(target_components);
 
-    std::string relative = base.makeRelative(target);
+    std::string relative = base.make_relative(target);
     canon_path_t reconstructed(relative, base);
     RC_ASSERT(reconstructed == target);
   });

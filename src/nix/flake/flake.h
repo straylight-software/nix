@@ -47,7 +47,7 @@ struct FlakeInput {
   /**
    * Whether to call the `flake.nix` file in this input to get its outputs.
    */
-  bool isFlake = true;
+  bool is_flake = true;
 
   /**
    * Whether to fetch this input at evaluation time or at build
@@ -74,17 +74,17 @@ struct Flake {
   /**
    * The original flake specification (by the user)
    */
-  FlakeRef originalRef;
+  FlakeRef original_ref;
 
   /**
    * registry references and caching resolved to the specific underlying flake
    */
-  FlakeRef resolvedRef;
+  FlakeRef resolved_ref;
 
   /**
    * the specific local store result of invoking the fetcher
    */
-  FlakeRef lockedRef;
+  FlakeRef locked_ref;
 
   /**
    * The path of `flake.nix`.
@@ -92,9 +92,9 @@ struct Flake {
   source_path_t path;
 
   /**
-   * Pretend that `lockedRef` is dirty.
+   * Pretend that `locked_ref` is dirty.
    */
-  bool forceDirty = false;
+  bool force_dirty = false;
 
   std::optional<std::string> description;
 
@@ -113,11 +113,11 @@ struct Flake {
 
   ~Flake();
 
-  source_path_t lockFilePath() { return path.parent() / "flake.lock"; }
+  source_path_t lock_file_path() { return path.parent() / "flake.lock"; }
 };
 
-Flake getFlake(EvalState& state, const FlakeRef& flakeRef, fetchers::UseRegistries useRegistries,
-               bool requireLockable = true);
+Flake get_flake(EvalState& state, const FlakeRef& flake_ref, fetchers::UseRegistries use_registries,
+               bool require_lockable = true);
 
 /**
  * Fingerprint of a locked flake; used as a cache key.
@@ -126,17 +126,17 @@ typedef Hash Fingerprint;
 
 struct LockedFlake {
   Flake flake;
-  LockFile lockFile;
+  LockFile lock_file;
 
   /**
    * Source tree accessors for nodes that have been fetched in
-   * lockFlake(); in particular, the root node and the overridden
+   * lock_flake(); in particular, the root node and the overridden
    * inputs.
    */
   std::map<ref<Node>, source_path_t> nodePaths;
 
-  std::optional<Fingerprint> getFingerprint(Store& store,
-                                            const fetchers::settings_t& fetchSettings) const;
+  std::optional<Fingerprint> get_fingerprint(Store& store,
+                                            const fetchers::settings_t& fetch_settings) const;
 };
 
 struct LockFlags {
@@ -156,7 +156,7 @@ struct LockFlags {
   /**
    * Whether to write the lock file to disk. If set to true, if the
    * any changes to the lock file are needed and the flake is not
-   * writable (i.e. is not a local Git working tree or similar), you
+   * writable (i.e. is not a local git working tree or similar), you
    * get a fatal error. If set to false, Nix will use the modified
    * lock file in memory only, without writing it to disk.
    */
@@ -171,7 +171,7 @@ struct LockFlags {
    * Whether to use the registries to lookup indirect flake
    * references like 'nixpkgs'.
    */
-  std::optional<bool> useRegistries = std::nullopt;
+  std::optional<bool> use_registries = std::nullopt;
 
   /**
    * Whether to apply flake's nixConfig attribute to the configuration
@@ -180,7 +180,7 @@ struct LockFlags {
   bool applyNixConfig = false;
 
   /**
-   * Whether unlocked flake references (i.e. those without a Git
+   * Whether unlocked flake references (i.e. those without a git
    * revision or similar) without a corresponding lock are
    * allowed. Unlocked flake references with a lock are always
    * allowed.
@@ -200,7 +200,7 @@ struct LockFlags {
   /**
    * The path to a lock file to write to instead of the `flake.lock` file in the top-level flake
    */
-  std::optional<std::filesystem::path> outputLockFilePath;
+  std::optional<std::filesystem::path> output_lock_file_path;
 
   /**
    * Flake inputs to be overridden.
@@ -216,22 +216,22 @@ struct LockFlags {
   /**
    * Whether to require a locked input.
    */
-  bool requireLockable = true;
+  bool require_lockable = true;
 };
 
-LockedFlake lockFlake(const settings_t& settings, EvalState& state, const FlakeRef& flakeRef,
-                      const LockFlags& lockFlags);
+LockedFlake lock_flake(const settings_t& settings, EvalState& state, const FlakeRef& flake_ref,
+                      const LockFlags& lock_flags);
 
-void callFlake(EvalState& state, const LockedFlake& lockedFlake, Value& v);
+void call_flake(EvalState& state, const LockedFlake& locked_flake, Value& v);
 
 /**
  * Open an evaluation cache for a flake.
  */
-ref<eval_cache::EvalCache> openEvalCache(EvalState& state, ref<const LockedFlake> lockedFlake);
+ref<eval_cache::EvalCache> open_eval_cache(EvalState& state, ref<const LockedFlake> locked_flake);
 
 } // namespace flake
 
-void emitTreeAttrs(EvalState& state, const StorePath& storePath, const fetchers::Input& input,
-                   Value& v, bool emptyRevFallback = false, bool forceDirty = false);
+void emit_tree_attrs(EvalState& state, const StorePath& store_path, const fetchers::Input& input,
+                   Value& v, bool empty_rev_fallback = false, bool force_dirty = false);
 
 } // namespace nix

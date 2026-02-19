@@ -35,16 +35,16 @@ class EvalCache : public std::enable_shared_from_this<EvalCache> {
   std::shared_ptr<attr_db_t> db;
   EvalState& state;
   typedef std::function<Value*()> RootLoader;
-  RootLoader rootLoader;
+  RootLoader root_loader;
   RootValue value;
 
   Value* getRootValue();
 
 public:
   EvalCache(std::optional<std::reference_wrapper<const Hash>> useCache, EvalState& state,
-            RootLoader rootLoader);
+            RootLoader root_loader);
 
-  ref<AttrCursor> getRoot();
+  ref<AttrCursor> get_root();
 };
 
 enum AttrType {
@@ -119,17 +119,17 @@ public:
 
   std::shared_ptr<AttrCursor> maybeGetAttr(std::string_view name);
 
-  ref<AttrCursor> getAttr(Symbol name);
+  ref<AttrCursor> get_attr(Symbol name);
 
-  ref<AttrCursor> getAttr(std::string_view name);
+  ref<AttrCursor> get_attr(std::string_view name);
 
   /**
    * Get an attribute along a chain of attrsets. Note that this does
    * not auto-call functors or functions.
    */
-  or_suggestions_t<ref<AttrCursor>> findAlongAttrPath(const AttrPath& attrPath);
+  or_suggestions_t<ref<AttrCursor>> find_along_attr_path(const AttrPath& attr_path);
 
-  std::string getString();
+  std::string get_string();
 
   string_t getStringWithContext();
 
@@ -141,7 +141,7 @@ public:
 
   std::vector<Symbol> getAttrs();
 
-  bool isDerivation();
+  bool is_derivation();
 
   Value& forceValue();
 

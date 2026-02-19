@@ -16,13 +16,13 @@ executable_path_t executable_path_t::load() {
   // "If PATH is unset or is set to null, the path search is
   // implementation-defined."
   // https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap08.html#tag_08_03
-  return executable_path_t::parse(getEnvOs(OS_STR("PATH")).value_or(OS_STR("")));
+  return executable_path_t::parse(get_env_os(OS_STR("PATH")).value_or(OS_STR("")));
 }
 
 executable_path_t executable_path_t::parse(const os_string_t& path) {
   auto strings = path.empty()
                      ? (std::list<os_string_t>{})
-                     : basicSplitString<std::list<os_string_t>, os_char_t>(path, path_var_separator);
+                     : basic_split_string<std::list<os_string_t>, os_char_t>(path, path_var_separator);
 
   std::vector<std::filesystem::path> ret;
   ret.reserve(strings.size());
@@ -52,20 +52,20 @@ os_string_t executable_path_t::render() const {
   path2.reserve(directories.size());
   for (auto& p : directories)
     path2.push_back(p.native());
-  return basicConcatStringsSep(path_var_separator, path2);
+  return basic_concat_strings_sep(path_var_separator, path2);
 }
 
 std::optional<std::filesystem::path>
-executable_path_t::findName(const os_string_t& exe,
-                         std::function<bool(const std::filesystem::path&)> isExecutable) const {
+executable_path_t::find_name(const os_string_t& exe,
+                         std::function<bool(const std::filesystem::path&)> is_executable) const {
   // "If the pathname being sought contains a <slash>, the search
   // through the path prefixes shall not be performed."
   // https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap08.html#tag_08_03
-  assert(os_path_trait_t<std::filesystem::path::value_type>::rfindPathSep(exe) == exe.npos);
+  assert(os_path_trait_t<std::filesystem::path::value_type>::rfind_path_sep(exe) == exe.npos);
 
   for (auto& dir : directories) {
     auto candidate = dir / exe;
-    if (isExecutable(candidate))
+    if (is_executable(candidate))
       return candidate.lexically_normal();
   }
 
@@ -73,15 +73,15 @@ executable_path_t::findName(const os_string_t& exe,
 }
 
 std::filesystem::path
-executable_path_t::findPath(const std::filesystem::path& exe,
-                         std::function<bool(const std::filesystem::path&)> isExecutable) const {
+executable_path_t::find_path(const std::filesystem::path& exe,
+                         std::function<bool(const std::filesystem::path&)> is_executable) const {
   // "If the pathname being sought contains a <slash>, the search
   // through the path prefixes shall not be performed."
   // https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap08.html#tag_08_03
   if (exe.filename() == exe) {
-    auto resOpt = findName(exe, isExecutable);
-    if (resOpt)
-      return *resOpt;
+    auto res_opt = find_name(exe, is_executable);
+    if (res_opt)
+      return *res_opt;
     else
       throw ExecutableLookupError("Could not find executable '%s'", exe.string());
   } else {

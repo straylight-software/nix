@@ -10,10 +10,10 @@ namespace nix::flake {
 
 settings_t::settings_t() {}
 
-void settings_t::configureEvalSettings(nix::EvalSettings& evalSettings) const {
-  evalSettings.extraPrimOps.emplace_back(primops::getFlake(*this));
-  evalSettings.extraPrimOps.emplace_back(primops::parseFlakeRef);
-  evalSettings.extraPrimOps.emplace_back(primops::flakeRefToString);
+void settings_t::configureEvalSettings(nix::EvalSettings& eval_settings) const {
+  eval_settings.extraPrimOps.emplace_back(primops::get_flake(*this));
+  eval_settings.extraPrimOps.emplace_back(primops::parse_flake_ref);
+  eval_settings.extraPrimOps.emplace_back(primops::flake_ref_to_string);
 }
 
 } // namespace nix::flake

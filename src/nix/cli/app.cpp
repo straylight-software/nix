@@ -15,9 +15,9 @@ namespace nix {
  * Return the rewrites that are needed to resolve a string whose context is
  * included in `dependencies`.
  */
-string_pairs_t resolveRewrites(Store& store, const std::vector<BuiltPathWithResult>& dependencies) {
+string_pairs_t resolve_rewrites(Store& store, const std::vector<BuiltPathWithResult>& dependencies) {
   string_pairs_t res;
-  if (!experimentalFeatureSettings.isEnabled(xp_t::CaDerivations)) {
+  if (!experimental_feature_settings.is_enabled(xp_t::ca_derivations)) {
     return res;
   }
   for (auto& dep : dependencies) {
@@ -26,15 +26,15 @@ string_pairs_t resolveRewrites(Store& store, const std::vector<BuiltPathWithResu
       continue;
     }
 
-    for (const auto& [outputName, outputPath] : drvDep->outputs) {
+    for (const auto& [output_name, output_path] : drvDep->outputs) {
       res.emplace(
           DownstreamPlaceholder::fromSingleDerivedPathBuilt(
               SingleDerivedPath::Built{
-                  .drvPath = make_ref<SingleDerivedPath>(drvDep->drvPath->discardOutputPath()),
-                  .output = outputName,
+                  .drv_path = make_ref<SingleDerivedPath>(drvDep->drv_path->discardOutputPath()),
+                  .output = output_name,
               })
               .render(),
-          store.printStorePath(outputPath));
+          store.printStorePath(output_path));
     }
   }
   return res;
@@ -43,44 +43,44 @@ string_pairs_t resolveRewrites(Store& store, const std::vector<BuiltPathWithResu
 /**
  * Resolve the given string assuming the given context.
  */
-std::string resolveString(Store& store, const std::string& toResolve,
+std::string resolve_string(Store& store, const std::string& to_resolve,
                           const std::vector<BuiltPathWithResult>& dependencies) {
-  auto rewrites = resolveRewrites(store, dependencies);
-  return rewriteStrings(toResolve, rewrites);
+  auto rewrites = resolve_rewrites(store, dependencies);
+  return rewrite_strings(to_resolve, rewrites);
 }
 
 UnresolvedApp InstallableValue::toApp(EvalState& state) {
   auto cursor = getCursor(state);
-  auto attrPath = cursor->getAttrPath();
+  auto attr_path = cursor->getAttrPath();
 
-  auto type = cursor->getAttr("type")->getString();
+  auto type = cursor->get_attr("type")->get_string();
 
-  std::string expectedType = !attrPath.empty() && (state.symbols[attrPath[0]] == "apps" ||
-                                                   state.symbols[attrPath[0]] == "defaultApp")
+  std::string expected_type = !attr_path.empty() && (state.symbols[attr_path[0]] == "apps" ||
+                                                   state.symbols[attr_path[0]] == "defaultApp")
                                  ? "app"
                                  : "derivation";
-  if (type != expectedType)
-    throw Error("attribute '%s' should have type '%s'", cursor->getAttrPathStr(), expectedType);
+  if (type != expected_type)
+    throw Error("attribute '%s' should have type '%s'", cursor->getAttrPathStr(), expected_type);
 
   if (type == "app") {
-    auto [program, context] = cursor->getAttr("program")->getStringWithContext();
+    auto [program, context] = cursor->get_attr("program")->getStringWithContext();
 
     std::vector<DerivedPath> context2;
     for (auto& c : context) {
       context2.emplace_back(std::visit(
           overloaded{
               [&](const NixStringContextElem::DrvDeep& d) -> DerivedPath {
-                state.waitForPath(d.drvPath);
+                state.waitForPath(d.drv_path);
                 /* We want all outputs of the drv */
                 return DerivedPath::Built{
-                    .drvPath = makeConstantStorePathRef(d.drvPath),
+                    .drv_path = makeConstantStorePathRef(d.drv_path),
                     .outputs = OutputsSpec::All{},
                 };
               },
               [&](const NixStringContextElem::Built& b) -> DerivedPath {
-                state.waitForPath(*b.drvPath);
+                state.waitForPath(*b.drv_path);
                 return DerivedPath::Built{
-                    .drvPath = b.drvPath,
+                    .drv_path = b.drv_path,
                     .outputs = OutputsSpec::Names{b.output},
                 };
               },
@@ -103,21 +103,21 @@ UnresolvedApp InstallableValue::toApp(EvalState& state) {
   }
 
   else if (type == "derivation") {
-    auto drvPath = cursor->forceDerivation();
-    auto outPath = cursor->getAttr(state.s.outPath)->getString();
-    auto outputName = cursor->getAttr(state.s.outputName)->getString();
-    auto name = cursor->getAttr(state.s.name)->getString();
+    auto drv_path = cursor->forceDerivation();
+    auto out_path = cursor->get_attr(state.s.out_path)->get_string();
+    auto output_name = cursor->get_attr(state.s.output_name)->get_string();
+    auto name = cursor->get_attr(state.s.name)->get_string();
     auto aPname = cursor->maybeGetAttr("pname");
     auto aMeta = cursor->maybeGetAttr(state.s.meta);
     auto aMainProgram = aMeta ? aMeta->maybeGetAttr("mainProgram") : nullptr;
-    auto mainProgram = aMainProgram ? aMainProgram->getString()
-                       : aPname     ? aPname->getString()
+    auto mainProgram = aMainProgram ? aMainProgram->get_string()
+                       : aPname     ? aPname->get_string()
                                     : DrvName(name).name;
-    auto program = outPath + "/bin/" + mainProgram;
+    auto program = out_path + "/bin/" + mainProgram;
     return UnresolvedApp{App{
         .context = {DerivedPath::Built{
-            .drvPath = makeConstantStorePathRef(drvPath),
-            .outputs = OutputsSpec::Names{outputName},
+            .drv_path = makeConstantStorePathRef(drv_path),
+            .outputs = OutputsSpec::Names{output_name},
         }},
         .program = program,
     }};
@@ -127,21 +127,21 @@ UnresolvedApp InstallableValue::toApp(EvalState& state) {
     throw Error("attribute '%s' has unsupported type '%s'", cursor->getAttrPathStr(), type);
 }
 
-std::vector<BuiltPathWithResult> UnresolvedApp::build(ref<Store> evalStore, ref<Store> store) {
+std::vector<BuiltPathWithResult> UnresolvedApp::build(ref<Store> eval_store, ref<Store> store) {
   Installables installableContext;
 
   for (auto& ctxElt : unresolved.context)
     installableContext.push_back(make_ref<InstallableDerivedPath>(store, DerivedPath{ctxElt}));
 
-  return Installable::build(evalStore, store, Realise::Outputs, installableContext);
+  return Installable::build(eval_store, store, Realise::Outputs, installableContext);
 }
 
 // FIXME: move to libcmd
-App UnresolvedApp::resolve(ref<Store> evalStore, ref<Store> store) {
+App UnresolvedApp::resolve(ref<Store> eval_store, ref<Store> store) {
   auto res = unresolved;
 
-  auto builtContext = build(evalStore, store);
-  res.program = resolveString(*store, unresolved.program.string(), builtContext);
+  auto builtContext = build(eval_store, store);
+  res.program = resolve_string(*store, unresolved.program.string(), builtContext);
   if (!store->isInStore(res.program.string()))
     throw Error("app program '%s' is not in the Nix store", res.program.string());
 

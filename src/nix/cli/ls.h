@@ -5,14 +5,14 @@
 namespace nix {
 
 struct mix_long_listing_t : virtual Args {
-  bool longListing = false;
+  bool long_listing = false;
 
   mix_long_listing_t() {
-    addFlag({
-        .longName = "long",
-        .shortName = 'l',
+    add_flag({
+        .long_name = "long",
+        .short_name = 'l',
         .description = "Show detailed file information.",
-        .handler = {&longListing, true},
+        .handler = {&long_listing, true},
     });
   }
 };

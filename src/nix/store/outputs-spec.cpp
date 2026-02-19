@@ -11,11 +11,11 @@
 
 namespace nix {
 
-bool OutputsSpec::contains(const std::string& outputName) const {
+bool OutputsSpec::contains(const std::string& output_name) const {
   return std::visit(
       overloaded{
           [&](const OutputsSpec::All&) { return true; },
-          [&](const OutputsSpec::Names& outputNames) { return outputNames.count(outputName) > 0; },
+          [&](const OutputsSpec::Names& outputNames) { return outputNames.count(output_name) > 0; },
       },
       raw);
 }
@@ -34,9 +34,9 @@ OutputsSpec OutputsSpec::parse(std::string_view s) {
   if (s == "*"sv)
     return OutputsSpec::All{};
 
-  auto names = splitString<string_set_t>(s, ",");
+  auto names = split_string<string_set_t>(s, ",");
   for (const auto& name : names)
-    checkName(name);
+    check_name(name);
 
   return OutputsSpec::Names{std::move(names)};
 }
@@ -65,7 +65,7 @@ std::string OutputsSpec::to_string() const {
   return std::visit(overloaded{
                         [&](const OutputsSpec::All&) -> std::string { return "*"; },
                         [&](const OutputsSpec::Names& outputNames) -> std::string {
-                          return concatStringsSep(",", outputNames);
+                          return concat_strings_sep(",", outputNames);
                         },
                     },
                     raw);

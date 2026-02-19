@@ -10,7 +10,7 @@
 
 namespace nix {
 
-static bool isNonUriPath(const std::string& spec) {
+static bool is_non_uri_path(const std::string& spec) {
   return
       // is not a URL
       spec.find("://") == std::string::npos
@@ -36,7 +36,7 @@ std::string StoreReference::render(bool withParams) const {
 
   if (withParams && !params.empty()) {
     res += "?";
-    res += encodeQuery(params);
+    res += encode_query(params);
   }
 
   return res;
@@ -54,32 +54,32 @@ struct scheme_and_authority_with_path_t {
 /**
  * Return the 'scheme' and remove the '://' or ':' separator.
  */
-static std::optional<scheme_and_authority_with_path_t> splitSchemePrefixTo(std::string_view string) {
-  auto scheme = splitPrefixTo(string, ':');
+static std::optional<scheme_and_authority_with_path_t> split_scheme_prefix_to(std::string_view string) {
+  auto scheme = split_prefix_to(string, ':');
   if (!scheme)
     return std::nullopt;
 
-  splitPrefix(string, "//");
+  split_prefix(string, "//");
   return scheme_and_authority_with_path_t{.scheme = *scheme, .authority = string};
 }
 
 StoreReference StoreReference::parse(const std::string& uri,
-                                     const StoreReference::Params& extraParams) {
-  auto params = extraParams;
+                                     const StoreReference::Params& extra_params) {
+  auto params = extra_params;
   try {
-    auto parsedUri = parseURL(uri, /*lenient=*/true);
+    auto parsedUri = parse_url(uri, /*lenient=*/true);
     params.insert(parsedUri.query.begin(), parsedUri.query.end());
 
     return {
         .variant =
             Specified{
                 .scheme = std::move(parsedUri.scheme),
-                .authority = parsedUri.renderAuthorityAndPath(),
+                .authority = parsedUri.render_authority_and_path(),
             },
         .params = std::move(params),
     };
   } catch (BadURL&) {
-    auto [baseURI, uriParams] = splitUriAndParams(uri);
+    auto [baseURI, uriParams] = split_uri_and_params(uri);
     params.insert(uriParams.begin(), uriParams.end());
 
     if (baseURI == "" || baseURI == "auto") {
@@ -101,22 +101,22 @@ StoreReference StoreReference::parse(const std::string& uri,
           .variant = Specified{.scheme = "local", .authority = ""},
           .params = std::move(params),
       };
-    } else if (isNonUriPath(baseURI)) {
+    } else if (is_non_uri_path(baseURI)) {
       return {
           .variant =
               Specified{
                   .scheme = "local",
-                  .authority = absPath(baseURI),
+                  .authority = abs_path(baseURI),
               },
           .params = std::move(params),
       };
-    } else if (auto schemeAndAuthority = splitSchemePrefixTo(baseURI)) {
-      /* Back-compatibility shim to accept unbracketed IPv6 addresses after the scheme.
+    } else if (auto schemeAndAuthority = split_scheme_prefix_to(baseURI)) {
+      /* Back-compatibility shim to accept unbracketed i_pv6 addresses after the scheme.
        * Old versions of nix allowed that. Note that this is ambiguous and does not allow
        * specifying the port number. For that the address must be bracketed, otherwise it's
        * greedily assumed to be the part of the host address. */
       auto authorityString = schemeAndAuthority->authority;
-      auto userinfo = splitPrefixTo(authorityString, '@');
+      auto userinfo = split_prefix_to(authorityString, '@');
       /* Back-compat shim for ZoneId specifiers. Technically this isn't
        * standard, but the expectation is this works with the old syntax
        * for ZoneID specifiers. For the full story behind the fiasco that
@@ -131,7 +131,7 @@ StoreReference StoreReference::parse(const std::string& uri,
         authorityString.remove_suffix(1);
       }
 
-      auto maybeBeforePct = splitPrefixTo(authorityString, '%');
+      auto maybeBeforePct = split_prefix_to(authorityString, '%');
       bool hasZoneId = maybeBeforePct.has_value();
       auto maybeZoneId = hasZoneId ? std::optional{authorityString} : std::nullopt;
 
@@ -167,12 +167,12 @@ StoreReference StoreReference::parse(const std::string& uri,
 }
 
 /* Split URI into protocol+hierarchy part and its parameter set. */
-std::pair<std::string, StoreReference::Params> splitUriAndParams(const std::string& uri_) {
+std::pair<std::string, StoreReference::Params> split_uri_and_params(const std::string& uri_) {
   auto uri(uri_);
   StoreReference::Params params;
   auto q = uri.find('?');
   if (q != std::string::npos) {
-    params = decodeQuery(uri.substr(q + 1), /*lenient=*/true);
+    params = decode_query(uri.substr(q + 1), /*lenient=*/true);
     uri = uri_.substr(0, q);
   }
   return {uri, params};

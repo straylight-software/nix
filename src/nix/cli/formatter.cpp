@@ -18,7 +18,7 @@ struct cmd_formatter_t : NixMultiCommand {
   category_t category() override { return catSecondary; }
 };
 
-static auto rCmdFormatter = registerCommand<cmd_formatter_t>("formatter");
+static auto r_cmd_formatter = registerCommand<cmd_formatter_t>("formatter");
 
 /** common_t implementation bits for the `nix formatter` subcommands. */
 struct mix_formatter_t : SourceExprCommand {
@@ -32,7 +32,7 @@ struct mix_formatter_t : SourceExprCommand {
 struct cmd_formatter_run_t : mix_formatter_t, MixJSON {
   std::vector<std::string> args;
 
-  cmd_formatter_run_t() { expectArgs({.label = "args", .handler = {&args}}); }
+  cmd_formatter_run_t() { expect_args({.label = "args", .handler = {&args}}); }
 
   std::string description() override { return "reformat your code in the standard style"; }
 
@@ -45,40 +45,40 @@ struct cmd_formatter_run_t : mix_formatter_t, MixJSON {
   category_t category() override { return catSecondary; }
 
   void run(ref<Store> store) override {
-    auto evalState = getEvalState();
-    auto evalStore = getEvalStore();
+    auto eval_state = getEvalState();
+    auto eval_store = getEvalStore();
 
     auto installable_ = parseInstallable(store, ".").cast<InstallableFlake>();
     auto& installable = InstallableValue::require(*installable_);
-    auto app = installable.toApp(*evalState).resolve(evalStore, store);
+    auto app = installable.toApp(*eval_state).resolve(eval_store, store);
 
-    auto maybeFlakeDir = installable_->flakeRef.input.getSourcePath();
-    assert(maybeFlakeDir.has_value());
-    auto flakeDir = maybeFlakeDir.value();
+    auto maybe_flake_dir = installable_->flake_ref.input.get_source_path();
+    assert(maybe_flake_dir.has_value());
+    auto flake_dir = maybe_flake_dir.value();
 
-    strings_t programArgs{app.program.string()};
+    strings_t program_args{app.program.string()};
 
     // Propagate arguments from the CLI
     for (auto& i : args) {
-      programArgs.push_back(i);
+      program_args.push_back(i);
     }
 
     // Add the path to the flake as an environment variable. This enables formatters to format the
     // entire flake even if run from a subdirectory.
-    string_map_t env = getEnv();
-    env["PRJ_ROOT"] = flakeDir.string();
+    string_map_t env = get_env();
+    env["PRJ_ROOT"] = flake_dir.string();
 
     // Release our references to eval caches to ensure they are persisted to disk, because
     // we are about to exec out of this process without running C++ destructors.
-    evalState->evalCaches.clear();
+    eval_state->evalCaches.clear();
 
-    execProgramInStore(store, use_lookup_path_t::DontUse, app.program.string(), programArgs,
+    exec_program_in_store(store, use_lookup_path_t::dont_use, app.program.string(), program_args,
                        std::nullopt, // Use default system
                        env);
   };
 };
 
-static auto rFormatterRun = registerCommand2<cmd_formatter_run_t>({"formatter", "run"});
+static auto r_formatter_run = registerCommand2<cmd_formatter_run_t>({"formatter", "run"});
 
 struct cmd_formatter_build_t : mix_formatter_t, MixOutLinkByDefault {
   cmd_formatter_build_t() {}
@@ -94,24 +94,24 @@ struct cmd_formatter_build_t : mix_formatter_t, MixOutLinkByDefault {
   category_t category() override { return catSecondary; }
 
   void run(ref<Store> store) override {
-    auto evalState = getEvalState();
-    auto evalStore = getEvalStore();
+    auto eval_state = getEvalState();
+    auto eval_store = getEvalStore();
 
     auto installable_ = parseInstallable(store, ".");
     auto& installable = InstallableValue::require(*installable_);
-    auto unresolvedApp = installable.toApp(*evalState);
-    auto app = unresolvedApp.resolve(evalStore, store);
-    auto buildables = unresolvedApp.build(evalStore, store);
+    auto unresolved_app = installable.toApp(*eval_state);
+    auto app = unresolved_app.resolve(eval_store, store);
+    auto buildables = unresolved_app.build(eval_store, store);
     createOutLinksMaybe(buildables, store);
 
     logger->cout("%s", app.program);
   };
 };
 
-static auto rFormatterBuild = registerCommand2<cmd_formatter_build_t>({"formatter", "build"});
+static auto r_formatter_build = registerCommand2<cmd_formatter_build_t>({"formatter", "build"});
 
 struct cmd_fmt_t : cmd_formatter_run_t {
   void run(ref<Store> store) override { cmd_formatter_run_t::run(store); }
 };
 
-static auto rFmt = registerCommand<cmd_fmt_t>("fmt");
+static auto r_fmt = registerCommand<cmd_fmt_t>("fmt");

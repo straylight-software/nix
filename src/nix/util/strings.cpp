@@ -9,62 +9,62 @@
 
 namespace nix {
 
-template std::list<std::string> tokenizeString(std::string_view s, std::string_view separators);
-template string_set_t tokenizeString(std::string_view s, std::string_view separators);
-template std::vector<std::string> tokenizeString(std::string_view s, std::string_view separators);
+template std::list<std::string> tokenize_string(std::string_view s, std::string_view separators);
+template string_set_t tokenize_string(std::string_view s, std::string_view separators);
+template std::vector<std::string> tokenize_string(std::string_view s, std::string_view separators);
 
-template std::list<std::string> splitString(std::string_view s, std::string_view separators);
-template string_set_t splitString(std::string_view s, std::string_view separators);
-template std::vector<std::string> splitString(std::string_view s, std::string_view separators);
+template std::list<std::string> split_string(std::string_view s, std::string_view separators);
+template string_set_t split_string(std::string_view s, std::string_view separators);
+template std::vector<std::string> split_string(std::string_view s, std::string_view separators);
 
-template std::list<os_string_t> basicSplitString(std::basic_string_view<os_char_t> s,
+template std::list<os_string_t> basic_split_string(std::basic_string_view<os_char_t> s,
                                               std::basic_string_view<os_char_t> separators);
 
-template std::string concatStringsSep(std::string_view, const std::list<std::string>&);
-template std::string concatStringsSep(std::string_view, const string_set_t&);
-template std::string concatStringsSep(std::string_view, const std::vector<std::string>&);
-template std::string concatStringsSep(std::string_view,
+template std::string concat_strings_sep(std::string_view, const std::list<std::string>&);
+template std::string concat_strings_sep(std::string_view, const string_set_t&);
+template std::string concat_strings_sep(std::string_view, const std::vector<std::string>&);
+template std::string concat_strings_sep(std::string_view,
                                       const boost::container::small_vector<std::string, 64>&);
 
 typedef std::string_view strings_2[2];
-template std::string concatStringsSep(std::string_view, const strings_2&);
+template std::string concat_strings_sep(std::string_view, const strings_2&);
 typedef std::string_view strings_3[3];
-template std::string concatStringsSep(std::string_view, const strings_3&);
+template std::string concat_strings_sep(std::string_view, const strings_3&);
 typedef std::string_view strings_4[4];
-template std::string concatStringsSep(std::string_view, const strings_4&);
+template std::string concat_strings_sep(std::string_view, const strings_4&);
 
-template std::string dropEmptyInitThenConcatStringsSep(std::string_view,
+template std::string drop_empty_init_then_concat_strings_sep(std::string_view,
                                                        const std::list<std::string>&);
-template std::string dropEmptyInitThenConcatStringsSep(std::string_view, const string_set_t&);
-template std::string dropEmptyInitThenConcatStringsSep(std::string_view,
+template std::string drop_empty_init_then_concat_strings_sep(std::string_view, const string_set_t&);
+template std::string drop_empty_init_then_concat_strings_sep(std::string_view,
                                                        const std::vector<std::string>&);
 
 /**
  * Shell split string: split a string into shell arguments, respecting quotes and backslashes.
  *
- * Used for NIX_SSHOPTS handling, which previously used `tokenizeString` and was broken by
+ * Used for NIX_SSHOPTS handling, which previously used `tokenize_string` and was broken by
  * Arguments that need to be passed to ssh with spaces in them.
  *
  * Read https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html for the
  * POSIX shell specification, which is technically what we are implementing here.
  */
-std::list<std::string> shellSplitString(std::string_view s) {
+std::list<std::string> shell_split_string(std::string_view s) {
   std::list<std::string> result;
   std::string current;
-  bool startedCurrent = false;
+  bool started_current = false;
   bool escaping = false;
 
-  auto pushCurrent = [&]() {
-    if (startedCurrent) {
+  auto push_current = [&]() {
+    if (started_current) {
       result.push_back(current);
       current.clear();
-      startedCurrent = false;
+      started_current = false;
     }
   };
 
-  auto pushChar = [&](char c) {
+  auto push_char = [&](char c) {
     current.push_back(c);
-    startedCurrent = true;
+    started_current = true;
   };
 
   auto pop = [&]() {
@@ -73,8 +73,8 @@ std::list<std::string> shellSplitString(std::string_view s) {
     return c;
   };
 
-  auto inDoubleQuotes = [&]() {
-    startedCurrent = true;
+  auto in_double_quotes = [&]() {
+    started_current = true;
     // in double quotes, escaping with backslash is only effective for $, `, ", and backslash
     while (!s.empty()) {
       auto c = pop();
@@ -84,11 +84,11 @@ std::list<std::string> shellSplitString(std::string_view s) {
           case '`':
           case '"':
           case '\\':
-            pushChar(c);
+            push_char(c);
             break;
           default:
-            pushChar('\\');
-            pushChar(c);
+            push_char('\\');
+            push_char(c);
             break;
         }
         escaping = false;
@@ -97,7 +97,7 @@ std::list<std::string> shellSplitString(std::string_view s) {
       } else if (c == '"') {
         return;
       } else {
-        pushChar(c);
+        push_char(c);
       }
     }
     if (s.empty()) {
@@ -105,14 +105,14 @@ std::list<std::string> shellSplitString(std::string_view s) {
     }
   };
 
-  auto inSingleQuotes = [&]() {
-    startedCurrent = true;
+  auto in_single_quotes = [&]() {
+    started_current = true;
     while (!s.empty()) {
       auto c = pop();
       if (c == '\'') {
         return;
       }
-      pushChar(c);
+      push_char(c);
     }
     if (s.empty()) {
       throw Error("unterminated single quote");
@@ -122,27 +122,27 @@ std::list<std::string> shellSplitString(std::string_view s) {
   while (!s.empty()) {
     auto c = pop();
     if (escaping) {
-      pushChar(c);
+      push_char(c);
       escaping = false;
     } else if (c == '\\') {
       escaping = true;
     } else if (c == ' ' || c == '\t') {
-      pushCurrent();
+      push_current();
     } else if (c == '"') {
-      inDoubleQuotes();
+      in_double_quotes();
     } else if (c == '\'') {
-      inSingleQuotes();
+      in_single_quotes();
     } else {
-      pushChar(c);
+      push_char(c);
     }
   }
 
-  pushCurrent();
+  push_current();
 
   return result;
 }
 
-std::string optionalBracket(std::string_view prefix, std::string_view content,
+std::string optional_bracket(std::string_view prefix, std::string_view content,
                             std::string_view suffix) {
   if (content.empty()) {
     return "";
@@ -155,10 +155,10 @@ std::string optionalBracket(std::string_view prefix, std::string_view content,
   return result;
 }
 
-const char* requireCString(const std::string& s) {
+const char* require_c_string(const std::string& s) {
   if (std::memchr(s.data(), '\0', s.size())) [[unlikely]] {
     using namespace std::string_view_literals;
-    auto str = replaceStrings(s, "\0"sv, "␀"sv);
+    auto str = replace_strings(s, "\0"sv, "␀"sv);
     throw Error("string '%s' with null (\\0) bytes used where it's not allowed", str);
   }
   return s.c_str();

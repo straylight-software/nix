@@ -16,7 +16,7 @@ template <typename T>
 T& require(Store& store) {
   auto* castedStore = dynamic_cast<T*>(&store);
   if (!castedStore)
-    throw UsageError("%s not supported by store '%s'", T::operationName,
+    throw UsageError("%s not supported by store '%s'", T::operation_name,
                      store.config.getHumanReadableURI());
   return *castedStore;
 }

@@ -16,22 +16,22 @@ namespace nix {
 /**
  * String tokenizer.
  *
- * See also `basicSplitString()`, which preserves empty strings between separators, as well as at
+ * See also `basic_split_string()`, which preserves empty strings between separators, as well as at
  * the start and end.
  */
 template <class C, class char_t = char>
-C basicTokenizeString(std::basic_string_view<char_t> s, std::basic_string_view<char_t> separators);
+C basic_tokenize_string(std::basic_string_view<char_t> s, std::basic_string_view<char_t> separators);
 
 /**
- * Like `basicTokenizeString` but specialized to the default `char`
+ * Like `basic_tokenize_string` but specialized to the default `char`
  */
 template <class C>
-C tokenizeString(std::string_view s, std::string_view separators = " \t\n\r");
+C tokenize_string(std::string_view s, std::string_view separators = " \t\n\r");
 
-extern template std::list<std::string> tokenizeString(std::string_view s,
+extern template std::list<std::string> tokenize_string(std::string_view s,
                                                       std::string_view separators);
-extern template string_set_t tokenizeString(std::string_view s, std::string_view separators);
-extern template std::vector<std::string> tokenizeString(std::string_view s,
+extern template string_set_t tokenize_string(std::string_view s, std::string_view separators);
+extern template std::vector<std::string> tokenize_string(std::string_view s,
                                                         std::string_view separators);
 
 /**
@@ -40,38 +40,38 @@ extern template std::vector<std::string> tokenizeString(std::string_view s,
  * Returns a non-empty collection of strings.
  */
 template <class C, class char_t = char>
-C basicSplitString(std::basic_string_view<char_t> s, std::basic_string_view<char_t> separators);
+C basic_split_string(std::basic_string_view<char_t> s, std::basic_string_view<char_t> separators);
 template <typename C>
-C splitString(std::string_view s, std::string_view separators);
+C split_string(std::string_view s, std::string_view separators);
 
-extern template std::list<std::string> splitString(std::string_view s, std::string_view separators);
-extern template string_set_t splitString(std::string_view s, std::string_view separators);
-extern template std::vector<std::string> splitString(std::string_view s,
+extern template std::list<std::string> split_string(std::string_view s, std::string_view separators);
+extern template string_set_t split_string(std::string_view s, std::string_view separators);
+extern template std::vector<std::string> split_string(std::string_view s,
                                                      std::string_view separators);
 
 /**
  * Concatenate the given strings with a separator between the elements.
  */
 template <class C>
-std::string concatStringsSep(const std::string_view sep, const C& ss);
+std::string concat_strings_sep(const std::string_view sep, const C& ss);
 
-extern template std::string concatStringsSep(std::string_view, const std::list<std::string>&);
-extern template std::string concatStringsSep(std::string_view, const string_set_t&);
-extern template std::string concatStringsSep(std::string_view, const std::vector<std::string>&);
+extern template std::string concat_strings_sep(std::string_view, const std::list<std::string>&);
+extern template std::string concat_strings_sep(std::string_view, const string_set_t&);
+extern template std::string concat_strings_sep(std::string_view, const std::vector<std::string>&);
 extern template std::string
-concatStringsSep(std::string_view, const boost::container::small_vector<std::string, 64>&);
+concat_strings_sep(std::string_view, const boost::container::small_vector<std::string, 64>&);
 
 /**
  * Apply a function to the `iterable`'s items and concat them with `separator`.
  */
 template <class C, class F>
-std::string concatMapStringsSep(std::string_view separator, const C& iterable, F fn) {
+std::string concat_map_strings_sep(std::string_view separator, const C& iterable, F fn) {
   boost::container::small_vector<std::string, 64> strings;
   strings.reserve(iterable.size());
   for (const auto& elem : iterable) {
     strings.push_back(fn(elem));
   }
-  return concatStringsSep(separator, strings);
+  return concat_strings_sep(separator, strings);
 }
 
 /**
@@ -79,26 +79,26 @@ std::string concatMapStringsSep(std::string_view separator, const C& iterable, F
  * given strings with a separator between the elements.
  *
  * @deprecated This function exists for historical reasons. You probably just
- *             want to use `concatStringsSep`.
+ *             want to use `concat_strings_sep`.
  */
 template <class C>
 [[deprecated("Consider removing the empty string dropping behavior. If acceptable, use "
              "concatStringsSep instead.")]] std::string
-dropEmptyInitThenConcatStringsSep(const std::string_view sep, const C& ss);
+drop_empty_init_then_concat_strings_sep(const std::string_view sep, const C& ss);
 
-extern template std::string dropEmptyInitThenConcatStringsSep(std::string_view,
+extern template std::string drop_empty_init_then_concat_strings_sep(std::string_view,
                                                               const std::list<std::string>&);
-extern template std::string dropEmptyInitThenConcatStringsSep(std::string_view, const string_set_t&);
-extern template std::string dropEmptyInitThenConcatStringsSep(std::string_view,
+extern template std::string drop_empty_init_then_concat_strings_sep(std::string_view, const string_set_t&);
+extern template std::string drop_empty_init_then_concat_strings_sep(std::string_view,
                                                               const std::vector<std::string>&);
 
 /**
  * Shell split string: split a string into shell arguments, respecting quotes and backslashes.
  *
- * Used for NIX_SSHOPTS handling, which previously used `tokenizeString` and was broken by
+ * Used for NIX_SSHOPTS handling, which previously used `tokenize_string` and was broken by
  * Arguments that need to be passed to ssh with spaces in them.
  */
-std::list<std::string> shellSplitString(std::string_view s);
+std::list<std::string> shell_split_string(std::string_view s);
 
 /**
  * Conditionally wrap a string with prefix and suffix brackets.
@@ -107,15 +107,15 @@ std::list<std::string> shellSplitString(std::string_view s);
  * Otherwise, returns `prefix + content + suffix`.
  *
  * Example:
- *   optionalBracket(" (", "foo", ")") == " (foo)"
- *   optionalBracket(" (", "", ")") == ""
+ *   optional_bracket(" (", "foo", ")") == " (foo)"
+ *   optional_bracket(" (", "", ")") == ""
  *
  * Design note: this would have been called `optionalParentheses`, except this
  * function is more general and more explicit. Parentheses typically *also* need
  * to be prefixed with a space in order to fit nicely in a piece of natural
  * language.
  */
-std::string optionalBracket(std::string_view prefix, std::string_view content,
+std::string optional_bracket(std::string_view prefix, std::string_view content,
                             std::string_view suffix);
 
 /**
@@ -125,18 +125,18 @@ std::string optionalBracket(std::string_view prefix, std::string_view content,
  * Otherwise, returns `prefix + *content + suffix`.
  *
  * Example:
- *   optionalBracket(" (", std::optional<std::string>("foo"), ")") == " (foo)"
- *   optionalBracket(" (", std::nullopt, ")") == ""
- *   optionalBracket(" (", std::optional<std::string>(""), ")") == ""
+ *   optional_bracket(" (", std::optional<std::string>("foo"), ")") == " (foo)"
+ *   optional_bracket(" (", std::nullopt, ")") == ""
+ *   optional_bracket(" (", std::optional<std::string>(""), ")") == ""
  */
 template <typename T>
   requires std::convertible_to<T, std::string_view>
-std::string optionalBracket(std::string_view prefix, const std::optional<T>& content,
+std::string optional_bracket(std::string_view prefix, const std::optional<T>& content,
                             std::string_view suffix) {
   if (!content || std::string_view(*content).empty()) {
     return "";
   }
-  return optionalBracket(prefix, std::string_view(*content), suffix);
+  return optional_bracket(prefix, std::string_view(*content), suffix);
 }
 
 /**
@@ -169,6 +169,6 @@ public:
  * Check that the string does not contain any NUL bytes and return c_str().
  * @throws Error if str contains '\0' bytes.
  */
-const char* requireCString(const std::string& str);
+const char* require_c_string(const std::string& str);
 
 } // namespace nix

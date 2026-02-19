@@ -107,7 +107,7 @@ public:
    * it's not in the cache
    */
   template <typename K>
-  Value* getOrNullptr(const K& key) {
+  Value* get_or_nullptr(const K& key) {
     auto i = data.find(key);
     if (i == data.end())
       return nullptr;

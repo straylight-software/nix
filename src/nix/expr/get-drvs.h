@@ -21,9 +21,9 @@ private:
 
   mutable std::string name;
   mutable std::string system;
-  mutable std::optional<std::optional<StorePath>> drvPath;
-  mutable std::optional<StorePath> outPath;
-  mutable std::string outputName;
+  mutable std::optional<std::optional<StorePath>> drv_path;
+  mutable std::optional<StorePath> out_path;
+  mutable std::string output_name;
   Outputs outputs;
 
   /**
@@ -41,10 +41,10 @@ public:
   /**
    * path towards the derivation
    */
-  std::string attrPath;
+  std::string attr_path;
 
   PackageInfo(EvalState& state) : state(&state) {};
-  PackageInfo(EvalState& state, std::string attrPath, const Bindings* attrs);
+  PackageInfo(EvalState& state, std::string attr_path, const Bindings* attrs);
   PackageInfo(EvalState& state, ref<Store> store, const std::string& drvPathWithOutputs);
 
   std::string queryName() const;
@@ -74,11 +74,11 @@ public:
 
   void setName(const std::string& s) { name = s; }
 
-  void setDrvPath(StorePath path) { drvPath = {{std::move(path)}}; }
+  void setDrvPath(StorePath path) { drv_path = {{std::move(path)}}; }
 
-  void setOutPath(StorePath path) { outPath = {{std::move(path)}}; }
+  void setOutPath(StorePath path) { out_path = {{std::move(path)}}; }
 
-  void setFailed() { failed = true; };
+  void set_failed() { failed = true; };
 
   bool hasFailed() { return failed; };
 };
@@ -89,9 +89,9 @@ typedef std::list<PackageInfo, traceable_allocator<PackageInfo>> PackageInfos;
  * If value `v` denotes a derivation, return a PackageInfo object
  * describing it. Otherwise return nothing.
  */
-std::optional<PackageInfo> getDerivation(EvalState& state, Value& v, bool ignoreAssertionFailures);
+std::optional<PackageInfo> get_derivation(EvalState& state, Value& v, bool ignore_assertion_failures);
 
-void getDerivations(EvalState& state, Value& v, const std::string& pathPrefix, Bindings& autoArgs,
-                    PackageInfos& drvs, bool ignoreAssertionFailures);
+void get_derivations(EvalState& state, Value& v, const std::string& path_prefix, Bindings& auto_args,
+                    PackageInfos& drvs, bool ignore_assertion_failures);
 
 } // namespace nix

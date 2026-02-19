@@ -6,25 +6,25 @@
 namespace nix {
 
 template <class T>
-EvalErrorBuilder<T>& EvalErrorBuilder<T>::withExitStatus(unsigned int exitStatus) {
-  error.withExitStatus(exitStatus);
+EvalErrorBuilder<T>& EvalErrorBuilder<T>::with_exit_status(unsigned int exitStatus) {
+  error.with_exit_status(exitStatus);
   return *this;
 }
 
 template <class T>
-EvalErrorBuilder<T>& EvalErrorBuilder<T>::atPos(pos_idx_t pos) {
+EvalErrorBuilder<T>& EvalErrorBuilder<T>::at_pos(pos_idx_t pos) {
   error.err.pos = error.state.positions[pos];
   return *this;
 }
 
 template <class T>
-EvalErrorBuilder<T>& EvalErrorBuilder<T>::atPos(Value& value, pos_idx_t fallback) {
-  return atPos(value.determinePos(fallback));
+EvalErrorBuilder<T>& EvalErrorBuilder<T>::at_pos(Value& value, pos_idx_t fallback) {
+  return at_pos(value.determinePos(fallback));
 }
 
 template <class T>
 EvalErrorBuilder<T>& EvalErrorBuilder<T>::withTrace(pos_idx_t pos, const std::string_view text) {
-  error.addTrace(error.state.positions[pos], text);
+  error.add_trace(error.state.positions[pos], text);
   return *this;
 }
 
@@ -49,22 +49,22 @@ EvalErrorBuilder<T>& EvalErrorBuilder<T>::withFrame(const Env& env, const Expr& 
 }
 
 template <class T>
-EvalErrorBuilder<T>& EvalErrorBuilder<T>::addTrace(pos_idx_t pos, hint_fmt_t hint) {
-  error.addTrace(error.state.positions[pos], hint);
+EvalErrorBuilder<T>& EvalErrorBuilder<T>::add_trace(pos_idx_t pos, hint_fmt_t hint) {
+  error.add_trace(error.state.positions[pos], hint);
   return *this;
 }
 
 template <class T>
 template <typename... Args>
-EvalErrorBuilder<T>& EvalErrorBuilder<T>::addTrace(pos_idx_t pos, std::string_view formatString,
+EvalErrorBuilder<T>& EvalErrorBuilder<T>::add_trace(pos_idx_t pos, std::string_view formatString,
                                                    const Args&... formatArgs) {
-  addTrace(error.state.positions[pos], hint_fmt_t(std::string(formatString), formatArgs...));
+  add_trace(error.state.positions[pos], hint_fmt_t(std::string(formatString), formatArgs...));
   return *this;
 }
 
 template <class T>
 EvalErrorBuilder<T>& EvalErrorBuilder<T>::setIsFromExpr() {
-  error.err.isFromExpr = true;
+  error.err.is_from_expr = true;
   return *this;
 }
 

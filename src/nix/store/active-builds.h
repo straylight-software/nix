@@ -33,7 +33,7 @@ struct ActiveBuild {
   UserInfo mainUser;
   std::optional<Path> cgroup;
 
-  time_t startTime;
+  time_t start_time;
 
   StorePath derivation;
 };
@@ -69,7 +69,7 @@ struct TrackActiveBuildsStore {
         try {
           tracker.buildFinished(*this);
         } catch (...) {
-          ignoreExceptionInDestructor();
+          ignore_exception_in_destructor();
         }
       }
     }
@@ -81,7 +81,7 @@ struct TrackActiveBuildsStore {
 };
 
 struct QueryActiveBuildsStore {
-  inline static std::string operationName = "Querying active builds";
+  inline static std::string operation_name = "Querying active builds";
 
   virtual std::vector<ActiveBuildInfo> queryActiveBuilds() = 0;
 };

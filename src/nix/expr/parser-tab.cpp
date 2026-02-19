@@ -62,15 +62,15 @@ void parser::bison_parser_t::error(const location_type& loc_, const std::string&
   throw ParseError({.msg = hint_fmt_t(error), .pos = state->positions[state->at(loc)]});
 }
 
-#define SET_DOC_POS(lambda, pos) setDocPosition(state->lexerState, lambda, state->at(pos))
-static void setDocPosition(const LexerState& lexerState, ExprLambda* lambda, pos_idx_t start) {
-  auto it = lexerState.positionToDocComment.find(start);
-  if (it != lexerState.positionToDocComment.end()) {
+#define SET_DOC_POS(lambda, pos) set_doc_position(state->lexer_state, lambda, state->at(pos))
+static void set_doc_position(const LexerState& lexer_state, ExprLambda* lambda, pos_idx_t start) {
+  auto it = lexer_state.positionToDocComment.find(start);
+  if (it != lexer_state.positionToDocComment.end()) {
     lambda->setDocComment(it->second);
   }
 }
 
-static Expr* makeCall(Exprs& exprs, pos_idx_t pos, Expr* fn, Expr* arg) {
+static Expr* make_call(Exprs& exprs, pos_idx_t pos, Expr* fn, Expr* arg) {
   if (auto e2 = dynamic_cast<ExprCall*>(fn)) {
     e2->args->push_back(arg);
     return fn;
@@ -203,31 +203,31 @@ template <typename Base>
 bison_parser_t ::basic_symbol<Base>::basic_symbol(const basic_symbol& that)
     : Base(that), value(), location(that.location) {
   switch (this->kind()) {
-    case symbol_kind::S_start:          // start
-    case symbol_kind::S_expr:           // expr
-    case symbol_kind::S_expr_function:  // expr_function
-    case symbol_kind::S_expr_if:        // expr_if
-    case symbol_kind::S_expr_pipe_from: // expr_pipe_from
-    case symbol_kind::S_expr_pipe_into: // expr_pipe_into
-    case symbol_kind::S_expr_op:        // expr_op
-    case symbol_kind::S_expr_app:       // expr_app
-    case symbol_kind::S_expr_select:    // expr_select
-    case symbol_kind::S_expr_simple:    // expr_simple
-    case symbol_kind::S_path_start:     // path_start
+    case symbol_kind::s_start:          // start
+    case symbol_kind::s_expr:           // expr
+    case symbol_kind::s_expr_function:  // expr_function
+    case symbol_kind::s_expr_if:        // expr_if
+    case symbol_kind::s_expr_pipe_from: // expr_pipe_from
+    case symbol_kind::s_expr_pipe_into: // expr_pipe_into
+    case symbol_kind::s_expr_op:        // expr_op
+    case symbol_kind::s_expr_app:       // expr_app
+    case symbol_kind::s_expr_select:    // expr_select
+    case symbol_kind::s_expr_simple:    // expr_simple
+    case symbol_kind::s_path_start:     // path_start
       value.copy<Expr*>(YY_MOVE(that.value));
       break;
 
-    case symbol_kind::S_binds:  // binds
-    case symbol_kind::S_binds1: // binds1
+    case symbol_kind::s_binds:  // binds
+    case symbol_kind::s_binds1: // binds1
       value.copy<ExprAttrs*>(YY_MOVE(that.value));
       break;
 
-    case symbol_kind::S_formal: // formal
+    case symbol_kind::s_formal: // formal
       value.copy<Formal>(YY_MOVE(that.value));
       break;
 
-    case symbol_kind::S_formal_set: // formal_set
-    case symbol_kind::S_formals:    // formals
+    case symbol_kind::s_formal_set: // formal_set
+    case symbol_kind::s_formals:    // formals
       value.copy<FormalsBuilder>(YY_MOVE(that.value));
       break;
 
@@ -247,32 +247,32 @@ bison_parser_t ::basic_symbol<Base>::basic_symbol(const basic_symbol& that)
     case symbol_kind::S_SPATH:    // SPATH
     case symbol_kind::S_PATH_END: // PATH_END
     case symbol_kind::S_URI:      // URI
-    case symbol_kind::S_attr:     // attr
+    case symbol_kind::s_attr:     // attr
       value.copy<StringToken>(YY_MOVE(that.value));
       break;
 
-    case symbol_kind::S_string_parts: // string_parts
-    case symbol_kind::S_string_attr:  // string_attr
+    case symbol_kind::s_string_parts: // string_parts
+    case symbol_kind::s_string_attr:  // string_attr
       value.copy<ToBeStringyExpr>(YY_MOVE(that.value));
       break;
 
-    case symbol_kind::S_list: // list
+    case symbol_kind::s_list: // list
       value.copy<std::pmr::vector<Expr*>>(YY_MOVE(that.value));
       break;
 
-    case symbol_kind::S_attrpath: // attrpath
+    case symbol_kind::s_attrpath: // attrpath
       value.copy<std::vector<AttrName>>(YY_MOVE(that.value));
       break;
 
-    case symbol_kind::S_attrs: // attrs
+    case symbol_kind::s_attrs: // attrs
       value.copy<std::vector<std::pair<AttrName, pos_idx_t>>>(YY_MOVE(that.value));
       break;
 
-    case symbol_kind::S_string_parts_interpolated: // string_parts_interpolated
+    case symbol_kind::s_string_parts_interpolated: // string_parts_interpolated
       value.copy<std::vector<std::pair<pos_idx_t, Expr*>>>(YY_MOVE(that.value));
       break;
 
-    case symbol_kind::S_ind_string_parts: // ind_string_parts
+    case symbol_kind::s_ind_string_parts: // ind_string_parts
       value.copy<std::vector<std::pair<pos_idx_t, std::variant<Expr*, StringToken>>>>(
           YY_MOVE(that.value));
       break;
@@ -298,31 +298,31 @@ template <typename Base>
 void bison_parser_t ::basic_symbol<Base>::move(basic_symbol& s) {
   super_type::move(s);
   switch (this->kind()) {
-    case symbol_kind::S_start:          // start
-    case symbol_kind::S_expr:           // expr
-    case symbol_kind::S_expr_function:  // expr_function
-    case symbol_kind::S_expr_if:        // expr_if
-    case symbol_kind::S_expr_pipe_from: // expr_pipe_from
-    case symbol_kind::S_expr_pipe_into: // expr_pipe_into
-    case symbol_kind::S_expr_op:        // expr_op
-    case symbol_kind::S_expr_app:       // expr_app
-    case symbol_kind::S_expr_select:    // expr_select
-    case symbol_kind::S_expr_simple:    // expr_simple
-    case symbol_kind::S_path_start:     // path_start
+    case symbol_kind::s_start:          // start
+    case symbol_kind::s_expr:           // expr
+    case symbol_kind::s_expr_function:  // expr_function
+    case symbol_kind::s_expr_if:        // expr_if
+    case symbol_kind::s_expr_pipe_from: // expr_pipe_from
+    case symbol_kind::s_expr_pipe_into: // expr_pipe_into
+    case symbol_kind::s_expr_op:        // expr_op
+    case symbol_kind::s_expr_app:       // expr_app
+    case symbol_kind::s_expr_select:    // expr_select
+    case symbol_kind::s_expr_simple:    // expr_simple
+    case symbol_kind::s_path_start:     // path_start
       value.move<Expr*>(YY_MOVE(s.value));
       break;
 
-    case symbol_kind::S_binds:  // binds
-    case symbol_kind::S_binds1: // binds1
+    case symbol_kind::s_binds:  // binds
+    case symbol_kind::s_binds1: // binds1
       value.move<ExprAttrs*>(YY_MOVE(s.value));
       break;
 
-    case symbol_kind::S_formal: // formal
+    case symbol_kind::s_formal: // formal
       value.move<Formal>(YY_MOVE(s.value));
       break;
 
-    case symbol_kind::S_formal_set: // formal_set
-    case symbol_kind::S_formals:    // formals
+    case symbol_kind::s_formal_set: // formal_set
+    case symbol_kind::s_formals:    // formals
       value.move<FormalsBuilder>(YY_MOVE(s.value));
       break;
 
@@ -342,32 +342,32 @@ void bison_parser_t ::basic_symbol<Base>::move(basic_symbol& s) {
     case symbol_kind::S_SPATH:    // SPATH
     case symbol_kind::S_PATH_END: // PATH_END
     case symbol_kind::S_URI:      // URI
-    case symbol_kind::S_attr:     // attr
+    case symbol_kind::s_attr:     // attr
       value.move<StringToken>(YY_MOVE(s.value));
       break;
 
-    case symbol_kind::S_string_parts: // string_parts
-    case symbol_kind::S_string_attr:  // string_attr
+    case symbol_kind::s_string_parts: // string_parts
+    case symbol_kind::s_string_attr:  // string_attr
       value.move<ToBeStringyExpr>(YY_MOVE(s.value));
       break;
 
-    case symbol_kind::S_list: // list
+    case symbol_kind::s_list: // list
       value.move<std::pmr::vector<Expr*>>(YY_MOVE(s.value));
       break;
 
-    case symbol_kind::S_attrpath: // attrpath
+    case symbol_kind::s_attrpath: // attrpath
       value.move<std::vector<AttrName>>(YY_MOVE(s.value));
       break;
 
-    case symbol_kind::S_attrs: // attrs
+    case symbol_kind::s_attrs: // attrs
       value.move<std::vector<std::pair<AttrName, pos_idx_t>>>(YY_MOVE(s.value));
       break;
 
-    case symbol_kind::S_string_parts_interpolated: // string_parts_interpolated
+    case symbol_kind::s_string_parts_interpolated: // string_parts_interpolated
       value.move<std::vector<std::pair<pos_idx_t, Expr*>>>(YY_MOVE(s.value));
       break;
 
-    case symbol_kind::S_ind_string_parts: // ind_string_parts
+    case symbol_kind::s_ind_string_parts: // ind_string_parts
       value.move<std::vector<std::pair<pos_idx_t, std::variant<Expr*, StringToken>>>>(
           YY_MOVE(s.value));
       break;
@@ -440,31 +440,31 @@ bison_parser_t ::stack_symbol_type::stack_symbol_type() {}
 bison_parser_t ::stack_symbol_type::stack_symbol_type(YY_RVREF(stack_symbol_type) that)
     : super_type(YY_MOVE(that.state), YY_MOVE(that.location)) {
   switch (that.kind()) {
-    case symbol_kind::S_start:          // start
-    case symbol_kind::S_expr:           // expr
-    case symbol_kind::S_expr_function:  // expr_function
-    case symbol_kind::S_expr_if:        // expr_if
-    case symbol_kind::S_expr_pipe_from: // expr_pipe_from
-    case symbol_kind::S_expr_pipe_into: // expr_pipe_into
-    case symbol_kind::S_expr_op:        // expr_op
-    case symbol_kind::S_expr_app:       // expr_app
-    case symbol_kind::S_expr_select:    // expr_select
-    case symbol_kind::S_expr_simple:    // expr_simple
-    case symbol_kind::S_path_start:     // path_start
+    case symbol_kind::s_start:          // start
+    case symbol_kind::s_expr:           // expr
+    case symbol_kind::s_expr_function:  // expr_function
+    case symbol_kind::s_expr_if:        // expr_if
+    case symbol_kind::s_expr_pipe_from: // expr_pipe_from
+    case symbol_kind::s_expr_pipe_into: // expr_pipe_into
+    case symbol_kind::s_expr_op:        // expr_op
+    case symbol_kind::s_expr_app:       // expr_app
+    case symbol_kind::s_expr_select:    // expr_select
+    case symbol_kind::s_expr_simple:    // expr_simple
+    case symbol_kind::s_path_start:     // path_start
       value.YY_MOVE_OR_COPY<Expr*>(YY_MOVE(that.value));
       break;
 
-    case symbol_kind::S_binds:  // binds
-    case symbol_kind::S_binds1: // binds1
+    case symbol_kind::s_binds:  // binds
+    case symbol_kind::s_binds1: // binds1
       value.YY_MOVE_OR_COPY<ExprAttrs*>(YY_MOVE(that.value));
       break;
 
-    case symbol_kind::S_formal: // formal
+    case symbol_kind::s_formal: // formal
       value.YY_MOVE_OR_COPY<Formal>(YY_MOVE(that.value));
       break;
 
-    case symbol_kind::S_formal_set: // formal_set
-    case symbol_kind::S_formals:    // formals
+    case symbol_kind::s_formal_set: // formal_set
+    case symbol_kind::s_formals:    // formals
       value.YY_MOVE_OR_COPY<FormalsBuilder>(YY_MOVE(that.value));
       break;
 
@@ -484,32 +484,32 @@ bison_parser_t ::stack_symbol_type::stack_symbol_type(YY_RVREF(stack_symbol_type
     case symbol_kind::S_SPATH:    // SPATH
     case symbol_kind::S_PATH_END: // PATH_END
     case symbol_kind::S_URI:      // URI
-    case symbol_kind::S_attr:     // attr
+    case symbol_kind::s_attr:     // attr
       value.YY_MOVE_OR_COPY<StringToken>(YY_MOVE(that.value));
       break;
 
-    case symbol_kind::S_string_parts: // string_parts
-    case symbol_kind::S_string_attr:  // string_attr
+    case symbol_kind::s_string_parts: // string_parts
+    case symbol_kind::s_string_attr:  // string_attr
       value.YY_MOVE_OR_COPY<ToBeStringyExpr>(YY_MOVE(that.value));
       break;
 
-    case symbol_kind::S_list: // list
+    case symbol_kind::s_list: // list
       value.YY_MOVE_OR_COPY<std::pmr::vector<Expr*>>(YY_MOVE(that.value));
       break;
 
-    case symbol_kind::S_attrpath: // attrpath
+    case symbol_kind::s_attrpath: // attrpath
       value.YY_MOVE_OR_COPY<std::vector<AttrName>>(YY_MOVE(that.value));
       break;
 
-    case symbol_kind::S_attrs: // attrs
+    case symbol_kind::s_attrs: // attrs
       value.YY_MOVE_OR_COPY<std::vector<std::pair<AttrName, pos_idx_t>>>(YY_MOVE(that.value));
       break;
 
-    case symbol_kind::S_string_parts_interpolated: // string_parts_interpolated
+    case symbol_kind::s_string_parts_interpolated: // string_parts_interpolated
       value.YY_MOVE_OR_COPY<std::vector<std::pair<pos_idx_t, Expr*>>>(YY_MOVE(that.value));
       break;
 
-    case symbol_kind::S_ind_string_parts: // ind_string_parts
+    case symbol_kind::s_ind_string_parts: // ind_string_parts
       value.YY_MOVE_OR_COPY<std::vector<std::pair<pos_idx_t, std::variant<Expr*, StringToken>>>>(
           YY_MOVE(that.value));
       break;
@@ -527,31 +527,31 @@ bison_parser_t ::stack_symbol_type::stack_symbol_type(YY_RVREF(stack_symbol_type
 bison_parser_t ::stack_symbol_type::stack_symbol_type(state_type s, YY_MOVE_REF(symbol_type) that)
     : super_type(s, YY_MOVE(that.location)) {
   switch (that.kind()) {
-    case symbol_kind::S_start:          // start
-    case symbol_kind::S_expr:           // expr
-    case symbol_kind::S_expr_function:  // expr_function
-    case symbol_kind::S_expr_if:        // expr_if
-    case symbol_kind::S_expr_pipe_from: // expr_pipe_from
-    case symbol_kind::S_expr_pipe_into: // expr_pipe_into
-    case symbol_kind::S_expr_op:        // expr_op
-    case symbol_kind::S_expr_app:       // expr_app
-    case symbol_kind::S_expr_select:    // expr_select
-    case symbol_kind::S_expr_simple:    // expr_simple
-    case symbol_kind::S_path_start:     // path_start
+    case symbol_kind::s_start:          // start
+    case symbol_kind::s_expr:           // expr
+    case symbol_kind::s_expr_function:  // expr_function
+    case symbol_kind::s_expr_if:        // expr_if
+    case symbol_kind::s_expr_pipe_from: // expr_pipe_from
+    case symbol_kind::s_expr_pipe_into: // expr_pipe_into
+    case symbol_kind::s_expr_op:        // expr_op
+    case symbol_kind::s_expr_app:       // expr_app
+    case symbol_kind::s_expr_select:    // expr_select
+    case symbol_kind::s_expr_simple:    // expr_simple
+    case symbol_kind::s_path_start:     // path_start
       value.move<Expr*>(YY_MOVE(that.value));
       break;
 
-    case symbol_kind::S_binds:  // binds
-    case symbol_kind::S_binds1: // binds1
+    case symbol_kind::s_binds:  // binds
+    case symbol_kind::s_binds1: // binds1
       value.move<ExprAttrs*>(YY_MOVE(that.value));
       break;
 
-    case symbol_kind::S_formal: // formal
+    case symbol_kind::s_formal: // formal
       value.move<Formal>(YY_MOVE(that.value));
       break;
 
-    case symbol_kind::S_formal_set: // formal_set
-    case symbol_kind::S_formals:    // formals
+    case symbol_kind::s_formal_set: // formal_set
+    case symbol_kind::s_formals:    // formals
       value.move<FormalsBuilder>(YY_MOVE(that.value));
       break;
 
@@ -571,32 +571,32 @@ bison_parser_t ::stack_symbol_type::stack_symbol_type(state_type s, YY_MOVE_REF(
     case symbol_kind::S_SPATH:    // SPATH
     case symbol_kind::S_PATH_END: // PATH_END
     case symbol_kind::S_URI:      // URI
-    case symbol_kind::S_attr:     // attr
+    case symbol_kind::s_attr:     // attr
       value.move<StringToken>(YY_MOVE(that.value));
       break;
 
-    case symbol_kind::S_string_parts: // string_parts
-    case symbol_kind::S_string_attr:  // string_attr
+    case symbol_kind::s_string_parts: // string_parts
+    case symbol_kind::s_string_attr:  // string_attr
       value.move<ToBeStringyExpr>(YY_MOVE(that.value));
       break;
 
-    case symbol_kind::S_list: // list
+    case symbol_kind::s_list: // list
       value.move<std::pmr::vector<Expr*>>(YY_MOVE(that.value));
       break;
 
-    case symbol_kind::S_attrpath: // attrpath
+    case symbol_kind::s_attrpath: // attrpath
       value.move<std::vector<AttrName>>(YY_MOVE(that.value));
       break;
 
-    case symbol_kind::S_attrs: // attrs
+    case symbol_kind::s_attrs: // attrs
       value.move<std::vector<std::pair<AttrName, pos_idx_t>>>(YY_MOVE(that.value));
       break;
 
-    case symbol_kind::S_string_parts_interpolated: // string_parts_interpolated
+    case symbol_kind::s_string_parts_interpolated: // string_parts_interpolated
       value.move<std::vector<std::pair<pos_idx_t, Expr*>>>(YY_MOVE(that.value));
       break;
 
-    case symbol_kind::S_ind_string_parts: // ind_string_parts
+    case symbol_kind::s_ind_string_parts: // ind_string_parts
       value.move<std::vector<std::pair<pos_idx_t, std::variant<Expr*, StringToken>>>>(
           YY_MOVE(that.value));
       break;
@@ -614,31 +614,31 @@ bison_parser_t ::stack_symbol_type&
 bison_parser_t ::stack_symbol_type::operator=(const stack_symbol_type& that) {
   state = that.state;
   switch (that.kind()) {
-    case symbol_kind::S_start:          // start
-    case symbol_kind::S_expr:           // expr
-    case symbol_kind::S_expr_function:  // expr_function
-    case symbol_kind::S_expr_if:        // expr_if
-    case symbol_kind::S_expr_pipe_from: // expr_pipe_from
-    case symbol_kind::S_expr_pipe_into: // expr_pipe_into
-    case symbol_kind::S_expr_op:        // expr_op
-    case symbol_kind::S_expr_app:       // expr_app
-    case symbol_kind::S_expr_select:    // expr_select
-    case symbol_kind::S_expr_simple:    // expr_simple
-    case symbol_kind::S_path_start:     // path_start
+    case symbol_kind::s_start:          // start
+    case symbol_kind::s_expr:           // expr
+    case symbol_kind::s_expr_function:  // expr_function
+    case symbol_kind::s_expr_if:        // expr_if
+    case symbol_kind::s_expr_pipe_from: // expr_pipe_from
+    case symbol_kind::s_expr_pipe_into: // expr_pipe_into
+    case symbol_kind::s_expr_op:        // expr_op
+    case symbol_kind::s_expr_app:       // expr_app
+    case symbol_kind::s_expr_select:    // expr_select
+    case symbol_kind::s_expr_simple:    // expr_simple
+    case symbol_kind::s_path_start:     // path_start
       value.copy<Expr*>(that.value);
       break;
 
-    case symbol_kind::S_binds:  // binds
-    case symbol_kind::S_binds1: // binds1
+    case symbol_kind::s_binds:  // binds
+    case symbol_kind::s_binds1: // binds1
       value.copy<ExprAttrs*>(that.value);
       break;
 
-    case symbol_kind::S_formal: // formal
+    case symbol_kind::s_formal: // formal
       value.copy<Formal>(that.value);
       break;
 
-    case symbol_kind::S_formal_set: // formal_set
-    case symbol_kind::S_formals:    // formals
+    case symbol_kind::s_formal_set: // formal_set
+    case symbol_kind::s_formals:    // formals
       value.copy<FormalsBuilder>(that.value);
       break;
 
@@ -658,32 +658,32 @@ bison_parser_t ::stack_symbol_type::operator=(const stack_symbol_type& that) {
     case symbol_kind::S_SPATH:    // SPATH
     case symbol_kind::S_PATH_END: // PATH_END
     case symbol_kind::S_URI:      // URI
-    case symbol_kind::S_attr:     // attr
+    case symbol_kind::s_attr:     // attr
       value.copy<StringToken>(that.value);
       break;
 
-    case symbol_kind::S_string_parts: // string_parts
-    case symbol_kind::S_string_attr:  // string_attr
+    case symbol_kind::s_string_parts: // string_parts
+    case symbol_kind::s_string_attr:  // string_attr
       value.copy<ToBeStringyExpr>(that.value);
       break;
 
-    case symbol_kind::S_list: // list
+    case symbol_kind::s_list: // list
       value.copy<std::pmr::vector<Expr*>>(that.value);
       break;
 
-    case symbol_kind::S_attrpath: // attrpath
+    case symbol_kind::s_attrpath: // attrpath
       value.copy<std::vector<AttrName>>(that.value);
       break;
 
-    case symbol_kind::S_attrs: // attrs
+    case symbol_kind::s_attrs: // attrs
       value.copy<std::vector<std::pair<AttrName, pos_idx_t>>>(that.value);
       break;
 
-    case symbol_kind::S_string_parts_interpolated: // string_parts_interpolated
+    case symbol_kind::s_string_parts_interpolated: // string_parts_interpolated
       value.copy<std::vector<std::pair<pos_idx_t, Expr*>>>(that.value);
       break;
 
-    case symbol_kind::S_ind_string_parts: // ind_string_parts
+    case symbol_kind::s_ind_string_parts: // ind_string_parts
       value.copy<std::vector<std::pair<pos_idx_t, std::variant<Expr*, StringToken>>>>(that.value);
       break;
 
@@ -699,31 +699,31 @@ bison_parser_t ::stack_symbol_type&
 bison_parser_t ::stack_symbol_type::operator=(stack_symbol_type& that) {
   state = that.state;
   switch (that.kind()) {
-    case symbol_kind::S_start:          // start
-    case symbol_kind::S_expr:           // expr
-    case symbol_kind::S_expr_function:  // expr_function
-    case symbol_kind::S_expr_if:        // expr_if
-    case symbol_kind::S_expr_pipe_from: // expr_pipe_from
-    case symbol_kind::S_expr_pipe_into: // expr_pipe_into
-    case symbol_kind::S_expr_op:        // expr_op
-    case symbol_kind::S_expr_app:       // expr_app
-    case symbol_kind::S_expr_select:    // expr_select
-    case symbol_kind::S_expr_simple:    // expr_simple
-    case symbol_kind::S_path_start:     // path_start
+    case symbol_kind::s_start:          // start
+    case symbol_kind::s_expr:           // expr
+    case symbol_kind::s_expr_function:  // expr_function
+    case symbol_kind::s_expr_if:        // expr_if
+    case symbol_kind::s_expr_pipe_from: // expr_pipe_from
+    case symbol_kind::s_expr_pipe_into: // expr_pipe_into
+    case symbol_kind::s_expr_op:        // expr_op
+    case symbol_kind::s_expr_app:       // expr_app
+    case symbol_kind::s_expr_select:    // expr_select
+    case symbol_kind::s_expr_simple:    // expr_simple
+    case symbol_kind::s_path_start:     // path_start
       value.move<Expr*>(that.value);
       break;
 
-    case symbol_kind::S_binds:  // binds
-    case symbol_kind::S_binds1: // binds1
+    case symbol_kind::s_binds:  // binds
+    case symbol_kind::s_binds1: // binds1
       value.move<ExprAttrs*>(that.value);
       break;
 
-    case symbol_kind::S_formal: // formal
+    case symbol_kind::s_formal: // formal
       value.move<Formal>(that.value);
       break;
 
-    case symbol_kind::S_formal_set: // formal_set
-    case symbol_kind::S_formals:    // formals
+    case symbol_kind::s_formal_set: // formal_set
+    case symbol_kind::s_formals:    // formals
       value.move<FormalsBuilder>(that.value);
       break;
 
@@ -743,32 +743,32 @@ bison_parser_t ::stack_symbol_type::operator=(stack_symbol_type& that) {
     case symbol_kind::S_SPATH:    // SPATH
     case symbol_kind::S_PATH_END: // PATH_END
     case symbol_kind::S_URI:      // URI
-    case symbol_kind::S_attr:     // attr
+    case symbol_kind::s_attr:     // attr
       value.move<StringToken>(that.value);
       break;
 
-    case symbol_kind::S_string_parts: // string_parts
-    case symbol_kind::S_string_attr:  // string_attr
+    case symbol_kind::s_string_parts: // string_parts
+    case symbol_kind::s_string_attr:  // string_attr
       value.move<ToBeStringyExpr>(that.value);
       break;
 
-    case symbol_kind::S_list: // list
+    case symbol_kind::s_list: // list
       value.move<std::pmr::vector<Expr*>>(that.value);
       break;
 
-    case symbol_kind::S_attrpath: // attrpath
+    case symbol_kind::s_attrpath: // attrpath
       value.move<std::vector<AttrName>>(that.value);
       break;
 
-    case symbol_kind::S_attrs: // attrs
+    case symbol_kind::s_attrs: // attrs
       value.move<std::vector<std::pair<AttrName, pos_idx_t>>>(that.value);
       break;
 
-    case symbol_kind::S_string_parts_interpolated: // string_parts_interpolated
+    case symbol_kind::s_string_parts_interpolated: // string_parts_interpolated
       value.move<std::vector<std::pair<pos_idx_t, Expr*>>>(that.value);
       break;
 
-    case symbol_kind::S_ind_string_parts: // ind_string_parts
+    case symbol_kind::s_ind_string_parts: // ind_string_parts
       value.move<std::vector<std::pair<pos_idx_t, std::variant<Expr*, StringToken>>>>(that.value);
       break;
 
@@ -938,7 +938,7 @@ int bison_parser_t ::parse() {
     }
     YY_SYMBOL_PRINT("Next token is", yyla);
 
-    if (yyla.kind() == symbol_kind::S_YYerror) {
+    if (yyla.kind() == symbol_kind::s_y_yerror) {
       // The scanner already issued an error message, process directly
       // to error recovery.  But do not keep the error token as
       // lookahead, it is too special and may lead us to an endless
@@ -994,31 +994,31 @@ int bison_parser_t ::parse() {
          correct type. The default '$$ = $1' action is NOT applied
          when using variants.  */
       switch (yyr1_[yyn]) {
-        case symbol_kind::S_start:          // start
-        case symbol_kind::S_expr:           // expr
-        case symbol_kind::S_expr_function:  // expr_function
-        case symbol_kind::S_expr_if:        // expr_if
-        case symbol_kind::S_expr_pipe_from: // expr_pipe_from
-        case symbol_kind::S_expr_pipe_into: // expr_pipe_into
-        case symbol_kind::S_expr_op:        // expr_op
-        case symbol_kind::S_expr_app:       // expr_app
-        case symbol_kind::S_expr_select:    // expr_select
-        case symbol_kind::S_expr_simple:    // expr_simple
-        case symbol_kind::S_path_start:     // path_start
+        case symbol_kind::s_start:          // start
+        case symbol_kind::s_expr:           // expr
+        case symbol_kind::s_expr_function:  // expr_function
+        case symbol_kind::s_expr_if:        // expr_if
+        case symbol_kind::s_expr_pipe_from: // expr_pipe_from
+        case symbol_kind::s_expr_pipe_into: // expr_pipe_into
+        case symbol_kind::s_expr_op:        // expr_op
+        case symbol_kind::s_expr_app:       // expr_app
+        case symbol_kind::s_expr_select:    // expr_select
+        case symbol_kind::s_expr_simple:    // expr_simple
+        case symbol_kind::s_path_start:     // path_start
           yylhs.value.emplace<Expr*>();
           break;
 
-        case symbol_kind::S_binds:  // binds
-        case symbol_kind::S_binds1: // binds1
+        case symbol_kind::s_binds:  // binds
+        case symbol_kind::s_binds1: // binds1
           yylhs.value.emplace<ExprAttrs*>();
           break;
 
-        case symbol_kind::S_formal: // formal
+        case symbol_kind::s_formal: // formal
           yylhs.value.emplace<Formal>();
           break;
 
-        case symbol_kind::S_formal_set: // formal_set
-        case symbol_kind::S_formals:    // formals
+        case symbol_kind::s_formal_set: // formal_set
+        case symbol_kind::s_formals:    // formals
           yylhs.value.emplace<FormalsBuilder>();
           break;
 
@@ -1038,32 +1038,32 @@ int bison_parser_t ::parse() {
         case symbol_kind::S_SPATH:    // SPATH
         case symbol_kind::S_PATH_END: // PATH_END
         case symbol_kind::S_URI:      // URI
-        case symbol_kind::S_attr:     // attr
+        case symbol_kind::s_attr:     // attr
           yylhs.value.emplace<StringToken>();
           break;
 
-        case symbol_kind::S_string_parts: // string_parts
-        case symbol_kind::S_string_attr:  // string_attr
+        case symbol_kind::s_string_parts: // string_parts
+        case symbol_kind::s_string_attr:  // string_attr
           yylhs.value.emplace<ToBeStringyExpr>();
           break;
 
-        case symbol_kind::S_list: // list
+        case symbol_kind::s_list: // list
           yylhs.value.emplace<std::pmr::vector<Expr*>>();
           break;
 
-        case symbol_kind::S_attrpath: // attrpath
+        case symbol_kind::s_attrpath: // attrpath
           yylhs.value.emplace<std::vector<AttrName>>();
           break;
 
-        case symbol_kind::S_attrs: // attrs
+        case symbol_kind::s_attrs: // attrs
           yylhs.value.emplace<std::vector<std::pair<AttrName, pos_idx_t>>>();
           break;
 
-        case symbol_kind::S_string_parts_interpolated: // string_parts_interpolated
+        case symbol_kind::s_string_parts_interpolated: // string_parts_interpolated
           yylhs.value.emplace<std::vector<std::pair<pos_idx_t, Expr*>>>();
           break;
 
-        case symbol_kind::S_ind_string_parts: // ind_string_parts
+        case symbol_kind::s_ind_string_parts: // ind_string_parts
           yylhs.value.emplace<std::vector<std::pair<pos_idx_t, std::variant<Expr*, StringToken>>>>();
           break;
 
@@ -1234,7 +1234,7 @@ int bison_parser_t ::parse() {
 #line 232 "parser.y"
           {
             yylhs.value.as<Expr*>() =
-                makeCall(state->exprs, state->at(yystack_[1].location),
+                make_call(state->exprs, state->at(yystack_[1].location),
                          yystack_[2].value.as<Expr*>(), yystack_[0].value.as<Expr*>());
           }
 #line 1303 "parser-tab.cpp"
@@ -1244,7 +1244,7 @@ int bison_parser_t ::parse() {
 #line 233 "parser.y"
           {
             yylhs.value.as<Expr*>() =
-                makeCall(state->exprs, state->at(yystack_[1].location),
+                make_call(state->exprs, state->at(yystack_[1].location),
                          yystack_[2].value.as<Expr*>(), yystack_[0].value.as<Expr*>());
           }
 #line 1309 "parser-tab.cpp"
@@ -1254,7 +1254,7 @@ int bison_parser_t ::parse() {
 #line 237 "parser.y"
           {
             yylhs.value.as<Expr*>() =
-                makeCall(state->exprs, state->at(yystack_[1].location),
+                make_call(state->exprs, state->at(yystack_[1].location),
                          yystack_[0].value.as<Expr*>(), yystack_[2].value.as<Expr*>());
           }
 #line 1315 "parser-tab.cpp"
@@ -1264,7 +1264,7 @@ int bison_parser_t ::parse() {
 #line 238 "parser.y"
           {
             yylhs.value.as<Expr*>() =
-                makeCall(state->exprs, state->at(yystack_[1].location),
+                make_call(state->exprs, state->at(yystack_[1].location),
                          yystack_[0].value.as<Expr*>(), yystack_[2].value.as<Expr*>());
           }
 #line 1321 "parser-tab.cpp"
@@ -1458,7 +1458,7 @@ int bison_parser_t ::parse() {
           case 39: // expr_app: expr_app expr_select
 #line 265 "parser.y"
           {
-            yylhs.value.as<Expr*>() = makeCall(state->exprs, CUR_POS, yystack_[1].value.as<Expr*>(),
+            yylhs.value.as<Expr*>() = make_call(state->exprs, CUR_POS, yystack_[1].value.as<Expr*>(),
                                                yystack_[0].value.as<Expr*>());
             yystack_[0].value.as<Expr*>()->warnIfCursedOr(state->symbols, state->positions);
           }
@@ -1555,7 +1555,7 @@ int bison_parser_t ::parse() {
           case 49: // expr_simple: IND_STRING_OPEN ind_string_parts IND_STRING_CLOSE
 #line 301 "parser.y"
           {
-            yylhs.value.as<Expr*>() = state->stripIndentation(
+            yylhs.value.as<Expr*>() = state->strip_indentation(
                 CUR_POS,
                 yystack_[1]
                     .value.as<std::vector<std::pair<pos_idx_t, std::variant<Expr*, StringToken>>>>());
@@ -1600,8 +1600,8 @@ int bison_parser_t ::parse() {
           case 53: // expr_simple: URI
 #line 316 "parser.y"
           {
-            static bool noURLLiterals = experimentalFeatureSettings.isEnabled(xp_t::NoUrlLiterals);
-            if (noURLLiterals)
+            static bool no_url_literals = experimental_feature_settings.is_enabled(xp_t::no_url_literals);
+            if (no_url_literals)
               throw ParseError(
                   {.msg = hint_fmt_t("URL literals are disabled"), .pos = state->positions[CUR_POS]});
             yylhs.value.as<Expr*>() = state->exprs.add<ExprString>(
@@ -1624,7 +1624,7 @@ int bison_parser_t ::parse() {
             yystack_[1].value.as<ExprAttrs*>()->recursive = true;
             yystack_[1].value.as<ExprAttrs*>()->pos = CUR_POS;
             yylhs.value.as<Expr*>() = state->exprs.add<ExprSelect>(
-                state->exprs.alloc, noPos, yystack_[1].value.as<ExprAttrs*>(), state->s.body);
+                state->exprs.alloc, no_pos, yystack_[1].value.as<ExprAttrs*>(), state->s.body);
           }
 #line 1562 "parser-tab.cpp"
           break;
@@ -1753,7 +1753,7 @@ int bison_parser_t ::parse() {
                           .pos = state->positions[CUR_POS]});
             }
 
-            Path path(absPath(literal, state->basePath.path.abs()));
+            Path path(abs_path(literal, state->base_path.path.abs()));
             /* add back in the trailing '/' to the first segment */
             if (literal.size() > 1 && literal.back() == '/')
               path += '/';
@@ -1762,8 +1762,8 @@ int bison_parser_t ::parse() {
                    root filesystem accessor, rather than the accessor of the
                    current Nix expression. */
                 literal.front() == '/'
-                    ? state->exprs.add<ExprPath>(state->exprs.alloc, state->rootFS, path)
-                    : state->exprs.add<ExprPath>(state->exprs.alloc, state->basePath.accessor,
+                    ? state->exprs.add<ExprPath>(state->exprs.alloc, state->root_fs, path)
+                    : state->exprs.add<ExprPath>(state->exprs.alloc, state->base_path.accessor,
                                                  path);
           }
 #line 1659 "parser-tab.cpp"
@@ -1777,10 +1777,10 @@ int bison_parser_t ::parse() {
                           std::string_view(yystack_[0].value.as<StringToken>().p,
                                            yystack_[0].value.as<StringToken>().l));
             }
-            Path path(getHome().string() + std::string(yystack_[0].value.as<StringToken>().p + 1,
+            Path path(get_home().string() + std::string(yystack_[0].value.as<StringToken>().p + 1,
                                                        yystack_[0].value.as<StringToken>().l - 1));
             yylhs.value.as<Expr*>() = state->exprs.add<ExprPath>(
-                state->exprs.alloc, ref<SourceAccessor>(state->rootFS), path);
+                state->exprs.alloc, ref<SourceAccessor>(state->root_fs), path);
           }
 #line 1674 "parser-tab.cpp"
           break;
@@ -2200,8 +2200,8 @@ int bison_parser_t ::parse() {
     for (;;) {
       yyn = yypact_[+yystack_[0].state];
       if (!yy_pact_value_is_default_(yyn)) {
-        yyn += symbol_kind::S_YYerror;
-        if (0 <= yyn && yyn <= yylast_ && yycheck_[yyn] == symbol_kind::S_YYerror) {
+        yyn += symbol_kind::s_y_yerror;
+        if (0 <= yyn && yyn <= yylast_ && yycheck_[yyn] == symbol_kind::s_y_yerror) {
           yyn = yytable_[yyn];
           if (0 < yyn)
             break;
@@ -2344,7 +2344,7 @@ int bison_parser_t ::context::expected_tokens(symbol_kind_type yyarg[], int yyar
     const int yychecklim = yylast_ - yyn + 1;
     const int yyxend = yychecklim < YYNTOKENS ? yychecklim : YYNTOKENS;
     for (int yyx = yyxbegin; yyx < yyxend; ++yyx)
-      if (yycheck_[yyx + yyn] == yyx && yyx != symbol_kind::S_YYerror &&
+      if (yycheck_[yyx + yyn] == yyx && yyx != symbol_kind::s_y_yerror &&
           !yy_table_value_is_error_(yytable_[yyx + yyn])) {
         if (!yyarg)
           ++yycount;
@@ -2705,28 +2705,28 @@ bison_parser_t ::symbol_kind_type bison_parser_t ::yytranslate_(int t) YY_NOEXCE
 
 namespace nix {
 
-Expr* parseExprFromBuf(char* text, size_t length, Pos::origin_t origin, const source_path_t& basePath,
+Expr* parse_expr_from_buf(char* text, size_t length, pos_t::origin_t origin, const source_path_t& base_path,
                        Exprs& exprs, SymbolTable& symbols, const EvalSettings& settings,
-                       pos_table_t& positions, DocCommentMap& docComments,
-                       const ref<SourceAccessor> rootFS) {
+                       pos_table_t& positions, DocCommentMap& doc_comments,
+                       const ref<SourceAccessor> root_fs) {
   yyscan_t scanner;
-  LexerState lexerState{
-      .positionToDocComment = docComments,
+  LexerState lexer_state{
+      .positionToDocComment = doc_comments,
       .positions = positions,
-      .origin = positions.addOrigin(origin, length),
+      .origin = positions.add_origin(origin, length),
   };
   ParserState state{
-      .lexerState = lexerState,
+      .lexer_state = lexer_state,
       .exprs = exprs,
       .symbols = symbols,
       .positions = positions,
-      .basePath = basePath,
-      .origin = lexerState.origin,
-      .rootFS = rootFS,
+      .base_path = base_path,
+      .origin = lexer_state.origin,
+      .root_fs = root_fs,
       .settings = settings,
   };
 
-  yylex_init_extra(&lexerState, &scanner);
+  yylex_init_extra(&lexer_state, &scanner);
   finally_t _destroy([&] { yylex_destroy(scanner); });
 
   yy_scan_buffer(text, length, scanner);

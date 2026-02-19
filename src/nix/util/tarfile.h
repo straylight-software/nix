@@ -36,12 +36,12 @@ struct tar_archive_t {
   ~tar_archive_t();
 };
 
-int getArchiveFilterCodeByName(const std::string& method);
+int get_archive_filter_code_by_name(const std::string& method);
 
-void unpackTarfile(Source& source, const std::filesystem::path& destDir);
+void unpack_tarfile(Source& source, const std::filesystem::path& dest_dir);
 
-void unpackTarfile(const std::filesystem::path& tarFile, const std::filesystem::path& destDir);
+void unpack_tarfile(const std::filesystem::path& tar_file, const std::filesystem::path& dest_dir);
 
-time_t unpackTarfileToSink(tar_archive_t& archive, extended_file_system_object_sink_t& parseSink);
+time_t unpack_tarfile_to_sink(tar_archive_t& archive, extended_file_system_object_sink_t& parse_sink);
 
 } // namespace nix

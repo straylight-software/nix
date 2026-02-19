@@ -28,13 +28,13 @@ struct BuildResult {
       ResolvesToAlreadyValid = 13,
     } status;
 
-    static std::string_view statusToString(Status status);
+    static std::string_view status_to_string(Status status);
 
     /**
      * For derivations, a mapping from the names of the wanted outputs
      * to actual paths.
      */
-    SingleDrvOutputs builtOutputs;
+    SingleDrvOutputs built_outputs;
 
     bool operator==(const BuildResult::Success&) const noexcept;
     std::strong_ordering operator<=>(const BuildResult::Success&) const noexcept;
@@ -75,7 +75,7 @@ struct BuildResult {
       Cancelled = 16,
     } status = MiscFailure;
 
-    static std::string_view statusToString(Status status);
+    static std::string_view status_to_string(Status status);
 
     /**
      * Information about the error if the build failed.
@@ -97,7 +97,7 @@ struct BuildResult {
     std::strong_ordering operator<=>(const BuildResult::Failure&) const noexcept;
 
     [[noreturn]] void rethrow() const {
-      throw Error("%s", errorMsg.empty() ? statusToString(status) : errorMsg);
+      throw Error("%s", errorMsg.empty() ? status_to_string(status) : errorMsg);
     }
   };
 
@@ -126,12 +126,12 @@ struct BuildResult {
    * The start/stop times of the build (or one of the rounds, if it
    * was repeated).
    */
-  time_t startTime = 0, stopTime = 0;
+  time_t start_time = 0, stopTime = 0;
 
   /**
    * User and system CPU time the build took.
    */
-  std::optional<std::chrono::microseconds> cpuUser, cpuSystem;
+  std::optional<std::chrono::microseconds> cpu_user, cpu_system;
 
   bool operator==(const BuildResult&) const noexcept;
   std::strong_ordering operator<=>(const BuildResult&) const noexcept;

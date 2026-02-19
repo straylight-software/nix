@@ -6,45 +6,45 @@ namespace nix {
 
 /* Position table. */
 
-Pos pos_table_t::operator[](pos_idx_t p) const {
+pos_t pos_table_t::operator[](pos_idx_t p) const {
   auto origin = resolve(p);
   if (!origin)
     return {};
 
-  const auto offset = origin->offsetOf(p);
+  const auto offset = origin->offset_of(p);
 
-  Pos result{0, 0, origin->origin};
-  auto linesCache = this->linesCache.lock();
+  pos_t result{0, 0, origin->origin};
+  auto lines_cache = this->lines_cache.lock();
 
   /* Try the origin's line cache */
-  const auto* linesForInput = linesCache->getOrNullptr(origin->offset);
+  const auto* lines_for_input = lines_cache->get_or_nullptr(origin->offset);
 
-  auto fillCacheForOrigin = [](std::string_view content) {
-    auto contentLines = lines_t();
+  auto fill_cache_for_origin = [](std::string_view content) {
+    auto content_lines = lines_t();
 
     const char* begin = content.data();
-    for (Pos::lines_iterator_t it(content), end; it != end; it++)
-      contentLines.push_back(it->data() - begin);
-    if (contentLines.empty())
-      contentLines.push_back(0);
+    for (pos_t::lines_iterator_t it(content), end; it != end; it++)
+      content_lines.push_back(it->data() - begin);
+    if (content_lines.empty())
+      content_lines.push_back(0);
 
-    return contentLines;
+    return content_lines;
   };
 
   /* Calculate line offsets and fill the cache */
-  if (!linesForInput) {
-    auto originContent = result.getSource().value_or("");
-    linesCache->upsert(origin->offset, fillCacheForOrigin(originContent));
-    linesForInput = linesCache->getOrNullptr(origin->offset);
+  if (!lines_for_input) {
+    auto origin_content = result.get_source().value_or("");
+    lines_cache->upsert(origin->offset, fill_cache_for_origin(origin_content));
+    lines_for_input = lines_cache->get_or_nullptr(origin->offset);
   }
 
-  assert(linesForInput);
+  assert(lines_for_input);
 
   // as above: the first line starts at byte 0 and is always present
-  auto lineStartOffset =
-      std::prev(std::upper_bound(linesForInput->begin(), linesForInput->end(), offset));
-  result.line = 1 + (lineStartOffset - linesForInput->begin());
-  result.column = 1 + (offset - *lineStartOffset);
+  auto line_start_offset =
+      std::prev(std::upper_bound(lines_for_input->begin(), lines_for_input->end(), offset));
+  result.line = 1 + (line_start_offset - lines_for_input->begin());
+  result.column = 1 + (offset - *line_start_offset);
   return result;
 }
 

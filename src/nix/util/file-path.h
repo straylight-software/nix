@@ -37,9 +37,9 @@ struct path_view_ng_t : os_string_view_t {
   string_view& native() { return *this; }
 };
 
-std::optional<std::filesystem::path> maybePath(path_view_t path);
+std::optional<std::filesystem::path> maybe_path(path_view_t path);
 
-std::filesystem::path pathNG(path_view_t path);
+std::filesystem::path path_ng(path_view_t path);
 
 template <>
 struct json_avoids_null<std::filesystem::path> : std::true_type {};

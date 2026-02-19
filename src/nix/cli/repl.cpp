@@ -12,35 +12,35 @@
 
 namespace nix {
 
-void runNix(const std::string& program, const strings_t& args,
+void run_nix(const std::string& program, const strings_t& args,
             const std::optional<std::string>& input = {}) {
-  auto subprocessEnv = getEnv();
-  subprocessEnv["NIX_CONFIG"] = globalConfig.toKeyValue();
+  auto subprocess_env = get_env();
+  subprocess_env["NIX_CONFIG"] = global_config.to_key_value();
   // isInteractive avoid grabling interactive commands
-  runProgram2(run_options_t{
-      .program = getNixBin(program).string(),
+  run_program2(run_options_t{
+      .program = get_nix_bin(program).string(),
       .args = args,
-      .environment = subprocessEnv,
+      .environment = subprocess_env,
       .input = input,
-      .isInteractive = true,
+      .is_interactive = true,
   });
 
   return;
 }
 
 struct cmd_repl_t : RawInstallablesCommand {
-  cmd_repl_t() { evalSettings.pureEval = false; }
+  cmd_repl_t() { eval_settings.pureEval = false; }
 
   /**
    * This command is stable before the others
    */
-  std::optional<experimental_feature_t> experimentalFeature() override { return std::nullopt; }
+  std::optional<experimental_feature_t> experimental_feature() override { return std::nullopt; }
 
   std::vector<std::string> files;
 
   strings_t getDefaultFlakeAttrPaths() override { return {""}; }
 
-  bool forceImpureByDefault() override { return true; }
+  bool force_impure_by_default() override { return true; }
 
   std::string description() override {
     return "start an interactive environment for evaluating Nix expressions";
@@ -52,16 +52,16 @@ struct cmd_repl_t : RawInstallablesCommand {
         ;
   }
 
-  void applyDefaultInstallables(std::vector<std::string>& rawInstallables) override {
-    if (rawInstallables.empty() && (file.has_value() || expr.has_value())) {
-      rawInstallables.push_back(".");
+  void applyDefaultInstallables(std::vector<std::string>& raw_installables) override {
+    if (raw_installables.empty() && (file.has_value() || expr.has_value())) {
+      raw_installables.push_back(".");
     }
   }
 
-  void run(ref<Store> store, std::vector<std::string>&& rawInstallables) override {
+  void run(ref<Store> store, std::vector<std::string>&& raw_installables) override {
     auto state = getEvalState();
-    auto getValues = [&]() -> AbstractNixRepl::AnnotatedValues {
-      auto installables = parseInstallables(store, rawInstallables);
+    auto get_values = [&]() -> AbstractNixRepl::AnnotatedValues {
+      auto installables = parseInstallables(store, raw_installables);
       AbstractNixRepl::AnnotatedValues values;
       for (auto& installable_ : installables) {
         auto& installable = InstallableValue::require(*installable_);
@@ -70,9 +70,9 @@ struct cmd_repl_t : RawInstallablesCommand {
           auto [val, pos] = installable.toValue(*state);
           auto what = installable.what();
           state->forceValue(*val, pos);
-          auto autoArgs = getAutoArgs(*state);
+          auto auto_args = getAutoArgs(*state);
           auto valPost = state->allocValue();
-          state->autoCallFunction(*autoArgs, *val, *valPost);
+          state->autoCallFunction(*auto_args, *val, *valPost);
           state->forceValue(*valPost, pos);
           values.push_back({valPost, what});
         } else {
@@ -82,13 +82,13 @@ struct cmd_repl_t : RawInstallablesCommand {
       }
       return values;
     };
-    auto repl = AbstractNixRepl::create(lookupPath, openStore(), state, getValues, runNix);
-    repl->autoArgs = getAutoArgs(*repl->state);
-    repl->initEnv();
-    repl->mainLoop();
+    auto repl = AbstractNixRepl::create(lookup_path, open_store(), state, get_values, run_nix);
+    repl->auto_args = getAutoArgs(*repl->state);
+    repl->init_env();
+    repl->main_loop();
   }
 };
 
-static auto rCmdRepl = registerCommand<cmd_repl_t>("repl");
+static auto r_cmd_repl = registerCommand<cmd_repl_t>("repl");
 
 } // namespace nix

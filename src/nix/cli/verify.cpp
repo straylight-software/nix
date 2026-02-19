@@ -11,38 +11,38 @@
 using namespace nix;
 
 struct cmd_verify_t : StorePathsCommand {
-  bool noContents = false;
-  bool noTrust = false;
-  strings_t substituterUris;
-  size_t sigsNeeded = 0;
+  bool no_contents = false;
+  bool no_trust = false;
+  strings_t substituter_uris;
+  size_t sigs_needed = 0;
 
   cmd_verify_t() {
-    addFlag({
-        .longName = "no-contents",
+    add_flag({
+        .long_name = "no-contents",
         .description = "Do not verify the contents of each store path.",
-        .handler = {&noContents, true},
+        .handler = {&no_contents, true},
     });
 
-    addFlag({
-        .longName = "no-trust",
+    add_flag({
+        .long_name = "no-trust",
         .description = "Do not verify whether each store path is trusted.",
-        .handler = {&noTrust, true},
+        .handler = {&no_trust, true},
     });
 
-    addFlag({
-        .longName = "substituter",
-        .shortName = 's',
+    add_flag({
+        .long_name = "substituter",
+        .short_name = 's',
         .description = "Use signatures from the specified store.",
         .labels = {"store-uri"},
-        .handler = {[&](std::string s) { substituterUris.push_back(s); }},
+        .handler = {[&](std::string s) { substituter_uris.push_back(s); }},
     });
 
-    addFlag({
-        .longName = "sigs-needed",
-        .shortName = 'n',
+    add_flag({
+        .long_name = "sigs-needed",
+        .short_name = 'n',
         .description = "Require that each path is signed by at least *n* different keys.",
         .labels = {"n"},
-        .handler = {&sigsNeeded},
+        .handler = {&sigs_needed},
     });
   }
 
@@ -54,14 +54,14 @@ struct cmd_verify_t : StorePathsCommand {
         ;
   }
 
-  void run(ref<Store> store, StorePaths&& storePaths) override {
+  void run(ref<Store> store, StorePaths&& store_paths) override {
     std::vector<ref<Store>> substituters;
-    for (auto& s : substituterUris)
-      substituters.push_back(openStore(s));
+    for (auto& s : substituter_uris)
+      substituters.push_back(open_store(s));
 
-    auto publicKeys = getDefaultPublicKeys();
+    auto public_keys = get_default_public_keys();
 
-    activity_t act(*logger, actVerifyPaths);
+    activity_t act(*logger, act_verify_paths);
 
     std::atomic<size_t> done{0};
     std::atomic<size_t> untrusted{0};
@@ -69,89 +69,89 @@ struct cmd_verify_t : StorePathsCommand {
     std::atomic<size_t> failed{0};
     std::atomic<size_t> active{0};
 
-    auto update = [&]() { act.progress(done, storePaths.size(), active, failed); };
+    auto update = [&]() { act.progress(done, store_paths.size(), active, failed); };
 
     thread_pool_t pool;
 
-    auto doPath = [&](const StorePath& storePath) {
+    auto do_path = [&](const StorePath& store_path) {
       try {
-        checkInterrupt();
+        check_interrupt();
 
         maintain_count_t<std::atomic<size_t>> mcActive(active);
         update();
 
-        auto info = store->queryPathInfo(storePath);
+        auto info = store->queryPathInfo(store_path);
 
         // Note: info->path can be different from storePath
         // for binary cache stores when using --all (since we
         // can't enumerate names efficiently).
-        activity_t act2(*logger, lvlInfo, actUnknown,
+        activity_t act2(*logger, lvl_info, act_unknown,
                       fmt("checking '%s'", store->printStorePath(info->path)));
 
-        if (!noContents) {
-          auto hashSink = hash_sink_t(info->narHash.algo);
+        if (!no_contents) {
+          auto hash_sink = hash_sink_t(info->nar_hash.algo);
 
-          store->narFromPath(info->path, hashSink);
+          store->nar_from_path(info->path, hash_sink);
 
-          auto hash = hashSink.finish();
+          auto hash = hash_sink.finish();
 
-          if (hash.hash != info->narHash) {
+          if (hash.hash != info->nar_hash) {
             corrupted++;
-            act2.result(resCorruptedPath, store->printStorePath(info->path));
+            act2.result(res_corrupted_path, store->printStorePath(info->path));
             printError("path '%s' was modified! expected hash '%s', got '%s'",
                        store->printStorePath(info->path),
-                       info->narHash.to_string(hash_format_t::Nix32, true),
-                       hash.hash.to_string(hash_format_t::Nix32, true));
+                       info->nar_hash.to_string(hash_format_t::nix32, true),
+                       hash.hash.to_string(hash_format_t::nix32, true));
           }
         }
 
-        if (!noTrust) {
+        if (!no_trust) {
           bool good = false;
 
-          if (info->ultimate && !sigsNeeded)
+          if (info->ultimate && !sigs_needed)
             good = true;
 
           else {
-            string_set_t sigsSeen;
-            size_t actualSigsNeeded = std::max(sigsNeeded, (size_t)1);
-            size_t validSigs = 0;
+            string_set_t sigs_seen;
+            size_t actual_sigs_needed = std::max(sigs_needed, (size_t)1);
+            size_t valid_sigs = 0;
 
-            auto doSigs = [&](string_set_t sigs) {
+            auto do_sigs = [&](string_set_t sigs) {
               for (const auto& sig : sigs) {
-                if (!sigsSeen.insert(sig).second)
+                if (!sigs_seen.insert(sig).second)
                   continue;
-                if (validSigs < ValidPathInfo::maxSigs &&
-                    info->checkSignature(*store, publicKeys, sig))
-                  validSigs++;
+                if (valid_sigs < ValidPathInfo::maxSigs &&
+                    info->checkSignature(*store, public_keys, sig))
+                  valid_sigs++;
               }
             };
 
             if (info->isContentAddressed(*store))
-              validSigs = ValidPathInfo::maxSigs;
+              valid_sigs = ValidPathInfo::maxSigs;
 
-            doSigs(info->sigs);
+            do_sigs(info->sigs);
 
             for (auto& store2 : substituters) {
-              if (validSigs >= actualSigsNeeded)
+              if (valid_sigs >= actual_sigs_needed)
                 break;
               try {
                 auto info2 = store2->queryPathInfo(info->path);
                 if (info2->isContentAddressed(*store))
-                  validSigs = ValidPathInfo::maxSigs;
-                doSigs(info2->sigs);
+                  valid_sigs = ValidPathInfo::maxSigs;
+                do_sigs(info2->sigs);
               } catch (InvalidPath&) {
               } catch (Error& e) {
                 logError(e.info());
               }
             }
 
-            if (validSigs >= actualSigsNeeded)
+            if (valid_sigs >= actual_sigs_needed)
               good = true;
           }
 
           if (!good) {
             untrusted++;
-            act2.result(resUntrustedPath, store->printStorePath(info->path));
+            act2.result(res_untrusted_path, store->printStorePath(info->path));
             printError("path '%s' is untrusted", store->printStorePath(info->path));
           }
         }
@@ -166,8 +166,8 @@ struct cmd_verify_t : StorePathsCommand {
       update();
     };
 
-    for (auto& storePath : storePaths)
-      pool.enqueue(std::bind(doPath, storePath));
+    for (auto& store_path : store_paths)
+      pool.enqueue(std::bind(do_path, store_path));
 
     pool.process();
 
@@ -175,4 +175,4 @@ struct cmd_verify_t : StorePathsCommand {
   }
 };
 
-static auto rCmdVerify = registerCommand2<cmd_verify_t>({"store", "verify"});
+static auto r_cmd_verify = registerCommand2<cmd_verify_t>({"store", "verify"});

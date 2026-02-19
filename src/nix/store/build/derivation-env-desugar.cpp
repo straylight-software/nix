@@ -6,23 +6,23 @@
 
 namespace nix {
 
-std::string& DesugaredEnv::atFileEnvPair(std::string_view name, std::string fileName) {
-  auto& ret = extraFiles[fileName];
+std::string& DesugaredEnv::atFileEnvPair(std::string_view name, std::string file_name) {
+  auto& ret = extraFiles[file_name];
   variables.insert_or_assign(std::string{name}, EnvEntry{
                                                     .prependBuildDirectory = true,
-                                                    .value = std::move(fileName),
+                                                    .value = std::move(file_name),
                                                 });
   return ret;
 }
 
 DesugaredEnv DesugaredEnv::create(Store& store, const Derivation& drv,
-                                  const DerivationOptions<StorePath>& drvOptions,
+                                  const DerivationOptions<StorePath>& drv_options,
                                   const StorePathSet& inputPaths) {
   DesugaredEnv res;
 
-  if (drv.structuredAttrs) {
+  if (drv.structured_attrs) {
     auto json =
-        drv.structuredAttrs->prepareStructuredAttrs(store, drvOptions, inputPaths, drv.outputs);
+        drv.structured_attrs->prepareStructuredAttrs(store, drv_options, inputPaths, drv.outputs);
     res.atFileEnvPair("NIX_ATTRS_SH_FILE", ".attrs.sh") = StructuredAttrs::writeShell(json);
     res.atFileEnvPair("NIX_ATTRS_JSON_FILE", ".attrs.json") =
         static_cast<nlohmann::json>(std::move(json)).dump();
@@ -31,7 +31,7 @@ DesugaredEnv DesugaredEnv::create(Store& store, const Derivation& drv,
        environment or via a file, as specified by
        `DerivationOptions::passAsFile`. */
     for (auto& [envName, envValue] : drv.env) {
-      if (!drvOptions.passAsFile.contains(envName)) {
+      if (!drv_options.passAsFile.contains(envName)) {
         res.variables.insert_or_assign(envName, EnvEntry{
                                                     .value = envValue,
                                                 });
@@ -39,16 +39,16 @@ DesugaredEnv DesugaredEnv::create(Store& store, const Derivation& drv,
         res.atFileEnvPair(
             envName + "Path",
             ".attr-" +
-                hashString(hash_algorithm_t::SHA256, envName).to_string(hash_format_t::Nix32, false)) =
+                hash_string(hash_algorithm_t::SHA256, envName).to_string(hash_format_t::nix32, false)) =
             envValue;
       }
     }
 
     /* Handle exportReferencesGraph(), if set. */
-    for (auto& [fileName, storePaths] : drvOptions.exportReferencesGraph) {
-      /* Write closure info to <fileName>. */
+    for (auto& [file_name, store_paths] : drv_options.exportReferencesGraph) {
+      /* Write closure info to <file_name>. */
       res.extraFiles.insert_or_assign(
-          fileName, store.makeValidityRegistration(store.exportReferences(storePaths, inputPaths),
+          file_name, store.makeValidityRegistration(store.exportReferences(store_paths, inputPaths),
                                                    false, false));
     }
   }

@@ -13,8 +13,8 @@ namespace nix {
 
 struct source_path_t;
 
-MakeError(BadStorePath, Error);
-MakeError(BadStorePathName, BadStorePath);
+make_error(BadStorePath, Error);
+make_error(BadStorePathName, BadStorePath);
 
 /**
  * @todo This should just be inherited by `StoreConfig`. However, it
@@ -23,12 +23,12 @@ MakeError(BadStorePathName, BadStorePath);
  * `store.config.method(...)`.
  *
  * @todo this should not have "config" in its name, because it no longer
- * uses the configuration system for `storeDir` --- in fact, `storeDir`
+ * uses the configuration system for `store_dir` --- in fact, `store_dir`
  * isn't even owned, but a mere reference. But doing that rename would
  * cause a bunch of churn.
  */
 struct StoreDirConfig {
-  const Path& storeDir;
+  const Path& store_dir;
 
   // pure methods
 
@@ -39,7 +39,7 @@ struct StoreDirConfig {
   std::string printStorePath(const StorePath& path) const;
 
   /**
-   * Deprecated
+   * deprecated
    *
    * \todo remove
    */
@@ -51,7 +51,7 @@ struct StoreDirConfig {
    * Display a set of paths in human-readable form (i.e., between quotes
    * and separated by commas).
    */
-  std::string showPaths(const StorePathSet& paths) const;
+  std::string show_paths(const StorePathSet& paths) const;
 
   /**
    * @return true if *path* is in the Nix store (but not the Nix
@@ -86,15 +86,15 @@ struct StoreDirConfig {
                                       const ContentAddressWithReferences& ca) const;
 
   /**
-   * Read-only variant of addToStore(). It returns the store
+   * Read-only variant of add_to_store(). It returns the store
    * path for the given file system object.
    */
   std::pair<StorePath, Hash>
   computeStorePath(std::string_view name, const source_path_t& path,
-                   ContentAddressMethod method = ContentAddressMethod::raw_t::NixArchive,
-                   hash_algorithm_t hashAlgo = hash_algorithm_t::SHA256,
+                   ContentAddressMethod method = ContentAddressMethod::raw_t::nix_archive,
+                   hash_algorithm_t hash_algo = hash_algorithm_t::SHA256,
                    const StorePathSet& references = {},
-                   path_filter_t& filter = defaultPathFilter) const;
+                   path_filter_t& filter = default_path_filter) const;
 };
 
 } // namespace nix

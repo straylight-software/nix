@@ -50,7 +50,7 @@ namespace nix {
 
 settings_t settings;
 
-static global_config_t::Register rSettings(&settings);
+static global_config_t::Register r_settings(&settings);
 
 settings_t::settings_t()
     : nixPrefix(NIX_PREFIX),
@@ -58,33 +58,33 @@ settings_t::settings_t()
 #ifndef _WIN32
           // On Windows `/nix/store` is not a canonical path, but we dont'
           // want to deal with that yet.
-          canonPath
+          canon_path
 #endif
-          (getEnvNonEmpty("NIX_STORE_DIR")
-               .value_or(getEnvNonEmpty("NIX_STORE").value_or(NIX_STORE_DIR)))),
-      nixDataDir(canonPath(getEnvNonEmpty("NIX_DATA_DIR").value_or(NIX_DATA_DIR))),
-      nixLogDir(canonPath(getEnvNonEmpty("NIX_LOG_DIR").value_or(NIX_LOG_DIR))),
-      nixStateDir(canonPath(getEnvNonEmpty("NIX_STATE_DIR").value_or(NIX_STATE_DIR))),
-      nixConfDir(canonPath(getEnvNonEmpty("NIX_CONF_DIR").value_or(NIX_CONF_DIR))),
-      nixUserConfFiles(getUserConfigFiles()),
-      nixDaemonSocketFile(canonPath(
-          getEnvNonEmpty("NIX_DAEMON_SOCKET_PATH").value_or(nixStateDir + DEFAULT_SOCKET_PATH))) {
+          (get_env_non_empty("NIX_STORE_DIR")
+               .value_or(get_env_non_empty("NIX_STORE").value_or(NIX_STORE_DIR)))),
+      nixDataDir(canon_path(get_env_non_empty("NIX_DATA_DIR").value_or(NIX_DATA_DIR))),
+      nixLogDir(canon_path(get_env_non_empty("NIX_LOG_DIR").value_or(NIX_LOG_DIR))),
+      nixStateDir(canon_path(get_env_non_empty("NIX_STATE_DIR").value_or(NIX_STATE_DIR))),
+      nixConfDir(canon_path(get_env_non_empty("NIX_CONF_DIR").value_or(NIX_CONF_DIR))),
+      nixUserConfFiles(get_user_config_files()),
+      nixDaemonSocketFile(canon_path(
+          get_env_non_empty("NIX_DAEMON_SOCKET_PATH").value_or(nixStateDir + DEFAULT_SOCKET_PATH))) {
 #ifndef _WIN32
-  buildUsersGroup = isRootUser() ? "nixbld" : "";
+  buildUsersGroup = is_root_user() ? "nixbld" : "";
 #endif
-  allowSymlinkedStore = getEnv("NIX_IGNORE_SYMLINK_STORE") == "1";
+  allowSymlinkedStore = get_env("NIX_IGNORE_SYMLINK_STORE") == "1";
 
-  auto sslOverride = getEnv("NIX_SSL_CERT_FILE").value_or(getEnv("SSL_CERT_FILE").value_or(""));
+  auto sslOverride = get_env("NIX_SSL_CERT_FILE").value_or(get_env("SSL_CERT_FILE").value_or(""));
   if (sslOverride != "")
-    caFile = sslOverride;
+    ca_file = sslOverride;
 
   /* Backwards compatibility. */
-  auto s = getEnv("NIX_REMOTE_SYSTEMS");
+  auto s = get_env("NIX_REMOTE_SYSTEMS");
   if (s) {
     strings_t ss;
-    for (auto& p : tokenizeString<strings_t>(*s, ":"))
+    for (auto& p : tokenize_string<strings_t>(*s, ":"))
       ss.push_back("@" + p);
-    builders = concatStringsSep("\n", ss);
+    builders = concat_strings_sep("\n", ss);
   }
 
 #if (defined(__linux__) || defined(__FreeBSD__)) && defined(SANDBOX_SHELL)
@@ -104,46 +104,46 @@ settings_t::settings_t()
        }) {
     sandboxPaths.get().insert_or_assign(std::string{p}, ChrootPath{.source = std::string{p}});
   }
-  allowedImpureHostPrefixes = tokenizeString<string_set_t>("/System/Library /usr/lib /dev /bin/sh");
+  allowedImpureHostPrefixes = tokenize_string<string_set_t>("/System/Library /usr/lib /dev /bin/sh");
 #endif
 }
 
-void loadConfFile(abstract_config_t& config) {
-  auto applyConfigFile = [&](const Path& path) {
+void load_conf_file(abstract_config_t& config) {
+  auto apply_config_file = [&](const Path& path) {
     try {
-      std::string contents = readFile(path);
-      config.applyConfig(contents, path);
+      std::string contents = read_file(path);
+      config.apply_config(contents, path);
     } catch (SystemError&) {
     }
   };
 
-  applyConfigFile((settings.nixConfDir / "nix.conf").string());
+  apply_config_file((settings.nixConfDir / "nix.conf").string());
 
   /* We only want to send overrides to the daemon, i.e. stuff from
      ~/.nix/nix.conf or the command line. */
-  config.resetOverridden();
+  config.reset_overridden();
 
   auto files = settings.nixUserConfFiles;
   for (auto file = files.rbegin(); file != files.rend(); file++) {
-    applyConfigFile(*file);
+    apply_config_file(*file);
   }
 
-  auto nixConfEnv = getEnv("NIX_CONFIG");
-  if (nixConfEnv.has_value()) {
-    config.applyConfig(nixConfEnv.value(), "NIX_CONFIG");
+  auto nix_conf_env = get_env("NIX_CONFIG");
+  if (nix_conf_env.has_value()) {
+    config.apply_config(nix_conf_env.value(), "NIX_CONFIG");
   }
 }
 
-std::vector<Path> getUserConfigFiles() {
+std::vector<Path> get_user_config_files() {
   // Use the paths specified in NIX_USER_CONF_FILES if it has been defined
-  auto nixConfFiles = getEnv("NIX_USER_CONF_FILES");
-  if (nixConfFiles.has_value()) {
-    return tokenizeString<std::vector<std::string>>(nixConfFiles.value(), ":");
+  auto nix_conf_files = get_env("NIX_USER_CONF_FILES");
+  if (nix_conf_files.has_value()) {
+    return tokenize_string<std::vector<std::string>>(nix_conf_files.value(), ":");
   }
 
   // Use the paths specified by the XDG spec
   std::vector<Path> files;
-  auto dirs = getConfigDirs();
+  auto dirs = get_config_dirs();
   for (auto& dir : dirs) {
     files.insert(files.end(), (dir / "nix.conf").string());
   }
@@ -152,7 +152,7 @@ std::vector<Path> getUserConfigFiles() {
 
 unsigned int settings_t::getDefaultCores() {
   const unsigned int concurrency = std::max(1U, std::thread::hardware_concurrency());
-  const unsigned int maxCPU = getMaxCPU();
+  const unsigned int maxCPU = get_max_cpu();
 
   if (maxCPU > 0)
     return maxCPU;
@@ -212,7 +212,7 @@ string_set_t settings_t::getDefaultExtraPlatforms() {
     extraPlatforms.insert("i686-linux");
 
 #ifdef __linux__
-  string_set_t levels = computeLevels();
+  string_set_t levels = compute_levels();
   for (auto iter = levels.begin(); iter != levels.end(); ++iter)
     extraPlatforms.insert(*iter + "-linux");
 #elif defined(__APPLE__)
@@ -221,9 +221,9 @@ string_set_t settings_t::getDefaultExtraPlatforms() {
   // x86_64 in aarch64 environments or vice versa since they can
   // always exec with their own binary preferences.
   if (std::string{NIX_LOCAL_SYSTEM} == "aarch64-darwin" &&
-      runProgram(run_options_t{.program = "arch",
+      run_program(run_options_t{.program = "arch",
                             .args = {"-arch", "x86_64", "/usr/bin/true"},
-                            .mergeStderrToStdout = true})
+                            .merge_stderr_to_stdout = true})
               .first == 0)
     extraPlatforms.insert("x86_64-darwin");
 #endif
@@ -237,7 +237,7 @@ bool settings_t::isWSL1() {
   uname(&utsbuf);
   // WSL1 uses -Microsoft suffix
   // WSL2 uses -microsoft-standard suffix
-  return hasSuffix(utsbuf.release, "-Microsoft");
+  return has_suffix(utsbuf.release, "-Microsoft");
 #else
   return false;
 #endif
@@ -246,7 +246,7 @@ bool settings_t::isWSL1() {
 Path settings_t::getDefaultSSLCertFile() {
   for (auto& fn : {"/etc/ssl/certs/ca-certificates.crt",
                    "/nix/var/nix/profiles/default/etc/ssl/certs/ca-bundle.crt"})
-    if (pathAccessible(fn))
+    if (path_accessible(fn))
       return fn;
   return "";
 }
@@ -260,9 +260,9 @@ const ExternalBuilder* settings_t::findExternalDerivationBuilderIfSupported(cons
   return nullptr;
 }
 
-std::string nixVersion = PACKAGE_VERSION;
+std::string nix_version = PACKAGE_VERSION;
 
-const std::string determinateNixVersion = DETERMINATE_NIX_VERSION;
+const std::string determinate_nix_version = DETERMINATE_NIX_VERSION;
 
 NLOHMANN_JSON_SERIALIZE_ENUM(SandboxMode, {
                                               {SandboxMode::smEnabled, true},
@@ -300,23 +300,23 @@ std::string base_setting_t<SandboxMode>::to_string() const {
 }
 
 template <>
-void base_setting_t<SandboxMode>::convertToArg(Args& args, const std::string& category) {
-  args.addFlag({
-      .longName = name,
+void base_setting_t<SandboxMode>::convert_to_arg(Args& args, const std::string& category) {
+  args.add_flag({
+      .long_name = name,
       .aliases = aliases,
       .description = "Enable sandboxing.",
       .category = category,
       .handler = {[this]() { override(smEnabled); }},
   });
-  args.addFlag({
-      .longName = "no-" + name,
+  args.add_flag({
+      .long_name = "no-" + name,
       .aliases = aliases,
       .description = "Disable sandboxing.",
       .category = category,
       .handler = {[this]() { override(smDisabled); }},
   });
-  args.addFlag({
-      .longName = "relaxed-" + name,
+  args.add_flag({
+      .long_name = "relaxed-" + name,
       .aliases = aliases,
       .description = "Enable sandboxing, but allow builds to disable it.",
       .category = category,
@@ -328,8 +328,8 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(ChrootPath, source, optional)
 
 template <>
 PathsInChroot base_setting_t<PathsInChroot>::parse(const std::string& str) const {
-  PathsInChroot pathsInChroot;
-  for (auto i : tokenizeString<string_set_t>(str)) {
+  PathsInChroot paths_in_chroot;
+  for (auto i : tokenize_string<string_set_t>(str)) {
     if (i.empty())
       continue;
     bool optional = false;
@@ -346,9 +346,9 @@ PathsInChroot base_setting_t<PathsInChroot>::parse(const std::string& str) const
       inside = i.substr(0, p);
       outside = i.substr(p + 1);
     }
-    pathsInChroot[inside] = {.source = outside, .optional = optional};
+    paths_in_chroot[inside] = {.source = outside, .optional = optional};
   }
-  return pathsInChroot;
+  return paths_in_chroot;
 }
 
 template <>
@@ -360,14 +360,14 @@ std::string base_setting_t<PathsInChroot>::to_string() const {
       s += "?";
     accum.push_back(std::move(s));
   }
-  return concatStringsSep(" ", accum);
+  return concat_strings_sep(" ", accum);
 }
 
 unsigned int MaxBuildJobsSetting::parse(const std::string& str) const {
   if (str == "auto")
     return std::max(1U, std::thread::hardware_concurrency());
   else {
-    if (auto n = string2Int<decltype(value)>(str))
+    if (auto n = string2_int<decltype(value)>(str))
       return *n;
     else
       throw UsageError("configuration setting '%s' should be 'auto' or an integer", name);
@@ -375,25 +375,25 @@ unsigned int MaxBuildJobsSetting::parse(const std::string& str) const {
 }
 
 template <>
-settings_t::ExternalBuilders
-base_setting_t<settings_t::ExternalBuilders>::parse(const std::string& str) const {
+settings_t::external_builders
+base_setting_t<settings_t::external_builders>::parse(const std::string& str) const {
   try {
-    return nlohmann::json::parse(str).template get<settings_t::ExternalBuilders>();
+    return nlohmann::json::parse(str).template get<settings_t::external_builders>();
   } catch (std::exception& e) {
     throw UsageError("parsing setting '%s': %s", name, e.what());
   }
 }
 
 template <>
-std::string base_setting_t<settings_t::ExternalBuilders>::to_string() const {
+std::string base_setting_t<settings_t::external_builders>::to_string() const {
   return nlohmann::json(value).dump();
 }
 
 template <>
-void base_setting_t<PathsInChroot>::appendOrSet(PathsInChroot newValue, bool append) {
+void base_setting_t<PathsInChroot>::append_or_set(PathsInChroot new_value, bool append) {
   if (!append)
     value.clear();
-  value.insert(std::make_move_iterator(newValue.begin()), std::make_move_iterator(newValue.end()));
+  value.insert(std::make_move_iterator(new_value.begin()), std::make_move_iterator(new_value.end()));
 }
 
 static void preloadNSS() {
@@ -433,7 +433,7 @@ static void preloadNSS() {
 
 static bool initLibStoreDone = false;
 
-void assertLibStoreInitialized() {
+void assert_lib_store_initialized() {
   if (!initLibStoreDone) {
     printError(
         "The program must call nix::initNix() before calling any libstore library functions.");
@@ -441,14 +441,14 @@ void assertLibStoreInitialized() {
   };
 }
 
-void initLibStore(bool loadConfig) {
+void init_lib_store(bool load_config) {
   if (initLibStoreDone)
     return;
 
-  initLibUtil();
+  init_lib_util();
 
-  if (loadConfig)
-    loadConfFile(globalConfig);
+  if (load_config)
+    load_conf_file(global_config);
 
   preloadNSS();
 
@@ -468,7 +468,7 @@ void initLibStore(bool loadConfig) {
   /* On macOS, don't use the per-session TMPDIR (as set e.g. by
      sshd). This breaks build users because they don't have access
      to the TMPDIR, in particular in ‘nix-store --serve’. */
-  if (hasPrefix(defaultTempDir().string(), "/var/folders/"))
+  if (has_prefix(default_temp_dir().string(), "/var/folders/"))
     unsetenv("TMPDIR");
 #endif
 

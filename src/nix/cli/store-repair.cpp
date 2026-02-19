@@ -12,10 +12,10 @@ struct cmd_store_repair_t : StorePathsCommand {
         ;
   }
 
-  void run(ref<Store> store, StorePaths&& storePaths) override {
-    for (auto& path : storePaths)
+  void run(ref<Store> store, StorePaths&& store_paths) override {
+    for (auto& path : store_paths)
       store->repairPath(path);
   }
 };
 
-static auto rStoreRepair = registerCommand2<cmd_store_repair_t>({"store", "repair"});
+static auto r_store_repair = registerCommand2<cmd_store_repair_t>({"store", "repair"});

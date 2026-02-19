@@ -28,7 +28,7 @@ struct Attr {
   Symbol name;
   pos_idx_t pos;
   Value* value = nullptr;
-  Attr(Symbol name, Value* value, pos_idx_t pos = noPos) : name(name), pos(pos), value(value) {};
+  Attr(Symbol name, Value* value, pos_idx_t pos = no_pos) : name(name), pos(pos), value(value) {};
   Attr() {};
 
   auto operator<=>(const Attr& a) const { return name <=> a.name; }
@@ -433,7 +433,7 @@ public:
   std::reference_wrapper<EvalMemory> mem;
   std::reference_wrapper<SymbolTable> symbols;
 
-  void insert(Symbol name, Value* value, pos_idx_t pos = noPos) { insert(Attr(name, value, pos)); }
+  void insert(Symbol name, Value* value, pos_idx_t pos = no_pos) { insert(Attr(name, value, pos)); }
 
   void insert(const Attr& attr) { push_back(attr); }
 
@@ -457,9 +457,9 @@ public:
     bindings->numLayers = base.numLayers + 1;
   }
 
-  Value& alloc(Symbol name, pos_idx_t pos = noPos);
+  Value& alloc(Symbol name, pos_idx_t pos = no_pos);
 
-  Value& alloc(std::string_view name, pos_idx_t pos = noPos);
+  Value& alloc(std::string_view name, pos_idx_t pos = no_pos);
 
   Bindings* finish() {
     bindings->sort();

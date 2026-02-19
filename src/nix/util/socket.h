@@ -35,7 +35,7 @@ using socket_t =
  *
  * This is a no-op except on Windows.
  */
-static inline socket_t toSocket(descriptor_t fd) {
+static inline socket_t to_socket(descriptor_t fd) {
 #ifdef _WIN32
   return reinterpret_cast<socket_t>(fd);
 #else
@@ -48,7 +48,7 @@ static inline socket_t toSocket(descriptor_t fd) {
  *
  * This is a no-op except on Windows.
  */
-static inline descriptor_t fromSocket(socket_t fd) {
+static inline descriptor_t from_socket(socket_t fd) {
 #ifdef _WIN32
   return reinterpret_cast<descriptor_t>(fd);
 #else

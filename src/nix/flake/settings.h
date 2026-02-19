@@ -15,12 +15,12 @@ struct EvalSettings;
 
 namespace nix::flake {
 
-struct settings_t : public Config {
+struct settings_t : public config_t {
   settings_t();
 
-  void configureEvalSettings(nix::EvalSettings& evalSettings) const;
+  void configureEvalSettings(nix::EvalSettings& eval_settings) const;
 
-  setting_t<bool> useRegistries{
+  setting_t<bool> use_registries{
       this, true, "use-registries", "Whether to use flake registries to resolve flake references.",
       {},   true};
 

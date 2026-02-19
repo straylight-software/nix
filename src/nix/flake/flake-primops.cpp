@@ -34,22 +34,22 @@
 
 namespace nix::flake::primops {
 
-PrimOp getFlake(const settings_t& settings) {
-  auto prim_getFlake = [&settings](EvalState& state, const pos_idx_t pos, Value** args, Value& v) {
-    std::string flakeRefS(state.forceStringNoCtx(
+PrimOp get_flake(const settings_t& settings) {
+  auto prim_get_flake = [&settings](EvalState& state, const pos_idx_t pos, Value** args, Value& v) {
+    std::string flake_ref_s(state.forceStringNoCtx(
         *args[0], pos, "while evaluating the argument passed to builtins.getFlake"));
-    auto flakeRef = nix::parseFlakeRef(state.fetchSettings, flakeRefS, {}, true);
-    if (state.settings.pureEval && !flakeRef.input.isLocked(state.fetchSettings))
+    auto flake_ref = nix::parse_flake_ref(state.fetch_settings, flake_ref_s, {}, true);
+    if (state.settings.pureEval && !flake_ref.input.isLocked(state.fetch_settings))
       throw Error("cannot call 'getFlake' on unlocked flake reference '%s', at %s (use --impure to "
                   "override)",
-                  flakeRefS, state.positions[pos]);
+                  flake_ref_s, state.positions[pos]);
 
-    callFlake(state,
-              lockFlake(settings, state, flakeRef,
+    call_flake(state,
+              lock_flake(settings, state, flake_ref,
                         LockFlags{
                             .updateLockFile = false,
                             .writeLockFile = false,
-                            .useRegistries = !state.settings.pureEval && settings.useRegistries,
+                            .use_registries = !state.settings.pureEval && settings.use_registries,
                             .allowUnlocked = !state.settings.pureEval,
                         }),
               v);
@@ -62,31 +62,31 @@ PrimOp getFlake(const settings_t& settings) {
           Fetch a flake from a flake reference, and return its output attributes and some metadata. For example:
 
           ```nix
-          (builtins.getFlake "nix/55bc52401966fbffa525c574c14f67b00bc4fb3a").packages.x86_64-linux.nix
+          (builtins.get_flake "nix/55bc52401966fbffa525c574c14f67b00bc4fb3a").packages.x86_64-linux.nix
           ```
 
           Unless impure evaluation is allowed (`--impure`), the flake reference
-          must be "locked", e.g. contain a Git revision or content hash. An
+          must be "locked", e.g. contain a git revision or content hash. An
           example of an unlocked usage is:
 
           ```nix
-          (builtins.getFlake "github:edolstra/dwarffs").rev
+          (builtins.get_flake "github:edolstra/dwarffs").rev
           ```
         )",
-      .fun = prim_getFlake,
+      .fun = prim_get_flake,
   };
 }
 
-static void prim_parseFlakeRef(EvalState& state, const pos_idx_t pos, Value** args, Value& v) {
-  std::string flakeRefS(state.forceStringNoCtx(
+static void prim_parse_flake_ref(EvalState& state, const pos_idx_t pos, Value** args, Value& v) {
+  std::string flake_ref_s(state.forceStringNoCtx(
       *args[0], pos, "while evaluating the argument passed to builtins.parseFlakeRef"));
-  auto attrs = nix::parseFlakeRef(state.fetchSettings, flakeRefS, {}, true).toAttrs();
+  auto attrs = nix::parse_flake_ref(state.fetch_settings, flake_ref_s, {}, true).toAttrs();
   auto binds = state.buildBindings(attrs.size());
   for (const auto& [key, value] : attrs) {
     auto s = state.symbols.create(key);
     auto& vv = binds.alloc(s);
     std::visit(
-        overloaded{[&vv, &state](const std::string& value) { vv.mkString(value, state.mem); },
+        overloaded{[&vv, &state](const std::string& value) { vv.mk_string(value, state.mem); },
                    [&vv](const uint64_t& value) { vv.mkInt(value); },
                    [&vv](const Explicit<bool>& value) { vv.mkBool(value.t); }},
         value);
@@ -94,7 +94,7 @@ static void prim_parseFlakeRef(EvalState& state, const pos_idx_t pos, Value** ar
   v.mkAttrs(binds);
 }
 
-nix::PrimOp parseFlakeRef({
+nix::PrimOp parse_flake_ref({
     .name = "__parseFlakeRef",
     .args = {"flake-ref"},
     .doc = R"(
@@ -103,7 +103,7 @@ nix::PrimOp parseFlakeRef({
       For example:
 
       ```nix
-      builtins.parseFlakeRef "github:NixOS/nixpkgs/23.05?dir=lib"
+      builtins.parse_flake_ref "github:NixOS/nixpkgs/23.05?dir=lib"
       ```
 
       evaluates to:
@@ -112,27 +112,27 @@ nix::PrimOp parseFlakeRef({
       { dir = "lib"; owner = "NixOS"; ref = "23.05"; repo = "nixpkgs"; type = "github"; }
       ```
     )",
-    .fun = prim_parseFlakeRef,
+    .fun = prim_parse_flake_ref,
 });
 
-static void prim_flakeRefToString(EvalState& state, const pos_idx_t pos, Value** args, Value& v) {
-  state.forceAttrs(*args[0], noPos,
+static void prim_flake_ref_to_string(EvalState& state, const pos_idx_t pos, Value** args, Value& v) {
+  state.forceAttrs(*args[0], no_pos,
                    "while evaluating the argument passed to builtins.flakeRefToString");
   fetchers::Attrs attrs;
   for (const auto& attr : *args[0]->attrs()) {
     auto t = attr.value->type();
     if (t == nInt) {
-      auto intValue = attr.value->integer().value;
+      auto int_value = attr.value->integer().value;
 
-      if (intValue < 0) {
+      if (int_value < 0) {
         state
             .error<EvalError>("negative value given for flake ref attr %1%: %2%",
-                              state.symbols[attr.name], intValue)
-            .atPos(pos)
+                              state.symbols[attr.name], int_value)
+            .at_pos(pos)
             .debugThrow();
       }
 
-      attrs.emplace(state.symbols[attr.name], uint64_t(intValue));
+      attrs.emplace(state.symbols[attr.name], uint64_t(int_value));
     } else if (t == nBool) {
       attrs.emplace(state.symbols[attr.name], Explicit<bool>{attr.value->boolean()});
     } else if (t == nString) {
@@ -141,15 +141,15 @@ static void prim_flakeRefToString(EvalState& state, const pos_idx_t pos, Value**
       state
           .error<EvalError>("flake reference attribute sets may only contain integers, Booleans, "
                             "and strings, but attribute '%s' is %s",
-                            state.symbols[attr.name], showType(*attr.value))
+                            state.symbols[attr.name], show_type(*attr.value))
           .debugThrow();
     }
   }
-  auto flakeRef = FlakeRef::fromAttrs(state.fetchSettings, attrs);
-  v.mkString(flakeRef.to_string(), state.mem);
+  auto flake_ref = FlakeRef::fromAttrs(state.fetch_settings, attrs);
+  v.mk_string(flake_ref.to_string(), state.mem);
 }
 
-nix::PrimOp flakeRefToString({
+nix::PrimOp flake_ref_to_string({
     .name = "__flakeRefToString",
     .args = {"attrs"},
     .doc = R"(
@@ -158,7 +158,7 @@ nix::PrimOp flakeRefToString({
       For example:
 
       ```nix
-      builtins.flakeRefToString {
+      builtins.flake_ref_to_string {
         dir = "lib"; owner = "NixOS"; ref = "23.05"; repo = "nixpkgs"; type = "github";
       }
       ```
@@ -169,7 +169,7 @@ nix::PrimOp flakeRefToString({
       "github:NixOS/nixpkgs/23.05?dir=lib"
       ```
     )",
-    .fun = prim_flakeRefToString,
+    .fun = prim_flake_ref_to_string,
 });
 
 } // namespace nix::flake::primops

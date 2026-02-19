@@ -11,7 +11,7 @@ struct async_path_writer_impl_t : AsyncPathWriter {
   ref<Store> store;
 
   struct Item {
-    StorePath storePath;
+    StorePath store_path;
     std::string contents;
     std::string name;
     Hash hash;
@@ -28,19 +28,19 @@ struct async_path_writer_impl_t : AsyncPathWriter {
 
   sync_t<State> state_;
 
-  std::thread workerThread;
+  std::thread worker_thread;
 
-  std::condition_variable wakeupCV;
+  std::condition_variable wakeup_cv;
 
   async_path_writer_impl_t(ref<Store> store) : store(store) {
-    workerThread = std::thread([&]() {
+    worker_thread = std::thread([&]() {
       while (true) {
         std::vector<Item> items;
 
         {
           auto state(state_.lock());
           while (!state->quit && state->items.empty())
-            state.wait(wakeupCV);
+            state.wait(wakeup_cv);
           if (state->items.empty() && state->quit)
             return;
           std::swap(items, state->items);
@@ -60,25 +60,25 @@ struct async_path_writer_impl_t : AsyncPathWriter {
 
   virtual ~async_path_writer_impl_t() {
     state_.lock()->quit = true;
-    wakeupCV.notify_all();
-    workerThread.join();
+    wakeup_cv.notify_all();
+    worker_thread.join();
   }
 
-  StorePath addPath(std::string contents, std::string name, StorePathSet references,
-                    RepairFlag repair, bool readOnly) override {
-    auto hash = hashString(hash_algorithm_t::SHA256, contents);
+  StorePath add_path(std::string contents, std::string name, StorePathSet references,
+                    RepairFlag repair, bool read_only) override {
+    auto hash = hash_string(hash_algorithm_t::SHA256, contents);
 
-    auto storePath = store->makeFixedOutputPathFromCA(name, TextInfo{
+    auto store_path = store->makeFixedOutputPathFromCA(name, TextInfo{
                                                                 .hash = hash,
                                                                 .references = references,
                                                             });
 
-    if (!readOnly) {
+    if (!read_only) {
       auto state(state_.lock());
       std::promise<void> promise;
-      state->futures.insert_or_assign(storePath, promise.get_future());
+      state->futures.insert_or_assign(store_path, promise.get_future());
       state->items.push_back(Item{
-          .storePath = storePath,
+          .store_path = store_path,
           .contents = std::move(contents),
           .name = std::move(name),
           .hash = hash,
@@ -86,10 +86,10 @@ struct async_path_writer_impl_t : AsyncPathWriter {
           .repair = repair,
           .promise = std::move(promise),
       });
-      wakeupCV.notify_all();
+      wakeup_cv.notify_all();
     }
 
-    return storePath;
+    return store_path;
   }
 
   void waitForPath(const StorePath& path) override {
@@ -119,31 +119,31 @@ struct async_path_writer_impl_t : AsyncPathWriter {
         RepairFlag repair = NoRepair;
 
         for (auto & item : items) {
-            ValidPathInfo info{item.storePath, Hash(hash_algorithm_t::SHA256)};
+            ValidPathInfo info{item.store_path, Hash(hash_algorithm_t::SHA256)};
             info.references = item.references;
             info.ca = ContentAddress {
                 .method = ContentAddressMethod::raw_t::Text,
                 .hash = item.hash,
             };
             if (item.repair) repair = item.repair;
-            auto source = sinkToSource([&](Sink & sink)
+            auto source = sink_to_source([&](Sink & sink)
             {
-                dumpString(item.contents, sink);
+                dump_string(item.contents, sink);
             });
             sources.push_back({std::move(info), std::move(source)});
         }
 
-        activity_t act(*logger, lvlDebug, actUnknown, fmt("adding %d paths to the store", items.size()));
+        activity_t act(*logger, lvl_debug, act_unknown, fmt("adding %d paths to the store", items.size()));
 
         store->addMultipleToStore(std::move(sources), act, repair);
 #endif
 
     for (auto& item : items) {
       string_source_t source(item.contents);
-      auto storePath = store->addToStoreFromDump(
-          source, item.storePath.name(), file_serialisation_method_t::Flat,
+      auto store_path = store->add_to_store_from_dump(
+          source, item.store_path.name(), file_serialisation_method_t::flat,
           ContentAddressMethod::raw_t::Text, hash_algorithm_t::SHA256, item.references, item.repair);
-      assert(storePath == item.storePath);
+      assert(store_path == item.store_path);
     }
   }
 };

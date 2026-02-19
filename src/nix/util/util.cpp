@@ -20,7 +20,7 @@
 
 namespace nix {
 
-void initLibUtil() {
+void init_lib_util() {
   // Check that exception handling works. Exception handling has been observed
   // not to work on darwin when the linker flags aren't quite right.
   // In this case we don't want to expose the user to some unrelated uncaught
@@ -34,7 +34,7 @@ void initLibUtil() {
   // linked and/or loaded.
   bool caught = false;
   try {
-    throwExceptionSelfCheck();
+    throw_exception_self_check();
   } catch (const nix::Error& _e) {
     caught = true;
   }
@@ -47,7 +47,7 @@ void initLibUtil() {
 
 //////////////////////////////////////////////////////////////////////
 
-std::vector<char*> stringsToCharPtrs(const strings_t& ss) {
+std::vector<char*> strings_to_char_ptrs(const strings_t& ss) {
   std::vector<char*> res;
   for (auto& s : ss)
     res.push_back((char*)s.c_str());
@@ -70,7 +70,7 @@ std::string trim(std::string_view s, std::string_view whitespace) {
   return std::string(s, i, j == s.npos ? j : j - i + 1);
 }
 
-std::string replaceStrings(std::string res, std::string_view from, std::string_view to) {
+std::string replace_strings(std::string res, std::string_view from, std::string_view to) {
   if (from.empty())
     return res;
   size_t pos = 0;
@@ -81,7 +81,7 @@ std::string replaceStrings(std::string res, std::string_view from, std::string_v
   return res;
 }
 
-std::string rewriteStrings(std::string s, const string_map_t& rewrites) {
+std::string rewrite_strings(std::string s, const string_map_t& rewrites) {
   for (auto& i : rewrites) {
     if (i.first == i.second)
       continue;
@@ -93,7 +93,7 @@ std::string rewriteStrings(std::string s, const string_map_t& rewrites) {
 }
 
 template <class N>
-std::optional<N> string2Int(const std::string_view s) {
+std::optional<N> string2_int(const std::string_view s) {
   if (s.substr(0, 1) == "-" && !std::numeric_limits<N>::is_signed)
     return std::nullopt;
   try {
@@ -104,19 +104,19 @@ std::optional<N> string2Int(const std::string_view s) {
 }
 
 // Explicitly instantiated in one place for faster compilation
-template std::optional<unsigned char> string2Int<unsigned char>(const std::string_view s);
-template std::optional<unsigned short> string2Int<unsigned short>(const std::string_view s);
-template std::optional<unsigned int> string2Int<unsigned int>(const std::string_view s);
-template std::optional<unsigned long> string2Int<unsigned long>(const std::string_view s);
-template std::optional<unsigned long long> string2Int<unsigned long long>(const std::string_view s);
-template std::optional<signed char> string2Int<signed char>(const std::string_view s);
-template std::optional<signed short> string2Int<signed short>(const std::string_view s);
-template std::optional<signed int> string2Int<signed int>(const std::string_view s);
-template std::optional<signed long> string2Int<signed long>(const std::string_view s);
-template std::optional<signed long long> string2Int<signed long long>(const std::string_view s);
+template std::optional<unsigned char> string2_int<unsigned char>(const std::string_view s);
+template std::optional<unsigned short> string2_int<unsigned short>(const std::string_view s);
+template std::optional<unsigned int> string2_int<unsigned int>(const std::string_view s);
+template std::optional<unsigned long> string2_int<unsigned long>(const std::string_view s);
+template std::optional<unsigned long long> string2_int<unsigned long long>(const std::string_view s);
+template std::optional<signed char> string2_int<signed char>(const std::string_view s);
+template std::optional<signed short> string2_int<signed short>(const std::string_view s);
+template std::optional<signed int> string2_int<signed int>(const std::string_view s);
+template std::optional<signed long> string2_int<signed long>(const std::string_view s);
+template std::optional<signed long long> string2_int<signed long long>(const std::string_view s);
 
 template <class N>
-std::optional<N> string2Float(const std::string_view s) {
+std::optional<N> string2_float(const std::string_view s) {
   try {
     return boost::lexical_cast<N>(s.data(), s.size());
   } catch (const boost::bad_lexical_cast&) {
@@ -124,30 +124,30 @@ std::optional<N> string2Float(const std::string_view s) {
   }
 }
 
-template std::optional<double> string2Float<double>(const std::string_view s);
-template std::optional<float> string2Float<float>(const std::string_view s);
+template std::optional<double> string2_float<double>(const std::string_view s);
+template std::optional<float> string2_float<float>(const std::string_view s);
 
-static const int64_t conversionNumber = 1024;
+static const int64_t conversion_number = 1024;
 
-SizeUnit getSizeUnit(int64_t value) {
-  auto unit = sizeUnits.begin();
-  uint64_t absValue = std::abs(value);
-  while (absValue > conversionNumber && unit < sizeUnits.end()) {
+SizeUnit get_size_unit(int64_t value) {
+  auto unit = size_units.begin();
+  uint64_t abs_value = std::abs(value);
+  while (abs_value > conversion_number && unit < size_units.end()) {
     unit++;
-    absValue /= conversionNumber;
+    abs_value /= conversion_number;
   }
   return *unit;
 }
 
-std::optional<SizeUnit> getCommonSizeUnit(std::initializer_list<int64_t> values) {
+std::optional<SizeUnit> get_common_size_unit(std::initializer_list<int64_t> values) {
   assert(values.size() > 0);
 
   auto it = values.begin();
-  SizeUnit unit = getSizeUnit(*it);
+  SizeUnit unit = get_size_unit(*it);
   it++;
 
   for (; it != values.end(); it++) {
-    if (unit != getSizeUnit(*it)) {
+    if (unit != get_size_unit(*it)) {
       return std::nullopt;
     }
   }
@@ -155,15 +155,15 @@ std::optional<SizeUnit> getCommonSizeUnit(std::initializer_list<int64_t> values)
   return unit;
 }
 
-std::string renderSizeWithoutUnit(int64_t value, SizeUnit unit, bool align) {
+std::string render_size_without_unit(int64_t value, SizeUnit unit, bool align) {
   // bytes should also displayed as KiB => 100 Bytes => 0.1 KiB
   auto power = std::max<std::underlying_type_t<SizeUnit>>(1, std::to_underlying(unit));
-  double denominator = std::pow(conversionNumber, power);
+  double denominator = std::pow(conversion_number, power);
   double result = (double)value / denominator;
   return fmt(align ? "%6.1f" : "%.1f", result);
 }
 
-char getSizeUnitSuffix(SizeUnit unit) {
+char get_size_unit_suffix(SizeUnit unit) {
   switch (unit) {
 #define NIX_UTIL_DEFINE_SIZE_UNIT(name, suffix)                                                    \
   case SizeUnit::name:                                                                             \
@@ -175,26 +175,26 @@ char getSizeUnitSuffix(SizeUnit unit) {
   assert(false);
 }
 
-std::string renderSize(int64_t value, bool align) {
-  SizeUnit unit = getSizeUnit(value);
-  return fmt("%s %ciB", renderSizeWithoutUnit(value, unit, align), getSizeUnitSuffix(unit));
+std::string render_size(int64_t value, bool align) {
+  SizeUnit unit = get_size_unit(value);
+  return fmt("%s %ciB", render_size_without_unit(value, unit, align), get_size_unit_suffix(unit));
 }
 
-bool hasPrefix(std::string_view s, std::string_view prefix) {
+bool has_prefix(std::string_view s, std::string_view prefix) {
   return s.compare(0, prefix.size(), prefix) == 0;
 }
 
-bool hasSuffix(std::string_view s, std::string_view suffix) {
+bool has_suffix(std::string_view s, std::string_view suffix) {
   return s.size() >= suffix.size() && s.substr(s.size() - suffix.size()) == suffix;
 }
 
-std::string toLower(std::string s) {
+std::string to_lower(std::string s) {
   for (auto& c : s)
     c = std::tolower(c);
   return s;
 }
 
-std::string escapeShellArgAlways(const std::string_view s) {
+std::string escape_shell_arg_always(const std::string_view s) {
   std::string r;
   r.reserve(s.size() + 2);
   r += '\'';
@@ -207,7 +207,7 @@ std::string escapeShellArgAlways(const std::string_view s) {
   return r;
 }
 
-void ignoreExceptionInDestructor(verbosity_t lvl) {
+void ignore_exception_in_destructor(verbosity_t lvl) {
   /* Make sure no exceptions leave this function.
      printError() also throws when remote is closed. */
   try {
@@ -222,7 +222,7 @@ void ignoreExceptionInDestructor(verbosity_t lvl) {
   }
 }
 
-void ignoreExceptionExceptInterrupt(verbosity_t lvl) {
+void ignore_exception_except_interrupt(verbosity_t lvl) {
   try {
     throw;
   } catch (const Interrupted& e) {
@@ -234,23 +234,23 @@ void ignoreExceptionExceptInterrupt(verbosity_t lvl) {
   }
 }
 
-std::string stripIndentation(std::string_view s) {
-  size_t minIndent = 10000;
-  size_t curIndent = 0;
-  bool atStartOfLine = true;
+std::string strip_indentation(std::string_view s) {
+  size_t min_indent = 10000;
+  size_t cur_indent = 0;
+  bool at_start_of_line = true;
 
   for (auto& c : s) {
-    if (atStartOfLine && c == ' ')
-      curIndent++;
+    if (at_start_of_line && c == ' ')
+      cur_indent++;
     else if (c == '\n') {
-      if (atStartOfLine)
-        minIndent = std::max(minIndent, curIndent);
-      curIndent = 0;
-      atStartOfLine = true;
+      if (at_start_of_line)
+        min_indent = std::max(min_indent, cur_indent);
+      cur_indent = 0;
+      at_start_of_line = true;
     } else {
-      if (atStartOfLine) {
-        minIndent = std::min(minIndent, curIndent);
-        atStartOfLine = false;
+      if (at_start_of_line) {
+        min_indent = std::min(min_indent, cur_indent);
+        at_start_of_line = false;
       }
     }
   }
@@ -262,8 +262,8 @@ std::string stripIndentation(std::string_view s) {
     auto eol = s.find('\n', pos);
     if (eol == s.npos)
       eol = s.size();
-    if (eol - pos > minIndent)
-      res.append(s.substr(pos + minIndent, eol - pos - minIndent));
+    if (eol - pos > min_indent)
+      res.append(s.substr(pos + min_indent, eol - pos - min_indent));
     res.push_back('\n');
     pos = eol + 1;
   }
@@ -271,7 +271,7 @@ std::string stripIndentation(std::string_view s) {
   return res;
 }
 
-std::pair<std::string_view, std::string_view> getLine(std::string_view s) {
+std::pair<std::string_view, std::string_view> get_line(std::string_view s) {
   auto newline = s.find('\n');
 
   if (newline == s.npos) {

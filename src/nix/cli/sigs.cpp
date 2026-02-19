@@ -10,15 +10,15 @@
 using namespace nix;
 
 struct cmd_copy_sigs_t : StorePathsCommand {
-  strings_t substituterUris;
+  strings_t substituter_uris;
 
   cmd_copy_sigs_t() {
-    addFlag({
-        .longName = "substituter",
-        .shortName = 's',
+    add_flag({
+        .long_name = "substituter",
+        .short_name = 's',
         .description = "Copy signatures from the specified store.",
         .labels = {"store-uri"},
-        .handler = {[&](std::string s) { substituterUris.push_back(s); }},
+        .handler = {[&](std::string s) { substituter_uris.push_back(s); }},
     });
   }
 
@@ -30,31 +30,31 @@ struct cmd_copy_sigs_t : StorePathsCommand {
         ;
   }
 
-  void run(ref<Store> store, StorePaths&& storePaths) override {
-    if (substituterUris.empty())
+  void run(ref<Store> store, StorePaths&& store_paths) override {
+    if (substituter_uris.empty())
       throw UsageError("you must specify at least one substituter using '-s'");
 
     // FIXME: factor out commonality with MixVerify.
     std::vector<ref<Store>> substituters;
-    for (auto& s : substituterUris)
-      substituters.push_back(openStore(s));
+    for (auto& s : substituter_uris)
+      substituters.push_back(open_store(s));
 
-    thread_pool_t pool{fileTransferSettings.httpConnections};
+    thread_pool_t pool{file_transfer_settings.httpConnections};
 
     std::atomic<size_t> added{0};
 
     // logger->setExpected(doneLabel, storePaths.size());
 
-    auto doPath = [&](const Path& storePathS) {
+    auto do_path = [&](const Path& store_path_s) {
       // Activity act(*logger, lvlInfo, "getting signatures for '%s'", storePath);
 
-      checkInterrupt();
+      check_interrupt();
 
-      auto storePath = store->parseStorePath(storePathS);
+      auto store_path = store->parseStorePath(store_path_s);
 
-      auto info = store->queryPathInfo(storePath);
+      auto info = store->queryPathInfo(store_path);
 
-      string_set_t newSigs;
+      string_set_t new_sigs;
 
       for (auto& store2 : substituters) {
         try {
@@ -62,27 +62,27 @@ struct cmd_copy_sigs_t : StorePathsCommand {
 
           /* Don't import signatures that don't match this
              binary. */
-          if (info->narHash != info2->narHash || info->narSize != info2->narSize ||
+          if (info->nar_hash != info2->nar_hash || info->nar_size != info2->nar_size ||
               info->references != info2->references)
             continue;
 
           for (auto& sig : info2->sigs)
             if (!info->sigs.count(sig))
-              newSigs.insert(sig);
+              new_sigs.insert(sig);
         } catch (InvalidPath&) {
         }
       }
 
-      if (!newSigs.empty()) {
-        store->addSignatures(storePath, newSigs);
-        added += newSigs.size();
+      if (!new_sigs.empty()) {
+        store->addSignatures(store_path, new_sigs);
+        added += new_sigs.size();
       }
 
       // logger->incProgress(doneLabel);
     };
 
-    for (auto& storePath : storePaths)
-      pool.enqueue(std::bind(doPath, store->printStorePath(storePath)));
+    for (auto& store_path : store_paths)
+      pool.enqueue(std::bind(do_path, store->printStorePath(store_path)));
 
     pool.process();
 
@@ -90,33 +90,33 @@ struct cmd_copy_sigs_t : StorePathsCommand {
   }
 };
 
-static auto rCmdCopySigs = registerCommand2<cmd_copy_sigs_t>({"store", "copy-sigs"});
+static auto r_cmd_copy_sigs = registerCommand2<cmd_copy_sigs_t>({"store", "copy-sigs"});
 
 struct cmd_sign_t : StorePathsCommand {
-  Path secretKeyFile;
+  Path secret_key_file;
 
   cmd_sign_t() {
-    addFlag({
-        .longName = "key-file",
-        .shortName = 'k',
+    add_flag({
+        .long_name = "key-file",
+        .short_name = 'k',
         .description = "File containing the secret signing key.",
         .labels = {"file"},
-        .handler = {&secretKeyFile},
-        .completer = completePath,
+        .handler = {&secret_key_file},
+        .completer = complete_path,
         .required = true,
     });
   }
 
   std::string description() override { return "sign store paths with a local key"; }
 
-  void run(ref<Store> store, StorePaths&& storePaths) override {
-    secret_key_t secretKey(readFile(secretKeyFile));
-    local_signer_t signer(std::move(secretKey));
+  void run(ref<Store> store, StorePaths&& store_paths) override {
+    secret_key_t secret_key(read_file(secret_key_file));
+    local_signer_t signer(std::move(secret_key));
 
     size_t added{0};
 
-    for (auto& storePath : storePaths) {
-      auto info = store->queryPathInfo(storePath);
+    for (auto& store_path : store_paths) {
+      auto info = store->queryPathInfo(store_path);
 
       auto info2(*info);
       info2.sigs.clear();
@@ -124,7 +124,7 @@ struct cmd_sign_t : StorePathsCommand {
       assert(!info2.sigs.empty());
 
       if (!info->sigs.count(*info2.sigs.begin())) {
-        store->addSignatures(storePath, info2.sigs);
+        store->addSignatures(store_path, info2.sigs);
         added++;
       }
     }
@@ -133,17 +133,17 @@ struct cmd_sign_t : StorePathsCommand {
   }
 };
 
-static auto rCmdSign = registerCommand2<cmd_sign_t>({"store", "sign"});
+static auto r_cmd_sign = registerCommand2<cmd_sign_t>({"store", "sign"});
 
 struct cmd_key_generate_secret_t : command_t {
-  std::string keyName;
+  std::string key_name;
 
   cmd_key_generate_secret_t() {
-    addFlag({
-        .longName = "key-name",
+    add_flag({
+        .long_name = "key-name",
         .description = "Identifier of the key (e.g. `cache.example.org-1`).",
         .labels = {"name"},
-        .handler = {&keyName},
+        .handler = {&key_name},
         .required = true,
     });
   }
@@ -158,7 +158,7 @@ struct cmd_key_generate_secret_t : command_t {
 
   void run() override {
     logger->stop();
-    writeFull(getStandardOutput(), secret_key_t::generate(keyName).to_string());
+    write_full(get_standard_output(), secret_key_t::generate(key_name).to_string());
   }
 };
 
@@ -175,9 +175,9 @@ struct cmd_key_convert_secret_to_public_t : command_t {
   }
 
   void run() override {
-    secret_key_t secretKey(drainFD(STDIN_FILENO));
+    secret_key_t secret_key(drain_fd(STDIN_FILENO));
     logger->stop();
-    writeFull(getStandardOutput(), secretKey.toPublicKey().to_string());
+    write_full(get_standard_output(), secret_key.to_public_key().to_string());
   }
 };
 
@@ -195,4 +195,4 @@ struct cmd_key_t : NixMultiCommand {
   category_t category() override { return catUtility; }
 };
 
-static auto rCmdKey = registerCommand<cmd_key_t>("key");
+static auto r_cmd_key = registerCommand<cmd_key_t>("key");

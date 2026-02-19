@@ -29,7 +29,7 @@ struct cmd_edit_t : InstallableValueCommand {
       auto [v, pos] = installable->toValue(*state);
 
       try {
-        return findPackageFilename(*state, *v, installable->what());
+        return find_package_filename(*state, *v, installable->what());
       } catch (NoPositionInfo&) {
         throw Error("cannot find position information for '%s", installable->what());
       }
@@ -37,11 +37,11 @@ struct cmd_edit_t : InstallableValueCommand {
 
     logger->stop();
 
-    auto args = editorFor(file, line);
+    auto args = editor_for(file, line);
 
-    restoreProcessContext();
+    restore_process_context();
 
-    execvp(args.front().c_str(), stringsToCharPtrs(args).data());
+    execvp(args.front().c_str(), strings_to_char_ptrs(args).data());
 
     std::string command;
     for (const auto& arg : args)
@@ -50,4 +50,4 @@ struct cmd_edit_t : InstallableValueCommand {
   }
 };
 
-static auto rCmdEdit = registerCommand<cmd_edit_t>("edit");
+static auto r_cmd_edit = registerCommand<cmd_edit_t>("edit");

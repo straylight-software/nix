@@ -2,8 +2,8 @@
 
 namespace nix {
 
-std::string_view source_path_t::baseName() const {
-  return path.baseName().value_or("source");
+std::string_view source_path_t::base_name() const {
+  return path.base_name().value_or("source");
 }
 
 source_path_t source_path_t::parent() const {
@@ -12,40 +12,40 @@ source_path_t source_path_t::parent() const {
   return {accessor, std::move(*p)};
 }
 
-std::string source_path_t::readFile() const {
-  return accessor->readFile(path);
+std::string source_path_t::read_file() const {
+  return accessor->read_file(path);
 }
 
-bool source_path_t::pathExists() const {
-  return accessor->pathExists(path);
+bool source_path_t::path_exists() const {
+  return accessor->path_exists(path);
 }
 
 SourceAccessor::stat_t source_path_t::lstat() const {
   return accessor->lstat(path);
 }
 
-std::optional<SourceAccessor::stat_t> source_path_t::maybeLstat() const {
-  return accessor->maybeLstat(path);
+std::optional<SourceAccessor::stat_t> source_path_t::maybe_lstat() const {
+  return accessor->maybe_lstat(path);
 }
 
-SourceAccessor::dir_entries_t source_path_t::readDirectory() const {
-  return accessor->readDirectory(path);
+SourceAccessor::dir_entries_t source_path_t::read_directory() const {
+  return accessor->read_directory(path);
 }
 
-std::string source_path_t::readLink() const {
-  return accessor->readLink(path);
+std::string source_path_t::read_link() const {
+  return accessor->read_link(path);
 }
 
-void source_path_t::dumpPath(Sink& sink, path_filter_t& filter) const {
-  return accessor->dumpPath(path, sink, filter);
+void source_path_t::dump_path(Sink& sink, path_filter_t& filter) const {
+  return accessor->dump_path(path, sink, filter);
 }
 
-std::optional<std::filesystem::path> source_path_t::getPhysicalPath() const {
-  return accessor->getPhysicalPath(path);
+std::optional<std::filesystem::path> source_path_t::get_physical_path() const {
+  return accessor->get_physical_path(path);
 }
 
 std::string source_path_t::to_string() const {
-  return accessor->showPath(path);
+  return accessor->show_path(path);
 }
 
 source_path_t source_path_t::operator/(const canon_path_t& x) const {

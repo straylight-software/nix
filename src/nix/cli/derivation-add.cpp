@@ -23,16 +23,16 @@ struct cmd_add_derivation_t : MixDryRun, StoreCommand {
   category_t category() override { return catUtility; }
 
   void run(ref<Store> store) override {
-    auto json = nlohmann::json::parse(drainFD(STDIN_FILENO));
+    auto json = nlohmann::json::parse(drain_fd(STDIN_FILENO));
 
     auto drv = Derivation::parseJsonAndValidate(*store, json);
 
-    auto drvPath = writeDerivation(*store, drv, NoRepair, /* read only */ dryRun);
+    auto drv_path = write_derivation(*store, drv, NoRepair, /* read only */ dry_run);
 
-    writeDerivation(*store, drv, NoRepair, dryRun);
+    write_derivation(*store, drv, NoRepair, dry_run);
 
-    logger->cout("%s", store->printStorePath(drvPath));
+    logger->cout("%s", store->printStorePath(drv_path));
   }
 };
 
-static auto rCmdAddDerivation = registerCommand2<cmd_add_derivation_t>({"derivation", "add"});
+static auto r_cmd_add_derivation = registerCommand2<cmd_add_derivation_t>({"derivation", "add"});

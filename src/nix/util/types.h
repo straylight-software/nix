@@ -128,15 +128,15 @@ public:
   backed_string_view_t(backed_string_view_t&& other) = default;
   backed_string_view_t& operator=(backed_string_view_t&& other) = default;
 
-  bool isOwned() const { return std::holds_alternative<std::string>(data); }
+  bool is_owned() const { return std::holds_alternative<std::string>(data); }
 
-  std::string toOwned() && {
-    return isOwned() ? std::move(std::get<std::string>(data))
+  std::string to_owned() && {
+    return is_owned() ? std::move(std::get<std::string>(data))
                      : std::string(std::get<std::string_view>(data));
   }
 
   std::string_view operator*() const {
-    return isOwned() ? std::get<std::string>(data) : std::get<std::string_view>(data);
+    return is_owned() ? std::get<std::string>(data) : std::get<std::string_view>(data);
   }
 
   Ptr operator->() const { return Ptr(**this); }

@@ -26,7 +26,7 @@ struct cmd_info_store_t : StoreCommand, MixJSON {
         notice("Trusted: %s", *trusted);
     } else {
       nlohmann::json res;
-      finally_t printRes([&]() { printJSON(res); });
+      finally_t print_res([&]() { printJSON(res); });
 
       res["url"] = store->config.getReference().render(/*withParams=*/true);
       store->connect();
@@ -38,4 +38,4 @@ struct cmd_info_store_t : StoreCommand, MixJSON {
   }
 };
 
-static auto rCmdInfoStore = registerCommand2<cmd_info_store_t>({"store", "info"});
+static auto r_cmd_info_store = registerCommand2<cmd_info_store_t>({"store", "info"});

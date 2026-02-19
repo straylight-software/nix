@@ -20,7 +20,7 @@ struct Machine {
   const float speedFactor;
   const string_set_t supportedFeatures;
   const string_set_t mandatoryFeatures;
-  const std::string sshPublicHostKey;
+  const std::string ssh_public_host_key;
   bool enabled = true;
 
   /**
@@ -44,7 +44,7 @@ struct Machine {
           decltype(maxJobs) maxJobs, decltype(speedFactor) speedFactor,
           decltype(supportedFeatures) supportedFeatures,
           decltype(mandatoryFeatures) mandatoryFeatures,
-          decltype(sshPublicHostKey) sshPublicHostKey);
+          decltype(ssh_public_host_key) ssh_public_host_key);
 
   /**
    * Elaborate `storeUri` into a complete store reference,
@@ -58,10 +58,10 @@ struct Machine {
    *
    * Just a simple function composition:
    * ```c++
-   * nix::openStore(completeStoreReference())
+   * nix::open_store(completeStoreReference())
    * ```
    */
-  ref<Store> openStore() const;
+  ref<Store> open_store() const;
 
   /**
    * Parse a machine configuration.
@@ -70,7 +70,7 @@ struct Machine {
    * with `@` are interpreted as paths to other configuration files in
    * the same format.
    */
-  static Machines parseConfig(const string_set_t& defaultSystems, const std::string& config);
+  static Machines parseConfig(const string_set_t& default_systems, const std::string& config);
 };
 
 /**
@@ -78,6 +78,6 @@ struct Machine {
  *
  * @todo Remove, globals are bad.
  */
-Machines getMachines();
+Machines get_machines();
 
 } // namespace nix

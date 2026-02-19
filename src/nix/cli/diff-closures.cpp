@@ -12,7 +12,7 @@ namespace nix {
 namespace {
 
 struct Info {
-  std::string outputName;
+  std::string output_name;
 };
 
 } // namespace
@@ -20,11 +20,11 @@ struct Info {
 // name -> version -> store paths
 typedef std::map<std::string, std::map<std::string, std::map<StorePath, Info>>> GroupedPaths;
 
-GroupedPaths getClosureInfo(ref<Store> store, const StorePath& toplevel) {
+GroupedPaths get_closure_info(ref<Store> store, const StorePath& toplevel) {
   StorePathSet closure;
   store->computeFSClosure({toplevel}, closure);
 
-  GroupedPaths groupedPaths;
+  GroupedPaths grouped_paths;
 
   for (auto const& path : closure) {
     /* Strip the output name. Unfortunately this is ambiguous (we
@@ -34,49 +34,49 @@ GroupedPaths getClosureInfo(ref<Store> store, const StorePath& toplevel) {
     std::cmatch match;
     std::string name{path.name()};
     std::string_view const origName = path.name();
-    std::string outputName;
+    std::string output_name;
 
     if (std::regex_match(origName.begin(), origName.end(), match, regex)) {
       name = match[1];
-      outputName = match[2];
+      output_name = match[2];
     }
 
-    DrvName drvName(name);
-    groupedPaths[drvName.name][drvName.version].emplace(path, Info{.outputName = outputName});
+    DrvName drv_name(name);
+    grouped_paths[drv_name.name][drv_name.version].emplace(path, Info{.output_name = output_name});
   }
 
-  return groupedPaths;
+  return grouped_paths;
 }
 
-std::string showVersions(const string_set_t& versions) {
+std::string show_versions(const string_set_t& versions) {
   if (versions.empty())
     return "(absent)";
   string_set_t versions2;
   for (auto& version : versions)
     versions2.insert(version.empty() ? "(no version)" : version);
-  return concatStringsSep(", ", versions2);
+  return concat_strings_sep(", ", versions2);
 }
 
-void printClosureDiff(ref<Store> store, const StorePath& beforePath, const StorePath& afterPath,
+void print_closure_diff(ref<Store> store, const StorePath& before_path, const StorePath& after_path,
                       std::string_view indent) {
-  auto beforeClosure = getClosureInfo(store, beforePath);
-  auto afterClosure = getClosureInfo(store, afterPath);
+  auto before_closure = get_closure_info(store, before_path);
+  auto after_closure = get_closure_info(store, after_path);
 
-  string_set_t allNames;
-  for (auto& [name, _] : beforeClosure)
-    allNames.insert(name);
-  for (auto& [name, _] : afterClosure)
-    allNames.insert(name);
+  string_set_t all_names;
+  for (auto& [name, _] : before_closure)
+    all_names.insert(name);
+  for (auto& [name, _] : after_closure)
+    all_names.insert(name);
 
-  for (auto& name : allNames) {
-    auto& beforeVersions = beforeClosure[name];
-    auto& afterVersions = afterClosure[name];
+  for (auto& name : all_names) {
+    auto& beforeVersions = before_closure[name];
+    auto& afterVersions = after_closure[name];
 
     auto totalSize = [&](const std::map<std::string, std::map<StorePath, Info>>& versions) {
       uint64_t sum = 0;
       for (auto& [_, paths] : versions)
         for (auto& [path, _] : paths)
-          sum += store->queryPathInfo(path)->narSize;
+          sum += store->queryPathInfo(path)->nar_size;
       return sum;
     };
 
@@ -100,16 +100,16 @@ void printClosureDiff(ref<Store> store, const StorePath& beforePath, const Store
     if (showDelta || !removed.empty() || !added.empty()) {
       std::vector<std::string> items;
       if (!removed.empty() && !added.empty()) {
-        items.push_back(fmt("%s → %s", showVersions(removed), showVersions(added)));
+        items.push_back(fmt("%s → %s", show_versions(removed), show_versions(added)));
       } else if (!removed.empty()) {
-        items.push_back(fmt("%s removed", showVersions(removed)));
+        items.push_back(fmt("%s removed", show_versions(removed)));
       } else if (!added.empty()) {
-        items.push_back(fmt("%s added", showVersions(added)));
+        items.push_back(fmt("%s added", show_versions(added)));
       }
       if (showDelta)
         items.push_back(
-            fmt("%s%s" ANSI_NORMAL, sizeDelta > 0 ? ANSI_RED : ANSI_GREEN, renderSize(sizeDelta)));
-      logger->cout("%s%s: %s", indent, name, concatStringsSep(", ", items));
+            fmt("%s%s" ANSI_NORMAL, sizeDelta > 0 ? ANSI_RED : ANSI_GREEN, render_size(sizeDelta)));
+      logger->cout("%s%s: %s", indent, name, concat_strings_sep(", ", items));
     }
   }
 }
@@ -122,8 +122,8 @@ struct cmd_diff_closures_t : SourceExprCommand, MixOperateOnOptions {
   std::string _before, _after;
 
   cmd_diff_closures_t() {
-    expectArg("before", &_before);
-    expectArg("after", &_after);
+    expect_arg("before", &_before);
+    expect_arg("after", &_after);
   }
 
   std::string description() override {
@@ -138,13 +138,13 @@ struct cmd_diff_closures_t : SourceExprCommand, MixOperateOnOptions {
 
   void run(ref<Store> store) override {
     auto before = parseInstallable(store, _before);
-    auto beforePath =
+    auto before_path =
         Installable::toStorePath(getEvalStore(), store, Realise::Outputs, operateOn, before);
     auto after = parseInstallable(store, _after);
-    auto afterPath =
+    auto after_path =
         Installable::toStorePath(getEvalStore(), store, Realise::Outputs, operateOn, after);
-    printClosureDiff(store, beforePath, afterPath, "");
+    print_closure_diff(store, before_path, after_path, "");
   }
 };
 
-static auto rCmdDiffClosures = registerCommand2<cmd_diff_closures_t>({"store", "diff-closures"});
+static auto r_cmd_diff_closures = registerCommand2<cmd_diff_closures_t>({"store", "diff-closures"});

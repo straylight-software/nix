@@ -34,7 +34,7 @@ namespace nix {
 
 struct DarwinDerivationBuilder : derivation_builder_impl_t
 {
-    PathsInChroot pathsInChroot;
+    PathsInChroot paths_in_chroot;
 
     /**
      * Whether full sandboxing is enabled. Note that macOS builds
@@ -44,22 +44,22 @@ struct DarwinDerivationBuilder : derivation_builder_impl_t
 
     DarwinDerivationBuilder(
         LocalStore & store,
-        std::unique_ptr<DerivationBuilderCallbacks> miscMethods,
+        std::unique_ptr<DerivationBuilderCallbacks> misc_methods,
         DerivationBuilderParams params,
         bool useSandbox)
-        : derivation_builder_impl_t(store, std::move(miscMethods), std::move(params))
+        : derivation_builder_impl_t(store, std::move(misc_methods), std::move(params))
         , useSandbox(useSandbox)
     {
     }
 
-    void prepareSandbox() override
+    void prepare_sandbox() override
     {
-        pathsInChroot = getPathsInSandbox();
+        paths_in_chroot = get_paths_in_sandbox();
     }
 
-    void setUser() override
+    void set_user() override
     {
-        derivation_builder_impl_t::setUser();
+        derivation_builder_impl_t::set_user();
 
         /* This has to appear before import statements. */
         std::string sandboxProfile = "(version 1)\n";
@@ -72,26 +72,26 @@ struct DarwinDerivationBuilder : derivation_builder_impl_t
             /* We build the ancestry before adding all inputPaths to the store because we know they'll
                all have the same parents (the store), and there might be lots of inputs. This isn't
                particularly efficient... I doubt it'll be a bottleneck in practice */
-            for (auto & i : pathsInChroot) {
+            for (auto & i : paths_in_chroot) {
                 Path cur = i.first;
                 while (cur.compare("/") != 0) {
-                    cur = dirOf(cur);
+                    cur = dir_of(cur);
                     ancestry.insert(cur);
                 }
             }
 
-            /* And we want the store in there regardless of how empty pathsInChroot. We include the innermost
+            /* And we want the store in there regardless of how empty paths_in_chroot. We include the innermost
                path component this time, since it's typically /nix/store and we care about that. */
-            Path cur = store.storeDir;
+            Path cur = store.store_dir;
             while (cur.compare("/") != 0) {
                 ancestry.insert(cur);
-                cur = dirOf(cur);
+                cur = dir_of(cur);
             }
 
             /* Add all our input paths to the chroot */
             for (auto & i : inputPaths) {
                 auto p = store.printStorePath(i);
-                pathsInChroot.insert_or_assign(p, ChrootPath{.source = p});
+                paths_in_chroot.insert_or_assign(p, ChrootPath{.source = p});
             }
 
             /* Violations will go to the syslog if you set this. Unfortunately the destination does not appear to be
@@ -106,7 +106,7 @@ struct DarwinDerivationBuilder : derivation_builder_impl_t
 #  include "sandbox-defaults.sb"
                 ;
 
-            if (!derivationType.isSandboxed())
+            if (!derivation_type.isSandboxed())
                 sandboxProfile +=
 #  include "sandbox-network.sb"
                     ;
@@ -128,7 +128,7 @@ struct DarwinDerivationBuilder : derivation_builder_impl_t
             // See https://github.com/NixOS/nix/issues/4119
             // We split our allow groups approximately at half the actual limit, 1 << 16
             const size_t breakpoint = sandboxProfile.length() + (1 << 14);
-            for (auto & i : pathsInChroot) {
+            for (auto & i : paths_in_chroot) {
 
                 if (sandboxProfile.length() >= breakpoint) {
                     debug("Sandbox break: %d %d", sandboxProfile.length(), breakpoint);
@@ -142,7 +142,7 @@ struct DarwinDerivationBuilder : derivation_builder_impl_t
                         i.second.source);
 
                 std::string path = i.first;
-                auto optSt = maybeLstat(path.c_str());
+                auto optSt = maybe_lstat(path.c_str());
                 if (!optSt) {
                     if (i.second.optional)
                         continue;
@@ -162,7 +162,7 @@ struct DarwinDerivationBuilder : derivation_builder_impl_t
             }
             sandboxProfile += ")\n";
 
-            sandboxProfile += drvOptions.additionalSandboxProfile;
+            sandboxProfile += drv_options.additionalSandboxProfile;
         } else
             sandboxProfile +=
 #  include "sandbox-minimal.sb"
@@ -171,29 +171,29 @@ struct DarwinDerivationBuilder : derivation_builder_impl_t
         debug("Generated sandbox profile:");
         debug(sandboxProfile);
 
-        /* The tmpDir in scope points at the temporary build directory for our derivation. Some packages try different
+        /* The tmp_dir in scope points at the temporary build directory for our derivation. Some packages try different
            mechanisms to find temporary directories, so we want to open up a broader place for them to put their files,
            if needed. */
-        Path globalTmpDir = canonPath(defaultTempDir().string(), true);
+        Path globalTmpDir = canon_path(default_temp_dir().string(), true);
 
         /* They don't like trailing slashes on subpath directives */
         while (!globalTmpDir.empty() && globalTmpDir.back() == '/')
             globalTmpDir.pop_back();
 
-        if (getEnv("_NIX_TEST_NO_SANDBOX") != "1") {
+        if (get_env("_NIX_TEST_NO_SANDBOX") != "1") {
             strings_t sandboxArgs;
             sandboxArgs.push_back("_NIX_BUILD_TOP");
-            sandboxArgs.push_back(tmpDir);
+            sandboxArgs.push_back(tmp_dir);
             sandboxArgs.push_back("_GLOBAL_TMP_DIR");
             sandboxArgs.push_back(globalTmpDir);
-            if (drvOptions.allowLocalNetworking) {
+            if (drv_options.allowLocalNetworking) {
                 sandboxArgs.push_back("_ALLOW_LOCAL_NETWORKING");
                 sandboxArgs.push_back("1");
             }
             char * sandbox_errbuf = nullptr;
             if (sandbox_init_with_parameters(
-                    sandboxProfile.c_str(), 0, stringsToCharPtrs(sandboxArgs).data(), &sandbox_errbuf)) {
-                writeFull(
+                    sandboxProfile.c_str(), 0, strings_to_char_ptrs(sandboxArgs).data(), &sandbox_errbuf)) {
+                write_full(
                     STDERR_FILENO,
                     fmt("failed to configure sandbox: %s\n", sandbox_errbuf ? sandbox_errbuf : "(null)"));
                 _exit(1);
@@ -201,7 +201,7 @@ struct DarwinDerivationBuilder : derivation_builder_impl_t
         }
     }
 
-    void execBuilder(const strings_t & args, const strings_t & envStrs) override
+    void exec_builder(const strings_t & args, const strings_t & env_strs) override
     {
         posix_spawnattr_t attrp;
 
@@ -224,7 +224,7 @@ struct DarwinDerivationBuilder : derivation_builder_impl_t
         }
 
         posix_spawn(
-            NULL, drv.builder.c_str(), NULL, &attrp, stringsToCharPtrs(args).data(), stringsToCharPtrs(envStrs).data());
+            NULL, drv.builder.c_str(), NULL, &attrp, strings_to_char_ptrs(args).data(), strings_to_char_ptrs(env_strs).data());
     }
 
     /**
@@ -331,9 +331,9 @@ struct DarwinDerivationBuilder : derivation_builder_impl_t
         }
     }
 
-    void killSandbox(bool getStats) override
+    void kill_sandbox(bool get_stats) override
     {
-        derivation_builder_impl_t::killSandbox(getStats);
+        derivation_builder_impl_t::kill_sandbox(get_stats);
         if (buildUser) {
             auto uid = buildUser->getUID();
             cleanupSysVIPCForUser(uid);

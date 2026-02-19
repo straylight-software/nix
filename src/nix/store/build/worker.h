@@ -53,7 +53,7 @@ struct Child {
   /**
    * Time we last got output on stdout/stderr
    */
-  steady_time_point lastOutput;
+  steady_time_point last_output;
   steady_time_point timeStarted;
 };
 
@@ -131,7 +131,7 @@ private:
   steady_time_point lastWokenUp;
 
   /**
-   * Cache for pathContentsGood().
+   * cache_t for pathContentsGood().
    */
   std::map<StorePath, bool> pathContentsGoodCache;
 
@@ -166,7 +166,7 @@ public:
 #endif
 
   Store& store;
-  Store& evalStore;
+  Store& eval_store;
 
 #ifndef _WIN32 // TODO Enable building on Windows
   std::unique_ptr<HookInstance> hook;
@@ -192,7 +192,7 @@ public:
    */
   bool tryBuildHook = true;
 
-  Worker(Store& store, Store& evalStore);
+  Worker(Store& store, Store& eval_store);
   ~Worker();
 
   /**
@@ -208,38 +208,38 @@ private:
 
   std::shared_ptr<DerivationTrampolineGoal>
   makeDerivationTrampolineGoal(ref<const SingleDerivedPath> drvReq,
-                               const OutputsSpec& wantedOutputs, BuildMode buildMode);
+                               const OutputsSpec& wantedOutputs, BuildMode build_mode);
 
 public:
   std::shared_ptr<DerivationTrampolineGoal>
-  makeDerivationTrampolineGoal(const StorePath& drvPath, const OutputsSpec& wantedOutputs,
-                               const Derivation& drv, BuildMode buildMode);
+  makeDerivationTrampolineGoal(const StorePath& drv_path, const OutputsSpec& wantedOutputs,
+                               const Derivation& drv, BuildMode build_mode);
 
-  std::shared_ptr<DerivationGoal> makeDerivationGoal(const StorePath& drvPath,
+  std::shared_ptr<DerivationGoal> makeDerivationGoal(const StorePath& drv_path,
                                                      const Derivation& drv,
                                                      const OutputName& wantedOutput,
-                                                     BuildMode buildMode, bool storeDerivation);
+                                                     BuildMode build_mode, bool storeDerivation);
 
   /**
    * @ref DerivationResolutionGoal "derivation resolution goal"
    */
-  std::shared_ptr<DerivationResolutionGoal> makeDerivationResolutionGoal(const StorePath& drvPath,
+  std::shared_ptr<DerivationResolutionGoal> makeDerivationResolutionGoal(const StorePath& drv_path,
                                                                          const Derivation& drv,
-                                                                         BuildMode buildMode);
+                                                                         BuildMode build_mode);
 
   /**
    * @ref DerivationBuildingGoal "derivation building goal"
    */
-  std::shared_ptr<DerivationBuildingGoal> makeDerivationBuildingGoal(const StorePath& drvPath,
+  std::shared_ptr<DerivationBuildingGoal> makeDerivationBuildingGoal(const StorePath& drv_path,
                                                                      const Derivation& drv,
-                                                                     BuildMode buildMode,
+                                                                     BuildMode build_mode,
                                                                      bool storeDerivation);
 
   /**
    * @ref PathSubstitutionGoal "substitution goal"
    */
   std::shared_ptr<PathSubstitutionGoal>
-  makePathSubstitutionGoal(const StorePath& storePath, RepairFlag repair = NoRepair,
+  makePathSubstitutionGoal(const StorePath& store_path, RepairFlag repair = NoRepair,
                            std::optional<ContentAddress> ca = std::nullopt);
   std::shared_ptr<DrvOutputSubstitutionGoal> makeDrvOutputSubstitutionGoal(const DrvOutput& id);
 
@@ -249,12 +249,12 @@ public:
    * It will be a `DerivationGoal` for a `DerivedPath::Built` or
    * a `PathSubstitutionGoal` for a `DerivedPath::opaque_t`.
    */
-  GoalPtr makeGoal(const DerivedPath& req, BuildMode buildMode = bmNormal);
+  GoalPtr makeGoal(const DerivedPath& req, BuildMode build_mode = bmNormal);
 
   /**
    * Remove a dead goal.
    */
-  void removeGoal(GoalPtr goal);
+  void remove_goal(GoalPtr goal);
 
   /**
    * Wake up a goal (i.e., there is something for it to do).
@@ -352,8 +352,8 @@ public:
     actDerivations.progress(doneBuilds, expectedBuilds + doneBuilds, runningBuilds, failedBuilds);
     actSubstitutions.progress(doneSubstitutions, expectedSubstitutions + doneSubstitutions,
                               runningSubstitutions, failedSubstitutions);
-    act.setExpected(actFileTransfer, expectedDownloadSize + doneDownloadSize);
-    act.setExpected(actCopyPath, expectedNarSize + doneNarSize);
+    act.set_expected(act_file_transfer, expectedDownloadSize + doneDownloadSize);
+    act.set_expected(act_copy_path, expectedNarSize + doneNarSize);
   }
 };
 

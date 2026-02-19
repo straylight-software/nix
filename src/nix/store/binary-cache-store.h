@@ -30,7 +30,7 @@ struct BinaryCacheStoreConfig : virtual StoreConfig {
           fetch debug info on demand
         )"};
 
-  const setting_t<Path> secretKeyFile{this, "", "secret-key",
+  const setting_t<Path> secret_key_file{this, "", "secret-key",
                                     "Path to the secret key used to sign the binary cache."};
 
   const setting_t<std::string> secretKeyFiles{
@@ -58,15 +58,15 @@ struct BinaryCacheStoreConfig : virtual StoreConfig {
  * virtual getFile() methods.
  */
 struct alignas(8) /* Work around ASAN failures on i686-linux. */
-    BinaryCacheStore : virtual Store,
+    binary_cache_store : virtual Store,
                        virtual LogStore {
-  using Config = BinaryCacheStoreConfig;
+  using config_t = BinaryCacheStoreConfig;
 
   /**
    * Intentionally mutable because some things we update due to the
    * cache's own (remote side) settings.
    */
-  Config& config;
+  config_t& config;
 
 private:
   std::vector<std::unique_ptr<signer_t>> signers;
@@ -79,7 +79,7 @@ protected:
 
   constexpr const static std::string cacheInfoFile = "nix-cache-info";
 
-  BinaryCacheStore(Config&);
+  binary_cache_store(config_t&);
 
   /**
    * Compute the path to the given realisation
@@ -89,20 +89,20 @@ protected:
   std::string makeRealisationPath(const DrvOutput& id);
 
 public:
-  virtual bool fileExists(const std::string& path) = 0;
+  virtual bool file_exists(const std::string& path) = 0;
 
-  virtual void upsertFile(const std::string& path, restartable_source_t& source,
-                          const std::string& mimeType, uint64_t sizeHint) = 0;
+  virtual void upsert_file(const std::string& path, restartable_source_t& source,
+                          const std::string& mime_type, uint64_t size_hint) = 0;
 
-  void upsertFile(const std::string& path,
+  void upsert_file(const std::string& path,
                   // FIXME: use std::string_view
-                  std::string&& data, const std::string& mimeType, uint64_t sizeHint);
+                  std::string&& data, const std::string& mime_type, uint64_t size_hint);
 
-  void upsertFile(const std::string& path,
+  void upsert_file(const std::string& path,
                   // FIXME: use std::string_view
-                  std::string&& data, const std::string& mimeType) {
+                  std::string&& data, const std::string& mime_type) {
     auto size = data.size();
-    upsertFile(path, std::move(data), mimeType, size);
+    upsert_file(path, std::move(data), mime_type, size);
   }
 
   /**
@@ -131,60 +131,60 @@ public:
 private:
   std::string narMagic;
 
-  std::string narInfoFileFor(const StorePath& storePath);
+  std::string narInfoFileFor(const StorePath& store_path);
 
   void writeNarInfo(ref<NarInfo> narInfo);
 
-  ref<const ValidPathInfo> addToStoreCommon(Source& narSource, RepairFlag repair,
-                                            CheckSigsFlag checkSigs,
+  ref<const ValidPathInfo> addToStoreCommon(Source& nar_source, RepairFlag repair,
+                                            CheckSigsFlag check_sigs,
                                             std::function<ValidPathInfo(hash_result_t)> mkInfo);
 
   /**
    * Same as `getFSAccessor`, but with a more preceise return type.
    */
-  ref<RemoteFSAccessor> getRemoteFSAccessor(bool requireValidPath = true);
+  ref<RemoteFSAccessor> getRemoteFSAccessor(bool require_valid_path = true);
 
 public:
   bool isValidPathUncached(const StorePath& path) override;
 
   void
-  queryPathInfoUncached(const StorePath& path,
+  query_path_info_uncached(const StorePath& path,
                         Callback<std::shared_ptr<const ValidPathInfo>> callback) noexcept override;
 
-  std::optional<StorePath> queryPathFromHashPart(const std::string& hashPart) override;
+  std::optional<StorePath> queryPathFromHashPart(const std::string& hash_part) override;
 
-  void addToStore(const ValidPathInfo& info, Source& narSource, RepairFlag repair,
-                  CheckSigsFlag checkSigs) override;
+  void add_to_store(const ValidPathInfo& info, Source& nar_source, RepairFlag repair,
+                  CheckSigsFlag check_sigs) override;
 
-  StorePath addToStoreFromDump(Source& dump, std::string_view name,
-                               file_serialisation_method_t dumpMethod, ContentAddressMethod hashMethod,
-                               hash_algorithm_t hashAlgo, const StorePathSet& references,
+  StorePath add_to_store_from_dump(Source& dump, std::string_view name,
+                               file_serialisation_method_t dump_method, ContentAddressMethod hash_method,
+                               hash_algorithm_t hash_algo, const StorePathSet& references,
                                RepairFlag repair) override;
 
-  StorePath addToStore(std::string_view name, const source_path_t& path, ContentAddressMethod method,
-                       hash_algorithm_t hashAlgo, const StorePathSet& references, path_filter_t& filter,
+  StorePath add_to_store(std::string_view name, const source_path_t& path, ContentAddressMethod method,
+                       hash_algorithm_t hash_algo, const StorePathSet& references, path_filter_t& filter,
                        RepairFlag repair) override;
 
-  void registerDrvOutput(const Realisation& info) override;
+  void register_drv_output(const Realisation& info) override;
 
-  void queryRealisationUncached(
+  void query_realisation_uncached(
       const DrvOutput&,
       Callback<std::shared_ptr<const UnkeyedRealisation>> callback) noexcept override;
 
-  void narFromPath(const StorePath& path, Sink& sink) override;
+  void nar_from_path(const StorePath& path, Sink& sink) override;
 
-  ref<SourceAccessor> getFSAccessor(bool requireValidPath = true) override;
+  ref<SourceAccessor> getFSAccessor(bool require_valid_path = true) override;
 
   std::shared_ptr<SourceAccessor> getFSAccessor(const StorePath&,
-                                                bool requireValidPath = true) override;
+                                                bool require_valid_path = true) override;
 
-  void addSignatures(const StorePath& storePath, const string_set_t& sigs) override;
+  void addSignatures(const StorePath& store_path, const string_set_t& sigs) override;
 
   std::optional<std::string> getBuildLogExact(const StorePath& path) override;
 
-  void addBuildLog(const StorePath& drvPath, std::string_view log) override;
+  void addBuildLog(const StorePath& drv_path, std::string_view log) override;
 };
 
-MakeError(NoSuchBinaryCacheFile, Error);
+make_error(NoSuchBinaryCacheFile, Error);
 
 } // namespace nix

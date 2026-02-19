@@ -21,7 +21,7 @@
 
 namespace {
 
-inline std::pair<int, size_t> charWidthUTF8Helper(std::string_view s) {
+inline std::pair<int, size_t> char_width_ut_f8_helper(std::string_view s) {
   size_t bytes = 1;
   uint32_t ch = s[0];
   uint32_t max = 1U << 7;
@@ -66,7 +66,7 @@ inline std::pair<int, size_t> charWidthUTF8Helper(std::string_view s) {
 
 namespace nix {
 
-bool isTTY(descriptor_t fd) {
+bool is_tty(descriptor_t fd) {
 #ifndef _WIN32
   return isatty(fd);
 #else
@@ -75,14 +75,14 @@ bool isTTY(descriptor_t fd) {
 #endif
 }
 
-bool isTTY() {
-  static const bool tty = isatty(STDERR_FILENO) && getEnv("TERM").value_or("dumb") != "dumb" &&
-                          !(getEnv("NO_COLOR").has_value() || getEnv("NOCOLOR").has_value());
+bool is_tty() {
+  static const bool tty = isatty(STDERR_FILENO) && get_env("TERM").value_or("dumb") != "dumb" &&
+                          !(get_env("NO_COLOR").has_value() || get_env("NOCOLOR").has_value());
 
   return tty;
 }
 
-std::string filterANSIEscapes(std::string_view s, bool filterAll, unsigned int width) {
+std::string filter_ansi_escapes(std::string_view s, bool filter_all, unsigned int width) {
   std::string t;
   size_t w = 0;
   auto i = s.begin();
@@ -127,7 +127,7 @@ std::string filterANSIEscapes(std::string_view s, bool filterAll, unsigned int w
           e += *i++;
       }
 
-      if (!filterAll && last == 'm')
+      if (!filter_all && last == 'm')
         t += e;
     }
 
@@ -145,7 +145,7 @@ std::string filterANSIEscapes(std::string_view s, bool filterAll, unsigned int w
       i++;
 
     else {
-      auto [chWidth, bytes] = charWidthUTF8Helper({i, s.end()});
+      auto [chWidth, bytes] = char_width_ut_f8_helper({i, s.end()});
       w += chWidth;
       if (w > (size_t)width) {
         break;
@@ -159,41 +159,41 @@ std::string filterANSIEscapes(std::string_view s, bool filterAll, unsigned int w
 
 //////////////////////////////////////////////////////////////////////
 
-static sync_t<std::pair<unsigned short, unsigned short>> windowSize{{0, 0}};
+static sync_t<std::pair<unsigned short, unsigned short>> window_size{{0, 0}};
 
-void updateWindowSize() {
+void update_window_size() {
 #ifndef _WIN32
   struct winsize ws;
   if (ioctl(2, TIOCGWINSZ, &ws) == 0) {
-    auto windowSize_(windowSize.lock());
-    windowSize_->first = ws.ws_row;
-    windowSize_->second = ws.ws_col;
+    auto window_size_(window_size.lock());
+    window_size_->first = ws.ws_row;
+    window_size_->second = ws.ws_col;
   }
 #else
   CONSOLE_SCREEN_BUFFER_INFO info;
   // From https://stackoverflow.com/a/12642749
   if (GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &info) != 0) {
-    auto windowSize_(windowSize.lock());
+    auto window_size_(window_size.lock());
     // From https://github.com/libuv/libuv/blob/v1.48.0/src/win/tty.c#L1130
-    windowSize_->first = info.srWindow.Bottom - info.srWindow.Top + 1;
-    windowSize_->second = info.dwSize.X;
+    window_size_->first = info.srWindow.Bottom - info.srWindow.Top + 1;
+    window_size_->second = info.dwSize.X;
   }
 #endif
 }
 
-std::pair<unsigned short, unsigned short> getWindowSize() {
-  return *windowSize.lock();
+std::pair<unsigned short, unsigned short> get_window_size() {
+  return *window_size.lock();
 }
 
-unsigned int getWindowWidth() {
-  unsigned int width = getWindowSize().second;
+unsigned int get_window_width() {
+  unsigned int width = get_window_size().second;
   if (width <= 0)
     width = std::numeric_limits<unsigned int>::max();
   return width;
 }
 
 #ifndef _WIN32
-std::string getPtsName(int fd) {
+std::string get_pts_name(int fd) {
 #  ifdef __APPLE__
   static std::mutex ptsnameMutex;
   // macOS doesn't have ptsname_r, use mutex-protected ptsname

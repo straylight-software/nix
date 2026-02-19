@@ -13,10 +13,10 @@ struct memory_source_accessor_t;
 /**
  * Enough of the Dummy Store exposed for sake of writing unit tests
  */
-struct DummyStore : virtual Store {
-  using Config = DummyStoreConfig;
+struct dummy_store : virtual Store {
+  using config_t = DummyStoreConfig;
 
-  ref<const Config> config;
+  ref<const config_t> config;
 
   struct PathInfoAndContents {
     UnkeyedValidPathInfo info;
@@ -49,14 +49,14 @@ struct DummyStore : virtual Store {
    */
   boost::concurrent_flat_map<Hash, std::map<std::string, UnkeyedRealisation>> buildTrace;
 
-  DummyStore(ref<const Config> config) : Store{*config}, config(config) {}
+  dummy_store(ref<const config_t> config) : Store{*config}, config(config) {}
 
-  bool operator==(const DummyStore&) const;
+  bool operator==(const dummy_store&) const;
 };
 
 template <>
-struct json_avoids_null<DummyStore::PathInfoAndContents> : std::true_type {};
+struct json_avoids_null<dummy_store::PathInfoAndContents> : std::true_type {};
 
 } // namespace nix
 
-JSON_IMPL(nix::DummyStore::PathInfoAndContents)
+JSON_IMPL(nix::dummy_store::PathInfoAndContents)

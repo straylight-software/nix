@@ -17,7 +17,7 @@ void xml_writer_t::close() {
   if (closed)
     return;
   while (!pendingElems.empty())
-    closeElement();
+    close_element();
   closed = true;
 }
 
@@ -27,18 +27,18 @@ void xml_writer_t::indent_(size_t depth) {
   output << std::string(depth * 2, ' ');
 }
 
-void xml_writer_t::openElement(std::string_view name, const xml_attrs_t& attrs) {
+void xml_writer_t::open_element(std::string_view name, const xml_attrs_t& attrs) {
   assert(!closed);
   indent_(pendingElems.size());
   output << "<" << name;
-  writeAttrs(attrs);
+  write_attrs(attrs);
   output << ">";
   if (indent)
     output << std::endl;
   pendingElems.push_back(std::string(name));
 }
 
-void xml_writer_t::closeElement() {
+void xml_writer_t::close_element() {
   assert(!pendingElems.empty());
   indent_(pendingElems.size() - 1);
   output << "</" << pendingElems.back() << ">";
@@ -49,17 +49,17 @@ void xml_writer_t::closeElement() {
     closed = true;
 }
 
-void xml_writer_t::writeEmptyElement(std::string_view name, const xml_attrs_t& attrs) {
+void xml_writer_t::write_empty_element(std::string_view name, const xml_attrs_t& attrs) {
   assert(!closed);
   indent_(pendingElems.size());
   output << "<" << name;
-  writeAttrs(attrs);
+  write_attrs(attrs);
   output << " />";
   if (indent)
     output << std::endl;
 }
 
-void xml_writer_t::writeAttrs(const xml_attrs_t& attrs) {
+void xml_writer_t::write_attrs(const xml_attrs_t& attrs) {
   for (auto& i : attrs) {
     output << " " << i.first << "=\"";
     for (size_t j = 0; j < i.second.size(); ++j) {

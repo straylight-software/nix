@@ -29,7 +29,7 @@ public:
 
   ~MonitorFdHup() {
     // Close the write side to signal termination via POLLHUP
-    notifyPipe.writeSide.close();
+    notifyPipe.write_side.close();
     thread.join();
   }
 };
@@ -83,7 +83,7 @@ inline void MonitorFdHup::runThread(int watchFd, int notifyFd) {
 
     if (numEvents > 0 && (event.flags & EV_EOF)) {
       if (event.ident == uintptr_t(watchFd)) {
-        unix::triggerInterrupt();
+        unix::trigger_interrupt();
       }
       // Either watched fd or notify fd closed, exit
       return;
@@ -109,7 +109,7 @@ inline void MonitorFdHup::runThread(int watchFd, int notifyFd) {
     }
 
     if (fds[0].revents & POLLHUP) {
-      unix::triggerInterrupt();
+      unix::trigger_interrupt();
       break;
     }
 
@@ -123,7 +123,7 @@ inline void MonitorFdHup::runThread(int watchFd, int notifyFd) {
 
 inline MonitorFdHup::MonitorFdHup(int fd) {
   notifyPipe.create();
-  int notifyFd = notifyPipe.readSide.get();
+  int notifyFd = notifyPipe.read_side.get();
   thread = std::thread([this, fd, notifyFd]() { this->runThread(fd, notifyFd); });
 };
 

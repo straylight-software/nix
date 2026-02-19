@@ -17,12 +17,12 @@
 
 namespace nix {
 
-std::optional<Path> getCgroupFS() {
+std::optional<Path> get_cgroup_fs() {
   static auto res = [&]() -> std::optional<Path> {
     auto fp = fopen("/proc/mounts", "r");
     if (!fp)
       return std::nullopt;
-    finally_t delFP = [&]() { fclose(fp); };
+    finally_t del_fp = [&]() { fclose(fp); };
     while (auto ent = getmntent(fp))
       if (std::string_view(ent->mnt_type) == "cgroup2")
         return ent->mnt_dir;
@@ -33,42 +33,42 @@ std::optional<Path> getCgroupFS() {
 }
 
 // FIXME: obsolete, check for cgroup2
-string_map_t getCgroups(const Path& cgroupFile) {
+string_map_t get_cgroups(const Path& cgroup_file) {
   string_map_t cgroups;
 
-  for (auto& line : tokenizeString<std::vector<std::string>>(readFile(cgroupFile), "\n")) {
+  for (auto& line : tokenize_string<std::vector<std::string>>(read_file(cgroup_file), "\n")) {
     static std::regex regex("([0-9]+):([^:]*):(.*)");
     std::smatch match;
     if (!std::regex_match(line, match, regex))
-      throw Error("invalid line '%s' in '%s'", line, cgroupFile);
+      throw Error("invalid line '%s' in '%s'", line, cgroup_file);
 
     std::string name =
-        hasPrefix(std::string(match[2]), "name=") ? std::string(match[2], 5) : match[2];
+        has_prefix(std::string(match[2]), "name=") ? std::string(match[2], 5) : match[2];
     cgroups.insert_or_assign(name, match[3]);
   }
 
   return cgroups;
 }
 
-cgroup_stats_t getCgroupStats(const std::filesystem::path& cgroup) {
+cgroup_stats_t get_cgroup_stats(const std::filesystem::path& cgroup) {
   cgroup_stats_t stats;
 
-  auto cpustatPath = cgroup / "cpu.stat";
+  auto cpustat_path = cgroup / "cpu.stat";
 
-  if (pathExists(cpustatPath)) {
-    for (auto& line : tokenizeString<std::vector<std::string>>(readFile(cpustatPath), "\n")) {
+  if (path_exists(cpustat_path)) {
+    for (auto& line : tokenize_string<std::vector<std::string>>(read_file(cpustat_path), "\n")) {
       std::string_view userPrefix = "user_usec ";
-      if (hasPrefix(line, userPrefix)) {
-        auto n = string2Int<uint64_t>(line.substr(userPrefix.size()));
+      if (has_prefix(line, userPrefix)) {
+        auto n = string2_int<uint64_t>(line.substr(userPrefix.size()));
         if (n)
-          stats.cpuUser = std::chrono::microseconds(*n);
+          stats.cpu_user = std::chrono::microseconds(*n);
       }
 
       std::string_view systemPrefix = "system_usec ";
-      if (hasPrefix(line, systemPrefix)) {
-        auto n = string2Int<uint64_t>(line.substr(systemPrefix.size()));
+      if (has_prefix(line, systemPrefix)) {
+        auto n = string2_int<uint64_t>(line.substr(systemPrefix.size()));
         if (n)
-          stats.cpuSystem = std::chrono::microseconds(*n);
+          stats.cpu_system = std::chrono::microseconds(*n);
       }
     }
   }
@@ -76,36 +76,36 @@ cgroup_stats_t getCgroupStats(const std::filesystem::path& cgroup) {
   return stats;
 }
 
-static cgroup_stats_t destroyCgroup(const std::filesystem::path& cgroup, bool returnStats) {
-  if (!pathExists(cgroup))
+static cgroup_stats_t destroy_cgroup(const std::filesystem::path& cgroup, bool return_stats) {
+  if (!path_exists(cgroup))
     return {};
 
-  auto procsFile = cgroup / "cgroup.procs";
+  auto procs_file = cgroup / "cgroup.procs";
 
-  if (!pathExists(procsFile))
+  if (!path_exists(procs_file))
     throw Error("'%s' is not a cgroup", cgroup);
 
-  /* Use the fast way to kill every process in a cgroup, if
+  /* use the fast way to kill every process in a cgroup, if
      available. */
-  auto killFile = cgroup / "cgroup.kill";
-  if (pathExists(killFile))
-    writeFile(killFile, "1");
+  auto kill_file = cgroup / "cgroup.kill";
+  if (path_exists(kill_file))
+    write_file(kill_file, "1");
 
   /* Otherwise, manually kill every process in the subcgroups and
      this cgroup. */
   for (auto& entry : directory_iterator_t{cgroup}) {
-    checkInterrupt();
+    check_interrupt();
     if (entry.symlink_status().type() != std::filesystem::file_type::directory)
       continue;
-    destroyCgroup(cgroup / entry.path().filename(), false);
+    destroy_cgroup(cgroup / entry.path().filename(), false);
   }
 
   int round = 1;
 
-  boost::unordered_flat_set<pid_t> pidsShown;
+  boost::unordered_flat_set<pid_t> pids_shown;
 
   while (true) {
-    auto pids = tokenizeString<std::vector<std::string>>(readFile(procsFile));
+    auto pids = tokenize_string<std::vector<std::string>>(read_file(procs_file));
 
     if (pids.empty())
       break;
@@ -115,16 +115,16 @@ static cgroup_stats_t destroyCgroup(const std::filesystem::path& cgroup, bool re
 
     for (auto& pid_s : pids) {
       pid_t pid;
-      if (auto o = string2Int<pid_t>(pid_s))
+      if (auto o = string2_int<pid_t>(pid_s))
         pid = *o;
       else
         throw Error("invalid pid '%s'", pid);
-      if (pidsShown.insert(pid).second) {
+      if (pids_shown.insert(pid).second) {
         try {
-          auto cmdline = readFile(fmt("/proc/%d/cmdline", pid));
+          auto cmdline = read_file(fmt("/proc/%d/cmdline", pid));
           using namespace std::string_literals;
           warn("killing stray builder process %d (%s)...", pid,
-               trim(replaceStrings(cmdline, "\0"s, " ")));
+               trim(replace_strings(cmdline, "\0"s, " ")));
         } catch (SystemError&) {
         }
       }
@@ -141,8 +141,8 @@ static cgroup_stats_t destroyCgroup(const std::filesystem::path& cgroup, bool re
   }
 
   cgroup_stats_t stats;
-  if (returnStats)
-    stats = getCgroupStats(cgroup);
+  if (return_stats)
+    stats = get_cgroup_stats(cgroup);
 
   if (rmdir(cgroup.c_str()) == -1)
     throw sys_error_t("deleting cgroup %s", cgroup);
@@ -150,37 +150,37 @@ static cgroup_stats_t destroyCgroup(const std::filesystem::path& cgroup, bool re
   return stats;
 }
 
-cgroup_stats_t destroyCgroup(const Path& cgroup) {
-  return destroyCgroup(cgroup, true);
+cgroup_stats_t destroy_cgroup(const Path& cgroup) {
+  return destroy_cgroup(cgroup, true);
 }
 
-std::string getCurrentCgroup() {
-  auto cgroupFS = getCgroupFS();
-  if (!cgroupFS)
+std::string get_current_cgroup() {
+  auto cgroup_fs = get_cgroup_fs();
+  if (!cgroup_fs)
     throw Error("cannot determine the cgroups file system");
 
-  auto ourCgroups = getCgroups("/proc/self/cgroup");
-  auto ourCgroup = ourCgroups[""];
-  if (ourCgroup == "")
+  auto our_cgroups = get_cgroups("/proc/self/cgroup");
+  auto our_cgroup = our_cgroups[""];
+  if (our_cgroup == "")
     throw Error("cannot determine cgroup name from /proc/self/cgroup");
-  return ourCgroup;
+  return our_cgroup;
 }
 
-std::string getRootCgroup() {
-  static std::string rootCgroup = getCurrentCgroup();
-  return rootCgroup;
+std::string get_root_cgroup() {
+  static std::string root_cgroup = get_current_cgroup();
+  return root_cgroup;
 }
 
-std::set<pid_t> getPidsInCgroup(const std::filesystem::path& cgroup) {
-  if (!pathExists(cgroup))
+std::set<pid_t> get_pids_in_cgroup(const std::filesystem::path& cgroup) {
+  if (!path_exists(cgroup))
     return {};
 
-  auto procsFile = cgroup / "cgroup.procs";
+  auto procs_file = cgroup / "cgroup.procs";
 
   std::set<pid_t> result;
 
-  for (auto& pidStr : tokenizeString<std::vector<std::string>>(readFile(procsFile))) {
-    if (auto o = string2Int<pid_t>(pidStr))
+  for (auto& pidStr : tokenize_string<std::vector<std::string>>(read_file(procs_file))) {
+    if (auto o = string2_int<pid_t>(pidStr))
       result.insert(*o);
     else
       throw Error("invalid PID '%s'", pidStr);

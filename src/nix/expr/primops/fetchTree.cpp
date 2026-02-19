@@ -20,66 +20,66 @@
 
 namespace nix {
 
-void emitTreeAttrs(EvalState& state, const StorePath& storePath, const fetchers::Input& input,
-                   Value& v, bool emptyRevFallback, bool forceDirty) {
+void emit_tree_attrs(EvalState& state, const StorePath& store_path, const fetchers::Input& input,
+                   Value& v, bool empty_rev_fallback, bool force_dirty) {
   auto attrs = state.buildBindings(100);
 
-  state.mkStorePathString(storePath, attrs.alloc(state.s.outPath));
+  state.mkStorePathString(store_path, attrs.alloc(state.s.out_path));
 
   // FIXME: support arbitrary input attributes.
 
-  if (auto narHash = input.getNarHash())
-    attrs.alloc("narHash").mkString(narHash->to_string(hash_format_t::SRI, true), state.mem);
+  if (auto nar_hash = input.getNarHash())
+    attrs.alloc("narHash").mk_string(nar_hash->to_string(hash_format_t::SRI, true), state.mem);
 
   if (input.getType() == "git")
     attrs.alloc("submodules")
-        .mkBool(fetchers::maybeGetBoolAttr(input.attrs, "submodules").value_or(false));
+        .mkBool(fetchers::maybe_get_bool_attr(input.attrs, "submodules").value_or(false));
 
-  if (!forceDirty) {
+  if (!force_dirty) {
     if (auto rev = input.getRev()) {
-      attrs.alloc("rev").mkString(rev->gitRev(), state.mem);
-      attrs.alloc("shortRev").mkString(rev->gitShortRev(), state.mem);
-    } else if (emptyRevFallback) {
+      attrs.alloc("rev").mk_string(rev->git_rev(), state.mem);
+      attrs.alloc("shortRev").mk_string(rev->git_short_rev(), state.mem);
+    } else if (empty_rev_fallback) {
       // Backwards compat for `builtins.fetchGit`: dirty repos return an empty sha1 as rev
-      auto emptyHash = Hash(hash_algorithm_t::SHA1);
-      attrs.alloc("rev").mkString(emptyHash.gitRev(), state.mem);
-      attrs.alloc("shortRev").mkString(emptyHash.gitShortRev(), state.mem);
+      auto empty_hash = Hash(hash_algorithm_t::SHA1);
+      attrs.alloc("rev").mk_string(empty_hash.git_rev(), state.mem);
+      attrs.alloc("shortRev").mk_string(empty_hash.git_short_rev(), state.mem);
     }
 
-    if (auto revCount = input.getRevCount())
-      attrs.alloc("revCount").mkInt(*revCount);
-    else if (emptyRevFallback)
+    if (auto rev_count = input.get_rev_count())
+      attrs.alloc("revCount").mkInt(*rev_count);
+    else if (empty_rev_fallback)
       attrs.alloc("revCount").mkInt(0);
   }
 
-  if (auto dirtyRev = fetchers::maybeGetStrAttr(input.attrs, "dirtyRev")) {
-    attrs.alloc("dirtyRev").mkString(*dirtyRev, state.mem);
+  if (auto dirtyRev = fetchers::maybe_get_str_attr(input.attrs, "dirtyRev")) {
+    attrs.alloc("dirtyRev").mk_string(*dirtyRev, state.mem);
     attrs.alloc("dirtyShortRev")
-        .mkString(*fetchers::maybeGetStrAttr(input.attrs, "dirtyShortRev"), state.mem);
+        .mk_string(*fetchers::maybe_get_str_attr(input.attrs, "dirtyShortRev"), state.mem);
   }
 
-  if (auto lastModified = input.getLastModified()) {
-    attrs.alloc("lastModified").mkInt(*lastModified);
+  if (auto last_modified = input.get_last_modified()) {
+    attrs.alloc("lastModified").mkInt(*last_modified);
     attrs.alloc("lastModifiedDate")
-        .mkString(fmt("%s", std::put_time(std::gmtime(&*lastModified), "%Y%m%d%H%M%S")), state.mem);
+        .mk_string(fmt("%s", std::put_time(std::gmtime(&*last_modified), "%Y%m%d%H%M%S")), state.mem);
   }
 
   v.mkAttrs(attrs);
 }
 
 struct fetch_tree_params_t {
-  bool emptyRevFallback = false;
-  bool allowNameArgument = false;
-  bool isFetchGit = false;
+  bool empty_rev_fallback = false;
+  bool allow_name_argument = false;
+  bool is_fetch_git = false;
 };
 
-static void fetchTree(EvalState& state, const pos_idx_t pos, Value** args, Value& v,
+static void fetch_tree(EvalState& state, const pos_idx_t pos, Value** args, Value& v,
                       const fetch_tree_params_t& params = fetch_tree_params_t{}) {
   fetchers::Input input{};
   NixStringContext context;
   std::optional<std::string> type;
-  auto fetcher = params.isFetchGit ? "fetchGit" : "fetchTree";
-  if (params.isFetchGit)
+  auto fetcher = params.is_fetch_git ? "fetchGit" : "fetchTree";
+  if (params.is_fetch_git)
     type = "git";
 
   state.forceValue(*args[0], pos);
@@ -91,13 +91,13 @@ static void fetchTree(EvalState& state, const pos_idx_t pos, Value** args, Value
 
     if (auto aType = args[0]->attrs()->get(state.s.type)) {
       if (type)
-        state.error<EvalError>("unexpected argument 'type'").atPos(pos).debugThrow();
+        state.error<EvalError>("unexpected argument 'type'").at_pos(pos).debugThrow();
       type = state.forceStringNoCtx(
           *aType->value, aType->pos,
           fmt("while evaluating the `type` argument passed to '%s'", fetcher));
     } else if (!type)
       state.error<EvalError>("argument 'type' is missing in call to '%s'", fetcher)
-          .atPos(pos)
+          .at_pos(pos)
           .debugThrow();
 
     attrs.emplace("type", type.value());
@@ -107,75 +107,75 @@ static void fetchTree(EvalState& state, const pos_idx_t pos, Value** args, Value
         continue;
       state.forceValue(*attr.value, attr.pos);
       if (attr.value->type() == nPath || attr.value->type() == nString) {
-        auto s = state.coerceToString(attr.pos, *attr.value, context, "", false, false).toOwned();
+        auto s = state.coerceToString(attr.pos, *attr.value, context, "", false, false).to_owned();
         attrs.emplace(
             state.symbols[attr.name],
-            params.isFetchGit && state.symbols[attr.name] == "url" ? fixGitURL(s).to_string() : s);
+            params.is_fetch_git && state.symbols[attr.name] == "url" ? fix_git_url(s).to_string() : s);
       } else if (attr.value->type() == nBool)
         attrs.emplace(state.symbols[attr.name], Explicit<bool>{attr.value->boolean()});
       else if (attr.value->type() == nInt) {
-        auto intValue = attr.value->integer().value;
+        auto int_value = attr.value->integer().value;
 
-        if (intValue < 0)
+        if (int_value < 0)
           state
               .error<EvalError>("negative value given for '%s' argument '%s': %d", fetcher,
-                                state.symbols[attr.name], intValue)
-              .atPos(pos)
+                                state.symbols[attr.name], int_value)
+              .at_pos(pos)
               .debugThrow();
 
-        attrs.emplace(state.symbols[attr.name], uint64_t(intValue));
+        attrs.emplace(state.symbols[attr.name], uint64_t(int_value));
       } else if (state.symbols[attr.name] == "publicKeys") {
-        experimentalFeatureSettings.require(xp_t::VerifiedFetches);
+        experimental_feature_settings.require(xp_t::verified_fetches);
         attrs.emplace(state.symbols[attr.name],
-                      printValueAsJSON(state, true, *attr.value, pos, context).dump());
+                      print_value_as_json(state, true, *attr.value, pos, context).dump());
       } else
         state
             .error<TypeError>(
                 "argument '%s' to '%s' is %s while a string, Boolean or integer is expected",
-                state.symbols[attr.name], fetcher, showType(*attr.value))
+                state.symbols[attr.name], fetcher, show_type(*attr.value))
             .debugThrow();
     }
 
-    if (params.isFetchGit && !attrs.contains("exportIgnore") &&
-        (!attrs.contains("submodules") || !*fetchers::maybeGetBoolAttr(attrs, "submodules"))) {
+    if (params.is_fetch_git && !attrs.contains("exportIgnore") &&
+        (!attrs.contains("submodules") || !*fetchers::maybe_get_bool_attr(attrs, "submodules"))) {
       attrs.emplace("exportIgnore", Explicit<bool>{true});
     }
 
-    if (!params.allowNameArgument)
+    if (!params.allow_name_argument)
       if (auto nameIter = attrs.find("name"); nameIter != attrs.end())
         state.error<EvalError>("argument 'name' isn’t supported in call to '%s'", fetcher)
-            .atPos(pos)
+            .at_pos(pos)
             .debugThrow();
 
-    input = fetchers::Input::fromAttrs(state.fetchSettings, std::move(attrs));
+    input = fetchers::Input::fromAttrs(state.fetch_settings, std::move(attrs));
   } else {
     auto url =
         state
             .coerceToString(pos, *args[0], context,
                             fmt("while evaluating the first argument passed to '%s'", fetcher),
                             false, false)
-            .toOwned();
+            .to_owned();
 
-    if (params.isFetchGit) {
+    if (params.is_fetch_git) {
       fetchers::Attrs attrs;
       attrs.emplace("type", "git");
-      attrs.emplace("url", fixGitURL(url).to_string());
+      attrs.emplace("url", fix_git_url(url).to_string());
       if (!attrs.contains("exportIgnore") &&
-          (!attrs.contains("submodules") || !*fetchers::maybeGetBoolAttr(attrs, "submodules"))) {
+          (!attrs.contains("submodules") || !*fetchers::maybe_get_bool_attr(attrs, "submodules"))) {
         attrs.emplace("exportIgnore", Explicit<bool>{true});
       }
-      input = fetchers::Input::fromAttrs(state.fetchSettings, std::move(attrs));
+      input = fetchers::Input::fromAttrs(state.fetch_settings, std::move(attrs));
     } else {
-      input = fetchers::Input::fromURL(state.fetchSettings, url);
+      input = fetchers::Input::fromURL(state.fetch_settings, url);
     }
   }
 
   if (!state.settings.pureEval && !input.isDirect())
-    input = lookupInRegistries(state.fetchSettings, *state.store, input,
+    input = lookup_in_registries(state.fetch_settings, *state.store, input,
                                fetchers::UseRegistries::Limited)
                 .first;
 
-  if (state.settings.pureEval && !input.isLocked(state.fetchSettings)) {
+  if (state.settings.pureEval && !input.isLocked(state.fetch_settings)) {
     if (input.getNarHash())
       warn("Input '%s' is unlocked (e.g. lacks a Git revision) but is checked by NAR hash. "
            "This is not reproducible and will break after garbage collection or when shared.",
@@ -184,7 +184,7 @@ static void fetchTree(EvalState& state, const pos_idx_t pos, Value** args, Value
       state
           .error<EvalError>("in pure evaluation mode, '%s' doesn't fetch unlocked input '%s'",
                             fetcher, input.to_string())
-          .atPos(pos)
+          .at_pos(pos)
           .debugThrow();
   }
 
@@ -193,23 +193,23 @@ static void fetchTree(EvalState& state, const pos_idx_t pos, Value** args, Value
   if (input.getNarHash())
     input.attrs.insert_or_assign("__final", Explicit<bool>(true));
 
-  auto cachedInput = state.inputCache->getAccessor(state.fetchSettings, *state.store, input,
+  auto cached_input = state.inputCache->get_accessor(state.fetch_settings, *state.store, input,
                                                    fetchers::UseRegistries::No);
 
-  auto storePath = state.mountInput(cachedInput.lockedInput, input, cachedInput.accessor, true);
+  auto store_path = state.mountInput(cached_input.lockedInput, input, cached_input.accessor, true);
 
-  emitTreeAttrs(state, storePath, cachedInput.lockedInput, v, params.emptyRevFallback, false);
+  emit_tree_attrs(state, store_path, cached_input.lockedInput, v, params.empty_rev_fallback, false);
 }
 
-static void prim_fetchTree(EvalState& state, const pos_idx_t pos, Value** args, Value& v) {
-  fetchTree(state, pos, args, v, {});
+static void prim_fetch_tree(EvalState& state, const pos_idx_t pos, Value** args, Value& v) {
+  fetch_tree(state, pos, args, v, {});
 }
 
-static RegisterPrimOp primop_fetchTree({
+static RegisterPrimOp primop_fetch_tree({
     .name = "fetchTree",
     .args = {"input"},
     .doc = []() -> std::string {
-      std::string doc = stripIndentation(R"(
+      std::string doc = strip_indentation(R"(
           Fetch a file system tree or a plain file using one of the supported backends and return an attribute set with:
 
           - the resulting fixed-output [store path](@docroot@/store/store-path.md)
@@ -223,14 +223,14 @@ static RegisterPrimOp primop_fetchTree({
             One of the [supported source types](#source-types).
             This determines other required and allowed input attributes.
 
-          - `narHash` (String, optional)
+          - `nar_hash` (String, optional)
 
-            The `narHash` parameter can be used to substitute the source of the tree.
+            The `nar_hash` parameter can be used to substitute the source of the tree.
             It also allows for verification of tree contents that may not be provided by the underlying transfer mechanism.
-            If `narHash` is set, the source is first looked up is the Nix store and [substituters](@docroot@/command-ref/conf-file.md#conf-substituters), and only fetched if not available.
+            If `nar_hash` is set, the source is first looked up is the Nix store and [substituters](@docroot@/command-ref/conf-file.md#conf-substituters), and only fetched if not available.
 
-          A subset of the output attributes of `fetchTree` can be re-used for subsequent calls to `fetchTree` to produce the same result again.
-          That is, `fetchTree` is idempotent.
+          A subset of the output attributes of `fetch_tree` can be re-used for subsequent calls to `fetch_tree` to produce the same result again.
+          That is, `fetch_tree` is idempotent.
 
           Downloads are cached in `$XDG_CACHE_HOME/nix`.
           The remote source is fetched from the network if both are true:
@@ -247,8 +247,8 @@ static RegisterPrimOp primop_fetchTree({
           The following source types and associated input attributes are supported.
 
           <!-- TODO: It would be soooo much more predictable to work with (and
-          document) if `fetchTree` was a curried call with the first parameter for
-          `type` or an attribute like `builtins.fetchTree.git`! -->
+          document) if `fetch_tree` was a curried call with the first parameter for
+          `type` or an attribute like `builtins.fetch_tree.git`! -->
         )");
 
       auto indentString = [](std::string const& str, std::string const& indent) {
@@ -265,22 +265,22 @@ static RegisterPrimOp primop_fetchTree({
         return result;
       };
 
-      for (const auto& [schemeName, scheme] : fetchers::getAllInputSchemes()) {
-        doc += "\n- `" + quoteString(schemeName, '"') + "`\n\n";
+      for (const auto& [schemeName, scheme] : fetchers::get_all_input_schemes()) {
+        doc += "\n- `" + quote_string(schemeName, '"') + "`\n\n";
         doc += indentString(scheme->schemeDescription(), "  ");
         if (!doc.empty() && doc.back() != '\n')
           doc += "\n";
 
-        for (const auto& [attrName, attribute] : scheme->allowedAttrs()) {
-          doc += "\n  - `" + attrName + "` (" + attribute.type + ", " +
+        for (const auto& [attr_name, attribute] : scheme->allowed_attrs()) {
+          doc += "\n  - `" + attr_name + "` (" + attribute.type + ", " +
                  (attribute.required ? "required" : "optional") + ")\n\n";
-          doc += indentString(stripIndentation(attribute.doc), "    ");
+          doc += indentString(strip_indentation(attribute.doc), "    ");
           if (!doc.empty() && doc.back() != '\n')
             doc += "\n";
         }
       }
 
-      doc += "\n" + stripIndentation(R"(
+      doc += "\n" + strip_indentation(R"(
           The following input types are still subject to change:
 
           - `"path"`
@@ -296,7 +296,7 @@ static RegisterPrimOp primop_fetchTree({
           > Fetch a GitHub repository using the attribute set representation:
           >
           > ```nix
-          > builtins.fetchTree {
+          > builtins.fetch_tree {
           >   type = "github";
           >   owner = "NixOS";
           >   repo = "nixpkgs";
@@ -308,10 +308,10 @@ static RegisterPrimOp primop_fetchTree({
           >
           > ```nix
           > {
-          >   lastModified = 1686503798;
+          >   last_modified = 1686503798;
           >   lastModifiedDate = "20230611171638";
-          >   narHash = "sha256-rA9RqKP9OlBrgGCPvfd5HVAXDOy8k2SmPtB/ijShNXc=";
-          >   outPath = "/nix/store/l5m6qlvfs9sdw14ja3qbzpglcjlb6j1x-source";
+          >   nar_hash = "sha256-rA9RqKP9OlBrgGCPvfd5HVAXDOy8k2SmPtB/ijShNXc=";
+          >   out_path = "/nix/store/l5m6qlvfs9sdw14ja3qbzpglcjlb6j1x-source";
           >   rev = "ae2e6b3958682513d28f7d633734571fb18285dd";
           >   shortRev = "ae2e6b3";
           > }
@@ -322,46 +322,46 @@ static RegisterPrimOp primop_fetchTree({
           > Fetch the same GitHub repository using the URL-like syntax:
           >
           >   ```nix
-          >   builtins.fetchTree "github:NixOS/nixpkgs/ae2e6b3958682513d28f7d633734571fb18285dd"
+          >   builtins.fetch_tree "github:NixOS/nixpkgs/ae2e6b3958682513d28f7d633734571fb18285dd"
           >   ```
         )");
 
       return doc;
     }(),
-    .fun = prim_fetchTree,
+    .fun = prim_fetch_tree,
 });
 
 static void fetch(EvalState& state, const pos_idx_t pos, Value** args, Value& v,
                   const std::string& who, bool unpack, std::string name) {
   std::optional<std::string> url;
-  std::optional<Hash> expectedHash;
+  std::optional<Hash> expected_hash;
 
   state.forceValue(*args[0], pos);
 
-  bool isArgAttrs = args[0]->type() == nAttrs;
-  bool nameAttrPassed = false;
+  bool is_arg_attrs = args[0]->type() == nAttrs;
+  bool name_attr_passed = false;
 
-  if (isArgAttrs) {
+  if (is_arg_attrs) {
     for (auto& attr : *args[0]->attrs()) {
       std::string_view n(state.symbols[attr.name]);
       if (n == "url")
         url = state.forceStringNoCtx(*attr.value, attr.pos,
                                      "while evaluating the url we should fetch");
       else if (n == "sha256")
-        expectedHash = newHashAllowEmpty(
+        expected_hash = new_hash_allow_empty(
             state.forceStringNoCtx(*attr.value, attr.pos,
                                    "while evaluating the sha256 of the content we should fetch"),
             hash_algorithm_t::SHA256);
       else if (n == "name") {
-        nameAttrPassed = true;
+        name_attr_passed = true;
         name = state.forceStringNoCtx(*attr.value, attr.pos,
                                       "while evaluating the name of the content we should fetch");
       } else
-        state.error<EvalError>("unsupported argument '%s' to '%s'", n, who).atPos(pos).debugThrow();
+        state.error<EvalError>("unsupported argument '%s' to '%s'", n, who).at_pos(pos).debugThrow();
     }
 
     if (!url)
-      state.error<EvalError>("'url' argument required").atPos(pos).debugThrow();
+      state.error<EvalError>("'url' argument required").at_pos(pos).debugThrow();
   } else
     url = state.forceStringNoCtx(*args[0], pos, "while evaluating the url we should fetch");
 
@@ -371,16 +371,16 @@ static void fetch(EvalState& state, const pos_idx_t pos, Value** args, Value& v,
   state.checkURI(*url);
 
   if (name == "")
-    name = baseNameOf(*url);
+    name = base_name_of(*url);
 
   try {
-    checkName(name);
+    check_name(name);
   } catch (BadStorePathName& e) {
     auto resolution =
-        nameAttrPassed ? hint_fmt_t("Please change the value for the 'name' attribute passed to '%s', "
+        name_attr_passed ? hint_fmt_t("Please change the value for the 'name' attribute passed to '%s', "
                                  "so that it can create a valid store path.",
                                  who)
-        : isArgAttrs   ? hint_fmt_t("Please add a valid 'name' attribute to the argument for '%s', so "
+        : is_arg_attrs   ? hint_fmt_t("Please add a valid 'name' attribute to the argument for '%s', so "
                                    "that it can create a valid store path.",
                                  who)
                        : hint_fmt_t("Please pass an attribute set with 'url' and 'name' attributes to "
@@ -390,61 +390,61 @@ static void fetch(EvalState& state, const pos_idx_t pos, Value** args, Value& v,
     state
         .error<EvalError>(std::string("invalid store path name when fetching URL '%s': %s. %s"),
                           *url, uncolored_t(e.message()), uncolored_t(resolution.str()))
-        .atPos(pos)
+        .at_pos(pos)
         .debugThrow();
   }
 
-  if (state.settings.pureEval && !expectedHash)
+  if (state.settings.pureEval && !expected_hash)
     state.error<EvalError>("in pure evaluation mode, '%s' requires a 'sha256' argument", who)
-        .atPos(pos)
+        .at_pos(pos)
         .debugThrow();
 
   // early exit if pinned and already in the store
-  if (expectedHash && expectedHash->algo == hash_algorithm_t::SHA256) {
-    auto expectedPath = state.store->makeFixedOutputPath(
-        name, FixedOutputInfo{.method = unpack ? file_ingestion_method_t::NixArchive
-                                               : file_ingestion_method_t::Flat,
-                              .hash = *expectedHash,
+  if (expected_hash && expected_hash->algo == hash_algorithm_t::SHA256) {
+    auto expected_path = state.store->makeFixedOutputPath(
+        name, FixedOutputInfo{.method = unpack ? file_ingestion_method_t::nix_archive
+                                               : file_ingestion_method_t::flat,
+                              .hash = *expected_hash,
                               .references = {}});
 
     // Try to get the path from the local store or substituters
     try {
-      state.store->ensurePath(expectedPath);
+      state.store->ensure_path(expected_path);
       debug("using substituted/cached path '%s' for '%s'",
-            state.store->printStorePath(expectedPath), *url);
-      state.allowAndSetStorePathString(expectedPath, v);
+            state.store->printStorePath(expected_path), *url);
+      state.allowAndSetStorePathString(expected_path, v);
       return;
     } catch (Error& e) {
       debug("substitution of '%s' failed, will try to download: %s",
-            state.store->printStorePath(expectedPath), e.what());
+            state.store->printStorePath(expected_path), e.what());
       // Fall through to download
     }
   }
 
   // Download the file/tarball if substitution failed or no hash was provided
-  auto storePath =
-      unpack ? fetchToStore(state.fetchSettings, *state.store,
-                            fetchers::downloadTarball(*state.store, state.fetchSettings, *url),
+  auto store_path =
+      unpack ? fetch_to_store(state.fetch_settings, *state.store,
+                            fetchers::download_tarball(*state.store, state.fetch_settings, *url),
                             FetchMode::Copy, name)
-             : fetchers::downloadFile(*state.store, state.fetchSettings, *url, name).storePath;
+             : fetchers::download_file(*state.store, state.fetch_settings, *url, name).store_path;
 
-  if (expectedHash) {
-    auto hash = unpack ? state.store->queryPathInfo(storePath)->narHash
-                       : hashPath({state.store->requireStoreObjectAccessor(storePath)},
-                                  file_serialisation_method_t::Flat, hash_algorithm_t::SHA256)
+  if (expected_hash) {
+    auto hash = unpack ? state.store->queryPathInfo(store_path)->nar_hash
+                       : hash_path({state.store->requireStoreObjectAccessor(store_path)},
+                                  file_serialisation_method_t::flat, hash_algorithm_t::SHA256)
                              .hash;
-    if (hash != *expectedHash) {
+    if (hash != *expected_hash) {
       state
           .error<EvalError>(
               "hash mismatch in file downloaded from '%s':\n  specified: %s\n  got:       %s", *url,
-              expectedHash->to_string(hash_format_t::Nix32, true),
-              hash.to_string(hash_format_t::Nix32, true))
-          .withExitStatus(102)
+              expected_hash->to_string(hash_format_t::nix32, true),
+              hash.to_string(hash_format_t::nix32, true))
+          .with_exit_status(102)
           .debugThrow();
     }
   }
 
-  state.allowAndSetStorePathString(storePath, v);
+  state.allowAndSetStorePathString(store_path, v);
 }
 
 static void prim_fetchurl(EvalState& state, const pos_idx_t pos, Value** args, Value& v) {
@@ -472,11 +472,11 @@ static RegisterPrimOp primop_fetchurl({
     .fun = prim_fetchurl,
 });
 
-static void prim_fetchTarball(EvalState& state, const pos_idx_t pos, Value** args, Value& v) {
+static void prim_fetch_tarball(EvalState& state, const pos_idx_t pos, Value** args, Value& v) {
   fetch(state, pos, args, v, "fetchTarball", true, "source");
 }
 
-static RegisterPrimOp primop_fetchTarball({
+static RegisterPrimOp primop_fetch_tarball({
     .name = "fetchTarball",
     .args = {"args"},
     .doc = R"(
@@ -518,16 +518,16 @@ static RegisterPrimOp primop_fetchTarball({
 
       Not available in [restricted evaluation mode](@docroot@/command-ref/conf-file.md#conf-restrict-eval).
     )",
-    .fun = prim_fetchTarball,
+    .fun = prim_fetch_tarball,
 });
 
-static void prim_fetchGit(EvalState& state, const pos_idx_t pos, Value** args, Value& v) {
-  fetchTree(
+static void prim_fetch_git(EvalState& state, const pos_idx_t pos, Value** args, Value& v) {
+  fetch_tree(
       state, pos, args, v,
-      fetch_tree_params_t{.emptyRevFallback = true, .allowNameArgument = true, .isFetchGit = true});
+      fetch_tree_params_t{.empty_rev_fallback = true, .allow_name_argument = true, .is_fetch_git = true});
 }
 
-static RegisterPrimOp primop_fetchGit({
+static RegisterPrimOp primop_fetch_git({
     .name = "fetchGit",
     .args = {"args"},
     .doc = R"(
@@ -545,17 +545,17 @@ static RegisterPrimOp primop_fetchGit({
 
       - `rev` (default: *the tip of `ref`*)
 
-        The [Git revision] to fetch.
+        The [git revision] to fetch.
         This is typically a commit hash.
 
-        [Git revision]: https://git-scm.com/docs/git-rev-parse#_specifying_revisions
+        [git revision]: https://git-scm.com/docs/git-rev-parse#_specifying_revisions
 
       - `ref` (default: `HEAD`)
 
-        The [Git reference] under which to look for the requested revision.
+        The [git reference] under which to look for the requested revision.
         This is often a branch or tag name.
 
-        [Git reference]: https://git-scm.com/book/en/v2/Git-Internals-Git-References
+        [git reference]: https://git-scm.com/book/en/v2/Git-Internals-Git-References
 
         This option has no effect once `shallow` cloning is enabled.
 
@@ -566,23 +566,23 @@ static RegisterPrimOp primop_fetchGit({
 
         A Boolean parameter that specifies whether submodules should be checked out.
 
-      - `exportIgnore` (default: `true`)
+      - `export_ignore` (default: `true`)
 
         A Boolean parameter that specifies whether `export-ignore` from `.gitattributes` should be applied.
         This approximates part of the `git archive` behavior.
 
-        Enabling this option is not recommended because it is unknown whether the Git developers commit to the reproducibility of `export-ignore` in newer Git versions.
+        Enabling this option is not recommended because it is unknown whether the git developers commit to the reproducibility of `export-ignore` in newer git versions.
 
       - `shallow` (default: `false`)
 
-        Make a shallow clone when fetching the Git tree.
+        Make a shallow clone when fetching the git tree.
         When this is enabled, the options `ref` and `allRefs` have no effect anymore.
 
       - `lfs` (default: `false`)
 
-        A boolean that when `true` specifies that [Git LFS] files should be fetched.
+        A boolean that when `true` specifies that [git LFS] files should be fetched.
 
-        [Git LFS]: https://git-lfs.com/
+        [git LFS]: https://git-lfs.com/
 
       - `allRefs`
 
@@ -592,15 +592,15 @@ static RegisterPrimOp primop_fetchGit({
 
         This option has no effect once `shallow` cloning is enabled.
 
-      - `verifyCommit` (default: `true` if `publicKey` or `publicKeys` are provided, otherwise `false`)
+      - `verify_commit` (default: `true` if `publicKey` or `public_keys` are provided, otherwise `false`)
 
-        Whether to check `rev` for a signature matching `publicKey` or `publicKeys`.
-        If `verifyCommit` is enabled, then `fetchGit` cannot use a local repository with uncommitted changes.
+        Whether to check `rev` for a signature matching `publicKey` or `public_keys`.
+        If `verify_commit` is enabled, then `fetchGit` cannot use a local repository with uncommitted changes.
         Requires the [`verified-fetches` experimental feature](@docroot@/development/experimental-features.md#xp-feature-verified-fetches).
 
       - `publicKey`
 
-        The public key against which `rev` is verified if `verifyCommit` is enabled.
+        The public key against which `rev` is verified if `verify_commit` is enabled.
         Requires the [`verified-fetches` experimental feature](@docroot@/development/experimental-features.md#xp-feature-verified-fetches).
 
       - `keytype` (default: `"ssh-ed25519"`)
@@ -615,9 +615,9 @@ static RegisterPrimOp primop_fetchGit({
         - `"ssh-rsa"`
         Requires the [`verified-fetches` experimental feature](@docroot@/development/experimental-features.md#xp-feature-verified-fetches).
 
-      - `publicKeys`
+      - `public_keys`
 
-        The public keys against which `rev` is verified if `verifyCommit` is enabled.
+        The public keys against which `rev` is verified if `verify_commit` is enabled.
         Must be given as a list of attribute sets with the following form:
 
         ```nix
@@ -709,8 +709,8 @@ static RegisterPrimOp primop_fetchGit({
           ```nix
           builtins.fetchGit {
             url = "ssh://git@github.com/nixos/nix.git";
-            verifyCommit = true;
-            publicKeys = [
+            verify_commit = true;
+            public_keys = [
                 {
                   type = "ssh-ed25519";
                   key = "AAAAC3NzaC1lZDI1NTE5AAAAIArPKULJOid8eS6XETwUjO48/HKBWl7FTCK0Z//fplDi";
@@ -731,10 +731,10 @@ static RegisterPrimOp primop_fetchGit({
 
       If the URL points to a local directory, and no `ref` or `rev` is
       given, `fetchGit` uses the current content of the checked-out
-      files, even if they are not committed or added to Git's index. It
-      only considers files added to the Git repository, as listed by `git ls-files`.
+      files, even if they are not committed or added to git's index. It
+      only considers files added to the git repository, as listed by `git ls-files`.
     )",
-    .fun = prim_fetchGit,
+    .fun = prim_fetch_git,
 });
 
 } // namespace nix

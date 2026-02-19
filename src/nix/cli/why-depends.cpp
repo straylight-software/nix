@@ -14,7 +14,7 @@ static std::string hilite(const std::string& s, size_t pos, size_t len,
          std::string(s, pos + len);
 }
 
-static std::string filterPrintable(const std::string& s) {
+static std::string filter_printable(const std::string& s) {
   std::string res;
   for (char c : s)
     res += isprint(c) ? c : '.';
@@ -27,28 +27,28 @@ struct cmd_why_depends_t : SourceExprCommand, MixOperateOnOptions {
   bool precise = false;
 
   cmd_why_depends_t() {
-    expectArgs({
+    expect_args({
         .label = "package",
         .handler = {&_package},
         .completer = getCompleteInstallable(),
     });
 
-    expectArgs({
+    expect_args({
         .label = "dependency",
         .handler = {&_dependency},
         .completer = getCompleteInstallable(),
     });
 
-    addFlag({
-        .longName = "all",
-        .shortName = 'a',
+    add_flag({
+        .long_name = "all",
+        .short_name = 'a',
         .description = "Show all edges in the dependency graph leading from *package* to "
                        "*dependency*, rather than just a shortest path.",
         .handler = {&all, true},
     });
 
-    addFlag({
-        .longName = "precise",
+    add_flag({
+        .long_name = "precise",
         .description = "For each edge in the dependency graph, show the files in the parent that "
                        "cause the dependency.",
         .handler = {&precise, true},
@@ -69,7 +69,7 @@ struct cmd_why_depends_t : SourceExprCommand, MixOperateOnOptions {
 
   void run(ref<Store> store) override {
     auto package = parseInstallable(store, _package);
-    auto packagePath =
+    auto package_path =
         Installable::toStorePath(getEvalStore(), store, Realise::Outputs, operateOn, package);
 
     /* We don't need to build `dependency`. We try to get the store
@@ -83,7 +83,7 @@ struct cmd_why_depends_t : SourceExprCommand, MixOperateOnOptions {
      * to build.
      */
     auto dependency = parseInstallable(store, _dependency);
-    auto optDependencyPath = [&]() -> std::optional<StorePath> {
+    auto opt_dependency_path = [&]() -> std::optional<StorePath> {
       try {
         return {Installable::toStorePath(getEvalStore(), store, Realise::Derivation, operateOn,
                                          dependency)};
@@ -93,15 +93,15 @@ struct cmd_why_depends_t : SourceExprCommand, MixOperateOnOptions {
     }();
 
     StorePathSet closure;
-    store->computeFSClosure({packagePath}, closure, false, false);
+    store->computeFSClosure({package_path}, closure, false, false);
 
-    if (!optDependencyPath.has_value() || !closure.count(*optDependencyPath)) {
+    if (!opt_dependency_path.has_value() || !closure.count(*opt_dependency_path)) {
       printError("'%s' does not depend on '%s'", package->what(), dependency->what());
       return;
     }
 
-    auto dependencyPath = *optDependencyPath;
-    auto dependencyPathHash = dependencyPath.hashPart();
+    auto dependency_path = *opt_dependency_path;
+    auto dependency_path_hash = dependency_path.hash_part();
 
     auto const inf = std::numeric_limits<size_t>::max();
 
@@ -120,7 +120,7 @@ struct cmd_why_depends_t : SourceExprCommand, MixOperateOnOptions {
     for (auto& path : closure)
       graph.emplace(path, Node{.path = path,
                                .refs = store->queryPathInfo(path)->references,
-                               .dist = path == dependencyPath ? 0 : inf});
+                               .dist = path == dependency_path ? 0 : inf});
 
     // Transpose the graph.
     for (auto& node : graph)
@@ -131,7 +131,7 @@ struct cmd_why_depends_t : SourceExprCommand, MixOperateOnOptions {
        of every path in the closure to 'dependency'. */
     std::priority_queue<Node*> queue;
 
-    queue.push(&graph.at(dependencyPath));
+    queue.push(&graph.at(dependency_path));
 
     while (!queue.empty()) {
       auto& node = *queue.top();
@@ -166,7 +166,7 @@ struct cmd_why_depends_t : SourceExprCommand, MixOperateOnOptions {
                      firstPad != "" ? "→ " : "", store->printStorePath(node.path));
       }
 
-      if (node.path == dependencyPath && !all && packagePath != dependencyPath)
+      if (node.path == dependency_path && !all && package_path != dependency_path)
         throw bail_out_t();
 
       if (node.visited)
@@ -180,7 +180,7 @@ struct cmd_why_depends_t : SourceExprCommand, MixOperateOnOptions {
       StorePathSet refPaths;
 
       for (auto& ref : node.refs) {
-        if (ref == node.path && packagePath != dependencyPath)
+        if (ref == node.path && package_path != dependency_path)
           continue;
         auto& node2 = graph.at(ref);
         if (node2.dist == inf)
@@ -196,38 +196,38 @@ struct cmd_why_depends_t : SourceExprCommand, MixOperateOnOptions {
       auto accessor = store->requireStoreObjectAccessor(node.path);
 
       auto getColour = [&](const std::string& hash) {
-        return hash == dependencyPathHash ? ANSI_GREEN : ANSI_BLUE;
+        return hash == dependency_path_hash ? ANSI_GREEN : ANSI_BLUE;
       };
 
       if (precise) {
         // Use scanForReferencesDeep to find files containing references
-        scanForReferencesDeep(*accessor, canon_path_t::root, refPaths, [&](FileRefScanResult result) {
-          auto p2 = result.filePath.isRoot() ? result.filePath.abs() : result.filePath.rel();
+        scan_for_references_deep(*accessor, canon_path_t::root, refPaths, [&](FileRefScanResult result) {
+          auto p2 = result.filePath.is_root() ? result.filePath.abs() : result.filePath.rel();
           auto st = accessor->lstat(result.filePath);
 
-          if (st.type == SourceAccessor::Type::tRegular) {
-            auto contents = accessor->readFile(result.filePath);
+          if (st.type == SourceAccessor::Type::t_regular) {
+            auto contents = accessor->read_file(result.filePath);
 
             // For each reference found in this file, extract context
-            for (auto& foundRef : result.foundRefs) {
-              std::string hash(foundRef.hashPart());
+            for (auto& foundRef : result.found_refs) {
+              std::string hash(foundRef.hash_part());
               auto pos = contents.find(hash);
               if (pos != std::string::npos) {
                 size_t margin = 32;
                 auto pos2 = pos >= margin ? pos - margin : 0;
                 hits[hash].emplace_back(
                     fmt("%s: …%s…", p2,
-                        hilite(filterPrintable(
+                        hilite(filter_printable(
                                    std::string(contents, pos2, pos - pos2 + hash.size() + margin)),
                                pos - pos2, StorePath::HashLen, getColour(hash))));
               }
             }
-          } else if (st.type == SourceAccessor::Type::tSymlink) {
-            auto target = accessor->readLink(result.filePath);
+          } else if (st.type == SourceAccessor::Type::t_symlink) {
+            auto target = accessor->read_link(result.filePath);
 
             // For each reference found in this symlink, show it
-            for (auto& foundRef : result.foundRefs) {
-              std::string hash(foundRef.hashPart());
+            for (auto& foundRef : result.found_refs) {
+              std::string hash(foundRef.hash_part());
               auto pos = target.find(hash);
               if (pos != std::string::npos)
                 hits[hash].emplace_back(
@@ -238,38 +238,38 @@ struct cmd_why_depends_t : SourceExprCommand, MixOperateOnOptions {
       }
 
       for (auto& ref : refs) {
-        std::string hash(ref.second->path.hashPart());
+        std::string hash(ref.second->path.hash_part());
 
         bool last = all ? ref == *refs.rbegin() : true;
 
         for (auto& hit : hits[hash]) {
           bool first = hit == *hits[hash].begin();
           logger->cout("%s%s%s", tailPad,
-                       (first ? (last ? treeLast : treeConn) : (last ? treeNull : treeLine)), hit);
+                       (first ? (last ? tree_last : tree_conn) : (last ? tree_null : tree_line)), hit);
           if (!all)
             break;
         }
 
         if (!precise) {
           logger->cout("%s%s%s%s" ANSI_NORMAL, firstPad, ref.second->visited ? "\e[38;5;244m" : "",
-                       last ? treeLast : treeConn, store->printStorePath(ref.second->path));
+                       last ? tree_last : tree_conn, store->printStorePath(ref.second->path));
           node.visited = true;
         }
 
-        printNode(*ref.second, tailPad + (last ? treeNull : treeLine),
-                  tailPad + (last ? treeNull : treeLine));
+        printNode(*ref.second, tailPad + (last ? tree_null : tree_line),
+                  tailPad + (last ? tree_null : tree_line));
       }
     };
 
     RunPager pager;
     try {
       if (!precise) {
-        logger->cout("%s", store->printStorePath(graph.at(packagePath).path));
+        logger->cout("%s", store->printStorePath(graph.at(package_path).path));
       }
-      printNode(graph.at(packagePath), "", "");
+      printNode(graph.at(package_path), "", "");
     } catch (bail_out_t&) {
     }
   }
 };
 
-static auto rCmdWhyDepends = registerCommand<cmd_why_depends_t>("why-depends");
+static auto r_cmd_why_depends = registerCommand<cmd_why_depends_t>("why-depends");

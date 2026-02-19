@@ -18,28 +18,28 @@ class registry_command_t : virtual Args {
 
 public:
   registry_command_t() {
-    addFlag({
-        .longName = "registry",
+    add_flag({
+        .long_name = "registry",
         .description = "The registry to operate on.",
         .labels = {"registry"},
         .handler = {&registry_path},
     });
   }
 
-  std::shared_ptr<fetchers::Registry> getRegistry() {
+  std::shared_ptr<fetchers::Registry> get_registry() {
     if (registry)
       return registry;
     if (registry_path.empty()) {
-      registry = fetchers::getUserRegistry(fetchSettings);
+      registry = fetchers::get_user_registry(fetch_settings);
     } else {
-      registry = fetchers::getCustomRegistry(fetchSettings, registry_path);
+      registry = fetchers::get_custom_registry(fetch_settings, registry_path);
     }
     return registry;
   }
 
-  Path getRegistryPath() {
+  Path get_registry_path() {
     if (registry_path.empty()) {
-      return fetchers::getUserRegistryPath().string();
+      return fetchers::get_user_registry_path().string();
     } else {
       return registry_path;
     }
@@ -58,7 +58,7 @@ struct cmd_registry_list_t : StoreCommand {
   void run(nix::ref<nix::Store> store) override {
     using namespace fetchers;
 
-    auto registries = getRegistries(fetchSettings, *store);
+    auto registries = get_registries(fetch_settings, *store);
 
     for (auto& registry : registries) {
       for (auto& entry : registry->entries) {
@@ -69,14 +69,14 @@ struct cmd_registry_list_t : StoreCommand {
                      : registry->type == Registry::System ? "system"
                                                           : "global",
                      entry.from.toURLString(),
-                     entry.to.toURLString(attrsToQuery(entry.extraAttrs)));
+                     entry.to.toURLString(attrs_to_query(entry.extra_attrs)));
       }
     }
   }
 };
 
 struct cmd_registry_add_t : MixEvalArgs, command_t, registry_command_t {
-  std::string fromUrl, toUrl;
+  std::string from_url, to_url;
 
   std::string description() override { return "add/replace flake in user flake registry"; }
 
@@ -87,20 +87,20 @@ struct cmd_registry_add_t : MixEvalArgs, command_t, registry_command_t {
   }
 
   cmd_registry_add_t() {
-    expectArg("from-url", &fromUrl);
-    expectArg("to-url", &toUrl);
+    expect_arg("from-url", &from_url);
+    expect_arg("to-url", &to_url);
   }
 
   void run() override {
-    auto fromRef = parseFlakeRef(fetchSettings, fromUrl);
-    auto toRef = parseFlakeRef(fetchSettings, toUrl);
-    auto registry = getRegistry();
-    fetchers::Attrs extraAttrs;
-    if (toRef.subdir != "")
-      extraAttrs["dir"] = toRef.subdir;
-    registry->remove(fromRef.input);
-    registry->add(fromRef.input, toRef.input, extraAttrs);
-    registry->write(getRegistryPath());
+    auto from_ref = parse_flake_ref(fetch_settings, from_url);
+    auto to_ref = parse_flake_ref(fetch_settings, to_url);
+    auto registry = get_registry();
+    fetchers::Attrs extra_attrs;
+    if (to_ref.subdir != "")
+      extra_attrs["dir"] = to_ref.subdir;
+    registry->remove(from_ref.input);
+    registry->add(from_ref.input, to_ref.input, extra_attrs);
+    registry->write(get_registry_path());
   }
 };
 
@@ -115,12 +115,12 @@ struct cmd_registry_remove_t : registry_command_t, command_t {
         ;
   }
 
-  cmd_registry_remove_t() { expectArg("url", &url); }
+  cmd_registry_remove_t() { expect_arg("url", &url); }
 
   void run() override {
-    auto registry = getRegistry();
-    registry->remove(parseFlakeRef(fetchSettings, url).input);
-    registry->write(getRegistryPath());
+    auto registry = get_registry();
+    registry->remove(parse_flake_ref(fetch_settings, url).input);
+    registry->write(get_registry_path());
   }
 };
 
@@ -140,32 +140,32 @@ struct cmd_registry_pin_t : registry_command_t, EvalCommand {
   }
 
   cmd_registry_pin_t() {
-    expectArg("url", &url);
+    expect_arg("url", &url);
 
-    expectArgs({.label = "locked",
+    expect_args({.label = "locked",
                 .optional = true,
                 .handler = {&locked},
                 .completer = {[&](add_completions_t& completions, size_t, std::string_view prefix) {
-                  completeFlakeRef(completions, getStore(), prefix);
+                  complete_flake_ref(completions, getStore(), prefix);
                 }}});
   }
 
   void run(nix::ref<nix::Store> store) override {
     if (locked.empty())
       locked = url;
-    auto registry = getRegistry();
-    auto ref = parseFlakeRef(fetchSettings, url);
-    auto lockedRef = parseFlakeRef(fetchSettings, locked);
-    auto resolvedInput = lockedRef.resolve(fetchSettings, *store).input;
-    auto resolved = resolvedInput.getAccessor(fetchSettings, *store).second;
-    if (!resolved.isLocked(fetchSettings))
+    auto registry = get_registry();
+    auto ref = parse_flake_ref(fetch_settings, url);
+    auto locked_ref = parse_flake_ref(fetch_settings, locked);
+    auto resolved_input = locked_ref.resolve(fetch_settings, *store).input;
+    auto resolved = resolved_input.get_accessor(fetch_settings, *store).second;
+    if (!resolved.isLocked(fetch_settings))
       warn("flake '%s' is not locked", resolved.to_string());
-    fetchers::Attrs extraAttrs;
+    fetchers::Attrs extra_attrs;
     if (ref.subdir != "")
-      extraAttrs["dir"] = ref.subdir;
+      extra_attrs["dir"] = ref.subdir;
     registry->remove(ref.input);
-    registry->add(ref.input, resolved, extraAttrs);
-    registry->write(getRegistryPath());
+    registry->add(ref.input, resolved, extra_attrs);
+    registry->write(get_registry_path());
   }
 };
 
@@ -181,7 +181,7 @@ struct cmd_registry_resolve_t : StoreCommand {
   }
 
   cmd_registry_resolve_t() {
-    expectArgs({
+    expect_args({
         .label = "flake-refs",
         .handler = {&urls},
     });
@@ -189,8 +189,8 @@ struct cmd_registry_resolve_t : StoreCommand {
 
   void run(nix::ref<nix::Store> store) override {
     for (auto& url : urls) {
-      auto ref = parseFlakeRef(fetchSettings, url);
-      auto resolved = ref.resolve(fetchSettings, *store);
+      auto ref = parse_flake_ref(fetch_settings, url);
+      auto resolved = ref.resolve(fetch_settings, *store);
       logger->cout("%s", resolved.to_string());
     }
   }
@@ -218,4 +218,4 @@ struct cmd_registry_t : NixMultiCommand {
   category_t category() override { return catSecondary; }
 };
 
-static auto rCmdRegistry = registerCommand<cmd_registry_t>("registry");
+static auto r_cmd_registry = registerCommand<cmd_registry_t>("registry");

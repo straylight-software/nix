@@ -8,23 +8,23 @@ struct settings_t;
 struct InputCache {
   struct CachedResult {
     ref<SourceAccessor> accessor;
-    Input resolvedInput;
+    Input resolved_input;
     Input lockedInput;
-    Attrs extraAttrs;
+    Attrs extra_attrs;
   };
 
-  CachedResult getAccessor(const settings_t& settings, Store& store, const Input& originalInput,
-                           UseRegistries useRegistries);
+  CachedResult get_accessor(const settings_t& settings, Store& store, const Input& original_input,
+                           UseRegistries use_registries);
 
   struct CachedInput {
     Input lockedInput;
     ref<SourceAccessor> accessor;
-    Attrs extraAttrs;
+    Attrs extra_attrs;
   };
 
-  virtual std::optional<CachedInput> lookup(const Input& originalInput) const = 0;
+  virtual std::optional<CachedInput> lookup(const Input& original_input) const = 0;
 
-  virtual void upsert(Input key, CachedInput cachedInput) = 0;
+  virtual void upsert(Input key, CachedInput cached_input) = 0;
 
   virtual void clear() = 0;
 

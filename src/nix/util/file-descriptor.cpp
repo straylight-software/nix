@@ -12,21 +12,21 @@
 
 namespace nix {
 
-void writeLine(descriptor_t fd, std::string s) {
+void write_line(descriptor_t fd, std::string s) {
   s += '\n';
-  writeFull(fd, s);
+  write_full(fd, s);
 }
 
-std::string drainFD(descriptor_t fd, bool block, const size_t reserveSize) {
+std::string drain_fd(descriptor_t fd, bool block, const size_t reserve_size) {
   // the parser needs two extra bytes to append terminating characters, other users will
   // not care very much about the extra memory.
-  string_sink_t sink(reserveSize + 2);
+  string_sink_t sink(reserve_size + 2);
 #ifdef _WIN32
   // non-blocking is not supported this way on Windows
   assert(block);
-  drainFD(fd, sink);
+  drain_fd(fd, sink);
 #else
-  drainFD(fd, sink, block);
+  drain_fd(fd, sink, block);
 #endif
   return std::move(sink.s);
 }
@@ -54,7 +54,7 @@ auto_close_fd_t::~auto_close_fd_t() {
   try {
     close();
   } catch (...) {
-    ignoreExceptionInDestructor();
+    ignore_exception_in_destructor();
   }
 }
 
@@ -94,7 +94,7 @@ void auto_close_fd_t::fsync() const {
   }
 }
 
-void auto_close_fd_t::startFsync() const {
+void auto_close_fd_t::start_fsync() const {
 #ifdef __linux__
   if (fd != -1) {
     /* Ignore failure, since fsync must be run later anyway. This is just a performance
@@ -109,16 +109,16 @@ auto_close_fd_t::operator bool() const {
 }
 
 descriptor_t auto_close_fd_t::release() {
-  descriptor_t oldFD = fd;
+  descriptor_t old_fd = fd;
   fd = INVALID_DESCRIPTOR;
-  return oldFD;
+  return old_fd;
 }
 
 //////////////////////////////////////////////////////////////////////
 
 void pipe_t::close() {
-  readSide.close();
-  writeSide.close();
+  read_side.close();
+  write_side.close();
 }
 
 } // namespace nix

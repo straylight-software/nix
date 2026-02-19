@@ -23,16 +23,16 @@ namespace nix {
 
 namespace {
 
-void logFatal(std::string const& s) {
-  writeToStderr(s + "\n");
+void log_fatal(std::string const& s) {
+  write_to_stderr(s + "\n");
   // std::string for guaranteed null termination
 #ifndef _WIN32
   syslog(LOG_CRIT, "%s", s.c_str());
 #endif
 }
 
-void onTerminate() {
-  logFatal("Determinate Nix crashed. This is a bug. Please report this at "
+void on_terminate() {
+  log_fatal("Determinate Nix crashed. This is a bug. Please report this at "
            "https://github.com/DeterminateSystems/nix-src/issues with the following information "
            "included:\n");
   try {
@@ -40,28 +40,28 @@ void onTerminate() {
     if (eptr) {
       std::rethrow_exception(eptr);
     } else {
-      logFatal("std::terminate() called without exception");
+      log_fatal("std::terminate() called without exception");
     }
   } catch (const std::exception& ex) {
-    logFatal(fmt("Exception: %s: %s", boost::core::demangle(typeid(ex).name()), ex.what()));
+    log_fatal(fmt("Exception: %s: %s", boost::core::demangle(typeid(ex).name()), ex.what()));
   } catch (...) {
-    logFatal("Unknown exception!");
+    log_fatal("Unknown exception!");
   }
 
-  logFatal("Stack trace:");
+  log_fatal("Stack trace:");
   std::stringstream ss;
   ss << boost::stacktrace::stacktrace();
-  logFatal(ss.str());
+  log_fatal(ss.str());
 
   std::abort();
 }
 } // namespace
 
-void registerCrashHandler() {
+void register_crash_handler() {
   // DO NOT use this for signals. Boost stacktrace is very much not
   // async-signal-safe, and in a world with ASLR, addr2line is pointless.
   //
   // If you want signals, set up a minidump system and do it out-of-process.
-  std::set_terminate(onTerminate);
+  std::set_terminate(on_terminate);
 }
 } // namespace nix

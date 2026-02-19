@@ -30,9 +30,9 @@ namespace {
 // Create a MemorySourceAccessor with some test files
 ref<memory_source_accessor_t> make_test_accessor() {
   auto accessor = make_ref<memory_source_accessor_t>();
-  accessor->addFile(canon_path_t("/file.txt"), "hello world");
-  accessor->addFile(canon_path_t("/dir/nested.txt"), "nested content");
-  accessor->addFile(canon_path_t("/dir/subdir/deep.txt"), "deep content");
+  accessor->add_file(canon_path_t("/file.txt"), "hello world");
+  accessor->add_file(canon_path_t("/dir/nested.txt"), "nested content");
+  accessor->add_file(canon_path_t("/dir/subdir/deep.txt"), "deep content");
   return accessor;
 }
 
@@ -54,7 +54,7 @@ TEST_CASE("source path construction with root", "[source-path][construction]") {
   auto accessor = make_empty_accessor();
   source_path_t path(accessor);
 
-  REQUIRE(path.path.isRoot());
+  REQUIRE(path.path.is_root());
   REQUIRE(path.path.abs() == "/");
 }
 
@@ -62,7 +62,7 @@ TEST_CASE("source path construction with explicit path", "[source-path][construc
   auto accessor = make_empty_accessor();
   source_path_t path(accessor, canon_path_t("/foo/bar"));
 
-  REQUIRE_FALSE(path.path.isRoot());
+  REQUIRE_FALSE(path.path.is_root());
   REQUIRE(path.path.abs() == "/foo/bar");
 }
 
@@ -82,21 +82,21 @@ TEST_CASE("source path basename for root returns source", "[source-path][basenam
   source_path_t path(accessor);
 
   // Root path has no basename, returns "source" as default
-  REQUIRE(path.baseName() == "source");
+  REQUIRE(path.base_name() == "source");
 }
 
 TEST_CASE("source path basename for simple path", "[source-path][basename]") {
   auto accessor = make_empty_accessor();
   source_path_t path(accessor, canon_path_t("/foo"));
 
-  REQUIRE(path.baseName() == "foo");
+  REQUIRE(path.base_name() == "foo");
 }
 
 TEST_CASE("source path basename for nested path", "[source-path][basename]") {
   auto accessor = make_empty_accessor();
   source_path_t path(accessor, canon_path_t("/foo/bar/baz.txt"));
 
-  REQUIRE(path.baseName() == "baz.txt");
+  REQUIRE(path.base_name() == "baz.txt");
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -286,18 +286,18 @@ TEST_CASE("source path read file", "[source-path][fs]") {
   auto accessor = make_test_accessor();
   source_path_t path(accessor, canon_path_t("/file.txt"));
 
-  REQUIRE(path.pathExists());
-  REQUIRE(path.readFile() == "hello world");
+  REQUIRE(path.path_exists());
+  REQUIRE(path.read_file() == "hello world");
 }
 
 TEST_CASE("source path path exists", "[source-path][fs]") {
   auto accessor = make_test_accessor();
 
   source_path_t existing(accessor, canon_path_t("/file.txt"));
-  REQUIRE(existing.pathExists());
+  REQUIRE(existing.path_exists());
 
   source_path_t nonexistent(accessor, canon_path_t("/nonexistent"));
-  REQUIRE_FALSE(nonexistent.pathExists());
+  REQUIRE_FALSE(nonexistent.path_exists());
 }
 
 TEST_CASE("source path lstat for file", "[source-path][fs]") {
@@ -305,7 +305,7 @@ TEST_CASE("source path lstat for file", "[source-path][fs]") {
   source_path_t path(accessor, canon_path_t("/file.txt"));
 
   auto stat = path.lstat();
-  REQUIRE(stat.type == SourceAccessor::tRegular);
+  REQUIRE(stat.type == SourceAccessor::t_regular);
 }
 
 TEST_CASE("source path lstat for directory", "[source-path][fs]") {
@@ -313,14 +313,14 @@ TEST_CASE("source path lstat for directory", "[source-path][fs]") {
   source_path_t path(accessor, canon_path_t("/dir"));
 
   auto stat = path.lstat();
-  REQUIRE(stat.type == SourceAccessor::tDirectory);
+  REQUIRE(stat.type == SourceAccessor::t_directory);
 }
 
 TEST_CASE("source path maybe lstat returns nullopt for nonexistent", "[source-path][fs]") {
   auto accessor = make_test_accessor();
   source_path_t path(accessor, canon_path_t("/nonexistent"));
 
-  auto stat = path.maybeLstat();
+  auto stat = path.maybe_lstat();
   REQUIRE_FALSE(stat.has_value());
 }
 
@@ -328,7 +328,7 @@ TEST_CASE("source path read directory", "[source-path][fs]") {
   auto accessor = make_test_accessor();
   source_path_t path(accessor, canon_path_t("/dir"));
 
-  auto entries = path.readDirectory();
+  auto entries = path.read_directory();
   REQUIRE(entries.size() >= 1);
   REQUIRE(entries.contains("nested.txt"));
   REQUIRE(entries.contains("subdir"));
@@ -417,10 +417,10 @@ TEST_CASE("source path with unicode characters", "[source-path][unicode]") {
   REQUIRE(path_emoji.path.abs() == "/dir/file_\xF0\x9F\x98\x80.txt");
 
   source_path_t path_cjk(accessor, canon_path_t("/\xE4\xB8\xAD\xE6\x96\x87")); // Chinese
-  REQUIRE_FALSE(path_cjk.path.isRoot());
+  REQUIRE_FALSE(path_cjk.path.is_root());
 
   source_path_t path_arabic(accessor, canon_path_t("/\xD8\xB9\xD8\xB1\xD8\xA8\xD9\x8A")); // Arabic
-  REQUIRE_FALSE(path_arabic.path.isRoot());
+  REQUIRE_FALSE(path_arabic.path.is_root());
 }
 
 TEST_CASE("source path with unicode normalization forms", "[source-path][unicode]") {
@@ -470,13 +470,13 @@ TEST_CASE("source path with zero width characters", "[source-path][unicode][secu
   source_path_t path(accessor, canon_path_t("/test\xE2\x80"
                                       "\x8B"
                                       "file"));
-  REQUIRE_FALSE(path.path.isRoot());
+  REQUIRE_FALSE(path.path.is_root());
 
   // Zero-width joiner U+200D
   source_path_t path2(accessor, canon_path_t("/test\xE2\x80"
                                        "\x8D"
                                        "file"));
-  REQUIRE_FALSE(path2.path.isRoot());
+  REQUIRE_FALSE(path2.path.is_root());
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -493,11 +493,11 @@ TEST_CASE("source path with very long path", "[source-path][edge-case]") {
   }
 
   source_path_t path(accessor, canon_path_t(long_path));
-  REQUIRE_FALSE(path.path.isRoot());
+  REQUIRE_FALSE(path.path.is_root());
 
   // Parent should work
   source_path_t parent = path.parent();
-  REQUIRE_FALSE(parent.path.isRoot());
+  REQUIRE_FALSE(parent.path.is_root());
 }
 
 TEST_CASE("source path with very long component name", "[source-path][edge-case]") {
@@ -507,7 +507,7 @@ TEST_CASE("source path with very long component name", "[source-path][edge-case]
   std::string long_component(4096, 'x');
   source_path_t path(accessor, canon_path_t("/" + long_component));
 
-  REQUIRE(path.baseName() == long_component);
+  REQUIRE(path.base_name() == long_component);
 }
 
 TEST_CASE("source path with special characters in component", "[source-path][edge-case]") {
@@ -515,16 +515,16 @@ TEST_CASE("source path with special characters in component", "[source-path][edg
 
   // Various special characters (but not slash or null)
   source_path_t path1(accessor, canon_path_t("/file with spaces"));
-  REQUIRE(path1.baseName() == "file with spaces");
+  REQUIRE(path1.base_name() == "file with spaces");
 
   source_path_t path2(accessor, canon_path_t("/file\twith\ttabs"));
-  REQUIRE(path2.baseName() == "file\twith\ttabs");
+  REQUIRE(path2.base_name() == "file\twith\ttabs");
 
   source_path_t path3(accessor, canon_path_t("/file\nwith\nnewlines"));
-  REQUIRE(path3.baseName() == "file\nwith\nnewlines");
+  REQUIRE(path3.base_name() == "file\nwith\nnewlines");
 
   source_path_t path4(accessor, canon_path_t("/!@#$%^&*()"));
-  REQUIRE(path4.baseName() == "!@#$%^&*()");
+  REQUIRE(path4.base_name() == "!@#$%^&*()");
 }
 
 TEST_CASE("source path with backslashes", "[source-path][edge-case]") {
@@ -533,7 +533,7 @@ TEST_CASE("source path with backslashes", "[source-path][edge-case]") {
   // Backslashes are not path separators in CanonPath (Unix-style)
   source_path_t path(accessor, canon_path_t("/foo\\bar\\baz"));
   // Should be single component with backslashes
-  REQUIRE(path.baseName() == "foo\\bar\\baz");
+  REQUIRE(path.base_name() == "foo\\bar\\baz");
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -578,10 +578,10 @@ TEST_CASE("source path property tests", "[source-path][property]") {
     canon_path_t canon(components);
     source_path_t path(accessor, canon);
 
-    if (canon.isRoot()) {
-      RC_ASSERT(path.baseName() == "source");
+    if (canon.is_root()) {
+      RC_ASSERT(path.base_name() == "source");
     } else {
-      RC_ASSERT(path.baseName() == canon.baseName().value());
+      RC_ASSERT(path.base_name() == canon.base_name().value());
     }
   });
 
@@ -680,7 +680,7 @@ TEST_CASE("source path fuzz path components", "[source-path][fuzz]") {
     // Should not crash
     source_path_t base(accessor, canon_path_t("/base"));
     source_path_t extended = base / raw;
-    RC_ASSERT(!extended.path.isRoot());
+    RC_ASSERT(!extended.path.is_root());
     RC_ASSERT(&*extended.accessor == &*accessor);
   });
 }
@@ -784,7 +784,7 @@ TEST_CASE("source path fuzz control characters", "[source-path][fuzz][security]"
     source_path_t result = base / component;
 
     // Should handle control characters (they're valid in paths)
-    RC_ASSERT(!result.path.isRoot());
+    RC_ASSERT(!result.path.is_root());
   });
 }
 
@@ -801,7 +801,7 @@ TEST_CASE("source path fuzz high bytes", "[source-path][fuzz]") {
     source_path_t base(accessor, canon_path_t("/base"));
     source_path_t result = base / component;
 
-    RC_ASSERT(!result.path.isRoot());
+    RC_ASSERT(!result.path.is_root());
     RC_ASSERT(&*result.accessor == &*accessor);
   });
 }
@@ -823,17 +823,17 @@ TEST_CASE("source path stress many operations", "[source-path][stress]") {
     }
 
     // Should have built up a path
-    RC_ASSERT(!path.path.isRoot());
+    RC_ASSERT(!path.path.is_root());
 
     // Walk back up
     auto ops = static_cast<int>(components.size());
     for (int i = 0; i < ops; ++i) {
-      if (!path.path.isRoot()) {
+      if (!path.path.is_root()) {
         path = path.parent();
       }
     }
 
-    RC_ASSERT(path.path.isRoot());
+    RC_ASSERT(path.path.is_root());
   });
 }
 

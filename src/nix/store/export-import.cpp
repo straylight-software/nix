@@ -9,27 +9,27 @@
 
 namespace nix {
 
-static const uint32_t exportMagicV1 = 0x4558494e;
-static const uint64_t exportMagicV2 = 0x324f4952414e; // = 'NARIO2'
+static const uint32_t export_magic_v1 = 0x4558494e;
+static const uint64_t export_magic_v2 = 0x324f4952414e; // = 'NARIO2'
 
-void exportPaths(Store& store, const StorePathSet& paths, Sink& sink, unsigned int version) {
+void export_paths(Store& store, const StorePathSet& paths, Sink& sink, unsigned int version) {
   auto sorted = store.topoSortPaths(paths);
   std::reverse(sorted.begin(), sorted.end());
 
-  auto dumpNar = [&](const ValidPathInfo& info) {
-    hash_sink_t hashSink(hash_algorithm_t::SHA256);
-    tee_sink_t teeSink(sink, hashSink);
+  auto dump_nar = [&](const ValidPathInfo& info) {
+    hash_sink_t hash_sink(hash_algorithm_t::SHA256);
+    tee_sink_t tee_sink(sink, hash_sink);
 
-    store.narFromPath(info.path, teeSink);
+    store.nar_from_path(info.path, tee_sink);
 
     /* Refuse to export paths that have changed.  This prevents
        filesystem corruption from spreading to other machines.
        Don't complain if the stored hash is zero (unknown). */
-    Hash hash = hashSink.currentHash().hash;
-    if (hash != info.narHash && info.narHash != Hash(info.narHash.algo))
+    Hash hash = hash_sink.current_hash().hash;
+    if (hash != info.nar_hash && info.nar_hash != Hash(info.nar_hash.algo))
       throw Error("hash of path '%s' has changed from '%s' to '%s'!",
-                  store.printStorePath(info.path), info.narHash.to_string(hash_format_t::Nix32, true),
-                  hash.to_string(hash_format_t::Nix32, true));
+                  store.printStorePath(info.path), info.nar_hash.to_string(hash_format_t::nix32, true),
+                  hash.to_string(hash_format_t::nix32, true));
   };
 
   switch (version) {
@@ -37,8 +37,8 @@ void exportPaths(Store& store, const StorePathSet& paths, Sink& sink, unsigned i
       for (auto& path : sorted) {
         sink << 1;
         auto info = store.queryPathInfo(path);
-        dumpNar(*info);
-        sink << exportMagicV1 << store.printStorePath(path);
+        dump_nar(*info);
+        sink << export_magic_v1 << store.printStorePath(path);
         CommonProto::write(store, CommonProto::WriteConn{.to = sink}, info->references);
         sink << (info->deriver ? store.printStorePath(*info->deriver) : "") << 0;
       }
@@ -46,10 +46,10 @@ void exportPaths(Store& store, const StorePathSet& paths, Sink& sink, unsigned i
       break;
 
     case 2:
-      sink << exportMagicV2;
+      sink << export_magic_v2;
 
       for (auto& path : sorted) {
-        activity_t act(*logger, lvlTalkative, actUnknown,
+        activity_t act(*logger, lvl_talkative, act_unknown,
                      fmt("exporting path '%s'", store.printStorePath(path)));
         sink << 1;
         auto info = store.queryPathInfo(path);
@@ -57,7 +57,7 @@ void exportPaths(Store& store, const StorePathSet& paths, Sink& sink, unsigned i
         WorkerProto::Serialise<ValidPathInfo>::write(
             store, WorkerProto::WriteConn{.to = sink, .version = 16, .shortStorePaths = true},
             *info);
-        dumpNar(*info);
+        dump_nar(*info);
       }
 
       sink << 0;
@@ -68,10 +68,10 @@ void exportPaths(Store& store, const StorePathSet& paths, Sink& sink, unsigned i
   }
 }
 
-StorePaths importPaths(Store& store, Source& source, CheckSigsFlag checkSigs) {
+StorePaths import_paths(Store& store, Source& source, CheckSigsFlag check_sigs) {
   StorePaths res;
 
-  auto version = readNum<uint64_t>(source);
+  auto version = read_num<uint64_t>(source);
 
   /* Note: nario version 1 lacks an explicit header. The first
      integer denotes whether a store path follows or not. So look
@@ -92,39 +92,39 @@ StorePaths importPaths(Store& store, Source& source, CheckSigsFlag checkSigs) {
         saved.s.clear();
         tee_source_t tee{source, saved};
         null_file_system_object_sink_t ether;
-        parseDump(ether, tee);
+        parse_dump(ether, tee);
 
-        uint32_t magic = readInt(source);
-        if (magic != exportMagicV1)
+        uint32_t magic = read_int(source);
+        if (magic != export_magic_v1)
           throw Error("nario cannot be imported; wrong format");
 
-        auto path = store.parseStorePath(readString(source));
+        auto path = store.parseStorePath(read_string(source));
 
         auto references = CommonProto::Serialise<StorePathSet>::read(
             store, CommonProto::ReadConn{.from = source});
-        auto deriver = readString(source);
+        auto deriver = read_string(source);
 
         // Ignore optional legacy signature.
-        if (readInt(source) == 1)
-          readString(source);
+        if (read_int(source) == 1)
+          read_string(source);
 
         if (!store.isValidPath(path)) {
-          auto narHash = hashString(hash_algorithm_t::SHA256, saved.s);
+          auto nar_hash = hash_string(hash_algorithm_t::SHA256, saved.s);
 
-          ValidPathInfo info{path, {store, narHash}};
+          ValidPathInfo info{path, {store, nar_hash}};
           if (deriver != "")
             info.deriver = store.parseStorePath(deriver);
           info.references = references;
-          info.narSize = saved.s.size();
+          info.nar_size = saved.s.size();
 
           // Can't use underlying source, which would have been exhausted.
           auto source2 = string_source_t(saved.s);
-          store.addToStore(info, source2, NoRepair, checkSigs);
+          store.add_to_store(info, source2, NoRepair, check_sigs);
         }
 
         res.push_back(path);
 
-        auto n = readNum<uint64_t>(source);
+        auto n = read_num<uint64_t>(source);
         if (n == 0)
           break;
         if (n != 1)
@@ -133,9 +133,9 @@ StorePaths importPaths(Store& store, Source& source, CheckSigsFlag checkSigs) {
       break;
     }
 
-    case exportMagicV2:
+    case export_magic_v2:
       while (true) {
-        auto n = readNum<uint64_t>(source);
+        auto n = read_num<uint64_t>(source);
         if (n == 0)
           break;
         if (n != 1)
@@ -145,12 +145,12 @@ StorePaths importPaths(Store& store, Source& source, CheckSigsFlag checkSigs) {
             store, WorkerProto::ReadConn{.from = source, .version = 16, .shortStorePaths = true});
 
         if (!store.isValidPath(info.path)) {
-          activity_t act(*logger, lvlTalkative, actUnknown,
+          activity_t act(*logger, lvl_talkative, act_unknown,
                        fmt("importing path '%s'", store.printStorePath(info.path)));
 
-          store.addToStore(info, source, NoRepair, checkSigs);
+          store.add_to_store(info, source, NoRepair, check_sigs);
         } else
-          source.skip(info.narSize);
+          source.skip(info.nar_size);
 
         res.push_back(info.path);
       }

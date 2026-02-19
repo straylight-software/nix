@@ -12,97 +12,97 @@
 
 namespace nix {
 
-MixCommonArgs::MixCommonArgs(const std::string& programName) : programName(programName) {
-  addFlag({
-      .longName = "verbose",
-      .shortName = 'v',
+MixCommonArgs::MixCommonArgs(const std::string& program_name) : program_name(program_name) {
+  add_flag({
+      .long_name = "verbose",
+      .short_name = 'v',
       .description = "Increase the logging verbosity level.",
       .category = loggingCategory,
       .handler = {[]() {
-        verbosity = (verbosity_t)std::min<std::underlying_type_t<verbosity_t>>(verbosity + 1, lvlVomit);
+        verbosity = (verbosity_t)std::min<std::underlying_type_t<verbosity_t>>(verbosity + 1, lvl_vomit);
       }},
   });
 
-  addFlag({
-      .longName = "quiet",
+  add_flag({
+      .long_name = "quiet",
       .description = "Decrease the logging verbosity level.",
       .category = loggingCategory,
       .handler = {[]() {
-        verbosity = verbosity > lvlError ? (verbosity_t)(verbosity - 1) : lvlError;
+        verbosity = verbosity > lvl_error ? (verbosity_t)(verbosity - 1) : lvl_error;
       }},
   });
 
-  addFlag({
-      .longName = "debug",
+  add_flag({
+      .long_name = "debug",
       .description = "Set the logging verbosity level to 'debug'.",
       .category = loggingCategory,
-      .handler = {[]() { verbosity = lvlDebug; }},
+      .handler = {[]() { verbosity = lvl_debug; }},
   });
 
-  addFlag({
-      .longName = "option",
+  add_flag({
+      .long_name = "option",
       .description = "Set the Nix configuration setting *name* to *value* (overriding `nix.conf`).",
       .category = miscCategory,
       .labels = {"name", "value"},
       .handler = {[this](std::string name, std::string value) {
         try {
-          globalConfig.set(name, value);
+          global_config.set(name, value);
         } catch (UsageError& e) {
-          if (!getRoot().completions)
+          if (!get_root().completions)
             warn(e.what());
         }
       }},
       .completer =
           [](add_completions_t& completions, size_t index, std::string_view prefix) {
             if (index == 0) {
-              std::map<std::string, Config::setting_info_t> settings;
-              globalConfig.getSettings(settings);
+              std::map<std::string, config_t::setting_info_t> settings;
+              global_config.get_settings(settings);
               for (auto& s : settings)
-                if (hasPrefix(s.first, prefix))
+                if (has_prefix(s.first, prefix))
                   completions.add(s.first, fmt("Set the `%s` setting.", s.first));
             }
           },
   });
 
-  addFlag({
-      .longName = "log-format",
+  add_flag({
+      .long_name = "log-format",
       .description =
           "Set the format of log output; one of `raw`, `internal-json`, `bar` or `bar-with-logs`.",
       .category = loggingCategory,
       .labels = {"format"},
-      .handler = {[](std::string format) { setLogFormat(format); }},
+      .handler = {[](std::string format) { set_log_format(format); }},
   });
 
-  addFlag({
-      .longName = "max-jobs",
-      .shortName = 'j',
+  add_flag({
+      .long_name = "max-jobs",
+      .short_name = 'j',
       .description = "The maximum number of parallel builds.",
       .labels = strings_t{"jobs"},
       .handler = {[=](std::string s) { settings.set("max-jobs", s); }},
   });
 
   std::string cat = "Options to override configuration settings";
-  globalConfig.convertToArgs(*this, cat);
+  global_config.convert_to_args(*this, cat);
 
   // Backward compatibility hack: nix-env already had a --system flag.
-  if (programName == "nix-env")
+  if (program_name == "nix-env")
     longFlags.erase("system");
 
   hiddenCategories.insert(cat);
 }
 
-void MixCommonArgs::initialFlagsProcessed() {
-  initPlugins();
-  pluginsInited();
+void MixCommonArgs::initial_flags_processed() {
+  init_plugins();
+  plugins_inited();
 }
 
 template <typename T, typename>
 void MixPrintJSON::printJSON(const T /* nlohmann::json */& json) {
   auto suspension = logger->suspend();
   if (outputPretty) {
-    logger->writeToStdout(json.dump(2));
+    logger->write_to_stdout(json.dump(2));
   } else {
-    logger->writeToStdout(json.dump());
+    logger->write_to_stdout(json.dump());
   }
 }
 

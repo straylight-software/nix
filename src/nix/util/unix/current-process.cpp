@@ -8,7 +8,7 @@
 
 namespace nix {
 
-std::chrono::microseconds getCpuUserTime() {
+std::chrono::microseconds get_cpu_user_time() {
   struct rusage buf;
 
   if (getrusage(RUSAGE_SELF, &buf) != 0) {
