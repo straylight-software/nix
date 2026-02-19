@@ -600,3 +600,63 @@ cxx_test(
         "//src/straylight/nix/primitives:lock",
     ],
 )
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CA Store tests (content-addressed blob storage)
+# ─────────────────────────────────────────────────────────────────────────────
+
+CA_STORE_TEST_LINKER_FLAGS = [
+    # BLAKE3
+    "-L/nix/store/588l1bk59474sr3fpfp32zmz4hn87rw4-libblake3-1.8.2/lib",
+    "-lblake3",
+    "-Wl,-rpath,/nix/store/588l1bk59474sr3fpfp32zmz4hn87rw4-libblake3-1.8.2/lib",
+    # OpenSSL
+    "-L/nix/store/mqvgaq2bnb1701l7zcn0d6vd7w8b0z7l-openssl-3.3.3/lib",
+    "-lcrypto",
+    "-Wl,-rpath,/nix/store/mqvgaq2bnb1701l7zcn0d6vd7w8b0z7l-openssl-3.3.3/lib",
+    # pthread for std::thread (concurrent tests)
+    "-pthread",
+]
+
+cxx_test(
+    name = "ca_store_test",
+    srcs = ["ca_store_test.cpp"],
+    compiler_flags = PRIMITIVES_TEST_COMPILER_FLAGS,
+    linker_flags = CA_STORE_TEST_LINKER_FLAGS,
+    link_style = "static",
+    deps = [
+        "//src/straylight/nix/primitives:ca_store",
+    ],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CA Store Machine tests (evring async handlers)
+# ─────────────────────────────────────────────────────────────────────────────
+
+CA_STORE_MACHINE_TEST_LINKER_FLAGS = [
+    # BLAKE3
+    "-L/nix/store/588l1bk59474sr3fpfp32zmz4hn87rw4-libblake3-1.8.2/lib",
+    "-lblake3",
+    "-Wl,-rpath,/nix/store/588l1bk59474sr3fpfp32zmz4hn87rw4-libblake3-1.8.2/lib",
+    # OpenSSL
+    "-L/nix/store/mqvgaq2bnb1701l7zcn0d6vd7w8b0z7l-openssl-3.3.3/lib",
+    "-lcrypto",
+    "-Wl,-rpath,/nix/store/mqvgaq2bnb1701l7zcn0d6vd7w8b0z7l-openssl-3.3.3/lib",
+    # io_uring
+    "-L/nix/store/na5bgfmhm6ci0y3v521kcicvkpzbvdyn-liburing-2.11/lib",
+    "-luring",
+    "-Wl,-rpath,/nix/store/na5bgfmhm6ci0y3v521kcicvkpzbvdyn-liburing-2.11/lib",
+    # pthread
+    "-pthread",
+]
+
+cxx_test(
+    name = "ca_store_machine_test",
+    srcs = ["ca_store_machine_test.cpp"],
+    compiler_flags = PRIMITIVES_TEST_COMPILER_FLAGS,
+    linker_flags = CA_STORE_MACHINE_TEST_LINKER_FLAGS,
+    link_style = "static",
+    deps = [
+        "//src/straylight/nix/primitives:ca_store_machine",
+    ],
+)

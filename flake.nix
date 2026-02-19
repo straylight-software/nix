@@ -65,12 +65,45 @@
             '';
           };
 
+          # ngtcp2 built with LibreSSL instead of OpenSSL
+          # LibreSSL 4.x has QUIC support (SSL_provide_quic_data)
+          ngtcp2-libressl = pkgs.stdenv.mkDerivation {
+            pname = "ngtcp2";
+            version = "1.18.0";
+            src = pkgs.fetchurl {
+              url = "https://github.com/ngtcp2/ngtcp2/releases/download/v1.18.0/ngtcp2-1.18.0.tar.bz2";
+              hash = "sha256-E7r7bFCdv2pw2WBaLIkuE/WuuTZnOZWHeKhXvHDOH6c=";
+            };
+            outputs = [
+              "out"
+              "dev"
+            ];
+            nativeBuildInputs = [ pkgs.cmake ];
+            buildInputs = [
+              pkgs.brotli
+              pkgs.libev
+              pkgs.nghttp3
+              pkgs.libressl # Use LibreSSL instead of OpenSSL
+            ];
+            cmakeFlags = [
+              "-DENABLE_OPENSSL=ON" # This auto-detects LibreSSL via LIBRESSL_VERSION_NUMBER
+              "-DENABLE_SHARED_LIB=ON"
+              "-DENABLE_STATIC_LIB=OFF"
+              "-DENABLE_LIB_ONLY=ON" # Skip examples that have Linux-specific APIs
+            ];
+            doCheck = true;
+            meta = {
+              description = "ngtcp2 QUIC library built with LibreSSL";
+              license = pkgs.lib.licenses.mit;
+            };
+          };
+
           # Third-party dependencies required by nix
           nixDeps = {
             # util deps
             inherit (pkgs) boost;
             inherit (pkgs) nlohmann_json;
-            inherit (pkgs) openssl;
+            inherit (pkgs) libressl; # LibreSSL only - no OpenSSL
             blake3 = pkgs.libblake3;
             inherit (pkgs) brotli;
             inherit (pkgs) libsodium;
@@ -109,6 +142,10 @@
 
             # libevring deps
             inherit (pkgs) nghttp2; # HTTP/2 protocol library
+            inherit ngtcp2-libressl; # QUIC with LibreSSL (not OpenSSL)
+            inherit (pkgs) nghttp3; # HTTP/3 protocol library
+            inherit (pkgs) liburing; # io_uring wrapper
+            inherit (pkgs) llhttp; # HTTP/1.x parser
 
             # nix-language deps (WASM compilation)
             pegtl = pkgs.pegtl; # PEGTL parser combinator library

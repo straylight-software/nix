@@ -138,6 +138,10 @@ constexpr std::uint32_t to_upper = 207;
 constexpr std::uint32_t to_string = 208;
 constexpr std::uint32_t concat_strings = 209;
 constexpr std::uint32_t concat_string_sep = 210;
+constexpr std::uint32_t has_prefix = 220;
+constexpr std::uint32_t has_suffix = 221;
+constexpr std::uint32_t remove_prefix = 222;
+constexpr std::uint32_t remove_suffix = 223;
 
 // attrset builtins
 constexpr std::uint32_t attr_names = 300;
@@ -164,6 +168,11 @@ constexpr std::uint32_t any = 407;
 constexpr std::uint32_t concat_map = 408;
 constexpr std::uint32_t partition = 409;
 constexpr std::uint32_t group_by = 410;
+constexpr std::uint32_t reverse = 420;
+constexpr std::uint32_t take = 421;
+constexpr std::uint32_t drop = 422;
+constexpr std::uint32_t range = 423;
+constexpr std::uint32_t zip_lists = 424;
 
 // error handling builtins
 constexpr std::uint32_t throw_error = 500;
@@ -190,6 +199,14 @@ constexpr std::uint32_t split_version = 612;
 constexpr std::uint32_t parse_drv_name = 613;
 constexpr std::uint32_t base_name_of = 614;
 constexpr std::uint32_t dir_of = 615;
+
+// JSON builtins
+constexpr std::uint32_t to_json = 700;
+constexpr std::uint32_t from_json = 701;
+
+// Advanced builtins
+constexpr std::uint32_t generic_closure = 800;
+constexpr std::uint32_t find_first = 801;
 
 } // namespace builtins
 

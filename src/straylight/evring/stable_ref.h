@@ -142,7 +142,7 @@ public:
   template <typename U>
     requires std::is_same_v<U, std::add_const_t<T>>
   constexpr operator stable_span<U>() const noexcept {
-    return stable_span<U>{data_, size_};
+    return stable_span<U>{stable_span_tag, data_, size_};
   }
 
   // Convert to std::span for interop
@@ -165,7 +165,7 @@ public:
   // Subspan
   [[nodiscard]] constexpr auto subspan(std::size_t offset, std::size_t count) const noexcept
       -> stable_span {
-    return stable_span{data_ + offset, count};
+    return stable_span{stable_span_tag, data_ + offset, count};
   }
 };
 

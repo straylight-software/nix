@@ -1040,3 +1040,186 @@ TEST_CASE("exec: builtins.dirOf", "[execution][builtins]") {
   expect_string(R"(builtins.dirOf "/foo")", "/");
   expect_string(R"(builtins.dirOf "just-name")", ".");
 }
+
+TEST_CASE("exec: builtins.toJSON", "[execution][builtins]") {
+  expect_string(R"(builtins.toJSON null)", "null");
+  expect_string(R"(builtins.toJSON true)", "true");
+  expect_string(R"(builtins.toJSON 42)", "42");
+  expect_string(R"(builtins.toJSON "hello")", "\"hello\"");
+  expect_string(R"(builtins.toJSON [1 2 3])", "[1,2,3]");
+  expect_string(R"(builtins.toJSON { a = 1; b = 2; })", "{\"a\":1,\"b\":2}");
+}
+
+TEST_CASE("exec: builtins.fromJSON", "[execution][builtins]") {
+  expect_null(R"(builtins.fromJSON "null")");
+  expect_bool(R"(builtins.fromJSON "true")", true);
+  expect_int(R"(builtins.fromJSON "42")", 42);
+  expect_string(R"(builtins.fromJSON "\"hello\"")", "hello");
+  expect_int(R"(builtins.head (builtins.fromJSON "[1,2,3]"))", 1);
+  expect_int(R"((builtins.fromJSON "{\"x\":10}").x)", 10);
+}
+
+TEST_CASE("exec: builtins.hasPrefix", "[execution][builtins]") {
+  expect_bool(R"(builtins.hasPrefix "foo" "foobar")", true);
+  expect_bool(R"(builtins.hasPrefix "bar" "foobar")", false);
+  expect_bool(R"(builtins.hasPrefix "" "anything")", true);
+  expect_bool(R"(builtins.hasPrefix "foobar" "foo")", false);
+  expect_bool(R"(builtins.hasPrefix "exact" "exact")", true);
+}
+
+TEST_CASE("exec: builtins.hasSuffix", "[execution][builtins]") {
+  expect_bool(R"(builtins.hasSuffix "bar" "foobar")", true);
+  expect_bool(R"(builtins.hasSuffix "foo" "foobar")", false);
+  expect_bool(R"(builtins.hasSuffix "" "anything")", true);
+  expect_bool(R"(builtins.hasSuffix "foobar" "bar")", false);
+  expect_bool(R"(builtins.hasSuffix "exact" "exact")", true);
+}
+
+TEST_CASE("exec: builtins.removePrefix", "[execution][builtins]") {
+  expect_string(R"(builtins.removePrefix "foo" "foobar")", "bar");
+  expect_string(R"(builtins.removePrefix "baz" "foobar")", "foobar");
+  expect_string(R"(builtins.removePrefix "" "foobar")", "foobar");
+  expect_string(R"(builtins.removePrefix "foobar" "foobar")", "");
+  expect_string(R"(builtins.removePrefix "longer" "short")", "short");
+}
+
+TEST_CASE("exec: builtins.removeSuffix", "[execution][builtins]") {
+  expect_string(R"(builtins.removeSuffix "bar" "foobar")", "foo");
+  expect_string(R"(builtins.removeSuffix "baz" "foobar")", "foobar");
+  expect_string(R"(builtins.removeSuffix "" "foobar")", "foobar");
+  expect_string(R"(builtins.removeSuffix "foobar" "foobar")", "");
+  expect_string(R"(builtins.removeSuffix "longer" "short")", "short");
+}
+
+TEST_CASE("exec: builtins.reverse", "[execution][builtins]") {
+  expect_int(R"(builtins.head (builtins.reverse [1 2 3]))", 3);
+  expect_int(R"(builtins.length (builtins.reverse [1 2 3]))", 3);
+}
+
+TEST_CASE("exec: builtins.take", "[execution][builtins]") {
+  expect_int(R"(builtins.length (builtins.take 2 [1 2 3 4]))", 2);
+  expect_int(R"(builtins.head (builtins.take 2 [1 2 3 4]))", 1);
+}
+
+TEST_CASE("exec: builtins.drop", "[execution][builtins]") {
+  expect_int(R"(builtins.length (builtins.drop 2 [1 2 3 4]))", 2);
+  expect_int(R"(builtins.head (builtins.drop 2 [1 2 3 4]))", 3);
+}
+
+TEST_CASE("exec: builtins.range", "[execution][builtins]") {
+  expect_int(R"(builtins.length (builtins.genList (x: x) 5))", 5); // using genList as sanity
+  expect_int(R"(builtins.head (builtins.range 1 5))", 1);
+  expect_int(R"(builtins.length (builtins.range 1 5))", 5);
+}
+
+// =============================================================================
+// Advanced Builtins
+// =============================================================================
+
+TEST_CASE("exec: builtins.findFirst", "[execution][builtins]") {
+  // Find first even number
+  expect_int(R"(builtins.findFirst (x: x > 2) 0 [1 2 3 4])", 3);
+  // Return default when no match
+  expect_int(R"(builtins.findFirst (x: x > 10) 99 [1 2 3 4])", 99);
+  // First element matches
+  expect_int(R"(builtins.findFirst (x: x == 1) 0 [1 2 3])", 1);
+  // Empty list
+  expect_int(R"(builtins.findFirst (x: true) 42 [])", 42);
+}
+
+TEST_CASE("exec: builtins.hashString", "[execution][builtins]") {
+  // Test that hashString returns a string of appropriate length
+  auto result_sha256 = eval_nix(R"(builtins.stringLength (builtins.hashString "sha256" "hello"))");
+  REQUIRE(result_sha256.success);
+  REQUIRE(result_sha256.formatted == "64"); // SHA256 = 64 hex chars
+
+  auto result_md5 = eval_nix(R"(builtins.stringLength (builtins.hashString "md5" "hello"))");
+  REQUIRE(result_md5.success);
+  REQUIRE(result_md5.formatted == "32"); // MD5 = 32 hex chars
+
+  auto result_sha1 = eval_nix(R"(builtins.stringLength (builtins.hashString "sha1" "hello"))");
+  REQUIRE(result_sha1.success);
+  REQUIRE(result_sha1.formatted == "40"); // SHA1 = 40 hex chars
+
+  // Same input produces same hash (deterministic)
+  auto hash1 = eval_nix(R"(builtins.hashString "sha256" "test")");
+  auto hash2 = eval_nix(R"(builtins.hashString "sha256" "test")");
+  REQUIRE(hash1.formatted == hash2.formatted);
+
+  // Different inputs produce different hashes
+  auto hash_a = eval_nix(R"(builtins.hashString "sha256" "a")");
+  auto hash_b = eval_nix(R"(builtins.hashString "sha256" "b")");
+  REQUIRE(hash_a.formatted != hash_b.formatted);
+}
+
+TEST_CASE("exec: builtins.match", "[execution][builtins]") {
+  // Simple match with capture groups
+  auto result = eval_nix(R"NIX(builtins.match "([a-z]+)([0-9]+)" "hello123")NIX");
+  REQUIRE(result.success);
+  // Should return a list with 2 capture groups
+
+  // No match returns null
+  expect_null(R"NIX(builtins.match "^[0-9]+$" "hello")NIX");
+
+  // Full match required (implicit anchoring)
+  expect_null(R"NIX(builtins.match "[0-9]+" "abc123def")NIX");
+
+  // Simple match without capture groups
+  auto no_groups = eval_nix(R"NIX(builtins.match "hello" "hello")NIX");
+  REQUIRE(no_groups.success);
+  // Returns empty list when no capture groups
+
+  // Match with alternation
+  expect_null(R"NIX(builtins.match "foo|bar" "baz")NIX");
+}
+
+TEST_CASE("exec: builtins.split", "[execution][builtins]") {
+  // Split by comma
+  auto result = eval_nix(R"NIX(builtins.length (builtins.split "," "a,b,c"))NIX");
+  REQUIRE(result.success);
+  // "a,b,c" split by "," gives ["a" [","] "b" [","] "c"] = 5 elements
+
+  // No matches - entire string returned
+  auto no_match = eval_nix(R"NIX(builtins.length (builtins.split "x" "abc"))NIX");
+  REQUIRE(no_match.success);
+  REQUIRE(no_match.formatted == "1"); // Just ["abc"]
+
+  // Split with capture groups
+  auto with_groups = eval_nix(R"NIX(builtins.length (builtins.split "([,])" "a,b"))NIX");
+  REQUIRE(with_groups.success);
+  // "a,b" with "([,])" gives ["a" [","] "b"] = 3 elements
+}
+
+TEST_CASE("exec: builtins.genericClosure", "[execution][builtins]") {
+  // Start with simplest case: empty operator
+  auto simple = eval_nix(R"NIX(
+    builtins.length (builtins.genericClosure {
+      startSet = [{ key = 1; }];
+      operator = x: [];
+    })
+  )NIX");
+  INFO("Simple Error: " << simple.error);
+  INFO("Simple Formatted: " << simple.formatted);
+  REQUIRE(simple.success);
+  REQUIRE(simple.formatted == "1");
+
+  // Empty operator - just returns startSet
+  auto empty_op = eval_nix(R"(
+    builtins.length (builtins.genericClosure {
+      startSet = [{ key = "a"; } { key = "b"; }];
+      operator = x: [];
+    })
+  )");
+  REQUIRE(empty_op.success);
+  REQUIRE(empty_op.formatted == "2");
+
+  // Deduplication by key
+  auto dedup = eval_nix(R"(
+    builtins.length (builtins.genericClosure {
+      startSet = [{ key = 1; }];
+      operator = x: [{ key = 1; } { key = 2; }];
+    })
+  )");
+  REQUIRE(dedup.success);
+  REQUIRE(dedup.formatted == "2"); // Only {key=1} and {key=2}, no duplicates
+}

@@ -571,6 +571,22 @@ void rt_init_builtins(runtime_context& ctx);
 /// Group list elements by key function: groupBy f list
 [[nodiscard]] auto rt_group_by(runtime_context& ctx, nix_value f, nix_value list) -> nix_value;
 
+/// Reverse a list: reverse list
+[[nodiscard]] auto rt_reverse(runtime_context& ctx, nix_value list) -> nix_value;
+
+/// Take first n elements: take n list
+[[nodiscard]] auto rt_take(runtime_context& ctx, nix_value n, nix_value list) -> nix_value;
+
+/// Drop first n elements: drop n list
+[[nodiscard]] auto rt_drop(runtime_context& ctx, nix_value n, nix_value list) -> nix_value;
+
+/// Generate list from a to b (inclusive): range a b
+[[nodiscard]] auto rt_range(runtime_context& ctx, nix_value a, nix_value b) -> nix_value;
+
+/// Zip two lists into list of {fst, snd} attrsets: zipLists list1 list2
+[[nodiscard]] auto rt_zip_lists(runtime_context& ctx, nix_value list1, nix_value list2)
+    -> nix_value;
+
 /// Convert list of {name, value} to attrset: listToAttrs list
 [[nodiscard]] auto rt_list_to_attrs(runtime_context& ctx, nix_value list) -> nix_value;
 
@@ -609,6 +625,30 @@ void rt_init_builtins(runtime_context& ctx);
 
 /// Get directory of path: dirOf path
 [[nodiscard]] auto rt_dir_of(runtime_context& ctx, nix_value s) -> nix_value;
+
+/// Check if string has prefix: hasPrefix prefix str
+[[nodiscard]] auto rt_has_prefix(runtime_context& ctx, nix_value prefix, nix_value str)
+    -> nix_value;
+
+/// Check if string has suffix: hasSuffix suffix str
+[[nodiscard]] auto rt_has_suffix(runtime_context& ctx, nix_value suffix, nix_value str)
+    -> nix_value;
+
+/// Remove prefix from string: removePrefix prefix str
+[[nodiscard]] auto rt_remove_prefix(runtime_context& ctx, nix_value prefix, nix_value str)
+    -> nix_value;
+
+/// Remove suffix from string: removeSuffix suffix str
+[[nodiscard]] auto rt_remove_suffix(runtime_context& ctx, nix_value suffix, nix_value str)
+    -> nix_value;
+
+// --- JSON Builtins ---
+
+/// Convert Nix value to JSON string: toJSON val
+[[nodiscard]] auto rt_to_json(runtime_context& ctx, nix_value v) -> nix_value;
+
+/// Parse JSON string to Nix value: fromJSON str
+[[nodiscard]] auto rt_from_json(runtime_context& ctx, nix_value s) -> nix_value;
 
 // --- Arithmetic Builtins (as functions) ---
 
@@ -677,5 +717,23 @@ auto rt_throw_error(runtime_context& ctx, nix_value msg) -> nix_value;
 
 /// Deeply force first arg, return second: deepSeq a b
 [[nodiscard]] auto rt_deep_seq(runtime_context& ctx, nix_value a, nix_value b) -> nix_value;
+
+// --- Advanced Builtins ---
+
+/// Compute transitive closure: genericClosure { startSet, operator }
+[[nodiscard]] auto rt_generic_closure(runtime_context& ctx, nix_value attrs) -> nix_value;
+
+/// Find first element matching predicate: findFirst pred default list
+[[nodiscard]] auto rt_find_first(runtime_context& ctx, nix_value pred, nix_value def,
+                                 nix_value list) -> nix_value;
+
+/// Hash a string: hashString type str
+[[nodiscard]] auto rt_hash_string(runtime_context& ctx, nix_value type, nix_value str) -> nix_value;
+
+/// Match regex: match regex str (returns list or null)
+[[nodiscard]] auto rt_match(runtime_context& ctx, nix_value regex, nix_value str) -> nix_value;
+
+/// Split by regex: split regex str (returns list)
+[[nodiscard]] auto rt_split(runtime_context& ctx, nix_value regex, nix_value str) -> nix_value;
 
 } // namespace nix::language::runtime

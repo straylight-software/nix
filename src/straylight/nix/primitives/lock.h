@@ -26,6 +26,7 @@
 #include <thread>
 
 #include <fcntl.h>
+#include <signal.h>
 #include <sys/file.h>
 #include <unistd.h>
 
