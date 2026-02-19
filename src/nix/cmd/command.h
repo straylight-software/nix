@@ -20,19 +20,19 @@ struct Pos;
 class Store;
 struct LocalFSStore;
 
-static constexpr Command::Category catHelp = -1;
-static constexpr Command::Category catSecondary = 100;
-static constexpr Command::Category catUtility = 101;
-static constexpr Command::Category catNixInstallation = 102;
+static constexpr command_t::category_t catHelp = -1;
+static constexpr command_t::category_t catSecondary = 100;
+static constexpr command_t::category_t catUtility = 101;
+static constexpr command_t::category_t catNixInstallation = 102;
 
 static constexpr auto installablesCategory =
     "Options that change the interpretation of "
     "[installables](@docroot@/command-ref/new-cli/nix.md#installables)";
 
-struct NixMultiCommand : MultiCommand, virtual Command {
+struct NixMultiCommand : multi_command_t, virtual command_t {
   nlohmann::json toJSON() override;
 
-  using MultiCommand::MultiCommand;
+  using multi_command_t::multi_command_t;
 
   virtual void run() override;
 };
@@ -43,7 +43,7 @@ struct NixMultiCommand : MultiCommand, virtual Command {
 /**
  * A command that requires a \ref Store "Nix store".
  */
-struct StoreCommand : virtual Command {
+struct StoreCommand : virtual command_t {
   StoreCommand();
   void run() override;
 
@@ -132,20 +132,20 @@ struct SourceExprCommand : virtual Args, MixFlakeOptions {
 
   ref<Installable> parseInstallable(ref<Store> store, const std::string& installable);
 
-  virtual Strings getDefaultFlakeAttrPaths();
+  virtual strings_t getDefaultFlakeAttrPaths();
 
-  virtual Strings getDefaultFlakeAttrPathPrefixes();
+  virtual strings_t getDefaultFlakeAttrPathPrefixes();
 
   /**
    * Complete an installable from the given prefix.
    */
-  void completeInstallable(AddCompletions& completions, std::string_view prefix);
+  void completeInstallable(add_completions_t& completions, std::string_view prefix);
 
   /**
    * Convenience wrapper around the underlying function to make setting the
    * callback easier.
    */
-  CompleterClosure getCompleteInstallable();
+  completer_closure_t getCompleteInstallable();
 };
 
 /**
@@ -161,7 +161,7 @@ struct MixReadOnlyOption : virtual Args {
 /**
  * Like InstallablesCommand but the installables are not loaded.
  *
- * This is needed by `CmdRepl` which wants to load (and reload) the
+ * This is needed by `cmd_repl_t` which wants to load (and reload) the
  * installables itself.
  */
 struct RawInstallablesCommand : virtual Args, SourceExprCommand {
@@ -258,18 +258,18 @@ struct StorePathCommand : public StorePathsCommand {
 };
 
 /**
- * A helper class for registering \ref Command commands globally.
+ * A helper class for registering \ref command_t commands globally.
  */
 struct RegisterCommand {
-  typedef std::map<std::vector<std::string>, std::function<ref<Command>()>> Commands;
+  typedef std::map<std::vector<std::string>, std::function<ref<command_t>()>> commands_t;
 
-  static Commands& commands();
+  static commands_t& commands();
 
-  RegisterCommand(std::vector<std::string>&& name, std::function<ref<Command>()> command) {
+  RegisterCommand(std::vector<std::string>&& name, std::function<ref<command_t>()> command) {
     commands().emplace(name, command);
   }
 
-  static nix::Commands getCommandsFor(const std::vector<std::string>& prefix);
+  static nix::commands_t getCommandsFor(const std::vector<std::string>& prefix);
 };
 
 template <class T>
@@ -300,9 +300,9 @@ struct MixDefaultProfile : MixProfile {
 };
 
 struct MixEnvironment : virtual Args {
-  StringSet keepVars;
-  StringSet unsetVars;
-  StringMap setVars;
+  string_set_t keepVars;
+  string_set_t unsetVars;
+  string_map_t setVars;
   bool ignoreEnvironment;
 
   MixEnvironment();
@@ -328,16 +328,16 @@ struct MixNoCheckSigs : virtual Args {
   }
 };
 
-void completeFlakeInputAttrPath(AddCompletions& completions, ref<EvalState> evalState,
+void completeFlakeInputAttrPath(add_completions_t& completions, ref<EvalState> evalState,
                                 const std::vector<FlakeRef>& flakeRefs, std::string_view prefix);
 
-void completeFlakeRef(AddCompletions& completions, ref<Store> store, std::string_view prefix);
+void completeFlakeRef(add_completions_t& completions, ref<Store> store, std::string_view prefix);
 
-void completeFlakeRefWithFragment(AddCompletions& completions, ref<EvalState> evalState,
-                                  flake::LockFlags lockFlags, Strings attrPathPrefixes,
-                                  const Strings& defaultFlakeAttrPaths, std::string_view prefix);
+void completeFlakeRefWithFragment(add_completions_t& completions, ref<EvalState> evalState,
+                                  flake::LockFlags lockFlags, strings_t attrPathPrefixes,
+                                  const strings_t& defaultFlakeAttrPaths, std::string_view prefix);
 
-std::string showVersions(const StringSet& versions);
+std::string showVersions(const string_set_t& versions);
 
 void printClosureDiff(ref<Store> store, const StorePath& beforePath, const StorePath& afterPath,
                       std::string_view indent);

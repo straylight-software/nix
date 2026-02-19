@@ -14,7 +14,7 @@ namespace nix {
 std::regex refRegex(refRegexS, std::regex::ECMAScript);
 std::regex revRegex(revRegexS, std::regex::ECMAScript);
 
-ParsedURL::Authority ParsedURL::Authority::parse(std::string_view encodedAuthority) {
+parsed_url_t::authority_t parsed_url_t::authority_t::parse(std::string_view encodedAuthority) {
   auto parsed = boost::urls::parse_authority(encodedAuthority);
   if (!parsed)
     throw BadURL("invalid URL authority: '%s': %s", encodedAuthority, parsed.error().message());
@@ -22,14 +22,14 @@ ParsedURL::Authority ParsedURL::Authority::parse(std::string_view encodedAuthori
   auto hostType = [&]() {
     switch (parsed->host_type()) {
       case boost::urls::host_type::ipv4:
-        return HostType::IPv4;
+        return host_type_t::IPv4;
       case boost::urls::host_type::ipv6:
-        return HostType::IPv6;
+        return host_type_t::IPv6;
       case boost::urls::host_type::ipvfuture:
-        return HostType::IPvFuture;
+        return host_type_t::IPvFuture;
       case boost::urls::host_type::none:
       case boost::urls::host_type::name:
-        return HostType::Name;
+        return host_type_t::Name;
     }
     unreachable();
   }();
@@ -52,7 +52,7 @@ ParsedURL::Authority ParsedURL::Authority::parse(std::string_view encodedAuthori
   };
 }
 
-std::ostream& operator<<(std::ostream& os, const ParsedURL::Authority& self) {
+std::ostream& operator<<(std::ostream& os, const parsed_url_t::authority_t& self) {
   if (self.user) {
     os << percentEncode(*self.user);
     if (self.password)
@@ -60,16 +60,16 @@ std::ostream& operator<<(std::ostream& os, const ParsedURL::Authority& self) {
     os << "@";
   }
 
-  using HostType = ParsedURL::Authority::HostType;
+  using host_type_t = parsed_url_t::authority_t::host_type_t;
   switch (self.hostType) {
-    case HostType::Name:
+    case host_type_t::Name:
       os << percentEncode(self.host);
       break;
-    case HostType::IPv4:
+    case host_type_t::IPv4:
       os << self.host;
       break;
-    case HostType::IPv6:
-    case HostType::IPvFuture:
+    case host_type_t::IPv6:
+    case host_type_t::IPvFuture:
       /* Reencode percent sign for RFC4007 ScopeId literals. */
       os << "[" << percentEncode(self.host, ":") << "]";
   }
@@ -80,7 +80,7 @@ std::ostream& operator<<(std::ostream& os, const ParsedURL::Authority& self) {
   return os;
 }
 
-std::string ParsedURL::Authority::to_string() const {
+std::string parsed_url_t::authority_t::to_string() const {
   std::ostringstream oss;
   oss << *this;
   return std::move(oss).str();
@@ -107,9 +107,9 @@ static std::string percentEncodeCharSet(std::string_view s, auto charSet) {
   return res;
 }
 
-static ParsedURL fromBoostUrlView(boost::urls::url_view url, bool lenient);
+static parsed_url_t fromBoostUrlView(boost::urls::url_view url, bool lenient);
 
-ParsedURL parseURL(std::string_view url, bool lenient) try {
+parsed_url_t parseURL(std::string_view url, bool lenient) try {
   /* Account for several non-standard properties of nix urls (for back-compat):
    *  - Allow unescaped spaces ' ' and '"' characters in queries.
    *  - Allow '"', ' ' and '^' characters in the fragment component.
@@ -154,14 +154,14 @@ ParsedURL parseURL(std::string_view url, bool lenient) try {
   throw BadURL("'%s' is not a valid URL: %s", url, e.code().message());
 }
 
-static ParsedURL fromBoostUrlView(boost::urls::url_view urlView, bool lenient) {
+static parsed_url_t fromBoostUrlView(boost::urls::url_view urlView, bool lenient) {
   if (!urlView.has_scheme())
     throw BadURL("'%s' doesn't have a scheme", urlView.buffer());
 
   auto scheme = urlView.scheme();
-  auto authority = [&]() -> std::optional<ParsedURL::Authority> {
+  auto authority = [&]() -> std::optional<parsed_url_t::authority_t> {
     if (urlView.has_authority())
-      return ParsedURL::Authority::parse(urlView.authority().buffer());
+      return parsed_url_t::authority_t::parse(urlView.authority().buffer());
     return std::nullopt;
   }();
 
@@ -190,7 +190,7 @@ static ParsedURL fromBoostUrlView(boost::urls::url_view urlView, bool lenient) {
      the inner &/? are pct-encoded. */
   auto query = std::string_view(urlView.encoded_query());
 
-  return ParsedURL{
+  return parsed_url_t{
       .scheme = scheme,
       .authority = authority,
       .path = std::move(path),
@@ -199,7 +199,7 @@ static ParsedURL fromBoostUrlView(boost::urls::url_view urlView, bool lenient) {
   };
 }
 
-ParsedURL parseURLRelative(std::string_view urlS, const ParsedURL& base) try {
+parsed_url_t parseURLRelative(std::string_view urlS, const parsed_url_t& base) try {
   boost::urls::url resolved;
 
   try {
@@ -262,14 +262,14 @@ std::string percentEncode(std::string_view s, std::string_view keep) {
       s, [keep](char c) { return boost::urls::unreserved_chars(c) || keep.find(c) != keep.npos; });
 }
 
-StringMap decodeQuery(std::string_view query, bool lenient) try {
+string_map_t decodeQuery(std::string_view query, bool lenient) try {
   /* When `lenient = true`, for back-compat unescaped characters are allowed. */
   std::string fixedEncodedQuery;
   if (lenient) {
     fixedEncodedQuery = percentEncodeCharSet(query, extraAllowedCharsInQuery);
   }
 
-  StringMap result;
+  string_map_t result;
 
   auto encodedQuery = boost::urls::params_encoded_view(lenient ? fixedEncodedQuery : query);
   for (auto&& [key, value, value_specified] : encodedQuery) {
@@ -297,7 +297,7 @@ std::string encodeUrlPath(std::span<const std::string> urlPath) {
   return concatStringsSep("/", encodedPath);
 }
 
-std::string encodeQuery(const StringMap& ss) {
+std::string encodeQuery(const string_map_t& ss) {
   std::string res;
   bool first = true;
   for (auto& [name, value] : ss) {
@@ -327,13 +327,13 @@ Path renderUrlPathEnsureLegal(const std::vector<std::string>& urlPath) {
   return concatStringsSep("/", urlPath);
 }
 
-std::string ParsedURL::renderPath(bool encode) const {
+std::string parsed_url_t::renderPath(bool encode) const {
   if (encode)
     return encodeUrlPath(path);
   return concatStringsSep("/", path);
 }
 
-std::string ParsedURL::renderAuthorityAndPath() const {
+std::string parsed_url_t::renderAuthorityAndPath() const {
   std::string res;
   /* The following assertions correspond to 3.3. Path [rfc3986]. URL parser
      will never violate these properties, but hand-constructed ParsedURLs might. */
@@ -351,7 +351,7 @@ std::string ParsedURL::renderAuthorityAndPath() const {
   return res;
 }
 
-std::string ParsedURL::to_string() const {
+std::string parsed_url_t::to_string() const {
   std::string res;
   res += scheme;
   res += ":";
@@ -369,14 +369,14 @@ std::string ParsedURL::to_string() const {
   return res;
 }
 
-std::ostream& operator<<(std::ostream& os, const ParsedURL& url) {
+std::ostream& operator<<(std::ostream& os, const parsed_url_t& url) {
   os << url.to_string();
   return os;
 }
 
-ParsedURL ParsedURL::canonicalise() {
-  ParsedURL res(*this);
-  res.path = splitString<std::vector<std::string>>(CanonPath(renderPath()).abs(), "/");
+parsed_url_t parsed_url_t::canonicalise() {
+  parsed_url_t res(*this);
+  res.path = splitString<std::vector<std::string>>(canon_path_t(renderPath()).abs(), "/");
   return res;
 }
 
@@ -384,27 +384,27 @@ ParsedURL ParsedURL::canonicalise() {
  * Parse a URL scheme of the form '(applicationScheme\+)?transportScheme'
  * into a tuple '(applicationScheme, transportScheme)'
  *
- * > parseUrlScheme("http") == ParsedUrlScheme{ {}, "http"}
- * > parseUrlScheme("tarball+http") == ParsedUrlScheme{ {"tarball"}, "http"}
+ * > parseUrlScheme("http") == parsed_url_scheme_t{ {}, "http"}
+ * > parseUrlScheme("tarball+http") == parsed_url_scheme_t{ {"tarball"}, "http"}
  */
-ParsedUrlScheme parseUrlScheme(std::string_view scheme) {
+parsed_url_scheme_t parseUrlScheme(std::string_view scheme) {
   auto application = splitPrefixTo(scheme, '+');
   auto transport = scheme;
-  return ParsedUrlScheme{
+  return parsed_url_scheme_t{
       .application = application,
       .transport = transport,
   };
 }
 
-ParsedURL fixGitURL(std::string url) {
+parsed_url_t fixGitURL(std::string url) {
   std::regex scpRegex("([^/]*)@(.*):(.*)");
   if (!hasPrefix(url, "/") && std::regex_match(url, scpRegex))
     url = std::regex_replace(url, scpRegex, "ssh://$1@$2/$3");
   if (!hasPrefix(url, "file:") && !hasPrefix(url, "git+file:") &&
       url.find("://") == std::string::npos)
-    return ParsedURL{
+    return parsed_url_t{
         .scheme = "file",
-        .authority = ParsedURL::Authority{},
+        .authority = parsed_url_t::authority_t{},
         .path = splitString<std::vector<std::string>>(url, "/"),
     };
   auto parsed = parseURL(url);
@@ -423,12 +423,12 @@ bool isValidSchemeName(std::string_view s) {
   return std::regex_match(s.begin(), s.end(), regex, std::regex_constants::match_default);
 }
 
-std::ostream& operator<<(std::ostream& os, const VerbatimURL& url) {
+std::ostream& operator<<(std::ostream& os, const verbatim_url_t& url) {
   os << url.to_string();
   return os;
 }
 
-std::optional<std::string> VerbatimURL::lastPathSegment() const {
+std::optional<std::string> verbatim_url_t::lastPathSegment() const {
   try {
     auto parsedUrl = parsed();
     auto segments = parsedUrl.pathSegments(/*skipEmpty=*/true);

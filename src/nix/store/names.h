@@ -7,7 +7,7 @@
 
 namespace nix {
 
-struct Regex;
+struct regex_t;
 
 struct DrvName {
   std::string fullName;
@@ -22,7 +22,7 @@ struct DrvName {
   bool matches(const DrvName& n);
 
 private:
-  std::unique_ptr<Regex> regex;
+  std::unique_ptr<regex_t> regex;
 };
 
 typedef std::list<DrvName> DrvNames;
@@ -30,6 +30,6 @@ typedef std::list<DrvName> DrvNames;
 std::string_view nextComponent(std::string_view::const_iterator& p,
                                const std::string_view::const_iterator end);
 std::strong_ordering compareVersions(const std::string_view v1, const std::string_view v2);
-DrvNames drvNamesFromArgs(const Strings& opArgs);
+DrvNames drvNamesFromArgs(const strings_t& opArgs);
 
 } // namespace nix

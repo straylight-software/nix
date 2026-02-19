@@ -15,9 +15,9 @@ namespace nix {
  * Return the rewrites that are needed to resolve a string whose context is
  * included in `dependencies`.
  */
-StringPairs resolveRewrites(Store& store, const std::vector<BuiltPathWithResult>& dependencies) {
-  StringPairs res;
-  if (!experimentalFeatureSettings.isEnabled(Xp::CaDerivations)) {
+string_pairs_t resolveRewrites(Store& store, const std::vector<BuiltPathWithResult>& dependencies) {
+  string_pairs_t res;
+  if (!experimentalFeatureSettings.isEnabled(xp_t::CaDerivations)) {
     return res;
   }
   for (auto& dep : dependencies) {
@@ -84,8 +84,8 @@ UnresolvedApp InstallableValue::toApp(EvalState& state) {
                     .outputs = OutputsSpec::Names{b.output},
                 };
               },
-              [&](const NixStringContextElem::Opaque& o) -> DerivedPath {
-                return DerivedPath::Opaque{
+              [&](const NixStringContextElem::opaque_t& o) -> DerivedPath {
+                return DerivedPath::opaque_t{
                     .path = o.path,
                 };
               },

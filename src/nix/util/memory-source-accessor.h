@@ -9,7 +9,7 @@
 namespace nix {
 
 /**
- * File System Object definitions
+ * file_t System Object definitions
  *
  * @see https://nix.dev/manual/nix/latest/store/file-system-object.html
  */
@@ -28,13 +28,13 @@ struct Regular {
  * full file children.
  */
 template <typename Child>
-struct DirectoryT {
+struct directory_t {
   using Name = std::string;
 
   std::map<Name, Child, std::less<>> entries;
 
-  inline bool operator==(const DirectoryT&) const noexcept;
-  inline std::strong_ordering operator<=>(const DirectoryT&) const noexcept;
+  inline bool operator==(const directory_t&) const noexcept;
+  inline std::strong_ordering operator<=>(const directory_t&) const noexcept;
 };
 
 struct Symlink {
@@ -46,76 +46,76 @@ struct Symlink {
 /**
  * For when we know there is child, but don't know anything about it.
  *
- * This is not part of the core File System Object data model --- this
+ * This is not part of the core file_t System Object data model --- this
  * represents not knowing, not an additional type of file.
  */
-struct Opaque {
-  auto operator<=>(const Opaque&) const = default;
+struct opaque_t {
+  auto operator<=>(const opaque_t&) const = default;
 };
 
 /**
- * `File<std::string>` nicely defining what a "file system object"
+ * `file_t<std::string>` nicely defining what a "file system object"
  * is in Nix.
  *
  * With a different type arugment, it is also can be a "skeletal"
  * version is that abstract syntax for a "NAR listing".
  */
 template <typename RegularContents, bool recur>
-struct VariantT {
-  bool operator==(const VariantT&) const noexcept;
-  std::strong_ordering operator<=>(const VariantT&) const noexcept;
+struct variant_t {
+  bool operator==(const variant_t&) const noexcept;
+  std::strong_ordering operator<=>(const variant_t&) const noexcept;
 
   using Regular = nix::fso::Regular<RegularContents>;
 
   /**
    * In the default case, we do want full file children for our directory.
    */
-  using Directory = nix::fso::DirectoryT<std::conditional_t<recur, VariantT, Opaque>>;
+  using directory_t = nix::fso::directory_t<std::conditional_t<recur, variant_t, opaque_t>>;
 
   using Symlink = nix::fso::Symlink;
 
-  using Raw = std::variant<Regular, Directory, Symlink>;
-  Raw raw;
+  using raw_t = std::variant<Regular, directory_t, Symlink>;
+  raw_t raw;
 
-  MAKE_WRAPPER_CONSTRUCTOR(VariantT);
+  MAKE_WRAPPER_CONSTRUCTOR(variant_t);
 
-  SourceAccessor::Stat lstat() const;
+  SourceAccessor::stat_t lstat() const;
 };
 
 template <typename Child>
-inline bool DirectoryT<Child>::operator==(const DirectoryT&) const noexcept = default;
+inline bool directory_t<Child>::operator==(const directory_t&) const noexcept = default;
 
 template <typename Child>
 inline std::strong_ordering
-DirectoryT<Child>::operator<=>(const DirectoryT&) const noexcept = default;
+directory_t<Child>::operator<=>(const directory_t&) const noexcept = default;
 
 template <typename RegularContents, bool recur>
-inline bool VariantT<RegularContents, recur>::operator==(
-    const VariantT<RegularContents, recur>&) const noexcept = default;
+inline bool variant_t<RegularContents, recur>::operator==(
+    const variant_t<RegularContents, recur>&) const noexcept = default;
 
 template <typename RegularContents, bool recur>
-inline std::strong_ordering VariantT<RegularContents, recur>::operator<=>(
-    const VariantT<RegularContents, recur>&) const noexcept = default;
+inline std::strong_ordering variant_t<RegularContents, recur>::operator<=>(
+    const variant_t<RegularContents, recur>&) const noexcept = default;
 
 } // namespace fso
 
 /**
  * An source accessor for an in-memory file system.
  */
-struct MemorySourceAccessor : virtual SourceAccessor {
-  using File = fso::VariantT<std::string, true>;
+struct memory_source_accessor_t : virtual SourceAccessor {
+  using file_t = fso::variant_t<std::string, true>;
 
-  std::optional<File> root;
+  std::optional<file_t> root;
 
-  bool operator==(const MemorySourceAccessor&) const noexcept = default;
+  bool operator==(const memory_source_accessor_t&) const noexcept = default;
 
-  bool operator<(const MemorySourceAccessor& other) const noexcept { return root < other.root; }
+  bool operator<(const memory_source_accessor_t& other) const noexcept { return root < other.root; }
 
-  std::string readFile(const CanonPath& path) override;
-  bool pathExists(const CanonPath& path) override;
-  std::optional<Stat> maybeLstat(const CanonPath& path) override;
-  DirEntries readDirectory(const CanonPath& path) override;
-  std::string readLink(const CanonPath& path) override;
+  std::string readFile(const canon_path_t& path) override;
+  bool pathExists(const canon_path_t& path) override;
+  std::optional<stat_t> maybeLstat(const canon_path_t& path) override;
+  dir_entries_t readDirectory(const canon_path_t& path) override;
+  std::string readLink(const canon_path_t& path) override;
 
   /**
    * @param create If present, create this file and any parent directories
@@ -123,46 +123,46 @@ struct MemorySourceAccessor : virtual SourceAccessor {
    *
    * Return null if
    *
-   * - `create = false`: File does not exist.
+   * - `create = false`: file_t does not exist.
    *
    * - `create = true`: some parent file was not a dir, so couldn't
    *   look/create inside.
    */
-  File* open(const CanonPath& path, std::optional<File> create);
+  file_t* open(const canon_path_t& path, std::optional<file_t> create);
 
-  SourcePath addFile(CanonPath path, std::string&& contents);
+  source_path_t addFile(canon_path_t path, std::string&& contents);
 };
 
 /**
- * Write to a `MemorySourceAccessor` at the given path
+ * Write to a `memory_source_accessor_t` at the given path
  */
-struct MemorySink : FileSystemObjectSink {
-  MemorySourceAccessor& dst;
+struct memory_sink_t : file_system_object_sink_t {
+  memory_source_accessor_t& dst;
 
-  MemorySink(MemorySourceAccessor& dst) : dst(dst) {}
+  memory_sink_t(memory_source_accessor_t& dst) : dst(dst) {}
 
-  void createDirectory(const CanonPath& path) override;
+  void createDirectory(const canon_path_t& path) override;
 
-  void createRegularFile(const CanonPath& path,
-                         std::function<void(CreateRegularFileSink&)>) override;
+  void createRegularFile(const canon_path_t& path,
+                         std::function<void(create_regular_file_sink_t&)>) override;
 
-  void createSymlink(const CanonPath& path, const std::string& target) override;
+  void createSymlink(const canon_path_t& path, const std::string& target) override;
 };
 
 template <>
-struct json_avoids_null<MemorySourceAccessor::File::Regular> : std::true_type {};
+struct json_avoids_null<memory_source_accessor_t::file_t::Regular> : std::true_type {};
 
 template <>
-struct json_avoids_null<MemorySourceAccessor::File::Directory> : std::true_type {};
+struct json_avoids_null<memory_source_accessor_t::file_t::directory_t> : std::true_type {};
 
 template <>
-struct json_avoids_null<MemorySourceAccessor::File::Symlink> : std::true_type {};
+struct json_avoids_null<memory_source_accessor_t::file_t::Symlink> : std::true_type {};
 
 template <>
-struct json_avoids_null<MemorySourceAccessor::File> : std::true_type {};
+struct json_avoids_null<memory_source_accessor_t::file_t> : std::true_type {};
 
 template <>
-struct json_avoids_null<MemorySourceAccessor> : std::true_type {};
+struct json_avoids_null<memory_source_accessor_t> : std::true_type {};
 
 } // namespace nix
 
@@ -175,7 +175,7 @@ template <typename RegularContents>
 JSON_IMPL_INNER(ARG);
 #undef ARG
 
-#define ARG fso::DirectoryT<Child>
+#define ARG fso::directory_t<Child>
 template <typename Child>
 JSON_IMPL_INNER(ARG);
 #undef ARG
@@ -184,13 +184,13 @@ template <>
 JSON_IMPL_INNER(fso::Symlink);
 
 template <>
-JSON_IMPL_INNER(fso::Opaque);
+JSON_IMPL_INNER(fso::opaque_t);
 
-#define ARG fso::VariantT<RegularContents, recur>
+#define ARG fso::variant_t<RegularContents, recur>
 template <typename RegularContents, bool recur>
 JSON_IMPL_INNER(ARG);
 #undef ARG
 
 } // namespace nlohmann
 
-JSON_IMPL(MemorySourceAccessor)
+JSON_IMPL(memory_source_accessor_t)

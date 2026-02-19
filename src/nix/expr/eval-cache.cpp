@@ -42,7 +42,7 @@ create table if not exists Attributes (
 );
 )sql";
 
-struct AttrDb {
+struct attr_db_t {
   std::atomic_bool failed{false};
 
   const StoreDirConfig& cfg;
@@ -56,18 +56,18 @@ struct AttrDb {
     std::unique_ptr<SQLiteTxn> txn;
   };
 
-  std::unique_ptr<Sync<State>> _state;
+  std::unique_ptr<sync_t<State>> _state;
 
   SymbolTable& symbols;
 
-  AttrDb(const StoreDirConfig& cfg, const Hash& fingerprint, SymbolTable& symbols)
-      : cfg(cfg), _state(std::make_unique<Sync<State>>()), symbols(symbols) {
+  attr_db_t(const StoreDirConfig& cfg, const Hash& fingerprint, SymbolTable& symbols)
+      : cfg(cfg), _state(std::make_unique<sync_t<State>>()), symbols(symbols) {
     auto state(_state->lock());
 
     auto cacheDir = std::filesystem::path(getCacheDir()) / "eval-cache-v6";
     createDirs(cacheDir);
 
-    auto dbPath = cacheDir / (fingerprint.to_string(HashFormat::Base16, false) + ".sqlite");
+    auto dbPath = cacheDir / (fingerprint.to_string(hash_format_t::Base16, false) + ".sqlite");
 
     state->db = SQLite(dbPath);
     state->db.isCache();
@@ -90,7 +90,7 @@ struct AttrDb {
     state->txn = std::make_unique<SQLiteTxn>(state->db);
   }
 
-  ~AttrDb() {
+  ~attr_db_t() {
     try {
       auto state(_state->lock());
       if (!failed && state->txn->active)
@@ -279,10 +279,10 @@ struct AttrDb {
   }
 };
 
-static std::shared_ptr<AttrDb> makeAttrDb(const StoreDirConfig& cfg, const Hash& fingerprint,
+static std::shared_ptr<attr_db_t> makeAttrDb(const StoreDirConfig& cfg, const Hash& fingerprint,
                                           SymbolTable& symbols) {
   try {
-    return std::make_shared<AttrDb>(cfg, fingerprint, symbols);
+    return std::make_shared<attr_db_t>(cfg, fingerprint, symbols);
   } catch (SQLiteError&) {
     ignoreExceptionExceptInterrupt();
     return nullptr;
@@ -403,13 +403,13 @@ Value& AttrCursor::forceValue() {
   return v;
 }
 
-Suggestions AttrCursor::getSuggestionsForAttr(Symbol name) {
+suggestions_t AttrCursor::getSuggestionsForAttr(Symbol name) {
   auto attrNames = getAttrs();
-  StringSet strAttrNames;
+  string_set_t strAttrNames;
   for (auto& name : attrNames)
     strAttrNames.insert(std::string(root->state.symbols[name]));
 
-  return Suggestions::bestMatches(strAttrNames, root->state.symbols[name]);
+  return suggestions_t::bestMatches(strAttrNames, root->state.symbols[name]);
 }
 
 std::shared_ptr<AttrCursor> AttrCursor::maybeGetAttr(Symbol name) {
@@ -485,13 +485,13 @@ ref<AttrCursor> AttrCursor::getAttr(std::string_view name) {
   return getAttr(root->state.symbols.create(name));
 }
 
-OrSuggestions<ref<AttrCursor>> AttrCursor::findAlongAttrPath(const AttrPath& attrPath) {
+or_suggestions_t<ref<AttrCursor>> AttrCursor::findAlongAttrPath(const AttrPath& attrPath) {
   auto res = shared_from_this();
   for (auto& attr : attrPath) {
     auto child = res->maybeGetAttr(attr);
     if (!child) {
       auto suggestions = res->getSuggestionsForAttr(attr);
-      return OrSuggestions<ref<AttrCursor>>::failed(suggestions);
+      return or_suggestions_t<ref<AttrCursor>>::failed(suggestions);
     }
     res = child;
   }
@@ -534,7 +534,7 @@ string_t AttrCursor::getStringWithContext() {
                   [&](const NixStringContextElem::Built& b) -> const StorePath* {
                     return &b.drvPath->getBaseStorePath();
                   },
-                  [&](const NixStringContextElem::Opaque& o) -> const StorePath* {
+                  [&](const NixStringContextElem::opaque_t& o) -> const StorePath* {
                     return &o.path;
                   },
                   [&](const NixStringContextElem::Path& p) -> const StorePath* { return nullptr; },

@@ -23,7 +23,7 @@ static void canonicaliseTimestampAndPermissions(const Path& path, const struct s
     if ((mode != 0444 || isDir) && mode != 0555) {
       mode = (st.st_mode & S_IFMT) | 0444 | (st.st_mode & S_IXUSR || isDir ? 0111 : 0);
       if (chmod(path.c_str(), mode) == -1)
-        throw SysError("changing mode of '%1%' to %2$o", path, mode);
+        throw sys_error_t("changing mode of '%1%' to %2$o", path, mode);
     }
   }
 
@@ -52,7 +52,7 @@ static void canonicalisePathMetaData_(const Path& path,
      setattrlist() to remove other attributes as well. */
   if (lchflags(path.c_str(), 0)) {
     if (errno != ENOTSUP)
-      throw SysError("clearing flags of path '%1%'", path);
+      throw sys_error_t("clearing flags of path '%1%'", path);
   }
 #endif
 
@@ -68,19 +68,19 @@ static void canonicalisePathMetaData_(const Path& path,
 
   if (eaSize < 0) {
     if (errno != ENOTSUP && errno != ENODATA)
-      throw SysError("querying extended attributes of '%s'", path);
+      throw sys_error_t("querying extended attributes of '%s'", path);
   } else if (eaSize > 0) {
     std::vector<char> eaBuf(eaSize);
 
     if ((eaSize = llistxattr(path.c_str(), eaBuf.data(), eaBuf.size())) < 0)
-      throw SysError("querying extended attributes of '%s'", path);
+      throw sys_error_t("querying extended attributes of '%s'", path);
 
     for (auto& eaName :
-         tokenizeString<Strings>(std::string(eaBuf.data(), eaSize), std::string("\000", 1))) {
+         tokenizeString<strings_t>(std::string(eaBuf.data(), eaSize), std::string("\000", 1))) {
       if (settings.ignoredAcls.get().count(eaName))
         continue;
       if (lremovexattr(path.c_str(), eaName.c_str()) == -1)
-        throw SysError("removing extended attribute '%s' from '%s'", eaName, path);
+        throw sys_error_t("removing extended attribute '%s' from '%s'", eaName, path);
     }
   }
 #endif
@@ -121,12 +121,12 @@ static void canonicalisePathMetaData_(const Path& path,
 #  else
     if (!S_ISLNK(st.st_mode) && chown(path.c_str(), geteuid(), getegid()) == -1)
 #  endif
-      throw SysError("changing owner of '%1%' to %2%", path, geteuid());
+      throw sys_error_t("changing owner of '%1%' to %2%", path, geteuid());
   }
 #endif
 
   if (S_ISDIR(st.st_mode)) {
-    for (auto& i : DirectoryIterator{path}) {
+    for (auto& i : directory_iterator_t{path}) {
       checkInterrupt();
       canonicalisePathMetaData_(i.path().string(),
 #ifndef _WIN32

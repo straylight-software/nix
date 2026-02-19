@@ -75,7 +75,7 @@ struct DerivationOutput {
     /**
      * How the serialization will be hashed
      */
-    HashAlgorithm hashAlgo;
+    hash_algorithm_t hashAlgo;
 
     bool operator==(const CAFloating&) const = default;
     auto operator<=>(const CAFloating&) const = default;
@@ -103,15 +103,15 @@ struct DerivationOutput {
     /**
      * How the serialization will be hashed
      */
-    HashAlgorithm hashAlgo;
+    hash_algorithm_t hashAlgo;
 
     bool operator==(const Impure&) const = default;
     auto operator<=>(const Impure&) const = default;
   };
 
-  typedef std::variant<InputAddressed, CAFixed, CAFloating, Deferred, Impure> Raw;
+  typedef std::variant<InputAddressed, CAFixed, CAFloating, Deferred, Impure> raw_t;
 
-  Raw raw;
+  raw_t raw;
 
   bool operator==(const DerivationOutput&) const = default;
   auto operator<=>(const DerivationOutput&) const = default;
@@ -148,7 +148,7 @@ typedef std::map<std::string, std::pair<DerivationOutput, std::optional<StorePat
  * For inputs that are sub-derivations, we specify exactly which
  * output IDs we are interested in.
  */
-typedef std::map<StorePath, StringSet> DerivationInputs;
+typedef std::map<StorePath, string_set_t> DerivationInputs;
 
 struct DerivationType {
   /**
@@ -202,9 +202,9 @@ struct DerivationType {
     auto operator<=>(const Impure&) const = default;
   };
 
-  typedef std::variant<InputAddressed, ContentAddressed, Impure> Raw;
+  typedef std::variant<InputAddressed, ContentAddressed, Impure> raw_t;
 
-  Raw raw;
+  raw_t raw;
 
   bool operator==(const DerivationType&) const = default;
   auto operator<=>(const DerivationType&) const = default;
@@ -268,11 +268,11 @@ struct BasicDerivation {
   StorePathSet inputSrcs;
   std::string platform;
   Path builder;
-  Strings args;
+  strings_t args;
   /**
    * Must not contain the key `__json`, at least in order to serialize to ATerm.
    */
-  StringPairs env;
+  string_pairs_t env;
   std::optional<StructuredAttrs> structuredAttrs;
 
   std::string name;
@@ -294,7 +294,7 @@ struct BasicDerivation {
   /**
    * Return the output names of a derivation.
    */
-  StringSet outputNames() const;
+  string_set_t outputNames() const;
 
   /**
    * Calculates the maps that contains all the DerivationOutputs, but
@@ -309,7 +309,7 @@ struct BasicDerivation {
    * Apply string rewrites to the `env`, `args` and `builder`
    * fields.
    */
-  void applyRewrites(const StringMap& rewrites);
+  void applyRewrites(const string_map_t& rewrites);
 
   bool operator==(const BasicDerivation&) const = default;
   // TODO libc++ 16 (used by darwin) missing `std::map::operator <=>`, can't do yet.
@@ -328,7 +328,7 @@ struct Derivation : BasicDerivation {
    * Print a derivation.
    */
   std::string unparse(const StoreDirConfig& store, bool maskOutputs,
-                      DerivedPathMap<StringSet>::ChildNode::Map* actualInputs = nullptr) const;
+                      DerivedPathMap<string_set_t>::ChildNode::Map* actualInputs = nullptr) const;
 
   /**
    * Return the underlying basic derivation but with these changes:
@@ -454,7 +454,7 @@ StorePath writeDerivation(Store& store, AsyncPathWriter& asyncPathWriter, const 
  */
 Derivation
 parseDerivation(const StoreDirConfig& store, std::string&& s, std::string_view name,
-                const ExperimentalFeatureSettings& xpSettings = experimentalFeatureSettings);
+                const experimental_feature_settings_t& xpSettings = experimentalFeatureSettings);
 
 /**
  * \todo Remove.

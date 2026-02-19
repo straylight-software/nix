@@ -36,7 +36,7 @@ std::optional<bool> maybeGetBoolAttr(const Attrs& attrs, const std::string& name
 
 bool getBoolAttr(const Attrs& attrs, const std::string& name);
 
-StringMap attrsToQuery(const Attrs& attrs);
+string_map_t attrsToQuery(const Attrs& attrs);
 
 Hash getRevAttr(const Attrs& attrs, const std::string& name);
 

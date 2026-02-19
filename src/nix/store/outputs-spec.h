@@ -54,9 +54,9 @@ struct OutputsSpec {
    */
   struct All : std::monostate {};
 
-  typedef std::variant<All, Names> Raw;
+  typedef std::variant<All, Names> raw_t;
 
-  Raw raw;
+  raw_t raw;
 
   bool operator==(const OutputsSpec&) const = default;
 
@@ -97,9 +97,9 @@ struct ExtendedOutputsSpec {
 
   using Explicit = OutputsSpec;
 
-  typedef std::variant<Default, Explicit> Raw;
+  typedef std::variant<Default, Explicit> raw_t;
 
-  Raw raw;
+  raw_t raw;
 
   bool operator==(const ExtendedOutputsSpec&) const = default;
   // TODO libc++ 16 (used by darwin) missing `std::set::operator <=>`, can't do yet.

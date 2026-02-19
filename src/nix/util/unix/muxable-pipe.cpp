@@ -7,19 +7,19 @@
 
 namespace nix {
 
-void MuxablePipePollState::poll(std::optional<unsigned int> timeout) {
+void muxable_pipe_poll_state_t::poll(std::optional<unsigned int> timeout) {
   if (::poll(pollStatus.data(), pollStatus.size(), timeout ? *timeout : -1) == -1) {
     if (errno == EINTR)
       return;
-    throw SysError("waiting for input");
+    throw sys_error_t("waiting for input");
   }
 }
 
-void MuxablePipePollState::iterate(
-    std::set<MuxablePipePollState::CommChannel>& channels,
-    std::function<void(Descriptor fd, std::string_view data)> handleRead,
-    std::function<void(Descriptor fd)> handleEOF) {
-  std::set<Descriptor> fds2(channels);
+void muxable_pipe_poll_state_t::iterate(
+    std::set<muxable_pipe_poll_state_t::comm_channel_t>& channels,
+    std::function<void(descriptor_t fd, std::string_view data)> handleRead,
+    std::function<void(descriptor_t fd)> handleEOF) {
+  std::set<descriptor_t> fds2(channels);
   std::vector<unsigned char> buffer(4096);
   for (auto& k : fds2) {
     const auto fdPollStatusId = get(fdToPollStatus, k);
@@ -34,7 +34,7 @@ void MuxablePipePollState::iterate(
         channels.erase(k);
       } else if (rd == -1) {
         if (errno != EINTR)
-          throw SysError("read failed");
+          throw sys_error_t("read failed");
       } else {
         std::string_view data((char*)buffer.data(), rd);
         handleRead(k, data);

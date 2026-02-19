@@ -9,10 +9,10 @@
 
 using namespace nix;
 
-struct CmdCopySigs : StorePathsCommand {
-  Strings substituterUris;
+struct cmd_copy_sigs_t : StorePathsCommand {
+  strings_t substituterUris;
 
-  CmdCopySigs() {
+  cmd_copy_sigs_t() {
     addFlag({
         .longName = "substituter",
         .shortName = 's',
@@ -39,7 +39,7 @@ struct CmdCopySigs : StorePathsCommand {
     for (auto& s : substituterUris)
       substituters.push_back(openStore(s));
 
-    ThreadPool pool{fileTransferSettings.httpConnections};
+    thread_pool_t pool{fileTransferSettings.httpConnections};
 
     std::atomic<size_t> added{0};
 
@@ -54,7 +54,7 @@ struct CmdCopySigs : StorePathsCommand {
 
       auto info = store->queryPathInfo(storePath);
 
-      StringSet newSigs;
+      string_set_t newSigs;
 
       for (auto& store2 : substituters) {
         try {
@@ -90,12 +90,12 @@ struct CmdCopySigs : StorePathsCommand {
   }
 };
 
-static auto rCmdCopySigs = registerCommand2<CmdCopySigs>({"store", "copy-sigs"});
+static auto rCmdCopySigs = registerCommand2<cmd_copy_sigs_t>({"store", "copy-sigs"});
 
-struct CmdSign : StorePathsCommand {
+struct cmd_sign_t : StorePathsCommand {
   Path secretKeyFile;
 
-  CmdSign() {
+  cmd_sign_t() {
     addFlag({
         .longName = "key-file",
         .shortName = 'k',
@@ -110,8 +110,8 @@ struct CmdSign : StorePathsCommand {
   std::string description() override { return "sign store paths with a local key"; }
 
   void run(ref<Store> store, StorePaths&& storePaths) override {
-    SecretKey secretKey(readFile(secretKeyFile));
-    LocalSigner signer(std::move(secretKey));
+    secret_key_t secretKey(readFile(secretKeyFile));
+    local_signer_t signer(std::move(secretKey));
 
     size_t added{0};
 
@@ -133,12 +133,12 @@ struct CmdSign : StorePathsCommand {
   }
 };
 
-static auto rCmdSign = registerCommand2<CmdSign>({"store", "sign"});
+static auto rCmdSign = registerCommand2<cmd_sign_t>({"store", "sign"});
 
-struct CmdKeyGenerateSecret : Command {
+struct cmd_key_generate_secret_t : command_t {
   std::string keyName;
 
-  CmdKeyGenerateSecret() {
+  cmd_key_generate_secret_t() {
     addFlag({
         .longName = "key-name",
         .description = "Identifier of the key (e.g. `cache.example.org-1`).",
@@ -158,11 +158,11 @@ struct CmdKeyGenerateSecret : Command {
 
   void run() override {
     logger->stop();
-    writeFull(getStandardOutput(), SecretKey::generate(keyName).to_string());
+    writeFull(getStandardOutput(), secret_key_t::generate(keyName).to_string());
   }
 };
 
-struct CmdKeyConvertSecretToPublic : Command {
+struct cmd_key_convert_secret_to_public_t : command_t {
   std::string description() override {
     return "generate a public key for verifying store paths from a secret key read from standard "
            "input";
@@ -175,24 +175,24 @@ struct CmdKeyConvertSecretToPublic : Command {
   }
 
   void run() override {
-    SecretKey secretKey(drainFD(STDIN_FILENO));
+    secret_key_t secretKey(drainFD(STDIN_FILENO));
     logger->stop();
     writeFull(getStandardOutput(), secretKey.toPublicKey().to_string());
   }
 };
 
-struct CmdKey : NixMultiCommand {
-  CmdKey()
+struct cmd_key_t : NixMultiCommand {
+  cmd_key_t()
       : NixMultiCommand("key",
                         {
-                            {"generate-secret", []() { return make_ref<CmdKeyGenerateSecret>(); }},
+                            {"generate-secret", []() { return make_ref<cmd_key_generate_secret_t>(); }},
                             {"convert-secret-to-public",
-                             []() { return make_ref<CmdKeyConvertSecretToPublic>(); }},
+                             []() { return make_ref<cmd_key_convert_secret_to_public_t>(); }},
                         }) {}
 
   std::string description() override { return "generate and convert Nix signing keys"; }
 
-  Category category() override { return catUtility; }
+  category_t category() override { return catUtility; }
 };
 
-static auto rCmdKey = registerCommand<CmdKey>("key");
+static auto rCmdKey = registerCommand<cmd_key_t>("key");

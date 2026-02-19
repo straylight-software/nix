@@ -21,9 +21,9 @@ static constexpr auto environmentVariablesCategory = "Options that change enviro
 std::optional<std::string> getEnv(const std::string& key);
 
 /**
- * Like `getEnv`, but using `OsString` to avoid coercions.
+ * Like `getEnv`, but using `os_string_t` to avoid coercions.
  */
-std::optional<OsString> getEnvOs(const OsString& key);
+std::optional<os_string_t> getEnvOs(const os_string_t& key);
 
 /**
  * @return a non empty environment variable. Returns nullopt if the env
@@ -34,7 +34,7 @@ std::optional<std::string> getEnvNonEmpty(const std::string& key);
 /**
  * Get the entire environment.
  */
-StringMap getEnv();
+string_map_t getEnv();
 
 #ifdef _WIN32
 /**
@@ -52,9 +52,9 @@ int unsetenv(const char* name);
 int setEnv(const char* name, const char* value);
 
 /**
- * Like `setEnv`, but using `OsString` to avoid coercions.
+ * Like `setEnv`, but using `os_string_t` to avoid coercions.
  */
-int setEnvOs(const OsString& name, const OsString& value);
+int setEnvOs(const os_string_t& name, const os_string_t& value);
 
 /**
  * Clear the environment.
@@ -64,6 +64,6 @@ void clearEnv();
 /**
  * Replace the entire environment with the given one.
  */
-void replaceEnv(const StringMap& newEnv);
+void replaceEnv(const string_map_t& newEnv);
 
 } // namespace nix

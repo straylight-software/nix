@@ -21,7 +21,7 @@
 
 namespace nix {
 
-void BufferedSink::operator()(std::string_view data) {
+void buffered_sink_t::operator()(std::string_view data) {
   if (!buffer)
     buffer = decltype(buffer)(new char[bufSize]);
 
@@ -44,7 +44,7 @@ void BufferedSink::operator()(std::string_view data) {
   }
 }
 
-void BufferedSink::flush() {
+void buffered_sink_t::flush() {
   if (bufPos == 0)
     return;
   size_t n = bufPos;
@@ -52,7 +52,7 @@ void BufferedSink::flush() {
   writeUnbuffered({buffer.get(), n});
 }
 
-FdSink::~FdSink() {
+fd_sink_t::~fd_sink_t() {
   try {
     flush();
   } catch (...) {
@@ -60,7 +60,7 @@ FdSink::~FdSink() {
   }
 }
 
-void FdSink::writeUnbuffered(std::string_view data) {
+void fd_sink_t::writeUnbuffered(std::string_view data) {
   written += data.size();
   try {
     writeFull(fd, data);
@@ -70,7 +70,7 @@ void FdSink::writeUnbuffered(std::string_view data) {
   }
 }
 
-bool FdSink::good() {
+bool fd_sink_t::good() {
   return _good;
 }
 
@@ -99,7 +99,7 @@ void Source::drainInto(Sink& sink) {
 }
 
 std::string Source::drain() {
-  StringSink s;
+  string_sink_t s;
   drainInto(s);
   return std::move(s.s);
 }
@@ -113,7 +113,7 @@ void Source::skip(size_t len) {
   }
 }
 
-size_t BufferedSource::read(char* data, size_t len) {
+size_t buffered_source_t::read(char* data, size_t len) {
   if (!buffer)
     buffer = decltype(buffer)(new char[bufSize]);
 
@@ -129,11 +129,11 @@ size_t BufferedSource::read(char* data, size_t len) {
   return n;
 }
 
-bool BufferedSource::hasData() {
+bool buffered_source_t::hasData() {
   return bufPosOut < bufPosIn;
 }
 
-size_t FdSource::readUnbuffered(char* data, size_t len) {
+size_t fd_source_t::readUnbuffered(char* data, size_t len) {
 #ifdef _WIN32
   DWORD n;
   checkInterrupt();
@@ -149,7 +149,7 @@ size_t FdSource::readUnbuffered(char* data, size_t len) {
   } while (n == -1 && errno == EINTR);
   if (n == -1) {
     _good = false;
-    throw SysError("reading from file");
+    throw sys_error_t("reading from file");
   }
   if (n == 0) {
     _good = false;
@@ -160,18 +160,18 @@ size_t FdSource::readUnbuffered(char* data, size_t len) {
   return n;
 }
 
-bool FdSource::good() {
+bool fd_source_t::good() {
   return _good;
 }
 
-bool FdSource::hasData() {
-  if (BufferedSource::hasData())
+bool fd_source_t::hasData() {
+  if (buffered_source_t::hasData())
     return true;
 
   while (true) {
     fd_set fds;
     FD_ZERO(&fds);
-    Socket sock = toSocket(fd);
+    socket_t sock = toSocket(fd);
     FD_SET(sock, &fds);
 
     struct timeval timeout;
@@ -182,23 +182,23 @@ bool FdSource::hasData() {
     if (n < 0) {
       if (errno == EINTR)
         continue;
-      throw SysError("polling file descriptor");
+      throw sys_error_t("polling file descriptor");
     }
     return FD_ISSET(sock, &fds);
   }
 }
 
-void FdSource::restart() {
+void fd_source_t::restart() {
   if (!isSeekable)
     throw Error("can't seek to the start of a file");
   buffer.reset();
   read = bufPosIn = bufPosOut = 0;
   int fd_ = fromDescriptorReadOnly(fd);
   if (lseek(fd_, 0, SEEK_SET) == -1)
-    throw SysError("seeking to the start of a file");
+    throw sys_error_t("seeking to the start of a file");
 }
 
-void FdSource::skip(size_t len) {
+void fd_source_t::skip(size_t len) {
   /* Discard data in the buffer. */
   if (len && buffer && bufPosIn - bufPosOut) {
     if (len >= bufPosIn - bufPosOut) {
@@ -217,7 +217,7 @@ void FdSource::skip(size_t len) {
       if (errno == ESPIPE)
         isSeekable = false;
       else
-        throw SysError("seeking forward in file");
+        throw sys_error_t("seeking forward in file");
     } else {
       read += len;
       return;
@@ -227,10 +227,10 @@ void FdSource::skip(size_t len) {
 
   /* Otherwise, skip by reading. */
   if (len)
-    BufferedSource::skip(len);
+    buffered_source_t::skip(len);
 }
 
-size_t StringSource::read(char* data, size_t len) {
+size_t string_source_t::read(char* data, size_t len) {
   if (pos == s.size())
     throw EndOfFile("end of string reached");
   size_t n = s.copy(data, len, pos);
@@ -238,7 +238,7 @@ size_t StringSource::read(char* data, size_t len) {
   return n;
 }
 
-void StringSource::skip(size_t len) {
+void string_source_t::skip(size_t len) {
   const size_t remain = s.size() - pos;
   if (len > remain) {
     pos = s.size();
@@ -247,9 +247,9 @@ void StringSource::skip(size_t len) {
   pos += len;
 }
 
-CompressedSource::CompressedSource(RestartableSource& source, const std::string& compressionMethod)
+compressed_source_t::compressed_source_t(restartable_source_t& source, const std::string& compressionMethod)
     : compressedData([&]() {
-        StringSink sink;
+        string_sink_t sink;
         auto compressionSink = makeCompressionSink(compressionMethod, sink);
         source.drainInto(*compressionSink);
         compressionSink->finish();
@@ -258,14 +258,14 @@ CompressedSource::CompressedSource(RestartableSource& source, const std::string&
       compressionMethod(compressionMethod),
       stringSource(compressedData) {}
 
-std::unique_ptr<FinishSink> sourceToSink(std::function<void(Source&)> fun) {
-  struct SourceToSink : FinishSink {
+std::unique_ptr<finish_sink_t> sourceToSink(std::function<void(Source&)> fun) {
+  struct source_to_sink_t : finish_sink_t {
     typedef boost::coroutines2::coroutine<bool> coro_t;
 
     std::function<void(Source&)> fun;
     std::optional<coro_t::push_type> coro;
 
-    SourceToSink(std::function<void(Source&)> fun) : fun(fun) {}
+    source_to_sink_t(std::function<void(Source&)> fun) : fun(fun) {}
 
     std::string_view cur;
 
@@ -276,7 +276,7 @@ std::unique_ptr<FinishSink> sourceToSink(std::function<void(Source&)> fun) {
 
       if (!coro) {
         coro = coro_t::push_type([&](coro_t::pull_type& yield) {
-          LambdaSource source([&](char* out, size_t out_len) {
+          lambda_source_t source([&](char* out, size_t out_len) {
             if (cur.empty()) {
               yield();
               if (yield.get())
@@ -306,18 +306,18 @@ std::unique_ptr<FinishSink> sourceToSink(std::function<void(Source&)> fun) {
     }
   };
 
-  return std::make_unique<SourceToSink>(fun);
+  return std::make_unique<source_to_sink_t>(fun);
 }
 
 std::unique_ptr<Source> sinkToSource(std::function<void(Sink&)> fun, std::function<void()> eof) {
-  struct SinkToSource : Source {
+  struct sink_to_source_t : Source {
     typedef boost::coroutines2::coroutine<std::string_view> coro_t;
 
     std::function<void(Sink&)> fun;
     std::function<void()> eof;
     std::optional<coro_t::pull_type> coro;
 
-    SinkToSource(std::function<void(Sink&)> fun, std::function<void()> eof) : fun(fun), eof(eof) {}
+    sink_to_source_t(std::function<void(Sink&)> fun, std::function<void()> eof) : fun(fun), eof(eof) {}
 
     std::string_view cur;
 
@@ -325,7 +325,7 @@ std::unique_ptr<Source> sinkToSource(std::function<void(Sink&)> fun, std::functi
       bool hasCoro = coro.has_value();
       if (!hasCoro) {
         coro = coro_t::pull_type([&](coro_t::push_type& yield) {
-          LambdaSink sink([&](std::string_view data) {
+          lambda_sink_t sink([&](std::string_view data) {
             if (!data.empty()) {
               yield(data);
             }
@@ -354,7 +354,7 @@ std::unique_ptr<Source> sinkToSource(std::function<void(Sink&)> fun, std::functi
     }
   };
 
-  return std::make_unique<SinkToSource>(fun, eof);
+  return std::make_unique<sink_to_source_t>(fun, eof);
 }
 
 void writePadding(size_t len, Sink& sink) {
@@ -383,12 +383,12 @@ void writeStrings(const T& ss, Sink& sink) {
     sink << i;
 }
 
-Sink& operator<<(Sink& sink, const Strings& s) {
+Sink& operator<<(Sink& sink, const strings_t& s) {
   writeStrings(s, sink);
   return sink;
 }
 
-Sink& operator<<(Sink& sink, const StringSet& s) {
+Sink& operator<<(Sink& sink, const string_set_t& s) {
   writeStrings(s, sink);
   return sink;
 }
@@ -450,17 +450,17 @@ T readStrings(Source& source) {
 }
 
 template Paths readStrings(Source& source);
-template PathSet readStrings(Source& source);
+template path_set_t readStrings(Source& source);
 
 Error readError(Source& source) {
   auto type = readString(source);
   assert(type == "Error");
-  auto level = (Verbosity)readInt(source);
+  auto level = (verbosity_t)readInt(source);
   [[maybe_unused]] auto name = readString(source); // removed
   auto msg = readString(source);
-  ErrorInfo info{
+  error_info_t info{
       .level = level,
-      .msg = HintFmt(msg),
+      .msg = hint_fmt_t(msg),
   };
   auto havePos = readNum<size_t>(source);
   assert(havePos == 0);
@@ -468,16 +468,16 @@ Error readError(Source& source) {
   for (size_t i = 0; i < nrTraces; ++i) {
     havePos = readNum<size_t>(source);
     assert(havePos == 0);
-    info.traces.push_back(Trace{.hint = HintFmt(readString(source))});
+    info.traces.push_back(trace_t{.hint = hint_fmt_t(readString(source))});
   }
   return Error(std::move(info));
 }
 
-void StringSink::operator()(std::string_view data) {
+void string_sink_t::operator()(std::string_view data) {
   s.append(data);
 }
 
-size_t ChainSource::read(char* data, size_t len) {
+size_t chain_source_t::read(char* data, size_t len) {
   if (useSecond) {
     return source2.read(data, len);
   } else {

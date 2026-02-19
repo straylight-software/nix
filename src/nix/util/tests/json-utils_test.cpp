@@ -397,7 +397,7 @@ TEST_CASE("getBoolean throws for non-boolean types", "[json][getBoolean]") {
 
 TEST_CASE("getStringList returns list of strings", "[json][getStringList]") {
   json arr = json::array({"a", "b", "c"});
-  Strings result = getStringList(arr);
+  strings_t result = getStringList(arr);
 
   REQUIRE(result.size() == 3);
   auto it = result.begin();
@@ -408,7 +408,7 @@ TEST_CASE("getStringList returns list of strings", "[json][getStringList]") {
 
 TEST_CASE("getStringList returns empty list for empty array", "[json][getStringList]") {
   json empty = json::array();
-  Strings result = getStringList(empty);
+  strings_t result = getStringList(empty);
   REQUIRE(result.empty());
 }
 
@@ -432,7 +432,7 @@ TEST_CASE("getStringList throws for array with non-strings", "[json][getStringLi
 
 TEST_CASE("getStringMap returns map of strings", "[json][getStringMap]") {
   json obj = json::object({{"key1", "value1"}, {"key2", "value2"}});
-  StringMap result = getStringMap(obj);
+  string_map_t result = getStringMap(obj);
 
   REQUIRE(result.size() == 2);
   REQUIRE(result.at("key1") == "value1");
@@ -441,7 +441,7 @@ TEST_CASE("getStringMap returns map of strings", "[json][getStringMap]") {
 
 TEST_CASE("getStringMap returns empty map for empty object", "[json][getStringMap]") {
   json empty = json::object();
-  StringMap result = getStringMap(empty);
+  string_map_t result = getStringMap(empty);
   REQUIRE(result.empty());
 }
 
@@ -462,7 +462,7 @@ TEST_CASE("getStringMap throws for object with non-string values", "[json][getSt
 
 TEST_CASE("getStringSet returns set of strings", "[json][getStringSet]") {
   json arr = json::array({"a", "b", "c"});
-  StringSet result = getStringSet(arr);
+  string_set_t result = getStringSet(arr);
 
   REQUIRE(result.size() == 3);
   REQUIRE(result.contains("a"));
@@ -472,14 +472,14 @@ TEST_CASE("getStringSet returns set of strings", "[json][getStringSet]") {
 
 TEST_CASE("getStringSet deduplicates strings", "[json][getStringSet]") {
   json arr = json::array({"a", "b", "a", "c", "b"});
-  StringSet result = getStringSet(arr);
+  string_set_t result = getStringSet(arr);
 
   REQUIRE(result.size() == 3);
 }
 
 TEST_CASE("getStringSet returns empty set for empty array", "[json][getStringSet]") {
   json empty = json::array();
-  StringSet result = getStringSet(empty);
+  string_set_t result = getStringSet(empty);
   REQUIRE(result.empty());
 }
 
@@ -618,7 +618,7 @@ TEST_CASE("handle large string arrays", "[json][large]") {
     arr.push_back("string_" + std::to_string(i));
   }
 
-  Strings result = getStringList(arr);
+  strings_t result = getStringList(arr);
   REQUIRE(result.size() == 1000);
 }
 
@@ -748,7 +748,7 @@ TEST_CASE("getStringList property tests", "[json][getStringList][property]") {
       arr.push_back(s);
     }
 
-    Strings result = getStringList(arr);
+    strings_t result = getStringList(arr);
     RC_ASSERT(result.size() == strings.size());
 
     auto result_it = result.begin();
@@ -761,7 +761,7 @@ TEST_CASE("getStringList property tests", "[json][getStringList][property]") {
   rc::prop("getStringList size matches input size", []() {
     auto strings = *rc::gen::arbitrary<std::vector<std::string>>();
     json arr = strings;
-    Strings result = getStringList(arr);
+    strings_t result = getStringList(arr);
     RC_ASSERT(result.size() == strings.size());
   });
 }
@@ -770,7 +770,7 @@ TEST_CASE("getStringSet property tests", "[json][getStringSet][property]") {
   rc::prop("getStringSet contains all unique input strings", []() {
     auto strings = *rc::gen::arbitrary<std::vector<std::string>>();
     json arr = strings;
-    StringSet result = getStringSet(arr);
+    string_set_t result = getStringSet(arr);
 
     for (const auto& s : strings) {
       RC_ASSERT(result.contains(s));
@@ -780,7 +780,7 @@ TEST_CASE("getStringSet property tests", "[json][getStringSet][property]") {
   rc::prop("getStringSet size <= input size (due to deduplication)", []() {
     auto strings = *rc::gen::arbitrary<std::vector<std::string>>();
     json arr = strings;
-    StringSet result = getStringSet(arr);
+    string_set_t result = getStringSet(arr);
     RC_ASSERT(result.size() <= strings.size());
   });
 }
@@ -796,7 +796,7 @@ TEST_CASE("getStringMap property tests", "[json][getStringMap][property]") {
       obj[keys[i]] = values[i];
     }
 
-    StringMap result = getStringMap(obj);
+    string_map_t result = getStringMap(obj);
     RC_ASSERT(result.size() == keys.size());
 
     for (size_t i = 0; i < keys.size(); ++i) {

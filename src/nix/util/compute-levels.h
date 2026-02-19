@@ -5,6 +5,6 @@
 
 namespace nix {
 
-StringSet computeLevels();
+string_set_t computeLevels();
 
 }

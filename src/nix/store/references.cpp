@@ -13,12 +13,12 @@ namespace nix {
 
 static constexpr auto refLength = StorePath::HashLen;
 
-static void search(std::string_view s, StringSet& hashes, StringSet& seen) {
+static void search(std::string_view s, string_set_t& hashes, string_set_t& seen) {
   for (size_t i = 0; i + refLength <= s.size();) {
     int j;
     bool match = true;
     for (j = refLength - 1; j >= 0; --j)
-      if (!BaseNix32::lookupReverse(s[i + j])) {
+      if (!base_nix32_t::lookupReverse(s[i + j])) {
         i += j + 1;
         match = false;
         break;
@@ -54,7 +54,7 @@ void RefScanSink::operator()(std::string_view data) {
 RewritingSink::RewritingSink(const std::string& from, const std::string& to, Sink& nextSink)
     : RewritingSink({{from, to}}, nextSink) {}
 
-RewritingSink::RewritingSink(const StringMap& rewrites, Sink& nextSink)
+RewritingSink::RewritingSink(const string_map_t& rewrites, Sink& nextSink)
     : rewrites(rewrites), nextSink(nextSink) {
   std::string::size_type maxRewriteSize = 0;
   for (auto& [from, to] : rewrites) {
@@ -90,14 +90,14 @@ void RewritingSink::flush() {
   prev.clear();
 }
 
-HashModuloSink::HashModuloSink(HashAlgorithm ha, const std::string& modulus)
+HashModuloSink::HashModuloSink(hash_algorithm_t ha, const std::string& modulus)
     : hashSink(ha), rewritingSink(modulus, std::string(modulus.size(), 0), hashSink) {}
 
 void HashModuloSink::operator()(std::string_view data) {
   rewritingSink(data);
 }
 
-HashResult HashModuloSink::finish() {
+hash_result_t HashModuloSink::finish() {
   rewritingSink.flush();
 
   /* Hash the positions of the self-references. This ensures that a

@@ -15,7 +15,7 @@ StorePathSet scanForReferences(Sink& toTee, const Path& path, const StorePathSet
 class PathRefScanSink : public RefScanSink {
   std::map<std::string, StorePath> backMap;
 
-  PathRefScanSink(StringSet&& hashes, std::map<std::string, StorePath>&& backMap);
+  PathRefScanSink(string_set_t&& hashes, std::map<std::string, StorePath>&& backMap);
 
 public:
   static PathRefScanSink fromPaths(const StorePathSet& refs);
@@ -27,7 +27,7 @@ public:
  * Result of scanning a single file for references.
  */
 struct FileRefScanResult {
-  CanonPath filePath;     ///< The file that was scanned
+  canon_path_t filePath;     ///< The file that was scanned
   StorePathSet foundRefs; ///< Which store paths were found in this file
 };
 
@@ -52,7 +52,7 @@ struct FileRefScanResult {
  * @param refs Set of store paths to search for
  * @param callback Called for each file that contains at least one reference
  */
-void scanForReferencesDeep(SourceAccessor& accessor, const CanonPath& rootPath,
+void scanForReferencesDeep(SourceAccessor& accessor, const canon_path_t& rootPath,
                            const StorePathSet& refs,
                            std::function<void(FileRefScanResult)> callback);
 
@@ -70,8 +70,8 @@ void scanForReferencesDeep(SourceAccessor& accessor, const CanonPath& rootPath,
  * @param refs Set of store paths to search for
  * @return Map from file paths to the set of references found in each file
  */
-std::map<CanonPath, StorePathSet> scanForReferencesDeep(SourceAccessor& accessor,
-                                                        const CanonPath& rootPath,
+std::map<canon_path_t, StorePathSet> scanForReferencesDeep(SourceAccessor& accessor,
+                                                        const canon_path_t& rootPath,
                                                         const StorePathSet& refs);
 
 } // namespace nix

@@ -30,7 +30,7 @@ class Pid {
   bool separatePG = false;
   int killSignal = SIGKILL;
 #else
-  AutoCloseFD pid = INVALID_DESCRIPTOR;
+  auto_close_fd_t pid = INVALID_DESCRIPTOR;
 #endif
 public:
   Pid();
@@ -39,8 +39,8 @@ public:
   void operator=(pid_t pid);
   operator pid_t();
 #else
-  Pid(AutoCloseFD pid);
-  void operator=(AutoCloseFD pid);
+  Pid(auto_close_fd_t pid);
+  void operator=(auto_close_fd_t pid);
 #endif
   ~Pid();
   int kill();
@@ -66,7 +66,7 @@ void killUser(uid_t uid);
  * Fork a process that runs the given function, and return the child
  * pid to the caller.
  */
-struct ProcessOptions {
+struct process_options_t {
   std::string errorPrefix = "";
   bool dieWithParent = true;
   bool runExitHandlers = false;
@@ -78,26 +78,26 @@ struct ProcessOptions {
 };
 
 #ifndef _WIN32
-pid_t startProcess(std::function<void()> fun, const ProcessOptions& options = ProcessOptions());
+pid_t startProcess(std::function<void()> fun, const process_options_t& options = process_options_t());
 #endif
 
 /**
  * Run a program and return its stdout in a string (i.e., like the
  * shell backtick operator).
  */
-std::string runProgram(Path program, bool lookupPath = false, const Strings& args = Strings(),
+std::string runProgram(Path program, bool lookupPath = false, const strings_t& args = strings_t(),
                        const std::optional<std::string>& input = {}, bool isInteractive = false);
 
-struct RunOptions {
+struct run_options_t {
   Path program;
   bool lookupPath = true;
-  Strings args;
+  strings_t args;
 #ifndef _WIN32
   std::optional<uid_t> uid;
   std::optional<uid_t> gid;
 #endif
   std::optional<Path> chdir;
-  std::optional<StringMap> environment;
+  std::optional<string_map_t> environment;
   std::optional<std::string> input;
   Source* standardIn = nullptr;
   Sink* standardOut = nullptr;
@@ -105,16 +105,16 @@ struct RunOptions {
   bool isInteractive = false;
 };
 
-std::pair<int, std::string> runProgram(RunOptions&& options);
+std::pair<int, std::string> runProgram(run_options_t&& options);
 
-void runProgram2(const RunOptions& options);
+void runProgram2(const run_options_t& options);
 
-class ExecError : public Error {
+class exec_error_t : public Error {
 public:
   int status;
 
   template <typename... Args>
-  ExecError(int status, const Args&... args) : Error(args...), status(status) {}
+  exec_error_t(int status, const Args&... args) : Error(args...), status(status) {}
 };
 
 /**

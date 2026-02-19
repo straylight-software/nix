@@ -44,7 +44,7 @@ DerivationTrampolineGoal::~DerivationTrampolineGoal() {}
 static StorePath pathPartOfReq(const SingleDerivedPath& req) {
   return std::visit(
       overloaded{
-          [&](const SingleDerivedPath::Opaque& bo) { return bo.path; },
+          [&](const SingleDerivedPath::opaque_t& bo) { return bo.path; },
           [&](const SingleDerivedPath::Built& bfd) { return pathPartOfReq(*bfd.drvPath); },
       },
       req.raw());
@@ -125,7 +125,7 @@ Goal::Co DerivationTrampolineGoal::haveDerivation(StorePath drvPath, Derivation 
       std::visit(overloaded{
                      [&](const OutputsSpec::Names& names) -> OutputsSpec::Names { return names; },
                      [&](const OutputsSpec::All&) -> OutputsSpec::Names {
-                       StringSet outputs;
+                       string_set_t outputs;
                        for (auto& [outputName, _] : drv.outputs)
                          outputs.insert(outputName);
                        return outputs;

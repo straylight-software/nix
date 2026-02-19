@@ -34,10 +34,10 @@ inline void checkInterrupt();
 /**
  * @note Never will happen on Windows
  */
-MakeError(Interrupted, BaseError);
+MakeError(Interrupted, base_error_t);
 
-struct InterruptCallback {
-  virtual ~InterruptCallback() {};
+struct interrupt_callback_t {
+  virtual ~interrupt_callback_t() {};
 };
 
 /**
@@ -46,7 +46,7 @@ struct InterruptCallback {
  *
  * @note Does nothing on Windows
  */
-std::unique_ptr<InterruptCallback> createInterruptCallback(std::function<void()> callback);
+std::unique_ptr<interrupt_callback_t> createInterruptCallback(std::function<void()> callback);
 
 /**
  * A RAII class that causes the current thread to receive SIGUSR1 when
@@ -55,7 +55,7 @@ std::unique_ptr<InterruptCallback> createInterruptCallback(std::function<void()>
  *
  * @note Does nothing on Windows
  */
-struct ReceiveInterrupts;
+struct receive_interrupts_t;
 
 } // namespace nix
 

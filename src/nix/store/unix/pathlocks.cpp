@@ -14,17 +14,17 @@
 
 namespace nix {
 
-AutoCloseFD openLockFile(const std::filesystem::path& path, bool create) {
-  AutoCloseFD fd;
+auto_close_fd_t openLockFile(const std::filesystem::path& path, bool create) {
+  auto_close_fd_t fd;
 
   fd = open(path.c_str(), O_CLOEXEC | O_RDWR | (create ? O_CREAT : 0), 0600);
   if (!fd && (create || errno != ENOENT))
-    throw SysError("opening lock file %1%", path);
+    throw sys_error_t("opening lock file %1%", path);
 
   return fd;
 }
 
-void deleteLockFile(const std::filesystem::path& path, Descriptor desc) {
+void deleteLockFile(const std::filesystem::path& path, descriptor_t desc) {
   /* Get rid of the lock file.  Have to be careful not to introduce
      races.  Write a (meaningless) token to the file to indicate to
      other processes waiting on this lock that the lock is stale
@@ -35,7 +35,7 @@ void deleteLockFile(const std::filesystem::path& path, Descriptor desc) {
      file is an optimisation, not a necessity. */
 }
 
-bool lockFile(Descriptor desc, LockType lockType, bool wait) {
+bool lockFile(descriptor_t desc, LockType lockType, bool wait) {
   int type;
   if (lockType == ltRead)
     type = LOCK_SH;
@@ -50,7 +50,7 @@ bool lockFile(Descriptor desc, LockType lockType, bool wait) {
     while (flock(desc, type) != 0) {
       checkInterrupt();
       if (errno != EINTR)
-        throw SysError("acquiring/releasing lock");
+        throw sys_error_t("acquiring/releasing lock");
       else
         return false;
     }
@@ -60,7 +60,7 @@ bool lockFile(Descriptor desc, LockType lockType, bool wait) {
       if (errno == EWOULDBLOCK)
         return false;
       if (errno != EINTR)
-        throw SysError("acquiring/releasing lock");
+        throw sys_error_t("acquiring/releasing lock");
     }
   }
 
@@ -83,7 +83,7 @@ bool PathLocks::lockPaths(const std::set<std::filesystem::path>& paths, const st
 
     debug("locking path %1%", path);
 
-    AutoCloseFD fd;
+    auto_close_fd_t fd;
 
     while (1) {
       /* Open/create the lock file. */
@@ -109,7 +109,7 @@ bool PathLocks::lockPaths(const std::set<std::filesystem::path>& paths, const st
          hasn't been unlinked). */
       struct stat st;
       if (fstat(fd.get(), &st) == -1)
-        throw SysError("statting lock file %1%", lockPath);
+        throw sys_error_t("statting lock file %1%", lockPath);
       if (st.st_size != 0)
         /* This lock file has been unlinked, so we're holding
            a lock on a deleted file.  This means that other
@@ -141,7 +141,7 @@ void PathLocks::unlock() {
   fds.clear();
 }
 
-FdLock::FdLock(Descriptor desc, LockType lockType, bool wait, std::string_view waitMsg)
+FdLock::FdLock(descriptor_t desc, LockType lockType, bool wait, std::string_view waitMsg)
     : desc(desc) {
   if (wait) {
     if (!lockFile(desc, lockType, false)) {

@@ -21,7 +21,7 @@ void showManPage(const std::string& name) {
                 "commands' help text. Perhaps you could install the '%1%' command?",
                 "man", name.c_str(), "nix-*");
   }
-  throw SysError("command 'man %1%' failed", name.c_str());
+  throw sys_error_t("command 'man %1%' failed", name.c_str());
 }
 
 } // namespace nix

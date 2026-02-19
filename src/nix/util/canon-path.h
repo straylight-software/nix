@@ -30,7 +30,7 @@ MakeError(BadCanonPath, Error);
  *
  * - It does not contain NUL bytes.
  *
- * `CanonPath` are "virtual" Nix paths for abstract file system objects;
+ * `canon_path_t` are "virtual" Nix paths for abstract file system objects;
  * they are always Unix-style paths, regardless of what OS Nix is
  * running on. The `/` root doesn't denote the ambient host file system
  * root, but some virtual FS root.
@@ -40,13 +40,13 @@ MakeError(BadCanonPath, Error);
  * "override" the `some_fd` directory file descriptor and escape to the
  * "system root". Conversely, Nix's abstract file operations *never* escape the
  * designated virtual file system (i.e. `SourceAccessor` or
- * `ParseSink`), so `CanonPath` does not need an absolute/relative
+ * `ParseSink`), so `canon_path_t` does not need an absolute/relative
  * distinction.
  *
  * @note The path does not need to correspond to an actually existing
  * path, and the path may or may not have unresolved symlinks.
  */
-class CanonPath {
+class canon_path_t {
   std::string path;
 
 public:
@@ -54,27 +54,27 @@ public:
    * Construct a canon path from a non-canonical path. Any '.', '..'
    * or empty components are removed.
    */
-  CanonPath(std::string_view raw);
+  canon_path_t(std::string_view raw);
 
-  explicit CanonPath(const char* raw);
+  explicit canon_path_t(const char* raw);
 
   struct unchecked_t {};
 
-  CanonPath(unchecked_t _, std::string path) : path(std::move(path)) {}
+  canon_path_t(unchecked_t _, std::string path) : path(std::move(path)) {}
 
   /**
    * Construct a canon path from a vector of elements.
    */
-  CanonPath(const std::vector<std::string>& elems);
+  canon_path_t(const std::vector<std::string>& elems);
 
-  static const CanonPath root;
+  static const canon_path_t root;
 
   /**
    * If `raw` starts with a slash, return
-   * `CanonPath(raw)`. Otherwise return a `CanonPath` representing
+   * `canon_path_t(raw)`. Otherwise return a `canon_path_t` representing
    * `root + "/" + raw`.
    */
-  CanonPath(std::string_view raw, const CanonPath& root);
+  canon_path_t(std::string_view raw, const canon_path_t& root);
 
   bool isRoot() const { return path.size() <= 1; }
 
@@ -106,11 +106,11 @@ public:
      * Helper class with overloaded operator-> for "drill-down" behavior.
      * This was a "temporary" string_view doesn't have to be stored anywhere.
      */
-    class PointerProxy {
+    class pointer_proxy_t {
       std::string_view segment;
 
     public:
-      PointerProxy(std::string_view segment_) : segment(segment_) {}
+      pointer_proxy_t(std::string_view segment_) : segment(segment_) {}
 
       const std::string_view* operator->() const { return &segment; }
     };
@@ -118,7 +118,7 @@ public:
   public:
     using value_type = std::string_view;
     using reference_type = const std::string_view;
-    using pointer_type = PointerProxy;
+    using pointer_type = pointer_proxy_t;
     using difference_type = std::ptrdiff_t;
     using iterator_category = std::forward_iterator_tag;
 
@@ -137,7 +137,7 @@ public:
 
     reference_type operator*() const { return remaining.substr(0, slash); }
 
-    pointer_type operator->() const { return PointerProxy(**this); }
+    pointer_type operator->() const { return pointer_proxy_t(**this); }
 
     Iterator& operator++() {
       if (slash == remaining.npos)
@@ -162,7 +162,7 @@ public:
 
   Iterator end() const { return Iterator(rel().substr(path.size() - 1)); }
 
-  std::optional<CanonPath> parent() const;
+  std::optional<canon_path_t> parent() const;
 
   /**
    * Remove the last component. Panics if this path is the root.
@@ -181,9 +181,9 @@ public:
     return ((std::string_view)path).substr(path.rfind('/') + 1);
   }
 
-  bool operator==(const CanonPath& x) const { return path == x.path; }
+  bool operator==(const canon_path_t& x) const { return path == x.path; }
 
-  bool operator!=(const CanonPath& x) const { return path != x.path; }
+  bool operator!=(const canon_path_t& x) const { return path != x.path; }
 
   /**
    * Compare paths lexicographically except that path separators
@@ -191,7 +191,7 @@ public:
    * a directory is always followed directly by its children. For
    * instance, 'foo' < 'foo/bar' < 'foo!'.
    */
-  auto operator<=>(const CanonPath& x) const {
+  auto operator<=>(const canon_path_t& x) const {
     auto i = path.begin();
     auto j = x.path.begin();
     for (; i != path.end() && j != x.path.end(); ++i, ++j) {
@@ -211,26 +211,26 @@ public:
    * Return true if `this` is equal to `parent` or a child of
    * `parent`.
    */
-  bool isWithin(const CanonPath& parent) const;
+  bool isWithin(const canon_path_t& parent) const;
 
-  CanonPath removePrefix(const CanonPath& prefix) const;
+  canon_path_t removePrefix(const canon_path_t& prefix) const;
 
   /**
    * Append another path to this one.
    */
-  void extend(const CanonPath& x);
+  void extend(const canon_path_t& x);
 
   /**
    * Concatenate two paths.
    */
-  CanonPath operator/(const CanonPath& x) const;
+  canon_path_t operator/(const canon_path_t& x) const;
 
   /**
    * Add a path component to this one. It must not contain any slashes.
    */
   void push(std::string_view c);
 
-  CanonPath operator/(std::string_view c) const;
+  canon_path_t operator/(std::string_view c) const;
 
   /**
    * Check whether access to this path is allowed, which is the case
@@ -238,22 +238,22 @@ public:
    * the `allowed` paths are within `this`. (The latter condition
    * ensures access to the parents of allowed paths.)
    */
-  bool isAllowed(const std::set<CanonPath>& allowed) const;
+  bool isAllowed(const std::set<canon_path_t>& allowed) const;
 
   /**
    * Return a representation `x` of `path` relative to `this`, i.e.
-   * `CanonPath(this.makeRelative(x), this) == path`.
+   * `canon_path_t(this.makeRelative(x), this) == path`.
    */
-  std::string makeRelative(const CanonPath& path) const;
+  std::string makeRelative(const canon_path_t& path) const;
 
-  friend std::size_t hash_value(const CanonPath&);
+  friend std::size_t hash_value(const canon_path_t&);
 };
 
-static_assert(std::ranges::forward_range<CanonPath>);
+static_assert(std::ranges::forward_range<canon_path_t>);
 
-std::ostream& operator<<(std::ostream& stream, const CanonPath& path);
+std::ostream& operator<<(std::ostream& stream, const canon_path_t& path);
 
-inline std::size_t hash_value(const CanonPath& path) {
+inline std::size_t hash_value(const canon_path_t& path) {
   boost::hash<std::string_view> hasher;
   return hasher(path.path);
 }
@@ -261,10 +261,10 @@ inline std::size_t hash_value(const CanonPath& path) {
 } // namespace nix
 
 template <>
-struct std::hash<nix::CanonPath> {
+struct std::hash<nix::canon_path_t> {
   using is_avalanching = std::true_type;
 
-  std::size_t operator()(const nix::CanonPath& path) const noexcept {
+  std::size_t operator()(const nix::canon_path_t& path) const noexcept {
     return nix::hash_value(path);
   }
 };

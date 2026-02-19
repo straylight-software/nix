@@ -26,13 +26,13 @@ std::string wrap(std::string prefix, std::string s) {
   return concatStrings(prefix, s, ANSI_NORMAL);
 }
 
-struct CmdSearch : InstallableValueCommand, MixJSON {
+struct cmd_search_t : InstallableValueCommand, MixJSON {
   std::vector<std::string> res;
   std::vector<std::string> excludeRes;
 
-  CmdSearch() {
+  cmd_search_t() {
     expectArgs("regex", &res);
-    addFlag(Flag{
+    addFlag(flag_t{
         .longName = "exclude",
         .shortName = 'e',
         .description = "Hide packages whose attribute path, name or description contain *regex*.",
@@ -49,7 +49,7 @@ struct CmdSearch : InstallableValueCommand, MixJSON {
         ;
   }
 
-  Strings getDefaultFlakeAttrPaths() override {
+  strings_t getDefaultFlakeAttrPaths() override {
     return {"packages." + settings.thisSystem.get(), "legacyPackages." + settings.thisSystem.get()};
   }
 
@@ -75,7 +75,7 @@ struct CmdSearch : InstallableValueCommand, MixJSON {
 
     auto state = getEvalState();
 
-    std::optional<Sync<nlohmann::json>> jsonOut;
+    std::optional<sync_t<nlohmann::json>> jsonOut;
     if (json)
       jsonOut.emplace(json::object());
 
@@ -92,7 +92,7 @@ struct CmdSearch : InstallableValueCommand, MixJSON {
       auto attrPathStr = attrPath.to_string(*state);
 
       /*
-      Activity act(*logger, lvlInfo, actUnknown, fmt("evaluating '%s'", attrPathStr));
+      activity_t act(*logger, lvlInfo, actUnknown, fmt("evaluating '%s'", attrPathStr));
       */
       try {
         auto recurse = [&]() {
@@ -208,4 +208,4 @@ struct CmdSearch : InstallableValueCommand, MixJSON {
   }
 };
 
-static auto rCmdSearch = registerCommand<CmdSearch>("search");
+static auto rCmdSearch = registerCommand<cmd_search_t>("search");

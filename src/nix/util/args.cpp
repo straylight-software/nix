@@ -16,8 +16,8 @@
 
 namespace nix {
 
-void Args::addFlag(Flag&& flag_) {
-  auto flag = std::make_shared<Flag>(std::move(flag_));
+void Args::addFlag(flag_t&& flag_) {
+  auto flag = std::make_shared<flag_t>(std::move(flag_));
   if (flag->handler.arity != ArityAny)
     assert(flag->handler.arity == flag->labels.size());
   assert(flag->longName != "");
@@ -36,11 +36,11 @@ void Args::removeFlag(const std::string& longName) {
   longFlags.erase(flag);
 }
 
-void Completions::setType(AddCompletions::Type t) {
+void completions_t::setType(add_completions_t::Type t) {
   type = t;
 }
 
-void Completions::add(std::string completion, std::string description) {
+void completions_t::add(std::string completion, std::string description) {
   description = trim(description);
   // ellipsize overflowing content on the back of the description
   auto end_index = description.find_first_of(".\n");
@@ -50,24 +50,24 @@ void Completions::add(std::string completion, std::string description) {
     if (needs_ellipsis)
       description.append(" [...]");
   }
-  completions.insert(Completion{.completion = completion, .description = description});
+  completions.insert(completion_t{.completion = completion, .description = description});
 }
 
-auto Completion::operator<=>(const Completion& other) const noexcept = default;
+auto completion_t::operator<=>(const completion_t& other) const noexcept = default;
 
 std::string completionMarker = "___COMPLETE___";
 
-RootArgs& Args::getRoot() {
+root_args_t& Args::getRoot() {
   Args* p = this;
   while (p->parent)
     p = p->parent;
 
-  auto* res = dynamic_cast<RootArgs*>(p);
+  auto* res = dynamic_cast<root_args_t*>(p);
   assert(res);
   return *res;
 }
 
-std::optional<std::string> RootArgs::needsCompletion(std::string_view s) {
+std::optional<std::string> root_args_t::needsCompletion(std::string_view s) {
   if (!completions)
     return {};
   auto i = s.find(completionMarker);
@@ -79,7 +79,7 @@ std::optional<std::string> RootArgs::needsCompletion(std::string_view s) {
 namespace {
 
 /**
- * Basically this is `typedef std::optional<Parser> Parser(std::string_view s, Strings & r);`
+ * Basically this is `typedef std::optional<Parser> Parser(std::string_view s, strings_t & r);`
  *
  * Except we can't recursively reference the Parser typedef, so we have to write a class.
  */
@@ -89,14 +89,14 @@ struct Parser {
   /**
    * @brief Parse the next character(s)
    */
-  virtual void operator()(std::shared_ptr<Parser>& state, Strings& r) = 0;
+  virtual void operator()(std::shared_ptr<Parser>& state, strings_t& r) = 0;
 
   Parser(std::string_view s) : remaining(s) {};
 
   virtual ~Parser() {};
 };
 
-struct ParseQuoted : public Parser {
+struct parse_quoted_t : public Parser {
   /**
    * @brief Accumulated string
    *
@@ -104,12 +104,12 @@ struct ParseQuoted : public Parser {
    */
   std::string acc;
 
-  ParseQuoted(std::string_view s) : Parser(s) {};
+  parse_quoted_t(std::string_view s) : Parser(s) {};
 
-  virtual void operator()(std::shared_ptr<Parser>& state, Strings& r) override;
+  virtual void operator()(std::shared_ptr<Parser>& state, strings_t& r) override;
 };
 
-struct ParseUnquoted : public Parser {
+struct parse_unquoted_t : public Parser {
   /**
    * @brief Accumulated string
    *
@@ -118,9 +118,9 @@ struct ParseUnquoted : public Parser {
    */
   std::string acc;
 
-  ParseUnquoted(std::string_view s) : Parser(s) {};
+  parse_unquoted_t(std::string_view s) : Parser(s) {};
 
-  virtual void operator()(std::shared_ptr<Parser>& state, Strings& r) override {
+  virtual void operator()(std::shared_ptr<Parser>& state, strings_t& r) override {
     if (remaining.empty()) {
       if (!acc.empty())
         r.push_back(acc);
@@ -134,11 +134,11 @@ struct ParseUnquoted : public Parser {
       case '\r':
         if (!acc.empty())
           r.push_back(acc);
-        state = std::make_shared<ParseUnquoted>(ParseUnquoted(remaining.substr(1)));
+        state = std::make_shared<parse_unquoted_t>(parse_unquoted_t(remaining.substr(1)));
         return;
       case '`':
         if (remaining.size() > 1 && remaining[1] == '`') {
-          state = std::make_shared<ParseQuoted>(ParseQuoted(remaining.substr(2)));
+          state = std::make_shared<parse_quoted_t>(parse_quoted_t(remaining.substr(2)));
           return;
         } else
           throw Error("single backtick is not a supported syntax in the nix shebang.");
@@ -184,7 +184,7 @@ struct ParseUnquoted : public Parser {
   }
 };
 
-void ParseQuoted::operator()(std::shared_ptr<Parser>& state, Strings& r) {
+void parse_quoted_t::operator()(std::shared_ptr<Parser>& state, strings_t& r) {
   if (remaining.empty()) {
     throw Error("unterminated quoted string in nix shebang");
   }
@@ -195,7 +195,7 @@ void ParseQuoted::operator()(std::shared_ptr<Parser>& state, Strings& r) {
            remaining[3] != '`')) {
         // exactly two backticks mark the end of a quoted string, but a preceding space is ignored
         // if present.
-        state = std::make_shared<ParseUnquoted>(ParseUnquoted(remaining.substr(3)));
+        state = std::make_shared<parse_unquoted_t>(parse_unquoted_t(remaining.substr(3)));
         r.push_back(acc);
         return;
       } else {
@@ -208,7 +208,7 @@ void ParseQuoted::operator()(std::shared_ptr<Parser>& state, Strings& r) {
       // exactly two backticks mark the end of a quoted string
       if ((remaining.size() == 2 && remaining[1] == '`') ||
           (remaining.size() > 2 && remaining[1] == '`' && remaining[2] != '`')) {
-        state = std::make_shared<ParseUnquoted>(ParseUnquoted(remaining.substr(2)));
+        state = std::make_shared<parse_unquoted_t>(parse_unquoted_t(remaining.substr(2)));
         r.push_back(acc);
         return;
       }
@@ -239,9 +239,9 @@ void ParseQuoted::operator()(std::shared_ptr<Parser>& state, Strings& r) {
 
 } // namespace
 
-Strings parseShebangContent(std::string_view s) {
-  Strings result;
-  std::shared_ptr<Parser> parserState(std::make_shared<ParseUnquoted>(ParseUnquoted(s)));
+strings_t parseShebangContent(std::string_view s) {
+  strings_t result;
+  std::shared_ptr<Parser> parserState(std::make_shared<parse_unquoted_t>(parse_unquoted_t(s)));
 
   // trampoline == iterated strategy pattern
   while (parserState) {
@@ -252,24 +252,24 @@ Strings parseShebangContent(std::string_view s) {
   return result;
 }
 
-void RootArgs::parseCmdline(const Strings& _cmdline, bool allowShebang) {
-  Strings pendingArgs;
+void root_args_t::parseCmdline(const strings_t& _cmdline, bool allowShebang) {
+  strings_t pendingArgs;
   bool dashDash = false;
 
-  Strings cmdline(_cmdline);
+  strings_t cmdline(_cmdline);
 
   if (auto s = getEnv("NIX_GET_COMPLETIONS")) {
     size_t n = std::stoi(*s);
     assert(n > 0 && n <= cmdline.size());
     *std::next(cmdline.begin(), n - 1) += completionMarker;
-    completions = std::make_shared<Completions>();
+    completions = std::make_shared<completions_t>();
     verbosity = lvlError;
   }
 
   // Heuristic to see if we're invoked as a shebang script, namely,
   // if we have at least one argument, it's the name of an
   // executable file, and it starts with "#!".
-  Strings savedArgs;
+  strings_t savedArgs;
   if (allowShebang) {
     auto script = *cmdline.begin();
     try {
@@ -363,16 +363,16 @@ std::filesystem::path Args::getCommandBaseDir() const {
   return parent->getCommandBaseDir();
 }
 
-std::filesystem::path RootArgs::getCommandBaseDir() const {
+std::filesystem::path root_args_t::getCommandBaseDir() const {
   return commandBaseDir;
 }
 
-bool Args::processFlag(Strings::iterator& pos, Strings::iterator end) {
+bool Args::processFlag(strings_t::iterator& pos, strings_t::iterator end) {
   assert(pos != end);
 
   auto& rootArgs = getRoot();
 
-  auto process = [&](const std::string& name, Flag& flag) -> bool {
+  auto process = [&](const std::string& name, flag_t& flag) -> bool {
     ++pos;
 
     if (auto& f = flag.experimentalFeature)
@@ -442,7 +442,7 @@ bool Args::processFlag(Strings::iterator& pos, Strings::iterator end) {
   return false;
 }
 
-bool Args::processArgs(const Strings& args, bool finish) {
+bool Args::processArgs(const strings_t& args, bool finish) {
   if (expectedArgs.empty()) {
     if (!args.empty())
       throw UsageError("unexpected argument '%1%'", args.front());
@@ -542,8 +542,8 @@ nlohmann::json Args::toJSON() {
   return res;
 }
 
-static void _completePath(AddCompletions& completions, std::string_view prefix, bool onlyDirs) {
-  completions.setType(Completions::Type::Filenames);
+static void _completePath(add_completions_t& completions, std::string_view prefix, bool onlyDirs) {
+  completions.setType(completions_t::Type::Filenames);
 #ifndef _WIN32 // TODO implement globbing completions on Windows
   glob_t globbuf;
   int flags = GLOB_NOESCAPE;
@@ -566,16 +566,16 @@ static void _completePath(AddCompletions& completions, std::string_view prefix, 
 #endif
 }
 
-void Args::completePath(AddCompletions& completions, size_t, std::string_view prefix) {
+void Args::completePath(add_completions_t& completions, size_t, std::string_view prefix) {
   _completePath(completions, prefix, false);
 }
 
-void Args::completeDir(AddCompletions& completions, size_t, std::string_view prefix) {
+void Args::completeDir(add_completions_t& completions, size_t, std::string_view prefix) {
   _completePath(completions, prefix, true);
 }
 
-Strings argvToStrings(int argc, char** argv) {
-  Strings args;
+strings_t argvToStrings(int argc, char** argv) {
+  strings_t args;
   argc--;
   argv++;
   while (argc--)
@@ -583,11 +583,11 @@ Strings argvToStrings(int argc, char** argv) {
   return args;
 }
 
-std::optional<ExperimentalFeature> Command::experimentalFeature() {
+std::optional<experimental_feature_t> command_t::experimentalFeature() {
   return {};
 }
 
-MultiCommand::MultiCommand(std::string_view commandName, const Commands& commands_)
+multi_command_t::multi_command_t(std::string_view commandName, const commands_t& commands_)
     : commands(commands_), commandName(commandName) {
   expectArgs({.label = "subcommand",
               .optional = true,
@@ -595,25 +595,25 @@ MultiCommand::MultiCommand(std::string_view commandName, const Commands& command
                 assert(!command);
                 auto i = commands.find(s);
                 if (i == commands.end()) {
-                  StringSet commandNames;
+                  string_set_t commandNames;
                   for (auto& [name, _] : commands)
                     commandNames.insert(name);
-                  auto suggestions = Suggestions::bestMatches(commandNames, s);
+                  auto suggestions = suggestions_t::bestMatches(commandNames, s);
                   throw UsageError(suggestions, "'%s' is not a recognised command", s);
                 }
                 command = {s, i->second()};
                 command->second->parent = this;
               }},
-              .completer = {[&](AddCompletions& completions, size_t, std::string_view prefix) {
+              .completer = {[&](add_completions_t& completions, size_t, std::string_view prefix) {
                 for (auto& [name, command] : commands)
                   if (hasPrefix(name, prefix))
                     completions.add(name);
               }}});
 
-  categories[Command::catDefault] = "Available commands";
+  categories[command_t::catDefault] = "Available commands";
 }
 
-bool MultiCommand::processFlag(Strings::iterator& pos, Strings::iterator end) {
+bool multi_command_t::processFlag(strings_t::iterator& pos, strings_t::iterator end) {
   if (Args::processFlag(pos, end))
     return true;
   if (command && command->second->processFlag(pos, end))
@@ -621,20 +621,20 @@ bool MultiCommand::processFlag(Strings::iterator& pos, Strings::iterator end) {
   return false;
 }
 
-bool MultiCommand::processArgs(const Strings& args, bool finish) {
+bool multi_command_t::processArgs(const strings_t& args, bool finish) {
   if (command)
     return command->second->processArgs(args, finish);
   else
     return Args::processArgs(args, finish);
 }
 
-void MultiCommand::checkArgs() {
+void multi_command_t::checkArgs() {
   Args::checkArgs();
   if (command)
     command->second->checkArgs();
 }
 
-nlohmann::json MultiCommand::toJSON() {
+nlohmann::json multi_command_t::toJSON() {
   auto cmds = nlohmann::json::object();
 
   for (auto& [name, commandFun] : commands) {
@@ -653,7 +653,7 @@ nlohmann::json MultiCommand::toJSON() {
   return res;
 }
 
-Strings::iterator MultiCommand::rewriteArgs(Strings& args, Strings::iterator pos) {
+strings_t::iterator multi_command_t::rewriteArgs(strings_t& args, strings_t::iterator pos) {
   if (command)
     return command->second->rewriteArgs(args, pos);
 
@@ -664,7 +664,7 @@ Strings::iterator MultiCommand::rewriteArgs(Strings& args, Strings::iterator pos
   if (i == aliases.end())
     return pos;
   auto& info = i->second;
-  if (info.status == AliasStatus::Deprecated) {
+  if (info.status == alias_status_t::Deprecated) {
     warn("'%s' is a deprecated alias for '%s'", arg, concatStringsSep(" ", info.replacement));
   }
   pos = args.erase(pos);

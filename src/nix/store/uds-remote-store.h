@@ -34,7 +34,7 @@ struct UDSRemoteStoreConfig : std::enable_shared_from_this<UDSRemoteStoreConfig>
    */
   Path path;
 
-  static StringSet uriSchemes() { return {"unix"}; }
+  static string_set_t uriSchemes() { return {"unix"}; }
 
   ref<Store> openStore() const override;
 
@@ -71,7 +71,7 @@ struct UDSRemoteStore : virtual IndirectRootStore, virtual RemoteStore {
 
 private:
   struct Connection : RemoteStore::Connection {
-    AutoCloseFD fd;
+    auto_close_fd_t fd;
     void closeWrite() override;
   };
 

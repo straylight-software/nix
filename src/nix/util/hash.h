@@ -11,34 +11,34 @@ namespace nix {
 
 MakeError(BadHash, Error);
 
-enum struct HashAlgorithm : char { MD5 = 42, SHA1, SHA256, SHA512, BLAKE3 };
+enum struct hash_algorithm_t : char { MD5 = 42, SHA1, SHA256, SHA512, BLAKE3 };
 
 /**
  * @return the size of a hash for the given algorithm
  */
-constexpr inline size_t regularHashSize(HashAlgorithm type) {
+constexpr inline size_t regularHashSize(hash_algorithm_t type) {
   switch (type) {
-    case HashAlgorithm::BLAKE3:
+    case hash_algorithm_t::BLAKE3:
       return 32;
-    case HashAlgorithm::MD5:
+    case hash_algorithm_t::MD5:
       return 16;
-    case HashAlgorithm::SHA1:
+    case hash_algorithm_t::SHA1:
       return 20;
-    case HashAlgorithm::SHA256:
+    case hash_algorithm_t::SHA256:
       return 32;
-    case HashAlgorithm::SHA512:
+    case hash_algorithm_t::SHA512:
       return 64;
     default:
       assert(false);
   }
 }
 
-extern const StringSet hashAlgorithms;
+extern const string_set_t hashAlgorithms;
 
 /**
  * @brief Enumeration representing the hash formats.
  */
-enum struct HashFormat : int {
+enum struct hash_format_t : int {
   /// @brief Base 64 encoding.
   /// @see [IETF RFC 4648, section 4](https://datatracker.ietf.org/doc/html/rfc4648#section-4).
   Base64,
@@ -51,23 +51,23 @@ enum struct HashFormat : int {
   SRI
 };
 
-extern const StringSet hashFormats;
+extern const string_set_t hashFormats;
 
 struct Hash {
-  /** Opaque handle type for the hash calculation state. */
+  /** opaque_t handle type for the hash calculation state. */
   union Ctx;
 
   constexpr static size_t maxHashSize = 64;
   size_t hashSize = 0;
   uint8_t hash[maxHashSize] = {};
 
-  HashAlgorithm algo;
+  hash_algorithm_t algo;
 
   /**
    * Create a zero-filled hash object.
    */
-  explicit Hash(HashAlgorithm algo,
-                const ExperimentalFeatureSettings& xpSettings = experimentalFeatureSettings);
+  explicit Hash(hash_algorithm_t algo,
+                const experimental_feature_settings_t& xpSettings = experimentalFeatureSettings);
 
   /**
    * Parse the hash from a string representation in the format
@@ -76,13 +76,13 @@ struct Hash {
    * is not present, then the hash algorithm must be specified in the
    * string.
    */
-  static Hash parseAny(std::string_view s, std::optional<HashAlgorithm> optAlgo);
+  static Hash parseAny(std::string_view s, std::optional<hash_algorithm_t> optAlgo);
 
   /**
    * Like `parseAny`, but also returns the format the hash was parsed from.
    */
-  static std::pair<Hash, HashFormat> parseAnyReturningFormat(std::string_view s,
-                                                             std::optional<HashAlgorithm> optAlgo);
+  static std::pair<Hash, hash_format_t> parseAnyReturningFormat(std::string_view s,
+                                                             std::optional<hash_algorithm_t> optAlgo);
 
   /**
    * Parse a hash from a string representation like the above, except the
@@ -94,7 +94,7 @@ struct Hash {
    * Parse a plain hash that musst not have any prefix indicating the type.
    * The type is passed in to disambiguate.
    */
-  static Hash parseNonSRIUnprefixed(std::string_view s, HashAlgorithm algo);
+  static Hash parseNonSRIUnprefixed(std::string_view s, hash_algorithm_t algo);
 
   /**
    * Like `parseNonSRIUnprefixed`, but the hash format has been
@@ -104,11 +104,11 @@ struct Hash {
    * "bases".
    */
   static Hash parseExplicitFormatUnprefixed(
-      std::string_view s, HashAlgorithm algo, HashFormat explicitFormat,
-      const ExperimentalFeatureSettings& xpSettings = experimentalFeatureSettings);
+      std::string_view s, hash_algorithm_t algo, hash_format_t explicitFormat,
+      const experimental_feature_settings_t& xpSettings = experimentalFeatureSettings);
 
   static Hash parseSRI(std::string_view original,
-                       const ExperimentalFeatureSettings& xpSettings = experimentalFeatureSettings);
+                       const experimental_feature_settings_t& xpSettings = experimentalFeatureSettings);
 
 public:
   /**
@@ -126,12 +126,12 @@ public:
    * or base-64. By default, this is prefixed by the hash algo
    * (e.g. "sha256:").
    */
-  [[nodiscard]] std::string to_string(HashFormat hashFormat, bool includeAlgo) const;
+  [[nodiscard]] std::string to_string(hash_format_t hashFormat, bool includeAlgo) const;
 
-  [[nodiscard]] std::string gitRev() const { return to_string(HashFormat::Base16, false); }
+  [[nodiscard]] std::string gitRev() const { return to_string(hash_format_t::Base16, false); }
 
   [[nodiscard]] std::string gitShortRev() const {
-    return std::string(to_string(HashFormat::Base16, false), 0, 7);
+    return std::string(to_string(hash_format_t::Base16, false), 0, 7);
   }
 
   static Hash dummy;
@@ -139,31 +139,31 @@ public:
   /**
    * @return a random hash with hash algorithm `algo`
    */
-  static Hash random(HashAlgorithm algo);
+  static Hash random(hash_algorithm_t algo);
 };
 
 /**
  * Helper that defaults empty hashes to the 0 hash.
  */
-Hash newHashAllowEmpty(std::string_view hashStr, std::optional<HashAlgorithm> ha);
+Hash newHashAllowEmpty(std::string_view hashStr, std::optional<hash_algorithm_t> ha);
 
 /**
  * Compute the hash of the given string.
  */
-Hash hashString(HashAlgorithm ha, std::string_view s,
-                const ExperimentalFeatureSettings& xpSettings = experimentalFeatureSettings);
+Hash hashString(hash_algorithm_t ha, std::string_view s,
+                const experimental_feature_settings_t& xpSettings = experimentalFeatureSettings);
 
 /**
  * Compute the hash of the given file, hashing its contents directly.
  *
  * (Metadata, such as the executable permission bit, is ignored.)
  */
-Hash hashFile(HashAlgorithm ha, const Path& path);
+Hash hashFile(hash_algorithm_t ha, const Path& path);
 
 /**
  * The final hash and the number of bytes digested.
  */
-struct HashResult {
+struct hash_result_t {
   Hash hash;
   uint64_t numBytesDigested;
 };
@@ -177,54 +177,54 @@ Hash compressHash(const Hash& hash, unsigned int newSize);
 /**
  * Parse a string representing a hash format.
  */
-HashFormat parseHashFormat(std::string_view hashFormatName);
+hash_format_t parseHashFormat(std::string_view hashFormatName);
 
 /**
  * std::optional version of parseHashFormat that doesn't throw error.
  */
-std::optional<HashFormat> parseHashFormatOpt(std::string_view hashFormatName);
+std::optional<hash_format_t> parseHashFormatOpt(std::string_view hashFormatName);
 
 /**
  * The reverse of parseHashFormat.
  */
-std::string_view printHashFormat(HashFormat hashFormat);
+std::string_view printHashFormat(hash_format_t hashFormat);
 
 /**
  * Parse a string representing a hash algorithm.
  */
-HashAlgorithm
+hash_algorithm_t
 parseHashAlgo(std::string_view s,
-              const ExperimentalFeatureSettings& xpSettings = experimentalFeatureSettings);
+              const experimental_feature_settings_t& xpSettings = experimentalFeatureSettings);
 
 /**
  * Will return nothing on parse error
  */
-std::optional<HashAlgorithm>
+std::optional<hash_algorithm_t>
 parseHashAlgoOpt(std::string_view s,
-                 const ExperimentalFeatureSettings& xpSettings = experimentalFeatureSettings);
+                 const experimental_feature_settings_t& xpSettings = experimentalFeatureSettings);
 
 /**
  * And the reverse.
  */
-std::string_view printHashAlgo(HashAlgorithm ha);
+std::string_view printHashAlgo(hash_algorithm_t ha);
 
-struct AbstractHashSink : virtual Sink {
-  virtual HashResult finish() = 0;
+struct abstract_hash_sink_t : virtual Sink {
+  virtual hash_result_t finish() = 0;
 };
 
-class HashSink : public BufferedSink, public AbstractHashSink {
+class hash_sink_t : public buffered_sink_t, public abstract_hash_sink_t {
 private:
-  HashAlgorithm ha;
+  hash_algorithm_t ha;
   Hash::Ctx* ctx;
   uint64_t bytes;
 
 public:
-  HashSink(HashAlgorithm ha);
-  HashSink(const HashSink& h);
-  ~HashSink();
+  hash_sink_t(hash_algorithm_t ha);
+  hash_sink_t(const hash_sink_t& h);
+  ~hash_sink_t();
   void writeUnbuffered(std::string_view data) override;
-  HashResult finish() override;
-  HashResult currentHash();
+  hash_result_t finish() override;
+  hash_result_t currentHash();
 };
 
 template <>

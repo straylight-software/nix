@@ -9,7 +9,7 @@
 
 using namespace nix;
 
-struct CmdEdit : InstallableValueCommand {
+struct cmd_edit_t : InstallableValueCommand {
   std::string description() override {
     return "open the Nix expression of a Nix package in $EDITOR";
   }
@@ -20,7 +20,7 @@ struct CmdEdit : InstallableValueCommand {
         ;
   }
 
-  Category category() override { return catSecondary; }
+  category_t category() override { return catSecondary; }
 
   void run(ref<Store> store, ref<InstallableValue> installable) override {
     auto state = getEvalState();
@@ -46,8 +46,8 @@ struct CmdEdit : InstallableValueCommand {
     std::string command;
     for (const auto& arg : args)
       command += " '" + arg + "'";
-    throw SysError("cannot run command%s", command);
+    throw sys_error_t("cannot run command%s", command);
   }
 };
 
-static auto rCmdEdit = registerCommand<CmdEdit>("edit");
+static auto rCmdEdit = registerCommand<cmd_edit_t>("edit");

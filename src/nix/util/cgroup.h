@@ -11,16 +11,16 @@ namespace nix {
 
 std::optional<Path> getCgroupFS();
 
-StringMap getCgroups(const Path& cgroupFile);
+string_map_t getCgroups(const Path& cgroupFile);
 
-struct CgroupStats {
+struct cgroup_stats_t {
   std::optional<std::chrono::microseconds> cpuUser, cpuSystem;
 };
 
 /**
  * Read statistics from the given cgroup.
  */
-CgroupStats getCgroupStats(const std::filesystem::path& cgroup);
+cgroup_stats_t getCgroupStats(const std::filesystem::path& cgroup);
 
 /**
  * Destroy the cgroup denoted by 'path'. The postcondition is that
@@ -28,7 +28,7 @@ CgroupStats getCgroupStats(const std::filesystem::path& cgroup);
  * been killed. Also return statistics from the cgroup just before
  * destruction.
  */
-CgroupStats destroyCgroup(const Path& cgroup);
+cgroup_stats_t destroyCgroup(const Path& cgroup);
 
 std::string getCurrentCgroup();
 

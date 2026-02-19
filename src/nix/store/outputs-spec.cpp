@@ -34,7 +34,7 @@ OutputsSpec OutputsSpec::parse(std::string_view s) {
   if (s == "*"sv)
     return OutputsSpec::All{};
 
-  auto names = splitString<StringSet>(s, ",");
+  auto names = splitString<string_set_t>(s, ",");
   for (const auto& name : names)
     checkName(name);
 
@@ -130,8 +130,8 @@ using namespace nix;
 #ifndef DOXYGEN_SKIP
 
 OutputsSpec adl_serializer<OutputsSpec>::from_json(const json& json) {
-  auto names = json.get<StringSet>();
-  if (names == StringSet({"*"}))
+  auto names = json.get<string_set_t>();
+  if (names == string_set_t({"*"}))
     return OutputsSpec::All{};
   else
     return OutputsSpec::Names{std::move(names)};

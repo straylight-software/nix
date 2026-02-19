@@ -18,7 +18,7 @@
 
 namespace nix {
 
-static std::optional<std::string> getStringAttr(const StringMap& env, const StructuredAttrs* parsed,
+static std::optional<std::string> getStringAttr(const string_map_t& env, const StructuredAttrs* parsed,
                                                 const std::string& name) {
   if (parsed) {
     auto i = parsed->structuredAttrs.find(name);
@@ -38,7 +38,7 @@ static std::optional<std::string> getStringAttr(const StringMap& env, const Stru
   }
 }
 
-static bool getBoolAttr(const StringMap& env, const StructuredAttrs* parsed,
+static bool getBoolAttr(const string_map_t& env, const StructuredAttrs* parsed,
                         const std::string& name, bool def) {
   if (parsed) {
     auto i = parsed->structuredAttrs.find(name);
@@ -58,7 +58,7 @@ static bool getBoolAttr(const StringMap& env, const StructuredAttrs* parsed,
   }
 }
 
-static std::optional<Strings> getStringsAttr(const StringMap& env, const StructuredAttrs* parsed,
+static std::optional<strings_t> getStringsAttr(const string_map_t& env, const StructuredAttrs* parsed,
                                              const std::string& name) {
   if (parsed) {
     auto i = parsed->structuredAttrs.find(name);
@@ -68,7 +68,7 @@ static std::optional<Strings> getStringsAttr(const StringMap& env, const Structu
       if (!i->second.is_array())
         throw Error("attribute '%s' must be a list of strings", name);
       auto& a = getArray(i->second);
-      Strings res;
+      strings_t res;
       for (auto j = a.begin(); j != a.end(); ++j) {
         if (!j->is_string())
           throw Error("attribute '%s' must be a list of strings", name);
@@ -81,14 +81,14 @@ static std::optional<Strings> getStringsAttr(const StringMap& env, const Structu
     if (i == env.end())
       return {};
     else
-      return tokenizeString<Strings>(i->second);
+      return tokenizeString<strings_t>(i->second);
   }
 }
 
-static std::optional<StringSet>
-getStringSetAttr(const StringMap& env, const StructuredAttrs* parsed, const std::string& name) {
+static std::optional<string_set_t>
+getStringSetAttr(const string_map_t& env, const StructuredAttrs* parsed, const std::string& name) {
   auto ss = getStringsAttr(env, parsed, name);
-  return ss ? (std::optional{StringSet{ss->begin(), ss->end()}}) : (std::optional<StringSet>{});
+  return ss ? (std::optional{string_set_t{ss->begin(), ss->end()}}) : (std::optional<string_set_t>{});
 }
 
 template <typename Inputs>
@@ -99,12 +99,12 @@ using OutputChecksVariant =
     std::variant<OutputChecks<Inputs>, std::map<std::string, OutputChecks<Inputs>>>;
 
 DerivationOptions<StorePath>
-derivationOptionsFromStructuredAttrs(const StoreDirConfig& store, const StringMap& env,
+derivationOptionsFromStructuredAttrs(const StoreDirConfig& store, const string_map_t& env,
                                      const StructuredAttrs* parsed, bool shouldWarn,
-                                     const ExperimentalFeatureSettings& mockXpSettings) {
+                                     const experimental_feature_settings_t& mockXpSettings) {
   /* Use the SingleDerivedPath version with empty inputDrvs, then
      resolve. */
-  DerivedPathMap<StringSet> emptyInputDrvs{};
+  DerivedPathMap<string_set_t> emptyInputDrvs{};
   auto singleDerivedPathOptions = derivationOptionsFromStructuredAttrs(
       store, emptyInputDrvs, env, parsed, shouldWarn, mockXpSettings);
 
@@ -123,7 +123,7 @@ derivationOptionsFromStructuredAttrs(const StoreDirConfig& store, const StringMa
   return *resolved;
 }
 
-static void flatten(const nlohmann::json& value, StringSet& res) {
+static void flatten(const nlohmann::json& value, string_set_t& res) {
   if (value.is_array())
     for (auto& v : value)
       flatten(v, res);
@@ -134,17 +134,17 @@ static void flatten(const nlohmann::json& value, StringSet& res) {
 }
 
 DerivationOptions<SingleDerivedPath> derivationOptionsFromStructuredAttrs(
-    const StoreDirConfig& store, const DerivedPathMap<StringSet>& inputDrvs, const StringMap& env,
+    const StoreDirConfig& store, const DerivedPathMap<string_set_t>& inputDrvs, const string_map_t& env,
     const StructuredAttrs* parsed, bool shouldWarn,
-    const ExperimentalFeatureSettings& mockXpSettings) {
+    const experimental_feature_settings_t& mockXpSettings) {
   DerivationOptions<SingleDerivedPath> defaults = {};
 
   std::map<std::string, SingleDerivedPath::Built> placeholders;
-  if (mockXpSettings.isEnabled(Xp::CaDerivations)) {
+  if (mockXpSettings.isEnabled(xp_t::CaDerivations)) {
     /* Initialize placeholder map from inputDrvs */
     auto initPlaceholders = [&](this const auto& initPlaceholders,
                                 ref<const SingleDerivedPath> basePath,
-                                const DerivedPathMap<StringSet>::ChildNode& node) -> void {
+                                const DerivedPathMap<string_set_t>::ChildNode& node) -> void {
       for (const auto& outputName : node.value) {
         auto built = SingleDerivedPath::Built{
             .drvPath = basePath,
@@ -165,7 +165,7 @@ DerivationOptions<SingleDerivedPath> derivationOptionsFromStructuredAttrs(
     };
 
     for (const auto& [drvPath, outputs] : inputDrvs.map) {
-      auto basePath = make_ref<const SingleDerivedPath>(SingleDerivedPath::Opaque{drvPath});
+      auto basePath = make_ref<const SingleDerivedPath>(SingleDerivedPath::opaque_t{drvPath});
       initPlaceholders(basePath, outputs);
     }
   }
@@ -174,14 +174,14 @@ DerivationOptions<SingleDerivedPath> derivationOptionsFromStructuredAttrs(
     if (auto it = placeholders.find(pathS); it != placeholders.end())
       return it->second;
     else
-      return SingleDerivedPath::Opaque{store.toStorePath(pathS).first};
+      return SingleDerivedPath::opaque_t{store.toStorePath(pathS).first};
   };
 
   auto parseRef = [&](const std::string& pathS) -> DrvRef<SingleDerivedPath> {
     if (auto it = placeholders.find(pathS); it != placeholders.end())
       return it->second;
     if (store.isStorePath(pathS))
-      return SingleDerivedPath::Opaque{store.toStorePath(pathS).first};
+      return SingleDerivedPath::opaque_t{store.toStorePath(pathS).first};
     else
       return pathS;
   };
@@ -273,7 +273,7 @@ DerivationOptions<SingleDerivedPath> derivationOptionsFromStructuredAttrs(
           }
           return res;
         } else {
-          auto parseRefSet = [&](const std::optional<StringSet> optionalStringSet)
+          auto parseRefSet = [&](const std::optional<string_set_t> optionalStringSet)
               -> std::optional<std::set<DrvRef<SingleDerivedPath>>> {
             if (!optionalStringSet)
               return std::nullopt;
@@ -315,7 +315,7 @@ DerivationOptions<SingleDerivedPath> derivationOptionsFromStructuredAttrs(
           }(),
       .passAsFile =
           [&] {
-            StringSet res;
+            string_set_t res;
             if (auto* passAsFileString = get(env, "passAsFile")) {
               if (parsed) {
                 if (shouldWarn) {
@@ -323,7 +323,7 @@ DerivationOptions<SingleDerivedPath> derivationOptionsFromStructuredAttrs(
                        "'passAsFile'; because all JSON is always passed via file");
                 }
               } else {
-                res = tokenizeString<StringSet>(*passAsFileString);
+                res = tokenizeString<string_set_t>(*passAsFileString);
               }
             }
             return res;
@@ -337,7 +337,7 @@ DerivationOptions<SingleDerivedPath> derivationOptionsFromStructuredAttrs(
               if (!e || !e->is_object())
                 return ret;
               for (auto& [key, storePathsJson] : getObject(*e)) {
-                StringSet ss;
+                string_set_t ss;
                 flatten(storePathsJson, ss);
                 std::set<SingleDerivedPath> storePaths;
                 for (auto& s : ss)
@@ -346,10 +346,10 @@ DerivationOptions<SingleDerivedPath> derivationOptionsFromStructuredAttrs(
               }
             } else {
               auto s = getOr(env, "exportReferencesGraph", "");
-              Strings ss = tokenizeString<Strings>(s);
+              strings_t ss = tokenizeString<strings_t>(s);
               if (ss.size() % 2 != 0)
                 throw Error("odd number of tokens in 'exportReferencesGraph': '%1%'", s);
-              for (Strings::iterator i = ss.begin(); i != ss.end();) {
+              for (strings_t::iterator i = ss.begin(); i != ss.end();) {
                 auto fileName = std::move(*i++);
                 static std::regex regex("[A-Za-z_][A-Za-z0-9_.-]*");
                 if (!std::regex_match(fileName, regex))
@@ -379,9 +379,9 @@ DerivationOptions<SingleDerivedPath> derivationOptionsFromStructuredAttrs(
 }
 
 template <typename Input>
-StringSet DerivationOptions<Input>::getRequiredSystemFeatures(const BasicDerivation& drv) const {
+string_set_t DerivationOptions<Input>::getRequiredSystemFeatures(const BasicDerivation& drv) const {
   // FIXME: cache this?
-  StringSet res;
+  string_set_t res;
   for (auto& i : requiredSystemFeatures)
     res.insert(i);
   if (!drv.type().hasKnownOutputPaths())
@@ -430,7 +430,7 @@ tryResolve(const DerivationOptions<SingleDerivedPath>& drvOptions,
   auto tryResolvePath = [&](const SingleDerivedPath& input) -> std::optional<StorePath> {
     return std::visit(
         overloaded{
-            [](const SingleDerivedPath::Opaque& p) -> std::optional<StorePath> { return p.path; },
+            [](const SingleDerivedPath::opaque_t& p) -> std::optional<StorePath> { return p.path; },
             [&](const SingleDerivedPath::Built& p) -> std::optional<StorePath> {
               return queryResolutionChain(p.drvPath, p.output);
             }},

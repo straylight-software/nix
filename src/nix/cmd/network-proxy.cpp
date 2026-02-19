@@ -6,11 +6,11 @@
 
 namespace nix {
 
-static const StringSet lowercaseVariables{"http_proxy", "https_proxy", "ftp_proxy", "all_proxy",
+static const string_set_t lowercaseVariables{"http_proxy", "https_proxy", "ftp_proxy", "all_proxy",
                                           "no_proxy"};
 
-static StringSet getAllVariables() {
-  StringSet variables = lowercaseVariables;
+static string_set_t getAllVariables() {
+  string_set_t variables = lowercaseVariables;
   for (const auto& variable : lowercaseVariables) {
     std::string upperVariable;
     std::transform(variable.begin(), variable.end(), upperVariable.begin(),
@@ -20,18 +20,18 @@ static StringSet getAllVariables() {
   return variables;
 }
 
-const StringSet networkProxyVariables = getAllVariables();
+const string_set_t networkProxyVariables = getAllVariables();
 
-static StringSet getExcludingNoProxyVariables() {
-  static const StringSet excludeVariables{"no_proxy", "NO_PROXY"};
-  StringSet variables;
+static string_set_t getExcludingNoProxyVariables() {
+  static const string_set_t excludeVariables{"no_proxy", "NO_PROXY"};
+  string_set_t variables;
   std::set_difference(networkProxyVariables.begin(), networkProxyVariables.end(),
                       excludeVariables.begin(), excludeVariables.end(),
                       std::inserter(variables, variables.begin()));
   return variables;
 }
 
-static const StringSet excludingNoProxyVariables = getExcludingNoProxyVariables();
+static const string_set_t excludingNoProxyVariables = getExcludingNoProxyVariables();
 
 bool haveNetworkProxyConnection() {
   for (const auto& variable : excludingNoProxyVariables) {

@@ -6,7 +6,7 @@ struct CompatibilitySettings : public Config {
   CompatibilitySettings() = default;
 
   // Added in Nix 2.24, July 2024.
-  Setting<bool> nixShellAlwaysLooksForShellNix{this, true, "nix-shell-always-looks-for-shell-nix",
+  setting_t<bool> nixShellAlwaysLooksForShellNix{this, true, "nix-shell-always-looks-for-shell-nix",
                                                R"(
         Before Nix 2.24, [`nix-shell`](@docroot@/command-ref/nix-shell.md) would only look at `shell.nix` if it was in the working directory - when no file was specified.
 
@@ -19,7 +19,7 @@ struct CompatibilitySettings : public Config {
     )"};
 
   // Added in Nix 2.24, July 2024.
-  Setting<bool> nixShellShebangArgumentsRelativeToScript{
+  setting_t<bool> nixShellShebangArgumentsRelativeToScript{
       this, true, "nix-shell-shebang-arguments-relative-to-script", R"(
         Before Nix 2.24, relative file path expressions in arguments in a `nix-shell` shebang were resolved relative to the working directory.
 

@@ -16,8 +16,8 @@ public:
   template <typename... Args>
   BadNixStringContextElem(std::string_view raw_, const Args&... args) : Error("") {
     raw = raw_;
-    auto hf = HintFmt(args...);
-    err.msg = HintFmt("Bad String Context element: %1%: %2%", Uncolored(hf.str()), raw);
+    auto hf = hint_fmt_t(args...);
+    err.msg = hint_fmt_t("Bad String Context element: %1%: %2%", uncolored_t(hf.str()), raw);
   }
 };
 
@@ -35,7 +35,7 @@ struct NixStringContextElem {
    *
    * Encoded as just the path: `<path>`.
    */
-  using Opaque = SingleDerivedPath::Opaque;
+  using opaque_t = SingleDerivedPath::opaque_t;
 
   /**
    * Path to a derivation and its entire build closure.
@@ -82,9 +82,9 @@ struct NixStringContextElem {
     GENERATE_CMP(Path, me->storePath);
   };
 
-  using Raw = std::variant<Opaque, DrvDeep, Built, Path>;
+  using raw_t = std::variant<opaque_t, DrvDeep, Built, Path>;
 
-  Raw raw;
+  raw_t raw;
 
   GENERATE_CMP(NixStringContextElem, me->raw);
 
@@ -100,7 +100,7 @@ struct NixStringContextElem {
    */
   static NixStringContextElem
   parse(std::string_view s,
-        const ExperimentalFeatureSettings& xpSettings = experimentalFeatureSettings);
+        const experimental_feature_settings_t& xpSettings = experimentalFeatureSettings);
   std::string to_string() const;
 };
 

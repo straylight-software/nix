@@ -47,7 +47,7 @@ void initLibUtil() {
 
 //////////////////////////////////////////////////////////////////////
 
-std::vector<char*> stringsToCharPtrs(const Strings& ss) {
+std::vector<char*> stringsToCharPtrs(const strings_t& ss) {
   std::vector<char*> res;
   for (auto& s : ss)
     res.push_back((char*)s.c_str());
@@ -81,7 +81,7 @@ std::string replaceStrings(std::string res, std::string_view from, std::string_v
   return res;
 }
 
-std::string rewriteStrings(std::string s, const StringMap& rewrites) {
+std::string rewriteStrings(std::string s, const string_map_t& rewrites) {
   for (auto& i : rewrites) {
     if (i.first == i.second)
       continue;
@@ -207,7 +207,7 @@ std::string escapeShellArgAlways(const std::string_view s) {
   return r;
 }
 
-void ignoreExceptionInDestructor(Verbosity lvl) {
+void ignoreExceptionInDestructor(verbosity_t lvl) {
   /* Make sure no exceptions leave this function.
      printError() also throws when remote is closed. */
   try {
@@ -222,7 +222,7 @@ void ignoreExceptionInDestructor(Verbosity lvl) {
   }
 }
 
-void ignoreExceptionExceptInterrupt(Verbosity lvl) {
+void ignoreExceptionExceptInterrupt(verbosity_t lvl) {
   try {
     throw;
   } catch (const Interrupted& e) {

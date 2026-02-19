@@ -12,7 +12,7 @@ int levenshteinDistance(std::string_view first, std::string_view second);
 /**
  * A potential suggestion for the cli interface.
  */
-class Suggestion {
+class suggestion_t {
 public:
   /// The smaller the better
   int distance;
@@ -20,35 +20,35 @@ public:
 
   std::string to_string() const;
 
-  bool operator==(const Suggestion&) const = default;
-  auto operator<=>(const Suggestion&) const = default;
+  bool operator==(const suggestion_t&) const = default;
+  auto operator<=>(const suggestion_t&) const = default;
 };
 
-class Suggestions {
+class suggestions_t {
 public:
-  std::set<Suggestion> suggestions;
+  std::set<suggestion_t> suggestions;
 
   std::string to_string() const;
 
-  Suggestions trim(int limit = 5, int maxDistance = 2) const;
+  suggestions_t trim(int limit = 5, int maxDistance = 2) const;
 
-  static Suggestions bestMatches(const StringSet& allMatches, std::string_view query);
+  static suggestions_t bestMatches(const string_set_t& allMatches, std::string_view query);
 
-  Suggestions& operator+=(const Suggestions& other);
+  suggestions_t& operator+=(const suggestions_t& other);
 };
 
-std::ostream& operator<<(std::ostream& str, const Suggestion&);
-std::ostream& operator<<(std::ostream& str, const Suggestions&);
+std::ostream& operator<<(std::ostream& str, const suggestion_t&);
+std::ostream& operator<<(std::ostream& str, const suggestions_t&);
 
 /**
  * Either a value of type `T`, or some suggestions
  */
 template <typename T>
-class OrSuggestions {
+class or_suggestions_t {
 public:
-  using Raw = std::variant<T, Suggestions>;
+  using raw_t = std::variant<T, suggestions_t>;
 
-  Raw raw;
+  raw_t raw;
 
   T* operator->() { return &**this; }
 
@@ -56,21 +56,21 @@ public:
 
   operator bool() const noexcept { return std::holds_alternative<T>(raw); }
 
-  OrSuggestions(T t) : raw(t) {}
+  or_suggestions_t(T t) : raw(t) {}
 
-  OrSuggestions() : raw(Suggestions{}) {}
+  or_suggestions_t() : raw(suggestions_t{}) {}
 
-  static OrSuggestions<T> failed(const Suggestions& s) {
-    auto res = OrSuggestions<T>();
+  static or_suggestions_t<T> failed(const suggestions_t& s) {
+    auto res = or_suggestions_t<T>();
     res.raw = s;
     return res;
   }
 
-  static OrSuggestions<T> failed() { return OrSuggestions<T>::failed(Suggestions{}); }
+  static or_suggestions_t<T> failed() { return or_suggestions_t<T>::failed(suggestions_t{}); }
 
-  const Suggestions& getSuggestions() {
-    static Suggestions noSuggestions;
-    if (const auto& suggestions = std::get_if<Suggestions>(&raw))
+  const suggestions_t& getSuggestions() {
+    static suggestions_t noSuggestions;
+    if (const auto& suggestions = std::get_if<suggestions_t>(&raw))
       return *suggestions;
     else
       return noSuggestions;

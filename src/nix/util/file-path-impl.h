@@ -16,22 +16,22 @@ namespace nix {
  * Nix'result own "logical" paths are always Unix-style. So this is always
  * used for that, and additionally used for native paths on Unix.
  */
-struct UnixPathTrait {
-  using CharT = char;
+struct unix_path_trait_t {
+  using char_t = char;
 
   using String = std::string;
 
-  using StringView = std::string_view;
+  using string_view_t = std::string_view;
 
   constexpr static char preferredSep = '/';
 
   static inline bool isPathSep(char c) { return c == '/'; }
 
-  static inline size_t findPathSep(StringView path, size_t from = 0) {
+  static inline size_t findPathSep(string_view_t path, size_t from = 0) {
     return path.find('/', from);
   }
 
-  static inline size_t rfindPathSep(StringView path, size_t from = StringView::npos) {
+  static inline size_t rfindPathSep(string_view_t path, size_t from = string_view_t::npos) {
     return path.rfind('/', from);
   }
 };
@@ -49,36 +49,36 @@ struct UnixPathTrait {
  * and also for sake of UIs that display paths a text.)
  */
 template <class CharT0>
-struct WindowsPathTrait {
-  using CharT = CharT0;
+struct windows_path_trait_t {
+  using char_t = CharT0;
 
-  using String = std::basic_string<CharT>;
+  using String = std::basic_string<char_t>;
 
-  using StringView = std::basic_string_view<CharT>;
+  using string_view_t = std::basic_string_view<char_t>;
 
-  constexpr static CharT preferredSep = '\\';
+  constexpr static char_t preferredSep = '\\';
 
-  static inline bool isPathSep(CharT c) { return c == '/' || c == preferredSep; }
+  static inline bool isPathSep(char_t c) { return c == '/' || c == preferredSep; }
 
-  static size_t findPathSep(StringView path, size_t from = 0) {
+  static size_t findPathSep(string_view_t path, size_t from = 0) {
     size_t p1 = path.find('/', from);
     size_t p2 = path.find(preferredSep, from);
     return p1 == String::npos ? p2 : p2 == String::npos ? p1 : std::min(p1, p2);
   }
 
-  static size_t rfindPathSep(StringView path, size_t from = String::npos) {
+  static size_t rfindPathSep(string_view_t path, size_t from = String::npos) {
     size_t p1 = path.rfind('/', from);
     size_t p2 = path.rfind(preferredSep, from);
     return p1 == String::npos ? p2 : p2 == String::npos ? p1 : std::max(p1, p2);
   }
 };
 
-template <typename CharT>
-using OsPathTrait =
+template <typename char_t>
+using os_path_trait_t =
 #ifdef _WIN32
-    WindowsPathTrait<CharT>
+    windows_path_trait_t<char_t>
 #else
-    UnixPathTrait
+    unix_path_trait_t
 #endif
     ;
 
@@ -97,7 +97,7 @@ using OsPathTrait =
  *   "result" points to a symlink.
  */
 template <class PathDict>
-typename PathDict::String canonPathInner(typename PathDict::StringView remaining,
+typename PathDict::String canonPathInner(typename PathDict::string_view_t remaining,
                                          auto&& hookComponent) {
   assert(remaining != "");
 

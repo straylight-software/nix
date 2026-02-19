@@ -14,7 +14,7 @@ struct Sink;
  * Note there is a decent chance this type soon goes away because the problem is solved another way.
  * See the discussion in https://github.com/NixOS/nix/pull/9985.
  */
-enum class SymlinkResolution {
+enum class symlink_resolution_t {
   /**
    * Resolve symlinks in the ancestors only.
    *
@@ -57,7 +57,7 @@ struct SourceAccessor : std::enable_shared_from_this<SourceAccessor> {
    * targets of symlinks should only occasionally be done, and only
    * with care.
    */
-  virtual std::string readFile(const CanonPath& path);
+  virtual std::string readFile(const canon_path_t& path);
 
   /**
    * Write the contents of a file as a sink. `sizeCallback` must be
@@ -71,10 +71,10 @@ struct SourceAccessor : std::enable_shared_from_this<SourceAccessor> {
    * one of the `readFile()` variants.
    */
   virtual void readFile(
-      const CanonPath& path, Sink& sink,
+      const canon_path_t& path, Sink& sink,
       std::function<void(uint64_t)> sizeCallback = [](uint64_t size) {});
 
-  virtual bool pathExists(const CanonPath& path);
+  virtual bool pathExists(const canon_path_t& path);
 
   enum Type {
     tRegular,
@@ -95,7 +95,7 @@ struct SourceAccessor : std::enable_shared_from_this<SourceAccessor> {
     tUnknown
   };
 
-  struct Stat {
+  struct stat_t {
     Type type = tUnknown;
 
     /**
@@ -120,32 +120,32 @@ struct SourceAccessor : std::enable_shared_from_this<SourceAccessor> {
     std::string typeString();
   };
 
-  virtual Stat lstat(const CanonPath& path);
+  virtual stat_t lstat(const canon_path_t& path);
 
-  virtual std::optional<Stat> maybeLstat(const CanonPath& path) = 0;
+  virtual std::optional<stat_t> maybeLstat(const canon_path_t& path) = 0;
 
-  typedef std::optional<Type> DirEntry;
+  typedef std::optional<Type> dir_entry_t;
 
-  typedef std::map<std::string, DirEntry> DirEntries;
+  typedef std::map<std::string, dir_entry_t> dir_entries_t;
 
   /**
    * @note Like `readFile`, this method should *not* follow symlinks.
    */
-  virtual DirEntries readDirectory(const CanonPath& path) = 0;
+  virtual dir_entries_t readDirectory(const canon_path_t& path) = 0;
 
-  virtual std::string readLink(const CanonPath& path) = 0;
+  virtual std::string readLink(const canon_path_t& path) = 0;
 
-  virtual void dumpPath(const CanonPath& path, Sink& sink, PathFilter& filter = defaultPathFilter);
+  virtual void dumpPath(const canon_path_t& path, Sink& sink, path_filter_t& filter = defaultPathFilter);
 
-  Hash hashPath(const CanonPath& path, PathFilter& filter = defaultPathFilter,
-                HashAlgorithm ha = HashAlgorithm::SHA256);
+  Hash hashPath(const canon_path_t& path, path_filter_t& filter = defaultPathFilter,
+                hash_algorithm_t ha = hash_algorithm_t::SHA256);
 
   /**
    * Return a corresponding path in the root filesystem, if
    * possible. This is only possible for filesystems that are
    * materialized in the root filesystem.
    */
-  virtual std::optional<std::filesystem::path> getPhysicalPath(const CanonPath& path) {
+  virtual std::optional<std::filesystem::path> getPhysicalPath(const canon_path_t& path) {
     return std::nullopt;
   }
 
@@ -155,7 +155,7 @@ struct SourceAccessor : std::enable_shared_from_this<SourceAccessor> {
 
   void setPathDisplay(std::string displayPrefix, std::string displaySuffix = "");
 
-  virtual std::string showPath(const CanonPath& path);
+  virtual std::string showPath(const canon_path_t& path);
 
   /**
    * Resolve any symlinks in `path` according to the given
@@ -164,8 +164,8 @@ struct SourceAccessor : std::enable_shared_from_this<SourceAccessor> {
    * @param mode might only be a temporary solution for this.
    * See the discussion in https://github.com/NixOS/nix/pull/9985.
    */
-  CanonPath resolveSymlinks(const CanonPath& path,
-                            SymlinkResolution mode = SymlinkResolution::Full);
+  canon_path_t resolveSymlinks(const canon_path_t& path,
+                            symlink_resolution_t mode = symlink_resolution_t::Full);
 
   /**
    * A string that uniquely represents the contents of this
@@ -176,7 +176,7 @@ struct SourceAccessor : std::enable_shared_from_this<SourceAccessor> {
   /**
    * Return the fingerprint for `path`. This is usually the
    * fingerprint of the current accessor, but for composite
-   * accessors (like `MountedSourceAccessor`), we want to return the
+   * accessors (like `mounted_source_accessor_t`), we want to return the
    * fingerprint of the "inner" accessor if the current one lacks a
    * fingerprint.
    *
@@ -184,12 +184,12 @@ struct SourceAccessor : std::enable_shared_from_this<SourceAccessor> {
    * that has a fingerprint for `path`. It also returns the path that `path`
    * corresponds to in that accessor.
    *
-   * For example: in a `MountedSourceAccessor` that has
+   * For example: in a `mounted_source_accessor_t` that has
    * `/nix/store/foo` mounted,
    * `getFingerprint("/nix/store/foo/bar")` will return the path
    * `/bar` and the fingerprint of the `/nix/store/foo` accessor.
    */
-  virtual std::pair<CanonPath, std::optional<std::string>> getFingerprint(const CanonPath& path) {
+  virtual std::pair<canon_path_t, std::optional<std::string>> getFingerprint(const canon_path_t& path) {
     return {path, fingerprint};
   }
 
@@ -202,7 +202,7 @@ struct SourceAccessor : std::enable_shared_from_this<SourceAccessor> {
   /**
    * Invalidate any cached value the accessor may have for the specified path.
    */
-  virtual void invalidateCache(const CanonPath& path) {}
+  virtual void invalidateCache(const canon_path_t& path) {}
 };
 
 /**

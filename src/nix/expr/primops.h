@@ -26,15 +26,15 @@ struct RegisterPrimOp {
    them. */
 
 /**
- * Load a ValueInitializer from a DSO and return whatever it initializes
+ * Load a value_initializer_t from a DSO and return whatever it initializes
  */
-void prim_importNative(EvalState& state, const PosIdx pos, Value** args, Value& v);
+void prim_importNative(EvalState& state, const pos_idx_t pos, Value** args, Value& v);
 
 /**
  * Execute a program and parse its output
  */
-void prim_exec(EvalState& state, const PosIdx pos, Value** args, Value& v);
+void prim_exec(EvalState& state, const pos_idx_t pos, Value** args, Value& v);
 
-void makePositionThunks(EvalState& state, const PosIdx pos, Value& line, Value& column);
+void makePositionThunks(EvalState& state, const pos_idx_t pos, Value& line, Value& column);
 
 } // namespace nix

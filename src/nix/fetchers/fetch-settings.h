@@ -21,10 +21,10 @@ namespace nix::fetchers {
 
 struct Cache;
 
-struct Settings : public Config {
-  Settings();
+struct settings_t : public Config {
+  settings_t();
 
-  Setting<StringMap> accessTokens{this,
+  setting_t<string_map_t> accessTokens{this,
                                   {},
                                   "access-tokens",
                                   R"(
@@ -77,13 +77,13 @@ struct Settings : public Config {
           value.
           )"};
 
-  Setting<bool> allowDirty{this, true, "allow-dirty",
+  setting_t<bool> allowDirty{this, true, "allow-dirty",
                            "Whether to allow dirty Git/Mercurial trees."};
 
-  Setting<bool> warnDirty{this, true, "warn-dirty",
+  setting_t<bool> warnDirty{this, true, "warn-dirty",
                           "Whether to warn about dirty Git/Mercurial trees."};
 
-  Setting<bool> allowDirtyLocks{this, false, "allow-dirty-locks",
+  setting_t<bool> allowDirtyLocks{this, false, "allow-dirty-locks",
                                 R"(
           Whether to allow dirty inputs (such as dirty Git workdirs)
           to be locked via their NAR hash. This is generally bad
@@ -93,7 +93,7 @@ struct Settings : public Config {
           should not be pushed to other users.
         )"};
 
-  Setting<bool> trustTarballsFromGitForges{this, true, "trust-tarballs-from-git-forges",
+  setting_t<bool> trustTarballsFromGitForges{this, true, "trust-tarballs-from-git-forges",
                                            R"(
           If enabled (the default), Nix considers tarballs from
           GitHub and similar Git forges to be locked if a Git revision
@@ -107,7 +107,7 @@ struct Settings : public Config {
           e.g. `github:NixOS/patchelf/7c2f768bf9601268a4e71c2ebe91e2011918a70f?narHash=sha256-PPXqKY2hJng4DBVE0I4xshv/vGLUskL7jl53roB8UdU%3D`.
         )"};
 
-  Setting<std::string> flakeRegistry{
+  setting_t<std::string> flakeRegistry{
       this, "https://install.determinate.systems/flake-registry/stable/flake-registry.json",
       "flake-registry",
       R"(
@@ -116,7 +116,7 @@ struct Settings : public Config {
           When empty, disables the global flake registry.
         )"};
 
-  Setting<bool> nix219Compat{this, false, "nix-219-compat",
+  setting_t<bool> nix219Compat{this, false, "nix-219-compat",
                              R"(
           If enabled, Nix will generate lock files that are compatible with Nix 2.19.
           In particular, Nix will use `git archive` rather than `libgit2` to copy Git inputs.
@@ -128,9 +128,9 @@ struct Settings : public Config {
   ref<GitRepo> getTarballCache() const;
 
 private:
-  mutable Sync<std::shared_ptr<Cache>> _cache;
+  mutable sync_t<std::shared_ptr<Cache>> _cache;
 
-  mutable Sync<std::shared_ptr<GitRepo>> _tarballCache;
+  mutable sync_t<std::shared_ptr<GitRepo>> _tarballCache;
 };
 
 } // namespace nix::fetchers
@@ -140,6 +140,6 @@ namespace nix {
 /**
  * @todo Get rid of global setttings variables
  */
-extern fetchers::Settings fetchSettings;
+extern fetchers::settings_t fetchSettings;
 
 } // namespace nix

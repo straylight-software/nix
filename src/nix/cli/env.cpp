@@ -12,22 +12,22 @@
 
 using namespace nix;
 
-struct CmdEnv : NixMultiCommand {
-  CmdEnv() : NixMultiCommand("env", RegisterCommand::getCommandsFor({"env"})) {}
+struct cmd_env_t : NixMultiCommand {
+  cmd_env_t() : NixMultiCommand("env", RegisterCommand::getCommandsFor({"env"})) {}
 
   std::string description() override { return "manipulate the process environment"; }
 
-  Category category() override { return catUtility; }
+  category_t category() override { return catUtility; }
 };
 
-static auto rCmdEnv = registerCommand<CmdEnv>("env");
+static auto rCmdEnv = registerCommand<cmd_env_t>("env");
 
-struct CmdShell : InstallablesCommand, MixEnvironment {
+struct cmd_shell_t : InstallablesCommand, MixEnvironment {
   using InstallablesCommand::run;
 
   std::vector<std::string> command = {getEnv("SHELL").value_or("bash")};
 
-  CmdShell() {
+  cmd_shell_t() {
     addFlag({
         .longName = "command",
         .shortName = 'c',
@@ -72,14 +72,14 @@ struct CmdShell : InstallablesCommand, MixEnvironment {
       if (!done.insert(path).second)
         continue;
 
-      auto binDir = state->storeFS->resolveSymlinks(CanonPath(store->printStorePath(path)) / "bin");
+      auto binDir = state->storeFS->resolveSymlinks(canon_path_t(store->printStorePath(path)) / "bin");
       if (!store->isInStore(binDir.abs()))
         throw Error("path '%s' is not in the Nix store", binDir);
 
       pathAdditions.push_back(binDir.abs());
 
       auto propPath = state->storeFS->resolveSymlinks(
-          CanonPath(store->printStorePath(path)) / "nix-support" / "propagated-user-env-packages");
+          canon_path_t(store->printStorePath(path)) / "nix-support" / "propagated-user-env-packages");
       if (auto st = state->storeFS->maybeLstat(propPath);
           st && st->type == SourceAccessor::tRegular) {
         for (auto& p : tokenizeString<Paths>(state->storeFS->readFile(propPath)))
@@ -88,13 +88,13 @@ struct CmdShell : InstallablesCommand, MixEnvironment {
     }
 
     // TODO: split losslessly; empty means .
-    auto unixPath = ExecutablePath::load();
+    auto unixPath = executable_path_t::load();
     unixPath.directories.insert(unixPath.directories.begin(), pathAdditions.begin(),
                                 pathAdditions.end());
     auto unixPathString = unixPath.render();
     setEnvOs(OS_STR("PATH"), unixPathString.c_str());
 
-    Strings args;
+    strings_t args;
     for (auto& arg : command)
       args.push_back(arg);
 
@@ -102,8 +102,8 @@ struct CmdShell : InstallablesCommand, MixEnvironment {
     // we are about to exec out of this process without running C++ destructors.
     state->evalCaches.clear();
 
-    execProgramInStore(store, UseLookupPath::Use, *command.begin(), args);
+    execProgramInStore(store, use_lookup_path_t::Use, *command.begin(), args);
   }
 };
 
-static auto rCmdShell = registerCommand2<CmdShell>({"env", "shell"});
+static auto rCmdShell = registerCommand2<cmd_shell_t>({"env", "shell"});

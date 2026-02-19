@@ -66,6 +66,28 @@ cxx_binary(
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
+# ChunkedVector benchmark executable
+# ─────────────────────────────────────────────────────────────────────────────
+
+CHUNKED_VECTOR_BENCH_LINKER_FLAGS = [
+    # nanobench
+    "-L/nix/store/x5lnx4qwiy1kdlhbnavwqglnlncby1z6-nanobench-4.3.11/lib",
+    "-lnanobench",
+    "-Wl,-rpath,/nix/store/x5lnx4qwiy1kdlhbnavwqglnlncby1z6-nanobench-4.3.11/lib",
+]
+
+cxx_binary(
+    name = "chunked_vector_bench",
+    srcs = ["chunked_vector_bench.cpp"],
+    compiler_flags = BENCH_NATIVE_FLAGS,
+    linker_flags = CHUNKED_VECTOR_BENCH_LINKER_FLAGS,
+    deps = [
+        "//src/straylight/nix/primitives:chunked_vector",
+        "//third_party:nanobench",
+    ],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
 # String benchmark executable
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -231,6 +253,257 @@ cxx_binary(
     linker_flags = FILESYSTEM_BENCH_LINKER_FLAGS,
     deps = [
         "//src/straylight/nix/primitives/filesystem:filesystem",
+        "//third_party:nanobench",
+    ],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Async benchmark executable
+# ─────────────────────────────────────────────────────────────────────────────
+
+ASYNC_BENCH_COMPILER_FLAGS = BENCH_NATIVE_FLAGS + [
+    # Taskflow headers
+    "-isystem/nix/store/2rwbs7x5bmyx37svcqvvqz8kgxf413pc-taskflow-3.11.0/include",
+]
+
+ASYNC_BENCH_LINKER_FLAGS = [
+    # nanobench
+    "-L/nix/store/x5lnx4qwiy1kdlhbnavwqglnlncby1z6-nanobench-4.3.11/lib",
+    "-lnanobench",
+    "-Wl,-rpath,/nix/store/x5lnx4qwiy1kdlhbnavwqglnlncby1z6-nanobench-4.3.11/lib",
+    # pthread for std::thread
+    "-pthread",
+]
+
+cxx_binary(
+    name = "async_bench",
+    srcs = ["async_bench.cpp"],
+    compiler_flags = ASYNC_BENCH_COMPILER_FLAGS,
+    linker_flags = ASYNC_BENCH_LINKER_FLAGS,
+    deps = [
+        "//src/straylight/nix/primitives/async:async",
+        "//third_party:nanobench",
+    ],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Closure benchmark executable (sequential vs parallel transitive closure)
+# ─────────────────────────────────────────────────────────────────────────────
+
+cxx_binary(
+    name = "closure_bench",
+    srcs = ["closure_bench.cpp"],
+    compiler_flags = ASYNC_BENCH_COMPILER_FLAGS,
+    linker_flags = ASYNC_BENCH_LINKER_FLAGS,
+    deps = [
+        "//src/straylight/nix/primitives/async:closure",
+        "//third_party:nanobench",
+    ],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Format benchmark executable (std::format vs boost::format)
+# ─────────────────────────────────────────────────────────────────────────────
+
+FORMAT_BENCH_LINKER_FLAGS = [
+    # nanobench
+    "-L/nix/store/x5lnx4qwiy1kdlhbnavwqglnlncby1z6-nanobench-4.3.11/lib",
+    "-lnanobench",
+    "-Wl,-rpath,/nix/store/x5lnx4qwiy1kdlhbnavwqglnlncby1z6-nanobench-4.3.11/lib",
+    # Boost (for comparison)
+    "-L/nix/store/2izjh733byjickw9719nnkckxd63ghpm-boost-1.87.0/lib",
+    "-Wl,-rpath,/nix/store/2izjh733byjickw9719nnkckxd63ghpm-boost-1.87.0/lib",
+]
+
+cxx_binary(
+    name = "format_bench",
+    srcs = ["format_bench.cpp"],
+    compiler_flags = BENCH_NATIVE_FLAGS,
+    linker_flags = FORMAT_BENCH_LINKER_FLAGS,
+    deps = [
+        "//src/straylight/nix/primitives:format",
+        "//third_party:boost",
+        "//third_party:nanobench",
+    ],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Comparison Benchmarks: straylight primitives vs nix implementations
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Strings comparison: straylight strings.h vs nix/util/strings.h
+cxx_binary(
+    name = "strings_cmp_bench",
+    srcs = ["strings_cmp_bench.cpp"],
+    compiler_flags = BENCH_NATIVE_FLAGS,
+    linker_flags = STRINGS_BENCH_LINKER_FLAGS,
+    deps = [
+        "//src/straylight/nix/primitives:strings",
+        "//third_party:nanobench",
+    ],
+)
+
+# Format comparison: straylight format.h (std::format) vs boost::format
+cxx_binary(
+    name = "format_cmp_bench",
+    srcs = ["format_cmp_bench.cpp"],
+    compiler_flags = BENCH_NATIVE_FLAGS,
+    linker_flags = FORMAT_BENCH_LINKER_FLAGS,
+    deps = [
+        "//src/straylight/nix/primitives:format",
+        "//third_party:boost",
+        "//third_party:nanobench",
+    ],
+)
+
+# Regex comparison: straylight regex.h (RE2) vs std::regex
+cxx_binary(
+    name = "regex_cmp_bench",
+    srcs = ["regex_cmp_bench.cpp"],
+    compiler_flags = REGEX_BENCH_COMPILER_FLAGS,
+    linker_flags = REGEX_BENCH_LINKER_FLAGS,
+    deps = [
+        "//src/straylight/nix/primitives:regex",
+        "//third_party:nanobench",
+    ],
+)
+
+# Hash comparison: straylight hash.h (BLAKE3) vs OpenSSL SHA256
+cxx_binary(
+    name = "hash_cmp_bench",
+    srcs = ["hash_cmp_bench.cpp"],
+    compiler_flags = BENCH_NATIVE_FLAGS,
+    linker_flags = HASH_BENCH_LINKER_FLAGS,
+    deps = [
+        "//src/straylight/nix/primitives:hash",
+        "//third_party:nanobench",
+    ],
+)
+
+# Encoding comparison: straylight encoding.h vs nix/util/base*.h
+cxx_binary(
+    name = "encoding_cmp_bench",
+    srcs = ["encoding_cmp_bench.cpp"],
+    compiler_flags = BENCH_NATIVE_FLAGS,
+    linker_flags = ENCODING_BENCH_LINKER_FLAGS,
+    deps = [
+        "//src/straylight/nix/primitives:encoding",
+        "//third_party:nanobench",
+    ],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LRU cache benchmark executable
+# ─────────────────────────────────────────────────────────────────────────────
+
+LRU_CACHE_BENCH_LINKER_FLAGS = [
+    # nanobench
+    "-L/nix/store/x5lnx4qwiy1kdlhbnavwqglnlncby1z6-nanobench-4.3.11/lib",
+    "-lnanobench",
+    "-Wl,-rpath,/nix/store/x5lnx4qwiy1kdlhbnavwqglnlncby1z6-nanobench-4.3.11/lib",
+    # pthread for std::thread (thread-safe benchmarks)
+    "-pthread",
+]
+
+cxx_binary(
+    name = "lru_cache_bench",
+    srcs = ["lru_cache_bench.cpp"],
+    compiler_flags = BENCH_NATIVE_FLAGS,
+    linker_flags = LRU_CACHE_BENCH_LINKER_FLAGS,
+    deps = [
+        "//src/straylight/nix/primitives:lru_cache",
+        "//third_party:nanobench",
+    ],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Pool benchmark executable
+# ─────────────────────────────────────────────────────────────────────────────
+
+POOL_BENCH_LINKER_FLAGS = [
+    # nanobench
+    "-L/nix/store/x5lnx4qwiy1kdlhbnavwqglnlncby1z6-nanobench-4.3.11/lib",
+    "-lnanobench",
+    "-Wl,-rpath,/nix/store/x5lnx4qwiy1kdlhbnavwqglnlncby1z6-nanobench-4.3.11/lib",
+    # pthread for std::thread/std::latch
+    "-pthread",
+]
+
+cxx_binary(
+    name = "pool_bench",
+    srcs = ["pool_bench.cpp"],
+    compiler_flags = BENCH_NATIVE_FLAGS,
+    linker_flags = POOL_BENCH_LINKER_FLAGS,
+    deps = [
+        "//src/straylight/nix/primitives:pool",
+        "//third_party:nanobench",
+    ],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Topological sort benchmark executable
+# ─────────────────────────────────────────────────────────────────────────────
+
+TOPO_SORT_BENCH_LINKER_FLAGS = [
+    # nanobench
+    "-L/nix/store/x5lnx4qwiy1kdlhbnavwqglnlncby1z6-nanobench-4.3.11/lib",
+    "-lnanobench",
+    "-Wl,-rpath,/nix/store/x5lnx4qwiy1kdlhbnavwqglnlncby1z6-nanobench-4.3.11/lib",
+]
+
+cxx_binary(
+    name = "topo_sort_bench",
+    srcs = ["topo_sort_bench.cpp"],
+    compiler_flags = BENCH_NATIVE_FLAGS,
+    linker_flags = TOPO_SORT_BENCH_LINKER_FLAGS,
+    deps = [
+        "//src/straylight/nix/primitives:topo_sort",
+        "//third_party:nanobench",
+    ],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Sync benchmark executable (thread-safe value wrapper)
+# ─────────────────────────────────────────────────────────────────────────────
+
+SYNC_BENCH_LINKER_FLAGS = [
+    # nanobench
+    "-L/nix/store/x5lnx4qwiy1kdlhbnavwqglnlncby1z6-nanobench-4.3.11/lib",
+    "-lnanobench",
+    "-Wl,-rpath,/nix/store/x5lnx4qwiy1kdlhbnavwqglnlncby1z6-nanobench-4.3.11/lib",
+    # pthread for std::thread/std::latch
+    "-pthread",
+]
+
+cxx_binary(
+    name = "sync_bench",
+    srcs = ["sync_bench.cpp"],
+    compiler_flags = BENCH_NATIVE_FLAGS,
+    linker_flags = SYNC_BENCH_LINKER_FLAGS,
+    deps = [
+        "//src/straylight/nix/primitives:sync",
+        "//third_party:nanobench",
+    ],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Checked arithmetic benchmark executable
+# ─────────────────────────────────────────────────────────────────────────────
+
+CHECKED_ARITHMETIC_BENCH_LINKER_FLAGS = [
+    # nanobench
+    "-L/nix/store/x5lnx4qwiy1kdlhbnavwqglnlncby1z6-nanobench-4.3.11/lib",
+    "-lnanobench",
+    "-Wl,-rpath,/nix/store/x5lnx4qwiy1kdlhbnavwqglnlncby1z6-nanobench-4.3.11/lib",
+]
+
+cxx_binary(
+    name = "checked_arithmetic_bench",
+    srcs = ["checked_arithmetic_bench.cpp"],
+    compiler_flags = BENCH_NATIVE_FLAGS,
+    linker_flags = CHECKED_ARITHMETIC_BENCH_LINKER_FLAGS,
+    deps = [
+        "//src/straylight/nix/primitives:checked_arithmetic",
         "//third_party:nanobench",
     ],
 )

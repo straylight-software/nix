@@ -86,7 +86,7 @@ private:
   static Path getDefaultNixStoreDir();
 
 public:
-  const PathSetting storeDir_{this, getDefaultNixStoreDir(), "store",
+  const path_setting_t storeDir_{this, getDefaultNixStoreDir(), "store",
                               R"(
           Logical location of the Nix store, usually
           `/nix/store`. Note that you can only copy store paths
@@ -102,7 +102,7 @@ public:
  * 1. A class `FooConfig : virtual StoreConfig` that contains the configuration
  *   for the store
  *
- *   It should only contain members of type `Setting<T>` (or subclasses
+ *   It should only contain members of type `setting_t<T>` (or subclasses
  *   of it) and inherit the constructors of `StoreConfig`
  *   (`using StoreConfig::StoreConfig`).
  *
@@ -135,7 +135,7 @@ struct StoreConfig : public StoreConfigBase, public StoreDirConfig {
 
   virtual ~StoreConfig() {}
 
-  static StringSet getDefaultSystemFeatures();
+  static string_set_t getDefaultSystemFeatures();
 
   /**
    * Documentation for this type of store.
@@ -145,10 +145,10 @@ struct StoreConfig : public StoreConfigBase, public StoreDirConfig {
   /**
    * Get overridden store reference query parameters.
    */
-  StringMap getQueryParams() const {
-    auto queryParams = std::map<std::string, AbstractConfig::SettingInfo>{};
+  string_map_t getQueryParams() const {
+    auto queryParams = std::map<std::string, abstract_config_t::setting_info_t>{};
     getSettings(queryParams, /*overriddenOnly=*/true);
-    StringMap res;
+    string_map_t res;
     for (const auto& [name, info] : queryParams)
       res.insert({name, info.value});
     return res;
@@ -158,12 +158,12 @@ struct StoreConfig : public StoreConfigBase, public StoreDirConfig {
    * An experimental feature this type store is gated, if it is to be
    * experimental.
    */
-  static std::optional<ExperimentalFeature> experimentalFeature() { return std::nullopt; }
+  static std::optional<experimental_feature_t> experimentalFeature() { return std::nullopt; }
 
-  Setting<int> pathInfoCacheSize{this, 65536, "path-info-cache-size",
+  setting_t<int> pathInfoCacheSize{this, 65536, "path-info-cache-size",
                                  "Size of the in-memory store path metadata cache."};
 
-  Setting<bool> isTrusted{this, false, "trusted",
+  setting_t<bool> isTrusted{this, false, "trusted",
                           R"(
           Whether paths from this store can be used as substitutes
           even if they are not signed by a key listed in the
@@ -171,18 +171,18 @@ struct StoreConfig : public StoreConfigBase, public StoreDirConfig {
           setting.
         )"};
 
-  Setting<int> priority{this, 0, "priority",
+  setting_t<int> priority{this, 0, "priority",
                         R"(
           Priority of this store when used as a [substituter](@docroot@/command-ref/conf-file.md#conf-substituters).
           A lower value means a higher priority.
         )"};
 
-  Setting<bool> wantMassQuery{this, false, "want-mass-query",
+  setting_t<bool> wantMassQuery{this, false, "want-mass-query",
                               R"(
           Whether this store can be queried efficiently for path validity when used as a [substituter](@docroot@/command-ref/conf-file.md#conf-substituters).
         )"};
 
-  Setting<StringSet> systemFeatures{this,
+  setting_t<string_set_t> systemFeatures{this,
                                     getDefaultSystemFeatures(),
                                     "system-features",
                                     R"(
@@ -275,7 +275,7 @@ protected:
 
   // Note: this is a `ref` to avoid false sharing with immutable
   // bits of `Store`.
-  ref<SharedSync<LRUCache<StorePath, PathInfoCacheValue>>> pathInfoCache;
+  ref<shared_sync_t<lru_cache_t<StorePath, PathInfoCacheValue>>> pathInfoCache;
 
   std::shared_ptr<NarInfoDiskCache> diskCache;
 
@@ -488,7 +488,7 @@ public:
   virtual void addMultipleToStore(Source& source, RepairFlag repair = NoRepair,
                                   CheckSigsFlag checkSigs = CheckSigs);
 
-  virtual void addMultipleToStore(PathsSource&& pathsToCopy, Activity& act,
+  virtual void addMultipleToStore(PathsSource&& pathsToCopy, activity_t& act,
                                   RepairFlag repair = NoRepair,
                                   CheckSigsFlag checkSigs = CheckSigs);
 
@@ -500,11 +500,11 @@ public:
    * @param filter This function can be used to exclude files (see
    * libutil/archive.hh).
    */
-  virtual StorePath addToStore(std::string_view name, const SourcePath& path,
-                               ContentAddressMethod method = ContentAddressMethod::Raw::NixArchive,
-                               HashAlgorithm hashAlgo = HashAlgorithm::SHA256,
+  virtual StorePath addToStore(std::string_view name, const source_path_t& path,
+                               ContentAddressMethod method = ContentAddressMethod::raw_t::NixArchive,
+                               hash_algorithm_t hashAlgo = hash_algorithm_t::SHA256,
                                const StorePathSet& references = StorePathSet(),
-                               PathFilter& filter = defaultPathFilter,
+                               path_filter_t& filter = defaultPathFilter,
                                RepairFlag repair = NoRepair);
 
   /**
@@ -512,9 +512,9 @@ public:
    * validity the resulting path, using a constant amount of
    * memory.
    */
-  ValidPathInfo addToStoreSlow(std::string_view name, const SourcePath& path,
-                               ContentAddressMethod method = ContentAddressMethod::Raw::NixArchive,
-                               HashAlgorithm hashAlgo = HashAlgorithm::SHA256,
+  ValidPathInfo addToStoreSlow(std::string_view name, const source_path_t& path,
+                               ContentAddressMethod method = ContentAddressMethod::raw_t::NixArchive,
+                               hash_algorithm_t hashAlgo = hash_algorithm_t::SHA256,
                                const StorePathSet& references = StorePathSet(),
                                std::optional<Hash> expectedCAHash = {});
 
@@ -528,7 +528,7 @@ public:
    *
    * @param dumpMethod What serialisation format is `dump`, i.e. how
    * to deserialize it. Must either match hashMethod or be
-   * `FileSerialisationMethod::NixArchive`.
+   * `file_serialisation_method_t::NixArchive`.
    *
    * @param hashMethod How content addressing? Need not match be the
    * same as `dumpMethod`.
@@ -537,9 +537,9 @@ public:
    */
   virtual StorePath
   addToStoreFromDump(Source& dump, std::string_view name,
-                     FileSerialisationMethod dumpMethod = FileSerialisationMethod::NixArchive,
-                     ContentAddressMethod hashMethod = ContentAddressMethod::Raw::NixArchive,
-                     HashAlgorithm hashAlgo = HashAlgorithm::SHA256,
+                     file_serialisation_method_t dumpMethod = file_serialisation_method_t::NixArchive,
+                     ContentAddressMethod hashMethod = ContentAddressMethod::raw_t::NixArchive,
+                     hash_algorithm_t hashAlgo = hash_algorithm_t::SHA256,
                      const StorePathSet& references = StorePathSet(),
                      RepairFlag repair = NoRepair) = 0;
 
@@ -703,7 +703,7 @@ public:
    * Add signatures to the specified store path. The signatures are
    * not verified.
    */
-  virtual void addSignatures(const StorePath& storePath, const StringSet& sigs) {
+  virtual void addSignatures(const StorePath& storePath, const string_set_t& sigs) {
     unsupported("addSignatures");
   }
 
@@ -904,7 +904,7 @@ OutputPathMap resolveDerivedPath(Store&, const DerivedPath::Built&, Store* evalS
  * Display a set of paths in human-readable form (i.e., between quotes
  * and separated by commas).
  */
-std::string showPaths(const PathSet& paths);
+std::string showPaths(const path_set_t& paths);
 
 /**
  * Display a set of paths in human-readable form (i.e., between quotes
@@ -914,7 +914,7 @@ std::string showPaths(const std::set<std::filesystem::path> paths);
 
 std::optional<ValidPathInfo>
 decodeValidPathInfo(const Store& store, std::istream& str,
-                    std::optional<HashResult> hashGiven = std::nullopt);
+                    std::optional<hash_result_t> hashGiven = std::nullopt);
 
 const ContentAddress* getDerivationCA(const BasicDerivation& drv);
 

@@ -16,8 +16,8 @@
 
 namespace nix {
 
-void copyRecursive(SourceAccessor& accessor, const CanonPath& from, FileSystemObjectSink& sink,
-                   const CanonPath& to) {
+void copyRecursive(SourceAccessor& accessor, const canon_path_t& from, file_system_object_sink_t& sink,
+                   const canon_path_t& to) {
   auto stat = accessor.lstat(from);
 
   switch (stat.type) {
@@ -27,7 +27,7 @@ void copyRecursive(SourceAccessor& accessor, const CanonPath& from, FileSystemOb
     }
 
     case SourceAccessor::tRegular: {
-      sink.createRegularFile(to, [&](CreateRegularFileSink& crf) {
+      sink.createRegularFile(to, [&](create_regular_file_sink_t& crf) {
         if (stat.isExecutable)
           crf.isExecutable();
         accessor.readFile(from, crf, [&](uint64_t size) { crf.preallocateContents(size); });
@@ -36,7 +36,7 @@ void copyRecursive(SourceAccessor& accessor, const CanonPath& from, FileSystemOb
     }
 
     case SourceAccessor::tDirectory: {
-      sink.createDirectory(to, [&](FileSystemObjectSink& dirSink, const CanonPath& relDirPath) {
+      sink.createDirectory(to, [&](file_system_object_sink_t& dirSink, const canon_path_t& relDirPath) {
         for (auto& [name, _] : accessor.readDirectory(from)) {
           copyRecursive(accessor, from / name, dirSink, relDirPath / name);
         }
@@ -54,17 +54,17 @@ void copyRecursive(SourceAccessor& accessor, const CanonPath& from, FileSystemOb
   }
 }
 
-struct RestoreSinkSettings : Config {
-  Setting<bool> preallocateContents{
+struct restore_sink_settings_t : Config {
+  setting_t<bool> preallocateContents{
       this, false, "preallocate-contents",
       "Whether to preallocate files when writing objects with known size."};
 };
 
-static RestoreSinkSettings restoreSinkSettings;
+static restore_sink_settings_t restoreSinkSettings;
 
-static GlobalConfig::Register r1(&restoreSinkSettings);
+static global_config_t::Register r1(&restoreSinkSettings);
 
-static std::filesystem::path append(const std::filesystem::path& src, const CanonPath& path) {
+static std::filesystem::path append(const std::filesystem::path& src, const canon_path_t& path) {
   auto dst = src;
   if (!path.rel().empty())
     dst /= path.rel();
@@ -72,7 +72,7 @@ static std::filesystem::path append(const std::filesystem::path& src, const Cano
 }
 
 #ifndef _WIN32
-void RestoreSink::createDirectory(const CanonPath& path, DirectoryCreatedCallback callback) {
+void restore_sink_t::createDirectory(const canon_path_t& path, directory_created_callback_t callback) {
   if (path.isRoot()) {
     createDirectory(path);
     callback(*this, path);
@@ -82,19 +82,19 @@ void RestoreSink::createDirectory(const CanonPath& path, DirectoryCreatedCallbac
   createDirectory(path);
   assert(dirFd); // If that's not true the above call must have thrown an exception.
 
-  RestoreSink dirSink{startFsync};
+  restore_sink_t dirSink{startFsync};
   dirSink.dstPath = append(dstPath, path);
   dirSink.dirFd = unix::openFileEnsureBeneathNoSymlinks(
       dirFd.get(), path, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
 
   if (!dirSink.dirFd)
-    throw SysError("opening directory '%s'", dirSink.dstPath.string());
+    throw sys_error_t("opening directory '%s'", dirSink.dstPath.string());
 
-  callback(dirSink, CanonPath::root);
+  callback(dirSink, canon_path_t::root);
 }
 #endif
 
-void RestoreSink::createDirectory(const CanonPath& path) {
+void restore_sink_t::createDirectory(const canon_path_t& path) {
   auto p = append(dstPath, path);
 
 #ifndef _WIN32
@@ -104,7 +104,7 @@ void RestoreSink::createDirectory(const CanonPath& path) {
       throw Error("path '%s' already exists", p.string());
 
     if (::mkdirat(dirFd.get(), path.rel_c_str(), 0777) == -1)
-      throw SysError("creating directory '%s'", p.string());
+      throw sys_error_t("creating directory '%s'", p.string());
 
     return;
   }
@@ -121,16 +121,16 @@ void RestoreSink::createDirectory(const CanonPath& path) {
        directory. */
     dirFd = open(p.c_str(), O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
     if (!dirFd)
-      throw SysError("creating directory '%1%'", p.string());
+      throw sys_error_t("creating directory '%1%'", p.string());
   }
 #endif
 };
 
-struct RestoreRegularFile : CreateRegularFileSink {
-  AutoCloseFD fd;
+struct restore_regular_file_t : create_regular_file_sink_t {
+  auto_close_fd_t fd;
   bool startFsync = false;
 
-  ~RestoreRegularFile() {
+  ~restore_regular_file_t() {
     /* Initiate an fsync operation without waiting for the
        result. The real fsync should be run before registering a
        store path, but this is a performance optimization to allow
@@ -144,11 +144,11 @@ struct RestoreRegularFile : CreateRegularFileSink {
   void preallocateContents(uint64_t size) override;
 };
 
-void RestoreSink::createRegularFile(const CanonPath& path,
-                                    std::function<void(CreateRegularFileSink&)> func) {
+void restore_sink_t::createRegularFile(const canon_path_t& path,
+                                    std::function<void(create_regular_file_sink_t&)> func) {
   auto p = append(dstPath, path);
 
-  RestoreRegularFile crf;
+  restore_regular_file_t crf;
   crf.startFsync = startFsync;
   crf.fd =
 #ifdef _WIN32
@@ -166,23 +166,23 @@ void RestoreSink::createRegularFile(const CanonPath& path,
 #endif
       ;
   if (!crf.fd)
-    throw NativeSysError("creating file '%1%'", p);
+    throw native_sys_error_t("creating file '%1%'", p);
   func(crf);
 }
 
-void RestoreRegularFile::isExecutable() {
+void restore_regular_file_t::isExecutable() {
   // Windows doesn't have a notion of executable file permissions we
   // care about here, right?
 #ifndef _WIN32
   struct stat st;
   if (fstat(fd.get(), &st) == -1)
-    throw SysError("fstat");
+    throw sys_error_t("fstat");
   if (fchmod(fd.get(), st.st_mode | (S_IXUSR | S_IXGRP | S_IXOTH)) == -1)
-    throw SysError("fchmod");
+    throw sys_error_t("fchmod");
 #endif
 }
 
-void RestoreRegularFile::preallocateContents(uint64_t len) {
+void restore_regular_file_t::preallocateContents(uint64_t len) {
   if (!restoreSinkSettings.preallocateContents)
     return;
 
@@ -194,33 +194,33 @@ void RestoreRegularFile::preallocateContents(uint64_t len) {
        OpenSolaris).  Since preallocation is just an
        optimisation, ignore it. */
     if (errno && errno != EINVAL && errno != EOPNOTSUPP && errno != ENOSYS)
-      throw SysError("preallocating file of %1% bytes", len);
+      throw sys_error_t("preallocating file of %1% bytes", len);
   }
 #endif
 }
 
-void RestoreRegularFile::operator()(std::string_view data) {
+void restore_regular_file_t::operator()(std::string_view data) {
   writeFull(fd.get(), data);
 }
 
-void RestoreSink::createSymlink(const CanonPath& path, const std::string& target) {
+void restore_sink_t::createSymlink(const canon_path_t& path, const std::string& target) {
   auto p = append(dstPath, path);
 #ifndef _WIN32
   if (dirFd) {
     if (::symlinkat(requireCString(target), dirFd.get(), path.rel_c_str()) == -1)
-      throw SysError("creating symlink from '%1%' -> '%2%'", p.string(), target);
+      throw sys_error_t("creating symlink from '%1%' -> '%2%'", p.string(), target);
     return;
   }
 #endif
   nix::createSymlink(target, p.string());
 }
 
-void RegularFileSink::createRegularFile(const CanonPath& path,
-                                        std::function<void(CreateRegularFileSink&)> func) {
-  struct CRF : CreateRegularFileSink {
-    RegularFileSink& back;
+void regular_file_sink_t::createRegularFile(const canon_path_t& path,
+                                        std::function<void(create_regular_file_sink_t&)> func) {
+  struct CRF : create_regular_file_sink_t {
+    regular_file_sink_t& back;
 
-    CRF(RegularFileSink& back) : back(back) {}
+    CRF(regular_file_sink_t& back) : back(back) {}
 
     void operator()(std::string_view data) override { back.sink(data); }
 
@@ -230,9 +230,9 @@ void RegularFileSink::createRegularFile(const CanonPath& path,
   func(crf);
 }
 
-void NullFileSystemObjectSink::createRegularFile(const CanonPath& path,
-                                                 std::function<void(CreateRegularFileSink&)> func) {
-  struct : CreateRegularFileSink {
+void null_file_system_object_sink_t::createRegularFile(const canon_path_t& path,
+                                                 std::function<void(create_regular_file_sink_t&)> func) {
+  struct : create_regular_file_sink_t {
     void operator()(std::string_view data) override {}
 
     void isExecutable() override {}

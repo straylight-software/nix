@@ -5,7 +5,7 @@
 
 namespace nix {
 
-ThreadPool::ThreadPool(size_t _maxThreads) : maxThreads(_maxThreads) {
+thread_pool_t::thread_pool_t(size_t _maxThreads) : maxThreads(_maxThreads) {
   if (!maxThreads) {
     maxThreads = std::thread::hardware_concurrency();
     if (!maxThreads)
@@ -15,11 +15,11 @@ ThreadPool::ThreadPool(size_t _maxThreads) : maxThreads(_maxThreads) {
   debug("starting pool of %d threads", maxThreads - 1);
 }
 
-ThreadPool::~ThreadPool() {
+thread_pool_t::~thread_pool_t() {
   shutdown();
 }
 
-void ThreadPool::shutdown() {
+void thread_pool_t::shutdown() {
   std::vector<std::thread> workers;
   {
     auto state(state_.lock());
@@ -38,18 +38,18 @@ void ThreadPool::shutdown() {
     thr.join();
 }
 
-void ThreadPool::enqueue(work_t t) {
+void thread_pool_t::enqueue(work_t t) {
   auto state(state_.lock());
   if (quit)
     throw ThreadPoolShutDown("cannot enqueue a work item while the thread pool is shutting down");
   state->pending.push(std::move(t));
   /* Note: process() also executes items, so count it as a worker. */
   if (state->pending.size() > state->workers.size() + 1 && state->workers.size() + 1 < maxThreads)
-    state->workers.emplace_back(&ThreadPool::doWork, this, false);
+    state->workers.emplace_back(&thread_pool_t::doWork, this, false);
   work.notify_one();
 }
 
-void ThreadPool::process() {
+void thread_pool_t::process() {
   state_.lock()->draining = true;
 
   /* Do work until no more work is pending or active. */
@@ -66,7 +66,7 @@ void ThreadPool::process() {
   } catch (...) {
     /* In the exceptional case, some workers may still be
        active. They may be referencing the stack frame of the
-       caller. So wait for them to finish. (~ThreadPool also does
+       caller. So wait for them to finish. (~thread_pool_t also does
        this, but it might be destroyed after objects referenced by
        the work item lambdas.) */
     shutdown();
@@ -74,8 +74,8 @@ void ThreadPool::process() {
   }
 }
 
-void ThreadPool::doWork(bool mainThread) {
-  ReceiveInterrupts receiveInterrupts;
+void thread_pool_t::doWork(bool mainThread) {
+  receive_interrupts_t receiveInterrupts;
 
 #ifndef _WIN32 // Does Windows need anything similar for async exit handling?
   if (!mainThread)

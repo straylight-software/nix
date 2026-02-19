@@ -53,7 +53,7 @@ private:
     std::vector<ref<R>> idle;
   };
 
-  Sync<State> state;
+  sync_t<State> state;
 
   std::condition_variable wakeup;
 

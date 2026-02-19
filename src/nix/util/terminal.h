@@ -11,7 +11,7 @@ namespace nix {
 /**
  * Determine whether \param fd is a terminal.
  */
-bool isTTY(Descriptor fd);
+bool isTTY(descriptor_t fd);
 
 /**
  * Determine whether ANSI escape sequences are appropriate for the

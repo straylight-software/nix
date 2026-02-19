@@ -6,15 +6,15 @@ namespace nix {
  * Configuration for `LocalOverlayStore`.
  */
 struct LocalOverlayStoreConfig : virtual LocalStoreConfig {
-  LocalOverlayStoreConfig(const StringMap& params)
+  LocalOverlayStoreConfig(const string_map_t& params)
       : LocalOverlayStoreConfig("local-overlay", "", params) {}
 
-  LocalOverlayStoreConfig(std::string_view scheme, PathView path, const Params& params)
+  LocalOverlayStoreConfig(std::string_view scheme, path_view_t path, const Params& params)
       : StoreConfig(params),
         LocalFSStoreConfig(path, params),
         LocalStoreConfig(scheme, path, params) {}
 
-  const Setting<std::string> lowerStoreUri{(StoreConfig*)this, "", "lower-store",
+  const setting_t<std::string> lowerStoreUri{(StoreConfig*)this, "", "lower-store",
                                            R"(
           [Store URL](@docroot@/command-ref/new-cli/nix3-help-stores.md#store-url-format)
           for the lower store. The default is `auto` (i.e. use the Nix daemon or `/nix/store` directly).
@@ -23,12 +23,12 @@ struct LocalOverlayStoreConfig : virtual LocalStoreConfig {
           Must be used as OverlayFS lower layer for this store's store dir.
         )"};
 
-  const PathSetting upperLayer{(StoreConfig*)this, "", "upper-layer",
+  const path_setting_t upperLayer{(StoreConfig*)this, "", "upper-layer",
                                R"(
-          Directory containing the OverlayFS upper layer for this store's store dir.
+          directory_t containing the OverlayFS upper layer for this store's store dir.
         )"};
 
-  Setting<bool> checkMount{(StoreConfig*)this, true, "check-mount",
+  setting_t<bool> checkMount{(StoreConfig*)this, true, "check-mount",
                            R"(
           Check that the overlay filesystem is correctly mounted.
 
@@ -39,7 +39,7 @@ struct LocalOverlayStoreConfig : virtual LocalStoreConfig {
           default, but can be disabled if needed.
         )"};
 
-  const PathSetting remountHook{(StoreConfig*)this, "", "remount-hook",
+  const path_setting_t remountHook{(StoreConfig*)this, "", "remount-hook",
                                 R"(
           Script or other executable to run when overlay filesystem needs remounting.
 
@@ -54,11 +54,11 @@ struct LocalOverlayStoreConfig : virtual LocalStoreConfig {
 
   static const std::string name() { return "Experimental Local Overlay Store"; }
 
-  static std::optional<ExperimentalFeature> experimentalFeature() {
-    return ExperimentalFeature::LocalOverlayStore;
+  static std::optional<experimental_feature_t> experimentalFeature() {
+    return experimental_feature_t::LocalOverlayStore;
   }
 
-  static StringSet uriSchemes() { return {"local-overlay"}; }
+  static string_set_t uriSchemes() { return {"local-overlay"}; }
 
   static std::string doc();
 

@@ -2,10 +2,10 @@
 
 namespace nix {
 
-struct TeeLogger : Logger {
+struct tee_logger_t : Logger {
   std::vector<std::unique_ptr<Logger>> loggers;
 
-  TeeLogger(std::vector<std::unique_ptr<Logger>>&& loggers) : loggers(std::move(loggers)) {}
+  tee_logger_t(std::vector<std::unique_ptr<Logger>>&& loggers) : loggers(std::move(loggers)) {}
 
   void stop() override {
     for (auto& logger : loggers)
@@ -22,33 +22,33 @@ struct TeeLogger : Logger {
       logger->resume();
   };
 
-  void log(Verbosity lvl, std::string_view s) override {
+  void log(verbosity_t lvl, std::string_view s) override {
     for (auto& logger : loggers)
       logger->log(lvl, s);
   }
 
-  void logEI(const ErrorInfo& ei) override {
+  void logEI(const error_info_t& ei) override {
     for (auto& logger : loggers)
       logger->logEI(ei);
   }
 
-  void startActivity(ActivityId act, Verbosity lvl, ActivityType type, const std::string& s,
-                     const Fields& fields, ActivityId parent) override {
+  void startActivity(activity_id_t act, verbosity_t lvl, activity_type_t type, const std::string& s,
+                     const fields_t& fields, activity_id_t parent) override {
     for (auto& logger : loggers)
       logger->startActivity(act, lvl, type, s, fields, parent);
   }
 
-  void stopActivity(ActivityId act) override {
+  void stopActivity(activity_id_t act) override {
     for (auto& logger : loggers)
       logger->stopActivity(act);
   }
 
-  void result(ActivityId act, ResultType type, const Fields& fields) override {
+  void result(activity_id_t act, result_type_t type, const fields_t& fields) override {
     for (auto& logger : loggers)
       logger->result(act, type, fields);
   }
 
-  void result(ActivityId act, ResultType type, const nlohmann::json& json) override {
+  void result(activity_id_t act, result_type_t type, const nlohmann::json& json) override {
     for (auto& logger : loggers)
       logger->result(act, type, json);
   }
@@ -58,7 +58,7 @@ struct TeeLogger : Logger {
       /* Let only the first logger write to stdout to avoid
          duplication. This means that the first logger needs to
          be the one managing stdout/stderr
-         (e.g. `ProgressBar`). */
+         (e.g. `progress_bar_t`). */
       logger->writeToStdout(s);
       break;
     }
@@ -85,7 +85,7 @@ std::unique_ptr<Logger> makeTeeLogger(std::unique_ptr<Logger> mainLogger,
   allLoggers.push_back(std::move(mainLogger));
   for (auto& l : extraLoggers)
     allLoggers.push_back(std::move(l));
-  return std::make_unique<TeeLogger>(std::move(allLoggers));
+  return std::make_unique<tee_logger_t>(std::move(allLoggers));
 }
 
 } // namespace nix

@@ -737,13 +737,38 @@ struct build_ast<g::expr::lambda_pattern_simple> : change_head<lambda_simple_sta
 // For now, we skip it and add when properly architected
 
 // ============================================================================
-// list expressions - simplified without nested state
+// list expressions
 // ============================================================================
 
-// Lists, attribute sets, let expressions, select, and application all need
-// more careful state management. For now, they will parse but may not
-// produce correct AST. The grammar tests pass, showing the structure is valid.
-// Adding proper actions requires resolving the state instantiation issues.
+/// list parsing state - tracks expression stack depth at entry
+struct list_state : subexpression_state {
+  /// expression stack size when list parsing started
+  std::size_t start_stack_size = 0;
+
+  explicit list_state(expression_state& up, parser_state& ps)
+      : subexpression_state(up, ps), start_stack_size(up.expressions.size()) {}
+};
+
+template <>
+struct build_ast<g::expr::list> : change_head<list_state> {
+  static void success(const auto& input, list_state& ls, expression_state& expr,
+                      parser_state& parser) {
+    auto position = parser.position_at(input);
+
+    // collect all expressions added during list parsing
+    std::vector<ast::expression> elements;
+    std::size_t count = ls->expressions.size() - ls.start_stack_size;
+    elements.reserve(count);
+
+    // pop in reverse order, then reverse to get correct order
+    for (std::size_t i = 0; i < count; ++i) {
+      elements.push_back(ls->pop_expression_only());
+    }
+    std::reverse(elements.begin(), elements.end());
+
+    expr.emplace_expression<ast::expression_list>(position, position, std::move(elements));
+  }
+};
 
 // ============================================================================
 // path expressions - simplified

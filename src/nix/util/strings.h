@@ -19,8 +19,8 @@ namespace nix {
  * See also `basicSplitString()`, which preserves empty strings between separators, as well as at
  * the start and end.
  */
-template <class C, class CharT = char>
-C basicTokenizeString(std::basic_string_view<CharT> s, std::basic_string_view<CharT> separators);
+template <class C, class char_t = char>
+C basicTokenizeString(std::basic_string_view<char_t> s, std::basic_string_view<char_t> separators);
 
 /**
  * Like `basicTokenizeString` but specialized to the default `char`
@@ -30,7 +30,7 @@ C tokenizeString(std::string_view s, std::string_view separators = " \t\n\r");
 
 extern template std::list<std::string> tokenizeString(std::string_view s,
                                                       std::string_view separators);
-extern template StringSet tokenizeString(std::string_view s, std::string_view separators);
+extern template string_set_t tokenizeString(std::string_view s, std::string_view separators);
 extern template std::vector<std::string> tokenizeString(std::string_view s,
                                                         std::string_view separators);
 
@@ -39,13 +39,13 @@ extern template std::vector<std::string> tokenizeString(std::string_view s,
  *
  * Returns a non-empty collection of strings.
  */
-template <class C, class CharT = char>
-C basicSplitString(std::basic_string_view<CharT> s, std::basic_string_view<CharT> separators);
+template <class C, class char_t = char>
+C basicSplitString(std::basic_string_view<char_t> s, std::basic_string_view<char_t> separators);
 template <typename C>
 C splitString(std::string_view s, std::string_view separators);
 
 extern template std::list<std::string> splitString(std::string_view s, std::string_view separators);
-extern template StringSet splitString(std::string_view s, std::string_view separators);
+extern template string_set_t splitString(std::string_view s, std::string_view separators);
 extern template std::vector<std::string> splitString(std::string_view s,
                                                      std::string_view separators);
 
@@ -56,7 +56,7 @@ template <class C>
 std::string concatStringsSep(const std::string_view sep, const C& ss);
 
 extern template std::string concatStringsSep(std::string_view, const std::list<std::string>&);
-extern template std::string concatStringsSep(std::string_view, const StringSet&);
+extern template std::string concatStringsSep(std::string_view, const string_set_t&);
 extern template std::string concatStringsSep(std::string_view, const std::vector<std::string>&);
 extern template std::string
 concatStringsSep(std::string_view, const boost::container::small_vector<std::string, 64>&);
@@ -88,7 +88,7 @@ dropEmptyInitThenConcatStringsSep(const std::string_view sep, const C& ss);
 
 extern template std::string dropEmptyInitThenConcatStringsSep(std::string_view,
                                                               const std::list<std::string>&);
-extern template std::string dropEmptyInitThenConcatStringsSep(std::string_view, const StringSet&);
+extern template std::string dropEmptyInitThenConcatStringsSep(std::string_view, const string_set_t&);
 extern template std::string dropEmptyInitThenConcatStringsSep(std::string_view,
                                                               const std::vector<std::string>&);
 
@@ -145,9 +145,9 @@ std::string optionalBracket(std::string_view prefix, const std::optional<T>& con
  *
  * [1]: https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/p1690r1.html
  */
-struct StringViewHash {
+struct string_view_hash_t {
 private:
-  using HashType = std::hash<std::string_view>;
+  using hash_type_t = std::hash<std::string_view>;
 
 public:
   using is_transparent = void;
@@ -157,12 +157,12 @@ public:
        a good way around it because the hash value of all overloads must be
        consistent. Delegating to string_view is the solution initially proposed
        in P0919R3. */
-    return HashType{}(std::string_view{str});
+    return hash_type_t{}(std::string_view{str});
   }
 
-  auto operator()(std::string_view str) const { return HashType{}(str); }
+  auto operator()(std::string_view str) const { return hash_type_t{}(str); }
 
-  auto operator()(const std::string& str) const { return HashType{}(std::string_view{str}); }
+  auto operator()(const std::string& str) const { return hash_type_t{}(std::string_view{str}); }
 };
 
 /**

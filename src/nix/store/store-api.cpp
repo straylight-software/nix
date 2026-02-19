@@ -36,11 +36,11 @@ Path StoreConfigBase::getDefaultNixStoreDir() {
 StoreConfig::StoreConfig(const Params& params)
     : StoreConfigBase(params), StoreDirConfig{storeDir_} {}
 
-bool StoreDirConfig::isInStore(PathView path) const {
+bool StoreDirConfig::isInStore(path_view_t path) const {
   return isInDir(path, storeDir);
 }
 
-std::pair<StorePath, Path> StoreDirConfig::toStorePath(PathView path) const {
+std::pair<StorePath, Path> StoreDirConfig::toStorePath(path_view_t path) const {
   if (!isInStore(path))
     throw Error("path '%1%' is not in the Nix store", path);
   auto slash = path.find('/', storeDir.size() + 1);
@@ -77,25 +77,25 @@ StorePath Store::followLinksToStorePath(std::string_view path) const {
   return toStorePath(followLinksToStore(path)).first;
 }
 
-StorePath Store::addToStore(std::string_view name, const SourcePath& path,
-                            ContentAddressMethod method, HashAlgorithm hashAlgo,
-                            const StorePathSet& references, PathFilter& filter, RepairFlag repair) {
-  FileSerialisationMethod fsm;
+StorePath Store::addToStore(std::string_view name, const source_path_t& path,
+                            ContentAddressMethod method, hash_algorithm_t hashAlgo,
+                            const StorePathSet& references, path_filter_t& filter, RepairFlag repair) {
+  file_serialisation_method_t fsm;
   switch (method.getFileIngestionMethod()) {
-    case FileIngestionMethod::Flat:
-      fsm = FileSerialisationMethod::Flat;
+    case file_ingestion_method_t::Flat:
+      fsm = file_serialisation_method_t::Flat;
       break;
-    case FileIngestionMethod::NixArchive:
-      fsm = FileSerialisationMethod::NixArchive;
+    case file_ingestion_method_t::NixArchive:
+      fsm = file_serialisation_method_t::NixArchive;
       break;
-    case FileIngestionMethod::Git:
+    case file_ingestion_method_t::Git:
       // Use NAR; Git is not a serialization method
-      fsm = FileSerialisationMethod::NixArchive;
+      fsm = file_serialisation_method_t::NixArchive;
       break;
   }
   std::optional<StorePath> storePath;
   auto sink = sourceToSink([&](Source& source) {
-    LengthSource lengthSource(source);
+    length_source_t lengthSource(source);
     storePath = addToStoreFromDump(lengthSource, name, fsm, method, hashAlgo, references, repair);
     if (settings.warnLargePathThreshold && lengthSource.total >= settings.warnLargePathThreshold) {
       static bool failOnLargePath = getEnv("_NIX_TEST_FAIL_ON_LARGE_PATH").value_or("") == "1";
@@ -110,7 +110,7 @@ StorePath Store::addToStore(std::string_view name, const SourcePath& path,
   return storePath.value();
 }
 
-void Store::addMultipleToStore(PathsSource&& pathsToCopy, Activity& act, RepairFlag repair,
+void Store::addMultipleToStore(PathsSource&& pathsToCopy, activity_t& act, RepairFlag repair,
                                CheckSigsFlag checkSigs) {
   std::atomic<size_t> nrDone{0};
   std::atomic<size_t> nrFailed{0};
@@ -157,14 +157,14 @@ void Store::addMultipleToStore(PathsSource&& pathsToCopy, Activity& act, RepairF
         info.ultimate = false;
 
         /* Make sure that the Source object is destroyed when
-           we're done. In particular, a SinkToSource object must
+           we're done. In particular, a sink_to_source_t object must
            be destroyed to ensure that the destructors on its
            stack frame are run; this includes
            LegacySSHStore::narFromPath()'s connection lock. */
         auto source = std::move(source_);
 
         if (!isValidPath(info.path)) {
-          MaintainCount<decltype(nrRunning)> mc(nrRunning);
+          maintain_count_t<decltype(nrRunning)> mc(nrRunning);
           showProgress();
           try {
             addToStore(info, *source, repair, checkSigs);
@@ -220,21 +220,21 @@ digraph graphname {
     fileSink -> caHashSink
 }
 */
-ValidPathInfo Store::addToStoreSlow(std::string_view name, const SourcePath& srcPath,
-                                    ContentAddressMethod method, HashAlgorithm hashAlgo,
+ValidPathInfo Store::addToStoreSlow(std::string_view name, const source_path_t& srcPath,
+                                    ContentAddressMethod method, hash_algorithm_t hashAlgo,
                                     const StorePathSet& references,
                                     std::optional<Hash> expectedCAHash) {
-  HashSink narHashSink{HashAlgorithm::SHA256};
-  HashSink caHashSink{hashAlgo};
+  hash_sink_t narHashSink{hash_algorithm_t::SHA256};
+  hash_sink_t caHashSink{hashAlgo};
 
   /* Note that fileSink and unusualHashTee must be mutually exclusive, since
      they both write to caHashSink. Note that that requisite is currently true
      because the former is only used in the flat case. */
-  RegularFileSink fileSink{caHashSink};
-  TeeSink unusualHashTee{narHashSink, caHashSink};
+  regular_file_sink_t fileSink{caHashSink};
+  tee_sink_t unusualHashTee{narHashSink, caHashSink};
 
   auto& narSink =
-      method == ContentAddressMethod::Raw::NixArchive && hashAlgo != HashAlgorithm::SHA256
+      method == ContentAddressMethod::raw_t::NixArchive && hashAlgo != hash_algorithm_t::SHA256
           ? static_cast<Sink&>(unusualHashTee)
           : narHashSink;
 
@@ -245,12 +245,12 @@ ValidPathInfo Store::addToStoreSlow(std::string_view name, const SourcePath& src
 
   /* tapped provides the same data as fileSource, but we also write all the
      information to narSink. */
-  TeeSource tapped{*fileSource, narSink};
+  tee_source_t tapped{*fileSource, narSink};
 
-  NullFileSystemObjectSink blank;
-  auto& parseSink = method.getFileIngestionMethod() == FileIngestionMethod::Flat
-                        ? (FileSystemObjectSink&)fileSink
-                        : (FileSystemObjectSink&)blank; // for recursive or git we do recursive
+  null_file_system_object_sink_t blank;
+  auto& parseSink = method.getFileIngestionMethod() == file_ingestion_method_t::Flat
+                        ? (file_system_object_sink_t&)fileSink
+                        : (file_system_object_sink_t&)blank; // for recursive or git we do recursive
 
   /* The information that flows from tapped (besides being replicated in
      narSink), is now put in parseSink. */
@@ -260,9 +260,9 @@ ValidPathInfo Store::addToStoreSlow(std::string_view name, const SourcePath& src
      finish. */
   auto [narHash, narSize] = narHashSink.finish();
 
-  auto hash = method == ContentAddressMethod::Raw::NixArchive && hashAlgo == HashAlgorithm::SHA256
+  auto hash = method == ContentAddressMethod::raw_t::NixArchive && hashAlgo == hash_algorithm_t::SHA256
                   ? narHash
-              : method == ContentAddressMethod::Raw::Git ? git::dumpHash(hashAlgo, srcPath).hash
+              : method == ContentAddressMethod::raw_t::Git ? git::dumpHash(hashAlgo, srcPath).hash
                                                          : caHashSink.finish().hash;
 
   if (expectedCAHash && expectedCAHash != hash)
@@ -288,17 +288,17 @@ ValidPathInfo Store::addToStoreSlow(std::string_view name, const SourcePath& src
 
 void Store::narFromPath(const StorePath& path, Sink& sink) {
   auto accessor = requireStoreObjectAccessor(path);
-  SourcePath sourcePath{accessor};
-  dumpPath(sourcePath, sink, FileSerialisationMethod::NixArchive);
+  source_path_t sourcePath{accessor};
+  dumpPath(sourcePath, sink, file_serialisation_method_t::NixArchive);
 }
 
-StringSet Store::Config::getDefaultSystemFeatures() {
+string_set_t Store::Config::getDefaultSystemFeatures() {
   auto res = settings.systemFeatures.get();
 
-  if (experimentalFeatureSettings.isEnabled(Xp::CaDerivations))
+  if (experimentalFeatureSettings.isEnabled(xp_t::CaDerivations))
     res.insert("ca-derivations");
 
-  if (experimentalFeatureSettings.isEnabled(Xp::RecursiveNix))
+  if (experimentalFeatureSettings.isEnabled(xp_t::RecursiveNix))
     res.insert("recursive-nix");
 
   return res;
@@ -343,7 +343,7 @@ Store::queryPartialDerivationOutputMap(const StorePath& path, Store* evalStore_)
 
   auto outputs = evalStore.queryStaticPartialDerivationOutputMap(path);
 
-  if (!experimentalFeatureSettings.isEnabled(Xp::CaDerivations))
+  if (!experimentalFeatureSettings.isEnabled(xp_t::CaDerivations))
     return outputs;
 
   auto drv = evalStore.readInvalidDerivation(path);
@@ -659,14 +659,14 @@ void Store::substitutePaths(const StorePathSet& paths) {
   std::vector<DerivedPath> paths2;
   for (auto& path : paths)
     if (!path.isDerivation())
-      paths2.emplace_back(DerivedPath::Opaque{path});
+      paths2.emplace_back(DerivedPath::opaque_t{path});
   auto missing = queryMissing(paths2);
 
   if (!missing.willSubstitute.empty())
     try {
       std::vector<DerivedPath> subs;
       for (auto& p : missing.willSubstitute)
-        subs.emplace_back(DerivedPath::Opaque{p});
+        subs.emplace_back(DerivedPath::opaque_t{p});
       buildPaths(subs);
     } catch (Error& e) {
       logWarning(e.info());
@@ -680,10 +680,10 @@ StorePathSet Store::queryValidPaths(const StorePathSet& paths, SubstituteFlag ma
     std::exception_ptr exc;
   };
 
-  Sync<State> state_(State{paths.size(), StorePathSet()});
+  sync_t<State> state_(State{paths.size(), StorePathSet()});
 
   std::condition_variable wakeup;
-  ThreadPool pool;
+  thread_pool_t pool;
 
   auto doQuery = [&](const StorePath& path) {
     checkInterrupt();
@@ -742,7 +742,7 @@ std::string Store::makeValidityRegistration(const StorePathSet& paths, bool show
     auto info = queryPathInfo(i);
 
     if (showHash) {
-      s += info->narHash.to_string(HashFormat::Base16, false) + "\n";
+      s += info->narHash.to_string(hash_format_t::Base16, false) + "\n";
       s += fmt("%1%\n", info->narSize);
     }
 
@@ -839,9 +839,9 @@ void copyStorePath(Store& srcStore, Store& dstStore, const StorePath& storePath,
   const auto& srcCfg = srcStore.config;
   const auto& dstCfg = dstStore.config;
   auto storePathS = srcStore.printStorePath(storePath);
-  Activity act(*logger, lvlInfo, actCopyPath, makeCopyPathMessage(srcCfg, dstCfg, storePathS),
+  activity_t act(*logger, lvlInfo, actCopyPath, makeCopyPathMessage(srcCfg, dstCfg, storePathS),
                {storePathS, srcCfg.getHumanReadableURI(), dstCfg.getHumanReadableURI()});
-  PushActivity pact(act.id);
+  push_activity_t pact(act.id);
 
   auto info = srcStore.queryPathInfo(storePath);
 
@@ -865,11 +865,11 @@ void copyStorePath(Store& srcStore, Store& dstStore, const StorePath& storePath,
 
   auto source = sinkToSource(
       [&](Sink& sink) {
-        LambdaSink progressSink([&](std::string_view data) {
+        lambda_sink_t progressSink([&](std::string_view data) {
           total += data.size();
           act.progress(total, info->narSize);
         });
-        TeeSink tee{sink, progressSink};
+        tee_sink_t tee{sink, progressSink};
         srcStore.narFromPath(storePath, tee);
       },
       [&]() {
@@ -888,7 +888,7 @@ std::map<StorePath, StorePath> copyPaths(Store& srcStore, Store& dstStore,
   for (auto& path : paths) {
     storePaths.insert(path.path());
     if (auto* realisation = std::get_if<Realisation>(&path.raw)) {
-      experimentalFeatureSettings.require(Xp::CaDerivations);
+      experimentalFeatureSettings.require(xp_t::CaDerivations);
       toplevelRealisations.insert(*realisation);
     }
   }
@@ -914,11 +914,11 @@ std::map<StorePath, StorePath> copyPaths(Store& srcStore, Store& dstStore,
         [&](const Realisation& current) -> void {
           dstStore.registerDrvOutput(current, checkSigs);
         });
-  } catch (MissingExperimentalFeature& e) {
+  } catch (missing_experimental_feature_t& e) {
     // Don't fail if the remote doesn't support CA derivations is it might
     // not be within our control to change that, and we might still want
     // to at least copy the output paths.
-    if (e.missingFeature == Xp::CaDerivations)
+    if (e.missingFeature == xp_t::CaDerivations)
       ignoreExceptionExceptInterrupt();
     else
       throw;
@@ -937,7 +937,7 @@ std::map<StorePath, StorePath> copyPaths(Store& srcStore, Store& dstStore,
     if (!valid.count(path))
       missing.insert(path);
 
-  Activity act(*logger, lvlInfo, actCopyPaths, fmt("copying %d paths", missing.size()));
+  activity_t act(*logger, lvlInfo, actCopyPaths, fmt("copying %d paths", missing.size()));
 
   // In the general case, `addMultipleToStore` requires a sorted list of
   // store paths to add, so sort them right now
@@ -982,15 +982,15 @@ std::map<StorePath, StorePath> copyPaths(Store& srcStore, Store& dstStore,
       const auto& srcCfg = srcStore.config;
       const auto& dstCfg = dstStore.config;
       auto storePathS = srcStore.printStorePath(missingPath);
-      Activity act(*logger, lvlInfo, actCopyPath, makeCopyPathMessage(srcCfg, dstCfg, storePathS),
+      activity_t act(*logger, lvlInfo, actCopyPath, makeCopyPathMessage(srcCfg, dstCfg, storePathS),
                    {storePathS, srcCfg.getHumanReadableURI(), dstCfg.getHumanReadableURI()});
-      PushActivity pact(act.id);
+      push_activity_t pact(act.id);
 
-      LambdaSink progressSink([&](std::string_view data) {
+      lambda_sink_t progressSink([&](std::string_view data) {
         total += data.size();
         act.progress(total, narSize);
       });
-      TeeSink tee{sink, progressSink};
+      tee_sink_t tee{sink, progressSink};
 
       srcStore.narFromPath(missingPath, tee);
     });
@@ -1024,7 +1024,7 @@ void copyClosure(Store& srcStore, Store& dstStore, const StorePathSet& storePath
 }
 
 std::optional<ValidPathInfo> decodeValidPathInfo(const Store& store, std::istream& str,
-                                                 std::optional<HashResult> hashGiven) {
+                                                 std::optional<hash_result_t> hashGiven) {
   std::string path;
   getline(str, path);
   if (str.eof()) {
@@ -1033,7 +1033,7 @@ std::optional<ValidPathInfo> decodeValidPathInfo(const Store& store, std::istrea
   if (!hashGiven) {
     std::string s;
     getline(str, s);
-    auto narHash = Hash::parseAny(s, HashAlgorithm::SHA256);
+    auto narHash = Hash::parseAny(s, hash_algorithm_t::SHA256);
     getline(str, s);
     auto narSize = string2Int<uint64_t>(s);
     if (!narSize)
@@ -1074,7 +1074,7 @@ std::string showPaths(const std::set<std::filesystem::path> paths) {
   return concatStringsSep(", ", quoteFSPaths(paths));
 }
 
-std::string showPaths(const PathSet& paths) {
+std::string showPaths(const path_set_t& paths) {
   return concatStringsSep(", ", quoteStrings(paths));
 }
 
@@ -1087,7 +1087,7 @@ static Derivation readDerivationCommon(Store& store, const StorePath& drvPath,
                                        bool requireValidPath) {
   auto accessor = store.requireStoreObjectAccessor(drvPath, requireValidPath);
   try {
-    return parseDerivation(store, accessor->readFile(CanonPath::root),
+    return parseDerivation(store, accessor->readFile(canon_path_t::root),
                            Derivation::nameFromPath(drvPath));
   } catch (FormatError& e) {
     throw Error("error parsing derivation '%s': %s", store.printStorePath(drvPath), e.msg());
@@ -1106,7 +1106,7 @@ std::optional<StorePath> Store::getBuildDerivationPath(const StorePath& path) {
     }
   }
 
-  if (!experimentalFeatureSettings.isEnabled(Xp::CaDerivations) || !isValidPath(path))
+  if (!experimentalFeatureSettings.isEnabled(xp_t::CaDerivations) || !isValidPath(path))
     return path;
 
   auto drv = readDerivation(path);
@@ -1135,8 +1135,8 @@ void Store::signPathInfo(ValidPathInfo& info) {
   auto secretKeyFiles = settings.secretKeyFiles;
 
   for (auto& secretKeyFile : secretKeyFiles.get()) {
-    SecretKey secretKey(readFile(secretKeyFile));
-    LocalSigner signer(std::move(secretKey));
+    secret_key_t secretKey(readFile(secretKeyFile));
+    local_signer_t signer(std::move(secretKey));
     info.sign(*this, signer);
   }
 }
@@ -1147,8 +1147,8 @@ void Store::signRealisation(Realisation& realisation) {
   auto secretKeyFiles = settings.secretKeyFiles;
 
   for (auto& secretKeyFile : secretKeyFiles.get()) {
-    SecretKey secretKey(readFile(secretKeyFile));
-    LocalSigner signer(std::move(secretKey));
+    secret_key_t secretKey(readFile(secretKeyFile));
+    local_signer_t signer(std::move(secretKey));
     realisation.sign(realisation.id, signer);
   }
 }

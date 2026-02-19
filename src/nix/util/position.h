@@ -40,13 +40,13 @@ struct Pos {
     }
   };
 
-  typedef std::variant<std::monostate, Stdin, String, SourcePath> Origin;
+  typedef std::variant<std::monostate, Stdin, String, source_path_t> origin_t;
 
-  Origin origin = std::monostate();
+  origin_t origin = std::monostate();
 
   Pos() {}
 
-  Pos(uint32_t line, uint32_t column, Origin origin) : line(line), column(column), origin(origin) {}
+  Pos(uint32_t line, uint32_t column, origin_t origin) : line(line), column(column), origin(origin) {}
 
   explicit operator bool() const { return line > 0; }
 
@@ -59,7 +59,7 @@ struct Pos {
 
   void print(std::ostream& out, bool showOrigin) const;
 
-  std::optional<LinesOfCode> getCodeLines() const;
+  std::optional<lines_of_code_t> getCodeLines() const;
 
   bool operator==(const Pos& rhs) const = default;
   auto operator<=>(const Pos& rhs) const = default;
@@ -67,30 +67,30 @@ struct Pos {
   std::optional<std::string> getSnippetUpTo(const Pos& end) const;
 
   /**
-   * Get the SourcePath, if the source was loaded from a file.
+   * Get the source_path_t, if the source was loaded from a file.
    */
-  std::optional<SourcePath> getSourcePath() const;
+  std::optional<source_path_t> getSourcePath() const;
 
-  struct LinesIterator {
+  struct lines_iterator_t {
     using difference_type = size_t;
     using value_type = std::string_view;
     using reference = const std::string_view&;
     using pointer = const std::string_view*;
     using iterator_category = std::input_iterator_tag;
 
-    LinesIterator() : pastEnd(true) {}
+    lines_iterator_t() : pastEnd(true) {}
 
-    explicit LinesIterator(std::string_view input) : input(input), pastEnd(input.empty()) {
+    explicit lines_iterator_t(std::string_view input) : input(input), pastEnd(input.empty()) {
       if (!pastEnd)
         bump(true);
     }
 
-    LinesIterator& operator++() {
+    lines_iterator_t& operator++() {
       bump(false);
       return *this;
     }
 
-    LinesIterator operator++(int) {
+    lines_iterator_t operator++(int) {
       auto result = *this;
       ++*this;
       return result;
@@ -100,9 +100,9 @@ struct Pos {
 
     pointer operator->() const { return &curLine; }
 
-    bool operator!=(const LinesIterator& other) const { return !(*this == other); }
+    bool operator!=(const lines_iterator_t& other) const { return !(*this == other); }
 
-    bool operator==(const LinesIterator& other) const {
+    bool operator==(const lines_iterator_t& other) const {
       return (pastEnd && other.pastEnd) ||
              (std::forward_as_tuple(input.size(), input.data()) ==
               std::forward_as_tuple(other.input.size(), other.input.data()));

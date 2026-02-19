@@ -10,7 +10,7 @@
 
 using namespace nix;
 
-struct CmdCopyLog : virtual CopyCommand, virtual InstallablesCommand {
+struct cmd_copy_log_t : virtual CopyCommand, virtual InstallablesCommand {
   std::string description() override { return "copy build logs between Nix stores"; }
 
   std::string doc() override {
@@ -34,4 +34,4 @@ struct CmdCopyLog : virtual CopyCommand, virtual InstallablesCommand {
   }
 };
 
-static auto rCmdCopyLog = registerCommand2<CmdCopyLog>({"store", "copy-log"});
+static auto rCmdCopyLog = registerCommand2<cmd_copy_log_t>({"store", "copy-log"});

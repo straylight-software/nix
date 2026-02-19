@@ -7,8 +7,8 @@
 namespace nix {
 
 struct ServeProto::BasicClientConnection {
-  FdSink to;
-  FdSource from;
+  fd_sink_t to;
+  fd_source_t from;
   ServeProto::Version remoteVersion;
 
   /**
@@ -27,7 +27,7 @@ struct ServeProto::BasicClientConnection {
    *
    * @param host Just used to add context to thrown exceptions.
    */
-  static ServeProto::Version handshake(BufferedSink& to, Source& from,
+  static ServeProto::Version handshake(buffered_sink_t& to, Source& from,
                                        ServeProto::Version localVersion, std::string_view host);
 
   /**
@@ -98,7 +98,7 @@ struct ServeProto::BasicServerConnection {
    *
    * @param localVersion Our version which is sent over
    */
-  static ServeProto::Version handshake(BufferedSink& to, Source& from,
+  static ServeProto::Version handshake(buffered_sink_t& to, Source& from,
                                        ServeProto::Version localVersion);
 };
 

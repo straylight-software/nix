@@ -9,7 +9,7 @@
 using namespace nix;
 using namespace nix::flake;
 
-struct CmdFlakePrefetchInputs : FlakeCommand {
+struct cmd_flake_prefetch_inputs_t : flake_command_t {
   std::string description() override { return "fetch the inputs of a flake"; }
 
   std::string doc() override {
@@ -21,13 +21,13 @@ struct CmdFlakePrefetchInputs : FlakeCommand {
   void run(nix::ref<nix::Store> store) override {
     auto flake = lockFlake();
 
-    ThreadPool pool{fileTransferSettings.httpConnections};
+    thread_pool_t pool{fileTransferSettings.httpConnections};
 
     struct State {
       std::set<const Node*> done;
     };
 
-    Sync<State> state_;
+    sync_t<State> state_;
 
     std::atomic<size_t> nrFailed{0};
 
@@ -39,7 +39,7 @@ struct CmdFlakePrefetchInputs : FlakeCommand {
         if (lockedNode->buildTime)
           return;
         try {
-          Activity act(*logger, lvlInfo, actUnknown, fmt("fetching '%s'", lockedNode->lockedRef));
+          activity_t act(*logger, lvlInfo, actUnknown, fmt("fetching '%s'", lockedNode->lockedRef));
           auto accessor = lockedNode->lockedRef.input.getAccessor(fetchSettings, *store).first;
           if (!evalSettings.lazyTrees)
             fetchToStore(fetchSettings, *store, accessor, FetchMode::Copy,
@@ -60,9 +60,9 @@ struct CmdFlakePrefetchInputs : FlakeCommand {
 
     pool.process();
 
-    throw Exit(nrFailed ? 1 : 0);
+    throw exit_t(nrFailed ? 1 : 0);
   }
 };
 
 static auto rCmdFlakePrefetchInputs =
-    registerCommand2<CmdFlakePrefetchInputs>({"flake", "prefetch-inputs"});
+    registerCommand2<cmd_flake_prefetch_inputs_t>({"flake", "prefetch-inputs"});

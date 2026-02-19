@@ -14,16 +14,16 @@ enum struct FetchMode { DryRun, Copy };
 /**
  * Copy the `path` to the Nix store.
  */
-StorePath fetchToStore(const fetchers::Settings& settings, Store& store, const SourcePath& path,
+StorePath fetchToStore(const fetchers::settings_t& settings, Store& store, const source_path_t& path,
                        FetchMode mode, std::string_view name = "source",
-                       ContentAddressMethod method = ContentAddressMethod::Raw::NixArchive,
-                       PathFilter* filter = nullptr, RepairFlag repair = NoRepair);
+                       ContentAddressMethod method = ContentAddressMethod::raw_t::NixArchive,
+                       path_filter_t* filter = nullptr, RepairFlag repair = NoRepair);
 
 std::pair<StorePath, Hash>
-fetchToStore2(const fetchers::Settings& settings, Store& store, const SourcePath& path,
+fetchToStore2(const fetchers::settings_t& settings, Store& store, const source_path_t& path,
               FetchMode mode, std::string_view name = "source",
-              ContentAddressMethod method = ContentAddressMethod::Raw::NixArchive,
-              PathFilter* filter = nullptr, RepairFlag repair = NoRepair);
+              ContentAddressMethod method = ContentAddressMethod::raw_t::NixArchive,
+              path_filter_t* filter = nullptr, RepairFlag repair = NoRepair);
 
 fetchers::Cache::Key makeSourcePathToHashCacheKey(const std::string& fingerprint,
                                                   ContentAddressMethod method,

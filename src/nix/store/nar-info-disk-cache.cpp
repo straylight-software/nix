@@ -59,7 +59,7 @@ create table if not exists LastPurge (
 
 )sql";
 
-class NarInfoDiskCacheImpl : public NarInfoDiskCache {
+class nar_info_disk_cache_impl_t : public NarInfoDiskCache {
 public:
   /* How often to purge expired entries from the cache. */
   const int purgeInterval = 24 * 3600;
@@ -81,9 +81,9 @@ public:
     std::map<std::string, Cache> caches;
   };
 
-  Sync<State> _state;
+  sync_t<State> _state;
 
-  NarInfoDiskCacheImpl(Path dbPath = (getCacheDir() / "binary-cache-v7.sqlite").string()) {
+  nar_info_disk_cache_impl_t(Path dbPath = (getCacheDir() / "binary-cache-v7.sqlite").string()) {
     auto state(_state.lock());
 
     createDirs(dirOf(dbPath));
@@ -263,11 +263,11 @@ public:
             narInfo->fileHash = Hash::parseAnyPrefixed(queryNAR.getStr(4));
           narInfo->fileSize = queryNAR.getInt(5);
           narInfo->narSize = queryNAR.getInt(7);
-          for (auto& r : tokenizeString<Strings>(queryNAR.getStr(8), " "))
+          for (auto& r : tokenizeString<strings_t>(queryNAR.getStr(8), " "))
             narInfo->references.insert(StorePath(r));
           if (!queryNAR.isNull(9))
             narInfo->deriver = StorePath(queryNAR.getStr(9));
-          for (auto& sig : tokenizeString<Strings>(queryNAR.getStr(10), " "))
+          for (auto& sig : tokenizeString<strings_t>(queryNAR.getStr(10), " "))
             narInfo->sigs.insert(sig);
           narInfo->ca = ContentAddress::parseOpt(queryNAR.getStr(11));
 
@@ -322,11 +322,11 @@ public:
             .use()(cache.id)(hashPart)(std::string(info->path.name()))(
                 narInfo ? narInfo->url : "", narInfo != 0)(narInfo ? narInfo->compression : "",
                                                            narInfo != 0)(
-                narInfo && narInfo->fileHash ? narInfo->fileHash->to_string(HashFormat::Nix32, true)
+                narInfo && narInfo->fileHash ? narInfo->fileHash->to_string(hash_format_t::Nix32, true)
                                              : "",
                 narInfo && narInfo->fileHash)(narInfo ? narInfo->fileSize : 0,
                                               narInfo != 0 && narInfo->fileSize)(
-                info->narHash.to_string(HashFormat::Nix32, true))(info->narSize)(
+                info->narHash.to_string(hash_format_t::Nix32, true))(info->narSize)(
                 concatStringsSep(" ", info->shortRefs()))(
                 info->deriver ? std::string(info->deriver->to_string()) : "", (bool)info->deriver)(
                 concatStringsSep(" ", info->sigs))(renderContentAddress(info->ca))(time(0))
@@ -362,12 +362,12 @@ public:
 };
 
 ref<NarInfoDiskCache> getNarInfoDiskCache() {
-  static ref<NarInfoDiskCache> cache = make_ref<NarInfoDiskCacheImpl>();
+  static ref<NarInfoDiskCache> cache = make_ref<nar_info_disk_cache_impl_t>();
   return cache;
 }
 
 ref<NarInfoDiskCache> getTestNarInfoDiskCache(Path dbPath) {
-  return make_ref<NarInfoDiskCacheImpl>(dbPath);
+  return make_ref<nar_info_disk_cache_impl_t>(dbPath);
 }
 
 } // namespace nix

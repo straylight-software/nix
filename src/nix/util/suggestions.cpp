@@ -37,19 +37,19 @@ int levenshteinDistance(std::string_view first, std::string_view second) {
   return v0[n];
 }
 
-Suggestions Suggestions::bestMatches(const StringSet& allMatches, std::string_view query) {
-  std::set<Suggestion> res;
+suggestions_t suggestions_t::bestMatches(const string_set_t& allMatches, std::string_view query) {
+  std::set<suggestion_t> res;
   for (const auto& possibleMatch : allMatches) {
-    res.insert(Suggestion{
+    res.insert(suggestion_t{
         .distance = levenshteinDistance(query, possibleMatch),
         .suggestion = possibleMatch,
     });
   }
-  return Suggestions{res};
+  return suggestions_t{res};
 }
 
-Suggestions Suggestions::trim(int limit, int maxDistance) const {
-  std::set<Suggestion> res;
+suggestions_t suggestions_t::trim(int limit, int maxDistance) const {
+  std::set<suggestion_t> res;
 
   int count = 0;
 
@@ -60,14 +60,14 @@ Suggestions Suggestions::trim(int limit, int maxDistance) const {
     res.insert(elt);
   }
 
-  return Suggestions{res};
+  return suggestions_t{res};
 }
 
-std::string Suggestion::to_string() const {
+std::string suggestion_t::to_string() const {
   return ANSI_WARNING + filterANSIEscapes(suggestion) + ANSI_NORMAL;
 }
 
-std::string Suggestions::to_string() const {
+std::string suggestions_t::to_string() const {
   switch (suggestions.size()) {
     case 0:
       return "";
@@ -89,16 +89,16 @@ std::string Suggestions::to_string() const {
   }
 }
 
-Suggestions& Suggestions::operator+=(const Suggestions& other) {
+suggestions_t& suggestions_t::operator+=(const suggestions_t& other) {
   suggestions.insert(other.suggestions.begin(), other.suggestions.end());
   return *this;
 }
 
-std::ostream& operator<<(std::ostream& str, const Suggestion& suggestion) {
+std::ostream& operator<<(std::ostream& str, const suggestion_t& suggestion) {
   return str << suggestion.to_string();
 }
 
-std::ostream& operator<<(std::ostream& str, const Suggestions& suggestions) {
+std::ostream& operator<<(std::ostream& str, const suggestions_t& suggestions) {
   return str << suggestions.to_string();
 }
 

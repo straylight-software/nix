@@ -37,11 +37,11 @@ Goal::Co DerivationResolutionGoal::resolveDerivation() {
   std::map<ref<const SingleDerivedPath>, GoalPtr, value_comparison> inputGoals;
 
   {
-    std::function<void(ref<const SingleDerivedPath>, const DerivedPathMap<StringSet>::ChildNode&)>
+    std::function<void(ref<const SingleDerivedPath>, const DerivedPathMap<string_set_t>::ChildNode&)>
         addWaiteeDerivedPath;
 
     addWaiteeDerivedPath = [&](ref<const SingleDerivedPath> inputDrv,
-                               const DerivedPathMap<StringSet>::ChildNode& inputNode) {
+                               const DerivedPathMap<string_set_t>::ChildNode& inputNode) {
       if (!inputNode.value.empty()) {
         auto g = worker.makeGoal(
             DerivedPath::Built{
@@ -60,7 +60,7 @@ Goal::Co DerivationResolutionGoal::resolveDerivation() {
     for (const auto& [inputDrvPath, inputNode] : drv->inputDrvs.map) {
       /* Ensure that pure, non-fixed-output derivations don't
          depend on impure derivations. */
-      if (experimentalFeatureSettings.isEnabled(Xp::ImpureDerivations) && !drv->type().isImpure() &&
+      if (experimentalFeatureSettings.isEnabled(xp_t::ImpureDerivations) && !drv->type().isImpure() &&
           !drv->type().isFixed()) {
         auto inputDrv = worker.evalStore.readDerivation(inputDrvPath);
         if (inputDrv.type().isImpure())
@@ -80,7 +80,7 @@ Goal::Co DerivationResolutionGoal::resolveDerivation() {
   if (nrFailed != 0) {
     auto msg = fmt("Cannot build '%s'.\n"
                    "Reason: " ANSI_RED "%d %s failed" ANSI_NORMAL ".",
-                   Magenta(worker.store.printStorePath(drvPath)), nrFailed,
+                   magenta_t(worker.store.printStorePath(drvPath)), nrFailed,
                    nrFailed == 1 ? "dependency" : "dependencies");
     msg += showKnownOutputs(worker.store, *drv);
     co_return amDone(ecFailed, {BuildError(BuildResult::Failure::DependencyFailed, msg)});
@@ -107,7 +107,7 @@ Goal::Co DerivationResolutionGoal::resolveDerivation() {
                                 (ca.fixed
                                      /* Can optionally resolve if fixed, which is good
                                         for avoiding unnecessary rebuilds. */
-                                     ? experimentalFeatureSettings.isEnabled(Xp::CaDerivations)
+                                     ? experimentalFeatureSettings.isEnabled(xp_t::CaDerivations)
                                      /* Must resolve if floating and there are any inputs
                                         drvs. */
                                      : true);
@@ -119,7 +119,7 @@ Goal::Co DerivationResolutionGoal::resolveDerivation() {
                                [](auto& pair) { return !pair.second.childMap.empty(); });
 
     if (resolveDrv && !fullDrv.inputDrvs.map.empty()) {
-      experimentalFeatureSettings.require(Xp::CaDerivations);
+      experimentalFeatureSettings.require(xp_t::CaDerivations);
 
       /* We are be able to resolve this derivation based on the
          now-known results of dependencies. If so, we become a
@@ -162,8 +162,8 @@ Goal::Co DerivationResolutionGoal::resolveDerivation() {
 
       auto msg = fmt("resolved derivation: '%s' -> '%s'", worker.store.printStorePath(drvPath),
                      worker.store.printStorePath(pathResolved));
-      act = std::make_unique<Activity>(*logger, lvlInfo, actBuildWaiting, msg,
-                                       Logger::Fields{
+      act = std::make_unique<activity_t>(*logger, lvlInfo, actBuildWaiting, msg,
+                                       Logger::fields_t{
                                            worker.store.printStorePath(drvPath),
                                            worker.store.printStorePath(pathResolved),
                                        });

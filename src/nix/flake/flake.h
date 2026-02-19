@@ -13,7 +13,7 @@ class EvalState;
 
 namespace flake {
 
-struct Settings;
+struct settings_t;
 
 struct FlakeInput;
 
@@ -64,7 +64,7 @@ struct ConfigFile {
 
   std::map<std::string, ConfigValue> settings;
 
-  void apply(const Settings& settings);
+  void apply(const settings_t& settings);
 };
 
 /**
@@ -89,7 +89,7 @@ struct Flake {
   /**
    * The path of `flake.nix`.
    */
-  SourcePath path;
+  source_path_t path;
 
   /**
    * Pretend that `lockedRef` is dirty.
@@ -113,7 +113,7 @@ struct Flake {
 
   ~Flake();
 
-  SourcePath lockFilePath() { return path.parent() / "flake.lock"; }
+  source_path_t lockFilePath() { return path.parent() / "flake.lock"; }
 };
 
 Flake getFlake(EvalState& state, const FlakeRef& flakeRef, fetchers::UseRegistries useRegistries,
@@ -133,10 +133,10 @@ struct LockedFlake {
    * lockFlake(); in particular, the root node and the overridden
    * inputs.
    */
-  std::map<ref<Node>, SourcePath> nodePaths;
+  std::map<ref<Node>, source_path_t> nodePaths;
 
   std::optional<Fingerprint> getFingerprint(Store& store,
-                                            const fetchers::Settings& fetchSettings) const;
+                                            const fetchers::settings_t& fetchSettings) const;
 };
 
 struct LockFlags {
@@ -195,7 +195,7 @@ struct LockFlags {
   /**
    * The path to a lock file to read instead of the `flake.lock` file in the top-level flake
    */
-  std::optional<SourcePath> referenceLockFilePath;
+  std::optional<source_path_t> referenceLockFilePath;
 
   /**
    * The path to a lock file to write to instead of the `flake.lock` file in the top-level flake
@@ -219,7 +219,7 @@ struct LockFlags {
   bool requireLockable = true;
 };
 
-LockedFlake lockFlake(const Settings& settings, EvalState& state, const FlakeRef& flakeRef,
+LockedFlake lockFlake(const settings_t& settings, EvalState& state, const FlakeRef& flakeRef,
                       const LockFlags& lockFlags);
 
 void callFlake(EvalState& state, const LockedFlake& lockedFlake, Value& v);

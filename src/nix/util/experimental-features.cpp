@@ -8,8 +8,8 @@
 
 namespace nix {
 
-struct ExperimentalFeatureDetails {
-  ExperimentalFeature tag;
+struct experimental_feature_details_t {
+  experimental_feature_t tag;
   std::string_view name;
   std::string_view description;
   std::string_view trackingUrl;
@@ -25,11 +25,11 @@ struct ExperimentalFeatureDetails {
  * feature, we either have no issue at all if few features are not added
  * at the end of the list, or a proper merge conflict if they are.
  */
-constexpr size_t numXpFeatures = 1 + static_cast<size_t>(Xp::ParallelEval);
+constexpr size_t numXpFeatures = 1 + static_cast<size_t>(xp_t::ParallelEval);
 
-constexpr std::array<ExperimentalFeatureDetails, numXpFeatures> xpFeatureDetails = {{
+constexpr std::array<experimental_feature_details_t, numXpFeatures> xpFeatureDetails = {{
     {
-        .tag = Xp::CaDerivations,
+        .tag = xp_t::CaDerivations,
         .name = "ca-derivations",
         .description = R"(
             Allow derivations to be content-addressed in order to prevent
@@ -41,7 +41,7 @@ constexpr std::array<ExperimentalFeatureDetails, numXpFeatures> xpFeatureDetails
         .trackingUrl = "https://github.com/NixOS/nix/milestone/35",
     },
     {
-        .tag = Xp::ImpureDerivations,
+        .tag = xp_t::ImpureDerivations,
         .name = "impure-derivations",
         .description = R"(
             Allow derivations to produce non-fixed outputs by setting the
@@ -63,7 +63,7 @@ constexpr std::array<ExperimentalFeatureDetails, numXpFeatures> xpFeatureDetails
             Each time this derivation is built, it can produce a different
             output (as the builder outputs random bytes to `$out`).  Impure
             derivations also have access to the network, and only fixed-output
-            or other impure derivations can rely on impure derivations. Finally,
+            or other impure derivations can rely on impure derivations. finally_t,
             an impure derivation cannot also be
             [content-addressed](#xp-feature-ca-derivations).
 
@@ -72,7 +72,7 @@ constexpr std::array<ExperimentalFeatureDetails, numXpFeatures> xpFeatureDetails
         .trackingUrl = "https://github.com/NixOS/nix/milestone/42",
     },
     {
-        .tag = Xp::FetchTree,
+        .tag = xp_t::FetchTree,
         .name = "fetch-tree",
         .description = R"(
             *Enabled for Determinate Nix Installer users since 2.24*
@@ -87,7 +87,7 @@ constexpr std::array<ExperimentalFeatureDetails, numXpFeatures> xpFeatureDetails
         .trackingUrl = "https://github.com/NixOS/nix/milestone/31",
     },
     {
-        .tag = Xp::GitHashing,
+        .tag = xp_t::GitHashing,
         .name = "git-hashing",
         .description = R"(
             Allow creating (content-addressed) store objects which are hashed via Git's hashing algorithm.
@@ -96,7 +96,7 @@ constexpr std::array<ExperimentalFeatureDetails, numXpFeatures> xpFeatureDetails
         .trackingUrl = "https://github.com/NixOS/nix/milestone/41",
     },
     {
-        .tag = Xp::RecursiveNix,
+        .tag = xp_t::RecursiveNix,
         .name = "recursive-nix",
         .description = R"(
             Allow derivation builders to call Nix, and thus build derivations
@@ -140,7 +140,7 @@ constexpr std::array<ExperimentalFeatureDetails, numXpFeatures> xpFeatureDetails
         .trackingUrl = "https://github.com/NixOS/nix/milestone/47",
     },
     {
-        .tag = Xp::NoUrlLiterals,
+        .tag = xp_t::NoUrlLiterals,
         .name = "no-url-literals",
         .description = R"(
             Disallow unquoted URLs as part of the Nix language syntax. The Nix
@@ -182,7 +182,7 @@ constexpr std::array<ExperimentalFeatureDetails, numXpFeatures> xpFeatureDetails
         .trackingUrl = "https://github.com/NixOS/nix/milestone/44",
     },
     {
-        .tag = Xp::FetchClosure,
+        .tag = xp_t::FetchClosure,
         .name = "fetch-closure",
         .description = R"(
             Enable the use of the [`fetchClosure`](@docroot@/language/builtins.md#builtins-fetchClosure) built-in function in the Nix language.
@@ -190,7 +190,7 @@ constexpr std::array<ExperimentalFeatureDetails, numXpFeatures> xpFeatureDetails
         .trackingUrl = "https://github.com/NixOS/nix/milestone/40",
     },
     {
-        .tag = Xp::AutoAllocateUids,
+        .tag = xp_t::AutoAllocateUids,
         .name = "auto-allocate-uids",
         .description = R"(
             Allows Nix to automatically pick UIDs for builds, rather than creating
@@ -199,7 +199,7 @@ constexpr std::array<ExperimentalFeatureDetails, numXpFeatures> xpFeatureDetails
         .trackingUrl = "https://github.com/NixOS/nix/milestone/34",
     },
     {
-        .tag = Xp::Cgroups,
+        .tag = xp_t::Cgroups,
         .name = "cgroups",
         .description = R"(
             Allows Nix to execute builds inside cgroups. See
@@ -208,7 +208,7 @@ constexpr std::array<ExperimentalFeatureDetails, numXpFeatures> xpFeatureDetails
         .trackingUrl = "https://github.com/NixOS/nix/milestone/36",
     },
     {
-        .tag = Xp::DaemonTrustOverride,
+        .tag = xp_t::DaemonTrustOverride,
         .name = "daemon-trust-override",
         .description = R"(
             Allow forcing trusting or not trusting clients with
@@ -219,7 +219,7 @@ constexpr std::array<ExperimentalFeatureDetails, numXpFeatures> xpFeatureDetails
         .trackingUrl = "https://github.com/NixOS/nix/milestone/38",
     },
     {
-        .tag = Xp::DynamicDerivations,
+        .tag = xp_t::DynamicDerivations,
         .name = "dynamic-derivations",
         .description = R"(
             Allow the use of a few things related to dynamic derivations:
@@ -233,7 +233,7 @@ constexpr std::array<ExperimentalFeatureDetails, numXpFeatures> xpFeatureDetails
         .trackingUrl = "https://github.com/NixOS/nix/milestone/39",
     },
     {
-        .tag = Xp::ParseTomlTimestamps,
+        .tag = xp_t::ParseTomlTimestamps,
         .name = "parse-toml-timestamps",
         .description = R"(
             Allow parsing of timestamps in builtins.fromTOML.
@@ -241,7 +241,7 @@ constexpr std::array<ExperimentalFeatureDetails, numXpFeatures> xpFeatureDetails
         .trackingUrl = "https://github.com/NixOS/nix/milestone/45",
     },
     {
-        .tag = Xp::ReadOnlyLocalStore,
+        .tag = xp_t::ReadOnlyLocalStore,
         .name = "read-only-local-store",
         .description = R"(
             Allow the use of the `read-only` parameter in [local store](@docroot@/store/types/local-store.md) URIs.
@@ -249,7 +249,7 @@ constexpr std::array<ExperimentalFeatureDetails, numXpFeatures> xpFeatureDetails
         .trackingUrl = "https://github.com/NixOS/nix/milestone/46",
     },
     {
-        .tag = Xp::LocalOverlayStore,
+        .tag = xp_t::LocalOverlayStore,
         .name = "local-overlay-store",
         .description = R"(
             Allow the use of [local overlay store](@docroot@/command-ref/new-cli/nix3-help-stores.md#experimental-local-overlay-store).
@@ -257,7 +257,7 @@ constexpr std::array<ExperimentalFeatureDetails, numXpFeatures> xpFeatureDetails
         .trackingUrl = "https://github.com/NixOS/nix/milestone/50",
     },
     {
-        .tag = Xp::ConfigurableImpureEnv,
+        .tag = xp_t::ConfigurableImpureEnv,
         .name = "configurable-impure-env",
         .description = R"(
             Allow the use of the [impure-env](@docroot@/command-ref/conf-file.md#conf-impure-env) setting.
@@ -265,7 +265,7 @@ constexpr std::array<ExperimentalFeatureDetails, numXpFeatures> xpFeatureDetails
         .trackingUrl = "https://github.com/NixOS/nix/milestone/37",
     },
     {
-        .tag = Xp::MountedSSHStore,
+        .tag = xp_t::mounted_ssh_store_t,
         .name = "mounted-ssh-store",
         .description = R"(
             Allow the use of the [`mounted SSH store`](@docroot@/command-ref/new-cli/nix3-help-stores.html#experimental-ssh-store-with-filesystem-mounted).
@@ -273,7 +273,7 @@ constexpr std::array<ExperimentalFeatureDetails, numXpFeatures> xpFeatureDetails
         .trackingUrl = "https://github.com/NixOS/nix/milestone/43",
     },
     {
-        .tag = Xp::VerifiedFetches,
+        .tag = xp_t::VerifiedFetches,
         .name = "verified-fetches",
         .description = R"(
             Enables verification of git commit signatures through the [`fetchGit`](@docroot@/language/builtins.md#builtins-fetchGit) built-in.
@@ -281,7 +281,7 @@ constexpr std::array<ExperimentalFeatureDetails, numXpFeatures> xpFeatureDetails
         .trackingUrl = "https://github.com/NixOS/nix/milestone/48",
     },
     {
-        .tag = Xp::PipeOperators,
+        .tag = xp_t::PipeOperators,
         .name = "pipe-operators",
         .description = R"(
             Add `|>` and `<|` operators to the Nix language.
@@ -289,7 +289,7 @@ constexpr std::array<ExperimentalFeatureDetails, numXpFeatures> xpFeatureDetails
         .trackingUrl = "https://github.com/NixOS/nix/milestone/55",
     },
     {
-        .tag = Xp::ExternalBuilders,
+        .tag = xp_t::ExternalBuilders,
         .name = "external-builders",
         .description = R"(
             Enables support for external builders / sandbox providers.
@@ -297,7 +297,7 @@ constexpr std::array<ExperimentalFeatureDetails, numXpFeatures> xpFeatureDetails
         .trackingUrl = "",
     },
     {
-        .tag = Xp::BLAKE3Hashes,
+        .tag = xp_t::BLAKE3Hashes,
         .name = "blake3-hashes",
         .description = R"(
             Enables support for BLAKE3 hashes.
@@ -305,7 +305,7 @@ constexpr std::array<ExperimentalFeatureDetails, numXpFeatures> xpFeatureDetails
         .trackingUrl = "",
     },
     {
-        .tag = Xp::BuildTimeFetchTree,
+        .tag = xp_t::BuildTimeFetchTree,
         .name = "build-time-fetch-tree",
         .description = R"(
             Enable the built-in derivation `builtin:fetch-tree`, as well as the flake input attribute `buildTime`.
@@ -313,7 +313,7 @@ constexpr std::array<ExperimentalFeatureDetails, numXpFeatures> xpFeatureDetails
         .trackingUrl = "",
     },
     {
-        .tag = Xp::ParallelEval,
+        .tag = xp_t::ParallelEval,
         .name = "parallel-eval",
         .description = R"(
             Enable built-in functions for parallel evaluation.
@@ -337,11 +337,11 @@ static_assert(
  */
 std::set<std::string> stabilizedFeatures{"flakes", "nix-command"};
 
-const std::optional<ExperimentalFeature> parseExperimentalFeature(const std::string_view& name) {
-  using ReverseXpMap = std::map<std::string_view, ExperimentalFeature>;
+const std::optional<experimental_feature_t> parseExperimentalFeature(const std::string_view& name) {
+  using reverse_xp_map_t = std::map<std::string_view, experimental_feature_t>;
 
-  static std::unique_ptr<ReverseXpMap> reverseXpMap = []() {
-    auto reverseXpMap = std::make_unique<ReverseXpMap>();
+  static std::unique_ptr<reverse_xp_map_t> reverseXpMap = []() {
+    auto reverseXpMap = std::make_unique<reverse_xp_map_t>();
     for (auto& xpFeature : xpFeatureDetails)
       (*reverseXpMap)[xpFeature.name] = xpFeature.tag;
     return reverseXpMap;
@@ -353,13 +353,13 @@ const std::optional<ExperimentalFeature> parseExperimentalFeature(const std::str
     return std::nullopt;
 }
 
-std::string_view showExperimentalFeature(const ExperimentalFeature tag) {
+std::string_view showExperimentalFeature(const experimental_feature_t tag) {
   assert((size_t)tag < xpFeatureDetails.size());
   return xpFeatureDetails[(size_t)tag].name;
 }
 
 nlohmann::json documentExperimentalFeatures() {
-  StringMap res;
+  string_map_t res;
   for (auto& xpFeature : xpFeatureDetails) {
     std::stringstream docOss;
     docOss << stripIndentation(xpFeature.description);
@@ -370,31 +370,31 @@ nlohmann::json documentExperimentalFeatures() {
   return (nlohmann::json)res;
 }
 
-std::set<ExperimentalFeature> parseFeatures(const StringSet& rawFeatures) {
-  std::set<ExperimentalFeature> res;
+std::set<experimental_feature_t> parseFeatures(const string_set_t& rawFeatures) {
+  std::set<experimental_feature_t> res;
   for (auto& rawFeature : rawFeatures)
     if (auto feature = parseExperimentalFeature(rawFeature))
       res.insert(*feature);
   return res;
 }
 
-MissingExperimentalFeature::MissingExperimentalFeature(ExperimentalFeature feature,
+missing_experimental_feature_t::missing_experimental_feature_t(experimental_feature_t feature,
                                                        std::string reason)
     : Error("experimental Nix feature '%1%' is disabled%2%; add '--extra-experimental-features "
             "%1%' to enable it",
-            showExperimentalFeature(feature), Uncolored(optionalBracket(" (", reason, ")"))),
+            showExperimentalFeature(feature), uncolored_t(optionalBracket(" (", reason, ")"))),
       missingFeature(feature),
       reason{reason} {}
 
-std::ostream& operator<<(std::ostream& str, const ExperimentalFeature& feature) {
+std::ostream& operator<<(std::ostream& str, const experimental_feature_t& feature) {
   return str << showExperimentalFeature(feature);
 }
 
-void to_json(nlohmann::json& j, const ExperimentalFeature& feature) {
+void to_json(nlohmann::json& j, const experimental_feature_t& feature) {
   j = showExperimentalFeature(feature);
 }
 
-void from_json(const nlohmann::json& j, ExperimentalFeature& feature) {
+void from_json(const nlohmann::json& j, experimental_feature_t& feature) {
   const std::string input = j;
   const auto parsed = parseExperimentalFeature(input);
 

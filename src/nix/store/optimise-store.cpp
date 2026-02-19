@@ -20,15 +20,15 @@ namespace nix {
 static void makeWritable(const Path& path) {
   auto st = lstat(path);
   if (chmod(path.c_str(), st.st_mode | S_IWUSR) == -1)
-    throw SysError("changing writability of '%1%'", path);
+    throw sys_error_t("changing writability of '%1%'", path);
 }
 
-struct MakeReadOnly {
+struct make_read_only_t {
   Path path;
 
-  MakeReadOnly(const PathView path) : path(path) {}
+  make_read_only_t(const path_view_t path) : path(path) {}
 
-  ~MakeReadOnly() {
+  ~make_read_only_t() {
     try {
       /* This will make the path read-only. */
       if (path != "")
@@ -43,9 +43,9 @@ LocalStore::InodeHash LocalStore::loadInodeHash() {
   debug("loading hash inodes in memory");
   InodeHash inodeHash;
 
-  AutoCloseDir dir(opendir(linksDir.c_str()));
+  auto_close_dir_t dir(opendir(linksDir.c_str()));
   if (!dir)
-    throw SysError("opening directory '%1%'", linksDir);
+    throw sys_error_t("opening directory '%1%'", linksDir);
 
   struct dirent* dirent;
   while (errno = 0, dirent = readdir(dir.get())) { /* sic */
@@ -54,19 +54,19 @@ LocalStore::InodeHash LocalStore::loadInodeHash() {
     inodeHash.insert(dirent->d_ino);
   }
   if (errno)
-    throw SysError("reading directory '%1%'", linksDir);
+    throw sys_error_t("reading directory '%1%'", linksDir);
 
   printMsg(lvlTalkative, "loaded %1% hash inodes", inodeHash.size());
 
   return inodeHash;
 }
 
-Strings LocalStore::readDirectoryIgnoringInodes(const Path& path, const InodeHash& inodeHash) {
-  Strings names;
+strings_t LocalStore::readDirectoryIgnoringInodes(const Path& path, const InodeHash& inodeHash) {
+  strings_t names;
 
-  AutoCloseDir dir(opendir(path.c_str()));
+  auto_close_dir_t dir(opendir(path.c_str()));
   if (!dir)
-    throw SysError("opening directory '%1%'", path);
+    throw sys_error_t("opening directory '%1%'", path);
 
   struct dirent* dirent;
   while (errno = 0, dirent = readdir(dir.get())) { /* sic */
@@ -83,12 +83,12 @@ Strings LocalStore::readDirectoryIgnoringInodes(const Path& path, const InodeHas
     names.push_back(name);
   }
   if (errno)
-    throw SysError("reading directory '%1%'", path);
+    throw sys_error_t("reading directory '%1%'", path);
 
   return names;
 }
 
-void LocalStore::optimisePath_(Activity* act, OptimiseStats& stats, const Path& path,
+void LocalStore::optimisePath_(activity_t* act, OptimiseStats& stats, const Path& path,
                                InodeHash& inodeHash, RepairFlag repair) {
   checkInterrupt();
 
@@ -108,7 +108,7 @@ void LocalStore::optimisePath_(Activity* act, OptimiseStats& stats, const Path& 
 #endif
 
   if (S_ISDIR(st.st_mode)) {
-    Strings names = readDirectoryIgnoringInodes(path, inodeHash);
+    strings_t names = readDirectoryIgnoringInodes(path, inodeHash);
     for (auto& i : names)
       optimisePath_(act, stats, path + "/" + i, inodeHash, repair);
     return;
@@ -147,23 +147,23 @@ void LocalStore::optimisePath_(Activity* act, OptimiseStats& stats, const Path& 
      contents of the symlink (i.e. the result of readlink()), not
      the contents of the target (which may not even exist). */
   Hash hash = ({
-    hashPath({make_ref<PosixSourceAccessor>(), CanonPath(path)},
-             FileSerialisationMethod::NixArchive, HashAlgorithm::SHA256)
+    hashPath({make_ref<posix_source_accessor_t>(), canon_path_t(path)},
+             file_serialisation_method_t::NixArchive, hash_algorithm_t::SHA256)
         .hash;
   });
-  debug("'%1%' has hash '%2%'", path, hash.to_string(HashFormat::Nix32, true));
+  debug("'%1%' has hash '%2%'", path, hash.to_string(hash_format_t::Nix32, true));
 
   /* Check if this is a known hash. */
   std::filesystem::path linkPath =
-      std::filesystem::path{linksDir} / hash.to_string(HashFormat::Nix32, false);
+      std::filesystem::path{linksDir} / hash.to_string(hash_format_t::Nix32, false);
 
   /* Maybe delete the link, if it has been corrupted. */
   if (std::filesystem::exists(std::filesystem::symlink_status(linkPath))) {
     auto stLink = lstat(linkPath.string());
     if (st.st_size != stLink.st_size || (repair && hash != ({
                                                      hashPath(makeFSSourceAccessor(linkPath),
-                                                              FileSerialisationMethod::NixArchive,
-                                                              HashAlgorithm::SHA256)
+                                                              file_serialisation_method_t::NixArchive,
+                                                              hash_algorithm_t::SHA256)
                                                          .hash;
                                                    }))) {
       // XXX: Consider overwriting linkPath with our valid version.
@@ -220,7 +220,7 @@ void LocalStore::optimisePath_(Activity* act, OptimiseStats& stats, const Path& 
 
   /* When we're done, make the directory read-only again and reset
      its timestamp back to 0. */
-  MakeReadOnly makeReadOnly(mustToggle ? dirOfPath : "");
+  make_read_only_t makeReadOnly(mustToggle ? dirOfPath : "");
 
   std::filesystem::path tempLink = makeTempPath(config->realStoreDir.get(), ".tmp-link");
 
@@ -273,7 +273,7 @@ void LocalStore::optimisePath_(Activity* act, OptimiseStats& stats, const Path& 
 }
 
 void LocalStore::optimiseStore(OptimiseStats& stats) {
-  Activity act(*logger, actOptimiseStore);
+  activity_t act(*logger, actOptimiseStore);
 
   auto paths = queryAllValidPaths();
   InodeHash inodeHash = loadInodeHash();
@@ -287,7 +287,7 @@ void LocalStore::optimiseStore(OptimiseStats& stats) {
     if (!isValidPath(i))
       continue; /* path was GC'ed, probably */
     {
-      Activity act(*logger, lvlTalkative, actUnknown,
+      activity_t act(*logger, lvlTalkative, actUnknown,
                    fmt("optimising path '%s'", printStorePath(i)));
       optimisePath_(&act, stats, config->realStoreDir + "/" + std::string(i.to_string()), inodeHash,
                     NoRepair);

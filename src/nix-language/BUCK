@@ -23,8 +23,13 @@ cxx_library(
     name = "parse",
     exported_headers = [
         "parse/actions.hh",
+        "parse/convert.hh",
         "parse/grammar.hh",
+        "parse/lower.hh",
+        "parse/parser.hh",
+        "parse/selector.hh",
         "parse/state.hh",
+        "parse/tree.hh",
     ],
     header_namespace = "nix-language",
     visibility = ["PUBLIC"],
@@ -49,6 +54,19 @@ cxx_library(
     ],
 )
 
+cxx_library(
+    name = "eval",
+    exported_headers = [
+        "eval/eval.hh",
+        "eval/value.hh",
+    ],
+    header_namespace = "nix-language",
+    visibility = ["PUBLIC"],
+    deps = [
+        ":ast",
+    ],
+)
+
 # main library combining all components
 cxx_library(
     name = "language",
@@ -58,6 +76,19 @@ cxx_library(
     deps = [
         ":ast",
         ":compile",
+        ":eval",
+        ":parse",
+    ],
+)
+
+# CLI for evaluating Nix expressions
+cxx_binary(
+    name = "nix_eval",
+    srcs = ["cli/nix_eval.cpp"],
+    visibility = ["PUBLIC"],
+    deps = [
+        ":ast",
+        ":eval",
         ":parse",
     ],
 )

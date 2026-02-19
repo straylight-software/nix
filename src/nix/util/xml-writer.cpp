@@ -4,16 +4,16 @@
 
 namespace nix {
 
-XMLWriter::XMLWriter(bool indent, std::ostream& output) : output(output), indent(indent) {
+xml_writer_t::xml_writer_t(bool indent, std::ostream& output) : output(output), indent(indent) {
   output << "<?xml version='1.0' encoding='utf-8'?>" << std::endl;
   closed = false;
 }
 
-XMLWriter::~XMLWriter() {
+xml_writer_t::~xml_writer_t() {
   close();
 }
 
-void XMLWriter::close() {
+void xml_writer_t::close() {
   if (closed)
     return;
   while (!pendingElems.empty())
@@ -21,13 +21,13 @@ void XMLWriter::close() {
   closed = true;
 }
 
-void XMLWriter::indent_(size_t depth) {
+void xml_writer_t::indent_(size_t depth) {
   if (!indent)
     return;
   output << std::string(depth * 2, ' ');
 }
 
-void XMLWriter::openElement(std::string_view name, const XMLAttrs& attrs) {
+void xml_writer_t::openElement(std::string_view name, const xml_attrs_t& attrs) {
   assert(!closed);
   indent_(pendingElems.size());
   output << "<" << name;
@@ -38,7 +38,7 @@ void XMLWriter::openElement(std::string_view name, const XMLAttrs& attrs) {
   pendingElems.push_back(std::string(name));
 }
 
-void XMLWriter::closeElement() {
+void xml_writer_t::closeElement() {
   assert(!pendingElems.empty());
   indent_(pendingElems.size() - 1);
   output << "</" << pendingElems.back() << ">";
@@ -49,7 +49,7 @@ void XMLWriter::closeElement() {
     closed = true;
 }
 
-void XMLWriter::writeEmptyElement(std::string_view name, const XMLAttrs& attrs) {
+void xml_writer_t::writeEmptyElement(std::string_view name, const xml_attrs_t& attrs) {
   assert(!closed);
   indent_(pendingElems.size());
   output << "<" << name;
@@ -59,7 +59,7 @@ void XMLWriter::writeEmptyElement(std::string_view name, const XMLAttrs& attrs) 
     output << std::endl;
 }
 
-void XMLWriter::writeAttrs(const XMLAttrs& attrs) {
+void xml_writer_t::writeAttrs(const xml_attrs_t& attrs) {
   for (auto& i : attrs) {
     output << " " << i.first << "=\"";
     for (size_t j = 0; j < i.second.size(); ++j) {

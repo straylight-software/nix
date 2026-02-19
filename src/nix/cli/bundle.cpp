@@ -13,17 +13,17 @@ using namespace std::filesystem;
 
 using namespace nix;
 
-struct CmdBundle : InstallableValueCommand {
+struct cmd_bundle_t : InstallableValueCommand {
   std::string bundler = "github:NixOS/bundlers";
   std::optional<Path> outLink;
 
-  CmdBundle() {
+  cmd_bundle_t() {
     addFlag({
         .longName = "bundler",
         .description = fmt("Use a custom bundler instead of the default (`%s`).", bundler),
         .labels = {"flake-url"},
         .handler = {&bundler},
-        .completer = {[&](AddCompletions& completions, size_t, std::string_view prefix) {
+        .completer = {[&](add_completions_t& completions, size_t, std::string_view prefix) {
           completeFlakeRef(completions, getStore(), prefix);
         }},
     });
@@ -49,19 +49,19 @@ struct CmdBundle : InstallableValueCommand {
         ;
   }
 
-  Category category() override { return catSecondary; }
+  category_t category() override { return catSecondary; }
 
   // FIXME: cut&paste from CmdRun.
-  Strings getDefaultFlakeAttrPaths() override {
-    Strings res{"apps." + settings.thisSystem.get() + ".default",
+  strings_t getDefaultFlakeAttrPaths() override {
+    strings_t res{"apps." + settings.thisSystem.get() + ".default",
                 "defaultApp." + settings.thisSystem.get()};
     for (auto& s : SourceExprCommand::getDefaultFlakeAttrPaths())
       res.push_back(s);
     return res;
   }
 
-  Strings getDefaultFlakeAttrPathPrefixes() override {
-    Strings res{"apps." + settings.thisSystem.get() + "."};
+  strings_t getDefaultFlakeAttrPathPrefixes() override {
+    strings_t res{"apps." + settings.thisSystem.get() + "."};
     for (auto& s : SourceExprCommand::getDefaultFlakeAttrPathPrefixes())
       res.push_back(s);
     return res;
@@ -130,4 +130,4 @@ struct CmdBundle : InstallableValueCommand {
   }
 };
 
-static auto r2 = registerCommand<CmdBundle>("bundle");
+static auto r2 = registerCommand<cmd_bundle_t>("bundle");

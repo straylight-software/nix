@@ -18,7 +18,7 @@ struct Source;
 /**
  * Operating System capability
  */
-using Descriptor =
+using descriptor_t =
 #ifdef _WIN32
     HANDLE
 #else
@@ -26,7 +26,7 @@ using Descriptor =
 #endif
     ;
 
-const Descriptor INVALID_DESCRIPTOR =
+const descriptor_t INVALID_DESCRIPTOR =
 #ifdef _WIN32
     INVALID_HANDLE_VALUE
 #else
@@ -35,11 +35,11 @@ const Descriptor INVALID_DESCRIPTOR =
     ;
 
 /**
- * Convert a native `Descriptor` to a POSIX file descriptor
+ * Convert a native `descriptor_t` to a POSIX file descriptor
  *
  * This is a no-op except on Windows.
  */
-static inline Descriptor toDescriptor(int fd) {
+static inline descriptor_t toDescriptor(int fd) {
 #ifdef _WIN32
   return reinterpret_cast<HANDLE>(_get_osfhandle(fd));
 #else
@@ -48,12 +48,12 @@ static inline Descriptor toDescriptor(int fd) {
 }
 
 /**
- * Convert a POSIX file descriptor to a native `Descriptor` in read-only
+ * Convert a POSIX file descriptor to a native `descriptor_t` in read-only
  * mode.
  *
  * This is a no-op except on Windows.
  */
-static inline int fromDescriptorReadOnly(Descriptor fd) {
+static inline int fromDescriptorReadOnly(descriptor_t fd) {
 #ifdef _WIN32
   return _open_osfhandle(reinterpret_cast<intptr_t>(fd), _O_RDONLY);
 #else
@@ -64,15 +64,15 @@ static inline int fromDescriptorReadOnly(Descriptor fd) {
 /**
  * Read the contents of a resource into a string.
  */
-std::string readFile(Descriptor fd);
+std::string readFile(descriptor_t fd);
 
 /**
  * Wrappers around read()/write() that read/write exactly the
  * requested number of bytes.
  */
-void readFull(Descriptor fd, char* buf, size_t count);
+void readFull(descriptor_t fd, char* buf, size_t count);
 
-void writeFull(Descriptor fd, std::string_view s, bool allowInterrupts = true);
+void writeFull(descriptor_t fd, std::string_view s, bool allowInterrupts = true);
 
 /**
  * Read a line from a file descriptor.
@@ -83,22 +83,22 @@ void writeFull(Descriptor fd, std::string_view s, bool allowInterrupts = true);
  * @return A line of text ending in `\n`, or a string without `\n` if `eofOk` is true and EOF is
  * reached.
  */
-std::string readLine(Descriptor fd, bool eofOk = false);
+std::string readLine(descriptor_t fd, bool eofOk = false);
 
 /**
  * Write a line to a file descriptor.
  */
-void writeLine(Descriptor fd, std::string s);
+void writeLine(descriptor_t fd, std::string s);
 
 /**
  * Read a file descriptor until EOF occurs.
  */
-std::string drainFD(Descriptor fd, bool block = true, const size_t reserveSize = 0);
+std::string drainFD(descriptor_t fd, bool block = true, const size_t reserveSize = 0);
 
 /**
  * The Windows version is always blocking.
  */
-void drainFD(Descriptor fd, Sink& sink
+void drainFD(descriptor_t fd, Sink& sink
 #ifndef _WIN32
              ,
              bool block = true
@@ -109,7 +109,7 @@ void drainFD(Descriptor fd, Sink& sink
  * Get [Standard Input](https://en.wikipedia.org/wiki/Standard_streams#Standard_input_(stdin))
  */
 [[gnu::always_inline]]
-inline Descriptor getStandardInput() {
+inline descriptor_t getStandardInput() {
 #ifndef _WIN32
   return STDIN_FILENO;
 #else
@@ -121,7 +121,7 @@ inline Descriptor getStandardInput() {
  * Get [Standard Output](https://en.wikipedia.org/wiki/Standard_streams#Standard_output_(stdout))
  */
 [[gnu::always_inline]]
-inline Descriptor getStandardOutput() {
+inline descriptor_t getStandardOutput() {
 #ifndef _WIN32
   return STDOUT_FILENO;
 #else
@@ -133,7 +133,7 @@ inline Descriptor getStandardOutput() {
  * Get [Standard Error](https://en.wikipedia.org/wiki/Standard_streams#Standard_error_(stderr))
  */
 [[gnu::always_inline]]
-inline Descriptor getStandardError() {
+inline descriptor_t getStandardError() {
 #ifndef _WIN32
   return STDERR_FILENO;
 #else
@@ -144,20 +144,20 @@ inline Descriptor getStandardError() {
 /**
  * Automatic cleanup of resources.
  */
-class AutoCloseFD {
-  Descriptor fd;
+class auto_close_fd_t {
+  descriptor_t fd;
 
 public:
-  AutoCloseFD();
-  AutoCloseFD(Descriptor fd);
-  AutoCloseFD(const AutoCloseFD& fd) = delete;
-  AutoCloseFD(AutoCloseFD&& fd) noexcept;
-  ~AutoCloseFD();
-  AutoCloseFD& operator=(const AutoCloseFD& fd) = delete;
-  AutoCloseFD& operator=(AutoCloseFD&& fd);
-  Descriptor get() const;
+  auto_close_fd_t();
+  auto_close_fd_t(descriptor_t fd);
+  auto_close_fd_t(const auto_close_fd_t& fd) = delete;
+  auto_close_fd_t(auto_close_fd_t&& fd) noexcept;
+  ~auto_close_fd_t();
+  auto_close_fd_t& operator=(const auto_close_fd_t& fd) = delete;
+  auto_close_fd_t& operator=(auto_close_fd_t&& fd);
+  descriptor_t get() const;
   explicit operator bool() const;
-  Descriptor release();
+  descriptor_t release();
   void close();
 
   /**
@@ -173,9 +173,9 @@ public:
   void startFsync() const;
 };
 
-class Pipe {
+class pipe_t {
 public:
-  AutoCloseFD readSide, writeSide;
+  auto_close_fd_t readSide, writeSide;
   void create();
   void close();
 };
@@ -192,7 +192,7 @@ void closeExtraFDs();
 /**
  * Set the close-on-exec flag for the given file descriptor.
  */
-void closeOnExec(Descriptor fd);
+void closeOnExec(descriptor_t fd);
 
 } // namespace unix
 #endif
@@ -212,7 +212,7 @@ v*
  *
  * @return nullopt if openat2 is not supported by the kernel.
  */
-std::optional<Descriptor> openat2(Descriptor dirFd, const char* path, uint64_t flags, uint64_t mode,
+std::optional<descriptor_t> openat2(descriptor_t dirFd, const char* path, uint64_t flags, uint64_t mode,
                                   uint64_t resolve);
 
 } // namespace linux
@@ -221,8 +221,8 @@ std::optional<Descriptor> openat2(Descriptor dirFd, const char* path, uint64_t f
 #if defined(_WIN32) && _WIN32_WINNT >= 0x0600
 namespace windows {
 
-Path handleToPath(Descriptor handle);
-std::wstring handleToFileName(Descriptor handle);
+Path handleToPath(descriptor_t handle);
+std::wstring handleToFileName(descriptor_t handle);
 
 } // namespace windows
 #endif
@@ -230,10 +230,10 @@ std::wstring handleToFileName(Descriptor handle);
 #ifndef _WIN32
 namespace unix {
 
-struct SymlinkNotAllowed : public Error {
-  CanonPath path;
+struct symlink_not_allowed_t : public Error {
+  canon_path_t path;
 
-  SymlinkNotAllowed(CanonPath path)
+  symlink_not_allowed_t(canon_path_t path)
       /* Can't provide better error message, since the parent directory is only known to the caller.
        */
       : Error("relative path '%s' points to a symlink, which is not allowed", path.rel()),
@@ -249,7 +249,7 @@ struct SymlinkNotAllowed : public Error {
  * via openat single path component traversal. Uses RESOLVE_BENEATH with openat2
  * or O_RESOLVE_BENEATH.
  *
- * @note Since this is Unix-only path is specified as CanonPath, which models
+ * @note Since this is Unix-only path is specified as canon_path_t, which models
  * Unix-style paths and ensures that there are no .. or . components.
  *
  * @param flags O_* flags
@@ -257,9 +257,9 @@ struct SymlinkNotAllowed : public Error {
  *
  * @pre path.isRoot() is false
  *
- * @throws SymlinkNotAllowed if any path components
+ * @throws symlink_not_allowed_t if any path components
  */
-Descriptor openFileEnsureBeneathNoSymlinks(Descriptor dirFd, const CanonPath& path, int flags,
+descriptor_t openFileEnsureBeneathNoSymlinks(descriptor_t dirFd, const canon_path_t& path, int flags,
                                            mode_t mode = 0);
 
 } // namespace unix

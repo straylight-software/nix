@@ -61,13 +61,13 @@ struct CaptureSink : Sink {
 };
 
 /**
- * FileSystemObjectSink that records all operations for verification.
+ * file_system_object_sink_t that records all operations for verification.
  */
-struct RecordingSink : FileSystemObjectSink {
+struct RecordingSink : file_system_object_sink_t {
   struct Entry {
-    enum class Type { Directory, RegularFile, Symlink };
+    enum class Type { directory_t, RegularFile, Symlink };
     Type type;
-    CanonPath path;
+    canon_path_t path;
     std::string contents; // for regular files
     std::string target;   // for symlinks
     bool executable = false;
@@ -75,13 +75,13 @@ struct RecordingSink : FileSystemObjectSink {
 
   std::vector<Entry> entries;
 
-  void createDirectory(const CanonPath& path) override {
-    entries.push_back({Entry::Type::Directory, path, {}, {}, false});
+  void createDirectory(const canon_path_t& path) override {
+    entries.push_back({Entry::Type::directory_t, path, {}, {}, false});
   }
 
-  void createRegularFile(const CanonPath& path,
-                         std::function<void(CreateRegularFileSink&)> write_fn) override {
-    struct ContentCaptureSink : CreateRegularFileSink {
+  void createRegularFile(const canon_path_t& path,
+                         std::function<void(create_regular_file_sink_t&)> write_fn) override {
+    struct ContentCaptureSink : create_regular_file_sink_t {
       std::string contents;
       bool is_executable = false;
 
@@ -95,7 +95,7 @@ struct RecordingSink : FileSystemObjectSink {
         {Entry::Type::RegularFile, path, content_sink.contents, {}, content_sink.is_executable});
   }
 
-  void createSymlink(const CanonPath& path, const std::string& target) override {
+  void createSymlink(const canon_path_t& path, const std::string& target) override {
     entries.push_back({Entry::Type::Symlink, path, {}, target, false});
   }
 };
@@ -120,8 +120,8 @@ rc::Gen<std::string> binary_content_gen() {
 /**
  * Helper to parse a NAR from a string
  */
-void parse_nar_string(const std::string& nar_data, FileSystemObjectSink& sink) {
-  StringSource source(nar_data);
+void parse_nar_string(const std::string& nar_data, file_system_object_sink_t& sink) {
+  string_source_t source(nar_data);
   parseDump(sink, source);
 }
 
@@ -147,7 +147,7 @@ TEST_CASE("dump_string produces valid nar", "[archive][dump_string]") {
   REQUIRE(recording.entries.size() == 1);
   REQUIRE(recording.entries[0].type == RecordingSink::Entry::Type::RegularFile);
   REQUIRE(recording.entries[0].contents == "hello world");
-  REQUIRE(recording.entries[0].path == CanonPath::root);
+  REQUIRE(recording.entries[0].path == canon_path_t::root);
 }
 
 TEST_CASE("dump_string empty content", "[archive][dump_string]") {
@@ -195,7 +195,7 @@ TEST_CASE("roundtrip regular file", "[archive][roundtrip]") {
 
   // Restore from NAR
   auto dest_file = dest_dir.path / "restored.txt";
-  StringSource nar_source(nar_sink.data);
+  string_source_t nar_source(nar_sink.data);
   restorePath(dest_file, nar_source);
 
   // Verify
@@ -219,7 +219,7 @@ TEST_CASE("roundtrip empty file", "[archive][roundtrip]") {
   dumpPath(source_file.string(), nar_sink);
 
   auto dest_file = dest_dir.path / "restored_empty.txt";
-  StringSource nar_source(nar_sink.data);
+  string_source_t nar_source(nar_sink.data);
   restorePath(dest_file, nar_source);
 
   REQUIRE(fs::exists(dest_file));
@@ -239,7 +239,7 @@ TEST_CASE("roundtrip executable file", "[archive][roundtrip]") {
   dumpPath(source_file.string(), nar_sink);
 
   auto dest_file = dest_dir.path / "restored_script.sh";
-  StringSource nar_source(nar_sink.data);
+  string_source_t nar_source(nar_sink.data);
   restorePath(dest_file, nar_source);
 
   REQUIRE(fs::exists(dest_file));
@@ -261,7 +261,7 @@ TEST_CASE("roundtrip symlink", "[archive][roundtrip]") {
   dumpPath(symlink_path.string(), nar_sink);
 
   auto dest_link = dest_dir.path / "restored_link";
-  StringSource nar_source(nar_sink.data);
+  string_source_t nar_source(nar_sink.data);
   restorePath(dest_link, nar_source);
 
   REQUIRE(fs::is_symlink(dest_link));
@@ -286,7 +286,7 @@ TEST_CASE("roundtrip directory structure", "[archive][roundtrip]") {
   dumpPath(root.string(), nar_sink);
 
   auto dest_root = dest_dir.path / "restored_root";
-  StringSource nar_source(nar_sink.data);
+  string_source_t nar_source(nar_sink.data);
   restorePath(dest_root, nar_source);
 
   // Verify structure
@@ -314,7 +314,7 @@ TEST_CASE("copy_nar preserves content", "[archive][copy_nar]") {
   dumpPath(source_file.string(), original_nar);
 
   // Copy NAR
-  StringSource nar_source(original_nar.data);
+  string_source_t nar_source(original_nar.data);
   CaptureSink copied_nar;
   copyNAR(nar_source, copied_nar);
 
@@ -329,7 +329,7 @@ TEST_CASE("copy_nar preserves content", "[archive][copy_nar]") {
 TEST_CASE("parse_dump rejects empty input", "[archive][malformed]") {
   RecordingSink sink;
   std::string empty_str;
-  StringSource source(empty_str);
+  string_source_t source(empty_str);
 
   // Empty input throws EndOfFile when trying to read magic
   REQUIRE_THROWS(parseDump(sink, source));
@@ -353,7 +353,7 @@ TEST_CASE("parse_dump rejects wrong magic", "[archive][malformed]") {
   wrong_magic.push_back('\x00');
   wrong_magic.push_back('\x00');
 
-  StringSource source(wrong_magic);
+  string_source_t source(wrong_magic);
 
   REQUIRE_THROWS_AS(parseDump(sink, source), SerialisationError);
 }
@@ -367,7 +367,7 @@ TEST_CASE("parse_dump rejects truncated nar", "[archive][malformed]") {
   std::string truncated = valid_nar.data.substr(0, valid_nar.data.size() / 2);
 
   RecordingSink sink;
-  StringSource source(truncated);
+  string_source_t source(truncated);
 
   REQUIRE_THROWS(parseDump(sink, source));
 }
@@ -405,7 +405,7 @@ TEST_CASE("parse_dump rejects invalid file names", "[archive][malformed]") {
   {
     auto nar = make_invalid_nar_with_filename("bad/name");
     RecordingSink recording;
-    StringSource source(nar);
+    string_source_t source(nar);
     REQUIRE_THROWS_AS(parseDump(recording, source), SerialisationError);
   }
 
@@ -416,7 +416,7 @@ TEST_CASE("parse_dump rejects invalid file names", "[archive][malformed]") {
     filename_with_nul += "name";
     auto nar = make_invalid_nar_with_filename(filename_with_nul);
     RecordingSink recording;
-    StringSource source(nar);
+    string_source_t source(nar);
     REQUIRE_THROWS_AS(parseDump(recording, source), SerialisationError);
   }
 
@@ -424,7 +424,7 @@ TEST_CASE("parse_dump rejects invalid file names", "[archive][malformed]") {
   {
     auto nar = make_invalid_nar_with_filename(".");
     RecordingSink recording;
-    StringSource source(nar);
+    string_source_t source(nar);
     REQUIRE_THROWS_AS(parseDump(recording, source), SerialisationError);
   }
 
@@ -432,7 +432,7 @@ TEST_CASE("parse_dump rejects invalid file names", "[archive][malformed]") {
   {
     auto nar = make_invalid_nar_with_filename("..");
     RecordingSink recording;
-    StringSource source(nar);
+    string_source_t source(nar);
     REQUIRE_THROWS_AS(parseDump(recording, source), SerialisationError);
   }
 
@@ -440,7 +440,7 @@ TEST_CASE("parse_dump rejects invalid file names", "[archive][malformed]") {
   {
     auto nar = make_invalid_nar_with_filename("");
     RecordingSink recording;
-    StringSource source(nar);
+    string_source_t source(nar);
     REQUIRE_THROWS_AS(parseDump(recording, source), SerialisationError);
   }
 }
@@ -481,7 +481,7 @@ TEST_CASE("parse_dump rejects unsorted directory entries", "[archive][malformed]
   sink << ")";
 
   RecordingSink recording;
-  StringSource source(sink.data);
+  string_source_t source(sink.data);
   REQUIRE_THROWS_AS(parseDump(recording, source), SerialisationError);
 }
 
@@ -520,7 +520,7 @@ TEST_CASE("parse_dump rejects duplicate directory entries", "[archive][malformed
   sink << ")";
 
   RecordingSink recording;
-  StringSource source(sink.data);
+  string_source_t source(sink.data);
   REQUIRE_THROWS_AS(parseDump(recording, source), SerialisationError);
 }
 
@@ -533,7 +533,7 @@ TEST_CASE("parse_dump rejects unknown file type", "[archive][malformed]") {
   sink << ")";
 
   RecordingSink recording;
-  StringSource source(sink.data);
+  string_source_t source(sink.data);
   REQUIRE_THROWS_AS(parseDump(recording, source), SerialisationError);
 }
 
@@ -550,7 +550,7 @@ TEST_CASE("parse_dump rejects non-empty executable marker", "[archive][malformed
   sink << ")";
 
   RecordingSink recording;
-  StringSource source(sink.data);
+  string_source_t source(sink.data);
   REQUIRE_THROWS_AS(parseDump(recording, source), SerialisationError);
 }
 
@@ -570,7 +570,7 @@ TEST_CASE("symlink target can point outside", "[archive][symlink]") {
   sink << ")";
 
   RecordingSink recording;
-  StringSource source(sink.data);
+  string_source_t source(sink.data);
 
   // Should parse successfully (NAR doesn't validate symlink targets)
   REQUIRE_NOTHROW(parseDump(recording, source));
@@ -590,7 +590,7 @@ TEST_CASE("symlink target with parent traversal", "[archive][symlink]") {
   sink << ")";
 
   RecordingSink recording;
-  StringSource source(sink.data);
+  string_source_t source(sink.data);
 
   // NAR format allows this - security checking is caller's responsibility
   REQUIRE_NOTHROW(parseDump(recording, source));
@@ -694,7 +694,7 @@ TEST_CASE("copy_nar preserves content property", "[archive][property]") {
     CaptureSink original;
     dumpString(content, original);
 
-    StringSource source(original.data);
+    string_source_t source(original.data);
     CaptureSink copied;
     copyNAR(source, copied);
 
@@ -719,7 +719,7 @@ TEST_CASE("file system roundtrip property", "[archive][property]") {
     dumpPath(source_file.string(), nar_sink);
 
     auto dest_file = dest_dir.path / "restored.bin";
-    StringSource nar_source(nar_sink.data);
+    string_source_t nar_source(nar_sink.data);
     restorePath(dest_file, nar_source);
 
     std::ifstream in(dest_file, std::ios::binary);
@@ -778,7 +778,7 @@ TEST_CASE("fuzz parse_dump with random bytes", "[archive][fuzz]") {
     auto garbage = *rc::gen::container<std::string>(rc::gen::arbitrary<char>());
 
     RecordingSink sink;
-    StringSource source(garbage);
+    string_source_t source(garbage);
 
     // Should either parse or throw a well-defined exception, never crash
     try {
@@ -811,7 +811,7 @@ TEST_CASE("fuzz parse_dump with almost-valid nar", "[archive][fuzz]") {
     corrupted[corruption_pos] = corruption_byte;
 
     RecordingSink sink;
-    StringSource source(corrupted);
+    string_source_t source(corrupted);
 
     try {
       parseDump(sink, source);
@@ -842,7 +842,7 @@ TEST_CASE("fuzz parse_dump with truncated nar", "[archive][fuzz]") {
     std::string truncated = valid_nar.data.substr(0, truncate_at);
 
     RecordingSink sink;
-    StringSource source(truncated);
+    string_source_t source(truncated);
 
     try {
       parseDump(sink, source);
@@ -868,7 +868,7 @@ TEST_CASE("fuzz valid nar with extra trailing data", "[archive][fuzz]") {
     std::string with_trailing = valid_nar.data + garbage;
 
     RecordingSink sink;
-    StringSource source(with_trailing);
+    string_source_t source(with_trailing);
 
     // Should parse the valid part
     REQUIRE_NOTHROW(parseDump(sink, source));
@@ -1002,7 +1002,7 @@ TEST_CASE("empty directory", "[archive][edge_case]") {
   parse_nar_string(nar_sink.data, recording);
 
   REQUIRE(recording.entries.size() == 1);
-  REQUIRE(recording.entries[0].type == RecordingSink::Entry::Type::Directory);
+  REQUIRE(recording.entries[0].type == RecordingSink::Entry::Type::directory_t);
 }
 
 // =============================================================================
@@ -1034,7 +1034,7 @@ TEST_CASE("path_filter excludes files", "[archive][filter]") {
   std::ofstream(root / "include.txt") << "included";
   std::ofstream(root / "exclude.txt") << "excluded";
 
-  PathFilter filter = [](const Path& path) { return path.find("exclude") == std::string::npos; };
+  path_filter_t filter = [](const Path& path) { return path.find("exclude") == std::string::npos; };
 
   CaptureSink nar_sink;
   dumpPath(root.string(), nar_sink, filter);

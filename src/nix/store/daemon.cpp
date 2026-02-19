@@ -28,13 +28,13 @@
 
 namespace nix::daemon {
 
-Sink& operator<<(Sink& sink, const Logger::Fields& fields) {
+Sink& operator<<(Sink& sink, const Logger::fields_t& fields) {
   sink << fields.size();
   for (auto& f : fields) {
     sink << f.type;
-    if (f.type == Logger::Field::tInt)
+    if (f.type == Logger::field_t::tInt)
       sink << f.i;
-    else if (f.type == Logger::Field::tString)
+    else if (f.type == Logger::field_t::tString)
       sink << f.s;
     else
       unreachable();
@@ -45,19 +45,19 @@ Sink& operator<<(Sink& sink, const Logger::Fields& fields) {
 /* Logger that forwards log messages to the client, *if* we're in a
    state where the protocol allows it (i.e., when canSendStderr is
    true). */
-struct TunnelLogger : public Logger {
-  FdSink& to;
+struct tunnel_logger_t : public Logger {
+  fd_sink_t& to;
 
   struct State {
     bool canSendStderr = false;
     std::vector<std::string> pendingMsgs;
   };
 
-  Sync<State> state_;
+  sync_t<State> state_;
 
   WorkerProto::Version clientVersion;
 
-  TunnelLogger(FdSink& to, WorkerProto::Version clientVersion)
+  tunnel_logger_t(fd_sink_t& to, WorkerProto::Version clientVersion)
       : to(to), clientVersion(clientVersion) {}
 
   void enqueueMsg(const std::string& s) {
@@ -78,23 +78,23 @@ struct TunnelLogger : public Logger {
       state->pendingMsgs.push_back(s);
   }
 
-  void log(Verbosity lvl, std::string_view s) override {
+  void log(verbosity_t lvl, std::string_view s) override {
     if (lvl > verbosity)
       return;
 
-    StringSink buf;
+    string_sink_t buf;
     buf << STDERR_NEXT << (s + "\n");
     enqueueMsg(buf.s);
   }
 
-  void logEI(const ErrorInfo& ei) override {
+  void logEI(const error_info_t& ei) override {
     if (ei.level > verbosity)
       return;
 
     std::ostringstream oss;
     showErrorInfo(oss, ei, false);
 
-    StringSink buf;
+    string_sink_t buf;
     buf << STDERR_NEXT << oss.view();
     enqueueMsg(buf.s);
   }
@@ -131,40 +131,40 @@ struct TunnelLogger : public Logger {
     }
   }
 
-  void startActivity(ActivityId act, Verbosity lvl, ActivityType type, const std::string& s,
-                     const Fields& fields, ActivityId parent) override {
+  void startActivity(activity_id_t act, verbosity_t lvl, activity_type_t type, const std::string& s,
+                     const fields_t& fields, activity_id_t parent) override {
     if (GET_PROTOCOL_MINOR(clientVersion) < 20) {
       if (!s.empty())
         log(lvl, s + "...");
       return;
     }
 
-    StringSink buf;
+    string_sink_t buf;
     buf << STDERR_START_ACTIVITY << act << lvl << type << s << fields << parent;
     enqueueMsg(buf.s);
   }
 
-  void stopActivity(ActivityId act) override {
+  void stopActivity(activity_id_t act) override {
     if (GET_PROTOCOL_MINOR(clientVersion) < 20)
       return;
-    StringSink buf;
+    string_sink_t buf;
     buf << STDERR_STOP_ACTIVITY << act;
     enqueueMsg(buf.s);
   }
 
-  void result(ActivityId act, ResultType type, const Fields& fields) override {
+  void result(activity_id_t act, result_type_t type, const fields_t& fields) override {
     if (GET_PROTOCOL_MINOR(clientVersion) < 20)
       return;
-    StringSink buf;
+    string_sink_t buf;
     buf << STDERR_RESULT << act << type << fields;
     enqueueMsg(buf.s);
   }
 };
 
-struct TunnelSink : Sink {
+struct tunnel_sink_t : Sink {
   Sink& to;
 
-  TunnelSink(Sink& to) : to(to) {}
+  tunnel_sink_t(Sink& to) : to(to) {}
 
   void operator()(std::string_view data) override {
     to << STDERR_WRITE;
@@ -172,11 +172,11 @@ struct TunnelSink : Sink {
   }
 };
 
-struct TunnelSource : BufferedSource {
+struct tunnel_source_t : buffered_source_t {
   Source& from;
-  BufferedSink& to;
+  buffered_sink_t& to;
 
-  TunnelSource(Source& from, BufferedSink& to) : from(from), to(to) {}
+  tunnel_source_t(Source& from, buffered_sink_t& to) : from(from), to(to) {}
 
   size_t readUnbuffered(char* data, size_t len) override {
     to << STDERR_READ << len;
@@ -188,17 +188,17 @@ struct TunnelSource : BufferedSource {
   }
 };
 
-struct ClientSettings {
+struct client_settings_t {
   bool keepFailed;
   bool keepGoing;
   bool tryFallback;
-  Verbosity verbosity;
+  verbosity_t verbosity;
   unsigned int maxBuildJobs;
   time_t maxSilentTime;
   bool verboseBuild;
   unsigned int buildCores;
   bool useSubstitutes;
-  StringMap overrides;
+  string_map_t overrides;
 
   void apply(TrustedFlag trusted) {
     settings.keepFailed = keepFailed;
@@ -215,14 +215,14 @@ struct ClientSettings {
       auto& name(i.first);
       auto& value(i.second);
 
-      auto setSubstituters = [&](Setting<Strings>& res) {
+      auto setSubstituters = [&](setting_t<strings_t>& res) {
         if (name != res.name && res.aliases.count(name) == 0)
           return false;
-        StringSet trusted = settings.trustedSubstituters;
+        string_set_t trusted = settings.trustedSubstituters;
         for (auto& s : settings.substituters.get())
           trusted.insert(s);
-        Strings subs;
-        auto ss = tokenizeString<Strings>(value);
+        strings_t subs;
+        auto ss = tokenizeString<strings_t>(value);
         for (auto& s : ss)
           if (trusted.count(s))
             subs.push_back(s);
@@ -243,7 +243,7 @@ struct ClientSettings {
         else if (name == experimentalFeatureSettings.experimentalFeatures.name) {
           // We don’t want to forward the experimental features to
           // the daemon, as that could cause some pretty weird stuff
-          if (parseFeatures(tokenizeString<StringSet>(value)) !=
+          if (parseFeatures(tokenizeString<string_set_t>(value)) !=
               experimentalFeatureSettings.experimentalFeatures.get())
             debug("Ignoring the client-specified experimental features");
         } else if (name == "plugin-files") {
@@ -267,7 +267,7 @@ struct ClientSettings {
   }
 };
 
-static void performOp(TunnelLogger* logger, ref<Store> store, TrustedFlag trusted,
+static void performOp(tunnel_logger_t* logger, ref<Store> store, TrustedFlag trusted,
                       RecursiveFlag recursive, WorkerProto::BasicServerConnection& conn,
                       WorkerProto::Op op) {
   WorkerProto::ReadConn rconn(conn);
@@ -326,7 +326,7 @@ static void performOp(TunnelLogger* logger, ref<Store> store, TrustedFlag truste
       logger->startWork();
       auto hash = store->queryPathInfo(path)->narHash;
       logger->stopWork();
-      conn.to << hash.to_string(HashFormat::Base16, false);
+      conn.to << hash.to_string(hash_format_t::Base16, false);
       break;
     }
 
@@ -403,18 +403,18 @@ static void performOp(TunnelLogger* logger, ref<Store> store, TrustedFlag truste
           // half-way through, the client will keep sending
           // data, since we haven't sent it the error yet.
           auto [contentAddressMethod, hashAlgo] = ContentAddressMethod::parseWithAlgo(camStr);
-          FramedSource source(conn.from);
-          FileSerialisationMethod dumpMethod;
+          framed_source_t source(conn.from);
+          file_serialisation_method_t dumpMethod;
           switch (contentAddressMethod.getFileIngestionMethod()) {
-            case FileIngestionMethod::Flat:
-              dumpMethod = FileSerialisationMethod::Flat;
+            case file_ingestion_method_t::Flat:
+              dumpMethod = file_serialisation_method_t::Flat;
               break;
-            case FileIngestionMethod::NixArchive:
-              dumpMethod = FileSerialisationMethod::NixArchive;
+            case file_ingestion_method_t::NixArchive:
+              dumpMethod = file_serialisation_method_t::NixArchive;
               break;
-            case FileIngestionMethod::Git:
+            case file_ingestion_method_t::Git:
               // Use NAR; Git is not a serialization method
-              dumpMethod = FileSerialisationMethod::NixArchive;
+              dumpMethod = file_serialisation_method_t::NixArchive;
               break;
             default:
               assert(false);
@@ -428,7 +428,7 @@ static void performOp(TunnelLogger* logger, ref<Store> store, TrustedFlag truste
 
         WorkerProto::Serialise<ValidPathInfo>::write(*store, wconn, *pathInfo);
       } else {
-        HashAlgorithm hashAlgo;
+        hash_algorithm_t hashAlgo;
         std::string baseName;
         ContentAddressMethod method;
         {
@@ -441,11 +441,11 @@ static void performOp(TunnelLogger* logger, ref<Store> store, TrustedFlag truste
                         "nix-daemon",
                         recursive);
           method =
-              recursive ? ContentAddressMethod::Raw::NixArchive : ContentAddressMethod::Raw::Flat;
+              recursive ? ContentAddressMethod::raw_t::NixArchive : ContentAddressMethod::raw_t::Flat;
           /* Compatibility hack. */
           if (!fixed) {
             hashAlgoRaw = "sha256";
-            method = ContentAddressMethod::Raw::NixArchive;
+            method = ContentAddressMethod::raw_t::NixArchive;
           }
           hashAlgo = parseHashAlgo(hashAlgoRaw);
         }
@@ -460,13 +460,13 @@ static void performOp(TunnelLogger* logger, ref<Store> store, TrustedFlag truste
              command. (We don't trust `addToStoreFromDump` to not
              eagerly consume the entire stream it's given, past the
              length of the Nar. */
-          TeeSource savedNARSource(conn.from, saved);
-          NullFileSystemObjectSink sink; /* just parse the NAR */
+          tee_source_t savedNARSource(conn.from, saved);
+          null_file_system_object_sink_t sink; /* just parse the NAR */
           parseDump(sink, savedNARSource);
         });
         logger->startWork();
         auto path = store->addToStoreFromDump(
-            *dumpSource, baseName, FileSerialisationMethod::NixArchive, method, hashAlgo);
+            *dumpSource, baseName, file_serialisation_method_t::NixArchive, method, hashAlgo);
         logger->stopWork();
 
         WorkerProto::write(*store, wconn, path);
@@ -482,7 +482,7 @@ static void performOp(TunnelLogger* logger, ref<Store> store, TrustedFlag truste
 
       logger->startWork();
       {
-        FramedSource source(conn.from);
+        framed_source_t source(conn.from);
         store->addMultipleToStore(source, RepairFlag{repair},
                                   dontCheckSigs ? NoCheckSigs : CheckSigs);
       }
@@ -496,9 +496,9 @@ static void performOp(TunnelLogger* logger, ref<Store> store, TrustedFlag truste
       auto refs = WorkerProto::Serialise<StorePathSet>::read(*store, rconn);
       logger->startWork();
       auto path = ({
-        StringSource source{s};
-        store->addToStoreFromDump(source, suffix, FileSerialisationMethod::Flat,
-                                  ContentAddressMethod::Raw::Text, HashAlgorithm::SHA256, refs,
+        string_source_t source{s};
+        store->addToStoreFromDump(source, suffix, file_serialisation_method_t::Flat,
+                                  ContentAddressMethod::raw_t::Text, hash_algorithm_t::SHA256, refs,
                                   NoRepair);
       });
       logger->stopWork();
@@ -518,7 +518,7 @@ static void performOp(TunnelLogger* logger, ref<Store> store, TrustedFlag truste
          this file) knows whether a client/connection is trusted, but it
          does not how how the client was authenticated. The mechanism
          need not be getting the UID of the other end of a Unix Domain
-         Socket.
+         socket_t.
         */
       if (mode == bmRepair && !trusted)
         throw Error("repairing is not allowed because you are not in 'trusted-users'");
@@ -727,16 +727,16 @@ static void performOp(TunnelLogger* logger, ref<Store> store, TrustedFlag truste
     }
 
     case WorkerProto::Op::SetOptions: {
-      ClientSettings clientSettings;
+      client_settings_t clientSettings;
 
       clientSettings.keepFailed = readInt(conn.from);
       clientSettings.keepGoing = readInt(conn.from);
       clientSettings.tryFallback = readInt(conn.from);
-      clientSettings.verbosity = (Verbosity)readInt(conn.from);
+      clientSettings.verbosity = (verbosity_t)readInt(conn.from);
       clientSettings.maxBuildJobs = readInt(conn.from);
       clientSettings.maxSilentTime = readInt(conn.from);
       readInt(conn.from); // obsolete useBuildHook
-      clientSettings.verboseBuild = lvlError == (Verbosity)readInt(conn.from);
+      clientSettings.verboseBuild = lvlError == (verbosity_t)readInt(conn.from);
       readInt(conn.from); // obsolete logType
       readInt(conn.from); // obsolete printBuildTrace
       clientSettings.buildCores = readInt(conn.from);
@@ -844,7 +844,7 @@ static void performOp(TunnelLogger* logger, ref<Store> store, TrustedFlag truste
 
     case WorkerProto::Op::AddSignatures: {
       auto path = WorkerProto::Serialise<StorePath>::read(*store, rconn);
-      StringSet sigs = readStrings<StringSet>(conn.from);
+      string_set_t sigs = readStrings<string_set_t>(conn.from);
       logger->startWork();
       store->addSignatures(path, sigs);
       logger->stopWork();
@@ -864,12 +864,12 @@ static void performOp(TunnelLogger* logger, ref<Store> store, TrustedFlag truste
       bool repair, dontCheckSigs;
       auto path = WorkerProto::Serialise<StorePath>::read(*store, rconn);
       auto deriver = WorkerProto::Serialise<std::optional<StorePath>>::read(*store, rconn);
-      auto narHash = Hash::parseAny(readString(conn.from), HashAlgorithm::SHA256);
+      auto narHash = Hash::parseAny(readString(conn.from), hash_algorithm_t::SHA256);
       ValidPathInfo info{path, {*store, narHash}};
       info.deriver = std::move(deriver);
       info.references = WorkerProto::Serialise<StorePathSet>::read(*store, rconn);
       conn.from >> info.registrationTime >> info.narSize >> info.ultimate;
-      info.sigs = readStrings<StringSet>(conn.from);
+      info.sigs = readStrings<string_set_t>(conn.from);
       info.ca = ContentAddress::parseOpt(readString(conn.from));
       conn.from >> repair >> dontCheckSigs;
       if (!trusted && dontCheckSigs)
@@ -880,7 +880,7 @@ static void performOp(TunnelLogger* logger, ref<Store> store, TrustedFlag truste
       if (GET_PROTOCOL_MINOR(conn.protoVersion) >= 23) {
         logger->startWork();
         {
-          FramedSource source(conn.from);
+          framed_source_t source(conn.from);
           store->addToStore(info, source, (RepairFlag)repair,
                             dontCheckSigs ? NoCheckSigs : CheckSigs);
         }
@@ -889,14 +889,14 @@ static void performOp(TunnelLogger* logger, ref<Store> store, TrustedFlag truste
 
       else {
         std::unique_ptr<Source> source;
-        StringSink saved;
+        string_sink_t saved;
         if (GET_PROTOCOL_MINOR(conn.protoVersion) >= 21)
-          source = std::make_unique<TunnelSource>(conn.from, conn.to);
+          source = std::make_unique<tunnel_source_t>(conn.from, conn.to);
         else {
-          TeeSource tee{conn.from, saved};
-          NullFileSystemObjectSink ether;
+          tee_source_t tee{conn.from, saved};
+          null_file_system_object_sink_t ether;
           parseDump(ether, tee);
-          source = std::make_unique<StringSource>(saved.s);
+          source = std::make_unique<string_source_t>(saved.s);
         }
 
         logger->startWork();
@@ -963,8 +963,8 @@ static void performOp(TunnelLogger* logger, ref<Store> store, TrustedFlag truste
         throw Error("you are not privileged to add logs");
       auto& logStore = require<LogStore>(*store);
       {
-        FramedSource source(conn.from);
-        StringSink sink;
+        framed_source_t source(conn.from);
+        string_sink_t sink;
         source.drainInto(sink);
         logStore.addBuildLog(path, sink.s);
       }
@@ -991,12 +991,12 @@ static void performOp(TunnelLogger* logger, ref<Store> store, TrustedFlag truste
   }
 }
 
-void processConnection(ref<Store> store, FdSource&& from, FdSink&& to, TrustedFlag trusted,
+void processConnection(ref<Store> store, fd_source_t&& from, fd_sink_t&& to, TrustedFlag trusted,
                        RecursiveFlag recursive) {
 #ifndef _WIN32 // TODO need graceful async exit support on Windows?
   auto monitor = !recursive ? std::make_unique<MonitorFdHup>(from.fd) : nullptr;
   (void)monitor; // suppress warning
-  ReceiveInterrupts receiveInterrupts;
+  receive_interrupts_t receiveInterrupts;
 #endif
 
   /* Exchange the greeting. */
@@ -1012,7 +1012,7 @@ void processConnection(ref<Store> store, FdSource&& from, FdSink&& to, TrustedFl
   conn.protoVersion = protoVersion;
   conn.features = features;
 
-  auto tunnelLogger_ = std::make_unique<TunnelLogger>(conn.to, protoVersion);
+  auto tunnelLogger_ = std::make_unique<tunnel_logger_t>(conn.to, protoVersion);
   auto tunnelLogger = tunnelLogger_.get();
   std::unique_ptr<Logger> prevLogger_;
   auto prevLogger = logger.get();
@@ -1025,7 +1025,7 @@ void processConnection(ref<Store> store, FdSource&& from, FdSink&& to, TrustedFl
 
   unsigned int opCount = 0;
 
-  Finally finally([&]() {
+  finally_t finally([&]() {
     setInterrupted(false);
     printMsgUsing(prevLogger, lvlDebug, "%d operations", opCount);
   });

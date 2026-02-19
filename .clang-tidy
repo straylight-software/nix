@@ -6,10 +6,10 @@
 #
 #                                                               — Neuromancer
 #
-# Semantic lint with teeth. Runs second in the lint pipeline.
-# Can fix or error. All warnings are errors.
+# Semantic lint with teeth. Maximum strictness. All warnings are errors.
+# This is the migraine config - everything enabled, nothing forgiven.
 #
-# See: docs/guidelines/03-cpp.md for rationale.
+# See: ~/src/weyl/weyl-std/docs/languages/cpp.md for rationale.
 #
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ---
@@ -19,43 +19,25 @@ UseColor: true
 #                                                                    // checks
 # ══════════════════════════════════════════════════════════════════════════════
 #
-# Philosophy: enable aggressively, disable surgically.
+# Philosophy: enable everything. disable nothing. feel the pain.
 #
 # ══════════════════════════════════════════════════════════════════════════════
 
 Checks: >
-  -*,
-
-  bugprone-*,
-  -bugprone-easily-swappable-parameters,
-  -bugprone-exception-escape,
-
-  cppcoreguidelines-*,
-  -cppcoreguidelines-avoid-magic-numbers,
-  -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
-  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
-  -cppcoreguidelines-pro-type-reinterpret-cast,
-  -cppcoreguidelines-owning-memory,
-
-  modernize-*,
-  -modernize-use-trailing-return-type,
-  -modernize-avoid-c-arrays,
-
-  performance-*,
-
-  readability-*,
-  -readability-magic-numbers,
-  -readability-identifier-length,
-  -readability-function-cognitive-complexity,
-
-  misc-*,
-  -misc-no-recursion,
-  -misc-non-private-member-variables-in-classes,
-  -misc-include-cleaner,
-
-  concurrency-*,
-
-  portability-*,
+  *,
+  -abseil-*,
+  -altera-*,
+  -android-*,
+  -darwin-*,
+  -fuchsia-*,
+  -google-*,
+  -hicpp-*,
+  -linuxkernel-*,
+  -llvm-*,
+  -llvmlibc-*,
+  -objc-*,
+  -openmp-*,
+  -zircon-*,
 
 WarningsAsErrors: '*'
 
@@ -128,7 +110,6 @@ CheckOptions:
   - key: readability-identifier-naming.TypedefCase
     value: lower_case
 
-  # n.b. template parameters are the exception — CamelCase for historical reasons
   - key: readability-identifier-naming.TemplateParameterCase
     value: CamelCase
 
@@ -157,6 +138,9 @@ CheckOptions:
   - key: readability-function-size.NestingThreshold
     value: 5
 
+  - key: readability-function-cognitive-complexity.Threshold
+    value: 25
+
   # ──────────────────────────────────────────────────────────────────────────
   #                                                            // modernize
   # ──────────────────────────────────────────────────────────────────────────
@@ -181,9 +165,12 @@ CheckOptions:
   # ──────────────────────────────────────────────────────────────────────────
 
   - key: performance-unnecessary-value-param.AllowedTypes
-    value: 'std::string_view;nv::std::span;std::span'
+    value: 'std::string_view;std::span'
 
   - key: performance-move-const-arg.CheckTriviallyCopyableMove
+    value: true
+
+  - key: performance-for-range-copy.WarnOnAllAutoCopies
     value: true
 
   # ──────────────────────────────────────────────────────────────────────────
@@ -195,6 +182,9 @@ CheckOptions:
 
   - key: misc-throw-by-value-catch-by-reference.CheckThrowTemporaries
     value: true
+
+  - key: misc-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic
+    value: false
 
   # ──────────────────────────────────────────────────────────────────────────
   #                                                          // bugprone
@@ -211,3 +201,27 @@ CheckOptions:
 
   - key: bugprone-string-constructor.LargeLengthThreshold
     value: 8388608
+
+  - key: bugprone-easily-swappable-parameters.MinimumLength
+    value: 2
+
+  # ──────────────────────────────────────────────────────────────────────────
+  #                                                    // cppcoreguidelines
+  # ──────────────────────────────────────────────────────────────────────────
+
+  - key: cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor
+    value: true
+
+  - key: cppcoreguidelines-macro-usage.AllowedRegexp
+    value: '^(CATCH_|TEST_|REQUIRE|CHECK|SECTION|INFO|WARN|FAIL|NIX_|RAPIDCHECK_)'
+
+# ══════════════════════════════════════════════════════════════════════════════
+#                                                               // header filter
+# ══════════════════════════════════════════════════════════════════════════════
+#
+# Check ALL headers in our source tree.
+#
+# ══════════════════════════════════════════════════════════════════════════════
+
+HeaderFilterRegex: '.*'
+SystemHeaders: false

@@ -21,7 +21,7 @@ void computeClosure(const set<T> startElts, set<T>& res, GetEdgesAsync<T> getEdg
     std::exception_ptr exc;
   };
 
-  Sync<State> state_(State{0, res, 0});
+  sync_t<State> state_(State{0, res, 0});
 
   std::condition_variable done;
 

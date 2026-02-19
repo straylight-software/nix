@@ -28,11 +28,11 @@ struct State {
 
 /* For each activated package, create symlinks */
 static void createLinks(State& state, const Path& srcDir, const Path& dstDir, int priority) {
-  DirectoryIterator srcFiles;
+  directory_iterator_t srcFiles;
 
   try {
-    srcFiles = DirectoryIterator{srcDir};
-  } catch (SysError& e) {
+    srcFiles = directory_iterator_t{srcDir};
+  } catch (sys_error_t& e) {
     if (e.errNo == ENOTDIR) {
       warn("not including '%s' in the user environment because it's not a directory", srcDir);
       return;
@@ -52,8 +52,8 @@ static void createLinks(State& state, const Path& srcDir, const Path& dstDir, in
     struct stat srcSt;
     try {
       if (stat(srcFile.c_str(), &srcSt) == -1)
-        throw SysError("getting status of '%1%'", srcFile);
-    } catch (SysError& e) {
+        throw sys_error_t("getting status of '%1%'", srcFile);
+    } catch (sys_error_t& e) {
       if (e.errNo == ENOENT || e.errNo == ENOTDIR) {
         warn("skipping dangling symlink '%s'", dstFile);
         continue;
@@ -85,14 +85,14 @@ static void createLinks(State& state, const Path& srcDir, const Path& dstDir, in
           if (!S_ISDIR(lstat(target).st_mode))
             throw Error("collision between '%1%' and non-directory '%2%'", srcFile, target);
           if (unlink(dstFile.c_str()) == -1)
-            throw SysError("unlinking '%1%'", dstFile);
+            throw sys_error_t("unlinking '%1%'", dstFile);
           if (mkdir(dstFile.c_str()
 #ifndef _WIN32 // TODO abstract mkdir perms for Windows
                         ,
                     0755
 #endif
                     ) == -1)
-            throw SysError("creating directory '%1%'", dstFile);
+            throw sys_error_t("creating directory '%1%'", dstFile);
           createLinks(state, target, dstFile, state.priorities[dstFile]);
           createLinks(state, srcFile, dstFile, priority);
           continue;
@@ -111,7 +111,7 @@ static void createLinks(State& state, const Path& srcDir, const Path& dstDir, in
           if (prevPriority < priority)
             continue;
           if (unlink(dstFile.c_str()) == -1)
-            throw SysError("unlinking '%1%'", dstFile);
+            throw sys_error_t("unlinking '%1%'", dstFile);
         } else if (S_ISDIR(dstSt.st_mode))
           throw Error("collision between non-directory '%1%' and directory '%2%'", srcFile,
                       dstFile);
@@ -127,7 +127,7 @@ static void createLinks(State& state, const Path& srcDir, const Path& dstDir, in
 void buildProfile(const Path& out, Packages&& pkgs) {
   State state;
 
-  PathSet done, postponed;
+  path_set_t done, postponed;
 
   auto addPkg = [&](const Path& pkgDir, int priority) {
     if (!done.insert(pkgDir).second)
@@ -139,7 +139,7 @@ void buildProfile(const Path& out, Packages&& pkgs) {
                readFile(pkgDir + "/nix-support/propagated-user-env-packages"), " \n"))
         if (!done.count(p))
           postponed.insert(p);
-    } catch (SysError& e) {
+    } catch (sys_error_t& e) {
       if (e.errNo != ENOENT && e.errNo != ENOTDIR)
         throw;
     }
@@ -163,7 +163,7 @@ void buildProfile(const Path& out, Packages&& pkgs) {
    */
   auto priorityCounter = 1000;
   while (!postponed.empty()) {
-    PathSet pkgDirs;
+    path_set_t pkgDirs;
     postponed.swap(pkgDirs);
     for (const auto& pkgDir : pkgDirs)
       addPkg(pkgDir, priorityCounter++);
@@ -187,7 +187,7 @@ static void builtinBuildenv(const BuiltinBuilderContext& ctx) {
    * coherent data type. */
   Packages pkgs;
   {
-    auto derivations = tokenizeString<Strings>(getAttr("derivations"));
+    auto derivations = tokenizeString<strings_t>(getAttr("derivations"));
 
     auto itemIt = derivations.begin();
     while (itemIt != derivations.end()) {

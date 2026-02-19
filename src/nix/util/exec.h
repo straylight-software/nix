@@ -10,6 +10,6 @@ namespace nix {
  *
  * We use our own implementation unconditionally for consistency.
  */
-int execvpe(const OsChar* file0, const OsChar* const argv[], const OsChar* const envp[]);
+int execvpe(const os_char_t* file0, const os_char_t* const argv[], const os_char_t* const envp[]);
 
 } // namespace nix

@@ -57,8 +57,96 @@ public:
   [[nodiscard]] virtual auto active_handles() const -> std::size_t = 0;
 };
 
+/// io_uring setup flags (can be OR'd together)
+enum class ring_flags : unsigned {
+  none = 0,
+  sqpoll = 1 << 0,        // kernel-side SQ polling (requires CAP_SYS_NICE or root)
+  iopoll = 1 << 1,        // busy-wait for completions (for NVMe/high-perf devices)
+  single_issuer = 1 << 2, // single thread submits (optimization hint)
+  defer_taskrun = 1 << 3, // defer task work to submit/wait (reduces interrupts)
+};
+
+constexpr auto operator|(ring_flags lhs, ring_flags rhs) -> ring_flags {
+  return static_cast<ring_flags>(static_cast<unsigned>(lhs) | static_cast<unsigned>(rhs));
+}
+
+constexpr auto operator&(ring_flags lhs, ring_flags rhs) -> ring_flags {
+  return static_cast<ring_flags>(static_cast<unsigned>(lhs) & static_cast<unsigned>(rhs));
+}
+
+constexpr auto operator~(ring_flags flags) -> ring_flags {
+  return static_cast<ring_flags>(~static_cast<unsigned>(flags));
+}
+
+/// SQPOLL configuration
+struct sqpoll_config {
+  unsigned idle_milliseconds = 1000; // idle time before kernel thread sleeps
+  int cpu = -1;                      // CPU to pin kernel thread to (-1 = no pinning)
+};
+
+// ============================================================================
+// Fixed file/buffer registration
+// ============================================================================
+
+/// registered file table - reduces per-op overhead for frequently used fds
+class registered_files {
+public:
+  virtual ~registered_files() = default;
+
+  /// number of registered file slots
+  [[nodiscard]] virtual auto capacity() const -> std::size_t = 0;
+
+  /// number of files currently registered
+  [[nodiscard]] virtual auto size() const -> std::size_t = 0;
+
+  /// register a file descriptor, returns slot index or -1 on failure
+  virtual auto add(int fd) -> int = 0;
+
+  /// update a slot with a new fd
+  virtual auto update(std::size_t slot, int fd) -> bool = 0;
+
+  /// remove a file from a slot
+  virtual auto remove(std::size_t slot) -> bool = 0;
+
+  /// get the fd at a slot (-1 if empty)
+  [[nodiscard]] virtual auto get(std::size_t slot) const -> int = 0;
+};
+
+/// registered buffer table - zero-copy I/O with pre-registered memory
+class registered_buffers {
+public:
+  virtual ~registered_buffers() = default;
+
+  /// number of registered buffer slots
+  [[nodiscard]] virtual auto capacity() const -> std::size_t = 0;
+
+  /// get buffer at slot
+  [[nodiscard]] virtual auto get(std::size_t slot) const -> std::span<std::byte> = 0;
+
+  /// get all buffers
+  [[nodiscard]] virtual auto buffers() const -> std::span<const std::span<std::byte>> = 0;
+};
+
 /// create an io_uring-backed ring
 auto make_io_uring_ring(unsigned entries = 256, unsigned flags = 0) -> std::unique_ptr<ring>;
+
+/// create an io_uring-backed ring with typed flags
+auto make_io_uring_ring(unsigned entries, ring_flags flags, sqpoll_config const& sqpoll = {})
+    -> std::unique_ptr<ring>;
+
+/// register files with a ring for reduced per-op overhead
+/// returns nullptr if registration fails
+auto register_files(ring& ring_instance, std::span<const int> fds)
+    -> std::unique_ptr<registered_files>;
+
+/// register files with pre-allocated slots (for dynamic add/remove)
+auto register_file_slots(ring& ring_instance, std::size_t num_slots)
+    -> std::unique_ptr<registered_files>;
+
+/// register buffers with a ring for zero-copy I/O
+/// buffers must remain valid for the lifetime of the returned object
+auto register_buffers(ring& ring_instance, std::span<std::span<std::byte>> bufs)
+    -> std::unique_ptr<registered_buffers>;
 
 /// run a machine against a ring until done
 template <typename M>

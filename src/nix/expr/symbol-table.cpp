@@ -14,7 +14,7 @@ static void* allocateLazyMemory(size_t maxSize) {
   auto p = mmap(nullptr, maxSize, PROT_READ | PROT_WRITE,
                 MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
   if (p == MAP_FAILED)
-    throw SysError("allocating arena using mmap");
+    throw sys_error_t("allocating arena using mmap");
   return p;
 }
 

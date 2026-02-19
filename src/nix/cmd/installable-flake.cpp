@@ -57,12 +57,12 @@ static std::string showAttrPaths(const std::vector<std::string>& paths) {
 
 InstallableFlake::InstallableFlake(SourceExprCommand* cmd, ref<EvalState> state,
                                    FlakeRef&& flakeRef, std::string_view fragment,
-                                   ExtendedOutputsSpec extendedOutputsSpec, Strings attrPaths,
-                                   Strings prefixes, const flake::LockFlags& lockFlags)
+                                   ExtendedOutputsSpec extendedOutputsSpec, strings_t attrPaths,
+                                   strings_t prefixes, const flake::LockFlags& lockFlags)
     : InstallableValue(state),
       flakeRef(flakeRef),
-      attrPaths(fragment == "" ? attrPaths : Strings{(std::string)fragment}),
-      prefixes(fragment == "" ? Strings{} : prefixes),
+      attrPaths(fragment == "" ? attrPaths : strings_t{(std::string)fragment}),
+      prefixes(fragment == "" ? strings_t{} : prefixes),
       extendedOutputsSpec(std::move(extendedOutputsSpec)),
       lockFlags(lockFlags) {
   if (cmd && cmd->getAutoArgs(*state)->size())
@@ -70,7 +70,7 @@ InstallableFlake::InstallableFlake(SourceExprCommand* cmd, ref<EvalState> state,
 }
 
 DerivedPathsWithInfo InstallableFlake::toDerivedPaths() {
-  Activity act(*logger, lvlTalkative, actUnknown, fmt("evaluating derivation '%s'", what()));
+  activity_t act(*logger, lvlTalkative, actUnknown, fmt("evaluating derivation '%s'", what()));
 
   auto attr = getCursor(*state);
 
@@ -108,7 +108,7 @@ DerivedPathsWithInfo InstallableFlake::toDerivedPaths() {
               .outputs = std::visit(
                   overloaded{
                       [&](const ExtendedOutputsSpec::Default& d) -> OutputsSpec {
-                        StringSet outputsToInstall;
+                        string_set_t outputsToInstall;
                         if (auto aOutputSpecified = attr->maybeGetAttr(state->s.outputSpecified)) {
                           if (aOutputSpecified->getBool()) {
                             if (auto aOutputName = attr->maybeGetAttr("outputName"))
@@ -142,7 +142,7 @@ DerivedPathsWithInfo InstallableFlake::toDerivedPaths() {
   }};
 }
 
-std::pair<Value*, PosIdx> InstallableFlake::toValue(EvalState& state) {
+std::pair<Value*, pos_idx_t> InstallableFlake::toValue(EvalState& state) {
   return {&getCursor(state)->forceValue(), noPos};
 }
 
@@ -153,7 +153,7 @@ std::vector<ref<eval_cache::AttrCursor>> InstallableFlake::getCursors(EvalState&
 
   std::vector<ref<eval_cache::AttrCursor>> res;
 
-  Suggestions suggestions;
+  suggestions_t suggestions;
   auto attrPaths = getActualAttrPaths();
 
   for (auto& attrPath : attrPaths) {

@@ -17,7 +17,7 @@ namespace nix {
  *
  * @note All fields are already percent decoded.
  */
-struct ParsedURL {
+struct parsed_url_t {
   /**
    * Parsed representation of a URL authority.
    *
@@ -26,23 +26,23 @@ struct ParsedURL {
    *
    * @todo Maybe support passwords in userinfo part of the url for auth.
    */
-  struct Authority {
-    enum class HostType {
+  struct authority_t {
+    enum class host_type_t {
       Name, //< Registered name (can be empty)
       IPv4,
       IPv6,
       IPvFuture
     };
 
-    static Authority parse(std::string_view encodedAuthority);
-    auto operator<=>(const Authority& other) const = default;
+    static authority_t parse(std::string_view encodedAuthority);
+    auto operator<=>(const authority_t& other) const = default;
     std::string to_string() const;
-    friend std::ostream& operator<<(std::ostream& os, const Authority& self);
+    friend std::ostream& operator<<(std::ostream& os, const authority_t& self);
 
     /**
      * Type of the host subcomponent, as specified by rfc3986 3.2.2. Host.
      */
-    HostType hostType = HostType::Name;
+    host_type_t hostType = host_type_t::Name;
 
     /**
      * Host subcomponent. Either a registered name or IPv{4,6,Future} literal addresses.
@@ -80,7 +80,7 @@ struct ParsedURL {
    * The presence of the authority is indicated by `//` following the <scheme>:
    * part of the URL.
    */
-  std::optional<Authority> authority;
+  std::optional<authority_t> authority;
 
   /**
    * @note Unlike Unix paths, URLs provide a way to escape path
@@ -204,7 +204,7 @@ struct ParsedURL {
    */
   std::vector<std::string> path;
 
-  StringMap query;
+  string_map_t query;
 
   std::string fragment;
 
@@ -227,12 +227,12 @@ struct ParsedURL {
    */
   std::string renderPath(bool encode = false) const;
 
-  auto operator<=>(const ParsedURL& other) const noexcept = default;
+  auto operator<=>(const parsed_url_t& other) const noexcept = default;
 
   /**
    * Remove `.` and `..` path segments.
    */
-  ParsedURL canonicalise();
+  parsed_url_t canonicalise();
 
   /**
    * Get a range of path segments (the substrings separated by '/' characters).
@@ -248,7 +248,7 @@ struct ParsedURL {
   }
 };
 
-std::ostream& operator<<(std::ostream& os, const ParsedURL& url);
+std::ostream& operator<<(std::ostream& os, const parsed_url_t& url);
 
 MakeError(BadURL, Error);
 
@@ -274,12 +274,12 @@ std::string encodeUrlPath(std::span<const std::string> urlPath);
 /**
  * @param lenient @see parseURL
  */
-StringMap decodeQuery(std::string_view query, bool lenient = false);
+string_map_t decodeQuery(std::string_view query, bool lenient = false);
 
-std::string encodeQuery(const StringMap& query);
+std::string encodeQuery(const string_map_t& query);
 
 /**
- * Parse a URL into a ParsedURL.
+ * Parse a URL into a parsed_url_t.
  *
  * @parm lenient Also allow some long-supported Nix URIs that are not quite compliant with RFC3986.
  * Here are the deviations:
@@ -296,7 +296,7 @@ std::string encodeQuery(const StringMap& query);
  * that it includes various scheme-specific normalizations / extra steps
  * that we do not implement.
  */
-ParsedURL parseURL(std::string_view url, bool lenient = false);
+parsed_url_t parseURL(std::string_view url, bool lenient = false);
 
 /**
  * Like `parseURL`, but also accepts relative URLs, which are resolved
@@ -311,7 +311,7 @@ ParsedURL parseURL(std::string_view url, bool lenient = false);
  * constructor, except for extra steps specific to the HTTP scheme. See
  * `parseURL` for link to the relevant WHATWG standard.
  */
-ParsedURL parseURLRelative(std::string_view url, const ParsedURL& base);
+parsed_url_t parseURLRelative(std::string_view url, const parsed_url_t& base);
 
 /**
  * Although that’s not really standardized anywhere, an number of tools
@@ -321,12 +321,12 @@ ParsedURL parseURLRelative(std::string_view url, const ParsedURL& base);
  * For example git uses `git+https` to designate remotes using a Git
  * protocol over http.
  */
-struct ParsedUrlScheme {
+struct parsed_url_scheme_t {
   std::optional<std::string_view> application;
   std::string_view transport;
 };
 
-ParsedUrlScheme parseUrlScheme(std::string_view scheme);
+parsed_url_scheme_t parseUrlScheme(std::string_view scheme);
 
 /**
  * Detects scp-style uris (e.g. `git@github.com:NixOS/nix`) and fixes
@@ -334,7 +334,7 @@ ParsedUrlScheme parseUrlScheme(std::string_view scheme);
  * drops `git+` from the scheme (e.g. `git+https://` to `https://`)
  * and changes absolute paths into `file://` URLs.
  */
-ParsedURL fixGitURL(std::string url);
+parsed_url_t fixGitURL(std::string url);
 
 /**
  * Whether a string is valid as RFC 3986 scheme name.
@@ -346,9 +346,9 @@ ParsedURL fixGitURL(std::string url);
 bool isValidSchemeName(std::string_view scheme);
 
 /**
- * Either a ParsedURL or a verbatim string. This is necessary because in certain cases URI must be
+ * Either a parsed_url_t or a verbatim string. This is necessary because in certain cases URI must be
  * passed verbatim (e.g. in builtin fetchers), since those are specified by the user. In those cases
- * normalizations performed by the ParsedURL might be surprising and undesirable, since Nix must be
+ * normalizations performed by the parsed_url_t might be surprising and undesirable, since Nix must be
  * a universal client that has to work with various broken services that might interpret URLs in
  * quirky and non-standard ways.
  *
@@ -357,28 +357,28 @@ bool isValidSchemeName(std::string_view scheme);
  *
  * Though we perform parsing and validation for internal needs.
  */
-struct VerbatimURL {
-  using Raw = std::variant<std::string, ParsedURL>;
-  Raw raw;
+struct verbatim_url_t {
+  using raw_t = std::variant<std::string, parsed_url_t>;
+  raw_t raw;
 
-  VerbatimURL(std::string_view s) : raw(std::string{s}) {}
+  verbatim_url_t(std::string_view s) : raw(std::string{s}) {}
 
-  VerbatimURL(std::string s) : raw(std::move(s)) {}
+  verbatim_url_t(std::string s) : raw(std::move(s)) {}
 
-  VerbatimURL(ParsedURL url) : raw(std::move(url)) {}
+  verbatim_url_t(parsed_url_t url) : raw(std::move(url)) {}
 
   /**
    * Get the encoded URL (if specified) verbatim or encode the parsed URL.
    */
   std::string to_string() const {
     return std::visit(overloaded{[](const std::string& str) { return str; },
-                                 [](const ParsedURL& url) { return url.to_string(); }},
+                                 [](const parsed_url_t& url) { return url.to_string(); }},
                       raw);
   }
 
-  const ParsedURL parsed() const {
+  const parsed_url_t parsed() const {
     return std::visit(overloaded{[](const std::string& str) { return parseURL(str); },
-                                 [](const ParsedURL& url) { return url; }},
+                                 [](const parsed_url_t& url) { return url; }},
                       raw);
   }
 
@@ -390,7 +390,7 @@ struct VerbatimURL {
                        throw BadURL("URL '%s' doesn't have a scheme", str);
                      return *scheme;
                    },
-                   [](const ParsedURL& url) -> std::string_view { return url.scheme; }},
+                   [](const parsed_url_t& url) -> std::string_view { return url.scheme; }},
         raw);
   }
 
@@ -406,6 +406,6 @@ struct VerbatimURL {
   std::optional<std::string> lastPathSegment() const;
 };
 
-std::ostream& operator<<(std::ostream& os, const VerbatimURL& url);
+std::ostream& operator<<(std::ostream& os, const verbatim_url_t& url);
 
 } // namespace nix

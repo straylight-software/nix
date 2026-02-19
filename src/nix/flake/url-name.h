@@ -2,7 +2,7 @@
 #include <string>
 
 namespace nix {
-struct ParsedURL;
+struct parsed_url_t;
 
 /**
  * Try to extract a reasonably unique and meaningful, human-readable
@@ -14,6 +14,6 @@ struct ParsedURL;
  * flake output, for example because it is empty or "default".
  * Otherwise returns the extracted name.
  */
-std::optional<std::string> getNameFromURL(const ParsedURL& url);
+std::optional<std::string> getNameFromURL(const parsed_url_t& url);
 
 } // namespace nix

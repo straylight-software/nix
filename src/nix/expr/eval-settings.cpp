@@ -9,8 +9,8 @@ namespace nix {
 
 /* Very hacky way to parse $NIX_PATH, which is colon-separated, but
    can contain URLs (e.g. "nixpkgs=https://bla...:foo=https://"). */
-Strings EvalSettings::parseNixPath(const std::string& s) {
-  Strings res;
+strings_t EvalSettings::parseNixPath(const std::string& s) {
+  strings_t res;
 
   auto p = s.begin();
 
@@ -55,8 +55,8 @@ EvalSettings::EvalSettings(bool& readOnlyMode, EvalSettings::LookupPathHooks loo
     builtinsAbortOnWarn = true;
 }
 
-Strings EvalSettings::getDefaultNixPath() {
-  Strings res;
+strings_t EvalSettings::getDefaultNixPath() {
+  strings_t res;
   auto add = [&](const std::filesystem::path& p, const std::string& s = std::string()) {
     if (std::filesystem::exists(p)) {
       if (s.empty()) {

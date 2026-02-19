@@ -11,22 +11,22 @@
 
 namespace nix {
 
-class PosTable {
+class pos_table_t {
 public:
-  class Origin {
-    friend PosTable;
+  class origin_t {
+    friend pos_table_t;
 
   private:
     uint32_t offset;
 
-    Origin(Pos::Origin origin, uint32_t offset, size_t size)
+    origin_t(Pos::origin_t origin, uint32_t offset, size_t size)
         : offset(offset), origin(origin), size(size) {}
 
   public:
-    const Pos::Origin origin;
+    const Pos::origin_t origin;
     const size_t size;
 
-    uint32_t offsetOf(PosIdx p) const { return p.id - 1 - offset; }
+    uint32_t offsetOf(pos_idx_t p) const { return p.id - 1 - offset; }
   };
 
 private:
@@ -35,24 +35,24 @@ private:
    * Sorted by construction. Binary search over it allows for efficient translation of arbitrary
    * byte offsets in the virtual input buffer to its line + column position.
    */
-  using Lines = std::vector<uint32_t>;
+  using lines_t = std::vector<uint32_t>;
   /**
-   * Cache from byte offset in the virtual buffer of Origins -> @ref Lines in that origin.
+   * Cache from byte offset in the virtual buffer of Origins -> @ref lines_t in that origin.
    */
-  using LinesCache = LRUCache<uint32_t, Lines>;
+  using lines_cache_t = lru_cache_t<uint32_t, lines_t>;
 
-  mutable Sync<LinesCache> linesCache;
+  mutable sync_t<lines_cache_t> linesCache;
 
   // FIXME: this could be made lock-free (at least for access) if we
   // have a data structure where pointers to existing positions are
   // never invalidated.
   struct State {
-    std::map<uint32_t, Origin> origins;
+    std::map<uint32_t, origin_t> origins;
   };
 
-  SharedSync<State> state_;
+  shared_sync_t<State> state_;
 
-  const Origin* resolve(PosIdx p) const {
+  const origin_t* resolve(pos_idx_t p) const {
     if (p.id == 0)
       return nullptr;
 
@@ -66,9 +66,9 @@ private:
   }
 
 public:
-  PosTable(std::size_t linesCacheCapacity = 65536) : linesCache(linesCacheCapacity) {}
+  pos_table_t(std::size_t linesCacheCapacity = 65536) : linesCache(linesCacheCapacity) {}
 
-  Origin addOrigin(Pos::Origin origin, size_t size) {
+  origin_t addOrigin(Pos::origin_t origin, size_t size) {
     auto state(state_.lock());
     uint32_t offset = 0;
     if (auto it = state->origins.rbegin(); it != state->origins.rend())
@@ -77,30 +77,30 @@ public:
     // another +1 to ensure that all origins can point to EOF, eg
     // on (invalid) empty inputs.
     if (2 + offset + size < offset)
-      return Origin{origin, offset, 0};
-    return state->origins.emplace(offset, Origin{origin, offset, size}).first->second;
+      return origin_t{origin, offset, 0};
+    return state->origins.emplace(offset, origin_t{origin, offset, size}).first->second;
   }
 
-  PosIdx add(const Origin& origin, size_t offset) {
+  pos_idx_t add(const origin_t& origin, size_t offset) {
     if (offset > origin.size)
-      return PosIdx();
-    return PosIdx(1 + origin.offset + offset);
+      return pos_idx_t();
+    return pos_idx_t(1 + origin.offset + offset);
   }
 
   /**
-   * Convert a byte-offset PosIdx into a Pos with line/column information.
+   * Convert a byte-offset pos_idx_t into a Pos with line/column information.
    *
    * @param p Byte offset into the virtual concatenation of all parsed contents
    * @return Position
    *
    * @warning Very expensive to call, as this has to read the entire source
    * into memory each time. Call this only if absolutely necessary. Prefer
-   * to keep PosIdx around instead of needlessly converting it into Pos by
+   * to keep pos_idx_t around instead of needlessly converting it into Pos by
    * using this lookup method.
    */
-  Pos operator[](PosIdx p) const;
+  Pos operator[](pos_idx_t p) const;
 
-  Pos::Origin originOf(PosIdx p) const {
+  Pos::origin_t originOf(pos_idx_t p) const {
     if (auto o = resolve(p))
       return o->origin;
     return std::monostate{};

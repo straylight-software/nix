@@ -32,6 +32,98 @@ cxx_library(
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
+# LRU cache primitives (header-only, O(1) operations, thread-safe variant)
+# ─────────────────────────────────────────────────────────────────────────────
+
+cxx_library(
+    name = "lru_cache",
+
+    # Header-only library
+    srcs = [],
+
+    exported_headers = [
+        "lru_cache.h",
+    ],
+
+    header_namespace = "straylight/nix/primitives",
+
+    visibility = ["PUBLIC"],
+
+    compiler_flags = [
+        "-std=c++23",
+    ],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Scope guard primitives (finally, scope_success, scope_fail)
+# ─────────────────────────────────────────────────────────────────────────────
+
+cxx_library(
+    name = "finally",
+
+    # Header-only library
+    srcs = [],
+
+    exported_headers = [
+        "finally.h",
+    ],
+
+    header_namespace = "straylight/nix/primitives",
+
+    visibility = ["PUBLIC"],
+
+    compiler_flags = [
+        "-std=c++23",
+    ],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Callback primitives (one-shot promise/future wrapper)
+# ─────────────────────────────────────────────────────────────────────────────
+
+cxx_library(
+    name = "callback",
+
+    # Header-only library
+    srcs = [],
+
+    exported_headers = [
+        "callback.h",
+    ],
+
+    header_namespace = "straylight/nix/primitives",
+
+    visibility = ["PUBLIC"],
+
+    compiler_flags = [
+        "-std=c++23",
+    ],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ChunkedVector primitive (header-only, stable references)
+# ─────────────────────────────────────────────────────────────────────────────
+
+cxx_library(
+    name = "chunked_vector",
+
+    # Header-only library
+    srcs = [],
+
+    exported_headers = [
+        "chunked_vector.h",
+    ],
+
+    header_namespace = "straylight/nix/primitives",
+
+    visibility = ["PUBLIC"],
+
+    compiler_flags = [
+        "-std=c++23",
+    ],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
 # String primitives (header-only, adaptive stringzilla/std backend)
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -192,6 +284,194 @@ cxx_library(
 
     deps = [
         "//third_party:rapidfuzz-cpp",
+    ],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Format primitives (std::format based, replaces boost::format)
+# ─────────────────────────────────────────────────────────────────────────────
+
+cxx_library(
+    name = "format",
+
+    # Header-only library
+    srcs = [],
+
+    exported_headers = [
+        "format.h",
+    ],
+
+    header_namespace = "straylight/nix/primitives",
+
+    visibility = ["PUBLIC"],
+
+    compiler_flags = [
+        "-std=c++23",
+    ],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Checked arithmetic primitives (checked_add/sub/mul, saturating variants)
+# ─────────────────────────────────────────────────────────────────────────────
+
+cxx_library(
+    name = "checked_arithmetic",
+
+    # Header-only library
+    srcs = [],
+
+    exported_headers = [
+        "checked_arithmetic.h",
+    ],
+
+    header_namespace = "straylight/nix/primitives",
+
+    visibility = ["PUBLIC"],
+
+    compiler_flags = [
+        "-std=c++23",
+    ],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Pool primitives (thread-safe resource pool with RAII handles)
+# ─────────────────────────────────────────────────────────────────────────────
+
+cxx_library(
+    name = "pool",
+
+    # Header-only library
+    srcs = [],
+
+    exported_headers = [
+        "pool.h",
+    ],
+
+    header_namespace = "straylight/nix/primitives",
+
+    visibility = ["PUBLIC"],
+
+    compiler_flags = [
+        "-std=c++23",
+    ],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# XML writer primitives (streaming XML generation)
+# ─────────────────────────────────────────────────────────────────────────────
+
+cxx_library(
+    name = "xml_writer",
+
+    # Header-only library
+    srcs = [],
+
+    exported_headers = [
+        "xml_writer.h",
+    ],
+
+    header_namespace = "straylight/nix/primitives",
+
+    visibility = ["PUBLIC"],
+
+    compiler_flags = [
+        "-std=c++23",
+    ],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Sync primitives (thread-safe value wrapper with RAII locking)
+# ─────────────────────────────────────────────────────────────────────────────
+
+cxx_library(
+    name = "sync",
+
+    # Header-only library
+    srcs = [],
+
+    exported_headers = [
+        "sync.h",
+    ],
+
+    header_namespace = "straylight/nix/primitives",
+
+    visibility = ["PUBLIC"],
+
+    compiler_flags = [
+        "-std=c++23",
+    ],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Ref primitives (non-nullable smart pointer wrapper)
+# ─────────────────────────────────────────────────────────────────────────────
+
+cxx_library(
+    name = "ref",
+
+    # Header-only library
+    srcs = [],
+
+    exported_headers = [
+        "ref.h",
+    ],
+
+    header_namespace = "straylight/nix/primitives",
+
+    visibility = ["PUBLIC"],
+
+    compiler_flags = [
+        "-std=c++23",
+    ],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Topological sort primitives (Kahn's algorithm, O(V+E), cycle detection)
+# ─────────────────────────────────────────────────────────────────────────────
+
+cxx_library(
+    name = "topo_sort",
+
+    # Header-only library
+    srcs = [],
+
+    exported_headers = [
+        "topo_sort.h",
+    ],
+
+    header_namespace = "straylight/nix/primitives",
+
+    visibility = ["PUBLIC"],
+
+    compiler_flags = [
+        "-std=c++23",
+    ],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Signals primitives (interrupt handling, signal management, RAII signal blocking)
+# ─────────────────────────────────────────────────────────────────────────────
+
+cxx_library(
+    name = "signals",
+
+    # Header-only library
+    srcs = [],
+
+    exported_headers = [
+        "signals.h",
+    ],
+
+    header_namespace = "straylight/nix/primitives",
+
+    visibility = ["PUBLIC"],
+
+    compiler_flags = [
+        "-std=c++23",
+    ],
+
+    linker_flags = [
+        "-pthread",
     ],
 )
 

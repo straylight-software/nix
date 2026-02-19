@@ -19,7 +19,7 @@ GENERATE_CMP_EXT(, std::strong_ordering, SingleDerivedPathBuilt, *me->drvPath, m
 GENERATE_EQUAL(, DerivedPathBuilt ::, DerivedPathBuilt, *me->drvPath, me->outputs);
 GENERATE_ONE_CMP(, bool, DerivedPathBuilt ::, <, DerivedPathBuilt, *me->drvPath, me->outputs);
 
-std::string DerivedPath::Opaque::to_string(const StoreDirConfig& store) const {
+std::string DerivedPath::opaque_t::to_string(const StoreDirConfig& store) const {
   return store.printStorePath(path);
 }
 
@@ -51,7 +51,7 @@ std::string SingleDerivedPath::to_string_legacy(const StoreDirConfig& store) con
   return std::visit(
       overloaded{
           [&](const SingleDerivedPath::Built& req) { return req.to_string_legacy(store); },
-          [&](const SingleDerivedPath::Opaque& req) { return req.to_string(store); },
+          [&](const SingleDerivedPath::opaque_t& req) { return req.to_string(store); },
       },
       this->raw());
 }
@@ -59,23 +59,23 @@ std::string SingleDerivedPath::to_string_legacy(const StoreDirConfig& store) con
 std::string DerivedPath::to_string_legacy(const StoreDirConfig& store) const {
   return std::visit(overloaded{
                         [&](const DerivedPath::Built& req) { return req.to_string_legacy(store); },
-                        [&](const DerivedPath::Opaque& req) { return req.to_string(store); },
+                        [&](const DerivedPath::opaque_t& req) { return req.to_string(store); },
                     },
                     this->raw());
 }
 
-DerivedPath::Opaque DerivedPath::Opaque::parse(const StoreDirConfig& store, std::string_view s) {
+DerivedPath::opaque_t DerivedPath::opaque_t::parse(const StoreDirConfig& store, std::string_view s) {
   return {store.parseStorePath(s)};
 }
 
 void drvRequireExperiment(const SingleDerivedPath& drv,
-                          const ExperimentalFeatureSettings& xpSettings) {
+                          const experimental_feature_settings_t& xpSettings) {
   std::visit(overloaded{
-                 [&](const SingleDerivedPath::Opaque&) {
+                 [&](const SingleDerivedPath::opaque_t&) {
                    // plain drv path; no experimental features required.
                  },
                  [&](const SingleDerivedPath::Built& b) {
-                   xpSettings.require(Xp::DynamicDerivations, [&] {
+                   xpSettings.require(xp_t::DynamicDerivations, [&] {
                      return fmt("building output '%s' of '%s'", b.output,
                                 b.drvPath->getBaseStorePath().to_string());
                    });
@@ -87,7 +87,7 @@ void drvRequireExperiment(const SingleDerivedPath& drv,
 SingleDerivedPath::Built
 SingleDerivedPath::Built::parse(const StoreDirConfig& store, ref<const SingleDerivedPath> drv,
                                 OutputNameView output,
-                                const ExperimentalFeatureSettings& xpSettings) {
+                                const experimental_feature_settings_t& xpSettings) {
   drvRequireExperiment(*drv, xpSettings);
   return {
       .drvPath = drv,
@@ -98,7 +98,7 @@ SingleDerivedPath::Built::parse(const StoreDirConfig& store, ref<const SingleDer
 DerivedPath::Built DerivedPath::Built::parse(const StoreDirConfig& store,
                                              ref<const SingleDerivedPath> drv,
                                              OutputNameView outputsS,
-                                             const ExperimentalFeatureSettings& xpSettings) {
+                                             const experimental_feature_settings_t& xpSettings) {
   drvRequireExperiment(*drv, xpSettings);
   return {
       .drvPath = drv,
@@ -108,9 +108,9 @@ DerivedPath::Built DerivedPath::Built::parse(const StoreDirConfig& store,
 
 static SingleDerivedPath parseWithSingle(const StoreDirConfig& store, std::string_view s,
                                          std::string_view separator,
-                                         const ExperimentalFeatureSettings& xpSettings) {
+                                         const experimental_feature_settings_t& xpSettings) {
   size_t n = s.rfind(separator);
-  return n == s.npos ? (SingleDerivedPath)SingleDerivedPath::Opaque::parse(store, s)
+  return n == s.npos ? (SingleDerivedPath)SingleDerivedPath::opaque_t::parse(store, s)
                      : (SingleDerivedPath)SingleDerivedPath::Built::parse(
                            store,
                            make_ref<const SingleDerivedPath>(
@@ -119,20 +119,20 @@ static SingleDerivedPath parseWithSingle(const StoreDirConfig& store, std::strin
 }
 
 SingleDerivedPath SingleDerivedPath::parse(const StoreDirConfig& store, std::string_view s,
-                                           const ExperimentalFeatureSettings& xpSettings) {
+                                           const experimental_feature_settings_t& xpSettings) {
   return parseWithSingle(store, s, "^", xpSettings);
 }
 
 SingleDerivedPath SingleDerivedPath::parseLegacy(const StoreDirConfig& store, std::string_view s,
-                                                 const ExperimentalFeatureSettings& xpSettings) {
+                                                 const experimental_feature_settings_t& xpSettings) {
   return parseWithSingle(store, s, "!", xpSettings);
 }
 
 static DerivedPath parseWith(const StoreDirConfig& store, std::string_view s,
                              std::string_view separator,
-                             const ExperimentalFeatureSettings& xpSettings) {
+                             const experimental_feature_settings_t& xpSettings) {
   size_t n = s.rfind(separator);
-  return n == s.npos ? (DerivedPath)DerivedPath::Opaque::parse(store, s)
+  return n == s.npos ? (DerivedPath)DerivedPath::opaque_t::parse(store, s)
                      : (DerivedPath)DerivedPath::Built::parse(
                            store,
                            make_ref<const SingleDerivedPath>(
@@ -141,18 +141,18 @@ static DerivedPath parseWith(const StoreDirConfig& store, std::string_view s,
 }
 
 DerivedPath DerivedPath::parse(const StoreDirConfig& store, std::string_view s,
-                               const ExperimentalFeatureSettings& xpSettings) {
+                               const experimental_feature_settings_t& xpSettings) {
   return parseWith(store, s, "^", xpSettings);
 }
 
 DerivedPath DerivedPath::parseLegacy(const StoreDirConfig& store, std::string_view s,
-                                     const ExperimentalFeatureSettings& xpSettings) {
+                                     const experimental_feature_settings_t& xpSettings) {
   return parseWith(store, s, "!", xpSettings);
 }
 
 DerivedPath DerivedPath::fromSingle(const SingleDerivedPath& req) {
   return std::visit(overloaded{
-                        [&](const SingleDerivedPath::Opaque& o) -> DerivedPath { return o; },
+                        [&](const SingleDerivedPath::opaque_t& o) -> DerivedPath { return o; },
                         [&](const SingleDerivedPath::Built& b) -> DerivedPath {
                           return DerivedPath::Built{
                               .drvPath = b.drvPath,
@@ -176,7 +176,7 @@ static inline const StorePath& getBaseStorePath_(const DP& derivedPath) {
   return std::visit(
       overloaded{
           [&](const typename DP::Built& bfd) -> auto& { return bfd.drvPath->getBaseStorePath(); },
-          [&](const typename DP::Opaque& bo) -> auto& { return bo.path; },
+          [&](const typename DP::opaque_t& bo) -> auto& { return bo.path; },
       },
       derivedPath.raw());
 }
@@ -193,13 +193,13 @@ const StorePath& DerivedPath::getBaseStorePath() const {
 
 namespace nlohmann {
 
-void adl_serializer<SingleDerivedPath::Opaque>::to_json(json& json,
-                                                        const SingleDerivedPath::Opaque& o) {
+void adl_serializer<SingleDerivedPath::opaque_t>::to_json(json& json,
+                                                        const SingleDerivedPath::opaque_t& o) {
   json = o.path;
 }
 
-SingleDerivedPath::Opaque adl_serializer<SingleDerivedPath::Opaque>::from_json(const json& json) {
-  return SingleDerivedPath::Opaque{json};
+SingleDerivedPath::opaque_t adl_serializer<SingleDerivedPath::opaque_t>::from_json(const json& json) {
+  return SingleDerivedPath::opaque_t{json};
 }
 
 void adl_serializer<SingleDerivedPath::Built>::to_json(json& json,
@@ -219,7 +219,7 @@ void adl_serializer<DerivedPath::Built>::to_json(json& json, const DerivedPath::
 
 SingleDerivedPath::Built
 adl_serializer<SingleDerivedPath::Built>::from_json(const json& json0,
-                                                    const ExperimentalFeatureSettings& xpSettings) {
+                                                    const experimental_feature_settings_t& xpSettings) {
   auto& json = getObject(json0);
   auto drvPath =
       make_ref<SingleDerivedPath>(static_cast<SingleDerivedPath>(valueAt(json, "drvPath")));
@@ -232,7 +232,7 @@ adl_serializer<SingleDerivedPath::Built>::from_json(const json& json0,
 
 DerivedPath::Built
 adl_serializer<DerivedPath::Built>::from_json(const json& json0,
-                                              const ExperimentalFeatureSettings& xpSettings) {
+                                              const experimental_feature_settings_t& xpSettings) {
   auto& json = getObject(json0);
   auto drvPath =
       make_ref<SingleDerivedPath>(static_cast<SingleDerivedPath>(valueAt(json, "drvPath")));
@@ -253,17 +253,17 @@ void adl_serializer<DerivedPath>::to_json(json& json, const DerivedPath& sdp) {
 
 SingleDerivedPath
 adl_serializer<SingleDerivedPath>::from_json(const json& json,
-                                             const ExperimentalFeatureSettings& xpSettings) {
+                                             const experimental_feature_settings_t& xpSettings) {
   if (json.is_string())
-    return static_cast<SingleDerivedPath::Opaque>(json);
+    return static_cast<SingleDerivedPath::opaque_t>(json);
   else
     return adl_serializer<SingleDerivedPath::Built>::from_json(json, xpSettings);
 }
 
 DerivedPath adl_serializer<DerivedPath>::from_json(const json& json,
-                                                   const ExperimentalFeatureSettings& xpSettings) {
+                                                   const experimental_feature_settings_t& xpSettings) {
   if (json.is_string())
-    return static_cast<DerivedPath::Opaque>(json);
+    return static_cast<DerivedPath::opaque_t>(json);
   else
     return adl_serializer<DerivedPath::Built>::from_json(json, xpSettings);
 }

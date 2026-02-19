@@ -29,7 +29,7 @@ void emitTreeAttrs(EvalState& state, const StorePath& storePath, const fetchers:
   // FIXME: support arbitrary input attributes.
 
   if (auto narHash = input.getNarHash())
-    attrs.alloc("narHash").mkString(narHash->to_string(HashFormat::SRI, true), state.mem);
+    attrs.alloc("narHash").mkString(narHash->to_string(hash_format_t::SRI, true), state.mem);
 
   if (input.getType() == "git")
     attrs.alloc("submodules")
@@ -41,7 +41,7 @@ void emitTreeAttrs(EvalState& state, const StorePath& storePath, const fetchers:
       attrs.alloc("shortRev").mkString(rev->gitShortRev(), state.mem);
     } else if (emptyRevFallback) {
       // Backwards compat for `builtins.fetchGit`: dirty repos return an empty sha1 as rev
-      auto emptyHash = Hash(HashAlgorithm::SHA1);
+      auto emptyHash = Hash(hash_algorithm_t::SHA1);
       attrs.alloc("rev").mkString(emptyHash.gitRev(), state.mem);
       attrs.alloc("shortRev").mkString(emptyHash.gitShortRev(), state.mem);
     }
@@ -67,14 +67,14 @@ void emitTreeAttrs(EvalState& state, const StorePath& storePath, const fetchers:
   v.mkAttrs(attrs);
 }
 
-struct FetchTreeParams {
+struct fetch_tree_params_t {
   bool emptyRevFallback = false;
   bool allowNameArgument = false;
   bool isFetchGit = false;
 };
 
-static void fetchTree(EvalState& state, const PosIdx pos, Value** args, Value& v,
-                      const FetchTreeParams& params = FetchTreeParams{}) {
+static void fetchTree(EvalState& state, const pos_idx_t pos, Value** args, Value& v,
+                      const fetch_tree_params_t& params = fetch_tree_params_t{}) {
   fetchers::Input input{};
   NixStringContext context;
   std::optional<std::string> type;
@@ -125,7 +125,7 @@ static void fetchTree(EvalState& state, const PosIdx pos, Value** args, Value& v
 
         attrs.emplace(state.symbols[attr.name], uint64_t(intValue));
       } else if (state.symbols[attr.name] == "publicKeys") {
-        experimentalFeatureSettings.require(Xp::VerifiedFetches);
+        experimentalFeatureSettings.require(xp_t::VerifiedFetches);
         attrs.emplace(state.symbols[attr.name],
                       printValueAsJSON(state, true, *attr.value, pos, context).dump());
       } else
@@ -201,7 +201,7 @@ static void fetchTree(EvalState& state, const PosIdx pos, Value** args, Value& v
   emitTreeAttrs(state, storePath, cachedInput.lockedInput, v, params.emptyRevFallback, false);
 }
 
-static void prim_fetchTree(EvalState& state, const PosIdx pos, Value** args, Value& v) {
+static void prim_fetchTree(EvalState& state, const pos_idx_t pos, Value** args, Value& v) {
   fetchTree(state, pos, args, v, {});
 }
 
@@ -331,7 +331,7 @@ static RegisterPrimOp primop_fetchTree({
     .fun = prim_fetchTree,
 });
 
-static void fetch(EvalState& state, const PosIdx pos, Value** args, Value& v,
+static void fetch(EvalState& state, const pos_idx_t pos, Value** args, Value& v,
                   const std::string& who, bool unpack, std::string name) {
   std::optional<std::string> url;
   std::optional<Hash> expectedHash;
@@ -351,7 +351,7 @@ static void fetch(EvalState& state, const PosIdx pos, Value** args, Value& v,
         expectedHash = newHashAllowEmpty(
             state.forceStringNoCtx(*attr.value, attr.pos,
                                    "while evaluating the sha256 of the content we should fetch"),
-            HashAlgorithm::SHA256);
+            hash_algorithm_t::SHA256);
       else if (n == "name") {
         nameAttrPassed = true;
         name = state.forceStringNoCtx(*attr.value, attr.pos,
@@ -377,19 +377,19 @@ static void fetch(EvalState& state, const PosIdx pos, Value** args, Value& v,
     checkName(name);
   } catch (BadStorePathName& e) {
     auto resolution =
-        nameAttrPassed ? HintFmt("Please change the value for the 'name' attribute passed to '%s', "
+        nameAttrPassed ? hint_fmt_t("Please change the value for the 'name' attribute passed to '%s', "
                                  "so that it can create a valid store path.",
                                  who)
-        : isArgAttrs   ? HintFmt("Please add a valid 'name' attribute to the argument for '%s', so "
+        : isArgAttrs   ? hint_fmt_t("Please add a valid 'name' attribute to the argument for '%s', so "
                                    "that it can create a valid store path.",
                                  who)
-                       : HintFmt("Please pass an attribute set with 'url' and 'name' attributes to "
+                       : hint_fmt_t("Please pass an attribute set with 'url' and 'name' attributes to "
                                    "'%s',  so that it can create a valid store path.",
                                  who);
 
     state
         .error<EvalError>(std::string("invalid store path name when fetching URL '%s': %s. %s"),
-                          *url, Uncolored(e.message()), Uncolored(resolution.str()))
+                          *url, uncolored_t(e.message()), uncolored_t(resolution.str()))
         .atPos(pos)
         .debugThrow();
   }
@@ -400,10 +400,10 @@ static void fetch(EvalState& state, const PosIdx pos, Value** args, Value& v,
         .debugThrow();
 
   // early exit if pinned and already in the store
-  if (expectedHash && expectedHash->algo == HashAlgorithm::SHA256) {
+  if (expectedHash && expectedHash->algo == hash_algorithm_t::SHA256) {
     auto expectedPath = state.store->makeFixedOutputPath(
-        name, FixedOutputInfo{.method = unpack ? FileIngestionMethod::NixArchive
-                                               : FileIngestionMethod::Flat,
+        name, FixedOutputInfo{.method = unpack ? file_ingestion_method_t::NixArchive
+                                               : file_ingestion_method_t::Flat,
                               .hash = *expectedHash,
                               .references = {}});
 
@@ -431,14 +431,14 @@ static void fetch(EvalState& state, const PosIdx pos, Value** args, Value& v,
   if (expectedHash) {
     auto hash = unpack ? state.store->queryPathInfo(storePath)->narHash
                        : hashPath({state.store->requireStoreObjectAccessor(storePath)},
-                                  FileSerialisationMethod::Flat, HashAlgorithm::SHA256)
+                                  file_serialisation_method_t::Flat, hash_algorithm_t::SHA256)
                              .hash;
     if (hash != *expectedHash) {
       state
           .error<EvalError>(
               "hash mismatch in file downloaded from '%s':\n  specified: %s\n  got:       %s", *url,
-              expectedHash->to_string(HashFormat::Nix32, true),
-              hash.to_string(HashFormat::Nix32, true))
+              expectedHash->to_string(hash_format_t::Nix32, true),
+              hash.to_string(hash_format_t::Nix32, true))
           .withExitStatus(102)
           .debugThrow();
     }
@@ -447,7 +447,7 @@ static void fetch(EvalState& state, const PosIdx pos, Value** args, Value& v,
   state.allowAndSetStorePathString(storePath, v);
 }
 
-static void prim_fetchurl(EvalState& state, const PosIdx pos, Value** args, Value& v) {
+static void prim_fetchurl(EvalState& state, const pos_idx_t pos, Value** args, Value& v) {
   fetch(state, pos, args, v, "fetchurl", false, "");
 }
 
@@ -472,7 +472,7 @@ static RegisterPrimOp primop_fetchurl({
     .fun = prim_fetchurl,
 });
 
-static void prim_fetchTarball(EvalState& state, const PosIdx pos, Value** args, Value& v) {
+static void prim_fetchTarball(EvalState& state, const pos_idx_t pos, Value** args, Value& v) {
   fetch(state, pos, args, v, "fetchTarball", true, "source");
 }
 
@@ -521,10 +521,10 @@ static RegisterPrimOp primop_fetchTarball({
     .fun = prim_fetchTarball,
 });
 
-static void prim_fetchGit(EvalState& state, const PosIdx pos, Value** args, Value& v) {
+static void prim_fetchGit(EvalState& state, const pos_idx_t pos, Value** args, Value& v) {
   fetchTree(
       state, pos, args, v,
-      FetchTreeParams{.emptyRevFallback = true, .allowNameArgument = true, .isFetchGit = true});
+      fetch_tree_params_t{.emptyRevFallback = true, .allowNameArgument = true, .isFetchGit = true});
 }
 
 static RegisterPrimOp primop_fetchGit({

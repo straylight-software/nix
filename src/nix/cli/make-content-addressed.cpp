@@ -10,8 +10,8 @@ using namespace nix;
 
 using nlohmann::json;
 
-struct CmdMakeContentAddressed : virtual CopyCommand, virtual StorePathsCommand, MixJSON {
-  CmdMakeContentAddressed() { realiseMode = Realise::Outputs; }
+struct cmd_make_content_addressed_t : virtual CopyCommand, virtual StorePathsCommand, MixJSON {
+  cmd_make_content_addressed_t() { realiseMode = Realise::Outputs; }
 
   std::string description() override {
     return "rewrite a path or closure to content-addressed form";
@@ -51,4 +51,4 @@ struct CmdMakeContentAddressed : virtual CopyCommand, virtual StorePathsCommand,
 };
 
 static auto rCmdMakeContentAddressed =
-    registerCommand2<CmdMakeContentAddressed>({"store", "make-content-addressed"});
+    registerCommand2<cmd_make_content_addressed_t>({"store", "make-content-addressed"});

@@ -9,23 +9,23 @@
 
 namespace nix {
 
-Strings getNixSshOpts();
+strings_t getNixSshOpts();
 
 class SSHMaster {
 private:
-  ParsedURL::Authority authority;
+  parsed_url_t::authority_t authority;
   std::string hostnameAndUser;
   bool fakeSSH;
   const std::string keyFile;
   /**
-   * Raw bytes, not Base64 encoding.
+   * raw_t bytes, not Base64 encoding.
    */
   const std::string sshPublicHostKey;
   const bool useMaster;
   const bool compress;
-  const Descriptor logFD;
+  const descriptor_t logFD;
 
-  const ref<const AutoDelete> tmpDir;
+  const ref<const auto_delete_t> tmpDir;
 
   struct State {
 #ifndef _WIN32 // TODO re-enable on Windows, once we can start processes.
@@ -34,9 +34,9 @@ private:
     Path socketPath;
   };
 
-  Sync<State> state_;
+  sync_t<State> state_;
 
-  void addCommonSSHOpts(Strings& args);
+  void addCommonSSHOpts(strings_t& args);
   bool isMasterRunning();
 
 #ifndef _WIN32 // TODO re-enable on Windows, once we can start processes.
@@ -44,15 +44,15 @@ private:
 #endif
 
 public:
-  SSHMaster(const ParsedURL::Authority& authority, std::string_view keyFile,
+  SSHMaster(const parsed_url_t::authority_t& authority, std::string_view keyFile,
             std::string_view sshPublicHostKey, bool useMaster, bool compress,
-            Descriptor logFD = INVALID_DESCRIPTOR);
+            descriptor_t logFD = INVALID_DESCRIPTOR);
 
   struct Connection {
 #ifndef _WIN32 // TODO re-enable on Windows, once we can start processes.
     Pid sshPid;
 #endif
-    AutoCloseFD out, in;
+    auto_close_fd_t out, in;
 
     /**
      * Try to set the buffer size in both directions to the
@@ -74,7 +74,7 @@ public:
    * execute). Will not be used when "fake SSHing" to the local
    * machine.
    */
-  std::unique_ptr<Connection> startCommand(Strings&& command, Strings&& extraSshArgs = {});
+  std::unique_ptr<Connection> startCommand(strings_t&& command, strings_t&& extraSshArgs = {});
 };
 
 } // namespace nix

@@ -11,6 +11,7 @@
 #include <cstring>
 #include <stdexcept>
 
+#include <dirent.h>
 #include <fcntl.h>
 #include <liburing.h>
 #include <linux/stat.h>
@@ -23,17 +24,50 @@ namespace evring {
 
 namespace {
 
+/// bulk operation flags
+enum class bulk_flags : unsigned {
+  none = 0,
+  sqpoll = 1 << 0, // use SQPOLL mode
+};
+
+constexpr auto operator|(bulk_flags lhs, bulk_flags rhs) -> bulk_flags {
+  return static_cast<bulk_flags>(static_cast<unsigned>(lhs) | static_cast<unsigned>(rhs));
+}
+
+constexpr auto operator&(bulk_flags lhs, bulk_flags rhs) -> bulk_flags {
+  return static_cast<bulk_flags>(static_cast<unsigned>(lhs) & static_cast<unsigned>(rhs));
+}
+
 /// direct io_uring context for bulk operations
 /// this bypasses the ring abstraction for maximum performance
 struct bulk_context {
   struct io_uring ring;
   unsigned depth;
+  bool using_sqpoll;
 
-  explicit bulk_context(unsigned entries) : depth(entries) {
-    int result = io_uring_queue_init(entries, &ring, 0);
-    if (result < 0) {
-      throw std::runtime_error(std::string("io_uring_queue_init failed: ") +
-                               std::strerror(-result));
+  explicit bulk_context(unsigned entries, bulk_flags flags = bulk_flags::none)
+      : depth(entries), using_sqpoll((flags & bulk_flags::sqpoll) != bulk_flags::none) {
+    unsigned io_flags = 0;
+    if (using_sqpoll) {
+      io_flags |= IORING_SETUP_SQPOLL;
+    }
+
+    if (using_sqpoll) {
+      // use params for SQPOLL to set idle timeout
+      struct io_uring_params params{};
+      params.flags = io_flags;
+      params.sq_thread_idle = 1000; // 1 second idle before sleep
+      int result = io_uring_queue_init_params(entries, &ring, &params);
+      if (result < 0) {
+        throw std::runtime_error(std::string("io_uring_queue_init_params failed: ") +
+                                 std::strerror(-result));
+      }
+    } else {
+      int result = io_uring_queue_init(entries, &ring, io_flags);
+      if (result < 0) {
+        throw std::runtime_error(std::string("io_uring_queue_init failed: ") +
+                                 std::strerror(-result));
+      }
     }
   }
 
@@ -124,31 +158,6 @@ auto bulk_create_files(ring& /*ring_instance*/, std::span<const char* const> pat
         result.errors.push_back(-res);
       }
     });
-
-    // close files in batches to avoid accumulating too many open fds
-    if (fds_to_close.size() >= 128) {
-      std::size_t close_submitted = 0;
-      std::size_t close_completed = 0;
-      std::size_t const close_total = fds_to_close.size();
-
-      while (close_completed < close_total) {
-        while (close_submitted < close_total) {
-          struct io_uring_sqe* sqe = io_uring_get_sqe(&context.ring);
-          if (sqe == nullptr) {
-            break;
-          }
-          io_uring_prep_close(sqe, fds_to_close[close_submitted]);
-          io_uring_sqe_set_data64(sqe, close_submitted);
-          ++close_submitted;
-        }
-
-        submit_and_wait(context, 1);
-        harvest_completions(context,
-                            [&](std::uint64_t /*index*/, int /*res*/) { ++close_completed; });
-      }
-
-      fds_to_close.clear();
-    }
   }
 
   // close remaining files
@@ -547,6 +556,510 @@ auto bulk_mkdir(ring& ring_instance, std::span<const std::string> paths, mode_t 
     c_paths.push_back(path.c_str());
   }
   return bulk_mkdir(ring_instance, std::span<const char* const>(c_paths), mode);
+}
+
+// ============================================================================
+// Bulk rmdir
+// ============================================================================
+
+auto bulk_rmdir(ring& /*ring_instance*/, std::span<const char* const> paths) -> bulk_result {
+  if (paths.empty()) {
+    return bulk_result{};
+  }
+
+  bulk_context context(256);
+  bulk_result result;
+
+  std::size_t submitted = 0;
+  std::size_t completed = 0;
+  std::size_t const total = paths.size();
+
+  while (completed < total) {
+    while (submitted < total) {
+      struct io_uring_sqe* sqe = io_uring_get_sqe(&context.ring);
+      if (sqe == nullptr) {
+        break;
+      }
+
+      io_uring_prep_unlinkat(sqe, AT_FDCWD, paths[submitted], AT_REMOVEDIR);
+      io_uring_sqe_set_data64(sqe, submitted);
+      ++submitted;
+    }
+
+    submit_and_wait(context, 1);
+
+    harvest_completions(context, [&](std::uint64_t /*index*/, int res) {
+      ++completed;
+      if (res >= 0) {
+        ++result.succeeded;
+      } else {
+        ++result.failed;
+        result.errors.push_back(-res);
+      }
+    });
+  }
+
+  return result;
+}
+
+auto bulk_rmdir(ring& ring_instance, std::span<const std::string> paths) -> bulk_result {
+  std::vector<const char*> c_paths;
+  c_paths.reserve(paths.size());
+  for (auto const& path : paths) {
+    c_paths.push_back(path.c_str());
+  }
+  return bulk_rmdir(ring_instance, std::span<const char* const>(c_paths));
+}
+
+// ============================================================================
+// Bulk rename
+// ============================================================================
+
+auto bulk_rename(ring& /*ring_instance*/, std::span<const char* const> source_paths,
+                 std::span<const char* const> dest_paths) -> bulk_result {
+  if (source_paths.empty() || source_paths.size() != dest_paths.size()) {
+    return bulk_result{};
+  }
+
+  bulk_context context(256);
+  bulk_result result;
+
+  std::size_t submitted = 0;
+  std::size_t completed = 0;
+  std::size_t const total = source_paths.size();
+
+  while (completed < total) {
+    while (submitted < total) {
+      struct io_uring_sqe* sqe = io_uring_get_sqe(&context.ring);
+      if (sqe == nullptr) {
+        break;
+      }
+
+      io_uring_prep_renameat(sqe, AT_FDCWD, source_paths[submitted], AT_FDCWD,
+                             dest_paths[submitted], 0);
+      io_uring_sqe_set_data64(sqe, submitted);
+      ++submitted;
+    }
+
+    submit_and_wait(context, 1);
+
+    harvest_completions(context, [&](std::uint64_t /*index*/, int res) {
+      ++completed;
+      if (res >= 0) {
+        ++result.succeeded;
+      } else {
+        ++result.failed;
+        result.errors.push_back(-res);
+      }
+    });
+  }
+
+  return result;
+}
+
+auto bulk_rename(ring& ring_instance, std::span<const std::string> source_paths,
+                 std::span<const std::string> dest_paths) -> bulk_result {
+  std::vector<const char*> c_sources;
+  std::vector<const char*> c_dests;
+  c_sources.reserve(source_paths.size());
+  c_dests.reserve(dest_paths.size());
+  for (auto const& path : source_paths) {
+    c_sources.push_back(path.c_str());
+  }
+  for (auto const& path : dest_paths) {
+    c_dests.push_back(path.c_str());
+  }
+  return bulk_rename(ring_instance, std::span<const char* const>(c_sources),
+                     std::span<const char* const>(c_dests));
+}
+
+// ============================================================================
+// Bulk symlink
+// ============================================================================
+
+auto bulk_symlink(ring& /*ring_instance*/, std::span<const char* const> targets,
+                  std::span<const char* const> linkpaths) -> bulk_result {
+  if (targets.empty() || targets.size() != linkpaths.size()) {
+    return bulk_result{};
+  }
+
+  bulk_context context(256);
+  bulk_result result;
+
+  std::size_t submitted = 0;
+  std::size_t completed = 0;
+  std::size_t const total = targets.size();
+
+  while (completed < total) {
+    while (submitted < total) {
+      struct io_uring_sqe* sqe = io_uring_get_sqe(&context.ring);
+      if (sqe == nullptr) {
+        break;
+      }
+
+      io_uring_prep_symlinkat(sqe, targets[submitted], AT_FDCWD, linkpaths[submitted]);
+      io_uring_sqe_set_data64(sqe, submitted);
+      ++submitted;
+    }
+
+    submit_and_wait(context, 1);
+
+    harvest_completions(context, [&](std::uint64_t /*index*/, int res) {
+      ++completed;
+      if (res >= 0) {
+        ++result.succeeded;
+      } else {
+        ++result.failed;
+        result.errors.push_back(-res);
+      }
+    });
+  }
+
+  return result;
+}
+
+auto bulk_symlink(ring& ring_instance, std::span<const std::string> targets,
+                  std::span<const std::string> linkpaths) -> bulk_result {
+  std::vector<const char*> c_targets;
+  std::vector<const char*> c_linkpaths;
+  c_targets.reserve(targets.size());
+  c_linkpaths.reserve(linkpaths.size());
+  for (auto const& path : targets) {
+    c_targets.push_back(path.c_str());
+  }
+  for (auto const& path : linkpaths) {
+    c_linkpaths.push_back(path.c_str());
+  }
+  return bulk_symlink(ring_instance, std::span<const char* const>(c_targets),
+                      std::span<const char* const>(c_linkpaths));
+}
+
+// ============================================================================
+// Bulk link (hard links)
+// ============================================================================
+
+auto bulk_link(ring& /*ring_instance*/, std::span<const char* const> source_paths,
+               std::span<const char* const> dest_paths) -> bulk_result {
+  if (source_paths.empty() || source_paths.size() != dest_paths.size()) {
+    return bulk_result{};
+  }
+
+  bulk_context context(256);
+  bulk_result result;
+
+  std::size_t submitted = 0;
+  std::size_t completed = 0;
+  std::size_t const total = source_paths.size();
+
+  while (completed < total) {
+    while (submitted < total) {
+      struct io_uring_sqe* sqe = io_uring_get_sqe(&context.ring);
+      if (sqe == nullptr) {
+        break;
+      }
+
+      io_uring_prep_linkat(sqe, AT_FDCWD, source_paths[submitted], AT_FDCWD, dest_paths[submitted],
+                           0);
+      io_uring_sqe_set_data64(sqe, submitted);
+      ++submitted;
+    }
+
+    submit_and_wait(context, 1);
+
+    harvest_completions(context, [&](std::uint64_t /*index*/, int res) {
+      ++completed;
+      if (res >= 0) {
+        ++result.succeeded;
+      } else {
+        ++result.failed;
+        result.errors.push_back(-res);
+      }
+    });
+  }
+
+  return result;
+}
+
+auto bulk_link(ring& ring_instance, std::span<const std::string> source_paths,
+               std::span<const std::string> dest_paths) -> bulk_result {
+  std::vector<const char*> c_sources;
+  std::vector<const char*> c_dests;
+  c_sources.reserve(source_paths.size());
+  c_dests.reserve(dest_paths.size());
+  for (auto const& path : source_paths) {
+    c_sources.push_back(path.c_str());
+  }
+  for (auto const& path : dest_paths) {
+    c_dests.push_back(path.c_str());
+  }
+  return bulk_link(ring_instance, std::span<const char* const>(c_sources),
+                   std::span<const char* const>(c_dests));
+}
+
+// ============================================================================
+// Bulk readlink
+// ============================================================================
+
+auto bulk_readlink(ring& /*ring_instance*/, std::span<const char* const> linkpaths,
+                   std::span<std::string> targets) -> bulk_result {
+  if (linkpaths.empty() || linkpaths.size() != targets.size()) {
+    return bulk_result{};
+  }
+
+  // io_uring doesn't have native readlink support
+  // Fall back to synchronous readlink for now
+  // TODO: consider using io_uring_prep_read on /proc/self/fd/N after openat(O_PATH)
+  bulk_result result;
+
+  for (std::size_t index = 0; index < linkpaths.size(); ++index) {
+    char buffer[PATH_MAX];
+    ssize_t len = readlink(linkpaths[index], buffer, sizeof(buffer) - 1);
+    if (len >= 0) {
+      buffer[len] = '\0';
+      targets[index] = buffer;
+      ++result.succeeded;
+    } else {
+      targets[index].clear();
+      ++result.failed;
+      result.errors.push_back(errno);
+    }
+  }
+
+  return result;
+}
+
+auto bulk_readlink(ring& ring_instance, std::span<const std::string> linkpaths,
+                   std::span<std::string> targets) -> bulk_result {
+  std::vector<const char*> c_linkpaths;
+  c_linkpaths.reserve(linkpaths.size());
+  for (auto const& path : linkpaths) {
+    c_linkpaths.push_back(path.c_str());
+  }
+  return bulk_readlink(ring_instance, std::span<const char* const>(c_linkpaths), targets);
+}
+
+// ============================================================================
+// Recursive directory copy
+// ============================================================================
+
+namespace {
+
+/// entry type for tree walking
+enum class entry_type { directory, regular_file, symlink, other };
+
+/// entry info collected during tree walk
+struct tree_entry {
+  std::string relative_path; // path relative to source root
+  entry_type type;
+  mode_t mode;
+  std::string symlink_target; // only for symlinks
+};
+
+/// recursively walk a directory tree and collect all entries
+/// returns entries in topological order (directories before their contents)
+auto walk_tree(const char* root, bool dereference_symlinks) -> std::vector<tree_entry> {
+  std::vector<tree_entry> entries;
+
+  // stack for iterative DFS: (dir_path, relative_prefix)
+  std::vector<std::pair<std::string, std::string>> stack;
+  stack.emplace_back(root, "");
+
+  while (!stack.empty()) {
+    auto [dir_path, relative_prefix] = std::move(stack.back());
+    stack.pop_back();
+
+    DIR* dir = opendir(dir_path.c_str());
+    if (dir == nullptr) {
+      continue; // skip unreadable directories
+    }
+
+    // collect entries in this directory first, then process
+    // this ensures we add the directory entry before its contents
+    std::vector<std::pair<std::string, std::string>> subdirs;
+
+    struct dirent* dirent_entry;
+    while ((dirent_entry = readdir(dir)) != nullptr) {
+      // skip . and ..
+      if (std::strcmp(dirent_entry->d_name, ".") == 0 ||
+          std::strcmp(dirent_entry->d_name, "..") == 0) {
+        continue;
+      }
+
+      std::string name = dirent_entry->d_name;
+      std::string full_path = dir_path + "/" + name;
+      std::string relative_path = relative_prefix.empty() ? name : relative_prefix + "/" + name;
+
+      struct stat stat_buffer;
+      int stat_result;
+      if (dereference_symlinks) {
+        stat_result = stat(full_path.c_str(), &stat_buffer);
+      } else {
+        stat_result = lstat(full_path.c_str(), &stat_buffer);
+      }
+
+      if (stat_result < 0) {
+        continue; // skip unstat-able entries
+      }
+
+      tree_entry entry;
+      entry.relative_path = relative_path;
+      entry.mode = stat_buffer.st_mode & 07777; // permission bits only
+
+      if (S_ISDIR(stat_buffer.st_mode)) {
+        entry.type = entry_type::directory;
+        entries.push_back(std::move(entry));
+        subdirs.emplace_back(full_path, relative_path);
+      } else if (S_ISLNK(stat_buffer.st_mode)) {
+        entry.type = entry_type::symlink;
+        // read symlink target
+        char target_buffer[PATH_MAX];
+        ssize_t len = readlink(full_path.c_str(), target_buffer, sizeof(target_buffer) - 1);
+        if (len >= 0) {
+          target_buffer[len] = '\0';
+          entry.symlink_target = target_buffer;
+          entries.push_back(std::move(entry));
+        }
+      } else if (S_ISREG(stat_buffer.st_mode)) {
+        entry.type = entry_type::regular_file;
+        entries.push_back(std::move(entry));
+      }
+      // skip other types (devices, sockets, etc.)
+    }
+
+    closedir(dir);
+
+    // add subdirectories to stack in reverse order for DFS
+    for (auto iter = subdirs.rbegin(); iter != subdirs.rend(); ++iter) {
+      stack.push_back(std::move(*iter));
+    }
+  }
+
+  return entries;
+}
+
+} // anonymous namespace
+
+auto copy_tree(ring& ring_instance, const char* source, const char* dest,
+               copy_tree_options const& options) -> copy_tree_result {
+  copy_tree_result result;
+
+  // verify source exists and is a directory
+  struct stat source_stat;
+  if (stat(source, &source_stat) < 0) {
+    result.failed = 1;
+    result.errors.emplace_back(source, errno);
+    return result;
+  }
+  if (!S_ISDIR(source_stat.st_mode)) {
+    result.failed = 1;
+    result.errors.emplace_back(source, ENOTDIR);
+    return result;
+  }
+
+  // create destination root directory
+  if (mkdir(dest, source_stat.st_mode & 07777) < 0 && errno != EEXIST) {
+    result.failed = 1;
+    result.errors.emplace_back(dest, errno);
+    return result;
+  }
+
+  // walk the source tree
+  std::vector<tree_entry> entries = walk_tree(source, options.dereference_symlinks);
+
+  // separate entries by type
+  std::vector<std::string> dir_paths;
+  std::vector<mode_t> dir_modes;
+  std::vector<std::string> file_sources;
+  std::vector<std::string> file_dests;
+  std::vector<mode_t> file_modes;
+  std::vector<std::string> symlink_targets;
+  std::vector<std::string> symlink_paths;
+
+  std::string source_prefix = source;
+  std::string dest_prefix = dest;
+
+  for (auto const& entry : entries) {
+    std::string dest_path = dest_prefix + "/" + entry.relative_path;
+
+    switch (entry.type) {
+      case entry_type::directory:
+        dir_paths.push_back(dest_path);
+        dir_modes.push_back(entry.mode);
+        break;
+      case entry_type::regular_file:
+        file_sources.push_back(source_prefix + "/" + entry.relative_path);
+        file_dests.push_back(dest_path);
+        file_modes.push_back(entry.mode);
+        break;
+      case entry_type::symlink:
+        symlink_targets.push_back(entry.symlink_target);
+        symlink_paths.push_back(dest_path);
+        break;
+      case entry_type::other:
+        break;
+    }
+  }
+
+  // phase 1: create all directories (in order - parents before children)
+  for (std::size_t index = 0; index < dir_paths.size(); ++index) {
+    mode_t mode = options.preserve_permissions ? dir_modes[index] : 0755;
+    if (mkdir(dir_paths[index].c_str(), mode) < 0 && errno != EEXIST) {
+      ++result.failed;
+      result.errors.emplace_back(dir_paths[index], errno);
+    } else {
+      ++result.directories_created;
+    }
+  }
+
+  // phase 2: copy all files
+  copy_options file_copy_options;
+  file_copy_options.buffer_size = options.buffer_size;
+  file_copy_options.ring_depth = options.ring_depth;
+
+  for (std::size_t index = 0; index < file_sources.size(); ++index) {
+    auto file_result =
+        copy_file(ring_instance, file_sources[index], file_dests[index], file_copy_options);
+    if (file_result.succeeded > 0) {
+      ++result.files_copied;
+      // get file size for bytes_copied
+      struct stat file_stat;
+      if (stat(file_dests[index].c_str(), &file_stat) == 0) {
+        result.bytes_copied += static_cast<std::size_t>(file_stat.st_size);
+      }
+      // set permissions if requested
+      if (options.preserve_permissions) {
+        chmod(file_dests[index].c_str(), file_modes[index]);
+      }
+      if (options.on_progress) {
+        options.on_progress(result.bytes_copied);
+      }
+    } else {
+      ++result.failed;
+      int err = file_result.errors.empty() ? EIO : file_result.errors[0];
+      result.errors.emplace_back(file_sources[index], err);
+    }
+  }
+
+  // phase 3: create all symlinks
+  if (!symlink_targets.empty()) {
+    auto symlink_result = bulk_symlink(ring_instance, symlink_targets, symlink_paths);
+    result.symlinks_created = symlink_result.succeeded;
+    result.failed += symlink_result.failed;
+    for (std::size_t index = 0; index < symlink_result.errors.size(); ++index) {
+      // find which symlink failed - errors are in order
+      std::size_t error_index = result.symlinks_created + index;
+      if (error_index < symlink_paths.size()) {
+        result.errors.emplace_back(symlink_paths[error_index], symlink_result.errors[index]);
+      }
+    }
+  }
+
+  return result;
+}
+
+auto copy_tree(ring& ring_instance, std::string const& source, std::string const& dest,
+               copy_tree_options const& options) -> copy_tree_result {
+  return copy_tree(ring_instance, source.c_str(), dest.c_str(), options);
 }
 
 } // namespace evring

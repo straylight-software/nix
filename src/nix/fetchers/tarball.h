@@ -14,7 +14,7 @@ struct SourceAccessor;
 
 namespace nix::fetchers {
 
-struct Settings;
+struct settings_t;
 
 struct DownloadFileResult {
   StorePath storePath;
@@ -23,8 +23,8 @@ struct DownloadFileResult {
   std::optional<std::string> immutableUrl;
 };
 
-DownloadFileResult downloadFile(Store& store, const Settings& settings, const std::string& url,
-                                const std::string& name, const Headers& headers = {});
+DownloadFileResult downloadFile(Store& store, const settings_t& settings, const std::string& url,
+                                const std::string& name, const headers_t& headers = {});
 
 struct DownloadTarballResult {
   Hash treeHash;
@@ -37,6 +37,6 @@ struct DownloadTarballResult {
  * Download and import a tarball into the Git cache. The result is the
  * Git tree hash of the root directory.
  */
-ref<SourceAccessor> downloadTarball(Store& store, const Settings& settings, const std::string& url);
+ref<SourceAccessor> downloadTarball(Store& store, const settings_t& settings, const std::string& url);
 
 } // namespace nix::fetchers

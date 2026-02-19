@@ -11,7 +11,7 @@
 
 namespace nix {
 
-struct BaseNix32 {
+struct base_nix32_t {
   /// omitted: E O U T
   constexpr static std::array<char, 32> characters = "0123456789abcdfghijklmnpqrsvwxyz"_arrayNoNull;
 

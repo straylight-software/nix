@@ -14,7 +14,7 @@
 
 namespace nix {
 
-Descriptor openDirectory(const std::filesystem::path& path) {
+descriptor_t openDirectory(const std::filesystem::path& path) {
   return open(path.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
 }
 
@@ -36,7 +36,7 @@ void setWriteTime(const std::filesystem::path& path, time_t accessedTime, time_t
       },
   };
   if (utimensat(AT_FDCWD, path.c_str(), times, AT_SYMLINK_NOFOLLOW) == -1)
-    throw SysError("changing modification time of %s (using `utimensat`)", path);
+    throw sys_error_t("changing modification time of %s (using `utimensat`)", path);
 #else
   struct timeval times[2] = {
       {
@@ -50,13 +50,13 @@ void setWriteTime(const std::filesystem::path& path, time_t accessedTime, time_t
   };
 #  if HAVE_LUTIMES
   if (lutimes(path.c_str(), times) == -1)
-    throw SysError("changing modification time of %s", path);
+    throw sys_error_t("changing modification time of %s", path);
 #  else
   bool isSymlink = optIsSymlink ? *optIsSymlink : std::filesystem::is_symlink(path);
 
   if (!isSymlink) {
     if (utimes(path.c_str(), times) == -1)
-      throw SysError("changing modification time of %s (not a symlink)", path);
+      throw sys_error_t("changing modification time of %s (not a symlink)", path);
   } else {
     throw Error("Cannot change modification time of symlink %s", path);
   }

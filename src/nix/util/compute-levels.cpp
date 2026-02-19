@@ -11,8 +11,8 @@ namespace nix {
 
 #if HAVE_LIBCPUID
 
-StringSet computeLevels() {
-  StringSet levels;
+string_set_t computeLevels() {
+  string_set_t levels;
   struct cpu_id_t data;
 
   const std::map<cpu_feature_level_t, std::string> feature_strings = {
@@ -34,8 +34,8 @@ StringSet computeLevels() {
 
 #else
 
-StringSet computeLevels() {
-  return StringSet{};
+string_set_t computeLevels() {
+  return string_set_t{};
 }
 
 #endif // HAVE_LIBCPUID

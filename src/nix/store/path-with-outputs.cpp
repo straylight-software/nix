@@ -25,7 +25,7 @@ DerivedPath StorePathWithOutputs::toDerivedPath() const {
         .outputs = OutputsSpec::All{},
     };
   } else {
-    return DerivedPath::Opaque{path};
+    return DerivedPath::opaque_t{path};
   }
 }
 
@@ -40,7 +40,7 @@ std::vector<DerivedPath> toDerivedPaths(const std::vector<StorePathWithOutputs> 
 StorePathWithOutputs::ParseResult StorePathWithOutputs::tryFromDerivedPath(const DerivedPath& p) {
   return std::visit(
       overloaded{
-          [&](const DerivedPath::Opaque& bo) -> StorePathWithOutputs::ParseResult {
+          [&](const DerivedPath::opaque_t& bo) -> StorePathWithOutputs::ParseResult {
             if (bo.path.isDerivation()) {
               // drv path gets interpreted as "build", not "get drv file itself"
               return bo.path;
@@ -50,15 +50,15 @@ StorePathWithOutputs::ParseResult StorePathWithOutputs::tryFromDerivedPath(const
           [&](const DerivedPath::Built& bfd) -> StorePathWithOutputs::ParseResult {
             return std::visit(
                 overloaded{
-                    [&](const SingleDerivedPath::Opaque& bo) -> StorePathWithOutputs::ParseResult {
+                    [&](const SingleDerivedPath::opaque_t& bo) -> StorePathWithOutputs::ParseResult {
                       return StorePathWithOutputs{
                           .path = bo.path,
                           // Use legacy encoding of wildcard as empty set
                           .outputs = std::visit(
                               overloaded{
-                                  [&](const OutputsSpec::All&) -> StringSet { return {}; },
+                                  [&](const OutputsSpec::All&) -> string_set_t { return {}; },
                                   [&](const OutputsSpec::Names& outputs) {
-                                    return static_cast<StringSet>(outputs);
+                                    return static_cast<string_set_t>(outputs);
                                   },
                               },
                               bfd.outputs.raw),
@@ -74,11 +74,11 @@ StorePathWithOutputs::ParseResult StorePathWithOutputs::tryFromDerivedPath(const
       p.raw());
 }
 
-std::pair<std::string_view, StringSet> parsePathWithOutputs(std::string_view s) {
+std::pair<std::string_view, string_set_t> parsePathWithOutputs(std::string_view s) {
   size_t n = s.find("!");
   return n == s.npos
-             ? std::make_pair(s, StringSet())
-             : std::make_pair(s.substr(0, n), tokenizeString<StringSet>(s.substr(n + 1), ","));
+             ? std::make_pair(s, string_set_t())
+             : std::make_pair(s.substr(0, n), tokenizeString<string_set_t>(s.substr(n + 1), ","));
 }
 
 StorePathWithOutputs parsePathWithOutputs(const StoreDirConfig& store,

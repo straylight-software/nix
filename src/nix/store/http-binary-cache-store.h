@@ -18,15 +18,15 @@ struct HttpBinaryCacheStoreConfig : std::enable_shared_from_this<HttpBinaryCache
   HttpBinaryCacheStoreConfig(std::string_view scheme, std::string_view cacheUri,
                              const Store::Config::Params& params);
 
-  ParsedURL cacheUri;
+  parsed_url_t cacheUri;
 
-  const Setting<std::string> narinfoCompression{this, "", "narinfo-compression",
+  const setting_t<std::string> narinfoCompression{this, "", "narinfo-compression",
                                                 "Compression method for `.narinfo` files."};
 
-  const Setting<std::string> lsCompression{this, "", "ls-compression",
+  const setting_t<std::string> lsCompression{this, "", "ls-compression",
                                            "Compression method for `.ls` files."};
 
-  const Setting<std::string> logCompression{this, "", "log-compression",
+  const setting_t<std::string> logCompression{this, "", "log-compression",
                                             R"(
           Compression method for `log/*` files. It is recommended to
           use a compression method supported by most web browsers
@@ -35,7 +35,7 @@ struct HttpBinaryCacheStoreConfig : std::enable_shared_from_this<HttpBinaryCache
 
   static const std::string name() { return "HTTP Binary Cache Store"; }
 
-  static StringSet uriSchemes();
+  static string_set_t uriSchemes();
 
   static std::string doc();
 
@@ -50,7 +50,7 @@ class HttpBinaryCacheStore : public virtual BinaryCacheStore {
     std::chrono::steady_clock::time_point disabledUntil;
   };
 
-  Sync<State> _state;
+  sync_t<State> _state;
 
 public:
   using Config = HttpBinaryCacheStoreConfig;
@@ -70,7 +70,7 @@ protected:
 
   bool fileExists(const std::string& path) override;
 
-  void upsertFile(const std::string& path, RestartableSource& source, const std::string& mimeType,
+  void upsertFile(const std::string& path, restartable_source_t& source, const std::string& mimeType,
                   uint64_t sizeHint) override;
 
   FileTransferRequest makeRequest(std::string_view path);
@@ -88,8 +88,8 @@ protected:
    * @param mimeType The MIME type of the content
    * @param contentEncoding Optional Content-Encoding header value (e.g., "xz", "br")
    */
-  void upload(std::string_view path, RestartableSource& source, uint64_t sizeHint,
-              std::string_view mimeType, std::optional<Headers> headers);
+  void upload(std::string_view path, restartable_source_t& source, uint64_t sizeHint,
+              std::string_view mimeType, std::optional<headers_t> headers);
 
   void getFile(const std::string& path, Sink& sink) override;
 

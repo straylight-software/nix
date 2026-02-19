@@ -29,7 +29,7 @@ struct ServeProto {
   /**
    * Enumeration of all the request types for the protocol.
    */
-  enum struct Command : uint64_t;
+  enum struct command_t : uint64_t;
 
   /**
    * Version type for the protocol.
@@ -94,13 +94,13 @@ struct ServeProto {
 
   /**
    * Options for building shared between
-   * `ServeProto::Command::BuildPaths` and
-   * `ServeProto::Command::BuildDerivation`.
+   * `ServeProto::command_t::BuildPaths` and
+   * `ServeProto::command_t::BuildDerivation`.
    */
   struct BuildOptions;
 };
 
-enum struct ServeProto::Command : uint64_t {
+enum struct ServeProto::command_t : uint64_t {
   QueryValidPaths = 1,
   QueryPathInfos = 2,
   DumpStorePath = 3,
@@ -138,7 +138,7 @@ struct ServeProto::BuildOptions {
  * @todo Switch to using `ServeProto::Serialize` instead probably. But
  * this was not done at this time so there would be less churn.
  */
-inline Sink& operator<<(Sink& sink, ServeProto::Command op) {
+inline Sink& operator<<(Sink& sink, ServeProto::command_t op) {
   return sink << (uint64_t)op;
 }
 
@@ -147,7 +147,7 @@ inline Sink& operator<<(Sink& sink, ServeProto::Command op) {
  *
  * @todo Perhaps render known opcodes more nicely.
  */
-inline std::ostream& operator<<(std::ostream& s, ServeProto::Command op) {
+inline std::ostream& operator<<(std::ostream& s, ServeProto::command_t op) {
   return s << (uint64_t)op;
 }
 

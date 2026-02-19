@@ -92,14 +92,14 @@ struct DerivationBuilderParams {
    * For example, on Linux, the `kvm` system feature controls whether
    * `/dev/kvm` should be exposed to the builder within the sandbox.
    */
-  StringSet systemFeatures;
+  string_set_t systemFeatures;
 
   DesugaredEnv desugaredEnv;
 
   /**
    * The activity corresponding to the build.
    */
-  std::unique_ptr<Activity>& act;
+  std::unique_ptr<activity_t>& act;
 };
 
 /**
@@ -143,7 +143,7 @@ struct DerivationBuilder : RestrictionContext {
    * Master side of the pseudoterminal used for the builder's
    * standard output/error.
    */
-  AutoCloseFD builderOut;
+  auto_close_fd_t builderOut;
 
   /**
    * Set up build environment / sandbox, acquiring resources (e.g.
@@ -158,7 +158,7 @@ struct DerivationBuilder : RestrictionContext {
    * and start the build. The builder could have immediately exited with
    * failure, and that would still be considered a successful start.
    */
-  virtual std::optional<Descriptor> startBuild() = 0;
+  virtual std::optional<descriptor_t> startBuild() = 0;
 
   /**
    * Tear down build environment after the builder exits (either on
@@ -183,7 +183,7 @@ struct DerivationBuilder : RestrictionContext {
 };
 
 struct ExternalBuilder {
-  StringSet systems;
+  string_set_t systems;
   Path program;
   std::vector<std::string> args;
 };

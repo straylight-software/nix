@@ -5,22 +5,22 @@
 
 namespace nix {
 
-SourcePath EvalState::rootPath(CanonPath path) {
+source_path_t EvalState::rootPath(canon_path_t path) {
   return {rootFS, std::move(path)};
 }
 
-SourcePath EvalState::rootPath(PathView path) {
-  return {rootFS, CanonPath(absPath(path))};
+source_path_t EvalState::rootPath(path_view_t path) {
+  return {rootFS, canon_path_t(absPath(path))};
 }
 
-SourcePath EvalState::storePath(const StorePath& path) {
-  return {rootFS, CanonPath{store->printStorePath(path)}};
+source_path_t EvalState::storePath(const StorePath& path) {
+  return {rootFS, canon_path_t{store->printStorePath(path)}};
 }
 
-StorePath EvalState::devirtualize(const StorePath& path, StringMap* rewrites) {
-  if (auto mount = storeFS->getMount(CanonPath(store->printStorePath(path)))) {
+StorePath EvalState::devirtualize(const StorePath& path, string_map_t* rewrites) {
+  if (auto mount = storeFS->getMount(canon_path_t(store->printStorePath(path)))) {
     auto storePath =
-        fetchToStore(fetchSettings, *store, SourcePath{ref(mount)},
+        fetchToStore(fetchSettings, *store, source_path_t{ref(mount)},
                      settings.readOnlyMode ? FetchMode::DryRun : FetchMode::Copy, path.name());
     assert(storePath.name() == path.name());
     if (rewrites)
@@ -30,24 +30,24 @@ StorePath EvalState::devirtualize(const StorePath& path, StringMap* rewrites) {
     return path;
 }
 
-SingleDerivedPath EvalState::devirtualize(const SingleDerivedPath& path, StringMap* rewrites) {
-  if (auto o = std::get_if<SingleDerivedPath::Opaque>(&path.raw()))
-    return SingleDerivedPath::Opaque{devirtualize(o->path, rewrites)};
+SingleDerivedPath EvalState::devirtualize(const SingleDerivedPath& path, string_map_t* rewrites) {
+  if (auto o = std::get_if<SingleDerivedPath::opaque_t>(&path.raw()))
+    return SingleDerivedPath::opaque_t{devirtualize(o->path, rewrites)};
   else
     return path;
 }
 
 std::string EvalState::devirtualize(std::string_view s, const NixStringContext& context) {
-  StringMap rewrites;
+  string_map_t rewrites;
 
   for (auto& c : context)
-    if (auto o = std::get_if<NixStringContextElem::Opaque>(&c.raw))
+    if (auto o = std::get_if<NixStringContextElem::opaque_t>(&c.raw))
       devirtualize(o->path, &rewrites);
 
   return rewriteStrings(std::string(s), rewrites);
 }
 
-std::string EvalState::computeBaseName(const SourcePath& path, PosIdx pos) {
+std::string EvalState::computeBaseName(const source_path_t& path, pos_idx_t pos) {
   if (path.accessor == rootFS) {
     if (auto storePath = store->maybeParseStorePath(path.path.abs())) {
       debug("Copying '%s' to the store again.\n"
@@ -86,18 +86,18 @@ StorePath EvalState::mountInput(fetchers::Input& input, const fetchers::Input& o
     return _narHash;
   };
 
-  storeFS->mount(CanonPath(store->printStorePath(storePath)), accessor);
+  storeFS->mount(canon_path_t(store->printStorePath(storePath)), accessor);
 
   if (forceNarHash ||
       (requireLockable &&
        (!settings.lazyTrees || !settings.lazyLocks || !input.isLocked(fetchSettings)) &&
        !input.getNarHash()))
-    input.attrs.insert_or_assign("narHash", getNarHash()->to_string(HashFormat::SRI, true));
+    input.attrs.insert_or_assign("narHash", getNarHash()->to_string(hash_format_t::SRI, true));
 
   if (originalInput.getNarHash() && *getNarHash() != *originalInput.getNarHash())
     throw Error((unsigned int)102, "NAR hash mismatch in input '%s', expected '%s' but got '%s'",
-                originalInput.to_string(), getNarHash()->to_string(HashFormat::SRI, true),
-                originalInput.getNarHash()->to_string(HashFormat::SRI, true));
+                originalInput.to_string(), getNarHash()->to_string(hash_format_t::SRI, true),
+                originalInput.getNarHash()->to_string(hash_format_t::SRI, true));
 
   return storePath;
 }

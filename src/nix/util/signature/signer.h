@@ -16,8 +16,8 @@ namespace nix {
  * It is only necessary to implement signature of bytes and provide a
  * public key.
  */
-struct Signer {
-  virtual ~Signer() = default;
+struct signer_t {
+  virtual ~signer_t() = default;
 
   /**
    * Sign the given data, creating a (detached) signature.
@@ -31,28 +31,28 @@ struct Signer {
   virtual std::string signDetached(std::string_view data) const = 0;
 
   /**
-   * View the public key associated with this `Signer`.
+   * View the public key associated with this `signer_t`.
    */
-  virtual const PublicKey& getPublicKey() = 0;
+  virtual const public_key_t& getPublicKey() = 0;
 };
 
-using Signers = std::map<std::string, Signer*>;
+using signers_t = std::map<std::string, signer_t*>;
 
 /**
  * Local signer
  *
  * The private key is held in this machine's RAM
  */
-struct LocalSigner : Signer {
-  LocalSigner(SecretKey&& privateKey);
+struct local_signer_t : signer_t {
+  local_signer_t(secret_key_t&& privateKey);
 
   std::string signDetached(std::string_view s) const override;
 
-  const PublicKey& getPublicKey() override;
+  const public_key_t& getPublicKey() override;
 
 private:
-  SecretKey privateKey;
-  PublicKey publicKey;
+  secret_key_t privateKey;
+  public_key_t publicKey;
 };
 
 } // namespace nix

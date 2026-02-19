@@ -37,7 +37,7 @@ static void checkPathName(std::string_view path, std::string_view name) {
   try {
     checkName(name);
   } catch (BadStorePathName& e) {
-    throw BadStorePath("path '%s' is not a valid store path: %s", path, Uncolored(e.message()));
+    throw BadStorePath("path '%s' is not a valid store path: %s", path, uncolored_t(e.message()));
   }
 }
 
@@ -52,7 +52,7 @@ StorePath::StorePath(std::string_view _baseName) : baseName(_baseName) {
 }
 
 StorePath::StorePath(const Hash& hash, std::string_view _name)
-    : baseName((hash.to_string(HashFormat::Nix32, false) + "-").append(std::string(_name))) {
+    : baseName((hash.to_string(hash_format_t::Nix32, false) + "-").append(std::string(_name))) {
   checkPathName(baseName, name());
 }
 
@@ -68,7 +68,7 @@ void StorePath::requireDerivation() const {
 StorePath StorePath::dummy("ffffffffffffffffffffffffffffffff-x");
 
 StorePath StorePath::random(std::string_view name) {
-  return StorePath(Hash::random(HashAlgorithm::SHA1), name);
+  return StorePath(Hash::random(hash_algorithm_t::SHA1), name);
 }
 
 } // namespace nix

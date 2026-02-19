@@ -87,6 +87,7 @@
             # straylight primitives deps
             inherit stringzilla; # SIMD-accelerated string operations
             rapidfuzz-cpp = pkgs.rapidfuzz-cpp; # SIMD-optimized fuzzy matching
+            taskflow = pkgs.taskflow; # Parallel task programming (DAG executor)
 
             # nix-language deps (WASM compilation)
             pegtl = pkgs.pegtl; # PEGTL parser combinator library

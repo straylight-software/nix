@@ -32,17 +32,17 @@ static void setupSeccomp()
     scmp_filter_ctx ctx;
 
     if (!(ctx = seccomp_init(SCMP_ACT_ALLOW)))
-        throw SysError("unable to initialize seccomp mode 2");
+        throw sys_error_t("unable to initialize seccomp mode 2");
 
-    Finally cleanup([&]() { seccomp_release(ctx); });
+    finally_t cleanup([&]() { seccomp_release(ctx); });
 
     constexpr std::string_view nativeSystem = NIX_LOCAL_SYSTEM;
 
     if (nativeSystem == "x86_64-linux" && seccomp_arch_add(ctx, SCMP_ARCH_X86) != 0)
-        throw SysError("unable to add 32-bit seccomp architecture");
+        throw sys_error_t("unable to add 32-bit seccomp architecture");
 
     if (nativeSystem == "x86_64-linux" && seccomp_arch_add(ctx, SCMP_ARCH_X32) != 0)
-        throw SysError("unable to add X32 seccomp architecture");
+        throw sys_error_t("unable to add X32 seccomp architecture");
 
     if (nativeSystem == "aarch64-linux" && seccomp_arch_add(ctx, SCMP_ARCH_ARM) != 0)
         printError(
@@ -69,7 +69,7 @@ static void setupSeccomp()
                 1,
                 SCMP_A1(SCMP_CMP_MASKED_EQ, (scmp_datum_t) perm, (scmp_datum_t) perm))
             != 0)
-            throw SysError("unable to add seccomp rule");
+            throw sys_error_t("unable to add seccomp rule");
 
         if (seccomp_rule_add(
                 ctx,
@@ -78,7 +78,7 @@ static void setupSeccomp()
                 1,
                 SCMP_A1(SCMP_CMP_MASKED_EQ, (scmp_datum_t) perm, (scmp_datum_t) perm))
             != 0)
-            throw SysError("unable to add seccomp rule");
+            throw sys_error_t("unable to add seccomp rule");
 
         if (seccomp_rule_add(
                 ctx,
@@ -87,7 +87,7 @@ static void setupSeccomp()
                 1,
                 SCMP_A2(SCMP_CMP_MASKED_EQ, (scmp_datum_t) perm, (scmp_datum_t) perm))
             != 0)
-            throw SysError("unable to add seccomp rule");
+            throw sys_error_t("unable to add seccomp rule");
 
         if (seccomp_rule_add(
                 ctx,
@@ -96,7 +96,7 @@ static void setupSeccomp()
                 1,
                 SCMP_A2(SCMP_CMP_MASKED_EQ, (scmp_datum_t) perm, (scmp_datum_t) perm))
             != 0)
-            throw SysError("unable to add seccomp rule");
+            throw sys_error_t("unable to add seccomp rule");
     }
 
     /* Prevent builders from using EAs or ACLs. Not all filesystems
@@ -108,13 +108,13 @@ static void setupSeccomp()
         || seccomp_rule_add(ctx, SCMP_ACT_ERRNO(ENOTSUP), SCMP_SYS(setxattr), 0) != 0
         || seccomp_rule_add(ctx, SCMP_ACT_ERRNO(ENOTSUP), SCMP_SYS(lsetxattr), 0) != 0
         || seccomp_rule_add(ctx, SCMP_ACT_ERRNO(ENOTSUP), SCMP_SYS(fsetxattr), 0) != 0)
-        throw SysError("unable to add seccomp rule");
+        throw sys_error_t("unable to add seccomp rule");
 
     if (seccomp_attr_set(ctx, SCMP_FLTATR_CTL_NNP, settings.allowNewPrivileges ? 0 : 1) != 0)
-        throw SysError("unable to set 'no new privileges' seccomp attribute");
+        throw sys_error_t("unable to set 'no new privileges' seccomp attribute");
 
     if (seccomp_load(ctx) != 0)
-        throw SysError("unable to load seccomp BPF program");
+        throw sys_error_t("unable to load seccomp BPF program");
 #  else
     throw Error(
         "seccomp is not supported on this platform; "
@@ -128,7 +128,7 @@ static void doBind(const Path & source, const Path & target, bool optional = fal
 
     auto bindMount = [&]() {
         if (mount(source.c_str(), target.c_str(), "", MS_BIND | MS_REC, 0) == -1)
-            throw SysError("bind mount from '%1%' to '%2%' failed", source, target);
+            throw sys_error_t("bind mount from '%1%' to '%2%' failed", source, target);
     };
 
     auto maybeSt = maybeLstat(source);
@@ -136,7 +136,7 @@ static void doBind(const Path & source, const Path & target, bool optional = fal
         if (optional)
             return;
         else
-            throw SysError("getting attributes of path '%1%'", source);
+            throw sys_error_t("getting attributes of path '%1%'", source);
     }
     auto st = *maybeSt;
 
@@ -154,9 +154,9 @@ static void doBind(const Path & source, const Path & target, bool optional = fal
     }
 }
 
-struct LinuxDerivationBuilder : virtual DerivationBuilderImpl
+struct linux_derivation_builder_t : virtual derivation_builder_impl_t
 {
-    using DerivationBuilderImpl::DerivationBuilderImpl;
+    using derivation_builder_impl_t::derivation_builder_impl_t;
 
     void enterChroot() override
     {
@@ -166,19 +166,19 @@ struct LinuxDerivationBuilder : virtual DerivationBuilderImpl
     }
 };
 
-struct ChrootLinuxDerivationBuilder : ChrootDerivationBuilder, LinuxDerivationBuilder
+struct chroot_linux_derivation_builder_t : chroot_derivation_builder_t, linux_derivation_builder_t
 {
     /**
-     * Pipe for synchronising updates to the builder namespaces.
+     * pipe_t for synchronising updates to the builder namespaces.
      */
-    Pipe userNamespaceSync;
+    pipe_t userNamespaceSync;
 
     /**
      * The mount namespace and user namespace of the builder, used to add additional
      * paths to the sandbox as a result of recursive Nix calls.
      */
-    AutoCloseFD sandboxMountNamespace;
-    AutoCloseFD sandboxUserNamespace;
+    auto_close_fd_t sandboxMountNamespace;
+    auto_close_fd_t sandboxUserNamespace;
 
     /**
      * On Linux, whether we're doing the build in its own user
@@ -191,11 +191,11 @@ struct ChrootLinuxDerivationBuilder : ChrootDerivationBuilder, LinuxDerivationBu
      */
     std::optional<Path> cgroup;
 
-    ChrootLinuxDerivationBuilder(
+    chroot_linux_derivation_builder_t(
         LocalStore & store, std::unique_ptr<DerivationBuilderCallbacks> miscMethods, DerivationBuilderParams params)
-        : DerivationBuilderImpl{store, std::move(miscMethods), std::move(params)}
-        , ChrootDerivationBuilder{store, std::move(miscMethods), std::move(params)}
-        , LinuxDerivationBuilder{store, std::move(miscMethods), std::move(params)}
+        : derivation_builder_impl_t{store, std::move(miscMethods), std::move(params)}
+        , chroot_derivation_builder_t{store, std::move(miscMethods), std::move(params)}
+        , linux_derivation_builder_t{store, std::move(miscMethods), std::move(params)}
     {
     }
 
@@ -207,7 +207,7 @@ struct ChrootLinuxDerivationBuilder : ChrootDerivationBuilder, LinuxDerivationBu
     gid_t sandboxGid() override
     {
         return usingUserNamespace ? (!buildUser || buildUser->getUIDCount() == 1 ? 100 : 0)
-                                  : ChrootDerivationBuilder::sandboxGid();
+                                  : chroot_derivation_builder_t::sandboxGid();
     }
 
     std::unique_ptr<UserLock> getBuildUser() override
@@ -218,7 +218,7 @@ struct ChrootLinuxDerivationBuilder : ChrootDerivationBuilder, LinuxDerivationBu
     void prepareUser() override
     {
         if ((buildUser && buildUser->getUIDCount() != 1) || settings.useCgroups) {
-            experimentalFeatureSettings.require(Xp::Cgroups);
+            experimentalFeatureSettings.require(xp_t::Cgroups);
 
             /* If we're running from the daemon, then this will return the
                root cgroup of the service. Otherwise, it will return the
@@ -257,16 +257,16 @@ struct ChrootLinuxDerivationBuilder : ChrootDerivationBuilder, LinuxDerivationBu
         }
 
         // Kill any processes left in the cgroup or build user.
-        DerivationBuilderImpl::prepareUser();
+        derivation_builder_impl_t::prepareUser();
     }
 
     void prepareSandbox() override
     {
-        ChrootDerivationBuilder::prepareSandbox();
+        chroot_derivation_builder_t::prepareSandbox();
 
         if (cgroup) {
             if (mkdir(cgroup->c_str(), 0755) != 0)
-                throw SysError("creating cgroup '%s'", *cgroup);
+                throw sys_error_t("creating cgroup '%s'", *cgroup);
             chownToBuilder(*cgroup);
             chownToBuilder(*cgroup + "/cgroup.procs");
             chownToBuilder(*cgroup + "/cgroup.threads");
@@ -276,7 +276,7 @@ struct ChrootLinuxDerivationBuilder : ChrootDerivationBuilder, LinuxDerivationBu
 
     void startChild() override
     {
-        RunChildArgs args{
+        run_child_args_t args{
 #  if NIX_WITH_AWS_AUTH
             .awsCredentials = preResolveAwsCredentials(),
 #  endif
@@ -320,7 +320,7 @@ struct ChrootLinuxDerivationBuilder : ChrootDerivationBuilder, LinuxDerivationBu
 
         usingUserNamespace = userNamespacesSupported();
 
-        Pipe sendPid;
+        pipe_t sendPid;
         sendPid.create();
 
         Pid helper = startProcess([&]() {
@@ -336,13 +336,13 @@ struct ChrootLinuxDerivationBuilder : ChrootDerivationBuilder, LinuxDerivationBu
                    after we've created the new user namespace. */
                 if (setgroups(0, 0) == -1) {
                     if (errno != EPERM)
-                        throw SysError("setgroups failed");
+                        throw sys_error_t("setgroups failed");
                     if (settings.requireDropSupplementaryGroups)
                         throw Error(
                             "setgroups failed. Set the require-drop-supplementary-groups option to false to skip this step.");
                 }
 
-                ProcessOptions options;
+                process_options_t options;
                 options.cloneFlags = CLONE_NEWPID | CLONE_NEWNS | CLONE_NEWIPC | CLONE_NEWUTS | CLONE_PARENT | SIGCHLD;
                 if (derivationType.isSandboxed())
                     options.cloneFlags |= CLONE_NEWNET;
@@ -376,7 +376,7 @@ struct ChrootLinuxDerivationBuilder : ChrootDerivationBuilder, LinuxDerivationBu
            inherited `writeSide` (and O_CLOEXEC doesn't help because
            the children may not do an execve). */
         bool userNamespaceSyncDone = false;
-        Finally cleanup([&]() {
+        finally_t cleanup([&]() {
             try {
                 if (!userNamespaceSyncDone)
                     writeFull(userNamespaceSync.writeSide.get(), "0\n");
@@ -425,12 +425,12 @@ struct ChrootLinuxDerivationBuilder : ChrootDerivationBuilder, LinuxDerivationBu
          *before* the child does a chroot. */
         sandboxMountNamespace = open(fmt("/proc/%d/ns/mnt", (pid_t) pid).c_str(), O_RDONLY);
         if (sandboxMountNamespace.get() == -1)
-            throw SysError("getting sandbox mount namespace");
+            throw sys_error_t("getting sandbox mount namespace");
 
         if (usingUserNamespace) {
             sandboxUserNamespace = open(fmt("/proc/%d/ns/user", (pid_t) pid).c_str(), O_RDONLY);
             if (sandboxUserNamespace.get() == -1)
-                throw SysError("getting sandbox user namespace");
+                throw sys_error_t("getting sandbox user namespace");
         }
 
         /* Move the child into its own cgroup. */
@@ -454,24 +454,24 @@ struct ChrootLinuxDerivationBuilder : ChrootDerivationBuilder, LinuxDerivationBu
         if (derivationType.isSandboxed()) {
 
             /* Initialise the loopback interface. */
-            AutoCloseFD fd(socket(PF_INET, SOCK_DGRAM, IPPROTO_IP));
+            auto_close_fd_t fd(socket(PF_INET, SOCK_DGRAM, IPPROTO_IP));
             if (!fd)
-                throw SysError("cannot open IP socket");
+                throw sys_error_t("cannot open IP socket");
 
             struct ifreq ifr;
             strcpy(ifr.ifr_name, "lo");
             ifr.ifr_flags = IFF_UP | IFF_LOOPBACK | IFF_RUNNING;
             if (ioctl(fd.get(), SIOCSIFFLAGS, &ifr) == -1)
-                throw SysError("cannot set loopback interface flags");
+                throw sys_error_t("cannot set loopback interface flags");
         }
 
         /* Set the hostname etc. to fixed values. */
         char hostname[] = "localhost";
         if (sethostname(hostname, sizeof(hostname)) == -1)
-            throw SysError("cannot set host name");
+            throw sys_error_t("cannot set host name");
         char domainname[] = "(none)"; // kernel default
         if (setdomainname(domainname, sizeof(domainname)) == -1)
-            throw SysError("cannot set domain name");
+            throw sys_error_t("cannot set domain name");
 
         /* Make all filesystems private.  This is necessary
            because subtrees may have been mounted as "shared"
@@ -482,12 +482,12 @@ struct ChrootLinuxDerivationBuilder : ChrootDerivationBuilder, LinuxDerivationBu
            local to the namespace, though, so setting MS_PRIVATE
            does not affect the outside world. */
         if (mount(0, "/", 0, MS_PRIVATE | MS_REC, 0) == -1)
-            throw SysError("unable to make '/' private");
+            throw sys_error_t("unable to make '/' private");
 
         /* Bind-mount chroot directory to itself, to treat it as a
            different filesystem from /, as needed for pivot_root. */
         if (mount(chrootRootDir.c_str(), chrootRootDir.c_str(), 0, MS_BIND, 0) == -1)
-            throw SysError("unable to bind mount '%1%'", chrootRootDir);
+            throw sys_error_t("unable to bind mount '%1%'", chrootRootDir);
 
         /* Bind-mount the sandbox's Nix store onto itself so that
            we can mark it as a "shared" subtree, allowing bind
@@ -500,14 +500,14 @@ struct ChrootLinuxDerivationBuilder : ChrootDerivationBuilder, LinuxDerivationBu
         Path chrootStoreDir = chrootRootDir + store.storeDir;
 
         if (mount(chrootStoreDir.c_str(), chrootStoreDir.c_str(), 0, MS_BIND, 0) == -1)
-            throw SysError("unable to bind mount the Nix store", chrootStoreDir);
+            throw sys_error_t("unable to bind mount the Nix store", chrootStoreDir);
 
         if (mount(0, chrootStoreDir.c_str(), 0, MS_SHARED, 0) == -1)
-            throw SysError("unable to make '%s' shared", chrootStoreDir);
+            throw sys_error_t("unable to make '%s' shared", chrootStoreDir);
 
         /* Set up a nearly empty /dev, unless the user asked to
            bind-mount the host /dev. */
-        Strings ss;
+        strings_t ss;
         if (pathsInChroot.find("/dev") == pathsInChroot.end()) {
             createDirs(chrootRootDir + "/dev/shm");
             createDirs(chrootRootDir + "/dev/pts");
@@ -590,13 +590,13 @@ struct ChrootLinuxDerivationBuilder : ChrootDerivationBuilder, LinuxDerivationBu
         /* Bind a new instance of procfs on /proc. */
         createDirs(chrootRootDir + "/proc");
         if (mount("none", (chrootRootDir + "/proc").c_str(), "proc", 0, 0) == -1)
-            throw SysError("mounting /proc");
+            throw sys_error_t("mounting /proc");
 
         /* Mount sysfs on /sys. */
         if (buildUser && buildUser->getUIDCount() != 1) {
             createDirs(chrootRootDir + "/sys");
             if (mount("none", (chrootRootDir + "/sys").c_str(), "sysfs", 0, 0) == -1)
-                throw SysError("mounting /sys");
+                throw sys_error_t("mounting /sys");
         }
 
         /* Mount a new tmpfs on /dev/shm to ensure that whatever
@@ -609,7 +609,7 @@ struct ChrootLinuxDerivationBuilder : ChrootDerivationBuilder, LinuxDerivationBu
                    0,
                    fmt("size=%s", settings.sandboxShmSize).c_str())
                    == -1)
-            throw SysError("mounting /dev/shm");
+            throw sys_error_t("mounting /dev/shm");
 
         /* Mount a new devpts on /dev/pts.  Note that this
            requires the kernel to be compiled with
@@ -625,7 +625,7 @@ struct ChrootLinuxDerivationBuilder : ChrootDerivationBuilder, LinuxDerivationBu
                 chmod_(chrootRootDir + "/dev/pts/ptmx", 0666);
             } else {
                 if (errno != EINVAL)
-                    throw SysError("mounting /dev/pts");
+                    throw sys_error_t("mounting /dev/pts");
                 doBind("/dev/pts", chrootRootDir + "/dev/pts");
                 doBind("/dev/ptmx", chrootRootDir + "/dev/ptmx");
             }
@@ -646,34 +646,34 @@ struct ChrootLinuxDerivationBuilder : ChrootDerivationBuilder, LinuxDerivationBu
            shared subtree above, this allows addDependency() to
            make paths appear in the sandbox. */
         if (unshare(CLONE_NEWNS) == -1)
-            throw SysError("unsharing mount namespace");
+            throw sys_error_t("unsharing mount namespace");
 
         /* Unshare the cgroup namespace. This means
            /proc/self/cgroup will show the child's cgroup as '/'
            rather than whatever it is in the parent. */
         if (cgroup && unshare(CLONE_NEWCGROUP) == -1)
-            throw SysError("unsharing cgroup namespace");
+            throw sys_error_t("unsharing cgroup namespace");
 
         /* Do the chroot(). */
         if (chdir(chrootRootDir.c_str()) == -1)
-            throw SysError("cannot change directory to '%1%'", chrootRootDir);
+            throw sys_error_t("cannot change directory to '%1%'", chrootRootDir);
 
         if (mkdir("real-root", 0500) == -1)
-            throw SysError("cannot create real-root directory");
+            throw sys_error_t("cannot create real-root directory");
 
         if (pivot_root(".", "real-root") == -1)
-            throw SysError("cannot pivot old root directory onto '%1%'", (chrootRootDir + "/real-root"));
+            throw sys_error_t("cannot pivot old root directory onto '%1%'", (chrootRootDir + "/real-root"));
 
         if (chroot(".") == -1)
-            throw SysError("cannot change root directory to '%1%'", chrootRootDir);
+            throw sys_error_t("cannot change root directory to '%1%'", chrootRootDir);
 
         if (umount2("real-root", MNT_DETACH) == -1)
-            throw SysError("cannot unmount real root filesystem");
+            throw sys_error_t("cannot unmount real root filesystem");
 
         if (rmdir("real-root") == -1)
-            throw SysError("cannot remove real-root directory");
+            throw sys_error_t("cannot remove real-root directory");
 
-        LinuxDerivationBuilder::enterChroot();
+        linux_derivation_builder_t::enterChroot();
     }
 
     void setUser() override
@@ -682,9 +682,9 @@ struct ChrootLinuxDerivationBuilder : ChrootDerivationBuilder, LinuxDerivationBu
            which corresponds to the build user or calling user in
            the parent namespace. */
         if (setgid(sandboxGid()) == -1)
-            throw SysError("setgid failed");
+            throw sys_error_t("setgid failed");
         if (setuid(sandboxUid()) == -1)
-            throw SysError("setuid failed");
+            throw sys_error_t("setuid failed");
     }
 
     SingleDrvOutputs unprepareBuild() override
@@ -692,7 +692,7 @@ struct ChrootLinuxDerivationBuilder : ChrootDerivationBuilder, LinuxDerivationBu
         sandboxMountNamespace = -1;
         sandboxUserNamespace = -1;
 
-        return DerivationBuilderImpl::unprepareBuild();
+        return derivation_builder_impl_t::unprepareBuild();
     }
 
     void killSandbox(bool getStats) override
@@ -706,7 +706,7 @@ struct ChrootLinuxDerivationBuilder : ChrootDerivationBuilder, LinuxDerivationBu
             return;
         }
 
-        DerivationBuilderImpl::killSandbox(getStats);
+        derivation_builder_impl_t::killSandbox(getStats);
     }
 
     void addDependencyImpl(const StorePath & path) override
@@ -714,7 +714,7 @@ struct ChrootLinuxDerivationBuilder : ChrootDerivationBuilder, LinuxDerivationBu
         if (isAllowed(path))
             return;
 
-        auto [source, target] = ChrootDerivationBuilder::addDependencyPrep(path);
+        auto [source, target] = chroot_derivation_builder_t::addDependencyPrep(path);
 
         /* Bind-mount the path into the sandbox. This requires
            entering its mount namespace, which is not possible
@@ -722,10 +722,10 @@ struct ChrootLinuxDerivationBuilder : ChrootDerivationBuilder, LinuxDerivationBu
            child process.*/
         Pid child(startProcess([&]() {
             if (usingUserNamespace && (setns(sandboxUserNamespace.get(), 0) == -1))
-                throw SysError("entering sandbox user namespace");
+                throw sys_error_t("entering sandbox user namespace");
 
             if (setns(sandboxMountNamespace.get(), 0) == -1)
-                throw SysError("entering sandbox mount namespace");
+                throw sys_error_t("entering sandbox mount namespace");
 
             doBind(source, target);
 
@@ -739,7 +739,7 @@ struct ChrootLinuxDerivationBuilder : ChrootDerivationBuilder, LinuxDerivationBu
 
     ActiveBuild getActiveBuild() override
     {
-        auto build = DerivationBuilderImpl::getActiveBuild();
+        auto build = derivation_builder_impl_t::getActiveBuild();
         build.cgroup = cgroup;
         return build;
     }

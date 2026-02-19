@@ -10,13 +10,13 @@
 
 using namespace nix;
 
-struct CmdVerify : StorePathsCommand {
+struct cmd_verify_t : StorePathsCommand {
   bool noContents = false;
   bool noTrust = false;
-  Strings substituterUris;
+  strings_t substituterUris;
   size_t sigsNeeded = 0;
 
-  CmdVerify() {
+  cmd_verify_t() {
     addFlag({
         .longName = "no-contents",
         .description = "Do not verify the contents of each store path.",
@@ -61,7 +61,7 @@ struct CmdVerify : StorePathsCommand {
 
     auto publicKeys = getDefaultPublicKeys();
 
-    Activity act(*logger, actVerifyPaths);
+    activity_t act(*logger, actVerifyPaths);
 
     std::atomic<size_t> done{0};
     std::atomic<size_t> untrusted{0};
@@ -71,13 +71,13 @@ struct CmdVerify : StorePathsCommand {
 
     auto update = [&]() { act.progress(done, storePaths.size(), active, failed); };
 
-    ThreadPool pool;
+    thread_pool_t pool;
 
     auto doPath = [&](const StorePath& storePath) {
       try {
         checkInterrupt();
 
-        MaintainCount<std::atomic<size_t>> mcActive(active);
+        maintain_count_t<std::atomic<size_t>> mcActive(active);
         update();
 
         auto info = store->queryPathInfo(storePath);
@@ -85,11 +85,11 @@ struct CmdVerify : StorePathsCommand {
         // Note: info->path can be different from storePath
         // for binary cache stores when using --all (since we
         // can't enumerate names efficiently).
-        Activity act2(*logger, lvlInfo, actUnknown,
+        activity_t act2(*logger, lvlInfo, actUnknown,
                       fmt("checking '%s'", store->printStorePath(info->path)));
 
         if (!noContents) {
-          auto hashSink = HashSink(info->narHash.algo);
+          auto hashSink = hash_sink_t(info->narHash.algo);
 
           store->narFromPath(info->path, hashSink);
 
@@ -100,8 +100,8 @@ struct CmdVerify : StorePathsCommand {
             act2.result(resCorruptedPath, store->printStorePath(info->path));
             printError("path '%s' was modified! expected hash '%s', got '%s'",
                        store->printStorePath(info->path),
-                       info->narHash.to_string(HashFormat::Nix32, true),
-                       hash.hash.to_string(HashFormat::Nix32, true));
+                       info->narHash.to_string(hash_format_t::Nix32, true),
+                       hash.hash.to_string(hash_format_t::Nix32, true));
           }
         }
 
@@ -112,11 +112,11 @@ struct CmdVerify : StorePathsCommand {
             good = true;
 
           else {
-            StringSet sigsSeen;
+            string_set_t sigsSeen;
             size_t actualSigsNeeded = std::max(sigsNeeded, (size_t)1);
             size_t validSigs = 0;
 
-            auto doSigs = [&](StringSet sigs) {
+            auto doSigs = [&](string_set_t sigs) {
               for (const auto& sig : sigs) {
                 if (!sigsSeen.insert(sig).second)
                   continue;
@@ -171,8 +171,8 @@ struct CmdVerify : StorePathsCommand {
 
     pool.process();
 
-    throw Exit((corrupted ? 1 : 0) | (untrusted ? 2 : 0) | (failed ? 4 : 0));
+    throw exit_t((corrupted ? 1 : 0) | (untrusted ? 2 : 0) | (failed ? 4 : 0));
   }
 };
 
-static auto rCmdVerify = registerCommand2<CmdVerify>({"store", "verify"});
+static auto rCmdVerify = registerCommand2<cmd_verify_t>({"store", "verify"});

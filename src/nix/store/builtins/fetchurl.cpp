@@ -37,7 +37,7 @@ static void builtinFetchurl(const BuiltinBuilderContext& ctx) {
 
   auto fetch = [&](const std::string& url) {
     auto source = sinkToSource([&](Sink& sink) {
-      FileTransferRequest request(VerbatimURL{url});
+      FileTransferRequest request(verbatim_url_t{url});
       request.decompress = false;
 
 #if NIX_WITH_AWS_AUTH
@@ -66,19 +66,19 @@ static void builtinFetchurl(const BuiltinBuilderContext& ctx) {
     auto executable = ctx.drv.env.find("executable");
     if (executable != ctx.drv.env.end() && executable->second == "1") {
       if (chmod(storePath.c_str(), 0755) == -1)
-        throw SysError("making '%1%' executable", storePath);
+        throw sys_error_t("making '%1%' executable", storePath);
     }
   };
 
   /* Try the hashed mirrors first. */
   auto dof = std::get_if<DerivationOutput::CAFixed>(&out->raw);
-  if (dof && dof->ca.method.getFileIngestionMethod() == FileIngestionMethod::Flat)
+  if (dof && dof->ca.method.getFileIngestionMethod() == file_ingestion_method_t::Flat)
     for (auto hashedMirror : settings.hashedMirrors.get())
       try {
         if (!hasSuffix(hashedMirror, "/"))
           hashedMirror += '/';
         fetch(hashedMirror + printHashAlgo(dof->ca.hash.algo) + "/" +
-              dof->ca.hash.to_string(HashFormat::Base16, false));
+              dof->ca.hash.to_string(hash_format_t::Base16, false));
         return;
       } catch (Error& e) {
         debug(e.what());

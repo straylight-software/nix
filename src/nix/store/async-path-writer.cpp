@@ -7,7 +7,7 @@
 
 namespace nix {
 
-struct AsyncPathWriterImpl : AsyncPathWriter {
+struct async_path_writer_impl_t : AsyncPathWriter {
   ref<Store> store;
 
   struct Item {
@@ -26,13 +26,13 @@ struct AsyncPathWriterImpl : AsyncPathWriter {
     bool quit = false;
   };
 
-  Sync<State> state_;
+  sync_t<State> state_;
 
   std::thread workerThread;
 
   std::condition_variable wakeupCV;
 
-  AsyncPathWriterImpl(ref<Store> store) : store(store) {
+  async_path_writer_impl_t(ref<Store> store) : store(store) {
     workerThread = std::thread([&]() {
       while (true) {
         std::vector<Item> items;
@@ -58,7 +58,7 @@ struct AsyncPathWriterImpl : AsyncPathWriter {
     });
   }
 
-  virtual ~AsyncPathWriterImpl() {
+  virtual ~async_path_writer_impl_t() {
     state_.lock()->quit = true;
     wakeupCV.notify_all();
     workerThread.join();
@@ -66,7 +66,7 @@ struct AsyncPathWriterImpl : AsyncPathWriter {
 
   StorePath addPath(std::string contents, std::string name, StorePathSet references,
                     RepairFlag repair, bool readOnly) override {
-    auto hash = hashString(HashAlgorithm::SHA256, contents);
+    auto hash = hashString(hash_algorithm_t::SHA256, contents);
 
     auto storePath = store->makeFixedOutputPathFromCA(name, TextInfo{
                                                                 .hash = hash,
@@ -119,10 +119,10 @@ struct AsyncPathWriterImpl : AsyncPathWriter {
         RepairFlag repair = NoRepair;
 
         for (auto & item : items) {
-            ValidPathInfo info{item.storePath, Hash(HashAlgorithm::SHA256)};
+            ValidPathInfo info{item.storePath, Hash(hash_algorithm_t::SHA256)};
             info.references = item.references;
             info.ca = ContentAddress {
-                .method = ContentAddressMethod::Raw::Text,
+                .method = ContentAddressMethod::raw_t::Text,
                 .hash = item.hash,
             };
             if (item.repair) repair = item.repair;
@@ -133,23 +133,23 @@ struct AsyncPathWriterImpl : AsyncPathWriter {
             sources.push_back({std::move(info), std::move(source)});
         }
 
-        Activity act(*logger, lvlDebug, actUnknown, fmt("adding %d paths to the store", items.size()));
+        activity_t act(*logger, lvlDebug, actUnknown, fmt("adding %d paths to the store", items.size()));
 
         store->addMultipleToStore(std::move(sources), act, repair);
 #endif
 
     for (auto& item : items) {
-      StringSource source(item.contents);
+      string_source_t source(item.contents);
       auto storePath = store->addToStoreFromDump(
-          source, item.storePath.name(), FileSerialisationMethod::Flat,
-          ContentAddressMethod::Raw::Text, HashAlgorithm::SHA256, item.references, item.repair);
+          source, item.storePath.name(), file_serialisation_method_t::Flat,
+          ContentAddressMethod::raw_t::Text, hash_algorithm_t::SHA256, item.references, item.repair);
       assert(storePath == item.storePath);
     }
   }
 };
 
 ref<AsyncPathWriter> AsyncPathWriter::make(ref<Store> store) {
-  return make_ref<AsyncPathWriterImpl>(store);
+  return make_ref<async_path_writer_impl_t>(store);
 }
 
 } // namespace nix

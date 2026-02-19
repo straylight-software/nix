@@ -7,7 +7,7 @@
 
 using namespace nix;
 
-struct CmdInfoStore : StoreCommand, MixJSON {
+struct cmd_info_store_t : StoreCommand, MixJSON {
   std::string description() override { return "test whether a store can be accessed"; }
 
   std::string doc() override {
@@ -26,7 +26,7 @@ struct CmdInfoStore : StoreCommand, MixJSON {
         notice("Trusted: %s", *trusted);
     } else {
       nlohmann::json res;
-      Finally printRes([&]() { printJSON(res); });
+      finally_t printRes([&]() { printJSON(res); });
 
       res["url"] = store->config.getReference().render(/*withParams=*/true);
       store->connect();
@@ -38,4 +38,4 @@ struct CmdInfoStore : StoreCommand, MixJSON {
   }
 };
 
-static auto rCmdInfoStore = registerCommand2<CmdInfoStore>({"store", "info"});
+static auto rCmdInfoStore = registerCommand2<cmd_info_store_t>({"store", "info"});

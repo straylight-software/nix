@@ -16,7 +16,7 @@
 namespace nix {
 
 class EvalState;
-class PosIdx;
+class pos_idx_t;
 struct Value;
 
 class EvalProfiler {
@@ -56,7 +56,7 @@ public:
    * @param pos Function position.
    */
   virtual void preFunctionCallHook(EvalState& state, const Value& v, std::span<Value*> args,
-                                   const PosIdx pos);
+                                   const pos_idx_t pos);
 
   /**
    * Hook called on EvalState::callFunction exit.
@@ -68,7 +68,7 @@ public:
    * @param pos Function position.
    */
   virtual void postFunctionCallHook(EvalState& state, const Value& v, std::span<Value*> args,
-                                    const PosIdx pos);
+                                    const pos_idx_t pos);
 
   virtual ~EvalProfiler() = default;
 
@@ -97,9 +97,9 @@ public:
   void addProfiler(ref<EvalProfiler> profiler);
 
   [[gnu::noinline]] void preFunctionCallHook(EvalState& state, const Value& v,
-                                             std::span<Value*> args, const PosIdx pos) override;
+                                             std::span<Value*> args, const pos_idx_t pos) override;
   [[gnu::noinline]] void postFunctionCallHook(EvalState& state, const Value& v,
-                                              std::span<Value*> args, const PosIdx pos) override;
+                                              std::span<Value*> args, const pos_idx_t pos) override;
 };
 
 ref<EvalProfiler> makeSampleStackProfiler(EvalState& state, std::filesystem::path profileFile,

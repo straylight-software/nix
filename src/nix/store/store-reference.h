@@ -40,7 +40,7 @@ namespace nix {
  * `?key=value&key=value&...` to the URI.
  */
 struct StoreReference {
-  using Params = StringMap;
+  using Params = string_map_t;
 
   /**
    * Special store reference `""` or `"auto"`

@@ -19,7 +19,7 @@ static const std::regex secondPathSegmentRegex("(?:" + pathSegmentPattern + ")/(
 static const std::regex gitProviderRegex("github|gitlab|sourcehut");
 static const std::regex gitSchemeRegex("git($|\\+.*)");
 
-std::optional<std::string> getNameFromURL(const ParsedURL& url) {
+std::optional<std::string> getNameFromURL(const parsed_url_t& url) {
   std::smatch match;
 
   /* If there is a dir= argument, use its value */

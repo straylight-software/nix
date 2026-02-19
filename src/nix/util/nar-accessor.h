@@ -25,63 +25,63 @@ ref<SourceAccessor> makeNarAccessor(Source& source);
  * readFile() method of the accessor to get the contents of files
  * inside the NAR.
  */
-using GetNarBytes = std::function<std::string(uint64_t, uint64_t)>;
+using get_nar_bytes_t = std::function<std::string(uint64_t, uint64_t)>;
 
 /**
- * The canonical GetNarBytes function for a seekable Source.
+ * The canonical get_nar_bytes_t function for a seekable Source.
  */
-GetNarBytes seekableGetNarBytes(const Path& path);
+get_nar_bytes_t seekableGetNarBytes(const Path& path);
 
-GetNarBytes seekableGetNarBytes(Descriptor fd);
+get_nar_bytes_t seekableGetNarBytes(descriptor_t fd);
 
-ref<SourceAccessor> makeLazyNarAccessor(const nlohmann::json& listing, GetNarBytes getNarBytes);
+ref<SourceAccessor> makeLazyNarAccessor(const nlohmann::json& listing, get_nar_bytes_t getNarBytes);
 
 /**
- * Creates a NAR accessor from a given stream and a GetNarBytes getter.
+ * Creates a NAR accessor from a given stream and a get_nar_bytes_t getter.
  * @param source Consumed eagerly. References to it are not persisted in the resulting
  * SourceAccessor.
  */
-ref<SourceAccessor> makeLazyNarAccessor(Source& source, GetNarBytes getNarBytes);
+ref<SourceAccessor> makeLazyNarAccessor(Source& source, get_nar_bytes_t getNarBytes);
 
-struct NarListingRegularFile {
+struct nar_listing_regular_file_t {
   /**
-   * @see `SourceAccessor::Stat::fileSize`
+   * @see `SourceAccessor::stat_t::fileSize`
    */
   std::optional<uint64_t> fileSize;
 
   /**
-   * @see `SourceAccessor::Stat::narOffset`
+   * @see `SourceAccessor::stat_t::narOffset`
    *
    * We only set to non-`std::nullopt` if it is also non-zero.
    */
   std::optional<uint64_t> narOffset;
 
-  auto operator<=>(const NarListingRegularFile&) const = default;
+  auto operator<=>(const nar_listing_regular_file_t&) const = default;
 };
 
 /**
  * Abstract syntax for a "NAR listing".
  */
-using NarListing = fso::VariantT<NarListingRegularFile, true>;
+using nar_listing_t = fso::variant_t<nar_listing_regular_file_t, true>;
 
 /**
  * Shallow NAR listing where directory children are not recursively expanded.
- * Uses a variant that can hold Regular/Symlink fully, but Directory children
+ * Uses a variant that can hold Regular/Symlink fully, but directory_t children
  * are just unit types indicating presence without content.
  */
-using ShallowNarListing = fso::VariantT<NarListingRegularFile, false>;
+using shallow_nar_listing_t = fso::variant_t<nar_listing_regular_file_t, false>;
 
 /**
  * Return a deep structured representation of the contents of a NAR (except file
  * contents), recursively listing all children.
  */
-NarListing listNarDeep(SourceAccessor& accessor, const CanonPath& path);
+nar_listing_t listNarDeep(SourceAccessor& accessor, const canon_path_t& path);
 
 /**
  * Return a shallow structured representation of the contents of a NAR (except file
  * contents), only listing immediate children without recursing.
  */
-ShallowNarListing listNarShallow(SourceAccessor& accessor, const CanonPath& path);
+shallow_nar_listing_t listNarShallow(SourceAccessor& accessor, const canon_path_t& path);
 
 // All json_avoids_null and JSON_IMPL covered by generic templates in memory-source-accessor.hh
 

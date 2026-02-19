@@ -1,0 +1,61 @@
+# src/straylight/nix/primitives/adapters/BUCK
+#
+# Nix-compatibility adapters for primitives library.
+# Provides drop-in replacements for Nix string utilities.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Nix strings adapter (header-only)
+# ─────────────────────────────────────────────────────────────────────────────
+
+cxx_library(
+    name = "nix_strings_adapter",
+
+    # Header-only library
+    srcs = [],
+
+    exported_headers = [
+        "nix_strings_adapter.h",
+    ],
+
+    header_namespace = "straylight/nix/primitives/adapters",
+
+    visibility = ["PUBLIC"],
+
+    compiler_flags = [
+        "-std=c++23",
+    ],
+
+    # For header-only libraries, transitive deps must be in exported_deps
+    exported_deps = [
+        "//src/straylight/nix/primitives:strings",
+        "//third_party:boost",  # For boost::container::small_vector
+    ],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Tests for adapters
+# ─────────────────────────────────────────────────────────────────────────────
+
+ADAPTER_TEST_LINKER_FLAGS = [
+    # RapidCheck
+    "-L/nix/store/16g9kcg05l7rpllkqh549mmybsrpqcj1-rapidcheck-0-unstable-2023-12-14/lib",
+    "-lrapidcheck",
+    "-Wl,-rpath,/nix/store/16g9kcg05l7rpllkqh549mmybsrpqcj1-rapidcheck-0-unstable-2023-12-14/lib",
+]
+
+ADAPTER_TEST_COMPILER_FLAGS = [
+    "-std=c++23",
+]
+
+cxx_test(
+    name = "nix_strings_adapter_test",
+    srcs = ["tests/nix_strings_adapter_test.cpp"],
+    compiler_flags = ADAPTER_TEST_COMPILER_FLAGS,
+    linker_flags = ADAPTER_TEST_LINKER_FLAGS,
+    link_style = "static",
+    deps = [
+        ":nix_strings_adapter",
+        "//third_party:catch2",
+        "//third_party:rapidcheck",
+    ],
+)

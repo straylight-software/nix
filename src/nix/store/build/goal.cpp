@@ -124,7 +124,7 @@ Co Goal::await(Goals new_waitees) {
   co_return Return{};
 }
 
-Goal::Done Goal::amDone(ExitCode result, std::optional<Error> ex) {
+Goal::done_t Goal::amDone(ExitCode result, std::optional<Error> ex) {
   trace("done");
   assert(top_co);
   assert(exitCode == ecBusy);
@@ -177,7 +177,7 @@ Goal::Done Goal::amDone(ExitCode result, std::optional<Error> ex) {
   top_co->handle.promise().continuation = {};
 
   // won't return to caller because of logic in final_awaiter
-  return Done{};
+  return done_t{};
 }
 
 void Goal::trace(std::string_view s) {

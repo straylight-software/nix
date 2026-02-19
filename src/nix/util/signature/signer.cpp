@@ -6,14 +6,14 @@
 
 namespace nix {
 
-LocalSigner::LocalSigner(SecretKey&& privateKey)
+local_signer_t::local_signer_t(secret_key_t&& privateKey)
     : privateKey(privateKey), publicKey(privateKey.toPublicKey()) {}
 
-std::string LocalSigner::signDetached(std::string_view s) const {
+std::string local_signer_t::signDetached(std::string_view s) const {
   return privateKey.signDetached(s);
 }
 
-const PublicKey& LocalSigner::getPublicKey() {
+const public_key_t& local_signer_t::getPublicKey() {
   return publicKey;
 }
 

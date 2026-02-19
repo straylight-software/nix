@@ -8,7 +8,7 @@
 
 namespace nix {
 
-static void prim_fetchMercurial(EvalState& state, const PosIdx pos, Value** args, Value& v) {
+static void prim_fetchMercurial(EvalState& state, const pos_idx_t pos, Value** args, Value& v) {
   std::string url;
   std::optional<Hash> rev;
   std::optional<std::string> ref;
@@ -34,7 +34,7 @@ static void prim_fetchMercurial(EvalState& state, const PosIdx pos, Value** args
             *attr.value, attr.pos,
             "while evaluating the `rev` attribute passed to builtins.fetchMercurial");
         if (std::regex_match(value.begin(), value.end(), revRegex))
-          rev = Hash::parseAny(value, HashAlgorithm::SHA1);
+          rev = Hash::parseAny(value, hash_algorithm_t::SHA1);
         else
           ref = value;
       } else if (n == "name")
@@ -85,7 +85,7 @@ static void prim_fetchMercurial(EvalState& state, const PosIdx pos, Value** args
     attrs2.alloc("branch").mkString(*input2.getRef(), state.mem);
   // Backward compatibility: set 'rev' to
   // 0000000000000000000000000000000000000000 for a dirty tree.
-  auto rev2 = input2.getRev().value_or(Hash(HashAlgorithm::SHA1));
+  auto rev2 = input2.getRev().value_or(Hash(hash_algorithm_t::SHA1));
   attrs2.alloc("rev").mkString(rev2.gitRev(), state.mem);
   attrs2.alloc("shortRev").mkString(rev2.gitRev().substr(0, 12), state.mem);
   if (auto revCount = input2.getRevCount())

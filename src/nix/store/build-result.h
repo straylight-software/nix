@@ -66,7 +66,7 @@ struct BuildResult {
       MiscFailure = 9,
       DependencyFailed = 10,
       LogLimitExceeded = 11,
-      NotDeterministic = 12,
+      not_deterministic_t = 12,
       NoSubstituters = 14,
       /// A certain type of `OutputRejected`. The protocols do not yet
       /// know about this one, so change it back to `OutputRejected`
@@ -80,7 +80,7 @@ struct BuildResult {
     /**
      * Information about the error if the build failed.
      *
-     * @todo This should be an entire ErrorInfo object, not just a
+     * @todo This should be an entire error_info_t object, not just a
      * string, for richer information.
      */
     std::string errorMsg;

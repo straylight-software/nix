@@ -18,7 +18,7 @@ struct StoreDirConfig;
  */
 struct StorePathWithOutputs {
   StorePath path;
-  StringSet outputs;
+  string_set_t outputs;
 
   std::string to_string(const StoreDirConfig& store) const;
 
@@ -31,7 +31,7 @@ struct StorePathWithOutputs {
 
 std::vector<DerivedPath> toDerivedPaths(const std::vector<StorePathWithOutputs>);
 
-std::pair<std::string_view, StringSet> parsePathWithOutputs(std::string_view s);
+std::pair<std::string_view, string_set_t> parsePathWithOutputs(std::string_view s);
 
 /**
  * Split a string specifying a derivation and a set of outputs

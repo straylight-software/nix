@@ -3,7 +3,7 @@
 
 using namespace nix;
 
-struct CmdStoreRepair : StorePathsCommand {
+struct cmd_store_repair_t : StorePathsCommand {
   std::string description() override { return "repair store paths"; }
 
   std::string doc() override {
@@ -18,4 +18,4 @@ struct CmdStoreRepair : StorePathsCommand {
   }
 };
 
-static auto rStoreRepair = registerCommand2<CmdStoreRepair>({"store", "repair"});
+static auto rStoreRepair = registerCommand2<cmd_store_repair_t>({"store", "repair"});

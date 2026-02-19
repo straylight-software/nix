@@ -10,11 +10,11 @@
 namespace nix {
 
 /**
- * Often we want to use `Descriptor`, but Windows makes a slightly
+ * Often we want to use `descriptor_t`, but Windows makes a slightly
  * stronger file descriptor vs socket distinction, at least at the level
  * of C types.
  */
-using Socket =
+using socket_t =
 #ifdef _WIN32
     SOCKET
 #else
@@ -31,26 +31,26 @@ using Socket =
 #endif
 
 /**
- * Convert a `Descriptor` to a `Socket`
+ * Convert a `descriptor_t` to a `socket_t`
  *
  * This is a no-op except on Windows.
  */
-static inline Socket toSocket(Descriptor fd) {
+static inline socket_t toSocket(descriptor_t fd) {
 #ifdef _WIN32
-  return reinterpret_cast<Socket>(fd);
+  return reinterpret_cast<socket_t>(fd);
 #else
   return fd;
 #endif
 }
 
 /**
- * Convert a `Socket` to a `Descriptor`
+ * Convert a `socket_t` to a `descriptor_t`
  *
  * This is a no-op except on Windows.
  */
-static inline Descriptor fromSocket(Socket fd) {
+static inline descriptor_t fromSocket(socket_t fd) {
 #ifdef _WIN32
-  return reinterpret_cast<Descriptor>(fd);
+  return reinterpret_cast<descriptor_t>(fd);
 #else
   return fd;
 #endif

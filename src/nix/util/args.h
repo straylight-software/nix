@@ -16,14 +16,14 @@
 
 namespace nix {
 
-enum struct HashAlgorithm : char;
-enum struct HashFormat : int;
+enum struct hash_algorithm_t : char;
+enum struct hash_format_t : int;
 
-class MultiCommand;
+class multi_command_t;
 
-class RootArgs;
+class root_args_t;
 
-class AddCompletions;
+class add_completions_t;
 
 class Args {
 public:
@@ -124,21 +124,21 @@ protected:
   /**
    * The basic function type of the completion callback.
    *
-   * Used to define `CompleterClosure` and some common case completers
+   * Used to define `completer_closure_t` and some common case completers
    * that individual flags/arguments can use.
    *
-   * The `AddCompletions` that is passed is an interface to the state
+   * The `add_completions_t` that is passed is an interface to the state
    * stored as part of the root command
    */
-  using CompleterFun = void(AddCompletions&, size_t, std::string_view);
+  using completer_fun_t = void(add_completions_t&, size_t, std::string_view);
 
   /**
    * The closure type of the completion callback.
    *
-   * This is what is actually stored as part of each Flag / Expected
+   * This is what is actually stored as part of each flag_t / Expected
    * Arg.
    */
-  using CompleterClosure = std::function<CompleterFun>;
+  using completer_closure_t = std::function<completer_fun_t>;
 
 public:
   /**
@@ -147,20 +147,20 @@ public:
    * These are arguments like `-s` or `--long` that can (mostly)
    * appear in any order.
    */
-  struct Flag {
-    using ptr = std::shared_ptr<Flag>;
+  struct flag_t {
+    using ptr = std::shared_ptr<flag_t>;
 
     std::string longName;
-    StringSet aliases;
+    string_set_t aliases;
     char shortName = 0;
     std::string description;
     std::string category;
-    Strings labels;
+    strings_t labels;
     Handler handler;
-    CompleterClosure completer;
+    completer_closure_t completer;
     bool required = false;
 
-    std::optional<ExperimentalFeature> experimentalFeature;
+    std::optional<experimental_feature_t> experimentalFeature;
 
     // FIXME: this should be private, but that breaks designated initializers.
     size_t timesUsed = 0;
@@ -171,19 +171,19 @@ protected:
    * Index of all registered "long" flag descriptions (flags like
    * `--long`).
    */
-  std::map<std::string, Flag::ptr> longFlags;
+  std::map<std::string, flag_t::ptr> longFlags;
 
   /**
    * Index of all registered "short" flag descriptions (flags like
    * `-s`).
    */
-  std::map<char, Flag::ptr> shortFlags;
+  std::map<char, flag_t::ptr> shortFlags;
 
   /**
    * Process a single flag and its arguments, pulling from an iterator
    * of raw CLI args as needed.
    */
-  virtual bool processFlag(Strings::iterator& pos, Strings::iterator end);
+  virtual bool processFlag(strings_t::iterator& pos, strings_t::iterator end);
 
 public:
   /**
@@ -192,11 +192,11 @@ public:
    * These are arguments that do not start with a `-`, and for which
    * the order does matter.
    */
-  struct ExpectedArg {
+  struct expected_arg_t {
     std::string label;
     bool optional = false;
     Handler handler;
-    CompleterClosure completer;
+    completer_closure_t completer;
   };
 
 protected:
@@ -209,7 +209,7 @@ protected:
    * front, until there are hopefully none left as all args that were
    * expected in fact were passed.
    */
-  std::list<ExpectedArg> expectedArgs;
+  std::list<expected_arg_t> expectedArgs;
   /**
    * List of processed positional argument forms.
    *
@@ -221,7 +221,7 @@ protected:
    * If this is not done, some closures that reference the command
    * itself will segfault.
    */
-  std::list<ExpectedArg> processedArgs;
+  std::list<expected_arg_t> processedArgs;
 
   /**
    * Process some positional arguments
@@ -230,11 +230,11 @@ protected:
    * arguments left. Used because we accumulate some "pending args" we might
    * have left over.
    */
-  virtual bool processArgs(const Strings& args, bool finish);
+  virtual bool processArgs(const strings_t& args, bool finish);
 
-  virtual Strings::iterator rewriteArgs(Strings& args, Strings::iterator pos) { return pos; }
+  virtual strings_t::iterator rewriteArgs(strings_t& args, strings_t::iterator pos) { return pos; }
 
-  StringSet hiddenCategories;
+  string_set_t hiddenCategories;
 
   virtual void checkArgs();
 
@@ -245,11 +245,11 @@ protected:
   virtual void initialFlagsProcessed() {}
 
 public:
-  void addFlag(Flag&& flag);
+  void addFlag(flag_t&& flag);
 
   void removeFlag(const std::string& longName);
 
-  void expectArgs(ExpectedArg&& arg) { expectedArgs.emplace_back(std::move(arg)); }
+  void expectArgs(expected_arg_t&& arg) { expectedArgs.emplace_back(std::move(arg)); }
 
   /**
    * Expect a string argument.
@@ -272,81 +272,81 @@ public:
     expectArgs({.label = label, .handler = {dest}});
   }
 
-  static CompleterFun completePath;
+  static completer_fun_t completePath;
 
-  static CompleterFun completeDir;
+  static completer_fun_t completeDir;
 
   virtual nlohmann::json toJSON();
 
-  friend class MultiCommand;
+  friend class multi_command_t;
 
   /**
    * The parent command, used if this is a subcommand.
    *
-   * Invariant: An Args with a null parent must also be a RootArgs
+   * Invariant: An Args with a null parent must also be a root_args_t
    *
    * \todo this would probably be better in the CommandClass.
    * getRoot() could be an abstract method that peels off at most one
    * layer before recuring.
    */
-  MultiCommand* parent = nullptr;
+  multi_command_t* parent = nullptr;
 
   /**
-   * Traverse parent pointers until we find the \ref RootArgs "root
+   * Traverse parent pointers until we find the \ref root_args_t "root
    * arguments" object.
    */
-  RootArgs& getRoot();
+  root_args_t& getRoot();
 };
 
 /**
  * A command is an argument parser that can be executed by calling its
  * run() method.
  */
-struct Command : virtual public Args {
-  friend class MultiCommand;
+struct command_t : virtual public Args {
+  friend class multi_command_t;
 
-  virtual ~Command() = default;
+  virtual ~command_t() = default;
 
   /**
    * Entry point to the command
    */
   virtual void run() = 0;
 
-  using Category = int;
+  using category_t = int;
 
-  static constexpr Category catDefault = 0;
+  static constexpr category_t catDefault = 0;
 
-  virtual std::optional<ExperimentalFeature> experimentalFeature();
+  virtual std::optional<experimental_feature_t> experimentalFeature();
 
-  virtual Category category() { return catDefault; }
+  virtual category_t category() { return catDefault; }
 };
 
-using Commands = std::map<std::string, std::function<ref<Command>()>>;
+using commands_t = std::map<std::string, std::function<ref<command_t>()>>;
 
 /**
  * An argument parser that supports multiple subcommands,
  * i.e. `<command> <subcommand>`.
  */
-class MultiCommand : virtual public Args {
+class multi_command_t : virtual public Args {
 public:
-  Commands commands;
+  commands_t commands;
 
-  std::map<Command::Category, std::string> categories;
+  std::map<command_t::category_t, std::string> categories;
 
   /**
    * Selected command, if any.
    */
-  std::optional<std::pair<std::string, ref<Command>>> command;
+  std::optional<std::pair<std::string, ref<command_t>>> command;
 
-  MultiCommand(std::string_view commandName, const Commands& commands);
+  multi_command_t(std::string_view commandName, const commands_t& commands);
 
-  bool processFlag(Strings::iterator& pos, Strings::iterator end) override;
+  bool processFlag(strings_t::iterator& pos, strings_t::iterator end) override;
 
-  bool processArgs(const Strings& args, bool finish) override;
+  bool processArgs(const strings_t& args, bool finish) override;
 
   nlohmann::json toJSON() override;
 
-  enum struct AliasStatus {
+  enum struct alias_status_t {
     /** Aliases that don't go away */
     AcceptedShorthand,
     /** Aliases that will go away */
@@ -354,8 +354,8 @@ public:
   };
 
   /** An alias, except for the original syntax, which is in the map key. */
-  struct AliasInfo {
-    AliasStatus status;
+  struct alias_info_t {
+    alias_status_t status;
     std::vector<std::string> replacement;
   };
 
@@ -363,9 +363,9 @@ public:
    * A list of aliases (remapping a deprecated/shorthand subcommand
    * to something else).
    */
-  std::map<std::string, AliasInfo> aliases;
+  std::map<std::string, alias_info_t> aliases;
 
-  Strings::iterator rewriteArgs(Strings& args, Strings::iterator pos) override;
+  strings_t::iterator rewriteArgs(strings_t& args, strings_t::iterator pos) override;
 
 protected:
   std::string commandName = "";
@@ -374,13 +374,13 @@ protected:
   void checkArgs() override;
 };
 
-Strings argvToStrings(int argc, char** argv);
+strings_t argvToStrings(int argc, char** argv);
 
-struct Completion {
+struct completion_t {
   std::string completion;
   std::string description;
 
-  auto operator<=>(const Completion& other) const noexcept;
+  auto operator<=>(const completion_t& other) const noexcept;
 };
 
 /**
@@ -392,7 +392,7 @@ struct Completion {
  * changes, or even view the completions / completion type that have
  * been set so far.
  */
-class AddCompletions {
+class add_completions_t {
 public:
   /**
    * The type of completion we are collecting.
@@ -416,6 +416,6 @@ public:
   virtual void add(std::string completion, std::string description = "") = 0;
 };
 
-Strings parseShebangContent(std::string_view s);
+strings_t parseShebangContent(std::string_view s);
 
 } // namespace nix

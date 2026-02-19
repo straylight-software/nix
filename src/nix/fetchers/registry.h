@@ -13,7 +13,7 @@ namespace nix::fetchers {
 
 struct Registry {
   enum RegistryType {
-    Flag = 0,
+    flag_t = 0,
     User = 1,
     System = 2,
     Global = 3,
@@ -32,10 +32,10 @@ struct Registry {
 
   Registry(RegistryType type) : type{type} {}
 
-  static std::shared_ptr<Registry> read(const Settings& settings, const SourcePath& path,
+  static std::shared_ptr<Registry> read(const settings_t& settings, const source_path_t& path,
                                         RegistryType type);
 
-  static std::shared_ptr<Registry> read(const Settings& settings, std::string_view whence,
+  static std::shared_ptr<Registry> read(const settings_t& settings, std::string_view whence,
                                         std::string_view jsonStr, RegistryType type);
 
   void write(const std::filesystem::path& path);
@@ -47,14 +47,14 @@ struct Registry {
 
 typedef std::vector<std::shared_ptr<Registry>> Registries;
 
-std::shared_ptr<Registry> getUserRegistry(const Settings& settings);
+std::shared_ptr<Registry> getUserRegistry(const settings_t& settings);
 
-std::shared_ptr<Registry> getCustomRegistry(const Settings& settings,
+std::shared_ptr<Registry> getCustomRegistry(const settings_t& settings,
                                             const std::filesystem::path& p);
 
 std::filesystem::path getUserRegistryPath();
 
-Registries getRegistries(const Settings& settings, Store& store);
+Registries getRegistries(const settings_t& settings, Store& store);
 
 void overrideRegistry(const Input& from, const Input& to, const Attrs& extraAttrs);
 
@@ -68,7 +68,7 @@ enum class UseRegistries : int {
  * Rewrite a flakeref using the registries. If `filter` is set, only
  * use the registries for which the filter function returns true.
  */
-std::pair<Input, Attrs> lookupInRegistries(const Settings& settings, Store& store,
+std::pair<Input, Attrs> lookupInRegistries(const settings_t& settings, Store& store,
                                            const Input& input, UseRegistries useRegistries);
 
 } // namespace nix::fetchers

@@ -20,9 +20,9 @@ namespace nix::lfs {
 static void downloadToSink(const std::string& url, const std::optional<std::string>& authHeader,
                            // FIXME: passing a StringSink is superfluous, we may as well
                            // return a string. Or use an abstract Sink for streaming.
-                           StringSink& sink, std::string sha256Expected, size_t sizeExpected) {
+                           string_sink_t& sink, std::string sha256Expected, size_t sizeExpected) {
   FileTransferRequest request(parseURL(url));
-  Headers headers;
+  headers_t headers;
   if (authHeader.has_value())
     headers.push_back({"Authorization", *authHeader});
   request.headers = headers;
@@ -34,7 +34,7 @@ static void downloadToSink(const std::string& url, const std::optional<std::stri
                 sizeActual);
 
   auto sha256Actual =
-      hashString(HashAlgorithm::SHA256, sink.s).to_string(HashFormat::Base16, false);
+      hashString(hash_algorithm_t::SHA256, sink.s).to_string(hash_format_t::Base16, false);
   if (sha256Actual != sha256Expected)
     throw Error("hash mismatch while fetching %s: expected sha256:%s but got sha256:%s", url,
                 sha256Expected, sha256Actual);
@@ -42,14 +42,14 @@ static void downloadToSink(const std::string& url, const std::optional<std::stri
 
 namespace {
 
-struct LfsApiInfo {
+struct lfs_api_info_t {
   std::string endpoint;
   std::optional<std::string> authHeader;
 };
 
 } // namespace
 
-static LfsApiInfo getLfsApi(const ParsedURL& url) {
+static lfs_api_info_t getLfsApi(const parsed_url_t& url) {
   assert(url.authority.has_value());
   if (url.scheme == "ssh") {
     auto args = getNixSshOpts();
@@ -138,7 +138,7 @@ static std::optional<Pointer> parseLfsPointer(std::string_view content, std::str
   std::string oid;
   std::string size;
 
-  for (auto& line : tokenizeString<Strings>(content, "\n")) {
+  for (auto& line : tokenizeString<strings_t>(content, "\n")) {
     if (line.starts_with("version ")) {
       continue;
     }
@@ -176,7 +176,7 @@ Fetch::Fetch(git_repository* repo, git_oid rev) {
   this->url = nix::fixGitURL(remoteUrl).canonicalise();
 }
 
-bool Fetch::shouldFetch(const CanonPath& path) const {
+bool Fetch::shouldFetch(const canon_path_t& path) const {
   const char* attr = nullptr;
   git_attr_options opts = GIT_ATTR_OPTIONS_INIT;
   opts.attr_commit_id = this->rev;
@@ -200,7 +200,7 @@ std::vector<nlohmann::json> Fetch::fetchUrls(const std::vector<Pointer>& pointer
   const auto& authHeader = api.authHeader;
   FileTransferRequest request(parseURL(url));
   request.method = HttpMethod::Post;
-  Headers headers;
+  headers_t headers;
   if (authHeader.has_value())
     headers.push_back({"Authorization", *authHeader});
   headers.push_back({"Content-Type", "application/vnd.git-lfs+json"});
@@ -210,7 +210,7 @@ std::vector<nlohmann::json> Fetch::fetchUrls(const std::vector<Pointer>& pointer
   nlohmann::json data = {{"operation", "download"}};
   data["objects"] = oidList;
   auto payload = data.dump();
-  StringSource source{payload};
+  string_source_t source{payload};
   request.data = {source};
 
   FileTransferResult result = getFileTransfer()->upload(request);
@@ -235,7 +235,7 @@ std::vector<nlohmann::json> Fetch::fetchUrls(const std::vector<Pointer>& pointer
   }
 }
 
-void Fetch::fetch(const std::string& content, const CanonPath& pointerFilePath, StringSink& sink,
+void Fetch::fetch(const std::string& content, const canon_path_t& pointerFilePath, string_sink_t& sink,
                   std::function<void(uint64_t)> sizeCallback) const {
   debug("trying to fetch '%s' using git-lfs", pointerFilePath);
 
@@ -257,8 +257,8 @@ void Fetch::fetch(const std::string& content, const CanonPath& pointerFilePath, 
   }
 
   std::filesystem::path cacheDir = getCacheDir() / "git-lfs";
-  std::string key = hashString(HashAlgorithm::SHA256, pointerFilePath.rel())
-                        .to_string(HashFormat::Base16, false) +
+  std::string key = hashString(hash_algorithm_t::SHA256, pointerFilePath.rel())
+                        .to_string(hash_format_t::Base16, false) +
                     "/" + pointer->oid;
   std::filesystem::path cachePath = cacheDir / key;
   if (pathExists(cachePath)) {

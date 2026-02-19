@@ -77,7 +77,7 @@ protected:
   };
 };
 
-MountedSSHStoreConfig::MountedSSHStoreConfig(StringMap params)
+MountedSSHStoreConfig::MountedSSHStoreConfig(string_map_t params)
     : StoreConfig(params),
       RemoteStoreConfig(params),
       CommonSSHStoreConfig(params),
@@ -85,7 +85,7 @@ MountedSSHStoreConfig::MountedSSHStoreConfig(StringMap params)
       LocalFSStoreConfig(params) {}
 
 MountedSSHStoreConfig::MountedSSHStoreConfig(std::string_view scheme, std::string_view host,
-                                             StringMap params)
+                                             string_map_t params)
     : StoreConfig(params),
       RemoteStoreConfig(params),
       CommonSSHStoreConfig(scheme, host, params),
@@ -104,7 +104,7 @@ std::string MountedSSHStoreConfig::doc() {
  * available locally and is therefore treated as a local filesystem
  * store.
  *
- * MountedSSHStore is very similar to UDSRemoteStore --- ignoring the
+ * mounted_ssh_store_t is very similar to UDSRemoteStore --- ignoring the
  * superficial difference of SSH vs Unix domain sockets, they both are
  * accessing remote stores, and they both assume the store will be
  * mounted in the local filesystem.
@@ -112,10 +112,10 @@ std::string MountedSSHStoreConfig::doc() {
  * The difference lies in how they manage GC roots. See addPermRoot
  * below for details.
  */
-struct MountedSSHStore : virtual SSHStore, virtual LocalFSStore {
+struct mounted_ssh_store_t : virtual SSHStore, virtual LocalFSStore {
   using Config = MountedSSHStoreConfig;
 
-  MountedSSHStore(ref<const Config> config)
+  mounted_ssh_store_t(ref<const Config> config)
       : Store{*config}, RemoteStore{*config}, SSHStore{config}, LocalFSStore{*config} {
     extraRemoteProgramArgs = {
         "--process-ops",
@@ -168,14 +168,14 @@ ref<Store> SSHStore::Config::openStore() const {
   return make_ref<SSHStore>(ref{shared_from_this()});
 }
 
-ref<Store> MountedSSHStore::Config::openStore() const {
-  return make_ref<MountedSSHStore>(
-      ref{std::dynamic_pointer_cast<const MountedSSHStore::Config>(shared_from_this())});
+ref<Store> mounted_ssh_store_t::Config::openStore() const {
+  return make_ref<mounted_ssh_store_t>(
+      ref{std::dynamic_pointer_cast<const mounted_ssh_store_t::Config>(shared_from_this())});
 }
 
 ref<RemoteStore::Connection> SSHStore::openConnection() {
   auto conn = make_ref<Connection>();
-  Strings command = config->remoteProgram.get();
+  strings_t command = config->remoteProgram.get();
   command.push_back("--stdio");
   if (config->remoteStore.get() != "") {
     command.push_back("--store");
@@ -183,12 +183,12 @@ ref<RemoteStore::Connection> SSHStore::openConnection() {
   }
   command.insert(command.end(), extraRemoteProgramArgs.begin(), extraRemoteProgramArgs.end());
   conn->sshConn = master.startCommand(std::move(command));
-  conn->to = FdSink(conn->sshConn->in.get());
-  conn->from = FdSource(conn->sshConn->out.get());
+  conn->to = fd_sink_t(conn->sshConn->in.get());
+  conn->from = fd_source_t(conn->sshConn->out.get());
   return conn;
 }
 
 static RegisterStoreImplementation<SSHStore::Config> regSSHStore;
-static RegisterStoreImplementation<MountedSSHStore::Config> regMountedSSHStore;
+static RegisterStoreImplementation<mounted_ssh_store_t::Config> regMountedSSHStore;
 
 } // namespace nix

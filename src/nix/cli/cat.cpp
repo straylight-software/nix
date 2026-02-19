@@ -9,8 +9,8 @@
 
 using namespace nix;
 
-struct MixCat : virtual Args {
-  void cat(ref<SourceAccessor> accessor, CanonPath path) {
+struct mix_cat_t : virtual Args {
+  void cat(ref<SourceAccessor> accessor, canon_path_t path) {
     auto st = accessor->lstat(path);
     if (st.type != SourceAccessor::Type::tRegular)
       throw Error("path '%1%' is not a regular file", path.abs());
@@ -20,10 +20,10 @@ struct MixCat : virtual Args {
   }
 };
 
-struct CmdCatStore : StoreCommand, MixCat {
+struct cmd_cat_store_t : StoreCommand, mix_cat_t {
   std::string path;
 
-  CmdCatStore() { expectArgs({.label = "path", .handler = {&path}, .completer = completePath}); }
+  cmd_cat_store_t() { expectArgs({.label = "path", .handler = {&path}, .completer = completePath}); }
 
   std::string description() override {
     return "print the contents of a file in the Nix store on stdout";
@@ -37,16 +37,16 @@ struct CmdCatStore : StoreCommand, MixCat {
 
   void run(ref<Store> store) override {
     auto [storePath, rest] = store->toStorePath(path);
-    cat(store->requireStoreObjectAccessor(storePath), CanonPath{rest});
+    cat(store->requireStoreObjectAccessor(storePath), canon_path_t{rest});
   }
 };
 
-struct CmdCatNar : StoreCommand, MixCat {
+struct cmd_cat_nar_t : StoreCommand, mix_cat_t {
   Path narPath;
 
   std::string path;
 
-  CmdCatNar() {
+  cmd_cat_nar_t() {
     expectArgs({.label = "nar", .handler = {&narPath}, .completer = completePath});
     expectArg("path", &path);
   }
@@ -62,18 +62,18 @@ struct CmdCatNar : StoreCommand, MixCat {
   }
 
   void run(ref<Store> store) override {
-    AutoCloseFD fd = toDescriptor(open(narPath.c_str(), O_RDONLY));
+    auto_close_fd_t fd = toDescriptor(open(narPath.c_str(), O_RDONLY));
     if (!fd)
-      throw SysError("opening NAR file '%s'", narPath);
-    auto source = FdSource{fd.get()};
+      throw sys_error_t("opening NAR file '%s'", narPath);
+    auto source = fd_source_t{fd.get()};
 
-    struct CatRegularFileSink : NullFileSystemObjectSink {
-      CanonPath neededPath = CanonPath::root;
+    struct cat_regular_file_sink_t : null_file_system_object_sink_t {
+      canon_path_t neededPath = canon_path_t::root;
       bool found = false;
 
-      void createRegularFile(const CanonPath& path,
-                             std::function<void(CreateRegularFileSink&)> crf) override {
-        struct : CreateRegularFileSink, FdSink {
+      void createRegularFile(const canon_path_t& path,
+                             std::function<void(create_regular_file_sink_t&)> crf) override {
+        struct : create_regular_file_sink_t, fd_sink_t {
           void isExecutable() override {}
         } crfSink;
 
@@ -92,7 +92,7 @@ struct CmdCatNar : StoreCommand, MixCat {
       }
     } sink;
 
-    sink.neededPath = CanonPath(path);
+    sink.neededPath = canon_path_t(path);
     /* NOTE: We still parse the whole file to validate that it's a correct NAR. */
     parseDump(sink, source);
 
@@ -101,5 +101,5 @@ struct CmdCatNar : StoreCommand, MixCat {
   }
 };
 
-static auto rCmdCatStore = registerCommand2<CmdCatStore>({"store", "cat"});
-static auto rCmdCatNar = registerCommand2<CmdCatNar>({"nar", "cat"});
+static auto rCmdCatStore = registerCommand2<cmd_cat_store_t>({"store", "cat"});
+static auto rCmdCatNar = registerCommand2<cmd_cat_nar_t>({"nar", "cat"});

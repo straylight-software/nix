@@ -10,28 +10,28 @@
 
 namespace nix {
 
-struct PluginFilesSetting : public BaseSetting<std::list<std::filesystem::path>> {
+struct plugin_files_setting_t : public base_setting_t<std::list<std::filesystem::path>> {
   bool pluginsLoaded = false;
 
-  PluginFilesSetting(Config* options, const std::list<std::filesystem::path>& def,
+  plugin_files_setting_t(Config* options, const std::list<std::filesystem::path>& def,
                      const std::string& name, const std::string& description,
-                     const StringSet& aliases = {})
-      : BaseSetting<std::list<std::filesystem::path>>(def, true, name, description, aliases) {
+                     const string_set_t& aliases = {})
+      : base_setting_t<std::list<std::filesystem::path>>(def, true, name, description, aliases) {
     options->addSetting(this);
   }
 
   std::list<std::filesystem::path> parse(const std::string& str) const override;
 };
 
-std::list<std::filesystem::path> PluginFilesSetting::parse(const std::string& str) const {
+std::list<std::filesystem::path> plugin_files_setting_t::parse(const std::string& str) const {
   if (pluginsLoaded)
     throw UsageError("plugin-files set after plugins were loaded, you may need to move the flag "
                      "before the subcommand");
-  return BaseSetting<std::list<std::filesystem::path>>::parse(str);
+  return base_setting_t<std::list<std::filesystem::path>>::parse(str);
 }
 
-struct PluginSettings : Config {
-  PluginFilesSetting pluginFiles{this,
+struct plugin_settings_t : Config {
+  plugin_files_setting_t pluginFiles{this,
                                  {},
                                  "plugin-files",
                                  R"(
@@ -60,21 +60,21 @@ struct PluginSettings : Config {
         )"};
 };
 
-static PluginSettings pluginSettings;
+static plugin_settings_t pluginSettings;
 
-static GlobalConfig::Register rPluginSettings(&pluginSettings);
+static global_config_t::Register rPluginSettings(&pluginSettings);
 
 void initPlugins() {
   assert(!pluginSettings.pluginFiles.pluginsLoaded);
   for (const auto& pluginFile : pluginSettings.pluginFiles.get()) {
     std::vector<std::filesystem::path> pluginFiles;
     try {
-      auto ents = DirectoryIterator{pluginFile};
+      auto ents = directory_iterator_t{pluginFile};
       for (const auto& ent : ents) {
         checkInterrupt();
         pluginFiles.emplace_back(ent.path());
       }
-    } catch (SysError& e) {
+    } catch (sys_error_t& e) {
       if (e.errNo != ENOTDIR)
         throw;
       pluginFiles.emplace_back(pluginFile);

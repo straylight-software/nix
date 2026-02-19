@@ -16,7 +16,7 @@ namespace nix {
  * their string representation and documentation in the corresponding
  * `.cc` file as well.
  */
-enum struct ExperimentalFeature {
+enum struct experimental_feature_t {
   CaDerivations,
   ImpureDerivations,
   FetchTree,
@@ -32,7 +32,7 @@ enum struct ExperimentalFeature {
   ReadOnlyLocalStore,
   LocalOverlayStore,
   ConfigurableImpureEnv,
-  MountedSSHStore,
+  mounted_ssh_store_t,
   VerifiedFetches,
   PipeOperators,
   ExternalBuilders,
@@ -44,21 +44,21 @@ enum struct ExperimentalFeature {
 extern std::set<std::string> stabilizedFeatures;
 
 /**
- * Just because writing `ExperimentalFeature::CaDerivations` is way too long
+ * Just because writing `experimental_feature_t::CaDerivations` is way too long
  */
-using Xp = ExperimentalFeature;
+using xp_t = experimental_feature_t;
 
 /**
  * Parse an experimental feature (enum value) from its name. Experimental
  * feature flag names are hyphenated and do not contain spaces.
  */
-const std::optional<ExperimentalFeature> parseExperimentalFeature(const std::string_view& name);
+const std::optional<experimental_feature_t> parseExperimentalFeature(const std::string_view& name);
 
 /**
  * Show the name of an experimental feature. This is the opposite of
  * parseExperimentalFeature().
  */
-std::string_view showExperimentalFeature(const ExperimentalFeature);
+std::string_view showExperimentalFeature(const experimental_feature_t);
 
 /**
  * Compute the documentation of all experimental features.
@@ -70,41 +70,41 @@ nlohmann::json documentExperimentalFeatures();
 /**
  * Shorthand for `str << showExperimentalFeature(feature)`.
  */
-std::ostream& operator<<(std::ostream& str, const ExperimentalFeature& feature);
+std::ostream& operator<<(std::ostream& str, const experimental_feature_t& feature);
 
 /**
  * Parse a set of strings to the corresponding set of experimental
  * features, ignoring (but warning for) any unknown feature.
  */
-std::set<ExperimentalFeature> parseFeatures(const StringSet&);
+std::set<experimental_feature_t> parseFeatures(const string_set_t&);
 
 /**
  * An experimental feature was required for some (experimental)
  * operation, but was not enabled.
  */
-class MissingExperimentalFeature : public Error {
+class missing_experimental_feature_t : public Error {
 public:
   /**
    * The experimental feature that was required but not enabled.
    */
-  ExperimentalFeature missingFeature;
+  experimental_feature_t missingFeature;
 
   std::string reason;
 
-  MissingExperimentalFeature(ExperimentalFeature missingFeature, std::string reason = "");
+  missing_experimental_feature_t(experimental_feature_t missingFeature, std::string reason = "");
 };
 
 /**
- * `ExperimentalFeature` is always rendered as a string.
+ * `experimental_feature_t` is always rendered as a string.
  */
 template <>
-struct json_avoids_null<ExperimentalFeature> : std::true_type {};
+struct json_avoids_null<experimental_feature_t> : std::true_type {};
 
 /**
  * Semi-magic conversion to and from json.
  * See the nlohmann/json readme for more details.
  */
-void to_json(nlohmann::json&, const ExperimentalFeature&);
-void from_json(const nlohmann::json&, ExperimentalFeature&);
+void to_json(nlohmann::json&, const experimental_feature_t&);
+void from_json(const nlohmann::json&, experimental_feature_t&);
 
 } // namespace nix

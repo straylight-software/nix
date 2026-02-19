@@ -21,47 +21,47 @@
 namespace nix {
 
 template <>
-struct BaseSetting<Strings>::trait {
+struct base_setting_t<strings_t>::trait {
   static constexpr bool appendable = true;
 };
 
 template <>
-struct BaseSetting<StringSet>::trait {
+struct base_setting_t<string_set_t>::trait {
   static constexpr bool appendable = true;
 };
 
 template <>
-struct BaseSetting<StringMap>::trait {
+struct base_setting_t<string_map_t>::trait {
   static constexpr bool appendable = true;
 };
 
 template <>
-struct BaseSetting<std::set<ExperimentalFeature>>::trait {
+struct base_setting_t<std::set<experimental_feature_t>>::trait {
   static constexpr bool appendable = true;
 };
 
 template <typename T>
-struct BaseSetting<T>::trait {
+struct base_setting_t<T>::trait {
   static constexpr bool appendable = false;
 };
 
 template <typename T>
-bool BaseSetting<T>::isAppendable() {
+bool base_setting_t<T>::isAppendable() {
   return trait::appendable;
 }
 
 template <>
-void BaseSetting<Strings>::appendOrSet(Strings newValue, bool append);
+void base_setting_t<strings_t>::appendOrSet(strings_t newValue, bool append);
 template <>
-void BaseSetting<StringSet>::appendOrSet(StringSet newValue, bool append);
+void base_setting_t<string_set_t>::appendOrSet(string_set_t newValue, bool append);
 template <>
-void BaseSetting<StringMap>::appendOrSet(StringMap newValue, bool append);
+void base_setting_t<string_map_t>::appendOrSet(string_map_t newValue, bool append);
 template <>
-void BaseSetting<std::set<ExperimentalFeature>>::appendOrSet(std::set<ExperimentalFeature> newValue,
+void base_setting_t<std::set<experimental_feature_t>>::appendOrSet(std::set<experimental_feature_t> newValue,
                                                              bool append);
 
 template <typename T>
-void BaseSetting<T>::appendOrSet(T newValue, bool append) {
+void base_setting_t<T>::appendOrSet(T newValue, bool append) {
   static_assert(!trait::appendable,
                 "using default `appendOrSet` implementation with an appendable type");
   assert(!append);
@@ -70,7 +70,7 @@ void BaseSetting<T>::appendOrSet(T newValue, bool append) {
 }
 
 template <typename T>
-void BaseSetting<T>::set(const std::string& str, bool append) {
+void base_setting_t<T>::set(const std::string& str, bool append) {
   if (experimentalFeatureSettings.isEnabled(experimentalFeature))
     appendOrSet(parse(str), append);
   else {
@@ -81,10 +81,10 @@ void BaseSetting<T>::set(const std::string& str, bool append) {
 }
 
 template <>
-void BaseSetting<bool>::convertToArg(Args& args, const std::string& category);
+void base_setting_t<bool>::convertToArg(Args& args, const std::string& category);
 
 template <typename T>
-void BaseSetting<T>::convertToArg(Args& args, const std::string& category) {
+void base_setting_t<T>::convertToArg(Args& args, const std::string& category) {
   args.addFlag({
       .longName = name,
       .aliases = aliases,
@@ -115,22 +115,22 @@ void BaseSetting<T>::convertToArg(Args& args, const std::string& category) {
 
 #define DECLARE_CONFIG_SERIALISER(TY)                                                              \
   template <>                                                                                      \
-  TY BaseSetting<TY>::parse(const std::string& str) const;                                         \
+  TY base_setting_t<TY>::parse(const std::string& str) const;                                         \
   template <>                                                                                      \
-  std::string BaseSetting<TY>::to_string() const;
+  std::string base_setting_t<TY>::to_string() const;
 
 DECLARE_CONFIG_SERIALISER(std::string)
 DECLARE_CONFIG_SERIALISER(std::optional<std::string>)
 DECLARE_CONFIG_SERIALISER(bool)
-DECLARE_CONFIG_SERIALISER(Strings)
-DECLARE_CONFIG_SERIALISER(StringSet)
-DECLARE_CONFIG_SERIALISER(StringMap)
-DECLARE_CONFIG_SERIALISER(std::set<ExperimentalFeature>)
+DECLARE_CONFIG_SERIALISER(strings_t)
+DECLARE_CONFIG_SERIALISER(string_set_t)
+DECLARE_CONFIG_SERIALISER(string_map_t)
+DECLARE_CONFIG_SERIALISER(std::set<experimental_feature_t>)
 DECLARE_CONFIG_SERIALISER(std::filesystem::path)
 DECLARE_CONFIG_SERIALISER(std::optional<std::filesystem::path>)
 
 template <typename T>
-T BaseSetting<T>::parse(const std::string& str) const {
+T base_setting_t<T>::parse(const std::string& str) const {
   static_assert(std::is_integral<T>::value, "Integer required.");
 
   try {
@@ -141,7 +141,7 @@ T BaseSetting<T>::parse(const std::string& str) const {
 }
 
 template <typename T>
-std::string BaseSetting<T>::to_string() const {
+std::string base_setting_t<T>::to_string() const {
   static_assert(std::is_integral<T>::value, "Integer required.");
 
   return std::to_string(value);

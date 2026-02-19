@@ -55,12 +55,12 @@ namespace nix {
  *   `+` denotes string concatenation.
  * ```
  */
-void dumpPath(const Path& path, Sink& sink, PathFilter& filter = defaultPathFilter);
+void dumpPath(const Path& path, Sink& sink, path_filter_t& filter = defaultPathFilter);
 
 /**
  * Same as dumpPath(), but returns the last modified date of the path.
  */
-time_t dumpPathAndGetMtime(const Path& path, Sink& sink, PathFilter& filter = defaultPathFilter);
+time_t dumpPathAndGetMtime(const Path& path, Sink& sink, path_filter_t& filter = defaultPathFilter);
 
 /**
  * Dump an archive with a single file with these contents.
@@ -69,7 +69,7 @@ time_t dumpPathAndGetMtime(const Path& path, Sink& sink, PathFilter& filter = de
  */
 void dumpString(std::string_view s, Sink& sink);
 
-void parseDump(FileSystemObjectSink& sink, Source& source);
+void parseDump(file_system_object_sink_t& sink, Source& source);
 
 void restorePath(const std::filesystem::path& path, Source& source, bool startFsync = false);
 

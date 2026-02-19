@@ -135,7 +135,7 @@ TEST_CASE("parse_url ipv6 address", "[url][parse][ipv6]") {
   REQUIRE(url.scheme == "http");
   REQUIRE(url.authority.has_value());
   REQUIRE(url.authority->host == "::1");
-  REQUIRE(url.authority->hostType == ParsedURL::Authority::HostType::IPv6);
+  REQUIRE(url.authority->hostType == parsed_url_t::authority_t::host_type_t::IPv6);
   REQUIRE(url.authority->port == 8080);
 }
 
@@ -144,7 +144,7 @@ TEST_CASE("parse_url ipv6 full address", "[url][parse][ipv6]") {
 
   REQUIRE(url.authority.has_value());
   REQUIRE(url.authority->host == "2001:db8:85a3::8a2e:370:7334");
-  REQUIRE(url.authority->hostType == ParsedURL::Authority::HostType::IPv6);
+  REQUIRE(url.authority->hostType == parsed_url_t::authority_t::host_type_t::IPv6);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -222,9 +222,9 @@ TEST_CASE("parsed_url render_path", "[url][serialize]") {
 }
 
 TEST_CASE("parsed_url render_path with special characters", "[url][serialize]") {
-  ParsedURL url;
+  parsed_url_t url;
   url.scheme = "https";
-  url.authority = ParsedURL::Authority{.hostType = ParsedURL::Authority::HostType::Name,
+  url.authority = parsed_url_t::authority_t{.hostType = parsed_url_t::authority_t::host_type_t::Name,
                                        .host = "example.com",
                                        .user = std::nullopt,
                                        .password = std::nullopt,
@@ -300,7 +300,7 @@ TEST_CASE("decode_query empty", "[url][query]") {
 }
 
 TEST_CASE("encode_query basic", "[url][query]") {
-  StringMap query;
+  string_map_t query;
   query["foo"] = "bar";
   query["baz"] = "quux";
 
@@ -310,7 +310,7 @@ TEST_CASE("encode_query basic", "[url][query]") {
 }
 
 TEST_CASE("encode_query with special characters", "[url][query]") {
-  StringMap query;
+  string_map_t query;
   query["key"] = "hello world";
 
   auto encoded = encodeQuery(query);
@@ -396,7 +396,7 @@ TEST_CASE("fix_git_url local path", "[url][git]") {
 // ─────────────────────────────────────────────────────────────────────────────
 
 TEST_CASE("verbatim_url from string", "[url][verbatim]") {
-  VerbatimURL url(std::string{"https://example.com/path"});
+  verbatim_url_t url(std::string{"https://example.com/path"});
 
   REQUIRE(url.to_string() == "https://example.com/path");
   REQUIRE(url.scheme() == "https");
@@ -404,7 +404,7 @@ TEST_CASE("verbatim_url from string", "[url][verbatim]") {
 
 TEST_CASE("verbatim_url from parsed_url", "[url][verbatim]") {
   auto parsed = parseURL("https://example.com/path");
-  VerbatimURL url(parsed);
+  verbatim_url_t url(parsed);
 
   REQUIRE(url.scheme() == "https");
   auto reparsed = url.parsed();
@@ -412,7 +412,7 @@ TEST_CASE("verbatim_url from parsed_url", "[url][verbatim]") {
 }
 
 TEST_CASE("verbatim_url last_path_segment", "[url][verbatim]") {
-  VerbatimURL url(std::string{"https://example.com/path/to/file.txt"});
+  verbatim_url_t url(std::string{"https://example.com/path/to/file.txt"});
 
   auto segment = url.lastPathSegment();
   REQUIRE(segment.has_value());
@@ -420,7 +420,7 @@ TEST_CASE("verbatim_url last_path_segment", "[url][verbatim]") {
 }
 
 TEST_CASE("verbatim_url last_path_segment with query", "[url][verbatim]") {
-  VerbatimURL url(std::string{"https://example.com/path/to/file.txt?query=value"});
+  verbatim_url_t url(std::string{"https://example.com/path/to/file.txt?query=value"});
 
   auto segment = url.lastPathSegment();
   REQUIRE(segment.has_value());
@@ -428,7 +428,7 @@ TEST_CASE("verbatim_url last_path_segment with query", "[url][verbatim]") {
 }
 
 TEST_CASE("verbatim_url last_path_segment empty path", "[url][verbatim]") {
-  VerbatimURL url(std::string{"https://example.com/"});
+  verbatim_url_t url(std::string{"https://example.com/"});
 
   auto segment = url.lastPathSegment();
   REQUIRE_FALSE(segment.has_value());
@@ -470,23 +470,23 @@ TEST_CASE("render_url_path_ensure_legal with nul throws", "[url][error]") {
 // ─────────────────────────────────────────────────────────────────────────────
 
 TEST_CASE("authority parse simple host", "[url][authority]") {
-  auto auth = ParsedURL::Authority::parse("example.com");
+  auto auth = parsed_url_t::authority_t::parse("example.com");
 
   REQUIRE(auth.host == "example.com");
-  REQUIRE(auth.hostType == ParsedURL::Authority::HostType::Name);
+  REQUIRE(auth.hostType == parsed_url_t::authority_t::host_type_t::Name);
   REQUIRE_FALSE(auth.port.has_value());
   REQUIRE_FALSE(auth.user.has_value());
 }
 
 TEST_CASE("authority parse with port", "[url][authority]") {
-  auto auth = ParsedURL::Authority::parse("example.com:8080");
+  auto auth = parsed_url_t::authority_t::parse("example.com:8080");
 
   REQUIRE(auth.host == "example.com");
   REQUIRE(auth.port == 8080);
 }
 
 TEST_CASE("authority parse with userinfo", "[url][authority]") {
-  auto auth = ParsedURL::Authority::parse("user:pass@example.com");
+  auto auth = parsed_url_t::authority_t::parse("user:pass@example.com");
 
   REQUIRE(auth.user == "user");
   REQUIRE(auth.password == "pass");
@@ -494,23 +494,23 @@ TEST_CASE("authority parse with userinfo", "[url][authority]") {
 }
 
 TEST_CASE("authority parse ipv4", "[url][authority]") {
-  auto auth = ParsedURL::Authority::parse("192.168.1.1:80");
+  auto auth = parsed_url_t::authority_t::parse("192.168.1.1:80");
 
   REQUIRE(auth.host == "192.168.1.1");
-  REQUIRE(auth.hostType == ParsedURL::Authority::HostType::IPv4);
+  REQUIRE(auth.hostType == parsed_url_t::authority_t::host_type_t::IPv4);
   REQUIRE(auth.port == 80);
 }
 
 TEST_CASE("authority parse ipv6", "[url][authority]") {
-  auto auth = ParsedURL::Authority::parse("[::1]:8080");
+  auto auth = parsed_url_t::authority_t::parse("[::1]:8080");
 
   REQUIRE(auth.host == "::1");
-  REQUIRE(auth.hostType == ParsedURL::Authority::HostType::IPv6);
+  REQUIRE(auth.hostType == parsed_url_t::authority_t::host_type_t::IPv6);
   REQUIRE(auth.port == 8080);
 }
 
 TEST_CASE("authority to_string roundtrip", "[url][authority]") {
-  auto auth = ParsedURL::Authority::parse("user@example.com:8080");
+  auto auth = parsed_url_t::authority_t::parse("user@example.com:8080");
   auto serialized = auth.to_string();
 
   REQUIRE(serialized == "user@example.com:8080");
@@ -658,7 +658,7 @@ TEST_CASE("query encode/decode roundtrip property", "[url][property][query]") {
       }
     }
 
-    StringMap original;
+    string_map_t original;
     original[key] = value;
 
     auto encoded = encodeQuery(original);

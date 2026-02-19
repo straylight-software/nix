@@ -6,7 +6,7 @@
 
 namespace nix {
 
-struct Regex {
+struct regex_t {
   std::regex regex;
 };
 
@@ -36,7 +36,7 @@ DrvName::~DrvName() {}
 bool DrvName::matches(const DrvName& n) {
   if (name != "*") {
     if (!regex) {
-      regex = std::make_unique<Regex>();
+      regex = std::make_unique<regex_t>();
       regex->regex = std::regex(name, std::regex::extended);
     }
     if (!std::regex_match(n.name, regex->regex))
@@ -107,7 +107,7 @@ std::strong_ordering compareVersions(const std::string_view v1, const std::strin
   return std::strong_ordering::equal;
 }
 
-DrvNames drvNamesFromArgs(const Strings& opArgs) {
+DrvNames drvNamesFromArgs(const strings_t& opArgs) {
   DrvNames result;
   for (auto& i : opArgs)
     result.emplace_back(i);

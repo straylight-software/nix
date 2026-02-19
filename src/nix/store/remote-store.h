@@ -11,10 +11,10 @@
 
 namespace nix {
 
-class Pipe;
+class pipe_t;
 class Pid;
-struct FdSink;
-struct FdSource;
+struct fd_sink_t;
+struct fd_source_t;
 template <typename T>
 class Pool;
 class RemoteFSAccessor;
@@ -22,10 +22,10 @@ class RemoteFSAccessor;
 struct RemoteStoreConfig : virtual StoreConfig {
   using StoreConfig::StoreConfig;
 
-  const Setting<int> maxConnections{this, 64, "max-connections",
+  const setting_t<int> maxConnections{this, 64, "max-connections",
                                     "Maximum number of concurrent connections to the Nix daemon."};
 
-  const Setting<unsigned int> maxConnectionAge{this, std::numeric_limits<unsigned int>::max(),
+  const setting_t<unsigned int> maxConnectionAge{this, std::numeric_limits<unsigned int>::max(),
                                                "max-connection-age",
                                                "Maximum age of a connection before it is closed."};
 };
@@ -76,7 +76,7 @@ struct RemoteStore : public virtual Store,
    * Add a content-addressable store path. `dump` will be drained.
    */
   ref<const ValidPathInfo> addCAToStore(Source& dump, std::string_view name,
-                                        ContentAddressMethod caMethod, HashAlgorithm hashAlgo,
+                                        ContentAddressMethod caMethod, hash_algorithm_t hashAlgo,
                                         const StorePathSet& references, RepairFlag repair);
 
   /**
@@ -84,9 +84,9 @@ struct RemoteStore : public virtual Store,
    */
   StorePath
   addToStoreFromDump(Source& dump, std::string_view name,
-                     FileSerialisationMethod dumpMethod = FileSerialisationMethod::NixArchive,
-                     ContentAddressMethod hashMethod = FileIngestionMethod::NixArchive,
-                     HashAlgorithm hashAlgo = HashAlgorithm::SHA256,
+                     file_serialisation_method_t dumpMethod = file_serialisation_method_t::NixArchive,
+                     ContentAddressMethod hashMethod = file_ingestion_method_t::NixArchive,
+                     hash_algorithm_t hashAlgo = hash_algorithm_t::SHA256,
                      const StorePathSet& references = StorePathSet(),
                      RepairFlag repair = NoRepair) override;
 
@@ -95,7 +95,7 @@ struct RemoteStore : public virtual Store,
 
   void addMultipleToStore(Source& source, RepairFlag repair, CheckSigsFlag checkSigs) override;
 
-  void addMultipleToStore(PathsSource&& pathsToCopy, Activity& act, RepairFlag repair,
+  void addMultipleToStore(PathsSource&& pathsToCopy, activity_t& act, RepairFlag repair,
                           CheckSigsFlag checkSigs) override;
 
   void registerDrvOutput(const Realisation& info) override;
@@ -136,7 +136,7 @@ struct RemoteStore : public virtual Store,
    */
   void repairPath(const StorePath& path) override { unsupported("repairPath"); }
 
-  void addSignatures(const StorePath& storePath, const StringSet& sigs) override;
+  void addSignatures(const StorePath& storePath, const string_set_t& sigs) override;
 
   MissingPaths queryMissing(const std::vector<DerivedPath>& targets) override;
 

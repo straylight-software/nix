@@ -147,25 +147,25 @@ bool ReadlineLikeInteracter::getLine(std::string& input, ReplPromptType promptTy
     sigfillset(&act.sa_mask);
     act.sa_flags = 0;
     if (sigaction(SIGINT, &act, &old))
-      throw SysError("installing handler for SIGINT");
+      throw sys_error_t("installing handler for SIGINT");
 
     sigemptyset(&set);
     sigaddset(&set, SIGINT);
     if (sigprocmask(SIG_UNBLOCK, &set, &savedSignalMask))
-      throw SysError("unblocking SIGINT");
+      throw sys_error_t("unblocking SIGINT");
   };
   auto restoreSignals = [&]() {
     if (sigprocmask(SIG_SETMASK, &savedSignalMask, nullptr))
-      throw SysError("restoring signals");
+      throw sys_error_t("restoring signals");
 
     if (sigaction(SIGINT, &old, 0))
-      throw SysError("restoring handler for SIGINT");
+      throw sys_error_t("restoring handler for SIGINT");
   };
 
   setupSignals();
 #endif
   char* s = readline(promptForType(promptType));
-  Finally doFree([&]() { free(s); });
+  finally_t doFree([&]() { free(s); });
 #ifndef _WIN32 // TODO use more signals.hh for this
   restoreSignals();
 #endif

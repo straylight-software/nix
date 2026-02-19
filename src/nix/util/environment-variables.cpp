@@ -20,8 +20,8 @@ std::optional<std::string> getEnvNonEmpty(const std::string& key) {
   return value;
 }
 
-StringMap getEnv() {
-  StringMap env;
+string_map_t getEnv() {
+  string_map_t env;
   for (size_t i = 0; environ[i]; ++i) {
     auto s = environ[i];
     auto eq = strchr(s, '=');
@@ -38,7 +38,7 @@ void clearEnv() {
     unsetenv(name.first.c_str());
 }
 
-void replaceEnv(const StringMap& newEnv) {
+void replaceEnv(const string_map_t& newEnv) {
   clearEnv();
   for (auto& newEnvVar : newEnv)
     setEnv(newEnvVar.first.c_str(), newEnvVar.second.c_str());

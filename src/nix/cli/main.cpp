@@ -60,7 +60,7 @@ static bool haveInternet() {
   if (getifaddrs(&addrs))
     return true;
 
-  Finally free([&]() { freeifaddrs(addrs); });
+  finally_t free([&]() { freeifaddrs(addrs); });
 
   for (auto i = addrs; i; i = i->ifa_next) {
     if (!i->ifa_addr)
@@ -101,16 +101,16 @@ static void disableNet() {
 
 std::string programPath;
 
-struct NixArgs : virtual MultiCommand, virtual MixCommonArgs, virtual RootArgs {
+struct nix_args_t : virtual multi_command_t, virtual MixCommonArgs, virtual root_args_t {
   bool useNet = true;
   bool refresh = false;
   bool helpRequested = false;
   bool showVersion = false;
 
-  NixArgs() : MultiCommand("", RegisterCommand::getCommandsFor({})), MixCommonArgs("nix") {
+  nix_args_t() : multi_command_t("", RegisterCommand::getCommandsFor({})), MixCommonArgs("nix") {
     categories.clear();
     categories[catHelp] = "Help commands";
-    categories[Command::catDefault] = "Main commands";
+    categories[command_t::catDefault] = "Main commands";
     categories[catSecondary] = "Infrequently used commands";
     categories[catUtility] = "Utility/scripting commands";
     categories[catNixInstallation] =
@@ -155,30 +155,30 @@ struct NixArgs : virtual MultiCommand, virtual MixCommonArgs, virtual RootArgs {
     });
 
     aliases = {
-        {"add-to-store", {AliasStatus::Deprecated, {"store", "add-path"}}},
-        {"cat-nar", {AliasStatus::Deprecated, {"nar", "cat"}}},
-        {"cat-store", {AliasStatus::Deprecated, {"store", "cat"}}},
-        {"copy-sigs", {AliasStatus::Deprecated, {"store", "copy-sigs"}}},
-        {"dev-shell", {AliasStatus::Deprecated, {"develop"}}},
-        {"diff-closures", {AliasStatus::Deprecated, {"store", "diff-closures"}}},
-        {"dump-path", {AliasStatus::Deprecated, {"store", "dump-path"}}},
-        {"hash-file", {AliasStatus::Deprecated, {"hash", "file"}}},
-        {"hash-path", {AliasStatus::Deprecated, {"hash", "path"}}},
-        {"ls-nar", {AliasStatus::Deprecated, {"nar", "ls"}}},
-        {"ls-store", {AliasStatus::Deprecated, {"store", "ls"}}},
+        {"add-to-store", {alias_status_t::Deprecated, {"store", "add-path"}}},
+        {"cat-nar", {alias_status_t::Deprecated, {"nar", "cat"}}},
+        {"cat-store", {alias_status_t::Deprecated, {"store", "cat"}}},
+        {"copy-sigs", {alias_status_t::Deprecated, {"store", "copy-sigs"}}},
+        {"dev-shell", {alias_status_t::Deprecated, {"develop"}}},
+        {"diff-closures", {alias_status_t::Deprecated, {"store", "diff-closures"}}},
+        {"dump-path", {alias_status_t::Deprecated, {"store", "dump-path"}}},
+        {"hash-file", {alias_status_t::Deprecated, {"hash", "file"}}},
+        {"hash-path", {alias_status_t::Deprecated, {"hash", "path"}}},
+        {"ls-nar", {alias_status_t::Deprecated, {"nar", "ls"}}},
+        {"ls-store", {alias_status_t::Deprecated, {"store", "ls"}}},
         {"make-content-addressable",
-         {AliasStatus::Deprecated, {"store", "make-content-addressed"}}},
-        {"optimise-store", {AliasStatus::Deprecated, {"store", "optimise"}}},
-        {"ping-store", {AliasStatus::Deprecated, {"store", "info"}}},
-        {"sign-paths", {AliasStatus::Deprecated, {"store", "sign"}}},
-        {"shell", {AliasStatus::AcceptedShorthand, {"env", "shell"}}},
-        {"show-derivation", {AliasStatus::Deprecated, {"derivation", "show"}}},
-        {"show-config", {AliasStatus::Deprecated, {"config", "show"}}},
-        {"to-base16", {AliasStatus::Deprecated, {"hash", "to-base16"}}},
-        {"to-base32", {AliasStatus::Deprecated, {"hash", "to-base32"}}},
-        {"to-base64", {AliasStatus::Deprecated, {"hash", "to-base64"}}},
-        {"verify", {AliasStatus::Deprecated, {"store", "verify"}}},
-        {"doctor", {AliasStatus::Deprecated, {"config", "check"}}},
+         {alias_status_t::Deprecated, {"store", "make-content-addressed"}}},
+        {"optimise-store", {alias_status_t::Deprecated, {"store", "optimise"}}},
+        {"ping-store", {alias_status_t::Deprecated, {"store", "info"}}},
+        {"sign-paths", {alias_status_t::Deprecated, {"store", "sign"}}},
+        {"shell", {alias_status_t::AcceptedShorthand, {"env", "shell"}}},
+        {"show-derivation", {alias_status_t::Deprecated, {"derivation", "show"}}},
+        {"show-config", {alias_status_t::Deprecated, {"config", "show"}}},
+        {"to-base16", {alias_status_t::Deprecated, {"hash", "to-base16"}}},
+        {"to-base32", {alias_status_t::Deprecated, {"hash", "to-base32"}}},
+        {"to-base64", {alias_status_t::Deprecated, {"hash", "to-base64"}}},
+        {"verify", {alias_status_t::Deprecated, {"store", "verify"}}},
+        {"doctor", {alias_status_t::Deprecated, {"config", "check"}}},
     };
   };
 
@@ -235,7 +235,7 @@ struct NixArgs : virtual MultiCommand, virtual MixCommonArgs, virtual RootArgs {
 
 /* Render the help for the specified subcommand to stdout using
    lowdown. */
-static void showHelp(std::vector<std::string> subcommand, NixArgs& toplevel) {
+static void showHelp(std::vector<std::string> subcommand, nix_args_t& toplevel) {
   // Check for aliases if subcommand has exactly one element
   if (subcommand.size() == 1) {
     auto alias = toplevel.aliases.find(subcommand[0]);
@@ -253,18 +253,18 @@ static void showHelp(std::vector<std::string> subcommand, NixArgs& toplevel) {
   auto vGenerateManpage = state.allocValue();
   state.eval(state.parseExprFromString(
 #include "generate-manpage.nix.gen.h"
-                 , state.rootPath(CanonPath::root)),
+                 , state.rootPath(canon_path_t::root)),
              *vGenerateManpage);
 
-  state.corepkgsFS->addFile(CanonPath("utils.nix"),
+  state.corepkgsFS->addFile(canon_path_t("utils.nix"),
 #include "utils.nix.gen.h"
   );
 
-  state.corepkgsFS->addFile(CanonPath("/generate-settings.nix"),
+  state.corepkgsFS->addFile(canon_path_t("/generate-settings.nix"),
 #include "generate-settings.nix.gen.h"
   );
 
-  state.corepkgsFS->addFile(CanonPath("/generate-store-info.nix"),
+  state.corepkgsFS->addFile(canon_path_t("/generate-store-info.nix"),
 #include "generate-store-info.nix.gen.h"
   );
 
@@ -285,14 +285,14 @@ static void showHelp(std::vector<std::string> subcommand, NixArgs& toplevel) {
   std::cout << renderMarkdownToTerminal(markdown) << "\n";
 }
 
-static NixArgs& getNixArgs(Command& cmd) {
-  return dynamic_cast<NixArgs&>(cmd.getRoot());
+static nix_args_t& getNixArgs(command_t& cmd) {
+  return dynamic_cast<nix_args_t&>(cmd.getRoot());
 }
 
-struct CmdHelp : Command {
+struct cmd_help_t : command_t {
   std::vector<std::string> subcommand;
 
-  CmdHelp() {
+  cmd_help_t() {
     expectArgs({
         .label = "subcommand",
         .handler = {&subcommand},
@@ -307,20 +307,20 @@ struct CmdHelp : Command {
         ;
   }
 
-  Category category() override { return catHelp; }
+  category_t category() override { return catHelp; }
 
   void run() override {
     assert(parent);
-    MultiCommand* toplevel = parent;
+    multi_command_t* toplevel = parent;
     while (toplevel->parent)
       toplevel = toplevel->parent;
     showHelp(subcommand, getNixArgs(*this));
   }
 };
 
-static auto rCmdHelp = registerCommand<CmdHelp>("help");
+static auto rCmdHelp = registerCommand<cmd_help_t>("help");
 
-struct CmdHelpStores : Command {
+struct cmd_help_stores_t : command_t {
   std::string description() override { return "show help about store types and their settings"; }
 
   std::string doc() override {
@@ -329,12 +329,12 @@ struct CmdHelpStores : Command {
         ;
   }
 
-  Category category() override { return catHelp; }
+  category_t category() override { return catHelp; }
 
   void run() override { showHelp({"help-stores"}, getNixArgs(*this)); }
 };
 
-static auto rCmdHelpStores = registerCommand<CmdHelpStores>("help-stores");
+static auto rCmdHelpStores = registerCommand<cmd_help_stores_t>("help-stores");
 
 void mainWrapped(int argc, char** argv) {
   savedArgv = argv;
@@ -360,7 +360,7 @@ void mainWrapped(int argc, char** argv) {
      self-aware. That is, it has to know where it is installed. We
      don't think it's sentient.
    */
-  settings.buildHook.setDefault(Strings{
+  settings.buildHook.setDefault(strings_t{
       getNixBin({}).string(),
       "__build-remote",
   });
@@ -370,7 +370,7 @@ void mainWrapped(int argc, char** argv) {
     try {
       saveMountNamespace();
       if (unshare(CLONE_NEWNS) == -1)
-        throw SysError("setting up a private mount namespace");
+        throw sys_error_t("setting up a private mount namespace");
     } catch (Error& e) {
     }
   }
@@ -406,7 +406,7 @@ void mainWrapped(int argc, char** argv) {
     verbosity = lvlInfo;
   }
 
-  NixArgs args;
+  nix_args_t args;
 
   if (argc == 2 && std::string(argv[1]) == "__dump-cli") {
     logger->cout(args.dumpCli());
@@ -415,9 +415,9 @@ void mainWrapped(int argc, char** argv) {
 
   if (argc == 2 && std::string(argv[1]) == "__dump-language") {
     experimentalFeatureSettings.experimentalFeatures = {
-        Xp::FetchClosure,
-        Xp::DynamicDerivations,
-        Xp::FetchTree,
+        xp_t::FetchClosure,
+        xp_t::DynamicDerivations,
+        xp_t::FetchTree,
     };
     evalSettings.pureEval = false;
     EvalState state({}, openStore("dummy://"), fetchSettings, evalSettings);
@@ -455,16 +455,16 @@ void mainWrapped(int argc, char** argv) {
     return;
   }
 
-  Finally printCompletions([&]() {
+  finally_t printCompletions([&]() {
     if (args.completions) {
       switch (args.completions->type) {
-        case Completions::Type::Normal:
+        case completions_t::Type::Normal:
           logger->cout("normal");
           break;
-        case Completions::Type::Filenames:
+        case completions_t::Type::Filenames:
           logger->cout("filenames");
           break;
-        case Completions::Type::Attrs:
+        case completions_t::Type::Attrs:
           logger->cout("attrs");
           break;
       }
@@ -494,11 +494,11 @@ void mainWrapped(int argc, char** argv) {
 
   if (args.helpRequested) {
     std::vector<std::string> subcommand;
-    MultiCommand* command = &args;
+    multi_command_t* command = &args;
     while (command) {
       if (command && command->command) {
         subcommand.push_back(command->command->first);
-        command = dynamic_cast<MultiCommand*>(&*command->command->second);
+        command = dynamic_cast<multi_command_t*>(&*command->command->second);
       } else
         break;
     }

@@ -18,7 +18,7 @@ struct StoreDirConfig;
 /**
  * An opaque derived path.
  *
- * Opaque derived paths are just store paths, and fully evaluated. They
+ * opaque_t derived paths are just store paths, and fully evaluated. They
  * cannot be simplified further. Since they are opaque, they cannot be
  * built, but they can fetched.
  */
@@ -72,7 +72,7 @@ struct SingleDerivedPathBuilt {
    */
   static SingleDerivedPathBuilt
   parse(const StoreDirConfig& store, ref<const SingleDerivedPath> drvPath, OutputNameView outputs,
-        const ExperimentalFeatureSettings& xpSettings = experimentalFeatureSettings);
+        const experimental_feature_settings_t& xpSettings = experimentalFeatureSettings);
 
   bool operator==(const SingleDerivedPathBuilt&) const noexcept;
   std::strong_ordering operator<=>(const SingleDerivedPathBuilt&) const noexcept;
@@ -92,13 +92,13 @@ using _SingleDerivedPathRaw = std::variant<DerivedPathOpaque, SingleDerivedPathB
  *   output name.
  */
 struct SingleDerivedPath : _SingleDerivedPathRaw {
-  using Raw = _SingleDerivedPathRaw;
-  using Raw::Raw;
+  using raw_t = _SingleDerivedPathRaw;
+  using raw_t::raw_t;
 
-  using Opaque = DerivedPathOpaque;
+  using opaque_t = DerivedPathOpaque;
   using Built = SingleDerivedPathBuilt;
 
-  inline const Raw& raw() const { return static_cast<const Raw&>(*this); }
+  inline const raw_t& raw() const { return static_cast<const raw_t&>(*this); }
 
   bool operator==(const SingleDerivedPath&) const = default;
   auto operator<=>(const SingleDerivedPath&) const = default;
@@ -130,7 +130,7 @@ struct SingleDerivedPath : _SingleDerivedPathRaw {
    */
   static SingleDerivedPath
   parse(const StoreDirConfig& store, std::string_view,
-        const ExperimentalFeatureSettings& xpSettings = experimentalFeatureSettings);
+        const experimental_feature_settings_t& xpSettings = experimentalFeatureSettings);
   /**
    * Uses `!` as the separator
    *
@@ -138,11 +138,11 @@ struct SingleDerivedPath : _SingleDerivedPathRaw {
    */
   static SingleDerivedPath
   parseLegacy(const StoreDirConfig& store, std::string_view,
-              const ExperimentalFeatureSettings& xpSettings = experimentalFeatureSettings);
+              const experimental_feature_settings_t& xpSettings = experimentalFeatureSettings);
 };
 
 static inline ref<SingleDerivedPath> makeConstantStorePathRef(StorePath drvPath) {
-  return make_ref<SingleDerivedPath>(SingleDerivedPath::Opaque{drvPath});
+  return make_ref<SingleDerivedPath>(SingleDerivedPath::opaque_t{drvPath});
 }
 
 /**
@@ -188,7 +188,7 @@ struct DerivedPathBuilt {
    */
   static DerivedPathBuilt
   parse(const StoreDirConfig& store, ref<const SingleDerivedPath>, std::string_view,
-        const ExperimentalFeatureSettings& xpSettings = experimentalFeatureSettings);
+        const experimental_feature_settings_t& xpSettings = experimentalFeatureSettings);
 
   bool operator==(const DerivedPathBuilt&) const noexcept;
   // TODO libc++ 16 (used by darwin) missing `std::set::operator <=>`, can't do yet.
@@ -208,13 +208,13 @@ using _DerivedPathRaw = std::variant<DerivedPathOpaque, DerivedPathBuilt>;
  *   output names.
  */
 struct DerivedPath : _DerivedPathRaw {
-  using Raw = _DerivedPathRaw;
-  using Raw::Raw;
+  using raw_t = _DerivedPathRaw;
+  using raw_t::raw_t;
 
-  using Opaque = DerivedPathOpaque;
+  using opaque_t = DerivedPathOpaque;
   using Built = DerivedPathBuilt;
 
-  inline const Raw& raw() const { return static_cast<const Raw&>(*this); }
+  inline const raw_t& raw() const { return static_cast<const raw_t&>(*this); }
 
   /**
    * Get the store path this is ultimately derived from (by realising
@@ -243,7 +243,7 @@ struct DerivedPath : _DerivedPathRaw {
    */
   static DerivedPath
   parse(const StoreDirConfig& store, std::string_view,
-        const ExperimentalFeatureSettings& xpSettings = experimentalFeatureSettings);
+        const experimental_feature_settings_t& xpSettings = experimentalFeatureSettings);
   /**
    * Uses `!` as the separator
    *
@@ -251,7 +251,7 @@ struct DerivedPath : _DerivedPathRaw {
    */
   static DerivedPath
   parseLegacy(const StoreDirConfig& store, std::string_view,
-              const ExperimentalFeatureSettings& xpSettings = experimentalFeatureSettings);
+              const experimental_feature_settings_t& xpSettings = experimentalFeatureSettings);
 
   /**
    * Convert a `SingleDerivedPath` to a `DerivedPath`.
@@ -272,10 +272,10 @@ typedef std::vector<DerivedPath> DerivedPaths;
  */
 void drvRequireExperiment(
     const SingleDerivedPath& drv,
-    const ExperimentalFeatureSettings& xpSettings = experimentalFeatureSettings);
+    const experimental_feature_settings_t& xpSettings = experimentalFeatureSettings);
 } // namespace nix
 
-JSON_IMPL(nix::SingleDerivedPath::Opaque)
+JSON_IMPL(nix::SingleDerivedPath::opaque_t)
 JSON_IMPL_WITH_XP_FEATURES(nix::SingleDerivedPath::Built)
 JSON_IMPL_WITH_XP_FEATURES(nix::SingleDerivedPath)
 JSON_IMPL_WITH_XP_FEATURES(nix::DerivedPath::Built)

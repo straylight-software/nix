@@ -7,8 +7,8 @@ namespace nix::fetchers {
 
 std::regex flakeRegex("[a-zA-Z][a-zA-Z0-9_-]*", std::regex::ECMAScript);
 
-struct IndirectInputScheme : InputScheme {
-  std::optional<Input> inputFromURL(const Settings& settings, const ParsedURL& url,
+struct indirect_input_scheme_t : InputScheme {
+  std::optional<Input> inputFromURL(const settings_t& settings, const parsed_url_t& url,
                                     bool requireTree) const override {
     if (url.scheme != "flake")
       return {};
@@ -23,7 +23,7 @@ struct IndirectInputScheme : InputScheme {
     if (path.size() == 1) {
     } else if (path.size() == 2) {
       if (std::regex_match(path[1], revRegex))
-        rev = Hash::parseAny(path[1], HashAlgorithm::SHA1);
+        rev = Hash::parseAny(path[1], hash_algorithm_t::SHA1);
       else if (isLegalRefName(path[1]))
         ref = path[1];
       else
@@ -35,7 +35,7 @@ struct IndirectInputScheme : InputScheme {
       ref = path[1];
       if (!std::regex_match(path[2], revRegex))
         throw BadURL("in flake URL '%s', '%s' is not a commit hash", url, path[2]);
-      rev = Hash::parseAny(path[2], HashAlgorithm::SHA1);
+      rev = Hash::parseAny(path[2], hash_algorithm_t::SHA1);
     } else
       throw BadURL("GitHub URL '%s' is invalid", url);
 
@@ -85,7 +85,7 @@ struct IndirectInputScheme : InputScheme {
     return attrs;
   }
 
-  std::optional<Input> inputFromAttrs(const Settings& settings, const Attrs& attrs) const override {
+  std::optional<Input> inputFromAttrs(const settings_t& settings, const Attrs& attrs) const override {
     auto id = getStrAttr(attrs, "id");
     if (!std::regex_match(id, flakeRegex))
       throw BadURL("'%s' is not a valid flake ID", id);
@@ -95,8 +95,8 @@ struct IndirectInputScheme : InputScheme {
     return input;
   }
 
-  ParsedURL toURL(const Input& input, bool abbreviate) const override {
-    ParsedURL url{
+  parsed_url_t toURL(const Input& input, bool abbreviate) const override {
+    parsed_url_t url{
         .scheme = "flake",
         .path = {getStrAttr(input.attrs, "id")},
     };
@@ -119,7 +119,7 @@ struct IndirectInputScheme : InputScheme {
     return input;
   }
 
-  std::pair<ref<SourceAccessor>, Input> getAccessor(const Settings& settings, Store& store,
+  std::pair<ref<SourceAccessor>, Input> getAccessor(const settings_t& settings, Store& store,
                                                     const Input& input) const override {
     throw Error("indirect input '%s' cannot be fetched directly", input.to_string());
   }
@@ -128,6 +128,6 @@ struct IndirectInputScheme : InputScheme {
 };
 
 static auto rIndirectInputScheme =
-    OnStartup([] { registerInputScheme(std::make_unique<IndirectInputScheme>()); });
+    on_startup_t([] { registerInputScheme(std::make_unique<indirect_input_scheme_t>()); });
 
 } // namespace nix::fetchers

@@ -12,12 +12,12 @@
 
 namespace nix {
 
-void runNix(const std::string& program, const Strings& args,
+void runNix(const std::string& program, const strings_t& args,
             const std::optional<std::string>& input = {}) {
   auto subprocessEnv = getEnv();
   subprocessEnv["NIX_CONFIG"] = globalConfig.toKeyValue();
   // isInteractive avoid grabling interactive commands
-  runProgram2(RunOptions{
+  runProgram2(run_options_t{
       .program = getNixBin(program).string(),
       .args = args,
       .environment = subprocessEnv,
@@ -28,17 +28,17 @@ void runNix(const std::string& program, const Strings& args,
   return;
 }
 
-struct CmdRepl : RawInstallablesCommand {
-  CmdRepl() { evalSettings.pureEval = false; }
+struct cmd_repl_t : RawInstallablesCommand {
+  cmd_repl_t() { evalSettings.pureEval = false; }
 
   /**
    * This command is stable before the others
    */
-  std::optional<ExperimentalFeature> experimentalFeature() override { return std::nullopt; }
+  std::optional<experimental_feature_t> experimentalFeature() override { return std::nullopt; }
 
   std::vector<std::string> files;
 
-  Strings getDefaultFlakeAttrPaths() override { return {""}; }
+  strings_t getDefaultFlakeAttrPaths() override { return {""}; }
 
   bool forceImpureByDefault() override { return true; }
 
@@ -89,6 +89,6 @@ struct CmdRepl : RawInstallablesCommand {
   }
 };
 
-static auto rCmdRepl = registerCommand<CmdRepl>("repl");
+static auto rCmdRepl = registerCommand<cmd_repl_t>("repl");
 
 } // namespace nix

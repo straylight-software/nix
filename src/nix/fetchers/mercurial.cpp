@@ -14,7 +14,7 @@ using namespace std::string_literals;
 
 namespace nix::fetchers {
 
-static RunOptions hgOptions(const Strings& args) {
+static run_options_t hgOptions(const strings_t& args) {
   auto env = getEnv();
   // Set HGPLAIN: this means we get consistent output from hg and avoids leakage from a user or
   // system .hgrc.
@@ -24,20 +24,20 @@ static RunOptions hgOptions(const Strings& args) {
 }
 
 // runProgram wrapper that uses hgOptions instead of stock RunOptions.
-static std::string runHg(const Strings& args, const std::optional<std::string>& input = {}) {
-  RunOptions opts = hgOptions(args);
+static std::string runHg(const strings_t& args, const std::optional<std::string>& input = {}) {
+  run_options_t opts = hgOptions(args);
   opts.input = input;
 
   auto res = runProgram(std::move(opts));
 
   if (!statusOk(res.first))
-    throw ExecError(res.first, "hg %1%", statusToString(res.first));
+    throw exec_error_t(res.first, "hg %1%", statusToString(res.first));
 
   return res.second;
 }
 
-struct MercurialInputScheme : InputScheme {
-  std::optional<Input> inputFromURL(const Settings& settings, const ParsedURL& url,
+struct mercurial_input_scheme_t : InputScheme {
+  std::optional<Input> inputFromURL(const settings_t& settings, const parsed_url_t& url,
                                     bool requireTree) const override {
     if (url.scheme != "hg+http" && url.scheme != "hg+https" && url.scheme != "hg+ssh" &&
         url.scheme != "hg+file")
@@ -99,7 +99,7 @@ struct MercurialInputScheme : InputScheme {
     return attrs;
   }
 
-  std::optional<Input> inputFromAttrs(const Settings& settings, const Attrs& attrs) const override {
+  std::optional<Input> inputFromAttrs(const settings_t& settings, const Attrs& attrs) const override {
     parseURL(getStrAttr(attrs, "url"));
 
     if (auto ref = maybeGetStrAttr(attrs, "ref")) {
@@ -112,7 +112,7 @@ struct MercurialInputScheme : InputScheme {
     return input;
   }
 
-  ParsedURL toURL(const Input& input, bool abbreviate) const override {
+  parsed_url_t toURL(const Input& input, bool abbreviate) const override {
     auto url = parseURL(getStrAttr(input.attrs, "url"));
     url.scheme = "hg+" + url.scheme;
     if (auto rev = input.getRev())
@@ -139,14 +139,14 @@ struct MercurialInputScheme : InputScheme {
     return {};
   }
 
-  void putFile(const Input& input, const CanonPath& path, std::string_view contents,
+  void putFile(const Input& input, const canon_path_t& path, std::string_view contents,
                std::optional<std::string> commitMsg) const override {
     auto [isLocal, repoPath] = getActualUrl(input);
     if (!isLocal)
       throw Error("cannot commit '%s' to Mercurial repository '%s' because it's not a working tree",
                   path, input.to_string());
 
-    auto absPath = CanonPath(repoPath) / path;
+    auto absPath = canon_path_t(repoPath) / path;
 
     writeFile(absPath.abs(), contents);
 
@@ -163,7 +163,7 @@ struct MercurialInputScheme : InputScheme {
     return {isLocal, isLocal ? renderUrlPathEnsureLegal(url.path) : url.to_string()};
   }
 
-  StorePath fetchToStore(const Settings& settings, Store& store, Input& input) const {
+  StorePath fetchToStore(const settings_t& settings, Store& store, Input& input) const {
     auto origRev = input.getRev();
 
     auto name = input.getName();
@@ -191,13 +191,13 @@ struct MercurialInputScheme : InputScheme {
         input.attrs.insert_or_assign("ref", chomp(runHg({"branch", "-R", actualUrl})));
 
         auto files =
-            tokenizeString<StringSet>(runHg({"status", "-R", actualUrl, "--clean", "--modified",
+            tokenizeString<string_set_t>(runHg({"status", "-R", actualUrl, "--clean", "--modified",
                                              "--added", "--no-status", "--print0"}),
                                       "\0"s);
 
         std::filesystem::path actualPath(absPath(actualUrl));
 
-        PathFilter filter = [&](const Path& p) -> bool {
+        path_filter_t filter = [&](const Path& p) -> bool {
           assert(hasPrefix(p, actualPath.string()));
           std::string file(p, actualPath.string().size() + 1);
 
@@ -213,8 +213,8 @@ struct MercurialInputScheme : InputScheme {
         };
 
         auto storePath = store.addToStore(
-            input.getName(), {getFSSourceAccessor(), CanonPath(actualPath.string())},
-            ContentAddressMethod::Raw::NixArchive, HashAlgorithm::SHA256, {}, filter);
+            input.getName(), {getFSSourceAccessor(), canon_path_t(actualPath.string())},
+            ContentAddressMethod::raw_t::NixArchive, hash_algorithm_t::SHA256, {}, filter);
 
         return storePath;
       }
@@ -224,7 +224,7 @@ struct MercurialInputScheme : InputScheme {
       input.attrs.insert_or_assign("ref", "default");
 
     auto revInfoKey = [&](const Hash& rev) {
-      if (rev.algo != HashAlgorithm::SHA1)
+      if (rev.algo != hash_algorithm_t::SHA1)
         throw Error("Hash '%s' is not supported by Mercurial. Only sha1 is supported.",
                     rev.gitRev());
 
@@ -255,7 +255,7 @@ struct MercurialInputScheme : InputScheme {
 
     std::filesystem::path cacheDir =
         getCacheDir() / "hg" /
-        hashString(HashAlgorithm::SHA256, actualUrl).to_string(HashFormat::Nix32, false);
+        hashString(hash_algorithm_t::SHA256, actualUrl).to_string(hash_format_t::Nix32, false);
 
     /* If this is a commit hash that we already have, we don't
        have to pull again. */
@@ -263,20 +263,20 @@ struct MercurialInputScheme : InputScheme {
           runProgram(hgOptions({"log", "-R", cacheDir.string(), "-r", input.getRev()->gitRev(),
                                 "--template", "1"}))
                   .second == "1")) {
-      Activity act(*logger, lvlTalkative, actUnknown,
+      activity_t act(*logger, lvlTalkative, actUnknown,
                    fmt("fetching Mercurial repository '%s'", actualUrl));
 
       if (pathExists(cacheDir)) {
         try {
           runHg({"pull", "-R", cacheDir.string(), "--", actualUrl});
-        } catch (ExecError& e) {
+        } catch (exec_error_t& e) {
           auto transJournal = cacheDir / ".hg" / "store" / "journal";
           /* hg throws "abandoned transaction" error only if this file exists */
           if (pathExists(transJournal)) {
             runHg({"recover", "-R", cacheDir.string()});
             runHg({"pull", "-R", cacheDir.string(), "--", actualUrl});
           } else {
-            throw ExecError(e.status, "'hg pull' %s", statusToString(e.status));
+            throw exec_error_t(e.status, "'hg pull' %s", statusToString(e.status));
           }
         }
       } else {
@@ -292,7 +292,7 @@ struct MercurialInputScheme : InputScheme {
                "{node} {rev} {branch}"}));
     assert(tokens.size() == 3);
 
-    auto rev = Hash::parseAny(tokens[0], HashAlgorithm::SHA1);
+    auto rev = Hash::parseAny(tokens[0], hash_algorithm_t::SHA1);
     input.attrs.insert_or_assign("rev", rev.gitRev());
     auto revCount = std::stoull(tokens[1]);
     input.attrs.insert_or_assign("ref", tokens[2]);
@@ -303,13 +303,13 @@ struct MercurialInputScheme : InputScheme {
       return makeResult(res->value, res->storePath);
 
     std::filesystem::path tmpDir = createTempDir();
-    AutoDelete delTmpDir(tmpDir, true);
+    auto_delete_t delTmpDir(tmpDir, true);
 
     runHg({"archive", "-R", cacheDir.string(), "-r", rev.gitRev(), tmpDir.string()});
 
     deletePath(tmpDir / ".hg_archival.txt");
 
-    auto storePath = store.addToStore(name, {getFSSourceAccessor(), CanonPath(tmpDir.string())});
+    auto storePath = store.addToStore(name, {getFSSourceAccessor(), canon_path_t(tmpDir.string())});
 
     Attrs infoAttrs({
         {"revCount", (uint64_t)revCount},
@@ -323,7 +323,7 @@ struct MercurialInputScheme : InputScheme {
     return makeResult(infoAttrs, std::move(storePath));
   }
 
-  std::pair<ref<SourceAccessor>, Input> getAccessor(const Settings& settings, Store& store,
+  std::pair<ref<SourceAccessor>, Input> getAccessor(const settings_t& settings, Store& store,
                                                     const Input& _input) const override {
     Input input(_input);
 
@@ -335,7 +335,7 @@ struct MercurialInputScheme : InputScheme {
     return {accessor, input};
   }
 
-  bool isLocked(const Settings& settings, const Input& input) const override {
+  bool isLocked(const settings_t& settings, const Input& input) const override {
     return (bool)input.getRev();
   }
 
@@ -348,6 +348,6 @@ struct MercurialInputScheme : InputScheme {
 };
 
 static auto rMercurialInputScheme =
-    OnStartup([] { registerInputScheme(std::make_unique<MercurialInputScheme>()); });
+    on_startup_t([] { registerInputScheme(std::make_unique<mercurial_input_scheme_t>()); });
 
 } // namespace nix::fetchers

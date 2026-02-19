@@ -14,22 +14,22 @@ namespace nix {
 
 // for more information, refer to
 // https://github.com/nlohmann/json/blob/master/include/nlohmann/detail/input/json_sax.hpp
-class JSONSax : nlohmann::json_sax<json> {
-  class JSONState {
+class json_sax_t : nlohmann::json_sax<json> {
+  class json_state_t {
   protected:
-    std::unique_ptr<JSONState> parent;
+    std::unique_ptr<json_state_t> parent;
     RootValue v;
 
   public:
-    virtual std::unique_ptr<JSONState> resolve(EvalState&) {
+    virtual std::unique_ptr<json_state_t> resolve(EvalState&) {
       throw std::logic_error("tried to close toplevel json parser state");
     }
 
-    explicit JSONState(std::unique_ptr<JSONState>&& p) : parent(std::move(p)) {}
+    explicit json_state_t(std::unique_ptr<json_state_t>&& p) : parent(std::move(p)) {}
 
-    explicit JSONState(Value* v) : v(allocRootValue(v)) {}
+    explicit json_state_t(Value* v) : v(allocRootValue(v)) {}
 
-    JSONState(JSONState& p) = delete;
+    json_state_t(json_state_t& p) = delete;
 
     Value& value(EvalState& state) {
       if (!v)
@@ -37,16 +37,16 @@ class JSONSax : nlohmann::json_sax<json> {
       return **v;
     }
 
-    virtual ~JSONState() {}
+    virtual ~json_state_t() {}
 
     virtual void add() {}
   };
 
-  class JSONObjectState : public JSONState {
-    using JSONState::JSONState;
+  class json_object_state_t : public json_state_t {
+    using json_state_t::json_state_t;
     ValueMap attrs;
 
-    std::unique_ptr<JSONState> resolve(EvalState& state) override {
+    std::unique_ptr<json_state_t> resolve(EvalState& state) override {
       auto attrs2 = state.buildBindings(attrs.size());
       for (auto& i : attrs)
         attrs2.insert(i.first, i.second);
@@ -63,10 +63,10 @@ class JSONSax : nlohmann::json_sax<json> {
     }
   };
 
-  class JSONListState : public JSONState {
+  class json_list_state_t : public json_state_t {
     ValueVector values;
 
-    std::unique_ptr<JSONState> resolve(EvalState& state) override {
+    std::unique_ptr<json_state_t> resolve(EvalState& state) override {
       auto list = state.buildList(values.size());
       for (const auto& [n, v2] : enumerate(list))
         v2 = values[n];
@@ -80,16 +80,16 @@ class JSONSax : nlohmann::json_sax<json> {
     }
 
   public:
-    JSONListState(std::unique_ptr<JSONState>&& p, std::size_t reserve) : JSONState(std::move(p)) {
+    json_list_state_t(std::unique_ptr<json_state_t>&& p, std::size_t reserve) : json_state_t(std::move(p)) {
       values.reserve(reserve);
     }
   };
 
   EvalState& state;
-  std::unique_ptr<JSONState> rs;
+  std::unique_ptr<json_state_t> rs;
 
 public:
-  JSONSax(EvalState& state, Value& v) : state(state), rs(new JSONState(&v)) {};
+  json_sax_t(EvalState& state, Value& v) : state(state), rs(new json_state_t(&v)) {};
 
   bool null() override {
     rs->value(state).mkNull();
@@ -141,12 +141,12 @@ public:
 #endif
 
   bool start_object(std::size_t len) override {
-    rs = std::make_unique<JSONObjectState>(std::move(rs));
+    rs = std::make_unique<json_object_state_t>(std::move(rs));
     return true;
   }
 
   bool key(string_t& name) override {
-    dynamic_cast<JSONObjectState*>(rs.get())->key(name, state);
+    dynamic_cast<json_object_state_t*>(rs.get())->key(name, state);
     return true;
   }
 
@@ -159,7 +159,7 @@ public:
   bool end_array() override { return end_object(); }
 
   bool start_array(size_t len) override {
-    rs = std::make_unique<JSONListState>(std::move(rs),
+    rs = std::make_unique<json_list_state_t>(std::move(rs),
                                          len != std::numeric_limits<size_t>::max() ? len : 128);
     return true;
   }
@@ -171,7 +171,7 @@ public:
 };
 
 void parseJSON(EvalState& state, const std::string_view& s_, Value& v) {
-  JSONSax parser(state, v);
+  json_sax_t parser(state, v);
   bool res = json::sax_parse(s_, &parser);
   if (!res)
     throw JSONParseError("Invalid JSON Value");

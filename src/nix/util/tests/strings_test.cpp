@@ -84,7 +84,7 @@ TEST_CASE("tokenizeString only separators", "[strings][tokenize]") {
 }
 
 TEST_CASE("tokenizeString to set deduplicates", "[strings][tokenize]") {
-  auto result = tokenizeString<StringSet>("a b a c b");
+  auto result = tokenizeString<string_set_t>("a b a c b");
   REQUIRE(result.size() == 3);
   REQUIRE(result.count("a") == 1);
   REQUIRE(result.count("b") == 1);
@@ -197,7 +197,7 @@ TEST_CASE("concatStringsSep with empty strings in vector", "[strings][concat]") 
 }
 
 TEST_CASE("concatStringsSep from set", "[strings][concat]") {
-  StringSet parts = {"apple", "banana", "cherry"};
+  string_set_t parts = {"apple", "banana", "cherry"};
   auto result = concatStringsSep(", ", parts);
   // Set is sorted, so order is deterministic
   REQUIRE(result == "apple, banana, cherry");

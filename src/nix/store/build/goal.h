@@ -127,9 +127,9 @@ public:
    * `co_return`-ing this will end the goal.
    * If you're not inside a coroutine, you can safely discard this.
    */
-  struct [[nodiscard]] Done {
+  struct [[nodiscard]] done_t {
   private:
-    Done() {}
+    done_t() {}
 
     friend Goal;
   };
@@ -165,7 +165,7 @@ public:
    *       There are suspension points at the beginning of the coroutine,
    *       at every `co_await`, and at the final (possibly implicit) `co_return`.
    *       Once suspended, you can resume the `std::coroutine_handle` by doing
-   * `coroutine_handle.resume()`. Suspension points are implemented by passing a struct to the
+   * `coroutine_handle.resume()`. suspension_t points are implemented by passing a struct to the
    * compiler that implements `await_sus`pend. `await_suspend` can either say "cancel suspension",
    * in which case execution resumes, "suspend", in which case control is passed back to the caller
    * of `coroutine_handle.resume()` or the place where the coroutine function is initially executed
@@ -305,7 +305,7 @@ public:
      * Does nothing, but provides an opportunity for
      * @ref final_suspend to happen.
      */
-    void return_value(Done) {}
+    void return_value(done_t) {}
 
     /**
      * When "returning" another coroutine, what happens is that
@@ -355,7 +355,7 @@ protected:
    * `co_return` the result. If you're not inside a coroutine, you can ignore
    * the return value safely.
    */
-  Done amDone(ExitCode result, std::optional<Error> ex = {});
+  done_t amDone(ExitCode result, std::optional<Error> ex = {});
 
 public:
   virtual void cleanup() {}
@@ -387,9 +387,9 @@ public:
 
   void work();
 
-  virtual void handleChildOutput(Descriptor fd, std::string_view data) { unreachable(); }
+  virtual void handleChildOutput(descriptor_t fd, std::string_view data) { unreachable(); }
 
-  virtual void handleEOF(Descriptor fd) { unreachable(); }
+  virtual void handleEOF(descriptor_t fd) { unreachable(); }
 
   void trace(std::string_view s);
 

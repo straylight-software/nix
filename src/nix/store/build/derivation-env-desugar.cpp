@@ -39,7 +39,7 @@ DesugaredEnv DesugaredEnv::create(Store& store, const Derivation& drv,
         res.atFileEnvPair(
             envName + "Path",
             ".attr-" +
-                hashString(HashAlgorithm::SHA256, envName).to_string(HashFormat::Nix32, false)) =
+                hashString(hash_algorithm_t::SHA256, envName).to_string(hash_format_t::Nix32, false)) =
             envValue;
       }
     }

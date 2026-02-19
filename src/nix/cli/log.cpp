@@ -7,7 +7,7 @@
 
 using namespace nix;
 
-struct CmdLog : InstallableCommand {
+struct cmd_log_t : InstallableCommand {
   std::string description() override {
     return "show the build log of the specified packages or paths, if available";
   }
@@ -18,7 +18,7 @@ struct CmdLog : InstallableCommand {
         ;
   }
 
-  Category category() override { return catSecondary; }
+  category_t category() override { return catSecondary; }
 
   void run(ref<Store> store, ref<Installable> installable) override {
     settings.readOnlyMode = true;
@@ -32,7 +32,7 @@ struct CmdLog : InstallableCommand {
     // For compat with CLI today, TODO revisit
     auto oneUp = std::visit(
         overloaded{
-            [&](const DerivedPath::Opaque& bo) { return make_ref<const SingleDerivedPath>(bo); },
+            [&](const DerivedPath::opaque_t& bo) { return make_ref<const SingleDerivedPath>(bo); },
             [&](const DerivedPath::Built& bfd) { return bfd.drvPath; },
         },
         b.path.raw());
@@ -62,4 +62,4 @@ struct CmdLog : InstallableCommand {
   }
 };
 
-static auto rCmdLog = registerCommand<CmdLog>("log");
+static auto rCmdLog = registerCommand<cmd_log_t>("log");

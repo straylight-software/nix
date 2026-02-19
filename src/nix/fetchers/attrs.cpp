@@ -86,8 +86,8 @@ bool getBoolAttr(const Attrs& attrs, const std::string& name) {
   return *s;
 }
 
-StringMap attrsToQuery(const Attrs& attrs) {
-  StringMap query;
+string_map_t attrsToQuery(const Attrs& attrs) {
+  string_map_t query;
   for (auto& attr : attrs) {
     if (auto v = std::get_if<uint64_t>(&attr.second)) {
       query.insert_or_assign(attr.first, fmt("%d", *v));
@@ -102,7 +102,7 @@ StringMap attrsToQuery(const Attrs& attrs) {
 }
 
 Hash getRevAttr(const Attrs& attrs, const std::string& name) {
-  return Hash::parseAny(getStrAttr(attrs, name), HashAlgorithm::SHA1);
+  return Hash::parseAny(getStrAttr(attrs, name), hash_algorithm_t::SHA1);
 }
 
 } // namespace nix::fetchers

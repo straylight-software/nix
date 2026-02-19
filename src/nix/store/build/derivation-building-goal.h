@@ -61,10 +61,10 @@ private:
   StorePathSet inputPaths;
 
   /**
-   * File descriptor for the log file.
+   * file_t descriptor for the log file.
    */
-  AutoCloseFD fdLogFile;
-  std::shared_ptr<BufferedSink> logFileSink, logSink;
+  auto_close_fd_t fdLogFile;
+  std::shared_ptr<buffered_sink_t> logFileSink, logSink;
 
   /**
    * Number of bytes received from the builder's stdout/stderr.
@@ -92,11 +92,11 @@ private:
 
   BuildMode buildMode;
 
-  std::unique_ptr<MaintainCount<uint64_t>> mcRunningBuilds;
+  std::unique_ptr<maintain_count_t<uint64_t>> mcRunningBuilds;
 
-  std::unique_ptr<Activity> act;
+  std::unique_ptr<activity_t> act;
 
-  std::map<ActivityId, Activity> builderActivities;
+  std::map<activity_id_t, activity_t> builderActivities;
 
   void timedOut(Error&& ex) override;
 
@@ -124,13 +124,13 @@ private:
    */
   void closeLogFile();
 
-  bool isReadDesc(Descriptor fd);
+  bool isReadDesc(descriptor_t fd);
 
   /**
    * Callback used by the worker to write to the log.
    */
-  void handleChildOutput(Descriptor fd, std::string_view data) override;
-  void handleEOF(Descriptor fd) override;
+  void handleChildOutput(descriptor_t fd, std::string_view data) override;
+  void handleEOF(descriptor_t fd) override;
   void flushLine();
 
   /**
@@ -154,9 +154,9 @@ private:
    */
   void killChild();
 
-  Done doneSuccess(BuildResult::Success::Status status, SingleDrvOutputs builtOutputs);
+  done_t doneSuccess(BuildResult::Success::Status status, SingleDrvOutputs builtOutputs);
 
-  Done doneFailure(BuildError ex);
+  done_t doneFailure(BuildError ex);
 
   BuildError fixupBuilderFailureErrorMessage(BuilderFailureError msg);
 

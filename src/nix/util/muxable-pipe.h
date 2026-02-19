@@ -21,23 +21,23 @@ namespace nix {
  * for events on multiple pipes at once.
  *
  * On Unix, this is just a regular anonymous pipe. On Windows, this has
- * to be a named pipe because we need I/O Completion Ports to wait on
+ * to be a named pipe because we need I/O completion_t Ports to wait on
  * multiple pipes.
  */
-using MuxablePipe =
+using muxable_pipe_t =
 #ifndef _WIN32
-    Pipe
+    pipe_t
 #else
     windows::AsyncPipe
 #endif
     ;
 
 /**
- * Use pool() (Unix) / I/O Completion Ports (Windows) to wait for the
+ * Use pool() (Unix) / I/O completion_t Ports (Windows) to wait for the
  * input side of any logger pipe to become `available'.  Note that
  * `available' (i.e., non-blocking) includes EOF.
  */
-struct MuxablePipePollState {
+struct muxable_pipe_poll_state_t {
 #ifndef _WIN32
   std::vector<struct pollfd> pollStatus;
   std::map<int, size_t> fdToPollStatus;
@@ -57,9 +57,9 @@ struct MuxablePipePollState {
 #endif
       std::optional<unsigned int> timeout);
 
-  using CommChannel =
+  using comm_channel_t =
 #ifndef _WIN32
-      Descriptor
+      descriptor_t
 #else
       windows::AsyncPipe*
 #endif
@@ -71,11 +71,11 @@ struct MuxablePipePollState {
    *
    * @param handleRead callback to be passed read data.
    *
-   * @param handleEOF callback for when the `MuxablePipe` has closed.
+   * @param handleEOF callback for when the `muxable_pipe_t` has closed.
    */
-  void iterate(std::set<CommChannel>& channels,
-               std::function<void(Descriptor fd, std::string_view data)> handleRead,
-               std::function<void(Descriptor fd)> handleEOF);
+  void iterate(std::set<comm_channel_t>& channels,
+               std::function<void(descriptor_t fd, std::string_view data)> handleRead,
+               std::function<void(descriptor_t fd)> handleEOF);
 };
 
 } // namespace nix

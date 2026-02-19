@@ -129,10 +129,10 @@ bool isImportantAttrName(const std::string& attrName) {
   return attrName == "type" || attrName == "_type";
 }
 
-typedef std::pair<std::string, Value*> AttrPair;
+typedef std::pair<std::string, Value*> attr_pair_t;
 
-struct ImportantFirstAttrNameCmp {
-  bool operator()(const AttrPair& lhs, const AttrPair& rhs) const {
+struct important_first_attr_name_cmp_t {
+  bool operator()(const attr_pair_t& lhs, const attr_pair_t& rhs) const {
     auto lhsIsImportant = isImportantAttrName(lhs.first);
     auto rhsIsImportant = isImportantAttrName(rhs.first);
     return std::forward_as_tuple(!lhsIsImportant, lhs.first) <
@@ -140,15 +140,15 @@ struct ImportantFirstAttrNameCmp {
   }
 };
 
-typedef std::set<const void*> ValuesSeen;
+typedef std::set<const void*> values_seen_t;
 typedef std::vector<std::pair<std::string, Value*>> AttrVec;
 
-class Printer {
+class printer_t {
 private:
   std::ostream& output;
   EvalState& state;
   PrintOptions options;
-  std::optional<ValuesSeen> seen;
+  std::optional<values_seen_t> seen;
   size_t totalAttrsPrinted = 0;
   size_t totalListItemsPrinted = 0;
   std::string indent;
@@ -324,7 +324,7 @@ private:
       if (options.maxAttrs == std::numeric_limits<size_t>::max())
         std::sort(sorted.begin(), sorted.end());
       else
-        std::sort(sorted.begin(), sorted.end(), ImportantFirstAttrNameCmp());
+        std::sort(sorted.begin(), sorted.end(), important_first_attr_name_cmp_t());
 
       auto prettyPrint = shouldPrettyPrintAttrs(sorted);
 
@@ -573,7 +573,7 @@ private:
   }
 
 public:
-  Printer(std::ostream& output, EvalState& state, PrintOptions options)
+  printer_t(std::ostream& output, EvalState& state, PrintOptions options)
       : output(output), state(state), options(options) {}
 
   void print(Value& v) {
@@ -587,13 +587,13 @@ public:
       seen.reset();
     }
 
-    ValuesSeen seen;
+    values_seen_t seen;
     print(v, 0);
   }
 };
 
 void printValue(EvalState& state, std::ostream& output, Value& v, PrintOptions options) {
-  Printer(output, state, options).print(v);
+  printer_t(output, state, options).print(v);
 }
 
 std::ostream& operator<<(std::ostream& output, const ValuePrinter& printer) {
@@ -602,7 +602,7 @@ std::ostream& operator<<(std::ostream& output, const ValuePrinter& printer) {
 }
 
 template <>
-HintFmt& HintFmt::operator%(const ValuePrinter& value) {
+hint_fmt_t& hint_fmt_t::operator%(const ValuePrinter& value) {
   fmt % value;
   return *this;
 }

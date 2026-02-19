@@ -50,7 +50,7 @@ class Store;
 
 namespace nix::flake {
 
-static FlakeRef getFlakeRef(const fetchers::Settings& fetchSettings, const nlohmann::json& json,
+static FlakeRef getFlakeRef(const fetchers::settings_t& fetchSettings, const nlohmann::json& json,
                             const char* attr, const char* info) {
   auto i = json.find(attr);
   if (i != json.end()) {
@@ -69,7 +69,7 @@ static FlakeRef getFlakeRef(const fetchers::Settings& fetchSettings, const nlohm
   throw Error("attribute '%s' missing in lock file", attr);
 }
 
-LockedNode::LockedNode(const fetchers::Settings& fetchSettings, const nlohmann::json& json)
+LockedNode::LockedNode(const fetchers::settings_t& fetchSettings, const nlohmann::json& json)
     : lockedRef(getFlakeRef(fetchSettings, json, "locked", "info")) // FIXME: remove "info"
       ,
       originalRef(getFlakeRef(fetchSettings, json, "original", nullptr)),
@@ -135,7 +135,7 @@ std::shared_ptr<Node> LockFile::findInput(const InputAttrPath& path) {
   return doFind(root, path, visited);
 }
 
-LockFile::LockFile(const fetchers::Settings& fetchSettings, std::string_view contents,
+LockFile::LockFile(const fetchers::settings_t& fetchSettings, std::string_view contents,
                    std::string_view path) {
   auto json = [=] {
     try {
@@ -265,7 +265,7 @@ std::ostream& operator<<(std::ostream& stream, const LockFile& lockFile) {
   return stream;
 }
 
-std::optional<FlakeRef> LockFile::isUnlocked(const fetchers::Settings& fetchSettings) const {
+std::optional<FlakeRef> LockFile::isUnlocked(const fetchers::settings_t& fetchSettings) const {
   std::set<ref<const Node>> nodes;
 
   [&](this const auto& visit, ref<const Node> node) {

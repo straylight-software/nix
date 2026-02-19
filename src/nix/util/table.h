@@ -6,19 +6,19 @@
 
 namespace nix {
 
-struct TableCell {
+struct table_cell_t {
   std::string content;
 
-  enum Alignment { Left, Right } alignment = Left;
+  enum alignment_t { Left, Right } alignment = Left;
 
-  TableCell(std::string content, Alignment alignment = Left)
+  table_cell_t(std::string content, alignment_t alignment = Left)
       : content(std::move(content)), alignment(alignment) {}
 };
 
-using TableRow = std::vector<TableCell>;
-using Table = std::vector<TableRow>;
+using table_row_t = std::vector<table_cell_t>;
+using table_t = std::vector<table_row_t>;
 
-void printTable(std::ostream& out, Table& table,
+void printTable(std::ostream& out, table_t& table,
                 unsigned int width = std::numeric_limits<unsigned int>::max());
 
 } // namespace nix

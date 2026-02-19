@@ -7,6 +7,7 @@
 #include <liburing.h>
 #include <linux/stat.h>
 #include <sys/stat.h>
+#include <sys/uio.h>
 #include <unistd.h>
 
 #include "evring/ring.h"
@@ -34,6 +35,15 @@ public:
     int result = io_uring_queue_init(entries, &ring_, flags);
     if (result < 0) {
       throw std::runtime_error(std::string("io_uring_queue_init failed: ") +
+                               std::strerror(-result));
+    }
+  }
+
+  /// construct with full params (for SQPOLL configuration)
+  explicit io_uring_ring(unsigned entries, struct io_uring_params& params) {
+    int result = io_uring_queue_init_params(entries, &ring_, &params);
+    if (result < 0) {
+      throw std::runtime_error(std::string("io_uring_queue_init_params failed: ") +
                                std::strerror(-result));
     }
   }
@@ -289,6 +299,9 @@ public:
 
   [[nodiscard]] auto active_handles() const -> std::size_t override { return resources_.size(); }
 
+  /// get raw io_uring pointer for registration functions
+  [[nodiscard]] auto raw_ring() -> struct io_uring* { return &ring_; }
+
 private:
   auto harvest_completions() -> std::span<event> {
     completed_events_.clear();
@@ -353,6 +366,206 @@ private:
 
 auto make_io_uring_ring(unsigned entries, unsigned flags) -> std::unique_ptr<ring> {
   return std::make_unique<io_uring_ring>(entries, flags);
+}
+
+// ============================================================================
+// Registered files implementation
+// ============================================================================
+
+class io_uring_registered_files final : public registered_files {
+public:
+  io_uring_registered_files(struct io_uring* ring, std::vector<int> initial_slots)
+      : ring_(ring), slots_(std::move(initial_slots)), used_count_(0) {
+    // count non-empty slots
+    for (int fd : slots_) {
+      if (fd != -1) {
+        ++used_count_;
+      }
+    }
+  }
+
+  ~io_uring_registered_files() override { io_uring_unregister_files(ring_); }
+
+  [[nodiscard]] auto capacity() const -> std::size_t override { return slots_.size(); }
+
+  [[nodiscard]] auto size() const -> std::size_t override { return used_count_; }
+
+  auto add(int fd) -> int override {
+    // find first empty slot
+    for (std::size_t i = 0; i < slots_.size(); ++i) {
+      if (slots_[i] == -1) {
+        if (update(i, fd)) {
+          return static_cast<int>(i);
+        }
+        return -1;
+      }
+    }
+    return -1; // no slots available
+  }
+
+  auto update(std::size_t slot, int fd) -> bool override {
+    if (slot >= slots_.size()) {
+      return false;
+    }
+
+    int result = io_uring_register_files_update(ring_, static_cast<unsigned>(slot), &fd, 1);
+    if (result < 0) {
+      return false;
+    }
+
+    if (slots_[slot] == -1 && fd != -1) {
+      ++used_count_;
+    } else if (slots_[slot] != -1 && fd == -1) {
+      --used_count_;
+    }
+    slots_[slot] = fd;
+    return true;
+  }
+
+  auto remove(std::size_t slot) -> bool override { return update(slot, -1); }
+
+  [[nodiscard]] auto get(std::size_t slot) const -> int override {
+    if (slot >= slots_.size()) {
+      return -1;
+    }
+    return slots_[slot];
+  }
+
+private:
+  struct io_uring* ring_;
+  std::vector<int> slots_;
+  std::size_t used_count_;
+};
+
+// ============================================================================
+// Registered buffers implementation
+// ============================================================================
+
+class io_uring_registered_buffers final : public registered_buffers {
+public:
+  io_uring_registered_buffers(struct io_uring* ring, std::vector<std::span<std::byte>> bufs)
+      : ring_(ring), buffers_(std::move(bufs)) {}
+
+  ~io_uring_registered_buffers() override { io_uring_unregister_buffers(ring_); }
+
+  [[nodiscard]] auto capacity() const -> std::size_t override { return buffers_.size(); }
+
+  [[nodiscard]] auto get(std::size_t slot) const -> std::span<std::byte> override {
+    if (slot >= buffers_.size()) {
+      return {};
+    }
+    return buffers_[slot];
+  }
+
+  [[nodiscard]] auto buffers() const -> std::span<const std::span<std::byte>> override {
+    return buffers_;
+  }
+
+private:
+  struct io_uring* ring_;
+  std::vector<std::span<std::byte>> buffers_;
+};
+
+// ============================================================================
+// Ring factory functions
+// ============================================================================
+
+auto make_io_uring_ring(unsigned entries, ring_flags flags, sqpoll_config const& sqpoll)
+    -> std::unique_ptr<ring> {
+  unsigned raw_flags = 0;
+
+  if ((flags & ring_flags::sqpoll) != ring_flags::none) {
+    raw_flags |= IORING_SETUP_SQPOLL;
+  }
+  if ((flags & ring_flags::iopoll) != ring_flags::none) {
+    raw_flags |= IORING_SETUP_IOPOLL;
+  }
+  if ((flags & ring_flags::single_issuer) != ring_flags::none) {
+    raw_flags |= IORING_SETUP_SINGLE_ISSUER;
+  }
+  if ((flags & ring_flags::defer_taskrun) != ring_flags::none) {
+    raw_flags |= IORING_SETUP_DEFER_TASKRUN;
+  }
+
+  // for SQPOLL, we need to use io_uring_queue_init_params to set sq_thread_idle
+  if ((flags & ring_flags::sqpoll) != ring_flags::none) {
+    struct io_uring_params params{};
+    params.flags = raw_flags;
+    params.sq_thread_idle = sqpoll.idle_milliseconds;
+    if (sqpoll.cpu >= 0) {
+      params.flags |= IORING_SETUP_SQ_AFF;
+      params.sq_thread_cpu = static_cast<unsigned>(sqpoll.cpu);
+    }
+    return std::make_unique<io_uring_ring>(entries, params);
+  }
+
+  return std::make_unique<io_uring_ring>(entries, raw_flags);
+}
+
+auto register_files(ring& ring_instance, std::span<const int> fds)
+    -> std::unique_ptr<registered_files> {
+  // downcast to io_uring_ring to access raw_ring()
+  auto* io_ring = dynamic_cast<io_uring_ring*>(&ring_instance);
+  if (io_ring == nullptr) {
+    return nullptr;
+  }
+
+  // register the files with the kernel
+  int result = io_uring_register_files(io_ring->raw_ring(), const_cast<int*>(fds.data()),
+                                       static_cast<unsigned>(fds.size()));
+  if (result < 0) {
+    return nullptr;
+  }
+
+  // create the registered_files object with the fds as initial slots
+  std::vector<int> slots(fds.begin(), fds.end());
+  return std::make_unique<io_uring_registered_files>(io_ring->raw_ring(), std::move(slots));
+}
+
+auto register_file_slots(ring& ring_instance, std::size_t num_slots)
+    -> std::unique_ptr<registered_files> {
+  auto* io_ring = dynamic_cast<io_uring_ring*>(&ring_instance);
+  if (io_ring == nullptr) {
+    return nullptr;
+  }
+
+  // register sparse file table (all -1)
+  std::vector<int> slots(num_slots, -1);
+  int result =
+      io_uring_register_files(io_ring->raw_ring(), slots.data(), static_cast<unsigned>(num_slots));
+  if (result < 0) {
+    return nullptr;
+  }
+
+  return std::make_unique<io_uring_registered_files>(io_ring->raw_ring(), std::move(slots));
+}
+
+auto register_buffers(ring& ring_instance, std::span<std::span<std::byte>> bufs)
+    -> std::unique_ptr<registered_buffers> {
+  auto* io_ring = dynamic_cast<io_uring_ring*>(&ring_instance);
+  if (io_ring == nullptr) {
+    return nullptr;
+  }
+
+  // build iovec array for registration
+  std::vector<struct iovec> iovecs;
+  iovecs.reserve(bufs.size());
+  for (auto const& buf : bufs) {
+    iovecs.push_back({
+        .iov_base = buf.data(),
+        .iov_len = buf.size(),
+    });
+  }
+
+  int result = io_uring_register_buffers(io_ring->raw_ring(), iovecs.data(),
+                                         static_cast<unsigned>(iovecs.size()));
+  if (result < 0) {
+    return nullptr;
+  }
+
+  std::vector<std::span<std::byte>> buffer_spans(bufs.begin(), bufs.end());
+  return std::make_unique<io_uring_registered_buffers>(io_ring->raw_ring(),
+                                                       std::move(buffer_spans));
 }
 
 } // namespace evring

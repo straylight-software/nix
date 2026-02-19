@@ -18,9 +18,9 @@ static std::string parsePublicHostKey(std::string_view host, std::string_view ss
   }
 }
 
-class InvalidSSHAuthority : public Error {
+class invalid_ssh_authority_t : public Error {
 public:
-  InvalidSSHAuthority(const ParsedURL::Authority& authority, std::string_view reason)
+  invalid_ssh_authority_t(const parsed_url_t::authority_t& authority, std::string_view reason)
       : Error("invalid SSH authority: '%s': %s", authority.to_string(), reason) {}
 };
 
@@ -30,24 +30,24 @@ public:
  * @todo Enforce this better. Probably this needs to reimplement the same logic as in
  * https://github.com/openssh/openssh-portable/blob/6ebd472c391a73574abe02771712d407c48e130d/ssh.c#L648-L681
  */
-static void checkValidAuthority(const ParsedURL::Authority& authority) {
+static void checkValidAuthority(const parsed_url_t::authority_t& authority) {
   if (const auto& user = authority.user) {
     if (user->empty())
-      throw InvalidSSHAuthority(authority, "user name must not be empty");
+      throw invalid_ssh_authority_t(authority, "user name must not be empty");
     if (user->starts_with("-"))
-      throw InvalidSSHAuthority(authority, fmt("user name '%s' must not start with '-'", *user));
+      throw invalid_ssh_authority_t(authority, fmt("user name '%s' must not start with '-'", *user));
   }
 
   {
     std::string_view host = authority.host;
     if (host.empty())
-      throw InvalidSSHAuthority(authority, "host name must not be empty");
+      throw invalid_ssh_authority_t(authority, "host name must not be empty");
     if (host.starts_with("-"))
-      throw InvalidSSHAuthority(authority, fmt("host name '%s' must not start with '-'", host));
+      throw invalid_ssh_authority_t(authority, fmt("host name '%s' must not start with '-'", host));
   }
 }
 
-Strings getNixSshOpts() {
+strings_t getNixSshOpts() {
   std::string sshOpts = getEnv("NIX_SSHOPTS").value_or("");
 
   try {
@@ -58,9 +58,9 @@ Strings getNixSshOpts() {
   }
 }
 
-SSHMaster::SSHMaster(const ParsedURL::Authority& authority, std::string_view keyFile,
+SSHMaster::SSHMaster(const parsed_url_t::authority_t& authority, std::string_view keyFile,
                      std::string_view sshPublicHostKey, bool useMaster, bool compress,
-                     Descriptor logFD)
+                     descriptor_t logFD)
     : authority(authority),
       hostnameAndUser([authority]() {
         std::ostringstream oss;
@@ -75,11 +75,11 @@ SSHMaster::SSHMaster(const ParsedURL::Authority& authority, std::string_view key
       useMaster(useMaster && !fakeSSH),
       compress(compress),
       logFD(logFD),
-      tmpDir(make_ref<AutoDelete>(createTempDir("", "nix", 0700))) {
+      tmpDir(make_ref<auto_delete_t>(createTempDir("", "nix", 0700))) {
   checkValidAuthority(authority);
 }
 
-void SSHMaster::addCommonSSHOpts(Strings& args) {
+void SSHMaster::addCommonSSHOpts(strings_t& args) {
   auto sshArgs = getNixSshOpts();
   args.insert(args.end(), sshArgs.begin(), sshArgs.end());
 
@@ -105,16 +105,16 @@ void SSHMaster::addCommonSSHOpts(Strings& args) {
 }
 
 bool SSHMaster::isMasterRunning() {
-  Strings args = {"-O", "check", hostnameAndUser};
+  strings_t args = {"-O", "check", hostnameAndUser};
   addCommonSSHOpts(args);
 
-  auto res = runProgram(RunOptions{.program = "ssh", .args = args, .mergeStderrToStdout = true});
+  auto res = runProgram(run_options_t{.program = "ssh", .args = args, .mergeStderrToStdout = true});
   return res.first == 0;
 }
 
-Strings createSSHEnv() {
+strings_t createSSHEnv() {
   // Copy the environment and set SHELL=/bin/sh
-  StringMap env = getEnv();
+  string_map_t env = getEnv();
 
   // SSH will invoke the "user" shell for -oLocalCommand, but that means
   // $SHELL. To keep things simple and avoid potential issues with other
@@ -124,7 +124,7 @@ Strings createSSHEnv() {
   // solved; refer to the development history of nixExePath in libstore/globals.cc.
   env.insert_or_assign("SHELL", "/bin/sh");
 
-  Strings r;
+  strings_t r;
   for (auto& [k, v] : env) {
     r.push_back(k + "=" + v);
   }
@@ -132,25 +132,25 @@ Strings createSSHEnv() {
   return r;
 }
 
-std::unique_ptr<SSHMaster::Connection> SSHMaster::startCommand(Strings&& command,
-                                                               Strings&& extraSshArgs) {
+std::unique_ptr<SSHMaster::Connection> SSHMaster::startCommand(strings_t&& command,
+                                                               strings_t&& extraSshArgs) {
 #ifdef _WIN32 // TODO re-enable on Windows, once we can start processes.
   throw UnimplementedError(
       "cannot yet SSH on windows because spawning processes is not yet implemented");
 #else
   Path socketPath = startMaster();
 
-  Pipe in, out;
+  pipe_t in, out;
   in.create();
   out.create();
 
   auto conn = std::make_unique<Connection>();
-  ProcessOptions options;
+  process_options_t options;
   options.dieWithParent = false;
 
-  std::unique_ptr<Logger::Suspension> loggerSuspension;
+  std::unique_ptr<Logger::suspension_t> loggerSuspension;
   if (!fakeSSH && !useMaster) {
-    loggerSuspension = std::make_unique<Logger::Suspension>(logger->suspend());
+    loggerSuspension = std::make_unique<Logger::suspension_t>(logger->suspend());
   }
 
   conn->sshPid = startProcess(
@@ -161,13 +161,13 @@ std::unique_ptr<SSHMaster::Connection> SSHMaster::startCommand(Strings&& command
         close(out.readSide.get());
 
         if (dup2(in.readSide.get(), STDIN_FILENO) == -1)
-          throw SysError("duping over stdin");
+          throw sys_error_t("duping over stdin");
         if (dup2(out.writeSide.get(), STDOUT_FILENO) == -1)
-          throw SysError("duping over stdout");
+          throw sys_error_t("duping over stdout");
         if (logFD != -1 && dup2(logFD, STDERR_FILENO) == -1)
-          throw SysError("duping over stderr");
+          throw sys_error_t("duping over stderr");
 
-        Strings args;
+        strings_t args;
 
         if (!fakeSSH) {
           args = {"ssh", hostnameAndUser.c_str(), "-x"};
@@ -186,7 +186,7 @@ std::unique_ptr<SSHMaster::Connection> SSHMaster::startCommand(Strings&& command
                      stringsToCharPtrs(env).data());
 
         // could not exec ssh/bash
-        throw SysError("unable to execute '%s'", args.front());
+        throw sys_error_t("unable to execute '%s'", args.front());
       },
       options);
 
@@ -228,10 +228,10 @@ Path SSHMaster::startMaster() {
 
   state->socketPath = (Path)*tmpDir + "/ssh.sock";
 
-  Pipe out;
+  pipe_t out;
   out.create();
 
-  ProcessOptions options;
+  process_options_t options;
   options.dieWithParent = false;
 
   auto suspension = logger->suspend();
@@ -246,9 +246,9 @@ Path SSHMaster::startMaster() {
         close(out.readSide.get());
 
         if (dup2(out.writeSide.get(), STDOUT_FILENO) == -1)
-          throw SysError("duping over stdout");
+          throw sys_error_t("duping over stdout");
 
-        Strings args = {"ssh", hostnameAndUser.c_str(), "-M", "-N", "-S", state->socketPath};
+        strings_t args = {"ssh", hostnameAndUser.c_str(), "-M", "-N", "-S", state->socketPath};
         if (verbosity >= lvlChatty)
           args.push_back("-v");
         addCommonSSHOpts(args);
@@ -256,7 +256,7 @@ Path SSHMaster::startMaster() {
         nix::execvpe(args.begin()->c_str(), stringsToCharPtrs(args).data(),
                      stringsToCharPtrs(env).data());
 
-        throw SysError("unable to execute '%s'", args.front());
+        throw sys_error_t("unable to execute '%s'", args.front());
       },
       options);
 

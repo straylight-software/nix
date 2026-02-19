@@ -21,7 +21,7 @@ GENERATE_EQUAL(, BuiltPathBuilt ::, BuiltPathBuilt, *me->drvPath, me->outputs);
 
 StorePath SingleBuiltPath::outPath() const {
   return std::visit(overloaded{
-                        [](const SingleBuiltPath::Opaque& p) { return p.path; },
+                        [](const SingleBuiltPath::opaque_t& p) { return p.path; },
                         [](const SingleBuiltPath::Built& b) { return b.output.second; },
                     },
                     raw());
@@ -29,7 +29,7 @@ StorePath SingleBuiltPath::outPath() const {
 
 StorePathSet BuiltPath::outPaths() const {
   return std::visit(overloaded{
-                        [](const BuiltPath::Opaque& p) { return StorePathSet{p.path}; },
+                        [](const BuiltPath::opaque_t& p) { return StorePathSet{p.path}; },
                         [](const BuiltPath::Built& b) {
                           StorePathSet res;
                           for (auto& [_, path] : b.outputs)
@@ -49,7 +49,7 @@ SingleDerivedPath::Built SingleBuiltPath::Built::discardOutputPath() const {
 
 SingleDerivedPath SingleBuiltPath::discardOutputPath() const {
   return std::visit(overloaded{
-                        [](const SingleBuiltPath::Opaque& p) -> SingleDerivedPath { return p; },
+                        [](const SingleBuiltPath::opaque_t& p) -> SingleDerivedPath { return p; },
                         [](const SingleBuiltPath::Built& b) -> SingleDerivedPath {
                           return b.discardOutputPath();
                         },
@@ -77,7 +77,7 @@ nlohmann::json SingleBuiltPath::Built::toJSON(const StoreDirConfig& store) const
 
 nlohmann::json SingleBuiltPath::toJSON(const StoreDirConfig& store) const {
   return std::visit(overloaded{
-                        [&](const SingleBuiltPath::Opaque& o) -> nlohmann::json {
+                        [&](const SingleBuiltPath::opaque_t& o) -> nlohmann::json {
                           return store.printStorePath(o.path);
                         },
                         [&](const SingleBuiltPath::Built& b) { return b.toJSON(store); },
@@ -87,7 +87,7 @@ nlohmann::json SingleBuiltPath::toJSON(const StoreDirConfig& store) const {
 
 nlohmann::json BuiltPath::toJSON(const StoreDirConfig& store) const {
   return std::visit(overloaded{
-                        [&](const BuiltPath::Opaque& o) -> nlohmann::json {
+                        [&](const BuiltPath::opaque_t& o) -> nlohmann::json {
                           return store.printStorePath(o.path);
                         },
                         [&](const BuiltPath::Built& b) { return b.toJSON(store); },
@@ -98,12 +98,12 @@ nlohmann::json BuiltPath::toJSON(const StoreDirConfig& store) const {
 RealisedPath::Set BuiltPath::toRealisedPaths(Store& store) const {
   RealisedPath::Set res;
   std::visit(overloaded{
-                 [&](const BuiltPath::Opaque& p) { res.insert(p.path); },
+                 [&](const BuiltPath::opaque_t& p) { res.insert(p.path); },
                  [&](const BuiltPath::Built& p) {
                    auto drvHashes =
                        staticOutputHashes(store, store.readDerivation(p.drvPath->outPath()));
                    for (auto& [outputName, outputPath] : p.outputs) {
-                     if (experimentalFeatureSettings.isEnabled(Xp::CaDerivations)) {
+                     if (experimentalFeatureSettings.isEnabled(xp_t::CaDerivations)) {
                        auto drvOutput = get(drvHashes, outputName);
                        if (!drvOutput)
                          throw Error("the derivation '%s' has unrealised output '%s' "

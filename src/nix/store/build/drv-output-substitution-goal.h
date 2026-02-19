@@ -35,7 +35,7 @@ public:
 
   std::string key() override;
 
-  void handleEOF(Descriptor fd) override;
+  void handleEOF(descriptor_t fd) override;
 
   JobCategory jobCategory() const override { return JobCategory::Substitution; };
 };

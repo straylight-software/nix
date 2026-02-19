@@ -41,9 +41,9 @@ struct Executor {
 
   const bool enabled;
 
-  const std::unique_ptr<InterruptCallback> interruptCallback;
+  const std::unique_ptr<interrupt_callback_t> interruptCallback;
 
-  Sync<State> state_;
+  sync_t<State> state_;
 
   std::condition_variable wakeup;
 
@@ -69,7 +69,7 @@ struct FutureVector {
     std::vector<std::future<void>> futures;
   };
 
-  Sync<State> state_;
+  sync_t<State> state_;
 
   ~FutureVector();
 

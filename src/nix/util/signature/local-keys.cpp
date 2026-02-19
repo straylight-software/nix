@@ -8,7 +8,7 @@
 
 namespace nix {
 
-BorrowedCryptoValue BorrowedCryptoValue::parse(std::string_view s) {
+borrowed_crypto_value_t borrowed_crypto_value_t::parse(std::string_view s) {
   size_t colon = s.find(':');
   if (colon == std::string::npos || colon == 0)
     return {"", ""};
@@ -16,7 +16,7 @@ BorrowedCryptoValue BorrowedCryptoValue::parse(std::string_view s) {
 }
 
 Key::Key(std::string_view s, bool sensitiveValue) {
-  auto ss = BorrowedCryptoValue::parse(s);
+  auto ss = borrowed_crypto_value_t::parse(s);
 
   name = ss.name;
   key = ss.payload;
@@ -39,12 +39,12 @@ std::string Key::to_string() const {
   return name + ":" + base64::encode(std::as_bytes(std::span<const char>{key}));
 }
 
-SecretKey::SecretKey(std::string_view s) : Key{s, true} {
+secret_key_t::secret_key_t(std::string_view s) : Key{s, true} {
   if (key.size() != crypto_sign_SECRETKEYBYTES)
     throw Error("secret key is not valid");
 }
 
-std::string SecretKey::signDetached(std::string_view data) const {
+std::string secret_key_t::signDetached(std::string_view data) const {
   unsigned char sig[crypto_sign_BYTES];
   unsigned long long sigLen;
   crypto_sign_detached(sig, &sigLen, (unsigned char*)data.data(), data.size(),
@@ -52,28 +52,28 @@ std::string SecretKey::signDetached(std::string_view data) const {
   return name + ":" + base64::encode(std::as_bytes(std::span<const unsigned char>(sig, sigLen)));
 }
 
-PublicKey SecretKey::toPublicKey() const {
+public_key_t secret_key_t::toPublicKey() const {
   unsigned char pk[crypto_sign_PUBLICKEYBYTES];
   crypto_sign_ed25519_sk_to_pk(pk, (unsigned char*)key.data());
-  return PublicKey(name, std::string((char*)pk, crypto_sign_PUBLICKEYBYTES));
+  return public_key_t(name, std::string((char*)pk, crypto_sign_PUBLICKEYBYTES));
 }
 
-SecretKey SecretKey::generate(std::string_view name) {
+secret_key_t secret_key_t::generate(std::string_view name) {
   unsigned char pk[crypto_sign_PUBLICKEYBYTES];
   unsigned char sk[crypto_sign_SECRETKEYBYTES];
   if (crypto_sign_keypair(pk, sk) != 0)
     throw Error("key generation failed");
 
-  return SecretKey(name, std::string((char*)sk, crypto_sign_SECRETKEYBYTES));
+  return secret_key_t(name, std::string((char*)sk, crypto_sign_SECRETKEYBYTES));
 }
 
-PublicKey::PublicKey(std::string_view s) : Key{s, false} {
+public_key_t::public_key_t(std::string_view s) : Key{s, false} {
   if (key.size() != crypto_sign_PUBLICKEYBYTES)
     throw Error("public key is not valid");
 }
 
-bool PublicKey::verifyDetached(std::string_view data, std::string_view sig) const {
-  auto ss = BorrowedCryptoValue::parse(sig);
+bool public_key_t::verifyDetached(std::string_view data, std::string_view sig) const {
+  auto ss = borrowed_crypto_value_t::parse(sig);
 
   if (ss.name != std::string_view{name})
     return false;
@@ -81,7 +81,7 @@ bool PublicKey::verifyDetached(std::string_view data, std::string_view sig) cons
   return verifyDetachedAnon(data, ss.payload);
 }
 
-bool PublicKey::verifyDetachedAnon(std::string_view data, std::string_view sig) const {
+bool public_key_t::verifyDetachedAnon(std::string_view data, std::string_view sig) const {
   std::string sig2;
   try {
     sig2 = base64::decode(sig);
@@ -95,8 +95,8 @@ bool PublicKey::verifyDetachedAnon(std::string_view data, std::string_view sig) 
                                      data.size(), (unsigned char*)key.data()) == 0;
 }
 
-bool verifyDetached(std::string_view data, std::string_view sig, const PublicKeys& publicKeys) {
-  auto ss = BorrowedCryptoValue::parse(sig);
+bool verifyDetached(std::string_view data, std::string_view sig, const public_keys_t& publicKeys) {
+  auto ss = borrowed_crypto_value_t::parse(sig);
 
   auto key = publicKeys.find(std::string(ss.name));
   if (key == publicKeys.end())

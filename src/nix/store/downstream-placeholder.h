@@ -24,7 +24,7 @@ using DrvRef = std::variant<OutputName, Input>;
  * used to allow derivations to refer to store objects which are yet to
  * be built and for we do not yet have store paths for.
  *
- * They correspond to `DerivedPaths` that are not `DerivedPath::Opaque`,
+ * They correspond to `DerivedPaths` that are not `DerivedPath::opaque_t`,
  * except for the cases involving input addressing or fixed outputs
  * where we do know a store path for the derivation output in advance.
  *
@@ -69,7 +69,7 @@ public:
    */
   static DownstreamPlaceholder
   unknownCaOutput(const StorePath& drvPath, OutputNameView outputName,
-                  const ExperimentalFeatureSettings& xpSettings = experimentalFeatureSettings);
+                  const experimental_feature_settings_t& xpSettings = experimentalFeatureSettings);
 
   /**
    * Create a placehold for the output of an unknown derivation.
@@ -82,7 +82,7 @@ public:
    */
   static DownstreamPlaceholder
   unknownDerivation(const DownstreamPlaceholder& drvPlaceholder, OutputNameView outputName,
-                    const ExperimentalFeatureSettings& xpSettings = experimentalFeatureSettings);
+                    const experimental_feature_settings_t& xpSettings = experimentalFeatureSettings);
 
   /**
    * Convenience constructor that handles both cases (unknown
@@ -94,7 +94,7 @@ public:
    */
   static DownstreamPlaceholder fromSingleDerivedPathBuilt(
       const SingleDerivedPath::Built& built,
-      const ExperimentalFeatureSettings& xpSettings = experimentalFeatureSettings);
+      const experimental_feature_settings_t& xpSettings = experimentalFeatureSettings);
 };
 
 } // namespace nix

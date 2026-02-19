@@ -194,8 +194,8 @@ const Bindings* PackageInfo::getMeta() {
   return meta;
 }
 
-StringSet PackageInfo::queryMetaNames() {
-  StringSet res;
+string_set_t PackageInfo::queryMetaNames() {
+  string_set_t res;
   if (!getMeta())
     return res;
   for (auto& i : *meta)
@@ -298,14 +298,14 @@ void PackageInfo::setMeta(const std::string& name, Value* v) {
 }
 
 /* Cache for already considered attrsets. */
-typedef std::set<const Bindings*> Done;
+typedef std::set<const Bindings*> done_t;
 
 /* Evaluate value `v'.  If it evaluates to a set of type `derivation',
    then put information about it in `drvs' (unless it's already in `done').
    The result boolean indicates whether it makes sense
    for the caller to recursively search for derivations in `v'. */
 static bool getDerivation(EvalState& state, Value& v, const std::string& attrPath,
-                          PackageInfos& drvs, Done& done, bool ignoreAssertionFailures) {
+                          PackageInfos& drvs, done_t& done, bool ignoreAssertionFailures) {
   try {
     state.forceValue(v, v.determinePos(noPos));
     if (!state.isDerivation(v))
@@ -332,7 +332,7 @@ static bool getDerivation(EvalState& state, Value& v, const std::string& attrPat
 }
 
 std::optional<PackageInfo> getDerivation(EvalState& state, Value& v, bool ignoreAssertionFailures) {
-  Done done;
+  done_t done;
   PackageInfos drvs;
   getDerivation(state, v, "", drvs, done, ignoreAssertionFailures);
   if (drvs.size() != 1)
@@ -347,7 +347,7 @@ static std::string addToPath(const std::string& s1, std::string_view s2) {
 static std::regex attrRegex("[A-Za-z_][A-Za-z0-9-_+]*");
 
 static void getDerivations(EvalState& state, Value& vIn, const std::string& pathPrefix,
-                           Bindings& autoArgs, PackageInfos& drvs, Done& done,
+                           Bindings& autoArgs, PackageInfos& drvs, done_t& done,
                            bool ignoreAssertionFailures) {
   Value v;
   state.autoCallFunction(autoArgs, vIn, v);
@@ -414,7 +414,7 @@ static void getDerivations(EvalState& state, Value& vIn, const std::string& path
 
 void getDerivations(EvalState& state, Value& v, const std::string& pathPrefix, Bindings& autoArgs,
                     PackageInfos& drvs, bool ignoreAssertionFailures) {
-  Done done;
+  done_t done;
   getDerivations(state, v, pathPrefix, autoArgs, drvs, done, ignoreAssertionFailures);
 }
 

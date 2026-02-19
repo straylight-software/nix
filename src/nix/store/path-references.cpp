@@ -14,11 +14,11 @@
 
 namespace nix {
 
-PathRefScanSink::PathRefScanSink(StringSet&& hashes, std::map<std::string, StorePath>&& backMap)
+PathRefScanSink::PathRefScanSink(string_set_t&& hashes, std::map<std::string, StorePath>&& backMap)
     : RefScanSink(std::move(hashes)), backMap(std::move(backMap)) {}
 
 PathRefScanSink PathRefScanSink::fromPaths(const StorePathSet& refs) {
-  StringSet hashes;
+  string_set_t hashes;
   std::map<std::string, StorePath> backMap;
 
   for (auto& i : refs) {
@@ -45,7 +45,7 @@ StorePathSet PathRefScanSink::getResultPaths() {
 
 StorePathSet scanForReferences(Sink& toTee, const Path& path, const StorePathSet& refs) {
   PathRefScanSink refsSink = PathRefScanSink::fromPaths(refs);
-  TeeSink sink{refsSink, toTee};
+  tee_sink_t sink{refsSink, toTee};
 
   /* Look for the hashes in the NAR dump of the path. */
   dumpPath(path, sink);
@@ -53,11 +53,11 @@ StorePathSet scanForReferences(Sink& toTee, const Path& path, const StorePathSet
   return refsSink.getResultPaths();
 }
 
-void scanForReferencesDeep(SourceAccessor& accessor, const CanonPath& rootPath,
+void scanForReferencesDeep(SourceAccessor& accessor, const canon_path_t& rootPath,
                            const StorePathSet& refs,
                            std::function<void(FileRefScanResult)> callback) {
   // Recursive tree walker
-  auto walk = [&](this auto& self, const CanonPath& path) -> void {
+  auto walk = [&](this auto& self, const canon_path_t& path) -> void {
     auto stat = accessor.lstat(path);
 
     switch (stat.type) {
@@ -125,10 +125,10 @@ void scanForReferencesDeep(SourceAccessor& accessor, const CanonPath& rootPath,
   walk(rootPath);
 }
 
-std::map<CanonPath, StorePathSet> scanForReferencesDeep(SourceAccessor& accessor,
-                                                        const CanonPath& rootPath,
+std::map<canon_path_t, StorePathSet> scanForReferencesDeep(SourceAccessor& accessor,
+                                                        const canon_path_t& rootPath,
                                                         const StorePathSet& refs) {
-  std::map<CanonPath, StorePathSet> results;
+  std::map<canon_path_t, StorePathSet> results;
 
   scanForReferencesDeep(accessor, rootPath, refs, [&](FileRefScanResult result) {
     results[std::move(result.filePath)] = std::move(result.foundRefs);

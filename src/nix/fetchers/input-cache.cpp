@@ -6,7 +6,7 @@
 
 namespace nix::fetchers {
 
-InputCache::CachedResult InputCache::getAccessor(const Settings& settings, Store& store,
+InputCache::CachedResult InputCache::getAccessor(const settings_t& settings, Store& store,
                                                  const Input& originalInput,
                                                  UseRegistries useRegistries) {
   auto fetched = lookup(originalInput);
@@ -40,8 +40,8 @@ InputCache::CachedResult InputCache::getAccessor(const Settings& settings, Store
   return {fetched->accessor, resolvedInput, fetched->lockedInput, fetched->extraAttrs};
 }
 
-struct InputCacheImpl : InputCache {
-  Sync<std::map<Input, CachedInput>> cache_;
+struct input_cache_impl_t : InputCache {
+  sync_t<std::map<Input, CachedInput>> cache_;
 
   std::optional<CachedInput> lookup(const Input& originalInput) const override {
     auto cache(cache_.readLock());
@@ -61,7 +61,7 @@ struct InputCacheImpl : InputCache {
 };
 
 ref<InputCache> InputCache::create() {
-  return make_ref<InputCacheImpl>();
+  return make_ref<input_cache_impl_t>();
 }
 
 } // namespace nix::fetchers

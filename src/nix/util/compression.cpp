@@ -18,7 +18,7 @@ namespace nix {
 static const int COMPRESSION_LEVEL_DEFAULT = -1;
 
 // Don't feed brotli too much at once.
-struct ChunkedCompressionSink : CompressionSink {
+struct chunked_compression_sink_t : compression_sink_t {
   uint8_t outbuf[32 * 1024];
 
   void writeUnbuffered(std::string_view data) override {
@@ -33,21 +33,21 @@ struct ChunkedCompressionSink : CompressionSink {
   virtual void writeInternal(std::string_view data) = 0;
 };
 
-struct ArchiveDecompressionSource : Source {
-  std::unique_ptr<TarArchive> archive = 0;
+struct archive_decompression_source_t : Source {
+  std::unique_ptr<tar_archive_t> archive = 0;
   Source& src;
   std::optional<std::string> compressionMethod;
 
-  ArchiveDecompressionSource(Source& src,
+  archive_decompression_source_t(Source& src,
                              std::optional<std::string> compressionMethod = std::nullopt)
       : src(src), compressionMethod(std::move(compressionMethod)) {}
 
-  ~ArchiveDecompressionSource() override {}
+  ~archive_decompression_source_t() override {}
 
   size_t read(char* data, size_t len) override {
     struct archive_entry* ae;
     if (!archive) {
-      archive = std::make_unique<TarArchive>(src, /*raw*/ true, compressionMethod);
+      archive = std::make_unique<tar_archive_t>(src, /*raw*/ true, compressionMethod);
       this->archive->check(archive_read_next_header(this->archive->archive, &ae),
                            "failed to read header (%s)");
       if (archive_filter_count(this->archive->archive) < 2) {
@@ -65,11 +65,11 @@ struct ArchiveDecompressionSource : Source {
   }
 };
 
-struct ArchiveCompressionSink : CompressionSink {
+struct archive_compression_sink_t : compression_sink_t {
   Sink& nextSink;
   struct archive* archive;
 
-  ArchiveCompressionSink(Sink& nextSink, std::string format, bool parallel,
+  archive_compression_sink_t(Sink& nextSink, std::string format, bool parallel,
                          int level = COMPRESSION_LEVEL_DEFAULT)
       : nextSink(nextSink) {
     archive = archive_write_new();
@@ -90,7 +90,7 @@ struct ArchiveCompressionSink : CompressionSink {
     open();
   }
 
-  ~ArchiveCompressionSink() override {
+  ~archive_compression_sink_t() override {
     if (archive)
       archive_write_free(archive);
   }
@@ -115,7 +115,7 @@ struct ArchiveCompressionSink : CompressionSink {
 
 private:
   void open() {
-    check(archive_write_open(archive, this, nullptr, ArchiveCompressionSink::callback_write,
+    check(archive_write_open(archive, this, nullptr, archive_compression_sink_t::callback_write,
                              nullptr));
     auto ae = archive_entry_new();
     archive_entry_set_filetype(ae, AE_IFREG);
@@ -125,16 +125,16 @@ private:
 
   static ssize_t callback_write(struct archive* archive, void* _self, const void* buffer,
                                 size_t length) {
-    auto self = (ArchiveCompressionSink*)_self;
+    auto self = (archive_compression_sink_t*)_self;
     self->nextSink({(const char*)buffer, length});
     return length;
   }
 };
 
-struct NoneSink : CompressionSink {
+struct none_sink_t : compression_sink_t {
   Sink& nextSink;
 
-  NoneSink(Sink& nextSink, int level = COMPRESSION_LEVEL_DEFAULT) : nextSink(nextSink) {
+  none_sink_t(Sink& nextSink, int level = COMPRESSION_LEVEL_DEFAULT) : nextSink(nextSink) {
     if (level != COMPRESSION_LEVEL_DEFAULT)
       warn("requested compression level '%d' not supported by compression method 'none'", level);
   }
@@ -144,18 +144,18 @@ struct NoneSink : CompressionSink {
   void writeUnbuffered(std::string_view data) override { nextSink(data); }
 };
 
-struct BrotliDecompressionSink : ChunkedCompressionSink {
+struct brotli_decompression_sink_t : chunked_compression_sink_t {
   Sink& nextSink;
   BrotliDecoderState* state;
   bool finished = false;
 
-  BrotliDecompressionSink(Sink& nextSink) : nextSink(nextSink) {
+  brotli_decompression_sink_t(Sink& nextSink) : nextSink(nextSink) {
     state = BrotliDecoderCreateInstance(nullptr, nullptr, nullptr);
     if (!state)
       throw CompressionError("unable to initialize brotli decoder");
   }
 
-  ~BrotliDecompressionSink() { BrotliDecoderDestroyInstance(state); }
+  ~brotli_decompression_sink_t() { BrotliDecoderDestroyInstance(state); }
 
   void finish() override {
     flush();
@@ -187,38 +187,38 @@ struct BrotliDecompressionSink : ChunkedCompressionSink {
 };
 
 std::string decompress(const std::string& method, std::string_view in) {
-  StringSink ssink;
+  string_sink_t ssink;
   auto sink = makeDecompressionSink(method, ssink);
   (*sink)(in);
   sink->finish();
   return std::move(ssink.s);
 }
 
-std::unique_ptr<FinishSink> makeDecompressionSink(const std::string& method, Sink& nextSink) {
+std::unique_ptr<finish_sink_t> makeDecompressionSink(const std::string& method, Sink& nextSink) {
   if (method == "none" || method == "" || method == "identity")
-    return std::make_unique<NoneSink>(nextSink);
+    return std::make_unique<none_sink_t>(nextSink);
   else if (method == "br")
-    return std::make_unique<BrotliDecompressionSink>(nextSink);
+    return std::make_unique<brotli_decompression_sink_t>(nextSink);
   else
     return sourceToSink([method, &nextSink](Source& source) {
-      auto decompressionSource = std::make_unique<ArchiveDecompressionSource>(source, method);
+      auto decompressionSource = std::make_unique<archive_decompression_source_t>(source, method);
       decompressionSource->drainInto(nextSink);
     });
 }
 
-struct BrotliCompressionSink : ChunkedCompressionSink {
+struct brotli_compression_sink_t : chunked_compression_sink_t {
   Sink& nextSink;
   uint8_t outbuf[BUFSIZ];
   BrotliEncoderState* state;
   bool finished = false;
 
-  BrotliCompressionSink(Sink& nextSink) : nextSink(nextSink) {
+  brotli_compression_sink_t(Sink& nextSink) : nextSink(nextSink) {
     state = BrotliEncoderCreateInstance(nullptr, nullptr, nullptr);
     if (!state)
       throw CompressionError("unable to initialise brotli encoder");
   }
 
-  ~BrotliCompressionSink() { BrotliEncoderDestroyInstance(state); }
+  ~brotli_compression_sink_t() { BrotliEncoderDestroyInstance(state); }
 
   void finish() override {
     flush();
@@ -250,24 +250,24 @@ struct BrotliCompressionSink : ChunkedCompressionSink {
   }
 };
 
-ref<CompressionSink> makeCompressionSink(const std::string& method, Sink& nextSink,
+ref<compression_sink_t> makeCompressionSink(const std::string& method, Sink& nextSink,
                                          const bool parallel, int level) {
   std::vector<std::string> la_supports = {"bzip2", "compress", "grzip", "gzip", "lrzip", "lz4",
                                           "lzip",  "lzma",     "lzop",  "xz",   "zstd"};
   if (std::find(la_supports.begin(), la_supports.end(), method) != la_supports.end()) {
-    return make_ref<ArchiveCompressionSink>(nextSink, method, parallel, level);
+    return make_ref<archive_compression_sink_t>(nextSink, method, parallel, level);
   }
   if (method == "none")
-    return make_ref<NoneSink>(nextSink);
+    return make_ref<none_sink_t>(nextSink);
   else if (method == "br")
-    return make_ref<BrotliCompressionSink>(nextSink);
+    return make_ref<brotli_compression_sink_t>(nextSink);
   else
     throw UnknownCompressionMethod("unknown compression method '%s'", method);
 }
 
 std::string compress(const std::string& method, std::string_view in, const bool parallel,
                      int level) {
-  StringSink ssink;
+  string_sink_t ssink;
   auto sink = makeCompressionSink(method, ssink, parallel, level);
   (*sink)(in);
   sink->finish();

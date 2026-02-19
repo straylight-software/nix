@@ -7,10 +7,10 @@
 
 using namespace nix;
 
-struct CmdStoreDelete : StorePathsCommand {
+struct cmd_store_delete_t : StorePathsCommand {
   GCOptions options{.action = GCOptions::gcDeleteSpecific};
 
-  CmdStoreDelete() {
+  cmd_store_delete_t() {
     addFlag({
         .longName = "ignore-liveness",
         .description = "Do not check whether the paths are reachable from a root.",
@@ -38,4 +38,4 @@ struct CmdStoreDelete : StorePathsCommand {
   }
 };
 
-static auto rCmdStoreDelete = registerCommand2<CmdStoreDelete>({"store", "delete"});
+static auto rCmdStoreDelete = registerCommand2<cmd_store_delete_t>({"store", "delete"});

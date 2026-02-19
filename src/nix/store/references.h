@@ -6,21 +6,21 @@
 namespace nix {
 
 class RefScanSink : public Sink {
-  StringSet hashes;
-  StringSet seen;
+  string_set_t hashes;
+  string_set_t seen;
 
   std::string tail;
 
 public:
-  RefScanSink(StringSet&& hashes) : hashes(hashes) {}
+  RefScanSink(string_set_t&& hashes) : hashes(hashes) {}
 
-  StringSet& getResult() { return seen; }
+  string_set_t& getResult() { return seen; }
 
   void operator()(std::string_view data) override;
 };
 
 struct RewritingSink : Sink {
-  const StringMap rewrites;
+  const string_map_t rewrites;
   std::string::size_type maxRewriteSize;
   std::string prev;
   Sink& nextSink;
@@ -29,22 +29,22 @@ struct RewritingSink : Sink {
   std::vector<uint64_t> matches;
 
   RewritingSink(const std::string& from, const std::string& to, Sink& nextSink);
-  RewritingSink(const StringMap& rewrites, Sink& nextSink);
+  RewritingSink(const string_map_t& rewrites, Sink& nextSink);
 
   void operator()(std::string_view data) override;
 
   void flush();
 };
 
-struct HashModuloSink : AbstractHashSink {
-  HashSink hashSink;
+struct HashModuloSink : abstract_hash_sink_t {
+  hash_sink_t hashSink;
   RewritingSink rewritingSink;
 
-  HashModuloSink(HashAlgorithm ha, const std::string& modulus);
+  HashModuloSink(hash_algorithm_t ha, const std::string& modulus);
 
   void operator()(std::string_view data) override;
 
-  HashResult finish() override;
+  hash_result_t finish() override;
 };
 
 } // namespace nix

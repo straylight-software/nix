@@ -74,12 +74,12 @@ using namespace fetchers;
 
 namespace flake {
 
-static void forceTrivialValue(EvalState& state, Value& value, const PosIdx pos) {
+static void forceTrivialValue(EvalState& state, Value& value, const pos_idx_t pos) {
   if (value.isTrivial())
     state.forceValue(value, pos);
 }
 
-static void expectType(EvalState& state, ValueType type, Value& value, const PosIdx pos) {
+static void expectType(EvalState& state, ValueType type, Value& value, const pos_idx_t pos) {
   forceTrivialValue(state, value, pos);
   auto t = value.type();
   if (t != type)
@@ -87,8 +87,8 @@ static void expectType(EvalState& state, ValueType type, Value& value, const Pos
 }
 
 static std::pair<std::map<FlakeId, FlakeInput>, fetchers::Attrs>
-parseFlakeInputs(EvalState& state, Value* value, const PosIdx pos,
-                 const InputAttrPath& lockRootAttrPath, const SourcePath& flakeDir, bool allowSelf);
+parseFlakeInputs(EvalState& state, Value* value, const pos_idx_t pos,
+                 const InputAttrPath& lockRootAttrPath, const source_path_t& flakeDir, bool allowSelf);
 
 static void parseFlakeInputAttr(EvalState& state, const nix::Attr& attr, fetchers::Attrs& attrs) {
 // Allow selecting a subset of enum values
@@ -113,7 +113,7 @@ static void parseFlakeInputAttr(EvalState& state, const nix::Attr& attr, fetcher
     }
     default:
       if (attr.name == state.symbols.create("publicKeys")) {
-        experimentalFeatureSettings.require(Xp::VerifiedFetches);
+        experimentalFeatureSettings.require(xp_t::VerifiedFetches);
         NixStringContext emptyContext = {};
         attrs.emplace(state.symbols[attr.name],
                       printValueAsJSON(state, true, *attr.value, attr.pos, emptyContext).dump());
@@ -127,9 +127,9 @@ static void parseFlakeInputAttr(EvalState& state, const nix::Attr& attr, fetcher
 #pragma GCC diagnostic pop
 }
 
-static FlakeInput parseFlakeInput(EvalState& state, Value* value, const PosIdx pos,
+static FlakeInput parseFlakeInput(EvalState& state, Value* value, const pos_idx_t pos,
                                   const InputAttrPath& lockRootAttrPath,
-                                  const SourcePath& flakeDir) {
+                                  const source_path_t& flakeDir) {
   expectType(state, nAttrs, *value, pos);
 
   FlakeInput input;
@@ -166,7 +166,7 @@ static FlakeInput parseFlakeInput(EvalState& state, Value* value, const PosIdx p
         expectType(state, nBool, *attr.value, attr.pos);
         input.buildTime = attr.value->boolean();
         if (input.buildTime)
-          experimentalFeatureSettings.require(Xp::BuildTimeFetchTree);
+          experimentalFeatureSettings.require(xp_t::BuildTimeFetchTree);
       } else if (attr.name == sInputs) {
         input.overrides =
             parseFlakeInputs(state, attr.value, attr.pos, lockRootAttrPath, flakeDir, false).first;
@@ -179,7 +179,7 @@ static FlakeInput parseFlakeInput(EvalState& state, Value* value, const PosIdx p
         parseFlakeInputAttr(state, attr, attrs);
     } catch (Error& e) {
       e.addTrace(state.positions[attr.pos],
-                 HintFmt("while evaluating flake attribute '%s'", state.symbols[attr.name]));
+                 hint_fmt_t("while evaluating flake attribute '%s'", state.symbols[attr.name]));
       throw;
     }
   }
@@ -188,7 +188,7 @@ static FlakeInput parseFlakeInput(EvalState& state, Value* value, const PosIdx p
     try {
       input.ref = FlakeRef::fromAttrs(state.fetchSettings, attrs);
     } catch (Error& e) {
-      e.addTrace(state.positions[pos], HintFmt("while evaluating flake input"));
+      e.addTrace(state.positions[pos], hint_fmt_t("while evaluating flake input"));
       throw;
     }
   else {
@@ -208,8 +208,8 @@ static FlakeInput parseFlakeInput(EvalState& state, Value* value, const PosIdx p
 }
 
 static std::pair<std::map<FlakeId, FlakeInput>, fetchers::Attrs>
-parseFlakeInputs(EvalState& state, Value* value, const PosIdx pos,
-                 const InputAttrPath& lockRootAttrPath, const SourcePath& flakeDir,
+parseFlakeInputs(EvalState& state, Value* value, const pos_idx_t pos,
+                 const InputAttrPath& lockRootAttrPath, const source_path_t& flakeDir,
                  bool allowSelf) {
   std::map<FlakeId, FlakeInput> inputs;
   fetchers::Attrs selfAttrs;
@@ -234,9 +234,9 @@ parseFlakeInputs(EvalState& state, Value* value, const PosIdx pos,
 }
 
 static Flake readFlake(EvalState& state, const FlakeRef& originalRef, const FlakeRef& resolvedRef,
-                       const FlakeRef& lockedRef, const SourcePath& rootDir,
+                       const FlakeRef& lockedRef, const source_path_t& rootDir,
                        const InputAttrPath& lockRootAttrPath) {
-  auto flakeDir = rootDir / CanonPath(resolvedRef.subdir);
+  auto flakeDir = rootDir / canon_path_t(resolvedRef.subdir);
   auto flakePath = flakeDir / "flake.nix";
 
   // NOTE evalFile forces vInfo to be an attrset because mustBeTrivial is true.
@@ -340,7 +340,7 @@ static Flake readFlake(EvalState& state, const FlakeRef& originalRef, const Flak
 static FlakeRef applySelfAttrs(const FlakeRef& ref, const Flake& flake) {
   auto newRef(ref);
 
-  StringSet allowedAttrs{"submodules", "lfs"};
+  string_set_t allowedAttrs{"submodules", "lfs"};
 
   for (auto& attr : flake.selfAttrs) {
     if (!allowedAttrs.contains(attr.first))
@@ -393,8 +393,8 @@ Flake getFlake(EvalState& state, const FlakeRef& originalRef, fetchers::UseRegis
   return getFlake(state, originalRef, useRegistries, {}, requireLockable);
 }
 
-static LockFile readLockFile(const fetchers::Settings& fetchSettings,
-                             const SourcePath& lockFilePath) {
+static LockFile readLockFile(const fetchers::settings_t& fetchSettings,
+                             const source_path_t& lockFilePath) {
   return lockFilePath.pathExists()
              ? LockFile(fetchSettings, lockFilePath.readFile(), fmt("%s", lockFilePath))
              : LockFile();
@@ -402,7 +402,7 @@ static LockFile readLockFile(const fetchers::Settings& fetchSettings,
 
 /* Compute an in-memory lock file for the specified top-level flake,
    and optionally write it to file, if the flake is writable. */
-LockedFlake lockFlake(const Settings& settings, EvalState& state, const FlakeRef& topRef,
+LockedFlake lockFlake(const settings_t& settings, EvalState& state, const FlakeRef& topRef,
                       const LockFlags& lockFlags) {
   auto useRegistries = lockFlags.useRegistries.value_or(settings.useRegistries);
   auto useRegistriesTop =
@@ -428,19 +428,19 @@ LockedFlake lockFlake(const Settings& settings, EvalState& state, const FlakeRef
 
     debug("old lock file: %s", oldLockFile);
 
-    struct OverrideTarget {
+    struct override_target_t {
       FlakeInput input;
-      SourcePath sourcePath;
+      source_path_t sourcePath;
       std::optional<InputAttrPath> parentInputAttrPath; // FIXME: rename to inputAttrPathPrefix?
     };
 
-    std::map<InputAttrPath, OverrideTarget> overrides;
+    std::map<InputAttrPath, override_target_t> overrides;
     std::set<InputAttrPath> explicitCliOverrides;
     std::set<InputAttrPath> overridesUsed, updatesUsed;
-    std::map<ref<Node>, SourcePath> nodePaths;
+    std::map<ref<Node>, source_path_t> nodePaths;
 
     for (auto& i : lockFlags.inputOverrides) {
-      overrides.emplace(i.first, OverrideTarget{
+      overrides.emplace(i.first, override_target_t{
                                      .input = FlakeInput{.ref = i.second},
                                      /* Note: any relative overrides
                                         (e.g. `--override-input B/C "path:./foo/bar"`)
@@ -458,7 +458,7 @@ LockedFlake lockFlake(const Settings& settings, EvalState& state, const FlakeRef
     std::function<void(const FlakeInputs& flakeInputs, ref<Node> node,
                        const InputAttrPath& inputAttrPathPrefix,
                        std::shared_ptr<const Node> oldNode, const InputAttrPath& followsPrefix,
-                       const SourcePath& sourcePath, bool trustLock)>
+                       const source_path_t& sourcePath, bool trustLock)>
         computeLocks;
 
     computeLocks = [&](
@@ -478,7 +478,7 @@ LockedFlake lockFlake(const Settings& settings, EvalState& state, const FlakeRef
                           it's relative to the root of the lock file. */
                        const InputAttrPath& followsPrefix,
                        /* The source path of this node's flake. */
-                       const SourcePath& sourcePath, bool trustLock) {
+                       const source_path_t& sourcePath, bool trustLock) {
       debug("computing lock file node '%s'", printInputAttrPath(inputAttrPathPrefix));
 
       /* Get the overrides (i.e. attributes of the form
@@ -490,7 +490,7 @@ LockedFlake lockFlake(const Settings& settings, EvalState& state, const FlakeRef
           inputAttrPath.push_back(idOverride);
           if (inputOverride.ref || inputOverride.follows)
             overrides.emplace(inputAttrPath,
-                              OverrideTarget{.input = inputOverride,
+                              override_target_t{.input = inputOverride,
                                              .sourcePath = sourcePath,
                                              .parentInputAttrPath = inputAttrPathPrefix});
           addOverrides(inputOverride, inputAttrPath);
@@ -564,11 +564,11 @@ LockedFlake lockFlake(const Settings& settings, EvalState& state, const FlakeRef
                                                              : inputAttrPathPrefix)
                   : std::nullopt;
 
-          auto resolveRelativePath = [&]() -> std::optional<SourcePath> {
+          auto resolveRelativePath = [&]() -> std::optional<source_path_t> {
             if (auto relativePath = input.ref->input.isRelative()) {
-              return SourcePath{
+              return source_path_t{
                   overriddenSourcePath.accessor,
-                  CanonPath(*relativePath, overriddenSourcePath.path.parent().value())};
+                  canon_path_t(*relativePath, overriddenSourcePath.path.parent().value())};
             } else
               return std::nullopt;
           };
@@ -718,7 +718,7 @@ LockedFlake lockFlake(const Settings& settings, EvalState& state, const FlakeRef
                 if (parent == *input.ref)
                   throw Error("found circular import of flake '%s'", parent);
               parents.push_back(*input.ref);
-              Finally cleanup([&]() { parents.pop_back(); });
+              finally_t cleanup([&]() { parents.pop_back(); });
 
               /* Recursively process the inputs of this
                  flake, using its own lock file. */
@@ -732,7 +732,7 @@ LockedFlake lockFlake(const Settings& settings, EvalState& state, const FlakeRef
             }
 
             else {
-              auto [path, lockedRef] = [&]() -> std::tuple<SourcePath, FlakeRef> {
+              auto [path, lockedRef] = [&]() -> std::tuple<source_path_t, FlakeRef> {
                 // Handle non-flake 'path:./...' inputs.
                 if (auto resolvedPath = resolveRelativePath()) {
                   return {*resolvedPath, *input.ref};
@@ -849,7 +849,7 @@ LockedFlake lockFlake(const Settings& settings, EvalState& state, const FlakeRef
               }
 
               topRef.input.putFile(
-                  CanonPath((topRef.subdir == "" ? "" : topRef.subdir + "/") + "flake.lock"),
+                  canon_path_t((topRef.subdir == "" ? "" : topRef.subdir + "/") + "flake.lock"),
                   newLockFileS, commitMessage);
 
               flake.lockFilePath().invalidateCache();
@@ -886,9 +886,9 @@ LockedFlake lockFlake(const Settings& settings, EvalState& state, const FlakeRef
 }
 
 static ref<SourceAccessor> makeInternalFS() {
-  auto internalFS = make_ref<MemorySourceAccessor>(MemorySourceAccessor{});
+  auto internalFS = make_ref<memory_source_accessor_t>(memory_source_accessor_t{});
   internalFS->setPathDisplay("«flakes-internal»", "");
-  internalFS->addFile(CanonPath("call-flake.nix"),
+  internalFS->addFile(canon_path_t("call-flake.nix"),
 #include "call-flake.nix.gen.h" // IWYU pragma: keep
   );
   return internalFS;
@@ -896,8 +896,8 @@ static ref<SourceAccessor> makeInternalFS() {
 
 static auto internalFS = makeInternalFS();
 
-static Value* requireInternalFile(EvalState& state, CanonPath path) {
-  SourcePath p{internalFS, path};
+static Value* requireInternalFile(EvalState& state, canon_path_t path) {
+  source_path_t p{internalFS, path};
   auto v = state.allocValue();
   state.evalFile(p, *v); // has caching
   return v;
@@ -924,14 +924,14 @@ void callFlake(EvalState& state, const LockedFlake& lockedFlake, Value& vRes) {
     auto key = keyMap.find(node);
     assert(key != keyMap.end());
 
-    override.alloc(state.symbols.create("dir")).mkString(CanonPath(subdir).rel(), state.mem);
+    override.alloc(state.symbols.create("dir")).mkString(canon_path_t(subdir).rel(), state.mem);
 
     overrides.alloc(state.symbols.create(key->second)).mkAttrs(override);
   }
 
   auto& vOverrides = state.allocValue()->mkAttrs(overrides);
 
-  Value* vCallFlake = requireInternalFile(state, CanonPath("call-flake.nix"));
+  Value* vCallFlake = requireInternalFile(state, canon_path_t("call-flake.nix"));
 
   auto vLocks = state.allocValue();
   vLocks->mkString(lockFileStr, state.mem);
@@ -941,7 +941,7 @@ void callFlake(EvalState& state, const LockedFlake& lockedFlake, Value& vRes) {
 }
 
 std::optional<Fingerprint>
-LockedFlake::getFingerprint(Store& store, const fetchers::Settings& fetchSettings) const {
+LockedFlake::getFingerprint(Store& store, const fetchers::settings_t& fetchSettings) const {
   if (lockFile.isUnlocked(fetchSettings))
     return std::nullopt;
 
@@ -962,7 +962,7 @@ LockedFlake::getFingerprint(Store& store, const fetchers::Settings& fetchSetting
   // FIXME: as an optimization, if the flake contains a lock file
   // and we haven't changed it, then it's sufficient to use
   // flake.sourceInfo.storePath for the fingerprint.
-  return hashString(HashAlgorithm::SHA256, *fingerprint);
+  return hashString(hash_algorithm_t::SHA256, *fingerprint);
 }
 
 Flake::~Flake() {}

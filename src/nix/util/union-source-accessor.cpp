@@ -2,15 +2,15 @@
 
 namespace nix {
 
-struct UnionSourceAccessor : SourceAccessor {
+struct union_source_accessor_t : SourceAccessor {
   std::vector<ref<SourceAccessor>> accessors;
 
-  UnionSourceAccessor(std::vector<ref<SourceAccessor>> _accessors)
+  union_source_accessor_t(std::vector<ref<SourceAccessor>> _accessors)
       : accessors(std::move(_accessors)) {
     displayPrefix.clear();
   }
 
-  std::string readFile(const CanonPath& path) override {
+  std::string readFile(const canon_path_t& path) override {
     for (auto& accessor : accessors) {
       auto st = accessor->maybeLstat(path);
       if (st)
@@ -19,7 +19,7 @@ struct UnionSourceAccessor : SourceAccessor {
     throw FileNotFound("path '%s' does not exist", showPath(path));
   }
 
-  std::optional<Stat> maybeLstat(const CanonPath& path) override {
+  std::optional<stat_t> maybeLstat(const canon_path_t& path) override {
     for (auto& accessor : accessors) {
       auto st = accessor->maybeLstat(path);
       if (st)
@@ -28,8 +28,8 @@ struct UnionSourceAccessor : SourceAccessor {
     return std::nullopt;
   }
 
-  DirEntries readDirectory(const CanonPath& path) override {
-    DirEntries result;
+  dir_entries_t readDirectory(const canon_path_t& path) override {
+    dir_entries_t result;
     bool exists = false;
     for (auto& accessor : accessors) {
       auto st = accessor->maybeLstat(path);
@@ -45,7 +45,7 @@ struct UnionSourceAccessor : SourceAccessor {
     return result;
   }
 
-  std::string readLink(const CanonPath& path) override {
+  std::string readLink(const canon_path_t& path) override {
     for (auto& accessor : accessors) {
       auto st = accessor->maybeLstat(path);
       if (st)
@@ -54,13 +54,13 @@ struct UnionSourceAccessor : SourceAccessor {
     throw FileNotFound("path '%s' does not exist", showPath(path));
   }
 
-  std::string showPath(const CanonPath& path) override {
+  std::string showPath(const canon_path_t& path) override {
     for (auto& accessor : accessors)
       return accessor->showPath(path);
     return SourceAccessor::showPath(path);
   }
 
-  std::optional<std::filesystem::path> getPhysicalPath(const CanonPath& path) override {
+  std::optional<std::filesystem::path> getPhysicalPath(const canon_path_t& path) override {
     for (auto& accessor : accessors) {
       auto p = accessor->getPhysicalPath(path);
       if (p)
@@ -69,7 +69,7 @@ struct UnionSourceAccessor : SourceAccessor {
     return std::nullopt;
   }
 
-  std::pair<CanonPath, std::optional<std::string>> getFingerprint(const CanonPath& path) override {
+  std::pair<canon_path_t, std::optional<std::string>> getFingerprint(const canon_path_t& path) override {
     if (fingerprint)
       return {path, fingerprint};
     for (auto& accessor : accessors) {
@@ -80,14 +80,14 @@ struct UnionSourceAccessor : SourceAccessor {
     return {path, std::nullopt};
   }
 
-  void invalidateCache(const CanonPath& path) override {
+  void invalidateCache(const canon_path_t& path) override {
     for (auto& accessor : accessors)
       accessor->invalidateCache(path);
   }
 };
 
 ref<SourceAccessor> makeUnionSourceAccessor(std::vector<ref<SourceAccessor>>&& accessors) {
-  return make_ref<UnionSourceAccessor>(std::move(accessors));
+  return make_ref<union_source_accessor_t>(std::move(accessors));
 }
 
 } // namespace nix

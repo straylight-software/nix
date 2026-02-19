@@ -12,20 +12,20 @@ struct S3BinaryCacheStoreConfig : HttpBinaryCacheStoreConfig {
   S3BinaryCacheStoreConfig(std::string_view uriScheme, std::string_view bucketName,
                            const Params& params);
 
-  const Setting<std::string> profile{this, "default", "profile",
+  const setting_t<std::string> profile{this, "default", "profile",
                                      R"(
           The name of the AWS configuration profile to use. By default
           Nix uses the `default` profile.
         )"};
 
-  const Setting<std::string> region{this, "us-east-1", "region",
+  const setting_t<std::string> region{this, "us-east-1", "region",
                                     R"(
           The region of the S3 bucket. If your bucket is not in
           `us-east-1`, you should always explicitly specify the region
           parameter.
         )"};
 
-  const Setting<std::string> scheme{this, "https", "scheme",
+  const setting_t<std::string> scheme{this, "https", "scheme",
                                     R"(
           The scheme used for S3 requests, `https` (default) or `http`. This
           option allows you to disable HTTPS for binary caches which don't
@@ -37,7 +37,7 @@ struct S3BinaryCacheStoreConfig : HttpBinaryCacheStoreConfig {
           > information.
         )"};
 
-  const Setting<std::string> endpoint{this, "", "endpoint",
+  const setting_t<std::string> endpoint{this, "", "endpoint",
                                       R"(
           The S3 endpoint to use. When empty (default), uses AWS S3 with
           region-specific endpoints (e.g., s3.us-east-1.amazonaws.com).
@@ -49,7 +49,7 @@ struct S3BinaryCacheStoreConfig : HttpBinaryCacheStoreConfig {
           > addressing instead of virtual host based addressing.
         )"};
 
-  const Setting<bool> multipartUpload{this, false, "multipart-upload",
+  const setting_t<bool> multipartUpload{this, false, "multipart-upload",
                                       R"(
           Whether to use multipart uploads for large files. When enabled,
           files exceeding the multipart threshold will be uploaded in
@@ -57,7 +57,7 @@ struct S3BinaryCacheStoreConfig : HttpBinaryCacheStoreConfig {
           can improve performance and reliability for large uploads.
         )"};
 
-  const Setting<uint64_t> multipartChunkSize{this,
+  const setting_t<uint64_t> multipartChunkSize{this,
                                              5 * 1024 * 1024,
                                              "multipart-chunk-size",
                                              R"(
@@ -67,14 +67,14 @@ struct S3BinaryCacheStoreConfig : HttpBinaryCacheStoreConfig {
         )",
                                              {"buffer-size"}};
 
-  const Setting<uint64_t> multipartThreshold{this, 100 * 1024 * 1024, "multipart-threshold",
+  const setting_t<uint64_t> multipartThreshold{this, 100 * 1024 * 1024, "multipart-threshold",
                                              R"(
           The minimum file size (in bytes) for using multipart uploads.
           Files smaller than this threshold will use regular PUT requests.
           Default is 100 MiB. Only takes effect when multipart-upload is enabled.
         )"};
 
-  const Setting<std::optional<std::string>> storageClass{this, std::nullopt, "storage-class",
+  const setting_t<std::optional<std::string>> storageClass{this, std::nullopt, "storage-class",
                                                          R"(
           The S3 storage class to use for uploaded objects. When not set (default),
           uses the bucket's default storage class. Valid values include:
@@ -95,11 +95,11 @@ struct S3BinaryCacheStoreConfig : HttpBinaryCacheStoreConfig {
    * Set of settings that are part of the S3 URI itself.
    * These are needed for region specification and other S3-specific settings.
    */
-  const std::set<const AbstractSetting*> s3UriSettings = {&profile, &region, &scheme, &endpoint};
+  const std::set<const abstract_setting_t*> s3UriSettings = {&profile, &region, &scheme, &endpoint};
 
   static const std::string name() { return "S3 Binary Cache Store"; }
 
-  static StringSet uriSchemes();
+  static string_set_t uriSchemes();
 
   static std::string doc();
 

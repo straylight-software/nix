@@ -66,7 +66,7 @@ inline std::pair<int, size_t> charWidthUTF8Helper(std::string_view s) {
 
 namespace nix {
 
-bool isTTY(Descriptor fd) {
+bool isTTY(descriptor_t fd) {
 #ifndef _WIN32
   return isatty(fd);
 #else
@@ -159,7 +159,7 @@ std::string filterANSIEscapes(std::string_view s, bool filterAll, unsigned int w
 
 //////////////////////////////////////////////////////////////////////
 
-static Sync<std::pair<unsigned short, unsigned short>> windowSize{{0, 0}};
+static sync_t<std::pair<unsigned short, unsigned short>> windowSize{{0, 0}};
 
 void updateWindowSize() {
 #ifndef _WIN32
@@ -200,7 +200,7 @@ std::string getPtsName(int fd) {
   std::lock_guard<std::mutex> lock(ptsnameMutex);
   const char* name = ptsname(fd);
   if (!name) {
-    throw SysError("getting pseudoterminal slave name");
+    throw sys_error_t("getting pseudoterminal slave name");
   }
   return name;
 #  else
@@ -211,7 +211,7 @@ std::string getPtsName(int fd) {
   // 64 bytes is more than sufficient for any Unix PTY name
   char buf[64];
   if (ptsname_r(fd, buf, sizeof(buf)) != 0) {
-    throw SysError("getting pseudoterminal slave name");
+    throw sys_error_t("getting pseudoterminal slave name");
   }
   return buf;
 #  endif

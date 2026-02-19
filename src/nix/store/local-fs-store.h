@@ -9,7 +9,7 @@ namespace nix {
 
 struct LocalFSStoreConfig : virtual StoreConfig {
 private:
-  static OptionalPathSetting makeRootDirSetting(LocalFSStoreConfig& self,
+  static optional_path_setting_t makeRootDirSetting(LocalFSStoreConfig& self,
                                                 std::optional<Path> defaultValue) {
     return {
         &self,
@@ -29,9 +29,9 @@ public:
    *
    * @todo Make this less error-prone with new store settings system.
    */
-  LocalFSStoreConfig(PathView path, const Params& params);
+  LocalFSStoreConfig(path_view_t path, const Params& params);
 
-  OptionalPathSetting rootDir = makeRootDirSetting(*this, std::nullopt);
+  optional_path_setting_t rootDir = makeRootDirSetting(*this, std::nullopt);
 
 private:
   /**
@@ -47,13 +47,13 @@ private:
   static Path getDefaultLogDir();
 
 public:
-  PathSetting stateDir{this, rootDir.get() ? *rootDir.get() + "/nix/var/nix" : getDefaultStateDir(),
+  path_setting_t stateDir{this, rootDir.get() ? *rootDir.get() + "/nix/var/nix" : getDefaultStateDir(),
                        "state", "Directory where Nix stores state."};
 
-  PathSetting logDir{this, rootDir.get() ? *rootDir.get() + "/nix/var/log/nix" : getDefaultLogDir(),
+  path_setting_t logDir{this, rootDir.get() ? *rootDir.get() + "/nix/var/log/nix" : getDefaultLogDir(),
                      "log", "directory where Nix stores log files."};
 
-  PathSetting realStoreDir{this, rootDir.get() ? *rootDir.get() + "/nix/store" : storeDir, "real",
+  path_setting_t realStoreDir{this, rootDir.get() ? *rootDir.get() + "/nix/store" : storeDir, "real",
                            "Physical path of the Nix store."};
 };
 

@@ -17,7 +17,7 @@ Path LocalFSStoreConfig::getDefaultLogDir() {
   return settings.nixLogDir;
 }
 
-LocalFSStoreConfig::LocalFSStoreConfig(PathView rootDir, const Params& params)
+LocalFSStoreConfig::LocalFSStoreConfig(path_view_t rootDir, const Params& params)
     : StoreConfig(params)
       /* Default `?root` from `rootDir` if non set
        * NOTE: We would like to just do rootDir.set(...), which would take care of
@@ -35,50 +35,50 @@ LocalFSStoreConfig::LocalFSStoreConfig(PathView rootDir, const Params& params)
 LocalFSStore::LocalFSStore(const Config& config)
     : Store{static_cast<const Store::Config&>(*this)}, config{config} {}
 
-struct LocalStoreAccessor : PosixSourceAccessor {
+struct local_store_accessor_t : posix_source_accessor_t {
   ref<LocalFSStore> store;
   bool requireValidPath;
 
-  LocalStoreAccessor(ref<LocalFSStore> store, bool requireValidPath)
-      : PosixSourceAccessor(std::filesystem::path{store->config.realStoreDir.get()}),
+  local_store_accessor_t(ref<LocalFSStore> store, bool requireValidPath)
+      : posix_source_accessor_t(std::filesystem::path{store->config.realStoreDir.get()}),
         store(store),
         requireValidPath(requireValidPath) {}
 
-  void requireStoreObject(const CanonPath& path) {
+  void requireStoreObject(const canon_path_t& path) {
     auto [storePath, rest] = store->toStorePath(store->storeDir + path.abs());
     if (requireValidPath && !store->maybeQueryPathInfo(storePath))
       throw InvalidPath("path '%1%' is not a valid store path", store->printStorePath(storePath));
   }
 
-  std::optional<Stat> maybeLstat(const CanonPath& path) override {
+  std::optional<stat_t> maybeLstat(const canon_path_t& path) override {
     /* Also allow `path` to point to the entire store, which is
        needed for resolving symlinks. */
     if (path.isRoot())
-      return Stat{.type = tDirectory};
+      return stat_t{.type = tDirectory};
 
     requireStoreObject(path);
-    return PosixSourceAccessor::maybeLstat(path);
+    return posix_source_accessor_t::maybeLstat(path);
   }
 
-  DirEntries readDirectory(const CanonPath& path) override {
+  dir_entries_t readDirectory(const canon_path_t& path) override {
     requireStoreObject(path);
-    return PosixSourceAccessor::readDirectory(path);
+    return posix_source_accessor_t::readDirectory(path);
   }
 
-  void readFile(const CanonPath& path, Sink& sink,
+  void readFile(const canon_path_t& path, Sink& sink,
                 std::function<void(uint64_t)> sizeCallback) override {
     requireStoreObject(path);
-    return PosixSourceAccessor::readFile(path, sink, sizeCallback);
+    return posix_source_accessor_t::readFile(path, sink, sizeCallback);
   }
 
-  std::string readLink(const CanonPath& path) override {
+  std::string readLink(const canon_path_t& path) override {
     requireStoreObject(path);
-    return PosixSourceAccessor::readLink(path);
+    return posix_source_accessor_t::readLink(path);
   }
 };
 
 ref<SourceAccessor> LocalFSStore::getFSAccessor(bool requireValidPath) {
-  return make_ref<LocalStoreAccessor>(
+  return make_ref<local_store_accessor_t>(
       ref<LocalFSStore>(std::dynamic_pointer_cast<LocalFSStore>(shared_from_this())),
       requireValidPath);
 }
@@ -97,7 +97,7 @@ std::shared_ptr<SourceAccessor> LocalFSStore::getFSAccessor(const StorePath& pat
     if (!pathExists(absPath))
       return nullptr;
   }
-  return std::make_shared<PosixSourceAccessor>(std::move(absPath));
+  return std::make_shared<posix_source_accessor_t>(std::move(absPath));
 }
 
 const std::string LocalFSStore::drvsLogDir = "drvs";

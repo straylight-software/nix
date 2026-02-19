@@ -16,25 +16,25 @@ namespace nix {
  * The Config class provides Nix runtime configurations.
  *
  * What is a Configuration?
- *   A collection of uniquely named Settings.
+ *   A collection of uniquely named settings_t.
  *
- * What is a Setting?
+ * What is a setting_t?
  *   Each property that you can set in a configuration corresponds to a
- *   `Setting`. A setting records value and description of a property
+ *   `setting_t`. A setting records value and description of a property
  *   with a default and optional aliases.
  *
  * A valid configuration consists of settings that are registered to a
  * `Config` object instance:
  *
  *   Config config;
- *   Setting<std::string> systemSetting{&config, "x86_64-linux", "system", "the current system"};
+ *   setting_t<std::string> systemSetting{&config, "x86_64-linux", "system", "the current system"};
  *
  * The above creates a `Config` object and registers a setting called "system"
  * via the variable `systemSetting` with it. The setting defaults to the string
  * "x86_64-linux", it's description is "the current system". All of the
  * registered settings can then be accessed as shown below:
  *
- *   std::map<std::string, Config::SettingInfo> settings;
+ *   std::map<std::string, Config::setting_info_t> settings;
  *   config.getSettings(settings);
  *   settings["system"].description == "the current system"
  *   settings["system"].value == "x86_64-linux"
@@ -45,13 +45,13 @@ namespace nix {
  */
 
 class Args;
-class AbstractSetting;
+class abstract_setting_t;
 
-class AbstractConfig {
+class abstract_config_t {
 protected:
-  StringMap unknownSettings;
+  string_map_t unknownSettings;
 
-  AbstractConfig(StringMap initials = {});
+  abstract_config_t(string_map_t initials = {});
 
 public:
   /**
@@ -60,7 +60,7 @@ public:
    */
   virtual bool set(const std::string& name, const std::string& value) = 0;
 
-  struct SettingInfo {
+  struct setting_info_t {
     std::string value;
     std::string description;
   };
@@ -70,7 +70,7 @@ public:
    * - res: map to store settings in
    * - overriddenOnly: when set to true only overridden settings will be added to `res`
    */
-  virtual void getSettings(std::map<std::string, SettingInfo>& res,
+  virtual void getSettings(std::map<std::string, setting_info_t>& res,
                            bool overriddenOnly = false) const = 0;
 
   /**
@@ -81,7 +81,7 @@ public:
   void applyConfig(const std::string& contents, const std::string& path = "<unknown>");
 
   /**
-   * Resets the `overridden` flag of all Settings
+   * Resets the `overridden` flag of all settings_t
    */
   virtual void resetOverridden() = 0;
 
@@ -114,17 +114,17 @@ public:
    */
   void reapplyUnknownSettings();
 
-  virtual ~AbstractConfig() = default;
+  virtual ~abstract_config_t() = default;
 };
 
 /**
  * A class to simplify providing configuration settings. The typical
- * use is to inherit Config and add Setting<T> members:
+ * use is to inherit Config and add setting_t<T> members:
  *
  * class MyClass : private Config
  * {
- *   Setting<int> foo{this, 123, "foo", "the number of foos to use"};
- *   Setting<std::string> bar{this, "blabla", "bar", "the name of the bar"};
+ *   setting_t<int> foo{this, 123, "foo", "the number of foos to use"};
+ *   setting_t<std::string> bar{this, "blabla", "bar", "the name of the bar"};
  *
  *   MyClass() : Config(readConfigFile("/etc/my-app.conf"))
  *   {
@@ -132,28 +132,28 @@ public:
  *   }
  * };
  */
-class Config : public AbstractConfig {
-  friend class AbstractSetting;
+class Config : public abstract_config_t {
+  friend class abstract_setting_t;
 
 public:
-  struct SettingData {
+  struct setting_data_t {
     bool isAlias;
-    AbstractSetting* setting;
+    abstract_setting_t* setting;
   };
 
-  using Settings = std::map<std::string, SettingData>;
+  using settings_t = std::map<std::string, setting_data_t>;
 
 private:
-  Settings _settings;
+  settings_t _settings;
 
 public:
-  Config(StringMap initials = {});
+  Config(string_map_t initials = {});
 
   bool set(const std::string& name, const std::string& value) override;
 
-  void addSetting(AbstractSetting* setting);
+  void addSetting(abstract_setting_t* setting);
 
-  void getSettings(std::map<std::string, SettingInfo>& res,
+  void getSettings(std::map<std::string, setting_info_t>& res,
                    bool overriddenOnly = false) const override;
 
   void resetOverridden() override;
@@ -165,25 +165,25 @@ public:
   void convertToArgs(Args& args, const std::string& category) override;
 };
 
-class AbstractSetting {
+class abstract_setting_t {
   friend class Config;
 
 public:
   const std::string name;
   const std::string description;
-  const StringSet aliases;
+  const string_set_t aliases;
 
   int created = 123;
 
   bool overridden = false;
 
-  std::optional<ExperimentalFeature> experimentalFeature;
+  std::optional<experimental_feature_t> experimentalFeature;
 
 protected:
-  AbstractSetting(const std::string& name, const std::string& description, const StringSet& aliases,
-                  std::optional<ExperimentalFeature> experimentalFeature = std::nullopt);
+  abstract_setting_t(const std::string& name, const std::string& description, const string_set_t& aliases,
+                  std::optional<experimental_feature_t> experimentalFeature = std::nullopt);
 
-  virtual ~AbstractSetting();
+  virtual ~abstract_setting_t();
 
   virtual void set(const std::string& value, bool append = false) = 0;
 
@@ -208,7 +208,7 @@ protected:
  * A setting of type T.
  */
 template <typename T>
-class BaseSetting : public AbstractSetting {
+class base_setting_t : public abstract_setting_t {
 protected:
   T value;
   const T defaultValue;
@@ -232,10 +232,10 @@ protected:
   virtual void appendOrSet(T newValue, bool append);
 
 public:
-  BaseSetting(const T& def, const bool documentDefault, const std::string& name,
-              const std::string& description, const StringSet& aliases = {},
-              std::optional<ExperimentalFeature> experimentalFeature = std::nullopt)
-      : AbstractSetting(name, description, aliases, experimentalFeature),
+  base_setting_t(const T& def, const bool documentDefault, const std::string& name,
+              const std::string& description, const string_set_t& aliases = {},
+              std::optional<experimental_feature_t> experimentalFeature = std::nullopt)
+      : abstract_setting_t(name, description, aliases, experimentalFeature),
         value(def),
         defaultValue(def),
         documentDefault(documentDefault) {}
@@ -304,22 +304,22 @@ public:
 };
 
 template <typename T>
-std::ostream& operator<<(std::ostream& str, const BaseSetting<T>& opt) {
+std::ostream& operator<<(std::ostream& str, const base_setting_t<T>& opt) {
   return str << static_cast<const T&>(opt);
 }
 
 template <typename T>
-bool operator==(const T& v1, const BaseSetting<T>& v2) {
+bool operator==(const T& v1, const base_setting_t<T>& v2) {
   return v1 == static_cast<const T&>(v2);
 }
 
 template <typename T>
-class Setting : public BaseSetting<T> {
+class setting_t : public base_setting_t<T> {
 public:
-  Setting(Config* options, const T& def, const std::string& name, const std::string& description,
-          const StringSet& aliases = {}, const bool documentDefault = true,
-          std::optional<ExperimentalFeature> experimentalFeature = std::nullopt)
-      : BaseSetting<T>(def, documentDefault, name, description, aliases,
+  setting_t(Config* options, const T& def, const std::string& name, const std::string& description,
+          const string_set_t& aliases = {}, const bool documentDefault = true,
+          std::optional<experimental_feature_t> experimentalFeature = std::nullopt)
+      : base_setting_t<T>(def, documentDefault, name, description, aliases,
                        std::move(experimentalFeature)) {
     options->addSetting(this);
   }
@@ -334,10 +334,10 @@ public:
  * It is mandatory to specify a path; i.e. the empty string is not
  * permitted.
  */
-class PathSetting : public BaseSetting<Path> {
+class path_setting_t : public base_setting_t<Path> {
 public:
-  PathSetting(Config* options, const Path& def, const std::string& name,
-              const std::string& description, const StringSet& aliases = {});
+  path_setting_t(Config* options, const Path& def, const std::string& name,
+              const std::string& description, const string_set_t& aliases = {});
 
   Path parse(const std::string& str) const override;
 
@@ -347,22 +347,22 @@ public:
 };
 
 /**
- * Like `PathSetting`, but the absence of a path is also allowed.
+ * Like `path_setting_t`, but the absence of a path is also allowed.
  *
  * `std::optional` is used instead of the empty string for clarity.
  */
-class OptionalPathSetting : public BaseSetting<std::optional<Path>> {
+class optional_path_setting_t : public base_setting_t<std::optional<Path>> {
 public:
-  OptionalPathSetting(Config* options, const std::optional<Path>& def, const std::string& name,
-                      const std::string& description, const StringSet& aliases = {});
+  optional_path_setting_t(Config* options, const std::optional<Path>& def, const std::string& name,
+                      const std::string& description, const string_set_t& aliases = {});
 
   std::optional<Path> parse(const std::string& str) const override;
 
   void operator=(const std::optional<Path>& v);
 };
 
-struct ExperimentalFeatureSettings : Config {
-  Setting<std::set<ExperimentalFeature>> experimentalFeatures{this,
+struct experimental_feature_settings_t : Config {
+  setting_t<std::set<experimental_feature_t>> experimentalFeatures{this,
                                                               {},
                                                               "experimental-features",
                                                               R"(
@@ -384,13 +384,13 @@ struct ExperimentalFeatureSettings : Config {
   /**
    * Check whether the given experimental feature is enabled.
    */
-  bool isEnabled(const ExperimentalFeature&) const;
+  bool isEnabled(const experimental_feature_t&) const;
 
   /**
    * Require an experimental feature be enabled, throwing an error if it is
    * not.
    */
-  void require(const ExperimentalFeature&, std::string reason = "") const;
+  void require(const experimental_feature_t&, std::string reason = "") const;
 
   /**
    * Require an experimental feature be enabled, throwing an error if it is
@@ -399,7 +399,7 @@ struct ExperimentalFeatureSettings : Config {
   template <typename GetReason>
     requires std::invocable<GetReason> &&
              std::convertible_to<std::invoke_result_t<GetReason>, std::string>
-  void require(const ExperimentalFeature& feature, GetReason&& getReason) const {
+  void require(const experimental_feature_t& feature, GetReason&& getReason) const {
     if (isEnabled(feature))
       return;
     require(feature, getReason());
@@ -409,16 +409,16 @@ struct ExperimentalFeatureSettings : Config {
    * `std::nullopt` pointer means no feature, which means there is nothing that could be
    * disabled, and so the function returns true in that case.
    */
-  bool isEnabled(const std::optional<ExperimentalFeature>&) const;
+  bool isEnabled(const std::optional<experimental_feature_t>&) const;
 
   /**
    * `std::nullopt` pointer means no feature, which means there is nothing that could be
    * disabled, and so the function does nothing in that case.
    */
-  void require(const std::optional<ExperimentalFeature>&) const;
+  void require(const std::optional<experimental_feature_t>&) const;
 };
 
 // FIXME: don't use a global variable.
-extern ExperimentalFeatureSettings experimentalFeatureSettings;
+extern experimental_feature_settings_t experimentalFeatureSettings;
 
 } // namespace nix

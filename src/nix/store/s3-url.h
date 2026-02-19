@@ -17,8 +17,8 @@ namespace nix {
 struct ParsedS3URL {
   std::string bucket;
   /**
-   * @see ParsedURL::path. This is a vector for the same reason.
-   * Unlike ParsedURL::path this doesn't include the leading empty segment,
+   * @see parsed_url_t::path. This is a vector for the same reason.
+   * Unlike parsed_url_t::path this doesn't include the leading empty segment,
    * since the bucket name is necessary.
    */
   std::vector<std::string> key;
@@ -30,7 +30,7 @@ struct ParsedS3URL {
    * The endpoint can be either missing, be an absolute URI (with a scheme like `http:`)
    * or an authority (so an IP address or a registered name).
    */
-  std::variant<std::monostate, ParsedURL, ParsedURL::Authority> endpoint;
+  std::variant<std::monostate, parsed_url_t, parsed_url_t::authority_t> endpoint;
 
   std::optional<std::string> getEncodedEndpoint() const {
     return std::visit(overloaded{
@@ -42,12 +42,12 @@ struct ParsedS3URL {
                       endpoint);
   }
 
-  static ParsedS3URL parse(const ParsedURL& uri);
+  static ParsedS3URL parse(const parsed_url_t& uri);
 
   /**
-   * Convert this ParsedS3URL to HTTPS ParsedURL for use with curl's AWS SigV4 authentication
+   * Convert this ParsedS3URL to HTTPS parsed_url_t for use with curl's AWS SigV4 authentication
    */
-  ParsedURL toHttpsUrl() const;
+  parsed_url_t toHttpsUrl() const;
 
   auto operator<=>(const ParsedS3URL& other) const = default;
 };

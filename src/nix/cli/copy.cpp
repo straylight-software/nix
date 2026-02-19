@@ -5,12 +5,12 @@
 
 using namespace nix;
 
-struct CmdCopy : virtual CopyCommand, virtual BuiltPathsCommand, MixProfile, MixNoCheckSigs {
+struct cmd_copy_t : virtual CopyCommand, virtual BuiltPathsCommand, MixProfile, MixNoCheckSigs {
   std::optional<std::filesystem::path> outLink;
 
   SubstituteFlag substitute = NoSubstitute;
 
-  CmdCopy() : BuiltPathsCommand(true) {
+  cmd_copy_t() : BuiltPathsCommand(true) {
     addFlag({
         .longName = "out-link",
         .shortName = 'o',
@@ -39,7 +39,7 @@ struct CmdCopy : virtual CopyCommand, virtual BuiltPathsCommand, MixProfile, Mix
         ;
   }
 
-  Category category() override { return catSecondary; }
+  category_t category() override { return catSecondary; }
 
   void run(ref<Store> srcStore, BuiltPaths&& allPaths, BuiltPaths&& rootPaths) override {
     auto dstStore = getDstStore();
@@ -64,4 +64,4 @@ struct CmdCopy : virtual CopyCommand, virtual BuiltPathsCommand, MixProfile, Mix
   }
 };
 
-static auto rCmdCopy = registerCommand<CmdCopy>("copy");
+static auto rCmdCopy = registerCommand<cmd_copy_t>("copy");

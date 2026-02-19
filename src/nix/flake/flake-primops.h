@@ -4,16 +4,16 @@
 
 namespace nix {
 namespace flake {
-struct Settings;
+struct settings_t;
 } // namespace flake
 } // namespace nix
 
 namespace nix::flake::primops {
 
 /**
- * Returns a `builtins.getFlake` primop with the given nix::flake::Settings.
+ * Returns a `builtins.getFlake` primop with the given nix::flake::settings_t.
  */
-nix::PrimOp getFlake(const Settings& settings);
+nix::PrimOp getFlake(const settings_t& settings);
 
 extern nix::PrimOp parseFlakeRef;
 extern nix::PrimOp flakeRefToString;

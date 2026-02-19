@@ -4,13 +4,13 @@
  *
  * @brief This file defines two main structs/classes used in nix error handling.
  *
- * ErrorInfo provides a standard payload of error information, with conversion to string
+ * error_info_t provides a standard payload of error information, with conversion to string
  * happening in the logger rather than at the call site.
  *
- * BaseError is the ancestor of nix specific exceptions (and Interrupted), and contains
- * an ErrorInfo.
+ * base_error_t is the ancestor of nix specific exceptions (and Interrupted), and contains
+ * an error_info_t.
  *
- * ErrorInfo structs are sent to the logger as part of an exception, or directly with the
+ * error_info_t structs are sent to the logger as part of an exception, or directly with the
  * logError or logWarning macros.
  * See libutil/tests/logging.cc for usage examples.
  */
@@ -39,12 +39,12 @@ typedef enum {
   lvlChatty,
   lvlDebug,
   lvlVomit
-} Verbosity;
+} verbosity_t;
 
 /**
  * The lines of code surrounding an error.
  */
-struct LinesOfCode {
+struct lines_of_code_t {
   std::optional<std::string> prevLineOfCode;
   std::optional<std::string> errLineOfCode;
   std::optional<std::string> nextLineOfCode;
@@ -53,7 +53,7 @@ struct LinesOfCode {
 /* NOTE: position.hh recursively depends on source-path.hh -> source-accessor.hh
    -> hash.hh -> configuration.hh -> experimental-features.hh -> error.hh -> Pos.
    There are other such cycles.
-   Thus, Pos has to be an incomplete type in this header. But since ErrorInfo/Trace
+   Thus, Pos has to be an incomplete type in this header. But since error_info_t/trace_t
    have to refer to Pos, they have to use pointer indirection via std::shared_ptr
    to break the recursive header dependency.
    FIXME: Untangle this mess. Should there be AbstractPos as there used to be before
@@ -61,12 +61,12 @@ struct LinesOfCode {
 struct Pos;
 
 void printCodeLines(std::ostream& out, const std::string& prefix, const Pos& errPos,
-                    const LinesOfCode& loc);
+                    const lines_of_code_t& loc);
 
 /**
  * When a stack frame is printed.
  */
-enum struct TracePrint {
+enum struct trace_print_t {
   /**
    * The default behavior; always printed when `--show-trace` is set.
    */
@@ -75,19 +75,19 @@ enum struct TracePrint {
   Always,
 };
 
-struct Trace {
+struct trace_t {
   std::shared_ptr<const Pos> pos;
-  HintFmt hint;
-  TracePrint print = TracePrint::Default;
+  hint_fmt_t hint;
+  trace_print_t print = trace_print_t::Default;
 };
 
-inline std::strong_ordering operator<=>(const Trace& lhs, const Trace& rhs);
+inline std::strong_ordering operator<=>(const trace_t& lhs, const trace_t& rhs);
 
-struct ErrorInfo {
-  Verbosity level;
-  HintFmt msg;
+struct error_info_t {
+  verbosity_t level;
+  hint_fmt_t msg;
   std::shared_ptr<const Pos> pos;
-  std::list<Trace> traces;
+  std::list<trace_t> traces;
   /**
    * Some messages are generated directly by expressions; notably `builtins.warn`, `abort`, `throw`.
    * These may be rendered differently, so that users can distinguish them.
@@ -95,24 +95,24 @@ struct ErrorInfo {
   bool isFromExpr = false;
 
   /**
-   * Exit status.
+   * exit_t status.
    */
   unsigned int status = 1;
 
-  Suggestions suggestions;
+  suggestions_t suggestions;
 
   static std::optional<std::string> programName;
 };
 
-std::ostream& showErrorInfo(std::ostream& out, const ErrorInfo& einfo, bool showTrace);
+std::ostream& showErrorInfo(std::ostream& out, const error_info_t& einfo, bool showTrace);
 
 /**
- * BaseError should generally not be caught, as it has Interrupted as
+ * base_error_t should generally not be caught, as it has Interrupted as
  * a subclass. Catch Error instead.
  */
-class BaseError : public std::exception {
+class base_error_t : public std::exception {
 protected:
-  mutable ErrorInfo err;
+  mutable error_info_t err;
 
   /**
    * Cached formatted contents of `err.msg`.
@@ -124,27 +124,27 @@ protected:
   const std::string& calcWhat() const;
 
 public:
-  BaseError(const BaseError&) = default;
-  BaseError& operator=(const BaseError&) = default;
-  BaseError& operator=(BaseError&&) = default;
+  base_error_t(const base_error_t&) = default;
+  base_error_t& operator=(const base_error_t&) = default;
+  base_error_t& operator=(base_error_t&&) = default;
 
   template <typename... Args>
-  BaseError(unsigned int status, const Args&... args)
-      : err{.level = lvlError, .msg = HintFmt(args...), .status = status} {}
+  base_error_t(unsigned int status, const Args&... args)
+      : err{.level = lvlError, .msg = hint_fmt_t(args...), .status = status} {}
 
   template <typename... Args>
-  explicit BaseError(const std::string& fs, const Args&... args)
-      : err{.level = lvlError, .msg = HintFmt(fs, args...)} {}
+  explicit base_error_t(const std::string& fs, const Args&... args)
+      : err{.level = lvlError, .msg = hint_fmt_t(fs, args...)} {}
 
   template <typename... Args>
-  BaseError(const Suggestions& sug, const Args&... args)
-      : err{.level = lvlError, .msg = HintFmt(args...), .suggestions = sug} {}
+  base_error_t(const suggestions_t& sug, const Args&... args)
+      : err{.level = lvlError, .msg = hint_fmt_t(args...), .suggestions = sug} {}
 
-  BaseError(HintFmt hint) : err{.level = lvlError, .msg = hint} {}
+  base_error_t(hint_fmt_t hint) : err{.level = lvlError, .msg = hint} {}
 
-  BaseError(ErrorInfo&& e) : err(std::move(e)) {}
+  base_error_t(error_info_t&& e) : err(std::move(e)) {}
 
-  BaseError(const ErrorInfo& e) : err(e) {}
+  base_error_t(const error_info_t& e) : err(e) {}
 
   /** The error message without "error: " prefixed to it. */
   std::string message() { return err.msg.str(); }
@@ -153,7 +153,7 @@ public:
 
   const std::string& msg() const { return calcWhat(); }
 
-  const ErrorInfo& info() const {
+  const error_info_t& info() const {
     calcWhat();
     return err;
   }
@@ -162,18 +162,18 @@ public:
 
   void atPos(std::shared_ptr<const Pos> pos) { err.pos = pos; }
 
-  void pushTrace(Trace trace) { err.traces.push_front(trace); }
+  void pushTrace(trace_t trace) { err.traces.push_front(trace); }
 
   /**
    * Prepends an item to the error trace, as is usual for extra context.
    *
    * @param pos Nullable source position to put in trace item
-   * @param fs Format string, see `HintFmt`
+   * @param fs Format string, see `hint_fmt_t`
    * @param args... Format string arguments.
    */
   template <typename... Args>
   void addTrace(std::shared_ptr<const Pos>&& pos, std::string_view fs, const Args&... args) {
-    addTrace(std::move(pos), HintFmt(std::string(fs), args...));
+    addTrace(std::move(pos), hint_fmt_t(std::string(fs), args...));
   }
 
   /**
@@ -183,12 +183,12 @@ public:
    * @param hint Formatted error message
    * @param print Optional, whether to always print (used by `addErrorContext`)
    */
-  void addTrace(std::shared_ptr<const Pos>&& pos, HintFmt hint,
-                TracePrint print = TracePrint::Default);
+  void addTrace(std::shared_ptr<const Pos>&& pos, hint_fmt_t hint,
+                trace_print_t print = trace_print_t::Default);
 
   bool hasTrace() const { return !err.traces.empty(); }
 
-  const ErrorInfo& info() { return err; };
+  const error_info_t& info() { return err; };
 };
 
 #define MakeError(newClass, superClass)                                                            \
@@ -197,7 +197,7 @@ public:
     using superClass::superClass;                                                                  \
   }
 
-MakeError(Error, BaseError);
+MakeError(Error, base_error_t);
 MakeError(UsageError, Error);
 MakeError(UnimplementedError, Error);
 
@@ -222,7 +222,7 @@ MakeError(SystemError, Error);
  * support is too WIP to justify the code churn, but if it is finished
  * then a better identifier becomes moe worth it.
  */
-class SysError : public SystemError {
+class sys_error_t : public SystemError {
 public:
   int errNo;
 
@@ -231,9 +231,9 @@ public:
    * will be used to try to add additional information to the message.
    */
   template <typename... Args>
-  SysError(int errNo, const Args&... args) : SystemError(""), errNo(errNo) {
-    auto hf = HintFmt(args...);
-    err.msg = HintFmt("%1%: %2%", Uncolored(hf.str()), strerror(errNo));
+  sys_error_t(int errNo, const Args&... args) : SystemError(""), errNo(errNo) {
+    auto hf = hint_fmt_t(args...);
+    err.msg = hint_fmt_t("%1%: %2%", uncolored_t(hf.str()), strerror(errNo));
   }
 
   /**
@@ -243,7 +243,7 @@ public:
    * calling this constructor!
    */
   template <typename... Args>
-  SysError(const Args&... args) : SysError(errno, args...) {}
+  sys_error_t(const Args&... args) : sys_error_t(errno, args...) {}
 };
 
 #ifdef _WIN32
@@ -257,11 +257,11 @@ class WinError;
  * function on Unix, and `GetLastError()`-based error handling on on
  * Windows.
  */
-using NativeSysError =
+using native_sys_error_t =
 #ifdef _WIN32
     windows::WinError
 #else
-    SysError
+    sys_error_t
 #endif
     ;
 

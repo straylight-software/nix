@@ -8,10 +8,10 @@
 
 namespace nix {
 
-const CanonPath CanonPath::root = CanonPath("/");
+const canon_path_t canon_path_t::root = canon_path_t("/");
 
 static std::string absPathPure(std::string_view path) {
-  return canonPathInner<UnixPathTrait>(path, [](auto&, auto&) {});
+  return canonPathInner<unix_path_trait_t>(path, [](auto&, auto&) {});
 }
 
 static void ensureNoNullBytes(std::string_view s) {
@@ -22,50 +22,50 @@ static void ensureNoNullBytes(std::string_view s) {
   }
 }
 
-CanonPath::CanonPath(std::string_view raw) : path(absPathPure(concatStrings("/", raw))) {
+canon_path_t::canon_path_t(std::string_view raw) : path(absPathPure(concatStrings("/", raw))) {
   ensureNoNullBytes(raw);
 }
 
-CanonPath::CanonPath(const char* raw) : path(absPathPure(concatStrings("/", raw))) {}
+canon_path_t::canon_path_t(const char* raw) : path(absPathPure(concatStrings("/", raw))) {}
 
-CanonPath::CanonPath(std::string_view raw, const CanonPath& root)
+canon_path_t::canon_path_t(std::string_view raw, const canon_path_t& root)
     : path(absPathPure(raw.size() > 0 && raw[0] == '/' ? raw
                                                        : concatStrings(root.abs(), "/", raw))) {
   ensureNoNullBytes(raw);
 }
 
-CanonPath::CanonPath(const std::vector<std::string>& elems) : path("/") {
+canon_path_t::canon_path_t(const std::vector<std::string>& elems) : path("/") {
   for (auto& s : elems)
     push(s);
 }
 
-std::optional<CanonPath> CanonPath::parent() const {
+std::optional<canon_path_t> canon_path_t::parent() const {
   if (isRoot())
     return std::nullopt;
-  return CanonPath(unchecked_t(), path.substr(0, std::max((size_t)1, path.rfind('/'))));
+  return canon_path_t(unchecked_t(), path.substr(0, std::max((size_t)1, path.rfind('/'))));
 }
 
-void CanonPath::pop() {
+void canon_path_t::pop() {
   assert(!isRoot());
   path.resize(std::max((size_t)1, path.rfind('/')));
 }
 
-bool CanonPath::isWithin(const CanonPath& parent) const {
+bool canon_path_t::isWithin(const canon_path_t& parent) const {
   return !(path.size() < parent.path.size() || path.substr(0, parent.path.size()) != parent.path ||
            (parent.path.size() > 1 && path.size() > parent.path.size() &&
             path[parent.path.size()] != '/'));
 }
 
-CanonPath CanonPath::removePrefix(const CanonPath& prefix) const {
+canon_path_t canon_path_t::removePrefix(const canon_path_t& prefix) const {
   assert(isWithin(prefix));
   if (prefix.isRoot())
     return *this;
   if (path.size() == prefix.path.size())
     return root;
-  return CanonPath(unchecked_t(), path.substr(prefix.path.size()));
+  return canon_path_t(unchecked_t(), path.substr(prefix.path.size()));
 }
 
-void CanonPath::extend(const CanonPath& x) {
+void canon_path_t::extend(const canon_path_t& x) {
   if (x.isRoot())
     return;
   if (isRoot())
@@ -74,13 +74,13 @@ void CanonPath::extend(const CanonPath& x) {
     path += x.abs();
 }
 
-CanonPath CanonPath::operator/(const CanonPath& x) const {
+canon_path_t canon_path_t::operator/(const canon_path_t& x) const {
   auto res = *this;
   res.extend(x);
   return res;
 }
 
-void CanonPath::push(std::string_view c) {
+void canon_path_t::push(std::string_view c) {
   assert(c.find('/') == c.npos);
   assert(c != "." && c != "..");
   ensureNoNullBytes(c);
@@ -89,13 +89,13 @@ void CanonPath::push(std::string_view c) {
   path += c;
 }
 
-CanonPath CanonPath::operator/(std::string_view c) const {
+canon_path_t canon_path_t::operator/(std::string_view c) const {
   auto res = *this;
   res.push(c);
   return res;
 }
 
-bool CanonPath::isAllowed(const std::set<CanonPath>& allowed) const {
+bool canon_path_t::isAllowed(const std::set<canon_path_t>& allowed) const {
   /* Check if `this` is an exact match or the parent of an
      allowed path. */
   auto lb = allowed.lower_bound(*this);
@@ -115,12 +115,12 @@ bool CanonPath::isAllowed(const std::set<CanonPath>& allowed) const {
   return false;
 }
 
-std::ostream& operator<<(std::ostream& stream, const CanonPath& path) {
+std::ostream& operator<<(std::ostream& stream, const canon_path_t& path) {
   stream << path.abs();
   return stream;
 }
 
-std::string CanonPath::makeRelative(const CanonPath& path) const {
+std::string canon_path_t::makeRelative(const canon_path_t& path) const {
   auto p1 = begin();
   auto p2 = path.begin();
 

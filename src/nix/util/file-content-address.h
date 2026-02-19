@@ -5,7 +5,7 @@
 
 namespace nix {
 
-struct SourcePath;
+struct source_path_t;
 
 /**
  * An enumeration of the ways we can serialize file system
@@ -17,7 +17,7 @@ struct SourcePath;
  * Note also that there are other content addressing methods that don't
  * correspond to a serialisation method.
  */
-enum struct FileSerialisationMethod : uint8_t {
+enum struct file_serialisation_method_t : uint8_t {
   /**
    * Flat-file. The contents of a single file exactly.
    *
@@ -37,34 +37,34 @@ enum struct FileSerialisationMethod : uint8_t {
 };
 
 /**
- * Parse a `FileSerialisationMethod` by name. Choice of:
+ * Parse a `file_serialisation_method_t` by name. Choice of:
  *
- *  - `flat`: `FileSerialisationMethod::Flat`
- *  - `nar`: `FileSerialisationMethod::NixArchive`
+ *  - `flat`: `file_serialisation_method_t::Flat`
+ *  - `nar`: `file_serialisation_method_t::NixArchive`
  *
  * Opposite of `renderFileSerialisationMethod`.
  */
-FileSerialisationMethod parseFileSerialisationMethod(std::string_view input);
+file_serialisation_method_t parseFileSerialisationMethod(std::string_view input);
 
 /**
- * Render a `FileSerialisationMethod` by name.
+ * Render a `file_serialisation_method_t` by name.
  *
  * Opposite of `parseFileSerialisationMethod`.
  */
-std::string_view renderFileSerialisationMethod(FileSerialisationMethod method);
+std::string_view renderFileSerialisationMethod(file_serialisation_method_t method);
 
 /**
  * Dump a serialization of the given file system object.
  */
-void dumpPath(const SourcePath& path, Sink& sink, FileSerialisationMethod method,
-              PathFilter& filter = defaultPathFilter);
+void dumpPath(const source_path_t& path, Sink& sink, file_serialisation_method_t method,
+              path_filter_t& filter = defaultPathFilter);
 
 /**
  * Restore a serialisation of the given file system object.
  *
- * \todo use an arbitrary `FileSystemObjectSink`.
+ * \todo use an arbitrary `file_system_object_sink_t`.
  */
-void restorePath(const Path& path, Source& source, FileSerialisationMethod method,
+void restorePath(const Path& path, Source& source, file_serialisation_method_t method,
                  bool startFsync = false);
 
 /**
@@ -77,8 +77,8 @@ void restorePath(const Path& path, Source& source, FileSerialisationMethod metho
  * hashString(ha, dumpPath(...))
  * ```
  */
-HashResult hashPath(const SourcePath& path, FileSerialisationMethod method, HashAlgorithm ha,
-                    PathFilter& filter = defaultPathFilter);
+hash_result_t hashPath(const source_path_t& path, file_serialisation_method_t method, hash_algorithm_t ha,
+                    path_filter_t& filter = defaultPathFilter);
 
 /**
  * An enumeration of the ways we can ingest file system
@@ -87,9 +87,9 @@ HashResult hashPath(const SourcePath& path, FileSerialisationMethod method, Hash
  * See `file-system-object/content-address.md` in the manual for a
  * user-facing description of this concept.
  */
-enum struct FileIngestionMethod : uint8_t {
+enum struct file_ingestion_method_t : uint8_t {
   /**
-   * Hash `FileSerialisationMethod::Flat` serialisation.
+   * Hash `file_serialisation_method_t::Flat` serialisation.
    *
    * See `file-system-object/content-address.md#serial-flat` in the
    * manual.
@@ -97,7 +97,7 @@ enum struct FileIngestionMethod : uint8_t {
   Flat,
 
   /**
-   * Hash `FileSerialisationMethod::NixArchive` serialisation.
+   * Hash `file_serialisation_method_t::NixArchive` serialisation.
    *
    * See `file-system-object/content-address.md#serial-flat` in the
    * manual.
@@ -107,7 +107,7 @@ enum struct FileIngestionMethod : uint8_t {
   /**
    * Git hashing.
    *
-   * Part of `ExperimentalFeature::GitHashing`.
+   * Part of `experimental_feature_t::GitHashing`.
    *
    * See `file-system-object/content-address.md#serial-git` in the
    * manual.
@@ -116,22 +116,22 @@ enum struct FileIngestionMethod : uint8_t {
 };
 
 /**
- * Parse a `FileIngestionMethod` by name. Choice of:
+ * Parse a `file_ingestion_method_t` by name. Choice of:
  *
- *  - `flat`: `FileIngestionMethod::Flat`
- *  - `nar`: `FileIngestionMethod::NixArchive`
- *  - `git`: `FileIngestionMethod::Git`
+ *  - `flat`: `file_ingestion_method_t::Flat`
+ *  - `nar`: `file_ingestion_method_t::NixArchive`
+ *  - `git`: `file_ingestion_method_t::Git`
  *
  * Opposite of `renderFileIngestionMethod`.
  */
-FileIngestionMethod parseFileIngestionMethod(std::string_view input);
+file_ingestion_method_t parseFileIngestionMethod(std::string_view input);
 
 /**
- * Render a `FileIngestionMethod` by name.
+ * Render a `file_ingestion_method_t` by name.
  *
  * Opposite of `parseFileIngestionMethod`.
  */
-std::string_view renderFileIngestionMethod(FileIngestionMethod method);
+std::string_view renderFileIngestionMethod(file_ingestion_method_t method);
 
 /**
  * Compute the hash of the given file system object according to the
@@ -139,12 +139,12 @@ std::string_view renderFileIngestionMethod(FileIngestionMethod method);
  * serialisation.
  *
  * Unlike the other `hashPath`, this works on an arbitrary
- * `FileIngestionMethod` instead of `FileSerialisationMethod`, but
+ * `file_ingestion_method_t` instead of `file_serialisation_method_t`, but
  * may not return the size as this is this is not a both simple and
  * useful defined for a merkle format.
  */
-std::pair<Hash, std::optional<uint64_t>> hashPath(const SourcePath& path,
-                                                  FileIngestionMethod method, HashAlgorithm ha,
-                                                  PathFilter& filter = defaultPathFilter);
+std::pair<Hash, std::optional<uint64_t>> hashPath(const source_path_t& path,
+                                                  file_ingestion_method_t method, hash_algorithm_t ha,
+                                                  path_filter_t& filter = defaultPathFilter);
 
 } // namespace nix

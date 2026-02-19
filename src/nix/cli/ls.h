@@ -4,10 +4,10 @@
 
 namespace nix {
 
-struct MixLongListing : virtual Args {
+struct mix_long_listing_t : virtual Args {
   bool longListing = false;
 
-  MixLongListing() {
+  mix_long_listing_t() {
     addFlag({
         .longName = "long",
         .shortName = 'l',

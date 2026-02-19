@@ -2,7 +2,7 @@
 
 namespace nix::flag {
 
-static void hashFormatCompleter(AddCompletions& completions, size_t index,
+static void hashFormatCompleter(add_completions_t& completions, size_t index,
                                 std::string_view prefix) {
   for (auto& format : hashFormats) {
     if (hasPrefix(format, prefix)) {
@@ -11,9 +11,9 @@ static void hashFormatCompleter(AddCompletions& completions, size_t index,
   }
 }
 
-Args::Flag hashFormatWithDefault(std::string&& longName, HashFormat* hf) {
-  assert(*hf == nix::HashFormat::SRI);
-  return Args::Flag{
+Args::flag_t hashFormatWithDefault(std::string&& longName, hash_format_t* hf) {
+  assert(*hf == nix::hash_format_t::SRI);
+  return Args::flag_t{
       .longName = std::move(longName),
       .description = "Hash format (`base16`, `nix32`, `base64`, `sri`). Default: `sri`.",
       .labels = {"hash-format"},
@@ -22,24 +22,24 @@ Args::Flag hashFormatWithDefault(std::string&& longName, HashFormat* hf) {
   };
 }
 
-Args::Flag hashFormatOpt(std::string&& longName, std::optional<HashFormat>* ohf) {
-  return Args::Flag{
+Args::flag_t hashFormatOpt(std::string&& longName, std::optional<hash_format_t>* ohf) {
+  return Args::flag_t{
       .longName = std::move(longName),
       .description = "Hash format (`base16`, `nix32`, `base64`, `sri`).",
       .labels = {"hash-format"},
-      .handler = {[ohf](std::string s) { *ohf = std::optional<HashFormat>{parseHashFormat(s)}; }},
+      .handler = {[ohf](std::string s) { *ohf = std::optional<hash_format_t>{parseHashFormat(s)}; }},
       .completer = hashFormatCompleter,
   };
 }
 
-static void hashAlgoCompleter(AddCompletions& completions, size_t index, std::string_view prefix) {
+static void hashAlgoCompleter(add_completions_t& completions, size_t index, std::string_view prefix) {
   for (auto& algo : hashAlgorithms)
     if (hasPrefix(algo, prefix))
       completions.add(algo);
 }
 
-Args::Flag hashAlgo(std::string&& longName, HashAlgorithm* ha) {
-  return Args::Flag{
+Args::flag_t hashAlgo(std::string&& longName, hash_algorithm_t* ha) {
+  return Args::flag_t{
       .longName = std::move(longName),
       .description = "Hash algorithm (`blake3`, `md5`, `sha1`, `sha256`, or `sha512`).",
       .labels = {"hash-algo"},
@@ -48,19 +48,19 @@ Args::Flag hashAlgo(std::string&& longName, HashAlgorithm* ha) {
   };
 }
 
-Args::Flag hashAlgoOpt(std::string&& longName, std::optional<HashAlgorithm>* oha) {
-  return Args::Flag{
+Args::flag_t hashAlgoOpt(std::string&& longName, std::optional<hash_algorithm_t>* oha) {
+  return Args::flag_t{
       .longName = std::move(longName),
       .description = "Hash algorithm (`blake3`, `md5`, `sha1`, `sha256`, or `sha512`). Can be "
                      "omitted for SRI hashes.",
       .labels = {"hash-algo"},
-      .handler = {[oha](std::string s) { *oha = std::optional<HashAlgorithm>{parseHashAlgo(s)}; }},
+      .handler = {[oha](std::string s) { *oha = std::optional<hash_algorithm_t>{parseHashAlgo(s)}; }},
       .completer = hashAlgoCompleter,
   };
 }
 
-Args::Flag fileIngestionMethod(FileIngestionMethod* method) {
-  return Args::Flag{
+Args::flag_t fileIngestionMethod(file_ingestion_method_t* method) {
+  return Args::flag_t{
       .longName = "mode",
       // FIXME indentation carefully made for context, this is messed up.
       .description = R"(
@@ -82,8 +82,8 @@ Args::Flag fileIngestionMethod(FileIngestionMethod* method) {
   };
 }
 
-Args::Flag contentAddressMethod(ContentAddressMethod* method) {
-  return Args::Flag{
+Args::flag_t contentAddressMethod(ContentAddressMethod* method) {
+  return Args::flag_t{
       .longName = "mode",
       // FIXME indentation carefully made for context, this is messed up.
       .description = R"(

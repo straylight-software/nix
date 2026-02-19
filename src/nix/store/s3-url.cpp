@@ -11,7 +11,7 @@ using namespace std::string_view_literals;
 
 namespace nix {
 
-ParsedS3URL ParsedS3URL::parse(const ParsedURL& parsed) try {
+ParsedS3URL ParsedS3URL::parse(const parsed_url_t& parsed) try {
   if (parsed.scheme != "s3"sv)
     throw BadURL("URI scheme '%s' is not 's3'", parsed.scheme);
 
@@ -21,7 +21,7 @@ ParsedS3URL ParsedS3URL::parse(const ParsedURL& parsed) try {
      https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucketnamingrules.html#general-purpose-bucket-names
      */
   if (!parsed.authority || parsed.authority->host.empty() ||
-      parsed.authority->hostType != ParsedURL::Authority::HostType::Name)
+      parsed.authority->hostType != parsed_url_t::authority_t::host_type_t::Name)
     throw BadURL("URI has a missing or invalid bucket name");
 
   /* TODO: Validate the key against:
@@ -59,7 +59,7 @@ ParsedS3URL ParsedS3URL::parse(const ParsedURL& parsed) try {
         } catch (BadURL&) {
         }
 
-        return ParsedURL::Authority::parse(*endpoint);
+        return parsed_url_t::authority_t::parse(*endpoint);
       }(),
   };
 } catch (BadURL& e) {
@@ -67,14 +67,14 @@ ParsedS3URL ParsedS3URL::parse(const ParsedURL& parsed) try {
   throw;
 }
 
-ParsedURL ParsedS3URL::toHttpsUrl() const {
+parsed_url_t ParsedS3URL::toHttpsUrl() const {
   auto toView = [](const auto& x) { return std::string_view{x}; };
 
   auto regionStr = region.transform(toView).value_or("us-east-1");
   auto schemeStr = scheme.transform(toView).value_or("https");
 
   // Build query parameters (e.g., versionId if present)
-  StringMap queryParams;
+  string_map_t queryParams;
   if (versionId) {
     queryParams["versionId"] = *versionId;
   }
@@ -87,31 +87,31 @@ ParsedURL ParsedS3URL::toHttpsUrl() const {
             std::vector<std::string> path{""};
             path.push_back(bucket);
             path.insert(path.end(), key.begin(), key.end());
-            return ParsedURL{
+            return parsed_url_t{
                 .scheme = std::string{schemeStr},
-                .authority = ParsedURL::Authority{.host = "s3." + regionStr + ".amazonaws.com"},
+                .authority = parsed_url_t::authority_t{.host = "s3." + regionStr + ".amazonaws.com"},
                 .path = std::move(path),
                 .query = std::move(queryParams),
             };
           },
-          [&](const ParsedURL::Authority& auth) {
+          [&](const parsed_url_t::authority_t& auth) {
             // Endpoint is just an authority (hostname/port)
             std::vector<std::string> path{""};
             path.push_back(bucket);
             path.insert(path.end(), key.begin(), key.end());
-            return ParsedURL{
+            return parsed_url_t{
                 .scheme = std::string{schemeStr},
                 .authority = auth,
                 .path = std::move(path),
                 .query = std::move(queryParams),
             };
           },
-          [&](const ParsedURL& endpointUrl) {
+          [&](const parsed_url_t& endpointUrl) {
             // Endpoint is already a ParsedURL (e.g., http://server:9000)
             auto path = endpointUrl.path;
             path.push_back(bucket);
             path.insert(path.end(), key.begin(), key.end());
-            return ParsedURL{
+            return parsed_url_t{
                 .scheme = endpointUrl.scheme,
                 .authority = endpointUrl.authority,
                 .path = std::move(path),

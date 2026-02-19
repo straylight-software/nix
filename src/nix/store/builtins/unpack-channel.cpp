@@ -26,7 +26,7 @@ static void builtinUnpackChannel(const BuiltinBuilderContext& ctx) {
 
   size_t fileCount;
   std::string fileName;
-  auto entries = DirectoryIterator{out};
+  auto entries = directory_iterator_t{out};
   fileName = entries->path().string();
   fileCount = std::distance(entries.begin(), entries.end());
 
@@ -37,7 +37,7 @@ static void builtinUnpackChannel(const BuiltinBuilderContext& ctx) {
   try {
     std::filesystem::rename(fileName, target);
   } catch (std::filesystem::filesystem_error&) {
-    throw SysError("failed to rename %1% to %2%", fileName, target.string());
+    throw sys_error_t("failed to rename %1% to %2%", fileName, target.string());
   }
 }
 

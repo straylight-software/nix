@@ -8,9 +8,9 @@ namespace nix {
 enum struct EvalProfilerMode { disabled, flamegraph };
 
 template <>
-EvalProfilerMode BaseSetting<EvalProfilerMode>::parse(const std::string& str) const;
+EvalProfilerMode base_setting_t<EvalProfilerMode>::parse(const std::string& str) const;
 
 template <>
-std::string BaseSetting<EvalProfilerMode>::to_string() const;
+std::string base_setting_t<EvalProfilerMode>::to_string() const;
 
 } // namespace nix

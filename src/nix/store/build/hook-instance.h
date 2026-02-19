@@ -19,17 +19,17 @@ struct HookInstance {
   /**
    * Pipes for talking to the build hook.
    */
-  Pipe toHook;
+  pipe_t toHook;
 
   /**
-   * Pipe for the hook's standard output/error.
+   * pipe_t for the hook's standard output/error.
    */
-  Pipe fromHook;
+  pipe_t fromHook;
 
   /**
-   * Pipe for the builder's standard output/error.
+   * pipe_t for the builder's standard output/error.
    */
-  Pipe builderOut;
+  pipe_t builderOut;
 
   /**
    * The process ID of the hook.
@@ -45,9 +45,9 @@ struct HookInstance {
    */
   std::string machineName;
 
-  FdSink sink;
+  fd_sink_t sink;
 
-  std::map<ActivityId, Activity> activities;
+  std::map<activity_id_t, activity_t> activities;
 
   HookInstance();
 

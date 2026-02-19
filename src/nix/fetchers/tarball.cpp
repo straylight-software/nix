@@ -12,8 +12,8 @@
 
 namespace nix::fetchers {
 
-DownloadFileResult downloadFile(Store& store, const Settings& settings, const std::string& url,
-                                const std::string& name, const Headers& headers) {
+DownloadFileResult downloadFile(Store& store, const settings_t& settings, const std::string& url,
+                                const std::string& name, const headers_t& headers) {
   // FIXME: check store
 
   Cache::Key key{"file",
@@ -36,7 +36,7 @@ DownloadFileResult downloadFile(Store& store, const Settings& settings, const st
   if (cached && !cached->expired)
     return useCached();
 
-  FileTransferRequest request(VerbatimURL{url});
+  FileTransferRequest request(verbatim_url_t{url});
   request.headers = headers;
   if (cached)
     request.expectedETag = getStrAttr(cached->value, "etag");
@@ -64,18 +64,18 @@ DownloadFileResult downloadFile(Store& store, const Settings& settings, const st
     assert(cached);
     storePath = std::move(cached->storePath);
   } else {
-    StringSink sink;
+    string_sink_t sink;
     dumpString(res.data, sink);
-    auto hash = hashString(HashAlgorithm::SHA256, res.data);
+    auto hash = hashString(hash_algorithm_t::SHA256, res.data);
     auto info = ValidPathInfo::makeFromCA(store, name,
                                           FixedOutputInfo{
-                                              .method = FileIngestionMethod::Flat,
+                                              .method = file_ingestion_method_t::Flat,
                                               .hash = hash,
                                               .references = {},
                                           },
-                                          hashString(HashAlgorithm::SHA256, sink.s));
+                                          hashString(hash_algorithm_t::SHA256, sink.s));
     info.narSize = sink.s.size();
-    auto source = StringSource{sink.s};
+    auto source = string_source_t{sink.s};
     store.addToStore(info, source, NoRepair, NoCheckSigs);
     storePath = std::move(info.path);
   }
@@ -96,10 +96,10 @@ DownloadFileResult downloadFile(Store& store, const Settings& settings, const st
   };
 }
 
-static DownloadTarballResult downloadTarball_(const Settings& settings, const std::string& urlS,
-                                              const Headers& headers,
+static DownloadTarballResult downloadTarball_(const settings_t& settings, const std::string& urlS,
+                                              const headers_t& headers,
                                               const std::string& displayPrefix) {
-  ParsedURL url = parseURL(urlS);
+  parsed_url_t url = parseURL(urlS);
 
   // Some friendly error messages for common mistakes.
   // Namely lets catch when the url is a local file path, but
@@ -141,7 +141,7 @@ static DownloadTarballResult downloadTarball_(const Settings& settings, const st
        `tarballTtl`, so no need to check the server. */
     return attrsToResult(cached->value);
 
-  auto _res = std::make_shared<Sync<FileTransferResult>>();
+  auto _res = std::make_shared<sync_t<FileTransferResult>>();
 
   auto source = sinkToSource([&](Sink& sink) {
     FileTransferRequest req(url);
@@ -152,10 +152,10 @@ static DownloadTarballResult downloadTarball_(const Settings& settings, const st
 
   // TODO: fall back to cached value if download fails.
 
-  auto act = std::make_unique<Activity>(*logger, lvlInfo, actUnknown,
+  auto act = std::make_unique<activity_t>(*logger, lvlInfo, actUnknown,
                                         fmt("unpacking '%s' into the Git cache", url));
 
-  AutoDelete cleanupTemp;
+  auto_delete_t cleanupTemp;
 
   /* Note: if the download is cached, `importTarball()` will receive
      no data, which causes it to import an empty tarball. */
@@ -169,12 +169,12 @@ static DownloadTarballResult downloadTarball_(const Settings& settings, const st
                          cleanupTemp.reset(path);
                          debug("downloading '%s' into '%s'...", url, path);
                          {
-                           FdSink sink(fdTemp.get());
+                           fd_sink_t sink(fdTemp.get());
                            source->drainInto(sink);
                          }
-                         TarArchive{path};
+                         tar_archive_t{path};
                        })
-                     : TarArchive{*source};
+                     : tar_archive_t{*source};
   auto tarballCache = settings.getTarballCache();
   auto parseSink = tarballCache->getFileSystemObjectSink();
   auto lastModified = unpackTarfileToSink(archive, *parseSink);
@@ -211,7 +211,7 @@ static DownloadTarballResult downloadTarball_(const Settings& settings, const st
   return attrsToResult(infoAttrs);
 }
 
-ref<SourceAccessor> downloadTarball(Store& store, const Settings& settings,
+ref<SourceAccessor> downloadTarball(Store& store, const settings_t& settings,
                                     const std::string& url) {
   /* Go through Input::getAccessor() to ensure that the resulting
      accessor has a fingerprint. */
@@ -225,10 +225,10 @@ ref<SourceAccessor> downloadTarball(Store& store, const Settings& settings,
 }
 
 // An input scheme corresponding to a curl-downloadable resource.
-struct CurlInputScheme : InputScheme {
-  const StringSet transportUrlSchemes = {"file", "http", "https"};
+struct curl_input_scheme_t : InputScheme {
+  const string_set_t transportUrlSchemes = {"file", "http", "https"};
 
-  bool hasTarballExtension(const ParsedURL& url) const {
+  bool hasTarballExtension(const parsed_url_t& url) const {
     if (url.path.empty())
       return false;
     const auto& path = url.path.back();
@@ -237,11 +237,11 @@ struct CurlInputScheme : InputScheme {
            hasSuffix(path, ".tar.bz2") || hasSuffix(path, ".tar.zst");
   }
 
-  virtual bool isValidURL(const ParsedURL& url, bool requireTree) const = 0;
+  virtual bool isValidURL(const parsed_url_t& url, bool requireTree) const = 0;
 
-  static const StringSet specialParams;
+  static const string_set_t specialParams;
 
-  std::optional<Input> inputFromURL(const Settings& settings, const ParsedURL& _url,
+  std::optional<Input> inputFromURL(const settings_t& settings, const parsed_url_t& _url,
                                     bool requireTree) const override {
     if (!isValidURL(_url, requireTree))
       return std::nullopt;
@@ -357,7 +357,7 @@ struct CurlInputScheme : InputScheme {
     return allowedAttrsImpl();
   }
 
-  std::optional<Input> inputFromAttrs(const Settings& settings, const Attrs& attrs) const override {
+  std::optional<Input> inputFromAttrs(const settings_t& settings, const Attrs& attrs) const override {
     Input input{};
     input.attrs = attrs;
 
@@ -365,21 +365,21 @@ struct CurlInputScheme : InputScheme {
     return input;
   }
 
-  ParsedURL toURL(const Input& input, bool abbreviate) const override {
+  parsed_url_t toURL(const Input& input, bool abbreviate) const override {
     auto url = parseURL(getStrAttr(input.attrs, "url"));
     // NAR hashes are preferred over file hashes since tar/zip
     // files don't have a canonical representation.
     if (auto narHash = input.getNarHash())
-      url.query.insert_or_assign("narHash", narHash->to_string(HashFormat::SRI, true));
+      url.query.insert_or_assign("narHash", narHash->to_string(hash_format_t::SRI, true));
     return url;
   }
 
-  bool isLocked(const Settings& settings, const Input& input) const override {
+  bool isLocked(const settings_t& settings, const Input& input) const override {
     return (bool)input.getNarHash();
   }
 };
 
-struct FileInputScheme : CurlInputScheme {
+struct file_input_scheme_t : curl_input_scheme_t {
   std::string_view schemeName() const override { return "file"; }
 
   std::string schemeDescription() const override {
@@ -389,25 +389,25 @@ struct FileInputScheme : CurlInputScheme {
         )");
   }
 
-  bool isValidURL(const ParsedURL& url, bool requireTree) const override {
+  bool isValidURL(const parsed_url_t& url, bool requireTree) const override {
     auto parsedUrlScheme = parseUrlScheme(url.scheme);
     return transportUrlSchemes.count(std::string(parsedUrlScheme.transport)) &&
            (parsedUrlScheme.application ? parsedUrlScheme.application.value() == schemeName()
                                         : (!requireTree && !hasTarballExtension(url)));
   }
 
-  std::pair<ref<SourceAccessor>, Input> getAccessor(const Settings& settings, Store& store,
+  std::pair<ref<SourceAccessor>, Input> getAccessor(const settings_t& settings, Store& store,
                                                     const Input& _input) const override {
     auto input(_input);
 
-    /* Unlike TarballInputScheme, this stores downloaded files in
+    /* Unlike tarball_input_scheme_t, this stores downloaded files in
        the Nix store directly, since there is little deduplication
        benefit in using the Git cache for single big files like
        tarballs. */
     auto file = downloadFile(store, settings, getStrAttr(input.attrs, "url"), input.getName());
 
     auto narHash = store.queryPathInfo(file.storePath)->narHash;
-    input.attrs.insert_or_assign("narHash", narHash.to_string(HashFormat::SRI, true));
+    input.attrs.insert_or_assign("narHash", narHash.to_string(hash_format_t::SRI, true));
 
     auto accessor = ref{store.getFSAccessor(file.storePath)};
 
@@ -417,7 +417,7 @@ struct FileInputScheme : CurlInputScheme {
   }
 };
 
-struct TarballInputScheme : CurlInputScheme {
+struct tarball_input_scheme_t : curl_input_scheme_t {
   std::string_view schemeName() const override { return "tarball"; }
 
   std::string schemeDescription() const override {
@@ -429,7 +429,7 @@ struct TarballInputScheme : CurlInputScheme {
 
   const std::map<std::string, AttributeInfo>& allowedAttrs() const override {
     static const std::map<std::string, AttributeInfo> attrs = [] {
-      auto attrs = CurlInputScheme::allowedAttrsImpl();
+      auto attrs = curl_input_scheme_t::allowedAttrsImpl();
       // Override the "url" attribute to add tarball-specific example
       attrs["url"].doc = R"(
               > **Example**
@@ -446,7 +446,7 @@ struct TarballInputScheme : CurlInputScheme {
     return attrs;
   }
 
-  bool isValidURL(const ParsedURL& url, bool requireTree) const override {
+  bool isValidURL(const parsed_url_t& url, bool requireTree) const override {
     auto parsedUrlScheme = parseUrlScheme(url.scheme);
 
     return transportUrlSchemes.count(std::string(parsedUrlScheme.transport)) &&
@@ -454,7 +454,7 @@ struct TarballInputScheme : CurlInputScheme {
                                         : (requireTree || hasTarballExtension(url)));
   }
 
-  std::pair<ref<SourceAccessor>, Input> getAccessor(const Settings& settings, Store& store,
+  std::pair<ref<SourceAccessor>, Input> getAccessor(const settings_t& settings, Store& store,
                                                     const Input& _input) const override {
     auto input(_input);
 
@@ -475,14 +475,14 @@ struct TarballInputScheme : CurlInputScheme {
 
     input.attrs.insert_or_assign("narHash", settings.getTarballCache()
                                                 ->treeHashToNarHash(settings, result.treeHash)
-                                                .to_string(HashFormat::SRI, true));
+                                                .to_string(hash_format_t::SRI, true));
 
     return {result.accessor, input};
   }
 
   std::optional<std::string> getFingerprint(Store& store, const Input& input) const override {
     if (auto narHash = input.getNarHash())
-      return "tarball:" + narHash->to_string(HashFormat::SRI, true);
+      return "tarball:" + narHash->to_string(hash_format_t::SRI, true);
     else if (auto rev = input.getRev())
       return "tarball:" + rev->gitRev();
     else
@@ -491,8 +491,8 @@ struct TarballInputScheme : CurlInputScheme {
 };
 
 static auto rTarballInputScheme =
-    OnStartup([] { registerInputScheme(std::make_unique<TarballInputScheme>()); });
+    on_startup_t([] { registerInputScheme(std::make_unique<tarball_input_scheme_t>()); });
 static auto rFileInputScheme =
-    OnStartup([] { registerInputScheme(std::make_unique<FileInputScheme>()); });
+    on_startup_t([] { registerInputScheme(std::make_unique<file_input_scheme_t>()); });
 
 } // namespace nix::fetchers

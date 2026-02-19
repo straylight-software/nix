@@ -25,7 +25,7 @@ class EvalBaseError : public Error {
 public:
   EvalState& state;
 
-  EvalBaseError(EvalState& state, ErrorInfo&& errorInfo) : Error(errorInfo), state(state) {}
+  EvalBaseError(EvalState& state, error_info_t&& errorInfo) : Error(errorInfo), state(state) {}
 
   template <typename... Args>
   explicit EvalBaseError(EvalState& state, const std::string& formatString,
@@ -76,27 +76,27 @@ public:
 
   [[nodiscard, gnu::noinline]] EvalErrorBuilder<T>& withExitStatus(unsigned int exitStatus);
 
-  [[nodiscard, gnu::noinline]] EvalErrorBuilder<T>& atPos(PosIdx pos);
+  [[nodiscard, gnu::noinline]] EvalErrorBuilder<T>& atPos(pos_idx_t pos);
 
-  [[nodiscard, gnu::noinline]] EvalErrorBuilder<T>& atPos(Value& value, PosIdx fallback = noPos);
+  [[nodiscard, gnu::noinline]] EvalErrorBuilder<T>& atPos(Value& value, pos_idx_t fallback = noPos);
 
-  [[nodiscard, gnu::noinline]] EvalErrorBuilder<T>& withTrace(PosIdx pos,
+  [[nodiscard, gnu::noinline]] EvalErrorBuilder<T>& withTrace(pos_idx_t pos,
                                                               const std::string_view text);
 
-  [[nodiscard, gnu::noinline]] EvalErrorBuilder<T>& withFrameTrace(PosIdx pos,
+  [[nodiscard, gnu::noinline]] EvalErrorBuilder<T>& withFrameTrace(pos_idx_t pos,
                                                                    const std::string_view text);
 
-  [[nodiscard, gnu::noinline]] EvalErrorBuilder<T>& withSuggestions(Suggestions& s);
+  [[nodiscard, gnu::noinline]] EvalErrorBuilder<T>& withSuggestions(suggestions_t& s);
 
   [[nodiscard, gnu::noinline]] EvalErrorBuilder<T>& withFrame(const Env& e, const Expr& ex);
 
-  [[nodiscard, gnu::noinline]] EvalErrorBuilder<T>& addTrace(PosIdx pos, HintFmt hint);
+  [[nodiscard, gnu::noinline]] EvalErrorBuilder<T>& addTrace(pos_idx_t pos, hint_fmt_t hint);
 
   [[nodiscard, gnu::noinline]] EvalErrorBuilder<T>& setIsFromExpr();
 
   template <typename... Args>
   [[nodiscard, gnu::noinline]] EvalErrorBuilder<T>&
-  addTrace(PosIdx pos, std::string_view formatString, const Args&... formatArgs);
+  addTrace(pos_idx_t pos, std::string_view formatString, const Args&... formatArgs);
 
   /**
    * Delete the `EvalErrorBuilder` and throw the underlying exception.

@@ -95,11 +95,11 @@ inline void checkInterrupt() {
  * the signal handler thread receives SIGINT. That is, this allows
  * SIGINT to be multiplexed to multiple threads.
  */
-struct ReceiveInterrupts {
+struct receive_interrupts_t {
   pthread_t target;
-  std::unique_ptr<InterruptCallback> callback;
+  std::unique_ptr<interrupt_callback_t> callback;
 
-  ReceiveInterrupts()
+  receive_interrupts_t()
       : target(pthread_self()),
         callback(createInterruptCallback([&]() { pthread_kill(target, SIGUSR1); })) {}
 };

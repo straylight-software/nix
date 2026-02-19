@@ -83,19 +83,19 @@ inline std::string fmt(const std::string& fs, const Args&... args) {
 /**
  * Values wrapped in this struct are printed in magenta.
  *
- * By default, arguments to `HintFmt` are printed in magenta. To avoid this,
- * either wrap the argument in `Uncolored` or add a specialization of
- * `HintFmt::operator%`.
+ * By default, arguments to `hint_fmt_t` are printed in magenta. To avoid this,
+ * either wrap the argument in `uncolored_t` or add a specialization of
+ * `hint_fmt_t::operator%`.
  */
 template <class T>
-struct Magenta {
-  Magenta(const T& s) : value(s) {}
+struct magenta_t {
+  magenta_t(const T& s) : value(s) {}
 
   const T& value;
 };
 
 template <class T>
-std::ostream& operator<<(std::ostream& out, const Magenta<T>& y) {
+std::ostream& operator<<(std::ostream& out, const magenta_t<T>& y) {
   return out << ANSI_WARNING << y.value << ANSI_NORMAL;
 }
 
@@ -104,17 +104,17 @@ std::ostream& operator<<(std::ostream& out, const Magenta<T>& y) {
  *
  * Specifically, the color is reset to normal before printing the value.
  *
- * By default, arguments to `HintFmt` are printed in magenta (see `Magenta`).
+ * By default, arguments to `hint_fmt_t` are printed in magenta (see `magenta_t`).
  */
 template <class T>
-struct Uncolored {
-  Uncolored(const T& s) : value(s) {}
+struct uncolored_t {
+  uncolored_t(const T& s) : value(s) {}
 
   const T& value;
 };
 
 template <class T>
-std::ostream& operator<<(std::ostream& out, const Uncolored<T>& y) {
+std::ostream& operator<<(std::ostream& out, const uncolored_t<T>& y) {
   return out << ANSI_NORMAL << y.value;
 }
 
@@ -122,7 +122,7 @@ std::ostream& operator<<(std::ostream& out, const Uncolored<T>& y) {
  * A wrapper around `boost::format` which colors interpolated arguments in
  * magenta by default.
  */
-class HintFmt {
+class hint_fmt_t {
 private:
   boost::format fmt;
 
@@ -131,44 +131,44 @@ public:
    * Format the given string literally, without interpolating format
    * placeholders.
    */
-  HintFmt(const std::string& literal) : HintFmt("%s", Uncolored(literal)) {}
+  hint_fmt_t(const std::string& literal) : hint_fmt_t("%s", uncolored_t(literal)) {}
 
-  static HintFmt fromFormatString(const std::string& format) {
-    return HintFmt(boost::format(format));
+  static hint_fmt_t fromFormatString(const std::string& format) {
+    return hint_fmt_t(boost::format(format));
   }
 
   /**
    * Interpolate the given arguments into the format string.
    */
   template <typename... Args>
-  HintFmt(const std::string& format, const Args&... args)
-      : HintFmt(boost::format(format), args...) {}
+  hint_fmt_t(const std::string& format, const Args&... args)
+      : hint_fmt_t(boost::format(format), args...) {}
 
-  HintFmt(const HintFmt& hf) : fmt(hf.fmt) {}
+  hint_fmt_t(const hint_fmt_t& hf) : fmt(hf.fmt) {}
 
   template <typename... Args>
-  HintFmt(boost::format&& fmt, const Args&... args) : fmt(std::move(fmt)) {
+  hint_fmt_t(boost::format&& fmt, const Args&... args) : fmt(std::move(fmt)) {
     setExceptions(fmt);
     formatHelper(*this, args...);
   }
 
   template <class T>
-  HintFmt& operator%(const T& value) {
-    fmt % Magenta(value);
+  hint_fmt_t& operator%(const T& value) {
+    fmt % magenta_t(value);
     return *this;
   }
 
   template <class T>
-  HintFmt& operator%(const Uncolored<T>& value) {
+  hint_fmt_t& operator%(const uncolored_t<T>& value) {
     fmt % value.value;
     return *this;
   }
 
-  HintFmt& operator=(HintFmt const& rhs) = default;
+  hint_fmt_t& operator=(hint_fmt_t const& rhs) = default;
 
   std::string str() const { return fmt.str(); }
 };
 
-std::ostream& operator<<(std::ostream& os, const HintFmt& hf);
+std::ostream& operator<<(std::ostream& os, const hint_fmt_t& hf);
 
 } // namespace nix

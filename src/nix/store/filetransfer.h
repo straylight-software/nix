@@ -19,12 +19,12 @@
 namespace nix {
 
 struct FileTransferSettings : Config {
-  Setting<bool> enableHttp2{this, true, "http2", "Whether to enable HTTP/2 support."};
+  setting_t<bool> enableHttp2{this, true, "http2", "Whether to enable HTTP/2 support."};
 
-  Setting<std::string> userAgentSuffix{this, "", "user-agent-suffix",
+  setting_t<std::string> userAgentSuffix{this, "", "user-agent-suffix",
                                        "String appended to the user agent in HTTP requests."};
 
-  Setting<size_t> httpConnections{this,
+  setting_t<size_t> httpConnections{this,
                                   25,
                                   "http-connections",
                                   R"(
@@ -35,32 +35,32 @@ struct FileTransferSettings : Config {
                                   {"binary-caches-parallel-connections"}};
 
   /* Do not set this too low. On glibc, getaddrinfo() contains fallback code
-     paths that deal with ill-behaved DNS servers. Setting this too low
+     paths that deal with ill-behaved DNS servers. setting_t this too low
      prevents some fallbacks from occurring.
 
      See description of options timeout, single-request, single-request-reopen
      in resolv.conf(5). Also see https://github.com/NixOS/nix/pull/13985 for
      details on the interaction between getaddrinfo(3) behavior and libcurl
      CURLOPT_CONNECTTIMEOUT. */
-  Setting<unsigned long> connectTimeout{this, 15, "connect-timeout",
+  setting_t<unsigned long> connectTimeout{this, 15, "connect-timeout",
                                         R"(
           The timeout (in seconds) for establishing connections in the
           binary cache substituter. It corresponds to `curl`’s
           `--connect-timeout` option. A value of 0 means no limit.
         )"};
 
-  Setting<unsigned long> stalledDownloadTimeout{this, 300, "stalled-download-timeout",
+  setting_t<unsigned long> stalledDownloadTimeout{this, 300, "stalled-download-timeout",
                                                 R"(
           The timeout (in seconds) for receiving data from servers
           during download. Nix cancels idle downloads after this
           timeout's duration.
         )"};
 
-  Setting<unsigned int> tries{
+  setting_t<unsigned int> tries{
       this, 5, "download-attempts",
       "The number of times Nix attempts to download a file before giving up."};
 
-  Setting<size_t> downloadBufferSize{this, 1 * 1024 * 1024, "download-buffer-size",
+  setting_t<size_t> downloadBufferSize{this, 1 * 1024 * 1024, "download-buffer-size",
                                      R"(
           The size of Nix's internal download buffer in bytes during `curl` transfers. If data is
           not processed quickly enough to exceed the size of this buffer, downloads may stall.
@@ -99,23 +99,23 @@ enum class PauseTransfer : bool {
 };
 
 struct FileTransferRequest {
-  VerbatimURL uri;
-  Headers headers;
+  verbatim_url_t uri;
+  headers_t headers;
   std::string expectedETag;
   HttpMethod method = HttpMethod::Get;
   size_t tries = fileTransferSettings.tries;
   unsigned int baseRetryTimeMs = RETRY_TIME_MS_DEFAULT;
-  ActivityId parentAct;
+  activity_id_t parentAct;
   bool decompress = true;
 
   struct UploadData {
-    UploadData(StringSource& s) : sizeHint(s.s.length()), source(&s) {}
+    UploadData(string_source_t& s) : sizeHint(s.s.length()), source(&s) {}
 
-    UploadData(std::size_t sizeHint, RestartableSource& source)
+    UploadData(std::size_t sizeHint, restartable_source_t& source)
         : sizeHint(sizeHint), source(&source) {}
 
     std::size_t sizeHint = 0;
-    RestartableSource* source = nullptr;
+    restartable_source_t* source = nullptr;
   };
 
   std::optional<UploadData> data;
@@ -141,7 +141,7 @@ struct FileTransferRequest {
   std::optional<std::string> preResolvedAwsSessionToken;
 #endif
 
-  FileTransferRequest(VerbatimURL uri) : uri(std::move(uri)), parentAct(getCurActivity()) {}
+  FileTransferRequest(verbatim_url_t uri) : uri(std::move(uri)), parentAct(getCurActivity()) {}
 
   /**
    * Returns the method description for logging purposes.
@@ -200,7 +200,7 @@ struct FileTransferResult {
   /**
    * All URLs visited in the redirect chain.
    *
-   * @note Intentionally strings and not `ParsedURL`s so we faithfully
+   * @note Intentionally strings and not `parsed_url_t`s so we faithfully
    * return what cURL gave us.
    */
   std::vector<std::string> urls;

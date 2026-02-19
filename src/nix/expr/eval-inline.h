@@ -95,7 +95,7 @@ extern thread_local uint32_t myEvalThreadId;
 
 template <std::size_t ptrSize>
 void ValueStorage<ptrSize, std::enable_if_t<detail::useBitPackedValueStorage<ptrSize>>>::force(
-    EvalState& state, PosIdx pos) {
+    EvalState& state, pos_idx_t pos) {
   auto p0_ = p0.load(std::memory_order_acquire);
 
   auto pd = static_cast<PrimaryDiscriminator>(p0_ & discriminatorMask);
@@ -147,14 +147,14 @@ done:
 }
 
 [[gnu::always_inline]]
-inline void EvalState::forceAttrs(Value& v, const PosIdx pos, std::string_view errorCtx) {
+inline void EvalState::forceAttrs(Value& v, const pos_idx_t pos, std::string_view errorCtx) {
   forceAttrs(v, [&]() { return pos; }, errorCtx);
 }
 
 template <typename Callable>
 [[gnu::always_inline]]
 inline void EvalState::forceAttrs(Value& v, Callable getPos, std::string_view errorCtx) {
-  PosIdx pos = getPos();
+  pos_idx_t pos = getPos();
   forceValue(v, pos);
   if (v.type() != nAttrs) {
     error<TypeError>("expected a set but found %1%: %2%", showType(v),
@@ -165,7 +165,7 @@ inline void EvalState::forceAttrs(Value& v, Callable getPos, std::string_view er
 }
 
 [[gnu::always_inline]]
-inline void EvalState::forceList(Value& v, const PosIdx pos, std::string_view errorCtx) {
+inline void EvalState::forceList(Value& v, const pos_idx_t pos, std::string_view errorCtx) {
   forceValue(v, pos);
   if (!v.isList()) {
     error<TypeError>("expected a list but found %1%: %2%", showType(v),
@@ -176,7 +176,7 @@ inline void EvalState::forceList(Value& v, const PosIdx pos, std::string_view er
 }
 
 [[gnu::always_inline]]
-inline CallDepth EvalState::addCallDepth(const PosIdx pos) {
+inline CallDepth EvalState::addCallDepth(const pos_idx_t pos) {
   if (callDepth > settings.maxCallDepth)
     error<EvalBaseError>("stack overflow; max-call-depth exceeded").atPos(pos).debugThrow();
 

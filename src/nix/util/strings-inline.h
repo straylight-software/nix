@@ -4,15 +4,15 @@
 
 namespace nix {
 
-template <class C, class CharT>
-C basicTokenizeString(std::basic_string_view<CharT> s, std::basic_string_view<CharT> separators) {
+template <class C, class char_t>
+C basicTokenizeString(std::basic_string_view<char_t> s, std::basic_string_view<char_t> separators) {
   C result;
   auto pos = s.find_first_not_of(separators, 0);
   while (pos != s.npos) {
     auto end = s.find_first_of(separators, pos + 1);
     if (end == s.npos)
       end = s.size();
-    result.insert(result.end(), std::basic_string<CharT>(s, pos, end - pos));
+    result.insert(result.end(), std::basic_string<char_t>(s, pos, end - pos));
     pos = s.find_first_not_of(separators, end);
   }
   return result;
@@ -23,9 +23,9 @@ C tokenizeString(std::string_view s, std::string_view separators) {
   return basicTokenizeString<C, char>(s, separators);
 }
 
-template <class C, class CharT>
-void basicSplitStringInto(C& accum, std::basic_string_view<CharT> s,
-                          std::basic_string_view<CharT> separators) {
+template <class C, class char_t>
+void basicSplitStringInto(C& accum, std::basic_string_view<char_t> s,
+                          std::basic_string_view<char_t> separators) {
   size_t pos = 0;
   while (pos <= s.size()) {
     auto end = s.find_first_of(separators, pos);
@@ -41,8 +41,8 @@ void splitStringInto(C& accum, std::string_view s, std::string_view separators) 
   basicSplitStringInto<C, char>(accum, s, separators);
 }
 
-template <class C, class CharT>
-C basicSplitString(std::basic_string_view<CharT> s, std::basic_string_view<CharT> separators) {
+template <class C, class char_t>
+C basicSplitString(std::basic_string_view<char_t> s, std::basic_string_view<char_t> separators) {
   C result;
   basicSplitStringInto(result, s, separators);
   return result;
@@ -53,8 +53,8 @@ C splitString(std::string_view s, std::string_view separators) {
   return basicSplitString<C, char>(s, separators);
 }
 
-template <class CharT, class C>
-std::basic_string<CharT> basicConcatStringsSep(const std::basic_string_view<CharT> sep,
+template <class char_t, class C>
+std::basic_string<char_t> basicConcatStringsSep(const std::basic_string_view<char_t> sep,
                                                const C& ss) {
   size_t size = 0;
   bool tail = false;
@@ -62,10 +62,10 @@ std::basic_string<CharT> basicConcatStringsSep(const std::basic_string_view<Char
   for (const auto& s : ss) {
     if (tail)
       size += sep.size();
-    size += std::basic_string_view<CharT>{s}.size();
+    size += std::basic_string_view<char_t>{s}.size();
     tail = true;
   }
-  std::basic_string<CharT> s;
+  std::basic_string<char_t> s;
   s.reserve(size);
   tail = false;
   for (auto& i : ss) {

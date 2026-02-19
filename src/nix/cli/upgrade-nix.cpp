@@ -13,11 +13,11 @@
 
 using namespace nix;
 
-struct CmdUpgradeNix : MixDryRun, StoreCommand {
+struct cmd_upgrade_nix_t : MixDryRun, StoreCommand {
   /**
    * This command is stable before the others
    */
-  std::optional<ExperimentalFeature> experimentalFeature() override { return std::nullopt; }
+  std::optional<experimental_feature_t> experimentalFeature() override { return std::nullopt; }
 
   std::string description() override { return "deprecated in favor of determinate-nixd upgrade"; }
 
@@ -27,7 +27,7 @@ struct CmdUpgradeNix : MixDryRun, StoreCommand {
         ;
   }
 
-  Category category() override { return catNixInstallation; }
+  category_t category() override { return catNixInstallation; }
 
   void run(ref<Store> store) override {
     throw Error("The upgrade-nix command isn't available in Determinate Nix; use %s instead",
@@ -35,4 +35,4 @@ struct CmdUpgradeNix : MixDryRun, StoreCommand {
   }
 };
 
-static auto rCmdUpgradeNix = registerCommand<CmdUpgradeNix>("upgrade-nix");
+static auto rCmdUpgradeNix = registerCommand<cmd_upgrade_nix_t>("upgrade-nix");

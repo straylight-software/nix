@@ -3,13 +3,13 @@
 
 #ifndef NIX_WITH_WASI
 // Stub class when WASI is disabled
-struct WasiDerivationBuilder : nix::DerivationBuilderImpl
+struct wasi_derivation_builder_t : nix::derivation_builder_impl_t
 {
-    WasiDerivationBuilder(
+    wasi_derivation_builder_t(
         nix::LocalStore & store,
         std::unique_ptr<nix::DerivationBuilderCallbacks> miscMethods,
         nix::DerivationBuilderParams params)
-        : nix::DerivationBuilderImpl(store, std::move(miscMethods), std::move(params))
+        : nix::derivation_builder_impl_t(store, std::move(miscMethods), std::move(params))
     {
         throw nix::Error("WASI builds are not supported in this build of Nix (compiled without wasmtime)");
     }

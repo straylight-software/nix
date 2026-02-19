@@ -3,10 +3,10 @@
 
 using namespace nix;
 
-struct CmdPathFromHashPart : StoreCommand {
+struct cmd_path_from_hash_part_t : StoreCommand {
   std::string hashPart;
 
-  CmdPathFromHashPart() {
+  cmd_path_from_hash_part_t() {
     expectArgs({
         .label = "hash-part",
         .handler = {&hashPart},
@@ -30,4 +30,4 @@ struct CmdPathFromHashPart : StoreCommand {
 };
 
 static auto rCmdPathFromHashPart =
-    registerCommand2<CmdPathFromHashPart>({"store", "path-from-hash-part"});
+    registerCommand2<cmd_path_from_hash_part_t>({"store", "path-from-hash-part"});

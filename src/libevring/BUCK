@@ -38,9 +38,10 @@ cxx_library(
         "-isystem/nix/store/qqjsw1fzand71ajx326r84zgi485mqb8-liburing-2.11-dev/include",
     ],
 
-    linker_flags = [
+    exported_linker_flags = [
         "-L/nix/store/na5bgfmhm6ci0y3v521kcicvkpzbvdyn-liburing-2.11/lib",
         "-luring",
+        "-Wl,-rpath,/nix/store/na5bgfmhm6ci0y3v521kcicvkpzbvdyn-liburing-2.11/lib",
     ],
 
     visibility = ["PUBLIC"],

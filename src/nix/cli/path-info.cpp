@@ -99,14 +99,14 @@ static json pathInfoToJSON(Store& store, const StorePathSet& storePaths, bool sh
   }
 }
 
-struct CmdPathInfo : StorePathsCommand, MixJSON {
+struct cmd_path_info_t : StorePathsCommand, MixJSON {
   bool showSize = false;
   bool showClosureSize = false;
   bool humanReadable = false;
   bool showSigs = false;
   std::optional<PathInfoJsonFormat> jsonFormat;
 
-  CmdPathInfo() {
+  cmd_path_info_t() {
     addFlag({
         .longName = "size",
         .shortName = 's',
@@ -156,7 +156,7 @@ struct CmdPathInfo : StorePathsCommand, MixJSON {
         ;
   }
 
-  Category category() override { return catSecondary; }
+  category_t category() override { return catSecondary; }
 
   void printSize(std::ostream& str, uint64_t value) {
     if (humanReadable)
@@ -208,7 +208,7 @@ struct CmdPathInfo : StorePathsCommand, MixJSON {
 
         if (showSigs) {
           str << '\t';
-          Strings ss;
+          strings_t ss;
           if (info->ultimate)
             ss.push_back("ultimate");
           if (info->ca)
@@ -224,4 +224,4 @@ struct CmdPathInfo : StorePathsCommand, MixJSON {
   }
 };
 
-static auto rCmdPathInfo = registerCommand<CmdPathInfo>("path-info");
+static auto rCmdPathInfo = registerCommand<cmd_path_info_t>("path-info");

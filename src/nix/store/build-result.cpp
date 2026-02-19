@@ -55,7 +55,7 @@ static constexpr std::array<std::pair<BuildResult::Failure::Status, std::string_
         ENUM_ENTRY(MiscFailure),
         ENUM_ENTRY(DependencyFailed),
         ENUM_ENTRY(LogLimitExceeded),
-        ENUM_ENTRY(NotDeterministic),
+        ENUM_ENTRY(not_deterministic_t),
         ENUM_ENTRY(NoSubstituters),
         ENUM_ENTRY(HashMismatch),
         ENUM_ENTRY(Cancelled),

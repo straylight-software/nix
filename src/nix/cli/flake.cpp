@@ -37,43 +37,43 @@ using namespace nix;
 using namespace nix::flake;
 using json = nlohmann::json;
 
-struct CmdFlakeUpdate;
+struct cmd_flake_update_t;
 
-FlakeCommand::FlakeCommand() {
+flake_command_t::flake_command_t() {
   expectArgs({.label = "flake-url",
               .optional = true,
               .handler = {&flakeUrl},
-              .completer = {[&](AddCompletions& completions, size_t, std::string_view prefix) {
+              .completer = {[&](add_completions_t& completions, size_t, std::string_view prefix) {
                 completeFlakeRef(completions, getStore(), prefix);
               }}});
 }
 
-FlakeRef FlakeCommand::getFlakeRef() {
+FlakeRef flake_command_t::getFlakeRef() {
   return parseFlakeRef(fetchSettings, flakeUrl, std::filesystem::current_path().string()); // FIXME
 }
 
-LockedFlake FlakeCommand::lockFlake() {
+LockedFlake flake_command_t::lockFlake() {
   return flake::lockFlake(flakeSettings, *getEvalState(), getFlakeRef(), lockFlags);
 }
 
-std::vector<FlakeRef> FlakeCommand::getFlakeRefsForCompletion() {
+std::vector<FlakeRef> flake_command_t::getFlakeRefsForCompletion() {
   return {// Like getFlakeRef but with expandTilde called first
           parseFlakeRef(fetchSettings, expandTilde(flakeUrl),
                         std::filesystem::current_path().string())};
 }
 
-struct CmdFlakeUpdate : FlakeCommand {
+struct cmd_flake_update_t : flake_command_t {
 public:
   std::string description() override { return "update flake lock file"; }
 
-  CmdFlakeUpdate() {
+  cmd_flake_update_t() {
     expectedArgs.clear();
     addFlag({
         .longName = "flake",
         .description = "The flake to operate on. Default is the current directory.",
         .labels = {"flake-url"},
         .handler = {&flakeUrl},
-        .completer = {[&](AddCompletions& completions, size_t, std::string_view prefix) {
+        .completer = {[&](add_completions_t& completions, size_t, std::string_view prefix) {
           completeFlakeRef(completions, getStore(), prefix);
         }},
     });
@@ -97,7 +97,7 @@ public:
             lockFlags.inputUpdates.insert(inputAttrPath);
           }
         }},
-        .completer = {[&](AddCompletions& completions, size_t, std::string_view prefix) {
+        .completer = {[&](add_completions_t& completions, size_t, std::string_view prefix) {
           completeFlakeInputAttrPath(completions, getEvalState(), getFlakeRefsForCompletion(),
                                      prefix);
         }},
@@ -127,10 +127,10 @@ public:
   }
 };
 
-struct CmdFlakeLock : FlakeCommand {
+struct cmd_flake_lock_t : flake_command_t {
   std::string description() override { return "create missing lock file entries"; }
 
-  CmdFlakeLock() {
+  cmd_flake_lock_t() {
     /* Remove flags that don't make sense. */
     removeFlag("no-write-lock-file");
   }
@@ -155,7 +155,7 @@ struct CmdFlakeLock : FlakeCommand {
 
 static void enumerateOutputs(
     EvalState& state, Value& vFlake,
-    std::function<void(std::string_view name, Value& vProvide, const PosIdx pos)> callback) {
+    std::function<void(std::string_view name, Value& vProvide, const pos_idx_t pos)> callback) {
   auto pos = vFlake.determinePos(noPos);
   state.forceAttrs(vFlake, pos, "while evaluating a flake to get its outputs");
 
@@ -178,7 +178,7 @@ static void enumerateOutputs(
   }
 }
 
-struct CmdFlakeMetadata : FlakeCommand, MixJSON {
+struct cmd_flake_metadata_t : flake_command_t, MixJSON {
   std::string description() override { return "show flake metadata"; }
 
   std::string doc() override {
@@ -213,7 +213,7 @@ struct CmdFlakeMetadata : FlakeCommand, MixJSON {
       // attempt to lock.
       j["locked"] = fetchers::attrsToJSON(flake.lockedRef.toAttrs());
       if (auto rev = flake.lockedRef.input.getRev())
-        j["revision"] = rev->to_string(HashFormat::Base16, false);
+        j["revision"] = rev->to_string(hash_format_t::Base16, false);
       if (auto dirtyRev = fetchers::maybeGetStrAttr(flake.lockedRef.toAttrs(), "dirtyRev"))
         j["dirtyRevision"] = *dirtyRev;
       if (auto revCount = flake.lockedRef.input.getRevCount())
@@ -224,7 +224,7 @@ struct CmdFlakeMetadata : FlakeCommand, MixJSON {
         j["path"] = store->printStorePath(*storePath);
       j["locks"] = lockedFlake.lockFile.toJSON().first;
       if (auto fingerprint = lockedFlake.getFingerprint(*store, fetchSettings))
-        j["fingerprint"] = fingerprint->to_string(HashFormat::Base16, false);
+        j["fingerprint"] = fingerprint->to_string(hash_format_t::Base16, false);
       printJSON(j);
     } else {
       logger->cout(ANSI_BOLD "Resolved URL:" ANSI_NORMAL "  %s", flake.resolvedRef.to_string());
@@ -237,7 +237,7 @@ struct CmdFlakeMetadata : FlakeCommand, MixJSON {
                      store->printStorePath(*storePath));
       if (auto rev = flake.lockedRef.input.getRev())
         logger->cout(ANSI_BOLD "Revision:" ANSI_NORMAL "      %s",
-                     rev->to_string(HashFormat::Base16, false));
+                     rev->to_string(hash_format_t::Base16, false));
       if (auto dirtyRev = fetchers::maybeGetStrAttr(flake.lockedRef.toAttrs(), "dirtyRev"))
         logger->cout(ANSI_BOLD "Revision:" ANSI_NORMAL "      %s", *dirtyRev);
       if (auto revCount = flake.lockedRef.input.getRevCount())
@@ -247,7 +247,7 @@ struct CmdFlakeMetadata : FlakeCommand, MixJSON {
                      std::put_time(std::localtime(&*lastModified), "%F %T"));
       if (auto fingerprint = lockedFlake.getFingerprint(*store, fetchSettings))
         logger->cout(ANSI_BOLD "Fingerprint:" ANSI_NORMAL "   %s",
-                     fingerprint->to_string(HashFormat::Base16, false));
+                     fingerprint->to_string(hash_format_t::Base16, false));
 
       if (!lockedFlake.lockFile.root->inputs.empty())
         logger->cout(ANSI_BOLD "Inputs:" ANSI_NORMAL);
@@ -281,18 +281,18 @@ struct CmdFlakeMetadata : FlakeCommand, MixJSON {
   }
 };
 
-struct CmdFlakeInfo : CmdFlakeMetadata {
+struct cmd_flake_info_t : cmd_flake_metadata_t {
   void run(nix::ref<nix::Store> store) override {
     warn("'nix flake info' is a deprecated alias for 'nix flake metadata'");
-    CmdFlakeMetadata::run(store);
+    cmd_flake_metadata_t::run(store);
   }
 };
 
-struct CmdFlakeCheck : FlakeCommand {
+struct cmd_flake_check_t : flake_command_t {
   bool build = true;
   bool checkAllSystems = false;
 
-  CmdFlakeCheck() {
+  cmd_flake_check_t() {
     addFlag({
         .longName = "no-build",
         .description = "Do not build checks.",
@@ -342,13 +342,13 @@ struct CmdFlakeCheck : FlakeCommand {
       }
     };
 
-    Sync<std::vector<DerivedPath>> drvPaths_;
-    Sync<std::set<std::string>> omittedSystems;
-    Sync<std::map<DerivedPath, std::vector<AttrPath>>> derivedPathToAttrPaths_;
+    sync_t<std::vector<DerivedPath>> drvPaths_;
+    sync_t<std::set<std::string>> omittedSystems;
+    sync_t<std::map<DerivedPath, std::vector<AttrPath>>> derivedPathToAttrPaths_;
 
     // FIXME: rewrite to use EvalCache.
 
-    auto resolve = [&](PosIdx p) { return state->positions[p]; };
+    auto resolve = [&](pos_idx_t p) { return state->positions[p]; };
 
     auto argHasName = [&](Symbol arg, std::string_view expected) {
       std::string_view name = state->symbols[arg];
@@ -356,13 +356,13 @@ struct CmdFlakeCheck : FlakeCommand {
              (hasPrefix(name, "_") && name.substr(1) == expected);
     };
 
-    auto checkSystemName = [&](std::string_view system, const PosIdx pos) {
+    auto checkSystemName = [&](std::string_view system, const pos_idx_t pos) {
       // FIXME: what's the format of "system"?
       if (system.find('-') == std::string::npos)
         reportError(Error("'%s' is not a valid system type, at %s", system, resolve(pos)));
     };
 
-    auto checkSystemType = [&](std::string_view system, const PosIdx pos) {
+    auto checkSystemType = [&](std::string_view system, const pos_idx_t pos) {
       if (!checkAllSystems && system != localSystem) {
         omittedSystems.lock()->insert(std::string(system));
         return false;
@@ -372,9 +372,9 @@ struct CmdFlakeCheck : FlakeCommand {
     };
 
     auto checkDerivation = [&](const std::string& attrPath, Value& v,
-                               const PosIdx pos) -> std::optional<StorePath> {
+                               const pos_idx_t pos) -> std::optional<StorePath> {
       try {
-        Activity act(*logger, lvlInfo, actUnknown, fmt("checking derivation %s", attrPath));
+        activity_t act(*logger, lvlInfo, actUnknown, fmt("checking derivation %s", attrPath));
         auto packageInfo = getDerivation(*state, v, false);
         if (!packageInfo)
           throw Error("flake attribute '%s' is not a derivation", attrPath);
@@ -388,7 +388,7 @@ struct CmdFlakeCheck : FlakeCommand {
           return storePath;
         }
       } catch (Error& e) {
-        e.addTrace(resolve(pos), HintFmt("while checking the derivation '%s'", attrPath));
+        e.addTrace(resolve(pos), hint_fmt_t("while checking the derivation '%s'", attrPath));
         reportError(e);
       }
       return std::nullopt;
@@ -396,9 +396,9 @@ struct CmdFlakeCheck : FlakeCommand {
 
     FutureVector futures(*state->executor);
 
-    auto checkApp = [&](const std::string& attrPath, Value& v, const PosIdx pos) {
+    auto checkApp = [&](const std::string& attrPath, Value& v, const pos_idx_t pos) {
       try {
-        Activity act(*logger, lvlInfo, actUnknown, fmt("checking app '%s'", attrPath));
+        activity_t act(*logger, lvlInfo, actUnknown, fmt("checking app '%s'", attrPath));
         state->forceAttrs(v, pos, "");
         if (auto attr = v.attrs()->get(state->symbols.create("type")))
           state->forceStringNoCtx(*attr->value, attr->pos, "");
@@ -419,11 +419,11 @@ struct CmdFlakeCheck : FlakeCommand {
             state->forceStringNoCtx(*dAttr->value, dAttr->pos, "");
           else
             logWarning({
-                .msg = HintFmt("app '%s' lacks attribute 'meta.description'", attrPath),
+                .msg = hint_fmt_t("app '%s' lacks attribute 'meta.description'", attrPath),
             });
         } else
           logWarning({
-              .msg = HintFmt("app '%s' lacks attribute 'meta'", attrPath),
+              .msg = hint_fmt_t("app '%s' lacks attribute 'meta'", attrPath),
           });
 
         for (auto& attr : *v.attrs()) {
@@ -432,14 +432,14 @@ struct CmdFlakeCheck : FlakeCommand {
             throw Error("app '%s' has unsupported attribute '%s'", attrPath, name);
         }
       } catch (Error& e) {
-        e.addTrace(resolve(pos), HintFmt("while checking the app definition '%s'", attrPath));
+        e.addTrace(resolve(pos), hint_fmt_t("while checking the app definition '%s'", attrPath));
         reportError(e);
       }
     };
 
-    auto checkOverlay = [&](std::string_view attrPath, Value& v, const PosIdx pos) {
+    auto checkOverlay = [&](std::string_view attrPath, Value& v, const pos_idx_t pos) {
       try {
-        Activity act(*logger, lvlInfo, actUnknown, fmt("checking overlay '%s'", attrPath));
+        activity_t act(*logger, lvlInfo, actUnknown, fmt("checking overlay '%s'", attrPath));
         state->forceValue(v, pos);
         if (!v.isLambda()) {
           throw Error("overlay is not a function, but %s instead", showType(v));
@@ -449,26 +449,26 @@ struct CmdFlakeCheck : FlakeCommand {
         // FIXME: if we have a 'nixpkgs' input, use it to
         // evaluate the overlay.
       } catch (Error& e) {
-        e.addTrace(resolve(pos), HintFmt("while checking the overlay '%s'", attrPath));
+        e.addTrace(resolve(pos), hint_fmt_t("while checking the overlay '%s'", attrPath));
         reportError(e);
       }
     };
 
-    auto checkModule = [&](std::string_view attrPath, Value& v, const PosIdx pos) {
+    auto checkModule = [&](std::string_view attrPath, Value& v, const pos_idx_t pos) {
       try {
-        Activity act(*logger, lvlInfo, actUnknown, fmt("checking NixOS module '%s'", attrPath));
+        activity_t act(*logger, lvlInfo, actUnknown, fmt("checking NixOS module '%s'", attrPath));
         state->forceValue(v, pos);
       } catch (Error& e) {
-        e.addTrace(resolve(pos), HintFmt("while checking the NixOS module '%s'", attrPath));
+        e.addTrace(resolve(pos), hint_fmt_t("while checking the NixOS module '%s'", attrPath));
         reportError(e);
       }
     };
 
-    std::function<void(const std::string& attrPath, Value& v, const PosIdx pos)> checkHydraJobs;
+    std::function<void(const std::string& attrPath, Value& v, const pos_idx_t pos)> checkHydraJobs;
 
-    checkHydraJobs = [&](const std::string& attrPath, Value& v, const PosIdx pos) {
+    checkHydraJobs = [&](const std::string& attrPath, Value& v, const pos_idx_t pos) {
       try {
-        Activity act(*logger, lvlInfo, actUnknown, fmt("checking Hydra job '%s'", attrPath));
+        activity_t act(*logger, lvlInfo, actUnknown, fmt("checking Hydra job '%s'", attrPath));
         state->forceAttrs(v, pos, "");
 
         if (state->isDerivation(v))
@@ -479,21 +479,21 @@ struct CmdFlakeCheck : FlakeCommand {
             state->forceAttrs(*attr.value, attr.pos, "");
             auto attrPath2 = concatStrings(attrPath, ".", state->symbols[attr.name]);
             if (state->isDerivation(*attr.value)) {
-              Activity act(*logger, lvlInfo, actUnknown, fmt("checking Hydra job '%s'", attrPath2));
+              activity_t act(*logger, lvlInfo, actUnknown, fmt("checking Hydra job '%s'", attrPath2));
               checkDerivation(attrPath2, *attr.value, attr.pos);
             } else
               checkHydraJobs(attrPath2, *attr.value, attr.pos);
           });
 
       } catch (Error& e) {
-        e.addTrace(resolve(pos), HintFmt("while checking the Hydra jobset '%s'", attrPath));
+        e.addTrace(resolve(pos), hint_fmt_t("while checking the Hydra jobset '%s'", attrPath));
         reportError(e);
       }
     };
 
-    auto checkNixOSConfiguration = [&](const std::string& attrPath, Value& v, const PosIdx pos) {
+    auto checkNixOSConfiguration = [&](const std::string& attrPath, Value& v, const pos_idx_t pos) {
       try {
-        Activity act(*logger, lvlInfo, actUnknown,
+        activity_t act(*logger, lvlInfo, actUnknown,
                      fmt("checking NixOS configuration '%s'", attrPath));
         Bindings& bindings = Bindings::emptyBindings;
         auto vToplevel =
@@ -502,14 +502,14 @@ struct CmdFlakeCheck : FlakeCommand {
         if (!state->isDerivation(*vToplevel))
           throw Error("attribute 'config.system.build.toplevel' is not a derivation");
       } catch (Error& e) {
-        e.addTrace(resolve(pos), HintFmt("while checking the NixOS configuration '%s'", attrPath));
+        e.addTrace(resolve(pos), hint_fmt_t("while checking the NixOS configuration '%s'", attrPath));
         reportError(e);
       }
     };
 
-    auto checkTemplate = [&](std::string_view attrPath, Value& v, const PosIdx pos) {
+    auto checkTemplate = [&](std::string_view attrPath, Value& v, const pos_idx_t pos) {
       try {
-        Activity act(*logger, lvlInfo, actUnknown, fmt("checking template '%s'", attrPath));
+        activity_t act(*logger, lvlInfo, actUnknown, fmt("checking template '%s'", attrPath));
 
         state->forceAttrs(v, pos, "");
 
@@ -535,34 +535,34 @@ struct CmdFlakeCheck : FlakeCommand {
             throw Error("template '%s' has unsupported attribute '%s'", attrPath, name);
         }
       } catch (Error& e) {
-        e.addTrace(resolve(pos), HintFmt("while checking the template '%s'", attrPath));
+        e.addTrace(resolve(pos), hint_fmt_t("while checking the template '%s'", attrPath));
         reportError(e);
       }
     };
 
-    auto checkBundler = [&](const std::string& attrPath, Value& v, const PosIdx pos) {
+    auto checkBundler = [&](const std::string& attrPath, Value& v, const pos_idx_t pos) {
       try {
-        Activity act(*logger, lvlInfo, actUnknown, fmt("checking bundler '%s'", attrPath));
+        activity_t act(*logger, lvlInfo, actUnknown, fmt("checking bundler '%s'", attrPath));
         state->forceValue(v, pos);
         if (!v.isLambda())
           throw Error("bundler must be a function");
         // TODO: check types of inputs/outputs?
       } catch (Error& e) {
-        e.addTrace(resolve(pos), HintFmt("while checking the template '%s'", attrPath));
+        e.addTrace(resolve(pos), hint_fmt_t("while checking the template '%s'", attrPath));
         reportError(e);
       }
     };
 
     auto checkFlake = [&]() {
-      Activity act(*logger, lvlInfo, actUnknown, "evaluating flake");
+      activity_t act(*logger, lvlInfo, actUnknown, "evaluating flake");
 
       auto vFlake = state->allocValue();
       flake::callFlake(*state, flake, *vFlake);
 
       enumerateOutputs(
-          *state, *vFlake, [&](std::string_view name, Value& vOutput, const PosIdx pos) {
+          *state, *vFlake, [&](std::string_view name, Value& vOutput, const pos_idx_t pos) {
             futures.spawn(2, [&, name, pos]() {
-              Activity act(*logger, lvlInfo, actUnknown, fmt("checking flake output '%s'", name));
+              activity_t act(*logger, lvlInfo, actUnknown, fmt("checking flake output '%s'", name));
 
               try {
                 evalSettings.enableImportFromDerivation.setDefault(name != "hydraJobs");
@@ -758,7 +758,7 @@ struct CmdFlakeCheck : FlakeCommand {
                   warn("unknown flake output '%s'", name);
 
               } catch (Error& e) {
-                e.addTrace(resolve(pos), HintFmt("while checking flake output '%s'", name));
+                e.addTrace(resolve(pos), hint_fmt_t("while checking flake output '%s'", name));
                 reportError(e);
               }
             });
@@ -805,7 +805,7 @@ struct CmdFlakeCheck : FlakeCommand {
                    attrPath.to_string(*state));
 
       // FIXME: should start building while evaluating.
-      Activity act(*logger, lvlInfo, actUnknown, fmt("running %d flake checks", toBuild.size()));
+      activity_t act(*logger, lvlInfo, actUnknown, fmt("running %d flake checks", toBuild.size()));
       auto buildResults = store->buildPathsWithResults(toBuild);
       assert(buildResults.size() == toBuild.size());
 
@@ -843,27 +843,27 @@ struct CmdFlakeCheck : FlakeCommand {
     }
 
     if (hasErrors)
-      throw Exit(1);
+      throw exit_t(1);
   };
 };
 
-static Strings defaultTemplateAttrPathsPrefixes{"templates."};
-static Strings defaultTemplateAttrPaths = {"templates.default", "defaultTemplate"};
+static strings_t defaultTemplateAttrPathsPrefixes{"templates."};
+static strings_t defaultTemplateAttrPaths = {"templates.default", "defaultTemplate"};
 
-struct CmdFlakeInitCommon : virtual Args, EvalCommand {
+struct cmd_flake_init_common_t : virtual Args, EvalCommand {
   std::string templateUrl = "https://flakehub.com/f/DeterminateSystems/flake-templates/0.1";
   Path destDir;
 
   const LockFlags lockFlags{.writeLockFile = false};
 
-  CmdFlakeInitCommon() {
+  cmd_flake_init_common_t() {
     addFlag({
         .longName = "template",
         .shortName = 't',
         .description = "The template to use.",
         .labels = {"template"},
         .handler = {&templateUrl},
-        .completer = {[&](AddCompletions& completions, size_t, std::string_view prefix) {
+        .completer = {[&](add_completions_t& completions, size_t, std::string_view prefix) {
           completeFlakeRefWithFragment(completions, getEvalState(), lockFlags,
                                        defaultTemplateAttrPathsPrefixes, defaultTemplateAttrPaths,
                                        prefix);
@@ -893,7 +893,7 @@ struct CmdFlakeInitCommon : virtual Args, EvalCommand {
     std::vector<std::filesystem::path> changedFiles;
     std::vector<std::filesystem::path> conflictedFiles;
 
-    [&](this const auto& copyDir, const SourcePath& from, const std::filesystem::path& to) -> void {
+    [&](this const auto& copyDir, const source_path_t& from, const std::filesystem::path& to) -> void {
       createDirs(to);
 
       for (auto& [name, entry] : from.readDirectory()) {
@@ -932,7 +932,7 @@ struct CmdFlakeInitCommon : virtual Args, EvalCommand {
             }
             continue;
           } else
-            createSymlink(target, os_string_to_string(PathViewNG{to2}));
+            createSymlink(target, os_string_to_string(path_view_ng_t{to2}));
         } else
           throw Error("path '%s' needs to be a symlink, file, or directory but instead is a %s",
                       from2, st.typeString());
@@ -943,7 +943,7 @@ struct CmdFlakeInitCommon : virtual Args, EvalCommand {
 
     if (!changedFiles.empty() &&
         std::filesystem::exists(std::filesystem::path{flakeDir} / ".git")) {
-      Strings args = {"-C", flakeDir, "add", "--intent-to-add", "--force", "--"};
+      strings_t args = {"-C", flakeDir, "add", "--intent-to-add", "--force", "--"};
       for (auto& s : changedFiles)
         args.emplace_back(s.string());
       runProgram("git", true, args);
@@ -959,7 +959,7 @@ struct CmdFlakeInitCommon : virtual Args, EvalCommand {
   }
 };
 
-struct CmdFlakeInit : CmdFlakeInitCommon {
+struct cmd_flake_init_t : cmd_flake_init_common_t {
   std::string description() override {
     return "create a flake in the current directory from a template";
   }
@@ -970,10 +970,10 @@ struct CmdFlakeInit : CmdFlakeInitCommon {
         ;
   }
 
-  CmdFlakeInit() { destDir = "."; }
+  cmd_flake_init_t() { destDir = "."; }
 };
 
-struct CmdFlakeNew : CmdFlakeInitCommon {
+struct cmd_flake_new_t : cmd_flake_init_common_t {
   std::string description() override {
     return "create a flake in the specified directory from a template";
   }
@@ -984,12 +984,12 @@ struct CmdFlakeNew : CmdFlakeInitCommon {
         ;
   }
 
-  CmdFlakeNew() {
+  cmd_flake_new_t() {
     expectArgs({.label = "dest-dir", .handler = {&destDir}, .completer = completePath});
   }
 };
 
-struct CmdFlakeClone : FlakeCommand {
+struct cmd_flake_clone_t : flake_command_t {
   std::filesystem::path destDir;
 
   std::string description() override { return "clone flake repository"; }
@@ -1000,7 +1000,7 @@ struct CmdFlakeClone : FlakeCommand {
         ;
   }
 
-  CmdFlakeClone() {
+  cmd_flake_clone_t() {
     addFlag({
         .longName = "dest",
         .shortName = 'f',
@@ -1018,12 +1018,12 @@ struct CmdFlakeClone : FlakeCommand {
   }
 };
 
-struct CmdFlakeArchive : FlakeCommand, MixJSON, MixDryRun, MixNoCheckSigs {
+struct cmd_flake_archive_t : flake_command_t, MixJSON, MixDryRun, MixNoCheckSigs {
   std::string dstUri;
 
   SubstituteFlag substitute = NoSubstitute;
 
-  CmdFlakeArchive() {
+  cmd_flake_archive_t() {
     addFlag({
         .longName = "to",
         .description = "URI of the destination Nix store",
@@ -1096,11 +1096,11 @@ struct CmdFlakeArchive : FlakeCommand, MixJSON, MixDryRun, MixNoCheckSigs {
   }
 };
 
-struct CmdFlakeShow : FlakeCommand, MixJSON {
+struct cmd_flake_show_t : flake_command_t, MixJSON {
   bool showLegacy = false;
   bool showAllSystems = false;
 
-  CmdFlakeShow() {
+  cmd_flake_show_t() {
     addFlag({
         .longName = "legacy",
         .description = "Show the contents of the `legacyPackages` output.",
@@ -1140,7 +1140,7 @@ struct CmdFlakeShow : FlakeCommand, MixJSON {
       auto attrPath = visitor.getAttrPath();
       auto attrPathS = attrPath.resolve(*state);
 
-      Activity act(*logger, lvlInfo, actUnknown,
+      activity_t act(*logger, lvlInfo, actUnknown,
                    fmt("evaluating '%s'", attrPath.to_string(*state)));
 
       try {
@@ -1364,10 +1364,10 @@ struct CmdFlakeShow : FlakeCommand, MixJSON {
   }
 };
 
-struct CmdFlakePrefetch : FlakeCommand, MixJSON {
+struct cmd_flake_prefetch_t : flake_command_t, MixJSON {
   std::optional<std::filesystem::path> outLink;
 
-  CmdFlakePrefetch() {
+  cmd_flake_prefetch_t() {
     addFlag({
         .longName = "out-link",
         .shortName = 'o',
@@ -1399,27 +1399,27 @@ struct CmdFlakePrefetch : FlakeCommand, MixJSON {
     if (json) {
       auto res = nlohmann::json::object();
       res["storePath"] = store->printStorePath(storePath);
-      res["hash"] = hash.to_string(HashFormat::SRI, true);
+      res["hash"] = hash.to_string(hash_format_t::SRI, true);
       res["original"] = fetchers::attrsToJSON(resolvedRef.toAttrs());
       res["locked"] = fetchers::attrsToJSON(lockedRef.toAttrs());
       res["locked"].erase("__final"); // internal for now
       printJSON(res);
     } else {
       notice("Downloaded '%s' to '%s' (hash '%s').", lockedRef.to_string(),
-             store->printStorePath(storePath), hash.to_string(HashFormat::SRI, true));
+             store->printStorePath(storePath), hash.to_string(hash_format_t::SRI, true));
     }
 
     if (outLink) {
       if (auto store2 = store.dynamic_pointer_cast<LocalFSStore>())
-        createOutLinks(*outLink, {BuiltPath::Opaque{storePath}}, *store2);
+        createOutLinks(*outLink, {BuiltPath::opaque_t{storePath}}, *store2);
       else
         throw Error("'--out-link' is not supported for this Nix store");
     }
   }
 };
 
-struct CmdFlake : NixMultiCommand {
-  CmdFlake() : NixMultiCommand("flake", RegisterCommand::getCommandsFor({"flake"})) {}
+struct cmd_flake_t : NixMultiCommand {
+  cmd_flake_t() : NixMultiCommand("flake", RegisterCommand::getCommandsFor({"flake"})) {}
 
   std::string description() override { return "manage Nix flakes"; }
 
@@ -1430,15 +1430,15 @@ struct CmdFlake : NixMultiCommand {
   }
 };
 
-static auto rCmdFlake = registerCommand<CmdFlake>("flake");
-static auto rCmdFlakeArchive = registerCommand2<CmdFlakeArchive>({"flake", "archive"});
-static auto rCmdFlakeCheck = registerCommand2<CmdFlakeCheck>({"flake", "check"});
-static auto rCmdFlakeClone = registerCommand2<CmdFlakeClone>({"flake", "clone"});
-static auto rCmdFlakeInfo = registerCommand2<CmdFlakeInfo>({"flake", "info"});
-static auto rCmdFlakeInit = registerCommand2<CmdFlakeInit>({"flake", "init"});
-static auto rCmdFlakeLock = registerCommand2<CmdFlakeLock>({"flake", "lock"});
-static auto rCmdFlakeMetadata = registerCommand2<CmdFlakeMetadata>({"flake", "metadata"});
-static auto rCmdFlakeNew = registerCommand2<CmdFlakeNew>({"flake", "new"});
-static auto rCmdFlakePrefetch = registerCommand2<CmdFlakePrefetch>({"flake", "prefetch"});
-static auto rCmdFlakeShow = registerCommand2<CmdFlakeShow>({"flake", "show"});
-static auto rCmdFlakeUpdate = registerCommand2<CmdFlakeUpdate>({"flake", "update"});
+static auto rCmdFlake = registerCommand<cmd_flake_t>("flake");
+static auto rCmdFlakeArchive = registerCommand2<cmd_flake_archive_t>({"flake", "archive"});
+static auto rCmdFlakeCheck = registerCommand2<cmd_flake_check_t>({"flake", "check"});
+static auto rCmdFlakeClone = registerCommand2<cmd_flake_clone_t>({"flake", "clone"});
+static auto rCmdFlakeInfo = registerCommand2<cmd_flake_info_t>({"flake", "info"});
+static auto rCmdFlakeInit = registerCommand2<cmd_flake_init_t>({"flake", "init"});
+static auto rCmdFlakeLock = registerCommand2<cmd_flake_lock_t>({"flake", "lock"});
+static auto rCmdFlakeMetadata = registerCommand2<cmd_flake_metadata_t>({"flake", "metadata"});
+static auto rCmdFlakeNew = registerCommand2<cmd_flake_new_t>({"flake", "new"});
+static auto rCmdFlakePrefetch = registerCommand2<cmd_flake_prefetch_t>({"flake", "prefetch"});
+static auto rCmdFlakeShow = registerCommand2<cmd_flake_show_t>({"flake", "show"});
+static auto rCmdFlakeUpdate = registerCommand2<cmd_flake_update_t>({"flake", "update"});

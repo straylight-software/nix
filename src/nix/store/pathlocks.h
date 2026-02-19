@@ -12,20 +12,20 @@ namespace nix {
  * -1 is returned if create is false and the lock could not be opened
  * because it doesn't exist.  Any other error throws an exception.
  */
-AutoCloseFD openLockFile(const std::filesystem::path& path, bool create);
+auto_close_fd_t openLockFile(const std::filesystem::path& path, bool create);
 
 /**
  * Delete an open lock file.
  */
-void deleteLockFile(const std::filesystem::path& path, Descriptor desc);
+void deleteLockFile(const std::filesystem::path& path, descriptor_t desc);
 
 enum LockType { ltRead, ltWrite, ltNone };
 
-bool lockFile(Descriptor desc, LockType lockType, bool wait);
+bool lockFile(descriptor_t desc, LockType lockType, bool wait);
 
 class PathLocks {
 private:
-  typedef std::pair<Descriptor, std::filesystem::path> FDPair;
+  typedef std::pair<descriptor_t, std::filesystem::path> FDPair;
   std::list<FDPair> fds;
   bool deletePaths;
 
@@ -40,10 +40,10 @@ public:
 };
 
 struct FdLock {
-  Descriptor desc;
+  descriptor_t desc;
   bool acquired = false;
 
-  FdLock(Descriptor desc, LockType lockType, bool wait, std::string_view waitMsg);
+  FdLock(descriptor_t desc, LockType lockType, bool wait, std::string_view waitMsg);
 
   ~FdLock() {
     if (acquired)

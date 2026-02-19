@@ -9,7 +9,7 @@
 
 namespace nix {
 
-enum struct ExperimentalFeature;
+enum struct experimental_feature_t;
 
 /**
  * Get the value of a json object at a key safely, failing with a nice
@@ -73,9 +73,9 @@ std::map<std::string, Args...> getMap(const nlohmann::json::object_t& jsonObject
 }
 
 const nlohmann::json::boolean_t& getBoolean(const nlohmann::json& value);
-Strings getStringList(const nlohmann::json& value);
-StringMap getStringMap(const nlohmann::json& value);
-StringSet getStringSet(const nlohmann::json& value);
+strings_t getStringList(const nlohmann::json& value);
+string_map_t getStringMap(const nlohmann::json& value);
+string_set_t getStringSet(const nlohmann::json& value);
 
 } // namespace nix
 

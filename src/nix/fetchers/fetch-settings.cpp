@@ -4,14 +4,14 @@
 
 namespace nix::fetchers {
 
-Settings::Settings() {}
+settings_t::settings_t() {}
 
 } // namespace nix::fetchers
 
 namespace nix {
 
-fetchers::Settings fetchSettings;
+fetchers::settings_t fetchSettings;
 
-static GlobalConfig::Register rFetchSettings(&fetchSettings);
+static global_config_t::Register rFetchSettings(&fetchSettings);
 
 } // namespace nix

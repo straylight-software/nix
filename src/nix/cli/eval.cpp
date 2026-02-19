@@ -15,12 +15,12 @@ namespace nix::fs {
 using namespace std::filesystem;
 }
 
-struct CmdEval : MixJSON, InstallableValueCommand, MixReadOnlyOption {
+struct cmd_eval_t : MixJSON, InstallableValueCommand, MixReadOnlyOption {
   bool raw = false;
   std::optional<std::string> apply;
   std::optional<std::filesystem::path> writeTo;
 
-  CmdEval() : InstallableValueCommand() {
+  cmd_eval_t() : InstallableValueCommand() {
     addFlag({
         .longName = "raw",
         .description = "Print strings without quotes or escaping.",
@@ -50,7 +50,7 @@ struct CmdEval : MixJSON, InstallableValueCommand, MixReadOnlyOption {
         ;
   }
 
-  Category category() override { return catSecondary; }
+  category_t category() override { return catSecondary; }
 
   void run(ref<Store> store, ref<InstallableValue> installable) override {
     if (raw && json)
@@ -75,7 +75,7 @@ struct CmdEval : MixJSON, InstallableValueCommand, MixReadOnlyOption {
       if (pathExists(*writeTo))
         throw Error("path '%s' already exists", writeTo->string());
 
-      [&](this const auto& recurse, Value& v, const PosIdx pos,
+      [&](this const auto& recurse, Value& v, const pos_idx_t pos,
           const std::filesystem::path& path) -> void {
         state->forceValue(v, pos);
         if (v.type() == nString)
@@ -93,7 +93,7 @@ struct CmdEval : MixJSON, InstallableValueCommand, MixReadOnlyOption {
               recurse(*attr.value, attr.pos, path / name);
             } catch (Error& e) {
               e.addTrace(state->positions[attr.pos],
-                         HintFmt("while evaluating the attribute '%s'", name));
+                         hint_fmt_t("while evaluating the attribute '%s'", name));
               throw;
             }
           }
@@ -127,4 +127,4 @@ struct CmdEval : MixJSON, InstallableValueCommand, MixReadOnlyOption {
   }
 };
 
-static auto rCmdEval = registerCommand<CmdEval>("eval");
+static auto rCmdEval = registerCommand<cmd_eval_t>("eval");

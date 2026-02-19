@@ -19,7 +19,7 @@ namespace nix {
  * Compute the prefix to the hash algorithm which indicates how the
  * files were ingested.
  */
-std::string_view makeFileIngestionPrefix(FileIngestionMethod m);
+std::string_view makeFileIngestionPrefix(file_ingestion_method_t m);
 
 /**
  * An enumeration of all the ways we can content-address store objects.
@@ -30,9 +30,9 @@ std::string_view makeFileIngestionPrefix(FileIngestionMethod m);
  * as defined further below.
  */
 struct ContentAddressMethod {
-  enum struct Raw {
+  enum struct raw_t {
     /**
-     * Calculate a store path using the `FileIngestionMethod::Flat`
+     * Calculate a store path using the `file_ingestion_method_t::Flat`
      * hash of the file system objects, and references.
      *
      * See `store-object/content-address.md#method-flat` in the
@@ -42,7 +42,7 @@ struct ContentAddressMethod {
 
     /**
      * Calculate a store path using the
-     * `FileIngestionMethod::NixArchive` hash of the file system
+     * `file_ingestion_method_t::NixArchive` hash of the file system
      * objects, and references.
      *
      * See `store-object/content-address.md#method-flat` in the
@@ -51,10 +51,10 @@ struct ContentAddressMethod {
     NixArchive,
 
     /**
-     * Calculate a store path using the `FileIngestionMethod::Git`
+     * Calculate a store path using the `file_ingestion_method_t::Git`
      * hash of the file system objects, and references.
      *
-     * Part of `ExperimentalFeature::GitHashing`.
+     * Part of `experimental_feature_t::GitHashing`.
      *
      * See `store-object/content-address.md#method-git` in the
      * manual.
@@ -62,9 +62,9 @@ struct ContentAddressMethod {
     Git,
 
     /**
-     * Calculate a store path using the `FileIngestionMethod::Flat`
+     * Calculate a store path using the `file_ingestion_method_t::Flat`
      * hash of the file system objects, and references, but in a
-     * different way than `ContentAddressMethod::Raw::Flat`.
+     * different way than `ContentAddressMethod::raw_t::Flat`.
      *
      * See `store-object/content-address.md#method-text` in the
      * manual.
@@ -72,7 +72,7 @@ struct ContentAddressMethod {
     Text,
   };
 
-  Raw raw;
+  raw_t raw;
 
   bool operator==(const ContentAddressMethod&) const = default;
   auto operator<=>(const ContentAddressMethod&) const = default;
@@ -114,7 +114,7 @@ struct ContentAddressMethod {
   /**
    * Parse a content addressing method and hash algorithm.
    */
-  static std::pair<ContentAddressMethod, HashAlgorithm> parseWithAlgo(std::string_view rawCaMethod);
+  static std::pair<ContentAddressMethod, hash_algorithm_t> parseWithAlgo(std::string_view rawCaMethod);
 
   /**
    * Render a content addressing method and hash algorithm in a
@@ -122,7 +122,7 @@ struct ContentAddressMethod {
    *
    * The rough inverse of `parse()`.
    */
-  std::string renderWithAlgo(HashAlgorithm ha) const;
+  std::string renderWithAlgo(hash_algorithm_t ha) const;
 
   /**
    * Get the underlying way to content-address file system objects.
@@ -130,7 +130,7 @@ struct ContentAddressMethod {
    * Different ways of hashing store objects may use the same method
    * for hashing file systeme objects.
    */
-  FileIngestionMethod getFileIngestionMethod() const;
+  file_ingestion_method_t getFileIngestionMethod() const;
 };
 
 /*
@@ -245,7 +245,7 @@ struct FixedOutputInfo {
   /**
    * How the file system objects are serialized
    */
-  FileIngestionMethod method;
+  file_ingestion_method_t method;
 
   /**
    * Hash of that serialization
@@ -268,9 +268,9 @@ struct FixedOutputInfo {
  * A ContentAddress without a Hash.
  */
 struct ContentAddressWithReferences {
-  typedef std::variant<TextInfo, FixedOutputInfo> Raw;
+  typedef std::variant<TextInfo, FixedOutputInfo> raw_t;
 
-  Raw raw;
+  raw_t raw;
 
   bool operator==(const ContentAddressWithReferences&) const = default;
   // TODO libc++ 16 (used by darwin) missing `std::map::operator <=>`, can't do yet.

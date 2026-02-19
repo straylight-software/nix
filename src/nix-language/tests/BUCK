@@ -33,6 +33,10 @@ LANGUAGE_COMPILE_TEST_DEPS = LANGUAGE_TEST_DEPS + [
     "//third_party:binaryen",
 ]
 
+LANGUAGE_EVAL_TEST_DEPS = LANGUAGE_PARSE_TEST_DEPS + [
+    "//src/nix-language:eval",
+]
+
 LANGUAGE_TEST_COMPILER_FLAGS = [
     "-std=c++23",
 ]
@@ -101,5 +105,17 @@ cxx_test(
         "-lbinaryen",
         "-Wl,-rpath,/nix/store/4jp1vkr9gj5n3zbpp2xvkp8n3g56lpv0-binaryen-125/lib",
     ],
+    link_style = "static",
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Evaluator tests (interpreter)
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_test(
+    name = "eval_test",
+    srcs = ["eval_test.cpp"],
+    deps = LANGUAGE_EVAL_TEST_DEPS,
+    compiler_flags = LANGUAGE_TEST_COMPILER_FLAGS,
+    linker_flags = LANGUAGE_LINKER_FLAGS,
     link_style = "static",
 )

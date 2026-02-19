@@ -84,7 +84,7 @@ static void normalizeDatetimeFormat(toml::value& t) {
 
 #endif
 
-static void prim_fromTOML(EvalState& state, const PosIdx pos, Value** args, Value& val) {
+static void prim_fromTOML(EvalState& state, const pos_idx_t pos, Value** args, Value& val) {
   auto toml = state.forceStringNoCtx(*args[0], pos,
                                      "while evaluating the argument passed to builtins.fromTOML");
 
@@ -129,7 +129,7 @@ static void prim_fromTOML(EvalState& state, const PosIdx pos, Value** args, Valu
       case toml::value_t::offset_datetime:
       case toml::value_t::local_date:
       case toml::value_t::local_time: {
-        if (experimentalFeatureSettings.isEnabled(Xp::ParseTomlTimestamps)) {
+        if (experimentalFeatureSettings.isEnabled(xp_t::ParseTomlTimestamps)) {
 #if HAVE_TOML11_4
           normalizeDatetimeFormat(t);
 #endif

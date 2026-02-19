@@ -2,69 +2,69 @@
 
 namespace nix {
 
-std::string_view SourcePath::baseName() const {
+std::string_view source_path_t::baseName() const {
   return path.baseName().value_or("source");
 }
 
-SourcePath SourcePath::parent() const {
+source_path_t source_path_t::parent() const {
   auto p = path.parent();
   assert(p);
   return {accessor, std::move(*p)};
 }
 
-std::string SourcePath::readFile() const {
+std::string source_path_t::readFile() const {
   return accessor->readFile(path);
 }
 
-bool SourcePath::pathExists() const {
+bool source_path_t::pathExists() const {
   return accessor->pathExists(path);
 }
 
-SourceAccessor::Stat SourcePath::lstat() const {
+SourceAccessor::stat_t source_path_t::lstat() const {
   return accessor->lstat(path);
 }
 
-std::optional<SourceAccessor::Stat> SourcePath::maybeLstat() const {
+std::optional<SourceAccessor::stat_t> source_path_t::maybeLstat() const {
   return accessor->maybeLstat(path);
 }
 
-SourceAccessor::DirEntries SourcePath::readDirectory() const {
+SourceAccessor::dir_entries_t source_path_t::readDirectory() const {
   return accessor->readDirectory(path);
 }
 
-std::string SourcePath::readLink() const {
+std::string source_path_t::readLink() const {
   return accessor->readLink(path);
 }
 
-void SourcePath::dumpPath(Sink& sink, PathFilter& filter) const {
+void source_path_t::dumpPath(Sink& sink, path_filter_t& filter) const {
   return accessor->dumpPath(path, sink, filter);
 }
 
-std::optional<std::filesystem::path> SourcePath::getPhysicalPath() const {
+std::optional<std::filesystem::path> source_path_t::getPhysicalPath() const {
   return accessor->getPhysicalPath(path);
 }
 
-std::string SourcePath::to_string() const {
+std::string source_path_t::to_string() const {
   return accessor->showPath(path);
 }
 
-SourcePath SourcePath::operator/(const CanonPath& x) const {
+source_path_t source_path_t::operator/(const canon_path_t& x) const {
   return {accessor, path / x};
 }
 
-SourcePath SourcePath::operator/(std::string_view c) const {
+source_path_t source_path_t::operator/(std::string_view c) const {
   return {accessor, path / c};
 }
 
-bool SourcePath::operator==(const SourcePath& x) const noexcept {
+bool source_path_t::operator==(const source_path_t& x) const noexcept {
   return std::tie(*accessor, path) == std::tie(*x.accessor, x.path);
 }
 
-std::strong_ordering SourcePath::operator<=>(const SourcePath& x) const noexcept {
+std::strong_ordering source_path_t::operator<=>(const source_path_t& x) const noexcept {
   return std::tie(*accessor, path) <=> std::tie(*x.accessor, x.path);
 }
 
-std::ostream& operator<<(std::ostream& str, const SourcePath& path) {
+std::ostream& operator<<(std::ostream& str, const source_path_t& path) {
   str << path.to_string();
   return str;
 }

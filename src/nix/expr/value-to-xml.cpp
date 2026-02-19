@@ -8,39 +8,39 @@
 
 namespace nix {
 
-static XMLAttrs singletonAttrs(const std::string& name, std::string_view value) {
-  XMLAttrs attrs;
+static xml_attrs_t singletonAttrs(const std::string& name, std::string_view value) {
+  xml_attrs_t attrs;
   attrs[name] = value;
   return attrs;
 }
 
-static void printValueAsXML(EvalState& state, bool strict, bool location, Value& v, XMLWriter& doc,
-                            NixStringContext& context, PathSet& drvsSeen, const PosIdx pos);
+static void printValueAsXML(EvalState& state, bool strict, bool location, Value& v, xml_writer_t& doc,
+                            NixStringContext& context, path_set_t& drvsSeen, const pos_idx_t pos);
 
-static void posToXML(EvalState& state, XMLAttrs& xmlAttrs, const Pos& pos) {
-  if (auto path = std::get_if<SourcePath>(&pos.origin))
+static void posToXML(EvalState& state, xml_attrs_t& xmlAttrs, const Pos& pos) {
+  if (auto path = std::get_if<source_path_t>(&pos.origin))
     xmlAttrs["path"] = path->path.abs();
   xmlAttrs["line"] = fmt("%1%", pos.line);
   xmlAttrs["column"] = fmt("%1%", pos.column);
 }
 
 static void showAttrs(EvalState& state, bool strict, bool location, const Bindings& attrs,
-                      XMLWriter& doc, NixStringContext& context, PathSet& drvsSeen) {
-  StringSet names;
+                      xml_writer_t& doc, NixStringContext& context, path_set_t& drvsSeen) {
+  string_set_t names;
 
   for (auto& a : attrs.lexicographicOrder(state.symbols)) {
-    XMLAttrs xmlAttrs;
+    xml_attrs_t xmlAttrs;
     xmlAttrs["name"] = state.symbols[a->name];
     if (location && a->pos)
       posToXML(state, xmlAttrs, state.positions[a->pos]);
 
-    XMLOpenElement _(doc, "attr", xmlAttrs);
+    xml_open_element_t _(doc, "attr", xmlAttrs);
     printValueAsXML(state, strict, location, *a->value, doc, context, drvsSeen, a->pos);
   }
 }
 
-static void printValueAsXML(EvalState& state, bool strict, bool location, Value& v, XMLWriter& doc,
-                            NixStringContext& context, PathSet& drvsSeen, const PosIdx pos) {
+static void printValueAsXML(EvalState& state, bool strict, bool location, Value& v, xml_writer_t& doc,
+                            NixStringContext& context, path_set_t& drvsSeen, const pos_idx_t pos) {
   checkInterrupt();
 
   if (strict)
@@ -71,7 +71,7 @@ static void printValueAsXML(EvalState& state, bool strict, bool location, Value&
 
     case nAttrs:
       if (state.isDerivation(v)) {
-        XMLAttrs xmlAttrs;
+        xml_attrs_t xmlAttrs;
 
         Path drvPath;
         if (auto a = v.attrs()->get(state.s.drvPath)) {
@@ -88,7 +88,7 @@ static void printValueAsXML(EvalState& state, bool strict, bool location, Value&
             xmlAttrs["outPath"] = a->value->string_view();
         }
 
-        XMLOpenElement _(doc, "derivation", xmlAttrs);
+        xml_open_element_t _(doc, "derivation", xmlAttrs);
 
         if (drvPath != "" && drvsSeen.insert(drvPath).second)
           showAttrs(state, strict, location, *v.attrs(), doc, context, drvsSeen);
@@ -97,14 +97,14 @@ static void printValueAsXML(EvalState& state, bool strict, bool location, Value&
       }
 
       else {
-        XMLOpenElement _(doc, "attrs");
+        xml_open_element_t _(doc, "attrs");
         showAttrs(state, strict, location, *v.attrs(), doc, context, drvsSeen);
       }
 
       break;
 
     case nList: {
-      XMLOpenElement _(doc, "list");
+      xml_open_element_t _(doc, "list");
       for (auto v2 : v.listView())
         printValueAsXML(state, strict, location, *v2, doc, context, drvsSeen, pos);
       break;
@@ -116,18 +116,18 @@ static void printValueAsXML(EvalState& state, bool strict, bool location, Value&
         doc.writeEmptyElement("unevaluated");
         break;
       }
-      XMLAttrs xmlAttrs;
+      xml_attrs_t xmlAttrs;
       if (location)
         posToXML(state, xmlAttrs, state.positions[v.lambda().fun->pos]);
-      XMLOpenElement _(doc, "function", xmlAttrs);
+      xml_open_element_t _(doc, "function", xmlAttrs);
 
       if (auto formals = v.lambda().fun->getFormals()) {
-        XMLAttrs attrs;
+        xml_attrs_t attrs;
         if (v.lambda().fun->arg)
           attrs["name"] = state.symbols[v.lambda().fun->arg];
         if (formals->ellipsis)
           attrs["ellipsis"] = "1";
-        XMLOpenElement _(doc, "attrspat", attrs);
+        xml_open_element_t _(doc, "attrspat", attrs);
         for (auto& i : formals->lexicographicOrder(state.symbols))
           doc.writeEmptyElement("attr", singletonAttrs("name", state.symbols[i.name]));
       } else
@@ -155,16 +155,16 @@ static void printValueAsXML(EvalState& state, bool strict, bool location, Value&
 }
 
 void ExternalValueBase::printValueAsXML(EvalState& state, bool strict, bool location,
-                                        XMLWriter& doc, NixStringContext& context,
-                                        PathSet& drvsSeen, const PosIdx pos) const {
+                                        xml_writer_t& doc, NixStringContext& context,
+                                        path_set_t& drvsSeen, const pos_idx_t pos) const {
   doc.writeEmptyElement("unevaluated");
 }
 
 void printValueAsXML(EvalState& state, bool strict, bool location, Value& v, std::ostream& out,
-                     NixStringContext& context, const PosIdx pos) {
-  XMLWriter doc(true, out);
-  XMLOpenElement root(doc, "expr");
-  PathSet drvsSeen;
+                     NixStringContext& context, const pos_idx_t pos) {
+  xml_writer_t doc(true, out);
+  xml_open_element_t root(doc, "expr");
+  path_set_t drvsSeen;
   printValueAsXML(state, strict, location, v, doc, context, drvsSeen, pos);
 }
 

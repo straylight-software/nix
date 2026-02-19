@@ -29,11 +29,11 @@ struct Fetch {
   git_oid rev;
 
   // derived from git remote url
-  nix::ParsedURL url;
+  nix::parsed_url_t url;
 
   Fetch(git_repository* repo, git_oid rev);
-  bool shouldFetch(const CanonPath& path) const;
-  void fetch(const std::string& content, const CanonPath& pointerFilePath, StringSink& sink,
+  bool shouldFetch(const canon_path_t& path) const;
+  void fetch(const std::string& content, const canon_path_t& pointerFilePath, string_sink_t& sink,
              std::function<void(uint64_t)> sizeCallback) const;
   std::vector<nlohmann::json> fetchUrls(const std::vector<Pointer>& pointers) const;
 };

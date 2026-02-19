@@ -40,7 +40,7 @@ constexpr size_t maxPrimOpArity = 8;
 class Store;
 
 namespace fetchers {
-struct Settings;
+struct settings_t;
 struct InputCache;
 struct Input;
 } // namespace fetchers
@@ -49,8 +49,8 @@ class EvalState;
 class StorePath;
 struct SingleDerivedPath;
 enum RepairFlag : bool;
-struct MemorySourceAccessor;
-struct MountedSourceAccessor;
+struct memory_source_accessor_t;
+struct mounted_source_accessor_t;
 struct AsyncPathWriter;
 
 namespace eval_cache {
@@ -73,7 +73,7 @@ public:
 /**
  * Function that implements a primop.
  */
-using PrimOpFun = void(EvalState& state, const PosIdx pos, Value** args, Value& v);
+using PrimOpFun = void(EvalState& state, const pos_idx_t pos, Value** args, Value& v);
 
 /**
  * Info about a primitive operation, and its implementation
@@ -118,7 +118,7 @@ struct PrimOp {
   /**
    * Optional experimental for this to be gated on.
    */
-  std::optional<ExperimentalFeature> experimentalFeature;
+  std::optional<experimental_feature_t> experimentalFeature;
 
   /**
    * If true, this primop is not exposed to the user.
@@ -160,7 +160,7 @@ typedef std::map<std::string, Value*, std::less<std::string>,
                  traceable_allocator<std::pair<const std::string, Value*>>>
     ValMap;
 
-typedef boost::unordered_flat_map<PosIdx, DocComment, std::hash<PosIdx>> DocCommentMap;
+typedef boost::unordered_flat_map<pos_idx_t, DocComment, std::hash<pos_idx_t>> DocCommentMap;
 
 struct Env {
   Env* up;
@@ -174,27 +174,27 @@ std::unique_ptr<ValMap> mapStaticEnvBindings(const SymbolTable& st, const Static
                                              const Env& env);
 
 void copyContext(const Value& v, NixStringContext& context,
-                 const ExperimentalFeatureSettings& xpSettings = experimentalFeatureSettings);
+                 const experimental_feature_settings_t& xpSettings = experimentalFeatureSettings);
 
 std::string printValue(EvalState& state, Value& v);
 std::ostream& operator<<(std::ostream& os, const ValueType t);
 
-struct RegexCache;
+struct regex_cache_t;
 
-ref<RegexCache> makeRegexCache();
+ref<regex_cache_t> makeRegexCache();
 
 struct DebugTrace {
-  /* WARNING: Converting PosIdx -> Pos should be done with extra care. This is
-     due to the fact that operator[] of PosTable is incredibly expensive. */
-  std::variant<Pos, PosIdx> pos;
+  /* WARNING: Converting pos_idx_t -> Pos should be done with extra care. This is
+     due to the fact that operator[] of pos_table_t is incredibly expensive. */
+  std::variant<Pos, pos_idx_t> pos;
   const Expr& expr;
   const Env& env;
-  HintFmt hint;
+  hint_fmt_t hint;
   bool isError;
 
-  Pos getPos(const PosTable& table) const {
+  Pos getPos(const pos_table_t& table) const {
     return std::visit(overloaded{
-                          [&](PosIdx idx) {
+                          [&](pos_idx_t idx) {
                             // Prefer direct pos, but if noPos then try the expr.
                             if (!idx)
                               idx = expr.getPos();
@@ -343,11 +343,11 @@ class EvalState : public std::enable_shared_from_this<EvalState> {
 public:
   static constexpr StaticEvalSymbols s = StaticEvalSymbols::create();
 
-  const fetchers::Settings& fetchSettings;
+  const fetchers::settings_t& fetchSettings;
   const EvalSettings& settings;
 
   SymbolTable symbols;
-  PosTable positions;
+  pos_table_t positions;
 
   EvalMemory mem;
 
@@ -360,7 +360,7 @@ public:
   /**
    * The accessor corresponding to `store`.
    */
-  const ref<MountedSourceAccessor> storeFS;
+  const ref<mounted_source_accessor_t> storeFS;
 
   /**
    * The accessor for the root filesystem.
@@ -370,15 +370,15 @@ public:
   /**
    * The in-memory filesystem for <nix/...> paths.
    */
-  const ref<MemorySourceAccessor> corepkgsFS;
+  const ref<memory_source_accessor_t> corepkgsFS;
 
   /**
    * In-memory filesystem for internal, non-user-callable Nix
    * expressions like `derivation.nix`.
    */
-  const ref<MemorySourceAccessor> internalFS;
+  const ref<memory_source_accessor_t> internalFS;
 
-  const SourcePath derivationInternal;
+  const source_path_t derivationInternal;
 
   /**
    * Store used to materialise .drv files.
@@ -445,38 +445,38 @@ public:
 private:
   /* Cache for calls to addToStore(); maps source paths to the store
      paths. */
-  const ref<boost::concurrent_flat_map<SourcePath, StorePath>> srcToStore;
+  const ref<boost::concurrent_flat_map<source_path_t, StorePath>> srcToStore;
 
   /**
    * A cache that maps paths to "resolved" paths for importing Nix
    * expressions, i.e. `/foo` to `/foo/default.nix`.
    */
-  const ref<boost::concurrent_flat_map<SourcePath, SourcePath>> importResolutionCache;
+  const ref<boost::concurrent_flat_map<source_path_t, source_path_t>> importResolutionCache;
 
   /**
    * A cache from resolved paths to values.
    */
-  const ref<boost::concurrent_flat_map<SourcePath, Value*, std::hash<SourcePath>,
-                                       std::equal_to<SourcePath>,
-                                       traceable_allocator<std::pair<const SourcePath, Value*>>>>
+  const ref<boost::concurrent_flat_map<source_path_t, Value*, std::hash<source_path_t>,
+                                       std::equal_to<source_path_t>,
+                                       traceable_allocator<std::pair<const source_path_t, Value*>>>>
       fileEvalCache;
 
   /**
    * Associate source positions of certain AST nodes with their preceding doc comment, if they have
    * one. Grouped by file.
    */
-  SharedSync<boost::unordered_flat_map<SourcePath, ref<DocCommentMap>>> positionToDocComment;
+  shared_sync_t<boost::unordered_flat_map<source_path_t, ref<DocCommentMap>>> positionToDocComment;
 
   LookupPath lookupPath;
 
   // FIXME: make thread-safe.
-  boost::unordered_flat_map<std::string, std::optional<SourcePath>, StringViewHash, std::equal_to<>>
+  boost::unordered_flat_map<std::string, std::optional<source_path_t>, string_view_hash_t, std::equal_to<>>
       lookupPathResolved;
 
   /**
    * Cache used by prim_match().
    */
-  const ref<RegexCache> regexCache;
+  const ref<regex_cache_t> regexCache;
 
 public:
   /**
@@ -487,7 +487,7 @@ public:
    * @param buildStore     The store to use for builds ("import from derivation", C API
    * `nix_string_realise`)
    */
-  EvalState(const LookupPath& lookupPath, ref<Store> store, const fetchers::Settings& fetchSettings,
+  EvalState(const LookupPath& lookupPath, ref<Store> store, const fetchers::settings_t& fetchSettings,
             const EvalSettings& settings, std::shared_ptr<Store> buildStore = nullptr);
   ~EvalState();
 
@@ -500,24 +500,24 @@ public:
   LookupPath getLookupPath() { return lookupPath; }
 
   /**
-   * Return a `SourcePath` that refers to `path` in the root
+   * Return a `source_path_t` that refers to `path` in the root
    * filesystem.
    */
-  SourcePath rootPath(CanonPath path);
+  source_path_t rootPath(canon_path_t path);
 
   /**
    * Variant which accepts relative paths too.
    */
-  SourcePath rootPath(PathView path);
+  source_path_t rootPath(path_view_t path);
 
   /**
-   * Return a `SourcePath` that refers to `path` in the store.
+   * Return a `source_path_t` that refers to `path` in the store.
    *
    * For now, this has to also be within the root filesystem for
    * backwards compat, but for Windows and maybe also pure eval, we'll
    * probably want to do something different.
    */
-  SourcePath storePath(const StorePath& path);
+  source_path_t storePath(const StorePath& path);
 
   /**
    * Allow access to a path.
@@ -555,15 +555,15 @@ public:
   /**
    * Parse a Nix expression from the specified file.
    */
-  Expr* parseExprFromFile(const SourcePath& path);
-  Expr* parseExprFromFile(const SourcePath& path, const std::shared_ptr<StaticEnv>& staticEnv);
+  Expr* parseExprFromFile(const source_path_t& path);
+  Expr* parseExprFromFile(const source_path_t& path, const std::shared_ptr<StaticEnv>& staticEnv);
 
   /**
    * Parse a Nix expression from the specified string.
    */
-  Expr* parseExprFromString(std::string s, const SourcePath& basePath,
+  Expr* parseExprFromString(std::string s, const source_path_t& basePath,
                             const std::shared_ptr<StaticEnv>& staticEnv);
-  Expr* parseExprFromString(std::string s, const SourcePath& basePath);
+  Expr* parseExprFromString(std::string s, const source_path_t& basePath);
 
   Expr* parseStdin();
 
@@ -572,16 +572,16 @@ public:
    * form. Optionally enforce that the top-level expression is
    * trivial (i.e. doesn't require arbitrary computation).
    */
-  void evalFile(const SourcePath& path, Value& v, bool mustBeTrivial = false);
+  void evalFile(const source_path_t& path, Value& v, bool mustBeTrivial = false);
 
   void resetFileCache();
 
   /**
    * Look up a file in the search path.
    */
-  SourcePath findFile(const std::string_view path);
-  SourcePath findFile(const LookupPath& lookupPath, const std::string_view path,
-                      const PosIdx pos = noPos);
+  source_path_t findFile(const std::string_view path);
+  source_path_t findFile(const LookupPath& lookupPath, const std::string_view path,
+                      const pos_idx_t pos = noPos);
 
   /**
    * Try to resolve a search path value (not the optional key part).
@@ -590,7 +590,7 @@ public:
    *
    * If it is not found, return `std::nullopt`.
    */
-  std::optional<SourcePath> resolveLookupPathPath(const LookupPath::Path& elem,
+  std::optional<source_path_t> resolveLookupPathPath(const LookupPath::Path& elem,
                                                   bool initAccessControl = false);
 
   /**
@@ -605,8 +605,8 @@ public:
    * type.
    */
   inline bool evalBool(Env& env, Expr* e);
-  inline bool evalBool(Env& env, Expr* e, const PosIdx pos, std::string_view errorCtx);
-  inline void evalAttrs(Env& env, Expr* e, Value& v, const PosIdx pos, std::string_view errorCtx);
+  inline bool evalBool(Env& env, Expr* e, const pos_idx_t pos, std::string_view errorCtx);
+  inline void evalAttrs(Env& env, Expr* e, Value& v, const pos_idx_t pos, std::string_view errorCtx);
 
   /**
    * If `v` is a thunk, enter it and overwrite `v` with the result
@@ -614,9 +614,9 @@ public:
    * application, call the function and overwrite `v` with the
    * result.  Otherwise, this is a no-op.
    */
-  inline void forceValue(Value& v, const PosIdx pos) { v.force(*this, pos); }
+  inline void forceValue(Value& v, const pos_idx_t pos) { v.force(*this, pos); }
 
-  void tryFixupBlackHolePos(Value& v, PosIdx pos);
+  void tryFixupBlackHolePos(Value& v, pos_idx_t pos);
 
   /**
    * Force a value, then recursively force list elements and
@@ -627,25 +627,25 @@ public:
   /**
    * Force `v`, and then verify that it has the expected type.
    */
-  NixInt forceInt(Value& v, const PosIdx pos, std::string_view errorCtx);
-  NixFloat forceFloat(Value& v, const PosIdx pos, std::string_view errorCtx);
-  bool forceBool(Value& v, const PosIdx pos, std::string_view errorCtx);
+  NixInt forceInt(Value& v, const pos_idx_t pos, std::string_view errorCtx);
+  NixFloat forceFloat(Value& v, const pos_idx_t pos, std::string_view errorCtx);
+  bool forceBool(Value& v, const pos_idx_t pos, std::string_view errorCtx);
 
-  void forceAttrs(Value& v, const PosIdx pos, std::string_view errorCtx);
+  void forceAttrs(Value& v, const pos_idx_t pos, std::string_view errorCtx);
 
   template <typename Callable>
   inline void forceAttrs(Value& v, Callable getPos, std::string_view errorCtx);
 
-  inline void forceList(Value& v, const PosIdx pos, std::string_view errorCtx);
+  inline void forceList(Value& v, const pos_idx_t pos, std::string_view errorCtx);
   /**
    * @param v either lambda or primop
    */
-  void forceFunction(Value& v, const PosIdx pos, std::string_view errorCtx);
-  std::string_view forceString(Value& v, const PosIdx pos, std::string_view errorCtx);
+  void forceFunction(Value& v, const pos_idx_t pos, std::string_view errorCtx);
+  std::string_view forceString(Value& v, const pos_idx_t pos, std::string_view errorCtx);
   std::string_view
-  forceString(Value& v, NixStringContext& context, const PosIdx pos, std::string_view errorCtx,
-              const ExperimentalFeatureSettings& xpSettings = experimentalFeatureSettings);
-  std::string_view forceStringNoCtx(Value& v, const PosIdx pos, std::string_view errorCtx);
+  forceString(Value& v, NixStringContext& context, const pos_idx_t pos, std::string_view errorCtx,
+              const experimental_feature_settings_t& xpSettings = experimentalFeatureSettings);
+  std::string_view forceStringNoCtx(Value& v, const pos_idx_t pos, std::string_view errorCtx);
 
   /**
    * Get attribute from an attribute set and throw an error if it doesn't exist.
@@ -657,7 +657,7 @@ public:
   void addErrorTrace(Error& e, const Args&... formatArgs) const;
   template <typename... Args>
   [[gnu::noinline]]
-  void addErrorTrace(Error& e, const PosIdx pos, const Args&... formatArgs) const;
+  void addErrorTrace(Error& e, const pos_idx_t pos, const Args&... formatArgs) const;
 
 public:
   /**
@@ -666,12 +666,12 @@ public:
    */
   bool isDerivation(Value& v);
 
-  std::optional<std::string> tryAttrsToString(const PosIdx pos, Value& v, NixStringContext& context,
+  std::optional<std::string> tryAttrsToString(const pos_idx_t pos, Value& v, NixStringContext& context,
                                               bool coerceMore = false, bool copyToStore = true);
 
-  StorePath devirtualize(const StorePath& path, StringMap* rewrites = nullptr);
+  StorePath devirtualize(const StorePath& path, string_map_t* rewrites = nullptr);
 
-  SingleDerivedPath devirtualize(const SingleDerivedPath& path, StringMap* rewrites = nullptr);
+  SingleDerivedPath devirtualize(const SingleDerivedPath& path, string_map_t* rewrites = nullptr);
 
   std::string devirtualize(std::string_view s, const NixStringContext& context);
 
@@ -683,15 +683,15 @@ public:
    * booleans and lists to a string.  If `copyToStore` is set,
    * referenced paths are copied to the Nix store as a side effect.
    */
-  BackedStringView coerceToString(const PosIdx pos, Value& v, NixStringContext& context,
+  backed_string_view_t coerceToString(const pos_idx_t pos, Value& v, NixStringContext& context,
                                   std::string_view errorCtx, bool coerceMore = false,
                                   bool copyToStore = true, bool canonicalizePath = true);
 
-  StorePath copyPathToStore(NixStringContext& context, const SourcePath& path, PosIdx pos);
+  StorePath copyPathToStore(NixStringContext& context, const source_path_t& path, pos_idx_t pos);
 
   /**
-   * Compute the base name for a `SourcePath`. For non-store paths,
-   * this is just `SourcePath::baseName()`. But for store paths, for
+   * Compute the base name for a `source_path_t`. For non-store paths,
+   * this is just `source_path_t::baseName()`. But for store paths, for
    * backwards compatibility, it needs to be `<hash>-source`,
    * i.e. as if the path were copied to the Nix store. This results
    * in a "double-copied" store path like
@@ -699,7 +699,7 @@ public:
    * materialize /nix/store/<hash2>-source though. Still, this
    * requires reading/hashing the path twice.
    */
-  std::string computeBaseName(const SourcePath& path, PosIdx pos);
+  std::string computeBaseName(const source_path_t& path, pos_idx_t pos);
 
   /**
    * Path coercion.
@@ -708,13 +708,13 @@ public:
    * path.  The result is guaranteed to be a canonicalised, absolute
    * path.  Nothing is copied to the store.
    */
-  SourcePath coerceToPath(const PosIdx pos, Value& v, NixStringContext& context,
+  source_path_t coerceToPath(const pos_idx_t pos, Value& v, NixStringContext& context,
                           std::string_view errorCtx);
 
   /**
    * Like coerceToPath, but the result must be a store path.
    */
-  StorePath coerceToStorePath(const PosIdx pos, Value& v, NixStringContext& context,
+  StorePath coerceToStorePath(const pos_idx_t pos, Value& v, NixStringContext& context,
                               std::string_view errorCtx);
 
   /**
@@ -722,8 +722,8 @@ public:
    * only.
    */
   std::pair<SingleDerivedPath, std::string_view> coerceToSingleDerivedPathUnchecked(
-      const PosIdx pos, Value& v, std::string_view errorCtx,
-      const ExperimentalFeatureSettings& xpSettings = experimentalFeatureSettings);
+      const pos_idx_t pos, Value& v, std::string_view errorCtx,
+      const experimental_feature_settings_t& xpSettings = experimentalFeatureSettings);
 
   /**
    * Coerce to `SingleDerivedPath`.
@@ -732,7 +732,7 @@ public:
    * "placeholder (see `DownstreamPlaceholder`).
    *
    * Even more importantly, the string context must be exactly one
-   * element, which is either a `NixStringContextElem::Opaque` or
+   * element, which is either a `NixStringContextElem::opaque_t` or
    * `NixStringContextElem::Built`. (`NixStringContextEleme::DrvDeep`
    * is not permitted).
    *
@@ -740,7 +740,7 @@ public:
    * source of truth, and ultimately tells us what we want, and then
    * we ensure the string corresponds to it.
    */
-  SingleDerivedPath coerceToSingleDerivedPath(const PosIdx pos, Value& v,
+  SingleDerivedPath coerceToSingleDerivedPath(const pos_idx_t pos, Value& v,
                                               std::string_view errorCtx);
 
 #if NIX_USE_BOEHMGC
@@ -763,14 +763,14 @@ public:
   /**
    * Internal primops not exposed to the user.
    */
-  boost::unordered_flat_map<std::string, Value*, StringViewHash, std::equal_to<>,
+  boost::unordered_flat_map<std::string, Value*, string_view_hash_t, std::equal_to<>,
                             traceable_allocator<std::pair<const std::string, Value*>>>
       internalPrimOps;
 
   /**
    * Name and documentation about every constant.
    *
-   * Constants from primops are hard to crawl, and their docs will go
+   * constants_t from primops are hard to crawl, and their docs will go
    * here too.
    */
   std::vector<std::pair<std::string, Constant>> constantInfos;
@@ -827,7 +827,7 @@ private:
   friend struct ExprAttrs;
   friend struct ExprLet;
 
-  Expr* parse(char* text, size_t length, Pos::Origin origin, const SourcePath& basePath,
+  Expr* parse(char* text, size_t length, Pos::origin_t origin, const source_path_t& basePath,
               const std::shared_ptr<StaticEnv>& staticEnv);
 
   /**
@@ -842,13 +842,13 @@ public:
    * Check that the call depth is within limits, and increment it, until the returned object is
    * destroyed.
    */
-  inline CallDepth addCallDepth(const PosIdx pos);
+  inline CallDepth addCallDepth(const pos_idx_t pos);
 
   /**
    * Do a deep equality test between two values.  That is, list
    * elements and attributes are compared recursively.
    */
-  bool eqValues(Value& v1, Value& v2, const PosIdx pos, std::string_view errorCtx);
+  bool eqValues(Value& v1, Value& v2, const pos_idx_t pos, std::string_view errorCtx);
 
   /**
    * Like `eqValues`, but throws an `AssertionError` if not equal.
@@ -857,13 +857,13 @@ public:
    * Callers should call `eqValues` first and report if `assertEqValues` behaves
    * incorrectly. (e.g. if it doesn't throw if eqValues returns false or vice versa)
    */
-  void assertEqValues(Value& v1, Value& v2, const PosIdx pos, std::string_view errorCtx);
+  void assertEqValues(Value& v1, Value& v2, const pos_idx_t pos, std::string_view errorCtx);
 
   bool isFunctor(const Value& fun) const;
 
-  void callFunction(Value& fun, std::span<Value*> args, Value& vRes, const PosIdx pos);
+  void callFunction(Value& fun, std::span<Value*> args, Value& vRes, const pos_idx_t pos);
 
-  void callFunction(Value& fun, Value& arg, Value& vRes, const PosIdx pos) {
+  void callFunction(Value& fun, Value& arg, Value& vRes, const pos_idx_t pos) {
     Value* args[] = {&arg};
     callFunction(fun, args, vRes, pos);
   }
@@ -884,13 +884,13 @@ public:
   Value* getBool(bool b);
 
   void mkThunk_(Value& v, Expr* expr);
-  void mkPos(Value& v, PosIdx pos);
+  void mkPos(Value& v, pos_idx_t pos);
 
   /**
    * Create a string representing a store path.
    *
    * The string is the printed store path with a context containing a
-   * single `NixStringContextElem::Opaque` element of that store path.
+   * single `NixStringContextElem::opaque_t` element of that store path.
    */
   void mkStorePathString(const StorePath& storePath, Value& v);
 
@@ -916,7 +916,7 @@ public:
    */
   void mkOutputString(Value& value, const SingleDerivedPath::Built& b,
                       std::optional<StorePath> optStaticOutputPath,
-                      const ExperimentalFeatureSettings& xpSettings = experimentalFeatureSettings);
+                      const experimental_feature_settings_t& xpSettings = experimentalFeatureSettings);
 
   /**
    * Create a string representing a `SingleDerivedPath`.
@@ -925,7 +925,7 @@ public:
    */
   void mkSingleDerivedPathString(const SingleDerivedPath& p, Value& v);
 
-  void concatLists(Value& v, size_t nrLists, Value* const* lists, const PosIdx pos,
+  void concatLists(Value& v, size_t nrLists, Value* const* lists, const pos_idx_t pos,
                    std::string_view errorCtx);
 
   /**
@@ -957,7 +957,7 @@ public:
    * @return a mapping from the placeholders used to construct the associated value to their final
    * store path.
    */
-  [[nodiscard]] StringMap realiseContext(const NixStringContext& context,
+  [[nodiscard]] string_map_t realiseContext(const NixStringContext& context,
                                          StorePathSet* maybePaths = nullptr, bool isIFD = true);
 
   /**
@@ -969,12 +969,12 @@ public:
    * @throw EvalError if the value is not a string, path or derivation (see `coerceToString`)
    */
   std::string realiseString(Value& str, StorePathSet* storePathsOutMaybe, bool isIFD = true,
-                            const PosIdx pos = noPos);
+                            const pos_idx_t pos = noPos);
 
   /* Call the binary path filter predicate used builtins.path etc. */
-  bool callPathFilter(Value* filterFun, const SourcePath& path, PosIdx pos);
+  bool callPathFilter(Value* filterFun, const source_path_t& path, pos_idx_t pos);
 
-  DocComment getDocCommentForPos(PosIdx pos);
+  DocComment getDocCommentForPos(pos_idx_t pos);
 
   void waitForPath(const StorePath& path);
   void waitForPath(const SingleDerivedPath& path);
@@ -987,7 +987,7 @@ private:
    */
   std::string
   mkOutputStringRaw(const SingleDerivedPath::Built& b, std::optional<StorePath> optStaticOutputPath,
-                    const ExperimentalFeatureSettings& xpSettings = experimentalFeatureSettings);
+                    const experimental_feature_settings_t& xpSettings = experimentalFeatureSettings);
 
   /**
    * Like `mkSingleDerivedPathStringRaw` but just creates a raw string
@@ -1015,7 +1015,7 @@ private:
   bool countCalls;
 
   // FIXME: make thread-safe.
-  typedef boost::unordered_flat_map<std::string, size_t, StringViewHash, std::equal_to<>>
+  typedef boost::unordered_flat_map<std::string, size_t, string_view_hash_t, std::equal_to<>>
       PrimOpCalls;
   PrimOpCalls primOpCalls;
 
@@ -1028,7 +1028,7 @@ private:
   void incrFunctionCall(ExprLambda* fun);
 
   // FIXME: make thread-safe.
-  typedef boost::unordered_flat_map<PosIdx, size_t, std::hash<PosIdx>> AttrSelects;
+  typedef boost::unordered_flat_map<pos_idx_t, size_t, std::hash<pos_idx_t>> AttrSelects;
   AttrSelects attrSelects;
 
   friend struct ExprOpUpdate;
@@ -1039,9 +1039,9 @@ private:
   friend struct ExprFloat;
   friend struct ExprPath;
   friend struct ExprSelect;
-  friend void prim_getAttr(EvalState& state, const PosIdx pos, Value** args, Value& v);
-  friend void prim_match(EvalState& state, const PosIdx pos, Value** args, Value& v);
-  friend void prim_split(EvalState& state, const PosIdx pos, Value** args, Value& v);
+  friend void prim_getAttr(EvalState& state, const pos_idx_t pos, Value** args, Value& v);
+  friend void prim_match(EvalState& state, const pos_idx_t pos, Value** args, Value& v);
+  friend void prim_split(EvalState& state, const pos_idx_t pos, Value** args, Value& v);
 
   friend struct Value;
   friend class ListBuilder;
@@ -1081,12 +1081,12 @@ std::string showType(const Value& v);
  *
  * @param addDefaultNix Whether to append "/default.nix" after resolving symlinks.
  */
-SourcePath resolveExprPath(SourcePath path, bool addDefaultNix = true);
+source_path_t resolveExprPath(source_path_t path, bool addDefaultNix = true);
 
 /**
  * Whether a URI is allowed, assuming restrictEval is enabled
  */
-bool isAllowedURI(std::string_view uri, const Strings& allowedPaths);
+bool isAllowedURI(std::string_view uri, const strings_t& allowedPaths);
 
 } // namespace nix
 

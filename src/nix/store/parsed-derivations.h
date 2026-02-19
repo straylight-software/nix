@@ -31,7 +31,7 @@ struct StructuredAttrs {
    * Like `tryParse`, but removes the env var which encoded the structured
    * attrs from the map if one is found.
    */
-  static std::optional<StructuredAttrs> tryExtract(StringPairs& env);
+  static std::optional<StructuredAttrs> tryExtract(string_pairs_t& env);
 
   /**
    * Opposite of `tryParse`, at least if one makes a map from this
@@ -43,7 +43,7 @@ struct StructuredAttrs {
    * Ensures that the structured attrs "env var" is not in used, so we
    * are free to use it instead.
    */
-  static void checkKeyNotInUse(const StringPairs& env);
+  static void checkKeyNotInUse(const string_pairs_t& env);
 
   nlohmann::json::object_t prepareStructuredAttrs(Store& store,
                                                   const DerivationOptions<StorePath>& drvOptions,

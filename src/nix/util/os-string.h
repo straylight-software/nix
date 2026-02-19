@@ -14,7 +14,7 @@ namespace nix {
  * Same as `std::filesystem::path::value_type`, but manually defined to
  * avoid including a much more complex header.
  */
-using OsChar =
+using os_char_t =
 #if defined(_WIN32) && !defined(__CYGWIN__)
     wchar_t
 #else
@@ -27,18 +27,18 @@ using OsChar =
  * native encoding not WTF-8.
  *
  * Same as `std::filesystem::path::string_type`, but manually defined
- * for the same reason as `OsChar`.
+ * for the same reason as `os_char_t`.
  */
-using OsString = std::basic_string<OsChar>;
+using os_string_t = std::basic_string<os_char_t>;
 
 /**
- * `std::string_view` counterpart for `OsString`.
+ * `std::string_view` counterpart for `os_string_t`.
  */
-using OsStringView = std::basic_string_view<OsChar>;
+using os_string_view_t = std::basic_string_view<os_char_t>;
 
-std::string os_string_to_string(OsStringView path);
+std::string os_string_to_string(os_string_view_t path);
 
-OsString string_to_os_string(std::string_view s);
+os_string_t string_to_os_string(std::string_view s);
 
 /**
  * Create string literals with the native character width of paths

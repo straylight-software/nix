@@ -75,7 +75,7 @@ struct InstallableValue : Installable {
 
   virtual ~InstallableValue() {}
 
-  virtual std::pair<Value*, PosIdx> toValue(EvalState& state) = 0;
+  virtual std::pair<Value*, pos_idx_t> toValue(EvalState& state) = 0;
 
   /**
    * Get a cursor to each value this Installable could refer to.
@@ -111,7 +111,7 @@ protected:
    * @result A derived path (with empty info, for now) if the value
    * matched the above criteria.
    */
-  std::optional<DerivedPathWithInfo> trySinglePathToDerivedPaths(Value& v, const PosIdx pos,
+  std::optional<DerivedPathWithInfo> trySinglePathToDerivedPaths(Value& v, const pos_idx_t pos,
                                                                  std::string_view errorCtx);
 };
 

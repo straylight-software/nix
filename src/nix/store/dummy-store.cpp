@@ -27,35 +27,35 @@ bool DummyStore::operator==(const DummyStore& other) const {
 
 namespace {
 
-class WholeStoreViewAccessor : public SourceAccessor {
+class whole_store_view_accessor_t : public SourceAccessor {
   using BaseName = std::string;
 
   /**
    * Map from store path basenames to corresponding accessors.
    */
-  boost::concurrent_flat_map<BaseName, ref<MemorySourceAccessor>> subdirs;
+  boost::concurrent_flat_map<BaseName, ref<memory_source_accessor_t>> subdirs;
 
   /**
-   * Helper accessor for accessing just the CanonPath::root.
+   * Helper accessor for accessing just the canon_path_t::root.
    */
-  MemorySourceAccessor rootPathAccessor;
+  memory_source_accessor_t rootPathAccessor;
 
   /**
    * Helper empty accessor.
    */
-  MemorySourceAccessor emptyAccessor;
+  memory_source_accessor_t emptyAccessor;
 
   auto
-  callWithAccessorForPath(CanonPath path,
-                          std::invocable<MemorySourceAccessor&, const CanonPath&> auto callback) {
+  callWithAccessorForPath(canon_path_t path,
+                          std::invocable<memory_source_accessor_t&, const canon_path_t&> auto callback) {
     if (path.isRoot())
       return callback(rootPathAccessor, path);
 
     BaseName baseName(*path.begin());
-    MemorySourceAccessor* res = nullptr;
+    memory_source_accessor_t* res = nullptr;
 
     subdirs.cvisit(baseName, [&](const auto& kv) {
-      path = path.removePrefix(CanonPath{baseName});
+      path = path.removePrefix(canon_path_t{baseName});
       res = &*kv.second;
     });
 
@@ -66,48 +66,48 @@ class WholeStoreViewAccessor : public SourceAccessor {
   }
 
 public:
-  WholeStoreViewAccessor() {
-    MemorySink sink{rootPathAccessor};
-    sink.createDirectory(CanonPath::root);
+  whole_store_view_accessor_t() {
+    memory_sink_t sink{rootPathAccessor};
+    sink.createDirectory(canon_path_t::root);
   }
 
-  void addObject(std::string_view baseName, ref<MemorySourceAccessor> accessor) {
+  void addObject(std::string_view baseName, ref<memory_source_accessor_t> accessor) {
     subdirs.emplace(baseName, std::move(accessor));
   }
 
-  std::string readFile(const CanonPath& path) override {
-    return callWithAccessorForPath(path, [](SourceAccessor& accessor, const CanonPath& path) {
+  std::string readFile(const canon_path_t& path) override {
+    return callWithAccessorForPath(path, [](SourceAccessor& accessor, const canon_path_t& path) {
       return accessor.readFile(path);
     });
   }
 
-  void readFile(const CanonPath& path, Sink& sink,
+  void readFile(const canon_path_t& path, Sink& sink,
                 std::function<void(uint64_t)> sizeCallback) override {
-    return callWithAccessorForPath(path, [&](SourceAccessor& accessor, const CanonPath& path) {
+    return callWithAccessorForPath(path, [&](SourceAccessor& accessor, const canon_path_t& path) {
       return accessor.readFile(path, sink, sizeCallback);
     });
   }
 
-  bool pathExists(const CanonPath& path) override {
-    return callWithAccessorForPath(path, [](SourceAccessor& accessor, const CanonPath& path) {
+  bool pathExists(const canon_path_t& path) override {
+    return callWithAccessorForPath(path, [](SourceAccessor& accessor, const canon_path_t& path) {
       return accessor.pathExists(path);
     });
   }
 
-  std::optional<Stat> maybeLstat(const CanonPath& path) override {
-    return callWithAccessorForPath(path, [](SourceAccessor& accessor, const CanonPath& path) {
+  std::optional<stat_t> maybeLstat(const canon_path_t& path) override {
+    return callWithAccessorForPath(path, [](SourceAccessor& accessor, const canon_path_t& path) {
       return accessor.maybeLstat(path);
     });
   }
 
-  DirEntries readDirectory(const CanonPath& path) override {
-    return callWithAccessorForPath(path, [](SourceAccessor& accessor, const CanonPath& path) {
+  dir_entries_t readDirectory(const canon_path_t& path) override {
+    return callWithAccessorForPath(path, [](SourceAccessor& accessor, const canon_path_t& path) {
       return accessor.readDirectory(path);
     });
   }
 
-  std::string readLink(const CanonPath& path) override {
-    return callWithAccessorForPath(path, [](SourceAccessor& accessor, const CanonPath& path) {
+  std::string readLink(const canon_path_t& path) override {
+    return callWithAccessorForPath(path, [](SourceAccessor& accessor, const canon_path_t& path) {
       return accessor.readLink(path);
     });
   }
@@ -119,7 +119,7 @@ ref<Store> DummyStoreConfig::openStore() const {
   return openDummyStore();
 }
 
-struct DummyStoreImpl : DummyStore {
+struct dummy_store_impl_t : DummyStore {
   using Config = DummyStoreConfig;
 
   /**
@@ -129,9 +129,9 @@ struct DummyStoreImpl : DummyStore {
    *
    * This is needed just in order to implement `Store::getFSAccessor`.
    */
-  ref<WholeStoreViewAccessor> wholeStoreView = make_ref<WholeStoreViewAccessor>();
+  ref<whole_store_view_accessor_t> wholeStoreView = make_ref<whole_store_view_accessor_t>();
 
-  DummyStoreImpl(ref<const Config> config) : Store{*config}, DummyStore{config} {
+  dummy_store_impl_t(ref<const Config> config) : Store{*config}, DummyStore{config} {
     wholeStoreView->setPathDisplay(config->storeDir);
   }
 
@@ -140,18 +140,18 @@ struct DummyStoreImpl : DummyStore {
                         Callback<std::shared_ptr<const ValidPathInfo>> callback) noexcept override {
     if (path.isDerivation()) {
       if (auto accessor_ = getMemoryFSAccessor(path)) {
-        ref<MemorySourceAccessor> accessor = ref{std::move(accessor_)};
+        ref<memory_source_accessor_t> accessor = ref{std::move(accessor_)};
         /* compute path info on demand */
-        auto narHash = hashPath({accessor, CanonPath::root}, FileSerialisationMethod::NixArchive,
-                                HashAlgorithm::SHA256);
+        auto narHash = hashPath({accessor, canon_path_t::root}, file_serialisation_method_t::NixArchive,
+                                hash_algorithm_t::SHA256);
         auto info =
             std::make_shared<ValidPathInfo>(path, UnkeyedValidPathInfo{*this, narHash.hash});
         info->narSize = narHash.numBytesDigested;
         info->ca = ContentAddress{
-            .method = ContentAddressMethod::Raw::Text,
+            .method = ContentAddressMethod::raw_t::Text,
             .hash = hashString(
-                HashAlgorithm::SHA256,
-                std::get<MemorySourceAccessor::File::Regular>(accessor->root->raw).contents),
+                hash_algorithm_t::SHA256,
+                std::get<memory_source_accessor_t::file_t::Regular>(accessor->root->raw).contents),
         };
         callback(std::move(info));
         return;
@@ -195,14 +195,14 @@ struct DummyStoreImpl : DummyStore {
       throw Error("checking signatures is not supported for '%s' store",
                   config->getHumanReadableURI());
 
-    auto accessor = make_ref<MemorySourceAccessor>();
-    MemorySink tempSink{*accessor};
+    auto accessor = make_ref<memory_source_accessor_t>();
+    memory_sink_t tempSink{*accessor};
     parseDump(tempSink, source);
     auto path = info.path;
 
     if (info.path.isDerivation()) {
       warn("back compat supporting `addToStore` for inserting derivations in dummy store");
-      writeDerivation(parseDerivation(*this, accessor->readFile(CanonPath::root),
+      writeDerivation(parseDerivation(*this, accessor->readFile(canon_path_t::root),
                                       Derivation::nameFromPath(info.path)));
       return;
     }
@@ -219,9 +219,9 @@ struct DummyStoreImpl : DummyStore {
 
   StorePath
   addToStoreFromDump(Source& source, std::string_view name,
-                     FileSerialisationMethod dumpMethod = FileSerialisationMethod::NixArchive,
-                     ContentAddressMethod hashMethod = FileIngestionMethod::NixArchive,
-                     HashAlgorithm hashAlgo = HashAlgorithm::SHA256,
+                     file_serialisation_method_t dumpMethod = file_serialisation_method_t::NixArchive,
+                     ContentAddressMethod hashMethod = file_ingestion_method_t::NixArchive,
+                     hash_algorithm_t hashAlgo = hash_algorithm_t::SHA256,
                      const StorePathSet& references = StorePathSet(),
                      RepairFlag repair = NoRepair) override {
     if (isDerivation(name))
@@ -233,29 +233,29 @@ struct DummyStoreImpl : DummyStore {
     if (repair)
       throw Error("repairing is not supported for '%s' store", config->getHumanReadableURI());
 
-    auto temp = make_ref<MemorySourceAccessor>();
+    auto temp = make_ref<memory_source_accessor_t>();
 
     {
-      MemorySink tempSink{*temp};
+      memory_sink_t tempSink{*temp};
 
       // TODO factor this out into `restorePath`, same todo on it.
       switch (dumpMethod) {
-        case FileSerialisationMethod::NixArchive:
+        case file_serialisation_method_t::NixArchive:
           parseDump(tempSink, source);
           break;
-        case FileSerialisationMethod::Flat: {
+        case file_serialisation_method_t::Flat: {
           // Replace root dir with file so next part succeeds.
-          temp->root = MemorySourceAccessor::File::Regular{};
-          tempSink.createRegularFile(CanonPath::root, [&](auto& sink) { source.drainInto(sink); });
+          temp->root = memory_source_accessor_t::file_t::Regular{};
+          tempSink.createRegularFile(canon_path_t::root, [&](auto& sink) { source.drainInto(sink); });
           break;
         }
       }
     }
 
     auto hash =
-        hashPath({temp, CanonPath::root}, hashMethod.getFileIngestionMethod(), hashAlgo).first;
+        hashPath({temp, canon_path_t::root}, hashMethod.getFileIngestionMethod(), hashAlgo).first;
     auto narHash =
-        hashPath({temp, CanonPath::root}, FileIngestionMethod::NixArchive, HashAlgorithm::SHA256);
+        hashPath({temp, canon_path_t::root}, file_ingestion_method_t::NixArchive, hash_algorithm_t::SHA256);
 
     auto info =
         ValidPathInfo::makeFromCA(*this, name,
@@ -272,7 +272,7 @@ struct DummyStoreImpl : DummyStore {
     info.narSize = narHash.second.value();
 
     auto path = info.path;
-    auto accessor = make_ref<MemorySourceAccessor>(std::move(*temp));
+    auto accessor = make_ref<memory_source_accessor_t>(std::move(*temp));
     contents.insert({
         path,
         PathInfoAndContents{
@@ -332,14 +332,14 @@ struct DummyStoreImpl : DummyStore {
       callback(nullptr);
   }
 
-  std::shared_ptr<MemorySourceAccessor> getMemoryFSAccessor(const StorePath& path,
+  std::shared_ptr<memory_source_accessor_t> getMemoryFSAccessor(const StorePath& path,
                                                             bool requireValidPath = true) {
-    std::shared_ptr<MemorySourceAccessor> res;
+    std::shared_ptr<memory_source_accessor_t> res;
     if (path.isDerivation())
       derivations.cvisit(path, [&](const auto& kv) {
         /* compute path info on demand */
-        auto res2 = make_ref<MemorySourceAccessor>();
-        res2->root = MemorySourceAccessor::File::Regular{
+        auto res2 = make_ref<memory_source_accessor_t>();
+        res2->root = memory_source_accessor_t::file_t::Regular{
             .contents = kv.second.unparse(*this, false),
         };
         res = std::move(res2).get_ptr();
@@ -358,7 +358,7 @@ struct DummyStoreImpl : DummyStore {
 };
 
 ref<DummyStore> DummyStore::Config::openDummyStore() const {
-  return make_ref<DummyStoreImpl>(ref{shared_from_this()});
+  return make_ref<dummy_store_impl_t>(ref{shared_from_this()});
 }
 
 static RegisterStoreImplementation<DummyStore::Config> regDummyStore;
@@ -374,7 +374,7 @@ adl_serializer<DummyStore::PathInfoAndContents>::from_json(const json& json) {
   auto& obj = getObject(json);
   return DummyStore::PathInfoAndContents{
       .info = valueAt(obj, "info"),
-      .contents = make_ref<MemorySourceAccessor>(valueAt(obj, "contents")),
+      .contents = make_ref<memory_source_accessor_t>(valueAt(obj, "contents")),
   };
 }
 
@@ -389,7 +389,7 @@ void adl_serializer<DummyStore::PathInfoAndContents>::to_json(
 ref<DummyStoreConfig> adl_serializer<ref<DummyStore::Config>>::from_json(const json& json) {
   auto& obj = getObject(json);
   auto cfg = make_ref<DummyStore::Config>(DummyStore::Config::Params{});
-  const_cast<PathSetting&>(cfg->storeDir_).set(getString(valueAt(obj, "store")));
+  const_cast<path_setting_t&>(cfg->storeDir_).set(getString(valueAt(obj, "store")));
   cfg->readOnly = true;
   return cfg;
 }
@@ -413,7 +413,7 @@ ref<DummyStore> adl_serializer<ref<DummyStore>>::from_json(const json& json) {
       UnkeyedRealisation realisation = v2;
       res->buildTrace.insert_or_visit(
           {
-              Hash::parseExplicitFormatUnprefixed(k0, HashAlgorithm::SHA256, HashFormat::Base64),
+              Hash::parseExplicitFormatUnprefixed(k0, hash_algorithm_t::SHA256, hash_format_t::Base64),
               {{k1, realisation}},
           },
           [&](auto& kv) { kv.second.insert_or_assign(k1, realisation); });
@@ -448,7 +448,7 @@ void adl_serializer<DummyStore>::to_json(json& json, const DummyStore& val) {
          auto obj = json::object();
          val.buildTrace.cvisit_all([&](const auto& kv) {
            auto& [k, v] = kv;
-           auto& obj2 = obj[k.to_string(HashFormat::Base64, false)] = json::object();
+           auto& obj2 = obj[k.to_string(hash_format_t::Base64, false)] = json::object();
            for (auto& [k2, v2] : kv.second)
              obj2[k2] = v2;
          });

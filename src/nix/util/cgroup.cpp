@@ -22,7 +22,7 @@ std::optional<Path> getCgroupFS() {
     auto fp = fopen("/proc/mounts", "r");
     if (!fp)
       return std::nullopt;
-    Finally delFP = [&]() { fclose(fp); };
+    finally_t delFP = [&]() { fclose(fp); };
     while (auto ent = getmntent(fp))
       if (std::string_view(ent->mnt_type) == "cgroup2")
         return ent->mnt_dir;
@@ -33,8 +33,8 @@ std::optional<Path> getCgroupFS() {
 }
 
 // FIXME: obsolete, check for cgroup2
-StringMap getCgroups(const Path& cgroupFile) {
-  StringMap cgroups;
+string_map_t getCgroups(const Path& cgroupFile) {
+  string_map_t cgroups;
 
   for (auto& line : tokenizeString<std::vector<std::string>>(readFile(cgroupFile), "\n")) {
     static std::regex regex("([0-9]+):([^:]*):(.*)");
@@ -50,8 +50,8 @@ StringMap getCgroups(const Path& cgroupFile) {
   return cgroups;
 }
 
-CgroupStats getCgroupStats(const std::filesystem::path& cgroup) {
-  CgroupStats stats;
+cgroup_stats_t getCgroupStats(const std::filesystem::path& cgroup) {
+  cgroup_stats_t stats;
 
   auto cpustatPath = cgroup / "cpu.stat";
 
@@ -76,7 +76,7 @@ CgroupStats getCgroupStats(const std::filesystem::path& cgroup) {
   return stats;
 }
 
-static CgroupStats destroyCgroup(const std::filesystem::path& cgroup, bool returnStats) {
+static cgroup_stats_t destroyCgroup(const std::filesystem::path& cgroup, bool returnStats) {
   if (!pathExists(cgroup))
     return {};
 
@@ -93,7 +93,7 @@ static CgroupStats destroyCgroup(const std::filesystem::path& cgroup, bool retur
 
   /* Otherwise, manually kill every process in the subcgroups and
      this cgroup. */
-  for (auto& entry : DirectoryIterator{cgroup}) {
+  for (auto& entry : directory_iterator_t{cgroup}) {
     checkInterrupt();
     if (entry.symlink_status().type() != std::filesystem::file_type::directory)
       continue;
@@ -130,7 +130,7 @@ static CgroupStats destroyCgroup(const std::filesystem::path& cgroup, bool retur
       }
       // FIXME: pid wraparound
       if (kill(pid, SIGKILL) == -1 && errno != ESRCH)
-        throw SysError("killing member %d of cgroup '%s'", pid, cgroup);
+        throw sys_error_t("killing member %d of cgroup '%s'", pid, cgroup);
     }
 
     auto sleep = std::chrono::milliseconds((int)std::pow(2.0, std::min(round, 10)));
@@ -140,17 +140,17 @@ static CgroupStats destroyCgroup(const std::filesystem::path& cgroup, bool retur
     round++;
   }
 
-  CgroupStats stats;
+  cgroup_stats_t stats;
   if (returnStats)
     stats = getCgroupStats(cgroup);
 
   if (rmdir(cgroup.c_str()) == -1)
-    throw SysError("deleting cgroup %s", cgroup);
+    throw sys_error_t("deleting cgroup %s", cgroup);
 
   return stats;
 }
 
-CgroupStats destroyCgroup(const Path& cgroup) {
+cgroup_stats_t destroyCgroup(const Path& cgroup) {
   return destroyCgroup(cgroup, true);
 }
 

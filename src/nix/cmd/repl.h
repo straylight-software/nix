@@ -22,7 +22,7 @@ struct AbstractNixRepl {
    * @param programName Name of the command, e.g. `nix` or `nix-env`.
    * @param args aguments to the command.
    */
-  using RunNix = void(const std::string& programName, const Strings& args,
+  using RunNix = void(const std::string& programName, const strings_t& args,
                       const std::optional<std::string>& input);
 
   /**

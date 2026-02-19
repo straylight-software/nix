@@ -14,15 +14,15 @@
 
 namespace nix {
 
-static std::string_view getS(const std::vector<Logger::Field>& fields, size_t n) {
+static std::string_view getS(const std::vector<Logger::field_t>& fields, size_t n) {
   assert(n < fields.size());
-  assert(fields[n].type == Logger::Field::tString);
+  assert(fields[n].type == Logger::field_t::tString);
   return fields[n].s;
 }
 
-static uint64_t getI(const std::vector<Logger::Field>& fields, size_t n) {
+static uint64_t getI(const std::vector<Logger::field_t>& fields, size_t n) {
   assert(n < fields.size());
-  assert(fields[n].type == Logger::Field::tInt);
+  assert(fields[n].type == Logger::field_t::tInt);
   return fields[n].i;
 }
 
@@ -32,35 +32,35 @@ static std::string_view storePathToName(std::string_view path) {
   return i == std::string::npos ? base.substr(0, 0) : base.substr(i + 1);
 }
 
-class ProgressBar : public Logger {
+class progress_bar_t : public Logger {
 private:
-  struct ActInfo {
+  struct act_info_t {
     std::string s, lastLine, phase;
-    ActivityType type = actUnknown;
+    activity_type_t type = actUnknown;
     uint64_t done = 0;
     uint64_t expected = 0;
     uint64_t running = 0;
     uint64_t failed = 0;
-    std::map<ActivityType, uint64_t> expectedByType;
+    std::map<activity_type_t, uint64_t> expectedByType;
     bool visible = true;
-    ActivityId parent;
+    activity_id_t parent;
     std::optional<std::string> name;
     std::chrono::time_point<std::chrono::steady_clock> startTime;
     bool logged = false;
   };
 
-  struct ActivitiesByType {
-    std::map<ActivityId, std::list<ActInfo>::iterator> its;
+  struct activities_by_type_t {
+    std::map<activity_id_t, std::list<act_info_t>::iterator> its;
     uint64_t done = 0;
     uint64_t expected = 0;
     uint64_t failed = 0;
   };
 
   struct State {
-    std::list<ActInfo> activities;
-    std::map<ActivityId, std::list<ActInfo>::iterator> its;
+    std::list<act_info_t> activities;
+    std::map<activity_id_t, std::list<act_info_t>::iterator> its;
 
-    std::map<ActivityType, ActivitiesByType> activitiesByType;
+    std::map<activity_type_t, activities_by_type_t> activitiesByType;
 
     uint64_t filesLinked = 0, bytesLinked = 0;
 
@@ -74,9 +74,9 @@ private:
   };
 
   /** Helps avoid unnecessary redraws, see `redraw()` */
-  Sync<std::string> lastOutput_;
+  sync_t<std::string> lastOutput_;
 
-  Sync<State> state_;
+  sync_t<State> state_;
 
   std::thread updateThread;
 
@@ -86,7 +86,7 @@ private:
   bool isTTY;
 
 public:
-  ProgressBar(bool isTTY) : isTTY(isTTY) {
+  progress_bar_t(bool isTTY) : isTTY(isTTY) {
     state_.lock()->active = isTTY;
     updateThread = std::thread([&]() {
       auto state(state_.lock());
@@ -100,7 +100,7 @@ public:
     });
   }
 
-  ~ProgressBar() { stop(); }
+  ~progress_bar_t() { stop(); }
 
   /* Called by destructor, can't be overridden */
   void stop() override final {
@@ -154,14 +154,14 @@ public:
 
   bool isVerbose() override { return printBuildLogs; }
 
-  void log(Verbosity lvl, std::string_view s) override {
+  void log(verbosity_t lvl, std::string_view s) override {
     if (lvl > verbosity)
       return;
     auto state(state_.lock());
     log(*state, lvl, s);
   }
 
-  void logEI(const ErrorInfo& ei) override {
+  void logEI(const error_info_t& ei) override {
     auto state(state_.lock());
 
     std::ostringstream oss;
@@ -170,7 +170,7 @@ public:
     log(*state, ei.level, oss.view());
   }
 
-  void log(State& state, Verbosity lvl, std::string_view s) {
+  void log(State& state, verbosity_t lvl, std::string_view s) {
     if (state.active) {
       writeToStderr("\r\e[K" + filterANSIEscapes(s, !isTTY) + ANSI_NORMAL "\n");
       draw(state);
@@ -179,18 +179,18 @@ public:
     }
   }
 
-  void logActivity(State& state, Verbosity lvl, ActInfo& act) {
+  void logActivity(State& state, verbosity_t lvl, act_info_t& act) {
     if (!act.logged && lvl <= verbosity && !act.s.empty() && act.type != actBuildWaiting) {
       log(state, lvl, act.s + "...");
       act.logged = true;
     }
   }
 
-  void startActivity(ActivityId act, Verbosity lvl, ActivityType type, const std::string& s,
-                     const Fields& fields, ActivityId parent) override {
+  void startActivity(activity_id_t act, verbosity_t lvl, activity_type_t type, const std::string& s,
+                     const fields_t& fields, activity_id_t parent) override {
     auto state(state_.lock());
 
-    state->activities.emplace_back(ActInfo{
+    state->activities.emplace_back(act_info_t{
         .s = s, .type = type, .parent = parent, .startTime = std::chrono::steady_clock::now()});
     auto i = std::prev(state->activities.end());
     state->its.emplace(act, i);
@@ -247,7 +247,7 @@ public:
 
   /* Check whether an activity has an ancestor with the specified
      type. */
-  bool hasAncestor(State& state, ActivityType type, ActivityId act) {
+  bool hasAncestor(State& state, activity_type_t type, activity_id_t act) {
     while (act != 0) {
       auto i = state.its.find(act);
       if (i == state.its.end())
@@ -259,7 +259,7 @@ public:
     return false;
   }
 
-  void stopActivity(ActivityId act) override {
+  void stopActivity(activity_id_t act) override {
     auto state(state_.lock());
 
     auto i = state->its.find(act);
@@ -279,7 +279,7 @@ public:
     update(*state);
   }
 
-  void result(ActivityId act, ResultType type, const std::vector<Field>& fields) override {
+  void result(activity_id_t act, result_type_t type, const std::vector<field_t>& fields) override {
     auto state(state_.lock());
 
     if (type == resFileLinked) {
@@ -292,7 +292,7 @@ public:
       auto lastLine = chomp(getS(fields, 0));
       auto i = state->its.find(act);
       assert(i != state->its.end());
-      ActInfo info = *i->second;
+      act_info_t info = *i->second;
       if (printBuildLogs) {
         auto suffix = "> ";
         if (type == resPostBuildLogLine) {
@@ -329,7 +329,7 @@ public:
     else if (type == resProgress) {
       auto i = state->its.find(act);
       assert(i != state->its.end());
-      ActInfo& actInfo = *i->second;
+      act_info_t& actInfo = *i->second;
       actInfo.done = getI(fields, 0);
       actInfo.expected = getI(fields, 1);
       actInfo.running = getI(fields, 2);
@@ -340,8 +340,8 @@ public:
     else if (type == resSetExpected) {
       auto i = state->its.find(act);
       assert(i != state->its.end());
-      ActInfo& actInfo = *i->second;
-      auto type = (ActivityType)getI(fields, 0);
+      act_info_t& actInfo = *i->second;
+      auto type = (activity_type_t)getI(fields, 0);
       auto& j = actInfo.expectedByType[type];
       state->activitiesByType[type].expected -= j;
       j = getI(fields, 1);
@@ -352,7 +352,7 @@ public:
     else if (type == resFetchStatus) {
       auto i = state->its.find(act);
       assert(i != state->its.end());
-      ActInfo& actInfo = *i->second;
+      act_info_t& actInfo = *i->second;
       actInfo.lastLine = getS(fields, 0);
       update(*state);
     }
@@ -439,7 +439,7 @@ public:
   std::string getStatus(State& state) {
     std::string res;
 
-    auto renderActivity = [&] [[nodiscard]] (ActivityType type, const std::string& itemFmt,
+    auto renderActivity = [&] [[nodiscard]] (activity_type_t type, const std::string& itemFmt,
                                              const std::string& numberFmt = "%d", double unit = 1) {
       auto& act = state.activitiesByType[type];
       uint64_t done = act.done, expected = act.done, running = 0, failed = act.failed;
@@ -480,7 +480,7 @@ public:
       return s;
     };
 
-    auto renderSizeActivity = [&] [[nodiscard]] (ActivityType type,
+    auto renderSizeActivity = [&] [[nodiscard]] (activity_type_t type,
                                                  const std::string& itemFmt = "%s") {
       auto& act = state.activitiesByType[type];
       uint64_t done = act.done, expected = act.done, running = 0, failed = act.failed;
@@ -548,7 +548,7 @@ public:
       res += s;
     };
 
-    auto showActivity = [&](ActivityType type, const std::string& itemFmt,
+    auto showActivity = [&](activity_type_t type, const std::string& itemFmt,
                             const std::string& numberFmt = "%d", double unit = 1) {
       maybeAppendToResult(renderActivity(type, itemFmt, numberFmt, unit));
     };
@@ -629,7 +629,7 @@ public:
 };
 
 std::unique_ptr<Logger> makeProgressBar() {
-  return std::make_unique<ProgressBar>(isTTY());
+  return std::make_unique<progress_bar_t>(isTTY());
 }
 
 } // namespace nix

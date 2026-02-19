@@ -28,7 +28,7 @@ InstallableDerivedPath InstallableDerivedPath::parse(ref<Store> store, std::stri
                      // store path.
                      [&](const ExtendedOutputsSpec::Default&) -> DerivedPath {
                        auto storePath = store->followLinksToStorePath(prefix);
-                       return DerivedPath::Opaque{
+                       return DerivedPath::opaque_t{
                            .path = std::move(storePath),
                        };
                      },

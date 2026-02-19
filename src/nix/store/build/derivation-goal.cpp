@@ -45,7 +45,7 @@ DerivationGoal::DerivationGoal(const StorePath& drvPath, const Derivation& drv,
              worker.store.printStorePath(drvPath));
   trace("created");
 
-  mcExpectedBuilds = std::make_unique<MaintainCount<uint64_t>>(worker.expectedBuilds);
+  mcExpectedBuilds = std::make_unique<maintain_count_t<uint64_t>>(worker.expectedBuilds);
   worker.updateProgress();
 }
 
@@ -72,7 +72,7 @@ Goal::Co DerivationGoal::haveDerivation(bool storeDerivation) {
   }();
 
   if (!drv->type().hasKnownOutputPaths())
-    experimentalFeatureSettings.require(Xp::CaDerivations);
+    experimentalFeatureSettings.require(xp_t::CaDerivations);
 
   for (auto& i : drv->outputsAndOptPaths(worker.store))
     if (i.second.second)
@@ -81,7 +81,7 @@ Goal::Co DerivationGoal::haveDerivation(bool storeDerivation) {
   /* We don't yet have any safe way to cache an impure derivation at
      this step. */
   if (drv->type().isImpure()) {
-    experimentalFeatureSettings.require(Xp::ImpureDerivations);
+    experimentalFeatureSettings.require(xp_t::ImpureDerivations);
   } else {
     /* Check what outputs paths are not already valid. */
     auto checkResult = checkPathValidity();
@@ -395,7 +395,7 @@ std::optional<std::pair<UnkeyedRealisation, PathStatus>> DerivationGoal::checkPa
                 worker.store.printStorePath(drvPath), wantedOutput);
   }
 
-  if (experimentalFeatureSettings.isEnabled(Xp::CaDerivations)) {
+  if (experimentalFeatureSettings.isEnabled(xp_t::CaDerivations)) {
     for (auto* drvStore : {&worker.evalStore, &worker.store}) {
       if (auto real = drvStore->queryRealisation(drvOutput)) {
         mRealisation = *real;
@@ -411,7 +411,7 @@ std::optional<std::pair<UnkeyedRealisation, PathStatus>> DerivationGoal::checkPa
                         : !checkHash || worker.pathContentsGood(outputPath) ? PathStatus::Valid
                                                                             : PathStatus::Corrupt;
 
-    if (experimentalFeatureSettings.isEnabled(Xp::CaDerivations) && status == PathStatus::Valid) {
+    if (experimentalFeatureSettings.isEnabled(xp_t::CaDerivations) && status == PathStatus::Valid) {
       // We know the output because it's a static output of the
       // derivation, and the output path is valid, but we don't have
       // its realisation stored (probably because it has been built
@@ -437,7 +437,7 @@ UnkeyedRealisation DerivationGoal::assertPathValidity() {
   return checkResult->first;
 }
 
-Goal::Done DerivationGoal::doneSuccess(BuildResult::Success::Status status,
+Goal::done_t DerivationGoal::doneSuccess(BuildResult::Success::Status status,
                                        UnkeyedRealisation builtOutput) {
   buildResult.inner = BuildResult::Success{
       .status = status,
@@ -468,10 +468,10 @@ Goal::Done DerivationGoal::doneSuccess(BuildResult::Success::Status status,
   return amDone(ecSuccess, std::nullopt);
 }
 
-Goal::Done DerivationGoal::doneFailure(BuildError ex) {
+Goal::done_t DerivationGoal::doneFailure(BuildError ex) {
   buildResult.inner = BuildResult::Failure{
       .status = ex.status,
-      .errorMsg = fmt("%s", Uncolored(ex.info().msg)),
+      .errorMsg = fmt("%s", uncolored_t(ex.info().msg)),
   };
 
   logger->result(getCurActivity(), resBuildResult,

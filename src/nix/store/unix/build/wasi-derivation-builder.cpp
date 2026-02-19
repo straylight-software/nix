@@ -15,14 +15,14 @@ static std::span<uint8_t> string2span(std::string_view s) {
   return std::span<uint8_t>((uint8_t*)s.data(), s.size());
 }
 
-struct WasiDerivationBuilder : DerivationBuilderImpl {
-  WasiDerivationBuilder(LocalStore& store, std::unique_ptr<DerivationBuilderCallbacks> miscMethods,
+struct wasi_derivation_builder_t : derivation_builder_impl_t {
+  wasi_derivation_builder_t(LocalStore& store, std::unique_ptr<DerivationBuilderCallbacks> miscMethods,
                         DerivationBuilderParams params)
-      : DerivationBuilderImpl(store, std::move(miscMethods), std::move(params)) {
+      : derivation_builder_impl_t(store, std::move(miscMethods), std::move(params)) {
     // experimentalFeatureSettings.require(Xp::WasiBuilders);
   }
 
-  void execBuilder(const Strings& args, const Strings& envStrs) override {
+  void execBuilder(const strings_t& args, const strings_t& envStrs) override {
     using namespace wasmtime;
 
     Engine engine;

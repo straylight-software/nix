@@ -16,7 +16,7 @@ using json = nlohmann::json;
 
 #pragma GCC diagnostic ignored "-Wswitch-enum"
 
-static void parallelForceDeep(EvalState& state, Value& v, PosIdx pos) {
+static void parallelForceDeep(EvalState& state, Value& v, pos_idx_t pos) {
   state.forceValue(v, pos);
 
   std::vector<std::pair<Executor::work_t, uint8_t>> work;
@@ -43,12 +43,12 @@ static void parallelForceDeep(EvalState& state, Value& v, PosIdx pos) {
 }
 
 // TODO: rename. It doesn't print.
-json printValueAsJSON(EvalState& state, bool strict, Value& v, const PosIdx pos,
+json printValueAsJSON(EvalState& state, bool strict, Value& v, const pos_idx_t pos,
                       NixStringContext& context, bool copyToStore) {
   if (strict && state.executor->enabled && !Executor::amWorkerThread)
     parallelForceDeep(state, v, pos);
 
-  auto recurse = [&](this const auto& recurse, json& res, Value& v, PosIdx pos) -> void {
+  auto recurse = [&](this const auto& recurse, json& res, Value& v, pos_idx_t pos) -> void {
     checkInterrupt();
 
     auto _level = state.addCallDepth(pos);
@@ -99,7 +99,7 @@ json printValueAsJSON(EvalState& state, bool strict, Value& v, const PosIdx pos,
               recurse(j, *a->value, a->pos);
             } catch (Error& e) {
               e.addTrace(state.positions[a->pos],
-                         HintFmt("while evaluating attribute '%1%'", state.symbols[a->name]));
+                         hint_fmt_t("while evaluating attribute '%1%'", state.symbols[a->name]));
               throw;
             }
           }
@@ -115,7 +115,7 @@ json printValueAsJSON(EvalState& state, bool strict, Value& v, const PosIdx pos,
             recurse(res.back(), *elem, pos);
           } catch (Error& e) {
             e.addTrace(state.positions[pos],
-                       HintFmt("while evaluating list element at index %1%", i));
+                       hint_fmt_t("while evaluating list element at index %1%", i));
             throw;
           }
         }
@@ -147,7 +147,7 @@ json printValueAsJSON(EvalState& state, bool strict, Value& v, const PosIdx pos,
   return res;
 }
 
-void printValueAsJSON(EvalState& state, bool strict, Value& v, const PosIdx pos, std::ostream& str,
+void printValueAsJSON(EvalState& state, bool strict, Value& v, const pos_idx_t pos, std::ostream& str,
                       NixStringContext& context, bool copyToStore) {
   try {
     str << printValueAsJSON(state, strict, v, pos, context, copyToStore);

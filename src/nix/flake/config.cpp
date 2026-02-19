@@ -51,8 +51,8 @@ static void writeTrustedList(const TrustedList& trustedList) {
   writeFile(path, nlohmann::json(trustedList).dump());
 }
 
-void ConfigFile::apply(const Settings& flakeSettings) {
-  StringSet whitelist{"bash-prompt",    "bash-prompt-prefix",       "bash-prompt-suffix",
+void ConfigFile::apply(const settings_t& flakeSettings) {
+  string_set_t whitelist{"bash-prompt",    "bash-prompt-prefix",       "bash-prompt-suffix",
                       "flake-registry", "commit-lock-file-summary", "commit-lockfile-summary"};
 
   for (auto& [name, value] : settings) {

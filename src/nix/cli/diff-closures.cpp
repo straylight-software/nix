@@ -48,10 +48,10 @@ GroupedPaths getClosureInfo(ref<Store> store, const StorePath& toplevel) {
   return groupedPaths;
 }
 
-std::string showVersions(const StringSet& versions) {
+std::string showVersions(const string_set_t& versions) {
   if (versions.empty())
     return "(absent)";
-  StringSet versions2;
+  string_set_t versions2;
   for (auto& version : versions)
     versions2.insert(version.empty() ? "(no version)" : version);
   return concatStringsSep(", ", versions2);
@@ -62,7 +62,7 @@ void printClosureDiff(ref<Store> store, const StorePath& beforePath, const Store
   auto beforeClosure = getClosureInfo(store, beforePath);
   auto afterClosure = getClosureInfo(store, afterPath);
 
-  StringSet allNames;
+  string_set_t allNames;
   for (auto& [name, _] : beforeClosure)
     allNames.insert(name);
   for (auto& [name, _] : afterClosure)
@@ -85,14 +85,14 @@ void printClosureDiff(ref<Store> store, const StorePath& beforePath, const Store
     auto sizeDelta = (int64_t)afterSize - (int64_t)beforeSize;
     auto showDelta = std::abs(sizeDelta) >= 8 * 1024;
 
-    StringSet removed, unchanged;
+    string_set_t removed, unchanged;
     for (auto& [version, _] : beforeVersions)
       if (!afterVersions.count(version))
         removed.insert(version);
       else
         unchanged.insert(version);
 
-    StringSet added;
+    string_set_t added;
     for (auto& [version, _] : afterVersions)
       if (!beforeVersions.count(version))
         added.insert(version);
@@ -118,10 +118,10 @@ void printClosureDiff(ref<Store> store, const StorePath& beforePath, const Store
 
 using namespace nix;
 
-struct CmdDiffClosures : SourceExprCommand, MixOperateOnOptions {
+struct cmd_diff_closures_t : SourceExprCommand, MixOperateOnOptions {
   std::string _before, _after;
 
-  CmdDiffClosures() {
+  cmd_diff_closures_t() {
     expectArg("before", &_before);
     expectArg("after", &_after);
   }
@@ -147,4 +147,4 @@ struct CmdDiffClosures : SourceExprCommand, MixOperateOnOptions {
   }
 };
 
-static auto rCmdDiffClosures = registerCommand2<CmdDiffClosures>({"store", "diff-closures"});
+static auto rCmdDiffClosures = registerCommand2<cmd_diff_closures_t>({"store", "diff-closures"});

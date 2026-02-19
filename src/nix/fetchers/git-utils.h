@@ -6,15 +6,15 @@
 namespace nix {
 
 namespace fetchers {
-struct PublicKey;
-struct Settings;
+struct public_key_t;
+struct settings_t;
 } // namespace fetchers
 
 /**
  * A sink that writes into a Git repository. Note that nothing may be written
  * until `flush()` is called.
  */
-struct GitFileSystemObjectSink : ExtendedFileSystemObjectSink {
+struct GitFileSystemObjectSink : extended_file_system_object_sink_t {
   /**
    * Flush builder and return a final Git hash.
    */
@@ -54,8 +54,8 @@ struct GitRepo {
   /**
    * Info about a submodule.
    */
-  struct Submodule {
-    CanonPath path;
+  struct submodule_t {
+    canon_path_t path;
     std::string url;
     std::string branch;
   };
@@ -69,16 +69,16 @@ struct GitRepo {
 
     /* All files in the working directory that are unchanged,
        modified or added, but excluding deleted files. */
-    std::set<CanonPath> files;
+    std::set<canon_path_t> files;
 
     /* All modified or added files. */
-    std::set<CanonPath> dirtyFiles;
+    std::set<canon_path_t> dirtyFiles;
 
     /* The deleted files. */
-    std::set<CanonPath> deletedFiles;
+    std::set<canon_path_t> deletedFiles;
 
     /* The submodules listed in .gitmodules of this workdir. */
-    std::vector<Submodule> submodules;
+    std::vector<submodule_t> submodules;
   };
 
   virtual WorkdirInfo getWorkdirInfo() = 0;
@@ -92,7 +92,7 @@ struct GitRepo {
    * Return the submodules of this repo at the indicated revision,
    * along with the revision of each submodule.
    */
-  virtual std::vector<std::tuple<Submodule, Hash>> getSubmodules(const Hash& rev,
+  virtual std::vector<std::tuple<submodule_t, Hash>> getSubmodules(const Hash& rev,
                                                                  bool exportIgnore) = 0;
 
   virtual std::string resolveSubmoduleUrl(const std::string& url) = 0;
@@ -116,13 +116,13 @@ struct GitRepo {
    * `publicKeys`. Throw an error if it isn't.
    */
   virtual void verifyCommit(const Hash& rev,
-                            const std::vector<fetchers::PublicKey>& publicKeys) = 0;
+                            const std::vector<fetchers::public_key_t>& publicKeys) = 0;
 
   /**
    * Given a Git tree hash, compute the hash of its NAR
    * serialisation. This is memoised on-disk.
    */
-  virtual Hash treeHashToNarHash(const fetchers::Settings& settings, const Hash& treeHash) = 0;
+  virtual Hash treeHashToNarHash(const fetchers::settings_t& settings, const Hash& treeHash) = 0;
 
   /**
    * If the specified Git object is a directory with a single entry

@@ -65,7 +65,7 @@ std::shared_ptr<DerivationTrampolineGoal>
 Worker::makeDerivationTrampolineGoal(const StorePath& drvPath, const OutputsSpec& wantedOutputs,
                                      const Derivation& drv, BuildMode buildMode) {
   return initGoalIfNeeded(
-      derivationTrampolineGoals.ensureSlot(DerivedPath::Opaque{drvPath}).value[wantedOutputs],
+      derivationTrampolineGoals.ensureSlot(DerivedPath::opaque_t{drvPath}).value[wantedOutputs],
       drvPath, wantedOutputs, drv, *this, buildMode);
 }
 
@@ -108,7 +108,7 @@ GoalPtr Worker::makeGoal(const DerivedPath& req, BuildMode buildMode) {
                         [&](const DerivedPath::Built& bfd) -> GoalPtr {
                           return makeDerivationTrampolineGoal(bfd.drvPath, bfd.outputs, buildMode);
                         },
-                        [&](const DerivedPath::Opaque& bo) -> GoalPtr {
+                        [&](const DerivedPath::opaque_t& bo) -> GoalPtr {
                           return makePathSubstitutionGoal(
                               bo.path, buildMode == bmRepair ? Repair : NoRepair);
                         },
@@ -201,7 +201,7 @@ size_t Worker::getNrSubstitutions() {
   return nrSubstitutions;
 }
 
-void Worker::childStarted(GoalPtr goal, const std::set<MuxablePipePollState::CommChannel>& channels,
+void Worker::childStarted(GoalPtr goal, const std::set<muxable_pipe_poll_state_t::comm_channel_t>& channels,
                           bool inBuildSlot, bool respectTimeouts) {
   Child child;
   child.goal = goal;
@@ -297,7 +297,7 @@ void Worker::run(const Goals& _topGoals) {
           .outputs = goal->wantedOutputs,
       });
     } else if (auto goal = dynamic_cast<PathSubstitutionGoal*>(i.get())) {
-      topPaths.push_back(DerivedPath::Opaque{goal->storePath});
+      topPaths.push_back(DerivedPath::opaque_t{goal->storePath});
     }
   }
 
@@ -409,7 +409,7 @@ void Worker::waitForInput() {
   if (useTimeout)
     vomit("sleeping %d seconds", timeout);
 
-  MuxablePipePollState state;
+  muxable_pipe_poll_state_t state;
 
 #ifndef _WIN32
   /* Use select() to wait for the input side of any logger pipe to
@@ -444,12 +444,12 @@ void Worker::waitForInput() {
 
     state.iterate(
         j->channels,
-        [&](Descriptor k, std::string_view data) {
+        [&](descriptor_t k, std::string_view data) {
           printMsg(lvlVomit, "%1%: read %2% bytes", goal->getName(), data.size());
           j->lastOutput = after;
           goal->handleChildOutput(k, data);
         },
-        [&](Descriptor k) {
+        [&](descriptor_t k) {
           debug("%1%: got EOF", goal->getName());
           goal->handleEOF(k);
         });
@@ -507,8 +507,8 @@ bool Worker::pathContentsGood(const StorePath& path) {
   bool res = false;
   if (auto accessor = store.getFSAccessor(path, /*requireValidPath=*/false)) {
     auto current =
-        hashPath({ref{accessor}}, FileIngestionMethod::NixArchive, info->narHash.algo).first;
-    Hash nullHash(HashAlgorithm::SHA256);
+        hashPath({ref{accessor}}, file_ingestion_method_t::NixArchive, info->narHash.algo).first;
+    Hash nullHash(hash_algorithm_t::SHA256);
     res = info->narHash == nullHash || info->narHash == current;
   }
   pathContentsGoodCache.insert_or_assign(path, res);

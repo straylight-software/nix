@@ -20,10 +20,10 @@ std::map<StorePath, StorePath> makeContentAddressed(Store& srcStore, Store& dstS
     auto oldInfo = srcStore.queryPathInfo(path);
     std::string oldHashPart(path.hashPart());
 
-    StringSink sink;
+    string_sink_t sink;
     srcStore.narFromPath(path, sink);
 
-    StringMap rewrites;
+    string_map_t rewrites;
 
     StoreReferences refs;
     for (auto& ref : oldInfo->references) {
@@ -42,14 +42,14 @@ std::map<StorePath, StorePath> makeContentAddressed(Store& srcStore, Store& dstS
 
     sink.s = rewriteStrings(sink.s, rewrites);
 
-    HashModuloSink hashModuloSink(HashAlgorithm::SHA256, oldHashPart);
+    HashModuloSink hashModuloSink(hash_algorithm_t::SHA256, oldHashPart);
     hashModuloSink(sink.s);
 
     auto narModuloHash = hashModuloSink.finish().hash;
 
     auto info = ValidPathInfo::makeFromCA(dstStore, path.name(),
                                           FixedOutputInfo{
-                                              .method = FileIngestionMethod::NixArchive,
+                                              .method = file_ingestion_method_t::NixArchive,
                                               .hash = narModuloHash,
                                               .references = std::move(refs),
                                           },
@@ -57,15 +57,15 @@ std::map<StorePath, StorePath> makeContentAddressed(Store& srcStore, Store& dstS
 
     printInfo("rewriting '%s' to '%s'", pathS, dstStore.printStorePath(info.path));
 
-    StringSink sink2;
+    string_sink_t sink2;
     RewritingSink rsink2(oldHashPart, std::string(info.path.hashPart()), sink2);
     rsink2(sink.s);
     rsink2.flush();
 
-    info.narHash = hashString(HashAlgorithm::SHA256, sink2.s);
+    info.narHash = hashString(hash_algorithm_t::SHA256, sink2.s);
     info.narSize = sink.s.size();
 
-    StringSource source(sink2.s);
+    string_source_t source(sink2.s);
     dstStore.addToStore(info, source);
 
     remappings.insert_or_assign(std::move(path), std::move(info.path));

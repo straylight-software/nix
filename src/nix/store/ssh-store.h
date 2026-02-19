@@ -16,7 +16,7 @@ struct SSHStoreConfig : std::enable_shared_from_this<SSHStoreConfig>,
 
   SSHStoreConfig(std::string_view scheme, std::string_view authority, const Params& params);
 
-  const Setting<Strings> remoteProgram{
+  const setting_t<strings_t> remoteProgram{
       this,
       {"nix-daemon"},
       "remote-program",
@@ -24,7 +24,7 @@ struct SSHStoreConfig : std::enable_shared_from_this<SSHStoreConfig>,
 
   static const std::string name() { return "Experimental SSH Store"; }
 
-  static StringSet uriSchemes() { return {"ssh-ng"}; }
+  static string_set_t uriSchemes() { return {"ssh-ng"}; }
 
   static std::string doc();
 
@@ -34,17 +34,17 @@ struct SSHStoreConfig : std::enable_shared_from_this<SSHStoreConfig>,
 };
 
 struct MountedSSHStoreConfig : virtual SSHStoreConfig, virtual LocalFSStoreConfig {
-  MountedSSHStoreConfig(StringMap params);
-  MountedSSHStoreConfig(std::string_view scheme, std::string_view host, StringMap params);
+  MountedSSHStoreConfig(string_map_t params);
+  MountedSSHStoreConfig(std::string_view scheme, std::string_view host, string_map_t params);
 
   static const std::string name() { return "Experimental SSH Store with filesystem mounted"; }
 
-  static StringSet uriSchemes() { return {"mounted-ssh-ng"}; }
+  static string_set_t uriSchemes() { return {"mounted-ssh-ng"}; }
 
   static std::string doc();
 
-  static std::optional<ExperimentalFeature> experimentalFeature() {
-    return ExperimentalFeature::MountedSSHStore;
+  static std::optional<experimental_feature_t> experimentalFeature() {
+    return experimental_feature_t::mounted_ssh_store_t;
   }
 
   ref<Store> openStore() const override;

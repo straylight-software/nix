@@ -26,16 +26,16 @@ struct SingleBuiltPathBuilt {
 using _SingleBuiltPathRaw = std::variant<DerivedPathOpaque, SingleBuiltPathBuilt>;
 
 struct SingleBuiltPath : _SingleBuiltPathRaw {
-  using Raw = _SingleBuiltPathRaw;
-  using Raw::Raw;
+  using raw_t = _SingleBuiltPathRaw;
+  using raw_t::raw_t;
 
-  using Opaque = DerivedPathOpaque;
+  using opaque_t = DerivedPathOpaque;
   using Built = SingleBuiltPathBuilt;
 
   bool operator==(const SingleBuiltPath&) const = default;
   auto operator<=>(const SingleBuiltPath&) const = default;
 
-  inline const Raw& raw() const { return static_cast<const Raw&>(*this); }
+  inline const raw_t& raw() const { return static_cast<const raw_t&>(*this); }
 
   StorePath outPath() const;
 
@@ -46,7 +46,7 @@ struct SingleBuiltPath : _SingleBuiltPathRaw {
 };
 
 static inline ref<SingleBuiltPath> staticDrv(StorePath drvPath) {
-  return make_ref<SingleBuiltPath>(SingleBuiltPath::Opaque{drvPath});
+  return make_ref<SingleBuiltPath>(SingleBuiltPath::opaque_t{drvPath});
 }
 
 /**
@@ -67,17 +67,17 @@ struct BuiltPathBuilt {
   nlohmann::json toJSON(const StoreDirConfig& store) const;
 };
 
-using _BuiltPathRaw = std::variant<DerivedPath::Opaque, BuiltPathBuilt>;
+using _BuiltPathRaw = std::variant<DerivedPath::opaque_t, BuiltPathBuilt>;
 
 /**
  * A built path. Similar to a DerivedPath, but enriched with the corresponding
  * output path(s).
  */
 struct BuiltPath : _BuiltPathRaw {
-  using Raw = _BuiltPathRaw;
-  using Raw::Raw;
+  using raw_t = _BuiltPathRaw;
+  using raw_t::raw_t;
 
-  using Opaque = DerivedPathOpaque;
+  using opaque_t = DerivedPathOpaque;
   using Built = BuiltPathBuilt;
 
   bool operator==(const BuiltPath&) const = default;
@@ -85,7 +85,7 @@ struct BuiltPath : _BuiltPathRaw {
   // TODO libc++ 16 (used by darwin) missing `std::map::operator <=>`, can't do yet.
   // auto operator <=> (const BuiltPath &) const = default;
 
-  inline const Raw& raw() const { return static_cast<const Raw&>(*this); }
+  inline const raw_t& raw() const { return static_cast<const raw_t&>(*this); }
 
   StorePathSet outPaths() const;
   RealisedPath::Set toRealisedPaths(Store& store) const;

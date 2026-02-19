@@ -20,7 +20,7 @@ namespace nix {
 class MonitorFdHup {
 private:
   std::thread thread;
-  Pipe notifyPipe;
+  pipe_t notifyPipe;
 
   void runThread(int watchFd, int notifyFd);
 
@@ -53,9 +53,9 @@ public:
 inline void MonitorFdHup::runThread(int watchFd, int notifyFd) {
   int kqResult = kqueue();
   if (kqResult < 0) {
-    throw SysError("MonitorFdHup kqueue");
+    throw sys_error_t("MonitorFdHup kqueue");
   }
-  AutoCloseFD kq{kqResult};
+  auto_close_fd_t kq{kqResult};
 
   std::array<struct kevent, 2> kevs;
 
@@ -71,14 +71,14 @@ inline void MonitorFdHup::runThread(int watchFd, int notifyFd) {
 
   int result = kevent(kq.get(), kevs.data(), kevs.size(), nullptr, 0, nullptr);
   if (result < 0) {
-    throw SysError("MonitorFdHup kevent add");
+    throw sys_error_t("MonitorFdHup kevent add");
   }
 
   while (true) {
     struct kevent event;
     int numEvents = kevent(kq.get(), nullptr, 0, &event, 1, nullptr);
     if (numEvents < 0) {
-      throw SysError("MonitorFdHup kevent watch");
+      throw sys_error_t("MonitorFdHup kevent watch");
     }
 
     if (numEvents > 0 && (event.flags & EV_EOF)) {
@@ -104,7 +104,7 @@ inline void MonitorFdHup::runThread(int watchFd, int notifyFd) {
       if (errno == EINTR || errno == EAGAIN) {
         continue;
       } else {
-        throw SysError("in MonitorFdHup poll()");
+        throw sys_error_t("in MonitorFdHup poll()");
       }
     }
 

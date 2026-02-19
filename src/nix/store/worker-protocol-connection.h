@@ -10,12 +10,12 @@ struct WorkerProto::BasicConnection {
   /**
    * Send with this.
    */
-  FdSink to;
+  fd_sink_t to;
 
   /**
    * Receive with this.
    */
-  FdSource from;
+  fd_source_t from;
 
   /**
    * The protocol version agreed by both sides.
@@ -89,7 +89,7 @@ struct WorkerProto::BasicClientConnection : WorkerProto::BasicConnection {
    * @param supportedFeatures The protocol features that we support.
    */
   // FIXME: this should probably be a constructor.
-  static std::tuple<Version, FeatureSet> handshake(BufferedSink& to, Source& from,
+  static std::tuple<Version, FeatureSet> handshake(buffered_sink_t& to, Source& from,
                                                    WorkerProto::Version localVersion,
                                                    const FeatureSet& supportedFeatures);
 
@@ -139,7 +139,7 @@ struct WorkerProto::BasicServerConnection : WorkerProto::BasicConnection {
    * @param supportedFeatures The protocol features that we support.
    */
   // FIXME: this should probably be a constructor.
-  static std::tuple<Version, FeatureSet> handshake(BufferedSink& to, Source& from,
+  static std::tuple<Version, FeatureSet> handshake(buffered_sink_t& to, Source& from,
                                                    WorkerProto::Version localVersion,
                                                    const FeatureSet& supportedFeatures);
 

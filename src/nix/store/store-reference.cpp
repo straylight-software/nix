@@ -44,7 +44,7 @@ std::string StoreReference::render(bool withParams) const {
 
 namespace {
 
-struct SchemeAndAuthorityWithPath {
+struct scheme_and_authority_with_path_t {
   std::string_view scheme;
   std::string_view authority;
 };
@@ -54,13 +54,13 @@ struct SchemeAndAuthorityWithPath {
 /**
  * Return the 'scheme' and remove the '://' or ':' separator.
  */
-static std::optional<SchemeAndAuthorityWithPath> splitSchemePrefixTo(std::string_view string) {
+static std::optional<scheme_and_authority_with_path_t> splitSchemePrefixTo(std::string_view string) {
   auto scheme = splitPrefixTo(string, ':');
   if (!scheme)
     return std::nullopt;
 
   splitPrefix(string, "//");
-  return SchemeAndAuthorityWithPath{.scheme = *scheme, .authority = string};
+  return scheme_and_authority_with_path_t{.scheme = *scheme, .authority = string};
 }
 
 StoreReference StoreReference::parse(const std::string& uri,

@@ -12,18 +12,18 @@ namespace nix {
  * A simple least-recently used cache. Not thread-safe.
  */
 template <typename Key, typename Value, typename Compare = std::less<>>
-class LRUCache {
+class lru_cache_t {
 private:
   size_t capacity;
 
   // Stupid wrapper to get around circular dependency between Data
   // and LRU.
-  struct LRUIterator;
+  struct lru_iterator_t;
 
-  using Data = std::map<Key, std::pair<LRUIterator, Value>, Compare>;
+  using Data = std::map<Key, std::pair<lru_iterator_t, Value>, Compare>;
   using LRU = std::list<typename Data::iterator>;
 
-  struct LRUIterator {
+  struct lru_iterator_t {
     typename LRU::iterator it;
   };
 
@@ -42,7 +42,7 @@ private:
   }
 
 public:
-  LRUCache(size_t capacity) : capacity(capacity) {}
+  lru_cache_t(size_t capacity) : capacity(capacity) {}
 
   /**
    * Insert or upsert an item in the cache.
@@ -63,7 +63,7 @@ public:
       lru.erase(oldest);
     }
 
-    auto res = data.emplace(key, std::make_pair(LRUIterator(), value));
+    auto res = data.emplace(key, std::make_pair(lru_iterator_t(), value));
     assert(res.second);
     auto& i(res.first);
 

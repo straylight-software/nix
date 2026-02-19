@@ -38,13 +38,13 @@ bool Machine::systemSupported(const std::string& system) const {
   return system == "builtin" || (systemTypes.count(system) > 0);
 }
 
-bool Machine::allSupported(const StringSet& features) const {
+bool Machine::allSupported(const string_set_t& features) const {
   return std::all_of(features.begin(), features.end(), [&](const std::string& feature) {
     return supportedFeatures.count(feature) || mandatoryFeatures.count(feature);
   });
 }
 
-bool Machine::mandatoryMet(const StringSet& features) const {
+bool Machine::mandatoryMet(const string_set_t& features) const {
   return std::all_of(mandatoryFeatures.begin(), mandatoryFeatures.end(),
                      [&](const std::string& feature) { return features.count(feature); });
 }
@@ -100,7 +100,7 @@ static std::vector<std::string> expandBuilderLines(const std::string& builders) 
         std::string text;
         try {
           text = readFile(path);
-        } catch (const SysError& e) {
+        } catch (const sys_error_t& e) {
           if (e.errNo != ENOENT)
             throw;
           debug("cannot find machines file '%s'", path);
@@ -117,7 +117,7 @@ static std::vector<std::string> expandBuilderLines(const std::string& builders) 
   return result;
 }
 
-static Machine parseBuilderLine(const StringSet& defaultSystems, const std::string& line) {
+static Machine parseBuilderLine(const string_set_t& defaultSystems, const std::string& line) {
   const auto tokens = tokenizeString<std::vector<std::string>>(line);
 
   auto isSet = [&](size_t fieldIndex) {
@@ -166,7 +166,7 @@ static Machine parseBuilderLine(const StringSet& defaultSystems, const std::stri
   return {// `storeUri`
           tokens[0],
           // `systemTypes`
-          isSet(1) ? tokenizeString<StringSet>(tokens[1], ",") : defaultSystems,
+          isSet(1) ? tokenizeString<string_set_t>(tokens[1], ",") : defaultSystems,
           // `sshKey`
           isSet(2) ? tokens[2] : "",
           // `maxJobs`
@@ -174,14 +174,14 @@ static Machine parseBuilderLine(const StringSet& defaultSystems, const std::stri
           // `speedFactor`
           isSet(4) ? parseFloatField(4) : 1.0f,
           // `supportedFeatures`
-          isSet(5) ? tokenizeString<StringSet>(tokens[5], ",") : StringSet{},
+          isSet(5) ? tokenizeString<string_set_t>(tokens[5], ",") : string_set_t{},
           // `mandatoryFeatures`
-          isSet(6) ? tokenizeString<StringSet>(tokens[6], ",") : StringSet{},
+          isSet(6) ? tokenizeString<string_set_t>(tokens[6], ",") : string_set_t{},
           // `sshPublicHostKey`
           isSet(7) ? ensureBase64(7) : ""};
 }
 
-static Machines parseBuilderLines(const StringSet& defaultSystems,
+static Machines parseBuilderLines(const string_set_t& defaultSystems,
                                   const std::vector<std::string>& builders) {
   Machines result;
   std::transform(builders.begin(), builders.end(), std::back_inserter(result),
@@ -189,7 +189,7 @@ static Machines parseBuilderLines(const StringSet& defaultSystems,
   return result;
 }
 
-Machines Machine::parseConfig(const StringSet& defaultSystems, const std::string& s) {
+Machines Machine::parseConfig(const string_set_t& defaultSystems, const std::string& s) {
   const auto builderLines = expandBuilderLines(s);
   return parseBuilderLines(defaultSystems, builderLines);
 }

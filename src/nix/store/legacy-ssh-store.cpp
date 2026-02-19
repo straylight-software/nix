@@ -21,7 +21,7 @@ namespace nix {
 LegacySSHStoreConfig::LegacySSHStoreConfig(std::string_view scheme, std::string_view authority,
                                            const Params& params)
     : StoreConfig(params),
-      CommonSSHStoreConfig(scheme, ParsedURL::Authority::parse(authority), params) {}
+      CommonSSHStoreConfig(scheme, parsed_url_t::authority_t::parse(authority), params) {}
 
 std::string LegacySSHStoreConfig::doc() {
   return
@@ -46,7 +46,7 @@ LegacySSHStore::LegacySSHStore(ref<const Config> config)
 
 ref<LegacySSHStore::Connection> LegacySSHStore::openConnection() {
   auto conn = make_ref<Connection>();
-  Strings command = config->remoteProgram.get();
+  strings_t command = config->remoteProgram.get();
   command.push_back("--serve");
   command.push_back("--write");
   if (config->remoteStore.get() != "") {
@@ -57,11 +57,11 @@ ref<LegacySSHStore::Connection> LegacySSHStore::openConnection() {
   if (config->connPipeSize) {
     conn->sshConn->trySetBufferSize(*config->connPipeSize);
   }
-  conn->to = FdSink(conn->sshConn->in.get());
-  conn->from = FdSource(conn->sshConn->out.get());
+  conn->to = fd_sink_t(conn->sshConn->in.get());
+  conn->from = fd_source_t(conn->sshConn->out.get());
 
-  StringSink saved;
-  TeeSource tee(conn->from, saved);
+  string_sink_t saved;
+  tee_source_t tee(conn->from, saved);
   try {
     conn->remoteVersion = ServeProto::BasicClientConnection::handshake(
         conn->to, tee, SERVE_PROTOCOL_VERSION, config->authority.host);
@@ -69,7 +69,7 @@ ref<LegacySSHStore::Connection> LegacySSHStore::openConnection() {
     // in.close(): Don't let the remote block on us not writing.
     conn->sshConn->in.close();
     {
-      NullSink nullSink;
+      null_sink_t nullSink;
       tee.drainInto(nullSink);
     }
     throw Error("'nix-store --serve' protocol mismatch from '%s', got '%s'", config->authority.host,
@@ -137,9 +137,9 @@ void LegacySSHStore::addToStore(const ValidPathInfo& info, Source& source, Repai
 
   auto conn(connections->get());
 
-  conn->to << ServeProto::Command::AddToStoreNar << printStorePath(info.path)
+  conn->to << ServeProto::command_t::AddToStoreNar << printStorePath(info.path)
            << (info.deriver ? printStorePath(*info.deriver) : "")
-           << info.narHash.to_string(HashFormat::Base16, false);
+           << info.narHash.to_string(hash_format_t::Base16, false);
   ServeProto::write(*this, *conn, info.references);
   conn->to << info.registrationTime << info.narSize << info.ultimate << info.sigs
            << renderContentAddress(info.ca);
@@ -202,8 +202,8 @@ void LegacySSHStore::buildPaths(const std::vector<DerivedPath>& drvPaths, BuildM
 
   auto conn(connections->get());
 
-  conn->to << ServeProto::Command::BuildPaths;
-  Strings ss;
+  conn->to << ServeProto::command_t::BuildPaths;
+  strings_t ss;
   for (auto& p : drvPaths) {
     auto sOrDrvPath = StorePathWithOutputs::tryFromDerivedPath(p);
     std::visit(overloaded{
@@ -247,7 +247,7 @@ void LegacySSHStore::computeFSClosure(const StorePathSet& paths, StorePathSet& o
 
   auto conn(connections->get());
 
-  conn->to << ServeProto::Command::QueryClosure << includeOutputs;
+  conn->to << ServeProto::command_t::QueryClosure << includeOutputs;
   ServeProto::write(*this, *conn, paths);
   conn->to.flush();
 

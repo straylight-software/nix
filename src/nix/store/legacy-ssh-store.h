@@ -20,24 +20,24 @@ struct LegacySSHStoreConfig : std::enable_shared_from_this<LegacySSHStoreConfig>
   // Hack for getting remote build log output.
   // Intentionally not in `LegacySSHStoreConfig` so that it doesn't appear in
   // the documentation
-  const Setting<int> logFD{this, INVALID_DESCRIPTOR, "log-fd",
+  const setting_t<int> logFD{this, INVALID_DESCRIPTOR, "log-fd",
                            "file descriptor to which SSH's stderr is connected"};
 #else
-  Descriptor logFD = INVALID_DESCRIPTOR;
+  descriptor_t logFD = INVALID_DESCRIPTOR;
 #endif
 
-  const Setting<Strings> remoteProgram{this,
+  const setting_t<strings_t> remoteProgram{this,
                                        {"nix-store"},
                                        "remote-program",
                                        "Path to the `nix-store` executable on the remote machine."};
 
-  const Setting<int> maxConnections{this, 1, "max-connections",
+  const setting_t<int> maxConnections{this, 1, "max-connections",
                                     "Maximum number of concurrent SSH connections."};
 
   /**
    * Hack for hydra
    */
-  Strings extraSshArgs = {};
+  strings_t extraSshArgs = {};
 
   /**
    * Exposed for hydra
@@ -46,7 +46,7 @@ struct LegacySSHStoreConfig : std::enable_shared_from_this<LegacySSHStoreConfig>
 
   static const std::string name() { return "SSH Store"; }
 
-  static StringSet uriSchemes() { return {"ssh"}; }
+  static string_set_t uriSchemes() { return {"ssh"}; }
 
   static std::string doc();
 
@@ -95,17 +95,17 @@ struct LegacySSHStore : public virtual Store {
     unsupported("queryPathFromHashPart");
   }
 
-  StorePath addToStore(std::string_view name, const SourcePath& path, ContentAddressMethod method,
-                       HashAlgorithm hashAlgo, const StorePathSet& references, PathFilter& filter,
+  StorePath addToStore(std::string_view name, const source_path_t& path, ContentAddressMethod method,
+                       hash_algorithm_t hashAlgo, const StorePathSet& references, path_filter_t& filter,
                        RepairFlag repair) override {
     unsupported("addToStore");
   }
 
   StorePath
   addToStoreFromDump(Source& dump, std::string_view name,
-                     FileSerialisationMethod dumpMethod = FileSerialisationMethod::NixArchive,
-                     ContentAddressMethod hashMethod = FileIngestionMethod::NixArchive,
-                     HashAlgorithm hashAlgo = HashAlgorithm::SHA256,
+                     file_serialisation_method_t dumpMethod = file_serialisation_method_t::NixArchive,
+                     ContentAddressMethod hashMethod = file_ingestion_method_t::NixArchive,
+                     hash_algorithm_t hashAlgo = hash_algorithm_t::SHA256,
                      const StorePathSet& references = StorePathSet(),
                      RepairFlag repair = NoRepair) override {
     unsupported("addToStore");

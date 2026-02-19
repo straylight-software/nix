@@ -11,13 +11,13 @@
 using namespace nix;
 using namespace nix::flake;
 
-class RegistryCommand : virtual Args {
+class registry_command_t : virtual Args {
   std::string registry_path;
 
   std::shared_ptr<fetchers::Registry> registry;
 
 public:
-  RegistryCommand() {
+  registry_command_t() {
     addFlag({
         .longName = "registry",
         .description = "The registry to operate on.",
@@ -46,7 +46,7 @@ public:
   }
 };
 
-struct CmdRegistryList : StoreCommand {
+struct cmd_registry_list_t : StoreCommand {
   std::string description() override { return "list available Nix flakes"; }
 
   std::string doc() override {
@@ -64,7 +64,7 @@ struct CmdRegistryList : StoreCommand {
       for (auto& entry : registry->entries) {
         // FIXME: format nicely
         logger->cout("%s %s %s",
-                     registry->type == Registry::Flag     ? "flags "
+                     registry->type == Registry::flag_t     ? "flags "
                      : registry->type == Registry::User   ? "user  "
                      : registry->type == Registry::System ? "system"
                                                           : "global",
@@ -75,7 +75,7 @@ struct CmdRegistryList : StoreCommand {
   }
 };
 
-struct CmdRegistryAdd : MixEvalArgs, Command, RegistryCommand {
+struct cmd_registry_add_t : MixEvalArgs, command_t, registry_command_t {
   std::string fromUrl, toUrl;
 
   std::string description() override { return "add/replace flake in user flake registry"; }
@@ -86,7 +86,7 @@ struct CmdRegistryAdd : MixEvalArgs, Command, RegistryCommand {
         ;
   }
 
-  CmdRegistryAdd() {
+  cmd_registry_add_t() {
     expectArg("from-url", &fromUrl);
     expectArg("to-url", &toUrl);
   }
@@ -104,7 +104,7 @@ struct CmdRegistryAdd : MixEvalArgs, Command, RegistryCommand {
   }
 };
 
-struct CmdRegistryRemove : RegistryCommand, Command {
+struct cmd_registry_remove_t : registry_command_t, command_t {
   std::string url;
 
   std::string description() override { return "remove flake from user flake registry"; }
@@ -115,7 +115,7 @@ struct CmdRegistryRemove : RegistryCommand, Command {
         ;
   }
 
-  CmdRegistryRemove() { expectArg("url", &url); }
+  cmd_registry_remove_t() { expectArg("url", &url); }
 
   void run() override {
     auto registry = getRegistry();
@@ -124,7 +124,7 @@ struct CmdRegistryRemove : RegistryCommand, Command {
   }
 };
 
-struct CmdRegistryPin : RegistryCommand, EvalCommand {
+struct cmd_registry_pin_t : registry_command_t, EvalCommand {
   std::string url;
 
   std::string locked;
@@ -139,13 +139,13 @@ struct CmdRegistryPin : RegistryCommand, EvalCommand {
         ;
   }
 
-  CmdRegistryPin() {
+  cmd_registry_pin_t() {
     expectArg("url", &url);
 
     expectArgs({.label = "locked",
                 .optional = true,
                 .handler = {&locked},
-                .completer = {[&](AddCompletions& completions, size_t, std::string_view prefix) {
+                .completer = {[&](add_completions_t& completions, size_t, std::string_view prefix) {
                   completeFlakeRef(completions, getStore(), prefix);
                 }}});
   }
@@ -169,7 +169,7 @@ struct CmdRegistryPin : RegistryCommand, EvalCommand {
   }
 };
 
-struct CmdRegistryResolve : StoreCommand {
+struct cmd_registry_resolve_t : StoreCommand {
   std::vector<std::string> urls;
 
   std::string description() override { return "resolve flake references using the registry"; }
@@ -180,7 +180,7 @@ struct CmdRegistryResolve : StoreCommand {
         ;
   }
 
-  CmdRegistryResolve() {
+  cmd_registry_resolve_t() {
     expectArgs({
         .label = "flake-refs",
         .handler = {&urls},
@@ -196,15 +196,15 @@ struct CmdRegistryResolve : StoreCommand {
   }
 };
 
-struct CmdRegistry : NixMultiCommand {
-  CmdRegistry()
+struct cmd_registry_t : NixMultiCommand {
+  cmd_registry_t()
       : NixMultiCommand("registry",
                         {
-                            {"list", []() { return make_ref<CmdRegistryList>(); }},
-                            {"add", []() { return make_ref<CmdRegistryAdd>(); }},
-                            {"remove", []() { return make_ref<CmdRegistryRemove>(); }},
-                            {"pin", []() { return make_ref<CmdRegistryPin>(); }},
-                            {"resolve", []() { return make_ref<CmdRegistryResolve>(); }},
+                            {"list", []() { return make_ref<cmd_registry_list_t>(); }},
+                            {"add", []() { return make_ref<cmd_registry_add_t>(); }},
+                            {"remove", []() { return make_ref<cmd_registry_remove_t>(); }},
+                            {"pin", []() { return make_ref<cmd_registry_pin_t>(); }},
+                            {"resolve", []() { return make_ref<cmd_registry_resolve_t>(); }},
                         }) {}
 
   std::string description() override { return "manage the flake registry"; }
@@ -215,7 +215,7 @@ struct CmdRegistry : NixMultiCommand {
         ;
   }
 
-  Category category() override { return catSecondary; }
+  category_t category() override { return catSecondary; }
 };
 
-static auto rCmdRegistry = registerCommand<CmdRegistry>("registry");
+static auto rCmdRegistry = registerCommand<cmd_registry_t>("registry");

@@ -69,7 +69,7 @@ int Pid::kill() {
 #if defined(__FreeBSD__) || defined(__APPLE__)
     if (errno != EPERM || ::kill(pid, 0) != 0)
 #endif
-      logError(SysError("killing process %d", pid).info());
+      logError(sys_error_t("killing process %d", pid).info());
   }
 
   return wait();
@@ -85,7 +85,7 @@ int Pid::wait() {
       return status;
     }
     if (errno != EINTR)
-      throw SysError("cannot get exit status of PID %d", pid);
+      throw sys_error_t("cannot get exit status of PID %d", pid);
     checkInterrupt();
   }
 }
@@ -115,7 +115,7 @@ void killUser(uid_t uid) {
 
   Pid pid = startProcess([&] {
     if (setuid(uid) == -1)
-      throw SysError("setting uid");
+      throw sys_error_t("setting uid");
 
     while (true) {
 #ifdef __APPLE__
@@ -133,7 +133,7 @@ void killUser(uid_t uid) {
       if (errno == ESRCH || errno == EPERM)
         break; /* no more processes */
       if (errno != EINTR)
-        throw SysError("cannot kill processes for uid '%1%'", uid);
+        throw sys_error_t("cannot kill processes for uid '%1%'", uid);
     }
 
     _exit(0);
@@ -151,13 +151,13 @@ void killUser(uid_t uid) {
 
 //////////////////////////////////////////////////////////////////////
 
-using ChildWrapperFunction = std::function<void()>;
+using child_wrapper_function_t = std::function<void()>;
 
 /* Wrapper around vfork to prevent the child process from clobbering
    the caller's stack frame in the parent. */
-static pid_t doFork(bool allowVfork, ChildWrapperFunction& fun) __attribute__((noinline));
+static pid_t doFork(bool allowVfork, child_wrapper_function_t& fun) __attribute__((noinline));
 
-static pid_t doFork(bool allowVfork, ChildWrapperFunction& fun) {
+static pid_t doFork(bool allowVfork, child_wrapper_function_t& fun) {
 #ifdef __linux__
   pid_t pid = allowVfork ? vfork() : fork();
 #else
@@ -171,20 +171,20 @@ static pid_t doFork(bool allowVfork, ChildWrapperFunction& fun) {
 
 #ifdef __linux__
 static int childEntry(void* arg) {
-  auto& fun = *reinterpret_cast<ChildWrapperFunction*>(arg);
+  auto& fun = *reinterpret_cast<child_wrapper_function_t*>(arg);
   fun();
   return 1;
 }
 #endif
 
-pid_t startProcess(std::function<void()> fun, const ProcessOptions& options) {
+pid_t startProcess(std::function<void()> fun, const process_options_t& options) {
   auto newLogger = makeSimpleLogger();
-  ChildWrapperFunction wrapper = [&] {
+  child_wrapper_function_t wrapper = [&] {
     if (!options.allowVfork) {
       /* Set a simple logger, while releasing (not destroying)
          the parent logger. We don't want to run the parent
          logger's destructor since that will crash (e.g. when
-         ~ProgressBar() tries to join a thread that doesn't
+         ~progress_bar_t() tries to join a thread that doesn't
          exist. */
       logger.release();
       logger = std::move(newLogger);
@@ -192,7 +192,7 @@ pid_t startProcess(std::function<void()> fun, const ProcessOptions& options) {
     try {
 #ifdef __linux__
       if (options.dieWithParent && prctl(PR_SET_PDEATHSIG, SIGKILL) == -1)
-        throw SysError("setting death signal");
+        throw sys_error_t("setting death signal");
 #endif
       fun();
     } catch (std::exception& e) {
@@ -219,9 +219,9 @@ pid_t startProcess(std::function<void()> fun, const ProcessOptions& options) {
     auto stack = static_cast<char*>(
         mmap(0, stackSize, PROT_WRITE | PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0));
     if (stack == MAP_FAILED)
-      throw SysError("allocating stack");
+      throw sys_error_t("allocating stack");
 
-    Finally freeStack([&] { munmap(stack, stackSize); });
+    finally_t freeStack([&] { munmap(stack, stackSize); });
 
     pid = clone(childEntry, stack + stackSize, options.cloneFlags | SIGCHLD, &wrapper);
 #else
@@ -231,42 +231,42 @@ pid_t startProcess(std::function<void()> fun, const ProcessOptions& options) {
     pid = doFork(options.allowVfork, wrapper);
 
   if (pid == -1)
-    throw SysError("unable to fork");
+    throw sys_error_t("unable to fork");
 
   return pid;
 }
 
-std::string runProgram(Path program, bool lookupPath, const Strings& args,
+std::string runProgram(Path program, bool lookupPath, const strings_t& args,
                        const std::optional<std::string>& input, bool isInteractive) {
-  auto res = runProgram(RunOptions{.program = program,
+  auto res = runProgram(run_options_t{.program = program,
                                    .lookupPath = lookupPath,
                                    .args = args,
                                    .input = input,
                                    .isInteractive = isInteractive});
 
   if (!statusOk(res.first))
-    throw ExecError(res.first, "program '%1%' %2%", program, statusToString(res.first));
+    throw exec_error_t(res.first, "program '%1%' %2%", program, statusToString(res.first));
 
   return res.second;
 }
 
 // Output = error code + "standard out" output stream
-std::pair<int, std::string> runProgram(RunOptions&& options) {
-  StringSink sink;
+std::pair<int, std::string> runProgram(run_options_t&& options) {
+  string_sink_t sink;
   options.standardOut = &sink;
 
   int status = 0;
 
   try {
     runProgram2(options);
-  } catch (ExecError& e) {
+  } catch (exec_error_t& e) {
     status = e.status;
   }
 
   return {status, std::move(sink.s)};
 }
 
-void runProgram2(const RunOptions& options) {
+void runProgram2(const run_options_t& options) {
   checkInterrupt();
 
   assert(!(options.standardIn && options.input));
@@ -275,18 +275,18 @@ void runProgram2(const RunOptions& options) {
   Source* source = options.standardIn;
 
   if (options.input) {
-    source_ = std::make_unique<StringSource>(*options.input);
+    source_ = std::make_unique<string_source_t>(*options.input);
     source = source_.get();
   }
 
   /* Create a pipe. */
-  Pipe out, in;
+  pipe_t out, in;
   if (options.standardOut)
     out.create();
   if (source)
     in.create();
 
-  ProcessOptions processOptions;
+  process_options_t processOptions;
   // vfork implies that the environment of the main process and the fork will
   // be shared (technically this is undefined, but in practice that's the
   // case), so we can't use it if we alter the environment
@@ -300,24 +300,24 @@ void runProgram2(const RunOptions& options) {
         if (options.environment)
           replaceEnv(*options.environment);
         if (options.standardOut && dup2(out.writeSide.get(), STDOUT_FILENO) == -1)
-          throw SysError("dupping stdout");
+          throw sys_error_t("dupping stdout");
         if (options.mergeStderrToStdout)
           if (dup2(STDOUT_FILENO, STDERR_FILENO) == -1)
-            throw SysError("cannot dup stdout into stderr");
+            throw sys_error_t("cannot dup stdout into stderr");
         if (source && dup2(in.readSide.get(), STDIN_FILENO) == -1)
-          throw SysError("dupping stdin");
+          throw sys_error_t("dupping stdin");
 
         if (options.chdir && chdir((*options.chdir).c_str()) == -1)
-          throw SysError("chdir failed");
+          throw sys_error_t("chdir failed");
         if (options.gid && setgid(*options.gid) == -1)
-          throw SysError("setgid failed");
+          throw sys_error_t("setgid failed");
         /* Drop all other groups if we're setgid. */
         if (options.gid && setgroups(0, 0) == -1)
-          throw SysError("setgroups failed");
+          throw sys_error_t("setgroups failed");
         if (options.uid && setuid(*options.uid) == -1)
-          throw SysError("setuid failed");
+          throw sys_error_t("setuid failed");
 
-        Strings args_(options.args);
+        strings_t args_(options.args);
         args_.push_front(options.program);
 
         restoreProcessContext();
@@ -329,7 +329,7 @@ void runProgram2(const RunOptions& options) {
         else
           execv(options.program.c_str(), stringsToCharPtrs(args_).data());
 
-        throw SysError("executing '%1%'", options.program);
+        throw sys_error_t("executing '%1%'", options.program);
       },
       processOptions);
 
@@ -339,7 +339,7 @@ void runProgram2(const RunOptions& options) {
 
   std::promise<void> promise;
 
-  Finally doJoin([&] {
+  finally_t doJoin([&] {
     if (writerThread.joinable())
       writerThread.join();
   });
@@ -377,7 +377,7 @@ void runProgram2(const RunOptions& options) {
     promise.get_future().get();
 
   if (status)
-    throw ExecError(status, "program '%1%' %2%", options.program, statusToString(status));
+    throw exec_error_t(status, "program '%1%' %2%", options.program, statusToString(status));
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -405,7 +405,7 @@ bool statusOk(int status) {
 }
 
 int execvpe(const char* file0, const char* const argv[], const char* const envp[]) {
-  auto file = ExecutablePath::load().findPath(file0);
+  auto file = executable_path_t::load().findPath(file0);
   // `const_cast` is safe. See the note in
   // https://pubs.opengroup.org/onlinepubs/9799919799/functions/exec.html
   return execve(file.c_str(), const_cast<char* const*>(argv), const_cast<char* const*>(envp));

@@ -10,8 +10,8 @@ namespace nix {
  * This is exposed so that the main entry point can print out the
  * collected completions.
  */
-struct Completions final : AddCompletions {
-  std::set<Completion> completions;
+struct completions_t final : add_completions_t {
+  std::set<completion_t> completions;
   Type type = Type::Normal;
 
   void setType(Type type) override;
@@ -21,12 +21,12 @@ struct Completions final : AddCompletions {
 /**
  * The outermost Args object. This is the one we will actually parse a command
  * line with, whereas the inner ones (if they exists) are subcommands (and this
- * is also a MultiCommand or something like it).
+ * is also a multi_command_t or something like it).
  *
  * This Args contains completions state shared between it and all of its
  * descendent Args.
  */
-class RootArgs : virtual public Args {
+class root_args_t : virtual public Args {
 protected:
   /**
    * @brief The command's "working directory", but only set when top level.
@@ -42,9 +42,9 @@ public:
   /** Parse the command line, throwing a UsageError if something goes
    * wrong.
    */
-  void parseCmdline(const Strings& cmdline, bool allowShebang = false);
+  void parseCmdline(const strings_t& cmdline, bool allowShebang = false);
 
-  std::shared_ptr<Completions> completions;
+  std::shared_ptr<completions_t> completions;
 
   std::filesystem::path getCommandBaseDir() const override;
 
@@ -54,17 +54,17 @@ protected:
   /**
    * A pointer to the completion and its two arguments; a thunk;
    */
-  struct DeferredCompletion {
-    const CompleterClosure& completer;
+  struct deferred_completion_t {
+    const completer_closure_t& completer;
     size_t n;
     std::string prefix;
   };
 
   /**
-   * Completions are run after all args and flags are parsed, so completions
+   * completions_t are run after all args and flags are parsed, so completions
    * of earlier arguments can benefit from later arguments.
    */
-  std::vector<DeferredCompletion> deferredCompletions;
+  std::vector<deferred_completion_t> deferredCompletions;
 
   /**
    * Experimental features needed when parsing args. These are checked
@@ -72,7 +72,7 @@ protected:
    * experimental features coming after the flag that needs the
    * experimental feature.
    */
-  std::set<ExperimentalFeature> flagExperimentalFeatures;
+  std::set<experimental_feature_t> flagExperimentalFeatures;
 
 private:
   std::optional<std::string> needsCompletion(std::string_view s);

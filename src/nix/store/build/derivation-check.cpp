@@ -10,7 +10,7 @@ namespace nix {
 void checkOutputs(Store& store, const StorePath& drvPath,
                   const decltype(Derivation::outputs)& drvOutputs,
                   const decltype(DerivationOptions<StorePath>::outputChecks)& outputChecks,
-                  const std::map<std::string, ValidPathInfo>& outputs, Activity& act) {
+                  const std::map<std::string, ValidPathInfo>& outputs, activity_t& act) {
   std::map<Path, const ValidPathInfo&> outputsByPath;
   for (auto& output : outputs)
     outputsByPath.emplace(store.printStorePath(output.second.path), output.second);
@@ -41,8 +41,8 @@ void checkOutputs(Store& store, const StorePath& drvPath,
         throw BuildError(
             BuildResult::Failure::HashMismatch,
             "hash mismatch in fixed-output derivation '%s':\n  specified: %s\n     got:    %s",
-            store.printStorePath(drvPath), wanted.to_string(HashFormat::SRI, true),
-            got.to_string(HashFormat::SRI, true));
+            store.printStorePath(drvPath), wanted.to_string(hash_format_t::SRI, true),
+            got.to_string(hash_format_t::SRI, true));
       }
       if (!info.references.empty()) {
         auto numViolations = info.references.size();

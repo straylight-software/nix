@@ -17,18 +17,18 @@
 
 namespace nix {
 
-RegisterCommand::Commands& RegisterCommand::commands() {
-  static RegisterCommand::Commands commands;
+RegisterCommand::commands_t& RegisterCommand::commands() {
+  static RegisterCommand::commands_t commands;
   return commands;
 }
 
-RegisterLegacyCommand::Commands& RegisterLegacyCommand::commands() {
-  static RegisterLegacyCommand::Commands commands;
+RegisterLegacyCommand::commands_t& RegisterLegacyCommand::commands() {
+  static RegisterLegacyCommand::commands_t commands;
   return commands;
 }
 
-nix::Commands RegisterCommand::getCommandsFor(const std::vector<std::string>& prefix) {
-  nix::Commands res;
+nix::commands_t RegisterCommand::getCommandsFor(const std::vector<std::string>& prefix) {
+  nix::commands_t res;
   for (auto& [name, command] : RegisterCommand::commands())
     if (name.size() == prefix.size() + 1) {
       bool equal = true;
@@ -43,12 +43,12 @@ nix::Commands RegisterCommand::getCommandsFor(const std::vector<std::string>& pr
 
 nlohmann::json NixMultiCommand::toJSON() {
   // FIXME: use Command::toJSON() as well.
-  return MultiCommand::toJSON();
+  return multi_command_t::toJSON();
 }
 
 void NixMultiCommand::run() {
   if (!command) {
-    StringSet subCommandTextLines;
+    string_set_t subCommandTextLines;
     for (auto& [name, _] : commands)
       subCommandTextLines.insert(fmt("- `%s`", name));
     std::string markdownError =
@@ -188,7 +188,7 @@ void BuiltPathsCommand::run(ref<Store> store, Installables&& installables) {
       throw UsageError("'--all' does not expect arguments");
     // XXX: Only uses opaque paths, ignores all the realisations
     for (auto& p : store->queryAllValidPaths())
-      rootPaths.emplace_back(BuiltPath::Opaque{p});
+      rootPaths.emplace_back(BuiltPath::opaque_t{p});
     allPaths = rootPaths;
   } else {
     rootPaths =
@@ -205,7 +205,7 @@ void BuiltPathsCommand::run(ref<Store> store, Installables&& installables) {
       }
       store->computeFSClosure(pathsRoots, pathsClosure);
       for (auto& path : pathsClosure)
-        allPaths.emplace_back(BuiltPath::Opaque{path});
+        allPaths.emplace_back(BuiltPath::opaque_t{path});
     }
   }
 
@@ -261,7 +261,7 @@ void MixProfile::updateProfile(const BuiltPaths& buildables) {
 
   for (auto& buildable : buildables) {
     std::visit(overloaded{
-                   [&](const BuiltPath::Opaque& bo) { result.push_back(bo.path); },
+                   [&](const BuiltPath::opaque_t& bo) { result.push_back(bo.path); },
                    [&](const BuiltPath::Built& bfd) {
                      for (auto& output : bfd.outputs) {
                        result.push_back(output.second);
@@ -369,7 +369,7 @@ void createOutLinks(const std::filesystem::path& outLink, const BuiltPaths& buil
   for (const auto& [_i, buildable] : enumerate(buildables)) {
     auto i = _i;
     std::visit(overloaded{
-                   [&](const BuiltPath::Opaque& bo) {
+                   [&](const BuiltPath::opaque_t& bo) {
                      auto symlink = outLink;
                      if (i)
                        symlink += fmt("-%d", i);

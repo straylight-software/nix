@@ -21,7 +21,7 @@
 
 using namespace nix;
 
-struct ProfileElementSource {
+struct profile_element_source_t {
   FlakeRef originalRef;
   // FIXME: record original attrpath.
   FlakeRef lockedRef;
@@ -30,7 +30,7 @@ struct ProfileElementSource {
 
   // TODO libc++ 16 (used by darwin) missing `std::set::operator <=>`, can't do yet.
   // auto operator <=> (const ProfileElementSource & other) const
-  auto operator<(const ProfileElementSource& other) const {
+  auto operator<(const profile_element_source_t& other) const {
     return std::tuple(originalRef.to_string(), attrPath, outputs) <
            std::tuple(other.originalRef.to_string(), other.attrPath, other.outputs);
   }
@@ -42,16 +42,16 @@ struct ProfileElementSource {
 
 const int defaultPriority = 5;
 
-struct ProfileElement {
+struct profile_element_t {
   StorePathSet storePaths;
-  std::optional<ProfileElementSource> source;
+  std::optional<profile_element_source_t> source;
   bool active = true;
   int priority = defaultPriority;
 
   std::string identifier() const {
     if (source)
       return source->to_string();
-    StringSet names;
+    string_set_t names;
     for (auto& path : storePaths)
       names.insert(DrvName(path.name()).name);
     return dropEmptyInitThenConcatStringsSep(", ", names);
@@ -61,17 +61,17 @@ struct ProfileElement {
    * Return a string representing an installable corresponding to the current
    * element, either a flakeref or a plain store path
    */
-  StringSet toInstallables(Store& store) {
+  string_set_t toInstallables(Store& store) {
     if (source)
       return {source->to_string()};
-    StringSet rawPaths;
+    string_set_t rawPaths;
     for (auto& path : storePaths)
       rawPaths.insert(store.printStorePath(path));
     return rawPaths;
   }
 
   std::string versions() const {
-    StringSet versions;
+    string_set_t versions;
     for (auto& path : storePaths)
       versions.insert(DrvName(path.name()).version);
     return showVersions(versions);
@@ -81,7 +81,7 @@ struct ProfileElement {
     storePaths.clear();
     for (auto& buildable : builtPaths) {
       std::visit(overloaded{
-                     [&](const BuiltPath::Opaque& bo) { storePaths.insert(bo.path); },
+                     [&](const BuiltPath::opaque_t& bo) { storePaths.insert(bo.path); },
                      [&](const BuiltPath::Built& bfd) {
                        for (auto& output : bfd.outputs)
                          storePaths.insert(output.second);
@@ -92,7 +92,7 @@ struct ProfileElement {
   }
 };
 
-std::string getNameFromElement(const ProfileElement& element) {
+std::string getNameFromElement(const profile_element_t& element) {
   std::optional<std::string> result = std::nullopt;
   if (element.source) {
     // Seems to be for Flake URLs
@@ -101,14 +101,14 @@ std::string getNameFromElement(const ProfileElement& element) {
   return result.value_or(element.identifier());
 }
 
-struct ProfileManifest {
+struct profile_manifest_t {
   using ProfileElementName = std::string;
 
-  std::map<ProfileElementName, ProfileElement> elements;
+  std::map<ProfileElementName, profile_element_t> elements;
 
-  ProfileManifest() {}
+  profile_manifest_t() {}
 
-  ProfileManifest(EvalState& state, const std::filesystem::path& profile) {
+  profile_manifest_t(EvalState& state, const std::filesystem::path& profile) {
     auto manifestPath = profile / "manifest.json";
 
     if (std::filesystem::exists(manifestPath)) {
@@ -134,7 +134,7 @@ struct ProfileManifest {
       auto elems = json["elements"];
       for (auto& elem : elems.items()) {
         auto& e = elem.value();
-        ProfileElement element;
+        profile_element_t element;
         for (auto& p : e["storePaths"])
           element.storePaths.insert(state.store->parseStorePath((std::string)p));
         element.active = e["active"];
@@ -142,7 +142,7 @@ struct ProfileManifest {
           element.priority = e["priority"];
         }
         if (e.value(sUrl, "") != "") {
-          element.source = ProfileElementSource{
+          element.source = profile_element_source_t{
               parseFlakeRef(fetchSettings, e[sOriginalUrl]), parseFlakeRef(fetchSettings, e[sUrl]),
               e["attrPath"], e["outputs"].get<ExtendedOutputsSpec>()};
         }
@@ -170,14 +170,14 @@ struct ProfileManifest {
       auto packageInfos = queryInstalled(state, state.store->followLinksToStore(profile.string()));
 
       for (auto& packageInfo : packageInfos) {
-        ProfileElement element;
+        profile_element_t element;
         element.storePaths = {packageInfo.queryOutPath()};
         addElement(std::move(element));
       }
     }
   }
 
-  void addElement(std::string_view nameCandidate, ProfileElement element) {
+  void addElement(std::string_view nameCandidate, profile_element_t element) {
     std::string finalName(nameCandidate);
     for (int i = 1; elements.contains(finalName); ++i)
       finalName = nameCandidate + "-" + std::to_string(i);
@@ -185,7 +185,7 @@ struct ProfileManifest {
     elements.insert_or_assign(finalName, std::move(element));
   }
 
-  void addElement(ProfileElement element) {
+  void addElement(profile_element_t element) {
     auto name = getNameFromElement(element);
     addElement(name, std::move(element));
   }
@@ -235,14 +235,14 @@ struct ProfileManifest {
     writeFile(tempDir / "manifest.json", toJSON(*store).dump());
 
     /* Add the symlink tree to the store. */
-    StringSink sink;
+    string_sink_t sink;
     dumpPath(tempDir.string(), sink);
 
-    auto narHash = hashString(HashAlgorithm::SHA256, sink.s);
+    auto narHash = hashString(hash_algorithm_t::SHA256, sink.s);
 
     auto info = ValidPathInfo::makeFromCA(*store, "profile",
                                           FixedOutputInfo{
-                                              .method = FileIngestionMethod::NixArchive,
+                                              .method = file_ingestion_method_t::NixArchive,
                                               .hash = narHash,
                                               .references =
                                                   {
@@ -254,13 +254,13 @@ struct ProfileManifest {
                                           narHash);
     info.narSize = sink.s.size();
 
-    StringSource source(sink.s);
+    string_source_t source(sink.s);
     store->addToStore(info, source);
 
     return std::move(info.path);
   }
 
-  static void printDiff(const ProfileManifest& prev, const ProfileManifest& cur,
+  static void printDiff(const profile_manifest_t& prev, const profile_manifest_t& cur,
                         std::string_view indent) {
     auto i = prev.elements.begin();
     auto j = cur.elements.begin();
@@ -314,10 +314,10 @@ builtPathsPerInstallable(const std::vector<InstallableWithBuildResult>& builtPat
   return res;
 }
 
-struct CmdProfileAdd : InstallablesCommand, MixDefaultProfile {
+struct cmd_profile_add_t : InstallablesCommand, MixDefaultProfile {
   std::optional<int64_t> priority;
 
-  CmdProfileAdd() {
+  cmd_profile_add_t() {
     addFlag({
         .longName = "priority",
         .description = "The priority of the package to add.",
@@ -335,7 +335,7 @@ struct CmdProfileAdd : InstallablesCommand, MixDefaultProfile {
   }
 
   void run(ref<Store> store, Installables&& installables) override {
-    ProfileManifest manifest(*getEvalState(), *profile);
+    profile_manifest_t manifest(*getEvalState(), *profile);
 
     auto buildResults =
         Installable::build2(getEvalStore(), store, Realise::Outputs, installables, bmNormal);
@@ -344,7 +344,7 @@ struct CmdProfileAdd : InstallablesCommand, MixDefaultProfile {
     auto builtPaths = builtPathsPerInstallable(buildResults);
 
     for (auto& installable : installables) {
-      ProfileElement element;
+      profile_element_t element;
 
       auto iter = builtPaths.find(&*installable);
       if (iter == builtPaths.end())
@@ -352,7 +352,7 @@ struct CmdProfileAdd : InstallablesCommand, MixDefaultProfile {
       auto& [res, info] = iter->second;
 
       if (auto* info2 = dynamic_cast<ExtraPathInfoFlake*>(&*info)) {
-        element.source = ProfileElementSource{
+        element.source = profile_element_source_t{
             .originalRef = info2->flake.originalRef,
             .lockedRef = info2->flake.lockedRef,
             .attrPath = info2->value.attrPath,
@@ -446,77 +446,77 @@ struct CmdProfileAdd : InstallablesCommand, MixDefaultProfile {
   }
 };
 
-struct Matcher {
-  virtual ~Matcher() {}
+struct matcher_t {
+  virtual ~matcher_t() {}
 
   virtual std::string getTitle() = 0;
-  virtual bool matches(const std::string& name, const ProfileElement& element) = 0;
+  virtual bool matches(const std::string& name, const profile_element_t& element) = 0;
 };
 
-struct RegexMatcher final : public Matcher {
+struct regex_matcher_t final : public matcher_t {
   std::regex regex;
   std::string pattern;
 
-  RegexMatcher(const std::string& pattern)
+  regex_matcher_t(const std::string& pattern)
       : regex(pattern, std::regex::extended | std::regex::icase), pattern(pattern) {}
 
   std::string getTitle() override { return fmt("Regex '%s'", pattern); }
 
-  bool matches(const std::string& name, const ProfileElement& element) override {
+  bool matches(const std::string& name, const profile_element_t& element) override {
     return std::regex_match(element.identifier(), regex);
   }
 };
 
-struct StorePathMatcher final : public Matcher {
+struct store_path_matcher_t final : public matcher_t {
   nix::StorePath storePath;
 
-  StorePathMatcher(const nix::StorePath& storePath) : storePath(storePath) {}
+  store_path_matcher_t(const nix::StorePath& storePath) : storePath(storePath) {}
 
   std::string getTitle() override { return fmt("Store path '%s'", storePath.to_string()); }
 
-  bool matches(const std::string& name, const ProfileElement& element) override {
+  bool matches(const std::string& name, const profile_element_t& element) override {
     return element.storePaths.count(storePath);
   }
 };
 
-struct NameMatcher final : public Matcher {
+struct name_matcher_t final : public matcher_t {
   std::string name;
 
-  NameMatcher(const std::string& name) : name(name) {}
+  name_matcher_t(const std::string& name) : name(name) {}
 
   std::string getTitle() override { return fmt("Package name '%s'", name); }
 
-  bool matches(const std::string& name, const ProfileElement& element) override {
+  bool matches(const std::string& name, const profile_element_t& element) override {
     return name == this->name;
   }
 };
 
-struct AllMatcher final : public Matcher {
+struct all_matcher_t final : public matcher_t {
   std::string getTitle() override { return "--all"; }
 
-  bool matches(const std::string& name, const ProfileElement& element) override { return true; }
+  bool matches(const std::string& name, const profile_element_t& element) override { return true; }
 };
 
-AllMatcher all;
+all_matcher_t all;
 
-class MixProfileElementMatchers : virtual Args, virtual StoreCommand {
-  std::vector<ref<Matcher>> _matchers;
+class mix_profile_element_matchers_t : virtual Args, virtual StoreCommand {
+  std::vector<ref<matcher_t>> _matchers;
 
 public:
-  MixProfileElementMatchers() {
+  mix_profile_element_matchers_t() {
     addFlag({
         .longName = "all",
         .description = "Match all packages in the profile.",
         .handler = {[this]() {
           _matchers.push_back(
-              ref<AllMatcher>(std::shared_ptr<AllMatcher>(&all, [](AllMatcher*) {})));
+              ref<all_matcher_t>(std::shared_ptr<all_matcher_t>(&all, [](all_matcher_t*) {})));
         }},
     });
     addFlag({
         .longName = "regex",
         .description = "A regular expression to match one or more packages in the profile.",
         .labels = {"pattern"},
-        .handler = {[this](std::string arg) { _matchers.push_back(make_ref<RegexMatcher>(arg)); }},
+        .handler = {[this](std::string arg) { _matchers.push_back(make_ref<regex_matcher_t>(arg)); }},
     });
     expectArgs({.label = "elements",
                 .optional = true,
@@ -526,21 +526,21 @@ public:
                       throw Error("'nix profile' no longer supports indices ('%d')", *n);
                     } else if (getStore()->isStorePath(arg)) {
                       _matchers.push_back(
-                          make_ref<StorePathMatcher>(getStore()->parseStorePath(arg)));
+                          make_ref<store_path_matcher_t>(getStore()->parseStorePath(arg)));
                     } else {
-                      _matchers.push_back(make_ref<NameMatcher>(arg));
+                      _matchers.push_back(make_ref<name_matcher_t>(arg));
                     }
                   }
                 }}});
   }
 
-  StringSet getMatchingElementNames(ProfileManifest& manifest) {
+  string_set_t getMatchingElementNames(profile_manifest_t& manifest) {
     if (_matchers.empty()) {
       throw UsageError("No packages specified.");
     }
 
     if (std::find_if(_matchers.begin(), _matchers.end(),
-                     [](const ref<Matcher>& m) { return m.dynamic_pointer_cast<AllMatcher>(); }) !=
+                     [](const ref<matcher_t>& m) { return m.dynamic_pointer_cast<all_matcher_t>(); }) !=
             _matchers.end() &&
         _matchers.size() > 1) {
       throw UsageError("--all cannot be used with package names or regular expressions.");
@@ -551,7 +551,7 @@ public:
       return {};
     }
 
-    StringSet result;
+    string_set_t result;
     for (auto& matcher : _matchers) {
       bool foundMatch = false;
       for (auto& [name, element] : manifest.elements) {
@@ -568,7 +568,7 @@ public:
   }
 };
 
-struct CmdProfileRemove : virtual EvalCommand, MixDefaultProfile, MixProfileElementMatchers {
+struct cmd_profile_remove_t : virtual EvalCommand, MixDefaultProfile, mix_profile_element_matchers_t {
   std::string description() override { return "remove packages from a profile"; }
 
   std::string doc() override {
@@ -578,9 +578,9 @@ struct CmdProfileRemove : virtual EvalCommand, MixDefaultProfile, MixProfileElem
   }
 
   void run(ref<Store> store) override {
-    ProfileManifest oldManifest(*getEvalState(), *profile);
+    profile_manifest_t oldManifest(*getEvalState(), *profile);
 
-    ProfileManifest newManifest = oldManifest;
+    profile_manifest_t newManifest = oldManifest;
 
     auto matchingElementNames = getMatchingElementNames(oldManifest);
 
@@ -602,7 +602,7 @@ struct CmdProfileRemove : virtual EvalCommand, MixDefaultProfile, MixProfileElem
   }
 };
 
-struct CmdProfileUpgrade : virtual SourceExprCommand, MixDefaultProfile, MixProfileElementMatchers {
+struct cmd_profile_upgrade_t : virtual SourceExprCommand, MixDefaultProfile, mix_profile_element_matchers_t {
   std::string description() override { return "upgrade packages using their most recent flake"; }
 
   std::string doc() override {
@@ -612,10 +612,10 @@ struct CmdProfileUpgrade : virtual SourceExprCommand, MixDefaultProfile, MixProf
   }
 
   void run(ref<Store> store) override {
-    ProfileManifest manifest(*getEvalState(), *profile);
+    profile_manifest_t manifest(*getEvalState(), *profile);
 
     Installables installables;
-    std::vector<ProfileElement*> elems;
+    std::vector<profile_element_t*> elems;
 
     auto upgradedCount = 0;
 
@@ -644,12 +644,12 @@ struct CmdProfileUpgrade : virtual SourceExprCommand, MixDefaultProfile, MixProf
 
       upgradedCount++;
 
-      Activity act(*logger, lvlChatty, actUnknown,
+      activity_t act(*logger, lvlChatty, actUnknown,
                    fmt("checking '%s' for updates", element.source->attrPath));
 
       auto installable = make_ref<InstallableFlake>(
           this, getEvalState(), FlakeRef(element.source->originalRef), "", element.source->outputs,
-          Strings{element.source->attrPath}, Strings{}, lockFlags);
+          strings_t{element.source->attrPath}, strings_t{}, lockFlags);
 
       auto derivedPaths = installable->toDerivedPaths();
       if (derivedPaths.empty())
@@ -666,7 +666,7 @@ struct CmdProfileUpgrade : virtual SourceExprCommand, MixDefaultProfile, MixProf
       printInfo("upgrading '%s' from flake '%s' to '%s'", element.source->attrPath,
                 element.source->lockedRef, info.flake.lockedRef);
 
-      element.source = ProfileElementSource{
+      element.source = profile_element_source_t{
           .originalRef = installable->flakeRef,
           .lockedRef = info.flake.lockedRef,
           .attrPath = info.value.attrPath,
@@ -698,7 +698,7 @@ struct CmdProfileUpgrade : virtual SourceExprCommand, MixDefaultProfile, MixProf
   }
 };
 
-struct CmdProfileList : virtual EvalCommand, virtual StoreCommand, MixDefaultProfile, MixJSON {
+struct cmd_profile_list_t : virtual EvalCommand, virtual StoreCommand, MixDefaultProfile, MixJSON {
   std::string description() override { return "list packages in the profile"; }
 
   std::string doc() override {
@@ -708,7 +708,7 @@ struct CmdProfileList : virtual EvalCommand, virtual StoreCommand, MixDefaultPro
   }
 
   void run(ref<Store> store) override {
-    ProfileManifest manifest(*getEvalState(), *profile);
+    profile_manifest_t manifest(*getEvalState(), *profile);
 
     if (json) {
       printJSON(manifest.toJSON(*store));
@@ -732,7 +732,7 @@ struct CmdProfileList : virtual EvalCommand, virtual StoreCommand, MixDefaultPro
   }
 };
 
-struct CmdProfileDiffClosures : virtual StoreCommand, MixDefaultProfile {
+struct cmd_profile_diff_closures_t : virtual StoreCommand, MixDefaultProfile {
   std::string description() override {
     return "show the closure difference between each version of a profile";
   }
@@ -764,7 +764,7 @@ struct CmdProfileDiffClosures : virtual StoreCommand, MixDefaultProfile {
   }
 };
 
-struct CmdProfileHistory : virtual StoreCommand, EvalCommand, MixDefaultProfile {
+struct cmd_profile_history_t : virtual StoreCommand, EvalCommand, MixDefaultProfile {
   std::string description() override { return "show all versions of a profile"; }
 
   std::string doc() override {
@@ -776,11 +776,11 @@ struct CmdProfileHistory : virtual StoreCommand, EvalCommand, MixDefaultProfile 
   void run(ref<Store> store) override {
     auto [gens, curGen] = findGenerations(*profile);
 
-    std::optional<std::pair<Generation, ProfileManifest>> prevGen;
+    std::optional<std::pair<Generation, profile_manifest_t>> prevGen;
     bool first = true;
 
     for (auto& gen : gens) {
-      ProfileManifest manifest(*getEvalState(), gen.path);
+      profile_manifest_t manifest(*getEvalState(), gen.path);
 
       if (!first)
         logger->cout("");
@@ -791,17 +791,17 @@ struct CmdProfileHistory : virtual StoreCommand, EvalCommand, MixDefaultProfile 
           gen.number, std::put_time(std::gmtime(&gen.creationTime), "%Y-%m-%d"),
           prevGen ? fmt(" <- %d", prevGen->first.number) : "");
 
-      ProfileManifest::printDiff(prevGen ? prevGen->second : ProfileManifest(), manifest, "  ");
+      profile_manifest_t::printDiff(prevGen ? prevGen->second : profile_manifest_t(), manifest, "  ");
 
       prevGen = {gen, std::move(manifest)};
     }
   }
 };
 
-struct CmdProfileRollback : virtual StoreCommand, MixDefaultProfile, MixDryRun {
+struct cmd_profile_rollback_t : virtual StoreCommand, MixDefaultProfile, MixDryRun {
   std::optional<GenerationNumber> version;
 
-  CmdProfileRollback() {
+  cmd_profile_rollback_t() {
     addFlag({
         .longName = "to",
         .description = "The profile version to roll back to.",
@@ -823,10 +823,10 @@ struct CmdProfileRollback : virtual StoreCommand, MixDefaultProfile, MixDryRun {
   void run(ref<Store> store) override { switchGeneration(*profile, version, dryRun); }
 };
 
-struct CmdProfileWipeHistory : virtual StoreCommand, MixDefaultProfile, MixDryRun {
+struct cmd_profile_wipe_history_t : virtual StoreCommand, MixDefaultProfile, MixDryRun {
   std::optional<std::string> minAge;
 
-  CmdProfileWipeHistory() {
+  cmd_profile_wipe_history_t() {
     addFlag({
         .longName = "older-than",
         .description = "Delete versions older than the specified age. *age* "
@@ -854,21 +854,21 @@ struct CmdProfileWipeHistory : virtual StoreCommand, MixDefaultProfile, MixDryRu
   }
 };
 
-struct CmdProfile : NixMultiCommand {
-  CmdProfile()
+struct cmd_profile_t : NixMultiCommand {
+  cmd_profile_t()
       : NixMultiCommand("profile",
                         {
-                            {"add", []() { return make_ref<CmdProfileAdd>(); }},
-                            {"remove", []() { return make_ref<CmdProfileRemove>(); }},
-                            {"upgrade", []() { return make_ref<CmdProfileUpgrade>(); }},
-                            {"list", []() { return make_ref<CmdProfileList>(); }},
-                            {"diff-closures", []() { return make_ref<CmdProfileDiffClosures>(); }},
-                            {"history", []() { return make_ref<CmdProfileHistory>(); }},
-                            {"rollback", []() { return make_ref<CmdProfileRollback>(); }},
-                            {"wipe-history", []() { return make_ref<CmdProfileWipeHistory>(); }},
+                            {"add", []() { return make_ref<cmd_profile_add_t>(); }},
+                            {"remove", []() { return make_ref<cmd_profile_remove_t>(); }},
+                            {"upgrade", []() { return make_ref<cmd_profile_upgrade_t>(); }},
+                            {"list", []() { return make_ref<cmd_profile_list_t>(); }},
+                            {"diff-closures", []() { return make_ref<cmd_profile_diff_closures_t>(); }},
+                            {"history", []() { return make_ref<cmd_profile_history_t>(); }},
+                            {"rollback", []() { return make_ref<cmd_profile_rollback_t>(); }},
+                            {"wipe-history", []() { return make_ref<cmd_profile_wipe_history_t>(); }},
                         }) {
     aliases = {
-        {"install", {AliasStatus::Deprecated, {"add"}}},
+        {"install", {alias_status_t::Deprecated, {"add"}}},
     };
   }
 
@@ -881,4 +881,4 @@ struct CmdProfile : NixMultiCommand {
   }
 };
 
-static auto rCmdProfile = registerCommand<CmdProfile>("profile");
+static auto rCmdProfile = registerCommand<cmd_profile_t>("profile");

@@ -72,10 +72,10 @@ const nlohmann::json::boolean_t& getBoolean(const nlohmann::json& value) {
       .get_ref<const nlohmann::json::boolean_t&>();
 }
 
-Strings getStringList(const nlohmann::json& value) {
+strings_t getStringList(const nlohmann::json& value) {
   auto& jsonArray = getArray(value);
 
-  Strings stringList;
+  strings_t stringList;
 
   for (const auto& elem : jsonArray)
     stringList.push_back(getString(elem));
@@ -83,14 +83,14 @@ Strings getStringList(const nlohmann::json& value) {
   return stringList;
 }
 
-StringMap getStringMap(const nlohmann::json& value) {
+string_map_t getStringMap(const nlohmann::json& value) {
   return getMap<std::string, std::less<>>(getObject(value), getString);
 }
 
-StringSet getStringSet(const nlohmann::json& value) {
+string_set_t getStringSet(const nlohmann::json& value) {
   auto& jsonArray = getArray(value);
 
-  StringSet stringSet;
+  string_set_t stringSet;
 
   for (const auto& elem : jsonArray)
     stringSet.insert(getString(elem));

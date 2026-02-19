@@ -21,13 +21,13 @@ HookInstance::HookInstance() {
   buildHookArgs.pop_front();
 
   try {
-    buildHook = ExecutablePath::load().findPath(buildHook);
+    buildHook = executable_path_t::load().findPath(buildHook);
   } catch (ExecutableLookupError& e) {
     e.addTrace(nullptr, "while resolving the 'build-hook' setting'");
     throw;
   }
 
-  Strings args;
+  strings_t args;
   args.push_back(buildHook.filename().string());
 
   for (auto& arg : buildHookArgs)
@@ -47,37 +47,37 @@ HookInstance::HookInstance() {
   /* Fork the hook. */
   pid = startProcess([&]() {
     if (dup2(fromHook.writeSide.get(), STDERR_FILENO) == -1)
-      throw SysError("cannot pipe standard error into log file");
+      throw sys_error_t("cannot pipe standard error into log file");
 
     commonChildInit();
 
     if (chdir("/") == -1)
-      throw SysError("changing into /");
+      throw sys_error_t("changing into /");
 
     /* Dup the communication pipes. */
     if (dup2(toHook.readSide.get(), STDIN_FILENO) == -1)
-      throw SysError("dupping to-hook read side");
+      throw sys_error_t("dupping to-hook read side");
 
     /* Use fd 4 for the builder's stdout/stderr. */
     if (dup2(builderOut.writeSide.get(), 4) == -1)
-      throw SysError("dupping builder's stdout/stderr");
+      throw sys_error_t("dupping builder's stdout/stderr");
 
     /* Hack: pass the read side of that fd to allow build-remote
        to read SSH error messages. */
     if (dup2(builderOut.readSide.get(), 5) == -1)
-      throw SysError("dupping builder's stdout/stderr");
+      throw sys_error_t("dupping builder's stdout/stderr");
 
     execv(buildHook.native().c_str(), stringsToCharPtrs(args).data());
 
-    throw SysError("executing '%s'", buildHook);
+    throw sys_error_t("executing '%s'", buildHook);
   });
 
   pid.setSeparatePG(true);
   fromHook.writeSide = -1;
   toHook.readSide = -1;
 
-  sink = FdSink(toHook.writeSide.get());
-  std::map<std::string, Config::SettingInfo> settings;
+  sink = fd_sink_t(toHook.writeSide.get());
+  std::map<std::string, Config::setting_info_t> settings;
   globalConfig.getSettings(settings);
   for (auto& setting : settings)
     sink << 1 << setting.first << setting.second.value;

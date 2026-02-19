@@ -2,16 +2,16 @@
 
 using namespace nix;
 
-struct CmdStore : NixMultiCommand {
-  CmdStore() : NixMultiCommand("store", RegisterCommand::getCommandsFor({"store"})) {
+struct cmd_store_t : NixMultiCommand {
+  cmd_store_t() : NixMultiCommand("store", RegisterCommand::getCommandsFor({"store"})) {
     aliases = {
-        {"ping", {AliasStatus::Deprecated, {"info"}}},
+        {"ping", {alias_status_t::Deprecated, {"info"}}},
     };
   }
 
   std::string description() override { return "manipulate a Nix store"; }
 
-  Category category() override { return catUtility; }
+  category_t category() override { return catUtility; }
 };
 
-static auto rCmdStore = registerCommand<CmdStore>("store");
+static auto rCmdStore = registerCommand<cmd_store_t>("store");

@@ -6,7 +6,7 @@
 
 namespace nix {
 
-static void prim_unsafeDiscardStringContext(EvalState& state, const PosIdx pos, Value** args,
+static void prim_unsafeDiscardStringContext(EvalState& state, const pos_idx_t pos, Value** args,
                                             Value& v) {
   NixStringContext context, filtered;
 
@@ -37,7 +37,7 @@ bool hasContext(const NixStringContext& context) {
   return false;
 }
 
-static void prim_hasContext(EvalState& state, const PosIdx pos, Value** args, Value& v) {
+static void prim_hasContext(EvalState& state, const pos_idx_t pos, Value** args, Value& v) {
   NixStringContext context;
   state.forceString(*args[0], context, pos,
                     "while evaluating the argument passed to builtins.hasContext");
@@ -66,7 +66,7 @@ static RegisterPrimOp primop_hasContext({.name = "__hasContext",
     )",
                                          .fun = prim_hasContext});
 
-static void prim_unsafeDiscardOutputDependency(EvalState& state, const PosIdx pos, Value** args,
+static void prim_unsafeDiscardOutputDependency(EvalState& state, const pos_idx_t pos, Value** args,
                                                Value& v) {
   NixStringContext context;
   auto s = state.coerceToString(
@@ -77,7 +77,7 @@ static void prim_unsafeDiscardOutputDependency(EvalState& state, const PosIdx po
   for (auto&& c : context) {
     if (auto* ptr = std::get_if<NixStringContextElem::DrvDeep>(&c.raw)) {
       state.waitForPath(ptr->drvPath); // FIXME: why?
-      context2.emplace(NixStringContextElem::Opaque{.path = ptr->drvPath});
+      context2.emplace(NixStringContextElem::opaque_t{.path = ptr->drvPath});
     } else {
       /* Can reuse original item */
       context2.emplace(std::move(c).raw);
@@ -109,7 +109,7 @@ static RegisterPrimOp
     )",
                                           .fun = prim_unsafeDiscardOutputDependency});
 
-static void prim_addDrvOutputDependencies(EvalState& state, const PosIdx pos, Value** args,
+static void prim_addDrvOutputDependencies(EvalState& state, const pos_idx_t pos, Value** args,
                                           Value& v) {
   NixStringContext context;
   auto s = state.coerceToString(
@@ -127,7 +127,7 @@ static void prim_addDrvOutputDependencies(EvalState& state, const PosIdx pos, Va
   NixStringContext context2{
       (NixStringContextElem{std::visit(
           overloaded{
-              [&](const NixStringContextElem::Opaque& c) -> NixStringContextElem::DrvDeep {
+              [&](const NixStringContextElem::opaque_t& c) -> NixStringContextElem::DrvDeep {
                 if (!c.path.isDerivation()) {
                   state
                       .error<EvalError>("path '%s' is not a derivation",
@@ -204,11 +204,11 @@ static RegisterPrimOp primop_addDrvOutputDependencies({.name = "__addDrvOutputDe
    Note that for a given path any combination of the above attributes
    may be present.
 */
-static void prim_getContext(EvalState& state, const PosIdx pos, Value** args, Value& v) {
+static void prim_getContext(EvalState& state, const pos_idx_t pos, Value** args, Value& v) {
   struct ContextInfo {
     bool path = false;
     bool allOutputs = false;
-    Strings outputs;
+    strings_t outputs;
   };
 
   NixStringContext context;
@@ -227,7 +227,7 @@ static void prim_getContext(EvalState& state, const PosIdx pos, Value** args, Va
               auto drvPath = resolveDerivedPath(*state.store, *b.drvPath);
               contextInfos[std::move(drvPath)].outputs.emplace_back(std::move(b.output));
             },
-            [&](NixStringContextElem::Opaque&& o) { contextInfos[std::move(o.path)].path = true; },
+            [&](NixStringContextElem::opaque_t&& o) { contextInfos[std::move(o.path)].path = true; },
             [&](NixStringContextElem::Path&& p) {},
         },
         ((NixStringContextElem&&)i).raw);
@@ -283,7 +283,7 @@ static RegisterPrimOp primop_getContext({.name = "__getContext",
    See the commentary above getContext for details of the
    context representation.
 */
-static void prim_appendContext(EvalState& state, const PosIdx pos, Value** args, Value& v) {
+static void prim_appendContext(EvalState& state, const pos_idx_t pos, Value** args, Value& v) {
   NixStringContext context;
   auto orig =
       state.forceString(*args[0], context, noPos,
@@ -308,7 +308,7 @@ static void prim_appendContext(EvalState& state, const PosIdx pos, Value** args,
     if (auto attr = i.value->attrs()->get(sPath)) {
       if (state.forceBool(*attr->value, attr->pos,
                           "while evaluating the `path` attribute of a string context"))
-        context.emplace(NixStringContextElem::Opaque{
+        context.emplace(NixStringContextElem::opaque_t{
             .path = namePath,
         });
     }

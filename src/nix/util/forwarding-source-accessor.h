@@ -14,22 +14,22 @@ struct ForwardingSourceAccessor : SourceAccessor {
 
   ForwardingSourceAccessor(ref<SourceAccessor> next) : next(next) {}
 
-  std::string readFile(const CanonPath& path) override { return next->readFile(path); }
+  std::string readFile(const canon_path_t& path) override { return next->readFile(path); }
 
-  void readFile(const CanonPath& path, Sink& sink,
+  void readFile(const canon_path_t& path, Sink& sink,
                 std::function<void(uint64_t)> sizeCallback) override {
     next->readFile(path, sink, sizeCallback);
   }
 
-  std::optional<Stat> maybeLstat(const CanonPath& path) override { return next->maybeLstat(path); }
+  std::optional<stat_t> maybeLstat(const canon_path_t& path) override { return next->maybeLstat(path); }
 
-  DirEntries readDirectory(const CanonPath& path) override { return next->readDirectory(path); }
+  dir_entries_t readDirectory(const canon_path_t& path) override { return next->readDirectory(path); }
 
-  std::string readLink(const CanonPath& path) override { return next->readLink(path); }
+  std::string readLink(const canon_path_t& path) override { return next->readLink(path); }
 
-  std::string showPath(const CanonPath& path) override { return next->showPath(path); }
+  std::string showPath(const canon_path_t& path) override { return next->showPath(path); }
 
-  std::optional<std::filesystem::path> getPhysicalPath(const CanonPath& path) override {
+  std::optional<std::filesystem::path> getPhysicalPath(const canon_path_t& path) override {
     return next->getPhysicalPath(path);
   }
 };

@@ -13,7 +13,7 @@ namespace detail {
 /** Provides the completion hooks for the repl, without exposing its complete
  * internals. */
 struct ReplCompleterMixin {
-  virtual StringSet completePrefix(const std::string& prefix) = 0;
+  virtual string_set_t completePrefix(const std::string& prefix) = 0;
 };
 }; // namespace detail
 
@@ -24,7 +24,7 @@ enum class ReplPromptType {
 
 class ReplInteracter {
 public:
-  using Guard = Finally<std::function<void()>>;
+  using Guard = finally_t<std::function<void()>>;
 
   virtual Guard init(detail::ReplCompleterMixin* repl) = 0;
   /** Returns a boolean of whether the interacter got EOF */

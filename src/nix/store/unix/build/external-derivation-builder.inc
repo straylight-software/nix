@@ -1,18 +1,18 @@
 namespace nix {
 
-struct ExternalDerivationBuilder : DerivationBuilderImpl
+struct external_derivation_builder_t : derivation_builder_impl_t
 {
     ExternalBuilder externalBuilder;
 
-    ExternalDerivationBuilder(
+    external_derivation_builder_t(
         LocalStore & store,
         std::unique_ptr<DerivationBuilderCallbacks> miscMethods,
         DerivationBuilderParams params,
         ExternalBuilder externalBuilder)
-        : DerivationBuilderImpl(store, std::move(miscMethods), std::move(params))
+        : derivation_builder_impl_t(store, std::move(miscMethods), std::move(params))
         , externalBuilder(std::move(externalBuilder))
     {
-        experimentalFeatureSettings.require(Xp::ExternalBuilders);
+        experimentalFeatureSettings.require(xp_t::ExternalBuilders);
     }
 
     Path tmpDirInSandbox() override
@@ -79,7 +79,7 @@ struct ExternalDerivationBuilder : DerivationBuilderImpl
             try {
                 commonChildInit();
 
-                Strings args = {externalBuilder.program};
+                strings_t args = {externalBuilder.program};
 
                 if (!externalBuilder.args.empty()) {
                     args.insert(args.end(), externalBuilder.args.begin(), externalBuilder.args.end());
@@ -88,7 +88,7 @@ struct ExternalDerivationBuilder : DerivationBuilderImpl
                 args.insert(args.end(), jsonFile);
 
                 if (chdir(tmpDir.c_str()) == -1)
-                    throw SysError("changing into '%1%'", tmpDir);
+                    throw sys_error_t("changing into '%1%'", tmpDir);
 
                 chownToBuilder(topTmpDir);
 
@@ -97,7 +97,7 @@ struct ExternalDerivationBuilder : DerivationBuilderImpl
                 debug("executing external builder: %s", concatStringsSep(" ", args));
                 execv(externalBuilder.program.c_str(), stringsToCharPtrs(args).data());
 
-                throw SysError("executing '%s'", externalBuilder.program);
+                throw sys_error_t("executing '%s'", externalBuilder.program);
             } catch (...) {
                 handleChildException(true);
                 _exit(1);
@@ -112,7 +112,7 @@ std::unique_ptr<DerivationBuilder> makeExternalDerivationBuilder(
     DerivationBuilderParams params,
     const ExternalBuilder & handler)
 {
-    return std::make_unique<ExternalDerivationBuilder>(store, std::move(miscMethods), std::move(params), handler);
+    return std::make_unique<external_derivation_builder_t>(store, std::move(miscMethods), std::move(params), handler);
 }
 
 } // namespace nix

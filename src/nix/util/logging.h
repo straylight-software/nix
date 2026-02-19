@@ -27,7 +27,7 @@ typedef enum {
   actPostBuildHook = 110,
   actBuildWaiting = 111,
   actFetchTree = 112,
-} ActivityType;
+} activity_type_t;
 
 typedef enum {
   resFileLinked = 100,
@@ -41,18 +41,18 @@ typedef enum {
   resFetchStatus = 108,
   resHashMismatch = 109,
   resBuildResult = 110,
-} ResultType;
+} result_type_t;
 
-typedef uint64_t ActivityId;
+typedef uint64_t activity_id_t;
 
-struct LoggerSettings : Config {
-  Setting<bool> showTrace{this, false, "show-trace",
+struct logger_settings_t : Config {
+  setting_t<bool> showTrace{this, false, "show-trace",
                           R"(
           Whether Nix should print out a stack trace in case of Nix
           expression evaluation errors.
         )"};
 
-  Setting<std::optional<std::filesystem::path>> jsonLogPath{this,
+  setting_t<std::optional<std::filesystem::path>> jsonLogPath{this,
                                                             {},
                                                             "json-log-path",
                                                             R"(
@@ -64,27 +64,27 @@ struct LoggerSettings : Config {
         )"};
 };
 
-extern LoggerSettings loggerSettings;
+extern logger_settings_t loggerSettings;
 
 class Logger {
-  friend struct Activity;
+  friend struct activity_t;
 
 public:
-  struct Field {
+  struct field_t {
     // FIXME: use std::variant.
     enum { tInt = 0, tString = 1 } type;
 
     uint64_t i = 0;
     std::string s;
 
-    Field(const std::string& s) : type(tString), s(s) {}
+    field_t(const std::string& s) : type(tString), s(s) {}
 
-    Field(const char* s) : type(tString), s(s) {}
+    field_t(const char* s) : type(tString), s(s) {}
 
-    Field(const uint64_t& i) : type(tInt), i(i) {}
+    field_t(const uint64_t& i) : type(tInt), i(i) {}
   };
 
-  typedef std::vector<Field> Fields;
+  typedef std::vector<field_t> fields_t;
 
   virtual ~Logger() {}
 
@@ -93,13 +93,13 @@ public:
   /**
    * Guard object to resume the logger when done.
    */
-  struct Suspension {
-    Finally<std::function<void()>> _finalize;
+  struct suspension_t {
+    finally_t<std::function<void()>> _finalize;
   };
 
-  Suspension suspend();
+  suspension_t suspend();
 
-  std::optional<Suspension> suspendIf(bool cond);
+  std::optional<suspension_t> suspendIf(bool cond);
 
   virtual void pause() {};
   virtual void resume() {};
@@ -107,27 +107,27 @@ public:
   // Whether the logger prints the whole build log
   virtual bool isVerbose() { return false; }
 
-  virtual void log(Verbosity lvl, std::string_view s) = 0;
+  virtual void log(verbosity_t lvl, std::string_view s) = 0;
 
   void log(std::string_view s) { log(lvlInfo, s); }
 
-  virtual void logEI(const ErrorInfo& ei) = 0;
+  virtual void logEI(const error_info_t& ei) = 0;
 
-  void logEI(Verbosity lvl, ErrorInfo ei) {
+  void logEI(verbosity_t lvl, error_info_t ei) {
     ei.level = lvl;
     logEI(ei);
   }
 
   virtual void warn(const std::string& msg);
 
-  virtual void startActivity(ActivityId act, Verbosity lvl, ActivityType type, const std::string& s,
-                             const Fields& fields, ActivityId parent) {};
+  virtual void startActivity(activity_id_t act, verbosity_t lvl, activity_type_t type, const std::string& s,
+                             const fields_t& fields, activity_id_t parent) {};
 
-  virtual void stopActivity(ActivityId act) {};
+  virtual void stopActivity(activity_id_t act) {};
 
-  virtual void result(ActivityId act, ResultType type, const Fields& fields) {};
+  virtual void result(activity_id_t act, result_type_t type, const fields_t& fields) {};
 
-  virtual void result(ActivityId act, ResultType type, const nlohmann::json& json) {};
+  virtual void result(activity_id_t act, result_type_t type, const nlohmann::json& json) {};
 
   virtual void writeToStdout(std::string_view s);
 
@@ -151,56 +151,56 @@ struct nop {
   nop(T...) {}
 };
 
-ActivityId getCurActivity();
-void setCurActivity(const ActivityId activityId);
+activity_id_t getCurActivity();
+void setCurActivity(const activity_id_t activityId);
 
-struct Activity {
+struct activity_t {
   Logger& logger;
 
-  const ActivityId id;
+  const activity_id_t id;
 
-  Activity(Logger& logger, Verbosity lvl, ActivityType type, const std::string& s = "",
-           const Logger::Fields& fields = {}, ActivityId parent = getCurActivity());
+  activity_t(Logger& logger, verbosity_t lvl, activity_type_t type, const std::string& s = "",
+           const Logger::fields_t& fields = {}, activity_id_t parent = getCurActivity());
 
-  Activity(Logger& logger, ActivityType type, const Logger::Fields& fields = {},
-           ActivityId parent = getCurActivity())
-      : Activity(logger, lvlError, type, "", fields, parent) {};
+  activity_t(Logger& logger, activity_type_t type, const Logger::fields_t& fields = {},
+           activity_id_t parent = getCurActivity())
+      : activity_t(logger, lvlError, type, "", fields, parent) {};
 
-  Activity(const Activity& act) = delete;
+  activity_t(const activity_t& act) = delete;
 
-  ~Activity();
+  ~activity_t();
 
   void progress(uint64_t done = 0, uint64_t expected = 0, uint64_t running = 0,
                 uint64_t failed = 0) const {
     result(resProgress, done, expected, running, failed);
   }
 
-  void setExpected(ActivityType type2, uint64_t expected) const {
+  void setExpected(activity_type_t type2, uint64_t expected) const {
     result(resSetExpected, type2, expected);
   }
 
-  void result(ResultType type, const nlohmann::json& json) const { logger.result(id, type, json); }
+  void result(result_type_t type, const nlohmann::json& json) const { logger.result(id, type, json); }
 
   template <typename... Args>
-  void result(ResultType type, const Args&... args) const {
-    Logger::Fields fields;
-    nop{(fields.emplace_back(Logger::Field(args)), 1)...};
+  void result(result_type_t type, const Args&... args) const {
+    Logger::fields_t fields;
+    nop{(fields.emplace_back(Logger::field_t(args)), 1)...};
     result(type, fields);
   }
 
-  void result(ResultType type, const Logger::Fields& fields) const {
+  void result(result_type_t type, const Logger::fields_t& fields) const {
     logger.result(id, type, fields);
   }
 
   friend class Logger;
 };
 
-struct PushActivity {
-  const ActivityId prevAct;
+struct push_activity_t {
+  const activity_id_t prevAct;
 
-  PushActivity(ActivityId act) : prevAct(getCurActivity()) { setCurActivity(act); }
+  push_activity_t(activity_id_t act) : prevAct(getCurActivity()) { setCurActivity(act); }
 
-  ~PushActivity() { setCurActivity(prevAct); }
+  ~push_activity_t() { setCurActivity(prevAct); }
 };
 
 extern std::unique_ptr<Logger> logger;
@@ -215,7 +215,7 @@ std::unique_ptr<Logger> makeSimpleLogger(bool printBuildLogs = true);
 std::unique_ptr<Logger> makeTeeLogger(std::unique_ptr<Logger> mainLogger,
                                       std::vector<std::unique_ptr<Logger>>&& extraLoggers);
 
-std::unique_ptr<Logger> makeJSONLogger(Descriptor fd, bool includeNixPrefix = true);
+std::unique_ptr<Logger> makeJSONLogger(descriptor_t fd, bool includeNixPrefix = true);
 
 std::unique_ptr<Logger> makeJSONLogger(const std::filesystem::path& path,
                                        bool includeNixPrefix = true);
@@ -230,24 +230,24 @@ std::optional<nlohmann::json> parseJSONMessage(const std::string& msg, std::stri
 /**
  * @param source A noun phrase describing the source of the message, e.g. "the builder".
  */
-bool handleJSONLogMessage(nlohmann::json& json, const Activity& act,
-                          std::map<ActivityId, Activity>& activities, std::string_view source,
+bool handleJSONLogMessage(nlohmann::json& json, const activity_t& act,
+                          std::map<activity_id_t, activity_t>& activities, std::string_view source,
                           bool trusted);
 
 /**
  * @param source A noun phrase describing the source of the message, e.g. "the builder".
  */
-bool handleJSONLogMessage(const std::string& msg, const Activity& act,
-                          std::map<ActivityId, Activity>& activities, std::string_view source,
+bool handleJSONLogMessage(const std::string& msg, const activity_t& act,
+                          std::map<activity_id_t, activity_t>& activities, std::string_view source,
                           bool trusted);
 
 /**
  * suppress msgs > this
  */
-extern Verbosity verbosity;
+extern verbosity_t verbosity;
 
 /**
- * Print a message with the standard ErrorInfo format.
+ * Print a message with the standard error_info_t format.
  * In general, use these 'log' macros for reporting problems that may require user
  * intervention or that need more explanation.  Use the 'print' macros for more
  * lightweight status messages.

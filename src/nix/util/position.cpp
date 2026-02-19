@@ -6,13 +6,13 @@ Pos::operator std::shared_ptr<const Pos>() const {
   return std::make_shared<const Pos>(*this);
 }
 
-std::optional<LinesOfCode> Pos::getCodeLines() const {
+std::optional<lines_of_code_t> Pos::getCodeLines() const {
   if (line == 0)
     return std::nullopt;
 
   if (auto source = getSource()) {
-    LinesIterator lines(*source), end;
-    LinesOfCode loc;
+    lines_iterator_t lines(*source), end;
+    lines_of_code_t loc;
 
     if (line > 1)
       std::advance(lines, line - 2);
@@ -40,7 +40,7 @@ std::optional<std::string> Pos::getSource() const {
                    // Get rid of the null terminators added by the parser.
                    return std::string(s.source->c_str());
                  },
-                 [](const SourcePath& path) -> std::optional<std::string> {
+                 [](const source_path_t& path) -> std::optional<std::string> {
                    try {
                      return path.readFile();
                    } catch (Error&) {
@@ -50,8 +50,8 @@ std::optional<std::string> Pos::getSource() const {
       origin);
 }
 
-std::optional<SourcePath> Pos::getSourcePath() const {
-  if (auto* path = std::get_if<SourcePath>(&origin))
+std::optional<source_path_t> Pos::getSourcePath() const {
+  if (auto* path = std::get_if<source_path_t>(&origin))
     return *path;
   return std::nullopt;
 }
@@ -61,7 +61,7 @@ void Pos::print(std::ostream& out, bool showOrigin) const {
     std::visit(overloaded{[&](const std::monostate&) { out << "«none»"; },
                           [&](const Pos::Stdin&) { out << "«stdin»"; },
                           [&](const Pos::String& s) { out << "«string»"; },
-                          [&](const SourcePath& path) { out << path; }},
+                          [&](const source_path_t& path) { out << path; }},
                origin);
     out << ":";
   }
@@ -75,7 +75,7 @@ std::ostream& operator<<(std::ostream& str, const Pos& pos) {
   return str;
 }
 
-void Pos::LinesIterator::bump(bool atFirst) {
+void Pos::lines_iterator_t::bump(bool atFirst) {
   if (!atFirst) {
     pastEnd = input.empty();
     if (!input.empty() && input[0] == '\r')
@@ -103,17 +103,17 @@ std::optional<std::string> Pos::getSnippetUpTo(const Pos& end) const {
     return std::nullopt;
 
   if (auto source = getSource()) {
-    auto firstLine = LinesIterator(*source);
+    auto firstLine = lines_iterator_t(*source);
     for (uint32_t i = 1; i < this->line; ++i) {
       ++firstLine;
     }
 
-    auto lastLine = LinesIterator(*source);
+    auto lastLine = lines_iterator_t(*source);
     for (uint32_t i = 1; i < end.line; ++i) {
       ++lastLine;
     }
 
-    LinesIterator linesEnd;
+    lines_iterator_t linesEnd;
 
     std::string result;
     for (auto i = firstLine; i != linesEnd; ++i) {

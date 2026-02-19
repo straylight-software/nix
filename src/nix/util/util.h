@@ -22,7 +22,7 @@ void initLibUtil();
  * *`s. The result must not be accessed beyond the lifetime of the
  * list of strings.
  */
-std::vector<char*> stringsToCharPtrs(const Strings& ss);
+std::vector<char*> stringsToCharPtrs(const strings_t& ss);
 
 MakeError(FormatError, Error);
 
@@ -49,17 +49,17 @@ inline std::string quoteString(std::string_view s, char quote = '\'') {
  * Add quotes around a collection of strings.
  */
 template <class C>
-Strings quoteStrings(const C& c, char quote = '\'') {
-  Strings res;
+strings_t quoteStrings(const C& c, char quote = '\'') {
+  strings_t res;
   for (auto& s : c)
     res.push_back(quoteString(s, quote));
   return res;
 }
 
-inline Strings quoteFSPaths(const std::set<std::filesystem::path>& paths, char quote = '\'') {
+inline strings_t quoteFSPaths(const std::set<std::filesystem::path>& paths, char quote = '\'') {
   return paths |
          std::views::transform([&](const auto& p) { return quoteString(p.string(), quote); }) |
-         std::ranges::to<Strings>();
+         std::ranges::to<strings_t>();
 }
 
 /**
@@ -79,7 +79,7 @@ std::string trim(std::string_view s, std::string_view whitespace = " \n\r\t");
  */
 std::string replaceStrings(std::string s, std::string_view from, std::string_view to);
 
-std::string rewriteStrings(std::string s, const StringMap& rewrites);
+std::string rewriteStrings(std::string s, const string_map_t& rewrites);
 
 /**
  * Parse a string into an integer.
@@ -209,9 +209,9 @@ std::string escapeShellArgAlways(const std::string_view s);
  *
  * This function might also be used in callbacks whose caller may not handle exceptions,
  * but ideally we propagate the exception using an exception_ptr in such cases.
- * See e.g. `PackBuilderContext`
+ * See e.g. `pack_builder_context_t`
  */
-void ignoreExceptionInDestructor(Verbosity lvl = lvlError);
+void ignoreExceptionInDestructor(verbosity_t lvl = lvlError);
 
 /**
  * Not destructor-safe.
@@ -220,10 +220,10 @@ void ignoreExceptionInDestructor(Verbosity lvl = lvlError);
  *
  * This may be used in a few places where Interrupt can't happen, but that's ok.
  */
-void ignoreExceptionExceptInterrupt(Verbosity lvl = lvlError);
+void ignoreExceptionExceptInterrupt(verbosity_t lvl = lvlError);
 
 /**
- * Tree formatting.
+ * tree_t formatting.
  */
 constexpr char treeConn[] = "├───";
 constexpr char treeLast[] = "└───";
@@ -369,13 +369,13 @@ class Callback;
  * decrements it on destruction.
  */
 template <typename T>
-struct MaintainCount {
+struct maintain_count_t {
   T& counter;
   long delta;
 
-  MaintainCount(T& counter, long delta = 1) : counter(counter), delta(delta) { counter += delta; }
+  maintain_count_t(T& counter, long delta = 1) : counter(counter), delta(delta) { counter += delta; }
 
-  ~MaintainCount() { counter -= delta; }
+  ~maintain_count_t() { counter -= delta; }
 };
 
 /**

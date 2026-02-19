@@ -34,7 +34,7 @@ struct MixDryRun : virtual Args {
 };
 
 /**
- * Commands that can print JSON according to the
+ * commands_t that can print JSON according to the
  * `--pretty`/`--no-pretty` flag.
  *
  * This is distinct from MixJSON, because for some commands,

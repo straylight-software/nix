@@ -7,16 +7,16 @@
 namespace nix {
 
 template <size_t sizeWithNull>
-struct ArrayNoNullAdaptor {
+struct array_no_null_adaptor_t {
   std::array<char, sizeWithNull - 1> data;
 
-  constexpr ArrayNoNullAdaptor(const char (&init)[sizeWithNull]) {
+  constexpr array_no_null_adaptor_t(const char (&init)[sizeWithNull]) {
     static_assert(sizeWithNull > 0);
     std::copy_n(init, sizeWithNull - 1, data.data());
   }
 };
 
-template <ArrayNoNullAdaptor str>
+template <array_no_null_adaptor_t str>
 constexpr auto operator""_arrayNoNull() {
   return str.data;
 }

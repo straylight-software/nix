@@ -20,7 +20,7 @@ using namespace nix;
    widely-used command, so that isn't being done at this time just yet.
  */
 
-static nlohmann::json toJSON(Store& store, const SingleDerivedPath::Opaque& o) {
+static nlohmann::json toJSON(Store& store, const SingleDerivedPath::opaque_t& o) {
   return store.printStorePath(o.path);
 }
 
@@ -101,11 +101,11 @@ static nlohmann::json builtPathsWithResultToJSON(const std::vector<BuiltPathWith
   return res;
 }
 
-struct CmdBuild : InstallablesCommand, MixOutLinkByDefault, MixDryRun, MixJSON, MixProfile {
+struct cmd_build_t : InstallablesCommand, MixOutLinkByDefault, MixDryRun, MixJSON, MixProfile {
   bool printOutputPaths = false;
   BuildMode buildMode = bmNormal;
 
-  CmdBuild() {
+  cmd_build_t() {
     addFlag({
         .longName = "print-out-paths",
         .description = "Print the resulting output paths",
@@ -157,7 +157,7 @@ struct CmdBuild : InstallablesCommand, MixOutLinkByDefault, MixDryRun, MixJSON, 
       for (auto& buildable : buildables) {
         std::visit(
             overloaded{
-                [&](const BuiltPath::Opaque& bo) { logger->cout(store->printStorePath(bo.path)); },
+                [&](const BuiltPath::opaque_t& bo) { logger->cout(store->printStorePath(bo.path)); },
                 [&](const BuiltPath::Built& bfd) {
                   for (auto& output : bfd.outputs) {
                     logger->cout(store->printStorePath(output.second));
@@ -175,4 +175,4 @@ struct CmdBuild : InstallablesCommand, MixOutLinkByDefault, MixDryRun, MixJSON, 
   }
 };
 
-static auto rCmdBuild = registerCommand<CmdBuild>("build");
+static auto rCmdBuild = registerCommand<cmd_build_t>("build");

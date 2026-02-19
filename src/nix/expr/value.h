@@ -120,13 +120,13 @@ struct ExprLambda;
 struct PrimOp;
 class Symbol;
 class SymbolStr;
-class PosIdx;
+class pos_idx_t;
 struct Pos;
 class StorePath;
 class EvalState;
 class EvalMemory;
-class XMLWriter;
-class Printer;
+class xml_writer_t;
+class printer_t;
 
 using NixInt = checked::Checked<int64_t>;
 using NixFloat = double;
@@ -137,7 +137,7 @@ using NixFloat = double;
  */
 class ExternalValueBase {
   friend std::ostream& operator<<(std::ostream& str, const ExternalValueBase& v);
-  friend class Printer;
+  friend class printer_t;
 
 protected:
   /**
@@ -160,7 +160,7 @@ public:
    * Coerce the value to a string. Defaults to uncoercable, i.e. throws an
    * error.
    */
-  virtual std::string coerceToString(EvalState& state, const PosIdx& pos, NixStringContext& context,
+  virtual std::string coerceToString(EvalState& state, const pos_idx_t& pos, NixStringContext& context,
                                      bool copyMore, bool copyToStore) const;
 
   /**
@@ -178,9 +178,9 @@ public:
   /**
    * Print the value as XML. Defaults to unevaluated
    */
-  virtual void printValueAsXML(EvalState& state, bool strict, bool location, XMLWriter& doc,
-                               NixStringContext& context, PathSet& drvsSeen,
-                               const PosIdx pos) const;
+  virtual void printValueAsXML(EvalState& state, bool strict, bool location, xml_writer_t& doc,
+                               NixStringContext& context, path_set_t& drvsSeen,
+                               const pos_idx_t pos) const;
 
   virtual ~ExternalValueBase() {};
 };
@@ -287,7 +287,7 @@ namespace detail {
  */
 struct ValueBase {
   /**
-   * Strings in the evaluator carry a so-called `context` which
+   * strings_t in the evaluator carry a so-called `context` which
    * is a list of strings representing store paths.  This is to
    * allow users to write things like
    *
@@ -819,7 +819,7 @@ public:
   /// Only used for testing.
   inline void mkBlackhole() { p0.store(pdPending, std::memory_order_relaxed); }
 
-  void force(EvalState& state, PosIdx pos);
+  void force(EvalState& state, pos_idx_t pos);
 
 private:
   /**
@@ -1122,7 +1122,7 @@ public:
 
   void mkStringMove(const StringData& s, const NixStringContext& context, EvalMemory& mem);
 
-  void mkPath(const SourcePath& path, EvalMemory& mem);
+  void mkPath(const source_path_t& path, EvalMemory& mem);
 
   inline void mkPath(SourceAccessor* accessor, const StringData& path) noexcept {
     setStorage(Path{.accessor = accessor, .path = &path});
@@ -1187,11 +1187,11 @@ public:
                              : getStorage<List>().size;
   }
 
-  PosIdx determinePos(const PosIdx pos) const;
+  pos_idx_t determinePos(const pos_idx_t pos) const;
 
-  SourcePath path() const {
-    return SourcePath(ref(pathAccessor()->shared_from_this()),
-                      CanonPath(CanonPath::unchecked_t(), std::string(pathStrView())));
+  source_path_t path() const {
+    return source_path_t(ref(pathAccessor()->shared_from_this()),
+                      canon_path_t(canon_path_t::unchecked_t(), std::string(pathStrView())));
   }
 
   const StringData& string_data() const noexcept { return *getStorage<StringWithContext>().str; }

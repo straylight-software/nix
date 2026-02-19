@@ -49,7 +49,7 @@ struct LockedNode : Node {
         buildTime(buildTime),
         parentInputAttrPath(std::move(parentInputAttrPath)) {}
 
-  LockedNode(const fetchers::Settings& fetchSettings, const nlohmann::json& json);
+  LockedNode(const fetchers::settings_t& fetchSettings, const nlohmann::json& json);
 
   StorePath computeStorePath(Store& store) const;
 };
@@ -58,7 +58,7 @@ struct LockFile {
   ref<Node> root = make_ref<Node>();
 
   LockFile() {};
-  LockFile(const fetchers::Settings& fetchSettings, std::string_view contents,
+  LockFile(const fetchers::settings_t& fetchSettings, std::string_view contents,
            std::string_view path);
 
   typedef std::map<ref<const Node>, std::string> KeyMap;
@@ -71,7 +71,7 @@ struct LockFile {
    * Check whether this lock file has any unlocked or non-final
    * inputs. If so, return one.
    */
-  std::optional<FlakeRef> isUnlocked(const fetchers::Settings& fetchSettings) const;
+  std::optional<FlakeRef> isUnlocked(const fetchers::settings_t& fetchSettings) const;
 
   bool operator==(const LockFile& other) const;
 

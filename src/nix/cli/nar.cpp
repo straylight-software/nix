@@ -2,8 +2,8 @@
 
 using namespace nix;
 
-struct CmdNar : NixMultiCommand {
-  CmdNar() : NixMultiCommand("nar", RegisterCommand::getCommandsFor({"nar"})) {}
+struct cmd_nar_t : NixMultiCommand {
+  cmd_nar_t() : NixMultiCommand("nar", RegisterCommand::getCommandsFor({"nar"})) {}
 
   std::string description() override { return "create or inspect NAR files"; }
 
@@ -13,7 +13,7 @@ struct CmdNar : NixMultiCommand {
         ;
   }
 
-  Category category() override { return catUtility; }
+  category_t category() override { return catUtility; }
 };
 
-static auto rCmdNar = registerCommand<CmdNar>("nar");
+static auto rCmdNar = registerCommand<cmd_nar_t>("nar");

@@ -401,12 +401,13 @@ struct simple
 struct select_head : simple {};
 struct select_attr : attribute_path {};
 struct select_as_app_or : token::keyword_or {};
+struct select_or_default : token::keyword_or {}; // "or" in select path context (x.y or z)
 
 struct select
     : p::seq<
           select_head, separators,
           p::opt<p::sor<p::seq<p::one<'.'>, separators, select_attr,
-                               p::opt<separators, token::keyword_or, separators, p::must<select>>>,
+                               p::opt<separators, select_or_default, separators, p::must<select>>>,
                         select_as_app_or>>> {};
 
 // Define list_entry as select now that select is complete

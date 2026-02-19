@@ -12,7 +12,7 @@ std::chrono::microseconds getCpuUserTime() {
   struct rusage buf;
 
   if (getrusage(RUSAGE_SELF, &buf) != 0) {
-    throw SysError("failed to get CPU time");
+    throw sys_error_t("failed to get CPU time");
   }
 
   std::chrono::seconds seconds(buf.ru_utime.tv_sec);

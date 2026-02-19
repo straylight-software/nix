@@ -30,14 +30,14 @@ static ActiveBuildInfo::ProcessInfo getProcessInfo(pid_t pid) {
 
   auto statPath = fmt("/proc/%d/stat", pid);
 
-  AutoCloseFD statFd = open(statPath.c_str(), O_RDONLY | O_CLOEXEC);
+  auto_close_fd_t statFd = open(statPath.c_str(), O_RDONLY | O_CLOEXEC);
   if (!statFd)
-    throw SysError("opening '%s'", statPath);
+    throw sys_error_t("opening '%s'", statPath);
 
   // Get the UID from the ownership of the stat file.
   struct stat st;
   if (fstat(statFd.get(), &st) == -1)
-    throw SysError("getting ownership of '%s'", statPath);
+    throw sys_error_t("getting ownership of '%s'", statPath);
   info.user = UserInfo::fromUid(st.st_uid);
 
   // Read /proc/[pid]/stat for parent PID and CPU times.
@@ -101,7 +101,7 @@ static ActiveBuildInfo::ProcessInfo getProcessInfo(pid_t pid) {
   // Get basic process info including ppid and uid.
   struct proc_bsdinfo procInfo;
   if (proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &procInfo, sizeof(procInfo)) != sizeof(procInfo))
-    throw SysError("getting process info for pid %d", pid);
+    throw sys_error_t("getting process info for pid %d", pid);
 
   info.parentPid = procInfo.pbi_ppid;
   info.user = UserInfo::fromUid(procInfo.pbi_uid);
@@ -199,14 +199,14 @@ static std::set<pid_t> getDescendantPids(pid_t startPid) {
 std::vector<ActiveBuildInfo> LocalStore::queryActiveBuilds() {
   std::vector<ActiveBuildInfo> result;
 
-  for (auto& entry : DirectoryIterator{activeBuildsDir}) {
+  for (auto& entry : directory_iterator_t{activeBuildsDir}) {
     auto path = entry.path();
 
     try {
       // Open the file. If we can lock it, the build is not active.
       auto fd = openLockFile(path, false);
       if (!fd || lockFile(fd.get(), ltRead, false)) {
-        AutoDelete(path, false);
+        auto_delete_t(path, false);
         continue;
       }
 
@@ -259,11 +259,11 @@ LocalStore::BuildHandle LocalStore::buildStarted(const ActiveBuild& build) {
   // Lock the file to denote that the build is active.
   lockFile(infoFd.get(), ltWrite, true);
 
-  writeFile(infoFilePath, nlohmann::json(build).dump(), 0600, FsSync::Yes);
+  writeFile(infoFilePath, nlohmann::json(build).dump(), 0600, fs_sync_t::Yes);
 
   activeBuilds.lock()->emplace(id, ActiveBuildFile{
                                        .fd = std::move(infoFd),
-                                       .del = AutoDelete(infoFilePath, false),
+                                       .del = auto_delete_t(infoFilePath, false),
                                    });
 
   return BuildHandle(*this, id);

@@ -29,15 +29,15 @@ static std::vector<gid_t> get_group_list(const char* username, gid_t group_id) {
   // The first error means that the vector was not big enough.
   // If it happens again, there is some different problem.
   if (getgroupl_failed() && getgroupl_failed()) {
-    throw SysError("failed to get list of supplementary groups for '%s'", username);
+    throw sys_error_t("failed to get list of supplementary groups for '%s'", username);
   }
 
   return gids;
 }
 #endif
 
-struct SimpleUserLock : UserLock {
-  AutoCloseFD fdUserLock;
+struct simple_user_lock_t : UserLock {
+  auto_close_fd_t fdUserLock;
   uid_t uid;
   gid_t gid;
   std::vector<gid_t> supplementaryGIDs;
@@ -67,7 +67,7 @@ struct SimpleUserLock : UserLock {
                   settings.buildUsersGroup);
 
     /* Copy the result of getgrnam. */
-    Strings users;
+    strings_t users;
     for (char** p = gr->gr_mem; *p; ++p) {
       debug("found build user '%s'", *p);
       users.push_back(*p);
@@ -87,12 +87,12 @@ struct SimpleUserLock : UserLock {
 
       auto fnUserLock = fmt("%s/userpool/%s", settings.nixStateDir, pw->pw_uid);
 
-      AutoCloseFD fd = open(fnUserLock.c_str(), O_RDWR | O_CREAT | O_CLOEXEC, 0600);
+      auto_close_fd_t fd = open(fnUserLock.c_str(), O_RDWR | O_CREAT | O_CLOEXEC, 0600);
       if (!fd)
-        throw SysError("opening user lock '%s'", fnUserLock);
+        throw sys_error_t("opening user lock '%s'", fnUserLock);
 
       if (lockFile(fd.get(), ltWrite, false)) {
-        auto lock = std::make_unique<SimpleUserLock>();
+        auto lock = std::make_unique<simple_user_lock_t>();
 
         lock->fdUserLock = std::move(fd);
         lock->uid = pw->pw_uid;
@@ -121,8 +121,8 @@ struct SimpleUserLock : UserLock {
   }
 };
 
-struct AutoUserLock : UserLock {
-  AutoCloseFD fdUserLock;
+struct auto_user_lock_t : UserLock {
+  auto_close_fd_t fdUserLock;
   uid_t firstUid = 0;
   gid_t firstGid = 0;
   uid_t nrIds = 1;
@@ -146,7 +146,7 @@ struct AutoUserLock : UserLock {
     useUserNamespace = false;
 #endif
 
-    experimentalFeatureSettings.require(Xp::AutoAllocateUids);
+    experimentalFeatureSettings.require(xp_t::AutoAllocateUids);
     assert(settings.startId > 0);
     assert(settings.uidCount % maxIdsPerBuild == 0);
     assert((uint64_t)settings.startId + (uint64_t)settings.uidCount <=
@@ -164,9 +164,9 @@ struct AutoUserLock : UserLock {
 
       auto fnUserLock = fmt("%s/userpool2/slot-%d", settings.nixStateDir, i);
 
-      AutoCloseFD fd = open(fnUserLock.c_str(), O_RDWR | O_CREAT | O_CLOEXEC, 0600);
+      auto_close_fd_t fd = open(fnUserLock.c_str(), O_RDWR | O_CREAT | O_CLOEXEC, 0600);
       if (!fd)
-        throw SysError("opening user lock '%s'", fnUserLock);
+        throw sys_error_t("opening user lock '%s'", fnUserLock);
 
       if (lockFile(fd.get(), ltWrite, false)) {
         auto firstUid = settings.startId + i * maxIdsPerBuild;
@@ -176,7 +176,7 @@ struct AutoUserLock : UserLock {
           throw Error("auto-allocated UID %d clashes with existing user account '%s'", firstUid,
                       pw->pw_name);
 
-        auto lock = std::make_unique<AutoUserLock>();
+        auto lock = std::make_unique<auto_user_lock_t>();
         lock->fdUserLock = std::move(fd);
         lock->firstUid = firstUid;
         if (useUserNamespace)
@@ -199,9 +199,9 @@ struct AutoUserLock : UserLock {
 
 std::unique_ptr<UserLock> acquireUserLock(uid_t nrIds, bool useUserNamespace) {
   if (settings.autoAllocateUids)
-    return AutoUserLock::acquire(nrIds, useUserNamespace);
+    return auto_user_lock_t::acquire(nrIds, useUserNamespace);
   else
-    return SimpleUserLock::acquire();
+    return simple_user_lock_t::acquire();
 }
 
 bool useBuildUsers() {

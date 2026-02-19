@@ -536,6 +536,161 @@ auto bench_copy_file_bulk(std::string const& source, std::string const& dest) ->
 }
 
 // ============================================================================
+// SQPOLL benchmarks (kernel-side polling for lower latency)
+// ============================================================================
+
+auto bench_create_files_bulk_sqpoll(std::string const& directory, std::size_t count)
+    -> benchmark_result {
+  std::vector<std::string> paths;
+  paths.reserve(count);
+  for (std::size_t index = 0; index < count; ++index) {
+    paths.push_back(directory + "/file_" + std::to_string(index));
+  }
+
+  // SQPOLL ring - requires CAP_SYS_NICE or root
+  try {
+    evring::sqpoll_config sqpoll_cfg;
+    sqpoll_cfg.idle_milliseconds = 2000;
+    auto ring = evring::make_io_uring_ring(256, evring::ring_flags::sqpoll, sqpoll_cfg);
+
+    double const elapsed = measure([&] { evring::bulk_create_files(*ring, paths); });
+
+    return benchmark_result{
+        .name = "bulk+sqpoll: create " + std::to_string(count) + " files",
+        .elapsed_seconds = elapsed,
+        .operations = count,
+        .bytes_transferred = 0,
+    };
+  } catch (std::runtime_error const&) {
+    return benchmark_result{
+        .name = "bulk+sqpoll: create " + std::to_string(count) + " files (SKIPPED)",
+        .elapsed_seconds = 0,
+        .operations = 0,
+        .bytes_transferred = 0,
+    };
+  }
+}
+
+auto bench_stat_files_bulk_sqpoll(std::vector<std::string> const& paths) -> benchmark_result {
+  std::vector<struct statx> statx_buffers(paths.size());
+
+  try {
+    evring::sqpoll_config sqpoll_cfg;
+    sqpoll_cfg.idle_milliseconds = 2000;
+    auto ring = evring::make_io_uring_ring(256, evring::ring_flags::sqpoll, sqpoll_cfg);
+
+    double const elapsed =
+        measure([&] { evring::bulk_stat(*ring, paths, std::span{statx_buffers}); });
+
+    return benchmark_result{
+        .name = "bulk+sqpoll: stat " + std::to_string(paths.size()) + " files",
+        .elapsed_seconds = elapsed,
+        .operations = paths.size(),
+        .bytes_transferred = 0,
+    };
+  } catch (std::runtime_error const&) {
+    return benchmark_result{
+        .name = "bulk+sqpoll: stat " + std::to_string(paths.size()) + " files (SKIPPED)",
+        .elapsed_seconds = 0,
+        .operations = 0,
+        .bytes_transferred = 0,
+    };
+  }
+}
+
+auto bench_copy_file_bulk_sqpoll(std::string const& source, std::string const& dest)
+    -> benchmark_result {
+  auto const file_size = fs::file_size(source);
+
+  try {
+    evring::sqpoll_config sqpoll_cfg;
+    sqpoll_cfg.idle_milliseconds = 2000;
+    auto ring = evring::make_io_uring_ring(64, evring::ring_flags::sqpoll, sqpoll_cfg);
+
+    evring::copy_options options;
+    options.buffer_size = 1024UL * 1024UL;
+    options.ring_depth = 32;
+
+    double const elapsed = measure([&] { evring::copy_file(*ring, source, dest, options); });
+
+    return benchmark_result{
+        .name = "bulk+sqpoll: copy file (" + std::to_string(file_size / (1024 * 1024)) + " MB)",
+        .elapsed_seconds = elapsed,
+        .operations = 1,
+        .bytes_transferred = file_size,
+    };
+  } catch (std::runtime_error const&) {
+    return benchmark_result{
+        .name = "bulk+sqpoll: copy file (SKIPPED)",
+        .elapsed_seconds = 0,
+        .operations = 0,
+        .bytes_transferred = 0,
+    };
+  }
+}
+
+auto bench_copy_tree_bulk(std::string const& source, std::string const& dest) -> benchmark_result {
+  try {
+    auto ring = evring::make_io_uring_ring(256);
+
+    evring::copy_tree_options options;
+    options.buffer_size = 1024UL * 1024UL;
+    options.ring_depth = 32;
+    options.preserve_permissions = true;
+
+    evring::copy_tree_result result;
+    double const elapsed =
+        measure([&] { result = evring::copy_tree(*ring, source, dest, options); });
+
+    return benchmark_result{
+        .name = "bulk: copy_tree (" + std::to_string(result.files_copied) + " files)",
+        .elapsed_seconds = elapsed,
+        .operations = result.files_copied + result.directories_created + result.symlinks_created,
+        .bytes_transferred = result.bytes_copied,
+    };
+  } catch (std::runtime_error const& e) {
+    std::cerr << "copy_tree failed: " << e.what() << "\n";
+    return benchmark_result{
+        .name = "bulk: copy_tree (FAILED)",
+        .elapsed_seconds = 0,
+        .operations = 0,
+        .bytes_transferred = 0,
+    };
+  }
+}
+
+auto bench_copy_tree_cp(std::string const& source, std::string const& dest) -> benchmark_result {
+  // count files first
+  std::size_t file_count = 0;
+  std::uint64_t total_bytes = 0;
+  for (auto const& entry :
+       fs::recursive_directory_iterator(source, fs::directory_options::skip_permission_denied)) {
+    if (entry.is_regular_file()) {
+      ++file_count;
+      total_bytes += entry.file_size();
+    }
+  }
+
+  double const elapsed = measure([&] {
+    pid_t const pid = fork();
+    if (pid == 0) {
+      execlp("cp", "cp", "-r", source.c_str(), dest.c_str(), nullptr);
+      _exit(1);
+    } else if (pid > 0) {
+      int status;
+      waitpid(pid, &status, 0);
+    }
+  });
+
+  return benchmark_result{
+      .name = "cp -r: copy_tree (" + std::to_string(file_count) + " files)",
+      .elapsed_seconds = elapsed,
+      .operations = file_count,
+      .bytes_transferred = total_bytes,
+  };
+}
+
+// ============================================================================
 // Setup/teardown utilities
 // ============================================================================
 
@@ -653,12 +808,17 @@ auto main(int argc, char** argv) -> int {
     results.push_back(bench_create_files_posix(create_directory + "/posix", num_files));
     print_result(results.back());
 
-    fs::create_directories(create_directory + "/evring");
-    results.push_back(bench_create_files_evring(create_directory + "/evring", num_files));
-    print_result(results.back());
+    // Skip evring state machine create - too slow for large file counts
+    // fs::create_directories(create_directory + "/evring");
+    // results.push_back(bench_create_files_evring(create_directory + "/evring", num_files));
+    // print_result(results.back());
 
     fs::create_directories(create_directory + "/bulk");
     results.push_back(bench_create_files_bulk(create_directory + "/bulk", num_files));
+    print_result(results.back());
+
+    fs::create_directories(create_directory + "/sqpoll");
+    results.push_back(bench_create_files_bulk_sqpoll(create_directory + "/sqpoll", num_files));
     print_result(results.back());
 
     std::cout << "\n";
@@ -678,14 +838,20 @@ auto main(int argc, char** argv) -> int {
     print_result(results.back());
     fs::remove(copy_dest_cp);
 
-    results.push_back(bench_copy_file_evring(copy_source, copy_dest_evring));
-    print_result(results.back());
-    fs::remove(copy_dest_evring);
+    // Skip evring state machine copy - it's sequential and too slow for large files
+    // results.push_back(bench_copy_file_evring(copy_source, copy_dest_evring));
+    // print_result(results.back());
+    // fs::remove(copy_dest_evring);
 
     std::string const copy_dest_bulk = test_directory + "/copy_dest_bulk.bin";
     results.push_back(bench_copy_file_bulk(copy_source, copy_dest_bulk));
     print_result(results.back());
     fs::remove(copy_dest_bulk);
+
+    std::string const copy_dest_sqpoll = test_directory + "/copy_dest_sqpoll.bin";
+    results.push_back(bench_copy_file_bulk_sqpoll(copy_source, copy_dest_sqpoll));
+    print_result(results.back());
+    fs::remove(copy_dest_sqpoll);
 
     std::cout << "\n";
   }
@@ -707,13 +873,36 @@ auto main(int argc, char** argv) -> int {
         results.push_back(bench_stat_files_posix(stat_paths));
         print_result(results.back());
 
-        results.push_back(bench_stat_files_evring(stat_paths));
-        print_result(results.back());
+        // Skip evring state machine stat - slower than bulk
+        // results.push_back(bench_stat_files_evring(stat_paths));
+        // print_result(results.back());
 
         results.push_back(bench_stat_files_bulk(stat_paths));
         print_result(results.back());
+
+        results.push_back(bench_stat_files_bulk_sqpoll(stat_paths));
+        print_result(results.back());
       }
     }
+
+    std::cout << "\n";
+  }
+
+  // Copy tree benchmark (use the created files from create_directory)
+  if (run_create_bench && run_copy_bench) {
+    std::cout << "--- Copy tree benchmark ---\n";
+
+    std::string const tree_source = create_directory + "/posix";
+    std::string const tree_dest_bulk = test_directory + "/tree_dest_bulk";
+    std::string const tree_dest_cp = test_directory + "/tree_dest_cp";
+
+    results.push_back(bench_copy_tree_cp(tree_source, tree_dest_cp));
+    print_result(results.back());
+    fs::remove_all(tree_dest_cp);
+
+    results.push_back(bench_copy_tree_bulk(tree_source, tree_dest_bulk));
+    print_result(results.back());
+    fs::remove_all(tree_dest_bulk);
 
     std::cout << "\n";
   }

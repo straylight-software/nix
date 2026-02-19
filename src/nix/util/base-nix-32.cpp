@@ -6,7 +6,7 @@
 
 namespace nix {
 
-constexpr const std::array<unsigned char, 256> BaseNix32::reverseMap = [] {
+constexpr const std::array<unsigned char, 256> base_nix32_t::reverseMap = [] {
   std::array<unsigned char, 256> map{};
 
   for (size_t i = 0; i < map.size(); ++i)
@@ -18,7 +18,7 @@ constexpr const std::array<unsigned char, 256> BaseNix32::reverseMap = [] {
   return map;
 }();
 
-std::string BaseNix32::encode(std::span<const std::byte> bs) {
+std::string base_nix32_t::encode(std::span<const std::byte> bs) {
   if (bs.size() == 0)
     return {};
 
@@ -40,13 +40,13 @@ std::string BaseNix32::encode(std::span<const std::byte> bs) {
   return s;
 }
 
-std::string BaseNix32::decode(std::string_view s) {
+std::string base_nix32_t::decode(std::string_view s) {
   std::string res;
   res.reserve((s.size() * 5 + 7) / 8); // ceiling(size * 5/8)
 
   for (unsigned int n = 0; n < s.size(); ++n) {
     char c = s[s.size() - n - 1];
-    auto digit_opt = BaseNix32::lookupReverse(c);
+    auto digit_opt = base_nix32_t::lookupReverse(c);
 
     if (!digit_opt)
       throw FormatError("invalid character in Nix32 (Nix's Base32 variation) string: '%c'", c);

@@ -26,9 +26,9 @@ struct Attr {
      to make sure that Attr has no padding on 64 bit machines. that
      way we keep Attr size at two words with no wasted space. */
   Symbol name;
-  PosIdx pos;
+  pos_idx_t pos;
   Value* value = nullptr;
-  Attr(Symbol name, Value* value, PosIdx pos = noPos) : name(name), pos(pos), value(value) {};
+  Attr(Symbol name, Value* value, pos_idx_t pos = noPos) : name(name), pos(pos), value(value) {};
   Attr() {};
 
   auto operator<=>(const Attr& a) const { return name <=> a.name; }
@@ -55,7 +55,7 @@ class Bindings {
 public:
   using size_type = uint32_t;
 
-  PosIdx pos;
+  pos_idx_t pos;
 
   /**
    * An instance of bindings objects with 0 attributes.
@@ -433,7 +433,7 @@ public:
   std::reference_wrapper<EvalMemory> mem;
   std::reference_wrapper<SymbolTable> symbols;
 
-  void insert(Symbol name, Value* value, PosIdx pos = noPos) { insert(Attr(name, value, pos)); }
+  void insert(Symbol name, Value* value, pos_idx_t pos = noPos) { insert(Attr(name, value, pos)); }
 
   void insert(const Attr& attr) { push_back(attr); }
 
@@ -457,9 +457,9 @@ public:
     bindings->numLayers = base.numLayers + 1;
   }
 
-  Value& alloc(Symbol name, PosIdx pos = noPos);
+  Value& alloc(Symbol name, pos_idx_t pos = noPos);
 
-  Value& alloc(std::string_view name, PosIdx pos = noPos);
+  Value& alloc(std::string_view name, pos_idx_t pos = noPos);
 
   Bindings* finish() {
     bindings->sort();

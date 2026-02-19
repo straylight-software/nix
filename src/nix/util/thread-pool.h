@@ -18,11 +18,11 @@ MakeError(ThreadPoolShutDown, Error);
  * A simple thread pool that executes a queue of work items
  * (lambdas).
  */
-class ThreadPool {
+class thread_pool_t {
 public:
-  ThreadPool(size_t maxThreads = 0);
+  thread_pool_t(size_t maxThreads = 0);
 
-  ~ThreadPool();
+  ~thread_pool_t();
 
   /**
    * An individual work item.
@@ -69,7 +69,7 @@ private:
 
   std::atomic_bool quit{false};
 
-  Sync<State> state_;
+  sync_t<State> state_;
 
   std::condition_variable work;
 
@@ -85,19 +85,19 @@ template <typename T>
 void processGraph(const std::set<T>& nodes, std::function<std::set<T>(const T&)> getEdges,
                   std::function<void(const T&)> processNode, bool discoverNodes = false,
                   size_t maxThreads = 0) {
-  struct Graph {
+  struct graph_t {
     std::set<T> known;
     std::set<T> left;
     std::map<T, std::set<T>> refs, rrefs;
   };
 
-  Sync<Graph> graph_(Graph{nodes, nodes, {}, {}});
+  sync_t<graph_t> graph_(graph_t{nodes, nodes, {}, {}});
 
   std::function<void(const T&)> worker;
 
   /* Create pool last to ensure threads are stopped before other
      destructors run. */
-  ThreadPool pool(maxThreads);
+  thread_pool_t pool(maxThreads);
 
   worker = [&](const T& node) {
     {

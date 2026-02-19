@@ -77,7 +77,7 @@ public:
     // Map Nix's verbosity to AWS CRT log level
     Aws::Crt::LogLevel logLevel;
     if (verbosity >= lvlVomit) {
-      logLevel = Aws::Crt::LogLevel::Trace;
+      logLevel = Aws::Crt::LogLevel::trace_t;
     } else if (verbosity >= lvlDebug) {
       logLevel = Aws::Crt::LogLevel::Debug;
     } else if (verbosity >= lvlChatty) {

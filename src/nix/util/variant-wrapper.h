@@ -20,7 +20,7 @@
  * Make a wrapper constructor. All args are forwarded to the
  * construction of the "raw" field. (Which we assume is the only one.)
  *
- * The moral equivalent of `using Raw::Raw;`
+ * The moral equivalent of `using raw_t::raw_t;`
  */
 #define MAKE_WRAPPER_CONSTRUCTOR(CLASS_NAME)                                                       \
   FORCE_DEFAULT_CONSTRUCTORS(CLASS_NAME)                                                           \

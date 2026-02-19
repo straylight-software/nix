@@ -94,7 +94,7 @@ UnkeyedValidPathInfo ServeProto::Serialise<UnkeyedValidPathInfo>::read(const Sto
     if (!s.empty())
       info.narHash = Hash::parseAnyPrefixed(s);
     info.ca = ContentAddress::parseOpt(readString(conn.from));
-    info.sigs = readStrings<StringSet>(conn.from);
+    info.sigs = readStrings<string_set_t>(conn.from);
   }
 
   return info;
@@ -109,7 +109,7 @@ void ServeProto::Serialise<UnkeyedValidPathInfo>::write(const StoreDirConfig& st
   conn.to << info.narSize // downloadSize, lie a little
           << info.narSize;
   if (GET_PROTOCOL_MINOR(conn.version) >= 4)
-    conn.to << info.narHash.to_string(HashFormat::Nix32, true) << renderContentAddress(info.ca)
+    conn.to << info.narHash.to_string(hash_format_t::Nix32, true) << renderContentAddress(info.ca)
             << info.sigs;
 }
 

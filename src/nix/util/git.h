@@ -13,23 +13,23 @@
 
 namespace nix::git {
 
-enum struct ObjectType {
+enum struct object_type_t {
   Blob,
-  Tree,
+  tree_t,
   // Commit,
   // Tag,
 };
 
-using RawMode = uint32_t;
+using raw_mode_t = uint32_t;
 
-enum struct Mode : RawMode {
-  Directory = 0040000,
+enum struct Mode : raw_mode_t {
+  directory_t = 0040000,
   Regular = 0100644,
   Executable = 0100755,
   Symlink = 0120000,
 };
 
-std::optional<Mode> decodeMode(RawMode m);
+std::optional<Mode> decodeMode(raw_mode_t m);
 
 /**
  * An anonymous Git tree object entry (no name part).
@@ -45,10 +45,10 @@ struct TreeEntry {
 /**
  * A Git tree object, fully decoded and stored in memory.
  *
- * Directory names must end in a `/` for sake of sorting. See
+ * directory_t names must end in a `/` for sake of sorting. See
  * https://github.com/mirage/irmin/issues/352
  */
-using Tree = std::map<std::string, TreeEntry>;
+using tree_t = std::map<std::string, TreeEntry>;
 
 /**
  * Callback for processing a child hash with `parse`
@@ -64,16 +64,16 @@ using Tree = std::map<std::string, TreeEntry>;
  * Implementations may seek to memoize resources (bandwidth, storage,
  * etc.) for the same Git hash.
  */
-using SinkHook = void(const CanonPath& name, TreeEntry entry);
+using sink_hook_t = void(const canon_path_t& name, TreeEntry entry);
 
 /**
  * Parse the "blob " or "tree " prefix.
  *
  * @throws if prefix not recognized
  */
-ObjectType
+object_type_t
 parseObjectType(Source& source,
-                const ExperimentalFeatureSettings& xpSettings = experimentalFeatureSettings);
+                const experimental_feature_settings_t& xpSettings = experimentalFeatureSettings);
 
 /**
  * These 3 modes are represented by blob objects.
@@ -81,22 +81,22 @@ parseObjectType(Source& source,
  * Sometimes we need this information to disambiguate how a blob is
  * being used to better match our own "file system object" data model.
  */
-enum struct BlobMode : RawMode {
-  Regular = static_cast<RawMode>(Mode::Regular),
-  Executable = static_cast<RawMode>(Mode::Executable),
-  Symlink = static_cast<RawMode>(Mode::Symlink),
+enum struct blob_mode_t : raw_mode_t {
+  Regular = static_cast<raw_mode_t>(Mode::Regular),
+  Executable = static_cast<raw_mode_t>(Mode::Executable),
+  Symlink = static_cast<raw_mode_t>(Mode::Symlink),
 };
 
-void parseBlob(FileSystemObjectSink& sink, const CanonPath& sinkPath, Source& source,
-               BlobMode blobMode,
-               const ExperimentalFeatureSettings& xpSettings = experimentalFeatureSettings);
+void parseBlob(file_system_object_sink_t& sink, const canon_path_t& sinkPath, Source& source,
+               blob_mode_t blobMode,
+               const experimental_feature_settings_t& xpSettings = experimentalFeatureSettings);
 
 /**
  * @param hashAlgo must be `HashAlgo::SHA1` or `HashAlgo::SHA256` for now.
  */
-void parseTree(FileSystemObjectSink& sink, const CanonPath& sinkPath, Source& source,
-               HashAlgorithm hashAlgo, std::function<SinkHook> hook,
-               const ExperimentalFeatureSettings& xpSettings = experimentalFeatureSettings);
+void parseTree(file_system_object_sink_t& sink, const canon_path_t& sinkPath, Source& source,
+               hash_algorithm_t hashAlgo, std::function<sink_hook_t> hook,
+               const experimental_feature_settings_t& xpSettings = experimentalFeatureSettings);
 
 /**
  * Helper putting the previous three `parse*` functions together.
@@ -107,30 +107,30 @@ void parseTree(FileSystemObjectSink& sink, const CanonPath& sinkPath, Source& so
  *
  * @param hashAlgo must be `HashAlgo::SHA1` or `HashAlgo::SHA256` for now.
  */
-void parse(FileSystemObjectSink& sink, const CanonPath& sinkPath, Source& source,
-           BlobMode rootModeIfBlob, HashAlgorithm hashAlgo, std::function<SinkHook> hook,
-           const ExperimentalFeatureSettings& xpSettings = experimentalFeatureSettings);
+void parse(file_system_object_sink_t& sink, const canon_path_t& sinkPath, Source& source,
+           blob_mode_t rootModeIfBlob, hash_algorithm_t hashAlgo, std::function<sink_hook_t> hook,
+           const experimental_feature_settings_t& xpSettings = experimentalFeatureSettings);
 
 /**
- * Assists with writing a `SinkHook` step (2).
+ * Assists with writing a `sink_hook_t` step (2).
  */
 std::optional<Mode> convertMode(SourceAccessor::Type type);
 
 /**
- * Simplified version of `SinkHook` for `restore`.
+ * Simplified version of `sink_hook_t` for `restore`.
  *
- * Given a `Hash`, return a `SourceAccessor` and `CanonPath` pointing to
+ * Given a `Hash`, return a `SourceAccessor` and `canon_path_t` pointing to
  * the file system object with that path.
  */
-using RestoreHook = SourcePath(Hash);
+using restore_hook_t = source_path_t(Hash);
 
 /**
- * Wrapper around `parse` and `RestoreSink`
+ * Wrapper around `parse` and `restore_sink_t`
  *
  * @param hashAlgo must be `HashAlgo::SHA1` or `HashAlgo::SHA256` for now.
  */
-void restore(FileSystemObjectSink& sink, Source& source, HashAlgorithm hashAlgo,
-             std::function<RestoreHook> hook);
+void restore(file_system_object_sink_t& sink, Source& source, hash_algorithm_t hashAlgo,
+             std::function<restore_hook_t> hook);
 
 /**
  * Dumps a single file to a sink
@@ -138,13 +138,13 @@ void restore(FileSystemObjectSink& sink, Source& source, HashAlgorithm hashAlgo,
  * @param xpSettings for testing purposes
  */
 void dumpBlobPrefix(uint64_t size, Sink& sink,
-                    const ExperimentalFeatureSettings& xpSettings = experimentalFeatureSettings);
+                    const experimental_feature_settings_t& xpSettings = experimentalFeatureSettings);
 
 /**
  * Dumps a representation of a git tree to a sink
  */
-void dumpTree(const Tree& entries, Sink& sink,
-              const ExperimentalFeatureSettings& xpSettings = experimentalFeatureSettings);
+void dumpTree(const tree_t& entries, Sink& sink,
+              const experimental_feature_settings_t& xpSettings = experimentalFeatureSettings);
 
 /**
  * Callback for processing a child with `dump`
@@ -155,19 +155,19 @@ void dumpTree(const Tree& entries, Sink& sink,
  * Note that if the child is a directory, its child in must also be so
  * processed in order to compute this information.
  */
-using DumpHook = TreeEntry(const SourcePath& path);
+using dump_hook_t = TreeEntry(const source_path_t& path);
 
-Mode dump(const SourcePath& path, Sink& sink, std::function<DumpHook> hook,
-          PathFilter& filter = defaultPathFilter,
-          const ExperimentalFeatureSettings& xpSettings = experimentalFeatureSettings);
+Mode dump(const source_path_t& path, Sink& sink, std::function<dump_hook_t> hook,
+          path_filter_t& filter = defaultPathFilter,
+          const experimental_feature_settings_t& xpSettings = experimentalFeatureSettings);
 
 /**
  * Recursively dumps path, hashing as we go.
  *
  * A smaller wrapper around `dump`.
  */
-TreeEntry dumpHash(HashAlgorithm ha, const SourcePath& path,
-                   PathFilter& filter = defaultPathFilter);
+TreeEntry dumpHash(hash_algorithm_t ha, const source_path_t& path,
+                   path_filter_t& filter = defaultPathFilter);
 
 /**
  * A line from the output of `git ls-remote --symref`.
@@ -188,7 +188,7 @@ TreeEntry dumpHash(HashAlgorithm ha, const SourcePath& path,
  *   ```
  *   where {target} is a commit id and {reference} is mandatory
  */
-struct LsRemoteRefLine {
+struct ls_remote_ref_line_t {
   enum struct Kind { Symbolic, Object };
   Kind kind;
   std::string target;
@@ -196,8 +196,8 @@ struct LsRemoteRefLine {
 };
 
 /**
- * Parse an `LsRemoteRefLine`
+ * Parse an `ls_remote_ref_line_t`
  */
-std::optional<LsRemoteRefLine> parseLsRemoteLine(std::string_view line);
+std::optional<ls_remote_ref_line_t> parseLsRemoteLine(std::string_view line);
 
 } // namespace nix::git

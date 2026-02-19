@@ -30,7 +30,7 @@ const InputSchemeMap& getAllInputSchemes() {
   return inputSchemes();
 }
 
-Input Input::fromURL(const Settings& settings, const std::string& url, bool requireTree) {
+Input Input::fromURL(const settings_t& settings, const std::string& url, bool requireTree) {
   return fromURL(settings, parseURL(url), requireTree);
 }
 
@@ -42,7 +42,7 @@ static void fixupInput(Input& input) {
   input.getLastModified();
 }
 
-Input Input::fromURL(const Settings& settings, const ParsedURL& url, bool requireTree) {
+Input Input::fromURL(const settings_t& settings, const parsed_url_t& url, bool requireTree) {
   for (auto& [_, inputScheme] : inputSchemes()) {
     auto res = inputScheme->inputFromURL(settings, url, requireTree);
     if (res) {
@@ -62,7 +62,7 @@ Input Input::fromURL(const Settings& settings, const ParsedURL& url, bool requir
   throw Error("input '%s' is unsupported", url);
 }
 
-Input Input::fromAttrs(const Settings& settings, Attrs&& attrs) {
+Input Input::fromAttrs(const settings_t& settings, Attrs&& attrs) {
   auto schemeName = ({
     auto schemeNameOpt = maybeGetStrAttr(attrs, "type");
     if (!schemeNameOpt)
@@ -119,7 +119,7 @@ std::optional<std::string> Input::getFingerprint(Store& store) const {
   return fingerprint;
 }
 
-ParsedURL Input::toURL(bool abbreviate) const {
+parsed_url_t Input::toURL(bool abbreviate) const {
   if (!scheme)
     throw Error("cannot show unsupported input '%s'", attrsToJSON(attrs));
 
@@ -131,7 +131,7 @@ ParsedURL Input::toURL(bool abbreviate) const {
   return url;
 }
 
-std::string Input::toURLString(const StringMap& extraQuery, bool abbreviate) const {
+std::string Input::toURLString(const string_map_t& extraQuery, bool abbreviate) const {
   auto url = toURL(abbreviate);
   for (auto& attr : extraQuery)
     url.query.insert(attr);
@@ -146,7 +146,7 @@ bool Input::isDirect() const {
   return !scheme || scheme->isDirect(*this);
 }
 
-bool Input::isLocked(const Settings& settings) const {
+bool Input::isLocked(const settings_t& settings) const {
   return scheme && scheme->isLocked(settings, *this);
 }
 
@@ -179,7 +179,7 @@ bool Input::contains(const Input& other) const {
 }
 
 // FIXME: remove
-std::tuple<StorePath, ref<SourceAccessor>, Input> Input::fetchToStore(const Settings& settings,
+std::tuple<StorePath, ref<SourceAccessor>, Input> Input::fetchToStore(const settings_t& settings,
                                                                       Store& store) const {
   if (!scheme)
     throw Error("cannot fetch unsupported input '%s'", attrsToJSON(toAttrs()));
@@ -188,10 +188,10 @@ std::tuple<StorePath, ref<SourceAccessor>, Input> Input::fetchToStore(const Sett
     auto [accessor, result] = getAccessorUnchecked(settings, store);
 
     auto storePath =
-        nix::fetchToStore(settings, store, SourcePath(accessor), FetchMode::Copy, result.getName());
+        nix::fetchToStore(settings, store, source_path_t(accessor), FetchMode::Copy, result.getName());
 
     auto narHash = store.queryPathInfo(storePath)->narHash;
-    result.attrs.insert_or_assign("narHash", narHash.to_string(HashFormat::SRI, true));
+    result.attrs.insert_or_assign("narHash", narHash.to_string(hash_format_t::SRI, true));
 
     result.attrs.insert_or_assign("__final", Explicit<bool>(true));
 
@@ -217,10 +217,10 @@ void Input::checkLocks(Input specified, Input& result) {
        formatting (lacking the trailing '=', e.g. 'sha256-ri...Mw'
        instead of ''sha256-ri...Mw='). So fix that. */
     if (auto prevNarHash = specified.getNarHash())
-      specified.attrs.insert_or_assign("narHash", prevNarHash->to_string(HashFormat::SRI, true));
+      specified.attrs.insert_or_assign("narHash", prevNarHash->to_string(hash_format_t::SRI, true));
 
     if (auto narHash = result.getNarHash())
-      result.attrs.insert_or_assign("narHash", narHash->to_string(HashFormat::SRI, true));
+      result.attrs.insert_or_assign("narHash", narHash->to_string(hash_format_t::SRI, true));
 
     for (auto& field : specified.attrs) {
       auto field2 = result.attrs.find(field.first);
@@ -239,12 +239,12 @@ void Input::checkLocks(Input specified, Input& result) {
       if (result.getNarHash())
         throw Error((unsigned int)102,
                     "NAR hash mismatch in input '%s', expected '%s' but got '%s'",
-                    specified.to_string(), prevNarHash->to_string(HashFormat::SRI, true),
-                    result.getNarHash()->to_string(HashFormat::SRI, true));
+                    specified.to_string(), prevNarHash->to_string(hash_format_t::SRI, true),
+                    result.getNarHash()->to_string(hash_format_t::SRI, true));
       else
         throw Error((unsigned int)102,
                     "NAR hash mismatch in input '%s', expected '%s' but got none",
-                    specified.to_string(), prevNarHash->to_string(HashFormat::SRI, true));
+                    specified.to_string(), prevNarHash->to_string(hash_format_t::SRI, true));
     }
   }
 
@@ -255,7 +255,7 @@ void Input::checkLocks(Input specified, Input& result) {
   }
 }
 
-std::pair<ref<SourceAccessor>, Input> Input::getAccessor(const Settings& settings,
+std::pair<ref<SourceAccessor>, Input> Input::getAccessor(const settings_t& settings,
                                                          Store& store) const {
   try {
     auto [accessor, result] = getAccessorUnchecked(settings, store);
@@ -276,15 +276,15 @@ std::pair<ref<SourceAccessor>, Input> Input::getAccessor(const Settings& setting
  * are rendered as `«input»/path` rather than
  * `«input»/nix/store/<hash>-source/path`.
  */
-struct SubstitutedSourceAccessor : ForwardingSourceAccessor {
+struct substituted_source_accessor_t : ForwardingSourceAccessor {
   using ForwardingSourceAccessor::ForwardingSourceAccessor;
 
-  std::string showPath(const CanonPath& path) override {
+  std::string showPath(const canon_path_t& path) override {
     return displayPrefix + path.abs() + displaySuffix;
   }
 };
 
-std::pair<ref<SourceAccessor>, Input> Input::getAccessorUnchecked(const Settings& settings,
+std::pair<ref<SourceAccessor>, Input> Input::getAccessorUnchecked(const settings_t& settings,
                                                                   Store& store) const {
   // FIXME: cache the accessor
 
@@ -297,11 +297,11 @@ std::pair<ref<SourceAccessor>, Input> Input::getAccessorUnchecked(const Settings
 
   auto makeStoreAccessor = [&]() -> std::pair<ref<SourceAccessor>, Input> {
     auto accessor =
-        make_ref<SubstitutedSourceAccessor>(store.requireStoreObjectAccessor(*storePath));
+        make_ref<substituted_source_accessor_t>(store.requireStoreObjectAccessor(*storePath));
 
     // FIXME: use the NAR hash for fingerprinting Git trees that have a .gitattributes file, since
     // we don't know if we used `git archive` or libgit2 to fetch it.
-    accessor->fingerprint = getType() == "git" && accessor->pathExists(CanonPath(".gitattributes"))
+    accessor->fingerprint = getType() == "git" && accessor->pathExists(canon_path_t(".gitattributes"))
                                 ? std::optional(storePath->hashPart())
                                 : getFingerprint(store);
     cachedFingerprint = accessor->fingerprint;
@@ -312,8 +312,8 @@ std::pair<ref<SourceAccessor>, Input> Input::getAccessorUnchecked(const Settings
     if (accessor->fingerprint) {
       settings.getCache()->upsert(
           makeSourcePathToHashCacheKey(*accessor->fingerprint,
-                                       ContentAddressMethod::Raw::NixArchive, "/"),
-          {{"hash", store.queryPathInfo(*storePath)->narHash.to_string(HashFormat::SRI, true)}});
+                                       ContentAddressMethod::raw_t::NixArchive, "/"),
+          {{"hash", store.queryPathInfo(*storePath)->narHash.to_string(hash_format_t::SRI, true)}});
     }
 
     // FIXME: ideally we would use the `showPath()` of the
@@ -335,7 +335,7 @@ std::pair<ref<SourceAccessor>, Input> Input::getAccessorUnchecked(const Settings
   try {
     auto [accessor, result] = scheme->getAccessor(settings, store, *this);
 
-    if (auto fp = accessor->getFingerprint(CanonPath::root).second)
+    if (auto fp = accessor->getFingerprint(canon_path_t::root).second)
       result.cachedFingerprint = *fp;
     else
       accessor->fingerprint = result.getFingerprint(store);
@@ -367,7 +367,7 @@ Input Input::applyOverrides(std::optional<std::string> ref, std::optional<Hash> 
   return scheme->applyOverrides(*this, ref, rev);
 }
 
-void Input::clone(const Settings& settings, Store& store,
+void Input::clone(const settings_t& settings, Store& store,
                   const std::filesystem::path& destDir) const {
   assert(scheme);
   scheme->clone(settings, store, *this, destDir);
@@ -378,7 +378,7 @@ std::optional<std::filesystem::path> Input::getSourcePath() const {
   return scheme->getSourcePath(*this);
 }
 
-void Input::putFile(const CanonPath& path, std::string_view contents,
+void Input::putFile(const canon_path_t& path, std::string_view contents,
                     std::optional<std::string> commitMsg) const {
   assert(scheme);
   return scheme->putFile(*this, path, contents, commitMsg);
@@ -393,7 +393,7 @@ StorePath Input::computeStorePath(Store& store) const {
   if (!narHash)
     throw Error("cannot compute store path for unlocked input '%s'", to_string());
   return store.makeFixedOutputPath(getName(), FixedOutputInfo{
-                                                  .method = FileIngestionMethod::NixArchive,
+                                                  .method = file_ingestion_method_t::NixArchive,
                                                   .hash = *narHash,
                                                   .references = {},
                                               });
@@ -405,8 +405,8 @@ std::string Input::getType() const {
 
 std::optional<Hash> Input::getNarHash() const {
   if (auto s = maybeGetStrAttr(attrs, "narHash")) {
-    auto hash = s->empty() ? Hash(HashAlgorithm::SHA256) : Hash::parseSRI(*s);
-    if (hash.algo != HashAlgorithm::SHA256)
+    auto hash = s->empty() ? Hash(hash_algorithm_t::SHA256) : Hash::parseSRI(*s);
+    if (hash.algo != hash_algorithm_t::SHA256)
       throw UsageError("narHash must use SHA-256");
     return hash;
   }
@@ -428,7 +428,7 @@ std::optional<Hash> Input::getRev() const {
     } catch (BadHash& e) {
       // Default to sha1 for backwards compatibility with existing
       // usages (e.g. `builtins.fetchTree` calls or flake inputs).
-      hash = Hash::parseAny(*s, HashAlgorithm::SHA1);
+      hash = Hash::parseAny(*s, hash_algorithm_t::SHA1);
     }
   }
 
@@ -447,7 +447,7 @@ std::optional<time_t> Input::getLastModified() const {
   return {};
 }
 
-ParsedURL InputScheme::toURL(const Input& input, bool abbreviate) const {
+parsed_url_t InputScheme::toURL(const Input& input, bool abbreviate) const {
   throw Error("don't know how to convert input '%s' to a URL", attrsToJSON(input.attrs));
 }
 
@@ -466,31 +466,31 @@ std::optional<std::filesystem::path> InputScheme::getSourcePath(const Input& inp
   return {};
 }
 
-void InputScheme::putFile(const Input& input, const CanonPath& path, std::string_view contents,
+void InputScheme::putFile(const Input& input, const canon_path_t& path, std::string_view contents,
                           std::optional<std::string> commitMsg) const {
   throw Error("input '%s' does not support modifying file '%s'", input.to_string(), path);
 }
 
-void InputScheme::clone(const Settings& settings, Store& store, const Input& input,
+void InputScheme::clone(const settings_t& settings, Store& store, const Input& input,
                         const std::filesystem::path& destDir) const {
   if (std::filesystem::exists(destDir))
     throw Error("cannot clone into existing path %s", destDir);
 
   auto [accessor, input2] = getAccessor(settings, store, input);
 
-  Activity act(*logger, lvlTalkative, actUnknown,
+  activity_t act(*logger, lvlTalkative, actUnknown,
                fmt("copying '%s' to %s...", input2.to_string(), destDir));
 
-  RestoreSink sink(/*startFsync=*/false);
+  restore_sink_t sink(/*startFsync=*/false);
   sink.dstPath = destDir;
-  copyRecursive(*accessor, CanonPath::root, sink, CanonPath::root);
+  copyRecursive(*accessor, canon_path_t::root, sink, canon_path_t::root);
 }
 
-std::optional<ExperimentalFeature> InputScheme::experimentalFeature() const {
+std::optional<experimental_feature_t> InputScheme::experimentalFeature() const {
   return {};
 }
 
-std::string publicKeys_to_string(const std::vector<PublicKey>& publicKeys) {
+std::string publicKeys_to_string(const std::vector<public_key_t>& publicKeys) {
   return ((nlohmann::json)publicKeys).dump();
 }
 
@@ -502,8 +502,8 @@ using namespace nix;
 
 #ifndef DOXYGEN_SKIP
 
-fetchers::PublicKey adl_serializer<fetchers::PublicKey>::from_json(const json& json) {
-  fetchers::PublicKey res = {};
+fetchers::public_key_t adl_serializer<fetchers::public_key_t>::from_json(const json& json) {
+  fetchers::public_key_t res = {};
   auto& obj = getObject(json);
   if (auto* type = optionalValueAt(obj, "type"))
     res.type = getString(*type);
@@ -513,7 +513,7 @@ fetchers::PublicKey adl_serializer<fetchers::PublicKey>::from_json(const json& j
   return res;
 }
 
-void adl_serializer<fetchers::PublicKey>::to_json(json& json, const fetchers::PublicKey& p) {
+void adl_serializer<fetchers::public_key_t>::to_json(json& json, const fetchers::public_key_t& p) {
   json["type"] = p.type;
   json["key"] = p.key;
 }

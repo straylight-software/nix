@@ -17,7 +17,7 @@ namespace nix {
  *
  *   struct Data { int x; ... };
  *
- *   Sync<Data> data;
+ *   sync_t<Data> data;
  *
  *   {
  *     auto data_(data.lock());
@@ -28,7 +28,7 @@ namespace nix {
  * scope.
  */
 template <class T, class M, class WL, class RL>
-class SyncBase {
+class sync_base_t {
 private:
   M mutex;
   T data;
@@ -36,29 +36,29 @@ private:
 public:
   using element_type = T;
 
-  SyncBase() {}
+  sync_base_t() {}
 
-  SyncBase(const T& data) : data(data) {}
+  sync_base_t(const T& data) : data(data) {}
 
-  SyncBase(T&& data) noexcept : data(std::move(data)) {}
+  sync_base_t(T&& data) noexcept : data(std::move(data)) {}
 
-  SyncBase(SyncBase&& other) noexcept : data(std::move(*other.lock())) {}
+  sync_base_t(sync_base_t&& other) noexcept : data(std::move(*other.lock())) {}
 
   template <class L>
-  class Lock {
+  class lock_t {
   protected:
-    SyncBase* s;
+    sync_base_t* s;
     L lk;
-    friend SyncBase;
+    friend sync_base_t;
 
-    Lock(SyncBase* s) : s(s), lk(s->mutex) {}
+    lock_t(sync_base_t* s) : s(s), lk(s->mutex) {}
 
   public:
-    Lock(Lock&& l) : s(l.s) { unreachable(); }
+    lock_t(lock_t&& l) : s(l.s) { unreachable(); }
 
-    Lock(const Lock& l) = delete;
+    lock_t(const lock_t& l) = delete;
 
-    ~Lock() {}
+    ~lock_t() {}
 
     void wait(std::condition_variable& cv) {
       assert(s);
@@ -87,35 +87,35 @@ public:
     }
   };
 
-  struct WriteLock : Lock<WL> {
-    T* operator->() { return &WriteLock::s->data; }
+  struct write_lock_t : lock_t<WL> {
+    T* operator->() { return &write_lock_t::s->data; }
 
-    T& operator*() { return WriteLock::s->data; }
+    T& operator*() { return write_lock_t::s->data; }
   };
 
   /**
    * Acquire write (exclusive) access to the inner value.
    */
-  WriteLock lock() { return WriteLock(this); }
+  write_lock_t lock() { return write_lock_t(this); }
 
-  struct ReadLock : Lock<RL> {
-    const T* operator->() { return &ReadLock::s->data; }
+  struct read_lock_t : lock_t<RL> {
+    const T* operator->() { return &read_lock_t::s->data; }
 
-    const T& operator*() { return ReadLock::s->data; }
+    const T& operator*() { return read_lock_t::s->data; }
   };
 
   /**
    * Acquire read access to the inner value. When using
    * `std::shared_mutex`, this will use a shared lock.
    */
-  ReadLock readLock() const { return ReadLock(const_cast<SyncBase*>(this)); }
+  read_lock_t readLock() const { return read_lock_t(const_cast<sync_base_t*>(this)); }
 };
 
 template <class T>
-using Sync = SyncBase<T, std::mutex, std::unique_lock<std::mutex>, std::unique_lock<std::mutex>>;
+using sync_t = sync_base_t<T, std::mutex, std::unique_lock<std::mutex>, std::unique_lock<std::mutex>>;
 
 template <class T>
-using SharedSync = SyncBase<T, std::shared_mutex, std::unique_lock<std::shared_mutex>,
+using shared_sync_t = sync_base_t<T, std::shared_mutex, std::unique_lock<std::shared_mutex>,
                             std::shared_lock<std::shared_mutex>>;
 
 } // namespace nix

@@ -10,6 +10,6 @@
 namespace nix {
 
 void printValueAsXML(EvalState& state, bool strict, bool location, Value& v, std::ostream& out,
-                     NixStringContext& context, const PosIdx pos);
+                     NixStringContext& context, const pos_idx_t pos);
 
 }

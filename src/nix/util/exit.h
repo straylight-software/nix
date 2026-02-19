@@ -5,17 +5,17 @@
 namespace nix {
 
 /**
- * Exit the program with a given exit code.
+ * exit_t the program with a given exit code.
  */
-class Exit : public std::exception {
+class exit_t : public std::exception {
 public:
   int status;
 
-  Exit() : status(0) {}
+  exit_t() : status(0) {}
 
-  explicit Exit(int status) : status(status) {}
+  explicit exit_t(int status) : status(status) {}
 
-  virtual ~Exit();
+  virtual ~exit_t();
 };
 
 } // namespace nix

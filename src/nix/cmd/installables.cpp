@@ -32,7 +32,7 @@
 
 namespace nix {
 
-void completeFlakeInputAttrPath(AddCompletions& completions, ref<EvalState> evalState,
+void completeFlakeInputAttrPath(add_completions_t& completions, ref<EvalState> evalState,
                                 const std::vector<FlakeRef>& flakeRefs, std::string_view prefix) {
   for (auto& flakeRef : flakeRefs) {
     auto flake = flake::getFlake(*evalState, flakeRef, fetchers::UseRegistries::All);
@@ -115,7 +115,7 @@ MixFlakeOptions::MixFlakeOptions() {
              "future version.");
         lockFlags.inputUpdates.insert(flake::parseInputAttrPath(s));
       }},
-      .completer = {[&](AddCompletions& completions, size_t, std::string_view prefix) {
+      .completer = {[&](add_completions_t& completions, size_t, std::string_view prefix) {
         completeFlakeInputAttrPath(completions, getEvalState(), getFlakeRefsForCompletion(),
                                    prefix);
       }},
@@ -133,7 +133,7 @@ MixFlakeOptions::MixFlakeOptions() {
             flake::parseInputAttrPath(inputAttrPath),
             parseFlakeRef(fetchSettings, flakeRef, absPath(getCommandBaseDir()).string(), true));
       }},
-      .completer = {[&](AddCompletions& completions, size_t n, std::string_view prefix) {
+      .completer = {[&](add_completions_t& completions, size_t n, std::string_view prefix) {
         if (n == 0) {
           completeFlakeInputAttrPath(completions, getEvalState(), getFlakeRefsForCompletion(),
                                      prefix);
@@ -149,7 +149,7 @@ MixFlakeOptions::MixFlakeOptions() {
       .category = category,
       .labels = {"flake-lock-path"},
       .handler = {[&](std::string lockFilePath) {
-        lockFlags.referenceLockFilePath = {getFSSourceAccessor(), CanonPath(absPath(lockFilePath))};
+        lockFlags.referenceLockFilePath = {getFSSourceAccessor(), canon_path_t(absPath(lockFilePath))};
       }},
       .completer = completePath,
   });
@@ -190,7 +190,7 @@ MixFlakeOptions::MixFlakeOptions() {
           }
         }
       }},
-      .completer = {[&](AddCompletions& completions, size_t, std::string_view prefix) {
+      .completer = {[&](add_completions_t& completions, size_t, std::string_view prefix) {
         completeFlakeRef(completions, getEvalState()->store, prefix);
       }},
   });
@@ -232,12 +232,12 @@ MixReadOnlyOption::MixReadOnlyOption() {
   });
 }
 
-Strings SourceExprCommand::getDefaultFlakeAttrPaths() {
+strings_t SourceExprCommand::getDefaultFlakeAttrPaths() {
   return {"packages." + settings.thisSystem.get() + ".default",
           "defaultPackage." + settings.thisSystem.get()};
 }
 
-Strings SourceExprCommand::getDefaultFlakeAttrPathPrefixes() {
+strings_t SourceExprCommand::getDefaultFlakeAttrPathPrefixes() {
   return {// As a convenience, look for the attribute in
           // 'outputs.packages'.
           "packages." + settings.thisSystem.get() + ".",
@@ -246,16 +246,16 @@ Strings SourceExprCommand::getDefaultFlakeAttrPathPrefixes() {
           "legacyPackages." + settings.thisSystem.get() + "."};
 }
 
-Args::CompleterClosure SourceExprCommand::getCompleteInstallable() {
-  return [this](AddCompletions& completions, size_t, std::string_view prefix) {
+Args::completer_closure_t SourceExprCommand::getCompleteInstallable() {
+  return [this](add_completions_t& completions, size_t, std::string_view prefix) {
     completeInstallable(completions, prefix);
   };
 }
 
-void SourceExprCommand::completeInstallable(AddCompletions& completions, std::string_view prefix) {
+void SourceExprCommand::completeInstallable(add_completions_t& completions, std::string_view prefix) {
   try {
     if (file) {
-      completions.setType(AddCompletions::Type::Attrs);
+      completions.setType(add_completions_t::Type::Attrs);
 
       evalSettings.pureEval = false;
       auto state = getEvalState();
@@ -304,9 +304,9 @@ void SourceExprCommand::completeInstallable(AddCompletions& completions, std::st
   }
 }
 
-void completeFlakeRefWithFragment(AddCompletions& completions, ref<EvalState> evalState,
-                                  flake::LockFlags lockFlags, Strings attrPathPrefixes,
-                                  const Strings& defaultFlakeAttrPaths, std::string_view prefix) {
+void completeFlakeRefWithFragment(add_completions_t& completions, ref<EvalState> evalState,
+                                  flake::LockFlags lockFlags, strings_t attrPathPrefixes,
+                                  const strings_t& defaultFlakeAttrPaths, std::string_view prefix) {
   /* Look for flake output attributes that match the
      prefix. */
   try {
@@ -314,7 +314,7 @@ void completeFlakeRefWithFragment(AddCompletions& completions, ref<EvalState> ev
     if (hash == std::string::npos) {
       completeFlakeRef(completions, evalState->store, prefix);
     } else {
-      completions.setType(AddCompletions::Type::Attrs);
+      completions.setType(add_completions_t::Type::Attrs);
 
       auto fragment = prefix.substr(hash + 1);
       std::string prefixRoot = "";
@@ -384,7 +384,7 @@ void completeFlakeRefWithFragment(AddCompletions& completions, ref<EvalState> ev
   }
 }
 
-void completeFlakeRef(AddCompletions& completions, ref<Store> store, std::string_view prefix) {
+void completeFlakeRef(add_completions_t& completions, ref<Store> store, std::string_view prefix) {
   if (prefix == "")
     completions.add(".");
 
@@ -506,8 +506,8 @@ ref<Installable> SourceExprCommand::parseInstallable(ref<Store> store,
 static SingleBuiltPath getBuiltPath(ref<Store> evalStore, ref<Store> store,
                                     const SingleDerivedPath& b) {
   return std::visit(overloaded{
-                        [&](const SingleDerivedPath::Opaque& bo) -> SingleBuiltPath {
-                          return SingleBuiltPath::Opaque{bo.path};
+                        [&](const SingleDerivedPath::opaque_t& bo) -> SingleBuiltPath {
+                          return SingleBuiltPath::opaque_t{bo.path};
                         },
                         [&](const SingleDerivedPath::Built& bfd) -> SingleBuiltPath {
                           auto drvPath = getBuiltPath(evalStore, store, *bfd.drvPath);
@@ -571,7 +571,7 @@ void Installable::throwBuildErrors(std::vector<InstallableWithBuildResult>& buil
         }
       }
 
-      throw Exit(1);
+      throw exit_t(1);
     }
   }
 }
@@ -632,10 +632,10 @@ std::vector<InstallableWithBuildResult> Installable::build2(ref<Store> evalStore
                                            },
                                        .info = aux.info}});
                   },
-                  [&](const DerivedPath::Opaque& bo) {
+                  [&](const DerivedPath::opaque_t& bo) {
                     res.push_back({.installable = aux.installable,
                                    .result = InstallableWithBuildResult::Success{
-                                       .path = BuiltPath::Opaque{bo.path}, .info = aux.info}});
+                                       .path = BuiltPath::opaque_t{bo.path}, .info = aux.info}});
                   },
               },
               path.raw());
@@ -675,10 +675,10 @@ std::vector<InstallableWithBuildResult> Installable::build2(ref<Store> evalStore
                                     .info = aux.info,
                                     .result = buildResult}});
                          },
-                         [&](const DerivedPath::Opaque& bo) {
+                         [&](const DerivedPath::opaque_t& bo) {
                            res.push_back({.installable = aux.installable,
                                           .result = InstallableWithBuildResult::Success{
-                                              .path = BuiltPath::Opaque{bo.path},
+                                              .path = BuiltPath::opaque_t{bo.path},
                                               .info = aux.info,
                                               .result = buildResult}});
                          },
@@ -710,7 +710,7 @@ BuiltPaths Installable::toBuiltPaths(ref<Store> evalStore, ref<Store> store, Rea
 
     BuiltPaths res;
     for (auto& drvPath : Installable::toDerivations(store, installables, true))
-      res.emplace_back(BuiltPath::Opaque{drvPath});
+      res.emplace_back(BuiltPath::opaque_t{drvPath});
     return res;
   }
 }
@@ -753,7 +753,7 @@ StorePathSet Installable::toDerivations(ref<Store> store, const Installables& in
     for (const auto& b : i->toDerivedPaths())
       std::visit(
           overloaded{
-              [&](const DerivedPath::Opaque& bo) {
+              [&](const DerivedPath::opaque_t& bo) {
                 drvPaths.insert(
                     bo.path.isDerivation() ? bo.path
                     : useDeriver

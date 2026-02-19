@@ -62,7 +62,7 @@ private:
 
   BuildMode buildMode;
 
-  std::unique_ptr<Activity> act;
+  std::unique_ptr<activity_t> act;
 
   std::string key() override;
 

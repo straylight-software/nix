@@ -19,25 +19,25 @@ PathSubstitutionGoal::PathSubstitutionGoal(const StorePath& storePath, Worker& w
   name = fmt("substitution of '%s'", worker.store.printStorePath(this->storePath));
   trace("created");
   maintainExpectedSubstitutions =
-      std::make_unique<MaintainCount<uint64_t>>(worker.expectedSubstitutions);
+      std::make_unique<maintain_count_t<uint64_t>>(worker.expectedSubstitutions);
 }
 
 PathSubstitutionGoal::~PathSubstitutionGoal() {
   cleanup();
 }
 
-Goal::Done PathSubstitutionGoal::doneSuccess(BuildResult::Success::Status status) {
+Goal::done_t PathSubstitutionGoal::doneSuccess(BuildResult::Success::Status status) {
   buildResult.inner = BuildResult::Success{
       .status = status,
   };
 
   logger->result(getCurActivity(), resBuildResult,
-                 nlohmann::json(KeyedBuildResult(buildResult, DerivedPath::Opaque{storePath})));
+                 nlohmann::json(KeyedBuildResult(buildResult, DerivedPath::opaque_t{storePath})));
 
   return amDone(ecSuccess);
 }
 
-Goal::Done PathSubstitutionGoal::doneFailure(ExitCode result, BuildResult::Failure::Status status,
+Goal::done_t PathSubstitutionGoal::doneFailure(ExitCode result, BuildResult::Failure::Status status,
                                              std::string errorMsg) {
   debug(errorMsg);
   buildResult.inner = BuildResult::Failure{
@@ -46,7 +46,7 @@ Goal::Done PathSubstitutionGoal::doneFailure(ExitCode result, BuildResult::Failu
   };
 
   logger->result(getCurActivity(), resBuildResult,
-                 nlohmann::json(KeyedBuildResult(buildResult, DerivedPath::Opaque{storePath})));
+                 nlohmann::json(KeyedBuildResult(buildResult, DerivedPath::opaque_t{storePath})));
 
   return amDone(result);
 }
@@ -123,10 +123,10 @@ Goal::Co PathSubstitutionGoal::init() {
     auto narInfo = std::dynamic_pointer_cast<const NarInfo>(info);
 
     maintainExpectedNar =
-        std::make_unique<MaintainCount<uint64_t>>(worker.expectedNarSize, info->narSize);
+        std::make_unique<maintain_count_t<uint64_t>>(worker.expectedNarSize, info->narSize);
 
     maintainExpectedDownload = narInfo && narInfo->fileSize
-                                   ? std::make_unique<MaintainCount<uint64_t>>(
+                                   ? std::make_unique<maintain_count_t<uint64_t>>(
                                          worker.expectedDownloadSize, narInfo->fileSize)
                                    : nullptr;
 
@@ -214,7 +214,7 @@ Goal::Co PathSubstitutionGoal::tryToRun(StorePath subPath, nix::ref<Store> sub,
   }
 
   auto maintainRunningSubstitutions =
-      std::make_unique<MaintainCount<uint64_t>>(worker.runningSubstitutions);
+      std::make_unique<maintain_count_t<uint64_t>>(worker.runningSubstitutions);
   worker.updateProgress();
 
 #ifndef _WIN32
@@ -227,15 +227,15 @@ Goal::Co PathSubstitutionGoal::tryToRun(StorePath subPath, nix::ref<Store> sub,
 
   thr = std::thread([this, &promise, &subPath, &sub]() {
     try {
-      ReceiveInterrupts receiveInterrupts;
+      receive_interrupts_t receiveInterrupts;
 
       /* Wake up the worker loop when we're done. */
-      Finally updateStats([this]() { outPipe.writeSide.close(); });
+      finally_t updateStats([this]() { outPipe.writeSide.close(); });
 
-      Activity act(*logger, actSubstitute,
-                   Logger::Fields{worker.store.printStorePath(storePath),
+      activity_t act(*logger, actSubstitute,
+                   Logger::fields_t{worker.store.printStorePath(storePath),
                                   sub->config.getHumanReadableURI()});
-      PushActivity pact(act.id);
+      push_activity_t pact(act.id);
 
       copyStorePath(*sub, worker.store, subPath, repair,
                     sub->config.isTrusted ? NoCheckSigs : CheckSigs);
@@ -309,7 +309,7 @@ Goal::Co PathSubstitutionGoal::tryToRun(StorePath subPath, nix::ref<Store> sub,
   co_return doneSuccess(BuildResult::Success::Substituted);
 }
 
-void PathSubstitutionGoal::handleEOF(Descriptor fd) {
+void PathSubstitutionGoal::handleEOF(descriptor_t fd) {
   worker.wakeUp(shared_from_this());
 }
 

@@ -16,7 +16,7 @@ int callback_open(struct archive*, void* self) {
 }
 
 ssize_t callback_read(struct archive* archive, void* _self, const void** buffer) {
-  auto self = (TarArchive*)_self;
+  auto self = (tar_archive_t*)_self;
   *buffer = self->buffer.data();
 
   try {
@@ -43,7 +43,7 @@ void checkLibArchive(archive* archive, int err, const std::string& reason) {
 constexpr auto defaultBufferSize = std::size_t{65536};
 } // namespace
 
-void TarArchive::check(int err, const std::string& reason) {
+void tar_archive_t::check(int err, const std::string& reason) {
   checkLibArchive(archive, err, reason);
 }
 
@@ -55,7 +55,7 @@ void TarArchive::check(int err, const std::string& reason) {
 /// function that is better implemented in libarchive.
 int getArchiveFilterCodeByName(const std::string& method) {
   auto* ar = archive_write_new();
-  auto cleanup = Finally{
+  auto cleanup = finally_t{
       [&ar]() { checkLibArchive(ar, archive_write_close(ar), "failed to close archive: %s"); }};
   auto err = archive_write_add_filter_by_name(ar, method.c_str());
   checkLibArchive(ar, err, "failed to get libarchive filter by name: %s");
@@ -73,7 +73,7 @@ static void enableSupportedFormats(struct archive* archive) {
   archive_read_support_format_empty(archive);
 }
 
-TarArchive::TarArchive(Source& source, bool raw, std::optional<std::string> compression_method)
+tar_archive_t::tar_archive_t(Source& source, bool raw, std::optional<std::string> compression_method)
     : archive{archive_read_new()}, source{&source}, buffer(defaultBufferSize) {
   if (!compression_method) {
     archive_read_support_filter_all(archive);
@@ -93,7 +93,7 @@ TarArchive::TarArchive(Source& source, bool raw, std::optional<std::string> comp
         "Failed to open archive (%s)");
 }
 
-TarArchive::TarArchive(const std::filesystem::path& path)
+tar_archive_t::tar_archive_t(const std::filesystem::path& path)
     : archive{archive_read_new()}, buffer(defaultBufferSize) {
   archive_read_support_filter_all(archive);
   enableSupportedFormats(archive);
@@ -102,16 +102,16 @@ TarArchive::TarArchive(const std::filesystem::path& path)
         "failed to open archive: %s");
 }
 
-void TarArchive::close() {
+void tar_archive_t::close() {
   check(archive_read_close(this->archive), "Failed to close archive (%s)");
 }
 
-TarArchive::~TarArchive() {
+tar_archive_t::~tar_archive_t() {
   if (this->archive)
     archive_read_free(this->archive);
 }
 
-static void extract_archive(TarArchive& archive, const std::filesystem::path& destDir) {
+static void extract_archive(tar_archive_t& archive, const std::filesystem::path& destDir) {
   int flags =
       ARCHIVE_EXTRACT_TIME | ARCHIVE_EXTRACT_SECURE_SYMLINKS | ARCHIVE_EXTRACT_SECURE_NODOTDOT;
 
@@ -147,20 +147,20 @@ static void extract_archive(TarArchive& archive, const std::filesystem::path& de
 }
 
 void unpackTarfile(Source& source, const std::filesystem::path& destDir) {
-  auto archive = TarArchive(source);
+  auto archive = tar_archive_t(source);
 
   createDirs(destDir);
   extract_archive(archive, destDir);
 }
 
 void unpackTarfile(const std::filesystem::path& tarFile, const std::filesystem::path& destDir) {
-  auto archive = TarArchive(tarFile);
+  auto archive = tar_archive_t(tarFile);
 
   createDirs(destDir);
   extract_archive(archive, destDir);
 }
 
-time_t unpackTarfileToSink(TarArchive& archive, ExtendedFileSystemObjectSink& parseSink) {
+time_t unpackTarfileToSink(tar_archive_t& archive, extended_file_system_object_sink_t& parseSink) {
   time_t lastModified = 0;
 
   /* Only allocate the buffer once. Use the heap because 131 KiB is a bit too
@@ -176,7 +176,7 @@ time_t unpackTarfileToSink(TarArchive& archive, ExtendedFileSystemObjectSink& pa
     auto path = archive_entry_pathname(entry);
     if (!path)
       throw Error("cannot get archive member name: %s", archive_error_string(archive.archive));
-    auto cpath = CanonPath{path};
+    auto cpath = canon_path_t{path};
     if (r == ARCHIVE_WARN)
       warn(archive_error_string(archive.archive));
     else
@@ -185,7 +185,7 @@ time_t unpackTarfileToSink(TarArchive& archive, ExtendedFileSystemObjectSink& pa
     lastModified = std::max(lastModified, archive_entry_mtime(entry));
 
     if (auto target = archive_entry_hardlink(entry)) {
-      parseSink.createHardlink(cpath, CanonPath(target));
+      parseSink.createHardlink(cpath, canon_path_t(target));
       continue;
     }
 

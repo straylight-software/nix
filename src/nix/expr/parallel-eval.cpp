@@ -7,16 +7,16 @@
 namespace nix {
 
 // cache line alignment to prevent false sharing
-struct alignas(64) WaiterDomain {
+struct alignas(64) waiter_domain_t {
   std::condition_variable cv;
 };
 
-static std::array<Sync<WaiterDomain>, 128> waiterDomains;
+static std::array<sync_t<waiter_domain_t>, 128> waiterDomains;
 
 thread_local bool Executor::amWorkerThread{false};
 
 unsigned int Executor::getEvalCores(const EvalSettings& evalSettings) {
-  return evalSettings.evalCores == 0UL ? Settings::getDefaultCores() : evalSettings.evalCores;
+  return evalSettings.evalCores == 0UL ? settings_t::getDefaultCores() : evalSettings.evalCores;
 }
 
 Executor::Executor(const EvalSettings& evalSettings)
@@ -64,7 +64,7 @@ void Executor::createWorker(State& state) {
 }
 
 void Executor::worker() {
-  ReceiveInterrupts receiveInterrupts;
+  receive_interrupts_t receiveInterrupts;
 
   unix::interruptCheck = [&]() { return (bool)quit; };
 
@@ -172,7 +172,7 @@ void FutureVector::finishAll() {
     std::rethrow_exception(ex);
 }
 
-static Sync<WaiterDomain>& getWaiterDomain(detail::ValueBase& v) {
+static sync_t<waiter_domain_t>& getWaiterDomain(detail::ValueBase& v) {
   auto domain = (((size_t)&v) >> 5) % waiterDomains.size();
   return waiterDomains[domain];
 }
@@ -254,7 +254,7 @@ void ValueStorage<sizeof(void*)>::notifyWaiters() {
   domain->cv.notify_all();
 }
 
-static void prim_parallel(EvalState& state, const PosIdx pos, Value** args, Value& v) {
+static void prim_parallel(EvalState& state, const pos_idx_t pos, Value** args, Value& v) {
   state.forceList(*args[0], pos, "while evaluating the first argument passed to builtins.parallel");
 
   if (state.executor->evalCores > 1) {
@@ -279,7 +279,7 @@ static RegisterPrimOp r_parallel({
       Start evaluation of the values `xs` in the background and return `x`.
     )",
     .fun = prim_parallel,
-    .experimentalFeature = Xp::ParallelEval,
+    .experimentalFeature = xp_t::ParallelEval,
 });
 
 } // namespace nix

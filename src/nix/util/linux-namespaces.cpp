@@ -42,7 +42,7 @@ bool userNamespacesSupported() {
 
       auto r = pid.wait();
       assert(!r);
-    } catch (SysError& e) {
+    } catch (sys_error_t& e) {
       debug("user namespaces do not work on this system: %s", e.msg());
       return false;
     }
@@ -78,7 +78,7 @@ bool mountAndPidNamespacesSupported() {
         return false;
       }
 
-    } catch (SysError& e) {
+    } catch (sys_error_t& e) {
       debug("mount namespaces do not work on this system: %s", e.msg());
       return false;
     }
@@ -90,15 +90,15 @@ bool mountAndPidNamespacesSupported() {
 
 //////////////////////////////////////////////////////////////////////
 
-static AutoCloseFD fdSavedMountNamespace;
-static AutoCloseFD fdSavedRoot;
+static auto_close_fd_t fdSavedMountNamespace;
+static auto_close_fd_t fdSavedRoot;
 
 void saveMountNamespace() {
   static std::once_flag done;
   std::call_once(done, []() {
     fdSavedMountNamespace = open("/proc/self/ns/mnt", O_RDONLY);
     if (!fdSavedMountNamespace)
-      throw SysError("saving parent mount namespace");
+      throw sys_error_t("saving parent mount namespace");
 
     fdSavedRoot = open("/proc/self/root", O_RDONLY);
   });
@@ -109,17 +109,17 @@ void restoreMountNamespace() {
     auto savedCwd = std::filesystem::current_path();
 
     if (fdSavedMountNamespace && setns(fdSavedMountNamespace.get(), CLONE_NEWNS) == -1)
-      throw SysError("restoring parent mount namespace");
+      throw sys_error_t("restoring parent mount namespace");
 
     if (fdSavedRoot) {
       if (fchdir(fdSavedRoot.get()))
-        throw SysError("chdir into saved root");
+        throw sys_error_t("chdir into saved root");
       if (chroot("."))
-        throw SysError("chroot into saved root");
+        throw sys_error_t("chroot into saved root");
     }
 
     if (chdir(savedCwd.c_str()) == -1)
-      throw SysError("restoring cwd");
+      throw sys_error_t("restoring cwd");
   } catch (Error& e) {
     debug(e.msg());
   }
@@ -127,7 +127,7 @@ void restoreMountNamespace() {
 
 void tryUnshareFilesystem() {
   if (unshare(CLONE_FS) != 0 && errno != EPERM && errno != ENOSYS)
-    throw SysError("unsharing filesystem state");
+    throw sys_error_t("unsharing filesystem state");
 }
 
 } // namespace nix

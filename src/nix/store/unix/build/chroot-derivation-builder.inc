@@ -2,11 +2,11 @@
 
 namespace nix {
 
-struct ChrootDerivationBuilder : virtual DerivationBuilderImpl
+struct chroot_derivation_builder_t : virtual derivation_builder_impl_t
 {
-    ChrootDerivationBuilder(
+    chroot_derivation_builder_t(
         LocalStore & store, std::unique_ptr<DerivationBuilderCallbacks> miscMethods, DerivationBuilderParams params)
-        : DerivationBuilderImpl{store, std::move(miscMethods), std::move(params)}
+        : derivation_builder_impl_t{store, std::move(miscMethods), std::move(params)}
     {
     }
 
@@ -18,7 +18,7 @@ struct ChrootDerivationBuilder : virtual DerivationBuilderImpl
     /**
      * RAII object to delete the chroot directory.
      */
-    std::shared_ptr<AutoDelete> autoDelChroot;
+    std::shared_ptr<auto_delete_t> autoDelChroot;
 
     PathsInChroot pathsInChroot;
 
@@ -62,23 +62,23 @@ struct ChrootDerivationBuilder : virtual DerivationBuilderImpl
         deletePath(chrootParentDir);
 
         /* Clean up the chroot directory automatically. */
-        autoDelChroot = std::make_shared<AutoDelete>(chrootParentDir);
+        autoDelChroot = std::make_shared<auto_delete_t>(chrootParentDir);
 
         printMsg(lvlChatty, "setting up chroot environment in '%1%'", chrootParentDir);
 
         if (mkdir(chrootParentDir.c_str(), 0700) == -1)
-            throw SysError("cannot create '%s'", chrootRootDir);
+            throw sys_error_t("cannot create '%s'", chrootRootDir);
 
         chrootRootDir = chrootParentDir + "/root";
 
         if (mkdir(chrootRootDir.c_str(), buildUser && buildUser->getUIDCount() != 1 ? 0755 : 0750) == -1)
-            throw SysError("cannot create '%1%'", chrootRootDir);
+            throw sys_error_t("cannot create '%1%'", chrootRootDir);
 
         if (buildUser
             && chown(
                    chrootRootDir.c_str(), buildUser->getUIDCount() != 1 ? buildUser->getUID() : 0, buildUser->getGID())
                    == -1)
-            throw SysError("cannot change ownership of '%1%'", chrootRootDir);
+            throw sys_error_t("cannot change ownership of '%1%'", chrootRootDir);
 
         /* Create a writable /tmp in the chroot.  Many builders need
            this.  (Of course they should really respect $TMPDIR
@@ -122,7 +122,7 @@ struct ChrootDerivationBuilder : virtual DerivationBuilderImpl
         chmod_(chrootStoreDir, 01775);
 
         if (buildUser && chown(chrootStoreDir.c_str(), 0, buildUser->getGID()) == -1)
-            throw SysError("cannot change ownership of '%1%'", chrootStoreDir);
+            throw sys_error_t("cannot change ownership of '%1%'", chrootStoreDir);
 
         pathsInChroot = getPathsInSandbox();
 
@@ -147,10 +147,10 @@ struct ChrootDerivationBuilder : virtual DerivationBuilderImpl
         }
     }
 
-    Strings getPreBuildHookArgs() override
+    strings_t getPreBuildHookArgs() override
     {
         assert(!chrootRootDir.empty());
-        return Strings({store.printStorePath(drvPath), chrootRootDir});
+        return strings_t({store.printStorePath(drvPath), chrootRootDir});
     }
 
     Path realPathInHost(const Path & p) override
@@ -161,7 +161,7 @@ struct ChrootDerivationBuilder : virtual DerivationBuilderImpl
 
     void cleanupBuild(bool force) override
     {
-        DerivationBuilderImpl::cleanupBuild(force);
+        derivation_builder_impl_t::cleanupBuild(force);
 
         /* Move paths out of the chroot for easier debugging of
            build failures. */
@@ -181,7 +181,7 @@ struct ChrootDerivationBuilder : virtual DerivationBuilderImpl
 
     std::pair<Path, Path> addDependencyPrep(const StorePath & path)
     {
-        DerivationBuilderImpl::addDependencyImpl(path);
+        derivation_builder_impl_t::addDependencyImpl(path);
 
         debug("materialising '%s' in the sandbox", store.printStorePath(path));
 

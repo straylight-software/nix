@@ -25,15 +25,15 @@ create table if not exists Cache (
 // FIXME: we should periodically purge/nuke this cache to prevent it
 // from growing too big.
 
-struct CacheImpl : Cache {
+struct cache_impl_t : Cache {
   struct State {
     SQLite db;
     SQLiteStmt upsert, lookup;
   };
 
-  Sync<State> _state;
+  sync_t<State> _state;
 
-  CacheImpl() {
+  cache_impl_t() {
     auto state(_state.lock());
 
     auto dbPath = (getCacheDir() / "fetcher-cache-v4.sqlite").string();
@@ -138,10 +138,10 @@ struct CacheImpl : Cache {
   }
 };
 
-ref<Cache> Settings::getCache() const {
+ref<Cache> settings_t::getCache() const {
   auto cache(_cache.lock());
   if (!*cache)
-    *cache = std::make_shared<CacheImpl>();
+    *cache = std::make_shared<cache_impl_t>();
   return ref<Cache>(*cache);
 }
 

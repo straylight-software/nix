@@ -15,16 +15,16 @@ struct EvalSettings;
 
 namespace nix::flake {
 
-struct Settings : public Config {
-  Settings();
+struct settings_t : public Config {
+  settings_t();
 
   void configureEvalSettings(nix::EvalSettings& evalSettings) const;
 
-  Setting<bool> useRegistries{
+  setting_t<bool> useRegistries{
       this, true, "use-registries", "Whether to use flake registries to resolve flake references.",
       {},   true};
 
-  Setting<bool> acceptFlakeConfig{
+  setting_t<bool> acceptFlakeConfig{
       this,
       false,
       "accept-flake-config",
@@ -32,7 +32,7 @@ struct Settings : public Config {
       {},
       true};
 
-  Setting<std::string> commitLockFileSummary{this,
+  setting_t<std::string> commitLockFileSummary{this,
                                              "",
                                              "commit-lock-file-summary",
                                              R"(

@@ -8,9 +8,9 @@
 
 namespace nix {
 
-typedef std::map<std::string, std::string, std::less<>> XMLAttrs;
+typedef std::map<std::string, std::string, std::less<>> xml_attrs_t;
 
-class XMLWriter {
+class xml_writer_t {
 private:
   std::ostream& output;
 
@@ -20,33 +20,33 @@ private:
   std::list<std::string> pendingElems;
 
 public:
-  XMLWriter(bool indent, std::ostream& output);
-  ~XMLWriter();
+  xml_writer_t(bool indent, std::ostream& output);
+  ~xml_writer_t();
 
   void close();
 
-  void openElement(std::string_view name, const XMLAttrs& attrs = XMLAttrs());
+  void openElement(std::string_view name, const xml_attrs_t& attrs = xml_attrs_t());
   void closeElement();
 
-  void writeEmptyElement(std::string_view name, const XMLAttrs& attrs = XMLAttrs());
+  void writeEmptyElement(std::string_view name, const xml_attrs_t& attrs = xml_attrs_t());
 
 private:
-  void writeAttrs(const XMLAttrs& attrs);
+  void writeAttrs(const xml_attrs_t& attrs);
 
   void indent_(size_t depth);
 };
 
-class XMLOpenElement {
+class xml_open_element_t {
 private:
-  XMLWriter& writer;
+  xml_writer_t& writer;
 
 public:
-  XMLOpenElement(XMLWriter& writer, std::string_view name, const XMLAttrs& attrs = XMLAttrs())
+  xml_open_element_t(xml_writer_t& writer, std::string_view name, const xml_attrs_t& attrs = xml_attrs_t())
       : writer(writer) {
     writer.openElement(name, attrs);
   }
 
-  ~XMLOpenElement() { writer.closeElement(); }
+  ~xml_open_element_t() { writer.closeElement(); }
 };
 
 } // namespace nix

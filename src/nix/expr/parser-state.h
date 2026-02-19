@@ -56,8 +56,8 @@ struct ParserLocation {
  */
 class ToBeStringyExpr {
 private:
-  using Raw = std::variant<std::monostate, std::string_view, Expr*>;
-  Raw raw;
+  using raw_t = std::variant<std::monostate, std::string_view, Expr*>;
+  raw_t raw;
 
 public:
   ToBeStringyExpr() = default;
@@ -125,46 +125,46 @@ struct LexerState {
    */
   DocCommentMap& positionToDocComment;
 
-  PosTable& positions;
-  PosTable::Origin origin;
+  pos_table_t& positions;
+  pos_table_t::origin_t origin;
 
-  PosIdx at(const ParserLocation& loc);
+  pos_idx_t at(const ParserLocation& loc);
 };
 
 struct ParserState {
   const LexerState& lexerState;
   Exprs& exprs;
   SymbolTable& symbols;
-  PosTable& positions;
+  pos_table_t& positions;
   Expr* result;
-  SourcePath basePath;
-  PosTable::Origin origin;
+  source_path_t basePath;
+  pos_table_t::origin_t origin;
   const ref<SourceAccessor> rootFS;
   static constexpr Expr::AstSymbols s = StaticEvalSymbols::create().exprSymbols;
   const EvalSettings& settings;
 
-  void dupAttr(const AttrSelectionPath& attrPath, const PosIdx pos, const PosIdx prevPos);
-  void dupAttr(Symbol attr, const PosIdx pos, const PosIdx prevPos);
+  void dupAttr(const AttrSelectionPath& attrPath, const pos_idx_t pos, const pos_idx_t prevPos);
+  void dupAttr(Symbol attr, const pos_idx_t pos, const pos_idx_t prevPos);
   void addAttr(ExprAttrs* attrs, AttrSelectionPath&& attrPath, const ParserLocation& loc, Expr* e,
                const ParserLocation& exprLoc);
   void addAttr(ExprAttrs* attrs, AttrSelectionPath& attrPath, const Symbol& symbol,
                ExprAttrs::AttrDef&& def);
-  void validateFormals(FormalsBuilder& formals, PosIdx pos = noPos, Symbol arg = {});
-  Expr* stripIndentation(const PosIdx pos,
-                         std::span<std::pair<PosIdx, std::variant<Expr*, StringToken>>> es);
-  PosIdx at(const ParserLocation& loc);
+  void validateFormals(FormalsBuilder& formals, pos_idx_t pos = noPos, Symbol arg = {});
+  Expr* stripIndentation(const pos_idx_t pos,
+                         std::span<std::pair<pos_idx_t, std::variant<Expr*, StringToken>>> es);
+  pos_idx_t at(const ParserLocation& loc);
 };
 
-inline void ParserState::dupAttr(const AttrSelectionPath& attrPath, const PosIdx pos,
-                                 const PosIdx prevPos) {
-  throw ParseError({.msg = HintFmt("attribute '%1%' already defined at %2%",
+inline void ParserState::dupAttr(const AttrSelectionPath& attrPath, const pos_idx_t pos,
+                                 const pos_idx_t prevPos) {
+  throw ParseError({.msg = hint_fmt_t("attribute '%1%' already defined at %2%",
                                    showAttrSelectionPath(symbols, attrPath), positions[prevPos]),
                     .pos = positions[pos]});
 }
 
-inline void ParserState::dupAttr(Symbol attr, const PosIdx pos, const PosIdx prevPos) {
+inline void ParserState::dupAttr(Symbol attr, const pos_idx_t pos, const pos_idx_t prevPos) {
   throw ParseError(
-      {.msg = HintFmt("attribute '%1%' already defined at %2%", symbols[attr], positions[prevPos]),
+      {.msg = hint_fmt_t("attribute '%1%' already defined at %2%", symbols[attr], positions[prevPos]),
        .pos = positions[pos]});
 }
 
@@ -266,12 +266,12 @@ inline void ParserState::addAttr(ExprAttrs* attrs, AttrSelectionPath& attrPath,
   }
 }
 
-inline void ParserState::validateFormals(FormalsBuilder& formals, PosIdx pos, Symbol arg) {
+inline void ParserState::validateFormals(FormalsBuilder& formals, pos_idx_t pos, Symbol arg) {
   std::sort(formals.formals.begin(), formals.formals.end(), [](const auto& a, const auto& b) {
     return std::tie(a.name, a.pos) < std::tie(b.name, b.pos);
   });
 
-  std::optional<std::pair<Symbol, PosIdx>> duplicate;
+  std::optional<std::pair<Symbol, pos_idx_t>> duplicate;
   for (size_t i = 0; i + 1 < formals.formals.size(); i++) {
     if (formals.formals[i].name != formals.formals[i + 1].name)
       continue;
@@ -280,17 +280,17 @@ inline void ParserState::validateFormals(FormalsBuilder& formals, PosIdx pos, Sy
   }
   if (duplicate)
     throw ParseError(
-        {.msg = HintFmt("duplicate formal function argument '%1%'", symbols[duplicate->first]),
+        {.msg = hint_fmt_t("duplicate formal function argument '%1%'", symbols[duplicate->first]),
          .pos = positions[duplicate->second]});
 
   if (arg && formals.has(arg))
-    throw ParseError({.msg = HintFmt("duplicate formal function argument '%1%'", symbols[arg]),
+    throw ParseError({.msg = hint_fmt_t("duplicate formal function argument '%1%'", symbols[arg]),
                       .pos = positions[pos]});
 }
 
 inline Expr*
-ParserState::stripIndentation(const PosIdx pos,
-                              std::span<std::pair<PosIdx, std::variant<Expr*, StringToken>>> es) {
+ParserState::stripIndentation(const pos_idx_t pos,
+                              std::span<std::pair<pos_idx_t, std::variant<Expr*, StringToken>>> es) {
   if (es.empty())
     return exprs.add<ExprString>(""_sds);
 
@@ -332,7 +332,7 @@ ParserState::stripIndentation(const PosIdx pos,
   }
 
   /* Strip spaces from each line. */
-  std::vector<std::pair<PosIdx, Expr*>> es2{};
+  std::vector<std::pair<pos_idx_t, Expr*>> es2{};
   atStartOfLine = true;
   size_t curDropped = 0;
   size_t n = es.size();
@@ -397,11 +397,11 @@ ParserState::stripIndentation(const PosIdx pos,
   return exprs.add<ExprConcatStrings>(exprs.alloc, pos, true, es2);
 }
 
-inline PosIdx LexerState::at(const ParserLocation& loc) {
+inline pos_idx_t LexerState::at(const ParserLocation& loc) {
   return positions.add(origin, loc.beginOffset);
 }
 
-inline PosIdx ParserState::at(const ParserLocation& loc) {
+inline pos_idx_t ParserState::at(const ParserLocation& loc) {
   return positions.add(origin, loc.beginOffset);
 }
 

@@ -16,7 +16,7 @@ class RemoteFSAccessor : public SourceAccessor {
 
   Path cacheDir;
 
-  std::pair<ref<SourceAccessor>, CanonPath> fetch(const CanonPath& path);
+  std::pair<ref<SourceAccessor>, canon_path_t> fetch(const canon_path_t& path);
 
   friend struct BinaryCacheStore;
 
@@ -33,13 +33,13 @@ public:
   RemoteFSAccessor(ref<Store> store, bool requireValidPath = true,
                    const /* FIXME: use std::optional */ Path& cacheDir = "");
 
-  std::optional<Stat> maybeLstat(const CanonPath& path) override;
+  std::optional<stat_t> maybeLstat(const canon_path_t& path) override;
 
-  DirEntries readDirectory(const CanonPath& path) override;
+  dir_entries_t readDirectory(const canon_path_t& path) override;
 
-  std::string readFile(const CanonPath& path) override;
+  std::string readFile(const canon_path_t& path) override;
 
-  std::string readLink(const CanonPath& path) override;
+  std::string readLink(const canon_path_t& path) override;
 };
 
 } // namespace nix

@@ -17,8 +17,8 @@ void exportPaths(Store& store, const StorePathSet& paths, Sink& sink, unsigned i
   std::reverse(sorted.begin(), sorted.end());
 
   auto dumpNar = [&](const ValidPathInfo& info) {
-    HashSink hashSink(HashAlgorithm::SHA256);
-    TeeSink teeSink(sink, hashSink);
+    hash_sink_t hashSink(hash_algorithm_t::SHA256);
+    tee_sink_t teeSink(sink, hashSink);
 
     store.narFromPath(info.path, teeSink);
 
@@ -28,8 +28,8 @@ void exportPaths(Store& store, const StorePathSet& paths, Sink& sink, unsigned i
     Hash hash = hashSink.currentHash().hash;
     if (hash != info.narHash && info.narHash != Hash(info.narHash.algo))
       throw Error("hash of path '%s' has changed from '%s' to '%s'!",
-                  store.printStorePath(info.path), info.narHash.to_string(HashFormat::Nix32, true),
-                  hash.to_string(HashFormat::Nix32, true));
+                  store.printStorePath(info.path), info.narHash.to_string(hash_format_t::Nix32, true),
+                  hash.to_string(hash_format_t::Nix32, true));
   };
 
   switch (version) {
@@ -49,7 +49,7 @@ void exportPaths(Store& store, const StorePathSet& paths, Sink& sink, unsigned i
       sink << exportMagicV2;
 
       for (auto& path : sorted) {
-        Activity act(*logger, lvlTalkative, actUnknown,
+        activity_t act(*logger, lvlTalkative, actUnknown,
                      fmt("exporting path '%s'", store.printStorePath(path)));
         sink << 1;
         auto info = store.queryPathInfo(path);
@@ -84,14 +84,14 @@ StorePaths importPaths(Store& store, Source& source, CheckSigsFlag checkSigs) {
     case 1: {
       /* Reuse a string buffer to avoid kernel overhead allocating
          memory for large strings. */
-      StringSink saved;
+      string_sink_t saved;
 
       /* Non-empty version 1 nario. */
       while (true) {
         /* Extract the NAR from the source. */
         saved.s.clear();
-        TeeSource tee{source, saved};
-        NullFileSystemObjectSink ether;
+        tee_source_t tee{source, saved};
+        null_file_system_object_sink_t ether;
         parseDump(ether, tee);
 
         uint32_t magic = readInt(source);
@@ -109,7 +109,7 @@ StorePaths importPaths(Store& store, Source& source, CheckSigsFlag checkSigs) {
           readString(source);
 
         if (!store.isValidPath(path)) {
-          auto narHash = hashString(HashAlgorithm::SHA256, saved.s);
+          auto narHash = hashString(hash_algorithm_t::SHA256, saved.s);
 
           ValidPathInfo info{path, {store, narHash}};
           if (deriver != "")
@@ -118,7 +118,7 @@ StorePaths importPaths(Store& store, Source& source, CheckSigsFlag checkSigs) {
           info.narSize = saved.s.size();
 
           // Can't use underlying source, which would have been exhausted.
-          auto source2 = StringSource(saved.s);
+          auto source2 = string_source_t(saved.s);
           store.addToStore(info, source2, NoRepair, checkSigs);
         }
 
@@ -145,7 +145,7 @@ StorePaths importPaths(Store& store, Source& source, CheckSigsFlag checkSigs) {
             store, WorkerProto::ReadConn{.from = source, .version = 16, .shortStorePaths = true});
 
         if (!store.isValidPath(info.path)) {
-          Activity act(*logger, lvlTalkative, actUnknown,
+          activity_t act(*logger, lvlTalkative, actUnknown,
                        fmt("importing path '%s'", store.printStorePath(info.path)));
 
           store.addToStore(info, source, NoRepair, checkSigs);

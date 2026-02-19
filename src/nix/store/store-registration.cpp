@@ -76,7 +76,7 @@ std::list<ref<Store>> getDefaultSubstituters() {
   static auto stores([]() {
     std::list<ref<Store>> stores;
 
-    StringSet done;
+    string_set_t done;
 
     auto addStore = [&](const std::string& uri) {
       if (!done.insert(uri).second)

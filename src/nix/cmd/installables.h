@@ -116,7 +116,7 @@ typedef std::vector<ref<Installable>> Installables;
 
 /**
  * Installables are the main positional arguments for the Nix
- * Command-line.
+ * command_t-line.
  *
  * This base class is very flexible, and just assumes and the
  * Installable refers to a collection of \ref DerivedPath "derived paths" with

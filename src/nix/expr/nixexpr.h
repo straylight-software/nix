@@ -20,7 +20,7 @@
 namespace nix {
 
 class EvalState;
-class PosTable;
+class pos_table_t;
 struct Env;
 struct ExprWith;
 struct StaticEnv;
@@ -48,12 +48,12 @@ struct DocComment {
   /**
    * Start of the comment, including the opening, ie `/` and `**`.
    */
-  PosIdx begin;
+  pos_idx_t begin;
 
   /**
    * Position right after the final asterisk and `/` that terminate the comment.
    */
-  PosIdx end;
+  pos_idx_t end;
 
   /**
    * Whether the comment is set.
@@ -64,7 +64,7 @@ struct DocComment {
    */
   operator bool() const { return static_cast<bool>(begin); }
 
-  std::string getInnerText(const PosTable& positions) const;
+  std::string getInnerText(const pos_table_t& positions) const;
 };
 
 /**
@@ -111,11 +111,11 @@ struct Expr {
   virtual void setName(Symbol name);
   virtual void setDocComment(DocComment docComment) {};
 
-  virtual PosIdx getPos() const { return noPos; }
+  virtual pos_idx_t getPos() const { return noPos; }
 
   // These are temporary methods to be used only in parser.y
   virtual void resetCursedOr() {};
-  virtual void warnIfCursedOr(const SymbolTable& symbols, const PosTable& positions) {};
+  virtual void warnIfCursedOr(const SymbolTable& symbols, const pos_table_t& positions) {};
 };
 
 #define COMMON_METHODS                                                                             \
@@ -182,7 +182,7 @@ typedef uint32_t Level;
 typedef uint32_t Displacement;
 
 struct ExprVar : Expr {
-  PosIdx pos;
+  pos_idx_t pos;
   Symbol name;
 
   /* Whether the variable comes from an environment (e.g. a rec, let
@@ -202,10 +202,10 @@ struct ExprVar : Expr {
   Displacement displ = 0;
 
   ExprVar(Symbol name) : name(name) {};
-  ExprVar(const PosIdx& pos, Symbol name) : pos(pos), name(name) {};
+  ExprVar(const pos_idx_t& pos, Symbol name) : pos(pos), name(name) {};
   Value* maybeThunk(EvalState& state, Env& env) override;
 
-  PosIdx getPos() const override { return pos; }
+  pos_idx_t getPos() const override { return pos; }
 
   COMMON_METHODS
 };
@@ -217,7 +217,7 @@ struct ExprVar : Expr {
  * their own `Env`.
  */
 struct ExprInheritFrom : ExprVar {
-  ExprInheritFrom(PosIdx pos, Displacement displ) : ExprVar(pos, {}) {
+  ExprInheritFrom(pos_idx_t pos, Displacement displ) : ExprVar(pos, {}) {
     this->level = 0;
     this->displ = displ;
     this->fromWith = nullptr;
@@ -227,12 +227,12 @@ struct ExprInheritFrom : ExprVar {
 };
 
 struct ExprSelect : Expr {
-  PosIdx pos;
+  pos_idx_t pos;
   uint32_t nAttrPath;
   Expr *e, *def;
   AttrName* attrPathStart;
 
-  ExprSelect(std::pmr::polymorphic_allocator<char>& alloc, const PosIdx& pos, Expr* e,
+  ExprSelect(std::pmr::polymorphic_allocator<char>& alloc, const pos_idx_t& pos, Expr* e,
              std::span<const AttrName> attrPath, Expr* def)
       : pos(pos),
         nAttrPath(attrPath.size()),
@@ -242,12 +242,12 @@ struct ExprSelect : Expr {
     std::ranges::copy(attrPath, attrPathStart);
   };
 
-  ExprSelect(std::pmr::polymorphic_allocator<char>& alloc, const PosIdx& pos, Expr* e, Symbol name)
+  ExprSelect(std::pmr::polymorphic_allocator<char>& alloc, const pos_idx_t& pos, Expr* e, Symbol name)
       : pos(pos), nAttrPath(1), e(e), def(0), attrPathStart((alloc.allocate_object<AttrName>())) {
     *attrPathStart = AttrName(name);
   };
 
-  PosIdx getPos() const override { return pos; }
+  pos_idx_t getPos() const override { return pos; }
 
   std::span<const AttrName> getAttrPath() const { return {attrPathStart, nAttrPath}; }
 
@@ -274,14 +274,14 @@ struct ExprOpHasAttr : Expr {
     std::ranges::copy(attrPath, this->attrPath.begin());
   };
 
-  PosIdx getPos() const override { return e->getPos(); }
+  pos_idx_t getPos() const override { return e->getPos(); }
 
   COMMON_METHODS
 };
 
 struct ExprAttrs : Expr {
   bool recursive;
-  PosIdx pos;
+  pos_idx_t pos;
 
   struct AttrDef {
     enum class Kind {
@@ -295,9 +295,9 @@ struct ExprAttrs : Expr {
 
     Kind kind;
     Expr* e;
-    PosIdx pos;
+    pos_idx_t pos;
     Displacement displ = 0; // displacement
-    AttrDef(Expr* e, const PosIdx& pos, Kind kind = Kind::Plain) : kind(kind), e(e), pos(pos) {};
+    AttrDef(Expr* e, const pos_idx_t& pos, Kind kind = Kind::Plain) : kind(kind), e(e), pos(pos) {};
     AttrDef() {};
 
     template <typename T>
@@ -325,8 +325,8 @@ struct ExprAttrs : Expr {
 
   struct DynamicAttrDef {
     Expr *nameExpr, *valueExpr;
-    PosIdx pos;
-    DynamicAttrDef(Expr* nameExpr, Expr* valueExpr, const PosIdx& pos)
+    pos_idx_t pos;
+    DynamicAttrDef(Expr* nameExpr, Expr* valueExpr, const pos_idx_t& pos)
         : nameExpr(nameExpr), valueExpr(valueExpr), pos(pos) {};
   };
 
@@ -335,11 +335,11 @@ struct ExprAttrs : Expr {
    * dynamicAttrs will never be null. See comment on AttrDefs above.
    */
   std::optional<DynamicAttrDefs> dynamicAttrs;
-  ExprAttrs(const PosIdx& pos)
+  ExprAttrs(const pos_idx_t& pos)
       : recursive(false), pos(pos), attrs(AttrDefs{}), dynamicAttrs(DynamicAttrDefs{}) {};
   ExprAttrs() : recursive(false), attrs(AttrDefs{}), dynamicAttrs(DynamicAttrDefs{}) {};
 
-  PosIdx getPos() const override { return pos; }
+  pos_idx_t getPos() const override { return pos; }
 
   COMMON_METHODS
 
@@ -361,11 +361,11 @@ struct ExprList : Expr {
   COMMON_METHODS
   Value* maybeThunk(EvalState& state, Env& env) override;
 
-  PosIdx getPos() const override { return elems.empty() ? noPos : elems.front()->getPos(); }
+  pos_idx_t getPos() const override { return elems.empty() ? noPos : elems.front()->getPos(); }
 };
 
 struct Formal {
-  PosIdx pos;
+  pos_idx_t pos;
   Symbol name;
   Expr* def;
 };
@@ -408,7 +408,7 @@ struct Formals {
 };
 
 struct ExprLambda : Expr {
-  PosIdx pos;
+  pos_idx_t pos;
   Symbol name;
   Symbol arg;
 
@@ -429,7 +429,7 @@ public:
   Expr* body;
   DocComment docComment;
 
-  ExprLambda(const PosTable& positions, std::pmr::polymorphic_allocator<char>& alloc, PosIdx pos,
+  ExprLambda(const pos_table_t& positions, std::pmr::polymorphic_allocator<char>& alloc, pos_idx_t pos,
              Symbol arg, const FormalsBuilder& formals, Expr* body)
       : pos(pos),
         arg(arg),
@@ -448,7 +448,7 @@ public:
     std::uninitialized_copy_n(formals.formals.begin(), nFormals, formalsStart);
   };
 
-  ExprLambda(PosIdx pos, Symbol arg, Expr* body)
+  ExprLambda(pos_idx_t pos, Symbol arg, Expr* body)
       : pos(pos),
         arg(arg),
         hasFormals(false),
@@ -457,14 +457,14 @@ public:
         formalsStart(nullptr),
         body(body) {};
 
-  ExprLambda(const PosTable& positions, std::pmr::polymorphic_allocator<char>& alloc, PosIdx pos,
+  ExprLambda(const pos_table_t& positions, std::pmr::polymorphic_allocator<char>& alloc, pos_idx_t pos,
              const FormalsBuilder& formals, Expr* body)
       : ExprLambda(positions, alloc, pos, Symbol(), formals, body) {};
 
   void setName(Symbol name) override;
   std::string showNamePos(const EvalState& state) const;
 
-  PosIdx getPos() const override { return pos; }
+  pos_idx_t getPos() const override { return pos; }
 
   virtual void setDocComment(DocComment docComment) override;
   COMMON_METHODS
@@ -476,20 +476,20 @@ struct ExprCall : Expr {
    * args will never be null. See comment on ExprAttrs::AttrDefs below.
    */
   std::optional<std::pmr::vector<Expr*>> args;
-  PosIdx pos;
-  std::optional<PosIdx>
+  pos_idx_t pos;
+  std::optional<pos_idx_t>
       cursedOrEndPos; // used during parsing to warn about https://github.com/NixOS/nix/issues/11118
 
-  ExprCall(const PosIdx& pos, Expr* fun, std::pmr::vector<Expr*>&& args)
+  ExprCall(const pos_idx_t& pos, Expr* fun, std::pmr::vector<Expr*>&& args)
       : fun(fun), args(args), pos(pos), cursedOrEndPos({}) {}
 
-  ExprCall(const PosIdx& pos, Expr* fun, std::pmr::vector<Expr*>&& args, PosIdx&& cursedOrEndPos)
+  ExprCall(const pos_idx_t& pos, Expr* fun, std::pmr::vector<Expr*>&& args, pos_idx_t&& cursedOrEndPos)
       : fun(fun), args(args), pos(pos), cursedOrEndPos(cursedOrEndPos) {}
 
-  PosIdx getPos() const override { return pos; }
+  pos_idx_t getPos() const override { return pos; }
 
   virtual void resetCursedOr() override;
-  virtual void warnIfCursedOr(const SymbolTable& symbols, const PosTable& positions) override;
+  virtual void warnIfCursedOr(const SymbolTable& symbols, const pos_table_t& positions) override;
   void moveDataToAllocator(std::pmr::polymorphic_allocator<char>& alloc);
   COMMON_METHODS
 };
@@ -502,34 +502,34 @@ struct ExprLet : Expr {
 };
 
 struct ExprWith : Expr {
-  PosIdx pos;
+  pos_idx_t pos;
   uint32_t prevWith;
   Expr *attrs, *body;
   ExprWith* parentWith;
-  ExprWith(const PosIdx& pos, Expr* attrs, Expr* body) : pos(pos), attrs(attrs), body(body) {};
+  ExprWith(const pos_idx_t& pos, Expr* attrs, Expr* body) : pos(pos), attrs(attrs), body(body) {};
 
-  PosIdx getPos() const override { return pos; }
+  pos_idx_t getPos() const override { return pos; }
 
   COMMON_METHODS
 };
 
 struct ExprIf : Expr {
-  PosIdx pos;
+  pos_idx_t pos;
   Expr *cond, *then, *else_;
-  ExprIf(const PosIdx& pos, Expr* cond, Expr* then, Expr* else_)
+  ExprIf(const pos_idx_t& pos, Expr* cond, Expr* then, Expr* else_)
       : pos(pos), cond(cond), then(then), else_(else_) {};
 
-  PosIdx getPos() const override { return pos; }
+  pos_idx_t getPos() const override { return pos; }
 
   COMMON_METHODS
 };
 
 struct ExprAssert : Expr {
-  PosIdx pos;
+  pos_idx_t pos;
   Expr *cond, *body;
-  ExprAssert(const PosIdx& pos, Expr* cond, Expr* body) : pos(pos), cond(cond), body(body) {};
+  ExprAssert(const pos_idx_t& pos, Expr* cond, Expr* body) : pos(pos), cond(cond), body(body) {};
 
-  PosIdx getPos() const override { return pos; }
+  pos_idx_t getPos() const override { return pos; }
 
   COMMON_METHODS
 };
@@ -538,16 +538,16 @@ struct ExprOpNot : Expr {
   Expr* e;
   ExprOpNot(Expr* e) : e(e) {};
 
-  PosIdx getPos() const override { return e->getPos(); }
+  pos_idx_t getPos() const override { return e->getPos(); }
 
   COMMON_METHODS
 };
 
 #define MakeBinOpMembers(name, s)                                                                  \
-  PosIdx pos;                                                                                      \
+  pos_idx_t pos;                                                                                      \
   Expr *e1, *e2;                                                                                   \
   name(Expr* e1, Expr* e2) : e1(e1), e2(e2){};                                                     \
-  name(const PosIdx& pos, Expr* e1, Expr* e2) : pos(pos), e1(e1), e2(e2){};                        \
+  name(const pos_idx_t& pos, Expr* e1, Expr* e2) : pos(pos), e1(e1), e2(e2){};                        \
   void show(const SymbolTable& symbols, std::ostream& str) const override {                        \
     str << "(";                                                                                    \
     e1->show(symbols, str);                                                                        \
@@ -560,7 +560,7 @@ struct ExprOpNot : Expr {
     e2->bindVars(es, env);                                                                         \
   }                                                                                                \
   void eval(EvalState& state, Env& env, Value& v) override;                                        \
-  PosIdx getPos() const override {                                                                 \
+  pos_idx_t getPos() const override {                                                                 \
     return pos;                                                                                    \
   }
 
@@ -581,36 +581,36 @@ struct ExprOpUpdate : Expr {
 };
 
 struct ExprConcatStrings : Expr {
-  PosIdx pos;
+  pos_idx_t pos;
   bool forceString;
-  std::span<std::pair<PosIdx, Expr*>> es;
+  std::span<std::pair<pos_idx_t, Expr*>> es;
 
-  ExprConcatStrings(std::pmr::polymorphic_allocator<char>& alloc, const PosIdx& pos,
-                    bool forceString, std::span<std::pair<PosIdx, Expr*>> es)
+  ExprConcatStrings(std::pmr::polymorphic_allocator<char>& alloc, const pos_idx_t& pos,
+                    bool forceString, std::span<std::pair<pos_idx_t, Expr*>> es)
       : pos(pos),
         forceString(forceString),
-        es({alloc.allocate_object<std::pair<PosIdx, Expr*>>(es.size()), es.size()}) {
+        es({alloc.allocate_object<std::pair<pos_idx_t, Expr*>>(es.size()), es.size()}) {
     std::ranges::copy(es, this->es.begin());
   };
 
-  ExprConcatStrings(std::pmr::polymorphic_allocator<char>& alloc, const PosIdx& pos,
-                    bool forceString, std::initializer_list<std::pair<PosIdx, Expr*>> es)
+  ExprConcatStrings(std::pmr::polymorphic_allocator<char>& alloc, const pos_idx_t& pos,
+                    bool forceString, std::initializer_list<std::pair<pos_idx_t, Expr*>> es)
       : pos(pos),
         forceString(forceString),
-        es({alloc.allocate_object<std::pair<PosIdx, Expr*>>(es.size()), es.size()}) {
+        es({alloc.allocate_object<std::pair<pos_idx_t, Expr*>>(es.size()), es.size()}) {
     std::ranges::copy(es, this->es.begin());
   };
 
-  PosIdx getPos() const override { return pos; }
+  pos_idx_t getPos() const override { return pos; }
 
   COMMON_METHODS
 };
 
 struct ExprPos : Expr {
-  PosIdx pos;
-  ExprPos(const PosIdx& pos) : pos(pos) {};
+  pos_idx_t pos;
+  ExprPos(const pos_idx_t& pos) : pos(pos) {};
 
-  PosIdx getPos() const override { return pos; }
+  pos_idx_t getPos() const override { return pos; }
 
   COMMON_METHODS
 };
@@ -633,7 +633,7 @@ public:
   // lists
   template <class C>
   [[gnu::always_inline]]
-  C* add(const PosIdx& pos, Expr* fun, std::pmr::vector<Expr*>&& args)
+  C* add(const pos_idx_t& pos, Expr* fun, std::pmr::vector<Expr*>&& args)
     requires(std::same_as<C, ExprCall>)
   {
     return alloc.new_object<C>(pos, fun, std::move(args));
@@ -641,7 +641,7 @@ public:
 
   template <class C>
   [[gnu::always_inline]]
-  C* add(const PosIdx& pos, Expr* fun, std::pmr::vector<Expr*>&& args, PosIdx&& cursedOrEndPos)
+  C* add(const pos_idx_t& pos, Expr* fun, std::pmr::vector<Expr*>&& args, pos_idx_t&& cursedOrEndPos)
     requires(std::same_as<C, ExprCall>)
   {
     return alloc.new_object<C>(pos, fun, std::move(args), std::move(cursedOrEndPos));
@@ -649,8 +649,8 @@ public:
 
   template <class C>
   [[gnu::always_inline]]
-  C* add(std::pmr::polymorphic_allocator<char>& alloc, const PosIdx& pos, bool forceString,
-         std::span<std::pair<PosIdx, Expr*>> es)
+  C* add(std::pmr::polymorphic_allocator<char>& alloc, const pos_idx_t& pos, bool forceString,
+         std::span<std::pair<pos_idx_t, Expr*>> es)
     requires(std::same_as<C, ExprConcatStrings>)
   {
     return alloc.new_object<C>(alloc, pos, forceString, es);
@@ -658,8 +658,8 @@ public:
 
   template <class C>
   [[gnu::always_inline]]
-  C* add(std::pmr::polymorphic_allocator<char>& alloc, const PosIdx& pos, bool forceString,
-         std::initializer_list<std::pair<PosIdx, Expr*>> es)
+  C* add(std::pmr::polymorphic_allocator<char>& alloc, const pos_idx_t& pos, bool forceString,
+         std::initializer_list<std::pair<pos_idx_t, Expr*>> es)
     requires(std::same_as<C, ExprConcatStrings>)
   {
     return alloc.new_object<C>(alloc, pos, forceString, es);

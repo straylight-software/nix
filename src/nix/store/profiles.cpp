@@ -39,7 +39,7 @@ findGenerations(std::filesystem::path profile) {
   std::filesystem::path profileDir = profile.parent_path();
   auto profileName = profile.filename().string();
 
-  for (auto& i : DirectoryIterator{profileDir}) {
+  for (auto& i : directory_iterator_t{profileDir}) {
     checkInterrupt();
     if (auto n = parseName(profileName, i.path().filename().string())) {
       auto path = i.path().string();
@@ -103,7 +103,7 @@ static void removeFile(const std::filesystem::path& path) {
   try {
     std::filesystem::remove(path);
   } catch (std::filesystem::filesystem_error& e) {
-    throw SysError("removing file '%1%'", path);
+    throw sys_error_t("removing file '%1%'", path);
   }
 }
 

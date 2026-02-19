@@ -34,7 +34,7 @@ void pollFD(int fd, int events) {
   pfd.events = events;
   int ret = poll(&pfd, 1, -1);
   if (ret == -1) {
-    throw SysError("poll on file descriptor failed");
+    throw sys_error_t("poll on file descriptor failed");
   }
 }
 } // namespace
@@ -42,7 +42,7 @@ void pollFD(int fd, int events) {
 std::string readFile(int fd) {
   struct stat st;
   if (fstat(fd, &st) == -1)
-    throw SysError("statting file");
+    throw sys_error_t("statting file");
 
   return drainFD(fd, true, st.st_size);
 }
@@ -59,7 +59,7 @@ void readFull(int fd, char* buf, size_t count) {
           pollFD(fd, POLLIN);
           continue;
       }
-      throw SysError("reading from file");
+      throw sys_error_t("reading from file");
     }
     if (res == 0)
       throw EndOfFile("unexpected end-of-file");
@@ -81,7 +81,7 @@ void writeFull(int fd, std::string_view s, bool allowInterrupts) {
           pollFD(fd, POLLOUT);
           continue;
       }
-      throw SysError("writing to file");
+      throw sys_error_t("writing to file");
     }
     if (res > 0)
       s.remove_prefix(res);
@@ -104,7 +104,7 @@ std::string readLine(int fd, bool eofOk) {
           continue;
         }
         default:
-          throw SysError("reading a line");
+          throw sys_error_t("reading a line");
       }
     } else if (rd == 0) {
       if (eofOk)
@@ -126,13 +126,13 @@ void drainFD(int fd, Sink& sink, bool block) {
   if (!block) {
     saved = fcntl(fd, F_GETFL);
     if (fcntl(fd, F_SETFL, saved | O_NONBLOCK) == -1)
-      throw SysError("making file descriptor non-blocking");
+      throw sys_error_t("making file descriptor non-blocking");
   }
 
-  Finally finally([&]() {
+  finally_t finally([&]() {
     if (!block) {
       if (fcntl(fd, F_SETFL, saved) == -1)
-        throw SysError("making file descriptor blocking");
+        throw sys_error_t("making file descriptor blocking");
     }
   });
 
@@ -144,7 +144,7 @@ void drainFD(int fd, Sink& sink, bool block) {
       if (!block && (errno == EAGAIN || errno == EWOULDBLOCK))
         break;
       if (errno != EINTR)
-        throw SysError("reading from file");
+        throw sys_error_t("reading from file");
     } else if (rd == 0)
       break;
     else
@@ -154,14 +154,14 @@ void drainFD(int fd, Sink& sink, bool block) {
 
 //////////////////////////////////////////////////////////////////////
 
-void Pipe::create() {
+void pipe_t::create() {
   int fds[2];
 #if HAVE_PIPE2
   if (pipe2(fds, O_CLOEXEC) != 0)
-    throw SysError("creating pipe");
+    throw sys_error_t("creating pipe");
 #else
   if (pipe(fds) != 0)
-    throw SysError("creating pipe");
+    throw sys_error_t("creating pipe");
   unix::closeOnExec(fds[0]);
   unix::closeOnExec(fds[1]);
 #endif
@@ -197,7 +197,7 @@ void unix::closeExtraFDs() {
 
 #ifdef __linux__
   try {
-    for (auto& s : DirectoryIterator{"/proc/self/fd"}) {
+    for (auto& s : directory_iterator_t{"/proc/self/fd"}) {
       checkInterrupt();
       auto fd = std::stoi(s.path().filename());
       if (fd > MAX_KEPT_FD) {
@@ -206,7 +206,7 @@ void unix::closeExtraFDs() {
       }
     }
     return;
-  } catch (SysError&) {
+  } catch (sys_error_t&) {
   }
 #endif
 
@@ -221,14 +221,14 @@ void unix::closeExtraFDs() {
 void unix::closeOnExec(int fd) {
   int prev;
   if ((prev = fcntl(fd, F_GETFD, 0)) == -1 || fcntl(fd, F_SETFD, prev | FD_CLOEXEC) == -1)
-    throw SysError("setting close-on-exec flag");
+    throw sys_error_t("setting close-on-exec flag");
 }
 
 #ifdef __linux__
 
 namespace linux {
 
-std::optional<Descriptor> openat2(Descriptor dirFd, const char* path, uint64_t flags, uint64_t mode,
+std::optional<descriptor_t> openat2(descriptor_t dirFd, const char* path, uint64_t flags, uint64_t mode,
                                   uint64_t resolve) {
 #  if HAVE_OPENAT2
   /* Cache the result of whether openat2 is not supported. */
@@ -256,9 +256,9 @@ std::optional<Descriptor> openat2(Descriptor dirFd, const char* path, uint64_t f
 
 #endif
 
-static Descriptor openFileEnsureBeneathNoSymlinksIterative(Descriptor dirFd, const CanonPath& path,
+static descriptor_t openFileEnsureBeneathNoSymlinksIterative(descriptor_t dirFd, const canon_path_t& path,
                                                            int flags, mode_t mode) {
-  AutoCloseFD parentFd;
+  auto_close_fd_t parentFd;
   auto nrComponents = std::ranges::distance(path);
   assert(nrComponents >= 1);
   auto components = std::views::take(path, nrComponents - 1); /* Everything but last component */
@@ -271,7 +271,7 @@ static Descriptor openFileEnsureBeneathNoSymlinksIterative(Descriptor dirFd, con
     assert(component != ".." &&
            !component.starts_with('/')); /* In case invariant is broken somehow.. */
 
-    AutoCloseFD parentFd2 =
+    auto_close_fd_t parentFd2 =
         ::openat(getParentFd(), /* First iteration uses dirFd. */
                  component.c_str(),
                  O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC
@@ -285,9 +285,9 @@ static Descriptor openFileEnsureBeneathNoSymlinksIterative(Descriptor dirFd, con
         );
 
     if (!parentFd2) {
-      /* Construct the CanonPath for error message. */
+      /* Construct the canon_path_t for error message. */
       auto path2 =
-          std::ranges::fold_left(components.begin(), ++it, CanonPath::root, [](auto lhs, auto rhs) {
+          std::ranges::fold_left(components.begin(), ++it, canon_path_t::root, [](auto lhs, auto rhs) {
             lhs.push(rhs);
             return lhs;
           });
@@ -296,10 +296,10 @@ static Descriptor openFileEnsureBeneathNoSymlinksIterative(Descriptor dirFd, con
         struct ::stat st;
         if (::fstatat(getParentFd(), component.c_str(), &st, AT_SYMLINK_NOFOLLOW) == 0 &&
             S_ISLNK(st.st_mode))
-          throw unix::SymlinkNotAllowed(path2);
+          throw unix::symlink_not_allowed_t(path2);
         errno = ENOTDIR; /* Restore the errno. */
       } else if (errno == ELOOP) {
-        throw unix::SymlinkNotAllowed(path2);
+        throw unix::symlink_not_allowed_t(path2);
       }
 
       return INVALID_DESCRIPTOR;
@@ -311,11 +311,11 @@ static Descriptor openFileEnsureBeneathNoSymlinksIterative(Descriptor dirFd, con
   auto res = ::openat(getParentFd(), std::string(path.baseName().value()).c_str(),
                       flags | O_NOFOLLOW, mode);
   if (res < 0 && errno == ELOOP)
-    throw unix::SymlinkNotAllowed(path);
+    throw unix::symlink_not_allowed_t(path);
   return res;
 }
 
-Descriptor unix::openFileEnsureBeneathNoSymlinks(Descriptor dirFd, const CanonPath& path, int flags,
+descriptor_t unix::openFileEnsureBeneathNoSymlinks(descriptor_t dirFd, const canon_path_t& path, int flags,
                                                  mode_t mode) {
   assert(!path.rel().starts_with('/')); /* Just in case the invariant is somehow broken. */
   assert(!path.isRoot());
@@ -324,7 +324,7 @@ Descriptor unix::openFileEnsureBeneathNoSymlinks(Descriptor dirFd, const CanonPa
                                 RESOLVE_BENEATH | RESOLVE_NO_SYMLINKS);
   if (maybeFd) {
     if (*maybeFd < 0 && errno == ELOOP)
-      throw unix::SymlinkNotAllowed(path);
+      throw unix::symlink_not_allowed_t(path);
     return *maybeFd;
   }
 #endif

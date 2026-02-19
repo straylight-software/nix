@@ -7,10 +7,10 @@
 
 using namespace nix;
 
-struct CmdStoreGC : StoreCommand, MixDryRun {
+struct cmd_store_gc_t : StoreCommand, MixDryRun {
   GCOptions options;
 
-  CmdStoreGC() {
+  cmd_store_gc_t() {
     addFlag({
         .longName = "max",
         .description = "Stop after freeing *n* bytes of disk space.",
@@ -37,4 +37,4 @@ struct CmdStoreGC : StoreCommand, MixDryRun {
   }
 };
 
-static auto rCmdStoreGC = registerCommand2<CmdStoreGC>({"store", "gc"});
+static auto rCmdStoreGC = registerCommand2<cmd_store_gc_t>({"store", "gc"});

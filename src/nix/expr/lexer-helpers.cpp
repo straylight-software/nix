@@ -17,7 +17,7 @@ void nix::lexer::internal::adjustLoc(yyscan_t yyscanner, Parser::location_type* 
     ParserLocation docEnd;
     docEnd.beginOffset = lexerState.lastDocCommentLoc.endOffset;
     DocComment docComment{lexerState.at(doc), lexerState.at(docEnd)};
-    PosIdx locPos = lexerState.at(*loc);
+    pos_idx_t locPos = lexerState.at(*loc);
     lexerState.positionToDocComment.emplace(locPos, docComment);
   }
   lexerState.docCommentDistance++;

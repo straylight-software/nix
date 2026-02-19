@@ -21,13 +21,13 @@ Bindings* EvalMemory::allocBindings(size_t capacity) {
   return new (allocBytes(sizeof(Bindings) + sizeof(Attr) * capacity)) Bindings();
 }
 
-Value& BindingsBuilder::alloc(Symbol name, PosIdx pos) {
+Value& BindingsBuilder::alloc(Symbol name, pos_idx_t pos) {
   auto value = mem.get().allocValue();
   bindings->push_back(Attr(name, value, pos));
   return *value;
 }
 
-Value& BindingsBuilder::alloc(std::string_view name, PosIdx pos) {
+Value& BindingsBuilder::alloc(std::string_view name, pos_idx_t pos) {
   return alloc(symbols.get().create(name), pos);
 }
 

@@ -30,15 +30,15 @@ struct ExtraPathInfoFlake : ExtraPathInfoValue {
 
 struct InstallableFlake : InstallableValue {
   FlakeRef flakeRef;
-  Strings attrPaths;
-  Strings prefixes;
+  strings_t attrPaths;
+  strings_t prefixes;
   ExtendedOutputsSpec extendedOutputsSpec;
   const flake::LockFlags& lockFlags;
   mutable std::shared_ptr<flake::LockedFlake> _lockedFlake;
 
   InstallableFlake(SourceExprCommand* cmd, ref<EvalState> state, FlakeRef&& flakeRef,
                    std::string_view fragment, ExtendedOutputsSpec extendedOutputsSpec,
-                   Strings attrPaths, Strings prefixes, const flake::LockFlags& lockFlags);
+                   strings_t attrPaths, strings_t prefixes, const flake::LockFlags& lockFlags);
 
   std::string what() const override { return flakeRef.to_string() + "#" + *attrPaths.begin(); }
 
@@ -46,7 +46,7 @@ struct InstallableFlake : InstallableValue {
 
   DerivedPathsWithInfo toDerivedPaths() override;
 
-  std::pair<Value*, PosIdx> toValue(EvalState& state) override;
+  std::pair<Value*, pos_idx_t> toValue(EvalState& state) override;
 
   /**
    * Get a cursor to every attrpath in getActualAttrPaths() that

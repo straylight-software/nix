@@ -19,7 +19,7 @@ struct OutputsSpec;
 /**
  * A general `Realisation` key.
  *
- * This is similar to a `DerivedPath::Opaque`, but the derivation is
+ * This is similar to a `DerivedPath::opaque_t`, but the derivation is
  * identified by its "hash modulo" instead of by its store path.
  */
 struct DrvOutput {
@@ -39,7 +39,7 @@ struct DrvOutput {
 
   std::string to_string() const;
 
-  std::string strHash() const { return drvHash.to_string(HashFormat::Base16, true); }
+  std::string strHash() const { return drvHash.to_string(hash_format_t::Base16, true); }
 
   static DrvOutput parse(const std::string&);
 
@@ -50,7 +50,7 @@ struct DrvOutput {
 struct UnkeyedRealisation {
   StorePath outPath;
 
-  StringSet signatures;
+  string_set_t signatures;
 
   /**
    * The realisations that are required for the current one to be valid.
@@ -62,12 +62,12 @@ struct UnkeyedRealisation {
 
   std::string fingerprint(const DrvOutput& key) const;
 
-  void sign(const DrvOutput& key, const Signer&);
+  void sign(const DrvOutput& key, const signer_t&);
 
-  bool checkSignature(const DrvOutput& key, const PublicKeys& publicKeys,
+  bool checkSignature(const DrvOutput& key, const public_keys_t& publicKeys,
                       const std::string& sig) const;
 
-  size_t checkSignatures(const DrvOutput& key, const PublicKeys& publicKeys) const;
+  size_t checkSignatures(const DrvOutput& key, const public_keys_t& publicKeys) const;
 
   const StorePath& getPath() const { return outPath; }
 
@@ -122,8 +122,8 @@ struct RealisedPath {
    * A path is either the result of the realisation of a derivation or
    * an opaque blob that has been directly added to the store
    */
-  using Raw = std::variant<Realisation, OpaquePath>;
-  Raw raw;
+  using raw_t = std::variant<Realisation, OpaquePath>;
+  raw_t raw;
 
   using Set = std::set<RealisedPath>;
 

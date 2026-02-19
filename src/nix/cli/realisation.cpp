@@ -5,18 +5,18 @@
 
 using namespace nix;
 
-struct CmdRealisation : NixMultiCommand {
-  CmdRealisation()
+struct cmd_realisation_t : NixMultiCommand {
+  cmd_realisation_t()
       : NixMultiCommand("realisation", RegisterCommand::getCommandsFor({"realisation"})) {}
 
   std::string description() override { return "manipulate a Nix realisation"; }
 
-  Category category() override { return catUtility; }
+  category_t category() override { return catUtility; }
 };
 
-static auto rCmdRealisation = registerCommand<CmdRealisation>("realisation");
+static auto rCmdRealisation = registerCommand<cmd_realisation_t>("realisation");
 
-struct CmdRealisationInfo : BuiltPathsCommand, MixJSON {
+struct cmd_realisation_info_t : BuiltPathsCommand, MixJSON {
   std::string description() override {
     return "query information about one or several realisations";
   }
@@ -27,10 +27,10 @@ struct CmdRealisationInfo : BuiltPathsCommand, MixJSON {
         ;
   }
 
-  Category category() override { return catSecondary; }
+  category_t category() override { return catSecondary; }
 
   void run(ref<Store> store, BuiltPaths&& paths, BuiltPaths&& rootPaths) override {
-    experimentalFeatureSettings.require(Xp::CaDerivations);
+    experimentalFeatureSettings.require(xp_t::CaDerivations);
     RealisedPath::Set realisations;
 
     for (auto& builtPath : paths) {
@@ -62,4 +62,4 @@ struct CmdRealisationInfo : BuiltPathsCommand, MixJSON {
   }
 };
 
-static auto rCmdRealisationInfo = registerCommand2<CmdRealisationInfo>({"realisation", "info"});
+static auto rCmdRealisationInfo = registerCommand2<cmd_realisation_info_t>({"realisation", "info"});

@@ -50,7 +50,7 @@ struct DesugaredEnv {
    * @note `EnvEntry::prependBuildDirectory` can be used to refer to
    * those files without knowing what the build directory is.
    */
-  StringMap extraFiles;
+  string_map_t extraFiles;
 
   /**
    * A common case is to define an environment variable that points to

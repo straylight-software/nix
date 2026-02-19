@@ -11,7 +11,7 @@
 namespace nix {
 
 static void builtinFetchTree(const BuiltinBuilderContext& ctx) {
-  experimentalFeatureSettings.require(Xp::BuildTimeFetchTree);
+  experimentalFeatureSettings.require(xp_t::BuildTimeFetchTree);
 
   auto out = get(ctx.drv.outputs, "out");
   if (!out)
@@ -27,7 +27,7 @@ static void builtinFetchTree(const BuiltinBuilderContext& ctx) {
 
   using namespace fetchers;
 
-  fetchers::Settings myFetchSettings;
+  fetchers::settings_t myFetchSettings;
   myFetchSettings.accessTokens = fetchSettings.accessTokens.get();
 
   // Make sure we don't use the FileTransfer object of the parent
@@ -50,7 +50,7 @@ static void builtinFetchTree(const BuiltinBuilderContext& ctx) {
 
   auto [accessor, lockedInput] = input.getAccessor(myFetchSettings, *tmpStore);
 
-  auto source = sinkToSource([&](Sink& sink) { accessor->dumpPath(CanonPath::root, sink); });
+  auto source = sinkToSource([&](Sink& sink) { accessor->dumpPath(canon_path_t::root, sink); });
 
   restorePath(ctx.outputs.at("out"), *source);
 }

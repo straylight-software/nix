@@ -16,36 +16,36 @@ class RemoteFSAccessor;
 struct BinaryCacheStoreConfig : virtual StoreConfig {
   using StoreConfig::StoreConfig;
 
-  const Setting<std::string> compression{
+  const setting_t<std::string> compression{
       this, "xz", "compression",
       "NAR compression method (`xz`, `bzip2`, `gzip`, `zstd`, or `none`)."};
 
-  const Setting<bool> writeNARListing{
+  const setting_t<bool> writeNARListing{
       this, false, "write-nar-listing",
       "Whether to write a JSON file that lists the files in each NAR."};
 
-  const Setting<bool> writeDebugInfo{this, false, "index-debug-info",
+  const setting_t<bool> writeDebugInfo{this, false, "index-debug-info",
                                      R"(
           Whether to index DWARF debug info files by build ID. This allows [`dwarffs`](https://github.com/edolstra/dwarffs) to
           fetch debug info on demand
         )"};
 
-  const Setting<Path> secretKeyFile{this, "", "secret-key",
+  const setting_t<Path> secretKeyFile{this, "", "secret-key",
                                     "Path to the secret key used to sign the binary cache."};
 
-  const Setting<std::string> secretKeyFiles{
+  const setting_t<std::string> secretKeyFiles{
       this, "", "secret-keys",
       "List of comma-separated paths to the secret keys used to sign the binary cache."};
 
-  const Setting<Path> localNarCache{this, "", "local-nar-cache",
+  const setting_t<Path> localNarCache{this, "", "local-nar-cache",
                                     "Path to a local cache of NARs fetched from this binary cache, "
                                     "used by commands such as `nix store cat`."};
 
-  const Setting<bool> parallelCompression{this, false, "parallel-compression",
+  const setting_t<bool> parallelCompression{this, false, "parallel-compression",
                                           "Enable multi-threaded compression of NARs. This is "
                                           "currently only available for `xz` and `zstd`."};
 
-  const Setting<int> compressionLevel{this, -1, "compression-level",
+  const setting_t<int> compressionLevel{this, -1, "compression-level",
                                       R"(
           The *preset level* to be used when compressing NARs.
           The meaning and accepted values depend on the compression method selected.
@@ -69,7 +69,7 @@ struct alignas(8) /* Work around ASAN failures on i686-linux. */
   Config& config;
 
 private:
-  std::vector<std::unique_ptr<Signer>> signers;
+  std::vector<std::unique_ptr<signer_t>> signers;
 
 protected:
   /**
@@ -91,7 +91,7 @@ protected:
 public:
   virtual bool fileExists(const std::string& path) = 0;
 
-  virtual void upsertFile(const std::string& path, RestartableSource& source,
+  virtual void upsertFile(const std::string& path, restartable_source_t& source,
                           const std::string& mimeType, uint64_t sizeHint) = 0;
 
   void upsertFile(const std::string& path,
@@ -137,7 +137,7 @@ private:
 
   ref<const ValidPathInfo> addToStoreCommon(Source& narSource, RepairFlag repair,
                                             CheckSigsFlag checkSigs,
-                                            std::function<ValidPathInfo(HashResult)> mkInfo);
+                                            std::function<ValidPathInfo(hash_result_t)> mkInfo);
 
   /**
    * Same as `getFSAccessor`, but with a more preceise return type.
@@ -157,12 +157,12 @@ public:
                   CheckSigsFlag checkSigs) override;
 
   StorePath addToStoreFromDump(Source& dump, std::string_view name,
-                               FileSerialisationMethod dumpMethod, ContentAddressMethod hashMethod,
-                               HashAlgorithm hashAlgo, const StorePathSet& references,
+                               file_serialisation_method_t dumpMethod, ContentAddressMethod hashMethod,
+                               hash_algorithm_t hashAlgo, const StorePathSet& references,
                                RepairFlag repair) override;
 
-  StorePath addToStore(std::string_view name, const SourcePath& path, ContentAddressMethod method,
-                       HashAlgorithm hashAlgo, const StorePathSet& references, PathFilter& filter,
+  StorePath addToStore(std::string_view name, const source_path_t& path, ContentAddressMethod method,
+                       hash_algorithm_t hashAlgo, const StorePathSet& references, path_filter_t& filter,
                        RepairFlag repair) override;
 
   void registerDrvOutput(const Realisation& info) override;
@@ -178,7 +178,7 @@ public:
   std::shared_ptr<SourceAccessor> getFSAccessor(const StorePath&,
                                                 bool requireValidPath = true) override;
 
-  void addSignatures(const StorePath& storePath, const StringSet& sigs) override;
+  void addSignatures(const StorePath& storePath, const string_set_t& sigs) override;
 
   std::optional<std::string> getBuildLogExact(const StorePath& path) override;
 

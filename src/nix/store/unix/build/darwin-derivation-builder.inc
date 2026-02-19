@@ -32,7 +32,7 @@ struct IpcsCommand
 
 namespace nix {
 
-struct DarwinDerivationBuilder : DerivationBuilderImpl
+struct DarwinDerivationBuilder : derivation_builder_impl_t
 {
     PathsInChroot pathsInChroot;
 
@@ -47,7 +47,7 @@ struct DarwinDerivationBuilder : DerivationBuilderImpl
         std::unique_ptr<DerivationBuilderCallbacks> miscMethods,
         DerivationBuilderParams params,
         bool useSandbox)
-        : DerivationBuilderImpl(store, std::move(miscMethods), std::move(params))
+        : derivation_builder_impl_t(store, std::move(miscMethods), std::move(params))
         , useSandbox(useSandbox)
     {
     }
@@ -59,7 +59,7 @@ struct DarwinDerivationBuilder : DerivationBuilderImpl
 
     void setUser() override
     {
-        DerivationBuilderImpl::setUser();
+        derivation_builder_impl_t::setUser();
 
         /* This has to appear before import statements. */
         std::string sandboxProfile = "(version 1)\n";
@@ -67,7 +67,7 @@ struct DarwinDerivationBuilder : DerivationBuilderImpl
         if (useSandbox) {
 
             /* Lots and lots and lots of file functions freak out if they can't stat their full ancestry */
-            PathSet ancestry;
+            path_set_t ancestry;
 
             /* We build the ancestry before adding all inputPaths to the store because we know they'll
                all have the same parents (the store), and there might be lots of inputs. This isn't
@@ -146,7 +146,7 @@ struct DarwinDerivationBuilder : DerivationBuilderImpl
                 if (!optSt) {
                     if (i.second.optional)
                         continue;
-                    throw SysError("getting attributes of required path '%s", path);
+                    throw sys_error_t("getting attributes of required path '%s", path);
                 }
                 if (S_ISDIR(optSt->st_mode))
                     sandboxProfile += fmt("\t(subpath \"%s\")\n", path);
@@ -181,7 +181,7 @@ struct DarwinDerivationBuilder : DerivationBuilderImpl
             globalTmpDir.pop_back();
 
         if (getEnv("_NIX_TEST_NO_SANDBOX") != "1") {
-            Strings sandboxArgs;
+            strings_t sandboxArgs;
             sandboxArgs.push_back("_NIX_BUILD_TOP");
             sandboxArgs.push_back(tmpDir);
             sandboxArgs.push_back("_GLOBAL_TMP_DIR");
@@ -201,15 +201,15 @@ struct DarwinDerivationBuilder : DerivationBuilderImpl
         }
     }
 
-    void execBuilder(const Strings & args, const Strings & envStrs) override
+    void execBuilder(const strings_t & args, const strings_t & envStrs) override
     {
         posix_spawnattr_t attrp;
 
         if (posix_spawnattr_init(&attrp))
-            throw SysError("failed to initialize builder");
+            throw sys_error_t("failed to initialize builder");
 
         if (posix_spawnattr_setflags(&attrp, POSIX_SPAWN_SETEXEC))
-            throw SysError("failed to initialize builder");
+            throw sys_error_t("failed to initialize builder");
 
         if (drv.platform == "aarch64-darwin") {
             // Unset kern.curproc_arch_affinity so we can escape Rosetta
@@ -333,7 +333,7 @@ struct DarwinDerivationBuilder : DerivationBuilderImpl
 
     void killSandbox(bool getStats) override
     {
-        DerivationBuilderImpl::killSandbox(getStats);
+        derivation_builder_impl_t::killSandbox(getStats);
         if (buildUser) {
             auto uid = buildUser->getUID();
             cleanupSysVIPCForUser(uid);

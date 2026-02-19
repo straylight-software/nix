@@ -11,7 +11,7 @@
 
 namespace nix::eval_cache {
 
-struct AttrDb;
+struct attr_db_t;
 class AttrCursor;
 
 struct CachedEvalError : EvalError {
@@ -32,7 +32,7 @@ class EvalCache : public std::enable_shared_from_this<EvalCache> {
   friend class AttrCursor;
   friend struct CachedEvalError;
 
-  std::shared_ptr<AttrDb> db;
+  std::shared_ptr<attr_db_t> db;
   EvalState& state;
   typedef std::function<Value*()> RootLoader;
   RootLoader rootLoader;
@@ -113,7 +113,7 @@ public:
 
   std::string getAttrPathStr(Symbol name) const;
 
-  Suggestions getSuggestionsForAttr(Symbol name);
+  suggestions_t getSuggestionsForAttr(Symbol name);
 
   std::shared_ptr<AttrCursor> maybeGetAttr(Symbol name);
 
@@ -127,7 +127,7 @@ public:
    * Get an attribute along a chain of attrsets. Note that this does
    * not auto-call functors or functions.
    */
-  OrSuggestions<ref<AttrCursor>> findAlongAttrPath(const AttrPath& attrPath);
+  or_suggestions_t<ref<AttrCursor>> findAlongAttrPath(const AttrPath& attrPath);
 
   std::string getString();
 

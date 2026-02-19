@@ -8,18 +8,18 @@
 
 using namespace nix;
 
-struct CmdConfig : NixMultiCommand {
-  CmdConfig() : NixMultiCommand("config", RegisterCommand::getCommandsFor({"config"})) {}
+struct cmd_config_t : NixMultiCommand {
+  cmd_config_t() : NixMultiCommand("config", RegisterCommand::getCommandsFor({"config"})) {}
 
   std::string description() override { return "manipulate the Nix configuration"; }
 
-  Category category() override { return catUtility; }
+  category_t category() override { return catUtility; }
 };
 
-struct CmdConfigShow : Command, MixJSON {
+struct cmd_config_show_t : command_t, MixJSON {
   std::optional<std::string> name;
 
-  CmdConfigShow() {
+  cmd_config_show_t() {
     expectArgs({
         .label = {"name"},
         .optional = true,
@@ -31,7 +31,7 @@ struct CmdConfigShow : Command, MixJSON {
     return "show the Nix configuration or the value of a specific setting";
   }
 
-  Category category() override { return catUtility; }
+  category_t category() override { return catUtility; }
 
   void run() override {
     if (name) {
@@ -39,7 +39,7 @@ struct CmdConfigShow : Command, MixJSON {
         throw UsageError("'--json' is not supported when specifying a setting name");
       }
 
-      std::map<std::string, Config::SettingInfo> settings;
+      std::map<std::string, Config::setting_info_t> settings;
       globalConfig.getSettings(settings);
       auto setting = settings.find(*name);
 
@@ -62,5 +62,5 @@ struct CmdConfigShow : Command, MixJSON {
   }
 };
 
-static auto rCmdConfig = registerCommand<CmdConfig>("config");
-static auto rShowConfig = registerCommand2<CmdConfigShow>({"config", "show"});
+static auto rCmdConfig = registerCommand<cmd_config_t>("config");
+static auto rShowConfig = registerCommand2<cmd_config_show_t>({"config", "show"});

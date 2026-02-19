@@ -12,24 +12,24 @@ EvalErrorBuilder<T>& EvalErrorBuilder<T>::withExitStatus(unsigned int exitStatus
 }
 
 template <class T>
-EvalErrorBuilder<T>& EvalErrorBuilder<T>::atPos(PosIdx pos) {
+EvalErrorBuilder<T>& EvalErrorBuilder<T>::atPos(pos_idx_t pos) {
   error.err.pos = error.state.positions[pos];
   return *this;
 }
 
 template <class T>
-EvalErrorBuilder<T>& EvalErrorBuilder<T>::atPos(Value& value, PosIdx fallback) {
+EvalErrorBuilder<T>& EvalErrorBuilder<T>::atPos(Value& value, pos_idx_t fallback) {
   return atPos(value.determinePos(fallback));
 }
 
 template <class T>
-EvalErrorBuilder<T>& EvalErrorBuilder<T>::withTrace(PosIdx pos, const std::string_view text) {
+EvalErrorBuilder<T>& EvalErrorBuilder<T>::withTrace(pos_idx_t pos, const std::string_view text) {
   error.addTrace(error.state.positions[pos], text);
   return *this;
 }
 
 template <class T>
-EvalErrorBuilder<T>& EvalErrorBuilder<T>::withSuggestions(Suggestions& s) {
+EvalErrorBuilder<T>& EvalErrorBuilder<T>::withSuggestions(suggestions_t& s) {
   error.err.suggestions = s;
   return *this;
 }
@@ -43,22 +43,22 @@ EvalErrorBuilder<T>& EvalErrorBuilder<T>::withFrame(const Env& env, const Expr& 
       DebugTrace{.pos = expr.getPos(),
                  .expr = expr,
                  .env = env,
-                 .hint = HintFmt("Fake frame for debugging purposes"),
+                 .hint = hint_fmt_t("Fake frame for debugging purposes"),
                  .isError = true});
   return *this;
 }
 
 template <class T>
-EvalErrorBuilder<T>& EvalErrorBuilder<T>::addTrace(PosIdx pos, HintFmt hint) {
+EvalErrorBuilder<T>& EvalErrorBuilder<T>::addTrace(pos_idx_t pos, hint_fmt_t hint) {
   error.addTrace(error.state.positions[pos], hint);
   return *this;
 }
 
 template <class T>
 template <typename... Args>
-EvalErrorBuilder<T>& EvalErrorBuilder<T>::addTrace(PosIdx pos, std::string_view formatString,
+EvalErrorBuilder<T>& EvalErrorBuilder<T>::addTrace(pos_idx_t pos, std::string_view formatString,
                                                    const Args&... formatArgs) {
-  addTrace(error.state.positions[pos], HintFmt(std::string(formatString), formatArgs...));
+  addTrace(error.state.positions[pos], hint_fmt_t(std::string(formatString), formatArgs...));
   return *this;
 }
 

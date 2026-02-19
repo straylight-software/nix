@@ -5,6 +5,6 @@
 
 namespace nix {
 
-PublicKeys getDefaultPublicKeys();
+public_keys_t getDefaultPublicKeys();
 
 }

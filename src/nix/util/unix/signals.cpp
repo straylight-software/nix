@@ -30,18 +30,18 @@ void unix::_interrupted() {
    safely without having to lock the data structure while executing arbitrary
    functions.
  */
-struct InterruptCallbacks {
+struct interrupt_callbacks_t {
   typedef int64_t Token;
 
   /* We use unique tokens so that we can't accidentally delete the wrong
      handler because of an erroneous double delete. */
   Token nextToken = 0;
 
-  /* Used as a list, see InterruptCallbacks comment. */
+  /* Used as a list, see interrupt_callbacks_t comment. */
   std::map<Token, std::function<void()>> callbacks;
 };
 
-static Sync<InterruptCallbacks> _interruptCallbacks;
+static sync_t<interrupt_callbacks_t> _interruptCallbacks;
 
 static void signalHandlerThread(sigset_t set) {
   while (true) {
@@ -61,7 +61,7 @@ void unix::triggerInterrupt() {
   _isInterrupted = true;
 
   {
-    InterruptCallbacks::Token i = 0;
+    interrupt_callbacks_t::Token i = 0;
     while (true) {
       std::function<void()> callback;
       {
@@ -88,7 +88,7 @@ static bool savedSignalMaskIsSet = false;
 
 void unix::saveSignalMask() {
   if (sigprocmask(SIG_BLOCK, nullptr, &savedSignalMask))
-    throw SysError("querying signal mask");
+    throw sys_error_t("querying signal mask");
 
   savedSignalMaskIsSet = true;
 }
@@ -106,7 +106,7 @@ void unix::startSignalHandlerThread() {
   sigaddset(&set, SIGPIPE);
   sigaddset(&set, SIGWINCH);
   if (pthread_sigmask(SIG_BLOCK, &set, nullptr))
-    throw SysError("blocking signals");
+    throw sys_error_t("blocking signals");
 
   std::thread(signalHandlerThread, set).detach();
 }
@@ -127,28 +127,28 @@ void unix::restoreSignals() {
     return;
 
   if (sigprocmask(SIG_SETMASK, &savedSignalMask, nullptr))
-    throw SysError("restoring signals");
+    throw sys_error_t("restoring signals");
 }
 
 /* RAII helper to automatically deregister a callback. */
-struct InterruptCallbackImpl : InterruptCallback {
-  InterruptCallbacks::Token token;
+struct interrupt_callback_impl_t : interrupt_callback_t {
+  interrupt_callbacks_t::Token token;
 
-  ~InterruptCallbackImpl() override {
+  ~interrupt_callback_impl_t() override {
     auto interruptCallbacks(_interruptCallbacks.lock());
     interruptCallbacks->callbacks.erase(token);
   }
 };
 
-std::unique_ptr<InterruptCallback> createInterruptCallback(std::function<void()> callback) {
+std::unique_ptr<interrupt_callback_t> createInterruptCallback(std::function<void()> callback) {
   auto interruptCallbacks(_interruptCallbacks.lock());
   auto token = interruptCallbacks->nextToken++;
   interruptCallbacks->callbacks.emplace(token, callback);
 
-  std::unique_ptr<InterruptCallbackImpl> res{new InterruptCallbackImpl{}};
+  std::unique_ptr<interrupt_callback_impl_t> res{new interrupt_callback_impl_t{}};
   res->token = token;
 
-  return std::unique_ptr<InterruptCallback>(res.release());
+  return std::unique_ptr<interrupt_callback_t>(res.release());
 }
 
 } // namespace nix

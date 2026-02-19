@@ -14,8 +14,8 @@ namespace nix {
  *
  * @todo drop `NG` suffix and replace the ones in `types.hh`.
  */
-typedef std::list<std::filesystem::path> PathsNG;
-typedef std::set<std::filesystem::path> PathSetNG;
+typedef std::list<std::filesystem::path> paths_ng_t;
+typedef std::set<std::filesystem::path> path_set_ng_t;
 
 /**
  * Stop gap until `std::filesystem::path_view` from P1030R6 exists in a
@@ -23,23 +23,23 @@ typedef std::set<std::filesystem::path> PathSetNG;
  *
  * @todo drop `NG` suffix and replace the one in `types.hh`.
  */
-struct PathViewNG : OsStringView {
-  using string_view = OsStringView;
+struct path_view_ng_t : os_string_view_t {
+  using string_view = os_string_view_t;
 
   using string_view::string_view;
 
-  PathViewNG(const std::filesystem::path& path) : OsStringView{path.native()} {}
+  path_view_ng_t(const std::filesystem::path& path) : os_string_view_t{path.native()} {}
 
-  PathViewNG(const OsString& path) : OsStringView{path} {}
+  path_view_ng_t(const os_string_t& path) : os_string_view_t{path} {}
 
   const string_view& native() const { return *this; }
 
   string_view& native() { return *this; }
 };
 
-std::optional<std::filesystem::path> maybePath(PathView path);
+std::optional<std::filesystem::path> maybePath(path_view_t path);
 
-std::filesystem::path pathNG(PathView path);
+std::filesystem::path pathNG(path_view_t path);
 
 template <>
 struct json_avoids_null<std::filesystem::path> : std::true_type {};

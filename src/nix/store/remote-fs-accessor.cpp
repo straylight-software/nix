@@ -36,7 +36,7 @@ ref<SourceAccessor> RemoteFSAccessor::addToCache(std::string_view hashPart, std:
 
   if (cacheDir != "") {
     try {
-      nlohmann::json j = listNarDeep(*narAccessor, CanonPath::root);
+      nlohmann::json j = listNarDeep(*narAccessor, canon_path_t::root);
       writeFile(makeCacheFile(hashPart, "ls"), j.dump());
     } catch (...) {
       ignoreExceptionExceptInterrupt();
@@ -46,11 +46,11 @@ ref<SourceAccessor> RemoteFSAccessor::addToCache(std::string_view hashPart, std:
   return narAccessor;
 }
 
-std::pair<ref<SourceAccessor>, CanonPath> RemoteFSAccessor::fetch(const CanonPath& path) {
+std::pair<ref<SourceAccessor>, canon_path_t> RemoteFSAccessor::fetch(const canon_path_t& path) {
   auto [storePath, restPath] = store->toStorePath(store->storeDir + path.abs());
   if (requireValidPath && !store->isValidPath(storePath))
     throw InvalidPath("path '%1%' is not a valid store path", store->printStorePath(storePath));
-  return {ref{accessObject(storePath)}, CanonPath{restPath}};
+  return {ref{accessObject(storePath)}, canon_path_t{restPath}};
 }
 
 std::shared_ptr<SourceAccessor> RemoteFSAccessor::accessObject(const StorePath& storePath) {
@@ -81,27 +81,27 @@ std::shared_ptr<SourceAccessor> RemoteFSAccessor::accessObject(const StorePath& 
     }
   }
 
-  StringSink sink;
+  string_sink_t sink;
   store->narFromPath(storePath, sink);
   return addToCache(storePath.hashPart(), std::move(sink.s));
 }
 
-std::optional<SourceAccessor::Stat> RemoteFSAccessor::maybeLstat(const CanonPath& path) {
+std::optional<SourceAccessor::stat_t> RemoteFSAccessor::maybeLstat(const canon_path_t& path) {
   auto res = fetch(path);
   return res.first->maybeLstat(res.second);
 }
 
-SourceAccessor::DirEntries RemoteFSAccessor::readDirectory(const CanonPath& path) {
+SourceAccessor::dir_entries_t RemoteFSAccessor::readDirectory(const canon_path_t& path) {
   auto res = fetch(path);
   return res.first->readDirectory(res.second);
 }
 
-std::string RemoteFSAccessor::readFile(const CanonPath& path) {
+std::string RemoteFSAccessor::readFile(const canon_path_t& path) {
   auto res = fetch(path);
   return res.first->readFile(res.second);
 }
 
-std::string RemoteFSAccessor::readLink(const CanonPath& path) {
+std::string RemoteFSAccessor::readLink(const canon_path_t& path) {
   auto res = fetch(path);
   return res.first->readLink(res.second);
 }

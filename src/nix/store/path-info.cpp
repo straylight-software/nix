@@ -33,16 +33,16 @@ std::string ValidPathInfo::fingerprint(const StoreDirConfig& store) const {
   if (narSize == 0)
     throw Error("cannot calculate fingerprint of path '%s' because its size is not known",
                 store.printStorePath(path));
-  return "1;" + store.printStorePath(path) + ";" + narHash.to_string(HashFormat::Nix32, true) +
+  return "1;" + store.printStorePath(path) + ";" + narHash.to_string(hash_format_t::Nix32, true) +
          ";" + std::to_string(narSize) + ";" +
          concatStringsSep(",", store.printStorePathSet(references));
 }
 
-void ValidPathInfo::sign(const Store& store, const Signer& signer) {
+void ValidPathInfo::sign(const Store& store, const signer_t& signer) {
   sigs.insert(signer.signDetached(fingerprint(store)));
 }
 
-void ValidPathInfo::sign(const Store& store, const std::vector<std::unique_ptr<Signer>>& signers) {
+void ValidPathInfo::sign(const Store& store, const std::vector<std::unique_ptr<signer_t>>& signers) {
   auto fingerprint = this->fingerprint(store);
   for (auto& signer : signers) {
     sigs.insert(signer->signDetached(fingerprint));
@@ -54,7 +54,7 @@ std::optional<ContentAddressWithReferences> ValidPathInfo::contentAddressWithRef
     return std::nullopt;
 
   switch (ca->method.raw) {
-    case ContentAddressMethod::Raw::Text: {
+    case ContentAddressMethod::raw_t::Text: {
       assert(references.count(path) == 0);
       return TextInfo{
           .hash = ca->hash,
@@ -62,9 +62,9 @@ std::optional<ContentAddressWithReferences> ValidPathInfo::contentAddressWithRef
       };
     }
 
-    case ContentAddressMethod::Raw::Flat:
-    case ContentAddressMethod::Raw::NixArchive:
-    case ContentAddressMethod::Raw::Git:
+    case ContentAddressMethod::raw_t::Flat:
+    case ContentAddressMethod::raw_t::NixArchive:
+    case ContentAddressMethod::raw_t::Git:
     default: {
       auto refs = references;
       bool hasSelfReference = false;
@@ -103,7 +103,7 @@ bool ValidPathInfo::isContentAddressed(const StoreDirConfig& store) const {
 }
 
 size_t ValidPathInfo::checkSignatures(const StoreDirConfig& store,
-                                      const PublicKeys& publicKeys) const {
+                                      const public_keys_t& publicKeys) const {
   if (isContentAddressed(store))
     return maxSigs;
 
@@ -114,13 +114,13 @@ size_t ValidPathInfo::checkSignatures(const StoreDirConfig& store,
   return good;
 }
 
-bool ValidPathInfo::checkSignature(const StoreDirConfig& store, const PublicKeys& publicKeys,
+bool ValidPathInfo::checkSignature(const StoreDirConfig& store, const public_keys_t& publicKeys,
                                    const std::string& sig) const {
   return verifyDetached(fingerprint(store), sig, publicKeys);
 }
 
-Strings ValidPathInfo::shortRefs() const {
-  Strings refs;
+strings_t ValidPathInfo::shortRefs() const {
+  strings_t refs;
   for (auto& r : references)
     refs.push_back(std::string(r.to_string()));
   return refs;
@@ -163,7 +163,7 @@ nlohmann::json UnkeyedValidPathInfo::toJSON(const StoreDirConfig* store, bool in
   jsonObject["storeDir"] = storeDir;
 
   jsonObject["narHash"] = format == PathInfoJsonFormat::V1
-                              ? static_cast<json>(narHash.to_string(HashFormat::SRI, true))
+                              ? static_cast<json>(narHash.to_string(hash_format_t::SRI, true))
                               : static_cast<json>(narHash);
 
   jsonObject["narSize"] = narSize;

@@ -9,7 +9,7 @@
 namespace nix {
 
 template <>
-EvalProfilerMode BaseSetting<EvalProfilerMode>::parse(const std::string& str) const {
+EvalProfilerMode base_setting_t<EvalProfilerMode>::parse(const std::string& str) const {
   if (str == "disabled")
     return EvalProfilerMode::disabled;
   else if (str == "flamegraph")
@@ -19,12 +19,12 @@ EvalProfilerMode BaseSetting<EvalProfilerMode>::parse(const std::string& str) co
 }
 
 template <>
-struct BaseSetting<EvalProfilerMode>::trait {
+struct base_setting_t<EvalProfilerMode>::trait {
   static constexpr bool appendable = false;
 };
 
 template <>
-std::string BaseSetting<EvalProfilerMode>::to_string() const {
+std::string base_setting_t<EvalProfilerMode>::to_string() const {
   if (value == EvalProfilerMode::disabled)
     return "disabled";
   else if (value == EvalProfilerMode::flamegraph)
@@ -39,6 +39,6 @@ NLOHMANN_JSON_SERIALIZE_ENUM(EvalProfilerMode, {
                                                });
 
 /* Explicit instantiation of templates */
-template class BaseSetting<EvalProfilerMode>;
+template class base_setting_t<EvalProfilerMode>;
 
 } // namespace nix

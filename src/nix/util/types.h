@@ -10,7 +10,7 @@
 
 namespace nix {
 
-typedef std::list<std::string> Strings;
+typedef std::list<std::string> strings_t;
 
 /**
  * Alias to ordered std::string -> std::string map container with transparent comparator.
@@ -23,13 +23,13 @@ typedef std::list<std::string> Strings;
  *
  * [1]: https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2013/n3657.htm
  */
-using StringMap = std::map<std::string, std::string, std::less<>>;
+using string_map_t = std::map<std::string, std::string, std::less<>>;
 /**
  * Alias to an ordered map of std::string -> std::string. Uses transparent comparator.
  *
- * @see StringMap
+ * @see string_map_t
  */
-using StringPairs = StringMap;
+using string_pairs_t = string_map_t;
 
 /**
  * Alias to ordered set container with transparent comparator.
@@ -42,30 +42,30 @@ using StringPairs = StringMap;
  *
  * [1]: https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2013/n3657.htm
  */
-using StringSet = std::set<std::string, std::less<>>;
+using string_set_t = std::set<std::string, std::less<>>;
 
 /**
  * Paths are just strings.
  */
 typedef std::string Path;
-typedef std::string_view PathView;
+typedef std::string_view path_view_t;
 typedef std::list<Path> Paths;
 
 /**
  * Alias to an ordered set of `Path`s. Uses transparent comparator.
  *
- * @see StringSet
+ * @see string_set_t
  */
-using PathSet = std::set<Path, std::less<>>;
+using path_set_t = std::set<Path, std::less<>>;
 
-typedef std::vector<std::pair<std::string, std::string>> Headers;
+typedef std::vector<std::pair<std::string, std::string>> headers_t;
 
 /**
  * Helper class to run code at startup.
  */
 template <typename T>
-struct OnStartup {
-  OnStartup(T&& t) { t(); }
+struct on_startup_t {
+  on_startup_t(T&& t) { t(); }
 };
 
 /**
@@ -91,7 +91,7 @@ struct Explicit {
  * since those can easily become ambiguous to the reader and can degrade
  * into copying behaviour we want to avoid.
  */
-class BackedStringView {
+class backed_string_view_t {
 private:
   std::variant<std::string, std::string_view> data;
 
@@ -111,22 +111,22 @@ private:
   };
 
 public:
-  BackedStringView(std::string&& s) : data(std::move(s)) {}
+  backed_string_view_t(std::string&& s) : data(std::move(s)) {}
 
-  BackedStringView(std::string_view sv) : data(sv) {}
+  backed_string_view_t(std::string_view sv) : data(sv) {}
 
   template <size_t N>
-  BackedStringView(const char (&lit)[N]) : data(std::string_view(lit)) {}
+  backed_string_view_t(const char (&lit)[N]) : data(std::string_view(lit)) {}
 
-  BackedStringView(const BackedStringView&) = delete;
-  BackedStringView& operator=(const BackedStringView&) = delete;
+  backed_string_view_t(const backed_string_view_t&) = delete;
+  backed_string_view_t& operator=(const backed_string_view_t&) = delete;
 
   /**
    * We only want move operations defined since the sole purpose of
    * this type is to avoid copies.
    */
-  BackedStringView(BackedStringView&& other) = default;
-  BackedStringView& operator=(BackedStringView&& other) = default;
+  backed_string_view_t(backed_string_view_t&& other) = default;
+  backed_string_view_t& operator=(backed_string_view_t&& other) = default;
 
   bool isOwned() const { return std::holds_alternative<std::string>(data); }
 

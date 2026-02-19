@@ -6,7 +6,7 @@ namespace nix {
 
 /* Position table. */
 
-Pos PosTable::operator[](PosIdx p) const {
+Pos pos_table_t::operator[](pos_idx_t p) const {
   auto origin = resolve(p);
   if (!origin)
     return {};
@@ -20,10 +20,10 @@ Pos PosTable::operator[](PosIdx p) const {
   const auto* linesForInput = linesCache->getOrNullptr(origin->offset);
 
   auto fillCacheForOrigin = [](std::string_view content) {
-    auto contentLines = Lines();
+    auto contentLines = lines_t();
 
     const char* begin = content.data();
-    for (Pos::LinesIterator it(content), end; it != end; it++)
+    for (Pos::lines_iterator_t it(content), end; it != end; it++)
       contentLines.push_back(it->data() - begin);
     if (contentLines.empty())
       contentLines.push_back(0);

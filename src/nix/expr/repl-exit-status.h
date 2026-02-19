@@ -3,7 +3,7 @@
 namespace nix {
 
 /**
- * Exit status returned from the REPL.
+ * exit_t status returned from the REPL.
  */
 enum class ReplExitStatus {
   /**

@@ -11,7 +11,7 @@
 using namespace nix;
 using json = nlohmann::json;
 
-struct CmdAddDerivation : MixDryRun, StoreCommand {
+struct cmd_add_derivation_t : MixDryRun, StoreCommand {
   std::string description() override { return "Add a store derivation"; }
 
   std::string doc() override {
@@ -20,7 +20,7 @@ struct CmdAddDerivation : MixDryRun, StoreCommand {
         ;
   }
 
-  Category category() override { return catUtility; }
+  category_t category() override { return catUtility; }
 
   void run(ref<Store> store) override {
     auto json = nlohmann::json::parse(drainFD(STDIN_FILENO));
@@ -35,4 +35,4 @@ struct CmdAddDerivation : MixDryRun, StoreCommand {
   }
 };
 
-static auto rCmdAddDerivation = registerCommand2<CmdAddDerivation>({"derivation", "add"});
+static auto rCmdAddDerivation = registerCommand2<cmd_add_derivation_t>({"derivation", "add"});

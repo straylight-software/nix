@@ -11,7 +11,7 @@ namespace nix {
  * values.
  *
  * Concretely, an n-ary tree, as described below. A
- * `SingleDerivedPath::Opaque` maps to the value of an immediate child
+ * `SingleDerivedPath::opaque_t` maps to the value of an immediate child
  * of the root node. A `SingleDerivedPath::Built` maps to a deeper child
  * node: the `SingleDerivedPath::Built::drvPath` is first mapped to a a
  * child node (inductively), and then the
@@ -94,20 +94,20 @@ struct DerivedPathMap {
 };
 
 template <>
-bool DerivedPathMap<StringSet>::ChildNode::operator==(
-    const DerivedPathMap<StringSet>::ChildNode&) const noexcept;
+bool DerivedPathMap<string_set_t>::ChildNode::operator==(
+    const DerivedPathMap<string_set_t>::ChildNode&) const noexcept;
 
 // TODO libc++ 16 (used by darwin) missing `std::map::operator <=>`, can't do yet.
 #if 0
 template<>
-std::strong_ordering DerivedPathMap<StringSet>::ChildNode::operator <=> (
-    const DerivedPathMap<StringSet>::ChildNode &) const noexcept;
+std::strong_ordering DerivedPathMap<string_set_t>::ChildNode::operator <=> (
+    const DerivedPathMap<string_set_t>::ChildNode &) const noexcept;
 
 template<>
-inline auto DerivedPathMap<StringSet>::operator <=> (const DerivedPathMap<StringSet> &) const noexcept = default;
+inline auto DerivedPathMap<string_set_t>::operator <=> (const DerivedPathMap<string_set_t> &) const noexcept = default;
 #endif
 
-extern template struct DerivedPathMap<StringSet>::ChildNode;
-extern template struct DerivedPathMap<StringSet>;
+extern template struct DerivedPathMap<string_set_t>::ChildNode;
+extern template struct DerivedPathMap<string_set_t>;
 
 } // namespace nix

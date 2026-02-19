@@ -21,12 +21,12 @@ static std::string filterPrintable(const std::string& s) {
   return res;
 }
 
-struct CmdWhyDepends : SourceExprCommand, MixOperateOnOptions {
+struct cmd_why_depends_t : SourceExprCommand, MixOperateOnOptions {
   std::string _package, _dependency;
   bool all = false;
   bool precise = false;
 
-  CmdWhyDepends() {
+  cmd_why_depends_t() {
     expectArgs({
         .label = "package",
         .handler = {&_package},
@@ -65,7 +65,7 @@ struct CmdWhyDepends : SourceExprCommand, MixOperateOnOptions {
         ;
   }
 
-  Category category() override { return catSecondary; }
+  category_t category() override { return catSecondary; }
 
   void run(ref<Store> store) override {
     auto package = parseInstallable(store, _package);
@@ -157,7 +157,7 @@ struct CmdWhyDepends : SourceExprCommand, MixOperateOnOptions {
        and `dependency`. */
     std::function<void(Node&, const std::string&, const std::string&)> printNode;
 
-    struct BailOut {};
+    struct bail_out_t {};
 
     printNode = [&](Node& node, const std::string& firstPad, const std::string& tailPad) {
       assert(node.dist != inf);
@@ -167,7 +167,7 @@ struct CmdWhyDepends : SourceExprCommand, MixOperateOnOptions {
       }
 
       if (node.path == dependencyPath && !all && packagePath != dependencyPath)
-        throw BailOut();
+        throw bail_out_t();
 
       if (node.visited)
         return;
@@ -191,7 +191,7 @@ struct CmdWhyDepends : SourceExprCommand, MixOperateOnOptions {
 
       /* For each reference, find the files and symlinks that
          contain the reference. */
-      std::map<std::string, Strings> hits;
+      std::map<std::string, strings_t> hits;
 
       auto accessor = store->requireStoreObjectAccessor(node.path);
 
@@ -201,7 +201,7 @@ struct CmdWhyDepends : SourceExprCommand, MixOperateOnOptions {
 
       if (precise) {
         // Use scanForReferencesDeep to find files containing references
-        scanForReferencesDeep(*accessor, CanonPath::root, refPaths, [&](FileRefScanResult result) {
+        scanForReferencesDeep(*accessor, canon_path_t::root, refPaths, [&](FileRefScanResult result) {
           auto p2 = result.filePath.isRoot() ? result.filePath.abs() : result.filePath.rel();
           auto st = accessor->lstat(result.filePath);
 
@@ -267,9 +267,9 @@ struct CmdWhyDepends : SourceExprCommand, MixOperateOnOptions {
         logger->cout("%s", store->printStorePath(graph.at(packagePath).path));
       }
       printNode(graph.at(packagePath), "", "");
-    } catch (BailOut&) {
+    } catch (bail_out_t&) {
     }
   }
 };
 
-static auto rCmdWhyDepends = registerCommand<CmdWhyDepends>("why-depends");
+static auto rCmdWhyDepends = registerCommand<cmd_why_depends_t>("why-depends");

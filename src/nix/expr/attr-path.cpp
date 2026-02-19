@@ -5,8 +5,8 @@
 
 namespace nix {
 
-static Strings parseAttrPath(std::string_view s) {
-  Strings res;
+static strings_t parseAttrPath(std::string_view s) {
+  strings_t res;
   std::string cur;
   auto i = s.begin();
   while (i != s.end()) {
@@ -46,12 +46,12 @@ std::vector<SymbolStr> AttrPath::resolve(EvalState& state) const {
   return state.symbols.resolve({*this});
 }
 
-std::pair<Value*, PosIdx> findAlongAttrPath(EvalState& state, const std::string& attrPath,
+std::pair<Value*, pos_idx_t> findAlongAttrPath(EvalState& state, const std::string& attrPath,
                                             Bindings& autoArgs, Value& vIn) {
-  Strings tokens = parseAttrPath(attrPath);
+  strings_t tokens = parseAttrPath(attrPath);
 
   Value* v = &vIn;
-  PosIdx pos = noPos;
+  pos_idx_t pos = noPos;
 
   for (auto& attr : tokens) {
     /* Is i an index (integer) or a normal attribute name? */
@@ -78,11 +78,11 @@ std::pair<Value*, PosIdx> findAlongAttrPath(EvalState& state, const std::string&
 
       auto a = v->attrs()->get(state.symbols.create(attr));
       if (!a) {
-        StringSet attrNames;
+        string_set_t attrNames;
         for (auto& attr : *v->attrs())
           attrNames.insert(std::string(state.symbols[attr.name]));
 
-        auto suggestions = Suggestions::bestMatches(attrNames, attr);
+        auto suggestions = suggestions_t::bestMatches(attrNames, attr);
         throw AttrPathNotFound(suggestions, "attribute '%1%' in selection path '%2%' not found",
                                attr, attrPath);
       }
@@ -109,7 +109,7 @@ std::pair<Value*, PosIdx> findAlongAttrPath(EvalState& state, const std::string&
   return {v, pos};
 }
 
-std::pair<SourcePath, uint32_t> findPackageFilename(EvalState& state, Value& v, std::string what) {
+std::pair<source_path_t, uint32_t> findPackageFilename(EvalState& state, Value& v, std::string what) {
   Value* v2;
   try {
     auto& dummyArgs = Bindings::emptyBindings;
@@ -133,7 +133,7 @@ std::pair<SourcePath, uint32_t> findPackageFilename(EvalState& state, Value& v, 
     if (colon == std::string::npos)
       fail();
     auto lineno = std::stoi(std::string(fn, colon + 1, std::string::npos));
-    return {SourcePath{path.accessor, CanonPath(fn.substr(0, colon))}, lineno};
+    return {source_path_t{path.accessor, canon_path_t(fn.substr(0, colon))}, lineno};
   } catch (std::invalid_argument& e) {
     fail();
     unreachable();

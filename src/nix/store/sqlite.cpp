@@ -17,7 +17,7 @@
 namespace nix {
 
 SQLiteError::SQLiteError(const char* path, const char* errMsg, int errNo, int extendedErrNo,
-                         int offset, HintFmt&& hf)
+                         int offset, hint_fmt_t&& hf)
     : Error(""),
       path(path),
       errMsg(errMsg),
@@ -25,11 +25,11 @@ SQLiteError::SQLiteError(const char* path, const char* errMsg, int errNo, int ex
       extendedErrNo(extendedErrNo),
       offset(offset) {
   auto offsetStr = (offset == -1) ? "" : "at offset " + std::to_string(offset) + ": ";
-  err.msg = HintFmt("%s: %s%s, %s (in '%s')", Uncolored(hf.str()), offsetStr,
+  err.msg = hint_fmt_t("%s: %s%s, %s (in '%s')", uncolored_t(hf.str()), offsetStr,
                     sqlite3_errstr(extendedErrNo), errMsg, path ? path : "(in-memory)");
 }
 
-[[noreturn]] void SQLiteError::throw_(sqlite3* db, HintFmt&& hf) {
+[[noreturn]] void SQLiteError::throw_(sqlite3* db, hint_fmt_t&& hf) {
   int err = sqlite3_errcode(db);
   int exterr = sqlite3_extended_errcode(db);
   int offset = sqlite3_error_offset(db);
@@ -39,7 +39,7 @@ SQLiteError::SQLiteError(const char* path, const char* errMsg, int errNo, int ex
 
   if (err == SQLITE_BUSY || err == SQLITE_PROTOCOL) {
     auto exp = SQLiteBusy(path, errMsg, err, exterr, offset, std::move(hf));
-    exp.err.msg = HintFmt(err == SQLITE_PROTOCOL ? "SQLite database '%s' is busy (SQLITE_PROTOCOL)"
+    exp.err.msg = hint_fmt_t(err == SQLITE_PROTOCOL ? "SQLite database '%s' is busy (SQLITE_PROTOCOL)"
                                                  : "SQLite database '%s' is busy",
                           path ? path : "(in-memory)");
     throw exp;
@@ -65,13 +65,13 @@ SQLite::SQLite(const std::filesystem::path& path, SQLiteOpenMode mode) {
   try {
     auto shmFile = path;
     shmFile += "-shm";
-    AutoCloseFD fd = open(shmFile.string().c_str(), O_RDWR | O_CLOEXEC);
+    auto_close_fd_t fd = open(shmFile.string().c_str(), O_RDWR | O_CLOEXEC);
     if (fd) {
       struct statfs fs;
       if (fstatfs(fd.get(), &fs))
-        throw SysError("statfs() on '%s'", shmFile);
+        throw sys_error_t("statfs() on '%s'", shmFile);
       if (fs.f_type == /* ZFS_SUPER_MAGIC */ 801189825 && fdatasync(fd.get()) != 0)
-        throw SysError("fsync() on '%s'", shmFile);
+        throw sys_error_t("fsync() on '%s'", shmFile);
     }
   } catch (...) {
     throw;

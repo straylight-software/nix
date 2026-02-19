@@ -43,11 +43,11 @@ void printGCWarning() {
                        "the result might be removed by the garbage collector");
 }
 
-void printMissing(ref<Store> store, const std::vector<DerivedPath>& paths, Verbosity lvl) {
+void printMissing(ref<Store> store, const std::vector<DerivedPath>& paths, verbosity_t lvl) {
   printMissing(store, store->queryMissing(paths), lvl);
 }
 
-void printMissing(ref<Store> store, const MissingPaths& missing, Verbosity lvl) {
+void printMissing(ref<Store> store, const MissingPaths& missing, verbosity_t lvl) {
   if (!missing.willBuild.empty()) {
     if (missing.willBuild.size() == 1)
       printMsg(lvl, "this derivation will be built:");
@@ -90,7 +90,7 @@ void printMissing(ref<Store> store, const MissingPaths& missing, Verbosity lvl) 
   }
 }
 
-std::string getArg(const std::string& opt, Strings::iterator& i, const Strings::iterator& end) {
+std::string getArg(const std::string& opt, strings_t::iterator& i, const strings_t::iterator& end) {
   ++i;
   if (i == end)
     throw UsageError("'%1%' requires an argument", opt);
@@ -120,12 +120,12 @@ void initNix(bool loadConfig) {
 
   act.sa_handler = SIG_DFL;
   if (sigaction(SIGCHLD, &act, 0))
-    throw SysError("resetting SIGCHLD");
+    throw sys_error_t("resetting SIGCHLD");
 
   /* Install a dummy SIGUSR1 handler for use with pthread_kill(). */
   act.sa_handler = sigHandler;
   if (sigaction(SIGUSR1, &act, 0))
-    throw SysError("handling SIGUSR1");
+    throw sys_error_t("handling SIGUSR1");
 #endif
 
 #ifdef __APPLE__
@@ -134,7 +134,7 @@ void initNix(bool loadConfig) {
    * can handle the rest. */
   act.sa_handler = sigHandler;
   if (sigaction(SIGWINCH, &act, 0))
-    throw SysError("handling SIGWINCH");
+    throw sys_error_t("handling SIGWINCH");
 
   /* Disable SA_RESTART for interrupts, so that system calls on this thread
    * error with EINTR like they do on Linux.
@@ -142,17 +142,17 @@ void initNix(bool loadConfig) {
    * expects EINTR from syscalls to properly exit. */
   act.sa_handler = SIG_DFL;
   if (sigaction(SIGINT, &act, 0))
-    throw SysError("handling SIGINT");
+    throw sys_error_t("handling SIGINT");
   if (sigaction(SIGTERM, &act, 0))
-    throw SysError("handling SIGTERM");
+    throw sys_error_t("handling SIGTERM");
   if (sigaction(SIGHUP, &act, 0))
-    throw SysError("handling SIGHUP");
+    throw sys_error_t("handling SIGHUP");
   if (sigaction(SIGPIPE, &act, 0))
-    throw SysError("handling SIGPIPE");
+    throw sys_error_t("handling SIGPIPE");
   if (sigaction(SIGQUIT, &act, 0))
-    throw SysError("handling SIGQUIT");
+    throw sys_error_t("handling SIGQUIT");
   if (sigaction(SIGTRAP, &act, 0))
-    throw SysError("handling SIGTRAP");
+    throw sys_error_t("handling SIGTRAP");
 #endif
 
 #ifndef _WIN32
@@ -171,7 +171,7 @@ void initNix(bool loadConfig) {
 
 LegacyArgs::LegacyArgs(
     const std::string& programName,
-    std::function<bool(Strings::iterator& arg, const Strings::iterator& end)> parseArg)
+    std::function<bool(strings_t::iterator& arg, const strings_t::iterator& end)> parseArg)
     : MixCommonArgs(programName), parseArg(parseArg) {
   addFlag({
       .longName = "no-build-output",
@@ -239,7 +239,7 @@ LegacyArgs::LegacyArgs(
   });
 }
 
-bool LegacyArgs::processFlag(Strings::iterator& pos, Strings::iterator end) {
+bool LegacyArgs::processFlag(strings_t::iterator& pos, strings_t::iterator end) {
   if (MixCommonArgs::processFlag(pos, end))
     return true;
   bool res = parseArg(pos, end);
@@ -248,11 +248,11 @@ bool LegacyArgs::processFlag(Strings::iterator& pos, Strings::iterator end) {
   return res;
 }
 
-bool LegacyArgs::processArgs(const Strings& args, bool finish) {
+bool LegacyArgs::processArgs(const strings_t& args, bool finish) {
   if (args.empty())
     return true;
   assert(args.size() == 1);
-  Strings ss(args);
+  strings_t ss(args);
   auto pos = ss.begin();
   if (!parseArg(pos, ss.end()))
     throw UsageError("unexpected argument '%1%'", args.front());
@@ -261,13 +261,13 @@ bool LegacyArgs::processArgs(const Strings& args, bool finish) {
 
 void parseCmdLine(
     int argc, char** argv,
-    std::function<bool(Strings::iterator& arg, const Strings::iterator& end)> parseArg) {
+    std::function<bool(strings_t::iterator& arg, const strings_t::iterator& end)> parseArg) {
   parseCmdLine(std::string(baseNameOf(argv[0])), argvToStrings(argc, argv), parseArg);
 }
 
 void parseCmdLine(
-    const std::string& programName, const Strings& args,
-    std::function<bool(Strings::iterator& arg, const Strings::iterator& end)> parseArg) {
+    const std::string& programName, const strings_t& args,
+    std::function<bool(strings_t::iterator& arg, const strings_t::iterator& end)> parseArg) {
   LegacyArgs(programName, parseArg).parseCmdline(args);
 }
 
@@ -278,7 +278,7 @@ std::string version() {
 void printVersion(const std::string& programName) {
   std::cout << fmt("%s %s", programName, version()) << std::endl;
   if (verbosity > lvlInfo) {
-    Strings cfg;
+    strings_t cfg;
 #if NIX_USE_BOEHMGC
     cfg.push_back("gc");
 #endif
@@ -294,24 +294,24 @@ void printVersion(const std::string& programName) {
     std::cout << "State directory: " << settings.nixStateDir << "\n";
     std::cout << "Data directory: " << settings.nixDataDir << "\n";
   }
-  throw Exit();
+  throw exit_t();
 }
 
 int handleExceptions(const std::string& programName, std::function<void()> fun) {
-  ReceiveInterrupts receiveInterrupts; // FIXME: need better place for this
+  receive_interrupts_t receiveInterrupts; // FIXME: need better place for this
 
-  ErrorInfo::programName = baseNameOf(programName);
+  error_info_t::programName = baseNameOf(programName);
 
   std::string error = ANSI_RED "error:" ANSI_NORMAL " ";
   try {
     fun();
-  } catch (Exit& e) {
+  } catch (exit_t& e) {
     return e.status;
   } catch (UsageError& e) {
     logError(e.info());
     printError("\nTry '%1% --help' for more information.", programName);
     return 1;
-  } catch (BaseError& e) {
+  } catch (base_error_t& e) {
     logError(e.info());
     return e.info().status;
   } catch (std::bad_alloc& e) {
@@ -336,7 +336,7 @@ RunPager::RunPager() {
 
   logger->stop();
 
-  Pipe toPager;
+  pipe_t toPager;
   toPager.create();
 
 #ifdef _WIN32 // TODO re-enable on Windows, once we can start processes.
@@ -344,7 +344,7 @@ RunPager::RunPager() {
 #else
   pid = startProcess([&]() {
     if (dup2(toPager.readSide.get(), STDIN_FILENO) == -1)
-      throw SysError("dupping stdin");
+      throw sys_error_t("dupping stdin");
     if (!getenv("LESS"))
       setEnv("LESS", "FRSXMK");
     restoreProcessContext();
@@ -353,13 +353,13 @@ RunPager::RunPager() {
     execlp("pager", "pager", nullptr);
     execlp("less", "less", nullptr);
     execlp("more", "more", nullptr);
-    throw SysError("executing '%1%'", pager);
+    throw sys_error_t("executing '%1%'", pager);
   });
 
   pid.setKillSignal(SIGINT);
   std_out = fcntl(STDOUT_FILENO, F_DUPFD_CLOEXEC, 0);
   if (dup2(toPager.writeSide.get(), STDOUT_FILENO) == -1)
-    throw SysError("dupping standard output");
+    throw sys_error_t("dupping standard output");
 #endif
 }
 

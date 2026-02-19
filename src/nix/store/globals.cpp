@@ -48,11 +48,11 @@ namespace nix {
    must be deleted and recreated on startup.) */
 #define DEFAULT_SOCKET_PATH "/daemon-socket/socket"
 
-Settings settings;
+settings_t settings;
 
-static GlobalConfig::Register rSettings(&settings);
+static global_config_t::Register rSettings(&settings);
 
-Settings::Settings()
+settings_t::settings_t()
     : nixPrefix(NIX_PREFIX),
       nixStore(
 #ifndef _WIN32
@@ -81,8 +81,8 @@ Settings::Settings()
   /* Backwards compatibility. */
   auto s = getEnv("NIX_REMOTE_SYSTEMS");
   if (s) {
-    Strings ss;
-    for (auto& p : tokenizeString<Strings>(*s, ":"))
+    strings_t ss;
+    for (auto& p : tokenizeString<strings_t>(*s, ":"))
       ss.push_back("@" + p);
     builders = concatStringsSep("\n", ss);
   }
@@ -93,7 +93,7 @@ Settings::Settings()
 
   /* chroot-like behavior from Apple's sandbox */
 #ifdef __APPLE__
-  for (PathView p : {
+  for (path_view_t p : {
            "/System/Library/Frameworks",
            "/System/Library/PrivateFrameworks",
            "/bin/sh",
@@ -104,11 +104,11 @@ Settings::Settings()
        }) {
     sandboxPaths.get().insert_or_assign(std::string{p}, ChrootPath{.source = std::string{p}});
   }
-  allowedImpureHostPrefixes = tokenizeString<StringSet>("/System/Library /usr/lib /dev /bin/sh");
+  allowedImpureHostPrefixes = tokenizeString<string_set_t>("/System/Library /usr/lib /dev /bin/sh");
 #endif
 }
 
-void loadConfFile(AbstractConfig& config) {
+void loadConfFile(abstract_config_t& config) {
   auto applyConfigFile = [&](const Path& path) {
     try {
       std::string contents = readFile(path);
@@ -150,7 +150,7 @@ std::vector<Path> getUserConfigFiles() {
   return files;
 }
 
-unsigned int Settings::getDefaultCores() {
+unsigned int settings_t::getDefaultCores() {
   const unsigned int concurrency = std::max(1U, std::thread::hardware_concurrency());
   const unsigned int maxCPU = getMaxCPU();
 
@@ -182,11 +182,11 @@ static bool hasVirt() {
 }
 #endif
 
-StringSet Settings::getDefaultSystemFeatures() {
+string_set_t settings_t::getDefaultSystemFeatures() {
   /* For backwards compatibility, accept some "features" that are
      used in Nixpkgs to route builds to certain machines but don't
      actually require anything special on the machines. */
-  StringSet features{"nixos-test", "benchmark", "big-parallel"};
+  string_set_t features{"nixos-test", "benchmark", "big-parallel"};
 
 #ifdef __linux__
   features.insert("uid-range");
@@ -205,14 +205,14 @@ StringSet Settings::getDefaultSystemFeatures() {
   return features;
 }
 
-StringSet Settings::getDefaultExtraPlatforms() {
-  StringSet extraPlatforms;
+string_set_t settings_t::getDefaultExtraPlatforms() {
+  string_set_t extraPlatforms;
 
   if (std::string{NIX_LOCAL_SYSTEM} == "x86_64-linux" && !isWSL1())
     extraPlatforms.insert("i686-linux");
 
 #ifdef __linux__
-  StringSet levels = computeLevels();
+  string_set_t levels = computeLevels();
   for (auto iter = levels.begin(); iter != levels.end(); ++iter)
     extraPlatforms.insert(*iter + "-linux");
 #elif defined(__APPLE__)
@@ -221,7 +221,7 @@ StringSet Settings::getDefaultExtraPlatforms() {
   // x86_64 in aarch64 environments or vice versa since they can
   // always exec with their own binary preferences.
   if (std::string{NIX_LOCAL_SYSTEM} == "aarch64-darwin" &&
-      runProgram(RunOptions{.program = "arch",
+      runProgram(run_options_t{.program = "arch",
                             .args = {"-arch", "x86_64", "/usr/bin/true"},
                             .mergeStderrToStdout = true})
               .first == 0)
@@ -231,7 +231,7 @@ StringSet Settings::getDefaultExtraPlatforms() {
   return extraPlatforms;
 }
 
-bool Settings::isWSL1() {
+bool settings_t::isWSL1() {
 #ifdef __linux__
   struct utsname utsbuf;
   uname(&utsbuf);
@@ -243,7 +243,7 @@ bool Settings::isWSL1() {
 #endif
 }
 
-Path Settings::getDefaultSSLCertFile() {
+Path settings_t::getDefaultSSLCertFile() {
   for (auto& fn : {"/etc/ssl/certs/ca-certificates.crt",
                    "/nix/var/nix/profiles/default/etc/ssl/certs/ca-bundle.crt"})
     if (pathAccessible(fn))
@@ -251,7 +251,7 @@ Path Settings::getDefaultSSLCertFile() {
   return "";
 }
 
-const ExternalBuilder* Settings::findExternalDerivationBuilderIfSupported(const Derivation& drv) {
+const ExternalBuilder* settings_t::findExternalDerivationBuilderIfSupported(const Derivation& drv) {
   if (auto it = std::ranges::find_if(
           externalBuilders.get(),
           [&](const auto& handler) { return handler.systems.contains(drv.platform); });
@@ -271,7 +271,7 @@ NLOHMANN_JSON_SERIALIZE_ENUM(SandboxMode, {
                                           });
 
 template <>
-SandboxMode BaseSetting<SandboxMode>::parse(const std::string& str) const {
+SandboxMode base_setting_t<SandboxMode>::parse(const std::string& str) const {
   if (str == "true")
     return smEnabled;
   else if (str == "relaxed")
@@ -283,12 +283,12 @@ SandboxMode BaseSetting<SandboxMode>::parse(const std::string& str) const {
 }
 
 template <>
-struct BaseSetting<SandboxMode>::trait {
+struct base_setting_t<SandboxMode>::trait {
   static constexpr bool appendable = false;
 };
 
 template <>
-std::string BaseSetting<SandboxMode>::to_string() const {
+std::string base_setting_t<SandboxMode>::to_string() const {
   if (value == smEnabled)
     return "true";
   else if (value == smRelaxed)
@@ -300,7 +300,7 @@ std::string BaseSetting<SandboxMode>::to_string() const {
 }
 
 template <>
-void BaseSetting<SandboxMode>::convertToArg(Args& args, const std::string& category) {
+void base_setting_t<SandboxMode>::convertToArg(Args& args, const std::string& category) {
   args.addFlag({
       .longName = name,
       .aliases = aliases,
@@ -327,9 +327,9 @@ void BaseSetting<SandboxMode>::convertToArg(Args& args, const std::string& categ
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(ChrootPath, source, optional)
 
 template <>
-PathsInChroot BaseSetting<PathsInChroot>::parse(const std::string& str) const {
+PathsInChroot base_setting_t<PathsInChroot>::parse(const std::string& str) const {
   PathsInChroot pathsInChroot;
-  for (auto i : tokenizeString<StringSet>(str)) {
+  for (auto i : tokenizeString<string_set_t>(str)) {
     if (i.empty())
       continue;
     bool optional = false;
@@ -352,7 +352,7 @@ PathsInChroot BaseSetting<PathsInChroot>::parse(const std::string& str) const {
 }
 
 template <>
-std::string BaseSetting<PathsInChroot>::to_string() const {
+std::string base_setting_t<PathsInChroot>::to_string() const {
   std::vector<std::string> accum;
   for (auto& [name, cp] : value) {
     std::string s = name == cp.source ? name : name + "=" + cp.source;
@@ -375,22 +375,22 @@ unsigned int MaxBuildJobsSetting::parse(const std::string& str) const {
 }
 
 template <>
-Settings::ExternalBuilders
-BaseSetting<Settings::ExternalBuilders>::parse(const std::string& str) const {
+settings_t::ExternalBuilders
+base_setting_t<settings_t::ExternalBuilders>::parse(const std::string& str) const {
   try {
-    return nlohmann::json::parse(str).template get<Settings::ExternalBuilders>();
+    return nlohmann::json::parse(str).template get<settings_t::ExternalBuilders>();
   } catch (std::exception& e) {
     throw UsageError("parsing setting '%s': %s", name, e.what());
   }
 }
 
 template <>
-std::string BaseSetting<Settings::ExternalBuilders>::to_string() const {
+std::string base_setting_t<settings_t::ExternalBuilders>::to_string() const {
   return nlohmann::json(value).dump();
 }
 
 template <>
-void BaseSetting<PathsInChroot>::appendOrSet(PathsInChroot newValue, bool append) {
+void base_setting_t<PathsInChroot>::appendOrSet(PathsInChroot newValue, bool append) {
   if (!append)
     value.clear();
   value.insert(std::make_move_iterator(newValue.begin()), std::make_move_iterator(newValue.end()));

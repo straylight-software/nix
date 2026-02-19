@@ -10,9 +10,9 @@ namespace nix {
 
 MakeError(UploadToHTTP, Error);
 
-StringSet HttpBinaryCacheStoreConfig::uriSchemes() {
+string_set_t HttpBinaryCacheStoreConfig::uriSchemes() {
   static bool forceHttp = getEnv("_NIX_FORCE_HTTP") == "1";
-  auto ret = StringSet{"http", "https"};
+  auto ret = string_set_t{"http", "https"};
   if (forceHttp)
     ret.insert("file");
   return ret;
@@ -128,9 +128,9 @@ bool HttpBinaryCacheStore::fileExists(const std::string& path) {
   }
 }
 
-void HttpBinaryCacheStore::upload(std::string_view path, RestartableSource& source,
+void HttpBinaryCacheStore::upload(std::string_view path, restartable_source_t& source,
                                   uint64_t sizeHint, std::string_view mimeType,
-                                  std::optional<Headers> headers) {
+                                  std::optional<headers_t> headers) {
   auto req = makeRequest(path);
   req.method = HttpMethod::Put;
 
@@ -145,12 +145,12 @@ void HttpBinaryCacheStore::upload(std::string_view path, RestartableSource& sour
   getFileTransfer()->upload(req);
 }
 
-void HttpBinaryCacheStore::upsertFile(const std::string& path, RestartableSource& source,
+void HttpBinaryCacheStore::upsertFile(const std::string& path, restartable_source_t& source,
                                       const std::string& mimeType, uint64_t sizeHint) {
   try {
     if (auto compressionMethod = getCompressionMethod(path)) {
-      CompressedSource compressed(source, *compressionMethod);
-      Headers headers = {{"Content-Encoding", *compressionMethod}};
+      compressed_source_t compressed(source, *compressionMethod);
+      headers_t headers = {{"Content-Encoding", *compressionMethod}};
       upload(path, compressed, compressed.size(), mimeType, std::move(headers));
     } else {
       upload(path, source, sizeHint, mimeType, std::nullopt);

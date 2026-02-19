@@ -100,7 +100,7 @@ struct UnkeyedValidPathInfo {
    */
   bool ultimate = false;
 
-  StringSet sigs; // note: not necessarily verified
+  string_set_t sigs; // note: not necessarily verified
 
   /**
    * If non-empty, an assertion that the path is content-addressed,
@@ -167,8 +167,8 @@ struct ValidPathInfo : virtual UnkeyedValidPathInfo {
    */
   std::string fingerprint(const StoreDirConfig& store) const;
 
-  void sign(const Store& store, const Signer& signer);
-  void sign(const Store& store, const std::vector<std::unique_ptr<Signer>>& signers);
+  void sign(const Store& store, const signer_t& signer);
+  void sign(const Store& store, const std::vector<std::unique_ptr<signer_t>>& signers);
 
   /**
    * @return The `ContentAddressWithReferences` that determines the
@@ -189,18 +189,18 @@ struct ValidPathInfo : virtual UnkeyedValidPathInfo {
    * produced by one of the specified keys, or maxSigs if the path
    * is content-addressed.
    */
-  size_t checkSignatures(const StoreDirConfig& store, const PublicKeys& publicKeys) const;
+  size_t checkSignatures(const StoreDirConfig& store, const public_keys_t& publicKeys) const;
 
   /**
    * Verify a single signature.
    */
-  bool checkSignature(const StoreDirConfig& store, const PublicKeys& publicKeys,
+  bool checkSignature(const StoreDirConfig& store, const public_keys_t& publicKeys,
                       const std::string& sig) const;
 
   /**
    * References as store path basenames, including a self reference if it has one.
    */
-  Strings shortRefs() const;
+  strings_t shortRefs() const;
 
   ValidPathInfo(StorePath&& path, UnkeyedValidPathInfo info)
       : UnkeyedValidPathInfo(info), path(std::move(path)) {}

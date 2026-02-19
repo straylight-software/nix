@@ -12,10 +12,10 @@
 using namespace nix;
 using json = nlohmann::json;
 
-struct CmdShowDerivation : InstallablesCommand, MixPrintJSON {
+struct cmd_show_derivation_t : InstallablesCommand, MixPrintJSON {
   bool recursive = false;
 
-  CmdShowDerivation() {
+  cmd_show_derivation_t() {
     addFlag({
         .longName = "recursive",
         .shortName = 'r',
@@ -32,7 +32,7 @@ struct CmdShowDerivation : InstallablesCommand, MixPrintJSON {
         ;
   }
 
-  Category category() override { return catUtility; }
+  category_t category() override { return catUtility; }
 
   void run(ref<Store> store, Installables&& installables) override {
     auto drvPaths = Installable::toDerivations(store, installables, true);
@@ -58,4 +58,4 @@ struct CmdShowDerivation : InstallablesCommand, MixPrintJSON {
   }
 };
 
-static auto rCmdShowDerivation = registerCommand2<CmdShowDerivation>({"derivation", "show"});
+static auto rCmdShowDerivation = registerCommand2<cmd_show_derivation_t>({"derivation", "show"});

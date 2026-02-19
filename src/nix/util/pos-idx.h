@@ -6,39 +6,39 @@
 
 namespace nix {
 
-class PosIdx {
-  friend struct LazyPosAccessors;
-  friend class PosTable;
-  friend class std::hash<PosIdx>;
+class pos_idx_t {
+  friend struct lazy_pos_accessors_t;
+  friend class pos_table_t;
+  friend class std::hash<pos_idx_t>;
 
 private:
   uint32_t id;
 
 public:
-  explicit PosIdx(uint32_t id) : id(id) {}
+  explicit pos_idx_t(uint32_t id) : id(id) {}
 
-  PosIdx() : id(0) {}
+  pos_idx_t() : id(0) {}
 
   explicit operator bool() const { return id > 0; }
 
-  auto operator<=>(const PosIdx other) const { return id <=> other.id; }
+  auto operator<=>(const pos_idx_t other) const { return id <=> other.id; }
 
-  bool operator==(const PosIdx other) const { return id == other.id; }
+  bool operator==(const pos_idx_t other) const { return id == other.id; }
 
   size_t hash() const noexcept { return std::hash<uint32_t>{}(id); }
 
   uint32_t get() const { return id; }
 };
 
-inline PosIdx noPos = {};
+inline pos_idx_t noPos = {};
 
 } // namespace nix
 
 namespace std {
 
 template <>
-struct hash<nix::PosIdx> {
-  std::size_t operator()(nix::PosIdx pos) const noexcept { return pos.hash(); }
+struct hash<nix::pos_idx_t> {
+  std::size_t operator()(nix::pos_idx_t pos) const noexcept { return pos.hash(); }
 };
 
 } // namespace std

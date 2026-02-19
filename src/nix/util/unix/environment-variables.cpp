@@ -12,7 +12,7 @@ std::optional<std::string> getEnvOs(const std::string& key) {
   return getEnv(key);
 }
 
-int setEnvOs(const OsString& name, const OsString& value) {
+int setEnvOs(const os_string_t& name, const os_string_t& value) {
   return setEnv(name.c_str(), value.c_str());
 }
 

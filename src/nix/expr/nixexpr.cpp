@@ -581,7 +581,7 @@ void ExprLambda::setDocComment(DocComment docComment) {
   }
 }
 
-std::string DocComment::getInnerText(const PosTable& positions) const {
+std::string DocComment::getInnerText(const pos_table_t& positions) const {
   auto beginPos = positions[begin];
   auto endPos = positions[end];
   auto docCommentStr = beginPos.getSnippetUpTo(endPos).value_or("");
@@ -612,7 +612,7 @@ void ExprCall::resetCursedOr() {
   cursedOrEndPos.reset();
 }
 
-void ExprCall::warnIfCursedOr(const SymbolTable& symbols, const PosTable& positions) {
+void ExprCall::warnIfCursedOr(const SymbolTable& symbols, const pos_table_t& positions) {
   if (cursedOrEndPos.has_value()) {
     std::ostringstream out;
     out << "at " << positions[pos]

@@ -67,17 +67,17 @@ std::string UnkeyedRealisation::fingerprint(const DrvOutput& key) const {
   return serialized.dump();
 }
 
-void UnkeyedRealisation::sign(const DrvOutput& key, const Signer& signer) {
+void UnkeyedRealisation::sign(const DrvOutput& key, const signer_t& signer) {
   signatures.insert(signer.signDetached(fingerprint(key)));
 }
 
-bool UnkeyedRealisation::checkSignature(const DrvOutput& key, const PublicKeys& publicKeys,
+bool UnkeyedRealisation::checkSignature(const DrvOutput& key, const public_keys_t& publicKeys,
                                         const std::string& sig) const {
   return verifyDetached(fingerprint(key), sig, publicKeys);
 }
 
 size_t UnkeyedRealisation::checkSignatures(const DrvOutput& key,
-                                           const PublicKeys& publicKeys) const {
+                                           const public_keys_t& publicKeys) const {
   // FIXME: Maybe we should return `maxSigs` if the realisation corresponds to
   // an input-addressed one − because in that case the drv is enough to check
   // it − but we can't know that here.
@@ -147,7 +147,7 @@ void adl_serializer<DrvOutput>::to_json(json& json, const DrvOutput& drvOutput) 
 UnkeyedRealisation adl_serializer<UnkeyedRealisation>::from_json(const json& json0) {
   auto json = getObject(json0);
 
-  StringSet signatures;
+  string_set_t signatures;
   if (auto signaturesOpt = optionalValueAt(json, "signatures"))
     signatures = *signaturesOpt;
 

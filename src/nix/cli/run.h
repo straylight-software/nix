@@ -5,10 +5,10 @@
 
 namespace nix {
 
-enum struct UseLookupPath { Use, DontUse };
+enum struct use_lookup_path_t { Use, DontUse };
 
-void execProgramInStore(ref<Store> store, UseLookupPath useLookupPath, const std::string& program,
-                        const Strings& args, std::optional<std::string_view> system = std::nullopt,
-                        std::optional<StringMap> env = std::nullopt);
+void execProgramInStore(ref<Store> store, use_lookup_path_t useLookupPath, const std::string& program,
+                        const strings_t& args, std::optional<std::string_view> system = std::nullopt,
+                        std::optional<string_map_t> env = std::nullopt);
 
 } // namespace nix

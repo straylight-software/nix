@@ -7,8 +7,8 @@
 
 namespace nix::fetchers {
 
-struct PathInputScheme : InputScheme {
-  std::optional<Input> inputFromURL(const Settings& settings, const ParsedURL& url,
+struct path_input_scheme_t : InputScheme {
+  std::optional<Input> inputFromURL(const settings_t& settings, const parsed_url_t& url,
                                     bool requireTree) const override {
     if (url.scheme != "path")
       return {};
@@ -72,7 +72,7 @@ struct PathInputScheme : InputScheme {
     return attrs;
   }
 
-  std::optional<Input> inputFromAttrs(const Settings& settings, const Attrs& attrs) const override {
+  std::optional<Input> inputFromAttrs(const settings_t& settings, const Attrs& attrs) const override {
     getStrAttr(attrs, "path");
 
     Input input{};
@@ -80,12 +80,12 @@ struct PathInputScheme : InputScheme {
     return input;
   }
 
-  ParsedURL toURL(const Input& input, bool abbreviate) const override {
+  parsed_url_t toURL(const Input& input, bool abbreviate) const override {
     auto query = attrsToQuery(input.attrs);
     query.erase("path");
     query.erase("type");
     query.erase("__final");
-    return ParsedURL{
+    return parsed_url_t{
         .scheme = "path",
         .path = splitString<std::vector<std::string>>(getStrAttr(input.attrs, "path"), "/"),
         .query = query,
@@ -96,7 +96,7 @@ struct PathInputScheme : InputScheme {
     return getAbsPath(input);
   }
 
-  void putFile(const Input& input, const CanonPath& path, std::string_view contents,
+  void putFile(const Input& input, const canon_path_t& path, std::string_view contents,
                std::optional<std::string> commitMsg) const override {
     writeFile(getAbsPath(input) / path.rel(), contents);
   }
@@ -109,7 +109,7 @@ struct PathInputScheme : InputScheme {
       return path;
   }
 
-  bool isLocked(const Settings& settings, const Input& input) const override {
+  bool isLocked(const settings_t& settings, const Input& input) const override {
     return (bool)input.getNarHash();
   }
 
@@ -122,7 +122,7 @@ struct PathInputScheme : InputScheme {
     throw Error("cannot fetch input '%s' because it uses a relative path", input.to_string());
   }
 
-  std::pair<ref<SourceAccessor>, Input> getAccessor(const Settings& settings, Store& store,
+  std::pair<ref<SourceAccessor>, Input> getAccessor(const settings_t& settings, Store& store,
                                                     const Input& _input) const override {
     Input input(_input);
 
@@ -141,11 +141,11 @@ struct PathInputScheme : InputScheme {
       // store, pre-create an entry in the fetcher cache.
       auto info = store.maybeQueryPathInfo(*storePath);
       if (info) {
-        accessor->fingerprint = fmt("path:%s", info->narHash.to_string(HashFormat::SRI, true));
+        accessor->fingerprint = fmt("path:%s", info->narHash.to_string(hash_format_t::SRI, true));
         settings.getCache()->upsert(
             makeSourcePathToHashCacheKey(*accessor->fingerprint,
-                                         ContentAddressMethod::Raw::NixArchive, "/"),
-            {{"hash", info->narHash.to_string(HashFormat::SRI, true)}});
+                                         ContentAddressMethod::raw_t::NixArchive, "/"),
+            {{"hash", info->narHash.to_string(hash_format_t::SRI, true)}});
       }
     }
 
@@ -154,6 +154,6 @@ struct PathInputScheme : InputScheme {
 };
 
 static auto rPathInputScheme =
-    OnStartup([] { registerInputScheme(std::make_unique<PathInputScheme>()); });
+    on_startup_t([] { registerInputScheme(std::make_unique<path_input_scheme_t>()); });
 
 } // namespace nix::fetchers

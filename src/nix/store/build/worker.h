@@ -47,7 +47,7 @@ typedef std::chrono::time_point<std::chrono::steady_clock> steady_time_point;
 struct Child {
   WeakGoalPtr goal;
   Goal* goal2; // ugly hackery
-  std::set<MuxablePipePollState::CommChannel> channels;
+  std::set<muxable_pipe_poll_state_t::comm_channel_t> channels;
   bool respectTimeouts;
   bool inBuildSlot;
   /**
@@ -136,9 +136,9 @@ private:
   std::map<StorePath, bool> pathContentsGoodCache;
 
 public:
-  const Activity act;
-  const Activity actDerivations;
-  const Activity actSubstitutions;
+  const activity_t act;
+  const activity_t actDerivations;
+  const activity_t actSubstitutions;
 
   /**
    * Set if at least one derivation had a BuildError (i.e. permanent
@@ -162,7 +162,7 @@ public:
   bool checkMismatch;
 
 #ifdef _WIN32
-  AutoCloseFD ioport;
+  auto_close_fd_t ioport;
 #endif
 
   Store& store;
@@ -247,7 +247,7 @@ public:
    * Make a goal corresponding to the `DerivedPath`.
    *
    * It will be a `DerivationGoal` for a `DerivedPath::Built` or
-   * a `PathSubstitutionGoal` for a `DerivedPath::Opaque`.
+   * a `PathSubstitutionGoal` for a `DerivedPath::opaque_t`.
    */
   GoalPtr makeGoal(const DerivedPath& req, BuildMode buildMode = bmNormal);
 
@@ -276,7 +276,7 @@ public:
    * Registers a running child process.  `inBuildSlot` means that
    * the process counts towards the jobs limit.
    */
-  void childStarted(GoalPtr goal, const std::set<MuxablePipePollState::CommChannel>& channels,
+  void childStarted(GoalPtr goal, const std::set<muxable_pipe_poll_state_t::comm_channel_t>& channels,
                     bool inBuildSlot, bool respectTimeouts);
 
   /**

@@ -11,10 +11,10 @@
 
 using namespace nix;
 
-struct CmdPs : MixJSON, StoreCommand {
+struct cmd_ps_t : MixJSON, StoreCommand {
   std::string description() override { return "list active builds"; }
 
-  Category category() override { return catUtility; }
+  category_t category() override { return catUtility; }
 
   std::string doc() override {
     return
@@ -42,11 +42,11 @@ struct CmdPs : MixJSON, StoreCommand {
       return user.name ? *user.name : std::to_string(user.uid);
     };
 
-    Table table;
+    table_t table;
 
     /* Add column headers. */
     table.push_back(
-        {{"USER"}, {"PID"}, {"CPU", TableCell::Alignment::Right}, {"DERIVATION/COMMAND"}});
+        {{"USER"}, {"PID"}, {"CPU", table_cell_t::alignment_t::Right}, {"DERIVATION/COMMAND"}});
 
     for (const auto& build : builds) {
       /* Calculate CPU time - use cgroup stats if available, otherwise sum process times. */
@@ -68,14 +68,14 @@ struct CmdPs : MixJSON, StoreCommand {
            {fmt("%.1fs", std::chrono::duration_cast<
                              std::chrono::duration<float, std::chrono::seconds::period>>(cpuTime)
                              .count()),
-            TableCell::Alignment::Right},
+            table_cell_t::alignment_t::Right},
            fmt(ANSI_BOLD "%s" ANSI_NORMAL " (wall=%ds)", store->printStorePath(build.derivation),
                time(nullptr) - build.startTime)});
 
       if (build.processes.empty()) {
         table.push_back({formatUser(build.mainUser),
                          std::to_string(build.mainPid),
-                         {"", TableCell::Alignment::Right},
+                         {"", table_cell_t::alignment_t::Right},
                          fmt("%s" ANSI_ITALIC "(no process info)" ANSI_NORMAL, treeLast)});
       } else {
         /* Recover the tree structure of the processes. */
@@ -118,7 +118,7 @@ struct CmdPs : MixJSON, StoreCommand {
 
             table.push_back({formatUser(process->user),
                              std::to_string(process->pid),
-                             {cpuInfo, TableCell::Alignment::Right},
+                             {cpuInfo, table_cell_t::alignment_t::Right},
                              fmt("%s%s%s", prefix, last ? treeLast : treeConn, argv)});
 
             visit(children[process->pid], last ? prefix + treeNull : prefix + treeLine);
@@ -134,4 +134,4 @@ struct CmdPs : MixJSON, StoreCommand {
   }
 };
 
-static auto rCmdPs = registerCommand2<CmdPs>({"ps"});
+static auto rCmdPs = registerCommand2<cmd_ps_t>({"ps"});

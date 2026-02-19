@@ -9,7 +9,7 @@ typename DerivedPathMap<V>::ChildNode& DerivedPathMap<V>::ensureSlot(const Singl
   std::function<ChildNode&(const SingleDerivedPath&)> initIter;
   initIter = [&](const auto& k) -> auto& {
     return std::visit(overloaded{
-                          [&](const SingleDerivedPath::Opaque& bo) -> auto& {
+                          [&](const SingleDerivedPath::opaque_t& bo) -> auto& {
                             // will not overwrite if already there
                             return map[bo.path];
                           },
@@ -28,7 +28,7 @@ typename DerivedPathMap<V>::ChildNode* DerivedPathMap<V>::findSlot(const SingleD
   std::function<ChildNode*(const SingleDerivedPath&)> initIter;
   initIter = [&](const auto& k) {
     return std::visit(overloaded{
-                          [&](const SingleDerivedPath::Opaque& bo) {
+                          [&](const SingleDerivedPath::opaque_t& bo) {
                             auto it = map.find(bo.path);
                             return it != map.end() ? &it->second : nullptr;
                           },
@@ -55,18 +55,18 @@ typename DerivedPathMap<V>::ChildNode* DerivedPathMap<V>::findSlot(const SingleD
 namespace nix {
 
 template <>
-bool DerivedPathMap<StringSet>::ChildNode::operator==(
-    const DerivedPathMap<StringSet>::ChildNode&) const noexcept = default;
+bool DerivedPathMap<string_set_t>::ChildNode::operator==(
+    const DerivedPathMap<string_set_t>::ChildNode&) const noexcept = default;
 
 // TODO libc++ 16 (used by darwin) missing `std::map::operator <=>`, can't do yet.
 #if 0
 template<>
-std::strong_ordering DerivedPathMap<StringSet>::ChildNode::operator <=> (
-    const DerivedPathMap<StringSet>::ChildNode &) const noexcept = default;
+std::strong_ordering DerivedPathMap<string_set_t>::ChildNode::operator <=> (
+    const DerivedPathMap<string_set_t>::ChildNode &) const noexcept = default;
 #endif
 
-template struct DerivedPathMap<StringSet>::ChildNode;
-template struct DerivedPathMap<StringSet>;
+template struct DerivedPathMap<string_set_t>::ChildNode;
+template struct DerivedPathMap<string_set_t>;
 
 template struct DerivedPathMap<std::map<OutputsSpec, std::weak_ptr<DerivationTrampolineGoal>>>;
 

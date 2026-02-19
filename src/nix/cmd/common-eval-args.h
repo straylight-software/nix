@@ -14,7 +14,7 @@ namespace nix {
 class Store;
 
 namespace fetchers {
-struct Settings;
+struct settings_t;
 }
 
 class EvalState;
@@ -22,10 +22,10 @@ struct CompatibilitySettings;
 class Bindings;
 
 namespace flake {
-struct Settings;
+struct settings_t;
 }
 
-extern fetchers::Settings fetchSettings;
+extern fetchers::settings_t fetchSettings;
 
 /**
  * @todo Get rid of global settings variables
@@ -35,10 +35,10 @@ extern EvalSettings evalSettings;
 /**
  * @todo Get rid of global settings variables
  */
-extern flake::Settings flakeSettings;
+extern flake::settings_t flakeSettings;
 
 /**
- * Settings that control behaviors that have changed since Nix 2.3.
+ * settings_t that control behaviors that have changed since Nix 2.3.
  */
 extern CompatibilitySettings compatibilitySettings;
 
@@ -77,7 +77,7 @@ private:
  * @param baseDir Optional [base
  * directory](https://nix.dev/manual/nix/development/glossary#gloss-base-directory)
  */
-SourcePath lookupFileArg(EvalState& state, std::string_view s,
+source_path_t lookupFileArg(EvalState& state, std::string_view s,
                          const std::filesystem::path* baseDir = nullptr);
 
 } // namespace nix

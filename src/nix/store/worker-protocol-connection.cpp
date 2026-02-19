@@ -17,14 +17,14 @@ WorkerProto::BasicClientConnection::~BasicClientConnection() {
   }
 }
 
-static Logger::Fields readFields(Source& from) {
-  Logger::Fields fields;
+static Logger::fields_t readFields(Source& from) {
+  Logger::fields_t fields;
   size_t size = readInt(from);
   for (size_t n = 0; n < size; n++) {
-    auto type = (decltype(Logger::Field::type))readInt(from);
-    if (type == Logger::Field::tInt)
+    auto type = (decltype(Logger::field_t::type))readInt(from);
+    if (type == Logger::field_t::tInt)
       fields.push_back(readNum<uint64_t>(from));
-    else if (type == Logger::Field::tString)
+    else if (type == Logger::field_t::tString)
       fields.push_back(readString(from));
     else
       throw Error("got unsupported field type %x from Nix daemon", (int)type);
@@ -77,23 +77,23 @@ std::exception_ptr WorkerProto::BasicClientConnection::processStderrReturn(Sink*
       printError(chomp(readString(from)));
 
     else if (msg == STDERR_START_ACTIVITY) {
-      auto act = readNum<ActivityId>(from);
-      auto lvl = (Verbosity)readInt(from);
-      auto type = (ActivityType)readInt(from);
+      auto act = readNum<activity_id_t>(from);
+      auto lvl = (verbosity_t)readInt(from);
+      auto type = (activity_type_t)readInt(from);
       auto s = readString(from);
       auto fields = readFields(from);
-      auto parent = readNum<ActivityId>(from);
+      auto parent = readNum<activity_id_t>(from);
       logger->startActivity(act, lvl, type, s, fields, parent);
     }
 
     else if (msg == STDERR_STOP_ACTIVITY) {
-      auto act = readNum<ActivityId>(from);
+      auto act = readNum<activity_id_t>(from);
       logger->stopActivity(act);
     }
 
     else if (msg == STDERR_RESULT) {
-      auto act = readNum<ActivityId>(from);
-      auto type = (ResultType)readInt(from);
+      auto act = readNum<activity_id_t>(from);
+      auto type = (result_type_t)readInt(from);
       auto fields = readFields(from);
       logger->result(act, type, fields);
     }
@@ -120,7 +120,7 @@ std::exception_ptr WorkerProto::BasicClientConnection::processStderrReturn(Sink*
       // the old incomprehensible error here, so that we can
       // explain to users what's going on when their daemon is
       // older than #4628 (2023).
-      if (experimentalFeatureSettings.isEnabled(Xp::DynamicDerivations) &&
+      if (experimentalFeatureSettings.isEnabled(xp_t::DynamicDerivations) &&
           GET_PROTOCOL_MINOR(protoVersion) <= 35) {
         auto m = e.msg();
         if (m.find("parsing derivation") != std::string::npos &&
@@ -155,7 +155,7 @@ static WorkerProto::FeatureSet intersectFeatures(const WorkerProto::FeatureSet& 
 }
 
 std::tuple<WorkerProto::Version, WorkerProto::FeatureSet>
-WorkerProto::BasicClientConnection::handshake(BufferedSink& to, Source& from,
+WorkerProto::BasicClientConnection::handshake(buffered_sink_t& to, Source& from,
                                               WorkerProto::Version localVersion,
                                               const WorkerProto::FeatureSet& supportedFeatures) {
   to << WORKER_MAGIC_1 << localVersion;
@@ -185,7 +185,7 @@ WorkerProto::BasicClientConnection::handshake(BufferedSink& to, Source& from,
 }
 
 std::tuple<WorkerProto::Version, WorkerProto::FeatureSet>
-WorkerProto::BasicServerConnection::handshake(BufferedSink& to, Source& from,
+WorkerProto::BasicServerConnection::handshake(buffered_sink_t& to, Source& from,
                                               WorkerProto::Version localVersion,
                                               const WorkerProto::FeatureSet& supportedFeatures) {
   unsigned int magic = readInt(from);

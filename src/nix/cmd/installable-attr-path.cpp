@@ -34,7 +34,7 @@ InstallableAttrPath::InstallableAttrPath(ref<EvalState> state, SourceExprCommand
       attrPath(attrPath),
       extendedOutputsSpec(std::move(extendedOutputsSpec)) {}
 
-std::pair<Value*, PosIdx> InstallableAttrPath::toValue(EvalState& state) {
+std::pair<Value*, pos_idx_t> InstallableAttrPath::toValue(EvalState& state) {
   auto [vRes, pos] = findAlongAttrPath(state, attrPath, *cmd.getAutoArgs(state), **v);
   state.forceValue(*vRes, pos);
   return {vRes, pos};
@@ -65,7 +65,7 @@ DerivedPathsWithInfo InstallableAttrPath::toDerivedPaths() {
     auto newOutputs =
         std::visit(overloaded{
                        [&](const ExtendedOutputsSpec::Default& d) -> OutputsSpec {
-                         StringSet outputsToInstall;
+                         string_set_t outputsToInstall;
                          for (auto& output : packageInfo.queryOutputs(false, true))
                            outputsToInstall.insert(output.first);
                          if (outputsToInstall.empty())

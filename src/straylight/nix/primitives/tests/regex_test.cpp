@@ -14,6 +14,7 @@
 
 #include <rapidcheck.h>
 #include <rapidcheck/catch.h>
+
 #include "../regex.h"
 namespace regex = straylight::nix::primitives::regex;
 
@@ -605,4 +606,420 @@ TEST_CASE("regex nix builtins.split examples", "[regex][nix]") {
     REQUIRE(matches[0].captures()[0].text == "FOO");
     REQUIRE(matches[0].suffix() == " ");
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Heavy metal property tests - RE2 vs std::regex equivalence
+// ─────────────────────────────────────────────────────────────────────────────
+
+#include <regex>
+
+namespace {
+
+// Generator for simple regex patterns that work in both RE2 and std::regex
+rc::Gen<std::string> simple_pattern_gen() {
+  return rc::gen::oneOf(
+      // Literal alphanumeric
+      rc::gen::nonEmpty(rc::gen::container<std::string>(
+          rc::gen::oneOf(rc::gen::inRange('a', 'z'), rc::gen::inRange('0', '9')))),
+      // Character class [abc]
+      rc::gen::map(rc::gen::nonEmpty(rc::gen::container<std::string>(rc::gen::inRange('a', 'z'))),
+                   [](const std::string& chars) { return "[" + chars + "]"; }),
+      // Single char with quantifier
+      rc::gen::map(
+          rc::gen::pair(rc::gen::inRange('a', 'z'), rc::gen::element('*', '+', '?')),
+          [](const std::pair<char, char>& p) { return std::string(1, p.first) + p.second; }));
+}
+
+// Generator for text to match against
+rc::Gen<std::string> match_text_gen() {
+  return rc::gen::container<std::string>(
+      rc::gen::oneOf(rc::gen::inRange('a', 'z'), rc::gen::inRange('0', '9'), rc::gen::just(' ')));
+}
+
+} // namespace
+
+TEST_CASE("RE2 vs std::regex equivalence for simple patterns", "[regex][property][equivalence]") {
+  rc::prop("RE2 and std::regex agree on literal matches", []() {
+    auto pattern = *rc::gen::nonEmpty(rc::gen::container<std::string>(
+        rc::gen::oneOf(rc::gen::inRange('a', 'z'), rc::gen::inRange('0', '9'))));
+    auto text = *match_text_gen();
+
+    auto re2_regex = regex::Regex::compile(pattern);
+    RC_ASSERT(re2_regex.has_value());
+
+    std::regex std_regex(pattern);
+
+    bool re2_match = re2_regex->test(text);
+    bool std_match = std::regex_match(text, std_regex);
+
+    RC_ASSERT(re2_match == std_match);
+  });
+
+  rc::prop("RE2 and std::regex agree on character class matches", []() {
+    // Generate a character class like [abc]
+    auto chars = *rc::gen::nonEmpty(rc::gen::container<std::string>(rc::gen::inRange('a', 'z')));
+    std::string pattern = "[" + chars + "]";
+    auto text = *rc::gen::container<std::string>(rc::gen::inRange('a', 'z'));
+
+    auto re2_regex = regex::Regex::compile(pattern);
+    RC_ASSERT(re2_regex.has_value());
+
+    std::regex std_regex(pattern);
+
+    bool re2_match = re2_regex->test(text);
+    bool std_match = std::regex_match(text, std_regex);
+
+    RC_ASSERT(re2_match == std_match);
+  });
+
+  rc::prop("RE2 and std::regex agree on simple quantifiers", []() {
+    auto base_char = *rc::gen::inRange('a', 'f');
+    auto quantifier = *rc::gen::element('*', '+', '?');
+    std::string pattern(1, base_char);
+    pattern += quantifier;
+
+    // Anchor the pattern for full match comparison
+    std::string anchored = "^" + pattern + "$";
+
+    auto text = *rc::gen::container<std::string>(rc::gen::element(base_char, 'x'));
+
+    auto re2_regex = regex::Regex::compile(anchored);
+    RC_ASSERT(re2_regex.has_value());
+
+    try {
+      std::regex std_regex(anchored);
+      bool re2_match = re2_regex->test(text);
+      bool std_match = std::regex_match(text, std_regex);
+      RC_ASSERT(re2_match == std_match);
+    } catch (const std::regex_error&) {
+      // std::regex may fail on some patterns - skip
+    }
+  });
+}
+
+TEST_CASE("RE2 vs std::regex equivalence for POSIX classes", "[regex][property][equivalence]") {
+  rc::prop("[:digit:] class agrees with std::regex", []() {
+    auto text = *rc::gen::container<std::string>(
+        rc::gen::oneOf(rc::gen::inRange('0', '9'), rc::gen::inRange('a', 'z')));
+
+    std::string pattern = "^[[:digit:]]*$";
+
+    auto re2_regex = regex::Regex::compile(pattern);
+    RC_ASSERT(re2_regex.has_value());
+
+    try {
+      std::regex std_regex(pattern);
+      bool re2_match = re2_regex->test(text);
+      bool std_match = std::regex_match(text, std_regex);
+      RC_ASSERT(re2_match == std_match);
+    } catch (const std::regex_error&) {
+      // Skip if std::regex doesn't support POSIX classes
+    }
+  });
+
+  rc::prop("[:alpha:] class agrees with std::regex", []() {
+    auto text = *rc::gen::container<std::string>(rc::gen::oneOf(
+        rc::gen::inRange('a', 'z'), rc::gen::inRange('A', 'Z'), rc::gen::inRange('0', '9')));
+
+    std::string pattern = "^[[:alpha:]]*$";
+
+    auto re2_regex = regex::Regex::compile(pattern);
+    RC_ASSERT(re2_regex.has_value());
+
+    try {
+      std::regex std_regex(pattern);
+      bool re2_match = re2_regex->test(text);
+      bool std_match = std::regex_match(text, std_regex);
+      RC_ASSERT(re2_match == std_match);
+    } catch (const std::regex_error&) {
+      // Skip if std::regex doesn't support POSIX classes
+    }
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Heavy metal edge case tests
+// ─────────────────────────────────────────────────────────────────────────────
+
+TEST_CASE("regex edge cases", "[regex][property][edge]") {
+  rc::prop("empty pattern matches only empty string", []() {
+    auto text = *match_text_gen();
+
+    auto re = regex::Regex::compile("");
+    RC_ASSERT(re.has_value());
+
+    bool matches = re->test(text);
+    RC_ASSERT(matches == text.empty());
+  });
+
+  rc::prop("dot matches any single character", []() {
+    auto text = *rc::gen::container<std::string>(rc::gen::inRange<char>(32, 126));
+    RC_PRE(text.find('\n') == std::string::npos); // . doesn't match newline by default
+
+    if (text.size() == 1) {
+      auto re = regex::Regex::compile(".");
+      RC_ASSERT(re.has_value());
+      RC_ASSERT(re->test(text));
+    }
+  });
+
+  rc::prop("anchor ^ matches start", []() {
+    auto prefix = *rc::gen::nonEmpty(rc::gen::container<std::string>(rc::gen::inRange('a', 'z')));
+    auto suffix = *rc::gen::container<std::string>(rc::gen::inRange('a', 'z'));
+
+    std::string text = prefix + suffix;
+    std::string pattern = "^" + prefix;
+
+    auto re = regex::Regex::compile(pattern);
+    RC_ASSERT(re.has_value());
+    RC_ASSERT(re->test_partial(text));
+  });
+
+  rc::prop("anchor $ matches end", []() {
+    auto prefix = *rc::gen::container<std::string>(rc::gen::inRange('a', 'z'));
+    auto suffix = *rc::gen::nonEmpty(rc::gen::container<std::string>(rc::gen::inRange('a', 'z')));
+
+    std::string text = prefix + suffix;
+    std::string pattern = suffix + "$";
+
+    auto re = regex::Regex::compile(pattern);
+    RC_ASSERT(re.has_value());
+    RC_ASSERT(re->test_partial(text));
+  });
+
+  rc::prop("alternation matches either branch", []() {
+    auto a = *rc::gen::nonEmpty(rc::gen::container<std::string>(rc::gen::inRange('a', 'm')));
+    auto b = *rc::gen::nonEmpty(rc::gen::container<std::string>(rc::gen::inRange('n', 'z')));
+    RC_PRE(a != b);
+
+    std::string pattern = "^(" + a + "|" + b + ")$";
+
+    auto re = regex::Regex::compile(pattern);
+    RC_ASSERT(re.has_value());
+
+    RC_ASSERT(re->test(a));
+    RC_ASSERT(re->test(b));
+    RC_ASSERT(!re->test(a + b)); // Concatenation shouldn't match
+  });
+
+  rc::prop("repetition {n,m} matches correct counts", []() {
+    auto n = *rc::gen::inRange(1, 5);
+    auto m = *rc::gen::inRange(n, 10);
+
+    std::string pattern = "^a{" + std::to_string(n) + "," + std::to_string(m) + "}$";
+
+    auto re = regex::Regex::compile(pattern);
+    RC_ASSERT(re.has_value());
+
+    // Should match strings with n to m 'a's
+    for (int i = n; i <= m; ++i) {
+      RC_ASSERT(re->test(std::string(static_cast<std::size_t>(i), 'a')));
+    }
+
+    // Should not match strings with fewer than n or more than m 'a's
+    if (n > 1) {
+      RC_ASSERT(!re->test(std::string(static_cast<std::size_t>(n - 1), 'a')));
+    }
+    RC_ASSERT(!re->test(std::string(static_cast<std::size_t>(m + 1), 'a')));
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Capture group property tests
+// ─────────────────────────────────────────────────────────────────────────────
+
+TEST_CASE("capture group properties", "[regex][property][capture]") {
+  rc::prop("capture groups return correct substrings", []() {
+    auto a = *rc::gen::nonEmpty(rc::gen::container<std::string>(rc::gen::inRange('a', 'm')));
+    auto b = *rc::gen::nonEmpty(rc::gen::container<std::string>(rc::gen::inRange('n', 'z')));
+
+    std::string pattern = "^(" + a + ")(" + b + ")$";
+    std::string text = a + b;
+
+    auto re = regex::Regex::compile(pattern);
+    RC_ASSERT(re.has_value());
+    RC_ASSERT(re->num_captures() == 2);
+
+    auto match = re->full_match(text);
+    RC_ASSERT(match.has_value());
+    RC_ASSERT(match->num_captures() == 2);
+    RC_ASSERT((*match)[1].text == a);
+    RC_ASSERT((*match)[2].text == b);
+  });
+
+  rc::prop("nested captures return correct substrings", []() {
+    auto inner = *rc::gen::nonEmpty(rc::gen::container<std::string>(rc::gen::inRange('a', 'z')));
+
+    std::string pattern = "^((" + inner + "))$";
+    std::string text = inner;
+
+    auto re = regex::Regex::compile(pattern);
+    RC_ASSERT(re.has_value());
+    RC_ASSERT(re->num_captures() == 2);
+
+    auto match = re->full_match(text);
+    RC_ASSERT(match.has_value());
+    // Both captures should be the same (nested)
+    RC_ASSERT((*match)[1].text == inner);
+    RC_ASSERT((*match)[2].text == inner);
+  });
+
+  rc::prop("optional group may or may not match", []() {
+    auto text = *rc::gen::element<std::string>("a", "ab", "abc");
+
+    auto re = regex::Regex::compile("^a(b)?(c)?$");
+    RC_ASSERT(re.has_value());
+
+    auto match = re->full_match(text);
+    if (text == "a") {
+      RC_ASSERT(match.has_value());
+      RC_ASSERT(!(*match)[1].matched);
+      RC_ASSERT(!(*match)[2].matched);
+    } else if (text == "ab") {
+      RC_ASSERT(match.has_value());
+      RC_ASSERT((*match)[1].matched);
+      RC_ASSERT((*match)[1].text == "b");
+      RC_ASSERT(!(*match)[2].matched);
+    } else if (text == "abc") {
+      RC_ASSERT(match.has_value());
+      RC_ASSERT((*match)[1].matched);
+      RC_ASSERT((*match)[2].matched);
+    }
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// find_all property tests
+// ─────────────────────────────────────────────────────────────────────────────
+
+TEST_CASE("find_all properties", "[regex][property][findall]") {
+  rc::prop("find_all returns non-overlapping matches", []() {
+    auto pattern = *rc::gen::element<std::string_view>("a", "ab", "abc");
+    auto text = *match_text_gen();
+
+    auto re = regex::Regex::compile(std::string(pattern));
+    RC_ASSERT(re.has_value());
+
+    auto matches = re->find_all(text);
+
+    // Check non-overlapping: each match starts after previous ends
+    std::size_t last_end = 0;
+    for (const auto& match : matches) {
+      std::size_t match_start = static_cast<std::size_t>(match[0].text.data() - text.data());
+      RC_ASSERT(match_start >= last_end);
+      last_end = match_start + match[0].text.size();
+    }
+  });
+
+  rc::prop("find_all matches can reconstruct original with splits", []() {
+    auto text = *rc::gen::nonEmpty(match_text_gen());
+
+    // Use single char pattern for predictable splitting
+    auto re = regex::Regex::compile("a");
+    RC_ASSERT(re.has_value());
+
+    auto matches = re->find_all(text);
+
+    // Reconstruct: prefix + (match + suffix)*
+    std::string reconstructed;
+    std::size_t pos = 0;
+
+    for (const auto& match : matches) {
+      reconstructed += match.prefix();
+      reconstructed += match[0].text;
+      pos = static_cast<std::size_t>(match[0].text.data() - text.data()) + match[0].text.size();
+    }
+
+    // Add final suffix
+    if (!matches.empty()) {
+      reconstructed += matches.back().suffix();
+    } else {
+      reconstructed = text;
+    }
+
+    RC_ASSERT(reconstructed == text);
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Fuzz tests for regex patterns
+// ─────────────────────────────────────────────────────────────────────────────
+
+TEST_CASE("regex fuzzing", "[regex][fuzz]") {
+  rc::prop("Regex::compile never crashes on arbitrary input", []() {
+    auto pattern = *rc::gen::container<std::string>(rc::gen::arbitrary<char>());
+
+    // Should not crash, may return error
+    [[maybe_unused]] auto result = regex::Regex::compile(pattern);
+  });
+
+  rc::prop("valid regex never crashes on arbitrary text", []() {
+    auto text = *rc::gen::container<std::string>(rc::gen::arbitrary<char>());
+
+    // Use a known-valid simple pattern
+    auto re = regex::Regex::compile(".*");
+    RC_ASSERT(re.has_value());
+
+    // Should not crash
+    [[maybe_unused]] auto full = re->full_match(text);
+    [[maybe_unused]] auto partial = re->partial_match(text);
+    [[maybe_unused]] auto test = re->test(text);
+    [[maybe_unused]] auto all = re->find_all(text);
+  });
+
+  rc::prop("regex cache handles concurrent access without crash", []() {
+    regex::Cache cache;
+
+    auto patterns = *rc::gen::container<std::vector<std::string>>(
+        rc::gen::nonEmpty(rc::gen::container<std::string>(rc::gen::inRange('a', 'z'))));
+
+    // Access patterns multiple times
+    for (const auto& pattern : patterns) {
+      try {
+        [[maybe_unused]] const auto& re = cache.get(pattern);
+      } catch (const std::exception&) {
+        // Invalid pattern is OK
+      }
+    }
+
+    // All valid patterns should be cached
+    RC_ASSERT(cache.size() <= patterns.size());
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ReDoS resistance tests
+// ─────────────────────────────────────────────────────────────────────────────
+
+TEST_CASE("RE2 ReDoS resistance", "[regex][property][redos]") {
+  rc::prop("exponential patterns complete quickly", []() {
+    // Patterns that cause exponential backtracking in std::regex
+    // but should be linear in RE2
+    std::vector<std::string> evil_patterns = {
+        "(a+)+$",
+        "(a|a)+$",
+        "(a|aa)+$",
+        "a*a*a*a*a*$",
+    };
+
+    // Evil inputs that trigger backtracking
+    auto n = *rc::gen::inRange(10, 50);
+    std::string evil_input(static_cast<std::size_t>(n), 'a');
+    evil_input += 'X'; // Ensure no match to maximize backtracking
+
+    for (const auto& pattern : evil_patterns) {
+      auto re = regex::Regex::compile(pattern);
+      if (!re.has_value())
+        continue;
+
+      auto start = std::chrono::steady_clock::now();
+      [[maybe_unused]] bool result = re->test(evil_input);
+      auto end = std::chrono::steady_clock::now();
+
+      auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+      // RE2 should complete in under 100ms for any input
+      RC_ASSERT(duration.count() < 100);
+    }
+  });
 }

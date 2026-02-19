@@ -101,7 +101,7 @@ struct DerivationOptions {
    * not needed (attributes are not passed through the environment, so
    * there is no size constraint).
    */
-  StringSet passAsFile;
+  string_set_t passAsFile;
 
   /**
    * The `exportReferencesGraph' feature allows the references graph
@@ -144,12 +144,12 @@ struct DerivationOptions {
   /**
    * env: __impureHostDeps
    */
-  StringSet impureHostDeps = {};
+  string_set_t impureHostDeps = {};
 
   /**
    * env: impureEnvVars
    */
-  StringSet impureEnvVars = {};
+  string_set_t impureEnvVars = {};
 
   /**
    * env: __darwinAllowLocalNetworking
@@ -161,7 +161,7 @@ struct DerivationOptions {
   /**
    * env: requiredSystemFeatures
    */
-  StringSet requiredSystemFeatures = {};
+  string_set_t requiredSystemFeatures = {};
 
   /**
    * env: preferLocalBuild
@@ -180,7 +180,7 @@ struct DerivationOptions {
    * the future we'll flip things around so a `BasicDerivation` has
    * `DerivationOptions` instead.
    */
-  StringSet getRequiredSystemFeatures(const BasicDerivation& drv) const;
+  string_set_t getRequiredSystemFeatures(const BasicDerivation& drv) const;
 
   /**
    * @param drv See note on `getRequiredSystemFeatures`
@@ -212,14 +212,14 @@ struct DerivationOutput;
  * ATerm).
  */
 DerivationOptions<SingleDerivedPath> derivationOptionsFromStructuredAttrs(
-    const StoreDirConfig& store, const DerivedPathMap<StringSet>& inputDrvs, const StringMap& env,
+    const StoreDirConfig& store, const DerivedPathMap<string_set_t>& inputDrvs, const string_map_t& env,
     const StructuredAttrs* parsed, bool shouldWarn = true,
-    const ExperimentalFeatureSettings& mockXpSettings = experimentalFeatureSettings);
+    const experimental_feature_settings_t& mockXpSettings = experimentalFeatureSettings);
 
 DerivationOptions<StorePath> derivationOptionsFromStructuredAttrs(
-    const StoreDirConfig& store, const StringMap& env, const StructuredAttrs* parsed,
+    const StoreDirConfig& store, const string_map_t& env, const StructuredAttrs* parsed,
     bool shouldWarn = true,
-    const ExperimentalFeatureSettings& mockXpSettings = experimentalFeatureSettings);
+    const experimental_feature_settings_t& mockXpSettings = experimentalFeatureSettings);
 
 /**
  * This is the counterpart of `Derivation::tryResolve`. In particular,

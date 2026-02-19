@@ -5,7 +5,7 @@
 namespace nix {
 
 /**
- * Common initialisation performed in child processes.
+ * common_t initialisation performed in child processes.
  */
 void commonChildInit();
 

@@ -37,7 +37,7 @@ bool StoreDirConfig::isStorePath(std::string_view path) const {
   return (bool)maybeParseStorePath(path);
 }
 
-StorePathSet StoreDirConfig::parseStorePathSet(const PathSet& paths) const {
+StorePathSet StoreDirConfig::parseStorePathSet(const path_set_t& paths) const {
   StorePathSet res;
   for (auto& i : paths)
     res.insert(parseStorePath(i));
@@ -48,8 +48,8 @@ std::string StoreDirConfig::printStorePath(const StorePath& path) const {
   return (storeDir + "/").append(path.to_string());
 }
 
-PathSet StoreDirConfig::printStorePathSet(const StorePathSet& paths) const {
-  PathSet res;
+path_set_t StoreDirConfig::printStorePathSet(const StorePathSet& paths) const {
+  path_set_t res;
   for (auto& i : paths)
     res.insert(printStorePath(i));
   return res;
@@ -68,13 +68,13 @@ StorePath StoreDirConfig::makeStorePath(std::string_view type, std::string_view 
                                         std::string_view name) const {
   /* e.g., "source:sha256:1abc...:/nix/store:foo.tar.gz" */
   auto s = std::string(type) + ":" + std::string(hash) + ":" + storeDir + ":" + std::string(name);
-  auto h = compressHash(hashString(HashAlgorithm::SHA256, s), 20);
+  auto h = compressHash(hashString(hash_algorithm_t::SHA256, s), 20);
   return StorePath(h, name);
 }
 
 StorePath StoreDirConfig::makeStorePath(std::string_view type, const Hash& hash,
                                         std::string_view name) const {
-  return makeStorePath(type, hash.to_string(HashFormat::Base16, true), name);
+  return makeStorePath(type, hash.to_string(hash_format_t::Base16, true), name);
 }
 
 StorePath StoreDirConfig::makeOutputPath(std::string_view id, const Hash& hash,
@@ -98,13 +98,13 @@ static std::string makeType(const StoreDirConfig& store, std::string&& type,
 
 StorePath StoreDirConfig::makeFixedOutputPath(std::string_view name,
                                               const FixedOutputInfo& info) const {
-  if (info.method == FileIngestionMethod::Git &&
-      !(info.hash.algo == HashAlgorithm::SHA1 || info.hash.algo == HashAlgorithm::SHA256)) {
+  if (info.method == file_ingestion_method_t::Git &&
+      !(info.hash.algo == hash_algorithm_t::SHA1 || info.hash.algo == hash_algorithm_t::SHA256)) {
     throw Error("Git file ingestion must use SHA-1 or SHA-256 hash, but instead using: %s",
                 printHashAlgo(info.hash.algo));
   }
 
-  if (info.hash.algo == HashAlgorithm::SHA256 && info.method == FileIngestionMethod::NixArchive) {
+  if (info.hash.algo == hash_algorithm_t::SHA256 && info.method == file_ingestion_method_t::NixArchive) {
     return makeStorePath(makeType(*this, "source", info.references), info.hash, name);
   } else {
     if (!info.references.empty()) {
@@ -115,8 +115,8 @@ StorePath StoreDirConfig::makeFixedOutputPath(std::string_view name,
     }
     // make a unique digest based on the parameters for creating this store object
     auto payload = "fixed:out:" + makeFileIngestionPrefix(info.method) +
-                   info.hash.to_string(HashFormat::Base16, true) + ":";
-    auto digest = hashString(HashAlgorithm::SHA256, payload);
+                   info.hash.to_string(hash_format_t::Base16, true) + ":";
+    auto digest = hashString(hash_algorithm_t::SHA256, payload);
     return makeStorePath("output:out", digest, name);
   }
 }
@@ -126,7 +126,7 @@ StorePath StoreDirConfig::makeFixedOutputPathFromCA(std::string_view name,
   // New template
   return std::visit(
       overloaded{[&](const TextInfo& ti) {
-                   assert(ti.hash.algo == HashAlgorithm::SHA256);
+                   assert(ti.hash.algo == hash_algorithm_t::SHA256);
                    return makeStorePath(makeType(*this, "text",
                                                  StoreReferences{
                                                      .others = ti.references,
@@ -139,9 +139,9 @@ StorePath StoreDirConfig::makeFixedOutputPathFromCA(std::string_view name,
 }
 
 std::pair<StorePath, Hash>
-StoreDirConfig::computeStorePath(std::string_view name, const SourcePath& path,
-                                 ContentAddressMethod method, HashAlgorithm hashAlgo,
-                                 const StorePathSet& references, PathFilter& filter) const {
+StoreDirConfig::computeStorePath(std::string_view name, const source_path_t& path,
+                                 ContentAddressMethod method, hash_algorithm_t hashAlgo,
+                                 const StorePathSet& references, path_filter_t& filter) const {
   auto [h, size] = hashPath(path, method.getFileIngestionMethod(), hashAlgo, filter);
   if (settings.warnLargePathThreshold && size && *size >= settings.warnLargePathThreshold)
     warn("hashed large path '%s' (%s)", path, renderSize(*size));

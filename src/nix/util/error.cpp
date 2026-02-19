@@ -14,8 +14,8 @@
 
 namespace nix {
 
-void BaseError::addTrace(std::shared_ptr<const Pos>&& e, HintFmt hint, TracePrint print) {
-  err.traces.push_front(Trace{.pos = std::move(e), .hint = hint, .print = print});
+void base_error_t::addTrace(std::shared_ptr<const Pos>&& e, hint_fmt_t hint, trace_print_t print) {
+  err.traces.push_front(trace_t{.pos = std::move(e), .hint = hint, .print = print});
 }
 
 void throwExceptionSelfCheck() {
@@ -26,7 +26,7 @@ void throwExceptionSelfCheck() {
 
 // c++ std::exception descendants must have a 'const char* what()' function.
 // This stringifies the error and caches it for use by what(), or similarly by msg().
-const std::string& BaseError::calcWhat() const {
+const std::string& base_error_t::calcWhat() const {
   if (what_.has_value())
     return *what_;
   else {
@@ -37,9 +37,9 @@ const std::string& BaseError::calcWhat() const {
   }
 }
 
-std::optional<std::string> ErrorInfo::programName = std::nullopt;
+std::optional<std::string> error_info_t::programName = std::nullopt;
 
-std::ostream& operator<<(std::ostream& os, const HintFmt& hf) {
+std::ostream& operator<<(std::ostream& os, const hint_fmt_t& hf) {
   return os << hf.str();
 }
 
@@ -47,7 +47,7 @@ std::ostream& operator<<(std::ostream& os, const HintFmt& hf) {
  * An arbitrarily defined value comparison for the purpose of using traces in the key of a sorted
  * container.
  */
-inline std::strong_ordering operator<=>(const Trace& lhs, const Trace& rhs) {
+inline std::strong_ordering operator<=>(const trace_t& lhs, const trace_t& rhs) {
   // `std::shared_ptr` does not have value semantics for its comparison
   // functions, so we need to check for nulls and compare the dereferenced
   // values here.
@@ -65,7 +65,7 @@ inline std::strong_ordering operator<=>(const Trace& lhs, const Trace& rhs) {
 
 // print lines of code to the ostream, indicating the error column.
 void printCodeLines(std::ostream& out, const std::string& prefix, const Pos& errPos,
-                    const LinesOfCode& loc) {
+                    const lines_of_code_t& loc) {
   // previous line of code.
   if (loc.prevLineOfCode.has_value()) {
     out << std::endl << fmt("%1% %|2$5d|| %3%", prefix, (errPos.line - 1), *loc.prevLineOfCode);
@@ -145,7 +145,7 @@ static bool printPosMaybe(std::ostream& oss, std::string_view indent,
 }
 
 static void printTrace(std::ostream& output, const std::string_view& indent, size_t& count,
-                       const Trace& trace) {
+                       const trace_t& trace) {
   output << "\n" << "… " << trace.hint.str() << "\n";
 
   if (printPosMaybe(output, indent, trace.pos))
@@ -153,7 +153,7 @@ static void printTrace(std::ostream& output, const std::string_view& indent, siz
 }
 
 void printSkippedTracesMaybe(std::ostream& output, const std::string_view& indent, size_t& count,
-                             std::vector<Trace>& skippedTraces, std::set<Trace> tracesSeen) {
+                             std::vector<trace_t>& skippedTraces, std::set<trace_t> tracesSeen) {
   if (skippedTraces.size() > 0) {
     // If we only skipped a few frames, print them out normally;
     // messages like "1 duplicate frames omitted" aren't helpful.
@@ -200,41 +200,41 @@ void printSkippedTracesMaybe(std::ostream& output, const std::string_view& inden
   skippedTraces.clear();
 }
 
-std::ostream& showErrorInfo(std::ostream& out, const ErrorInfo& einfo, bool showTrace) {
+std::ostream& showErrorInfo(std::ostream& out, const error_info_t& einfo, bool showTrace) {
   std::string prefix;
   switch (einfo.level) {
-    case Verbosity::lvlError: {
+    case verbosity_t::lvlError: {
       prefix = ANSI_RED "error";
       break;
     }
-    case Verbosity::lvlNotice: {
+    case verbosity_t::lvlNotice: {
       prefix = ANSI_RED "note";
       break;
     }
-    case Verbosity::lvlWarn: {
+    case verbosity_t::lvlWarn: {
       if (einfo.isFromExpr)
         prefix = ANSI_WARNING "evaluation warning";
       else
         prefix = ANSI_WARNING "warning";
       break;
     }
-    case Verbosity::lvlInfo: {
+    case verbosity_t::lvlInfo: {
       prefix = ANSI_GREEN "info";
       break;
     }
-    case Verbosity::lvlTalkative: {
+    case verbosity_t::lvlTalkative: {
       prefix = ANSI_GREEN "talk";
       break;
     }
-    case Verbosity::lvlChatty: {
+    case verbosity_t::lvlChatty: {
       prefix = ANSI_GREEN "chat";
       break;
     }
-    case Verbosity::lvlVomit: {
+    case verbosity_t::lvlVomit: {
       prefix = ANSI_GREEN "vomit";
       break;
     }
-    case Verbosity::lvlDebug: {
+    case verbosity_t::lvlDebug: {
       prefix = ANSI_WARNING "debug";
       break;
     }
@@ -243,7 +243,7 @@ std::ostream& showErrorInfo(std::ostream& out, const ErrorInfo& einfo, bool show
   }
 
   // FIXME: show the program name as part of the trace?
-  if (einfo.programName && einfo.programName != ErrorInfo::programName)
+  if (einfo.programName && einfo.programName != error_info_t::programName)
     prefix += fmt(" [%s]:" ANSI_NORMAL " ", einfo.programName.value_or(""));
   else
     prefix += ":" ANSI_NORMAL " ";
@@ -353,9 +353,9 @@ std::ostream& showErrorInfo(std::ostream& out, const ErrorInfo& einfo, bool show
   if (!einfo.traces.empty()) {
     // Stack traces seen since we last printed a chunk of `duplicate frames
     // omitted`.
-    std::set<Trace> tracesSeen;
+    std::set<trace_t> tracesSeen;
     // A consecutive sequence of stack traces that are all in `tracesSeen`.
-    std::vector<Trace> skippedTraces;
+    std::vector<trace_t> skippedTraces;
     size_t count = 0;
     bool truncate = false;
 
@@ -367,7 +367,7 @@ std::ostream& showErrorInfo(std::ostream& out, const ErrorInfo& einfo, bool show
         truncate = true;
       }
 
-      if (!truncate || trace.print == TracePrint::Always) {
+      if (!truncate || trace.print == trace_print_t::Always) {
         if (tracesSeen.count(trace)) {
           skippedTraces.push_back(trace);
           continue;

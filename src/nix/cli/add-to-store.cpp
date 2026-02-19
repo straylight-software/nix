@@ -8,13 +8,13 @@
 
 using namespace nix;
 
-struct CmdAddToStore : MixDryRun, StoreCommand {
+struct cmd_add_to_store_t : MixDryRun, StoreCommand {
   Path path;
   std::optional<std::string> namePart;
-  ContentAddressMethod caMethod = ContentAddressMethod::Raw::NixArchive;
-  HashAlgorithm hashAlgo = HashAlgorithm::SHA256;
+  ContentAddressMethod caMethod = ContentAddressMethod::raw_t::NixArchive;
+  hash_algorithm_t hashAlgo = hash_algorithm_t::SHA256;
 
-  CmdAddToStore() {
+  cmd_add_to_store_t() {
     // FIXME: completion
     expectArg("path", &path);
 
@@ -36,7 +36,7 @@ struct CmdAddToStore : MixDryRun, StoreCommand {
     if (!namePart)
       namePart = baseNameOf(path);
 
-    auto sourcePath = PosixSourceAccessor::createAtRoot(makeParentCanonical(path));
+    auto sourcePath = posix_source_accessor_t::createAtRoot(makeParentCanonical(path));
 
     auto storePath =
         dryRun ? store->computeStorePath(*namePart, sourcePath, caMethod, hashAlgo, {}).first
@@ -46,7 +46,7 @@ struct CmdAddToStore : MixDryRun, StoreCommand {
   }
 };
 
-struct CmdAdd : CmdAddToStore {
+struct cmd_add_t : cmd_add_to_store_t {
   std::string description() override { return "Add a file or directory to the Nix store"; }
 
   std::string doc() override {
@@ -56,8 +56,8 @@ struct CmdAdd : CmdAddToStore {
   }
 };
 
-struct CmdAddFile : CmdAddToStore {
-  CmdAddFile() { caMethod = ContentAddressMethod::Raw::Flat; }
+struct cmd_add_file_t : cmd_add_to_store_t {
+  cmd_add_file_t() { caMethod = ContentAddressMethod::raw_t::Flat; }
 
   std::string description() override {
     return "Deprecated. Use [`nix store add --mode "
@@ -65,13 +65,13 @@ struct CmdAddFile : CmdAddToStore {
   }
 };
 
-struct CmdAddPath : CmdAddToStore {
+struct cmd_add_path_t : cmd_add_to_store_t {
   std::string description() override {
     return "Deprecated alias to [`nix store "
            "add`](@docroot@/command-ref/new-cli/nix3-store-add.md).";
   }
 };
 
-static auto rCmdAddFile = registerCommand2<CmdAddFile>({"store", "add-file"});
-static auto rCmdAddPath = registerCommand2<CmdAddPath>({"store", "add-path"});
-static auto rCmdAdd = registerCommand2<CmdAdd>({"store", "add"});
+static auto rCmdAddFile = registerCommand2<cmd_add_file_t>({"store", "add-file"});
+static auto rCmdAddPath = registerCommand2<cmd_add_path_t>({"store", "add-path"});
+static auto rCmdAdd = registerCommand2<cmd_add_t>({"store", "add"});

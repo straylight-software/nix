@@ -13,7 +13,7 @@ namespace nix {
 using GcRootInfo = std::string;
 
 typedef boost::unordered_flat_map<
-    StorePath, boost::unordered_flat_set<GcRootInfo, StringViewHash, std::equal_to<>>,
+    StorePath, boost::unordered_flat_set<GcRootInfo, string_view_hash_t, std::equal_to<>>,
     std::hash<StorePath>>
     Roots;
 
@@ -74,7 +74,7 @@ struct GCResults {
    * Depending on the action, the GC roots, or the paths that would
    * be or have been deleted.
    */
-  PathSet paths;
+  path_set_t paths;
 
   /**
    * For `gcReturnDead`, `gcDeleteDead` and `gcDeleteSpecific`, the

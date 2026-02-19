@@ -3853,7 +3853,7 @@ static yy_state_type yy_try_NUL_trans(yy_state_type current_state, yyscan_t yysc
 static int yy_get_next_buffer(yyscan_t yyscanner);
 static void yynoreturn yy_fatal_error(const char* msg, yyscan_t yyscanner);
 
-/* Done after the current pattern has been matched and before the
+/* done_t after the current pattern has been matched and before the
  * corresponding action - sets up yytext.
  */
 #define YY_DO_BEFORE_ACTION                                                                        \
@@ -3958,10 +3958,10 @@ static StringToken unescapeStr(char* const s, size_t length, std::function<Pos()
   return {s, size_t(t - s)};
 }
 
-static void requireExperimentalFeature(const ExperimentalFeature& feature, const Pos& pos) {
+static void requireExperimentalFeature(const experimental_feature_t& feature, const Pos& pos) {
   if (!experimentalFeatureSettings.isEnabled(feature))
-    throw ParseError(ErrorInfo{
-        .msg = HintFmt("experimental Nix feature '%1%' is disabled; add "
+    throw ParseError(error_info_t{
+        .msg = hint_fmt_t("experimental Nix feature '%1%' is disabled; add "
                        "'--extra-experimental-features %1%' to enable it",
                        showExperimentalFeature(feature)),
         .pos = pos,
@@ -4453,7 +4453,7 @@ YY_DECL {
           YY_RULE_SETUP
 #line 138 "lexer.l"
           {
-            requireExperimentalFeature(Xp::PipeOperators, state->positions[CUR_POS]);
+            requireExperimentalFeature(xp_t::PipeOperators, state->positions[CUR_POS]);
             return PIPE_FROM;
           }
           YY_BREAK
@@ -4461,7 +4461,7 @@ YY_DECL {
           YY_RULE_SETUP
 #line 141 "lexer.l"
           {
-            requireExperimentalFeature(Xp::PipeOperators, state->positions[CUR_POS]);
+            requireExperimentalFeature(xp_t::PipeOperators, state->positions[CUR_POS]);
             return PIPE_INTO;
           }
           YY_BREAK
@@ -4482,8 +4482,8 @@ YY_DECL {
             if (numMay.has_value()) {
               yylval->emplace<NixInt>(*numMay);
             } else {
-              throw ParseError(ErrorInfo{
-                  .msg = HintFmt("invalid integer '%1%'", yytext),
+              throw ParseError(error_info_t{
+                  .msg = hint_fmt_t("invalid integer '%1%'", yytext),
                   .pos = state->positions[CUR_POS],
               });
             }
@@ -4497,8 +4497,8 @@ YY_DECL {
             errno = 0;
             yylval->emplace<NixFloat>(strtod(yytext, 0));
             if (errno != 0)
-              throw ParseError(ErrorInfo{
-                  .msg = HintFmt("invalid float '%1%'", yytext),
+              throw ParseError(error_info_t{
+                  .msg = hint_fmt_t("invalid float '%1%'", yytext),
                   .pos = state->positions[CUR_POS],
               });
             return FLOAT_LIT;
@@ -4772,8 +4772,8 @@ YY_DECL {
         case YY_STATE_EOF(INPATH_SLASH):
 #line 298 "lexer.l"
         {
-          throw ParseError(ErrorInfo{
-              .msg = HintFmt("path has a trailing slash"),
+          throw ParseError(error_info_t{
+              .msg = hint_fmt_t("path has a trailing slash"),
               .pos = state->positions[CUR_POS],
           });
         }

@@ -24,11 +24,11 @@ void initNix(bool loadConfig = true);
 
 void parseCmdLine(
     int argc, char** argv,
-    std::function<bool(Strings::iterator& arg, const Strings::iterator& end)> parseArg);
+    std::function<bool(strings_t::iterator& arg, const strings_t::iterator& end)> parseArg);
 
 void parseCmdLine(
-    const std::string& programName, const Strings& args,
-    std::function<bool(Strings::iterator& arg, const Strings::iterator& end)> parseArg);
+    const std::string& programName, const strings_t& args,
+    std::function<bool(strings_t::iterator& arg, const strings_t::iterator& end)> parseArg);
 
 std::string version();
 
@@ -42,14 +42,14 @@ void printGCWarning();
 class Store;
 struct MissingPaths;
 
-void printMissing(ref<Store> store, const std::vector<DerivedPath>& paths, Verbosity lvl = lvlInfo);
+void printMissing(ref<Store> store, const std::vector<DerivedPath>& paths, verbosity_t lvl = lvlInfo);
 
-void printMissing(ref<Store> store, const MissingPaths& missing, Verbosity lvl = lvlInfo);
+void printMissing(ref<Store> store, const MissingPaths& missing, verbosity_t lvl = lvlInfo);
 
-std::string getArg(const std::string& opt, Strings::iterator& i, const Strings::iterator& end);
+std::string getArg(const std::string& opt, strings_t::iterator& i, const strings_t::iterator& end);
 
 template <class N>
-N getIntArg(const std::string& opt, Strings::iterator& i, const Strings::iterator& end,
+N getIntArg(const std::string& opt, strings_t::iterator& i, const strings_t::iterator& end,
             bool allowUnit) {
   ++i;
   if (i == end)
@@ -57,15 +57,15 @@ N getIntArg(const std::string& opt, Strings::iterator& i, const Strings::iterato
   return string2IntWithUnitPrefix<N>(*i);
 }
 
-struct LegacyArgs : public MixCommonArgs, public RootArgs {
-  std::function<bool(Strings::iterator& arg, const Strings::iterator& end)> parseArg;
+struct LegacyArgs : public MixCommonArgs, public root_args_t {
+  std::function<bool(strings_t::iterator& arg, const strings_t::iterator& end)> parseArg;
 
   LegacyArgs(const std::string& programName,
-             std::function<bool(Strings::iterator& arg, const Strings::iterator& end)> parseArg);
+             std::function<bool(strings_t::iterator& arg, const strings_t::iterator& end)> parseArg);
 
-  bool processFlag(Strings::iterator& pos, Strings::iterator end) override;
+  bool processFlag(strings_t::iterator& pos, strings_t::iterator end) override;
 
-  bool processArgs(const Strings& args, bool finish) override;
+  bool processArgs(const strings_t& args, bool finish) override;
 };
 
 /**
@@ -82,7 +82,7 @@ private:
 #ifndef _WIN32 // TODO re-enable on Windows, once we can start processes.
   Pid pid;
 #endif
-  Descriptor std_out;
+  descriptor_t std_out;
 };
 
 extern volatile ::sig_atomic_t blockInt;

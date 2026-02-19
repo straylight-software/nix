@@ -98,4 +98,103 @@ auto bulk_mkdir(ring& ring_instance, std::span<const char* const> paths, mode_t 
 auto bulk_mkdir(ring& ring_instance, std::span<const std::string> paths, mode_t mode = 0755)
     -> bulk_result;
 
+// ============================================================================
+// Bulk rmdir
+// ============================================================================
+
+/// remove many empty directories
+auto bulk_rmdir(ring& ring_instance, std::span<const char* const> paths) -> bulk_result;
+
+/// remove many empty directories (string version)
+auto bulk_rmdir(ring& ring_instance, std::span<const std::string> paths) -> bulk_result;
+
+// ============================================================================
+// Bulk rename
+// ============================================================================
+
+/// rename/move many files or directories
+/// source_paths[i] is renamed to dest_paths[i]
+/// both spans must have the same size
+auto bulk_rename(ring& ring_instance, std::span<const char* const> source_paths,
+                 std::span<const char* const> dest_paths) -> bulk_result;
+
+/// rename many files (string version)
+auto bulk_rename(ring& ring_instance, std::span<const std::string> source_paths,
+                 std::span<const std::string> dest_paths) -> bulk_result;
+
+// ============================================================================
+// Bulk symlink
+// ============================================================================
+
+/// create many symbolic links
+/// targets[i] is the target, linkpaths[i] is the symlink path
+/// both spans must have the same size
+auto bulk_symlink(ring& ring_instance, std::span<const char* const> targets,
+                  std::span<const char* const> linkpaths) -> bulk_result;
+
+/// create many symbolic links (string version)
+auto bulk_symlink(ring& ring_instance, std::span<const std::string> targets,
+                  std::span<const std::string> linkpaths) -> bulk_result;
+
+// ============================================================================
+// Bulk link (hard links)
+// ============================================================================
+
+/// create many hard links
+/// source_paths[i] is linked to dest_paths[i]
+/// both spans must have the same size
+auto bulk_link(ring& ring_instance, std::span<const char* const> source_paths,
+               std::span<const char* const> dest_paths) -> bulk_result;
+
+/// create many hard links (string version)
+auto bulk_link(ring& ring_instance, std::span<const std::string> source_paths,
+               std::span<const std::string> dest_paths) -> bulk_result;
+
+// ============================================================================
+// Bulk readlink
+// ============================================================================
+
+/// read many symbolic link targets
+/// results are stored in targets buffer (must be pre-sized)
+/// each target buffer should be at least PATH_MAX bytes
+auto bulk_readlink(ring& ring_instance, std::span<const char* const> linkpaths,
+                   std::span<std::string> targets) -> bulk_result;
+
+/// read many symbolic link targets (string version for input)
+auto bulk_readlink(ring& ring_instance, std::span<const std::string> linkpaths,
+                   std::span<std::string> targets) -> bulk_result;
+
+// ============================================================================
+// Recursive directory copy
+// ============================================================================
+
+/// options for copy_tree
+struct copy_tree_options {
+  std::size_t buffer_size = 1024UL * 1024UL;      // buffer size for file copies
+  std::size_t ring_depth = 32;                    // concurrent operations per file
+  bool preserve_permissions = true;               // preserve file mode
+  bool preserve_timestamps = false;               // preserve mtime/atime (not yet implemented)
+  bool dereference_symlinks = false;              // copy symlink targets instead of links
+  std::function<void(std::uint64_t)> on_progress; // progress callback (bytes copied)
+};
+
+/// result of copy_tree operation
+struct copy_tree_result {
+  std::size_t directories_created{0};
+  std::size_t files_copied{0};
+  std::size_t symlinks_created{0};
+  std::size_t bytes_copied{0};
+  std::size_t failed{0};
+  std::vector<std::pair<std::string, int>> errors; // path -> errno
+};
+
+/// recursively copy a directory tree
+/// creates dest directory if it doesn't exist
+auto copy_tree(ring& ring_instance, const char* source, const char* dest,
+               copy_tree_options const& options = {}) -> copy_tree_result;
+
+/// copy_tree (string version)
+auto copy_tree(ring& ring_instance, std::string const& source, std::string const& dest,
+               copy_tree_options const& options = {}) -> copy_tree_result;
+
 } // namespace evring

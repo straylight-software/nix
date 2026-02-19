@@ -15,7 +15,7 @@ namespace nix {
  * <name>:<key/signature-in-Base64>
  * ```
  */
-struct BorrowedCryptoValue {
+struct borrowed_crypto_value_t {
   std::string_view name;
   std::string_view payload;
 
@@ -23,7 +23,7 @@ struct BorrowedCryptoValue {
    * This splits on the colon, the user can then separated decode the
    * Base64 payload separately.
    */
-  static BorrowedCryptoValue parse(std::string_view);
+  static borrowed_crypto_value_t parse(std::string_view);
 };
 
 struct Key {
@@ -45,26 +45,26 @@ protected:
   Key(std::string_view name, std::string&& key) : name(name), key(std::move(key)) {}
 };
 
-struct PublicKey;
+struct public_key_t;
 
-struct SecretKey : Key {
-  SecretKey(std::string_view s);
+struct secret_key_t : Key {
+  secret_key_t(std::string_view s);
 
   /**
    * Return a detached signature of the given string.
    */
   std::string signDetached(std::string_view s) const;
 
-  PublicKey toPublicKey() const;
+  public_key_t toPublicKey() const;
 
-  static SecretKey generate(std::string_view name);
+  static secret_key_t generate(std::string_view name);
 
 private:
-  SecretKey(std::string_view name, std::string&& key) : Key(name, std::move(key)) {}
+  secret_key_t(std::string_view name, std::string&& key) : Key(name, std::move(key)) {}
 };
 
-struct PublicKey : Key {
-  PublicKey(std::string_view data);
+struct public_key_t : Key {
+  public_key_t(std::string_view data);
 
   /**
    * @return true iff `sig` and this key's names match, and `sig` is a
@@ -82,19 +82,19 @@ struct PublicKey : Key {
   bool verifyDetachedAnon(std::string_view data, std::string_view sigs) const;
 
 private:
-  PublicKey(std::string_view name, std::string&& key) : Key(name, std::move(key)) {}
-  friend struct SecretKey;
+  public_key_t(std::string_view name, std::string&& key) : Key(name, std::move(key)) {}
+  friend struct secret_key_t;
 };
 
 /**
  * Map from key names to public keys
  */
-typedef std::map<std::string, PublicKey> PublicKeys;
+typedef std::map<std::string, public_key_t> public_keys_t;
 
 /**
  * @return true iff ‘sig’ is a correct signature over ‘data’ using one
  * of the given public keys.
  */
-bool verifyDetached(std::string_view data, std::string_view sig, const PublicKeys& publicKeys);
+bool verifyDetached(std::string_view data, std::string_view sig, const public_keys_t& publicKeys);
 
 } // namespace nix

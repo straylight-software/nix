@@ -69,7 +69,7 @@ NarInfo::NarInfo(const StoreDirConfig& store, const std::string& s, const std::s
         throw corrupt("invalid NarSize");
       narSize = *n;
     } else if (name == "References") {
-      auto refs = tokenizeString<Strings>(value, " ");
+      auto refs = tokenizeString<strings_t>(value, " ");
       if (!references.empty())
         throw corrupt("extra References");
       for (auto& r : refs)
@@ -109,11 +109,11 @@ std::string NarInfo::to_string(const StoreDirConfig& store) const {
   res += "URL: " + url + "\n";
   assert(compression != "");
   res += "Compression: " + compression + "\n";
-  assert(fileHash && fileHash->algo == HashAlgorithm::SHA256);
-  res += "FileHash: " + fileHash->to_string(HashFormat::Nix32, true) + "\n";
+  assert(fileHash && fileHash->algo == hash_algorithm_t::SHA256);
+  res += "FileHash: " + fileHash->to_string(hash_format_t::Nix32, true) + "\n";
   res += "FileSize: " + std::to_string(fileSize) + "\n";
-  assert(narHash.algo == HashAlgorithm::SHA256);
-  res += "NarHash: " + narHash.to_string(HashFormat::Nix32, true) + "\n";
+  assert(narHash.algo == hash_algorithm_t::SHA256);
+  res += "NarHash: " + narHash.to_string(hash_format_t::Nix32, true) + "\n";
   res += "NarSize: " + std::to_string(narSize) + "\n";
 
   res += "References: " + concatStringsSep(" ", shortRefs()) + "\n";
@@ -143,7 +143,7 @@ nlohmann::json UnkeyedNarInfo::toJSON(const StoreDirConfig* store, bool includeI
       jsonObject["compression"] = compression;
     if (fileHash) {
       if (format == PathInfoJsonFormat::V1)
-        jsonObject["downloadHash"] = fileHash->to_string(HashFormat::SRI, true);
+        jsonObject["downloadHash"] = fileHash->to_string(hash_format_t::SRI, true);
       else
         jsonObject["downloadHash"] = *fileHash;
     }

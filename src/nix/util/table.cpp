@@ -9,7 +9,7 @@
 
 namespace nix {
 
-void printTable(std::ostream& out, Table& table, unsigned int width) {
+void printTable(std::ostream& out, table_t& table, unsigned int width) {
   auto nrColumns = table.size() > 0 ? table.front().size() : 0;
 
   std::vector<size_t> widths;
@@ -31,7 +31,7 @@ void printTable(std::ostream& out, Table& table, unsigned int width) {
       replace(s.begin(), s.end(), '\n', ' ');
 
       auto padding = std::string(widths[column] - s.size(), ' ');
-      if (j->alignment == TableCell::Right) {
+      if (j->alignment == table_cell_t::Right) {
         line += padding;
         line += s;
       } else {

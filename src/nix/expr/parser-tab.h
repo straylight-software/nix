@@ -82,11 +82,11 @@
 
 namespace nix {
 
-typedef boost::unordered_flat_map<PosIdx, DocComment, std::hash<PosIdx>> DocCommentMap;
+typedef boost::unordered_flat_map<pos_idx_t, DocComment, std::hash<pos_idx_t>> DocCommentMap;
 
-Expr* parseExprFromBuf(char* text, size_t length, Pos::Origin origin, const SourcePath& basePath,
+Expr* parseExprFromBuf(char* text, size_t length, Pos::origin_t origin, const source_path_t& basePath,
                        Exprs& exprs, SymbolTable& symbols, const EvalSettings& settings,
-                       PosTable& positions, DocCommentMap& docComments,
+                       pos_table_t& positions, DocCommentMap& docComments,
                        const ref<SourceAccessor> rootFS);
 
 } // namespace nix
@@ -229,7 +229,7 @@ namespace parser {
 
 
 /// A Bison parser.
-class BisonParser {
+class bison_parser_t {
 public:
 #ifdef YYSTYPE
 #  ifdef __GNUC__
@@ -436,13 +436,13 @@ public:
       char dummy10[sizeof(std::vector<AttrName>)];
 
       // attrs
-      char dummy11[sizeof(std::vector<std::pair<AttrName, PosIdx>>)];
+      char dummy11[sizeof(std::vector<std::pair<AttrName, pos_idx_t>>)];
 
       // string_parts_interpolated
-      char dummy12[sizeof(std::vector<std::pair<PosIdx, Expr*>>)];
+      char dummy12[sizeof(std::vector<std::pair<pos_idx_t, Expr*>>)];
 
       // ind_string_parts
-      char dummy13[sizeof(std::vector<std::pair<PosIdx, std::variant<Expr*, StringToken>>>)];
+      char dummy13[sizeof(std::vector<std::pair<pos_idx_t, std::variant<Expr*, StringToken>>>)];
     };
 
     /// The size of the largest semantic type.
@@ -712,15 +712,15 @@ public:
           break;
 
         case symbol_kind::S_attrs: // attrs
-          value.move<std::vector<std::pair<AttrName, PosIdx>>>(std::move(that.value));
+          value.move<std::vector<std::pair<AttrName, pos_idx_t>>>(std::move(that.value));
           break;
 
         case symbol_kind::S_string_parts_interpolated: // string_parts_interpolated
-          value.move<std::vector<std::pair<PosIdx, Expr*>>>(std::move(that.value));
+          value.move<std::vector<std::pair<pos_idx_t, Expr*>>>(std::move(that.value));
           break;
 
         case symbol_kind::S_ind_string_parts: // ind_string_parts
-          value.move<std::vector<std::pair<PosIdx, std::variant<Expr*, StringToken>>>>(
+          value.move<std::vector<std::pair<pos_idx_t, std::variant<Expr*, StringToken>>>>(
               std::move(that.value));
           break;
 
@@ -822,33 +822,33 @@ public:
 #endif
 
 #if 201103L <= YY_CPLUSPLUS
-    basic_symbol(typename Base::kind_type t, std::vector<std::pair<AttrName, PosIdx>>&& v,
+    basic_symbol(typename Base::kind_type t, std::vector<std::pair<AttrName, pos_idx_t>>&& v,
                  location_type&& l)
         : Base(t), value(std::move(v)), location(std::move(l)) {}
 #else
-    basic_symbol(typename Base::kind_type t, const std::vector<std::pair<AttrName, PosIdx>>& v,
+    basic_symbol(typename Base::kind_type t, const std::vector<std::pair<AttrName, pos_idx_t>>& v,
                  const location_type& l)
         : Base(t), value(v), location(l) {}
 #endif
 
 #if 201103L <= YY_CPLUSPLUS
-    basic_symbol(typename Base::kind_type t, std::vector<std::pair<PosIdx, Expr*>>&& v,
+    basic_symbol(typename Base::kind_type t, std::vector<std::pair<pos_idx_t, Expr*>>&& v,
                  location_type&& l)
         : Base(t), value(std::move(v)), location(std::move(l)) {}
 #else
-    basic_symbol(typename Base::kind_type t, const std::vector<std::pair<PosIdx, Expr*>>& v,
+    basic_symbol(typename Base::kind_type t, const std::vector<std::pair<pos_idx_t, Expr*>>& v,
                  const location_type& l)
         : Base(t), value(v), location(l) {}
 #endif
 
 #if 201103L <= YY_CPLUSPLUS
     basic_symbol(typename Base::kind_type t,
-                 std::vector<std::pair<PosIdx, std::variant<Expr*, StringToken>>>&& v,
+                 std::vector<std::pair<pos_idx_t, std::variant<Expr*, StringToken>>>&& v,
                  location_type&& l)
         : Base(t), value(std::move(v)), location(std::move(l)) {}
 #else
     basic_symbol(typename Base::kind_type t,
-                 const std::vector<std::pair<PosIdx, std::variant<Expr*, StringToken>>>& v,
+                 const std::vector<std::pair<pos_idx_t, std::variant<Expr*, StringToken>>>& v,
                  const location_type& l)
         : Base(t), value(v), location(l) {}
 #endif
@@ -932,16 +932,16 @@ public:
           break;
 
         case symbol_kind::S_attrs: // attrs
-          value.template destroy<std::vector<std::pair<AttrName, PosIdx>>>();
+          value.template destroy<std::vector<std::pair<AttrName, pos_idx_t>>>();
           break;
 
         case symbol_kind::S_string_parts_interpolated: // string_parts_interpolated
-          value.template destroy<std::vector<std::pair<PosIdx, Expr*>>>();
+          value.template destroy<std::vector<std::pair<pos_idx_t, Expr*>>>();
           break;
 
         case symbol_kind::S_ind_string_parts: // ind_string_parts
           value
-              .template destroy<std::vector<std::pair<PosIdx, std::variant<Expr*, StringToken>>>>();
+              .template destroy<std::vector<std::pair<pos_idx_t, std::variant<Expr*, StringToken>>>>();
           break;
 
         default:
@@ -952,7 +952,7 @@ public:
     }
 
     /// The user-facing name of this symbol.
-    std::string name() const YY_NOEXCEPT { return BisonParser ::symbol_name(this->kind()); }
+    std::string name() const YY_NOEXCEPT { return bison_parser_t ::symbol_name(this->kind()); }
 
     /// Backward compatibility (Bison 3.6).
     symbol_kind_type type_get() const YY_NOEXCEPT;
@@ -1065,14 +1065,14 @@ public:
   };
 
   /// Build a parser object.
-  BisonParser(void* scanner_yyarg, nix::ParserState* state_yyarg);
-  virtual ~BisonParser();
+  bison_parser_t(void* scanner_yyarg, nix::ParserState* state_yyarg);
+  virtual ~bison_parser_t();
 
 #if 201103L <= YY_CPLUSPLUS
   /// Non copyable.
-  BisonParser(const BisonParser&) = delete;
+  bison_parser_t(const bison_parser_t&) = delete;
   /// Non copyable.
-  BisonParser& operator=(const BisonParser&) = delete;
+  bison_parser_t& operator=(const bison_parser_t&) = delete;
 #endif
 
   /// Parse.  An alias for parse ().
@@ -1392,7 +1392,7 @@ public:
 
   class context {
   public:
-    context(const BisonParser& yyparser, const symbol_type& yyla);
+    context(const bison_parser_t& yyparser, const symbol_type& yyla);
     const symbol_type& lookahead() const YY_NOEXCEPT { return yyla_; }
     symbol_kind_type token() const YY_NOEXCEPT { return yyla_.kind(); }
     const location_type& location() const YY_NOEXCEPT { return yyla_.location; }
@@ -1403,16 +1403,16 @@ public:
     int expected_tokens(symbol_kind_type yyarg[], int yyargn) const;
 
   private:
-    const BisonParser& yyparser_;
+    const bison_parser_t& yyparser_;
     const symbol_type& yyla_;
   };
 
 private:
 #if YY_CPLUSPLUS < 201103L
   /// Non copyable.
-  BisonParser(const BisonParser&);
+  bison_parser_t(const bison_parser_t&);
   /// Non copyable.
-  BisonParser& operator=(const BisonParser&);
+  bison_parser_t& operator=(const bison_parser_t&);
 #endif
 
 

@@ -6,11 +6,11 @@ namespace nix {
 
 static std::atomic<size_t> nextNumber{0};
 
-bool SourceAccessor::Stat::isNotNARSerialisable() {
+bool SourceAccessor::stat_t::isNotNARSerialisable() {
   return this->type != tRegular && this->type != tSymlink && this->type != tDirectory;
 }
 
-std::string SourceAccessor::Stat::typeString() {
+std::string SourceAccessor::stat_t::typeString() {
   switch (this->type) {
     case tRegular:
       return "regular";
@@ -35,32 +35,32 @@ std::string SourceAccessor::Stat::typeString() {
 
 SourceAccessor::SourceAccessor() : number(++nextNumber), displayPrefix{"«unknown»"} {}
 
-bool SourceAccessor::pathExists(const CanonPath& path) {
+bool SourceAccessor::pathExists(const canon_path_t& path) {
   return maybeLstat(path).has_value();
 }
 
-std::string SourceAccessor::readFile(const CanonPath& path) {
-  StringSink sink;
+std::string SourceAccessor::readFile(const canon_path_t& path) {
+  string_sink_t sink;
   std::optional<uint64_t> size;
   readFile(path, sink, [&](uint64_t _size) { size = _size; });
   assert(size && *size == sink.s.size());
   return std::move(sink.s);
 }
 
-void SourceAccessor::readFile(const CanonPath& path, Sink& sink,
+void SourceAccessor::readFile(const canon_path_t& path, Sink& sink,
                               std::function<void(uint64_t)> sizeCallback) {
   auto s = readFile(path);
   sizeCallback(s.size());
   sink(s);
 }
 
-Hash SourceAccessor::hashPath(const CanonPath& path, PathFilter& filter, HashAlgorithm ha) {
-  HashSink sink(ha);
+Hash SourceAccessor::hashPath(const canon_path_t& path, path_filter_t& filter, hash_algorithm_t ha) {
+  hash_sink_t sink(ha);
   dumpPath(path, sink, filter);
   return sink.finish().hash;
 }
 
-SourceAccessor::Stat SourceAccessor::lstat(const CanonPath& path) {
+SourceAccessor::stat_t SourceAccessor::lstat(const canon_path_t& path) {
   if (auto st = maybeLstat(path))
     return *st;
   else
@@ -72,12 +72,12 @@ void SourceAccessor::setPathDisplay(std::string displayPrefix, std::string displ
   this->displaySuffix = std::move(displaySuffix);
 }
 
-std::string SourceAccessor::showPath(const CanonPath& path) {
+std::string SourceAccessor::showPath(const canon_path_t& path) {
   return displayPrefix + path.abs() + displaySuffix;
 }
 
-CanonPath SourceAccessor::resolveSymlinks(const CanonPath& path, SymlinkResolution mode) {
-  auto res = CanonPath::root;
+canon_path_t SourceAccessor::resolveSymlinks(const canon_path_t& path, symlink_resolution_t mode) {
+  auto res = canon_path_t::root;
 
   int linksAllowed = 1024;
 
@@ -95,13 +95,13 @@ CanonPath SourceAccessor::resolveSymlinks(const CanonPath& path, SymlinkResoluti
         res.pop();
     } else {
       res.push(c);
-      if (mode == SymlinkResolution::Full || !todo.empty()) {
+      if (mode == symlink_resolution_t::Full || !todo.empty()) {
         if (auto st = maybeLstat(res); st && st->type == SourceAccessor::tSymlink) {
           if (!linksAllowed--)
             throw Error("infinite symlink recursion in path '%s'", showPath(path));
           auto target = readLink(res);
           if (isAbsolute(target)) {
-            res = CanonPath::root;
+            res = canon_path_t::root;
           } else {
             res.pop();
           }

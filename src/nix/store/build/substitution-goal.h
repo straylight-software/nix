@@ -24,16 +24,16 @@ struct PathSubstitutionGoal : public Goal {
   RepairFlag repair;
 
   /**
-   * Pipe for the substituter's standard output.
+   * pipe_t for the substituter's standard output.
    */
-  MuxablePipe outPipe;
+  muxable_pipe_t outPipe;
 
   /**
    * The substituter thread.
    */
   std::thread thr;
 
-  std::unique_ptr<MaintainCount<uint64_t>> maintainExpectedSubstitutions,
+  std::unique_ptr<maintain_count_t<uint64_t>> maintainExpectedSubstitutions,
       maintainRunningSubstitutions, maintainExpectedNar, maintainExpectedDownload;
 
   /**
@@ -41,9 +41,9 @@ struct PathSubstitutionGoal : public Goal {
    */
   std::optional<ContentAddress> ca;
 
-  Done doneSuccess(BuildResult::Success::Status status);
+  done_t doneSuccess(BuildResult::Success::Status status);
 
-  Done doneFailure(ExitCode result, BuildResult::Failure::Status status, std::string errorMsg);
+  done_t doneFailure(ExitCode result, BuildResult::Failure::Status status, std::string errorMsg);
 
 public:
   PathSubstitutionGoal(const StorePath& storePath, Worker& worker, RepairFlag repair = NoRepair,
@@ -68,8 +68,8 @@ public:
   /**
    * Callback used by the worker to write to the log.
    */
-  void handleChildOutput(Descriptor fd, std::string_view data) override {};
-  void handleEOF(Descriptor fd) override;
+  void handleChildOutput(descriptor_t fd, std::string_view data) override {};
+  void handleEOF(descriptor_t fd) override;
 
   /* Called by destructor, can't be overridden */
   void cleanup() override final;

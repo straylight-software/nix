@@ -36,7 +36,7 @@ std::string resolveMirrorUrl(EvalState& state, const std::string& url) {
   Value vMirrors;
   // FIXME: use nixpkgs flake
   state.eval(state.parseExprFromString("import <nixpkgs/pkgs/build-support/fetchurl/mirrors.nix>",
-                                       state.rootPath(CanonPath::root)),
+                                       state.rootPath(canon_path_t::root)),
              vMirrors);
   state.forceAttrs(vMirrors, noPos, "while evaluating the set of all mirrors");
 
@@ -53,12 +53,12 @@ std::string resolveMirrorUrl(EvalState& state, const std::string& url) {
   return mirror + (hasSuffix(mirror, "/") ? "" : "/") + s.substr(p + 1);
 }
 
-std::tuple<StorePath, Hash> prefetchFile(ref<Store> store, const VerbatimURL& url,
+std::tuple<StorePath, Hash> prefetchFile(ref<Store> store, const verbatim_url_t& url,
                                          std::optional<std::string> maybeName,
-                                         HashAlgorithm hashAlgo, std::optional<Hash> expectedHash,
+                                         hash_algorithm_t hashAlgo, std::optional<Hash> expectedHash,
                                          bool unpack, bool executable) {
-  ContentAddressMethod method = unpack || executable ? ContentAddressMethod::Raw::NixArchive
-                                                     : ContentAddressMethod::Raw::Flat;
+  ContentAddressMethod method = unpack || executable ? ContentAddressMethod::raw_t::NixArchive
+                                                     : ContentAddressMethod::raw_t::Flat;
 
   std::string name = maybeName
                          .or_else([&]() {
@@ -94,7 +94,7 @@ std::tuple<StorePath, Hash> prefetchFile(ref<Store> store, const VerbatimURL& ur
   }
 
   if (!storePath) {
-    AutoDelete tmpDir(createTempDir(), true);
+    auto_delete_t tmpDir(createTempDir(), true);
     std::filesystem::path tmpFile = tmpDir.path() / "tmp";
 
     /* Download the file. */
@@ -103,12 +103,12 @@ std::tuple<StorePath, Hash> prefetchFile(ref<Store> store, const VerbatimURL& ur
       if (executable)
         mode = 0700;
 
-      AutoCloseFD fd =
+      auto_close_fd_t fd =
           toDescriptor(open(tmpFile.string().c_str(), O_WRONLY | O_CREAT | O_EXCL, mode));
       if (!fd)
-        throw SysError("creating temporary file '%s'", tmpFile);
+        throw sys_error_t("creating temporary file '%s'", tmpFile);
 
-      FdSink sink(fd.get());
+      fd_sink_t sink(fd.get());
 
       FileTransferRequest req(url);
       req.decompress = false;
@@ -117,23 +117,23 @@ std::tuple<StorePath, Hash> prefetchFile(ref<Store> store, const VerbatimURL& ur
 
     /* Optionally unpack the file. */
     if (unpack) {
-      Activity act(*logger, lvlChatty, actUnknown, fmt("unpacking '%s'", url.to_string()));
+      activity_t act(*logger, lvlChatty, actUnknown, fmt("unpacking '%s'", url.to_string()));
       auto unpacked = (tmpDir.path() / "unpacked").string();
       createDirs(unpacked);
       unpackTarfile(tmpFile.string(), unpacked);
 
-      auto entries = DirectoryIterator{unpacked};
+      auto entries = directory_iterator_t{unpacked};
       /* If the archive unpacks to a single file/directory, then use
          that as the top-level. */
       tmpFile = entries->path();
-      auto fileCount = std::distance(entries, DirectoryIterator{});
+      auto fileCount = std::distance(entries, directory_iterator_t{});
       if (fileCount != 1) {
         /* otherwise, use the directory itself */
         tmpFile = unpacked;
       }
     }
 
-    Activity act(*logger, lvlChatty, actUnknown, fmt("adding '%s' to the store", url.to_string()));
+    activity_t act(*logger, lvlChatty, actUnknown, fmt("adding '%s' to the store", url.to_string()));
 
     auto info = store->addToStoreSlow(name, makeFSSourceAccessor(tmpFile), method, hashAlgo, {},
                                       expectedHash);
@@ -147,7 +147,7 @@ std::tuple<StorePath, Hash> prefetchFile(ref<Store> store, const VerbatimURL& ur
 
 static int main_nix_prefetch_url(int argc, char** argv) {
   {
-    HashAlgorithm ha = HashAlgorithm::SHA256;
+    hash_algorithm_t ha = hash_algorithm_t::SHA256;
     std::vector<std::string> args;
     bool printPath = getEnv("PRINT_PATH") == "1";
     bool fromExpr = false;
@@ -156,12 +156,12 @@ static int main_nix_prefetch_url(int argc, char** argv) {
     bool executable = false;
     std::optional<std::string> name;
 
-    struct MyArgs : LegacyArgs, MixEvalArgs {
+    struct my_args_t : LegacyArgs, MixEvalArgs {
       using LegacyArgs::LegacyArgs;
     };
 
-    MyArgs myArgs(std::string(baseNameOf(argv[0])),
-                  [&](Strings::iterator& arg, const Strings::iterator& end) {
+    my_args_t myArgs(std::string(baseNameOf(argv[0])),
+                  [&](strings_t::iterator& arg, const strings_t::iterator& end) {
                     if (*arg == "--help")
                       showManPage("nix-prefetch-url");
                     else if (*arg == "--version")
@@ -255,7 +255,7 @@ static int main_nix_prefetch_url(int argc, char** argv) {
 
     assert(static_cast<char>(hash.algo));
     logger->cout(hash.to_string(
-        hash.algo == HashAlgorithm::MD5 ? HashFormat::Base16 : HashFormat::Nix32, false));
+        hash.algo == hash_algorithm_t::MD5 ? hash_format_t::Base16 : hash_format_t::Nix32, false));
 
     if (printPath)
       logger->cout(store->printStorePath(storePath));
@@ -266,15 +266,15 @@ static int main_nix_prefetch_url(int argc, char** argv) {
 
 static RegisterLegacyCommand r_nix_prefetch_url("nix-prefetch-url", main_nix_prefetch_url);
 
-struct CmdStorePrefetchFile : StoreCommand, MixJSON {
+struct cmd_store_prefetch_file_t : StoreCommand, MixJSON {
   std::string url;
   bool executable = false;
   bool unpack = false;
   std::optional<std::string> name;
-  HashAlgorithm hashAlgo = HashAlgorithm::SHA256;
+  hash_algorithm_t hashAlgo = hash_algorithm_t::SHA256;
   std::optional<Hash> expectedHash;
 
-  CmdStorePrefetchFile() {
+  cmd_store_prefetch_file_t() {
     addFlag({
         .longName = "name",
         .description = "Override the name component of the resulting store path. It defaults to "
@@ -324,14 +324,14 @@ struct CmdStorePrefetchFile : StoreCommand, MixJSON {
     if (json) {
       auto res = nlohmann::json::object();
       res["storePath"] = store->printStorePath(storePath);
-      res["hash"] = hash.to_string(HashFormat::SRI, true);
+      res["hash"] = hash.to_string(hash_format_t::SRI, true);
       printJSON(res);
     } else {
       notice("Downloaded '%s' to '%s' (hash '%s').", url, store->printStorePath(storePath),
-             hash.to_string(HashFormat::SRI, true));
+             hash.to_string(hash_format_t::SRI, true));
     }
   }
 };
 
 static auto rCmdStorePrefetchFile =
-    registerCommand2<CmdStorePrefetchFile>({"store", "prefetch-file"});
+    registerCommand2<cmd_store_prefetch_file_t>({"store", "prefetch-file"});

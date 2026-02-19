@@ -55,7 +55,7 @@ struct LookupPath {
   /**
    * Parse a string into a `LookupPath`
    */
-  static LookupPath parse(const Strings& rawElems);
+  static LookupPath parse(const strings_t& rawElems);
 };
 
 struct LookupPath::Prefix {
@@ -82,7 +82,7 @@ struct LookupPath::Path {
   /**
    * The location of a search path item, as a path or URL.
    *
-   * @todo Maybe change this to `std::variant<SourcePath, URL>`.
+   * @todo Maybe change this to `std::variant<source_path_t, URL>`.
    */
   std::string s;
 

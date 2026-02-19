@@ -1,7 +1,7 @@
 #pragma once
 /**
  * @file
- * @brief Common printing functions for the Nix language
+ * @brief common_t printing functions for the Nix language
  *
  * While most types come with their own methods for printing, they share some
  * functions that are placed here.
@@ -89,6 +89,6 @@ std::ostream& operator<<(std::ostream& output, const ValuePrinter& printer);
  * magenta.
  */
 template <>
-HintFmt& HintFmt::operator%(const ValuePrinter& value);
+hint_fmt_t& hint_fmt_t::operator%(const ValuePrinter& value);
 
 } // namespace nix

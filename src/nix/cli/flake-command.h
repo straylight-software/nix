@@ -8,12 +8,12 @@ namespace nix {
 
 using namespace nix::flake;
 
-class FlakeCommand : virtual Args, public MixFlakeOptions {
+class flake_command_t : virtual Args, public MixFlakeOptions {
 protected:
   std::string flakeUrl = ".";
 
 public:
-  FlakeCommand();
+  flake_command_t();
 
   FlakeRef getFlakeRef();
 

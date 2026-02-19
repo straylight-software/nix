@@ -11,7 +11,7 @@
 
 namespace nix {
 
-struct SourcePath;
+struct source_path_t;
 
 MakeError(BadStorePath, Error);
 MakeError(BadStorePathName, BadStorePath);
@@ -43,9 +43,9 @@ struct StoreDirConfig {
    *
    * \todo remove
    */
-  StorePathSet parseStorePathSet(const PathSet& paths) const;
+  StorePathSet parseStorePathSet(const path_set_t& paths) const;
 
-  PathSet printStorePathSet(const StorePathSet& path) const;
+  path_set_t printStorePathSet(const StorePathSet& path) const;
 
   /**
    * Display a set of paths in human-readable form (i.e., between quotes
@@ -57,7 +57,7 @@ struct StoreDirConfig {
    * @return true if *path* is in the Nix store (but not the Nix
    * store itself).
    */
-  bool isInStore(PathView path) const;
+  bool isInStore(path_view_t path) const;
 
   /**
    * @return true if *path* is a store path, i.e. a direct child of the
@@ -69,7 +69,7 @@ struct StoreDirConfig {
    * Split a path like `/nix/store/<hash>-<name>/<bla>` into
    * `/nix/store/<hash>-<name>` and `/<bla>`.
    */
-  std::pair<StorePath, Path> toStorePath(PathView path) const;
+  std::pair<StorePath, Path> toStorePath(path_view_t path) const;
 
   /**
    * Constructs a unique store path name.
@@ -90,11 +90,11 @@ struct StoreDirConfig {
    * path for the given file system object.
    */
   std::pair<StorePath, Hash>
-  computeStorePath(std::string_view name, const SourcePath& path,
-                   ContentAddressMethod method = ContentAddressMethod::Raw::NixArchive,
-                   HashAlgorithm hashAlgo = HashAlgorithm::SHA256,
+  computeStorePath(std::string_view name, const source_path_t& path,
+                   ContentAddressMethod method = ContentAddressMethod::raw_t::NixArchive,
+                   hash_algorithm_t hashAlgo = hash_algorithm_t::SHA256,
                    const StorePathSet& references = {},
-                   PathFilter& filter = defaultPathFilter) const;
+                   path_filter_t& filter = defaultPathFilter) const;
 };
 
 } // namespace nix

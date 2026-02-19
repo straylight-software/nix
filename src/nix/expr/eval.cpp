@@ -182,7 +182,7 @@ std::string showType(const Value& v) {
 #pragma GCC diagnostic pop
 }
 
-PosIdx Value::determinePos(const PosIdx pos) const {
+pos_idx_t Value::determinePos(const pos_idx_t pos) const {
 // Allow selecting a subset of enum values
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wswitch-enum"
@@ -245,14 +245,14 @@ EvalMemory::EvalMemory()
 }
 
 EvalState::EvalState(const LookupPath& lookupPathFromArguments, ref<Store> store,
-                     const fetchers::Settings& fetchSettings, const EvalSettings& settings,
+                     const fetchers::settings_t& fetchSettings, const EvalSettings& settings,
                      std::shared_ptr<Store> buildStore)
     : fetchSettings{fetchSettings},
       settings{settings},
       symbols(StaticEvalSymbols::staticSymbolTable()),
       repair(NoRepair),
       storeFS(makeMountedSourceAccessor({
-          {CanonPath::root, makeEmptySourceAccessor()},
+          {canon_path_t::root, makeEmptySourceAccessor()},
           /* In the pure eval case, we can simply require
              valid paths. However, in the *impure* eval
              case this gets in the way of the union
@@ -271,7 +271,7 @@ EvalState::EvalState(const LookupPath& lookupPathFromArguments, ref<Store> store
              exception, and make union source accessor
              catch it, so we don't need to do this hack.
            */
-          {CanonPath(store->storeDir), store->getFSAccessor(settings.pureEval)},
+          {canon_path_t(store->storeDir), store->getFSAccessor(settings.pureEval)},
       })),
       rootFS([&] {
         /* In pure eval mode, we provide a filesystem that only
@@ -290,7 +290,7 @@ EvalState::EvalState(const LookupPath& lookupPathFromArguments, ref<Store> store
         /* Apply access control if needed. */
         if (settings.restrictEval || settings.pureEval)
           accessor = AllowListSourceAccessor::create(
-              accessor, {}, {}, [&settings](const CanonPath& path) -> RestrictedPathError {
+              accessor, {}, {}, [&settings](const canon_path_t& path) -> RestrictedPathError {
                 auto modeInformation = settings.pureEval
                                            ? "in pure evaluation mode (use '--impure' to override)"
                                            : "in restricted mode";
@@ -300,9 +300,9 @@ EvalState::EvalState(const LookupPath& lookupPathFromArguments, ref<Store> store
 
         return accessor;
       }()),
-      corepkgsFS(make_ref<MemorySourceAccessor>()),
-      internalFS(make_ref<MemorySourceAccessor>()),
-      derivationInternal{internalFS->addFile(CanonPath("derivation-internal.nix"),
+      corepkgsFS(make_ref<memory_source_accessor_t>()),
+      internalFS(make_ref<memory_source_accessor_t>()),
+      derivationInternal{internalFS->addFile(canon_path_t("derivation-internal.nix"),
 #include "primops/derivation.nix.gen.h"
                                              )},
       store(store),
@@ -358,7 +358,7 @@ EvalState::EvalState(const LookupPath& lookupPathFromArguments, ref<Store> store
     for (auto& i : lookupPath.elements)
       resolveLookupPathPath(i.path, true);
 
-  corepkgsFS->addFile(CanonPath("fetchurl.nix"),
+  corepkgsFS->addFile(canon_path_t("fetchurl.nix"),
 #include "fetchurl.nix.gen.h"
   );
 
@@ -382,12 +382,12 @@ EvalState::~EvalState() {}
 
 void EvalState::allowPathLegacy(const Path& path) {
   if (auto rootFS2 = rootFS.dynamic_pointer_cast<AllowListSourceAccessor>())
-    rootFS2->allowPrefix(CanonPath(path));
+    rootFS2->allowPrefix(canon_path_t(path));
 }
 
 void EvalState::allowPath(const StorePath& storePath) {
   if (auto rootFS2 = rootFS.dynamic_pointer_cast<AllowListSourceAccessor>())
-    rootFS2->allowPrefix(CanonPath(store->printStorePath(storePath)));
+    rootFS2->allowPrefix(canon_path_t(store->printStorePath(storePath)));
 }
 
 void EvalState::allowClosure(const StorePath& storePath) {
@@ -411,7 +411,7 @@ inline static bool isJustSchemePrefix(std::string_view prefix) {
          isValidSchemeName(prefix.substr(0, prefix.size() - 1));
 }
 
-bool isAllowedURI(std::string_view uri, const Strings& allowedUris) {
+bool isAllowedURI(std::string_view uri, const strings_t& allowedUris) {
   /* 'uri' should be equal to a prefix, or in a subdirectory of a
      prefix. Thus, the prefix https://github.co does not permit
      access to https://github.com. */
@@ -443,13 +443,13 @@ void EvalState::checkURI(const std::string& uri) {
      well. */
   if (isAbsolute(uri)) {
     if (auto rootFS2 = rootFS.dynamic_pointer_cast<AllowListSourceAccessor>())
-      rootFS2->checkAccess(CanonPath(uri));
+      rootFS2->checkAccess(canon_path_t(uri));
     return;
   }
 
   if (hasPrefix(uri, "file://")) {
     if (auto rootFS2 = rootFS.dynamic_pointer_cast<AllowListSourceAccessor>())
-      rootFS2->checkAccess(CanonPath(uri.substr(7)));
+      rootFS2->checkAccess(canon_path_t(uri.substr(7)));
     return;
   }
 
@@ -726,13 +726,13 @@ std::unique_ptr<ValMap> mapStaticEnvBindings(const SymbolTable& st, const Static
 /**
  * Sets `inDebugger` to true on construction and false on destruction.
  */
-class DebuggerGuard {
+class debugger_guard_t {
   bool& inDebugger;
 
 public:
-  DebuggerGuard(bool& inDebugger) : inDebugger(inDebugger) { inDebugger = true; }
+  debugger_guard_t(bool& inDebugger) : inDebugger(inDebugger) { inDebugger = true; }
 
-  ~DebuggerGuard() { inDebugger = false; }
+  ~debugger_guard_t() { inDebugger = false; }
 };
 
 bool EvalState::canDebug() {
@@ -758,7 +758,7 @@ void EvalState::runDebugRepl(const Error* error, const Env& env, const Expr& exp
 
   auto dts = [&]() -> std::unique_ptr<DebugTraceStacker> {
     if (error && expr.getPos()) {
-      auto trace = DebugTrace{.pos = [&]() -> std::variant<Pos, PosIdx> {
+      auto trace = DebugTrace{.pos = [&]() -> std::variant<Pos, pos_idx_t> {
                                 if (error->info().pos) {
                                   if (auto* pos = error->info().pos.get())
                                     return *pos;
@@ -787,13 +787,13 @@ void EvalState::runDebugRepl(const Error* error, const Env& env, const Expr& exp
   auto se = getStaticEnv(expr);
   if (se) {
     auto vm = mapStaticEnvBindings(symbols, *se.get(), env);
-    DebuggerGuard _guard(inDebugger);
+    debugger_guard_t _guard(inDebugger);
     auto exitStatus = (debugRepl)(ref<EvalState>(shared_from_this()), *vm);
     switch (exitStatus) {
       case ReplExitStatus::QuitAll:
         if (error)
           throw *error;
-        throw Exit(0);
+        throw exit_t(0);
       case ReplExitStatus::Continue:
         break;
       default:
@@ -804,22 +804,22 @@ void EvalState::runDebugRepl(const Error* error, const Env& env, const Expr& exp
 
 template <typename... Args>
 void EvalState::addErrorTrace(Error& e, const Args&... formatArgs) const {
-  e.addTrace(nullptr, HintFmt(formatArgs...));
+  e.addTrace(nullptr, hint_fmt_t(formatArgs...));
 }
 
 template <typename... Args>
-void EvalState::addErrorTrace(Error& e, const PosIdx pos, const Args&... formatArgs) const {
-  e.addTrace(positions[pos], HintFmt(formatArgs...));
+void EvalState::addErrorTrace(Error& e, const pos_idx_t pos, const Args&... formatArgs) const {
+  e.addTrace(positions[pos], hint_fmt_t(formatArgs...));
 }
 
 template <typename... Args>
 static std::unique_ptr<DebugTraceStacker>
-makeDebugTraceStacker(EvalState& state, Expr& expr, Env& env, std::variant<Pos, PosIdx> pos,
+makeDebugTraceStacker(EvalState& state, Expr& expr, Env& env, std::variant<Pos, pos_idx_t> pos,
                       const Args&... formatArgs) {
   return std::make_unique<DebugTraceStacker>(state, DebugTrace{.pos = std::move(pos),
                                                                .expr = expr,
                                                                .env = env,
-                                                               .hint = HintFmt(formatArgs...),
+                                                               .hint = hint_fmt_t(formatArgs...),
                                                                .isError = false});
 }
 
@@ -856,7 +856,7 @@ void Value::mkStringMove(const StringData& s, const NixStringContext& context, E
   mkStringNoCopy(s, Value::StringWithContext::Context::fromBuilder(context, mem));
 }
 
-void Value::mkPath(const SourcePath& path, EvalMemory& mem) {
+void Value::mkPath(const source_path_t& path, EvalMemory& mem) {
   mkPath(&*path.accessor, StringData::make(mem, path.path.abs()));
 }
 
@@ -911,9 +911,9 @@ void EvalState::mkThunk_(Value& v, Expr* expr) {
   mkThunk(v, baseEnv, expr);
 }
 
-void EvalState::mkPos(Value& v, PosIdx p) {
+void EvalState::mkPos(Value& v, pos_idx_t p) {
   auto origin = positions.originOf(p);
-  if (auto path = std::get_if<SourcePath>(&origin)) {
+  if (auto path = std::get_if<source_path_t>(&origin)) {
     auto attrs = buildBindings(3);
     if (path->accessor == rootFS && store->isInStore(path->path.abs()))
       // FIXME: only do this for virtual store paths?
@@ -932,14 +932,14 @@ void EvalState::mkPos(Value& v, PosIdx p) {
 void EvalState::mkStorePathString(const StorePath& p, Value& v) {
   v.mkString(store->printStorePath(p),
              NixStringContext{
-                 NixStringContextElem::Opaque{.path = p},
+                 NixStringContextElem::opaque_t{.path = p},
              },
              mem);
 }
 
 std::string EvalState::mkOutputStringRaw(const SingleDerivedPath::Built& b,
                                          std::optional<StorePath> optStaticOutputPath,
-                                         const ExperimentalFeatureSettings& xpSettings) {
+                                         const experimental_feature_settings_t& xpSettings) {
   /* In practice, this is testing for the case of CA derivations, or
      dynamic derivations. */
   return optStaticOutputPath
@@ -951,17 +951,17 @@ std::string EvalState::mkOutputStringRaw(const SingleDerivedPath::Built& b,
 
 void EvalState::mkOutputString(Value& value, const SingleDerivedPath::Built& b,
                                std::optional<StorePath> optStaticOutputPath,
-                               const ExperimentalFeatureSettings& xpSettings) {
+                               const experimental_feature_settings_t& xpSettings) {
   value.mkString(mkOutputStringRaw(b, optStaticOutputPath, xpSettings), NixStringContext{b}, mem);
 }
 
 std::string EvalState::mkSingleDerivedPathStringRaw(const SingleDerivedPath& p) {
   return std::visit(
-      overloaded{[&](const SingleDerivedPath::Opaque& o) { return store->printStorePath(o.path); },
+      overloaded{[&](const SingleDerivedPath::opaque_t& o) { return store->printStorePath(o.path); },
                  [&](const SingleDerivedPath::Built& b) {
                    auto optStaticOutputPath = std::visit(
                        overloaded{
-                           [&](const SingleDerivedPath::Opaque& o) {
+                           [&](const SingleDerivedPath::opaque_t& o) {
                              waitForPath(o.path);
                              auto drv = store->readDerivation(o.path);
                              auto i = drv.outputs.find(b.output);
@@ -1030,11 +1030,11 @@ Value* ExprPath::maybeThunk(EvalState& state, Env& env) {
  * from a thunk, ensuring that every file is parsed/evaluated only
  * once (via the thunk stored in `EvalState::fileEvalCache`).
  */
-struct ExprParseFile : Expr {
-  SourcePath& path;
+struct expr_parse_file_t : Expr {
+  source_path_t& path;
   bool mustBeTrivial;
 
-  ExprParseFile(SourcePath& path, bool mustBeTrivial) : path(path), mustBeTrivial(mustBeTrivial) {}
+  expr_parse_file_t(source_path_t& path, bool mustBeTrivial) : path(path), mustBeTrivial(mustBeTrivial) {}
 
   void eval(EvalState& state, Env& env, Value& v) override {
     printTalkative("evaluating file '%s'", path);
@@ -1060,7 +1060,7 @@ struct ExprParseFile : Expr {
   }
 };
 
-void EvalState::evalFile(const SourcePath& path, Value& v, bool mustBeTrivial) {
+void EvalState::evalFile(const source_path_t& path, Value& v, bool mustBeTrivial) {
   auto resolvedPath = getConcurrent(*importResolutionCache, path);
 
   if (!resolvedPath) {
@@ -1075,7 +1075,7 @@ void EvalState::evalFile(const SourcePath& path, Value& v, bool mustBeTrivial) {
   }
 
   Value* vExpr;
-  ExprParseFile expr{*resolvedPath, mustBeTrivial};
+  expr_parse_file_t expr{*resolvedPath, mustBeTrivial};
 
   fileEvalCache->try_emplace_and_cvisit(
       *resolvedPath, nullptr,
@@ -1102,7 +1102,7 @@ void EvalState::eval(Expr* e, Value& v) {
   e->eval(*this, baseEnv, v);
 }
 
-inline bool EvalState::evalBool(Env& env, Expr* e, const PosIdx pos, std::string_view errorCtx) {
+inline bool EvalState::evalBool(Env& env, Expr* e, const pos_idx_t pos, std::string_view errorCtx) {
   try {
     Value v;
     e->eval(*this, env, v);
@@ -1119,7 +1119,7 @@ inline bool EvalState::evalBool(Env& env, Expr* e, const PosIdx pos, std::string
   }
 }
 
-inline void EvalState::evalAttrs(Env& env, Expr* e, Value& v, const PosIdx pos,
+inline void EvalState::evalAttrs(Env& env, Expr* e, Value& v, const pos_idx_t pos,
                                  std::string_view errorCtx) {
   try {
     e->eval(*this, env, v);
@@ -1328,7 +1328,7 @@ static std::string showAttrSelectionPath(EvalState& state, Env& env,
 
 void ExprSelect::eval(EvalState& state, Env& env, Value& v) {
   Value vTmp;
-  PosIdx pos2;
+  pos_idx_t pos2;
   Value* vAttrs = &vTmp;
 
   e->eval(state, env, vTmp);
@@ -1353,10 +1353,10 @@ void ExprSelect::eval(EvalState& state, Env& env, Value& v) {
       } else {
         state.forceAttrs(*vAttrs, pos, "while selecting an attribute");
         if (!(j = vAttrs->attrs()->get(name))) {
-          StringSet allAttrNames;
+          string_set_t allAttrNames;
           for (auto& attr : *vAttrs->attrs())
             allAttrNames.insert(std::string(state.symbols[attr.name]));
-          auto suggestions = Suggestions::bestMatches(allAttrNames, state.symbols[name]);
+          auto suggestions = suggestions_t::bestMatches(allAttrNames, state.symbols[name]);
           state.error<EvalError>("attribute '%1%' missing", state.symbols[name])
               .atPos(pos)
               .withSuggestions(suggestions)
@@ -1375,7 +1375,7 @@ void ExprSelect::eval(EvalState& state, Env& env, Value& v) {
   } catch (Error& e) {
     if (pos2) {
       auto pos2r = state.positions[pos2];
-      auto origin = std::get_if<SourcePath>(&pos2r.origin);
+      auto origin = std::get_if<source_path_t>(&pos2r.origin);
       if (!(origin && *origin == state.derivationInternal))
         state.addErrorTrace(e, pos2, "while evaluating the attribute '%1%'",
                             showAttrSelectionPath(state, env, getAttrPath()));
@@ -1428,14 +1428,14 @@ void ExprLambda::eval(EvalState& state, Env& env, Value& v) {
 
 thread_local size_t EvalState::callDepth = 0;
 
-void EvalState::callFunction(Value& fun, std::span<Value*> args, Value& vRes, const PosIdx pos) {
+void EvalState::callFunction(Value& fun, std::span<Value*> args, Value& vRes, const pos_idx_t pos) {
   auto _level = addCallDepth(pos);
 
   auto neededHooks = profiler.getNeededHooks();
   if (neededHooks.test(EvalProfiler::preFunctionCall)) [[unlikely]]
     profiler.preFunctionCallHook(*this, fun, args, pos);
 
-  Finally traceExit_{[&]() {
+  finally_t traceExit_{[&]() {
     if (profiler.getNeededHooks().test(EvalProfiler::postFunctionCall)) [[unlikely]]
       profiler.postFunctionCallHook(*this, fun, args, pos);
   }};
@@ -1511,10 +1511,10 @@ void EvalState::callFunction(Value& fun, std::span<Value*> args, Value& vRes, co
              user. */
           for (auto& i : *args[0]->attrs())
             if (!formals->has(i.name)) {
-              StringSet formalNames;
+              string_set_t formalNames;
               for (auto& formal : formals->formals)
                 formalNames.insert(std::string(symbols[formal.name]));
-              auto suggestions = Suggestions::bestMatches(formalNames, symbols[i.name]);
+              auto suggestions = suggestions_t::bestMatches(formalNames, symbols[i.name]);
               error<TypeError>(
                   "function '%1%' called with unexpected argument '%2%'",
                   (lambda.name ? std::string(symbols[lambda.name]) : "anonymous lambda"),
@@ -1916,7 +1916,7 @@ void ExprOpConcatLists::eval(EvalState& state, Env& env, Value& v) {
   state.concatLists(v, 2, lists, pos, "while evaluating one of the elements to concatenate");
 }
 
-void EvalState::concatLists(Value& v, size_t nrLists, Value* const* lists, const PosIdx pos,
+void EvalState::concatLists(Value& v, size_t nrLists, Value* const* lists, const pos_idx_t pos,
                             std::string_view errorCtx) {
   nrListConcats++;
 
@@ -1949,7 +1949,7 @@ void EvalState::concatLists(Value& v, size_t nrLists, Value* const* lists, const
 
 void ExprConcatStrings::eval(EvalState& state, Env& env, Value& v) {
   NixStringContext context;
-  std::vector<BackedStringView> strings;
+  std::vector<backed_string_view_t> strings;
   size_t sSize = 0;
   NixInt n{0};
   NixFloat nf = 0;
@@ -2033,7 +2033,7 @@ void ExprConcatStrings::eval(EvalState& state, Env& env, Value& v) {
     for (const auto& part : strings) {
       resultStr += *part;
     }
-    v.mkPath(state.rootPath(CanonPath(resultStr)), state.mem);
+    v.mkPath(state.rootPath(canon_path_t(resultStr)), state.mem);
   } else {
     auto& resultStr = StringData::alloc(state.mem, sSize);
     auto* tmp = resultStr.data();
@@ -2053,7 +2053,7 @@ void ExprPos::eval(EvalState& state, Env& env, Value& v) {
 // always force this to be separate, otherwise forceValue may inline it and take
 // a massive perf hit
 [[gnu::noinline]]
-void EvalState::tryFixupBlackHolePos(Value& v, PosIdx pos) {
+void EvalState::tryFixupBlackHolePos(Value& v, pos_idx_t pos) {
   if (!v.isBlackhole())
     return;
   auto e = std::current_exception();
@@ -2109,7 +2109,7 @@ void EvalState::forceValueDeep(Value& v) {
   }(v);
 }
 
-NixInt EvalState::forceInt(Value& v, const PosIdx pos, std::string_view errorCtx) {
+NixInt EvalState::forceInt(Value& v, const pos_idx_t pos, std::string_view errorCtx) {
   try {
     forceValue(v, pos);
     if (v.type() != nInt)
@@ -2126,7 +2126,7 @@ NixInt EvalState::forceInt(Value& v, const PosIdx pos, std::string_view errorCtx
   return v.integer();
 }
 
-NixFloat EvalState::forceFloat(Value& v, const PosIdx pos, std::string_view errorCtx) {
+NixFloat EvalState::forceFloat(Value& v, const pos_idx_t pos, std::string_view errorCtx) {
   try {
     forceValue(v, pos);
     if (v.type() == nInt)
@@ -2143,7 +2143,7 @@ NixFloat EvalState::forceFloat(Value& v, const PosIdx pos, std::string_view erro
   }
 }
 
-bool EvalState::forceBool(Value& v, const PosIdx pos, std::string_view errorCtx) {
+bool EvalState::forceBool(Value& v, const pos_idx_t pos, std::string_view errorCtx) {
   try {
     forceValue(v, pos);
     if (v.type() != nBool)
@@ -2174,7 +2174,7 @@ bool EvalState::isFunctor(const Value& fun) const {
   return fun.type() == nAttrs && fun.attrs()->get(s.functor);
 }
 
-void EvalState::forceFunction(Value& v, const PosIdx pos, std::string_view errorCtx) {
+void EvalState::forceFunction(Value& v, const pos_idx_t pos, std::string_view errorCtx) {
   try {
     forceValue(v, pos);
     if (v.type() != nFunction && !isFunctor(v))
@@ -2188,7 +2188,7 @@ void EvalState::forceFunction(Value& v, const PosIdx pos, std::string_view error
   }
 }
 
-std::string_view EvalState::forceString(Value& v, const PosIdx pos, std::string_view errorCtx) {
+std::string_view EvalState::forceString(Value& v, const pos_idx_t pos, std::string_view errorCtx) {
   try {
     forceValue(v, pos);
     if (v.type() != nString)
@@ -2204,21 +2204,21 @@ std::string_view EvalState::forceString(Value& v, const PosIdx pos, std::string_
 }
 
 void copyContext(const Value& v, NixStringContext& context,
-                 const ExperimentalFeatureSettings& xpSettings) {
+                 const experimental_feature_settings_t& xpSettings) {
   if (auto* ctx = v.context())
     for (auto* elem : *ctx)
       context.insert(NixStringContextElem::parse(elem->view(), xpSettings));
 }
 
-std::string_view EvalState::forceString(Value& v, NixStringContext& context, const PosIdx pos,
+std::string_view EvalState::forceString(Value& v, NixStringContext& context, const pos_idx_t pos,
                                         std::string_view errorCtx,
-                                        const ExperimentalFeatureSettings& xpSettings) {
+                                        const experimental_feature_settings_t& xpSettings) {
   auto s = forceString(v, pos, errorCtx);
   copyContext(v, context, xpSettings);
   return s;
 }
 
-std::string_view EvalState::forceStringNoCtx(Value& v, const PosIdx pos,
+std::string_view EvalState::forceStringNoCtx(Value& v, const pos_idx_t pos,
                                              std::string_view errorCtx) {
   auto s = forceString(v, pos, errorCtx);
   if (v.context()) {
@@ -2245,7 +2245,7 @@ bool EvalState::isDerivation(Value& v) {
   return i->value->string_view().compare("derivation") == 0;
 }
 
-std::optional<std::string> EvalState::tryAttrsToString(const PosIdx pos, Value& v,
+std::optional<std::string> EvalState::tryAttrsToString(const pos_idx_t pos, Value& v,
                                                        NixStringContext& context, bool coerceMore,
                                                        bool copyToStore) {
   auto i = v.attrs()->get(s.toString);
@@ -2261,7 +2261,7 @@ std::optional<std::string> EvalState::tryAttrsToString(const PosIdx pos, Value& 
   return {};
 }
 
-BackedStringView EvalState::coerceToString(const PosIdx pos, Value& v, NixStringContext& context,
+backed_string_view_t EvalState::coerceToString(const pos_idx_t pos, Value& v, NixStringContext& context,
                                            std::string_view errorCtx, bool coerceMore,
                                            bool copyToStore, bool canonicalizePath) {
   forceValue(v, pos);
@@ -2355,8 +2355,8 @@ BackedStringView EvalState::coerceToString(const PosIdx pos, Value& v, NixString
       .debugThrow();
 }
 
-StorePath EvalState::copyPathToStore(NixStringContext& context, const SourcePath& path,
-                                     PosIdx pos) {
+StorePath EvalState::copyPathToStore(NixStringContext& context, const source_path_t& path,
+                                     pos_idx_t pos) {
   if (nix::isDerivation(path.path.abs()))
     error<EvalError>("file names are not allowed to end in '%1%'", drvExtension).debugThrow();
 
@@ -2364,20 +2364,20 @@ StorePath EvalState::copyPathToStore(NixStringContext& context, const SourcePath
 
   auto dstPath = dstPathCached ? *dstPathCached : [&]() {
     auto dstPath = fetchToStore(
-        fetchSettings, *store, path.resolveSymlinks(SymlinkResolution::Ancestors),
+        fetchSettings, *store, path.resolveSymlinks(symlink_resolution_t::Ancestors),
         settings.readOnlyMode ? FetchMode::DryRun : FetchMode::Copy, computeBaseName(path, pos),
-        ContentAddressMethod::Raw::NixArchive, nullptr, repair);
+        ContentAddressMethod::raw_t::NixArchive, nullptr, repair);
     allowPath(dstPath);
     srcToStore->try_emplace(path, dstPath);
     printMsg(lvlChatty, "copied source '%1%' -> '%2%'", path, store->printStorePath(dstPath));
     return dstPath;
   }();
 
-  context.insert(NixStringContextElem::Opaque{.path = dstPath});
+  context.insert(NixStringContextElem::opaque_t{.path = dstPath});
   return dstPath;
 }
 
-SourcePath EvalState::coerceToPath(const PosIdx pos, Value& v, NixStringContext& context,
+source_path_t EvalState::coerceToPath(const pos_idx_t pos, Value& v, NixStringContext& context,
                                    std::string_view errorCtx) {
   try {
     forceValue(v, pos);
@@ -2411,7 +2411,7 @@ SourcePath EvalState::coerceToPath(const PosIdx pos, Value& v, NixStringContext&
   return rootPath(path);
 }
 
-StorePath EvalState::coerceToStorePath(const PosIdx pos, Value& v, NixStringContext& context,
+StorePath EvalState::coerceToStorePath(const pos_idx_t pos, Value& v, NixStringContext& context,
                                        std::string_view errorCtx) {
   auto path = coerceToString(pos, v, context, errorCtx, false, false, true).toOwned();
   if (auto storePath = store->maybeParseStorePath(path))
@@ -2423,8 +2423,8 @@ StorePath EvalState::coerceToStorePath(const PosIdx pos, Value& v, NixStringCont
 }
 
 std::pair<SingleDerivedPath, std::string_view>
-EvalState::coerceToSingleDerivedPathUnchecked(const PosIdx pos, Value& v, std::string_view errorCtx,
-                                              const ExperimentalFeatureSettings& xpSettings) {
+EvalState::coerceToSingleDerivedPathUnchecked(const pos_idx_t pos, Value& v, std::string_view errorCtx,
+                                              const experimental_feature_settings_t& xpSettings) {
   NixStringContext context;
   auto s = forceString(v, context, pos, errorCtx, xpSettings);
   auto csize = context.size();
@@ -2436,7 +2436,7 @@ EvalState::coerceToSingleDerivedPathUnchecked(const PosIdx pos, Value& v, std::s
         .debugThrow();
   auto derivedPath = std::visit(
       overloaded{
-          [&](NixStringContextElem::Opaque&& o) -> SingleDerivedPath { return std::move(o); },
+          [&](NixStringContextElem::opaque_t&& o) -> SingleDerivedPath { return std::move(o); },
           [&](NixStringContextElem::DrvDeep&&) -> SingleDerivedPath {
             error<EvalError>("string '%s' has a context which refers to a complete source and "
                              "binary closure. This is not supported at this time",
@@ -2456,7 +2456,7 @@ EvalState::coerceToSingleDerivedPathUnchecked(const PosIdx pos, Value& v, std::s
   };
 }
 
-SingleDerivedPath EvalState::coerceToSingleDerivedPath(const PosIdx pos, Value& v,
+SingleDerivedPath EvalState::coerceToSingleDerivedPath(const pos_idx_t pos, Value& v,
                                                        std::string_view errorCtx) {
   auto [derivedPath, s_] = coerceToSingleDerivedPathUnchecked(pos, v, errorCtx);
   auto s = s_;
@@ -2465,7 +2465,7 @@ SingleDerivedPath EvalState::coerceToSingleDerivedPath(const PosIdx pos, Value& 
     /* `std::visit` is used here just to provide a more precise
        error message. */
     std::visit(
-        overloaded{[&](const SingleDerivedPath::Opaque& o) {
+        overloaded{[&](const SingleDerivedPath::opaque_t& o) {
                      error<EvalError>("path string '%s' has context with the different path '%s'",
                                       s, sExpected)
                          .withTrace(pos, errorCtx)
@@ -2487,7 +2487,7 @@ SingleDerivedPath EvalState::coerceToSingleDerivedPath(const PosIdx pos, Value& 
 // NOTE: This implementation must match eqValues!
 // We accept this burden because informative error messages for
 // `assert a == b; x` are critical for our users' testing UX.
-void EvalState::assertEqValues(Value& v1, Value& v2, const PosIdx pos, std::string_view errorCtx) {
+void EvalState::assertEqValues(Value& v1, Value& v2, const pos_idx_t pos, std::string_view errorCtx) {
   // This implementation must match eqValues.
   forceValue(v1, pos);
   forceValue(v2, pos);
@@ -2684,7 +2684,7 @@ void EvalState::assertEqValues(Value& v1, Value& v2, const PosIdx pos, std::stri
 }
 
 // This implementation must match assertEqValues
-bool EvalState::eqValues(Value& v1, Value& v2, const PosIdx pos, std::string_view errorCtx) {
+bool EvalState::eqValues(Value& v1, Value& v2, const pos_idx_t pos, std::string_view errorCtx) {
   forceValue(v1, pos);
   forceValue(v2, pos);
 
@@ -2901,7 +2901,7 @@ void EvalState::printStatistics() {
         else
           obj["name"] = nullptr;
         if (auto pos = positions[fun->pos]) {
-          if (auto path = std::get_if<SourcePath>(&pos.origin))
+          if (auto path = std::get_if<source_path_t>(&pos.origin))
             obj["file"] = path->to_string();
           obj["line"] = pos.line;
           obj["column"] = pos.column;
@@ -2916,7 +2916,7 @@ void EvalState::printStatistics() {
       for (auto& i : attrSelects) {
         json obj = json::object();
         if (auto pos = positions[i.first]) {
-          if (auto path = std::get_if<SourcePath>(&pos.origin))
+          if (auto path = std::get_if<source_path_t>(&pos.origin))
             obj["file"] = path->to_string();
           obj["line"] = pos.line;
           obj["column"] = pos.column;
@@ -2940,7 +2940,7 @@ void EvalState::printStatistics() {
   }
 }
 
-SourcePath resolveExprPath(SourcePath path, bool addDefaultNix) {
+source_path_t resolveExprPath(source_path_t path, bool addDefaultNix) {
   unsigned int followCount = 0, maxFollow = 1024;
 
   /* If `path' is a symlink, follow it.  This is so that relative
@@ -2952,7 +2952,7 @@ SourcePath resolveExprPath(SourcePath path, bool addDefaultNix) {
     auto p = path.parent().resolveSymlinks() / path.baseName();
     if (p.lstat().type != SourceAccessor::tSymlink)
       break;
-    path = {path.accessor, CanonPath(p.readLink(), path.path.parent().value_or(CanonPath::root))};
+    path = {path.accessor, canon_path_t(p.readLink(), path.path.parent().value_or(canon_path_t::root))};
   }
 
   /* If `path' refers to a directory, append `/default.nix'. */
@@ -2962,19 +2962,19 @@ SourcePath resolveExprPath(SourcePath path, bool addDefaultNix) {
   return path;
 }
 
-Expr* EvalState::parseExprFromFile(const SourcePath& path) {
+Expr* EvalState::parseExprFromFile(const source_path_t& path) {
   return parseExprFromFile(path, staticBaseEnv);
 }
 
-Expr* EvalState::parseExprFromFile(const SourcePath& path,
+Expr* EvalState::parseExprFromFile(const source_path_t& path,
                                    const std::shared_ptr<StaticEnv>& staticEnv) {
   auto buffer = path.resolveSymlinks().readFile();
   // readFile hopefully have left some extra space for terminators
   buffer.append("\0\0", 2);
-  return parse(buffer.data(), buffer.size(), Pos::Origin(path), path.parent(), staticEnv);
+  return parse(buffer.data(), buffer.size(), Pos::origin_t(path), path.parent(), staticEnv);
 }
 
-Expr* EvalState::parseExprFromString(std::string s_, const SourcePath& basePath,
+Expr* EvalState::parseExprFromString(std::string s_, const source_path_t& basePath,
                                      const std::shared_ptr<StaticEnv>& staticEnv) {
   // NOTE this method (and parseStdin) must take care to *fully copy* their input
   // into their respective Pos::Origin until the parser stops overwriting its input
@@ -2984,7 +2984,7 @@ Expr* EvalState::parseExprFromString(std::string s_, const SourcePath& basePath,
   return parse(s_.data(), s_.size(), Pos::String{.source = s}, basePath, staticEnv);
 }
 
-Expr* EvalState::parseExprFromString(std::string s, const SourcePath& basePath) {
+Expr* EvalState::parseExprFromString(std::string s, const source_path_t& basePath) {
   return parseExprFromString(std::move(s), basePath, staticBaseEnv);
 }
 
@@ -3000,12 +3000,12 @@ Expr* EvalState::parseStdin() {
   return parse(buffer.data(), buffer.size(), Pos::Stdin{.source = s}, rootPath("."), staticBaseEnv);
 }
 
-SourcePath EvalState::findFile(const std::string_view path) {
+source_path_t EvalState::findFile(const std::string_view path) {
   return findFile(lookupPath, path);
 }
 
-SourcePath EvalState::findFile(const LookupPath& lookupPath, const std::string_view path,
-                               const PosIdx pos) {
+source_path_t EvalState::findFile(const LookupPath& lookupPath, const std::string_view path,
+                               const pos_idx_t pos) {
   for (auto& i : lookupPath.elements) {
     auto suffixOpt = i.prefix.suffixIfPotentialMatch(path);
 
@@ -3018,7 +3018,7 @@ SourcePath EvalState::findFile(const LookupPath& lookupPath, const std::string_v
       continue;
     auto r = *rOpt;
 
-    auto res = (r / CanonPath(suffix)).resolveSymlinks();
+    auto res = (r / canon_path_t(suffix)).resolveSymlinks();
     if (res.pathExists())
       return res;
 
@@ -3029,7 +3029,7 @@ SourcePath EvalState::findFile(const LookupPath& lookupPath, const std::string_v
   }
 
   if (hasPrefix(path, "nix/"))
-    return {corepkgsFS, CanonPath(path.substr(3))};
+    return {corepkgsFS, canon_path_t(path.substr(3))};
 
   error<ThrownError>(
       settings.pureEval
@@ -3040,14 +3040,14 @@ SourcePath EvalState::findFile(const LookupPath& lookupPath, const std::string_v
       .debugThrow();
 }
 
-std::optional<SourcePath> EvalState::resolveLookupPathPath(const LookupPath::Path& value0,
+std::optional<source_path_t> EvalState::resolveLookupPathPath(const LookupPath::Path& value0,
                                                            bool initAccessControl) {
   auto& value = value0.s;
   auto i = lookupPathResolved.find(value);
   if (i != lookupPathResolved.end())
     return i->second;
 
-  auto finish = [&](std::optional<SourcePath> res) {
+  auto finish = [&](std::optional<source_path_t> res) {
     if (res)
       debug("resolved search path element '%s' to '%s'", value, *res);
     else
@@ -3060,11 +3060,11 @@ std::optional<SourcePath> EvalState::resolveLookupPathPath(const LookupPath::Pat
     try {
       auto accessor =
           fetchers::downloadTarball(*store, fetchSettings, EvalSettings::resolvePseudoUrl(value));
-      auto storePath = fetchToStore(fetchSettings, *store, SourcePath(accessor), FetchMode::Copy);
+      auto storePath = fetchToStore(fetchSettings, *store, source_path_t(accessor), FetchMode::Copy);
       return finish(this->storePath(storePath));
     } catch (Error& e) {
       logWarning(
-          {.msg = HintFmt("Nix search path entry '%1%' cannot be downloaded, ignoring", value)});
+          {.msg = hint_fmt_t("Nix search path entry '%1%' cannot be downloaded, ignoring", value)});
     }
   }
 
@@ -3100,19 +3100,19 @@ std::optional<SourcePath> EvalState::resolveLookupPathPath(const LookupPath::Pat
       if (auto accessor = path.accessor.dynamic_pointer_cast<FilteringSourceAccessor>())
         accessor->checkAccess(path.path);
 
-      logWarning({.msg = HintFmt("Nix search path entry '%1%' does not exist, ignoring", value)});
+      logWarning({.msg = hint_fmt_t("Nix search path entry '%1%' does not exist, ignoring", value)});
     }
   }
 
   return finish(std::nullopt);
 }
 
-Expr* EvalState::parse(char* text, size_t length, Pos::Origin origin, const SourcePath& basePath,
+Expr* EvalState::parse(char* text, size_t length, Pos::origin_t origin, const source_path_t& basePath,
                        const std::shared_ptr<StaticEnv>& staticEnv) {
   DocCommentMap tmpDocComments; // Only used when not origin is not a SourcePath
   auto* docComments = &tmpDocComments;
 
-  if (auto sourcePath = std::get_if<SourcePath>(&origin)) {
+  if (auto sourcePath = std::get_if<source_path_t>(&origin)) {
     auto [it, _] = positionToDocComment.lock()->try_emplace(*sourcePath, make_ref<DocCommentMap>());
     docComments = &*it->second;
   }
@@ -3125,7 +3125,7 @@ Expr* EvalState::parse(char* text, size_t length, Pos::Origin origin, const Sour
   return result;
 }
 
-DocComment EvalState::getDocCommentForPos(PosIdx pos) {
+DocComment EvalState::getDocCommentForPos(pos_idx_t pos) {
   auto pos2 = positions[pos];
   auto path = pos2.getSourcePath();
   if (!path)
@@ -3143,7 +3143,7 @@ DocComment EvalState::getDocCommentForPos(PosIdx pos) {
   return it->second;
 }
 
-std::string ExternalValueBase::coerceToString(EvalState& state, const PosIdx& pos,
+std::string ExternalValueBase::coerceToString(EvalState& state, const pos_idx_t& pos,
                                               NixStringContext& context, bool copyMore,
                                               bool copyToStore) const {
   state.error<TypeError>("cannot coerce %1% to a string: %2%", showType(), *this)

@@ -15,7 +15,7 @@ namespace nix {
 class Store;
 
 namespace fetchers {
-struct Settings;
+struct settings_t;
 } // namespace fetchers
 
 typedef std::string FlakeId;
@@ -64,12 +64,12 @@ struct FlakeRef {
 
   fetchers::Attrs toAttrs() const;
 
-  FlakeRef resolve(const fetchers::Settings& fetchSettings, Store& store,
+  FlakeRef resolve(const fetchers::settings_t& fetchSettings, Store& store,
                    fetchers::UseRegistries useRegistries = fetchers::UseRegistries::All) const;
 
-  static FlakeRef fromAttrs(const fetchers::Settings& fetchSettings, const fetchers::Attrs& attrs);
+  static FlakeRef fromAttrs(const fetchers::settings_t& fetchSettings, const fetchers::Attrs& attrs);
 
-  std::pair<ref<SourceAccessor>, FlakeRef> lazyFetch(const fetchers::Settings& fetchSettings,
+  std::pair<ref<SourceAccessor>, FlakeRef> lazyFetch(const fetchers::settings_t& fetchSettings,
                                                      Store& store) const;
 
   /**
@@ -85,7 +85,7 @@ std::ostream& operator<<(std::ostream& str, const FlakeRef& flakeRef);
  * @param baseDir Optional [base
  * directory](https://nix.dev/manual/nix/development/glossary.html#gloss-base-directory)
  */
-FlakeRef parseFlakeRef(const fetchers::Settings& fetchSettings, const std::string& url,
+FlakeRef parseFlakeRef(const fetchers::settings_t& fetchSettings, const std::string& url,
                        const std::optional<std::filesystem::path>& baseDir = {},
                        bool allowMissing = false, bool isFlake = true,
                        bool preserveRelativePaths = false);
@@ -95,7 +95,7 @@ FlakeRef parseFlakeRef(const fetchers::Settings& fetchSettings, const std::strin
  * directory](https://nix.dev/manual/nix/development/glossary.html#gloss-base-directory)
  */
 std::pair<FlakeRef, std::string>
-parseFlakeRefWithFragment(const fetchers::Settings& fetchSettings, const std::string& url,
+parseFlakeRefWithFragment(const fetchers::settings_t& fetchSettings, const std::string& url,
                           const std::optional<std::filesystem::path>& baseDir = {},
                           bool allowMissing = false, bool isFlake = true,
                           bool preserveRelativePaths = false);
@@ -106,7 +106,7 @@ parseFlakeRefWithFragment(const fetchers::Settings& fetchSettings, const std::st
  */
 std::tuple<FlakeRef, std::string, ExtendedOutputsSpec>
 parseFlakeRefWithFragmentAndExtendedOutputsSpec(
-    const fetchers::Settings& fetchSettings, const std::string& url,
+    const fetchers::settings_t& fetchSettings, const std::string& url,
     const std::optional<std::filesystem::path>& baseDir = {}, bool allowMissing = false,
     bool isFlake = true);
 

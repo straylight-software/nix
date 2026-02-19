@@ -7,14 +7,14 @@
 namespace nix {
 
 NixStringContextElem NixStringContextElem::parse(std::string_view s0,
-                                                 const ExperimentalFeatureSettings& xpSettings) {
+                                                 const experimental_feature_settings_t& xpSettings) {
   std::string_view s = s0;
 
   auto parseRest = [&](this auto& parseRest) -> SingleDerivedPath {
     // Case on whether there is a '!'
     size_t index = s.find("!");
     if (index == std::string_view::npos) {
-      return SingleDerivedPath::Opaque{
+      return SingleDerivedPath::opaque_t{
           .path = StorePath{s},
       };
     } else {
@@ -74,7 +74,7 @@ std::string NixStringContextElem::to_string() const {
   std::function<void(const SingleDerivedPath&)> toStringRest;
   toStringRest = [&](auto& p) {
     std::visit(overloaded{
-                   [&](const SingleDerivedPath::Opaque& o) { res += o.path.to_string(); },
+                   [&](const SingleDerivedPath::opaque_t& o) { res += o.path.to_string(); },
                    [&](const SingleDerivedPath::Built& o) {
                      res += o.output;
                      res += '!';
@@ -89,7 +89,7 @@ std::string NixStringContextElem::to_string() const {
                    res += '!';
                    toStringRest(b);
                  },
-                 [&](const NixStringContextElem::Opaque& o) { toStringRest(o); },
+                 [&](const NixStringContextElem::opaque_t& o) { toStringRest(o); },
                  [&](const NixStringContextElem::DrvDeep& d) {
                    res += '=';
                    res += d.drvPath.to_string();

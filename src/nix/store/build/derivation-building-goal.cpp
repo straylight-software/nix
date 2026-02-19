@@ -73,7 +73,7 @@ void DerivationBuildingGoal::timedOut(Error&& ex) {
   killChild();
   // We're not inside a coroutine, hence we can't use co_return here.
   // Thus we ignore the return value.
-  [[maybe_unused]] Done _ = doneFailure({BuildResult::Failure::TimedOut, std::move(ex)});
+  [[maybe_unused]] done_t _ = doneFailure({BuildResult::Failure::TimedOut, std::move(ex)});
 }
 
 std::string showKnownOutputs(const StoreDirConfig& store, const Derivation& drv) {
@@ -85,7 +85,7 @@ std::string showKnownOutputs(const StoreDirConfig& store, const Derivation& drv)
   if (!expectedOutputPaths.empty()) {
     msg += "\nOutput paths:";
     for (auto& p : expectedOutputPaths)
-      msg += fmt("\n  %s", Magenta(store.printStorePath(p)));
+      msg += fmt("\n  %s", magenta_t(store.printStorePath(p)));
   }
   return msg;
 }
@@ -127,7 +127,7 @@ Goal::Co DerivationBuildingGoal::gaveUpOnSubstitution(bool storeDerivation) {
   if (nrFailed != 0) {
     auto msg = fmt("Cannot build '%s'.\n"
                    "Reason: " ANSI_RED "%d %s failed" ANSI_NORMAL ".",
-                   Magenta(worker.store.printStorePath(drvPath)), nrFailed,
+                   magenta_t(worker.store.printStorePath(drvPath)), nrFailed,
                    nrFailed == 1 ? "dependency" : "dependencies");
     msg += showKnownOutputs(worker.store, *drv);
     co_return doneFailure(BuildError(BuildResult::Failure::DependencyFailed, msg));
@@ -256,21 +256,21 @@ Goal::Co DerivationBuildingGoal::tryToBuild() {
     if (hook)
       msg += fmt(" on '%s'", hook->machineName);
 #endif
-    act = std::make_unique<Activity>(*logger, lvlInfo, actBuild, msg,
-                                     Logger::Fields{worker.store.printStorePath(drvPath),
+    act = std::make_unique<activity_t>(*logger, lvlInfo, actBuild, msg,
+                                     Logger::fields_t{worker.store.printStorePath(drvPath),
 #ifndef _WIN32 // TODO enable build hook on Windows
                                                     hook ? hook->machineName :
 #endif
                                                          "",
                                                     1, 1});
-    mcRunningBuilds = std::make_unique<MaintainCount<uint64_t>>(worker.runningBuilds);
+    mcRunningBuilds = std::make_unique<maintain_count_t<uint64_t>>(worker.runningBuilds);
     worker.updateProgress();
   };
 
   /**
-   * Activity that denotes waiting for a lock.
+   * activity_t that denotes waiting for a lock.
    */
-  std::unique_ptr<Activity> actLock;
+  std::unique_ptr<activity_t> actLock;
 
   /**
    * Locks on (fixed) output paths.
@@ -310,8 +310,8 @@ Goal::Co DerivationBuildingGoal::tryToBuild() {
     }
 
     if (!outputLocks.lockPaths(lockFiles, "", false)) {
-      Activity act(*logger, lvlWarn, actBuildWaiting,
-                   fmt("waiting for lock on %s", Magenta(showPaths(lockFiles))));
+      activity_t act(*logger, lvlWarn, actBuildWaiting,
+                   fmt("waiting for lock on %s", magenta_t(showPaths(lockFiles))));
 
       /* Wait then try locking again, repeat until success (returned
          boolean is true). */
@@ -370,9 +370,9 @@ Goal::Co DerivationBuildingGoal::tryToBuild() {
              the wake-up timeout expires. */
           if (!actLock)
             actLock =
-                std::make_unique<Activity>(*logger, lvlWarn, actBuildWaiting,
+                std::make_unique<activity_t>(*logger, lvlWarn, actBuildWaiting,
                                            fmt("waiting for a machine to build '%s'",
-                                               Magenta(worker.store.printStorePath(drvPath))));
+                                               magenta_t(worker.store.printStorePath(drvPath))));
           outputLocks.unlock();
           co_await waitForAWhile();
           continue;
@@ -393,16 +393,16 @@ Goal::Co DerivationBuildingGoal::tryToBuild() {
                     "Reason: " ANSI_RED "required system or feature not available" ANSI_NORMAL "\n"
                     "Required system: '%s' with features {%s}\n"
                     "Current system: '%s' with features {%s}",
-                    Magenta(worker.store.printStorePath(drvPath)), Magenta(drv->platform),
+                    magenta_t(worker.store.printStorePath(drvPath)), magenta_t(drv->platform),
                     concatStringsSep(", ", drvOptions.getRequiredSystemFeatures(*drv)),
-                    Magenta(settings.thisSystem),
-                    concatStringsSep<StringSet>(", ", worker.store.Store::config.systemFeatures));
+                    magenta_t(settings.thisSystem),
+                    concatStringsSep<string_set_t>(", ", worker.store.Store::config.systemFeatures));
 
             // since aarch64-darwin has Rosetta 2, this user can actually run x86_64-darwin on their
             // hardware - we should tell them to run the command to install Darwin 2
             if (drv->platform == "x86_64-darwin" && settings.thisSystem == "aarch64-darwin")
               msg += fmt("\nNote: run `%s` to run programs for x86_64-darwin",
-                         Magenta("/usr/sbin/softwareupdate --install-rosetta && launchctl stop "
+                         magenta_t("/usr/sbin/softwareupdate --install-rosetta && launchctl stop "
                                  "org.nixos.nix-daemon"));
 
 #ifndef _WIN32 // TODO enable `DerivationBuilder` on Windows
@@ -523,7 +523,7 @@ Goal::Co DerivationBuildingGoal::tryToBuild() {
 #else
   assert(!hook);
 
-  Descriptor builderOut;
+  descriptor_t builderOut;
 
   // Will continue here while waiting for a build user below
   while (true) {
@@ -616,9 +616,9 @@ Goal::Co DerivationBuildingGoal::tryToBuild() {
       builderOut = *std::move(builderOutOpt);
     } else {
       if (!actLock)
-        actLock = std::make_unique<Activity>(*logger, lvlWarn, actBuildWaiting,
+        actLock = std::make_unique<activity_t>(*logger, lvlWarn, actBuildWaiting,
                                              fmt("waiting for a free build user ID for '%s'",
-                                                 Magenta(worker.store.printStorePath(drvPath))));
+                                                 magenta_t(worker.store.printStorePath(drvPath))));
       co_await waitForAWhile();
       continue;
     }
@@ -657,7 +657,7 @@ Goal::Co DerivationBuildingGoal::tryToBuild() {
            rejection). */
         e.status = BuildResult::Failure::OutputRejected;
         break;
-      case BuildResult::Failure::NotDeterministic:
+      case BuildResult::Failure::not_deterministic_t:
         worker.checkMismatch = true;
         break;
       default:
@@ -703,22 +703,22 @@ static void runPostBuildHook(const StoreDirConfig& store, Logger& logger, const 
   if (hook == "")
     return;
 
-  Activity act(logger, lvlTalkative, actPostBuildHook,
+  activity_t act(logger, lvlTalkative, actPostBuildHook,
                fmt("running post-build-hook '%s'", settings.postBuildHook),
-               Logger::Fields{store.printStorePath(drvPath)});
-  PushActivity pact(act.id);
-  StringMap hookEnvironment = getEnv();
+               Logger::fields_t{store.printStorePath(drvPath)});
+  push_activity_t pact(act.id);
+  string_map_t hookEnvironment = getEnv();
 
   hookEnvironment.emplace("DRV_PATH", store.printStorePath(drvPath));
   hookEnvironment.emplace("OUT_PATHS",
                           chomp(concatStringsSep(" ", store.printStorePathSet(outputPaths))));
   hookEnvironment.emplace("NIX_CONFIG", globalConfig.toKeyValue());
 
-  struct LogSink : Sink {
-    Activity& act;
+  struct log_sink_t : Sink {
+    activity_t& act;
     std::string currentLine;
 
-    LogSink(Activity& act) : act(act) {}
+    log_sink_t(activity_t& act) : act(act) {}
 
     void operator()(std::string_view data) override {
       for (auto c : data) {
@@ -735,7 +735,7 @@ static void runPostBuildHook(const StoreDirConfig& store, Logger& logger, const 
       currentLine.clear();
     }
 
-    ~LogSink() {
+    ~log_sink_t() {
       if (currentLine != "") {
         currentLine += '\n';
         flushLine();
@@ -743,7 +743,7 @@ static void runPostBuildHook(const StoreDirConfig& store, Logger& logger, const 
     }
   };
 
-  LogSink sink(act);
+  log_sink_t sink(act);
 
   runProgram2({
       .program = settings.postBuildHook,
@@ -756,7 +756,7 @@ static void runPostBuildHook(const StoreDirConfig& store, Logger& logger, const 
 BuildError DerivationBuildingGoal::fixupBuilderFailureErrorMessage(BuilderFailureError e) {
   auto msg = fmt("Cannot build '%s'.\n"
                  "Reason: " ANSI_RED "builder %s" ANSI_NORMAL ".",
-                 Magenta(worker.store.printStorePath(drvPath)), statusToString(e.builderStatus));
+                 magenta_t(worker.store.printStorePath(drvPath)), statusToString(e.builderStatus));
 
   msg += showKnownOutputs(worker.store, *drv);
 
@@ -838,7 +838,7 @@ DerivationBuildingGoal::tryBuildHook(const std::map<std::string, InitialOutput>&
     else if (reply != "accept")
       throw Error("bad hook reply '%s'", reply);
 
-  } catch (SysError& e) {
+  } catch (sys_error_t& e) {
     if (e.errNo == EPIPE) {
       printError("build hook died unexpectedly: %s",
                  chomp(drainFD(worker.hook->fromHook.readSide.get())));
@@ -866,7 +866,7 @@ DerivationBuildingGoal::tryBuildHook(const std::map<std::string, InitialOutput>&
   /* Tell the hooks the missing outputs that have to be copied back
      from the remote system. */
   {
-    StringSet missingOutputs;
+    string_set_t missingOutputs;
     for (auto& [outputName, status] : initialOutputs) {
       // XXX: Does this include known CA outputs?
       if (buildMode != bmCheck && status.known && status.known->isValid())
@@ -876,13 +876,13 @@ DerivationBuildingGoal::tryBuildHook(const std::map<std::string, InitialOutput>&
     CommonProto::write(worker.store, conn, missingOutputs);
   }
 
-  hook->sink = FdSink();
+  hook->sink = fd_sink_t();
   hook->toHook.writeSide.close();
 
   /* Create the log file and pipe. */
   [[maybe_unused]] Path logFile = openLogFile();
 
-  std::set<MuxablePipePollState::CommChannel> fds;
+  std::set<muxable_pipe_poll_state_t::comm_channel_t> fds;
   fds.insert(hook->fromHook.readSide.get());
   fds.insert(hook->builderOut.readSide.get());
   worker.childStarted(shared_from_this(), fds, false, false);
@@ -918,12 +918,12 @@ Path DerivationBuildingGoal::openLogFile() {
                                 ,
                                 0666));
   if (!fdLogFile)
-    throw SysError("creating log file '%1%'", logFileName);
+    throw sys_error_t("creating log file '%1%'", logFileName);
 
-  logFileSink = std::make_shared<FdSink>(fdLogFile.get());
+  logFileSink = std::make_shared<fd_sink_t>(fdLogFile.get());
 
   if (settings.compressLog)
-    logSink = std::shared_ptr<CompressionSink>(makeCompressionSink("bzip2", *logFileSink));
+    logSink = std::shared_ptr<compression_sink_t>(makeCompressionSink("bzip2", *logFileSink));
   else
     logSink = logFileSink;
 
@@ -931,7 +931,7 @@ Path DerivationBuildingGoal::openLogFile() {
 }
 
 void DerivationBuildingGoal::closeLogFile() {
-  auto logSink2 = std::dynamic_pointer_cast<CompressionSink>(logSink);
+  auto logSink2 = std::dynamic_pointer_cast<compression_sink_t>(logSink);
   if (logSink2)
     logSink2->finish();
   if (logFileSink)
@@ -940,7 +940,7 @@ void DerivationBuildingGoal::closeLogFile() {
   fdLogFile.close();
 }
 
-bool DerivationBuildingGoal::isReadDesc(Descriptor fd) {
+bool DerivationBuildingGoal::isReadDesc(descriptor_t fd) {
 #ifdef _WIN32 // TODO enable build hook on Windows
   return false;
 #else
@@ -949,7 +949,7 @@ bool DerivationBuildingGoal::isReadDesc(Descriptor fd) {
 #endif
 }
 
-void DerivationBuildingGoal::handleChildOutput(Descriptor fd, std::string_view data) {
+void DerivationBuildingGoal::handleChildOutput(descriptor_t fd, std::string_view data) {
   // local & `ssh://`-builds are dealt with here.
   auto isWrittenToLog = isReadDesc(fd);
   if (isWrittenToLog) {
@@ -958,7 +958,7 @@ void DerivationBuildingGoal::handleChildOutput(Descriptor fd, std::string_view d
       killChild();
       // We're not inside a coroutine, hence we can't use co_return here.
       // Thus we ignore the return value.
-      [[maybe_unused]] Done _ =
+      [[maybe_unused]] done_t _ =
           doneFailure(BuildError(BuildResult::Failure::LogLimitExceeded,
                                  "%s killed after writing more than %d bytes of log output",
                                  getName(), settings.maxLogSize));
@@ -1019,7 +1019,7 @@ void DerivationBuildingGoal::handleChildOutput(Descriptor fd, std::string_view d
 #endif
 }
 
-void DerivationBuildingGoal::handleEOF(Descriptor fd) {
+void DerivationBuildingGoal::handleEOF(descriptor_t fd) {
   if (!currentLogLine.empty())
     flushLine();
   worker.wakeUp(shared_from_this());
@@ -1082,7 +1082,7 @@ DerivationBuildingGoal::checkPathValidity(std::map<std::string, InitialOutput>& 
       };
     }
     auto drvOutput = DrvOutput{info.outputHash, i.first};
-    if (experimentalFeatureSettings.isEnabled(Xp::CaDerivations)) {
+    if (experimentalFeatureSettings.isEnabled(xp_t::CaDerivations)) {
       if (auto real = worker.store.queryRealisation(drvOutput)) {
         auto outputPath = real->outPath;
         info.known = {
@@ -1124,7 +1124,7 @@ DerivationBuildingGoal::checkPathValidity(std::map<std::string, InitialOutput>& 
   return {allValid, validOutputs};
 }
 
-Goal::Done DerivationBuildingGoal::doneSuccess(BuildResult::Success::Status status,
+Goal::done_t DerivationBuildingGoal::doneSuccess(BuildResult::Success::Status status,
                                                SingleDrvOutputs builtOutputs) {
   buildResult.inner = BuildResult::Success{
       .status = status,
@@ -1146,10 +1146,10 @@ Goal::Done DerivationBuildingGoal::doneSuccess(BuildResult::Success::Status stat
   return amDone(ecSuccess, std::nullopt);
 }
 
-Goal::Done DerivationBuildingGoal::doneFailure(BuildError ex) {
+Goal::done_t DerivationBuildingGoal::doneFailure(BuildError ex) {
   buildResult.inner = BuildResult::Failure{
       .status = ex.status,
-      .errorMsg = fmt("%s", Uncolored(ex.info().msg)),
+      .errorMsg = fmt("%s", uncolored_t(ex.info().msg)),
   };
 
   logger->result(act ? act->id : getCurActivity(), resBuildResult,

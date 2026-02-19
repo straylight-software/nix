@@ -19,7 +19,7 @@ MixCommonArgs::MixCommonArgs(const std::string& programName) : programName(progr
       .description = "Increase the logging verbosity level.",
       .category = loggingCategory,
       .handler = {[]() {
-        verbosity = (Verbosity)std::min<std::underlying_type_t<Verbosity>>(verbosity + 1, lvlVomit);
+        verbosity = (verbosity_t)std::min<std::underlying_type_t<verbosity_t>>(verbosity + 1, lvlVomit);
       }},
   });
 
@@ -28,7 +28,7 @@ MixCommonArgs::MixCommonArgs(const std::string& programName) : programName(progr
       .description = "Decrease the logging verbosity level.",
       .category = loggingCategory,
       .handler = {[]() {
-        verbosity = verbosity > lvlError ? (Verbosity)(verbosity - 1) : lvlError;
+        verbosity = verbosity > lvlError ? (verbosity_t)(verbosity - 1) : lvlError;
       }},
   });
 
@@ -53,9 +53,9 @@ MixCommonArgs::MixCommonArgs(const std::string& programName) : programName(progr
         }
       }},
       .completer =
-          [](AddCompletions& completions, size_t index, std::string_view prefix) {
+          [](add_completions_t& completions, size_t index, std::string_view prefix) {
             if (index == 0) {
-              std::map<std::string, Config::SettingInfo> settings;
+              std::map<std::string, Config::setting_info_t> settings;
               globalConfig.getSettings(settings);
               for (auto& s : settings)
                 if (hasPrefix(s.first, prefix))
@@ -77,7 +77,7 @@ MixCommonArgs::MixCommonArgs(const std::string& programName) : programName(progr
       .longName = "max-jobs",
       .shortName = 'j',
       .description = "The maximum number of parallel builds.",
-      .labels = Strings{"jobs"},
+      .labels = strings_t{"jobs"},
       .handler = {[=](std::string s) { settings.set("max-jobs", s); }},
   });
 

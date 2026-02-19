@@ -10,18 +10,18 @@
 namespace nix {
 
 template std::list<std::string> tokenizeString(std::string_view s, std::string_view separators);
-template StringSet tokenizeString(std::string_view s, std::string_view separators);
+template string_set_t tokenizeString(std::string_view s, std::string_view separators);
 template std::vector<std::string> tokenizeString(std::string_view s, std::string_view separators);
 
 template std::list<std::string> splitString(std::string_view s, std::string_view separators);
-template StringSet splitString(std::string_view s, std::string_view separators);
+template string_set_t splitString(std::string_view s, std::string_view separators);
 template std::vector<std::string> splitString(std::string_view s, std::string_view separators);
 
-template std::list<OsString> basicSplitString(std::basic_string_view<OsChar> s,
-                                              std::basic_string_view<OsChar> separators);
+template std::list<os_string_t> basicSplitString(std::basic_string_view<os_char_t> s,
+                                              std::basic_string_view<os_char_t> separators);
 
 template std::string concatStringsSep(std::string_view, const std::list<std::string>&);
-template std::string concatStringsSep(std::string_view, const StringSet&);
+template std::string concatStringsSep(std::string_view, const string_set_t&);
 template std::string concatStringsSep(std::string_view, const std::vector<std::string>&);
 template std::string concatStringsSep(std::string_view,
                                       const boost::container::small_vector<std::string, 64>&);
@@ -35,7 +35,7 @@ template std::string concatStringsSep(std::string_view, const strings_4&);
 
 template std::string dropEmptyInitThenConcatStringsSep(std::string_view,
                                                        const std::list<std::string>&);
-template std::string dropEmptyInitThenConcatStringsSep(std::string_view, const StringSet&);
+template std::string dropEmptyInitThenConcatStringsSep(std::string_view, const string_set_t&);
 template std::string dropEmptyInitThenConcatStringsSep(std::string_view,
                                                        const std::vector<std::string>&);
 

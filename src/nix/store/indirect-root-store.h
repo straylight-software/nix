@@ -26,7 +26,7 @@ namespace nix {
  * | `LocalStore`      | local           | local               |
  * | `UDSRemoteStore`  | local           | remote              |
  * | `SSHStore`        | doesn't have    | doesn't have        |
- * | `MountedSSHStore` | remote          | doesn't have        |
+ * | `mounted_ssh_store_t` | remote          | doesn't have        |
  *
  * @note
  * Note how only the local implementations of `addPermRoot()` need

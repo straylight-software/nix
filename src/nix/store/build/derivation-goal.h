@@ -66,7 +66,7 @@ private:
    * The remainder is state held during the build.
    */
 
-  std::unique_ptr<MaintainCount<uint64_t>> mcExpectedBuilds;
+  std::unique_ptr<maintain_count_t<uint64_t>> mcExpectedBuilds;
 
   /**
    * The states.
@@ -90,9 +90,9 @@ private:
 
   Co repairClosure();
 
-  Done doneSuccess(BuildResult::Success::Status status, UnkeyedRealisation builtOutput);
+  done_t doneSuccess(BuildResult::Success::Status status, UnkeyedRealisation builtOutput);
 
-  Done doneFailure(BuildError ex);
+  done_t doneFailure(BuildError ex);
 };
 
 } // namespace nix

@@ -64,8 +64,8 @@ void RemoteStore::initConnection(Connection& conn) {
   try {
     conn.from.endOfFileError = "Nix daemon disconnected unexpectedly (maybe it crashed?)";
 
-    StringSink saved;
-    TeeSource tee(conn.from, saved);
+    string_sink_t saved;
+    tee_source_t tee(conn.from, saved);
     try {
       auto [protoVersion, features] = WorkerProto::BasicClientConnection::handshake(
           conn.to, tee, PROTOCOL_VERSION, WorkerProto::allFeatures);
@@ -78,7 +78,7 @@ void RemoteStore::initConnection(Connection& conn) {
          it. */
       conn.closeWrite();
       {
-        NullSink nullSink;
+        null_sink_t nullSink;
         tee.drainInto(nullSink);
       }
       throw Error("protocol mismatch, got '%s'", chomp(saved.s));
@@ -107,7 +107,7 @@ void RemoteStore::setOptions(Connection& conn) {
           << 0 /* obsolete print build trace */
           << settings.buildCores << settings.useSubstitutes;
 
-  std::map<std::string, nix::Config::SettingInfo> overrides;
+  std::map<std::string, nix::Config::setting_info_t> overrides;
   settings.getSettings(overrides, true); // libstore settings
   fileTransferSettings.getSettings(overrides, true);
   overrides.erase(settings.keepFailed.name);
@@ -292,7 +292,7 @@ std::optional<StorePath> RemoteStore::queryPathFromHashPart(const std::string& h
 
 ref<const ValidPathInfo> RemoteStore::addCAToStore(Source& dump, std::string_view name,
                                                    ContentAddressMethod caMethod,
-                                                   HashAlgorithm hashAlgo,
+                                                   hash_algorithm_t hashAlgo,
                                                    const StorePathSet& references,
                                                    RepairFlag repair) {
   std::optional<ConnectionHandle> conn_(getConnection());
@@ -306,7 +306,7 @@ ref<const ValidPathInfo> RemoteStore::addCAToStore(Source& dump, std::string_vie
     // The dump source may invoke the store, so we need to make some room.
     connections->incCapacity();
     {
-      Finally cleanup([&]() { connections->decCapacity(); });
+      finally_t cleanup([&]() { connections->decCapacity(); });
       conn.withFramedSink([&](Sink& sink) { dump.drainInto(sink); });
     }
 
@@ -317,8 +317,8 @@ ref<const ValidPathInfo> RemoteStore::addCAToStore(Source& dump, std::string_vie
           "repairing is not supported when building through the Nix daemon protocol < 1.25");
 
     switch (caMethod.raw) {
-      case ContentAddressMethod::Raw::Text: {
-        if (hashAlgo != HashAlgorithm::SHA256)
+      case ContentAddressMethod::raw_t::Text: {
+        if (hashAlgo != hash_algorithm_t::SHA256)
           throw UnimplementedError("When adding text-hashed data called '%s', only SHA-256 is "
                                    "supported but '%s' was given",
                                    name, printHashAlgo(hashAlgo));
@@ -328,23 +328,23 @@ ref<const ValidPathInfo> RemoteStore::addCAToStore(Source& dump, std::string_vie
         conn.processStderr();
         break;
       }
-      case ContentAddressMethod::Raw::Flat:
-      case ContentAddressMethod::Raw::NixArchive:
-      case ContentAddressMethod::Raw::Git:
+      case ContentAddressMethod::raw_t::Flat:
+      case ContentAddressMethod::raw_t::NixArchive:
+      case ContentAddressMethod::raw_t::Git:
       default: {
         auto fim = caMethod.getFileIngestionMethod();
         conn->to << WorkerProto::Op::AddToStore << name
-                 << ((hashAlgo == HashAlgorithm::SHA256 && fim == FileIngestionMethod::NixArchive)
+                 << ((hashAlgo == hash_algorithm_t::SHA256 && fim == file_ingestion_method_t::NixArchive)
                          ? 0
                          : 1) /* backwards compatibility hack */
-                 << (fim == FileIngestionMethod::NixArchive ? 1 : 0) << printHashAlgo(hashAlgo);
+                 << (fim == file_ingestion_method_t::NixArchive ? 1 : 0) << printHashAlgo(hashAlgo);
 
         try {
           conn->to.written = 0;
           connections->incCapacity();
           {
-            Finally cleanup([&]() { connections->decCapacity(); });
-            if (fim == FileIngestionMethod::NixArchive) {
+            finally_t cleanup([&]() { connections->decCapacity(); });
+            if (fim == file_ingestion_method_t::NixArchive) {
               dump.drainInto(conn->to);
             } else {
               std::string contents = dump.drain();
@@ -352,7 +352,7 @@ ref<const ValidPathInfo> RemoteStore::addCAToStore(Source& dump, std::string_vie
             }
           }
           conn.processStderr();
-        } catch (SysError& e) {
+        } catch (sys_error_t& e) {
           /* Daemon closed while we were sending the path. Probably OOM
             or I/O error. */
           if (e.errNo == EPIPE)
@@ -373,20 +373,20 @@ ref<const ValidPathInfo> RemoteStore::addCAToStore(Source& dump, std::string_vie
 }
 
 StorePath RemoteStore::addToStoreFromDump(Source& dump, std::string_view name,
-                                          FileSerialisationMethod dumpMethod,
-                                          ContentAddressMethod hashMethod, HashAlgorithm hashAlgo,
+                                          file_serialisation_method_t dumpMethod,
+                                          ContentAddressMethod hashMethod, hash_algorithm_t hashAlgo,
                                           const StorePathSet& references, RepairFlag repair) {
-  FileSerialisationMethod fsm;
+  file_serialisation_method_t fsm;
   switch (hashMethod.getFileIngestionMethod()) {
-    case FileIngestionMethod::Flat:
-      fsm = FileSerialisationMethod::Flat;
+    case file_ingestion_method_t::Flat:
+      fsm = file_serialisation_method_t::Flat;
       break;
-    case FileIngestionMethod::NixArchive:
-      fsm = FileSerialisationMethod::NixArchive;
+    case file_ingestion_method_t::NixArchive:
+      fsm = file_serialisation_method_t::NixArchive;
       break;
-    case FileIngestionMethod::Git:
+    case file_ingestion_method_t::Git:
       // Use NAR; Git is not a serialization method
-      fsm = FileSerialisationMethod::NixArchive;
+      fsm = file_serialisation_method_t::NixArchive;
       break;
     default:
       assert(false);
@@ -406,7 +406,7 @@ void RemoteStore::addToStore(const ValidPathInfo& info, Source& source, RepairFl
   conn->to << WorkerProto::Op::AddToStoreNar;
   WorkerProto::write(*this, *conn, info.path);
   WorkerProto::write(*this, *conn, info.deriver);
-  conn->to << info.narHash.to_string(HashFormat::Base16, false);
+  conn->to << info.narHash.to_string(hash_format_t::Base16, false);
   WorkerProto::write(*this, *conn, info.references);
   conn->to << info.registrationTime << info.narSize << info.ultimate << info.sigs
            << renderContentAddress(info.ca) << repair << !checkSigs;
@@ -421,7 +421,7 @@ void RemoteStore::addToStore(const ValidPathInfo& info, Source& source, RepairFl
   }
 }
 
-void RemoteStore::addMultipleToStore(PathsSource&& pathsToCopy, Activity& act, RepairFlag repair,
+void RemoteStore::addMultipleToStore(PathsSource&& pathsToCopy, activity_t& act, RepairFlag repair,
                                      CheckSigsFlag checkSigs) {
   // `addMultipleToStore` is single threaded
   size_t bytesExpected = 0;
@@ -518,7 +518,7 @@ void RemoteStore::copyDrvsFromEvalStore(const std::vector<DerivedPath>& paths,
     RealisedPath::Set drvPaths2;
     for (const auto& i : paths) {
       std::visit(overloaded{
-                     [&](const DerivedPath::Opaque& bp) {
+                     [&](const DerivedPath::opaque_t& bp) {
                        // Do nothing, path is hopefully there already
                      },
                      [&](const DerivedPath::Built& bp) {
@@ -569,7 +569,7 @@ RemoteStore::buildPathsWithResults(const std::vector<DerivedPath>& paths, BuildM
 
     for (auto& path : paths) {
       std::visit(
-          overloaded{[&](const DerivedPath::Opaque& bo) {
+          overloaded{[&](const DerivedPath::opaque_t& bo) {
                        results.push_back(KeyedBuildResult{
                            {.inner{BuildResult::Success{
                                .status = BuildResult::Success::Substituted,
@@ -594,7 +594,7 @@ RemoteStore::buildPathsWithResults(const std::vector<DerivedPath>& paths, BuildM
                            throw Error("the derivation '%s' doesn't have an output named '%s'",
                                        printStorePath(drvPath), output);
                          auto outputId = DrvOutput{*outputHash, output};
-                         if (experimentalFeatureSettings.isEnabled(Xp::CaDerivations)) {
+                         if (experimentalFeatureSettings.isEnabled(xp_t::CaDerivations)) {
                            auto realisation = queryRealisation(outputId);
                            if (!realisation)
                              throw MissingRealisation(outputId);
@@ -669,7 +669,7 @@ void RemoteStore::collectGarbage(const GCOptions& options, GCResults& results) {
 
   conn.processStderr();
 
-  results.paths = readStrings<PathSet>(conn->from);
+  results.paths = readStrings<path_set_t>(conn->from);
   results.bytesFreed = readLongLong(conn->from);
   readLongLong(conn->from); // obsolete
 
@@ -690,7 +690,7 @@ bool RemoteStore::verifyStore(bool checkContents, RepairFlag repair) {
   return readInt(conn->from);
 }
 
-void RemoteStore::addSignatures(const StorePath& storePath, const StringSet& sigs) {
+void RemoteStore::addSignatures(const StorePath& storePath, const string_set_t& sigs) {
   auto conn(getConnection());
   conn->to << WorkerProto::Op::AddSignatures;
   WorkerProto::write(*this, *conn, storePath);
@@ -724,7 +724,7 @@ fallback:
 void RemoteStore::addBuildLog(const StorePath& drvPath, std::string_view log) {
   auto conn(getConnection());
   conn->to << WorkerProto::Op::AddBuildLog << drvPath.to_string();
-  StringSource source(log);
+  string_source_t source(log);
   conn.withFramedSink([&](Sink& sink) { source.drainInto(sink); });
   readInt(conn->from);
 }
@@ -784,7 +784,7 @@ void RemoteStore::ConnectionHandle::withFramedSink(std::function<void(Sink& sink
   (*this)->to.flush();
 
   {
-    FramedSink sink((*this)->to, [&]() {
+    framed_sink_t sink((*this)->to, [&]() {
       /* Periodically process stderr messages and exceptions
          from the daemon. */
       processStderr(nullptr, nullptr, false, false);

@@ -36,7 +36,7 @@ private:
   /**
     Input for computing the build directory. See `getBuildDir()`.
    */
-  Setting<std::optional<Path>> buildDir{this, std::nullopt, "build-dir",
+  setting_t<std::optional<Path>> buildDir{this, std::nullopt, "build-dir",
                                         R"(
             The directory on the host, in which derivations' temporary build directories are created.
 
@@ -79,11 +79,11 @@ private:
   bool getDefaultRequireSigs();
 
 public:
-  Setting<bool> requireSigs{
+  setting_t<bool> requireSigs{
       this, getDefaultRequireSigs(), "require-sigs",
       "Whether store paths copied into this store should have a trusted signature."};
 
-  Setting<bool> readOnly{this, false, "read-only",
+  setting_t<bool> readOnly{this, false, "read-only",
                          R"(
           Allow this store to be opened when its [database](@docroot@/glossary.md#gloss-nix-database) is on a read-only filesystem.
 
@@ -100,7 +100,7 @@ public:
 
   static const std::string name() { return "Local Store"; }
 
-  static StringSet uriSchemes() { return {"local"}; }
+  static string_set_t uriSchemes() { return {"local"}; }
 
   static std::string doc();
 
@@ -120,9 +120,9 @@ public:
 
 private:
   /**
-   * Lock file used for upgrading.
+   * lock_t file used for upgrading.
    */
-  AutoCloseFD globalLock;
+  auto_close_fd_t globalLock;
 
   struct State {
     /**
@@ -154,14 +154,14 @@ private:
      */
     uint64_t availAfterGC = std::numeric_limits<uint64_t>::max();
 
-    std::unique_ptr<PublicKeys> publicKeys;
+    std::unique_ptr<public_keys_t> publicKeys;
   };
 
   /**
    * Mutable state. It's behind a `ref` to reduce false sharing
    * between immutable and mutable fields.
    */
-  ref<Sync<State>> _state;
+  ref<sync_t<State>> _state;
 
 public:
   const Path dbDir;
@@ -172,13 +172,13 @@ public:
   const Path fnTempRoots;
 
 private:
-  const PublicKeys& getPublicKeys();
+  const public_keys_t& getPublicKeys();
 
 public:
   /**
    * Hack for build-remote.cc.
    */
-  PathSet locksHeld;
+  path_set_t locksHeld;
 
   /**
    * Initialise the local store, upgrading the schema if
@@ -221,8 +221,8 @@ public:
                   CheckSigsFlag checkSigs) override;
 
   StorePath addToStoreFromDump(Source& dump, std::string_view name,
-                               FileSerialisationMethod dumpMethod, ContentAddressMethod hashMethod,
-                               HashAlgorithm hashAlgo, const StorePathSet& references,
+                               file_serialisation_method_t dumpMethod, ContentAddressMethod hashMethod,
+                               hash_algorithm_t hashAlgo, const StorePathSet& references,
                                RepairFlag repair) override;
 
   void addTempRoot(const StorePath& path) override;
@@ -233,17 +233,17 @@ private:
   /**
    * The file to which we write our temporary roots.
    */
-  Sync<AutoCloseFD> _fdTempRoots;
+  sync_t<auto_close_fd_t> _fdTempRoots;
 
   /**
    * The global GC lock.
    */
-  Sync<AutoCloseFD> _fdGCLock;
+  sync_t<auto_close_fd_t> _fdGCLock;
 
   /**
    * Connection to the garbage collector.
    */
-  Sync<AutoCloseFD> _fdRootsSocket;
+  sync_t<auto_close_fd_t> _fdRootsSocket;
 
 public:
   /**
@@ -257,7 +257,7 @@ public:
 private:
   void findTempRoots(Roots& roots, bool censor);
 
-  AutoCloseFD openGCLock();
+  auto_close_fd_t openGCLock();
 
 public:
   Roots findRoots(bool censor) override;
@@ -339,7 +339,7 @@ public:
 
   void vacuumDB();
 
-  void addSignatures(const StorePath& storePath, const StringSet& sigs) override;
+  void addSignatures(const StorePath& storePath, const string_set_t& sigs) override;
 
   /**
    * If free disk space in /nix/store if below minFree, delete
@@ -397,7 +397,7 @@ private:
 
   void updatePathInfo(State& state, const ValidPathInfo& info);
 
-  PathSet queryValidPathsOld();
+  path_set_t queryValidPathsOld();
   ValidPathInfo queryPathInfoOld(const Path& path);
 
   void findRoots(const Path& path, std::filesystem::file_type type, Roots& roots);
@@ -406,13 +406,13 @@ private:
 
   void findRuntimeRoots(Roots& roots, bool censor);
 
-  std::pair<std::filesystem::path, AutoCloseFD> createTempDirInStore();
+  std::pair<std::filesystem::path, auto_close_fd_t> createTempDirInStore();
 
   typedef boost::unordered_flat_set<ino_t> InodeHash;
 
   InodeHash loadInodeHash();
-  Strings readDirectoryIgnoringInodes(const Path& path, const InodeHash& inodeHash);
-  void optimisePath_(Activity* act, OptimiseStats& stats, const Path& path, InodeHash& inodeHash,
+  strings_t readDirectoryIgnoringInodes(const Path& path, const InodeHash& inodeHash);
+  void optimisePath_(activity_t* act, OptimiseStats& stats, const Path& path, InodeHash& inodeHash,
                      RepairFlag repair);
 
   // Internal versions that are not wrapped in retry_sqlite.
@@ -428,11 +428,11 @@ private:
   std::filesystem::path activeBuildsDir;
 
   struct ActiveBuildFile {
-    AutoCloseFD fd;
-    AutoDelete del;
+    auto_close_fd_t fd;
+    auto_delete_t del;
   };
 
-  Sync<std::unordered_map<uint64_t, ActiveBuildFile>> activeBuilds;
+  sync_t<std::unordered_map<uint64_t, ActiveBuildFile>> activeBuilds;
 
   std::vector<ActiveBuildInfo> queryActiveBuilds() override;
 

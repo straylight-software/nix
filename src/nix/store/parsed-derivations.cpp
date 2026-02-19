@@ -20,7 +20,7 @@ StructuredAttrs StructuredAttrs::parse(std::string_view encoded) {
   }
 }
 
-std::optional<StructuredAttrs> StructuredAttrs::tryExtract(StringPairs& env) {
+std::optional<StructuredAttrs> StructuredAttrs::tryExtract(string_pairs_t& env) {
   /* Parse the __json attribute, if any. */
   auto jsonAttr = env.find(envVarName);
   if (jsonAttr != env.end()) {
@@ -36,7 +36,7 @@ std::pair<std::string_view, std::string> StructuredAttrs::unparse() const {
   return {envVarName, static_cast<nlohmann::json>(structuredAttrs).dump()};
 }
 
-void StructuredAttrs::checkKeyNotInUse(const StringPairs& env) {
+void StructuredAttrs::checkKeyNotInUse(const string_pairs_t& env) {
   if (env.count(envVarName))
     throw Error("Cannot have an environment variable named '__json'. This key is reserved for "
                 "encoding structured attrs");
@@ -64,7 +64,7 @@ static nlohmann::json pathInfoToJSON(Store& store, const StorePathSet& storePath
 
     auto& jsonPath = jsonList.emplace_back(json::object());
 
-    jsonPath["narHash"] = info->narHash.to_string(HashFormat::Nix32, true);
+    jsonPath["narHash"] = info->narHash.to_string(hash_format_t::Nix32, true);
     jsonPath["narSize"] = info->narSize;
 
     {

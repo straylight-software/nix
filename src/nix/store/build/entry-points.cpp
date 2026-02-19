@@ -17,7 +17,7 @@ void Store::buildPaths(const std::vector<DerivedPath>& reqs, BuildMode buildMode
 
   worker.run(goals);
 
-  StringSet failed;
+  string_set_t failed;
   std::optional<Error> ex;
   for (auto& i : goals) {
     if (i->ex) {

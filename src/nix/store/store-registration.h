@@ -26,13 +26,13 @@ struct StoreFactory {
   /**
    * URIs with these schemes should be handled by this factory
    */
-  StringSet uriSchemes;
+  string_set_t uriSchemes;
 
   /**
    * An experimental feature this type store is gated, if it is to be
    * experimental.
    */
-  std::optional<ExperimentalFeature> experimentalFeature;
+  std::optional<experimental_feature_t> experimentalFeature;
 
   /**
    * The `authorityPath` parameter is `<authority>/<path>`, or really

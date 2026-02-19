@@ -33,7 +33,7 @@ Goal::Co DrvOutputSubstitutionGoal::init() {
     /* The callback of the curl download below can outlive `this` (if
        some other error occurs), so it must not touch `this`. So put
        the shared state in a separate refcounted object. */
-    auto outPipe = std::make_shared<MuxablePipe>();
+    auto outPipe = std::make_shared<muxable_pipe_t>();
 #ifndef _WIN32
     outPipe->create();
 #else
@@ -45,7 +45,7 @@ Goal::Co DrvOutputSubstitutionGoal::init() {
     sub->queryRealisation(id, {[outPipe(outPipe), promise(promise)](
                                    std::future<std::shared_ptr<const UnkeyedRealisation>> res) {
                             try {
-                              Finally updateStats([&]() { outPipe->writeSide.close(); });
+                              finally_t updateStats([&]() { outPipe->writeSide.close(); });
                               promise->set_value(res.get());
                             } catch (...) {
                               promise->set_exception(std::current_exception());
@@ -144,7 +144,7 @@ std::string DrvOutputSubstitutionGoal::key() {
   return "a$" + std::string(id.to_string());
 }
 
-void DrvOutputSubstitutionGoal::handleEOF(Descriptor fd) {
+void DrvOutputSubstitutionGoal::handleEOF(descriptor_t fd) {
   worker.wakeUp(shared_from_this());
 }
 

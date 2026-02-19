@@ -59,7 +59,7 @@ public:
    */
   Outputs queryOutputs(bool withPaths = true, bool onlyOutputsToInstall = false);
 
-  StringSet queryMetaNames();
+  string_set_t queryMetaNames();
   Value* queryMeta(const std::string& name);
   std::string queryMetaString(const std::string& name);
   NixInt queryMetaInt(const std::string& name, NixInt def);

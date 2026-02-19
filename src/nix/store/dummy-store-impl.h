@@ -8,7 +8,7 @@
 
 namespace nix {
 
-struct MemorySourceAccessor;
+struct memory_source_accessor_t;
 
 /**
  * Enough of the Dummy Store exposed for sake of writing unit tests
@@ -20,7 +20,7 @@ struct DummyStore : virtual Store {
 
   struct PathInfoAndContents {
     UnkeyedValidPathInfo info;
-    ref<MemorySourceAccessor> contents;
+    ref<memory_source_accessor_t> contents;
 
     bool operator==(const PathInfoAndContents&) const;
   };

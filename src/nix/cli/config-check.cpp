@@ -44,19 +44,19 @@ void checkInfo(std::string_view msg) {
 
 } // namespace
 
-struct CmdConfigCheck : StoreCommand {
+struct cmd_config_check_t : StoreCommand {
   bool success = true;
 
   /**
    * This command is stable before the others
    */
-  std::optional<ExperimentalFeature> experimentalFeature() override { return std::nullopt; }
+  std::optional<experimental_feature_t> experimentalFeature() override { return std::nullopt; }
 
   std::string description() override {
     return "check your system for potential problems and print a PASS or FAIL for each check";
   }
 
-  Category category() override { return catNixInstallation; }
+  category_t category() override { return catNixInstallation; }
 
   void run(ref<Store> store) override {
     logger->log("Running checks against store uri: " + store->config.getHumanReadableURI());
@@ -69,13 +69,13 @@ struct CmdConfigCheck : StoreCommand {
     checkTrustedUser(store);
 
     if (!success)
-      throw Exit(2);
+      throw exit_t(2);
   }
 
   bool checkNixInPath() {
     std::set<std::filesystem::path> dirs;
 
-    for (auto& dir : ExecutablePath::load().directories) {
+    for (auto& dir : executable_path_t::load().directories) {
       auto candidate = dir / "nix-env";
       if (std::filesystem::exists(candidate))
         dirs.insert(std::filesystem::canonical(candidate).parent_path());
@@ -95,7 +95,7 @@ struct CmdConfigCheck : StoreCommand {
   bool checkProfileRoots(ref<Store> store) {
     std::set<std::filesystem::path> dirs;
 
-    for (auto& dir : ExecutablePath::load().directories) {
+    for (auto& dir : executable_path_t::load().directories) {
       auto profileDir = dir.parent_path();
       try {
         auto userEnv = std::filesystem::weakly_canonical(profileDir);
@@ -165,4 +165,4 @@ struct CmdConfigCheck : StoreCommand {
   }
 };
 
-static auto rCmdConfigCheck = registerCommand2<CmdConfigCheck>({"config", "check"});
+static auto rCmdConfigCheck = registerCommand2<cmd_config_check_t>({"config", "check"});

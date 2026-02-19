@@ -11,10 +11,10 @@ MakeError(ExecutableLookupError, Error);
  * @todo rename, it is not just good for executable paths, but also
  * other lists of paths.
  */
-struct ExecutablePath {
+struct executable_path_t {
   std::vector<std::filesystem::path> directories;
 
-  constexpr static const OsChar separator =
+  constexpr static const os_char_t separator =
 #ifdef WIN32
       L';'
 #else
@@ -30,17 +30,17 @@ struct ExecutablePath {
    * For Unix, this is according to the POSIX spec for `PATH`.
    * https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap08.html#tag_08_03
    */
-  static ExecutablePath parse(const OsString& path);
+  static executable_path_t parse(const os_string_t& path);
 
   /**
    * Load the `PATH` environment variable and `parse` it.
    */
-  static ExecutablePath load();
+  static executable_path_t load();
 
   /**
    * Opposite of `parse`
    */
-  OsString render() const;
+  os_string_t render() const;
 
   /**
    * Search for an executable.
@@ -60,7 +60,7 @@ struct ExecutablePath {
    * @return path to a resolved executable
    */
   std::optional<std::filesystem::path>
-  findName(const OsString& exe, std::function<bool(const std::filesystem::path&)> isExecutableFile =
+  findName(const os_string_t& exe, std::function<bool(const std::filesystem::path&)> isExecutableFile =
                                     isExecutableFileAmbient) const;
 
   /**
@@ -74,7 +74,7 @@ struct ExecutablePath {
                                  std::function<bool(const std::filesystem::path&)> isExecutable =
                                      isExecutableFileAmbient) const;
 
-  bool operator==(const ExecutablePath&) const = default;
+  bool operator==(const executable_path_t&) const = default;
 };
 
 } // namespace nix

@@ -18,17 +18,17 @@
 
 namespace nix {
 
-LoggerSettings loggerSettings;
+logger_settings_t loggerSettings;
 
-static GlobalConfig::Register rLoggerSettings(&loggerSettings);
+static global_config_t::Register rLoggerSettings(&loggerSettings);
 
-static thread_local ActivityId curActivity = 0;
+static thread_local activity_id_t curActivity = 0;
 
-ActivityId getCurActivity() {
+activity_id_t getCurActivity() {
   return curActivity;
 }
 
-void setCurActivity(const ActivityId activityId) {
+void setCurActivity(const activity_id_t activityId) {
   curActivity = activityId;
 }
 
@@ -39,35 +39,35 @@ void Logger::warn(const std::string& msg) {
 }
 
 void Logger::writeToStdout(std::string_view s) {
-  Descriptor standard_out = getStandardOutput();
+  descriptor_t standard_out = getStandardOutput();
   writeFull(standard_out, s);
   writeFull(standard_out, "\n");
 }
 
-Logger::Suspension Logger::suspend() {
+Logger::suspension_t Logger::suspend() {
   pause();
-  return Suspension{._finalize = {[this]() { this->resume(); }}};
+  return suspension_t{._finalize = {[this]() { this->resume(); }}};
 }
 
-std::optional<Logger::Suspension> Logger::suspendIf(bool cond) {
+std::optional<Logger::suspension_t> Logger::suspendIf(bool cond) {
   if (cond)
     return suspend();
   return {};
 }
 
-class SimpleLogger : public Logger {
+class simple_logger_t : public Logger {
 public:
   bool systemd, tty;
   bool printBuildLogs;
 
-  SimpleLogger(bool printBuildLogs) : printBuildLogs(printBuildLogs) {
+  simple_logger_t(bool printBuildLogs) : printBuildLogs(printBuildLogs) {
     systemd = getEnv("IN_SYSTEMD") == "1";
     tty = isTTY();
   }
 
   bool isVerbose() override { return printBuildLogs; }
 
-  void log(Verbosity lvl, std::string_view s) override {
+  void log(verbosity_t lvl, std::string_view s) override {
     if (lvl > verbosity)
       return;
 
@@ -104,20 +104,20 @@ public:
     writeToStderr(prefix + filterANSIEscapes(s, !tty) + "\n");
   }
 
-  void logEI(const ErrorInfo& ei) override {
+  void logEI(const error_info_t& ei) override {
     std::ostringstream oss;
     showErrorInfo(oss, ei, loggerSettings.showTrace.get());
 
     log(ei.level, oss.view());
   }
 
-  void startActivity(ActivityId act, Verbosity lvl, ActivityType type, const std::string& s,
-                     const Fields& fields, ActivityId parent) override {
+  void startActivity(activity_id_t act, verbosity_t lvl, activity_type_t type, const std::string& s,
+                     const fields_t& fields, activity_id_t parent) override {
     if (lvl <= verbosity && !s.empty())
       log(lvl, s + "...");
   }
 
-  void result(ActivityId act, ResultType type, const Fields& fields) override {
+  void result(activity_id_t act, result_type_t type, const fields_t& fields) override {
     if (type == resBuildLogLine && printBuildLogs) {
       auto lastLine = fields[0].s;
       printError(lastLine);
@@ -128,7 +128,7 @@ public:
   }
 };
 
-Verbosity verbosity = lvlInfo;
+verbosity_t verbosity = lvlInfo;
 
 void writeToStderr(std::string_view s) {
   try {
@@ -142,7 +142,7 @@ void writeToStderr(std::string_view s) {
 }
 
 std::unique_ptr<Logger> makeSimpleLogger(bool printBuildLogs) {
-  return std::make_unique<SimpleLogger>(printBuildLogs);
+  return std::make_unique<simple_logger_t>(printBuildLogs);
 }
 
 std::atomic<uint64_t> nextId{0};
@@ -155,8 +155,8 @@ static uint64_t getPid() {
 #endif
 }
 
-Activity::Activity(Logger& logger, Verbosity lvl, ActivityType type, const std::string& s,
-                   const Logger::Fields& fields, ActivityId parent)
+activity_t::activity_t(Logger& logger, verbosity_t lvl, activity_type_t type, const std::string& s,
+                   const Logger::fields_t& fields, activity_id_t parent)
     : logger(logger), id(nextId++ + (((uint64_t)getPid()) << 32)) {
   logger.startActivity(id, lvl, type, s, fields, parent);
 }
@@ -175,22 +175,22 @@ void to_json(nlohmann::json& json, std::shared_ptr<const Pos> pos) {
   }
 }
 
-struct JSONLogger : Logger {
-  Descriptor fd;
+struct json_logger_t : Logger {
+  descriptor_t fd;
   bool includeNixPrefix;
 
-  JSONLogger(Descriptor fd, bool includeNixPrefix) : fd(fd), includeNixPrefix(includeNixPrefix) {}
+  json_logger_t(descriptor_t fd, bool includeNixPrefix) : fd(fd), includeNixPrefix(includeNixPrefix) {}
 
   bool isVerbose() override { return true; }
 
-  void addFields(nlohmann::json& json, const Fields& fields) {
+  void addFields(nlohmann::json& json, const fields_t& fields) {
     if (fields.empty())
       return;
     auto& arr = json["fields"] = nlohmann::json::array();
     for (auto& f : fields)
-      if (f.type == Logger::Field::tInt)
+      if (f.type == Logger::field_t::tInt)
         arr.push_back(f.i);
-      else if (f.type == Logger::Field::tString)
+      else if (f.type == Logger::field_t::tString)
         arr.push_back(f.s);
       else
         unreachable();
@@ -200,7 +200,7 @@ struct JSONLogger : Logger {
     bool enabled = true;
   };
 
-  Sync<State> _state;
+  sync_t<State> _state;
 
   void write(const nlohmann::json& json) {
     auto line = (includeNixPrefix ? "@nix " : "") +
@@ -222,7 +222,7 @@ struct JSONLogger : Logger {
     }
   }
 
-  void log(Verbosity lvl, std::string_view s) override {
+  void log(verbosity_t lvl, std::string_view s) override {
     nlohmann::json json;
     json["action"] = "msg";
     json["level"] = lvl;
@@ -230,7 +230,7 @@ struct JSONLogger : Logger {
     write(json);
   }
 
-  void logEI(const ErrorInfo& ei) override {
+  void logEI(const error_info_t& ei) override {
     std::ostringstream oss;
     showErrorInfo(oss, ei, loggerSettings.showTrace.get());
 
@@ -256,8 +256,8 @@ struct JSONLogger : Logger {
     write(json);
   }
 
-  void startActivity(ActivityId act, Verbosity lvl, ActivityType type, const std::string& s,
-                     const Fields& fields, ActivityId parent) override {
+  void startActivity(activity_id_t act, verbosity_t lvl, activity_type_t type, const std::string& s,
+                     const fields_t& fields, activity_id_t parent) override {
     nlohmann::json json;
     json["action"] = "start";
     json["id"] = act;
@@ -269,14 +269,14 @@ struct JSONLogger : Logger {
     write(json);
   }
 
-  void stopActivity(ActivityId act) override {
+  void stopActivity(activity_id_t act) override {
     nlohmann::json json;
     json["action"] = "stop";
     json["id"] = act;
     write(json);
   }
 
-  void result(ActivityId act, ResultType type, const Fields& fields) override {
+  void result(activity_id_t act, result_type_t type, const fields_t& fields) override {
     nlohmann::json json;
     json["action"] = "result";
     json["id"] = act;
@@ -285,7 +285,7 @@ struct JSONLogger : Logger {
     write(json);
   }
 
-  void result(ActivityId act, ResultType type, const nlohmann::json& j) override {
+  void result(activity_id_t act, result_type_t type, const nlohmann::json& j) override {
     nlohmann::json json;
     json["action"] = "result";
     json["id"] = act;
@@ -295,26 +295,26 @@ struct JSONLogger : Logger {
   }
 };
 
-std::unique_ptr<Logger> makeJSONLogger(Descriptor fd, bool includeNixPrefix) {
-  return std::make_unique<JSONLogger>(fd, includeNixPrefix);
+std::unique_ptr<Logger> makeJSONLogger(descriptor_t fd, bool includeNixPrefix) {
+  return std::make_unique<json_logger_t>(fd, includeNixPrefix);
 }
 
 std::unique_ptr<Logger> makeJSONLogger(const std::filesystem::path& path, bool includeNixPrefix) {
-  struct JSONFileLogger : JSONLogger {
-    AutoCloseFD fd;
+  struct json_file_logger_t : json_logger_t {
+    auto_close_fd_t fd;
 
-    JSONFileLogger(AutoCloseFD&& fd, bool includeNixPrefix)
-        : JSONLogger(fd.get(), includeNixPrefix), fd(std::move(fd)) {}
+    json_file_logger_t(auto_close_fd_t&& fd, bool includeNixPrefix)
+        : json_logger_t(fd.get(), includeNixPrefix), fd(std::move(fd)) {}
   };
 
-  AutoCloseFD fd =
+  auto_close_fd_t fd =
       std::filesystem::is_socket(path)
           ? connect(path)
           : toDescriptor(open(path.string().c_str(), O_CREAT | O_APPEND | O_WRONLY, 0644));
   if (!fd)
-    throw SysError("opening log file %1%", path);
+    throw sys_error_t("opening log file %1%", path);
 
-  return std::make_unique<JSONFileLogger>(std::move(fd), includeNixPrefix);
+  return std::make_unique<json_file_logger_t>(std::move(fd), includeNixPrefix);
 }
 
 void applyJSONLogger() {
@@ -334,13 +334,13 @@ void applyJSONLogger() {
   }
 }
 
-static Logger::Fields getFields(nlohmann::json& json) {
-  Logger::Fields fields;
+static Logger::fields_t getFields(nlohmann::json& json) {
+  Logger::fields_t fields;
   for (auto& f : json) {
     if (f.type() == nlohmann::json::value_t::number_unsigned)
-      fields.emplace_back(Logger::Field(f.get<uint64_t>()));
+      fields.emplace_back(Logger::field_t(f.get<uint64_t>()));
     else if (f.type() == nlohmann::json::value_t::string)
-      fields.emplace_back(Logger::Field(f.get<std::string>()));
+      fields.emplace_back(Logger::field_t(f.get<std::string>()));
     else
       throw Error("unsupported JSON type %d", (int)f.type());
   }
@@ -353,32 +353,32 @@ std::optional<nlohmann::json> parseJSONMessage(const std::string& msg, std::stri
   try {
     return nlohmann::json::parse(std::string(msg, 5));
   } catch (std::exception& e) {
-    printError("bad JSON log message from %s: %s", Uncolored(source), e.what());
+    printError("bad JSON log message from %s: %s", uncolored_t(source), e.what());
   }
   return std::nullopt;
 }
 
-bool handleJSONLogMessage(nlohmann::json& json, const Activity& act,
-                          std::map<ActivityId, Activity>& activities, std::string_view source,
+bool handleJSONLogMessage(nlohmann::json& json, const activity_t& act,
+                          std::map<activity_id_t, activity_t>& activities, std::string_view source,
                           bool trusted) {
   try {
     std::string action = json["action"];
 
     if (action == "start") {
-      auto type = (ActivityType)json["type"];
+      auto type = (activity_type_t)json["type"];
       if (trusted || type == actFileTransfer)
         activities.emplace(std::piecewise_construct, std::forward_as_tuple(json["id"]),
-                           std::forward_as_tuple(*logger, (Verbosity)json["level"], type,
+                           std::forward_as_tuple(*logger, (verbosity_t)json["level"], type,
                                                  json["text"], getFields(json["fields"]), act.id));
     }
 
     else if (action == "stop")
-      activities.erase((ActivityId)json["id"]);
+      activities.erase((activity_id_t)json["id"]);
 
     else if (action == "result") {
-      auto i = activities.find((ActivityId)json["id"]);
+      auto i = activities.find((activity_id_t)json["id"]);
       if (i != activities.end())
-        i->second.result((ResultType)json["type"], getFields(json["fields"]));
+        i->second.result((result_type_t)json["type"], getFields(json["fields"]));
     }
 
     else if (action == "setPhase") {
@@ -388,18 +388,18 @@ bool handleJSONLogMessage(nlohmann::json& json, const Activity& act,
 
     else if (action == "msg") {
       std::string msg = json["msg"];
-      logger->log((Verbosity)json["level"], msg);
+      logger->log((verbosity_t)json["level"], msg);
     }
 
     return true;
   } catch (const nlohmann::json::exception& e) {
-    warn("Unable to handle a JSON message from %s: %s", Uncolored(source), e.what());
+    warn("Unable to handle a JSON message from %s: %s", uncolored_t(source), e.what());
     return false;
   }
 }
 
-bool handleJSONLogMessage(const std::string& msg, const Activity& act,
-                          std::map<ActivityId, Activity>& activities, std::string_view source,
+bool handleJSONLogMessage(const std::string& msg, const activity_t& act,
+                          std::map<activity_id_t, activity_t>& activities, std::string_view source,
                           bool trusted) {
   auto json = parseJSONMessage(msg, source);
   if (!json)
@@ -408,7 +408,7 @@ bool handleJSONLogMessage(const std::string& msg, const Activity& act,
   return handleJSONLogMessage(*json, act, activities, source, trusted);
 }
 
-Activity::~Activity() {
+activity_t::~activity_t() {
   try {
     logger.stopActivity(id);
   } catch (...) {

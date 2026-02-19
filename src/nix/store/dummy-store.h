@@ -23,7 +23,7 @@ struct DummyStoreConfig : public std::enable_shared_from_this<DummyStoreConfig>,
       throw UsageError("`%s` store URIs must not contain an authority part %s", scheme, authority);
   }
 
-  Setting<bool> readOnly{this, true, "read-only",
+  setting_t<bool> readOnly{this, true, "read-only",
                          R"(
           Make any sort of write fail instead of succeeding.
           No additional memory will be used, because no information needs to be stored.
@@ -33,7 +33,7 @@ struct DummyStoreConfig : public std::enable_shared_from_this<DummyStoreConfig>,
 
   static std::string doc();
 
-  static StringSet uriSchemes() { return {"dummy"}; }
+  static string_set_t uriSchemes() { return {"dummy"}; }
 
   /**
    * Same as `openStore`, just with a more precise return type.

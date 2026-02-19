@@ -86,13 +86,13 @@ class SymbolStr {
   const SymbolValue* s;
 
   struct Key {
-    using HashType = boost::hash<std::string_view>;
+    using hash_type_t = boost::hash<std::string_view>;
 
     std::string_view s;
     std::size_t hash;
     ContiguousArena& arena;
 
-    Key(std::string_view s, ContiguousArena& arena) : s(s), hash(HashType{}(s)), arena(arena) {}
+    Key(std::string_view s, ContiguousArena& arena) : s(s), hash(hash_type_t{}(s)), arena(arena) {}
   };
 
 public:
@@ -135,7 +135,7 @@ public:
     using is_transparent = void;
     using is_avalanching = std::true_type;
 
-    std::size_t operator()(SymbolStr str) const { return Key::HashType{}(*str.s); }
+    std::size_t operator()(SymbolStr str) const { return Key::hash_type_t{}(*str.s); }
 
     std::size_t operator()(const Key& key) const noexcept { return key.hash; }
   };

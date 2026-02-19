@@ -16,8 +16,8 @@
 
 namespace nix {
 
-struct ArchiveSettings : Config {
-  Setting<bool> useCaseHack{
+struct archive_settings_t : Config {
+  setting_t<bool> useCaseHack{
       this,
 #ifdef __APPLE__
       true,
@@ -28,14 +28,14 @@ struct ArchiveSettings : Config {
       "Whether to enable a macOS-specific hack for dealing with file name case collisions."};
 };
 
-static ArchiveSettings archiveSettings;
+static archive_settings_t archiveSettings;
 
-static GlobalConfig::Register rArchiveSettings(&archiveSettings);
+static global_config_t::Register rArchiveSettings(&archiveSettings);
 
-PathFilter defaultPathFilter = [](const Path&) { return true; };
+path_filter_t defaultPathFilter = [](const Path&) { return true; };
 
-void SourceAccessor::dumpPath(const CanonPath& path, Sink& sink, PathFilter& filter) {
-  auto dumpContents = [&](const CanonPath& path) {
+void SourceAccessor::dumpPath(const canon_path_t& path, Sink& sink, path_filter_t& filter) {
+  auto dumpContents = [&](const canon_path_t& path) {
     sink << "contents";
     std::optional<uint64_t> size;
     readFile(path, sink, [&](uint64_t _size) {
@@ -48,7 +48,7 @@ void SourceAccessor::dumpPath(const CanonPath& path, Sink& sink, PathFilter& fil
 
   sink << narVersionMagic1;
 
-  [&, &this_(*this)](this const auto& dump, const CanonPath& path) -> void {
+  [&, &this_(*this)](this const auto& dump, const canon_path_t& path) -> void {
     checkInterrupt();
 
     auto st = this_.lstat(path);
@@ -67,7 +67,7 @@ void SourceAccessor::dumpPath(const CanonPath& path, Sink& sink, PathFilter& fil
 
       /* If we're on a case-insensitive system like macOS, undo
          the case hack applied by restorePath(). */
-      StringMap unhacked;
+      string_map_t unhacked;
       for (auto& i : this_.readDirectory(path))
         if (archiveSettings.useCaseHack) {
           std::string name(i.first);
@@ -100,13 +100,13 @@ void SourceAccessor::dumpPath(const CanonPath& path, Sink& sink, PathFilter& fil
   }(path);
 }
 
-time_t dumpPathAndGetMtime(const Path& path, Sink& sink, PathFilter& filter) {
-  auto path2 = PosixSourceAccessor::createAtRoot(path, /*trackLastModified=*/true);
+time_t dumpPathAndGetMtime(const Path& path, Sink& sink, path_filter_t& filter) {
+  auto path2 = posix_source_accessor_t::createAtRoot(path, /*trackLastModified=*/true);
   path2.dumpPath(sink, filter);
   return path2.accessor->getLastModified().value();
 }
 
-void dumpPath(const Path& path, Sink& sink, PathFilter& filter) {
+void dumpPath(const Path& path, Sink& sink, path_filter_t& filter) {
   dumpPathAndGetMtime(path, sink, filter);
 }
 
@@ -119,7 +119,7 @@ static SerialisationError badArchive(std::string_view s, const Args&... args) {
   return SerialisationError("bad archive: " + s, args...);
 }
 
-static void parseContents(CreateRegularFileSink& sink, Source& source) {
+static void parseContents(create_regular_file_sink_t& sink, Source& source) {
   uint64_t size = readLongLong(source);
 
   sink.preallocateContents(size);
@@ -145,13 +145,13 @@ static void parseContents(CreateRegularFileSink& sink, Source& source) {
   readPadding(size, source);
 }
 
-struct CaseInsensitiveCompare {
+struct case_insensitive_compare_t {
   bool operator()(const std::string& a, const std::string& b) const {
     return strcasecmp(a.c_str(), b.c_str()) < 0;
   }
 };
 
-static void parse(FileSystemObjectSink& sink, Source& source, const CanonPath& path) {
+static void parse(file_system_object_sink_t& sink, Source& source, const canon_path_t& path) {
   auto getString = [&]() {
     checkInterrupt();
     return readString(source);
@@ -191,8 +191,8 @@ static void parse(FileSystemObjectSink& sink, Source& source, const CanonPath& p
   }
 
   else if (type == "directory") {
-    sink.createDirectory(path, [&](FileSystemObjectSink& dirSink, const CanonPath& relDirPath) {
-      std::map<Path, int, CaseInsensitiveCompare> names;
+    sink.createDirectory(path, [&](file_system_object_sink_t& dirSink, const canon_path_t& relDirPath) {
+      std::map<Path, int, case_insensitive_compare_t> names;
 
       std::string prevName;
 
@@ -253,7 +253,7 @@ static void parse(FileSystemObjectSink& sink, Source& source, const CanonPath& p
     throw badArchive("unknown file type '%s'", type);
 }
 
-void parseDump(FileSystemObjectSink& sink, Source& source) {
+void parseDump(file_system_object_sink_t& sink, Source& source) {
   std::string version;
   try {
     version = readString(source, narVersionMagic1.size());
@@ -263,11 +263,11 @@ void parseDump(FileSystemObjectSink& sink, Source& source) {
   }
   if (version != narVersionMagic1)
     throw badArchive("input doesn't look like a Nix archive");
-  parse(sink, source, CanonPath::root);
+  parse(sink, source, canon_path_t::root);
 }
 
 void restorePath(const std::filesystem::path& path, Source& source, bool startFsync) {
-  RestoreSink sink{startFsync};
+  restore_sink_t sink{startFsync};
   sink.dstPath = path;
   parseDump(sink, source);
 }
@@ -276,9 +276,9 @@ void copyNAR(Source& source, Sink& sink) {
   // FIXME: if 'source' is the output of dumpPath() followed by EOF,
   // we should just forward all data directly without parsing.
 
-  NullFileSystemObjectSink parseSink; /* just parse the NAR */
+  null_file_system_object_sink_t parseSink; /* just parse the NAR */
 
-  TeeSource wrapper{source, sink};
+  tee_source_t wrapper{source, sink};
 
   parseDump(parseSink, wrapper);
 }

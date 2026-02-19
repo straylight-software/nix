@@ -6,38 +6,38 @@
 namespace nix {
 
 std::string DownstreamPlaceholder::render() const {
-  return "/" + hash.to_string(HashFormat::Nix32, false);
+  return "/" + hash.to_string(hash_format_t::Nix32, false);
 }
 
 DownstreamPlaceholder
 DownstreamPlaceholder::unknownCaOutput(const StorePath& drvPath, OutputNameView outputName,
-                                       const ExperimentalFeatureSettings& xpSettings) {
-  xpSettings.require(Xp::CaDerivations);
+                                       const experimental_feature_settings_t& xpSettings) {
+  xpSettings.require(xp_t::CaDerivations);
   auto drvNameWithExtension = drvPath.name();
   auto drvName = drvNameWithExtension.substr(0, drvNameWithExtension.size() - 4);
   auto clearText = "nix-upstream-output:" + std::string{drvPath.hashPart()} + ":" +
                    outputPathName(drvName, outputName);
-  return DownstreamPlaceholder{hashString(HashAlgorithm::SHA256, clearText)};
+  return DownstreamPlaceholder{hashString(hash_algorithm_t::SHA256, clearText)};
 }
 
 DownstreamPlaceholder
 DownstreamPlaceholder::unknownDerivation(const DownstreamPlaceholder& placeholder,
                                          OutputNameView outputName,
-                                         const ExperimentalFeatureSettings& xpSettings) {
-  xpSettings.require(Xp::DynamicDerivations, [&] {
+                                         const experimental_feature_settings_t& xpSettings) {
+  xpSettings.require(xp_t::DynamicDerivations, [&] {
     return fmt("placeholder for unknown derivation output '%s'", outputName);
   });
   auto compressed = compressHash(placeholder.hash, 20);
-  auto clearText = "nix-computed-output:" + compressed.to_string(HashFormat::Nix32, false) + ":" +
+  auto clearText = "nix-computed-output:" + compressed.to_string(hash_format_t::Nix32, false) + ":" +
                    std::string{outputName};
-  return DownstreamPlaceholder{hashString(HashAlgorithm::SHA256, clearText)};
+  return DownstreamPlaceholder{hashString(hash_algorithm_t::SHA256, clearText)};
 }
 
 DownstreamPlaceholder
 DownstreamPlaceholder::fromSingleDerivedPathBuilt(const SingleDerivedPath::Built& b,
-                                                  const ExperimentalFeatureSettings& xpSettings) {
+                                                  const experimental_feature_settings_t& xpSettings) {
   return std::visit(overloaded{
-                        [&](const SingleDerivedPath::Opaque& o) {
+                        [&](const SingleDerivedPath::opaque_t& o) {
                           return DownstreamPlaceholder::unknownCaOutput(o.path, b.output,
                                                                         xpSettings);
                         },

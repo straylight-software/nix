@@ -2,6 +2,6 @@
 
 namespace nix {
 
-Exit::~Exit() {}
+exit_t::~exit_t() {}
 
 } // namespace nix
