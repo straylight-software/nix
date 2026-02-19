@@ -4,10 +4,12 @@
 #include "nix-language/runtime/runtime.hh"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstring>
 #include <iostream>
 #include <limits>
+#include <map>
 #include <sstream>
 #include <unordered_set>
 #include <vector>
@@ -180,27 +182,30 @@ auto expect_numeric(nix_value v, std::uint32_t line, std::uint32_t col) -> void 
   }
 }
 
-auto to_double(nix_value v) -> double {
+auto to_double(runtime_context& ctx, nix_value v) -> double {
   if (is_int(v)) {
     return static_cast<double>(static_cast<std::int32_t>(get_payload(v)));
   }
-  // float: payload is reinterpreted f32 bits
-  auto bits = get_payload(v);
-  float f;
-  std::memcpy(&f, &bits, sizeof(f));
-  return static_cast<double>(f);
+  // float: payload is an offset to f64 in memory
+  auto offset = get_payload(v);
+  auto bytes = ctx.read_bytes(offset, 8);
+  double d;
+  std::memcpy(&d, bytes.data(), 8);
+  return d;
 }
 
 auto make_int(std::int32_t i) -> nix_value {
   return make_value(value_tag::integer, static_cast<std::uint32_t>(i));
 }
 
-auto make_float(double d) -> nix_value {
-  // store as float (lose precision for now)
-  auto f = static_cast<float>(d);
-  std::uint32_t bits;
-  std::memcpy(&bits, &f, sizeof(bits));
-  return make_value(value_tag::floating, bits);
+auto make_float(runtime_context& ctx, double d) -> nix_value {
+  // Allocate 8 bytes for the double
+  auto offset = ctx.allocate(8);
+  // Write double to memory
+  std::array<std::uint8_t, 8> data;
+  std::memcpy(data.data(), &d, 8);
+  ctx.write_bytes(offset, data);
+  return make_value(value_tag::floating, offset);
 }
 
 // Forward declaration for deep equality in rt_eq
@@ -228,7 +233,7 @@ auto rt_add([[maybe_unused]] runtime_context& ctx, nix_value a, nix_value b, std
   }
 
   // otherwise, convert to float
-  return make_float(to_double(a) + to_double(b));
+  return make_float(ctx, to_double(ctx, a) + to_double(ctx, b));
 }
 
 auto rt_sub([[maybe_unused]] runtime_context& ctx, nix_value a, nix_value b, std::uint32_t line,
@@ -242,7 +247,7 @@ auto rt_sub([[maybe_unused]] runtime_context& ctx, nix_value a, nix_value b, std
     return make_int(ia - ib);
   }
 
-  return make_float(to_double(a) - to_double(b));
+  return make_float(ctx, to_double(ctx, a) - to_double(ctx, b));
 }
 
 auto rt_mul([[maybe_unused]] runtime_context& ctx, nix_value a, nix_value b, std::uint32_t line,
@@ -256,7 +261,7 @@ auto rt_mul([[maybe_unused]] runtime_context& ctx, nix_value a, nix_value b, std
     return make_int(ia * ib);
   }
 
-  return make_float(to_double(a) * to_double(b));
+  return make_float(ctx, to_double(ctx, a) * to_double(ctx, b));
 }
 
 auto rt_div([[maybe_unused]] runtime_context& ctx, nix_value a, nix_value b, std::uint32_t line,
@@ -288,20 +293,20 @@ auto rt_div([[maybe_unused]] runtime_context& ctx, nix_value a, nix_value b, std
   }
 
   // Float division
-  auto db = to_double(b);
+  auto db = to_double(ctx, b);
   if (db == 0.0) {
     throw runtime_error("division by zero", line, col);
   }
-  return make_float(to_double(a) / db);
+  return make_float(ctx, to_double(ctx, a) / db);
 }
 
-auto rt_negate([[maybe_unused]] runtime_context& ctx, nix_value v) -> nix_value {
+auto rt_negate(runtime_context& ctx, nix_value v) -> nix_value {
   if (is_int(v)) {
     auto i = static_cast<std::int32_t>(get_payload(v));
     return make_int(-i);
   }
   if (is_float(v)) {
-    return make_float(-to_double(v));
+    return make_float(ctx, -to_double(ctx, v));
   }
   throw type_error("cannot negate value of type '" + std::string(type_name(v)) + "'");
 }
@@ -322,7 +327,7 @@ auto rt_less_than(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
   }
 
   if (is_numeric(a) && is_numeric(b)) {
-    return to_double(a) < to_double(b) ? constants::bool_true : constants::bool_false;
+    return to_double(ctx, a) < to_double(ctx, b) ? constants::bool_true : constants::bool_false;
   }
 
   if (is_string(a) && is_string(b)) {
@@ -352,7 +357,7 @@ auto rt_eq(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
   if (get_tag(a) != get_tag(b)) {
     // except int and float
     if (is_numeric(a) && is_numeric(b)) {
-      return to_double(a) == to_double(b) ? constants::bool_true : constants::bool_false;
+      return to_double(ctx, a) == to_double(ctx, b) ? constants::bool_true : constants::bool_false;
     }
     return constants::bool_false;
   }
@@ -366,7 +371,7 @@ auto rt_eq(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
       return get_payload(a) == get_payload(b) ? constants::bool_true : constants::bool_false;
 
     case value_tag::floating:
-      return to_double(a) == to_double(b) ? constants::bool_true : constants::bool_false;
+      return to_double(ctx, a) == to_double(ctx, b) ? constants::bool_true : constants::bool_false;
 
     case value_tag::string:
     case value_tag::path: {
@@ -1257,8 +1262,8 @@ auto rt_concat_strings(runtime_context& ctx, nix_value list) -> nix_value {
   list = rt_force(ctx, list);
 
   if (!is_list(list)) {
-    throw type_error("builtins.concatStringsSep: expected list, got '" +
-                     std::string(type_name(list)) + "'");
+    throw type_error("builtins.concatStrings: expected list, got '" + std::string(type_name(list)) +
+                     "'");
   }
 
   auto list_ptr = get_payload(list);
@@ -1275,6 +1280,47 @@ auto rt_concat_strings(runtime_context& ctx, nix_value list) -> nix_value {
     elem = rt_force(ctx, elem);
     if (!is_string(elem)) {
       throw type_error("builtins.concatStrings: all elements must be strings");
+    }
+    result += ctx.read_string(get_payload(elem));
+  }
+
+  auto ptr = allocate_string(ctx, result);
+  return make_value(value_tag::string, ptr);
+}
+
+auto rt_concat_string_sep(runtime_context& ctx, nix_value sep, nix_value list) -> nix_value {
+  sep = rt_force(ctx, sep);
+  list = rt_force(ctx, list);
+
+  if (!is_string(sep)) {
+    throw type_error("builtins.concatStringsSep: first argument must be a string, got '" +
+                     std::string(type_name(sep)) + "'");
+  }
+  if (!is_list(list)) {
+    throw type_error("builtins.concatStringsSep: second argument must be a list, got '" +
+                     std::string(type_name(list)) + "'");
+  }
+
+  auto sep_str = ctx.read_string(get_payload(sep));
+
+  auto list_ptr = get_payload(list);
+  if (list_ptr == 0) {
+    auto ptr = allocate_string(ctx, "");
+    return make_value(value_tag::string, ptr);
+  }
+
+  auto count = ctx.read_u32(list_ptr + mem::LIST_COUNT_OFFSET);
+  std::string result;
+
+  for (std::uint32_t i = 0; i < count; ++i) {
+    if (i > 0) {
+      result += sep_str;
+    }
+    auto elem = ctx.read_value(list_ptr + mem::LIST_ELEMENTS_OFFSET + i * mem::VALUE_SIZE);
+    elem = rt_force(ctx, elem);
+    if (!is_string(elem)) {
+      throw type_error("builtins.concatStringsSep: all list elements must be strings, got '" +
+                       std::string(type_name(elem)) + "'");
     }
     result += ctx.read_string(get_payload(elem));
   }
@@ -1422,6 +1468,242 @@ auto rt_list_to_attrs(runtime_context& ctx, nix_value list) -> nix_value {
   return make_value(value_tag::attribute_set, new_ptr);
 }
 
+auto rt_map_attrs(runtime_context& ctx, nix_value f, nix_value set) -> nix_value {
+  set = rt_force(ctx, set);
+
+  if (!is_attrset(set)) {
+    throw type_error("builtins.mapAttrs: expected set, got '" + std::string(type_name(set)) + "'");
+  }
+
+  auto attrs_ptr = get_payload(set);
+  if (attrs_ptr == 0) {
+    return make_value(value_tag::attribute_set, 0);
+  }
+
+  auto count = ctx.read_u32(attrs_ptr + mem::ATTRSET_COUNT_OFFSET);
+  if (count == 0) {
+    return make_value(value_tag::attribute_set, 0);
+  }
+
+  // Collect entries and apply function to each
+  std::vector<std::pair<std::string, nix_value>> results;
+  results.reserve(count);
+
+  for (std::uint32_t i = 0; i < count; ++i) {
+    auto entry = attrs_ptr + mem::ATTRSET_ENTRIES_OFFSET + i * mem::ATTRSET_ENTRY_SIZE;
+    auto key_offset = ctx.read_u32(entry + mem::ATTRSET_ENTRY_KEY_OFFSET);
+    auto value = ctx.read_value(entry + mem::ATTRSET_ENTRY_VALUE_OFFSET);
+    auto key_str = std::string(ctx.read_string(key_offset));
+
+    // Apply f to name then to value: (f name value)
+    auto name_ptr = allocate_string(ctx, key_str);
+    auto name_val = make_value(value_tag::string, name_ptr);
+    auto partial = rt_apply(ctx, f, name_val);
+    auto result = rt_apply(ctx, partial, value);
+
+    results.emplace_back(std::move(key_str), result);
+  }
+
+  // Allocate new attrset
+  auto new_size = mem::attrset_size(count);
+  auto new_ptr = ctx.allocate(new_size);
+  ctx.write_i32(new_ptr + mem::ATTRSET_COUNT_OFFSET, static_cast<std::int32_t>(count));
+
+  for (std::uint32_t i = 0; i < count; ++i) {
+    auto& [key, value] = results[i];
+    auto key_ptr = allocate_string(ctx, key);
+    auto entry = new_ptr + mem::ATTRSET_ENTRIES_OFFSET + i * mem::ATTRSET_ENTRY_SIZE;
+    ctx.write_i32(entry + mem::ATTRSET_ENTRY_KEY_OFFSET, static_cast<std::int32_t>(key_ptr));
+    ctx.write_value(entry + mem::ATTRSET_ENTRY_VALUE_OFFSET, value);
+  }
+
+  return make_value(value_tag::attribute_set, new_ptr);
+}
+
+auto rt_cat_attrs(runtime_context& ctx, nix_value name, nix_value list) -> nix_value {
+  name = rt_force(ctx, name);
+  list = rt_force(ctx, list);
+
+  if (!is_string(name)) {
+    throw type_error("builtins.catAttrs: first argument must be a string, got '" +
+                     std::string(type_name(name)) + "'");
+  }
+  if (!is_list(list)) {
+    throw type_error("builtins.catAttrs: second argument must be a list, got '" +
+                     std::string(type_name(list)) + "'");
+  }
+
+  auto name_str = std::string(ctx.read_string(get_payload(name)));
+
+  auto list_ptr = get_payload(list);
+  if (list_ptr == 0) {
+    return make_value(value_tag::list, 0);
+  }
+
+  auto count = ctx.read_u32(list_ptr + mem::LIST_COUNT_OFFSET);
+
+  // Collect values from all attrsets that have the named attribute
+  std::vector<nix_value> values;
+
+  for (std::uint32_t i = 0; i < count; ++i) {
+    auto elem = ctx.read_value(list_ptr + mem::LIST_ELEMENTS_OFFSET + i * mem::VALUE_SIZE);
+    elem = rt_force(ctx, elem);
+
+    if (!is_attrset(elem)) {
+      throw type_error("builtins.catAttrs: list elements must be attrsets");
+    }
+
+    auto elem_ptr = get_payload(elem);
+    if (elem_ptr == 0) {
+      continue;
+    }
+
+    auto attr_val = find_attr(ctx, elem_ptr, name_str);
+    if (attr_val.has_value()) {
+      values.push_back(*attr_val);
+    }
+  }
+
+  if (values.empty()) {
+    return make_value(value_tag::list, 0);
+  }
+
+  // Allocate result list
+  auto result_count = static_cast<std::uint32_t>(values.size());
+  auto result_size = mem::list_size(result_count);
+  auto result_ptr = ctx.allocate(result_size);
+  ctx.write_i32(result_ptr + mem::LIST_COUNT_OFFSET, static_cast<std::int32_t>(result_count));
+
+  for (std::uint32_t i = 0; i < result_count; ++i) {
+    ctx.write_value(result_ptr + mem::LIST_ELEMENTS_OFFSET + i * mem::VALUE_SIZE, values[i]);
+  }
+
+  return make_value(value_tag::list, result_ptr);
+}
+
+auto rt_partition(runtime_context& ctx, nix_value pred, nix_value list) -> nix_value {
+  list = rt_force(ctx, list);
+
+  if (!is_list(list)) {
+    throw type_error("builtins.partition: expected list, got '" + std::string(type_name(list)) +
+                     "'");
+  }
+
+  std::vector<nix_value> right_elems;
+  std::vector<nix_value> wrong_elems;
+
+  auto list_ptr = get_payload(list);
+  if (list_ptr != 0) {
+    auto count = ctx.read_u32(list_ptr + mem::LIST_COUNT_OFFSET);
+    for (std::uint32_t i = 0; i < count; ++i) {
+      auto elem = ctx.read_value(list_ptr + mem::LIST_ELEMENTS_OFFSET + i * mem::VALUE_SIZE);
+      auto result = rt_apply(ctx, pred, elem);
+      result = rt_force(ctx, result);
+      if (!is_bool(result)) {
+        throw type_error("builtins.partition: predicate must return bool");
+      }
+      if (result == constants::bool_true) {
+        right_elems.push_back(elem);
+      } else {
+        wrong_elems.push_back(elem);
+      }
+    }
+  }
+
+  // Create the two lists
+  auto make_list = [&ctx](const std::vector<nix_value>& elems) -> nix_value {
+    if (elems.empty()) {
+      return make_value(value_tag::list, 0);
+    }
+    auto count = static_cast<std::uint32_t>(elems.size());
+    auto list_size = mem::list_size(count);
+    auto list_ptr = ctx.allocate(list_size);
+    ctx.write_i32(list_ptr + mem::LIST_COUNT_OFFSET, static_cast<std::int32_t>(count));
+    for (std::uint32_t i = 0; i < count; ++i) {
+      ctx.write_value(list_ptr + mem::LIST_ELEMENTS_OFFSET + i * mem::VALUE_SIZE, elems[i]);
+    }
+    return make_value(value_tag::list, list_ptr);
+  };
+
+  auto right_list = make_list(right_elems);
+  auto wrong_list = make_list(wrong_elems);
+
+  // Create result attrset { right = ...; wrong = ...; }
+  auto attrs_size = mem::attrset_size(2);
+  auto attrs_ptr = ctx.allocate(attrs_size);
+  ctx.write_i32(attrs_ptr + mem::ATTRSET_COUNT_OFFSET, 2);
+
+  auto right_key = allocate_string(ctx, "right");
+  auto wrong_key = allocate_string(ctx, "wrong");
+
+  auto entry0 = attrs_ptr + mem::ATTRSET_ENTRIES_OFFSET;
+  ctx.write_i32(entry0 + mem::ATTRSET_ENTRY_KEY_OFFSET, static_cast<std::int32_t>(right_key));
+  ctx.write_value(entry0 + mem::ATTRSET_ENTRY_VALUE_OFFSET, right_list);
+
+  auto entry1 = attrs_ptr + mem::ATTRSET_ENTRIES_OFFSET + mem::ATTRSET_ENTRY_SIZE;
+  ctx.write_i32(entry1 + mem::ATTRSET_ENTRY_KEY_OFFSET, static_cast<std::int32_t>(wrong_key));
+  ctx.write_value(entry1 + mem::ATTRSET_ENTRY_VALUE_OFFSET, wrong_list);
+
+  return make_value(value_tag::attribute_set, attrs_ptr);
+}
+
+auto rt_group_by(runtime_context& ctx, nix_value f, nix_value list) -> nix_value {
+  list = rt_force(ctx, list);
+
+  if (!is_list(list)) {
+    throw type_error("builtins.groupBy: expected list, got '" + std::string(type_name(list)) + "'");
+  }
+
+  // Map from key to list of elements
+  std::map<std::string, std::vector<nix_value>> groups;
+
+  auto list_ptr = get_payload(list);
+  if (list_ptr != 0) {
+    auto count = ctx.read_u32(list_ptr + mem::LIST_COUNT_OFFSET);
+    for (std::uint32_t i = 0; i < count; ++i) {
+      auto elem = ctx.read_value(list_ptr + mem::LIST_ELEMENTS_OFFSET + i * mem::VALUE_SIZE);
+      auto key_val = rt_apply(ctx, f, elem);
+      key_val = rt_force(ctx, key_val);
+      if (!is_string(key_val)) {
+        throw type_error("builtins.groupBy: function must return string");
+      }
+      auto key = std::string(ctx.read_string(get_payload(key_val)));
+      groups[key].push_back(elem);
+    }
+  }
+
+  if (groups.empty()) {
+    return make_value(value_tag::attribute_set, 0);
+  }
+
+  // Create result attrset
+  auto group_count = static_cast<std::uint32_t>(groups.size());
+  auto attrs_size = mem::attrset_size(group_count);
+  auto attrs_ptr = ctx.allocate(attrs_size);
+  ctx.write_i32(attrs_ptr + mem::ATTRSET_COUNT_OFFSET, static_cast<std::int32_t>(group_count));
+
+  std::uint32_t idx = 0;
+  for (auto& [key, elems] : groups) {
+    // Create list for this group
+    auto elem_count = static_cast<std::uint32_t>(elems.size());
+    auto elem_list_size = mem::list_size(elem_count);
+    auto elem_list_ptr = ctx.allocate(elem_list_size);
+    ctx.write_i32(elem_list_ptr + mem::LIST_COUNT_OFFSET, static_cast<std::int32_t>(elem_count));
+    for (std::uint32_t j = 0; j < elem_count; ++j) {
+      ctx.write_value(elem_list_ptr + mem::LIST_ELEMENTS_OFFSET + j * mem::VALUE_SIZE, elems[j]);
+    }
+
+    auto key_ptr = allocate_string(ctx, key);
+    auto entry = attrs_ptr + mem::ATTRSET_ENTRIES_OFFSET + idx * mem::ATTRSET_ENTRY_SIZE;
+    ctx.write_i32(entry + mem::ATTRSET_ENTRY_KEY_OFFSET, static_cast<std::int32_t>(key_ptr));
+    ctx.write_value(entry + mem::ATTRSET_ENTRY_VALUE_OFFSET,
+                    make_value(value_tag::list, elem_list_ptr));
+    ++idx;
+  }
+
+  return make_value(value_tag::attribute_set, attrs_ptr);
+}
+
 // =============================================================================
 // Arithmetic Builtins (as functions)
 // =============================================================================
@@ -1453,6 +1735,95 @@ auto rt_builtin_less_than(runtime_context& ctx, nix_value a, nix_value b) -> nix
   }
 
   throw type_error("builtins.lessThan: expected integers");
+}
+
+auto rt_floor(runtime_context& ctx, nix_value v) -> nix_value {
+  v = rt_force(ctx, v);
+
+  if (is_int(v)) {
+    return v; // floor of int is itself
+  }
+
+  if (is_float(v)) {
+    double f = to_double(ctx, v);
+    auto result = static_cast<std::int32_t>(std::floor(f));
+    return make_value(value_tag::integer, static_cast<std::uint32_t>(result));
+  }
+
+  throw type_error("builtins.floor: expected number, got '" + std::string(type_name(v)) + "'");
+}
+
+auto rt_ceil(runtime_context& ctx, nix_value v) -> nix_value {
+  v = rt_force(ctx, v);
+
+  if (is_int(v)) {
+    return v; // ceil of int is itself
+  }
+
+  if (is_float(v)) {
+    double f = to_double(ctx, v);
+    auto result = static_cast<std::int32_t>(std::ceil(f));
+    return make_value(value_tag::integer, static_cast<std::uint32_t>(result));
+  }
+
+  throw type_error("builtins.ceil: expected number, got '" + std::string(type_name(v)) + "'");
+}
+
+auto rt_bit_and(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
+  a = rt_force(ctx, a);
+  b = rt_force(ctx, b);
+
+  if (!is_int(a)) {
+    throw type_error("builtins.bitAnd: first argument must be int, got '" +
+                     std::string(type_name(a)) + "'");
+  }
+  if (!is_int(b)) {
+    throw type_error("builtins.bitAnd: second argument must be int, got '" +
+                     std::string(type_name(b)) + "'");
+  }
+
+  auto ia = static_cast<std::int32_t>(get_payload(a));
+  auto ib = static_cast<std::int32_t>(get_payload(b));
+  auto result = ia & ib;
+  return make_value(value_tag::integer, static_cast<std::uint32_t>(result));
+}
+
+auto rt_bit_or(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
+  a = rt_force(ctx, a);
+  b = rt_force(ctx, b);
+
+  if (!is_int(a)) {
+    throw type_error("builtins.bitOr: first argument must be int, got '" +
+                     std::string(type_name(a)) + "'");
+  }
+  if (!is_int(b)) {
+    throw type_error("builtins.bitOr: second argument must be int, got '" +
+                     std::string(type_name(b)) + "'");
+  }
+
+  auto ia = static_cast<std::int32_t>(get_payload(a));
+  auto ib = static_cast<std::int32_t>(get_payload(b));
+  auto result = ia | ib;
+  return make_value(value_tag::integer, static_cast<std::uint32_t>(result));
+}
+
+auto rt_bit_xor(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
+  a = rt_force(ctx, a);
+  b = rt_force(ctx, b);
+
+  if (!is_int(a)) {
+    throw type_error("builtins.bitXor: first argument must be int, got '" +
+                     std::string(type_name(a)) + "'");
+  }
+  if (!is_int(b)) {
+    throw type_error("builtins.bitXor: second argument must be int, got '" +
+                     std::string(type_name(b)) + "'");
+  }
+
+  auto ia = static_cast<std::int32_t>(get_payload(a));
+  auto ib = static_cast<std::int32_t>(get_payload(b));
+  auto result = ia ^ ib;
+  return make_value(value_tag::integer, static_cast<std::uint32_t>(result));
 }
 
 // =============================================================================
@@ -2065,6 +2436,8 @@ constexpr std::uint32_t primop_arity(std::uint32_t index) {
     case b::to_string:      // toString val
     case b::concat_strings: // concatStrings list
     case b::list_to_attrs:  // listToAttrs list
+    case b::floor_fn:       // floor x
+    case b::ceil_fn:        // ceil x
       return 1;
 
     // 2-arg primops
@@ -2088,6 +2461,14 @@ constexpr std::uint32_t primop_arity(std::uint32_t index) {
     case b::builtin_mul:       // mul a b
     case b::builtin_div:       // div a b
     case b::builtin_less_than: // lessThan a b
+    case b::concat_string_sep: // concatStringsSep sep list
+    case b::map_attrs:         // mapAttrs f set
+    case b::cat_attrs:         // catAttrs name list
+    case b::partition:         // partition pred list
+    case b::group_by:          // groupBy f list
+    case b::bit_and:           // bitAnd a b
+    case b::bit_or:            // bitOr a b
+    case b::bit_xor:           // bitXor a b
       return 2;
 
     // 3-arg primops
@@ -2162,6 +2543,10 @@ auto rt_apply_primop(runtime_context& ctx, std::uint32_t primop_index, nix_value
         return rt_concat_strings(ctx, arg);
       case b::list_to_attrs:
         return rt_list_to_attrs(ctx, arg);
+      case b::floor_fn:
+        return rt_floor(ctx, arg);
+      case b::ceil_fn:
+        return rt_ceil(ctx, arg);
       default:
         throw runtime_error("unknown primop index: " + std::to_string(primop_index));
     }
@@ -2234,6 +2619,22 @@ static auto rt_apply_partial_primop(runtime_context& ctx, std::uint32_t partial_
         return rt_builtin_div(ctx, arg1, arg2);
       case b::builtin_less_than:
         return rt_builtin_less_than(ctx, arg1, arg2);
+      case b::concat_string_sep:
+        return rt_concat_string_sep(ctx, arg1, arg2);
+      case b::map_attrs:
+        return rt_map_attrs(ctx, arg1, arg2);
+      case b::cat_attrs:
+        return rt_cat_attrs(ctx, arg1, arg2);
+      case b::partition:
+        return rt_partition(ctx, arg1, arg2);
+      case b::group_by:
+        return rt_group_by(ctx, arg1, arg2);
+      case b::bit_and:
+        return rt_bit_and(ctx, arg1, arg2);
+      case b::bit_or:
+        return rt_bit_or(ctx, arg1, arg2);
+      case b::bit_xor:
+        return rt_bit_xor(ctx, arg1, arg2);
       default:
         throw runtime_error("unknown 2-arg primop index: " + std::to_string(primop_index));
     }
@@ -2320,6 +2721,8 @@ void rt_init_builtins(runtime_context& ctx) {
   entries.emplace_back("all", make_value(value_tag::primop, b::all));
   entries.emplace_back("any", make_value(value_tag::primop, b::any));
   entries.emplace_back("concatMap", make_value(value_tag::primop, b::concat_map));
+  entries.emplace_back("partition", make_value(value_tag::primop, b::partition));
+  entries.emplace_back("groupBy", make_value(value_tag::primop, b::group_by));
 
   // Attrset operations
   entries.emplace_back("attrNames", make_value(value_tag::primop, b::attr_names));
@@ -2328,6 +2731,8 @@ void rt_init_builtins(runtime_context& ctx) {
   entries.emplace_back("getAttr", make_value(value_tag::primop, b::get_attr));
   entries.emplace_back("removeAttrs", make_value(value_tag::primop, b::remove_attrs));
   entries.emplace_back("listToAttrs", make_value(value_tag::primop, b::list_to_attrs));
+  entries.emplace_back("mapAttrs", make_value(value_tag::primop, b::map_attrs));
+  entries.emplace_back("catAttrs", make_value(value_tag::primop, b::cat_attrs));
 
   // String operations
   entries.emplace_back("stringLength", make_value(value_tag::primop, b::string_length));
@@ -2335,6 +2740,7 @@ void rt_init_builtins(runtime_context& ctx) {
   entries.emplace_back("replaceStrings", make_value(value_tag::primop, b::replace_strings));
   entries.emplace_back("toString", make_value(value_tag::primop, b::to_string));
   entries.emplace_back("concatStrings", make_value(value_tag::primop, b::concat_strings));
+  entries.emplace_back("concatStringsSep", make_value(value_tag::primop, b::concat_string_sep));
   entries.emplace_back("typeOf", make_value(value_tag::primop, b::type_of));
 
   // Arithmetic (as functions)
@@ -2343,6 +2749,11 @@ void rt_init_builtins(runtime_context& ctx) {
   entries.emplace_back("mul", make_value(value_tag::primop, b::builtin_mul));
   entries.emplace_back("div", make_value(value_tag::primop, b::builtin_div));
   entries.emplace_back("lessThan", make_value(value_tag::primop, b::builtin_less_than));
+  entries.emplace_back("floor", make_value(value_tag::primop, b::floor_fn));
+  entries.emplace_back("ceil", make_value(value_tag::primop, b::ceil_fn));
+  entries.emplace_back("bitAnd", make_value(value_tag::primop, b::bit_and));
+  entries.emplace_back("bitOr", make_value(value_tag::primop, b::bit_or));
+  entries.emplace_back("bitXor", make_value(value_tag::primop, b::bit_xor));
 
   // Error handling
   entries.emplace_back("throw", make_value(value_tag::primop, b::throw_error));

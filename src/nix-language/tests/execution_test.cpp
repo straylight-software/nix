@@ -846,6 +846,16 @@ TEST_CASE("exec: builtins.concatStrings", "[execution][builtins]") {
   expect_string(R"(builtins.concatStrings ["single"])", "single");
 }
 
+TEST_CASE("exec: builtins.concatStringsSep", "[execution][builtins]") {
+  expect_string(R"(builtins.concatStringsSep ", " ["a" "b" "c"])", "a, b, c");
+  expect_string(R"(builtins.concatStringsSep "-" ["hello" "world"])", "hello-world");
+  expect_string(R"(builtins.concatStringsSep ":" [])", "");
+  expect_string(R"(builtins.concatStringsSep "," ["single"])", "single");
+  expect_string(R"(builtins.concatStringsSep "" ["a" "b" "c"])", "abc");
+  // Longer separator
+  expect_string(R"(builtins.concatStringsSep " -> " ["a" "b" "c"])", "a -> b -> c");
+}
+
 TEST_CASE("exec: builtins.all", "[execution][builtins]") {
   expect_bool("builtins.all (x: x > 0) [1 2 3]", true);
   expect_bool("builtins.all (x: x > 0) [1 0 3]", false);
@@ -871,6 +881,51 @@ TEST_CASE("exec: builtins.listToAttrs", "[execution][builtins]") {
   expect_int(R"((builtins.listToAttrs [{name = "x"; value = 1;} {name = "x"; value = 2;}]).x)", 1);
 }
 
+TEST_CASE("exec: builtins.mapAttrs", "[execution][builtins]") {
+  // mapAttrs takes a function (name: value: result)
+  expect_int(R"((builtins.mapAttrs (n: v: v + 1) { a = 1; b = 2; }).a)", 2);
+  expect_int(R"((builtins.mapAttrs (n: v: v + 1) { a = 1; b = 2; }).b)", 3);
+  // Using name in the function
+  expect_string(R"((builtins.mapAttrs (n: v: n) { a = 1; b = 2; }).a)", "a");
+  expect_string(R"((builtins.mapAttrs (n: v: n) { a = 1; b = 2; }).b)", "b");
+  // Empty set
+  expect_int(R"(builtins.length (builtins.attrNames (builtins.mapAttrs (n: v: v) {})))", 0);
+}
+
+TEST_CASE("exec: builtins.catAttrs", "[execution][builtins]") {
+  expect_int(R"(builtins.head (builtins.catAttrs "x" [{ x = 1; } { x = 2; }]))", 1);
+  expect_int(R"(builtins.length (builtins.catAttrs "x" [{ x = 1; } { x = 2; }]))", 2);
+  // Missing attrs are skipped
+  expect_int(R"(builtins.length (builtins.catAttrs "x" [{ x = 1; } { y = 2; }]))", 1);
+  expect_int(R"(builtins.length (builtins.catAttrs "z" [{ x = 1; } { y = 2; }]))", 0);
+  // Empty list
+  expect_int(R"(builtins.length (builtins.catAttrs "x" []))", 0);
+}
+
+TEST_CASE("exec: builtins.partition", "[execution][builtins]") {
+  // right contains elements where predicate is true
+  expect_int(R"(builtins.length (builtins.partition (x: x > 0) [1 (-1) 2 (-2)]).right)", 2);
+  expect_int(R"(builtins.head (builtins.partition (x: x > 0) [1 (-1) 2 (-2)]).right)", 1);
+  // wrong contains elements where predicate is false
+  expect_int(R"(builtins.length (builtins.partition (x: x > 0) [1 (-1) 2 (-2)]).wrong)", 2);
+  expect_int(R"(builtins.head (builtins.partition (x: x > 0) [1 (-1) 2 (-2)]).wrong)", -1);
+  // Empty list
+  expect_int(R"(builtins.length (builtins.partition (x: x > 0) []).right)", 0);
+  expect_int(R"(builtins.length (builtins.partition (x: x > 0) []).wrong)", 0);
+}
+
+TEST_CASE("exec: builtins.groupBy", "[execution][builtins]") {
+  // Group by type attribute
+  expect_int(
+      R"(builtins.length (builtins.groupBy (x: x.type) [{ type = "a"; } { type = "b"; } { type = "a"; }]).a)",
+      2);
+  expect_int(
+      R"(builtins.length (builtins.groupBy (x: x.type) [{ type = "a"; } { type = "b"; } { type = "a"; }]).b)",
+      1);
+  // Empty list
+  expect_int(R"(builtins.length (builtins.attrNames (builtins.groupBy (x: x) [])))", 0);
+}
+
 TEST_CASE("exec: builtins arithmetic functions", "[execution][builtins]") {
   expect_int("builtins.add 2 3", 5);
   expect_int("builtins.sub 10 3", 7);
@@ -879,4 +934,39 @@ TEST_CASE("exec: builtins arithmetic functions", "[execution][builtins]") {
   expect_bool("builtins.lessThan 1 2", true);
   expect_bool("builtins.lessThan 2 1", false);
   expect_bool("builtins.lessThan 1 1", false);
+}
+
+TEST_CASE("exec: builtins.floor", "[execution][builtins]") {
+  expect_int("builtins.floor 3", 3);
+  expect_int("builtins.floor 3.2", 3);
+  expect_int("builtins.floor 3.9", 3);
+  expect_int("builtins.floor (-3.2)", -4);
+  expect_int("builtins.floor (-3.9)", -4);
+  expect_int("builtins.floor 0.0", 0);
+}
+
+TEST_CASE("exec: builtins.ceil", "[execution][builtins]") {
+  expect_int("builtins.ceil 3", 3);
+  expect_int("builtins.ceil 3.2", 4);
+  expect_int("builtins.ceil 3.9", 4);
+  expect_int("builtins.ceil (-3.2)", -3);
+  expect_int("builtins.ceil (-3.9)", -3);
+  expect_int("builtins.ceil 0.0", 0);
+}
+
+TEST_CASE("exec: builtins bitwise ops", "[execution][builtins]") {
+  // bitAnd
+  expect_int("builtins.bitAnd 12 10", 8);   // 1100 & 1010 = 1000
+  expect_int("builtins.bitAnd 255 15", 15); // 11111111 & 00001111 = 00001111
+  expect_int("builtins.bitAnd 0 255", 0);
+
+  // bitOr
+  expect_int("builtins.bitOr 12 10", 14); // 1100 | 1010 = 1110
+  expect_int("builtins.bitOr 8 4", 12);   // 1000 | 0100 = 1100
+  expect_int("builtins.bitOr 0 255", 255);
+
+  // bitXor
+  expect_int("builtins.bitXor 12 10", 6); // 1100 ^ 1010 = 0110
+  expect_int("builtins.bitXor 255 255", 0);
+  expect_int("builtins.bitXor 0 255", 255);
 }

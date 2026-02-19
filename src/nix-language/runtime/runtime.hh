@@ -550,6 +550,10 @@ void rt_init_builtins(runtime_context& ctx);
 /// Concatenate strings: concatStrings list
 [[nodiscard]] auto rt_concat_strings(runtime_context& ctx, nix_value list) -> nix_value;
 
+/// Concatenate strings with separator: concatStringsSep sep list
+[[nodiscard]] auto rt_concat_string_sep(runtime_context& ctx, nix_value sep, nix_value list)
+    -> nix_value;
+
 // --- List Builtins (additional) ---
 
 /// Check if all elements satisfy predicate: all pred list
@@ -561,8 +565,20 @@ void rt_init_builtins(runtime_context& ctx);
 /// Map then concat: concatMap f list
 [[nodiscard]] auto rt_concat_map(runtime_context& ctx, nix_value f, nix_value list) -> nix_value;
 
+/// Partition list by predicate: partition pred list
+[[nodiscard]] auto rt_partition(runtime_context& ctx, nix_value pred, nix_value list) -> nix_value;
+
+/// Group list elements by key function: groupBy f list
+[[nodiscard]] auto rt_group_by(runtime_context& ctx, nix_value f, nix_value list) -> nix_value;
+
 /// Convert list of {name, value} to attrset: listToAttrs list
 [[nodiscard]] auto rt_list_to_attrs(runtime_context& ctx, nix_value list) -> nix_value;
+
+/// Map function over attrset values: mapAttrs f set
+[[nodiscard]] auto rt_map_attrs(runtime_context& ctx, nix_value f, nix_value set) -> nix_value;
+
+/// Extract attribute from list of attrsets: catAttrs name list
+[[nodiscard]] auto rt_cat_attrs(runtime_context& ctx, nix_value name, nix_value list) -> nix_value;
 
 // --- Arithmetic Builtins (as functions) ---
 
@@ -581,6 +597,21 @@ void rt_init_builtins(runtime_context& ctx);
 /// Less than comparison: lessThan a b
 [[nodiscard]] auto rt_builtin_less_than(runtime_context& ctx, nix_value a, nix_value b)
     -> nix_value;
+
+/// Floor: floor x
+[[nodiscard]] auto rt_floor(runtime_context& ctx, nix_value v) -> nix_value;
+
+/// Ceil: ceil x
+[[nodiscard]] auto rt_ceil(runtime_context& ctx, nix_value v) -> nix_value;
+
+/// Bitwise and: bitAnd a b
+[[nodiscard]] auto rt_bit_and(runtime_context& ctx, nix_value a, nix_value b) -> nix_value;
+
+/// Bitwise or: bitOr a b
+[[nodiscard]] auto rt_bit_or(runtime_context& ctx, nix_value a, nix_value b) -> nix_value;
+
+/// Bitwise xor: bitXor a b
+[[nodiscard]] auto rt_bit_xor(runtime_context& ctx, nix_value a, nix_value b) -> nix_value;
 
 // --- Attrset Builtins ---
 

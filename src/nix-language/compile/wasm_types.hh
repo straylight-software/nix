@@ -137,6 +137,7 @@ constexpr std::uint32_t to_lower = 206;
 constexpr std::uint32_t to_upper = 207;
 constexpr std::uint32_t to_string = 208;
 constexpr std::uint32_t concat_strings = 209;
+constexpr std::uint32_t concat_string_sep = 210;
 
 // attrset builtins
 constexpr std::uint32_t attr_names = 300;
@@ -146,6 +147,8 @@ constexpr std::uint32_t has_attr = 303;
 constexpr std::uint32_t intersect_attrs = 304;
 constexpr std::uint32_t remove_attrs = 305;
 constexpr std::uint32_t list_to_attrs = 306;
+constexpr std::uint32_t map_attrs = 307;
+constexpr std::uint32_t cat_attrs = 308;
 
 // list builtins
 constexpr std::uint32_t map = 400;
@@ -157,6 +160,8 @@ constexpr std::uint32_t concat_lists = 405;
 constexpr std::uint32_t all = 406;
 constexpr std::uint32_t any = 407;
 constexpr std::uint32_t concat_map = 408;
+constexpr std::uint32_t partition = 409;
+constexpr std::uint32_t group_by = 410;
 
 // error handling builtins
 constexpr std::uint32_t throw_error = 500;
@@ -172,6 +177,11 @@ constexpr std::uint32_t builtin_sub = 601;
 constexpr std::uint32_t builtin_mul = 602;
 constexpr std::uint32_t builtin_div = 603;
 constexpr std::uint32_t builtin_less_than = 604;
+constexpr std::uint32_t floor_fn = 605;
+constexpr std::uint32_t ceil_fn = 606;
+constexpr std::uint32_t bit_and = 607;
+constexpr std::uint32_t bit_or = 608;
+constexpr std::uint32_t bit_xor = 609;
 
 } // namespace builtins
 
