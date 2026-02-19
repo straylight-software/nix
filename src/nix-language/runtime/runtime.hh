@@ -601,6 +601,15 @@ void rt_init_builtins(runtime_context& ctx);
 /// Split version string: splitVersion v
 [[nodiscard]] auto rt_split_version(runtime_context& ctx, nix_value v) -> nix_value;
 
+/// Parse derivation name: parseDrvName name
+[[nodiscard]] auto rt_parse_drv_name(runtime_context& ctx, nix_value s) -> nix_value;
+
+/// Get base name of path: baseNameOf path
+[[nodiscard]] auto rt_base_name_of(runtime_context& ctx, nix_value s) -> nix_value;
+
+/// Get directory of path: dirOf path
+[[nodiscard]] auto rt_dir_of(runtime_context& ctx, nix_value s) -> nix_value;
+
 // --- Arithmetic Builtins (as functions) ---
 
 /// Add: add a b

@@ -1962,6 +1962,101 @@ auto rt_split_version(runtime_context& ctx, nix_value v) -> nix_value {
   return make_value(value_tag::list, list_ptr);
 }
 
+auto rt_parse_drv_name(runtime_context& ctx, nix_value s) -> nix_value {
+  s = rt_force(ctx, s);
+
+  if (!is_string(s)) {
+    throw type_error("builtins.parseDrvName: expected string, got '" + std::string(type_name(s)) +
+                     "'");
+  }
+
+  auto name = std::string(ctx.read_string(get_payload(s)));
+
+  // Find the last dash followed by a version (starts with digit)
+  std::string pkg_name = name;
+  std::string version = "";
+
+  auto last_dash = name.rfind('-');
+  while (last_dash != std::string::npos && last_dash > 0) {
+    if (last_dash + 1 < name.size() && std::isdigit(name[last_dash + 1])) {
+      pkg_name = name.substr(0, last_dash);
+      version = name.substr(last_dash + 1);
+      break;
+    }
+    last_dash = name.rfind('-', last_dash - 1);
+  }
+
+  // Create result attrset { name = ...; version = ...; }
+  auto attrs_size = mem::attrset_size(2);
+  auto attrs_ptr = ctx.allocate(attrs_size);
+  ctx.write_i32(attrs_ptr + mem::ATTRSET_COUNT_OFFSET, 2);
+
+  auto name_key = allocate_string(ctx, "name");
+  auto version_key = allocate_string(ctx, "version");
+  auto name_val_ptr = allocate_string(ctx, pkg_name);
+  auto version_val_ptr = allocate_string(ctx, version);
+
+  auto entry0 = attrs_ptr + mem::ATTRSET_ENTRIES_OFFSET;
+  ctx.write_i32(entry0 + mem::ATTRSET_ENTRY_KEY_OFFSET, static_cast<std::int32_t>(name_key));
+  ctx.write_value(entry0 + mem::ATTRSET_ENTRY_VALUE_OFFSET,
+                  make_value(value_tag::string, name_val_ptr));
+
+  auto entry1 = attrs_ptr + mem::ATTRSET_ENTRIES_OFFSET + mem::ATTRSET_ENTRY_SIZE;
+  ctx.write_i32(entry1 + mem::ATTRSET_ENTRY_KEY_OFFSET, static_cast<std::int32_t>(version_key));
+  ctx.write_value(entry1 + mem::ATTRSET_ENTRY_VALUE_OFFSET,
+                  make_value(value_tag::string, version_val_ptr));
+
+  return make_value(value_tag::attribute_set, attrs_ptr);
+}
+
+auto rt_base_name_of(runtime_context& ctx, nix_value s) -> nix_value {
+  s = rt_force(ctx, s);
+
+  if (!is_string(s) && !is_path(s)) {
+    throw type_error("builtins.baseNameOf: expected string or path, got '" +
+                     std::string(type_name(s)) + "'");
+  }
+
+  auto path = std::string(ctx.read_string(get_payload(s)));
+
+  // Find last '/'
+  auto last_slash = path.rfind('/');
+  std::string basename;
+  if (last_slash == std::string::npos) {
+    basename = path;
+  } else {
+    basename = path.substr(last_slash + 1);
+  }
+
+  auto ptr = allocate_string(ctx, basename);
+  return make_value(value_tag::string, ptr);
+}
+
+auto rt_dir_of(runtime_context& ctx, nix_value s) -> nix_value {
+  s = rt_force(ctx, s);
+
+  if (!is_string(s) && !is_path(s)) {
+    throw type_error("builtins.dirOf: expected string or path, got '" + std::string(type_name(s)) +
+                     "'");
+  }
+
+  auto path = std::string(ctx.read_string(get_payload(s)));
+
+  // Find last '/'
+  auto last_slash = path.rfind('/');
+  std::string dirname;
+  if (last_slash == std::string::npos) {
+    dirname = ".";
+  } else if (last_slash == 0) {
+    dirname = "/";
+  } else {
+    dirname = path.substr(0, last_slash);
+  }
+
+  auto ptr = allocate_string(ctx, dirname);
+  return make_value(is_path(s) ? value_tag::path : value_tag::string, ptr);
+}
+
 // =============================================================================
 // Arithmetic Builtins (as functions)
 // =============================================================================
@@ -2701,6 +2796,9 @@ constexpr std::uint32_t primop_arity(std::uint32_t index) {
     case b::to_lower:       // toLower str
     case b::to_upper:       // toUpper str
     case b::split_version:  // splitVersion v
+    case b::parse_drv_name: // parseDrvName name
+    case b::base_name_of:   // baseNameOf path
+    case b::dir_of:         // dirOf path
       return 1;
 
     // 2-arg primops
@@ -2822,6 +2920,12 @@ auto rt_apply_primop(runtime_context& ctx, std::uint32_t primop_index, nix_value
         return rt_to_upper(ctx, arg);
       case b::split_version:
         return rt_split_version(ctx, arg);
+      case b::parse_drv_name:
+        return rt_parse_drv_name(ctx, arg);
+      case b::base_name_of:
+        return rt_base_name_of(ctx, arg);
+      case b::dir_of:
+        return rt_dir_of(ctx, arg);
       default:
         throw runtime_error("unknown primop index: " + std::to_string(primop_index));
     }
@@ -3028,6 +3132,9 @@ void rt_init_builtins(runtime_context& ctx) {
   entries.emplace_back("typeOf", make_value(value_tag::primop, b::type_of));
   entries.emplace_back("toLower", make_value(value_tag::primop, b::to_lower));
   entries.emplace_back("toUpper", make_value(value_tag::primop, b::to_upper));
+  entries.emplace_back("parseDrvName", make_value(value_tag::primop, b::parse_drv_name));
+  entries.emplace_back("baseNameOf", make_value(value_tag::primop, b::base_name_of));
+  entries.emplace_back("dirOf", make_value(value_tag::primop, b::dir_of));
 
   // Arithmetic (as functions)
   entries.emplace_back("add", make_value(value_tag::primop, b::builtin_add));

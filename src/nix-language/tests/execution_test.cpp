@@ -1018,3 +1018,25 @@ TEST_CASE("exec: builtins.splitVersion", "[execution][builtins]") {
   expect_string(R"(builtins.head (builtins.splitVersion "1.2.3"))", "1");
   expect_string(R"(builtins.elemAt (builtins.splitVersion "1.2.3") 2)", "3");
 }
+
+TEST_CASE("exec: builtins.parseDrvName", "[execution][builtins]") {
+  expect_string(R"((builtins.parseDrvName "hello-1.0").name)", "hello");
+  expect_string(R"((builtins.parseDrvName "hello-1.0").version)", "1.0");
+  expect_string(R"((builtins.parseDrvName "hello-world-2.3.4").name)", "hello-world");
+  expect_string(R"((builtins.parseDrvName "hello-world-2.3.4").version)", "2.3.4");
+  // No version
+  expect_string(R"((builtins.parseDrvName "hello").name)", "hello");
+  expect_string(R"((builtins.parseDrvName "hello").version)", "");
+}
+
+TEST_CASE("exec: builtins.baseNameOf", "[execution][builtins]") {
+  expect_string(R"(builtins.baseNameOf "/foo/bar/baz")", "baz");
+  expect_string(R"(builtins.baseNameOf "/foo/bar/")", "");
+  expect_string(R"(builtins.baseNameOf "just-name")", "just-name");
+}
+
+TEST_CASE("exec: builtins.dirOf", "[execution][builtins]") {
+  expect_string(R"(builtins.dirOf "/foo/bar/baz")", "/foo/bar");
+  expect_string(R"(builtins.dirOf "/foo")", "/");
+  expect_string(R"(builtins.dirOf "just-name")", ".");
+}

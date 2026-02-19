@@ -187,6 +187,9 @@ constexpr std::uint32_t bit_xor = 609;
 constexpr std::uint32_t get_env = 610;
 constexpr std::uint32_t compare_versions = 611;
 constexpr std::uint32_t split_version = 612;
+constexpr std::uint32_t parse_drv_name = 613;
+constexpr std::uint32_t base_name_of = 614;
+constexpr std::uint32_t dir_of = 615;
 
 } // namespace builtins
 
