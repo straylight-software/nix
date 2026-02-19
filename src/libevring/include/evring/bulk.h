@@ -2,9 +2,17 @@
 
 /// bulk.h - high-performance bulk operations
 ///
-/// These functions bypass the state machine for maximum throughput.
-/// Use when you have a known set of operations and don't need
-/// fine-grained control over completion handling.
+/// @deprecated The bulk API bypasses the state machine, making operations
+/// non-replayable and untestable. Use generator machines instead:
+///
+///   - generator_machine concept: wants_to_submit() + generate()
+///   - run_generate(): achieves same throughput as bulk API
+///   - Fully replayable and testable
+///
+/// See test/test_generator.cpp for examples.
+///
+/// The bulk API remains for backwards compatibility but will be removed
+/// in a future version. New code should use generator machines.
 
 #include <cstdint>
 #include <functional>
@@ -33,10 +41,12 @@ struct bulk_result {
 
 /// create many empty files as fast as possible
 /// returns number of files successfully created
+[[deprecated("Use generator machines instead - see test/test_generator.cpp")]]
 auto bulk_create_files(ring& ring_instance, std::span<const char* const> paths, mode_t mode = 0644)
     -> bulk_result;
 
 /// create many empty files (string version)
+[[deprecated("Use generator machines instead - see test/test_generator.cpp")]]
 auto bulk_create_files(ring& ring_instance, std::span<const std::string> paths, mode_t mode = 0644)
     -> bulk_result;
 
@@ -46,11 +56,13 @@ auto bulk_create_files(ring& ring_instance, std::span<const std::string> paths, 
 
 /// stat many files, storing results in statx_buffers
 /// statx_buffers must have same size as paths
+[[deprecated("Use generator machines instead - see test/test_generator.cpp")]]
 auto bulk_stat(ring& ring_instance, std::span<const char* const> paths,
                std::span<struct statx> statx_buffers, unsigned int mask = STATX_BASIC_STATS)
     -> bulk_result;
 
 /// stat many files (string version)
+[[deprecated("Use generator machines instead - see test/test_generator.cpp")]]
 auto bulk_stat(ring& ring_instance, std::span<const std::string> paths,
                std::span<struct statx> statx_buffers, unsigned int mask = STATX_BASIC_STATS)
     -> bulk_result;
@@ -60,9 +72,11 @@ auto bulk_stat(ring& ring_instance, std::span<const std::string> paths,
 // ============================================================================
 
 /// unlink many files
+[[deprecated("Use generator machines instead - see test/test_generator.cpp")]]
 auto bulk_unlink(ring& ring_instance, std::span<const char* const> paths) -> bulk_result;
 
 /// unlink many files (string version)
+[[deprecated("Use generator machines instead - see test/test_generator.cpp")]]
 auto bulk_unlink(ring& ring_instance, std::span<const std::string> paths) -> bulk_result;
 
 // ============================================================================
@@ -79,10 +93,12 @@ struct copy_options {
 
 /// copy a single file with maximum throughput
 /// uses double-buffering and deep SQ queuing
+[[deprecated("Use generator machines instead - see test/test_generator.cpp")]]
 auto copy_file(ring& ring_instance, const char* source, const char* dest,
                copy_options const& options = {}) -> bulk_result;
 
 /// copy a single file (string version)
+[[deprecated("Use generator machines instead - see test/test_generator.cpp")]]
 auto copy_file(ring& ring_instance, std::string const& source, std::string const& dest,
                copy_options const& options = {}) -> bulk_result;
 
@@ -91,10 +107,12 @@ auto copy_file(ring& ring_instance, std::string const& source, std::string const
 // ============================================================================
 
 /// create many directories
+[[deprecated("Use generator machines instead - see test/test_generator.cpp")]]
 auto bulk_mkdir(ring& ring_instance, std::span<const char* const> paths, mode_t mode = 0755)
     -> bulk_result;
 
 /// create many directories (string version)
+[[deprecated("Use generator machines instead - see test/test_generator.cpp")]]
 auto bulk_mkdir(ring& ring_instance, std::span<const std::string> paths, mode_t mode = 0755)
     -> bulk_result;
 
@@ -103,9 +121,11 @@ auto bulk_mkdir(ring& ring_instance, std::span<const std::string> paths, mode_t 
 // ============================================================================
 
 /// remove many empty directories
+[[deprecated("Use generator machines instead - see test/test_generator.cpp")]]
 auto bulk_rmdir(ring& ring_instance, std::span<const char* const> paths) -> bulk_result;
 
 /// remove many empty directories (string version)
+[[deprecated("Use generator machines instead - see test/test_generator.cpp")]]
 auto bulk_rmdir(ring& ring_instance, std::span<const std::string> paths) -> bulk_result;
 
 // ============================================================================
@@ -115,10 +135,12 @@ auto bulk_rmdir(ring& ring_instance, std::span<const std::string> paths) -> bulk
 /// rename/move many files or directories
 /// source_paths[i] is renamed to dest_paths[i]
 /// both spans must have the same size
+[[deprecated("Use generator machines instead - see test/test_generator.cpp")]]
 auto bulk_rename(ring& ring_instance, std::span<const char* const> source_paths,
                  std::span<const char* const> dest_paths) -> bulk_result;
 
 /// rename many files (string version)
+[[deprecated("Use generator machines instead - see test/test_generator.cpp")]]
 auto bulk_rename(ring& ring_instance, std::span<const std::string> source_paths,
                  std::span<const std::string> dest_paths) -> bulk_result;
 
@@ -129,10 +151,12 @@ auto bulk_rename(ring& ring_instance, std::span<const std::string> source_paths,
 /// create many symbolic links
 /// targets[i] is the target, linkpaths[i] is the symlink path
 /// both spans must have the same size
+[[deprecated("Use generator machines instead - see test/test_generator.cpp")]]
 auto bulk_symlink(ring& ring_instance, std::span<const char* const> targets,
                   std::span<const char* const> linkpaths) -> bulk_result;
 
 /// create many symbolic links (string version)
+[[deprecated("Use generator machines instead - see test/test_generator.cpp")]]
 auto bulk_symlink(ring& ring_instance, std::span<const std::string> targets,
                   std::span<const std::string> linkpaths) -> bulk_result;
 
@@ -143,10 +167,12 @@ auto bulk_symlink(ring& ring_instance, std::span<const std::string> targets,
 /// create many hard links
 /// source_paths[i] is linked to dest_paths[i]
 /// both spans must have the same size
+[[deprecated("Use generator machines instead - see test/test_generator.cpp")]]
 auto bulk_link(ring& ring_instance, std::span<const char* const> source_paths,
                std::span<const char* const> dest_paths) -> bulk_result;
 
 /// create many hard links (string version)
+[[deprecated("Use generator machines instead - see test/test_generator.cpp")]]
 auto bulk_link(ring& ring_instance, std::span<const std::string> source_paths,
                std::span<const std::string> dest_paths) -> bulk_result;
 
@@ -157,10 +183,12 @@ auto bulk_link(ring& ring_instance, std::span<const std::string> source_paths,
 /// read many symbolic link targets
 /// results are stored in targets buffer (must be pre-sized)
 /// each target buffer should be at least PATH_MAX bytes
+[[deprecated("Use generator machines instead - see test/test_generator.cpp")]]
 auto bulk_readlink(ring& ring_instance, std::span<const char* const> linkpaths,
                    std::span<std::string> targets) -> bulk_result;
 
 /// read many symbolic link targets (string version for input)
+[[deprecated("Use generator machines instead - see test/test_generator.cpp")]]
 auto bulk_readlink(ring& ring_instance, std::span<const std::string> linkpaths,
                    std::span<std::string> targets) -> bulk_result;
 
@@ -190,10 +218,12 @@ struct copy_tree_result {
 
 /// recursively copy a directory tree
 /// creates dest directory if it doesn't exist
+[[deprecated("Use generator machines instead - see test/test_generator.cpp")]]
 auto copy_tree(ring& ring_instance, const char* source, const char* dest,
                copy_tree_options const& options = {}) -> copy_tree_result;
 
 /// copy_tree (string version)
+[[deprecated("Use generator machines instead - see test/test_generator.cpp")]]
 auto copy_tree(ring& ring_instance, std::string const& source, std::string const& dest,
                copy_tree_options const& options = {}) -> copy_tree_result;
 

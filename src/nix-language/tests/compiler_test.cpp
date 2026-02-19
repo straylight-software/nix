@@ -1374,11 +1374,11 @@ TEST_CASE("compile attrset with mixed single and multi-segment paths",
   REQUIRE(module.validate());
 }
 
-TEST_CASE("compile attrset rejects merging multi-segment paths",
+TEST_CASE("compile attrset with merging multi-segment paths",
           "[compiler][attrset][multi-segment]") {
   ast::symbol_table symbols;
 
-  // { a.b = 1; a.c = 2; } should throw because we don't support merging yet
+  // { a.b = 1; a.c = 2; } should compile successfully, producing { a = { b = 1; c = 2; }; }
   ast::attribute_path path1;
   path1.segments.push_back(ast::attribute_name{pos(), symbols.intern("a")});
   path1.segments.push_back(ast::attribute_name{pos(), symbols.intern("b")});
@@ -1398,8 +1398,13 @@ TEST_CASE("compile attrset rejects merging multi-segment paths",
   auto expr = make_expr(ast::expression_attribute_set{pos(), false, std::move(bindings)});
 
   compile::compiler comp(symbols);
+  auto module = comp.compile(expr);
 
-  REQUIRE_THROWS_AS(comp.compile(expr), compile::compilation_error);
+  REQUIRE(module.validate());
+
+  auto wat = module.emit_text();
+  // should have __makeAttrs for the merged attrset
+  REQUIRE(wat.find("__makeAttrs") != std::string::npos);
 }
 
 // =============================================================================
@@ -1473,11 +1478,11 @@ TEST_CASE("compile let with three-segment path", "[compiler][let][multi-segment]
   REQUIRE(module.validate());
 }
 
-TEST_CASE("compile let rejects merging multi-segment paths", "[compiler][let][multi-segment]") {
+TEST_CASE("compile let with merging multi-segment paths", "[compiler][let][multi-segment]") {
   ast::symbol_table symbols;
 
   // _: let a.b = 1; a.c = 2; in a
-  // should throw because we don't support merging yet
+  // should compile successfully, binding a to { b = 1; c = 2; }
   auto a_name = symbols.intern("a");
   auto b_name = symbols.intern("b");
   auto c_name = symbols.intern("c");
@@ -1507,8 +1512,13 @@ TEST_CASE("compile let rejects merging multi-segment paths", "[compiler][let][mu
   auto expr = make_expr(ast::expression_lambda{pos(), std::move(pattern), std::move(let_expr)});
 
   compile::compiler comp(symbols);
+  auto module = comp.compile(expr);
 
-  REQUIRE_THROWS_AS(comp.compile(expr), compile::compilation_error);
+  REQUIRE(module.validate());
+
+  auto wat = module.emit_text();
+  // should have __makeAttrs for the merged attrset
+  REQUIRE(wat.find("__makeAttrs") != std::string::npos);
 }
 
 // =============================================================================

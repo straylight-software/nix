@@ -50,9 +50,9 @@ Replace Not-Invented-Here (NIH) utility implementations in Nix with high-quality
 | `sqlite.h` | `store/sqlite.hh` | Custom (SQLiteCpp-style) | 55 cases |
 | `git.h` | `util/git.hh` | Custom parsing | 45 cases |
 | `markdown.h` | `cmd/markdown.hh` | Custom | 68 cases |
-| `serialise.h` | `util/serialise.hh` | Custom | 53 cases |
+| `serialise.h` | `util/serialise.hh` | zpp_bits + streaming | 78 cases |
 
-**Total: 33 primitives, 1197 test cases**
+**Total: 33 primitives, 1222 test cases**
 
 ---
 
@@ -120,7 +120,7 @@ Replace Not-Invented-Here (NIH) utility implementations in Nix with high-quality
 
 | File | Description | Lines | NIH Level | Proposed Backend | Status |
 |------|-------------|-------|-----------|------------------|--------|
-| `util/serialise.h` | Binary Source/Sink framework | ~572 | MEDIUM | Custom | **DONE** |
+| `util/serialise.h` | Binary Source/Sink framework | ~572 | MEDIUM | zpp_bits + streaming | **DONE** |
 | `util/archive.h` | NAR format | ~86 | LOW | Keep (Nix-specific) | - |
 | `util/tarfile.h` | libarchive wrapper | ~48 | LOW | Keep (wrapper) | - |
 | `util/compression.h` | Multi-algo compression | ~33 | LOW | Keep (wrapper) | - |

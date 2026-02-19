@@ -459,11 +459,18 @@ public:
     // export the main function
     BinaryenAddFunctionExport(module_.get(), "main", "main");
 
-    // add function table for indirect calls (lambdas)
-    if (!lambda_function_names_.empty()) {
+    // add function table for indirect calls (lambdas and thunks)
+    // lambdas have signature (i32, i64) -> i64
+    // thunks have signature (i32) -> i64
+    // both are indexed separately: lambdas at indices [0, lambda_count),
+    // thunks at indices [lambda_count, lambda_count + thunk_count)
+    if (!lambda_function_names_.empty() || !thunk_function_names_.empty()) {
       std::vector<const char*> func_names;
-      func_names.reserve(lambda_function_names_.size());
+      func_names.reserve(lambda_function_names_.size() + thunk_function_names_.size());
       for (const auto& name : lambda_function_names_) {
+        func_names.push_back(name.c_str());
+      }
+      for (const auto& name : thunk_function_names_) {
         func_names.push_back(name.c_str());
       }
       BinaryenAddTable(module_.get(), "functions", static_cast<BinaryenIndex>(func_names.size()),
@@ -491,6 +498,10 @@ private:
   // lambda function counter and names for function table
   std::uint32_t lambda_counter_ = 0;
   std::vector<std::string> lambda_function_names_;
+
+  // thunk function counter and names
+  std::uint32_t thunk_counter_ = 0;
+  std::vector<std::string> thunk_function_names_;
 
   // context for compiling a lambda body
   struct lambda_context {
@@ -619,6 +630,11 @@ private:
     BinaryenAddFunctionImport(module_.get(), "__makeClosure", "runtime", "__makeClosure",
                               BinaryenTypeCreate(closure_params, 3), nix_value_type);
 
+    // thunk creation: __makeThunk(func_index: i32, env_offset: i32, env_size: i32) -> nix_value
+    // thunks are similar to closures but are forced (memoized) on first access
+    BinaryenAddFunctionImport(module_.get(), "__makeThunk", "runtime", "__makeThunk",
+                              BinaryenTypeCreate(closure_params, 3), nix_value_type);
+
     // string coercion: __toString(nix_value) -> nix_value (string)
     BinaryenAddFunctionImport(module_.get(), "__toString", "builtins", "__toString", unary_params,
                               nix_value_type);
@@ -639,6 +655,135 @@ private:
   /// compile an expression to a WASM expression
   [[nodiscard]] auto compile_expression(const ast::expression& expr) -> BinaryenExpressionRef {
     return std::visit([this](const auto& e) { return compile_variant(e); }, expr->data);
+  }
+
+  /// compile an expression as a thunk (lazy evaluation)
+  /// This creates a function that evaluates the expression when called,
+  /// capturing any free variables from the current scope.
+  /// Returns a nix_value with tag=thunk.
+  [[nodiscard]] auto compile_as_thunk(const ast::expression& expr) -> BinaryenExpressionRef {
+    // generate a unique function name for this thunk
+    auto func_index = thunk_counter_++;
+    auto func_name = "__thunk_" + std::to_string(func_index);
+    thunk_function_names_.push_back(func_name);
+
+    // analyze free variables in the expression
+    std::vector<ast::symbol> bound_names; // thunks have no bound parameters
+    auto free_vars = free_variable_analyzer::analyze(expr, bound_names);
+
+    // filter free variables: only keep those that are actually in scope
+    std::vector<ast::symbol> captures;
+    for (auto sym : free_vars) {
+      if (current_scope_ && current_scope_->lookup(sym).has_value()) {
+        captures.push_back(sym);
+      }
+    }
+
+    // save current lambda context
+    auto outer_lambda_context = std::move(current_lambda_context_);
+    current_lambda_context_ = lambda_context{};
+    current_lambda_context_->captures = captures;
+
+    // build capture index map
+    for (std::uint32_t i = 0; i < captures.size(); ++i) {
+      current_lambda_context_->capture_indices[captures[i]] = i;
+    }
+
+    // create a new scope for the thunk body
+    std::uint32_t new_depth = current_scope_ ? current_scope_->depth() + 1 : 1;
+    lexical_scope thunk_scope(nullptr, new_depth);
+    auto* outer_scope = current_scope_;
+    current_scope_ = &thunk_scope;
+
+    // thunk functions take only (env_ptr: i32) -> nix_value
+    // local 0: env_ptr (pointer to thunk environment)
+    current_lambda_context_->local_types.push_back(BinaryenTypeInt32()); // env_ptr
+    current_lambda_context_->next_local_index = 1;
+
+    // add captured variables to the scope
+    for (std::uint32_t i = 0; i < captures.size(); ++i) {
+      thunk_scope.add_captured(captures[i], i);
+    }
+
+    // compile the body
+    auto body_expr = compile_expression(expr);
+
+    // create the function
+    // params: (env_ptr: i32)
+    BinaryenType param_types[] = {BinaryenTypeInt32()};
+    auto params = BinaryenTypeCreate(param_types, 1);
+
+    // locals: skip the first 1 (env_ptr param), the rest are actual locals
+    std::vector<BinaryenType> local_types;
+    for (std::size_t i = 1; i < current_lambda_context_->local_types.size(); ++i) {
+      local_types.push_back(current_lambda_context_->local_types[i]);
+    }
+
+    BinaryenAddFunction(module_.get(), func_name.c_str(), params, make_nix_value_type(),
+                        local_types.empty() ? nullptr : local_types.data(),
+                        static_cast<BinaryenIndex>(local_types.size()), body_expr);
+
+    // restore scope and context
+    current_scope_ = outer_scope;
+    auto captured_vars = std::move(current_lambda_context_->captures);
+    current_lambda_context_ = std::move(outer_lambda_context);
+
+    // create thunk value
+    if (captured_vars.empty()) {
+      // no captures - create a simple thunk with null env
+      // call __makeThunk(func_index, 0, 0)
+      BinaryenExpressionRef make_thunk_args[] = {
+          BinaryenConst(module_.get(), BinaryenLiteralInt32(static_cast<std::int32_t>(func_index))),
+          BinaryenConst(module_.get(), BinaryenLiteralInt32(0)),
+          BinaryenConst(module_.get(), BinaryenLiteralInt32(0))};
+      return BinaryenCall(module_.get(), "__makeThunk", make_thunk_args, 3, make_nix_value_type());
+    }
+
+    // has captures - need to allocate environment and store captured values
+    // env layout: capture_count (i32) + captures[N] (nix_value each)
+    // total size: 4 + N * 8 bytes
+    auto capture_count = static_cast<std::uint32_t>(captured_vars.size());
+    auto env_size = 4 + capture_count * 8;
+
+    // allocate env memory
+    auto env_offset = data_offset_;
+    data_offset_ += env_size;
+    data_offset_ = (data_offset_ + 7) & ~7u; // align to 8
+
+    // generate code to:
+    // 1. store capture_count at env_offset
+    // 2. store each captured value at env_offset + 4 + i*8
+    // 3. call __makeThunk
+    std::vector<BinaryenExpressionRef> thunk_setup;
+
+    // store capture_count
+    thunk_setup.push_back(BinaryenStore(
+        module_.get(), 4, env_offset, 0, BinaryenConst(module_.get(), BinaryenLiteralInt32(0)),
+        BinaryenConst(module_.get(),
+                      BinaryenLiteralInt32(static_cast<std::int32_t>(capture_count))),
+        BinaryenTypeInt32(), "memory"));
+
+    // store each captured value
+    for (std::uint32_t i = 0; i < capture_count; ++i) {
+      auto sym = captured_vars[i];
+      // look up the variable in the outer scope to get its value
+      auto var_value = compile_identifier_lookup(sym);
+      thunk_setup.push_back(BinaryenStore(module_.get(), 8, env_offset + 4 + i * 8, 0,
+                                          BinaryenConst(module_.get(), BinaryenLiteralInt32(0)),
+                                          var_value, BinaryenTypeInt64(), "memory"));
+    }
+
+    // call __makeThunk(func_index, env_offset, env_size)
+    BinaryenExpressionRef make_thunk_args[] = {
+        BinaryenConst(module_.get(), BinaryenLiteralInt32(static_cast<std::int32_t>(func_index))),
+        BinaryenConst(module_.get(), BinaryenLiteralInt32(static_cast<std::int32_t>(env_offset))),
+        BinaryenConst(module_.get(), BinaryenLiteralInt32(static_cast<std::int32_t>(env_size)))};
+    auto make_thunk =
+        BinaryenCall(module_.get(), "__makeThunk", make_thunk_args, 3, make_nix_value_type());
+
+    thunk_setup.push_back(make_thunk);
+    return BinaryenBlock(module_.get(), nullptr, thunk_setup.data(),
+                         static_cast<BinaryenIndex>(thunk_setup.size()), make_nix_value_type());
   }
 
   /// compile integer literal
@@ -867,11 +1012,14 @@ private:
     auto left = compile_expression(expr.left);
     auto right = compile_expression(expr.right);
 
+    // force the left operand (it might be a thunk)
+    auto forced_left = compile_force(left);
+
     // if left is false, return false; otherwise return right
-    // extract boolean from left (check if it equals true)
+    // note: right is not forced here (short-circuit: only evaluated if needed)
     auto left_is_true = BinaryenBinary(
         module_.get(), BinaryenEqInt64(),
-        BinaryenConst(module_.get(), BinaryenLiteralInt64(packed::boolean_true)), left);
+        BinaryenConst(module_.get(), BinaryenLiteralInt64(packed::boolean_true)), forced_left);
 
     return BinaryenIf(module_.get(), left_is_true, right,
                       BinaryenConst(module_.get(), BinaryenLiteralInt64(packed::boolean_false)));
@@ -883,10 +1031,14 @@ private:
     auto left = compile_expression(expr.left);
     auto right = compile_expression(expr.right);
 
+    // force the left operand (it might be a thunk)
+    auto forced_left = compile_force(left);
+
     // if left is true, return true; otherwise return right
+    // note: right is not forced here (short-circuit: only evaluated if needed)
     auto left_is_true = BinaryenBinary(
         module_.get(), BinaryenEqInt64(),
-        BinaryenConst(module_.get(), BinaryenLiteralInt64(packed::boolean_true)), left);
+        BinaryenConst(module_.get(), BinaryenLiteralInt64(packed::boolean_true)), forced_left);
 
     return BinaryenIf(module_.get(), left_is_true,
                       BinaryenConst(module_.get(), BinaryenLiteralInt64(packed::boolean_true)),
@@ -899,10 +1051,13 @@ private:
     auto left = compile_expression(expr.left);
     auto right = compile_expression(expr.right);
 
+    // force the left operand (it might be a thunk)
+    auto forced_left = compile_force(left);
+
     // if left is false, return true; otherwise return right
     auto left_is_false = BinaryenBinary(
         module_.get(), BinaryenEqInt64(),
-        BinaryenConst(module_.get(), BinaryenLiteralInt64(packed::boolean_false)), left);
+        BinaryenConst(module_.get(), BinaryenLiteralInt64(packed::boolean_false)), forced_left);
 
     return BinaryenIf(module_.get(), left_is_false,
                       BinaryenConst(module_.get(), BinaryenLiteralInt64(packed::boolean_true)),
@@ -1003,9 +1158,31 @@ private:
     return compile_interpolation_parts(expr.parts, value_tag::path);
   }
 
+  /// check if an expression is trivial (literal) and doesn't need a thunk
+  [[nodiscard]] static auto is_trivial_expression(const ast::expression& expr) -> bool {
+    return std::visit(
+        [](const auto& e) -> bool {
+          using T = std::decay_t<decltype(e)>;
+          // literals don't need thunks - they're already values
+          if constexpr (std::is_same_v<T, ast::expression_integer> ||
+                        std::is_same_v<T, ast::expression_float> ||
+                        std::is_same_v<T, ast::expression_string> ||
+                        std::is_same_v<T, ast::expression_path>) {
+            return true;
+          }
+          // identifiers might be thunks themselves, but looking them up is cheap
+          if constexpr (std::is_same_v<T, ast::expression_identifier>) {
+            return true;
+          }
+          return false;
+        },
+        expr->data);
+  }
+
   [[nodiscard]] auto compile_variant(const ast::expression_list& expr) -> BinaryenExpressionRef {
     // compile all elements and store them in memory
     // then call __makeList(offset, count)
+    // list elements are lazy - wrap non-trivial expressions in thunks
     auto count = static_cast<std::uint32_t>(expr.elements.size());
 
     if (count == 0) {
@@ -1023,7 +1200,14 @@ private:
     // generate code to store each element
     std::vector<BinaryenExpressionRef> store_ops;
     for (std::uint32_t i = 0; i < count; ++i) {
-      auto element = compile_expression(expr.elements[i]);
+      BinaryenExpressionRef element;
+      if (is_trivial_expression(expr.elements[i])) {
+        // trivial expressions can be evaluated immediately
+        element = compile_expression(expr.elements[i]);
+      } else {
+        // non-trivial expressions are wrapped in thunks for lazy evaluation
+        element = compile_as_thunk(expr.elements[i]);
+      }
       auto store = BinaryenStore(module_.get(),
                                  8,                                                     // bytes
                                  offset + i * 8,                                        // offset
@@ -1111,6 +1295,187 @@ private:
     return current_value;
   }
 
+  /// Represents a binding with a path slice (reference, not copy)
+  /// segment_start: index into the original path where our slice begins (0 = first segment)
+  struct binding_path_slice {
+    const ast::binding_attribute* binding;
+    std::size_t segment_start; // which segment index we're looking at
+  };
+
+  /// Group bindings by their first segment (at segment_start index) for multi-segment path merging
+  /// Returns a map from segment symbol to list of binding slices
+  [[nodiscard]] auto group_bindings_by_segment(const std::vector<binding_path_slice>& slices,
+                                               std::size_t segment_index)
+      -> std::unordered_map<ast::symbol, std::vector<binding_path_slice>, symbol_hash> {
+    std::unordered_map<ast::symbol, std::vector<binding_path_slice>, symbol_hash> result;
+
+    for (const auto& slice : slices) {
+      const auto& segments = slice.binding->path.segments;
+      if (segment_index >= segments.size()) {
+        // This binding has no more segments at this level - it's a direct value
+        // We handle this case separately
+        continue;
+      }
+
+      const auto& segment = segments[segment_index];
+      if (segment.is_dynamic()) {
+        throw compilation_error("dynamic segment in path merging not supported");
+      }
+
+      auto sym = std::get<ast::symbol>(segment.value);
+      result[sym].push_back({slice.binding, segment_index});
+    }
+
+    return result;
+  }
+
+  /// Group initial bindings by their first segment
+  [[nodiscard]] auto
+  group_bindings_by_first_segment(const std::vector<ast::binding_variant>& bindings)
+      -> std::unordered_map<ast::symbol, std::vector<binding_path_slice>, symbol_hash> {
+    std::unordered_map<ast::symbol, std::vector<binding_path_slice>, symbol_hash> result;
+
+    for (const auto& binding : bindings) {
+      if (std::holds_alternative<ast::binding_attribute>(binding)) {
+        const auto& attr_binding = std::get<ast::binding_attribute>(binding);
+        if (attr_binding.path.segments.empty()) {
+          throw compilation_error("empty attribute path");
+        }
+
+        const auto& first_segment = attr_binding.path.segments[0];
+        if (first_segment.is_dynamic()) {
+          throw compilation_error("dynamic first segment in path merging not supported");
+        }
+
+        auto first_sym = std::get<ast::symbol>(first_segment.value);
+        result[first_sym].push_back({&attr_binding, 0});
+      }
+    }
+
+    return result;
+  }
+
+  /// Check if any binding has a dynamic segment
+  [[nodiscard]] auto has_dynamic_bindings(const std::vector<ast::binding_variant>& bindings)
+      -> bool {
+    for (const auto& binding : bindings) {
+      if (std::holds_alternative<ast::binding_attribute>(binding)) {
+        const auto& attr_binding = std::get<ast::binding_attribute>(binding);
+        for (const auto& seg : attr_binding.path.segments) {
+          if (seg.is_dynamic()) {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
+  }
+
+  /// Compile a merged attrset value for a group of binding slices that share a segment prefix
+  /// segment_index: current depth in the path (0 = we just matched first segment, looking at
+  /// second) This handles cases like { a.b = 1; a.c = 2; } by recursively building nested attrsets
+  [[nodiscard]] auto compile_merged_attrset_value(const std::vector<binding_path_slice>& slices,
+                                                  std::size_t segment_index)
+      -> BinaryenExpressionRef {
+    // Separate slices into:
+    // 1. Direct values: slices where segment_index == path.size() (no more segments)
+    // 2. Nested values: slices where segment_index < path.size() (more segments to process)
+    const ast::expression* direct_value = nullptr;
+    std::vector<binding_path_slice> nested_slices;
+
+    for (const auto& slice : slices) {
+      const auto& segments = slice.binding->path.segments;
+      if (segment_index >= segments.size()) {
+        // This slice ends here - it's a direct value
+        if (direct_value != nullptr) {
+          throw compilation_error("duplicate attribute definition");
+        }
+        direct_value = &slice.binding->value;
+      } else {
+        // More segments - needs nested handling
+        nested_slices.push_back(slice);
+      }
+    }
+
+    // If there's both a direct value and nested values, that's a conflict
+    // e.g., { a = 1; a.b = 2; } - 'a' can't be both 1 and { b = 2; }
+    if (direct_value != nullptr && !nested_slices.empty()) {
+      throw compilation_error("attribute has both a direct value and nested attributes");
+    }
+
+    // If only direct value, return it (wrapped in thunk for lazy evaluation if non-trivial)
+    if (direct_value != nullptr) {
+      if (is_trivial_expression(*direct_value)) {
+        return compile_expression(*direct_value);
+      } else {
+        return compile_as_thunk(*direct_value);
+      }
+    }
+
+    // Group nested slices by the segment at segment_index
+    std::unordered_map<ast::symbol, std::vector<binding_path_slice>, symbol_hash> nested_groups;
+
+    for (const auto& slice : nested_slices) {
+      const auto& segment = slice.binding->path.segments[segment_index];
+      if (segment.is_dynamic()) {
+        throw compilation_error("dynamic segment in path merging not supported");
+      }
+      auto sym = std::get<ast::symbol>(segment.value);
+      nested_groups[sym].push_back(slice);
+    }
+
+    // Build the nested attrset from nested_groups
+    auto attr_count = static_cast<std::uint32_t>(nested_groups.size());
+
+    if (attr_count == 0) {
+      return BinaryenConst(module_.get(), BinaryenLiteralInt64(packed::empty_attribute_set));
+    }
+
+    // Allocate space for (key_offset, value) pairs
+    auto offset = data_offset_;
+    auto total_size = attr_count * 12;
+    data_offset_ += total_size;
+    data_offset_ = (data_offset_ + 7) & ~7u;
+
+    std::vector<BinaryenExpressionRef> store_ops;
+    std::uint32_t pair_index = 0;
+
+    for (const auto& [sym, group_slices] : nested_groups) {
+      auto key_str = symbols_.lookup(sym);
+      auto key_offset = allocate_string(key_str);
+
+      auto pair_offset = offset + pair_index * 12;
+
+      // Store key offset
+      auto store_key = BinaryenStore(
+          module_.get(), 4, pair_offset, 0, BinaryenConst(module_.get(), BinaryenLiteralInt32(0)),
+          BinaryenConst(module_.get(), BinaryenLiteralInt32(static_cast<std::int32_t>(key_offset))),
+          BinaryenTypeInt32(), "memory");
+      store_ops.push_back(store_key);
+
+      // Recursively compile the value (looking at the next segment)
+      auto value = compile_merged_attrset_value(group_slices, segment_index + 1);
+
+      auto store_value = BinaryenStore(module_.get(), 8, pair_offset + 4, 0,
+                                       BinaryenConst(module_.get(), BinaryenLiteralInt32(0)), value,
+                                       BinaryenTypeInt64(), "memory");
+      store_ops.push_back(store_value);
+
+      ++pair_index;
+    }
+
+    // Call __makeAttrs
+    BinaryenExpressionRef make_attrs_args[] = {
+        BinaryenConst(module_.get(), BinaryenLiteralInt32(static_cast<std::int32_t>(offset))),
+        BinaryenConst(module_.get(), BinaryenLiteralInt32(static_cast<std::int32_t>(attr_count)))};
+    auto make_attrs =
+        BinaryenCall(module_.get(), "__makeAttrs", make_attrs_args, 2, make_nix_value_type());
+
+    store_ops.push_back(make_attrs);
+    return BinaryenBlock(module_.get(), nullptr, store_ops.data(),
+                         static_cast<BinaryenIndex>(store_ops.size()), make_nix_value_type());
+  }
+
   [[nodiscard]] auto compile_variant(const ast::expression_attribute_set& expr)
       -> BinaryenExpressionRef {
     // attribute sets are complex - we need to evaluate all bindings
@@ -1119,47 +1484,19 @@ private:
       return compile_recursive_attribute_set(expr);
     }
 
-    // count total attributes (from both regular bindings and inherit bindings)
-    std::uint32_t attr_count = 0;
-    // track first segments of multi-segment paths to detect merging conflicts
-    std::unordered_set<ast::symbol, symbol_hash> multi_segment_first_keys;
+    // Check for dynamic keys - use separate compilation path
+    if (has_dynamic_bindings(expr.bindings)) {
+      return compile_attribute_set_with_dynamic_keys(expr);
+    }
+
+    // Group bindings by their first segment for multi-segment path merging
+    auto grouped = group_bindings_by_first_segment(expr.bindings);
+
+    // Count total top-level attributes (from grouped bindings and inherit bindings)
+    std::uint32_t attr_count = static_cast<std::uint32_t>(grouped.size());
 
     for (const auto& binding : expr.bindings) {
-      if (std::holds_alternative<ast::binding_attribute>(binding)) {
-        const auto& attr_binding = std::get<ast::binding_attribute>(binding);
-        if (attr_binding.path.segments.empty()) {
-          throw compilation_error("empty attribute path");
-        }
-
-        const auto& first_segment = attr_binding.path.segments[0];
-
-        // check if any segment is dynamic - if so, use dynamic attribute set compilation
-        bool has_dynamic = false;
-        for (const auto& seg : attr_binding.path.segments) {
-          if (seg.is_dynamic()) {
-            has_dynamic = true;
-            break;
-          }
-        }
-        if (has_dynamic) {
-          // route to dynamic attribute set compilation
-          return compile_attribute_set_with_dynamic_keys(expr);
-        }
-
-        auto first_sym = std::get<ast::symbol>(first_segment.value);
-
-        // check for multi-segment path conflicts (merging)
-        if (attr_binding.path.segments.size() > 1) {
-          if (multi_segment_first_keys.count(first_sym) > 0) {
-            throw compilation_error(
-                "merging multi-segment attribute paths with same prefix not yet implemented "
-                "(e.g., { a.b = 1; a.c = 2; })");
-          }
-          multi_segment_first_keys.insert(first_sym);
-        }
-
-        ++attr_count;
-      } else {
+      if (std::holds_alternative<ast::binding_inherit>(binding)) {
         const auto& inherit_binding = std::get<ast::binding_inherit>(binding);
         attr_count += static_cast<std::uint32_t>(inherit_binding.attributes.size());
       }
@@ -1180,46 +1517,35 @@ private:
     std::vector<BinaryenExpressionRef> store_ops;
     std::uint32_t pair_index = 0;
 
+    // Process grouped attribute bindings (handles multi-segment path merging)
+    for (const auto& [first_sym, slices] : grouped) {
+      auto key_str = symbols_.lookup(first_sym);
+      auto key_offset = allocate_string(key_str);
+
+      auto pair_offset = offset + pair_index * 12;
+
+      // store key offset
+      auto store_key = BinaryenStore(
+          module_.get(), 4, pair_offset, 0, BinaryenConst(module_.get(), BinaryenLiteralInt32(0)),
+          BinaryenConst(module_.get(), BinaryenLiteralInt32(static_cast<std::int32_t>(key_offset))),
+          BinaryenTypeInt32(), "memory");
+      store_ops.push_back(store_key);
+
+      // compile the (possibly merged) value
+      // segment_index=1 because we already consumed the first segment (first_sym)
+      auto value = compile_merged_attrset_value(slices, 1);
+
+      auto store_value = BinaryenStore(module_.get(), 8, pair_offset + 4, 0,
+                                       BinaryenConst(module_.get(), BinaryenLiteralInt32(0)), value,
+                                       BinaryenTypeInt64(), "memory");
+      store_ops.push_back(store_value);
+
+      ++pair_index;
+    }
+
+    // Process inherit bindings
     for (const auto& binding : expr.bindings) {
-      if (std::holds_alternative<ast::binding_attribute>(binding)) {
-        const auto& attr_binding = std::get<ast::binding_attribute>(binding);
-
-        const auto& first_segment = attr_binding.path.segments[0];
-        auto sym = std::get<ast::symbol>(first_segment.value);
-        auto key_str = symbols_.lookup(sym);
-        auto key_offset = allocate_string(key_str);
-
-        // store key offset (always use the first segment as the key)
-        auto pair_offset = offset + pair_index * 12;
-        auto store_key = BinaryenStore(
-            module_.get(), 4, pair_offset, 0, BinaryenConst(module_.get(), BinaryenLiteralInt32(0)),
-            BinaryenConst(module_.get(),
-                          BinaryenLiteralInt32(static_cast<std::int32_t>(key_offset))),
-            BinaryenTypeInt32(), "memory");
-        store_ops.push_back(store_key);
-
-        // compile the value
-        BinaryenExpressionRef value;
-        if (attr_binding.path.segments.size() == 1) {
-          // single-segment path: use value directly
-          value = compile_expression(attr_binding.value);
-        } else {
-          // multi-segment path: build nested attrsets
-          // e.g., a.b.c = v becomes a = { b = { c = v; }; }
-          // compile the innermost value first, then wrap it
-          auto innermost_value = compile_expression(attr_binding.value);
-          // build nested attrset starting from segment index 1 (skip first segment)
-          value = build_nested_attrset(attr_binding.path.segments, 1, innermost_value);
-        }
-
-        auto store_value = BinaryenStore(module_.get(), 8, pair_offset + 4, 0,
-                                         BinaryenConst(module_.get(), BinaryenLiteralInt32(0)),
-                                         value, BinaryenTypeInt64(), "memory");
-        store_ops.push_back(store_value);
-
-        ++pair_index;
-      } else {
-        // inherit binding: inherit x y; or inherit (expr) x y;
+      if (std::holds_alternative<ast::binding_inherit>(binding)) {
         const auto& inherit_binding = std::get<ast::binding_inherit>(binding);
 
         // if there's a from_expression, compile it once and select from it
@@ -1932,74 +2258,49 @@ private:
     auto* outer_scope = current_scope_;
     current_scope_ = &let_scope;
 
-    // track first segments of multi-segment paths to detect merging conflicts
-    std::unordered_set<ast::symbol, symbol_hash> multi_segment_first_keys;
+    // Group bindings by first segment for multi-segment path merging
+    auto grouped = group_bindings_by_first_segment(expr.bindings);
 
-    // first pass: check for merging conflicts
+    // Check for dynamic first segments (not supported in let)
     for (const auto& binding : expr.bindings) {
       if (std::holds_alternative<ast::binding_attribute>(binding)) {
         const auto& attr_binding = std::get<ast::binding_attribute>(binding);
         if (attr_binding.path.segments.empty()) {
           throw compilation_error("empty attribute path in let binding");
         }
-
         const auto& first_segment = attr_binding.path.segments[0];
         if (first_segment.is_dynamic()) {
           throw compilation_error("dynamic let binding names not yet implemented");
-        }
-
-        auto first_sym = std::get<ast::symbol>(first_segment.value);
-
-        // check for multi-segment path conflicts (merging)
-        if (attr_binding.path.segments.size() > 1) {
-          if (multi_segment_first_keys.count(first_sym) > 0) {
-            throw compilation_error(
-                "merging multi-segment let bindings with same prefix not yet implemented "
-                "(e.g., let a.b = 1; a.c = 2; in ...)");
-          }
-          multi_segment_first_keys.insert(first_sym);
         }
       }
     }
 
     std::vector<BinaryenExpressionRef> binding_ops;
 
-    for (const auto& binding : expr.bindings) {
-      if (std::holds_alternative<ast::binding_attribute>(binding)) {
-        const auto& attr_binding = std::get<ast::binding_attribute>(binding);
-
-        const auto& first_segment = attr_binding.path.segments[0];
-        auto sym = std::get<ast::symbol>(first_segment.value);
-
-        // allocate a local for this binding
-        std::uint32_t local_index;
-        if (current_lambda_context_.has_value()) {
-          local_index = current_lambda_context_->next_local_index++;
-          current_lambda_context_->local_types.push_back(make_nix_value_type());
-        } else {
-          // top-level let - this shouldn't normally happen in well-formed programs
-          // but we'll handle it by storing in a local
-          throw compilation_error("top-level let expressions not supported");
-        }
-
-        let_scope.add_local(sym, local_index);
-
-        // compile the value
-        BinaryenExpressionRef value;
-        if (attr_binding.path.segments.size() == 1) {
-          // single-segment path: use value directly
-          value = compile_expression(attr_binding.value);
-        } else {
-          // multi-segment path: build nested attrsets
-          // e.g., let a.b.c = v; in ... binds a to { b = { c = v; }; }
-          auto innermost_value = compile_expression(attr_binding.value);
-          // build nested attrset starting from segment index 1 (skip first segment)
-          value = build_nested_attrset(attr_binding.path.segments, 1, innermost_value);
-        }
-
-        auto store_local = BinaryenLocalSet(module_.get(), local_index, value);
-        binding_ops.push_back(store_local);
+    // Process grouped attribute bindings (handles multi-segment path merging)
+    for (const auto& [first_sym, slices] : grouped) {
+      // allocate a local for this binding
+      std::uint32_t local_index;
+      if (current_lambda_context_.has_value()) {
+        local_index = current_lambda_context_->next_local_index++;
+        current_lambda_context_->local_types.push_back(make_nix_value_type());
       } else {
+        throw compilation_error("top-level let expressions not supported");
+      }
+
+      let_scope.add_local(first_sym, local_index);
+
+      // compile the (possibly merged) value
+      // segment_index=1 because we already consumed the first segment (first_sym)
+      auto value = compile_merged_attrset_value(slices, 1);
+
+      auto store_local = BinaryenLocalSet(module_.get(), local_index, value);
+      binding_ops.push_back(store_local);
+    }
+
+    // Process inherit bindings
+    for (const auto& binding : expr.bindings) {
+      if (std::holds_alternative<ast::binding_inherit>(binding)) {
         // inherit binding: inherit x y; or inherit (expr) x y;
         const auto& inherit_binding = std::get<ast::binding_inherit>(binding);
 
@@ -2128,15 +2429,24 @@ private:
     return BinaryenBlock(module_.get(), nullptr, parts, 2, make_nix_value_type());
   }
 
+  /// wrap a value expression in a __force call to evaluate thunks
+  [[nodiscard]] auto compile_force(BinaryenExpressionRef value) -> BinaryenExpressionRef {
+    BinaryenExpressionRef args[] = {value};
+    return BinaryenCall(module_.get(), "__force", args, 1, make_nix_value_type());
+  }
+
   [[nodiscard]] auto compile_variant(const ast::expression_if& expr) -> BinaryenExpressionRef {
     auto condition = compile_expression(expr.condition);
     auto then_branch = compile_expression(expr.then_branch);
     auto else_branch = compile_expression(expr.else_branch);
 
+    // force the condition (it might be a thunk)
+    auto forced_condition = compile_force(condition);
+
     // condition must be a boolean - check if it equals true
     auto cond_is_true = BinaryenBinary(
         module_.get(), BinaryenEqInt64(),
-        BinaryenConst(module_.get(), BinaryenLiteralInt64(packed::boolean_true)), condition);
+        BinaryenConst(module_.get(), BinaryenLiteralInt64(packed::boolean_true)), forced_condition);
 
     return BinaryenIf(module_.get(), cond_is_true, then_branch, else_branch);
   }
@@ -2145,10 +2455,13 @@ private:
     auto condition = compile_expression(expr.condition);
     auto body = compile_expression(expr.body);
 
+    // force the condition (it might be a thunk)
+    auto forced_condition = compile_force(condition);
+
     // check if condition is true
     auto cond_is_true = BinaryenBinary(
         module_.get(), BinaryenEqInt64(),
-        BinaryenConst(module_.get(), BinaryenLiteralInt64(packed::boolean_true)), condition);
+        BinaryenConst(module_.get(), BinaryenLiteralInt64(packed::boolean_true)), forced_condition);
 
     // allocate error message in data segment
     static constexpr std::string_view error_msg = "assertion failed";

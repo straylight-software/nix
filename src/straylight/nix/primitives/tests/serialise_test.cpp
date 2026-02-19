@@ -762,3 +762,212 @@ TEST_CASE("Interleaved integer and string serialization", "[serialise][edge]") {
   REQUIRE(ser::read_uint64(source) == 100);
   REQUIRE(ser::read_string(source) == "world");
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// zpp_bits integration tests
+// ─────────────────────────────────────────────────────────────────────────────
+
+namespace {
+
+// Test struct for zpp_bits serialization
+struct SimpleMessage {
+  std::uint32_t id;
+  std::string name;
+  std::vector<std::uint64_t> values;
+
+  bool operator==(const SimpleMessage&) const = default;
+};
+
+// Test struct with nested types
+struct NestedMessage {
+  SimpleMessage inner;
+  std::optional<std::int32_t> optional_value;
+
+  bool operator==(const NestedMessage&) const = default;
+};
+
+// Fixed-size struct
+struct FixedSizePoint {
+  std::int32_t x;
+  std::int32_t y;
+  std::int32_t z;
+
+  bool operator==(const FixedSizePoint&) const = default;
+};
+
+} // namespace
+
+TEST_CASE("serialize/deserialize simple struct", "[serialise][zpp_bits]") {
+  SimpleMessage original{42, "hello world", {1, 2, 3, 4, 5}};
+
+  auto bytes = ser::serialize(original);
+  REQUIRE(!bytes.empty());
+
+  auto decoded = ser::deserialize<SimpleMessage>(bytes);
+  REQUIRE(decoded == original);
+}
+
+TEST_CASE("serialize/deserialize nested struct", "[serialise][zpp_bits]") {
+  NestedMessage original{{100, "nested", {10, 20, 30}}, std::optional<std::int32_t>{42}};
+
+  auto bytes = ser::serialize(original);
+  auto decoded = ser::deserialize<NestedMessage>(bytes);
+  REQUIRE(decoded == original);
+}
+
+TEST_CASE("serialize/deserialize with empty optional", "[serialise][zpp_bits]") {
+  NestedMessage original{{1, "test", {}}, std::nullopt};
+
+  auto bytes = ser::serialize(original);
+  auto decoded = ser::deserialize<NestedMessage>(bytes);
+  REQUIRE(decoded == original);
+  REQUIRE(!decoded.optional_value.has_value());
+}
+
+TEST_CASE("serialize/deserialize empty string and vector", "[serialise][zpp_bits]") {
+  SimpleMessage original{0, "", {}};
+
+  auto bytes = ser::serialize(original);
+  auto decoded = ser::deserialize<SimpleMessage>(bytes);
+  REQUIRE(decoded == original);
+}
+
+TEST_CASE("serialize_to_string returns valid string", "[serialise][zpp_bits]") {
+  SimpleMessage original{123, "test", {7, 8, 9}};
+
+  std::string serialized = ser::serialize_to_string(original);
+  REQUIRE(!serialized.empty());
+
+  auto decoded = ser::deserialize<SimpleMessage>(serialized);
+  REQUIRE(decoded == original);
+}
+
+TEST_CASE("deserialize from string_view", "[serialise][zpp_bits]") {
+  FixedSizePoint original{10, 20, 30};
+
+  auto bytes = ser::serialize(original);
+  std::string_view view(reinterpret_cast<const char*>(bytes.data()), bytes.size());
+
+  auto decoded = ser::deserialize<FixedSizePoint>(view);
+  REQUIRE(decoded == original);
+}
+
+TEST_CASE("write_object/read_object through Sink/Source", "[serialise][zpp_bits]") {
+  SimpleMessage original{999, "streaming test", {100, 200, 300}};
+
+  ser::StringSink sink;
+  ser::write_object(sink, original);
+
+  ser::StringSource source(sink.data());
+  auto decoded = ser::read_object<SimpleMessage>(source);
+  REQUIRE(decoded == original);
+}
+
+TEST_CASE("multiple objects through same Sink/Source", "[serialise][zpp_bits]") {
+  SimpleMessage message1{1, "first", {1}};
+  SimpleMessage message2{2, "second", {2, 2}};
+  FixedSizePoint point{5, 10, 15};
+
+  ser::StringSink sink;
+  ser::write_object(sink, message1);
+  ser::write_object(sink, message2);
+  ser::write_object(sink, point);
+
+  ser::StringSource source(sink.data());
+  auto decoded1 = ser::read_object<SimpleMessage>(source);
+  auto decoded2 = ser::read_object<SimpleMessage>(source);
+  auto decoded_point = ser::read_object<FixedSizePoint>(source);
+
+  REQUIRE(decoded1 == message1);
+  REQUIRE(decoded2 == message2);
+  REQUIRE(decoded_point == point);
+}
+
+TEST_CASE("interleave zpp_bits objects with raw integers", "[serialise][zpp_bits]") {
+  SimpleMessage message{42, "interleaved", {1, 2, 3}};
+
+  ser::StringSink sink;
+  ser::write_int(sink, std::uint64_t{12345});
+  ser::write_object(sink, message);
+  ser::write_int(sink, std::uint64_t{67890});
+
+  ser::StringSource source(sink.data());
+  REQUIRE(ser::read_uint64(source) == 12345);
+  auto decoded = ser::read_object<SimpleMessage>(source);
+  REQUIRE(decoded == message);
+  REQUIRE(ser::read_uint64(source) == 67890);
+}
+
+TEST_CASE("make_out/make_in with default options", "[serialise][zpp_bits]") {
+  std::vector<std::byte> buffer;
+  FixedSizePoint original{100, 200, 300};
+
+  auto out = ser::make_out(buffer);
+  auto result = out(original);
+  REQUIRE(!zpp::bits::failure(result));
+
+  FixedSizePoint decoded;
+  auto in = ser::make_in(std::span<const std::byte>(buffer));
+  result = in(decoded);
+  REQUIRE(!zpp::bits::failure(result));
+  REQUIRE(decoded == original);
+}
+
+TEST_CASE("Serializable concept", "[serialise][zpp_bits][concepts]") {
+  static_assert(ser::Serializable<SimpleMessage>);
+  static_assert(ser::Serializable<NestedMessage>);
+  static_assert(ser::Serializable<FixedSizePoint>);
+  static_assert(ser::Serializable<std::uint64_t>);
+  static_assert(ser::Serializable<std::string>);
+  static_assert(ser::Serializable<std::vector<int>>);
+}
+
+TEST_CASE("FixedSizeSerializable concept", "[serialise][zpp_bits][concepts]") {
+  // FixedSizePoint has fixed size (3 * 4 = 12 bytes)
+  static_assert(ser::FixedSizeSerializable<FixedSizePoint>);
+
+  // SimpleMessage has variable size due to string and vector
+  static_assert(!ser::FixedSizeSerializable<SimpleMessage>);
+}
+
+TEST_CASE("deserialize_fixed_from_source for fixed-size types", "[serialise][zpp_bits]") {
+  FixedSizePoint original{-10, 0, 10};
+
+  auto bytes = ser::serialize(original);
+  std::string data(reinterpret_cast<const char*>(bytes.data()), bytes.size());
+
+  ser::StringSource source(data);
+  auto decoded = ser::deserialize_fixed_from_source<FixedSizePoint>(source);
+  REQUIRE(decoded == original);
+}
+
+TEST_CASE("serialize large struct", "[serialise][zpp_bits]") {
+  SimpleMessage original;
+  original.id = 999999;
+  original.name = std::string(10000, 'x');
+  original.values.resize(1000);
+  for (std::size_t idx = 0; idx < 1000; ++idx) {
+    original.values[idx] = idx * 100;
+  }
+
+  auto bytes = ser::serialize(original);
+  auto decoded = ser::deserialize<SimpleMessage>(bytes);
+  REQUIRE(decoded == original);
+}
+
+TEST_CASE("deserialization failure throws", "[serialise][zpp_bits]") {
+  std::vector<std::byte> garbage = {std::byte{0xFF}, std::byte{0xFF}, std::byte{0xFF}};
+
+  REQUIRE_THROWS_AS(ser::deserialize<SimpleMessage>(garbage), ser::SerialisationError);
+}
+
+TEST_CASE("read_object with max_size limit", "[serialise][zpp_bits]") {
+  SimpleMessage original{1, std::string(1000, 'a'), {}};
+
+  ser::StringSink sink;
+  ser::write_object(sink, original);
+
+  ser::StringSource source(sink.data());
+  // max_size smaller than the serialized data should throw
+  REQUIRE_THROWS_AS((ser::read_object<SimpleMessage>(source, 100)), ser::SerialisationError);
+}

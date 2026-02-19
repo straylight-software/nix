@@ -25,6 +25,7 @@ cxx_library(
         "evring/bulk.h": "include/evring/bulk.h",
         "evring/event.h": "include/evring/event.h",
         "evring/evring.h": "include/evring/evring.h",
+        "evring/generators.h": "include/evring/generators.h",
         "evring/handle.h": "include/evring/handle.h",
         "evring/machine.h": "include/evring/machine.h",
         "evring/ring.h": "include/evring/ring.h",

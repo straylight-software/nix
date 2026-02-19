@@ -10,10 +10,11 @@
 ///    - Test with replay: evring::replay(machine, captured_events)
 ///    - Run for real: evring::run(machine, ring)
 ///
-/// 2. **Bulk API** - Maximum throughput for batch operations
-///    - Bypasses state machine for raw performance
+/// 2. **Generator Machines** - Maximum throughput for batch operations
+///    - Proactively fill the submission queue for high throughput
 ///    - Optimized for Nix store operations (stat, copy, create)
 ///    - Up to 66x faster than POSIX for metadata operations
+///    - Fully replayable and testable, unlike the deprecated bulk API
 ///
 /// ## Quick Start
 ///
@@ -29,12 +30,12 @@
 ///   auto final_state = evring::run(my_machine{}, *ring);
 /// @endcode
 ///
-/// Bulk operations (fast):
+/// Generator machines (fast + testable):
 /// @code
-///   auto ring = evring::make_io_uring_ring();
-///   evring::bulk_stat(*ring, paths, stat_buffers);           // 1M+ ops/s
-///   evring::copy_file(*ring, source, dest);                  // 4+ GB/s
-///   evring::copy_tree(*ring, source_dir, dest_dir);          // recursive
+///   auto ring = evring::make_io_uring_ring(256);
+///   evring::bulk_stat_machine machine{paths, stat_buffers};
+///   auto state = evring::run_generate(machine, *ring);       // 1M+ ops/s
+///   // state.succeeded, state.failed, state.errors
 /// @endcode
 ///
 /// ## Features
@@ -46,18 +47,18 @@
 ///
 /// ## Benchmarks (typical NVMe SSD)
 ///
-/// | Operation          | POSIX      | evring bulk | Speedup |
+/// | Operation          | POSIX      | Generator   | Speedup |
 /// |--------------------|------------|-------------|---------|
 /// | stat 10k files     | 16k ops/s  | 1M+ ops/s   | 66x     |
 /// | copy 1GB file      | 1.4 GB/s   | 4.2 GB/s    | 3x      |
 /// | create 10k files   | 247k ops/s | 119k ops/s  | 0.5x    |
 ///
 /// @note File creation is slower due to open+close overhead per file.
-///       Use bulk_create_files for best results, or consider alternative
-///       approaches for very high file counts.
+///       Use bulk_create_machine for best results.
 
 #include "evring/bulk.h"
 #include "evring/event.h"
+#include "evring/generators.h"
 #include "evring/handle.h"
 #include "evring/machine.h"
 #include "evring/ring.h"

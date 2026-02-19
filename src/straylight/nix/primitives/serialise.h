@@ -1,11 +1,16 @@
 // straylight::nix::primitives::serialise - Binary serialization framework
 //
 // Modern C++23 binary serialization replacing nix/util/serialise.h.
+// Hybrid architecture:
+//   - Source/Sink streaming API for I/O (files, pipes, sockets)
+//   - zpp_bits backend for high-performance struct serialization
+//
 // Provides:
-//   - Source/Sink        - abstract base classes for reading/writing bytes
+//   - Source/Sink        - abstract base classes for streaming bytes
 //   - StringSource/Sink  - in-memory implementations
 //   - FdSource/FdSink    - file descriptor implementations
 //   - BufferedSource/Sink - buffered wrappers
+//   - zpp_bits integration for zero-overhead struct serialization
 //   - Serialization helpers for integers and strings
 //   - Varint encoding/decoding
 //   - Little-endian wire format
@@ -29,6 +34,8 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
+
+#include <zpp_bits.h>
 
 #ifdef _WIN32
 #  include <io.h>
@@ -372,7 +379,6 @@ private:
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// A buffered sink that batches writes to an underlying sink.
-/// Warning: Not thread-safe.
 class BufferedSink : public Sink {
 public:
   static constexpr std::size_t default_buffer_size = 32 * 1024;
@@ -451,7 +457,6 @@ protected:
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// A buffered source that batches reads from an underlying source.
-/// Warning: Not thread-safe.
 class BufferedSource : public Source {
 public:
   static constexpr std::size_t default_buffer_size = 32 * 1024;
@@ -540,7 +545,6 @@ public:
         file_descriptor_(std::exchange(other.file_descriptor_, invalid_descriptor)),
         bytes_written_(std::exchange(other.bytes_written_, 0)),
         good_(std::exchange(other.good_, true)) {
-    // Manually transfer BufferedSink state
     buffer_size_ = other.buffer_size_;
     buffer_position_ = std::exchange(other.buffer_position_, 0);
     buffer_ = std::move(other.buffer_);
@@ -549,7 +553,6 @@ public:
   FdSink& operator=(FdSink&& other) noexcept {
     if (this != &other) {
       flush();
-      // Manually transfer BufferedSink state
       buffer_size_ = other.buffer_size_;
       buffer_position_ = std::exchange(other.buffer_position_, 0);
       buffer_ = std::move(other.buffer_);
@@ -564,16 +567,11 @@ public:
     try {
       flush();
     } catch (...) {
-      // Ignore exceptions in destructor
     }
   }
 
   [[nodiscard]] bool good() const noexcept override { return good_; }
-
-  /// Get the file descriptor.
   [[nodiscard]] int file_descriptor() const noexcept { return file_descriptor_; }
-
-  /// Get total bytes written.
   [[nodiscard]] std::size_t bytes_written() const noexcept { return bytes_written_; }
 
 protected:
@@ -588,22 +586,21 @@ protected:
 
     while (remaining > 0) {
 #ifdef _WIN32
-      auto bytes_written =
-          ::_write(file_descriptor_, current, static_cast<unsigned int>(remaining));
+      auto written = ::_write(file_descriptor_, current, static_cast<unsigned int>(remaining));
 #else
-      auto bytes_written = ::write(file_descriptor_, current, remaining);
+      auto written = ::write(file_descriptor_, current, remaining);
 #endif
-      if (bytes_written < 0) {
+      if (written < 0) {
         good_ = false;
         throw SerialisationError("FdSink: write error");
       }
-      if (bytes_written == 0) {
+      if (written == 0) {
         good_ = false;
         throw SerialisationError("FdSink: write returned 0");
       }
-      current += bytes_written;
-      remaining -= static_cast<std::size_t>(bytes_written);
-      bytes_written_ += static_cast<std::size_t>(bytes_written);
+      current += written;
+      remaining -= static_cast<std::size_t>(written);
+      bytes_written_ += static_cast<std::size_t>(written);
     }
   }
 
@@ -631,7 +628,6 @@ public:
         file_descriptor_(std::exchange(other.file_descriptor_, invalid_descriptor)),
         bytes_read_(std::exchange(other.bytes_read_, 0)),
         good_(std::exchange(other.good_, true)) {
-    // Manually transfer BufferedSource state
     buffer_size_ = other.buffer_size_;
     buffer_position_ = std::exchange(other.buffer_position_, 0);
     buffer_available_ = std::exchange(other.buffer_available_, 0);
@@ -640,7 +636,6 @@ public:
 
   FdSource& operator=(FdSource&& other) noexcept {
     if (this != &other) {
-      // Manually transfer BufferedSource state
       buffer_size_ = other.buffer_size_;
       buffer_position_ = std::exchange(other.buffer_position_, 0);
       buffer_available_ = std::exchange(other.buffer_available_, 0);
@@ -653,14 +648,9 @@ public:
   }
 
   [[nodiscard]] bool good() const noexcept override { return good_; }
-
-  /// Get the file descriptor.
   [[nodiscard]] int file_descriptor() const noexcept { return file_descriptor_; }
-
-  /// Get total bytes read.
   [[nodiscard]] std::size_t bytes_read() const noexcept { return bytes_read_; }
 
-  /// Restart reading (seeks to beginning if seekable).
   void restart() {
     if (file_descriptor_ != invalid_descriptor) {
 #ifdef _WIN32
@@ -709,7 +699,7 @@ private:
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// NullSink - discards all data
+// Utility sinks and sources
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// A sink that discards all data written to it.
@@ -718,28 +708,16 @@ public:
   void write(std::span<const std::byte> /*data*/) override {}
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// LengthSink - counts bytes written
-// ─────────────────────────────────────────────────────────────────────────────
-
 /// A sink that counts the number of bytes written without storing them.
 class LengthSink : public Sink {
 public:
   void write(std::span<const std::byte> data) override { length_ += data.size(); }
-
-  /// Get the total length of data written.
   [[nodiscard]] std::uint64_t length() const noexcept { return length_; }
-
-  /// Reset the counter.
   void reset() noexcept { length_ = 0; }
 
 private:
   std::uint64_t length_ = 0;
 };
-
-// ─────────────────────────────────────────────────────────────────────────────
-// TeeSink - writes to two sinks
-// ─────────────────────────────────────────────────────────────────────────────
 
 /// A sink that writes all incoming data to two other sinks.
 class TeeSink : public Sink {
@@ -757,10 +735,6 @@ private:
   Sink& first_;
   Sink& second_;
 };
-
-// ─────────────────────────────────────────────────────────────────────────────
-// TeeSource - reads and copies to a sink
-// ─────────────────────────────────────────────────────────────────────────────
 
 /// A source that copies all data read to a sink.
 class TeeSource : public Source {
@@ -780,10 +754,6 @@ private:
   Sink& sink_;
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// LengthSource - counts bytes read
-// ─────────────────────────────────────────────────────────────────────────────
-
 /// A source wrapper that counts the number of bytes read.
 class LengthSource : public Source {
 public:
@@ -796,21 +766,13 @@ public:
   }
 
   [[nodiscard]] bool good() const noexcept override { return source_.good(); }
-
-  /// Get the total bytes read.
   [[nodiscard]] std::uint64_t total() const noexcept { return total_; }
-
-  /// Reset the counter.
   void reset() noexcept { total_ = 0; }
 
 private:
   Source& source_;
   std::uint64_t total_ = 0;
 };
-
-// ─────────────────────────────────────────────────────────────────────────────
-// SizedSource - limits reading to a specific size
-// ─────────────────────────────────────────────────────────────────────────────
 
 /// A source that reads at most a specified number of bytes from the underlying source.
 class SizedSource : public Source {
@@ -828,20 +790,7 @@ public:
   }
 
   [[nodiscard]] bool good() const noexcept override { return source_.good(); }
-
-  /// Get remaining bytes allowed to read.
   [[nodiscard]] std::size_t remaining() const noexcept { return remaining_; }
-
-  /// Drain all remaining allowed data.
-  std::size_t drain_all() {
-    std::array<std::byte, 8192> buffer;
-    std::size_t total = 0;
-    while (remaining_ > 0) {
-      std::size_t bytes_read = read(buffer);
-      total += bytes_read;
-    }
-    return total;
-  }
 
 private:
   Source& source_;
@@ -849,7 +798,7 @@ private:
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Serialization helpers - integers
+// Serialization helpers - integers (Nix wire format)
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Write a 64-bit unsigned integer in little-endian format.
@@ -885,7 +834,6 @@ template <typename T>
     }
     return static_cast<T>(value);
   } else {
-    // For signed types, first check if it fits in the unsigned counterpart
     using unsigned_t = std::make_unsigned_t<T>;
     if (value > static_cast<std::uint64_t>(std::numeric_limits<unsigned_t>::max())) {
       throw SerialisationError("integer value too large for target type");
@@ -894,12 +842,10 @@ template <typename T>
   }
 }
 
-/// Read a 64-bit unsigned integer.
 [[nodiscard]] inline std::uint64_t read_uint64(Source& source) {
   return read_int<std::uint64_t>(source);
 }
 
-/// Read a 32-bit unsigned integer.
 [[nodiscard]] inline std::uint32_t read_uint32(Source& source) {
   return read_int<std::uint32_t>(source);
 }
@@ -947,10 +893,10 @@ template <std::unsigned_integral T>
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Serialization helpers - strings
+// Serialization helpers - strings (Nix wire format: length + data + padding)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Write a length-prefixed string.
+/// Write a length-prefixed string with 8-byte alignment padding.
 inline void write_string(Sink& sink, std::string_view data) {
   write_int(sink, static_cast<std::uint64_t>(data.size()));
   sink.write(data);
@@ -969,12 +915,10 @@ inline void read_padding(Source& source, std::size_t data_length) {
   if (padding > 0) {
     std::array<std::byte, 8> buffer;
     source.read_exact(std::span<std::byte>(buffer.data(), padding));
-    // Optionally verify padding is zeros
   }
 }
 
-/// Read a length-prefixed string.
-/// @param max_length Maximum allowed string length (for safety).
+/// Read a length-prefixed string with padding.
 [[nodiscard]] inline std::string
 read_string(Source& source, std::size_t max_length = std::numeric_limits<std::size_t>::max()) {
   std::uint64_t length = read_uint64(source);
@@ -988,46 +932,227 @@ read_string(Source& source, std::size_t max_length = std::numeric_limits<std::si
   return result;
 }
 
-/// Read a string into a pre-allocated buffer.
-/// Returns the number of bytes read (not including padding).
-[[nodiscard]] inline std::size_t read_string(Source& source, char* buffer, std::size_t max_length) {
-  std::uint64_t length = read_uint64(source);
-  if (length > max_length) {
-    throw SerialisationError("string length exceeds buffer size");
-  }
-
-  source.read_exact(buffer, static_cast<std::size_t>(length));
-  read_padding(source, static_cast<std::size_t>(length));
-  return static_cast<std::size_t>(length);
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
-// Operator overloads for convenience
+// Stream operators for convenience
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Stream operator for writing integers to a sink.
 inline Sink& operator<<(Sink& sink, std::uint64_t value) {
   write_int(sink, value);
   return sink;
 }
 
-/// Stream operator for writing strings to a sink.
 inline Sink& operator<<(Sink& sink, std::string_view value) {
   write_string(sink, value);
   return sink;
 }
 
-/// Stream operator for reading integers from a source.
 template <std::integral T>
 Source& operator>>(Source& source, T& value) {
   value = read_int<T>(source);
   return source;
 }
 
-/// Stream operator for reading strings from a source.
 inline Source& operator>>(Source& source, std::string& value) {
   value = read_string(source);
   return source;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// zpp_bits integration - High-performance struct serialization
+// ─────────────────────────────────────────────────────────────────────────────
+
+namespace detail {
+
+/// zpp_bits output archive that writes to a Sink.
+/// This bridges zpp_bits' in-memory serialization to our streaming Sink API.
+class SinkArchive {
+public:
+  explicit SinkArchive(Sink& sink) : sink_(sink) {}
+
+  /// Write raw bytes to the sink.
+  void write(const std::byte* data, std::size_t size) { sink_.write({data, size}); }
+
+  /// Required by zpp_bits: write bytes.
+  auto operator()(std::span<const std::byte> data) {
+    sink_.write(data);
+    return zpp::bits::errc{};
+  }
+
+private:
+  Sink& sink_;
+};
+
+/// zpp_bits input archive that reads from a Source.
+/// This bridges zpp_bits' in-memory deserialization to our streaming Source API.
+class SourceArchive {
+public:
+  explicit SourceArchive(Source& source) : source_(source) {}
+
+  /// Read raw bytes from the source.
+  void read(std::byte* data, std::size_t size) { source_.read_exact({data, size}); }
+
+  /// Required by zpp_bits: read bytes.
+  auto operator()(std::span<std::byte> data) {
+    try {
+      source_.read_exact(data);
+      return zpp::bits::errc{};
+    } catch (const EndOfFile&) {
+      return zpp::bits::errc{std::errc::result_out_of_range};
+    }
+  }
+
+private:
+  Source& source_;
+};
+
+} // namespace detail
+
+// ─────────────────────────────────────────────────────────────────────────────
+// High-level serialization API using zpp_bits
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Serialize an object to a byte vector using zpp_bits.
+/// This is the fastest path for in-memory serialization.
+///
+/// Usage:
+///   struct Message { int x; std::string name; };
+///   auto bytes = serialize(Message{42, "hello"});
+template <typename T>
+[[nodiscard]] std::vector<std::byte> serialize(const T& object) {
+  std::vector<std::byte> data;
+  auto out = zpp::bits::out(data);
+  auto result = out(object);
+  if (zpp::bits::failure(result)) {
+    throw SerialisationError("zpp_bits serialization failed");
+  }
+  return data;
+}
+
+/// Deserialize an object from a byte span using zpp_bits.
+/// This is the fastest path for in-memory deserialization.
+///
+/// Usage:
+///   auto message = deserialize<Message>(bytes);
+template <typename T>
+[[nodiscard]] T deserialize(std::span<const std::byte> data) {
+  T object;
+  auto in = zpp::bits::in(data);
+  auto result = in(object);
+  if (zpp::bits::failure(result)) {
+    throw SerialisationError("zpp_bits deserialization failed");
+  }
+  return object;
+}
+
+/// Deserialize an object from a string_view using zpp_bits.
+template <typename T>
+[[nodiscard]] T deserialize(std::string_view data) {
+  return deserialize<T>(
+      std::span<const std::byte>(reinterpret_cast<const std::byte*>(data.data()), data.size()));
+}
+
+/// Serialize an object to a string using zpp_bits.
+template <typename T>
+[[nodiscard]] std::string serialize_to_string(const T& object) {
+  auto bytes = serialize(object);
+  return std::string(reinterpret_cast<const char*>(bytes.data()), bytes.size());
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Streaming serialization using zpp_bits + Source/Sink
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Write an object to a Sink using zpp_bits serialization.
+/// First serializes to memory, then writes length-prefixed to the sink.
+///
+/// Wire format: [8-byte length][serialized data][padding to 8-byte alignment]
+///
+/// Usage:
+///   write_object(sink, my_struct);
+template <typename T>
+void write_object(Sink& sink, const T& object) {
+  auto bytes = serialize(object);
+  write_string(sink, std::string_view(reinterpret_cast<const char*>(bytes.data()), bytes.size()));
+}
+
+/// Read an object from a Source using zpp_bits deserialization.
+/// Reads length-prefixed data and deserializes.
+///
+/// Usage:
+///   auto my_struct = read_object<MyStruct>(source);
+template <typename T>
+[[nodiscard]] T read_object(Source& source, std::size_t max_size = 64 * 1024 * 1024) {
+  std::string data = read_string(source, max_size);
+  return deserialize<T>(data);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Direct streaming (no length prefix) - for fixed-size or self-delimiting types
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Serialize directly to a Sink without length prefix.
+/// Use for types with known/fixed serialized size.
+///
+/// Note: This buffers the entire serialized data in memory before writing.
+/// For large objects, prefer write_object() which includes a length prefix.
+template <typename T>
+void serialize_to_sink(Sink& sink, const T& object) {
+  auto bytes = serialize(object);
+  sink.write(bytes);
+}
+
+/// Deserialize from a Source, reading exactly the bytes needed.
+/// Only works for types with fixed or self-delimiting serialized size.
+///
+/// For most use cases, prefer read_object() which handles length prefixes.
+template <typename T>
+  requires(zpp::bits::concepts::has_fixed_size<T>)
+[[nodiscard]] T deserialize_fixed_from_source(Source& source) {
+  constexpr std::size_t size = zpp::bits::size<T>();
+  std::array<std::byte, size> buffer;
+  source.read_exact(buffer);
+  return deserialize<T>(std::span<const std::byte>(buffer));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// zpp_bits configuration helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Default zpp_bits options for Nix-compatible serialization.
+/// Little-endian, no size prefix (we handle that separately).
+using default_zpp_options =
+    zpp::bits::options<zpp::bits::endian::little, zpp::bits::no_size_encoding>;
+
+/// Create an output archive with our default options.
+template <typename Container>
+[[nodiscard]] auto make_out(Container& container) {
+  return zpp::bits::out<default_zpp_options>(container);
+}
+
+/// Create an input archive with our default options.
+template <typename Container>
+[[nodiscard]] auto make_in(Container& container) {
+  return zpp::bits::in<default_zpp_options>(container);
+}
+
+/// Create an input archive from a span with our default options.
+[[nodiscard]] inline auto make_in(std::span<const std::byte> data) {
+  return zpp::bits::in<default_zpp_options>(data);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Concepts for serializable types
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Concept for types that can be serialized with zpp_bits.
+template <typename T>
+concept Serializable = requires(T& object, std::vector<std::byte>& bytes) {
+  { zpp::bits::out(bytes)(object) } -> std::same_as<zpp::bits::errc>;
+  { zpp::bits::in(bytes)(object) } -> std::same_as<zpp::bits::errc>;
+};
+
+/// Concept for types with fixed serialized size.
+template <typename T>
+concept FixedSizeSerializable = Serializable<T> && zpp::bits::concepts::has_fixed_size<T>;
 
 } // namespace straylight::nix::primitives
