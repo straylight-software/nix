@@ -30,6 +30,24 @@
           lineLength = 100;
           indentWidth = 2;
 
+          # StringZilla C++ headers (header-only library)
+          # The nixpkgs version is Python-only, so we create a simple header package
+          stringzilla = pkgs.stdenv.mkDerivation {
+            pname = "stringzilla";
+            version = "4.5.1";
+            src = pkgs.fetchFromGitHub {
+              owner = "ashvardanian";
+              repo = "StringZilla";
+              rev = "v4.5.1";
+              hash = "sha256-0T8hQ+P6gZnIX52jkRcpF1Ofxy45+B7K/feEQr5Phf0=";
+            };
+            dontBuild = true;
+            installPhase = ''
+              mkdir -p $out/include
+              cp -r include/stringzilla $out/include/
+            '';
+          };
+
           # Third-party dependencies required by nix
           nixDeps = {
             # util deps
@@ -40,6 +58,8 @@
             inherit (pkgs) brotli;
             inherit (pkgs) libsodium;
             inherit (pkgs) libarchive;
+            inherit (pkgs) ada; # WHATWG URL parser
+            inherit (pkgs) re2; # Fast regex engine (ERE-compatible)
 
             # store deps
             inherit (pkgs) sqlite;
@@ -60,6 +80,17 @@
             # test deps
             catch2 = pkgs.catch2_3;
             inherit (pkgs) rapidcheck;
+
+            # benchmark deps
+            inherit (pkgs) nanobench;
+
+            # straylight primitives deps
+            inherit stringzilla; # SIMD-accelerated string operations
+            rapidfuzz-cpp = pkgs.rapidfuzz-cpp; # SIMD-optimized fuzzy matching
+
+            # nix-language deps (WASM compilation)
+            pegtl = pkgs.pegtl; # PEGTL parser combinator library
+            binaryen = pkgs.binaryen; # WASM codegen
           };
 
           # Generate -isystem flags for all deps
@@ -91,6 +122,7 @@
               "//src/nix/main:main"
               "//src/nix/cmd:cmd"
               "//src/nix/cli:cli"
+              "//src/nix-language:language"
             ];
             toolchain = {
               cxx.enable = true;

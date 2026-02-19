@@ -1,0 +1,223 @@
+# src/straylight/nix/primitives/BUCK
+#
+# High-quality primitives library with modern C++23
+
+cxx_library(
+    name = "primitives",
+
+    srcs = [
+        "url.cpp",
+        "url_fast.cpp",
+    ],
+
+    exported_headers = [
+        "config.h",
+        "url.h",
+        "url_fast.h",
+    ],
+
+    header_namespace = "straylight/nix/primitives",
+
+    visibility = ["PUBLIC"],
+
+    compiler_flags = [
+        "-std=c++23",
+        # Default to ada backend
+        "-DSTRAYLIGHT_URL_BACKEND_ADA=1",
+    ],
+
+    deps = [
+        "//third_party:ada",
+    ],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# String primitives (header-only, adaptive stringzilla/std backend)
+# ─────────────────────────────────────────────────────────────────────────────
+
+cxx_library(
+    name = "strings",
+
+    # Header-only library
+    srcs = [],
+
+    exported_headers = [
+        "strings.h",
+        "strings_config.h",
+    ],
+
+    header_namespace = "straylight/nix/primitives",
+
+    visibility = ["PUBLIC"],
+
+    compiler_flags = [
+        "-std=c++23",
+    ],
+
+    deps = [
+        "//third_party:stringzilla",
+    ],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Hash primitives (BLAKE3 + OpenSSL backends)
+# ─────────────────────────────────────────────────────────────────────────────
+
+HASH_LINKER_FLAGS = [
+    # BLAKE3 library
+    "-lblake3",
+    # OpenSSL crypto library
+    "-lcrypto",
+]
+
+cxx_library(
+    name = "hash",
+
+    srcs = [
+        "hash.cpp",
+    ],
+
+    exported_headers = [
+        "hash.h",
+        "hash_config.h",
+    ],
+
+    header_namespace = "straylight/nix/primitives",
+
+    visibility = ["PUBLIC"],
+
+    compiler_flags = [
+        "-std=c++23",
+    ],
+
+    linker_flags = HASH_LINKER_FLAGS,
+
+    deps = [
+        "//third_party:blake3",
+        "//third_party:openssl",
+    ],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Encoding primitives (base16/base64/nix32)
+# ─────────────────────────────────────────────────────────────────────────────
+
+cxx_library(
+    name = "encoding",
+
+    srcs = [
+        "encoding.cpp",
+    ],
+
+    exported_headers = [
+        "encoding.h",
+    ],
+
+    header_namespace = "straylight/nix/primitives",
+
+    visibility = ["PUBLIC"],
+
+    compiler_flags = [
+        "-std=c++23",
+    ],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Regex primitives (RE2 backend with ERE/POSIX compatibility)
+# ─────────────────────────────────────────────────────────────────────────────
+
+REGEX_COMPILER_FLAGS = [
+    "-std=c++23",
+    # RE2 headers (until devshell picks up the new dep)
+    "-isystem/nix/store/bvklk6khay8hv186g21vh4cz0b1h24cg-re2-2025-08-12-dev/include",
+    # Abseil (RE2 dependency)
+    "-isystem/nix/store/d4qrcnr91qgbwp1sfb9q4mgw8mjqhk1v-abseil-cpp-20250512.1/include",
+]
+
+REGEX_LINKER_FLAGS = [
+    "-L/nix/store/g2sz6lsqmm054v9lkgkrz5gddxi7yipr-re2-2025-08-12/lib",
+    "-lre2",
+    "-Wl,-rpath,/nix/store/g2sz6lsqmm054v9lkgkrz5gddxi7yipr-re2-2025-08-12/lib",
+]
+
+cxx_library(
+    name = "regex",
+
+    srcs = [
+        "regex.cpp",
+    ],
+
+    exported_headers = [
+        "regex.h",
+    ],
+
+    header_namespace = "straylight/nix/primitives",
+
+    visibility = ["PUBLIC"],
+
+    compiler_flags = REGEX_COMPILER_FLAGS,
+
+    linker_flags = REGEX_LINKER_FLAGS,
+
+    deps = [
+        "//third_party:re2",
+    ],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Fuzzy matching primitives (rapidfuzz-cpp, header-only)
+# ─────────────────────────────────────────────────────────────────────────────
+
+FUZZY_COMPILER_FLAGS = [
+    "-std=c++23",
+    # rapidfuzz headers (until devshell picks up the new dep)
+    "-isystem/nix/store/ckb9dac1i1yww14lgj3y4ab0a04lwab9-rapidfuzz-cpp-3.3.3/include",
+]
+
+cxx_library(
+    name = "fuzzy",
+
+    # Header-only library
+    srcs = [],
+
+    exported_headers = [
+        "fuzzy.h",
+    ],
+
+    header_namespace = "straylight/nix/primitives",
+
+    visibility = ["PUBLIC"],
+
+    compiler_flags = FUZZY_COMPILER_FLAGS,
+
+    deps = [
+        "//third_party:rapidfuzz-cpp",
+    ],
+)
+
+# Boost backend variant
+cxx_library(
+    name = "primitives_boost",
+
+    srcs = [
+        "url.cpp",
+    ],
+
+    exported_headers = [
+        "config.h",
+        "url.h",
+    ],
+
+    header_namespace = "straylight/nix/primitives",
+
+    visibility = ["PUBLIC"],
+
+    compiler_flags = [
+        "-std=c++23",
+        "-DSTRAYLIGHT_URL_BACKEND_BOOST=1",
+    ],
+
+    deps = [
+        "//third_party:boost",
+    ],
+)

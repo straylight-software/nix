@@ -1,0 +1,234 @@
+# src/straylight/nix/primitives/tests/BUCK
+#
+# Tests for primitives library
+
+# Linker flags for test dependencies
+# NOTE: -L flags MUST come before corresponding -l flags
+PRIMITIVES_TEST_LINKER_FLAGS = [
+    # RapidCheck (shared lib not being picked up from prebuilt_cxx_library)
+    "-L/nix/store/16g9kcg05l7rpllkqh549mmybsrpqcj1-rapidcheck-0-unstable-2023-12-14/lib",
+    "-lrapidcheck",
+    "-Wl,-rpath,/nix/store/16g9kcg05l7rpllkqh549mmybsrpqcj1-rapidcheck-0-unstable-2023-12-14/lib",
+    # Ada URL parser
+    "-L/nix/store/3b4p38fk6hgwaf2p6jcci5k93b9cnxc8-ada-3.4.1/lib",
+    "-lada",
+    "-Wl,-rpath,/nix/store/3b4p38fk6hgwaf2p6jcci5k93b9cnxc8-ada-3.4.1/lib",
+]
+
+PRIMITIVES_TEST_LINKER_FLAGS_BOOST = [
+    # RapidCheck
+    "-L/nix/store/16g9kcg05l7rpllkqh549mmybsrpqcj1-rapidcheck-0-unstable-2023-12-14/lib",
+    "-lrapidcheck",
+    "-Wl,-rpath,/nix/store/16g9kcg05l7rpllkqh549mmybsrpqcj1-rapidcheck-0-unstable-2023-12-14/lib",
+    # Boost URL
+    "-L/nix/store/2izjh733byjickw9719nnkckxd63ghpm-boost-1.87.0/lib",
+    "-lboost_url",
+    "-Wl,-rpath,/nix/store/2izjh733byjickw9719nnkckxd63ghpm-boost-1.87.0/lib",
+]
+
+PRIMITIVES_TEST_COMPILER_FLAGS = [
+    "-std=c++23",
+]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# URL tests (ada backend - default)
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_test(
+    name = "url_test",
+    srcs = ["url_test.cpp"],
+    compiler_flags = PRIMITIVES_TEST_COMPILER_FLAGS,
+    linker_flags = PRIMITIVES_TEST_LINKER_FLAGS,
+    link_style = "static",
+    deps = [
+        "//src/straylight/nix/primitives:primitives",
+        "//third_party:catch2",
+        "//third_party:rapidcheck",
+    ],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# URL tests (boost backend)
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_test(
+    name = "url_test_boost",
+    srcs = ["url_test.cpp"],
+    compiler_flags = PRIMITIVES_TEST_COMPILER_FLAGS + [
+        "-DSTRAYLIGHT_URL_BACKEND_BOOST=1",
+        "-USTRAYLIGHT_URL_BACKEND_ADA",
+    ],
+    linker_flags = PRIMITIVES_TEST_LINKER_FLAGS_BOOST,
+    link_style = "static",
+    deps = [
+        "//src/straylight/nix/primitives:primitives_boost",
+        "//third_party:catch2",
+        "//third_party:rapidcheck",
+    ],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# String tests (stringzilla backend)
+# ─────────────────────────────────────────────────────────────────────────────
+
+STRINGS_TEST_LINKER_FLAGS = [
+    # RapidCheck
+    "-L/nix/store/16g9kcg05l7rpllkqh549mmybsrpqcj1-rapidcheck-0-unstable-2023-12-14/lib",
+    "-lrapidcheck",
+    "-Wl,-rpath,/nix/store/16g9kcg05l7rpllkqh549mmybsrpqcj1-rapidcheck-0-unstable-2023-12-14/lib",
+]
+
+cxx_test(
+    name = "strings_test",
+    srcs = ["strings_test.cpp"],
+    compiler_flags = PRIMITIVES_TEST_COMPILER_FLAGS,
+    linker_flags = STRINGS_TEST_LINKER_FLAGS,
+    link_style = "static",
+    deps = [
+        "//src/straylight/nix/primitives:strings",
+        "//third_party:catch2",
+        "//third_party:rapidcheck",
+    ],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Hash tests (BLAKE3 + OpenSSL backends)
+# ─────────────────────────────────────────────────────────────────────────────
+
+HASH_TEST_LINKER_FLAGS = [
+    # RapidCheck
+    "-L/nix/store/16g9kcg05l7rpllkqh549mmybsrpqcj1-rapidcheck-0-unstable-2023-12-14/lib",
+    "-lrapidcheck",
+    "-Wl,-rpath,/nix/store/16g9kcg05l7rpllkqh549mmybsrpqcj1-rapidcheck-0-unstable-2023-12-14/lib",
+    # BLAKE3
+    "-L/nix/store/588l1bk59474sr3fpfp32zmz4hn87rw4-libblake3-1.8.2/lib",
+    "-lblake3",
+    "-Wl,-rpath,/nix/store/588l1bk59474sr3fpfp32zmz4hn87rw4-libblake3-1.8.2/lib",
+    # OpenSSL
+    "-L/nix/store/mqvgaq2bnb1701l7zcn0d6vd7w8b0z7l-openssl-3.3.3/lib",
+    "-lcrypto",
+    "-Wl,-rpath,/nix/store/mqvgaq2bnb1701l7zcn0d6vd7w8b0z7l-openssl-3.3.3/lib",
+]
+
+cxx_test(
+    name = "hash_test",
+    srcs = ["hash_test.cpp"],
+    compiler_flags = PRIMITIVES_TEST_COMPILER_FLAGS,
+    linker_flags = HASH_TEST_LINKER_FLAGS,
+    link_style = "static",
+    deps = [
+        "//src/straylight/nix/primitives:hash",
+        "//third_party:catch2",
+        "//third_party:rapidcheck",
+    ],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Encoding tests (base16/base64/nix32)
+# ─────────────────────────────────────────────────────────────────────────────
+
+ENCODING_TEST_LINKER_FLAGS = [
+    # RapidCheck
+    "-L/nix/store/16g9kcg05l7rpllkqh549mmybsrpqcj1-rapidcheck-0-unstable-2023-12-14/lib",
+    "-lrapidcheck",
+    "-Wl,-rpath,/nix/store/16g9kcg05l7rpllkqh549mmybsrpqcj1-rapidcheck-0-unstable-2023-12-14/lib",
+]
+
+cxx_test(
+    name = "encoding_test",
+    srcs = ["encoding_test.cpp"],
+    compiler_flags = PRIMITIVES_TEST_COMPILER_FLAGS,
+    linker_flags = ENCODING_TEST_LINKER_FLAGS,
+    link_style = "static",
+    deps = [
+        "//src/straylight/nix/primitives:encoding",
+        "//third_party:catch2",
+        "//third_party:rapidcheck",
+    ],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Regex tests (RE2 backend)
+# ─────────────────────────────────────────────────────────────────────────────
+
+REGEX_TEST_COMPILER_FLAGS = PRIMITIVES_TEST_COMPILER_FLAGS + [
+    # RE2 headers (until devshell picks up the new dep)
+    "-isystem/nix/store/bvklk6khay8hv186g21vh4cz0b1h24cg-re2-2025-08-12-dev/include",
+    # Abseil (RE2 dependency)
+    "-isystem/nix/store/d4qrcnr91qgbwp1sfb9q4mgw8mjqhk1v-abseil-cpp-20250512.1/include",
+]
+
+REGEX_TEST_LINKER_FLAGS = [
+    # RapidCheck
+    "-L/nix/store/16g9kcg05l7rpllkqh549mmybsrpqcj1-rapidcheck-0-unstable-2023-12-14/lib",
+    "-lrapidcheck",
+    "-Wl,-rpath,/nix/store/16g9kcg05l7rpllkqh549mmybsrpqcj1-rapidcheck-0-unstable-2023-12-14/lib",
+    # RE2
+    "-L/nix/store/g2sz6lsqmm054v9lkgkrz5gddxi7yipr-re2-2025-08-12/lib",
+    "-lre2",
+    "-Wl,-rpath,/nix/store/g2sz6lsqmm054v9lkgkrz5gddxi7yipr-re2-2025-08-12/lib",
+]
+
+cxx_test(
+    name = "regex_test",
+    srcs = ["regex_test.cpp"],
+    compiler_flags = REGEX_TEST_COMPILER_FLAGS,
+    linker_flags = REGEX_TEST_LINKER_FLAGS,
+    link_style = "static",
+    deps = [
+        "//src/straylight/nix/primitives:regex",
+        "//third_party:catch2",
+        "//third_party:rapidcheck",
+    ],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Fuzzy matching tests (rapidfuzz-cpp backend)
+# ─────────────────────────────────────────────────────────────────────────────
+
+FUZZY_TEST_COMPILER_FLAGS = PRIMITIVES_TEST_COMPILER_FLAGS + [
+    # rapidfuzz headers (until devshell picks up the new dep)
+    "-isystem/nix/store/ckb9dac1i1yww14lgj3y4ab0a04lwab9-rapidfuzz-cpp-3.3.3/include",
+]
+
+FUZZY_TEST_LINKER_FLAGS = [
+    # RapidCheck
+    "-L/nix/store/16g9kcg05l7rpllkqh549mmybsrpqcj1-rapidcheck-0-unstable-2023-12-14/lib",
+    "-lrapidcheck",
+    "-Wl,-rpath,/nix/store/16g9kcg05l7rpllkqh549mmybsrpqcj1-rapidcheck-0-unstable-2023-12-14/lib",
+]
+
+cxx_test(
+    name = "fuzzy_test",
+    srcs = ["fuzzy_test.cpp"],
+    compiler_flags = FUZZY_TEST_COMPILER_FLAGS,
+    linker_flags = FUZZY_TEST_LINKER_FLAGS,
+    link_style = "static",
+    deps = [
+        "//src/straylight/nix/primitives:fuzzy",
+        "//third_party:catch2",
+        "//third_party:rapidcheck",
+    ],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Filesystem tests (file_lock, mmap, temp)
+# ─────────────────────────────────────────────────────────────────────────────
+
+FILESYSTEM_TEST_LINKER_FLAGS = [
+    # RapidCheck
+    "-L/nix/store/16g9kcg05l7rpllkqh549mmybsrpqcj1-rapidcheck-0-unstable-2023-12-14/lib",
+    "-lrapidcheck",
+    "-Wl,-rpath,/nix/store/16g9kcg05l7rpllkqh549mmybsrpqcj1-rapidcheck-0-unstable-2023-12-14/lib",
+]
+
+cxx_test(
+    name = "filesystem_test",
+    srcs = ["filesystem_test.cpp"],
+    compiler_flags = PRIMITIVES_TEST_COMPILER_FLAGS,
+    linker_flags = FILESYSTEM_TEST_LINKER_FLAGS,
+    link_style = "static",
+    deps = [
+        "//src/straylight/nix/primitives/filesystem:filesystem",
+        "//third_party:catch2",
+        "//third_party:rapidcheck",
+    ],
+)

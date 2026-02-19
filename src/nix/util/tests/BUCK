@@ -136,6 +136,25 @@ cxx_test(
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
+# URL ada comparison tests (boost::url vs ada WHATWG)
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_test(
+    name = "url_ada_comparison_test",
+    srcs = ["url_ada_comparison_test.cpp"],
+    deps = UTIL_TEST_DEPS + [
+        "//third_party:ada",
+    ],
+    compiler_flags = UTIL_TEST_COMPILER_FLAGS,
+    linker_flags = UTIL_LINKER_FLAGS + [
+        "-lboost_url",
+        "-L/nix/store/3b4p38fk6hgwaf2p6jcci5k93b9cnxc8-ada-3.4.1/lib",
+        "-lada",
+        "-Wl,-rpath,/nix/store/3b4p38fk6hgwaf2p6jcci5k93b9cnxc8-ada-3.4.1/lib",
+    ],
+    link_style = "static",
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
 # NAR archive format tests
 # ─────────────────────────────────────────────────────────────────────────────
 cxx_test(
@@ -165,6 +184,18 @@ cxx_test(
 cxx_test(
     name = "pool_test",
     srcs = ["pool_test.cpp"],
+    deps = UTIL_TEST_DEPS,
+    compiler_flags = UTIL_TEST_COMPILER_FLAGS,
+    linker_flags = UTIL_LINKER_FLAGS,
+    link_style = "static",
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Resource pool concurrency tests (isolated - may hang, debugging needed)
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_test(
+    name = "pool_concurrency_test",
+    srcs = ["pool_concurrency_test.cpp"],
     deps = UTIL_TEST_DEPS,
     compiler_flags = UTIL_TEST_COMPILER_FLAGS,
     linker_flags = UTIL_LINKER_FLAGS,

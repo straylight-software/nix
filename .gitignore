@@ -56,3 +56,7 @@ flake-regressions
 .devshell
 /buck-out/
 /doc/protocol/__pycache__/
+
+# Rust/Haskell build artifacts
+/src/nix-protocol/target/
+/src/nix-protocol/dist-newstyle/
