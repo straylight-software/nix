@@ -30,3 +30,43 @@ filegroup(name = "toml11", srcs = [], visibility = ["PUBLIC"])
 # Dependencies used by libmain
 filegroup(name = "editline", srcs = [], visibility = ["PUBLIC"])
 filegroup(name = "lowdown", srcs = [], visibility = ["PUBLIC"])
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Test dependencies
+#
+# Unlike the runtime deps above (which use global -isystem/-L flags),
+# test libraries need explicit linking. We use prebuilt_cxx_library
+# to reference the actual Nix store paths.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Catch2 v3 - main library
+prebuilt_cxx_library(
+    name = "catch2_lib",
+    static_lib = "lib/libCatch2.a",
+    exported_headers = [],
+    visibility = ["PUBLIC"],
+)
+
+# Catch2 v3 - main() provider (use with tests that don't define their own main)
+prebuilt_cxx_library(
+    name = "catch2_main",
+    static_lib = "lib/libCatch2Main.a",
+    exported_headers = [],
+    deps = [":catch2_lib"],
+    visibility = ["PUBLIC"],
+)
+
+# Combined Catch2 target for convenience
+alias(
+    name = "catch2",
+    actual = ":catch2_main",
+    visibility = ["PUBLIC"],
+)
+
+# RapidCheck - property-based testing
+prebuilt_cxx_library(
+    name = "rapidcheck",
+    shared_lib = "lib/librapidcheck.so",
+    exported_headers = [],
+    visibility = ["PUBLIC"],
+)

@@ -1,0 +1,129 @@
+# // straylight // nix // util // tests
+#
+# Unit and property-based tests for libutil
+
+# Common linker flags for util's transitive dependencies
+# These are needed because util is a static library and doesn't carry its deps
+UTIL_LINKER_FLAGS = [
+    # Boost libs
+    "-lboost_context",
+    "-lboost_iostreams",
+    "-lboost_thread",
+    "-Wl,-rpath,/nix/store/2izjh733byjickw9719nnkckxd63ghpm-boost-1.87.0/lib",
+    # Compression
+    "-lbrotlidec",
+    "-lbrotlienc",
+    "-larchive",
+    "-Wl,-rpath,/nix/store/q5hdxy658850yynggmkjblbqfgs1w4nq-brotli-1.2.0-lib/lib",
+    "-Wl,-rpath,/nix/store/dl74hiicwsr3b9ci8ssmqzr92vd4r2nm-libarchive-3.8.4-lib/lib",
+    # Crypto
+    "-lblake3",
+    "-lsodium",
+    "-lssl",
+    "-lcrypto",
+    "-Wl,-rpath,/nix/store/bc4wvkbw119gfby5if2z6yq3w51shgq9-libblake3-1.8.2/lib",
+    "-Wl,-rpath,/nix/store/pgc8rn7d8pv9ssr87r6783bcir8rfqpc-libsodium-1.0.20-unstable-2025-12-31/lib",
+    "-Wl,-rpath,/nix/store/61i74yjkj9p1qphfl7018ja4sdwkipx0-openssl-3.6.0/lib",
+    # Test libs (shared lib not being picked up from prebuilt_cxx_library)
+    "-L/nix/store/s4gn9xnjx7298wsxffgxiv3isx0j584k-rapidcheck-0-unstable-2023-12-14/lib",
+    "-lrapidcheck",
+    "-Wl,-rpath,/nix/store/s4gn9xnjx7298wsxffgxiv3isx0j584k-rapidcheck-0-unstable-2023-12-14/lib",
+]
+
+# Common test dependencies
+UTIL_TEST_DEPS = [
+    "//src/nix/util:util",
+    "//third_party:catch2",
+    "//third_party:rapidcheck",
+]
+
+UTIL_TEST_COMPILER_FLAGS = [
+    "-std=c++23",
+]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# base-n encoding/decoding tests
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_test(
+    name = "base-n_test",
+    srcs = ["base-n_test.cpp"],
+    deps = UTIL_TEST_DEPS,
+    compiler_flags = UTIL_TEST_COMPILER_FLAGS,
+    linker_flags = UTIL_LINKER_FLAGS,
+    link_style = "static",
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# checked arithmetic tests
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_test(
+    name = "checked-arithmetic_test",
+    srcs = ["checked-arithmetic_test.cpp"],
+    deps = UTIL_TEST_DEPS,
+    compiler_flags = UTIL_TEST_COMPILER_FLAGS,
+    linker_flags = UTIL_LINKER_FLAGS,
+    link_style = "static",
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# canonical path tests
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_test(
+    name = "canon-path_test",
+    srcs = ["canon-path_test.cpp"],
+    deps = UTIL_TEST_DEPS,
+    compiler_flags = UTIL_TEST_COMPILER_FLAGS,
+    linker_flags = UTIL_LINKER_FLAGS,
+    link_style = "static",
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LRU cache tests
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_test(
+    name = "lru-cache_test",
+    srcs = ["lru-cache_test.cpp"],
+    deps = UTIL_TEST_DEPS,
+    compiler_flags = UTIL_TEST_COMPILER_FLAGS,
+    linker_flags = UTIL_LINKER_FLAGS,
+    link_style = "static",
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# string utilities tests
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_test(
+    name = "strings_test",
+    srcs = ["strings_test.cpp"],
+    deps = UTIL_TEST_DEPS,
+    compiler_flags = UTIL_TEST_COMPILER_FLAGS,
+    linker_flags = UTIL_LINKER_FLAGS,
+    link_style = "static",
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# topological sort tests
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_test(
+    name = "topo-sort_test",
+    srcs = ["topo-sort_test.cpp"],
+    deps = UTIL_TEST_DEPS,
+    compiler_flags = UTIL_TEST_COMPILER_FLAGS,
+    linker_flags = UTIL_LINKER_FLAGS,
+    link_style = "static",
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# URL parsing tests
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_test(
+    name = "url_test",
+    srcs = ["url_test.cpp"],
+    deps = UTIL_TEST_DEPS,
+    compiler_flags = UTIL_TEST_COMPILER_FLAGS,
+    linker_flags = UTIL_LINKER_FLAGS + [
+        # url.cpp uses boost::urls
+        "-lboost_url",
+    ],
+    link_style = "static",
+)

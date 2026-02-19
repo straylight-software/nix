@@ -1,0 +1,1 @@
+2026/02/18 19:24:53 socat[1619358] W exiting on signal 15

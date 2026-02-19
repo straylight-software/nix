@@ -9,6 +9,8 @@ load(":cxx.bzl", "llvm_toolchain")
 load(":execution.bzl", "lre_execution_platform", "host_configuration")
 load("@prelude//toolchains:python.bzl", "system_python_bootstrap_toolchain")
 load("@prelude//toolchains:genrule.bzl", "system_genrule_toolchain")
+load("@prelude//tests:test_toolchain.bzl", "noop_test_toolchain")
+load(":test.bzl", "noop_remote_test_execution_toolchain")
 
 # ════════════════════════════════════════════════════════════════════════════════
 # C++ (LLVM 22)
@@ -59,5 +61,20 @@ lre_execution_platform(
     os_configuration = host_configuration.os,
     local_enabled = True,
     remote_enabled = False,
+    visibility = ["PUBLIC"],
+)
+
+# ════════════════════════════════════════════════════════════════════════════════
+# TEST TOOLCHAIN (required for cxx_test)
+# ════════════════════════════════════════════════════════════════════════════════
+
+noop_test_toolchain(
+    name = "test",
+    visibility = ["PUBLIC"],
+)
+
+# Stub for remote test execution (we run tests locally only)
+noop_remote_test_execution_toolchain(
+    name = "remote_test_execution",
     visibility = ["PUBLIC"],
 )

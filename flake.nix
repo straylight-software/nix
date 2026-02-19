@@ -56,6 +56,10 @@
             # main deps
             inherit (pkgs) editline;
             inherit (pkgs) lowdown;
+
+            # test deps
+            catch2 = pkgs.catch2_3;
+            inherit (pkgs) rapidcheck;
           };
 
           # Generate -isystem flags for all deps
