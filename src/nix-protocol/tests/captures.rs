@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
-//! Test Rust serializers against captured binary data
+//! Test Rust serializers and parsers against captured binary data
 
 use nix_protocol::*;
 use std::fs;
+use std::io::Cursor;
 use std::path::PathBuf;
 
 fn captures_dir() -> PathBuf {
@@ -297,4 +298,192 @@ fn test_addtostorenar_request() {
 
   let expected = read_capture("addtostorenar_request.bin");
   compare_buffers(&buf, &expected, "addtostorenar_request");
+}
+
+// =============================================================================
+// Reader Tests
+// =============================================================================
+
+#[test]
+fn test_read_server_hello() {
+  let data = read_capture("server_hello.bin");
+  let mut r = Reader::new(Cursor::new(&data));
+
+  let hello = read_server_hello(&mut r).unwrap();
+  assert_eq!(hello.magic, WORKER_MAGIC_2);
+  assert_eq!(hello.version, 0x0126); // Protocol version 1.38
+}
+
+#[test]
+fn test_read_isvalidpath_response() {
+  let data = read_capture("isvalidpath_response.bin");
+  let mut r = Reader::new(Cursor::new(&data));
+
+  let valid = read_is_valid_path_response(&mut r).unwrap();
+  assert!(valid);
+}
+
+#[test]
+fn test_read_querypathinfo_response() {
+  let data = read_capture("querypathinfo_response.bin");
+  let mut r = Reader::new(Cursor::new(&data));
+
+  let info = read_query_path_info_response(&mut r, 0x0126).unwrap();
+  assert!(info.is_some());
+
+  let info = info.unwrap();
+  // Check deriver path
+  assert!(info.deriver.contains("bash-5.3p9.drv"));
+  // Check NAR hash (64 hex chars)
+  assert_eq!(info.nar_hash.len(), 64);
+  assert!(info.nar_hash.starts_with("f7b02ee0"));
+  // Check references
+  assert_eq!(info.references.len(), 2);
+  // Check NAR size
+  assert_eq!(info.nar_size, 0x1c5550); // 1856848 bytes
+  // Check signature
+  assert_eq!(info.signatures.len(), 1);
+  assert!(info.signatures[0].starts_with("cache.nixos.org-1:"));
+}
+
+#[test]
+fn test_read_querymissing_response() {
+  let data = read_capture("querymissing_response.bin");
+  let mut r = Reader::new(Cursor::new(&data));
+
+  let result = read_query_missing_response(&mut r).unwrap();
+  // All empty sets with zero sizes (nothing missing)
+  assert!(result.will_build.is_empty());
+  assert!(result.will_substitute.is_empty());
+  assert!(result.unknown.is_empty());
+  assert_eq!(result.download_size, 0);
+  assert_eq!(result.nar_size, 0);
+}
+
+#[test]
+fn test_read_queryreferrers_response() {
+  let data = read_capture("queryreferrers_response.bin");
+  let mut r = Reader::new(Cursor::new(&data));
+
+  let referrers = read_query_referrers_response(&mut r).unwrap();
+  // Should have some referrers
+  assert!(!referrers.is_empty());
+  // All should be store paths
+  for path in &referrers {
+    assert!(path.starts_with("/nix/store/"));
+  }
+}
+
+#[test]
+fn test_read_findroots_response() {
+  // Note: This capture file is truncated (65KB limit), so we test partial parsing
+  let data = read_capture("findroots_response.bin");
+
+  // Manually parse some entries to verify format
+  let mut offset = 0;
+  let count = u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap());
+  assert_eq!(count, 10573); // Declared count
+  offset += 8;
+
+  // Parse first entry manually to verify format
+  let (link, new_offset) = parse_string(&data, offset);
+  assert!(link.starts_with("{temp:") || link.starts_with("/"));
+  offset = new_offset;
+
+  let (target, _) = parse_string(&data, offset);
+  assert!(target.starts_with("/nix/store/"));
+}
+
+#[test]
+fn test_read_buildpathswithresults_response() {
+  let data = read_capture("buildpathswithresults_response.bin");
+  let mut r = Reader::new(Cursor::new(&data));
+
+  let results = read_build_paths_with_results_response(&mut r, 0x0126).unwrap();
+  assert_eq!(results.len(), 1);
+
+  let result = &results[0];
+  // Check the derived path
+  assert!(result.path.contains("hello"));
+  assert!(result.path.ends_with("!out"));
+  // Build succeeded (status 2 = "AlreadyValid" / "Built")
+  assert_eq!(result.status, 2);
+  // Should have built outputs
+  assert_eq!(result.built_outputs.len(), 1);
+
+  // Check realisation
+  let (output_name, realisation) = &result.built_outputs[0];
+  assert!(output_name.contains("sha256:"));
+  assert!(realisation.id.contains("sha256:"));
+  assert!(realisation.out_path.contains("hello"));
+}
+
+// =============================================================================
+// Round-trip tests (write -> read)
+// =============================================================================
+
+#[test]
+fn test_roundtrip_server_hello() {
+  // Write
+  let mut buf = Vec::new();
+  let mut w = Writer::new(&mut buf);
+  write_server_hello(&mut w, 0x0123).unwrap();
+
+  // Read
+  let mut r = Reader::new(Cursor::new(&buf));
+  let hello = read_server_hello(&mut r).unwrap();
+
+  assert_eq!(hello.magic, WORKER_MAGIC_2);
+  assert_eq!(hello.version, 0x0123);
+}
+
+#[test]
+fn test_roundtrip_query_path_info_response() {
+  let info = ValidPathInfo {
+    deriver: "/nix/store/abc-test.drv".to_string(),
+    nar_hash: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".to_string(),
+    references: vec![
+      "/nix/store/aaa-ref1".to_string(),
+      "/nix/store/bbb-ref2".to_string(),
+    ],
+    registration_time: 1234567890,
+    nar_size: 12345,
+    ultimate: true,
+    signatures: vec!["cache:sig==".to_string()],
+    ca: "".to_string(),
+  };
+
+  // Write
+  let mut buf = Vec::new();
+  let mut w = Writer::new(&mut buf);
+  write_query_path_info_response(&mut w, Some(&info), 0x0126).unwrap();
+
+  // Read (skip STDERR_LAST at beginning)
+  let mut r = Reader::new(Cursor::new(&buf[8..])); // Skip STDERR_LAST
+  let parsed = read_query_path_info_response(&mut r, 0x0126).unwrap();
+
+  assert!(parsed.is_some());
+  let parsed = parsed.unwrap();
+  assert_eq!(parsed.deriver, info.deriver);
+  assert_eq!(parsed.nar_hash, info.nar_hash);
+  assert_eq!(parsed.references, info.references);
+  assert_eq!(parsed.registration_time, info.registration_time);
+  assert_eq!(parsed.nar_size, info.nar_size);
+  assert_eq!(parsed.ultimate, info.ultimate);
+  assert_eq!(parsed.signatures, info.signatures);
+  assert_eq!(parsed.ca, info.ca);
+}
+
+#[test]
+fn test_roundtrip_bool_response() {
+  // Write
+  let mut buf = Vec::new();
+  let mut w = Writer::new(&mut buf);
+  write_bool_response(&mut w, true).unwrap();
+
+  // Read (skip STDERR_LAST at beginning)
+  let mut r = Reader::new(Cursor::new(&buf[8..])); // Skip STDERR_LAST
+  let value = read_is_valid_path_response(&mut r).unwrap();
+
+  assert!(value);
 }

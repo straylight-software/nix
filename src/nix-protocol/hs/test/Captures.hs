@@ -46,20 +46,32 @@ tests :: TestTree
 tests =
   testGroup
     "Captures"
-    [ testClientHello,
-      testServerHello,
-      testIsValidPathRequest,
-      testQueryPathInfoRequest,
-      testQueryReferrersRequest,
-      testAddTempRootRequest,
-      testAddIndirectRootRequest,
-      testFindRootsRequest,
-      testNarFromPathRequest,
-      testQueryMissingRequest,
-      testBuildPathsRequest,
-      testBuildPathsWithResultsRequest,
-      testSetOptionsRequest,
-      testAddToStoreNarRequest
+    [ testGroup
+        "Writer"
+        [ testClientHello,
+          testServerHello,
+          testIsValidPathRequest,
+          testQueryPathInfoRequest,
+          testQueryReferrersRequest,
+          testAddTempRootRequest,
+          testAddIndirectRootRequest,
+          testFindRootsRequest,
+          testNarFromPathRequest,
+          testQueryMissingRequest,
+          testBuildPathsRequest,
+          testBuildPathsWithResultsRequest,
+          testSetOptionsRequest,
+          testAddToStoreNarRequest
+        ],
+      testGroup
+        "Reader"
+        [ testReadServerHello,
+          testReadIsValidPathResponse,
+          testReadQueryPathInfoResponse,
+          testReadQueryMissingResponse,
+          testReadQueryReferrersResponse,
+          testReadBuildPathsWithResultsResponse
+        ]
     ]
 
 testClientHello :: TestTree
@@ -221,3 +233,67 @@ testAddToStoreNarRequest = testCase "addtostorenar_request" $ do
       generated = execWriter $ writeAddToStoreNarRequest req
   expected <- readCapture "addtostorenar_request.bin"
   generated @?= expected
+
+-- =============================================================================
+-- Reader Tests
+-- =============================================================================
+
+testReadServerHello :: TestTree
+testReadServerHello = testCase "read_server_hello" $ do
+  captured <- readCapture "server_hello.bin"
+  case runReader readServerHello captured of
+    Left err -> assertFailure $ "Parse failed: " ++ err
+    Right hello -> do
+      shMagic hello @?= workerMagic2
+      shVersion hello @?= 0x0126
+
+testReadIsValidPathResponse :: TestTree
+testReadIsValidPathResponse = testCase "read_isvalidpath_response" $ do
+  captured <- readCapture "isvalidpath_response.bin"
+  case runReader readIsValidPathResponse captured of
+    Left err -> assertFailure $ "Parse failed: " ++ err
+    Right valid -> valid @?= True
+
+testReadQueryPathInfoResponse :: TestTree
+testReadQueryPathInfoResponse = testCase "read_querypathinfo_response" $ do
+  captured <- readCapture "querypathinfo_response.bin"
+  case runReader (readQueryPathInfoResponse 0x0126) captured of
+    Left err -> assertFailure $ "Parse failed: " ++ err
+    Right Nothing -> assertFailure "Expected Some, got Nothing"
+    Right (Just info) -> do
+      assertBool "deriver contains bash" $ T.isInfixOf (T.pack "bash") (vpiDeriver info)
+      assertBool "nar_hash starts with f7b02ee0" $ T.isPrefixOf (T.pack "f7b02ee0") (vpiNarHash info)
+      length (vpiReferences info) @?= 2
+      length (vpiSignatures info) @?= 1
+
+testReadQueryMissingResponse :: TestTree
+testReadQueryMissingResponse = testCase "read_querymissing_response" $ do
+  captured <- readCapture "querymissing_response.bin"
+  case runReader readQueryMissingResponse captured of
+    Left err -> assertFailure $ "Parse failed: " ++ err
+    Right result -> do
+      null (qmrWillBuild result) @?= True
+      null (qmrWillSubstitute result) @?= True
+      qmrDownloadSize result @?= 0
+      qmrNarSize result @?= 0
+
+testReadQueryReferrersResponse :: TestTree
+testReadQueryReferrersResponse = testCase "read_queryreferrers_response" $ do
+  captured <- readCapture "queryreferrers_response.bin"
+  case runReader readQueryReferrersResponse captured of
+    Left err -> assertFailure $ "Parse failed: " ++ err
+    Right refs -> do
+      assertBool "not empty" $ not (null refs)
+      assertBool "first is store path" $ T.isPrefixOf (T.pack "/nix/store/") (head refs)
+
+testReadBuildPathsWithResultsResponse :: TestTree
+testReadBuildPathsWithResultsResponse = testCase "read_buildpathswithresults_response" $ do
+  captured <- readCapture "buildpathswithresults_response.bin"
+  case runReader (readBuildPathsWithResultsResponse 0x0126) captured of
+    Left err -> assertFailure $ "Parse failed: " ++ err
+    Right results -> do
+      length results @?= 1
+      let result = head results
+      assertBool "path contains hello" $ T.isInfixOf (T.pack "hello") (brpPath result)
+      brpStatus result @?= 2
+      length (brpBuiltOutputs result) @?= 1
