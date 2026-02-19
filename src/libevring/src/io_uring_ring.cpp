@@ -299,6 +299,16 @@ public:
 
   [[nodiscard]] auto active_handles() const -> std::size_t override { return resources_.size(); }
 
+  auto submit() -> int override { return io_uring_submit(&ring_); }
+
+  auto harvest() -> std::span<event> override { return harvest_completions(); }
+
+  [[nodiscard]] auto cq_ready() const -> std::size_t override { return io_uring_cq_ready(&ring_); }
+
+  [[nodiscard]] auto sq_space() const -> std::size_t override {
+    return io_uring_sq_space_left(&ring_);
+  }
+
   /// get raw io_uring pointer for registration functions
   [[nodiscard]] auto raw_ring() -> struct io_uring* { return &ring_; }
 

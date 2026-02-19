@@ -17,7 +17,7 @@ Traditional async code is hard to test because:
 - Callbacks create implicit state
 - Error paths are hard to exercise
 
-libevring solves this by separating **what** from **how**:
+`libevring` solves this by separating **what** from **how**:
 - **Machines** define pure state transitions (testable without I/O)
 - **Rings** execute operations against the kernel (real I/O)
 - **Replay** runs machines against recorded event streams (no I/O)

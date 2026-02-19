@@ -55,6 +55,18 @@ public:
 
   /// number of active handles
   [[nodiscard]] virtual auto active_handles() const -> std::size_t = 0;
+
+  /// submit enqueued operations without waiting
+  virtual auto submit() -> int = 0;
+
+  /// harvest all available completions (non-blocking)
+  virtual auto harvest() -> std::span<event> = 0;
+
+  /// number of completions ready to harvest
+  [[nodiscard]] virtual auto cq_ready() const -> std::size_t = 0;
+
+  /// space available in submission queue
+  [[nodiscard]] virtual auto sq_space() const -> std::size_t = 0;
 };
 
 /// io_uring setup flags (can be OR'd together)
@@ -199,6 +211,102 @@ auto run_traced(M& machine_instance, ring& ring_instance)
       for (const operation& operation_to_enqueue : result.operations) {
         ring_instance.enqueue(operation_to_enqueue);
       }
+    }
+  }
+
+  return {std::move(state), std::move(event_trace)};
+}
+
+/// run a generator machine with maximum throughput
+/// keeps SQ full, drains CQ completely - same strategy as bulk API
+template <typename M>
+  requires generator_machine<M>
+auto run_generate(M& machine_instance, ring& ring_instance) -> typename M::state_type {
+  typename M::state_type state = machine_instance.initial();
+
+  // helper to enqueue operations
+  auto enqueue_ops = [&](std::vector<operation>& ops) {
+    for (const operation& op : ops) {
+      ring_instance.enqueue(op);
+    }
+  };
+
+  // helper to process completions
+  auto process_completions = [&](std::span<event> events) {
+    for (const event& completion_event : events) {
+      auto [new_state, ops] = machine_instance.step(state, completion_event);
+      state = std::move(new_state);
+      enqueue_ops(ops);
+    }
+  };
+
+  while (!machine_instance.done(state)) {
+    // fill SQ with generated work
+    while (ring_instance.sq_space() > 0 && machine_instance.wants_to_submit(state)) {
+      auto [new_state, ops] = machine_instance.generate(state, ring_instance.sq_space());
+      state = std::move(new_state);
+      enqueue_ops(ops);
+    }
+
+    // nothing to submit and nothing pending? we're stuck or done
+    if (ring_instance.pending() == 0) {
+      break;
+    }
+
+    // submit and wait for at least one completion (also harvests)
+    std::span<event> events = ring_instance.submit_and_wait(1);
+    process_completions(events);
+
+    // drain any additional completions that are ready
+    while (ring_instance.cq_ready() > 0) {
+      events = ring_instance.harvest();
+      process_completions(events);
+    }
+  }
+
+  return state;
+}
+
+/// run_generate with tracing
+template <typename M>
+  requires generator_machine<M>
+auto run_generate_traced(M& machine_instance, ring& ring_instance)
+    -> std::pair<typename M::state_type, trace> {
+  trace event_trace;
+  typename M::state_type state = machine_instance.initial();
+
+  auto enqueue_ops = [&](std::vector<operation>& ops) {
+    for (const operation& op : ops) {
+      ring_instance.enqueue(op);
+    }
+  };
+
+  auto process_completions = [&](std::span<event> events) {
+    for (const event& completion_event : events) {
+      event_trace.record(completion_event);
+      auto [new_state, ops] = machine_instance.step(state, completion_event);
+      state = std::move(new_state);
+      enqueue_ops(ops);
+    }
+  };
+
+  while (!machine_instance.done(state)) {
+    while (ring_instance.sq_space() > 0 && machine_instance.wants_to_submit(state)) {
+      auto [new_state, ops] = machine_instance.generate(state, ring_instance.sq_space());
+      state = std::move(new_state);
+      enqueue_ops(ops);
+    }
+
+    if (ring_instance.pending() == 0) {
+      break;
+    }
+
+    std::span<event> events = ring_instance.submit_and_wait(1);
+    process_completions(events);
+
+    while (ring_instance.cq_ready() > 0) {
+      events = ring_instance.harvest();
+      process_completions(events);
     }
   }
 

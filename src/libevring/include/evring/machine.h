@@ -28,6 +28,19 @@ concept machine =
       { machine_instance.done(state) } -> std::same_as<bool>;
     };
 
+/// generator machine: can produce operations without waiting for completions
+/// used for bulk operations where we know the work upfront
+template <typename M>
+concept generator_machine =
+    machine<M> && requires(M machine_instance, typename M::state_type state, std::size_t max_ops) {
+      /// returns true if machine has operations ready to submit
+      { machine_instance.wants_to_submit(state) } -> std::same_as<bool>;
+      /// generate up to max_ops operations (no event required)
+      {
+        machine_instance.generate(state, max_ops)
+      } -> std::same_as<step_result<typename M::state_type>>;
+    };
+
 /// replay executor: runs a machine against a recorded event stream
 /// this is the key to testability - no I/O, completely deterministic
 /// note: the trace captures completion events, not the initial trigger.
@@ -73,6 +86,21 @@ auto replay_with_operations(M& machine_instance, std::span<const event> events)
   }
 
   return {std::move(state), std::move(all_operations)};
+}
+
+/// replay for generator machines
+/// generators don't use an initial empty event - they use generate() to produce work
+/// replay just feeds completion events directly to step()
+template <typename M>
+  requires generator_machine<M>
+auto replay_generate(M& machine_instance, std::span<const event> events) -> typename M::state_type {
+  typename M::state_type state = machine_instance.initial();
+
+  for (const event& completion_event : events) {
+    step_result<typename M::state_type> result = machine_instance.step(state, completion_event);
+    state = std::move(result.state);
+  }
+  return state;
 }
 
 /// trace: records events for later replay

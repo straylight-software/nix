@@ -1,3 +1,5 @@
+#include <filesystem>
+#include <fstream>
 #include <string>
 
 #include <catch2/catch_test_macros.hpp>
@@ -297,4 +299,119 @@ TEST_CASE("eval builtins.tryEval", "[eval][builtins]") {
 
   auto failure = evaluate("builtins.tryEval (builtins.throw \"oops\")");
   REQUIRE(failure.find("success = false") != std::string::npos);
+}
+
+// Helper that sets up file parser for import tests
+auto evaluate_with_import(const std::string& source, const std::filesystem::path& base_path)
+    -> std::string {
+  ast::symbol_table symbols;
+  auto expr = parse::parse(source, symbols);
+  eval::evaluator evaluator(symbols);
+  evaluator.set_file_parser([&symbols](const std::string& /* path */, const std::string& src) {
+    return parse::parse(src, symbols);
+  });
+  evaluator.set_base_path(base_path);
+  auto result = evaluator.eval(expr);
+  return evaluator.print_value(result);
+}
+
+TEST_CASE("eval builtins.baseNameOf", "[eval][builtins][path]") {
+  REQUIRE(evaluate("baseNameOf \"/foo/bar/baz.nix\"") == "\"baz.nix\"");
+  REQUIRE(evaluate("baseNameOf \"/foo/bar/\"") == "\"\"");
+  REQUIRE(evaluate("baseNameOf \"file.txt\"") == "\"file.txt\"");
+  REQUIRE(evaluate("builtins.baseNameOf \"/a/b/c\"") == "\"c\"");
+}
+
+TEST_CASE("eval builtins.dirOf", "[eval][builtins][path]") {
+  REQUIRE(evaluate("dirOf \"/foo/bar/baz.nix\"") == "\"/foo/bar\"");
+  REQUIRE(evaluate("dirOf \"/foo/bar\"") == "\"/foo\"");
+  REQUIRE(evaluate("builtins.dirOf \"/a/b/c\"") == "\"/a/b\"");
+}
+
+TEST_CASE("eval import with temporary files", "[eval][import]") {
+  // Create a temporary directory and file for testing
+  auto temp_dir = std::filesystem::temp_directory_path() / "nix_eval_test";
+  std::filesystem::create_directories(temp_dir);
+
+  // Write a simple library file
+  auto lib_path = temp_dir / "test_lib.nix";
+  {
+    std::ofstream file(lib_path);
+    file << "{ value = 42; double = x: x * 2; }";
+  }
+
+  // Test importing the file
+  std::string source = "let lib = import " + lib_path.string() + "; in lib.value";
+  REQUIRE(evaluate_with_import(source, temp_dir) == "42");
+
+  // Test calling a function from imported file
+  source = "let lib = import " + lib_path.string() + "; in lib.double 21";
+  REQUIRE(evaluate_with_import(source, temp_dir) == "42");
+
+  // Clean up
+  std::filesystem::remove_all(temp_dir);
+}
+
+TEST_CASE("eval builtins.readFile", "[eval][builtins][import]") {
+  // Create a temporary file
+  auto temp_dir = std::filesystem::temp_directory_path() / "nix_eval_test";
+  std::filesystem::create_directories(temp_dir);
+  auto test_file = temp_dir / "test_read.txt";
+  {
+    std::ofstream file(test_file);
+    file << "hello world";
+  }
+
+  std::string source = "builtins.readFile \"" + test_file.string() + "\"";
+  REQUIRE(evaluate_with_import(source, temp_dir) == "\"hello world\"");
+
+  // Clean up
+  std::filesystem::remove_all(temp_dir);
+}
+
+TEST_CASE("eval builtins.pathExists", "[eval][builtins][import]") {
+  auto temp_dir = std::filesystem::temp_directory_path() / "nix_eval_test";
+  std::filesystem::create_directories(temp_dir);
+  auto existing_file = temp_dir / "exists.nix";
+  {
+    std::ofstream file(existing_file);
+    file << "42";
+  }
+
+  std::string source = "builtins.pathExists \"" + existing_file.string() + "\"";
+  REQUIRE(evaluate_with_import(source, temp_dir) == "true");
+
+  source = "builtins.pathExists \"" + (temp_dir / "nonexistent.nix").string() + "\"";
+  REQUIRE(evaluate_with_import(source, temp_dir) == "false");
+
+  // Clean up
+  std::filesystem::remove_all(temp_dir);
+}
+
+TEST_CASE("eval nested imports", "[eval][import]") {
+  // Create nested directory structure
+  auto temp_dir = std::filesystem::temp_directory_path() / "nix_eval_nested_test";
+  auto inner_dir = temp_dir / "inner";
+  std::filesystem::create_directories(inner_dir);
+
+  // Write inner file
+  auto inner_path = inner_dir / "inner.nix";
+  {
+    std::ofstream file(inner_path);
+    file << "{ innerValue = 100; }";
+  }
+
+  // Write outer file that imports inner
+  auto outer_path = temp_dir / "outer.nix";
+  {
+    std::ofstream file(outer_path);
+    file << "let inner = import ./inner/inner.nix; in { val = inner.innerValue; }";
+  }
+
+  // Test nested import
+  std::string source = "(import " + outer_path.string() + ").val";
+  REQUIRE(evaluate_with_import(source, temp_dir) == "100");
+
+  // Clean up
+  std::filesystem::remove_all(temp_dir);
 }

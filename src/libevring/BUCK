@@ -11,7 +11,7 @@
 #   - Machine concept: pure functional state machines
 #   - Replay executor: deterministic testing without I/O
 #   - io_uring backend: high-performance Linux async I/O
-#   - Bulk operations: bypass state machine for maximum throughput
+#   - Generator machines: bulk performance with full replayability
 
 cxx_library(
     name = "evring",
@@ -62,6 +62,13 @@ cxx_test(
     name = "test_io_uring",
     srcs = ["test/test_io_uring.cpp"],
     compiler_flags = ["-std=c++23"],
+    deps = [":evring"],
+)
+
+cxx_test(
+    name = "test_generator",
+    srcs = ["test/test_generator.cpp"],
+    compiler_flags = ["-std=c++23", "-O3"],
     deps = [":evring"],
 )
 
