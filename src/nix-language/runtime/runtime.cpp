@@ -5,7 +5,9 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
 #include <iostream>
 #include <limits>
@@ -1782,8 +1784,182 @@ auto rt_function_args(runtime_context& ctx, nix_value f) -> nix_value {
   return make_value(value_tag::attribute_set, 0);
 }
 
-// Return empty attrset for now
-return make_value(value_tag::attribute_set, 0);
+auto rt_get_env(runtime_context& ctx, nix_value name) -> nix_value {
+  name = rt_force(ctx, name);
+
+  if (!is_string(name)) {
+    throw type_error("builtins.getEnv: expected string, got '" + std::string(type_name(name)) +
+                     "'");
+  }
+
+  auto name_str = std::string(ctx.read_string(get_payload(name)));
+  const char* val = std::getenv(name_str.c_str());
+
+  if (val == nullptr) {
+    // Return empty string for unset variables
+    auto ptr = allocate_string(ctx, "");
+    return make_value(value_tag::string, ptr);
+  }
+
+  auto ptr = allocate_string(ctx, val);
+  return make_value(value_tag::string, ptr);
+}
+
+auto rt_to_lower(runtime_context& ctx, nix_value s) -> nix_value {
+  s = rt_force(ctx, s);
+
+  if (!is_string(s)) {
+    throw type_error("builtins.toLower: expected string, got '" + std::string(type_name(s)) + "'");
+  }
+
+  auto str = std::string(ctx.read_string(get_payload(s)));
+  for (auto& c : str) {
+    c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+  }
+
+  auto ptr = allocate_string(ctx, str);
+  return make_value(value_tag::string, ptr);
+}
+
+auto rt_to_upper(runtime_context& ctx, nix_value s) -> nix_value {
+  s = rt_force(ctx, s);
+
+  if (!is_string(s)) {
+    throw type_error("builtins.toUpper: expected string, got '" + std::string(type_name(s)) + "'");
+  }
+
+  auto str = std::string(ctx.read_string(get_payload(s)));
+  for (auto& c : str) {
+    c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+  }
+
+  auto ptr = allocate_string(ctx, str);
+  return make_value(value_tag::string, ptr);
+}
+
+// Compare version strings: -1 if a < b, 0 if a == b, 1 if a > b
+auto rt_compare_versions(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
+  a = rt_force(ctx, a);
+  b = rt_force(ctx, b);
+
+  if (!is_string(a)) {
+    throw type_error("builtins.compareVersions: first argument must be string, got '" +
+                     std::string(type_name(a)) + "'");
+  }
+  if (!is_string(b)) {
+    throw type_error("builtins.compareVersions: second argument must be string, got '" +
+                     std::string(type_name(b)) + "'");
+  }
+
+  auto va = std::string(ctx.read_string(get_payload(a)));
+  auto vb = std::string(ctx.read_string(get_payload(b)));
+
+  // Simple version comparison: split by '.' and compare components
+  auto split_version = [](const std::string& ver) -> std::vector<std::string> {
+    std::vector<std::string> parts;
+    std::string current;
+    for (char c : ver) {
+      if (c == '.' || c == '-') {
+        if (!current.empty()) {
+          parts.push_back(current);
+          current.clear();
+        }
+      } else {
+        current += c;
+      }
+    }
+    if (!current.empty()) {
+      parts.push_back(current);
+    }
+    return parts;
+  };
+
+  auto compare_part = [](const std::string& pa, const std::string& pb) -> int {
+    // Treat empty as "0" for numeric comparison
+    auto a_str = pa.empty() ? "0" : pa;
+    auto b_str = pb.empty() ? "0" : pb;
+
+    // Try numeric comparison first
+    bool a_numeric = std::all_of(a_str.begin(), a_str.end(), ::isdigit);
+    bool b_numeric = std::all_of(b_str.begin(), b_str.end(), ::isdigit);
+
+    if (a_numeric && b_numeric) {
+      auto na = std::stol(a_str);
+      auto nb = std::stol(b_str);
+      if (na < nb)
+        return -1;
+      if (na > nb)
+        return 1;
+      return 0;
+    }
+
+    // Fall back to string comparison
+    if (a_str < b_str)
+      return -1;
+    if (a_str > b_str)
+      return 1;
+    return 0;
+  };
+
+  auto parts_a = split_version(va);
+  auto parts_b = split_version(vb);
+
+  auto max_len = std::max(parts_a.size(), parts_b.size());
+  for (std::size_t i = 0; i < max_len; ++i) {
+    auto pa = i < parts_a.size() ? parts_a[i] : "";
+    auto pb = i < parts_b.size() ? parts_b[i] : "";
+    auto cmp = compare_part(pa, pb);
+    if (cmp != 0) {
+      return make_value(value_tag::integer, static_cast<std::uint32_t>(cmp));
+    }
+  }
+
+  return make_value(value_tag::integer, 0);
+}
+
+auto rt_split_version(runtime_context& ctx, nix_value v) -> nix_value {
+  v = rt_force(ctx, v);
+
+  if (!is_string(v)) {
+    throw type_error("builtins.splitVersion: expected string, got '" + std::string(type_name(v)) +
+                     "'");
+  }
+
+  auto ver = std::string(ctx.read_string(get_payload(v)));
+
+  // Split by '.' and '-'
+  std::vector<std::string> parts;
+  std::string current;
+  for (char c : ver) {
+    if (c == '.' || c == '-') {
+      if (!current.empty()) {
+        parts.push_back(current);
+        current.clear();
+      }
+    } else {
+      current += c;
+    }
+  }
+  if (!current.empty()) {
+    parts.push_back(current);
+  }
+
+  if (parts.empty()) {
+    return make_value(value_tag::list, 0);
+  }
+
+  auto count = static_cast<std::uint32_t>(parts.size());
+  auto list_size = mem::list_size(count);
+  auto list_ptr = ctx.allocate(list_size);
+  ctx.write_i32(list_ptr + mem::LIST_COUNT_OFFSET, static_cast<std::int32_t>(count));
+
+  for (std::uint32_t i = 0; i < count; ++i) {
+    auto str_ptr = allocate_string(ctx, parts[i]);
+    ctx.write_value(list_ptr + mem::LIST_ELEMENTS_OFFSET + i * mem::VALUE_SIZE,
+                    make_value(value_tag::string, str_ptr));
+  }
+
+  return make_value(value_tag::list, list_ptr);
 }
 
 // =============================================================================
@@ -2521,6 +2697,10 @@ constexpr std::uint32_t primop_arity(std::uint32_t index) {
     case b::floor_fn:       // floor x
     case b::ceil_fn:        // ceil x
     case b::function_args:  // functionArgs f
+    case b::get_env:        // getEnv name
+    case b::to_lower:       // toLower str
+    case b::to_upper:       // toUpper str
+    case b::split_version:  // splitVersion v
       return 1;
 
     // 2-arg primops
@@ -2553,6 +2733,7 @@ constexpr std::uint32_t primop_arity(std::uint32_t index) {
     case b::bit_or:            // bitOr a b
     case b::bit_xor:           // bitXor a b
     case b::intersect_attrs:   // intersectAttrs a b
+    case b::compare_versions:  // compareVersions a b
       return 2;
 
     // 3-arg primops
@@ -2633,6 +2814,14 @@ auto rt_apply_primop(runtime_context& ctx, std::uint32_t primop_index, nix_value
         return rt_ceil(ctx, arg);
       case b::function_args:
         return rt_function_args(ctx, arg);
+      case b::get_env:
+        return rt_get_env(ctx, arg);
+      case b::to_lower:
+        return rt_to_lower(ctx, arg);
+      case b::to_upper:
+        return rt_to_upper(ctx, arg);
+      case b::split_version:
+        return rt_split_version(ctx, arg);
       default:
         throw runtime_error("unknown primop index: " + std::to_string(primop_index));
     }
@@ -2723,6 +2912,8 @@ static auto rt_apply_partial_primop(runtime_context& ctx, std::uint32_t partial_
         return rt_bit_xor(ctx, arg1, arg2);
       case b::intersect_attrs:
         return rt_intersect_attrs(ctx, arg1, arg2);
+      case b::compare_versions:
+        return rt_compare_versions(ctx, arg1, arg2);
       default:
         throw runtime_error("unknown 2-arg primop index: " + std::to_string(primop_index));
     }
@@ -2823,6 +3014,9 @@ void rt_init_builtins(runtime_context& ctx) {
   entries.emplace_back("catAttrs", make_value(value_tag::primop, b::cat_attrs));
   entries.emplace_back("intersectAttrs", make_value(value_tag::primop, b::intersect_attrs));
   entries.emplace_back("functionArgs", make_value(value_tag::primop, b::function_args));
+  entries.emplace_back("getEnv", make_value(value_tag::primop, b::get_env));
+  entries.emplace_back("compareVersions", make_value(value_tag::primop, b::compare_versions));
+  entries.emplace_back("splitVersion", make_value(value_tag::primop, b::split_version));
 
   // String operations
   entries.emplace_back("stringLength", make_value(value_tag::primop, b::string_length));
@@ -2832,6 +3026,8 @@ void rt_init_builtins(runtime_context& ctx) {
   entries.emplace_back("concatStrings", make_value(value_tag::primop, b::concat_strings));
   entries.emplace_back("concatStringsSep", make_value(value_tag::primop, b::concat_string_sep));
   entries.emplace_back("typeOf", make_value(value_tag::primop, b::type_of));
+  entries.emplace_back("toLower", make_value(value_tag::primop, b::to_lower));
+  entries.emplace_back("toUpper", make_value(value_tag::primop, b::to_upper));
 
   // Arithmetic (as functions)
   entries.emplace_back("add", make_value(value_tag::primop, b::builtin_add));

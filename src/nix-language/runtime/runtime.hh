@@ -586,6 +586,21 @@ void rt_init_builtins(runtime_context& ctx);
 /// Get function arguments: functionArgs f
 [[nodiscard]] auto rt_function_args(runtime_context& ctx, nix_value f) -> nix_value;
 
+/// Get environment variable: getEnv name
+[[nodiscard]] auto rt_get_env(runtime_context& ctx, nix_value name) -> nix_value;
+
+/// Convert to lowercase: toLower str
+[[nodiscard]] auto rt_to_lower(runtime_context& ctx, nix_value s) -> nix_value;
+
+/// Convert to uppercase: toUpper str
+[[nodiscard]] auto rt_to_upper(runtime_context& ctx, nix_value s) -> nix_value;
+
+/// Compare version strings: compareVersions a b
+[[nodiscard]] auto rt_compare_versions(runtime_context& ctx, nix_value a, nix_value b) -> nix_value;
+
+/// Split version string: splitVersion v
+[[nodiscard]] auto rt_split_version(runtime_context& ctx, nix_value v) -> nix_value;
+
 // --- Arithmetic Builtins (as functions) ---
 
 /// Add: add a b

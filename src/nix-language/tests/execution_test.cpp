@@ -989,3 +989,32 @@ TEST_CASE("exec: builtins.functionArgs", "[execution][builtins]") {
   // functionArgs returns attrset (empty for now since we don't track args)
   expect_int(R"(builtins.length (builtins.attrNames (builtins.functionArgs (x: x))))", 0);
 }
+
+TEST_CASE("exec: builtins.toLower", "[execution][builtins]") {
+  expect_string(R"(builtins.toLower "HELLO")", "hello");
+  expect_string(R"(builtins.toLower "Hello World")", "hello world");
+  expect_string(R"(builtins.toLower "already lower")", "already lower");
+  expect_string(R"(builtins.toLower "")", "");
+}
+
+TEST_CASE("exec: builtins.toUpper", "[execution][builtins]") {
+  expect_string(R"(builtins.toUpper "hello")", "HELLO");
+  expect_string(R"(builtins.toUpper "Hello World")", "HELLO WORLD");
+  expect_string(R"(builtins.toUpper "ALREADY UPPER")", "ALREADY UPPER");
+  expect_string(R"(builtins.toUpper "")", "");
+}
+
+TEST_CASE("exec: builtins.compareVersions", "[execution][builtins]") {
+  expect_int(R"(builtins.compareVersions "1.0" "2.0")", -1);
+  expect_int(R"(builtins.compareVersions "2.0" "1.0")", 1);
+  expect_int(R"(builtins.compareVersions "1.0" "1.0")", 0);
+  expect_int(R"(builtins.compareVersions "1.2.3" "1.2.4")", -1);
+  expect_int(R"(builtins.compareVersions "1.10" "1.9")", 1);
+  expect_int(R"(builtins.compareVersions "1.0.0" "1.0")", 0);
+}
+
+TEST_CASE("exec: builtins.splitVersion", "[execution][builtins]") {
+  expect_int(R"(builtins.length (builtins.splitVersion "1.2.3"))", 3);
+  expect_string(R"(builtins.head (builtins.splitVersion "1.2.3"))", "1");
+  expect_string(R"(builtins.elemAt (builtins.splitVersion "1.2.3") 2)", "3");
+}

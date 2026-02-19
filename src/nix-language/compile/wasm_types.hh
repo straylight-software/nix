@@ -184,6 +184,9 @@ constexpr std::uint32_t ceil_fn = 606;
 constexpr std::uint32_t bit_and = 607;
 constexpr std::uint32_t bit_or = 608;
 constexpr std::uint32_t bit_xor = 609;
+constexpr std::uint32_t get_env = 610;
+constexpr std::uint32_t compare_versions = 611;
+constexpr std::uint32_t split_version = 612;
 
 } // namespace builtins
 
