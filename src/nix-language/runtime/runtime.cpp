@@ -1253,56 +1253,6 @@ auto rt_replace_strings(runtime_context& ctx, nix_value from, nix_value to, nix_
   return make_value(value_tag::string, result_ptr);
 }
 
-auto rt_to_string(runtime_context& ctx, nix_value v) -> nix_value {
-  v = rt_force(ctx, v);
-
-  std::string result;
-  if (is_string(v)) {
-    return v; // Already a string
-  } else if (is_int(v)) {
-    result = std::to_string(static_cast<std::int32_t>(get_payload(v)));
-  } else if (is_bool(v)) {
-    result = (v == constants::bool_true) ? "1" : "";
-  } else if (is_null(v)) {
-    result = "";
-  } else if (is_path(v)) {
-    result = ctx.read_string(get_payload(v));
-  } else if (is_list(v)) {
-    // Concatenate string elements
-    auto list_ptr = get_payload(v);
-    if (list_ptr != 0) {
-      auto count = ctx.read_u32(list_ptr + mem::LIST_COUNT_OFFSET);
-      for (std::uint32_t i = 0; i < count; ++i) {
-        auto elem = ctx.read_value(list_ptr + mem::LIST_ELEMENTS_OFFSET + i * mem::VALUE_SIZE);
-        auto elem_str = rt_to_string(ctx, elem);
-        if (i > 0)
-          result += " ";
-        result += ctx.read_string(get_payload(elem_str));
-      }
-    }
-  } else if (is_attrset(v)) {
-    // Check for __toString or outPath
-    auto attrs_ptr = get_payload(v);
-    auto to_string_val = find_attr(ctx, attrs_ptr, "__toString");
-    if (to_string_val.has_value()) {
-      auto fn = rt_force(ctx, *to_string_val);
-      auto str_val = rt_apply(ctx, fn, v);
-      return rt_to_string(ctx, str_val);
-    }
-    auto out_path = find_attr(ctx, attrs_ptr, "outPath");
-    if (out_path.has_value()) {
-      return rt_to_string(ctx, *out_path);
-    }
-    throw type_error("builtins.toString: cannot coerce set to string");
-  } else {
-    throw type_error("builtins.toString: cannot coerce " + std::string(type_name(v)) +
-                     " to string");
-  }
-
-  auto ptr = allocate_string(ctx, result);
-  return make_value(value_tag::string, ptr);
-}
-
 auto rt_concat_strings(runtime_context& ctx, nix_value list) -> nix_value {
   list = rt_force(ctx, list);
 
@@ -1477,19 +1427,19 @@ auto rt_list_to_attrs(runtime_context& ctx, nix_value list) -> nix_value {
 // =============================================================================
 
 auto rt_builtin_add(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
-  return rt_add(ctx, a, b);
+  return rt_add(ctx, a, b, 0, 0);
 }
 
 auto rt_builtin_sub(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
-  return rt_sub(ctx, a, b);
+  return rt_sub(ctx, a, b, 0, 0);
 }
 
 auto rt_builtin_mul(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
-  return rt_mul(ctx, a, b);
+  return rt_mul(ctx, a, b, 0, 0);
 }
 
 auto rt_builtin_div(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
-  return rt_div(ctx, a, b);
+  return rt_div(ctx, a, b, 0, 0);
 }
 
 auto rt_builtin_less_than(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
@@ -2109,29 +2059,41 @@ constexpr std::uint32_t primop_arity(std::uint32_t index) {
     case b::attr_values:
     case b::string_length:
     case BUILTIN_CONCAT_LISTS:
-    case b::throw_error: // throw msg
-    case b::abort_eval:  // abort msg
-    case b::try_eval:    // tryEval expr
+    case b::throw_error:    // throw msg
+    case b::abort_eval:     // abort msg
+    case b::try_eval:       // tryEval expr
+    case b::to_string:      // toString val
+    case b::concat_strings: // concatStrings list
+    case b::list_to_attrs:  // listToAttrs list
       return 1;
 
     // 2-arg primops
     case b::elem: // elem x list
     case BUILTIN_ELEM_AT:
-    case b::map:          // map f list
-    case b::filter:       // filter pred list
-    case b::gen_list:     // genList f n
-    case b::trace:        // trace msg val
-    case b::seq:          // seq a b
-    case b::deep_seq:     // deepSeq a b
-    case b::has_attr:     // hasAttr name set
-    case b::get_attr:     // getAttr name set
-    case b::remove_attrs: // removeAttrs set names
-    case b::sort:         // sort comparator list
+    case b::map:               // map f list
+    case b::filter:            // filter pred list
+    case b::gen_list:          // genList f n
+    case b::trace:             // trace msg val
+    case b::seq:               // seq a b
+    case b::deep_seq:          // deepSeq a b
+    case b::has_attr:          // hasAttr name set
+    case b::get_attr:          // getAttr name set
+    case b::remove_attrs:      // removeAttrs set names
+    case b::sort:              // sort comparator list
+    case b::all:               // all pred list
+    case b::any:               // any pred list
+    case b::concat_map:        // concatMap f list
+    case b::builtin_add:       // add a b
+    case b::builtin_sub:       // sub a b
+    case b::builtin_mul:       // mul a b
+    case b::builtin_div:       // div a b
+    case b::builtin_less_than: // lessThan a b
       return 2;
 
     // 3-arg primops
-    case b::foldl:     // foldl' op init list
-    case b::substring: // substring start len str
+    case b::foldl:           // foldl' op init list
+    case b::substring:       // substring start len str
+    case b::replace_strings: // replaceStrings from to str
       return 3;
 
     default:
@@ -2194,6 +2156,12 @@ auto rt_apply_primop(runtime_context& ctx, std::uint32_t primop_index, nix_value
         return rt_abort(ctx, arg);
       case b::try_eval:
         return rt_try_eval(ctx, arg);
+      case b::to_string:
+        return rt_to_string(ctx, arg);
+      case b::concat_strings:
+        return rt_concat_strings(ctx, arg);
+      case b::list_to_attrs:
+        return rt_list_to_attrs(ctx, arg);
       default:
         throw runtime_error("unknown primop index: " + std::to_string(primop_index));
     }
@@ -2250,6 +2218,22 @@ static auto rt_apply_partial_primop(runtime_context& ctx, std::uint32_t partial_
         return rt_remove_attrs(ctx, arg1, arg2);
       case b::sort:
         return rt_sort(ctx, arg1, arg2);
+      case b::all:
+        return rt_all(ctx, arg1, arg2);
+      case b::any:
+        return rt_any(ctx, arg1, arg2);
+      case b::concat_map:
+        return rt_concat_map(ctx, arg1, arg2);
+      case b::builtin_add:
+        return rt_builtin_add(ctx, arg1, arg2);
+      case b::builtin_sub:
+        return rt_builtin_sub(ctx, arg1, arg2);
+      case b::builtin_mul:
+        return rt_builtin_mul(ctx, arg1, arg2);
+      case b::builtin_div:
+        return rt_builtin_div(ctx, arg1, arg2);
+      case b::builtin_less_than:
+        return rt_builtin_less_than(ctx, arg1, arg2);
       default:
         throw runtime_error("unknown 2-arg primop index: " + std::to_string(primop_index));
     }
@@ -2288,6 +2272,8 @@ static auto rt_apply_partial_primop_3arg(runtime_context& ctx, std::uint32_t par
       return rt_foldl(ctx, arg1, arg2, arg3);
     case b::substring:
       return rt_substring(ctx, arg1, arg2, arg3);
+    case b::replace_strings:
+      return rt_replace_strings(ctx, arg1, arg2, arg3);
     default:
       throw runtime_error("unknown 3-arg primop index: " + std::to_string(primop_index));
   }
@@ -2331,6 +2317,9 @@ void rt_init_builtins(runtime_context& ctx) {
   entries.emplace_back("genList", make_value(value_tag::primop, b::gen_list));
   entries.emplace_back("concatLists", make_value(value_tag::primop, BUILTIN_CONCAT_LISTS));
   entries.emplace_back("sort", make_value(value_tag::primop, b::sort));
+  entries.emplace_back("all", make_value(value_tag::primop, b::all));
+  entries.emplace_back("any", make_value(value_tag::primop, b::any));
+  entries.emplace_back("concatMap", make_value(value_tag::primop, b::concat_map));
 
   // Attrset operations
   entries.emplace_back("attrNames", make_value(value_tag::primop, b::attr_names));
@@ -2338,11 +2327,22 @@ void rt_init_builtins(runtime_context& ctx) {
   entries.emplace_back("hasAttr", make_value(value_tag::primop, b::has_attr));
   entries.emplace_back("getAttr", make_value(value_tag::primop, b::get_attr));
   entries.emplace_back("removeAttrs", make_value(value_tag::primop, b::remove_attrs));
+  entries.emplace_back("listToAttrs", make_value(value_tag::primop, b::list_to_attrs));
 
   // String operations
   entries.emplace_back("stringLength", make_value(value_tag::primop, b::string_length));
   entries.emplace_back("substring", make_value(value_tag::primop, b::substring));
+  entries.emplace_back("replaceStrings", make_value(value_tag::primop, b::replace_strings));
+  entries.emplace_back("toString", make_value(value_tag::primop, b::to_string));
+  entries.emplace_back("concatStrings", make_value(value_tag::primop, b::concat_strings));
   entries.emplace_back("typeOf", make_value(value_tag::primop, b::type_of));
+
+  // Arithmetic (as functions)
+  entries.emplace_back("add", make_value(value_tag::primop, b::builtin_add));
+  entries.emplace_back("sub", make_value(value_tag::primop, b::builtin_sub));
+  entries.emplace_back("mul", make_value(value_tag::primop, b::builtin_mul));
+  entries.emplace_back("div", make_value(value_tag::primop, b::builtin_div));
+  entries.emplace_back("lessThan", make_value(value_tag::primop, b::builtin_less_than));
 
   // Error handling
   entries.emplace_back("throw", make_value(value_tag::primop, b::throw_error));

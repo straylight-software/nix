@@ -816,3 +816,67 @@ TEST_CASE("exec: builtins.sort", "[execution][builtins]") {
   // Already sorted
   expect_int("builtins.head (builtins.sort (a: b: a < b) [1 2 3])", 1);
 }
+
+// =============================================================================
+// More Builtins
+// =============================================================================
+
+TEST_CASE("exec: builtins.replaceStrings", "[execution][builtins]") {
+  expect_string(R"(builtins.replaceStrings ["a"] ["b"] "banana")", "bbnbnb");
+  expect_string(R"(builtins.replaceStrings ["o"] ["0"] "foo")", "f00");
+  expect_string(R"(builtins.replaceStrings ["ll"] ["LL"] "hello")", "heLLo");
+  expect_string(R"(builtins.replaceStrings [] [] "hello")", "hello");
+  expect_string(R"(builtins.replaceStrings ["x"] ["y"] "hello")", "hello");
+  // Multiple replacements - first match wins
+  expect_string(R"(builtins.replaceStrings ["a" "b"] ["1" "2"] "ab")", "12");
+}
+
+TEST_CASE("exec: builtins.toString", "[execution][builtins]") {
+  expect_string(R"(builtins.toString 42)", "42");
+  expect_string(R"(builtins.toString (-5))", "-5");
+  expect_string(R"(builtins.toString null)", "");
+  // string passthrough
+  expect_string(R"(builtins.toString "hello")", "hello");
+}
+
+TEST_CASE("exec: builtins.concatStrings", "[execution][builtins]") {
+  expect_string(R"(builtins.concatStrings ["a" "b" "c"])", "abc");
+  expect_string(R"(builtins.concatStrings ["hello" " " "world"])", "hello world");
+  expect_string(R"(builtins.concatStrings [])", "");
+  expect_string(R"(builtins.concatStrings ["single"])", "single");
+}
+
+TEST_CASE("exec: builtins.all", "[execution][builtins]") {
+  expect_bool("builtins.all (x: x > 0) [1 2 3]", true);
+  expect_bool("builtins.all (x: x > 0) [1 0 3]", false);
+  expect_bool("builtins.all (x: x > 0) []", true); // vacuously true
+}
+
+TEST_CASE("exec: builtins.any", "[execution][builtins]") {
+  expect_bool("builtins.any (x: x > 0) [(-1) 0 1]", true);
+  expect_bool("builtins.any (x: x > 0) [(-1) 0 (-2)]", false);
+  expect_bool("builtins.any (x: x > 0) []", false); // vacuously false
+}
+
+TEST_CASE("exec: builtins.concatMap", "[execution][builtins]") {
+  expect_int("builtins.length (builtins.concatMap (x: [x x]) [1 2])", 4);
+  expect_int("builtins.head (builtins.concatMap (x: [x x]) [1 2])", 1);
+  expect_int("builtins.elemAt (builtins.concatMap (x: [x x]) [1 2]) 2", 2);
+}
+
+TEST_CASE("exec: builtins.listToAttrs", "[execution][builtins]") {
+  expect_int(R"((builtins.listToAttrs [{name = "x"; value = 1;}]).x)", 1);
+  expect_int(R"((builtins.listToAttrs [{name = "a"; value = 1;} {name = "b"; value = 2;}]).b)", 2);
+  // First occurrence wins
+  expect_int(R"((builtins.listToAttrs [{name = "x"; value = 1;} {name = "x"; value = 2;}]).x)", 1);
+}
+
+TEST_CASE("exec: builtins arithmetic functions", "[execution][builtins]") {
+  expect_int("builtins.add 2 3", 5);
+  expect_int("builtins.sub 10 3", 7);
+  expect_int("builtins.mul 4 5", 20);
+  expect_int("builtins.div 10 3", 3);
+  expect_bool("builtins.lessThan 1 2", true);
+  expect_bool("builtins.lessThan 2 1", false);
+  expect_bool("builtins.lessThan 1 1", false);
+}
