@@ -28,47 +28,47 @@ TODO_NixOS
 # FIXME: repl tests fail on systems with stack limits
 stack_ulimit="$(ulimit -Hs)"
 stack_required="$((64 * 1024 * 1024))"
-if [[ "$stack_ulimit" != "unlimited" ]]; then
-    ((stack_ulimit < stack_required)) && skipTest "repl tests cannot run on systems with stack size <$stack_required ($stack_ulimit)"
+if [[ $stack_ulimit != "unlimited" ]]; then
+  ((stack_ulimit < stack_required)) && skipTest "repl tests cannot run on systems with stack size <$stack_required ($stack_ulimit)"
 fi
 
-testRepl () {
-    local nixArgs
-    nixArgs=("$@")
-    rm -rf repl-result-out || true # cleanup from other runs backed by a foreign nix store
-    local replOutput
-    replOutput="$(nix repl "${nixArgs[@]}" <<< "$replCmds")"
-    echo "$replOutput"
-    local outPath
-    outPath=$(echo "$replOutput" |&
-        grep -o -E "$NIX_STORE_DIR/\w*-simple")
-    nix path-info "${nixArgs[@]}" "$outPath"
-    [ "$(realpath ./repl-result-out)" == "$outPath" ] || fail "nix repl :bl doesn't make a symlink"
-    # run it again without checking the output to ensure the previously created symlink gets overwritten
-    nix repl "${nixArgs[@]}" <<< "$replCmds" || fail "nix repl does not work twice with the same inputs"
+testRepl() {
+  local nixArgs
+  nixArgs=("$@")
+  rm -rf repl-result-out || true # cleanup from other runs backed by a foreign nix store
+  local replOutput
+  replOutput="$(nix repl "${nixArgs[@]}" <<<"$replCmds")"
+  echo "$replOutput"
+  local outPath
+  outPath=$(echo "$replOutput" |&
+    grep -o -E "$NIX_STORE_DIR/\w*-simple")
+  nix path-info "${nixArgs[@]}" "$outPath"
+  [ "$(realpath ./repl-result-out)" == "$outPath" ] || fail "nix repl :bl doesn't make a symlink"
+  # run it again without checking the output to ensure the previously created symlink gets overwritten
+  nix repl "${nixArgs[@]}" <<<"$replCmds" || fail "nix repl does not work twice with the same inputs"
 
-    # simple.nix prints a PATH during build
-    echo "$replOutput" | grepQuiet -s 'PATH=' || fail "nix repl :log doesn't output logs"
-    replOutput="$(nix repl "${nixArgs[@]}" <<< "$replFailingCmds" 2>&1)"
-    echo "$replOutput"
-    echo "$replOutput" | grepQuiet -s 'This should fail' \
-      || fail "nix repl :log doesn't output logs for a failed derivation"
-    replOutput="$(nix repl --show-trace "${nixArgs[@]}" <<< "$replUndefinedVariable" 2>&1)"
-    echo "$replOutput"
-    echo "$replOutput" | grepQuiet -s "while evaluating the file" \
-      || fail "nix repl --show-trace doesn't show the trace"
+  # simple.nix prints a PATH during build
+  echo "$replOutput" | grepQuiet -s 'PATH=' || fail "nix repl :log doesn't output logs"
+  replOutput="$(nix repl "${nixArgs[@]}" <<<"$replFailingCmds" 2>&1)"
+  echo "$replOutput"
+  echo "$replOutput" | grepQuiet -s 'This should fail' ||
+    fail "nix repl :log doesn't output logs for a failed derivation"
+  replOutput="$(nix repl --show-trace "${nixArgs[@]}" <<<"$replUndefinedVariable" 2>&1)"
+  echo "$replOutput"
+  echo "$replOutput" | grepQuiet -s "while evaluating the file" ||
+    fail "nix repl --show-trace doesn't show the trace"
 
-    nix repl "${nixArgs[@]}" --option pure-eval true 2>&1 <<< "builtins.currentSystem" \
-      | grep "attribute 'currentSystem' missing"
-    nix repl "${nixArgs[@]}" 2>&1 <<< "builtins.currentSystem" \
-      | grep "$(nix-instantiate --eval -E 'builtins.currentSystem')"
+  nix repl "${nixArgs[@]}" --option pure-eval true 2>&1 <<<"builtins.currentSystem" |
+    grep "attribute 'currentSystem' missing"
+  nix repl "${nixArgs[@]}" 2>&1 <<<"builtins.currentSystem" |
+    grep "$(nix-instantiate --eval -E 'builtins.currentSystem')"
 
-    # regression test for #12163
-    replOutput=$(nix repl "${nixArgs[@]}" 2>&1 <<< ":sh import $testDir/simple.nix")
-    echo "$replOutput" | grepInverse "error: Cannot run 'nix-shell'"
+  # regression test for #12163
+  replOutput=$(nix repl "${nixArgs[@]}" 2>&1 <<<":sh import $testDir/simple.nix")
+  echo "$replOutput" | grepInverse "error: Cannot run 'nix-shell'"
 
-    expectStderr 1 nix repl "${testDir}/simple.nix" \
-      | grepQuiet -s "error: path '$testDir/simple.nix' is not a flake"
+  expectStderr 1 nix repl "${testDir}/simple.nix" |
+    grepQuiet -s "error: path '$testDir/simple.nix' is not a flake"
 }
 
 # Simple test, try building a drv
@@ -77,23 +77,26 @@ testRepl
 testRepl --store "$TEST_ROOT/other-root?real=$NIX_STORE_DIR"
 
 # Remove ANSI escape sequences. They can prevent grep from finding a match.
-stripColors () {
-    sed -E 's/\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]//g'
+stripColors() {
+  sed -E 's/\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]//g'
 }
 
-testReplResponseGeneral () {
-    local grepMode commands expectedResponse response
-    grepMode="$1"; shift
-    commands="$1"; shift
-    # Expected response can contain newlines.
-    # grep can't handle multiline patterns, so replace newlines with TEST_NEWLINE
-    # in both expectedResponse and response.
-    # awk ORS always adds a trailing record separator, so we strip it with sed.
-    expectedResponse="$(printf '%s' "$1" | awk 1 ORS=TEST_NEWLINE | sed 's/TEST_NEWLINE$//')"; shift
-    # We don't need to strip trailing record separator here, since extra data is ok.
-    response="$(nix repl "$@" <<< "$commands" 2>&1 | stripColors | awk 1 ORS=TEST_NEWLINE)"
-    printf '%s' "$response" | grepQuiet "$grepMode" -s "$expectedResponse" \
-      || fail "$(echo "repl command set:
+testReplResponseGeneral() {
+  local grepMode commands expectedResponse response
+  grepMode="$1"
+  shift
+  commands="$1"
+  shift
+  # Expected response can contain newlines.
+  # grep can't handle multiline patterns, so replace newlines with TEST_NEWLINE
+  # in both expectedResponse and response.
+  # awk ORS always adds a trailing record separator, so we strip it with sed.
+  expectedResponse="$(printf '%s' "$1" | awk 1 ORS=TEST_NEWLINE | sed 's/TEST_NEWLINE$//')"
+  shift
+  # We don't need to strip trailing record separator here, since extra data is ok.
+  response="$(nix repl "$@" <<<"$commands" 2>&1 | stripColors | awk 1 ORS=TEST_NEWLINE)"
+  printf '%s' "$response" | grepQuiet "$grepMode" -s "$expectedResponse" ||
+    fail "$(echo "repl command set:
 
 $commands
 
@@ -112,12 +115,12 @@ $response
 " | sed 's/TEST_NEWLINE/\n/g')"
 }
 
-testReplResponse () {
-    testReplResponseGeneral --basic-regexp "$@"
+testReplResponse() {
+  testReplResponseGeneral --basic-regexp "$@"
 }
 
-testReplResponseNoRegex () {
-    testReplResponseGeneral --fixed-strings "$@"
+testReplResponseNoRegex() {
+  testReplResponseGeneral --fixed-strings "$@"
 }
 
 # :a uses the newest version of a symbol
@@ -142,14 +145,14 @@ testReplResponseNoRegex '
 testReplResponse '
 drvPath
 ' '".*-simple.drv"' \
---file "$testDir/simple.nix"
+  --file "$testDir/simple.nix"
 
 testReplResponse '
 drvPath
 ' '".*-simple.drv"' \
---file "$testDir/simple.nix" --experimental-features 'ca-derivations'
+  --file "$testDir/simple.nix" --experimental-features 'ca-derivations'
 
-mkdir -p flake && cat <<EOF > flake/flake.nix
+mkdir -p flake && cat <<EOF >flake/flake.nix
 {
     outputs = { self }: {
         foo = 1;
@@ -162,7 +165,7 @@ EOF
 testReplResponse '
 foo + baz
 ' "3" \
-    ./flake ./flake\#bar
+  ./flake ./flake\#bar
 
 testReplResponse $'
 :a { a = 1; b = 2; longerName = 3; "with spaces" = 4; }
@@ -170,7 +173,7 @@ testReplResponse $'
 a, b, longerName, "with spaces"
 '
 
-cat <<EOF > attribute-set.nix
+cat <<EOF >attribute-set.nix
 {
     a = 1;
     b = 2;
@@ -197,20 +200,20 @@ testReplResponseNoRegex $'
 # - Check that the result has changed
 mkfifo repl_fifo
 touch repl_output
-nix repl ./flake < repl_fifo >> repl_output 2>&1 &
+nix repl ./flake <repl_fifo >>repl_output 2>&1 &
 repl_pid=$!
 exec 3>repl_fifo # Open fifo for writing
 echo "changingThing" >&3
 for i in $(seq 1 1000); do
-    if grep -q "beforeChange" repl_output; then
-        break
-    fi
-    cat repl_output
-    sleep 0.1
+  if grep -q "beforeChange" repl_output; then
+    break
+  fi
+  cat repl_output
+  sleep 0.1
 done
-if [[ "$i" -eq 100 ]]; then
-    echo "Timed out waiting for beforeChange"
-    exit 1
+if [[ $i -eq 100 ]]; then
+  echo "Timed out waiting for beforeChange"
+  exit 1
 fi
 
 sed -i 's/beforeChange/afterChange/' flake/flake.nix
@@ -219,7 +222,7 @@ sed -i 's/beforeChange/afterChange/' flake/flake.nix
 echo ":reload" >&3
 echo "changingThing" >&3
 echo "exit" >&3
-exec 3>&- # Close fifo
+exec 3>&-      # Close fifo
 wait $repl_pid # Wait for process to finish
 grep -q "afterChange" repl_output
 
@@ -228,7 +231,7 @@ grep -q "afterChange" repl_output
 testReplResponseNoRegex '
 { a = { b = 2; }; l = [ 1 2 3 ]; s = "string"; n = 1234; x = rec { y = { z = { inherit y; }; }; }; }
 ' \
-'{
+  '{
   a = { ... };
   l = [ ... ];
   n = 1234;
@@ -241,7 +244,7 @@ testReplResponseNoRegex '
 testReplResponseNoRegex '
 [ 42 1 "thingy" ({ a = 1; }) ([ 1 2 3 ]) ]
 ' \
-'[
+  '[
   42
   1
   "thingy"
@@ -254,7 +257,7 @@ testReplResponseNoRegex '
 testReplResponseNoRegex '
 let x = { y = { a = 1; }; inherit x; }; in x
 ' \
-'{
+  '{
   x = «repeated»;
   y = { ... };
 }
@@ -264,7 +267,7 @@ let x = { y = { a = 1; }; inherit x; }; in x
 testReplResponseNoRegex '
 :p { a = { b = 2; }; s = "string"; n = 1234; x = rec { y = { z = { inherit y; }; }; }; }
 ' \
-'{
+  '{
   a = { b = 2; };
   n = 1234;
   s = "string";
@@ -282,7 +285,7 @@ testReplResponseNoRegex '
 testReplResponseNoRegex '
 :p [ 42 1 "thingy" (rec { a = 1; b = { inherit a; inherit b; }; }) ([ 1 2 3 ]) ]
 ' \
-'[
+  '[
   42
   1
   "thingy"
@@ -305,7 +308,7 @@ testReplResponseNoRegex '
 testReplResponseNoRegex '
 :p let x = { y = { a = 1; }; inherit x; }; in x
 ' \
-'{
+  '{
   x = «repeated»;
   y = { a = 1; };
 }
@@ -315,7 +318,7 @@ testReplResponseNoRegex '
 testReplResponse "
 import $testDir/lang/parse-fail-eof-pos.nix
 " \
-'.*error: syntax error, unexpected end of file.*'
+  '.*error: syntax error, unexpected end of file.*'
 
 # TODO: move init to characterisation/framework.sh
 badDiff=0
@@ -340,7 +343,7 @@ stripFinalPrompt() {
     -e 's/[ \n]*$/\n/'
 }
 
-runRepl () {
+runRepl() {
 
   # That is right, we are also filtering out the testdir _without underscores_.
   # This is crazy, but without it, GHA will fail to run the tests, showing paths
@@ -351,37 +354,44 @@ runRepl () {
   testDirNoUnderscores="${testDir//_/}"
 
   _NIX_TEST_RAW_MARKDOWN=1 \
-  _NIX_TEST_REPL_ECHO=1 \
-  nix repl "$@" 2>&1 \
-    | stripColors \
-    | tr -d '\0' \
-    | stripEmptyLinesBeforePrompt \
-    | stripFinalPrompt \
-    | sed \
+    _NIX_TEST_REPL_ECHO=1 \
+    nix repl "$@" 2>&1 |
+    stripColors |
+    tr -d '\0' |
+    stripEmptyLinesBeforePrompt |
+    stripFinalPrompt |
+    sed \
       -e "s@$testDir@/path/to/tests/functional@g" \
       -e "s@$testDirNoUnderscores@/path/to/tests/functional@g" \
       -e "s@$nixVersion@<nix version>@g" \
       -e "/Added [0-9]* variables/{s@ [0-9]* @ <number omitted> @;n;d}" \
-      -e '/\.\.\. and [0-9]* more; view with :ll/d' \
-    | grep -vF $'warning: you don\'t have Internet access; disabling some network-dependent features' \
+      -e '/\.\.\. and [0-9]* more; view with :ll/d' |
+    grep -vF $'warning: you don\'t have Internet access; disabling some network-dependent features' \
     ;
 }
 
-for test in $(cd "$testDir/repl"; echo *.in); do
-    test="$(basename "$test" .in)"
-    in="$testDir/repl/$test.in"
-    actual="$TEST_ROOT/$test.actual"
-    expected="$testDir/repl/$test.expected"
-    declare -a flags=()
-    if test -e "$testDir/repl/$test.flags"; then
-      read -r -a flags < "$testDir/repl/$test.flags"
-    fi
+for test in $(
+  cd "$testDir/repl"
+  echo *.in
+); do
+  test="$(basename "$test" .in)"
+  in="$testDir/repl/$test.in"
+  actual="$TEST_ROOT/$test.actual"
+  expected="$testDir/repl/$test.expected"
+  declare -a flags=()
+  if test -e "$testDir/repl/$test.flags"; then
+    read -r -a flags <"$testDir/repl/$test.flags"
+  fi
 
-    (cd "$testDir/repl"; set +x; runRepl "${flags[@]}" 2>&1) < "$in" > "$actual" || {
-        echo "FAIL: $test (exit code $?)" >&2
-        badExitCode=1
-    }
-    diffAndAcceptInner "$test" "$actual" "$expected"
+  (
+    cd "$testDir/repl"
+    set +x
+    runRepl "${flags[@]}" 2>&1
+  ) <"$in" >"$actual" || {
+    echo "FAIL: $test (exit code $?)" >&2
+    badExitCode=1
+  }
+  diffAndAcceptInner "$test" "$actual" "$expected"
 done
 
 characterisationTestExit

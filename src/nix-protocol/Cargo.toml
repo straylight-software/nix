@@ -1,0 +1,19 @@
+[package]
+name = "nix-protocol"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Nix daemon protocol serialization"
+
+[lib]
+path = "src/lib.rs"
+
+[[test]]
+name = "captures"
+path = "tests/captures.rs"
+
+[[test]]
+name = "nar_captures"
+path = "tests/nar_captures.rs"
+
+[dev-dependencies]

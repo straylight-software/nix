@@ -46,31 +46,31 @@ nix-build -o "$RESULT" check-refs.nix -A test7
 nix-build -o "$RESULT" check-refs.nix -A test10
 
 if ! isTestOnNixOS; then
-    # If we have full control over our store, we can test some more things.
+  # If we have full control over our store, we can test some more things.
 
-    if isDaemonNewer 2.12pre20230103; then
-        if ! isDaemonNewer 2.16.0; then
-            enableFeatures discard-references
-            restartDaemon
-        fi
-
-        # test11 should succeed.
-        test11=$(nix-build -o "$RESULT" check-refs.nix -A test11)
-        [[ -z $(nix-store -q --references "$test11") ]]
+  if isDaemonNewer 2.12pre20230103; then
+    if ! isDaemonNewer 2.16.0; then
+      enableFeatures discard-references
+      restartDaemon
     fi
+
+    # test11 should succeed.
+    test11=$(nix-build -o "$RESULT" check-refs.nix -A test11)
+    [[ -z $(nix-store -q --references "$test11") ]]
+  fi
 
 fi
 
 if isDaemonNewer "2.28pre20241225"; then
-    # test12 should fail (syntactically invalid).
-    expectStderr 1 nix-build -vvv -o "$RESULT" check-refs.nix -A test12 >"$TEST_ROOT/test12.stderr"
-    if isDaemonNewer "2.33pre20251110"; then
-        grepQuiet -F \
-            "output check for 'lib' contains output name 'dev', but this is not a valid output of this derivation. (Valid outputs are [lib, out].)" \
-            < "$TEST_ROOT/test12.stderr"
-    else
-        grepQuiet -F \
-            "output check for 'lib' contains an illegal reference specifier 'dev', expected store path or output name (one of [lib, out])" \
-            < "$TEST_ROOT/test12.stderr"
-    fi
+  # test12 should fail (syntactically invalid).
+  expectStderr 1 nix-build -vvv -o "$RESULT" check-refs.nix -A test12 >"$TEST_ROOT/test12.stderr"
+  if isDaemonNewer "2.33pre20251110"; then
+    grepQuiet -F \
+      "output check for 'lib' contains output name 'dev', but this is not a valid output of this derivation. (Valid outputs are [lib, out].)" \
+      <"$TEST_ROOT/test12.stderr"
+  else
+    grepQuiet -F \
+      "output check for 'lib' contains an illegal reference specifier 'dev', expected store path or output name (one of [lib, out])" \
+      <"$TEST_ROOT/test12.stderr"
+  fi
 fi

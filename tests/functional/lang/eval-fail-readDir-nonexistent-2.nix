@@ -1,3 +1,1 @@
-{
-  relativePath = builtins.readDir ./this/path/really/should/not/exist;
-}
+{ relativePath = builtins.readDir ./this/path/really/should/not/exist; }

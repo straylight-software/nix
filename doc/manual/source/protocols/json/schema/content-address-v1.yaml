@@ -22,7 +22,6 @@ description: |
   > This data type is thus safely used in both of these contexts.
 
   -->
-
 type: object
 properties:
   method:
@@ -36,8 +35,8 @@ properties:
       In particular, the references of the store object are *not* taken into account with this hash (and currently-supported methods).
     "$ref": "./hash-v1.yaml"
 required:
-- method
-- hash
+  - method
+  - hash
 additionalProperties: false
 "$defs":
   method:

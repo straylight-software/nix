@@ -151,7 +151,7 @@ let
           qemu_kvm
           openssh
         ];
-        image = image.image;
+        inherit (image) image;
         postBoot = image.postBoot or "";
         installScript = installScripts.${testName}.script;
         binaryTarball = binaryTarballs.${system};

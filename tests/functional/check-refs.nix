@@ -4,14 +4,7 @@ rec {
 
   dep = import ./dependencies.nix { };
 
-  makeTest =
-    nr: args:
-    mkDerivation (
-      {
-        name = "check-refs-" + toString nr;
-      }
-      // args
-    );
+  makeTest = nr: args: mkDerivation ({ name = "check-refs-" + toString nr; } // args);
 
   src = builtins.toFile "aux-ref" "bla bla";
 

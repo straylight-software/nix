@@ -8,10 +8,9 @@
 
 # Description
 
-This operation print a list of all the currently existing generations
-for the active profile. These may be switched to using the
-`--switch-generation` operation. It also prints the creation date of the
-generation, and indicates the current generation.
+This operation print a list of all the currently existing generations for the active profile. These
+may be switched to using the `--switch-generation` operation. It also prints the creation date of
+the generation, and indicates the current generation.
 
 {{#include ./opt-common.md}}
 
@@ -30,4 +29,3 @@ $ nix-env --list-generations
   97   2004-02-06 16:22:45
   98   2004-02-06 16:24:33   (current)
 ```
-

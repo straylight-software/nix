@@ -20,7 +20,7 @@ depFlakeB="$TEST_ROOT/depFlakeB"
 rm -rf "$rootFlake"
 mkdir -p "$rootFlake" "$subflake" "$depFlakeA" "$depFlakeB"
 
-cat > "$depFlakeA/flake.nix" <<EOF
+cat >"$depFlakeA/flake.nix" <<EOF
 {
   outputs = { self }: {
     x = 11;
@@ -28,7 +28,7 @@ cat > "$depFlakeA/flake.nix" <<EOF
 }
 EOF
 
-cat > "$depFlakeB/flake.nix" <<EOF
+cat >"$depFlakeB/flake.nix" <<EOF
 {
   outputs = { self }: {
     x = 13;
@@ -36,10 +36,10 @@ cat > "$depFlakeB/flake.nix" <<EOF
 }
 EOF
 
-[[ $(nix eval "$depFlakeA#x") = 11 ]]
-[[ $(nix eval "$depFlakeB#x") = 13 ]]
+[[ $(nix eval "$depFlakeA#x") == 11 ]]
+[[ $(nix eval "$depFlakeB#x") == 13 ]]
 
-cat > "$subflake/flake.nix" <<EOF
+cat >"$subflake/flake.nix" <<EOF
 {
   inputs.dep.url = "path:$depFlakeA";
   outputs = { self, dep }: {
@@ -49,7 +49,7 @@ cat > "$subflake/flake.nix" <<EOF
 }
 EOF
 
-cat > "$rootFlake/flake.nix" <<EOF
+cat >"$rootFlake/flake.nix" <<EOF
 {
   inputs.sub.url = ./sub;
   outputs = { self, sub }: {
@@ -59,17 +59,17 @@ cat > "$rootFlake/flake.nix" <<EOF
 }
 EOF
 
-[[ $(nix eval "$subflake#y") = 10 ]]
-[[ $(nix eval "$rootFlake#y") = 5 ]]
+[[ $(nix eval "$subflake#y") == 10 ]]
+[[ $(nix eval "$rootFlake#y") == 5 ]]
 
 nix flake update --flake "path:$subflake" --override-input dep "$depFlakeB"
 
-[[ $(nix eval "path:$subflake#y") = 12 ]]
+[[ $(nix eval "path:$subflake#y") == 12 ]]
 
 # Expect that changes to sub/flake.lock are propagated to the root flake.
 # FIXME: doesn't work at the moment #7730
-[[ $(nix eval "$rootFlake#y") = 6 ]] || true
+[[ $(nix eval "$rootFlake#y") == 6 ]] || true
 
 # This will force refresh flake.lock with changes from sub/flake.lock
 nix flake update --flake "$rootFlake"
-[[ $(nix eval "$rootFlake#y") = 6 ]]
+[[ $(nix eval "$rootFlake#y") == 6 ]]

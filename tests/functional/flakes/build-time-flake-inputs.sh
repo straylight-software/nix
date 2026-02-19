@@ -9,7 +9,7 @@ requireGit
 
 lazy="$TEST_ROOT/lazy"
 createGitRepo "$lazy"
-echo world > "$lazy/who"
+echo world >"$lazy/who"
 git -C "$lazy" add who
 git -C "$lazy" commit -a -m foo
 
@@ -17,7 +17,7 @@ repo="$TEST_ROOT/repo"
 
 createGitRepo "$repo"
 
-cat > "$repo/flake.nix" <<EOF
+cat >"$repo/flake.nix" <<EOF
 {
   inputs.lazy = {
     type = "git";
@@ -44,9 +44,9 @@ git -C "$repo" commit -a -m foo
 clearStore
 
 nix build --out-link "$TEST_ROOT/result" -L "$repo"
-[[ $(cat "$TEST_ROOT/result") = world ]]
+[[ $(cat "$TEST_ROOT/result") == world ]]
 
-echo utrecht > "$lazy/who"
+echo utrecht >"$lazy/who"
 git -C "$lazy" commit -a -m foo
 
 nix flake update --flake "$repo"
@@ -54,7 +54,7 @@ nix flake update --flake "$repo"
 clearStore
 
 nix build --out-link "$TEST_ROOT/result" -L "$repo"
-[[ $(cat "$TEST_ROOT/result") = utrecht ]]
+[[ $(cat "$TEST_ROOT/result") == utrecht ]]
 
 rm -rf "$lazy"
 
@@ -67,7 +67,7 @@ depDir=$TEST_ROOT/dep
 createGitRepo "$depDir"
 createSimpleGitFlake "$depDir"
 
-cat > "$repo/flake.nix" <<EOF
+cat >"$repo/flake.nix" <<EOF
 {
   inputs.lazy = {
     type = "git";

@@ -48,7 +48,7 @@ in
 
 rec {
   nixComponentsInstrumented = nixComponents.overrideScope (
-    final: prev: {
+    _final: prev: {
       withASan = withSanitizers;
       withUBSan = withSanitizers;
 
@@ -110,11 +110,7 @@ rec {
     let
       inherit (pkgs.stdenv) hostPlatform;
     in
-    args@{
-      pkgName,
-      testName,
-      test,
-    }:
+    { pkgName, testName }:
     lib.any (b: b) [
       # FIXME: Nix manual is impure and does not produce all settings on darwin
       (hostPlatform.isDarwin && pkgName == "nix-manual" && testName == "linkcheck")
@@ -138,7 +134,7 @@ rec {
   codeCoverage =
     let
       componentsTestsToProfile =
-        (builtins.mapAttrs (n: v: nixComponentsInstrumented.${n}.tests.run) {
+        (builtins.mapAttrs (n: _v: nixComponentsInstrumented.${n}.tests.run) {
           "nix-util-tests" = { };
           "nix-store-tests" = { };
           "nix-fetchers-tests" = { };
@@ -150,9 +146,9 @@ rec {
         };
 
       coverageProfileDrvs = lib.mapAttrs (
-        n: v:
+        _n: v:
         v.overrideAttrs (
-          finalAttrs: prevAttrs: {
+          _finalAttrs: prevAttrs: {
             outputs = (prevAttrs.outputs or [ "out" ]) ++ [ "profraw" ];
             env = {
               LLVM_PROFILE_FILE = "${placeholder "profraw"}/%m";
@@ -161,7 +157,7 @@ rec {
         )
       ) componentsTestsToProfile;
 
-      coverageProfiles = lib.mapAttrsToList (n: v: lib.getOutput "profraw" v) coverageProfileDrvs;
+      coverageProfiles = lib.mapAttrsToList (_n: v: lib.getOutput "profraw" v) coverageProfileDrvs;
 
       mergedProfdata =
         pkgs.runCommand "merged-profdata"

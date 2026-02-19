@@ -77,9 +77,7 @@ mkMesonDerivation (finalAttrs: {
     (lib.mesonBool "official-release" officialRelease)
     (lib.mesonBool "html-manual" buildHtmlManual)
   ]
-  ++ lib.optionals (!buildHtmlManual) [
-    "--mandir=${placeholder "out"}/share/man"
-  ];
+  ++ lib.optionals (!buildHtmlManual) [ "--mandir=${placeholder "out"}/share/man" ];
 
   nativeBuildInputs = [
     nix-cli

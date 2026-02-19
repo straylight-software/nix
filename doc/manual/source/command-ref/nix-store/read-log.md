@@ -8,15 +8,13 @@
 
 # Description
 
-The operation `--read-log` prints the build log of the specified store
-paths on standard output. The build log is whatever the builder of a
-derivation wrote to standard output and standard error. If a store path
-is not a derivation, the deriver of the store path is used.
+The operation `--read-log` prints the build log of the specified store paths on standard output. The
+build log is whatever the builder of a derivation wrote to standard output and standard error. If a
+store path is not a derivation, the deriver of the store path is used.
 
-Build logs are kept in `/nix/var/log/nix/drvs`. However, there is no
-guarantee that a build log is available for any particular store path.
-For instance, if the path was downloaded as a pre-built binary through a
-substitute, then the log is unavailable.
+Build logs are kept in `/nix/var/log/nix/drvs`. However, there is no guarantee that a build log is
+available for any particular store path. For instance, if the path was downloaded as a pre-built
+binary through a substitute, then the log is unavailable.
 
 {{#include ./opt-common.md}}
 
@@ -35,4 +33,3 @@ ktorrent-2.2.1/
 ktorrent-2.2.1/NEWS
 ...
 ```
-

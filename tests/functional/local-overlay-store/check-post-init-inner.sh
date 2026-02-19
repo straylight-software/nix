@@ -28,33 +28,21 @@ expect 1 stat "$(toRealPath "$storeBTop" "$pathInLowerStore")"
 diff "$(toRealPath "$storeA/nix/store" "$pathInLowerStore")" "$(toRealPath "$storeBRoot/nix/store" "$pathInLowerStore")"
 
 # Checking requisites query agreement
-[[ \
-  $(nix-store --store "$storeA" --query --requisites "$drvPath") \
-  == \
-  $(nix-store --store "$storeB" --query --requisites "$drvPath") \
-  ]]
+[[ 
+  $(nix-store --store "$storeA" --query --requisites "$drvPath") == $(nix-store --store "$storeB" --query --requisites "$drvPath") ]]
 
 # Checking referrers query agreement
 busyboxStore=$(nix store --store "$storeA" add-path "$busybox")
-[[ \
-  $(nix-store --store "$storeA" --query --referrers "$busyboxStore") \
-  == \
-  $(nix-store --store "$storeB" --query --referrers "$busyboxStore") \
-  ]]
+[[ 
+  $(nix-store --store "$storeA" --query --referrers "$busyboxStore") == $(nix-store --store "$storeB" --query --referrers "$busyboxStore") ]]
 
 # Checking derivers query agreement
-[[ \
-  $(nix-store --store "$storeA" --query --deriver "$pathInLowerStore") \
-  == \
-  $(nix-store --store "$storeB" --query --deriver "$pathInLowerStore") \
-  ]]
+[[ 
+  $(nix-store --store "$storeA" --query --deriver "$pathInLowerStore") == $(nix-store --store "$storeB" --query --deriver "$pathInLowerStore") ]]
 
 # Checking outputs query agreement
-[[ \
-  $(nix-store --store "$storeA" --query --outputs "$drvPath") \
-  == \
-  $(nix-store --store "$storeB" --query --outputs "$drvPath") \
-  ]]
+[[ 
+  $(nix-store --store "$storeA" --query --outputs "$drvPath") == $(nix-store --store "$storeB" --query --outputs "$drvPath") ]]
 
 # Verifying path in lower layer
 nix-store --verify-path --store "$storeA" "$pathInLowerStore"

@@ -24,16 +24,16 @@ publicKey2=$(awk '{print $2}' "$key2File")
 createGitRepo "$repo"
 git -C "$repo" config gpg.format ssh
 
-echo 'hello' > "$repo"/text
+echo 'hello' >"$repo"/text
 git -C "$repo" add text
 git -C "$repo" -c "user.signingkey=$key1File" commit -S -m 'initial commit'
 
 out=$(nix eval --impure --raw --expr "builtins.fetchGit { url = \"file://$repo\"; keytype = \"ssh-rsa\"; publicKey = \"$publicKey2\"; }" 2>&1) || status=$?
 [[ $status == 1 ]]
 [[ $out == *'No principal matched.'* ]]
-[[ $(nix eval --impure --raw --expr "builtins.readFile (builtins.fetchGit { url = \"file://$repo\"; publicKey = \"$publicKey1\"; } + \"/text\")") = 'hello' ]]
+[[ $(nix eval --impure --raw --expr "builtins.readFile (builtins.fetchGit { url = \"file://$repo\"; publicKey = \"$publicKey1\"; } + \"/text\")") == 'hello' ]]
 
-echo 'hello world' > "$repo"/text
+echo 'hello world' >"$repo"/text
 
 # Verification on a dirty repo should fail.
 out=$(nix eval --impure --raw --expr "builtins.fetchGit { url = \"file://$repo\"; keytype = \"ssh-rsa\"; publicKey = \"$publicKey2\"; }" 2>&1) || status=$?
@@ -43,12 +43,12 @@ out=$(nix eval --impure --raw --expr "builtins.fetchGit { url = \"file://$repo\"
 git -C "$repo" add text
 git -C "$repo" -c "user.signingkey=$key2File" commit -S -m 'second commit'
 
-[[ $(nix eval --impure --raw --expr "builtins.readFile (builtins.fetchGit { url = \"file://$repo\"; publicKeys = [{key = \"$publicKey1\";} {type = \"ssh-rsa\"; key = \"$publicKey2\";}]; } + \"/text\")") = 'hello world' ]]
+[[ $(nix eval --impure --raw --expr "builtins.readFile (builtins.fetchGit { url = \"file://$repo\"; publicKeys = [{key = \"$publicKey1\";} {type = \"ssh-rsa\"; key = \"$publicKey2\";}]; } + \"/text\")") == 'hello world' ]]
 
 # Flake input test
 flakeDir="$TEST_ROOT/flake"
 mkdir -p "$flakeDir"
-cat > "$flakeDir/flake.nix" <<EOF
+cat >"$flakeDir/flake.nix" <<EOF
 {
   inputs.test = {
     type = "git";
@@ -63,9 +63,9 @@ cat > "$flakeDir/flake.nix" <<EOF
 }
 EOF
 nix build --out-link "$flakeDir/result" "$flakeDir#test"
-[[ $(cat "$flakeDir/result/text") = 'hello world' ]]
+[[ $(cat "$flakeDir/result/text") == 'hello world' ]]
 
-cat > "$flakeDir/flake.nix" <<EOF
+cat >"$flakeDir/flake.nix" <<EOF
 {
   inputs.test = {
     type = "git";

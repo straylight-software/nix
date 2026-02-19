@@ -4,7 +4,7 @@
 }:
 
 let
-  pkgs = config.nodes.client.nixpkgs.pkgs;
+  inherit (config.nodes.client.nixpkgs) pkgs;
 
   # Test packages - minimal packages for fast copying
   pkgA = pkgs.writeText "test-package-a" "test package a";

@@ -1,0 +1,17 @@
+# Hypermodern C++: No raw new
+# Use std::make_unique or std::make_shared
+id: no-raw-new
+language: cpp
+severity: warning
+message: "Raw 'new' detected. Use std::make_unique<$TYPE>($$$ARGS) instead."
+note: "Raw new/delete can leak memory. Use smart pointers."
+rule:
+  pattern: new $TYPE($$$ARGS)
+  not:
+    inside:
+      any:
+        - pattern: std::make_unique<$_>($$$_)
+        - pattern: std::make_shared<$_>($$$_)
+        - pattern: decltype($_)(new $_)
+
+# Can't auto-fix because we don't know if unique_ptr or shared_ptr is needed

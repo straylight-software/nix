@@ -8,8 +8,8 @@ export _NIX_TEST_BARF_ON_UNCACHEABLE=1
 registry=$TEST_ROOT/registry.json
 
 writeSimpleFlake() {
-    local flakeDir="$1"
-    cat > "$flakeDir/flake.nix" <<EOF
+  local flakeDir="$1"
+  cat >"$flakeDir/flake.nix" <<EOF
 {
   description = "Bla bla";
 
@@ -38,33 +38,33 @@ writeSimpleFlake() {
 }
 EOF
 
-    cp ../simple.nix ../shell.nix ../simple.builder.sh "${config_nix}" "$flakeDir/"
+  cp ../simple.nix ../shell.nix ../simple.builder.sh "${config_nix}" "$flakeDir/"
 }
 
 createSimpleGitFlake() {
-    requireGit
-    local flakeDir="$1"
-    writeSimpleFlake "$flakeDir"
-    git -C "$flakeDir" add flake.nix simple.nix shell.nix simple.builder.sh config.nix
-    git -C "$flakeDir" commit -m 'Initial'
+  requireGit
+  local flakeDir="$1"
+  writeSimpleFlake "$flakeDir"
+  git -C "$flakeDir" add flake.nix simple.nix shell.nix simple.builder.sh config.nix
+  git -C "$flakeDir" commit -m 'Initial'
 }
 
 # Create a simple Git flake and add it to the registry as "flake1".
 createFlake1() {
-    flake1Dir="$TEST_ROOT/flake1"
-    createGitRepo "$flake1Dir" ""
-    createSimpleGitFlake "$flake1Dir"
-    nix registry add --registry "$registry" flake1 "git+file://$flake1Dir"
+  flake1Dir="$TEST_ROOT/flake1"
+  createGitRepo "$flake1Dir" ""
+  createSimpleGitFlake "$flake1Dir"
+  nix registry add --registry "$registry" flake1 "git+file://$flake1Dir"
 }
 
 createFlake2() {
-    flake2Dir="$TEST_ROOT/flake 2"
-    percentEncodedFlake2Dir="$TEST_ROOT/flake%202"
+  flake2Dir="$TEST_ROOT/flake 2"
+  percentEncodedFlake2Dir="$TEST_ROOT/flake%202"
 
-    # Give one repo a non-main initial branch.
-    createGitRepo "$flake2Dir" "--initial-branch=main"
+  # Give one repo a non-main initial branch.
+  createGitRepo "$flake2Dir" "--initial-branch=main"
 
-    cat > "$flake2Dir/flake.nix" <<EOF
+  cat >"$flake2Dir/flake.nix" <<EOF
 {
   description = "Fnord";
 
@@ -74,15 +74,15 @@ createFlake2() {
 }
 EOF
 
-    git -C "$flake2Dir" add flake.nix
-    git -C "$flake2Dir" commit -m 'Initial'
+  git -C "$flake2Dir" add flake.nix
+  git -C "$flake2Dir" commit -m 'Initial'
 
-    nix registry add --registry "$registry" flake2 "git+file://$percentEncodedFlake2Dir"
+  nix registry add --registry "$registry" flake2 "git+file://$percentEncodedFlake2Dir"
 }
 
 writeDependentFlake() {
-    local flakeDir="$1"
-    cat > "$flakeDir/flake.nix" <<EOF
+  local flakeDir="$1"
+  cat >"$flakeDir/flake.nix" <<EOF
 {
   outputs = { self, flake1 }: {
     packages.$system.default = flake1.packages.$system.default;
@@ -93,8 +93,8 @@ EOF
 }
 
 writeIfdFlake() {
-    local flakeDir="$1"
-    cat > "$flakeDir/flake.nix" <<EOF
+  local flakeDir="$1"
+  cat >"$flakeDir/flake.nix" <<EOF
 {
   outputs = { self }: {
     packages.$system.default = import ./ifd.nix;
@@ -102,12 +102,12 @@ writeIfdFlake() {
 }
 EOF
 
-    cp -n ../ifd.nix ../dependencies.nix ../dependencies.builder0.sh "${config_nix}" "$flakeDir/"
+  cp -n ../ifd.nix ../dependencies.nix ../dependencies.builder0.sh "${config_nix}" "$flakeDir/"
 }
 
 writeTrivialFlake() {
-    local flakeDir="$1"
-    cat > "$flakeDir/flake.nix" <<EOF
+  local flakeDir="$1"
+  cat >"$flakeDir/flake.nix" <<EOF
 {
   outputs = { self }: {
     expr = 123;

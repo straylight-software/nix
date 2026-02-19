@@ -8,7 +8,7 @@ repo="$TEST_ROOT/repo"
 
 createGitRepo "$repo"
 
-cat > "$repo/flake.nix" <<EOF
+cat >"$repo/flake.nix" <<EOF
 {
   inputs = {
     dependency.url = "git+file:///no-such-path?dir=subdir";
@@ -19,7 +19,7 @@ cat > "$repo/flake.nix" <<EOF
 }
 EOF
 
-cat > "$repo/flake.lock" <<EOF
+cat >"$repo/flake.lock" <<EOF
 {
   "nodes": {
     "dependency": {

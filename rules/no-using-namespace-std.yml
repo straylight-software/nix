@@ -1,0 +1,8 @@
+# Hypermodern C++: No using namespace std
+id: no-using-namespace-std
+language: cpp
+severity: error
+message: "Never use 'using namespace std' - pollutes global namespace"
+note: "This is a source of bugs and name collisions. Use explicit std:: prefix."
+rule:
+  pattern: using namespace std

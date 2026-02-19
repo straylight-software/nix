@@ -3,5 +3,5 @@ builtins.genericClosure {
     { key = 1; }
     { key = "string"; }
   ];
-  operator = x: [ ];
+  operator = _x: [ ];
 }

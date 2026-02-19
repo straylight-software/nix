@@ -25,23 +25,23 @@ builtins.derivation {
 test "$(cat result)" = OK
 
 # Ensure #!/bin/sh shebang works
-echo '#!/bin/sh' > ./shebang-test
-echo 'echo OK' >> ./shebang-test
+echo '#!/bin/sh' >./shebang-test
+echo 'echo OK' >>./shebang-test
 chmod +x ./shebang-test
 test "$(./shebang-test)" = OK
 
 # Ensure #!/usr/bin/env shebang works
-echo '#!/usr/bin/env bash' > ./shebang-test
-echo 'echo OK' >> ./shebang-test
+echo '#!/usr/bin/env bash' >./shebang-test
+echo 'echo OK' >>./shebang-test
 chmod +x ./shebang-test
 test "$(./shebang-test)" = OK
 
 # Test nix-shell
 {
-    echo '#!/usr/bin/env nix-shell'
-    echo '#! nix-shell -i bash'
-    echo '#! nix-shell -p hello'
-    echo 'hello'
-} > ./nix-shell-test
+  echo '#!/usr/bin/env nix-shell'
+  echo '#! nix-shell -i bash'
+  echo '#! nix-shell -p hello'
+  echo 'hello'
+} >./nix-shell-test
 chmod +x ./nix-shell-test
 test "$(./nix-shell-test)" = "Hello, world!"

@@ -76,17 +76,17 @@ nix build -f multiple-outputs.nix --json 'e.a_a.outPath' --no-link | jq --exit-s
 '
 
 # Illegal type of string context
-expectStderr 1 nix build -f multiple-outputs.nix 'e.a_a.drvPath' \
-  | grepQuiet "has a context which refers to a complete source and binary closure."
+expectStderr 1 nix build -f multiple-outputs.nix 'e.a_a.drvPath' |
+  grepQuiet "has a context which refers to a complete source and binary closure."
 
 # No string context
-expectStderr 1 nix build --expr '""' --no-link \
-  | grepQuiet "has 0 entries in its context. It should only have exactly one entry"
+expectStderr 1 nix build --expr '""' --no-link |
+  grepQuiet "has 0 entries in its context. It should only have exactly one entry"
 
 # Too much string context
 # shellcheck disable=SC2016 # The ${} in this is Nix, not shell
-expectStderr 1 nix build --impure --expr 'with (import ./multiple-outputs.nix).e.a_a; "${drvPath}${outPath}"' --no-link \
-  | grepQuiet "has 2 entries in its context. It should only have exactly one entry"
+expectStderr 1 nix build --impure --expr 'with (import ./multiple-outputs.nix).e.a_a; "${drvPath}${outPath}"' --no-link |
+  grepQuiet "has 2 entries in its context. It should only have exactly one entry"
 
 nix build --impure --json --expr 'builtins.unsafeDiscardOutputDependency (import ./multiple-outputs.nix).e.a_a.drvPath' --no-link | jq --exit-status '
   (.[0] | match(".*multiple-outputs-e.drv"))
@@ -96,15 +96,15 @@ nix build --impure --json --expr 'builtins.unsafeDiscardOutputDependency (import
 
 drv=$(nix eval -f multiple-outputs.nix --raw a.drvPath)
 if nix build "$drv^not-an-output" --no-link --json; then
-    fail "'not-an-output' should fail to build"
+  fail "'not-an-output' should fail to build"
 fi
 
 if nix build "$drv^" --no-link --json; then
-    fail "'empty outputs list' should fail to build"
+  fail "'empty outputs list' should fail to build"
 fi
 
 if nix build "$drv^*nope" --no-link --json; then
-    fail "'* must be entire string' should fail to build"
+  fail "'* must be entire string' should fail to build"
 fi
 
 nix build "$drv^first" --no-link --json | jq --exit-status '
@@ -144,10 +144,10 @@ nix build --impure -f multiple-outputs.nix --json e --no-link | jq --exit-status
 # Make sure that the 3 types of aliases work
 # BaseSettings<T>, BaseSettings<bool>, and BaseSettings<SandboxMode>.
 nix build --impure -f multiple-outputs.nix --json e --no-link \
-    --build-max-jobs 3 \
-    --gc-keep-outputs \
-    --build-use-sandbox | \
-    jq --exit-status '
+  --build-max-jobs 3 \
+  --gc-keep-outputs \
+  --build-use-sandbox |
+  jq --exit-status '
   (.[0] |
     (.drvPath | match(".*multiple-outputs-e.drv")) and
     (.outputs | keys == ["a_a", "b"]))
@@ -176,14 +176,14 @@ test "$(<<<"$out" grep -cE '^error:')" = 3
 out="$(nix build -f fod-failing.nix -L x4 2>&1)" && status=0 || status=$?
 test "$status" = 1
 # Precise number of errors depends on daemon version / goal refactorings
-(( "$(<<<"$out" grep -cE '^error:')" >= 2 ))
+(("$(<<<"$out" grep -cE '^error:')" >= 2))
 
 if isDaemonNewer "2.29pre"; then
-    <<<"$out" grepQuiet -E "error: Cannot build '.*-x4\\.drv'"
-    <<<"$out" grepQuiet -E "Reason: 1 dependency failed."
-    <<<"$out" grepQuiet -E "Build failed due to failed dependency"
+  <<<"$out" grepQuiet -E "error: Cannot build '.*-x4\\.drv'"
+  <<<"$out" grepQuiet -E "Reason: 1 dependency failed."
+  <<<"$out" grepQuiet -E "Build failed due to failed dependency"
 else
-    <<<"$out" grepQuiet -E "error: 1 dependencies of derivation '.*-x4\\.drv' failed to build"
+  <<<"$out" grepQuiet -E "error: 1 dependencies of derivation '.*-x4\\.drv' failed to build"
 fi
 # Either x2 or x3 could have failed, x4 depends on both symmetrically
 <<<"$out" grepQuiet -E "hash mismatch in fixed-output derivation '.*-x[23]\\.drv'"
@@ -191,12 +191,12 @@ fi
 out="$(nix build -f fod-failing.nix -L x4 --keep-going 2>&1)" && status=0 || status=$?
 test "$status" = 1
 # Precise number of errors depends on daemon version / goal refactorings
-(( "$(<<<"$out" grep -cE '^error:')" >= 3 ))
+(("$(<<<"$out" grep -cE '^error:')" >= 3))
 if isDaemonNewer "2.29pre"; then
-    <<<"$out" grepQuiet -E "error: Cannot build '.*-x4\\.drv'"
-    <<<"$out" grepQuiet -E "Reason: 2 dependencies failed."
+  <<<"$out" grepQuiet -E "error: Cannot build '.*-x4\\.drv'"
+  <<<"$out" grepQuiet -E "Reason: 2 dependencies failed."
 else
-    <<<"$out" grepQuiet -E "error: 2 dependencies of derivation '.*-x4\\.drv' failed to build"
+  <<<"$out" grepQuiet -E "error: 2 dependencies of derivation '.*-x4\\.drv' failed to build"
 fi
 <<<"$out" grepQuiet -vE "hash mismatch in fixed-output derivation '.*-x3\\.drv'"
 <<<"$out" grepQuiet -vE "hash mismatch in fixed-output derivation '.*-x2\\.drv'"

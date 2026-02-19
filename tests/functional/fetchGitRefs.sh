@@ -12,7 +12,7 @@ rm -rf "${repo}-tmp" "$TEST_HOME/.cache/nix"
 
 createGitRepo "$repo"
 
-echo utrecht > "$repo/hello"
+echo utrecht >"$repo/hello"
 git -C "$repo" add hello
 git -C "$repo" commit -m 'Bla1'
 
@@ -36,26 +36,33 @@ path=$(nix eval --raw --impure --expr "(builtins.fetchGit { url = $repo; ref = \
 #       10. They cannot contain a \.
 
 valid_ref() {
-    { set +x; printf >&2 '\n>>>>>>>>>> valid_ref %s\b <<<<<<<<<<\n' "$(printf %s "$1" | sed -n -e l)"; set -x; }
-    git check-ref-format --branch "$1" >/dev/null
-    git -C "$repo" branch "$1" master >/dev/null
-    path1=$(nix eval --raw --impure --expr "(builtins.fetchGit { url = $repo; ref = ''$1''; }).outPath")
-    [[ $path1 = "$path" ]]
-    git -C "$repo" branch -D "$1" >/dev/null
+  {
+    set +x
+    printf >&2 '\n>>>>>>>>>> valid_ref %s\b <<<<<<<<<<\n' "$(printf %s "$1" | sed -n -e l)"
+    set -x
+  }
+  git check-ref-format --branch "$1" >/dev/null
+  git -C "$repo" branch "$1" master >/dev/null
+  path1=$(nix eval --raw --impure --expr "(builtins.fetchGit { url = $repo; ref = ''$1''; }).outPath")
+  [[ $path1 == "$path" ]]
+  git -C "$repo" branch -D "$1" >/dev/null
 }
 
 invalid_ref() {
-    { set +x; printf >&2 '\n>>>>>>>>>> invalid_ref %s\b <<<<<<<<<<\n' "$(printf %s "$1" | sed -n -e l)"; set -x; }
-    # special case for a sole @:
-    # --branch @ will try to interpret @ as a branch reference and not fail. Thus we need --allow-onelevel
-    if [ "$1" = "@" ]; then
-        (! git check-ref-format --allow-onelevel "$1" >/dev/null 2>&1)
-    else
-        (! git check-ref-format --branch "$1" >/dev/null 2>&1)
-    fi
-    expect 1 nix --debug eval --raw --impure --expr "(builtins.fetchGit { url = $repo; ref = ''$1''; }).outPath" 2>&1 | grep 'invalid Git branch/tag name' >/dev/null
+  {
+    set +x
+    printf >&2 '\n>>>>>>>>>> invalid_ref %s\b <<<<<<<<<<\n' "$(printf %s "$1" | sed -n -e l)"
+    set -x
+  }
+  # special case for a sole @:
+  # --branch @ will try to interpret @ as a branch reference and not fail. Thus we need --allow-onelevel
+  if [ "$1" = "@" ]; then
+    (! git check-ref-format --allow-onelevel "$1" >/dev/null 2>&1)
+  else
+    (! git check-ref-format --branch "$1" >/dev/null 2>&1)
+  fi
+  expect 1 nix --debug eval --raw --impure --expr "(builtins.fetchGit { url = $repo; ref = ''$1''; }).outPath" 2>&1 | grep 'invalid Git branch/tag name' >/dev/null
 }
-
 
 valid_ref 'A/b'
 valid_ref 'AaA/b'
@@ -97,9 +104,9 @@ invalid_ref 'heads///foo.lock'
 invalid_ref 'foo.lock/bar'
 invalid_ref 'foo.lock///bar'
 invalid_ref 'heads/v@{ation'
-invalid_ref 'heads/foo\.ar' # should fail due to \
-invalid_ref 'heads/foo\bar' # should fail due to \
-invalid_ref "$(printf 'heads/foo\t')" # should fail because it has a TAB
+invalid_ref 'heads/foo\.ar'invalid_ref 'heads/foo\bar'invalid_ref "$(printf 'heads/foo\t' # should fail due to \
+# should fail due to \
+)" # should fail because it has a TAB
 invalid_ref "$(printf 'heads/foo\37')"
 invalid_ref "$(printf 'heads/foo\177')"
 invalid_ref '@'

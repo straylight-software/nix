@@ -13,15 +13,15 @@ storeBadLower="local-overlay://?root=$storeBRoot&lower-store=$badTestRoot&upper-
 storeBadUpper="local-overlay://?root=$storeBRoot&lower-store=$storeA&upper-layer=$badTestRoot"
 
 declare -a storesBad=(
-    "$storeBadRoot" "$storeBadLower" "$storeBadUpper"
+  "$storeBadRoot" "$storeBadLower" "$storeBadUpper"
 )
 
 TODO_NixOS
 
 for i in "${storesBad[@]}"; do
-    echo "$i"
-    # shellcheck disable=SC2119
-    execUnshare <<EOF
+  echo "$i"
+  # shellcheck disable=SC2119
+  execUnshare <<EOF
         source common.sh
         setupStoreDirs
         mountOverlayfs

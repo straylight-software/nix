@@ -17,7 +17,7 @@ createSimpleGitFlake "$nixpkgsDir"
 # Test 'nix flake init'.
 createGitRepo "$templatesDir"
 
-cat > "$templatesDir"/flake.nix <<EOF
+cat >"$templatesDir"/flake.nix <<EOF
 {
   description = "Some templates";
 
@@ -38,7 +38,7 @@ EOF
 
 mkdir "$templatesDir/trivial"
 
-cat > "$templatesDir"/trivial/flake.nix <<EOF
+cat >"$templatesDir"/trivial/flake.nix <<EOF
 {
   description = "A flake for building Hello World";
 
@@ -50,8 +50,8 @@ cat > "$templatesDir"/trivial/flake.nix <<EOF
   };
 }
 EOF
-echo a > "$templatesDir/trivial/a"
-echo b > "$templatesDir/trivial/b"
+echo a >"$templatesDir/trivial/a"
+echo b >"$templatesDir/trivial/b"
 
 git -C "$templatesDir" add flake.nix trivial/
 git -C "$templatesDir" commit -m 'Initial'
@@ -71,12 +71,12 @@ git -C "$flakeDir" commit -a -m 'Initial'
 
 # Test 'nix flake init' with benign conflicts
 createGitRepo "$flakeDir"
-echo a > "$flakeDir/a"
+echo a >"$flakeDir/a"
 (cd "$flakeDir" && nix flake init --template "git+file://$templatesDir") # check idempotence
 
 # Test 'nix flake init' with conflicts
 createGitRepo "$flakeDir"
-echo b > "$flakeDir/a"
+echo b >"$flakeDir/a"
 pushd "$flakeDir"
 (! nix flake init --template "git+file://$templatesDir") |& grep "refusing to overwrite existing file '$flakeDir/a'"
 popd

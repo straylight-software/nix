@@ -7,7 +7,7 @@
 { lib, config, ... }:
 
 let
-  pkgs = config.nodes.machine.nixpkgs.pkgs;
+  inherit (config.nodes.machine.nixpkgs) pkgs;
 
   ztdCompressedFile = pkgs.stdenv.mkDerivation {
     name = "dummy-zstd-compressed-archive";

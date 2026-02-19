@@ -50,3 +50,13 @@ flake-regressions
 
 # direnv
 .direnv/
+.nixd.json
+.nil.toml
+.direnv
+.devshell
+/buck-out/
+/doc/protocol/__pycache__/
+
+# Rust/Haskell build artifacts
+/src/nix-protocol/target/
+/src/nix-protocol/dist-newstyle/

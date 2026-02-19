@@ -6,7 +6,7 @@
 }:
 
 let
-  pkgs = config.nodes.machine.nixpkgs.pkgs;
+  inherit (config.nodes.machine.nixpkgs) pkgs;
   pkgA = pkgs.hello;
   pkgB = pkgs.cowsay;
 in

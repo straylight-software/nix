@@ -37,7 +37,7 @@ cat "$lockFifo1"
 nix-collect-garbage
 
 # Unlock the build of $drvPath1
-echo "" > "$lockFifo1"
+echo "" >"$lockFifo1"
 echo waiting for pid $pid1 to finish...
 wait $pid1
 

@@ -1,3 +1,1 @@
-builtins.genericClosure {
-  operator = x: [ ];
-}
+builtins.genericClosure { operator = _x: [ ]; }

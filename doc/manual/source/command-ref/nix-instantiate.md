@@ -4,29 +4,20 @@
 
 # Synopsis
 
-`nix-instantiate`
-  [`--parse` | `--eval` [`--strict`] [`--raw` | `--json` | `--xml`] ]
-  [`--read-write-mode`]
-  [`--arg` *name* *value*]
-  [{`--attr`| `-A`} *attrPath*]
-  [`--add-root` *path*]
-  [`--expr` | `-E`]
-  *files…*
+`nix-instantiate` \[`--parse` | `--eval` \[`--strict`\] \[`--raw` | `--json` | `--xml`\] \]
+\[`--read-write-mode`\] \[`--arg` *name* *value*\] \[{`--attr`| `-A`} *attrPath*\] \[`--add-root`
+*path*\] \[`--expr` | `-E`\] *files…*
 
 `nix-instantiate` `--find-file` *files…*
 
 # Description
 
-The command `nix-instantiate` produces [store derivation]s from (high-level) Nix expressions.
-It evaluates the Nix expressions in each of *files* (which defaults to
-*./default.nix*). Each top-level expression should evaluate to a
-derivation, a list of derivations, or a set of derivations. The paths
-of the resulting store derivations are printed on standard output.
+The command `nix-instantiate` produces [store derivation]s from (high-level) Nix expressions. It
+evaluates the Nix expressions in each of *files* (which defaults to *./default.nix*). Each top-level
+expression should evaluate to a derivation, a list of derivations, or a set of derivations. The
+paths of the resulting store derivations are printed on standard output.
 
-[store derivation]: @docroot@/glossary.md#gloss-store-derivation
-
-If *files* is the character `-`, then a Nix expression will be read from
-standard input.
+If *files* is the character `-`, then a Nix expression will be read from standard input.
 
 # Options
 
@@ -36,21 +27,19 @@ standard input.
 
 - `--parse`
 
-  Just parse the input files, and print their abstract syntax trees on
-  standard output as a Nix expression.
+  Just parse the input files, and print their abstract syntax trees on standard output as a Nix
+  expression.
 
 - `--eval`
 
-  Just parse and evaluate the input files, and print the resulting
-  values on standard output.
-  Store derivations are not serialized and written to the store, but instead just hashed and discarded.
+  Just parse and evaluate the input files, and print the resulting values on standard output. Store
+  derivations are not serialized and written to the store, but instead just hashed and discarded.
 
   > **Warning**
   >
-  > This option produces output which can be parsed as a Nix expression which
-  > will produce a different result than the input expression when evaluated.
-  > For example, these two Nix expressions print the same result despite
-  > having different meaning:
+  > This option produces output which can be parsed as a Nix expression which will produce a
+  > different result than the input expression when evaluated. For example, these two Nix
+  > expressions print the same result despite having different meaning:
   >
   > ```console
   > $ nix-instantiate --eval --expr '{ a = {}; }'
@@ -68,8 +57,7 @@ standard input.
   > «lambda @ «string»:1:1»
   > ```
   >
-  > For machine-readable output, the `--xml` option produces unambiguous
-  > output:
+  > For machine-readable output, the `--xml` option produces unambiguous output:
   >
   > ```console
   > $ nix-instantiate --eval --xml --expr '{ foo = <CODE>; }'
@@ -85,47 +73,42 @@ standard input.
 
 - `--find-file`
 
-  Look up the given files in Nix’s search path (as specified by the
-  `NIX_PATH` environment variable). If found, print the corresponding
-  absolute paths on standard output. For instance, if `NIX_PATH` is
-  `nixpkgs=/home/alice/nixpkgs`, then `nix-instantiate --find-file
-  nixpkgs/default.nix` will print `/home/alice/nixpkgs/default.nix`.
+  Look up the given files in Nix’s search path (as specified by the `NIX_PATH` environment
+  variable). If found, print the corresponding absolute paths on standard output. For instance, if
+  `NIX_PATH` is `nixpkgs=/home/alice/nixpkgs`, then
+  `nix-instantiate --find-file nixpkgs/default.nix` will print `/home/alice/nixpkgs/default.nix`.
 
 - `--strict`
 
-  When used with `--eval`, recursively evaluate list elements and
-  attributes. Normally, such sub-expressions are left unevaluated
-  (since the Nix language is lazy).
+  When used with `--eval`, recursively evaluate list elements and attributes. Normally, such
+  sub-expressions are left unevaluated (since the Nix language is lazy).
 
   > **Warning**
   >
-  > This option can cause non-termination, because lazy data
-  > structures can be infinitely large.
+  > This option can cause non-termination, because lazy data structures can be infinitely large.
 
 - `--raw`
 
-  When used with `--eval`, the evaluation result must be a string,
-  which is printed verbatim, without quoting, escaping or trailing newline.
+  When used with `--eval`, the evaluation result must be a string, which is printed verbatim,
+  without quoting, escaping or trailing newline.
 
 - `--json`
 
-  When used with `--eval`, print the resulting value as an JSON
-  representation of the abstract syntax tree rather than as a Nix expression.
+  When used with `--eval`, print the resulting value as an JSON representation of the abstract
+  syntax tree rather than as a Nix expression.
 
 - `--xml`
 
-  When used with `--eval`, print the resulting value as an XML
-  representation of the abstract syntax tree rather than as a Nix expression.
-  The schema is the same as that used by the [`toXML`
-  built-in](../language/builtins.md).
+  When used with `--eval`, print the resulting value as an XML representation of the abstract syntax
+  tree rather than as a Nix expression. The schema is the same as that used by the
+  [`toXML` built-in](../language/builtins.md).
 
 - `--read-write-mode`
 
-  When used with `--eval`, perform evaluation in read/write mode so
-  nix language features that require it will still work (at the cost
-  of needing to do instantiation of every evaluated derivation). If
-  this option is not enabled, there may be uninstantiated store paths
-  in the final output.
+  When used with `--eval`, perform evaluation in read/write mode so nix language features that
+  require it will still work (at the cost of needing to do instantiation of every evaluated
+  derivation). If this option is not enabled, there may be uninstantiated store paths in the final
+  output.
 
 {{#include ./opt-common.md}}
 
@@ -205,3 +188,5 @@ $ nix-instantiate --eval --xml --strict --expr '{ x = {}; }'
   </attrs>
 </expr>
 ```
+
+[store derivation]: @docroot@/glossary.md#gloss-store-derivation

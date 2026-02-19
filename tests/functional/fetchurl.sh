@@ -50,7 +50,7 @@ outPath=$(nix-build -vvvvv --expr 'import <nix/fetchurl.nix>' --argstr url file:
 
 # Test hashed mirrors with an SRI hash.
 nix-build -vvvvv --expr 'import <nix/fetchurl.nix>' --argstr url file:///no-such-dir/fetchurl.sh --argstr hash "$(nix hash to-sri --type sha256 "$hash")" \
-          --no-out-link --substituters "$other_store"
+  --no-out-link --substituters "$other_store"
 
 # Test unpacking a NAR.
 rm -rf "$TEST_ROOT/archive"
@@ -59,12 +59,12 @@ cp ./fetchurl.sh "$TEST_ROOT/archive"
 chmod +x "$TEST_ROOT/archive/fetchurl.sh"
 ln -s foo "$TEST_ROOT/archive/symlink"
 nar="$TEST_ROOT/archive.nar"
-nix-store --dump "$TEST_ROOT/archive" > "$nar"
+nix-store --dump "$TEST_ROOT/archive" >"$nar"
 
 hash=$(nix-hash --flat --type sha256 "$nar")
 
 outPath=$(nix-build -vvvvv --expr 'import <nix/fetchurl.nix>' --argstr url "file://$nar" --argstr sha256 "$hash" \
-          --arg unpack true --argstr name xyzzy --no-out-link)
+  --arg unpack true --argstr name xyzzy --no-out-link)
 
 echo "$outPath" | grepQuiet 'xyzzy'
 
@@ -78,7 +78,7 @@ narxz="$TEST_ROOT/archive.nar.xz"
 rm -f "$narxz"
 xz --keep "$nar"
 outPath=$(nix-build -vvvvv --expr 'import <nix/fetchurl.nix>' --argstr url "file://$narxz" --argstr sha256 "$hash" \
-          --arg unpack true --argstr name xyzzy --no-out-link)
+  --arg unpack true --argstr name xyzzy --no-out-link)
 
 test -x "$outPath/fetchurl.sh"
 test -L "$outPath/symlink"

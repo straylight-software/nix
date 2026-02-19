@@ -4,7 +4,7 @@ source common.sh
 
 # Regression test for #11503.
 mkdir -p "$TEST_ROOT/directory"
-cat > "$TEST_ROOT/directory/default.nix" <<EOF
+cat >"$TEST_ROOT/directory/default.nix" <<EOF
   let
     root = ./.;
     filter = path: type:
@@ -24,7 +24,7 @@ nix-store --add-fixed --recursive sha256 "$TEST_ROOT/directory" --store "$TEST_R
 nix-instantiate --eval "$result" --store "$TEST_ROOT/2nd-store"
 
 # Misc tests.
-echo example > "$TEST_ROOT"/example.txt
+echo example >"$TEST_ROOT"/example.txt
 mkdir -p "$TEST_ROOT/x"
 
 export NIX_STORE_DIR=/nix2/store
@@ -48,10 +48,10 @@ nix --store "$TEST_ROOT/x" store info --json | jq -e '.trusted'
 # Test building in a chroot store.
 if canUseSandbox; then
 
-    flakeDir=$TEST_ROOT/flake
-    mkdir -p "$flakeDir"
+  flakeDir=$TEST_ROOT/flake
+  mkdir -p "$flakeDir"
 
-    cat > "$flakeDir"/flake.nix <<EOF
+  cat >"$flakeDir"/flake.nix <<EOF
 {
   outputs = inputs: rec {
     packages.$system.default = import ./simple.nix;
@@ -59,15 +59,15 @@ if canUseSandbox; then
 }
 EOF
 
-    cp simple.nix shell.nix simple.builder.sh "${config_nix}" "$flakeDir/"
+  cp simple.nix shell.nix simple.builder.sh "${config_nix}" "$flakeDir/"
 
-    TODO_NixOS
-    requiresUnprivilegedUserNamespaces
+  TODO_NixOS
+  requiresUnprivilegedUserNamespaces
 
-    outPath=$(nix build --print-out-paths --no-link --sandbox-paths '/nix? /bin? /lib? /lib64? /usr?' --store "$TEST_ROOT/x" path:"$flakeDir")
+  outPath=$(nix build --print-out-paths --no-link --sandbox-paths '/nix? /bin? /lib? /lib64? /usr?' --store "$TEST_ROOT/x" path:"$flakeDir")
 
-    [[ $outPath =~ ^/nix2/store/.*-simple$ ]]
+  [[ $outPath =~ ^/nix2/store/.*-simple$ ]]
 
-    base=$(basename "$outPath")
-    [[ $(cat "$TEST_ROOT"/x/nix/store/"$base"/hello) = 'Hello World!' ]]
+  base=$(basename "$outPath")
+  [[ $(cat "$TEST_ROOT"/x/nix/store/"$base"/hello) == 'Hello World!' ]]
 fi

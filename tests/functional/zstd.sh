@@ -23,13 +23,13 @@ nix copy --from "$cacheURI" "$outPath" --no-check-sigs --profile "$TEST_ROOT/pro
 [[ -e $TEST_ROOT/profile ]]
 [[ -e $TEST_ROOT/result ]]
 
-if ls "$cacheDir/nar/"*.zst &> /dev/null; then
-    echo "files do exist"
+if ls "$cacheDir/nar/"*.zst &>/dev/null; then
+  echo "files do exist"
 else
-    echo "nars do not exist"
-    exit 1
+  echo "nars do not exist"
+  exit 1
 fi
 
 HASH2=$(nix hash path "$outPath")
 
-[[ "$HASH" = "$HASH2" ]]
+[[ $HASH == "$HASH2" ]]

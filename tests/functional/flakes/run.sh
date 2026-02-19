@@ -10,7 +10,7 @@ rm -rf "$TEST_HOME"/.cache "$TEST_HOME"/.config "$TEST_HOME"/.local
 cp ../shell-hello.nix "${config_nix}" "$TEST_HOME"
 cd "$TEST_HOME"
 
-cat <<EOF > flake.nix
+cat <<EOF >flake.nix
 {
     outputs = {self}: {
       packages.$system.pkgAsPkg = (import ./shell-hello.nix).hello;
@@ -34,8 +34,8 @@ nix run --no-write-lock-file .#pkgAsPkg
 # For instance, we might set an environment variable temporarily to affect some
 # initialization or whatnot, but this must not leak into the environment of the
 # command being run.
-env > "$TEST_ROOT"/expected-env
-nix run -f shell-hello.nix env > "$TEST_ROOT"/actual-env
+env >"$TEST_ROOT"/expected-env
+nix run -f shell-hello.nix env >"$TEST_ROOT"/actual-env
 # Remove/reset variables we expect to be different.
 # - PATH is modified by nix shell
 # - we unset TMPDIR on macOS if it contains /var/folders. bad. https://github.com/NixOS/nix/issues/7731
@@ -49,10 +49,10 @@ sed -i \
   -e '/^__CF_USER_TEXT_ENCODING=.*$/d' \
   -e '/^__LLVM_PROFILE_RT_INIT_ONCE=.*$/d' \
   "$TEST_ROOT"/expected-env "$TEST_ROOT"/actual-env
-sort "$TEST_ROOT"/expected-env | uniq > "$TEST_ROOT"/expected-env.sorted
+sort "$TEST_ROOT"/expected-env | uniq >"$TEST_ROOT"/expected-env.sorted
 # nix run appears to clear _. I don't understand why. Is this ok?
-echo "_=..." >> "$TEST_ROOT"/actual-env
-sort "$TEST_ROOT"/actual-env | uniq > "$TEST_ROOT"/actual-env.sorted
+echo "_=..." >>"$TEST_ROOT"/actual-env
+sort "$TEST_ROOT"/actual-env | uniq >"$TEST_ROOT"/actual-env.sorted
 diff "$TEST_ROOT"/expected-env.sorted "$TEST_ROOT"/actual-env.sorted
 
 # Test for issue #13994: verify behavior of -- separator with installable
@@ -61,7 +61,7 @@ clearStore
 rm -rf "$TEST_HOME"/.cache "$TEST_HOME"/.config "$TEST_HOME"/.local
 cd "$TEST_HOME"
 
-cat <<'EOF' > print-args.sh
+cat <<'EOF' >print-args.sh
 #!/bin/sh
 printf "ARGS:"
 for arg in "$@"; do
@@ -71,7 +71,7 @@ printf "\n"
 EOF
 chmod +x print-args.sh
 
-cat <<EOF > flake.nix
+cat <<EOF >flake.nix
 {
   outputs = {self}: {
     apps.$system.default = {
@@ -90,4 +90,3 @@ nix run --no-write-lock-file -- . myarg1 myarg2 2>&1 | grepQuiet "ARGS: myarg1 m
 
 # And verify that a non-installable first argument causes an error
 expectStderr 1 nix run --no-write-lock-file -- myarg1 myarg2 | grepQuiet "error.*myarg1"
-

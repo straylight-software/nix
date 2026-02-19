@@ -1,7 +1,6 @@
 # Special exit codes for build failure
 
-1xx status codes are used when requested builds failed.
-The following codes are in use:
+1xx status codes are used when requested builds failed. The following codes are in use:
 
 - `100` Generic build failure
 
@@ -20,9 +19,8 @@ The following codes are in use:
 
   The build succeeded in check mode but the resulting output is not binary reproducible.
 
-With the `--keep-going` flag it's possible for multiple failures to occur.
-In this case the 1xx status codes are or combined using
-[bitwise OR](https://en.wikipedia.org/wiki/Bitwise_operation#OR).
+With the `--keep-going` flag it's possible for multiple failures to occur. In this case the 1xx
+status codes are or combined using [bitwise OR](https://en.wikipedia.org/wiki/Bitwise_operation#OR).
 
 ```
 0b1100100

@@ -1,2 +1,2 @@
-assert false == null;
+assert !null;
 abort "unreachable"

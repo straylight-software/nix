@@ -32,7 +32,7 @@ clearStore
     fromPath = $nonCaPath;
     toPath = $caPath;
   }
-") = "$caPath" ]]
+") == "$caPath" ]]
 
 [ ! -e "$nonCaPath" ]
 [ -e "$caPath" ]
@@ -42,33 +42,32 @@ clearStore
 # The daemon will reject input addressed paths unless configured to trust the
 # cache key or the user. This behavior should be covered by another test, so we
 # skip this part when using the daemon.
-if [[ "$NIX_REMOTE" != "daemon" ]]; then
+if [[ $NIX_REMOTE != "daemon" ]]; then
 
-    # If we want to return a non-CA path, we have to be explicit about it.
-    expectStderr 1 nix eval --raw --no-require-sigs --expr "
+  # If we want to return a non-CA path, we have to be explicit about it.
+  expectStderr 1 nix eval --raw --no-require-sigs --expr "
       builtins.fetchClosure {
         fromStore = \"file://$cacheDir\";
         fromPath = $nonCaPath;
       }
     " | grepQuiet -E "The .fromPath. value .* is input-addressed, but .inputAddressed. is set to .false."
 
-    # TODO: Should the closure be rejected, despite single user mode?
-    # [ ! -e $nonCaPath ]
+  # TODO: Should the closure be rejected, despite single user mode?
+  # [ ! -e $nonCaPath ]
 
-    [ ! -e "$caPath" ]
+  [ ! -e "$caPath" ]
 
-    # We can use non-CA paths when we ask explicitly.
-    [[ $(nix eval --raw --no-require-sigs --expr "
+  # We can use non-CA paths when we ask explicitly.
+  [[ $(nix eval --raw --no-require-sigs --expr "
       builtins.fetchClosure {
         fromStore = \"file://$cacheDir\";
         fromPath = $nonCaPath;
         inputAddressed = true;
       }
-    ") = "$nonCaPath" ]]
+    ") == "$nonCaPath" ]]
 
-    [ -e "$nonCaPath" ]
-    [ ! -e "$caPath" ]
-
+  [ -e "$nonCaPath" ]
+  [ ! -e "$caPath" ]
 
 fi
 
@@ -95,7 +94,7 @@ clearStore
     fromStore = \"file://$cacheDir\";
     fromPath = $caPath;
   }
-") = "$caPath" ]]
+") == "$caPath" ]]
 
 [ -e "$caPath" ]
 
@@ -105,7 +104,7 @@ clearStore
     fromStore = \"file://$cacheDir\";
     fromPath = $caPath;
   }}/foo.nix\"
-") = 3 ]]
+") == 3 ]]
 
 # Check that URL query parameters aren't allowed.
 clearStore
@@ -148,11 +147,9 @@ expectStderr 1 nix eval -v --raw --expr "
     fromPath = $badPath;
     toPath = $caPath;
   }
-") = "$caPath" ]]
-
+") == "$caPath" ]]
 
 # However, if the output address is unexpected, we can report it
-
 
 expectStderr 1 nix eval -v --raw --expr "
   builtins.fetchClosure {
@@ -161,4 +158,3 @@ expectStderr 1 nix eval -v --raw --expr "
     inputAddressed = true;
   }
 " | grepQuiet 'error.*The store object referred to by.*fromPath.* at .* is not input-addressed, but .*inputAddressed.* is set to .*true.*'
-

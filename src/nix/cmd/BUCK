@@ -1,0 +1,57 @@
+# src/nix/cmd/BUCK
+
+cxx_library(
+    name = "cmd",
+
+    srcs = [
+        "built-path.cpp",
+        "command.cpp",
+        "command-installable-value.cpp",
+        "common-eval-args.cpp",
+        "editor-for.cpp",
+        "installable-attr-path.cpp",
+        "installable-derived-path.cpp",
+        "installable-flake.cpp",
+        "installables.cpp",
+        "installable-value.cpp",
+        "markdown.cpp",
+        "misc-store-flags.cpp",
+        "network-proxy.cpp",
+        "repl.cpp",
+        "repl-interacter.cpp",
+    ],
+
+    exported_headers = [
+        "built-path.h",
+        "cmd-config-private.h",
+        "command.h",
+        "command-installable-value.h",
+        "common-eval-args.h",
+        "compatibility-settings.h",
+        "editor-for.h",
+        "installable-attr-path.h",
+        "installable-derived-path.h",
+        "installable-flake.h",
+        "installables.h",
+        "installable-value.h",
+        "legacy.h",
+        "markdown.h",
+        "misc-store-flags.h",
+        "network-proxy.h",
+        "repl.h",
+        "repl-interacter.h",
+    ],
+
+    header_namespace = "nix/cmd",
+
+    visibility = ["PUBLIC"],
+
+    deps = [
+        "//src/nix/util:util",
+        "//src/nix/store:store",
+        "//src/nix/fetchers:fetchers",
+        "//src/nix/expr:expr",
+        "//src/nix/flake:flake",
+        "//src/nix/main:main",
+    ],
+)

@@ -1,12 +1,11 @@
 # Remote Builds
 
-A local Nix installation can forward Nix builds to other machines,
-this allows multiple builds to be performed in parallel.
+A local Nix installation can forward Nix builds to other machines, this allows multiple builds to be
+performed in parallel.
 
-Remote builds also allow Nix to perform multi-platform builds in a
-semi-transparent way. For example, if you perform a build for a
-`aarch64-darwin` on an `x86_64-linux` machine, Nix can automatically
-forward the build to a `aarch64-darwin` machine, if one is available.
+Remote builds also allow Nix to perform multi-platform builds in a semi-transparent way. For
+example, if you perform a build for a `aarch64-darwin` on an `x86_64-linux` machine, Nix can
+automatically forward the build to a `aarch64-darwin` machine, if one is available.
 
 ## Requirements
 
@@ -26,27 +25,23 @@ To test connecting to a remote [Nix instance] (in this case `mac`), run:
 nix store info --store ssh://username@mac
 ```
 
-To specify an SSH identity file as part of the remote store URI add a
-query parameter, e.g.
+To specify an SSH identity file as part of the remote store URI add a query parameter, e.g.
 
 ```console
 nix store info --store ssh://username@mac?ssh-key=/home/alice/my-key
 ```
 
-Since builds should be non-interactive, the key should not have a
-passphrase. Alternatively, you can load identities ahead of time into
-`ssh-agent` or `gpg-agent`.
+Since builds should be non-interactive, the key should not have a passphrase. Alternatively, you can
+load identities ahead of time into `ssh-agent` or `gpg-agent`.
 
-In a multi-user installation (default), builds are executed by the Nix
-Daemon. The Nix Daemon cannot prompt for a passphrase via the terminal
-or `ssh-agent`, so the SSH key must not have a passphrase.
+In a multi-user installation (default), builds are executed by the Nix Daemon. The Nix Daemon cannot
+prompt for a passphrase via the terminal or `ssh-agent`, so the SSH key must not have a passphrase.
 
-In addition, the Nix Daemon's user (typically root) needs to have SSH
-access to the remote builder.
+In addition, the Nix Daemon's user (typically root) needs to have SSH access to the remote builder.
 
-Access can be verified by running `sudo su`, and then validating SSH
-access, e.g. by running `ssh mac`. SSH identity files for root users
-are usually stored in `/root/.ssh/` (Linux) or `/var/root/.ssh` (MacOS).
+Access can be verified by running `sudo su`, and then validating SSH access, e.g. by running
+`ssh mac`. SSH identity files for root users are usually stored in `/root/.ssh/` (Linux) or
+`/var/root/.ssh` (MacOS).
 
 If you get the error
 
@@ -55,11 +50,11 @@ bash: nix: command not found
 error: cannot connect to 'mac'
 ```
 
-then you need to ensure that the `PATH` of non-interactive login shells
-contains Nix.
+then you need to ensure that the `PATH` of non-interactive login shells contains Nix.
 
-The [list of remote build machines](@docroot@/command-ref/conf-file.md#conf-builders) can be specified on the command line or in the Nix configuration file.
-For example, the following command allows you to build a derivation for `aarch64-darwin` on a Linux machine:
+The [list of remote build machines](@docroot@/command-ref/conf-file.md#conf-builders) can be
+specified on the command line or in the Nix configuration file. For example, the following command
+allows you to build a derivation for `aarch64-darwin` on a Linux machine:
 
 ```console
 uname
@@ -93,18 +88,22 @@ It is possible to specify multiple build machines separated by a semicolon or a 
   --builders 'ssh://mac aarch64-darwin ; ssh://beastie x86_64-freebsd'
 ```
 
-Remote build machines can also be configured in [`nix.conf`](@docroot@/command-ref/conf-file.md), e.g.
+Remote build machines can also be configured in [`nix.conf`](@docroot@/command-ref/conf-file.md),
+e.g.
 
-    builders = ssh://mac aarch64-darwin ; ssh://beastie x86_64-freebsd
+```
+builders = ssh://mac aarch64-darwin ; ssh://beastie x86_64-freebsd
+```
 
 After making changes to `nix.conf`, restart the Nix daemon for changes to take effect.
 
-Finally, remote build machines can be configured in a separate configuration
-file included in `builders` via the syntax `@/path/to/file`. For example,
+Finally, remote build machines can be configured in a separate configuration file included in
+`builders` via the syntax `@/path/to/file`. For example,
 
-    builders = @/etc/nix/machines
+```
+builders = @/etc/nix/machines
+```
 
-causes the list of machines in `/etc/nix/machines` to be included.
-(This is the default.)
+causes the list of machines in `/etc/nix/machines` to be included. (This is the default.)
 
-[Nix instance]: @docroot@/glossary.md#gloss-nix-instance
+[nix instance]: @docroot@/glossary.md#gloss-nix-instance

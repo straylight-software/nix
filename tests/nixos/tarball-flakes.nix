@@ -6,7 +6,7 @@
 }:
 
 let
-  pkgs = config.nodes.machine.nixpkgs.pkgs;
+  inherit (config.nodes.machine.nixpkgs) pkgs;
 
   root = pkgs.runCommand "nixpkgs-flake" { } ''
     mkdir -p $out/{stable,tags}

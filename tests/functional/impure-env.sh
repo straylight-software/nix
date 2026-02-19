@@ -11,10 +11,12 @@ enableFeatures "configurable-impure-env"
 restartDaemon
 
 varTest() {
-    local var="$1"; shift
-    local value="$1"; shift
-    nix build --no-link -vL --argstr var "$var" --argstr value "$value" --impure "$@" --file impure-env.nix
-    clearStore
+  local var="$1"
+  shift
+  local value="$1"
+  shift
+  nix build --no-link -vL --argstr var "$var" --argstr value "$value" --impure "$@" --file impure-env.nix
+  clearStore
 }
 
 clearStore
@@ -22,7 +24,7 @@ startDaemon
 
 varTest env_name value --impure-env env_name=value
 
-echo 'impure-env = set_in_config=config_value' >> "$test_nix_conf"
+echo 'impure-env = set_in_config=config_value' >>"$test_nix_conf"
 set_in_config=daemon_value restartDaemon
 
 varTest set_in_config config_value

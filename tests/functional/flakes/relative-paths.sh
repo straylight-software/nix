@@ -12,7 +12,7 @@ subflake2="$rootFlake/sub2"
 rm -rf "$rootFlake"
 mkdir -p "$rootFlake" "$subflake0" "$subflake1" "$subflake2"
 
-cat > "$rootFlake/flake.nix" <<EOF
+cat >"$rootFlake/flake.nix" <<EOF
 {
   inputs.sub0.url = ./sub0;
   outputs = { self, sub0 }: {
@@ -22,7 +22,7 @@ cat > "$rootFlake/flake.nix" <<EOF
 }
 EOF
 
-cat > "$subflake0/flake.nix" <<EOF
+cat >"$subflake0/flake.nix" <<EOF
 {
   outputs = { self }: {
     x = 7;
@@ -30,10 +30,10 @@ cat > "$subflake0/flake.nix" <<EOF
 }
 EOF
 
-[[ $(nix eval "$rootFlake#x") = 2 ]]
-[[ $(nix eval "$rootFlake#y") = 14 ]]
+[[ $(nix eval "$rootFlake#x") == 2 ]]
+[[ $(nix eval "$rootFlake#y") == 14 ]]
 
-cat > "$subflake1/flake.nix" <<EOF
+cat >"$subflake1/flake.nix" <<EOF
 {
   inputs.root.url = "../";
   outputs = { self, root }: {
@@ -43,14 +43,14 @@ cat > "$subflake1/flake.nix" <<EOF
 }
 EOF
 
-[[ $(nix eval "$rootFlake?dir=sub1#y") = 6 ]]
+[[ $(nix eval "$rootFlake?dir=sub1#y") == 6 ]]
 
 initGitRepo "$rootFlake"
 git -C "$rootFlake" add flake.nix sub0/flake.nix sub1/flake.nix
 
-[[ $(nix eval "$subflake1#y") = 6 ]]
+[[ $(nix eval "$subflake1#y") == 6 ]]
 
-cat > "$subflake2/flake.nix" <<EOF
+cat >"$subflake2/flake.nix" <<EOF
 {
   inputs.root.url = ./..;
   inputs.sub1.url = "../sub1";
@@ -63,18 +63,18 @@ EOF
 
 git -C "$rootFlake" add flake.nix sub2/flake.nix
 
-[[ $(nix eval "$subflake2#y") = 15 ]]
+[[ $(nix eval "$subflake2#y") == 15 ]]
 
 # Make sure that this still works after commiting the lock file.
 git -C "$rootFlake" add sub2/flake.lock
-[[ $(nix eval "$subflake2#y") = 15 ]]
+[[ $(nix eval "$subflake2#y") == 15 ]]
 
-[[ $(jq --indent 0 --compact-output . < "$subflake2/flake.lock") =~ ^'{"nodes":{"root":{"inputs":{"root":"root_2","sub1":"sub1"}},"root_2":{"inputs":{"sub0":"sub0"},"locked":{"path":"..","type":"path"},"original":{"path":"..","type":"path"},"parent":[]},"root_3":{"inputs":{"sub0":"sub0_2"},"locked":{"path":"../","type":"path"},"original":{"path":"../","type":"path"},"parent":["sub1"]},"sub0":{"locked":{"path":"sub0","type":"path"},"original":{"path":"sub0","type":"path"},"parent":["root"]},"sub0_2":{"locked":{"path":"sub0","type":"path"},"original":{"path":"sub0","type":"path"},"parent":["sub1","root"]},"sub1":{"inputs":{"root":"root_3"},"locked":{"path":"../sub1","type":"path"},"original":{"path":"../sub1","type":"path"},"parent":[]}},"root":"root","version":7}'$ ]]
+[[ $(jq --indent 0 --compact-output . <"$subflake2/flake.lock") =~ ^'{"nodes":{"root":{"inputs":{"root":"root_2","sub1":"sub1"}},"root_2":{"inputs":{"sub0":"sub0"},"locked":{"path":"..","type":"path"},"original":{"path":"..","type":"path"},"parent":[]},"root_3":{"inputs":{"sub0":"sub0_2"},"locked":{"path":"../","type":"path"},"original":{"path":"../","type":"path"},"parent":["sub1"]},"sub0":{"locked":{"path":"sub0","type":"path"},"original":{"path":"sub0","type":"path"},"parent":["root"]},"sub0_2":{"locked":{"path":"sub0","type":"path"},"original":{"path":"sub0","type":"path"},"parent":["sub1","root"]},"sub1":{"inputs":{"root":"root_3"},"locked":{"path":"../sub1","type":"path"},"original":{"path":"../sub1","type":"path"},"parent":[]}},"root":"root","version":7}'$ ]]
 
 # Make sure there are no content locks for relative path flakes.
 (! grep "$TEST_ROOT" "$subflake2/flake.lock")
 if ! isTestOnNixOS; then
-    (! grep "$NIX_STORE_DIR" "$subflake2/flake.lock")
+  (! grep "$NIX_STORE_DIR" "$subflake2/flake.lock")
 fi
 (! grep narHash "$subflake2/flake.lock")
 
@@ -83,7 +83,7 @@ git -C "$rootFlake" add flake.lock
 git -C "$rootFlake" commit -a -m Foo
 
 json=$(nix flake archive --json "$rootFlake" --to "$TEST_ROOT/store2")
-[[ $(echo "$json" | jq .inputs.sub0.inputs) = {} ]]
+[[ $(echo "$json" | jq .inputs.sub0.inputs) == {} ]]
 [[ -n $(echo "$json" | jq .path) ]]
 
 nix flake prefetch --out-link "$TEST_ROOT/result" "$rootFlake"
@@ -94,7 +94,7 @@ outPath=$(readlink "$TEST_ROOT/result")
 # Test circular relative path flakes. FIXME: doesn't work at the moment.
 if false; then
 
-cat > "$rootFlake/flake.nix" <<EOF
+  cat >"$rootFlake/flake.nix" <<EOF
 {
   inputs.sub1.url = "./sub1";
   inputs.sub2.url = "./sub1";
@@ -106,8 +106,8 @@ cat > "$rootFlake/flake.nix" <<EOF
 }
 EOF
 
-[[ $(nix eval "$rootFlake#x") = 30 ]]
-[[ $(nix eval "$rootFlake#z") = 90 ]]
+  [[ $(nix eval "$rootFlake#x") == 30 ]]
+  [[ $(nix eval "$rootFlake#z") == 90 ]]
 
 fi
 

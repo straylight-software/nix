@@ -1,0 +1,148 @@
+# // straylight // nix // third_party
+#
+# External dependencies - system libraries from Nix devshell
+# Includes come from .buckconfig.local generated system paths
+#
+# TODO: Move to proper prebuilt_cxx_library with Nix store paths
+
+# Core dependencies used by libutil
+filegroup(name = "boost", srcs = [], visibility = ["PUBLIC"])
+filegroup(name = "nlohmann_json", srcs = [], visibility = ["PUBLIC"])
+filegroup(name = "openssl", srcs = [], visibility = ["PUBLIC"])
+filegroup(name = "blake3", srcs = [], visibility = ["PUBLIC"])
+filegroup(name = "brotli", srcs = [], visibility = ["PUBLIC"])
+filegroup(name = "libsodium", srcs = [], visibility = ["PUBLIC"])
+filegroup(name = "libarchive", srcs = [], visibility = ["PUBLIC"])
+# WHATWG URL parser (ada) - needs actual library linkage
+prebuilt_cxx_library(
+    name = "ada",
+    static_lib = "lib/libada.a",
+    exported_headers = [],
+    visibility = ["PUBLIC"],
+)
+
+# RE2 - fast regex engine with ERE/POSIX support (no backtracking)
+prebuilt_cxx_library(
+    name = "re2",
+    shared_lib = "lib/libre2.so",
+    exported_headers = [],
+    visibility = ["PUBLIC"],
+)
+
+# Dependencies used by libstore
+filegroup(name = "sqlite", srcs = [], visibility = ["PUBLIC"])
+filegroup(name = "sqlite3", srcs = [], visibility = ["PUBLIC"])  # alias
+filegroup(name = "curl", srcs = [], visibility = ["PUBLIC"])
+filegroup(name = "aws-sdk-cpp", srcs = [], visibility = ["PUBLIC"])
+
+# Dependencies used by libfetchers
+filegroup(name = "libgit2", srcs = [], visibility = ["PUBLIC"])
+
+# Dependencies used by libexpr
+filegroup(name = "gc", srcs = [], visibility = ["PUBLIC"])  # boehm-gc
+filegroup(name = "toml11", srcs = [], visibility = ["PUBLIC"])
+
+# Dependencies used by libmain
+filegroup(name = "editline", srcs = [], visibility = ["PUBLIC"])
+filegroup(name = "lowdown", srcs = [], visibility = ["PUBLIC"])
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Straylight primitives dependencies
+# ─────────────────────────────────────────────────────────────────────────────
+
+# StringZilla - SIMD-accelerated string operations (header-only)
+# Provides: ashvardanian::stringzilla namespace with string_view, find, split, etc.
+filegroup(name = "stringzilla", srcs = [], visibility = ["PUBLIC"])
+
+# rapidfuzz-cpp - SIMD-optimized fuzzy string matching (header-only)
+# Provides: Levenshtein distance, fuzzy ratio, token matching algorithms
+filegroup(name = "rapidfuzz-cpp", srcs = [], visibility = ["PUBLIC"])
+
+# mio - header-only cross-platform memory mapping (vendored)
+# MIT licensed, provides mmap/munmap abstraction with zero dependencies
+cxx_library(
+    name = "mio",
+    exported_headers = ["mio/mio.hpp"],
+    header_namespace = "",
+    visibility = ["PUBLIC"],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# nix-language dependencies (WASM compilation)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# PEGTL - Parser combinator library (header-only)
+filegroup(name = "pegtl", srcs = [], visibility = ["PUBLIC"])
+
+# Binaryen - WASM codegen library (C API)
+# Uses shared library from Nix store with -L flags from .buckconfig.local
+prebuilt_cxx_library(
+    name = "binaryen",
+    shared_lib = "lib/libbinaryen.so",
+    exported_headers = [],
+    visibility = ["PUBLIC"],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Test dependencies
+#
+# Unlike the runtime deps above (which use global -isystem/-L flags),
+# test libraries need explicit linking. We use prebuilt_cxx_library
+# to reference the actual Nix store paths.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Catch2 v3 - main library
+prebuilt_cxx_library(
+    name = "catch2_lib",
+    static_lib = "lib/libCatch2.a",
+    exported_headers = [],
+    visibility = ["PUBLIC"],
+)
+
+# Catch2 v3 - main() provider (use with tests that don't define their own main)
+prebuilt_cxx_library(
+    name = "catch2_main",
+    static_lib = "lib/libCatch2Main.a",
+    exported_headers = [],
+    deps = [":catch2_lib"],
+    visibility = ["PUBLIC"],
+)
+
+# Combined Catch2 target for convenience
+alias(
+    name = "catch2",
+    actual = ":catch2_main",
+    visibility = ["PUBLIC"],
+)
+
+# RapidCheck - property-based testing
+prebuilt_cxx_library(
+    name = "rapidcheck",
+    shared_lib = "lib/librapidcheck.so",
+    exported_headers = [],
+    visibility = ["PUBLIC"],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Benchmark dependencies
+# ─────────────────────────────────────────────────────────────────────────────
+
+# nanobench (ankerl) - fast microbenchmarking
+prebuilt_cxx_library(
+    name = "nanobench",
+    static_lib = "lib/libnanobench.a",
+    exported_headers = [],
+    visibility = ["PUBLIC"],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# libevring dependencies (async I/O)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# liburing - io_uring userspace library
+prebuilt_cxx_library(
+    name = "liburing",
+    shared_lib = "lib/liburing.so",
+    exported_headers = [],
+    visibility = ["PUBLIC"],
+)

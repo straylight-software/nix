@@ -11,12 +11,12 @@ lowdown_args=
 
 # Optional --out-no-smarty flag for compatibility with nix_nested_manpages
 if [ "$1" = --out-no-smarty ]; then
-    lowdown_args=--out-no-smarty
-    shift
+  lowdown_args=--out-no-smarty
+  shift
 fi
 
 [ "$#" = 7 ] || {
-    cat >&2 <<EOF
+  cat >&2 <<EOF
 Usage: $0 [--out-no-smarty] <title> <section> <source-root> <generated-root> <doc-url> <infile> <outfile>
 
 Arguments:
@@ -33,7 +33,7 @@ Examples:
      https://nix.dev/manual/nix/latest \\
      build/doc/manual/source/command-ref/nix-store/query.md nix-store-query.1
 EOF
-    exit 1
+  exit 1
 }
 
 title="$1"
@@ -46,10 +46,10 @@ outfile="$7"
 
 # Expand includes and pipe to lowdown
 (
-    printf "Title: %s\n\n" "$title"
-    python3 "$script_dir/expand-includes.py" \
-        --source-root "$source_root" \
-        --generated-root "$generated_root" \
-        --doc-url "$doc_url" \
-        "$infile"
+  printf "Title: %s\n\n" "$title"
+  python3 "$script_dir/expand-includes.py" \
+    --source-root "$source_root" \
+    --generated-root "$generated_root" \
+    --doc-url "$doc_url" \
+    "$infile"
 ) | lowdown -sT man --nroff-nolinks $lowdown_args -M section="$section" -o "$outfile"

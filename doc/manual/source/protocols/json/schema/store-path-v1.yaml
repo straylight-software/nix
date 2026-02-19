@@ -20,7 +20,6 @@ description: |
 
   - **hash**: Digest rendered in a custom variant of [Base32](https://en.wikipedia.org/wiki/Base32) (20 arbitrary bytes become 32 ASCII characters)
   - **name**: The package name and optional version/suffix information
-
 type: string
 pattern: "^[0123456789abcdfghijklmnpqrsvwxyz]{32}-.+$"
 minLength: 34

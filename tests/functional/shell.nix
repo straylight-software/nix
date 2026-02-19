@@ -23,9 +23,7 @@ let
       )
     else
       cfg.mkDerivation;
-in
 
-let
   pkgs = rec {
     setupSh = builtins.toFile "setup" ''
       export VAR_FROM_STDENV_SETUP=foo

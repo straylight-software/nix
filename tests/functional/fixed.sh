@@ -15,7 +15,7 @@ nix-build fixed.nix -A bad --no-out-link && fail "should fail"
 # a side-effect.
 [[ -e $path ]]
 nix path-info --json --json-format 2 "$path" | jq -e \
-    '.info.[].ca == {
+  '.info.[].ca == {
         method: "flat",
         hash: "md5-jd2L5LF5pSmvpfL/rkuYWA=="
     }'
@@ -24,8 +24,8 @@ echo 'testing good...'
 nix-build fixed.nix -A good --no-out-link
 
 if isDaemonNewer "2.4pre20210927"; then
-    echo 'testing --check...'
-    nix-build fixed.nix -A check --check && fail "should fail"
+  echo 'testing --check...'
+  nix-build fixed.nix -A check --check && fail "should fail"
 fi
 
 echo 'testing good2...'
@@ -35,8 +35,8 @@ echo 'testing reallyBad...'
 nix-instantiate fixed.nix -A reallyBad && fail "should fail"
 
 if isDaemonNewer "2.20pre20240108"; then
-    echo 'testing fixed with references...'
-    expectStderr 1 nix-build fixed.nix -A badReferences | grepQuiet "not allowed to refer to other store paths"
+  echo 'testing fixed with references...'
+  expectStderr 1 nix-build fixed.nix -A badReferences | grepQuiet "not allowed to refer to other store paths"
 fi
 
 # While we're at it, check attribute selection a bit more.
@@ -58,7 +58,7 @@ out=$(nix-build fixed.nix -A sameAsAdd --no-out-link)
 rm -rf "$TEST_ROOT"/fixed
 mkdir "$TEST_ROOT"/fixed
 mkdir "$TEST_ROOT"/fixed/bla
-echo "Hello World!" > "$TEST_ROOT"/fixed/foo
+echo "Hello World!" >"$TEST_ROOT"/fixed/foo
 ln -s foo "$TEST_ROOT"/fixed/bar
 
 out2=$(nix-store --add "$TEST_ROOT"/fixed)

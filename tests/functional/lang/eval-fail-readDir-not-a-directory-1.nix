@@ -1,3 +1,1 @@
-{
-  regularFile = builtins.readDir ./readDir/bar;
-}
+{ regularFile = builtins.readDir ./readDir/bar; }

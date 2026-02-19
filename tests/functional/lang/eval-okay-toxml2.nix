@@ -1,8 +1,8 @@
 builtins.toXML [
   ("a" + "b")
   10
-  (rec {
+  rec {
     x = "x";
     y = x;
-  })
+  }
 ]

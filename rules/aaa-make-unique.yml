@@ -1,0 +1,10 @@
+# Hypermodern C++ AAA: auto with make_unique
+# std::unique_ptr<T> x = std::make_unique<T>(...) → auto x = std::make_unique<T>(...)
+id: aaa-make-unique
+language: cpp
+severity: hint
+message: "AAA: Use auto with std::make_unique"
+note: "Almost Always Auto - the type is already specified in make_unique"
+rule:
+  pattern: std::unique_ptr<$TYPE> $VAR = std::make_unique<$TYPE2>($$$ARGS)
+fix: "auto $VAR = std::make_unique<$TYPE2>($$$ARGS)"

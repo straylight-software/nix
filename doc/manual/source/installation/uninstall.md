@@ -1,6 +1,7 @@
 # Uninstalling Nix
 
-To uninstall Determinate Nix, use the uninstallation utility built into the [Determinate Nix Installer][installer]:
+To uninstall Determinate Nix, use the uninstallation utility built into the
+[Determinate Nix Installer][installer]:
 
 ```console
 $ /nix/nix-installer uninstall

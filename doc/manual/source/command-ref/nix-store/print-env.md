@@ -8,9 +8,8 @@
 
 ## Description
 
-The operation `--print-env` prints out the environment of a derivation
-in a format that can be evaluated by a shell. The command line arguments
-of the builder are placed in the variable `_args`.
+The operation `--print-env` prints out the environment of a derivation in a format that can be
+evaluated by a shell. The command line arguments of the builder are placed in the variable `_args`.
 
 {{#include ./opt-common.md}}
 
@@ -28,4 +27,3 @@ export stdenv; stdenv='/nix/store/7c8asx3yfrg5dg1gzhzyq2236zfgibnn-stdenv'
 export system; system='x86_64-linux'
 export _args; _args='-e /nix/store/9krlzvny65gdc8s7kpb6lkx8cd02c25c-default-builder.sh'
 ```
-

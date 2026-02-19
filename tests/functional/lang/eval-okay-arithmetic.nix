@@ -1,21 +1,8 @@
 with import ./lib.nix;
 
-let {
-
-  /*
-    Supposedly tail recursive version:
-
-    range_ = accum: first: last:
-      if first == last then ([first] ++ accum)
-      else range_ ([first] ++ accum) (builtins.add first 1) last;
-
-    range = range_ [];
-  */
-
+rec {
   x = 12;
-
   err = abort "urgh";
-
   body = sum [
     (sum (range 1 50))
     (123 + 456)
@@ -56,5 +43,4 @@ let {
     (if "aa" < "aa" then err else 1)
     (if "foo" < "foobar" then 1 else err)
   ];
-
-}
+}.body

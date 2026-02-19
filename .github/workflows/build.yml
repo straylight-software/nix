@@ -38,7 +38,6 @@ on:
         required: false
       manual_netlify_site_id:
         required: false
-
 jobs:
   build:
     if: ${{ inputs.if }}
@@ -56,7 +55,6 @@ jobs:
         with:
           name: ${{ inputs.system }}
           path: ./tarball/*.xz
-
   test:
     if: ${{ inputs.if && inputs.run_tests}}
     needs: build
@@ -69,7 +67,6 @@ jobs:
       - uses: DeterminateSystems/determinate-nix-action@main
       - uses: DeterminateSystems/flakehub-cache-action@main
       - run: nix flake check -L --system ${{ inputs.system }}
-
   vm_tests_smoke:
     if: inputs.run_vm_tests && github.event_name != 'merge_group'
     needs: build
@@ -85,7 +82,6 @@ jobs:
             .#hydraJobs.tests.nix-docker \
             .#hydraJobs.tests.tarballFlakes \
             ;
-
   vm_tests_all:
     if: inputs.run_vm_tests && github.event_name == 'merge_group'
     needs: build
@@ -110,7 +106,6 @@ jobs:
             printf "\n\n\n\n\n\n\n\n"
             cmd
           fi
-
   flake_regressions:
     if: |
       (inputs.run_regression_tests && github.event_name == 'merge_group')
@@ -136,7 +131,6 @@ jobs:
           - "[m]*"
           - "[n-r]*"
           - "[s-z]*"
-
     steps:
       - name: Checkout nix
         uses: actions/checkout@v4
@@ -181,7 +175,6 @@ jobs:
             printf "\n\n\n\n\n\n\n\n"
             NIX_REMOTE=/tmp/nix flake-regressions/eval-all.sh
           fi
-
   manual:
     if: github.event_name != 'merge_group'
     needs: build
@@ -217,7 +210,6 @@ jobs:
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.manual_netlify_auth_token }}
           NETLIFY_SITE_ID: ${{ secrets.manual_netlify_site_id }}
-
   success:
     needs:
       - build

@@ -9,9 +9,9 @@ A profile is a directory of symlinks to files in the Nix store.
 
 ### Filesystem layout
 
-Profiles are versioned as follows. When using a profile named *path*, *path* is a symlink to *path*`-`*N*`-link`, where *N* is the version of the profile.
-In turn, *path*`-`*N*`-link` is a symlink to a path in the Nix store.
-For example:
+Profiles are versioned as follows. When using a profile named *path*, *path* is a symlink to
+*path*`-`*N*`-link`, where *N* is the version of the profile. In turn, *path*`-`*N*`-link` is a
+symlink to a path in the Nix store. For example:
 
 ```console
 $ ls -l ~alice/.local/state/nix/profiles/profile*
@@ -23,9 +23,8 @@ lrwxrwxrwx 1 alice users 51 Nov 25 14:35 /home/alice/.local/state/nix/profiles/p
 
 Each of these symlinks is a root for the Nix garbage collector.
 
-The contents of the store path corresponding to each version of the
-profile is a tree of symlinks to the files of the installed packages,
-e.g.
+The contents of the store path corresponding to each version of the profile is a tree of symlinks to
+the files of the installed packages, e.g.
 
 ```console
 $ ll -R ~eelco/.local/state/nix/profiles/profile-7-link/
@@ -51,8 +50,11 @@ lrwxrwxrwx 3 root root 107 Jan  1  1970 us.zoom.Zoom.desktop -> /nix/store/wbhg2
 ```
 
 Each profile version contains a manifest file:
-- [`manifest.nix`](@docroot@/command-ref/files/manifest.nix.md) used by [`nix-env`](@docroot@/command-ref/nix-env.md).
-- [`manifest.json`](@docroot@/command-ref/files/manifest.json.md) used by [`nix profile`](@docroot@/command-ref/new-cli/nix3-profile.md) (experimental).
+
+- [`manifest.nix`](@docroot@/command-ref/files/manifest.nix.md) used by
+  [`nix-env`](@docroot@/command-ref/nix-env.md).
+- [`manifest.json`](@docroot@/command-ref/files/manifest.json.md) used by
+  [`nix profile`](@docroot@/command-ref/new-cli/nix3-profile.md) (experimental).
 
 ## User profile link
 
@@ -66,9 +68,10 @@ By default, this symlink points to:
 - `$XDG_STATE_HOME/nix/profiles/profile` for regular users
 - `$NIX_STATE_DIR/profiles/per-user/root/profile` for `root`
 
-The `PATH` environment variable should include `/bin` subdirectory of the profile link (e.g. `~/.nix-profile/bin`) for the user environment to be visible to the user.
-The installer sets this up by default, unless you enable [`use-xdg-base-directories`].
+The `PATH` environment variable should include `/bin` subdirectory of the profile link (e.g.
+`~/.nix-profile/bin`) for the user environment to be visible to the user. The installer sets this up
+by default, unless you enable [`use-xdg-base-directories`].
 
-[`nix-env`]: @docroot@/command-ref/nix-env.md
 [`nix profile`]: @docroot@/command-ref/new-cli/nix3-profile.md
+[`nix-env`]: @docroot@/command-ref/nix-env.md
 [`use-xdg-base-directories`]: @docroot@/command-ref/conf-file.md#conf-use-xdg-base-directories

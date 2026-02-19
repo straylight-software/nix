@@ -8,7 +8,7 @@ flake1Dir=$TEST_ROOT/flake1
 flake2Dir=$TEST_ROOT/flake2
 
 createGitRepo "$flake1Dir"
-cat > "$flake1Dir"/flake.nix <<EOF
+cat >"$flake1Dir"/flake.nix <<EOF
 {
     outputs = { self }: { x = builtins.readFile $(pwd)/absolute-paths.sh; };
 }

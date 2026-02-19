@@ -2,11 +2,13 @@
 
 This section shows how to build and debug Nix with debug symbols enabled.
 
-Additionally, see [Testing Nix](./testing.md) for further instructions on how to debug Nix in the context of a unit test or functional test.
+Additionally, see [Testing Nix](./testing.md) for further instructions on how to debug Nix in the
+context of a unit test or functional test.
 
 ## Building Nix with Debug Symbols
 
-In the development shell, `mesonBuildType` is set automatically to `debugoptimized`. This builds Nix with debug symbols, which are essential for effective debugging.
+In the development shell, `mesonBuildType` is set automatically to `debugoptimized`. This builds Nix
+with debug symbols, which are essential for effective debugging.
 
 It is also possible to build without optimization for faster build:
 
@@ -20,8 +22,8 @@ It is also possible to build without optimization for faster build:
 ## Building Nix with sanitizers
 
 Nix can be built with [Address](https://clang.llvm.org/docs/AddressSanitizer.html) and
-[UB](https://clang.llvm.org/docs/UndefinedBehaviorSanitizer.html) sanitizers using LLVM
-or GCC. This is useful when debugging memory corruption issues.
+[UB](https://clang.llvm.org/docs/UndefinedBehaviorSanitizer.html) sanitizers using LLVM or GCC. This
+is useful when debugging memory corruption issues.
 
 ```console
 [nix-shell]$ export mesonBuildType=debugoptimized
@@ -67,7 +69,8 @@ Inside the debugger, you can set breakpoints, run the program, and inspect varia
 (gdb) run <arguments>
 ```
 
-Refer to the [GDB Documentation](https://www.gnu.org/software/gdb/documentation/) for comprehensive usage instructions.
+Refer to the [GDB Documentation](https://www.gnu.org/software/gdb/documentation/) for comprehensive
+usage instructions.
 
 On macOS, use `lldb`:
 
@@ -76,4 +79,5 @@ On macOS, use `lldb`:
 (lldb) process launch -- <arguments>
 ```
 
-Refer to the [LLDB Tutorial](https://lldb.llvm.org/use/tutorial.html) for comprehensive usage instructions.
+Refer to the [LLDB Tutorial](https://lldb.llvm.org/use/tutorial.html) for comprehensive usage
+instructions.

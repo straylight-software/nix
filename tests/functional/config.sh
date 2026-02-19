@@ -65,11 +65,11 @@ exp_cores=$(nix config show | grep '^cores' | cut -d '=' -f 2 | xargs)
 [[ $exp_cores == "4242" ]]
 
 # Test that it's possible to retrieve a single setting's value
-val=$(nix config show | grep '^warn-dirty' | cut -d '=' -f  2 | xargs)
+val=$(nix config show | grep '^warn-dirty' | cut -d '=' -f 2 | xargs)
 val2=$(nix config show warn-dirty)
 [[ $val == "$val2" ]]
 
 # Test unit prefixes.
-[[ $(nix config show --min-free 64K min-free) = 65536 ]]
-[[ $(nix config show --min-free 1M min-free) = 1048576 ]]
-[[ $(nix config show --min-free 2G min-free) = 2147483648 ]]
+[[ $(nix config show --min-free 64K min-free) == 65536 ]]
+[[ $(nix config show --min-free 1M min-free) == 1048576 ]]
+[[ $(nix config show --min-free 2G min-free) == 2147483648 ]]

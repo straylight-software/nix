@@ -13,8 +13,8 @@ rec {
 
   deps = mkDerivation {
     name = "check-reqs-deps";
-    dep1 = dep1;
-    dep2 = dep2;
+    inherit dep1;
+    inherit dep2;
     builder = builtins.toFile "builder.sh" ''
       mkdir $out
       ln -s $dep1/file1 $out/file1

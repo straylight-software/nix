@@ -17,7 +17,7 @@ nix fmt run --help | grep "reformat your code"
 nix fmt build --help | grep "build"
 
 # shellcheck disable=SC2154
-cat << EOF > flake.nix
+cat <<EOF >flake.nix
 {
   outputs = _: {
     formatter.$system =
@@ -38,7 +38,7 @@ EOF
 mkdir subflake
 cp ./simple.nix ./simple.builder.sh ./formatter.simple.sh "${config_nix}" "$TEST_HOME/subflake"
 
-cat << EOF > subflake/flake.nix
+cat <<EOF >subflake/flake.nix
 {
   outputs = _: {
     formatter.$system =
@@ -57,8 +57,8 @@ cat << EOF > subflake/flake.nix
 EOF
 
 # No arguments check
-[[ "$(nix fmt)" = "PRJ_ROOT=$TEST_HOME Formatting(0):" ]]
-[[ "$(nix formatter run)" = "PRJ_ROOT=$TEST_HOME Formatting(0):" ]]
+[[ "$(nix fmt)" == "PRJ_ROOT=$TEST_HOME Formatting(0):" ]]
+[[ "$(nix formatter run)" == "PRJ_ROOT=$TEST_HOME Formatting(0):" ]]
 
 # Argument forwarding check
 nix fmt ./file ./folder | grep "PRJ_ROOT=$TEST_HOME Formatting(2): ./file ./folder"

@@ -4,40 +4,33 @@
 
 # Synopsis
 
-`nix-hash` [`--flat`] [`--base32`] [`--truncate`] [`--type` *hashAlgo*] *path…*
+`nix-hash` \[`--flat`\] \[`--base32`\] \[`--truncate`\] \[`--type` *hashAlgo*\] *path…*
 
-`nix-hash` [`--to-base16`|`--to-base32`|`--to-base64`|`--to-sri`] [`--type` *hashAlgo*] *hash…*
+`nix-hash` \[`--to-base16`|`--to-base32`|`--to-base64`|`--to-sri`\] \[`--type` *hashAlgo*\] *hash…*
 
 # Description
 
-The command `nix-hash` computes the cryptographic hash of the contents
-of each *path* and prints it on standard output. By default, it computes
-an MD5 hash, but other hash algorithms are available as well. The hash
-is printed in hexadecimal. To generate the same hash as
-`nix-prefetch-url` you have to specify multiple arguments, see below for
-an example.
+The command `nix-hash` computes the cryptographic hash of the contents of each *path* and prints it
+on standard output. By default, it computes an MD5 hash, but other hash algorithms are available as
+well. The hash is printed in hexadecimal. To generate the same hash as `nix-prefetch-url` you have
+to specify multiple arguments, see below for an example.
 
-The hash is computed over a *serialisation* of each path: a dump of
-the file system tree rooted at the path. This allows directories and
-symlinks to be hashed as well as regular files. The dump is in the
-*[Nix Archive (NAR)][Nix Archive] format* produced by [`nix-store
---dump`](@docroot@/command-ref/nix-store/dump.md).  Thus, `nix-hash path`
-yields the same cryptographic hash as `nix-store --dump path |
-md5sum`.
-
-[Nix Archive]: @docroot@/store/file-system-object/content-address.md#serial-nix-archive
+The hash is computed over a *serialisation* of each path: a dump of the file system tree rooted at
+the path. This allows directories and symlinks to be hashed as well as regular files. The dump is in
+the *[Nix Archive (NAR)][nix archive] format* produced by
+[`nix-store --dump`](@docroot@/command-ref/nix-store/dump.md). Thus, `nix-hash path` yields the same
+cryptographic hash as `nix-store --dump path | md5sum`.
 
 # Options
 
 - `--flat`
 
-  Print the cryptographic hash of the contents of each regular file *path*.
-  That is, instead of computing
-  the hash of the [Nix Archive (NAR)](@docroot@/store/file-system-object/content-address.md#serial-nix-archive) of *path*,
-  just [directly hash](@docroot@/store/file-system-object/content-address.md#serial-flat) *path* as is.
-  This requires *path* to resolve to a regular file rather than directory.
-  The result is identical to that produced by the GNU commands
-  `md5sum` and `sha1sum`.
+  Print the cryptographic hash of the contents of each regular file *path*. That is, instead of
+  computing the hash of the
+  [Nix Archive (NAR)](@docroot@/store/file-system-object/content-address.md#serial-nix-archive) of
+  *path*, just [directly hash](@docroot@/store/file-system-object/content-address.md#serial-flat)
+  *path* as is. This requires *path* to resolve to a regular file rather than directory. The result
+  is identical to that produced by the GNU commands `md5sum` and `sha1sum`.
 
 - `--base16`
 
@@ -45,20 +38,18 @@ md5sum`.
 
 - `--base32`
 
-  Print the hash in a base-32 representation rather than hexadecimal.
-  This base-32 representation is more compact and can be used in Nix
-  expressions (such as in calls to `fetchurl`).
+  Print the hash in a base-32 representation rather than hexadecimal. This base-32 representation is
+  more compact and can be used in Nix expressions (such as in calls to `fetchurl`).
 
 - `--base64`
 
-  Similar to --base32, but print the hash in a base-64 representation,
-  which is more compact than the base-32 one.
+  Similar to --base32, but print the hash in a base-64 representation, which is more compact than
+  the base-32 one.
 
 - `--sri`
 
-  Print the hash in SRI format with base-64 encoding.
-  The type of hash algorithm will be prepended to the hash string,
-  followed by a hyphen (-) and the base-64 hash body.
+  Print the hash in SRI format with base-64 encoding. The type of hash algorithm will be prepended
+  to the hash string, followed by a hyphen (-) and the base-64 hash body.
 
 - `--truncate`
 
@@ -66,28 +57,24 @@ md5sum`.
 
 - `--type` *hashAlgo*
 
-  Use the specified cryptographic hash algorithm, which can be one of
-  `blake3`, `md5`, `sha1`, `sha256`, and `sha512`.
+  Use the specified cryptographic hash algorithm, which can be one of `blake3`, `md5`, `sha1`,
+  `sha256`, and `sha512`.
 
 - `--to-base16`
 
-  Don’t hash anything, but convert the base-32 hash representation
-  *hash* to hexadecimal.
+  Don’t hash anything, but convert the base-32 hash representation *hash* to hexadecimal.
 
 - `--to-base32`
 
-  Don’t hash anything, but convert the hexadecimal hash representation
-  *hash* to base-32.
+  Don’t hash anything, but convert the hexadecimal hash representation *hash* to base-32.
 
 - `--to-base64`
 
-  Don’t hash anything, but convert the hexadecimal hash representation
-  *hash* to base-64.
+  Don’t hash anything, but convert the hexadecimal hash representation *hash* to base-64.
 
 - `--to-sri`
 
-  Don’t hash anything, but convert the hexadecimal hash representation
-  *hash* to SRI.
+  Don’t hash anything, but convert the hexadecimal hash representation *hash* to SRI.
 
 # Examples
 
@@ -152,3 +139,5 @@ sha1-5P2Lpfe76upazon+ECVVNs1g2rY=
 $ nix-hash --to-base16 sha1-5P2Lpfe76upazon+ECVVNs1g2rY=
 e4fd8ba5f7bbeaea5ace89fe10255536cd60dab6
 ```
+
+[nix archive]: @docroot@/store/file-system-object/content-address.md#serial-nix-archive

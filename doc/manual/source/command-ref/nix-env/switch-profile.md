@@ -8,8 +8,8 @@
 
 # Description
 
-This operation makes *path* the current profile for the user. That is,
-the symlink `~/.nix-profile` is made to point to *path*.
+This operation makes *path* the current profile for the user. That is, the symlink `~/.nix-profile`
+is made to point to *path*.
 
 {{#include ./opt-common.md}}
 

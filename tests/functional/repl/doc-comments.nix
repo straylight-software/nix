@@ -62,18 +62,18 @@
     /**
       I don't have to be strict, but I am anyway.
     */
-    { ... }: null;
+    _: null;
   # Note that pre and post are the same here. I just had to name them somehow.
   strictPre =
     /**
       Here's one way to do this
     */
-    a@{ ... }: a;
+    a: a;
   strictPost =
     /**
       Here's another way to do this
     */
-    { ... }@a: a;
+    a: a;
 
   # TODO
 

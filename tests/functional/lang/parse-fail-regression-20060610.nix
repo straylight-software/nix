@@ -1,11 +1,10 @@
-let {
+rec {
   x =
     {gcc}:
     {
       inherit gcc;
     };
-
-  body = ({
+  body = {
     inherit gcc;
-  }).gcc;
-}
+  }.gcc;
+}.body

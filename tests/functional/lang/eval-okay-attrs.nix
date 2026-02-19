@@ -1,4 +1,4 @@
-let {
+rec {
   as = {
     x = 123;
     y = 456;
@@ -9,11 +9,7 @@ let {
   // {
     z = 987;
   };
-
   body =
-    if as ? a then
-      as.a
-    else
-      assert as ? z;
-      as.z;
-}
+    as.a or (assert as ? z;
+      as.z);
+}.body

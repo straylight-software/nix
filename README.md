@@ -1,6 +1,6 @@
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-                                           // straylight // nix
+                                          // straylight // nix
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
@@ -10,7 +10,8 @@ a nix fork for the continuity project.
 
 ### // `provenance`
 
-rebased against [determinate nix](https://github.com/DeterminateSystems/nix-src), which is rebased against [upstream nix](https://github.com/NixOS/nix).
+rebased against [determinate nix](https://github.com/DeterminateSystems/nix-src), which is rebased
+against [upstream nix](https://github.com/NixOS/nix).
 
 ### // `changes`
 
@@ -41,7 +42,8 @@ the build hook log streaming is unsound. remote builders are disabled until fixe
 
 ### // `upstream`
 
-this fork tracks determinate nix's sync points with upstream. contributions should go upstream when possible.
+this fork tracks determinate nix's sync points with upstream. contributions should go upstream when
+possible.
 
 ```
 cbeb167 Disable remote builders - build hook has unsound log streaming

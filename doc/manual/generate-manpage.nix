@@ -7,10 +7,8 @@ let
     fromJSON
     groupBy
     length
-    lessThan
     listToAttrs
     mapAttrs
-    match
     replaceStrings
     sort
     ;
@@ -84,7 +82,7 @@ let
       showCategory = cat: ''
         **${toString cat.description}:**
 
-        ${listSubcommands (filterAttrs (n: v: v.category == cat) details.commands)}
+        ${listSubcommands (filterAttrs (_n: v: v.category == cat) details.commands)}
       '';
 
       listSubcommands = cmds: concatStrings (attrValues (mapAttrs showSubcommand cmds));
@@ -166,7 +164,7 @@ let
                   ''<span id="opt-${name}">[`--${name}`](#opt-${name})</span> ${shortName} ${labels}''
                 else
                   "`--${name}` ${shortName} ${labels}";
-              shortName = optionalString (option ? shortName) ("/ `-${option.shortName}`");
+              shortName = optionalString (option ? shortName) "/ `-${option.shortName}`";
               labels = optionalString (option ? labels) (concatStringsSep " " (map (s: "*${s}*") option.labels));
             in
             result;

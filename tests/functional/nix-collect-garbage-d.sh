@@ -11,18 +11,18 @@ clearStore
 # TODO make `nix-env` doesn't work with CA derivations, and make
 # `ca/nix-collect-garbage-d.sh` wrapper.
 
-testCollectGarbageD () {
-    clearProfiles
-    # Run two `nix-env` commands, should create two generations of
-    # the profile
-    nix-env -f ./user-envs.nix -i foo-1.0 "$@"
-    nix-env -f ./user-envs.nix -i foo-2.0pre1 "$@"
-    [[ $(nix-env --list-generations "$@" | wc -l) -eq 2 ]]
+testCollectGarbageD() {
+  clearProfiles
+  # Run two `nix-env` commands, should create two generations of
+  # the profile
+  nix-env -f ./user-envs.nix -i foo-1.0 "$@"
+  nix-env -f ./user-envs.nix -i foo-2.0pre1 "$@"
+  [[ $(nix-env --list-generations "$@" | wc -l) -eq 2 ]]
 
-    # Clear the profile history. There should be only one generation
-    # left
-    nix-collect-garbage -d
-    [[ $(nix-env --list-generations "$@" | wc -l) -eq 1 ]]
+  # Clear the profile history. There should be only one generation
+  # left
+  nix-collect-garbage -d
+  [[ $(nix-env --list-generations "$@" | wc -l) -eq 1 ]]
 }
 
 testCollectGarbageD

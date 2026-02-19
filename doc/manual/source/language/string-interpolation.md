@@ -1,12 +1,11 @@
 # String interpolation
 
-String interpolation is a language feature where a [string], [path], or [attribute name][attribute set] can contain expressions enclosed in `${ }` (dollar-sign with curly brackets).
+String interpolation is a language feature where a [string], [path], or
+[attribute name][attribute set] can contain expressions enclosed in `${ }` (dollar-sign with curly
+brackets).
 
-Such a construct is called *interpolated string*, and the expression inside is an [interpolated expression](#interpolated-expression).
-
-[string]: ./types.md#type-string
-[path]: ./types.md#type-path
-[attribute set]: ./types.md#type-attrs
+Such a construct is called *interpolated string*, and the expression inside is an
+[interpolated expression](#interpolated-expression).
 
 > **Syntax**
 >
@@ -23,8 +22,6 @@ Rather than writing
 ```
 
 (where `freetype` is a [derivation expression]), you can instead write
-
-[derivation expression]: @docroot@/glossary.md#gloss-derivation-expression
 
 ```nix
 "--with-freetype2-library=${freetype}/lib"
@@ -44,8 +41,9 @@ configureFlags = "
 ";
 ```
 
-Note that Nix expressions and strings can be arbitrarily nested;
-in this case the outer string contains various interpolated expressions that themselves contain strings (e.g., `"-thread"`), some of which in turn contain interpolated expressions (e.g., `${mesa}`).
+Note that Nix expressions and strings can be arbitrarily nested; in this case the outer string
+contains various interpolated expressions that themselves contain strings (e.g., `"-thread"`), some
+of which in turn contain interpolated expressions (e.g., `${mesa}`).
 
 To write a literal `${` in an regular string, escape it with a backslash (`\`).
 
@@ -55,7 +53,9 @@ To write a literal `${` in an regular string, escape it with a backslash (`\`).
 > "echo \${PATH}"
 > ```
 >
->     "echo ${PATH}"
+> ```
+> "echo ${PATH}"
+> ```
 
 To write a literal `${` in an indented string, escape it with two single quotes (`''`).
 
@@ -67,13 +67,16 @@ To write a literal `${` in an indented string, escape it with two single quotes 
 > ''
 > ```
 >
->     "echo ${PATH}\n"
+> ```
+> "echo ${PATH}\n"
+> ```
 
 `$${` can be written literally in any string.
 
 > **Example**
 >
-> In Make, `$` in file names or recipes is represented as `$$`, see [GNU `make`: Basics of Variable Reference](https://www.gnu.org/software/make/manual/html_node/Reference.html#Basics-of-Variable-References).
+> In Make, `$` in file names or recipes is represented as `$$`, see
+> [GNU `make`: Basics of Variable Reference](https://www.gnu.org/software/make/manual/html_node/Reference.html#Basics-of-Variable-References).
 > This can be expressed directly in the Nix language strings:
 >
 > ```nix
@@ -84,7 +87,9 @@ To write a literal `${` in an indented string, escape it with two single quotes 
 > ''
 > ```
 >
->     "MAKEVAR = Hello\nall:\n\t@export BASHVAR=world; echo $(MAKEVAR) $\${BASHVAR}\n"
+> ```
+> "MAKEVAR = Hello\nall:\n\t@export BASHVAR=world; echo $(MAKEVAR) $\${BASHVAR}\n"
+> ```
 
 See the [documentation on strings][string] for details.
 
@@ -124,7 +129,9 @@ Attribute names can be interpolated strings.
 > { ${name} = 123; }
 > ```
 >
->     { foo = 123; }
+> ```
+> { foo = 123; }
+> ```
 
 Attributes can be selected with interpolated strings.
 
@@ -135,26 +142,30 @@ Attributes can be selected with interpolated strings.
 > { foo = 123; }.${name}
 > ```
 >
->     123
+> ```
+> 123
+> ```
 
 # Interpolated expression
 
 An expression that is interpolated must evaluate to one of the following:
 
 - a [string]
+
 - a [path]
+
 - an [attribute set] that has a `__toString` attribute or an `outPath` attribute
 
   - `__toString` must be a function that takes the attribute set itself and returns a string
   - `outPath` must be a string
 
-  This includes [derivation expressions](./derivations.md) or [flake inputs](@docroot@/command-ref/new-cli/nix3-flake.md#flake-inputs) (experimental).
+  This includes [derivation expressions](./derivations.md) or
+  [flake inputs](@docroot@/command-ref/new-cli/nix3-flake.md#flake-inputs) (experimental).
 
 A string interpolates to itself.
 
-A path in an interpolated expression is first copied into the Nix store, and the resulting string is the [store path] of the newly created [store object](@docroot@/store/store-object.md).
-
-[store path]: @docroot@/store/store-path.md
+A path in an interpolated expression is first copied into the Nix store, and the resulting string is
+the [store path] of the newly created [store object](@docroot@/store/store-object.md).
 
 > **Example**
 >
@@ -168,7 +179,9 @@ A path in an interpolated expression is first copied into the Nix store, and the
 > "${./foo}"
 > ```
 >
->     "/nix/store/2hhl2nz5v0khbn06ys82nrk99aa1xxdw-foo"
+> ```
+> "/nix/store/2hhl2nz5v0khbn06ys82nrk99aa1xxdw-foo"
+> ```
 
 A derivation interpolates to the [store path] of its first [output](./derivations.md#attr-outputs).
 
@@ -181,9 +194,12 @@ A derivation interpolates to the [store path] of its first [output](./derivation
 > "${pkgs.hello}"
 > ```
 >
->     "/nix/store/qnlr7906z0mrl2syrkdbpicffq02nw07-hello-2.12.1"
+> ```
+> "/nix/store/qnlr7906z0mrl2syrkdbpicffq02nw07-hello-2.12.1"
+> ```
 
-An attribute set interpolates to the return value of the function in the `__toString` applied to the attribute set itself.
+An attribute set interpolates to the return value of the function in the `__toString` applied to the
+attribute set itself.
 
 > **Example**
 >
@@ -197,7 +213,9 @@ An attribute set interpolates to the return value of the function in the `__toSt
 > "${a}"
 > ```
 >
->     "2"
+> ```
+> "2"
+> ```
 
 An attribute set also interpolates to the value of its `outPath` attribute.
 
@@ -210,7 +228,9 @@ An attribute set also interpolates to the value of its `outPath` attribute.
 > "${a}"
 > ```
 >
->     "foo"
+> ```
+> "foo"
+> ```
 
 If both `__toString` and `outPath` are present in an attribute set, `__toString` takes precedence.
 
@@ -223,7 +243,9 @@ If both `__toString` and `outPath` are present in an attribute set, `__toString`
 > "${a}"
 > ```
 >
->     "yes"
+> ```
+> "yes"
+> ```
 
 If neither is present, an error is thrown.
 
@@ -236,10 +258,18 @@ If neither is present, an error is thrown.
 > "${a}"
 > ```
 >
->     error: cannot coerce a set to a string: { }
+> ```
+> error: cannot coerce a set to a string: { }
 >
->            at «string»:4:2:
+>        at «string»:4:2:
 >
->                 3| in
->                 4| "${a}"
->                  |  ^
+>             3| in
+>             4| "${a}"
+>              |  ^
+> ```
+
+[attribute set]: ./types.md#type-attrs
+[derivation expression]: @docroot@/glossary.md#gloss-derivation-expression
+[path]: ./types.md#type-path
+[store path]: @docroot@/store/store-path.md
+[string]: ./types.md#type-string

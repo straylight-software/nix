@@ -2,7 +2,6 @@
 
 {
   # Flake inputs; used for sources
-  inputs,
 
   # The raw Nixpkgs, not affected by this scope
   pkgs,
@@ -13,22 +12,18 @@
 let
   inherit (pkgs) lib;
 in
-scope: {
+_scope: {
   inherit stdenv;
 
-  boehmgc =
-    (pkgs.boehmgc.override {
-      enableLargeConfig = true;
-    }).overrideAttrs
-      (attrs: {
-        # Increase the initial mark stack size to avoid stack
-        # overflows, since these inhibit parallel marking (see
-        # GC_mark_some()). To check whether the mark stack is too
-        # small, run Nix with GC_PRINT_STATS=1 and look for messages
-        # such as `Mark stack overflow`, `No room to copy back mark
-        # stack`, and `Grew mark stack to ... frames`.
-        NIX_CFLAGS_COMPILE = "-DINITIAL_MARK_STACK_SIZE=1048576";
-      });
+  boehmgc = (pkgs.boehmgc.override { enableLargeConfig = true; }).overrideAttrs (_attrs: {
+    # Increase the initial mark stack size to avoid stack
+    # overflows, since these inhibit parallel marking (see
+    # GC_mark_some()). To check whether the mark stack is too
+    # small, run Nix with GC_PRINT_STATS=1 and look for messages
+    # such as `Mark stack overflow`, `No room to copy back mark
+    # stack`, and `Grew mark stack to ... frames`.
+    NIX_CFLAGS_COMPILE = "-DINITIAL_MARK_STACK_SIZE=1048576";
+  });
 
   lowdown =
     if lib.versionAtLeast pkgs.lowdown.version "2.0.2" then

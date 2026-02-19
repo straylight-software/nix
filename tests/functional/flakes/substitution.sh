@@ -4,8 +4,8 @@
 
 source ./common.sh
 
-if [[ $(nix config show lazy-trees) = true ]]; then
-    exit 0
+if [[ $(nix config show lazy-trees) == true ]]; then
+  exit 0
 fi
 
 TODO_NixOS

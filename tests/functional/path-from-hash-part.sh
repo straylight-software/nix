@@ -9,4 +9,4 @@ hash_part=${hash_part:0:32}
 
 path2=$(nix store path-from-hash-part "$hash_part")
 
-[[ $path = "$path2" ]]
+[[ $path == "$path2" ]]

@@ -9,14 +9,14 @@ clearStore
 rm -f "$TEST_ROOT"/result
 
 export REMOTE_STORE=file:$TEST_ROOT/remote_store
-echo 'require-sigs = false' >> "$test_nix_conf"
+echo 'require-sigs = false' >>"$test_nix_conf"
 
 restartDaemon
 
 if isDaemonNewer "2.13"; then
-    pushToStore="$PWD/push-to-store.sh"
+  pushToStore="$PWD/push-to-store.sh"
 else
-    pushToStore="$PWD/push-to-store-old.sh"
+  pushToStore="$PWD/push-to-store-old.sh"
 fi
 
 # Build the dependencies and push them to the remote store.
@@ -30,15 +30,15 @@ export BUILD_HOOK_ONLY_OUT_PATHS=$([ ! "$NIX_TESTS_CA_BY_DEFAULT" ])
 nix-build -o "$TEST_ROOT"/result-mult multiple-outputs.nix -A a.first --post-build-hook "$pushToStore"
 
 if isDaemonNewer "2.33.0pre20251029"; then
-    # Regression test for issue #14287: `--check` should re-run post build
-    # hook, even though nothing is getting newly registered.
-    export HOOK_DEST=$TEST_ROOT/listing
-    # Needed so the hook will get the above environment variable.
-    restartDaemon
-    nix-build -o "$TEST_ROOT"/result-mult multiple-outputs.nix --check -A a.first --post-build-hook "$PWD/build-hook-list-paths.sh"
-    grepQuiet a-first "$HOOK_DEST"
-    grepQuiet a-second "$HOOK_DEST"
-    unset HOOK_DEST
+  # Regression test for issue #14287: `--check` should re-run post build
+  # hook, even though nothing is getting newly registered.
+  export HOOK_DEST=$TEST_ROOT/listing
+  # Needed so the hook will get the above environment variable.
+  restartDaemon
+  nix-build -o "$TEST_ROOT"/result-mult multiple-outputs.nix --check -A a.first --post-build-hook "$PWD/build-hook-list-paths.sh"
+  grepQuiet a-first "$HOOK_DEST"
+  grepQuiet a-second "$HOOK_DEST"
+  unset HOOK_DEST
 fi
 
 clearStore

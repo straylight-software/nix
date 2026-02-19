@@ -1,9 +1,5 @@
 {
-  nixFlake ? builtins.getFlake ("git+file://" + toString ../../..),
-  system ? builtins.currentSystem,
-  pkgs ? nixFlake.inputs.nixpkgs.legacyPackages.${system},
   stdenv ? "stdenv",
-  componentTestsPrefix ? "",
   withInstrumentation ? false,
 }@args:
 import ./. (

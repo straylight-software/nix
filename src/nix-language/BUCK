@@ -1,0 +1,63 @@
+# src/nix-language/BUCK
+#
+# nix-language: Nix expression parser and WASM compiler
+#
+# Architecture:
+#   Nix source → PEGTL parser → AST → binaryen → WASM module
+#
+# This is a clean-room implementation designed for AOT compilation,
+# not interpretation. The AST types are optimized for WASM codegen.
+
+cxx_library(
+    name = "ast",
+    exported_headers = [
+        "ast/expression.hh",
+        "ast/symbol_table.hh",
+    ],
+    header_namespace = "nix-language",
+    visibility = ["PUBLIC"],
+    # header-only library, no deps needed
+)
+
+cxx_library(
+    name = "parse",
+    exported_headers = [
+        "parse/actions.hh",
+        "parse/grammar.hh",
+        "parse/state.hh",
+    ],
+    header_namespace = "nix-language",
+    visibility = ["PUBLIC"],
+    deps = [
+        ":ast",
+        "//third_party:pegtl",
+        "//third_party:boost",  # for boost::container::small_vector
+    ],
+)
+
+cxx_library(
+    name = "compile",
+    exported_headers = [
+        "compile/compiler.hh",
+        "compile/wasm_types.hh",
+    ],
+    header_namespace = "nix-language",
+    visibility = ["PUBLIC"],
+    deps = [
+        ":ast",
+        "//third_party:binaryen",
+    ],
+)
+
+# main library combining all components
+cxx_library(
+    name = "language",
+    exported_headers = [],
+    header_namespace = "nix-language",
+    visibility = ["PUBLIC"],
+    deps = [
+        ":ast",
+        ":compile",
+        ":parse",
+    ],
+)

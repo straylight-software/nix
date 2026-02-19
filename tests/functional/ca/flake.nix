@@ -1,3 +1,1 @@
-{
-  outputs = { self }: import ./content-addressed.nix { };
-}
+{ outputs = _: import ./content-addressed.nix { }; }

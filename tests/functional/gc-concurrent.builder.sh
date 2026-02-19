@@ -1,10 +1,10 @@
 # shellcheck shell=bash
 # shellcheck disable=SC2154
-echo "Build started" > "$lockFifo"
+echo "Build started" >"$lockFifo"
 
 # shellcheck disable=SC2154
 mkdir "$out"
-echo "$(cat "$input1"/foo)""$(cat "$input2"/bar)" > "$out"/foobar
+echo "$(cat "$input1"/foo)""$(cat "$input2"/bar)" >"$out"/foobar
 
 # Wait for someone to write on the fifo
 cat "$lockFifo"

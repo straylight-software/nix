@@ -1,0 +1,27 @@
+# src/nix/main/BUCK
+
+cxx_library(
+    name = "main",
+    srcs = [
+        "common-args.cpp",
+        "loggers.cpp",
+        "plugin.cpp",
+        "progress-bar.cpp",
+        "shared.cpp",
+    ],
+    exported_headers = [
+        "common-args.h",
+        "loggers.h",
+        "main-config-private.h",
+        "plugin.h",
+        "progress-bar.h",
+        "shared.h",
+    ],
+    header_namespace = "nix/main",
+    visibility = ["PUBLIC"],
+    deps = [
+        "//src/nix/util:util",
+        "//src/nix/store:store",
+        "//src/nix/expr:expr",
+    ],
+)

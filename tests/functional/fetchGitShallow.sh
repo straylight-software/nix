@@ -9,20 +9,20 @@ requireGit
 createGitRepo "$TEST_ROOT/shallow-parent"
 
 # Add several commits to have history
-echo "{ outputs = _: {}; }" > "$TEST_ROOT/shallow-parent/flake.nix"
-echo "" > "$TEST_ROOT/shallow-parent/file.txt"
+echo "{ outputs = _: {}; }" >"$TEST_ROOT/shallow-parent/flake.nix"
+echo "" >"$TEST_ROOT/shallow-parent/file.txt"
 git -C "$TEST_ROOT/shallow-parent" add file.txt flake.nix
 git -C "$TEST_ROOT/shallow-parent" commit -m "First commit"
 
-echo "second" > "$TEST_ROOT/shallow-parent/file.txt"
+echo "second" >"$TEST_ROOT/shallow-parent/file.txt"
 git -C "$TEST_ROOT/shallow-parent" commit -m "Second commit" -a
 
-echo "third" > "$TEST_ROOT/shallow-parent/file.txt"
+echo "third" >"$TEST_ROOT/shallow-parent/file.txt"
 git -C "$TEST_ROOT/shallow-parent" commit -m "Third commit" -a
 
 # Add a branch for testing ref fetching
 git -C "$TEST_ROOT/shallow-parent" checkout -b dev
-echo "branch content" > "$TEST_ROOT/shallow-parent/branch-file.txt"
+echo "branch content" >"$TEST_ROOT/shallow-parent/branch-file.txt"
 git -C "$TEST_ROOT/shallow-parent" add branch-file.txt
 git -C "$TEST_ROOT/shallow-parent" commit -m "Branch commit"
 
@@ -50,14 +50,14 @@ git -C "$TEST_ROOT/shallow-clone" worktree add "$TEST_ROOT/shallow-worktree"
 # Prior to the fix, this would error out because of the shallow clone's
 # inability to find parent commits. Now it should return an error.
 if nix eval --impure --expr "(builtins.fetchGit { url = \"file://$TEST_ROOT/shallow-worktree\"; }).revCount" 2>/dev/null; then
-    echo "fetchGit unexpectedly succeeded on shallow clone" >&2
-    exit 1
+  echo "fetchGit unexpectedly succeeded on shallow clone" >&2
+  exit 1
 fi
 
 # Also verify that fetchTree fails similarly
 if nix eval --impure --expr "(builtins.fetchTree { type = \"git\"; url = \"file://$TEST_ROOT/shallow-worktree\"; }).revCount" 2>/dev/null; then
-    echo "fetchTree unexpectedly succeeded on shallow clone" >&2
-    exit 1
+  echo "fetchTree unexpectedly succeeded on shallow clone" >&2
+  exit 1
 fi
 
 # Verify that we can shallow fetch the worktree

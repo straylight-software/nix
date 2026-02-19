@@ -1,5 +1,4 @@
-let {
-
+rec {
   input1 = derivation {
     name = "dependencies-input-1";
     system = "i086-msdos";
@@ -10,7 +9,6 @@ let {
       ./dummy
     ];
   };
-
   input2 = derivation {
     name = "dependencies-input-2";
     system = "i086-msdos";
@@ -24,7 +22,6 @@ let {
     outputHashAlgo = "md5";
     outputHash = "ffffffffffffffffffffffffffffffff";
   };
-
   body = derivation {
     name = "dependencies";
     system = "i086-msdos";
@@ -37,5 +34,5 @@ let {
     input1 = input1 + "/.";
     inherit input2;
   };
-
 }
+.body

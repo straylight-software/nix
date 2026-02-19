@@ -1,0 +1,76 @@
+# src/libevring/BUCK
+#
+# libevring: Deterministic async I/O via replay streams
+#
+# The core insight: async is trivial to test if you model it as a pure
+# function on well-defined replay streams.
+#
+#   State × Event → State × [Operation]
+#
+# Features:
+#   - Machine concept: pure functional state machines
+#   - Replay executor: deterministic testing without I/O
+#   - io_uring backend: high-performance Linux async I/O
+#   - Bulk operations: bypass state machine for maximum throughput
+
+cxx_library(
+    name = "evring",
+
+    srcs = [
+        "src/bulk.cpp",
+        "src/io_uring_ring.cpp",
+    ],
+
+    exported_headers = {
+        "evring/bulk.h": "include/evring/bulk.h",
+        "evring/event.h": "include/evring/event.h",
+        "evring/evring.h": "include/evring/evring.h",
+        "evring/handle.h": "include/evring/handle.h",
+        "evring/machine.h": "include/evring/machine.h",
+        "evring/ring.h": "include/evring/ring.h",
+    },
+
+    # No header_namespace - headers are already namespaced as evring/
+    header_namespace = "",
+
+    compiler_flags = [
+        "-std=c++23",
+        "-isystem/nix/store/qqjsw1fzand71ajx326r84zgi485mqb8-liburing-2.11-dev/include",
+    ],
+
+    linker_flags = [
+        "-L/nix/store/na5bgfmhm6ci0y3v521kcicvkpzbvdyn-liburing-2.11/lib",
+        "-luring",
+    ],
+
+    visibility = ["PUBLIC"],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Tests
+# ─────────────────────────────────────────────────────────────────────────────
+
+cxx_test(
+    name = "test_replay",
+    srcs = ["test/test_replay.cpp"],
+    compiler_flags = ["-std=c++23"],
+    deps = [":evring"],
+)
+
+cxx_test(
+    name = "test_io_uring",
+    srcs = ["test/test_io_uring.cpp"],
+    compiler_flags = ["-std=c++23"],
+    deps = [":evring"],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Benchmarks
+# ─────────────────────────────────────────────────────────────────────────────
+
+cxx_binary(
+    name = "bench",
+    srcs = ["bench/bench_evring.cpp"],
+    compiler_flags = ["-std=c++23", "-O3"],
+    deps = [":evring"],
+)

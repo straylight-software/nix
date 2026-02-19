@@ -6,8 +6,8 @@ let
   };
 
 in
-(rec {
+rec {
   __overrides = overrides;
   x = a;
   a = 1;
-}).x
+}.x

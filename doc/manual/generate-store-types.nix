@@ -1,12 +1,10 @@
 let
   inherit (builtins)
-    attrNames
     listToAttrs
     concatStringsSep
     readFile
     replaceStrings
     ;
-  showSettings = import <nix/generate-settings.nix>;
   showStoreDocs = import <nix/generate-store-info.nix>;
 in
 
@@ -44,4 +42,4 @@ let
   );
 
 in
-storePages // { inherit "index.md" "SUMMARY.md"; }
+storePages // { }

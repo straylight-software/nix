@@ -30,7 +30,6 @@ let
       documentDefault,
       defaultValue,
       aliases,
-      value,
       experimentalFeature,
     }:
     let

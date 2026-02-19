@@ -1,3 +1,213 @@
-# We use pointers to aggregates in a couple of places, intentionally.
-# void * would look weird.
-Checks: '-bugprone-sizeof-expression'
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#                                                          // clang-tidy // law
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
+#     "A year here and he still dreamed of cyberspace, hope fading nightly."
+#
+#                                                               — Neuromancer
+#
+# Semantic lint with teeth. Runs second in the lint pipeline.
+# Can fix or error. All warnings are errors.
+#
+# See: docs/guidelines/03-cpp.md for rationale.
+#
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+---
+UseColor: true
+
+# ══════════════════════════════════════════════════════════════════════════════
+#                                                                    // checks
+# ══════════════════════════════════════════════════════════════════════════════
+#
+# Philosophy: enable aggressively, disable surgically.
+#
+# ══════════════════════════════════════════════════════════════════════════════
+
+Checks: >
+  -*,
+
+  bugprone-*,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-exception-escape,
+
+  cppcoreguidelines-*,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -cppcoreguidelines-pro-type-reinterpret-cast,
+  -cppcoreguidelines-owning-memory,
+
+  modernize-*,
+  -modernize-use-trailing-return-type,
+  -modernize-avoid-c-arrays,
+
+  performance-*,
+
+  readability-*,
+  -readability-magic-numbers,
+  -readability-identifier-length,
+  -readability-function-cognitive-complexity,
+
+  misc-*,
+  -misc-no-recursion,
+  -misc-non-private-member-variables-in-classes,
+  -misc-include-cleaner,
+
+  concurrency-*,
+
+  portability-*,
+
+WarningsAsErrors: '*'
+
+# ══════════════════════════════════════════════════════════════════════════════
+#                                                          // check // options
+# ══════════════════════════════════════════════════════════════════════════════
+
+CheckOptions:
+
+  # ──────────────────────────────────────────────────────────────────────────
+  #                                                                 // naming
+  # ──────────────────────────────────────────────────────────────────────────
+  #
+  # snake_case everywhere. This is the law.
+  # Template parameters are the sole exception (CamelCase).
+  #
+  # ──────────────────────────────────────────────────────────────────────────
+
+  - key: readability-identifier-naming.NamespaceCase
+    value: lower_case
+
+  - key: readability-identifier-naming.ClassCase
+    value: lower_case
+
+  - key: readability-identifier-naming.StructCase
+    value: lower_case
+
+  - key: readability-identifier-naming.EnumCase
+    value: lower_case
+
+  - key: readability-identifier-naming.EnumConstantCase
+    value: lower_case
+
+  - key: readability-identifier-naming.FunctionCase
+    value: lower_case
+
+  - key: readability-identifier-naming.VariableCase
+    value: lower_case
+
+  - key: readability-identifier-naming.ParameterCase
+    value: lower_case
+
+  - key: readability-identifier-naming.MemberCase
+    value: lower_case
+
+  - key: readability-identifier-naming.PrivateMemberSuffix
+    value: '_'
+
+  - key: readability-identifier-naming.ProtectedMemberSuffix
+    value: '_'
+
+  - key: readability-identifier-naming.ConstantCase
+    value: lower_case
+
+  - key: readability-identifier-naming.GlobalConstantCase
+    value: lower_case
+
+  - key: readability-identifier-naming.StaticConstantCase
+    value: lower_case
+
+  - key: readability-identifier-naming.ConstexprVariableCase
+    value: lower_case
+
+  - key: readability-identifier-naming.MacroDefinitionCase
+    value: UPPER_CASE
+
+  - key: readability-identifier-naming.TypeAliasCase
+    value: lower_case
+
+  - key: readability-identifier-naming.TypedefCase
+    value: lower_case
+
+  # n.b. template parameters are the exception — CamelCase for historical reasons
+  - key: readability-identifier-naming.TemplateParameterCase
+    value: CamelCase
+
+  - key: readability-identifier-naming.TypeTemplateParameterCase
+    value: CamelCase
+
+  - key: readability-identifier-naming.ValueTemplateParameterCase
+    value: CamelCase
+
+  # ──────────────────────────────────────────────────────────────────────────
+  #                                                           // complexity
+  # ──────────────────────────────────────────────────────────────────────────
+
+  - key: readability-function-size.LineThreshold
+    value: 100
+
+  - key: readability-function-size.StatementThreshold
+    value: 200
+
+  - key: readability-function-size.BranchThreshold
+    value: 20
+
+  - key: readability-function-size.ParameterThreshold
+    value: 6
+
+  - key: readability-function-size.NestingThreshold
+    value: 5
+
+  # ──────────────────────────────────────────────────────────────────────────
+  #                                                            // modernize
+  # ──────────────────────────────────────────────────────────────────────────
+
+  - key: modernize-use-nullptr.NullMacros
+    value: 'NULL'
+
+  - key: modernize-loop-convert.MinConfidence
+    value: reasonable
+
+  - key: modernize-pass-by-value.IncludeStyle
+    value: google
+
+  - key: modernize-use-override.IgnoreDestructors
+    value: false
+
+  - key: modernize-use-auto.MinTypeNameLength
+    value: 5
+
+  # ──────────────────────────────────────────────────────────────────────────
+  #                                                           // performance
+  # ──────────────────────────────────────────────────────────────────────────
+
+  - key: performance-unnecessary-value-param.AllowedTypes
+    value: 'std::string_view;nv::std::span;std::span'
+
+  - key: performance-move-const-arg.CheckTriviallyCopyableMove
+    value: true
+
+  # ──────────────────────────────────────────────────────────────────────────
+  #                                                               // misc
+  # ──────────────────────────────────────────────────────────────────────────
+
+  - key: misc-unused-parameters.StrictMode
+    value: true
+
+  - key: misc-throw-by-value-catch-by-reference.CheckThrowTemporaries
+    value: true
+
+  # ──────────────────────────────────────────────────────────────────────────
+  #                                                          // bugprone
+  # ──────────────────────────────────────────────────────────────────────────
+
+  - key: bugprone-argument-comment.StrictMode
+    value: true
+
+  - key: bugprone-sizeof-expression.WarnOnSizeOfIntegerExpression
+    value: true
+
+  - key: bugprone-string-constructor.WarnOnLargeLength
+    value: true
+
+  - key: bugprone-string-constructor.LargeLengthThreshold
+    value: 8388608

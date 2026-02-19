@@ -30,6 +30,6 @@ builtins.seq finiteVal (
         finite = finiteVal;
       }
     ];
-    operator = x: [ (import ./infinite-nesting.nix) ];
+    operator = _x: [ (import ./infinite-nesting.nix) ];
   }
 )

@@ -1,0 +1,13 @@
+# Hypermodern C++: No C-style casts
+# Use static_cast, dynamic_cast, const_cast, or reinterpret_cast
+id: no-c-style-cast
+language: cpp
+severity: warning
+message: "C-style cast detected. Use static_cast<$TYPE>($EXPR) instead."
+note: "C-style casts bypass type safety. Use explicit C++ casts."
+rule:
+  pattern: ($TYPE)$EXPR
+  not:
+    inside:
+      kind: template_argument_list
+fix: "static_cast<$TYPE>($EXPR)"

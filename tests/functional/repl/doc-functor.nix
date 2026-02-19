@@ -79,7 +79,7 @@ rec {
     /**
       This looks bad, but the docs are ok because of the eta expansion.
     */
-    __functor = self: x: self x;
+    __functor = self: self;
   };
 
   recursive2 = {

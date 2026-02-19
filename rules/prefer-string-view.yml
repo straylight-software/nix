@@ -1,0 +1,10 @@
+# Hypermodern C++: Prefer string_view for read-only string params
+id: prefer-string-view
+language: cpp
+severity: hint
+message: "Consider std::string_view for read-only string parameter"
+note: "string_view avoids copying when you don't need ownership"
+rule:
+  pattern: const std::string & $PARAM
+  inside:
+    kind: parameter_declaration

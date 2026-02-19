@@ -37,7 +37,7 @@ rm -rf "$TEST_ROOT"/nixexprs
 mkdir -p "$TEST_ROOT"/nixexprs
 cp "${config_nix}" dependencies.nix dependencies.builder*.sh "$TEST_ROOT"/nixexprs/
 ln -s dependencies.nix "$TEST_ROOT"/nixexprs/default.nix
-(cd "$TEST_ROOT" && tar cvf - nixexprs) | bzip2 > "$TEST_ROOT"/foo/nixexprs.tar.bz2
+(cd "$TEST_ROOT" && tar cvf - nixexprs) | bzip2 >"$TEST_ROOT"/foo/nixexprs.tar.bz2
 
 # Test the update action.
 nix-channel --add file://"$TEST_ROOT"/foo
@@ -45,7 +45,7 @@ nix-channel --update
 [[ $(nix-channel --list-generations | wc -l) == 2 ]]
 
 # Do a query.
-nix-env -qa \* --meta --xml --out-path > "$TEST_ROOT"/meta.xml
+nix-env -qa \* --meta --xml --out-path >"$TEST_ROOT"/meta.xml
 grepQuiet 'meta.*description.*Random test package' "$TEST_ROOT"/meta.xml
 grepQuiet 'item.*attrPath="foo".*name="dependencies-top"' "$TEST_ROOT"/meta.xml
 
@@ -58,7 +58,7 @@ nix-channel --add file://"$TEST_ROOT"/foo/nixexprs.tar.bz2 bar
 nix-channel --update
 
 # Do a query.
-nix-env -qa \* --meta --xml --out-path > "$TEST_ROOT"/meta.xml
+nix-env -qa \* --meta --xml --out-path >"$TEST_ROOT"/meta.xml
 grepQuiet 'meta.*description.*Random test package' "$TEST_ROOT"/meta.xml
 grepQuiet 'item.*attrPath="bar".*name="dependencies-top"' "$TEST_ROOT"/meta.xml
 grepQuiet 'item.*attrPath="foo".*name="dependencies-top"' "$TEST_ROOT"/meta.xml
@@ -73,9 +73,9 @@ drvPath=$(nix-instantiate '<foo/dependencies.nix>')
 # Add a test for the special case behaviour of 'nixpkgs' in the
 # channels for root (see EvalSettings::getDefaultNixPath()).
 if ! isTestOnNixOS; then
-    nix-channel --add file://"$TEST_ROOT"/foo nixpkgs
-    nix-channel --update
-    mv "$TEST_HOME"/.local/state/nix/profiles "$TEST_ROOT"/var/nix/profiles/per-user/root
-    drvPath2=$(nix-instantiate '<nixpkgs>')
-    [[ "$drvPath" = "$drvPath2" ]]
+  nix-channel --add file://"$TEST_ROOT"/foo nixpkgs
+  nix-channel --update
+  mv "$TEST_HOME"/.local/state/nix/profiles "$TEST_ROOT"/var/nix/profiles/per-user/root
+  drvPath2=$(nix-instantiate '<nixpkgs>')
+  [[ $drvPath == "$drvPath2" ]]
 fi

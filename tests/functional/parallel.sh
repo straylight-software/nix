@@ -1,7 +1,6 @@
 # shellcheck shell=bash
 source common.sh
 
-
 # First, test that -jN performs builds in parallel.
 echo "testing nix-build -j..."
 
@@ -20,7 +19,6 @@ if test "$text" != "abacade"; then exit 1; fi
 
 if test "$(cat "$_NIX_TEST_SHARED".cur)" != 0; then fail "wrong current process count"; fi
 if test "$(cat "$_NIX_TEST_SHARED".max)" != 3; then fail "not enough parallelism"; fi
-
 
 # Second, test that parallel invocations of nix-build perform builds
 # in parallel, and don't block waiting on locks held by the others.

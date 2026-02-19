@@ -1,0 +1,105 @@
+# // straylight // nix-language // tests
+#
+# Unit and property-based tests for nix-language module
+
+# Common linker flags for nix-language tests
+# NOTE: -L flags MUST come before corresponding -l flags
+LANGUAGE_LINKER_FLAGS = [
+    # Boost libs (for boost::container::small_vector)
+    "-L/nix/store/2izjh733byjickw9719nnkckxd63ghpm-boost-1.87.0/lib",
+    "-lboost_container",
+    "-Wl,-rpath,/nix/store/2izjh733byjickw9719nnkckxd63ghpm-boost-1.87.0/lib",
+    # Test libs
+    "-L/nix/store/s4gn9xnjx7298wsxffgxiv3isx0j584k-rapidcheck-0-unstable-2023-12-14/lib",
+    "-lrapidcheck",
+    "-Wl,-rpath,/nix/store/s4gn9xnjx7298wsxffgxiv3isx0j584k-rapidcheck-0-unstable-2023-12-14/lib",
+]
+
+# Common test dependencies
+LANGUAGE_TEST_DEPS = [
+    "//src/nix-language:ast",
+    "//third_party:catch2",
+    "//third_party:rapidcheck",
+]
+
+LANGUAGE_PARSE_TEST_DEPS = LANGUAGE_TEST_DEPS + [
+    "//src/nix-language:parse",
+    "//third_party:pegtl",
+    "//third_party:boost",
+]
+
+LANGUAGE_COMPILE_TEST_DEPS = LANGUAGE_TEST_DEPS + [
+    "//src/nix-language:compile",
+    "//third_party:binaryen",
+]
+
+LANGUAGE_TEST_COMPILER_FLAGS = [
+    "-std=c++23",
+]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# AST type tests
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_test(
+    name = "ast_test",
+    srcs = ["ast_test.cpp"],
+    deps = LANGUAGE_TEST_DEPS,
+    compiler_flags = LANGUAGE_TEST_COMPILER_FLAGS,
+    linker_flags = LANGUAGE_LINKER_FLAGS,
+    link_style = "static",
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PEGTL grammar tests
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_test(
+    name = "grammar_test",
+    srcs = ["grammar_test.cpp"],
+    deps = LANGUAGE_PARSE_TEST_DEPS,
+    compiler_flags = LANGUAGE_TEST_COMPILER_FLAGS,
+    linker_flags = LANGUAGE_LINKER_FLAGS,
+    link_style = "static",
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Parse action tests (parser -> AST)
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_test(
+    name = "parse_test",
+    srcs = ["parse_test.cpp"],
+    deps = LANGUAGE_PARSE_TEST_DEPS,
+    compiler_flags = LANGUAGE_TEST_COMPILER_FLAGS,
+    linker_flags = LANGUAGE_LINKER_FLAGS,
+    link_style = "static",
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# WASM types tests (no binaryen needed)
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_test(
+    name = "wasm_types_test",
+    srcs = ["wasm_types_test.cpp"],
+    deps = [
+        "//src/nix-language:compile",
+        "//third_party:catch2",
+    ],
+    compiler_flags = LANGUAGE_TEST_COMPILER_FLAGS,
+    linker_flags = LANGUAGE_LINKER_FLAGS,
+    link_style = "static",
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# WASM compiler tests (requires binaryen)
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_test(
+    name = "compiler_test",
+    srcs = ["compiler_test.cpp"],
+    deps = LANGUAGE_COMPILE_TEST_DEPS,
+    compiler_flags = LANGUAGE_TEST_COMPILER_FLAGS,
+    linker_flags = LANGUAGE_LINKER_FLAGS + [
+        "-L/nix/store/4jp1vkr9gj5n3zbpp2xvkp8n3g56lpv0-binaryen-125/lib",
+        "-lbinaryen",
+        "-Wl,-rpath,/nix/store/4jp1vkr9gj5n3zbpp2xvkp8n3g56lpv0-binaryen-125/lib",
+    ],
+    link_style = "static",
+)

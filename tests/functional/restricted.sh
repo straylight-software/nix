@@ -18,7 +18,10 @@ nix-instantiate --restrict-eval ./simple.nix -I src=.
 nix-instantiate --restrict-eval ./simple.nix -I src1=./simple.nix -I src2=./config.nix -I src3=./simple.builder.sh
 
 # no default NIX_PATH
-(unset NIX_PATH; ! nix-instantiate --restrict-eval --find-file .)
+(
+  unset NIX_PATH
+  ! nix-instantiate --restrict-eval --find-file .
+)
 
 (! nix-instantiate --restrict-eval --eval -E 'builtins.readFile ./simple.nix')
 nix-instantiate --restrict-eval --eval -E 'builtins.readFile ./simple.nix' -I src=../..
@@ -52,7 +55,7 @@ nix-instantiate --eval --restrict-eval "$TEST_ROOT/restricted.nix" -I "$TEST_ROO
 # Check that we can't follow a symlink outside of the allowed paths.
 mkdir -p "$TEST_ROOT"/tunnel.d "$TEST_ROOT"/foo2
 ln -sfn .. "$TEST_ROOT"/tunnel.d/tunnel
-echo foo > "$TEST_ROOT"/bar
+echo foo >"$TEST_ROOT"/bar
 
 expectStderr 1 nix-instantiate --restrict-eval --eval -E "let __nixPath = [ { prefix = \"foo\"; path = $TEST_ROOT/tunnel.d; } ]; in builtins.readFile <foo/tunnel/bar>" -I "$TEST_ROOT"/tunnel.d | grepQuiet "forbidden in restricted mode"
 
@@ -68,8 +71,8 @@ mkdir -p "$traverseDir"
 # shellcheck disable=SC2001
 goUp="..$(echo "$traverseDir" | sed -e 's,[^/]\+,..,g')"
 output="$(nix eval --raw --restrict-eval -I "$traverseDir" \
-    --expr "builtins.readFile \"$traverseDir/$goUp${_NIX_TEST_SOURCE_DIR}/restricted-innocent\"" \
-    2>&1 || :)"
+  --expr "builtins.readFile \"$traverseDir/$goUp${_NIX_TEST_SOURCE_DIR}/restricted-innocent\"" \
+  2>&1 || :)"
 echo "$output" | grep "is forbidden"
 echo "$output" | grepInverse -F restricted-secret
 

@@ -6,7 +6,7 @@ cp ../simple.nix ../simple.builder.sh "${config_nix}" "$TEST_HOME"
 
 cd "$TEST_HOME"
 
-cat <<EOF > flake.nix
+cat <<EOF >flake.nix
 {
     outputs = {self}: {
       bundlers.$system = rec {
@@ -28,7 +28,7 @@ EOF
 nix build .#
 nix bundle --bundler .# .#
 nix bundle --bundler .#bundlers."$system".default .#packages."$system".default
-nix bundle --bundler .#bundlers."$system".simple  .#packages."$system".default
+nix bundle --bundler .#bundlers."$system".simple .#packages."$system".default
 
 nix bundle --bundler .#bundlers."$system".default .#apps."$system".default
-nix bundle --bundler .#bundlers."$system".simple  .#apps."$system".default
+nix bundle --bundler .#bundlers."$system".simple .#apps."$system".default

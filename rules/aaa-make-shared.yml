@@ -1,0 +1,10 @@
+# Hypermodern C++ AAA: auto with make_shared
+# std::shared_ptr<T> x = std::make_shared<T>(...) → auto x = std::make_shared<T>(...)
+id: aaa-make-shared
+language: cpp
+severity: hint
+message: "AAA: Use auto with std::make_shared"
+note: "Almost Always Auto - the type is already specified in make_shared"
+rule:
+  pattern: std::shared_ptr<$TYPE> $VAR = std::make_shared<$TYPE2>($$$ARGS)
+fix: "auto $VAR = std::make_shared<$TYPE2>($$$ARGS)"

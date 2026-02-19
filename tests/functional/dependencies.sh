@@ -11,22 +11,22 @@ echo "derivation is $drvPath"
 nix-store -q --tree "$drvPath" | grep '───.*builder-dependencies-input-1.sh'
 
 # Test Graphviz graph generation.
-nix-store -q --graph "$drvPath" > "$TEST_ROOT"/graph
+nix-store -q --graph "$drvPath" >"$TEST_ROOT"/graph
 if test -n "$dot"; then
-    # Does it parse?
-    $dot < "$TEST_ROOT"/graph
+  # Does it parse?
+  $dot <"$TEST_ROOT"/graph
 fi
 
 # Test GraphML graph generation
-nix-store -q --graphml "$drvPath" > "$TEST_ROOT"/graphml
+nix-store -q --graphml "$drvPath" >"$TEST_ROOT"/graphml
 
 outPath=$(nix-store -rvv "$drvPath") || fail "build failed"
 
 # Test Graphviz graph generation.
-nix-store -q --graph "$outPath" > "$TEST_ROOT"/graph
+nix-store -q --graph "$outPath" >"$TEST_ROOT"/graph
 if test -n "$dot"; then
-    # Does it parse?
-    $dot < "$TEST_ROOT"/graph
+  # Does it parse?
+  $dot <"$TEST_ROOT"/graph
 fi
 
 nix-store -q --tree "$outPath" | grep '───.*dependencies-input-2'
@@ -63,7 +63,7 @@ test "$(nix-store -q --valid-derivers "$outPath")" = "$drvPath"
 drvPath2=$(nix-instantiate dependencies.nix --argstr hashInvalidator yay)
 
 # now --valid-derivers returns both
-test "$(nix-store -q --valid-derivers "$outPath" | sort)" = "$(sort <<< "$drvPath"$'\n'"$drvPath2")"
+test "$(nix-store -q --valid-derivers "$outPath" | sort)" = "$(sort <<<"$drvPath"$'\n'"$drvPath2")"
 
 TODO_NixOS # The following --delete fails, because it seems to be still alive. This might be caused by a different test using the same path. We should try make the derivations unique, e.g. naming after tests, and adding a timestamp that's constant for that test script run.
 

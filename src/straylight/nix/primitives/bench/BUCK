@@ -1,0 +1,236 @@
+# src/straylight/nix/primitives/bench/BUCK
+#
+# URL parsing benchmarks
+
+# Linker flags for benchmark dependencies
+BENCH_LINKER_FLAGS = [
+    # Ada URL parser
+    "-L/nix/store/3b4p38fk6hgwaf2p6jcci5k93b9cnxc8-ada-3.4.1/lib",
+    "-lada",
+    "-Wl,-rpath,/nix/store/3b4p38fk6hgwaf2p6jcci5k93b9cnxc8-ada-3.4.1/lib",
+    # Boost URL
+    "-L/nix/store/2izjh733byjickw9719nnkckxd63ghpm-boost-1.87.0/lib",
+    "-lboost_url",
+    "-Wl,-rpath,/nix/store/2izjh733byjickw9719nnkckxd63ghpm-boost-1.87.0/lib",
+    # nanobench
+    "-L/nix/store/x5lnx4qwiy1kdlhbnavwqglnlncby1z6-nanobench-4.3.11/lib",
+    "-lnanobench",
+    "-Wl,-rpath,/nix/store/x5lnx4qwiy1kdlhbnavwqglnlncby1z6-nanobench-4.3.11/lib",
+]
+
+# Base compiler flags for benchmarks
+BENCH_COMPILER_FLAGS = [
+    "-std=c++23",
+    "-O3",
+    "-DNDEBUG",
+    # nanobench header location
+    "-isystem/nix/store/x5lnx4qwiy1kdlhbnavwqglnlncby1z6-nanobench-4.3.11/include",
+]
+
+# Native arch flags for maximum SIMD performance (Zen 5 / Ryzen 9950X3D)
+# Enables AVX-512, AVX-VNNI, and other advanced instruction sets
+BENCH_NATIVE_FLAGS = BENCH_COMPILER_FLAGS + [
+    "-march=znver5",
+    "-mtune=znver5",
+]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# URL shim library (for benchmarking all three backends)
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_library(
+    name = "url_shim",
+    srcs = ["url_shim.cpp"],
+    headers = ["url_shim.h"],
+    header_namespace = "straylight/nix/primitives/bench",
+    compiler_flags = BENCH_COMPILER_FLAGS,
+    deps = [
+        "//src/straylight/nix/primitives:primitives",
+        "//third_party:ada",
+        "//third_party:boost",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# URL benchmark executable
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_binary(
+    name = "url_bench",
+    srcs = ["url_bench.cpp"],
+    compiler_flags = BENCH_COMPILER_FLAGS,
+    linker_flags = BENCH_LINKER_FLAGS,
+    deps = [
+        ":url_shim",
+        "//third_party:nanobench",
+    ],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# String benchmark executable
+# ─────────────────────────────────────────────────────────────────────────────
+
+STRINGS_BENCH_LINKER_FLAGS = [
+    # nanobench
+    "-L/nix/store/x5lnx4qwiy1kdlhbnavwqglnlncby1z6-nanobench-4.3.11/lib",
+    "-lnanobench",
+    "-Wl,-rpath,/nix/store/x5lnx4qwiy1kdlhbnavwqglnlncby1z6-nanobench-4.3.11/lib",
+]
+
+# Generic build (baseline, no AVX-512)
+cxx_binary(
+    name = "strings_bench",
+    srcs = ["strings_bench.cpp"],
+    compiler_flags = BENCH_COMPILER_FLAGS,
+    linker_flags = STRINGS_BENCH_LINKER_FLAGS,
+    deps = [
+        "//src/straylight/nix/primitives:strings",
+        "//third_party:nanobench",
+    ],
+)
+
+# Native arch build (AVX-512 enabled for Zen 5)
+cxx_binary(
+    name = "strings_bench_native",
+    srcs = ["strings_bench.cpp"],
+    compiler_flags = BENCH_NATIVE_FLAGS,
+    linker_flags = STRINGS_BENCH_LINKER_FLAGS,
+    deps = [
+        "//src/straylight/nix/primitives:strings",
+        "//third_party:nanobench",
+    ],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Hash benchmark executable
+# ─────────────────────────────────────────────────────────────────────────────
+
+HASH_BENCH_LINKER_FLAGS = [
+    # nanobench
+    "-L/nix/store/x5lnx4qwiy1kdlhbnavwqglnlncby1z6-nanobench-4.3.11/lib",
+    "-lnanobench",
+    "-Wl,-rpath,/nix/store/x5lnx4qwiy1kdlhbnavwqglnlncby1z6-nanobench-4.3.11/lib",
+    # BLAKE3
+    "-L/nix/store/588l1bk59474sr3fpfp32zmz4hn87rw4-libblake3-1.8.2/lib",
+    "-lblake3",
+    "-Wl,-rpath,/nix/store/588l1bk59474sr3fpfp32zmz4hn87rw4-libblake3-1.8.2/lib",
+    # OpenSSL
+    "-L/nix/store/mqvgaq2bnb1701l7zcn0d6vd7w8b0z7l-openssl-3.3.3/lib",
+    "-lcrypto",
+    "-Wl,-rpath,/nix/store/mqvgaq2bnb1701l7zcn0d6vd7w8b0z7l-openssl-3.3.3/lib",
+]
+
+# Native arch build (AVX-512, SHA-NI enabled)
+cxx_binary(
+    name = "hash_bench",
+    srcs = ["hash_bench.cpp"],
+    compiler_flags = BENCH_NATIVE_FLAGS,
+    linker_flags = HASH_BENCH_LINKER_FLAGS,
+    deps = [
+        "//src/straylight/nix/primitives:hash",
+        "//third_party:nanobench",
+    ],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Encoding benchmark executable
+# ─────────────────────────────────────────────────────────────────────────────
+
+ENCODING_BENCH_LINKER_FLAGS = [
+    # nanobench
+    "-L/nix/store/x5lnx4qwiy1kdlhbnavwqglnlncby1z6-nanobench-4.3.11/lib",
+    "-lnanobench",
+    "-Wl,-rpath,/nix/store/x5lnx4qwiy1kdlhbnavwqglnlncby1z6-nanobench-4.3.11/lib",
+]
+
+cxx_binary(
+    name = "encoding_bench",
+    srcs = ["encoding_bench.cpp"],
+    compiler_flags = BENCH_NATIVE_FLAGS,
+    linker_flags = ENCODING_BENCH_LINKER_FLAGS,
+    deps = [
+        "//src/straylight/nix/primitives:encoding",
+        "//third_party:nanobench",
+    ],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Regex benchmark executable
+# ─────────────────────────────────────────────────────────────────────────────
+
+REGEX_BENCH_COMPILER_FLAGS = BENCH_NATIVE_FLAGS + [
+    # RE2 headers (until devshell picks up the new dep)
+    "-isystem/nix/store/bvklk6khay8hv186g21vh4cz0b1h24cg-re2-2025-08-12-dev/include",
+    # Abseil (RE2 dependency)
+    "-isystem/nix/store/d4qrcnr91qgbwp1sfb9q4mgw8mjqhk1v-abseil-cpp-20250512.1/include",
+]
+
+REGEX_BENCH_LINKER_FLAGS = [
+    # nanobench
+    "-L/nix/store/x5lnx4qwiy1kdlhbnavwqglnlncby1z6-nanobench-4.3.11/lib",
+    "-lnanobench",
+    "-Wl,-rpath,/nix/store/x5lnx4qwiy1kdlhbnavwqglnlncby1z6-nanobench-4.3.11/lib",
+    # RE2
+    "-L/nix/store/g2sz6lsqmm054v9lkgkrz5gddxi7yipr-re2-2025-08-12/lib",
+    "-lre2",
+    "-Wl,-rpath,/nix/store/g2sz6lsqmm054v9lkgkrz5gddxi7yipr-re2-2025-08-12/lib",
+]
+
+cxx_binary(
+    name = "regex_bench",
+    srcs = ["regex_bench.cpp"],
+    compiler_flags = REGEX_BENCH_COMPILER_FLAGS,
+    linker_flags = REGEX_BENCH_LINKER_FLAGS,
+    deps = [
+        "//src/straylight/nix/primitives:regex",
+        "//third_party:nanobench",
+    ],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Fuzzy matching benchmark executable
+# ─────────────────────────────────────────────────────────────────────────────
+
+FUZZY_BENCH_COMPILER_FLAGS = BENCH_NATIVE_FLAGS + [
+    # rapidfuzz-cpp headers
+    "-isystem/nix/store/ckb9dac1i1yww14lgj3y4ab0a04lwab9-rapidfuzz-cpp-3.3.3/include",
+]
+
+FUZZY_BENCH_LINKER_FLAGS = [
+    # nanobench
+    "-L/nix/store/x5lnx4qwiy1kdlhbnavwqglnlncby1z6-nanobench-4.3.11/lib",
+    "-lnanobench",
+    "-Wl,-rpath,/nix/store/x5lnx4qwiy1kdlhbnavwqglnlncby1z6-nanobench-4.3.11/lib",
+]
+
+cxx_binary(
+    name = "fuzzy_bench",
+    srcs = ["fuzzy_bench.cpp"],
+    compiler_flags = FUZZY_BENCH_COMPILER_FLAGS,
+    linker_flags = FUZZY_BENCH_LINKER_FLAGS,
+    deps = [
+        "//src/straylight/nix/primitives:fuzzy",
+        "//third_party:nanobench",
+    ],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Filesystem benchmark executable
+# ─────────────────────────────────────────────────────────────────────────────
+
+FILESYSTEM_BENCH_LINKER_FLAGS = [
+    # nanobench
+    "-L/nix/store/x5lnx4qwiy1kdlhbnavwqglnlncby1z6-nanobench-4.3.11/lib",
+    "-lnanobench",
+    "-Wl,-rpath,/nix/store/x5lnx4qwiy1kdlhbnavwqglnlncby1z6-nanobench-4.3.11/lib",
+]
+
+cxx_binary(
+    name = "filesystem_bench",
+    srcs = ["filesystem_bench.cpp"],
+    compiler_flags = BENCH_NATIVE_FLAGS,
+    linker_flags = FILESYSTEM_BENCH_LINKER_FLAGS,
+    deps = [
+        "//src/straylight/nix/primitives/filesystem:filesystem",
+        "//third_party:nanobench",
+    ],
+)
