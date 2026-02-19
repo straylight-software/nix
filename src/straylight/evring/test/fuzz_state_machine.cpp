@@ -90,9 +90,11 @@ struct fuzz_test_machine {
         case 2:
           if (e.resource_handle.valid()) {
             // Use a stack buffer for fuzz testing - we won't actually execute these
+            // Size is 0 so no actual read will occur
             std::byte dummy_buf[1];
             ops.push_back(evring::operation::make_read(
-                e.resource_handle, std::span<std::byte>(dummy_buf, 0), -1, e.user_data + i));
+                e.resource_handle, evring::make_stable_span(std::span<std::byte>(dummy_buf, 0)), -1,
+                e.user_data + i));
           }
           break;
         case 3:

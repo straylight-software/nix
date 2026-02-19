@@ -49,6 +49,75 @@ Execution loop (`run_generate`):
 
 ## Core Components
 
+### stable_ref.h - Buffer Lifetime Safety
+
+Operations that write to user buffers (`make_read`, `make_recv`, `make_statx`) require `stable_span<T>` or `stable_ref<T>` instead of raw pointers/spans. This prevents a subtle bug where buffers stored in state (which gets copied between steps) are passed to async operations, causing the kernel to write to stale memory.
+
+```cpp
+// stable_span<T> - A span that asserts stable address
+template <typename T>
+class stable_span {
+  // Private constructor - only make_stable_span() can create these
+};
+
+// stable_ref<T> - A reference that asserts stable address  
+template <typename T>
+class stable_ref {
+  // Private constructor - only make_stable_ref() can create these
+};
+
+// Factory functions - explicit opt-in to stability assertion
+template <typename T>
+auto make_stable_span(std::span<T> s) -> stable_span<T>;
+
+template <typename T, std::size_t N>
+auto make_stable_span(std::span<T, N> s) -> stable_span<T>;
+
+template <typename T>
+auto make_stable_ref(T& ref) -> stable_ref<T>;
+```
+
+**The footgun this prevents:**
+
+```cpp
+// BAD: buffer in state gets copied between steps!
+struct bad_state {
+  std::vector<std::byte> buffer;  // ← This gets copied!
+};
+
+auto step(bad_state s, event e) -> step_result<bad_state> {
+  // s.buffer has a DIFFERENT ADDRESS than the original state
+  // The kernel writes to the old address → memory corruption!
+  ops.push_back(make_read(handle, span{s.buffer}));  // COMPILE ERROR now
+}
+```
+
+**Correct patterns:**
+
+1. **Buffer in machine** (for state machines):
+   ```cpp
+   struct my_machine {
+     mutable std::vector<std::byte> buffer_;
+     
+     auto buffer_span() const -> stable_span<std::byte> {
+       return make_stable_span(span{buffer_.data(), buffer_.size()});
+     }
+   };
+   ```
+
+2. **Direct ring operations** (buffer outlives completion):
+   ```cpp
+   std::vector<std::byte> buf(4096);
+   ring->enqueue(make_read(handle, make_stable_span(span{buf})));
+   ring->submit_and_wait(1);  // buf is still valid here
+   ```
+
+3. **Single value** (like `struct statx`):
+   ```cpp
+   struct statx statx_buf;
+   ring->enqueue(make_statx(AT_FDCWD, path, 0, mask, make_stable_ref(statx_buf)));
+   ```
+
 ### handle.h - Generational Handles
 
 ```cpp
@@ -229,22 +298,27 @@ struct file_reader_state {
   phase current_phase{phase::initial};
   handle file_handle;
   vector<byte> content;
-  vector<byte> read_buffer;
   int error_code{0};
+  // NOTE: read_buffer is NOT in state - see stable_ref.h section below
 };
 
 struct file_reader_machine {
   using state_type = file_reader_state;
   const char* path_;
   size_t chunk_size_;
+  mutable vector<byte> read_buffer_;  // Buffer in machine, not state!
 
-  auto initial() -> state_type {
-    state_type state;
-    state.read_buffer.resize(chunk_size_);
-    return state;
+  explicit file_reader_machine(const char* path, size_t chunk_size = 4096)
+      : path_(path), chunk_size_(chunk_size), read_buffer_(chunk_size) {}
+
+  auto initial() const -> state_type { return {}; }
+
+  // Helper to get stable span for read operations
+  auto read_buffer_span() const -> stable_span<byte> {
+    return make_stable_span(span{read_buffer_.data(), read_buffer_.size()});
   }
 
-  auto step(state_type state, event e) -> step_result<state_type> {
+  auto step(state_type state, event e) const -> step_result<state_type> {
     vector<operation> ops;
 
     switch (state.current_phase) {
@@ -261,7 +335,7 @@ struct file_reader_machine {
           state.file_handle = e.resource_handle;
           state.current_phase = phase::reading;
           ops.push_back(operation::make_read(state.file_handle,
-              span{state.read_buffer}));
+              read_buffer_span()));  // Uses stable_span
         }
         break;
 
@@ -276,7 +350,7 @@ struct file_reader_machine {
           state.content.insert(state.content.end(),
               e.data.begin(), e.data.end());
           ops.push_back(operation::make_read(state.file_handle,
-              span{state.read_buffer}));
+              read_buffer_span()));  // Uses stable_span
         }
         break;
 
@@ -288,7 +362,7 @@ struct file_reader_machine {
     return {move(state), move(ops)};
   }
 
-  auto done(const state_type& s) -> bool {
+  auto done(const state_type& s) const -> bool {
     return s.current_phase == phase::done ||
            s.current_phase == phase::error;
   }
@@ -296,11 +370,12 @@ struct file_reader_machine {
 
 // Real execution
 auto ring = make_io_uring_ring(64);
-auto final_state = run(file_reader{"/etc/hostname"}, *ring);
+file_reader_machine reader{"/etc/hostname"};
+auto final_state = run(reader, *ring);
 
 // Replay without I/O
 vector<event> recorded_events = {...};
-auto replayed_state = replay(file_reader{"/etc/hostname"}, recorded_events);
+auto replayed_state = replay(reader, recorded_events);
 ```
 
 ## Performance
@@ -327,6 +402,7 @@ evring/
 
   # Core
   handle.h            # Generational handles, handle_table<T>
+  stable_ref.h        # stable_span, stable_ref, make_stable_span/ref
   event.h             # Events, operations, operation builders
   machine.h           # machine/generator_machine concepts, replay, trace
   ring.h              # ring interface, run/run_traced/run_generate

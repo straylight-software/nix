@@ -39,8 +39,7 @@ struct file_copy_state {
   evring::handle source_handle;
   evring::handle dest_handle;
 
-  // Buffer for read/write
-  std::vector<std::byte> buffer;
+  // Size of data in buffer (buffer is in machine, not state)
   std::size_t bytes_in_buffer{0};
 
   // Progress
@@ -60,12 +59,13 @@ public:
   using state_type = file_copy_state;
 
   file_copy_machine(const char* source, const char* dest, std::size_t buffer_size = 64 * 1024)
-      : source_(source), dest_(dest), buffer_size_(buffer_size) {}
+      : source_(source), dest_(dest), buffer_(buffer_size) {}
 
-  [[nodiscard]] auto initial() const -> state_type {
-    state_type s;
-    s.buffer.resize(buffer_size_);
-    return s;
+  [[nodiscard]] auto initial() const -> state_type { return {}; }
+
+  // Provide stable span for read buffer (buffer is in machine, not state)
+  [[nodiscard]] auto read_buffer_span() const -> evring::stable_span<std::byte> {
+    return evring::make_stable_span(std::span{buffer_.data(), buffer_.size()});
   }
 
   [[nodiscard]] auto step(state_type s, const evring::event& e) const
@@ -100,7 +100,7 @@ public:
         } else {
           s.dest_handle = e.resource_handle;
           s.current_phase = state_type::phase::reading;
-          ops.push_back(evring::operation::make_read(s.source_handle, std::span{s.buffer}));
+          ops.push_back(evring::operation::make_read(s.source_handle, read_buffer_span()));
         }
         break;
 
@@ -121,7 +121,7 @@ public:
           s.bytes_in_buffer = static_cast<std::size_t>(e.result);
           s.current_phase = state_type::phase::writing;
           ops.push_back(evring::operation::make_write(
-              s.dest_handle, std::span{s.buffer.data(), s.bytes_in_buffer}));
+              s.dest_handle, std::span{buffer_.data(), s.bytes_in_buffer}));
         }
         break;
 
@@ -139,7 +139,7 @@ public:
           std::fflush(stdout);
           // Read more
           s.current_phase = state_type::phase::reading;
-          ops.push_back(evring::operation::make_read(s.source_handle, std::span{s.buffer}));
+          ops.push_back(evring::operation::make_read(s.source_handle, read_buffer_span()));
         }
         break;
 
@@ -168,7 +168,7 @@ public:
 private:
   const char* source_;
   const char* dest_;
-  std::size_t buffer_size_;
+  mutable std::vector<std::byte> buffer_;
 };
 
 // ============================================================================

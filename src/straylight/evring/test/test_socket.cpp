@@ -135,8 +135,8 @@ void test_loopback_echo() {
 
   // Receive on the server side
   std::vector<std::byte> recv_buf(128);
-  ring->enqueue(evring::operation::make_recv(accepted_handle,
-                                             std::span{recv_buf.data(), recv_buf.size()}, 0));
+  ring->enqueue(evring::operation::make_recv(
+      accepted_handle, evring::make_stable_span(std::span{recv_buf.data(), recv_buf.size()}), 0));
 
   events = ring->submit_and_wait(2);
   assert(events.size() == 2);

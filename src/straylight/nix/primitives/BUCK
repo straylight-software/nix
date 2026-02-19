@@ -529,7 +529,10 @@ cxx_library(
 
     compiler_flags = ZPP_BITS_COMPILER_FLAGS,
 
+    linker_flags = HASH_LINKER_FLAGS,
+
     deps = [
+        ":hash",
         ":serialise",
         "//src/straylight/evring:evring",
     ],
@@ -561,3 +564,28 @@ cxx_library(
         "//third_party:boost",
     ],
 )
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Lock primitives (portable mutual exclusion, RAII)
+# ─────────────────────────────────────────────────────────────────────────────
+
+cxx_library(
+    name = "lock",
+
+    # Header-only library
+    srcs = [],
+
+    exported_headers = [
+        "lock.h",
+    ],
+
+    header_namespace = "straylight/nix/primitives",
+
+    visibility = ["PUBLIC"],
+
+    compiler_flags = [
+        "-std=c++23",
+    ],
+)
+
+

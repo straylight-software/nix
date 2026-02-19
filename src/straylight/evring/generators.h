@@ -65,7 +65,7 @@ struct bulk_stat_state {
 /// @code
 ///   std::vector<const char*> paths = {...};
 ///   std::vector<struct statx> buffers(paths.size());
-///   bulk_stat_machine machine{paths, buffers};
+///   bulk_stat_machine machine{paths, make_stable_span(buffers)};
 ///   auto final = run_generate(machine, ring);
 ///   // final.succeeded, final.failed, final.errors
 /// @endcode
@@ -73,10 +73,10 @@ struct bulk_stat_machine {
   using state_type = bulk_stat_state;
 
   std::span<const char* const> paths;
-  std::span<struct statx> buffers;
+  stable_span<struct statx> buffers; // Caller-owned, stable buffers
   unsigned int mask;
 
-  bulk_stat_machine(std::span<const char* const> p, std::span<struct statx> b,
+  bulk_stat_machine(std::span<const char* const> p, stable_span<struct statx> b,
                     unsigned int m = STATX_BASIC_STATS)
       : paths(p), buffers(b), mask(m) {}
 
@@ -92,7 +92,8 @@ struct bulk_stat_machine {
 
     while (ops.size() < max_ops && s.next_to_submit < paths.size()) {
       ops.push_back(operation::make_statx(AT_FDCWD, paths[s.next_to_submit], 0, mask,
-                                          &buffers[s.next_to_submit], s.next_to_submit));
+                                          make_stable_ref(buffers[s.next_to_submit]),
+                                          s.next_to_submit));
       s.next_to_submit++;
     }
 

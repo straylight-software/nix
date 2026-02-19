@@ -970,3 +970,22 @@ TEST_CASE("exec: builtins bitwise ops", "[execution][builtins]") {
   expect_int("builtins.bitXor 255 255", 0);
   expect_int("builtins.bitXor 0 255", 255);
 }
+
+TEST_CASE("exec: builtins.intersectAttrs", "[execution][builtins]") {
+  // Basic intersection - returns values from second set
+  expect_int(R"((builtins.intersectAttrs { a = 1; b = 2; } { a = 10; c = 30; }).a)", 10);
+  // Keys not in first set are excluded
+  expect_int(
+      R"(builtins.length (builtins.attrNames (builtins.intersectAttrs { a = 1; } { a = 10; b = 20; })))",
+      1);
+  // Empty intersection
+  expect_int(
+      R"(builtins.length (builtins.attrNames (builtins.intersectAttrs { a = 1; } { b = 2; })))", 0);
+  // Both empty
+  expect_int(R"(builtins.length (builtins.attrNames (builtins.intersectAttrs {} {})))", 0);
+}
+
+TEST_CASE("exec: builtins.functionArgs", "[execution][builtins]") {
+  // functionArgs returns attrset (empty for now since we don't track args)
+  expect_int(R"(builtins.length (builtins.attrNames (builtins.functionArgs (x: x))))", 0);
+}

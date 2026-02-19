@@ -149,6 +149,8 @@ constexpr std::uint32_t remove_attrs = 305;
 constexpr std::uint32_t list_to_attrs = 306;
 constexpr std::uint32_t map_attrs = 307;
 constexpr std::uint32_t cat_attrs = 308;
+constexpr std::uint32_t zip_attrs_with = 309;
+constexpr std::uint32_t function_args = 310;
 
 // list builtins
 constexpr std::uint32_t map = 400;

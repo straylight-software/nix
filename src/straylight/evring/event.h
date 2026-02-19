@@ -10,6 +10,7 @@
 #include <sys/types.h>
 
 #include "straylight/evring/handle.h"
+#include "straylight/evring/stable_ref.h"
 
 namespace evring {
 
@@ -350,8 +351,12 @@ struct operation {
     };
   }
 
-  static auto make_read(handle resource, std::span<std::byte> read_buffer, std::int64_t offset = -1,
-                        std::uint64_t user_data = 0) -> operation {
+  /// Read into a stable buffer (compile-time enforced lifetime safety)
+  /// @param resource File or socket handle
+  /// @param read_buffer Stable buffer to read into (must outlive operation)
+  /// @param offset File offset (-1 for current position)
+  static auto make_read(handle resource, stable_span<std::byte> read_buffer,
+                        std::int64_t offset = -1, std::uint64_t user_data = 0) -> operation {
     return operation{
         .resource_handle = resource,
         .type = operation_type::read,
@@ -390,13 +395,20 @@ struct operation {
 
   // --- Metadata operations ---
 
+  /// Stat a file with compile-time enforced buffer lifetime safety
+  /// @param directory_fd Directory fd for relative paths (AT_FDCWD for cwd)
+  /// @param path Path to stat
+  /// @param flags AT_SYMLINK_NOFOLLOW, AT_EMPTY_PATH, etc.
+  /// @param mask STATX_BASIC_STATS, STATX_ALL, etc.
+  /// @param buffer Stable buffer for results (must outlive operation)
   static auto make_statx(int directory_fd, const char* path, int flags, unsigned int mask,
-                         struct statx* buffer, std::uint64_t user_data = 0) -> operation {
+                         stable_ref<struct statx> buffer, std::uint64_t user_data = 0)
+      -> operation {
     return operation{
         .resource_handle = handle::invalid(),
         .type = operation_type::statx,
         .user_data = user_data,
-        .parameters = statx_parameters{directory_fd, path, flags, mask, buffer},
+        .parameters = statx_parameters{directory_fd, path, flags, mask, buffer.get()},
     };
   }
 
@@ -575,11 +587,11 @@ struct operation {
     };
   }
 
-  /// Receive data from a connected socket
+  /// Receive data from a connected socket (compile-time enforced buffer safety)
   /// @param socket_handle Handle to the socket
-  /// @param buffer Buffer to receive data into
+  /// @param buffer Stable buffer to receive data into (must outlive operation)
   /// @param flags MSG_DONTWAIT, MSG_PEEK, etc.
-  static auto make_recv(handle socket_handle, std::span<std::byte> buffer, int flags = 0,
+  static auto make_recv(handle socket_handle, stable_span<std::byte> buffer, int flags = 0,
                         std::uint64_t user_data = 0) -> operation {
     return operation{
         .resource_handle = socket_handle,

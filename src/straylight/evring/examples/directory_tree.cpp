@@ -116,9 +116,6 @@ struct stat_entries_state {
   std::vector<dir_entry> entries;
   std::size_t current_index{0};
 
-  // Statx buffer
-  struct statx statx_buf;
-
   // Completed entries
   std::vector<dir_entry> completed;
 
@@ -151,18 +148,18 @@ public:
           s.current_index = 0;
           ops.push_back(evring::operation::make_statx(
               AT_FDCWD, s.entries[0].path.c_str(), AT_SYMLINK_NOFOLLOW,
-              STATX_TYPE | STATX_MODE | STATX_SIZE, &s.statx_buf));
+              STATX_TYPE | STATX_MODE | STATX_SIZE, evring::make_stable_ref(statx_buf_)));
         }
         break;
 
       case state_type::phase::statting: {
         // Process result (ignore errors - just mark entry as unknown)
         auto& entry = s.entries[s.current_index];
-        if (e.ok() && e.statx_buffer) {
-          entry.mode = e.statx_buffer->stx_mode;
-          entry.size = e.statx_buffer->stx_size;
-          entry.is_directory = S_ISDIR(e.statx_buffer->stx_mode);
-          entry.is_symlink = S_ISLNK(e.statx_buffer->stx_mode);
+        if (e.ok()) {
+          entry.mode = statx_buf_.stx_mode;
+          entry.size = statx_buf_.stx_size;
+          entry.is_directory = S_ISDIR(statx_buf_.stx_mode);
+          entry.is_symlink = S_ISLNK(statx_buf_.stx_mode);
         }
         s.completed.push_back(entry);
 
@@ -173,7 +170,7 @@ public:
         } else {
           ops.push_back(evring::operation::make_statx(
               AT_FDCWD, s.entries[s.current_index].path.c_str(), AT_SYMLINK_NOFOLLOW,
-              STATX_TYPE | STATX_MODE | STATX_SIZE, &s.statx_buf));
+              STATX_TYPE | STATX_MODE | STATX_SIZE, evring::make_stable_ref(statx_buf_)));
         }
         break;
       }
@@ -193,6 +190,7 @@ public:
 
 private:
   std::vector<dir_entry> entries_;
+  mutable struct statx statx_buf_; // Stable buffer for statx results
 };
 
 // ============================================================================

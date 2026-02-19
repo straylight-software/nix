@@ -29,7 +29,6 @@ struct echo_client_state {
 
   phase current_phase{phase::receiving};
   evring::handle client_handle;
-  std::vector<std::byte> buffer;
   std::size_t bytes_received{0};
   std::size_t bytes_sent{0};
 };
@@ -39,13 +38,17 @@ public:
   using state_type = echo_client_state;
 
   explicit echo_client_machine(evring::handle client, std::size_t buffer_size = 4096)
-      : client_(client), buffer_size_(buffer_size) {}
+      : client_(client), buffer_(buffer_size) {}
 
   [[nodiscard]] auto initial() const -> state_type {
     state_type s;
     s.client_handle = client_;
-    s.buffer.resize(buffer_size_);
     return s;
+  }
+
+  // Provide stable span for recv buffer (buffer is in machine, not state)
+  [[nodiscard]] auto recv_buffer_span() const -> evring::stable_span<std::byte> {
+    return evring::make_stable_span(std::span{buffer_.data(), buffer_.size()});
   }
 
   [[nodiscard]] auto step(state_type s, const evring::event& e) const
@@ -63,7 +66,7 @@ public:
           s.bytes_received = static_cast<std::size_t>(e.result);
           s.current_phase = state_type::phase::sending;
           ops.push_back(evring::operation::make_send(
-              s.client_handle, std::span{s.buffer.data(), s.bytes_received}, 0));
+              s.client_handle, std::span{buffer_.data(), s.bytes_received}, 0));
         }
         break;
 
@@ -75,7 +78,7 @@ public:
           s.bytes_sent += static_cast<std::size_t>(e.result);
           // Wait for more data
           s.current_phase = state_type::phase::receiving;
-          ops.push_back(evring::operation::make_recv(s.client_handle, std::span{s.buffer}, 0));
+          ops.push_back(evring::operation::make_recv(s.client_handle, recv_buffer_span(), 0));
         }
         break;
 
@@ -94,7 +97,7 @@ public:
 
 private:
   evring::handle client_;
-  std::size_t buffer_size_;
+  mutable std::vector<std::byte> buffer_;
 };
 
 // ============================================================================
@@ -157,13 +160,12 @@ void run_server(evring::ring& ring, std::uint16_t port, int max_clients) {
     inet_ntop(AF_INET, &client_addr.sin_addr, addr_str, sizeof(addr_str));
     std::printf("Client connected from %s:%u\n", addr_str, ntohs(client_addr.sin_port));
 
-    // Start receiving from client
-    std::vector<std::byte> buffer(4096);
-    ring.enqueue(evring::operation::make_recv(client_handle, std::span{buffer}, 0));
+    // Start receiving from client - create machine first so it has stable buffer
+    echo_client_machine client_machine{client_handle};
+    ring.enqueue(evring::operation::make_recv(client_handle, client_machine.recv_buffer_span(), 0));
     events = ring.submit_and_wait(1);
 
-    // Create client machine with the initial recv result
-    echo_client_machine client_machine{client_handle};
+    // Process initial recv with the client machine
     auto state = client_machine.initial();
 
     // Process initial recv

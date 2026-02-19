@@ -81,9 +81,9 @@ void test_random_operation_order() {
     switch (op) {
       case op_type::stat: {
         if (stat_idx < stat_buffers.size()) {
-          ring->enqueue(
-              evring::operation::make_statx(AT_FDCWD, paths[path_idx % paths.size()].c_str(), 0,
-                                            STATX_BASIC_STATS, &stat_buffers[stat_idx++]));
+          ring->enqueue(evring::operation::make_statx(
+              AT_FDCWD, paths[path_idx % paths.size()].c_str(), 0, STATX_BASIC_STATS,
+              evring::make_stable_ref(stat_buffers[stat_idx++])));
           auto events = ring->submit_and_wait(1);
           // May succeed or fail depending on if file was unlinked
           stats_done++;
@@ -110,7 +110,8 @@ void test_random_operation_order() {
         if (events[0].ok()) {
           evring::handle h = events[0].resource_handle;
           std::vector<std::byte> buf(4096);
-          ring->enqueue(evring::operation::make_read(h, std::span{buf.data(), buf.size()}));
+          ring->enqueue(evring::operation::make_read(
+              h, evring::make_stable_span(std::span{buf.data(), buf.size()})));
           events = ring->submit_and_wait(1);
           ring->enqueue(evring::operation::make_close(h));
           ring->submit_and_wait(1);
@@ -169,8 +170,9 @@ void test_completion_memory_visibility() {
   for (int iteration = 0; iteration < 100; ++iteration) {
     std::vector<std::byte> buf(strlen(pattern));
 
-    ring->enqueue(evring::operation::make_read(file, std::span{buf.data(), buf.size()},
-                                               (iteration % 100) * strlen(pattern)));
+    ring->enqueue(evring::operation::make_read(
+        file, evring::make_stable_span(std::span{buf.data(), buf.size()}),
+        (iteration % 100) * strlen(pattern)));
 
     events = ring->submit_and_wait(1);
     assert(events[0].ok());
@@ -225,7 +227,8 @@ void test_ring_wraparound() {
   // Do many more operations than ring size to force wraparound
   const int num_ops = 1000;
   for (int i = 0; i < num_ops; ++i) {
-    ring->enqueue(evring::operation::make_read(file, std::span{buf, sizeof(buf)}));
+    ring->enqueue(
+        evring::operation::make_read(file, evring::make_stable_span(std::span{buf, sizeof(buf)})));
     events = ring->submit_and_wait(1);
     assert(events[0].ok());
   }
@@ -398,7 +401,8 @@ void test_partial_io() {
 
   // Request more bytes than exist - should get partial read
   std::vector<std::byte> buf(1024);
-  ring->enqueue(evring::operation::make_read(file, std::span{buf.data(), buf.size()}));
+  ring->enqueue(evring::operation::make_read(
+      file, evring::make_stable_span(std::span{buf.data(), buf.size()})));
   events = ring->submit_and_wait(1);
 
   assert(events[0].ok());
@@ -407,7 +411,8 @@ void test_partial_io() {
               strlen(content));
 
   // Subsequent read should return 0 (EOF)
-  ring->enqueue(evring::operation::make_read(file, std::span{buf.data(), buf.size()}));
+  ring->enqueue(evring::operation::make_read(
+      file, evring::make_stable_span(std::span{buf.data(), buf.size()})));
   events = ring->submit_and_wait(1);
 
   assert(events[0].ok());
@@ -514,8 +519,9 @@ void test_large_mixed_batch() {
   std::vector<struct statx> buffers(paths.size());
 
   auto ring = evring::make_io_uring_ring(256);
-  evring::bulk_stat_machine machine{std::span{path_ptrs.data(), path_ptrs.size()},
-                                    std::span{buffers.data(), buffers.size()}};
+  evring::bulk_stat_machine machine{
+      std::span{path_ptrs.data(), path_ptrs.size()},
+      evring::make_stable_span(std::span{buffers.data(), buffers.size()})};
 
   auto final_state = evring::run_generate(machine, *ring);
 

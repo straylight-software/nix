@@ -242,8 +242,7 @@ struct http1_client_state {
   std::vector<std::byte> send_buffer;
   std::size_t bytes_sent{0};
 
-  // Response being received
-  std::vector<std::byte> recv_buffer;
+  // Note: recv_buffer is in the machine (not state) for buffer lifetime safety
 
   // Response (copied from parser when complete)
   http1_response response;
@@ -284,10 +283,16 @@ public:
   [[nodiscard]] auto step(state_type s, const event& e) const -> step_result<state_type>;
   [[nodiscard]] auto done(const state_type& s) const -> bool;
 
+  /// Get stable span to recv buffer (for use in operations)
+  [[nodiscard]] auto recv_buffer_span() const -> stable_span<std::byte> {
+    return make_stable_span(std::span{recv_buffer_});
+  }
+
 private:
   handle socket_;
   http1_request request_;
-  mutable http1_parser parser_; // Parser is mutable to allow updates in const step()
+  mutable http1_parser parser_;                // Parser is mutable to allow updates in const step()
+  mutable std::vector<std::byte> recv_buffer_; // Stable buffer for receive operations
 };
 
 // ============================================================================
@@ -312,8 +317,7 @@ struct http1_tls_client_state {
   std::vector<std::byte> send_buffer;
   std::size_t bytes_sent{0};
 
-  // Response being received
-  std::vector<std::byte> recv_buffer;
+  // Note: recv_buffer is in the machine (not state) for buffer lifetime safety
 
   // Response (copied from parser when complete)
   http1_response response;
@@ -355,11 +359,17 @@ public:
   [[nodiscard]] auto step(state_type s, const event& e) const -> step_result<state_type>;
   [[nodiscard]] auto done(const state_type& s) const -> bool;
 
+  /// Get stable span to recv buffer (for use in operations)
+  [[nodiscard]] auto recv_buffer_span() const -> stable_span<std::byte> {
+    return make_stable_span(std::span{recv_buffer_});
+  }
+
 private:
   tls_connection* tls_conn_;
   handle socket_;
   http1_request request_;
-  mutable http1_parser parser_; // Parser is mutable to allow updates in const step()
+  mutable http1_parser parser_;                // Parser is mutable to allow updates in const step()
+  mutable std::vector<std::byte> recv_buffer_; // Stable buffer for receive operations
 };
 
 } // namespace evring

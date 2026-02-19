@@ -487,10 +487,16 @@ public:
   [[nodiscard]] auto step(state_type s, const event& e) const -> step_result<state_type>;
   [[nodiscard]] auto done(const state_type& s) const -> bool;
 
+  /// Get stable span to recv buffer (for use in operations)
+  [[nodiscard]] auto recv_buffer_span() const -> stable_span<std::byte> {
+    return make_stable_span(std::span{recv_buffer_});
+  }
+
 private:
   http3_session* session_;
   handle socket_;
   http3_request request_;
+  mutable std::array<std::byte, http3_max_pktlen> recv_buffer_{}; // Stable buffer for recv
 
   auto do_send(state_type s) const -> step_result<state_type>;
   auto do_recv(state_type s, const event& e) const -> step_result<state_type>;

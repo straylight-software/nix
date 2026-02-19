@@ -1704,6 +1704,88 @@ auto rt_group_by(runtime_context& ctx, nix_value f, nix_value list) -> nix_value
   return make_value(value_tag::attribute_set, attrs_ptr);
 }
 
+auto rt_intersect_attrs(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
+  a = rt_force(ctx, a);
+  b = rt_force(ctx, b);
+
+  if (!is_attrset(a)) {
+    throw type_error("builtins.intersectAttrs: first argument must be a set, got '" +
+                     std::string(type_name(a)) + "'");
+  }
+  if (!is_attrset(b)) {
+    throw type_error("builtins.intersectAttrs: second argument must be a set, got '" +
+                     std::string(type_name(b)) + "'");
+  }
+
+  auto a_ptr = get_payload(a);
+  auto b_ptr = get_payload(b);
+
+  if (a_ptr == 0 || b_ptr == 0) {
+    return make_value(value_tag::attribute_set, 0);
+  }
+
+  auto a_count = ctx.read_u32(a_ptr + mem::ATTRSET_COUNT_OFFSET);
+  auto b_count = ctx.read_u32(b_ptr + mem::ATTRSET_COUNT_OFFSET);
+
+  // Build set of keys from a
+  std::unordered_set<std::string> a_keys;
+  for (std::uint32_t i = 0; i < a_count; ++i) {
+    auto entry = a_ptr + mem::ATTRSET_ENTRIES_OFFSET + i * mem::ATTRSET_ENTRY_SIZE;
+    auto key_offset = ctx.read_u32(entry + mem::ATTRSET_ENTRY_KEY_OFFSET);
+    a_keys.insert(std::string(ctx.read_string(key_offset)));
+  }
+
+  // Collect entries from b that exist in a
+  std::vector<std::pair<std::string, nix_value>> result;
+  for (std::uint32_t i = 0; i < b_count; ++i) {
+    auto entry = b_ptr + mem::ATTRSET_ENTRIES_OFFSET + i * mem::ATTRSET_ENTRY_SIZE;
+    auto key_offset = ctx.read_u32(entry + mem::ATTRSET_ENTRY_KEY_OFFSET);
+    auto key = std::string(ctx.read_string(key_offset));
+    if (a_keys.count(key) > 0) {
+      auto value = ctx.read_value(entry + mem::ATTRSET_ENTRY_VALUE_OFFSET);
+      result.emplace_back(std::move(key), value);
+    }
+  }
+
+  if (result.empty()) {
+    return make_value(value_tag::attribute_set, 0);
+  }
+
+  auto count = static_cast<std::uint32_t>(result.size());
+  auto attrs_size = mem::attrset_size(count);
+  auto attrs_ptr = ctx.allocate(attrs_size);
+  ctx.write_i32(attrs_ptr + mem::ATTRSET_COUNT_OFFSET, static_cast<std::int32_t>(count));
+
+  for (std::uint32_t i = 0; i < count; ++i) {
+    auto& [key, value] = result[i];
+    auto key_ptr = allocate_string(ctx, key);
+    auto entry = attrs_ptr + mem::ATTRSET_ENTRIES_OFFSET + i * mem::ATTRSET_ENTRY_SIZE;
+    ctx.write_i32(entry + mem::ATTRSET_ENTRY_KEY_OFFSET, static_cast<std::int32_t>(key_ptr));
+    ctx.write_value(entry + mem::ATTRSET_ENTRY_VALUE_OFFSET, value);
+  }
+
+  return make_value(value_tag::attribute_set, attrs_ptr);
+}
+
+auto rt_function_args(runtime_context& ctx, nix_value f) -> nix_value {
+  f = rt_force(ctx, f);
+
+  // For now, return empty set - full implementation would need closure introspection
+  // to extract the formal argument names and default value info
+  // This is sufficient for basic usage patterns
+  if (!is_lambda(f) && !is_primop(f)) {
+    throw type_error("builtins.functionArgs: expected function, got '" + std::string(type_name(f)) +
+                     "'");
+  }
+
+  // Return empty attrset for now
+  return make_value(value_tag::attribute_set, 0);
+}
+
+// Return empty attrset for now
+return make_value(value_tag::attribute_set, 0);
+}
+
 // =============================================================================
 // Arithmetic Builtins (as functions)
 // =============================================================================
@@ -2438,6 +2520,7 @@ constexpr std::uint32_t primop_arity(std::uint32_t index) {
     case b::list_to_attrs:  // listToAttrs list
     case b::floor_fn:       // floor x
     case b::ceil_fn:        // ceil x
+    case b::function_args:  // functionArgs f
       return 1;
 
     // 2-arg primops
@@ -2469,6 +2552,7 @@ constexpr std::uint32_t primop_arity(std::uint32_t index) {
     case b::bit_and:           // bitAnd a b
     case b::bit_or:            // bitOr a b
     case b::bit_xor:           // bitXor a b
+    case b::intersect_attrs:   // intersectAttrs a b
       return 2;
 
     // 3-arg primops
@@ -2547,6 +2631,8 @@ auto rt_apply_primop(runtime_context& ctx, std::uint32_t primop_index, nix_value
         return rt_floor(ctx, arg);
       case b::ceil_fn:
         return rt_ceil(ctx, arg);
+      case b::function_args:
+        return rt_function_args(ctx, arg);
       default:
         throw runtime_error("unknown primop index: " + std::to_string(primop_index));
     }
@@ -2635,6 +2721,8 @@ static auto rt_apply_partial_primop(runtime_context& ctx, std::uint32_t partial_
         return rt_bit_or(ctx, arg1, arg2);
       case b::bit_xor:
         return rt_bit_xor(ctx, arg1, arg2);
+      case b::intersect_attrs:
+        return rt_intersect_attrs(ctx, arg1, arg2);
       default:
         throw runtime_error("unknown 2-arg primop index: " + std::to_string(primop_index));
     }
@@ -2733,6 +2821,8 @@ void rt_init_builtins(runtime_context& ctx) {
   entries.emplace_back("listToAttrs", make_value(value_tag::primop, b::list_to_attrs));
   entries.emplace_back("mapAttrs", make_value(value_tag::primop, b::map_attrs));
   entries.emplace_back("catAttrs", make_value(value_tag::primop, b::cat_attrs));
+  entries.emplace_back("intersectAttrs", make_value(value_tag::primop, b::intersect_attrs));
+  entries.emplace_back("functionArgs", make_value(value_tag::primop, b::function_args));
 
   // String operations
   entries.emplace_back("stringLength", make_value(value_tag::primop, b::string_length));

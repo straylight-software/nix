@@ -580,3 +580,23 @@ cxx_test(
         "//third_party:catch2",
     ],
 )
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Lock tests (portable mutual exclusion)
+# ─────────────────────────────────────────────────────────────────────────────
+
+LOCK_TEST_LINKER_FLAGS = [
+    # pthread for std::thread (concurrent tests)
+    "-pthread",
+]
+
+cxx_test(
+    name = "lock_test",
+    srcs = ["lock_test.cpp"],
+    compiler_flags = PRIMITIVES_TEST_COMPILER_FLAGS,
+    linker_flags = LOCK_TEST_LINKER_FLAGS,
+    link_style = "static",
+    deps = [
+        "//src/straylight/nix/primitives:lock",
+    ],
+)

@@ -374,13 +374,14 @@ int http1_parser::on_message_complete(llhttp_t* parser) {
 // ============================================================================
 
 http1_client_machine::http1_client_machine(handle socket, http1_request request)
-    : socket_(socket), request_(std::move(request)) {}
+    : socket_(socket), request_(std::move(request)) {
+  recv_buffer_.resize(http1_default_buffer_size);
+}
 
 auto http1_client_machine::initial() const -> state_type {
   state_type s;
   s.socket_handle = socket_;
   s.send_buffer = request_.serialize();
-  s.recv_buffer.resize(http1_default_buffer_size);
   return s;
 }
 
@@ -406,7 +407,7 @@ auto http1_client_machine::step(state_type s, const event& e) const -> step_resu
         // All sent, start receiving
         s.current_phase = state_type::phase::receiving;
         ops.push_back(
-            operation::make_recv(s.socket_handle, std::span{s.recv_buffer}, 0, ++s.operation_id));
+            operation::make_recv(s.socket_handle, recv_buffer_span(), 0, ++s.operation_id));
         s.current_phase = state_type::phase::waiting_read;
       }
       break;
@@ -426,7 +427,7 @@ auto http1_client_machine::step(state_type s, const event& e) const -> step_resu
       if (s.bytes_sent >= s.send_buffer.size()) {
         // Start receiving
         ops.push_back(
-            operation::make_recv(s.socket_handle, std::span{s.recv_buffer}, 0, ++s.operation_id));
+            operation::make_recv(s.socket_handle, recv_buffer_span(), 0, ++s.operation_id));
         s.current_phase = state_type::phase::waiting_read;
       } else {
         // Send more
@@ -460,7 +461,7 @@ auto http1_client_machine::step(state_type s, const event& e) const -> step_resu
       }
 
       // Parse received data
-      std::span<const std::byte> data(s.recv_buffer.data(), static_cast<std::size_t>(e.result));
+      std::span<const std::byte> data(recv_buffer_.data(), static_cast<std::size_t>(e.result));
       auto parsed = parser_.parse(data);
 
       if (parsed < 0 || parser_.has_error()) {
@@ -477,7 +478,7 @@ auto http1_client_machine::step(state_type s, const event& e) const -> step_resu
       } else {
         // Need more data
         ops.push_back(
-            operation::make_recv(s.socket_handle, std::span{s.recv_buffer}, 0, ++s.operation_id));
+            operation::make_recv(s.socket_handle, recv_buffer_span(), 0, ++s.operation_id));
       }
       break;
     }
@@ -502,13 +503,14 @@ auto http1_client_machine::done(const state_type& s) const -> bool {
 
 http1_tls_client_machine::http1_tls_client_machine(tls_connection& tls_conn, handle socket,
                                                    http1_request request)
-    : tls_conn_(&tls_conn), socket_(socket), request_(std::move(request)) {}
+    : tls_conn_(&tls_conn), socket_(socket), request_(std::move(request)) {
+  recv_buffer_.resize(http1_default_buffer_size);
+}
 
 auto http1_tls_client_machine::initial() const -> state_type {
   state_type s;
   s.socket_handle = socket_;
   s.send_buffer = request_.serialize();
-  s.recv_buffer.resize(http1_default_buffer_size);
   return s;
 }
 
@@ -567,7 +569,7 @@ auto http1_tls_client_machine::step(state_type s, [[maybe_unused]] const event& 
 
     case state_type::phase::receiving: {
       // TLS read using raw libtls C API
-      ssize_t result = tls_read(tls_conn_->raw(), s.recv_buffer.data(), s.recv_buffer.size());
+      ssize_t result = tls_read(tls_conn_->raw(), recv_buffer_.data(), recv_buffer_.size());
 
       if (result < 0) {
         if (result == TLS_WANT_POLLIN) {
@@ -594,7 +596,7 @@ auto http1_tls_client_machine::step(state_type s, [[maybe_unused]] const event& 
         }
       } else {
         // Parse data
-        std::span<const std::byte> data(s.recv_buffer.data(), static_cast<std::size_t>(result));
+        std::span<const std::byte> data(recv_buffer_.data(), static_cast<std::size_t>(result));
         auto parsed = parser_.parse(data);
 
         if (parsed < 0 || parser_.has_error()) {

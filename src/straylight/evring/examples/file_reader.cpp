@@ -86,9 +86,10 @@ public:
           // Open succeeded - start reading
           s.file_handle = e.resource_handle;
           s.current_phase = state_type::phase::reading;
-          // Allocate read buffer in the operation
+          // Use stable buffer from machine (not state, so it won't be copied)
           ops.push_back(evring::operation::make_read(
-              s.file_handle, std::span<std::byte>{read_buffer_.data(), chunk_size_}));
+              s.file_handle,
+              evring::make_stable_span(std::span<std::byte>{read_buffer_.data(), chunk_size_})));
         }
         break;
 
@@ -108,7 +109,8 @@ public:
           // Got some data - accumulate and keep reading
           s.content.insert(s.content.end(), e.data.begin(), e.data.end());
           ops.push_back(evring::operation::make_read(
-              s.file_handle, std::span<std::byte>{read_buffer_.data(), chunk_size_}));
+              s.file_handle,
+              evring::make_stable_span(std::span<std::byte>{read_buffer_.data(), chunk_size_})));
         }
         break;
 

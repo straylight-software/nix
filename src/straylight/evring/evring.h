@@ -64,3 +64,4 @@
 #include "straylight/evring/http3.h"
 #include "straylight/evring/machine.h"
 #include "straylight/evring/ring.h"
+#include "straylight/evring/stable_ref.h"

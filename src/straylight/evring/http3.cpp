@@ -1057,8 +1057,8 @@ auto http3_client_machine::step(state_type s, const event& e) const -> step_resu
 
       // Wait for response
       s.current_phase = state_type::phase::waiting_recv;
-      ops.push_back(
-          operation::make_recv(s.socket_handle, std::span{recv_buffer_}, 0, ++s.operation_id));
+      ops.push_back(operation::make_recv(s.socket_handle, make_stable_span(recv_buffer_), 0,
+                                         ++s.operation_id));
       break;
     }
 
@@ -1118,7 +1118,7 @@ auto http3_client_machine::do_send(state_type s) const -> step_result<state_type
   } else {
     s.current_phase = state_type::phase::waiting_recv;
     ops.push_back(
-        operation::make_recv(s.socket_handle, std::span{recv_buffer_}, 0, ++s.operation_id));
+        operation::make_recv(s.socket_handle, make_stable_span(recv_buffer_), 0, ++s.operation_id));
   }
 
   return {std::move(s), std::move(ops)};
@@ -1268,8 +1268,7 @@ auto http3_request_machine::do_send(state_type s) const -> step_result<state_typ
 
   // Wait for response
   s.current_phase = state_type::phase::waiting_recv;
-  std::array<std::byte, http3_max_pktlen> recv_buf{};
-  ops.push_back(operation::make_recv(s.socket_handle, std::span{recv_buf}, 0, ++s.operation_id));
+  ops.push_back(operation::make_recv(s.socket_handle, recv_buffer_span(), 0, ++s.operation_id));
 
   return {std::move(s), std::move(ops)};
 }

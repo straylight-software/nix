@@ -580,6 +580,12 @@ void rt_init_builtins(runtime_context& ctx);
 /// Extract attribute from list of attrsets: catAttrs name list
 [[nodiscard]] auto rt_cat_attrs(runtime_context& ctx, nix_value name, nix_value list) -> nix_value;
 
+/// Intersect attrsets: intersectAttrs a b (returns attrs from b that exist in a)
+[[nodiscard]] auto rt_intersect_attrs(runtime_context& ctx, nix_value a, nix_value b) -> nix_value;
+
+/// Get function arguments: functionArgs f
+[[nodiscard]] auto rt_function_args(runtime_context& ctx, nix_value f) -> nix_value;
+
 // --- Arithmetic Builtins (as functions) ---
 
 /// Add: add a b

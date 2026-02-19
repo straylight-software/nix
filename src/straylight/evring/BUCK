@@ -36,6 +36,7 @@ cxx_library(
         "http3.h",
         "machine.h",
         "ring.h",
+        "stable_ref.h",
         "tls.h",
     ],
 

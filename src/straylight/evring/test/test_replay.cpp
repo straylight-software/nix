@@ -30,7 +30,7 @@ struct file_reader_state {
   phase current_phase{phase::initial};
   evring::handle file_handle;
   std::vector<std::byte> content;
-  std::vector<std::byte> read_buffer;
+  // Note: read_buffer moved to machine for stable lifetime
   int error_code{0};
 };
 
@@ -39,17 +39,20 @@ struct file_reader_machine {
 
   const char* path_;
   std::size_t chunk_size_;
+  mutable std::vector<std::byte> read_buffer_; // Stable buffer in machine
 
   file_reader_machine(const char* path, std::size_t chunk_size = 4096)
-      : path_(path), chunk_size_(chunk_size) {}
+      : path_(path), chunk_size_(chunk_size) {
+    read_buffer_.resize(chunk_size_);
+  }
 
-  auto initial() -> state_type {
+  auto initial() const -> state_type {
     state_type state;
-    state.read_buffer.resize(chunk_size_);
     return state;
   }
 
-  auto step(state_type state, evring::event completion_event) -> evring::step_result<state_type> {
+  auto step(state_type state, evring::event completion_event) const
+      -> evring::step_result<state_type> {
     std::vector<evring::operation> operations;
 
     switch (state.current_phase) {
@@ -68,8 +71,7 @@ struct file_reader_machine {
           state.file_handle = completion_event.resource_handle;
           state.current_phase = file_reader_state::phase::reading;
           operations.push_back(evring::operation::make_read(
-              state.file_handle,
-              std::span<std::byte>{state.read_buffer.data(), state.read_buffer.size()}));
+              state.file_handle, evring::make_stable_span(read_buffer_)));
         }
         break;
       }
@@ -87,8 +89,7 @@ struct file_reader_machine {
           state.content.insert(state.content.end(), completion_event.data.begin(),
                                completion_event.data.end());
           operations.push_back(evring::operation::make_read(
-              state.file_handle,
-              std::span<std::byte>{state.read_buffer.data(), state.read_buffer.size()}));
+              state.file_handle, evring::make_stable_span(read_buffer_)));
         }
         break;
       }

@@ -195,7 +195,8 @@ void test_zero_byte_operations() {
   std::printf("  PASS: zero-byte write returns 0\n");
 
   // Zero-byte read - should succeed with 0 bytes read
-  ring->enqueue(evring::operation::make_read(file, std::span<std::byte>{empty_buf, 0}));
+  ring->enqueue(evring::operation::make_read(
+      file, evring::make_stable_span(std::span<std::byte>{empty_buf, 0})));
   events = ring->submit_and_wait(1);
   assert(events[0].ok());
   assert(events[0].result == 0);
@@ -203,7 +204,8 @@ void test_zero_byte_operations() {
 
   // Read from empty file - should return 0 (EOF)
   std::byte buf[1024];
-  ring->enqueue(evring::operation::make_read(file, std::span<std::byte>{buf, sizeof(buf)}));
+  ring->enqueue(evring::operation::make_read(
+      file, evring::make_stable_span(std::span<std::byte>{buf, sizeof(buf)})));
   events = ring->submit_and_wait(1);
   assert(events[0].ok());
   assert(events[0].result == 0); // EOF
@@ -244,16 +246,17 @@ void test_offset_edge_cases() {
   std::byte buf[1024];
 
   // Read at offset beyond EOF - should return 0
-  ring->enqueue(
-      evring::operation::make_read(file, std::span<std::byte>{buf, sizeof(buf)}, 1000000));
+  ring->enqueue(evring::operation::make_read(
+      file, evring::make_stable_span(std::span<std::byte>{buf, sizeof(buf)}), 1000000));
   events = ring->submit_and_wait(1);
   assert(events[0].ok());
   assert(events[0].result == 0); // EOF
   std::printf("  PASS: read beyond EOF returns 0\n");
 
   // Read at exactly EOF
-  ring->enqueue(evring::operation::make_read(file, std::span<std::byte>{buf, sizeof(buf)},
-                                             static_cast<int64_t>(strlen(content))));
+  ring->enqueue(evring::operation::make_read(
+      file, evring::make_stable_span(std::span<std::byte>{buf, sizeof(buf)}),
+      static_cast<int64_t>(strlen(content))));
   events = ring->submit_and_wait(1);
   assert(events[0].ok());
   assert(events[0].result == 0);
@@ -313,7 +316,8 @@ void test_invalid_handle_operations() {
 
   // Now try to use the closed handle - should fail
   std::byte buf[64];
-  ring->enqueue(evring::operation::make_read(file, std::span<std::byte>{buf, sizeof(buf)}));
+  ring->enqueue(evring::operation::make_read(
+      file, evring::make_stable_span(std::span<std::byte>{buf, sizeof(buf)})));
   events = ring->submit_and_wait(1);
 
   // Should get EBADF or similar
@@ -328,7 +332,8 @@ void test_invalid_handle_operations() {
 
   // Invalid handle (never allocated)
   evring::handle fake_handle{12345, 0};
-  ring->enqueue(evring::operation::make_read(fake_handle, std::span<std::byte>{buf, sizeof(buf)}));
+  ring->enqueue(evring::operation::make_read(
+      fake_handle, evring::make_stable_span(std::span<std::byte>{buf, sizeof(buf)})));
   events = ring->submit_and_wait(1);
   assert(!events[0].ok());
   std::printf("  PASS: operation on invalid handle fails\n");
@@ -368,9 +373,10 @@ void test_rapid_fire_operations() {
 
   for (std::size_t i = 0; i < num_ops; ++i) {
     buffers.emplace_back(4096);
-    ring->enqueue(evring::operation::make_read(
-        file, std::span<std::byte>{buffers.back().data(), buffers.back().size()},
-        static_cast<int64_t>(i * 4096)));
+    ring->enqueue(evring::operation::make_read(file,
+                                               evring::make_stable_span(std::span<std::byte>{
+                                                   buffers.back().data(), buffers.back().size()}),
+                                               static_cast<int64_t>(i * 4096)));
   }
 
   // Submit all at once
@@ -412,8 +418,9 @@ void test_generator_all_fail() {
   std::vector<struct statx> buffers(bad_paths.size());
 
   auto ring = evring::make_io_uring_ring(32);
-  evring::bulk_stat_machine machine{std::span{bad_paths.data(), bad_paths.size()},
-                                    std::span{buffers.data(), buffers.size()}};
+  evring::bulk_stat_machine machine{
+      std::span{bad_paths.data(), bad_paths.size()},
+      evring::make_stable_span(std::span{buffers.data(), buffers.size()})};
 
   auto final_state = evring::run_generate(machine, *ring);
 
@@ -450,8 +457,9 @@ void test_generator_mixed_results() {
   std::vector<struct statx> buffers(paths.size());
 
   auto ring = evring::make_io_uring_ring(32);
-  evring::bulk_stat_machine machine{std::span{paths.data(), paths.size()},
-                                    std::span{buffers.data(), buffers.size()}};
+  evring::bulk_stat_machine machine{
+      std::span{paths.data(), paths.size()},
+      evring::make_stable_span(std::span{buffers.data(), buffers.size()})};
 
   auto final_state = evring::run_generate(machine, *ring);
 
@@ -596,7 +604,8 @@ void test_symlink_loop() {
 
   // Try to stat
   struct statx buf;
-  ring->enqueue(evring::operation::make_statx(AT_FDCWD, link_a, 0, STATX_BASIC_STATS, &buf));
+  ring->enqueue(evring::operation::make_statx(AT_FDCWD, link_a, 0, STATX_BASIC_STATS,
+                                              evring::make_stable_ref(buf)));
   events = ring->submit_and_wait(1);
 
   assert(!events[0].ok());
@@ -629,7 +638,8 @@ void test_empty_path() {
 
   // Empty path to statx
   struct statx buf;
-  ring->enqueue(evring::operation::make_statx(AT_FDCWD, "", 0, STATX_BASIC_STATS, &buf));
+  ring->enqueue(evring::operation::make_statx(AT_FDCWD, "", 0, STATX_BASIC_STATS,
+                                              evring::make_stable_ref(buf)));
   events = ring->submit_and_wait(1);
 
   assert(!events[0].ok());
@@ -674,7 +684,7 @@ void test_concurrent_same_file() {
   for (int i = 0; i < num_reads; ++i) {
     buffers[i].resize(4096);
     ring->enqueue(evring::operation::make_read(
-        file, std::span<std::byte>{buffers[i].data(), buffers[i].size()},
+        file, evring::make_stable_span(std::span<std::byte>{buffers[i].data(), buffers[i].size()}),
         static_cast<int64_t>((i * 1024) % content.size())));
   }
 
@@ -827,7 +837,8 @@ void test_socket_unconnected_operations() {
   std::printf("  PASS: send on unconnected socket fails with %d\n", err);
 
   // Try to recv
-  ring->enqueue(evring::operation::make_recv(sock, std::span{buf.data(), buf.size()}, 0));
+  ring->enqueue(evring::operation::make_recv(
+      sock, evring::make_stable_span(std::span{buf.data(), buf.size()}), 0));
   events = ring->submit_and_wait(1);
 
   assert(!events[0].ok());

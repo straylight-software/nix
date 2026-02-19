@@ -83,7 +83,7 @@ void test_bulk_stat_generator() {
     auto ring = evring::make_io_uring_ring(256);
     std::vector<struct statx> iter_buffers(paths.size());
     evring::bulk_stat_machine machine{std::span{paths.data(), paths.size()},
-                                      std::span{iter_buffers.data(), iter_buffers.size()}};
+                                      evring::make_stable_span(iter_buffers)};
 
     double elapsed = measure([&] {
       auto final_state = evring::run_generate(machine, *ring);
@@ -135,7 +135,7 @@ void test_bulk_stat_replay() {
 
   auto ring = evring::make_io_uring_ring(256);
   evring::bulk_stat_machine machine{std::span{paths.data(), paths.size()},
-                                    std::span{buffers.data(), buffers.size()}};
+                                    evring::make_stable_span(buffers)};
 
   // Run with tracing
   auto [final_state, trace] = evring::run_generate_traced(machine, *ring);
@@ -147,7 +147,7 @@ void test_bulk_stat_replay() {
   // Replay without I/O
   std::vector<struct statx> buffers2(paths.size());
   evring::bulk_stat_machine machine2{std::span{paths.data(), paths.size()},
-                                     std::span{buffers2.data(), buffers2.size()}};
+                                     evring::make_stable_span(buffers2)};
 
   auto replayed_state = evring::replay_generate(machine2, trace.events());
 
