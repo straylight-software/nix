@@ -10,12 +10,13 @@ std::regex flake_regex("[a-zA-Z][a-zA-Z0-9_-]*", std::regex::ECMAScript);
 struct indirect_input_scheme_t : InputScheme {
   std::optional<Input> inputFromURL(const settings_t& settings, const parsed_url_t& url,
                                     bool require_tree) const override {
-    if (url.scheme != "flake")
+    if (url.scheme() != "flake")
       return {};
 
     /* This ignores empty path segments for back-compat. Older versions used a tokenize_string here.
      */
-    auto path = url.path_segments(/*skip_empty=*/true) | std::ranges::to<std::vector<std::string>>();
+    auto path =
+        url.path_segments(/*skip_empty=*/true) | std::ranges::to<std::vector<std::string>>();
 
     std::optional<Hash> rev;
     std::optional<std::string> ref;
@@ -85,7 +86,8 @@ struct indirect_input_scheme_t : InputScheme {
     return attrs;
   }
 
-  std::optional<Input> inputFromAttrs(const settings_t& settings, const Attrs& attrs) const override {
+  std::optional<Input> inputFromAttrs(const settings_t& settings,
+                                      const Attrs& attrs) const override {
     auto id = get_str_attr(attrs, "id");
     if (!std::regex_match(id, flake_regex))
       throw BadURL("'%s' is not a valid flake ID", id);
@@ -96,15 +98,14 @@ struct indirect_input_scheme_t : InputScheme {
   }
 
   parsed_url_t toURL(const Input& input, bool abbreviate) const override {
-    parsed_url_t url{
-        .scheme = "flake",
-        .path = {get_str_attr(input.attrs, "id")},
-    };
+    parsed_url_t url;
+    url.set_scheme("flake");
+    url.set_path({get_str_attr(input.attrs, "id")});
     if (auto ref = input.getRef()) {
-      url.path.push_back(*ref);
+      url.path().push_back(*ref);
     };
     if (auto rev = input.getRev()) {
-      url.path.push_back(rev->git_rev());
+      url.path().push_back(rev->git_rev());
     };
     return url;
   }
@@ -120,7 +121,7 @@ struct indirect_input_scheme_t : InputScheme {
   }
 
   std::pair<ref<SourceAccessor>, Input> get_accessor(const settings_t& settings, Store& store,
-                                                    const Input& input) const override {
+                                                     const Input& input) const override {
     throw Error("indirect input '%s' cannot be fetched directly", input.to_string());
   }
 

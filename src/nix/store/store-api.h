@@ -15,6 +15,7 @@
 #include "nix/store/path.h"
 #include "nix/store/store-dir-config.h"
 #include "nix/store/store-reference.h"
+#include "nix/util/callback.h"
 #include "nix/util/configuration.h"
 #include "nix/util/hash.h"
 #include "nix/util/lru-cache.h"
@@ -44,7 +45,7 @@ struct SourceAccessor;
 class NarInfoDiskCache;
 class Store;
 
-typedef std::map<std::string, StorePath> OutputPathMap;
+using OutputPathMap = std::map<std::string, StorePath>;
 
 enum CheckSigsFlag : bool { NoCheckSigs = false, CheckSigs = true };
 
@@ -57,7 +58,7 @@ enum TrustedFlag : bool { NotTrusted = false, Trusted = true };
 struct BuildResult;
 struct KeyedBuildResult;
 
-typedef std::map<StorePath, std::optional<ContentAddress>> StorePathCAMap;
+using StorePathCAMap = std::map<StorePath, std::optional<ContentAddress>>;
 
 /**
  * Information about what paths will be built or substituted, returned
@@ -87,7 +88,7 @@ private:
 
 public:
   const path_setting_t storeDir_{this, getDefaultNixStoreDir(), "store",
-                              R"(
+                                 R"(
           Logical location of the Nix store, usually
           `/nix/store`. Note that you can only copy store paths
           between stores if they have the same `store` setting.
@@ -161,10 +162,10 @@ struct StoreConfig : public StoreConfigBase, public StoreDirConfig {
   static std::optional<experimental_feature_t> experimental_feature() { return std::nullopt; }
 
   setting_t<int> pathInfoCacheSize{this, 65536, "path-info-cache-size",
-                                 "Size of the in-memory store path metadata cache."};
+                                   "Size of the in-memory store path metadata cache."};
 
   setting_t<bool> isTrusted{this, false, "trusted",
-                          R"(
+                            R"(
           Whether paths from this store can be used as substitutes
           even if they are not signed by a key listed in the
           [`trusted-public-keys`](@docroot@/command-ref/conf-file.md#conf-trusted-public-keys)
@@ -172,27 +173,27 @@ struct StoreConfig : public StoreConfigBase, public StoreDirConfig {
         )"};
 
   setting_t<int> priority{this, 0, "priority",
-                        R"(
+                          R"(
           Priority of this store when used as a [substituter](@docroot@/command-ref/conf-file.md#conf-substituters).
           A lower value means a higher priority.
         )"};
 
   setting_t<bool> want_mass_query{this, false, "want-mass-query",
-                              R"(
+                                  R"(
           Whether this store can be queried efficiently for path validity when used as a [substituter](@docroot@/command-ref/conf-file.md#conf-substituters).
         )"};
 
   setting_t<string_set_t> systemFeatures{this,
-                                    getDefaultSystemFeatures(),
-                                    "system-features",
-                                    R"(
+                                         getDefaultSystemFeatures(),
+                                         "system-features",
+                                         R"(
           Optional [system features](@docroot@/command-ref/conf-file.md#conf-system-features) available on the system this store uses to build derivations.
 
           Example: `"kvm"`
         )",
-                                    {},
-                                    // Don't document the machine-specific default value
-                                    false};
+                                         {},
+                                         // Don't document the machine-specific default value
+                                         false};
 
   /**
    * Open a store of the type corresponding to this configuration
@@ -376,7 +377,7 @@ public:
    * Asynchronous version of query_realisation().
    */
   void query_realisation(const DrvOutput&,
-                        Callback<std::shared_ptr<const UnkeyedRealisation>> callback) noexcept;
+                         Callback<std::shared_ptr<const UnkeyedRealisation>> callback) noexcept;
 
   /**
    * Check whether the given valid path info is sufficiently attested, by
@@ -396,7 +397,7 @@ public:
 protected:
   virtual void
   query_path_info_uncached(const StorePath& path,
-                        Callback<std::shared_ptr<const ValidPathInfo>> callback) noexcept = 0;
+                           Callback<std::shared_ptr<const ValidPathInfo>> callback) noexcept = 0;
   virtual void query_realisation_uncached(
       const DrvOutput&, Callback<std::shared_ptr<const UnkeyedRealisation>> callback) noexcept = 0;
 
@@ -474,7 +475,7 @@ public:
    * Import a path into the store.
    */
   virtual void add_to_store(const ValidPathInfo& info, Source& nar_source,
-                          RepairFlag repair = NoRepair, CheckSigsFlag check_sigs = CheckSigs) = 0;
+                            RepairFlag repair = NoRepair, CheckSigsFlag check_sigs = CheckSigs) = 0;
 
   /**
    * A list of paths infos along with a source providing the content
@@ -500,23 +501,24 @@ public:
    * @param filter This function can be used to exclude files (see
    * libutil/archive.hh).
    */
-  virtual StorePath add_to_store(std::string_view name, const source_path_t& path,
-                               ContentAddressMethod method = ContentAddressMethod::raw_t::nix_archive,
-                               hash_algorithm_t hash_algo = hash_algorithm_t::SHA256,
-                               const StorePathSet& references = StorePathSet(),
-                               path_filter_t& filter = default_path_filter,
-                               RepairFlag repair = NoRepair);
+  virtual StorePath
+  add_to_store(std::string_view name, const source_path_t& path,
+               ContentAddressMethod method = ContentAddressMethod::raw_t::nix_archive,
+               hash_algorithm_t hash_algo = hash_algorithm_t::SHA256,
+               const StorePathSet& references = StorePathSet(),
+               path_filter_t& filter = default_path_filter, RepairFlag repair = NoRepair);
 
   /**
    * Copy the contents of a path to the store and register the
    * validity the resulting path, using a constant amount of
    * memory.
    */
-  ValidPathInfo addToStoreSlow(std::string_view name, const source_path_t& path,
-                               ContentAddressMethod method = ContentAddressMethod::raw_t::nix_archive,
-                               hash_algorithm_t hash_algo = hash_algorithm_t::SHA256,
-                               const StorePathSet& references = StorePathSet(),
-                               std::optional<Hash> expectedCAHash = {});
+  ValidPathInfo
+  addToStoreSlow(std::string_view name, const source_path_t& path,
+                 ContentAddressMethod method = ContentAddressMethod::raw_t::nix_archive,
+                 hash_algorithm_t hash_algo = hash_algorithm_t::SHA256,
+                 const StorePathSet& references = StorePathSet(),
+                 std::optional<Hash> expectedCAHash = {});
 
   /**
    * Like add_to_store(), but the contents of the path are contained
@@ -535,13 +537,12 @@ public:
    *
    * @todo remove?
    */
-  virtual StorePath
-  add_to_store_from_dump(Source& dump, std::string_view name,
-                     file_serialisation_method_t dump_method = file_serialisation_method_t::nix_archive,
-                     ContentAddressMethod hash_method = ContentAddressMethod::raw_t::nix_archive,
-                     hash_algorithm_t hash_algo = hash_algorithm_t::SHA256,
-                     const StorePathSet& references = StorePathSet(),
-                     RepairFlag repair = NoRepair) = 0;
+  virtual StorePath add_to_store_from_dump(
+      Source& dump, std::string_view name,
+      file_serialisation_method_t dump_method = file_serialisation_method_t::nix_archive,
+      ContentAddressMethod hash_method = ContentAddressMethod::raw_t::nix_archive,
+      hash_algorithm_t hash_algo = hash_algorithm_t::SHA256,
+      const StorePathSet& references = StorePathSet(), RepairFlag repair = NoRepair) = 0;
 
   /**
    * Add a mapping indicating that `deriver!output_name` maps to the output path
@@ -574,7 +575,7 @@ public:
    * not derivations, substitute them.
    */
   virtual void build_paths(const std::vector<DerivedPath>& paths, BuildMode build_mode = bmNormal,
-                          std::shared_ptr<Store> eval_store = nullptr);
+                           std::shared_ptr<Store> eval_store = nullptr);
 
   /**
    * Like build_paths(), but return a vector of \ref BuildResult
@@ -584,7 +585,7 @@ public:
    */
   virtual std::vector<KeyedBuildResult>
   build_paths_with_results(const std::vector<DerivedPath>& paths, BuildMode build_mode = bmNormal,
-                        std::shared_ptr<Store> eval_store = nullptr);
+                           std::shared_ptr<Store> eval_store = nullptr);
 
   /**
    * Build a single non-materialized derivation (i.e. not from an
@@ -687,7 +688,7 @@ public:
     auto accessor = getFSAccessor(path, require_valid_path);
     if (!accessor) {
       throw InvalidPath(require_valid_path ? "path '%1%' is not a valid store path"
-                                         : "store path '%1%' does not exist",
+                                           : "store path '%1%' does not exist",
                         printStorePath(path));
     }
     return ref<SourceAccessor>{accessor};
@@ -854,7 +855,7 @@ protected:
  * Copy a path from one store to another.
  */
 void copy_store_path(Store& src_store, Store& dst_store, const StorePath& store_path,
-                   RepairFlag repair = NoRepair, CheckSigsFlag check_sigs = CheckSigs);
+                     RepairFlag repair = NoRepair, CheckSigsFlag check_sigs = CheckSigs);
 
 /**
  * Copy store paths from one store to another. The paths may be copied
@@ -865,26 +866,26 @@ void copy_store_path(Store& src_store, Store& dst_store, const StorePath& store_
  * @return a map of what each path was copied to the dst_store as.
  */
 std::map<StorePath, StorePath> copy_paths(Store& src_store, Store& dst_store,
-                                         const std::set<RealisedPath>&,
-                                         RepairFlag repair = NoRepair,
-                                         CheckSigsFlag check_sigs = CheckSigs,
-                                         SubstituteFlag substitute = NoSubstitute);
+                                          const std::set<RealisedPath>&,
+                                          RepairFlag repair = NoRepair,
+                                          CheckSigsFlag check_sigs = CheckSigs,
+                                          SubstituteFlag substitute = NoSubstitute);
 
 std::map<StorePath, StorePath> copy_paths(Store& src_store, Store& dst_store,
-                                         const StorePathSet& paths, RepairFlag repair = NoRepair,
-                                         CheckSigsFlag check_sigs = CheckSigs,
-                                         SubstituteFlag substitute = NoSubstitute);
+                                          const StorePathSet& paths, RepairFlag repair = NoRepair,
+                                          CheckSigsFlag check_sigs = CheckSigs,
+                                          SubstituteFlag substitute = NoSubstitute);
 
 /**
  * Copy the closure of `paths` from `src_store` to `dst_store`.
  */
 void copy_closure(Store& src_store, Store& dst_store, const std::set<RealisedPath>& paths,
-                 RepairFlag repair = NoRepair, CheckSigsFlag check_sigs = CheckSigs,
-                 SubstituteFlag substitute = NoSubstitute);
+                  RepairFlag repair = NoRepair, CheckSigsFlag check_sigs = CheckSigs,
+                  SubstituteFlag substitute = NoSubstitute);
 
 void copy_closure(Store& src_store, Store& dst_store, const StorePathSet& paths,
-                 RepairFlag repair = NoRepair, CheckSigsFlag check_sigs = CheckSigs,
-                 SubstituteFlag substitute = NoSubstitute);
+                  RepairFlag repair = NoRepair, CheckSigsFlag check_sigs = CheckSigs,
+                  SubstituteFlag substitute = NoSubstitute);
 
 /**
  * Remove the temporary roots file for this process.  Any temporary
@@ -914,13 +915,13 @@ std::string show_paths(const std::set<std::filesystem::path> paths);
 
 std::optional<ValidPathInfo>
 decode_valid_path_info(const Store& store, std::istream& str,
-                    std::optional<hash_result_t> hash_given = std::nullopt);
+                       std::optional<hash_result_t> hash_given = std::nullopt);
 
 const ContentAddress* get_derivation_ca(const BasicDerivation& drv);
 
 std::map<DrvOutput, StorePath> drv_output_references(Store& store, const Derivation& drv,
-                                                   const StorePath& output_path,
-                                                   Store* eval_store = nullptr);
+                                                     const StorePath& output_path,
+                                                     Store* eval_store = nullptr);
 
 template <>
 struct json_avoids_null<TrustedFlag> : std::true_type {};

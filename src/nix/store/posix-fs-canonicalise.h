@@ -9,8 +9,8 @@
 
 namespace nix {
 
-typedef std::pair<dev_t, ino_t> Inode;
-typedef std::set<Inode> InodesSeen;
+using Inode = std::pair<dev_t, ino_t>;
+using InodesSeen = std::set<Inode>;
 
 /**
  * "Fix", or canonicalise, the meta-data of the files in a store path

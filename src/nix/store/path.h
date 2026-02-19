@@ -3,13 +3,12 @@
 
 #include <string_view>
 
+#include "nix/util/hash.h"
 #include "nix/util/json-impls.h"
 #include "nix/util/json-non-null.h"
 #include "nix/util/types.h"
 
 namespace nix {
-
-struct Hash;
 
 /**
  * Check whether a name is a valid store path name.
@@ -69,8 +68,8 @@ public:
   static StorePath random(std::string_view name);
 };
 
-typedef std::set<StorePath> StorePathSet;
-typedef std::vector<StorePath> StorePaths;
+using StorePathSet = std::set<StorePath>;
+using StorePaths = std::vector<StorePath>;
 
 /**
  * The file extension of \ref nix::Derivation derivations when serialized

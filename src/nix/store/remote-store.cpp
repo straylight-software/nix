@@ -102,8 +102,9 @@ void remote_store::initConnection(Connection& conn) {
 
 void remote_store::setOptions(Connection& conn) {
   conn.to << WorkerProto::Op::SetOptions << settings.keep_failed << settings.keep_going
-          << settings.try_fallback << verbosity << settings.max_build_jobs << settings.max_silent_time
-          << true << (settings.verbose_build ? lvl_error : lvl_vomit) << 0 // obsolete log type
+          << settings.try_fallback << verbosity << settings.max_build_jobs
+          << settings.max_silent_time << true << (settings.verbose_build ? lvl_error : lvl_vomit)
+          << 0 // obsolete log type
           << 0 /* obsolete print build trace */
           << settings.build_cores << settings.use_substitutes;
 
@@ -137,7 +138,7 @@ remote_store::ConnectionHandle::~ConnectionHandle() {
 }
 
 void remote_store::ConnectionHandle::processStderr(Sink* sink, Source* source, bool flush,
-                                                  bool block) {
+                                                   bool block) {
   handle->processStderr(&daemonException, sink, source, flush, block);
 }
 
@@ -158,7 +159,7 @@ bool remote_store::isValidPathUncached(const StorePath& path) {
 }
 
 StorePathSet remote_store::queryValidPaths(const StorePathSet& paths,
-                                          SubstituteFlag maybeSubstitute) {
+                                           SubstituteFlag maybeSubstitute) {
   auto conn(getConnection());
   return conn->queryValidPaths(*this, &conn.daemonException, paths, maybeSubstitute);
 }
@@ -179,7 +180,7 @@ StorePathSet remote_store::querySubstitutablePaths(const StorePathSet& paths) {
 }
 
 void remote_store::querySubstitutablePathInfos(const StorePathCAMap& paths_map,
-                                              SubstitutablePathInfos& infos) {
+                                               SubstitutablePathInfos& infos) {
   if (paths_map.empty())
     return;
 
@@ -291,10 +292,10 @@ std::optional<StorePath> remote_store::queryPathFromHashPart(const std::string& 
 }
 
 ref<const ValidPathInfo> remote_store::addCAToStore(Source& dump, std::string_view name,
-                                                   ContentAddressMethod ca_method,
-                                                   hash_algorithm_t hash_algo,
-                                                   const StorePathSet& references,
-                                                   RepairFlag repair) {
+                                                    ContentAddressMethod ca_method,
+                                                    hash_algorithm_t hash_algo,
+                                                    const StorePathSet& references,
+                                                    RepairFlag repair) {
   std::optional<ConnectionHandle> conn_(getConnection());
   auto& conn = *conn_;
 
@@ -334,10 +335,12 @@ ref<const ValidPathInfo> remote_store::addCAToStore(Source& dump, std::string_vi
       default: {
         auto fim = ca_method.getFileIngestionMethod();
         conn->to << WorkerProto::Op::AddToStore << name
-                 << ((hash_algo == hash_algorithm_t::SHA256 && fim == file_ingestion_method_t::nix_archive)
+                 << ((hash_algo == hash_algorithm_t::SHA256 &&
+                      fim == file_ingestion_method_t::nix_archive)
                          ? 0
                          : 1) /* backwards compatibility hack */
-                 << (fim == file_ingestion_method_t::nix_archive ? 1 : 0) << print_hash_algo(hash_algo);
+                 << (fim == file_ingestion_method_t::nix_archive ? 1 : 0)
+                 << print_hash_algo(hash_algo);
 
         try {
           conn->to.written = 0;
@@ -355,7 +358,7 @@ ref<const ValidPathInfo> remote_store::addCAToStore(Source& dump, std::string_vi
         } catch (sys_error_t& e) {
           /* Daemon closed while we were sending the path. Probably OOM
             or I/O error. */
-          if (e.err_no == EPIPE)
+          if (e.err_no() == EPIPE)
             try {
               conn.processStderr();
             } catch (EndOfFile& e) {
@@ -373,9 +376,10 @@ ref<const ValidPathInfo> remote_store::addCAToStore(Source& dump, std::string_vi
 }
 
 StorePath remote_store::add_to_store_from_dump(Source& dump, std::string_view name,
-                                          file_serialisation_method_t dump_method,
-                                          ContentAddressMethod hash_method, hash_algorithm_t hash_algo,
-                                          const StorePathSet& references, RepairFlag repair) {
+                                               file_serialisation_method_t dump_method,
+                                               ContentAddressMethod hash_method,
+                                               hash_algorithm_t hash_algo,
+                                               const StorePathSet& references, RepairFlag repair) {
   file_serialisation_method_t fsm;
   switch (hash_method.getFileIngestionMethod()) {
     case file_ingestion_method_t::flat:
@@ -400,7 +404,7 @@ StorePath remote_store::add_to_store_from_dump(Source& dump, std::string_view na
 }
 
 void remote_store::add_to_store(const ValidPathInfo& info, Source& source, RepairFlag repair,
-                             CheckSigsFlag check_sigs) {
+                                CheckSigsFlag check_sigs) {
   auto conn(getConnection());
 
   conn->to << WorkerProto::Op::AddToStoreNar;
@@ -421,8 +425,8 @@ void remote_store::add_to_store(const ValidPathInfo& info, Source& source, Repai
   }
 }
 
-void remote_store::addMultipleToStore(PathsSource&& paths_to_copy, activity_t& act, RepairFlag repair,
-                                     CheckSigsFlag check_sigs) {
+void remote_store::addMultipleToStore(PathsSource&& paths_to_copy, activity_t& act,
+                                      RepairFlag repair, CheckSigsFlag check_sigs) {
   // `addMultipleToStore` is single threaded
   size_t bytesExpected = 0;
   for (auto& [path_info, _] : paths_to_copy) {
@@ -511,7 +515,7 @@ void remote_store::query_realisation_uncached(
 }
 
 void remote_store::copyDrvsFromEvalStore(const std::vector<DerivedPath>& paths,
-                                        std::shared_ptr<Store> eval_store) {
+                                         std::shared_ptr<Store> eval_store) {
   if (eval_store && eval_store.get() != this) {
     /* The remote doesn't have a way to access eval_store, so copy
        the .drvs. */
@@ -532,7 +536,7 @@ void remote_store::copyDrvsFromEvalStore(const std::vector<DerivedPath>& paths,
 }
 
 void remote_store::build_paths(const std::vector<DerivedPath>& drv_paths, BuildMode build_mode,
-                             std::shared_ptr<Store> eval_store) {
+                               std::shared_ptr<Store> eval_store) {
   copyDrvsFromEvalStore(drv_paths, eval_store);
 
   auto conn(getConnection());
@@ -545,7 +549,7 @@ void remote_store::build_paths(const std::vector<DerivedPath>& drv_paths, BuildM
 
 std::vector<KeyedBuildResult>
 remote_store::build_paths_with_results(const std::vector<DerivedPath>& paths, BuildMode build_mode,
-                                   std::shared_ptr<Store> eval_store) {
+                                       std::shared_ptr<Store> eval_store) {
   copyDrvsFromEvalStore(paths, eval_store);
 
   std::optional<ConnectionHandle> conn_(getConnection());
@@ -599,14 +603,14 @@ remote_store::build_paths_with_results(const std::vector<DerivedPath>& paths, Bu
                            if (!realisation)
                              throw MissingRealisation(output_id);
                            success.built_outputs.emplace(output,
-                                                        Realisation{*realisation, output_id});
+                                                         Realisation{*realisation, output_id});
                          } else {
                            success.built_outputs.emplace(output, Realisation{
-                                                                    UnkeyedRealisation{
-                                                                        .out_path = output_path,
-                                                                    },
-                                                                    output_id,
-                                                                });
+                                                                     UnkeyedRealisation{
+                                                                         .out_path = output_path,
+                                                                     },
+                                                                     output_id,
+                                                                 });
                          }
                        }
 
@@ -623,7 +627,7 @@ remote_store::build_paths_with_results(const std::vector<DerivedPath>& paths, Bu
 }
 
 BuildResult remote_store::buildDerivation(const StorePath& drv_path, const BasicDerivation& drv,
-                                         BuildMode build_mode) {
+                                          BuildMode build_mode) {
   auto conn(getConnection());
   conn->putBuildDerivationRequest(*this, &conn.daemonException, drv_path, drv, build_mode);
   conn.processStderr();
@@ -764,7 +768,7 @@ void remote_store::flushBadConnections() {
 void remote_store::nar_from_path(const StorePath& path, Sink& sink) {
   auto conn(getConnection());
   conn->nar_from_path(*this, &conn.daemonException, path,
-                    [&](Source& source) { copy_nar(conn->from, sink); });
+                      [&](Source& source) { copy_nar(conn->from, sink); });
 }
 
 ref<RemoteFSAccessor> remote_store::getRemoteFSAccessor(bool require_valid_path) {
@@ -776,7 +780,7 @@ ref<SourceAccessor> remote_store::getFSAccessor(bool require_valid_path) {
 }
 
 std::shared_ptr<SourceAccessor> remote_store::getFSAccessor(const StorePath& path,
-                                                           bool require_valid_path) {
+                                                            bool require_valid_path) {
   return getRemoteFSAccessor(require_valid_path)->accessObject(path);
 }
 

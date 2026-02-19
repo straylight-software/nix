@@ -10,7 +10,7 @@ class Store;
 
 struct Machine;
 
-typedef std::vector<Machine> Machines;
+using Machines = std::vector<Machine>;
 
 struct Machine {
   const StoreReference storeUri;

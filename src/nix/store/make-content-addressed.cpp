@@ -40,10 +40,10 @@ std::map<StorePath, StorePath> make_content_addressed(Store& src_store, Store& d
       }
     }
 
-    sink.s = rewrite_strings(sink.s, rewrites);
+    sink.str() = rewrite_strings(sink.str(), rewrites);
 
     HashModuloSink hashModuloSink(hash_algorithm_t::SHA256, oldHashPart);
-    hashModuloSink(sink.s);
+    hashModuloSink(sink.str());
 
     auto narModuloHash = hashModuloSink.finish().hash;
 
@@ -59,13 +59,13 @@ std::map<StorePath, StorePath> make_content_addressed(Store& src_store, Store& d
 
     string_sink_t sink2;
     RewritingSink rsink2(oldHashPart, std::string(info.path.hash_part()), sink2);
-    rsink2(sink.s);
+    rsink2(sink.str());
     rsink2.flush();
 
-    info.nar_hash = hash_string(hash_algorithm_t::SHA256, sink2.s);
-    info.nar_size = sink.s.size();
+    info.nar_hash = hash_string(hash_algorithm_t::SHA256, sink2.str());
+    info.nar_size = sink.str().size();
 
-    string_source_t source(sink2.s);
+    string_source_t source(sink2.str());
     dst_store.add_to_store(info, source);
 
     remappings.insert_or_assign(std::move(path), std::move(info.path));

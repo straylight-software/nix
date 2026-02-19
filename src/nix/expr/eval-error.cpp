@@ -13,7 +13,7 @@ EvalErrorBuilder<T>& EvalErrorBuilder<T>::with_exit_status(unsigned int exitStat
 
 template <class T>
 EvalErrorBuilder<T>& EvalErrorBuilder<T>::at_pos(pos_idx_t pos) {
-  error.err.pos = error.state.positions[pos];
+  error.at_pos(error.state.positions[pos]);
   return *this;
 }
 
@@ -30,7 +30,7 @@ EvalErrorBuilder<T>& EvalErrorBuilder<T>::withTrace(pos_idx_t pos, const std::st
 
 template <class T>
 EvalErrorBuilder<T>& EvalErrorBuilder<T>::withSuggestions(suggestions_t& s) {
-  error.err.suggestions = s;
+  error.set_suggestions(s);
   return *this;
 }
 
@@ -57,14 +57,14 @@ EvalErrorBuilder<T>& EvalErrorBuilder<T>::add_trace(pos_idx_t pos, hint_fmt_t hi
 template <class T>
 template <typename... Args>
 EvalErrorBuilder<T>& EvalErrorBuilder<T>::add_trace(pos_idx_t pos, std::string_view formatString,
-                                                   const Args&... formatArgs) {
+                                                    const Args&... formatArgs) {
   add_trace(error.state.positions[pos], hint_fmt_t(std::string(formatString), formatArgs...));
   return *this;
 }
 
 template <class T>
 EvalErrorBuilder<T>& EvalErrorBuilder<T>::setIsFromExpr() {
-  error.err.is_from_expr = true;
+  error.set_is_from_expr(true);
   return *this;
 }
 

@@ -41,7 +41,8 @@ static std::string gc_socket_path = "/gc-socket/socket";
 static std::string gc_roots_dir = "gcroots";
 
 void LocalStore::addIndirectRoot(const Path& path) {
-  std::string hash = hash_string(hash_algorithm_t::SHA1, path).to_string(hash_format_t::nix32, false);
+  std::string hash =
+      hash_string(hash_algorithm_t::SHA1, path).to_string(hash_format_t::nix32, false);
   Path realRoot = canon_path(fmt("%1%/%2%/auto/%3%", config->stateDir, gc_roots_dir, hash));
   makeSymlink(realRoot, path);
 }
@@ -115,7 +116,7 @@ restart:
       } catch (sys_error_t& e) {
         /* The garbage collector may have exited or not
            created the socket yet, so we need to restart. */
-        if (e.err_no == ECONNREFUSED || e.err_no == ENOENT) {
+        if (e.err_no() == ECONNREFUSED || e.err_no() == ENOENT) {
           debug("GC socket connection refused: %s", e.msg());
           fdRootsSocket->close();
           std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -135,7 +136,7 @@ restart:
     } catch (sys_error_t& e) {
       /* The garbage collector may have exited, so we need to
          restart. */
-      if (e.err_no == EPIPE || e.err_no == ECONNRESET) {
+      if (e.err_no() == EPIPE || e.err_no() == ECONNRESET) {
         debug("GC socket disconnected");
         fdRootsSocket->close();
         goto restart;
@@ -174,10 +175,10 @@ void LocalStore::findTempRoots(Roots& tempRoots, bool censor) {
     debug("reading temporary root file '%1%'", path);
     auto_close_fd_t fd(to_descriptor(open(path.c_str(),
 #ifndef _WIN32
-                                     O_CLOEXEC |
+                                          O_CLOEXEC |
 #endif
-                                         O_RDWR,
-                                     0666)));
+                                              O_RDWR,
+                                          0666)));
     if (!fd) {
       /* It's okay if the file has disappeared. */
       if (errno == ENOENT)
@@ -242,7 +243,8 @@ void LocalStore::findRoots(const Path& path, std::filesystem::file_type type, Ro
       else {
         target = abs_path(target, dir_of(path));
         if (!path_exists(target)) {
-          if (is_in_dir(path, std::filesystem::path{config->stateDir.get()} / gc_roots_dir / "auto")) {
+          if (is_in_dir(path,
+                        std::filesystem::path{config->stateDir.get()} / gc_roots_dir / "auto")) {
             printInfo("removing stale link from '%1%' to '%2%'", path, target);
             unlink(path.c_str());
           }
@@ -275,7 +277,7 @@ void LocalStore::findRoots(const Path& path, std::filesystem::file_type type, Ro
 
   catch (sys_error_t& e) {
     /* We only ignore permanent failures. */
-    if (e.err_no == EACCES || e.err_no == ENOENT || e.err_no == ENOTDIR)
+    if (e.err_no() == EACCES || e.err_no() == ENOENT || e.err_no() == ENOTDIR)
       printInfo("cannot read potential root '%1%'", path);
     else
       throw;
@@ -334,7 +336,7 @@ static void read_file_roots(const std::filesystem::path& path, UncheckedRoots& r
   try {
     roots[read_file(path)].emplace(path.string());
   } catch (sys_error_t& e) {
-    if (e.err_no != ENOENT && e.err_no != EACCES)
+    if (e.err_no() != ENOENT && e.err_no() != EACCES)
       throw;
   }
 }

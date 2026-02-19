@@ -45,7 +45,7 @@ struct Registry {
   void remove(const Input& input);
 };
 
-typedef std::vector<std::shared_ptr<Registry>> Registries;
+using Registries = std::vector<std::shared_ptr<Registry>>;
 
 std::shared_ptr<Registry> get_user_registry(const settings_t& settings);
 

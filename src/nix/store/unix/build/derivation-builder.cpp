@@ -56,7 +56,8 @@
 namespace nix {
 
 struct not_deterministic_t : BuildError {
-  not_deterministic_t(auto&&... args) : BuildError(BuildResult::Failure::not_deterministic_t, args...) {}
+  not_deterministic_t(auto&&... args)
+      : BuildError(BuildResult::Failure::not_deterministic_t, args...) {}
 };
 
 /**
@@ -88,8 +89,9 @@ protected:
   std::unique_ptr<DerivationBuilderCallbacks> misc_methods;
 
 public:
-  derivation_builder_impl_t(LocalStore& store, std::unique_ptr<DerivationBuilderCallbacks> misc_methods,
-                        DerivationBuilderParams params)
+  derivation_builder_impl_t(LocalStore& store,
+                            std::unique_ptr<DerivationBuilderCallbacks> misc_methods,
+                            DerivationBuilderParams params)
       : DerivationBuilderParams{std::move(params)},
         store{store},
         misc_methods{std::move(misc_methods)},
@@ -254,7 +256,9 @@ protected:
    */
   virtual void prepare_sandbox();
 
-  virtual strings_t get_pre_build_hook_args() { return strings_t({store.printStorePath(drv_path)}); }
+  virtual strings_t get_pre_build_hook_args() {
+    return strings_t({store.printStorePath(drv_path)});
+  }
 
   virtual Path real_path_in_host(const Path& p) { return store.toRealPath(p); }
 
@@ -400,21 +404,21 @@ private:
   StorePath make_fallback_path(OutputNameView output_name);
 };
 
-void handle_diff_hook(uid_t uid, uid_t gid, const Path& try_a, const Path& try_b, const Path& drv_path,
-                    const Path& tmp_dir) {
+void handle_diff_hook(uid_t uid, uid_t gid, const Path& try_a, const Path& try_b,
+                      const Path& drv_path, const Path& tmp_dir) {
   auto& diff_hook_opt = settings.diff_hook.get();
   if (diff_hook_opt && settings.runDiffHook) {
     auto& diff_hook = *diff_hook_opt;
     try {
       auto diff_res = run_program(run_options_t{.program = diff_hook,
-                                           .lookup_path = true,
-                                           .args = {try_a, try_b, drv_path, tmp_dir},
-                                           .uid = uid,
-                                           .gid = gid,
-                                           .chdir = "/"});
+                                                .lookup_path = true,
+                                                .args = {try_a, try_b, drv_path, tmp_dir},
+                                                .uid = uid,
+                                                .gid = gid,
+                                                .chdir = "/"});
       if (!status_ok(diff_res.first))
         throw exec_error_t(diff_res.first, "diff-hook program '%1%' %2%", diff_hook,
-                        status_to_string(diff_res.first));
+                           status_to_string(diff_res.first));
 
       if (diff_res.second != "")
         printError(chomp(diff_res.second));
@@ -504,7 +508,7 @@ SingleDrvOutputs derivation_builder_impl_t::unprepare_build() {
 
     throw BuilderFailureError{
         !derivation_type.isSandboxed() || disk_full ? BuildResult::Failure::TransientFailure
-                                                  : BuildResult::Failure::PermanentFailure,
+                                                    : BuildResult::Failure::PermanentFailure,
         status,
         disk_full ? "\nnote: build failure may have been caused by lack of free disk space" : "",
     };
@@ -923,7 +927,7 @@ std::optional<AwsCredentials> derivation_builder_impl_t::preResolveAwsCredential
     if (url != drv.env.end()) {
       try {
         auto parsed_url = parse_url(url->second);
-        if (parsed_url.scheme == "s3") {
+        if (parsed_url.scheme() == "s3") {
           debug("Pre-resolving AWS credentials for S3 URL in builtin:fetchurl");
           auto s3Url = ParsedS3URL::parse(parsed_url);
 
@@ -963,10 +967,10 @@ void derivation_builder_impl_t::process_sandbox_setup_messages() {
       } catch (Error& e) {
         auto status = pid.wait();
         e.add_trace({},
-                   "while waiting for the build environment for '%s' to initialize (%s, previous "
-                   "messages: %s)",
-                   store.printStorePath(drv_path), status_to_string(status),
-                   concat_strings_sep("\n", msgs));
+                    "while waiting for the build environment for '%s' to initialize (%s, previous "
+                    "messages: %s)",
+                    store.printStorePath(drv_path), status_to_string(status),
+                    concat_strings_sep("\n", msgs));
         throw;
       }
     }();
@@ -1120,8 +1124,8 @@ void derivation_builder_impl_t::start_daemon() {
 
       auto worker_thread = std::thread([store, remote{std::move(remote)}]() {
         try {
-          daemon::process_connection(store, fd_source_t(remote.get()), fd_sink_t(remote.get()), NotTrusted,
-                                    daemon::Recursive);
+          daemon::process_connection(store, fd_source_t(remote.get()), fd_sink_t(remote.get()),
+                                     NotTrusted, daemon::Recursive);
           debug("terminated daemon connection");
         } catch (const Interrupted&) {
           debug("interrupted daemon connection");
@@ -1186,10 +1190,11 @@ void derivation_builder_impl_t::chown_to_builder(int fd, const Path& path) {
     throw sys_error_t("cannot change ownership of file '%1%'", path);
 }
 
-void derivation_builder_impl_t::write_builder_file(const std::string& name, std::string_view contents) {
+void derivation_builder_impl_t::write_builder_file(const std::string& name,
+                                                   std::string_view contents) {
   auto path = std::filesystem::path(tmp_dir) / name;
   auto_close_fd_t fd{openat(tmpDirFd.get(), name.c_str(),
-                        O_WRONLY | O_TRUNC | O_CREAT | O_CLOEXEC | O_EXCL | O_NOFOLLOW, 0666)};
+                            O_WRONLY | O_TRUNC | O_CREAT | O_CLOEXEC | O_EXCL | O_NOFOLLOW, 0666)};
   if (!fd)
     throw sys_error_t("creating file %s", path);
   write_file(fd, path, contents);
@@ -1318,7 +1323,8 @@ void derivation_builder_impl_t::set_user() {
 }
 
 void derivation_builder_impl_t::exec_builder(const strings_t& args, const strings_t& env_strs) {
-  execve(drv.builder.c_str(), strings_to_char_ptrs(args).data(), strings_to_char_ptrs(env_strs).data());
+  execve(drv.builder.c_str(), strings_to_char_ptrs(args).data(),
+         strings_to_char_ptrs(env_strs).data());
 }
 
 SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
@@ -1411,8 +1417,9 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
     /* Canonicalise first.  This ensures that the path we're
        rewriting doesn't contain a hard link to /etc/shadow or
        something like that. */
-    canonicalise_path_meta_data(
-        actualPath, buildUser ? std::optional(buildUser->getUIDRange()) : std::nullopt, inodes_seen);
+    canonicalise_path_meta_data(actualPath,
+                                buildUser ? std::optional(buildUser->getUIDRange()) : std::nullopt,
+                                inodes_seen);
 
     bool discardReferences = false;
     if (auto udr = get(drv_options.unsafeDiscardReferences, output_name)) {
@@ -1446,23 +1453,25 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
 
   string_set_t empty_set;
 
-  auto topo_sort_result = topoSort(outputs_to_sort, [&](const std::string& name) -> const string_set_t& {
-    auto* orifu = get(outputReferencesIfUnregistered, name);
-    if (!orifu)
-      throw BuildError(BuildResult::Failure::OutputRejected,
-                       "no output reference for '%s' in build of '%s'", name,
-                       store.printStorePath(drv_path));
-    return std::visit(overloaded{
-                          /* Since we'll use the already installed versions of these, we
-                             can treat them as leaves and ignore any references they
-                             have. */
-                          [&](const already_registered_t&) -> const string_set_t& { return empty_set; },
-                          [&](const perhaps_need_to_register_t& refs) -> const string_set_t& {
-                            return refs.other_outputs;
-                          },
-                      },
-                      *orifu);
-  });
+  auto topo_sort_result =
+      topoSort(outputs_to_sort, [&](const std::string& name) -> const string_set_t& {
+        auto* orifu = get(outputReferencesIfUnregistered, name);
+        if (!orifu)
+          throw BuildError(BuildResult::Failure::OutputRejected,
+                           "no output reference for '%s' in build of '%s'", name,
+                           store.printStorePath(drv_path));
+        return std::visit(
+            overloaded{
+                /* Since we'll use the already installed versions of these, we
+                   can treat them as leaves and ignore any references they
+                   have. */
+                [&](const already_registered_t&) -> const string_set_t& { return empty_set; },
+                [&](const perhaps_need_to_register_t& refs) -> const string_set_t& {
+                  return refs.other_outputs;
+                },
+            },
+            *orifu);
+      });
 
   auto sorted_output_names = std::visit(
       overloaded{
@@ -1506,7 +1515,9 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
               finish(skippedFinalPath.path);
               return std::nullopt;
             },
-            [&](const perhaps_need_to_register_t& r) -> std::optional<StorePathSet> { return r.refs; },
+            [&](const perhaps_need_to_register_t& r) -> std::optional<StorePathSet> {
+              return r.refs;
+            },
         },
         *orifu);
 
@@ -1586,12 +1597,12 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
             HashModuloSink caSink{outputHash.hash_algo, oldHashPart};
             auto fim = outputHash.method.getFileIngestionMethod();
             dump_path({get_fs_source_accessor(), canon_path_t(actualPath)}, caSink,
-                     (file_serialisation_method_t)fim);
+                      (file_serialisation_method_t)fim);
             return caSink.finish().hash;
           }
           case file_ingestion_method_t::git: {
             return git::dump_hash(outputHash.hash_algo,
-                                 {get_fs_source_accessor(), canon_path_t(actualPath)})
+                                  {get_fs_source_accessor(), canon_path_t(actualPath)})
                 .hash;
           }
         }
@@ -1614,7 +1625,7 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
       {
         hash_result_t narHashAndSize =
             hash_path({get_fs_source_accessor(), canon_path_t(actualPath)},
-                     file_serialisation_method_t::nix_archive, hash_algorithm_t::SHA256);
+                      file_serialisation_method_t::nix_archive, hash_algorithm_t::SHA256);
         newInfo0.nar_hash = narHashAndSize.hash;
         newInfo0.nar_size = narHashAndSize.num_bytes_digested;
       }
@@ -1637,7 +1648,7 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
               rewriteOutput(outputRewrites);
               hash_result_t narHashAndSize =
                   hash_path({get_fs_source_accessor(), canon_path_t(actualPath)},
-                           file_serialisation_method_t::nix_archive, hash_algorithm_t::SHA256);
+                            file_serialisation_method_t::nix_archive, hash_algorithm_t::SHA256);
               ValidPathInfo newInfo0{requiredFinalPath, {store, narHashAndSize.hash}};
               newInfo0.nar_size = narHashAndSize.num_bytes_digested;
               auto refs = rewriteRefs();
@@ -1659,7 +1670,7 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
 
               return newInfoFromCA(DerivationOutput::CAFloating{
                   .method = dof.ca.method,
-                  .hash_algo = wanted.algo,
+                  .hash_algo = wanted.algo(),
               });
             },
 
@@ -1734,15 +1745,16 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
             move_path(actualPath, dst);
 
             handle_diff_hook(buildUser ? buildUser->getUID() : getuid(),
-                           buildUser ? buildUser->getGID() : getgid(), finalDestPath, dst,
-                           store.printStorePath(drv_path), tmp_dir);
+                             buildUser ? buildUser->getGID() : getgid(), finalDestPath, dst,
+                             store.printStorePath(drv_path), tmp_dir);
 
             throw not_deterministic_t(
                 "derivation '%s' may not be deterministic: output '%s' differs from '%s'",
                 store.printStorePath(drv_path), store.toRealPath(finalDestPath), dst);
           } else
-            throw not_deterministic_t("derivation '%s' may not be deterministic: output '%s' differs",
-                                   store.printStorePath(drv_path), store.toRealPath(finalDestPath));
+            throw not_deterministic_t(
+                "derivation '%s' may not be deterministic: output '%s' differs",
+                store.printStorePath(drv_path), store.toRealPath(finalDestPath));
         }
 
         /* Since we verified the build, it's now ultimately trusted. */
@@ -1877,7 +1889,8 @@ StorePath derivation_builder_impl_t::make_fallback_path(OutputNameView output_na
       "rewrite:" + std::string(drv_path.to_string()) + ":name:" + std::string(output_name);
   return store.makeStorePath(path_type,
                              // pass an all-zeroes hash
-                             Hash(hash_algorithm_t::SHA256), output_path_name(drv.name, output_name));
+                             Hash(hash_algorithm_t::SHA256),
+                             output_path_name(drv.name, output_name));
 }
 
 StorePath derivation_builder_impl_t::make_fallback_path(const StorePath& path) {
@@ -1903,7 +1916,7 @@ namespace nix {
 
 std::unique_ptr<DerivationBuilder>
 make_derivation_builder(LocalStore& store, std::unique_ptr<DerivationBuilderCallbacks> misc_methods,
-                      DerivationBuilderParams params) {
+                        DerivationBuilderParams params) {
   bool useSandbox = false;
 
   /* Are we doing a sandboxed build? */
@@ -1929,7 +1942,7 @@ make_derivation_builder(LocalStore& store, std::unique_ptr<DerivationBuilderCall
 
   if (params.drv.platform == "wasm32-wasip1")
     return std::make_unique<wasi_derivation_builder_t>(store, std::move(misc_methods),
-                                                   std::move(params));
+                                                       std::move(params));
 
   if (store.store_dir != store.config->real_store_dir.get()) {
 #ifdef __linux__
@@ -1954,19 +1967,21 @@ make_derivation_builder(LocalStore& store, std::unique_ptr<DerivationBuilderCall
     throw Error("feature 'uid-range' is only supported in sandboxed builds");
 
 #ifdef __APPLE__
-  return std::make_unique<DarwinDerivationBuilder>(store, std::move(misc_methods), std::move(params),
-                                                   useSandbox);
+  return std::make_unique<DarwinDerivationBuilder>(store, std::move(misc_methods),
+                                                   std::move(params), useSandbox);
 #elif defined(__linux__)
   if (useSandbox)
     return std::make_unique<chroot_linux_derivation_builder_t>(store, std::move(misc_methods),
-                                                          std::move(params));
+                                                               std::move(params));
 
-  return std::make_unique<linux_derivation_builder_t>(store, std::move(misc_methods), std::move(params));
+  return std::make_unique<linux_derivation_builder_t>(store, std::move(misc_methods),
+                                                      std::move(params));
 #else
   if (useSandbox)
     throw Error("sandboxing builds is not supported on this platform");
 
-  return std::make_unique<derivation_builder_impl_t>(store, std::move(misc_methods), std::move(params));
+  return std::make_unique<derivation_builder_impl_t>(store, std::move(misc_methods),
+                                                     std::move(params));
 #endif
 }
 

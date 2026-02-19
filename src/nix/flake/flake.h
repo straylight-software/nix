@@ -17,7 +17,7 @@ struct settings_t;
 
 struct FlakeInput;
 
-typedef std::map<FlakeId, FlakeInput> FlakeInputs;
+using FlakeInputs = std::map<FlakeId, FlakeInput>;
 
 /**
  * FlakeInput is the 'Flake'-level parsed form of the "input" entries
@@ -122,7 +122,7 @@ Flake get_flake(EvalState& state, const FlakeRef& flake_ref, fetchers::UseRegist
 /**
  * Fingerprint of a locked flake; used as a cache key.
  */
-typedef Hash Fingerprint;
+using Fingerprint = Hash;
 
 struct LockedFlake {
   Flake flake;

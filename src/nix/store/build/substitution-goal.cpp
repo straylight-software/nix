@@ -38,7 +38,7 @@ Goal::done_t PathSubstitutionGoal::doneSuccess(BuildResult::Success::Status stat
 }
 
 Goal::done_t PathSubstitutionGoal::doneFailure(ExitCode result, BuildResult::Failure::Status status,
-                                             std::string errorMsg) {
+                                               std::string errorMsg) {
   debug(errorMsg);
   buildResult.inner = BuildResult::Failure{
       .status = status,
@@ -233,12 +233,12 @@ Goal::Co PathSubstitutionGoal::tryToRun(StorePath subPath, nix::ref<Store> sub,
       finally_t updateStats([this]() { outPipe.write_side.close(); });
 
       activity_t act(*logger, act_substitute,
-                   logger_t::fields_t{worker.store.printStorePath(store_path),
-                                  sub->config.getHumanReadableURI()});
-      push_activity_t pact(act.id);
+                     logger_t::fields_t{worker.store.printStorePath(store_path),
+                                        sub->config.getHumanReadableURI()});
+      push_activity_t pact(act.id_);
 
       copy_store_path(*sub, worker.store, subPath, repair,
-                    sub->config.isTrusted ? NoCheckSigs : CheckSigs);
+                      sub->config.isTrusted ? NoCheckSigs : CheckSigs);
 
       promise.set_value();
     } catch (...) {

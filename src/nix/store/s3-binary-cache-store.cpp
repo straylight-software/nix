@@ -24,10 +24,13 @@ static constexpr uint64_t AWS_MAX_PART_COUNT = 10000;
 class s3_binary_cache_store_t : public virtual http_binary_cache_store {
 public:
   s3_binary_cache_store_t(ref<S3BinaryCacheStoreConfig> config)
-      : Store{*config}, binary_cache_store{*config}, http_binary_cache_store{config}, s3_config{config} {}
+      : Store{*config},
+        binary_cache_store{*config},
+        http_binary_cache_store{config},
+        s3_config{config} {}
 
-  void upsert_file(const std::string& path, restartable_source_t& source, const std::string& mime_type,
-                  uint64_t size_hint) override;
+  void upsert_file(const std::string& path, restartable_source_t& source,
+                   const std::string& mime_type, uint64_t size_hint) override;
 
 private:
   ref<S3BinaryCacheStoreConfig> s3_config;
@@ -54,7 +57,7 @@ private:
    * @see https://docs.aws.amazon.com/AmazonS3/latest/userguide/mpuoverview.html
    */
   void upload_multipart(std::string_view path, restartable_source_t& source, uint64_t size_hint,
-                       std::string_view mime_type, std::optional<headers_t> headers);
+                        std::string_view mime_type, std::optional<headers_t> headers);
 
   /**
    * A Sink that manages a complete S3 multipart upload lifecycle.
@@ -71,7 +74,7 @@ private:
     std::string buffer;
 
     multipart_sink_t(s3_binary_cache_store_t& store, std::string_view path, uint64_t size_hint,
-                  std::string_view mime_type, std::optional<headers_t> headers);
+                     std::string_view mime_type, std::optional<headers_t> headers);
 
     void operator()(std::string_view data) override;
     void finish();
@@ -85,7 +88,7 @@ private:
    * https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateMultipartUpload.html#API_CreateMultipartUpload_RequestSyntax
    */
   std::string create_multipart_upload(std::string_view key, std::string_view mime_type,
-                                    std::optional<headers_t> headers);
+                                      std::optional<headers_t> headers);
 
   /**
    * Uploads a single part of a multipart upload
@@ -96,7 +99,7 @@ private:
    * @returns the [ETag](https://en.wikipedia.org/wiki/HTTP_ETag)
    */
   std::string upload_part(std::string_view key, std::string_view upload_id, uint64_t part_number,
-                         std::string data);
+                          std::string data);
 
   /**
    * Completes a multipart upload by combining all uploaded parts.
@@ -104,7 +107,7 @@ private:
    * https://docs.aws.amazon.com/AmazonS3/latest/API/API_CompleteMultipartUpload.html#API_CompleteMultipartUpload_RequestSyntax
    */
   void complete_multipart_upload(std::string_view key, std::string_view upload_id,
-                               std::span<const std::string> part_etags);
+                                 std::span<const std::string> part_etags);
 
   /**
    * Abort a multipart upload
@@ -116,7 +119,7 @@ private:
 };
 
 void s3_binary_cache_store_t::upsert_file(const std::string& path, restartable_source_t& source,
-                                    const std::string& mime_type, uint64_t size_hint) {
+                                          const std::string& mime_type, uint64_t size_hint) {
   auto do_upload = [&](restartable_source_t& src, uint64_t size, std::optional<headers_t> headers) {
     headers_t upload_headers = headers.value_or(headers_t());
     if (auto storageClass = s3_config->storageClass.get()) {
@@ -144,8 +147,9 @@ void s3_binary_cache_store_t::upsert_file(const std::string& path, restartable_s
   }
 }
 
-void s3_binary_cache_store_t::upload(std::string_view path, restartable_source_t& source, uint64_t size_hint,
-                                std::string_view mime_type, std::optional<headers_t> headers) {
+void s3_binary_cache_store_t::upload(std::string_view path, restartable_source_t& source,
+                                     uint64_t size_hint, std::string_view mime_type,
+                                     std::optional<headers_t> headers) {
   debug("using S3 regular upload for '%s' (%d bytes)", path, size_hint);
   if (size_hint > AWS_MAX_PART_SIZE)
     throw Error("file too large for S3 upload without multipart: %s would exceed maximum size of "
@@ -156,17 +160,19 @@ void s3_binary_cache_store_t::upload(std::string_view path, restartable_source_t
 }
 
 void s3_binary_cache_store_t::upload_multipart(std::string_view path, restartable_source_t& source,
-                                         uint64_t size_hint, std::string_view mime_type,
-                                         std::optional<headers_t> headers) {
+                                               uint64_t size_hint, std::string_view mime_type,
+                                               std::optional<headers_t> headers) {
   debug("using S3 multipart upload for '%s' (%d bytes)", path, size_hint);
   multipart_sink_t sink(*this, path, size_hint, mime_type, std::move(headers));
   source.drain_into(sink);
   sink.finish();
 }
 
-s3_binary_cache_store_t::multipart_sink_t::multipart_sink_t(s3_binary_cache_store_t& store, std::string_view path,
-                                                 uint64_t size_hint, std::string_view mime_type,
-                                                 std::optional<headers_t> headers)
+s3_binary_cache_store_t::multipart_sink_t::multipart_sink_t(s3_binary_cache_store_t& store,
+                                                            std::string_view path,
+                                                            uint64_t size_hint,
+                                                            std::string_view mime_type,
+                                                            std::optional<headers_t> headers)
     : store(store), path(path) {
   // Calculate chunk size and estimated parts
   chunk_size = store.s3_config->multipartChunkSize;
@@ -179,8 +185,8 @@ s3_binary_cache_store_t::multipart_sink_t::multipart_sink_t(s3_binary_cache_stor
     if (min_chunk_size > AWS_MAX_PART_SIZE) {
       throw Error("file too large for S3 multipart upload: %s would require chunk size of %s "
                   "(max %s) to stay within %d part limit",
-                  render_size(size_hint), render_size(min_chunk_size), render_size(AWS_MAX_PART_SIZE),
-                  AWS_MAX_PART_COUNT);
+                  render_size(size_hint), render_size(min_chunk_size),
+                  render_size(AWS_MAX_PART_SIZE), AWS_MAX_PART_COUNT);
     }
 
     warn("adjusting S3 multipart chunk size from %s to %s "
@@ -243,8 +249,8 @@ void s3_binary_cache_store_t::multipart_sink_t::upload_chunk(std::string chunk) 
 }
 
 std::string s3_binary_cache_store_t::create_multipart_upload(std::string_view key,
-                                                      std::string_view mime_type,
-                                                      std::optional<headers_t> headers) {
+                                                             std::string_view mime_type,
+                                                             std::optional<headers_t> headers) {
   auto req = makeRequest(key);
 
   // setupForS3() converts s3:// to https:// but strips query parameters
@@ -252,7 +258,7 @@ std::string s3_binary_cache_store_t::create_multipart_upload(std::string_view ke
   req.setupForS3();
 
   auto url = req.uri.parsed();
-  url.query["uploads"] = "";
+  url.query()["uploads"] = "";
   req.uri = verbatim_url_t(url);
 
   req.method = HttpMethod::Post;
@@ -278,7 +284,7 @@ std::string s3_binary_cache_store_t::create_multipart_upload(std::string_view ke
 }
 
 std::string s3_binary_cache_store_t::upload_part(std::string_view key, std::string_view upload_id,
-                                           uint64_t part_number, std::string data) {
+                                                 uint64_t part_number, std::string data) {
   if (part_number > AWS_MAX_PART_COUNT) {
     throw Error("S3 multipart upload exceeded %d part limit", AWS_MAX_PART_COUNT);
   }
@@ -288,8 +294,8 @@ std::string s3_binary_cache_store_t::upload_part(std::string_view key, std::stri
   req.setupForS3();
 
   auto url = req.uri.parsed();
-  url.query["partNumber"] = std::to_string(part_number);
-  url.query["uploadId"] = upload_id;
+  url.query()["partNumber"] = std::to_string(part_number);
+  url.query()["uploadId"] = upload_id;
   req.uri = verbatim_url_t(url);
   string_source_t payload{data};
   req.data = {payload};
@@ -306,13 +312,13 @@ std::string s3_binary_cache_store_t::upload_part(std::string_view key, std::stri
 }
 
 void s3_binary_cache_store_t::abort_multipart_upload(std::string_view key,
-                                              std::string_view upload_id) noexcept {
+                                                     std::string_view upload_id) noexcept {
   try {
     auto req = makeRequest(key);
     req.setupForS3();
 
     auto url = req.uri.parsed();
-    url.query["uploadId"] = upload_id;
+    url.query()["uploadId"] = upload_id;
     req.uri = verbatim_url_t(url);
     req.method = HttpMethod::Delete;
 
@@ -322,13 +328,14 @@ void s3_binary_cache_store_t::abort_multipart_upload(std::string_view key,
   }
 }
 
-void s3_binary_cache_store_t::complete_multipart_upload(std::string_view key, std::string_view upload_id,
-                                                 std::span<const std::string> part_etags) {
+void s3_binary_cache_store_t::complete_multipart_upload(std::string_view key,
+                                                        std::string_view upload_id,
+                                                        std::span<const std::string> part_etags) {
   auto req = makeRequest(key);
   req.setupForS3();
 
   auto url = req.uri.parsed();
-  url.query["uploadId"] = upload_id;
+  url.query()["uploadId"] = upload_id;
   req.uri = verbatim_url_t(url);
   req.method = HttpMethod::Post;
 
@@ -360,14 +367,14 @@ string_set_t S3BinaryCacheStoreConfig::uriSchemes() {
 S3BinaryCacheStoreConfig::S3BinaryCacheStoreConfig(std::string_view scheme,
                                                    std::string_view _cacheUri, const Params& params)
     : StoreConfig(params), HttpBinaryCacheStoreConfig(scheme, _cacheUri, params) {
-  assert(cacheUri.query.empty());
-  assert(cacheUri.scheme == "s3");
+  assert(cacheUri.query().empty());
+  assert(cacheUri.scheme() == "s3");
 
   for (const auto& [key, value] : params) {
     auto s3Params = std::views::transform(
         s3UriSettings, [](const abstract_setting_t* setting) { return setting->name; });
     if (std::ranges::contains(s3Params, key)) {
-      cacheUri.query[key] = value;
+      cacheUri.query()[key] = value;
     }
   }
 

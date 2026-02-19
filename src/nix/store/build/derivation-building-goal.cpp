@@ -90,8 +90,8 @@ std::string show_known_outputs(const StoreDirConfig& store, const Derivation& dr
   return msg;
 }
 
-static void run_post_build_hook(const StoreDirConfig& store, logger_t& logger, const StorePath& drv_path,
-                             const StorePathSet& output_paths);
+static void run_post_build_hook(const StoreDirConfig& store, logger_t& logger,
+                                const StorePath& drv_path, const StorePathSet& output_paths);
 
 /* At least one of the output paths could not be
    produced using a substitute.  So we have to build instead. */
@@ -191,23 +191,23 @@ Goal::Co DerivationBuildingGoal::tryToBuild() {
     DerivationOptions<SingleDerivedPath> temp;
     try {
       temp = derivation_options_from_structured_attrs(worker.store, drv->input_drvs, drv->env,
-                                                  get(drv->structured_attrs));
+                                                      get(drv->structured_attrs));
     } catch (Error& e) {
       e.add_trace({}, "while parsing derivation '%s'", worker.store.printStorePath(drv_path));
       throw;
     }
 
     auto res = try_resolve(temp,
-                          [&](ref<const SingleDerivedPath> drv_path,
-                              const std::string& output_name) -> std::optional<StorePath> {
-                            try {
-                              return resolve_derived_path(
-                                  worker.store, SingleDerivedPath::Built{drv_path, output_name},
-                                  &worker.eval_store);
-                            } catch (Error&) {
-                              return std::nullopt;
-                            }
-                          });
+                           [&](ref<const SingleDerivedPath> drv_path,
+                               const std::string& output_name) -> std::optional<StorePath> {
+                             try {
+                               return resolve_derived_path(
+                                   worker.store, SingleDerivedPath::Built{drv_path, output_name},
+                                   &worker.eval_store);
+                             } catch (Error&) {
+                               return std::nullopt;
+                             }
+                           });
 
     /* The derivation must have all of its inputs gotten this point,
        so the resolution will surely succeed.
@@ -250,19 +250,19 @@ Goal::Co DerivationBuildingGoal::tryToBuild() {
   auto started = [&]() {
     auto msg = fmt(build_mode == bmRepair  ? "repairing outputs of '%s'"
                    : build_mode == bmCheck ? "checking outputs of '%s'"
-                                          : "building '%s'",
+                                           : "building '%s'",
                    worker.store.printStorePath(drv_path));
 #ifndef _WIN32 // TODO enable build hook on Windows
     if (hook)
       msg += fmt(" on '%s'", hook->machine_name);
 #endif
     act = std::make_unique<activity_t>(*logger, lvl_info, act_build, msg,
-                                     logger_t::fields_t{worker.store.printStorePath(drv_path),
+                                       logger_t::fields_t{worker.store.printStorePath(drv_path),
 #ifndef _WIN32 // TODO enable build hook on Windows
-                                                    hook ? hook->machine_name :
+                                                          hook ? hook->machine_name :
 #endif
-                                                         "",
-                                                    1, 1});
+                                                               "",
+                                                          1, 1});
     mcRunningBuilds = std::make_unique<maintain_count_t<uint64_t>>(worker.runningBuilds);
     worker.updateProgress();
   };
@@ -311,7 +311,7 @@ Goal::Co DerivationBuildingGoal::tryToBuild() {
 
     if (!outputLocks.lockPaths(lockFiles, "", false)) {
       activity_t act(*logger, lvl_warn, act_build_waiting,
-                   fmt("waiting for lock on %s", magenta_t(show_paths(lockFiles))));
+                     fmt("waiting for lock on %s", magenta_t(show_paths(lockFiles))));
 
       /* Wait then try locking again, repeat until success (returned
          boolean is true). */
@@ -371,8 +371,8 @@ Goal::Co DerivationBuildingGoal::tryToBuild() {
           if (!actLock)
             actLock =
                 std::make_unique<activity_t>(*logger, lvl_warn, act_build_waiting,
-                                           fmt("waiting for a machine to build '%s'",
-                                               magenta_t(worker.store.printStorePath(drv_path))));
+                                             fmt("waiting for a machine to build '%s'",
+                                                 magenta_t(worker.store.printStorePath(drv_path))));
           outputLocks.unlock();
           co_await waitForAWhile();
           continue;
@@ -388,22 +388,22 @@ Goal::Co DerivationBuildingGoal::tryToBuild() {
           external_builder = settings.findExternalDerivationBuilderIfSupported(*drv);
 
           if (!external_builder && !drv_options.canBuildLocally(worker.store, *drv)) {
-            auto msg =
-                fmt("Cannot build '%s'.\n"
-                    "Reason: " ANSI_RED "required system or feature not available" ANSI_NORMAL "\n"
-                    "Required system: '%s' with features {%s}\n"
-                    "Current system: '%s' with features {%s}",
-                    magenta_t(worker.store.printStorePath(drv_path)), magenta_t(drv->platform),
-                    concat_strings_sep(", ", drv_options.getRequiredSystemFeatures(*drv)),
-                    magenta_t(settings.thisSystem),
-                    concat_strings_sep<string_set_t>(", ", worker.store.Store::config.systemFeatures));
+            auto msg = fmt(
+                "Cannot build '%s'.\n"
+                "Reason: " ANSI_RED "required system or feature not available" ANSI_NORMAL "\n"
+                "Required system: '%s' with features {%s}\n"
+                "Current system: '%s' with features {%s}",
+                magenta_t(worker.store.printStorePath(drv_path)), magenta_t(drv->platform),
+                concat_strings_sep(", ", drv_options.getRequiredSystemFeatures(*drv)),
+                magenta_t(settings.thisSystem),
+                concat_strings_sep<string_set_t>(", ", worker.store.Store::config.systemFeatures));
 
             // since aarch64-darwin has Rosetta 2, this user can actually run x86_64-darwin on their
             // hardware - we should tell them to run the command to install Darwin 2
             if (drv->platform == "x86_64-darwin" && settings.thisSystem == "aarch64-darwin")
               msg += fmt("\nNote: run `%s` to run programs for x86_64-darwin",
                          magenta_t("/usr/sbin/softwareupdate --install-rosetta && launchctl stop "
-                                 "org.nixos.nix-daemon"));
+                                   "org.nixos.nix-daemon"));
 
 #ifndef _WIN32 // TODO enable `DerivationBuilder` on Windows
             builder.reset();
@@ -616,9 +616,10 @@ Goal::Co DerivationBuildingGoal::tryToBuild() {
       builder_out = *std::move(builderOutOpt);
     } else {
       if (!actLock)
-        actLock = std::make_unique<activity_t>(*logger, lvl_warn, act_build_waiting,
-                                             fmt("waiting for a free build user ID for '%s'",
-                                                 magenta_t(worker.store.printStorePath(drv_path))));
+        actLock =
+            std::make_unique<activity_t>(*logger, lvl_warn, act_build_waiting,
+                                         fmt("waiting for a free build user ID for '%s'",
+                                             magenta_t(worker.store.printStorePath(drv_path))));
       co_await waitForAWhile();
       continue;
     }
@@ -697,21 +698,21 @@ Goal::Co DerivationBuildingGoal::tryToBuild() {
 #endif
 }
 
-static void run_post_build_hook(const StoreDirConfig& store, logger_t& logger, const StorePath& drv_path,
-                             const StorePathSet& output_paths) {
+static void run_post_build_hook(const StoreDirConfig& store, logger_t& logger,
+                                const StorePath& drv_path, const StorePathSet& output_paths) {
   auto hook = settings.postBuildHook;
   if (hook == "")
     return;
 
   activity_t act(logger, lvl_talkative, act_post_build_hook,
-               fmt("running post-build-hook '%s'", settings.postBuildHook),
-               logger_t::fields_t{store.printStorePath(drv_path)});
-  push_activity_t pact(act.id);
+                 fmt("running post-build-hook '%s'", settings.postBuildHook),
+                 logger_t::fields_t{store.printStorePath(drv_path)});
+  push_activity_t pact(act.id_);
   string_map_t hook_environment = get_env();
 
   hook_environment.emplace("DRV_PATH", store.printStorePath(drv_path));
   hook_environment.emplace("OUT_PATHS",
-                          chomp(concat_strings_sep(" ", store.printStorePathSet(output_paths))));
+                           chomp(concat_strings_sep(" ", store.printStorePathSet(output_paths))));
   hook_environment.emplace("NIX_CONFIG", global_config.to_key_value());
 
   struct log_sink_t : Sink {
@@ -754,9 +755,10 @@ static void run_post_build_hook(const StoreDirConfig& store, logger_t& logger, c
 }
 
 BuildError DerivationBuildingGoal::fixupBuilderFailureErrorMessage(BuilderFailureError e) {
-  auto msg = fmt("Cannot build '%s'.\n"
-                 "Reason: " ANSI_RED "builder %s" ANSI_NORMAL ".",
-                 magenta_t(worker.store.printStorePath(drv_path)), status_to_string(e.builderStatus));
+  auto msg =
+      fmt("Cannot build '%s'.\n"
+          "Reason: " ANSI_RED "builder %s" ANSI_NORMAL ".",
+          magenta_t(worker.store.printStorePath(drv_path)), status_to_string(e.builderStatus));
 
   msg += show_known_outputs(worker.store, *drv);
 
@@ -839,7 +841,7 @@ DerivationBuildingGoal::tryBuildHook(const std::map<std::string, InitialOutput>&
       throw Error("bad hook reply '%s'", reply);
 
   } catch (sys_error_t& e) {
-    if (e.err_no == EPIPE) {
+    if (e.err_no() == EPIPE) {
       printError("build hook died unexpectedly: %s",
                  chomp(drain_fd(worker.hook->fromHook.read_side.get())));
       worker.hook = 0;
@@ -911,12 +913,12 @@ Path DerivationBuildingGoal::openLogFile() {
   Path logFileName = fmt("%s/%s%s", dir, base_name.substr(2), settings.compressLog ? ".bz2" : "");
 
   fdLogFile = to_descriptor(open(logFileName.c_str(),
-                                O_CREAT | O_WRONLY | O_TRUNC
+                                 O_CREAT | O_WRONLY | O_TRUNC
 #ifndef _WIN32
-                                    | O_CLOEXEC
+                                     | O_CLOEXEC
 #endif
-                                ,
-                                0666));
+                                 ,
+                                 0666));
   if (!fdLogFile)
     throw sys_error_t("creating log file '%1%'", logFileName);
 
@@ -987,7 +989,7 @@ void DerivationBuildingGoal::handleChildOutput(descriptor_t fd, std::string_view
         auto json = parse_json_message(currentHookLine, "the derivation builder");
         if (json) {
           auto s = handle_json_log_message(*json, worker.act, hook->activities,
-                                        "the derivation builder", true);
+                                           "the derivation builder", true);
           // ensure that logs from a builder using `ssh-ng://` as protocol
           // are also available to `nix log`.
           if (s && !isWrittenToLog && logSink) {
@@ -1027,7 +1029,7 @@ void DerivationBuildingGoal::handle_eof(descriptor_t fd) {
 
 void DerivationBuildingGoal::flush_line() {
   if (handle_json_log_message(currentLogLine, *act, builderActivities, "the derivation builder",
-                           false))
+                              false))
     ;
 
   else {
@@ -1078,7 +1080,7 @@ DerivationBuildingGoal::checkPathValidity(std::map<std::string, InitialOutput>& 
           .path = output_path,
           .status = !worker.store.isValidPath(output_path)               ? PathStatus::Absent
                     : !checkHash || worker.pathContentsGood(output_path) ? PathStatus::Valid
-                                                                        : PathStatus::Corrupt,
+                                                                         : PathStatus::Corrupt,
       };
     }
     auto drvOutput = DrvOutput{info.outputHash, i.first};
@@ -1089,7 +1091,7 @@ DerivationBuildingGoal::checkPathValidity(std::map<std::string, InitialOutput>& 
             .path = output_path,
             .status = !worker.store.isValidPath(output_path)               ? PathStatus::Absent
                       : !checkHash || worker.pathContentsGood(output_path) ? PathStatus::Valid
-                                                                          : PathStatus::Corrupt,
+                                                                           : PathStatus::Corrupt,
         };
       } else if (info.known && info.known->isValid()) {
         // We know the output because it's a static output of the
@@ -1125,7 +1127,7 @@ DerivationBuildingGoal::checkPathValidity(std::map<std::string, InitialOutput>& 
 }
 
 Goal::done_t DerivationBuildingGoal::doneSuccess(BuildResult::Success::Status status,
-                                               SingleDrvOutputs built_outputs) {
+                                                 SingleDrvOutputs built_outputs) {
   buildResult.inner = BuildResult::Success{
       .status = status,
       .built_outputs = std::move(built_outputs),

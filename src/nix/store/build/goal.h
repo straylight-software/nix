@@ -17,8 +17,8 @@ class Worker;
 /**
  * A pointer to a goal.
  */
-typedef std::shared_ptr<Goal> GoalPtr;
-typedef std::weak_ptr<Goal> WeakGoalPtr;
+using GoalPtr = std::shared_ptr<Goal>;
+using WeakGoalPtr = std::weak_ptr<Goal>;
 
 struct CompareGoalPtrs {
   bool operator()(const GoalPtr& a, const GoalPtr& b) const;
@@ -27,13 +27,13 @@ struct CompareGoalPtrs {
 /**
  * Set of goals.
  */
-typedef std::set<GoalPtr, CompareGoalPtrs> Goals;
-typedef std::set<WeakGoalPtr, std::owner_less<WeakGoalPtr>> WeakGoals;
+using Goals = std::set<GoalPtr, CompareGoalPtrs>;
+using WeakGoals = std::set<WeakGoalPtr, std::owner_less<WeakGoalPtr>>;
 
 /**
  * A map of paths to goals (and the other way around).
  */
-typedef std::map<StorePath, WeakGoalPtr> WeakGoalMap;
+using WeakGoalMap = std::map<StorePath, WeakGoalPtr>;
 
 /**
  * Used as a hint to the worker on how to schedule a particular goal. For example,

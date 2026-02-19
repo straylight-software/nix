@@ -8,7 +8,7 @@
 
 namespace nix {
 
-typedef std::map<std::string, std::string, std::less<>> xml_attrs_t;
+using xml_attrs_t = std::map<std::string, std::string, std::less<>>;
 
 class xml_writer_t {
 private:

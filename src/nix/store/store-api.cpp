@@ -78,8 +78,9 @@ StorePath Store::followLinksToStorePath(std::string_view path) const {
 }
 
 StorePath Store::add_to_store(std::string_view name, const source_path_t& path,
-                            ContentAddressMethod method, hash_algorithm_t hash_algo,
-                            const StorePathSet& references, path_filter_t& filter, RepairFlag repair) {
+                              ContentAddressMethod method, hash_algorithm_t hash_algo,
+                              const StorePathSet& references, path_filter_t& filter,
+                              RepairFlag repair) {
   file_serialisation_method_t fsm;
   switch (method.getFileIngestionMethod()) {
     case file_ingestion_method_t::flat:
@@ -96,7 +97,8 @@ StorePath Store::add_to_store(std::string_view name, const source_path_t& path,
   std::optional<StorePath> store_path;
   auto sink = source_to_sink([&](Source& source) {
     length_source_t lengthSource(source);
-    store_path = add_to_store_from_dump(lengthSource, name, fsm, method, hash_algo, references, repair);
+    store_path =
+        add_to_store_from_dump(lengthSource, name, fsm, method, hash_algo, references, repair);
     if (settings.warnLargePathThreshold && lengthSource.total >= settings.warnLargePathThreshold) {
       static bool failOnLargePath = get_env("_NIX_TEST_FAIL_ON_LARGE_PATH").value_or("") == "1";
       if (failOnLargePath)
@@ -241,16 +243,18 @@ ValidPathInfo Store::addToStoreSlow(std::string_view name, const source_path_t& 
   /* Functionally, this means that fileSource will yield the content of
      src_path. The fact that we use scratchpadSink as a temporary buffer here
      is an implementation detail. */
-  auto fileSource = sink_to_source([&](Sink& scratchpadSink) { src_path.dump_path(scratchpadSink); });
+  auto fileSource =
+      sink_to_source([&](Sink& scratchpadSink) { src_path.dump_path(scratchpadSink); });
 
   /* tapped provides the same data as fileSource, but we also write all the
      information to narSink. */
   tee_source_t tapped{*fileSource, narSink};
 
   null_file_system_object_sink_t blank;
-  auto& parse_sink = method.getFileIngestionMethod() == file_ingestion_method_t::flat
-                        ? (file_system_object_sink_t&)fileSink
-                        : (file_system_object_sink_t&)blank; // for recursive or git we do recursive
+  auto& parse_sink =
+      method.getFileIngestionMethod() == file_ingestion_method_t::flat
+          ? (file_system_object_sink_t&)fileSink
+          : (file_system_object_sink_t&)blank; // for recursive or git we do recursive
 
   /* The information that flows from tapped (besides being replicated in
      narSink), is now put in parse_sink. */
@@ -260,10 +264,11 @@ ValidPathInfo Store::addToStoreSlow(std::string_view name, const source_path_t& 
      finish. */
   auto [nar_hash, nar_size] = narHashSink.finish();
 
-  auto hash = method == ContentAddressMethod::raw_t::nix_archive && hash_algo == hash_algorithm_t::SHA256
-                  ? nar_hash
-              : method == ContentAddressMethod::raw_t::git ? git::dump_hash(hash_algo, src_path).hash
-                                                         : caHashSink.finish().hash;
+  auto hash =
+      method == ContentAddressMethod::raw_t::nix_archive && hash_algo == hash_algorithm_t::SHA256
+          ? nar_hash
+      : method == ContentAddressMethod::raw_t::git ? git::dump_hash(hash_algo, src_path).hash
+                                                   : caHashSink.finish().hash;
 
   if (expectedCAHash && expectedCAHash != hash)
     throw Error("hash mismatch for '%s'", src_path);
@@ -457,8 +462,8 @@ bool Store::isValidPath(const StorePath& store_path) {
     if (res.first != NarInfoDiskCache::oUnknown) {
       stats.narInfoReadAverted++;
       pathInfoCache->lock()->upsert(store_path, res.first == NarInfoDiskCache::oInvalid
-                                                   ? PathInfoCacheValue{}
-                                                   : PathInfoCacheValue{.value = res.second});
+                                                    ? PathInfoCacheValue{}
+                                                    : PathInfoCacheValue{.value = res.second});
       return res.first == NarInfoDiskCache::oValid;
     }
   }
@@ -538,8 +543,8 @@ Store::queryPathInfoFromClientCache(const StorePath& store_path) {
     if (res.first != NarInfoDiskCache::oUnknown) {
       stats.narInfoReadAverted++;
       pathInfoCache->lock()->upsert(store_path, res.first == NarInfoDiskCache::oInvalid
-                                                   ? PathInfoCacheValue{}
-                                                   : PathInfoCacheValue{.value = res.second});
+                                                    ? PathInfoCacheValue{}
+                                                    : PathInfoCacheValue{.value = res.second});
       if (res.first == NarInfoDiskCache::oInvalid || !good_store_path(store_path, res.second->path))
         return std::make_optional(nullptr);
       assert(res.second);
@@ -571,7 +576,7 @@ void Store::queryPathInfo(const StorePath& store_path,
 
   query_path_info_uncached(
       store_path, {[this, store_path, hash_part,
-                   callbackPtr](std::future<std::shared_ptr<const ValidPathInfo>> fut) {
+                    callbackPtr](std::future<std::shared_ptr<const ValidPathInfo>> fut) {
         try {
           auto info = fut.get();
 
@@ -645,12 +650,12 @@ std::shared_ptr<const UnkeyedRealisation> Store::query_realisation(const DrvOutp
   std::promise<RealPtr> promise;
 
   query_realisation(id, {[&](std::future<RealPtr> result) {
-                     try {
-                       promise.set_value(result.get());
-                     } catch (...) {
-                       promise.set_exception(std::current_exception());
-                     }
-                   }});
+                      try {
+                        promise.set_value(result.get());
+                      } catch (...) {
+                        promise.set_exception(std::current_exception());
+                      }
+                    }});
 
   return promise.get_future().get();
 }
@@ -802,7 +807,7 @@ const Store::Stats& Store::get_stats() {
 }
 
 static std::string make_copy_path_message(const StoreConfig& src_cfg, const StoreConfig& dst_cfg,
-                                       std::string_view store_path) {
+                                          std::string_view store_path) {
   auto src = src_cfg.getReference();
   auto dst = dst_cfg.getReference();
 
@@ -829,8 +834,8 @@ static std::string make_copy_path_message(const StoreConfig& src_cfg, const Stor
              dst_cfg.getHumanReadableURI());
 }
 
-void copy_store_path(Store& src_store, Store& dst_store, const StorePath& store_path, RepairFlag repair,
-                   CheckSigsFlag check_sigs) {
+void copy_store_path(Store& src_store, Store& dst_store, const StorePath& store_path,
+                     RepairFlag repair, CheckSigsFlag check_sigs) {
   /* Bail out early (before starting a download from src_store) if
      dst_store already has this path. */
   if (!repair && dst_store.isValidPath(store_path))
@@ -839,9 +844,10 @@ void copy_store_path(Store& src_store, Store& dst_store, const StorePath& store_
   const auto& src_cfg = src_store.config;
   const auto& dst_cfg = dst_store.config;
   auto store_path_s = src_store.printStorePath(store_path);
-  activity_t act(*logger, lvl_info, act_copy_path, make_copy_path_message(src_cfg, dst_cfg, store_path_s),
-               {store_path_s, src_cfg.getHumanReadableURI(), dst_cfg.getHumanReadableURI()});
-  push_activity_t pact(act.id);
+  activity_t act(*logger, lvl_info, act_copy_path,
+                 make_copy_path_message(src_cfg, dst_cfg, store_path_s),
+                 {store_path_s, src_cfg.getHumanReadableURI(), dst_cfg.getHumanReadableURI()});
+  push_activity_t pact(act.id_);
 
   auto info = src_store.queryPathInfo(store_path);
 
@@ -851,7 +857,7 @@ void copy_store_path(Store& src_store, Store& dst_store, const StorePath& store_
   if (info->ca && info->references.empty()) {
     auto info2 = make_ref<ValidPathInfo>(*info);
     info2->path = dst_store.makeFixedOutputPathFromCA(info->path.name(),
-                                                     info->contentAddressWithReferences().value());
+                                                      info->contentAddressWithReferences().value());
     if (dst_store.store_dir == src_store.store_dir)
       assert(info->path == info2->path);
     info = info2;
@@ -874,15 +880,16 @@ void copy_store_path(Store& src_store, Store& dst_store, const StorePath& store_
       },
       [&]() {
         throw EndOfFile("NAR for '%s' fetched from '%s' is incomplete",
-                        src_store.printStorePath(store_path), src_store.config.getHumanReadableURI());
+                        src_store.printStorePath(store_path),
+                        src_store.config.getHumanReadableURI());
       });
 
   dst_store.add_to_store(*info, *source, repair, check_sigs);
 }
 
 std::map<StorePath, StorePath> copy_paths(Store& src_store, Store& dst_store,
-                                         const RealisedPath::Set& paths, RepairFlag repair,
-                                         CheckSigsFlag check_sigs, SubstituteFlag substitute) {
+                                          const RealisedPath::Set& paths, RepairFlag repair,
+                                          CheckSigsFlag check_sigs, SubstituteFlag substitute) {
   StorePathSet store_paths;
   std::set<Realisation> toplevelRealisations;
   for (auto& path : paths) {
@@ -928,8 +935,8 @@ std::map<StorePath, StorePath> copy_paths(Store& src_store, Store& dst_store,
 }
 
 std::map<StorePath, StorePath> copy_paths(Store& src_store, Store& dst_store,
-                                         const StorePathSet& store_paths, RepairFlag repair,
-                                         CheckSigsFlag check_sigs, SubstituteFlag substitute) {
+                                          const StorePathSet& store_paths, RepairFlag repair,
+                                          CheckSigsFlag check_sigs, SubstituteFlag substitute) {
   auto valid = dst_store.queryValidPaths(store_paths, substitute);
 
   StorePathSet missing;
@@ -982,9 +989,10 @@ std::map<StorePath, StorePath> copy_paths(Store& src_store, Store& dst_store,
       const auto& src_cfg = src_store.config;
       const auto& dst_cfg = dst_store.config;
       auto store_path_s = src_store.printStorePath(missingPath);
-      activity_t act(*logger, lvl_info, act_copy_path, make_copy_path_message(src_cfg, dst_cfg, store_path_s),
-                   {store_path_s, src_cfg.getHumanReadableURI(), dst_cfg.getHumanReadableURI()});
-      push_activity_t pact(act.id);
+      activity_t act(*logger, lvl_info, act_copy_path,
+                     make_copy_path_message(src_cfg, dst_cfg, store_path_s),
+                     {store_path_s, src_cfg.getHumanReadableURI(), dst_cfg.getHumanReadableURI()});
+      push_activity_t pact(act.id_);
 
       lambda_sink_t progress_sink([&](std::string_view data) {
         total += data.size();
@@ -1003,7 +1011,7 @@ std::map<StorePath, StorePath> copy_paths(Store& src_store, Store& dst_store,
 }
 
 void copy_closure(Store& src_store, Store& dst_store, const RealisedPath::Set& paths,
-                 RepairFlag repair, CheckSigsFlag check_sigs, SubstituteFlag substitute) {
+                  RepairFlag repair, CheckSigsFlag check_sigs, SubstituteFlag substitute) {
   if (&src_store == &dst_store)
     return;
 
@@ -1014,7 +1022,7 @@ void copy_closure(Store& src_store, Store& dst_store, const RealisedPath::Set& p
 }
 
 void copy_closure(Store& src_store, Store& dst_store, const StorePathSet& store_paths,
-                 RepairFlag repair, CheckSigsFlag check_sigs, SubstituteFlag substitute) {
+                  RepairFlag repair, CheckSigsFlag check_sigs, SubstituteFlag substitute) {
   if (&src_store == &dst_store)
     return;
 
@@ -1024,7 +1032,7 @@ void copy_closure(Store& src_store, Store& dst_store, const StorePathSet& store_
 }
 
 std::optional<ValidPathInfo> decode_valid_path_info(const Store& store, std::istream& str,
-                                                 std::optional<hash_result_t> hash_given) {
+                                                    std::optional<hash_result_t> hash_given) {
   std::string path;
   getline(str, path);
   if (str.eof()) {
@@ -1084,11 +1092,11 @@ Derivation Store::derivationFromPath(const StorePath& drv_path) {
 }
 
 static Derivation read_derivation_common(Store& store, const StorePath& drv_path,
-                                       bool require_valid_path) {
+                                         bool require_valid_path) {
   auto accessor = store.requireStoreObjectAccessor(drv_path, require_valid_path);
   try {
     return parse_derivation(store, accessor->read_file(canon_path_t::root),
-                           Derivation::nameFromPath(drv_path));
+                            Derivation::nameFromPath(drv_path));
   } catch (FormatError& e) {
     throw Error("error parsing derivation '%s': %s", store.printStorePath(drv_path), e.msg());
   }

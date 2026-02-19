@@ -83,7 +83,7 @@ public:
   bool hasFailed() { return failed; };
 };
 
-typedef std::list<PackageInfo, traceable_allocator<PackageInfo>> PackageInfos;
+using PackageInfos = std::list<PackageInfo, traceable_allocator<PackageInfo>>;
 
 /**
  * If value `v` denotes a derivation, return a PackageInfo object

@@ -108,12 +108,12 @@ struct nix_args_t : virtual multi_command_t, virtual MixCommonArgs, virtual root
   bool show_version = false;
 
   nix_args_t() : multi_command_t("", RegisterCommand::getCommandsFor({})), MixCommonArgs("nix") {
-    categories.clear();
-    categories[catHelp] = "Help commands";
-    categories[command_t::cat_default] = "Main commands";
-    categories[catSecondary] = "Infrequently used commands";
-    categories[catUtility] = "Utility/scripting commands";
-    categories[catNixInstallation] =
+    get_categories().clear();
+    get_categories()[catHelp] = "Help commands";
+    get_categories()[command_t::cat_default] = "Main commands";
+    get_categories()[catSecondary] = "Infrequently used commands";
+    get_categories()[catUtility] = "Utility/scripting commands";
+    get_categories()[catNixInstallation] =
         "Commands for upgrading or troubleshooting your Nix installation";
 
     add_flag({
@@ -154,7 +154,7 @@ struct nix_args_t : virtual multi_command_t, virtual MixCommonArgs, virtual root
         .handler = {[&]() { refresh = true; }},
     });
 
-    aliases = {
+    get_aliases() = {
         {"add-to-store", {alias_status_t::deprecated, {"store", "add-path"}}},
         {"cat-nar", {alias_status_t::deprecated, {"nar", "cat"}}},
         {"cat-store", {alias_status_t::deprecated, {"store", "cat"}}},
@@ -180,7 +180,7 @@ struct nix_args_t : virtual multi_command_t, virtual MixCommonArgs, virtual root
         {"verify", {alias_status_t::deprecated, {"store", "verify"}}},
         {"doctor", {alias_status_t::deprecated, {"config", "check"}}},
     };
-  };
+  }
 
   std::string description() override {
     return "a tool for reproducible and declarative configuration management";
@@ -193,7 +193,7 @@ struct nix_args_t : virtual multi_command_t, virtual MixCommonArgs, virtual root
   }
 
   // Plugins may add new subcommands.
-  void plugins_inited() override { commands = RegisterCommand::getCommandsFor({}); }
+  void plugins_inited() override { get_commands() = RegisterCommand::getCommandsFor({}); }
 
   std::string dump_cli() {
     using nlohmann::json;
@@ -238,8 +238,8 @@ struct nix_args_t : virtual multi_command_t, virtual MixCommonArgs, virtual root
 static void show_help(std::vector<std::string> subcommand, nix_args_t& toplevel) {
   // Check for aliases if subcommand has exactly one element
   if (subcommand.size() == 1) {
-    auto alias = toplevel.aliases.find(subcommand[0]);
-    if (alias != toplevel.aliases.end()) {
+    auto alias = toplevel.get_aliases().find(subcommand[0]);
+    if (alias != toplevel.get_aliases().end()) {
       subcommand = alias->second.replacement;
     }
   }
@@ -310,10 +310,10 @@ struct cmd_help_t : command_t {
   category_t category() override { return catHelp; }
 
   void run() override {
-    assert(parent);
-    multi_command_t* toplevel = parent;
-    while (toplevel->parent)
-      toplevel = toplevel->parent;
+    assert(get_parent());
+    multi_command_t* toplevel = get_parent();
+    while (toplevel->get_parent())
+      toplevel = toplevel->get_parent();
     show_help(subcommand, get_nix_args(*this));
   }
 };
@@ -464,12 +464,12 @@ void main_wrapped(int argc, char** argv) {
         case completions_t::Type::filenames:
           logger->cout("filenames");
           break;
-        case completions_t::Type::Attrs:
+        case completions_t::Type::attrs:
           logger->cout("attrs");
           break;
       }
       for (auto& s : args.completions->completions)
-        logger->cout(s.completion + "\t" + trim(s.description));
+        logger->cout(s.get_completion() + "\t" + trim(s.get_description()));
     }
   });
 
@@ -496,9 +496,9 @@ void main_wrapped(int argc, char** argv) {
     std::vector<std::string> subcommand;
     multi_command_t* command = &args;
     while (command) {
-      if (command && command->command) {
-        subcommand.push_back(command->command->first);
-        command = dynamic_cast<multi_command_t*>(&*command->command->second);
+      if (command && command->get_command()) {
+        subcommand.push_back(command->get_command()->first);
+        command = dynamic_cast<multi_command_t*>(&*command->get_command()->second);
       } else
         break;
     }
@@ -514,10 +514,10 @@ void main_wrapped(int argc, char** argv) {
     return;
   }
 
-  if (!args.command)
+  if (!args.get_command())
     throw UsageError("no subcommand specified");
 
-  experimental_feature_settings.require(args.command->second->experimental_feature());
+  experimental_feature_settings.require(args.get_command()->second->experimental_feature());
 
   if (args.use_net && !have_internet()) {
     warn("you don't have Internet access; disabling some network-dependent features");
@@ -533,12 +533,12 @@ void main_wrapped(int argc, char** argv) {
     settings.ttlPositiveNarInfoCache = 0;
   }
 
-  if (args.command->second->force_impure_by_default() && !eval_settings.pureEval.overridden) {
+  if (args.get_command()->second->force_impure_by_default() && !eval_settings.pureEval.overridden) {
     eval_settings.pureEval = false;
   }
 
   try {
-    args.command->second->run();
+    args.get_command()->second->run();
   } catch (eval_cache::CachedEvalError& e) {
     /* Evaluate the original attribute that resulted in this
        cached error so that we can show the original error to the

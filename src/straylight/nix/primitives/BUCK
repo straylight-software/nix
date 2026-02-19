@@ -475,6 +475,66 @@ cxx_library(
     ],
 )
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Serialization primitives (streaming Source/Sink)
+# Note: zpp_bits integration is optional (see serialise.h for details)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# zpp_bits include path (until devshell picks up the new dep)
+ZPP_BITS_COMPILER_FLAGS = [
+    "-std=c++23",
+    "-isystem/nix/store/bx9q2zgry31v0fq01ylw6w9w4fbk2lza-zpp_bits-4.5/include",
+]
+
+cxx_library(
+    name = "serialise",
+
+    # Header-only library
+    srcs = [],
+
+    exported_headers = [
+        "serialise.h",
+    ],
+
+    header_namespace = "straylight/nix/primitives",
+
+    visibility = ["PUBLIC"],
+
+    compiler_flags = ZPP_BITS_COMPILER_FLAGS,
+
+    deps = [
+        "//third_party:zpp_bits",
+    ],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Store primitives (log-structured, io_uring-native, daemonless)
+# ─────────────────────────────────────────────────────────────────────────────
+
+cxx_library(
+    name = "store",
+
+    srcs = [
+        "store.cpp",
+    ],
+
+    exported_headers = [
+        "store.h",
+        "store_async.h",
+    ],
+
+    header_namespace = "straylight/nix/primitives",
+
+    visibility = ["PUBLIC"],
+
+    compiler_flags = ZPP_BITS_COMPILER_FLAGS,
+
+    deps = [
+        ":serialise",
+        "//src/libevring:evring",
+    ],
+)
+
 # Boost backend variant
 cxx_library(
     name = "primitives_boost",

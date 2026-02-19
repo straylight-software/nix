@@ -18,9 +18,10 @@
 namespace nix::lfs {
 
 static void download_to_sink(const std::string& url, const std::optional<std::string>& auth_header,
-                           // FIXME: passing a StringSink is superfluous, we may as well
-                           // return a string. Or use an abstract Sink for streaming.
-                           string_sink_t& sink, std::string sha256_expected, size_t size_expected) {
+                             // FIXME: passing a StringSink is superfluous, we may as well
+                             // return a string. Or use an abstract Sink for streaming.
+                             string_sink_t& sink, std::string sha256_expected,
+                             size_t size_expected) {
   FileTransferRequest request(parse_url(url));
   headers_t headers;
   if (auth_header.has_value())
@@ -28,13 +29,13 @@ static void download_to_sink(const std::string& url, const std::optional<std::st
   request.headers = headers;
   get_file_transfer()->download(std::move(request), sink);
 
-  auto size_actual = sink.s.length();
+  auto size_actual = sink.str().length();
   if (size_expected != size_actual)
     throw Error("size mismatch while fetching %s: expected %d but got %d", url, size_expected,
                 size_actual);
 
   auto sha256_actual =
-      hash_string(hash_algorithm_t::SHA256, sink.s).to_string(hash_format_t::base16, false);
+      hash_string(hash_algorithm_t::SHA256, sink.str()).to_string(hash_format_t::base16, false);
   if (sha256_actual != sha256_expected)
     throw Error("hash mismatch while fetching %s: expected sha256:%s but got sha256:%s", url,
                 sha256_expected, sha256_actual);
@@ -50,17 +51,17 @@ struct lfs_api_info_t {
 } // namespace
 
 static lfs_api_info_t get_lfs_api(const parsed_url_t& url) {
-  assert(url.authority.has_value());
-  if (url.scheme == "ssh") {
+  assert(url.authority().has_value());
+  if (url.scheme() == "ssh") {
     auto args = get_nix_ssh_opts();
 
-    if (url.authority->port)
-      args.push_back(fmt("-p%d", *url.authority->port));
+    if (url.authority()->port())
+      args.push_back(fmt("-p%d", *url.authority()->port()));
 
     std::ostringstream hostname_and_user;
-    if (url.authority->user)
-      hostname_and_user << *url.authority->user << "@";
-    hostname_and_user << url.authority->host;
+    if (url.authority()->user())
+      hostname_and_user << *url.authority()->user() << "@";
+    hostname_and_user << url.authority()->host();
     args.push_back(std::move(hostname_and_user).str());
 
     args.push_back("--");
@@ -115,7 +116,8 @@ static std::string get_lfs_endpoint_url(git_repository* repo) {
   return std::string(url_c_str);
 }
 
-static std::optional<Pointer> parse_lfs_pointer(std::string_view content, std::string_view filename) {
+static std::optional<Pointer> parse_lfs_pointer(std::string_view content,
+                                                std::string_view filename) {
   // https://github.com/git-lfs/git-lfs/blob/2ef4108/docs/spec.md
   //
   // example git-lfs pointer file:
@@ -235,8 +237,8 @@ std::vector<nlohmann::json> Fetch::fetchUrls(const std::vector<Pointer>& pointer
   }
 }
 
-void Fetch::fetch(const std::string& content, const canon_path_t& pointerFilePath, string_sink_t& sink,
-                  std::function<void(uint64_t)> size_callback) const {
+void Fetch::fetch(const std::string& content, const canon_path_t& pointerFilePath,
+                  string_sink_t& sink, std::function<void(uint64_t)> size_callback) const {
   debug("trying to fetch '%s' using git-lfs", pointerFilePath);
 
   if (content.length() >= 1024) {
@@ -293,7 +295,7 @@ void Fetch::fetch(const std::string& content, const canon_path_t& pointerFilePat
     debug("creating cache entry %s -> %s", key, cachePath);
     if (!path_exists(cachePath.parent_path()))
       create_dirs(cachePath.parent_path());
-    write_file(cachePath, sink.s);
+    write_file(cachePath, sink.str());
 
     debug("%s fetched with git-lfs", pointerFilePath);
   } catch (const nlohmann::json::out_of_range& e) {

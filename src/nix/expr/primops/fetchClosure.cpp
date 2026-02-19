@@ -18,8 +18,9 @@ namespace nix {
  * @param v Return `Value`
  */
 static void run_fetch_closure_with_rewrite(EvalState& state, const pos_idx_t pos, Store& from_store,
-                                       const StorePath& from_path,
-                                       const std::optional<StorePath>& to_path_maybe, Value& v) {
+                                           const StorePath& from_path,
+                                           const std::optional<StorePath>& to_path_maybe,
+                                           Value& v) {
   // establish toPath or throw
 
   if (!to_path_maybe || !state.store->isValidPath(*to_path_maybe)) {
@@ -34,9 +35,9 @@ static void run_fetch_closure_with_rewrite(EvalState& state, const pos_idx_t pos
     if (!to_path_maybe)
       throw Error(
           {.msg = hint_fmt_t("rewriting '%s' to content-addressed form yielded '%s'\n"
-                          "Use this value for the 'toPath' attribute passed to 'fetchClosure'",
-                          state.store->printStorePath(from_path),
-                          state.store->printStorePath(rewritten_path)),
+                             "Use this value for the 'toPath' attribute passed to 'fetchClosure'",
+                             state.store->printStorePath(from_path),
+                             state.store->printStorePath(rewritten_path)),
            .pos = state.positions[pos]});
   }
 
@@ -49,12 +50,13 @@ static void run_fetch_closure_with_rewrite(EvalState& state, const pos_idx_t pos
   if (!result_info->isContentAddressed(*state.store)) {
     // We don't perform the rewriting when outPath already exists, as an optimisation.
     // However, we can quickly detect a mistake if the toPath is input addressed.
-    throw Error({.msg = hint_fmt_t("The 'toPath' value '%s' is input-addressed, so it can't possibly "
-                                "be the result of rewriting to a content-addressed path.\n\n"
-                                "Set 'toPath' to an empty string to make Nix report the correct "
-                                "content-addressed path.",
-                                state.store->printStorePath(to_path)),
-                 .pos = state.positions[pos]});
+    throw Error(
+        {.msg = hint_fmt_t("The 'toPath' value '%s' is input-addressed, so it can't possibly "
+                           "be the result of rewriting to a content-addressed path.\n\n"
+                           "Set 'toPath' to an empty string to make Nix report the correct "
+                           "content-addressed path.",
+                           state.store->printStorePath(to_path)),
+         .pos = state.positions[pos]});
   }
 
   state.allowClosure(to_path);
@@ -66,24 +68,25 @@ static void run_fetch_closure_with_rewrite(EvalState& state, const pos_idx_t pos
  * Fetch the closure and make sure it's content addressed.
  */
 static void run_fetch_closure_with_content_addressed_path(EvalState& state, const pos_idx_t pos,
-                                                    Store& from_store, const StorePath& from_path,
-                                                    Value& v) {
+                                                          Store& from_store,
+                                                          const StorePath& from_path, Value& v) {
   if (!state.store->isValidPath(from_path))
     copy_closure(from_store, *state.store, RealisedPath::Set{from_path});
 
   auto info = state.store->queryPathInfo(from_path);
 
   if (!info->isContentAddressed(*state.store)) {
-    throw Error({.msg = hint_fmt_t("The 'fromPath' value '%s' is input-addressed, but "
-                                "'inputAddressed' is set to 'false' (default).\n\n"
-                                "If you do intend to fetch an input-addressed store path, add\n\n"
-                                "    inputAddressed = true;\n\n"
-                                "to the 'fetchClosure' arguments.\n\n"
-                                "Note that to ensure authenticity input-addressed store paths, "
-                                "users must configure a trusted binary cache public key on their "
-                                "systems. This is not needed for content-addressed paths.",
-                                state.store->printStorePath(from_path)),
-                 .pos = state.positions[pos]});
+    throw Error(
+        {.msg = hint_fmt_t("The 'fromPath' value '%s' is input-addressed, but "
+                           "'inputAddressed' is set to 'false' (default).\n\n"
+                           "If you do intend to fetch an input-addressed store path, add\n\n"
+                           "    inputAddressed = true;\n\n"
+                           "to the 'fetchClosure' arguments.\n\n"
+                           "Note that to ensure authenticity input-addressed store paths, "
+                           "users must configure a trusted binary cache public key on their "
+                           "systems. This is not needed for content-addressed paths.",
+                           state.store->printStorePath(from_path)),
+         .pos = state.positions[pos]});
   }
 
   state.allowClosure(from_path);
@@ -95,20 +98,21 @@ static void run_fetch_closure_with_content_addressed_path(EvalState& state, cons
  * Fetch the closure and make sure it's input addressed.
  */
 static void run_fetch_closure_with_input_addressed_path(EvalState& state, const pos_idx_t pos,
-                                                  Store& from_store, const StorePath& from_path,
-                                                  Value& v) {
+                                                        Store& from_store,
+                                                        const StorePath& from_path, Value& v) {
   if (!state.store->isValidPath(from_path))
     copy_closure(from_store, *state.store, RealisedPath::Set{from_path});
 
   auto info = state.store->queryPathInfo(from_path);
 
   if (info->isContentAddressed(*state.store)) {
-    throw Error({.msg = hint_fmt_t("The store object referred to by 'fromPath' at '%s' is not "
-                                "input-addressed, but 'inputAddressed' is set to 'true'.\n\n"
-                                "Remove the 'inputAddressed' attribute (it defaults to 'false') to "
-                                "expect 'fromPath' to be content-addressed",
-                                state.store->printStorePath(from_path)),
-                 .pos = state.positions[pos]});
+    throw Error(
+        {.msg = hint_fmt_t("The store object referred to by 'fromPath' at '%s' is not "
+                           "input-addressed, but 'inputAddressed' is set to 'true'.\n\n"
+                           "Remove the 'inputAddressed' attribute (it defaults to 'false') to "
+                           "expect 'fromPath' to be content-addressed",
+                           state.store->printStorePath(from_path)),
+         .pos = state.positions[pos]});
   }
 
   state.allowClosure(from_path);
@@ -161,8 +165,9 @@ static void prim_fetch_closure(EvalState& state, const pos_idx_t pos, Value** ar
   }
 
   if (!from_path)
-    throw Error({.msg = hint_fmt_t("attribute '%s' is missing in call to 'fetchClosure'", "fromPath"),
-                 .pos = state.positions[pos]});
+    throw Error(
+        {.msg = hint_fmt_t("attribute '%s' is missing in call to 'fetchClosure'", "fromPath"),
+         .pos = state.positions[pos]});
 
   bool input_addressed = inputAddressedMaybe.value_or(false);
 
@@ -176,19 +181,20 @@ static void prim_fetch_closure(EvalState& state, const pos_idx_t pos, Value** ar
   }
 
   if (!fromStoreUrl)
-    throw Error({.msg = hint_fmt_t("attribute '%s' is missing in call to 'fetchClosure'", "fromStore"),
-                 .pos = state.positions[pos]});
+    throw Error(
+        {.msg = hint_fmt_t("attribute '%s' is missing in call to 'fetchClosure'", "fromStore"),
+         .pos = state.positions[pos]});
 
   auto parsed_url = parse_url(*fromStoreUrl, /*lenient=*/true);
 
-  if (parsed_url.scheme != "http" && parsed_url.scheme != "https" &&
-      !(get_env("_NIX_IN_TEST").has_value() && parsed_url.scheme == "file"))
+  if (parsed_url.scheme() != "http" && parsed_url.scheme() != "https" &&
+      !(get_env("_NIX_IN_TEST").has_value() && parsed_url.scheme() == "file"))
     throw Error({.msg = hint_fmt_t("'fetchClosure' only supports http:// and https:// stores"),
                  .pos = state.positions[pos]});
 
-  if (!parsed_url.query.empty())
+  if (!parsed_url.query().empty())
     throw Error({.msg = hint_fmt_t("'fetchClosure' does not support URL query parameters (in '%s')",
-                                *fromStoreUrl),
+                                   *fromStoreUrl),
                  .pos = state.positions[pos]});
 
   auto from_store = open_store(parsed_url.to_string());

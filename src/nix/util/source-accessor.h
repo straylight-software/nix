@@ -135,10 +135,11 @@ struct SourceAccessor : std::enable_shared_from_this<SourceAccessor> {
 
   virtual std::string read_link(const canon_path_t& path) = 0;
 
-  virtual void dump_path(const canon_path_t& path, Sink& sink, path_filter_t& filter = default_path_filter);
+  virtual void dump_path(const canon_path_t& path, Sink& sink,
+                         path_filter_t& filter = default_path_filter);
 
   Hash hash_path(const canon_path_t& path, path_filter_t& filter = default_path_filter,
-                hash_algorithm_t ha = hash_algorithm_t::SHA256);
+                 hash_algorithm_t ha = hash_algorithm_t::SHA256);
 
   /**
    * Return a corresponding path in the root filesystem, if
@@ -165,7 +166,7 @@ struct SourceAccessor : std::enable_shared_from_this<SourceAccessor> {
    * See the discussion in https://github.com/NixOS/nix/pull/9985.
    */
   canon_path_t resolve_symlinks(const canon_path_t& path,
-                            symlink_resolution_t mode = symlink_resolution_t::full);
+                                symlink_resolution_t mode = symlink_resolution_t::full);
 
   /**
    * A string that uniquely represents the contents of this
@@ -189,7 +190,8 @@ struct SourceAccessor : std::enable_shared_from_this<SourceAccessor> {
    * `get_fingerprint("/nix/store/foo/bar")` will return the path
    * `/bar` and the fingerprint of the `/nix/store/foo` accessor.
    */
-  virtual std::pair<canon_path_t, std::optional<std::string>> get_fingerprint(const canon_path_t& path) {
+  virtual std::pair<canon_path_t, std::optional<std::string>>
+  get_fingerprint(const canon_path_t& path) {
     return {path, fingerprint};
   }
 

@@ -507,3 +507,34 @@ cxx_binary(
         "//third_party:nanobench",
     ],
 )
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Store benchmark executable (log-structured vs SQLite)
+# ─────────────────────────────────────────────────────────────────────────────
+
+STORE_BENCH_COMPILER_FLAGS = BENCH_NATIVE_FLAGS + [
+    # zpp_bits for serialization
+    "-isystem/nix/store/bx9q2zgry31v0fq01ylw6w9w4fbk2lza-zpp_bits-4.5/include",
+]
+
+STORE_BENCH_LINKER_FLAGS = [
+    # SQLite (for comparison) - 64-bit version
+    "-L/nix/store/yd47pmkv6iv58gs5v5jgyblvkw87pqx3-sqlite-3.50.2/lib",
+    "-lsqlite3",
+    "-Wl,-rpath,/nix/store/yd47pmkv6iv58gs5v5jgyblvkw87pqx3-sqlite-3.50.2/lib",
+    # io_uring (via libevring)
+    "-L/nix/store/na5bgfmhm6ci0y3v521kcicvkpzbvdyn-liburing-2.11/lib",
+    "-luring",
+    "-Wl,-rpath,/nix/store/na5bgfmhm6ci0y3v521kcicvkpzbvdyn-liburing-2.11/lib",
+]
+
+cxx_binary(
+    name = "store_bench",
+    srcs = ["store_bench.cpp"],
+    compiler_flags = STORE_BENCH_COMPILER_FLAGS,
+    linker_flags = STORE_BENCH_LINKER_FLAGS,
+    deps = [
+        "//src/straylight/nix/primitives:store",
+        "//src/libevring:evring",
+    ],
+)

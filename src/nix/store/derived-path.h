@@ -259,7 +259,7 @@ struct DerivedPath : _DerivedPathRaw {
   static DerivedPath fromSingle(const SingleDerivedPath&);
 };
 
-typedef std::vector<DerivedPath> DerivedPaths;
+using DerivedPaths = std::vector<DerivedPath>;
 
 /**
  * Used by various parser functions to require experimental features as

@@ -1,3 +1,5 @@
+#include <fcntl.h>
+
 #include <nlohmann/json.hpp>
 
 #include "man-pages.h"
@@ -54,9 +56,10 @@ std::string resolve_mirror_url(EvalState& state, const std::string& url) {
 }
 
 std::tuple<StorePath, Hash> prefetch_file(ref<Store> store, const verbatim_url_t& url,
-                                         std::optional<std::string> maybe_name,
-                                         hash_algorithm_t hash_algo, std::optional<Hash> expected_hash,
-                                         bool unpack, bool executable) {
+                                          std::optional<std::string> maybe_name,
+                                          hash_algorithm_t hash_algo,
+                                          std::optional<Hash> expected_hash, bool unpack,
+                                          bool executable) {
   ContentAddressMethod method = unpack || executable ? ContentAddressMethod::raw_t::nix_archive
                                                      : ContentAddressMethod::raw_t::flat;
 
@@ -84,7 +87,7 @@ std::tuple<StorePath, Hash> prefetch_file(ref<Store> store, const verbatim_url_t
   /* If an expected hash is given, the file may already exist in
      the store. */
   if (expected_hash) {
-    hash_algo = expected_hash->algo;
+    hash_algo = expected_hash->algo();
     store_path = store->makeFixedOutputPathFromCA(
         name, ContentAddressWithReferences::fromParts(method, *expected_hash, {}));
     if (store->isValidPath(*store_path))
@@ -133,10 +136,11 @@ std::tuple<StorePath, Hash> prefetch_file(ref<Store> store, const verbatim_url_t
       }
     }
 
-    activity_t act(*logger, lvl_chatty, act_unknown, fmt("adding '%s' to the store", url.to_string()));
+    activity_t act(*logger, lvl_chatty, act_unknown,
+                   fmt("adding '%s' to the store", url.to_string()));
 
-    auto info = store->addToStoreSlow(name, make_fs_source_accessor(tmp_file), method, hash_algo, {},
-                                      expected_hash);
+    auto info = store->addToStoreSlow(name, make_fs_source_accessor(tmp_file), method, hash_algo,
+                                      {}, expected_hash);
     store_path = info.path;
     assert(info.ca);
     hash = info.ca->hash;
@@ -161,31 +165,31 @@ static int main_nix_prefetch_url(int argc, char** argv) {
     };
 
     my_args_t my_args(std::string(base_name_of(argv[0])),
-                  [&](strings_t::iterator& arg, const strings_t::iterator& end) {
-                    if (*arg == "--help")
-                      show_man_page("nix-prefetch-url");
-                    else if (*arg == "--version")
-                      print_version("nix-prefetch-url");
-                    else if (*arg == "--type") {
-                      auto s = get_arg(*arg, arg, end);
-                      ha = parse_hash_algo(s);
-                    } else if (*arg == "--print-path")
-                      print_path = true;
-                    else if (*arg == "--attr" || *arg == "-A") {
-                      from_expr = true;
-                      attr_path = get_arg(*arg, arg, end);
-                    } else if (*arg == "--unpack")
-                      unpack = true;
-                    else if (*arg == "--executable")
-                      executable = true;
-                    else if (*arg == "--name")
-                      name = get_arg(*arg, arg, end);
-                    else if (*arg != "" && arg->at(0) == '-')
-                      return false;
-                    else
-                      args.push_back(*arg);
-                    return true;
-                  });
+                      [&](strings_t::iterator& arg, const strings_t::iterator& end) {
+                        if (*arg == "--help")
+                          show_man_page("nix-prefetch-url");
+                        else if (*arg == "--version")
+                          print_version("nix-prefetch-url");
+                        else if (*arg == "--type") {
+                          auto s = get_arg(*arg, arg, end);
+                          ha = parse_hash_algo(s);
+                        } else if (*arg == "--print-path")
+                          print_path = true;
+                        else if (*arg == "--attr" || *arg == "-A") {
+                          from_expr = true;
+                          attr_path = get_arg(*arg, arg, end);
+                        } else if (*arg == "--unpack")
+                          unpack = true;
+                        else if (*arg == "--executable")
+                          executable = true;
+                        else if (*arg == "--name")
+                          name = get_arg(*arg, arg, end);
+                        else if (*arg != "" && arg->at(0) == '-')
+                          return false;
+                        else
+                          args.push_back(*arg);
+                        return true;
+                      });
 
     my_args.parse_cmdline(argv_to_strings(argc, argv));
 
@@ -195,7 +199,8 @@ static int main_nix_prefetch_url(int argc, char** argv) {
     set_log_format("bar");
 
     auto store = open_store();
-    auto state = std::make_unique<EvalState>(my_args.lookup_path, store, fetch_settings, eval_settings);
+    auto state =
+        std::make_unique<EvalState>(my_args.lookup_path, store, fetch_settings, eval_settings);
 
     Bindings& auto_args = *my_args.getAutoArgs(*state);
 
@@ -208,7 +213,8 @@ static int main_nix_prefetch_url(int argc, char** argv) {
       url = args[0];
     } else {
       Value v_root;
-      state->evalFile(resolve_expr_path(lookup_file_arg(*state, args.empty() ? "." : args[0])), v_root);
+      state->evalFile(resolve_expr_path(lookup_file_arg(*state, args.empty() ? "." : args[0])),
+                      v_root);
       Value& v(*find_along_attr_path(*state, attr_path, auto_args, v_root).first);
       state->forceAttrs(v, no_pos, "while evaluating the source attribute to prefetch");
 
@@ -246,16 +252,17 @@ static int main_nix_prefetch_url(int argc, char** argv) {
       expected_hash = Hash::parse_any(args[1], ha);
 
     auto [store_path, hash] = prefetch_file(store, resolve_mirror_url(*state, url), name, ha,
-                                          expected_hash, unpack, executable);
+                                            expected_hash, unpack, executable);
 
     logger->stop();
 
     if (!print_path)
       printInfo("path is '%s'", store->printStorePath(store_path));
 
-    assert(static_cast<char>(hash.algo));
-    logger->cout(hash.to_string(
-        hash.algo == hash_algorithm_t::MD5 ? hash_format_t::base16 : hash_format_t::nix32, false));
+    assert(static_cast<char>(hash.algo()));
+    logger->cout(hash.to_string(hash.algo() == hash_algorithm_t::MD5 ? hash_format_t::base16
+                                                                     : hash_format_t::nix32,
+                                false));
 
     if (print_path)
       logger->cout(store->printStorePath(store_path));
@@ -324,11 +331,11 @@ struct cmd_store_prefetch_file_t : StoreCommand, MixJSON {
     if (json) {
       auto res = nlohmann::json::object();
       res["storePath"] = store->printStorePath(store_path);
-      res["hash"] = hash.to_string(hash_format_t::SRI, true);
+      res["hash"] = hash.to_string(hash_format_t::sri, true);
       printJSON(res);
     } else {
       notice("Downloaded '%s' to '%s' (hash '%s').", url, store->printStorePath(store_path),
-             hash.to_string(hash_format_t::SRI, true));
+             hash.to_string(hash_format_t::sri, true));
     }
   }
 };

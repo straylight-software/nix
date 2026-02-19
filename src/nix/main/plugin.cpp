@@ -14,8 +14,8 @@ struct plugin_files_setting_t : public base_setting_t<std::list<std::filesystem:
   bool plugins_loaded = false;
 
   plugin_files_setting_t(config_t* options, const std::list<std::filesystem::path>& def,
-                     const std::string& name, const std::string& description,
-                     const string_set_t& aliases = {})
+                         const std::string& name, const std::string& description,
+                         const string_set_t& aliases = {})
       : base_setting_t<std::list<std::filesystem::path>>(def, true, name, description, aliases) {
     options->add_setting(this);
   }
@@ -32,9 +32,9 @@ std::list<std::filesystem::path> plugin_files_setting_t::parse(const std::string
 
 struct plugin_settings_t : config_t {
   plugin_files_setting_t plugin_files{this,
-                                 {},
-                                 "plugin-files",
-                                 R"(
+                                      {},
+                                      "plugin-files",
+                                      R"(
           A list of plugin files to be loaded by Nix. Each of these files is
           dlopened by Nix. If they contain the symbol `nix_plugin_entry()`,
           this symbol is called. Alternatively, they can affect execution
@@ -75,7 +75,7 @@ void init_plugins() {
         plugin_files.emplace_back(ent.path());
       }
     } catch (sys_error_t& e) {
-      if (e.err_no != ENOTDIR)
+      if (e.err_no() != ENOTDIR)
         throw;
       plugin_files.emplace_back(pluginFile);
     }

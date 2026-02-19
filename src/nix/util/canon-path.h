@@ -1,12 +1,19 @@
-#pragma once
+#ifndef NIX_UTIL_CANON_PATH_H
+#define NIX_UTIL_CANON_PATH_H
 ///@file
 
 #include <cassert>
+#include <cstddef>
+#include <functional>
 #include <iostream>
+#include <iterator>
 #include <optional>
 #include <ranges>
 #include <set>
 #include <string>
+#include <string_view>
+#include <type_traits>
+#include <utility>
 #include <vector>
 
 #include <boost/container_hash/hash.hpp>
@@ -15,7 +22,7 @@
 
 namespace nix {
 
-make_error(BadCanonPath, Error);
+make_error(BadCanonPath, Error); // NOLINT(readability-identifier-naming)
 
 /**
  * A canonical representation of a path. It ensures the following:
@@ -47,7 +54,7 @@ make_error(BadCanonPath, Error);
  * path, and the path may or may not have unresolved symlinks.
  */
 class canon_path_t {
-  std::string path;
+  std::string path_;
 
 public:
   /**
@@ -60,7 +67,7 @@ public:
 
   struct unchecked_t {};
 
-  canon_path_t(unchecked_t _, std::string path) : path(std::move(path)) {}
+  canon_path_t(unchecked_t /*unused*/, std::string path_arg) : path_(std::move(path_arg)) {}
 
   /**
    * Construct a canon path from a vector of elements.
@@ -76,44 +83,49 @@ public:
    */
   canon_path_t(std::string_view raw, const canon_path_t& root);
 
-  bool is_root() const { return path.size() <= 1; }
+  [[nodiscard]] auto is_root() const -> bool { return path_.size() <= 1; }
 
-  explicit operator std::string_view() const { return path; }
+  [[nodiscard]] explicit operator std::string_view() const { return path_; }
 
-  const std::string& abs() const { return path; }
+  [[nodiscard]] auto abs() const -> const std::string& { return path_; }
 
   /**
    * Like abs(), but return an empty string if this path is
    * '/'. Thus the returned string never ends in a slash.
    */
-  const std::string& abs_or_empty() const {
+  [[nodiscard]] auto abs_or_empty() const -> const std::string& {
     const static std::string epsilon;
-    return is_root() ? epsilon : path;
+    return is_root() ? epsilon : path_;
   }
 
-  const char* c_str() const { return path.c_str(); }
+  [[nodiscard]] auto c_str() const -> const char* { return path_.c_str(); }
 
-  std::string_view rel() const { return ((std::string_view)path).substr(1); }
+  [[nodiscard]] auto rel() const -> std::string_view { return std::string_view(path_).substr(1); }
 
-  const char* rel_c_str() const {
-    auto cs = path.c_str();
-    assert(cs[0]); // for safety if invariant is broken
-    return &cs[1];
+  [[nodiscard]] auto rel_c_str() const -> const char* {
+    const auto* cstr = path_.c_str();
+    assert(cstr[0]); // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic) for safety if
+                     // invariant is broken
+    return &cstr[1]; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   }
 
-  class Iterator {
+  class iterator_t {
     /**
      * Helper class with overloaded operator-> for "drill-down" behavior.
      * This was a "temporary" string_view doesn't have to be stored anywhere.
      */
     class pointer_proxy_t {
-      std::string_view segment;
+      std::string_view segment_;
 
     public:
-      pointer_proxy_t(std::string_view segment_) : segment(segment_) {}
+      pointer_proxy_t(std::string_view segment_arg)
+          : segment_(segment_arg) {} // NOLINT(google-explicit-constructor)
 
-      const std::string_view* operator->() const { return &segment; }
+      [[nodiscard]] auto operator->() const -> const std::string_view* { return &segment_; }
     };
+
+    std::string_view remaining_;
+    size_t slash_;
 
   public:
     using value_type = std::string_view;
@@ -122,68 +134,77 @@ public:
     using difference_type = std::ptrdiff_t;
     using iterator_category = std::forward_iterator_tag;
 
-    std::string_view remaining;
-    size_t slash;
-
     /**
      * Dummy default constructor required for forward iterators. Doesn't return
      * a usable iterator.
      */
-    Iterator() : remaining(), slash(0) {}
+    iterator_t() : slash_(0) {}
 
-    Iterator(std::string_view remaining) : remaining(remaining), slash(remaining.find('/')) {}
+    iterator_t(std::string_view remaining)
+        : remaining_(remaining),
+          slash_(remaining.find('/')) {} // NOLINT(google-explicit-constructor)
 
-    bool operator==(const Iterator& x) const { return remaining.data() == x.remaining.data(); }
+    [[nodiscard]] auto remaining() const -> std::string_view { return remaining_; }
 
-    reference_type operator*() const { return remaining.substr(0, slash); }
+    [[nodiscard]] auto operator==(const iterator_t& other) const -> bool {
+      return remaining_.data() == other.remaining_.data();
+    }
 
-    pointer_type operator->() const { return pointer_proxy_t(**this); }
+    [[nodiscard]] auto operator*() const -> reference_type { return remaining_.substr(0, slash_); }
 
-    Iterator& operator++() {
-      if (slash == remaining.npos)
-        remaining = remaining.substr(remaining.size());
-      else {
-        remaining = remaining.substr(slash + 1);
-        slash = remaining.find('/');
+    [[nodiscard]] auto operator->() const -> pointer_type { return {**this}; }
+
+    auto operator++() -> iterator_t& {
+      if (slash_ == std::string_view::npos) {
+        remaining_ = remaining_.substr(remaining_.size());
+      } else {
+        remaining_ = remaining_.substr(slash_ + 1);
+        slash_ = remaining_.find('/');
       }
       return *this;
     }
 
-    Iterator operator++(int) {
+    [[nodiscard]] auto operator++(int) -> iterator_t {
       auto tmp = *this;
       ++*this;
       return tmp;
     }
   };
 
-  static_assert(std::forward_iterator<Iterator>);
+  static_assert(std::forward_iterator<iterator_t>);
 
-  Iterator begin() const { return Iterator(rel()); }
+  [[nodiscard]] auto begin() const -> iterator_t { return {rel()}; }
 
-  Iterator end() const { return Iterator(rel().substr(path.size() - 1)); }
+  [[nodiscard]] auto end() const -> iterator_t { return {rel().substr(path_.size() - 1)}; }
 
-  std::optional<canon_path_t> parent() const;
+  [[nodiscard]] auto parent() const -> std::optional<canon_path_t>;
 
   /**
    * Remove the last component. Panics if this path is the root.
    */
   void pop();
 
-  std::optional<std::string_view> dir_of() const {
-    if (is_root())
+  [[nodiscard]] auto dir_of() const -> std::optional<std::string_view> {
+    if (is_root()) {
       return std::nullopt;
-    return ((std::string_view)path).substr(0, path.rfind('/'));
+    }
+    return std::string_view(path_).substr(0, path_.rfind('/'));
   }
 
-  std::optional<std::string_view> base_name() const {
-    if (is_root())
+  [[nodiscard]] auto base_name() const -> std::optional<std::string_view> {
+    if (is_root()) {
       return std::nullopt;
-    return ((std::string_view)path).substr(path.rfind('/') + 1);
+    }
+    return std::string_view(path_).substr(path_.rfind('/') + 1);
   }
 
-  bool operator==(const canon_path_t& x) const { return path == x.path; }
+  [[nodiscard]] auto operator==(const canon_path_t& other) const -> bool {
+    return path_ == other.path_;
+  }
 
-  bool operator!=(const canon_path_t& x) const { return path != x.path; }
+  [[nodiscard]] auto operator!=(const canon_path_t& other) const -> bool {
+    return path_ != other.path_;
+  }
 
   /**
    * Compare paths lexicographically except that path separators
@@ -191,46 +212,49 @@ public:
    * a directory is always followed directly by its children. For
    * instance, 'foo' < 'foo/bar' < 'foo!'.
    */
-  auto operator<=>(const canon_path_t& x) const {
-    auto i = path.begin();
-    auto j = x.path.begin();
-    for (; i != path.end() && j != x.path.end(); ++i, ++j) {
-      auto c_i = *i;
-      if (c_i == '/')
+  [[nodiscard]] auto operator<=>(const canon_path_t& other) const {
+    auto iter = path_.begin();
+    auto jter = other.path_.begin();
+    for (; iter != path_.end() && jter != other.path_.end(); ++iter, ++jter) {
+      auto c_i = *iter;
+      if (c_i == '/') {
         c_i = 0;
-      auto c_j = *j;
-      if (c_j == '/')
+      }
+      auto c_j = *jter;
+      if (c_j == '/') {
         c_j = 0;
-      if (auto cmp = c_i <=> c_j; cmp != 0)
+      }
+      if (auto cmp = c_i <=> c_j; cmp != 0) {
         return cmp;
+      }
     }
-    return (i != path.end()) <=> (j != x.path.end());
+    return static_cast<int>(iter != path_.end()) <=> static_cast<int>(jter != other.path_.end());
   }
 
   /**
    * Return true if `this` is equal to `parent` or a child of
    * `parent`.
    */
-  bool is_within(const canon_path_t& parent) const;
+  [[nodiscard]] auto is_within(const canon_path_t& parent) const -> bool;
 
-  canon_path_t remove_prefix(const canon_path_t& prefix) const;
+  [[nodiscard]] auto remove_prefix(const canon_path_t& prefix) const -> canon_path_t;
 
   /**
    * Append another path to this one.
    */
-  void extend(const canon_path_t& x);
+  void extend(const canon_path_t& ext);
 
   /**
    * Concatenate two paths.
    */
-  canon_path_t operator/(const canon_path_t& x) const;
+  [[nodiscard]] auto operator/(const canon_path_t& ext) const -> canon_path_t;
 
   /**
    * Add a path component to this one. It must not contain any slashes.
    */
-  void push(std::string_view c);
+  void push(std::string_view component);
 
-  canon_path_t operator/(std::string_view c) const;
+  [[nodiscard]] auto operator/(std::string_view component) const -> canon_path_t;
 
   /**
    * Check whether access to this path is allowed, which is the case
@@ -238,24 +262,24 @@ public:
    * the `allowed` paths are within `this`. (The latter condition
    * ensures access to the parents of allowed paths.)
    */
-  bool is_allowed(const std::set<canon_path_t>& allowed) const;
+  [[nodiscard]] auto is_allowed(const std::set<canon_path_t>& allowed) const -> bool;
 
   /**
    * Return a representation `x` of `path` relative to `this`, i.e.
    * `canon_path_t(this.make_relative(x), this) == path`.
    */
-  std::string make_relative(const canon_path_t& path) const;
+  [[nodiscard]] auto make_relative(const canon_path_t& path) const -> std::string;
 
-  friend std::size_t hash_value(const canon_path_t&);
+  friend auto hash_value(const canon_path_t& /*canon_path*/) -> std::size_t;
 };
 
 static_assert(std::ranges::forward_range<canon_path_t>);
 
-std::ostream& operator<<(std::ostream& stream, const canon_path_t& path);
+auto operator<<(std::ostream& stream, const canon_path_t& path) -> std::ostream&;
 
-inline std::size_t hash_value(const canon_path_t& path) {
-  boost::hash<std::string_view> hasher;
-  return hasher(path.path);
+[[nodiscard]] inline auto hash_value(const canon_path_t& canon_path) -> std::size_t {
+  const boost::hash<std::string_view> hasher;
+  return hasher(canon_path.path_);
 }
 
 } // namespace nix
@@ -264,7 +288,9 @@ template <>
 struct std::hash<nix::canon_path_t> {
   using is_avalanching = std::true_type;
 
-  std::size_t operator()(const nix::canon_path_t& path) const noexcept {
-    return nix::hash_value(path);
+  [[nodiscard]] auto operator()(const nix::canon_path_t& canon_path) const noexcept -> std::size_t {
+    return nix::hash_value(canon_path);
   }
 };
+
+#endif // NIX_UTIL_CANON_PATH_H

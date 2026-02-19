@@ -99,12 +99,12 @@ static std::string make_type(const StoreDirConfig& store, std::string&& type,
 StorePath StoreDirConfig::makeFixedOutputPath(std::string_view name,
                                               const FixedOutputInfo& info) const {
   if (info.method == file_ingestion_method_t::git &&
-      !(info.hash.algo == hash_algorithm_t::SHA1 || info.hash.algo == hash_algorithm_t::SHA256)) {
+      !(info.hash.algo() == hash_algorithm_t::SHA1 || info.hash.algo() == hash_algorithm_t::SHA256)) {
     throw Error("Git file ingestion must use SHA-1 or SHA-256 hash, but instead using: %s",
-                print_hash_algo(info.hash.algo));
+                print_hash_algo(info.hash.algo()));
   }
 
-  if (info.hash.algo == hash_algorithm_t::SHA256 && info.method == file_ingestion_method_t::nix_archive) {
+  if (info.hash.algo() == hash_algorithm_t::SHA256 && info.method == file_ingestion_method_t::nix_archive) {
     return makeStorePath(make_type(*this, "source", info.references), info.hash, name);
   } else {
     if (!info.references.empty()) {
@@ -126,7 +126,7 @@ StorePath StoreDirConfig::makeFixedOutputPathFromCA(std::string_view name,
   // New template
   return std::visit(
       overloaded{[&](const TextInfo& ti) {
-                   assert(ti.hash.algo == hash_algorithm_t::SHA256);
+                   assert(ti.hash.algo() == hash_algorithm_t::SHA256);
                    return makeStorePath(make_type(*this, "text",
                                                  StoreReferences{
                                                      .others = ti.references,

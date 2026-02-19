@@ -28,7 +28,7 @@ std::string drain_fd(descriptor_t fd, bool block, const size_t reserve_size) {
 #else
   drain_fd(fd, sink, block);
 #endif
-  return std::move(sink.s);
+  return std::move(sink.str());
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -73,7 +73,7 @@ void auto_close_fd_t::close() {
         == -1) {
       /* This should never happen. */
       throw native_sys_error_t("closing file descriptor %1%", fd);
-}
+    }
     fd = INVALID_DESCRIPTOR;
   }
 }
@@ -92,7 +92,7 @@ void auto_close_fd_t::fsync() const {
         ;
     if (result == -1) {
       throw native_sys_error_t("fsync file descriptor %1%", fd);
-}
+    }
   }
 }
 

@@ -18,205 +18,243 @@ namespace nix {
  * Abstract destination of binary data.
  */
 struct Sink {
-  virtual ~Sink() {}
+  virtual ~Sink() = default;
 
-  virtual void operator()(std::string_view data) = 0;
+  virtual auto operator()(std::string_view data) -> void = 0;
 
-  virtual bool good() { return true; }
+  [[nodiscard]] virtual auto good() -> bool { return true; }
 };
 
 /**
  * Just throws away data.
  */
 struct null_sink_t : Sink {
-  void operator()(std::string_view data) override {}
+  auto operator()([[maybe_unused]] std::string_view data) -> void override {}
 };
 
 struct finish_sink_t : virtual Sink {
-  virtual void finish() = 0;
+  virtual auto finish() -> void = 0;
 };
 
 /**
  * A buffered abstract sink. Warning: a buffered_sink_t should not be
  * used from multiple threads concurrently.
  */
-struct buffered_sink_t : virtual Sink {
-  size_t buf_size, buf_pos;
-  std::unique_ptr<char[]> buffer;
+class buffered_sink_t : public virtual Sink {
+public:
+  buffered_sink_t(size_t buf_size = 32 * 1024)
+      : buf_size_(buf_size), buf_pos_(0), buffer_(nullptr) {}
 
-  buffered_sink_t(size_t buf_size = 32 * 1024) : buf_size(buf_size), buf_pos(0), buffer(nullptr) {}
+  auto operator()(std::string_view data) -> void override;
 
-  void operator()(std::string_view data) override;
+  auto flush() -> void;
 
-  void flush();
+  [[nodiscard]] auto buf_size() const -> size_t { return buf_size_; }
+  [[nodiscard]] auto buf_pos() const -> size_t { return buf_pos_; }
 
 protected:
-  virtual void write_unbuffered(std::string_view data) = 0;
+  virtual auto write_unbuffered(std::string_view data) -> void = 0;
+
+  size_t buf_size_;
+  size_t buf_pos_;
+  std::unique_ptr<char[]> buffer_;
 };
 
 /**
  * Abstract source of binary data.
  */
 struct Source {
-  virtual ~Source() {}
+  virtual ~Source() = default;
 
   /**
-   * Store exactly ‘len’ bytes in the buffer pointed to by ‘data’.
+   * Store exactly 'len' bytes in the buffer pointed to by 'data'.
    * It blocks until all the requested data is available, or throws
    * an error if it is not going to be available.
    */
-  void operator()(char* data, size_t len);
-  void operator()(std::string_view data);
+  auto operator()(char* data, size_t len) -> void;
+  auto operator()(std::string_view data) -> void;
 
   /**
-   * Store up to ‘len’ in the buffer pointed to by ‘data’, and
+   * Store up to 'len' in the buffer pointed to by 'data', and
    * return the number of bytes stored.  It blocks until at least
    * one byte is available.
    */
-  virtual size_t read(char* data, size_t len) = 0;
+  virtual auto read(char* data, size_t len) -> size_t = 0;
 
-  virtual bool good() { return true; }
+  [[nodiscard]] virtual auto good() -> bool { return true; }
 
-  void drain_into(Sink& sink);
+  auto drain_into(Sink& sink) -> void;
 
-  std::string drain();
+  [[nodiscard]] auto drain() -> std::string;
 
-  virtual void skip(size_t len);
+  virtual auto skip(size_t len) -> void;
 };
 
 /**
  * A buffered abstract source. Warning: a buffered_source_t should not be
  * used from multiple threads concurrently.
  */
-struct buffered_source_t : virtual Source {
-  size_t buf_size, buf_pos_in, buf_pos_out;
-  std::unique_ptr<char[]> buffer;
-
+class buffered_source_t : public virtual Source {
+public:
   buffered_source_t(size_t buf_size = 32 * 1024)
-      : buf_size(buf_size), buf_pos_in(0), buf_pos_out(0), buffer(nullptr) {}
+      : buf_size_(buf_size), buf_pos_in_(0), buf_pos_out_(0), buffer_(nullptr) {}
 
-  size_t read(char* data, size_t len) override;
+  auto read(char* data, size_t len) -> size_t override;
 
   /**
    * Return true if the buffer is not empty.
    */
-  bool has_data();
+  [[nodiscard]] auto has_data() -> bool;
+
+  [[nodiscard]] auto buf_size() const -> size_t { return buf_size_; }
+  [[nodiscard]] auto buf_pos_in() const -> size_t { return buf_pos_in_; }
+  [[nodiscard]] auto buf_pos_out() const -> size_t { return buf_pos_out_; }
 
 protected:
   /**
    * Underlying read call, to be overridden.
    */
-  virtual size_t read_unbuffered(char* data, size_t len) = 0;
+  virtual auto read_unbuffered(char* data, size_t len) -> size_t = 0;
+
+  size_t buf_size_;
+  size_t buf_pos_in_;
+  size_t buf_pos_out_;
+  std::unique_ptr<char[]> buffer_;
 };
 
 /**
  * Source type that can be restarted.
  */
 struct restartable_source_t : virtual Source {
-  virtual void restart() = 0;
+  virtual auto restart() -> void = 0;
 };
 
 /**
  * A sink that writes data to a file descriptor.
  */
-struct fd_sink_t : buffered_sink_t {
-  descriptor_t fd;
-  size_t written = 0;
+class fd_sink_t : public buffered_sink_t {
+public:
+  fd_sink_t() : fd_(INVALID_DESCRIPTOR) {}
 
-  fd_sink_t() : fd(INVALID_DESCRIPTOR) {}
-
-  fd_sink_t(descriptor_t fd) : fd(fd) {}
+  explicit fd_sink_t(descriptor_t fd) : fd_(fd) {}
 
   fd_sink_t(fd_sink_t&&) = default;
 
-  fd_sink_t& operator=(fd_sink_t&& s) {
+  auto operator=(fd_sink_t&& s) -> fd_sink_t& {
     flush();
-    fd = s.fd;
-    s.fd = INVALID_DESCRIPTOR;
-    written = s.written;
+    fd_ = s.fd_;
+    s.fd_ = INVALID_DESCRIPTOR;
+    written_ = s.written_;
     return *this;
   }
 
-  ~fd_sink_t();
+  ~fd_sink_t() override;
 
-  void write_unbuffered(std::string_view data) override;
+  auto write_unbuffered(std::string_view data) -> void override;
 
-  bool good() override;
+  [[nodiscard]] auto good() -> bool override;
+
+  [[nodiscard]] auto fd() const -> descriptor_t { return fd_; }
+  auto set_fd(descriptor_t fd) -> void { fd_ = fd; }
+  [[nodiscard]] auto written() const -> size_t { return written_; }
 
 private:
-  bool _good = true;
+  descriptor_t fd_;
+  size_t written_ = 0;
+  bool good_ = true;
 };
 
 /**
  * A source that reads data from a file descriptor.
  */
-struct fd_source_t : buffered_source_t, restartable_source_t {
-  descriptor_t fd;
-  size_t read = 0;
-  backed_string_view_t end_of_file_error{"unexpected end-of-file"};
-  bool is_seekable = true;
+class fd_source_t : public buffered_source_t, public restartable_source_t {
+public:
+  fd_source_t() : fd_(INVALID_DESCRIPTOR) {}
 
-  fd_source_t() : fd(INVALID_DESCRIPTOR) {}
-
-  fd_source_t(descriptor_t fd) : fd(fd) {}
+  explicit fd_source_t(descriptor_t fd) : fd_(fd) {}
 
   fd_source_t(fd_source_t&&) = default;
 
-  fd_source_t& operator=(fd_source_t&& s) = default;
+  auto operator=(fd_source_t&& s) -> fd_source_t& = default;
 
-  bool good() override;
-  void restart() override;
+  [[nodiscard]] auto good() -> bool override;
+  auto restart() -> void override;
 
   /**
    * Return true if the buffer is not empty after a non-blocking
    * read.
    */
-  bool has_data();
+  [[nodiscard]] auto has_data() -> bool;
 
-  void skip(size_t len) override;
+  auto skip(size_t len) -> void override;
+
+  [[nodiscard]] auto fd() const -> descriptor_t { return fd_; }
+  auto set_fd(descriptor_t fd) -> void { fd_ = fd; }
+  [[nodiscard]] auto bytes_read() const -> size_t { return read_; }
+  [[nodiscard]] auto end_of_file_error() const -> std::string_view { return *end_of_file_error_; }
+  auto set_end_of_file_error(backed_string_view_t error) -> void {
+    end_of_file_error_ = std::move(error);
+  }
+  [[nodiscard]] auto is_seekable() const -> bool { return is_seekable_; }
+  auto set_is_seekable(bool seekable) -> void { is_seekable_ = seekable; }
 
 protected:
-  size_t read_unbuffered(char* data, size_t len) override;
+  auto read_unbuffered(char* data, size_t len) -> size_t override;
 
 private:
-  bool _good = true;
+  descriptor_t fd_;
+  size_t read_ = 0;
+  backed_string_view_t end_of_file_error_{"unexpected end-of-file"};
+  bool is_seekable_ = true;
+  bool good_ = true;
 };
 
 /**
  * A sink that writes data to a string.
  */
-struct string_sink_t : Sink {
-  std::string s;
+class string_sink_t : public Sink {
+public:
+  string_sink_t() = default;
 
-  string_sink_t() {}
+  explicit string_sink_t(const size_t reserved_size) { s_.reserve(reserved_size); }
 
-  explicit string_sink_t(const size_t reservedSize) { s.reserve(reservedSize); };
+  explicit string_sink_t(std::string&& s) : s_(std::move(s)) {}
 
-  string_sink_t(std::string&& s) : s(std::move(s)) {};
-  void operator()(std::string_view data) override;
+  auto operator()(std::string_view data) -> void override;
+
+  [[nodiscard]] auto str() const -> const std::string& { return s_; }
+  [[nodiscard]] auto str() -> std::string& { return s_; }
+
+private:
+  std::string s_;
 };
 
 /**
  * A source that reads data from a string.
  */
-struct string_source_t : restartable_source_t {
-  std::string_view s;
-  size_t pos;
-
+class string_source_t : public restartable_source_t {
+public:
   // NOTE: Prevent unintentional dangling views when an implicit conversion
   // from std::string -> std::string_view occurs when the string is passed
   // by rvalue.
   string_source_t(std::string&&) = delete;
 
-  string_source_t(std::string_view s) : s(s), pos(0) {}
+  explicit string_source_t(std::string_view s) : s_(s), pos_(0) {}
 
-  string_source_t(const std::string& str) : string_source_t(std::string_view(str)) {}
+  explicit string_source_t(const std::string& str) : string_source_t(std::string_view(str)) {}
 
-  size_t read(char* data, size_t len) override;
+  auto read(char* data, size_t len) -> size_t override;
 
-  void skip(size_t len) override;
+  auto skip(size_t len) -> void override;
 
-  void restart() override { pos = 0; }
+  auto restart() -> void override { pos_ = 0; }
+
+  [[nodiscard]] auto view() const -> std::string_view { return s_; }
+  [[nodiscard]] auto pos() const -> size_t { return pos_; }
+
+private:
+  std::string_view s_;
+  size_t pos_;
 };
 
 /**
@@ -227,12 +265,7 @@ struct string_source_t : restartable_source_t {
  * case, the `size()` method would go away because we would not in fact know the compressed size in
  * advance.
  */
-struct compressed_source_t : restartable_source_t {
-private:
-  std::string compressedData;
-  std::string compression_method;
-  string_source_t stringSource;
-
+class compressed_source_t : public restartable_source_t {
 public:
   /**
    * Compress a restartable_source_t using the specified compression method.
@@ -242,163 +275,195 @@ public:
    */
   compressed_source_t(restartable_source_t& source, const std::string& compression_method);
 
-  size_t read(char* data, size_t len) override { return stringSource.read(data, len); }
+  auto read(char* data, size_t len) -> size_t override { return string_source_.read(data, len); }
 
-  void restart() override { stringSource.restart(); }
+  auto restart() -> void override { string_source_.restart(); }
 
-  uint64_t size() const { return compressedData.size(); }
+  [[nodiscard]] auto size() const -> uint64_t { return compressed_data_.size(); }
 
-  std::string_view get_compression_method() const { return compression_method; }
+  [[nodiscard]] auto get_compression_method() const -> std::string_view {
+    return compression_method_;
+  }
+
+private:
+  std::string compressed_data_;
+  std::string compression_method_;
+  string_source_t string_source_;
 };
 
 /**
  * A sink that writes all incoming data to two other sinks.
  */
-struct tee_sink_t : Sink {
-  Sink &sink1, &sink2;
+class tee_sink_t : public Sink {
+public:
+  tee_sink_t(Sink& sink1, Sink& sink2) : sink1_(sink1), sink2_(sink2) {}
 
-  tee_sink_t(Sink& sink1, Sink& sink2) : sink1(sink1), sink2(sink2) {}
-
-  virtual void operator()(std::string_view data) override {
-    sink1(data);
-    sink2(data);
+  auto operator()(std::string_view data) -> void override {
+    sink1_(data);
+    sink2_(data);
   }
+
+private:
+  Sink& sink1_;
+  Sink& sink2_;
 };
 
 /**
  * Adapter class of a Source that saves all data read to a sink.
  */
-struct tee_source_t : Source {
-  Source& orig;
-  Sink& sink;
+class tee_source_t : public Source {
+public:
+  tee_source_t(Source& orig, Sink& sink) : orig_(orig), sink_(sink) {}
 
-  tee_source_t(Source& orig, Sink& sink) : orig(orig), sink(sink) {}
-
-  size_t read(char* data, size_t len) override {
-    size_t n = orig.read(data, len);
-    sink({data, n});
+  auto read(char* data, size_t len) -> size_t override {
+    size_t n = orig_.read(data, len);
+    sink_({data, n});
     return n;
   }
+
+private:
+  Source& orig_;
+  Sink& sink_;
 };
 
 /**
  * A reader that consumes the original Source until 'size'.
  */
-struct sized_source_t : Source {
-  Source& orig;
-  size_t remain;
+class sized_source_t : public Source {
+public:
+  sized_source_t(Source& orig, size_t size) : orig_(orig), remain_(size) {}
 
-  sized_source_t(Source& orig, size_t size) : orig(orig), remain(size) {}
-
-  size_t read(char* data, size_t len) override {
-    if (this->remain <= 0) {
+  auto read(char* data, size_t len) -> size_t override {
+    if (remain_ <= 0) {
       throw EndOfFile("sized: unexpected end-of-file");
     }
-    len = std::min(len, this->remain);
-    size_t n = this->orig.read(data, len);
-    this->remain -= n;
+    len = std::min(len, remain_);
+    size_t n = orig_.read(data, len);
+    remain_ -= n;
     return n;
   }
 
   /**
    * Consume the original source until no remain data is left to consume.
    */
-  size_t drain_all() {
+  [[nodiscard]] auto drain_all() -> size_t {
     std::vector<char> buf(8192);
     size_t sum = 0;
-    while (this->remain > 0) {
+    while (remain_ > 0) {
       size_t n = read(buf.data(), buf.size());
       sum += n;
     }
     return sum;
   }
+
+  [[nodiscard]] auto remain() const -> size_t { return remain_; }
+
+private:
+  Source& orig_;
+  size_t remain_;
 };
 
 /**
  * A sink that that just counts the number of bytes given to it
  */
-struct length_sink_t : Sink {
-  uint64_t length = 0;
+class length_sink_t : public Sink {
+public:
+  auto operator()(std::string_view data) -> void override { length_ += data.size(); }
 
-  void operator()(std::string_view data) override { length += data.size(); }
+  [[nodiscard]] auto length() const -> uint64_t { return length_; }
+
+private:
+  uint64_t length_ = 0;
 };
 
 /**
  * A wrapper source that counts the number of bytes read from it.
  */
-struct length_source_t : Source {
-  Source& next;
+class length_source_t : public Source {
+public:
+  explicit length_source_t(Source& next) : next_(next) {}
 
-  length_source_t(Source& next) : next(next) {}
-
-  uint64_t total = 0;
-
-  size_t read(char* data, size_t len) override {
-    auto n = next.read(data, len);
-    total += n;
+  auto read(char* data, size_t len) -> size_t override {
+    auto n = next_.read(data, len);
+    total_ += n;
     return n;
   }
+
+  [[nodiscard]] auto total() const -> uint64_t { return total_; }
+
+private:
+  Source& next_;
+  uint64_t total_ = 0;
 };
 
 /**
  * Convert a function into a sink.
  */
-struct lambda_sink_t : Sink {
-  typedef std::function<void(std::string_view data)> data_t;
-  typedef std::function<void()> cleanup_t;
-
-  data_t data_fun;
-  cleanup_t cleanup_fun;
+class lambda_sink_t : public Sink {
+public:
+  using data_t = std::function<void(std::string_view data)>;
+  using cleanup_t = std::function<void()>;
 
   lambda_sink_t(
       const data_t& data_fun, const cleanup_t& cleanup_fun = []() {})
-      : data_fun(data_fun), cleanup_fun(cleanup_fun) {}
+      : data_fun_(data_fun), cleanup_fun_(cleanup_fun) {}
 
-  ~lambda_sink_t() { cleanup_fun(); }
+  ~lambda_sink_t() override { cleanup_fun_(); }
 
-  void operator()(std::string_view data) override { data_fun(data); }
+  auto operator()(std::string_view data) -> void override { data_fun_(data); }
+
+private:
+  data_t data_fun_;
+  cleanup_t cleanup_fun_;
 };
 
 /**
  * Convert a function into a source.
  */
-struct lambda_source_t : Source {
-  typedef std::function<size_t(char*, size_t)> lambda_t;
+class lambda_source_t : public Source {
+public:
+  using lambda_t = std::function<size_t(char*, size_t)>;
 
-  lambda_t lambda;
+  explicit lambda_source_t(const lambda_t& lambda) : lambda_(lambda) {}
 
-  lambda_source_t(const lambda_t& lambda) : lambda(lambda) {}
+  auto read(char* data, size_t len) -> size_t override { return lambda_(data, len); }
 
-  size_t read(char* data, size_t len) override { return lambda(data, len); }
+private:
+  lambda_t lambda_;
 };
 
 /**
  * Chain two sources together so after the first is exhausted, the second is
  * used
  */
-struct chain_source_t : Source {
-  Source &source1, &source2;
-  bool use_second = false;
+class chain_source_t : public Source {
+public:
+  chain_source_t(Source& s1, Source& s2) : source1_(s1), source2_(s2) {}
 
-  chain_source_t(Source& s1, Source& s2) : source1(s1), source2(s2) {}
+  auto read(char* data, size_t len) -> size_t override;
 
-  size_t read(char* data, size_t len) override;
+private:
+  Source& source1_;
+  Source& source2_;
+  bool use_second_ = false;
 };
 
-std::unique_ptr<finish_sink_t> source_to_sink(std::function<void(Source&)> fun);
+[[nodiscard]] auto source_to_sink(std::function<void(Source&)> fun)
+    -> std::unique_ptr<finish_sink_t>;
 
 /**
  * Convert a function that feeds data into a Sink into a Source. The
  * Source executes the function as a coroutine.
  */
-std::unique_ptr<Source> sink_to_source(
-    std::function<void(Sink&)> fun,
-    std::function<void()> eof = []() { throw EndOfFile("coroutine has finished"); });
+[[nodiscard]] auto sink_to_source(
+    std::function<void(Sink&)> fun, std::function<void()> eof = []() {
+      throw EndOfFile("coroutine has finished");
+    }) -> std::unique_ptr<Source>;
 
-void write_padding(size_t len, Sink& sink);
-void write_string(std::string_view s, Sink& sink);
+auto write_padding(size_t len, Sink& sink) -> void;
+auto write_string(std::string_view s, Sink& sink) -> void;
 
-inline Sink& operator<<(Sink& sink, uint64_t n) {
+inline auto operator<<(Sink& sink, uint64_t n) -> Sink& {
   unsigned char buf[8];
   buf[0] = n & 0xff;
   buf[1] = (n >> 8) & 0xff;
@@ -412,15 +477,15 @@ inline Sink& operator<<(Sink& sink, uint64_t n) {
   return sink;
 }
 
-Sink& operator<<(Sink& in, const Error& ex);
-Sink& operator<<(Sink& sink, std::string_view s);
-Sink& operator<<(Sink& sink, const strings_t& s);
-Sink& operator<<(Sink& sink, const string_set_t& s);
+auto operator<<(Sink& in, const Error& ex) -> Sink&;
+auto operator<<(Sink& sink, std::string_view s) -> Sink&;
+auto operator<<(Sink& sink, const strings_t& s) -> Sink&;
+auto operator<<(Sink& sink, const string_set_t& s) -> Sink&;
 
 make_error(SerialisationError, Error);
 
 template <typename T>
-T read_num(Source& source) {
+[[nodiscard]] auto read_num(Source& source) -> T {
   unsigned char buf[8];
   source((char*)buf, sizeof(buf));
 
@@ -433,54 +498,59 @@ T read_num(Source& source) {
   return (T)n;
 }
 
-inline unsigned int read_int(Source& source) {
+[[nodiscard]] inline auto read_int(Source& source) -> unsigned int {
   return read_num<unsigned int>(source);
 }
 
-inline uint64_t read_long_long(Source& source) {
+[[nodiscard]] inline auto read_long_long(Source& source) -> uint64_t {
   return read_num<uint64_t>(source);
 }
 
-void read_padding(size_t len, Source& source);
-size_t read_string(char* buf, size_t max, Source& source);
-std::string read_string(Source& source, size_t max = std::numeric_limits<size_t>::max());
-template <class T>
-T read_strings(Source& source);
+auto read_padding(size_t len, Source& source) -> void;
+[[nodiscard]] auto read_string(char* buf, size_t max, Source& source) -> size_t;
+[[nodiscard]] auto read_string(Source& source, size_t max = std::numeric_limits<size_t>::max())
+    -> std::string;
 
-Source& operator>>(Source& in, std::string& s);
+template <class T>
+[[nodiscard]] auto read_strings(Source& source) -> T;
+
+auto operator>>(Source& in, std::string& s) -> Source&;
 
 template <typename T>
-Source& operator>>(Source& in, T& n) {
+auto operator>>(Source& in, T& n) -> Source& {
   n = read_num<T>(in);
   return in;
 }
 
 template <typename T>
-Source& operator>>(Source& in, bool& b) {
+auto operator>>(Source& in, bool& b) -> Source& {
   b = read_num<uint64_t>(in);
   return in;
 }
 
-Error read_error(Source& source);
+[[nodiscard]] auto read_error(Source& source) -> Error;
 
 /**
  * An adapter that converts a std::basic_istream into a source.
  */
-struct stream_to_source_adapter_t : Source {
-  std::shared_ptr<std::basic_istream<char>> istream;
+class stream_to_source_adapter_t : public Source {
+public:
+  explicit stream_to_source_adapter_t(std::shared_ptr<std::basic_istream<char>> istream)
+      : istream_(std::move(istream)) {}
 
-  stream_to_source_adapter_t(std::shared_ptr<std::basic_istream<char>> istream) : istream(istream) {}
-
-  size_t read(char* data, size_t len) override {
-    if (!istream->read(data, len)) {
-      if (istream->eof()) {
-        if (istream->gcount() == 0)
+  auto read(char* data, size_t len) -> size_t override {
+    if (!istream_->read(data, len)) {
+      if (istream_->eof()) {
+        if (istream_->gcount() == 0)
           throw EndOfFile("end of file");
       } else
         throw Error("I/O error in StreamToSourceAdapter");
     }
-    return istream->gcount();
+    return istream_->gcount();
   }
+
+private:
+  std::shared_ptr<std::basic_istream<char>> istream_;
 };
 
 /**
@@ -491,23 +561,19 @@ struct stream_to_source_adapter_t : Source {
  * use with framed_sink_t, which also allows the logical stream to be terminated
  * in the event of an exception.
  */
-struct framed_source_t : Source {
-  Source& from;
-  bool eof = false;
-  std::vector<char> pending;
-  size_t pos = 0;
+class framed_source_t : public Source {
+public:
+  explicit framed_source_t(Source& from) : from_(from) {}
 
-  framed_source_t(Source& from) : from(from) {}
-
-  ~framed_source_t() {
+  ~framed_source_t() override {
     try {
-      if (!eof) {
+      if (!eof_) {
         while (true) {
-          auto n = read_int(from);
+          auto n = read_int(from_);
           if (!n)
             break;
           std::vector<char> data(n);
-          from(data.data(), n);
+          from_(data.data(), n);
         }
       }
     } catch (...) {
@@ -515,26 +581,32 @@ struct framed_source_t : Source {
     }
   }
 
-  size_t read(char* data, size_t len) override {
-    if (eof)
+  auto read(char* data, size_t len) -> size_t override {
+    if (eof_)
       throw EndOfFile("reached end of FramedSource");
 
-    if (pos >= pending.size()) {
-      size_t len = read_int(from);
-      if (!len) {
-        eof = true;
+    if (pos_ >= pending_.size()) {
+      size_t chunk_len = read_int(from_);
+      if (!chunk_len) {
+        eof_ = true;
         return 0;
       }
-      pending = std::vector<char>(len);
-      pos = 0;
-      from(pending.data(), len);
+      pending_ = std::vector<char>(chunk_len);
+      pos_ = 0;
+      from_(pending_.data(), chunk_len);
     }
 
-    auto n = std::min(len, pending.size() - pos);
-    memcpy(data, pending.data() + pos, n);
-    pos += n;
+    auto n = std::min(len, pending_.size() - pos_);
+    memcpy(data, pending_.data() + pos_, n);
+    pos_ += n;
     return n;
   }
+
+private:
+  Source& from_;
+  bool eof_ = false;
+  std::vector<char> pending_;
+  size_t pos_ = 0;
 };
 
 /**
@@ -543,29 +615,31 @@ struct framed_source_t : Source {
  * The `check_error` function can be used to terminate the stream when you
  * detect that an error has occurred. It does so by throwing an exception.
  */
-struct framed_sink_t : nix::buffered_sink_t {
-  buffered_sink_t& to;
-  std::function<void()> check_error;
-
+class framed_sink_t : public nix::buffered_sink_t {
+public:
   framed_sink_t(buffered_sink_t& to, std::function<void()>&& check_error)
-      : to(to), check_error(check_error) {}
+      : to_(to), check_error_(std::move(check_error)) {}
 
-  ~framed_sink_t() {
+  ~framed_sink_t() override {
     try {
-      to << 0;
-      to.flush();
+      to_ << 0;
+      to_.flush();
     } catch (...) {
       ignore_exception_in_destructor();
     }
   }
 
-  void write_unbuffered(std::string_view data) override {
+  auto write_unbuffered(std::string_view data) -> void override {
     /* Don't send more data if an error has occurred. */
-    check_error();
+    check_error_();
 
-    to << data.size();
-    to(data);
-  };
+    to_ << data.size();
+    to_(data);
+  }
+
+private:
+  buffered_sink_t& to_;
+  std::function<void()> check_error_;
 };
 
 } // namespace nix

@@ -14,8 +14,8 @@ namespace nix {
  *
  * @todo drop `NG` suffix and replace the ones in `types.hh`.
  */
-typedef std::list<std::filesystem::path> paths_ng_t;
-typedef std::set<std::filesystem::path> path_set_ng_t;
+using paths_ng_t = std::list<std::filesystem::path>;
+using path_set_ng_t = std::set<std::filesystem::path>;
 
 /**
  * Stop gap until `std::filesystem::path_view` from P1030R6 exists in a

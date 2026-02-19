@@ -25,7 +25,7 @@ private:
   std::unique_ptr<regex_t> regex;
 };
 
-typedef std::list<DrvName> DrvNames;
+using DrvNames = std::list<DrvName>;
 
 std::string_view next_component(std::string_view::const_iterator& p,
                                const std::string_view::const_iterator end);

@@ -33,12 +33,13 @@ struct git_archive_input_scheme_t : InputScheme {
 
   std::optional<Input> inputFromURL(const fetchers::settings_t& settings, const parsed_url_t& url,
                                     bool require_tree) const override {
-    if (url.scheme != schemeName())
+    if (url.scheme() != schemeName())
       return {};
 
     /* This ignores empty path segments for back-compat. Older versions used a tokenize_string here.
      */
-    auto path = url.path_segments(/*skip_empty=*/true) | std::ranges::to<std::vector<std::string>>();
+    auto path =
+        url.path_segments(/*skip_empty=*/true) | std::ranges::to<std::vector<std::string>>();
 
     std::optional<std::string> rev;
     std::optional<std::string> ref;
@@ -62,7 +63,7 @@ struct git_archive_input_scheme_t : InputScheme {
     } else if (size < 2)
       throw BadURL("URL '%s' is invalid", url);
 
-    for (auto& [name, value] : url.query) {
+    for (auto& [name, value] : url.query()) {
       if (name == "rev") {
         if (rev)
           throw BadURL("URL '%s' contains multiple commit hashes", url);
@@ -87,8 +88,8 @@ struct git_archive_input_scheme_t : InputScheme {
     if (host_url)
       attrs.insert_or_assign("host", *host_url);
 
-    auto nar_hash = url.query.find("narHash");
-    if (nar_hash != url.query.end())
+    auto nar_hash = url.query().find("narHash");
+    if (nar_hash != url.query().end())
       attrs.insert_or_assign("narHash", nar_hash->second);
 
     return inputFromAttrs(settings, attrs);
@@ -168,15 +169,14 @@ struct git_archive_input_scheme_t : InputScheme {
       path.push_back(*ref);
     if (rev)
       path.push_back(abbreviate ? rev->git_short_rev() : rev->git_rev());
-    auto url = parsed_url_t{
-        .scheme = std::string{schemeName()},
-        .path = path,
-    };
+    parsed_url_t url;
+    url.set_scheme(std::string{schemeName()});
+    url.set_path(path);
     if (auto nar_hash = input.getNarHash())
-      url.query.insert_or_assign("narHash", nar_hash->to_string(hash_format_t::SRI, true));
+      url.query().insert_or_assign("narHash", nar_hash->to_string(hash_format_t::sri, true));
     auto host = maybe_get_str_attr(input.attrs, "host");
     if (host)
-      url.query.insert_or_assign("host", *host);
+      url.query().insert_or_assign("host", *host);
     return url;
   }
 
@@ -224,16 +224,17 @@ struct git_archive_input_scheme_t : InputScheme {
     return {};
   }
 
-  headers_t make_headers_with_auth_tokens(const fetchers::settings_t& settings, const std::string& host,
-                                    const Input& input) const {
+  headers_t make_headers_with_auth_tokens(const fetchers::settings_t& settings,
+                                          const std::string& host, const Input& input) const {
     auto owner = get_str_attr(input.attrs, "owner");
     auto repo = get_str_attr(input.attrs, "repo");
     auto host_and_path = fmt("%s/%s/%s", host, owner, repo);
     return make_headers_with_auth_tokens(settings, host, host_and_path);
   }
 
-  headers_t make_headers_with_auth_tokens(const fetchers::settings_t& settings, const std::string& host,
-                                    const std::string& host_and_path) const {
+  headers_t make_headers_with_auth_tokens(const fetchers::settings_t& settings,
+                                          const std::string& host,
+                                          const std::string& host_and_path) const {
     headers_t headers;
     auto access_token = getAccessToken(settings, host, host_and_path);
     if (access_token) {
@@ -252,7 +253,7 @@ struct git_archive_input_scheme_t : InputScheme {
   };
 
   virtual ref_info_t get_rev_from_ref(const settings_t& settings, nix::Store& store,
-                                const Input& input) const = 0;
+                                      const Input& input) const = 0;
 
   virtual download_url_t get_download_url(const settings_t& settings, const Input& input) const = 0;
 
@@ -262,7 +263,7 @@ struct git_archive_input_scheme_t : InputScheme {
   };
 
   std::pair<Input, tarball_info_t> download_archive(const settings_t& settings, Store& store,
-                                                Input input) const {
+                                                    Input input) const {
     if (!maybe_get_str_attr(input.attrs, "ref"))
       input.attrs.insert_or_assign("ref", "HEAD");
 
@@ -306,8 +307,9 @@ struct git_archive_input_scheme_t : InputScheme {
       get_file_transfer()->download(std::move(req), sink);
     });
 
-    auto act = std::make_unique<activity_t>(
-        *logger, lvl_info, act_unknown, fmt("unpacking '%s' into the Git cache", input.to_string()));
+    auto act =
+        std::make_unique<activity_t>(*logger, lvl_info, act_unknown,
+                                     fmt("unpacking '%s' into the Git cache", input.to_string()));
 
     tar_archive_t archive{*source};
     auto tarball_cache = settings.getTarballCache();
@@ -318,7 +320,7 @@ struct git_archive_input_scheme_t : InputScheme {
     act.reset();
 
     tarball_info_t tarball_info{.tree_hash = tarball_cache->dereferenceSingletonDirectory(tree),
-                            .last_modified = last_modified};
+                                .last_modified = last_modified};
 
     cache->upsert(tree_hash_key, Attrs{{"treeHash", tarball_info.tree_hash.git_rev()}});
     cache->upsert(last_modified_key, Attrs{{"lastModified", (uint64_t)tarball_info.last_modified}});
@@ -336,7 +338,7 @@ struct git_archive_input_scheme_t : InputScheme {
   }
 
   std::pair<ref<SourceAccessor>, Input> get_accessor(const settings_t& settings, Store& store,
-                                                    const Input& _input) const override {
+                                                     const Input& _input) const override {
     auto [input, tarball_info] = download_archive(settings, store, _input);
 
 #if 0
@@ -345,14 +347,14 @@ struct git_archive_input_scheme_t : InputScheme {
     input.attrs.insert_or_assign("lastModified", uint64_t(tarball_info.last_modified));
 
     auto accessor = settings.getTarballCache()->get_accessor(tarball_info.tree_hash, {},
-                                                            "«" + input.to_string(true) + "»");
+                                                             "«" + input.to_string(true) + "»");
 
     if (!settings.trustTarballsFromGitForges)
       // FIXME: computing the NAR hash here is wasteful if
       // copyInputToStore() is just going to hash/copy it as
       // well.
       input.attrs.insert_or_assign(
-          "narHash", accessor->hash_path(canon_path_t::root).to_string(hash_format_t::SRI, true));
+          "narHash", accessor->hash_path(canon_path_t::root).to_string(hash_format_t::sri, true));
 
     return {accessor, input};
   }
@@ -402,7 +404,7 @@ struct git_hub_input_scheme_t : git_archive_input_scheme_t {
   std::string getRepo(const Input& input) const { return get_str_attr(input.attrs, "repo"); }
 
   ref_info_t get_rev_from_ref(const settings_t& settings, nix::Store& store,
-                        const Input& input) const override {
+                              const Input& input) const override {
     auto host = getHost(input);
     auto url = fmt(host == "github.com" ? "https://api.%s/repos/%s/%s/commits/%s"
                                         : "https://%s/api/v3/repos/%s/%s/commits/%s",
@@ -415,8 +417,8 @@ struct git_hub_input_scheme_t : git_archive_input_scheme_t {
         store.requireStoreObjectAccessor(downloadResult.store_path)->read_file(canon_path_t::root));
 
     return ref_info_t{.rev = Hash::parse_any(std::string{json["sha"]}, hash_algorithm_t::SHA1),
-                   .tree_hash = Hash::parse_any(std::string{json["commit"]["tree"]["sha"]},
-                                              hash_algorithm_t::SHA1)};
+                      .tree_hash = Hash::parse_any(std::string{json["commit"]["tree"]["sha"]},
+                                                   hash_algorithm_t::SHA1)};
   }
 
   download_url_t get_download_url(const settings_t& settings, const Input& input) const override {
@@ -472,7 +474,7 @@ struct git_lab_input_scheme_t : git_archive_input_scheme_t {
   }
 
   ref_info_t get_rev_from_ref(const settings_t& settings, nix::Store& store,
-                        const Input& input) const override {
+                              const Input& input) const override {
     auto host = maybe_get_str_attr(input.attrs, "host").value_or("gitlab.com");
     // See rate limiting note below
     auto url =
@@ -514,8 +516,9 @@ struct git_lab_input_scheme_t : git_archive_input_scheme_t {
              const std::filesystem::path& dest_dir) const override {
     auto host = maybe_get_str_attr(input.attrs, "host").value_or("gitlab.com");
     // FIXME: get username somewhere
-    Input::fromURL(settings, fmt("git+https://%s/%s/%s.git", host, get_str_attr(input.attrs, "owner"),
-                                 get_str_attr(input.attrs, "repo")))
+    Input::fromURL(settings,
+                   fmt("git+https://%s/%s/%s.git", host, get_str_attr(input.attrs, "owner"),
+                       get_str_attr(input.attrs, "repo")))
         .applyOverrides(input.getRef(), input.getRev())
         .clone(settings, store, dest_dir);
   }
@@ -540,7 +543,7 @@ struct source_hut_input_scheme_t : git_archive_input_scheme_t {
   }
 
   ref_info_t get_rev_from_ref(const settings_t& settings, nix::Store& store,
-                        const Input& input) const override {
+                              const Input& input) const override {
     // TODO: In the future, when the sourcehut graphql API is implemented for mercurial
     // and with anonymous access, this method should use it instead.
 
@@ -556,8 +559,8 @@ struct source_hut_input_scheme_t : git_archive_input_scheme_t {
     if (ref == "HEAD") {
       auto downloadFileResult =
           download_file(store, settings, fmt("%s/HEAD", base_url), "source", headers);
-      auto contents =
-          store.requireStoreObjectAccessor(downloadFileResult.store_path)->read_file(canon_path_t::root);
+      auto contents = store.requireStoreObjectAccessor(downloadFileResult.store_path)
+                          ->read_file(canon_path_t::root);
 
       auto remoteLine = git::parse_ls_remote_line(get_line(contents).first);
       if (!remoteLine) {
@@ -571,15 +574,16 @@ struct source_hut_input_scheme_t : git_archive_input_scheme_t {
 
     auto downloadFileResult =
         download_file(store, settings, fmt("%s/info/refs", base_url), "source", headers);
-    auto contents =
-        store.requireStoreObjectAccessor(downloadFileResult.store_path)->read_file(canon_path_t::root);
+    auto contents = store.requireStoreObjectAccessor(downloadFileResult.store_path)
+                        ->read_file(canon_path_t::root);
     std::istringstream is(contents);
 
     std::string line;
     std::optional<std::string> id;
     while (!id && getline(is, line)) {
       auto parsedLine = git::parse_ls_remote_line(line);
-      if (parsedLine && parsedLine->reference && std::regex_match(*parsedLine->reference, ref_regex))
+      if (parsedLine && parsedLine->reference &&
+          std::regex_match(*parsedLine->reference, ref_regex))
         id = parsedLine->target;
     }
 

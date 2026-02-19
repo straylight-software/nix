@@ -79,7 +79,7 @@ struct AttrName {
 
 static_assert(std::is_trivially_copy_constructible_v<AttrName>);
 
-typedef std::vector<AttrName> AttrSelectionPath;
+using AttrSelectionPath = std::vector<AttrName>;
 
 std::string show_attr_selection_path(const SymbolTable& symbols, std::span<const AttrName> attr_path);
 
@@ -178,8 +178,8 @@ struct ExprPath : Expr {
   COMMON_METHODS
 };
 
-typedef uint32_t Level;
-typedef uint32_t Displacement;
+using Level = uint32_t;
+using Displacement = uint32_t;
 
 struct ExprVar : Expr {
   pos_idx_t pos;

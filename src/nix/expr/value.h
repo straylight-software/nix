@@ -1235,7 +1235,7 @@ public:
   Failed* failed() const noexcept { return getStorage<Failed*>(); }
 };
 
-typedef std::vector<Value*, traceable_allocator<Value*>> ValueVector;
+using ValueVector = std::vector<Value*, traceable_allocator<Value*>>;
 typedef boost::unordered_flat_map<Symbol, Value*, std::hash<Symbol>, std::equal_to<Symbol>,
                                   traceable_allocator<std::pair<const Symbol, Value*>>>
     ValueMap;
@@ -1246,7 +1246,7 @@ typedef std::map<Symbol, ValueVector, std::less<Symbol>,
 /**
  * A value allocated in traceable memory.
  */
-typedef std::shared_ptr<Value*> RootValue;
+using RootValue = std::shared_ptr<Value*>;
 
 RootValue alloc_root_value(Value* v);
 

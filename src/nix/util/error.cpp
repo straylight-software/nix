@@ -1,21 +1,31 @@
 #include "nix/util/error.h"
 
 #include <algorithm>
+#include <cassert>
 #include <cinttypes>
+#include <compare>
+#include <cstddef>
 #include <iostream>
+#include <memory>
 #include <optional>
+#include <set>
 #include <sstream>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
 
 #include "nix/util/environment-variables.h"
+#include "nix/util/fmt.h"
+#include "nix/util/logging.h"
 #include "nix/util/position.h"
-#include "nix/util/serialise.h"
-#include "nix/util/signals.h"
 #include "nix/util/terminal.h"
 
 namespace nix {
 
-void base_error_t::add_trace(std::shared_ptr<const pos_t>&& e, hint_fmt_t hint, trace_print_t print) {
-  err.traces.push_front(trace_t{.pos = std::move(e), .hint = hint, .print = print});
+void base_error_t::add_trace(std::shared_ptr<const pos_t>&& pos, const hint_fmt_t& hint,
+                             trace_print_t print) {
+  err_.traces.push_front(trace_t{.pos = std::move(pos), .hint = hint, .print = print});
 }
 
 void throw_exception_self_check() {
@@ -26,38 +36,40 @@ void throw_exception_self_check() {
 
 // c++ std::exception descendants must have a 'const char* what()' function.
 // This stringifies the error and caches it for use by what(), or similarly by msg().
-const std::string& base_error_t::calc_what() const {
+auto base_error_t::calc_what() const -> const std::string& {
   if (what_.has_value()) {
     return *what_;
-  } else {
-    std::ostringstream oss;
-    show_error_info(oss, err, logger_settings.show_trace);
-    what_ = oss.str();
-    return *what_;
   }
+  std::ostringstream oss;
+  show_error_info(oss, err_, logger_settings.show_trace);
+  what_ = oss.str();
+  return *what_;
 }
 
 std::optional<std::string> error_info_t::program_name = std::nullopt;
 
-std::ostream& operator<<(std::ostream& os, const hint_fmt_t& hf) {
-  return os << hf.str();
+auto operator<<(std::ostream& out, const hint_fmt_t& hint) -> std::ostream& {
+  return out << hint.str();
 }
 
 /**
  * An arbitrarily defined value comparison for the purpose of using traces in the key of a sorted
  * container.
  */
-inline std::strong_ordering operator<=>(const trace_t& lhs, const trace_t& rhs) {
+inline auto operator<=>(const trace_t& lhs, const trace_t& rhs) -> std::strong_ordering {
   // `std::shared_ptr` does not have value semantics for its comparison
   // functions, so we need to check for nulls and compare the dereferenced
   // values here.
   if (lhs.pos != rhs.pos) {
-    if (auto cmp = bool{lhs.pos} <=> bool{rhs.pos}; cmp != 0) {
+    // Compare null status first
+    const int lhs_has_pos = lhs.pos ? 1 : 0;
+    const int rhs_has_pos = rhs.pos ? 1 : 0;
+    if (auto cmp = lhs_has_pos <=> rhs_has_pos; cmp != 0) {
       return cmp;
-}
+    }
     if (auto cmp = *lhs.pos <=> *rhs.pos; cmp != 0) {
       return cmp;
-}
+    }
   }
   // This formats a freshly formatted hint string and then throws it away, which
   // shouldn't be much of a problem because it only runs when pos is equal, and this function is
@@ -67,51 +79,49 @@ inline std::strong_ordering operator<=>(const trace_t& lhs, const trace_t& rhs) 
 
 // print lines of code to the ostream, indicating the error column.
 void print_code_lines(std::ostream& out, const std::string& prefix, const pos_t& err_pos,
-                    const lines_of_code_t& loc) {
+                      const lines_of_code_t& loc) {
   // previous line of code.
   if (loc.prev_line_of_code.has_value()) {
-    out << std::endl << fmt("%1% %|2$5d|| %3%", prefix, (err_pos.line - 1), *loc.prev_line_of_code);
+    out << '\n' << fmt("%1% %|2$5d|| %3%", prefix, (err_pos.line - 1), *loc.prev_line_of_code);
   }
 
   if (loc.err_line_of_code.has_value()) {
     // line of code containing the error.
-    out << std::endl << fmt("%1% %|2$5d|| %3%", prefix, (err_pos.line), *loc.err_line_of_code);
+    out << '\n' << fmt("%1% %|2$5d|| %3%", prefix, (err_pos.line), *loc.err_line_of_code);
     // error arrows for the column range.
     if (err_pos.column > 0) {
-      int start = err_pos.column;
-      std::string spaces;
-      for (int i = 0; i < start; ++i) {
-        spaces.append(" ");
-      }
+      const auto start = static_cast<std::size_t>(err_pos.column);
+      const std::string spaces_str(start, ' ');
+      constexpr const char* arrow_str = "^";
 
-      std::string arrows("^");
-
-      out << std::endl << fmt("%1%      |%2%" ANSI_RED "%3%" ANSI_NORMAL, prefix, spaces, arrows);
+      out << '\n' << fmt("%1%      |%2%" ANSI_RED "%3%" ANSI_NORMAL, prefix, spaces_str, arrow_str);
     }
   }
 
   // next line of code.
   if (loc.next_line_of_code.has_value()) {
-    out << std::endl << fmt("%1% %|2$5d|| %3%", prefix, (err_pos.line + 1), *loc.next_line_of_code);
+    out << '\n' << fmt("%1% %|2$5d|| %3%", prefix, (err_pos.line + 1), *loc.next_line_of_code);
   }
 }
 
-static std::string indent(std::string_view indent_first, std::string_view indent_rest,
-                          std::string_view s) {
+namespace {
+
+auto indent(std::string_view indent_first, std::string_view indent_rest, std::string_view str)
+    -> std::string {
   std::string res;
   bool first = true;
 
-  while (!s.empty()) {
-    auto end = s.find('\n');
+  while (!str.empty()) {
+    auto end = str.find('\n');
     if (!first) {
       res += "\n";
-}
-    res += chomp(std::string(first ? indent_first : indent_rest) + std::string(s.substr(0, end)));
+    }
+    res += chomp(std::string(first ? indent_first : indent_rest) + std::string(str.substr(0, end)));
     first = false;
-    if (end == s.npos) {
+    if (end == std::string_view::npos) {
       break;
-}
-    s = s.substr(end + 1);
+    }
+    str = str.substr(end + 1);
   }
 
   return res;
@@ -124,18 +134,19 @@ static std::string indent(std::string_view indent_first, std::string_view indent
  *     git diff -U20 tests
  *
  */
-static bool print_unknown_locations = get_env("_NIX_EVAL_SHOW_UNKNOWN_LOCATIONS").has_value();
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables,cert-err58-cpp)
+bool print_unknown_locations = get_env("_NIX_EVAL_SHOW_UNKNOWN_LOCATIONS").has_value();
 
 /**
  * Print a position, if it is known.
  *
  * @return true if a position was printed.
  */
-static bool print_pos_maybe(std::ostream& oss, std::string_view indent,
-                          const std::shared_ptr<const pos_t>& pos) {
-  bool has_pos = pos && *pos;
+auto print_pos_maybe(std::ostream& oss, std::string_view indent_str,
+                     const std::shared_ptr<const pos_t>& pos) -> bool {
+  const bool has_pos = pos && *pos;
   if (has_pos) {
-    oss << indent << ANSI_BLUE << "at " ANSI_WARNING << *pos << ANSI_NORMAL << ":";
+    oss << indent_str << ANSI_BLUE << "at " ANSI_WARNING << *pos << ANSI_NORMAL << ":";
 
     if (auto loc = pos->get_code_lines()) {
       print_code_lines(oss, "", *pos, *loc);
@@ -143,33 +154,35 @@ static bool print_pos_maybe(std::ostream& oss, std::string_view indent,
     }
   } else if (print_unknown_locations) {
     oss << "\n"
-        << indent << ANSI_BLUE << "at " ANSI_RED << "UNKNOWN LOCATION" << ANSI_NORMAL << "\n";
+        << indent_str << ANSI_BLUE << "at " ANSI_RED << "UNKNOWN LOCATION" << ANSI_NORMAL << "\n";
   }
   return has_pos;
 }
 
-static void print_trace(std::ostream& output, const std::string_view& indent, size_t& count,
-                       const trace_t& trace) {
+void print_trace(std::ostream& output, std::string_view indent_str, std::size_t& count,
+                 const trace_t& trace) {
   output << "\n" << "… " << trace.hint.str() << "\n";
 
-  if (print_pos_maybe(output, indent, trace.pos)) {
+  if (print_pos_maybe(output, indent_str, trace.pos)) {
     count++;
-}
+  }
 }
 
-void print_skipped_traces_maybe(std::ostream& output, const std::string_view& indent, size_t& count,
-                             std::vector<trace_t>& skipped_traces, std::set<trace_t> traces_seen) {
-  if (skipped_traces.size() > 0) {
+void print_skipped_traces_maybe(std::ostream& output, std::string_view indent_str,
+                                std::size_t& count, std::vector<trace_t>& skipped_traces,
+                                std::set<trace_t> traces_seen) {
+  if (!skipped_traces.empty()) {
     // If we only skipped a few frames, print them out normally;
     // messages like "1 duplicate frames omitted" aren't helpful.
-    if (skipped_traces.size() <= 5) {
+    constexpr std::size_t max_skipped_traces_to_print = 5U;
+    if (skipped_traces.size() <= max_skipped_traces_to_print) {
       for (auto& trace : skipped_traces) {
-        print_trace(output, indent, count, trace);
+        print_trace(output, indent_str, count, trace);
       }
     } else {
       output << "\n"
-             << ANSI_WARNING "(" << skipped_traces.size() << " duplicate frames omitted)" ANSI_NORMAL
-             << "\n";
+             << ANSI_WARNING "(" << skipped_traces.size()
+             << " duplicate frames omitted)" ANSI_NORMAL << "\n";
       // Clear the set of "seen" traces after printing a chunk of
       // `duplicate frames omitted`.
       //
@@ -205,7 +218,10 @@ void print_skipped_traces_maybe(std::ostream& output, const std::string_view& in
   skipped_traces.clear();
 }
 
-std::ostream& show_error_info(std::ostream& out, const error_info_t& einfo, bool show_trace) {
+} // namespace
+
+auto show_error_info(std::ostream& out, const error_info_t& einfo, bool show_trace)
+    -> std::ostream& {
   std::string prefix;
   switch (einfo.level) {
     case verbosity_t::lvl_error: {
@@ -221,7 +237,7 @@ std::ostream& show_error_info(std::ostream& out, const error_info_t& einfo, bool
         prefix = ANSI_WARNING "evaluation warning";
       } else {
         prefix = ANSI_WARNING "warning";
-}
+      }
       break;
     }
     case verbosity_t::lvl_info: {
@@ -253,7 +269,7 @@ std::ostream& show_error_info(std::ostream& out, const error_info_t& einfo, bool
     prefix += fmt(" [%s]:" ANSI_NORMAL " ", einfo.program_name.value_or(""));
   } else {
     prefix += ":" ANSI_NORMAL " ";
-}
+  }
 
   std::ostringstream oss;
 
@@ -355,7 +371,7 @@ std::ostream& show_error_info(std::ostream& out, const error_info_t& einfo, bool
 
   // Enough indent to align with with the `... `
   // prepended to each element of the trace
-  auto ellipsis_indent = "  ";
+  const auto* ellipsis_indent = "  ";
 
   if (!einfo.traces.empty()) {
     // Stack traces seen since we last printed a chunk of `duplicate frames
@@ -369,7 +385,7 @@ std::ostream& show_error_info(std::ostream& out, const error_info_t& einfo, bool
     for (const auto& trace : einfo.traces) {
       if (trace.hint.str().empty()) {
         continue;
-}
+      }
 
       if (!show_trace && count > 3) {
         truncate = true;
@@ -412,7 +428,8 @@ std::ostream& show_error_info(std::ostream& out, const error_info_t& einfo, bool
     oss << "Did you mean " << suggestions.trim() << "?" << std::endl;
   }
 
-  out << indent(prefix, std::string(filter_ansi_escapes(prefix, true).size(), ' '), chomp(oss.str()));
+  out << indent(prefix, std::string(filter_ansi_escapes(prefix, true).size(), ' '),
+                chomp(oss.str()));
 
   return out;
 }
@@ -426,7 +443,7 @@ static void write_err(std::string_view buf) {
     if (n < 0) {
       if (errno == EINTR) {
         continue;
-}
+      }
       abort();
     }
     buf = buf.substr(n);
@@ -435,7 +452,7 @@ static void write_err(std::string_view buf) {
 
 void panic(std::string_view msg) {
   write_err("\n\n" ANSI_RED
-           "terminating due to unexpected unrecoverable internal error: " ANSI_NORMAL);
+            "terminating due to unexpected unrecoverable internal error: " ANSI_NORMAL);
   write_err(msg);
   write_err("\n");
   std::terminate();
@@ -447,7 +464,7 @@ void unreachable(std::source_location loc) {
                    loc.function_name(), loc.file_name(), loc.line());
   if (n < 0) {
     panic("Unexpected condition and could not format error message");
-}
+  }
   panic(std::string_view(buf, std::min(static_cast<int>(sizeof(buf)), n)));
 }
 

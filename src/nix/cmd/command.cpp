@@ -47,16 +47,17 @@ nlohmann::json NixMultiCommand::to_json() {
 }
 
 void NixMultiCommand::run() {
-  if (!command) {
+  if (!get_command()) {
     string_set_t subCommandTextLines;
-    for (auto& [name, _] : commands)
+    for (auto& [name, _] : get_commands()) {
       subCommandTextLines.insert(fmt("- `%s`", name));
+    }
     std::string markdownError =
-        fmt("`nix %s` requires a sub-command. Available sub-commands:\n\n%s\n", command_name,
+        fmt("`nix %s` requires a sub-command. Available sub-commands:\n\n%s\n", get_command_name(),
             concat_strings_sep("\n", subCommandTextLines));
     throw UsageError(render_markdown_to_terminal(markdownError));
   }
-  command->second->run();
+  get_command()->second->run();
 }
 
 StoreCommand::StoreCommand() {}
@@ -365,7 +366,7 @@ void MixEnvironment::setEnviron() {
 }
 
 void create_out_links(const std::filesystem::path& out_link, const BuiltPaths& buildables,
-                    local_fs_store& store) {
+                      local_fs_store& store) {
   for (const auto& [_i, buildable] : enumerate(buildables)) {
     auto i = _i;
     std::visit(overloaded{

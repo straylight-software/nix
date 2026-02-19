@@ -54,8 +54,8 @@ Input Input::fromURL(const settings_t& settings, const parsed_url_t& url, bool r
   }
 
   // Provide a helpful hint when user tries file+git instead of git+file
-  auto parsedScheme = parse_url_scheme(url.scheme);
-  if (parsedScheme.application == "file" && parsedScheme.transport == "git") {
+  auto parsedScheme = parse_url_scheme(url.scheme());
+  if (parsedScheme.application() == "file" && parsedScheme.transport() == "git") {
     throw Error("input '%s' is unsupported; did you mean 'git+file' instead of 'file+git'?", url);
   }
 
@@ -126,7 +126,7 @@ parsed_url_t Input::toURL(bool abbreviate) const {
   auto url = scheme->toURL(*this, abbreviate);
 
   if (abbreviate)
-    url.query.erase("narHash");
+    url.query().erase("narHash");
 
   return url;
 }
@@ -134,7 +134,7 @@ parsed_url_t Input::toURL(bool abbreviate) const {
 std::string Input::toURLString(const string_map_t& extraQuery, bool abbreviate) const {
   auto url = toURL(abbreviate);
   for (auto& attr : extraQuery)
-    url.query.insert(attr);
+    url.query().insert(attr);
   return url.to_string();
 }
 
@@ -180,18 +180,18 @@ bool Input::contains(const Input& other) const {
 
 // FIXME: remove
 std::tuple<StorePath, ref<SourceAccessor>, Input> Input::fetch_to_store(const settings_t& settings,
-                                                                      Store& store) const {
+                                                                        Store& store) const {
   if (!scheme)
     throw Error("cannot fetch unsupported input '%s'", attrs_to_json(toAttrs()));
 
   try {
     auto [accessor, result] = getAccessorUnchecked(settings, store);
 
-    auto store_path =
-        nix::fetch_to_store(settings, store, source_path_t(accessor), FetchMode::Copy, result.get_name());
+    auto store_path = nix::fetch_to_store(settings, store, source_path_t(accessor), FetchMode::Copy,
+                                          result.get_name());
 
     auto nar_hash = store.queryPathInfo(store_path)->nar_hash;
-    result.attrs.insert_or_assign("narHash", nar_hash.to_string(hash_format_t::SRI, true));
+    result.attrs.insert_or_assign("narHash", nar_hash.to_string(hash_format_t::sri, true));
 
     result.attrs.insert_or_assign("__final", Explicit<bool>(true));
 
@@ -217,10 +217,10 @@ void Input::checkLocks(Input specified, Input& result) {
        formatting (lacking the trailing '=', e.g. 'sha256-ri...Mw'
        instead of ''sha256-ri...Mw='). So fix that. */
     if (auto prevNarHash = specified.getNarHash())
-      specified.attrs.insert_or_assign("narHash", prevNarHash->to_string(hash_format_t::SRI, true));
+      specified.attrs.insert_or_assign("narHash", prevNarHash->to_string(hash_format_t::sri, true));
 
     if (auto nar_hash = result.getNarHash())
-      result.attrs.insert_or_assign("narHash", nar_hash->to_string(hash_format_t::SRI, true));
+      result.attrs.insert_or_assign("narHash", nar_hash->to_string(hash_format_t::sri, true));
 
     for (auto& field : specified.attrs) {
       auto field2 = result.attrs.find(field.first);
@@ -239,12 +239,12 @@ void Input::checkLocks(Input specified, Input& result) {
       if (result.getNarHash())
         throw Error((unsigned int)102,
                     "NAR hash mismatch in input '%s', expected '%s' but got '%s'",
-                    specified.to_string(), prevNarHash->to_string(hash_format_t::SRI, true),
-                    result.getNarHash()->to_string(hash_format_t::SRI, true));
+                    specified.to_string(), prevNarHash->to_string(hash_format_t::sri, true),
+                    result.getNarHash()->to_string(hash_format_t::sri, true));
       else
         throw Error((unsigned int)102,
                     "NAR hash mismatch in input '%s', expected '%s' but got none",
-                    specified.to_string(), prevNarHash->to_string(hash_format_t::SRI, true));
+                    specified.to_string(), prevNarHash->to_string(hash_format_t::sri, true));
     }
   }
 
@@ -256,7 +256,7 @@ void Input::checkLocks(Input specified, Input& result) {
 }
 
 std::pair<ref<SourceAccessor>, Input> Input::get_accessor(const settings_t& settings,
-                                                         Store& store) const {
+                                                          Store& store) const {
   try {
     auto [accessor, result] = getAccessorUnchecked(settings, store);
 
@@ -301,9 +301,10 @@ std::pair<ref<SourceAccessor>, Input> Input::getAccessorUnchecked(const settings
 
     // FIXME: use the NAR hash for fingerprinting Git trees that have a .gitattributes file, since
     // we don't know if we used `git archive` or libgit2 to fetch it.
-    accessor->fingerprint = getType() == "git" && accessor->path_exists(canon_path_t(".gitattributes"))
-                                ? std::optional(store_path->hash_part())
-                                : get_fingerprint(store);
+    accessor->fingerprint =
+        getType() == "git" && accessor->path_exists(canon_path_t(".gitattributes"))
+            ? std::optional(store_path->hash_part())
+            : get_fingerprint(store);
     cachedFingerprint = accessor->fingerprint;
 
     // Store a cache entry for the substituted tree so later fetches
@@ -312,8 +313,9 @@ std::pair<ref<SourceAccessor>, Input> Input::getAccessorUnchecked(const settings
     if (accessor->fingerprint) {
       settings.get_cache()->upsert(
           make_source_path_to_hash_cache_key(*accessor->fingerprint,
-                                       ContentAddressMethod::raw_t::nix_archive, "/"),
-          {{"hash", store.queryPathInfo(*store_path)->nar_hash.to_string(hash_format_t::SRI, true)}});
+                                             ContentAddressMethod::raw_t::nix_archive, "/"),
+          {{"hash",
+            store.queryPathInfo(*store_path)->nar_hash.to_string(hash_format_t::sri, true)}});
     }
 
     // FIXME: ideally we would use the `showPath()` of the
@@ -393,10 +395,10 @@ StorePath Input::computeStorePath(Store& store) const {
   if (!nar_hash)
     throw Error("cannot compute store path for unlocked input '%s'", to_string());
   return store.makeFixedOutputPath(get_name(), FixedOutputInfo{
-                                                  .method = file_ingestion_method_t::nix_archive,
-                                                  .hash = *nar_hash,
-                                                  .references = {},
-                                              });
+                                                   .method = file_ingestion_method_t::nix_archive,
+                                                   .hash = *nar_hash,
+                                                   .references = {},
+                                               });
 }
 
 std::string Input::getType() const {
@@ -406,7 +408,7 @@ std::string Input::getType() const {
 std::optional<Hash> Input::getNarHash() const {
   if (auto s = maybe_get_str_attr(attrs, "narHash")) {
     auto hash = s->empty() ? Hash(hash_algorithm_t::SHA256) : Hash::parse_sri(*s);
-    if (hash.algo != hash_algorithm_t::SHA256)
+    if (hash.algo() != hash_algorithm_t::SHA256)
       throw UsageError("narHash must use SHA-256");
     return hash;
   }
@@ -479,7 +481,7 @@ void InputScheme::clone(const settings_t& settings, Store& store, const Input& i
   auto [accessor, input2] = get_accessor(settings, store, input);
 
   activity_t act(*logger, lvl_talkative, act_unknown,
-               fmt("copying '%s' to %s...", input2.to_string(), dest_dir));
+                 fmt("copying '%s' to %s...", input2.to_string(), dest_dir));
 
   restore_sink_t sink(/*start_fsync=*/false);
   sink.dst_path = dest_dir;

@@ -71,9 +71,9 @@ struct int_t {
   NixInt x;
 };
 
-typedef uint64_t AttrId;
-typedef std::pair<AttrId, Symbol> AttrKey;
-typedef std::pair<std::string, NixStringContext> string_t;
+using AttrId = uint64_t;
+using AttrKey = std::pair<AttrId, Symbol>;
+using string_t = std::pair<std::string, NixStringContext>;
 
 typedef std::variant<std::vector<Symbol>, string_t, placeholder_t, missing_t, misc_t, failed_t,
                      bool, int_t, std::vector<std::string>>

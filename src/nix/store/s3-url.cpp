@@ -12,16 +12,16 @@ using namespace std::string_view_literals;
 namespace nix {
 
 ParsedS3URL ParsedS3URL::parse(const parsed_url_t& parsed) try {
-  if (parsed.scheme != "s3"sv)
-    throw BadURL("URI scheme '%s' is not 's3'", parsed.scheme);
+  if (parsed.scheme() != "s3"sv)
+    throw BadURL("URI scheme '%s' is not 's3'", parsed.scheme());
 
   /* Yeah, S3 URLs in Nix have the bucket name as authority. Luckily registered name type
      authority has the same restrictions (mostly) as S3 bucket names.
      TODO: Validate against:
      https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucketnamingrules.html#general-purpose-bucket-names
      */
-  if (!parsed.authority || parsed.authority->host.empty() ||
-      parsed.authority->host_type != parsed_url_t::authority_t::host_type_t::Name)
+  if (!parsed.authority() || parsed.authority()->host().empty() ||
+      parsed.authority()->host_type() != parsed_url_t::authority_t::host_type_t::name)
     throw BadURL("URI has a missing or invalid bucket name");
 
   /* TODO: Validate the key against:
@@ -29,7 +29,7 @@ ParsedS3URL ParsedS3URL::parse(const parsed_url_t& parsed) try {
    */
 
   auto getOptionalParam = [&](std::string_view key) -> std::optional<std::string> {
-    const auto& query = parsed.query;
+    const auto& query = parsed.query();
     auto it = query.find(key);
     if (it == query.end())
       return std::nullopt;
@@ -37,13 +37,13 @@ ParsedS3URL ParsedS3URL::parse(const parsed_url_t& parsed) try {
   };
 
   auto endpoint = getOptionalParam("endpoint");
-  if (parsed.path.size() <= 1 || !parsed.path.front().empty())
+  if (parsed.path().size() <= 1 || !parsed.path().front().empty())
     throw BadURL("URI has a missing or invalid key");
 
-  auto path = std::views::drop(parsed.path, 1) | std::ranges::to<std::vector<std::string>>();
+  auto path = std::views::drop(parsed.path(), 1) | std::ranges::to<std::vector<std::string>>();
 
   return ParsedS3URL{
-      .bucket = parsed.authority->host,
+      .bucket = parsed.authority()->host(),
       .key = std::move(path),
       .profile = getOptionalParam("profile"),
       .region = getOptionalParam("region"),
@@ -68,58 +68,57 @@ ParsedS3URL ParsedS3URL::parse(const parsed_url_t& parsed) try {
 }
 
 parsed_url_t ParsedS3URL::toHttpsUrl() const {
-  auto toView = [](const auto& x) { return std::string_view{x}; };
+  auto to_view = [](const auto& x) { return std::string_view{x}; };
 
-  auto regionStr = region.transform(toView).value_or("us-east-1");
-  auto schemeStr = scheme.transform(toView).value_or("https");
+  auto region_str = region.transform(to_view).value_or("us-east-1");
+  auto scheme_str = scheme.transform(to_view).value_or("https");
 
   // Build query parameters (e.g., versionId if present)
-  string_map_t queryParams;
+  string_map_t query_params;
   if (versionId) {
-    queryParams["versionId"] = *versionId;
+    query_params["versionId"] = *versionId;
   }
 
+  // Helper to build the path
+  auto build_path = [&](std::vector<std::string> base_path) {
+    base_path.push_back(bucket);
+    base_path.insert(base_path.end(), key.begin(), key.end());
+    return base_path;
+  };
+
   // Handle endpoint configuration using std::visit
-  return std::visit(
-      overloaded{
-          [&](const std::monostate&) {
-            // No custom endpoint, use standard AWS S3 endpoint
-            std::vector<std::string> path{""};
-            path.push_back(bucket);
-            path.insert(path.end(), key.begin(), key.end());
-            return parsed_url_t{
-                .scheme = std::string{schemeStr},
-                .authority = parsed_url_t::authority_t{.host = "s3." + regionStr + ".amazonaws.com"},
-                .path = std::move(path),
-                .query = std::move(queryParams),
-            };
-          },
-          [&](const parsed_url_t::authority_t& auth) {
-            // Endpoint is just an authority (hostname/port)
-            std::vector<std::string> path{""};
-            path.push_back(bucket);
-            path.insert(path.end(), key.begin(), key.end());
-            return parsed_url_t{
-                .scheme = std::string{schemeStr},
-                .authority = auth,
-                .path = std::move(path),
-                .query = std::move(queryParams),
-            };
-          },
-          [&](const parsed_url_t& endpointUrl) {
-            // Endpoint is already a ParsedURL (e.g., http://server:9000)
-            auto path = endpointUrl.path;
-            path.push_back(bucket);
-            path.insert(path.end(), key.begin(), key.end());
-            return parsed_url_t{
-                .scheme = endpointUrl.scheme,
-                .authority = endpointUrl.authority,
-                .path = std::move(path),
-                .query = std::move(queryParams),
-            };
-          },
-      },
-      endpoint);
+  return std::visit(overloaded{
+                        [&](const std::monostate&) {
+                          // No custom endpoint, use standard AWS S3 endpoint
+                          parsed_url_t result;
+                          result.set_scheme(std::string{scheme_str});
+                          parsed_url_t::authority_t auth;
+                          auth.set_host("s3." + std::string{region_str} + ".amazonaws.com");
+                          result.set_authority(std::move(auth));
+                          result.set_path(build_path({""}));
+                          result.set_query(query_params);
+                          return result;
+                        },
+                        [&](const parsed_url_t::authority_t& auth) {
+                          // Endpoint is just an authority (hostname/port)
+                          parsed_url_t result;
+                          result.set_scheme(std::string{scheme_str});
+                          result.set_authority(auth);
+                          result.set_path(build_path({""}));
+                          result.set_query(query_params);
+                          return result;
+                        },
+                        [&](const parsed_url_t& endpoint_url) {
+                          // Endpoint is already a ParsedURL (e.g., http://server:9000)
+                          parsed_url_t result;
+                          result.set_scheme(endpoint_url.scheme());
+                          result.set_authority(endpoint_url.authority());
+                          result.set_path(build_path(endpoint_url.path()));
+                          result.set_query(query_params);
+                          return result;
+                        },
+                    },
+                    endpoint);
 }
 
 } // namespace nix

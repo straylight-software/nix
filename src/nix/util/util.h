@@ -300,7 +300,7 @@ std::optional<typename T::mapped_type> get_optional(const T& map, const typename
 
 template <class T>
 std::optional<typename T::mapped_type> get_concurrent(const T& map,
-                                                     const typename T::key_type& key) {
+                                                      const typename T::key_type& key) {
   std::optional<typename T::mapped_type> res;
   map.cvisit(key, [&](auto& x) { res = x.second; });
   return res;
@@ -312,7 +312,7 @@ std::optional<typename T::mapped_type> get_concurrent(const T& map,
  */
 template <class T, typename K>
 const typename T::mapped_type& get_or(T& map, const K& key,
-                                     const typename T::mapped_type& default_value) {
+                                      const typename T::mapped_type& default_value) {
   auto i = map.find(key);
   if (i == map.end())
     return default_value;
@@ -325,7 +325,7 @@ const typename T::mapped_type& get_or(T& map, const K& key,
  */
 template <class T, typename K>
 const typename T::mapped_type& get_or(T&& map, const K& key,
-                                     const typename T::mapped_type& default_value) = delete;
+                                      const typename T::mapped_type& default_value) = delete;
 
 /**
  * Remove and return the first item from a container.
@@ -361,8 +361,9 @@ void append(C& c, std::initializer_list<T> l) {
   c.insert(c.end(), l.begin(), l.end());
 }
 
+// Forward declaration - see callback.h for full definition and Callback alias
 template <typename T>
-class Callback;
+class callback;
 
 /**
  * A RAII helper that increments a counter on construction and
@@ -373,7 +374,9 @@ struct maintain_count_t {
   T& counter;
   long delta;
 
-  maintain_count_t(T& counter, long delta = 1) : counter(counter), delta(delta) { counter += delta; }
+  maintain_count_t(T& counter, long delta = 1) : counter(counter), delta(delta) {
+    counter += delta;
+  }
 
   ~maintain_count_t() { counter -= delta; }
 };

@@ -133,7 +133,7 @@ struct DerivationOutput {
                                 OutputNameView output_name) const;
 };
 
-typedef std::map<std::string, DerivationOutput> DerivationOutputs;
+using DerivationOutputs = std::map<std::string, DerivationOutput>;
 
 /**
  * These are analogues to the previous DerivationOutputs data type,
@@ -148,7 +148,7 @@ typedef std::map<std::string, std::pair<DerivationOutput, std::optional<StorePat
  * For inputs that are sub-derivations, we specify exactly which
  * output IDs we are interested in.
  */
-typedef std::map<StorePath, string_set_t> DerivationInputs;
+using DerivationInputs = std::map<StorePath, string_set_t>;
 
 struct DerivationType {
   /**
@@ -552,7 +552,7 @@ struct DrvHashFct {
 /**
  * Memoisation of hash_derivation_modulo().
  */
-typedef boost::concurrent_flat_map<StorePath, DrvHash, DrvHashFct> DrvHashes;
+using DrvHashes = boost::concurrent_flat_map<StorePath, DrvHash, DrvHashFct>;
 
 // FIXME: global, though at least thread-safe.
 extern DrvHashes drv_hashes;

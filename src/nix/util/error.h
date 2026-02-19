@@ -1,4 +1,5 @@
-#pragma once
+#ifndef NIX_UTIL_ERROR_H
+#define NIX_UTIL_ERROR_H
 /**
  * @file
  *
@@ -15,22 +16,26 @@
  * See libutil/tests/logging.cc for usage examples.
  */
 
+#include <cerrno>
+#include <compare>
+#include <cstdint>
 #include <cstring>
+#include <exception>
 #include <list>
 #include <memory>
 #include <optional>
+#include <ostream>
+#include <source_location>
+#include <string>
+#include <string_view>
 #include <utility>
-
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 
 #include "nix/util/fmt.h"
 #include "nix/util/suggestions.h"
 
 namespace nix {
 
-typedef enum {
+enum class verbosity_t : std::uint8_t {
   lvl_error = 0,
   lvl_warn,
   lvl_notice,
@@ -39,11 +44,22 @@ typedef enum {
   lvl_chatty,
   lvl_debug,
   lvl_vomit
-} verbosity_t;
+};
+
+// Bring verbosity levels into nix:: namespace for backward compatibility
+inline constexpr verbosity_t lvl_error = verbosity_t::lvl_error;
+inline constexpr verbosity_t lvl_warn = verbosity_t::lvl_warn;
+inline constexpr verbosity_t lvl_notice = verbosity_t::lvl_notice;
+inline constexpr verbosity_t lvl_info = verbosity_t::lvl_info;
+inline constexpr verbosity_t lvl_talkative = verbosity_t::lvl_talkative;
+inline constexpr verbosity_t lvl_chatty = verbosity_t::lvl_chatty;
+inline constexpr verbosity_t lvl_debug = verbosity_t::lvl_debug;
+inline constexpr verbosity_t lvl_vomit = verbosity_t::lvl_vomit;
 
 /**
  * The lines of code surrounding an error.
  */
+// NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init)
 struct lines_of_code_t {
   std::optional<std::string> prev_line_of_code;
   std::optional<std::string> err_line_of_code;
@@ -61,28 +77,30 @@ struct lines_of_code_t {
 struct pos_t;
 
 void print_code_lines(std::ostream& out, const std::string& prefix, const pos_t& err_pos,
-                    const lines_of_code_t& loc);
+                      const lines_of_code_t& loc);
 
 /**
  * When a stack frame is printed.
  */
-enum struct trace_print_t {
+enum struct trace_print_t : std::uint8_t {
   /**
    * The default behavior; always printed when `--show-trace` is set.
    */
-  Default,
+  default_print,
   /** always printed. Produced by `builtins.addErrorContext`. */
   always,
 };
 
+// NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init)
 struct trace_t {
   std::shared_ptr<const pos_t> pos;
   hint_fmt_t hint;
-  trace_print_t print = trace_print_t::Default;
+  trace_print_t print = trace_print_t::default_print;
 };
 
-inline std::strong_ordering operator<=>(const trace_t& lhs, const trace_t& rhs);
+inline auto operator<=>(const trace_t& lhs, const trace_t& rhs) -> std::strong_ordering;
 
+// NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init)
 struct error_info_t {
   verbosity_t level;
   hint_fmt_t msg;
@@ -104,76 +122,107 @@ struct error_info_t {
   static std::optional<std::string> program_name;
 };
 
-std::ostream& show_error_info(std::ostream& out, const error_info_t& einfo, bool show_trace);
+auto show_error_info(std::ostream& out, const error_info_t& einfo, bool show_trace)
+    -> std::ostream&;
 
 /**
  * base_error_t should generally not be caught, as it has Interrupted as
  * a subclass. Catch Error instead.
  */
 class base_error_t : public std::exception {
-protected:
-  mutable error_info_t err;
+private:
+  mutable error_info_t err_;
 
   /**
-   * Cached formatted contents of `err.msg`.
+   * Cached formatted contents of `err_.msg`.
    */
-  mutable std::optional<std::string> what_;
+  // NOLINTNEXTLINE(readability-redundant-member-init)
+  mutable std::optional<std::string> what_{};
+
   /**
-   * Format `err.msg` and set `what_` to the resulting value.
+   * Format `err_.msg` and set `what_` to the resulting value.
    */
-  const std::string& calc_what() const;
+  [[nodiscard]] auto calc_what() const -> const std::string&;
 
 public:
+  ~base_error_t() override = default;
   base_error_t(const base_error_t&) = default;
-  base_error_t& operator=(const base_error_t&) = default;
-  base_error_t& operator=(base_error_t&&) = default;
+  base_error_t(base_error_t&&) noexcept = default;
+  auto operator=(const base_error_t&) -> base_error_t& = default;
+  auto operator=(base_error_t&&) -> base_error_t& = default;
 
   template <typename... Args>
   base_error_t(unsigned int status, const Args&... args)
-      : err{.level = lvl_error, .msg = hint_fmt_t(args...), .status = status} {}
+      : err_{.level = verbosity_t::lvl_error,
+             .msg = hint_fmt_t(args...),
+             .pos = nullptr,
+             .traces = {},
+             .status = status,
+             .suggestions = {}} {}
 
   template <typename... Args>
-  explicit base_error_t(const std::string& fs, const Args&... args)
-      : err{.level = lvl_error, .msg = hint_fmt_t(fs, args...)} {}
+  explicit base_error_t(const std::string& fmt_str, const Args&... args)
+      : err_{.level = verbosity_t::lvl_error,
+             .msg = hint_fmt_t(fmt_str, args...),
+             .pos = nullptr,
+             .traces = {},
+             .suggestions = {}} {}
 
   template <typename... Args>
   base_error_t(const suggestions_t& sug, const Args&... args)
-      : err{.level = lvl_error, .msg = hint_fmt_t(args...), .suggestions = sug} {}
+      : err_{.level = verbosity_t::lvl_error,
+             .msg = hint_fmt_t(args...),
+             .pos = nullptr,
+             .traces = {},
+             .suggestions = sug} {}
 
-  base_error_t(hint_fmt_t hint) : err{.level = lvl_error, .msg = hint} {}
+  base_error_t(const hint_fmt_t& hint)
+      : err_{.level = verbosity_t::lvl_error,
+             .msg = hint,
+             .pos = nullptr,
+             .traces = {},
+             .suggestions = {}} {}
 
-  base_error_t(error_info_t&& e) : err(std::move(e)) {}
+  // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved,readability-redundant-member-init)
+  explicit base_error_t(error_info_t&& info) : err_(std::move(info)), what_{} {}
 
-  base_error_t(const error_info_t& e) : err(e) {}
+  // NOLINTNEXTLINE(readability-redundant-member-init)
+  explicit base_error_t(const error_info_t& info) : err_(info), what_{} {}
 
   /** The error message without "error: " prefixed to it. */
-  std::string message() { return err.msg.str(); }
+  [[nodiscard]] auto message() const -> std::string { return err_.msg.str(); }
 
-  const char* what() const noexcept override { return calc_what().c_str(); }
+  [[nodiscard]] auto what() const noexcept -> const char* override { return calc_what().c_str(); }
 
-  const std::string& msg() const { return calc_what(); }
+  [[nodiscard]] auto msg() const -> const std::string& { return calc_what(); }
 
-  const error_info_t& info() const {
-    calc_what();
-    return err;
+  [[nodiscard]] auto info() const -> const error_info_t& {
+    (void)calc_what();
+    return err_;
   }
 
-  void with_exit_status(unsigned int status) { err.status = status; }
+  void with_exit_status(unsigned int status) { err_.status = status; }
 
-  void at_pos(std::shared_ptr<const pos_t> pos) { err.pos = pos; }
+  void at_pos(std::shared_ptr<const pos_t> pos) { err_.pos = std::move(pos); }
 
-  void push_trace(trace_t trace) { err.traces.push_front(trace); }
+  void set_suggestions(const suggestions_t& s) { err_.suggestions = s; }
+
+  void set_is_from_expr(bool value) { err_.is_from_expr = value; }
+
+  void push_trace(const trace_t& trace) { err_.traces.push_front(trace); }
 
   /**
    * Prepends an item to the error trace, as is usual for extra context.
    *
    * @param pos Nullable source position to put in trace item
-   * @param fs Format string, see `hint_fmt_t`
+   * @param fmt_str Format string, see `hint_fmt_t`
    * @param args... Format string arguments.
    */
   template <typename... Args>
-  void add_trace(std::shared_ptr<const pos_t>&& pos, std::string_view fs, const Args&... args) {
-    add_trace(std::move(pos), hint_fmt_t(std::string(fs), args...));
+  // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
+  void add_trace(std::shared_ptr<const pos_t>&& pos, std::string_view fmt_str,
+                 const Args&... args) {
+    add_trace(std::move(pos), hint_fmt_t(std::string(fmt_str), args...));
   }
 
   /**
@@ -183,28 +232,37 @@ public:
    * @param hint Formatted error message
    * @param print Optional, whether to always print (used by `addErrorContext`)
    */
-  void add_trace(std::shared_ptr<const pos_t>&& pos, hint_fmt_t hint,
-                trace_print_t print = trace_print_t::Default);
+  void add_trace(std::shared_ptr<const pos_t>&& pos, const hint_fmt_t& hint,
+                 trace_print_t print = trace_print_t::default_print);
 
-  bool has_trace() const { return !err.traces.empty(); }
+  [[nodiscard]] auto has_trace() const -> bool { return !err_.traces.empty(); }
 
-  const error_info_t& info() { return err; };
+  [[nodiscard]] auto info() -> const error_info_t& { return err_; }
 };
 
-#define make_error(newClass, superClass)                                                            \
+/* NOLINTBEGIN(cppcoreguidelines-macro-usage,readability-identifier-naming,bugprone-macro-parentheses)
+ */
+#define MAKE_ERROR(newClass, superClass)                                                           \
   class newClass : public superClass {                                                             \
   public:                                                                                          \
     using superClass::superClass;                                                                  \
   }
 
-make_error(Error, base_error_t);
-make_error(UsageError, Error);
-make_error(UnimplementedError, Error);
+// Lowercase alias for backward compatibility
+#define make_error MAKE_ERROR
+/* NOLINTEND(cppcoreguidelines-macro-usage,readability-identifier-naming,bugprone-macro-parentheses)
+ */
+
+// NOLINTBEGIN(bugprone-macro-parentheses,readability-identifier-naming)
+MAKE_ERROR(Error, base_error_t);
+MAKE_ERROR(UsageError, Error);
+MAKE_ERROR(UnimplementedError, Error);
 
 /**
  * To use in catch-blocks.
  */
-make_error(SystemError, Error);
+MAKE_ERROR(SystemError, Error);
+// NOLINTEND(bugprone-macro-parentheses,readability-identifier-naming)
 
 /**
  * POSIX system error, created using `errno`, `strerror` friends.
@@ -222,19 +280,21 @@ make_error(SystemError, Error);
  * support is too WIP to justify the code churn, but if it is finished
  * then a better identifier becomes moe worth it.
  */
+// NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init)
 class sys_error_t : public SystemError {
-public:
-  int err_no;
+private:
+  int err_no_;
 
+public:
   /**
    * Construct using the explicitly-provided error number. `strerror`
    * will be used to try to add additional information to the message.
    */
   template <typename... Args>
-  sys_error_t(int err_no, const Args&... args) : SystemError(""), err_no(err_no) {
-    auto hf = hint_fmt_t(args...);
-    err.msg = hint_fmt_t("%1%: %2%", uncolored_t(hf.str()), strerror(err_no));
-  }
+  sys_error_t(int error_number, const Args&... args)
+      : SystemError(hint_fmt_t("%1%: %2%", uncolored_t(hint_fmt_t(args...).str()),
+                               strerror(error_number))), // NOLINT(concurrency-mt-unsafe)
+        err_no_(error_number) {}
 
   /**
    * Construct using the ambient `errno`.
@@ -243,12 +303,15 @@ public:
    * calling this constructor!
    */
   template <typename... Args>
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init)
   sys_error_t(const Args&... args) : sys_error_t(errno, args...) {}
+
+  [[nodiscard]] auto err_no() const -> int { return err_no_; }
 };
 
 #ifdef _WIN32
 namespace windows {
-class WinError;
+class WinError; // NOLINT(readability-identifier-naming)
 }
 #endif
 
@@ -286,3 +349,5 @@ void panic(std::string_view msg);
 unreachable(std::source_location loc = std::source_location::current());
 
 } // namespace nix
+
+#endif // NIX_UTIL_ERROR_H

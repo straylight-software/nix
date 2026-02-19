@@ -18,7 +18,7 @@ namespace fetchers {
 struct settings_t;
 } // namespace fetchers
 
-typedef std::string FlakeId;
+using FlakeId = std::string;
 
 /**
  * A flake reference specifies how to fetch a flake or raw source

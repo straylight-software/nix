@@ -38,7 +38,7 @@ std::pair<StorePath, Hash> fetch_to_store2(const fetchers::settings_t& settings,
           name, ContentAddressWithReferences::fromParts(method, hash, {}));
       if (mode == FetchMode::DryRun || store.maybeQueryPathInfo(store_path)) {
         debug("source path '%s' cache hit in '%s' (hash '%s')", path,
-              store.printStorePath(store_path), hash.to_string(hash_format_t::SRI, true));
+              store.printStorePath(store_path), hash.to_string(hash_format_t::sri, true));
         return {store_path, hash};
       }
       debug("source path '%s' not in store", path);
@@ -63,7 +63,7 @@ std::pair<StorePath, Hash> fetch_to_store2(const fetchers::settings_t& settings,
               auto [store_path, hash] =
                   store.computeStorePath(name, path, method, hash_algorithm_t::SHA256, {}, filter2);
               debug("hashed '%s' to '%s' (hash '%s')", path, store.printStorePath(store_path),
-                    hash.to_string(hash_format_t::SRI, true));
+                    hash.to_string(hash_format_t::sri, true));
               std::make_pair(store_path, hash);
             })
           : ({
@@ -79,12 +79,12 @@ std::pair<StorePath, Hash> fetch_to_store2(const fetchers::settings_t& settings,
                 info->ca->hash;
               });
               debug("copied '%s' to '%s' (hash '%s')", path, store.printStorePath(store_path),
-                    hash.to_string(hash_format_t::SRI, true));
+                    hash.to_string(hash_format_t::sri, true));
               std::make_pair(store_path, hash);
             });
 
   if (cache_key)
-    settings.get_cache()->upsert(*cache_key, {{"hash", hash.to_string(hash_format_t::SRI, true)}});
+    settings.get_cache()->upsert(*cache_key, {{"hash", hash.to_string(hash_format_t::sri, true)}});
 
   return {store_path, hash};
 }

@@ -10,17 +10,17 @@ namespace nix::fetchers {
 struct path_input_scheme_t : InputScheme {
   std::optional<Input> inputFromURL(const settings_t& settings, const parsed_url_t& url,
                                     bool require_tree) const override {
-    if (url.scheme != "path")
+    if (url.scheme() != "path")
       return {};
 
-    if (url.authority && url.authority->host.size())
-      throw Error("path URL '%s' should not have an authority ('%s')", url, *url.authority);
+    if (url.authority() && url.authority()->host().size())
+      throw Error("path URL '%s' should not have an authority ('%s')", url, *url.authority());
 
     Input input{};
     input.attrs.insert_or_assign("type", "path");
-    input.attrs.insert_or_assign("path", render_url_path_ensure_legal(url.path));
+    input.attrs.insert_or_assign("path", render_url_path_ensure_legal(url.path()));
 
-    for (auto& [name, value] : url.query)
+    for (auto& [name, value] : url.query())
       if (name == "rev" || name == "narHash")
         input.attrs.insert_or_assign(name, value);
       else if (name == "revCount" || name == "lastModified") {
@@ -72,7 +72,8 @@ struct path_input_scheme_t : InputScheme {
     return attrs;
   }
 
-  std::optional<Input> inputFromAttrs(const settings_t& settings, const Attrs& attrs) const override {
+  std::optional<Input> inputFromAttrs(const settings_t& settings,
+                                      const Attrs& attrs) const override {
     get_str_attr(attrs, "path");
 
     Input input{};
@@ -85,11 +86,11 @@ struct path_input_scheme_t : InputScheme {
     query.erase("path");
     query.erase("type");
     query.erase("__final");
-    return parsed_url_t{
-        .scheme = "path",
-        .path = split_string<std::vector<std::string>>(get_str_attr(input.attrs, "path"), "/"),
-        .query = query,
-    };
+    parsed_url_t url;
+    url.set_scheme("path");
+    url.set_path(split_string<std::vector<std::string>>(get_str_attr(input.attrs, "path"), "/"));
+    url.set_query(query);
+    return url;
   }
 
   std::optional<std::filesystem::path> get_source_path(const Input& input) const override {
@@ -123,7 +124,7 @@ struct path_input_scheme_t : InputScheme {
   }
 
   std::pair<ref<SourceAccessor>, Input> get_accessor(const settings_t& settings, Store& store,
-                                                    const Input& _input) const override {
+                                                     const Input& _input) const override {
     Input input(_input);
 
     auto abs_path = get_abs_path(input);
@@ -141,11 +142,11 @@ struct path_input_scheme_t : InputScheme {
       // store, pre-create an entry in the fetcher cache.
       auto info = store.maybeQueryPathInfo(*store_path);
       if (info) {
-        accessor->fingerprint = fmt("path:%s", info->nar_hash.to_string(hash_format_t::SRI, true));
+        accessor->fingerprint = fmt("path:%s", info->nar_hash.to_string(hash_format_t::sri, true));
         settings.get_cache()->upsert(
             make_source_path_to_hash_cache_key(*accessor->fingerprint,
-                                         ContentAddressMethod::raw_t::nix_archive, "/"),
-            {{"hash", info->nar_hash.to_string(hash_format_t::SRI, true)}});
+                                               ContentAddressMethod::raw_t::nix_archive, "/"),
+            {{"hash", info->nar_hash.to_string(hash_format_t::sri, true)}});
       }
     }
 

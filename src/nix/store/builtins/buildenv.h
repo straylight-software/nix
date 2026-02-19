@@ -35,7 +35,7 @@ public:
         priority(priority) {}
 };
 
-typedef std::vector<Package> Packages;
+using Packages = std::vector<Package>;
 
 void build_profile(const Path& out, Packages&& pkgs);
 

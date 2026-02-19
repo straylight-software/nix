@@ -101,7 +101,7 @@ static std::vector<std::string> expand_builder_lines(const std::string& builders
         try {
           text = read_file(path);
         } catch (const sys_error_t& e) {
-          if (e.err_no != ENOENT)
+          if (e.err_no() != ENOENT)
             throw;
           debug("cannot find machines file '%s'", path);
           continue;
@@ -150,7 +150,7 @@ static Machine parse_builder_line(const string_set_t& default_systems, const std
       base64::decode(str);
     } catch (FormatError& e) {
       e.add_trace({}, "while parsing machine specification at a column #%lu in a row: '%s'",
-                 field_index, line);
+                  field_index, line);
       throw;
     }
     return str;
@@ -182,7 +182,7 @@ static Machine parse_builder_line(const string_set_t& default_systems, const std
 }
 
 static Machines parse_builder_lines(const string_set_t& default_systems,
-                                  const std::vector<std::string>& builders) {
+                                    const std::vector<std::string>& builders) {
   Machines result;
   std::transform(builders.begin(), builders.end(), std::back_inserter(result),
                  [&](auto&& line) { return parse_builder_line(default_systems, line); });

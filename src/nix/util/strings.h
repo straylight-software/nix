@@ -19,8 +19,9 @@ namespace nix {
  * See also `basic_split_string()`, which preserves empty strings between separators, as well as at
  * the start and end.
  */
-template <class C, class char_t = char>
-C basic_tokenize_string(std::basic_string_view<char_t> s, std::basic_string_view<char_t> separators);
+template <class C, class CharType = char>
+[[nodiscard]] auto basic_tokenize_string(std::basic_string_view<CharType> str,
+                                         std::basic_string_view<CharType> separators) -> C;
 
 /**
  * Like `basic_tokenize_string` but specialized to the default `char`

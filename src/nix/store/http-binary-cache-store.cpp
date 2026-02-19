@@ -23,21 +23,21 @@ HttpBinaryCacheStoreConfig::HttpBinaryCacheStoreConfig(std::string_view scheme,
                                                        const Params& params)
     : StoreConfig(params),
       BinaryCacheStoreConfig(params),
-      cacheUri(
-          parse_url(std::string{scheme} + "://" +
-                   (!_cacheUri.empty()
-                        ? _cacheUri
-                        : throw UsageError("`%s` Store requires a non-empty authority in Store URL",
-                                           scheme)))) {
-  while (!cacheUri.path.empty() && cacheUri.path.back() == "")
-    cacheUri.path.pop_back();
+      cacheUri(parse_url(
+          std::string{scheme} + "://" +
+          (!_cacheUri.empty()
+               ? _cacheUri
+               : throw UsageError("`%s` Store requires a non-empty authority in Store URL",
+                                  scheme)))) {
+  while (!cacheUri.path().empty() && cacheUri.path().back() == "")
+    cacheUri.path().pop_back();
 }
 
 StoreReference HttpBinaryCacheStoreConfig::getReference() const {
   return {
       .variant =
           StoreReference::Specified{
-              .scheme = cacheUri.scheme,
+              .scheme = cacheUri.scheme(),
               .authority = cacheUri.render_authority_and_path(),
           },
       .params = getQueryParams(),
@@ -77,7 +77,8 @@ void http_binary_cache_store::init() {
   }
 }
 
-std::optional<std::string> http_binary_cache_store::get_compression_method(const std::string& path) {
+std::optional<std::string>
+http_binary_cache_store::get_compression_method(const std::string& path) {
   if (has_suffix(path, ".narinfo") && !config->narinfoCompression.get().empty())
     return config->narinfoCompression;
   else if (has_suffix(path, ".ls") && !config->lsCompression.get().empty())
@@ -129,8 +130,8 @@ bool http_binary_cache_store::file_exists(const std::string& path) {
 }
 
 void http_binary_cache_store::upload(std::string_view path, restartable_source_t& source,
-                                  uint64_t size_hint, std::string_view mime_type,
-                                  std::optional<headers_t> headers) {
+                                     uint64_t size_hint, std::string_view mime_type,
+                                     std::optional<headers_t> headers) {
   auto req = makeRequest(path);
   req.method = HttpMethod::Put;
 
@@ -146,7 +147,7 @@ void http_binary_cache_store::upload(std::string_view path, restartable_source_t
 }
 
 void http_binary_cache_store::upsert_file(const std::string& path, restartable_source_t& source,
-                                      const std::string& mime_type, uint64_t size_hint) {
+                                          const std::string& mime_type, uint64_t size_hint) {
   try {
     if (auto compression_method = get_compression_method(path)) {
       compressed_source_t compressed(source, *compression_method);
@@ -165,8 +166,8 @@ void http_binary_cache_store::upsert_file(const std::string& path, restartable_s
 FileTransferRequest http_binary_cache_store::makeRequest(std::string_view path) {
   /* Otherwise the last path fragment will get discarded. */
   auto cacheUriWithTrailingSlash = config->cacheUri;
-  if (!cacheUriWithTrailingSlash.path.empty())
-    cacheUriWithTrailingSlash.path.push_back("");
+  if (!cacheUriWithTrailingSlash.path().empty())
+    cacheUriWithTrailingSlash.path().push_back("");
 
   /* path is not a path, but a full relative or absolute
      URL, e.g. we've seen in the wild NARINFO files have a URL
@@ -178,8 +179,8 @@ FileTransferRequest http_binary_cache_store::makeRequest(std::string_view path) 
   /* For S3 URLs, preserve query parameters from the base URL when the
      relative path doesn't have its own query parameters. This is needed
      to preserve S3-specific parameters like endpoint and region. */
-  if (config->cacheUri.scheme == "s3" && result.query.empty()) {
-    result.query = config->cacheUri.query;
+  if (config->cacheUri.scheme() == "s3" && result.query().empty()) {
+    result.set_query(config->cacheUri.query());
   }
 
   return FileTransferRequest(result);
@@ -200,7 +201,7 @@ void http_binary_cache_store::getFile(const std::string& path, Sink& sink) {
 }
 
 void http_binary_cache_store::getFile(const std::string& path,
-                                   Callback<std::optional<std::string>> callback) noexcept {
+                                      Callback<std::optional<std::string>> callback) noexcept {
   auto callbackPtr = std::make_shared<decltype(callback)>(std::move(callback));
 
   try {

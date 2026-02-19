@@ -1,163 +1,175 @@
 #include "nix/util/canon-path.h"
 
+#include <algorithm>
+#include <cassert>
 #include <cstring>
+#include <optional>
+#include <ostream>
+#include <set>
+#include <string>
+#include <string_view>
+#include <vector>
 
 #include "nix/util/file-path-impl.h"
-#include "nix/util/strings-inline.h"
 #include "nix/util/util.h"
 
 namespace nix {
 
-const canon_path_t canon_path_t::root = canon_path_t("/");
+const canon_path_t canon_path_t::root = canon_path_t("/"); // NOLINT(cert-err58-cpp)
 
-static std::string abs_path_pure(std::string_view path) {
-  return canon_path_inner<unix_path_trait_t>(path, [](auto&, auto&) {});
+namespace {
+
+auto abs_path_pure(std::string_view path) -> std::string {
+  return canon_path_inner<unix_path_trait_t>(path, [](auto& /*unused*/, auto& /*unused*/) {});
 }
 
-static void ensure_no_null_bytes(std::string_view s) {
-  if (std::memchr(s.data(), '\0', s.size())) [[unlikely]] {
+void ensure_no_null_bytes(std::string_view str) {
+  if (std::memchr(str.data(), '\0', str.size()) != nullptr) [[unlikely]] {
     using namespace std::string_view_literals;
-    auto str = replace_strings(std::string(s), "\0"sv, "␀"sv);
-    throw BadCanonPath("path segment '%s' must not contain null (\\0) bytes", str);
+    auto msg = replace_strings(std::string(str), "\0"sv, "␀"sv);
+    throw BadCanonPath("path segment '%s' must not contain null (\\0) bytes", msg);
   }
 }
 
-canon_path_t::canon_path_t(std::string_view raw) : path(abs_path_pure(concat_strings("/", raw))) {
+} // namespace
+
+canon_path_t::canon_path_t(std::string_view raw) : path_(abs_path_pure(concat_strings("/", raw))) {
   ensure_no_null_bytes(raw);
 }
 
-canon_path_t::canon_path_t(const char* raw) : path(abs_path_pure(concat_strings("/", raw))) {}
+canon_path_t::canon_path_t(const char* raw) : path_(abs_path_pure(concat_strings("/", raw))) {}
 
 canon_path_t::canon_path_t(std::string_view raw, const canon_path_t& root)
-    : path(abs_path_pure(raw.size() > 0 && raw[0] == '/' ? raw
-                                                       : concat_strings(root.abs(), "/", raw))) {
+    : path_(abs_path_pure(!raw.empty() && raw[0] == '/' ? raw
+                                                        : concat_strings(root.abs(), "/", raw))) {
   ensure_no_null_bytes(raw);
 }
 
-canon_path_t::canon_path_t(const std::vector<std::string>& elems) : path("/") {
-  for (auto& s : elems) {
-    push(s);
-}
+canon_path_t::canon_path_t(const std::vector<std::string>& elems) : path_("/") {
+  for (const auto& str : elems) {
+    push(str);
+  }
 }
 
-std::optional<canon_path_t> canon_path_t::parent() const {
+auto canon_path_t::parent() const -> std::optional<canon_path_t> {
   if (is_root()) {
     return std::nullopt;
-}
-  return canon_path_t(unchecked_t(), path.substr(0, std::max((size_t)1, path.rfind('/'))));
+  }
+  return canon_path_t(unchecked_t(),
+                      path_.substr(0, std::max(static_cast<size_t>(1), path_.rfind('/'))));
 }
 
 void canon_path_t::pop() {
   assert(!is_root());
-  path.resize(std::max((size_t)1, path.rfind('/')));
+  path_.resize(std::max(static_cast<size_t>(1), path_.rfind('/')));
 }
 
-bool canon_path_t::is_within(const canon_path_t& parent) const {
-  return !(path.size() < parent.path.size() || path.substr(0, parent.path.size()) != parent.path ||
-           (parent.path.size() > 1 && path.size() > parent.path.size() &&
-            path[parent.path.size()] != '/'));
+auto canon_path_t::is_within(const canon_path_t& parent) const -> bool {
+  return path_.size() >= parent.path_.size() && path_.starts_with(parent.path_) &&
+         (parent.path_.size() <= 1 || path_.size() <= parent.path_.size() ||
+          path_[parent.path_.size()] == '/');
 }
 
-canon_path_t canon_path_t::remove_prefix(const canon_path_t& prefix) const {
+auto canon_path_t::remove_prefix(const canon_path_t& prefix) const -> canon_path_t {
   assert(is_within(prefix));
   if (prefix.is_root()) {
     return *this;
-}
-  if (path.size() == prefix.path.size()) {
+  }
+  if (path_.size() == prefix.path_.size()) {
     return root;
-}
-  return canon_path_t(unchecked_t(), path.substr(prefix.path.size()));
+  }
+  return {unchecked_t(), path_.substr(prefix.path_.size())};
 }
 
-void canon_path_t::extend(const canon_path_t& x) {
-  if (x.is_root()) {
+void canon_path_t::extend(const canon_path_t& ext) {
+  if (ext.is_root()) {
     return;
-}
+  }
   if (is_root()) {
-    path += x.rel();
+    path_ += ext.rel();
   } else {
-    path += x.abs();
-}
+    path_ += ext.abs();
+  }
 }
 
-canon_path_t canon_path_t::operator/(const canon_path_t& x) const {
+auto canon_path_t::operator/(const canon_path_t& ext) const -> canon_path_t {
   auto res = *this;
-  res.extend(x);
+  res.extend(ext);
   return res;
 }
 
-void canon_path_t::push(std::string_view c) {
-  assert(c.find('/') == c.npos);
-  assert(c != "." && c != "..");
-  ensure_no_null_bytes(c);
+void canon_path_t::push(std::string_view component) {
+  assert(!component.contains('/'));
+  assert(component != "." && component != "..");
+  ensure_no_null_bytes(component);
   if (!is_root()) {
-    path += '/';
-}
-  path += c;
+    path_ += '/';
+  }
+  path_ += component;
 }
 
-canon_path_t canon_path_t::operator/(std::string_view c) const {
+auto canon_path_t::operator/(std::string_view component) const -> canon_path_t {
   auto res = *this;
-  res.push(c);
+  res.push(component);
   return res;
 }
 
-bool canon_path_t::is_allowed(const std::set<canon_path_t>& allowed) const {
+auto canon_path_t::is_allowed(const std::set<canon_path_t>& allowed) const -> bool {
   /* Check if `this` is an exact match or the parent of an
      allowed path. */
-  auto lb = allowed.lower_bound(*this);
-  if (lb != allowed.end()) {
-    if (lb->is_within(*this)) {
+  auto lower = allowed.lower_bound(*this);
+  if (lower != allowed.end()) {
+    if (lower->is_within(*this)) {
       return true;
-}
+    }
   }
 
   /* Check if a parent of `this` is allowed. */
-  auto path = *this;
-  while (!path.is_root()) {
-    path.pop();
-    if (allowed.count(path)) {
+  auto current = *this;
+  while (!current.is_root()) {
+    current.pop();
+    if (allowed.contains(current)) {
       return true;
-}
+    }
   }
 
   return false;
 }
 
-std::ostream& operator<<(std::ostream& stream, const canon_path_t& path) {
+auto operator<<(std::ostream& stream, const canon_path_t& path) -> std::ostream& {
   stream << path.abs();
   return stream;
 }
 
-std::string canon_path_t::make_relative(const canon_path_t& path) const {
-  auto p1 = begin();
-  auto p2 = path.begin();
+auto canon_path_t::make_relative(const canon_path_t& path) const -> std::string {
+  auto ptr1 = begin();
+  auto ptr2 = path.begin();
 
-  for (; p1 != end() && p2 != path.end() && *p1 == *p2; ++p1, ++p2) {
+  for (; ptr1 != end() && ptr2 != path.end() && *ptr1 == *ptr2; ++ptr1, ++ptr2) {
     ;
-}
-
-  if (p1 == end() && p2 == path.end()) {
-    return ".";
-  } else if (p1 == end()) {
-    return std::string(p2.remaining);
-  } else {
-    std::string res;
-    while (p1 != end()) {
-      ++p1;
-      if (!res.empty()) {
-        res += '/';
-}
-      res += "..";
-    }
-    if (p2 != path.end()) {
-      if (!res.empty()) {
-        res += '/';
-}
-      res += p2.remaining;
-    }
-    return res;
   }
+
+  if (ptr1 == end() && ptr2 == path.end()) {
+    return ".";
+  }
+  if (ptr1 == end()) {
+    return std::string(ptr2.remaining());
+  }
+  std::string res;
+  while (ptr1 != end()) {
+    ++ptr1;
+    if (!res.empty()) {
+      res += '/';
+    }
+    res += "..";
+  }
+  if (ptr2 != path.end()) {
+    if (!res.empty()) {
+      res += '/';
+    }
+    res += ptr2.remaining();
+  }
+  return res;
 }
 
 } // namespace nix

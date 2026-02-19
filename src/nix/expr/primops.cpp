@@ -4043,10 +4043,10 @@ static void prim_sort(EvalState& state, const pos_idx_t pos, Value** args, Value
      are not resilient to comparators that violate strict weak ordering. Diagnosing
      incorrect implementations is a O(n^3) problem, so doing the checks is much more
      expensive that doing the sorting. For this reason we choose to use sorting algorithms
-     that are can't be broken by invalid comprators. peeksort (mergesort)
+     that are can't be broken by invalid comprators. peek_sort (mergesort)
      doesn't misbehave when any of the strict weak order properties is
      violated - output is always a reordering of the input. */
-  peeksort(list.begin(), list.end(), comparator);
+  peek_sort(list.begin(), list.end(), comparator);
 
   v.mkList(list);
 }
@@ -4641,7 +4641,7 @@ static void prim_convert_hash(EvalState& state, const pos_idx_t pos, Value** arg
   hash_format_t hf = parse_hash_format(state.forceStringNoCtx(
       *iterator_to_hash_format->value, pos, "while evaluating the attribute 'toHashFormat'"));
 
-  v.mk_string(Hash::parse_any(hash, ha).to_string(hf, hf == hash_format_t::SRI), state.mem);
+  v.mk_string(Hash::parse_any(hash, ha).to_string(hf, hf == hash_format_t::sri), state.mem);
 }
 
 static RegisterPrimOp primop_convert_hash({

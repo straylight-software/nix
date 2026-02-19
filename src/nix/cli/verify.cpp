@@ -89,7 +89,7 @@ struct cmd_verify_t : StorePathsCommand {
                       fmt("checking '%s'", store->printStorePath(info->path)));
 
         if (!no_contents) {
-          auto hash_sink = hash_sink_t(info->nar_hash.algo);
+          auto hash_sink = hash_sink_t(info->nar_hash.algo());
 
           store->nar_from_path(info->path, hash_sink);
 

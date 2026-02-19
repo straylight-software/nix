@@ -48,6 +48,23 @@
             '';
           };
 
+          # zpp_bits - High-performance C++20 binary serialization (header-only)
+          zpp_bits = pkgs.stdenv.mkDerivation {
+            pname = "zpp_bits";
+            version = "4.6";
+            src = pkgs.fetchFromGitHub {
+              owner = "eyalz800";
+              repo = "zpp_bits";
+              rev = "v4.6";
+              hash = "sha256-N3zT1eo3fLzN5/fJbfq01w7PGTD7pbmU9BMLjxsn33I=";
+            };
+            dontBuild = true;
+            installPhase = ''
+              mkdir -p $out/include
+              cp zpp_bits.h $out/include/
+            '';
+          };
+
           # Third-party dependencies required by nix
           nixDeps = {
             # util deps
@@ -86,8 +103,12 @@
 
             # straylight primitives deps
             inherit stringzilla; # SIMD-accelerated string operations
+            inherit zpp_bits; # High-performance binary serialization
             rapidfuzz-cpp = pkgs.rapidfuzz-cpp; # SIMD-optimized fuzzy matching
             taskflow = pkgs.taskflow; # Parallel task programming (DAG executor)
+
+            # libevring deps
+            inherit (pkgs) nghttp2; # HTTP/2 protocol library
 
             # nix-language deps (WASM compilation)
             pegtl = pkgs.pegtl; # PEGTL parser combinator library

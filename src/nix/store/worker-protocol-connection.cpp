@@ -22,11 +22,11 @@ static logger_t::fields_t read_fields(Source& from) {
   size_t size = read_int(from);
   for (size_t n = 0; n < size; n++) {
     auto type = (decltype(logger_t::field_t::type))read_int(from);
-    if (type == logger_t::field_t::t_int)
-      fields.push_back(read_num<uint64_t>(from));
-    else if (type == logger_t::field_t::t_string)
-      fields.push_back(read_string(from));
-    else
+    if (type == logger_t::field_t::t_int) {
+      fields.push_back(logger_t::field_t(read_num<uint64_t>(from)));
+    } else if (type == logger_t::field_t::t_string) {
+      fields.push_back(logger_t::field_t(read_string(from)));
+    } else
       throw Error("got unsupported field type %x from Nix daemon", (int)type);
   }
   return fields;
@@ -146,7 +146,7 @@ void WorkerProto::BasicClientConnection::processStderr(bool* daemonException, Si
 }
 
 static WorkerProto::FeatureSet intersect_features(const WorkerProto::FeatureSet& a,
-                                                 const WorkerProto::FeatureSet& b) {
+                                                  const WorkerProto::FeatureSet& b) {
   WorkerProto::FeatureSet res;
   for (auto& x : a)
     if (b.contains(x))
@@ -298,8 +298,8 @@ WorkerProto::BasicClientConnection::getBuildDerivationResponse(const StoreDirCon
 }
 
 void WorkerProto::BasicClientConnection::nar_from_path(const StoreDirConfig& store,
-                                                     bool* daemonException, const StorePath& path,
-                                                     std::function<void(Source&)> fun) {
+                                                       bool* daemonException, const StorePath& path,
+                                                       std::function<void(Source&)> fun) {
   to << WorkerProto::Op::NarFromPath << store.printStorePath(path);
   processStderr(daemonException);
 

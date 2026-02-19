@@ -32,14 +32,34 @@ nix-language/
 │   ├── actions.hh          # Alternative PEGTL actions (direct AST build)
 │   └── state.hh            # Parser state utilities
 ├── compile/                # WASM compilation
-│   ├── compiler.hh         # AST → WASM via Binaryen
+│   ├── compiler.hh         # AST → WASM via Binaryen (~2700 lines)
 │   └── wasm_types.hh       # WASM value representation
 ├── eval/                   # Tree-walking interpreter (reference impl)
-│   ├── eval.hh             # Evaluator
+│   ├── eval.hh             # Evaluator (~1500 lines)
 │   └── value.hh            # Runtime value types
+├── runtime/                # WASM execution runtime
+│   ├── memory_layout.hh    # Memory layout constants (shared w/ compiler)
+│   ├── runtime.hh          # Runtime context and value operations
+│   ├── runtime.cpp         # Runtime function implementations
+│   ├── wasm_executor.hh    # Wasmtime-based WASM executor
+│   └── wasm_executor.cpp   # Executor implementation
 ├── cli/                    # Command-line tools
 │   └── nix_eval.cpp        # REPL and file evaluator
-└── tests/                  # Test suite
+└── tests/                  # Test suite (~8200 lines)
+    ├── ast_test.cpp        # AST type construction/invariants
+    ├── grammar_test.cpp    # PEGTL grammar unit tests
+    ├── parse_test.cpp      # Parse → AST round-trips
+    ├── wasm_types_test.cpp # Value packing/unpacking
+    ├── compiler_test.cpp   # Compilation + validation
+    ├── eval_test.cpp       # Interpreter correctness
+    ├── integration_test.cpp # Full pipeline (parse → compile → WASM)
+    ├── execution_test.cpp  # End-to-end with wasmtime execution
+    ├── runtime_test.cpp    # Direct runtime function testing
+    ├── property_test.cpp   # Property-based tests (RapidCheck)
+    ├── adversarial_test.cpp # Edge cases, boundary conditions
+    ├── bench.cpp           # Benchmarks (nanobench)
+    ├── fuzz_parse.cpp      # libFuzzer harness for parser
+    └── fuzz_compile.cpp    # libFuzzer harness for compiler
 ```
 
 ---
@@ -245,7 +265,7 @@ Closure: [func_index: i32][capture_count: i32][captures: nix_value...]
 
 ### `compiler.hh` - The Compiler
 
-2300+ lines of WASM codegen via Binaryen. Key components:
+~2700 lines of WASM codegen via Binaryen. Key components:
 
 #### Lexical Scope Management
 
@@ -283,23 +303,51 @@ Lambdas are compiled to:
 
 #### Runtime Imports
 
-The compiler imports host functions for operations that can't be inlined:
+The compiler imports host functions split across two WASM modules:
 
+**`runtime` module** - Core runtime operations:
 ```cpp
-// Arithmetic
-__add, __sub, __mul, __div
+__throw(msg_offset: i32, line: i32, col: i32) -> i64  // with position
+__force(value: i64) -> i64                            // evaluate thunks
+__apply(fn: i64, arg: i64) -> i64                     // function application
+__lookupVar(name_offset: i32) -> i64                  // dynamic var lookup
+__makeClosure(func_index: i32, env_offset: i32, env_size: i32) -> i64
+__makeThunk(func_index: i32, env_offset: i32, env_size: i32) -> i64
+```
 
-// Comparison
-__lessThan, __lessEq, __eq, __neq
+**`builtins` module** - Operations on values:
+```cpp
+// Arithmetic (with source position for type error reporting)
+__add(a: i64, b: i64, line: i32, col: i32) -> i64
+__sub(a: i64, b: i64, line: i32, col: i32) -> i64
+__mul(a: i64, b: i64, line: i32, col: i32) -> i64
+__div(a: i64, b: i64, line: i32, col: i32) -> i64
+__negate(v: i64) -> i64
+
+// Comparison (no position needed)
+__lessThan(a: i64, b: i64) -> i64
+__lessEq(a: i64, b: i64) -> i64
+__eq(a: i64, b: i64) -> i64
+__neq(a: i64, b: i64) -> i64
+
+// Boolean
+__not(v: i64) -> i64
+__isBool(v: i64) -> i32
 
 // Collections
-__makeList, __makeAttrs, __select, __hasAttr, __update, __concat
-
-// Runtime
-__apply, __force, __throw, __lookupVar, __makeClosure, __makeThunk
+__makeList(offset: i32, count: i32) -> i64
+__makeAttrs(offset: i32, count: i32) -> i64
+__makeAttrsDynamic(offset: i32, count: i32) -> i64
+__select(set: i64, key_offset: i32, line: i32, col: i32) -> i64
+__selectDynamic(set: i64, key: i64, line: i32, col: i32) -> i64
+__hasAttr(set: i64, key_offset: i32) -> i64
+__hasAttrDynamic(set: i64, key: i64) -> i64
+__update(a: i64, b: i64) -> i64
+__concat(a: i64, b: i64) -> i64
 
 // String operations
-__toString, __concatStrings
+__toString(v: i64) -> i64
+__concatStrings(offset: i32, count: i32) -> i64
 ```
 
 #### Compilation Example
@@ -327,7 +375,101 @@ Compiles to (conceptually):
 
 ---
 
-## 4. Eval Layer (`eval/`)
+## 4. Runtime Layer (`runtime/`)
+
+The runtime provides host-side implementations of the functions imported by compiled WASM modules, plus a wasmtime-based executor.
+
+### `memory_layout.hh` - Shared Constants
+
+Constants for memory layout shared between compiler and runtime:
+
+```cpp
+namespace memory_layout {
+  constexpr std::uint32_t DATA_SEGMENT_LIMIT = 0x10000;  // 64 KB
+  constexpr std::uint32_t HEAP_BASE = 0x20000;           // 128 KB
+  constexpr std::uint32_t DEFAULT_MEMORY_SIZE = 0x100000; // 1 MB
+  constexpr std::uint32_t ALIGNMENT = 8;
+  
+  // Structure sizes and offsets
+  constexpr std::uint32_t THUNK_SIZE = 20;
+  constexpr std::uint32_t CLOSURE_HEADER_SIZE = 8;
+  // ... etc (see MEMORY.md for full details)
+}
+```
+
+### `runtime.hh` / `runtime.cpp` - Runtime Functions
+
+~1100 lines total (462 hh + 637 cpp) implementing all imported functions:
+
+```cpp
+/// packed nix_value: i64 with tag in low 32 bits, payload in high 32 bits
+using nix_value = std::int64_t;
+
+/// runtime context holding memory and function table
+class runtime_context {
+  std::vector<std::uint8_t> memory;  // linear memory
+  heap_allocator heap;                // bump allocator for runtime
+  wasm_func_t call_wasm_func;         // callback for indirect calls
+  wasm_thunk_func_t call_wasm_thunk;  // callback for thunk evaluation
+  std::unordered_map<std::string, nix_value> builtins;
+  // ...
+};
+
+/// force a value (evaluate thunks recursively)
+auto rt_force(runtime_context& ctx, nix_value v) -> nix_value;
+
+/// apply a function to an argument
+auto rt_apply(runtime_context& ctx, nix_value fn, nix_value arg) -> nix_value;
+
+// ... arithmetic, comparison, collection operations
+```
+
+**Key Features**:
+- Bump allocator for heap (`heap_allocator`)
+- Memory read/write helpers (little-endian i32/i64/string)
+- Thunk evaluation with infinite recursion detection
+- Error types: `runtime_error`, `type_error`, `attr_error`, `oom_error`
+
+### `wasm_executor.hh` / `wasm_executor.cpp` - WASM Execution
+
+~950 lines total (132 hh + 822 cpp) providing wasmtime-based execution:
+
+```cpp
+struct execution_result {
+  bool success;
+  nix_value value;      // result if success
+  std::string error;    // error message if !success
+  std::uint32_t line;   // error position
+  std::uint32_t column;
+};
+
+class wasm_executor {
+public:
+  /// execute a WASM binary, returns the result of calling main()
+  auto execute(std::span<const std::uint8_t> wasm_binary) -> execution_result;
+  
+  /// format a value for display
+  auto format_value(nix_value v) const -> std::string;
+  
+private:
+  std::unique_ptr<wasmtime::Engine> engine_;
+  std::unique_ptr<wasmtime::Store> store_;
+  runtime_context ctx_;
+  // ...
+};
+```
+
+**Execution Flow**:
+1. Create fresh store and memory
+2. Setup linker with all runtime imports
+3. Compile and instantiate module
+4. Setup indirect call callbacks for closures/thunks
+5. Call `main()`, force the result
+6. Return formatted result or error
+
+---
+
+## 5. Eval Layer (`eval/`)
 
 A tree-walking interpreter serving as reference implementation and for testing.
 
@@ -385,9 +527,9 @@ auto force(value_ptr val) -> value_ptr {
 
 ---
 
-## 5. Build System
+## 6. Build System
 
-Uses Buck2 with header-only libraries:
+Uses Buck2 with header-only libraries where sensible:
 
 ```python
 cxx_library(
@@ -407,6 +549,26 @@ cxx_library(
     exported_headers = [...],
     deps = [":ast", "//third_party:binaryen"],
 )
+
+cxx_library(
+    name = "eval",
+    exported_headers = ["eval/eval.hh", "eval/value.hh"],
+    deps = [":ast"],
+)
+
+cxx_library(
+    name = "runtime",
+    srcs = ["runtime/runtime.cpp"],
+    exported_headers = ["runtime/memory_layout.hh", "runtime/runtime.hh"],
+    deps = [":compile"],
+)
+
+cxx_library(
+    name = "wasm_executor",
+    srcs = ["runtime/wasm_executor.cpp"],
+    exported_headers = ["runtime/wasm_executor.hh"],
+    deps = [":compile", ":runtime", "//third_party:wasmtime"],
+)
 ```
 
 ---
@@ -415,13 +577,15 @@ cxx_library(
 
 ### Working
 
-| Component | Status |
-|-----------|--------|
-| **Grammar** | Complete - handles full Nix lexical grammar |
-| **Parsing** | Complete - all expression types supported |
-| **AST Types** | Complete - full expression coverage |
-| **Tree-Walking Eval** | ~90% - most builtins, import, lazy eval |
-| **WASM Compiler** | ~90% - core expressions, closures, lazy eval, path merging |
+| Component | Status | Confidence |
+|-----------|--------|------------|
+| **Grammar** | Complete - handles full Nix lexical grammar | 95% |
+| **Parsing** | Complete - all expression types supported | 95% |
+| **AST Types** | Complete - full expression coverage | 95% |
+| **Tree-Walking Eval** | ~90% - most builtins, import, lazy eval | 85% |
+| **WASM Compiler** | ~90% - core expressions, closures, lazy eval, path merging | 85% |
+| **Runtime** | ~85% - arithmetic, comparison, collections, thunks, closures | 80% |
+| **WASM Executor** | Complete - wasmtime integration, full execution pipeline | 90% |
 
 ### Expression Coverage (Compiler)
 
@@ -433,22 +597,24 @@ cxx_library(
 | String interpolation | Complete | |
 | Path literals | Complete | |
 | Path interpolation | Complete | |
-| Identifiers | Complete | |
-| Lists | Complete | |
-| Attribute sets | Complete | Static keys |
-| Dynamic attr keys | Complete | Single-segment only |
+| Identifiers | Complete | Thunks forced on access |
+| Lists | Complete | Lazy elements |
+| Attribute sets | Complete | Static and dynamic keys |
+| Empty attrsets | Complete | Special `{}` handling |
 | Recursive attrsets | Complete | |
-| Select (a.b.c) | Complete | |
-| Has attribute (a ? b) | Complete | |
-| Lambdas (simple) | Complete | |
-| Lambdas (attrset) | Complete | |
+| Select (a.b.c) | Complete | With error on missing |
+| Has attribute (a ? b) | Complete | Works on empty sets |
+| Lambdas (simple) | Complete | `x: body` |
+| Lambdas (attrset pattern) | Complete | `{ x, y }: body` |
+| Pattern defaults | Complete | `{ x, y ? 10 }: body` |
+| Pattern with @ | Complete | `args@{ x }: body` |
 | Closures | Complete | Free variable capture |
 | Application | Complete | Curried |
-| Let expressions | Complete | |
+| Let expressions | Complete | Thunks forced on reference |
 | With expressions | Complete | Dynamic scope lookup |
 | If expressions | Complete | |
 | Assert | Complete | |
-| Binary operators | Complete | All operators |
+| Binary operators | Complete | All operators, INT_MIN/-1 handled |
 | Unary operators | Complete | |
 | Multi-segment paths | Complete | Path merging supported |
 | Lazy evaluation | Complete | Thunks for lists, attrsets, let |
@@ -459,92 +625,130 @@ cxx_library(
 2. **Search paths**: `<nixpkgs>` requires runtime NIX_PATH lookup
 3. **Flakes**: Not in scope for language-level implementation
 
+### Known Limitations (Runtime)
+
+1. **`rt_update`**: Returns second attrset (needs proper merge implementation)
+2. **String coercion**: `rt_to_string` only handles strings, not other types
+3. **Deep equality**: Lists and attrsets use reference equality, not structural
+
 ---
 
-## Plan to Complete
+## Completed Work
 
-### Phase 1: Compiler Completeness (DONE)
+### Phase 1: Compiler Completeness ✓
 
-1. ~~**Multi-segment path merging**~~ ✓ COMPLETE
-   - Implemented `group_bindings_by_first_segment()` and `compile_merged_attrset_value()`
+1. **Multi-segment path merging** ✓
+   - `group_bindings_by_first_segment()` and `compile_merged_attrset_value()`
    - Supports arbitrary nesting: `{ a.b.c = 1; a.b.d = 2; a.e = 3; }`
-   - Works for both attribute sets and let bindings
 
-2. ~~**Thunk generation**~~ ✓ COMPLETE
+2. **Thunk generation** ✓
    - `compile_as_thunk()` wraps expressions in lazy thunks
-   - List elements wrapped in thunks (lazy lists)
-   - Attribute set values wrapped in thunks (lazy attrsets)
-   - Let binding values wrapped in thunks
-   - `__force` calls at evaluation points (if/assert/logical operators)
-   - `__makeThunk` runtime import added
+   - Thunks forced on identifier access (let bindings, captures)
 
-3. **Error positions** (MEDIUM) - TODO
-   - Source positions are tracked but not propagated to runtime errors
-   - Need to emit source maps or inline position data
+3. **Error positions** ✓
+   - All error-throwing imports receive source position (line, column)
 
-### Phase 2: Runtime Implementation
+4. **Attrset pattern defaults** ✓
+   - `{ x, y ? 10 }: body` uses default when attribute missing
 
-The WASM module imports runtime functions. These need implementations:
+5. **Empty attrset handling** ✓
+   - `{}` represented as pointer 0, handled correctly in runtime
 
-```cpp
-// runtime.cpp (host side)
-extern "C" {
-    auto __add(nix_value a, nix_value b) -> nix_value;
-    auto __apply(nix_value fn, nix_value arg) -> nix_value;
-    auto __force(nix_value v) -> nix_value;
-    auto __makeList(uint32_t offset, uint32_t count) -> nix_value;
-    // ... ~30 more functions
-}
-```
+6. **Integer overflow** ✓
+   - `INT_MIN / -1` throws runtime error instead of SIGFPE
 
-**Implementation Options**:
-1. **C++ host**: Implement in C++, link with WASM runtime (wasmtime, wasm3)
-2. **Nix builtins in Nix**: Compile builtins.nix to WASM, link at load time
-3. **Hybrid**: Core ops in C++, higher-level builtins in Nix
+### Phase 2: Runtime Implementation ✓
 
-### Phase 3: Integration
+All 27 runtime functions implemented in `runtime/runtime.cpp`:
 
-1. **WASM execution harness**
-   - Load compiled module
-   - Provide runtime imports
-   - Execute main function
-   - Extract result
+| Category | Functions |
+|----------|-----------|
+| Core | `rt_force`, `rt_apply`, `rt_lookup_var`, `rt_make_closure`, `rt_make_thunk` |
+| Arithmetic | `rt_add`, `rt_sub`, `rt_mul`, `rt_div`, `rt_negate` |
+| Comparison | `rt_less_than`, `rt_less_eq`, `rt_eq`, `rt_neq` |
+| Boolean | `rt_not`, `rt_is_bool` |
+| Collections | `rt_make_list`, `rt_make_attrs`, `rt_make_attrs_dynamic`, `rt_select`, `rt_select_dynamic`, `rt_has_attr`, `rt_has_attr_dynamic`, `rt_update`, `rt_concat` |
+| Strings | `rt_to_string`, `rt_concat_strings` |
 
-2. **Store integration**
-   - `builtins.derivation` needs store access
-   - Content-addressed paths
-   - Build scheduling
+### Phase 3: Integration ✓
 
-3. **IFD (Import From Derivation)**
-   - Requires build-time evaluation
-   - Significant architectural consideration
+- `wasm_executor` class using wasmtime
+- All runtime imports bound to wasmtime linker
+- Indirect call support for closures and thunks
 
-### Phase 4: Performance
+---
 
-1. **String deduplication** in data segments
-2. **Escape analysis** for closure elision
-3. **Inlining** of small functions
-4. **WASM GC** for proper garbage collection (when available)
+## Remaining Work
+
+### Runtime Improvements (HIGH PRIORITY)
+
+1. **`rt_update` proper merge**
+   - Currently returns second attrset
+   - Should merge: `{ a = 1; } // { b = 2; }` → `{ a = 1; b = 2; }`
+
+2. **String coercion**
+   - `rt_to_string` only handles strings
+   - Should handle: integers, paths, booleans, null
+
+3. **Deep equality**
+   - Lists and attrsets use reference equality
+   - Should compare structurally
+
+### Features Not Implemented
+
+1. **Ancient let syntax**: `let { body = ...; }` (deprecated, low priority)
+2. **Search paths**: `<nixpkgs>` (requires NIX_PATH runtime)
+3. **Flakes**: Not in scope for language-level implementation
+4. **Store integration**: `builtins.derivation`, content-addressed paths
+5. **IFD**: Import From Derivation (requires build-time eval)
+6. **Most builtins**: Only basic operations implemented
+
+### Performance (FUTURE)
+
+1. String deduplication in data segments
+2. Escape analysis for closure elision
+3. Inlining of small functions
+4. WASM GC when available
 
 ---
 
 ## Testing Strategy
 
-```
-tests/
-├── ast_test.cpp        # AST type construction/invariants
-├── grammar_test.cpp    # PEGTL grammar unit tests
-├── parse_test.cpp      # Parse → AST round-trips
-├── wasm_types_test.cpp # Value packing/unpacking
-├── compiler_test.cpp   # Compilation + validation
-└── eval_test.cpp       # Interpreter correctness
-```
+### Test Files
 
-**Testing Approach**:
-1. Unit tests for each layer
-2. Property-based tests via RapidCheck
-3. Round-trip: `parse(source) → eval → expected_value`
-4. Compare: `eval(source) == run_wasm(compile(source))`
+| File | Lines | Test Cases | Assertions | Focus |
+|------|-------|------------|------------|-------|
+| `ast_test.cpp` | 572 | 40 | 74 | AST type construction |
+| `grammar_test.cpp` | 654 | 27 | 197 | PEGTL grammar rules |
+| `parse_test.cpp` | 1,109 | 21 | 526 | Parse → AST round-trips |
+| `wasm_types_test.cpp` | 310 | 19 | 116 | Value packing/unpacking |
+| `compiler_test.cpp` | 1,881 | 67 | 138 | WASM compilation + validation |
+| `eval_test.cpp` | 417 | 55 | 129 | Tree-walking interpreter |
+| `integration_test.cpp` | 343 | 34 | 71 | Parse → compile → WASM binary |
+| `execution_test.cpp` | 448 | 49 | 328 | Full pipeline with wasmtime |
+| `runtime_test.cpp` | 526 | 14 | 185 | Direct runtime function tests |
+| `property_test.cpp` | 600 | 28 | 2,800* | Property-based tests (RapidCheck) |
+| `adversarial_test.cpp` | 748 | 15 | 148 | Edge cases, boundary conditions |
+| **Total** | **~8,200** | **369** | **~4,700** | |
+
+*Property tests run 100 iterations each
+
+### Additional Test Infrastructure
+
+| File | Purpose |
+|------|---------|
+| `bench.cpp` | Microbenchmarks using nanobench |
+| `fuzz_parse.cpp` | libFuzzer harness for parser |
+| `fuzz_compile.cpp` | libFuzzer harness for compiler |
+
+### Testing Approach
+
+1. **Unit tests** for each layer (AST, parser, compiler, runtime)
+2. **Property-based tests** via RapidCheck for algebraic laws
+3. **Adversarial tests** for edge cases (INT_MIN, empty sets, overflow)
+4. **Integration tests**: `parse → compile → validate`
+5. **End-to-end tests**: `parse → compile → execute → verify result`
+6. **Fuzzing harnesses** for parser and compiler (manual execution)
 
 ---
 
@@ -555,8 +759,10 @@ tests/
 | PEGTL | 3.x | PEG parser generator |
 | Binaryen | 125 | WASM code generation |
 | Boost | 1.87 | `small_vector` for parse state |
+| Wasmtime | 40.0 | WASM execution runtime |
 | Catch2 | 3.x | Test framework |
 | RapidCheck | - | Property-based testing |
+| nanobench | 4.3.11 | Microbenchmarking |
 
 ---
 
@@ -567,4 +773,4 @@ tests/
 - `noexcept` where guaranteed
 - Trailing return types: `auto foo() -> int`
 - `std::` prefix always (no `using namespace std`)
-- Namespaces: `nix::language::{ast,parse,compile,eval}`
+- Namespaces: `nix::language::{ast,parse,compile,eval,runtime,memory_layout}`

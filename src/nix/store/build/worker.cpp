@@ -507,7 +507,7 @@ bool Worker::pathContentsGood(const StorePath& path) {
   bool res = false;
   if (auto accessor = store.getFSAccessor(path, /*require_valid_path=*/false)) {
     auto current =
-        hash_path({ref{accessor}}, file_ingestion_method_t::nix_archive, info->nar_hash.algo).first;
+        hash_path({ref{accessor}}, file_ingestion_method_t::nix_archive, info->nar_hash.algo()).first;
     Hash nullHash(hash_algorithm_t::SHA256);
     res = info->nar_hash == nullHash || info->nar_hash == current;
   }

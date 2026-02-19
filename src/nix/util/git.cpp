@@ -49,7 +49,7 @@ static std::string get_string(Source& source, int n) {
 }
 
 void parse_blob(file_system_object_sink_t& sink, const canon_path_t& sink_path, Source& source,
-               blob_mode_t blob_mode, const experimental_feature_settings_t& xp_settings) {
+                blob_mode_t blob_mode, const experimental_feature_settings_t& xp_settings) {
   xp_settings.require(xp_t::git_hashing);
 
   const unsigned long long size = std::stoi(get_string_until(source, 0));
@@ -58,7 +58,7 @@ void parse_blob(file_system_object_sink_t& sink, const canon_path_t& sink_path, 
     sink.create_regular_file(sink_path, [&](auto& crf) {
       if (executable) {
         crf.is_executable();
-}
+      }
 
       crf.preallocate_contents(size);
 
@@ -104,8 +104,8 @@ void parse_blob(file_system_object_sink_t& sink, const canon_path_t& sink_path, 
 }
 
 void parse_tree(file_system_object_sink_t& sink, const canon_path_t& sink_path, Source& source,
-               hash_algorithm_t hash_algo, std::function<sink_hook_t> hook,
-               const experimental_feature_settings_t& xp_settings) {
+                hash_algorithm_t hash_algo, std::function<sink_hook_t> hook,
+                const experimental_feature_settings_t& xp_settings) {
   const unsigned long long size = std::stoi(get_string_until(source, 0));
   unsigned long long left = size;
 
@@ -120,7 +120,7 @@ void parse_tree(file_system_object_sink_t& sink, const canon_path_t& sink_path, 
     auto mode_opt = decode_mode(raw_mode);
     if (!mode_opt) {
       throw Error("Unknown Git permission: %o", raw_mode);
-}
+    }
     auto mode = std::move(*mode_opt);
 
     std::string name = get_string_until(source, '\0');
@@ -135,17 +135,18 @@ void parse_tree(file_system_object_sink_t& sink, const canon_path_t& sink_path, 
       throw Error("Unsupported hash algorithm for git trees: %s", print_hash_algo(hash_algo));
     }
 
-    Hash hash(hash_algo);
-    std::copy(hashs.begin(), hashs.end(), hash.hash);
+    hash_t hash(hash_algo);
+    std::copy(hashs.begin(), hashs.end(), hash.hash());
 
     hook(canon_path_t{name}, tree_entry{
-                              .mode = mode,
-                              .hash = hash,
-                          });
+                                 .mode = mode,
+                                 .hash = hash,
+                             });
   }
 }
 
-object_type_t parse_object_type(Source& source, const experimental_feature_settings_t& xp_settings) {
+object_type_t parse_object_type(Source& source,
+                                const experimental_feature_settings_t& xp_settings) {
   xp_settings.require(xp_t::git_hashing);
 
   auto type = get_string(source, 5);
@@ -156,12 +157,12 @@ object_type_t parse_object_type(Source& source, const experimental_feature_setti
     return object_type_t::tree_t;
   } else {
     throw Error("input doesn't look like a Git object");
-}
+  }
 }
 
 void parse(file_system_object_sink_t& sink, const canon_path_t& sink_path, Source& source,
-           blob_mode_t root_mode_if_blob, hash_algorithm_t hash_algo, std::function<sink_hook_t> hook,
-           const experimental_feature_settings_t& xp_settings) {
+           blob_mode_t root_mode_if_blob, hash_algorithm_t hash_algo,
+           std::function<sink_hook_t> hook, const experimental_feature_settings_t& xp_settings) {
   xp_settings.require(xp_t::git_hashing);
 
   auto type = parse_object_type(source, xp_settings);
@@ -207,24 +208,26 @@ void restore(file_system_object_sink_t& sink, Source& source, hash_algorithm_t h
           if (!got_opt) {
             throw Error("file '%s' (git hash %s) has an unsupported type", from,
                         entry.hash.to_string(hash_format_t::base16, false));
-}
+          }
           auto& got = *got_opt;
           if (got != entry.mode) {
             throw Error("git mode of file '%s' (git hash %s) is %o but expected %o", from,
                         entry.hash.to_string(hash_format_t::base16, false), (raw_mode_t)got,
                         (raw_mode_t)entry.mode);
-}
+          }
           copy_recursive(*accessor, from, sink, name);
         });
 }
 
-void dump_blob_prefix(uint64_t size, Sink& sink, const experimental_feature_settings_t& xp_settings) {
+void dump_blob_prefix(uint64_t size, Sink& sink,
+                      const experimental_feature_settings_t& xp_settings) {
   xp_settings.require(xp_t::git_hashing);
   auto s = fmt("blob %d\0"s, std::to_string(size));
   sink(s);
 }
 
-void dump_tree(const tree_t& entries, Sink& sink, const experimental_feature_settings_t& xp_settings) {
+void dump_tree(const tree_t& entries, Sink& sink,
+               const experimental_feature_settings_t& xp_settings) {
   xp_settings.require(xp_t::git_hashing);
 
   std::string v1;
@@ -237,7 +240,8 @@ void dump_tree(const tree_t& entries, Sink& sink, const experimental_feature_set
       name2.pop_back();
     }
     v1 += fmt("%o %s\0"s, static_cast<raw_mode_t>(entry.mode), name2);
-    std::copy(entry.hash.hash, entry.hash.hash + entry.hash.hash_size, std::back_inserter(v1));
+    std::copy(entry.hash.hash(), entry.hash.hash() + entry.hash.hash_size(),
+              std::back_inserter(v1));
   }
 
   {
@@ -248,8 +252,8 @@ void dump_tree(const tree_t& entries, Sink& sink, const experimental_feature_set
   sink(v1);
 }
 
-Mode dump(const source_path_t& path, Sink& sink, std::function<dump_hook_t> hook, path_filter_t& filter,
-          const experimental_feature_settings_t& xp_settings) {
+Mode dump(const source_path_t& path, Sink& sink, std::function<dump_hook_t> hook,
+          path_filter_t& filter, const experimental_feature_settings_t& xp_settings) {
   auto st = path.lstat();
 
   switch (st.type) {
@@ -264,14 +268,14 @@ Mode dump(const source_path_t& path, Sink& sink, std::function<dump_hook_t> hook
         auto child = path / name;
         if (!filter(child.path.abs())) {
           continue;
-}
+        }
 
         auto entry = hook(child);
 
         auto name2 = name;
         if (entry.mode == Mode::directory_t) {
           name2 += "/";
-}
+        }
 
         entries.insert_or_assign(std::move(name2), std::move(entry));
       }
@@ -316,11 +320,11 @@ std::optional<ls_remote_ref_line_t> parse_ls_remote_line(std::string_view line) 
   std::match_results<std::string_view::const_iterator> match;
   if (!std::regex_match(line.cbegin(), line.cend(), match, line_regex)) {
     return std::nullopt;
-}
+  }
 
   return ls_remote_ref_line_t{
-      .kind =
-          match[1].length() == 0 ? ls_remote_ref_line_t::Kind::Object : ls_remote_ref_line_t::Kind::symbolic,
+      .kind = match[1].length() == 0 ? ls_remote_ref_line_t::Kind::Object
+                                     : ls_remote_ref_line_t::Kind::symbolic,
       .target = match[2],
       .reference = match[3].length() == 0 ? std::nullopt : std::optional<std::string>{match[3]}};
 }

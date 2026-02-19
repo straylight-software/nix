@@ -93,6 +93,6 @@ struct BuiltPath : _BuiltPathRaw {
   nlohmann::json to_json(const StoreDirConfig& store) const;
 };
 
-typedef std::vector<BuiltPath> BuiltPaths;
+using BuiltPaths = std::vector<BuiltPath>;
 
 } // namespace nix

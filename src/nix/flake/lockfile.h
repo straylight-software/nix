@@ -12,7 +12,7 @@ class StorePath;
 
 namespace nix::flake {
 
-typedef std::vector<FlakeId> InputAttrPath;
+using InputAttrPath = std::vector<FlakeId>;
 
 struct LockedNode;
 

@@ -95,11 +95,11 @@ NarInfo::NarInfo(const StoreDirConfig& store, const std::string& s, const std::s
 
   if (!havePath || !haveNarHash || url.empty() || nar_size == 0) {
     line = 0; // don't include line information in the error
-    throw corrupt(!havePath      ? "StorePath missing"
-                  : !haveNarHash ? "NarHash missing"
-                  : url.empty()  ? "URL missing"
+    throw corrupt(!havePath       ? "StorePath missing"
+                  : !haveNarHash  ? "NarHash missing"
+                  : url.empty()   ? "URL missing"
                   : nar_size == 0 ? "NarSize missing or zero"
-                                 : "?");
+                                  : "?");
   }
 }
 
@@ -109,10 +109,10 @@ std::string NarInfo::to_string(const StoreDirConfig& store) const {
   res += "URL: " + url + "\n";
   assert(compression != "");
   res += "Compression: " + compression + "\n";
-  assert(fileHash && fileHash->algo == hash_algorithm_t::SHA256);
+  assert(fileHash && fileHash->algo() == hash_algorithm_t::SHA256);
   res += "FileHash: " + fileHash->to_string(hash_format_t::nix32, true) + "\n";
   res += "FileSize: " + std::to_string(file_size) + "\n";
-  assert(nar_hash.algo == hash_algorithm_t::SHA256);
+  assert(nar_hash.algo() == hash_algorithm_t::SHA256);
   res += "NarHash: " + nar_hash.to_string(hash_format_t::nix32, true) + "\n";
   res += "NarSize: " + std::to_string(nar_size) + "\n";
 
@@ -131,7 +131,7 @@ std::string NarInfo::to_string(const StoreDirConfig& store) const {
 }
 
 nlohmann::json UnkeyedNarInfo::to_json(const StoreDirConfig* store, bool includeImpureInfo,
-                                      PathInfoJsonFormat format) const {
+                                       PathInfoJsonFormat format) const {
   using nlohmann::json;
 
   auto json_object = UnkeyedValidPathInfo::to_json(store, includeImpureInfo, format);
@@ -143,7 +143,7 @@ nlohmann::json UnkeyedNarInfo::to_json(const StoreDirConfig* store, bool include
       json_object["compression"] = compression;
     if (fileHash) {
       if (format == PathInfoJsonFormat::V1)
-        json_object["downloadHash"] = fileHash->to_string(hash_format_t::SRI, true);
+        json_object["downloadHash"] = fileHash->to_string(hash_format_t::sri, true);
       else
         json_object["downloadHash"] = *fileHash;
     }

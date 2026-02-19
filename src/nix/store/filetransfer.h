@@ -5,6 +5,7 @@
 #include <string>
 
 #include "nix/store/config.h"
+#include "nix/util/callback.h"
 #include "nix/util/configuration.h"
 #include "nix/util/logging.h"
 #include "nix/util/ref.h"
@@ -22,17 +23,17 @@ struct FileTransferSettings : config_t {
   setting_t<bool> enableHttp2{this, true, "http2", "Whether to enable HTTP/2 support."};
 
   setting_t<std::string> userAgentSuffix{this, "", "user-agent-suffix",
-                                       "String appended to the user agent in HTTP requests."};
+                                         "String appended to the user agent in HTTP requests."};
 
   setting_t<size_t> httpConnections{this,
-                                  25,
-                                  "http-connections",
-                                  R"(
+                                    25,
+                                    "http-connections",
+                                    R"(
           The maximum number of parallel TCP connections used to fetch
           files from binary caches and by other downloads. It defaults
           to 25. 0 means no limit.
         )",
-                                  {"binary-caches-parallel-connections"}};
+                                    {"binary-caches-parallel-connections"}};
 
   /* Do not set this too low. On glibc, getaddrinfo() contains fallback code
      paths that deal with ill-behaved DNS servers. setting_t this too low
@@ -43,14 +44,14 @@ struct FileTransferSettings : config_t {
      details on the interaction between getaddrinfo(3) behavior and libcurl
      CURLOPT_CONNECTTIMEOUT. */
   setting_t<unsigned long> connectTimeout{this, 15, "connect-timeout",
-                                        R"(
+                                          R"(
           The timeout (in seconds) for establishing connections in the
           binary cache substituter. It corresponds to `curl`’s
           `--connect-timeout` option. A value of 0 means no limit.
         )"};
 
   setting_t<unsigned long> stalledDownloadTimeout{this, 300, "stalled-download-timeout",
-                                                R"(
+                                                  R"(
           The timeout (in seconds) for receiving data from servers
           during download. Nix cancels idle downloads after this
           timeout's duration.
@@ -61,7 +62,7 @@ struct FileTransferSettings : config_t {
       "The number of times Nix attempts to download a file before giving up."};
 
   setting_t<size_t> downloadBufferSize{this, 1 * 1024 * 1024, "download-buffer-size",
-                                     R"(
+                                       R"(
           The size of Nix's internal download buffer in bytes during `curl` transfers. If data is
           not processed quickly enough to exceed the size of this buffer, downloads may stall.
           The default is 1048576 (1 MiB).
@@ -109,7 +110,7 @@ struct FileTransferRequest {
   bool decompress = true;
 
   struct UploadData {
-    UploadData(string_source_t& s) : size_hint(s.s.length()), source(&s) {}
+    UploadData(string_source_t& s) : size_hint(s.view().length()), source(&s) {}
 
     UploadData(std::size_t size_hint, restartable_source_t& source)
         : size_hint(size_hint), source(&source) {}

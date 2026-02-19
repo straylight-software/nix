@@ -29,7 +29,7 @@ void emit_tree_attrs(EvalState& state, const StorePath& store_path, const fetche
   // FIXME: support arbitrary input attributes.
 
   if (auto nar_hash = input.getNarHash())
-    attrs.alloc("narHash").mk_string(nar_hash->to_string(hash_format_t::SRI, true), state.mem);
+    attrs.alloc("narHash").mk_string(nar_hash->to_string(hash_format_t::sri, true), state.mem);
 
   if (input.getType() == "git")
     attrs.alloc("submodules")
@@ -400,7 +400,7 @@ static void fetch(EvalState& state, const pos_idx_t pos, Value** args, Value& v,
         .debugThrow();
 
   // early exit if pinned and already in the store
-  if (expected_hash && expected_hash->algo == hash_algorithm_t::SHA256) {
+  if (expected_hash && expected_hash->algo() == hash_algorithm_t::SHA256) {
     auto expected_path = state.store->makeFixedOutputPath(
         name, FixedOutputInfo{.method = unpack ? file_ingestion_method_t::nix_archive
                                                : file_ingestion_method_t::flat,

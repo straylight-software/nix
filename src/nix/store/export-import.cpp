@@ -26,7 +26,7 @@ void export_paths(Store& store, const StorePathSet& paths, Sink& sink, unsigned 
        filesystem corruption from spreading to other machines.
        Don't complain if the stored hash is zero (unknown). */
     Hash hash = hash_sink.current_hash().hash;
-    if (hash != info.nar_hash && info.nar_hash != Hash(info.nar_hash.algo))
+    if (hash != info.nar_hash && info.nar_hash != Hash(info.nar_hash.algo()))
       throw Error("hash of path '%s' has changed from '%s' to '%s'!",
                   store.printStorePath(info.path), info.nar_hash.to_string(hash_format_t::nix32, true),
                   hash.to_string(hash_format_t::nix32, true));
@@ -89,7 +89,7 @@ StorePaths import_paths(Store& store, Source& source, CheckSigsFlag check_sigs) 
       /* Non-empty version 1 nario. */
       while (true) {
         /* Extract the NAR from the source. */
-        saved.s.clear();
+        saved.str().clear();
         tee_source_t tee{source, saved};
         null_file_system_object_sink_t ether;
         parse_dump(ether, tee);
@@ -109,16 +109,16 @@ StorePaths import_paths(Store& store, Source& source, CheckSigsFlag check_sigs) 
           read_string(source);
 
         if (!store.isValidPath(path)) {
-          auto nar_hash = hash_string(hash_algorithm_t::SHA256, saved.s);
+          auto nar_hash = hash_string(hash_algorithm_t::SHA256, saved.str());
 
           ValidPathInfo info{path, {store, nar_hash}};
           if (deriver != "")
             info.deriver = store.parseStorePath(deriver);
           info.references = references;
-          info.nar_size = saved.s.size();
+          info.nar_size = saved.str().size();
 
           // Can't use underlying source, which would have been exhausted.
-          auto source2 = string_source_t(saved.s);
+          auto source2 = string_source_t(saved.str());
           store.add_to_store(info, source2, NoRepair, check_sigs);
         }
 

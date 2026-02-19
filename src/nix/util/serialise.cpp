@@ -22,37 +22,37 @@
 namespace nix {
 
 void buffered_sink_t::operator()(std::string_view data) {
-  if (!buffer) {
-    buffer = decltype(buffer)(new char[buf_size]);
-}
+  if (!buffer_) {
+    buffer_ = decltype(buffer_)(new char[buf_size_]);
+  }
 
   while (!data.empty()) {
     /* Optimisation: bypass the buffer if the data exceeds the
        buffer size. */
-    if (buf_pos + data.size() >= buf_size) {
+    if (buf_pos_ + data.size() >= buf_size_) {
       flush();
       write_unbuffered(data);
       break;
     }
     /* Otherwise, copy the bytes to the buffer.  Flush the buffer
        when it's full. */
-    size_t n = buf_pos + data.size() > buf_size ? buf_size - buf_pos : data.size();
-    memcpy(buffer.get() + buf_pos, data.data(), n);
+    size_t n = buf_pos_ + data.size() > buf_size_ ? buf_size_ - buf_pos_ : data.size();
+    memcpy(buffer_.get() + buf_pos_, data.data(), n);
     data.remove_prefix(n);
-    buf_pos += n;
-    if (buf_pos == buf_size) {
+    buf_pos_ += n;
+    if (buf_pos_ == buf_size_) {
       flush();
-}
+    }
   }
 }
 
 void buffered_sink_t::flush() {
-  if (buf_pos == 0) {
+  if (buf_pos_ == 0) {
     return;
-}
-  size_t n = buf_pos;
-  buf_pos = 0; // don't trigger the assert() in ~BufferedSink()
-  write_unbuffered({buffer.get(), n});
+  }
+  size_t n = buf_pos_;
+  buf_pos_ = 0; // don't trigger the assert() in ~BufferedSink()
+  write_unbuffered({buffer_.get(), n});
 }
 
 fd_sink_t::~fd_sink_t() {
@@ -64,17 +64,17 @@ fd_sink_t::~fd_sink_t() {
 }
 
 void fd_sink_t::write_unbuffered(std::string_view data) {
-  written += data.size();
+  written_ += data.size();
   try {
-    write_full(fd, data);
+    write_full(fd_, data);
   } catch (SystemError& e) {
-    _good = false;
+    good_ = false;
     throw;
   }
 }
 
 bool fd_sink_t::good() {
-  return _good;
+  return good_;
 }
 
 void Source::operator()(char* data, size_t len) {
@@ -104,7 +104,7 @@ void Source::drain_into(Sink& sink) {
 std::string Source::drain() {
   string_sink_t s;
   drain_into(s);
-  return std::move(s.s);
+  return std::move(s.str());
 }
 
 void Source::skip(size_t len) {
@@ -117,68 +117,68 @@ void Source::skip(size_t len) {
 }
 
 size_t buffered_source_t::read(char* data, size_t len) {
-  if (!buffer) {
-    buffer = decltype(buffer)(new char[buf_size]);
-}
+  if (!buffer_) {
+    buffer_ = decltype(buffer_)(new char[buf_size_]);
+  }
 
-  if (!buf_pos_in) {
-    buf_pos_in = read_unbuffered(buffer.get(), buf_size);
-}
+  if (!buf_pos_in_) {
+    buf_pos_in_ = read_unbuffered(buffer_.get(), buf_size_);
+  }
 
   /* Copy out the data in the buffer. */
-  auto n = std::min(len, buf_pos_in - buf_pos_out);
-  memcpy(data, buffer.get() + buf_pos_out, n);
-  buf_pos_out += n;
-  if (buf_pos_in == buf_pos_out) {
-    buf_pos_in = buf_pos_out = 0;
-}
+  auto n = std::min(len, buf_pos_in_ - buf_pos_out_);
+  memcpy(data, buffer_.get() + buf_pos_out_, n);
+  buf_pos_out_ += n;
+  if (buf_pos_in_ == buf_pos_out_) {
+    buf_pos_in_ = buf_pos_out_ = 0;
+  }
   return n;
 }
 
 bool buffered_source_t::has_data() {
-  return buf_pos_out < buf_pos_in;
+  return buf_pos_out_ < buf_pos_in_;
 }
 
 size_t fd_source_t::read_unbuffered(char* data, size_t len) {
 #ifdef _WIN32
   DWORD n;
   check_interrupt();
-  if (!::ReadFile(fd, data, len, &n, NULL)) {
-    _good = false;
+  if (!::ReadFile(fd_, data, len, &n, NULL)) {
+    good_ = false;
     throw windows::WinError("ReadFile when FdSource::readUnbuffered");
   }
 #else
   ssize_t n;
   do {
     check_interrupt();
-    n = ::read(fd, data, len);
+    n = ::read(fd_, data, len);
   } while (n == -1 && errno == EINTR);
   if (n == -1) {
-    _good = false;
+    good_ = false;
     throw sys_error_t("reading from file");
   }
   if (n == 0) {
-    _good = false;
-    throw EndOfFile(std::string(*end_of_file_error));
+    good_ = false;
+    throw EndOfFile(std::string(*end_of_file_error_));
   }
 #endif
-  read += n;
+  read_ += n;
   return n;
 }
 
 bool fd_source_t::good() {
-  return _good;
+  return good_;
 }
 
 bool fd_source_t::has_data() {
   if (buffered_source_t::has_data()) {
     return true;
-}
+  }
 
   while (true) {
     fd_set fds;
     FD_ZERO(&fds);
-    socket_t sock = to_socket(fd);
+    socket_t sock = to_socket(fd_);
     FD_SET(sock, &fds);
 
     struct timeval timeout;
@@ -189,7 +189,7 @@ bool fd_source_t::has_data() {
     if (n < 0) {
       if (errno == EINTR) {
         continue;
-}
+      }
       throw sys_error_t("polling file descriptor");
     }
     return FD_ISSET(sock, &fds);
@@ -197,40 +197,40 @@ bool fd_source_t::has_data() {
 }
 
 void fd_source_t::restart() {
-  if (!is_seekable) {
+  if (!is_seekable_) {
     throw Error("can't seek to the start of a file");
-}
-  buffer.reset();
-  read = buf_pos_in = buf_pos_out = 0;
-  int fd_ = from_descriptor_read_only(fd);
-  if (lseek(fd_, 0, SEEK_SET) == -1) {
+  }
+  buffer_.reset();
+  read_ = buf_pos_in_ = buf_pos_out_ = 0;
+  int fd_local = from_descriptor_read_only(fd_);
+  if (lseek(fd_local, 0, SEEK_SET) == -1) {
     throw sys_error_t("seeking to the start of a file");
-}
+  }
 }
 
 void fd_source_t::skip(size_t len) {
   /* Discard data in the buffer. */
-  if (len && buffer && buf_pos_in - buf_pos_out) {
-    if (len >= buf_pos_in - buf_pos_out) {
-      len -= buf_pos_in - buf_pos_out;
-      buf_pos_in = buf_pos_out = 0;
+  if (len && buffer_ && buf_pos_in_ - buf_pos_out_) {
+    if (len >= buf_pos_in_ - buf_pos_out_) {
+      len -= buf_pos_in_ - buf_pos_out_;
+      buf_pos_in_ = buf_pos_out_ = 0;
     } else {
-      buf_pos_out += len;
+      buf_pos_out_ += len;
       len = 0;
     }
   }
 
 #ifndef _WIN32
   /* If we can, seek forward in the file to skip the rest. */
-  if (is_seekable && len) {
-    if (lseek(fd, len, SEEK_CUR) == -1) {
+  if (is_seekable_ && len) {
+    if (lseek(fd_, len, SEEK_CUR) == -1) {
       if (errno == ESPIPE) {
-        is_seekable = false;
+        is_seekable_ = false;
       } else {
         throw sys_error_t("seeking forward in file");
-}
+      }
     } else {
-      read += len;
+      read_ += len;
       return;
     }
   }
@@ -239,37 +239,38 @@ void fd_source_t::skip(size_t len) {
   /* Otherwise, skip by reading. */
   if (len) {
     buffered_source_t::skip(len);
-}
+  }
 }
 
 size_t string_source_t::read(char* data, size_t len) {
-  if (pos == s.size()) {
+  if (pos_ == s_.size()) {
     throw EndOfFile("end of string reached");
-}
-  size_t n = s.copy(data, len, pos);
-  pos += n;
+  }
+  size_t n = s_.copy(data, len, pos_);
+  pos_ += n;
   return n;
 }
 
 void string_source_t::skip(size_t len) {
-  const size_t remain = s.size() - pos;
+  const size_t remain = s_.size() - pos_;
   if (len > remain) {
-    pos = s.size();
+    pos_ = s_.size();
     throw EndOfFile("end of string reached");
   }
-  pos += len;
+  pos_ += len;
 }
 
-compressed_source_t::compressed_source_t(restartable_source_t& source, const std::string& compression_method)
-    : compressedData([&]() {
+compressed_source_t::compressed_source_t(restartable_source_t& source,
+                                         const std::string& compression_method)
+    : compressed_data_([&]() {
         string_sink_t sink;
         auto compression_sink = make_compression_sink(compression_method, sink);
         source.drain_into(*compression_sink);
         compression_sink->finish();
-        return std::move(sink.s);
+        return std::move(sink.str());
       }()),
-      compression_method(compression_method),
-      stringSource(compressedData) {}
+      compression_method_(compression_method),
+      string_source_(compressed_data_) {}
 
 std::unique_ptr<finish_sink_t> source_to_sink(std::function<void(Source&)> fun) {
   struct source_to_sink_t : finish_sink_t {
@@ -285,7 +286,7 @@ std::unique_ptr<finish_sink_t> source_to_sink(std::function<void(Source&)> fun) 
     void operator()(std::string_view in) override {
       if (in.empty()) {
         return;
-}
+      }
       cur = in;
 
       if (!coro) {
@@ -295,7 +296,7 @@ std::unique_ptr<finish_sink_t> source_to_sink(std::function<void(Source&)> fun) 
               yield();
               if (yield.get()) {
                 throw EndOfFile("coroutine has finished");
-}
+              }
             }
 
             size_t n = cur.copy(out, out_len);
@@ -318,7 +319,7 @@ std::unique_ptr<finish_sink_t> source_to_sink(std::function<void(Source&)> fun) 
     void finish() override {
       if (coro && *coro) {
         (*coro)(true);
-}
+      }
     }
   };
 
@@ -333,7 +334,8 @@ std::unique_ptr<Source> sink_to_source(std::function<void(Sink&)> fun, std::func
     std::function<void()> eof;
     std::optional<coro_t::pull_type> coro;
 
-    sink_to_source_t(std::function<void(Sink&)> fun, std::function<void()> eof) : fun(fun), eof(eof) {}
+    sink_to_source_t(std::function<void(Sink&)> fun, std::function<void()> eof)
+        : fun(fun), eof(eof) {}
 
     std::string_view cur;
 
@@ -397,7 +399,7 @@ void write_strings(const T& ss, Sink& sink) {
   sink << ss.size();
   for (auto& i : ss) {
     sink << i;
-}
+  }
 }
 
 Sink& operator<<(Sink& sink, const strings_t& s) {
@@ -412,8 +414,8 @@ Sink& operator<<(Sink& sink, const string_set_t& s) {
 
 Sink& operator<<(Sink& sink, const Error& ex) {
   auto& info = ex.info();
-  sink << "Error" << info.level << "Error" // removed
-       << info.msg.str() << 0              // FIXME: info.errPos
+  sink << "Error" << static_cast<uint64_t>(info.level) << "Error" // removed
+       << info.msg.str() << 0                                     // FIXME: info.errPos
        << info.traces.size();
   for (auto& trace : info.traces) {
     sink << 0; // FIXME: trace.pos
@@ -430,8 +432,8 @@ void read_padding(size_t len, Source& source) {
     for (unsigned int i = 0; i < n; i++) {
       if (zero[i]) {
         throw SerialisationError("non-zero padding");
-}
-}
+      }
+    }
   }
 }
 
@@ -439,7 +441,7 @@ size_t read_string(char* buf, size_t max, Source& source) {
   auto len = read_num<size_t>(source);
   if (len > max) {
     throw SerialisationError("string is too long");
-}
+  }
   source(buf, len);
   read_padding(len, source);
   return len;
@@ -449,7 +451,7 @@ std::string read_string(Source& source, size_t max) {
   auto len = read_num<size_t>(source);
   if (len > max) {
     throw SerialisationError("string is too long");
-}
+  }
   std::string res(len, 0);
   source(res.data(), len);
   read_padding(len, source);
@@ -467,7 +469,7 @@ T read_strings(Source& source) {
   T ss;
   while (count--) {
     ss.insert(ss.end(), read_string(source));
-}
+  }
   return ss;
 }
 
@@ -496,17 +498,17 @@ Error read_error(Source& source) {
 }
 
 void string_sink_t::operator()(std::string_view data) {
-  s.append(data);
+  s_.append(data);
 }
 
 size_t chain_source_t::read(char* data, size_t len) {
-  if (use_second) {
-    return source2.read(data, len);
+  if (use_second_) {
+    return source2_.read(data, len);
   } else {
     try {
-      return source1.read(data, len);
+      return source1_.read(data, len);
     } catch (EndOfFile&) {
-      use_second = true;
+      use_second_ = true;
       return this->read(data, len);
     }
   }

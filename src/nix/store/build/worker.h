@@ -37,7 +37,7 @@ GoalPtr upcast_goal(std::shared_ptr<PathSubstitutionGoal> subGoal);
 GoalPtr upcast_goal(std::shared_ptr<DrvOutputSubstitutionGoal> subGoal);
 GoalPtr upcast_goal(std::shared_ptr<DerivationGoal> subGoal);
 
-typedef std::chrono::time_point<std::chrono::steady_clock> steady_time_point;
+using steady_time_point = std::chrono::time_point<std::chrono::steady_clock>;
 
 /**
  * A mapping used to remember for each child process to what goal it

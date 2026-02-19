@@ -268,6 +268,9 @@ pkgs.nixComponents2.nix-util.overrideAttrs (
       _NIX_PRE_COMMIT_HOOKS_CONFIG = "${(pkgs.formats.yaml { }).generate "pre-commit-config.yaml"
         modular.pre-commit.settings.rawConfig
       }";
+      # SSL certificates for TLS tests (libtls, curl, etc.)
+      SSL_CERT_FILE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
+      NIX_SSL_CERT_FILE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
     }
     // lib.optionalAttrs stdenv.hostPlatform.isLinux {
       CC_LD = "mold";

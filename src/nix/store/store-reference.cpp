@@ -54,7 +54,8 @@ struct scheme_and_authority_with_path_t {
 /**
  * Return the 'scheme' and remove the '://' or ':' separator.
  */
-static std::optional<scheme_and_authority_with_path_t> split_scheme_prefix_to(std::string_view string) {
+static std::optional<scheme_and_authority_with_path_t>
+split_scheme_prefix_to(std::string_view string) {
   auto scheme = split_prefix_to(string, ':');
   if (!scheme)
     return std::nullopt;
@@ -68,12 +69,12 @@ StoreReference StoreReference::parse(const std::string& uri,
   auto params = extra_params;
   try {
     auto parsedUri = parse_url(uri, /*lenient=*/true);
-    params.insert(parsedUri.query.begin(), parsedUri.query.end());
+    params.insert(parsedUri.query().begin(), parsedUri.query().end());
 
     return {
         .variant =
             Specified{
-                .scheme = std::move(parsedUri.scheme),
+                .scheme = std::string(parsedUri.scheme()),
                 .authority = parsedUri.render_authority_and_path(),
             },
         .params = std::move(params),

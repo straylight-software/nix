@@ -163,7 +163,7 @@ nlohmann::json UnkeyedValidPathInfo::to_json(const StoreDirConfig* store, bool i
   json_object["storeDir"] = store_dir;
 
   json_object["narHash"] = format == PathInfoJsonFormat::V1
-                              ? static_cast<json>(nar_hash.to_string(hash_format_t::SRI, true))
+                              ? static_cast<json>(nar_hash.to_string(hash_format_t::sri, true))
                               : static_cast<json>(nar_hash);
 
   json_object["narSize"] = nar_size;

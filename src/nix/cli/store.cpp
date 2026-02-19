@@ -4,7 +4,7 @@ using namespace nix;
 
 struct cmd_store_t : NixMultiCommand {
   cmd_store_t() : NixMultiCommand("store", RegisterCommand::getCommandsFor({"store"})) {
-    aliases = {
+    get_aliases() = {
         {"ping", {alias_status_t::deprecated, {"info"}}},
     };
   }

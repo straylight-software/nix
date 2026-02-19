@@ -76,8 +76,8 @@ ref<remote_store::Connection> UDSRemoteStore::open_connection() {
   /* Connect to a daemon that does the privileged work for us. */
   conn->fd = nix::connect(config->path);
 
-  conn->from.fd = conn->fd.get();
-  conn->to.fd = conn->fd.get();
+  conn->from.set_fd(conn->fd.get());
+  conn->to.set_fd(conn->fd.get());
 
   conn->start_time = std::chrono::steady_clock::now();
 

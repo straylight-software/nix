@@ -1,4 +1,5 @@
-#pragma once
+#ifndef NIX_UTIL_ARCHIVE_H
+#define NIX_UTIL_ARCHIVE_H
 ///@file
 
 #include "nix/util/fs-sink.h"
@@ -55,31 +56,35 @@ namespace nix {
  *   `+` denotes string concatenation.
  * ```
  */
-void dump_path(const Path& path, Sink& sink, path_filter_t& filter = default_path_filter);
+auto dump_path(const Path& path, Sink& sink, path_filter_t& filter = default_path_filter) -> void;
 
 /**
  * Same as dump_path(), but returns the last modified date of the path.
  */
-time_t dump_path_and_get_mtime(const Path& path, Sink& sink, path_filter_t& filter = default_path_filter);
+[[nodiscard]] auto dump_path_and_get_mtime(const Path& path, Sink& sink,
+                                           path_filter_t& filter = default_path_filter) -> time_t;
 
 /**
  * Dump an archive with a single file with these contents.
  *
- * @param s Contents of the file.
+ * @param str Contents of the file.
  */
-void dump_string(std::string_view s, Sink& sink);
+auto dump_string(std::string_view str, Sink& sink) -> void;
 
-void parse_dump(file_system_object_sink_t& sink, Source& source);
+auto parse_dump(file_system_object_sink_t& sink, Source& source) -> void;
 
-void restore_path(const std::filesystem::path& path, Source& source, bool start_fsync = false);
+auto restore_path(const std::filesystem::path& path, Source& source, bool start_fsync = false)
+    -> void;
 
 /**
  * Read a NAR from 'source' and write it to 'sink'.
  */
-void copy_nar(Source& source, Sink& sink);
+auto copy_nar(Source& source, Sink& sink) -> void;
 
 inline constexpr std::string_view nar_version_magic1 = "nix-archive-1";
 
 inline constexpr std::string_view case_hack_suffix = "~nix~case~hack~";
 
 } // namespace nix
+
+#endif // NIX_UTIL_ARCHIVE_H

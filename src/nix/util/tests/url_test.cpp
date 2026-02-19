@@ -22,106 +22,106 @@ using namespace nix;
 TEST_CASE("parse_url simple https url", "[url][parse]") {
   auto url = parse_url("https://example.com/path/to/resource");
 
-  REQUIRE(url.scheme == "https");
-  REQUIRE(url.authority.has_value());
-  REQUIRE(url.authority->host == "example.com");
-  REQUIRE(url.authority->port == std::nullopt);
-  REQUIRE(url.authority->user == std::nullopt);
-  REQUIRE(url.path == std::vector<std::string>{"", "path", "to", "resource"});
-  REQUIRE(url.query.empty());
-  REQUIRE(url.fragment.empty());
+  REQUIRE(url.scheme() == "https");
+  REQUIRE(url.authority().has_value());
+  REQUIRE(url.authority()->host() == "example.com");
+  REQUIRE(url.authority()->port() == std::nullopt);
+  REQUIRE(url.authority()->user() == std::nullopt);
+  REQUIRE(url.path() == std::vector<std::string>{"", "path", "to", "resource"});
+  REQUIRE(url.query().empty());
+  REQUIRE(url.fragment().empty());
 }
 
 TEST_CASE("parse_url with port number", "[url][parse]") {
   auto url = parse_url("http://localhost:8080/api");
 
-  REQUIRE(url.scheme == "http");
-  REQUIRE(url.authority.has_value());
-  REQUIRE(url.authority->host == "localhost");
-  REQUIRE(url.authority->port == 8080);
-  REQUIRE(url.path == std::vector<std::string>{"", "api"});
+  REQUIRE(url.scheme() == "http");
+  REQUIRE(url.authority().has_value());
+  REQUIRE(url.authority()->host() == "localhost");
+  REQUIRE(url.authority()->port() == 8080);
+  REQUIRE(url.path() == std::vector<std::string>{"", "api"});
 }
 
 TEST_CASE("parse_url with query parameters", "[url][parse]") {
   auto url = parse_url("https://example.com/search?key=value&foo=bar");
 
-  REQUIRE(url.scheme == "https");
-  REQUIRE(url.authority->host == "example.com");
-  REQUIRE(url.path == std::vector<std::string>{"", "search"});
-  REQUIRE(url.query.size() == 2);
-  REQUIRE(url.query.at("key") == "value");
-  REQUIRE(url.query.at("foo") == "bar");
+  REQUIRE(url.scheme() == "https");
+  REQUIRE(url.authority()->host() == "example.com");
+  REQUIRE(url.path() == std::vector<std::string>{"", "search"});
+  REQUIRE(url.query().size() == 2);
+  REQUIRE(url.query().at("key") == "value");
+  REQUIRE(url.query().at("foo") == "bar");
 }
 
 TEST_CASE("parse_url with fragment", "[url][parse]") {
   auto url = parse_url("https://example.com/page#section1");
 
-  REQUIRE(url.scheme == "https");
-  REQUIRE(url.authority->host == "example.com");
-  REQUIRE(url.path == std::vector<std::string>{"", "page"});
-  REQUIRE(url.fragment == "section1");
+  REQUIRE(url.scheme() == "https");
+  REQUIRE(url.authority()->host() == "example.com");
+  REQUIRE(url.path() == std::vector<std::string>{"", "page"});
+  REQUIRE(url.fragment() == "section1");
 }
 
 TEST_CASE("parse_url with userinfo", "[url][parse]") {
   auto url = parse_url("https://user@example.com/path");
 
-  REQUIRE(url.scheme == "https");
-  REQUIRE(url.authority.has_value());
-  REQUIRE(url.authority->user == "user");
-  REQUIRE(url.authority->host == "example.com");
+  REQUIRE(url.scheme() == "https");
+  REQUIRE(url.authority().has_value());
+  REQUIRE(url.authority()->user() == "user");
+  REQUIRE(url.authority()->host() == "example.com");
 }
 
 TEST_CASE("parse_url with userinfo and password", "[url][parse]") {
   auto url = parse_url("https://user:pass@example.com/path");
 
-  REQUIRE(url.scheme == "https");
-  REQUIRE(url.authority.has_value());
-  REQUIRE(url.authority->user == "user");
-  REQUIRE(url.authority->password == "pass");
-  REQUIRE(url.authority->host == "example.com");
+  REQUIRE(url.scheme() == "https");
+  REQUIRE(url.authority().has_value());
+  REQUIRE(url.authority()->user() == "user");
+  REQUIRE(url.authority()->password() == "pass");
+  REQUIRE(url.authority()->host() == "example.com");
 }
 
 TEST_CASE("parse_url file scheme with empty authority", "[url][parse]") {
   auto url = parse_url("file:///home/user/file.txt");
 
-  REQUIRE(url.scheme == "file");
-  REQUIRE(url.authority.has_value());
-  REQUIRE(url.authority->host.empty());
-  REQUIRE(url.path == std::vector<std::string>{"", "home", "user", "file.txt"});
+  REQUIRE(url.scheme() == "file");
+  REQUIRE(url.authority().has_value());
+  REQUIRE(url.authority()->host().empty());
+  REQUIRE(url.path() == std::vector<std::string>{"", "home", "user", "file.txt"});
 }
 
 TEST_CASE("parse_url scheme without authority", "[url][parse]") {
   auto url = parse_url("tel:+1-555-123-4567");
 
-  REQUIRE(url.scheme == "tel");
-  REQUIRE_FALSE(url.authority.has_value());
-  REQUIRE(url.path == std::vector<std::string>{"+1-555-123-4567"});
+  REQUIRE(url.scheme() == "tel");
+  REQUIRE_FALSE(url.authority().has_value());
+  REQUIRE(url.path() == std::vector<std::string>{"+1-555-123-4567"});
 }
 
 TEST_CASE("parse_url trailing slash semantics", "[url][parse]") {
   SECTION("without trailing slash") {
     auto url = parse_url("https://example.com/bar");
-    REQUIRE(url.path == std::vector<std::string>{"", "bar"});
+    REQUIRE(url.path() == std::vector<std::string>{"", "bar"});
   }
 
   SECTION("with trailing slash") {
     auto url = parse_url("https://example.com/bar/");
-    REQUIRE(url.path == std::vector<std::string>{"", "bar", ""});
+    REQUIRE(url.path() == std::vector<std::string>{"", "bar", ""});
   }
 
   SECTION("multiple trailing slashes") {
     auto url = parse_url("https://example.com//bar///");
-    REQUIRE(url.path == std::vector<std::string>{"", "", "bar", "", "", ""});
+    REQUIRE(url.path() == std::vector<std::string>{"", "", "bar", "", "", ""});
   }
 
   SECTION("root path only") {
     auto url = parse_url("https://example.com/");
-    REQUIRE(url.path == std::vector<std::string>{"", ""});
+    REQUIRE(url.path() == std::vector<std::string>{"", ""});
   }
 
   SECTION("no path") {
     auto url = parse_url("https://example.com");
-    REQUIRE(url.path == std::vector<std::string>{""});
+    REQUIRE(url.path() == std::vector<std::string>{""});
   }
 }
 
@@ -132,19 +132,19 @@ TEST_CASE("parse_url trailing slash semantics", "[url][parse]") {
 TEST_CASE("parse_url ipv6 address", "[url][parse][ipv6]") {
   auto url = parse_url("http://[::1]:8080/path");
 
-  REQUIRE(url.scheme == "http");
-  REQUIRE(url.authority.has_value());
-  REQUIRE(url.authority->host == "::1");
-  REQUIRE(url.authority->host_type == parsed_url_t::authority_t::host_type_t::i_pv6);
-  REQUIRE(url.authority->port == 8080);
+  REQUIRE(url.scheme() == "http");
+  REQUIRE(url.authority().has_value());
+  REQUIRE(url.authority()->host() == "::1");
+  REQUIRE(url.authority()->host_type() == parsed_url_t::authority_t::host_type_t::ipv6);
+  REQUIRE(url.authority()->port() == 8080);
 }
 
 TEST_CASE("parse_url ipv6 full address", "[url][parse][ipv6]") {
   auto url = parse_url("http://[2001:db8:85a3::8a2e:370:7334]/");
 
-  REQUIRE(url.authority.has_value());
-  REQUIRE(url.authority->host == "2001:db8:85a3::8a2e:370:7334");
-  REQUIRE(url.authority->host_type == parsed_url_t::authority_t::host_type_t::i_pv6);
+  REQUIRE(url.authority().has_value());
+  REQUIRE(url.authority()->host() == "2001:db8:85a3::8a2e:370:7334");
+  REQUIRE(url.authority()->host_type() == parsed_url_t::authority_t::host_type_t::ipv6);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -180,17 +180,17 @@ TEST_CASE("parse_url percent encoded path segments", "[url][parse][encoding]") {
   // Path with encoded slash should preserve the slash in the segment
   auto url = parse_url("https://example.com/foo/bar%2Fbaz/quux");
 
-  REQUIRE(url.path.size() == 4);
-  REQUIRE(url.path[0] == "");
-  REQUIRE(url.path[1] == "foo");
-  REQUIRE(url.path[2] == "bar/baz"); // decoded %2F becomes /
-  REQUIRE(url.path[3] == "quux");
+  REQUIRE(url.path().size() == 4);
+  REQUIRE(url.path()[0] == "");
+  REQUIRE(url.path()[1] == "foo");
+  REQUIRE(url.path()[2] == "bar/baz"); // decoded %2F becomes /
+  REQUIRE(url.path()[3] == "quux");
 }
 
 TEST_CASE("parse_url percent encoded query", "[url][parse][encoding]") {
   auto url = parse_url("https://example.com?key=hello%20world");
 
-  REQUIRE(url.query.at("key") == "hello world");
+  REQUIRE(url.query().at("key") == "hello world");
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -223,13 +223,15 @@ TEST_CASE("parsed_url render_path", "[url][serialize]") {
 
 TEST_CASE("parsed_url render_path with special characters", "[url][serialize]") {
   parsed_url_t url;
-  url.scheme = "https";
-  url.authority = parsed_url_t::authority_t{.host_type = parsed_url_t::authority_t::host_type_t::Name,
-                                       .host = "example.com",
-                                       .user = std::nullopt,
-                                       .password = std::nullopt,
-                                       .port = std::nullopt};
-  url.path = {"", "foo", "bar baz", "quux"};
+  url.set_scheme("https");
+  parsed_url_t::authority_t auth;
+  auth.set_host_type(parsed_url_t::authority_t::host_type_t::name);
+  auth.set_host("example.com");
+  auth.set_user(std::nullopt);
+  auth.set_password(std::nullopt);
+  auth.set_port(std::nullopt);
+  url.set_authority(auth);
+  url.set_path({"", "foo", "bar baz", "quux"});
 
   REQUIRE(url.render_path(false) == "/foo/bar baz/quux");
   REQUIRE(url.render_path(true) == "/foo/bar%20baz/quux");
@@ -257,22 +259,22 @@ TEST_CASE("is_valid_scheme_name", "[url][scheme]") {
 TEST_CASE("parse_url_scheme basic", "[url][scheme]") {
   SECTION("simple scheme") {
     auto parsed = parse_url_scheme("http");
-    REQUIRE_FALSE(parsed.application.has_value());
-    REQUIRE(parsed.transport == "http");
+    REQUIRE_FALSE(parsed.application().has_value());
+    REQUIRE(parsed.transport() == "http");
   }
 
   SECTION("compound scheme") {
     auto parsed = parse_url_scheme("git+https");
-    REQUIRE(parsed.application.has_value());
-    REQUIRE(*parsed.application == "git");
-    REQUIRE(parsed.transport == "https");
+    REQUIRE(parsed.application().has_value());
+    REQUIRE(*parsed.application() == "git");
+    REQUIRE(parsed.transport() == "https");
   }
 
   SECTION("tarball scheme") {
     auto parsed = parse_url_scheme("tarball+file");
-    REQUIRE(parsed.application.has_value());
-    REQUIRE(*parsed.application == "tarball");
-    REQUIRE(parsed.transport == "file");
+    REQUIRE(parsed.application().has_value());
+    REQUIRE(*parsed.application() == "tarball");
+    REQUIRE(parsed.transport() == "file");
   }
 }
 
@@ -325,25 +327,25 @@ TEST_CASE("parse_url_relative simple path", "[url][relative]") {
   auto base = parse_url("https://example.com/foo/bar");
   auto resolved = parse_url_relative("baz", base);
 
-  REQUIRE(resolved.scheme == "https");
-  REQUIRE(resolved.authority->host == "example.com");
-  REQUIRE(resolved.path == std::vector<std::string>{"", "foo", "baz"});
+  REQUIRE(resolved.scheme() == "https");
+  REQUIRE(resolved.authority()->host() == "example.com");
+  REQUIRE(resolved.path() == std::vector<std::string>{"", "foo", "baz"});
 }
 
 TEST_CASE("parse_url_relative absolute path", "[url][relative]") {
   auto base = parse_url("https://example.com/foo/bar");
   auto resolved = parse_url_relative("/absolute/path", base);
 
-  REQUIRE(resolved.scheme == "https");
-  REQUIRE(resolved.authority->host == "example.com");
-  REQUIRE(resolved.path == std::vector<std::string>{"", "absolute", "path"});
+  REQUIRE(resolved.scheme() == "https");
+  REQUIRE(resolved.authority()->host() == "example.com");
+  REQUIRE(resolved.path() == std::vector<std::string>{"", "absolute", "path"});
 }
 
 TEST_CASE("parse_url_relative parent directory", "[url][relative]") {
   auto base = parse_url("https://example.com/foo/bar/baz");
   auto resolved = parse_url_relative("../quux", base);
 
-  REQUIRE(resolved.path == std::vector<std::string>{"", "foo", "quux"});
+  REQUIRE(resolved.path() == std::vector<std::string>{"", "foo", "quux"});
 }
 
 TEST_CASE("parse_url_relative with trailing slash in base", "[url][relative]") {
@@ -351,7 +353,7 @@ TEST_CASE("parse_url_relative with trailing slash in base", "[url][relative]") {
   auto resolved = parse_url_relative("baz", base);
 
   // With trailing slash, relative path is appended to directory
-  REQUIRE(resolved.path == std::vector<std::string>{"", "foo", "bar", "baz"});
+  REQUIRE(resolved.path() == std::vector<std::string>{"", "foo", "bar", "baz"});
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -362,7 +364,7 @@ TEST_CASE("parsed_url canonicalise dot segments", "[url][canonicalise]") {
   auto url = parse_url("https://example.com/foo/./bar/../baz");
   auto canonical = url.canonicalise();
 
-  REQUIRE(canonical.path == std::vector<std::string>{"", "foo", "baz"});
+  REQUIRE(canonical.path() == std::vector<std::string>{"", "foo", "baz"});
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -372,23 +374,23 @@ TEST_CASE("parsed_url canonicalise dot segments", "[url][canonicalise]") {
 TEST_CASE("fix_git_url scp style", "[url][git]") {
   auto url = fix_git_url("git@github.com:NixOS/nix");
 
-  REQUIRE(url.scheme == "ssh");
-  REQUIRE(url.authority.has_value());
-  REQUIRE(url.authority->user == "git");
-  REQUIRE(url.authority->host == "github.com");
+  REQUIRE(url.scheme() == "ssh");
+  REQUIRE(url.authority().has_value());
+  REQUIRE(url.authority()->user() == "git");
+  REQUIRE(url.authority()->host() == "github.com");
 }
 
 TEST_CASE("fix_git_url strips git+ prefix", "[url][git]") {
   auto url = fix_git_url("git+https://github.com/NixOS/nix");
 
-  REQUIRE(url.scheme == "https");
-  REQUIRE(url.authority->host == "github.com");
+  REQUIRE(url.scheme() == "https");
+  REQUIRE(url.authority()->host() == "github.com");
 }
 
 TEST_CASE("fix_git_url local path", "[url][git]") {
   auto url = fix_git_url("/home/user/repo");
 
-  REQUIRE(url.scheme == "file");
+  REQUIRE(url.scheme() == "file");
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -408,7 +410,7 @@ TEST_CASE("verbatim_url from parsed_url", "[url][verbatim]") {
 
   REQUIRE(url.scheme() == "https");
   auto reparsed = url.parsed();
-  REQUIRE(reparsed.authority->host == "example.com");
+  REQUIRE(reparsed.authority()->host() == "example.com");
 }
 
 TEST_CASE("verbatim_url last_path_segment", "[url][verbatim]") {
@@ -472,41 +474,41 @@ TEST_CASE("render_url_path_ensure_legal with nul throws", "[url][error]") {
 TEST_CASE("authority parse simple host", "[url][authority]") {
   auto auth = parsed_url_t::authority_t::parse("example.com");
 
-  REQUIRE(auth.host == "example.com");
-  REQUIRE(auth.host_type == parsed_url_t::authority_t::host_type_t::Name);
-  REQUIRE_FALSE(auth.port.has_value());
-  REQUIRE_FALSE(auth.user.has_value());
+  REQUIRE(auth.host() == "example.com");
+  REQUIRE(auth.host_type() == parsed_url_t::authority_t::host_type_t::name);
+  REQUIRE_FALSE(auth.port().has_value());
+  REQUIRE_FALSE(auth.user().has_value());
 }
 
 TEST_CASE("authority parse with port", "[url][authority]") {
   auto auth = parsed_url_t::authority_t::parse("example.com:8080");
 
-  REQUIRE(auth.host == "example.com");
-  REQUIRE(auth.port == 8080);
+  REQUIRE(auth.host() == "example.com");
+  REQUIRE(auth.port() == 8080);
 }
 
 TEST_CASE("authority parse with userinfo", "[url][authority]") {
   auto auth = parsed_url_t::authority_t::parse("user:pass@example.com");
 
-  REQUIRE(auth.user == "user");
-  REQUIRE(auth.password == "pass");
-  REQUIRE(auth.host == "example.com");
+  REQUIRE(auth.user() == "user");
+  REQUIRE(auth.password() == "pass");
+  REQUIRE(auth.host() == "example.com");
 }
 
 TEST_CASE("authority parse ipv4", "[url][authority]") {
   auto auth = parsed_url_t::authority_t::parse("192.168.1.1:80");
 
-  REQUIRE(auth.host == "192.168.1.1");
-  REQUIRE(auth.host_type == parsed_url_t::authority_t::host_type_t::i_pv4);
-  REQUIRE(auth.port == 80);
+  REQUIRE(auth.host() == "192.168.1.1");
+  REQUIRE(auth.host_type() == parsed_url_t::authority_t::host_type_t::ipv4);
+  REQUIRE(auth.port() == 80);
 }
 
 TEST_CASE("authority parse ipv6", "[url][authority]") {
   auto auth = parsed_url_t::authority_t::parse("[::1]:8080");
 
-  REQUIRE(auth.host == "::1");
-  REQUIRE(auth.host_type == parsed_url_t::authority_t::host_type_t::i_pv6);
-  REQUIRE(auth.port == 8080);
+  REQUIRE(auth.host() == "::1");
+  REQUIRE(auth.host_type() == parsed_url_t::authority_t::host_type_t::ipv6);
+  REQUIRE(auth.port() == 8080);
 }
 
 TEST_CASE("authority to_string roundtrip", "[url][authority]") {
@@ -523,13 +525,13 @@ TEST_CASE("authority to_string roundtrip", "[url][authority]") {
 TEST_CASE("parse_url lenient mode with spaces in fragment", "[url][lenient]") {
   auto url = parse_url("https://example.com#hello world", true);
 
-  REQUIRE(url.fragment == "hello world");
+  REQUIRE(url.fragment() == "hello world");
 }
 
 TEST_CASE("parse_url lenient mode with spaces in query", "[url][lenient]") {
   auto url = parse_url("https://example.com?key=hello world", true);
 
-  REQUIRE(url.query.at("key") == "hello world");
+  REQUIRE(url.query().at("key") == "hello world");
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -624,8 +626,8 @@ TEST_CASE("url parse/serialize roundtrip property", "[url][property][roundtrip]"
     // Should be able to parse the serialized result
     auto reparsed = parse_url(serialized);
 
-    RC_ASSERT(reparsed.scheme == parsed.scheme);
-    RC_ASSERT(reparsed.authority->host == parsed.authority->host);
+    RC_ASSERT(reparsed.scheme() == parsed.scheme());
+    RC_ASSERT(reparsed.authority()->host() == parsed.authority()->host());
   });
 }
 
@@ -708,8 +710,8 @@ TEST_CASE("url scheme parsing property", "[url][property][scheme]") {
     auto compound = application + "+" + transport;
     auto parsed = parse_url_scheme(compound);
 
-    RC_ASSERT(parsed.application.has_value());
-    RC_ASSERT(*parsed.application == application);
-    RC_ASSERT(parsed.transport == transport);
+    RC_ASSERT(parsed.application().has_value());
+    RC_ASSERT(*parsed.application() == application);
+    RC_ASSERT(parsed.transport() == transport);
   });
 }

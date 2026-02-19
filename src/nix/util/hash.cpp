@@ -26,68 +26,69 @@ const string_set_t hash_algorithms = {"blake3", "md5", "sha1", "sha256", "sha512
 
 const string_set_t hash_formats = {"base64", "nix32", "base16", "sri"};
 
-Hash::Hash(hash_algorithm_t algo, const experimental_feature_settings_t& xp_settings) : algo(algo) {
+hash_t::hash_t(hash_algorithm_t algo, const experimental_feature_settings_t& xp_settings)
+    : algo_(algo) {
   if (algo == hash_algorithm_t::BLAKE3) {
     xp_settings.require(xp_t::blak_e3_hashes);
   }
-  hash_size = regular_hash_size(algo);
-  assert(hash_size <= max_hash_size);
-  memset(hash, 0, max_hash_size);
+  hash_size_ = regular_hash_size(algo);
+  assert(hash_size_ <= max_hash_size);
+  memset(hash_.data(), 0, max_hash_size);
 }
 
-bool Hash::operator==(const Hash& h2) const noexcept {
-  if (hash_size != h2.hash_size) {
+bool hash_t::operator==(const hash_t& h2) const noexcept {
+  if (hash_size_ != h2.hash_size_) {
     return false;
-}
-  for (unsigned int i = 0; i < hash_size; i++) {
-    if (hash[i] != h2.hash[i]) {
+  }
+  for (unsigned int i = 0; i < hash_size_; i++) {
+    if (hash_[i] != h2.hash_[i]) {
       return false;
-}
-}
+    }
+  }
   return true;
 }
 
-std::strong_ordering Hash::operator<=>(const Hash& h) const noexcept {
-  if (auto cmp = hash_size <=> h.hash_size; cmp != 0) {
+std::strong_ordering hash_t::operator<=>(const hash_t& h) const noexcept {
+  if (auto cmp = hash_size_ <=> h.hash_size_; cmp != 0) {
     return cmp;
-}
-  for (unsigned int i = 0; i < hash_size; i++) {
-    if (auto cmp = hash[i] <=> h.hash[i]; cmp != 0) {
-      return cmp;
-}
   }
-  if (auto cmp = algo <=> h.algo; cmp != 0) {
+  for (unsigned int i = 0; i < hash_size_; i++) {
+    if (auto cmp = hash_[i] <=> h.hash_[i]; cmp != 0) {
+      return cmp;
+    }
+  }
+  if (auto cmp = algo_ <=> h.algo_; cmp != 0) {
     return cmp;
-}
+  }
   return std::strong_ordering::equivalent;
 }
 
-std::string Hash::to_string(hash_format_t hash_format, bool include_algo) const {
+std::string hash_t::to_string(hash_format_t hash_format, bool include_algo) const {
   std::string s;
-  if (hash_format == hash_format_t::SRI || include_algo) {
-    s += print_hash_algo(algo);
-    s += hash_format == hash_format_t::SRI ? '-' : ':';
+  if (hash_format == hash_format_t::sri || include_algo) {
+    s += print_hash_algo(algo_);
+    s += hash_format == hash_format_t::sri ? '-' : ':';
   }
-  const auto bytes = std::as_bytes(std::span<const uint8_t>{&hash[0], hash_size});
+  const auto bytes = std::as_bytes(std::span<const uint8_t>{hash_.data(), hash_size_});
   switch (hash_format) {
     case hash_format_t::base16:
-      assert(hash_size);
+      assert(hash_size_);
       s += base16::encode(bytes);
       break;
     case hash_format_t::nix32:
-      assert(hash_size);
+      assert(hash_size_);
       s += base_nix32_t::encode(bytes);
       break;
     case hash_format_t::base64:
-    case hash_format_t::SRI:
-      assert(hash_size);
+    case hash_format_t::sri:
+      assert(hash_size_);
       s += base64::encode(bytes);
       break;
   }
   return s;
 }
 
-Hash Hash::dummy(hash_algorithm_t::SHA256);
+hash_t hash_t::dummy(hash_algorithm_t::SHA256);
 
 namespace {
 
@@ -107,7 +108,7 @@ static decode_name_pair_t base_explicit(hash_format_t format) {
       return {base_nix32_t::decode, "nix32"};
     case hash_format_t::base64:
       return {base64::decode, "Base64"};
-    case hash_format_t::SRI:
+    case hash_format_t::sri:
       break;
   }
   unreachable();
@@ -123,15 +124,15 @@ static hash_format_t base_from_size(std::string_view rest, hash_algorithm_t algo
 
   if (rest.size() == base16::encoded_length(hash_size)) {
     return hash_format_t::base16;
-}
+  }
 
   if (rest.size() == base_nix32_t::encoded_length(hash_size)) {
     return hash_format_t::nix32;
-}
+  }
 
   if (rest.size() == base64::encoded_length(hash_size)) {
     return hash_format_t::base64;
-}
+  }
 
   throw BadHash("hash '%s' has wrong length for hash algorithm '%s'", rest, print_hash_algo(algo));
 }
@@ -142,37 +143,38 @@ static hash_format_t base_from_size(std::string_view rest, hash_algorithm_t algo
  *
  * @param rest the string view to parse. Must not include any `<algo>(:|-)` prefix.
  */
-static Hash
-parse_low_level(std::string_view rest, hash_algorithm_t algo, decode_name_pair_t pair,
-              const experimental_feature_settings_t& xp_settings = experimental_feature_settings) {
-  Hash res{algo, xp_settings};
+static hash_t parse_low_level(
+    std::string_view rest, hash_algorithm_t algo, decode_name_pair_t pair,
+    const experimental_feature_settings_t& xp_settings = experimental_feature_settings) {
+  hash_t res{algo, xp_settings};
   std::string d;
   try {
     d = pair.decode(rest);
   } catch (Error& e) {
     e.add_trace({}, "While decoding hash '%s'", rest);
   }
-  if (d.size() != res.hash_size) {
+  if (d.size() != res.hash_size()) {
     throw BadHash("invalid %s hash '%s', length %d != expected length %d", pair.encoding_name, rest,
-                  d.size(), res.hash_size);
-}
-  assert(res.hash_size);
-  memcpy(res.hash, d.data(), res.hash_size);
+                  d.size(), res.hash_size());
+  }
+  assert(res.hash_size());
+  memcpy(res.hash(), d.data(), res.hash_size());
 
   return res;
 }
 
-Hash Hash::parse_sri(std::string_view original, const experimental_feature_settings_t& xp_settings) {
+hash_t hash_t::parse_sri(std::string_view original,
+                         const experimental_feature_settings_t& xp_settings) {
   auto rest = original;
 
   // Parse the has type before the separator, if there was one.
   auto hash_raw = split_prefix_to(rest, '-');
   if (!hash_raw) {
     throw BadHash("hash '%s' is not SRI", original);
-}
+  }
   hash_algorithm_t parsed_type = parse_hash_algo(*hash_raw, xp_settings);
 
-  return parse_low_level(rest, parsed_type, {base64::decode, "SRI"}, xp_settings);
+  return parse_low_level(rest, parsed_type, {base64::decode, "sri"}, xp_settings);
 }
 
 /**
@@ -183,7 +185,7 @@ Hash Hash::parse_sri(std::string_view original, const experimental_feature_setti
  *
  * @return the parsed hash and the format it was parsed from
  */
-static std::pair<Hash, hash_format_t> parse_any_helper(std::string_view rest, auto resolve_algo) {
+static std::pair<hash_t, hash_format_t> parse_any_helper(std::string_view rest, auto resolve_algo) {
   bool is_sri = false;
 
   // Parse the hash type before the separator, if there was one.
@@ -195,11 +197,11 @@ static std::pair<Hash, hash_format_t> parse_any_helper(std::string_view rest, au
       hash_raw = split_prefix_to(rest, '-');
       if (hash_raw) {
         is_sri = true;
-}
+      }
     }
     if (hash_raw) {
       opt_parsed_algo = parse_hash_algo(*hash_raw);
-}
+    }
   }
 
   hash_algorithm_t algo = resolve_algo(std::move(opt_parsed_algo));
@@ -209,7 +211,7 @@ static std::pair<Hash, hash_format_t> parse_any_helper(std::string_view rest, au
     if (is_sri) {
       /* In the SRI case, we always are using base64. If the
          length is wrong, get an error later. */
-      return {base64::decode, "SRI", hash_format_t::SRI};
+      return {base64::decode, "sri", hash_format_t::sri};
     } else {
       /* Otherwise, decide via the length of the hash (for the
          given algorithm) what base encoding it is. */
@@ -222,26 +224,27 @@ static std::pair<Hash, hash_format_t> parse_any_helper(std::string_view rest, au
   return {parse_low_level(rest, algo, {decode, formatName}), format};
 }
 
-Hash Hash::parse_any_prefixed(std::string_view original) {
+hash_t hash_t::parse_any_prefixed(std::string_view original) {
   return parse_any_helper(original,
-                        [&](std::optional<hash_algorithm_t> opt_parsed_algo) {
-                          // Either the string or user must provide the type, if they both do they
-                          // must agree.
-                          if (!opt_parsed_algo) {
-                            throw BadHash("hash '%s' does not include a type", original);
-}
+                          [&](std::optional<hash_algorithm_t> opt_parsed_algo) {
+                            // Either the string or user must provide the type, if they both do they
+                            // must agree.
+                            if (!opt_parsed_algo) {
+                              throw BadHash("hash '%s' does not include a type", original);
+                            }
 
-                          return *opt_parsed_algo;
-                        })
+                            return *opt_parsed_algo;
+                          })
       .first;
 }
 
-Hash Hash::parse_any(std::string_view original, std::optional<hash_algorithm_t> opt_algo) {
+hash_t hash_t::parse_any(std::string_view original, std::optional<hash_algorithm_t> opt_algo) {
   return parse_any_returning_format(original, opt_algo).first;
 }
 
-std::pair<Hash, hash_format_t> Hash::parse_any_returning_format(std::string_view original,
-                                                          std::optional<hash_algorithm_t> opt_algo) {
+std::pair<hash_t, hash_format_t>
+hash_t::parse_any_returning_format(std::string_view original,
+                                   std::optional<hash_algorithm_t> opt_algo) {
   return parse_any_helper(original, [&](std::optional<hash_algorithm_t> opt_parsed_algo) {
     // Either the string or user must provide the type, if they both do they
     // must agree.
@@ -251,41 +254,43 @@ std::pair<Hash, hash_format_t> Hash::parse_any_returning_format(std::string_view
           original);
     } else if (opt_parsed_algo && opt_algo && *opt_parsed_algo != *opt_algo) {
       throw BadHash("hash '%s' should have type '%s'", original, print_hash_algo(*opt_algo));
-}
+    }
 
     return opt_parsed_algo ? *opt_parsed_algo : *opt_algo;
   });
 }
 
-Hash Hash::parse_non_sri_unprefixed(std::string_view s, hash_algorithm_t algo) {
+hash_t hash_t::parse_non_sri_unprefixed(std::string_view s, hash_algorithm_t algo) {
   return parse_explicit_format_unprefixed(s, algo, base_from_size(s, algo));
 }
 
-Hash Hash::parse_explicit_format_unprefixed(std::string_view s, hash_algorithm_t algo, hash_format_t format,
+hash_t
+hash_t::parse_explicit_format_unprefixed(std::string_view s, hash_algorithm_t algo,
+                                         hash_format_t format,
                                          const experimental_feature_settings_t& xp_settings) {
   return parse_low_level(s, algo, base_explicit(format), xp_settings);
 }
 
-Hash Hash::random(hash_algorithm_t algo) {
-  Hash hash(algo);
-  randombytes_buf(hash.hash, hash.hash_size);
+hash_t hash_t::random(hash_algorithm_t algo) {
+  hash_t hash(algo);
+  randombytes_buf(hash.hash(), hash.hash_size());
   return hash;
 }
 
-Hash new_hash_allow_empty(std::string_view hash_str, std::optional<hash_algorithm_t> ha) {
+hash_t new_hash_allow_empty(std::string_view hash_str, std::optional<hash_algorithm_t> ha) {
   if (hash_str.empty()) {
     if (!ha) {
       throw BadHash("empty hash requires explicit hash algorithm");
-}
-    Hash h(*ha);
-    warn("found empty hash, assuming '%s'", h.to_string(hash_format_t::SRI, true));
+    }
+    hash_t h(*ha);
+    warn("found empty hash, assuming '%s'", h.to_string(hash_format_t::sri, true));
     return h;
   } else {
-    return Hash::parse_any(hash_str, ha);
-}
+    return hash_t::parse_any(hash_str, ha);
+  }
 }
 
-union Hash::Ctx {
+union hash_t::ctx_t {
   blake3_hasher blake3;
   MD5_CTX md5;
   SHA_CTX sha1;
@@ -293,7 +298,7 @@ union Hash::Ctx {
   SHA512_CTX sha512;
 };
 
-static void start(hash_algorithm_t ha, Hash::Ctx& ctx) {
+static void start(hash_algorithm_t ha, hash_t::ctx_t& ctx) {
   if (ha == hash_algorithm_t::BLAKE3) {
     blake3_hasher_init(&ctx.blake3);
   } else if (ha == hash_algorithm_t::MD5) {
@@ -304,7 +309,7 @@ static void start(hash_algorithm_t ha, Hash::Ctx& ctx) {
     SHA256_Init(&ctx.sha256);
   } else if (ha == hash_algorithm_t::SHA512) {
     SHA512_Init(&ctx.sha512);
-}
+  }
 }
 
 // BLAKE3 data size threshold beyond which parallel hashing with TBB is likely faster.
@@ -328,7 +333,7 @@ void blake3_hasher_update_with_heuristics(blake3_hasher* blake3, std::string_vie
   }
 }
 
-static void update(hash_algorithm_t ha, Hash::Ctx& ctx, std::string_view data) {
+static void update(hash_algorithm_t ha, hash_t::ctx_t& ctx, std::string_view data) {
   if (ha == hash_algorithm_t::BLAKE3) {
     blake3_hasher_update_with_heuristics(&ctx.blake3, data);
   } else if (ha == hash_algorithm_t::MD5) {
@@ -339,10 +344,10 @@ static void update(hash_algorithm_t ha, Hash::Ctx& ctx, std::string_view data) {
     SHA256_Update(&ctx.sha256, data.data(), data.size());
   } else if (ha == hash_algorithm_t::SHA512) {
     SHA512_Update(&ctx.sha512, data.data(), data.size());
-}
+  }
 }
 
-static void finish(hash_algorithm_t ha, Hash::Ctx& ctx, unsigned char* hash) {
+static void finish(hash_algorithm_t ha, hash_t::ctx_t& ctx, unsigned char* hash) {
   if (ha == hash_algorithm_t::BLAKE3) {
     blake3_hasher_finalize(&ctx.blake3, hash, BLAKE3_OUT_LEN);
   } else if (ha == hash_algorithm_t::MD5) {
@@ -353,82 +358,82 @@ static void finish(hash_algorithm_t ha, Hash::Ctx& ctx, unsigned char* hash) {
     SHA256_Final(hash, &ctx.sha256);
   } else if (ha == hash_algorithm_t::SHA512) {
     SHA512_Final(hash, &ctx.sha512);
-}
+  }
 }
 
-Hash hash_string(hash_algorithm_t ha, std::string_view s,
-                const experimental_feature_settings_t& xp_settings) {
-  Hash::Ctx ctx;
-  Hash hash(ha, xp_settings);
+hash_t hash_string(hash_algorithm_t ha, std::string_view s,
+                   const experimental_feature_settings_t& xp_settings) {
+  hash_t::ctx_t ctx;
+  hash_t hash(ha, xp_settings);
   start(ha, ctx);
   update(ha, ctx, s);
-  finish(ha, ctx, hash.hash);
+  finish(ha, ctx, hash.hash());
   return hash;
 }
 
-Hash hash_file(hash_algorithm_t ha, const Path& path) {
+hash_t hash_file(hash_algorithm_t ha, const Path& path) {
   hash_sink_t sink(ha);
   read_file(path, sink);
   return sink.finish().hash;
 }
 
-hash_sink_t::hash_sink_t(hash_algorithm_t ha) : ha(ha) {
-  ctx = new Hash::Ctx;
-  bytes = 0;
-  start(ha, *ctx);
+hash_sink_t::hash_sink_t(hash_algorithm_t ha) : ha_(ha) {
+  ctx_ = new hash_t::ctx_t;
+  bytes_ = 0;
+  start(ha_, *ctx_);
 }
 
 hash_sink_t::~hash_sink_t() {
-  buf_pos = 0;
-  delete ctx;
+  buf_pos_ = 0;
+  delete ctx_;
 }
 
 void hash_sink_t::write_unbuffered(std::string_view data) {
-  bytes += data.size();
-  update(ha, *ctx, data);
+  bytes_ += data.size();
+  update(ha_, *ctx_, data);
 }
 
 hash_result_t hash_sink_t::finish() {
   flush();
-  Hash hash(ha);
-  nix::finish(ha, *ctx, hash.hash);
-  return hash_result_t(hash, bytes);
+  hash_t hash(ha_);
+  nix::finish(ha_, *ctx_, hash.hash());
+  return hash_result_t(hash, bytes_);
 }
 
 hash_result_t hash_sink_t::current_hash() {
   flush();
-  Hash::Ctx ctx2 = *ctx;
-  Hash hash(ha);
-  nix::finish(ha, ctx2, hash.hash);
-  return hash_result_t(hash, bytes);
+  hash_t::ctx_t ctx2 = *ctx_;
+  hash_t hash(ha_);
+  nix::finish(ha_, ctx2, hash.hash());
+  return hash_result_t(hash, bytes_);
 }
 
-Hash compress_hash(const Hash& hash, unsigned int new_size) {
-  Hash h(hash.algo);
-  h.hash_size = new_size;
-  for (unsigned int i = 0; i < hash.hash_size; ++i) {
-    h.hash[i % new_size] ^= hash.hash[i];
-}
+hash_t compress_hash(const hash_t& hash, unsigned int new_size) {
+  hash_t h(hash.algo());
+  h.set_hash_size(new_size);
+  for (unsigned int i = 0; i < hash.hash_size(); ++i) {
+    h.hash()[i % new_size] ^= hash.hash()[i];
+  }
   return h;
 }
 
 std::optional<hash_format_t> parse_hash_format_opt(std::string_view hash_format_name) {
   if (hash_format_name == "base16") {
     return hash_format_t::base16;
-}
+  }
   if (hash_format_name == "nix32") {
     return hash_format_t::nix32;
-}
+  }
   if (hash_format_name == "base32") {
     warn(R"("base32" is a deprecated alias for hash format "nix32".)");
     return hash_format_t::nix32;
   }
   if (hash_format_name == "base64") {
     return hash_format_t::base64;
-}
+  }
   if (hash_format_name == "sri") {
-    return hash_format_t::SRI;
-}
+    return hash_format_t::sri;
+  }
   return std::nullopt;
 }
 
@@ -436,7 +441,7 @@ hash_format_t parse_hash_format(std::string_view hash_format_name) {
   auto opt_f = parse_hash_format_opt(hash_format_name);
   if (opt_f) {
     return *opt_f;
-}
+  }
   throw UsageError("unknown hash format '%1%', expect 'base16', 'base32', 'base64', or 'sri'",
                    hash_format_name);
 }
@@ -449,7 +454,7 @@ std::string_view print_hash_format(hash_format_t hash_format_t) {
       return "nix32";
     case hash_format_t::base16:
       return "base16";
-    case hash_format_t::SRI:
+    case hash_format_t::sri:
       return "sri";
     default:
       // illegal hash base enum value internally, as opposed to external input
@@ -458,35 +463,36 @@ std::string_view print_hash_format(hash_format_t hash_format_t) {
   }
 }
 
-std::optional<hash_algorithm_t> parse_hash_algo_opt(std::string_view s,
-                                              const experimental_feature_settings_t& xp_settings) {
+std::optional<hash_algorithm_t>
+parse_hash_algo_opt(std::string_view s, const experimental_feature_settings_t& xp_settings) {
   if (s == "blake3") {
     xp_settings.require(xp_t::blak_e3_hashes);
     return hash_algorithm_t::BLAKE3;
   }
   if (s == "md5") {
     return hash_algorithm_t::MD5;
-}
+  }
   if (s == "sha1") {
     return hash_algorithm_t::SHA1;
-}
+  }
   if (s == "sha256") {
     return hash_algorithm_t::SHA256;
-}
+  }
   if (s == "sha512") {
     return hash_algorithm_t::SHA512;
-}
+  }
   return std::nullopt;
 }
 
-hash_algorithm_t parse_hash_algo(std::string_view s, const experimental_feature_settings_t& xp_settings) {
+hash_algorithm_t parse_hash_algo(std::string_view s,
+                                 const experimental_feature_settings_t& xp_settings) {
   auto opt_h = parse_hash_algo_opt(s, xp_settings);
   if (opt_h) {
     return *opt_h;
   } else {
     throw UsageError(
         "unknown hash algorithm '%1%', expect 'blake3', 'md5', 'sha1', 'sha256', or 'sha512'", s);
-}
+  }
 }
 
 std::string_view print_hash_algo(hash_algorithm_t ha) {
@@ -514,14 +520,14 @@ namespace nlohmann {
 
 using namespace nix;
 
-Hash adl_serializer<Hash>::from_json(const json& json,
-                                     const experimental_feature_settings_t& xp_settings) {
+hash_t adl_serializer<hash_t>::from_json(const json& json,
+                                         const experimental_feature_settings_t& xp_settings) {
   auto& s = get_string(json);
-  return Hash::parse_sri(s, xp_settings);
+  return hash_t::parse_sri(s, xp_settings);
 }
 
-void adl_serializer<Hash>::to_json(json& json, const Hash& hash) {
-  json = hash.to_string(hash_format_t::SRI, true);
+void adl_serializer<hash_t>::to_json(json& json, const hash_t& hash) {
+  json = hash.to_string(hash_format_t::sri, true);
 }
 
 } // namespace nlohmann

@@ -94,7 +94,7 @@ struct Realisation : UnkeyedRealisation {
  * Since these are the outputs of a single derivation, we know the
  * output names are unique so we can use them as the map key.
  */
-typedef std::map<OutputName, Realisation> SingleDrvOutputs;
+using SingleDrvOutputs = std::map<OutputName, Realisation>;
 
 /**
  * Collection type for multiple derivations' outputs' `Realisation`s.
@@ -103,7 +103,7 @@ typedef std::map<OutputName, Realisation> SingleDrvOutputs;
  * the same, so we need to identify firstly which derivation, and
  * secondly which output of that derivation.
  */
-typedef std::map<DrvOutput, Realisation> DrvOutputs;
+using DrvOutputs = std::map<DrvOutput, Realisation>;
 
 struct OpaquePath {
   StorePath path;

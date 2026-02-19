@@ -1,3 +1,5 @@
+#include <fcntl.h>
+
 #include <nlohmann/json.hpp>
 
 #include "nix/cmd/command.h"
@@ -23,7 +25,9 @@ struct mix_cat_t : virtual Args {
 struct cmd_cat_store_t : StoreCommand, mix_cat_t {
   std::string path;
 
-  cmd_cat_store_t() { expect_args({.label = "path", .handler = {&path}, .completer = complete_path}); }
+  cmd_cat_store_t() {
+    expect_args({.label = "path", .handler = {&path}, .completer = complete_path});
+  }
 
   std::string description() override {
     return "print the contents of a file in the Nix store on stdout";
@@ -72,17 +76,17 @@ struct cmd_cat_nar_t : StoreCommand, mix_cat_t {
       bool found = false;
 
       void create_regular_file(const canon_path_t& path,
-                             std::function<void(create_regular_file_sink_t&)> crf) override {
+                               std::function<void(create_regular_file_sink_t&)> crf) override {
         struct : create_regular_file_sink_t, fd_sink_t {
           void is_executable() override {}
         } crf_sink;
 
-        crf_sink.fd = INVALID_DESCRIPTOR;
+        crf_sink.set_fd(INVALID_DESCRIPTOR);
 
         if (path == needed_path) {
           logger->stop();
           crf_sink.skip_contents = false;
-          crf_sink.fd = get_standard_output();
+          crf_sink.set_fd(get_standard_output());
           found = true;
         } else {
           crf_sink.skip_contents = true;

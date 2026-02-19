@@ -15,6 +15,7 @@
 #include "nix/util/pos-table.h"
 #include "nix/util/position.h"
 #include "nix/util/ref.h"
+#include "nix/util/repair-flag.h"
 #include "nix/util/source-accessor.h"
 #include "nix/util/types.h"
 
@@ -48,7 +49,6 @@ struct EvalSettings;
 class EvalState;
 class StorePath;
 struct SingleDerivedPath;
-enum RepairFlag : bool;
 struct memory_source_accessor_t;
 struct mounted_source_accessor_t;
 struct AsyncPathWriter;
@@ -160,7 +160,7 @@ typedef std::map<std::string, Value*, std::less<std::string>,
                  traceable_allocator<std::pair<const std::string, Value*>>>
     ValMap;
 
-typedef boost::unordered_flat_map<pos_idx_t, DocComment, std::hash<pos_idx_t>> DocCommentMap;
+using DocCommentMap = boost::unordered_flat_map<pos_idx_t, DocComment, std::hash<pos_idx_t>>;
 
 struct Env {
   Env* up;
@@ -171,10 +171,11 @@ void print_env_bindings(const EvalState& es, const Expr& expr, const Env& env);
 void print_env_bindings(const SymbolTable& st, const StaticEnv& se, const Env& env, int lvl = 0);
 
 std::unique_ptr<ValMap> map_static_env_bindings(const SymbolTable& st, const StaticEnv& se,
-                                             const Env& env);
+                                                const Env& env);
 
-void copy_context(const Value& v, NixStringContext& context,
-                 const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
+void copy_context(
+    const Value& v, NixStringContext& context,
+    const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
 
 std::string print_value(EvalState& state, Value& v);
 std::ostream& operator<<(std::ostream& os, const ValueType t);
@@ -470,7 +471,8 @@ private:
   LookupPath lookup_path;
 
   // FIXME: make thread-safe.
-  boost::unordered_flat_map<std::string, std::optional<source_path_t>, string_view_hash_t, std::equal_to<>>
+  boost::unordered_flat_map<std::string, std::optional<source_path_t>, string_view_hash_t,
+                            std::equal_to<>>
       lookupPathResolved;
 
   /**
@@ -487,8 +489,9 @@ public:
    * @param buildStore     The store to use for builds ("import from derivation", C API
    * `nix_string_realise`)
    */
-  EvalState(const LookupPath& lookup_path, ref<Store> store, const fetchers::settings_t& fetch_settings,
-            const EvalSettings& settings, std::shared_ptr<Store> buildStore = nullptr);
+  EvalState(const LookupPath& lookup_path, ref<Store> store,
+            const fetchers::settings_t& fetch_settings, const EvalSettings& settings,
+            std::shared_ptr<Store> buildStore = nullptr);
   ~EvalState();
 
   /**
@@ -581,7 +584,7 @@ public:
    */
   source_path_t findFile(const std::string_view path);
   source_path_t findFile(const LookupPath& lookup_path, const std::string_view path,
-                      const pos_idx_t pos = no_pos);
+                         const pos_idx_t pos = no_pos);
 
   /**
    * Try to resolve a search path value (not the optional key part).
@@ -591,7 +594,7 @@ public:
    * If it is not found, return `std::nullopt`.
    */
   std::optional<source_path_t> resolveLookupPathPath(const LookupPath::Path& elem,
-                                                  bool initAccessControl = false);
+                                                     bool initAccessControl = false);
 
   /**
    * Evaluate an expression to normal form
@@ -606,7 +609,8 @@ public:
    */
   inline bool evalBool(Env& env, Expr* e);
   inline bool evalBool(Env& env, Expr* e, const pos_idx_t pos, std::string_view error_ctx);
-  inline void evalAttrs(Env& env, Expr* e, Value& v, const pos_idx_t pos, std::string_view error_ctx);
+  inline void evalAttrs(Env& env, Expr* e, Value& v, const pos_idx_t pos,
+                        std::string_view error_ctx);
 
   /**
    * If `v` is a thunk, enter it and overwrite `v` with the result
@@ -666,8 +670,9 @@ public:
    */
   bool is_derivation(Value& v);
 
-  std::optional<std::string> tryAttrsToString(const pos_idx_t pos, Value& v, NixStringContext& context,
-                                              bool coerceMore = false, bool copy_to_store = true);
+  std::optional<std::string> tryAttrsToString(const pos_idx_t pos, Value& v,
+                                              NixStringContext& context, bool coerceMore = false,
+                                              bool copy_to_store = true);
 
   StorePath devirtualize(const StorePath& path, string_map_t* rewrites = nullptr);
 
@@ -684,8 +689,8 @@ public:
    * referenced paths are copied to the Nix store as a side effect.
    */
   backed_string_view_t coerceToString(const pos_idx_t pos, Value& v, NixStringContext& context,
-                                  std::string_view error_ctx, bool coerceMore = false,
-                                  bool copy_to_store = true, bool canonicalizePath = true);
+                                      std::string_view error_ctx, bool coerceMore = false,
+                                      bool copy_to_store = true, bool canonicalizePath = true);
 
   StorePath copyPathToStore(NixStringContext& context, const source_path_t& path, pos_idx_t pos);
 
@@ -709,7 +714,7 @@ public:
    * path.  Nothing is copied to the store.
    */
   source_path_t coerceToPath(const pos_idx_t pos, Value& v, NixStringContext& context,
-                          std::string_view error_ctx);
+                             std::string_view error_ctx);
 
   /**
    * Like coerceToPath, but the result must be a store path.
@@ -914,9 +919,9 @@ public:
    *
    * @param xp_settings Stop-gap to avoid globals during unit tests.
    */
-  void mk_output_string(Value& value, const SingleDerivedPath::Built& b,
-                      std::optional<StorePath> optStaticOutputPath,
-                      const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
+  void mk_output_string(
+      Value& value, const SingleDerivedPath::Built& b, std::optional<StorePath> optStaticOutputPath,
+      const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
 
   /**
    * Create a string representing a `SingleDerivedPath`.
@@ -958,7 +963,7 @@ public:
    * store path.
    */
   [[nodiscard]] string_map_t realiseContext(const NixStringContext& context,
-                                         StorePathSet* maybePaths = nullptr, bool isIFD = true);
+                                            StorePathSet* maybePaths = nullptr, bool isIFD = true);
 
   /**
    * Realise the given string with context, and return the string with outputs instead of downstream
@@ -985,9 +990,9 @@ private:
    * Like `mk_output_string` but just creates a raw string, not an
    * string Value, which would also have a string context.
    */
-  std::string
-  mkOutputStringRaw(const SingleDerivedPath::Built& b, std::optional<StorePath> optStaticOutputPath,
-                    const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
+  std::string mkOutputStringRaw(
+      const SingleDerivedPath::Built& b, std::optional<StorePath> optStaticOutputPath,
+      const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
 
   /**
    * Like `mkSingleDerivedPathStringRaw` but just creates a raw string

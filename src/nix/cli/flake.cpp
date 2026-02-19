@@ -41,15 +41,16 @@ struct cmd_flake_update_t;
 
 flake_command_t::flake_command_t() {
   expect_args({.label = "flake-url",
-              .optional = true,
-              .handler = {&flakeUrl},
-              .completer = {[&](add_completions_t& completions, size_t, std::string_view prefix) {
-                complete_flake_ref(completions, getStore(), prefix);
-              }}});
+               .optional = true,
+               .handler = {&flakeUrl},
+               .completer = {[&](add_completions_t& completions, size_t, std::string_view prefix) {
+                 complete_flake_ref(completions, getStore(), prefix);
+               }}});
 }
 
 FlakeRef flake_command_t::get_flake_ref() {
-  return parse_flake_ref(fetch_settings, flakeUrl, std::filesystem::current_path().string()); // FIXME
+  return parse_flake_ref(fetch_settings, flakeUrl,
+                         std::filesystem::current_path().string()); // FIXME
 }
 
 LockedFlake flake_command_t::lock_flake() {
@@ -59,7 +60,7 @@ LockedFlake flake_command_t::lock_flake() {
 std::vector<FlakeRef> flake_command_t::get_flake_refs_for_completion() {
   return {// Like getFlakeRef but with expandTilde called first
           parse_flake_ref(fetch_settings, expand_tilde(flakeUrl),
-                        std::filesystem::current_path().string())};
+                          std::filesystem::current_path().string())};
 }
 
 struct cmd_flake_update_t : flake_command_t {
@@ -67,7 +68,7 @@ public:
   std::string description() override { return "update flake lock file"; }
 
   cmd_flake_update_t() {
-    expectedArgs.clear();
+    clear_expected_args();
     add_flag({
         .long_name = "flake",
         .description = "The flake to operate on. Default is the current directory.",
@@ -98,8 +99,8 @@ public:
           }
         }},
         .completer = {[&](add_completions_t& completions, size_t, std::string_view prefix) {
-          complete_flake_input_attr_path(completions, getEvalState(), get_flake_refs_for_completion(),
-                                     prefix);
+          complete_flake_input_attr_path(completions, getEvalState(),
+                                         get_flake_refs_for_completion(), prefix);
         }},
     });
 
@@ -372,7 +373,7 @@ struct cmd_flake_check_t : flake_command_t {
     };
 
     auto check_derivation = [&](const std::string& attr_path, Value& v,
-                               const pos_idx_t pos) -> std::optional<StorePath> {
+                                const pos_idx_t pos) -> std::optional<StorePath> {
       try {
         activity_t act(*logger, lvl_info, act_unknown, fmt("checking derivation %s", attr_path));
         auto package_info = get_derivation(*state, v, false);
@@ -383,7 +384,7 @@ struct cmd_flake_check_t : flake_command_t {
           auto store_path = package_info->queryDrvPath();
           if (store_path) {
             logger->log(lvl_info, fmt("derivation evaluated to %s",
-                                     store->printStorePath(store_path.value())));
+                                      store->printStorePath(store_path.value())));
           }
           return store_path;
         }
@@ -456,7 +457,8 @@ struct cmd_flake_check_t : flake_command_t {
 
     auto check_module = [&](std::string_view attr_path, Value& v, const pos_idx_t pos) {
       try {
-        activity_t act(*logger, lvl_info, act_unknown, fmt("checking NixOS module '%s'", attr_path));
+        activity_t act(*logger, lvl_info, act_unknown,
+                       fmt("checking NixOS module '%s'", attr_path));
         state->forceValue(v, pos);
       } catch (Error& e) {
         e.add_trace(resolve(pos), hint_fmt_t("while checking the NixOS module '%s'", attr_path));
@@ -479,7 +481,8 @@ struct cmd_flake_check_t : flake_command_t {
             state->forceAttrs(*attr.value, attr.pos, "");
             auto attrPath2 = concat_strings(attr_path, ".", state->symbols[attr.name]);
             if (state->is_derivation(*attr.value)) {
-              activity_t act(*logger, lvl_info, act_unknown, fmt("checking Hydra job '%s'", attrPath2));
+              activity_t act(*logger, lvl_info, act_unknown,
+                             fmt("checking Hydra job '%s'", attrPath2));
               check_derivation(attrPath2, *attr.value, attr.pos);
             } else
               checkHydraJobs(attrPath2, *attr.value, attr.pos);
@@ -491,10 +494,11 @@ struct cmd_flake_check_t : flake_command_t {
       }
     };
 
-    auto check_nix_os_configuration = [&](const std::string& attr_path, Value& v, const pos_idx_t pos) {
+    auto check_nix_os_configuration = [&](const std::string& attr_path, Value& v,
+                                          const pos_idx_t pos) {
       try {
         activity_t act(*logger, lvl_info, act_unknown,
-                     fmt("checking NixOS configuration '%s'", attr_path));
+                       fmt("checking NixOS configuration '%s'", attr_path));
         Bindings& bindings = Bindings::emptyBindings;
         auto v_toplevel =
             find_along_attr_path(*state, "config.system.build.toplevel", bindings, v).first;
@@ -502,7 +506,8 @@ struct cmd_flake_check_t : flake_command_t {
         if (!state->is_derivation(*v_toplevel))
           throw Error("attribute 'config.system.build.toplevel' is not a derivation");
       } catch (Error& e) {
-        e.add_trace(resolve(pos), hint_fmt_t("while checking the NixOS configuration '%s'", attr_path));
+        e.add_trace(resolve(pos),
+                    hint_fmt_t("while checking the NixOS configuration '%s'", attr_path));
         report_error(e);
       }
     };
@@ -562,7 +567,8 @@ struct cmd_flake_check_t : flake_command_t {
       enumerate_outputs(
           *state, *v_flake, [&](std::string_view name, Value& v_output, const pos_idx_t pos) {
             futures.spawn(2, [&, name, pos]() {
-              activity_t act(*logger, lvl_info, act_unknown, fmt("checking flake output '%s'", name));
+              activity_t act(*logger, lvl_info, act_unknown,
+                             fmt("checking flake output '%s'", name));
 
               try {
                 eval_settings.enableImportFromDerivation.set_default(name != "hydraJobs");
@@ -644,7 +650,7 @@ struct cmd_flake_check_t : flake_command_t {
                       state->forceAttrs(*attr.value, attr.pos, "");
                       for (auto& attr2 : *attr.value->attrs())
                         check_app(fmt("%s.%s.%s", name, attr_name, state->symbols[attr2.name]),
-                                 *attr2.value, attr2.pos);
+                                  *attr2.value, attr2.pos);
                     };
                   }
                 }
@@ -687,7 +693,7 @@ struct cmd_flake_check_t : flake_command_t {
                   state->forceAttrs(v_output, pos, "");
                   for (auto& attr : *v_output.attrs())
                     check_overlay(fmt("%s.%s", name, state->symbols[attr.name]), *attr.value,
-                                 attr.pos);
+                                  attr.pos);
                 }
 
                 else if (name == "nixosModule")
@@ -697,14 +703,14 @@ struct cmd_flake_check_t : flake_command_t {
                   state->forceAttrs(v_output, pos, "");
                   for (auto& attr : *v_output.attrs())
                     check_module(fmt("%s.%s", name, state->symbols[attr.name]), *attr.value,
-                                attr.pos);
+                                 attr.pos);
                 }
 
                 else if (name == "nixosConfigurations") {
                   state->forceAttrs(v_output, pos, "");
                   for (auto& attr : *v_output.attrs())
                     check_nix_os_configuration(fmt("%s.%s", name, state->symbols[attr.name]),
-                                            *attr.value, attr.pos);
+                                               *attr.value, attr.pos);
                 }
 
                 else if (name == "hydraJobs")
@@ -717,7 +723,7 @@ struct cmd_flake_check_t : flake_command_t {
                   state->forceAttrs(v_output, pos, "");
                   for (auto& attr : *v_output.attrs())
                     check_template(fmt("%s.%s", name, state->symbols[attr.name]), *attr.value,
-                                  attr.pos);
+                                   attr.pos);
                 }
 
                 else if (name == "defaultBundler") {
@@ -740,7 +746,7 @@ struct cmd_flake_check_t : flake_command_t {
                       state->forceAttrs(*attr.value, attr.pos, "");
                       for (auto& attr2 : *attr.value->attrs()) {
                         check_bundler(fmt("%s.%s.%s", name, attr_name, state->symbols[attr2.name]),
-                                     *attr2.value, attr2.pos);
+                                      *attr2.value, attr2.pos);
                       }
                     };
                   }
@@ -805,7 +811,8 @@ struct cmd_flake_check_t : flake_command_t {
                    attr_path.to_string(*state));
 
       // FIXME: should start building while evaluating.
-      activity_t act(*logger, lvl_info, act_unknown, fmt("running %d flake checks", toBuild.size()));
+      activity_t act(*logger, lvl_info, act_unknown,
+                     fmt("running %d flake checks", toBuild.size()));
       auto build_results = store->build_paths_with_results(toBuild);
       assert(build_results.size() == toBuild.size());
 
@@ -865,8 +872,8 @@ struct cmd_flake_init_common_t : virtual Args, EvalCommand {
         .handler = {&template_url},
         .completer = {[&](add_completions_t& completions, size_t, std::string_view prefix) {
           complete_flake_ref_with_fragment(completions, getEvalState(), lock_flags,
-                                       default_template_attr_paths_prefixes, default_template_attr_paths,
-                                       prefix);
+                                           default_template_attr_paths_prefixes,
+                                           default_template_attr_paths, prefix);
         }},
     });
   }
@@ -893,7 +900,8 @@ struct cmd_flake_init_common_t : virtual Args, EvalCommand {
     std::vector<std::filesystem::path> changedFiles;
     std::vector<std::filesystem::path> conflictedFiles;
 
-    [&](this const auto& copy_dir, const source_path_t& from, const std::filesystem::path& to) -> void {
+    [&](this const auto& copy_dir, const source_path_t& from,
+        const std::filesystem::path& to) -> void {
       create_dirs(to);
 
       for (auto& [name, entry] : from.read_directory()) {
@@ -1045,10 +1053,9 @@ struct cmd_flake_archive_t : flake_command_t, MixJSON, MixDryRun, MixNoCheckSigs
 
     StorePathSet sources;
 
-    auto store_path =
-        dry_run
-            ? flake.flake.locked_ref.input.computeStorePath(*store)
-            : std::get<StorePath>(flake.flake.locked_ref.input.fetch_to_store(fetch_settings, *store));
+    auto store_path = dry_run ? flake.flake.locked_ref.input.computeStorePath(*store)
+                              : std::get<StorePath>(flake.flake.locked_ref.input.fetch_to_store(
+                                    fetch_settings, *store));
 
     sources.insert(store_path);
 
@@ -1061,9 +1068,10 @@ struct cmd_flake_archive_t : flake_command_t, MixJSON, MixDryRun, MixNoCheckSigs
           std::optional<StorePath> store_path;
           if (!(*input_node)->locked_ref.input.isRelative()) {
             store_path =
-                dry_run ? (*input_node)->locked_ref.input.computeStorePath(*store)
-                       : std::get<StorePath>(
-                             (*input_node)->locked_ref.input.fetch_to_store(fetch_settings, *store));
+                dry_run
+                    ? (*input_node)->locked_ref.input.computeStorePath(*store)
+                    : std::get<StorePath>(
+                          (*input_node)->locked_ref.input.fetch_to_store(fetch_settings, *store));
             sources.insert(*store_path);
           }
           if (json) {
@@ -1141,7 +1149,7 @@ struct cmd_flake_show_t : flake_command_t, MixJSON {
       auto attrPathS = attr_path.resolve(*state);
 
       activity_t act(*logger, lvl_info, act_unknown,
-                   fmt("evaluating '%s'", attr_path.to_string(*state)));
+                     fmt("evaluating '%s'", attr_path.to_string(*state)));
 
       try {
         auto recurse = [&]() {
@@ -1162,13 +1170,14 @@ struct cmd_flake_show_t : flake_command_t, MixJSON {
           }
           j.emplace("type", "derivation");
           if (!json)
-            j.emplace("subtype",
-                      attr_path.size() == 2 && attrPathS[0] == "devShell" ? "development environment"
-                      : attr_path.size() >= 2 && attrPathS[0] == "devShells"
-                          ? "development environment"
-                      : attr_path.size() == 3 && attrPathS[0] == "checks"    ? "derivation"
-                      : attr_path.size() >= 1 && attrPathS[0] == "hydraJobs" ? "derivation"
-                                                                            : "package");
+            j.emplace("subtype", attr_path.size() == 2 && attrPathS[0] == "devShell"
+                                     ? "development environment"
+                                 : attr_path.size() >= 2 && attrPathS[0] == "devShells"
+                                     ? "development environment"
+                                 : attr_path.size() == 3 && attrPathS[0] == "checks" ? "derivation"
+                                 : attr_path.size() >= 1 && attrPathS[0] == "hydraJobs"
+                                     ? "derivation"
+                                     : "package");
           j.emplace("name", name);
           if (description)
             j.emplace("description", *description);
@@ -1199,8 +1208,9 @@ struct cmd_flake_show_t : flake_command_t, MixJSON {
         else if ((attr_path.size() == 2 &&
                   (attrPathS[0] == "defaultPackage" || attrPathS[0] == "devShell" ||
                    attrPathS[0] == "formatter")) ||
-                 (attr_path.size() == 3 && (attrPathS[0] == "checks" || attrPathS[0] == "packages" ||
-                                           attrPathS[0] == "devShells"))) {
+                 (attr_path.size() == 3 &&
+                  (attrPathS[0] == "checks" || attrPathS[0] == "packages" ||
+                   attrPathS[0] == "devShells"))) {
           if (!show_all_systems && std::string(attrPathS[1]) != local_system) {
             omit("--all-systems");
           } else {
@@ -1225,8 +1235,8 @@ struct cmd_flake_show_t : flake_command_t, MixJSON {
             else
               recurse();
           } catch (IFDError& e) {
-            logger->warn(
-                fmt("%s omitted due to use of import from derivation", attr_path.to_string(*state)));
+            logger->warn(fmt("%s omitted due to use of import from derivation",
+                             attr_path.to_string(*state)));
           }
         }
 
@@ -1392,21 +1402,21 @@ struct cmd_flake_prefetch_t : flake_command_t, MixJSON {
     auto original_ref = get_flake_ref();
     auto resolved_ref = original_ref.resolve(fetch_settings, *store);
     auto [accessor, locked_ref] = resolved_ref.lazyFetch(getEvalState()->fetch_settings, *store);
-    auto store_path = fetch_to_store(getEvalState()->fetch_settings, *store, accessor, FetchMode::Copy,
-                                  locked_ref.input.get_name());
+    auto store_path = fetch_to_store(getEvalState()->fetch_settings, *store, accessor,
+                                     FetchMode::Copy, locked_ref.input.get_name());
     auto hash = store->queryPathInfo(store_path)->nar_hash;
 
     if (json) {
       auto res = nlohmann::json::object();
       res["storePath"] = store->printStorePath(store_path);
-      res["hash"] = hash.to_string(hash_format_t::SRI, true);
+      res["hash"] = hash.to_string(hash_format_t::sri, true);
       res["original"] = fetchers::attrs_to_json(resolved_ref.toAttrs());
       res["locked"] = fetchers::attrs_to_json(locked_ref.toAttrs());
       res["locked"].erase("__final"); // internal for now
       printJSON(res);
     } else {
       notice("Downloaded '%s' to '%s' (hash '%s').", locked_ref.to_string(),
-             store->printStorePath(store_path), hash.to_string(hash_format_t::SRI, true));
+             store->printStorePath(store_path), hash.to_string(hash_format_t::sri, true));
     }
 
     if (out_link) {

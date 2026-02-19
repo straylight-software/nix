@@ -26,7 +26,8 @@ namespace nix {
 
 binary_cache_store::binary_cache_store(config_t& config) : config{config} {
   if (config.secret_key_file != "")
-    signers.push_back(std::make_unique<local_signer_t>(secret_key_t{read_file(config.secret_key_file)}));
+    signers.push_back(
+        std::make_unique<local_signer_t>(secret_key_t{read_file(config.secret_key_file)}));
 
   if (config.secretKeyFiles != "") {
     std::stringstream ss(config.secretKeyFiles);
@@ -38,7 +39,7 @@ binary_cache_store::binary_cache_store(config_t& config) : config{config} {
 
   string_sink_t sink;
   sink << nar_version_magic1;
-  narMagic = sink.s;
+  narMagic = sink.str();
 }
 
 void binary_cache_store::init() {
@@ -70,13 +71,13 @@ std::optional<std::string> binary_cache_store::getNixCacheInfo() {
 }
 
 void binary_cache_store::upsert_file(const std::string& path, std::string&& data,
-                                  const std::string& mime_type, uint64_t size_hint) {
+                                     const std::string& mime_type, uint64_t size_hint) {
   string_source_t source{data};
   upsert_file(path, source, mime_type, size_hint);
 }
 
 void binary_cache_store::getFile(const std::string& path,
-                               Callback<std::optional<std::string>> callback) noexcept {
+                                 Callback<std::optional<std::string>> callback) noexcept {
   try {
     callback(getFile(path));
   } catch (...) {
@@ -103,7 +104,7 @@ std::optional<std::string> binary_cache_store::getFile(const std::string& path) 
   } catch (NoSuchBinaryCacheFile&) {
     return std::nullopt;
   }
-  return std::move(sink.s);
+  return std::move(sink.str());
 }
 
 std::string binary_cache_store::narInfoFileFor(const StorePath& store_path) {
@@ -125,8 +126,9 @@ void binary_cache_store::writeNarInfo(ref<NarInfo> narInfo) {
 }
 
 ref<const ValidPathInfo>
-binary_cache_store::addToStoreCommon(Source& nar_source, RepairFlag repair, CheckSigsFlag check_sigs,
-                                   std::function<ValidPathInfo(hash_result_t)> mkInfo) {
+binary_cache_store::addToStoreCommon(Source& nar_source, RepairFlag repair,
+                                     CheckSigsFlag check_sigs,
+                                     std::function<ValidPathInfo(hash_result_t)> mkInfo) {
   auto fdTemp = create_anonymous_temp_file();
 
   auto now1 = std::chrono::steady_clock::now();
@@ -140,8 +142,8 @@ binary_cache_store::addToStoreCommon(Source& nar_source, RepairFlag repair, Chec
   {
     fd_sink_t fileSink(fdTemp.get());
     tee_sink_t teeSinkCompressed{fileSink, fileHashSink};
-    auto compression_sink = make_compression_sink(config.compression, teeSinkCompressed,
-                                               config.parallelCompression, config.compressionLevel);
+    auto compression_sink = make_compression_sink(
+        config.compression, teeSinkCompressed, config.parallelCompression, config.compressionLevel);
     tee_sink_t teeSinkUncompressed{*compression_sink, narHashSink};
     tee_source_t teeSource{nar_source, teeSinkUncompressed};
     narAccessor = make_nar_accessor(teeSource);
@@ -274,8 +276,8 @@ binary_cache_store::addToStoreCommon(Source& nar_source, RepairFlag repair, Chec
   return narInfo;
 }
 
-void binary_cache_store::add_to_store(const ValidPathInfo& info, Source& nar_source, RepairFlag repair,
-                                  CheckSigsFlag check_sigs) {
+void binary_cache_store::add_to_store(const ValidPathInfo& info, Source& nar_source,
+                                      RepairFlag repair, CheckSigsFlag check_sigs) {
   if (!repair && isValidPath(info.path)) {
     // FIXME: copyNAR -> null sink
     nar_source.drain();
@@ -292,10 +294,11 @@ void binary_cache_store::add_to_store(const ValidPathInfo& info, Source& nar_sou
 }
 
 StorePath binary_cache_store::add_to_store_from_dump(Source& dump, std::string_view name,
-                                               file_serialisation_method_t dump_method,
-                                               ContentAddressMethod hash_method,
-                                               hash_algorithm_t hash_algo,
-                                               const StorePathSet& references, RepairFlag repair) {
+                                                     file_serialisation_method_t dump_method,
+                                                     ContentAddressMethod hash_method,
+                                                     hash_algorithm_t hash_algo,
+                                                     const StorePathSet& references,
+                                                     RepairFlag repair) {
   std::optional<Hash> caHash;
   std::string nar;
 
@@ -312,25 +315,26 @@ StorePath binary_cache_store::add_to_store_from_dump(Source& dump, std::string_v
     //
     // Only calculate if the dump is in the right format, however.
     if (static_cast<file_ingestion_method_t>(dump_method) == hash_method.getFileIngestionMethod())
-      caHash = hash_string(hash_algorithm_t::SHA256, dump2.s);
+      caHash = hash_string(hash_algorithm_t::SHA256, dump2.view());
     switch (dump_method) {
       case file_serialisation_method_t::nix_archive:
         // The dump is already NAR in this case, just use it.
-        nar = dump2.s;
+        nar = std::string(dump2.view());
         break;
       case file_serialisation_method_t::flat: {
         // The dump is Flat, so we need to convert it to NAR with a
         // single file.
         string_sink_t s;
-        dump_string(dump2.s, s);
-        nar = std::move(s.s);
+        dump_string(dump2.view(), s);
+        nar = std::move(s.str());
         break;
       }
     }
   } else {
     // Otherwise, we have to do th same hashing as NAR so our single
     // hash will suffice for both purposes.
-    if (dump_method != file_serialisation_method_t::nix_archive || hash_algo != hash_algorithm_t::SHA256)
+    if (dump_method != file_serialisation_method_t::nix_archive ||
+        hash_algo != hash_algorithm_t::SHA256)
       unsupported("addToStoreFromDump");
   }
   string_source_t narDump{nar};
@@ -380,14 +384,14 @@ void binary_cache_store::nar_from_path(const StorePath& store_path, Sink& sink) 
   uint64_t nar_size = 0;
 
   lambda_sink_t uncompressedSink{[&](std::string_view data) {
-                                nar_size += data.size();
-                                sink(data);
-                              },
-                              [&]() {
-                                stats.narRead++;
-                                // stats.narReadCompressedBytes += nar->size(); // FIXME
-                                stats.narReadBytes += nar_size;
-                              }};
+                                   nar_size += data.size();
+                                   sink(data);
+                                 },
+                                 [&]() {
+                                   stats.narRead++;
+                                   // stats.narReadCompressedBytes += nar->size(); // FIXME
+                                   stats.narReadBytes += nar_size;
+                                 }};
 
   auto decompressor = make_decompression_sink(info->compression, uncompressedSink);
 
@@ -406,10 +410,13 @@ void binary_cache_store::query_path_info_uncached(
     const StorePath& store_path, Callback<std::shared_ptr<const ValidPathInfo>> callback) noexcept {
   auto uri = config.getReference().render(/*FIXME withParams=*/false);
   auto store_path_s = printStorePath(store_path);
-  auto act = std::make_shared<activity_t>(*logger, lvl_talkative, act_query_path_info,
-                                        fmt("querying info about '%s' on '%s'", store_path_s, uri),
-                                        logger_t::fields_t{store_path_s, uri});
-  push_activity_t pact(act->id);
+  logger_t::fields_t fields;
+  fields.push_back(logger_t::field_t(store_path_s));
+  fields.push_back(logger_t::field_t(uri));
+  auto act = std::make_shared<activity_t>(
+      *logger, lvl_talkative, act_query_path_info,
+      fmt("querying info about '%s' on '%s'", store_path_s, uri), fields);
+  push_activity_t pact(act->id_);
 
   auto narInfoFile = narInfoFileFor(store_path);
 
@@ -435,9 +442,9 @@ void binary_cache_store::query_path_info_uncached(
 }
 
 StorePath binary_cache_store::add_to_store(std::string_view name, const source_path_t& path,
-                                       ContentAddressMethod method, hash_algorithm_t hash_algo,
-                                       const StorePathSet& references, path_filter_t& filter,
-                                       RepairFlag repair) {
+                                           ContentAddressMethod method, hash_algorithm_t hash_algo,
+                                           const StorePathSet& references, path_filter_t& filter,
+                                           RepairFlag repair) {
   /* FIXME: Make binary_cache_store::addToStoreCommon support
      non-recursive+sha256 so we can just use the default
      implementation of this method in terms of add_to_store_from_dump. */
@@ -486,7 +493,7 @@ void binary_cache_store::query_realisation_uncached(
             realisation = std::make_shared<const UnkeyedRealisation>(nlohmann::json::parse(*data));
           } catch (Error& e) {
             e.add_trace({}, "while parsing file '%s' as a realisation for key '%s'",
-                       outputInfoFilePath, id.to_string());
+                        outputInfoFilePath, id.to_string());
             throw;
           }
           return (*callbackPtr)(std::move(realisation));
@@ -502,7 +509,7 @@ void binary_cache_store::register_drv_output(const Realisation& info) {
   if (diskCache)
     diskCache->upsertRealisation(config.getReference().render(/*FIXME withParams=*/false), info);
   upsert_file(makeRealisationPath(info.id), static_cast<nlohmann::json>(info).dump(),
-             "application/json");
+              "application/json");
 }
 
 ref<RemoteFSAccessor> binary_cache_store::getRemoteFSAccessor(bool require_valid_path) {
@@ -515,7 +522,7 @@ ref<SourceAccessor> binary_cache_store::getFSAccessor(bool require_valid_path) {
 }
 
 std::shared_ptr<SourceAccessor> binary_cache_store::getFSAccessor(const StorePath& store_path,
-                                                                bool require_valid_path) {
+                                                                  bool require_valid_path) {
   return getRemoteFSAccessor(require_valid_path)->accessObject(store_path);
 }
 
@@ -544,8 +551,8 @@ void binary_cache_store::addBuildLog(const StorePath& drv_path, std::string_view
   assert(drv_path.is_derivation());
 
   upsert_file("log/" + std::string(drv_path.to_string()),
-             (std::string)log, // FIXME: don't copy
-             "text/plain; charset=utf-8");
+              (std::string)log, // FIXME: don't copy
+              "text/plain; charset=utf-8");
 }
 
 } // namespace nix

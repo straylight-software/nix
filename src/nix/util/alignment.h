@@ -1,9 +1,9 @@
-#pragma once
+#ifndef NIX_UTIL_ALIGNMENT_H
+#define NIX_UTIL_ALIGNMENT_H
 ///@file
 
 #include <bit>
 #include <cassert>
-#include <cstdint>
 #include <type_traits>
 
 namespace nix {
@@ -13,10 +13,12 @@ namespace nix {
 /// @pre alignment must be a power of 2.
 template <typename T>
   requires std::is_unsigned_v<T>
-constexpr T align_up(T val, unsigned alignment) {
+[[nodiscard]] constexpr auto align_up(T val, unsigned alignment) -> T {
   assert(std::has_single_bit(alignment) && "alignment must be a power of 2");
-  T mask = ~(T{alignment} - 1u);
-  return (val + alignment - 1) & mask;
+  T mask = ~(T{alignment} - 1U);
+  return (val + alignment - 1U) & mask;
 }
 
 } // namespace nix
+
+#endif // NIX_UTIL_ALIGNMENT_H

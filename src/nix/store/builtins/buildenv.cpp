@@ -33,7 +33,7 @@ static void create_links(State& state, const Path& src_dir, const Path& dst_dir,
   try {
     src_files = directory_iterator_t{src_dir};
   } catch (sys_error_t& e) {
-    if (e.err_no == ENOTDIR) {
+    if (e.err_no() == ENOTDIR) {
       warn("not including '%s' in the user environment because it's not a directory", src_dir);
       return;
     }
@@ -54,7 +54,7 @@ static void create_links(State& state, const Path& src_dir, const Path& dst_dir,
       if (stat(srcFile.c_str(), &srcSt) == -1)
         throw sys_error_t("getting status of '%1%'", srcFile);
     } catch (sys_error_t& e) {
-      if (e.err_no == ENOENT || e.err_no == ENOTDIR) {
+      if (e.err_no() == ENOENT || e.err_no() == ENOTDIR) {
         warn("skipping dangling symlink '%s'", dstFile);
         continue;
       }
@@ -140,7 +140,7 @@ void build_profile(const Path& out, Packages&& pkgs) {
         if (!done.count(p))
           postponed.insert(p);
     } catch (sys_error_t& e) {
-      if (e.err_no != ENOENT && e.err_no != ENOTDIR)
+      if (e.err_no() != ENOENT && e.err_no() != ENOTDIR)
         throw;
     }
   };

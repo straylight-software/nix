@@ -89,7 +89,7 @@ private:
 /**
  * Map from key names to public keys
  */
-typedef std::map<std::string, public_key_t> public_keys_t;
+using public_keys_t = std::map<std::string, public_key_t>;
 
 /**
  * @return true iff ‘sig’ is a correct signature over ‘data’ using one

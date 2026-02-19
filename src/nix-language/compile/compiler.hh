@@ -445,16 +445,24 @@ public:
     lexical_scope top_scope;
     current_scope_ = &top_scope;
 
+    // create a lambda context for main to allow local variables (for let expressions, etc.)
+    current_lambda_context_ = lambda_context{};
+
     // compile the expression to a WASM expression
     auto wasm_expr = compile_expression(expr);
+
+    // get local types from the context
+    auto& local_types = current_lambda_context_->local_types;
 
     // wrap in a function
     auto result_type = make_nix_value_type();
     BinaryenAddFunction(module_.get(), "main",
                         BinaryenTypeNone(), // no parameters
-                        result_type,
-                        nullptr, // no locals (for now)
-                        0, wasm_expr);
+                        result_type, local_types.empty() ? nullptr : local_types.data(),
+                        static_cast<BinaryenIndex>(local_types.size()), wasm_expr);
+
+    // clear the lambda context
+    current_lambda_context_ = std::nullopt;
 
     // export the main function
     BinaryenAddFunctionExport(module_.get(), "main", "main");
@@ -478,6 +486,15 @@ public:
       BinaryenAddActiveElementSegment(module_.get(), "functions", "functions", func_names.data(),
                                       static_cast<BinaryenIndex>(func_names.size()),
                                       BinaryenConst(module_.get(), BinaryenLiteralInt32(0)));
+      // Export the function table for indirect calls from the host
+      BinaryenAddTableExport(module_.get(), "functions", "functions");
+
+      // Export the lambda count as a global so the runtime can compute thunk table indices
+      // Thunks use relative indices (0, 1, 2...) but are stored at [lambda_count, ...) in table
+      auto lambda_count = static_cast<std::int32_t>(lambda_function_names_.size());
+      BinaryenAddGlobal(module_.get(), "__lambda_count", BinaryenTypeInt32(), false,
+                        BinaryenConst(module_.get(), BinaryenLiteralInt32(lambda_count)));
+      BinaryenAddGlobalExport(module_.get(), "__lambda_count", "__lambda_count");
     }
 
     current_scope_ = nullptr;
@@ -539,17 +556,21 @@ private:
     BinaryenType binary_param_types[] = {nix_value_type, nix_value_type};
     auto binary_params = BinaryenTypeCreate(binary_param_types, 2);
 
-    // arithmetic
-    BinaryenAddFunctionImport(module_.get(), "__add", "builtins", "__add", binary_params,
+    // arithmetic with position for type errors: (nix_value, nix_value, line: i32, col: i32) ->
+    // nix_value
+    BinaryenType arith_param_types[] = {nix_value_type, nix_value_type, BinaryenTypeInt32(),
+                                        BinaryenTypeInt32()};
+    auto arith_params = BinaryenTypeCreate(arith_param_types, 4);
+    BinaryenAddFunctionImport(module_.get(), "__add", "builtins", "__add", arith_params,
                               nix_value_type);
-    BinaryenAddFunctionImport(module_.get(), "__sub", "builtins", "__sub", binary_params,
+    BinaryenAddFunctionImport(module_.get(), "__sub", "builtins", "__sub", arith_params,
                               nix_value_type);
-    BinaryenAddFunctionImport(module_.get(), "__mul", "builtins", "__mul", binary_params,
+    BinaryenAddFunctionImport(module_.get(), "__mul", "builtins", "__mul", arith_params,
                               nix_value_type);
-    BinaryenAddFunctionImport(module_.get(), "__div", "builtins", "__div", binary_params,
+    BinaryenAddFunctionImport(module_.get(), "__div", "builtins", "__div", arith_params,
                               nix_value_type);
 
-    // comparison
+    // comparison (no position needed - should not throw type errors in most cases)
     BinaryenAddFunctionImport(module_.get(), "__lessThan", "builtins", "__lessThan", binary_params,
                               nix_value_type);
     BinaryenAddFunctionImport(module_.get(), "__lessEq", "builtins", "__lessEq", binary_params,
@@ -594,20 +615,28 @@ private:
     BinaryenAddFunctionImport(module_.get(), "__apply", "runtime", "__apply", binary_params,
                               nix_value_type);
 
-    // attribute selection: __select(set: nix_value, key_offset: i32) -> nix_value
-    BinaryenType select_params[] = {nix_value_type, BinaryenTypeInt32()};
+    // attribute selection: __select(set: nix_value, key_offset: i32, line: i32, col: i32) ->
+    // nix_value
+    BinaryenType select_params[] = {nix_value_type, BinaryenTypeInt32(), BinaryenTypeInt32(),
+                                    BinaryenTypeInt32()};
     BinaryenAddFunctionImport(module_.get(), "__select", "builtins", "__select",
-                              BinaryenTypeCreate(select_params, 2), nix_value_type);
+                              BinaryenTypeCreate(select_params, 4), nix_value_type);
 
     // has attribute: __hasAttr(set: nix_value, key_offset: i32) -> nix_value (bool)
+    // (no position needed - doesn't throw on missing attribute)
+    BinaryenType has_attr_params[] = {nix_value_type, BinaryenTypeInt32()};
     BinaryenAddFunctionImport(module_.get(), "__hasAttr", "builtins", "__hasAttr",
-                              BinaryenTypeCreate(select_params, 2), nix_value_type);
+                              BinaryenTypeCreate(has_attr_params, 2), nix_value_type);
 
-    // dynamic attribute selection: __selectDynamic(set: nix_value, key: nix_value) -> nix_value
+    // dynamic attribute selection: __selectDynamic(set: nix_value, key: nix_value, line: i32, col:
+    // i32) -> nix_value
+    BinaryenType select_dynamic_params[] = {nix_value_type, nix_value_type, BinaryenTypeInt32(),
+                                            BinaryenTypeInt32()};
     BinaryenAddFunctionImport(module_.get(), "__selectDynamic", "builtins", "__selectDynamic",
-                              binary_params, nix_value_type);
+                              BinaryenTypeCreate(select_dynamic_params, 4), nix_value_type);
 
     // dynamic has attribute: __hasAttrDynamic(set: nix_value, key: nix_value) -> nix_value (bool)
+    // (no position needed - doesn't throw on missing attribute)
     BinaryenAddFunctionImport(module_.get(), "__hasAttrDynamic", "builtins", "__hasAttrDynamic",
                               binary_params, nix_value_type);
 
@@ -616,10 +645,10 @@ private:
     BinaryenAddFunctionImport(module_.get(), "__makeAttrsDynamic", "builtins", "__makeAttrsDynamic",
                               BinaryenTypeCreate(make_list_params, 2), nix_value_type);
 
-    // throw/assert: __throw(msg_offset: i32) -> nix_value (never returns)
-    BinaryenType throw_params[] = {BinaryenTypeInt32()};
+    // throw/assert: __throw(msg_offset: i32, line: i32, col: i32) -> nix_value (never returns)
+    BinaryenType throw_params[] = {BinaryenTypeInt32(), BinaryenTypeInt32(), BinaryenTypeInt32()};
     BinaryenAddFunctionImport(module_.get(), "__throw", "runtime", "__throw",
-                              BinaryenTypeCreate(throw_params, 1), nix_value_type);
+                              BinaryenTypeCreate(throw_params, 3), nix_value_type);
 
     // variable lookup for free variables: __lookupVar(name_offset: i32) -> nix_value
     BinaryenAddFunctionImport(module_.get(), "__lookupVar", "runtime", "__lookupVar",
@@ -834,25 +863,36 @@ private:
   /// compile identifier reference
   [[nodiscard]] auto compile_variant(const ast::expression_identifier& expr)
       -> BinaryenExpressionRef {
-    return compile_identifier_lookup(expr.name);
+    return compile_identifier_lookup(expr.name, expr.position);
   }
 
   /// compile identifier lookup - shared between direct identifier references and closure capture
-  [[nodiscard]] auto compile_identifier_lookup(ast::symbol name) -> BinaryenExpressionRef {
-    // first check the current scope for local variables
+  /// position is used for error reporting when looking up in with scopes
+  [[nodiscard]] auto compile_identifier_lookup(ast::symbol name,
+                                               ast::source_position position = {0, 0, 0})
+      -> BinaryenExpressionRef {
+    // first check the current scope hierarchy for local variables
     if (current_scope_) {
-      auto local_binding = current_scope_->lookup_local(name);
-      if (local_binding.has_value()) {
-        if (local_binding->location == variable_location::local) {
+      auto lookup_result = current_scope_->lookup(name);
+      if (lookup_result.has_value()) {
+        const auto& local_binding = lookup_result->first;
+        if (local_binding.location == variable_location::local) {
           // local variable - read from WASM local
-          return BinaryenLocalGet(module_.get(), local_binding->local_index, make_nix_value_type());
+          // IMPORTANT: we must force the value because let bindings store thunks
+          // that need to be evaluated when accessed
+          auto local_value =
+              BinaryenLocalGet(module_.get(), local_binding.local_index, make_nix_value_type());
+          return compile_force(local_value);
         } else {
           // captured variable - read from closure environment
-          // env_ptr is local 0, captures are at env_ptr + 8 + capture_index * 8
+          // env_ptr is local 0 and already points to the captures area (closure_ptr + 8)
+          // captures are at env_ptr + capture_index * 8
           auto env_ptr = BinaryenLocalGet(module_.get(), 0, BinaryenTypeInt32());
-          auto capture_offset = 8 + local_binding->capture_index * 8;
-          return BinaryenLoad(module_.get(), 8, 0, capture_offset, 0, BinaryenTypeInt64(), env_ptr,
-                              "memory");
+          auto capture_offset = local_binding.capture_index * 8;
+          auto captured_value = BinaryenLoad(module_.get(), 8, 0, capture_offset, 0,
+                                             BinaryenTypeInt64(), env_ptr, "memory");
+          // Also force captured variables - they might also be thunks
+          return compile_force(captured_value);
         }
       }
     }
@@ -863,8 +903,9 @@ private:
       auto capture_it = current_lambda_context_->capture_indices.find(name);
       if (capture_it != current_lambda_context_->capture_indices.end()) {
         // this variable is in our capture list - read from closure environment
+        // env_ptr is local 0 and already points to the captures area (closure_ptr + 8)
         auto env_ptr = BinaryenLocalGet(module_.get(), 0, BinaryenTypeInt32());
-        auto capture_offset = 8 + capture_it->second * 8;
+        auto capture_offset = capture_it->second * 8;
         return BinaryenLoad(module_.get(), 8, 0, capture_offset, 0, BinaryenTypeInt64(), env_ptr,
                             "memory");
       }
@@ -902,16 +943,11 @@ private:
                            BinaryenConst(module_.get(), BinaryenLiteralInt64(packed::boolean_true)),
                            has_attr_result);
 
-        // __select(namespace, name_offset) -> value
+        // __select(namespace, name_offset, line, col) -> value
         // need to re-get namespace since the previous one was consumed
         auto namespace_value2 =
             BinaryenLocalGet(module_.get(), it->namespace_local_index, make_nix_value_type());
-        BinaryenExpressionRef select_args[] = {
-            namespace_value2,
-            BinaryenConst(module_.get(),
-                          BinaryenLiteralInt32(static_cast<std::int32_t>(name_offset)))};
-        auto select_result =
-            BinaryenCall(module_.get(), "__select", select_args, 2, make_nix_value_type());
+        auto select_result = compile_select(namespace_value2, name_str, position);
 
         // if hasAttr then select else (previous result)
         result = BinaryenIf(module_.get(), has_attr_is_true, select_result, result);
@@ -1000,6 +1036,20 @@ private:
         break;
       default:
         throw compilation_error("unsupported binary operator");
+    }
+
+    // arithmetic ops need position for type error reporting
+    bool is_arithmetic =
+        (expr.op == ast::binary_operator::add || expr.op == ast::binary_operator::subtract ||
+         expr.op == ast::binary_operator::multiply || expr.op == ast::binary_operator::divide);
+    if (is_arithmetic) {
+      BinaryenExpressionRef args[] = {
+          left, right,
+          BinaryenConst(module_.get(),
+                        BinaryenLiteralInt32(static_cast<std::int32_t>(expr.position.line))),
+          BinaryenConst(module_.get(),
+                        BinaryenLiteralInt32(static_cast<std::int32_t>(expr.position.column)))};
+      return BinaryenCall(module_.get(), builtin, args, 4, make_nix_value_type());
     }
 
     BinaryenExpressionRef args[] = {left, right};
@@ -1329,11 +1379,14 @@ private:
     return result;
   }
 
-  /// Group initial bindings by their first segment
+  /// Group initial bindings by their first segment, preserving source order
+  /// Returns a vector of pairs to maintain insertion order (important for let bindings)
   [[nodiscard]] auto
   group_bindings_by_first_segment(const std::vector<ast::binding_variant>& bindings)
-      -> std::unordered_map<ast::symbol, std::vector<binding_path_slice>, symbol_hash> {
-    std::unordered_map<ast::symbol, std::vector<binding_path_slice>, symbol_hash> result;
+      -> std::vector<std::pair<ast::symbol, std::vector<binding_path_slice>>> {
+    // Use a map for grouping, but also track insertion order
+    std::unordered_map<ast::symbol, std::size_t, symbol_hash> symbol_to_index;
+    std::vector<std::pair<ast::symbol, std::vector<binding_path_slice>>> result;
 
     for (const auto& binding : bindings) {
       if (std::holds_alternative<ast::binding_attribute>(binding)) {
@@ -1348,7 +1401,15 @@ private:
         }
 
         auto first_sym = std::get<ast::symbol>(first_segment.value);
-        result[first_sym].push_back({&attr_binding, 0});
+        auto it = symbol_to_index.find(first_sym);
+        if (it == symbol_to_index.end()) {
+          // New symbol - add to result and track index
+          symbol_to_index[first_sym] = result.size();
+          result.push_back({first_sym, {{&attr_binding, 0}}});
+        } else {
+          // Existing symbol - append to its group
+          result[it->second].second.push_back({&attr_binding, 0});
+        }
       }
     }
 
@@ -1599,13 +1660,10 @@ private:
               source = BinaryenLocalGet(module_.get(), from_local_index, make_nix_value_type());
             }
 
-            BinaryenExpressionRef select_args[] = {
-                source, BinaryenConst(module_.get(),
-                                      BinaryenLiteralInt32(static_cast<std::int32_t>(key_offset)))};
-            value = BinaryenCall(module_.get(), "__select", select_args, 2, make_nix_value_type());
+            value = compile_select(source, key_str, attr_name.position);
           } else {
             // inherit x; -> look up x from outer scope
-            value = compile_identifier_lookup(sym);
+            value = compile_identifier_lookup(sym, attr_name.position);
           }
 
           auto store_value = BinaryenStore(module_.get(), 8, pair_offset + 4, 0,
@@ -1808,17 +1866,12 @@ private:
           // a smarter implementation would cache it
           auto from_value = compile_expression(*inherit.from_expression);
           auto key_str = symbols_.lookup(sym);
-          auto key_offset = allocate_string(key_str);
-
-          BinaryenExpressionRef select_args[] = {
-              from_value, BinaryenConst(module_.get(), BinaryenLiteralInt32(
-                                                           static_cast<std::int32_t>(key_offset)))};
-          value = BinaryenCall(module_.get(), "__select", select_args, 2, make_nix_value_type());
+          value = compile_select(from_value, key_str, attr_name.position);
         } else {
           // inherit x; - look up from outer scope (before rec bindings)
           // temporarily switch to outer scope
           current_scope_ = outer_scope;
-          value = compile_identifier_lookup(sym);
+          value = compile_identifier_lookup(sym, attr_name.position);
           current_scope_ = &rec_scope;
         }
       }
@@ -1891,20 +1944,12 @@ private:
         // dynamic key: compile the expression and use __selectDynamic
         const auto& key_expr = std::get<ast::expression>(segment.value);
         auto key_value = compile_expression(key_expr);
-
-        BinaryenExpressionRef select_args[] = {result, key_value};
-        result =
-            BinaryenCall(module_.get(), "__selectDynamic", select_args, 2, make_nix_value_type());
+        result = compile_select_dynamic(result, key_value, segment.position);
       } else {
         // static key: use __select with string offset
         auto sym = std::get<ast::symbol>(segment.value);
         auto key_str = symbols_.lookup(sym);
-        auto key_offset = allocate_string(key_str);
-
-        BinaryenExpressionRef select_args[] = {
-            result, BinaryenConst(module_.get(),
-                                  BinaryenLiteralInt32(static_cast<std::int32_t>(key_offset)))};
-        result = BinaryenCall(module_.get(), "__select", select_args, 2, make_nix_value_type());
+        result = compile_select(result, key_str, segment.position);
       }
     }
 
@@ -1973,18 +2018,11 @@ private:
       if (segment.is_dynamic()) {
         const auto& key_expr = std::get<ast::expression>(segment.value);
         auto key_value = compile_expression(key_expr);
-        BinaryenExpressionRef select_args[] = {result, key_value};
-        select_result =
-            BinaryenCall(module_.get(), "__selectDynamic", select_args, 2, make_nix_value_type());
+        select_result = compile_select_dynamic(result, key_value, segment.position);
       } else {
         auto sym = std::get<ast::symbol>(segment.value);
         auto key_str = symbols_.lookup(sym);
-        auto key_offset = allocate_string(key_str);
-        BinaryenExpressionRef select_args[] = {
-            result, BinaryenConst(module_.get(),
-                                  BinaryenLiteralInt32(static_cast<std::int32_t>(key_offset)))};
-        select_result =
-            BinaryenCall(module_.get(), "__select", select_args, 2, make_nix_value_type());
+        select_result = compile_select(result, key_str, segment.position);
       }
 
       // short-circuit: if hasAttr is false, return false immediately
@@ -2102,35 +2140,37 @@ private:
         auto key_str = symbols_.lookup(formal.name);
         auto key_offset = allocate_string(key_str);
 
-        // __select(arg, key_offset) -> value
-        BinaryenExpressionRef select_args[] = {
-            BinaryenLocalGet(module_.get(), arg_local_index, make_nix_value_type()),
-            BinaryenConst(module_.get(),
-                          BinaryenLiteralInt32(static_cast<std::int32_t>(key_offset)))};
-        auto selected_value =
-            BinaryenCall(module_.get(), "__select", select_args, 2, make_nix_value_type());
-
-        // handle default value if present
         BinaryenExpressionRef value_expr;
         if (formal.default_value.has_value()) {
-          // check if selected value is null, if so use default
-          auto is_null =
-              BinaryenBinary(module_.get(), BinaryenEqInt64(),
-                             BinaryenConst(module_.get(), BinaryenLiteralInt64(packed::null_value)),
-                             selected_value);
-
-          // we need to re-select because selected_value is consumed
-          BinaryenExpressionRef select_args2[] = {
-              BinaryenLocalGet(module_.get(), arg_local_index, make_nix_value_type()),
+          // has default: use __hasAttr to check, then select or use default
+          // if (hasAttr(arg, key)) select(arg, key) else default
+          auto arg_value_has =
+              BinaryenLocalGet(module_.get(), arg_local_index, make_nix_value_type());
+          BinaryenExpressionRef has_attr_args[] = {
+              arg_value_has,
               BinaryenConst(module_.get(),
                             BinaryenLiteralInt32(static_cast<std::int32_t>(key_offset)))};
-          auto selected_value2 =
-              BinaryenCall(module_.get(), "__select", select_args2, 2, make_nix_value_type());
+          auto has_attr_result =
+              BinaryenCall(module_.get(), "__hasAttr", has_attr_args, 2, make_nix_value_type());
 
+          // convert nix_value bool to wasm i32 condition
+          auto condition = BinaryenBinary(
+              module_.get(), BinaryenEqInt64(), has_attr_result,
+              BinaryenConst(module_.get(), BinaryenLiteralInt64(packed::boolean_true)));
+
+          // then branch: select the attribute
+          auto arg_value_select =
+              BinaryenLocalGet(module_.get(), arg_local_index, make_nix_value_type());
+          auto selected_value = compile_select(arg_value_select, key_str, formal.position);
+
+          // else branch: use default value
           auto default_val = compile_expression(*formal.default_value);
-          value_expr = BinaryenIf(module_.get(), is_null, default_val, selected_value2);
+
+          value_expr = BinaryenIf(module_.get(), condition, selected_value, default_val);
         } else {
-          value_expr = selected_value;
+          // no default: just select (will error if not found)
+          auto arg_value = BinaryenLocalGet(module_.get(), arg_local_index, make_nix_value_type());
+          value_expr = compile_select(arg_value, key_str, formal.position);
         }
 
         // store to local
@@ -2178,16 +2218,10 @@ private:
     current_lambda_context_ = std::move(outer_lambda_context);
 
     // create closure value
-    if (captured_vars.empty()) {
-      // no captures - just return a simple lambda value
-      std::int64_t packed_value = (static_cast<std::int64_t>(func_index) << 32) |
-                                  static_cast<std::int64_t>(value_tag::lambda);
-      return BinaryenConst(module_.get(), BinaryenLiteralInt64(packed_value));
-    }
-
-    // has captures - need to allocate closure and store captured values
     // closure layout: func_index (i32) + capture_count (i32) + captures[N] (nix_value each)
     // total size: 8 + N * 8 bytes
+    // NOTE: we always allocate a closure struct, even for zero-capture lambdas,
+    // because rt_apply expects payload to be a pointer to the closure struct.
     auto capture_count = static_cast<std::uint32_t>(captured_vars.size());
     auto closure_size = 8 + capture_count * 8;
 
@@ -2196,6 +2230,25 @@ private:
     data_offset_ += closure_size;
     data_offset_ = (data_offset_ + 7) & ~7u; // align to 8
 
+    // for zero-capture lambdas, we can initialize the closure in the data segment
+    // and return a constant value (no runtime stores needed)
+    if (captured_vars.empty()) {
+      // create data segment with closure content: [func_index, capture_count=0]
+      std::vector<char> closure_data(closure_size, 0);
+      auto func_idx_u32 = static_cast<std::uint32_t>(func_index);
+      std::memcpy(closure_data.data(), &func_idx_u32, 4);
+      // capture_count is already 0
+
+      BinaryenAddDataSegment(module_.get(), nullptr, "memory", false,
+                             BinaryenConst(module_.get(), BinaryenLiteralInt32(closure_offset)),
+                             closure_data.data(), closure_size);
+
+      std::int64_t packed_value = (static_cast<std::int64_t>(closure_offset) << 32) |
+                                  static_cast<std::int64_t>(value_tag::lambda);
+      return BinaryenConst(module_.get(), BinaryenLiteralInt64(packed_value));
+    }
+
+    // has captures - need to store captured values at runtime
     // generate code to:
     // 1. store func_index at closure_offset
     // 2. store capture_count at closure_offset + 4
@@ -2345,7 +2398,6 @@ private:
           if (inherit_binding.from_expression.has_value()) {
             // inherit (expr) x; -> select x from expr
             auto key_str = symbols_.lookup(sym);
-            auto key_offset = allocate_string(key_str);
 
             BinaryenExpressionRef source;
             if (from_value != nullptr) {
@@ -2357,16 +2409,13 @@ private:
               source = BinaryenLocalGet(module_.get(), from_local_index, make_nix_value_type());
             }
 
-            BinaryenExpressionRef select_args[] = {
-                source, BinaryenConst(module_.get(),
-                                      BinaryenLiteralInt32(static_cast<std::int32_t>(key_offset)))};
-            value = BinaryenCall(module_.get(), "__select", select_args, 2, make_nix_value_type());
+            value = compile_select(source, key_str, attr_name.position);
           } else {
             // inherit x; -> look up x from outer scope (before adding to let_scope)
             // we need to look up in the parent scope, not the current let_scope
             auto* saved_scope = current_scope_;
             current_scope_ = outer_scope;
-            value = compile_identifier_lookup(sym);
+            value = compile_identifier_lookup(sym, attr_name.position);
             current_scope_ = saved_scope;
           }
 
@@ -2435,6 +2484,49 @@ private:
     return BinaryenCall(module_.get(), "__force", args, 1, make_nix_value_type());
   }
 
+  /// compile a throw expression with source position for error reporting
+  /// allocates the message string and generates __throw(msg_offset, line, col)
+  [[nodiscard]] auto compile_throw(std::string_view message, const ast::source_position& position)
+      -> BinaryenExpressionRef {
+    auto msg_offset = allocate_string(message);
+    BinaryenExpressionRef args[] = {
+        BinaryenConst(module_.get(), BinaryenLiteralInt32(static_cast<std::int32_t>(msg_offset))),
+        BinaryenConst(module_.get(),
+                      BinaryenLiteralInt32(static_cast<std::int32_t>(position.line))),
+        BinaryenConst(module_.get(),
+                      BinaryenLiteralInt32(static_cast<std::int32_t>(position.column)))};
+    return BinaryenCall(module_.get(), "__throw", args, 3, make_nix_value_type());
+  }
+
+  /// compile a static attribute selection with source position for "attribute not found" errors
+  /// generates __select(set, key_offset, line, col)
+  [[nodiscard]] auto compile_select(BinaryenExpressionRef set, std::string_view key,
+                                    const ast::source_position& position) -> BinaryenExpressionRef {
+    auto key_offset = allocate_string(key);
+    BinaryenExpressionRef args[] = {
+        set,
+        BinaryenConst(module_.get(), BinaryenLiteralInt32(static_cast<std::int32_t>(key_offset))),
+        BinaryenConst(module_.get(),
+                      BinaryenLiteralInt32(static_cast<std::int32_t>(position.line))),
+        BinaryenConst(module_.get(),
+                      BinaryenLiteralInt32(static_cast<std::int32_t>(position.column)))};
+    return BinaryenCall(module_.get(), "__select", args, 4, make_nix_value_type());
+  }
+
+  /// compile a dynamic attribute selection with source position for "attribute not found" errors
+  /// generates __selectDynamic(set, key_value, line, col)
+  [[nodiscard]] auto compile_select_dynamic(BinaryenExpressionRef set, BinaryenExpressionRef key,
+                                            const ast::source_position& position)
+      -> BinaryenExpressionRef {
+    BinaryenExpressionRef args[] = {
+        set, key,
+        BinaryenConst(module_.get(),
+                      BinaryenLiteralInt32(static_cast<std::int32_t>(position.line))),
+        BinaryenConst(module_.get(),
+                      BinaryenLiteralInt32(static_cast<std::int32_t>(position.column)))};
+    return BinaryenCall(module_.get(), "__selectDynamic", args, 4, make_nix_value_type());
+  }
+
   [[nodiscard]] auto compile_variant(const ast::expression_if& expr) -> BinaryenExpressionRef {
     auto condition = compile_expression(expr.condition);
     auto then_branch = compile_expression(expr.then_branch);
@@ -2463,14 +2555,8 @@ private:
         module_.get(), BinaryenEqInt64(),
         BinaryenConst(module_.get(), BinaryenLiteralInt64(packed::boolean_true)), forced_condition);
 
-    // allocate error message in data segment
-    static constexpr std::string_view error_msg = "assertion failed";
-    auto msg_offset = allocate_string(error_msg);
-
-    // if false, throw; otherwise return body
-    BinaryenExpressionRef throw_args[] = {
-        BinaryenConst(module_.get(), BinaryenLiteralInt32(static_cast<std::int32_t>(msg_offset)))};
-    auto throw_expr = BinaryenCall(module_.get(), "__throw", throw_args, 1, make_nix_value_type());
+    // if false, throw with position; otherwise return body
+    auto throw_expr = compile_throw("assertion failed", expr.position);
 
     return BinaryenIf(module_.get(), cond_is_true, body, throw_expr);
   }
@@ -2554,20 +2640,19 @@ private:
                          make_nix_value_type());
   }
 
-  /// allocate a string in the data segment, returning its offset
+  /// allocate a null-terminated string in the data segment, returning its offset
   [[nodiscard]] auto allocate_string(std::string_view str) -> std::uint32_t {
     // check if already allocated
     // TODO: use string hash instead of searching
 
-    // allocate: length (4 bytes) + data
+    // allocate: data + null terminator
     auto offset = data_offset_;
-    auto total_size = 4 + str.size();
+    auto total_size = str.size() + 1; // +1 for null terminator
 
     // create data segment
     std::vector<char> data(total_size);
-    auto length = static_cast<std::uint32_t>(str.size());
-    std::memcpy(data.data(), &length, 4);
-    std::memcpy(data.data() + 4, str.data(), str.size());
+    std::memcpy(data.data(), str.data(), str.size());
+    data[str.size()] = '\0'; // null terminator
 
     BinaryenAddDataSegment(module_.get(),
                            nullptr,  // auto-generate name

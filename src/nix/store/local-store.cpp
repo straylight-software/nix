@@ -74,7 +74,7 @@ std::string LocalStoreConfig::doc() {
 Path LocalBuildStoreConfig::getBuildDir() const {
   return settings.build_dir.get().has_value() ? *settings.build_dir.get()
          : build_dir.get().has_value()        ? *build_dir.get()
-                                             : stateDir.get() + "/builds";
+                                              : stateDir.get() + "/builds";
 }
 
 ref<Store> LocalStore::config_t::open_store() const {
@@ -197,12 +197,12 @@ LocalStore::LocalStore(ref<const config_t> config)
     struct stat st;
     if (stat(reservedPath.c_str(), &st) == -1 || st.st_size != settings.reservedSize) {
       auto_close_fd_t fd = to_descriptor(open(reservedPath.c_str(),
-                                         O_WRONLY | O_CREAT
+                                              O_WRONLY | O_CREAT
 #ifndef _WIN32
-                                             | O_CLOEXEC
+                                                  | O_CLOEXEC
 #endif
-                                         ,
-                                         0600));
+                                              ,
+                                              0600));
       int res = -1;
 #if HAVE_POSIX_FALLOCATE
       res = posix_fallocate(fd.get(), 0, settings.reservedSize);
@@ -229,10 +229,10 @@ LocalStore::LocalStore(ref<const config_t> config)
     try {
       globalLock = open_lock_file(globalLockPath.c_str(), true);
     } catch (sys_error_t& e) {
-      if (e.err_no == EACCES || e.err_no == EPERM) {
-        e.add_trace({},
-                   "This command may have been run as non-root in a single-user Nix installation,\n"
-                   "or the Nix daemon may have crashed.");
+      if (e.err_no() == EACCES || e.err_no() == EPERM) {
+        e.add_trace(
+            {}, "This command may have been run as non-root in a single-user Nix installation,\n"
+                "or the Nix daemon may have crashed.");
       }
       throw;
     }
@@ -278,7 +278,7 @@ LocalStore::LocalStore(ref<const config_t> config)
     if (!lock_file(globalLock.get(), ltWrite, false)) {
       printInfo("waiting for exclusive access to the Nix store...");
       lock_file(globalLock.get(), ltNone,
-               false); // We have acquired a shared lock; release it to prevent deadlocks
+                false); // We have acquired a shared lock; release it to prevent deadlocks
       lock_file(globalLock.get(), ltWrite, true);
     }
 
@@ -477,8 +477,8 @@ void LocalStore::openDB(State& state, bool create) {
   /* Open the Nix database. */
   auto& db(state.db);
   auto openMode = config->read_only ? SQLiteOpenMode::Immutable
-                  : create         ? SQLiteOpenMode::normal
-                                   : SQLiteOpenMode::NoCreate;
+                  : create          ? SQLiteOpenMode::normal
+                                    : SQLiteOpenMode::NoCreate;
   state.db = SQLite(std::filesystem::path(dbDir) / "db.sqlite", openMode);
 
 #ifdef __CYGWIN__
@@ -613,7 +613,8 @@ void LocalStore::register_drv_output(const Realisation& info) {
         auto combinedSignatures = oldR->signatures;
         combinedSignatures.insert(info.signatures.begin(), info.signatures.end());
         state->stmts->UpdateRealisedOutput
-            .use()(concat_strings_sep(" ", combinedSignatures))(info.id.strHash())(info.id.output_name)
+            .use()(concat_strings_sep(" ", combinedSignatures))(info.id.strHash())(
+                info.id.output_name)
             .exec();
       } else {
         throw Error("Trying to register a realisation of '%s', but we already "
@@ -666,7 +667,7 @@ uint64_t LocalStore::addValidPath(State& state, const ValidPathInfo& info, bool 
           info.deriver ? printStorePath(*info.deriver) : "", (bool)info.deriver)(
           info.nar_size, info.nar_size != 0)(info.ultimate ? 1 : 0, info.ultimate)(
           concat_strings_sep(" ", info.sigs), !info.sigs.empty())(render_content_address(info.ca),
-                                                                (bool)info.ca)
+                                                                  (bool)info.ca)
       .exec();
   uint64_t id = state.db.getLastInsertedRowId();
 
@@ -762,9 +763,9 @@ std::shared_ptr<const ValidPathInfo> LocalStore::queryPathInfoInternal(State& st
 /* Update path info in the database. */
 void LocalStore::updatePathInfo(State& state, const ValidPathInfo& info) {
   state.stmts->UpdatePathInfo
-      .use()(info.nar_size, info.nar_size != 0)(info.nar_hash.to_string(hash_format_t::base16, true))(
-          info.ultimate ? 1 : 0, info.ultimate)(concat_strings_sep(" ", info.sigs),
-                                                !info.sigs.empty())(
+      .use()(info.nar_size, info.nar_size != 0)(info.nar_hash.to_string(
+          hash_format_t::base16, true))(info.ultimate ? 1 : 0, info.ultimate)(
+          concat_strings_sep(" ", info.sigs), !info.sigs.empty())(
           render_content_address(info.ca), (bool)info.ca)(printStorePath(info.path))
       .exec();
 }
@@ -919,7 +920,7 @@ void LocalStore::registerValidPaths(const ValidPathInfos& infos) {
     StorePathSet paths;
 
     for (auto& [_, i] : infos) {
-      assert(i.nar_hash.algo == hash_algorithm_t::SHA256);
+      assert(i.nar_hash.algo() == hash_algorithm_t::SHA256);
       if (isValidPath_(*state, i.path))
         updatePathInfo(*state, i);
       else
@@ -993,7 +994,7 @@ bool LocalStore::realisationIsUntrusted(const Realisation& realisation) {
 }
 
 void LocalStore::add_to_store(const ValidPathInfo& info, Source& source, RepairFlag repair,
-                            CheckSigsFlag check_sigs) {
+                              CheckSigsFlag check_sigs) {
   if (check_sigs && pathInfoIsUntrusted(info))
     throw Error("cannot add path '%s' because it lacks a signature by a trusted key",
                 printStorePath(info.path));
@@ -1040,7 +1041,8 @@ void LocalStore::add_to_store(const ValidPathInfo& info, Source& source, RepairF
 
         if (hashResult.hash != info.nar_hash)
           throw Error("hash mismatch importing path '%s';\n  specified: %s\n  got:       %s",
-                      printStorePath(info.path), info.nar_hash.to_string(hash_format_t::nix32, true),
+                      printStorePath(info.path),
+                      info.nar_hash.to_string(hash_format_t::nix32, true),
                       hashResult.hash.to_string(hash_format_t::nix32, true));
 
         if (hashResult.num_bytes_digested != info.nar_size)
@@ -1058,7 +1060,7 @@ void LocalStore::add_to_store(const ValidPathInfo& info, Source& source, RepairF
               case file_ingestion_method_t::flat:
               case file_ingestion_method_t::nix_archive: {
                 HashModuloSink caSink{
-                    specified.hash.algo,
+                    specified.hash.algo(),
                     std::string{info.path.hash_part()},
                 };
                 dump_path({accessor, path}, caSink, (file_serialisation_method_t)fim);
@@ -1066,7 +1068,7 @@ void LocalStore::add_to_store(const ValidPathInfo& info, Source& source, RepairF
                 break;
               }
               case file_ingestion_method_t::git:
-                h = git::dump_hash(specified.hash.algo, {accessor, path}).hash;
+                h = git::dump_hash(specified.hash.algo(), {accessor, path}).hash;
                 break;
             }
             ContentAddress{
@@ -1105,9 +1107,10 @@ void LocalStore::add_to_store(const ValidPathInfo& info, Source& source, RepairF
 }
 
 StorePath LocalStore::add_to_store_from_dump(Source& source0, std::string_view name,
-                                         file_serialisation_method_t dump_method,
-                                         ContentAddressMethod hash_method, hash_algorithm_t hash_algo,
-                                         const StorePathSet& references, RepairFlag repair) {
+                                             file_serialisation_method_t dump_method,
+                                             ContentAddressMethod hash_method,
+                                             hash_algorithm_t hash_algo,
+                                             const StorePathSet& references, RepairFlag repair) {
   /* For computing the store path. */
   auto hash_sink = std::make_unique<hash_sink_t>(hash_algo);
   tee_source_t source{source0, *hash_sink};
@@ -1181,10 +1184,10 @@ StorePath LocalStore::add_to_store_from_dump(Source& source0, std::string_view n
 
   auto desc = ContentAddressWithReferences::fromParts(
       hash_method,
-      methodsMatch
-          ? dump_hash
-          : hash_path(make_fs_source_accessor(tempPath), hash_method.getFileIngestionMethod(), hash_algo)
-                .first,
+      methodsMatch ? dump_hash
+                   : hash_path(make_fs_source_accessor(tempPath),
+                               hash_method.getFileIngestionMethod(), hash_algo)
+                         .first,
       {
           .others = references,
           // caller is not capable of creating a self-reference, because this is content-addressed
@@ -1217,7 +1220,7 @@ StorePath LocalStore::add_to_store_from_dump(Source& source0, std::string_view n
           case file_ingestion_method_t::flat:
           case file_ingestion_method_t::nix_archive:
             restore_path(realPath, dump_source, (file_serialisation_method_t)fim,
-                        settings.fsyncStorePaths);
+                         settings.fsyncStorePaths);
             break;
           case file_ingestion_method_t::git:
             // doesn't correspond to serialization method, so
@@ -1232,7 +1235,8 @@ StorePath LocalStore::add_to_store_from_dump(Source& source0, std::string_view n
       /* For computing the nar hash. In recursive SHA-256 mode, this
          is the same as the store hash, so no need to do it again. */
       hash_result_t nar_hash = {dump_hash, size};
-      if (dump_method != file_serialisation_method_t::nix_archive || hash_algo != hash_algorithm_t::SHA256) {
+      if (dump_method != file_serialisation_method_t::nix_archive ||
+          hash_algo != hash_algorithm_t::SHA256) {
         hash_sink_t narSink{hash_algorithm_t::SHA256};
         dump_path(realPath, narSink);
         nar_hash = narSink.finish();
@@ -1317,7 +1321,7 @@ bool LocalStore::verifyStore(bool check_contents, RepairFlag repair) {
       auto name = link.path().filename();
       printMsg(lvl_talkative, "checking contents of %s", name);
       std::string hash = hash_path(make_fs_source_accessor(link.path()),
-                                  file_ingestion_method_t::nix_archive, hash_algorithm_t::SHA256)
+                                   file_ingestion_method_t::nix_archive, hash_algorithm_t::SHA256)
                              .first.to_string(hash_format_t::nix32, false);
       if (hash != name.string()) {
         printError("link %s was modified! expected hash %s, got '%s'", link.path(), name, hash);
@@ -1342,7 +1346,7 @@ bool LocalStore::verifyStore(bool check_contents, RepairFlag repair) {
         /* Check the content hash (optionally - slow). */
         printMsg(lvl_talkative, "checking contents of '%s'", printStorePath(i));
 
-        auto hash_sink = hash_sink_t(info->nar_hash.algo);
+        auto hash_sink = hash_sink_t(info->nar_hash.algo());
 
         dump_path(toRealPath(i), hash_sink);
         auto current = hash_sink.finish();
@@ -1570,8 +1574,8 @@ void LocalStore::addBuildLog(const StorePath& drv_path, std::string_view log) {
 
   auto base_name = drv_path.to_string();
 
-  auto logPath =
-      fmt("%s/%s/%s/%s.bz2", config->logDir, drvsLogDir, base_name.substr(0, 2), base_name.substr(2));
+  auto logPath = fmt("%s/%s/%s/%s.bz2", config->logDir, drvsLogDir, base_name.substr(0, 2),
+                     base_name.substr(2));
 
   if (path_exists(logPath))
     return;

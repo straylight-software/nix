@@ -43,8 +43,8 @@ struct local_binary_cache_store_t : virtual binary_cache_store {
 protected:
   bool file_exists(const std::string& path) override;
 
-  void upsert_file(const std::string& path, restartable_source_t& source, const std::string& mime_type,
-                  uint64_t size_hint) override {
+  void upsert_file(const std::string& path, restartable_source_t& source,
+                   const std::string& mime_type, uint64_t size_hint) override {
     auto path2 = config->binaryCacheDir + "/" + path;
     static std::atomic<int> counter{0};
     Path tmp = fmt("%s.tmp.%d.%d", path2, getpid(), ++counter);
@@ -58,7 +58,7 @@ protected:
     try {
       read_file(config->binaryCacheDir + "/" + path, sink);
     } catch (sys_error_t& e) {
-      if (e.err_no == ENOENT)
+      if (e.err_no() == ENOENT)
         throw NoSuchBinaryCacheFile("file '%s' does not exist in binary cache", path);
       throw;
     }
@@ -110,6 +110,7 @@ ref<Store> LocalBinaryCacheStoreConfig::open_store() const {
   return store;
 }
 
-static RegisterStoreImplementation<local_binary_cache_store_t::config_t> reg_local_binary_cache_store;
+static RegisterStoreImplementation<local_binary_cache_store_t::config_t>
+    reg_local_binary_cache_store;
 
 } // namespace nix

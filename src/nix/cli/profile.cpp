@@ -142,9 +142,10 @@ struct profile_manifest_t {
           element.priority = e["priority"];
         }
         if (e.value(s_url, "") != "") {
-          element.source = profile_element_source_t{
-              parse_flake_ref(fetch_settings, e[s_original_url]), parse_flake_ref(fetch_settings, e[s_url]),
-              e["attrPath"], e["outputs"].get<ExtendedOutputsSpec>()};
+          element.source =
+              profile_element_source_t{parse_flake_ref(fetch_settings, e[s_original_url]),
+                                       parse_flake_ref(fetch_settings, e[s_url]), e["attrPath"],
+                                       e["outputs"].get<ExtendedOutputsSpec>()};
         }
 
         std::string name = [&] {
@@ -167,7 +168,8 @@ struct profile_manifest_t {
       state.allowPath(state.store->followLinksToStorePath(profile.string()));
       state.allowPath(state.store->followLinksToStorePath((profile / "manifest.nix").string()));
 
-      auto package_infos = query_installed(state, state.store->followLinksToStore(profile.string()));
+      auto package_infos =
+          query_installed(state, state.store->followLinksToStore(profile.string()));
 
       for (auto& package_info : package_infos) {
         profile_element_t element;
@@ -238,7 +240,7 @@ struct profile_manifest_t {
     string_sink_t sink;
     dump_path(temp_dir.string(), sink);
 
-    auto nar_hash = hash_string(hash_algorithm_t::SHA256, sink.s);
+    auto nar_hash = hash_string(hash_algorithm_t::SHA256, sink.str());
 
     auto info = ValidPathInfo::makeFromCA(*store, "profile",
                                           FixedOutputInfo{
@@ -252,16 +254,16 @@ struct profile_manifest_t {
                                                   },
                                           },
                                           nar_hash);
-    info.nar_size = sink.s.size();
+    info.nar_size = sink.str().size();
 
-    string_source_t source(sink.s);
+    string_source_t source(sink.str());
     store->add_to_store(info, source);
 
     return std::move(info.path);
   }
 
   static void print_diff(const profile_manifest_t& prev, const profile_manifest_t& cur,
-                        std::string_view indent) {
+                         std::string_view indent) {
     auto i = prev.elements.begin();
     auto j = cur.elements.begin();
 
@@ -516,22 +518,24 @@ public:
         .long_name = "regex",
         .description = "A regular expression to match one or more packages in the profile.",
         .labels = {"pattern"},
-        .handler = {[this](std::string arg) { _matchers.push_back(make_ref<regex_matcher_t>(arg)); }},
+        .handler = {[this](std::string arg) {
+          _matchers.push_back(make_ref<regex_matcher_t>(arg));
+        }},
     });
     expect_args({.label = "elements",
-                .optional = true,
-                .handler = {[this](std::vector<std::string> args) {
-                  for (auto& arg : args) {
-                    if (auto n = string2_int<size_t>(arg)) {
-                      throw Error("'nix profile' no longer supports indices ('%d')", *n);
-                    } else if (getStore()->isStorePath(arg)) {
-                      _matchers.push_back(
-                          make_ref<store_path_matcher_t>(getStore()->parseStorePath(arg)));
-                    } else {
-                      _matchers.push_back(make_ref<name_matcher_t>(arg));
-                    }
-                  }
-                }}});
+                 .optional = true,
+                 .handler = {[this](std::vector<std::string> args) {
+                   for (auto& arg : args) {
+                     if (auto n = string2_int<size_t>(arg)) {
+                       throw Error("'nix profile' no longer supports indices ('%d')", *n);
+                     } else if (getStore()->isStorePath(arg)) {
+                       _matchers.push_back(
+                           make_ref<store_path_matcher_t>(getStore()->parseStorePath(arg)));
+                     } else {
+                       _matchers.push_back(make_ref<name_matcher_t>(arg));
+                     }
+                   }
+                 }}});
   }
 
   string_set_t get_matching_element_names(profile_manifest_t& manifest) {
@@ -540,8 +544,9 @@ public:
     }
 
     if (std::find_if(_matchers.begin(), _matchers.end(),
-                     [](const ref<matcher_t>& m) { return m.dynamic_pointer_cast<all_matcher_t>(); }) !=
-            _matchers.end() &&
+                     [](const ref<matcher_t>& m) {
+                       return m.dynamic_pointer_cast<all_matcher_t>();
+                     }) != _matchers.end() &&
         _matchers.size() > 1) {
       throw UsageError("--all cannot be used with package names or regular expressions.");
     }
@@ -568,7 +573,9 @@ public:
   }
 };
 
-struct cmd_profile_remove_t : virtual EvalCommand, MixDefaultProfile, mix_profile_element_matchers_t {
+struct cmd_profile_remove_t : virtual EvalCommand,
+                              MixDefaultProfile,
+                              mix_profile_element_matchers_t {
   std::string description() override { return "remove packages from a profile"; }
 
   std::string doc() override {
@@ -602,7 +609,9 @@ struct cmd_profile_remove_t : virtual EvalCommand, MixDefaultProfile, mix_profil
   }
 };
 
-struct cmd_profile_upgrade_t : virtual SourceExprCommand, MixDefaultProfile, mix_profile_element_matchers_t {
+struct cmd_profile_upgrade_t : virtual SourceExprCommand,
+                               MixDefaultProfile,
+                               mix_profile_element_matchers_t {
   std::string description() override { return "upgrade packages using their most recent flake"; }
 
   std::string doc() override {
@@ -645,7 +654,7 @@ struct cmd_profile_upgrade_t : virtual SourceExprCommand, MixDefaultProfile, mix
       upgraded_count++;
 
       activity_t act(*logger, lvl_chatty, act_unknown,
-                   fmt("checking '%s' for updates", element.source->attr_path));
+                     fmt("checking '%s' for updates", element.source->attr_path));
 
       auto installable = make_ref<InstallableFlake>(
           this, getEvalState(), FlakeRef(element.source->original_ref), "", element.source->outputs,
@@ -691,7 +700,8 @@ struct cmd_profile_upgrade_t : virtual SourceExprCommand, MixDefaultProfile, mix
     for (size_t i = 0; i < installables.size(); ++i) {
       auto& installable = installables.at(i);
       auto& element = *elems.at(i);
-      element.update_store_paths(getEvalStore(), store, built_paths.find(&*installable)->second.first);
+      element.update_store_paths(getEvalStore(), store,
+                                 built_paths.find(&*installable)->second.first);
     }
 
     updateProfile(manifest.build(store));
@@ -756,7 +766,7 @@ struct cmd_profile_diff_closures_t : virtual StoreCommand, MixDefaultProfile {
         first = false;
         logger->cout("Version %d -> %d:", prevGen->number, gen.number);
         print_closure_diff(store, store->followLinksToStorePath(prevGen->path.string()),
-                         store->followLinksToStorePath(gen.path.string()), "  ");
+                           store->followLinksToStorePath(gen.path.string()), "  ");
       }
 
       prevGen = gen;
@@ -791,7 +801,8 @@ struct cmd_profile_history_t : virtual StoreCommand, EvalCommand, MixDefaultProf
           gen.number, std::put_time(std::gmtime(&gen.creationTime), "%Y-%m-%d"),
           prevGen ? fmt(" <- %d", prevGen->first.number) : "");
 
-      profile_manifest_t::print_diff(prevGen ? prevGen->second : profile_manifest_t(), manifest, "  ");
+      profile_manifest_t::print_diff(prevGen ? prevGen->second : profile_manifest_t(), manifest,
+                                     "  ");
 
       prevGen = {gen, std::move(manifest)};
     }
@@ -856,18 +867,19 @@ struct cmd_profile_wipe_history_t : virtual StoreCommand, MixDefaultProfile, Mix
 
 struct cmd_profile_t : NixMultiCommand {
   cmd_profile_t()
-      : NixMultiCommand("profile",
-                        {
-                            {"add", []() { return make_ref<cmd_profile_add_t>(); }},
-                            {"remove", []() { return make_ref<cmd_profile_remove_t>(); }},
-                            {"upgrade", []() { return make_ref<cmd_profile_upgrade_t>(); }},
-                            {"list", []() { return make_ref<cmd_profile_list_t>(); }},
-                            {"diff-closures", []() { return make_ref<cmd_profile_diff_closures_t>(); }},
-                            {"history", []() { return make_ref<cmd_profile_history_t>(); }},
-                            {"rollback", []() { return make_ref<cmd_profile_rollback_t>(); }},
-                            {"wipe-history", []() { return make_ref<cmd_profile_wipe_history_t>(); }},
-                        }) {
-    aliases = {
+      : NixMultiCommand(
+            "profile",
+            {
+                {"add", []() { return make_ref<cmd_profile_add_t>(); }},
+                {"remove", []() { return make_ref<cmd_profile_remove_t>(); }},
+                {"upgrade", []() { return make_ref<cmd_profile_upgrade_t>(); }},
+                {"list", []() { return make_ref<cmd_profile_list_t>(); }},
+                {"diff-closures", []() { return make_ref<cmd_profile_diff_closures_t>(); }},
+                {"history", []() { return make_ref<cmd_profile_history_t>(); }},
+                {"rollback", []() { return make_ref<cmd_profile_rollback_t>(); }},
+                {"wipe-history", []() { return make_ref<cmd_profile_wipe_history_t>(); }},
+            }) {
+    get_aliases() = {
         {"install", {alias_status_t::deprecated, {"add"}}},
     };
   }

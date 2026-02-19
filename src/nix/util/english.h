@@ -9,7 +9,7 @@ namespace nix {
  *
  * If `count == 1`, prints `1 {single}` to `output`, otherwise prints `{count} {plural}`.
  */
-std::ostream& pluralize(std::ostream& output, unsigned int count, const std::string_view single,
-                        const std::string_view plural);
+[[nodiscard]] auto pluralize(std::ostream& output, unsigned int count, std::string_view single,
+                             std::string_view plural) -> std::ostream&;
 
 } // namespace nix

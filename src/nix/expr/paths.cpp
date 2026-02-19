@@ -92,12 +92,12 @@ StorePath EvalState::mountInput(fetchers::Input& input, const fetchers::Input& o
       (require_lockable &&
        (!settings.lazyTrees || !settings.lazyLocks || !input.isLocked(fetch_settings)) &&
        !input.getNarHash()))
-    input.attrs.insert_or_assign("narHash", getNarHash()->to_string(hash_format_t::SRI, true));
+    input.attrs.insert_or_assign("narHash", getNarHash()->to_string(hash_format_t::sri, true));
 
   if (original_input.getNarHash() && *getNarHash() != *original_input.getNarHash())
     throw Error((unsigned int)102, "NAR hash mismatch in input '%s', expected '%s' but got '%s'",
-                original_input.to_string(), getNarHash()->to_string(hash_format_t::SRI, true),
-                original_input.getNarHash()->to_string(hash_format_t::SRI, true));
+                original_input.to_string(), getNarHash()->to_string(hash_format_t::sri, true),
+                original_input.getNarHash()->to_string(hash_format_t::sri, true));
 
   return store_path;
 }

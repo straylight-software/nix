@@ -63,8 +63,8 @@ namespace nix {
  */
 template <std::forward_iterator Iter, std::random_access_iterator BufIter,
           typename Comparator = std::less<std::iter_value_t<Iter>>>
-void mergeSortedRunsInPlace(Iter begin, Iter middle, Iter end, BufIter workingBegin,
-                            Comparator comp = {}) {
+auto merge_sorted_runs_in_place(Iter begin, Iter middle, Iter end, BufIter workingBegin,
+                                Comparator comp = {}) -> void {
   const BufIter workingMiddle = std::move(begin, middle, workingBegin);
   const BufIter workingEnd = std::move(middle, end, workingMiddle);
 
@@ -105,7 +105,7 @@ void mergeSortedRunsInPlace(Iter begin, Iter middle, Iter end, BufIter workingBe
  */
 template <std::bidirectional_iterator Iter,
           typename Comparator = std::less<std::iter_value_t<Iter>>>
-void insertionsort(Iter begin, Iter end, Comparator comp = {}) {
+auto insertion_sort(Iter begin, Iter end, Comparator comp = {}) -> void {
   if (begin == end)
     return;
   for (Iter current = std::next(begin); current != end; ++current) {
@@ -122,7 +122,8 @@ void insertionsort(Iter begin, Iter end, Comparator comp = {}) {
  * to the specified comparator.
  */
 template <std::forward_iterator Iter, typename Comparator = std::less<std::iter_value_t<Iter>>>
-Iter strictlyDecreasingPrefix(Iter begin, Iter end, Comparator&& comp = {}) {
+[[nodiscard]] auto strictly_decreasing_prefix(Iter begin, Iter end, Comparator&& comp = {})
+    -> Iter {
   if (begin == end)
     return begin;
   while (std::next(begin) != end && /* *std::next(begin) < begin */
@@ -137,7 +138,8 @@ Iter strictlyDecreasingPrefix(Iter begin, Iter end, Comparator&& comp = {}) {
  */
 template <std::bidirectional_iterator Iter,
           typename Comparator = std::less<std::iter_value_t<Iter>>>
-Iter strictlyDecreasingSuffix(Iter begin, Iter end, Comparator&& comp = {}) {
+[[nodiscard]] auto strictly_decreasing_suffix(Iter begin, Iter end, Comparator&& comp = {})
+    -> Iter {
   if (begin == end)
     return end;
   while (std::prev(end) > begin && /* *std::prev(end) < *std::prev(end, 2) */
@@ -152,8 +154,8 @@ Iter strictlyDecreasingSuffix(Iter begin, Iter end, Comparator&& comp = {}) {
  */
 template <std::bidirectional_iterator Iter,
           typename Comparator = std::less<std::iter_value_t<Iter>>>
-Iter weaklyIncreasingPrefix(Iter begin, Iter end, Comparator&& comp = {}) {
-  return strictlyDecreasingPrefix(begin, end, std::not_fn(std::forward<Comparator>(comp)));
+[[nodiscard]] auto weakly_increasing_prefix(Iter begin, Iter end, Comparator&& comp = {}) -> Iter {
+  return strictly_decreasing_prefix(begin, end, std::not_fn(std::forward<Comparator>(comp)));
 }
 
 /**
@@ -162,8 +164,8 @@ Iter weaklyIncreasingPrefix(Iter begin, Iter end, Comparator&& comp = {}) {
  */
 template <std::bidirectional_iterator Iter,
           typename Comparator = std::less<std::iter_value_t<Iter>>>
-Iter weaklyIncreasingSuffix(Iter begin, Iter end, Comparator&& comp = {}) {
-  return strictlyDecreasingSuffix(begin, end, std::not_fn(std::forward<Comparator>(comp)));
+[[nodiscard]] auto weakly_increasing_suffix(Iter begin, Iter end, Comparator&& comp = {}) -> Iter {
+  return strictly_decreasing_suffix(begin, end, std::not_fn(std::forward<Comparator>(comp)));
 }
 
 /**
@@ -212,7 +214,7 @@ template <std::random_access_iterator Iter,
           typename Comparator = std::less<std::iter_value_t<Iter>>>
 /* ValueType must be default constructible to create the temporary buffer */
   requires std::is_default_constructible_v<std::iter_value_t<Iter>>
-void peeksort(Iter begin, Iter end, Comparator comp = {}) {
+auto peek_sort(Iter begin, Iter end, Comparator comp = {}) -> void {
   auto length = std::distance(begin, end);
 
   /* Special-case very simple inputs. This is identical to how libc++ does it. */
@@ -248,19 +250,19 @@ void peeksort(Iter begin, Iter end, Comparator comp = {}) {
     static constexpr std::size_t insertionsortThreshold = 16;
     size_t length = std::distance(begin, end);
     if (length <= insertionsortThreshold)
-      return insertionsort(begin, end, comp);
+      return insertion_sort(begin, end, comp);
 
     Iter middle = std::next(begin, (length / 2)); /* Middle split between m and m - 1 */
 
     if (middle <= leftRunEnd) {
       /* |XXXXXXXX|XX     X| */
       peeksortImpl(peeksortImpl, leftRunEnd, end, std::next(leftRunEnd), rightRunBegin);
-      mergeSortedRunsInPlace(begin, leftRunEnd, end, workingBuffer.begin(), comp);
+      merge_sorted_runs_in_place(begin, leftRunEnd, end, workingBuffer.begin(), comp);
       return;
     } else if (middle >= rightRunBegin) {
       /* |XX     X|XXXXXXXX| */
       peeksortImpl(peeksortImpl, begin, rightRunBegin, leftRunEnd, std::prev(rightRunBegin));
-      mergeSortedRunsInPlace(begin, rightRunBegin, end, workingBuffer.begin(), comp);
+      merge_sorted_runs_in_place(begin, rightRunBegin, end, workingBuffer.begin(), comp);
       return;
     }
 
@@ -268,11 +270,11 @@ void peeksort(Iter begin, Iter end, Comparator comp = {}) {
     Iter i, j;
 
     if (!comp(*middle, *std::prev(middle)) /* *std::prev(middle) <= *middle */) {
-      i = weaklyIncreasingSuffix(leftRunEnd, middle, comp);
-      j = weaklyIncreasingPrefix(std::prev(middle), rightRunBegin, comp);
+      i = weakly_increasing_suffix(leftRunEnd, middle, comp);
+      j = weakly_increasing_prefix(std::prev(middle), rightRunBegin, comp);
     } else {
-      i = strictlyDecreasingSuffix(leftRunEnd, middle, comp);
-      j = strictlyDecreasingPrefix(std::prev(middle), rightRunBegin, comp);
+      i = strictly_decreasing_suffix(leftRunEnd, middle, comp);
+      j = strictly_decreasing_prefix(std::prev(middle), rightRunBegin, comp);
       std::reverse(i, j);
     }
 
@@ -283,12 +285,12 @@ void peeksort(Iter begin, Iter end, Comparator comp = {}) {
       /* |XX     x|xxxx   X| */
       peeksortImpl(peeksortImpl, begin, i, leftRunEnd, std::prev(i));
       peeksortImpl(peeksortImpl, i, end, j, rightRunBegin);
-      mergeSortedRunsInPlace(begin, i, end, workingBuffer.begin(), comp);
+      merge_sorted_runs_in_place(begin, i, end, workingBuffer.begin(), comp);
     } else {
       /* |XX   xxx|x      X| */
       peeksortImpl(peeksortImpl, begin, j, leftRunEnd, i);
       peeksortImpl(peeksortImpl, j, end, std::next(j), rightRunBegin);
-      mergeSortedRunsInPlace(begin, j, end, workingBuffer.begin(), comp);
+      merge_sorted_runs_in_place(begin, j, end, workingBuffer.begin(), comp);
     }
   };
 

@@ -550,3 +550,33 @@ cxx_test(
         "//third_party:rapidcheck",
     ],
 )
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Store tests (log-structured, io_uring-native, daemonless)
+# ─────────────────────────────────────────────────────────────────────────────
+
+STORE_TEST_COMPILER_FLAGS = PRIMITIVES_TEST_COMPILER_FLAGS + [
+    # zpp_bits headers (until devshell picks up the new dep)
+    "-isystem/nix/store/bx9q2zgry31v0fq01ylw6w9w4fbk2lza-zpp_bits-4.5/include",
+]
+
+STORE_TEST_LINKER_FLAGS = [
+    # io_uring (via libevring)
+    "-L/nix/store/na5bgfmhm6ci0y3v521kcicvkpzbvdyn-liburing-2.11/lib",
+    "-luring",
+    "-Wl,-rpath,/nix/store/na5bgfmhm6ci0y3v521kcicvkpzbvdyn-liburing-2.11/lib",
+    # pthread for std::thread (concurrent tests)
+    "-pthread",
+]
+
+cxx_test(
+    name = "store_test",
+    srcs = ["store_test.cpp"],
+    compiler_flags = STORE_TEST_COMPILER_FLAGS,
+    linker_flags = STORE_TEST_LINKER_FLAGS,
+    link_style = "static",
+    deps = [
+        "//src/straylight/nix/primitives:store",
+        "//third_party:catch2",
+    ],
+)

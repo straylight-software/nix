@@ -210,7 +210,7 @@ std::string render_content_address(std::optional<ContentAddress> ca) {
 }
 
 std::string ContentAddress::printMethodAlgo() const {
-  return std::string{method.renderPrefix()} + print_hash_algo(hash.algo);
+  return std::string{method.renderPrefix()} + print_hash_algo(hash.algo());
 }
 
 bool StoreReferences::empty() const {

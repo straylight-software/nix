@@ -20,7 +20,7 @@ using namespace nix;
  */
 struct cmd_hash_base_t : command_t {
   file_ingestion_method_t mode;
-  hash_format_t hash_format = hash_format_t::SRI;
+  hash_format_t hash_format = hash_format_t::sri;
   bool truncate = false;
   hash_algorithm_t hash_algo = hash_algorithm_t::SHA256;
   std::vector<std::string> paths;
@@ -35,7 +35,7 @@ struct cmd_hash_base_t : command_t {
     add_flag({
         .long_name = "sri",
         .description = "Print the hash in SRI format.",
-        .handler = {&hash_format, hash_format_t::SRI},
+        .handler = {&hash_format, hash_format_t::sri},
     });
 
     add_flag({
@@ -123,9 +123,9 @@ struct cmd_hash_base_t : command_t {
         }
       }
 
-      if (truncate && h.hash_size > 20)
+      if (truncate && h.hash_size() > 20)
         h = compress_hash(h, 20);
-      logger->cout(h.to_string(hash_format, hash_format == hash_format_t::SRI));
+      logger->cout(h.to_string(hash_format, hash_format == hash_format_t::sri));
     }
   }
 };
@@ -187,7 +187,7 @@ struct cmd_to_base_t : command_t {
            "hash convert`.");
     for (const auto& s : args)
       logger->cout(
-          Hash::parse_any(s, hash_algo).to_string(hash_format, hash_format == hash_format_t::SRI));
+          Hash::parse_any(s, hash_algo).to_string(hash_format, hash_format == hash_format_t::sri));
   }
 };
 
@@ -200,7 +200,7 @@ struct cmd_hash_convert_t : command_t {
   std::optional<hash_algorithm_t> algo;
   std::vector<std::string> hash_strings;
 
-  cmd_hash_convert_t() : to(hash_format_t::SRI) {
+  cmd_hash_convert_t() : to(hash_format_t::sri) {
     add_flag(flag::hash_format_opt("from", &from));
     add_flag(flag::hash_format_with_default("to", &to));
     add_flag(flag::hash_algo_opt(&algo));
@@ -227,7 +227,7 @@ struct cmd_hash_convert_t : command_t {
         throw BadHash("input hash '%s' has format '%s', but '--from %s' was specified", s,
                       print_hash_format(parsedFormat), print_hash_format(*from));
       }
-      logger->cout(h.to_string(to, to == hash_format_t::SRI));
+      logger->cout(h.to_string(to, to == hash_format_t::sri));
     }
   }
 };
@@ -242,7 +242,7 @@ struct cmd_hash_t : NixMultiCommand {
                             {"to-base16", []() { return make_ref<cmd_to_base_t>(hash_format_t::base16); }},
                             {"to-base32", []() { return make_ref<cmd_to_base_t>(hash_format_t::nix32); }},
                             {"to-base64", []() { return make_ref<cmd_to_base_t>(hash_format_t::base64); }},
-                            {"to-sri", []() { return make_ref<cmd_to_base_t>(hash_format_t::SRI); }},
+                            {"to-sri", []() { return make_ref<cmd_to_base_t>(hash_format_t::sri); }},
                         }) {}
 
   std::string description() override { return "compute and convert cryptographic hashes"; }
@@ -280,7 +280,7 @@ static int compat_nix_hash(int argc, char** argv) {
     else if (*arg == "--base64")
       hash_format = hash_format_t::base64;
     else if (*arg == "--sri")
-      hash_format = hash_format_t::SRI;
+      hash_format = hash_format_t::sri;
     else if (*arg == "--truncate")
       truncate = true;
     else if (*arg == "--type") {
@@ -297,7 +297,7 @@ static int compat_nix_hash(int argc, char** argv) {
       hash_format = hash_format_t::base64;
     } else if (*arg == "--to-sri") {
       op = op_to;
-      hash_format = hash_format_t::SRI;
+      hash_format = hash_format_t::sri;
     } else if (*arg != "" && arg->at(0) == '-')
       return false;
     else

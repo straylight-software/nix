@@ -18,15 +18,15 @@ namespace nix {
 
 auto_close_fd_t create_unix_domain_socket() {
   auto_close_fd_t fd_socket = to_descriptor(socket(PF_UNIX,
-                                             SOCK_STREAM
+                                                   SOCK_STREAM
 #ifdef SOCK_CLOEXEC
-                                                 | SOCK_CLOEXEC
+                                                       | SOCK_CLOEXEC
 #endif
-                                             ,
-                                             0));
+                                                   ,
+                                                   0));
   if (!fd_socket) {
     throw sys_error_t("cannot create Unix domain socket");
-}
+  }
 #ifndef _WIN32
   unix::close_on_exec(fd_socket.get());
 #endif
@@ -40,17 +40,17 @@ auto_close_fd_t create_unix_domain_socket(const Path& path, mode_t mode) {
 
   if (chmod(path.c_str(), mode) == -1) {
     throw sys_error_t("changing permissions on '%1%'", path);
-}
+  }
 
   if (listen(to_socket(fd_socket.get()), 100) == -1) {
     throw sys_error_t("cannot listen on socket '%1%'", path);
-}
+  }
 
   return fd_socket;
 }
 
 static void bind_connect_proc_helper(std::string_view operation_name, auto&& operation, socket_t fd,
-                                  const std::string& path) {
+                                     const std::string& path) {
   struct sockaddr_un addr;
   addr.sun_family = AF_UNIX;
 
@@ -73,18 +73,18 @@ static void bind_connect_proc_helper(std::string_view operation_name, auto&& ope
         Path dir = dir_of(path);
         if (chdir(dir.c_str()) == -1) {
           throw sys_error_t("chdir to '%s' failed", dir);
-}
+        }
         std::string base(base_name_of(path));
         if (base.size() + 1 >= sizeof(addr.sun_path)) {
           throw Error("socket path '%s' is too long", base);
-}
+        }
         memcpy(addr.sun_path, base.c_str(), base.size() + 1);
         if (operation(fd, psaddr, sizeof(addr)) == -1) {
           throw sys_error_t("cannot %s to socket at '%s'", operation_name, path);
-}
+        }
         write_full(pipe.write_side.get(), "0\n");
       } catch (sys_error_t& e) {
-        write_full(pipe.write_side.get(), fmt("%d\n", e.err_no));
+        write_full(pipe.write_side.get(), fmt("%d\n", e.err_no()));
       } catch (...) {
         write_full(pipe.write_side.get(), "-1\n");
       }
@@ -102,7 +102,7 @@ static void bind_connect_proc_helper(std::string_view operation_name, auto&& ope
     memcpy(addr.sun_path, path.c_str(), path.size() + 1);
     if (operation(fd, psaddr, sizeof(addr)) == -1) {
       throw sys_error_t("cannot %s to socket at '%s'", operation_name, path);
-}
+    }
   }
 }
 

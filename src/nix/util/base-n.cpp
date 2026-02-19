@@ -6,10 +6,11 @@
 #include "nix/util/util.h"
 
 using namespace std::literals;
+using namespace nix;
 
 namespace nix {
 
-constexpr static const std::array<char, 16> base16_chars = "0123456789abcdef"_arrayNoNull;
+constexpr static const std::array<char, 16> base16_chars = ARRAY_NO_NULL("0123456789abcdef");
 
 std::string base16::encode(std::span<const std::byte> b) {
   std::string buf;
@@ -25,13 +26,13 @@ std::string base16::decode(std::string_view s) {
   auto parse_hex_digit = [&](char c) {
     if (c >= '0' && c <= '9') {
       return c - '0';
-}
+    }
     if (c >= 'A' && c <= 'F') {
       return c - 'A' + 10;
-}
+    }
     if (c >= 'a' && c <= 'f') {
       return c - 'a' + 10;
-}
+    }
     throw FormatError("invalid character in Base16 string: '%c'", c);
   };
 
@@ -49,7 +50,7 @@ std::string base16::decode(std::string_view s) {
 }
 
 constexpr static const std::array<char, 64> base64_chars =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"_arrayNoNull;
+    ARRAY_NO_NULL("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/");
 
 std::string base64::encode(std::span<const std::byte> s) {
   std::string res;
@@ -67,10 +68,10 @@ std::string base64::encode(std::span<const std::byte> s) {
 
   if (nbits) {
     res.push_back(base64_chars[data << (6 - nbits) & 0x3f]);
-}
+  }
   while (res.size() % 4) {
     res.push_back('=');
-}
+  }
 
   return res;
 }
@@ -81,10 +82,10 @@ std::string base64::decode(std::string_view s) {
     std::array<char, 256> result{};
     for (auto& c : result) {
       c = npos;
-}
+    }
     for (int i = 0; i < 64; i++) {
       result[base64_chars[i]] = i;
-}
+    }
     return result;
   }();
 
@@ -97,15 +98,15 @@ std::string base64::decode(std::string_view s) {
   for (char c : s) {
     if (c == '=') {
       break;
-}
+    }
     if (c == '\n') {
       continue;
-}
+    }
 
     char digit = base64_decode_chars[(unsigned char)c];
     if (digit == npos) {
       throw FormatError("invalid character in Base64 string: '%c'", c);
-}
+    }
 
     bits += 6;
     d = d << 6 | digit;

@@ -320,7 +320,7 @@ struct dir_deleter_t {
   void operator()(DIR* dir) const { closedir(dir); }
 };
 
-typedef std::unique_ptr<DIR, dir_deleter_t> auto_close_dir_t;
+using auto_close_dir_t = std::unique_ptr<DIR, dir_deleter_t>;
 
 /**
  * Create a temporary directory.
@@ -362,7 +362,7 @@ std::filesystem::path make_temp_path(const std::filesystem::path& root,
 /**
  * Used in various places.
  */
-typedef std::function<bool(const Path& path)> path_filter_t;
+using path_filter_t = std::function<bool(const Path& path)>;
 
 extern path_filter_t default_path_filter;
 

@@ -41,13 +41,13 @@ Pid::Pid(pid_t pid) : pid(pid) {}
 Pid::~Pid() {
   if (pid != -1) {
     kill();
-}
+  }
 }
 
 void Pid::operator=(pid_t pid) {
   if (this->pid != -1 && this->pid != pid) {
     kill();
-}
+  }
   this->pid = pid;
   killSignal = SIGKILL; // reset signal to default
 }
@@ -88,7 +88,7 @@ int Pid::wait() {
     }
     if (errno != EINTR) {
       throw sys_error_t("cannot get exit status of PID %d", pid);
-}
+    }
     check_interrupt();
   }
 }
@@ -119,7 +119,7 @@ void kill_user(uid_t uid) {
   Pid pid = start_process([&] {
     if (setuid(uid) == -1) {
       throw sys_error_t("setting uid");
-}
+    }
 
     while (true) {
 #ifdef __APPLE__
@@ -133,14 +133,14 @@ void kill_user(uid_t uid) {
 #else
       if (kill(-1, SIGKILL) == 0) {
         break;
-}
+      }
 #endif
       if (errno == ESRCH || errno == EPERM) {
         break; /* no more processes */
-}
+      }
       if (errno != EINTR) {
         throw sys_error_t("cannot kill processes for uid '%1%'", uid);
-}
+      }
     }
 
     _exit(0);
@@ -149,7 +149,7 @@ void kill_user(uid_t uid) {
   int status = pid.wait();
   if (status != 0) {
     throw Error("cannot kill processes for uid '%1%': %2%", uid, status_to_string(status));
-}
+  }
 
   /* !!! We should really do some check to make sure that there are
      no processes left running under `uid', but there is no portable
@@ -173,7 +173,7 @@ static pid_t do_fork(bool allow_vfork, child_wrapper_function_t& fun) {
 #endif
   if (pid != 0) {
     return pid;
-}
+  }
   fun();
   unreachable();
 }
@@ -202,7 +202,7 @@ pid_t start_process(std::function<void()> fun, const process_options_t& options)
 #ifdef __linux__
       if (options.die_with_parent && prctl(PR_SET_PDEATHSIG, SIGKILL) == -1) {
         throw sys_error_t("setting death signal");
-}
+      }
 #endif
       fun();
     } catch (std::exception& e) {
@@ -216,7 +216,7 @@ pid_t start_process(std::function<void()> fun, const process_options_t& options)
       exit(1);
     } else {
       _exit(1);
-}
+    }
   };
 
   pid_t pid = -1;
@@ -227,11 +227,11 @@ pid_t start_process(std::function<void()> fun, const process_options_t& options)
     assert(!(options.clone_flags & CLONE_VM));
 
     size_t stack_size = 1 * 1024 * 1024;
-    auto stack = static_cast<char*>(
-        mmap(0, stack_size, PROT_WRITE | PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0));
+    auto stack = static_cast<char*>(mmap(0, stack_size, PROT_WRITE | PROT_READ,
+                                         MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0));
     if (stack == MAP_FAILED) {
       throw sys_error_t("allocating stack");
-}
+    }
 
     finally_t free_stack([&] { munmap(stack, stack_size); });
 
@@ -241,26 +241,26 @@ pid_t start_process(std::function<void()> fun, const process_options_t& options)
 #endif
   } else {
     pid = do_fork(options.allow_vfork, wrapper);
-}
+  }
 
   if (pid == -1) {
     throw sys_error_t("unable to fork");
-}
+  }
 
   return pid;
 }
 
 std::string run_program(Path program, bool lookup_path, const strings_t& args,
-                       const std::optional<std::string>& input, bool is_interactive) {
+                        const std::optional<std::string>& input, bool is_interactive) {
   auto res = run_program(run_options_t{.program = program,
-                                   .lookup_path = lookup_path,
-                                   .args = args,
-                                   .input = input,
-                                   .is_interactive = is_interactive});
+                                       .lookup_path = lookup_path,
+                                       .args = args,
+                                       .input = input,
+                                       .is_interactive = is_interactive});
 
   if (!status_ok(res.first)) {
     throw exec_error_t(res.first, "program '%1%' %2%", program, status_to_string(res.first));
-}
+  }
 
   return res.second;
 }
@@ -278,7 +278,7 @@ std::pair<int, std::string> run_program(run_options_t&& options) {
     status = e.status;
   }
 
-  return {status, std::move(sink.s)};
+  return {status, std::move(sink.str())};
 }
 
 void run_program2(const run_options_t& options) {
@@ -298,10 +298,10 @@ void run_program2(const run_options_t& options) {
   pipe_t out, in;
   if (options.standard_out) {
     out.create();
-}
+  }
   if (source) {
     in.create();
-}
+  }
 
   process_options_t process_options;
   // vfork implies that the environment of the main process and the fork will
@@ -316,32 +316,32 @@ void run_program2(const run_options_t& options) {
       [&] {
         if (options.environment) {
           replace_env(*options.environment);
-}
+        }
         if (options.standard_out && dup2(out.write_side.get(), STDOUT_FILENO) == -1) {
           throw sys_error_t("dupping stdout");
-}
+        }
         if (options.merge_stderr_to_stdout) {
           if (dup2(STDOUT_FILENO, STDERR_FILENO) == -1) {
             throw sys_error_t("cannot dup stdout into stderr");
-}
-}
+          }
+        }
         if (source && dup2(in.read_side.get(), STDIN_FILENO) == -1) {
           throw sys_error_t("dupping stdin");
-}
+        }
 
         if (options.chdir && chdir((*options.chdir).c_str()) == -1) {
           throw sys_error_t("chdir failed");
-}
+        }
         if (options.gid && setgid(*options.gid) == -1) {
           throw sys_error_t("setgid failed");
-}
+        }
         /* Drop all other groups if we're setgid. */
         if (options.gid && setgroups(0, 0) == -1) {
           throw sys_error_t("setgroups failed");
-}
+        }
         if (options.uid && setuid(*options.uid) == -1) {
           throw sys_error_t("setuid failed");
-}
+        }
 
         strings_t args_(options.args);
         args_.push_front(options.program);
@@ -350,11 +350,11 @@ void run_program2(const run_options_t& options) {
 
         if (options.lookup_path) {
           execvp(options.program.c_str(), strings_to_char_ptrs(args_).data());
-        // This allows you to refer to a program with a pathname relative
-        // to the PATH variable.
+          // This allows you to refer to a program with a pathname relative
+          // to the PATH variable.
         } else {
           execv(options.program.c_str(), strings_to_char_ptrs(args_).data());
-}
+        }
 
         throw sys_error_t("executing '%1%'", options.program);
       },
@@ -369,7 +369,7 @@ void run_program2(const run_options_t& options) {
   finally_t do_join([&] {
     if (writer_thread.joinable()) {
       writer_thread.join();
-}
+    }
   });
 
   if (source) {
@@ -396,7 +396,7 @@ void run_program2(const run_options_t& options) {
 
   if (options.standard_out) {
     drain_fd(out.read_side.get(), *options.standard_out);
-}
+  }
 
   /* Wait for the child to finish. */
   int status = pid.wait();
@@ -404,11 +404,11 @@ void run_program2(const run_options_t& options) {
   /* Wait for the writer thread to finish. */
   if (source) {
     promise.get_future().get();
-}
+  }
 
   if (status) {
     throw exec_error_t(status, "program '%1%' %2%", options.program, status_to_string(status));
-}
+  }
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -427,10 +427,10 @@ std::string status_to_string(int status) {
 #endif
     } else {
       return "died abnormally";
-}
+    }
   } else {
     return "succeeded";
-}
+  }
 }
 
 bool status_ok(int status) {

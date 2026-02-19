@@ -83,7 +83,7 @@ std::shared_ptr<SourceAccessor> RemoteFSAccessor::accessObject(const StorePath& 
 
   string_sink_t sink;
   store->nar_from_path(store_path, sink);
-  return addToCache(store_path.hash_part(), std::move(sink.s));
+  return addToCache(store_path.hash_part(), std::move(sink.str()));
 }
 
 std::optional<SourceAccessor::stat_t> RemoteFSAccessor::maybe_lstat(const canon_path_t& path) {

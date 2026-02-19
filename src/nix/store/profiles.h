@@ -25,7 +25,7 @@ class StorePath;
  * Generation numbers are assigned sequentially. Each new generation is
  * assigned 1 + the current highest generation number.
  */
-typedef uint64_t GenerationNumber;
+using GenerationNumber = uint64_t;
 
 /**
  * A generation is a revision of a profile.
@@ -63,7 +63,7 @@ struct Generation {
 /**
  * All the generations of a profile
  */
-typedef std::list<Generation> Generations;
+using Generations = std::list<Generation>;
 
 /**
  * Find all generations for the given profile.

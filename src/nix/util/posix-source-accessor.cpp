@@ -1,5 +1,7 @@
 #include "nix/util/posix-source-accessor.h"
 
+#include <fcntl.h>
+
 #include <boost/unordered/concurrent_flat_map.hpp>
 
 #include "nix/util/signals.h"
@@ -8,16 +10,18 @@
 
 namespace nix {
 
-posix_source_accessor_t::posix_source_accessor_t(std::filesystem::path&& arg_root, bool track_last_modified)
+posix_source_accessor_t::posix_source_accessor_t(std::filesystem::path&& arg_root,
+                                                 bool track_last_modified)
     : root(std::move(arg_root)), track_last_modified(track_last_modified) {
   assert(root.empty() || root.is_absolute());
   display_prefix = root.string();
 }
 
-posix_source_accessor_t::posix_source_accessor_t() : posix_source_accessor_t(std::filesystem::path{}) {}
+posix_source_accessor_t::posix_source_accessor_t()
+    : posix_source_accessor_t(std::filesystem::path{}) {}
 
 source_path_t posix_source_accessor_t::create_at_root(const std::filesystem::path& path,
-                                             bool track_last_modified) {
+                                                      bool track_last_modified) {
   std::filesystem::path path2 = abs_path(path);
   return {
       make_ref<posix_source_accessor_t>(path2.root_path(), track_last_modified),
@@ -26,25 +30,25 @@ source_path_t posix_source_accessor_t::create_at_root(const std::filesystem::pat
 }
 
 std::filesystem::path posix_source_accessor_t::make_abs_path(const canon_path_t& path) {
-  return root.empty()    ? (std::filesystem::path{path.abs()})
+  return root.empty()     ? (std::filesystem::path{path.abs()})
          : path.is_root() ? /* Don't append a slash for the root of the accessor, since
                               it can be a non-directory (e.g. in the case of `fetch_tree
                               { type = "file" }`). */
              root
-                         : root / path.rel();
+                          : root / path.rel();
 }
 
 void posix_source_accessor_t::read_file(const canon_path_t& path, Sink& sink,
-                                   std::function<void(uint64_t)> size_callback) {
+                                        std::function<void(uint64_t)> size_callback) {
   assert_no_symlinks(path);
 
   auto ap = make_abs_path(path);
 
   auto_close_fd_t fd = to_descriptor(open(ap.string().c_str(), O_RDONLY
 #ifndef _WIN32
-                                                              | O_NOFOLLOW | O_CLOEXEC
+                                                                   | O_NOFOLLOW | O_CLOEXEC
 #endif
-                                     ));
+                                          ));
   if (!fd)
     throw sys_error_t("opening file '%1%'", ap.string());
 
@@ -104,7 +108,8 @@ void posix_source_accessor_t::invalidate_cache(const canon_path_t& path) {
   cache.erase(make_abs_path(path).string());
 }
 
-std::optional<SourceAccessor::stat_t> posix_source_accessor_t::maybe_lstat(const canon_path_t& path) {
+std::optional<SourceAccessor::stat_t>
+posix_source_accessor_t::maybe_lstat(const canon_path_t& path) {
   if (auto parent = path.parent())
     assert_no_symlinks(*parent);
   auto st = cached_lstat(path);
@@ -192,7 +197,8 @@ std::string posix_source_accessor_t::read_link(const canon_path_t& path) {
   return nix::read_link(make_abs_path(path).string());
 }
 
-std::optional<std::filesystem::path> posix_source_accessor_t::get_physical_path(const canon_path_t& path) {
+std::optional<std::filesystem::path>
+posix_source_accessor_t::get_physical_path(const canon_path_t& path) {
   return make_abs_path(path);
 }
 

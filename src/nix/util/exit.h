@@ -7,15 +7,18 @@ namespace nix {
 /**
  * exit_t the program with a given exit code.
  */
-class exit_t : public std::exception {
+class [[nodiscard]] exit_t : public std::exception {
 public:
-  int status;
+  exit_t() : status_(0) {}
 
-  exit_t() : status(0) {}
+  explicit exit_t(int status) : status_(status) {}
 
-  explicit exit_t(int status) : status(status) {}
+  ~exit_t() override;
 
-  virtual ~exit_t();
+  [[nodiscard]] auto get_status() const -> int { return status_; }
+
+private:
+  int status_;
 };
 
 } // namespace nix

@@ -19,7 +19,9 @@ MixCommonArgs::MixCommonArgs(const std::string& program_name) : program_name(pro
       .description = "Increase the logging verbosity level.",
       .category = loggingCategory,
       .handler = {[]() {
-        verbosity = (verbosity_t)std::min<std::underlying_type_t<verbosity_t>>(verbosity + 1, lvl_vomit);
+        verbosity = static_cast<verbosity_t>(std::min<std::underlying_type_t<verbosity_t>>(
+            static_cast<std::underlying_type_t<verbosity_t>>(verbosity) + 1,
+            static_cast<std::underlying_type_t<verbosity_t>>(lvl_vomit)));
       }},
   });
 
@@ -28,7 +30,10 @@ MixCommonArgs::MixCommonArgs(const std::string& program_name) : program_name(pro
       .description = "Decrease the logging verbosity level.",
       .category = loggingCategory,
       .handler = {[]() {
-        verbosity = verbosity > lvl_error ? (verbosity_t)(verbosity - 1) : lvl_error;
+        verbosity = verbosity > lvl_error
+                        ? static_cast<verbosity_t>(
+                              static_cast<std::underlying_type_t<verbosity_t>>(verbosity) - 1)
+                        : lvl_error;
       }},
   });
 
@@ -85,10 +90,11 @@ MixCommonArgs::MixCommonArgs(const std::string& program_name) : program_name(pro
   global_config.convert_to_args(*this, cat);
 
   // Backward compatibility hack: nix-env already had a --system flag.
-  if (program_name == "nix-env")
-    longFlags.erase("system");
+  if (program_name == "nix-env") {
+    remove_flag("system");
+  }
 
-  hiddenCategories.insert(cat);
+  hide_category(cat);
 }
 
 void MixCommonArgs::initial_flags_processed() {

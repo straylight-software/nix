@@ -41,8 +41,8 @@ void check_outputs(Store& store, const StorePath& drv_path,
         throw BuildError(
             BuildResult::Failure::HashMismatch,
             "hash mismatch in fixed-output derivation '%s':\n  specified: %s\n     got:    %s",
-            store.printStorePath(drv_path), wanted.to_string(hash_format_t::SRI, true),
-            got.to_string(hash_format_t::SRI, true));
+            store.printStorePath(drv_path), wanted.to_string(hash_format_t::sri, true),
+            got.to_string(hash_format_t::sri, true));
       }
       if (!info.references.empty()) {
         auto numViolations = info.references.size();

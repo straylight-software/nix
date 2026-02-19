@@ -43,19 +43,19 @@ typedef enum {
   res_build_result = 110,
 } result_type_t;
 
-typedef uint64_t activity_id_t;
+using activity_id_t = uint64_t;
 
 struct logger_settings_t : config_t {
   setting_t<bool> show_trace{this, false, "show-trace",
-                          R"(
+                             R"(
           Whether Nix should print out a stack trace in case of Nix
           expression evaluation errors.
         )"};
 
   setting_t<std::optional<std::filesystem::path>> json_log_path{this,
-                                                            {},
-                                                            "json-log-path",
-                                                            R"(
+                                                                {},
+                                                                "json-log-path",
+                                                                R"(
           A file or Unix domain socket to which JSON records of Nix's log output are
           written, in the same format as `--log-format internal-json`
           (without the `@nix ` prefixes on each line).
@@ -77,68 +77,69 @@ public:
     uint64_t i = 0;
     std::string s;
 
-    field_t(const std::string& s) : type(t_string), s(s) {}
+    explicit field_t(const std::string& s) : type(t_string), s(s) {}
 
-    field_t(const char* s) : type(t_string), s(s) {}
+    explicit field_t(const char* s) : type(t_string), s(s) {}
 
-    field_t(const uint64_t& i) : type(t_int), i(i) {}
+    explicit field_t(const uint64_t& i) : type(t_int), i(i) {}
   };
 
   typedef std::vector<field_t> fields_t;
 
-  virtual ~logger_t() {}
+  virtual ~logger_t() = default;
 
-  virtual void stop() {};
+  virtual auto stop() -> void {};
 
   /**
    * Guard object to resume the logger when done.
    */
   struct suspension_t {
-    finally_t<std::function<void()>> _finalize;
+    finally_t<std::function<void()>> finalize_;
   };
 
-  suspension_t suspend();
+  [[nodiscard]] auto suspend() -> suspension_t;
 
-  std::optional<suspension_t> suspend_if(bool cond);
+  [[nodiscard]] auto suspend_if(bool cond) -> std::optional<suspension_t>;
 
-  virtual void pause() {};
-  virtual void resume() {};
+  virtual auto pause() -> void {};
+  virtual auto resume() -> void {};
 
   // Whether the logger prints the whole build log
-  virtual bool is_verbose() { return false; }
+  [[nodiscard]] virtual auto is_verbose() -> bool { return false; }
 
-  virtual void log(verbosity_t lvl, std::string_view s) = 0;
+  virtual auto log(verbosity_t lvl, std::string_view s) -> void = 0;
 
-  void log(std::string_view s) { log(lvl_info, s); }
+  auto log(std::string_view s) -> void { log(lvl_info, s); }
 
-  virtual void log_ei(const error_info_t& ei) = 0;
+  virtual auto log_ei(const error_info_t& ei) -> void = 0;
 
-  void log_ei(verbosity_t lvl, error_info_t ei) {
+  auto log_ei(verbosity_t lvl, error_info_t ei) -> void {
     ei.level = lvl;
     log_ei(ei);
   }
 
-  virtual void warn(const std::string& msg);
+  virtual auto warn(const std::string& msg) -> void;
 
-  virtual void start_activity(activity_id_t act, verbosity_t lvl, activity_type_t type, const std::string& s,
-                             const fields_t& fields, activity_id_t parent) {};
+  virtual auto start_activity(activity_id_t act, verbosity_t lvl, activity_type_t type,
+                              const std::string& s, const fields_t& fields, activity_id_t parent)
+      -> void {};
 
-  virtual void stop_activity(activity_id_t act) {};
+  virtual auto stop_activity(activity_id_t act) -> void {};
 
-  virtual void result(activity_id_t act, result_type_t type, const fields_t& fields) {};
+  virtual auto result(activity_id_t act, result_type_t type, const fields_t& fields) -> void {};
 
-  virtual void result(activity_id_t act, result_type_t type, const nlohmann::json& json) {};
+  virtual auto result(activity_id_t act, result_type_t type, const nlohmann::json& json) -> void {};
 
-  virtual void write_to_stdout(std::string_view s);
+  virtual auto write_to_stdout(std::string_view s) -> void;
 
   template <typename... Args>
-  inline void cout(const Args&... args) {
+  inline auto cout(const Args&... args) -> void {
     write_to_stdout(fmt(args...));
   }
 
-  virtual std::optional<char> ask(std::string_view s) { return {}; }
+  [[nodiscard]] virtual auto ask(std::string_view s) -> std::optional<char> { return {}; }
 
-  virtual void set_print_build_logs(bool print_build_logs) {}
+  virtual auto set_print_build_logs(bool print_build_logs) -> void {}
 };
 
 /**
@@ -146,100 +147,107 @@ public:
  *
  * Useful to call a function with each argument in a parameter pack.
  */
-struct nop {
+struct nop_t {
   template <typename... T>
-  nop(T...) {}
+  nop_t(T...) {}
 };
 
-activity_id_t get_cur_activity();
-void set_cur_activity(const activity_id_t activity_id);
+[[nodiscard]] auto get_cur_activity() -> activity_id_t;
+auto set_cur_activity(const activity_id_t activity_id) -> void;
 
 struct activity_t {
-  logger_t& logger;
+  logger_t& logger_;
 
-  const activity_id_t id;
+  const activity_id_t id_;
 
   activity_t(logger_t& logger, verbosity_t lvl, activity_type_t type, const std::string& s = "",
-           const logger_t::fields_t& fields = {}, activity_id_t parent = get_cur_activity());
+             const logger_t::fields_t& fields = {}, activity_id_t parent = get_cur_activity());
 
   activity_t(logger_t& logger, activity_type_t type, const logger_t::fields_t& fields = {},
-           activity_id_t parent = get_cur_activity())
+             activity_id_t parent = get_cur_activity())
       : activity_t(logger, lvl_error, type, "", fields, parent) {};
 
   activity_t(const activity_t& act) = delete;
 
   ~activity_t();
 
-  void progress(uint64_t done = 0, uint64_t expected = 0, uint64_t running = 0,
-                uint64_t failed = 0) const {
+  auto progress(uint64_t done = 0, uint64_t expected = 0, uint64_t running = 0,
+                uint64_t failed = 0) const -> void {
     result(res_progress, done, expected, running, failed);
   }
 
-  void set_expected(activity_type_t type2, uint64_t expected) const {
+  auto set_expected(activity_type_t type2, uint64_t expected) const -> void {
     result(res_set_expected, type2, expected);
   }
 
-  void result(result_type_t type, const nlohmann::json& json) const { logger.result(id, type, json); }
+  auto result(result_type_t type, const nlohmann::json& json) const -> void {
+    logger_.result(id_, type, json);
+  }
 
   template <typename... Args>
-  void result(result_type_t type, const Args&... args) const {
+  auto result(result_type_t type, const Args&... args) const -> void {
     logger_t::fields_t fields;
-    nop{(fields.emplace_back(logger_t::field_t(args)), 1)...};
+    nop_t{(fields.emplace_back(logger_t::field_t(args)), 1)...};
     result(type, fields);
   }
 
-  void result(result_type_t type, const logger_t::fields_t& fields) const {
-    logger.result(id, type, fields);
+  auto result(result_type_t type, const logger_t::fields_t& fields) const -> void {
+    logger_.result(id_, type, fields);
   }
 
   friend class logger_t;
 };
 
 struct push_activity_t {
-  const activity_id_t prev_act;
+  const activity_id_t prev_act_;
 
-  push_activity_t(activity_id_t act) : prev_act(get_cur_activity()) { set_cur_activity(act); }
+  explicit push_activity_t(activity_id_t act) : prev_act_(get_cur_activity()) {
+    set_cur_activity(act);
+  }
 
-  ~push_activity_t() { set_cur_activity(prev_act); }
+  ~push_activity_t() { set_cur_activity(prev_act_); }
 };
 
 extern std::unique_ptr<logger_t> logger;
 
-std::unique_ptr<logger_t> make_simple_logger(bool print_build_logs = true);
+[[nodiscard]] auto make_simple_logger(bool print_build_logs = true) -> std::unique_ptr<logger_t>;
 
 /**
  * Create a logger that sends log messages to `main_logger` and the
  * list of loggers in `extra_loggers`. Only `main_logger` is used for
  * writing to stdout and getting user input.
  */
-std::unique_ptr<logger_t> make_tee_logger(std::unique_ptr<logger_t> main_logger,
-                                      std::vector<std::unique_ptr<logger_t>>&& extra_loggers);
+[[nodiscard]] auto make_tee_logger(std::unique_ptr<logger_t> main_logger,
+                                   std::vector<std::unique_ptr<logger_t>>&& extra_loggers)
+    -> std::unique_ptr<logger_t>;
 
-std::unique_ptr<logger_t> make_json_logger(descriptor_t fd, bool include_nix_prefix = true);
+[[nodiscard]] auto make_json_logger(descriptor_t fd, bool include_nix_prefix = true)
+    -> std::unique_ptr<logger_t>;
 
-std::unique_ptr<logger_t> make_json_logger(const std::filesystem::path& path,
-                                       bool include_nix_prefix = true);
+[[nodiscard]] auto make_json_logger(const std::filesystem::path& path,
+                                    bool include_nix_prefix = true) -> std::unique_ptr<logger_t>;
 
-void apply_json_logger();
-
-/**
- * @param source A noun phrase describing the source of the message, e.g. "the builder".
- */
-std::optional<nlohmann::json> parse_json_message(const std::string& msg, std::string_view source);
+auto apply_json_logger() -> void;
 
 /**
  * @param source A noun phrase describing the source of the message, e.g. "the builder".
  */
-bool handle_json_log_message(nlohmann::json& json, const activity_t& act,
-                          std::map<activity_id_t, activity_t>& activities, std::string_view source,
-                          bool trusted);
+[[nodiscard]] auto parse_json_message(const std::string& msg, std::string_view source)
+    -> std::optional<nlohmann::json>;
 
 /**
  * @param source A noun phrase describing the source of the message, e.g. "the builder".
  */
-bool handle_json_log_message(const std::string& msg, const activity_t& act,
-                          std::map<activity_id_t, activity_t>& activities, std::string_view source,
-                          bool trusted);
+[[nodiscard]] auto handle_json_log_message(nlohmann::json& json, const activity_t& act,
+                                           std::map<activity_id_t, activity_t>& activities,
+                                           std::string_view source, bool trusted) -> bool;
+
+/**
+ * @param source A noun phrase describing the source of the message, e.g. "the builder".
+ */
+[[nodiscard]] auto handle_json_log_message(const std::string& msg, const activity_t& act,
+                                           std::map<activity_id_t, activity_t>& activities,
+                                           std::string_view source, bool trusted) -> bool;
 
 /**
  * suppress msgs > this
@@ -255,7 +263,7 @@ extern verbosity_t verbosity;
 #define logErrorInfo(level, errorInfo...)                                                          \
   do {                                                                                             \
     if ((level) <= nix::verbosity) {                                                               \
-      logger->log_ei((level), errorInfo);                                                           \
+      logger->log_ei((level), errorInfo);                                                          \
     }                                                                                              \
   } while (0)
 
@@ -287,18 +295,18 @@ extern verbosity_t verbosity;
  * if verbosity >= lvl_warn, print a message with a yellow 'warning:' prefix.
  */
 template <typename... Args>
-inline void warn(const std::string& fs, const Args&... args) {
+inline auto warn(const std::string& fs, const Args&... args) -> void {
   boost::format f(fs);
   format_helper(f, args...);
   logger->warn(f.str());
 }
 
-#define warnOnce(have_warned, args...)                                                              \
-  if (!have_warned) {                                                                               \
-    have_warned = true;                                                                             \
+#define warnOnce(have_warned, args...)                                                             \
+  if (!have_warned) {                                                                              \
+    have_warned = true;                                                                            \
     warn(args);                                                                                    \
   }
 
-void write_to_stderr(std::string_view s);
+auto write_to_stderr(std::string_view s) -> void;
 
 } // namespace nix

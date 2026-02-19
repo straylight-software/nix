@@ -77,7 +77,7 @@ static void builtin_fetchurl(const BuiltinBuilderContext& ctx) {
       try {
         if (!has_suffix(hashedMirror, "/"))
           hashedMirror += '/';
-        fetch(hashedMirror + print_hash_algo(dof->ca.hash.algo) + "/" +
+        fetch(hashedMirror + print_hash_algo(dof->ca.hash.algo()) + "/" +
               dof->ca.hash.to_string(hash_format_t::base16, false));
         return;
       } catch (Error& e) {

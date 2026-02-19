@@ -13,7 +13,7 @@ template <typename Input>
 struct DerivationOptions;
 struct DerivationOutput;
 
-typedef std::map<std::string, DerivationOutput> DerivationOutputs;
+using DerivationOutputs = std::map<std::string, DerivationOutput>;
 
 struct StructuredAttrs {
   static constexpr std::string_view envVarName{"__json"};

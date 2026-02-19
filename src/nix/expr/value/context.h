@@ -14,11 +14,9 @@ public:
   std::string_view raw;
 
   template <typename... Args>
-  BadNixStringContextElem(std::string_view raw_, const Args&... args) : Error("") {
-    raw = raw_;
-    auto hf = hint_fmt_t(args...);
-    err.msg = hint_fmt_t("Bad String Context element: %1%: %2%", uncolored_t(hf.str()), raw);
-  }
+  BadNixStringContextElem(std::string_view raw_, const Args&... args)
+      : Error("Bad String Context element: %1%: %2%", uncolored_t(hint_fmt_t(args...).str()), raw_),
+        raw(raw_) {}
 };
 
 /**
@@ -109,7 +107,7 @@ struct NixStringContextElem {
  *
  * @see NixStringContextElem for explanation why.
  */
-typedef std::set<NixStringContextElem> NixStringContext;
+using NixStringContext = std::set<NixStringContextElem>;
 
 /**
  * Returns false if `context` has no elements other than

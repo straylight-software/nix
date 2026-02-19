@@ -58,6 +58,10 @@ filegroup(name = "stringzilla", srcs = [], visibility = ["PUBLIC"])
 # Provides: Levenshtein distance, fuzzy ratio, token matching algorithms
 filegroup(name = "rapidfuzz-cpp", srcs = [], visibility = ["PUBLIC"])
 
+# zpp_bits - High-performance C++20 binary serialization (header-only)
+# Provides: Zero-overhead struct serialization, little-endian wire format
+filegroup(name = "zpp_bits", srcs = [], visibility = ["PUBLIC"])
+
 # mio - header-only cross-platform memory mapping (vendored)
 # MIT licensed, provides mmap/munmap abstraction with zero dependencies
 cxx_library(
@@ -82,6 +86,10 @@ prebuilt_cxx_library(
     exported_headers = [],
     visibility = ["PUBLIC"],
 )
+
+# Wasmtime - WebAssembly runtime (C++ API)
+# Uses shared library from Nix store - linked via explicit -L flags
+filegroup(name = "wasmtime", srcs = [], visibility = ["PUBLIC"])
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Test dependencies

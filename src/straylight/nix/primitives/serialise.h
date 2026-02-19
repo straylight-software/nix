@@ -3,7 +3,7 @@
 // Modern C++23 binary serialization replacing nix/util/serialise.h.
 // Hybrid architecture:
 //   - Source/Sink streaming API for I/O (files, pipes, sockets)
-//   - zpp_bits backend for high-performance struct serialization
+//   - zpp_bits backend for high-performance struct serialization (optional)
 //
 // Provides:
 //   - Source/Sink        - abstract base classes for streaming bytes
@@ -14,6 +14,8 @@
 //   - Serialization helpers for integers and strings
 //   - Varint encoding/decoding
 //   - Little-endian wire format
+//
+// To disable zpp_bits (for builds without it): -DSTRAYLIGHT_NO_ZPP_BITS=1
 
 #pragma once
 
@@ -35,7 +37,12 @@
 #include <utility>
 #include <vector>
 
-#include <zpp_bits.h>
+#ifndef STRAYLIGHT_NO_ZPP_BITS
+#  include <zpp_bits.h>
+#  define STRAYLIGHT_HAS_ZPP_BITS 1
+#else
+#  define STRAYLIGHT_HAS_ZPP_BITS 0
+#endif
 
 #ifdef _WIN32
 #  include <io.h>
@@ -957,6 +964,8 @@ inline Source& operator>>(Source& source, std::string& value) {
   return source;
 }
 
+#if STRAYLIGHT_HAS_ZPP_BITS
+
 // ─────────────────────────────────────────────────────────────────────────────
 // zpp_bits integration - High-performance struct serialization
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1101,49 +1110,6 @@ void serialize_to_sink(Sink& sink, const T& object) {
   sink.write(bytes);
 }
 
-/// Deserialize from a Source, reading exactly the bytes needed.
-/// Only works for types with fixed or self-delimiting serialized size.
-///
-/// For most use cases, prefer read_object() which handles length prefixes.
-template <typename T>
-  requires(zpp::bits::concepts::has_fixed_size<T>)
-[[nodiscard]] T deserialize_fixed_from_source(Source& source) {
-  constexpr std::size_t size = zpp::bits::size<T>();
-  std::array<std::byte, size> buffer;
-  source.read_exact(buffer);
-  return deserialize<T>(std::span<const std::byte>(buffer));
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// zpp_bits configuration helpers
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// Default zpp_bits options for Nix-compatible serialization.
-/// Little-endian, no size prefix (we handle that separately).
-using default_zpp_options =
-    zpp::bits::options<zpp::bits::endian::little, zpp::bits::no_size_encoding>;
-
-/// Create an output archive with our default options.
-template <typename Container>
-[[nodiscard]] auto make_out(Container& container) {
-  return zpp::bits::out<default_zpp_options>(container);
-}
-
-/// Create an input archive with our default options.
-template <typename Container>
-[[nodiscard]] auto make_in(Container& container) {
-  return zpp::bits::in<default_zpp_options>(container);
-}
-
-/// Create an input archive from a span with our default options.
-[[nodiscard]] inline auto make_in(std::span<const std::byte> data) {
-  return zpp::bits::in<default_zpp_options>(data);
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Concepts for serializable types
-// ─────────────────────────────────────────────────────────────────────────────
-
 /// Concept for types that can be serialized with zpp_bits.
 template <typename T>
 concept Serializable = requires(T& object, std::vector<std::byte>& bytes) {
@@ -1151,8 +1117,6 @@ concept Serializable = requires(T& object, std::vector<std::byte>& bytes) {
   { zpp::bits::in(bytes)(object) } -> std::same_as<zpp::bits::errc>;
 };
 
-/// Concept for types with fixed serialized size.
-template <typename T>
-concept FixedSizeSerializable = Serializable<T> && zpp::bits::concepts::has_fixed_size<T>;
+#endif // STRAYLIGHT_HAS_ZPP_BITS
 
 } // namespace straylight::nix::primitives

@@ -1,6 +1,9 @@
-#pragma once
+#ifndef NIX_UTIL_ARGS_H
+#define NIX_UTIL_ARGS_H
 ///@file
 
+#include <compare>
+#include <cstdint>
 #include <filesystem>
 #include <functional>
 #include <map>
@@ -17,7 +20,7 @@
 namespace nix {
 
 enum struct hash_algorithm_t : char;
-enum struct hash_format_t : int;
+enum struct hash_format_t : std::uint8_t;
 
 class multi_command_t;
 
@@ -27,17 +30,19 @@ class add_completions_t;
 
 class Args {
 public:
+  virtual ~Args() = default;
+
   /**
    * Return a short one-line description of the command.
    */
-  virtual std::string description() { return ""; }
+  [[nodiscard]] virtual auto description() -> std::string { return ""; }
 
-  virtual bool force_impure_by_default() { return false; }
+  [[nodiscard]] virtual auto force_impure_by_default() -> bool { return false; }
 
   /**
    * Return documentation about this command, in Markdown format.
    */
-  virtual std::string doc() { return ""; }
+  [[nodiscard]] virtual auto doc() -> std::string { return ""; }
 
   /**
    * @brief Get the [base
@@ -49,7 +54,7 @@ public:
    *
    * This only returns the correct value after parse_cmdline() has run.
    */
-  virtual std::filesystem::path get_command_base_dir() const;
+  [[nodiscard]] virtual auto get_command_base_dir() const -> std::filesystem::path;
 
 protected:
   /**
@@ -67,58 +72,79 @@ protected:
    * There are many constructors in order to support many shorthand
    * initializations, and this is used a lot.
    */
-  struct Handler {
-    std::function<void(std::vector<std::string>)> fun;
-    size_t arity;
+  class handler_t {
+  public:
+    handler_t() : arity_(0) {}
 
-    Handler() = default;
+    handler_t(std::function<void(std::vector<std::string>)>&& func)
+        : fun_(std::move(func)), arity_(arity_any) {}
 
-    Handler(std::function<void(std::vector<std::string>)>&& fun)
-        : fun(std::move(fun)), arity(arity_any) {}
-
-    Handler(std::function<void()>&& handler)
-        : fun([handler{std::move(handler)}](std::vector<std::string>) { handler(); }), arity(0) {}
-
-    Handler(std::function<void(std::string)>&& handler)
-        : fun([handler{std::move(handler)}](std::vector<std::string> ss) {
-            handler(std::move(ss[0]));
+    handler_t(std::function<void()>&& handler)
+        : fun_([handler{std::move(handler)}](const std::vector<std::string>& /*strs*/) {
+            handler();
           }),
-          arity(1) {}
+          arity_(0) {}
 
-    Handler(std::function<void(std::string, std::string)>&& handler)
-        : fun([handler{std::move(handler)}](std::vector<std::string> ss) {
-            handler(std::move(ss[0]), std::move(ss[1]));
+    handler_t(std::function<void(std::string)>&& handler)
+        : fun_([handler{std::move(handler)}](std::vector<std::string> strs) {
+            handler(std::move(strs[0]));
           }),
-          arity(2) {}
+          arity_(1) {}
 
-    Handler(std::vector<std::string>* dest)
-        : fun([dest](std::vector<std::string> ss) { *dest = ss; }), arity(arity_any) {}
+    handler_t(std::function<void(std::string, std::string)>&& handler)
+        : fun_([handler{std::move(handler)}](std::vector<std::string> strs) {
+            handler(std::move(strs[0]), std::move(strs[1]));
+          }),
+          arity_(2) {}
 
-    Handler(std::string* dest)
-        : fun([dest](std::vector<std::string> ss) { *dest = ss[0]; }), arity(1) {}
+    handler_t(std::vector<std::string>* dest)
+        : fun_([dest](std::vector<std::string> strs) { *dest = std::move(strs); }),
+          arity_(arity_any) {}
 
-    Handler(std::optional<std::string>* dest)
-        : fun([dest](std::vector<std::string> ss) { *dest = ss[0]; }), arity(1) {}
+    handler_t(std::string* dest)
+        : fun_([dest](std::vector<std::string> strs) { *dest = strs[0]; }), arity_(1) {}
 
-    Handler(std::filesystem::path* dest)
-        : fun([dest](std::vector<std::string> ss) { *dest = ss[0]; }), arity(1) {}
+    handler_t(std::optional<std::string>* dest)
+        : fun_([dest](std::vector<std::string> strs) { *dest = strs[0]; }), arity_(1) {}
 
-    Handler(std::optional<std::filesystem::path>* dest)
-        : fun([dest](std::vector<std::string> ss) { *dest = ss[0]; }), arity(1) {}
+    handler_t(std::filesystem::path* dest)
+        : fun_([dest](std::vector<std::string> strs) { *dest = strs[0]; }), arity_(1) {}
+
+    handler_t(std::optional<std::filesystem::path>* dest)
+        : fun_([dest](std::vector<std::string> strs) { *dest = strs[0]; }), arity_(1) {}
 
     template <class T>
-    Handler(T* dest, const T& val)
-        : fun([dest, val](std::vector<std::string> ss) { *dest = val; }), arity(0) {}
+    handler_t(T* dest, const T& val)
+        : fun_([dest, val](const std::vector<std::string>& /*strs*/) { *dest = val; }), arity_(0) {}
 
     template <class I>
-    Handler(I* dest)
-        : fun([dest](std::vector<std::string> ss) { *dest = string2_int_with_unit_prefix<I>(ss[0]); }),
-          arity(1) {}
+    handler_t(I* dest)
+        : fun_([dest](std::vector<std::string> strs) {
+            *dest = string2_int_with_unit_prefix<I>(strs[0]);
+          }),
+          arity_(1) {}
 
     template <class I>
-    Handler(std::optional<I>* dest)
-        : fun([dest](std::vector<std::string> ss) { *dest = string2_int_with_unit_prefix<I>(ss[0]); }),
-          arity(1) {}
+    handler_t(std::optional<I>* dest)
+        : fun_([dest](std::vector<std::string> strs) {
+            *dest = string2_int_with_unit_prefix<I>(strs[0]);
+          }),
+          arity_(1) {}
+
+    [[nodiscard]] auto get_fun() const -> const std::function<void(std::vector<std::string>)>& {
+      return fun_;
+    }
+    [[nodiscard]] auto get_arity() const -> size_t { return arity_; }
+
+    void call(std::vector<std::string> args) const {
+      if (fun_) {
+        fun_(std::move(args));
+      }
+    }
+
+  private:
+    std::function<void(std::vector<std::string>)> fun_;
+    size_t arity_;
   };
 
   /**
@@ -156,7 +182,7 @@ public:
     std::string description;
     std::string category;
     strings_t labels;
-    Handler handler;
+    handler_t handler;
     completer_closure_t completer;
     bool required = false;
 
@@ -166,24 +192,25 @@ public:
     size_t times_used = 0;
   };
 
-protected:
+private:
   /**
    * Index of all registered "long" flag descriptions (flags like
    * `--long`).
    */
-  std::map<std::string, flag_t::ptr> longFlags;
+  std::map<std::string, flag_t::ptr> long_flags_;
 
   /**
    * Index of all registered "short" flag descriptions (flags like
    * `-s`).
    */
-  std::map<char, flag_t::ptr> shortFlags;
+  std::map<char, flag_t::ptr> short_flags_;
 
+protected:
   /**
    * Process a single flag and its arguments, pulling from an iterator
    * of raw CLI args as needed.
    */
-  virtual bool process_flag(strings_t::iterator& pos, strings_t::iterator end);
+  virtual auto process_flag(strings_t::iterator& pos, strings_t::iterator end) -> bool;
 
 public:
   /**
@@ -195,11 +222,11 @@ public:
   struct expected_arg_t {
     std::string label;
     bool optional = false;
-    Handler handler;
+    handler_t handler;
     completer_closure_t completer;
   };
 
-protected:
+private:
   /**
    * Queue of expected positional argument forms.
    *
@@ -209,20 +236,26 @@ protected:
    * front, until there are hopefully none left as all args that were
    * expected in fact were passed.
    */
-  std::list<expected_arg_t> expectedArgs;
+  std::list<expected_arg_t> expected_args_;
   /**
    * List of processed positional argument forms.
    *
-   * All items removed from `expectedArgs` are added here. After all
+   * All items removed from `expected_args_` are added here. After all
    * arguments were processed, this list should be exactly the same as
-   * `expectedArgs` was before.
+   * `expected_args_` was before.
    *
    * This list is used to extend the lifetime of the argument forms.
    * If this is not done, some closures that reference the command
    * itself will segfault.
    */
-  std::list<expected_arg_t> processedArgs;
+  std::list<expected_arg_t> processed_args_;
 
+  /**
+   * Hidden categories set.
+   */
+  string_set_t hidden_categories_;
+
+protected:
   /**
    * Process some positional arguments
    *
@@ -230,11 +263,11 @@ protected:
    * arguments left. Used because we accumulate some "pending args" we might
    * have left over.
    */
-  virtual bool process_args(const strings_t& args, bool finish);
+  virtual auto process_args(const strings_t& args, bool finish) -> bool;
 
-  virtual strings_t::iterator rewrite_args(strings_t& args, strings_t::iterator pos) { return pos; }
-
-  string_set_t hiddenCategories;
+  virtual auto rewrite_args(strings_t& /*args*/, strings_t::iterator pos) -> strings_t::iterator {
+    return pos;
+  }
 
   virtual void check_args();
 
@@ -249,37 +282,58 @@ public:
 
   void remove_flag(const std::string& long_name);
 
-  void expect_args(expected_arg_t&& arg) { expectedArgs.emplace_back(std::move(arg)); }
+  void hide_category(const std::string& category) { hidden_categories_.insert(category); }
+
+  void expect_args(expected_arg_t&& arg) { expected_args_.emplace_back(std::move(arg)); }
+
+  void clear_expected_args() { expected_args_.clear(); }
 
   /**
    * Expect a string argument.
    */
   void expect_arg(const std::string& label, std::string* dest, bool optional = false) {
-    expect_args({.label = label, .optional = optional, .handler = {dest}});
+    expect_args({.label = label, .optional = optional, .handler = {dest}, .completer = {}});
   }
 
   /**
    * Expect a path argument.
    */
   void expect_arg(const std::string& label, std::filesystem::path* dest, bool optional = false) {
-    expect_args({.label = label, .optional = optional, .handler = {dest}});
+    expect_args({.label = label, .optional = optional, .handler = {dest}, .completer = {}});
   }
 
   /**
    * Expect 0 or more arguments.
    */
   void expect_args(const std::string& label, std::vector<std::string>* dest) {
-    expect_args({.label = label, .handler = {dest}});
+    expect_args({.label = label, .handler = {dest}, .completer = {}});
   }
 
   static completer_fun_t complete_path;
 
   static completer_fun_t complete_dir;
 
-  virtual nlohmann::json to_json();
+  virtual auto to_json() -> nlohmann::json;
 
   friend class multi_command_t;
 
+  /**
+   * Traverse parent pointers until we find the \ref root_args_t "root
+   * arguments" object.
+   */
+  [[nodiscard]] auto get_root() -> root_args_t&;
+
+  /**
+   * Get parent command pointer.
+   */
+  [[nodiscard]] auto get_parent() const -> multi_command_t* { return parent_; }
+
+  /**
+   * Set parent command pointer.
+   */
+  void set_parent(multi_command_t* parent) { parent_ = parent; }
+
+private:
   /**
    * The parent command, used if this is a subcommand.
    *
@@ -289,13 +343,7 @@ public:
    * get_root() could be an abstract method that peels off at most one
    * layer before recuring.
    */
-  multi_command_t* parent = nullptr;
-
-  /**
-   * Traverse parent pointers until we find the \ref root_args_t "root
-   * arguments" object.
-   */
-  root_args_t& get_root();
+  multi_command_t* parent_ = nullptr;
 };
 
 /**
@@ -305,7 +353,7 @@ public:
 struct command_t : virtual public Args {
   friend class multi_command_t;
 
-  virtual ~command_t() = default;
+  ~command_t() override = default;
 
   /**
    * Entry point to the command
@@ -316,9 +364,9 @@ struct command_t : virtual public Args {
 
   static constexpr category_t cat_default = 0;
 
-  virtual std::optional<experimental_feature_t> experimental_feature();
+  [[nodiscard]] virtual auto experimental_feature() -> std::optional<experimental_feature_t>;
 
-  virtual category_t category() { return cat_default; }
+  [[nodiscard]] virtual auto category() -> category_t { return cat_default; }
 };
 
 using commands_t = std::map<std::string, std::function<ref<command_t>()>>;
@@ -329,24 +377,17 @@ using commands_t = std::map<std::string, std::function<ref<command_t>()>>;
  */
 class multi_command_t : virtual public Args {
 public:
-  commands_t commands;
+  ~multi_command_t() override = default;
 
-  std::map<command_t::category_t, std::string> categories;
+  multi_command_t(std::string_view cmd_name, const commands_t& cmds);
 
-  /**
-   * Selected command, if any.
-   */
-  std::optional<std::pair<std::string, ref<command_t>>> command;
+  auto process_flag(strings_t::iterator& pos, strings_t::iterator end) -> bool override;
 
-  multi_command_t(std::string_view command_name, const commands_t& commands);
+  auto process_args(const strings_t& args, bool finish) -> bool override;
 
-  bool process_flag(strings_t::iterator& pos, strings_t::iterator end) override;
+  auto to_json() -> nlohmann::json override;
 
-  bool process_args(const strings_t& args, bool finish) override;
-
-  nlohmann::json to_json() override;
-
-  enum struct alias_status_t {
+  enum struct alias_status_t : std::uint8_t {
     /** Aliases that don't go away */
     accepted_shorthand,
     /** Aliases that will go away */
@@ -359,28 +400,71 @@ public:
     std::vector<std::string> replacement;
   };
 
+  auto rewrite_args(strings_t& args, strings_t::iterator pos) -> strings_t::iterator override;
+
+  // Accessors for private members
+  [[nodiscard]] auto get_commands() const -> const commands_t& { return commands_; }
+  [[nodiscard]] auto get_commands() -> commands_t& { return commands_; }
+  [[nodiscard]] auto get_categories() const -> const std::map<command_t::category_t, std::string>& {
+    return categories_;
+  }
+  [[nodiscard]] auto get_categories() -> std::map<command_t::category_t, std::string>& {
+    return categories_;
+  }
+  [[nodiscard]] auto get_command() const
+      -> const std::optional<std::pair<std::string, ref<command_t>>>& {
+    return command_;
+  }
+  [[nodiscard]] auto get_command() -> std::optional<std::pair<std::string, ref<command_t>>>& {
+    return command_;
+  }
+  [[nodiscard]] auto get_command_name() const -> const std::string& { return command_name_; }
+  [[nodiscard]] auto get_aliases() const -> const std::map<std::string, alias_info_t>& {
+    return aliases_;
+  }
+  [[nodiscard]] auto get_aliases() -> std::map<std::string, alias_info_t>& { return aliases_; }
+
+protected:
+  void check_args() override;
+
+private:
+  commands_t commands_;
+
+  std::map<command_t::category_t, std::string> categories_;
+
+  /**
+   * Selected command, if any.
+   */
+  std::optional<std::pair<std::string, ref<command_t>>> command_;
+
   /**
    * A list of aliases (remapping a deprecated/shorthand subcommand
    * to something else).
    */
-  std::map<std::string, alias_info_t> aliases;
+  std::map<std::string, alias_info_t> aliases_;
 
-  strings_t::iterator rewrite_args(strings_t& args, strings_t::iterator pos) override;
-
-protected:
-  std::string command_name = "";
-  bool aliasUsed = false;
-
-  void check_args() override;
+  std::string command_name_;
+  bool alias_used_ = false;
 };
 
-strings_t argv_to_strings(int argc, char** argv);
+auto argv_to_strings(int argc, char** argv) -> strings_t;
 
-struct completion_t {
-  std::string completion;
-  std::string description;
+/**
+ * A completion entry with its description.
+ */
+class completion_t {
+public:
+  completion_t(std::string comp, std::string desc)
+      : completion_(std::move(comp)), description_(std::move(desc)) {}
 
-  auto operator<=>(const completion_t& other) const noexcept;
+  [[nodiscard]] auto get_completion() const -> const std::string& { return completion_; }
+  [[nodiscard]] auto get_description() const -> const std::string& { return description_; }
+
+  [[nodiscard]] auto operator<=>(const completion_t& other) const noexcept -> std::strong_ordering;
+
+private:
+  std::string completion_;
+  std::string description_;
 };
 
 /**
@@ -394,13 +478,15 @@ struct completion_t {
  */
 class add_completions_t {
 public:
+  virtual ~add_completions_t() = default;
+
   /**
    * The type of completion we are collecting.
    */
-  enum class Type {
+  enum class Type : std::uint8_t {
     normal,
     filenames,
-    Attrs,
+    attrs,
   };
 
   /**
@@ -408,7 +494,7 @@ public:
    *
    * \todo it should not be possible to change the type after it has been set.
    */
-  virtual void set_type(Type type) = 0;
+  virtual void set_type(Type completion_type) = 0;
 
   /**
    * Add a single completion to the collection
@@ -419,3 +505,5 @@ public:
 strings_t parse_shebang_content(std::string_view s);
 
 } // namespace nix
+
+#endif // NIX_UTIL_ARGS_H

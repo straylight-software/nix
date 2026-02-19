@@ -192,6 +192,31 @@ public:
 
   [[nodiscard]] auto root() const -> const std::filesystem::path& { return root_; }
 
+  // --- Bulk async operations (io_uring) ---
+  // These use io_uring for high-throughput parallel I/O.
+  // Requires ring to be initialized.
+
+  /// Query multiple path_infos in parallel
+  [[nodiscard]] auto bulk_query_path_info(std::span<const std::string> paths)
+      -> std::vector<store_result<path_info>>;
+
+  /// Query references for multiple paths in parallel
+  [[nodiscard]] auto bulk_query_references(std::span<const std::string> paths)
+      -> std::vector<store_result<std::vector<std::string>>>;
+
+  /// Check validity of multiple paths in parallel (statx-based, very fast)
+  [[nodiscard]] auto bulk_is_valid_path(std::span<const std::string> paths) -> std::vector<bool>;
+
+  /// Compute transitive closure of references
+  [[nodiscard]] auto compute_closure(std::span<const std::string> start_paths)
+      -> std::vector<std::string>;
+
+  /// Get the io_uring ring (for custom operations)
+  [[nodiscard]] auto ring() -> evring::ring* { return ring_.get(); }
+
+  /// Initialize io_uring ring (called by init() automatically)
+  auto init_ring(unsigned entries = 256) -> store_result<void>;
+
 private:
   // Path helpers
   [[nodiscard]] auto hash_from_path(std::string_view store_path) const -> std::string_view;
@@ -235,11 +260,18 @@ private:
 };
 
 // ============================================================================
-// Serialization (zpp_bits)
+// Serialization
 // ============================================================================
 
-// Make path_info serializable
-inline auto serialize(const path_info& info) -> std::vector<std::byte> {
+// Serialize references as newline-separated hashes (simple, human-readable)
+auto serialize_refs(std::span<const std::string> refs) -> std::vector<std::byte>;
+auto deserialize_refs(std::span<const std::byte> data) -> std::vector<std::string>;
+
+#if STRAYLIGHT_HAS_ZPP_BITS
+
+// High-performance serialization using zpp_bits
+
+inline auto serialize_path_info(const path_info& info) -> std::vector<std::byte> {
   return primitives::serialize(info);
 }
 
@@ -250,10 +282,6 @@ inline auto deserialize_path_info(std::span<const std::byte> data) -> store_resu
     return std::unexpected(store_error::corrupt_data);
   }
 }
-
-// Serialize references as newline-separated hashes (simple, human-readable)
-auto serialize_refs(std::span<const std::string> refs) -> std::vector<std::byte>;
-auto deserialize_refs(std::span<const std::byte> data) -> std::vector<std::string>;
 
 // Log entry serialization
 auto serialize_log_entry(const log_entry& entry) -> std::vector<std::byte>;
@@ -331,3 +359,26 @@ constexpr auto serialize(auto& archive, straylight::nix::primitives::log_entry& 
 }
 
 } // namespace zpp::bits
+
+#else // !STRAYLIGHT_HAS_ZPP_BITS
+
+// ============================================================================
+// Fallback serialization (simple wire format, no zpp_bits)
+// ============================================================================
+// Format: length-prefixed strings using our existing Source/Sink helpers
+
+/// Serialize path_info to bytes (fallback)
+auto serialize_path_info(const path_info& info) -> std::vector<std::byte>;
+
+/// Deserialize path_info from bytes (fallback)
+auto deserialize_path_info(std::span<const std::byte> data) -> store_result<path_info>;
+
+/// Serialize log entry (fallback)
+auto serialize_log_entry(const log_entry& entry) -> std::vector<std::byte>;
+
+/// Deserialize log entry (fallback)
+auto deserialize_log_entry(std::span<const std::byte> data) -> store_result<log_entry>;
+
+} // namespace straylight::nix::primitives
+
+#endif // STRAYLIGHT_HAS_ZPP_BITS

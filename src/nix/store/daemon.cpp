@@ -84,7 +84,7 @@ struct tunnel_logger_t : public logger_t {
 
     string_sink_t buf;
     buf << STDERR_NEXT << (s + "\n");
-    enqueue_msg(buf.s);
+    enqueue_msg(buf.str());
   }
 
   void log_ei(const error_info_t& ei) override {
@@ -96,7 +96,7 @@ struct tunnel_logger_t : public logger_t {
 
     string_sink_t buf;
     buf << STDERR_NEXT << oss.view();
-    enqueue_msg(buf.s);
+    enqueue_msg(buf.str());
   }
 
   /* start_work() means that we're starting an operation for which we
@@ -131,8 +131,8 @@ struct tunnel_logger_t : public logger_t {
     }
   }
 
-  void start_activity(activity_id_t act, verbosity_t lvl, activity_type_t type, const std::string& s,
-                     const fields_t& fields, activity_id_t parent) override {
+  void start_activity(activity_id_t act, verbosity_t lvl, activity_type_t type,
+                      const std::string& s, const fields_t& fields, activity_id_t parent) override {
     if (GET_PROTOCOL_MINOR(client_version) < 20) {
       if (!s.empty())
         log(lvl, s + "...");
@@ -140,8 +140,9 @@ struct tunnel_logger_t : public logger_t {
     }
 
     string_sink_t buf;
-    buf << STDERR_START_ACTIVITY << act << lvl << type << s << fields << parent;
-    enqueue_msg(buf.s);
+    buf << STDERR_START_ACTIVITY << act << static_cast<uint64_t>(lvl) << type << s << fields
+        << parent;
+    enqueue_msg(buf.str());
   }
 
   void stop_activity(activity_id_t act) override {
@@ -149,7 +150,7 @@ struct tunnel_logger_t : public logger_t {
       return;
     string_sink_t buf;
     buf << STDERR_STOP_ACTIVITY << act;
-    enqueue_msg(buf.s);
+    enqueue_msg(buf.str());
   }
 
   void result(activity_id_t act, result_type_t type, const fields_t& fields) override {
@@ -157,7 +158,7 @@ struct tunnel_logger_t : public logger_t {
       return;
     string_sink_t buf;
     buf << STDERR_RESULT << act << type << fields;
-    enqueue_msg(buf.s);
+    enqueue_msg(buf.str());
   }
 };
 
@@ -268,8 +269,8 @@ struct client_settings_t {
 };
 
 static void perform_op(tunnel_logger_t* logger, ref<Store> store, TrustedFlag trusted,
-                      RecursiveFlag recursive, WorkerProto::BasicServerConnection& conn,
-                      WorkerProto::Op op) {
+                       RecursiveFlag recursive, WorkerProto::BasicServerConnection& conn,
+                       WorkerProto::Op op) {
   WorkerProto::ReadConn rconn(conn);
   WorkerProto::WriteConn wconn(conn);
 
@@ -420,8 +421,8 @@ static void perform_op(tunnel_logger_t* logger, ref<Store> store, TrustedFlag tr
               assert(false);
           }
           // TODO these two steps are essentially RemoteStore::addCAToStore. Move it up to Store.
-          auto path = store->add_to_store_from_dump(source, name, dump_method, content_address_method,
-                                                hash_algo, refs, repair);
+          auto path = store->add_to_store_from_dump(
+              source, name, dump_method, content_address_method, hash_algo, refs, repair);
           return store->queryPathInfo(path);
         }();
         logger->stop_work();
@@ -440,8 +441,8 @@ static void perform_op(tunnel_logger_t* logger, ref<Store> store, TrustedFlag tr
             throw Error("unsupported FileIngestionMethod with value of %i; you may need to upgrade "
                         "nix-daemon",
                         recursive);
-          method =
-              recursive ? ContentAddressMethod::raw_t::nix_archive : ContentAddressMethod::raw_t::flat;
+          method = recursive ? ContentAddressMethod::raw_t::nix_archive
+                             : ContentAddressMethod::raw_t::flat;
           /* Compatibility hack. */
           if (!fixed) {
             hash_algo_raw = "sha256";
@@ -498,8 +499,8 @@ static void perform_op(tunnel_logger_t* logger, ref<Store> store, TrustedFlag tr
       auto path = ({
         string_source_t source{s};
         store->add_to_store_from_dump(source, suffix, file_serialisation_method_t::flat,
-                                  ContentAddressMethod::raw_t::Text, hash_algorithm_t::SHA256, refs,
-                                  NoRepair);
+                                      ContentAddressMethod::raw_t::Text, hash_algorithm_t::SHA256,
+                                      refs, NoRepair);
       });
       logger->stop_work();
       WorkerProto::write(*store, wconn, path);
@@ -882,7 +883,7 @@ static void perform_op(tunnel_logger_t* logger, ref<Store> store, TrustedFlag tr
         {
           framed_source_t source(conn.from);
           store->add_to_store(info, source, (RepairFlag)repair,
-                            dont_check_sigs ? NoCheckSigs : CheckSigs);
+                              dont_check_sigs ? NoCheckSigs : CheckSigs);
         }
         logger->stop_work();
       }
@@ -896,14 +897,14 @@ static void perform_op(tunnel_logger_t* logger, ref<Store> store, TrustedFlag tr
           tee_source_t tee{conn.from, saved};
           null_file_system_object_sink_t ether;
           parse_dump(ether, tee);
-          source = std::make_unique<string_source_t>(saved.s);
+          source = std::make_unique<string_source_t>(saved.str());
         }
 
         logger->start_work();
 
         // FIXME: race if addToStore doesn't read source?
         store->add_to_store(info, *source, (RepairFlag)repair,
-                          dont_check_sigs ? NoCheckSigs : CheckSigs);
+                            dont_check_sigs ? NoCheckSigs : CheckSigs);
 
         logger->stop_work();
       }
@@ -966,7 +967,7 @@ static void perform_op(tunnel_logger_t* logger, ref<Store> store, TrustedFlag tr
         framed_source_t source(conn.from);
         string_sink_t sink;
         source.drain_into(sink);
-        log_store.addBuildLog(path, sink.s);
+        log_store.addBuildLog(path, sink.str());
       }
       logger->stop_work();
       conn.to << 1;
@@ -992,9 +993,9 @@ static void perform_op(tunnel_logger_t* logger, ref<Store> store, TrustedFlag tr
 }
 
 void process_connection(ref<Store> store, fd_source_t&& from, fd_sink_t&& to, TrustedFlag trusted,
-                       RecursiveFlag recursive) {
+                        RecursiveFlag recursive) {
 #ifndef _WIN32 // TODO need graceful async exit support on Windows?
-  auto monitor = !recursive ? std::make_unique<MonitorFdHup>(from.fd) : nullptr;
+  auto monitor = !recursive ? std::make_unique<MonitorFdHup>(from.fd()) : nullptr;
   (void)monitor; // suppress warning
   receive_interrupts_t receive_interrupts;
 #endif

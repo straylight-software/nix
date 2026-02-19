@@ -10,7 +10,7 @@
 
 namespace nix {
 
-typedef std::list<std::string> strings_t;
+using strings_t = std::list<std::string>;
 
 /**
  * Alias to ordered std::string -> std::string map container with transparent comparator.
@@ -47,9 +47,9 @@ using string_set_t = std::set<std::string, std::less<>>;
 /**
  * Paths are just strings.
  */
-typedef std::string Path;
-typedef std::string_view path_view_t;
-typedef std::list<Path> Paths;
+using Path = std::string;
+using path_view_t = std::string_view;
+using Paths = std::list<Path>;
 
 /**
  * Alias to an ordered set of `Path`s. Uses transparent comparator.
@@ -58,7 +58,7 @@ typedef std::list<Path> Paths;
  */
 using path_set_t = std::set<Path, std::less<>>;
 
-typedef std::vector<std::pair<std::string, std::string>> headers_t;
+using headers_t = std::vector<std::pair<std::string, std::string>>;
 
 /**
  * Helper class to run code at startup.

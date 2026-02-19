@@ -2,17 +2,17 @@
 ///@file
 
 #define GENERATE_ONE_CMP(PRE, RET, QUAL, COMPARATOR, MY_TYPE, ...)                                 \
-  PRE RET QUAL operator COMPARATOR(const MY_TYPE& other) const noexcept {                          \
+  PRE [[nodiscard]] auto QUAL operator COMPARATOR(const MY_TYPE& other) const noexcept -> RET {    \
     __VA_OPT__(const MY_TYPE* me = this;)                                                          \
     auto fields1 = std::tie(__VA_ARGS__);                                                          \
     __VA_OPT__(me = &other;)                                                                       \
     auto fields2 = std::tie(__VA_ARGS__);                                                          \
     return fields1 COMPARATOR fields2;                                                             \
   }
-#define GENERATE_EQUAL(prefix, qualification, my_type, args...)                                    \
-  GENERATE_ONE_CMP(prefix, bool, qualification, ==, my_type, args)
-#define GENERATE_SPACESHIP(prefix, ret, qualification, my_type, args...)                           \
-  GENERATE_ONE_CMP(prefix, ret, qualification, <=>, my_type, args)
+#define GENERATE_EQUAL(prefix, qualification, my_type, ...)                                        \
+  GENERATE_ONE_CMP(prefix, bool, qualification, ==, my_type, __VA_ARGS__)
+#define GENERATE_SPACESHIP(prefix, ret, qualification, my_type, ...)                               \
+  GENERATE_ONE_CMP(prefix, ret, qualification, <=>, my_type, __VA_ARGS__)
 
 /**
  * Awful hacky generation of the comparison operators by doing a lexicographic
@@ -35,9 +35,9 @@
  * }
  * ```
  */
-#define GENERATE_CMP(args...)                                                                      \
-  GENERATE_EQUAL(, , args)                                                                         \
-  GENERATE_SPACESHIP(, auto, , args)
+#define GENERATE_CMP(my_type, ...)                                                                 \
+  GENERATE_EQUAL(, , my_type, __VA_ARGS__)                                                         \
+  GENERATE_SPACESHIP(, auto, , my_type, __VA_ARGS__)
 
 /**
  * @param prefix This is for something before each declaration like
@@ -45,6 +45,6 @@
  *
  * @param my_type the type are defining operators for.
  */
-#define GENERATE_CMP_EXT(prefix, ret, my_type, args...)                                            \
-  GENERATE_EQUAL(prefix, my_type ::, my_type, args)                                                \
-  GENERATE_SPACESHIP(prefix, ret, my_type ::, my_type, args)
+#define GENERATE_CMP_EXT(prefix, ret, my_type, ...)                                                \
+  GENERATE_EQUAL(prefix, my_type ::, my_type, __VA_ARGS__)                                         \
+  GENERATE_SPACESHIP(prefix, ret, my_type ::, my_type, __VA_ARGS__)

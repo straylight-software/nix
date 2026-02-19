@@ -1,3 +1,5 @@
+#include <fcntl.h>
+
 #include "nix/store/local-store.h"
 #include "nix/util/json-utils.h"
 #ifdef __linux__
@@ -26,7 +28,7 @@ static ActiveBuildInfo::ProcessInfo get_process_info(pid_t pid) {
   ActiveBuildInfo::ProcessInfo info;
   info.pid = pid;
   info.argv = tokenize_string<std::vector<std::string>>(read_file(fmt("/proc/%d/cmdline", pid)),
-                                                       std::string("\000", 1));
+                                                        std::string("\000", 1));
 
   auto stat_path = fmt("/proc/%d/stat", pid);
 
@@ -262,9 +264,9 @@ LocalStore::BuildHandle LocalStore::buildStarted(const ActiveBuild& build) {
   write_file(infoFilePath, nlohmann::json(build).dump(), 0600, fs_sync_t::yes);
 
   active_builds.lock()->emplace(id, ActiveBuildFile{
-                                       .fd = std::move(infoFd),
-                                       .del = auto_delete_t(infoFilePath, false),
-                                   });
+                                        .fd = std::move(infoFd),
+                                        .del = auto_delete_t(infoFilePath, false),
+                                    });
 
   return BuildHandle(*this, id);
 }

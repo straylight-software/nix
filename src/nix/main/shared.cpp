@@ -5,6 +5,7 @@
 #include <exception>
 #include <iostream>
 
+#include <fcntl.h>
 #include <signal.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -40,7 +41,7 @@ void print_gc_warning() {
     return;
   static bool have_warned = false;
   warnOnce(have_warned, "you did not specify '--add-root'; "
-                       "the result might be removed by the garbage collector");
+                        "the result might be removed by the garbage collector");
 }
 
 void print_missing(ref<Store> store, const std::vector<DerivedPath>& paths, verbosity_t lvl) {
@@ -90,7 +91,8 @@ void print_missing(ref<Store> store, const MissingPaths& missing, verbosity_t lv
   }
 }
 
-std::string get_arg(const std::string& opt, strings_t::iterator& i, const strings_t::iterator& end) {
+std::string get_arg(const std::string& opt, strings_t::iterator& i,
+                    const strings_t::iterator& end) {
   ++i;
   if (i == end)
     throw UsageError("'%1%' requires an argument", opt);
@@ -306,7 +308,7 @@ int handle_exceptions(const std::string& program_name, std::function<void()> fun
   try {
     fun();
   } catch (exit_t& e) {
-    return e.status;
+    return e.get_status();
   } catch (UsageError& e) {
     logError(e.info());
     printError("\nTry '%1% --help' for more information.", program_name);

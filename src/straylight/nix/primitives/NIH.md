@@ -51,8 +51,9 @@ Replace Not-Invented-Here (NIH) utility implementations in Nix with high-quality
 | `git.h` | `util/git.hh` | Custom parsing | 45 cases |
 | `markdown.h` | `cmd/markdown.hh` | Custom | 68 cases |
 | `serialise.h` | `util/serialise.hh` | zpp_bits + streaming | 78 cases |
+| `store.h` | `store/sqlite.hh` + `local-store.cpp` | Log-structured + flock + io_uring | 29 cases |
 
-**Total: 33 primitives, 1222 test cases**
+**Total: 34 primitives, 1251 test cases**
 
 ---
 
@@ -171,11 +172,12 @@ Replace Not-Invented-Here (NIH) utility implementations in Nix with high-quality
 | `util/signals.h` | Signal handling, interrupts | ~63 | LOW | std::stop_token + custom | **DONE** |
 | `util/terminal.h` | TTY detection, window size | ~62 | LOW | Keep | - |
 
-### Category 15: Database
+### Category 15: Database / Storage
 
 | File | Description | Lines | NIH Level | Proposed Backend | Status |
 |------|-------------|-------|-----------|------------------|--------|
 | `store/sqlite.h` | RAII SQLite wrappers | ~188 | MEDIUM | Custom (SQLiteCpp-style) | **DONE** |
+| `store/local-store.cpp` | SQLite store backend | ~1500 | HIGH | Log-structured + flock + io_uring | **DONE** |
 
 ### Category 16: Networking
 

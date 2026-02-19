@@ -255,7 +255,7 @@ Args::completer_closure_t SourceExprCommand::getCompleteInstallable() {
 void SourceExprCommand::completeInstallable(add_completions_t& completions, std::string_view prefix) {
   try {
     if (file) {
-      completions.set_type(add_completions_t::Type::Attrs);
+      completions.set_type(add_completions_t::Type::attrs);
 
       eval_settings.pureEval = false;
       auto state = getEvalState();
@@ -314,7 +314,7 @@ void complete_flake_ref_with_fragment(add_completions_t& completions, ref<EvalSt
     if (hash == std::string::npos) {
       complete_flake_ref(completions, eval_state->store, prefix);
     } else {
-      completions.set_type(add_completions_t::Type::Attrs);
+      completions.set_type(add_completions_t::Type::attrs);
 
       auto fragment = prefix.substr(hash + 1);
       std::string prefix_root = "";

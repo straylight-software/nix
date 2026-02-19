@@ -89,7 +89,7 @@ BuiltPaths to_built_paths(const std::vector<BuiltPathWithResult>& built_paths_wi
  * Shorthand, for less typing and helping us keep the choice of
  * collection in sync.
  */
-typedef std::vector<DerivedPathWithInfo> DerivedPathsWithInfo;
+using DerivedPathsWithInfo = std::vector<DerivedPathWithInfo>;
 
 struct Installable;
 
@@ -112,7 +112,7 @@ struct InstallableWithBuildResult {
  * Shorthand, for less typing and helping us keep the choice of
  * collection in sync.
  */
-typedef std::vector<ref<Installable>> Installables;
+using Installables = std::vector<ref<Installable>>;
 
 /**
  * Installables are the main positional arguments for the Nix

@@ -11,7 +11,7 @@ namespace nix {
  * `RestrictedPathError` explaining that access to `path` is
  * forbidden.
  */
-typedef std::function<RestrictedPathError(const canon_path_t& path)> MakeNotAllowedError;
+using MakeNotAllowedError = std::function<RestrictedPathError(const canon_path_t& path)>;
 
 /**
  * An abstract wrapping `SourceAccessor` that performs access

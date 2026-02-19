@@ -67,6 +67,47 @@ cxx_library(
     ],
 )
 
+cxx_library(
+    name = "runtime",
+    srcs = ["runtime/runtime.cpp"],
+    exported_headers = [
+        "runtime/memory_layout.hh",
+        "runtime/runtime.hh",
+    ],
+    header_namespace = "nix-language",
+    visibility = ["PUBLIC"],
+    deps = [
+        ":compile",  # for wasm_types.hh
+    ],
+)
+
+# WASM executor using wasmtime
+cxx_library(
+    name = "wasm_executor",
+    srcs = ["runtime/wasm_executor.cpp"],
+    exported_headers = [
+        "runtime/wasm_executor.hh",
+    ],
+    header_namespace = "nix-language",
+    visibility = ["PUBLIC"],
+    compiler_flags = [
+        "-std=c++23",
+        "-isystem/nix/store/5csjs5zrln4x5y3wxy6pi42bh2816c1s-wasmtime-40.0.0/include",
+    ],
+    linker_flags = [
+        "-L/nix/store/c76a64xqlv5h3i94dzv221pia3pginp1-wasmtime-40.0.0-lib/lib",
+        "-lwasmtime",
+        "-Wl,-rpath,/nix/store/c76a64xqlv5h3i94dzv221pia3pginp1-wasmtime-40.0.0-lib/lib",
+    ],
+    exported_deps = [
+        ":compile",
+        ":runtime",
+    ],
+    deps = [
+        "//third_party:wasmtime",
+    ],
+)
+
 # main library combining all components
 cxx_library(
     name = "language",
@@ -78,6 +119,7 @@ cxx_library(
         ":compile",
         ":eval",
         ":parse",
+        ":runtime",
     ],
 )
 

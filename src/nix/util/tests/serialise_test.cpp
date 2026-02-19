@@ -29,23 +29,23 @@ using namespace nix;
 TEST_CASE("string_sink accepts data", "[serialise][string_sink]") {
   string_sink_t sink;
   sink("hello");
-  REQUIRE(sink.s == "hello");
+  REQUIRE(sink.str() == "hello");
 
   sink(" world");
-  REQUIRE(sink.s == "hello world");
+  REQUIRE(sink.str() == "hello world");
 }
 
 TEST_CASE("string_sink with reserved size", "[serialise][string_sink]") {
   string_sink_t sink(1024);
   sink("test");
-  REQUIRE(sink.s == "test");
-  REQUIRE(sink.s.capacity() >= 1024);
+  REQUIRE(sink.str() == "test");
+  REQUIRE(sink.str().capacity() >= 1024);
 }
 
 TEST_CASE("string_sink accepts empty data", "[serialise][string_sink]") {
   string_sink_t sink;
   sink("");
-  REQUIRE(sink.s.empty());
+  REQUIRE(sink.str().empty());
 }
 
 TEST_CASE("string_source reads data", "[serialise][string_source]") {
@@ -125,19 +125,19 @@ TEST_CASE("null_sink discards data", "[serialise][null_sink]") {
 
 TEST_CASE("length_sink counts bytes", "[serialise][length_sink]") {
   length_sink_t sink;
-  REQUIRE(sink.length == 0);
+  REQUIRE(sink.length() == 0);
 
   sink("hello");
-  REQUIRE(sink.length == 5);
+  REQUIRE(sink.length() == 5);
 
   sink(" world");
-  REQUIRE(sink.length == 11);
+  REQUIRE(sink.length() == 11);
 }
 
 TEST_CASE("length_sink empty data", "[serialise][length_sink]") {
   length_sink_t sink;
   sink("");
-  REQUIRE(sink.length == 0);
+  REQUIRE(sink.length() == 0);
 }
 
 // =============================================================================
@@ -149,14 +149,14 @@ TEST_CASE("length_source counts bytes read", "[serialise][length_source]") {
   string_source_t inner_source(data);
   length_source_t source(inner_source);
 
-  REQUIRE(source.total == 0);
+  REQUIRE(source.total() == 0);
 
   std::array<char, 5> buf{};
   source.read(buf.data(), 5);
-  REQUIRE(source.total == 5);
+  REQUIRE(source.total() == 5);
 
   source.read(buf.data(), 3);
-  REQUIRE(source.total == 8);
+  REQUIRE(source.total() == 8);
 }
 
 // =============================================================================
@@ -169,12 +169,12 @@ TEST_CASE("tee_sink writes to both sinks", "[serialise][tee_sink]") {
   tee_sink_t tee(sink1, sink2);
 
   tee("hello");
-  REQUIRE(sink1.s == "hello");
-  REQUIRE(sink2.s == "hello");
+  REQUIRE(sink1.str() == "hello");
+  REQUIRE(sink2.str() == "hello");
 
   tee(" world");
-  REQUIRE(sink1.s == "hello world");
-  REQUIRE(sink2.s == "hello world");
+  REQUIRE(sink1.str() == "hello world");
+  REQUIRE(sink2.str() == "hello world");
 }
 
 // =============================================================================
@@ -190,10 +190,10 @@ TEST_CASE("tee_source saves data to sink", "[serialise][tee_source]") {
   std::array<char, 5> buf{};
   tee.read(buf.data(), 5);
   REQUIRE(std::string_view(buf.data(), 5) == "hello");
-  REQUIRE(sink.s == "hello");
+  REQUIRE(sink.str() == "hello");
 
   tee.read(buf.data(), 1);
-  REQUIRE(sink.s == "hello ");
+  REQUIRE(sink.str() == "hello ");
 }
 
 // =============================================================================
@@ -317,25 +317,25 @@ TEST_CASE("write uint64_t to sink", "[serialise][integer]") {
   string_sink_t sink;
   sink << static_cast<uint64_t>(0x0102030405060708ULL);
 
-  REQUIRE(sink.s.size() == 8);
+  REQUIRE(sink.str().size() == 8);
   // Little-endian encoding
-  REQUIRE(static_cast<unsigned char>(sink.s[0]) == 0x08);
-  REQUIRE(static_cast<unsigned char>(sink.s[1]) == 0x07);
-  REQUIRE(static_cast<unsigned char>(sink.s[2]) == 0x06);
-  REQUIRE(static_cast<unsigned char>(sink.s[3]) == 0x05);
-  REQUIRE(static_cast<unsigned char>(sink.s[4]) == 0x04);
-  REQUIRE(static_cast<unsigned char>(sink.s[5]) == 0x03);
-  REQUIRE(static_cast<unsigned char>(sink.s[6]) == 0x02);
-  REQUIRE(static_cast<unsigned char>(sink.s[7]) == 0x01);
+  REQUIRE(static_cast<unsigned char>(sink.str()[0]) == 0x08);
+  REQUIRE(static_cast<unsigned char>(sink.str()[1]) == 0x07);
+  REQUIRE(static_cast<unsigned char>(sink.str()[2]) == 0x06);
+  REQUIRE(static_cast<unsigned char>(sink.str()[3]) == 0x05);
+  REQUIRE(static_cast<unsigned char>(sink.str()[4]) == 0x04);
+  REQUIRE(static_cast<unsigned char>(sink.str()[5]) == 0x03);
+  REQUIRE(static_cast<unsigned char>(sink.str()[6]) == 0x02);
+  REQUIRE(static_cast<unsigned char>(sink.str()[7]) == 0x01);
 }
 
 TEST_CASE("write uint64_t zero", "[serialise][integer]") {
   string_sink_t sink;
   sink << static_cast<uint64_t>(0);
 
-  REQUIRE(sink.s.size() == 8);
+  REQUIRE(sink.str().size() == 8);
   for (int i = 0; i < 8; i++) {
-    REQUIRE(sink.s[i] == '\0');
+    REQUIRE(sink.str()[i] == '\0');
   }
 }
 
@@ -343,9 +343,9 @@ TEST_CASE("write uint64_t max", "[serialise][integer]") {
   string_sink_t sink;
   sink << std::numeric_limits<uint64_t>::max();
 
-  REQUIRE(sink.s.size() == 8);
+  REQUIRE(sink.str().size() == 8);
   for (int i = 0; i < 8; i++) {
-    REQUIRE(static_cast<unsigned char>(sink.s[i]) == 0xff);
+    REQUIRE(static_cast<unsigned char>(sink.str()[i]) == 0xff);
   }
 }
 
@@ -409,14 +409,14 @@ TEST_CASE("write string to sink", "[serialise][string]") {
   sink << std::string_view("hello");
 
   // 8 bytes length + 5 bytes data + 3 bytes padding = 16 bytes
-  REQUIRE(sink.s.size() == 16);
+  REQUIRE(sink.str().size() == 16);
 }
 
 TEST_CASE("read string from source", "[serialise][string]") {
   string_sink_t sink;
   sink << std::string_view("hello");
 
-  string_source_t source(sink.s);
+  string_source_t source(sink.str());
   std::string result = read_string(source);
   REQUIRE(result == "hello");
 }
@@ -426,14 +426,14 @@ TEST_CASE("write empty string", "[serialise][string]") {
   sink << std::string_view("");
 
   // 8 bytes length + 0 bytes data + 0 bytes padding = 8 bytes
-  REQUIRE(sink.s.size() == 8);
+  REQUIRE(sink.str().size() == 8);
 }
 
 TEST_CASE("read empty string", "[serialise][string]") {
   string_sink_t sink;
   sink << std::string_view("");
 
-  string_source_t source(sink.s);
+  string_source_t source(sink.str());
   std::string result = read_string(source);
   REQUIRE(result.empty());
 }
@@ -442,7 +442,7 @@ TEST_CASE("read string with max limit", "[serialise][string]") {
   string_sink_t sink;
   sink << std::string_view("hello");
 
-  string_source_t source(sink.s);
+  string_source_t source(sink.str());
   REQUIRE_THROWS_AS(read_string(source, 3), SerialisationError);
 }
 
@@ -450,7 +450,7 @@ TEST_CASE("read string into buffer", "[serialise][string]") {
   string_sink_t sink;
   sink << std::string_view("hello");
 
-  string_source_t source(sink.s);
+  string_source_t source(sink.str());
   std::array<char, 10> buf{};
   size_t len = read_string(buf.data(), buf.size(), source);
   REQUIRE(len == 5);
@@ -461,7 +461,7 @@ TEST_CASE("read string into buffer too small throws", "[serialise][string]") {
   string_sink_t sink;
   sink << std::string_view("hello");
 
-  string_source_t source(sink.s);
+  string_source_t source(sink.str());
   std::array<char, 3> buf{};
   REQUIRE_THROWS_AS(read_string(buf.data(), buf.size(), source), SerialisationError);
 }
@@ -475,25 +475,25 @@ TEST_CASE("write padding for various lengths", "[serialise][padding]") {
   {
     string_sink_t sink;
     write_padding(0, sink);
-    REQUIRE(sink.s.empty());
+    REQUIRE(sink.str().empty());
   }
   {
     string_sink_t sink;
     write_padding(8, sink);
-    REQUIRE(sink.s.empty());
+    REQUIRE(sink.str().empty());
   }
   {
     string_sink_t sink;
     write_padding(16, sink);
-    REQUIRE(sink.s.empty());
+    REQUIRE(sink.str().empty());
   }
 
   // Length % 8 == 1: 7 bytes padding
   {
     string_sink_t sink;
     write_padding(1, sink);
-    REQUIRE(sink.s.size() == 7);
-    for (char c : sink.s) {
+    REQUIRE(sink.str().size() == 7);
+    for (char c : sink.str()) {
       REQUIRE(c == '\0');
     }
   }
@@ -502,8 +502,8 @@ TEST_CASE("write padding for various lengths", "[serialise][padding]") {
   {
     string_sink_t sink;
     write_padding(5, sink);
-    REQUIRE(sink.s.size() == 3);
-    for (char c : sink.s) {
+    REQUIRE(sink.str().size() == 3);
+    for (char c : sink.str()) {
       REQUIRE(c == '\0');
     }
   }
@@ -512,8 +512,8 @@ TEST_CASE("write padding for various lengths", "[serialise][padding]") {
   {
     string_sink_t sink;
     write_padding(7, sink);
-    REQUIRE(sink.s.size() == 1);
-    REQUIRE(sink.s[0] == '\0');
+    REQUIRE(sink.str().size() == 1);
+    REQUIRE(sink.str()[0] == '\0');
   }
 }
 
@@ -545,7 +545,7 @@ TEST_CASE("write strings to sink", "[serialise][strings]") {
   strings_t strings = {"hello", "world"};
   sink << strings;
 
-  string_source_t source(sink.s);
+  string_source_t source(sink.str());
   auto result = read_strings<strings_t>(source);
   REQUIRE(result.size() == 2);
   auto it = result.begin();
@@ -558,7 +558,7 @@ TEST_CASE("write empty strings list", "[serialise][strings]") {
   strings_t empty;
   sink << empty;
 
-  string_source_t source(sink.s);
+  string_source_t source(sink.str());
   auto result = read_strings<strings_t>(source);
   REQUIRE(result.empty());
 }
@@ -568,7 +568,7 @@ TEST_CASE("write string set to sink", "[serialise][strings]") {
   string_set_t strings = {"alpha", "beta", "gamma"};
   sink << strings;
 
-  string_source_t source(sink.s);
+  string_source_t source(sink.str());
   // StringSet is sorted
   auto result = read_strings<string_set_t>(source);
   REQUIRE(result.size() == 3);
@@ -608,7 +608,7 @@ TEST_CASE("source drain_into sink", "[serialise][source]") {
   string_sink_t sink;
 
   source.drain_into(sink);
-  REQUIRE(sink.s == "hello world");
+  REQUIRE(sink.str() == "hello world");
 }
 
 // =============================================================================
@@ -622,7 +622,7 @@ TEST_CASE("uint64_t roundtrip property", "[serialise][property][integer]") {
     string_sink_t sink;
     sink << value;
 
-    string_source_t source(sink.s);
+    string_source_t source(sink.str());
     uint64_t result = read_long_long(source);
 
     RC_ASSERT(result == value);
@@ -636,7 +636,7 @@ TEST_CASE("unsigned int roundtrip property", "[serialise][property][integer]") {
     string_sink_t sink;
     sink << static_cast<uint64_t>(value);
 
-    string_source_t source(sink.s);
+    string_source_t source(sink.str());
     unsigned int result = read_int(source);
 
     RC_ASSERT(result == value);
@@ -650,7 +650,7 @@ TEST_CASE("string roundtrip property", "[serialise][property][string]") {
     string_sink_t sink;
     sink << str;
 
-    string_source_t source(sink.s);
+    string_source_t source(sink.str());
     std::string result = read_string(source);
 
     RC_ASSERT(result == str);
@@ -665,7 +665,7 @@ TEST_CASE("string with nulls roundtrip", "[serialise][property][string]") {
     string_sink_t sink;
     sink << str;
 
-    string_source_t source(sink.s);
+    string_source_t source(sink.str());
     std::string result = read_string(source);
 
     RC_ASSERT(result == str);
@@ -680,7 +680,7 @@ TEST_CASE("strings list roundtrip property", "[serialise][property][strings]") {
     string_sink_t sink;
     sink << input;
 
-    string_source_t source(sink.s);
+    string_source_t source(sink.str());
     auto result = read_strings<strings_t>(source);
 
     RC_ASSERT(result == input);
@@ -717,7 +717,7 @@ TEST_CASE("length_sink counts all bytes", "[serialise][property][length_sink]") 
       expected += chunk.size();
     }
 
-    RC_ASSERT(sink.length == expected);
+    RC_ASSERT(sink.length() == expected);
   });
 }
 
@@ -733,7 +733,7 @@ TEST_CASE("tee_sink writes identical data to both", "[serialise][property][tee_s
       tee(chunk);
     }
 
-    RC_ASSERT(sink1.s == sink2.s);
+    RC_ASSERT(sink1.str() == sink2.str());
   });
 }
 
@@ -773,7 +773,7 @@ TEST_CASE("string padding is always 8-byte aligned", "[serialise][property][padd
     string_sink_t sink;
     sink << str;
 
-    RC_ASSERT(sink.s.size() % 8 == 0);
+    RC_ASSERT(sink.str().size() % 8 == 0);
   });
 }
 
@@ -787,7 +787,7 @@ TEST_CASE("multiple values roundtrip", "[serialise][property]") {
     string_sink_t sink;
     sink << val1 << str1 << val2 << str2;
 
-    string_source_t source(sink.s);
+    string_source_t source(sink.str());
     uint64_t r_val1 = read_long_long(source);
     std::string r_str1 = read_string(source);
     uint64_t r_val2 = read_long_long(source);
@@ -891,11 +891,11 @@ TEST_CASE("extreme string lengths property", "[serialise][property][string]") {
     string_sink_t sink;
     sink << str;
 
-    string_source_t source(sink.s);
+    string_source_t source(sink.str());
     std::string result = read_string(source);
 
     RC_ASSERT(result == str);
-    RC_ASSERT(sink.s.size() == 8 + len + (len % 8 == 0 ? 0 : 8 - (len % 8)));
+    RC_ASSERT(sink.str().size() == 8 + len + (len % 8 == 0 ? 0 : 8 - (len % 8)));
   });
 }
 
@@ -1081,7 +1081,7 @@ TEST_CASE("framed_source handles empty chunks", "[serialise][framed]") {
   string_sink_t sink;
   sink << static_cast<uint64_t>(0); // Terminator
 
-  string_source_t source(sink.s);
+  string_source_t source(sink.str());
   framed_source_t framed(source);
 
   // drain() on empty framed source returns empty string
@@ -1136,7 +1136,7 @@ TEST_CASE("binary data roundtrip", "[serialise][property][binary]") {
     string_sink_t sink;
     sink << binary_data;
 
-    string_source_t source(sink.s);
+    string_source_t source(sink.str());
     std::string result = read_string(source);
 
     RC_ASSERT(result == binary_data);
@@ -1160,7 +1160,7 @@ TEST_CASE("high entropy data roundtrip", "[serialise][property][binary]") {
     string_sink_t sink;
     sink << data;
 
-    string_source_t source(sink.s);
+    string_source_t source(sink.str());
     std::string result = read_string(source);
 
     RC_ASSERT(result == data);
@@ -1178,7 +1178,7 @@ TEST_CASE("large string roundtrip", "[serialise][string]") {
   string_sink_t sink;
   sink << large_string;
 
-  string_source_t source(sink.s);
+  string_source_t source(sink.str());
   std::string result = read_string(source);
 
   REQUIRE(result == large_string);
@@ -1193,7 +1193,7 @@ TEST_CASE("many small strings roundtrip", "[serialise][strings]") {
   string_sink_t sink;
   sink << many_strings;
 
-  string_source_t source(sink.s);
+  string_source_t source(sink.str());
   auto result = read_strings<strings_t>(source);
 
   REQUIRE(result == many_strings);
@@ -1211,7 +1211,7 @@ TEST_CASE("interleaved reads from same source", "[serialise][source]") {
   sink << static_cast<uint64_t>(100);
   sink << std::string_view("world");
 
-  string_source_t source(sink.s);
+  string_source_t source(sink.str());
 
   // Read them back in order
   REQUIRE(read_long_long(source) == 42);
@@ -1251,7 +1251,7 @@ TEST_CASE("source >> string operator", "[serialise][operator]") {
   string_sink_t sink;
   sink << std::string_view("test");
 
-  string_source_t source(sink.s);
+  string_source_t source(sink.str());
   std::string result;
   source >> result;
 
@@ -1262,7 +1262,7 @@ TEST_CASE("source >> uint64_t operator", "[serialise][operator]") {
   string_sink_t sink;
   sink << static_cast<uint64_t>(12345);
 
-  string_source_t source(sink.s);
+  string_source_t source(sink.str());
   uint64_t result = 0;
   source >> result;
 

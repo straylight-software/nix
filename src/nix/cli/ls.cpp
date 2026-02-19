@@ -1,5 +1,7 @@
 #include "ls.h"
 
+#include <fcntl.h>
+
 #include <nlohmann/json.hpp>
 
 #include "nix/cmd/command.h"
@@ -39,7 +41,7 @@ struct mix_ls_t : virtual Args, MixJSON, mix_long_listing_t {
         std::string tp = st.type == SourceAccessor::Type::t_regular
                              ? (st.is_executable ? "-r-xr-xr-x" : "-r--r--r--")
                          : st.type == SourceAccessor::Type::t_symlink ? "lrwxrwxrwx"
-                                                                     : "dr-xr-xr-x";
+                                                                      : "dr-xr-xr-x";
         auto line = fmt("%s %9d %s", tp, st.file_size.value_or(0), rel_path);
         if (st.type == SourceAccessor::Type::t_symlink)
           line += " -> " + accessor->read_link(cur_path);
@@ -56,8 +58,8 @@ struct mix_ls_t : virtual Args, MixJSON, mix_long_listing_t {
       }
     };
 
-    do_path = [&](const SourceAccessor::stat_t& st, const canon_path_t& cur_path, std::string_view rel_path,
-                 bool show_directory) {
+    do_path = [&](const SourceAccessor::stat_t& st, const canon_path_t& cur_path,
+                  std::string_view rel_path, bool show_directory) {
       if (st.type == SourceAccessor::Type::t_directory && !show_directory) {
         auto names = accessor->read_directory(cur_path);
         for (auto& [name, type] : names)
@@ -68,8 +70,8 @@ struct mix_ls_t : virtual Args, MixJSON, mix_long_listing_t {
 
     auto st = accessor->lstat(path);
     do_path(st, path,
-           st.type == SourceAccessor::Type::t_directory ? "." : path.base_name().value_or(""),
-           show_directory);
+            st.type == SourceAccessor::Type::t_directory ? "." : path.base_name().value_or(""),
+            show_directory);
   }
 
   void list(ref<SourceAccessor> accessor, canon_path_t path) {
@@ -90,7 +92,9 @@ struct mix_ls_t : virtual Args, MixJSON, mix_long_listing_t {
 struct cmd_ls_store_t : StoreCommand, mix_ls_t {
   std::string path;
 
-  cmd_ls_store_t() { expect_args({.label = "path", .handler = {&path}, .completer = complete_path}); }
+  cmd_ls_store_t() {
+    expect_args({.label = "path", .handler = {&path}, .completer = complete_path});
+  }
 
   std::string description() override { return "show information about a path in the Nix store"; }
 

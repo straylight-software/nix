@@ -3,6 +3,8 @@
 #include <map>
 #include <stack>
 
+#include <fcntl.h>
+
 #include <nlohmann/json.hpp>
 
 #include "nix/util/archive.h"
@@ -65,7 +67,7 @@ struct nar_accessor_t : public SourceAccessor {
 
       while (parents.size() > level) {
         parents.pop();
-}
+      }
 
       if (parents.empty()) {
         acc.root = std::move(member);
@@ -74,7 +76,7 @@ struct nar_accessor_t : public SourceAccessor {
       } else {
         if (parents.top()->stat.type != Type::t_directory) {
           throw Error("NAR file missing parent directory of path '%s'", path);
-}
+        }
         auto result = parents.top()->children.emplace(*path.base_name(), std::move(member));
         auto& ref = result.first->second;
         parents.push(&ref);
@@ -84,17 +86,17 @@ struct nar_accessor_t : public SourceAccessor {
 
     void create_directory(const canon_path_t& path) override {
       create_member(path, nar_member_t{.stat = {.type = Type::t_directory,
-                                            .file_size = 0,
-                                            .is_executable = false,
-                                            .nar_offset = 0}});
+                                                .file_size = 0,
+                                                .is_executable = false,
+                                                .nar_offset = 0}});
     }
 
     void create_regular_file(const canon_path_t& path,
-                           std::function<void(create_regular_file_sink_t&)> func) override {
+                             std::function<void(create_regular_file_sink_t&)> func) override {
       auto& nm = create_member(path, nar_member_t{.stat = {.type = Type::t_regular,
-                                                       .file_size = 0,
-                                                       .is_executable = false,
-                                                       .nar_offset = 0}});
+                                                           .file_size = 0,
+                                                           .is_executable = false,
+                                                           .nar_offset = 0}});
       nar_member_constructor_t nmc{nm, pos};
       nmc.skip_contents = true; /* Don't care about contents. */
       func(nmc);
@@ -122,12 +124,14 @@ struct nar_accessor_t : public SourceAccessor {
     parse_dump(indexer, indexer);
   }
 
-  nar_accessor_t(Source& source, get_nar_bytes_t get_nar_bytes) : get_nar_bytes(std::move(get_nar_bytes)) {
+  nar_accessor_t(Source& source, get_nar_bytes_t get_nar_bytes)
+      : get_nar_bytes(std::move(get_nar_bytes)) {
     nar_indexer_t indexer(*this, source);
     parse_dump(indexer, indexer);
   }
 
-  nar_accessor_t(const nlohmann::json& listing, get_nar_bytes_t get_nar_bytes) : get_nar_bytes(get_nar_bytes) {
+  nar_accessor_t(const nlohmann::json& listing, get_nar_bytes_t get_nar_bytes)
+      : get_nar_bytes(get_nar_bytes) {
     [&](this const auto& recurse, nar_member_t& member, const nlohmann::json& v) -> void {
       std::string type = v["type"];
 
@@ -146,7 +150,7 @@ struct nar_accessor_t : public SourceAccessor {
         member.target = v.value("target", "");
       } else {
         return;
-}
+      }
     }(root, listing);
   }
 
@@ -156,11 +160,11 @@ struct nar_accessor_t : public SourceAccessor {
     for (const auto& i : path) {
       if (current->stat.type != Type::t_directory) {
         return nullptr;
-}
+      }
       auto child = current->children.find(std::string(i));
       if (child == current->children.end()) {
         return nullptr;
-}
+      }
       current = &child->second;
     }
 
@@ -171,7 +175,7 @@ struct nar_accessor_t : public SourceAccessor {
     auto result = find(path);
     if (!result) {
       throw Error("NAR file does not contain path '%1%'", path);
-}
+    }
     return *result;
   }
 
@@ -179,7 +183,7 @@ struct nar_accessor_t : public SourceAccessor {
     auto i = find(path);
     if (!i) {
       return std::nullopt;
-}
+    }
     return i->stat;
   }
 
@@ -188,12 +192,12 @@ struct nar_accessor_t : public SourceAccessor {
 
     if (i.stat.type != Type::t_directory) {
       throw Error("path '%1%' inside NAR file is not a directory", path);
-}
+    }
 
     dir_entries_t res;
     for (const auto& child : i.children) {
       res.insert_or_assign(child.first, std::nullopt);
-}
+    }
 
     return res;
   }
@@ -202,11 +206,11 @@ struct nar_accessor_t : public SourceAccessor {
     auto i = get(path);
     if (i.stat.type != Type::t_regular) {
       throw Error("path '%1%' inside NAR file is not a regular file", path);
-}
+    }
 
     if (get_nar_bytes) {
       return get_nar_bytes(*i.stat.nar_offset, *i.stat.file_size);
-}
+    }
 
     assert(nar);
     return std::string(*nar, *i.stat.nar_offset, *i.stat.file_size);
@@ -216,7 +220,7 @@ struct nar_accessor_t : public SourceAccessor {
     auto i = get(path);
     if (i.stat.type != Type::t_symlink) {
       throw Error("path '%1%' inside NAR file is not a symlink", path);
-}
+    }
     return i.target;
   }
 };
@@ -229,7 +233,8 @@ ref<SourceAccessor> make_nar_accessor(Source& source) {
   return make_ref<nar_accessor_t>(source);
 }
 
-ref<SourceAccessor> make_lazy_nar_accessor(const nlohmann::json& listing, get_nar_bytes_t get_nar_bytes) {
+ref<SourceAccessor> make_lazy_nar_accessor(const nlohmann::json& listing,
+                                           get_nar_bytes_t get_nar_bytes) {
   return make_ref<nar_accessor_t>(listing, get_nar_bytes);
 }
 
@@ -240,14 +245,15 @@ ref<SourceAccessor> make_lazy_nar_accessor(Source& source, get_nar_bytes_t get_n
 get_nar_bytes_t seekable_get_nar_bytes(const Path& path) {
   auto_close_fd_t fd = to_descriptor(open(path.c_str(), O_RDONLY
 #ifdef O_CLOEXEC
-                                                       | O_CLOEXEC
+                                                            | O_CLOEXEC
 #endif
-                                     ));
+                                          ));
   if (!fd) {
     throw sys_error_t("opening NAR cache file '%s'", path);
-}
+  }
 
-  return [inner = seekable_get_nar_bytes(fd.get()), fd = make_ref<auto_close_fd_t>(std::move(fd))](
+  auto inner = seekable_get_nar_bytes(fd.get());
+  return [inner = std::move(inner), fd = make_ref<auto_close_fd_t>(std::move(fd))](
              uint64_t offset, uint64_t length) { return inner(offset, length); };
 }
 
@@ -255,7 +261,7 @@ get_nar_bytes_t seekable_get_nar_bytes(descriptor_t fd) {
   return [fd](uint64_t offset, uint64_t length) {
     if (::lseek(from_descriptor_read_only(fd), offset, SEEK_SET) == -1) {
       throw sys_error_t("seeking in file");
-}
+    }
 
     std::string buf(length, 0);
     read_full(fd, buf.data(), length);
