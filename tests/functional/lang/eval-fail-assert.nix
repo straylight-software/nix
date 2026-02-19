@@ -4,4 +4,5 @@ rec {
     assert arg == "y";
     123;
   body = x "x";
-}.body
+}
+.body

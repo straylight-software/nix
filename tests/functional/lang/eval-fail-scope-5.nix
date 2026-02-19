@@ -8,4 +8,5 @@ rec {
     }:
     x + y;
   body = f { };
-}.body
+}
+.body

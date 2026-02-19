@@ -4,4 +4,5 @@ rec {
     y = 456;
   };
   body = (removeAttrs attrs [ "x" ]).x;
-}.body
+}
+.body

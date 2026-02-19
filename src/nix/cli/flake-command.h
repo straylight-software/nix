@@ -8,20 +8,18 @@ namespace nix {
 
 using namespace nix::flake;
 
-class FlakeCommand : virtual Args, public MixFlakeOptions
-{
+class FlakeCommand : virtual Args, public MixFlakeOptions {
 protected:
-    std::string flakeUrl = ".";
+  std::string flakeUrl = ".";
 
 public:
+  FlakeCommand();
 
-    FlakeCommand();
+  FlakeRef getFlakeRef();
 
-    FlakeRef getFlakeRef();
+  LockedFlake lockFlake();
 
-    LockedFlake lockFlake();
-
-    std::vector<FlakeRef> getFlakeRefsForCompletion() override;
+  std::vector<FlakeRef> getFlakeRefsForCompletion() override;
 };
 
 } // namespace nix

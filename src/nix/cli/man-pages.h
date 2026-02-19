@@ -23,6 +23,6 @@ std::filesystem::path getNixManDir();
  *
  * @param name Name of the man item.
  */
-void showManPage(const std::string & name);
+void showManPage(const std::string& name);
 
 } // namespace nix

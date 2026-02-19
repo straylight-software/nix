@@ -34,4 +34,5 @@ rec {
     input1 = input1 + "/.";
     inherit input2;
   };
-}.body
+}
+.body

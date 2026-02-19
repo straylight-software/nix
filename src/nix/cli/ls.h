@@ -4,19 +4,17 @@
 
 namespace nix {
 
-struct MixLongListing : virtual Args
-{
-    bool longListing = false;
+struct MixLongListing : virtual Args {
+  bool longListing = false;
 
-    MixLongListing()
-    {
-        addFlag({
-            .longName = "long",
-            .shortName = 'l',
-            .description = "Show detailed file information.",
-            .handler = {&longListing, true},
-        });
-    }
+  MixLongListing() {
+    addFlag({
+        .longName = "long",
+        .shortName = 'l',
+        .description = "Show detailed file information.",
+        .handler = {&longListing, true},
+    });
+  }
 };
 
 } // namespace nix

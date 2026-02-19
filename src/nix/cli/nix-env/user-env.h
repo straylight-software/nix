@@ -5,9 +5,9 @@
 
 namespace nix {
 
-PackageInfos queryInstalled(EvalState & state, const Path & userEnv);
+PackageInfos queryInstalled(EvalState& state, const Path& userEnv);
 
-bool createUserEnv(
-    EvalState & state, PackageInfos & elems, const Path & profile, bool keepDerivations, const std::string & lockToken);
+bool createUserEnv(EvalState& state, PackageInfos& elems, const Path& profile, bool keepDerivations,
+                   const std::string& lockToken);
 
 } // namespace nix
