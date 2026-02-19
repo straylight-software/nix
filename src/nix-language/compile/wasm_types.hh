@@ -153,6 +153,14 @@ constexpr std::uint32_t sort = 403;
 constexpr std::uint32_t gen_list = 404;
 constexpr std::uint32_t concat_lists = 405;
 
+// error handling builtins
+constexpr std::uint32_t throw_error = 500;
+constexpr std::uint32_t abort_eval = 501;
+constexpr std::uint32_t try_eval = 502;
+constexpr std::uint32_t trace = 503;
+constexpr std::uint32_t seq = 504;
+constexpr std::uint32_t deep_seq = 505;
+
 } // namespace builtins
 
 /// helper functions for creating packed nix_value constants

@@ -278,6 +278,13 @@ public:
   std::uint32_t error_line = 0;
   std::uint32_t error_column = 0;
 
+  /// try_eval depth counter - when > 0, throw errors set error state instead of throwing
+  /// this allows tryEval to catch errors without relying on C++ exceptions through WASM
+  std::uint32_t try_eval_depth = 0;
+
+  /// flag indicating an error was caught by tryEval
+  bool try_eval_caught_error = false;
+
   explicit runtime_context(std::size_t memory_size = mem::DEFAULT_MEMORY_SIZE)
       : memory(memory_size, 0), heap(mem::HEAP_BASE, static_cast<std::uint32_t>(memory_size)) {}
 
@@ -523,5 +530,26 @@ void rt_init_builtins(runtime_context& ctx);
 
 /// Concatenate a list of lists: concatLists [[a b] [c d]] = [a b c d]
 [[nodiscard]] auto rt_concat_lists(runtime_context& ctx, nix_value lists) -> nix_value;
+
+// --- Error Handling ---
+
+/// Throw an error with message: throw "message"
+/// Returns a sentinel value if inside tryEval (ctx.try_eval_depth > 0)
+auto rt_throw_error(runtime_context& ctx, nix_value msg) -> nix_value;
+
+/// Abort evaluation with message: abort "message"
+[[noreturn]] auto rt_abort(runtime_context& ctx, nix_value msg) -> nix_value;
+
+/// Try to evaluate, return { success, value }: tryEval expr
+[[nodiscard]] auto rt_try_eval(runtime_context& ctx, nix_value expr) -> nix_value;
+
+/// Print trace message and return second arg: trace msg val
+[[nodiscard]] auto rt_trace(runtime_context& ctx, nix_value msg, nix_value val) -> nix_value;
+
+/// Force first arg, return second: seq a b
+[[nodiscard]] auto rt_seq(runtime_context& ctx, nix_value a, nix_value b) -> nix_value;
+
+/// Deeply force first arg, return second: deepSeq a b
+[[nodiscard]] auto rt_deep_seq(runtime_context& ctx, nix_value a, nix_value b) -> nix_value;
 
 } // namespace nix::language::runtime

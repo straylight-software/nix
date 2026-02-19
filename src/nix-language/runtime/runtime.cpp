@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <iostream>
 #include <limits>
 #include <sstream>
 #include <vector>
@@ -1319,6 +1320,147 @@ auto rt_concat_lists(runtime_context& ctx, nix_value lists) -> nix_value {
 }
 
 // =============================================================================
+// Error Handling
+// =============================================================================
+
+auto rt_throw_error(runtime_context& ctx, nix_value msg) -> nix_value {
+  msg = rt_force(ctx, msg);
+
+  std::string error_msg;
+  if (is_string(msg)) {
+    error_msg = ctx.read_string(get_payload(msg));
+  } else {
+    error_msg = "error thrown";
+  }
+
+  // If we're inside a tryEval, set the caught error flag and return a sentinel
+  if (ctx.try_eval_depth > 0) {
+    ctx.try_eval_caught_error = true;
+    ctx.error_message = error_msg;
+    // Return false as sentinel - tryEval will detect the caught error flag
+    return constants::bool_false;
+  }
+
+  throw runtime_error(error_msg);
+}
+
+auto rt_abort(runtime_context& ctx, nix_value msg) -> nix_value {
+  msg = rt_force(ctx, msg);
+
+  if (is_string(msg)) {
+    auto str = ctx.read_string(get_payload(msg));
+    throw runtime_error("evaluation aborted: " + std::string(str));
+  }
+
+  throw runtime_error("evaluation aborted");
+}
+
+auto rt_try_eval(runtime_context& ctx, nix_value expr) -> nix_value {
+  // tryEval returns { success = true/false; value = result or false }
+  // We use try_eval_depth to signal to rt_throw_error that it should
+  // set a flag instead of throwing, allowing us to catch errors.
+
+  // Increment depth and clear any previous caught error
+  ++ctx.try_eval_depth;
+  ctx.try_eval_caught_error = false;
+
+  // Force the expression - if it calls throw, the caught error flag will be set
+  auto result = rt_force(ctx, expr);
+
+  // Decrement depth
+  --ctx.try_eval_depth;
+
+  // Check if an error was caught
+  bool success = !ctx.try_eval_caught_error;
+  ctx.try_eval_caught_error = false; // Clear for next tryEval
+
+  // Create the result attrset
+  auto success_key = allocate_string(ctx, "success");
+  auto value_key = allocate_string(ctx, "value");
+
+  auto attrs_size = mem::attrset_size(2);
+  auto attrs_ptr = ctx.allocate(attrs_size);
+
+  ctx.write_i32(attrs_ptr + mem::ATTRSET_COUNT_OFFSET, 2);
+
+  // Entry 0: success = true/false
+  auto entry0 = attrs_ptr + mem::ATTRSET_ENTRIES_OFFSET;
+  ctx.write_i32(entry0 + mem::ATTRSET_ENTRY_KEY_OFFSET, static_cast<std::int32_t>(success_key));
+  ctx.write_value(entry0 + mem::ATTRSET_ENTRY_VALUE_OFFSET,
+                  success ? constants::bool_true : constants::bool_false);
+
+  // Entry 1: value = result or false
+  auto entry1 = attrs_ptr + mem::ATTRSET_ENTRIES_OFFSET + mem::ATTRSET_ENTRY_SIZE;
+  ctx.write_i32(entry1 + mem::ATTRSET_ENTRY_KEY_OFFSET, static_cast<std::int32_t>(value_key));
+  ctx.write_value(entry1 + mem::ATTRSET_ENTRY_VALUE_OFFSET,
+                  success ? result : constants::bool_false);
+
+  return make_value(value_tag::attribute_set, attrs_ptr);
+}
+
+auto rt_trace(runtime_context& ctx, nix_value msg, nix_value val) -> nix_value {
+  msg = rt_force(ctx, msg);
+
+  // Print trace message to stderr
+  std::string trace_msg = "trace: ";
+  if (is_string(msg)) {
+    trace_msg += ctx.read_string(get_payload(msg));
+  } else if (is_int(msg)) {
+    trace_msg += std::to_string(static_cast<std::int32_t>(get_payload(msg)));
+  } else if (is_bool(msg)) {
+    trace_msg += (msg == constants::bool_true) ? "true" : "false";
+  } else if (is_null(msg)) {
+    trace_msg += "null";
+  } else {
+    trace_msg += "<" + std::string(type_name(msg)) + ">";
+  }
+  std::cerr << trace_msg << std::endl;
+
+  return val; // Return second argument unevaluated (lazy)
+}
+
+auto rt_seq(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
+  // Force the first argument, then return the second
+  (void)rt_force(ctx, a);
+  return b;
+}
+
+// Helper to deeply force a value (recursively force all nested values)
+namespace {
+void deep_force(runtime_context& ctx, nix_value v) {
+  v = rt_force(ctx, v);
+
+  if (is_list(v)) {
+    auto ptr = get_payload(v);
+    if (ptr == 0)
+      return;
+    auto count = ctx.read_u32(ptr + mem::LIST_COUNT_OFFSET);
+    for (std::uint32_t i = 0; i < count; ++i) {
+      auto elem = ctx.read_value(ptr + mem::LIST_ELEMENTS_OFFSET + i * mem::VALUE_SIZE);
+      deep_force(ctx, elem);
+    }
+  } else if (is_attrset(v)) {
+    auto ptr = get_payload(v);
+    if (ptr == 0)
+      return;
+    auto count = ctx.read_u32(ptr + mem::ATTRSET_COUNT_OFFSET);
+    for (std::uint32_t i = 0; i < count; ++i) {
+      auto entry = ptr + mem::ATTRSET_ENTRIES_OFFSET + i * mem::ATTRSET_ENTRY_SIZE;
+      auto val = ctx.read_value(entry + mem::ATTRSET_ENTRY_VALUE_OFFSET);
+      deep_force(ctx, val);
+    }
+  }
+  // Other types are already forced
+}
+} // namespace
+
+auto rt_deep_seq(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
+  // Deeply force the first argument, then return the second
+  deep_force(ctx, a);
+  return b;
+}
+
+// =============================================================================
 // Type Predicates
 // =============================================================================
 
@@ -1400,6 +1542,9 @@ constexpr std::uint32_t primop_arity(std::uint32_t index) {
     case b::attr_values:
     case b::string_length:
     case BUILTIN_CONCAT_LISTS:
+    case b::throw_error: // throw msg
+    case b::abort_eval:  // abort msg
+    case b::try_eval:    // tryEval expr
       return 1;
 
     // 2-arg primops
@@ -1408,6 +1553,9 @@ constexpr std::uint32_t primop_arity(std::uint32_t index) {
     case b::map:      // map f list
     case b::filter:   // filter pred list
     case b::gen_list: // genList f n
+    case b::trace:    // trace msg val
+    case b::seq:      // seq a b
+    case b::deep_seq: // deepSeq a b
       return 2;
 
     // 3-arg primops
@@ -1468,6 +1616,12 @@ auto rt_apply_primop(runtime_context& ctx, std::uint32_t primop_index, nix_value
         return rt_string_length(ctx, arg);
       case BUILTIN_CONCAT_LISTS:
         return rt_concat_lists(ctx, arg);
+      case b::throw_error:
+        return rt_throw_error(ctx, arg);
+      case b::abort_eval:
+        return rt_abort(ctx, arg);
+      case b::try_eval:
+        return rt_try_eval(ctx, arg);
       default:
         throw runtime_error("unknown primop index: " + std::to_string(primop_index));
     }
@@ -1510,6 +1664,12 @@ static auto rt_apply_partial_primop(runtime_context& ctx, std::uint32_t partial_
         return rt_filter(ctx, arg1, arg2);
       case b::gen_list:
         return rt_gen_list(ctx, arg1, arg2);
+      case b::trace:
+        return rt_trace(ctx, arg1, arg2);
+      case b::seq:
+        return rt_seq(ctx, arg1, arg2);
+      case b::deep_seq:
+        return rt_deep_seq(ctx, arg1, arg2);
       default:
         throw runtime_error("unknown 2-arg primop index: " + std::to_string(primop_index));
     }
@@ -1596,6 +1756,14 @@ void rt_init_builtins(runtime_context& ctx) {
   // String operations
   entries.emplace_back("stringLength", make_value(value_tag::primop, b::string_length));
   entries.emplace_back("typeOf", make_value(value_tag::primop, b::type_of));
+
+  // Error handling
+  entries.emplace_back("throw", make_value(value_tag::primop, b::throw_error));
+  entries.emplace_back("abort", make_value(value_tag::primop, b::abort_eval));
+  entries.emplace_back("tryEval", make_value(value_tag::primop, b::try_eval));
+  entries.emplace_back("trace", make_value(value_tag::primop, b::trace));
+  entries.emplace_back("seq", make_value(value_tag::primop, b::seq));
+  entries.emplace_back("deepSeq", make_value(value_tag::primop, b::deep_seq));
 
   // Also add true, false, null to the builtins attrset
   entries.emplace_back("true", constants::bool_true);

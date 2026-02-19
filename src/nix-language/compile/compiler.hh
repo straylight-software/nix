@@ -2294,9 +2294,18 @@ private:
     auto func = compile_expression(expr.function);
 
     // apply each argument in sequence (curried application)
+    // Arguments are wrapped in thunks for lazy evaluation (Nix is lazy)
+    // This is crucial for builtins like tryEval that need to catch errors
     auto result = func;
     for (const auto& arg : expr.arguments) {
-      auto compiled_arg = compile_expression(arg);
+      BinaryenExpressionRef compiled_arg;
+      if (is_trivial_expression(arg)) {
+        // trivial expressions (literals, identifiers) can be evaluated immediately
+        compiled_arg = compile_expression(arg);
+      } else {
+        // non-trivial expressions are wrapped in thunks for lazy evaluation
+        compiled_arg = compile_as_thunk(arg);
+      }
       BinaryenExpressionRef args[] = {result, compiled_arg};
       result = BinaryenCall(module_.get(), "__apply", args, 2, make_nix_value_type());
     }
@@ -2648,6 +2657,12 @@ private:
     // allocate: data + null terminator
     auto offset = data_offset_;
     auto total_size = str.size() + 1; // +1 for null terminator
+
+    // Check data segment limit (64KB)
+    constexpr std::uint32_t data_segment_limit = 0x10000;
+    if (data_offset_ + total_size > data_segment_limit) {
+      throw compilation_error("data segment overflow: expression too large (limit: 64KB)");
+    }
 
     // create data segment
     std::vector<char> data(total_size);

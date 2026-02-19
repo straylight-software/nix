@@ -664,3 +664,69 @@ TEST_CASE("exec: higher-order composition", "[execution][builtins]") {
   // concatLists with genList
   expect_int("builtins.length (builtins.concatLists (builtins.genList (i: [i]) 3))", 3);
 }
+
+// =============================================================================
+// Error Handling Builtins
+// =============================================================================
+
+TEST_CASE("exec: builtins.throw", "[execution][builtins]") {
+  auto result = eval_nix(R"(builtins.throw "test error message")");
+  REQUIRE_FALSE(result.success);
+  REQUIRE(result.error.find("test error message") != std::string::npos);
+}
+
+TEST_CASE("exec: builtins.abort", "[execution][builtins]") {
+  auto result = eval_nix(R"(builtins.abort "fatal error")");
+  REQUIRE_FALSE(result.success);
+  REQUIRE(result.error.find("fatal error") != std::string::npos);
+  REQUIRE(result.error.find("abort") != std::string::npos);
+}
+
+TEST_CASE("exec: builtins.tryEval success", "[execution][builtins]") {
+  // tryEval on a successful evaluation
+  expect_bool("(builtins.tryEval (1 + 1)).success", true);
+  expect_int("(builtins.tryEval 42).value", 42);
+  expect_int("(builtins.tryEval (2 * 3)).value", 6);
+}
+
+TEST_CASE("exec: builtins.tryEval failure", "[execution][builtins]") {
+  // tryEval catching a throw
+  expect_bool(R"((builtins.tryEval (builtins.throw "error")).success)", false);
+  // value should be false on failure
+  expect_bool(R"((builtins.tryEval (builtins.throw "error")).value)", false);
+}
+
+TEST_CASE("exec: builtins.tryEval with abort", "[execution][builtins]") {
+  // abort should NOT be caught by tryEval
+  auto result = eval_nix(R"(builtins.tryEval (builtins.abort "fatal"))");
+  REQUIRE_FALSE(result.success);
+  REQUIRE(result.error.find("abort") != std::string::npos);
+}
+
+TEST_CASE("exec: builtins.seq", "[execution][builtins]") {
+  // seq forces first arg, returns second
+  expect_int("builtins.seq 1 42", 42);
+  expect_int("builtins.seq (1 + 1) 100", 100);
+  expect_bool("builtins.seq true false", false);
+  // seq should force and propagate errors from first arg
+  auto result = eval_nix(R"(builtins.seq (builtins.throw "err") 42)");
+  REQUIRE_FALSE(result.success);
+}
+
+TEST_CASE("exec: builtins.deepSeq", "[execution][builtins]") {
+  // deepSeq deeply forces first arg, returns second
+  expect_int("builtins.deepSeq 1 42", 42);
+  expect_int("builtins.deepSeq [1 2 3] 100", 100);
+  expect_int("builtins.deepSeq { a = 1; b = 2; } 200", 200);
+  // nested structures
+  expect_int("builtins.deepSeq [[1 2] [3 4]] 300", 300);
+  expect_int("builtins.deepSeq { a = { b = 1; }; } 400", 400);
+}
+
+TEST_CASE("exec: builtins.trace", "[execution][builtins]") {
+  // trace prints to stderr and returns second arg
+  expect_int(R"(builtins.trace "debug message" 42)", 42);
+  expect_bool(R"(builtins.trace "testing" true)", true);
+  // trace with computed first arg
+  expect_int("builtins.trace (1 + 1) 100", 100);
+}
