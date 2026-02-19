@@ -19,10 +19,11 @@ parse_file_serialisation_method_opt(std::string_view input) {
 
 file_serialisation_method_t parse_file_serialisation_method(std::string_view input) {
   auto ret = parse_file_serialisation_method_opt(input);
-  if (ret)
+  if (ret) {
     return *ret;
-  else
+  } else {
     throw UsageError("Unknown file serialiation method '%s', expect `flat` or `nar`", input);
+}
 }
 
 file_ingestion_method_t parse_file_ingestion_method(std::string_view input) {
@@ -30,10 +31,11 @@ file_ingestion_method_t parse_file_ingestion_method(std::string_view input) {
     return file_ingestion_method_t::git;
   } else {
     auto ret = parse_file_serialisation_method_opt(input);
-    if (ret)
+    if (ret) {
       return static_cast<file_ingestion_method_t>(*ret);
-    else
+    } else {
       throw UsageError("Unknown file ingestion method '%s', expect `flat`, `nar`, or `git`", input);
+}
   }
 }
 

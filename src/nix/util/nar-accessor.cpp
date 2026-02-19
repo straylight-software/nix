@@ -63,16 +63,18 @@ struct nar_accessor_t : public SourceAccessor {
         ++level;
       }
 
-      while (parents.size() > level)
+      while (parents.size() > level) {
         parents.pop();
+}
 
       if (parents.empty()) {
         acc.root = std::move(member);
         parents.push(&acc.root);
         return acc.root;
       } else {
-        if (parents.top()->stat.type != Type::t_directory)
+        if (parents.top()->stat.type != Type::t_directory) {
           throw Error("NAR file missing parent directory of path '%s'", path);
+}
         auto result = parents.top()->children.emplace(*path.base_name(), std::move(member));
         auto& ref = result.first->second;
         parents.push(&ref);
@@ -142,8 +144,9 @@ struct nar_accessor_t : public SourceAccessor {
       } else if (type == "symlink") {
         member.stat = {.type = Type::t_symlink};
         member.target = v.value("target", "");
-      } else
+      } else {
         return;
+}
     }(root, listing);
   }
 
@@ -151,11 +154,13 @@ struct nar_accessor_t : public SourceAccessor {
     nar_member_t* current = &root;
 
     for (const auto& i : path) {
-      if (current->stat.type != Type::t_directory)
+      if (current->stat.type != Type::t_directory) {
         return nullptr;
+}
       auto child = current->children.find(std::string(i));
-      if (child == current->children.end())
+      if (child == current->children.end()) {
         return nullptr;
+}
       current = &child->second;
     }
 
@@ -164,38 +169,44 @@ struct nar_accessor_t : public SourceAccessor {
 
   nar_member_t& get(const canon_path_t& path) {
     auto result = find(path);
-    if (!result)
+    if (!result) {
       throw Error("NAR file does not contain path '%1%'", path);
+}
     return *result;
   }
 
   std::optional<stat_t> maybe_lstat(const canon_path_t& path) override {
     auto i = find(path);
-    if (!i)
+    if (!i) {
       return std::nullopt;
+}
     return i->stat;
   }
 
   dir_entries_t read_directory(const canon_path_t& path) override {
     auto i = get(path);
 
-    if (i.stat.type != Type::t_directory)
+    if (i.stat.type != Type::t_directory) {
       throw Error("path '%1%' inside NAR file is not a directory", path);
+}
 
     dir_entries_t res;
-    for (const auto& child : i.children)
+    for (const auto& child : i.children) {
       res.insert_or_assign(child.first, std::nullopt);
+}
 
     return res;
   }
 
   std::string read_file(const canon_path_t& path) override {
     auto i = get(path);
-    if (i.stat.type != Type::t_regular)
+    if (i.stat.type != Type::t_regular) {
       throw Error("path '%1%' inside NAR file is not a regular file", path);
+}
 
-    if (get_nar_bytes)
+    if (get_nar_bytes) {
       return get_nar_bytes(*i.stat.nar_offset, *i.stat.file_size);
+}
 
     assert(nar);
     return std::string(*nar, *i.stat.nar_offset, *i.stat.file_size);
@@ -203,8 +214,9 @@ struct nar_accessor_t : public SourceAccessor {
 
   std::string read_link(const canon_path_t& path) override {
     auto i = get(path);
-    if (i.stat.type != Type::t_symlink)
+    if (i.stat.type != Type::t_symlink) {
       throw Error("path '%1%' inside NAR file is not a symlink", path);
+}
     return i.target;
   }
 };
@@ -231,8 +243,9 @@ get_nar_bytes_t seekable_get_nar_bytes(const Path& path) {
                                                        | O_CLOEXEC
 #endif
                                      ));
-  if (!fd)
+  if (!fd) {
     throw sys_error_t("opening NAR cache file '%s'", path);
+}
 
   return [inner = seekable_get_nar_bytes(fd.get()), fd = make_ref<auto_close_fd_t>(std::move(fd))](
              uint64_t offset, uint64_t length) { return inner(offset, length); };
@@ -240,8 +253,9 @@ get_nar_bytes_t seekable_get_nar_bytes(const Path& path) {
 
 get_nar_bytes_t seekable_get_nar_bytes(descriptor_t fd) {
   return [fd](uint64_t offset, uint64_t length) {
-    if (::lseek(from_descriptor_read_only(fd), offset, SEEK_SET) == -1)
+    if (::lseek(from_descriptor_read_only(fd), offset, SEEK_SET) == -1) {
       throw sys_error_t("seeking in file");
+}
 
     std::string buf(length, 0);
     read_full(fd, buf.data(), length);

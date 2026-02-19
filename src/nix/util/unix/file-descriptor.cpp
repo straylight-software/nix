@@ -41,8 +41,9 @@ void poll_fd(int fd, int events) {
 
 std::string read_file(int fd) {
   struct stat st;
-  if (fstat(fd, &st) == -1)
+  if (fstat(fd, &st) == -1) {
     throw sys_error_t("statting file");
+}
 
   return drain_fd(fd, true, st.st_size);
 }
@@ -61,8 +62,9 @@ void read_full(int fd, char* buf, size_t count) {
       }
       throw sys_error_t("reading from file");
     }
-    if (res == 0)
+    if (res == 0) {
       throw EndOfFile("unexpected end-of-file");
+}
     count -= res;
     buf += res;
   }
@@ -70,8 +72,9 @@ void read_full(int fd, char* buf, size_t count) {
 
 void write_full(int fd, std::string_view s, bool allow_interrupts) {
   while (!s.empty()) {
-    if (allow_interrupts)
+    if (allow_interrupts) {
       check_interrupt();
+}
     ssize_t res = write(fd, s.data(), s.size());
     if (res == -1) {
       switch (errno) {
@@ -83,8 +86,9 @@ void write_full(int fd, std::string_view s, bool allow_interrupts) {
       }
       throw sys_error_t("writing to file");
     }
-    if (res > 0)
+    if (res > 0) {
       s.remove_prefix(res);
+}
   }
 }
 
@@ -107,13 +111,15 @@ std::string read_line(int fd, bool eof_ok) {
           throw sys_error_t("reading a line");
       }
     } else if (rd == 0) {
-      if (eof_ok)
+      if (eof_ok) {
         return s;
-      else
+      } else {
         throw EndOfFile("unexpected EOF reading a line");
+}
     } else {
-      if (ch == '\n')
+      if (ch == '\n') {
         return s;
+}
       s += ch;
     }
   }
@@ -125,14 +131,16 @@ void drain_fd(int fd, Sink& sink, bool block) {
 
   if (!block) {
     saved = fcntl(fd, F_GETFL);
-    if (fcntl(fd, F_SETFL, saved | O_NONBLOCK) == -1)
+    if (fcntl(fd, F_SETFL, saved | O_NONBLOCK) == -1) {
       throw sys_error_t("making file descriptor non-blocking");
+}
   }
 
   finally_t finally([&]() {
     if (!block) {
-      if (fcntl(fd, F_SETFL, saved) == -1)
+      if (fcntl(fd, F_SETFL, saved) == -1) {
         throw sys_error_t("making file descriptor blocking");
+}
     }
   });
 
@@ -141,14 +149,17 @@ void drain_fd(int fd, Sink& sink, bool block) {
     check_interrupt();
     ssize_t rd = read(fd, buf.data(), buf.size());
     if (rd == -1) {
-      if (!block && (errno == EAGAIN || errno == EWOULDBLOCK))
+      if (!block && (errno == EAGAIN || errno == EWOULDBLOCK)) {
         break;
-      if (errno != EINTR)
+}
+      if (errno != EINTR) {
         throw sys_error_t("reading from file");
-    } else if (rd == 0)
+}
+    } else if (rd == 0) {
       break;
-    else
+    } else {
       sink({reinterpret_cast<char*>(buf.data()), (size_t)rd});
+}
   }
 }
 
@@ -157,8 +168,9 @@ void drain_fd(int fd, Sink& sink, bool block) {
 void pipe_t::create() {
   int fds[2];
 #if HAVE_PIPE2
-  if (pipe2(fds, O_CLOEXEC) != 0)
+  if (pipe2(fds, O_CLOEXEC) != 0) {
     throw sys_error_t("creating pipe");
+}
 #else
   if (pipe(fds) != 0)
     throw sys_error_t("creating pipe");
@@ -214,14 +226,16 @@ void unix::close_extra_f_ds() {
 #if HAVE_SYSCONF
   max_fd = sysconf(_SC_OPEN_MAX);
 #endif
-  for (int fd = MAX_KEPT_FD + 1; fd < max_fd; ++fd)
+  for (int fd = MAX_KEPT_FD + 1; fd < max_fd; ++fd) {
     close(fd); /* ignore result */
+}
 }
 
 void unix::close_on_exec(int fd) {
   int prev;
-  if ((prev = fcntl(fd, F_GETFD, 0)) == -1 || fcntl(fd, F_SETFD, prev | FD_CLOEXEC) == -1)
+  if ((prev = fcntl(fd, F_GETFD, 0)) == -1 || fcntl(fd, F_SETFD, prev | FD_CLOEXEC) == -1) {
     throw sys_error_t("setting close-on-exec flag");
+}
 }
 
 #ifdef __linux__
@@ -295,8 +309,9 @@ static descriptor_t open_file_ensure_beneath_no_symlinks_iterative(descriptor_t 
       if (errno == ENOTDIR) /* Path component might be a symlink. */ {
         struct ::stat st;
         if (::fstatat(get_parent_fd(), component.c_str(), &st, AT_SYMLINK_NOFOLLOW) == 0 &&
-            S_ISLNK(st.st_mode))
+            S_ISLNK(st.st_mode)) {
           throw unix::symlink_not_allowed_t(path2);
+}
         errno = ENOTDIR; /* Restore the errno. */
       } else if (errno == ELOOP) {
         throw unix::symlink_not_allowed_t(path2);
@@ -310,8 +325,9 @@ static descriptor_t open_file_ensure_beneath_no_symlinks_iterative(descriptor_t 
 
   auto res = ::openat(get_parent_fd(), std::string(path.base_name().value()).c_str(),
                       flags | O_NOFOLLOW, mode);
-  if (res < 0 && errno == ELOOP)
+  if (res < 0 && errno == ELOOP) {
     throw unix::symlink_not_allowed_t(path);
+}
   return res;
 }
 
@@ -323,8 +339,9 @@ descriptor_t unix::open_file_ensure_beneath_no_symlinks(descriptor_t dir_fd, con
   auto maybe_fd = linux::openat2(dir_fd, path.rel_c_str(), flags, static_cast<uint64_t>(mode),
                                 RESOLVE_BENEATH | RESOLVE_NO_SYMLINKS);
   if (maybe_fd) {
-    if (*maybe_fd < 0 && errno == ELOOP)
+    if (*maybe_fd < 0 && errno == ELOOP) {
       throw unix::symlink_not_allowed_t(path);
+}
     return *maybe_fd;
   }
 #endif

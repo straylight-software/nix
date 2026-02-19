@@ -61,10 +61,11 @@ Hash SourceAccessor::hash_path(const canon_path_t& path, path_filter_t& filter, 
 }
 
 SourceAccessor::stat_t SourceAccessor::lstat(const canon_path_t& path) {
-  if (auto st = maybe_lstat(path))
+  if (auto st = maybe_lstat(path)) {
     return *st;
-  else
+  } else {
     throw FileNotFound("path '%s' does not exist", show_path(path));
+}
 }
 
 void SourceAccessor::set_path_display(std::string display_prefix, std::string display_suffix) {
@@ -82,23 +83,26 @@ canon_path_t SourceAccessor::resolve_symlinks(const canon_path_t& path, symlink_
   int links_allowed = 1024;
 
   std::list<std::string> todo;
-  for (auto& c : path)
+  for (auto& c : path) {
     todo.push_back(std::string(c));
+}
 
   while (!todo.empty()) {
     auto c = *todo.begin();
     todo.pop_front();
-    if (c == "" || c == ".")
+    if (c == "" || c == ".") {
       ;
-    else if (c == "..") {
-      if (!res.is_root())
+    } else if (c == "..") {
+      if (!res.is_root()) {
         res.pop();
+}
     } else {
       res.push(c);
       if (mode == symlink_resolution_t::full || !todo.empty()) {
         if (auto st = maybe_lstat(res); st && st->type == SourceAccessor::t_symlink) {
-          if (!links_allowed--)
+          if (!links_allowed--) {
             throw Error("infinite symlink recursion in path '%s'", show_path(path));
+}
           auto target = read_link(res);
           if (is_absolute(target)) {
             res = canon_path_t::root;

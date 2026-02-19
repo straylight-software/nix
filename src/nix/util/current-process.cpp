@@ -34,8 +34,9 @@ unsigned int get_max_cpu() {
 #ifdef __linux__
   try {
     auto cgroup_fs = get_cgroup_fs();
-    if (!cgroup_fs)
+    if (!cgroup_fs) {
       return 0;
+}
 
     auto cpu_file = *cgroup_fs + "/" + get_current_cgroup() + "/cpu.max";
 
@@ -48,8 +49,9 @@ unsigned int get_max_cpu() {
 
     auto quota = cpu_max_parts[0];
     auto period = cpu_max_parts[1];
-    if (quota != "max")
+    if (quota != "max") {
       return std::ceil(std::stoi(quota) / std::stof(period));
+}
   } catch (Error&) {
     ignore_exception_in_destructor(lvl_debug);
   }

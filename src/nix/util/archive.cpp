@@ -57,8 +57,9 @@ void SourceAccessor::dump_path(const canon_path_t& path, Sink& sink, path_filter
 
     if (st.type == t_regular) {
       sink << "type" << "regular";
-      if (st.is_executable)
+      if (st.is_executable) {
         sink << "executable" << "";
+}
       dump_contents(path);
     }
 
@@ -68,7 +69,7 @@ void SourceAccessor::dump_path(const canon_path_t& path, Sink& sink, path_filter
       /* If we're on a case-insensitive system like macOS, undo
          the case hack applied by restore_path(). */
       string_map_t unhacked;
-      for (auto& i : this_.read_directory(path))
+      for (auto& i : this_.read_directory(path)) {
         if (archive_settings.use_case_hack) {
           std::string name(i.first);
           size_t pos = i.first.find(case_hack_suffix);
@@ -76,25 +77,30 @@ void SourceAccessor::dump_path(const canon_path_t& path, Sink& sink, path_filter
             debug("removing case hack suffix from '%s'", path / i.first);
             name.erase(pos);
           }
-          if (!unhacked.emplace(name, i.first).second)
+          if (!unhacked.emplace(name, i.first).second) {
             throw Error("file name collision between '%s' and '%s'", (path / unhacked[name]),
                         (path / i.first));
-        } else
+}
+        } else {
           unhacked.emplace(i.first, i.first);
+}
+}
 
-      for (auto& i : unhacked)
+      for (auto& i : unhacked) {
         if (filter((path / i.first).abs())) {
           sink << "entry" << "(" << "name" << i.first << "node";
           dump(path / i.second);
           sink << ")";
         }
+}
     }
 
-    else if (st.type == t_symlink)
+    else if (st.type == t_symlink) {
       sink << "type" << "symlink" << "target" << this_.read_link(path);
 
-    else
+    } else {
       throw Error("file '%s' has an unsupported type", path);
+}
 
     sink << ")";
   }(path);
@@ -135,8 +141,9 @@ static void parse_contents(create_regular_file_sink_t& sink, Source& source) {
   while (left) {
     check_interrupt();
     auto n = buf.size();
-    if ((uint64_t)n > left)
+    if ((uint64_t)n > left) {
       n = left;
+}
     source(buf.data(), n);
     sink({buf.data(), n});
     left -= n;
@@ -159,8 +166,9 @@ static void parse(file_system_object_sink_t& sink, Source& source, const canon_p
 
   auto expect_tag = [&](std::string_view expected) {
     auto tag = get_string();
-    if (tag != expected)
+    if (tag != expected) {
       throw bad_archive("expected tag '%s', got '%s'", expected, tag.substr(0, 1024));
+}
   };
 
   expect_tag("(");
@@ -175,14 +183,16 @@ static void parse(file_system_object_sink_t& sink, Source& source, const canon_p
 
       if (tag == "executable") {
         auto s2 = get_string();
-        if (s2 != "")
+        if (s2 != "") {
           throw bad_archive("executable marker has non-empty value");
+}
         crf.is_executable();
         tag = get_string();
       }
 
-      if (tag != "contents")
+      if (tag != "contents") {
         throw bad_archive("expected tag 'contents', got '%s'", tag);
+}
 
       parse_contents(crf, source);
 
@@ -199,11 +209,13 @@ static void parse(file_system_object_sink_t& sink, Source& source, const canon_p
       while (1) {
         auto tag = get_string();
 
-        if (tag == ")")
+        if (tag == ")") {
           break;
+}
 
-        if (tag != "entry")
+        if (tag != "entry") {
           throw bad_archive("expected tag 'entry' or ')', got '%s'", tag);
+}
 
         expect_tag("(");
 
@@ -211,10 +223,12 @@ static void parse(file_system_object_sink_t& sink, Source& source, const canon_p
 
         auto name = get_string();
         if (name.empty() || name == "." || name == ".." || name.find('/') != std::string::npos ||
-            name.find((char)0) != std::string::npos)
+            name.find((char)0) != std::string::npos) {
           throw bad_archive("NAR contains invalid file name '%1%'", name);
-        if (name <= prev_name)
+}
+        if (name <= prev_name) {
           throw bad_archive("NAR directory is not sorted");
+}
         prev_name = name;
         if (archive_settings.use_case_hack) {
           auto i = names.find(name);
@@ -223,12 +237,14 @@ static void parse(file_system_object_sink_t& sink, Source& source, const canon_p
             name += case_hack_suffix;
             name += std::to_string(++i->second);
             auto j = names.find(name);
-            if (j != names.end())
+            if (j != names.end()) {
               throw bad_archive(
                   "NAR contains file name '%s' that collides with case-hacked file name '%s'",
                   prev_name, j->first);
-          } else
+}
+          } else {
             names[name] = 0;
+}
         }
 
         expect_tag("node");
@@ -249,8 +265,9 @@ static void parse(file_system_object_sink_t& sink, Source& source, const canon_p
     expect_tag(")");
   }
 
-  else
+  else {
     throw bad_archive("unknown file type '%s'", type);
+}
 }
 
 void parse_dump(file_system_object_sink_t& sink, Source& source) {
@@ -261,8 +278,9 @@ void parse_dump(file_system_object_sink_t& sink, Source& source) {
     /* This generally means the integer at the start couldn't be
        decoded.  Ignore and throw the exception below. */
   }
-  if (version != nar_version_magic1)
+  if (version != nar_version_magic1) {
     throw bad_archive("input doesn't look like a Nix archive");
+}
   parse(sink, source, canon_path_t::root);
 }
 

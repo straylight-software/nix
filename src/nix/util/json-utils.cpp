@@ -7,11 +7,12 @@
 namespace nix {
 
 const nlohmann::json& value_at(const nlohmann::json::object_t& map, std::string_view key) {
-  if (auto* p = optional_value_at(map, key))
+  if (auto* p = optional_value_at(map, key)) {
     return *p;
-  else
+  } else {
     throw Error("Expected JSON object to contain key '%s' but it doesn't: %s", key,
                 nlohmann::json(map).dump());
+}
 }
 
 const nlohmann::json* optional_value_at(const nlohmann::json::object_t& map, std::string_view key) {
@@ -33,9 +34,10 @@ const nlohmann::json* get_nullable(const nlohmann::json& value) {
  */
 static const nlohmann::json& ensure_type(const nlohmann::json& value,
                                         nlohmann::json::value_type expected_type) {
-  if (value.type() != expected_type)
+  if (value.type() != expected_type) {
     throw Error("Expected JSON value to be of type '%s' but it is of type '%s': %s",
                 nlohmann::json(expected_type).type_name(), value.type_name(), value.dump());
+}
 
   return value;
 }
@@ -77,8 +79,9 @@ strings_t get_string_list(const nlohmann::json& value) {
 
   strings_t string_list;
 
-  for (const auto& elem : json_array)
+  for (const auto& elem : json_array) {
     string_list.push_back(get_string(elem));
+}
 
   return string_list;
 }
@@ -92,8 +95,9 @@ string_set_t get_string_set(const nlohmann::json& value) {
 
   string_set_t string_set;
 
-  for (const auto& elem : json_array)
+  for (const auto& elem : json_array) {
     string_set.insert(get_string(elem));
+}
 
   return string_set;
 }

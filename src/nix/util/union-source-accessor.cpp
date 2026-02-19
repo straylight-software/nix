@@ -13,8 +13,9 @@ struct union_source_accessor_t : SourceAccessor {
   std::string read_file(const canon_path_t& path) override {
     for (auto& accessor : accessors) {
       auto st = accessor->maybe_lstat(path);
-      if (st)
+      if (st) {
         return accessor->read_file(path);
+}
     }
     throw FileNotFound("path '%s' does not exist", show_path(path));
   }
@@ -22,8 +23,9 @@ struct union_source_accessor_t : SourceAccessor {
   std::optional<stat_t> maybe_lstat(const canon_path_t& path) override {
     for (auto& accessor : accessors) {
       auto st = accessor->maybe_lstat(path);
-      if (st)
+      if (st) {
         return st;
+}
     }
     return std::nullopt;
   }
@@ -33,56 +35,65 @@ struct union_source_accessor_t : SourceAccessor {
     bool exists = false;
     for (auto& accessor : accessors) {
       auto st = accessor->maybe_lstat(path);
-      if (!st)
+      if (!st) {
         continue;
+}
       exists = true;
-      for (auto& entry : accessor->read_directory(path))
+      for (auto& entry : accessor->read_directory(path)) {
         // Don't override entries from previous accessors.
         result.insert(entry);
+}
     }
-    if (!exists)
+    if (!exists) {
       throw FileNotFound("path '%s' does not exist", show_path(path));
+}
     return result;
   }
 
   std::string read_link(const canon_path_t& path) override {
     for (auto& accessor : accessors) {
       auto st = accessor->maybe_lstat(path);
-      if (st)
+      if (st) {
         return accessor->read_link(path);
+}
     }
     throw FileNotFound("path '%s' does not exist", show_path(path));
   }
 
   std::string show_path(const canon_path_t& path) override {
-    for (auto& accessor : accessors)
+    for (auto& accessor : accessors) {
       return accessor->show_path(path);
+}
     return SourceAccessor::show_path(path);
   }
 
   std::optional<std::filesystem::path> get_physical_path(const canon_path_t& path) override {
     for (auto& accessor : accessors) {
       auto p = accessor->get_physical_path(path);
-      if (p)
+      if (p) {
         return p;
+}
     }
     return std::nullopt;
   }
 
   std::pair<canon_path_t, std::optional<std::string>> get_fingerprint(const canon_path_t& path) override {
-    if (fingerprint)
+    if (fingerprint) {
       return {path, fingerprint};
+}
     for (auto& accessor : accessors) {
       auto [subpath, fingerprint] = accessor->get_fingerprint(path);
-      if (fingerprint)
+      if (fingerprint) {
         return {subpath, fingerprint};
+}
     }
     return {path, std::nullopt};
   }
 
   void invalidate_cache(const canon_path_t& path) override {
-    for (auto& accessor : accessors)
+    for (auto& accessor : accessors) {
       accessor->invalidate_cache(path);
+}
   }
 };
 

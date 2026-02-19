@@ -36,23 +36,29 @@ Hash::Hash(hash_algorithm_t algo, const experimental_feature_settings_t& xp_sett
 }
 
 bool Hash::operator==(const Hash& h2) const noexcept {
-  if (hash_size != h2.hash_size)
+  if (hash_size != h2.hash_size) {
     return false;
-  for (unsigned int i = 0; i < hash_size; i++)
-    if (hash[i] != h2.hash[i])
+}
+  for (unsigned int i = 0; i < hash_size; i++) {
+    if (hash[i] != h2.hash[i]) {
       return false;
+}
+}
   return true;
 }
 
 std::strong_ordering Hash::operator<=>(const Hash& h) const noexcept {
-  if (auto cmp = hash_size <=> h.hash_size; cmp != 0)
+  if (auto cmp = hash_size <=> h.hash_size; cmp != 0) {
     return cmp;
+}
   for (unsigned int i = 0; i < hash_size; i++) {
-    if (auto cmp = hash[i] <=> h.hash[i]; cmp != 0)
+    if (auto cmp = hash[i] <=> h.hash[i]; cmp != 0) {
       return cmp;
+}
   }
-  if (auto cmp = algo <=> h.algo; cmp != 0)
+  if (auto cmp = algo <=> h.algo; cmp != 0) {
     return cmp;
+}
   return std::strong_ordering::equivalent;
 }
 
@@ -115,14 +121,17 @@ static decode_name_pair_t base_explicit(hash_format_t format) {
 static hash_format_t base_from_size(std::string_view rest, hash_algorithm_t algo) {
   auto hash_size = regular_hash_size(algo);
 
-  if (rest.size() == base16::encoded_length(hash_size))
+  if (rest.size() == base16::encoded_length(hash_size)) {
     return hash_format_t::base16;
+}
 
-  if (rest.size() == base_nix32_t::encoded_length(hash_size))
+  if (rest.size() == base_nix32_t::encoded_length(hash_size)) {
     return hash_format_t::nix32;
+}
 
-  if (rest.size() == base64::encoded_length(hash_size))
+  if (rest.size() == base64::encoded_length(hash_size)) {
     return hash_format_t::base64;
+}
 
   throw BadHash("hash '%s' has wrong length for hash algorithm '%s'", rest, print_hash_algo(algo));
 }
@@ -143,9 +152,10 @@ parse_low_level(std::string_view rest, hash_algorithm_t algo, decode_name_pair_t
   } catch (Error& e) {
     e.add_trace({}, "While decoding hash '%s'", rest);
   }
-  if (d.size() != res.hash_size)
+  if (d.size() != res.hash_size) {
     throw BadHash("invalid %s hash '%s', length %d != expected length %d", pair.encoding_name, rest,
                   d.size(), res.hash_size);
+}
   assert(res.hash_size);
   memcpy(res.hash, d.data(), res.hash_size);
 
@@ -157,8 +167,9 @@ Hash Hash::parse_sri(std::string_view original, const experimental_feature_setti
 
   // Parse the has type before the separator, if there was one.
   auto hash_raw = split_prefix_to(rest, '-');
-  if (!hash_raw)
+  if (!hash_raw) {
     throw BadHash("hash '%s' is not SRI", original);
+}
   hash_algorithm_t parsed_type = parse_hash_algo(*hash_raw, xp_settings);
 
   return parse_low_level(rest, parsed_type, {base64::decode, "SRI"}, xp_settings);
@@ -182,11 +193,13 @@ static std::pair<Hash, hash_format_t> parse_any_helper(std::string_view rest, au
 
     if (!hash_raw) {
       hash_raw = split_prefix_to(rest, '-');
-      if (hash_raw)
+      if (hash_raw) {
         is_sri = true;
+}
     }
-    if (hash_raw)
+    if (hash_raw) {
       opt_parsed_algo = parse_hash_algo(*hash_raw);
+}
   }
 
   hash_algorithm_t algo = resolve_algo(std::move(opt_parsed_algo));
@@ -214,8 +227,9 @@ Hash Hash::parse_any_prefixed(std::string_view original) {
                         [&](std::optional<hash_algorithm_t> opt_parsed_algo) {
                           // Either the string or user must provide the type, if they both do they
                           // must agree.
-                          if (!opt_parsed_algo)
+                          if (!opt_parsed_algo) {
                             throw BadHash("hash '%s' does not include a type", original);
+}
 
                           return *opt_parsed_algo;
                         })
@@ -231,12 +245,13 @@ std::pair<Hash, hash_format_t> Hash::parse_any_returning_format(std::string_view
   return parse_any_helper(original, [&](std::optional<hash_algorithm_t> opt_parsed_algo) {
     // Either the string or user must provide the type, if they both do they
     // must agree.
-    if (!opt_parsed_algo && !opt_algo)
+    if (!opt_parsed_algo && !opt_algo) {
       throw BadHash(
           "hash '%s' does not include a type, nor is the type otherwise known from context",
           original);
-    else if (opt_parsed_algo && opt_algo && *opt_parsed_algo != *opt_algo)
+    } else if (opt_parsed_algo && opt_algo && *opt_parsed_algo != *opt_algo) {
       throw BadHash("hash '%s' should have type '%s'", original, print_hash_algo(*opt_algo));
+}
 
     return opt_parsed_algo ? *opt_parsed_algo : *opt_algo;
   });
@@ -259,13 +274,15 @@ Hash Hash::random(hash_algorithm_t algo) {
 
 Hash new_hash_allow_empty(std::string_view hash_str, std::optional<hash_algorithm_t> ha) {
   if (hash_str.empty()) {
-    if (!ha)
+    if (!ha) {
       throw BadHash("empty hash requires explicit hash algorithm");
+}
     Hash h(*ha);
     warn("found empty hash, assuming '%s'", h.to_string(hash_format_t::SRI, true));
     return h;
-  } else
+  } else {
     return Hash::parse_any(hash_str, ha);
+}
 }
 
 union Hash::Ctx {
@@ -277,16 +294,17 @@ union Hash::Ctx {
 };
 
 static void start(hash_algorithm_t ha, Hash::Ctx& ctx) {
-  if (ha == hash_algorithm_t::BLAKE3)
+  if (ha == hash_algorithm_t::BLAKE3) {
     blake3_hasher_init(&ctx.blake3);
-  else if (ha == hash_algorithm_t::MD5)
+  } else if (ha == hash_algorithm_t::MD5) {
     MD5_Init(&ctx.md5);
-  else if (ha == hash_algorithm_t::SHA1)
+  } else if (ha == hash_algorithm_t::SHA1) {
     SHA1_Init(&ctx.sha1);
-  else if (ha == hash_algorithm_t::SHA256)
+  } else if (ha == hash_algorithm_t::SHA256) {
     SHA256_Init(&ctx.sha256);
-  else if (ha == hash_algorithm_t::SHA512)
+  } else if (ha == hash_algorithm_t::SHA512) {
     SHA512_Init(&ctx.sha512);
+}
 }
 
 // BLAKE3 data size threshold beyond which parallel hashing with TBB is likely faster.
@@ -311,29 +329,31 @@ void blake3_hasher_update_with_heuristics(blake3_hasher* blake3, std::string_vie
 }
 
 static void update(hash_algorithm_t ha, Hash::Ctx& ctx, std::string_view data) {
-  if (ha == hash_algorithm_t::BLAKE3)
+  if (ha == hash_algorithm_t::BLAKE3) {
     blake3_hasher_update_with_heuristics(&ctx.blake3, data);
-  else if (ha == hash_algorithm_t::MD5)
+  } else if (ha == hash_algorithm_t::MD5) {
     MD5_Update(&ctx.md5, data.data(), data.size());
-  else if (ha == hash_algorithm_t::SHA1)
+  } else if (ha == hash_algorithm_t::SHA1) {
     SHA1_Update(&ctx.sha1, data.data(), data.size());
-  else if (ha == hash_algorithm_t::SHA256)
+  } else if (ha == hash_algorithm_t::SHA256) {
     SHA256_Update(&ctx.sha256, data.data(), data.size());
-  else if (ha == hash_algorithm_t::SHA512)
+  } else if (ha == hash_algorithm_t::SHA512) {
     SHA512_Update(&ctx.sha512, data.data(), data.size());
+}
 }
 
 static void finish(hash_algorithm_t ha, Hash::Ctx& ctx, unsigned char* hash) {
-  if (ha == hash_algorithm_t::BLAKE3)
+  if (ha == hash_algorithm_t::BLAKE3) {
     blake3_hasher_finalize(&ctx.blake3, hash, BLAKE3_OUT_LEN);
-  else if (ha == hash_algorithm_t::MD5)
+  } else if (ha == hash_algorithm_t::MD5) {
     MD5_Final(hash, &ctx.md5);
-  else if (ha == hash_algorithm_t::SHA1)
+  } else if (ha == hash_algorithm_t::SHA1) {
     SHA1_Final(hash, &ctx.sha1);
-  else if (ha == hash_algorithm_t::SHA256)
+  } else if (ha == hash_algorithm_t::SHA256) {
     SHA256_Final(hash, &ctx.sha256);
-  else if (ha == hash_algorithm_t::SHA512)
+  } else if (ha == hash_algorithm_t::SHA512) {
     SHA512_Final(hash, &ctx.sha512);
+}
 }
 
 Hash hash_string(hash_algorithm_t ha, std::string_view s,
@@ -386,31 +406,37 @@ hash_result_t hash_sink_t::current_hash() {
 Hash compress_hash(const Hash& hash, unsigned int new_size) {
   Hash h(hash.algo);
   h.hash_size = new_size;
-  for (unsigned int i = 0; i < hash.hash_size; ++i)
+  for (unsigned int i = 0; i < hash.hash_size; ++i) {
     h.hash[i % new_size] ^= hash.hash[i];
+}
   return h;
 }
 
 std::optional<hash_format_t> parse_hash_format_opt(std::string_view hash_format_name) {
-  if (hash_format_name == "base16")
+  if (hash_format_name == "base16") {
     return hash_format_t::base16;
-  if (hash_format_name == "nix32")
+}
+  if (hash_format_name == "nix32") {
     return hash_format_t::nix32;
+}
   if (hash_format_name == "base32") {
     warn(R"("base32" is a deprecated alias for hash format "nix32".)");
     return hash_format_t::nix32;
   }
-  if (hash_format_name == "base64")
+  if (hash_format_name == "base64") {
     return hash_format_t::base64;
-  if (hash_format_name == "sri")
+}
+  if (hash_format_name == "sri") {
     return hash_format_t::SRI;
+}
   return std::nullopt;
 }
 
 hash_format_t parse_hash_format(std::string_view hash_format_name) {
   auto opt_f = parse_hash_format_opt(hash_format_name);
-  if (opt_f)
+  if (opt_f) {
     return *opt_f;
+}
   throw UsageError("unknown hash format '%1%', expect 'base16', 'base32', 'base64', or 'sri'",
                    hash_format_name);
 }
@@ -438,24 +464,29 @@ std::optional<hash_algorithm_t> parse_hash_algo_opt(std::string_view s,
     xp_settings.require(xp_t::blak_e3_hashes);
     return hash_algorithm_t::BLAKE3;
   }
-  if (s == "md5")
+  if (s == "md5") {
     return hash_algorithm_t::MD5;
-  if (s == "sha1")
+}
+  if (s == "sha1") {
     return hash_algorithm_t::SHA1;
-  if (s == "sha256")
+}
+  if (s == "sha256") {
     return hash_algorithm_t::SHA256;
-  if (s == "sha512")
+}
+  if (s == "sha512") {
     return hash_algorithm_t::SHA512;
+}
   return std::nullopt;
 }
 
 hash_algorithm_t parse_hash_algo(std::string_view s, const experimental_feature_settings_t& xp_settings) {
   auto opt_h = parse_hash_algo_opt(s, xp_settings);
-  if (opt_h)
+  if (opt_h) {
     return *opt_h;
-  else
+  } else {
     throw UsageError(
         "unknown hash algorithm '%1%', expect 'blake3', 'md5', 'sha1', 'sha256', or 'sha512'", s);
+}
 }
 
 std::string_view print_hash_algo(hash_algorithm_t ha) {

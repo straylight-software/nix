@@ -39,13 +39,15 @@ Pid::Pid() {}
 Pid::Pid(pid_t pid) : pid(pid) {}
 
 Pid::~Pid() {
-  if (pid != -1)
+  if (pid != -1) {
     kill();
+}
 }
 
 void Pid::operator=(pid_t pid) {
-  if (this->pid != -1 && this->pid != pid)
+  if (this->pid != -1 && this->pid != pid) {
     kill();
+}
   this->pid = pid;
   killSignal = SIGKILL; // reset signal to default
 }
@@ -84,8 +86,9 @@ int Pid::wait() {
       pid = -1;
       return status;
     }
-    if (errno != EINTR)
+    if (errno != EINTR) {
       throw sys_error_t("cannot get exit status of PID %d", pid);
+}
     check_interrupt();
   }
 }
@@ -114,8 +117,9 @@ void kill_user(uid_t uid) {
      fork a process, switch to uid, and send a mass kill. */
 
   Pid pid = start_process([&] {
-    if (setuid(uid) == -1)
+    if (setuid(uid) == -1) {
       throw sys_error_t("setting uid");
+}
 
     while (true) {
 #ifdef __APPLE__
@@ -127,21 +131,25 @@ void kill_user(uid_t uid) {
       if (syscall(SYS_kill, -1, SIGKILL, false) == 0)
         break;
 #else
-      if (kill(-1, SIGKILL) == 0)
+      if (kill(-1, SIGKILL) == 0) {
         break;
+}
 #endif
-      if (errno == ESRCH || errno == EPERM)
+      if (errno == ESRCH || errno == EPERM) {
         break; /* no more processes */
-      if (errno != EINTR)
+}
+      if (errno != EINTR) {
         throw sys_error_t("cannot kill processes for uid '%1%'", uid);
+}
     }
 
     _exit(0);
   });
 
   int status = pid.wait();
-  if (status != 0)
+  if (status != 0) {
     throw Error("cannot kill processes for uid '%1%': %2%", uid, status_to_string(status));
+}
 
   /* !!! We should really do some check to make sure that there are
      no processes left running under `uid', but there is no portable
@@ -163,8 +171,9 @@ static pid_t do_fork(bool allow_vfork, child_wrapper_function_t& fun) {
 #else
   pid_t pid = fork();
 #endif
-  if (pid != 0)
+  if (pid != 0) {
     return pid;
+}
   fun();
   unreachable();
 }
@@ -191,8 +200,9 @@ pid_t start_process(std::function<void()> fun, const process_options_t& options)
     }
     try {
 #ifdef __linux__
-      if (options.die_with_parent && prctl(PR_SET_PDEATHSIG, SIGKILL) == -1)
+      if (options.die_with_parent && prctl(PR_SET_PDEATHSIG, SIGKILL) == -1) {
         throw sys_error_t("setting death signal");
+}
 #endif
       fun();
     } catch (std::exception& e) {
@@ -202,10 +212,11 @@ pid_t start_process(std::function<void()> fun, const process_options_t& options)
       }
     } catch (...) {
     }
-    if (options.run_exit_handlers)
+    if (options.run_exit_handlers) {
       exit(1);
-    else
+    } else {
       _exit(1);
+}
   };
 
   pid_t pid = -1;
@@ -218,8 +229,9 @@ pid_t start_process(std::function<void()> fun, const process_options_t& options)
     size_t stack_size = 1 * 1024 * 1024;
     auto stack = static_cast<char*>(
         mmap(0, stack_size, PROT_WRITE | PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0));
-    if (stack == MAP_FAILED)
+    if (stack == MAP_FAILED) {
       throw sys_error_t("allocating stack");
+}
 
     finally_t free_stack([&] { munmap(stack, stack_size); });
 
@@ -227,11 +239,13 @@ pid_t start_process(std::function<void()> fun, const process_options_t& options)
 #else
     throw Error("clone flags are only supported on Linux");
 #endif
-  } else
+  } else {
     pid = do_fork(options.allow_vfork, wrapper);
+}
 
-  if (pid == -1)
+  if (pid == -1) {
     throw sys_error_t("unable to fork");
+}
 
   return pid;
 }
@@ -244,8 +258,9 @@ std::string run_program(Path program, bool lookup_path, const strings_t& args,
                                    .input = input,
                                    .is_interactive = is_interactive});
 
-  if (!status_ok(res.first))
+  if (!status_ok(res.first)) {
     throw exec_error_t(res.first, "program '%1%' %2%", program, status_to_string(res.first));
+}
 
   return res.second;
 }
@@ -281,10 +296,12 @@ void run_program2(const run_options_t& options) {
 
   /* Create a pipe. */
   pipe_t out, in;
-  if (options.standard_out)
+  if (options.standard_out) {
     out.create();
-  if (source)
+}
+  if (source) {
     in.create();
+}
 
   process_options_t process_options;
   // vfork implies that the environment of the main process and the fork will
@@ -297,37 +314,47 @@ void run_program2(const run_options_t& options) {
   /* Fork. */
   Pid pid = start_process(
       [&] {
-        if (options.environment)
+        if (options.environment) {
           replace_env(*options.environment);
-        if (options.standard_out && dup2(out.write_side.get(), STDOUT_FILENO) == -1)
+}
+        if (options.standard_out && dup2(out.write_side.get(), STDOUT_FILENO) == -1) {
           throw sys_error_t("dupping stdout");
-        if (options.merge_stderr_to_stdout)
-          if (dup2(STDOUT_FILENO, STDERR_FILENO) == -1)
+}
+        if (options.merge_stderr_to_stdout) {
+          if (dup2(STDOUT_FILENO, STDERR_FILENO) == -1) {
             throw sys_error_t("cannot dup stdout into stderr");
-        if (source && dup2(in.read_side.get(), STDIN_FILENO) == -1)
+}
+}
+        if (source && dup2(in.read_side.get(), STDIN_FILENO) == -1) {
           throw sys_error_t("dupping stdin");
+}
 
-        if (options.chdir && chdir((*options.chdir).c_str()) == -1)
+        if (options.chdir && chdir((*options.chdir).c_str()) == -1) {
           throw sys_error_t("chdir failed");
-        if (options.gid && setgid(*options.gid) == -1)
+}
+        if (options.gid && setgid(*options.gid) == -1) {
           throw sys_error_t("setgid failed");
+}
         /* Drop all other groups if we're setgid. */
-        if (options.gid && setgroups(0, 0) == -1)
+        if (options.gid && setgroups(0, 0) == -1) {
           throw sys_error_t("setgroups failed");
-        if (options.uid && setuid(*options.uid) == -1)
+}
+        if (options.uid && setuid(*options.uid) == -1) {
           throw sys_error_t("setuid failed");
+}
 
         strings_t args_(options.args);
         args_.push_front(options.program);
 
         restore_process_context();
 
-        if (options.lookup_path)
+        if (options.lookup_path) {
           execvp(options.program.c_str(), strings_to_char_ptrs(args_).data());
         // This allows you to refer to a program with a pathname relative
         // to the PATH variable.
-        else
+        } else {
           execv(options.program.c_str(), strings_to_char_ptrs(args_).data());
+}
 
         throw sys_error_t("executing '%1%'", options.program);
       },
@@ -340,8 +367,9 @@ void run_program2(const run_options_t& options) {
   std::promise<void> promise;
 
   finally_t do_join([&] {
-    if (writer_thread.joinable())
+    if (writer_thread.joinable()) {
       writer_thread.join();
+}
   });
 
   if (source) {
@@ -366,27 +394,30 @@ void run_program2(const run_options_t& options) {
     });
   }
 
-  if (options.standard_out)
+  if (options.standard_out) {
     drain_fd(out.read_side.get(), *options.standard_out);
+}
 
   /* Wait for the child to finish. */
   int status = pid.wait();
 
   /* Wait for the writer thread to finish. */
-  if (source)
+  if (source) {
     promise.get_future().get();
+}
 
-  if (status)
+  if (status) {
     throw exec_error_t(status, "program '%1%' %2%", options.program, status_to_string(status));
+}
 }
 
 //////////////////////////////////////////////////////////////////////
 
 std::string status_to_string(int status) {
   if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-    if (WIFEXITED(status))
+    if (WIFEXITED(status)) {
       return fmt("failed with exit code %1%", WEXITSTATUS(status));
-    else if (WIFSIGNALED(status)) {
+    } else if (WIFSIGNALED(status)) {
       int sig = WTERMSIG(status);
 #if HAVE_STRSIGNAL
       const char* description = strsignal(sig);
@@ -394,10 +425,12 @@ std::string status_to_string(int status) {
 #else
       return fmt("failed due to signal %1%", sig);
 #endif
-    } else
+    } else {
       return "died abnormally";
-  } else
+}
+  } else {
     return "succeeded";
+}
 }
 
 bool status_ok(int status) {

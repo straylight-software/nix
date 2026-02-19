@@ -35,13 +35,15 @@ canon_path_t::canon_path_t(std::string_view raw, const canon_path_t& root)
 }
 
 canon_path_t::canon_path_t(const std::vector<std::string>& elems) : path("/") {
-  for (auto& s : elems)
+  for (auto& s : elems) {
     push(s);
+}
 }
 
 std::optional<canon_path_t> canon_path_t::parent() const {
-  if (is_root())
+  if (is_root()) {
     return std::nullopt;
+}
   return canon_path_t(unchecked_t(), path.substr(0, std::max((size_t)1, path.rfind('/'))));
 }
 
@@ -58,20 +60,24 @@ bool canon_path_t::is_within(const canon_path_t& parent) const {
 
 canon_path_t canon_path_t::remove_prefix(const canon_path_t& prefix) const {
   assert(is_within(prefix));
-  if (prefix.is_root())
+  if (prefix.is_root()) {
     return *this;
-  if (path.size() == prefix.path.size())
+}
+  if (path.size() == prefix.path.size()) {
     return root;
+}
   return canon_path_t(unchecked_t(), path.substr(prefix.path.size()));
 }
 
 void canon_path_t::extend(const canon_path_t& x) {
-  if (x.is_root())
+  if (x.is_root()) {
     return;
-  if (is_root())
+}
+  if (is_root()) {
     path += x.rel();
-  else
+  } else {
     path += x.abs();
+}
 }
 
 canon_path_t canon_path_t::operator/(const canon_path_t& x) const {
@@ -84,8 +90,9 @@ void canon_path_t::push(std::string_view c) {
   assert(c.find('/') == c.npos);
   assert(c != "." && c != "..");
   ensure_no_null_bytes(c);
-  if (!is_root())
+  if (!is_root()) {
     path += '/';
+}
   path += c;
 }
 
@@ -100,16 +107,18 @@ bool canon_path_t::is_allowed(const std::set<canon_path_t>& allowed) const {
      allowed path. */
   auto lb = allowed.lower_bound(*this);
   if (lb != allowed.end()) {
-    if (lb->is_within(*this))
+    if (lb->is_within(*this)) {
       return true;
+}
   }
 
   /* Check if a parent of `this` is allowed. */
   auto path = *this;
   while (!path.is_root()) {
     path.pop();
-    if (allowed.count(path))
+    if (allowed.count(path)) {
       return true;
+}
   }
 
   return false;
@@ -124,24 +133,27 @@ std::string canon_path_t::make_relative(const canon_path_t& path) const {
   auto p1 = begin();
   auto p2 = path.begin();
 
-  for (; p1 != end() && p2 != path.end() && *p1 == *p2; ++p1, ++p2)
+  for (; p1 != end() && p2 != path.end() && *p1 == *p2; ++p1, ++p2) {
     ;
+}
 
-  if (p1 == end() && p2 == path.end())
+  if (p1 == end() && p2 == path.end()) {
     return ".";
-  else if (p1 == end())
+  } else if (p1 == end()) {
     return std::string(p2.remaining);
-  else {
+  } else {
     std::string res;
     while (p1 != end()) {
       ++p1;
-      if (!res.empty())
+      if (!res.empty()) {
         res += '/';
+}
       res += "..";
     }
     if (p2 != path.end()) {
-      if (!res.empty())
+      if (!res.empty()) {
         res += '/';
+}
       res += p2.remaining;
     }
     return res;

@@ -8,8 +8,9 @@ namespace nix {
 
 pos_t pos_table_t::operator[](pos_idx_t p) const {
   auto origin = resolve(p);
-  if (!origin)
+  if (!origin) {
     return {};
+}
 
   const auto offset = origin->offset_of(p);
 
@@ -23,10 +24,12 @@ pos_t pos_table_t::operator[](pos_idx_t p) const {
     auto content_lines = lines_t();
 
     const char* begin = content.data();
-    for (pos_t::lines_iterator_t it(content), end; it != end; it++)
+    for (pos_t::lines_iterator_t it(content), end; it != end; it++) {
       content_lines.push_back(it->data() - begin);
-    if (content_lines.empty())
+}
+    if (content_lines.empty()) {
       content_lines.push_back(0);
+}
 
     return content_lines;
   };

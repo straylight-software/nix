@@ -58,15 +58,17 @@ bool mount_and_pid_namespaces_supported() {
       Pid pid = start_process(
           [&]() {
             /* Make sure we don't remount the parent's /proc. */
-            if (mount(0, "/", 0, MS_PRIVATE | MS_REC, 0) == -1)
+            if (mount(0, "/", 0, MS_PRIVATE | MS_REC, 0) == -1) {
               _exit(1);
+}
 
             /* Test whether we can remount /proc. The kernel disallows
                this if /proc is not fully visible, i.e. if there are
                filesystems mounted on top of files inside /proc.  See
                https://lore.kernel.org/lkml/87tvsrjai0.fsf@xmission.com/T/. */
-            if (mount("none", "/proc", "proc", 0, 0) == -1)
+            if (mount("none", "/proc", "proc", 0, 0) == -1) {
               _exit(2);
+}
 
             _exit(0);
           },
@@ -97,8 +99,9 @@ void save_mount_namespace() {
   static std::once_flag done;
   std::call_once(done, []() {
     fd_saved_mount_namespace = open("/proc/self/ns/mnt", O_RDONLY);
-    if (!fd_saved_mount_namespace)
+    if (!fd_saved_mount_namespace) {
       throw sys_error_t("saving parent mount namespace");
+}
 
     fd_saved_root = open("/proc/self/root", O_RDONLY);
   });
@@ -108,26 +111,31 @@ void restore_mount_namespace() {
   try {
     auto saved_cwd = std::filesystem::current_path();
 
-    if (fd_saved_mount_namespace && setns(fd_saved_mount_namespace.get(), CLONE_NEWNS) == -1)
+    if (fd_saved_mount_namespace && setns(fd_saved_mount_namespace.get(), CLONE_NEWNS) == -1) {
       throw sys_error_t("restoring parent mount namespace");
+}
 
     if (fd_saved_root) {
-      if (fchdir(fd_saved_root.get()))
+      if (fchdir(fd_saved_root.get())) {
         throw sys_error_t("chdir into saved root");
-      if (chroot("."))
+}
+      if (chroot(".")) {
         throw sys_error_t("chroot into saved root");
+}
     }
 
-    if (chdir(saved_cwd.c_str()) == -1)
+    if (chdir(saved_cwd.c_str()) == -1) {
       throw sys_error_t("restoring cwd");
+}
   } catch (Error& e) {
     debug(e.msg());
   }
 }
 
 void try_unshare_filesystem() {
-  if (unshare(CLONE_FS) != 0 && errno != EPERM && errno != ENOSYS)
+  if (unshare(CLONE_FS) != 0 && errno != EPERM && errno != ENOSYS) {
     throw sys_error_t("unsharing filesystem state");
+}
 }
 
 } // namespace nix

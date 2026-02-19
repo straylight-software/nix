@@ -56,8 +56,9 @@ void parse_blob(file_system_object_sink_t& sink, const canon_path_t& sink_path, 
 
   auto do_regular_file = [&](bool executable) {
     sink.create_regular_file(sink_path, [&](auto& crf) {
-      if (executable)
+      if (executable) {
         crf.is_executable();
+}
 
       crf.preallocate_contents(size);
 
@@ -117,8 +118,9 @@ void parse_tree(file_system_object_sink_t& sink, const canon_path_t& sink_path, 
 
     raw_mode_t raw_mode = std::stoi(perms, 0, 8);
     auto mode_opt = decode_mode(raw_mode);
-    if (!mode_opt)
+    if (!mode_opt) {
       throw Error("Unknown Git permission: %o", raw_mode);
+}
     auto mode = std::move(*mode_opt);
 
     std::string name = get_string_until(source, '\0');
@@ -152,8 +154,9 @@ object_type_t parse_object_type(Source& source, const experimental_feature_setti
     return object_type_t::blob;
   } else if (type == "tree ") {
     return object_type_t::tree_t;
-  } else
+  } else {
     throw Error("input doesn't look like a Git object");
+}
 }
 
 void parse(file_system_object_sink_t& sink, const canon_path_t& sink_path, Source& source,
@@ -201,14 +204,16 @@ void restore(file_system_object_sink_t& sink, Source& source, hash_algorithm_t h
           auto [accessor, from] = hook(entry.hash);
           auto stat = accessor->lstat(from);
           auto got_opt = convert_mode(stat.type);
-          if (!got_opt)
+          if (!got_opt) {
             throw Error("file '%s' (git hash %s) has an unsupported type", from,
                         entry.hash.to_string(hash_format_t::base16, false));
+}
           auto& got = *got_opt;
-          if (got != entry.mode)
+          if (got != entry.mode) {
             throw Error("git mode of file '%s' (git hash %s) is %o but expected %o", from,
                         entry.hash.to_string(hash_format_t::base16, false), (raw_mode_t)got,
                         (raw_mode_t)entry.mode);
+}
           copy_recursive(*accessor, from, sink, name);
         });
 }
@@ -257,14 +262,16 @@ Mode dump(const source_path_t& path, Sink& sink, std::function<dump_hook_t> hook
       tree_t entries;
       for (auto& [name, _] : path.read_directory()) {
         auto child = path / name;
-        if (!filter(child.path.abs()))
+        if (!filter(child.path.abs())) {
           continue;
+}
 
         auto entry = hook(child);
 
         auto name2 = name;
-        if (entry.mode == Mode::directory_t)
+        if (entry.mode == Mode::directory_t) {
           name2 += "/";
+}
 
         entries.insert_or_assign(std::move(name2), std::move(entry));
       }
@@ -307,8 +314,9 @@ tree_entry dump_hash(hash_algorithm_t ha, const source_path_t& path, path_filter
 std::optional<ls_remote_ref_line_t> parse_ls_remote_line(std::string_view line) {
   const static std::regex line_regex("^(ref: *)?([^\\s]+)(?:\\t+(.*))?$");
   std::match_results<std::string_view::const_iterator> match;
-  if (!std::regex_match(line.cbegin(), line.cend(), match, line_regex))
+  if (!std::regex_match(line.cbegin(), line.cend(), match, line_regex)) {
     return std::nullopt;
+}
 
   return ls_remote_ref_line_t{
       .kind =

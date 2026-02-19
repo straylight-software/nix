@@ -324,9 +324,11 @@ constexpr std::array<experimental_feature_details_t, num_xp_features> xp_feature
 
 static_assert(
     []() constexpr {
-      for (auto [index, feature] : enumerate(xp_feature_details))
-        if (index != (size_t)feature.tag)
+      for (auto [index, feature] : enumerate(xp_feature_details)) {
+        if (index != (size_t)feature.tag) {
           return false;
+}
+}
       return true;
     }(),
     "array order does not match enum tag order");
@@ -342,15 +344,17 @@ const std::optional<experimental_feature_t> parse_experimental_feature(const std
 
   static std::unique_ptr<reverse_xp_map_t> reverse_xp_map = []() {
     auto reverse_xp_map = std::make_unique<reverse_xp_map_t>();
-    for (auto& xp_feature : xp_feature_details)
+    for (auto& xp_feature : xp_feature_details) {
       (*reverse_xp_map)[xp_feature.name] = xp_feature.tag;
+}
     return reverse_xp_map;
   }();
 
-  if (auto feature = get(*reverse_xp_map, name))
+  if (auto feature = get(*reverse_xp_map, name)) {
     return *feature;
-  else
+  } else {
     return std::nullopt;
+}
 }
 
 std::string_view show_experimental_feature(const experimental_feature_t tag) {
@@ -372,9 +376,11 @@ nlohmann::json document_experimental_features() {
 
 std::set<experimental_feature_t> parse_features(const string_set_t& raw_features) {
   std::set<experimental_feature_t> res;
-  for (auto& raw_feature : raw_features)
-    if (auto feature = parse_experimental_feature(raw_feature))
+  for (auto& raw_feature : raw_features) {
+    if (auto feature = parse_experimental_feature(raw_feature)) {
       res.insert(*feature);
+}
+}
   return res;
 }
 
@@ -398,10 +404,11 @@ void from_json(const nlohmann::json& j, experimental_feature_t& feature) {
   const std::string input = j;
   const auto parsed = parse_experimental_feature(input);
 
-  if (parsed.has_value())
+  if (parsed.has_value()) {
     feature = *parsed;
-  else
+  } else {
     throw Error("Unknown experimental feature '%s' in JSON input", input);
+}
 }
 
 } // namespace nix

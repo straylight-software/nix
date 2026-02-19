@@ -70,9 +70,10 @@ void auto_close_fd_t::close() {
 #else
         ::close(fd)
 #endif
-        == -1)
+        == -1) {
       /* This should never happen. */
       throw native_sys_error_t("closing file descriptor %1%", fd);
+}
     fd = INVALID_DESCRIPTOR;
   }
 }
@@ -89,8 +90,9 @@ void auto_close_fd_t::fsync() const {
         ::fsync(fd)
 #endif
         ;
-    if (result == -1)
+    if (result == -1) {
       throw native_sys_error_t("fsync file descriptor %1%", fd);
+}
   }
 }
 

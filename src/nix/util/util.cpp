@@ -41,16 +41,18 @@ void init_lib_util() {
   // This is not actually the main point of this check, but let's make sure anyway:
   assert(caught);
 
-  if (sodium_init() == -1)
+  if (sodium_init() == -1) {
     throw Error("could not initialise libsodium");
+}
 }
 
 //////////////////////////////////////////////////////////////////////
 
 std::vector<char*> strings_to_char_ptrs(const strings_t& ss) {
   std::vector<char*> res;
-  for (auto& s : ss)
+  for (auto& s : ss) {
     res.push_back((char*)s.c_str());
+}
   res.push_back(0);
   return res;
 }
@@ -64,15 +66,17 @@ std::string chomp(std::string_view s) {
 
 std::string trim(std::string_view s, std::string_view whitespace) {
   auto i = s.find_first_not_of(whitespace);
-  if (i == s.npos)
+  if (i == s.npos) {
     return "";
+}
   auto j = s.find_last_not_of(whitespace);
   return std::string(s, i, j == s.npos ? j : j - i + 1);
 }
 
 std::string replace_strings(std::string res, std::string_view from, std::string_view to) {
-  if (from.empty())
+  if (from.empty()) {
     return res;
+}
   size_t pos = 0;
   while ((pos = res.find(from, pos)) != res.npos) {
     res.replace(pos, from.size(), to);
@@ -83,19 +87,22 @@ std::string replace_strings(std::string res, std::string_view from, std::string_
 
 std::string rewrite_strings(std::string s, const string_map_t& rewrites) {
   for (auto& i : rewrites) {
-    if (i.first == i.second)
+    if (i.first == i.second) {
       continue;
+}
     size_t j = 0;
-    while ((j = s.find(i.first, j)) != s.npos)
+    while ((j = s.find(i.first, j)) != s.npos) {
       s.replace(j, i.first.size(), i.second);
+}
   }
   return s;
 }
 
 template <class N>
 std::optional<N> string2_int(const std::string_view s) {
-  if (s.substr(0, 1) == "-" && !std::numeric_limits<N>::is_signed)
+  if (s.substr(0, 1) == "-" && !std::numeric_limits<N>::is_signed) {
     return std::nullopt;
+}
   try {
     return boost::lexical_cast<N>(s.data(), s.size());
   } catch (const boost::bad_lexical_cast&) {
@@ -189,8 +196,9 @@ bool has_suffix(std::string_view s, std::string_view suffix) {
 }
 
 std::string to_lower(std::string s) {
-  for (auto& c : s)
+  for (auto& c : s) {
     c = std::tolower(c);
+}
   return s;
 }
 
@@ -198,11 +206,13 @@ std::string escape_shell_arg_always(const std::string_view s) {
   std::string r;
   r.reserve(s.size() + 2);
   r += '\'';
-  for (auto& i : s)
-    if (i == '\'')
+  for (auto& i : s) {
+    if (i == '\'') {
       r += "'\\''";
-    else
+    } else {
       r += i;
+}
+}
   r += '\'';
   return r;
 }
@@ -240,11 +250,12 @@ std::string strip_indentation(std::string_view s) {
   bool at_start_of_line = true;
 
   for (auto& c : s) {
-    if (at_start_of_line && c == ' ')
+    if (at_start_of_line && c == ' ') {
       cur_indent++;
-    else if (c == '\n') {
-      if (at_start_of_line)
+    } else if (c == '\n') {
+      if (at_start_of_line) {
         min_indent = std::max(min_indent, cur_indent);
+}
       cur_indent = 0;
       at_start_of_line = true;
     } else {
@@ -260,10 +271,12 @@ std::string strip_indentation(std::string_view s) {
   size_t pos = 0;
   while (pos < s.size()) {
     auto eol = s.find('\n', pos);
-    if (eol == s.npos)
+    if (eol == s.npos) {
       eol = s.size();
-    if (eol - pos > min_indent)
+}
+    if (eol - pos > min_indent) {
       res.append(s.substr(pos + min_indent, eol - pos - min_indent));
+}
     res.push_back('\n');
     pos = eol + 1;
   }
@@ -278,8 +291,9 @@ std::pair<std::string_view, std::string_view> get_line(std::string_view s) {
     return {s, ""};
   } else {
     auto line = s.substr(0, newline);
-    if (!line.empty() && line[line.size() - 1] == '\r')
+    if (!line.empty() && line[line.size() - 1] == '\r') {
       line = line.substr(0, line.size() - 1);
+}
     return {line, s.substr(newline + 1)};
   }
 }

@@ -35,8 +35,9 @@ void set_write_time(const std::filesystem::path& path, time_t accessed_time, tim
           .tv_nsec = 0,
       },
   };
-  if (utimensat(AT_FDCWD, path.c_str(), times, AT_SYMLINK_NOFOLLOW) == -1)
+  if (utimensat(AT_FDCWD, path.c_str(), times, AT_SYMLINK_NOFOLLOW) == -1) {
     throw sys_error_t("changing modification time of %s (using `utimensat`)", path);
+}
 #else
   struct timeval times[2] = {
       {

@@ -83,10 +83,11 @@ std::filesystem::path create_nix_state_dir() {
 std::string expand_tilde(std::string_view path) {
   // TODO: expand ~user ?
   auto tilde = path.substr(0, 2);
-  if (tilde == "~/" || tilde == "~")
+  if (tilde == "~/" || tilde == "~") {
     return get_home().string() + std::string(path.substr(1));
-  else
+  } else {
     return std::string(path);
+}
 }
 
 } // namespace nix

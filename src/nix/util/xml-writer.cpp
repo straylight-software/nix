@@ -14,16 +14,19 @@ xml_writer_t::~xml_writer_t() {
 }
 
 void xml_writer_t::close() {
-  if (closed)
+  if (closed) {
     return;
-  while (!pendingElems.empty())
+}
+  while (!pendingElems.empty()) {
     close_element();
+}
   closed = true;
 }
 
 void xml_writer_t::indent_(size_t depth) {
-  if (!indent)
+  if (!indent) {
     return;
+}
   output << std::string(depth * 2, ' ');
 }
 
@@ -33,8 +36,9 @@ void xml_writer_t::open_element(std::string_view name, const xml_attrs_t& attrs)
   output << "<" << name;
   write_attrs(attrs);
   output << ">";
-  if (indent)
+  if (indent) {
     output << std::endl;
+}
   pendingElems.push_back(std::string(name));
 }
 
@@ -42,11 +46,13 @@ void xml_writer_t::close_element() {
   assert(!pendingElems.empty());
   indent_(pendingElems.size() - 1);
   output << "</" << pendingElems.back() << ">";
-  if (indent)
+  if (indent) {
     output << std::endl;
+}
   pendingElems.pop_back();
-  if (pendingElems.empty())
+  if (pendingElems.empty()) {
     closed = true;
+}
 }
 
 void xml_writer_t::write_empty_element(std::string_view name, const xml_attrs_t& attrs) {
@@ -55,8 +61,9 @@ void xml_writer_t::write_empty_element(std::string_view name, const xml_attrs_t&
   output << "<" << name;
   write_attrs(attrs);
   output << " />";
-  if (indent)
+  if (indent) {
     output << std::endl;
+}
 }
 
 void xml_writer_t::write_attrs(const xml_attrs_t& attrs) {
@@ -64,20 +71,21 @@ void xml_writer_t::write_attrs(const xml_attrs_t& attrs) {
     output << " " << i.first << "=\"";
     for (size_t j = 0; j < i.second.size(); ++j) {
       char c = i.second[j];
-      if (c == '"')
+      if (c == '"') {
         output << "&quot;";
-      else if (c == '<')
+      } else if (c == '<') {
         output << "&lt;";
-      else if (c == '>')
+      } else if (c == '>') {
         output << "&gt;";
-      else if (c == '&')
+      } else if (c == '&') {
         output << "&amp;";
       /* Escape newlines to prevent attribute normalisation (see
          XML spec, section 3.3.3. */
-      else if (c == '\n')
+      } else if (c == '\n') {
         output << "&#xA;";
-      else
+      } else {
         output << c;
+}
     }
     output << "\"";
   }

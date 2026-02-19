@@ -18,8 +18,9 @@ int levenshtein_distance(std::string_view first, std::string_view second) {
   auto v0 = std::vector<int>(n + 1);
   auto v1 = std::vector<int>(n + 1);
 
-  for (auto i = 0; i <= n; i++)
+  for (auto i = 0; i <= n; i++) {
     v0[i] = i;
+}
 
   for (auto i = 0; i < m; i++) {
     v1[0] = i + 1;
@@ -54,8 +55,9 @@ suggestions_t suggestions_t::trim(int limit, int max_distance) const {
   int count = 0;
 
   for (auto& elt : suggestions) {
-    if (count >= limit || elt.distance > max_distance)
+    if (count >= limit || elt.distance > max_distance) {
       break;
+}
     count++;
     res.insert(elt);
   }

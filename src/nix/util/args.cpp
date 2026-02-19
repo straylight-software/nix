@@ -18,21 +18,25 @@ namespace nix {
 
 void Args::add_flag(flag_t&& flag_) {
   auto flag = std::make_shared<flag_t>(std::move(flag_));
-  if (flag->handler.arity != arity_any)
+  if (flag->handler.arity != arity_any) {
     assert(flag->handler.arity == flag->labels.size());
+}
   assert(flag->long_name != "");
   longFlags[flag->long_name] = flag;
-  for (auto& alias : flag->aliases)
+  for (auto& alias : flag->aliases) {
     longFlags[alias] = flag;
-  if (flag->short_name)
+}
+  if (flag->short_name) {
     shortFlags[flag->short_name] = flag;
+}
 }
 
 void Args::remove_flag(const std::string& long_name) {
   auto flag = longFlags.find(long_name);
   assert(flag != longFlags.end());
-  if (flag->second->short_name)
+  if (flag->second->short_name) {
     shortFlags.erase(flag->second->short_name);
+}
   longFlags.erase(flag);
 }
 
@@ -47,8 +51,9 @@ void completions_t::add(std::string completion, std::string description) {
   if (end_index != std::string::npos) {
     auto needs_ellipsis = end_index != description.size() - 1;
     description.resize(end_index);
-    if (needs_ellipsis)
+    if (needs_ellipsis) {
       description.append(" [...]");
+}
   }
   completions.insert(completion_t{.completion = completion, .description = description});
 }
@@ -59,8 +64,9 @@ std::string completion_marker = "___COMPLETE___";
 
 root_args_t& Args::get_root() {
   Args* p = this;
-  while (p->parent)
+  while (p->parent) {
     p = p->parent;
+}
 
   auto* res = dynamic_cast<root_args_t*>(p);
   assert(res);
@@ -68,11 +74,13 @@ root_args_t& Args::get_root() {
 }
 
 std::optional<std::string> root_args_t::needs_completion(std::string_view s) {
-  if (!completions)
+  if (!completions) {
     return {};
+}
   auto i = s.find(completion_marker);
-  if (i != std::string::npos)
+  if (i != std::string::npos) {
     return std::string(s.begin(), i);
+}
   return {};
 }
 
@@ -122,8 +130,9 @@ struct parse_unquoted_t : public Parser {
 
   virtual void operator()(std::shared_ptr<Parser>& state, strings_t& r) override {
     if (remaining.empty()) {
-      if (!acc.empty())
+      if (!acc.empty()) {
         r.push_back(acc);
+}
       state = nullptr; // done
       return;
     }
@@ -132,16 +141,18 @@ struct parse_unquoted_t : public Parser {
       case '\t':
       case '\n':
       case '\r':
-        if (!acc.empty())
+        if (!acc.empty()) {
           r.push_back(acc);
+}
         state = std::make_shared<parse_unquoted_t>(parse_unquoted_t(remaining.substr(1)));
         return;
       case '`':
         if (remaining.size() > 1 && remaining[1] == '`') {
           state = std::make_shared<parse_quoted_t>(parse_quoted_t(remaining.substr(2)));
           return;
-        } else
+        } else {
           throw Error("single backtick is not a supported syntax in the nix shebang.");
+}
 
       // reserved characters
       // meaning to be determined, or may be reserved indefinitely so that
@@ -277,8 +288,9 @@ void root_args_t::parse_cmdline(const strings_t& _cmdline, bool allow_shebang) {
       char shebang[3] = {0, 0, 0};
       stream.get(shebang, 3);
       if (strncmp(shebang, "#!", 2) == 0) {
-        for (auto pos = std::next(cmdline.begin()); pos != cmdline.end(); pos++)
+        for (auto pos = std::next(cmdline.begin()); pos != cmdline.end(); pos++) {
           saved_args.push_back(*pos);
+}
         cmdline.clear();
 
         std::string line;
@@ -292,16 +304,18 @@ void root_args_t::parse_cmdline(const strings_t& _cmdline, bool allow_shebang) {
           std::smatch match;
           // We match one space after `nix` so that we preserve indentation.
           // No space is necessary for an empty line. An empty line has basically no effect.
-          if (std::regex_match(line, match, std::regex("^#!\\s*nix(:? |$)(.*)$")))
+          if (std::regex_match(line, match, std::regex("^#!\\s*nix(:? |$)(.*)$"))) {
             shebang_content += std::string_view{match[2].first, match[2].second} + "\n";
+}
         }
         for (const auto& word : parse_shebang_content(shebang_content)) {
           cmdline.push_back(word);
         }
         cmdline.push_back(script);
         commandBaseDir = dir_of(script);
-        for (auto pos = saved_args.begin(); pos != saved_args.end(); pos++)
+        for (auto pos = saved_args.begin(); pos != saved_args.end(); pos++) {
           cmdline.push_back(*pos);
+}
       }
     } catch (SystemError&) {
     }
@@ -316,13 +330,14 @@ void root_args_t::parse_cmdline(const strings_t& _cmdline, bool allow_shebang) {
       *pos = (std::string) "-" + arg[1];
       auto next = pos;
       ++next;
-      for (unsigned int j = 2; j < arg.length(); j++)
-        if (isalpha(arg[j]))
+      for (unsigned int j = 2; j < arg.length(); j++) {
+        if (isalpha(arg[j])) {
           cmdline.insert(next, (std::string) "-" + arg[j]);
-        else {
+        } else {
           cmdline.insert(next, std::string(arg, j));
           break;
         }
+}
       arg = *pos;
     }
 
@@ -330,32 +345,37 @@ void root_args_t::parse_cmdline(const strings_t& _cmdline, bool allow_shebang) {
       dash_dash = true;
       ++pos;
     } else if (!dash_dash && std::string(arg, 0, 1) == "-") {
-      if (!process_flag(pos, cmdline.end()))
+      if (!process_flag(pos, cmdline.end())) {
         throw UsageError("unrecognised flag '%1%'", arg);
+}
     } else {
       pos = rewrite_args(cmdline, pos);
       pending_args.push_back(*pos++);
-      if (process_args(pending_args, false))
+      if (process_args(pending_args, false)) {
         pending_args.clear();
+}
     }
   }
 
   process_args(pending_args, true);
 
-  if (!completions)
+  if (!completions) {
     check_args();
+}
 
   initial_flags_processed();
 
   /* Now that we are done parsing, make sure that any experimental
    * feature required by the flags is enabled */
-  for (auto& f : flagExperimentalFeatures)
+  for (auto& f : flagExperimentalFeatures) {
     experimental_feature_settings.require(f);
+}
 
   /* Now that all the other args are processed, run the deferred completions.
    */
-  for (const auto& d : deferredCompletions)
+  for (const auto& d : deferredCompletions) {
     d.completer(*completions, d.n, d.prefix);
+}
 }
 
 std::filesystem::path Args::get_command_base_dir() const {
@@ -375,15 +395,17 @@ bool Args::process_flag(strings_t::iterator& pos, strings_t::iterator end) {
   auto process = [&](const std::string& name, flag_t& flag) -> bool {
     ++pos;
 
-    if (auto& f = flag.experimental_feature)
+    if (auto& f = flag.experimental_feature) {
       root_args.flagExperimentalFeatures.insert(*f);
+}
 
     std::vector<std::string> args;
     bool any_completed = false;
     for (size_t n = 0; n < flag.handler.arity; ++n) {
       if (pos == end) {
-        if (flag.handler.arity == arity_any || any_completed)
+        if (flag.handler.arity == arity_any || any_completed) {
           break;
+}
         throw UsageError("flag '%s' requires %d argument(s), but only %d were given", name,
                          flag.handler.arity, n);
       }
@@ -399,8 +421,9 @@ bool Args::process_flag(strings_t::iterator& pos, strings_t::iterator end) {
       }
       args.push_back(*pos++);
     }
-    if (!any_completed)
+    if (!any_completed) {
       flag.handler.fun(std::move(args));
+}
     flag.times_used++;
     return true;
   };
@@ -409,33 +432,38 @@ bool Args::process_flag(strings_t::iterator& pos, strings_t::iterator end) {
     if (auto prefix = root_args.needs_completion(*pos)) {
       for (auto& [name, flag] : longFlags) {
         if (!hiddenCategories.count(flag->category) && has_prefix(name, std::string(*prefix, 2))) {
-          if (auto& f = flag->experimental_feature)
+          if (auto& f = flag->experimental_feature) {
             root_args.flagExperimentalFeatures.insert(*f);
+}
           root_args.completions->add("--" + name, flag->description);
         }
       }
       return false;
     }
     auto i = longFlags.find(std::string(*pos, 2));
-    if (i == longFlags.end())
+    if (i == longFlags.end()) {
       return false;
+}
     return process("--" + i->first, *i->second);
   }
 
   if (std::string(*pos, 0, 1) == "-" && pos->size() == 2) {
     auto c = (*pos)[1];
     auto i = shortFlags.find(c);
-    if (i == shortFlags.end())
+    if (i == shortFlags.end()) {
       return false;
+}
     return process(std::string("-") + c, *i->second);
   }
 
   if (auto prefix = root_args.needs_completion(*pos)) {
     if (prefix == "-") {
       root_args.completions->add("--");
-      for (auto& [flagName, flag] : shortFlags)
-        if (experimental_feature_settings.is_enabled(flag->experimental_feature))
+      for (auto& [flagName, flag] : shortFlags) {
+        if (experimental_feature_settings.is_enabled(flag->experimental_feature)) {
           root_args.completions->add(std::string("-") + flagName, flag->description);
+}
+}
     }
   }
 
@@ -444,8 +472,9 @@ bool Args::process_flag(strings_t::iterator& pos, strings_t::iterator end) {
 
 bool Args::process_args(const strings_t& args, bool finish) {
   if (expectedArgs.empty()) {
-    if (!args.empty())
+    if (!args.empty()) {
       throw UsageError("unexpected argument '%1%'", args.front());
+}
     return true;
   }
 
@@ -470,11 +499,13 @@ bool Args::process_args(const strings_t& args, bool finish) {
               .prefix = *prefix,
           });
         }
-      } else
+      } else {
         ss.push_back(s);
+}
     }
-    if (!any_completed)
+    if (!any_completed) {
       exp.handler.fun(ss);
+}
 
     /* Move the list element to the processedArgs. This is almost the same as
        `processedArgs.push_back(expectedArgs.front()); expectedArgs.pop_front()`,
@@ -487,16 +518,18 @@ bool Args::process_args(const strings_t& args, bool finish) {
     res = true;
   }
 
-  if (finish && !expectedArgs.empty() && !expectedArgs.front().optional)
+  if (finish && !expectedArgs.empty() && !expectedArgs.front().optional) {
     throw UsageError("more arguments are required");
+}
 
   return res;
 }
 
 void Args::check_args() {
   for (auto& [name, flag] : longFlags) {
-    if (flag->required && flag->times_used == 0)
+    if (flag->required && flag->times_used == 0) {
       throw UsageError("required argument '%s' is missing", "--" + name);
+}
   }
 }
 
@@ -506,17 +539,22 @@ nlohmann::json Args::to_json() {
   for (auto& [name, flag] : longFlags) {
     auto j = nlohmann::json::object();
     j["hiddenCategory"] = hiddenCategories.count(flag->category) > 0;
-    if (flag->aliases.count(name))
+    if (flag->aliases.count(name)) {
       continue;
-    if (flag->short_name)
+}
+    if (flag->short_name) {
       j["shortName"] = std::string(1, flag->short_name);
-    if (flag->description != "")
+}
+    if (flag->description != "") {
       j["description"] = trim(flag->description);
+}
     j["category"] = flag->category;
-    if (flag->handler.arity != arity_any)
+    if (flag->handler.arity != arity_any) {
       j["arity"] = flag->handler.arity;
-    if (!flag->labels.empty())
+}
+    if (!flag->labels.empty()) {
       j["labels"] = flag->labels;
+}
     j["experimental-feature"] = flag->experimental_feature;
     flags[name] = std::move(j);
   }
@@ -527,8 +565,9 @@ nlohmann::json Args::to_json() {
     auto j = nlohmann::json::object();
     j["label"] = arg.label;
     j["optional"] = arg.optional;
-    if (arg.handler.arity != arity_any)
+    if (arg.handler.arity != arity_any) {
       j["arity"] = arg.handler.arity;
+}
     args.push_back(std::move(j));
   }
 
@@ -537,8 +576,9 @@ nlohmann::json Args::to_json() {
   res["flags"] = std::move(flags);
   res["args"] = std::move(args);
   auto s = doc();
-  if (s != "")
+  if (s != "") {
     res.emplace("doc", strip_indentation(s));
+}
   return res;
 }
 
@@ -548,16 +588,18 @@ static void complete_path_(add_completions_t& completions, std::string_view pref
   glob_t globbuf;
   int flags = GLOB_NOESCAPE;
 #  ifdef GLOB_ONLYDIR
-  if (only_dirs)
+  if (only_dirs) {
     flags |= GLOB_ONLYDIR;
+}
 #  endif
   // using expandTilde here instead of GLOB_TILDE(_CHECK) so that ~<Tab> expands to /home/user/
   if (glob((expand_tilde(prefix) + "*").c_str(), flags, nullptr, &globbuf) == 0) {
     for (size_t i = 0; i < globbuf.gl_pathc; ++i) {
       if (only_dirs) {
         auto st = stat(globbuf.gl_pathv[i]);
-        if (!S_ISDIR(st.st_mode))
+        if (!S_ISDIR(st.st_mode)) {
           continue;
+}
       }
       completions.add(globbuf.gl_pathv[i]);
     }
@@ -578,8 +620,9 @@ strings_t argv_to_strings(int argc, char** argv) {
   strings_t args;
   argc--;
   argv++;
-  while (argc--)
+  while (argc--) {
     args.push_back(*argv++);
+}
   return args;
 }
 
@@ -596,8 +639,9 @@ multi_command_t::multi_command_t(std::string_view command_name, const commands_t
                 auto i = commands.find(s);
                 if (i == commands.end()) {
                   string_set_t command_names;
-                  for (auto& [name, _] : commands)
+                  for (auto& [name, _] : commands) {
                     command_names.insert(name);
+}
                   auto suggestions = suggestions_t::best_matches(command_names, s);
                   throw UsageError(suggestions, "'%s' is not a recognised command", s);
                 }
@@ -605,33 +649,39 @@ multi_command_t::multi_command_t(std::string_view command_name, const commands_t
                 command->second->parent = this;
               }},
               .completer = {[&](add_completions_t& completions, size_t, std::string_view prefix) {
-                for (auto& [name, command] : commands)
-                  if (has_prefix(name, prefix))
+                for (auto& [name, command] : commands) {
+                  if (has_prefix(name, prefix)) {
                     completions.add(name);
+}
+}
               }}});
 
   categories[command_t::cat_default] = "Available commands";
 }
 
 bool multi_command_t::process_flag(strings_t::iterator& pos, strings_t::iterator end) {
-  if (Args::process_flag(pos, end))
+  if (Args::process_flag(pos, end)) {
     return true;
-  if (command && command->second->process_flag(pos, end))
+}
+  if (command && command->second->process_flag(pos, end)) {
     return true;
+}
   return false;
 }
 
 bool multi_command_t::process_args(const strings_t& args, bool finish) {
-  if (command)
+  if (command) {
     return command->second->process_args(args, finish);
-  else
+  } else {
     return Args::process_args(args, finish);
+}
 }
 
 void multi_command_t::check_args() {
   Args::check_args();
-  if (command)
+  if (command) {
     command->second->check_args();
+}
 }
 
 nlohmann::json multi_command_t::to_json() {
@@ -654,22 +704,26 @@ nlohmann::json multi_command_t::to_json() {
 }
 
 strings_t::iterator multi_command_t::rewrite_args(strings_t& args, strings_t::iterator pos) {
-  if (command)
+  if (command) {
     return command->second->rewrite_args(args, pos);
+}
 
-  if (aliasUsed || pos == args.end())
+  if (aliasUsed || pos == args.end()) {
     return pos;
+}
   auto arg = *pos;
   auto i = aliases.find(arg);
-  if (i == aliases.end())
+  if (i == aliases.end()) {
     return pos;
+}
   auto& info = i->second;
   if (info.status == alias_status_t::deprecated) {
     warn("'%s' is a deprecated alias for '%s'", arg, concat_strings_sep(" ", info.replacement));
   }
   pos = args.erase(pos);
-  for (auto j = info.replacement.rbegin(); j != info.replacement.rend(); ++j)
+  for (auto j = info.replacement.rbegin(); j != info.replacement.rend(); ++j) {
     pos = args.insert(pos, *j);
+}
   aliasUsed = true;
   return pos;
 }

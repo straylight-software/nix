@@ -5,8 +5,9 @@ namespace nix {
 std::string hilite_matches(std::string_view s, std::vector<std::smatch> matches,
                           std::string_view prefix, std::string_view postfix) {
   // Avoid extra work on zero matches
-  if (matches.size() == 0)
+  if (matches.size() == 0) {
     return std::string(s);
+}
 
   std::sort(matches.begin(), matches.end(),
             [](const auto& a, const auto& b) { return a.position() < b.position(); });
@@ -23,8 +24,9 @@ std::string hilite_matches(std::string_view s, std::vector<std::smatch> matches,
     while (++it != matches.end() && (*it).position() <= end) {
       auto n = *it;
       ssize_t nend = start + (n.position() - start + n.length());
-      if (nend > end)
+      if (nend > end) {
         end = nend;
+}
     }
     out.append(prefix);
     out.append(s.substr(start, end - start));

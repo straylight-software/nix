@@ -22,8 +22,9 @@
 namespace nix {
 
 void buffered_sink_t::operator()(std::string_view data) {
-  if (!buffer)
+  if (!buffer) {
     buffer = decltype(buffer)(new char[buf_size]);
+}
 
   while (!data.empty()) {
     /* Optimisation: bypass the buffer if the data exceeds the
@@ -39,14 +40,16 @@ void buffered_sink_t::operator()(std::string_view data) {
     memcpy(buffer.get() + buf_pos, data.data(), n);
     data.remove_prefix(n);
     buf_pos += n;
-    if (buf_pos == buf_size)
+    if (buf_pos == buf_size) {
       flush();
+}
   }
 }
 
 void buffered_sink_t::flush() {
-  if (buf_pos == 0)
+  if (buf_pos == 0) {
     return;
+}
   size_t n = buf_pos;
   buf_pos = 0; // don't trigger the assert() in ~BufferedSink()
   write_unbuffered({buffer.get(), n});
@@ -114,18 +117,21 @@ void Source::skip(size_t len) {
 }
 
 size_t buffered_source_t::read(char* data, size_t len) {
-  if (!buffer)
+  if (!buffer) {
     buffer = decltype(buffer)(new char[buf_size]);
+}
 
-  if (!buf_pos_in)
+  if (!buf_pos_in) {
     buf_pos_in = read_unbuffered(buffer.get(), buf_size);
+}
 
   /* Copy out the data in the buffer. */
   auto n = std::min(len, buf_pos_in - buf_pos_out);
   memcpy(data, buffer.get() + buf_pos_out, n);
   buf_pos_out += n;
-  if (buf_pos_in == buf_pos_out)
+  if (buf_pos_in == buf_pos_out) {
     buf_pos_in = buf_pos_out = 0;
+}
   return n;
 }
 
@@ -165,8 +171,9 @@ bool fd_source_t::good() {
 }
 
 bool fd_source_t::has_data() {
-  if (buffered_source_t::has_data())
+  if (buffered_source_t::has_data()) {
     return true;
+}
 
   while (true) {
     fd_set fds;
@@ -180,8 +187,9 @@ bool fd_source_t::has_data() {
 
     auto n = select(sock + 1, &fds, nullptr, nullptr, &timeout);
     if (n < 0) {
-      if (errno == EINTR)
+      if (errno == EINTR) {
         continue;
+}
       throw sys_error_t("polling file descriptor");
     }
     return FD_ISSET(sock, &fds);
@@ -189,13 +197,15 @@ bool fd_source_t::has_data() {
 }
 
 void fd_source_t::restart() {
-  if (!is_seekable)
+  if (!is_seekable) {
     throw Error("can't seek to the start of a file");
+}
   buffer.reset();
   read = buf_pos_in = buf_pos_out = 0;
   int fd_ = from_descriptor_read_only(fd);
-  if (lseek(fd_, 0, SEEK_SET) == -1)
+  if (lseek(fd_, 0, SEEK_SET) == -1) {
     throw sys_error_t("seeking to the start of a file");
+}
 }
 
 void fd_source_t::skip(size_t len) {
@@ -214,10 +224,11 @@ void fd_source_t::skip(size_t len) {
   /* If we can, seek forward in the file to skip the rest. */
   if (is_seekable && len) {
     if (lseek(fd, len, SEEK_CUR) == -1) {
-      if (errno == ESPIPE)
+      if (errno == ESPIPE) {
         is_seekable = false;
-      else
+      } else {
         throw sys_error_t("seeking forward in file");
+}
     } else {
       read += len;
       return;
@@ -226,13 +237,15 @@ void fd_source_t::skip(size_t len) {
 #endif
 
   /* Otherwise, skip by reading. */
-  if (len)
+  if (len) {
     buffered_source_t::skip(len);
+}
 }
 
 size_t string_source_t::read(char* data, size_t len) {
-  if (pos == s.size())
+  if (pos == s.size()) {
     throw EndOfFile("end of string reached");
+}
   size_t n = s.copy(data, len, pos);
   pos += n;
   return n;
@@ -270,8 +283,9 @@ std::unique_ptr<finish_sink_t> source_to_sink(std::function<void(Source&)> fun) 
     std::string_view cur;
 
     void operator()(std::string_view in) override {
-      if (in.empty())
+      if (in.empty()) {
         return;
+}
       cur = in;
 
       if (!coro) {
@@ -279,8 +293,9 @@ std::unique_ptr<finish_sink_t> source_to_sink(std::function<void(Source&)> fun) 
           lambda_source_t source([&](char* out, size_t out_len) {
             if (cur.empty()) {
               yield();
-              if (yield.get())
+              if (yield.get()) {
                 throw EndOfFile("coroutine has finished");
+}
             }
 
             size_t n = cur.copy(out, out_len);
@@ -301,8 +316,9 @@ std::unique_ptr<finish_sink_t> source_to_sink(std::function<void(Source&)> fun) 
     }
 
     void finish() override {
-      if (coro && *coro)
+      if (coro && *coro) {
         (*coro)(true);
+}
     }
   };
 
@@ -379,8 +395,9 @@ Sink& operator<<(Sink& sink, std::string_view s) {
 template <class T>
 void write_strings(const T& ss, Sink& sink) {
   sink << ss.size();
-  for (auto& i : ss)
+  for (auto& i : ss) {
     sink << i;
+}
 }
 
 Sink& operator<<(Sink& sink, const strings_t& s) {
@@ -410,16 +427,19 @@ void read_padding(size_t len, Source& source) {
     char zero[8];
     size_t n = 8 - (len % 8);
     source(zero, n);
-    for (unsigned int i = 0; i < n; i++)
-      if (zero[i])
+    for (unsigned int i = 0; i < n; i++) {
+      if (zero[i]) {
         throw SerialisationError("non-zero padding");
+}
+}
   }
 }
 
 size_t read_string(char* buf, size_t max, Source& source) {
   auto len = read_num<size_t>(source);
-  if (len > max)
+  if (len > max) {
     throw SerialisationError("string is too long");
+}
   source(buf, len);
   read_padding(len, source);
   return len;
@@ -427,8 +447,9 @@ size_t read_string(char* buf, size_t max, Source& source) {
 
 std::string read_string(Source& source, size_t max) {
   auto len = read_num<size_t>(source);
-  if (len > max)
+  if (len > max) {
     throw SerialisationError("string is too long");
+}
   std::string res(len, 0);
   source(res.data(), len);
   read_padding(len, source);
@@ -444,8 +465,9 @@ template <class T>
 T read_strings(Source& source) {
   auto count = read_num<size_t>(source);
   T ss;
-  while (count--)
+  while (count--) {
     ss.insert(ss.end(), read_string(source));
+}
   return ss;
 }
 

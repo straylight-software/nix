@@ -27,9 +27,9 @@ void throw_exception_self_check() {
 // c++ std::exception descendants must have a 'const char* what()' function.
 // This stringifies the error and caches it for use by what(), or similarly by msg().
 const std::string& base_error_t::calc_what() const {
-  if (what_.has_value())
+  if (what_.has_value()) {
     return *what_;
-  else {
+  } else {
     std::ostringstream oss;
     show_error_info(oss, err, logger_settings.show_trace);
     what_ = oss.str();
@@ -52,10 +52,12 @@ inline std::strong_ordering operator<=>(const trace_t& lhs, const trace_t& rhs) 
   // functions, so we need to check for nulls and compare the dereferenced
   // values here.
   if (lhs.pos != rhs.pos) {
-    if (auto cmp = bool{lhs.pos} <=> bool{rhs.pos}; cmp != 0)
+    if (auto cmp = bool{lhs.pos} <=> bool{rhs.pos}; cmp != 0) {
       return cmp;
-    if (auto cmp = *lhs.pos <=> *rhs.pos; cmp != 0)
+}
+    if (auto cmp = *lhs.pos <=> *rhs.pos; cmp != 0) {
       return cmp;
+}
   }
   // This formats a freshly formatted hint string and then throws it away, which
   // shouldn't be much of a problem because it only runs when pos is equal, and this function is
@@ -101,12 +103,14 @@ static std::string indent(std::string_view indent_first, std::string_view indent
 
   while (!s.empty()) {
     auto end = s.find('\n');
-    if (!first)
+    if (!first) {
       res += "\n";
+}
     res += chomp(std::string(first ? indent_first : indent_rest) + std::string(s.substr(0, end)));
     first = false;
-    if (end == s.npos)
+    if (end == s.npos) {
       break;
+}
     s = s.substr(end + 1);
   }
 
@@ -148,8 +152,9 @@ static void print_trace(std::ostream& output, const std::string_view& indent, si
                        const trace_t& trace) {
   output << "\n" << "… " << trace.hint.str() << "\n";
 
-  if (print_pos_maybe(output, indent, trace.pos))
+  if (print_pos_maybe(output, indent, trace.pos)) {
     count++;
+}
 }
 
 void print_skipped_traces_maybe(std::ostream& output, const std::string_view& indent, size_t& count,
@@ -212,10 +217,11 @@ std::ostream& show_error_info(std::ostream& out, const error_info_t& einfo, bool
       break;
     }
     case verbosity_t::lvl_warn: {
-      if (einfo.is_from_expr)
+      if (einfo.is_from_expr) {
         prefix = ANSI_WARNING "evaluation warning";
-      else
+      } else {
         prefix = ANSI_WARNING "warning";
+}
       break;
     }
     case verbosity_t::lvl_info: {
@@ -243,10 +249,11 @@ std::ostream& show_error_info(std::ostream& out, const error_info_t& einfo, bool
   }
 
   // FIXME: show the program name as part of the trace?
-  if (einfo.program_name && einfo.program_name != error_info_t::program_name)
+  if (einfo.program_name && einfo.program_name != error_info_t::program_name) {
     prefix += fmt(" [%s]:" ANSI_NORMAL " ", einfo.program_name.value_or(""));
-  else
+  } else {
     prefix += ":" ANSI_NORMAL " ";
+}
 
   std::ostringstream oss;
 
@@ -360,8 +367,9 @@ std::ostream& show_error_info(std::ostream& out, const error_info_t& einfo, bool
     bool truncate = false;
 
     for (const auto& trace : einfo.traces) {
-      if (trace.hint.str().empty())
+      if (trace.hint.str().empty()) {
         continue;
+}
 
       if (!show_trace && count > 3) {
         truncate = true;
@@ -416,8 +424,9 @@ static void write_err(std::string_view buf) {
   while (!buf.empty()) {
     auto n = write(STDERR_FILENO, buf.data(), buf.size());
     if (n < 0) {
-      if (errno == EINTR)
+      if (errno == EINTR) {
         continue;
+}
       abort();
     }
     buf = buf.substr(n);
@@ -436,8 +445,9 @@ void unreachable(std::source_location loc) {
   char buf[512];
   int n = snprintf(buf, sizeof(buf), "Unexpected condition in %s at %s:%" PRIuLEAST32,
                    loc.function_name(), loc.file_name(), loc.line());
-  if (n < 0)
+  if (n < 0) {
     panic("Unexpected condition and could not format error message");
+}
   panic(std::string_view(buf, std::min(static_cast<int>(sizeof(buf)), n)));
 }
 

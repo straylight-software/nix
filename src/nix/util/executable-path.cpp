@@ -50,8 +50,9 @@ executable_path_t executable_path_t::parse(const os_string_t& path) {
 os_string_t executable_path_t::render() const {
   std::vector<path_view_ng_t> path2;
   path2.reserve(directories.size());
-  for (auto& p : directories)
+  for (auto& p : directories) {
     path2.push_back(p.native());
+}
   return basic_concat_strings_sep(path_var_separator, path2);
 }
 
@@ -65,8 +66,9 @@ executable_path_t::find_name(const os_string_t& exe,
 
   for (auto& dir : directories) {
     auto candidate = dir / exe;
-    if (is_executable(candidate))
+    if (is_executable(candidate)) {
       return candidate.lexically_normal();
+}
   }
 
   return std::nullopt;
@@ -80,10 +82,11 @@ executable_path_t::find_path(const std::filesystem::path& exe,
   // https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap08.html#tag_08_03
   if (exe.filename() == exe) {
     auto res_opt = find_name(exe, is_executable);
-    if (res_opt)
+    if (res_opt) {
       return *res_opt;
-    else
+    } else {
       throw ExecutableLookupError("Could not find executable '%s'", exe.string());
+}
   } else {
     return exe;
   }

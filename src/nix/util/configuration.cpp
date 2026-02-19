@@ -21,11 +21,13 @@ bool config_t::set(const std::string& name, const std::string& value) {
   if (i == _settings.end()) {
     if (has_prefix(name, "extra-")) {
       i = _settings.find(std::string(name, 6));
-      if (i == _settings.end() || !i->second.setting->is_appendable())
+      if (i == _settings.end() || !i->second.setting->is_appendable()) {
         return false;
+}
       append = true;
-    } else
+    } else {
       return false;
+}
   }
   i->second.setting->set(value, append);
   i->second.setting->overridden = true;
@@ -34,8 +36,9 @@ bool config_t::set(const std::string& name, const std::string& value) {
 
 void config_t::add_setting(abstract_setting_t* setting) {
   _settings.emplace(setting->name, config_t::setting_data_t{false, setting});
-  for (const auto& alias : setting->aliases)
+  for (const auto& alias : setting->aliases) {
     _settings.emplace(alias, config_t::setting_data_t{true, setting});
+}
 
   bool set = false;
 
@@ -48,10 +51,10 @@ void config_t::add_setting(abstract_setting_t* setting) {
 
   for (auto& alias : setting->aliases) {
     if (auto i = unknownSettings.find(alias); i != unknownSettings.end()) {
-      if (set)
+      if (set) {
         warn("setting '%s' is set, but it's an alias of '%s' which is also set", alias,
              setting->name);
-      else {
+      } else {
         setting->set(std::move(i->second));
         setting->overridden = true;
         unknownSettings.erase(i);
@@ -64,23 +67,27 @@ void config_t::add_setting(abstract_setting_t* setting) {
 abstract_config_t::abstract_config_t(string_map_t initials) : unknownSettings(std::move(initials)) {}
 
 void abstract_config_t::warn_unknown_settings() {
-  for (const auto& s : unknownSettings)
+  for (const auto& s : unknownSettings) {
     warn("unknown setting '%s'", s.first);
+}
 }
 
 void abstract_config_t::reapply_unknown_settings() {
   auto unknown_settings2 = std::move(unknownSettings);
   unknownSettings = {};
-  for (auto& s : unknown_settings2)
+  for (auto& s : unknown_settings2) {
     set(s.first, s.second);
+}
 }
 
 void config_t::get_settings(std::map<std::string, setting_info_t>& res, bool overridden_only) const {
-  for (const auto& opt : _settings)
+  for (const auto& opt : _settings) {
     if (!opt.second.is_alias && (!overridden_only || opt.second.setting->overridden) &&
-        experimental_feature_settings.is_enabled(opt.second.setting->experimental_feature))
+        experimental_feature_settings.is_enabled(opt.second.setting->experimental_feature)) {
       res.emplace(opt.first,
                   setting_info_t{opt.second.setting->to_string(), opt.second.setting->description});
+}
+}
 }
 
 /**
@@ -98,32 +105,37 @@ static void parse_config_files(const std::string& contents, const std::string& p
 
   while (pos < contents.size()) {
     std::string line;
-    while (pos < contents.size() && contents[pos] != '\n')
+    while (pos < contents.size() && contents[pos] != '\n') {
       line += contents[pos++];
+}
     pos++;
 
-    if (auto hash = line.find('#'); hash != line.npos)
+    if (auto hash = line.find('#'); hash != line.npos) {
       line = std::string(line, 0, hash);
+}
 
     auto tokens = tokenize_string<std::vector<std::string>>(line);
-    if (tokens.empty())
+    if (tokens.empty()) {
       continue;
+}
 
-    if (tokens.size() < 2)
+    if (tokens.size() < 2) {
       throw UsageError("syntax error in configuration line '%1%' in '%2%'", line, path);
+}
 
     auto include = false;
     auto ignore_missing = false;
-    if (tokens[0] == "include")
+    if (tokens[0] == "include") {
       include = true;
-    else if (tokens[0] == "!include") {
+    } else if (tokens[0] == "!include") {
       include = true;
       ignore_missing = true;
     }
 
     if (include) {
-      if (tokens.size() != 2)
+      if (tokens.size() != 2) {
         throw UsageError("syntax error in configuration line '%1%' in '%2%'", line, path);
+}
       auto p = abs_path(tokens[1], dir_of(path));
       if (path_exists(p)) {
         try {
@@ -138,8 +150,9 @@ static void parse_config_files(const std::string& contents, const std::string& p
       continue;
     }
 
-    if (tokens[1] != "=")
+    if (tokens[1] != "=") {
       throw UsageError("syntax error in configuration line '%1%' in '%2%'", line, path);
+}
 
     std::string name = std::move(tokens[0]);
 
@@ -159,9 +172,11 @@ void abstract_config_t::apply_config(const std::string& contents, const std::str
   parse_config_files(contents, path, parsed_contents);
 
   // First apply experimental-feature related settings
-  for (const auto& [name, value] : parsed_contents)
-    if (name == "experimental-features" || name == "extra-experimental-features")
+  for (const auto& [name, value] : parsed_contents) {
+    if (name == "experimental-features" || name == "extra-experimental-features") {
       set(name, value);
+}
+}
 
   // Then apply other settings
   // XXX: NIX_PATH must override the regular setting! This is done in `initGC()`
@@ -178,30 +193,36 @@ void abstract_config_t::apply_config(const std::string& contents, const std::str
 }
 
 void config_t::reset_overridden() {
-  for (auto& s : _settings)
+  for (auto& s : _settings) {
     s.second.setting->overridden = false;
+}
 }
 
 nlohmann::json config_t::to_json() {
   auto res = nlohmann::json::object();
-  for (const auto& s : _settings)
-    if (!s.second.is_alias)
+  for (const auto& s : _settings) {
+    if (!s.second.is_alias) {
       res.emplace(s.first, s.second.setting->to_json());
+}
+}
   return res;
 }
 
 std::string config_t::to_key_value() {
   std::string res;
-  for (const auto& s : _settings)
-    if (s.second.is_alias)
+  for (const auto& s : _settings) {
+    if (s.second.is_alias) {
       res += fmt("%s = %s\n", s.first, s.second.setting->to_string());
+}
+}
   return res;
 }
 
 void config_t::convert_to_args(Args& args, const std::string& category) {
   for (auto& s : _settings) {
-    if (!s.second.is_alias)
+    if (!s.second.is_alias) {
       s.second.setting->convert_to_arg(args, category);
+}
   }
 }
 
@@ -227,10 +248,11 @@ std::map<std::string, nlohmann::json> abstract_setting_t::to_json_object() const
   std::map<std::string, nlohmann::json> obj;
   obj.emplace("description", description);
   obj.emplace("aliases", aliases);
-  if (experimental_feature)
+  if (experimental_feature) {
     obj.emplace("experimentalFeature", *experimental_feature);
-  else
+  } else {
     obj.emplace("experimentalFeature", nullptr);
+}
   return obj;
 }
 
@@ -253,10 +275,11 @@ std::string base_setting_t<std::string>::to_string() const {
 template <>
 std::optional<std::string>
 base_setting_t<std::optional<std::string>>::parse(const std::string& str) const {
-  if (str == "")
+  if (str == "") {
     return std::nullopt;
-  else
+  } else {
     return {str};
+}
 }
 
 template <>
@@ -266,12 +289,13 @@ std::string base_setting_t<std::optional<std::string>>::to_string() const {
 
 template <>
 bool base_setting_t<bool>::parse(const std::string& str) const {
-  if (str == "true" || str == "yes" || str == "1")
+  if (str == "true" || str == "yes" || str == "1") {
     return true;
-  else if (str == "false" || str == "no" || str == "0")
+  } else if (str == "false" || str == "no" || str == "0") {
     return false;
-  else
+  } else {
     throw UsageError("Boolean setting '%s' has invalid value '%s'", name, str);
+}
 }
 
 template <>
@@ -314,16 +338,18 @@ strings_t base_setting_t<strings_t>::parse(const std::string& str) const {
 template <>
 void base_setting_t<std::list<std::filesystem::path>>::append_or_set(
     std::list<std::filesystem::path> new_value, bool append) {
-  if (!append)
+  if (!append) {
     value.clear();
+}
   value.insert(value.end(), std::make_move_iterator(new_value.begin()),
                std::make_move_iterator(new_value.end()));
 }
 
 template <>
 void base_setting_t<strings_t>::append_or_set(strings_t new_value, bool append) {
-  if (!append)
+  if (!append) {
     value.clear();
+}
   value.insert(value.end(), std::make_move_iterator(new_value.begin()),
                std::make_move_iterator(new_value.end()));
 }
@@ -347,8 +373,9 @@ string_set_t base_setting_t<string_set_t>::parse(const std::string& str) const {
 
 template <>
 void base_setting_t<string_set_t>::append_or_set(string_set_t new_value, bool append) {
-  if (!append)
+  if (!append) {
     value.clear();
+}
   value.insert(std::make_move_iterator(new_value.begin()), std::make_move_iterator(new_value.end()));
 }
 
@@ -362,12 +389,13 @@ std::set<experimental_feature_t>
 base_setting_t<std::set<experimental_feature_t>>::parse(const std::string& str) const {
   std::set<experimental_feature_t> res;
   for (auto& s : tokenize_string<string_set_t>(str)) {
-    if (auto this_xp_feature = parse_experimental_feature(s))
+    if (auto this_xp_feature = parse_experimental_feature(s)) {
       res.insert(this_xp_feature.value());
-    else if (stabilized_features.count(s))
+    } else if (stabilized_features.count(s)) {
       debug("experimental feature '%s' is now stable", s);
-    else
+    } else {
       warn("unknown experimental feature '%s'", s);
+}
   }
   return res;
 }
@@ -375,16 +403,18 @@ base_setting_t<std::set<experimental_feature_t>>::parse(const std::string& str) 
 template <>
 void base_setting_t<std::set<experimental_feature_t>>::append_or_set(std::set<experimental_feature_t> new_value,
                                                              bool append) {
-  if (!append)
+  if (!append) {
     value.clear();
+}
   value.insert(std::make_move_iterator(new_value.begin()), std::make_move_iterator(new_value.end()));
 }
 
 template <>
 std::string base_setting_t<std::set<experimental_feature_t>>::to_string() const {
   string_set_t stringified_xp_features;
-  for (const auto& feature : value)
+  for (const auto& feature : value) {
     stringified_xp_features.insert(std::string(show_experimental_feature(feature)));
+}
   return concat_strings_sep(" ", stringified_xp_features);
 }
 
@@ -392,8 +422,9 @@ template <>
 string_map_t base_setting_t<string_map_t>::parse(const std::string& str) const {
   string_map_t res;
   for (const auto& s : tokenize_string<strings_t>(str)) {
-    if (auto eq = s.find_first_of('='); s.npos != eq)
+    if (auto eq = s.find_first_of('='); s.npos != eq) {
       res.emplace(std::string(s, 0, eq), std::string(s, eq + 1));
+}
     // else ignored
   }
   return res;
@@ -401,8 +432,9 @@ string_map_t base_setting_t<string_map_t>::parse(const std::string& str) const {
 
 template <>
 void base_setting_t<string_map_t>::append_or_set(string_map_t new_value, bool append) {
-  if (!append)
+  if (!append) {
     value.clear();
+}
   value.insert(std::make_move_iterator(new_value.begin()), std::make_move_iterator(new_value.end()));
 }
 
@@ -415,10 +447,11 @@ std::string base_setting_t<string_map_t>::to_string() const {
 }
 
 static Path parse_path(const abstract_setting_t& s, const std::string& str) {
-  if (str == "")
+  if (str == "") {
     throw UsageError("setting '%s' is a path and paths cannot be empty", s.name);
-  else
+  } else {
     return canon_path(str);
+}
 }
 
 template <>
@@ -434,10 +467,11 @@ std::string base_setting_t<std::filesystem::path>::to_string() const {
 template <>
 std::optional<std::filesystem::path>
 base_setting_t<std::optional<std::filesystem::path>>::parse(const std::string& str) const {
-  if (str == "")
+  if (str == "") {
     return std::nullopt;
-  else
+  } else {
     return parse_path(*this, str);
+}
 }
 
 template <>
@@ -479,10 +513,11 @@ optional_path_setting_t::optional_path_setting_t(config_t* options, const std::o
 }
 
 std::optional<Path> optional_path_setting_t::parse(const std::string& str) const {
-  if (str == "")
+  if (str == "") {
     return std::nullopt;
-  else
+  } else {
     return parse_path(*this, str);
+}
 }
 
 void optional_path_setting_t::operator=(const std::optional<Path>& v) {
@@ -497,16 +532,18 @@ bool experimental_feature_settings_t::is_enabled(const experimental_feature_t& f
       feature == xp_t::pipe_operators ||     // Pure syntax sugar, no semantic changes
       feature == xp_t::fetch_tree ||         // Required by flakes
       feature == xp_t::fetch_closure ||      // Safe, enables better caching
-      feature == xp_t::parse_toml_timestamps) // TOML spec compliance
+      feature == xp_t::parse_toml_timestamps) { // TOML spec compliance
     return true;
+}
   auto& f = experimental_features.get();
   return std::find(f.begin(), f.end(), feature) != f.end();
 }
 
 void experimental_feature_settings_t::require(const experimental_feature_t& feature,
                                           std::string reason) const {
-  if (!is_enabled(feature))
+  if (!is_enabled(feature)) {
     throw missing_experimental_feature_t(feature, std::move(reason));
+}
 }
 
 bool experimental_feature_settings_t::is_enabled(
@@ -515,8 +552,9 @@ bool experimental_feature_settings_t::is_enabled(
 }
 
 void experimental_feature_settings_t::require(const std::optional<experimental_feature_t>& feature) const {
-  if (feature)
+  if (feature) {
     require(*feature);
+}
 }
 
 } // namespace nix

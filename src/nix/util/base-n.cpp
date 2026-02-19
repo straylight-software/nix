@@ -23,12 +23,15 @@ std::string base16::encode(std::span<const std::byte> b) {
 
 std::string base16::decode(std::string_view s) {
   auto parse_hex_digit = [&](char c) {
-    if (c >= '0' && c <= '9')
+    if (c >= '0' && c <= '9') {
       return c - '0';
-    if (c >= 'A' && c <= 'F')
+}
+    if (c >= 'A' && c <= 'F') {
       return c - 'A' + 10;
-    if (c >= 'a' && c <= 'f')
+}
+    if (c >= 'a' && c <= 'f') {
       return c - 'a' + 10;
+}
     throw FormatError("invalid character in Base16 string: '%c'", c);
   };
 
@@ -62,10 +65,12 @@ std::string base64::encode(std::span<const std::byte> s) {
     }
   }
 
-  if (nbits)
+  if (nbits) {
     res.push_back(base64_chars[data << (6 - nbits) & 0x3f]);
-  while (res.size() % 4)
+}
+  while (res.size() % 4) {
     res.push_back('=');
+}
 
   return res;
 }
@@ -74,10 +79,12 @@ std::string base64::decode(std::string_view s) {
   constexpr char npos = -1;
   constexpr std::array<char, 256> base64_decode_chars = [&] {
     std::array<char, 256> result{};
-    for (auto& c : result)
+    for (auto& c : result) {
       c = npos;
-    for (int i = 0; i < 64; i++)
+}
+    for (int i = 0; i < 64; i++) {
       result[base64_chars[i]] = i;
+}
     return result;
   }();
 
@@ -88,14 +95,17 @@ std::string base64::decode(std::string_view s) {
   unsigned int d = 0, bits = 0;
 
   for (char c : s) {
-    if (c == '=')
+    if (c == '=') {
       break;
-    if (c == '\n')
+}
+    if (c == '\n') {
       continue;
+}
 
     char digit = base64_decode_chars[(unsigned char)c];
-    if (digit == npos)
+    if (digit == npos) {
       throw FormatError("invalid character in Base64 string: '%c'", c);
+}
 
     bits += 6;
     d = d << 6 | digit;

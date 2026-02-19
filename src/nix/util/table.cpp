@@ -18,9 +18,10 @@ void print_table(std::ostream& out, table_t& table, unsigned int width) {
   for (auto& i : table) {
     assert(i.size() == nr_columns);
     size_t column = 0;
-    for (auto j = i.begin(); j != i.end(); ++j, ++column)
+    for (auto j = i.begin(); j != i.end(); ++j, ++column) {
       // TODO: take ANSI escapes into account when calculating width.
       widths[column] = std::max(widths[column], j->content.size());
+}
   }
 
   for (auto& i : table) {
@@ -36,12 +37,14 @@ void print_table(std::ostream& out, table_t& table, unsigned int width) {
         line += s;
       } else {
         line += s;
-        if (column + 1 < nr_columns)
+        if (column + 1 < nr_columns) {
           line += padding;
+}
       }
 
-      if (column + 1 < nr_columns)
+      if (column + 1 < nr_columns) {
         line += "  ";
+}
     }
     out << filter_ansi_escapes(line, false, width);
     out << std::endl;

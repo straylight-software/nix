@@ -50,8 +50,9 @@ logger_t::suspension_t logger_t::suspend() {
 }
 
 std::optional<logger_t::suspension_t> logger_t::suspend_if(bool cond) {
-  if (cond)
+  if (cond) {
     return suspend();
+}
   return {};
 }
 
@@ -68,8 +69,9 @@ public:
   bool is_verbose() override { return print_build_logs; }
 
   void log(verbosity_t lvl, std::string_view s) override {
-    if (lvl > verbosity)
+    if (lvl > verbosity) {
       return;
+}
 
     std::string prefix;
 
@@ -113,8 +115,9 @@ public:
 
   void start_activity(activity_id_t act, verbosity_t lvl, activity_type_t type, const std::string& s,
                      const fields_t& fields, activity_id_t parent) override {
-    if (lvl <= verbosity && !s.empty())
+    if (lvl <= verbosity && !s.empty()) {
       log(lvl, s + "...");
+}
   }
 
   void result(activity_id_t act, result_type_t type, const fields_t& fields) override {
@@ -184,16 +187,19 @@ struct json_logger_t : logger_t {
   bool is_verbose() override { return true; }
 
   void add_fields(nlohmann::json& json, const fields_t& fields) {
-    if (fields.empty())
+    if (fields.empty()) {
       return;
+}
     auto& arr = json["fields"] = nlohmann::json::array();
-    for (auto& f : fields)
-      if (f.type == logger_t::field_t::t_int)
+    for (auto& f : fields) {
+      if (f.type == logger_t::field_t::t_int) {
         arr.push_back(f.i);
-      else if (f.type == logger_t::field_t::t_string)
+      } else if (f.type == logger_t::field_t::t_string) {
         arr.push_back(f.s);
-      else
+      } else {
         unreachable();
+}
+}
   }
 
   struct State {
@@ -210,8 +216,9 @@ struct json_logger_t : logger_t {
        other. */
     try {
       auto state(_state.lock());
-      if (state->enabled)
+      if (state->enabled) {
         write_line(fd, line);
+}
     } catch (...) {
       bool enabled = false;
       std::swap(_state.lock()->enabled, enabled);
@@ -311,8 +318,9 @@ std::unique_ptr<logger_t> make_json_logger(const std::filesystem::path& path, bo
       std::filesystem::is_socket(path)
           ? connect(path)
           : to_descriptor(open(path.string().c_str(), O_CREAT | O_APPEND | O_WRONLY, 0644));
-  if (!fd)
+  if (!fd) {
     throw sys_error_t("opening log file %1%", path);
+}
 
   return std::make_unique<json_file_logger_t>(std::move(fd), include_nix_prefix);
 }
@@ -337,19 +345,21 @@ void apply_json_logger() {
 static logger_t::fields_t get_fields(nlohmann::json& json) {
   logger_t::fields_t fields;
   for (auto& f : json) {
-    if (f.type() == nlohmann::json::value_t::number_unsigned)
+    if (f.type() == nlohmann::json::value_t::number_unsigned) {
       fields.emplace_back(logger_t::field_t(f.get<uint64_t>()));
-    else if (f.type() == nlohmann::json::value_t::string)
+    } else if (f.type() == nlohmann::json::value_t::string) {
       fields.emplace_back(logger_t::field_t(f.get<std::string>()));
-    else
+    } else {
       throw Error("unsupported JSON type %d", (int)f.type());
+}
   }
   return fields;
 }
 
 std::optional<nlohmann::json> parse_json_message(const std::string& msg, std::string_view source) {
-  if (!has_prefix(msg, "@nix "))
+  if (!has_prefix(msg, "@nix ")) {
     return std::nullopt;
+}
   try {
     return nlohmann::json::parse(std::string(msg, 5));
   } catch (std::exception& e) {
@@ -366,19 +376,21 @@ bool handle_json_log_message(nlohmann::json& json, const activity_t& act,
 
     if (action == "start") {
       auto type = (activity_type_t)json["type"];
-      if (trusted || type == act_file_transfer)
+      if (trusted || type == act_file_transfer) {
         activities.emplace(std::piecewise_construct, std::forward_as_tuple(json["id"]),
                            std::forward_as_tuple(*logger, (verbosity_t)json["level"], type,
                                                  json["text"], get_fields(json["fields"]), act.id));
+}
     }
 
-    else if (action == "stop")
+    else if (action == "stop") {
       activities.erase((activity_id_t)json["id"]);
 
-    else if (action == "result") {
+    } else if (action == "result") {
       auto i = activities.find((activity_id_t)json["id"]);
-      if (i != activities.end())
+      if (i != activities.end()) {
         i->second.result((result_type_t)json["type"], get_fields(json["fields"]));
+}
     }
 
     else if (action == "setPhase") {
@@ -402,8 +414,9 @@ bool handle_json_log_message(const std::string& msg, const activity_t& act,
                           std::map<activity_id_t, activity_t>& activities, std::string_view source,
                           bool trusted) {
   auto json = parse_json_message(msg, source);
-  if (!json)
+  if (!json) {
     return false;
+}
 
   return handle_json_log_message(*json, act, activities, source, trusted);
 }
