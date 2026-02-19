@@ -41,10 +41,12 @@ enum class operation_type : std::uint8_t {
   linkat,
   readlink,
   // socket operations
+  socket, // create a socket
   connect,
   accept,
   send,
   recv,
+  shutdown, // shutdown socket
   // timing
   timeout,
   cancel,
@@ -246,6 +248,30 @@ struct connect_parameters {
 struct accept_parameters {
   void* address;
   std::uint32_t* address_length;
+  int flags; // SOCK_NONBLOCK, SOCK_CLOEXEC
+};
+
+struct send_parameters {
+  const std::byte* buffer;
+  std::size_t length;
+  int flags; // MSG_DONTWAIT, MSG_NOSIGNAL, etc.
+};
+
+struct recv_parameters {
+  std::byte* buffer;
+  std::size_t length;
+  int flags; // MSG_DONTWAIT, MSG_PEEK, etc.
+};
+
+struct socket_parameters {
+  int domain;   // AF_INET, AF_INET6, AF_UNIX
+  int type;     // SOCK_STREAM, SOCK_DGRAM
+  int protocol; // 0 for default
+  int flags;    // SOCK_NONBLOCK, SOCK_CLOEXEC
+};
+
+struct shutdown_parameters {
+  int how; // SHUT_RD, SHUT_WR, SHUT_RDWR
 };
 
 struct timeout_parameters {
@@ -270,7 +296,8 @@ struct operation {
                write_parameters, statx_parameters, mkdir_parameters, mkdirat_parameters,
                unlink_parameters, unlinkat_parameters, rename_parameters, renameat_parameters,
                symlink_parameters, symlinkat_parameters, link_parameters, linkat_parameters,
-               connect_parameters, accept_parameters, timeout_parameters, cancel_parameters>
+               connect_parameters, accept_parameters, send_parameters, recv_parameters,
+               socket_parameters, shutdown_parameters, timeout_parameters, cancel_parameters>
       parameters;
 
   // ========================================================================
@@ -478,6 +505,94 @@ struct operation {
         .user_data = user_data,
         .parameters =
             linkat_parameters{old_directory_fd, old_path, new_directory_fd, new_path, flags},
+    };
+  }
+
+  // --- Socket operations ---
+
+  /// Create a socket
+  /// @param domain AF_INET, AF_INET6, AF_UNIX
+  /// @param type SOCK_STREAM, SOCK_DGRAM
+  /// @param protocol 0 for default
+  /// @param flags SOCK_NONBLOCK | SOCK_CLOEXEC
+  static auto make_socket(int domain, int type, int protocol = 0, int flags = 0,
+                          std::uint64_t user_data = 0) -> operation {
+    return operation{
+        .resource_handle = handle::invalid(),
+        .type = operation_type::socket,
+        .user_data = user_data,
+        .parameters = socket_parameters{domain, type, protocol, flags},
+    };
+  }
+
+  /// Connect to a remote address
+  /// @param socket_handle Handle to the socket resource
+  /// @param address Pointer to sockaddr structure
+  /// @param address_length Size of the sockaddr structure
+  static auto make_connect(handle socket_handle, const void* address, std::uint32_t address_length,
+                           std::uint64_t user_data = 0) -> operation {
+    return operation{
+        .resource_handle = socket_handle,
+        .type = operation_type::connect,
+        .user_data = user_data,
+        .parameters = connect_parameters{address, address_length},
+    };
+  }
+
+  /// Accept a connection on a listening socket
+  /// @param socket_handle Handle to the listening socket
+  /// @param address Optional buffer to receive client address
+  /// @param address_length Optional pointer to receive address length
+  /// @param flags SOCK_NONBLOCK | SOCK_CLOEXEC for the new socket
+  static auto make_accept(handle socket_handle, void* address = nullptr,
+                          std::uint32_t* address_length = nullptr, int flags = 0,
+                          std::uint64_t user_data = 0) -> operation {
+    return operation{
+        .resource_handle = socket_handle,
+        .type = operation_type::accept,
+        .user_data = user_data,
+        .parameters = accept_parameters{address, address_length, flags},
+    };
+  }
+
+  /// Send data on a connected socket
+  /// @param socket_handle Handle to the socket
+  /// @param buffer Data to send
+  /// @param flags MSG_DONTWAIT, MSG_NOSIGNAL, etc.
+  static auto make_send(handle socket_handle, std::span<const std::byte> buffer, int flags = 0,
+                        std::uint64_t user_data = 0) -> operation {
+    return operation{
+        .resource_handle = socket_handle,
+        .type = operation_type::send,
+        .user_data = user_data,
+        .parameters = send_parameters{buffer.data(), buffer.size(), flags},
+    };
+  }
+
+  /// Receive data from a connected socket
+  /// @param socket_handle Handle to the socket
+  /// @param buffer Buffer to receive data into
+  /// @param flags MSG_DONTWAIT, MSG_PEEK, etc.
+  static auto make_recv(handle socket_handle, std::span<std::byte> buffer, int flags = 0,
+                        std::uint64_t user_data = 0) -> operation {
+    return operation{
+        .resource_handle = socket_handle,
+        .type = operation_type::recv,
+        .user_data = user_data,
+        .parameters = recv_parameters{buffer.data(), buffer.size(), flags},
+    };
+  }
+
+  /// Shutdown a socket
+  /// @param socket_handle Handle to the socket
+  /// @param how SHUT_RD, SHUT_WR, or SHUT_RDWR
+  static auto make_shutdown(handle socket_handle, int how, std::uint64_t user_data = 0)
+      -> operation {
+    return operation{
+        .resource_handle = socket_handle,
+        .type = operation_type::shutdown,
+        .user_data = user_data,
+        .parameters = shutdown_parameters{how},
     };
   }
 

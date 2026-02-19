@@ -6,6 +6,8 @@
 #include <fcntl.h>
 #include <liburing.h>
 #include <linux/stat.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/uio.h>
 #include <unistd.h>
@@ -245,12 +247,57 @@ public:
         break;
       }
 
-      case operation_type::connect:
-      case operation_type::accept:
-      case operation_type::send:
+      case operation_type::socket: {
+        const auto& parameters = std::get<socket_parameters>(operation_to_enqueue.parameters);
+        // SOCK_NONBLOCK and SOCK_CLOEXEC can be ORed into type
+        int type_with_flags = parameters.type | parameters.flags;
+        io_uring_prep_socket(sqe, parameters.domain, type_with_flags, parameters.protocol, 0);
+        break;
+      }
+
+      case operation_type::connect: {
+        const auto& parameters = std::get<connect_parameters>(operation_to_enqueue.parameters);
+        int file_descriptor = get_file_descriptor(operation_to_enqueue.resource_handle);
+        io_uring_prep_connect(sqe, file_descriptor,
+                              static_cast<const struct sockaddr*>(parameters.address),
+                              parameters.address_length);
+        break;
+      }
+
+      case operation_type::accept: {
+        const auto& parameters = std::get<accept_parameters>(operation_to_enqueue.parameters);
+        int file_descriptor = get_file_descriptor(operation_to_enqueue.resource_handle);
+        // Use accept with flags for SOCK_NONBLOCK/SOCK_CLOEXEC on the new socket
+        io_uring_prep_accept(sqe, file_descriptor,
+                             static_cast<struct sockaddr*>(parameters.address),
+                             parameters.address_length, parameters.flags);
+        break;
+      }
+
+      case operation_type::send: {
+        const auto& parameters = std::get<send_parameters>(operation_to_enqueue.parameters);
+        int file_descriptor = get_file_descriptor(operation_to_enqueue.resource_handle);
+        io_uring_prep_send(sqe, file_descriptor, parameters.buffer, parameters.length,
+                           parameters.flags);
+        break;
+      }
+
       case operation_type::recv: {
-        // TODO: implement socket operations
-        throw std::runtime_error("socket operations not yet implemented");
+        const auto& parameters = std::get<recv_parameters>(operation_to_enqueue.parameters);
+        int file_descriptor = get_file_descriptor(operation_to_enqueue.resource_handle);
+        io_uring_prep_recv(sqe, file_descriptor, parameters.buffer, parameters.length,
+                           parameters.flags);
+        // track buffer for data span in completion
+        inflight_operations_[inflight_index].read_buffer = parameters.buffer;
+        inflight_operations_[inflight_index].read_length = parameters.length;
+        break;
+      }
+
+      case operation_type::shutdown: {
+        const auto& parameters = std::get<shutdown_parameters>(operation_to_enqueue.parameters);
+        int file_descriptor = get_file_descriptor(operation_to_enqueue.resource_handle);
+        io_uring_prep_shutdown(sqe, file_descriptor, parameters.how);
+        break;
       }
     }
 
@@ -335,16 +382,29 @@ private:
             .user_data = inflight.user_data,
         };
 
-        // for successful reads, provide the data span
-        if (inflight.type == operation_type::read && cqe->res > 0) {
+        // for successful reads and recv, provide the data span
+        if ((inflight.type == operation_type::read || inflight.type == operation_type::recv) &&
+            cqe->res > 0) {
           completion_event.data =
               std::span<const std::byte>{inflight.read_buffer, static_cast<std::size_t>(cqe->res)};
         }
 
-        // for successful open/openat, register the new fd
+        // for successful open/openat, register the new fd as a file
         if ((inflight.type == operation_type::open || inflight.type == operation_type::openat) &&
             cqe->res >= 0) {
           handle new_handle = register_file_descriptor(cqe->res, resource_type::file);
+          completion_event.resource_handle = new_handle;
+        }
+
+        // for successful socket creation, register the new fd as a socket
+        if (inflight.type == operation_type::socket && cqe->res >= 0) {
+          handle new_handle = register_file_descriptor(cqe->res, resource_type::socket);
+          completion_event.resource_handle = new_handle;
+        }
+
+        // for successful accept, register the new fd as a socket
+        if (inflight.type == operation_type::accept && cqe->res >= 0) {
+          handle new_handle = register_file_descriptor(cqe->res, resource_type::socket);
           completion_event.resource_handle = new_handle;
         }
 
