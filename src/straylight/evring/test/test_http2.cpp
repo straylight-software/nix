@@ -165,12 +165,12 @@ void test_http2_error_strings() {
 // ============================================================================
 
 void test_http2_get_request() {
-  std::printf("test_http2_get_request: performing HTTP/2 GET to nghttp2.org...\n");
+  std::printf("test_http2_get_request: performing HTTP/2 GET to www.google.com...\n");
 
   auto ring = evring::make_io_uring_ring(32);
 
   // TCP connect
-  evring::handle socket = tcp_connect(*ring, "nghttp2.org", "443");
+  evring::handle socket = tcp_connect(*ring, "www.google.com", "443");
   if (!socket.valid()) {
     std::printf("test_http2_get_request: SKIPPED (network unavailable)\n\n");
     return;
@@ -182,7 +182,7 @@ void test_http2_get_request() {
   bool alpn_ok = tls_config.set_alpn("h2");
   assert(alpn_ok);
 
-  evring::tls_handshake_machine tls_hs{socket, *ring, tls_config, "nghttp2.org"};
+  evring::tls_handshake_machine tls_hs{socket, *ring, tls_config, "www.google.com"};
   auto tls_state = evring::run(tls_hs, *ring);
 
   if (!tls_state.ok()) {
@@ -230,7 +230,7 @@ void test_http2_get_request() {
   evring::http2_request req;
   req.method = "GET";
   req.scheme = "https";
-  req.authority = "nghttp2.org";
+  req.authority = "www.google.com";
   req.path = "/";
   req.headers.push_back({"user-agent", "evring-test/1.0"});
   req.headers.push_back({"accept", "*/*"});

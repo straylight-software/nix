@@ -352,15 +352,73 @@ TEST_CASE("adversarial: attrset edge cases", "[adversarial][attrset]") {
     REQUIRE(get_bool_value(result.value) == false);
   }
 
-  SECTION("attrset update") {
-    auto result = expect_success("{ a = 1; } // { b = 2; }");
-    REQUIRE(is_attrset(result.value));
+  SECTION("attrset update merge") {
+    // Both attributes should be present
+    auto result = expect_success("let r = { a = 1; } // { b = 2; }; in r.a + r.b");
+    REQUIRE(is_int(result.value));
+    REQUIRE(get_int_value(result.value) == 3);
   }
 
   SECTION("attrset update override") {
     auto result = expect_success("({ a = 1; } // { a = 2; }).a");
     REQUIRE(is_int(result.value));
-    // Should be 2 (right side wins)
+    REQUIRE(get_int_value(result.value) == 2); // right side wins
+  }
+
+  SECTION("attrset update with empty left") {
+    auto result = expect_success("({} // { a = 1; }).a");
+    REQUIRE(get_int_value(result.value) == 1);
+  }
+
+  SECTION("attrset update with empty right") {
+    auto result = expect_success("({ a = 1; } // {}).a");
+    REQUIRE(get_int_value(result.value) == 1);
+  }
+
+  SECTION("deep equality - lists") {
+    auto result = expect_success("[1 2 3] == [1 2 3]");
+    REQUIRE(is_bool(result.value));
+    REQUIRE(get_bool_value(result.value) == true);
+  }
+
+  SECTION("deep equality - lists different") {
+    auto result = expect_success("[1 2 3] == [1 2 4]");
+    REQUIRE(get_bool_value(result.value) == false);
+  }
+
+  SECTION("deep equality - lists different length") {
+    auto result = expect_success("[1 2] == [1 2 3]");
+    REQUIRE(get_bool_value(result.value) == false);
+  }
+
+  SECTION("deep equality - nested lists") {
+    auto result = expect_success("[[1] [2]] == [[1] [2]]");
+    REQUIRE(get_bool_value(result.value) == true);
+  }
+
+  SECTION("deep equality - attrsets") {
+    auto result = expect_success("{ a = 1; b = 2; } == { a = 1; b = 2; }");
+    REQUIRE(get_bool_value(result.value) == true);
+  }
+
+  SECTION("deep equality - attrsets different value") {
+    auto result = expect_success("{ a = 1; } == { a = 2; }");
+    REQUIRE(get_bool_value(result.value) == false);
+  }
+
+  SECTION("deep equality - attrsets different keys") {
+    auto result = expect_success("{ a = 1; } == { b = 1; }");
+    REQUIRE(get_bool_value(result.value) == false);
+  }
+
+  SECTION("deep equality - empty") {
+    auto result = expect_success("{} == {}");
+    REQUIRE(get_bool_value(result.value) == true);
+  }
+
+  SECTION("deep equality - empty lists") {
+    auto result = expect_success("[] == []");
+    REQUIRE(get_bool_value(result.value) == true);
   }
 
   SECTION("recursive attrset self-reference") {

@@ -60,5 +60,7 @@
 #include "straylight/evring/event.h"
 #include "straylight/evring/generators.h"
 #include "straylight/evring/handle.h"
+#include "straylight/evring/http1.h"
+#include "straylight/evring/http3.h"
 #include "straylight/evring/machine.h"
 #include "straylight/evring/ring.h"

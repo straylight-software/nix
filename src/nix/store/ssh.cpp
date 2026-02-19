@@ -9,7 +9,8 @@
 
 namespace nix {
 
-static std::string parse_public_host_key(std::string_view host, std::string_view ssh_public_host_key) {
+static std::string parse_public_host_key(std::string_view host,
+                                         std::string_view ssh_public_host_key) {
   try {
     return base64::decode(ssh_public_host_key);
   } catch (Error& e) {
@@ -31,15 +32,16 @@ public:
  * https://github.com/openssh/openssh-portable/blob/6ebd472c391a73574abe02771712d407c48e130d/ssh.c#L648-L681
  */
 static void check_valid_authority(const parsed_url_t::authority_t& authority) {
-  if (const auto& user = authority.user) {
+  if (const auto& user = authority.user()) {
     if (user->empty())
       throw invalid_ssh_authority_t(authority, "user name must not be empty");
     if (user->starts_with("-"))
-      throw invalid_ssh_authority_t(authority, fmt("user name '%s' must not start with '-'", *user));
+      throw invalid_ssh_authority_t(authority,
+                                    fmt("user name '%s' must not start with '-'", *user));
   }
 
   {
-    std::string_view host = authority.host;
+    std::string_view host = authority.host();
     if (host.empty())
       throw invalid_ssh_authority_t(authority, "host name must not be empty");
     if (host.starts_with("-"))
@@ -64,14 +66,14 @@ SSHMaster::SSHMaster(const parsed_url_t::authority_t& authority, std::string_vie
     : authority(authority),
       hostname_and_user([authority]() {
         std::ostringstream oss;
-        if (authority.user)
-          oss << *authority.user << "@";
-        oss << authority.host;
+        if (authority.user())
+          oss << *authority.user() << "@";
+        oss << authority.host();
         return std::move(oss).str();
       }()),
       fakeSSH(authority.to_string() == "localhost"),
       keyFile(keyFile),
-      ssh_public_host_key(parse_public_host_key(authority.host, ssh_public_host_key)),
+      ssh_public_host_key(parse_public_host_key(authority.host(), ssh_public_host_key)),
       useMaster(useMaster && !fakeSSH),
       compress(compress),
       logFD(logFD),
@@ -87,14 +89,14 @@ void SSHMaster::addCommonSSHOpts(strings_t& args) {
     args.insert(args.end(), {"-i", keyFile});
   if (!ssh_public_host_key.empty()) {
     std::filesystem::path file_name = tmp_dir->path() / "host-key";
-    write_file(file_name.string(), authority.host + " " + ssh_public_host_key + "\n");
+    write_file(file_name.string(), authority.host() + " " + ssh_public_host_key + "\n");
     args.insert(args.end(), {"-oUserKnownHostsFile=" + file_name.string()});
   }
   if (compress)
     args.push_back("-C");
 
-  if (authority.port)
-    args.push_back(fmt("-p%d", *authority.port));
+  if (authority.port())
+    args.push_back(fmt("-p%d", *authority.port()));
 
   // We use this to make ssh signal back to us that the connection is established.
   // It really does run locally; see createSSHEnv which sets up SHELL to make
@@ -108,7 +110,8 @@ bool SSHMaster::isMasterRunning() {
   strings_t args = {"-O", "check", hostname_and_user};
   addCommonSSHOpts(args);
 
-  auto res = run_program(run_options_t{.program = "ssh", .args = args, .merge_stderr_to_stdout = true});
+  auto res =
+      run_program(run_options_t{.program = "ssh", .args = args, .merge_stderr_to_stdout = true});
   return res.first == 0;
 }
 
@@ -204,7 +207,7 @@ std::unique_ptr<SSHMaster::Connection> SSHMaster::startCommand(strings_t&& comma
 
     if (reply != "started") {
       printTalkative("SSH stdout first line: %s", reply);
-      throw Error("failed to start SSH connection to '%s'", authority.host);
+      throw Error("failed to start SSH connection to '%s'", authority.host());
     }
   }
 
@@ -270,7 +273,7 @@ Path SSHMaster::startMaster() {
 
   if (reply != "started") {
     printTalkative("SSH master stdout first line: %s", reply);
-    throw Error("failed to start SSH master connection to '%s'", authority.host);
+    throw Error("failed to start SSH master connection to '%s'", authority.host());
   }
 
   return state->socket_path;

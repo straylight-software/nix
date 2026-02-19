@@ -256,13 +256,15 @@ Goal::Co DerivationBuildingGoal::tryToBuild() {
     if (hook)
       msg += fmt(" on '%s'", hook->machine_name);
 #endif
-    act = std::make_unique<activity_t>(*logger, lvl_info, act_build, msg,
-                                       logger_t::fields_t{worker.store.printStorePath(drv_path),
+    act = std::make_unique<activity_t>(
+        *logger, lvl_info, act_build, msg,
+        logger_t::fields_t{logger_t::field_t{worker.store.printStorePath(drv_path)},
 #ifndef _WIN32 // TODO enable build hook on Windows
-                                                          hook ? hook->machine_name :
+                           logger_t::field_t{hook ? hook->machine_name : ""},
+#else
+                           logger_t::field_t{""},
 #endif
-                                                               "",
-                                                          1, 1});
+                           logger_t::field_t{uint64_t{1}}, logger_t::field_t{uint64_t{1}}});
     mcRunningBuilds = std::make_unique<maintain_count_t<uint64_t>>(worker.runningBuilds);
     worker.updateProgress();
   };
@@ -706,7 +708,7 @@ static void run_post_build_hook(const StoreDirConfig& store, logger_t& logger,
 
   activity_t act(logger, lvl_talkative, act_post_build_hook,
                  fmt("running post-build-hook '%s'", settings.postBuildHook),
-                 logger_t::fields_t{store.printStorePath(drv_path)});
+                 logger_t::fields_t{logger_t::field_t{store.printStorePath(drv_path)}});
   push_activity_t pact(act.id_);
   string_map_t hook_environment = get_env();
 
@@ -1133,7 +1135,7 @@ Goal::done_t DerivationBuildingGoal::doneSuccess(BuildResult::Success::Status st
       .built_outputs = std::move(built_outputs),
   };
 
-  logger->result(act ? act->id : get_cur_activity(), res_build_result,
+  logger->result(act ? act->id_ : get_cur_activity(), res_build_result,
                  nlohmann::json(KeyedBuildResult(
                      buildResult, DerivedPath::Built{.drv_path = makeConstantStorePathRef(drv_path),
                                                      .outputs = OutputsSpec::All{}})));
@@ -1154,7 +1156,7 @@ Goal::done_t DerivationBuildingGoal::doneFailure(BuildError ex) {
       .errorMsg = fmt("%s", uncolored_t(ex.info().msg)),
   };
 
-  logger->result(act ? act->id : get_cur_activity(), res_build_result,
+  logger->result(act ? act->id_ : get_cur_activity(), res_build_result,
                  nlohmann::json(KeyedBuildResult(
                      buildResult, DerivedPath::Built{.drv_path = makeConstantStorePathRef(drv_path),
                                                      .outputs = OutputsSpec::All{}})));

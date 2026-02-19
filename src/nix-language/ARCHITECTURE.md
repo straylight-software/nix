@@ -584,7 +584,7 @@ cxx_library(
 | **AST Types** | Complete - full expression coverage | 95% |
 | **Tree-Walking Eval** | ~90% - most builtins, import, lazy eval | 85% |
 | **WASM Compiler** | ~90% - core expressions, closures, lazy eval, path merging | 85% |
-| **Runtime** | ~85% - arithmetic, comparison, collections, thunks, closures | 80% |
+| **Runtime** | ~95% - arithmetic, comparison, collections, thunks, closures, deep equality | 90% |
 | **WASM Executor** | Complete - wasmtime integration, full execution pipeline | 90% |
 
 ### Expression Coverage (Compiler)
@@ -625,74 +625,22 @@ cxx_library(
 2. **Search paths**: `<nixpkgs>` requires runtime NIX_PATH lookup
 3. **Flakes**: Not in scope for language-level implementation
 
-### Known Limitations (Runtime)
+### Recently Fixed
 
-1. **`rt_update`**: Returns second attrset (needs proper merge implementation)
-2. **String coercion**: `rt_to_string` only handles strings, not other types
-3. **Deep equality**: Lists and attrsets use reference equality, not structural
+1. **`rt_update` proper merge** ✓
+   - Now correctly merges: `{ a = 1; } // { b = 2; }` → `{ a = 1; b = 2; }`
+   - Right side wins on key conflicts
 
----
+2. **String coercion** ✓
+   - `rt_to_string` handles: strings, integers, floats, paths, null
+   - Booleans correctly throw (Nix doesn't coerce bools to strings)
 
-## Completed Work
+3. **Deep equality** ✓
+   - Lists and attrsets now compare structurally (recursively)
+   - Empty collections handled correctly
 
-### Phase 1: Compiler Completeness ✓
-
-1. **Multi-segment path merging** ✓
-   - `group_bindings_by_first_segment()` and `compile_merged_attrset_value()`
-   - Supports arbitrary nesting: `{ a.b.c = 1; a.b.d = 2; a.e = 3; }`
-
-2. **Thunk generation** ✓
-   - `compile_as_thunk()` wraps expressions in lazy thunks
-   - Thunks forced on identifier access (let bindings, captures)
-
-3. **Error positions** ✓
-   - All error-throwing imports receive source position (line, column)
-
-4. **Attrset pattern defaults** ✓
-   - `{ x, y ? 10 }: body` uses default when attribute missing
-
-5. **Empty attrset handling** ✓
-   - `{}` represented as pointer 0, handled correctly in runtime
-
-6. **Integer overflow** ✓
-   - `INT_MIN / -1` throws runtime error instead of SIGFPE
-
-### Phase 2: Runtime Implementation ✓
-
-All 27 runtime functions implemented in `runtime/runtime.cpp`:
-
-| Category | Functions |
-|----------|-----------|
-| Core | `rt_force`, `rt_apply`, `rt_lookup_var`, `rt_make_closure`, `rt_make_thunk` |
-| Arithmetic | `rt_add`, `rt_sub`, `rt_mul`, `rt_div`, `rt_negate` |
-| Comparison | `rt_less_than`, `rt_less_eq`, `rt_eq`, `rt_neq` |
-| Boolean | `rt_not`, `rt_is_bool` |
-| Collections | `rt_make_list`, `rt_make_attrs`, `rt_make_attrs_dynamic`, `rt_select`, `rt_select_dynamic`, `rt_has_attr`, `rt_has_attr_dynamic`, `rt_update`, `rt_concat` |
-| Strings | `rt_to_string`, `rt_concat_strings` |
-
-### Phase 3: Integration ✓
-
-- `wasm_executor` class using wasmtime
-- All runtime imports bound to wasmtime linker
-- Indirect call support for closures and thunks
-
----
-
-## Remaining Work
-
-### Runtime Improvements (HIGH PRIORITY)
-
-1. **`rt_update` proper merge**
-   - Currently returns second attrset
-   - Should merge: `{ a = 1; } // { b = 2; }` → `{ a = 1; b = 2; }`
-
-2. **String coercion**
-   - `rt_to_string` only handles strings
-   - Should handle: integers, paths, booleans, null
-
-3. **Deep equality**
-   - Lists and attrsets use reference equality
-   - Should compare structurally
+4. **Data segment limit** ✓
+   - Compiler throws `compilation_error` if data segment exceeds 64KB
 
 ### Features Not Implemented
 
@@ -728,7 +676,7 @@ All 27 runtime functions implemented in `runtime/runtime.cpp`:
 | `execution_test.cpp` | 448 | 49 | 328 | Full pipeline with wasmtime |
 | `runtime_test.cpp` | 526 | 14 | 185 | Direct runtime function tests |
 | `property_test.cpp` | 600 | 28 | 2,800* | Property-based tests (RapidCheck) |
-| `adversarial_test.cpp` | 748 | 15 | 148 | Edge cases, boundary conditions |
+| `adversarial_test.cpp` | 800+ | 15 | 173 | Edge cases, boundary conditions |
 | **Total** | **~8,200** | **369** | **~4,700** | |
 
 *Property tests run 100 iterations each

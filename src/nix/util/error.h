@@ -130,7 +130,7 @@ auto show_error_info(std::ostream& out, const error_info_t& einfo, bool show_tra
  * a subclass. Catch Error instead.
  */
 class base_error_t : public std::exception {
-private:
+protected:
   mutable error_info_t err_;
 
   /**

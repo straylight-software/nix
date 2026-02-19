@@ -62,7 +62,7 @@ ref<remote_store::Connection> remote_store::openConnectionWrapper() {
 void remote_store::initConnection(Connection& conn) {
   /* Send the magic greeting, check for the reply. */
   try {
-    conn.from.end_of_file_error = "Nix daemon disconnected unexpectedly (maybe it crashed?)";
+    conn.from.set_end_of_file_error("Nix daemon disconnected unexpectedly (maybe it crashed?)");
 
     string_sink_t saved;
     tee_source_t tee(conn.from, saved);
@@ -81,7 +81,7 @@ void remote_store::initConnection(Connection& conn) {
         null_sink_t nullSink;
         tee.drain_into(nullSink);
       }
-      throw Error("protocol mismatch, got '%s'", chomp(saved.s));
+      throw Error("protocol mismatch, got '%s'", chomp(saved.str()));
     }
 
     static_cast<WorkerProto::ClientHandshakeInfo&>(conn) = conn.postHandshake(*this);
@@ -102,8 +102,9 @@ void remote_store::initConnection(Connection& conn) {
 
 void remote_store::setOptions(Connection& conn) {
   conn.to << WorkerProto::Op::SetOptions << settings.keep_failed << settings.keep_going
-          << settings.try_fallback << verbosity << settings.max_build_jobs
-          << settings.max_silent_time << true << (settings.verbose_build ? lvl_error : lvl_vomit)
+          << settings.try_fallback << static_cast<uint64_t>(verbosity) << settings.max_build_jobs
+          << settings.max_silent_time << true
+          << static_cast<uint64_t>(settings.verbose_build ? lvl_error : lvl_vomit)
           << 0 // obsolete log type
           << 0 /* obsolete print build trace */
           << settings.build_cores << settings.use_substitutes;
@@ -343,7 +344,7 @@ ref<const ValidPathInfo> remote_store::addCAToStore(Source& dump, std::string_vi
                  << print_hash_algo(hash_algo);
 
         try {
-          conn->to.written = 0;
+          conn->to.reset_written();
           connections->incCapacity();
           {
             finally_t cleanup([&]() { connections->decCapacity(); });

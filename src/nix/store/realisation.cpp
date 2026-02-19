@@ -46,7 +46,7 @@ void Realisation::closure(Store& store, const std::set<Realisation>& startOutput
     return res;
   };
 
-  computeClosure<Realisation>(
+  compute_closure<Realisation>(
       startOutputs, res,
       [&](const Realisation& current,
           std::function<void(std::promise<std::set<Realisation>>&)> processEdges) {

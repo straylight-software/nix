@@ -12,6 +12,7 @@
 #include <atomic>
 #include <thread>
 
+#include <fcntl.h>
 #include <sqlite3.h>
 
 namespace nix {
@@ -25,8 +26,8 @@ SQLiteError::SQLiteError(const char* path, const char* errMsg, int err_no, int e
       extendedErrNo(extendedErrNo),
       offset(offset) {
   auto offsetStr = (offset == -1) ? "" : "at offset " + std::to_string(offset) + ": ";
-  err.msg = hint_fmt_t("%s: %s%s, %s (in '%s')", uncolored_t(hf.str()), offsetStr,
-                    sqlite3_errstr(extendedErrNo), errMsg, path ? path : "(in-memory)");
+  err_.msg = hint_fmt_t("%s: %s%s, %s (in '%s')", uncolored_t(hf.str()), offsetStr,
+                        sqlite3_errstr(extendedErrNo), errMsg, path ? path : "(in-memory)");
 }
 
 [[noreturn]] void SQLiteError::throw_(sqlite3* db, hint_fmt_t&& hf) {
@@ -39,9 +40,10 @@ SQLiteError::SQLiteError(const char* path, const char* errMsg, int err_no, int e
 
   if (err == SQLITE_BUSY || err == SQLITE_PROTOCOL) {
     auto exp = SQLiteBusy(path, errMsg, err, exterr, offset, std::move(hf));
-    exp.err.msg = hint_fmt_t(err == SQLITE_PROTOCOL ? "SQLite database '%s' is busy (SQLITE_PROTOCOL)"
-                                                 : "SQLite database '%s' is busy",
-                          path ? path : "(in-memory)");
+    exp.err_.msg =
+        hint_fmt_t(err == SQLITE_PROTOCOL ? "SQLite database '%s' is busy (SQLITE_PROTOCOL)"
+                                          : "SQLite database '%s' is busy",
+                   path ? path : "(in-memory)");
     throw exp;
   } else
     throw SQLiteError(path, errMsg, err, exterr, offset, std::move(hf));
@@ -167,7 +169,8 @@ SQLiteStmt::use_t& SQLiteStmt::use_t::operator()(std::string_view value, bool no
   return *this;
 }
 
-SQLiteStmt::use_t& SQLiteStmt::use_t::operator()(const unsigned char* data, size_t len, bool notNull) {
+SQLiteStmt::use_t& SQLiteStmt::use_t::operator()(const unsigned char* data, size_t len,
+                                                 bool notNull) {
   if (notNull) {
     if (sqlite3_bind_blob(stmt, curArg++, data, len, SQLITE_TRANSIENT) != SQLITE_OK)
       SQLiteError::throw_(stmt.db, "binding argument");

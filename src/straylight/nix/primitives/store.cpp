@@ -11,7 +11,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include "evring/evring.h"
+#include "straylight/evring/evring.h"
 
 namespace straylight::nix::primitives {
 

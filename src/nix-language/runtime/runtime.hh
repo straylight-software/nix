@@ -540,6 +540,48 @@ void rt_init_builtins(runtime_context& ctx);
 [[nodiscard]] auto rt_substring(runtime_context& ctx, nix_value start, nix_value len, nix_value str)
     -> nix_value;
 
+/// Replace strings: replaceStrings from to str
+[[nodiscard]] auto rt_replace_strings(runtime_context& ctx, nix_value from, nix_value to,
+                                      nix_value str) -> nix_value;
+
+/// Convert to string: toString val
+[[nodiscard]] auto rt_to_string(runtime_context& ctx, nix_value v) -> nix_value;
+
+/// Concatenate strings: concatStrings list
+[[nodiscard]] auto rt_concat_strings(runtime_context& ctx, nix_value list) -> nix_value;
+
+// --- List Builtins (additional) ---
+
+/// Check if all elements satisfy predicate: all pred list
+[[nodiscard]] auto rt_all(runtime_context& ctx, nix_value pred, nix_value list) -> nix_value;
+
+/// Check if any element satisfies predicate: any pred list
+[[nodiscard]] auto rt_any(runtime_context& ctx, nix_value pred, nix_value list) -> nix_value;
+
+/// Map then concat: concatMap f list
+[[nodiscard]] auto rt_concat_map(runtime_context& ctx, nix_value f, nix_value list) -> nix_value;
+
+/// Convert list of {name, value} to attrset: listToAttrs list
+[[nodiscard]] auto rt_list_to_attrs(runtime_context& ctx, nix_value list) -> nix_value;
+
+// --- Arithmetic Builtins (as functions) ---
+
+/// Add: add a b
+[[nodiscard]] auto rt_builtin_add(runtime_context& ctx, nix_value a, nix_value b) -> nix_value;
+
+/// Subtract: sub a b
+[[nodiscard]] auto rt_builtin_sub(runtime_context& ctx, nix_value a, nix_value b) -> nix_value;
+
+/// Multiply: mul a b
+[[nodiscard]] auto rt_builtin_mul(runtime_context& ctx, nix_value a, nix_value b) -> nix_value;
+
+/// Divide: div a b
+[[nodiscard]] auto rt_builtin_div(runtime_context& ctx, nix_value a, nix_value b) -> nix_value;
+
+/// Less than comparison: lessThan a b
+[[nodiscard]] auto rt_builtin_less_than(runtime_context& ctx, nix_value a, nix_value b)
+    -> nix_value;
+
 // --- Attrset Builtins ---
 
 /// Check if attrset has attribute: hasAttr name set

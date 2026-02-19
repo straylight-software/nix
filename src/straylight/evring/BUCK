@@ -18,7 +18,9 @@ cxx_library(
 
     srcs = [
         "bulk.cpp",
+        "http1.cpp",
         "http2.cpp",
+        "http3.cpp",
         "io_uring_ring.cpp",
         "tls.cpp",
     ],
@@ -29,7 +31,9 @@ cxx_library(
         "evring.h",
         "generators.h",
         "handle.h",
+        "http1.h",
         "http2.h",
+        "http3.h",
         "machine.h",
         "ring.h",
         "tls.h",
@@ -42,6 +46,10 @@ cxx_library(
         "-isystem/nix/store/qqjsw1fzand71ajx326r84zgi485mqb8-liburing-2.11-dev/include",
         "-isystem/nix/store/rng85jny3n20891wv7k64pcpi3qwk0cq-libressl-4.1.0-dev/include",
         "-isystem/nix/store/94iqqnx9wkxzx7mgidv1jgi7k906vh89-nghttp2-1.67.1-dev/include",
+        "-isystem/nix/store/ip47haqn0khibz7ss4nsrrvvkl559aaa-llhttp-9.2.1-dev/include",
+        "-isystem/nix/store/ygwc32xg9dqylv1j3gh6rv2zlrhn4r7h-ngtcp2-1.18.0-dev/include",
+        "-isystem/nix/store/bcqpmsh9w6xdy7yd81nkaij8g3vmd61g-nghttp3-1.13.1-dev/include",
+        "-isystem/nix/store/b97gjl5zygaf6vzxsa1lf7jih8q4xi00-openssl-3.5.1-dev/include",
     ],
 
     exported_linker_flags = [
@@ -56,6 +64,18 @@ cxx_library(
         "-L/nix/store/bhhlhxd7xzvmgyvxhjls4x09xfxfnrwc-nghttp2-1.67.1-lib/lib",
         "-lnghttp2",
         "-Wl,-rpath,/nix/store/bhhlhxd7xzvmgyvxhjls4x09xfxfnrwc-nghttp2-1.67.1-lib/lib",
+        "-L/nix/store/1ax3hcwmv41rc5650glpv46i2g3d9qls-llhttp-9.2.1/lib",
+        "-lllhttp",
+        "-Wl,-rpath,/nix/store/1ax3hcwmv41rc5650glpv46i2g3d9qls-llhttp-9.2.1/lib",
+        "-L/nix/store/m0xx7svz6967pw5knhqff8m0f48w0gj0-ngtcp2-1.18.0/lib",
+        "-lngtcp2",
+        "-lngtcp2_crypto_ossl",
+        "-Wl,-rpath,/nix/store/m0xx7svz6967pw5knhqff8m0f48w0gj0-ngtcp2-1.18.0/lib",
+        "-L/nix/store/qflgvhllyh98p52gh8wjlizfphhzsxb8-nghttp3-1.13.1/lib",
+        "-lnghttp3",
+        "-Wl,-rpath,/nix/store/qflgvhllyh98p52gh8wjlizfphhzsxb8-nghttp3-1.13.1/lib",
+        "-L/nix/store/gxyi3kixwzanc6dn8289dh3sy8jpqc3p-openssl-3.5.1/lib",
+        "-Wl,-rpath,/nix/store/gxyi3kixwzanc6dn8289dh3sy8jpqc3p-openssl-3.5.1/lib",
     ],
 
     visibility = ["PUBLIC"],
@@ -107,6 +127,20 @@ cxx_test(
     deps = [":evring"],
 )
 
+cxx_test(
+    name = "test_http1",
+    srcs = ["test/test_http1.cpp"],
+    compiler_flags = ["-std=c++23"],
+    deps = [":evring"],
+)
+
+cxx_test(
+    name = "test_http3",
+    srcs = ["test/test_http3.cpp"],
+    compiler_flags = ["-std=c++23"],
+    deps = [":evring"],
+)
+
 # ─────────────────────────────────────────────────────────────────────────────
 # CLI Tools
 # ─────────────────────────────────────────────────────────────────────────────
@@ -126,5 +160,58 @@ cxx_binary(
     name = "bench",
     srcs = ["bench/bench_evring.cpp"],
     compiler_flags = ["-std=c++23", "-O3"],
+    deps = [":evring"],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Examples
+# ─────────────────────────────────────────────────────────────────────────────
+
+cxx_binary(
+    name = "example_file_reader",
+    srcs = ["examples/file_reader.cpp"],
+    compiler_flags = ["-std=c++23"],
+    deps = [":evring"],
+)
+
+cxx_binary(
+    name = "example_file_copy",
+    srcs = ["examples/file_copy.cpp"],
+    compiler_flags = ["-std=c++23"],
+    deps = [":evring"],
+)
+
+cxx_binary(
+    name = "example_bulk_stat",
+    srcs = ["examples/bulk_stat.cpp"],
+    compiler_flags = ["-std=c++23", "-O2"],
+    deps = [":evring"],
+)
+
+cxx_binary(
+    name = "example_http_get",
+    srcs = ["examples/http_get.cpp"],
+    compiler_flags = ["-std=c++23"],
+    deps = [":evring"],
+)
+
+cxx_binary(
+    name = "example_echo_server",
+    srcs = ["examples/echo_server.cpp"],
+    compiler_flags = ["-std=c++23"],
+    deps = [":evring"],
+)
+
+cxx_binary(
+    name = "example_file_downloader",
+    srcs = ["examples/file_downloader.cpp"],
+    compiler_flags = ["-std=c++23"],
+    deps = [":evring"],
+)
+
+cxx_binary(
+    name = "example_directory_tree",
+    srcs = ["examples/directory_tree.cpp"],
+    compiler_flags = ["-std=c++23"],
     deps = [":evring"],
 )

@@ -157,6 +157,7 @@ public:
   [[nodiscard]] auto fd() const -> descriptor_t { return fd_; }
   auto set_fd(descriptor_t fd) -> void { fd_ = fd; }
   [[nodiscard]] auto written() const -> size_t { return written_; }
+  auto reset_written() -> void { written_ = 0; }
 
 private:
   descriptor_t fd_;

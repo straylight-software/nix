@@ -48,7 +48,7 @@ struct curl_file_transfer_t : public FileTransfer {
   std::mt19937 mt19937;
 
   struct transfer_item_t : public std::enable_shared_from_this<transfer_item_t>,
-                        public FileTransfer::Item {
+                           public FileTransfer::Item {
     curl_file_transfer_t& file_transfer;
     FileTransferRequest request;
     FileTransferResult result;
@@ -79,7 +79,7 @@ struct curl_file_transfer_t : public FileTransfer {
     std::chrono::steady_clock::time_point start_time = std::chrono::steady_clock::now();
 
     inline static const std::set<long> successful_statuses{200, 201, 204,
-                                                          206, 304, 0 /* other protocol */};
+                                                           206, 304, 0 /* other protocol */};
 
     /* Get the HTTP status code, or 0 for other protocols. */
     long get_http_status() {
@@ -92,7 +92,7 @@ struct curl_file_transfer_t : public FileTransfer {
     }
 
     transfer_item_t(curl_file_transfer_t& file_transfer, const FileTransferRequest& request,
-                 Callback<FileTransferResult>&& callback)
+                    Callback<FileTransferResult>&& callback)
         : file_transfer(file_transfer),
           request(request),
           callback(std::move(callback)),
@@ -225,7 +225,7 @@ struct curl_file_transfer_t : public FileTransfer {
       printMsg(lvl_vomit, "got header for '%s': %s", request.uri, trim(line));
 
       static std::regex status_line("HTTP/[^ ]+ +[0-9]+(.*)",
-                                   std::regex::extended | std::regex::icase);
+                                    std::regex::extended | std::regex::icase);
       if (std::smatch match; std::regex_match(line, match, status_line)) {
         result.etag = "";
         result.data.clear();
@@ -296,7 +296,7 @@ struct curl_file_transfer_t : public FileTransfer {
         _act = std::make_unique<activity_t>(
             *logger, lvl_talkative, act_file_transfer,
             fmt("%s '%s'", request.verb(/*continuous=*/true), request.uri),
-            logger_t::fields_t{request.uri.to_string()}, request.parentAct);
+            logger_t::fields_t{logger_t::field_t{request.uri.to_string()}}, request.parentAct);
         // Reset the start time to when we actually started the download.
         start_time = std::chrono::steady_clock::now();
       }
@@ -316,14 +316,14 @@ struct curl_file_transfer_t : public FileTransfer {
     }
 
     static int progress_callback_wrapper(void* userp, curl_off_t dltotal, curl_off_t dlnow,
-                                       curl_off_t ultotal, curl_off_t ulnow) {
+                                         curl_off_t ultotal, curl_off_t ulnow) {
       auto& item = *static_cast<transfer_item_t*>(userp);
       auto is_upload = bool(item.request.data);
       return item.progress_callback(is_upload ? ultotal : dltotal, is_upload ? ulnow : dlnow);
     }
 
     static int debug_callback(CURL* handle, curl_infotype type, char* data, size_t size,
-                             void* userptr) noexcept try {
+                              void* userptr) noexcept try {
       if (type == CURLINFO_TEXT)
         vomit("curl: %s", chomp(std::string(data, size)));
       return 0;
@@ -343,7 +343,7 @@ struct curl_file_transfer_t : public FileTransfer {
     }
 
     static size_t read_callback_wrapper(char* buffer, size_t size, size_t nitems,
-                                      void* userp) noexcept {
+                                        void* userp) noexcept {
       return ((transfer_item_t*)userp)->read_callback(buffer, size, nitems);
     }
 
@@ -518,11 +518,12 @@ struct curl_file_transfer_t : public FileTransfer {
 
       auto http_status = get_http_status();
 
-      debug("finished %s of '%s'; curl status = %d, HTTP status = %d, body = %d bytes, duration = "
-            "%.2f s",
-            request.noun(), request.uri, code, http_status, result.bodySize,
-            std::chrono::duration_cast<std::chrono::milliseconds>(finish_time - start_time).count() /
-                1000.0f);
+      debug(
+          "finished %s of '%s'; curl status = %d, HTTP status = %d, body = %d bytes, duration = "
+          "%.2f s",
+          request.noun(), request.uri, code, http_status, result.bodySize,
+          std::chrono::duration_cast<std::chrono::milliseconds>(finish_time - start_time).count() /
+              1000.0f);
 
       append_current_url();
 
@@ -612,7 +613,7 @@ struct curl_file_transfer_t : public FileTransfer {
 
         std::optional<std::string> response;
         if (error_sink)
-          response = std::move(error_sink->s);
+          response = std::move(error_sink->str());
         auto exc =
             code == CURLE_ABORTED_BY_CALLBACK && get_interrupted()
                 ? FileTransferError(Interrupted, std::move(response), "%s of '%s' was interrupted",
@@ -665,7 +666,8 @@ struct curl_file_transfer_t : public FileTransfer {
       }
     };
 
-    std::priority_queue<ref<transfer_item_t>, std::vector<ref<transfer_item_t>>, embargo_comparator_t>
+    std::priority_queue<ref<transfer_item_t>, std::vector<ref<transfer_item_t>>,
+                        embargo_comparator_t>
         incoming;
     std::vector<ref<transfer_item_t>> unpause;
 
@@ -833,7 +835,8 @@ struct curl_file_transfer_t : public FileTransfer {
             incoming.push_back(item);
             state->incoming.pop();
           } else {
-            if (next_wakeup == std::chrono::steady_clock::time_point() || item->embargo < next_wakeup)
+            if (next_wakeup == std::chrono::steady_clock::time_point() ||
+                item->embargo < next_wakeup)
               next_wakeup = item->embargo;
             break;
           }
@@ -1127,9 +1130,9 @@ FileTransferError::FileTransferError(FileTransfer::Error error, std::optional<st
   // to print different messages for different verbosity levels. For now
   // we add some heuristics for detecting when we want to show the response.
   if (response && (response->size() < 1024 || response->find("<html>") != std::string::npos))
-    err.msg = hint_fmt_t("%1%\n\nresponse body:\n\n%2%", uncolored_t(hf.str()), chomp(*response));
+    err_.msg = hint_fmt_t("%1%\n\nresponse body:\n\n%2%", uncolored_t(hf.str()), chomp(*response));
   else
-    err.msg = hf;
+    err_.msg = hf;
 }
 
 } // namespace nix

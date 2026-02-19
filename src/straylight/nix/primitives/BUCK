@@ -531,7 +531,7 @@ cxx_library(
 
     deps = [
         ":serialise",
-        "//src/libevring:evring",
+        "//src/straylight/evring:evring",
     ],
 )
 

@@ -232,9 +232,10 @@ Goal::Co PathSubstitutionGoal::tryToRun(StorePath subPath, nix::ref<Store> sub,
       /* Wake up the worker loop when we're done. */
       finally_t updateStats([this]() { outPipe.write_side.close(); });
 
-      activity_t act(*logger, act_substitute,
-                     logger_t::fields_t{worker.store.printStorePath(store_path),
-                                        sub->config.getHumanReadableURI()});
+      logger_t::fields_t fields;
+      fields.push_back(logger_t::field_t(worker.store.printStorePath(store_path)));
+      fields.push_back(logger_t::field_t(sub->config.getHumanReadableURI()));
+      activity_t act(*logger, act_substitute, fields);
       push_activity_t pact(act.id_);
 
       copy_store_path(*sub, worker.store, subPath, repair,

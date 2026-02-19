@@ -341,9 +341,17 @@ evring/
   tls.h               # TLS config, connection, state machines
   tls.cpp             # libtls integration
 
+  # HTTP/1.1 (llhttp)
+  http1.h             # HTTP/1.1 request/response, parser, state machines
+  http1.cpp           # llhttp integration
+
   # HTTP/2 (nghttp2)
   http2.h             # HTTP/2 session, request/response, state machines
   http2.cpp           # nghttp2 integration
+
+  # HTTP/3 (ngtcp2 + nghttp3)
+  http3.h             # HTTP/3 session, request/response, QUIC state machines
+  http3.cpp           # ngtcp2/nghttp3/OpenSSL integration
 
   # Tests and benchmarks
   test/               # Unit tests
@@ -359,10 +367,13 @@ Uses Buck2:
 ```python
 cxx_library(
     name = "evring",
-    srcs = ["bulk.cpp", "io_uring_ring.cpp", "tls.cpp", "http2.cpp"],
+    srcs = ["bulk.cpp", "http1.cpp", "http2.cpp", "http3.cpp", "io_uring_ring.cpp", "tls.cpp"],
     exported_headers = {...},
     compiler_flags = ["-std=c++23"],
-    exported_linker_flags = ["-luring", "-ltls", "-lnghttp2"],
+    exported_linker_flags = [
+        "-luring", "-ltls", "-lnghttp2", "-lllhttp",
+        "-lngtcp2", "-lngtcp2_crypto_ossl", "-lnghttp3"
+    ],
 )
 ```
 
@@ -618,10 +629,332 @@ vector<event> events = {...};  // captured poll completions
 auto replayed = evring::replay(http2_request_machine{...}, events);
 ```
 
+---
+
+# HTTP/1.1 Layer
+
+## Overview
+
+HTTP/1.1 is implemented using **llhttp** (the official HTTP parser extracted from Node.js) for parsing, wrapped as evring state machines. The implementation supports both plain TCP and TLS transport.
+
+## http1.h - HTTP/1.1 State Machines
+
+### Request/Response Types
+
+```cpp
+struct http1_request {
+  http1_method method = http1_method::get;
+  string path = "/";
+  http1_headers headers;
+  vector<byte> body;
+  uint8_t version_major = 1;
+  uint8_t version_minor = 1;
+
+  auto serialize() const -> vector<byte>;  // Wire format
+  auto get_header(string_view name) const -> string_view;
+  void set_header(string name, string value);
+  auto keep_alive() const -> bool;
+};
+
+struct http1_response {
+  uint16_t status_code = 0;
+  string status_message;
+  http1_headers headers;
+  vector<byte> body;
+
+  auto ok() const noexcept -> bool;  // 2xx status
+  auto get_header(string_view name) const -> string_view;
+  auto keep_alive() const -> bool;
+  auto content_length() const -> int64_t;
+};
+```
+
+### Parser
+
+```cpp
+class http1_parser {
+  void reset();
+  auto parse(span<const byte> data) -> int64_t;  // bytes consumed
+  auto headers_complete() const noexcept -> bool;
+  auto message_complete() const noexcept -> bool;
+  auto has_error() const noexcept -> bool;
+  auto error_message() const -> string;
+  auto response() -> http1_response&;
+  auto should_keep_alive() const noexcept -> bool;
+  auto is_upgrade() const noexcept -> bool;
+};
+```
+
+### State Machines
+
+| Machine | Purpose |
+|---------|---------|
+| `http1_client_machine` | HTTP/1.1 client over plain TCP |
+| `http1_tls_client_machine` | HTTP/1.1 client over TLS |
+
+### Example: HTTPS Request
+
+```cpp
+auto ring = evring::make_io_uring_ring(256);
+
+// 1. TLS handshake
+auto tls_config = evring::tls_client_config::create_default();
+tls_config.set_alpn("http/1.1");
+evring::tls_handshake_machine tls_hs{socket, *ring, tls_config, "httpbin.org"};
+auto tls_state = evring::run(tls_hs, *ring);
+auto tls_conn = tls_state.take_context();
+
+// 2. Build HTTP/1.1 request
+evring::http1_request req;
+req.method = evring::http1_method::get;
+req.path = "/get";
+req.headers = {
+  {"Host", "httpbin.org"},
+  {"User-Agent", "evring/1.0"},
+  {"Accept", "application/json"},
+  {"Connection", "close"}
+};
+
+// 3. Send request and receive response
+evring::http1_tls_client_machine client{tls_conn, socket, req};
+auto state = evring::run(client, *ring);
+
+if (state.ok()) {
+  auto& resp = state.response;
+  // resp.status_code, .status_message, .headers, .body
+}
+```
+
+### Features
+
+- **Request serialization**: Automatic Content-Length for requests with bodies
+- **Chunked transfer encoding**: Transparently handled by llhttp
+- **Keep-alive detection**: Via `Connection` header parsing
+- **Method support**: GET, POST, PUT, DELETE, HEAD, PATCH, OPTIONS, CONNECT, TRACE
+
+## Implementation Notes
+
+### Parser Ownership
+
+The `http1_parser` contains mutable state (llhttp instance, accumulated response). Since state machine states must be copyable, the parser is owned by the machine (as a `mutable` member) rather than the state. The state receives a copy of the parsed response upon completion.
+
+### TLS Integration
+
+`http1_tls_client_machine` uses the raw libtls C API (`tls_read`, `tls_write`) and yields `poll_add` operations when TLS needs socket I/O:
+- `TLS_WANT_POLLIN` → yield `poll_add(POLLIN)`
+- `TLS_WANT_POLLOUT` → yield `poll_add(POLLOUT)`
+
+---
+
+# HTTP/3 Layer
+
+## Overview
+
+HTTP/3 is implemented using **ngtcp2** (QUIC transport) and **nghttp3** (HTTP/3 framing), wrapped as evring state machines. Unlike HTTP/1.1 and HTTP/2 which use TCP, HTTP/3 uses UDP with the QUIC protocol for transport.
+
+Key differences from HTTP/2:
+- UDP-based (connectionless at transport layer)
+- Built-in TLS 1.3 (via OpenSSL, not libressl/libtls)
+- QPACK header compression (similar to HPACK but adapted for unordered delivery)
+- Native multiplexing without head-of-line blocking
+
+## http3.h - HTTP/3 State Machines
+
+### Session Management
+
+```cpp
+class http3_session {
+  auto init_client(const char* server_name,
+                   const sockaddr* local_addr, socklen_t local_addrlen,
+                   const sockaddr* remote_addr, socklen_t remote_addrlen,
+                   const http3_settings& = {}) -> bool;
+
+  // Request submission
+  auto submit_request(const http3_request& req) -> int64_t;  // returns stream_id
+
+  // Packet I/O
+  auto write_pkt(span<byte> dest) -> int64_t;           // generate QUIC packet to send
+  auto read_pkt(span<const byte> data) -> int;          // process received QUIC packet
+
+  // Timer management
+  auto handle_expiry() -> int;                           // handle QUIC timer expiry
+  auto get_timeout() const -> uint64_t;                  // next timeout (nanoseconds)
+
+  // State
+  auto handshake_complete() const noexcept -> bool;
+  auto wants_write() const noexcept -> bool;
+  auto is_draining() const noexcept -> bool;
+
+  // Stream tracking
+  auto get_stream_response(int64_t stream_id) -> http3_response*;
+  auto is_stream_closed(int64_t stream_id) const -> bool;
+
+  // Callbacks for streaming
+  using on_headers_callback = function<void(int64_t stream_id, const http3_headers&)>;
+  using on_data_callback = function<void(int64_t stream_id, span<const byte>)>;
+  using on_stream_close_callback = function<void(int64_t stream_id, http3_error_code)>;
+};
+```
+
+### Request/Response Types
+
+```cpp
+struct http3_request {
+  string method = "GET";
+  string scheme = "https";
+  string authority;  // host:port
+  string path = "/";
+  http3_headers headers;
+  vector<byte> body;
+
+  auto all_headers() const -> http3_headers;  // includes pseudo-headers
+};
+
+struct http3_response {
+  int status_code = 0;
+  http3_headers headers;
+  vector<byte> body;
+
+  auto ok() const noexcept -> bool;  // 2xx status
+  auto get_header(string_view name) const -> string_view;  // case-insensitive
+};
+```
+
+### Settings
+
+```cpp
+struct http3_settings {
+  uint64_t max_field_section_size = 16384;
+  uint64_t qpack_max_dtable_capacity = 4096;
+  uint64_t qpack_blocked_streams = 100;
+};
+```
+
+### State Machines
+
+| Machine | Purpose |
+|---------|---------|
+| `http3_client_machine` | QUIC connection establishment + HTTP/3 setup |
+| `http3_request_machine` | Submit request, collect response |
+
+### Example: HTTP/3 Request
+
+```cpp
+auto ring = evring::make_io_uring_ring(256);
+
+// 1. Establish QUIC connection (includes TLS 1.3 handshake)
+evring::http3_client_config config;
+config.server_name = "cloudflare.com";
+config.port = 443;
+
+evring::http3_client_machine client{config};
+auto conn_state = evring::run(client, *ring);
+
+if (conn_state.connected()) {
+  // 2. Send HTTP/3 request
+  evring::http3_request req;
+  req.method = "GET";
+  req.authority = "cloudflare.com";
+  req.path = "/";
+  req.headers = {{"accept", "*/*"}};
+
+  evring::http3_request_machine request{client.session(),
+                                         conn_state.socket_handle, req};
+  auto resp_state = evring::run(request, *ring);
+
+  if (resp_state.ok()) {
+    // resp_state.response.status_code, .headers, .body
+  }
+}
+```
+
+### Error Codes (RFC 9114)
+
+```cpp
+enum class http3_error_code : uint32_t {
+  no_error = 0x0100,
+  general_protocol_error = 0x0101,
+  internal_error = 0x0102,
+  stream_creation_error = 0x0103,
+  closed_critical_stream = 0x0104,
+  frame_unexpected = 0x0105,
+  frame_error = 0x0106,
+  excessive_load = 0x0107,
+  id_error = 0x0108,
+  settings_error = 0x0109,
+  missing_settings = 0x010a,
+  request_rejected = 0x010b,
+  request_cancelled = 0x010c,
+  request_incomplete = 0x010d,
+  message_error = 0x010e,
+  connect_error = 0x010f,
+  version_fallback = 0x0110,
+  // Custom (evring-specific)
+  quic_error = 0x1000,
+  tls_error = 0x1001,
+  connection_closed = 0x1002,
+  timeout = 0x1003,
+};
+```
+
+## Implementation Notes
+
+### Session Ownership
+
+The `http3_session` contains non-copyable resources (ngtcp2/nghttp3 handles, OpenSSL contexts). Since state machine states must be copyable, the session is owned by the machine (as a `mutable` member) rather than the state:
+
+```cpp
+class http3_client_machine {
+  // ...
+private:
+  mutable http3_session session_;
+  mutable std::array<std::byte, http3_max_pktlen> recv_buffer_;
+  mutable std::array<std::byte, http3_max_pktlen> send_buffer_;
+};
+```
+
+### UDP Socket Handling
+
+HTTP/3 uses UDP with connected sockets for simplicity:
+1. Create UDP socket (`SOCK_DGRAM`)
+2. Connect to remote address (enables `send`/`recv` instead of `sendto`/`recvfrom`)
+3. Use standard `make_send`/`make_recv` operations
+
+This matches the existing evring operation types without requiring new UDP-specific operations.
+
+### QUIC Timer Integration
+
+QUIC requires timer management for:
+- Retransmission timeouts
+- Idle timeout
+- Connection migration
+
+The machine yields `make_timeout` operations when ngtcp2 reports an expiry deadline.
+
+### TLS 1.3 via OpenSSL
+
+Unlike the TLS layer (which uses libressl/libtls), HTTP/3 uses OpenSSL for TLS 1.3:
+- ngtcp2 provides `ngtcp2_crypto_ossl_*` APIs for OpenSSL integration
+- ALPN is set to "h3" for HTTP/3 negotiation
+- Certificate verification uses system CA bundle
+
+### Dependencies
+
+```python
+# BUCK linker flags
+"-lngtcp2",
+"-lngtcp2_crypto_ossl",
+"-lnghttp3",
+# OpenSSL (from nix store, separate from libressl)
+```
+
+---
+
 ## Future Work
 
-- HTTP/1.1 support
 - Connection pooling
 - Request body streaming (POST/PUT with data provider)
 - Automatic redirect following
 - Response body decompression (gzip/br)
+- HTTP/3 server support
+- QUIC connection migration

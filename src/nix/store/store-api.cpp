@@ -99,12 +99,13 @@ StorePath Store::add_to_store(std::string_view name, const source_path_t& path,
     length_source_t lengthSource(source);
     store_path =
         add_to_store_from_dump(lengthSource, name, fsm, method, hash_algo, references, repair);
-    if (settings.warnLargePathThreshold && lengthSource.total >= settings.warnLargePathThreshold) {
+    if (settings.warnLargePathThreshold &&
+        lengthSource.total() >= settings.warnLargePathThreshold) {
       static bool failOnLargePath = get_env("_NIX_TEST_FAIL_ON_LARGE_PATH").value_or("") == "1";
       if (failOnLargePath)
         throw Error("doesn't copy large path '%s' to the store (%d)", path,
-                    render_size(lengthSource.total));
-      warn("copied large path '%s' to the store (%d)", path, render_size(lengthSource.total));
+                    render_size(lengthSource.total()));
+      warn("copied large path '%s' to the store (%d)", path, render_size(lengthSource.total()));
     }
   });
   dump_path(path, *sink, fsm, filter);
@@ -846,7 +847,9 @@ void copy_store_path(Store& src_store, Store& dst_store, const StorePath& store_
   auto store_path_s = src_store.printStorePath(store_path);
   activity_t act(*logger, lvl_info, act_copy_path,
                  make_copy_path_message(src_cfg, dst_cfg, store_path_s),
-                 {store_path_s, src_cfg.getHumanReadableURI(), dst_cfg.getHumanReadableURI()});
+                 logger_t::fields_t{logger_t::field_t{store_path_s},
+                                    logger_t::field_t{src_cfg.getHumanReadableURI()},
+                                    logger_t::field_t{dst_cfg.getHumanReadableURI()}});
   push_activity_t pact(act.id_);
 
   auto info = src_store.queryPathInfo(store_path);
@@ -991,7 +994,9 @@ std::map<StorePath, StorePath> copy_paths(Store& src_store, Store& dst_store,
       auto store_path_s = src_store.printStorePath(missingPath);
       activity_t act(*logger, lvl_info, act_copy_path,
                      make_copy_path_message(src_cfg, dst_cfg, store_path_s),
-                     {store_path_s, src_cfg.getHumanReadableURI(), dst_cfg.getHumanReadableURI()});
+                     logger_t::fields_t{logger_t::field_t{store_path_s},
+                                        logger_t::field_t{src_cfg.getHumanReadableURI()},
+                                        logger_t::field_t{dst_cfg.getHumanReadableURI()}});
       push_activity_t pact(act.id_);
 
       lambda_sink_t progress_sink([&](std::string_view data) {

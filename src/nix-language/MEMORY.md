@@ -344,17 +344,17 @@ When WASM GC proposal is widely supported, migrate to GC-managed structs:
    - `property_test.cpp` verifies allocation non-overlap
    - `property_test.cpp` verifies structure sizes match formulas
 
+6. **Data segment limit check** ✓
+   - Compiler throws `compilation_error` if data segment exceeds 64KB
+   - Check in `allocate_string()` function
+
 ### Not Yet Implemented
 
-1. **Data segment limit check** in compiler
-   - Compiler's `data_offset_` should check against `DATA_SEGMENT_LIMIT`
-   - Currently no error if data segment exceeds 64KB
-
-2. **Arena-based GC** for REPL use
+1. **Arena-based GC** for REPL use
    - Currently bump allocator never frees
    - For long-running sessions, need arena collection
 
-3. **Memory growth**
+2. **Memory growth**
    - Currently fixed at 1MB
    - Should grow on demand up to configurable limit
 

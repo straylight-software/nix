@@ -2,6 +2,7 @@
 
 #include <vector>
 
+#include <fcntl.h>
 #include <grp.h>
 #include <pwd.h>
 

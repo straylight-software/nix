@@ -14,8 +14,9 @@
 
 #include <sqlite3.h>
 
+#include "straylight/evring/evring.h"
+
 #include "../store.h"
-#include "evring/evring.h"
 
 namespace fs = std::filesystem;
 using namespace straylight::nix::primitives;

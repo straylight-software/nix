@@ -64,7 +64,7 @@ ref<LegacySSHStore::Connection> LegacySSHStore::open_connection() {
   tee_source_t tee(conn->from, saved);
   try {
     conn->remoteVersion = ServeProto::BasicClientConnection::handshake(
-        conn->to, tee, SERVE_PROTOCOL_VERSION, config->authority.host);
+        conn->to, tee, SERVE_PROTOCOL_VERSION, config->authority.host());
   } catch (SerialisationError& e) {
     // in.close(): Don't let the remote block on us not writing.
     conn->sshConn->in.close();
@@ -72,10 +72,10 @@ ref<LegacySSHStore::Connection> LegacySSHStore::open_connection() {
       null_sink_t nullSink;
       tee.drain_into(nullSink);
     }
-    throw Error("'nix-store --serve' protocol mismatch from '%s', got '%s'", config->authority.host,
-                chomp(saved.s));
+    throw Error("'nix-store --serve' protocol mismatch from '%s', got '%s'",
+                config->authority.host(), chomp(saved.str()));
   } catch (EndOfFile& e) {
-    throw Error("cannot connect to '%1%'", config->authority.host);
+    throw Error("cannot connect to '%1%'", config->authority.host());
   }
 
   return conn;
@@ -96,7 +96,7 @@ std::map<StorePath, UnkeyedValidPathInfo>
 LegacySSHStore::queryPathInfosUncached(const StorePathSet& paths) {
   auto conn(connections->get());
 
-  debug("querying remote host '%s' for info on '%s'", config->authority.host,
+  debug("querying remote host '%s' for info on '%s'", config->authority.host(),
         concat_strings_sep(", ", printStorePathSet(paths)));
 
   auto infos = conn->queryPathInfos(*this, paths);
@@ -132,8 +132,9 @@ void LegacySSHStore::query_path_info_uncached(
 }
 
 void LegacySSHStore::add_to_store(const ValidPathInfo& info, Source& source, RepairFlag repair,
-                                CheckSigsFlag check_sigs) {
-  debug("adding path '%s' to remote host '%s'", printStorePath(info.path), config->authority.host);
+                                  CheckSigsFlag check_sigs) {
+  debug("adding path '%s' to remote host '%s'", printStorePath(info.path),
+        config->authority.host());
 
   auto conn(connections->get());
 
@@ -153,7 +154,7 @@ void LegacySSHStore::add_to_store(const ValidPathInfo& info, Source& source, Rep
 
   if (read_int(conn->from) != 1)
     throw Error("failed to add path '%s' to remote host '%s'", printStorePath(info.path),
-                config->authority.host);
+                config->authority.host());
 }
 
 void LegacySSHStore::nar_from_path(const StorePath& path, Sink& sink) {
@@ -196,7 +197,7 @@ LegacySSHStore::buildDerivationAsync(const StorePath& drv_path, const BasicDeriv
 }
 
 void LegacySSHStore::build_paths(const std::vector<DerivedPath>& drv_paths, BuildMode build_mode,
-                                std::shared_ptr<Store> eval_store) {
+                                 std::shared_ptr<Store> eval_store) {
   if (eval_store && eval_store.get() != this)
     throw Error("building on an SSH store is incompatible with '--eval-store'");
 
@@ -289,8 +290,8 @@ pid_t LegacySSHStore::getConnectionPid() {
 LegacySSHStore::ConnectionStats LegacySSHStore::getConnectionStats() {
   auto conn(connections->get());
   return {
-      .bytesReceived = conn->from.read,
-      .bytesSent = conn->to.written,
+      .bytesReceived = conn->from.bytes_read(),
+      .bytesSent = conn->to.written(),
   };
 }
 

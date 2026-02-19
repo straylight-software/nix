@@ -1156,6 +1156,355 @@ auto rt_substring(runtime_context& ctx, nix_value start, nix_value len, nix_valu
   return make_value(value_tag::string, ptr);
 }
 
+auto rt_replace_strings(runtime_context& ctx, nix_value from, nix_value to, nix_value str)
+    -> nix_value {
+  from = rt_force(ctx, from);
+  to = rt_force(ctx, to);
+  str = rt_force(ctx, str);
+
+  if (!is_list(from)) {
+    throw type_error("builtins.replaceStrings: 'from' must be list, got '" +
+                     std::string(type_name(from)) + "'");
+  }
+  if (!is_list(to)) {
+    throw type_error("builtins.replaceStrings: 'to' must be list, got '" +
+                     std::string(type_name(to)) + "'");
+  }
+  if (!is_string(str)) {
+    throw type_error("builtins.replaceStrings: expected string, got '" +
+                     std::string(type_name(str)) + "'");
+  }
+
+  // Collect from/to pairs
+  std::vector<std::string> from_strs;
+  std::vector<std::string> to_strs;
+
+  auto from_ptr = get_payload(from);
+  auto to_ptr = get_payload(to);
+
+  std::uint32_t from_count = 0;
+  std::uint32_t to_count = 0;
+
+  if (from_ptr != 0) {
+    from_count = ctx.read_u32(from_ptr + mem::LIST_COUNT_OFFSET);
+  }
+  if (to_ptr != 0) {
+    to_count = ctx.read_u32(to_ptr + mem::LIST_COUNT_OFFSET);
+  }
+
+  if (from_count != to_count) {
+    throw runtime_error("builtins.replaceStrings: 'from' and 'to' lists must have same length");
+  }
+
+  for (std::uint32_t i = 0; i < from_count; ++i) {
+    auto f = ctx.read_value(from_ptr + mem::LIST_ELEMENTS_OFFSET + i * mem::VALUE_SIZE);
+    auto t = ctx.read_value(to_ptr + mem::LIST_ELEMENTS_OFFSET + i * mem::VALUE_SIZE);
+    f = rt_force(ctx, f);
+    t = rt_force(ctx, t);
+    if (!is_string(f) || !is_string(t)) {
+      throw type_error("builtins.replaceStrings: all elements must be strings");
+    }
+    from_strs.push_back(std::string(ctx.read_string(get_payload(f))));
+    to_strs.push_back(std::string(ctx.read_string(get_payload(t))));
+  }
+
+  auto input = std::string(ctx.read_string(get_payload(str)));
+
+  // Perform replacements - scan through string, find matches, replace
+  std::string result;
+  std::size_t pos = 0;
+
+  while (pos < input.size()) {
+    bool matched = false;
+    for (std::size_t i = 0; i < from_strs.size(); ++i) {
+      const auto& f = from_strs[i];
+      if (f.empty()) {
+        // Empty string matches at every position - insert replacement and advance by 1
+        result += to_strs[i];
+        if (pos < input.size()) {
+          result += input[pos];
+          ++pos;
+        }
+        matched = true;
+        break;
+      }
+      if (input.compare(pos, f.size(), f) == 0) {
+        result += to_strs[i];
+        pos += f.size();
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) {
+      result += input[pos];
+      ++pos;
+    }
+  }
+
+  // Handle trailing empty string match
+  for (std::size_t i = 0; i < from_strs.size(); ++i) {
+    if (from_strs[i].empty() && pos == input.size()) {
+      result += to_strs[i];
+      break;
+    }
+  }
+
+  auto result_ptr = allocate_string(ctx, result);
+  return make_value(value_tag::string, result_ptr);
+}
+
+auto rt_to_string(runtime_context& ctx, nix_value v) -> nix_value {
+  v = rt_force(ctx, v);
+
+  std::string result;
+  if (is_string(v)) {
+    return v; // Already a string
+  } else if (is_int(v)) {
+    result = std::to_string(static_cast<std::int32_t>(get_payload(v)));
+  } else if (is_bool(v)) {
+    result = (v == constants::bool_true) ? "1" : "";
+  } else if (is_null(v)) {
+    result = "";
+  } else if (is_path(v)) {
+    result = ctx.read_string(get_payload(v));
+  } else if (is_list(v)) {
+    // Concatenate string elements
+    auto list_ptr = get_payload(v);
+    if (list_ptr != 0) {
+      auto count = ctx.read_u32(list_ptr + mem::LIST_COUNT_OFFSET);
+      for (std::uint32_t i = 0; i < count; ++i) {
+        auto elem = ctx.read_value(list_ptr + mem::LIST_ELEMENTS_OFFSET + i * mem::VALUE_SIZE);
+        auto elem_str = rt_to_string(ctx, elem);
+        if (i > 0)
+          result += " ";
+        result += ctx.read_string(get_payload(elem_str));
+      }
+    }
+  } else if (is_attrset(v)) {
+    // Check for __toString or outPath
+    auto attrs_ptr = get_payload(v);
+    auto to_string_val = find_attr(ctx, attrs_ptr, "__toString");
+    if (to_string_val.has_value()) {
+      auto fn = rt_force(ctx, *to_string_val);
+      auto str_val = rt_apply(ctx, fn, v);
+      return rt_to_string(ctx, str_val);
+    }
+    auto out_path = find_attr(ctx, attrs_ptr, "outPath");
+    if (out_path.has_value()) {
+      return rt_to_string(ctx, *out_path);
+    }
+    throw type_error("builtins.toString: cannot coerce set to string");
+  } else {
+    throw type_error("builtins.toString: cannot coerce " + std::string(type_name(v)) +
+                     " to string");
+  }
+
+  auto ptr = allocate_string(ctx, result);
+  return make_value(value_tag::string, ptr);
+}
+
+auto rt_concat_strings(runtime_context& ctx, nix_value list) -> nix_value {
+  list = rt_force(ctx, list);
+
+  if (!is_list(list)) {
+    throw type_error("builtins.concatStringsSep: expected list, got '" +
+                     std::string(type_name(list)) + "'");
+  }
+
+  auto list_ptr = get_payload(list);
+  if (list_ptr == 0) {
+    auto ptr = allocate_string(ctx, "");
+    return make_value(value_tag::string, ptr);
+  }
+
+  auto count = ctx.read_u32(list_ptr + mem::LIST_COUNT_OFFSET);
+  std::string result;
+
+  for (std::uint32_t i = 0; i < count; ++i) {
+    auto elem = ctx.read_value(list_ptr + mem::LIST_ELEMENTS_OFFSET + i * mem::VALUE_SIZE);
+    elem = rt_force(ctx, elem);
+    if (!is_string(elem)) {
+      throw type_error("builtins.concatStrings: all elements must be strings");
+    }
+    result += ctx.read_string(get_payload(elem));
+  }
+
+  auto ptr = allocate_string(ctx, result);
+  return make_value(value_tag::string, ptr);
+}
+
+// =============================================================================
+// List Builtins (additional)
+// =============================================================================
+
+auto rt_all(runtime_context& ctx, nix_value pred, nix_value list) -> nix_value {
+  list = rt_force(ctx, list);
+
+  if (!is_list(list)) {
+    throw type_error("builtins.all: expected list, got '" + std::string(type_name(list)) + "'");
+  }
+
+  auto list_ptr = get_payload(list);
+  if (list_ptr == 0) {
+    return constants::bool_true; // vacuously true
+  }
+
+  auto count = ctx.read_u32(list_ptr + mem::LIST_COUNT_OFFSET);
+  for (std::uint32_t i = 0; i < count; ++i) {
+    auto elem = ctx.read_value(list_ptr + mem::LIST_ELEMENTS_OFFSET + i * mem::VALUE_SIZE);
+    auto result = rt_apply(ctx, pred, elem);
+    result = rt_force(ctx, result);
+    if (!is_bool(result)) {
+      throw type_error("builtins.all: predicate must return bool");
+    }
+    if (result == constants::bool_false) {
+      return constants::bool_false;
+    }
+  }
+
+  return constants::bool_true;
+}
+
+auto rt_any(runtime_context& ctx, nix_value pred, nix_value list) -> nix_value {
+  list = rt_force(ctx, list);
+
+  if (!is_list(list)) {
+    throw type_error("builtins.any: expected list, got '" + std::string(type_name(list)) + "'");
+  }
+
+  auto list_ptr = get_payload(list);
+  if (list_ptr == 0) {
+    return constants::bool_false; // vacuously false
+  }
+
+  auto count = ctx.read_u32(list_ptr + mem::LIST_COUNT_OFFSET);
+  for (std::uint32_t i = 0; i < count; ++i) {
+    auto elem = ctx.read_value(list_ptr + mem::LIST_ELEMENTS_OFFSET + i * mem::VALUE_SIZE);
+    auto result = rt_apply(ctx, pred, elem);
+    result = rt_force(ctx, result);
+    if (!is_bool(result)) {
+      throw type_error("builtins.any: predicate must return bool");
+    }
+    if (result == constants::bool_true) {
+      return constants::bool_true;
+    }
+  }
+
+  return constants::bool_false;
+}
+
+auto rt_concat_map(runtime_context& ctx, nix_value f, nix_value list) -> nix_value {
+  // concatMap f list = concatLists (map f list)
+  auto mapped = rt_map(ctx, f, list);
+  return rt_concat_lists(ctx, mapped);
+}
+
+auto rt_list_to_attrs(runtime_context& ctx, nix_value list) -> nix_value {
+  list = rt_force(ctx, list);
+
+  if (!is_list(list)) {
+    throw type_error("builtins.listToAttrs: expected list, got '" + std::string(type_name(list)) +
+                     "'");
+  }
+
+  auto list_ptr = get_payload(list);
+  if (list_ptr == 0) {
+    return make_value(value_tag::attribute_set, 0);
+  }
+
+  auto count = ctx.read_u32(list_ptr + mem::LIST_COUNT_OFFSET);
+
+  // Collect {name, value} pairs - later entries override earlier
+  std::vector<std::pair<std::string, nix_value>> entries;
+  std::unordered_set<std::string> seen;
+
+  for (std::uint32_t i = 0; i < count; ++i) {
+    auto elem = ctx.read_value(list_ptr + mem::LIST_ELEMENTS_OFFSET + i * mem::VALUE_SIZE);
+    elem = rt_force(ctx, elem);
+
+    if (!is_attrset(elem)) {
+      throw type_error("builtins.listToAttrs: elements must be attrsets with 'name' and 'value'");
+    }
+
+    auto elem_ptr = get_payload(elem);
+    auto name_val = find_attr(ctx, elem_ptr, "name");
+    auto value_val = find_attr(ctx, elem_ptr, "value");
+
+    if (!name_val.has_value()) {
+      throw attr_error("builtins.listToAttrs: element missing 'name' attribute");
+    }
+    if (!value_val.has_value()) {
+      throw attr_error("builtins.listToAttrs: element missing 'value' attribute");
+    }
+
+    auto name = rt_force(ctx, *name_val);
+    if (!is_string(name)) {
+      throw type_error("builtins.listToAttrs: 'name' must be string");
+    }
+
+    auto key = std::string(ctx.read_string(get_payload(name)));
+
+    // First occurrence wins (Nix semantics)
+    if (seen.find(key) == seen.end()) {
+      seen.insert(key);
+      entries.emplace_back(key, *value_val);
+    }
+  }
+
+  if (entries.empty()) {
+    return make_value(value_tag::attribute_set, 0);
+  }
+
+  // Allocate attrset
+  auto new_count = static_cast<std::uint32_t>(entries.size());
+  auto new_size = mem::attrset_size(new_count);
+  auto new_ptr = ctx.allocate(new_size);
+  ctx.write_i32(new_ptr + mem::ATTRSET_COUNT_OFFSET, static_cast<std::int32_t>(new_count));
+
+  for (std::uint32_t i = 0; i < new_count; ++i) {
+    auto& [key, value] = entries[i];
+    auto key_ptr = allocate_string(ctx, key);
+    auto entry = new_ptr + mem::ATTRSET_ENTRIES_OFFSET + i * mem::ATTRSET_ENTRY_SIZE;
+    ctx.write_i32(entry + mem::ATTRSET_ENTRY_KEY_OFFSET, static_cast<std::int32_t>(key_ptr));
+    ctx.write_value(entry + mem::ATTRSET_ENTRY_VALUE_OFFSET, value);
+  }
+
+  return make_value(value_tag::attribute_set, new_ptr);
+}
+
+// =============================================================================
+// Arithmetic Builtins (as functions)
+// =============================================================================
+
+auto rt_builtin_add(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
+  return rt_add(ctx, a, b);
+}
+
+auto rt_builtin_sub(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
+  return rt_sub(ctx, a, b);
+}
+
+auto rt_builtin_mul(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
+  return rt_mul(ctx, a, b);
+}
+
+auto rt_builtin_div(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
+  return rt_div(ctx, a, b);
+}
+
+auto rt_builtin_less_than(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
+  a = rt_force(ctx, a);
+  b = rt_force(ctx, b);
+
+  if (is_int(a) && is_int(b)) {
+    auto ia = static_cast<std::int32_t>(get_payload(a));
+    auto ib = static_cast<std::int32_t>(get_payload(b));
+    return (ia < ib) ? constants::bool_true : constants::bool_false;
+  }
+
+  throw type_error("builtins.lessThan: expected integers");
+}
+
 // =============================================================================
 // Attrset Builtins (2-arg)
 // =============================================================================

@@ -110,11 +110,11 @@ void test_tls_config() {
 }
 
 // ============================================================================
-// Test: TLS handshake with example.com
+// Test: TLS handshake with cloudflare.com
 // ============================================================================
 
-void test_tls_handshake_example_com() {
-  std::printf("test_tls_handshake_example_com: connecting to example.com:443...\n");
+void test_tls_handshake() {
+  std::printf("test_tls_handshake: connecting to cloudflare.com:443...\n");
   std::fflush(stdout);
 
   auto ring = evring::make_io_uring_ring(32);
@@ -122,9 +122,9 @@ void test_tls_handshake_example_com() {
   std::fflush(stdout);
 
   // TCP connect
-  evring::handle socket = tcp_connect(*ring, "example.com", "443");
+  evring::handle socket = tcp_connect(*ring, "cloudflare.com", "443");
   if (!socket.valid()) {
-    std::printf("test_tls_handshake_example_com: SKIPPED (network unavailable)\n\n");
+    std::printf("test_tls_handshake: SKIPPED (network unavailable)\n\n");
     return;
   }
   std::printf("  TCP connected\n");
@@ -133,47 +133,9 @@ void test_tls_handshake_example_com() {
   auto config = evring::tls_client_config::create_default();
   assert(config.valid());
 
-  // Run TLS handshake with manual stepping for debugging
-  evring::tls_handshake_machine handshake{socket, *ring, config, "example.com"};
-
-  std::printf("  Starting handshake...\n");
-  auto state = handshake.initial();
-
-  // Initial step to start handshake
-  auto result = handshake.step(state, evring::event{});
-  state = std::move(result.state);
-
-  int iterations = 0;
-  const int max_iterations = 100;
-
-  while (!handshake.done(state) && iterations++ < max_iterations) {
-    std::printf("  Iteration %d: phase=%d, ops=%zu\n", iterations,
-                static_cast<int>(state.current_phase), result.operations.size());
-
-    for (const auto& op : result.operations) {
-      ring->enqueue(op);
-    }
-
-    if (ring->pending() == 0) {
-      std::printf("  No pending operations, breaking\n");
-      break;
-    }
-
-    auto events = ring->submit_and_wait(1);
-    std::printf("  Got %zu events, result=%ld\n", events.size(),
-                events.empty() ? -999 : events[0].result);
-
-    if (!events.empty()) {
-      result = handshake.step(state, events[0]);
-      state = std::move(result.state);
-    }
-  }
-
-  if (iterations >= max_iterations) {
-    std::printf("  Exceeded max iterations!\n");
-  }
-
-  auto final_state = std::move(state);
+  // Run TLS handshake
+  evring::tls_handshake_machine handshake{socket, *ring, config, "cloudflare.com"};
+  auto final_state = evring::run(handshake, *ring);
 
   if (!final_state.ok()) {
     std::printf("  TLS handshake failed: %s (error_code=%d)\n", final_state.error_message.c_str(),
@@ -181,7 +143,7 @@ void test_tls_handshake_example_com() {
     std::printf("  Phase: %d\n", static_cast<int>(final_state.current_phase));
     ring->enqueue(evring::operation::make_close(socket));
     ring->submit_and_wait(1);
-    std::printf("test_tls_handshake_example_com: FAILED (handshake error)\n\n");
+    std::printf("test_tls_handshake: FAILED (handshake error)\n\n");
     return;
   }
 
@@ -200,7 +162,7 @@ void test_tls_handshake_example_com() {
   ring->enqueue(evring::operation::make_close(socket));
   ring->submit_and_wait(1);
 
-  std::printf("test_tls_handshake_example_com: PASSED\n\n");
+  std::printf("test_tls_handshake: PASSED\n\n");
 }
 
 // ============================================================================
@@ -263,12 +225,12 @@ void test_tls_alpn_negotiation() {
 // ============================================================================
 
 void test_tls_http_get() {
-  std::printf("test_tls_http_get: performing HTTPS GET to example.com...\n");
+  std::printf("test_tls_http_get: performing HTTPS GET to httpbin.org...\n");
 
   auto ring = evring::make_io_uring_ring(32);
 
   // TCP connect
-  evring::handle socket = tcp_connect(*ring, "example.com", "443");
+  evring::handle socket = tcp_connect(*ring, "httpbin.org", "443");
   if (!socket.valid()) {
     std::printf("test_tls_http_get: SKIPPED (network unavailable)\n\n");
     return;
@@ -277,7 +239,7 @@ void test_tls_http_get() {
 
   // TLS handshake
   auto config = evring::tls_client_config::create_default();
-  evring::tls_handshake_machine handshake{socket, *ring, config, "example.com"};
+  evring::tls_handshake_machine handshake{socket, *ring, config, "httpbin.org"};
   auto hs_state = evring::run(handshake, *ring);
 
   if (!hs_state.ok()) {
@@ -292,7 +254,7 @@ void test_tls_http_get() {
   std::printf("  TLS handshake succeeded\n");
 
   // Send HTTP GET request
-  const char* http_request = "GET / HTTP/1.1\r\nHost: example.com\r\nConnection: close\r\n\r\n";
+  const char* http_request = "GET /get HTTP/1.1\r\nHost: httpbin.org\r\nConnection: close\r\n\r\n";
   std::vector<std::byte> request_data(std::strlen(http_request));
   std::memcpy(request_data.data(), http_request, request_data.size());
 
@@ -350,14 +312,14 @@ void test_tls_replay() {
 
   auto ring = evring::make_io_uring_ring(32);
 
-  evring::handle socket = tcp_connect(*ring, "example.com", "443");
+  evring::handle socket = tcp_connect(*ring, "cloudflare.com", "443");
   if (!socket.valid()) {
     std::printf("test_tls_replay: SKIPPED (network unavailable)\n\n");
     return;
   }
 
   auto config = evring::tls_client_config::create_default();
-  evring::tls_handshake_machine handshake{socket, *ring, config, "example.com"};
+  evring::tls_handshake_machine handshake{socket, *ring, config, "cloudflare.com"};
 
   // Run with tracing
   auto [final_state, trace] = evring::run_traced(handshake, *ring);
@@ -368,7 +330,7 @@ void test_tls_replay() {
     std::printf("  Original handshake: success\n");
 
     // Replay the trace
-    evring::tls_handshake_machine handshake2{socket, *ring, config, "example.com"};
+    evring::tls_handshake_machine handshake2{socket, *ring, config, "cloudflare.com"};
     auto replayed_state = evring::replay(handshake2, trace.events());
 
     // The replayed state should match (at least the phase)
@@ -396,7 +358,7 @@ int main() {
   test_tls_config();
 
   // Network tests (may be skipped if network unavailable)
-  test_tls_handshake_example_com();
+  test_tls_handshake();
   test_tls_alpn_negotiation();
   test_tls_http_get();
   test_tls_replay();

@@ -535,6 +535,6 @@ cxx_binary(
     linker_flags = STORE_BENCH_LINKER_FLAGS,
     deps = [
         "//src/straylight/nix/primitives:store",
-        "//src/libevring:evring",
+        "//src/straylight/evring:evring",
     ],
 )

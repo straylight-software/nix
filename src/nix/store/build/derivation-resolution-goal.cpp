@@ -37,7 +37,8 @@ Goal::Co DerivationResolutionGoal::resolveDerivation() {
   std::map<ref<const SingleDerivedPath>, GoalPtr, value_comparison> inputGoals;
 
   {
-    std::function<void(ref<const SingleDerivedPath>, const DerivedPathMap<string_set_t>::ChildNode&)>
+    std::function<void(ref<const SingleDerivedPath>,
+                       const DerivedPathMap<string_set_t>::ChildNode&)>
         addWaiteeDerivedPath;
 
     addWaiteeDerivedPath = [&](ref<const SingleDerivedPath> input_drv,
@@ -54,14 +55,15 @@ Goal::Co DerivationResolutionGoal::resolveDerivation() {
       }
       for (const auto& [output_name, childNode] : input_node.childMap)
         addWaiteeDerivedPath(
-            make_ref<SingleDerivedPath>(SingleDerivedPath::Built{input_drv, output_name}), childNode);
+            make_ref<SingleDerivedPath>(SingleDerivedPath::Built{input_drv, output_name}),
+            childNode);
     };
 
     for (const auto& [inputDrvPath, input_node] : drv->input_drvs.map) {
       /* Ensure that pure, non-fixed-output derivations don't
          depend on impure derivations. */
-      if (experimental_feature_settings.is_enabled(xp_t::impure_derivations) && !drv->type().is_impure() &&
-          !drv->type().isFixed()) {
+      if (experimental_feature_settings.is_enabled(xp_t::impure_derivations) &&
+          !drv->type().is_impure() && !drv->type().isFixed()) {
         auto input_drv = worker.eval_store.read_derivation(inputDrvPath);
         if (input_drv.type().is_impure())
           throw Error("pure derivation '%s' depends on impure derivation '%s'",
@@ -97,23 +99,23 @@ Goal::Co DerivationResolutionGoal::resolveDerivation() {
 
     auto drv_type = fullDrv.type();
     bool resolveDrv =
-        std::visit(
-            overloaded{[&](const DerivationType::InputAddressed& ia) {
-                         /* must resolve if deferred. */
-                         return ia.deferred;
-                       },
-                       [&](const DerivationType::ContentAddressed& ca) {
-                         return !fullDrv.input_drvs.map.empty() &&
-                                (ca.fixed
-                                     /* Can optionally resolve if fixed, which is good
-                                        for avoiding unnecessary rebuilds. */
-                                     ? experimental_feature_settings.is_enabled(xp_t::ca_derivations)
-                                     /* Must resolve if floating and there are any inputs
-                                        drvs. */
-                                     : true);
-                       },
-                       [&](const DerivationType::Impure&) { return true; }},
-            drv_type.raw)
+        std::visit(overloaded{[&](const DerivationType::InputAddressed& ia) {
+                                /* must resolve if deferred. */
+                                return ia.deferred;
+                              },
+                              [&](const DerivationType::ContentAddressed& ca) {
+                                return !fullDrv.input_drvs.map.empty() &&
+                                       (ca.fixed
+                                            /* Can optionally resolve if fixed, which is good
+                                               for avoiding unnecessary rebuilds. */
+                                            ? experimental_feature_settings.is_enabled(
+                                                  xp_t::ca_derivations)
+                                            /* Must resolve if floating and there are any inputs
+                                               drvs. */
+                                            : true);
+                              },
+                              [&](const DerivationType::Impure&) { return true; }},
+                   drv_type.raw)
         /* no inputs are outputs of dynamic derivations */
         || std::ranges::any_of(fullDrv.input_drvs.map.begin(), fullDrv.input_drvs.map.end(),
                                [](auto& pair) { return !pair.second.childMap.empty(); });
@@ -162,11 +164,12 @@ Goal::Co DerivationResolutionGoal::resolveDerivation() {
 
       auto msg = fmt("resolved derivation: '%s' -> '%s'", worker.store.printStorePath(drv_path),
                      worker.store.printStorePath(pathResolved));
-      act = std::make_unique<activity_t>(*logger, lvl_info, act_build_waiting, msg,
-                                       logger_t::fields_t{
-                                           worker.store.printStorePath(drv_path),
-                                           worker.store.printStorePath(pathResolved),
-                                       });
+      act = std::make_unique<activity_t>(
+          *logger, lvl_info, act_build_waiting, msg,
+          logger_t::fields_t{
+              logger_t::field_t{worker.store.printStorePath(drv_path)},
+              logger_t::field_t{worker.store.printStorePath(pathResolved)},
+          });
 
       resolvedDrv = std::make_unique<std::pair<StorePath, BasicDerivation>>(std::move(pathResolved),
                                                                             *std::move(attempt));
