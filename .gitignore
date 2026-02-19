@@ -60,3 +60,10 @@ flake-regressions
 # Rust/Haskell build artifacts
 /src/nix-protocol/target/
 /src/nix-protocol/dist-newstyle/
+
+# Test lock files
+*.lock
+!flake.lock
+
+# Generated toolchains (sensenet)
+/nix/build/toolchains/

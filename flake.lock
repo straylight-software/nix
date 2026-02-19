@@ -43,6 +43,21 @@
     },
     "crane": {
       "locked": {
+        "lastModified": 1771121070,
+        "narHash": "sha256-aIlv7FRXF9q70DNJPI237dEDAznSKaXmL5lfK/Id/bI=",
+        "owner": "ipetkov",
+        "repo": "crane",
+        "rev": "a2812c19f1ed2e5ed5ce2ef7109798b575c180e1",
+        "type": "github"
+      },
+      "original": {
+        "owner": "ipetkov",
+        "repo": "crane",
+        "type": "github"
+      }
+    },
+    "crane_2": {
+      "locked": {
         "lastModified": 1747587869,
         "narHash": "sha256-Zay3WJdSvC2VQmNqWSVLBOg/1iS/0/Q0c9JOBsB+3qw=",
         "owner": "ipetkov",
@@ -96,6 +111,22 @@
         "type": "github"
       }
     },
+    "flake-compat_2": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1765121682,
+        "narHash": "sha256-4VBOP18BFeiPkyhy9o4ssBNQEvfvv1kXkasAYd0+rrA=",
+        "owner": "edolstra",
+        "repo": "flake-compat",
+        "rev": "65f23138d8d09a92e30f1e5c87611b23ef451bf3",
+        "type": "github"
+      },
+      "original": {
+        "owner": "edolstra",
+        "repo": "flake-compat",
+        "type": "github"
+      }
+    },
     "flake-parts": {
       "inputs": {
         "nixpkgs-lib": "nixpkgs-lib"
@@ -137,11 +168,11 @@
         "nixpkgs-lib": "nixpkgs-lib_3"
       },
       "locked": {
-        "lastModified": 1743550720,
-        "narHash": "sha256-hIshGgKZCgWh6AYJpJmRgFdR3WUbkY04o82X05xqQiY=",
+        "lastModified": 1769996383,
+        "narHash": "sha256-AnYjnFWgS49RlqX7LrC4uA+sCCDBj0Ry/WOJ5XWAsa0=",
         "owner": "hercules-ci",
         "repo": "flake-parts",
-        "rev": "c621e8422220273271f52058f618c94e405bb0f5",
+        "rev": "57928607ea566b5db3ad13af0e57e921e6b12381",
         "type": "github"
       },
       "original": {
@@ -155,11 +186,11 @@
         "nixpkgs-lib": "nixpkgs-lib_4"
       },
       "locked": {
-        "lastModified": 1769996383,
-        "narHash": "sha256-AnYjnFWgS49RlqX7LrC4uA+sCCDBj0Ry/WOJ5XWAsa0=",
+        "lastModified": 1743550720,
+        "narHash": "sha256-hIshGgKZCgWh6AYJpJmRgFdR3WUbkY04o82X05xqQiY=",
         "owner": "hercules-ci",
         "repo": "flake-parts",
-        "rev": "57928607ea566b5db3ad13af0e57e921e6b12381",
+        "rev": "c621e8422220273271f52058f618c94e405bb0f5",
         "type": "github"
       },
       "original": {
@@ -291,43 +322,31 @@
       }
     },
     "llvm-project": {
-      "flake": false,
+      "inputs": {
+        "flake-parts": "flake-parts_3",
+        "nixpkgs": [
+          "sensenet",
+          "nixpkgs"
+        ]
+      },
       "locked": {
-        "lastModified": 1767604300,
-        "narHash": "sha256-mxeR/IxwZqi+Wbh0MXE0YFFzCQl8YpIY/nHF5WyHMNE=",
-        "owner": "llvm",
+        "lastModified": 1770985912,
+        "narHash": "sha256-npFnR1oUizj2KvU68SR1q1Y0osnPLTFMV3dfBufiDvI=",
+        "owner": "straylight-software",
         "repo": "llvm-project",
-        "rev": "bb1f220d534b0f6d80bea36662f5188ff11c2e54",
+        "rev": "de0f2ce98cfa7a052680e5a482b7ae52a3534e5b",
         "type": "github"
       },
       "original": {
-        "owner": "llvm",
+        "owner": "straylight-software",
         "repo": "llvm-project",
-        "rev": "bb1f220d534b0f6d80bea36662f5188ff11c2e54",
-        "type": "github"
-      }
-    },
-    "llvm-project_2": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1767604300,
-        "narHash": "sha256-mxeR/IxwZqi+Wbh0MXE0YFFzCQl8YpIY/nHF5WyHMNE=",
-        "owner": "llvm",
-        "repo": "llvm-project",
-        "rev": "bb1f220d534b0f6d80bea36662f5188ff11c2e54",
-        "type": "github"
-      },
-      "original": {
-        "owner": "llvm",
-        "repo": "llvm-project",
-        "rev": "bb1f220d534b0f6d80bea36662f5188ff11c2e54",
         "type": "github"
       }
     },
     "nativelink": {
       "inputs": {
-        "crane": "crane",
-        "flake-parts": "flake-parts_3",
+        "crane": "crane_2",
+        "flake-parts": "flake-parts_4",
         "git-hooks": "git-hooks",
         "nix2container": "nix2container",
         "nixpkgs": "nixpkgs_2",
@@ -345,28 +364,6 @@
         "owner": "TraceMachina",
         "repo": "nativelink",
         "type": "github"
-      }
-    },
-    "nix-compile": {
-      "inputs": {
-        "flake-parts": "flake-parts_4",
-        "nixpkgs": [
-          "sensenet",
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1771453542,
-        "narHash": "sha256-6wbGqNhVN4m1Wd7TsqnQWF5MYTnSJ/B3NNWGmNcqbUU=",
-        "ref": "refs/heads/main",
-        "rev": "5444880620d19b1c91b3fae8194ccfea0916eeee",
-        "revCount": 8,
-        "type": "git",
-        "url": "ssh://git@github.com/straylight-software/nix-compile.git"
-      },
-      "original": {
-        "type": "git",
-        "url": "ssh://git@github.com/straylight-software/nix-compile.git"
       }
     },
     "nix2container": {
@@ -441,11 +438,11 @@
     },
     "nixpkgs-lib_3": {
       "locked": {
-        "lastModified": 1743296961,
-        "narHash": "sha256-b1EdN3cULCqtorQ4QeWgLMrd5ZGOjLSLemfa00heasc=",
+        "lastModified": 1769909678,
+        "narHash": "sha256-cBEymOf4/o3FD5AZnzC3J9hLbiZ+QDT/KDuyHXVJOpM=",
         "owner": "nix-community",
         "repo": "nixpkgs.lib",
-        "rev": "e4822aea2a6d1cdd36653c134cacfd64c97ff4fa",
+        "rev": "72716169fe93074c333e8d0173151350670b824c",
         "type": "github"
       },
       "original": {
@@ -456,11 +453,11 @@
     },
     "nixpkgs-lib_4": {
       "locked": {
-        "lastModified": 1769909678,
-        "narHash": "sha256-cBEymOf4/o3FD5AZnzC3J9hLbiZ+QDT/KDuyHXVJOpM=",
+        "lastModified": 1743296961,
+        "narHash": "sha256-b1EdN3cULCqtorQ4QeWgLMrd5ZGOjLSLemfa00heasc=",
         "owner": "nix-community",
         "repo": "nixpkgs.lib",
-        "rev": "72716169fe93074c333e8d0173151350670b824c",
+        "rev": "e4822aea2a6d1cdd36653c134cacfd64c97ff4fa",
         "type": "github"
       },
       "original": {
@@ -481,22 +478,6 @@
       "original": {
         "owner": "nix-community",
         "repo": "nixpkgs.lib",
-        "type": "github"
-      }
-    },
-    "nixpkgs-master": {
-      "locked": {
-        "lastModified": 1767602469,
-        "narHash": "sha256-sO6SHAkw2o2frVHwke8cafuqCUgwQrypQQO6whmeuJM=",
-        "owner": "NixOS",
-        "repo": "nixpkgs",
-        "rev": "9af67fcf0751de2bae81807638a45f19db31d44e",
-        "type": "github"
-      },
-      "original": {
-        "owner": "NixOS",
-        "ref": "master",
-        "repo": "nixpkgs",
         "type": "github"
       }
     },
@@ -552,24 +533,49 @@
       "inputs": {
         "agenix": "agenix",
         "flake-parts": "flake-parts_5",
-        "llvm-project": "llvm-project_2",
+        "llvm-project": [
+          "sensenet",
+          "llvm-project"
+        ],
         "nixpkgs": [
           "sensenet",
           "nixpkgs"
-        ],
-        "nixpkgs-master": "nixpkgs-master"
+        ]
       },
       "locked": {
-        "lastModified": 1770262007,
-        "narHash": "sha256-JLCT16i7w5O4wZh119NUqciYKnoqMY3XCljmbiwhDOw=",
-        "owner": "weyl-ai",
-        "repo": "nvidia-sdk",
-        "rev": "4ce3b9cada85aca1ef818d8183aa0d50cddc5eb5",
+        "lastModified": 1770980515,
+        "narHash": "sha256-AnSPNpHQ/KInFmJTkJBo0n/h15k/KaGAOY60DSl0Xdg=",
+        "ref": "dev",
+        "rev": "cba87c785102f54e3fb5881b44fdf17e2fecfd6b",
+        "revCount": 2,
+        "type": "git",
+        "url": "ssh://git@github.com/straylight-software/nvidia-sdk.git"
+      },
+      "original": {
+        "ref": "dev",
+        "type": "git",
+        "url": "ssh://git@github.com/straylight-software/nvidia-sdk.git"
+      }
+    },
+    "purescript-overlay": {
+      "inputs": {
+        "flake-compat": "flake-compat_2",
+        "nixpkgs": [
+          "sensenet",
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1769971816,
+        "narHash": "sha256-6WdiHwc7cM07ttMh3JQslHzmwL9+RaDvf2OwZ0bsWu0=",
+        "owner": "thomashoneyman",
+        "repo": "purescript-overlay",
+        "rev": "af71d25ea276b03c46e79cf6ef59edd0a938dfd3",
         "type": "github"
       },
       "original": {
-        "owner": "weyl-ai",
-        "repo": "nvidia-sdk",
+        "owner": "thomashoneyman",
+        "repo": "purescript-overlay",
         "type": "github"
       }
     },
@@ -604,30 +610,57 @@
         "type": "github"
       }
     },
+    "rust-overlay_2": {
+      "inputs": {
+        "nixpkgs": [
+          "sensenet",
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1771211437,
+        "narHash": "sha256-lcNK438i4DGtyA+bPXXyVLHVmJjYpVKmpux9WASa3ro=",
+        "owner": "oxalica",
+        "repo": "rust-overlay",
+        "rev": "c62195b3d6e1bb11e0c2fb2a494117d3b55d410f",
+        "type": "github"
+      },
+      "original": {
+        "owner": "oxalica",
+        "repo": "rust-overlay",
+        "type": "github"
+      }
+    },
     "sensenet": {
       "inputs": {
         "buck2-prelude": "buck2-prelude",
+        "crane": "crane",
         "flake-parts": "flake-parts_2",
         "ghc-source-gen-src": "ghc-source-gen-src",
         "llvm-project": "llvm-project",
         "nativelink": "nativelink",
-        "nix-compile": "nix-compile",
         "nixpkgs": [
           "nixpkgs"
         ],
         "nvidia-sdk": "nvidia-sdk",
+        "purescript-overlay": "purescript-overlay",
+        "rust-overlay": "rust-overlay_2",
         "systems": "systems_3",
         "treefmt-nix": "treefmt-nix"
       },
       "locked": {
-        "lastModified": 1771457807,
-        "narHash": "sha256-kUxZBpq1QTLSYXbrb0U11dLllnWzfnp3UlmgG3DbZ9w=",
-        "path": "/home/b7r6/src/straylight/sensenet",
-        "type": "path"
+        "lastModified": 1771544074,
+        "narHash": "sha256-jwUBwEuMg/TucNTa5v44g2t4YimElG22pO2bY+2apUo=",
+        "ref": "dev",
+        "rev": "a3b97a259f69f845c5a35a097f4ecdbe13022e50",
+        "revCount": 56,
+        "type": "git",
+        "url": "ssh://git@github.com/straylight-software/sensenet"
       },
       "original": {
-        "path": "/home/b7r6/src/straylight/sensenet",
-        "type": "path"
+        "ref": "dev",
+        "type": "git",
+        "url": "ssh://git@github.com/straylight-software/sensenet"
       }
     },
     "systems": {

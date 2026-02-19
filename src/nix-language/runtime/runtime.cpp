@@ -3617,26 +3617,28 @@ auto rt_generic_closure(runtime_context& ctx, nix_value attrs) -> nix_value {
 
   auto attrs_ptr = get_payload(attrs);
 
-  // Get startSet
-  auto start_set = find_attr(ctx, attrs_ptr, "startSet");
-  if (!start_set) {
+  // Get startSet - copy value out before any allocations can invalidate pointers
+  auto start_set_opt = find_attr(ctx, attrs_ptr, "startSet");
+  if (!start_set_opt) {
     throw runtime_error("builtins.genericClosure: attribute 'startSet' required");
   }
-  *start_set = rt_force(ctx, *start_set);
-  if (!is_list(*start_set)) {
+  auto start_set_val = rt_force(ctx, *start_set_opt);
+  if (!is_list(start_set_val)) {
     throw type_error("builtins.genericClosure: 'startSet' must be a list, got '" +
-                     std::string(type_name(*start_set)) + "'");
+                     std::string(type_name(start_set_val)) + "'");
   }
 
-  // Get operator function
-  auto op = find_attr(ctx, attrs_ptr, "operator");
-  if (!op) {
+  // Get operator function - copy value out before any allocations can invalidate pointers
+  // Note: attrs_ptr may be invalid after rt_force above, so re-read it
+  attrs_ptr = get_payload(attrs);
+  auto op_opt = find_attr(ctx, attrs_ptr, "operator");
+  if (!op_opt) {
     throw runtime_error("builtins.genericClosure: attribute 'operator' required");
   }
-  *op = rt_force(ctx, *op);
-  if (!is_lambda(*op) && !is_primop(*op)) {
+  auto op_val = rt_force(ctx, *op_opt);
+  if (!is_lambda(op_val) && !is_primop(op_val)) {
     throw type_error("builtins.genericClosure: 'operator' must be a function, got '" +
-                     std::string(type_name(*op)) + "'");
+                     std::string(type_name(op_val)) + "'");
   }
 
   // Track seen keys (for deduplication)
@@ -3654,32 +3656,33 @@ auto rt_generic_closure(runtime_context& ctx, nix_value attrs) -> nix_value {
                        std::string(type_name(elem)) + "'");
     }
     auto elem_ptr = get_payload(elem);
-    auto key_val = find_attr(ctx, elem_ptr, "key");
-    if (!key_val) {
+    auto key_opt = find_attr(ctx, elem_ptr, "key");
+    if (!key_opt) {
       throw runtime_error("builtins.genericClosure: element must have 'key' attribute");
     }
-    *key_val = rt_force(ctx, *key_val);
+    // Copy value out before forcing - pointers into WASM memory may be invalidated by rt_force
+    auto key_val = rt_force(ctx, *key_opt);
 
     // Convert key to string representation for hashing
-    if (is_string(*key_val)) {
-      return std::string(ctx.read_string(get_payload(*key_val)));
+    if (is_string(key_val)) {
+      return std::string(ctx.read_string(get_payload(key_val)));
     }
-    if (is_int(*key_val)) {
-      return std::to_string(static_cast<std::int32_t>(get_payload(*key_val)));
+    if (is_int(key_val)) {
+      return std::to_string(static_cast<std::int32_t>(get_payload(key_val)));
     }
-    if (is_path(*key_val)) {
-      return std::string(ctx.read_string(get_payload(*key_val)));
+    if (is_path(key_val)) {
+      return std::string(ctx.read_string(get_payload(key_val)));
     }
     // For other types, use type + payload as key
-    return std::to_string(static_cast<int>(get_tag(*key_val))) + ":" +
-           std::to_string(get_payload(*key_val));
+    return std::to_string(static_cast<int>(get_tag(key_val))) + ":" +
+           std::to_string(get_payload(key_val));
   };
 
   // Initialize work list with startSet
-  auto start_ptr = get_payload(*start_set);
-  auto start_count = ctx.read_u32(start_ptr + mem::ATTRSET_COUNT_OFFSET);
+  auto start_ptr = get_payload(start_set_val);
+  auto start_count = ctx.read_u32(start_ptr + mem::LIST_COUNT_OFFSET);
   for (std::uint32_t i = 0; i < start_count; ++i) {
-    auto elem = ctx.read_value(start_ptr + mem::LIST_ELEMENTS_OFFSET + i * 8);
+    auto elem = ctx.read_value(start_ptr + mem::LIST_ELEMENTS_OFFSET + i * mem::VALUE_SIZE);
     work_list.push_back(elem);
   }
 
@@ -3696,7 +3699,7 @@ auto rt_generic_closure(runtime_context& ctx, nix_value attrs) -> nix_value {
     result.push_back(elem);
 
     // Apply operator to get new elements
-    auto new_elems = rt_apply(ctx, *op, elem);
+    auto new_elems = rt_apply(ctx, op_val, elem);
     new_elems = rt_force(ctx, new_elems);
 
     if (!is_list(new_elems)) {
@@ -3705,9 +3708,9 @@ auto rt_generic_closure(runtime_context& ctx, nix_value attrs) -> nix_value {
     }
 
     auto new_ptr = get_payload(new_elems);
-    auto new_count = ctx.read_u32(new_ptr + mem::ATTRSET_COUNT_OFFSET);
+    auto new_count = ctx.read_u32(new_ptr + mem::LIST_COUNT_OFFSET);
     for (std::uint32_t i = 0; i < new_count; ++i) {
-      auto new_elem = ctx.read_value(new_ptr + mem::LIST_ELEMENTS_OFFSET + i * 8);
+      auto new_elem = ctx.read_value(new_ptr + mem::LIST_ELEMENTS_OFFSET + i * mem::VALUE_SIZE);
       work_list.push_back(new_elem);
     }
   }

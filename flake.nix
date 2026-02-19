@@ -7,9 +7,9 @@
     flake-parts.url = "github:hercules-ci/flake-parts";
     treefmt-nix.url = "github:numtide/treefmt-nix";
 
-    # sensenet - Buck2 toolchain infrastructure (local path for dev)
+    # sensenet - Buck2 toolchain infrastructure
     sensenet = {
-      url = "path:/home/b7r6/src/straylight/sensenet";
+      url = "git+ssh://git@github.com/straylight-software/sensenet?ref=dev";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
