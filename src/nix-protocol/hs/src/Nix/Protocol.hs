@@ -27,7 +27,7 @@ module Nix.Protocol
     runWriter,
     execWriter,
 
-    -- * Primitives
+    -- * Write primitives
     writeU64,
     writeBool,
     writeBytes,
@@ -39,7 +39,7 @@ module Nix.Protocol
     writeDerivedPath,
     writeDerivedPathList,
 
-    -- * Handshake
+    -- * Handshake (write)
     writeClientHello,
     writeServerHello,
 
@@ -61,9 +61,39 @@ module Nix.Protocol
     ClientSettings (..),
     defaultClientSettings,
     AddToStoreNarRequest (..),
+
+    -- * Reader
+    Reader,
+    runReader,
+
+    -- * Read primitives
+    readU64,
+    readBool,
+    readBytes,
+    readString,
+    readStringList,
+    readStringSet,
+    readStorePath,
+    readStorePathSet,
+
+    -- * Response parsing
+    ServerHello (..),
+    readServerHello,
+    readIsValidPathResponse,
+    ValidPathInfo (..),
+    readQueryPathInfoResponse,
+    QueryMissingResult (..),
+    readQueryMissingResponse,
+    readQueryReferrersResponse,
+    GcRoot (..),
+    readFindRootsResponse,
+    Realisation (..),
+    BuildResultWithPath (..),
+    readBuildPathsWithResultsResponse,
   )
 where
 
+import Control.Monad (replicateM)
 import Data.Bits ((.&.))
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
@@ -72,6 +102,7 @@ import qualified Data.ByteString.Builder as B
 import qualified Data.ByteString.Lazy as LBS
 import Data.List (sort)
 import Data.Text (Text)
+import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
 import Data.Word (Word64)
 
@@ -457,3 +488,326 @@ writeAddToStoreNarRequest req = do
   writeString (asnCa req)
   writeBool (asnRepair req)
   writeBool (asnDontCheckSigs req)
+
+-- =============================================================================
+-- Reader
+-- =============================================================================
+
+-- | Reader monad for parsing protocol messages
+newtype Reader a = Reader {unReader :: ByteString -> Either String (a, ByteString)}
+  deriving (Functor)
+
+instance Applicative Reader where
+  pure a = Reader $ \bs -> Right (a, bs)
+  Reader f <*> Reader x = Reader $ \bs -> do
+    (g, bs') <- f bs
+    (a, bs'') <- x bs'
+    pure (g a, bs'')
+
+instance Monad Reader where
+  Reader m >>= k = Reader $ \bs -> do
+    (a, bs') <- m bs
+    unReader (k a) bs'
+
+-- | Run a reader and get the result
+runReader :: Reader a -> ByteString -> Either String a
+runReader (Reader f) bs = fst <$> f bs
+
+-- | Fail with an error message
+readerFail :: String -> Reader a
+readerFail msg = Reader $ \_ -> Left msg
+
+-- =============================================================================
+-- Read Primitives
+-- =============================================================================
+
+-- | Read a u64 in little-endian format
+readU64 :: Reader Word64
+readU64 = Reader $ \bs ->
+  if BS.length bs < 8
+    then Left "unexpected end of input"
+    else
+      let (bytes, rest) = BS.splitAt 8 bs
+          val = fromIntegral (BS.index bytes 0)
+            + fromIntegral (BS.index bytes 1) * 256
+            + fromIntegral (BS.index bytes 2) * 65536
+            + fromIntegral (BS.index bytes 3) * 16777216
+            + fromIntegral (BS.index bytes 4) * 4294967296
+            + fromIntegral (BS.index bytes 5) * 1099511627776
+            + fromIntegral (BS.index bytes 6) * 281474976710656
+            + fromIntegral (BS.index bytes 7) * 72057594037927936
+       in Right (val, rest)
+
+-- | Read a boolean
+readBool :: Reader Bool
+readBool = (/= 0) <$> readU64
+
+-- | Read padding bytes
+readPadding :: Int -> Reader ()
+readPadding len = Reader $ \bs ->
+  let pad = (8 - (len .&. 7)) .&. 7
+   in if BS.length bs < pad
+        then Left "unexpected end of input (padding)"
+        else
+          let (padding, rest) = BS.splitAt pad bs
+           in if BS.all (== 0) padding
+                then Right ((), rest)
+                else Left "non-zero padding bytes"
+
+-- | Read bytes with length prefix and padding
+readBytes :: Reader ByteString
+readBytes = do
+  len <- readU64
+  Reader $ \bs ->
+    let len' = fromIntegral len
+     in if BS.length bs < len'
+          then Left "unexpected end of input"
+          else
+            let (bytes, rest) = BS.splitAt len' bs
+             in Right (bytes, rest)
+  >>= \bytes -> do
+    readPadding (BS.length bytes)
+    pure bytes
+
+-- | Read a text string
+readString :: Reader Text
+readString = do
+  bytes <- readBytes
+  case TE.decodeUtf8' bytes of
+    Left _ -> readerFail "invalid UTF-8"
+    Right t -> pure t
+
+-- | Read a list of strings
+readStringList :: Reader [Text]
+readStringList = do
+  count <- readU64
+  replicateM (fromIntegral count) readString
+
+-- | Read a sorted set of strings (just a list on wire)
+readStringSet :: Reader [Text]
+readStringSet = readStringList
+
+-- | Read a store path
+readStorePath :: Reader Text
+readStorePath = readString
+
+-- | Read a set of store paths
+readStorePathSet :: Reader [Text]
+readStorePathSet = readStringList
+
+-- =============================================================================
+-- Response Parsing
+-- =============================================================================
+
+-- | Server hello response
+data ServerHello = ServerHello
+  { shMagic :: !Word64,
+    shVersion :: !Word64
+  }
+  deriving (Show, Eq)
+
+-- | Read server hello
+readServerHello :: Reader ServerHello
+readServerHello = do
+  magic <- readU64
+  if magic /= workerMagic2
+    then readerFail $ "invalid magic: " ++ show magic
+    else do
+      version <- readU64
+      pure $ ServerHello magic version
+
+-- | Read IsValidPath response
+readIsValidPathResponse :: Reader Bool
+readIsValidPathResponse = readBool
+
+-- | Valid path info
+data ValidPathInfo = ValidPathInfo
+  { vpiDeriver :: !Text,
+    vpiNarHash :: !Text,
+    vpiReferences :: ![Text],
+    vpiRegistrationTime :: !Word64,
+    vpiNarSize :: !Word64,
+    vpiUltimate :: !Bool,
+    vpiSignatures :: ![Text],
+    vpiCa :: !Text
+  }
+  deriving (Show, Eq)
+
+-- | Read QueryPathInfo response
+readQueryPathInfoResponse :: Word64 -> Reader (Maybe ValidPathInfo)
+readQueryPathInfoResponse protocolVersion = do
+  valid <- readBool
+  if not valid
+    then pure Nothing
+    else do
+      deriver <- readString
+      narHash <- readString
+      refs <- readStorePathSet
+      regTime <- readU64
+      narSize <- readU64
+      (ultimate, sigs, ca) <-
+        if protocolVersion >= 16
+          then do
+            ult <- readBool
+            sigs' <- readStringSet
+            ca' <- readString
+            pure (ult, sigs', ca')
+          else pure (False, [], T.empty)
+      pure $
+        Just $
+          ValidPathInfo
+            { vpiDeriver = deriver,
+              vpiNarHash = narHash,
+              vpiReferences = refs,
+              vpiRegistrationTime = regTime,
+              vpiNarSize = narSize,
+              vpiUltimate = ultimate,
+              vpiSignatures = sigs,
+              vpiCa = ca
+            }
+
+-- | QueryMissing result
+data QueryMissingResult = QueryMissingResult
+  { qmrWillBuild :: ![Text],
+    qmrWillSubstitute :: ![Text],
+    qmrUnknown :: ![Text],
+    qmrDownloadSize :: !Word64,
+    qmrNarSize :: !Word64
+  }
+  deriving (Show, Eq)
+
+-- | Read QueryMissing response
+readQueryMissingResponse :: Reader QueryMissingResult
+readQueryMissingResponse = do
+  willBuild <- readStorePathSet
+  willSub <- readStorePathSet
+  unknown <- readStorePathSet
+  dlSize <- readU64
+  narSize <- readU64
+  pure $
+    QueryMissingResult
+      { qmrWillBuild = willBuild,
+        qmrWillSubstitute = willSub,
+        qmrUnknown = unknown,
+        qmrDownloadSize = dlSize,
+        qmrNarSize = narSize
+      }
+
+-- | Read QueryReferrers response
+readQueryReferrersResponse :: Reader [Text]
+readQueryReferrersResponse = readStorePathSet
+
+-- | GC root entry
+data GcRoot = GcRoot
+  { grLink :: !Text,
+    grTarget :: !Text
+  }
+  deriving (Show, Eq)
+
+-- | Read FindRoots response
+readFindRootsResponse :: Reader [GcRoot]
+readFindRootsResponse = do
+  count <- readU64
+  replicateM (fromIntegral count) $ do
+    link <- readString
+    target <- readStorePath
+    pure $ GcRoot link target
+
+-- | Realisation (from JSON)
+data Realisation = Realisation
+  { rId :: !Text,
+    rOutPath :: !Text,
+    rSignatures :: ![Text]
+  }
+  deriving (Show, Eq)
+
+-- | Parse realisation from JSON string (minimal)
+parseRealisationJson :: Text -> Realisation
+parseRealisationJson json =
+  Realisation
+    { rId = extractField "\"id\":\"" json,
+      rOutPath = extractField "\"outPath\":\"" json,
+      rSignatures = []
+    }
+  where
+    extractField prefix txt =
+      case T.breakOn (T.pack prefix) txt of
+        (_, rest)
+          | T.null rest -> T.empty
+          | otherwise ->
+              let after = T.drop (T.length (T.pack prefix)) rest
+               in T.takeWhile (/= '"') after
+
+-- | Build result with path
+data BuildResultWithPath = BuildResultWithPath
+  { brpPath :: !Text,
+    brpStatus :: !Word64,
+    brpErrorMsg :: !Text,
+    brpTimesBuilt :: !Word64,
+    brpIsNonDeterministic :: !Bool,
+    brpStartTime :: !Word64,
+    brpStopTime :: !Word64,
+    brpCpuUser :: !Word64,
+    brpCpuSystem :: !Word64,
+    brpBuiltOutputs :: ![(Text, Realisation)]
+  }
+  deriving (Show, Eq)
+
+-- | Read BuildPathsWithResults response
+readBuildPathsWithResultsResponse :: Word64 -> Reader [BuildResultWithPath]
+readBuildPathsWithResultsResponse protocolVersion = do
+  count <- readU64
+  replicateM (fromIntegral count) $ do
+    path <- readString
+    status <- readU64
+    errorMsg <- readString
+
+    (timesBuilt, isNonDet) <-
+      if protocolVersion >= 0x11d
+        then do
+          tb <- readU64
+          nd <- readBool
+          pure (tb, nd)
+        else pure (0, False)
+
+    (startTime, stopTime) <-
+      if protocolVersion >= 0x11e
+        then do
+          st <- readU64
+          et <- readU64
+          pure (st, et)
+        else pure (0, 0)
+
+    -- CPU times (read unconditionally for high versions)
+    (cpuUser, cpuSystem) <-
+      if protocolVersion >= 0x11c
+        then do
+          cu <- readU64
+          cs <- readU64
+          pure (cu, cs)
+        else pure (0, 0)
+
+    -- Built outputs
+    builtOutputs <-
+      if protocolVersion >= 0x11c
+        then do
+          outCount <- readU64
+          replicateM (fromIntegral outCount) $ do
+            outName <- readString
+            jsonStr <- readString
+            pure (outName, parseRealisationJson jsonStr)
+        else pure []
+
+    pure $
+      BuildResultWithPath
+        { brpPath = path,
+          brpStatus = status,
+          brpErrorMsg = errorMsg,
+          brpTimesBuilt = timesBuilt,
+          brpIsNonDeterministic = isNonDet,
+          brpStartTime = startTime,
+          brpStopTime = stopTime,
+          brpCpuUser = cpuUser,
+          brpCpuSystem = cpuSystem,
+          brpBuiltOutputs = builtOutputs
+        }

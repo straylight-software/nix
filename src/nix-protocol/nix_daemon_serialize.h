@@ -19,9 +19,11 @@
 #include <cstring>
 #include <optional>
 #include <span>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <utility>
+#include <variant>
 #include <vector>
 
 namespace nix::proto {
@@ -107,6 +109,41 @@ enum class TrustLevel : uint64_t {
   Unknown = 0,
   Trusted = 1,
   NotTrusted = 2,
+};
+
+// =============================================================================
+// Shared Data Structures (used by both Reader and Writer)
+// =============================================================================
+
+// ValidPathInfo - information about a store path
+struct ValidPathInfo {
+  std::string deriver; // Empty = none
+  std::string nar_hash;
+  std::vector<std::string> references;
+  uint64_t registration_time = 0;
+  uint64_t nar_size = 0;
+  bool ultimate = false;
+  std::vector<std::string> signatures;
+  std::string ca; // Empty = none
+};
+
+// BuildStatus codes
+enum class BuildStatus : uint64_t {
+  Built = 0,
+  Substituted = 1,
+  AlreadyValid = 2,
+  PermanentFailure = 3,
+  InputRejected = 4,
+  OutputRejected = 5,
+  TransientFailure = 6,
+  CachedFailure = 7,
+  TimedOut = 8,
+  MiscFailure = 9,
+  DependencyFailed = 10,
+  LogLimitExceeded = 11,
+  NotDeterministic = 12,
+  ResolvedDrvFailed = 13,
+  NoSubstituters = 14,
 };
 
 // =============================================================================
@@ -215,6 +252,371 @@ private:
 
   std::vector<std::byte>& buf_;
 };
+
+// =============================================================================
+// Reader - Low-level deserialization from byte span
+// =============================================================================
+
+/// Protocol error types
+struct ProtocolError : std::runtime_error {
+  using std::runtime_error::runtime_error;
+};
+
+struct UnexpectedEof : ProtocolError {
+  UnexpectedEof() : ProtocolError("unexpected end of input") {}
+};
+
+struct InvalidMagic : ProtocolError {
+  uint64_t magic;
+  InvalidMagic(uint64_t m) : ProtocolError("invalid magic: " + std::to_string(m)), magic(m) {}
+};
+
+struct NonZeroPadding : ProtocolError {
+  NonZeroPadding() : ProtocolError("non-zero padding bytes") {}
+};
+
+struct DaemonError : ProtocolError {
+  DaemonError(const std::string& msg) : ProtocolError("daemon error: " + msg) {}
+};
+
+class Reader {
+public:
+  explicit Reader(std::span<const std::byte> data) : data_(data), pos_(0) {}
+  explicit Reader(std::span<const uint8_t> data)
+      : data_(reinterpret_cast<const std::byte*>(data.data()), data.size()), pos_(0) {}
+
+  // ===========================================================================
+  // Primitives
+  // ===========================================================================
+
+  uint64_t read_u64() {
+    require(8);
+    uint64_t val;
+    std::memcpy(&val, data_.data() + pos_, 8);
+    pos_ += 8;
+    if constexpr (std::endian::native != std::endian::little) {
+      val = std::byteswap(val);
+    }
+    return val;
+  }
+
+  bool read_bool() { return read_u64() != 0; }
+
+  std::vector<std::byte> read_bytes() {
+    uint64_t len = read_u64();
+    require(len);
+    std::vector<std::byte> result(data_.begin() + pos_, data_.begin() + pos_ + len);
+    pos_ += len;
+    read_padding(len);
+    return result;
+  }
+
+  std::string read_string() {
+    auto bytes = read_bytes();
+    return std::string(reinterpret_cast<const char*>(bytes.data()), bytes.size());
+  }
+
+  std::string read_store_path() { return read_string(); }
+
+  std::vector<std::string> read_string_list() {
+    uint64_t count = read_u64();
+    std::vector<std::string> result;
+    result.reserve(count);
+    for (uint64_t i = 0; i < count; ++i) {
+      result.push_back(read_string());
+    }
+    return result;
+  }
+
+  std::vector<std::string> read_string_set() { return read_string_list(); }
+  std::vector<std::string> read_store_path_set() { return read_string_list(); }
+
+  // ===========================================================================
+  // Stderr message handling
+  // ===========================================================================
+
+  /// Read stderr messages until STDERR_LAST, handling logs and errors
+  void read_stderr() {
+    while (true) {
+      uint64_t msg = read_u64();
+      switch (msg) {
+        case STDERR_LAST:
+          return;
+        case STDERR_ERROR: {
+          std::string error_msg = read_string();
+          throw DaemonError(error_msg);
+        }
+        case STDERR_NEXT:
+          // Log message - read and discard
+          (void)read_string();
+          break;
+        case STDERR_WRITE:
+          // Data from daemon - read and discard
+          (void)read_bytes();
+          break;
+        case STDERR_START_ACTIVITY:
+          (void)read_u64();    // activity id
+          (void)read_u64();    // verbosity
+          (void)read_u64();    // activity type
+          (void)read_string(); // text
+          read_activity_fields();
+          (void)read_u64(); // parent
+          break;
+        case STDERR_STOP_ACTIVITY:
+          (void)read_u64(); // activity id
+          break;
+        case STDERR_RESULT:
+          (void)read_u64(); // activity id
+          (void)read_u64(); // result type
+          read_activity_fields();
+          break;
+        default:
+          throw ProtocolError("invalid stderr message: " + std::to_string(msg));
+      }
+    }
+  }
+
+  // ===========================================================================
+  // Position management
+  // ===========================================================================
+
+  [[nodiscard]] size_t position() const { return pos_; }
+  [[nodiscard]] size_t remaining() const { return data_.size() - pos_; }
+  [[nodiscard]] bool at_end() const { return pos_ >= data_.size(); }
+
+private:
+  void require(size_t n) {
+    if (pos_ + n > data_.size()) {
+      throw UnexpectedEof();
+    }
+  }
+
+  void read_padding(size_t len) {
+    size_t pad = (8 - (len % 8)) % 8;
+    if (pad > 0) {
+      require(pad);
+      for (size_t i = 0; i < pad; ++i) {
+        if (data_[pos_ + i] != std::byte{0}) {
+          throw NonZeroPadding();
+        }
+      }
+      pos_ += pad;
+    }
+  }
+
+  void read_activity_fields() {
+    uint64_t count = read_u64();
+    for (uint64_t i = 0; i < count; ++i) {
+      uint64_t field_type = read_u64();
+      if (field_type == 0) {
+        (void)read_u64(); // int field
+      } else if (field_type == 1) {
+        (void)read_string(); // string field
+      }
+    }
+  }
+
+  std::span<const std::byte> data_;
+  size_t pos_;
+};
+
+// =============================================================================
+// Response Readers
+// =============================================================================
+
+/// Server hello response
+struct ServerHello {
+  uint64_t magic;
+  uint64_t version;
+};
+
+inline ServerHello read_server_hello(Reader& r) {
+  ServerHello hello;
+  hello.magic = r.read_u64();
+  if (hello.magic != WORKER_MAGIC_2) {
+    throw InvalidMagic(hello.magic);
+  }
+  hello.version = r.read_u64();
+  return hello;
+}
+
+/// Read IsValidPath response
+inline bool read_is_valid_path_response(Reader& r) {
+  return r.read_bool();
+}
+
+/// Read QueryPathInfo response
+inline std::optional<ValidPathInfo> read_query_path_info_response(Reader& r,
+                                                                  uint16_t protocol_version) {
+  bool valid = r.read_bool();
+  if (!valid) {
+    return std::nullopt;
+  }
+
+  ValidPathInfo info;
+  info.deriver = r.read_string();
+  info.nar_hash = r.read_string();
+  info.references = r.read_store_path_set();
+  info.registration_time = r.read_u64();
+  info.nar_size = r.read_u64();
+
+  if (protocol_version >= 16) {
+    info.ultimate = r.read_bool();
+    info.signatures = r.read_string_set();
+    info.ca = r.read_string();
+  }
+
+  return info;
+}
+
+/// QueryMissing result
+struct QueryMissingResult {
+  std::vector<std::string> will_build;
+  std::vector<std::string> will_substitute;
+  std::vector<std::string> unknown;
+  uint64_t download_size;
+  uint64_t nar_size;
+};
+
+/// Read QueryMissing response
+inline QueryMissingResult read_query_missing_response(Reader& r) {
+  QueryMissingResult result;
+  result.will_build = r.read_store_path_set();
+  result.will_substitute = r.read_store_path_set();
+  result.unknown = r.read_store_path_set();
+  result.download_size = r.read_u64();
+  result.nar_size = r.read_u64();
+  return result;
+}
+
+/// Read QueryReferrers response
+inline std::vector<std::string> read_query_referrers_response(Reader& r) {
+  return r.read_store_path_set();
+}
+
+/// GC root entry
+struct GcRoot {
+  std::string link;
+  std::string target;
+};
+
+/// Read FindRoots response
+inline std::vector<GcRoot> read_find_roots_response(Reader& r) {
+  uint64_t count = r.read_u64();
+  std::vector<GcRoot> roots;
+  roots.reserve(count);
+  for (uint64_t i = 0; i < count; ++i) {
+    GcRoot root;
+    root.link = r.read_string();
+    root.target = r.read_store_path();
+    roots.push_back(std::move(root));
+  }
+  return roots;
+}
+
+/// Realisation (parsed from JSON)
+struct Realisation {
+  std::string id;
+  std::string out_path;
+  std::vector<std::string> signatures;
+};
+
+/// Parse realisation from JSON string (minimal parsing)
+inline Realisation parse_realisation_json(const std::string& json) {
+  Realisation r;
+
+  // Extract "id" field
+  auto pos = json.find("\"id\":\"");
+  if (pos != std::string::npos) {
+    pos += 6;
+    auto end = json.find('"', pos);
+    if (end != std::string::npos) {
+      r.id = json.substr(pos, end - pos);
+    }
+  }
+
+  // Extract "outPath" field
+  pos = json.find("\"outPath\":\"");
+  if (pos != std::string::npos) {
+    pos += 11;
+    auto end = json.find('"', pos);
+    if (end != std::string::npos) {
+      r.out_path = json.substr(pos, end - pos);
+    }
+  }
+
+  return r;
+}
+
+/// BuildResult with path (from BuildPathsWithResults)
+struct BuildResultWithPath {
+  std::string path;
+  uint64_t status;
+  std::string error_msg;
+  uint64_t times_built;
+  bool is_non_deterministic;
+  uint64_t start_time;
+  uint64_t stop_time;
+  uint64_t cpu_user;
+  uint64_t cpu_system;
+  std::vector<std::pair<std::string, Realisation>> built_outputs;
+};
+
+/// Read BuildPathsWithResults response
+inline std::vector<BuildResultWithPath>
+read_build_paths_with_results_response(Reader& r, uint16_t protocol_version) {
+  uint64_t count = r.read_u64();
+  std::vector<BuildResultWithPath> results;
+  results.reserve(count);
+
+  for (uint64_t i = 0; i < count; ++i) {
+    BuildResultWithPath result;
+    result.path = r.read_string();
+    result.status = r.read_u64();
+    result.error_msg = r.read_string();
+
+    if (protocol_version >= 0x11d) {
+      result.times_built = r.read_u64();
+      result.is_non_deterministic = r.read_bool();
+    } else {
+      result.times_built = 0;
+      result.is_non_deterministic = false;
+    }
+
+    if (protocol_version >= 0x11e) {
+      result.start_time = r.read_u64();
+      result.stop_time = r.read_u64();
+    } else {
+      result.start_time = 0;
+      result.stop_time = 0;
+    }
+
+    // CPU times - read unconditionally for high protocol versions
+    // (observed in captures even at 1.38)
+    if (protocol_version >= 0x11c) {
+      result.cpu_user = r.read_u64();
+      result.cpu_system = r.read_u64();
+    } else {
+      result.cpu_user = 0;
+      result.cpu_system = 0;
+    }
+
+    // Built outputs
+    if (protocol_version >= 0x11c) {
+      uint64_t out_count = r.read_u64();
+      result.built_outputs.reserve(out_count);
+      for (uint64_t j = 0; j < out_count; ++j) {
+        std::string output_name = r.read_string();
+        std::string json = r.read_string();
+        result.built_outputs.emplace_back(output_name, parse_realisation_json(json));
+      }
+    }
+
+    results.push_back(std::move(result));
+  }
+
+  return results;
+}
 
 // =============================================================================
 // Handshake Serializers
@@ -495,18 +897,6 @@ inline void write_store_path_set_response(Writer& w, std::span<const std::string
   w.write_store_path_set(paths);
 }
 
-// ValidPathInfo response
-struct ValidPathInfo {
-  std::string deriver; // Empty = none
-  std::string nar_hash;
-  std::vector<std::string> references;
-  uint64_t registration_time = 0;
-  uint64_t nar_size = 0;
-  bool ultimate = false;
-  std::vector<std::string> signatures;
-  std::string ca; // Empty = none
-};
-
 inline void write_query_path_info_response(Writer& w, const ValidPathInfo* info,
                                            uint16_t protocol_version) {
   write_stderr_last(w);
@@ -545,25 +935,7 @@ inline void write_query_missing_response(Writer& w, const QueryMissingResponse& 
   w.write_u64(resp.nar_size);
 }
 
-// BuildResult
-enum class BuildStatus : uint64_t {
-  Built = 0,
-  Substituted = 1,
-  AlreadyValid = 2,
-  PermanentFailure = 3,
-  InputRejected = 4,
-  OutputRejected = 5,
-  TransientFailure = 6,
-  CachedFailure = 7,
-  TimedOut = 8,
-  MiscFailure = 9,
-  DependencyFailed = 10,
-  LogLimitExceeded = 11,
-  NotDeterministic = 12,
-  ResolvedDrvFailed = 13,
-  NoSubstituters = 14,
-};
-
+// BuildResult (for write_build_result)
 struct BuildResult {
   BuildStatus status = BuildStatus::Built;
   std::string error_msg;

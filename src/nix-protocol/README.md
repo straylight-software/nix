@@ -1,11 +1,36 @@
-# Nix Daemon Protocol Specification
+# Nix Protocol Specification
 
-This directory contains a formal specification of the Nix daemon "worker protocol" in
-[Kaitai Struct](https://kaitai.io/) format.
+This directory contains formal specifications of the Nix daemon "worker protocol" and NAR (Nix
+Archive) format in [Kaitai Struct](https://kaitai.io/) format, with polyglot serializers validated
+against real binary captures.
 
 ## Files
 
-- `nix_daemon.ksy` - Kaitai Struct schema for the protocol
+### Kaitai Struct Schemas (Source of Truth)
+- `nix_daemon.ksy` - Protocol schema (all 48 operations)
+- `nar.ksy` - NAR format schema
+
+### C++ (Header-only, C++23)
+- `nix_daemon_serialize.h` - Protocol serializer (14/14 tests)
+- `nar_serialize.h` - NAR serializer + parser (15/15 tests)
+- `test_serialize.cpp` - Protocol tests
+- `test_nar_serialize.cpp` - NAR tests (includes round-trip)
+
+### Rust
+- `src/lib.rs` - Protocol serializer (14/14 tests)
+- `src/nar.rs` - NAR serializer + parser (16/16 tests)
+- `tests/captures.rs` - Protocol tests
+- `tests/nar_captures.rs` - NAR tests (includes round-trip)
+
+### Haskell
+- `hs/src/Nix/Protocol.hs` - Protocol serializer (14/14 tests)
+- `hs/src/Nix/Nar.hs` - NAR serializer + parser (16/16 tests)
+- `hs/test/Captures.hs` - Protocol tests
+- `hs/test/NarCaptures.hs` - NAR tests (includes round-trip)
+
+### Test Vectors
+- `captures/` - Protocol binary captures (14 operations)
+- `nar_captures/` - NAR binary captures (6 archives)
 
 ## Protocol Overview
 
@@ -66,6 +91,169 @@ Log line | | `STDERR_READ` | `0x64617461` | Request data from client | | `STDERR
 Progress activity start | | `STDERR_STOP_ACTIVITY` | `0x53544f50` | Progress activity end | |
 `STDERR_RESULT` | `0x52534c54` | Progress result |
 
+## NAR (Nix Archive) Format
+
+NAR is a deterministic archive format used by Nix for content-addressed storage. Key properties:
+
+- **Deterministic**: Same filesystem content always produces identical NAR
+- **Platform-independent**: Portable across Unix-like systems
+- **Content-addressed**: Only content matters, not metadata like timestamps
+
+### NAR Wire Format
+
+| Type | Wire Format |
+|------|-------------|
+| `string` | `u64` length + bytes + padding to 8-byte boundary |
+| `magic` | `"nix-archive-1"` (13 bytes + 3 padding) |
+| `node` | Parenthesized structure with type field |
+
+### Node Types
+
+```
+Regular file:  "(" "type" "regular" ["executable" ""] "contents" <bytes> ")"
+Symlink:       "(" "type" "symlink" "target" <target> ")"
+Directory:     "(" "type" "directory" ("entry" "(" "name" <name> "node" <node> ")")*  ")"
+```
+
+**Important**: Directory entries MUST be sorted lexicographically (strcmp order).
+
+### NAR Example (Regular File)
+
+```
+nix-archive-1                    # magic (13 bytes + 3 pad)
+(                                # open paren
+type                             # "type" keyword
+regular                          # file type
+contents                         # "contents" keyword
+<12>hello world\n                # length-prefixed content
+)                                # close paren
+```
+
+### NAR Captures
+
+| File | Description | Size |
+|------|-------------|------|
+| `regular_file.nar` | `"hello world\n"` | 128B |
+| `executable_file.nar` | `"#!/bin/bash\n"` with +x | 160B |
+| `symlink.nar` | -> /etc/passwd | 128B |
+| `empty_file.nar` | 0 bytes | 112B |
+| `empty_directory.nar` | empty dir | 96B |
+| `directory.nar` | dir with a.txt, b.txt, subdir/c.txt | 840B |
+
+### NAR Serializers & Parsers
+
+All three languages provide both writing (serialization) and reading (parsing) capabilities
+with validated round-trip support.
+
+#### C++ NAR (nar_serialize.h)
+
+```cpp
+#include "nar_serialize.h"
+
+// === WRITING ===
+std::vector<std::byte> buf;
+nar::Writer w{buf};
+nar::dump_string(w, "hello world\n");
+
+// Directory tree
+auto tree = nar::FsObject::directory({
+    {"a.txt", nar::FsObject::file("content a\n")},
+    {"bin", nar::FsObject::directory({
+        {"script", nar::FsObject::executable("#!/bin/sh\necho hi\n")},
+    })},
+});
+std::vector<std::byte> nar_data;
+tree.to_nar(nar_data);
+
+// === PARSING ===
+auto result = nar::Reader::parse(nar_data);
+if (!nar::is_error(result)) {
+    nar::FsObject& obj = nar::get_value(result);
+    // Use obj...
+} else {
+    std::cerr << "Error: " << nar::get_error(result).message << "\n";
+}
+```
+
+**Build and test:**
+```bash
+g++ -std=c++23 -Wall -Wextra -Wpedantic -o test_nar_serialize test_nar_serialize.cpp
+./test_nar_serialize
+# Results: 15 passed, 0 failed (includes round-trip tests)
+```
+
+#### Rust NAR (src/nar.rs)
+
+```rust
+use nix_protocol::nar::{dump_string, FsObject, NarReader};
+
+// === WRITING ===
+let mut buf = Vec::new();
+dump_string(&mut buf, b"hello world\n").unwrap();
+
+// Directory tree
+let tree = FsObject::directory(vec![
+    ("a.txt".to_string(), FsObject::file(b"content a\n".to_vec())),
+    ("bin".to_string(), FsObject::directory(vec![
+        ("script".to_string(), FsObject::executable(b"#!/bin/sh\n".to_vec())),
+    ])),
+]);
+let mut nar_data = Vec::new();
+tree.to_nar(&mut nar_data).unwrap();
+
+// === PARSING ===
+let parsed = NarReader::parse(&nar_data).unwrap();
+assert_eq!(tree, parsed);  // Round-trip works!
+```
+
+**Build and test:**
+```bash
+cargo test
+# NAR tests: 16 passed (includes round-trip tests)
+```
+
+#### Haskell NAR (hs/src/Nix/Nar.hs)
+
+```haskell
+import Nix.Nar
+import qualified Data.ByteString as BS
+
+-- === WRITING ===
+regularFile :: ByteString
+regularFile = execWriter $ dumpString "hello world\n"
+
+executableFile :: ByteString
+executableFile = execWriter $ dumpExecutable "#!/bin/bash\n"
+
+-- Directory tree
+directoryNar :: ByteString
+directoryNar = execWriter $ toNar tree
+  where
+    tree = Directory
+      [ ("a.txt", RegularFile "content a\n" False)
+      , ("bin", Directory
+          [ ("script", RegularFile "#!/bin/sh\n" True)
+          ])
+      ]
+
+-- === PARSING ===
+parsedObject :: Either NarError FsObject
+parsedObject = parseNar narBytes
+
+-- Round-trip
+roundTrip :: ByteString -> Either NarError ByteString
+roundTrip bs = do
+    obj <- parseNar bs
+    pure $ execWriter $ toNar obj
+```
+
+**Build and test:**
+```bash
+nix-shell -p "haskellPackages.ghcWithPackages (p: [p.bytestring p.text p.tasty p.tasty-hunit])" cabal-install
+cabal test nar-captures
+# NAR Captures: 16 tests passed (includes round-trip tests)
+```
+
 ## Using the Schema
 
 ### Generate Parsers
@@ -119,9 +307,9 @@ detailed results | | `QueryMissing` | 40 | Query what needs building/fetching | 
 | Download NAR from store | | `SetOptions` | 19 | Configure daemon options | | `CollectGarbage` | 20
 | GC operations |
 
-## Generated Parsers
+## Generated Parsers/Serializers
 
-The following parsers have been generated from `nix_daemon.ksy`:
+### Protocol (nix_daemon.ksy)
 
 | Language | File | Status |
 |----------|------|--------|
@@ -131,6 +319,14 @@ The following parsers have been generated from `nix_daemon.ksy`:
 | Rust | `nix_daemon_protocol.rs` | Generated (reader) |
 | Rust | `src/lib.rs` | Validated (writer, 14/14 tests) |
 | Haskell | `hs/src/Nix/Protocol.hs` | Validated (writer, 14/14 tests) |
+
+### NAR (nar.ksy)
+
+| Language | File | Status |
+|----------|------|--------|
+| C++ | `nar_serialize.h` | Validated (reader + writer, 15/15 tests) |
+| Rust | `src/nar.rs` | Validated (reader + writer, 16/16 tests) |
+| Haskell | `hs/src/Nix/Nar.hs` | Validated (reader + writer, 16/16 tests) |
 
 ### C++ Serializer (Writer)
 
@@ -430,6 +626,7 @@ daemon protocol clients/servers.
 
 ## TODO
 
+### Protocol
 - [x] Complete schema for all 48 operations
 - [x] Add test vectors (captured traffic)
 - [x] Generate and validate C++ parser
@@ -441,4 +638,18 @@ daemon protocol clients/servers.
 - [x] Generate C++ serializers (write path) - validated against all captures
 - [x] Generate Rust serializers - validated against all captures (14/14 tests)
 - [x] Generate Haskell serializers - validated against all captures (14/14 tests)
-- [ ] Lean4 serializers (future work)
+
+### NAR
+- [x] Create NAR Kaitai schema (nar.ksy)
+- [x] Capture NAR test vectors (6 archives from nix-store --dump)
+- [x] Generate Rust NAR serializers - validated (9/9 tests)
+- [x] Generate C++ NAR serializers - validated (9/9 tests)
+- [x] Generate Haskell NAR serializers - validated (9/9 tests)
+- [x] Generate Rust NAR parser - validated with round-trip tests (16/16 tests)
+- [x] Generate C++ NAR parser - validated with round-trip tests (15/15 tests)
+- [x] Generate Haskell NAR parser - validated with round-trip tests (16/16 tests)
+
+### Future Work
+- [ ] Lean4 serializers (protocol + NAR)
+- [ ] Streaming NAR writer (for large archives)
+- [ ] Protocol reader/parser implementations

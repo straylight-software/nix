@@ -7,7 +7,10 @@ license-file:  LICENSE
 build-type:    Simple
 
 library
-  exposed-modules:  Nix.Protocol
+  exposed-modules:
+    Nix.Nar
+    Nix.Protocol
+
   build-depends:
     , base        >=4.14 && <5
     , bytestring  >=0.10
@@ -20,6 +23,22 @@ library
 test-suite captures
   type:             exitcode-stdio-1.0
   main-is:          Captures.hs
+  build-depends:
+    , base          >=4.14 && <5
+    , bytestring    >=0.10
+    , filepath      >=1.4
+    , nix-protocol
+    , tasty         >=1.4
+    , tasty-hunit   >=0.10
+    , text          >=1.2
+
+  hs-source-dirs:   hs/test
+  default-language: GHC2021
+  ghc-options:      -Wall -Wcompat
+
+test-suite nar-captures
+  type:             exitcode-stdio-1.0
+  main-is:          NarCaptures.hs
   build-depends:
     , base          >=4.14 && <5
     , bytestring    >=0.10

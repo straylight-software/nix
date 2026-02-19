@@ -388,6 +388,132 @@ int main() {
     }
   }
 
+  // =======================================================================
+  // Reader Tests
+  // =======================================================================
+
+  std::cout << "\n--- Reader Tests ---\n\n";
+
+  // Test 15: Read server_hello
+  {
+    auto data = read_file("captures/server_hello.bin");
+    try {
+      Reader r{data};
+      auto hello = read_server_hello(r);
+      if (hello.magic == WORKER_MAGIC_2 && hello.version == 0x0126) {
+        std::cout << "PASS read_server_hello (magic=0x" << std::hex << hello.magic << ", version=0x"
+                  << hello.version << std::dec << ")\n";
+        ++passed;
+      } else {
+        std::cerr << "FAIL read_server_hello: wrong values\n";
+        ++failed;
+      }
+    } catch (const std::exception& e) {
+      std::cerr << "FAIL read_server_hello: " << e.what() << "\n";
+      ++failed;
+    }
+  }
+
+  // Test 16: Read isvalidpath_response
+  {
+    auto data = read_file("captures/isvalidpath_response.bin");
+    try {
+      Reader r{data};
+      bool valid = read_is_valid_path_response(r);
+      if (valid) {
+        std::cout << "PASS read_isvalidpath_response (valid=true)\n";
+        ++passed;
+      } else {
+        std::cerr << "FAIL read_isvalidpath_response: expected true\n";
+        ++failed;
+      }
+    } catch (const std::exception& e) {
+      std::cerr << "FAIL read_isvalidpath_response: " << e.what() << "\n";
+      ++failed;
+    }
+  }
+
+  // Test 17: Read querypathinfo_response
+  {
+    auto data = read_file("captures/querypathinfo_response.bin");
+    try {
+      Reader r{data};
+      auto info = read_query_path_info_response(r, 0x0126);
+      if (info && info->deriver.find("bash") != std::string::npos &&
+          info->nar_hash.find("f7b02ee0") == 0 && info->references.size() == 2) {
+        std::cout << "PASS read_querypathinfo_response (deriver=" << info->deriver.substr(0, 40)
+                  << "..., refs=" << info->references.size() << ")\n";
+        ++passed;
+      } else {
+        std::cerr << "FAIL read_querypathinfo_response: wrong values\n";
+        ++failed;
+      }
+    } catch (const std::exception& e) {
+      std::cerr << "FAIL read_querypathinfo_response: " << e.what() << "\n";
+      ++failed;
+    }
+  }
+
+  // Test 18: Read querymissing_response
+  {
+    auto data = read_file("captures/querymissing_response.bin");
+    try {
+      Reader r{data};
+      auto result = read_query_missing_response(r);
+      if (result.will_build.empty() && result.will_substitute.empty() &&
+          result.download_size == 0 && result.nar_size == 0) {
+        std::cout << "PASS read_querymissing_response (all empty)\n";
+        ++passed;
+      } else {
+        std::cerr << "FAIL read_querymissing_response: expected empty\n";
+        ++failed;
+      }
+    } catch (const std::exception& e) {
+      std::cerr << "FAIL read_querymissing_response: " << e.what() << "\n";
+      ++failed;
+    }
+  }
+
+  // Test 19: Read queryreferrers_response
+  {
+    auto data = read_file("captures/queryreferrers_response.bin");
+    try {
+      Reader r{data};
+      auto referrers = read_query_referrers_response(r);
+      if (!referrers.empty() && referrers[0].find("/nix/store/") == 0) {
+        std::cout << "PASS read_queryreferrers_response (count=" << referrers.size() << ")\n";
+        ++passed;
+      } else {
+        std::cerr << "FAIL read_queryreferrers_response: empty or invalid\n";
+        ++failed;
+      }
+    } catch (const std::exception& e) {
+      std::cerr << "FAIL read_queryreferrers_response: " << e.what() << "\n";
+      ++failed;
+    }
+  }
+
+  // Test 20: Read buildpathswithresults_response
+  {
+    auto data = read_file("captures/buildpathswithresults_response.bin");
+    try {
+      Reader r{data};
+      auto results = read_build_paths_with_results_response(r, 0x0126);
+      if (results.size() == 1 && results[0].path.find("hello") != std::string::npos &&
+          results[0].status == 2 && results[0].built_outputs.size() == 1) {
+        std::cout << "PASS read_buildpathswithresults_response (path="
+                  << results[0].path.substr(0, 30) << "..., status=" << results[0].status << ")\n";
+        ++passed;
+      } else {
+        std::cerr << "FAIL read_buildpathswithresults_response: wrong values\n";
+        ++failed;
+      }
+    } catch (const std::exception& e) {
+      std::cerr << "FAIL read_buildpathswithresults_response: " << e.what() << "\n";
+      ++failed;
+    }
+  }
+
   std::cout << "\n========================================\n";
   std::cout << "Results: " << passed << " passed, " << failed << " failed\n";
 
