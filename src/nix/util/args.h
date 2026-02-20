@@ -269,7 +269,7 @@ protected:
     return pos;
   }
 
-  virtual void check_args();
+  virtual auto check_args() -> void;
 
   /**
    * Called after all command line flags before the first non-flag
@@ -278,34 +278,35 @@ protected:
   virtual void initial_flags_processed() {}
 
 public:
-  void add_flag(flag_t&& flag);
+  auto add_flag(flag_t&& flag) -> void;
 
-  void remove_flag(const std::string& long_name);
+  auto remove_flag(const std::string& long_name) -> void;
 
-  void hide_category(const std::string& category) { hidden_categories_.insert(category); }
+  auto hide_category(const std::string& category) -> void { hidden_categories_.insert(category); }
 
-  void expect_args(expected_arg_t&& arg) { expected_args_.emplace_back(std::move(arg)); }
+  auto expect_args(expected_arg_t&& arg) -> void { expected_args_.emplace_back(std::move(arg)); }
 
-  void clear_expected_args() { expected_args_.clear(); }
+  auto clear_expected_args() -> void { expected_args_.clear(); }
 
   /**
    * Expect a string argument.
    */
-  void expect_arg(const std::string& label, std::string* dest, bool optional = false) {
+  auto expect_arg(const std::string& label, std::string* dest, bool optional = false) -> void {
     expect_args({.label = label, .optional = optional, .handler = {dest}, .completer = {}});
   }
 
   /**
    * Expect a path argument.
    */
-  void expect_arg(const std::string& label, std::filesystem::path* dest, bool optional = false) {
+  auto expect_arg(const std::string& label, std::filesystem::path* dest, bool optional = false)
+      -> void {
     expect_args({.label = label, .optional = optional, .handler = {dest}, .completer = {}});
   }
 
   /**
    * Expect 0 or more arguments.
    */
-  void expect_args(const std::string& label, std::vector<std::string>* dest) {
+  auto expect_args(const std::string& label, std::vector<std::string>* dest) -> void {
     expect_args({.label = label, .handler = {dest}, .completer = {}});
   }
 
@@ -331,7 +332,7 @@ public:
   /**
    * Set parent command pointer.
    */
-  void set_parent(multi_command_t* parent) { parent_ = parent; }
+  auto set_parent(multi_command_t* parent) -> void { parent_ = parent; }
 
 private:
   /**
@@ -358,7 +359,7 @@ struct command_t : virtual public args_t {
   /**
    * Entry point to the command
    */
-  virtual void run() = 0;
+  virtual auto run() -> void = 0;
 
   using category_t = int;
 
@@ -425,7 +426,7 @@ public:
   [[nodiscard]] auto get_aliases() -> std::map<std::string, alias_info_t>& { return aliases_; }
 
 protected:
-  void check_args() override;
+  auto check_args() -> void override;
 
 private:
   commands_t commands_;
@@ -494,15 +495,15 @@ public:
    *
    * \todo it should not be possible to change the type after it has been set.
    */
-  virtual void set_type(Type completion_type) = 0;
+  virtual auto set_type(Type completion_type) -> void = 0;
 
   /**
    * Add a single completion to the collection
    */
-  virtual void add(std::string completion, std::string description = "") = 0;
+  virtual auto add(std::string completion, std::string description = "") -> void = 0;
 };
 
-strings_t parse_shebang_content(std::string_view s);
+auto parse_shebang_content(std::string_view s) -> strings_t;
 
 } // namespace nix
 
