@@ -1,0 +1,161 @@
+# src/straylight/nix/text/BUCK
+#
+# Text processing primitives: strings, regex, fuzzy matching, formatting
+
+# Common compiler flags
+COMMON_FLAGS = [
+    "-std=c++23",
+    "-Wall",
+    "-Wextra",
+    "-Wpedantic",
+]
+
+# RE2 flags
+REGEX_COMPILER_FLAGS = COMMON_FLAGS + [
+    "-isystem/nix/store/bvklk6khay8hv186g21vh4cz0b1h24cg-re2-2025-08-12-dev/include",
+    "-isystem/nix/store/d4qrcnr91qgbwp1sfb9q4mgw8mjqhk1v-abseil-cpp-20250512.1/include",
+]
+
+REGEX_LINKER_FLAGS = [
+    "-L/nix/store/g2sz6lsqmm054v9lkgkrz5gddxi7yipr-re2-2025-08-12/lib",
+    "-lre2",
+    "-Wl,-rpath,/nix/store/g2sz6lsqmm054v9lkgkrz5gddxi7yipr-re2-2025-08-12/lib",
+]
+
+# rapidfuzz flags
+FUZZY_COMPILER_FLAGS = COMMON_FLAGS + [
+    "-isystem/nix/store/ckb9dac1i1yww14lgj3y4ab0a04lwab9-rapidfuzz-cpp-3.3.3/include",
+]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# String primitives (stringzilla backend)
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_library(
+    name = "strings",
+    exported_headers = [
+        "strings.h",
+        "strings_config.h",
+    ],
+    header_namespace = "straylight/nix/text",
+    compiler_flags = COMMON_FLAGS,
+    deps = [
+        "//third_party:stringzilla",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Regex primitives (RE2 backend)
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_library(
+    name = "regex",
+    srcs = ["regex.cpp"],
+    exported_headers = ["regex.h"],
+    header_namespace = "straylight/nix/text",
+    compiler_flags = REGEX_COMPILER_FLAGS,
+    linker_flags = REGEX_LINKER_FLAGS,
+    deps = [
+        "//third_party:re2",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Fuzzy matching primitives (rapidfuzz-cpp)
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_library(
+    name = "fuzzy",
+    exported_headers = ["fuzzy.h"],
+    header_namespace = "straylight/nix/text",
+    compiler_flags = FUZZY_COMPILER_FLAGS,
+    deps = [
+        "//third_party:rapidfuzz-cpp",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Format primitives (std::format based)
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_library(
+    name = "format",
+    exported_headers = ["format.h"],
+    header_namespace = "straylight/nix/text",
+    compiler_flags = COMMON_FLAGS,
+    visibility = ["PUBLIC"],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Markdown primitives (terminal rendering)
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_library(
+    name = "markdown",
+    exported_headers = ["markdown.h"],
+    header_namespace = "straylight/nix/text",
+    compiler_flags = COMMON_FLAGS,
+    visibility = ["PUBLIC"],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# XML writer primitives (streaming XML generation)
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_library(
+    name = "xml_writer",
+    exported_headers = ["xml_writer.h"],
+    header_namespace = "straylight/nix/text",
+    compiler_flags = COMMON_FLAGS,
+    visibility = ["PUBLIC"],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Table primitives (ASCII table formatting)
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_library(
+    name = "table",
+    exported_headers = ["table.h"],
+    header_namespace = "straylight/nix/text",
+    compiler_flags = COMMON_FLAGS,
+    visibility = ["PUBLIC"],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Split primitives (string splitting utilities)
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_library(
+    name = "split",
+    exported_headers = ["split.h"],
+    header_namespace = "straylight/nix/text",
+    compiler_flags = COMMON_FLAGS,
+    visibility = ["PUBLIC"],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Combined text target
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_library(
+    name = "text",
+    exported_headers = [
+        "strings.h",
+        "strings_config.h",
+        "regex.h",
+        "fuzzy.h",
+        "format.h",
+        "markdown.h",
+        "xml_writer.h",
+        "table.h",
+        "split.h",
+    ],
+    header_namespace = "straylight/nix/text",
+    compiler_flags = COMMON_FLAGS,
+    exported_deps = [
+        ":strings",
+        ":regex",
+        ":fuzzy",
+        ":format",
+        ":markdown",
+        ":xml_writer",
+        ":table",
+        ":split",
+    ],
+    visibility = ["PUBLIC"],
+)

@@ -1,0 +1,63 @@
+# src/straylight/nix/crypto/BUCK
+#
+# Cryptographic primitives: hashing (BLAKE3/SHA-256/MD5), encoding (base16/base64/nix32)
+
+# Common compiler flags
+COMMON_FLAGS = [
+    "-std=c++23",
+    "-Wall",
+    "-Wextra",
+    "-Wpedantic",
+]
+
+# Note: blake3 and libcrypto are now statically linked via //third_party
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Hash primitives (BLAKE3 + OpenSSL backends)
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_library(
+    name = "hash",
+    srcs = ["hash.cpp"],
+    exported_headers = [
+        "hash.h",
+        "hash_config.h",
+    ],
+    header_namespace = "straylight/nix/crypto",
+    compiler_flags = COMMON_FLAGS,
+    deps = [
+        "//third_party:blake3",
+        "//third_party:openssl",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Encoding primitives (base16/base64/nix32)
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_library(
+    name = "encoding",
+    srcs = ["encoding.cpp"],
+    exported_headers = ["encoding.h"],
+    header_namespace = "straylight/nix/crypto",
+    compiler_flags = COMMON_FLAGS,
+    visibility = ["PUBLIC"],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Combined crypto target
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_library(
+    name = "crypto",
+    exported_headers = [
+        "hash.h",
+        "hash_config.h",
+        "encoding.h",
+    ],
+    header_namespace = "straylight/nix/crypto",
+    compiler_flags = COMMON_FLAGS,
+    exported_deps = [
+        ":hash",
+        ":encoding",
+    ],
+    visibility = ["PUBLIC"],
+)

@@ -1,0 +1,36 @@
+# src/straylight/nix/url/BUCK
+#
+# URL parsing primitives (ada backend)
+
+# Common compiler flags
+COMMON_FLAGS = [
+    "-std=c++23",
+    "-Wall",
+    "-Wextra",
+    "-Wpedantic",
+    "-DSTRAYLIGHT_URL_BACKEND_ADA=1",
+]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# URL primitives (ada backend)
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_library(
+    name = "url",
+    srcs = [
+        "url.cpp",
+        "url_fast.cpp",
+    ],
+    exported_headers = [
+        "config.h",
+        "url.h",
+        "url_fast.h",
+    ],
+    header_namespace = "straylight/nix/url",
+    compiler_flags = COMMON_FLAGS,
+    deps = [
+        "//third_party:ada",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+# Note: boost backend variant removed - using ada exclusively

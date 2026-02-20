@@ -55,6 +55,19 @@ src/
 
 libressl (not openssl), blake3, ada, re2, binaryen, wasmtime, liburing, nghttp2, ngtcp2, nghttp3.
 
+### // `documentation`
+
+| document | description |
+|----------|-------------|
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | comprehensive project overview |
+| [docs/DEVELOPER_GUIDE.md](./docs/DEVELOPER_GUIDE.md) | developer onboarding |
+| [docs/cpp-style-guide.md](./docs/cpp-style-guide.md) | c++ code conventions |
+| [src/straylight/evring/ARCHITECTURE.md](./src/straylight/evring/ARCHITECTURE.md) | io_uring state machines |
+| [src/straylight/language/ARCHITECTURE.md](./src/straylight/language/ARCHITECTURE.md) | nix → wasm compiler |
+| [src/straylight/protocol/README.md](./src/straylight/protocol/README.md) | formal protocol specs |
+| [src/straylight/nix/primitives/NIH.md](./src/straylight/nix/primitives/NIH.md) | nih replacement tracking |
+| [src/straylight/nix/primitives/STORE_DESIGN.md](./src/straylight/nix/primitives/STORE_DESIGN.md) | daemonless store design |
+
 ### // `license`
 
 [LGPL v2.1](./COPYING)

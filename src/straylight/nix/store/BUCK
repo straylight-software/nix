@@ -1,0 +1,136 @@
+# src/straylight/nix/store/BUCK
+#
+# Store implementations: CA store, legacy store, two-tier unified store, log store
+
+# Common compiler flags
+COMMON_FLAGS = [
+    "-std=c++23",
+    "-Wall",
+    "-Wextra",
+    "-Wpedantic",
+]
+
+# Hash linker flags
+HASH_LINKER_FLAGS = [
+    "-lblake3",
+]
+
+# SQLite flags
+SQLITE_COMPILER_FLAGS = COMMON_FLAGS + [
+    "-isystem/nix/store/yd47pmkv6iv58gs5v5jgyblvkw87pqx3-sqlite-3.50.2/include",
+]
+
+SQLITE_LINKER_FLAGS = [
+    "-L/nix/store/yd47pmkv6iv58gs5v5jgyblvkw87pqx3-sqlite-3.50.2/lib",
+    "-lsqlite3",
+    "-Wl,-rpath,/nix/store/yd47pmkv6iv58gs5v5jgyblvkw87pqx3-sqlite-3.50.2/lib",
+]
+
+# zpp_bits flags
+ZPP_BITS_COMPILER_FLAGS = COMMON_FLAGS + [
+    "-isystem/nix/store/bx9q2zgry31v0fq01ylw6w9w4fbk2lza-zpp_bits-4.5/include",
+]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CA Store - Content-addressed blob storage (coordination-free)
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_library(
+    name = "ca_store",
+    srcs = ["ca_store.cpp"],
+    exported_headers = ["ca_store.h"],
+    header_namespace = "straylight/nix/store",
+    compiler_flags = COMMON_FLAGS,
+    linker_flags = HASH_LINKER_FLAGS,
+    exported_deps = [
+        "//src/straylight/nix/crypto:hash",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Legacy Store - SQLite-based store for input-addressed paths
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_library(
+    name = "legacy_store",
+    srcs = ["legacy_store.cpp"],
+    exported_headers = ["legacy_store.h"],
+    header_namespace = "straylight/nix/store",
+    compiler_flags = SQLITE_COMPILER_FLAGS,
+    exported_deps = [
+        "//src/straylight/nix/sync:lock",
+        "//src/straylight/nix/compat:sqlite",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Two-Tier Store - Unified CA + Legacy store (header-only facade)
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_library(
+    name = "two_tier_store",
+    exported_headers = ["two_tier_store.h"],
+    header_namespace = "straylight/nix/store",
+    compiler_flags = SQLITE_COMPILER_FLAGS,
+    exported_deps = [
+        ":ca_store",
+        ":legacy_store",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Log Store - Experimental log-structured store
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_library(
+    name = "log_store",
+    srcs = ["log_store.cpp"],
+    exported_headers = [
+        "log_store.h",
+        "async.h",
+    ],
+    header_namespace = "straylight/nix/store",
+    compiler_flags = ZPP_BITS_COMPILER_FLAGS,
+    linker_flags = HASH_LINKER_FLAGS,
+    deps = [
+        "//src/straylight/nix/crypto:hash",
+        "//src/straylight/nix/data:serialise",
+        "//src/straylight/evring:evring",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CA Store evring machines - Async I/O handlers
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_library(
+    name = "ca_store_machine",
+    exported_headers = ["ca_store_machine.h"],
+    header_namespace = "straylight/nix/store",
+    compiler_flags = COMMON_FLAGS,
+    exported_deps = [
+        ":ca_store",
+        "//src/straylight/nix/crypto:hash",
+        "//src/straylight/evring:evring",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Combined store target (production two-tier architecture)
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_library(
+    name = "store",
+    exported_headers = [
+        "ca_store.h",
+        "legacy_store.h",
+        "two_tier_store.h",
+        "ca_store_machine.h",
+    ],
+    header_namespace = "straylight/nix/store",
+    compiler_flags = COMMON_FLAGS,
+    exported_deps = [
+        ":two_tier_store",
+        ":ca_store_machine",
+    ],
+    visibility = ["PUBLIC"],
+)

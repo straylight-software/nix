@@ -1,0 +1,212 @@
+# src/straylight/nix/compiler/BUCK
+#
+# straylight::language — Nix expression parser and WASM compiler
+#
+# Architecture:
+#   Nix source → PEGTL parser → AST → binaryen → WASM module
+#
+# This is a clean-room implementation designed for AOT compilation,
+# not interpretation. The AST types are optimized for WASM codegen.
+
+cxx_library(
+    name = "ast",
+    exported_headers = [
+        "ast/expression.h",
+        "ast/symbol_table.h",
+    ],
+    header_namespace = "straylight/nix/compiler",
+    visibility = ["PUBLIC"],
+    # header-only library, no deps needed
+)
+
+cxx_library(
+    name = "parse",
+    exported_headers = [
+        "parse/actions.h",
+        "parse/convert.h",
+        "parse/grammar.h",
+        "parse/lower.h",
+        "parse/parser.h",
+        "parse/selector.h",
+        "parse/state.h",
+        "parse/tree.h",
+    ],
+    header_namespace = "straylight/nix/compiler",
+    visibility = ["PUBLIC"],
+    deps = [
+        ":ast",
+        "//third_party:pegtl",
+    ],
+)
+
+cxx_library(
+    name = "compile",
+    exported_headers = [
+        "compile/compiler.h",
+        "compile/wasm_types.h",
+    ],
+    header_namespace = "straylight/nix/compiler",
+    visibility = ["PUBLIC"],
+    deps = [
+        ":ast",
+        "//third_party:binaryen",
+    ],
+)
+
+cxx_library(
+    name = "eval",
+    exported_headers = [
+        "eval/eval.h",
+        "eval/value.h",
+    ],
+    header_namespace = "straylight/nix/compiler",
+    visibility = ["PUBLIC"],
+    deps = [
+        ":ast",
+    ],
+)
+
+cxx_library(
+    name = "runtime",
+    srcs = ["runtime/runtime.cpp"],
+    exported_headers = [
+        "runtime/io_backend.h",
+        "runtime/io_config.h",
+        "runtime/memory_layout.h",
+        "runtime/runtime.h",
+        "runtime/wasm_memory.h",
+    ],
+    header_namespace = "straylight/nix/compiler",
+    visibility = ["PUBLIC"],
+    compiler_flags = [
+        "-std=c++23",
+        # Enable sync I/O backend for import, readFile, etc.
+        "-DSTRAYLIGHT_EVAL_IO_SYNC=1",
+    ],
+    deps = [
+        ":compile",  # for wasm_types.hh
+    ],
+)
+
+# WASM executor using wasmtime
+cxx_library(
+    name = "wasm_executor",
+    srcs = [
+        "runtime/wasm_executor.cpp",
+        "runtime/io_backend_sync.cpp",
+    ],
+    exported_headers = [
+        "runtime/wasm_executor.h",
+    ],
+    header_namespace = "straylight/nix/compiler",
+    visibility = ["PUBLIC"],
+    compiler_flags = [
+        "-std=c++23",
+        "-isystem/nix/store/5csjs5zrln4x5y3wxy6pi42bh2816c1s-wasmtime-40.0.0/include",
+        # Enable sync I/O backend for import, readFile, etc.
+        "-DSTRAYLIGHT_EVAL_IO_SYNC=1",
+    ],
+    linker_flags = [
+        "-L/nix/store/c76a64xqlv5h3i94dzv221pia3pginp1-wasmtime-40.0.0-lib/lib",
+        "-lwasmtime",
+        "-Wl,-rpath,/nix/store/c76a64xqlv5h3i94dzv221pia3pginp1-wasmtime-40.0.0-lib/lib",
+    ],
+    exported_deps = [
+        ":compile",
+        ":runtime",
+    ],
+    deps = [
+        "//src/straylight/nix/crypto:hash",
+        "//third_party:wasmtime",
+    ],
+)
+
+# Full evaluator combining parser, compiler, and executor
+cxx_library(
+    name = "evaluator",
+    srcs = ["evaluator.cpp"],
+    exported_headers = ["evaluator.h"],
+    header_namespace = "straylight/nix/compiler",
+    visibility = ["PUBLIC"],
+    compiler_flags = [
+        "-std=c++23",
+        "-isystem/nix/store/5csjs5zrln4x5y3wxy6pi42bh2816c1s-wasmtime-40.0.0/include",
+        # Enable sync I/O backend for import, readFile, etc.
+        "-DSTRAYLIGHT_EVAL_IO_SYNC=1",
+    ],
+    linker_flags = [
+        "-L/nix/store/c76a64xqlv5h3i94dzv221pia3pginp1-wasmtime-40.0.0-lib/lib",
+        "-lwasmtime",
+        "-Wl,-rpath,/nix/store/c76a64xqlv5h3i94dzv221pia3pginp1-wasmtime-40.0.0-lib/lib",
+    ],
+    deps = [
+        ":ast",
+        ":compile",
+        ":parse",
+        ":wasm_executor",
+    ],
+)
+
+# main library combining all components
+cxx_library(
+    name = "language",
+    exported_headers = [],
+    header_namespace = "straylight/nix/compiler",
+    visibility = ["PUBLIC"],
+    deps = [
+        ":ast",
+        ":compile",
+        ":eval",
+        ":evaluator",
+        ":parse",
+        ":runtime",
+    ],
+)
+
+# CLI for evaluating Nix expressions (tree-walking interpreter)
+cxx_binary(
+    name = "nix_eval",
+    srcs = ["cli/nix_eval.cpp"],
+    visibility = ["PUBLIC"],
+    deps = [
+        ":ast",
+        ":eval",
+        ":parse",
+    ],
+)
+
+# CLI for evaluating Nix expressions via WASM
+cxx_binary(
+    name = "nix_wasm_eval",
+    srcs = ["cli/nix_wasm_eval.cpp"],
+    visibility = ["PUBLIC"],
+    compiler_flags = [
+        "-std=c++23",
+        "-isystem/nix/store/5csjs5zrln4x5y3wxy6pi42bh2816c1s-wasmtime-40.0.0/include",
+    ],
+    linker_flags = [
+        # Binaryen (for WASM compilation)
+        "-L/nix/store/4jp1vkr9gj5n3zbpp2xvkp8n3g56lpv0-binaryen-125/lib",
+        "-lbinaryen",
+        "-Wl,-rpath,/nix/store/4jp1vkr9gj5n3zbpp2xvkp8n3g56lpv0-binaryen-125/lib",
+        # Wasmtime (for WASM execution)
+        "-L/nix/store/c76a64xqlv5h3i94dzv221pia3pginp1-wasmtime-40.0.0-lib/lib",
+        "-lwasmtime",
+        "-Wl,-rpath,/nix/store/c76a64xqlv5h3i94dzv221pia3pginp1-wasmtime-40.0.0-lib/lib",
+        # Hash libraries (for builtins.hashString, etc.)
+        # Note: blake3 is now statically linked via //third_party:blake3
+        "-L/nix/store/61i74yjkj9p1qphfl7018ja4sdwkipx0-openssl-3.6.0/lib",
+        "-Wl,-rpath,/nix/store/61i74yjkj9p1qphfl7018ja4sdwkipx0-openssl-3.6.0/lib",
+        # Boost (for parse)
+        "-L/nix/store/2izjh733byjickw9719nnkckxd63ghpm-boost-1.87.0/lib",
+        "-Wl,-rpath,/nix/store/2izjh733byjickw9719nnkckxd63ghpm-boost-1.87.0/lib",
+    ],
+    deps = [
+        ":ast",
+        ":compile",
+        ":parse",
+        ":wasm_executor",
+        "//third_party:binaryen",
+        "//third_party:wasmtime",
+    ],
+)

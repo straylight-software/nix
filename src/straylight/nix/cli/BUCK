@@ -1,0 +1,34 @@
+# src/straylight/nix/cli/BUCK
+#
+# CLI argument parsing primitives
+
+# Common compiler flags
+COMMON_FLAGS = [
+    "-std=c++23",
+    "-Wall",
+    "-Wextra",
+    "-Wpedantic",
+]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Args - CLI argument parsing
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_library(
+    name = "args",
+    exported_headers = ["args.h"],
+    header_namespace = "straylight/nix/cli",
+    compiler_flags = COMMON_FLAGS,
+    visibility = ["PUBLIC"],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Combined CLI target
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_library(
+    name = "cli",
+    exported_headers = ["args.h"],
+    header_namespace = "straylight/nix/cli",
+    compiler_flags = COMMON_FLAGS,
+    exported_deps = [":args"],
+    visibility = ["PUBLIC"],
+)

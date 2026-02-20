@@ -1,0 +1,45 @@
+# third_party/nix_prebuilt.bzl
+#
+# Macro for prebuilt libraries from Nix store paths.
+# Buck2 doesn't allow absolute paths in source attributes, so we use
+# preprocessor and linker flags instead.
+
+def nix_prebuilt_cxx_library(
+        name,
+        static_lib = None,
+        shared_lib = None,
+        include_dir = None,
+        deps = [],
+        visibility = ["PUBLIC"]):
+    """
+    Prebuilt C++ library with paths from Nix store.
+
+    Args:
+        name: Target name
+        static_lib: Absolute path to .a file
+        shared_lib: Absolute path to .so file
+        include_dir: Absolute path to include directory
+        deps: Dependencies
+        visibility: Visibility
+    """
+    exported_preprocessor_flags = []
+    exported_linker_flags = []
+
+    if include_dir:
+        exported_preprocessor_flags.append("-isystem" + include_dir)
+
+    if static_lib:
+        exported_linker_flags.append(static_lib)
+    elif shared_lib:
+        # For shared libs, we need -L and -l flags
+        # Extract directory and library name from path
+        # e.g. /nix/store/.../lib/libfoo.so -> -L/nix/store/.../lib -lfoo
+        exported_linker_flags.append(shared_lib)
+
+    native.cxx_library(
+        name = name,
+        exported_preprocessor_flags = exported_preprocessor_flags,
+        exported_linker_flags = exported_linker_flags,
+        exported_deps = deps,
+        visibility = visibility,
+    )

@@ -1,0 +1,85 @@
+# src/straylight/nix/data/BUCK
+#
+# Data structure primitives: chunked vector, LRU cache, topo sort, serialization
+
+# Common compiler flags
+COMMON_FLAGS = [
+    "-std=c++23",
+    "-Wall",
+    "-Wextra",
+    "-Wpedantic",
+]
+
+# zpp_bits include path
+ZPP_BITS_COMPILER_FLAGS = COMMON_FLAGS + [
+    "-isystem/nix/store/bx9q2zgry31v0fq01ylw6w9w4fbk2lza-zpp_bits-4.5/include",
+]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ChunkedVector - stable reference vector
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_library(
+    name = "chunked_vector",
+    exported_headers = ["chunked_vector.h"],
+    header_namespace = "straylight/nix/data",
+    compiler_flags = COMMON_FLAGS,
+    visibility = ["PUBLIC"],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LRU cache - O(1) operations, thread-safe variant
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_library(
+    name = "lru_cache",
+    exported_headers = ["lru_cache.h"],
+    header_namespace = "straylight/nix/data",
+    compiler_flags = COMMON_FLAGS,
+    visibility = ["PUBLIC"],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Topological sort - Kahn's algorithm, O(V+E), cycle detection
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_library(
+    name = "topo_sort",
+    exported_headers = ["topo_sort.h"],
+    header_namespace = "straylight/nix/data",
+    compiler_flags = COMMON_FLAGS,
+    visibility = ["PUBLIC"],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Serialization - streaming Source/Sink with zpp_bits
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_library(
+    name = "serialise",
+    exported_headers = ["serialise.h"],
+    header_namespace = "straylight/nix/data",
+    compiler_flags = ZPP_BITS_COMPILER_FLAGS,
+    deps = [
+        "//third_party:zpp_bits",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Combined data target
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_library(
+    name = "data",
+    exported_headers = [
+        "chunked_vector.h",
+        "lru_cache.h",
+        "topo_sort.h",
+        "serialise.h",
+    ],
+    header_namespace = "straylight/nix/data",
+    compiler_flags = COMMON_FLAGS,
+    exported_deps = [
+        ":chunked_vector",
+        ":lru_cache",
+        ":topo_sort",
+        ":serialise",
+    ],
+    visibility = ["PUBLIC"],
+)

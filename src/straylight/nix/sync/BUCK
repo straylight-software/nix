@@ -1,0 +1,91 @@
+# src/straylight/nix/sync/BUCK
+#
+# Synchronization primitives: locks, pools, signals, synchronized values
+
+# Common compiler flags
+COMMON_FLAGS = [
+    "-std=c++23",
+    "-Wall",
+    "-Wextra",
+    "-Wpedantic",
+]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Synchronized - thread-safe value wrapper with RAII locking
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_library(
+    name = "synchronized",
+    exported_headers = ["synchronized.h"],
+    header_namespace = "straylight/nix/sync",
+    compiler_flags = COMMON_FLAGS,
+    visibility = ["PUBLIC"],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Lock - portable mutual exclusion, RAII
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_library(
+    name = "lock",
+    exported_headers = ["lock.h"],
+    header_namespace = "straylight/nix/sync",
+    compiler_flags = COMMON_FLAGS,
+    visibility = ["PUBLIC"],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Pool - thread-safe resource pool with RAII handles
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_library(
+    name = "pool",
+    exported_headers = ["pool.h"],
+    header_namespace = "straylight/nix/sync",
+    compiler_flags = COMMON_FLAGS,
+    visibility = ["PUBLIC"],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Callback - one-shot promise/future wrapper
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_library(
+    name = "callback",
+    exported_headers = ["callback.h"],
+    header_namespace = "straylight/nix/sync",
+    compiler_flags = COMMON_FLAGS,
+    visibility = ["PUBLIC"],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Signals - interrupt handling, signal management, RAII signal blocking
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_library(
+    name = "signals",
+    exported_headers = ["signals.h"],
+    header_namespace = "straylight/nix/sync",
+    compiler_flags = COMMON_FLAGS,
+    linker_flags = ["-pthread"],
+    visibility = ["PUBLIC"],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Combined sync target
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_library(
+    name = "sync",
+    exported_headers = [
+        "synchronized.h",
+        "lock.h",
+        "pool.h",
+        "callback.h",
+        "signals.h",
+    ],
+    header_namespace = "straylight/nix/sync",
+    compiler_flags = COMMON_FLAGS,
+    exported_deps = [
+        ":synchronized",
+        ":lock",
+        ":pool",
+        ":callback",
+        ":signals",
+    ],
+    visibility = ["PUBLIC"],
+)

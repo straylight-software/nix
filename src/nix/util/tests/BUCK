@@ -31,10 +31,7 @@ UTIL_LINKER_FLAGS = [
     "-Wl,-rpath,/nix/store/bc4wvkbw119gfby5if2z6yq3w51shgq9-libblake3-1.8.2/lib",
     "-Wl,-rpath,/nix/store/pgc8rn7d8pv9ssr87r6783bcir8rfqpc-libsodium-1.0.20-unstable-2025-12-31/lib",
     "-Wl,-rpath,/nix/store/61i74yjkj9p1qphfl7018ja4sdwkipx0-openssl-3.6.0/lib",
-    # Test libs (shared lib not being picked up from prebuilt_cxx_library)
-    "-L/nix/store/s4gn9xnjx7298wsxffgxiv3isx0j584k-rapidcheck-0-unstable-2023-12-14/lib",
-    "-lrapidcheck",
-    "-Wl,-rpath,/nix/store/s4gn9xnjx7298wsxffgxiv3isx0j584k-rapidcheck-0-unstable-2023-12-14/lib",
+    # rapidcheck is now statically linked via //third_party:rapidcheck
 ]
 
 # Common test dependencies

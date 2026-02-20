@@ -1,0 +1,77 @@
+# src/straylight/nix/util/BUCK
+#
+# Small utility primitives: ref, finally, checked arithmetic, comparators
+
+# Common compiler flags
+COMMON_FLAGS = [
+    "-std=c++23",
+    "-Wall",
+    "-Wextra",
+    "-Wpedantic",
+]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Ref - non-nullable smart pointer wrapper
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_library(
+    name = "ref",
+    exported_headers = ["ref.h"],
+    header_namespace = "straylight/nix/util",
+    compiler_flags = COMMON_FLAGS,
+    visibility = ["PUBLIC"],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Finally - scope guards (finally, scope_success, scope_fail)
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_library(
+    name = "finally",
+    exported_headers = ["finally.h"],
+    header_namespace = "straylight/nix/util",
+    compiler_flags = COMMON_FLAGS,
+    visibility = ["PUBLIC"],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Checked arithmetic - checked_add/sub/mul, saturating variants
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_library(
+    name = "checked_arithmetic",
+    exported_headers = ["checked_arithmetic.h"],
+    header_namespace = "straylight/nix/util",
+    compiler_flags = COMMON_FLAGS,
+    visibility = ["PUBLIC"],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Comparator - lexicographic/natural sorting comparators
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_library(
+    name = "comparator",
+    exported_headers = ["comparator.h"],
+    header_namespace = "straylight/nix/util",
+    compiler_flags = COMMON_FLAGS,
+    visibility = ["PUBLIC"],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Combined util target
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_library(
+    name = "util",
+    exported_headers = [
+        "ref.h",
+        "finally.h",
+        "checked_arithmetic.h",
+        "comparator.h",
+    ],
+    header_namespace = "straylight/nix/util",
+    compiler_flags = COMMON_FLAGS,
+    exported_deps = [
+        ":ref",
+        ":finally",
+        ":checked_arithmetic",
+        ":comparator",
+    ],
+    visibility = ["PUBLIC"],
+)
