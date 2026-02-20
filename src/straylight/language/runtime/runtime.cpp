@@ -240,8 +240,14 @@ auto rt_add([[maybe_unused]] runtime_context& ctx, nix_value a, nix_value b, std
 
   // string concatenation
   if (is_string(a) && is_string(b)) {
-    // TODO: implement string concatenation
-    throw runtime_error("string concatenation not yet implemented", line, col);
+    auto str_a = ctx.read_string(get_payload(a));
+    auto str_b = ctx.read_string(get_payload(b));
+    std::string result;
+    result.reserve(str_a.size() + str_b.size());
+    result += str_a;
+    result += str_b;
+    auto ptr = ctx.alloc_string(result);
+    return make_value(value_tag::string, ptr);
   }
 
   expect_numeric(a, line, col);

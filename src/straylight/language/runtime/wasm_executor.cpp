@@ -348,14 +348,17 @@ void wasm_executor::setup_linker(wasmtime::Linker& linker) {
   // ==========================================================================
 
   // __add(a: i64, b: i64, line: i32, col: i32) -> i64
+  // Note: rt_add can allocate memory for string concatenation or floats
   linker
       .func_wrap("builtins", "__add",
                  [](wasmtime::Caller caller, std::int64_t a, std::int64_t b, std::int32_t line,
                     std::int32_t col) -> wasmtime::Result<std::int64_t, wasmtime::Trap> {
                    try {
                      auto* ctx = get_ctx(caller);
-                     return rt_add(*ctx, a, b, static_cast<std::uint32_t>(line),
-                                   static_cast<std::uint32_t>(col));
+                     auto result = rt_add(*ctx, a, b, static_cast<std::uint32_t>(line),
+                                          static_cast<std::uint32_t>(col));
+                     sync_ctx_to_wasm(caller);
+                     return result;
                    } catch (const runtime_error& e) {
                      return wasmtime::Trap(e.what());
                    }
@@ -363,14 +366,17 @@ void wasm_executor::setup_linker(wasmtime::Linker& linker) {
       .unwrap();
 
   // __sub(a: i64, b: i64, line: i32, col: i32) -> i64
+  // Note: can allocate for float results
   linker
       .func_wrap("builtins", "__sub",
                  [](wasmtime::Caller caller, std::int64_t a, std::int64_t b, std::int32_t line,
                     std::int32_t col) -> wasmtime::Result<std::int64_t, wasmtime::Trap> {
                    try {
                      auto* ctx = get_ctx(caller);
-                     return rt_sub(*ctx, a, b, static_cast<std::uint32_t>(line),
-                                   static_cast<std::uint32_t>(col));
+                     auto result = rt_sub(*ctx, a, b, static_cast<std::uint32_t>(line),
+                                          static_cast<std::uint32_t>(col));
+                     sync_ctx_to_wasm(caller);
+                     return result;
                    } catch (const runtime_error& e) {
                      return wasmtime::Trap(e.what());
                    }
@@ -378,14 +384,17 @@ void wasm_executor::setup_linker(wasmtime::Linker& linker) {
       .unwrap();
 
   // __mul(a: i64, b: i64, line: i32, col: i32) -> i64
+  // Note: can allocate for float results
   linker
       .func_wrap("builtins", "__mul",
                  [](wasmtime::Caller caller, std::int64_t a, std::int64_t b, std::int32_t line,
                     std::int32_t col) -> wasmtime::Result<std::int64_t, wasmtime::Trap> {
                    try {
                      auto* ctx = get_ctx(caller);
-                     return rt_mul(*ctx, a, b, static_cast<std::uint32_t>(line),
-                                   static_cast<std::uint32_t>(col));
+                     auto result = rt_mul(*ctx, a, b, static_cast<std::uint32_t>(line),
+                                          static_cast<std::uint32_t>(col));
+                     sync_ctx_to_wasm(caller);
+                     return result;
                    } catch (const runtime_error& e) {
                      return wasmtime::Trap(e.what());
                    }
@@ -393,14 +402,17 @@ void wasm_executor::setup_linker(wasmtime::Linker& linker) {
       .unwrap();
 
   // __div(a: i64, b: i64, line: i32, col: i32) -> i64
+  // Note: can allocate for float results
   linker
       .func_wrap("builtins", "__div",
                  [](wasmtime::Caller caller, std::int64_t a, std::int64_t b, std::int32_t line,
                     std::int32_t col) -> wasmtime::Result<std::int64_t, wasmtime::Trap> {
                    try {
                      auto* ctx = get_ctx(caller);
-                     return rt_div(*ctx, a, b, static_cast<std::uint32_t>(line),
-                                   static_cast<std::uint32_t>(col));
+                     auto result = rt_div(*ctx, a, b, static_cast<std::uint32_t>(line),
+                                          static_cast<std::uint32_t>(col));
+                     sync_ctx_to_wasm(caller);
+                     return result;
                    } catch (const runtime_error& e) {
                      return wasmtime::Trap(e.what());
                    }
