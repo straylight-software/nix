@@ -15,10 +15,10 @@
 namespace nix {
 
 struct authorization_settings_t : config_t {
-  setting_t<strings_t> trusted_users{this,
-                                     {"root"},
-                                     "trusted-users",
-                                     R"(
+  setting_t<strings_t> trusted_users_{this,
+                                      {"root"},
+                                      "trusted-users",
+                                      R"(
           A list of user names, separated by whitespace.
           These users will have additional rights when connecting to the Nix daemon, such as the ability to specify additional [substituters](#conf-substituters), or to import unsigned realisations or unsigned input-addressed store objects.
 
@@ -31,10 +31,10 @@ struct authorization_settings_t : config_t {
           > For example, the user can access or replace store path contents that are critical for system security.
         )"};
 
-  setting_t<strings_t> allowed_users{this,
-                                     {"*"},
-                                     "allowed-users",
-                                     R"(
+  setting_t<strings_t> allowed_users_{this,
+                                      {"*"},
+                                      "allowed-users",
+                                      R"(
           A list of user names, separated by whitespace.
           These users are allowed to connect to the Nix daemon.
 
@@ -48,7 +48,9 @@ struct authorization_settings_t : config_t {
         )"};
 };
 
+// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
 extern authorization_settings_t authorization_settings;
+// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
 #ifndef _WIN32
 /**
@@ -64,8 +66,9 @@ extern authorization_settings_t authorization_settings;
  * - If the username is in the list, match
  * - If an entry starts with "@", it's a group name; match if user is in that group
  */
-bool match_user(const std::optional<std::string>& user, const std::optional<std::string>& group,
-                const strings_t& users);
+[[nodiscard]] auto match_user(const std::optional<std::string>& user,
+                              const std::optional<std::string>& group, const strings_t& users)
+    -> bool;
 #endif
 
 } // namespace nix

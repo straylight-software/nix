@@ -14,12 +14,12 @@ using namespace nix;
 
 TEST_CASE("authorization_settings exists and is registered", "[store][authorization]") {
   // The settings should exist and have default values
-  REQUIRE(authorization_settings.trusted_users.get().size() >= 1);
-  REQUIRE(authorization_settings.allowed_users.get().size() >= 1);
+  REQUIRE(authorization_settings.trusted_users_.get().size() >= 1);
+  REQUIRE(authorization_settings.allowed_users_.get().size() >= 1);
 }
 
 TEST_CASE("trusted_users default includes root", "[store][authorization]") {
-  const auto& trusted = authorization_settings.trusted_users.get();
+  const auto& trusted = authorization_settings.trusted_users_.get();
   bool has_root = false;
   for (const auto& user : trusted) {
     if (user == "root") {
@@ -31,7 +31,7 @@ TEST_CASE("trusted_users default includes root", "[store][authorization]") {
 }
 
 TEST_CASE("allowed_users default includes wildcard", "[store][authorization]") {
-  const auto& allowed = authorization_settings.allowed_users.get();
+  const auto& allowed = authorization_settings.allowed_users_.get();
   bool has_wildcard = false;
   for (const auto& user : allowed) {
     if (user == "*") {
