@@ -260,16 +260,16 @@ public:
   }
 
   template <typename U>
-  void operator=(const U& v) {
-    assign(v);
+  void operator=(const U& val) {
+    assign(val);
   }
 
-  virtual auto assign(const T& v) -> void { value_ = v; }
+  virtual auto assign(const T& val) -> void { value_ = val; }
 
   template <typename U>
-  auto set_default(const U& v) -> void {
+  auto set_default(const U& val) -> void {
     if (!overridden) {
-      value_ = v;
+      value_ = val;
     }
   }
 
@@ -293,9 +293,9 @@ public:
    */
   [[nodiscard]] auto is_appendable() -> bool final;
 
-  virtual auto override(const T& v) -> void {
+  virtual auto override(const T& val) -> void {
     overridden = true;
-    value_ = v;
+    value_ = val;
   }
 
   [[nodiscard]] auto to_string() const -> std::string override;
@@ -327,7 +327,7 @@ public:
     options->add_setting(this);
   }
 
-  auto operator=(const T& v) -> void { this->assign(v); }
+  auto operator=(const T& val) -> void { this->assign(val); }
 };
 
 /**
@@ -344,9 +344,9 @@ public:
 
   [[nodiscard]] auto parse(const std::string& str) const -> Path override;
 
-  [[nodiscard]] auto operator+(const char* p) const -> Path { return value_ + p; }
+  [[nodiscard]] auto operator+(const char* suffix) const -> Path { return value_ + suffix; }
 
-  auto operator=(const Path& v) -> void { this->assign(v); }
+  auto operator=(const Path& val) -> void { this->assign(val); }
 };
 
 /**
@@ -362,7 +362,7 @@ public:
 
   [[nodiscard]] auto parse(const std::string& str) const -> std::optional<Path> override;
 
-  auto operator=(const std::optional<Path>& v) -> void;
+  auto operator=(const std::optional<Path>& val) -> void;
 };
 
 struct experimental_feature_settings_t : config_t {

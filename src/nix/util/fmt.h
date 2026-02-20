@@ -25,9 +25,9 @@ template <class F>
 inline auto format_helper(F& /*f*/) -> void {}
 
 template <class F, typename T, typename... args_t>
-inline auto format_helper(F& f, const T& x, const args_t&... args) -> void {
+inline auto format_helper(F& formatter, const T& arg, const args_t&... args) -> void {
   // Interpolate one argument and then recurse.
-  format_helper(f % x, args...);
+  format_helper(formatter % arg, args...);
 }
 
 /**
@@ -60,24 +60,24 @@ inline auto set_exceptions(boost::format& fmt) -> void {
  * And `stringFromUserInput` contains formatting placeholders like `%s`, then
  * the code will crash at runtime. `fmt` helps you avoid this pitfall.
  */
-inline auto fmt(const std::string& s) -> std::string {
-  return s;
+inline auto fmt(const std::string& str) -> std::string {
+  return str;
 }
 
-inline auto fmt(std::string_view s) -> std::string {
-  return std::string(s);
+inline auto fmt(std::string_view str) -> std::string {
+  return std::string(str);
 }
 
-inline auto fmt(const char* s) -> std::string {
-  return s;
+inline auto fmt(const char* str) -> std::string {
+  return str;
 }
 
 template <typename... args_t>
 inline auto fmt(const std::string& fs, const args_t&... args) -> std::string {
-  boost::format f(fs);
-  set_exceptions(f);
-  format_helper(f, args...);
-  return f.str();
+  boost::format formatter(fs);
+  set_exceptions(formatter);
+  format_helper(formatter, args...);
+  return formatter.str();
 }
 
 /**
@@ -89,14 +89,14 @@ inline auto fmt(const std::string& fs, const args_t&... args) -> std::string {
  */
 template <class T>
 struct magenta_t {
-  magenta_t(const T& s) : value(s) {}
+  magenta_t(const T& val) : value(val) {}
 
   const T& value;
 };
 
 template <class T>
-auto operator<<(std::ostream& out, const magenta_t<T>& y) -> std::ostream& {
-  return out << ANSI_WARNING << y.value << ANSI_NORMAL;
+auto operator<<(std::ostream& out, const magenta_t<T>& arg) -> std::ostream& {
+  return out << ANSI_WARNING << arg.value << ANSI_NORMAL;
 }
 
 /**
@@ -108,14 +108,14 @@ auto operator<<(std::ostream& out, const magenta_t<T>& y) -> std::ostream& {
  */
 template <class T>
 struct uncolored_t {
-  uncolored_t(const T& s) : value(s) {}
+  uncolored_t(const T& val) : value(val) {}
 
   const T& value;
 };
 
 template <class T>
-auto operator<<(std::ostream& out, const uncolored_t<T>& y) -> std::ostream& {
-  return out << ANSI_NORMAL << y.value;
+auto operator<<(std::ostream& out, const uncolored_t<T>& arg) -> std::ostream& {
+  return out << ANSI_NORMAL << arg.value;
 }
 
 /**

@@ -206,7 +206,7 @@ public:
 
   auto at_pos(std::shared_ptr<const pos_t> pos) -> void { err_.pos = std::move(pos); }
 
-  auto set_suggestions(const suggestions_t& s) -> void { err_.suggestions = s; }
+  auto set_suggestions(const suggestions_t& sug) -> void { err_.suggestions = sug; }
 
   auto set_is_from_expr(bool value) -> void { err_.is_from_expr = value; }
 

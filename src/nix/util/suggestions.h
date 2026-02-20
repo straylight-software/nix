@@ -57,7 +57,7 @@ public:
 
   operator bool() const noexcept { return std::holds_alternative<T>(raw); }
 
-  or_suggestions_t(T t) : raw(t) {}
+  or_suggestions_t(T val) : raw(val) {}
 
   or_suggestions_t() : raw(suggestions_t{}) {}
 
