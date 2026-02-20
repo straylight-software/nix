@@ -166,7 +166,7 @@ let
                 if inlineHTML then
                   ''<span id="opt-${name}">[`--${name}`](#opt-${name})</span> ${short_name} ${labels}''
                 else
-                  "`--${name}` ${shortName} ${labels}";
+                  "`--${name}` ${short_name} ${labels}";
               short_name = optionalString (option ? short_name) ("/ `-${option.shortName}`");
               labels = optionalString (option ? labels) (concat_strings_sep " " (map (s: "*${s}*") option.labels));
             in

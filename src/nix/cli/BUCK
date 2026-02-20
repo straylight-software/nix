@@ -54,6 +54,9 @@ cxx_library(
         "upgrade-nix.cpp",
         "verify.cpp",
         "why-depends.cpp",
+
+        # nix-env/
+        "nix-env/user-env.cpp",
     ],
 
     headers = [
@@ -63,11 +66,19 @@ cxx_library(
         "man-pages.h",
         "run.h",
         "self-exe.h",
+
+        # nix-env/
+        "nix-env/user-env.h",
     ],
 
     header_namespace = "nix/cli",
 
     visibility = ["PUBLIC"],
+
+    # Required for static linking: preserve static initializers that register
+    # CLI commands (registerCommand). Without this, the linker strips commands.
+    link_whole = True,
+
     exported_deps = [
         "//src/nix/util:util",
         "//src/nix/store:store",

@@ -245,8 +245,8 @@ EvalMemory::EvalMemory()
 }
 
 eval_state_t::eval_state_t(const LookupPath& lookupPathFromArguments, ref<store_t> store,
-                     const fetchers::settings_t& fetch_settings, const eval_settings_t& settings,
-                     std::shared_ptr<store_t> buildStore)
+                           const fetchers::settings_t& fetch_settings,
+                           const eval_settings_t& settings, std::shared_ptr<store_t> buildStore)
     : fetch_settings{fetch_settings},
       settings{settings},
       symbols(StaticEvalSymbols::staticSymbolTable()),
@@ -304,7 +304,7 @@ eval_state_t::eval_state_t(const LookupPath& lookupPathFromArguments, ref<store_
       internal_fs(make_ref<memory_source_accessor_t>()),
       derivationInternal{internal_fs->add_file(canon_path_t("derivation-internal.nix"),
 #include "primops/derivation.nix.gen.h"
-                                             )},
+                                               )},
       store(store),
       buildStore(buildStore ? buildStore : store),
       inputCache(fetchers::InputCache::create()),
@@ -371,7 +371,7 @@ eval_state_t::eval_state_t(const LookupPath& lookupPathFromArguments, ref<store_
   switch (settings.evalProfilerMode) {
     case EvalProfilerMode::flamegraph:
       profiler.addProfiler(make_sample_stack_profiler(*this, settings.evalProfileFile.get(),
-                                                   settings.evalProfilerFrequency));
+                                                      settings.evalProfilerFrequency));
       break;
     case EvalProfilerMode::disabled:
       break;
@@ -515,6 +515,35 @@ void value_t::mkPrimOp(PrimOp* p) {
   setStorage(p);
 }
 
+/**
+ * Convert camelCase to snake_case for builtin names.
+ * e.g., "fromJSON" -> "from_json", "concatStringsSep" -> "concat_strings_sep"
+ * Handles acronyms like JSON, XML, etc. correctly.
+ */
+static std::string camel_to_snake(const std::string& name) {
+  std::string result;
+  result.reserve(name.size() + 4); // Some extra space for underscores
+  for (size_t i = 0; i < name.size(); ++i) {
+    char c = name[i];
+    if (std::isupper(c)) {
+      // Add underscore before uppercase if:
+      // - Not at the start, AND
+      // - Either preceded by lowercase, OR followed by lowercase (handles acronyms)
+      if (i > 0) {
+        bool prev_lower = std::islower(name[i - 1]);
+        bool next_lower = (i + 1 < name.size()) && std::islower(name[i + 1]);
+        if (prev_lower || next_lower) {
+          result += '_';
+        }
+      }
+      result += static_cast<char>(std::tolower(c));
+    } else {
+      result += c;
+    }
+  }
+  return result;
+}
+
 value_t* eval_state_t::addPrimOp(PrimOp&& prim_op) {
   /* Hack to make constants lazy: turn them into a application of
      the primop to a dummy value. */
@@ -533,8 +562,13 @@ value_t* eval_state_t::addPrimOp(PrimOp&& prim_op) {
   }
 
   auto envName = symbols.create(prim_op.name);
-  if (has_prefix(prim_op.name, "__"))
-    prim_op.name = prim_op.name.substr(2);
+  std::string camelName;
+  std::string snakeName;
+  if (has_prefix(prim_op.name, "__")) {
+    camelName = prim_op.name.substr(2);
+    snakeName = camel_to_snake(camelName);
+    prim_op.name = snakeName; // Primary name is snake_case
+  }
 
   value_t* v = allocValue();
   v->mkPrimOp(new PrimOp(prim_op));
@@ -544,7 +578,13 @@ value_t* eval_state_t::addPrimOp(PrimOp&& prim_op) {
   else {
     staticBaseEnv->vars.emplace_back(envName, baseEnvDispl);
     baseEnv.values[baseEnvDispl++] = v;
-    const_cast<bindings_t*>(getBuiltins().attrs())->push_back(attr_t(symbols.create(prim_op.name), v));
+    auto* builtins = const_cast<bindings_t*>(getBuiltins().attrs());
+    // Register under snake_case name (primary)
+    builtins->push_back(attr_t(symbols.create(prim_op.name), v));
+    // Also register under camelCase name for backwards compatibility
+    if (!camelName.empty() && camelName != snakeName) {
+      builtins->push_back(attr_t(symbols.create(camelName), v));
+    }
   }
 
   return v;
@@ -697,7 +737,8 @@ void print_env_bindings(const eval_state_t& es, const expr_t& expr, const Env& e
     print_env_bindings(es.symbols, *se, env, 0);
 }
 
-void map_static_env_bindings(const symbol_table_t& st, const StaticEnv& se, const Env& env, ValMap& vm) {
+void map_static_env_bindings(const symbol_table_t& st, const StaticEnv& se, const Env& env,
+                             ValMap& vm) {
   // add bindings for the next level up first, so that the bindings for this level
   // override the higher levels.
   // The top level bindings (builtins) are skipped since they are added for us by initEnv()
@@ -717,7 +758,7 @@ void map_static_env_bindings(const symbol_table_t& st, const StaticEnv& se, cons
 }
 
 std::unique_ptr<ValMap> map_static_env_bindings(const symbol_table_t& st, const StaticEnv& se,
-                                             const Env& env) {
+                                                const Env& env) {
   auto vm = std::make_unique<ValMap>();
   map_static_env_bindings(st, se, env, *vm);
   return vm;
@@ -814,8 +855,8 @@ void eval_state_t::addErrorTrace(Error& e, const pos_idx_t pos, const args_t&...
 
 template <typename... args_t>
 static std::unique_ptr<DebugTraceStacker>
-make_debug_trace_stacker(eval_state_t& state, expr_t& expr, Env& env, std::variant<pos_t, pos_idx_t> pos,
-                      const args_t&... formatArgs) {
+make_debug_trace_stacker(eval_state_t& state, expr_t& expr, Env& env,
+                         std::variant<pos_t, pos_idx_t> pos, const args_t&... formatArgs) {
   return std::make_unique<DebugTraceStacker>(state, DebugTrace{.pos = std::move(pos),
                                                                .expr = expr,
                                                                .env = env,
@@ -894,7 +935,8 @@ inline value_t* eval_state_t::lookupVar(Env* env, const ExprVar& var, bool noEva
 }
 
 ListBuilder::ListBuilder(EvalMemory& mem, size_t size)
-    : size(size), elems(size <= 2 ? inlineElems : (value_t**)mem.allocBytes(size * sizeof(value_t*))) {}
+    : size(size),
+      elems(size <= 2 ? inlineElems : (value_t**)mem.allocBytes(size * sizeof(value_t*))) {}
 
 value_t* eval_state_t::getBool(bool b) {
   return b ? &value_t::vTrue : &value_t::vFalse;
@@ -931,15 +973,15 @@ void eval_state_t::mkPos(value_t& v, pos_idx_t p) {
 
 void eval_state_t::mkStorePathString(const store_path_t& p, value_t& v) {
   v.mk_string(store->printStorePath(p),
-             NixStringContext{
-                 NixStringContextElem::opaque_t{.path = p},
-             },
-             mem);
+              NixStringContext{
+                  NixStringContextElem::opaque_t{.path = p},
+              },
+              mem);
 }
 
 std::string eval_state_t::mkOutputStringRaw(const SingleDerivedPath::Built& b,
-                                         std::optional<store_path_t> optStaticOutputPath,
-                                         const experimental_feature_settings_t& xp_settings) {
+                                            std::optional<store_path_t> optStaticOutputPath,
+                                            const experimental_feature_settings_t& xp_settings) {
   /* In practice, this is testing for the case of CA derivations, or
      dynamic derivations. */
   return optStaticOutputPath
@@ -950,42 +992,43 @@ std::string eval_state_t::mkOutputStringRaw(const SingleDerivedPath::Built& b,
 }
 
 void eval_state_t::mk_output_string(value_t& value, const SingleDerivedPath::Built& b,
-                               std::optional<store_path_t> optStaticOutputPath,
-                               const experimental_feature_settings_t& xp_settings) {
+                                    std::optional<store_path_t> optStaticOutputPath,
+                                    const experimental_feature_settings_t& xp_settings) {
   value.mk_string(mkOutputStringRaw(b, optStaticOutputPath, xp_settings), NixStringContext{b}, mem);
 }
 
 std::string eval_state_t::mkSingleDerivedPathStringRaw(const SingleDerivedPath& p) {
   return std::visit(
-      overloaded{[&](const SingleDerivedPath::opaque_t& o) { return store->printStorePath(o.path); },
-                 [&](const SingleDerivedPath::Built& b) {
-                   auto optStaticOutputPath = std::visit(
-                       overloaded{
-                           [&](const SingleDerivedPath::opaque_t& o) {
-                             waitForPath(o.path);
-                             auto drv = store->read_derivation(o.path);
-                             auto i = drv.outputs.find(b.output);
-                             if (i == drv.outputs.end())
-                               throw Error("derivation '%s' does not have output '%s'",
-                                           b.drv_path->to_string(*store), b.output);
-                             return i->second.path(*store, drv.name, b.output);
-                           },
-                           [&](const SingleDerivedPath::Built& o) -> std::optional<store_path_t> {
-                             return std::nullopt;
-                           },
-                       },
-                       b.drv_path->raw());
-                   return mkOutputStringRaw(b, optStaticOutputPath);
-                 }},
+      overloaded{
+          [&](const SingleDerivedPath::opaque_t& o) { return store->printStorePath(o.path); },
+          [&](const SingleDerivedPath::Built& b) {
+            auto optStaticOutputPath = std::visit(
+                overloaded{
+                    [&](const SingleDerivedPath::opaque_t& o) {
+                      waitForPath(o.path);
+                      auto drv = store->read_derivation(o.path);
+                      auto i = drv.outputs.find(b.output);
+                      if (i == drv.outputs.end())
+                        throw Error("derivation '%s' does not have output '%s'",
+                                    b.drv_path->to_string(*store), b.output);
+                      return i->second.path(*store, drv.name, b.output);
+                    },
+                    [&](const SingleDerivedPath::Built& o) -> std::optional<store_path_t> {
+                      return std::nullopt;
+                    },
+                },
+                b.drv_path->raw());
+            return mkOutputStringRaw(b, optStaticOutputPath);
+          }},
       p.raw());
 }
 
 void eval_state_t::mkSingleDerivedPathString(const SingleDerivedPath& p, value_t& v) {
   v.mk_string(mkSingleDerivedPathStringRaw(p),
-             NixStringContext{
-                 std::visit([](auto&& v) -> NixStringContextElem { return v; }, p),
-             },
-             mem);
+              NixStringContext{
+                  std::visit([](auto&& v) -> NixStringContextElem { return v; }, p),
+              },
+              mem);
 }
 
 value_t* expr_t::maybeThunk(eval_state_t& state, Env& env) {
@@ -1034,7 +1077,8 @@ struct expr_parse_file_t : expr_t {
   source_path_t& path;
   bool must_be_trivial;
 
-  expr_parse_file_t(source_path_t& path, bool must_be_trivial) : path(path), must_be_trivial(must_be_trivial) {}
+  expr_parse_file_t(source_path_t& path, bool must_be_trivial)
+      : path(path), must_be_trivial(must_be_trivial) {}
 
   void eval(eval_state_t& state, Env& env, value_t& v) override {
     printTalkative("evaluating file '%s'", path);
@@ -1044,7 +1088,7 @@ struct expr_parse_file_t : expr_t {
     try {
       auto dts = state.debugRepl
                      ? make_debug_trace_stacker(state, *e, state.baseEnv, e->getPos(),
-                                             "while evaluating the file '%s':", path.to_string())
+                                                "while evaluating the file '%s':", path.to_string())
                      : nullptr;
 
       // Enforce that 'flake.nix' is a direct attrset, not a
@@ -1102,7 +1146,8 @@ void eval_state_t::eval(expr_t* e, value_t& v) {
   e->eval(*this, baseEnv, v);
 }
 
-inline bool eval_state_t::evalBool(Env& env, expr_t* e, const pos_idx_t pos, std::string_view error_ctx) {
+inline bool eval_state_t::evalBool(Env& env, expr_t* e, const pos_idx_t pos,
+                                   std::string_view error_ctx) {
   try {
     value_t v;
     e->eval(*this, env, v);
@@ -1120,7 +1165,7 @@ inline bool eval_state_t::evalBool(Env& env, expr_t* e, const pos_idx_t pos, std
 }
 
 inline void eval_state_t::evalAttrs(Env& env, expr_t* e, value_t& v, const pos_idx_t pos,
-                                 std::string_view error_ctx) {
+                                    std::string_view error_ctx) {
   try {
     e->eval(*this, env, v);
     if (v.type() != nAttrs)
@@ -1278,9 +1323,10 @@ void ExprLet::eval(eval_state_t& state, Env& env, value_t& v) {
         i.second.e->maybeThunk(state, *i.second.chooseByKind(&env2, &env, inheritEnv));
   }
 
-  auto dts = state.debugRepl ? make_debug_trace_stacker(state, *this, env2, getPos(),
-                                                     "while evaluating a '%1%' expression", "let")
-                             : nullptr;
+  auto dts = state.debugRepl
+                 ? make_debug_trace_stacker(state, *this, env2, getPos(),
+                                            "while evaluating a '%1%' expression", "let")
+                 : nullptr;
 
   body->eval(state, env2, v);
 }
@@ -1306,7 +1352,7 @@ void ExprVar::eval(eval_state_t& state, Env& env, value_t& v) {
 }
 
 static std::string show_attr_selection_path(eval_state_t& state, Env& env,
-                                         std::span<const AttrName> attr_path) {
+                                            std::span<const AttrName> attr_path) {
   std::ostringstream out;
   bool first = true;
   for (auto& i : attr_path) {
@@ -1336,8 +1382,8 @@ void ExprSelect::eval(eval_state_t& state, Env& env, value_t& v) {
   try {
     auto dts = state.debugRepl
                    ? make_debug_trace_stacker(state, *this, env, getPos(),
-                                           "while evaluating the attribute '%1%'",
-                                           show_attr_selection_path(state, env, getAttrPath()))
+                                              "while evaluating the attribute '%1%'",
+                                              show_attr_selection_path(state, env, getAttrPath()))
                    : nullptr;
 
     for (auto& i : getAttrPath()) {
@@ -1428,7 +1474,8 @@ void ExprLambda::eval(eval_state_t& state, Env& env, value_t& v) {
 
 thread_local size_t eval_state_t::callDepth = 0;
 
-void eval_state_t::callFunction(value_t& fun, std::span<value_t*> args, value_t& v_res, const pos_idx_t pos) {
+void eval_state_t::callFunction(value_t& fun, std::span<value_t*> args, value_t& v_res,
+                                const pos_idx_t pos) {
   auto _level = addCallDepth(pos);
 
   auto neededHooks = profiler.getNeededHooks();
@@ -1537,12 +1584,11 @@ void eval_state_t::callFunction(value_t& fun, std::span<value_t*> args, value_t&
 
       /* Evaluate the body. */
       try {
-        auto dts =
-            debugRepl
-                ? make_debug_trace_stacker(*this, *lambda.body, env2, lambda.pos, "while calling %s",
-                                        lambda.name ? concat_strings("'", symbols[lambda.name], "'")
-                                                    : "anonymous lambda")
-                : nullptr;
+        auto dts = debugRepl ? make_debug_trace_stacker(
+                                   *this, *lambda.body, env2, lambda.pos, "while calling %s",
+                                   lambda.name ? concat_strings("'", symbols[lambda.name], "'")
+                                               : "anonymous lambda")
+                             : nullptr;
 
         v_cur.reset();
         lambda.body->eval(*this, env2, v_cur);
@@ -1653,7 +1699,7 @@ void eval_state_t::callFunction(value_t& fun, std::span<value_t*> args, value_t&
         callFunction(*functor->value, args2, v_cur, functor->pos);
       } catch (Error& e) {
         e.add_trace(positions[pos],
-                   "while calling a functor (an attribute set with a '__functor' attribute)");
+                    "while calling a functor (an attribute set with a '__functor' attribute)");
         throw;
       }
       args = args.subspan(1);
@@ -1780,7 +1826,7 @@ void ExprAssert::eval(eval_state_t& state, Env& env, value_t& v) {
         state.assertEqValues(v1, v2, eq->pos, "in an equality assertion");
       } catch (AssertionError& e) {
         e.add_trace(state.positions[pos], "while evaluating the condition of the assertion '%s'",
-                   exprStr);
+                    exprStr);
         throw;
       }
     }
@@ -1916,8 +1962,8 @@ void ExprOpConcatLists::eval(eval_state_t& state, Env& env, value_t& v) {
   state.concatLists(v, 2, lists, pos, "while evaluating one of the elements to concatenate");
 }
 
-void eval_state_t::concatLists(value_t& v, size_t nr_lists, value_t* const* lists, const pos_idx_t pos,
-                            std::string_view error_ctx) {
+void eval_state_t::concatLists(value_t& v, size_t nr_lists, value_t* const* lists,
+                               const pos_idx_t pos, std::string_view error_ctx) {
   nrListConcats++;
 
   value_t* nonEmpty = 0;
@@ -2160,7 +2206,8 @@ bool eval_state_t::forceBool(value_t& v, const pos_idx_t pos, std::string_view e
   return v.boolean();
 }
 
-const attr_t* eval_state_t::get_attr(symbol_t attrSym, const bindings_t* attrSet, std::string_view error_ctx) {
+const attr_t* eval_state_t::get_attr(symbol_t attrSym, const bindings_t* attrSet,
+                                     std::string_view error_ctx) {
   auto value = attrSet->get(attrSym);
   if (!value) {
     error<TypeError>("attribute '%s' missing", symbols[attrSym])
@@ -2188,7 +2235,8 @@ void eval_state_t::forceFunction(value_t& v, const pos_idx_t pos, std::string_vi
   }
 }
 
-std::string_view eval_state_t::forceString(value_t& v, const pos_idx_t pos, std::string_view error_ctx) {
+std::string_view eval_state_t::forceString(value_t& v, const pos_idx_t pos,
+                                           std::string_view error_ctx) {
   try {
     forceValue(v, pos);
     if (v.type() != nString)
@@ -2204,22 +2252,22 @@ std::string_view eval_state_t::forceString(value_t& v, const pos_idx_t pos, std:
 }
 
 void copy_context(const value_t& v, NixStringContext& context,
-                 const experimental_feature_settings_t& xp_settings) {
+                  const experimental_feature_settings_t& xp_settings) {
   if (auto* ctx = v.context())
     for (auto* elem : *ctx)
       context.insert(NixStringContextElem::parse(elem->view(), xp_settings));
 }
 
-std::string_view eval_state_t::forceString(value_t& v, NixStringContext& context, const pos_idx_t pos,
-                                        std::string_view error_ctx,
-                                        const experimental_feature_settings_t& xp_settings) {
+std::string_view eval_state_t::forceString(value_t& v, NixStringContext& context,
+                                           const pos_idx_t pos, std::string_view error_ctx,
+                                           const experimental_feature_settings_t& xp_settings) {
   auto s = forceString(v, pos, error_ctx);
   copy_context(v, context, xp_settings);
   return s;
 }
 
 std::string_view eval_state_t::forceStringNoCtx(value_t& v, const pos_idx_t pos,
-                                             std::string_view error_ctx) {
+                                                std::string_view error_ctx) {
   auto s = forceString(v, pos, error_ctx);
   if (v.context()) {
     NixStringContext context;
@@ -2246,8 +2294,8 @@ bool eval_state_t::is_derivation(value_t& v) {
 }
 
 std::optional<std::string> eval_state_t::tryAttrsToString(const pos_idx_t pos, value_t& v,
-                                                       NixStringContext& context, bool coerceMore,
-                                                       bool copy_to_store) {
+                                                          NixStringContext& context,
+                                                          bool coerceMore, bool copy_to_store) {
   auto i = v.attrs()->get(s.toString);
   if (i) {
     value_t v1;
@@ -2261,9 +2309,10 @@ std::optional<std::string> eval_state_t::tryAttrsToString(const pos_idx_t pos, v
   return {};
 }
 
-backed_string_view_t eval_state_t::coerceToString(const pos_idx_t pos, value_t& v, NixStringContext& context,
-                                           std::string_view error_ctx, bool coerceMore,
-                                           bool copy_to_store, bool canonicalizePath) {
+backed_string_view_t eval_state_t::coerceToString(const pos_idx_t pos, value_t& v,
+                                                  NixStringContext& context,
+                                                  std::string_view error_ctx, bool coerceMore,
+                                                  bool copy_to_store, bool canonicalizePath) {
   forceValue(v, pos);
 
   if (v.type() == nString) {
@@ -2356,7 +2405,7 @@ backed_string_view_t eval_state_t::coerceToString(const pos_idx_t pos, value_t& 
 }
 
 store_path_t eval_state_t::copyPathToStore(NixStringContext& context, const source_path_t& path,
-                                     pos_idx_t pos) {
+                                           pos_idx_t pos) {
   if (nix::is_derivation(path.path.abs()))
     error<EvalError>("file names are not allowed to end in '%1%'", drvExtension).debugThrow();
 
@@ -2378,7 +2427,7 @@ store_path_t eval_state_t::copyPathToStore(NixStringContext& context, const sour
 }
 
 source_path_t eval_state_t::coerceToPath(const pos_idx_t pos, value_t& v, NixStringContext& context,
-                                   std::string_view error_ctx) {
+                                         std::string_view error_ctx) {
   try {
     forceValue(v, pos);
   } catch (Error& e) {
@@ -2411,8 +2460,9 @@ source_path_t eval_state_t::coerceToPath(const pos_idx_t pos, value_t& v, NixStr
   return root_path(path);
 }
 
-store_path_t eval_state_t::coerceToStorePath(const pos_idx_t pos, value_t& v, NixStringContext& context,
-                                       std::string_view error_ctx) {
+store_path_t eval_state_t::coerceToStorePath(const pos_idx_t pos, value_t& v,
+                                             NixStringContext& context,
+                                             std::string_view error_ctx) {
   auto path = coerceToString(pos, v, context, error_ctx, false, false, true).to_owned();
   if (auto store_path = store->maybeParseStorePath(path))
     return *store_path;
@@ -2422,9 +2472,9 @@ store_path_t eval_state_t::coerceToStorePath(const pos_idx_t pos, value_t& v, Ni
       .debugThrow();
 }
 
-std::pair<SingleDerivedPath, std::string_view>
-eval_state_t::coerceToSingleDerivedPathUnchecked(const pos_idx_t pos, value_t& v, std::string_view error_ctx,
-                                              const experimental_feature_settings_t& xp_settings) {
+std::pair<SingleDerivedPath, std::string_view> eval_state_t::coerceToSingleDerivedPathUnchecked(
+    const pos_idx_t pos, value_t& v, std::string_view error_ctx,
+    const experimental_feature_settings_t& xp_settings) {
   NixStringContext context;
   auto s = forceString(v, context, pos, error_ctx, xp_settings);
   auto csize = context.size();
@@ -2446,7 +2496,9 @@ eval_state_t::coerceToSingleDerivedPathUnchecked(const pos_idx_t pos, value_t& v
           },
           [&](NixStringContextElem::Built&& b) -> SingleDerivedPath { return std::move(b); },
           [&](NixStringContextElem::Path&& p) -> SingleDerivedPath {
-            error<EvalError>("string '%s' has no context", s).withTrace(pos, error_ctx).debugThrow();
+            error<EvalError>("string '%s' has no context", s)
+                .withTrace(pos, error_ctx)
+                .debugThrow();
           },
       },
       ((NixStringContextElem&&)*context.begin()).raw);
@@ -2457,7 +2509,7 @@ eval_state_t::coerceToSingleDerivedPathUnchecked(const pos_idx_t pos, value_t& v
 }
 
 SingleDerivedPath eval_state_t::coerceToSingleDerivedPath(const pos_idx_t pos, value_t& v,
-                                                       std::string_view error_ctx) {
+                                                          std::string_view error_ctx) {
   auto [derived_path, s_] = coerceToSingleDerivedPathUnchecked(pos, v, error_ctx);
   auto s = s_;
   auto sExpected = mkSingleDerivedPathStringRaw(derived_path);
@@ -2487,7 +2539,8 @@ SingleDerivedPath eval_state_t::coerceToSingleDerivedPath(const pos_idx_t pos, v
 // NOTE: This implementation must match eqValues!
 // We accept this burden because informative error messages for
 // `assert a == b; x` are critical for our users' testing UX.
-void eval_state_t::assertEqValues(value_t& v1, value_t& v2, const pos_idx_t pos, std::string_view error_ctx) {
+void eval_state_t::assertEqValues(value_t& v1, value_t& v2, const pos_idx_t pos,
+                                  std::string_view error_ctx) {
   // This implementation must match eqValues.
   forceValue(v1, pos);
   forceValue(v2, pos);
@@ -2588,7 +2641,7 @@ void eval_state_t::assertEqValues(value_t& v1, value_t& v2, const pos_idx_t pos,
             return;
           } catch (Error& e) {
             e.add_trace(positions[pos], "while comparing a derivation by its '%s' attribute",
-                       "outPath");
+                        "outPath");
             throw;
           }
           assert(false);
@@ -2602,10 +2655,10 @@ void eval_state_t::assertEqValues(value_t& v1, value_t& v2, const pos_idx_t pos,
             .debugThrow();
       }
 
-      // Like normal comparison, we compare the attributes in non-deterministic symbol_t index order.
-      // This function is called when eqValues has found a difference, so to reliably
-      // report about its result, we should follow in its literal footsteps and not
-      // try anything fancy that could lead to an error.
+      // Like normal comparison, we compare the attributes in non-deterministic symbol_t index
+      // order. This function is called when eqValues has found a difference, so to reliably report
+      // about its result, we should follow in its literal footsteps and not try anything fancy that
+      // could lead to an error.
       bindings_t::const_iterator i, j;
       for (i = v1.attrs()->begin(), j = v2.attrs()->begin(); i != v1.attrs()->end(); ++i, ++j) {
         if (i->name != j->name) {
@@ -2684,7 +2737,8 @@ void eval_state_t::assertEqValues(value_t& v1, value_t& v2, const pos_idx_t pos,
 }
 
 // This implementation must match assertEqValues
-bool eval_state_t::eqValues(value_t& v1, value_t& v2, const pos_idx_t pos, std::string_view error_ctx) {
+bool eval_state_t::eqValues(value_t& v1, value_t& v2, const pos_idx_t pos,
+                            std::string_view error_ctx) {
   forceValue(v1, pos);
   forceValue(v2, pos);
 
@@ -2952,7 +3006,8 @@ source_path_t resolve_expr_path(source_path_t path, bool add_default_nix) {
     auto p = path.parent().resolve_symlinks() / path.base_name();
     if (p.lstat().type != source_accessor_t::t_symlink)
       break;
-    path = {path.accessor, canon_path_t(p.read_link(), path.path.parent().value_or(canon_path_t::root))};
+    path = {path.accessor,
+            canon_path_t(p.read_link(), path.path.parent().value_or(canon_path_t::root))};
   }
 
   /* If `path' refers to a directory, append `/default.nix'. */
@@ -2967,7 +3022,7 @@ expr_t* eval_state_t::parseExprFromFile(const source_path_t& path) {
 }
 
 expr_t* eval_state_t::parseExprFromFile(const source_path_t& path,
-                                   const std::shared_ptr<StaticEnv>& static_env) {
+                                        const std::shared_ptr<StaticEnv>& static_env) {
   auto buffer = path.resolve_symlinks().read_file();
   // readFile hopefully have left some extra space for terminators
   buffer.append("\0\0", 2);
@@ -2975,7 +3030,7 @@ expr_t* eval_state_t::parseExprFromFile(const source_path_t& path,
 }
 
 expr_t* eval_state_t::parseExprFromString(std::string s_, const source_path_t& base_path,
-                                     const std::shared_ptr<StaticEnv>& static_env) {
+                                          const std::shared_ptr<StaticEnv>& static_env) {
   // NOTE this method (and parseStdin) must take care to *fully copy* their input
   // into their respective Pos::Origin until the parser stops overwriting its input
   // data.
@@ -2997,7 +3052,8 @@ expr_t* eval_state_t::parseStdin() {
   // drainFD should have left some extra space for terminators
   buffer.append("\0\0", 2);
   auto s = make_ref<std::string>(buffer);
-  return parse(buffer.data(), buffer.size(), pos_t::Stdin{.source = s}, root_path("."), staticBaseEnv);
+  return parse(buffer.data(), buffer.size(), pos_t::Stdin{.source = s}, root_path("."),
+               staticBaseEnv);
 }
 
 source_path_t eval_state_t::findFile(const std::string_view path) {
@@ -3005,7 +3061,7 @@ source_path_t eval_state_t::findFile(const std::string_view path) {
 }
 
 source_path_t eval_state_t::findFile(const LookupPath& lookup_path, const std::string_view path,
-                               const pos_idx_t pos) {
+                                     const pos_idx_t pos) {
   for (auto& i : lookup_path.elements) {
     auto suffixOpt = i.prefix.suffixIfPotentialMatch(path);
 
@@ -3041,7 +3097,7 @@ source_path_t eval_state_t::findFile(const LookupPath& lookup_path, const std::s
 }
 
 std::optional<source_path_t> eval_state_t::resolveLookupPathPath(const LookupPath::Path& value0,
-                                                           bool initAccessControl) {
+                                                                 bool initAccessControl) {
   auto& value = value0.s;
   auto i = lookupPathResolved.find(value);
   if (i != lookupPathResolved.end())
@@ -3058,9 +3114,10 @@ std::optional<source_path_t> eval_state_t::resolveLookupPathPath(const LookupPat
 
   if (eval_settings_t::isPseudoUrl(value)) {
     try {
-      auto accessor =
-          fetchers::download_tarball(*store, fetch_settings, eval_settings_t::resolvePseudoUrl(value));
-      auto store_path = fetch_to_store(fetch_settings, *store, source_path_t(accessor), FetchMode::Copy);
+      auto accessor = fetchers::download_tarball(*store, fetch_settings,
+                                                 eval_settings_t::resolvePseudoUrl(value));
+      auto store_path =
+          fetch_to_store(fetch_settings, *store, source_path_t(accessor), FetchMode::Copy);
       return finish(this->store_path(store_path));
     } catch (Error& e) {
       logWarning(
@@ -3100,25 +3157,28 @@ std::optional<source_path_t> eval_state_t::resolveLookupPathPath(const LookupPat
       if (auto accessor = path.accessor.dynamic_pointer_cast<FilteringSourceAccessor>())
         accessor->checkAccess(path.path);
 
-      logWarning({.msg = hint_fmt_t("Nix search path entry '%1%' does not exist, ignoring", value)});
+      logWarning(
+          {.msg = hint_fmt_t("Nix search path entry '%1%' does not exist, ignoring", value)});
     }
   }
 
   return finish(std::nullopt);
 }
 
-expr_t* eval_state_t::parse(char* text, size_t length, pos_t::origin_t origin, const source_path_t& base_path,
-                       const std::shared_ptr<StaticEnv>& static_env) {
+expr_t* eval_state_t::parse(char* text, size_t length, pos_t::origin_t origin,
+                            const source_path_t& base_path,
+                            const std::shared_ptr<StaticEnv>& static_env) {
   DocCommentMap tmpDocComments; // Only used when not origin is not a SourcePath
   auto* doc_comments = &tmpDocComments;
 
   if (auto source_path = std::get_if<source_path_t>(&origin)) {
-    auto [it, _] = positionToDocComment.lock()->try_emplace(*source_path, make_ref<DocCommentMap>());
+    auto [it, _] =
+        positionToDocComment.lock()->try_emplace(*source_path, make_ref<DocCommentMap>());
     doc_comments = &*it->second;
   }
 
   auto result = parse_expr_from_buf(text, length, origin, base_path, mem.exprs, symbols, settings,
-                                 positions, *doc_comments, root_fs);
+                                    positions, *doc_comments, root_fs);
 
   result->bindVars(*this, static_env);
 

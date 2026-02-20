@@ -80,6 +80,11 @@ cxx_library(
     ],
     header_namespace = "nix/expr",
     visibility = ["PUBLIC"],
+
+    # Required for static linking: preserve static initializers that register
+    # primops (RegisterPrimOp). Without this, the linker strips "unused" primops.
+    link_whole = True,
+
     deps = [
         "//src/nix/util:util",
         "//src/nix/store:store",

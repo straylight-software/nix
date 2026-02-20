@@ -224,6 +224,12 @@ cxx_library(
 
     visibility = ["PUBLIC"],
 
+    # Required for static linking: preserve static initializers that register
+    # store implementations (RegisterStoreImplementation<T>). Without this,
+    # the linker strips "unused" symbols and store schemes like dummy://, s3://,
+    # ssh://, etc. fail with "don't know how to open Nix store with scheme".
+    link_whole = True,
+
     deps = [
         "//src/nix/util:util",
         "//third_party:sqlite3",
