@@ -38,8 +38,11 @@ cxx_library(
         "machine.h",
         "reapi.h",
         "ring.h",
+        "sigil.h",        # GENERATED from Cornell.Sigil
         "stable_ref.h",
         "tls.h",
+        "zmtp.h",         # Handwritten (to be replaced by zmtp_gen.h)
+        "zmtp_gen.h",     # GENERATED from Cornell.Zmtp
     ],
 
     header_namespace = "straylight/evring",
