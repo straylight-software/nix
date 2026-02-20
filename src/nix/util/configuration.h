@@ -61,8 +61,8 @@ public:
   [[nodiscard]] virtual auto set(const std::string& name, const std::string& value) -> bool = 0;
 
   struct setting_info_t {
-    std::string value{};
-    std::string description{};
+    std::string value;
+    std::string description;
   };
 
   /**
