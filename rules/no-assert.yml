@@ -1,0 +1,17 @@
+# straylight policy: proper error handling over assert
+# assert() should not be used for error handling
+# (This is exactly what we found in upstream nix bugs!)
+id: no-assert-for-errors
+language: cpp
+severity: warning
+message: "Avoid assert() for error handling - use exceptions or std::expected"
+note: "assert() is disabled in release builds; use proper error handling"
+rule:
+  pattern: assert($CONDITION)
+  not:
+    inside:
+      # Allow in test files
+      kind: translation_unit
+      has:
+        kind: preproc_include
+        regex: "catch2|rapidcheck|gtest"

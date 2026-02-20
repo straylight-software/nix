@@ -1,0 +1,14 @@
+# straylight policy: explicit over implicit
+# Avoid implicit conversions to bool in conditions
+id: no-implicit-pointer-bool
+language: cpp
+severity: hint
+message: "Consider explicit nullptr comparison instead of implicit bool conversion"
+note: "Explicit comparisons are clearer: if (ptr != nullptr) instead of if (ptr)"
+rule:
+  pattern: if ($PTR) {$$$BODY}
+  inside:
+    kind: function_definition
+constraints:
+  PTR:
+    regex: '^[a-z_]+$'  # simple identifier, likely a pointer

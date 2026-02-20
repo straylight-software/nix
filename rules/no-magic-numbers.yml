@@ -1,0 +1,43 @@
+# straylight policy: name your constants
+# Magic numbers should be named constants
+id: magic-number-256
+language: cpp
+severity: hint
+message: "Consider naming this constant (256 often means buffer size)"
+note: "Magic numbers should be constexpr named constants"
+rule:
+  kind: number_literal
+  regex: '^256$'
+  not:
+    inside:
+      any:
+        - kind: enum_specifier
+        - kind: field_declaration
+---
+id: magic-number-1024
+language: cpp
+severity: hint
+message: "Consider naming this constant (1024 often means buffer/page size)"
+note: "Magic numbers should be constexpr named constants"
+rule:
+  kind: number_literal
+  regex: '^1024$'
+  not:
+    inside:
+      any:
+        - kind: enum_specifier
+        - kind: field_declaration
+---
+id: magic-number-4096
+language: cpp
+severity: hint
+message: "Consider naming this constant (4096 often means page size)"
+note: "Magic numbers should be constexpr named constants"
+rule:
+  kind: number_literal
+  regex: '^4096$'
+  not:
+    inside:
+      any:
+        - kind: enum_specifier
+        - kind: field_declaration

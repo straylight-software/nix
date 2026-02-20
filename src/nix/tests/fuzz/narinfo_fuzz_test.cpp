@@ -15,7 +15,7 @@
 // binary caches can crash nix-daemon, causing denial of service.
 //
 // Affected functions:
-// - nar_info_t::nar_info_t(store_dir_config_t&, const std::string&, const std::string&)
+// - nar_info_t::nar_info_t(store_dir_config_t&, const ::std::string&, const ::std::string&)
 //   See: src/nix/store/nar-info.cpp:10-16
 //
 // Root causes:
@@ -29,19 +29,16 @@
 // - Many other malformed inputs cause SIGSEGV or SIGABRT
 
 #include <string>
-#include <vector>
 
 #include "nix/store/nar-info.h"
 #include "nix/store/store-dir-config.h"
 #include "nix/tests/property.h"
 #include "nix/util/error.h"
 
-using namespace nix;
-
 namespace {
 
-store_dir_config_t make_store_config() {
-  return store_dir_config_t{"/nix/store"};
+nix::store_dir_config_t make_store_config() {
+  return nix::store_dir_config_t{"/nix/store"};
 }
 
 } // namespace
@@ -54,11 +51,11 @@ TEST_CASE("bug: nar_info_t crashes without trailing newline", "[fuzz][narinfo][b
   auto config = make_store_config();
 
   // This input triggers SIGSEGV - it lacks a trailing newline
-  std::string malicious = "store_path_t: /nix/store/test";
+  auto malicious = ::std::string{"store_path_t: /nix/store/test"};
 
   INFO("Input: \"" << malicious << "\"");
   // This SHOULD throw an exception, but instead triggers SIGSEGV
-  REQUIRE_THROWS_AS(nar_info_t(config, malicious, "test.narinfo"), base_error_t);
+  REQUIRE_THROWS_AS(nix::nar_info_t(config, malicious, "test.narinfo"), nix::base_error_t);
 }
 
 // =============================================================================
@@ -69,10 +66,10 @@ TEST_CASE("bug: nar_info_t crashes on CR without LF", "[fuzz][narinfo][bug][!may
   auto config = make_store_config();
 
   // This input has \r but no \n - triggers crash
-  std::string malicious = "store_path_t: /nix/store/test\r";
+  auto malicious = ::std::string{"store_path_t: /nix/store/test\r"};
 
   INFO("Input with CR but no LF");
-  REQUIRE_THROWS_AS(nar_info_t(config, malicious, "test.narinfo"), base_error_t);
+  REQUIRE_THROWS_AS(nix::nar_info_t(config, malicious, "test.narinfo"), nix::base_error_t);
 }
 
 // =============================================================================
@@ -108,12 +105,12 @@ TEST_CASE("nar_info_t: valid narinfo parses", "[narinfo][bug][!mayfail]") {
   auto config = make_store_config();
 
   // Note: field name was refactored from "StorePath" to "store_path_t"
-  std::string input =
+  auto input = ::std::string{
       "store_path_t: /nix/store/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-test\n"
       "URL: nar/test.nar\n"
       "NarHash: sha256:0000000000000000000000000000000000000000000000000000000000000000\n"
-      "NarSize: 1234\n";
+      "NarSize: 1234\n"};
 
   // Even "valid" input throws std::bad_alloc due to constructor bugs
-  REQUIRE_NOTHROW(nar_info_t(config, input, "test.narinfo"));
+  REQUIRE_NOTHROW(nix::nar_info_t(config, input, "test.narinfo"));
 }

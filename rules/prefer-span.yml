@@ -1,0 +1,21 @@
+# straylight policy: use span for non-owning array views
+# Prefer std::span over raw pointer + size
+id: prefer-span-pointer-size
+language: cpp
+severity: warning
+message: "Consider std::span instead of pointer + size parameters"
+note: "std::span is safer and more expressive than raw pointer + size"
+rule:
+  pattern: "($TYPE* $PTR, size_t $SIZE)"
+  inside:
+    kind: parameter_list
+---
+id: prefer-span-pointer-count
+language: cpp
+severity: warning
+message: "Consider std::span instead of pointer + count parameters"
+note: "std::span is safer and more expressive than raw pointer + count"
+rule:
+  pattern: "($TYPE* $PTR, std::size_t $COUNT)"
+  inside:
+    kind: parameter_list

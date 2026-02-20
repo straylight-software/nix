@@ -22,25 +22,23 @@
 #include "nix/util/hash.h"
 #include "nix/util/users.h"
 
-using namespace nix;
-
 namespace {
 
 // Create a minimal eval cache database with injected malicious data
-auto create_malicious_cache(const std::filesystem::path& db_path, int malicious_type,
-                            const std::string& malicious_value,
-                            const std::string& malicious_context) -> void {
+auto create_malicious_cache(const ::std::filesystem::path& db_path, int malicious_type,
+                            const ::std::string& malicious_value,
+                            const ::std::string& malicious_context) -> void {
   // Remove existing file
-  std::filesystem::remove(db_path);
+  ::std::filesystem::remove(db_path);
 
-  sqlite3* db = nullptr;
-  int rc = sqlite3_open(db_path.c_str(), &db);
-  if (rc != SQLITE_OK) {
-    throw Error("Failed to create malicious cache: %s", sqlite3_errmsg(db));
+  ::sqlite3* database = nullptr;
+  auto result_code = ::sqlite3_open(db_path.c_str(), &database);
+  if (result_code != SQLITE_OK) {
+    throw nix::Error("Failed to create malicious cache: %s", ::sqlite3_errmsg(database));
   }
 
   // Create schema
-  const char* schema = R"sql(
+  const auto* schema = R"sql(
     create table if not exists Attributes (
       parent integer not null,
       name text,
@@ -51,40 +49,40 @@ auto create_malicious_cache(const std::filesystem::path& db_path, int malicious_
     );
   )sql";
 
-  rc = sqlite3_exec(db, schema, nullptr, nullptr, nullptr);
-  if (rc != SQLITE_OK) {
-    sqlite3_close(db);
-    throw Error("Failed to create schema");
+  result_code = ::sqlite3_exec(database, schema, nullptr, nullptr, nullptr);
+  if (result_code != SQLITE_OK) {
+    ::sqlite3_close(database);
+    throw nix::Error("Failed to create schema");
   }
 
   // Insert root attribute (parent=0, name="")
-  const char* insert_root = "INSERT INTO Attributes (parent, name, type, value, context) "
+  const auto* insert_root = "INSERT INTO Attributes (parent, name, type, value, context) "
                             "VALUES (0, '', 1, '', NULL)"; // type=1 is FullAttrs
-  rc = sqlite3_exec(db, insert_root, nullptr, nullptr, nullptr);
+  result_code = ::sqlite3_exec(database, insert_root, nullptr, nullptr, nullptr);
 
   // Insert malicious child attribute
-  sqlite3_stmt* stmt = nullptr;
-  const char* insert_child = "INSERT INTO Attributes (parent, name, type, value, context) "
+  ::sqlite3_stmt* statement = nullptr;
+  const auto* insert_child = "INSERT INTO Attributes (parent, name, type, value, context) "
                              "VALUES (1, 'malicious', ?, ?, ?)";
-  rc = sqlite3_prepare_v2(db, insert_child, -1, &stmt, nullptr);
-  if (rc == SQLITE_OK) {
-    sqlite3_bind_int(stmt, 1, malicious_type);
-    sqlite3_bind_text(stmt, 2, malicious_value.c_str(), -1, SQLITE_TRANSIENT);
+  result_code = ::sqlite3_prepare_v2(database, insert_child, -1, &statement, nullptr);
+  if (result_code == SQLITE_OK) {
+    ::sqlite3_bind_int(statement, 1, malicious_type);
+    ::sqlite3_bind_text(statement, 2, malicious_value.c_str(), -1, SQLITE_TRANSIENT);
     if (!malicious_context.empty()) {
-      sqlite3_bind_text(stmt, 3, malicious_context.c_str(), -1, SQLITE_TRANSIENT);
+      ::sqlite3_bind_text(statement, 3, malicious_context.c_str(), -1, SQLITE_TRANSIENT);
     } else {
-      sqlite3_bind_null(stmt, 3);
+      ::sqlite3_bind_null(statement, 3);
     }
-    sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
+    ::sqlite3_step(statement);
+    ::sqlite3_finalize(statement);
   }
 
-  sqlite3_close(db);
+  ::sqlite3_close(database);
 }
 
 // Get the eval cache directory
-auto get_eval_cache_dir() -> std::filesystem::path {
-  return std::filesystem::path(get_cache_dir()) / "eval-cache-v6";
+auto get_eval_cache_dir() -> ::std::filesystem::path {
+  return ::std::filesystem::path(nix::get_cache_dir()) / "eval-cache-v6";
 }
 
 } // namespace
@@ -99,7 +97,7 @@ TEST_CASE("bug: eval cache with invalid type value", "[fuzz][eval-cache][bug]") 
   // Valid AttrType values are 0-8 (see eval-cache.h)
   // What happens with type=99 or type=-1 or type=INT_MAX?
 
-  std::vector<int> malicious_types = {
+  auto malicious_types = ::std::vector<int>{
       -1,        // Negative
       99,        // Out of range
       255,       // Max uint8
@@ -108,7 +106,7 @@ TEST_CASE("bug: eval cache with invalid type value", "[fuzz][eval-cache][bug]") 
       INT32_MIN, // Min int32
   };
 
-  for (int bad_type : malicious_types) {
+  for (auto bad_type : malicious_types) {
     INFO("Testing malicious type: " << bad_type);
 
     // This should throw an error, not crash
@@ -127,14 +125,14 @@ TEST_CASE("bug: eval cache with malformed context string", "[fuzz][eval-cache][b
   // Context strings are parsed by tokenize_string with ";" separator
   // and then NixStringContextElem::parse is called on each part
 
-  std::vector<std::string> malicious_contexts = {
-      ";;;",                          // Empty elements
-      std::string("\x00\x00\x00", 3), // Null bytes
-      std::string(1000000, 'a'),      // Very long string
-      "path:with:colons",             // Multiple colons
-      "/nix/store/invalid!path",      // Invalid store path chars
-      "=reference",                   // Malformed reference
-      "!output",                      // Malformed output ref
+  auto malicious_contexts = ::std::vector<::std::string>{
+      ";;;",                            // Empty elements
+      ::std::string("\x00\x00\x00", 3), // Null bytes
+      ::std::string(1000000, 'a'),      // Very long string
+      "path:with:colons",               // Multiple colons
+      "/nix/store/invalid!path",        // Invalid store path chars
+      "=reference",                     // Malformed reference
+      "!output",                        // Malformed output ref
   };
 
   for (const auto& ctx : malicious_contexts) {
@@ -150,11 +148,11 @@ TEST_CASE("bug: eval cache with malformed context string", "[fuzz][eval-cache][b
 // =============================================================================
 
 TEST_CASE("bug: eval cache sql injection via attribute name", "[fuzz][eval-cache][bug]") {
-  std::vector<std::string> malicious_names = {
+  auto malicious_names = ::std::vector<::std::string>{
       "'; DROP TABLE Attributes; --",
       "\" OR 1=1 --",
-      "name\x00hidden",        // Null byte in name
-      std::string(10000, 'x'), // Very long name
+      "name\x00hidden",          // Null byte in name
+      ::std::string(10000, 'x'), // Very long name
       "SELECT * FROM sqlite_master",
       "UNION SELECT * FROM Attributes",
   };
@@ -171,11 +169,11 @@ TEST_CASE("bug: eval cache sql injection via attribute name", "[fuzz][eval-cache
 // =============================================================================
 
 TEST_CASE("bug: eval cache integer overflow in parent id", "[fuzz][eval-cache][bug]") {
-  std::vector<std::int64_t> malicious_parents = {
+  auto malicious_parents = ::std::vector<::std::int64_t>{
       -1,
       INT64_MIN,
       INT64_MAX,
-      static_cast<std::int64_t>(UINT64_MAX),
+      static_cast<::std::int64_t>(UINT64_MAX),
   };
 
   for (auto parent : malicious_parents) {
@@ -207,7 +205,7 @@ TEST_CASE("fuzz: eval cache type parsing", "[fuzz][eval-cache]") {
     auto type_val = *rc::gen::arbitrary<int>();
 
     // Type values 0-8 are valid, others should throw
-    bool is_valid = (type_val >= 0 && type_val <= 8);
+    auto is_valid = (type_val >= 0 && type_val <= 8);
 
     if (!is_valid) {
       // Should throw "unexpected type in evaluation cache"
@@ -220,7 +218,7 @@ TEST_CASE("fuzz: eval cache type parsing", "[fuzz][eval-cache]") {
 
 TEST_CASE("fuzz: eval cache value parsing", "[fuzz][eval-cache]") {
   rc::prop("arbitrary value strings should not crash", []() {
-    auto value = *rc::gen::arbitrary<std::string>();
+    auto value = *rc::gen::arbitrary<::std::string>();
 
     // Value strings are used for strings, paths, bools, ints
     // They should be validated, not blindly parsed
@@ -231,7 +229,7 @@ TEST_CASE("fuzz: eval cache value parsing", "[fuzz][eval-cache]") {
 
 TEST_CASE("fuzz: eval cache context parsing", "[fuzz][eval-cache]") {
   rc::prop("arbitrary context strings should not crash", []() {
-    auto context = *rc::gen::arbitrary<std::string>();
+    auto context = *rc::gen::arbitrary<::std::string>();
 
     // Context is tokenized and parsed as NixStringContextElem
     // Malformed contexts should throw, not crash
@@ -250,8 +248,8 @@ TEST_CASE("fuzz: eval cache context parsing", "[fuzz][eval-cache]") {
 
 TEST_CASE("bug: malicious eval cache database causes crash", "[fuzz][eval-cache][bug]") {
   // Create a temporary directory for our malicious cache
-  auto temp_dir = std::filesystem::temp_directory_path() / "nix-eval-cache-fuzz-test";
-  std::filesystem::create_directories(temp_dir);
+  auto temp_dir = ::std::filesystem::temp_directory_path() / "nix-eval-cache-fuzz-test";
+  ::std::filesystem::create_directories(temp_dir);
 
   auto db_path = temp_dir / "malicious.sqlite";
 
@@ -261,21 +259,21 @@ TEST_CASE("bug: malicious eval cache database causes crash", "[fuzz][eval-cache]
 
     // Reading this should throw "unexpected type in evaluation cache"
     // not crash or assert
-    sqlite3* db = nullptr;
-    sqlite3_open(db_path.c_str(), &db);
+    ::sqlite3* database = nullptr;
+    ::sqlite3_open(db_path.c_str(), &database);
 
-    sqlite3_stmt* stmt = nullptr;
-    sqlite3_prepare_v2(db, "SELECT type FROM Attributes WHERE name='malicious'", -1, &stmt,
-                       nullptr);
+    ::sqlite3_stmt* statement = nullptr;
+    ::sqlite3_prepare_v2(database, "SELECT type FROM Attributes WHERE name='malicious'", -1,
+                         &statement, nullptr);
 
-    if (sqlite3_step(stmt) == SQLITE_ROW) {
-      int type = sqlite3_column_int(stmt, 0);
-      INFO("Injected malicious type: " << type);
-      REQUIRE(type == 999); // Verify injection worked
+    if (::sqlite3_step(statement) == SQLITE_ROW) {
+      auto type_value = ::sqlite3_column_int(statement, 0);
+      INFO("Injected malicious type: " << type_value);
+      REQUIRE(type_value == 999); // Verify injection worked
     }
 
-    sqlite3_finalize(stmt);
-    sqlite3_close(db);
+    ::sqlite3_finalize(statement);
+    ::sqlite3_close(database);
   }
 
   SECTION("context with invalid store path") {
@@ -283,32 +281,32 @@ TEST_CASE("bug: malicious eval cache database causes crash", "[fuzz][eval-cache]
     // This triggers store_path_t constructor which may assert
     create_malicious_cache(db_path, 2, "/nix/store/invalid", "invalid!store!path");
 
-    sqlite3* db = nullptr;
-    sqlite3_open(db_path.c_str(), &db);
+    ::sqlite3* database = nullptr;
+    ::sqlite3_open(db_path.c_str(), &database);
 
-    sqlite3_stmt* stmt = nullptr;
-    sqlite3_prepare_v2(db, "SELECT context FROM Attributes WHERE name='malicious'", -1, &stmt,
-                       nullptr);
+    ::sqlite3_stmt* statement = nullptr;
+    ::sqlite3_prepare_v2(database, "SELECT context FROM Attributes WHERE name='malicious'", -1,
+                         &statement, nullptr);
 
-    if (sqlite3_step(stmt) == SQLITE_ROW) {
-      const char* context = (const char*)sqlite3_column_text(stmt, 0);
+    if (::sqlite3_step(statement) == SQLITE_ROW) {
+      const auto* context = reinterpret_cast<const char*>(::sqlite3_column_text(statement, 0));
       INFO("Injected malicious context: " << context);
-      REQUIRE(std::string(context) == "invalid!store!path");
+      REQUIRE(::std::string(context) == "invalid!store!path");
     }
 
-    sqlite3_finalize(stmt);
-    sqlite3_close(db);
+    ::sqlite3_finalize(statement);
+    ::sqlite3_close(database);
   }
 
   SECTION("extremely long attribute name") {
     // Create cache with very long attribute name - may cause buffer issues
-    std::string long_name(100000, 'x');
+    auto long_name = ::std::string(100000, 'x');
 
-    sqlite3* db = nullptr;
-    sqlite3_open(db_path.c_str(), &db);
+    ::sqlite3* database = nullptr;
+    ::sqlite3_open(db_path.c_str(), &database);
 
     // Create schema
-    sqlite3_exec(db, R"sql(
+    ::sqlite3_exec(database, R"sql(
       create table if not exists Attributes (
         parent integer not null,
         name text,
@@ -318,20 +316,20 @@ TEST_CASE("bug: malicious eval cache database causes crash", "[fuzz][eval-cache]
         primary key (parent, name)
       );
     )sql",
-                 nullptr, nullptr, nullptr);
+                   nullptr, nullptr, nullptr);
 
     // Insert with long name
-    sqlite3_stmt* stmt = nullptr;
-    sqlite3_prepare_v2(db,
-                       "INSERT INTO Attributes (parent, name, type, value) VALUES (0, ?, 2, 'x')",
-                       -1, &stmt, nullptr);
-    sqlite3_bind_text(stmt, 1, long_name.c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
-    sqlite3_close(db);
+    ::sqlite3_stmt* statement = nullptr;
+    ::sqlite3_prepare_v2(database,
+                         "INSERT INTO Attributes (parent, name, type, value) VALUES (0, ?, 2, 'x')",
+                         -1, &statement, nullptr);
+    ::sqlite3_bind_text(statement, 1, long_name.c_str(), -1, SQLITE_TRANSIENT);
+    ::sqlite3_step(statement);
+    ::sqlite3_finalize(statement);
+    ::sqlite3_close(database);
 
     // Verify it was written
-    REQUIRE(std::filesystem::exists(db_path));
+    REQUIRE(::std::filesystem::exists(db_path));
   }
 
   SECTION("orphan child attribute - missing parent triggers assertion") {
@@ -369,10 +367,10 @@ TEST_CASE("bug: malicious eval cache database causes crash", "[fuzz][eval-cache]
     // MITIGATION: Replace assert() with proper error handling
     // ===========================================================================
 
-    sqlite3* db = nullptr;
-    sqlite3_open(db_path.c_str(), &db);
+    ::sqlite3* database = nullptr;
+    ::sqlite3_open(db_path.c_str(), &database);
 
-    sqlite3_exec(db, R"sql(
+    ::sqlite3_exec(database, R"sql(
       create table if not exists Attributes (
         parent integer not null,
         name text,
@@ -382,61 +380,62 @@ TEST_CASE("bug: malicious eval cache database causes crash", "[fuzz][eval-cache]
         primary key (parent, name)
       );
     )sql",
-                 nullptr, nullptr, nullptr);
+                   nullptr, nullptr, nullptr);
 
     // Create a proper root first (rowid=1)
-    sqlite3_exec(db,
-                 "INSERT INTO Attributes (parent, name, type, value) "
-                 "VALUES (0, '', 1, '')", // Root: parent=0, type=1 (FullAttrs)
-                 nullptr, nullptr, nullptr);
+    ::sqlite3_exec(database,
+                   "INSERT INTO Attributes (parent, name, type, value) "
+                   "VALUES (0, '', 1, '')", // Root: parent=0, type=1 (FullAttrs)
+                   nullptr, nullptr, nullptr);
 
     // Insert orphan child - parent 999 doesn't exist (no row with rowid=999)
     // When nix tries to traverse: root -> child, it will fail
     // because child's parent (999) has no cachedValue
-    sqlite3_exec(db,
-                 "INSERT INTO Attributes (parent, name, type, value) "
-                 "VALUES (999, 'orphan', 2, 'value')",
-                 nullptr, nullptr, nullptr);
+    ::sqlite3_exec(database,
+                   "INSERT INTO Attributes (parent, name, type, value) "
+                   "VALUES (999, 'orphan', 2, 'value')",
+                   nullptr, nullptr, nullptr);
 
-    sqlite3_close(db);
+    ::sqlite3_close(database);
 
     // Verify database structure
-    sqlite3_open(db_path.c_str(), &db);
-    sqlite3_stmt* stmt = nullptr;
+    ::sqlite3_open(db_path.c_str(), &database);
+    ::sqlite3_stmt* statement = nullptr;
 
     // Check root exists
-    sqlite3_prepare_v2(db, "SELECT rowid FROM Attributes WHERE parent=0 AND name=''", -1, &stmt,
-                       nullptr);
-    REQUIRE(sqlite3_step(stmt) == SQLITE_ROW);
-    auto root_rowid = sqlite3_column_int64(stmt, 0);
+    ::sqlite3_prepare_v2(database, "SELECT rowid FROM Attributes WHERE parent=0 AND name=''", -1,
+                         &statement, nullptr);
+    REQUIRE(::sqlite3_step(statement) == SQLITE_ROW);
+    auto root_rowid = ::sqlite3_column_int64(statement, 0);
     INFO("Root rowid: " << root_rowid);
-    sqlite3_finalize(stmt);
+    ::sqlite3_finalize(statement);
 
     // Check orphan exists
-    sqlite3_prepare_v2(db, "SELECT rowid, parent FROM Attributes WHERE name='orphan'", -1, &stmt,
-                       nullptr);
-    REQUIRE(sqlite3_step(stmt) == SQLITE_ROW);
-    auto orphan_rowid = sqlite3_column_int64(stmt, 0);
-    auto orphan_parent = sqlite3_column_int64(stmt, 1);
+    ::sqlite3_prepare_v2(database, "SELECT rowid, parent FROM Attributes WHERE name='orphan'", -1,
+                         &statement, nullptr);
+    REQUIRE(::sqlite3_step(statement) == SQLITE_ROW);
+    auto orphan_rowid = ::sqlite3_column_int64(statement, 0);
+    auto orphan_parent = ::sqlite3_column_int64(statement, 1);
     INFO("Orphan rowid: " << orphan_rowid << ", parent: " << orphan_parent);
     REQUIRE(orphan_parent == 999);
-    sqlite3_finalize(stmt);
+    ::sqlite3_finalize(statement);
 
     // Verify parent 999 doesn't exist
-    sqlite3_prepare_v2(db, "SELECT rowid FROM Attributes WHERE rowid=999", -1, &stmt, nullptr);
-    REQUIRE(sqlite3_step(stmt) == SQLITE_DONE); // No row found
-    sqlite3_finalize(stmt);
+    ::sqlite3_prepare_v2(database, "SELECT rowid FROM Attributes WHERE rowid=999", -1, &statement,
+                         nullptr);
+    REQUIRE(::sqlite3_step(statement) == SQLITE_DONE); // No row found
+    ::sqlite3_finalize(statement);
 
-    sqlite3_close(db);
+    ::sqlite3_close(database);
 
     INFO("Created malicious database with orphan child");
     INFO("To trigger crash:");
     INFO("  1. Copy database to ~/.cache/nix/eval-cache-v6/<hash>.sqlite");
     INFO("  2. Run nix build on a flake with matching fingerprint hash");
     INFO("  3. Observe SIGABRT from assertion failure at eval-cache.cpp:322");
-    REQUIRE(std::filesystem::exists(db_path));
+    REQUIRE(::std::filesystem::exists(db_path));
   }
 
   // Cleanup
-  std::filesystem::remove_all(temp_dir);
+  ::std::filesystem::remove_all(temp_dir);
 }

@@ -1,0 +1,9 @@
+# straylight policy: use 'using' instead of 'typedef'
+# modernize-use-using equivalent for ast-grep
+id: no-typedef
+language: cpp
+severity: warning
+message: "Use 'using' instead of 'typedef'"
+note: "C++11 alias declarations are clearer: using alias_t = type;"
+rule:
+  kind: type_definition

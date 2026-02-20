@@ -68,7 +68,6 @@
 #include "nix/flake/flakeref.h"
 #include "nix/flake/lockfile.h"
 
-using namespace nix;
 
 // =============================================================================
 // Template instantiation verification
@@ -83,48 +82,48 @@ void force_instantiation() {
 }
 
 void instantiate_fso_templates() {
-  force_instantiation<fso::variant_t<std::string, true>>();
-  force_instantiation<fso::variant_t<std::string, false>>();
-  force_instantiation<fso::variant_t<nar_listing_regular_file_t, true>>();
-  force_instantiation<fso::variant_t<nar_listing_regular_file_t, false>>();
-  force_instantiation<fso::regular<std::string>>();
-  force_instantiation<fso::regular<nar_listing_regular_file_t>>();
-  force_instantiation<fso::directory_t<fso::variant_t<std::string, true>>>();
-  force_instantiation<fso::directory_t<fso::opaque_t>>();
+  force_instantiation<nix::fso::variant_t<::std::string, true>>();
+  force_instantiation<nix::fso::variant_t<::std::string, false>>();
+  force_instantiation<nix::fso::variant_t<nix::nar_listing_regular_file_t, true>>();
+  force_instantiation<nix::fso::variant_t<nix::nar_listing_regular_file_t, false>>();
+  force_instantiation<nix::fso::regular<::std::string>>();
+  force_instantiation<nix::fso::regular<nix::nar_listing_regular_file_t>>();
+  force_instantiation<nix::fso::directory_t<nix::fso::variant_t<::std::string, true>>>();
+  force_instantiation<nix::fso::directory_t<nix::fso::opaque_t>>();
 }
 
 void instantiate_json_serializers() {
   using json = nlohmann::json;
   {
-    nar_listing_t listing;
+    nix::nar_listing_t listing;
     json j = listing;
-    [[maybe_unused]] auto back = j.get<nar_listing_t>();
+    [[maybe_unused]] auto back = j.get<nix::nar_listing_t>();
   }
   {
-    shallow_nar_listing_t listing;
+    nix::shallow_nar_listing_t listing;
     json j = listing;
-    [[maybe_unused]] auto back = j.get<shallow_nar_listing_t>();
+    [[maybe_unused]] auto back = j.get<nix::shallow_nar_listing_t>();
   }
   {
-    memory_source_accessor_t::file_t file;
+    nix::memory_source_accessor_t::file_t file;
     json j = file;
-    [[maybe_unused]] auto back = j.get<memory_source_accessor_t::file_t>();
+    [[maybe_unused]] auto back = j.get<nix::memory_source_accessor_t::file_t>();
   }
 }
 
 void instantiate_lru_cache() {
-  force_instantiation<lru_cache_t<std::string, int>>();
-  force_instantiation<lru_cache_t<hash_t, std::string>>();
+  force_instantiation<nix::lru_cache_t<::std::string, int>>();
+  force_instantiation<nix::lru_cache_t<nix::hash_t, ::std::string>>();
 }
 
 void instantiate_pool() {
-  force_instantiation<pool_t<std::string>>();
+  force_instantiation<nix::pool_t<::std::string>>();
 }
 
 void instantiate_sync() {
-  force_instantiation<sync_t<int>>();
-  force_instantiation<sync_t<std::string>>();
-  force_instantiation<sync_t<std::vector<int>>>();
+  force_instantiation<nix::sync_t<int>>();
+  force_instantiation<nix::sync_t<::std::string>>();
+  force_instantiation<nix::sync_t<::std::vector<int>>>();
 }
 
 } // anonymous namespace
@@ -153,22 +152,22 @@ TEST_CASE("link integrity: json serializers", "[proto][link]") {
 // =============================================================================
 
 TEST_CASE("link integrity: hash functions", "[proto][link]") {
-  auto h = hash_string(hash_algorithm_t::sha256, "test");
+  auto h = nix::hash_string(nix::hash_algorithm_t::sha256, "test");
   REQUIRE(h.hash_size() == 32);
-  REQUIRE(h.algo() == hash_algorithm_t::sha256);
+  REQUIRE(h.algo() == nix::hash_algorithm_t::sha256);
 
-  auto hex = h.to_string(hash_format_t::base16, false);
+  auto hex = h.to_string(nix::hash_format_t::base16, false);
   REQUIRE(hex.size() == 64);
 
-  auto sri = h.to_string(hash_format_t::sri, true);
+  auto sri = h.to_string(nix::hash_format_t::sri, true);
   REQUIRE(sri.starts_with("sha256-"));
 }
 
 TEST_CASE("link integrity: all hash algorithms", "[proto][link]") {
-  for (auto algo : {hash_algorithm_t::md5, hash_algorithm_t::sha1, hash_algorithm_t::sha256,
-                    hash_algorithm_t::sha512}) {
-    auto h = hash_string(algo, "test data");
-    REQUIRE(h.hash_size() == regular_hash_size(algo));
+  for (auto algo : {nix::hash_algorithm_t::md5, nix::hash_algorithm_t::sha1,
+                    nix::hash_algorithm_t::sha256, nix::hash_algorithm_t::sha512}) {
+    auto h = nix::hash_string(algo, "test data");
+    REQUIRE(h.hash_size() == nix::regular_hash_size(algo));
     REQUIRE(h.algo() == algo);
   }
 }
@@ -178,7 +177,7 @@ TEST_CASE("link integrity: all hash algorithms", "[proto][link]") {
 // =============================================================================
 
 TEST_CASE("link integrity: canon_path_t", "[proto][link]") {
-  canon_path_t p("/foo/bar");
+  auto p = nix::canon_path_t{"/foo/bar"};
   REQUIRE(p.abs() == "/foo/bar");
   REQUIRE(p.base_name() == "bar");
   REQUIRE(p.dir_of().has_value());
@@ -190,10 +189,10 @@ TEST_CASE("link integrity: canon_path_t", "[proto][link]") {
 // =============================================================================
 
 TEST_CASE("link integrity: compression", "[proto][link]") {
-  std::string data = "test data for compression";
-  auto compressed = compress("none", data);
+  auto data = ::std::string{"test data for compression"};
+  auto compressed = nix::compress("none", data);
   REQUIRE(compressed == data);
-  auto decompressed = decompress("none", compressed);
+  auto decompressed = nix::decompress("none", compressed);
   REQUIRE(decompressed == data);
 }
 
@@ -202,12 +201,12 @@ TEST_CASE("link integrity: compression", "[proto][link]") {
 // =============================================================================
 
 TEST_CASE("link integrity: store types", "[proto][link]") {
-  REQUIRE(sizeof(store_dir_config_t) > 0);
-  REQUIRE(sizeof(derivation_t) > 0);
-  REQUIRE(sizeof(basic_derivation_t) > 0);
-  REQUIRE(sizeof(derivation_output_t) > 0);
-  REQUIRE(sizeof(content_address_method_t) > 0);
-  REQUIRE(sizeof(content_address_t) > 0);
+  REQUIRE(sizeof(nix::store_dir_config_t) > 0);
+  REQUIRE(sizeof(nix::derivation_t) > 0);
+  REQUIRE(sizeof(nix::basic_derivation_t) > 0);
+  REQUIRE(sizeof(nix::derivation_output_t) > 0);
+  REQUIRE(sizeof(nix::content_address_method_t) > 0);
+  REQUIRE(sizeof(nix::content_address_t) > 0);
 }
 
 // =============================================================================
@@ -216,18 +215,18 @@ TEST_CASE("link integrity: store types", "[proto][link]") {
 
 TEST_CASE("link integrity: serialization", "[proto][link]") {
   // Test raw byte writing via operator()
-  string_sink_t sink;
-  std::string_view hello = "hello";
+  auto sink = nix::string_sink_t{};
+  auto hello = ::std::string_view{"hello"};
   sink(hello);
   REQUIRE(sink.str().size() == 5);
   REQUIRE(sink.str() == "hello");
 
   // Test string_source_t reading
-  std::string data = "test";
-  string_source_t source(data);
-  char buf[4];
-  source(buf, 4);
-  REQUIRE(std::string(buf, 4) == "test");
+  auto data = ::std::string{"test"};
+  auto source = nix::string_source_t{data};
+  char read_buffer[4];
+  source(read_buffer, 4);
+  REQUIRE(::std::string(read_buffer, 4) == "test");
 }
 
 // =============================================================================
@@ -235,10 +234,10 @@ TEST_CASE("link integrity: serialization", "[proto][link]") {
 // =============================================================================
 
 TEST_CASE("link integrity: expr types", "[proto][link]") {
-  REQUIRE(sizeof(symbol_table_t) > 0);
-  REQUIRE(sizeof(pos_table_t) > 0);
-  REQUIRE(sizeof(value_t) > 0);
-  REQUIRE(sizeof(bindings_t) > 0);
+  REQUIRE(sizeof(nix::symbol_table_t) > 0);
+  REQUIRE(sizeof(nix::pos_table_t) > 0);
+  REQUIRE(sizeof(nix::value_t) > 0);
+  REQUIRE(sizeof(nix::bindings_t) > 0);
 }
 
 // =============================================================================
@@ -246,8 +245,8 @@ TEST_CASE("link integrity: expr types", "[proto][link]") {
 // =============================================================================
 
 TEST_CASE("link integrity: flake types", "[proto][link]") {
-  REQUIRE(sizeof(flake_ref_t) > 0);
-  REQUIRE(sizeof(flake::lock_file_t) > 0);
+  REQUIRE(sizeof(nix::flake_ref_t) > 0);
+  REQUIRE(sizeof(nix::flake::lock_file_t) > 0);
 }
 
 // =============================================================================
@@ -256,33 +255,33 @@ TEST_CASE("link integrity: flake types", "[proto][link]") {
 
 TEST_CASE("link integrity: hash property roundtrip", "[proto][link][property]") {
   rc::prop("hash serialization roundtrip", []() {
-    auto data = *rc::gen::arbitrary<std::string>();
-    auto hash = hash_string(hash_algorithm_t::sha256, data);
-    auto encoded = hash.to_string(hash_format_t::base16, true);
-    auto parsed = hash_t::parse_any_prefixed(encoded);
+    auto data = *rc::gen::arbitrary<::std::string>();
+    auto hash = nix::hash_string(nix::hash_algorithm_t::sha256, data);
+    auto encoded = hash.to_string(nix::hash_format_t::base16, true);
+    auto parsed = nix::hash_t::parse_any_prefixed(encoded);
     RC_ASSERT(hash == parsed);
   });
 }
 
 TEST_CASE("link integrity: canon_path property", "[proto][link][property]") {
   rc::prop("canon_path preserves absolute path semantics", []() {
-    auto components = *rc::gen::container<std::vector<std::string>>(
-        rc::gen::suchThat(rc::gen::string<std::string>(), [](const std::string& s) {
-          return !s.empty() && s.find('/') == std::string::npos &&
-                 s.find('\0') == std::string::npos && s != "." && s != "..";
+    auto components = *rc::gen::container<::std::vector<::std::string>>(
+        rc::gen::suchThat(rc::gen::string<::std::string>(), [](const ::std::string& s) {
+          return !s.empty() && s.find('/') == ::std::string::npos &&
+                 s.find('\0') == ::std::string::npos && s != "." && s != "..";
         }));
 
     if (components.empty()) {
       return;
     }
 
-    std::string path = "/";
+    auto path = ::std::string{"/"};
     for (const auto& c : components) {
       path += c + "/";
     }
     path.pop_back();
 
-    canon_path_t cp(path);
+    auto cp = nix::canon_path_t{path};
     RC_ASSERT(cp.abs() == path);
     RC_ASSERT(cp.is_root() == (path == "/"));
   });

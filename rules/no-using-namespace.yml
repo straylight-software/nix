@@ -1,0 +1,14 @@
+# straylight policy: no using namespace at file scope
+# using namespace is only allowed inside function bodies
+id: no-using-namespace-file-scope
+language: cpp
+severity: error
+message: "Never use 'using namespace' at file scope"
+note: "using namespace pollutes the global namespace and causes name collisions. Only use inside function bodies if at all."
+rule:
+  pattern: using namespace $NS
+  not:
+    inside:
+      any:
+        - kind: function_definition
+        - kind: compound_statement

@@ -1,0 +1,33 @@
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#                                                          // cppcheck // law
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
+#     "All the speed he took, all the turns he'd taken and the corners he'd
+#      cut in Night City..."
+#
+#                                                               — Neuromancer
+#
+# Static analysis with cppcheck. Catches what clang-tidy misses.
+# Run after clang-tidy in the lint pipeline.
+#
+# Usage: cppcheck --project=compile_commands.json --suppressions-list=.cppcheck
+#
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# ══════════════════════════════════════════════════════════════════════════════
+#                                                              // suppressions
+# ══════════════════════════════════════════════════════════════════════════════
+#
+# Format: <error_id>:[filename]:[line]
+# Use sparingly - every suppression should have a comment explaining why.
+#
+# ══════════════════════════════════════════════════════════════════════════════
+
+# missingIncludeSystem - we don't have full system includes in analysis
+missingIncludeSystem
+
+# unmatchedSuppression - suppress warnings about unused suppressions
+unmatchedSuppression
+
+# useStlAlgorithm - sometimes manual loops are clearer
+# (selectively suppress per-file if needed, not globally)

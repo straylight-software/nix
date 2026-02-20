@@ -1,0 +1,12 @@
+# straylight policy: prefer '\n' over std::endl
+# std::endl flushes the buffer unnecessarily
+id: no-std-endl
+language: cpp
+severity: warning
+message: "Prefer '\\n' over std::endl (avoids unnecessary flush)"
+note: "std::endl flushes the stream buffer; use '\\n' unless flush is needed"
+rule:
+  any:
+    - pattern: std::endl
+    - pattern: endl
+# no auto-fix - context-dependent whether '\n' or explicit flush is needed

@@ -1,0 +1,91 @@
+# straylight policy: no abbreviations under 4 characters
+# The "three-letter rule" - cfg, conn, res, etc. are banned
+id: no-short-identifier-cfg
+language: cpp
+severity: warning
+message: "Avoid short abbreviation 'cfg' - use 'config' or 'configuration'"
+note: "Three-letter rule: abbreviations under 4 characters create confusion"
+rule:
+  kind: identifier
+  regex: '\bcfg\b'
+---
+id: no-short-identifier-conn
+language: cpp
+severity: warning
+message: "Avoid short abbreviation 'conn' - use 'connection'"
+note: "Three-letter rule: abbreviations under 4 characters create confusion"
+rule:
+  kind: identifier
+  regex: '\bconn\b'
+---
+id: no-short-identifier-res
+language: cpp
+severity: warning
+message: "Avoid short abbreviation 'res' - use 'result' or 'response'"
+note: "Three-letter rule: abbreviations under 4 characters create confusion"
+rule:
+  kind: identifier
+  regex: '\bres\b'
+---
+id: no-short-identifier-req
+language: cpp
+severity: warning
+message: "Avoid short abbreviation 'req' - use 'request'"
+note: "Three-letter rule: abbreviations under 4 characters create confusion"
+rule:
+  kind: identifier
+  regex: '\breq\b'
+---
+id: no-short-identifier-mgr
+language: cpp
+severity: warning
+message: "Avoid short abbreviation 'mgr' - use 'manager'"
+note: "Three-letter rule: abbreviations under 4 characters create confusion"
+rule:
+  kind: identifier
+  regex: '\bmgr\b'
+---
+id: no-short-identifier-ptr
+language: cpp
+severity: warning
+message: "Avoid short abbreviation 'ptr' - use 'pointer' or more specific name"
+note: "Three-letter rule: abbreviations under 4 characters create confusion"
+rule:
+  kind: identifier
+  regex: '\bptr\b'
+---
+id: no-short-identifier-buf
+language: cpp
+severity: warning
+message: "Avoid short abbreviation 'buf' - use 'buffer'"
+note: "Three-letter rule: abbreviations under 4 characters create confusion"
+rule:
+  kind: identifier
+  regex: '\bbuf\b'
+---
+id: no-short-identifier-tmp
+language: cpp
+severity: warning
+message: "Avoid short abbreviation 'tmp' - use 'temporary' or more descriptive name"
+note: "Three-letter rule: abbreviations under 4 characters create confusion"
+rule:
+  kind: identifier
+  regex: '\btmp\b'
+---
+id: no-short-identifier-str
+language: cpp
+severity: warning
+message: "Avoid short abbreviation 'str' - use 'string' or more descriptive name"
+note: "Three-letter rule: abbreviations under 4 characters create confusion"
+rule:
+  kind: identifier
+  regex: '\bstr\b'
+---
+id: no-short-identifier-err
+language: cpp
+severity: warning
+message: "Avoid short abbreviation 'err' - use 'error'"
+note: "Three-letter rule: abbreviations under 4 characters create confusion"
+rule:
+  kind: identifier
+  regex: '\berr\b'

@@ -1,0 +1,21 @@
+# straylight policy: functions returning values should be [[nodiscard]]
+# This is a hint - too many false positives to make it an error
+id: nodiscard-hint
+language: cpp
+severity: hint
+message: "Consider adding [[nodiscard]] to function returning non-void"
+note: "Functions whose return value should not be ignored should use [[nodiscard]]"
+rule:
+  any:
+    - pattern: auto $NAME($$$PARAMS) -> $TYPE {$$$BODY}
+    - pattern: $TYPE $NAME($$$PARAMS) {$$$BODY}
+  not:
+    any:
+      - pattern: "[[nodiscard]] $$$"
+      - pattern: void $NAME($$$_) {$$$_}
+      - pattern: auto $NAME($$$_) -> void {$$$_}
+      - regex: "^(main|operator)"  # skip main and operators
+  inside:
+    any:
+      - kind: struct_specifier
+      - kind: class_specifier

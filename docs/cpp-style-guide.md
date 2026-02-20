@@ -352,31 +352,83 @@ auto validate_store_path(std::string_view path) -> bool {
 auto format_log_message(level_t level, std::string_view msg) -> std::string;
 ```
 
-## clang-tidy compliance
+## lint pipeline
 
-the codebase uses strict clang-tidy checking. key rules:
+the codebase uses a comprehensive lint pipeline with four tools, each covering different aspects:
 
-### required
+### tool stack
 
-- `readability-identifier-naming` - snake_case everything
+| tool | purpose | configuration |
+|------|---------|---------------|
+| **clang-format** | mechanical layout (indentation, spacing, braces) | `.clang-format` |
+| **clang-tidy** | semantic lint (naming, complexity, bugs) | `.clang-tidy` |
+| **ast-grep** | pattern-based rules clang-tidy can't express | `sgconfig.yml`, `rules/` |
+| **cppcheck** | deep static analysis, inter-procedural bugs | `.cppcheck`, `cppcheck.cfg` |
+
+### running the linters
+
+```bash
+# clang-format (mechanical formatting)
+clang-format -i src/**/*.cpp src/**/*.h
+
+# clang-tidy (semantic lint)
+clang-tidy src/nix/your_file.cpp -- -std=c++23
+
+# ast-grep (pattern rules)
+ast-grep scan --config sgconfig.yml src/
+
+# cppcheck (deep analysis)
+cppcheck --suppressions-list=.cppcheck src/nix/ src/straylight/
+```
+
+### ast-grep rules (19 rules in `rules/`)
+
+| rule | severity | purpose |
+|------|----------|---------|
+| `no-class-keyword` | error | enforce `struct` over `class` |
+| `no-c-style-cast` | warning | use C++ casts |
+| `no-using-namespace-std` | error | prevent namespace pollution |
+| `no-raw-new` | warning | use `make_unique`/`make_shared` |
+| `no-std-endl` | warning | prefer `'\n'` (no flush) |
+| `no-typedef` | warning | use `using` instead |
+| `no-short-identifier` | warning | three-letter rule (no cfg, conn, res, etc.) |
+| `no-assert` | warning | proper error handling over assert |
+| `no-magic-numbers` | hint | name your constants (256, 1024, 4096) |
+| `prefer-nullptr` | warning | use `nullptr` not `NULL` |
+| `prefer-string-view` | hint | `string_view` for read-only params |
+| `prefer-span` | warning | `span` over pointer+size |
+| `trailing-return-type` | warning | `auto f() -> T` style |
+| `uppercase-literal-suffix` | warning | `1UL` not `1ul` |
+| `aaa-make-shared` | hint | auto with make_shared |
+| `aaa-make-unique` | hint | auto with make_unique |
+| `aaa-static-cast` | hint | auto with static_cast |
+
+### clang-tidy key rules
+
+- `readability-identifier-naming` - snake_case everything, `_t` suffix for types
 - `readability-braces-around-statements` - always use braces
 - `modernize-use-trailing-return-type` - prefer trailing returns
 - `modernize-use-using` - use `using` instead of `typedef`
 - `modernize-use-nodiscard` - mark functions that should be checked
+- `readability-function-size` - max 100 lines, 25 cognitive complexity
 - `performance-*` - all performance checks enabled
-
-### configuration
-
-see `.clang-tidy` in repository root for full configuration.
 
 ### fixing violations
 
-when fixing clang-tidy violations:
+when fixing lint violations:
 
-1. **bulk fixes first** - use clang-tidy --fix for mechanical changes
-2. **semantic fixes manually** - member renames require careful review
+1. **bulk fixes first** - use `clang-tidy --fix` or `clang-format -i` for mechanical changes
+2. **semantic fixes manually** - member renames, architecture changes require careful review
 3. **test after each batch** - build and run tests frequently
 4. **commit incrementally** - one type of fix per commit
+
+### configuration files
+
+- `.clang-format` - 166 lines, LLVM-based, 100 col, 2-space indent
+- `.clang-tidy` - 252+ lines, `WarningsAsErrors: '*'`, maximum strictness
+- `sgconfig.yml` - ast-grep config pointing to `rules/`
+- `.cppcheck` - suppressions list
+- `cppcheck.cfg` - project configuration (XML)
 
 ## testing
 
