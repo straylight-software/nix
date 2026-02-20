@@ -342,7 +342,7 @@ public:
   path_setting_t(config_t* options, const Path& def, const std::string& name,
                  const std::string& description, const string_set_t& aliases = {});
 
-  [[nodiscard]] Path parse(const std::string& str) const override;
+  [[nodiscard]] auto parse(const std::string& str) const -> Path override;
 
   [[nodiscard]] auto operator+(const char* p) const -> Path { return value_ + p; }
 
@@ -360,7 +360,7 @@ public:
                           const std::string& name, const std::string& description,
                           const string_set_t& aliases = {});
 
-  [[nodiscard]] std::optional<Path> parse(const std::string& str) const override;
+  [[nodiscard]] auto parse(const std::string& str) const -> std::optional<Path> override;
 
   auto operator=(const std::optional<Path>& v) -> void;
 };
