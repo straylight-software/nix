@@ -52,32 +52,32 @@ using xp_t = experimental_feature_t;
  * Parse an experimental feature (enum value) from its name. Experimental
  * feature flag names are hyphenated and do not contain spaces.
  */
-const std::optional<experimental_feature_t>
-parse_experimental_feature(const std::string_view& name);
+auto parse_experimental_feature(const std::string_view& name)
+    -> const std::optional<experimental_feature_t>;
 
 /**
  * Show the name of an experimental feature. This is the opposite of
  * parse_experimental_feature().
  */
-std::string_view show_experimental_feature(const experimental_feature_t);
+auto show_experimental_feature(const experimental_feature_t) -> std::string_view;
 
 /**
  * Compute the documentation of all experimental features.
  *
  * See `doc/manual` for how this information is used.
  */
-nlohmann::json document_experimental_features();
+auto document_experimental_features() -> nlohmann::json;
 
 /**
  * Shorthand for `str << show_experimental_feature(feature)`.
  */
-std::ostream& operator<<(std::ostream& str, const experimental_feature_t& feature);
+auto operator<<(std::ostream& str, const experimental_feature_t& feature) -> std::ostream&;
 
 /**
  * Parse a set of strings to the corresponding set of experimental
  * features, ignoring (but warning for) any unknown feature.
  */
-std::set<experimental_feature_t> parse_features(const string_set_t&);
+auto parse_features(const string_set_t&) -> std::set<experimental_feature_t>;
 
 /**
  * An experimental feature was required for some (experimental)
@@ -105,7 +105,7 @@ struct json_avoids_null<experimental_feature_t> : std::true_type {};
  * Semi-magic conversion to and from json.
  * See the nlohmann/json readme for more details.
  */
-void to_json(nlohmann::json&, const experimental_feature_t&);
-void from_json(const nlohmann::json&, experimental_feature_t&);
+auto to_json(nlohmann::json&, const experimental_feature_t&) -> void;
+auto from_json(const nlohmann::json&, experimental_feature_t&) -> void;
 
 } // namespace nix

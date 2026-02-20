@@ -130,16 +130,16 @@ public:
 
   [[nodiscard]] auto is_owned() const -> bool { return std::holds_alternative<std::string>(data_); }
 
-  std::string to_owned() && {
+  auto to_owned() && -> std::string {
     return is_owned() ? std::move(std::get<std::string>(data_))
                       : std::string(std::get<std::string_view>(data_));
   }
 
-  std::string_view operator*() const {
+  auto operator*() const -> std::string_view {
     return is_owned() ? std::get<std::string>(data_) : std::get<std::string_view>(data_);
   }
 
-  ptr operator->() const { return ptr(**this); }
+  auto operator->() const -> ptr { return ptr(**this); }
 };
 
 } // namespace nix

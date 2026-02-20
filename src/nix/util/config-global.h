@@ -12,16 +12,16 @@ struct global_config_t : public abstract_config_t {
 
   auto set(const std::string& name, const std::string& value) -> bool override;
 
-  void get_settings(std::map<std::string, setting_info_t>& res,
-                    bool overridden_only = false) const override;
+  auto get_settings(std::map<std::string, setting_info_t>& res, bool overridden_only = false) const
+      -> void override;
 
-  void reset_overridden() override;
+  auto reset_overridden() -> void override;
 
-  nlohmann::json to_json() override;
+  auto to_json() -> nlohmann::json override;
 
-  std::string to_key_value() override;
+  auto to_key_value() -> std::string override;
 
-  void convert_to_args(args_t& args, const std::string& category) override;
+  auto convert_to_args(args_t& args, const std::string& category) -> void override;
 
   struct Register {
     Register(config_t* config);

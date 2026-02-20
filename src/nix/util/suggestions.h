@@ -18,7 +18,7 @@ public:
   int distance;
   std::string suggestion;
 
-  [[nodiscard]] std::string to_string() const;
+  [[nodiscard]] auto to_string() const -> std::string;
 
   auto operator==(const suggestion_t&) const -> bool = default;
   auto operator<=>(const suggestion_t&) const = default;
@@ -28,7 +28,7 @@ class suggestions_t {
 public:
   std::set<suggestion_t> suggestions;
 
-  [[nodiscard]] std::string to_string() const;
+  [[nodiscard]] auto to_string() const -> std::string;
 
   [[nodiscard]] auto trim(int limit = 5, int max_distance = 2) const -> suggestions_t;
 

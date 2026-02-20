@@ -22,10 +22,10 @@ namespace nix {
  * With a single argument, `format_helper(s)` is a no-op.
  */
 template <class F>
-inline void format_helper(F& /*f*/) {}
+inline auto format_helper(F& /*f*/) -> void {}
 
 template <class F, typename T, typename... args_t>
-inline void format_helper(F& f, const T& x, const args_t&... args) {
+inline auto format_helper(F& f, const T& x, const args_t&... args) -> void {
   // Interpolate one argument and then recurse.
   format_helper(f % x, args...);
 }
@@ -33,7 +33,7 @@ inline void format_helper(F& f, const T& x, const args_t&... args) {
 /**
  * Set the correct exceptions for `fmt`.
  */
-inline void set_exceptions(boost::format& fmt) {
+inline auto set_exceptions(boost::format& fmt) -> void {
   fmt.exceptions(boost::io::all_error_bits ^ boost::io::too_many_args_bit ^
                  boost::io::too_few_args_bit);
 }
@@ -60,20 +60,20 @@ inline void set_exceptions(boost::format& fmt) {
  * And `stringFromUserInput` contains formatting placeholders like `%s`, then
  * the code will crash at runtime. `fmt` helps you avoid this pitfall.
  */
-inline std::string fmt(const std::string& s) {
+inline auto fmt(const std::string& s) -> std::string {
   return s;
 }
 
-inline std::string fmt(std::string_view s) {
+inline auto fmt(std::string_view s) -> std::string {
   return std::string(s);
 }
 
-inline std::string fmt(const char* s) {
+inline auto fmt(const char* s) -> std::string {
   return s;
 }
 
 template <typename... args_t>
-inline std::string fmt(const std::string& fs, const args_t&... args) {
+inline auto fmt(const std::string& fs, const args_t&... args) -> std::string {
   boost::format f(fs);
   set_exceptions(f);
   format_helper(f, args...);
@@ -166,7 +166,7 @@ public:
 
   auto operator=(hint_fmt_t const& rhs) -> hint_fmt_t& = default;
 
-  [[nodiscard]] std::string str() const { return fmt_.str(); }
+  [[nodiscard]] auto str() const -> std::string { return fmt_.str(); }
 };
 
 auto operator<<(std::ostream& os, const hint_fmt_t& hf) -> std::ostream&;

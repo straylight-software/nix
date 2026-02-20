@@ -76,8 +76,8 @@ struct lines_of_code_t {
    4feb7d9f71? */
 struct pos_t;
 
-void print_code_lines(std::ostream& out, const std::string& prefix, const pos_t& err_pos,
-                      const lines_of_code_t& loc);
+auto print_code_lines(std::ostream& out, const std::string& prefix, const pos_t& err_pos,
+                      const lines_of_code_t& loc) -> void;
 
 /**
  * When a stack frame is printed.
@@ -201,15 +201,15 @@ public:
     return err_;
   }
 
-  void with_exit_status(unsigned int status) { err_.status = status; }
+  auto with_exit_status(unsigned int status) -> void { err_.status = status; }
 
-  void at_pos(std::shared_ptr<const pos_t> pos) { err_.pos = std::move(pos); }
+  auto at_pos(std::shared_ptr<const pos_t> pos) -> void { err_.pos = std::move(pos); }
 
-  void set_suggestions(const suggestions_t& s) { err_.suggestions = s; }
+  auto set_suggestions(const suggestions_t& s) -> void { err_.suggestions = s; }
 
-  void set_is_from_expr(bool value) { err_.is_from_expr = value; }
+  auto set_is_from_expr(bool value) -> void { err_.is_from_expr = value; }
 
-  void push_trace(const trace_t& trace) { err_.traces.push_front(trace); }
+  auto push_trace(const trace_t& trace) -> void { err_.traces.push_front(trace); }
 
   /**
    * Prepends an item to the error trace, as is usual for extra context.
@@ -220,8 +220,8 @@ public:
    */
   template <typename... args_t>
   // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
-  void add_trace(std::shared_ptr<const pos_t>&& pos, std::string_view fmt_str,
-                 const args_t&... args) {
+  auto add_trace(std::shared_ptr<const pos_t>&& pos, std::string_view fmt_str,
+                 const args_t&... args) -> void {
     add_trace(std::move(pos), hint_fmt_t(std::string(fmt_str), args...));
   }
 
@@ -232,8 +232,8 @@ public:
    * @param hint Formatted error message
    * @param print Optional, whether to always print (used by `addErrorContext`)
    */
-  void add_trace(std::shared_ptr<const pos_t>&& pos, const hint_fmt_t& hint,
-                 trace_print_t print = trace_print_t::default_print);
+  auto add_trace(std::shared_ptr<const pos_t>&& pos, const hint_fmt_t& hint,
+                 trace_print_t print = trace_print_t::default_print) -> void;
 
   [[nodiscard]] auto has_trace() const -> bool { return !err_.traces.empty(); }
 
@@ -332,21 +332,21 @@ using native_sys_error_t =
  * Throw an exception for the purpose of checking that exception
  * handling works; see 'initLibUtil()'.
  */
-void throw_exception_self_check();
+auto throw_exception_self_check() -> void;
 
 /**
  * Print a message and std::terminate().
  */
 [[noreturn]]
-void panic(std::string_view msg);
+auto panic(std::string_view msg) -> void;
 
 /**
  * Print a basic error message with source position and std::terminate().
  *
  * @note: This assumes that the logger is operational
  */
-[[gnu::noinline, gnu::cold, noreturn]] void
-unreachable(std::source_location loc = std::source_location::current());
+[[gnu::noinline, gnu::cold, noreturn]] auto
+unreachable(std::source_location loc = std::source_location::current()) -> void;
 
 } // namespace nix
 

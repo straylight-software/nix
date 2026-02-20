@@ -70,49 +70,49 @@ public:
    * - res: map to store settings in
    * - overridden_only: when set to true only overridden settings will be added to `res`
    */
-  virtual void get_settings(std::map<std::string, setting_info_t>& res,
-                            bool overridden_only = false) const = 0;
+  virtual auto get_settings(std::map<std::string, setting_info_t>& res,
+                            bool overridden_only = false) const -> void = 0;
 
   /**
    * Parses the configuration in `contents` and applies it
    * - contents: configuration contents to be parsed and applied
    * - path: location of the configuration file
    */
-  void apply_config(const std::string& contents, const std::string& path = "<unknown>");
+  auto apply_config(const std::string& contents, const std::string& path = "<unknown>") -> void;
 
   /**
    * Resets the `overridden` flag of all settings_t
    */
-  virtual void reset_overridden() = 0;
+  virtual auto reset_overridden() -> void = 0;
 
   /**
    * Outputs all settings to JSON
    * - out: JSONObject to write the configuration to
    */
-  virtual nlohmann::json to_json() = 0;
+  virtual auto to_json() -> nlohmann::json = 0;
 
   /**
    * Outputs all settings in a key-value pair format suitable to be used as
    * `nix.conf`
    */
-  virtual std::string to_key_value() = 0;
+  virtual auto to_key_value() -> std::string = 0;
 
   /**
    * Converts settings to `args_t` to be used on the command line interface
    * - args: args to write to
    * - category: category of the settings
    */
-  virtual void convert_to_args(args_t& args, const std::string& category) = 0;
+  virtual auto convert_to_args(args_t& args, const std::string& category) -> void = 0;
 
   /**
    * Logs a warning for each unregistered setting
    */
-  void warn_unknown_settings();
+  auto warn_unknown_settings() -> void;
 
   /**
    * Re-applies all previously attempted changes to unknown settings
    */
-  void reapply_unknown_settings();
+  auto reapply_unknown_settings() -> void;
 
   virtual ~abstract_config_t() = default;
 };
@@ -151,18 +151,18 @@ public:
 
   auto set(const std::string& name, const std::string& value) -> bool override;
 
-  void add_setting(abstract_setting_t* setting);
+  auto add_setting(abstract_setting_t* setting) -> void;
 
-  void get_settings(std::map<std::string, setting_info_t>& res,
-                    bool overridden_only = false) const override;
+  auto get_settings(std::map<std::string, setting_info_t>& res, bool overridden_only = false) const
+      -> void override;
 
-  void reset_overridden() override;
+  auto reset_overridden() -> void override;
 
-  nlohmann::json to_json() override;
+  auto to_json() -> nlohmann::json override;
 
-  std::string to_key_value() override;
+  auto to_key_value() -> std::string override;
 
-  void convert_to_args(args_t& args, const std::string& category) override;
+  auto convert_to_args(args_t& args, const std::string& category) -> void override;
 };
 
 class abstract_setting_t {
@@ -186,7 +186,7 @@ protected:
 
   virtual ~abstract_setting_t();
 
-  virtual void set(const std::string& value, bool append = false) = 0;
+  virtual auto set(const std::string& value, bool append = false) -> void = 0;
 
   /**
    * Whether the type is appendable; i.e. whether the `append`
@@ -194,13 +194,13 @@ protected:
    */
   virtual auto is_appendable() -> bool = 0;
 
-  [[nodiscard]] virtual std::string to_string() const = 0;
+  [[nodiscard]] virtual auto to_string() const -> std::string = 0;
 
-  nlohmann::json to_json();
+  auto to_json() -> nlohmann::json;
 
-  [[nodiscard]] virtual std::map<std::string, nlohmann::json> to_json_object() const;
+  [[nodiscard]] virtual auto to_json_object() const -> std::map<std::string, nlohmann::json>;
 
-  virtual void convert_to_arg(args_t& args, const std::string& category);
+  virtual auto convert_to_arg(args_t& args, const std::string& category) -> void;
 
   [[nodiscard]] auto is_overridden() const -> bool;
 };
@@ -230,7 +230,7 @@ protected:
    *
    * @param append Whether to append or overwrite.
    */
-  virtual void append_or_set(T new_value, bool append);
+  virtual auto append_or_set(T new_value, bool append) -> void;
 
 public:
   base_setting_t(const T& def, const bool document_default, const std::string& name,
@@ -264,10 +264,10 @@ public:
     assign(v);
   }
 
-  virtual void assign(const T& v) { value_ = v; }
+  virtual auto assign(const T& v) -> void { value_ = v; }
 
   template <typename U>
-  void set_default(const U& v) {
+  auto set_default(const U& v) -> void {
     if (!overridden) {
       value_ = v;
     }
@@ -279,7 +279,7 @@ public:
    * Uses `parse()` to get the value from `str`, and `append_or_set()`
    * to set it.
    */
-  void set(const std::string& str, bool append = false) final;
+  auto set(const std::string& str, bool append = false) -> void final;
 
   /**
    * C++ trick; This is template-specialized to compile-time indicate whether
@@ -293,16 +293,16 @@ public:
    */
   auto is_appendable() -> bool final;
 
-  virtual void override(const T& v) {
+  virtual auto override(const T& v) -> void {
     overridden = true;
     value_ = v;
   }
 
-  [[nodiscard]] std::string to_string() const override;
+  [[nodiscard]] auto to_string() const -> std::string override;
 
-  void convert_to_arg(args_t& args, const std::string& category) override;
+  auto convert_to_arg(args_t& args, const std::string& category) -> void override;
 
-  [[nodiscard]] std::map<std::string, nlohmann::json> to_json_object() const override;
+  [[nodiscard]] auto to_json_object() const -> std::map<std::string, nlohmann::json> override;
 };
 
 template <typename T>
@@ -327,7 +327,7 @@ public:
     options->add_setting(this);
   }
 
-  void operator=(const T& v) { this->assign(v); }
+  auto operator=(const T& v) -> void { this->assign(v); }
 };
 
 /**
@@ -344,9 +344,9 @@ public:
 
   [[nodiscard]] Path parse(const std::string& str) const override;
 
-  Path operator+(const char* p) const { return value_ + p; }
+  auto operator+(const char* p) const -> Path { return value_ + p; }
 
-  void operator=(const Path& v) { this->assign(v); }
+  auto operator=(const Path& v) -> void { this->assign(v); }
 };
 
 /**
@@ -362,7 +362,7 @@ public:
 
   [[nodiscard]] std::optional<Path> parse(const std::string& str) const override;
 
-  void operator=(const std::optional<Path>& v);
+  auto operator=(const std::optional<Path>& v) -> void;
 };
 
 struct experimental_feature_settings_t : config_t {
@@ -394,7 +394,7 @@ struct experimental_feature_settings_t : config_t {
    * Require an experimental feature be enabled, throwing an error if it is
    * not.
    */
-  void require(const experimental_feature_t&, std::string reason = "") const;
+  auto require(const experimental_feature_t&, std::string reason = "") const -> void;
 
   /**
    * Require an experimental feature be enabled, throwing an error if it is
@@ -413,13 +413,13 @@ struct experimental_feature_settings_t : config_t {
    * `std::nullopt` pointer means no feature, which means there is nothing that could be
    * disabled, and so the function returns true in that case.
    */
-  bool is_enabled(const std::optional<experimental_feature_t>&) const;
+  auto is_enabled(const std::optional<experimental_feature_t>&) const -> bool;
 
   /**
    * `std::nullopt` pointer means no feature, which means there is nothing that could be
    * disabled, and so the function does nothing in that case.
    */
-  void require(const std::optional<experimental_feature_t>&) const;
+  auto require(const std::optional<experimental_feature_t>&) const -> void;
 };
 
 // FIXME: don't use a global variable.
