@@ -21,29 +21,29 @@ Both phases share a single WASM linear memory, so they must coordinate to avoid 
 **Critical**: The runtime maintains two separate memory buffers that must stay synchronized:
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                        MEMORY ARCHITECTURE                                   │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  ┌──────────────────────┐         ┌──────────────────────┐                 │
-│  │   WASM Linear Memory │   sync  │  runtime_context     │                 │
-│  │   (wasmtime::Memory) │ ◄─────► │  .memory vector      │                 │
-│  │                      │         │                      │                 │
-│  │  - WASM code reads/  │         │  - Host functions    │                 │
-│  │    writes here       │         │    read/write here   │                 │
-│  │  - Direct i32.load/  │         │  - ctx.read_*()      │                 │
-│  │    i32.store ops     │         │    ctx.write_*()     │                 │
-│  └──────────────────────┘         └──────────────────────┘                 │
-│           ▲                                   │                             │
-│           │        sync_to_ctx()              │                             │
-│           │   (WASM → context, on entry)      │                             │
-│           └───────────────────────────────────┘                             │
-│           │                                   ▲                             │
-│           │        sync_from_ctx()            │                             │
-│           │   (context → WASM, on exit)       │                             │
-│           └───────────────────────────────────┘                             │
-│                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────────┐
+│                        MEMORY ARCHITECTURE                            │
+├───────────────────────────────────────────────────────────────────────┤
+│                                                                       │
+│  ┌──────────────────────┐         ┌──────────────────────┐            │
+│  │   WASM Linear Memory │   sync  │  runtime_context     │            │
+│  │   (wasmtime::Memory) │ ◄─────► │  .memory vector      │            │
+│  │                      │         │                      │            │
+│  │  - WASM code reads/  │         │  - Host functions    │            │
+│  │    writes here       │         │    read/write here   │            │
+│  │  - Direct i32.load/  │         │  - ctx.read_*()      │            │
+│  │    i32.store ops     │         │    ctx.write_*()     │            │
+│  └──────────────────────┘         └──────────────────────┘            │
+│           ▲                                   │                       │
+│           │        sync_to_ctx()              │                       │
+│           │   (WASM → context, on entry)      │                       │
+│           └───────────────────────────────────┘                       │
+│           │                                   ▲                       │
+│           │        sync_from_ctx()            │                       │
+│           │   (context → WASM, on exit)       │                       │
+│           └───────────────────────────────────┘                       │
+│                                                                       │
+└───────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Why Two Buffers?

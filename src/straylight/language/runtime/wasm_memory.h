@@ -265,6 +265,14 @@ public:
     mem[offset.raw() + str.size()] = '\0';
   }
 
+  /// Allocate and write a string, returns offset to the allocated string
+  [[nodiscard]] auto alloc_string(std::string_view str) -> mem_offset {
+    auto size = static_cast<std::uint32_t>(str.size() + 1); // include null terminator
+    auto offset = allocate(size);
+    write_string(offset, str);
+    return offset;
+  }
+
   /// Copy bytes from one offset to another
   void copy(mem_offset dst, mem_offset src, std::uint32_t size) {
     auto mem = get_memory_();

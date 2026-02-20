@@ -20,6 +20,7 @@
 
 #include "straylight/language/compile/wasm_types.h"
 #include "straylight/language/runtime/memory_layout.h"
+#include "straylight/language/runtime/wasm_memory.h"
 
 namespace straylight::language::runtime {
 
@@ -254,13 +255,11 @@ using wasm_func_t =
 using wasm_thunk_func_t = std::function<nix_value(std::uint32_t func_index, std::uint32_t env_ptr)>;
 
 /// the runtime context holding memory and function table
-class runtime_context {
-public:
-  /// linear memory (exported from WASM module)
-  std::vector<std::uint8_t> memory;
-
-  /// heap allocator for runtime allocations
-  heap_allocator heap;
+/// All memory access goes through wasm_memory* - no separate buffer, no syncing.
+struct runtime_context {
+  /// Direct access to WASM linear memory. Set by wasm_executor before use.
+  /// All read/write operations go through this - single source of truth.
+  wasm_memory* mem = nullptr;
 
   /// I/O backend for impure operations (import, readFile, etc.)
   /// May be nullptr if running in pure evaluation mode.
@@ -297,8 +296,7 @@ public:
   /// flag indicating an error was caught by tryEval
   bool try_eval_caught_error = false;
 
-  explicit runtime_context(std::size_t memory_size = mem::DEFAULT_MEMORY_SIZE)
-      : memory(memory_size, 0), heap(mem::HEAP_BASE, static_cast<std::uint32_t>(memory_size)) {}
+  runtime_context() = default;
 
   /// set error state (use instead of throwing when inside wasmtime callbacks)
   void set_error(std::string_view msg, std::uint32_t line = 0, std::uint32_t col = 0) {
@@ -316,90 +314,24 @@ public:
     error_column = 0;
   }
 
-  /// read bytes from memory
-  [[nodiscard]] auto read_bytes(std::uint32_t offset, std::size_t length) const
-      -> std::span<const std::uint8_t> {
-    if (offset + length > memory.size()) {
-      throw runtime_error("memory access out of bounds");
-    }
-    return {memory.data() + offset, length};
-  }
+  // All memory operations delegate to wasm_memory
+  // These are inline convenience wrappers
 
-  /// write bytes to memory
-  void write_bytes(std::uint32_t offset, std::span<const std::uint8_t> data) {
-    if (offset + data.size() > memory.size()) {
-      throw runtime_error("memory write out of bounds");
-    }
-    std::copy(data.begin(), data.end(), memory.begin() + offset);
-  }
+  [[nodiscard]] auto read_i32(std::uint32_t offset) const -> std::int32_t;
+  [[nodiscard]] auto read_u32(std::uint32_t offset) const -> std::uint32_t;
+  [[nodiscard]] auto read_i64(std::uint32_t offset) const -> std::int64_t;
+  [[nodiscard]] auto read_string(std::uint32_t offset) const -> std::string_view;
+  [[nodiscard]] auto read_value(std::uint32_t offset) const -> nix_value;
+  [[nodiscard]] auto read_f64(std::uint32_t offset) const -> double;
 
-  /// read i32 from memory (little-endian)
-  [[nodiscard]] auto read_i32(std::uint32_t offset) const -> std::int32_t {
-    auto bytes = read_bytes(offset, 4);
-    return static_cast<std::int32_t>(bytes[0]) | (static_cast<std::int32_t>(bytes[1]) << 8) |
-           (static_cast<std::int32_t>(bytes[2]) << 16) |
-           (static_cast<std::int32_t>(bytes[3]) << 24);
-  }
+  void write_i32(std::uint32_t offset, std::int32_t value);
+  void write_i64(std::uint32_t offset, std::int64_t value);
+  void write_value(std::uint32_t offset, nix_value value);
+  void write_f64(std::uint32_t offset, double value);
+  void write_byte(std::uint32_t offset, std::uint8_t value);
 
-  /// read u32 from memory (little-endian)
-  [[nodiscard]] auto read_u32(std::uint32_t offset) const -> std::uint32_t {
-    return static_cast<std::uint32_t>(read_i32(offset));
-  }
-
-  /// read i64 from memory (little-endian)
-  [[nodiscard]] auto read_i64(std::uint32_t offset) const -> std::int64_t {
-    auto low = static_cast<std::uint64_t>(read_u32(offset));
-    auto high = static_cast<std::uint64_t>(read_u32(offset + 4));
-    return static_cast<std::int64_t>(low | (high << 32));
-  }
-
-  /// write i32 to memory (little-endian)
-  void write_i32(std::uint32_t offset, std::int32_t value) {
-    std::uint8_t bytes[4] = {
-        static_cast<std::uint8_t>(value),
-        static_cast<std::uint8_t>(value >> 8),
-        static_cast<std::uint8_t>(value >> 16),
-        static_cast<std::uint8_t>(value >> 24),
-    };
-    write_bytes(offset, bytes);
-  }
-
-  /// write i64 to memory (little-endian)
-  void write_i64(std::uint32_t offset, std::int64_t value) {
-    write_i32(offset, static_cast<std::int32_t>(value));
-    write_i32(offset + 4, static_cast<std::int32_t>(static_cast<std::uint64_t>(value) >> 32));
-  }
-
-  /// read null-terminated string from memory
-  [[nodiscard]] auto read_string(std::uint32_t offset) const -> std::string_view {
-    std::size_t length = 0;
-    while (offset + length < memory.size() && memory[offset + length] != 0) {
-      ++length;
-    }
-    return {reinterpret_cast<const char*>(memory.data() + offset), length};
-  }
-
-  /// read nix_value from memory
-  [[nodiscard]] auto read_value(std::uint32_t offset) const -> nix_value {
-    return read_i64(offset);
-  }
-
-  /// write nix_value to memory
-  void write_value(std::uint32_t offset, nix_value value) { write_i64(offset, value); }
-
-  /// allocate from heap (convenience wrapper)
-  [[nodiscard]] auto allocate(std::uint32_t size) -> std::uint32_t { return heap.allocate(size); }
-
-  /// allocate and write a string, returns offset
-  [[nodiscard]] auto alloc_string(std::string_view str) -> std::uint32_t {
-    auto len = static_cast<std::uint32_t>(str.size());
-    auto ptr = allocate(len + 1);
-    for (std::size_t idx = 0; idx < str.size(); ++idx) {
-      memory[ptr + idx] = static_cast<std::uint8_t>(str[idx]);
-    }
-    memory[ptr + str.size()] = 0;
-    return ptr;
-  }
+  [[nodiscard]] auto allocate(std::uint32_t size) -> std::uint32_t;
+  [[nodiscard]] auto alloc_string(std::string_view str) -> std::uint32_t;
 };
 
 // =============================================================================

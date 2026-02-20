@@ -206,10 +206,7 @@ auto to_double(runtime_context& ctx, nix_value v) -> double {
   }
   // float: payload is an offset to f64 in memory
   auto offset = get_payload(v);
-  auto bytes = ctx.read_bytes(offset, 8);
-  double d;
-  std::memcpy(&d, bytes.data(), 8);
-  return d;
+  return ctx.read_f64(offset);
 }
 
 auto make_int(std::int32_t i) -> nix_value {
@@ -219,10 +216,7 @@ auto make_int(std::int32_t i) -> nix_value {
 auto make_float(runtime_context& ctx, double d) -> nix_value {
   // Allocate 8 bytes for the double
   auto offset = ctx.allocate(8);
-  // Write double to memory
-  std::array<std::uint8_t, 8> data;
-  std::memcpy(data.data(), &d, 8);
-  ctx.write_bytes(offset, data);
+  ctx.write_f64(offset, d);
   return make_value(value_tag::floating, offset);
 }
 
@@ -808,14 +802,8 @@ auto rt_to_string(runtime_context& ctx, nix_value v) -> nix_value {
       throw type_error("cannot coerce " + std::string(type_name(v)) + " to a string");
   }
 
-  // Allocate and store the result string
-  auto len = static_cast<std::uint32_t>(result.size());
-  auto ptr = ctx.allocate(len + 1);
-  for (std::size_t idx = 0; idx < result.size(); ++idx) {
-    ctx.memory[ptr + idx] = static_cast<std::uint8_t>(result[idx]);
-  }
-  ctx.memory[ptr + result.size()] = 0;
-
+  // Allocate and store the result string - use alloc_string for simplicity
+  auto ptr = ctx.alloc_string(result);
   return make_value(value_tag::string, ptr);
 }
 
@@ -837,16 +825,8 @@ auto rt_concat_strings(runtime_context& ctx, std::uint32_t offset, std::uint32_t
     result += str;
   }
 
-  // allocate space for the result string
-  auto string_len = static_cast<std::uint32_t>(result.size());
-  auto string_ptr = ctx.allocate(string_len + 1);
-
-  // write the string (null-terminated)
-  for (std::size_t idx = 0; idx < result.size(); ++idx) {
-    ctx.memory[string_ptr + idx] = static_cast<std::uint8_t>(result[idx]);
-  }
-  ctx.memory[string_ptr + result.size()] = 0;
-
+  // allocate and write the result string
+  auto string_ptr = ctx.alloc_string(result);
   return make_value(value_tag::string, string_ptr);
 }
 
@@ -858,13 +838,7 @@ namespace {
 
 /// Helper to allocate a string in runtime memory
 auto allocate_string(runtime_context& ctx, std::string_view str) -> std::uint32_t {
-  auto len = static_cast<std::uint32_t>(str.size());
-  auto ptr = ctx.allocate(len + 1);
-  for (std::size_t idx = 0; idx < str.size(); ++idx) {
-    ctx.memory[ptr + idx] = static_cast<std::uint8_t>(str[idx]);
-  }
-  ctx.memory[ptr + str.size()] = 0;
-  return ptr;
+  return ctx.alloc_string(str);
 }
 
 } // namespace
@@ -4588,6 +4562,62 @@ void rt_init_builtins(runtime_context& ctx) {
 
   auto builtins_value = make_value(value_tag::attribute_set, attrs_ptr);
   ctx.builtins["builtins"] = builtins_value;
+}
+
+// =============================================================================
+// runtime_context memory access implementations
+// =============================================================================
+
+auto runtime_context::read_i32(std::uint32_t offset) const -> std::int32_t {
+  return mem->read_i32(mem_offset{offset});
+}
+
+auto runtime_context::read_u32(std::uint32_t offset) const -> std::uint32_t {
+  return mem->read_u32(mem_offset{offset});
+}
+
+auto runtime_context::read_i64(std::uint32_t offset) const -> std::int64_t {
+  return mem->read_i64(mem_offset{offset});
+}
+
+auto runtime_context::read_string(std::uint32_t offset) const -> std::string_view {
+  return mem->read_string(mem_offset{offset});
+}
+
+auto runtime_context::read_value(std::uint32_t offset) const -> nix_value {
+  return mem->read_i64(mem_offset{offset});
+}
+
+auto runtime_context::read_f64(std::uint32_t offset) const -> double {
+  return mem->read_f64(mem_offset{offset});
+}
+
+void runtime_context::write_i32(std::uint32_t offset, std::int32_t value) {
+  mem->write_i32(mem_offset{offset}, value);
+}
+
+void runtime_context::write_i64(std::uint32_t offset, std::int64_t value) {
+  mem->write_i64(mem_offset{offset}, value);
+}
+
+void runtime_context::write_value(std::uint32_t offset, nix_value value) {
+  mem->write_i64(mem_offset{offset}, value);
+}
+
+void runtime_context::write_f64(std::uint32_t offset, double value) {
+  mem->write_f64(mem_offset{offset}, value);
+}
+
+void runtime_context::write_byte(std::uint32_t offset, std::uint8_t value) {
+  mem->write(mem_offset{offset}, value);
+}
+
+auto runtime_context::allocate(std::uint32_t size) -> std::uint32_t {
+  return mem->allocate(size).raw();
+}
+
+auto runtime_context::alloc_string(std::string_view str) -> std::uint32_t {
+  return mem->alloc_string(str).raw();
 }
 
 } // namespace straylight::language::runtime

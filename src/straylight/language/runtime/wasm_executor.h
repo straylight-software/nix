@@ -21,6 +21,7 @@
 #include "straylight/language/runtime/io_config.h"
 #include "straylight/language/runtime/memory_layout.h"
 #include "straylight/language/runtime/runtime.h"
+#include "straylight/language/runtime/wasm_memory.h"
 
 namespace straylight::language::runtime {
 
@@ -129,10 +130,13 @@ private:
   std::optional<wasmtime::Memory> memory_;
   std::optional<wasmtime::Instance> instance_;
 
-  // our runtime context
+  // Handle-based WASM memory access - single source of truth
+  std::unique_ptr<wasm_memory> wasm_mem_;
+
+  // our runtime context (uses wasm_mem_ for all memory access)
   runtime_context ctx_;
 
-  // store data for callbacks (includes pointer to memory for syncing)
+  // store data for callbacks
   store_data store_data_;
 
   // I/O backend (optional, based on compile-time config)
@@ -147,8 +151,6 @@ private:
   // setup methods
   void setup_linker(wasmtime::Linker& linker);
   void setup_io_linker(wasmtime::Linker& linker);
-  void sync_memory_to_context();
-  void sync_memory_from_context();
 
   // Register a new module and return its ID
   auto register_module(wasmtime::Instance instance) -> std::uint16_t;

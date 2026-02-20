@@ -31,7 +31,7 @@
 namespace straylight::language::runtime {
 
 // Forward declarations
-class runtime_context;
+struct runtime_context;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Import Callback Type
