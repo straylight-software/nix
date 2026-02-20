@@ -1,0 +1,122 @@
+#!/usr/bin/env bash
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#                                                      // straylight // nix // lint
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
+#     "The sky above the port was the color of television, tuned to a dead channel."
+#
+# Full style enforcement. Maximum strictness. All warnings are errors.
+# This is the migraine script - everything enabled, nothing forgiven.
+#
+# Usage:
+#   ./scripts/lint                      # Lint changed files
+#   ./scripts/lint --all                # Lint ALL files (prepare for pain)
+#   ./scripts/lint src/nix/store/*.cpp  # Lint specific files
+#
+# Requirements:
+#   - Must be run from nix develop shell
+#   - compile_commands.json must exist
+#
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+cd "$ROOT_DIR"
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Preflight checks
+# ══════════════════════════════════════════════════════════════════════════════
+
+if [[ ! -f "compile_commands.json" ]]; then
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "ERROR: compile_commands.json not found"
+  echo ""
+  echo "Generate it with:"
+  echo "  buck2 build //src/nix/cli:nix"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  exit 1
+fi
+
+if ! command -v clang-tidy &>/dev/null; then
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "ERROR: clang-tidy not found"
+  echo ""
+  echo "Run from nix develop shell:"
+  echo "  nix develop"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  exit 1
+fi
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Determine files to lint
+# ══════════════════════════════════════════════════════════════════════════════
+
+FILES=()
+
+if [[ "${1:-}" == "--all" ]]; then
+  echo "Scanning ALL source files..."
+  while IFS= read -r -d '' file; do
+    FILES+=("$file")
+  done < <(find src -type f -name "*.cpp" -print0 | sort -z)
+  echo "Found ${#FILES[@]} files"
+elif [[ $# -gt 0 ]]; then
+  FILES=("$@")
+else
+  # Changed files vs main
+  echo "Scanning changed files..."
+  mapfile -t FILES < <(git diff --name-only --diff-filter=ACMR main -- 'src/*.cpp' 'src/*.h' 2>/dev/null || true)
+  
+  # Also include uncommitted changes
+  mapfile -t UNCOMMITTED < <(git diff --name-only --diff-filter=ACMR HEAD -- 'src/*.cpp' 'src/*.h' 2>/dev/null || true)
+  for f in "${UNCOMMITTED[@]}"; do
+    if [[ ! " ${FILES[*]} " =~ " ${f} " ]]; then
+      FILES+=("$f")
+    fi
+  done
+  
+  if [[ ${#FILES[@]} -eq 0 ]]; then
+    echo "No changed C++ files to lint."
+    echo "Use --all to lint everything."
+    exit 0
+  fi
+  echo "Found ${#FILES[@]} changed files"
+fi
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Run clang-tidy
+# ══════════════════════════════════════════════════════════════════════════════
+
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "clang-tidy: maximum strictness, all warnings are errors"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+
+ERRORS=0
+TOTAL=${#FILES[@]}
+CURRENT=0
+
+for file in "${FILES[@]}"; do
+  ((CURRENT++)) || true
+  if [[ -f "$file" ]]; then
+    printf "[%3d/%3d] %s\n" "$CURRENT" "$TOTAL" "$file"
+    if ! clang-tidy -p . "$file" 2>&1; then
+      ((ERRORS++)) || true
+    fi
+  fi
+done
+
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+if [[ $ERRORS -gt 0 ]]; then
+  echo "FAILED: $ERRORS file(s) with errors"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  exit 1
+else
+  echo "PASSED: All $TOTAL file(s) clean"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  exit 0
+fi
