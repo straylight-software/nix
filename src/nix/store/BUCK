@@ -11,6 +11,7 @@ cxx_library(
     srcs = [
         # Core
         "active-builds.cpp",
+        "authorization-settings.cpp",
         "async-path-writer.cpp",
         "aws-creds.cpp",
         "binary-cache-store.cpp",
@@ -113,6 +114,7 @@ cxx_library(
     exported_headers = [
         # Core
         "active-builds.h",
+        "authorization-settings.h",
         "async-path-writer.h",
         "aws-creds.h",
         "binary-cache-store.h",
