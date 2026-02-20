@@ -52,21 +52,21 @@ using xp_t = experimental_feature_t;
  * Parse an experimental feature (enum value) from its name. Experimental
  * feature flag names are hyphenated and do not contain spaces.
  */
-auto parse_experimental_feature(const std::string_view& name)
+[[nodiscard]] auto parse_experimental_feature(const std::string_view& name)
     -> const std::optional<experimental_feature_t>;
 
 /**
  * Show the name of an experimental feature. This is the opposite of
  * parse_experimental_feature().
  */
-auto show_experimental_feature(const experimental_feature_t) -> std::string_view;
+[[nodiscard]] auto show_experimental_feature(const experimental_feature_t) -> std::string_view;
 
 /**
  * Compute the documentation of all experimental features.
  *
  * See `doc/manual` for how this information is used.
  */
-auto document_experimental_features() -> nlohmann::json;
+[[nodiscard]] auto document_experimental_features() -> nlohmann::json;
 
 /**
  * Shorthand for `str << show_experimental_feature(feature)`.
@@ -77,7 +77,7 @@ auto operator<<(std::ostream& str, const experimental_feature_t& feature) -> std
  * Parse a set of strings to the corresponding set of experimental
  * features, ignoring (but warning for) any unknown feature.
  */
-auto parse_features(const string_set_t&) -> std::set<experimental_feature_t>;
+[[nodiscard]] auto parse_features(const string_set_t&) -> std::set<experimental_feature_t>;
 
 /**
  * An experimental feature was required for some (experimental)

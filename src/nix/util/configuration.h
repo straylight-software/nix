@@ -58,7 +58,7 @@ public:
    * Sets the value referenced by `name` to `value`. Returns true if the
    * setting is known, false otherwise.
    */
-  virtual auto set(const std::string& name, const std::string& value) -> bool = 0;
+  [[nodiscard]] virtual auto set(const std::string& name, const std::string& value) -> bool = 0;
 
   struct setting_info_t {
     std::string value{};
@@ -89,13 +89,13 @@ public:
    * Outputs all settings to JSON
    * - out: JSONObject to write the configuration to
    */
-  virtual auto to_json() -> nlohmann::json = 0;
+  [[nodiscard]] virtual auto to_json() -> nlohmann::json = 0;
 
   /**
    * Outputs all settings in a key-value pair format suitable to be used as
    * `nix.conf`
    */
-  virtual auto to_key_value() -> std::string = 0;
+  [[nodiscard]] virtual auto to_key_value() -> std::string = 0;
 
   /**
    * Converts settings to `args_t` to be used on the command line interface
@@ -149,7 +149,7 @@ private:
 public:
   config_t(string_map_t initials = {});
 
-  auto set(const std::string& name, const std::string& value) -> bool override;
+  [[nodiscard]] auto set(const std::string& name, const std::string& value) -> bool override;
 
   auto add_setting(abstract_setting_t* setting) -> void;
 
@@ -158,9 +158,9 @@ public:
 
   auto reset_overridden() -> void override;
 
-  auto to_json() -> nlohmann::json override;
+  [[nodiscard]] auto to_json() -> nlohmann::json override;
 
-  auto to_key_value() -> std::string override;
+  [[nodiscard]] auto to_key_value() -> std::string override;
 
   auto convert_to_args(args_t& args, const std::string& category) -> void override;
 };
@@ -192,11 +192,11 @@ protected:
    * Whether the type is appendable; i.e. whether the `append`
    * parameter to `set()` is allowed to be `true`.
    */
-  virtual auto is_appendable() -> bool = 0;
+  [[nodiscard]] virtual auto is_appendable() -> bool = 0;
 
   [[nodiscard]] virtual auto to_string() const -> std::string = 0;
 
-  auto to_json() -> nlohmann::json;
+  [[nodiscard]] auto to_json() -> nlohmann::json;
 
   [[nodiscard]] virtual auto to_json_object() const -> std::map<std::string, nlohmann::json>;
 
@@ -220,7 +220,7 @@ protected:
    *
    * Used by `set()`.
    */
-  virtual auto parse(const std::string& str) const -> T;
+  [[nodiscard]] virtual auto parse(const std::string& str) const -> T;
 
   /**
    * Append or overwrite `value` with `new_value`.
@@ -241,21 +241,21 @@ public:
         default_value(def),
         document_default(document_default) {}
 
-  operator const T&() const { return value_; }
+  [[nodiscard]] operator const T&() const { return value_; }
 
-  operator T&() { return value_; }
+  [[nodiscard]] operator T&() { return value_; }
 
-  auto get() const -> const T& { return value_; }
+  [[nodiscard]] auto get() const -> const T& { return value_; }
 
-  auto get() -> T& { return value_; }
+  [[nodiscard]] auto get() -> T& { return value_; }
 
   template <typename U>
-  auto operator==(const U& v2) const -> bool {
+  [[nodiscard]] auto operator==(const U& v2) const -> bool {
     return value_ == v2;
   }
 
   template <typename U>
-  auto operator!=(const U& v2) const -> bool {
+  [[nodiscard]] auto operator!=(const U& v2) const -> bool {
     return value_ != v2;
   }
 
@@ -291,7 +291,7 @@ public:
    * always defined based on the C++ magic
    * with `trait` above.
    */
-  auto is_appendable() -> bool final;
+  [[nodiscard]] auto is_appendable() -> bool final;
 
   virtual auto override(const T& v) -> void {
     overridden = true;
@@ -311,7 +311,7 @@ auto operator<<(std::ostream& str, const base_setting_t<T>& opt) -> std::ostream
 }
 
 template <typename T>
-auto operator==(const T& v1, const base_setting_t<T>& v2) -> bool {
+[[nodiscard]] auto operator==(const T& v1, const base_setting_t<T>& v2) -> bool {
   return v1 == static_cast<const T&>(v2);
 }
 
@@ -344,7 +344,7 @@ public:
 
   [[nodiscard]] Path parse(const std::string& str) const override;
 
-  auto operator+(const char* p) const -> Path { return value_ + p; }
+  [[nodiscard]] auto operator+(const char* p) const -> Path { return value_ + p; }
 
   auto operator=(const Path& v) -> void { this->assign(v); }
 };
@@ -413,7 +413,7 @@ struct experimental_feature_settings_t : config_t {
    * `std::nullopt` pointer means no feature, which means there is nothing that could be
    * disabled, and so the function returns true in that case.
    */
-  auto is_enabled(const std::optional<experimental_feature_t>&) const -> bool;
+  [[nodiscard]] auto is_enabled(const std::optional<experimental_feature_t>&) const -> bool;
 
   /**
    * `std::nullopt` pointer means no feature, which means there is nothing that could be

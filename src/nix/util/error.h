@@ -98,7 +98,8 @@ struct trace_t {
   trace_print_t print = trace_print_t::default_print;
 };
 
-inline auto operator<=>(const trace_t& lhs, const trace_t& rhs) -> std::strong_ordering;
+[[nodiscard]] inline auto operator<=>(const trace_t& lhs, const trace_t& rhs)
+    -> std::strong_ordering;
 
 // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init)
 struct error_info_t {
@@ -122,7 +123,7 @@ struct error_info_t {
   static std::optional<std::string> program_name;
 };
 
-auto show_error_info(std::ostream& out, const error_info_t& einfo, bool show_trace)
+[[nodiscard]] auto show_error_info(std::ostream& out, const error_info_t& einfo, bool show_trace)
     -> std::ostream&;
 
 /**
@@ -148,8 +149,8 @@ public:
   ~base_error_t() override = default;
   base_error_t(const base_error_t&) = default;
   base_error_t(base_error_t&&) noexcept = default;
-  auto operator=(const base_error_t&) -> base_error_t& = default;
-  auto operator=(base_error_t&&) -> base_error_t& = default;
+  [[nodiscard]] auto operator=(const base_error_t&) -> base_error_t& = default;
+  [[nodiscard]] auto operator=(base_error_t&&) -> base_error_t& = default;
 
   template <typename... args_t>
   base_error_t(unsigned int status, const args_t&... args)
