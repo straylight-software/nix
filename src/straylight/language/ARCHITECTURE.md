@@ -469,6 +469,69 @@ private:
 
 ---
 
+## 4b. Memory Safety: The Pointer Invalidation Problem
+
+**Critical Bug Class**: WASM linear memory can grow, invalidating all raw pointers into it.
+
+### The Problem
+
+When runtime functions like `genericClosure` operate:
+
+1. Read data from WASM memory (e.g., an attrset's fields)
+2. Call allocating operations (create thunks, lists, closures)
+3. Allocation triggers memory growth (WASM `memory.grow`)
+4. **All previously-obtained raw pointers are now dangling**
+5. Reading through those pointers = undefined behavior
+
+This is subtle because:
+- Memory growth is non-deterministic (depends on heap pressure)
+- Small test cases pass; large real-world expressions fail
+- Failure mode is silent corruption, not crashes
+
+### The Solution: `wasm_memory.h`
+
+All WASM memory access uses handle-based indirection:
+
+```cpp
+// mem_offset - stable 32-bit handle, always valid
+struct mem_offset { std::uint32_t value; };
+
+// mem_ptr<T> - temporary pointer, MUST NOT outlive any allocation
+template<typename T> class mem_ptr { T* ptr_; };
+
+// wasm_memory - accessor that always fetches fresh base pointer
+class wasm_memory {
+  auto read_u32(mem_offset off) -> std::uint32_t;  // safe
+  auto ptr<T>(mem_offset off) -> mem_ptr<T>;       // unsafe if cached
+  auto allocate(std::uint32_t size) -> mem_offset; // may invalidate pointers
+};
+```
+
+**Invariant**: Never store a raw pointer derived from WASM memory across any call that might allocate.
+
+### Correct Pattern (genericClosure)
+
+```cpp
+// Read value, COPY IT OUT to a local before any allocations
+auto start_set_opt = find_attr(ctx, attrs_ptr, "startSet");
+auto start_set_val = rt_force(ctx, *start_set_opt);  // may allocate!
+
+// Re-read attrs_ptr after allocation - original may be invalid
+attrs_ptr = get_payload(attrs);
+auto op_opt = find_attr(ctx, attrs_ptr, "operator");
+```
+
+### Test Coverage
+
+`tests/wasm_memory_test.cpp` includes:
+- `regression - simulated genericClosure pattern`: exact failure mode
+- `mem_ptr must not be cached`: demonstrates correct vs incorrect patterns
+- `growth at exact page boundary`: edge case verification
+
+See also: `MEMORY.md` for full memory layout documentation.
+
+---
+
 ## 5. Eval Layer (`eval/`)
 
 A tree-walking interpreter serving as reference implementation and for testing.
