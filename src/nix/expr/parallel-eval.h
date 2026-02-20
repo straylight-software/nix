@@ -20,7 +20,7 @@
 namespace nix {
 
 // Forward declaration
-struct EvalSettings;
+struct eval_settings_t;
 
 struct Executor {
   using work_t = std::function<void()>;
@@ -47,9 +47,9 @@ struct Executor {
 
   std::condition_variable wakeup;
 
-  static unsigned int getEvalCores(const EvalSettings& eval_settings);
+  static unsigned int getEvalCores(const eval_settings_t& eval_settings);
 
-  Executor(const EvalSettings& eval_settings);
+  Executor(const eval_settings_t& eval_settings);
 
   ~Executor();
 

@@ -31,8 +31,8 @@
 #include "nix/util/util.h"
 
 namespace nix {
-class Store;
-struct SourceAccessor;
+class store_t;
+struct source_accessor_t;
 
 namespace fetchers {
 struct settings_t;
@@ -45,33 +45,33 @@ const static std::string subDirElemRegex = "(?:[a-zA-Z0-9_-]+[a-zA-Z0-9._-]*)";
 const static std::string subDirRegex = subDirElemRegex + "(?:/" + subDirElemRegex + ")*";
 #endif
 
-std::string FlakeRef::to_string(bool abbreviate) const {
+std::string flake_ref_t::to_string(bool abbreviate) const {
   string_map_t extraQuery;
   if (subdir != "")
     extraQuery.insert_or_assign("dir", subdir);
   return input.toURLString(extraQuery, abbreviate);
 }
 
-fetchers::Attrs FlakeRef::toAttrs() const {
+fetchers::Attrs flake_ref_t::toAttrs() const {
   auto attrs = input.toAttrs();
   if (subdir != "")
     attrs.emplace("dir", subdir);
   return attrs;
 }
 
-std::ostream& operator<<(std::ostream& str, const FlakeRef& flake_ref) {
+std::ostream& operator<<(std::ostream& str, const flake_ref_t& flake_ref) {
   str << flake_ref.to_string();
   return str;
 }
 
-FlakeRef FlakeRef::resolve(const fetchers::settings_t& fetch_settings, Store& store,
+flake_ref_t flake_ref_t::resolve(const fetchers::settings_t& fetch_settings, store_t& store,
                            fetchers::UseRegistries use_registries) const {
   auto [input2, extra_attrs] = lookup_in_registries(fetch_settings, store, input, use_registries);
-  return FlakeRef(std::move(input2),
+  return flake_ref_t(std::move(input2),
                   fetchers::maybe_get_str_attr(extra_attrs, "dir").value_or(subdir));
 }
 
-FlakeRef parse_flake_ref(const fetchers::settings_t& fetch_settings, const std::string& url,
+flake_ref_t parse_flake_ref(const fetchers::settings_t& fetch_settings, const std::string& url,
                          const std::optional<std::filesystem::path>& base_dir, bool allow_missing,
                          bool is_flake, bool preserve_relative_paths) {
   auto [flake_ref, fragment] = parse_flake_ref_with_fragment(
@@ -81,7 +81,7 @@ FlakeRef parse_flake_ref(const fetchers::settings_t& fetch_settings, const std::
   return flake_ref;
 }
 
-static std::pair<FlakeRef, std::string> from_parsed_url(const fetchers::settings_t& fetch_settings,
+static std::pair<flake_ref_t, std::string> from_parsed_url(const fetchers::settings_t& fetch_settings,
                                                         parsed_url_t&& parsed_url, bool is_flake) {
   auto dir = get_or(parsed_url.query(), "dir", "");
   if (!fetch_settings.nix219Compat)
@@ -90,10 +90,10 @@ static std::pair<FlakeRef, std::string> from_parsed_url(const fetchers::settings
   std::string fragment = parsed_url.fragment();
   parsed_url.set_fragment("");
 
-  return {FlakeRef(fetchers::Input::fromURL(fetch_settings, parsed_url, is_flake), dir), fragment};
+  return {flake_ref_t(fetchers::input_t::fromURL(fetch_settings, parsed_url, is_flake), dir), fragment};
 }
 
-std::pair<FlakeRef, std::string> parse_path_flake_ref_with_fragment(
+std::pair<flake_ref_t, std::string> parse_path_flake_ref_with_fragment(
     const fetchers::settings_t& fetch_settings, const std::string& url,
     const std::optional<std::filesystem::path>& base_dir, bool allow_missing, bool is_flake,
     bool preserve_relative_paths) {
@@ -204,7 +204,7 @@ std::pair<FlakeRef, std::string> parse_path_flake_ref_with_fragment(
  * Check if `url` is a flake ID. This is an abbreviated syntax for
  * `flake:<flake-id>?ref=<ref>&rev=<rev>`.
  */
-static std::optional<std::pair<FlakeRef, std::string>>
+static std::optional<std::pair<flake_ref_t, std::string>>
 parseFlakeIdRef(const fetchers::settings_t& fetch_settings, const std::string& url, bool is_flake) {
   std::smatch match;
 
@@ -219,14 +219,14 @@ parseFlakeIdRef(const fetchers::settings_t& fetch_settings, const std::string& u
     parsed_url.set_path(split_string<std::vector<std::string>>(match[1].str(), "/"));
 
     return std::make_pair(
-        FlakeRef(fetchers::Input::fromURL(fetch_settings, parsed_url, is_flake), ""),
+        flake_ref_t(fetchers::input_t::fromURL(fetch_settings, parsed_url, is_flake), ""),
         percent_decode(match.str(6)));
   }
 
   return {};
 }
 
-std::optional<std::pair<FlakeRef, std::string>>
+std::optional<std::pair<flake_ref_t, std::string>>
 parseURLFlakeRef(const fetchers::settings_t& fetch_settings, const std::string& url,
                  const std::optional<std::filesystem::path>& base_dir, bool is_flake) {
   try {
@@ -244,7 +244,7 @@ parseURLFlakeRef(const fetchers::settings_t& fetch_settings, const std::string& 
   }
 }
 
-std::pair<FlakeRef, std::string>
+std::pair<flake_ref_t, std::string>
 parse_flake_ref_with_fragment(const fetchers::settings_t& fetch_settings, const std::string& url,
                               const std::optional<std::filesystem::path>& base_dir,
                               bool allow_missing, bool is_flake, bool preserve_relative_paths) {
@@ -260,21 +260,21 @@ parse_flake_ref_with_fragment(const fetchers::settings_t& fetch_settings, const 
   }
 }
 
-FlakeRef FlakeRef::fromAttrs(const fetchers::settings_t& fetch_settings,
+flake_ref_t flake_ref_t::fromAttrs(const fetchers::settings_t& fetch_settings,
                              const fetchers::Attrs& attrs) {
   auto attrs2(attrs);
   attrs2.erase("dir");
-  return FlakeRef(fetchers::Input::fromAttrs(fetch_settings, std::move(attrs2)),
+  return flake_ref_t(fetchers::input_t::fromAttrs(fetch_settings, std::move(attrs2)),
                   fetchers::maybe_get_str_attr(attrs, "dir").value_or(""));
 }
 
-std::pair<ref<SourceAccessor>, FlakeRef>
-FlakeRef::lazyFetch(const fetchers::settings_t& fetch_settings, Store& store) const {
+std::pair<ref<source_accessor_t>, flake_ref_t>
+flake_ref_t::lazyFetch(const fetchers::settings_t& fetch_settings, store_t& store) const {
   auto [accessor, lockedInput] = input.get_accessor(fetch_settings, store);
-  return {accessor, FlakeRef(std::move(lockedInput), subdir)};
+  return {accessor, flake_ref_t(std::move(lockedInput), subdir)};
 }
 
-FlakeRef FlakeRef::canonicalize() const {
+flake_ref_t flake_ref_t::canonicalize() const {
   auto flake_ref(*this);
 
   /* Backward compatibility hack: In old versions of Nix, if you had
@@ -291,7 +291,7 @@ FlakeRef FlakeRef::canonicalize() const {
        }
 
      New versions of Nix remove `?dir=subdir` from the `url` field,
-     since the subdirectory is intended for `FlakeRef`, not the
+     since the subdirectory is intended for `flake_ref_t`, not the
      fetcher (and specifically the remote server), that is, the
      flakeref is parsed into
 
@@ -322,7 +322,7 @@ FlakeRef FlakeRef::canonicalize() const {
   return flake_ref;
 }
 
-std::tuple<FlakeRef, std::string, ExtendedOutputsSpec>
+std::tuple<flake_ref_t, std::string, ExtendedOutputsSpec>
 parse_flake_ref_with_fragment_and_extended_outputs_spec(
     const fetchers::settings_t& fetch_settings, const std::string& url,
     const std::optional<std::filesystem::path>& base_dir, bool allow_missing, bool is_flake) {

@@ -17,7 +17,7 @@ namespace nix {
 
 /* protocol-specific definitions */
 
-BuildMode WorkerProto::Serialise<BuildMode>::read(const StoreDirConfig& store,
+BuildMode WorkerProto::Serialise<BuildMode>::read(const store_dir_config_t& store,
                                                   WorkerProto::ReadConn conn) {
   auto temp = read_num<uint8_t>(conn.from);
   switch (temp) {
@@ -32,7 +32,7 @@ BuildMode WorkerProto::Serialise<BuildMode>::read(const StoreDirConfig& store,
   }
 }
 
-void WorkerProto::Serialise<BuildMode>::write(const StoreDirConfig& store,
+void WorkerProto::Serialise<BuildMode>::write(const store_dir_config_t& store,
                                               WorkerProto::WriteConn conn,
                                               const BuildMode& build_mode) {
   switch (build_mode) {
@@ -50,7 +50,7 @@ void WorkerProto::Serialise<BuildMode>::write(const StoreDirConfig& store,
   };
 }
 
-GCAction WorkerProto::Serialise<GCAction>::read(const StoreDirConfig& store,
+GCAction WorkerProto::Serialise<GCAction>::read(const store_dir_config_t& store,
                                                 WorkerProto::ReadConn conn) {
   auto temp = read_num<unsigned>(conn.from);
   using enum GCAction;
@@ -68,7 +68,7 @@ GCAction WorkerProto::Serialise<GCAction>::read(const StoreDirConfig& store,
   }
 }
 
-void WorkerProto::Serialise<GCAction>::write(const StoreDirConfig& store,
+void WorkerProto::Serialise<GCAction>::write(const store_dir_config_t& store,
                                              WorkerProto::WriteConn conn, const GCAction& action) {
   using enum GCAction;
   switch (action) {
@@ -90,7 +90,7 @@ void WorkerProto::Serialise<GCAction>::write(const StoreDirConfig& store,
 }
 
 std::optional<TrustedFlag>
-WorkerProto::Serialise<std::optional<TrustedFlag>>::read(const StoreDirConfig& store,
+WorkerProto::Serialise<std::optional<TrustedFlag>>::read(const store_dir_config_t& store,
                                                          WorkerProto::ReadConn conn) {
   auto temp = read_num<uint8_t>(conn.from);
   switch (temp) {
@@ -106,7 +106,7 @@ WorkerProto::Serialise<std::optional<TrustedFlag>>::read(const StoreDirConfig& s
 }
 
 void WorkerProto::Serialise<std::optional<TrustedFlag>>::write(
-    const StoreDirConfig& store, WorkerProto::WriteConn conn,
+    const store_dir_config_t& store, WorkerProto::WriteConn conn,
     const std::optional<TrustedFlag>& optTrusted) {
   if (!optTrusted)
     conn.to << uint8_t{0};
@@ -125,7 +125,7 @@ void WorkerProto::Serialise<std::optional<TrustedFlag>>::write(
 }
 
 std::optional<std::chrono::microseconds>
-WorkerProto::Serialise<std::optional<std::chrono::microseconds>>::read(const StoreDirConfig& store,
+WorkerProto::Serialise<std::optional<std::chrono::microseconds>>::read(const store_dir_config_t& store,
                                                                        WorkerProto::ReadConn conn) {
   auto tag = read_num<uint8_t>(conn.from);
   switch (tag) {
@@ -140,7 +140,7 @@ WorkerProto::Serialise<std::optional<std::chrono::microseconds>>::read(const Sto
 }
 
 void WorkerProto::Serialise<std::optional<std::chrono::microseconds>>::write(
-    const StoreDirConfig& store, WorkerProto::WriteConn conn,
+    const store_dir_config_t& store, WorkerProto::WriteConn conn,
     const std::optional<std::chrono::microseconds>& optDuration) {
   if (!optDuration.has_value()) {
     conn.to << uint8_t{0};
@@ -149,19 +149,19 @@ void WorkerProto::Serialise<std::optional<std::chrono::microseconds>>::write(
   }
 }
 
-DerivedPath WorkerProto::Serialise<DerivedPath>::read(const StoreDirConfig& store,
+derived_path_t WorkerProto::Serialise<derived_path_t>::read(const store_dir_config_t& store,
                                                       WorkerProto::ReadConn conn) {
   auto s = read_string(conn.from);
   if (GET_PROTOCOL_MINOR(conn.version) >= 30) {
-    return DerivedPath::parseLegacy(store, s);
+    return derived_path_t::parseLegacy(store, s);
   } else {
     return parse_path_with_outputs(store, s).toDerivedPath();
   }
 }
 
-void WorkerProto::Serialise<DerivedPath>::write(const StoreDirConfig& store,
+void WorkerProto::Serialise<derived_path_t>::write(const store_dir_config_t& store,
                                                 WorkerProto::WriteConn conn,
-                                                const DerivedPath& req) {
+                                                const derived_path_t& req) {
   if (GET_PROTOCOL_MINOR(conn.version) >= 30) {
     conn.to << req.to_string_legacy(store);
   } else {
@@ -169,7 +169,7 @@ void WorkerProto::Serialise<DerivedPath>::write(const StoreDirConfig& store,
     std::visit(
         overloaded{
             [&](const StorePathWithOutputs& s) { conn.to << s.to_string(store); },
-            [&](const StorePath& drv_path) {
+            [&](const store_path_t& drv_path) {
               throw Error("trying to request '%s', but daemon protocol %d.%d is too old (< 1.29) "
                           "to request a derivation file",
                           store.printStorePath(drv_path), GET_PROTOCOL_MAJOR(conn.version),
@@ -185,28 +185,28 @@ void WorkerProto::Serialise<DerivedPath>::write(const StoreDirConfig& store,
   }
 }
 
-KeyedBuildResult WorkerProto::Serialise<KeyedBuildResult>::read(const StoreDirConfig& store,
+keyed_build_result_t WorkerProto::Serialise<keyed_build_result_t>::read(const store_dir_config_t& store,
                                                                 WorkerProto::ReadConn conn) {
-  auto path = WorkerProto::Serialise<DerivedPath>::read(store, conn);
-  auto br = WorkerProto::Serialise<BuildResult>::read(store, conn);
-  return KeyedBuildResult{
+  auto path = WorkerProto::Serialise<derived_path_t>::read(store, conn);
+  auto br = WorkerProto::Serialise<build_result_t>::read(store, conn);
+  return keyed_build_result_t{
       std::move(br),
       /* .path = */ std::move(path),
   };
 }
 
-void WorkerProto::Serialise<KeyedBuildResult>::write(const StoreDirConfig& store,
+void WorkerProto::Serialise<keyed_build_result_t>::write(const store_dir_config_t& store,
                                                      WorkerProto::WriteConn conn,
-                                                     const KeyedBuildResult& res) {
+                                                     const keyed_build_result_t& res) {
   WorkerProto::write(store, conn, res.path);
-  WorkerProto::write(store, conn, static_cast<const BuildResult&>(res));
+  WorkerProto::write(store, conn, static_cast<const build_result_t&>(res));
 }
 
-BuildResult WorkerProto::Serialise<BuildResult>::read(const StoreDirConfig& store,
+build_result_t WorkerProto::Serialise<build_result_t>::read(const store_dir_config_t& store,
                                                       WorkerProto::ReadConn conn) {
-  BuildResult res;
-  BuildResult::Success success;
-  BuildResult::Failure failure;
+  build_result_t res;
+  build_result_t::Success success;
+  build_result_t::Failure failure;
 
   auto rawStatus = read_int(conn.from);
   conn.from >> failure.errorMsg;
@@ -226,20 +226,20 @@ BuildResult WorkerProto::Serialise<BuildResult>::read(const StoreDirConfig& stor
       success.built_outputs.insert_or_assign(std::move(output.output_name), std::move(realisation));
   }
 
-  if (BuildResult::Success::statusIs(rawStatus)) {
-    success.status = static_cast<BuildResult::Success::Status>(rawStatus);
+  if (build_result_t::Success::statusIs(rawStatus)) {
+    success.status = static_cast<build_result_t::Success::Status>(rawStatus);
     res.inner = std::move(success);
   } else {
-    failure.status = static_cast<BuildResult::Failure::Status>(rawStatus);
+    failure.status = static_cast<build_result_t::Failure::Status>(rawStatus);
     res.inner = std::move(failure);
   }
 
   return res;
 }
 
-void WorkerProto::Serialise<BuildResult>::write(const StoreDirConfig& store,
+void WorkerProto::Serialise<build_result_t>::write(const store_dir_config_t& store,
                                                 WorkerProto::WriteConn conn,
-                                                const BuildResult& res) {
+                                                const build_result_t& res) {
   /* The protocol predates the use of sum types (std::variant) to
      separate the success or failure cases. As such, it transits some
      success- or failure-only fields in both cases. This helper
@@ -262,12 +262,12 @@ void WorkerProto::Serialise<BuildResult>::write(const StoreDirConfig& store,
     }
   };
   std::visit(overloaded{
-                 [&](const BuildResult::Failure& failure) {
+                 [&](const build_result_t::Failure& failure) {
                    conn.to << failure.status;
                    common(failure.errorMsg, failure.isNonDeterministic,
-                          decltype(BuildResult::Success::built_outputs){});
+                          decltype(build_result_t::Success::built_outputs){});
                  },
-                 [&](const BuildResult::Success& success) {
+                 [&](const build_result_t::Success& success) {
                    conn.to << success.status;
                    common(/*errorMsg=*/"", /*isNonDeterministic=*/false, success.built_outputs);
                  },
@@ -275,38 +275,38 @@ void WorkerProto::Serialise<BuildResult>::write(const StoreDirConfig& store,
              res.inner);
 }
 
-ValidPathInfo WorkerProto::Serialise<ValidPathInfo>::read(const StoreDirConfig& store,
+valid_path_info_t WorkerProto::Serialise<valid_path_info_t>::read(const store_dir_config_t& store,
                                                           ReadConn conn) {
-  auto path = WorkerProto::Serialise<StorePath>::read(store, conn);
-  return ValidPathInfo{
+  auto path = WorkerProto::Serialise<store_path_t>::read(store, conn);
+  return valid_path_info_t{
       std::move(path),
       WorkerProto::Serialise<UnkeyedValidPathInfo>::read(store, conn),
   };
 }
 
-void WorkerProto::Serialise<ValidPathInfo>::write(const StoreDirConfig& store, WriteConn conn,
-                                                  const ValidPathInfo& path_info) {
+void WorkerProto::Serialise<valid_path_info_t>::write(const store_dir_config_t& store, WriteConn conn,
+                                                  const valid_path_info_t& path_info) {
   WorkerProto::write(store, conn, path_info.path);
   WorkerProto::write(store, conn, static_cast<const UnkeyedValidPathInfo&>(path_info));
 }
 
-UnkeyedValidPathInfo WorkerProto::Serialise<UnkeyedValidPathInfo>::read(const StoreDirConfig& store,
+UnkeyedValidPathInfo WorkerProto::Serialise<UnkeyedValidPathInfo>::read(const store_dir_config_t& store,
                                                                         ReadConn conn) {
-  auto deriver = WorkerProto::Serialise<std::optional<StorePath>>::read(store, conn);
+  auto deriver = WorkerProto::Serialise<std::optional<store_path_t>>::read(store, conn);
   auto nar_hash = Hash::parse_any(read_string(conn.from), hash_algorithm_t::SHA256);
   UnkeyedValidPathInfo info(store, nar_hash);
   info.deriver = std::move(deriver);
-  info.references = WorkerProto::Serialise<StorePathSet>::read(store, conn);
+  info.references = WorkerProto::Serialise<store_path_set_t>::read(store, conn);
   conn.from >> info.registrationTime >> info.nar_size;
   if (GET_PROTOCOL_MINOR(conn.version) >= 16) {
     conn.from >> info.ultimate;
     info.sigs = read_strings<string_set_t>(conn.from);
-    info.ca = ContentAddress::parseOpt(read_string(conn.from));
+    info.ca = content_address_t::parseOpt(read_string(conn.from));
   }
   return info;
 }
 
-void WorkerProto::Serialise<UnkeyedValidPathInfo>::write(const StoreDirConfig& store,
+void WorkerProto::Serialise<UnkeyedValidPathInfo>::write(const store_dir_config_t& store,
                                                          WriteConn conn,
                                                          const UnkeyedValidPathInfo& path_info) {
   WorkerProto::write(store, conn, path_info.deriver);
@@ -319,7 +319,7 @@ void WorkerProto::Serialise<UnkeyedValidPathInfo>::write(const StoreDirConfig& s
 }
 
 WorkerProto::ClientHandshakeInfo
-WorkerProto::Serialise<WorkerProto::ClientHandshakeInfo>::read(const StoreDirConfig& store,
+WorkerProto::Serialise<WorkerProto::ClientHandshakeInfo>::read(const store_dir_config_t& store,
                                                                ReadConn conn) {
   WorkerProto::ClientHandshakeInfo res;
 
@@ -338,7 +338,7 @@ WorkerProto::Serialise<WorkerProto::ClientHandshakeInfo>::read(const StoreDirCon
 }
 
 void WorkerProto::Serialise<WorkerProto::ClientHandshakeInfo>::write(
-    const StoreDirConfig& store, WriteConn conn, const WorkerProto::ClientHandshakeInfo& info) {
+    const store_dir_config_t& store, WriteConn conn, const WorkerProto::ClientHandshakeInfo& info) {
   if (GET_PROTOCOL_MINOR(conn.version) >= 33) {
     assert(info.daemonNixVersion);
     conn.to << *info.daemonNixVersion;

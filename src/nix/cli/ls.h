@@ -4,7 +4,7 @@
 
 namespace nix {
 
-struct mix_long_listing_t : virtual Args {
+struct mix_long_listing_t : virtual args_t {
   bool long_listing = false;
 
   mix_long_listing_t() {

@@ -19,7 +19,7 @@ struct cmd_copy_log_t : virtual CopyCommand, virtual InstallablesCommand {
         ;
   }
 
-  void run(ref<Store> src_store, Installables&& installables) override {
+  void run(ref<store_t> src_store, Installables&& installables) override {
     auto& src_log_store = require<LogStore>(*src_store);
 
     auto dst_store = getDstStore();

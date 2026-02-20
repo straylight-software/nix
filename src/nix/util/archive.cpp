@@ -44,7 +44,7 @@ global_config_t::Register r_archive_settings(&archive_settings);
 
 path_filter_t default_path_filter = [](const Path& /*path*/) -> bool { return true; };
 
-void SourceAccessor::dump_path(const canon_path_t& path, nix::Sink& s, path_filter_t& filter) {
+void source_accessor_t::dump_path(const canon_path_t& path, nix::sink_t& s, path_filter_t& filter) {
   auto dump_contents = [&](const canon_path_t& p) -> void {
     s << "contents";
     std::optional<uint64_t> size;
@@ -116,17 +116,17 @@ void SourceAccessor::dump_path(const canon_path_t& path, nix::Sink& s, path_filt
   }(path);
 }
 
-auto dump_path_and_get_mtime(const Path& path, nix::Sink& s, path_filter_t& filter) -> time_t {
+auto dump_path_and_get_mtime(const Path& path, nix::sink_t& s, path_filter_t& filter) -> time_t {
   auto path2 = posix_source_accessor_t::create_at_root(path, /*track_last_modified=*/true);
   path2.dump_path(s, filter);
   return path2.accessor->get_last_modified().value();
 }
 
-auto dump_path(const Path& path, nix::Sink& s, path_filter_t& filter) -> void {
+auto dump_path(const Path& path, nix::sink_t& s, path_filter_t& filter) -> void {
   (void)dump_path_and_get_mtime(path, s, filter);
 }
 
-auto dump_string(std::string_view str, nix::Sink& s) -> void {
+auto dump_string(std::string_view str, nix::sink_t& s) -> void {
   s << nar_version_magic1 << "(" << "type" << "regular" << "contents" << str << ")";
 }
 
@@ -136,12 +136,12 @@ inline constexpr size_t k_alignment_bytes = 8U;
 inline constexpr size_t k_buffer_size = 65536U;
 inline constexpr size_t k_max_tag_display_length = 1024U;
 
-template <typename... Args>
-auto bad_archive(std::string_view msg, const Args&... args) -> SerialisationError {
+template <typename... args_t>
+auto bad_archive(std::string_view msg, const args_t&... args) -> SerialisationError {
   return SerialisationError("bad archive: " + msg, args...);
 }
 
-void parse_contents(create_regular_file_sink_t& sink, Source& source) {
+void parse_contents(create_regular_file_sink_t& sink, source_t& source) {
   const uint64_t size = read_long_long(source);
 
   sink.preallocate_contents(size);
@@ -174,7 +174,7 @@ struct case_insensitive_compare_t {
   }
 };
 
-void parse(file_system_object_sink_t& sink, Source& source, const canon_path_t& path) {
+void parse(file_system_object_sink_t& sink, source_t& source, const canon_path_t& path) {
   auto get_string = [&]() -> std::string {
     check_interrupt();
     return read_string(source);
@@ -290,7 +290,7 @@ void parse(file_system_object_sink_t& sink, Source& source, const canon_path_t& 
 
 } // namespace
 
-auto parse_dump(nix::file_system_object_sink_t& fso_sink, nix::Source& src) -> void {
+auto parse_dump(nix::file_system_object_sink_t& fso_sink, nix::source_t& src) -> void {
   std::string version;
   try {
     version = read_string(src, nar_version_magic1.size());
@@ -304,13 +304,13 @@ auto parse_dump(nix::file_system_object_sink_t& fso_sink, nix::Source& src) -> v
   parse(fso_sink, src, canon_path_t::root);
 }
 
-auto restore_path(const std::filesystem::path& path, nix::Source& src, bool start_fsync) -> void {
+auto restore_path(const std::filesystem::path& path, nix::source_t& src, bool start_fsync) -> void {
   nix::restore_sink_t restore_sink{start_fsync};
   restore_sink.dst_path = path;
   parse_dump(restore_sink, src);
 }
 
-auto copy_nar(nix::Source& src, nix::Sink& s) -> void {
+auto copy_nar(nix::source_t& src, nix::sink_t& s) -> void {
   // FIXME: if 'source' is the output of dumpPath() followed by EOF,
   // we should just forward all data directly without parsing.
 

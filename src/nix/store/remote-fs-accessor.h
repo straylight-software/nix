@@ -7,30 +7,30 @@
 
 namespace nix {
 
-class RemoteFSAccessor : public SourceAccessor {
-  ref<Store> store;
+class RemoteFSAccessor : public source_accessor_t {
+  ref<store_t> store;
 
-  std::map<std::string, ref<SourceAccessor>> nars;
+  std::map<std::string, ref<source_accessor_t>> nars;
 
   bool require_valid_path;
 
   Path cache_dir;
 
-  std::pair<ref<SourceAccessor>, canon_path_t> fetch(const canon_path_t& path);
+  std::pair<ref<source_accessor_t>, canon_path_t> fetch(const canon_path_t& path);
 
   friend struct binary_cache_store;
 
   Path makeCacheFile(std::string_view hash_part, const std::string& ext);
 
-  ref<SourceAccessor> addToCache(std::string_view hash_part, std::string&& nar);
+  ref<source_accessor_t> addToCache(std::string_view hash_part, std::string&& nar);
 
 public:
   /**
    * @return nullptr if the store does not contain any object at that path.
    */
-  std::shared_ptr<SourceAccessor> accessObject(const StorePath& path);
+  std::shared_ptr<source_accessor_t> accessObject(const store_path_t& path);
 
-  RemoteFSAccessor(ref<Store> store, bool require_valid_path = true,
+  RemoteFSAccessor(ref<store_t> store, bool require_valid_path = true,
                    const /* FIXME: use std::optional */ Path& cache_dir = "");
 
   std::optional<stat_t> maybe_lstat(const canon_path_t& path) override;

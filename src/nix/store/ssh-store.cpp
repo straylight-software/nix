@@ -14,7 +14,7 @@ namespace nix {
 
 SSHStoreConfig::SSHStoreConfig(std::string_view scheme, std::string_view authority,
                                const Params& params)
-    : Store::config_t{params},
+    : store_t::config_t{params},
       remote_store::config_t{params},
       CommonSSHStoreConfig{scheme, authority, params} {}
 
@@ -42,7 +42,7 @@ struct alignas(8) /* Work around ASAN failures on i686-linux. */
   ref<const config_t> config;
 
   ssh_store(ref<const config_t> config)
-      : Store{*config},
+      : store_t{*config},
         remote_store{*config},
         config{config},
         master(config->createSSHMaster(
@@ -50,7 +50,7 @@ struct alignas(8) /* Work around ASAN failures on i686-linux. */
             connections->capacity() > 1)) {}
 
   // FIXME extend daemon protocol, move implementation to RemoteStore
-  std::optional<std::string> getBuildLogExact(const StorePath& path) override {
+  std::optional<std::string> getBuildLogExact(const store_path_t& path) override {
     unsupported("getBuildLogExact");
   }
 
@@ -78,16 +78,16 @@ protected:
 };
 
 MountedSSHStoreConfig::MountedSSHStoreConfig(string_map_t params)
-    : StoreConfig(params),
-      RemoteStoreConfig(params),
+    : store_config_t(params),
+      remote_store_config_t(params),
       CommonSSHStoreConfig(params),
       SSHStoreConfig(params),
       LocalFSStoreConfig(params) {}
 
 MountedSSHStoreConfig::MountedSSHStoreConfig(std::string_view scheme, std::string_view host,
                                              string_map_t params)
-    : StoreConfig(params),
-      RemoteStoreConfig(params),
+    : store_config_t(params),
+      remote_store_config_t(params),
       CommonSSHStoreConfig(scheme, host, params),
       SSHStoreConfig(scheme, host, params),
       LocalFSStoreConfig(params) {}
@@ -116,26 +116,26 @@ struct mounted_ssh_store_t : virtual ssh_store, virtual local_fs_store {
   using config_t = MountedSSHStoreConfig;
 
   mounted_ssh_store_t(ref<const config_t> config)
-      : Store{*config}, remote_store{*config}, ssh_store{config}, local_fs_store{*config} {
+      : store_t{*config}, remote_store{*config}, ssh_store{config}, local_fs_store{*config} {
     extra_remote_program_args = {
         "--process-ops",
     };
   }
 
-  void nar_from_path(const StorePath& path, Sink& sink) override {
-    return Store::nar_from_path(path, sink);
+  void nar_from_path(const store_path_t& path, sink_t& sink) override {
+    return store_t::nar_from_path(path, sink);
   }
 
-  ref<SourceAccessor> getFSAccessor(bool require_valid_path) override {
+  ref<source_accessor_t> getFSAccessor(bool require_valid_path) override {
     return local_fs_store::getFSAccessor(require_valid_path);
   }
 
-  std::shared_ptr<SourceAccessor> getFSAccessor(const StorePath& path,
+  std::shared_ptr<source_accessor_t> getFSAccessor(const store_path_t& path,
                                                 bool require_valid_path) override {
     return local_fs_store::getFSAccessor(path, require_valid_path);
   }
 
-  std::optional<std::string> getBuildLogExact(const StorePath& path) override {
+  std::optional<std::string> getBuildLogExact(const store_path_t& path) override {
     return local_fs_store::getBuildLogExact(path);
   }
 
@@ -154,7 +154,7 @@ struct mounted_ssh_store_t : virtual ssh_store, virtual local_fs_store {
    * privilege escalation / symlinks in directories owned by the
    * originating requester that they cannot delete.
    */
-  Path addPermRoot(const StorePath& path, const Path& gc_root) override {
+  Path addPermRoot(const store_path_t& path, const Path& gc_root) override {
     auto conn(getConnection());
     conn->to << WorkerProto::Op::AddPermRoot;
     WorkerProto::write(*this, *conn, path);
@@ -164,11 +164,11 @@ struct mounted_ssh_store_t : virtual ssh_store, virtual local_fs_store {
   }
 };
 
-ref<Store> ssh_store::config_t::open_store() const {
+ref<store_t> ssh_store::config_t::open_store() const {
   return make_ref<ssh_store>(ref{shared_from_this()});
 }
 
-ref<Store> mounted_ssh_store_t::config_t::open_store() const {
+ref<store_t> mounted_ssh_store_t::config_t::open_store() const {
   return make_ref<mounted_ssh_store_t>(
       ref{std::dynamic_pointer_cast<const mounted_ssh_store_t::config_t>(shared_from_this())});
 }

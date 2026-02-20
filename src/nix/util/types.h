@@ -70,15 +70,15 @@ struct on_startup_t {
 
 /**
  * Wrap bools to prevent string literals (i.e. 'char *') from being
- * cast to a bool in Attr.
+ * cast to a bool in attr_t.
  */
 template <typename T>
-struct Explicit {
+struct explicit_t {
   T t;
 
-  auto operator==(const Explicit<T>& other) const -> bool = default;
+  auto operator==(const explicit_t<T>& other) const -> bool = default;
 
-  auto operator<(const Explicit<T>& other) const -> bool { return t < other.t; }
+  auto operator<(const explicit_t<T>& other) const -> bool { return t < other.t; }
 };
 
 /**

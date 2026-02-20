@@ -12,11 +12,11 @@ namespace nix {
 #define GET_PROTOCOL_MAJOR(x) ((x) & 0xff00)
 #define GET_PROTOCOL_MINOR(x) ((x) & 0x00ff)
 
-struct StoreDirConfig;
-struct Source;
+struct store_dir_config_t;
+struct source_t;
 
 // items being serialised
-struct BuildResult;
+struct build_result_t;
 struct UnkeyedValidPathInfo;
 
 /**
@@ -43,7 +43,7 @@ struct ServeProto {
    * canonical serializers below.
    */
   struct ReadConn {
-    Source& from;
+    source_t& from;
     Version version;
   };
 
@@ -52,14 +52,14 @@ struct ServeProto {
    * canonical serializers below.
    */
   struct WriteConn {
-    Sink& to;
+    sink_t& to;
     Version version;
   };
 
   /**
    * Stripped down serialization logic suitable for sharing with Hydra.
    *
-   * @todo remove once Hydra uses Store abstraction consistently.
+   * @todo remove once Hydra uses store_t abstraction consistently.
    */
   struct BasicClientConnection;
   struct BasicServerConnection;
@@ -78,8 +78,8 @@ struct ServeProto {
   // See `worker-protocol.hh` for a longer explanation.
 #if 0
     {
-        static T read(const StoreDirConfig & store, ReadConn conn);
-        static void write(const StoreDirConfig & store, WriteConn conn, const T & t);
+        static T read(const store_dir_config_t & store, ReadConn conn);
+        static void write(const store_dir_config_t & store, WriteConn conn, const T & t);
     };
 #endif
 
@@ -88,7 +88,7 @@ struct ServeProto {
    * infer the type instead of having to write it down explicitly.
    */
   template <typename T>
-  static void write(const StoreDirConfig& store, WriteConn conn, const T& t) {
+  static void write(const store_dir_config_t& store, WriteConn conn, const T& t) {
     ServeProto::Serialise<T>::write(store, conn, t);
   }
 
@@ -138,7 +138,7 @@ struct ServeProto::BuildOptions {
  * @todo Switch to using `ServeProto::Serialize` instead probably. But
  * this was not done at this time so there would be less churn.
  */
-inline Sink& operator<<(Sink& sink, ServeProto::command_t op) {
+inline sink_t& operator<<(sink_t& sink, ServeProto::command_t op) {
   return sink << (uint64_t)op;
 }
 
@@ -163,12 +163,12 @@ inline std::ostream& operator<<(std::ostream& s, ServeProto::command_t op) {
  */
 #define DECLARE_SERVE_SERIALISER(T)                                                                \
   struct ServeProto::Serialise<T> {                                                                \
-    static T read(const StoreDirConfig& store, ServeProto::ReadConn conn);                         \
-    static void write(const StoreDirConfig& store, ServeProto::WriteConn conn, const T& t);        \
+    static T read(const store_dir_config_t& store, ServeProto::ReadConn conn);                         \
+    static void write(const store_dir_config_t& store, ServeProto::WriteConn conn, const T& t);        \
   };
 
 template <>
-DECLARE_SERVE_SERIALISER(BuildResult);
+DECLARE_SERVE_SERIALISER(build_result_t);
 template <>
 DECLARE_SERVE_SERIALISER(UnkeyedValidPathInfo);
 template <>

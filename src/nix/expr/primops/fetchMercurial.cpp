@@ -8,7 +8,7 @@
 
 namespace nix {
 
-static void prim_fetch_mercurial(EvalState& state, const pos_idx_t pos, Value** args, Value& v) {
+static void prim_fetch_mercurial(eval_state_t& state, const pos_idx_t pos, value_t** args, value_t& v) {
   std::string url;
   std::optional<Hash> rev;
   std::optional<std::string> ref;
@@ -75,7 +75,7 @@ static void prim_fetch_mercurial(EvalState& state, const pos_idx_t pos, Value** 
     attrs.insert_or_assign("ref", *ref);
   if (rev)
     attrs.insert_or_assign("rev", rev->git_rev());
-  auto input = fetchers::Input::fromAttrs(state.fetch_settings, std::move(attrs));
+  auto input = fetchers::input_t::fromAttrs(state.fetch_settings, std::move(attrs));
 
   auto [store_path, accessor, input2] = input.fetch_to_store(state.fetch_settings, *state.store);
 

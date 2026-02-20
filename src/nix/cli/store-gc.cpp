@@ -27,7 +27,7 @@ struct cmd_store_gc_t : StoreCommand, MixDryRun {
         ;
   }
 
-  void run(ref<Store> store) override {
+  void run(ref<store_t> store) override {
     auto& gc_store = require<GcStore>(*store);
 
     options.action = dry_run ? GCOptions::gcReturnDead : GCOptions::gcDeleteDead;

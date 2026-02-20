@@ -84,13 +84,13 @@ static void normalizeDatetimeFormat(toml::value& t) {
 
 #endif
 
-static void prim_from_toml(EvalState& state, const pos_idx_t pos, Value** args, Value& val) {
+static void prim_from_toml(eval_state_t& state, const pos_idx_t pos, value_t** args, value_t& val) {
   auto toml = state.forceStringNoCtx(*args[0], pos,
                                      "while evaluating the argument passed to builtins.fromTOML");
 
   std::istringstream tomlStream(std::string{toml});
 
-  auto visit = [&](this auto& self, Value& v, toml::value t) -> void {
+  auto visit = [&](this auto& self, value_t& v, toml::value t) -> void {
     switch (t.type()) {
       case toml::value_t::table: {
         auto table = toml::get<toml::table>(t);

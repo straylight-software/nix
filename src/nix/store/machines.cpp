@@ -82,7 +82,7 @@ StoreReference Machine::completeStoreReference() const {
   return storeUri;
 }
 
-ref<Store> Machine::open_store() const {
+ref<store_t> Machine::open_store() const {
   return nix::open_store(completeStoreReference());
 }
 

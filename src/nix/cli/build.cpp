@@ -20,14 +20,14 @@ using namespace nix;
    widely-used command, so that isn't being done at this time just yet.
  */
 
-static nlohmann::json to_json(Store& store, const SingleDerivedPath::opaque_t& o) {
+static nlohmann::json to_json(store_t& store, const SingleDerivedPath::opaque_t& o) {
   return store.printStorePath(o.path);
 }
 
-static nlohmann::json to_json(Store& store, const SingleDerivedPath& sdp);
-static nlohmann::json to_json(Store& store, const DerivedPath& dp);
+static nlohmann::json to_json(store_t& store, const SingleDerivedPath& sdp);
+static nlohmann::json to_json(store_t& store, const derived_path_t& dp);
 
-static nlohmann::json to_json(Store& store, const SingleDerivedPath::Built& sdpb) {
+static nlohmann::json to_json(store_t& store, const SingleDerivedPath::Built& sdpb) {
   nlohmann::json res;
   res["drvPath"] = to_json(store, *sdpb.drv_path);
   // Fallback for the input-addressed derivation case: We expect to always be
@@ -46,7 +46,7 @@ static nlohmann::json to_json(Store& store, const SingleDerivedPath::Built& sdpb
   return res;
 }
 
-static nlohmann::json to_json(Store& store, const DerivedPath::Built& dpb) {
+static nlohmann::json to_json(store_t& store, const derived_path_t::Built& dpb) {
   nlohmann::json res;
   res["drvPath"] = to_json(store, *dpb.drv_path);
   // Fallback for the input-addressed derivation case: We expect to always be
@@ -65,15 +65,15 @@ static nlohmann::json to_json(Store& store, const DerivedPath::Built& dpb) {
   return res;
 }
 
-static nlohmann::json to_json(Store& store, const SingleDerivedPath& sdp) {
+static nlohmann::json to_json(store_t& store, const SingleDerivedPath& sdp) {
   return std::visit([&](const auto& buildable) { return to_json(store, buildable); }, sdp.raw());
 }
 
-static nlohmann::json to_json(Store& store, const DerivedPath& dp) {
+static nlohmann::json to_json(store_t& store, const derived_path_t& dp) {
   return std::visit([&](const auto& buildable) { return to_json(store, buildable); }, dp.raw());
 }
 
-static nlohmann::json derived_paths_to_json(const DerivedPaths& paths, Store& store) {
+static nlohmann::json derived_paths_to_json(const DerivedPaths& paths, store_t& store) {
   auto res = nlohmann::json::array();
   for (auto& t : paths) {
     res.push_back(to_json(store, t));
@@ -82,7 +82,7 @@ static nlohmann::json derived_paths_to_json(const DerivedPaths& paths, Store& st
 }
 
 static nlohmann::json built_paths_with_result_to_json(const std::vector<BuiltPathWithResult>& buildables,
-                                                 const Store& store) {
+                                                 const store_t& store) {
   auto res = nlohmann::json::array();
   for (auto& b : buildables) {
     auto j = b.path.to_json(store);
@@ -128,9 +128,9 @@ struct cmd_build_t : InstallablesCommand, MixOutLinkByDefault, MixDryRun, MixJSO
         ;
   }
 
-  void run(ref<Store> store, Installables&& installables) override {
+  void run(ref<store_t> store, Installables&& installables) override {
     if (dry_run) {
-      std::vector<DerivedPath> pathsToBuild;
+      std::vector<derived_path_t> pathsToBuild;
 
       for (auto& i : installables)
         for (auto& b : i->to_derived_paths())

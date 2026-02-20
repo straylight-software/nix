@@ -32,8 +32,8 @@
 
 namespace nix {
 
-void complete_flake_input_attr_path(add_completions_t& completions, ref<EvalState> eval_state,
-                                const std::vector<FlakeRef>& flake_refs, std::string_view prefix) {
+void complete_flake_input_attr_path(add_completions_t& completions, ref<eval_state_t> eval_state,
+                                const std::vector<flake_ref_t>& flake_refs, std::string_view prefix) {
   for (auto& flake_ref : flake_refs) {
     auto flake = flake::get_flake(*eval_state, flake_ref, fetchers::UseRegistries::All);
     for (auto& input : flake.inputs)
@@ -184,7 +184,7 @@ MixFlakeOptions::MixFlakeOptions() {
               extra_attrs["dir"] = input3->locked_ref.subdir;
             }
 
-            override_registry(fetchers::Input::fromAttrs(fetch_settings,
+            override_registry(fetchers::input_t::fromAttrs(fetch_settings,
                                                         {{"type", "indirect"}, {"id", inputName}}),
                              input3->locked_ref.input, extra_attrs);
           }
@@ -246,7 +246,7 @@ strings_t SourceExprCommand::getDefaultFlakeAttrPathPrefixes() {
           "legacyPackages." + settings.thisSystem.get() + "."};
 }
 
-Args::completer_closure_t SourceExprCommand::getCompleteInstallable() {
+args_t::completer_closure_t SourceExprCommand::getCompleteInstallable() {
   return [this](add_completions_t& completions, size_t, std::string_view prefix) {
     completeInstallable(completions, prefix);
   };
@@ -261,7 +261,7 @@ void SourceExprCommand::completeInstallable(add_completions_t& completions, std:
       auto state = getEvalState();
       auto e = state->parseExprFromFile(resolve_expr_path(lookup_file_arg(*state, file->string())));
 
-      Value root;
+      value_t root;
       state->eval(e, root);
 
       auto auto_args = getAutoArgs(*state);
@@ -278,9 +278,9 @@ void SourceExprCommand::completeInstallable(add_completions_t& completions, std:
       }
 
       auto [v, pos] = find_along_attr_path(*state, prefix_, *auto_args, root);
-      Value& v1(*v);
+      value_t& v1(*v);
       state->forceValue(v1, pos);
-      Value v2;
+      value_t v2;
       state->autoCallFunction(*auto_args, v1, v2);
 
       if (v2.type() == nAttrs) {
@@ -304,7 +304,7 @@ void SourceExprCommand::completeInstallable(add_completions_t& completions, std:
   }
 }
 
-void complete_flake_ref_with_fragment(add_completions_t& completions, ref<EvalState> eval_state,
+void complete_flake_ref_with_fragment(add_completions_t& completions, ref<eval_state_t> eval_state,
                                   flake::LockFlags lock_flags, strings_t attr_path_prefixes,
                                   const strings_t& default_flake_attr_paths, std::string_view prefix) {
   /* Look for flake output attributes that match the
@@ -384,11 +384,11 @@ void complete_flake_ref_with_fragment(add_completions_t& completions, ref<EvalSt
   }
 }
 
-void complete_flake_ref(add_completions_t& completions, ref<Store> store, std::string_view prefix) {
+void complete_flake_ref(add_completions_t& completions, ref<store_t> store, std::string_view prefix) {
   if (prefix == "")
     completions.add(".");
 
-  Args::complete_dir(completions, 0, prefix);
+  args_t::complete_dir(completions, 0, prefix);
 
   /* Look for registry entries that match the prefix. */
   for (auto& registry : fetchers::get_registries(fetch_settings, *store)) {
@@ -414,7 +414,7 @@ DerivedPathWithInfo Installable::toDerivedPath() {
   return std::move(buildables[0]);
 }
 
-static StorePath get_deriver(ref<Store> store, const Installable& i, const StorePath& drv_path) {
+static store_path_t get_deriver(ref<store_t> store, const Installable& i, const store_path_t& drv_path) {
   auto derivers = store->queryValidDerivers(drv_path);
   if (derivers.empty())
     throw Error("'%s' does not have a known deriver", i.what());
@@ -422,7 +422,7 @@ static StorePath get_deriver(ref<Store> store, const Installable& i, const Store
   return *derivers.begin();
 }
 
-Installables SourceExprCommand::parseInstallables(ref<Store> store, std::vector<std::string> ss) {
+Installables SourceExprCommand::parseInstallables(ref<store_t> store, std::vector<std::string> ss) {
   Installables result;
 
   if (file || expr) {
@@ -496,14 +496,14 @@ Installables SourceExprCommand::parseInstallables(ref<Store> store, std::vector<
   return result;
 }
 
-ref<Installable> SourceExprCommand::parseInstallable(ref<Store> store,
+ref<Installable> SourceExprCommand::parseInstallable(ref<store_t> store,
                                                      const std::string& installable) {
   auto installables = parseInstallables(store, {installable});
   assert(installables.size() == 1);
   return installables.front();
 }
 
-static SingleBuiltPath get_built_path(ref<Store> eval_store, ref<Store> store,
+static SingleBuiltPath get_built_path(ref<store_t> eval_store, ref<store_t> store,
                                     const SingleDerivedPath& b) {
   return std::visit(overloaded{
                         [&](const SingleDerivedPath::opaque_t& bo) -> SingleBuiltPath {
@@ -537,7 +537,7 @@ const BuiltPathWithResult& InstallableWithBuildResult::getSuccess() const {
 }
 
 void Installable::throwBuildErrors(std::vector<InstallableWithBuildResult>& build_results,
-                                   const Store& store) {
+                                   const store_t& store) {
   for (auto& buildResult : build_results) {
     if (std::get_if<InstallableWithBuildResult::Failure>(&buildResult.result)) {
       // Report success first.
@@ -576,7 +576,7 @@ void Installable::throwBuildErrors(std::vector<InstallableWithBuildResult>& buil
   }
 }
 
-std::vector<BuiltPathWithResult> Installable::build(ref<Store> eval_store, ref<Store> store,
+std::vector<BuiltPathWithResult> Installable::build(ref<store_t> eval_store, ref<store_t> store,
                                                     Realise mode, const Installables& installables,
                                                     BuildMode bMode) {
   auto results = build2(eval_store, store, mode, installables, bMode);
@@ -587,7 +587,7 @@ std::vector<BuiltPathWithResult> Installable::build(ref<Store> eval_store, ref<S
   return res;
 }
 
-std::vector<InstallableWithBuildResult> Installable::build2(ref<Store> eval_store, ref<Store> store,
+std::vector<InstallableWithBuildResult> Installable::build2(ref<store_t> eval_store, ref<store_t> store,
                                                             Realise mode,
                                                             const Installables& installables,
                                                             BuildMode bMode) {
@@ -599,8 +599,8 @@ std::vector<InstallableWithBuildResult> Installable::build2(ref<Store> eval_stor
     ref<Installable> installable;
   };
 
-  std::vector<DerivedPath> pathsToBuild;
-  std::map<DerivedPath, std::vector<Aux>> backmap;
+  std::vector<derived_path_t> pathsToBuild;
+  std::map<derived_path_t, std::vector<Aux>> backmap;
 
   for (auto& i : installables) {
     for (auto b : i->to_derived_paths()) {
@@ -613,14 +613,14 @@ std::vector<InstallableWithBuildResult> Installable::build2(ref<Store> eval_stor
 
   switch (mode) {
     case Realise::Nothing:
-    case Realise::Derivation:
+    case Realise::derivation_t:
       print_missing(store, pathsToBuild, lvl_error);
 
       for (auto& path : pathsToBuild) {
         for (auto& aux : backmap[path]) {
           std::visit(
               overloaded{
-                  [&](const DerivedPath::Built& bfd) {
+                  [&](const derived_path_t::Built& bfd) {
                     auto outputs = resolve_derived_path(*store, bfd, &*eval_store);
                     res.push_back({.installable = aux.installable,
                                    .result = InstallableWithBuildResult::Success{
@@ -632,7 +632,7 @@ std::vector<InstallableWithBuildResult> Installable::build2(ref<Store> eval_stor
                                            },
                                        .info = aux.info}});
                   },
-                  [&](const DerivedPath::opaque_t& bo) {
+                  [&](const derived_path_t::opaque_t& bo) {
                     res.push_back({.installable = aux.installable,
                                    .result = InstallableWithBuildResult::Success{
                                        .path = BuiltPath::opaque_t{bo.path}, .info = aux.info}});
@@ -656,11 +656,11 @@ std::vector<InstallableWithBuildResult> Installable::build2(ref<Store> eval_stor
           }
           continue;
         }
-        auto& success = std::get<nix::BuildResult::Success>(buildResult.inner);
+        auto& success = std::get<nix::build_result_t::Success>(buildResult.inner);
         for (auto& aux : backmap[buildResult.path]) {
           std::visit(overloaded{
-                         [&](const DerivedPath::Built& bfd) {
-                           std::map<std::string, StorePath> outputs;
+                         [&](const derived_path_t::Built& bfd) {
+                           std::map<std::string, store_path_t> outputs;
                            for (auto& [output_name, realisation] : success.built_outputs)
                              outputs.emplace(output_name, realisation.out_path);
                            res.push_back(
@@ -675,7 +675,7 @@ std::vector<InstallableWithBuildResult> Installable::build2(ref<Store> eval_stor
                                     .info = aux.info,
                                     .result = buildResult}});
                          },
-                         [&](const DerivedPath::opaque_t& bo) {
+                         [&](const derived_path_t::opaque_t& bo) {
                            res.push_back({.installable = aux.installable,
                                           .result = InstallableWithBuildResult::Success{
                                               .path = BuiltPath::opaque_t{bo.path},
@@ -697,7 +697,7 @@ std::vector<InstallableWithBuildResult> Installable::build2(ref<Store> eval_stor
   return res;
 }
 
-BuiltPaths Installable::to_built_paths(ref<Store> eval_store, ref<Store> store, Realise mode,
+BuiltPaths Installable::to_built_paths(ref<store_t> eval_store, ref<store_t> store, Realise mode,
                                      OperateOn operateOn, const Installables& installables) {
   if (operateOn == OperateOn::Output) {
     BuiltPaths res;
@@ -715,9 +715,9 @@ BuiltPaths Installable::to_built_paths(ref<Store> eval_store, ref<Store> store, 
   }
 }
 
-StorePathSet Installable::toStorePathSet(ref<Store> eval_store, ref<Store> store, Realise mode,
+store_path_set_t Installable::toStorePathSet(ref<store_t> eval_store, ref<store_t> store, Realise mode,
                                          OperateOn operateOn, const Installables& installables) {
-  StorePathSet out_paths;
+  store_path_set_t out_paths;
   for (auto& path : to_built_paths(eval_store, store, mode, operateOn, installables)) {
     auto thisOutPaths = path.out_paths();
     out_paths.insert(thisOutPaths.begin(), thisOutPaths.end());
@@ -725,9 +725,9 @@ StorePathSet Installable::toStorePathSet(ref<Store> eval_store, ref<Store> store
   return out_paths;
 }
 
-StorePaths Installable::toStorePaths(ref<Store> eval_store, ref<Store> store, Realise mode,
+store_paths_t Installable::toStorePaths(ref<store_t> eval_store, ref<store_t> store, Realise mode,
                                      OperateOn operateOn, const Installables& installables) {
-  StorePaths out_paths;
+  store_paths_t out_paths;
   for (auto& path : to_built_paths(eval_store, store, mode, operateOn, installables)) {
     auto thisOutPaths = path.out_paths();
     out_paths.insert(out_paths.end(), thisOutPaths.begin(), thisOutPaths.end());
@@ -735,7 +735,7 @@ StorePaths Installable::toStorePaths(ref<Store> eval_store, ref<Store> store, Re
   return out_paths;
 }
 
-StorePath Installable::toStorePath(ref<Store> eval_store, ref<Store> store, Realise mode,
+store_path_t Installable::toStorePath(ref<store_t> eval_store, ref<store_t> store, Realise mode,
                                    OperateOn operateOn, ref<Installable> installable) {
   auto paths = toStorePathSet(eval_store, store, mode, operateOn, {installable});
 
@@ -745,22 +745,22 @@ StorePath Installable::toStorePath(ref<Store> eval_store, ref<Store> store, Real
   return *paths.begin();
 }
 
-StorePathSet Installable::toDerivations(ref<Store> store, const Installables& installables,
+store_path_set_t Installable::toDerivations(ref<store_t> store, const Installables& installables,
                                         bool useDeriver) {
-  StorePathSet drv_paths;
+  store_path_set_t drv_paths;
 
   for (const auto& i : installables)
     for (const auto& b : i->to_derived_paths())
       std::visit(
           overloaded{
-              [&](const DerivedPath::opaque_t& bo) {
+              [&](const derived_path_t::opaque_t& bo) {
                 drv_paths.insert(
                     bo.path.is_derivation() ? bo.path
                     : useDeriver
                         ? get_deriver(store, *i, bo.path)
                         : throw Error("argument '%s' did not evaluate to a derivation", i->what()));
               },
-              [&](const DerivedPath::Built& bfd) {
+              [&](const derived_path_t::Built& bfd) {
                 drv_paths.insert(resolve_derived_path(*store, *bfd.drv_path));
               },
           },
@@ -791,9 +791,9 @@ void RawInstallablesCommand::applyDefaultInstallables(std::vector<std::string>& 
   }
 }
 
-std::vector<FlakeRef> RawInstallablesCommand::get_flake_refs_for_completion() {
+std::vector<flake_ref_t> RawInstallablesCommand::get_flake_refs_for_completion() {
   applyDefaultInstallables(raw_installables);
-  std::vector<FlakeRef> res;
+  std::vector<flake_ref_t> res;
   res.reserve(raw_installables.size());
   for (const auto& i : raw_installables)
     res.push_back(parse_flake_ref_with_fragment(fetch_settings, expand_tilde(i),
@@ -802,7 +802,7 @@ std::vector<FlakeRef> RawInstallablesCommand::get_flake_refs_for_completion() {
   return res;
 }
 
-void RawInstallablesCommand::run(ref<Store> store) {
+void RawInstallablesCommand::run(ref<store_t> store) {
   if (readFromStdIn && !isatty(STDIN_FILENO)) {
     std::string word;
     while (std::cin >> word) {
@@ -814,13 +814,13 @@ void RawInstallablesCommand::run(ref<Store> store) {
   run(store, std::move(raw_installables));
 }
 
-std::vector<FlakeRef> InstallableCommand::get_flake_refs_for_completion() {
+std::vector<flake_ref_t> InstallableCommand::get_flake_refs_for_completion() {
   return {parse_flake_ref_with_fragment(fetch_settings, expand_tilde(_installable),
                                     abs_path(get_command_base_dir()).string())
               .first};
 }
 
-void InstallablesCommand::run(ref<Store> store, std::vector<std::string>&& raw_installables) {
+void InstallablesCommand::run(ref<store_t> store, std::vector<std::string>&& raw_installables) {
   auto installables = parseInstallables(store, raw_installables);
   run(store, std::move(installables));
 }
@@ -834,9 +834,9 @@ InstallableCommand::InstallableCommand() : SourceExprCommand() {
   });
 }
 
-void InstallableCommand::preRun(ref<Store> store) {}
+void InstallableCommand::preRun(ref<store_t> store) {}
 
-void InstallableCommand::run(ref<Store> store) {
+void InstallableCommand::run(ref<store_t> store) {
   preRun(store);
   auto installable = parseInstallable(store, _installable);
   run(store, std::move(installable));

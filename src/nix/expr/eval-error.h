@@ -6,10 +6,10 @@
 namespace nix {
 
 struct Env;
-struct Expr;
-struct Value;
+struct expr_t;
+struct value_t;
 
-class EvalState;
+class eval_state_t;
 template <class T>
 class EvalErrorBuilder;
 
@@ -23,13 +23,13 @@ class EvalBaseError : public Error {
   friend class EvalErrorBuilder;
 
 public:
-  EvalState& state;
+  eval_state_t& state;
 
-  EvalBaseError(EvalState& state, error_info_t&& errorInfo) : Error(errorInfo), state(state) {}
+  EvalBaseError(eval_state_t& state, error_info_t&& errorInfo) : Error(errorInfo), state(state) {}
 
-  template <typename... Args>
-  explicit EvalBaseError(EvalState& state, const std::string& formatString,
-                         const Args&... formatArgs)
+  template <typename... args_t>
+  explicit EvalBaseError(eval_state_t& state, const std::string& formatString,
+                         const args_t&... formatArgs)
       : Error(formatString, formatArgs...), state(state) {}
 };
 
@@ -55,21 +55,21 @@ struct InvalidPathError : public EvalError {
 public:
   Path path;
 
-  InvalidPathError(EvalState& state, const Path& path)
+  InvalidPathError(eval_state_t& state, const Path& path)
       : EvalError(state, "path '%s' is not valid", path) {}
 };
 
 /**
- * `EvalErrorBuilder`s may only be constructed by `EvalState`. The `debugThrow`
+ * `EvalErrorBuilder`s may only be constructed by `eval_state_t`. The `debugThrow`
  * method must be the final method in any such `EvalErrorBuilder` usage, and it
  * handles deleting the object.
  */
 template <class T>
 class EvalErrorBuilder final {
-  friend class EvalState;
+  friend class eval_state_t;
 
-  template <typename... Args>
-  explicit EvalErrorBuilder(EvalState& state, const Args&... args) : error(T(state, args...)) {}
+  template <typename... args_t>
+  explicit EvalErrorBuilder(eval_state_t& state, const args_t&... args) : error(T(state, args...)) {}
 
 public:
   T error;
@@ -78,7 +78,7 @@ public:
 
   [[nodiscard, gnu::noinline]] EvalErrorBuilder<T>& at_pos(pos_idx_t pos);
 
-  [[nodiscard, gnu::noinline]] EvalErrorBuilder<T>& at_pos(Value& value, pos_idx_t fallback = no_pos);
+  [[nodiscard, gnu::noinline]] EvalErrorBuilder<T>& at_pos(value_t& value, pos_idx_t fallback = no_pos);
 
   [[nodiscard, gnu::noinline]] EvalErrorBuilder<T>& withTrace(pos_idx_t pos,
                                                               const std::string_view text);
@@ -88,15 +88,15 @@ public:
 
   [[nodiscard, gnu::noinline]] EvalErrorBuilder<T>& withSuggestions(suggestions_t& s);
 
-  [[nodiscard, gnu::noinline]] EvalErrorBuilder<T>& withFrame(const Env& e, const Expr& ex);
+  [[nodiscard, gnu::noinline]] EvalErrorBuilder<T>& withFrame(const Env& e, const expr_t& ex);
 
   [[nodiscard, gnu::noinline]] EvalErrorBuilder<T>& add_trace(pos_idx_t pos, hint_fmt_t hint);
 
   [[nodiscard, gnu::noinline]] EvalErrorBuilder<T>& setIsFromExpr();
 
-  template <typename... Args>
+  template <typename... args_t>
   [[nodiscard, gnu::noinline]] EvalErrorBuilder<T>&
-  add_trace(pos_idx_t pos, std::string_view formatString, const Args&... formatArgs);
+  add_trace(pos_idx_t pos, std::string_view formatString, const args_t&... formatArgs);
 
   /**
    * Delete the `EvalErrorBuilder` and throw the underlying exception.

@@ -68,8 +68,8 @@ static nlohmann::json print_duration(const std::optional<std::chrono::microsecon
 ActiveBuildInfo::ProcessInfo
 adl_serializer<ActiveBuildInfo::ProcessInfo>::from_json(const json& j) {
   return ActiveBuildInfo::ProcessInfo{
-      .pid = j.at("pid").get<pid_t>(),
-      .parentPid = j.at("parentPid").get<pid_t>(),
+      .pid = j.at("pid").get<::pid_t>(),
+      .parent_pid = j.at("parentPid").get<::pid_t>(),
       .user = j.at("user").get<UserInfo>(),
       .argv = j.at("argv").get<std::vector<std::string>>(),
       .utime = parse_duration(j, "utime"),
@@ -83,7 +83,7 @@ void adl_serializer<ActiveBuildInfo::ProcessInfo>::to_json(
     json& j, const ActiveBuildInfo::ProcessInfo& process) {
   j = nlohmann::json{
       {"pid", process.pid},
-      {"parentPid", process.parentPid},
+      {"parentPid", process.parent_pid},
       {"user", process.user},
       {"argv", process.argv},
       {"utime", print_duration(process.utime)},
@@ -98,24 +98,24 @@ ActiveBuild adl_serializer<ActiveBuild>::from_json(const json& j) {
   if (type != "build")
     throw Error("invalid active build JSON: expected type 'build' but got '%s'", type);
   return ActiveBuild{
-      .nixPid = j.at("nixPid").get<pid_t>(),
-      .clientPid = j.at("clientPid").get<std::optional<pid_t>>(),
+      .nix_pid = j.at("nixPid").get<::pid_t>(),
+      .client_pid = j.at("clientPid").get<std::optional<::pid_t>>(),
       .clientUid = j.at("clientUid").get<std::optional<uid_t>>(),
-      .mainPid = j.at("mainPid").get<pid_t>(),
+      .main_pid = j.at("mainPid").get<::pid_t>(),
       .mainUser = j.at("mainUser").get<UserInfo>(),
       .cgroup = j.at("cgroup").get<std::optional<Path>>(),
       .start_time = (time_t)j.at("startTime").get<double>(),
-      .derivation = StorePath{get_string(j.at("derivation"))},
+      .derivation = store_path_t{get_string(j.at("derivation"))},
   };
 }
 
 void adl_serializer<ActiveBuild>::to_json(json& j, const ActiveBuild& build) {
   j = nlohmann::json{
       {"type", "build"},
-      {"nixPid", build.nixPid},
-      {"clientPid", build.clientPid},
+      {"nixPid", build.nix_pid},
+      {"clientPid", build.client_pid},
       {"clientUid", build.clientUid},
-      {"mainPid", build.mainPid},
+      {"mainPid", build.main_pid},
       {"mainUser", build.mainUser},
       {"cgroup", build.cgroup},
       {"startTime", (double)build.start_time},

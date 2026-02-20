@@ -67,19 +67,19 @@
 #include "nix/util/util.h"
 
 namespace nix {
-struct SourceAccessor;
+struct source_accessor_t;
 
 using namespace flake;
 using namespace fetchers;
 
 namespace flake {
 
-static void force_trivial_value(EvalState& state, Value& value, const pos_idx_t pos) {
+static void force_trivial_value(eval_state_t& state, value_t& value, const pos_idx_t pos) {
   if (value.isTrivial())
     state.forceValue(value, pos);
 }
 
-static void expect_type(EvalState& state, ValueType type, Value& value, const pos_idx_t pos) {
+static void expect_type(eval_state_t& state, ValueType type, value_t& value, const pos_idx_t pos) {
   force_trivial_value(state, value, pos);
   auto t = value.type();
   if (t != type)
@@ -87,10 +87,10 @@ static void expect_type(EvalState& state, ValueType type, Value& value, const po
 }
 
 static std::pair<std::map<FlakeId, FlakeInput>, fetchers::Attrs>
-parseFlakeInputs(EvalState& state, Value* value, const pos_idx_t pos,
+parseFlakeInputs(eval_state_t& state, value_t* value, const pos_idx_t pos,
                  const InputAttrPath& lock_root_attr_path, const source_path_t& flake_dir, bool allowSelf);
 
-static void parse_flake_input_attr(EvalState& state, const nix::Attr& attr, fetchers::Attrs& attrs) {
+static void parse_flake_input_attr(eval_state_t& state, const nix::attr_t& attr, fetchers::Attrs& attrs) {
 // Allow selecting a subset of enum values
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wswitch-enum"
@@ -99,7 +99,7 @@ static void parse_flake_input_attr(EvalState& state, const nix::Attr& attr, fetc
       attrs.emplace(state.symbols[attr.name], std::string(attr.value->string_view()));
       break;
     case nBool:
-      attrs.emplace(state.symbols[attr.name], Explicit<bool>{attr.value->boolean()});
+      attrs.emplace(state.symbols[attr.name], explicit_t<bool>{attr.value->boolean()});
       break;
     case nInt: {
       auto int_value = attr.value->integer().value;
@@ -127,7 +127,7 @@ static void parse_flake_input_attr(EvalState& state, const nix::Attr& attr, fetc
 #pragma GCC diagnostic pop
 }
 
-static FlakeInput parse_flake_input(EvalState& state, Value* value, const pos_idx_t pos,
+static FlakeInput parse_flake_input(eval_state_t& state, value_t* value, const pos_idx_t pos,
                                   const InputAttrPath& lock_root_attr_path,
                                   const source_path_t& flake_dir) {
   expect_type(state, nAttrs, *value, pos);
@@ -186,7 +186,7 @@ static FlakeInput parse_flake_input(EvalState& state, Value* value, const pos_id
 
   if (attrs.count("type"))
     try {
-      input.ref = FlakeRef::fromAttrs(state.fetch_settings, attrs);
+      input.ref = flake_ref_t::fromAttrs(state.fetch_settings, attrs);
     } catch (Error& e) {
       e.add_trace(state.positions[pos], hint_fmt_t("while evaluating flake input"));
       throw;
@@ -208,7 +208,7 @@ static FlakeInput parse_flake_input(EvalState& state, Value* value, const pos_id
 }
 
 static std::pair<std::map<FlakeId, FlakeInput>, fetchers::Attrs>
-parseFlakeInputs(EvalState& state, Value* value, const pos_idx_t pos,
+parseFlakeInputs(eval_state_t& state, value_t* value, const pos_idx_t pos,
                  const InputAttrPath& lock_root_attr_path, const source_path_t& flake_dir,
                  bool allowSelf) {
   std::map<FlakeId, FlakeInput> inputs;
@@ -233,17 +233,17 @@ parseFlakeInputs(EvalState& state, Value* value, const pos_idx_t pos,
   return {inputs, selfAttrs};
 }
 
-static Flake read_flake(EvalState& state, const FlakeRef& original_ref, const FlakeRef& resolved_ref,
-                       const FlakeRef& locked_ref, const source_path_t& root_dir,
+static flake_t read_flake(eval_state_t& state, const flake_ref_t& original_ref, const flake_ref_t& resolved_ref,
+                       const flake_ref_t& locked_ref, const source_path_t& root_dir,
                        const InputAttrPath& lock_root_attr_path) {
   auto flake_dir = root_dir / canon_path_t(resolved_ref.subdir);
   auto flake_path = flake_dir / "flake.nix";
 
   // NOTE evalFile forces vInfo to be an attrset because mustBeTrivial is true.
-  Value v_info;
+  value_t v_info;
   state.evalFile(flake_path, v_info, true);
 
-  Flake flake{
+  flake_t flake{
       .original_ref = original_ref,
       .resolved_ref = resolved_ref,
       .locked_ref = locked_ref,
@@ -306,7 +306,7 @@ static Flake read_flake(EvalState& state, const FlakeRef& original_ref, const Fl
       else if (setting.value->type() == nBool)
         flake.config.settings.emplace(
             state.symbols[setting.name],
-            Explicit<bool>{state.forceBool(*setting.value, setting.pos, "")});
+            explicit_t<bool>{state.forceBool(*setting.value, setting.pos, "")});
       else if (setting.value->type() == nList) {
         std::vector<std::string> ss;
         for (auto elem : setting.value->list_view()) {
@@ -337,7 +337,7 @@ static Flake read_flake(EvalState& state, const FlakeRef& original_ref, const Fl
   return flake;
 }
 
-static FlakeRef apply_self_attrs(const FlakeRef& ref, const Flake& flake) {
+static flake_ref_t apply_self_attrs(const flake_ref_t& ref, const flake_t& flake) {
   auto new_ref(ref);
 
   string_set_t allowed_attrs{"submodules", "lfs"};
@@ -351,7 +351,7 @@ static FlakeRef apply_self_attrs(const FlakeRef& ref, const Flake& flake) {
   return new_ref;
 }
 
-static Flake get_flake(EvalState& state, const FlakeRef& original_ref,
+static flake_t get_flake(eval_state_t& state, const flake_ref_t& original_ref,
                       fetchers::UseRegistries use_registries, const InputAttrPath& lock_root_attr_path,
                       bool require_lockable) {
   // Fetch a lazy tree first.
@@ -360,8 +360,8 @@ static Flake get_flake(EvalState& state, const FlakeRef& original_ref,
 
   auto subdir =
       fetchers::maybe_get_str_attr(cached_input.extra_attrs, "dir").value_or(original_ref.subdir);
-  auto resolved_ref = FlakeRef(std::move(cached_input.resolved_input), subdir);
-  auto locked_ref = FlakeRef(std::move(cached_input.lockedInput), subdir);
+  auto resolved_ref = flake_ref_t(std::move(cached_input.resolved_input), subdir);
+  auto locked_ref = flake_ref_t(std::move(cached_input.lockedInput), subdir);
 
   // Parse/eval flake.nix to get at the input.self attributes.
   auto flake = read_flake(state, original_ref, resolved_ref, locked_ref, {cached_input.accessor},
@@ -378,7 +378,7 @@ static Flake get_flake(EvalState& state, const FlakeRef& original_ref,
     auto cached_input2 = state.inputCache->get_accessor(
         state.fetch_settings, *state.store, new_locked_ref.input, fetchers::UseRegistries::No);
     cached_input.accessor = cached_input2.accessor;
-    locked_ref = FlakeRef(std::move(cached_input2.lockedInput), new_locked_ref.subdir);
+    locked_ref = flake_ref_t(std::move(cached_input2.lockedInput), new_locked_ref.subdir);
   }
 
   // Re-parse flake.nix from the store.
@@ -388,21 +388,21 @@ static Flake get_flake(EvalState& state, const FlakeRef& original_ref,
                    lock_root_attr_path);
 }
 
-Flake get_flake(EvalState& state, const FlakeRef& original_ref, fetchers::UseRegistries use_registries,
+flake_t get_flake(eval_state_t& state, const flake_ref_t& original_ref, fetchers::UseRegistries use_registries,
                bool require_lockable) {
   return get_flake(state, original_ref, use_registries, {}, require_lockable);
 }
 
-static LockFile read_lock_file(const fetchers::settings_t& fetch_settings,
+static lock_file_t read_lock_file(const fetchers::settings_t& fetch_settings,
                              const source_path_t& lock_file_path) {
   return lock_file_path.path_exists()
-             ? LockFile(fetch_settings, lock_file_path.read_file(), fmt("%s", lock_file_path))
-             : LockFile();
+             ? lock_file_t(fetch_settings, lock_file_path.read_file(), fmt("%s", lock_file_path))
+             : lock_file_t();
 }
 
 /* Compute an in-memory lock file for the specified top-level flake,
    and optionally write it to file, if the flake is writable. */
-LockedFlake lock_flake(const settings_t& settings, EvalState& state, const FlakeRef& top_ref,
+LockedFlake lock_flake(const settings_t& settings, eval_state_t& state, const flake_ref_t& top_ref,
                       const LockFlags& lock_flags) {
   auto use_registries = lock_flags.use_registries.value_or(settings.use_registries);
   auto use_registries_top =
@@ -451,9 +451,9 @@ LockedFlake lock_flake(const settings_t& settings, EvalState& state, const Flake
       explicitCliOverrides.insert(i.first);
     }
 
-    LockFile new_lock_file;
+    lock_file_t new_lock_file;
 
-    std::vector<FlakeRef> parents;
+    std::vector<flake_ref_t> parents;
 
     std::function<void(const FlakeInputs& flakeInputs, ref<Node> node,
                        const InputAttrPath& inputAttrPathPrefix,
@@ -555,7 +555,7 @@ LockedFlake lock_flake(const settings_t& settings, EvalState& state, const Flake
           }
 
           if (!input.ref)
-            input.ref = FlakeRef::fromAttrs(state.fetch_settings,
+            input.ref = flake_ref_t::fromAttrs(state.fetch_settings,
                                             {{"type", "indirect"}, {"id", std::string(id)}});
 
           auto overriddenParentPath =
@@ -575,7 +575,7 @@ LockedFlake lock_flake(const settings_t& settings, EvalState& state, const Flake
 
           /* Get the input flake, resolve 'path:./...'
              flakerefs relative to the parent flake. */
-          auto getInputFlake = [&](const FlakeRef& ref,
+          auto getInputFlake = [&](const flake_ref_t& ref,
                                    const fetchers::UseRegistries use_registries) {
             if (auto resolvedPath = resolveRelativePath()) {
               return read_flake(state, ref, ref, ref, *resolvedPath, inputAttrPath);
@@ -688,11 +688,11 @@ LockedFlake lock_flake(const settings_t& settings, EvalState& state, const Flake
                (but only at top-level since we don't want
                to annoy users about flakes that are not
                under their control). */
-            auto warnRegistry = [&](const FlakeRef& resolved_ref) {
+            auto warnRegistry = [&](const flake_ref_t& resolved_ref) {
               if (inputAttrPath.size() == 1 && !input.ref->input.isDirect()) {
                 std::ostringstream s;
                 print_literal_string(s, resolved_ref.to_string());
-                warn("Flake input '%1%' uses the flake registry. "
+                warn("flake_t input '%1%' uses the flake registry. "
                      "Using the registry in flake inputs is deprecated in Determinate Nix. "
                      "To make your flake future-proof, add the following to '%2%':\n"
                      "\n"
@@ -732,7 +732,7 @@ LockedFlake lock_flake(const settings_t& settings, EvalState& state, const Flake
             }
 
             else {
-              auto [path, locked_ref] = [&]() -> std::tuple<source_path_t, FlakeRef> {
+              auto [path, locked_ref] = [&]() -> std::tuple<source_path_t, flake_ref_t> {
                 // Handle non-flake 'path:./...' inputs.
                 if (auto resolvedPath = resolveRelativePath()) {
                   return {*resolvedPath, *input.ref};
@@ -741,8 +741,8 @@ LockedFlake lock_flake(const settings_t& settings, EvalState& state, const Flake
                       state.fetch_settings, *state.store, input.ref->input, use_registries_inputs);
 
                   auto resolved_ref =
-                      FlakeRef(std::move(cached_input.resolved_input), input.ref->subdir);
-                  auto locked_ref = FlakeRef(std::move(cached_input.lockedInput), input.ref->subdir);
+                      flake_ref_t(std::move(cached_input.resolved_input), input.ref->subdir);
+                  auto locked_ref = flake_ref_t(std::move(cached_input.lockedInput), input.ref->subdir);
 
                   warnRegistry(resolved_ref);
 
@@ -792,7 +792,7 @@ LockedFlake lock_flake(const settings_t& settings, EvalState& state, const Flake
 
     /* Check whether we need to / can write the new lock file. */
     if (new_lock_file != old_lock_file || lock_flags.output_lock_file_path) {
-      auto diff = LockFile::diff(old_lock_file, new_lock_file);
+      auto diff = lock_file_t::diff(old_lock_file, new_lock_file);
 
       if (lock_flags.writeLockFile) {
         if (source_path || lock_flags.output_lock_file_path) {
@@ -885,7 +885,7 @@ LockedFlake lock_flake(const settings_t& settings, EvalState& state, const Flake
   }
 }
 
-static ref<SourceAccessor> make_internal_fs() {
+static ref<source_accessor_t> make_internal_fs() {
   auto internal_fs = make_ref<memory_source_accessor_t>(memory_source_accessor_t{});
   internal_fs->set_path_display("«flakes-internal»", "");
   internal_fs->add_file(canon_path_t("call-flake.nix"),
@@ -896,14 +896,14 @@ static ref<SourceAccessor> make_internal_fs() {
 
 static auto internal_fs = make_internal_fs();
 
-static Value* require_internal_file(EvalState& state, canon_path_t path) {
+static value_t* require_internal_file(eval_state_t& state, canon_path_t path) {
   source_path_t p{internal_fs, path};
   auto v = state.allocValue();
   state.evalFile(p, *v); // has caching
   return v;
 }
 
-void call_flake(EvalState& state, const LockedFlake& locked_flake, Value& v_res) {
+void call_flake(eval_state_t& state, const LockedFlake& locked_flake, value_t& v_res) {
   auto [lockFileStr, keyMap] = locked_flake.lock_file.to_string();
 
   auto overrides = state.buildBindings(locked_flake.nodePaths.size());
@@ -931,17 +931,17 @@ void call_flake(EvalState& state, const LockedFlake& locked_flake, Value& v_res)
 
   auto& v_overrides = state.allocValue()->mkAttrs(overrides);
 
-  Value* v_call_flake = require_internal_file(state, canon_path_t("call-flake.nix"));
+  value_t* v_call_flake = require_internal_file(state, canon_path_t("call-flake.nix"));
 
   auto v_locks = state.allocValue();
   v_locks->mk_string(lockFileStr, state.mem);
 
-  Value* args[] = {v_locks, &v_overrides};
+  value_t* args[] = {v_locks, &v_overrides};
   state.callFunction(*v_call_flake, args, v_res, no_pos);
 }
 
 std::optional<Fingerprint>
-LockedFlake::get_fingerprint(Store& store, const fetchers::settings_t& fetch_settings) const {
+LockedFlake::get_fingerprint(store_t& store, const fetchers::settings_t& fetch_settings) const {
   if (lock_file.isUnlocked(fetch_settings))
     return std::nullopt;
 
@@ -965,9 +965,9 @@ LockedFlake::get_fingerprint(Store& store, const fetchers::settings_t& fetch_set
   return hash_string(hash_algorithm_t::SHA256, *fingerprint);
 }
 
-Flake::~Flake() {}
+flake_t::~flake_t() {}
 
-ref<eval_cache::EvalCache> open_eval_cache(EvalState& state, ref<const LockedFlake> locked_flake) {
+ref<eval_cache::EvalCache> open_eval_cache(eval_state_t& state, ref<const LockedFlake> locked_flake) {
   auto fingerprint = state.settings.useEvalCache && state.settings.pureEval
                          ? locked_flake->get_fingerprint(*state.store, state.fetch_settings)
                          : std::nullopt;

@@ -1,0 +1,53 @@
+# nghttp2 1.67.1 - HTTP/2 library
+# Built with Buck2 for musl static linking
+
+cxx_library(
+    name = "nghttp2",
+    srcs = [
+        "lib/nghttp2_alpn.c",
+        "lib/nghttp2_buf.c",
+        "lib/nghttp2_callbacks.c",
+        "lib/nghttp2_debug.c",
+        "lib/nghttp2_extpri.c",
+        "lib/nghttp2_frame.c",
+        "lib/nghttp2_hd.c",
+        "lib/nghttp2_hd_huffman.c",
+        "lib/nghttp2_hd_huffman_data.c",
+        "lib/nghttp2_helper.c",
+        "lib/nghttp2_http.c",
+        "lib/nghttp2_map.c",
+        "lib/nghttp2_mem.c",
+        "lib/nghttp2_option.c",
+        "lib/nghttp2_outbound_item.c",
+        "lib/nghttp2_pq.c",
+        "lib/nghttp2_priority_spec.c",
+        "lib/nghttp2_queue.c",
+        "lib/nghttp2_ratelim.c",
+        "lib/nghttp2_rcbuf.c",
+        "lib/nghttp2_session.c",
+        "lib/nghttp2_stream.c",
+        "lib/nghttp2_submit.c",
+        "lib/nghttp2_time.c",
+        "lib/nghttp2_version.c",
+        "lib/sfparse.c",
+    ],
+    exported_headers = {
+        "nghttp2/nghttp2.h": "lib/includes/nghttp2/nghttp2.h",
+        "nghttp2/nghttp2ver.h": "lib/includes/nghttp2/nghttp2ver.h",
+    },
+    header_namespace = "",
+    include_directories = [
+        "lib/includes",
+        "lib",
+    ],
+    compiler_flags = [
+        "-std=c11",
+        "-D__STDC_HOSTED__=0",
+        "-DBUILDING_NGHTTP2",
+        "-DHAVE_ARPA_INET_H",
+        "-DHAVE_NETINET_IN_H",
+        "-w",
+    ],
+    preferred_linkage = "static",
+    visibility = ["PUBLIC"],
+)

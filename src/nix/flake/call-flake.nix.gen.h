@@ -5,7 +5,7 @@ R"__NIX_STR(
 lockFileStr:
 
 # A mapping of lock file node IDs to { sourceInfo, subdir } attrsets,
-# with sourceInfo.out_path providing an SourceAccessor to a previously
+# with sourceInfo.out_path providing an source_accessor_t to a previously
 # fetched tree. This is necessary for possibly unlocked inputs, in
 # particular the root input, but also --override-inputs pointing to
 # unlocked trees.

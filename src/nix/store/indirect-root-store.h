@@ -54,7 +54,7 @@ struct IndirectRootStore : public virtual local_fs_store {
    * The implementation of this method is concrete, but it delegates
    * to `addIndirectRoot()` which is abstract.
    */
-  Path addPermRoot(const StorePath& store_path, const Path& gc_root) override final;
+  Path addPermRoot(const store_path_t& store_path, const Path& gc_root) override final;
 
   /**
    * Add an indirect root, which is a weak reference to the

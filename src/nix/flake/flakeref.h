@@ -12,7 +12,7 @@
 
 namespace nix {
 
-class Store;
+class store_t;
 
 namespace fetchers {
 struct settings_t;
@@ -27,65 +27,65 @@ using FlakeId = std::string;
  * type="github"; owner = "NixOS"; repo = "patchelf"; }'), or a local
  * path.
  *
- * Each flake will have a number of FlakeRef objects: one for each
+ * Each flake will have a number of flake_ref_t objects: one for each
  * input to the flake.
  *
- * The normal method of constructing a FlakeRef is by starting with an
+ * The normal method of constructing a flake_ref_t is by starting with an
  * input description (usually the attrs or a url from the flake file),
- * locating a fetcher for that input, and then capturing the Input
+ * locating a fetcher for that input, and then capturing the input_t
  * object that fetcher generates (usually via
- * FlakeRef::fromAttrs(attrs) or parse_flake_ref(url) calls).
+ * flake_ref_t::fromAttrs(attrs) or parse_flake_ref(url) calls).
  *
- * The actual fetch may not have been performed yet (i.e. a FlakeRef may
+ * The actual fetch may not have been performed yet (i.e. a flake_ref_t may
  * be lazy), but the fetcher can be invoked at any time via the
- * FlakeRef to ensure the store is populated with this input.
+ * flake_ref_t to ensure the store is populated with this input.
  */
-struct FlakeRef {
+struct flake_ref_t {
   /**
    * Fetcher-specific representation of the input, sufficient to
    * perform the fetch operation.
    */
-  fetchers::Input input;
+  fetchers::input_t input;
 
   /**
    * sub-path within the fetched input that represents this input
    */
   Path subdir;
 
-  bool operator==(const FlakeRef& other) const = default;
+  bool operator==(const flake_ref_t& other) const = default;
 
-  bool operator<(const FlakeRef& other) const {
+  bool operator<(const flake_ref_t& other) const {
     return std::tie(input, subdir) < std::tie(other.input, other.subdir);
   }
 
-  FlakeRef(fetchers::Input&& input, const Path& subdir) : input(std::move(input)), subdir(subdir) {}
+  flake_ref_t(fetchers::input_t&& input, const Path& subdir) : input(std::move(input)), subdir(subdir) {}
 
   std::string to_string(bool abbreviate = false) const;
 
   fetchers::Attrs toAttrs() const;
 
-  FlakeRef resolve(const fetchers::settings_t& fetch_settings, Store& store,
+  flake_ref_t resolve(const fetchers::settings_t& fetch_settings, store_t& store,
                    fetchers::UseRegistries use_registries = fetchers::UseRegistries::All) const;
 
-  static FlakeRef fromAttrs(const fetchers::settings_t& fetch_settings, const fetchers::Attrs& attrs);
+  static flake_ref_t fromAttrs(const fetchers::settings_t& fetch_settings, const fetchers::Attrs& attrs);
 
-  std::pair<ref<SourceAccessor>, FlakeRef> lazyFetch(const fetchers::settings_t& fetch_settings,
-                                                     Store& store) const;
+  std::pair<ref<source_accessor_t>, flake_ref_t> lazyFetch(const fetchers::settings_t& fetch_settings,
+                                                     store_t& store) const;
 
   /**
    * Canonicalize a flakeref for the purpose of comparing "old" and
    * "new" `original` fields in lock files.
    */
-  FlakeRef canonicalize() const;
+  flake_ref_t canonicalize() const;
 };
 
-std::ostream& operator<<(std::ostream& str, const FlakeRef& flake_ref);
+std::ostream& operator<<(std::ostream& str, const flake_ref_t& flake_ref);
 
 /**
  * @param base_dir Optional [base
  * directory](https://nix.dev/manual/nix/development/glossary.html#gloss-base-directory)
  */
-FlakeRef parse_flake_ref(const fetchers::settings_t& fetch_settings, const std::string& url,
+flake_ref_t parse_flake_ref(const fetchers::settings_t& fetch_settings, const std::string& url,
                        const std::optional<std::filesystem::path>& base_dir = {},
                        bool allow_missing = false, bool is_flake = true,
                        bool preserve_relative_paths = false);
@@ -94,7 +94,7 @@ FlakeRef parse_flake_ref(const fetchers::settings_t& fetch_settings, const std::
  * @param base_dir Optional [base
  * directory](https://nix.dev/manual/nix/development/glossary.html#gloss-base-directory)
  */
-std::pair<FlakeRef, std::string>
+std::pair<flake_ref_t, std::string>
 parse_flake_ref_with_fragment(const fetchers::settings_t& fetch_settings, const std::string& url,
                           const std::optional<std::filesystem::path>& base_dir = {},
                           bool allow_missing = false, bool is_flake = true,
@@ -104,7 +104,7 @@ parse_flake_ref_with_fragment(const fetchers::settings_t& fetch_settings, const 
  * @param base_dir Optional [base
  * directory](https://nix.dev/manual/nix/development/glossary.html#gloss-base-directory)
  */
-std::tuple<FlakeRef, std::string, ExtendedOutputsSpec>
+std::tuple<flake_ref_t, std::string, ExtendedOutputsSpec>
 parse_flake_ref_with_fragment_and_extended_outputs_spec(
     const fetchers::settings_t& fetch_settings, const std::string& url,
     const std::optional<std::filesystem::path>& base_dir = {}, bool allow_missing = false,

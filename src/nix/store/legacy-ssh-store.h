@@ -44,25 +44,25 @@ struct LegacySSHStoreConfig : std::enable_shared_from_this<LegacySSHStoreConfig>
    */
   std::optional<size_t> connPipeSize;
 
-  static const std::string name() { return "SSH Store"; }
+  static const std::string name() { return "SSH store_t"; }
 
   static string_set_t uriSchemes() { return {"ssh"}; }
 
   static std::string doc();
 
-  ref<Store> open_store() const override;
+  ref<store_t> open_store() const override;
 
   StoreReference getReference() const override;
 };
 
-struct LegacySSHStore : public virtual Store {
+struct LegacySSHStore : public virtual store_t {
   using config_t = LegacySSHStoreConfig;
 
   ref<const config_t> config;
 
   struct Connection;
 
-  ref<Pool<Connection>> connections;
+  ref<pool_t<Connection>> connections;
 
   SSHMaster master;
 
@@ -71,15 +71,15 @@ struct LegacySSHStore : public virtual Store {
   ref<Connection> open_connection();
 
   void
-  query_path_info_uncached(const StorePath& path,
-                        Callback<std::shared_ptr<const ValidPathInfo>> callback) noexcept override;
+  query_path_info_uncached(const store_path_t& path,
+                        Callback<std::shared_ptr<const valid_path_info_t>> callback) noexcept override;
 
-  std::map<StorePath, UnkeyedValidPathInfo> queryPathInfosUncached(const StorePathSet& paths);
+  std::map<store_path_t, UnkeyedValidPathInfo> queryPathInfosUncached(const store_path_set_t& paths);
 
-  void add_to_store(const ValidPathInfo& info, Source& source, RepairFlag repair,
+  void add_to_store(const valid_path_info_t& info, source_t& source, RepairFlag repair,
                   CheckSigsFlag check_sigs) override;
 
-  void nar_from_path(const StorePath& path, Sink& sink) override;
+  void nar_from_path(const store_path_t& path, sink_t& sink) override;
 
   /**
    * Hands over the connection temporarily as source to the given
@@ -89,32 +89,32 @@ struct LegacySSHStore : public virtual Store {
    *
    * This is exposed for sake of Hydra.
    */
-  void nar_from_path(const StorePath& path, std::function<void(Source&)> fun);
+  void nar_from_path(const store_path_t& path, std::function<void(source_t&)> fun);
 
-  std::optional<StorePath> queryPathFromHashPart(const std::string& hash_part) override {
+  std::optional<store_path_t> queryPathFromHashPart(const std::string& hash_part) override {
     unsupported("queryPathFromHashPart");
   }
 
-  StorePath add_to_store(std::string_view name, const source_path_t& path, ContentAddressMethod method,
-                       hash_algorithm_t hash_algo, const StorePathSet& references, path_filter_t& filter,
+  store_path_t add_to_store(std::string_view name, const source_path_t& path, content_address_method_t method,
+                       hash_algorithm_t hash_algo, const store_path_set_t& references, path_filter_t& filter,
                        RepairFlag repair) override {
     unsupported("addToStore");
   }
 
-  StorePath
-  add_to_store_from_dump(Source& dump, std::string_view name,
+  store_path_t
+  add_to_store_from_dump(source_t& dump, std::string_view name,
                      file_serialisation_method_t dump_method = file_serialisation_method_t::nix_archive,
-                     ContentAddressMethod hash_method = file_ingestion_method_t::nix_archive,
+                     content_address_method_t hash_method = file_ingestion_method_t::nix_archive,
                      hash_algorithm_t hash_algo = hash_algorithm_t::SHA256,
-                     const StorePathSet& references = StorePathSet(),
+                     const store_path_set_t& references = store_path_set_t(),
                      RepairFlag repair = NoRepair) override {
     unsupported("addToStore");
   }
 
-  void register_drv_output(const Realisation& output) override { unsupported("registerDrvOutput"); }
+  void register_drv_output(const realisation_t& output) override { unsupported("registerDrvOutput"); }
 
 public:
-  BuildResult buildDerivation(const StorePath& drv_path, const BasicDerivation& drv,
+  build_result_t buildDerivation(const store_path_t& drv_path, const basic_derivation_t& drv,
                               BuildMode build_mode) override;
 
   /**
@@ -123,20 +123,20 @@ public:
    *
    * @todo use C++23 `std::move_only_function`.
    */
-  std::function<BuildResult()> buildDerivationAsync(const StorePath& drv_path,
-                                                    const BasicDerivation& drv,
+  std::function<build_result_t()> buildDerivationAsync(const store_path_t& drv_path,
+                                                    const basic_derivation_t& drv,
                                                     const ServeProto::BuildOptions& options);
 
-  void build_paths(const std::vector<DerivedPath>& drv_paths, BuildMode build_mode,
-                  std::shared_ptr<Store> eval_store) override;
+  void build_paths(const std::vector<derived_path_t>& drv_paths, BuildMode build_mode,
+                  std::shared_ptr<store_t> eval_store) override;
 
-  void ensure_path(const StorePath& path) override { unsupported("ensurePath"); }
+  void ensure_path(const store_path_t& path) override { unsupported("ensurePath"); }
 
-  ref<SourceAccessor> getFSAccessor(bool require_valid_path) override {
+  ref<source_accessor_t> getFSAccessor(bool require_valid_path) override {
     unsupported("getFSAccessor");
   }
 
-  std::shared_ptr<SourceAccessor> getFSAccessor(const StorePath& path,
+  std::shared_ptr<source_accessor_t> getFSAccessor(const store_path_t& path,
                                                 bool require_valid_path) override {
     unsupported("getFSAccessor");
   }
@@ -149,12 +149,12 @@ public:
    * We make this fail for now so we can add implement this properly later
    * without it being a breaking change.
    */
-  void repairPath(const StorePath& path) override { unsupported("repairPath"); }
+  void repairPath(const store_path_t& path) override { unsupported("repairPath"); }
 
-  void computeFSClosure(const StorePathSet& paths, StorePathSet& out, bool flipDirection = false,
+  void computeFSClosure(const store_path_set_t& paths, store_path_set_t& out, bool flipDirection = false,
                         bool includeOutputs = false, bool includeDerivers = false) override;
 
-  StorePathSet queryValidPaths(const StorePathSet& paths,
+  store_path_set_t queryValidPaths(const store_path_set_t& paths,
                                SubstituteFlag maybeSubstitute = NoSubstitute) override;
 
   /**
@@ -165,7 +165,7 @@ public:
    * garbage-collects paths that are already there. Optionally, ask
    * the remote host to substitute missing paths.
    */
-  StorePathSet queryValidPaths(const StorePathSet& paths, bool lock,
+  store_path_set_t queryValidPaths(const store_path_set_t& paths, bool lock,
                                SubstituteFlag maybeSubstitute = NoSubstitute);
 
   void connect() override;
@@ -178,7 +178,7 @@ public:
 
   ConnectionStats getConnectionStats();
 
-  pid_t getConnectionPid();
+  ::pid_t get_connection_pid();
 
   /**
    * The legacy ssh protocol doesn't support checking for trusted-user.

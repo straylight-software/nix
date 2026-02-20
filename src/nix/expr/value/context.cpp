@@ -15,7 +15,7 @@ NixStringContextElem NixStringContextElem::parse(std::string_view s0,
     size_t index = s.find("!");
     if (index == std::string_view::npos) {
       return SingleDerivedPath::opaque_t{
-          .path = StorePath{s},
+          .path = store_path_t{s},
       };
     } else {
       std::string output{s.substr(0, index)};
@@ -49,12 +49,12 @@ NixStringContextElem NixStringContextElem::parse(std::string_view s0,
     }
     case '=': {
       return NixStringContextElem::DrvDeep{
-          .drv_path = StorePath{s.substr(1)},
+          .drv_path = store_path_t{s.substr(1)},
       };
     }
     case '@': {
       return NixStringContextElem::Path{
-          .store_path = StorePath{s.substr(1)},
+          .store_path = store_path_t{s.substr(1)},
       };
     }
     default: {

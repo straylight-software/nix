@@ -21,28 +21,28 @@
 
 namespace nix {
 
-struct Sink;
-struct Source;
+struct sink_t;
+struct source_t;
 
-class Pid {
+class process_handle_t {
 #ifndef _WIN32
-  pid_t pid = -1;
-  bool separate_pg = false;
-  int killSignal = SIGKILL;
+  ::pid_t pid_ = -1;
+  bool separate_pg_ = false;
+  int kill_signal_ = SIGKILL;
 #else
-  auto_close_fd_t pid = INVALID_DESCRIPTOR;
+  auto_close_fd_t pid_ = INVALID_DESCRIPTOR;
 #endif
 public:
-  Pid();
+  process_handle_t();
 #ifndef _WIN32
-  Pid(pid_t pid);
-  void operator=(pid_t pid);
-  operator pid_t();
+  process_handle_t(::pid_t pid);
+  void operator=(::pid_t pid);
+  operator ::pid_t();
 #else
-  Pid(auto_close_fd_t pid);
+  process_handle_t(auto_close_fd_t pid);
   void operator=(auto_close_fd_t pid);
 #endif
-  ~Pid();
+  ~process_handle_t();
   int kill();
   int wait();
 
@@ -50,7 +50,7 @@ public:
 #ifndef _WIN32
   void set_separate_pg(bool separate_pg);
   void set_kill_signal(int signal);
-  pid_t release();
+  ::pid_t release();
 #endif
 };
 
@@ -78,7 +78,8 @@ struct process_options_t {
 };
 
 #ifndef _WIN32
-pid_t start_process(std::function<void()> fun, const process_options_t& options = process_options_t());
+process_handle_t start_process(std::function<void()> fun,
+                        const process_options_t& options = process_options_t());
 #endif
 
 /**
@@ -86,7 +87,7 @@ pid_t start_process(std::function<void()> fun, const process_options_t& options 
  * shell backtick operator).
  */
 std::string run_program(Path program, bool lookup_path = false, const strings_t& args = strings_t(),
-                       const std::optional<std::string>& input = {}, bool is_interactive = false);
+                        const std::optional<std::string>& input = {}, bool is_interactive = false);
 
 struct run_options_t {
   Path program;
@@ -99,8 +100,8 @@ struct run_options_t {
   std::optional<Path> chdir;
   std::optional<string_map_t> environment;
   std::optional<std::string> input;
-  Source* standard_in = nullptr;
-  Sink* standard_out = nullptr;
+  source_t* standard_in = nullptr;
+  sink_t* standard_out = nullptr;
   bool merge_stderr_to_stdout = false;
   bool is_interactive = false;
 };
@@ -113,8 +114,8 @@ class exec_error_t : public Error {
 public:
   int status;
 
-  template <typename... Args>
-  exec_error_t(int status, const Args&... args) : Error(args...), status(status) {}
+  template <typename... args_t>
+  exec_error_t(int status, const args_t&... args) : Error(args...), status(status) {}
 };
 
 /**

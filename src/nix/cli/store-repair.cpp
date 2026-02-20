@@ -12,7 +12,7 @@ struct cmd_store_repair_t : StorePathsCommand {
         ;
   }
 
-  void run(ref<Store> store, StorePaths&& store_paths) override {
+  void run(ref<store_t> store, store_paths_t&& store_paths) override {
     for (auto& path : store_paths)
       store->repairPath(path);
   }

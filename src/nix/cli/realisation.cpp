@@ -29,7 +29,7 @@ struct cmd_realisation_info_t : BuiltPathsCommand, MixJSON {
 
   category_t category() override { return catSecondary; }
 
-  void run(ref<Store> store, BuiltPaths&& paths, BuiltPaths&& root_paths) override {
+  void run(ref<store_t> store, BuiltPaths&& paths, BuiltPaths&& root_paths) override {
     experimental_feature_settings.require(xp_t::ca_derivations);
     RealisedPath::Set realisations;
 
@@ -42,7 +42,7 @@ struct cmd_realisation_info_t : BuiltPathsCommand, MixJSON {
       nlohmann::json res = nlohmann::json::array();
       for (auto& path : realisations) {
         nlohmann::json currentPath;
-        if (auto realisation = std::get_if<Realisation>(&path.raw))
+        if (auto realisation = std::get_if<realisation_t>(&path.raw))
           currentPath = *realisation;
         else
           currentPath["opaquePath"] = store->printStorePath(path.path());
@@ -52,7 +52,7 @@ struct cmd_realisation_info_t : BuiltPathsCommand, MixJSON {
       printJSON(res);
     } else {
       for (auto& path : realisations) {
-        if (auto realisation = std::get_if<Realisation>(&path.raw)) {
+        if (auto realisation = std::get_if<realisation_t>(&path.raw)) {
           logger->cout("%s %s", realisation->id.to_string(),
                        store->printStorePath(realisation->out_path));
         } else

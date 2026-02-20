@@ -14,12 +14,12 @@ namespace nix {
 using MakeNotAllowedError = std::function<RestrictedPathError(const canon_path_t& path)>;
 
 /**
- * An abstract wrapping `SourceAccessor` that performs access
+ * An abstract wrapping `source_accessor_t` that performs access
  * control. Subclasses should override `is_allowed()` to implement an
  * access control policy. The error message is customized at construction.
  */
-struct FilteringSourceAccessor : SourceAccessor {
-  ref<SourceAccessor> next;
+struct FilteringSourceAccessor : source_accessor_t {
+  ref<source_accessor_t> next;
   canon_path_t prefix;
   MakeNotAllowedError make_not_allowed_error;
 
@@ -32,7 +32,7 @@ struct FilteringSourceAccessor : SourceAccessor {
 
   std::string read_file(const canon_path_t& path) override;
 
-  void read_file(const canon_path_t& path, Sink& sink,
+  void read_file(const canon_path_t& path, sink_t& sink,
                 std::function<void(uint64_t)> size_callback) override;
 
   bool path_exists(const canon_path_t& path) override;
@@ -64,7 +64,7 @@ struct FilteringSourceAccessor : SourceAccessor {
 };
 
 /**
- * A wrapping `SourceAccessor` that checks paths against a set of
+ * A wrapping `source_accessor_t` that checks paths against a set of
  * allowed prefixes.
  */
 struct AllowListSourceAccessor : public FilteringSourceAccessor {
@@ -73,7 +73,7 @@ struct AllowListSourceAccessor : public FilteringSourceAccessor {
    */
   virtual void allowPrefix(canon_path_t prefix) = 0;
 
-  static ref<AllowListSourceAccessor> create(ref<SourceAccessor> next,
+  static ref<AllowListSourceAccessor> create(ref<source_accessor_t> next,
                                              std::set<canon_path_t>&& allowed_prefixes,
                                              boost::unordered_flat_set<canon_path_t>&& allowed_paths,
                                              MakeNotAllowedError&& make_not_allowed_error);
@@ -82,7 +82,7 @@ struct AllowListSourceAccessor : public FilteringSourceAccessor {
 };
 
 /**
- * A wrapping `SourceAccessor` mix-in where `is_allowed()` caches the result of virtual
+ * A wrapping `source_accessor_t` mix-in where `is_allowed()` caches the result of virtual
  * `isAllowedUncached()`.
  */
 struct CachingFilteringSourceAccessor : FilteringSourceAccessor {

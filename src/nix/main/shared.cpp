@@ -44,11 +44,11 @@ void print_gc_warning() {
                         "the result might be removed by the garbage collector");
 }
 
-void print_missing(ref<Store> store, const std::vector<DerivedPath>& paths, verbosity_t lvl) {
+void print_missing(ref<store_t> store, const std::vector<derived_path_t>& paths, verbosity_t lvl) {
   print_missing(store, store->query_missing(paths), lvl);
 }
 
-void print_missing(ref<Store> store, const MissingPaths& missing, verbosity_t lvl) {
+void print_missing(ref<store_t> store, const MissingPaths& missing, verbosity_t lvl) {
   if (!missing.willBuild.empty()) {
     if (missing.willBuild.size() == 1)
       printMsg(lvl, "this derivation will be built:");
@@ -69,11 +69,11 @@ void print_missing(ref<Store> store, const MissingPaths& missing, verbosity_t lv
                missing.willSubstitute.size(), render_size(missing.downloadSize),
                render_size(missing.nar_size));
     }
-    std::vector<const StorePath*> willSubstituteSorted = {};
+    std::vector<const store_path_t*> willSubstituteSorted = {};
     std::for_each(missing.willSubstitute.begin(), missing.willSubstitute.end(),
-                  [&](const StorePath& p) { willSubstituteSorted.push_back(&p); });
+                  [&](const store_path_t& p) { willSubstituteSorted.push_back(&p); });
     std::sort(willSubstituteSorted.begin(), willSubstituteSorted.end(),
-              [](const StorePath* lhs, const StorePath* rhs) {
+              [](const store_path_t* lhs, const store_path_t* rhs) {
                 if (lhs->name() == rhs->name())
                   return lhs->to_string() < rhs->to_string();
                 else
@@ -292,7 +292,7 @@ void print_version(const std::string& program_name) {
     std::cout << "System configuration file: " << (settings.nixConfDir / "nix.conf") << "\n";
     std::cout << "User configuration files: " << concat_strings_sep(":", settings.nixUserConfFiles)
               << "\n";
-    std::cout << "Store directory: " << settings.nixStore << "\n";
+    std::cout << "store_t directory: " << settings.nixStore << "\n";
     std::cout << "State directory: " << settings.nixStateDir << "\n";
     std::cout << "Data directory: " << settings.nixDataDir << "\n";
   }
@@ -384,5 +384,58 @@ PrintFreed::~PrintFreed() {
     std::cout << fmt("%d store paths deleted, %s freed\n", results.paths.size(),
                      render_size(results.bytes_freed));
 }
+
+#ifndef _WIN32
+
+// Stack overflow handler - minimal implementation
+// Uses sigaltstack to handle SIGSEGV on alternate stack
+
+std::function<void(siginfo_t* info, void* ctx)> stackOverflowHandler;
+
+void defaultStackOverflowHandler(siginfo_t* info, void* ctx) {
+  // Write directly to stderr to avoid heap allocation in signal handler
+  const char msg[] = "error: stack overflow detected (SIGSEGV)\n";
+  [[maybe_unused]] auto _ = write(STDERR_FILENO, msg, sizeof(msg) - 1);
+  _exit(1);
+}
+
+static char altstack_buffer[SIGSTKSZ];
+
+static void sigsegv_handler(int sig, siginfo_t* info, void* ctx) {
+  // Check if this is a stack overflow (address near the stack)
+  // If so, call the handler, otherwise re-raise
+  if (stackOverflowHandler) {
+    stackOverflowHandler(info, ctx);
+  } else {
+    defaultStackOverflowHandler(info, ctx);
+  }
+}
+
+void detectStackOverflow() {
+  // Set up alternate signal stack
+  stack_t ss;
+  ss.ss_sp = altstack_buffer;
+  ss.ss_size = sizeof(altstack_buffer);
+  ss.ss_flags = 0;
+  if (sigaltstack(&ss, nullptr) == -1) {
+    return; // silently fail if we can't set up alt stack
+  }
+
+  // Install SIGSEGV handler
+  struct sigaction sa;
+  sa.sa_sigaction = sigsegv_handler;
+  sa.sa_flags = SA_SIGINFO | SA_ONSTACK;
+  sigemptyset(&sa.sa_mask);
+  if (sigaction(SIGSEGV, &sa, nullptr) == -1) {
+    return; // silently fail
+  }
+
+  // Initialize default handler if not set
+  if (!stackOverflowHandler) {
+    stackOverflowHandler = defaultStackOverflowHandler;
+  }
+}
+
+#endif // _WIN32
 
 } // namespace nix

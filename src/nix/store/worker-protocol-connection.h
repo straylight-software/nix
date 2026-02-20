@@ -66,10 +66,10 @@ struct WorkerProto::BasicClientConnection : WorkerProto::BasicConnection {
 
   virtual void closeWrite() = 0;
 
-  std::exception_ptr processStderrReturn(Sink* sink = 0, Source* source = 0, bool flush = true,
+  std::exception_ptr processStderrReturn(sink_t* sink = 0, source_t* source = 0, bool flush = true,
                                          bool block = true);
 
-  void processStderr(bool* daemonException, Sink* sink = 0, Source* source = 0, bool flush = true,
+  void processStderr(bool* daemonException, sink_t* sink = 0, source_t* source = 0, bool flush = true,
                      bool block = true);
 
   /**
@@ -89,7 +89,7 @@ struct WorkerProto::BasicClientConnection : WorkerProto::BasicConnection {
    * @param supportedFeatures The protocol features that we support.
    */
   // FIXME: this should probably be a constructor.
-  static std::tuple<Version, FeatureSet> handshake(buffered_sink_t& to, Source& from,
+  static std::tuple<Version, FeatureSet> handshake(buffered_sink_t& to, source_t& from,
                                                    WorkerProto::Version localVersion,
                                                    const FeatureSet& supportedFeatures);
 
@@ -97,28 +97,28 @@ struct WorkerProto::BasicClientConnection : WorkerProto::BasicConnection {
    * After calling handshake, must call this to exchange some basic
    * information about the connection.
    */
-  ClientHandshakeInfo postHandshake(const StoreDirConfig& store);
+  ClientHandshakeInfo postHandshake(const store_dir_config_t& store);
 
-  void addTempRoot(const StoreDirConfig& remoteStore, bool* daemonException, const StorePath& path);
+  void addTempRoot(const store_dir_config_t& remoteStore, bool* daemonException, const store_path_t& path);
 
-  StorePathSet queryValidPaths(const StoreDirConfig& remoteStore, bool* daemonException,
-                               const StorePathSet& paths, SubstituteFlag maybeSubstitute);
+  store_path_set_t queryValidPaths(const store_dir_config_t& remoteStore, bool* daemonException,
+                               const store_path_set_t& paths, SubstituteFlag maybeSubstitute);
 
-  std::optional<UnkeyedValidPathInfo> queryPathInfo(const StoreDirConfig& store,
-                                                    bool* daemonException, const StorePath& path);
+  std::optional<UnkeyedValidPathInfo> queryPathInfo(const store_dir_config_t& store,
+                                                    bool* daemonException, const store_path_t& path);
 
-  void putBuildDerivationRequest(const StoreDirConfig& store, bool* daemonException,
-                                 const StorePath& drv_path, const BasicDerivation& drv,
+  void putBuildDerivationRequest(const store_dir_config_t& store, bool* daemonException,
+                                 const store_path_t& drv_path, const basic_derivation_t& drv,
                                  BuildMode build_mode);
 
   /**
    * Get the response, must be paired with
    * `putBuildDerivationRequest`.
    */
-  BuildResult getBuildDerivationResponse(const StoreDirConfig& store, bool* daemonException);
+  build_result_t getBuildDerivationResponse(const store_dir_config_t& store, bool* daemonException);
 
-  void nar_from_path(const StoreDirConfig& store, bool* daemonException, const StorePath& path,
-                   std::function<void(Source&)> fun);
+  void nar_from_path(const store_dir_config_t& store, bool* daemonException, const store_path_t& path,
+                   std::function<void(source_t&)> fun);
 };
 
 struct WorkerProto::BasicServerConnection : WorkerProto::BasicConnection {
@@ -139,7 +139,7 @@ struct WorkerProto::BasicServerConnection : WorkerProto::BasicConnection {
    * @param supportedFeatures The protocol features that we support.
    */
   // FIXME: this should probably be a constructor.
-  static std::tuple<Version, FeatureSet> handshake(buffered_sink_t& to, Source& from,
+  static std::tuple<Version, FeatureSet> handshake(buffered_sink_t& to, source_t& from,
                                                    WorkerProto::Version localVersion,
                                                    const FeatureSet& supportedFeatures);
 
@@ -147,7 +147,7 @@ struct WorkerProto::BasicServerConnection : WorkerProto::BasicConnection {
    * After calling handshake, must call this to exchange some basic
    * information about the connection.
    */
-  void postHandshake(const StoreDirConfig& store, const ClientHandshakeInfo& info);
+  void postHandshake(const store_dir_config_t& store, const ClientHandshakeInfo& info);
 };
 
 } // namespace nix

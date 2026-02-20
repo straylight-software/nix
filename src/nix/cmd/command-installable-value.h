@@ -14,9 +14,9 @@ struct InstallableValueCommand : InstallableCommand {
   /**
    * Entry point to this command
    */
-  virtual void run(ref<Store> store, ref<InstallableValue> installable) = 0;
+  virtual void run(ref<store_t> store, ref<InstallableValue> installable) = 0;
 
-  void run(ref<Store> store, ref<Installable> installable) override;
+  void run(ref<store_t> store, ref<Installable> installable) override;
 };
 
 } // namespace nix

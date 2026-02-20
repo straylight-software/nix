@@ -18,7 +18,7 @@ using nlohmann::json;
  * that is, the sum of the size of the NAR serialisation of each object
  * in the set.
  */
-static uint64_t get_store_objects_total_size(Store& store, const StorePathSet& closure) {
+static uint64_t get_store_objects_total_size(store_t& store, const store_path_set_t& closure) {
   uint64_t total_nar_size = 0;
   for (auto& p : closure) {
     total_nar_size += store.queryPathInfo(p)->nar_size;
@@ -34,11 +34,11 @@ static uint64_t get_store_objects_total_size(Store& store, const StorePathSet& c
  * included.
  * @param format The JSON format version to use.
  */
-static json path_info_to_json(Store& store, const StorePathSet& store_paths, bool show_closure_size,
+static json path_info_to_json(store_t& store, const store_path_set_t& store_paths, bool show_closure_size,
                            PathInfoJsonFormat format) {
   json::object_t json_all_objects = json::object();
 
-  auto make_key = [&](const StorePath& path) {
+  auto make_key = [&](const store_path_t& path) {
     return format == PathInfoJsonFormat::V1 ? store.printStorePath(path)
                                             : std::string(path.to_string());
   };
@@ -63,16 +63,16 @@ static json path_info_to_json(Store& store, const StorePathSet& store_paths, boo
       json_object["storeDir"] = store.store_dir;
 
       if (show_closure_size) {
-        StorePathSet closure;
+        store_path_set_t closure;
         store.computeFSClosure(store_path, closure, false, false);
 
         json_object["closureSize"] = get_store_objects_total_size(store, closure);
 
-        if (dynamic_cast<const NarInfo*>(&*info)) {
+        if (dynamic_cast<const nar_info_t*>(&*info)) {
           uint64_t totalDownloadSize = 0;
           for (auto& p : closure) {
             auto depInfo = store.queryPathInfo(p);
-            if (auto* depNarInfo = dynamic_cast<const NarInfo*>(&*depInfo))
+            if (auto* depNarInfo = dynamic_cast<const nar_info_t*>(&*depInfo))
               totalDownloadSize += depNarInfo->file_size;
             else
               throw Error("Missing .narinfo for dep %s of %s", store.printStorePath(p),
@@ -165,7 +165,7 @@ struct cmd_path_info_t : StorePathsCommand, MixJSON {
       str << fmt("\t%11d", value);
   }
 
-  void run(ref<Store> store, StorePaths&& store_paths) override {
+  void run(ref<store_t> store, store_paths_t&& store_paths) override {
     size_t path_len = 0;
     for (auto& store_path : store_paths)
       path_len = std::max(path_len, store->printStorePath(store_path).size());
@@ -174,7 +174,7 @@ struct cmd_path_info_t : StorePathsCommand, MixJSON {
       printJSON(path_info_to_json(
           *store,
           // FIXME: preserve order?
-          StorePathSet(store_paths.begin(), store_paths.end()), show_closure_size,
+          store_path_set_t(store_paths.begin(), store_paths.end()), show_closure_size,
           json_format
               .or_else([&]() {
                 warn(
@@ -201,7 +201,7 @@ struct cmd_path_info_t : StorePathsCommand, MixJSON {
           print_size(str, info->nar_size);
 
         if (show_closure_size) {
-          StorePathSet closure;
+          store_path_set_t closure;
           store->computeFSClosure(store_path, closure, false, false);
           print_size(str, get_store_objects_total_size(*store, closure));
         }

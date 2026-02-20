@@ -17,7 +17,7 @@ std::string FilteringSourceAccessor::read_file(const canon_path_t& path) {
   return next->read_file(prefix / path);
 }
 
-void FilteringSourceAccessor::read_file(const canon_path_t& path, Sink& sink,
+void FilteringSourceAccessor::read_file(const canon_path_t& path, sink_t& sink,
                                        std::function<void(uint64_t)> size_callback) {
   checkAccess(path);
   return next->read_file(prefix / path, sink, size_callback);
@@ -27,16 +27,16 @@ bool FilteringSourceAccessor::path_exists(const canon_path_t& path) {
   return is_allowed(path) && next->path_exists(prefix / path);
 }
 
-std::optional<SourceAccessor::stat_t> FilteringSourceAccessor::maybe_lstat(const canon_path_t& path) {
+std::optional<source_accessor_t::stat_t> FilteringSourceAccessor::maybe_lstat(const canon_path_t& path) {
   return is_allowed(path) ? next->maybe_lstat(prefix / path) : std::nullopt;
 }
 
-SourceAccessor::stat_t FilteringSourceAccessor::lstat(const canon_path_t& path) {
+source_accessor_t::stat_t FilteringSourceAccessor::lstat(const canon_path_t& path) {
   checkAccess(path);
   return next->lstat(prefix / path);
 }
 
-SourceAccessor::dir_entries_t FilteringSourceAccessor::read_directory(const canon_path_t& path) {
+source_accessor_t::dir_entries_t FilteringSourceAccessor::read_directory(const canon_path_t& path) {
   checkAccess(path);
   dir_entries_t entries;
   for (auto& entry : next->read_directory(prefix / path)) {
@@ -77,7 +77,7 @@ struct allow_list_source_accessor_impl_t : AllowListSourceAccessor {
   shared_sync_t<std::set<canon_path_t>> allowed_prefixes;
   shared_sync_t<boost::unordered_flat_set<canon_path_t>> allowed_paths;
 
-  allow_list_source_accessor_impl_t(ref<SourceAccessor> next, std::set<canon_path_t>&& allowed_prefixes,
+  allow_list_source_accessor_impl_t(ref<source_accessor_t> next, std::set<canon_path_t>&& allowed_prefixes,
                               boost::unordered_flat_set<canon_path_t>&& allowed_paths,
                               MakeNotAllowedError&& make_not_allowed_error)
       : AllowListSourceAccessor(source_path_t(next), std::move(make_not_allowed_error)),
@@ -92,7 +92,7 @@ struct allow_list_source_accessor_impl_t : AllowListSourceAccessor {
 };
 
 ref<AllowListSourceAccessor>
-AllowListSourceAccessor::create(ref<SourceAccessor> next, std::set<canon_path_t>&& allowed_prefixes,
+AllowListSourceAccessor::create(ref<source_accessor_t> next, std::set<canon_path_t>&& allowed_prefixes,
                                 boost::unordered_flat_set<canon_path_t>&& allowed_paths,
                                 MakeNotAllowedError&& make_not_allowed_error) {
   return make_ref<allow_list_source_accessor_impl_t>(

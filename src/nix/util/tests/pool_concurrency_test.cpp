@@ -56,7 +56,7 @@ std::atomic<int> test_resource::construction_count{0};
 TEST_CASE("pool factory exception does not leak in use count", "[pool][exception][concurrency]") {
   std::atomic<bool> should_throw{true};
 
-  Pool<test_resource> pool(2, [&]() -> ref<test_resource> {
+  pool_t<test_resource> pool(2, [&]() -> ref<test_resource> {
     if (should_throw) {
       throw std::runtime_error("factory failed");
     }
@@ -86,7 +86,7 @@ TEST_CASE("pool factory exception does not leak in use count", "[pool][exception
 }
 
 TEST_CASE("pool get blocks when capacity exhausted", "[pool][capacity][!mayfail]") {
-  Pool<test_resource> pool(2, []() { return make_ref<test_resource>(); });
+  pool_t<test_resource> pool(2, []() { return make_ref<test_resource>(); });
 
   auto h1 = pool.get();
   auto h2 = pool.get();
@@ -114,7 +114,7 @@ TEST_CASE("pool concurrent access respects capacity limit", "[pool][concurrency]
   constexpr size_t capacity = 5;
   constexpr size_t num_threads = 20;
 
-  Pool<test_resource> pool(capacity, []() { return make_ref<test_resource>(); });
+  pool_t<test_resource> pool(capacity, []() { return make_ref<test_resource>(); });
 
   std::atomic<size_t> concurrent_count{0};
   std::atomic<size_t> max_concurrent{0};
@@ -162,7 +162,7 @@ TEST_CASE("pool concurrent property tests", "[pool][property][concurrency]") {
     auto num_threads = *rc::gen::inRange<size_t>(2, 8);
     auto ops_per_thread = *rc::gen::inRange<size_t>(5, 20);
 
-    Pool<test_resource> pool(capacity, []() { return make_ref<test_resource>(); });
+    pool_t<test_resource> pool(capacity, []() { return make_ref<test_resource>(); });
 
     std::atomic<size_t> concurrent_count{0};
     std::atomic<bool> exceeded{false};
@@ -195,7 +195,7 @@ TEST_CASE("pool concurrent property tests", "[pool][property][concurrency]") {
     auto capacity = *rc::gen::inRange<size_t>(3, 10);
     auto num_threads = *rc::gen::inRange<size_t>(2, 6);
 
-    Pool<test_resource> pool(capacity, []() { return make_ref<test_resource>(); });
+    pool_t<test_resource> pool(capacity, []() { return make_ref<test_resource>(); });
 
     std::vector<std::thread> threads;
     threads.reserve(num_threads);
@@ -229,7 +229,7 @@ TEST_CASE("pool concurrent fuzz test", "[pool][fuzz][concurrency]") {
     auto num_threads = *rc::gen::inRange<size_t>(2, 5);
     auto ops_per_thread = *rc::gen::inRange<size_t>(10, 30);
 
-    Pool<test_resource> pool(
+    pool_t<test_resource> pool(
         capacity, []() { return make_ref<test_resource>(); },
         [](const ref<test_resource>& r) { return r->valid; });
 
@@ -243,7 +243,7 @@ TEST_CASE("pool concurrent fuzz test", "[pool][fuzz][concurrency]") {
       threads.emplace_back([&, i]() {
         // thread-local random generator
         std::mt19937 rng(static_cast<unsigned>(i) + 1);
-        std::deque<Pool<test_resource>::Handle> local_handles;
+        std::deque<pool_t<test_resource>::Handle> local_handles;
 
         for (size_t j = 0; j < ops_per_thread; ++j) {
           // randomly acquire or release

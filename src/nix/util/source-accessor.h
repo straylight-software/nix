@@ -8,7 +8,7 @@
 
 namespace nix {
 
-struct Sink;
+struct sink_t;
 
 /**
  * Note there is a decent chance this type soon goes away because the problem is solved another way.
@@ -38,14 +38,14 @@ make_error(FileNotFound, Error);
  * filesystem-like entities (such as the real filesystem, tarballs or
  * git repositories).
  */
-struct SourceAccessor : std::enable_shared_from_this<SourceAccessor> {
+struct source_accessor_t : std::enable_shared_from_this<source_accessor_t> {
   const size_t number;
 
   std::string display_prefix, display_suffix;
 
-  SourceAccessor();
+  source_accessor_t();
 
-  virtual ~SourceAccessor() = default;
+  virtual ~source_accessor_t() = default;
 
   /**
    * Return the contents of a file as a string.
@@ -67,11 +67,11 @@ struct SourceAccessor : std::enable_shared_from_this<SourceAccessor> {
    * @note Like the other `read_file`, this method should *not* follow
    * symlinks.
    *
-   * @note subclasses of `SourceAccessor` need to implement at least
+   * @note subclasses of `source_accessor_t` need to implement at least
    * one of the `read_file()` variants.
    */
   virtual void read_file(
-      const canon_path_t& path, Sink& sink,
+      const canon_path_t& path, sink_t& sink,
       std::function<void(uint64_t)> size_callback = [](uint64_t size) {});
 
   virtual auto path_exists(const canon_path_t& path) -> bool;
@@ -135,7 +135,7 @@ struct SourceAccessor : std::enable_shared_from_this<SourceAccessor> {
 
   virtual std::string read_link(const canon_path_t& path) = 0;
 
-  virtual void dump_path(const canon_path_t& path, Sink& sink,
+  virtual void dump_path(const canon_path_t& path, sink_t& sink,
                          path_filter_t& filter = default_path_filter);
 
   Hash hash_path(const canon_path_t& path, path_filter_t& filter = default_path_filter,
@@ -150,9 +150,9 @@ struct SourceAccessor : std::enable_shared_from_this<SourceAccessor> {
     return std::nullopt;
   }
 
-  auto operator==(const SourceAccessor& x) const -> bool { return number == x.number; }
+  auto operator==(const source_accessor_t& x) const -> bool { return number == x.number; }
 
-  auto operator<=>(const SourceAccessor& x) const { return number <=> x.number; }
+  auto operator<=>(const source_accessor_t& x) const { return number <=> x.number; }
 
   void set_path_display(std::string display_prefix, std::string display_suffix = "");
 
@@ -210,7 +210,7 @@ struct SourceAccessor : std::enable_shared_from_this<SourceAccessor> {
 /**
  * Return a source accessor that contains only an empty root directory.
  */
-auto make_empty_source_accessor() -> ref<SourceAccessor>;
+auto make_empty_source_accessor() -> ref<source_accessor_t>;
 
 /**
  * Exception thrown when accessing a filtered path (see
@@ -221,7 +221,7 @@ make_error(RestrictedPathError, Error);
 /**
  * Return an accessor for the root filesystem.
  */
-auto get_fs_source_accessor() -> ref<SourceAccessor>;
+auto get_fs_source_accessor() -> ref<source_accessor_t>;
 
 /**
  * Construct an accessor for the filesystem rooted at `root`. Note
@@ -229,12 +229,12 @@ auto get_fs_source_accessor() -> ref<SourceAccessor>;
  * elements, and that absolute symlinks are resolved relative to
  * `root`.
  */
-auto make_fs_source_accessor(std::filesystem::path root) -> ref<SourceAccessor>;
+auto make_fs_source_accessor(std::filesystem::path root) -> ref<source_accessor_t>;
 
 /**
  * Construct an accessor that presents a "union" view of a vector of
  * underlying accessors. Earlier accessors take precedence over later.
  */
-ref<SourceAccessor> make_union_source_accessor(std::vector<ref<SourceAccessor>>&& accessors);
+ref<source_accessor_t> make_union_source_accessor(std::vector<ref<source_accessor_t>>&& accessors);
 
 } // namespace nix

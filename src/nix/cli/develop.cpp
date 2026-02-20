@@ -60,9 +60,9 @@ struct build_environment_t {
 
   using Associative = string_map_t;
 
-  using Value = std::variant<String, Array, Associative>;
+  using value_t = std::variant<String, Array, Associative>;
 
-  std::map<std::string, Value> vars;
+  std::map<std::string, value_t> vars;
   string_map_t bash_functions;
   std::optional<std::pair<std::string, std::string>> structured_attrs;
 
@@ -172,21 +172,21 @@ struct build_environment_t {
     }
   }
 
-  static std::string get_string(const Value& value) {
+  static std::string get_string(const value_t& value) {
     if (auto str = std::get_if<String>(&value))
       return str->value;
     else
       throw Error("bash variable is not a string");
   }
 
-  static Associative get_associative(const Value& value) {
+  static Associative get_associative(const value_t& value) {
     if (auto assoc = std::get_if<Associative>(&value))
       return *assoc;
     else
       throw Error("bash variable is not an associative array");
   }
 
-  static Array get_strings(const Value& value) {
+  static Array get_strings(const value_t& value) {
     if (auto str = std::get_if<String>(&value))
       return tokenize_string<Array>(str->value);
     else if (auto arr = std::get_if<Array>(&value)) {
@@ -222,8 +222,8 @@ const static std::string get_env_sh =
  * initial environment variables, that just writes the resulting
  * environment to a file and exits.
  */
-static StorePath get_derivation_environment(ref<Store> store, ref<Store> eval_store,
-                                          const StorePath& drv_path) {
+static store_path_t get_derivation_environment(ref<store_t> store, ref<store_t> eval_store,
+                                          const store_path_t& drv_path) {
   auto drv = eval_store->derivationFromPath(drv_path);
 
   auto builder = base_name_of(drv.builder);
@@ -233,7 +233,7 @@ static StorePath get_derivation_environment(ref<Store> store, ref<Store> eval_st
   auto get_env_sh_path = ({
     string_source_t source{get_env_sh};
     eval_store->add_to_store_from_dump(source, "get-env.sh", file_serialisation_method_t::flat,
-                                  ContentAddressMethod::raw_t::Text, hash_algorithm_t::SHA256, {});
+                                  content_address_method_t::raw_t::Text, hash_algorithm_t::SHA256, {});
   });
 
   drv.args = {store->printStorePath(get_env_sh_path)};
@@ -257,12 +257,12 @@ static StorePath get_derivation_environment(ref<Store> store, ref<Store> eval_st
   drv.input_srcs.insert(std::move(get_env_sh_path));
   for (auto& [output_name, output] : drv.outputs) {
     std::visit(overloaded{
-                   [&](const DerivationOutput::InputAddressed&) {
-                     output = DerivationOutput::Deferred{};
+                   [&](const derivation_output_t::InputAddressed&) {
+                     output = derivation_output_t::Deferred{};
                      drv.env[output_name] = "";
                    },
-                   [&](const DerivationOutput::CAFixed&) {
-                     output = DerivationOutput::Deferred{};
+                   [&](const derivation_output_t::CAFixed&) {
+                     output = derivation_output_t::Deferred{};
                      drv.env[output_name] = "";
                    },
                    [&](const auto&) {
@@ -276,7 +276,7 @@ static StorePath get_derivation_environment(ref<Store> store, ref<Store> eval_st
   auto shell_drv_path = write_derivation(*eval_store, drv);
 
   /* Build the derivation. */
-  store->build_paths({DerivedPath::Built{
+  store->build_paths({derived_path_t::Built{
                         .drv_path = makeConstantStorePathRef(shell_drv_path),
                         .outputs = OutputsSpec::All{},
                     }},
@@ -321,7 +321,7 @@ struct common_t : InstallableCommand, MixProfile {
     });
   }
 
-  std::string make_rc_script(ref<Store> store, const build_environment_t& build_environment,
+  std::string make_rc_script(ref<store_t> store, const build_environment_t& build_environment,
                            const std::filesystem::path& tmp_dir,
                            const std::filesystem::path& outputs_dir =
                                std::filesystem::path{std::filesystem::current_path()} / "outputs") {
@@ -437,7 +437,7 @@ struct common_t : InstallableCommand, MixProfile {
     return res;
   }
 
-  StorePath get_shell_out_path(ref<Store> store, ref<Installable> installable) {
+  store_path_t get_shell_out_path(ref<store_t> store, ref<Installable> installable) {
     auto path = installable->getStorePath();
     if (path && has_suffix(path->to_string(), "-env"))
       return *path;
@@ -455,7 +455,7 @@ struct common_t : InstallableCommand, MixProfile {
     }
   }
 
-  std::pair<build_environment_t, StorePath> get_build_environment(ref<Store> store,
+  std::pair<build_environment_t, store_path_t> get_build_environment(ref<store_t> store,
                                                              ref<Installable> installable) {
     auto shell_out_path = get_shell_out_path(store, installable);
 
@@ -543,7 +543,7 @@ struct cmd_develop_t : common_t, MixEnvironment {
         ;
   }
 
-  void run(ref<Store> store, ref<Installable> installable) override {
+  void run(ref<store_t> store, ref<Installable> installable) override {
     auto [build_environment, gcroot] = get_build_environment(store, installable);
 
     auto [rcFileFd, rcFilePath] = create_temp_file("nix-shell");
@@ -685,7 +685,7 @@ struct cmd_print_dev_env_t : common_t, MixJSON {
 
   category_t category() override { return catUtility; }
 
-  void run(ref<Store> store, ref<Installable> installable) override {
+  void run(ref<store_t> store, ref<Installable> installable) override {
     auto build_environment = get_build_environment(store, installable).first;
 
     logger->stop();

@@ -94,7 +94,7 @@ static void canonicalise_path_meta_data_(const Path& path,
      (i.e. "touch $out/foo; ln $out/foo $out/bar"). */
   if (uidRange && (st.st_uid < uidRange->first || st.st_uid > uidRange->second)) {
     if (S_ISDIR(st.st_mode) || !inodes_seen.count(Inode(st.st_dev, st.st_ino)))
-      throw BuildError(BuildResult::Failure::OutputRejected, "invalid ownership on file '%1%'",
+      throw build_error_t(build_result_t::Failure::OutputRejected, "invalid ownership on file '%1%'",
                        path);
     mode_t mode = st.st_mode & ~S_IFMT;
     assert(S_ISLNK(st.st_mode) ||

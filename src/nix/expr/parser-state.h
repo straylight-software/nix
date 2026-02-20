@@ -56,7 +56,7 @@ struct ParserLocation {
  */
 class ToBeStringyExpr {
 private:
-  using raw_t = std::variant<std::monostate, std::string_view, Expr*>;
+  using raw_t = std::variant<std::monostate, std::string_view, expr_t*>;
   raw_t raw;
 
 public:
@@ -64,11 +64,11 @@ public:
 
   ToBeStringyExpr(std::string_view v) : raw(v) {}
 
-  ToBeStringyExpr(Expr* expr) : raw(expr) { assert(expr); }
+  ToBeStringyExpr(expr_t* expr) : raw(expr) { assert(expr); }
 
   /**
    * Visits the expression and invokes an overloaded functor object \ref f.
-   * If the underlying Expr has a dynamic type of ExprString the overload taking std::string_view
+   * If the underlying expr_t has a dynamic type of ExprString the overload taking std::string_view
    * is invoked.
    *
    * Used to consistently handle simple StringExpr ${"string"} as non-dynamic attributes.
@@ -77,7 +77,7 @@ public:
   template <class F>
   void visit(F&& f) {
     std::visit(overloaded{[&](std::string_view str) { f(str); },
-                          [&](Expr* expr) {
+                          [&](expr_t* expr) {
                             ExprString* str = dynamic_cast<ExprString*>(expr);
                             if (str)
                               f(str->v.string_view());
@@ -89,15 +89,15 @@ public:
   }
 
   /**
-   * Get or create an Expr from either an existing Expr or from a string.
+   * Get or create an expr_t from either an existing expr_t or from a string.
    * Delays the allocation or an AST node in case the parser only cares about string contents.
    */
-  Expr* toExpr(Exprs& exprs) {
-    return std::visit(overloaded{[&](std::string_view str) -> Expr* {
+  expr_t* toExpr(Exprs& exprs) {
+    return std::visit(overloaded{[&](std::string_view str) -> expr_t* {
                                    return exprs.add<ExprString>(exprs.alloc, str);
                                  },
-                                 [&](Expr* expr) { return expr; },
-                                 [](std::monostate) -> Expr* { unreachable(); }},
+                                 [&](expr_t* expr) { return expr; },
+                                 [](std::monostate) -> expr_t* { unreachable(); }},
                       raw);
   }
 };
@@ -134,24 +134,24 @@ struct LexerState {
 struct ParserState {
   const LexerState& lexer_state;
   Exprs& exprs;
-  SymbolTable& symbols;
+  symbol_table_t& symbols;
   pos_table_t& positions;
-  Expr* result;
+  expr_t* result;
   source_path_t base_path;
   pos_table_t::origin_t origin;
-  const ref<SourceAccessor> root_fs;
-  static constexpr Expr::AstSymbols s = StaticEvalSymbols::create().exprSymbols;
-  const EvalSettings& settings;
+  const ref<source_accessor_t> root_fs;
+  static constexpr expr_t::AstSymbols s = StaticEvalSymbols::create().exprSymbols;
+  const eval_settings_t& settings;
 
   void dupAttr(const AttrSelectionPath& attr_path, const pos_idx_t pos, const pos_idx_t prevPos);
-  void dupAttr(Symbol attr, const pos_idx_t pos, const pos_idx_t prevPos);
-  void addAttr(ExprAttrs* attrs, AttrSelectionPath&& attr_path, const ParserLocation& loc, Expr* e,
+  void dupAttr(symbol_t attr, const pos_idx_t pos, const pos_idx_t prevPos);
+  void addAttr(ExprAttrs* attrs, AttrSelectionPath&& attr_path, const ParserLocation& loc, expr_t* e,
                const ParserLocation& exprLoc);
-  void addAttr(ExprAttrs* attrs, AttrSelectionPath& attr_path, const Symbol& symbol,
+  void addAttr(ExprAttrs* attrs, AttrSelectionPath& attr_path, const symbol_t& symbol,
                ExprAttrs::AttrDef&& def);
-  void validateFormals(FormalsBuilder& formals, pos_idx_t pos = no_pos, Symbol arg = {});
-  Expr* strip_indentation(const pos_idx_t pos,
-                         std::span<std::pair<pos_idx_t, std::variant<Expr*, StringToken>>> es);
+  void validateFormals(FormalsBuilder& formals, pos_idx_t pos = no_pos, symbol_t arg = {});
+  expr_t* strip_indentation(const pos_idx_t pos,
+                         std::span<std::pair<pos_idx_t, std::variant<expr_t*, StringToken>>> es);
   pos_idx_t at(const ParserLocation& loc);
 };
 
@@ -162,14 +162,14 @@ inline void ParserState::dupAttr(const AttrSelectionPath& attr_path, const pos_i
                     .pos = positions[pos]});
 }
 
-inline void ParserState::dupAttr(Symbol attr, const pos_idx_t pos, const pos_idx_t prevPos) {
+inline void ParserState::dupAttr(symbol_t attr, const pos_idx_t pos, const pos_idx_t prevPos) {
   throw ParseError(
       {.msg = hint_fmt_t("attribute '%1%' already defined at %2%", symbols[attr], positions[prevPos]),
        .pos = positions[pos]});
 }
 
 inline void ParserState::addAttr(ExprAttrs* attrs, AttrSelectionPath&& attr_path,
-                                 const ParserLocation& loc, Expr* e,
+                                 const ParserLocation& loc, expr_t* e,
                                  const ParserLocation& exprLoc) {
   AttrSelectionPath::iterator i;
   // All attrpaths have at least one attr
@@ -197,7 +197,7 @@ inline void ParserState::addAttr(ExprAttrs* attrs, AttrSelectionPath&& attr_path
     }
     attrs = nested;
   }
-  // Expr insertion.
+  // expr_t insertion.
   // ==========================
   if (i->symbol) {
     addAttr(attrs, attr_path, i->symbol, ExprAttrs::AttrDef(e, pos));
@@ -217,7 +217,7 @@ inline void ParserState::addAttr(ExprAttrs* attrs, AttrSelectionPath&& attr_path
  * symbol as its last element.
  */
 inline void ParserState::addAttr(ExprAttrs* attrs, AttrSelectionPath& attr_path,
-                                 const Symbol& symbol, ExprAttrs::AttrDef&& def) {
+                                 const symbol_t& symbol, ExprAttrs::AttrDef&& def) {
   ExprAttrs::AttrDefs::iterator j = attrs->attrs->find(symbol);
   if (j != attrs->attrs->end()) {
     // This attr path is already defined. However, if both
@@ -234,7 +234,7 @@ inline void ParserState::addAttr(ExprAttrs* attrs, AttrSelectionPath& attr_path,
     // See https://github.com/NixOS/nix/issues/9020.
     if (jAttrs && ae) {
       if (ae->inheritFromExprs && !jAttrs->inheritFromExprs)
-        jAttrs->inheritFromExprs = std::make_unique<std::pmr::vector<Expr*>>();
+        jAttrs->inheritFromExprs = std::make_unique<std::pmr::vector<expr_t*>>();
       for (auto& ad : *ae->attrs) {
         if (ad.second.kind == ExprAttrs::AttrDef::Kind::InheritedFrom) {
           auto& sel = dynamic_cast<ExprSelect&>(*ad.second.e);
@@ -266,12 +266,12 @@ inline void ParserState::addAttr(ExprAttrs* attrs, AttrSelectionPath& attr_path,
   }
 }
 
-inline void ParserState::validateFormals(FormalsBuilder& formals, pos_idx_t pos, Symbol arg) {
+inline void ParserState::validateFormals(FormalsBuilder& formals, pos_idx_t pos, symbol_t arg) {
   std::sort(formals.formals.begin(), formals.formals.end(), [](const auto& a, const auto& b) {
     return std::tie(a.name, a.pos) < std::tie(b.name, b.pos);
   });
 
-  std::optional<std::pair<Symbol, pos_idx_t>> duplicate;
+  std::optional<std::pair<symbol_t, pos_idx_t>> duplicate;
   for (size_t i = 0; i + 1 < formals.formals.size(); i++) {
     if (formals.formals[i].name != formals.formals[i + 1].name)
       continue;
@@ -288,9 +288,9 @@ inline void ParserState::validateFormals(FormalsBuilder& formals, pos_idx_t pos,
                       .pos = positions[pos]});
 }
 
-inline Expr*
+inline expr_t*
 ParserState::strip_indentation(const pos_idx_t pos,
-                              std::span<std::pair<pos_idx_t, std::variant<Expr*, StringToken>>> es) {
+                              std::span<std::pair<pos_idx_t, std::variant<expr_t*, StringToken>>> es) {
   if (es.empty())
     return exprs.add<ExprString>(""_sds);
 
@@ -332,12 +332,12 @@ ParserState::strip_indentation(const pos_idx_t pos,
   }
 
   /* Strip spaces from each line. */
-  std::vector<std::pair<pos_idx_t, Expr*>> es2{};
+  std::vector<std::pair<pos_idx_t, expr_t*>> es2{};
   at_start_of_line = true;
   size_t curDropped = 0;
   size_t n = es.size();
   auto i = es.begin();
-  const auto trimExpr = [&](Expr* e) {
+  const auto trimExpr = [&](expr_t* e) {
     at_start_of_line = false;
     curDropped = 0;
     es2.emplace_back(i->first, e);

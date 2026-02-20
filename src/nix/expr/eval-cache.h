@@ -16,9 +16,9 @@ class AttrCursor;
 
 struct CachedEvalError : EvalError {
   const ref<AttrCursor> cursor;
-  const Symbol attr;
+  const symbol_t attr;
 
-  CachedEvalError(ref<AttrCursor> cursor, Symbol attr);
+  CachedEvalError(ref<AttrCursor> cursor, symbol_t attr);
 
   /**
    * Evaluate this attribute, which should result in a regular
@@ -33,15 +33,15 @@ class EvalCache : public std::enable_shared_from_this<EvalCache> {
   friend struct CachedEvalError;
 
   std::shared_ptr<attr_db_t> db;
-  EvalState& state;
-  typedef std::function<Value*()> RootLoader;
+  eval_state_t& state;
+  typedef std::function<value_t*()> RootLoader;
   RootLoader root_loader;
   RootValue value;
 
-  Value* getRootValue();
+  value_t* getRootValue();
 
 public:
-  EvalCache(std::optional<std::reference_wrapper<const Hash>> useCache, EvalState& state,
+  EvalCache(std::optional<std::reference_wrapper<const Hash>> useCache, eval_state_t& state,
             RootLoader root_loader);
 
   ref<AttrCursor> get_root();
@@ -72,10 +72,10 @@ struct int_t {
 };
 
 using AttrId = uint64_t;
-using AttrKey = std::pair<AttrId, Symbol>;
+using AttrKey = std::pair<AttrId, symbol_t>;
 using string_t = std::pair<std::string, NixStringContext>;
 
-typedef std::variant<std::vector<Symbol>, string_t, placeholder_t, missing_t, misc_t, failed_t,
+typedef std::variant<std::vector<symbol_t>, string_t, placeholder_t, missing_t, misc_t, failed_t,
                      bool, int_t, std::vector<std::string>>
     AttrValue;
 
@@ -84,14 +84,14 @@ class AttrCursor : public std::enable_shared_from_this<AttrCursor> {
   friend struct CachedEvalError;
 
   ref<EvalCache> root;
-  using Parent = std::optional<std::pair<ref<AttrCursor>, Symbol>>;
+  using Parent = std::optional<std::pair<ref<AttrCursor>, symbol_t>>;
   Parent parent;
   RootValue _value;
   std::optional<std::pair<AttrId, AttrValue>> cachedValue;
 
   AttrKey getKey();
 
-  Value& getValue();
+  value_t& getValue();
 
   /**
    * If `cachedValue` is unset, try to initialize it from the
@@ -102,24 +102,24 @@ class AttrCursor : public std::enable_shared_from_this<AttrCursor> {
   void fetchCachedValue();
 
 public:
-  AttrCursor(ref<EvalCache> root, Parent parent, Value* value = nullptr,
+  AttrCursor(ref<EvalCache> root, Parent parent, value_t* value = nullptr,
              std::optional<std::pair<AttrId, AttrValue>>&& cachedValue = {});
 
   AttrPath getAttrPath() const;
 
-  AttrPath getAttrPath(Symbol name) const;
+  AttrPath getAttrPath(symbol_t name) const;
 
   std::string getAttrPathStr() const;
 
-  std::string getAttrPathStr(Symbol name) const;
+  std::string getAttrPathStr(symbol_t name) const;
 
-  suggestions_t getSuggestionsForAttr(Symbol name);
+  suggestions_t getSuggestionsForAttr(symbol_t name);
 
-  std::shared_ptr<AttrCursor> maybeGetAttr(Symbol name);
+  std::shared_ptr<AttrCursor> maybeGetAttr(symbol_t name);
 
   std::shared_ptr<AttrCursor> maybeGetAttr(std::string_view name);
 
-  ref<AttrCursor> get_attr(Symbol name);
+  ref<AttrCursor> get_attr(symbol_t name);
 
   ref<AttrCursor> get_attr(std::string_view name);
 
@@ -139,16 +139,16 @@ public:
 
   std::vector<std::string> getListOfStrings();
 
-  std::vector<Symbol> getAttrs();
+  std::vector<symbol_t> getAttrs();
 
   bool is_derivation();
 
-  Value& forceValue();
+  value_t& forceValue();
 
   /**
    * Force creation of the .drv file in the Nix store.
    */
-  StorePath forceDerivation();
+  store_path_t forceDerivation();
 };
 
 } // namespace nix::eval_cache

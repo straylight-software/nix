@@ -58,7 +58,7 @@ struct cmd_repl_t : RawInstallablesCommand {
     }
   }
 
-  void run(ref<Store> store, std::vector<std::string>&& raw_installables) override {
+  void run(ref<store_t> store, std::vector<std::string>&& raw_installables) override {
     auto state = getEvalState();
     auto get_values = [&]() -> AbstractNixRepl::AnnotatedValues {
       auto installables = parseInstallables(store, raw_installables);

@@ -7,8 +7,8 @@ namespace nix::fetchers {
 
 std::regex flake_regex("[a-zA-Z][a-zA-Z0-9_-]*", std::regex::ECMAScript);
 
-struct indirect_input_scheme_t : InputScheme {
-  std::optional<Input> inputFromURL(const settings_t& settings, const parsed_url_t& url,
+struct indirect_input_scheme_t : input_scheme_t {
+  std::optional<input_t> inputFromURL(const settings_t& settings, const parsed_url_t& url,
                                     bool require_tree) const override {
     if (url.scheme() != "flake")
       return {};
@@ -46,7 +46,7 @@ struct indirect_input_scheme_t : InputScheme {
 
     // FIXME: forbid query params?
 
-    Input input{};
+    input_t input{};
     input.attrs.insert_or_assign("type", "indirect");
     input.attrs.insert_or_assign("id", id);
     if (rev)
@@ -86,18 +86,18 @@ struct indirect_input_scheme_t : InputScheme {
     return attrs;
   }
 
-  std::optional<Input> inputFromAttrs(const settings_t& settings,
+  std::optional<input_t> inputFromAttrs(const settings_t& settings,
                                       const Attrs& attrs) const override {
     auto id = get_str_attr(attrs, "id");
     if (!std::regex_match(id, flake_regex))
       throw BadURL("'%s' is not a valid flake ID", id);
 
-    Input input{};
+    input_t input{};
     input.attrs = attrs;
     return input;
   }
 
-  parsed_url_t toURL(const Input& input, bool abbreviate) const override {
+  parsed_url_t toURL(const input_t& input, bool abbreviate) const override {
     parsed_url_t url;
     url.set_scheme("flake");
     url.set_path({get_str_attr(input.attrs, "id")});
@@ -110,7 +110,7 @@ struct indirect_input_scheme_t : InputScheme {
     return url;
   }
 
-  Input applyOverrides(const Input& _input, std::optional<std::string> ref,
+  input_t applyOverrides(const input_t& _input, std::optional<std::string> ref,
                        std::optional<Hash> rev) const override {
     auto input(_input);
     if (rev)
@@ -120,12 +120,12 @@ struct indirect_input_scheme_t : InputScheme {
     return input;
   }
 
-  std::pair<ref<SourceAccessor>, Input> get_accessor(const settings_t& settings, Store& store,
-                                                     const Input& input) const override {
+  std::pair<ref<source_accessor_t>, input_t> get_accessor(const settings_t& settings, store_t& store,
+                                                     const input_t& input) const override {
     throw Error("indirect input '%s' cannot be fetched directly", input.to_string());
   }
 
-  bool isDirect(const Input& input) const override { return false; }
+  bool isDirect(const input_t& input) const override { return false; }
 };
 
 static auto r_indirect_input_scheme =

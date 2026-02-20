@@ -125,7 +125,7 @@ std::string read_line(int fd, bool eof_ok) {
   }
 }
 
-void drain_fd(int fd, Sink& sink, bool block) {
+void drain_fd(int fd, sink_t& sink, bool block) {
   // silence GCC maybe-uninitialized warning in finally
   int saved = 0;
 

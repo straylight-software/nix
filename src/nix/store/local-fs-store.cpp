@@ -18,7 +18,7 @@ Path LocalFSStoreConfig::getDefaultLogDir() {
 }
 
 LocalFSStoreConfig::LocalFSStoreConfig(path_view_t root_dir, const Params& params)
-    : StoreConfig(params)
+    : store_config_t(params)
       /* Default `?root` from `root_dir` if non set
        * NOTE: We would like to just do root_dir.set(...), which would take care of
        * all normalization and error checking for us. Unfortunately we cannot do
@@ -33,7 +33,7 @@ LocalFSStoreConfig::LocalFSStoreConfig(path_view_t root_dir, const Params& param
                                             : std::nullopt)} {}
 
 local_fs_store::local_fs_store(const config_t& config)
-    : Store{static_cast<const Store::config_t&>(*this)}, config{config} {}
+    : store_t{static_cast<const store_t::config_t&>(*this)}, config{config} {}
 
 struct local_store_accessor_t : posix_source_accessor_t {
   ref<local_fs_store> store;
@@ -65,7 +65,7 @@ struct local_store_accessor_t : posix_source_accessor_t {
     return posix_source_accessor_t::read_directory(path);
   }
 
-  void read_file(const canon_path_t& path, Sink& sink,
+  void read_file(const canon_path_t& path, sink_t& sink,
                 std::function<void(uint64_t)> size_callback) override {
     requireStoreObject(path);
     return posix_source_accessor_t::read_file(path, sink, size_callback);
@@ -77,13 +77,13 @@ struct local_store_accessor_t : posix_source_accessor_t {
   }
 };
 
-ref<SourceAccessor> local_fs_store::getFSAccessor(bool require_valid_path) {
+ref<source_accessor_t> local_fs_store::getFSAccessor(bool require_valid_path) {
   return make_ref<local_store_accessor_t>(
       ref<local_fs_store>(std::dynamic_pointer_cast<local_fs_store>(shared_from_this())),
       require_valid_path);
 }
 
-std::shared_ptr<SourceAccessor> local_fs_store::getFSAccessor(const StorePath& path,
+std::shared_ptr<source_accessor_t> local_fs_store::getFSAccessor(const store_path_t& path,
                                                             bool require_valid_path) {
   auto abs_path = std::filesystem::path{config.real_store_dir.get()} / path.to_string();
   if (require_valid_path) {
@@ -102,7 +102,7 @@ std::shared_ptr<SourceAccessor> local_fs_store::getFSAccessor(const StorePath& p
 
 const std::string local_fs_store::drvsLogDir = "drvs";
 
-std::optional<std::string> local_fs_store::getBuildLogExact(const StorePath& path) {
+std::optional<std::string> local_fs_store::getBuildLogExact(const store_path_t& path) {
   auto base_name = path.to_string();
 
   for (int j = 0; j < 2; j++) {

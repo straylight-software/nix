@@ -9,14 +9,14 @@ namespace nix {
  * accessor. This is not useful in itself but can be used as a
  * superclass for accessors that do change some operations.
  */
-struct ForwardingSourceAccessor : SourceAccessor {
-  ref<SourceAccessor> next;
+struct forwarding_source_accessor_t : source_accessor_t {
+  ref<source_accessor_t> next;
 
-  ForwardingSourceAccessor(ref<SourceAccessor> next) : next(next) {}
+  forwarding_source_accessor_t(ref<source_accessor_t> next) : next(next) {}
 
   std::string read_file(const canon_path_t& path) override { return next->read_file(path); }
 
-  void read_file(const canon_path_t& path, Sink& sink,
+  void read_file(const canon_path_t& path, sink_t& sink,
                 std::function<void(uint64_t)> size_callback) override {
     next->read_file(path, sink, size_callback);
   }

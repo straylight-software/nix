@@ -7,10 +7,10 @@
 
 namespace nix {
 
-NarInfo::NarInfo(const StoreDirConfig& store, const std::string& s, const std::string& whence)
+nar_info_t::nar_info_t(const store_dir_config_t& store, const std::string& s, const std::string& whence)
     : UnkeyedValidPathInfo(store, Hash::dummy) // FIXME: hack
       ,
-      ValidPathInfo(StorePath::dummy,
+      valid_path_info_t(store_path_t::dummy,
                     static_cast<const UnkeyedValidPathInfo&>(*this)) // FIXME: hack
       ,
       UnkeyedNarInfo(static_cast<const UnkeyedValidPathInfo&>(*this)) {
@@ -46,7 +46,7 @@ NarInfo::NarInfo(const StoreDirConfig& store, const std::string& s, const std::s
 
     std::string value(s, colon + 2, eol - colon - 2);
 
-    if (name == "StorePath") {
+    if (name == "store_path_t") {
       path = store.parseStorePath(value);
       havePath = true;
     } else if (name == "URL")
@@ -73,17 +73,17 @@ NarInfo::NarInfo(const StoreDirConfig& store, const std::string& s, const std::s
       if (!references.empty())
         throw corrupt("extra References");
       for (auto& r : refs)
-        references.insert(StorePath(r));
+        references.insert(store_path_t(r));
     } else if (name == "Deriver") {
       if (value != "unknown-deriver")
-        deriver = StorePath(value);
+        deriver = store_path_t(value);
     } else if (name == "Sig")
       sigs.insert(value);
     else if (name == "CA") {
       if (ca)
         throw corrupt("extra CA");
       // FIXME: allow blank ca or require skipping field?
-      ca = ContentAddress::parseOpt(value);
+      ca = content_address_t::parseOpt(value);
     }
 
     pos = eol + 1;
@@ -95,7 +95,7 @@ NarInfo::NarInfo(const StoreDirConfig& store, const std::string& s, const std::s
 
   if (!havePath || !haveNarHash || url.empty() || nar_size == 0) {
     line = 0; // don't include line information in the error
-    throw corrupt(!havePath       ? "StorePath missing"
+    throw corrupt(!havePath       ? "store_path_t missing"
                   : !haveNarHash  ? "NarHash missing"
                   : url.empty()   ? "URL missing"
                   : nar_size == 0 ? "NarSize missing or zero"
@@ -103,9 +103,9 @@ NarInfo::NarInfo(const StoreDirConfig& store, const std::string& s, const std::s
   }
 }
 
-std::string NarInfo::to_string(const StoreDirConfig& store) const {
+std::string nar_info_t::to_string(const store_dir_config_t& store) const {
   std::string res;
-  res += "StorePath: " + store.printStorePath(path) + "\n";
+  res += "store_path_t: " + store.printStorePath(path) + "\n";
   res += "URL: " + url + "\n";
   assert(compression != "");
   res += "Compression: " + compression + "\n";
@@ -130,7 +130,7 @@ std::string NarInfo::to_string(const StoreDirConfig& store) const {
   return res;
 }
 
-nlohmann::json UnkeyedNarInfo::to_json(const StoreDirConfig* store, bool includeImpureInfo,
+nlohmann::json UnkeyedNarInfo::to_json(const store_dir_config_t* store, bool includeImpureInfo,
                                        PathInfoJsonFormat format) const {
   using nlohmann::json;
 
@@ -154,7 +154,7 @@ nlohmann::json UnkeyedNarInfo::to_json(const StoreDirConfig* store, bool include
   return json_object;
 }
 
-UnkeyedNarInfo UnkeyedNarInfo::from_json(const StoreDirConfig* store, const nlohmann::json& json) {
+UnkeyedNarInfo UnkeyedNarInfo::from_json(const store_dir_config_t* store, const nlohmann::json& json) {
   UnkeyedNarInfo res{UnkeyedValidPathInfo::from_json(store, json)};
 
   auto& obj = get_object(json);

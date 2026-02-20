@@ -146,8 +146,8 @@ struct SQLiteError : Error {
   std::string errMsg;
   int err_no, extendedErrNo, offset;
 
-  template <typename... Args>
-  [[noreturn]] static void throw_(sqlite3* db, const std::string& fs, const Args&... args) {
+  template <typename... args_t>
+  [[noreturn]] static void throw_(sqlite3* db, const std::string& fs, const args_t&... args) {
     throw_(db, hint_fmt_t(fs, args...));
   }
 
@@ -155,9 +155,9 @@ struct SQLiteError : Error {
               hint_fmt_t&& hf);
 
 protected:
-  template <typename... Args>
+  template <typename... args_t>
   SQLiteError(const char* path, const char* errMsg, int err_no, int extendedErrNo, int offset,
-              const std::string& fs, const Args&... args)
+              const std::string& fs, const args_t&... args)
       : SQLiteError(path, errMsg, err_no, extendedErrNo, offset, hint_fmt_t(fs, args...)) {}
 
   [[noreturn]] static void throw_(sqlite3* db, hint_fmt_t&& hf);

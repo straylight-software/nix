@@ -13,28 +13,28 @@
 
 namespace nix::fetchers {
 
-using InputSchemeMap = std::map<std::string_view, std::shared_ptr<InputScheme>>;
+using InputSchemeMap = std::map<std::string_view, std::shared_ptr<input_scheme_t>>;
 
 static InputSchemeMap& input_schemes() {
   static InputSchemeMap input_scheme_map;
   return input_scheme_map;
 }
 
-void register_input_scheme(std::shared_ptr<InputScheme>&& inputScheme) {
+void register_input_scheme(std::shared_ptr<input_scheme_t>&& inputScheme) {
   auto schemeName = inputScheme->schemeName();
   if (!input_schemes().emplace(schemeName, std::move(inputScheme)).second)
-    throw Error("Input scheme with name %s already registered", schemeName);
+    throw Error("input_t scheme with name %s already registered", schemeName);
 }
 
 const InputSchemeMap& get_all_input_schemes() {
   return input_schemes();
 }
 
-Input Input::fromURL(const settings_t& settings, const std::string& url, bool require_tree) {
+input_t input_t::fromURL(const settings_t& settings, const std::string& url, bool require_tree) {
   return fromURL(settings, parse_url(url), require_tree);
 }
 
-static void fixup_input(Input& input) {
+static void fixup_input(input_t& input) {
   // Check common attributes.
   input.getType();
   input.getRef();
@@ -42,7 +42,7 @@ static void fixup_input(Input& input) {
   input.get_last_modified();
 }
 
-Input Input::fromURL(const settings_t& settings, const parsed_url_t& url, bool require_tree) {
+input_t input_t::fromURL(const settings_t& settings, const parsed_url_t& url, bool require_tree) {
   for (auto& [_, inputScheme] : input_schemes()) {
     auto res = inputScheme->inputFromURL(settings, url, require_tree);
     if (res) {
@@ -62,7 +62,7 @@ Input Input::fromURL(const settings_t& settings, const parsed_url_t& url, bool r
   throw Error("input '%s' is unsupported", url);
 }
 
-Input Input::fromAttrs(const settings_t& settings, Attrs&& attrs) {
+input_t input_t::fromAttrs(const settings_t& settings, Attrs&& attrs) {
   auto schemeName = ({
     auto schemeNameOpt = maybe_get_str_attr(attrs, "type");
     if (!schemeNameOpt)
@@ -75,13 +75,13 @@ Input Input::fromAttrs(const settings_t& settings, Attrs&& attrs) {
     // but not all of them. Doing this is to support those other
     // operations which are supposed to be robust on
     // unknown/uninterpretable inputs.
-    Input input;
+    input_t input;
     input.attrs = attrs;
     fixup_input(input);
     return input;
   };
 
-  std::shared_ptr<InputScheme> inputScheme = ({
+  std::shared_ptr<input_scheme_t> inputScheme = ({
     auto i = get(input_schemes(), schemeName);
     i ? *i : nullptr;
   });
@@ -105,7 +105,7 @@ Input Input::fromAttrs(const settings_t& settings, Attrs&& attrs) {
   return std::move(*res);
 }
 
-std::optional<std::string> Input::get_fingerprint(Store& store) const {
+std::optional<std::string> input_t::get_fingerprint(store_t& store) const {
   if (!scheme)
     return std::nullopt;
 
@@ -119,7 +119,7 @@ std::optional<std::string> Input::get_fingerprint(Store& store) const {
   return fingerprint;
 }
 
-parsed_url_t Input::toURL(bool abbreviate) const {
+parsed_url_t input_t::toURL(bool abbreviate) const {
   if (!scheme)
     throw Error("cannot show unsupported input '%s'", attrs_to_json(attrs));
 
@@ -131,43 +131,43 @@ parsed_url_t Input::toURL(bool abbreviate) const {
   return url;
 }
 
-std::string Input::toURLString(const string_map_t& extraQuery, bool abbreviate) const {
+std::string input_t::toURLString(const string_map_t& extraQuery, bool abbreviate) const {
   auto url = toURL(abbreviate);
   for (auto& attr : extraQuery)
     url.query().insert(attr);
   return url.to_string();
 }
 
-std::string Input::to_string(bool abbreviate) const {
+std::string input_t::to_string(bool abbreviate) const {
   return toURL(abbreviate).to_string();
 }
 
-bool Input::isDirect() const {
+bool input_t::isDirect() const {
   return !scheme || scheme->isDirect(*this);
 }
 
-bool Input::isLocked(const settings_t& settings) const {
+bool input_t::isLocked(const settings_t& settings) const {
   return scheme && scheme->isLocked(settings, *this);
 }
 
-bool Input::isFinal() const {
+bool input_t::isFinal() const {
   return maybe_get_bool_attr(attrs, "__final").value_or(false);
 }
 
-std::optional<std::string> Input::isRelative() const {
+std::optional<std::string> input_t::isRelative() const {
   assert(scheme);
   return scheme->isRelative(*this);
 }
 
-Attrs Input::toAttrs() const {
+Attrs input_t::toAttrs() const {
   return attrs;
 }
 
-bool Input::operator==(const Input& other) const noexcept {
+bool input_t::operator==(const input_t& other) const noexcept {
   return attrs == other.attrs;
 }
 
-bool Input::contains(const Input& other) const {
+bool input_t::contains(const input_t& other) const {
   if (*this == other)
     return true;
   auto other2(other);
@@ -179,8 +179,8 @@ bool Input::contains(const Input& other) const {
 }
 
 // FIXME: remove
-std::tuple<StorePath, ref<SourceAccessor>, Input> Input::fetch_to_store(const settings_t& settings,
-                                                                        Store& store) const {
+std::tuple<store_path_t, ref<source_accessor_t>, input_t> input_t::fetch_to_store(const settings_t& settings,
+                                                                        store_t& store) const {
   if (!scheme)
     throw Error("cannot fetch unsupported input '%s'", attrs_to_json(toAttrs()));
 
@@ -193,7 +193,7 @@ std::tuple<StorePath, ref<SourceAccessor>, Input> Input::fetch_to_store(const se
     auto nar_hash = store.queryPathInfo(store_path)->nar_hash;
     result.attrs.insert_or_assign("narHash", nar_hash.to_string(hash_format_t::sri, true));
 
-    result.attrs.insert_or_assign("__final", Explicit<bool>(true));
+    result.attrs.insert_or_assign("__final", explicit_t<bool>(true));
 
     assert(result.isFinal());
 
@@ -206,7 +206,7 @@ std::tuple<StorePath, ref<SourceAccessor>, Input> Input::fetch_to_store(const se
   }
 }
 
-void Input::checkLocks(Input specified, Input& result) {
+void input_t::checkLocks(input_t specified, input_t& result) {
   /* If the original input is final, then we just return the
      original attributes, dropping any new fields returned by the
      fetcher. However, any fields that are in both the specified and
@@ -255,12 +255,12 @@ void Input::checkLocks(Input specified, Input& result) {
   }
 }
 
-std::pair<ref<SourceAccessor>, Input> Input::get_accessor(const settings_t& settings,
-                                                          Store& store) const {
+std::pair<ref<source_accessor_t>, input_t> input_t::get_accessor(const settings_t& settings,
+                                                          store_t& store) const {
   try {
     auto [accessor, result] = getAccessorUnchecked(settings, store);
 
-    result.attrs.insert_or_assign("__final", Explicit<bool>(true));
+    result.attrs.insert_or_assign("__final", explicit_t<bool>(true));
 
     checkLocks(*this, result);
 
@@ -276,26 +276,26 @@ std::pair<ref<SourceAccessor>, Input> Input::get_accessor(const settings_t& sett
  * are rendered as `«input»/path` rather than
  * `«input»/nix/store/<hash>-source/path`.
  */
-struct substituted_source_accessor_t : ForwardingSourceAccessor {
-  using ForwardingSourceAccessor::ForwardingSourceAccessor;
+struct substituted_source_accessor_t : forwarding_source_accessor_t {
+  using forwarding_source_accessor_t::forwarding_source_accessor_t;
 
   std::string show_path(const canon_path_t& path) override {
     return display_prefix + path.abs() + display_suffix;
   }
 };
 
-std::pair<ref<SourceAccessor>, Input> Input::getAccessorUnchecked(const settings_t& settings,
-                                                                  Store& store) const {
+std::pair<ref<source_accessor_t>, input_t> input_t::getAccessorUnchecked(const settings_t& settings,
+                                                                  store_t& store) const {
   // FIXME: cache the accessor
 
   if (!scheme)
     throw Error("cannot fetch unsupported input '%s'", attrs_to_json(toAttrs()));
 
-  std::optional<StorePath> store_path;
+  std::optional<store_path_t> store_path;
   if (isFinal() && getNarHash())
     store_path = computeStorePath(store);
 
-  auto makeStoreAccessor = [&]() -> std::pair<ref<SourceAccessor>, Input> {
+  auto makeStoreAccessor = [&]() -> std::pair<ref<source_accessor_t>, input_t> {
     auto accessor =
         make_ref<substituted_source_accessor_t>(store.requireStoreObjectAccessor(*store_path));
 
@@ -307,13 +307,13 @@ std::pair<ref<SourceAccessor>, Input> Input::getAccessorUnchecked(const settings
             : get_fingerprint(store);
     cachedFingerprint = accessor->fingerprint;
 
-    // Store a cache entry for the substituted tree so later fetches
+    // store_t a cache entry for the substituted tree so later fetches
     // can reuse the existing nar instead of copying the unpacked
     // input back into the store on every evaluation.
     if (accessor->fingerprint) {
       settings.get_cache()->upsert(
           make_source_path_to_hash_cache_key(*accessor->fingerprint,
-                                             ContentAddressMethod::raw_t::nix_archive, "/"),
+                                             content_address_method_t::raw_t::nix_archive, "/"),
           {{"hash",
             store.queryPathInfo(*store_path)->nar_hash.to_string(hash_format_t::sri, true)}});
     }
@@ -363,34 +363,34 @@ std::pair<ref<SourceAccessor>, Input> Input::getAccessorUnchecked(const settings
   }
 }
 
-Input Input::applyOverrides(std::optional<std::string> ref, std::optional<Hash> rev) const {
+input_t input_t::applyOverrides(std::optional<std::string> ref, std::optional<Hash> rev) const {
   if (!scheme)
     return *this;
   return scheme->applyOverrides(*this, ref, rev);
 }
 
-void Input::clone(const settings_t& settings, Store& store,
+void input_t::clone(const settings_t& settings, store_t& store,
                   const std::filesystem::path& dest_dir) const {
   assert(scheme);
   scheme->clone(settings, store, *this, dest_dir);
 }
 
-std::optional<std::filesystem::path> Input::get_source_path() const {
+std::optional<std::filesystem::path> input_t::get_source_path() const {
   assert(scheme);
   return scheme->get_source_path(*this);
 }
 
-void Input::putFile(const canon_path_t& path, std::string_view contents,
+void input_t::putFile(const canon_path_t& path, std::string_view contents,
                     std::optional<std::string> commit_msg) const {
   assert(scheme);
   return scheme->putFile(*this, path, contents, commit_msg);
 }
 
-std::string Input::get_name() const {
+std::string input_t::get_name() const {
   return maybe_get_str_attr(attrs, "name").value_or("source");
 }
 
-StorePath Input::computeStorePath(Store& store) const {
+store_path_t input_t::computeStorePath(store_t& store) const {
   auto nar_hash = getNarHash();
   if (!nar_hash)
     throw Error("cannot compute store path for unlocked input '%s'", to_string());
@@ -401,11 +401,11 @@ StorePath Input::computeStorePath(Store& store) const {
                                                });
 }
 
-std::string Input::getType() const {
+std::string input_t::getType() const {
   return get_str_attr(attrs, "type");
 }
 
-std::optional<Hash> Input::getNarHash() const {
+std::optional<Hash> input_t::getNarHash() const {
   if (auto s = maybe_get_str_attr(attrs, "narHash")) {
     auto hash = s->empty() ? Hash(hash_algorithm_t::SHA256) : Hash::parse_sri(*s);
     if (hash.algo() != hash_algorithm_t::SHA256)
@@ -415,13 +415,13 @@ std::optional<Hash> Input::getNarHash() const {
   return {};
 }
 
-std::optional<std::string> Input::getRef() const {
+std::optional<std::string> input_t::getRef() const {
   if (auto s = maybe_get_str_attr(attrs, "ref"))
     return *s;
   return {};
 }
 
-std::optional<Hash> Input::getRev() const {
+std::optional<Hash> input_t::getRev() const {
   std::optional<Hash> hash = {};
 
   if (auto s = maybe_get_str_attr(attrs, "rev")) {
@@ -437,23 +437,23 @@ std::optional<Hash> Input::getRev() const {
   return hash;
 }
 
-std::optional<uint64_t> Input::get_rev_count() const {
+std::optional<uint64_t> input_t::get_rev_count() const {
   if (auto n = maybe_get_int_attr(attrs, "revCount"))
     return *n;
   return {};
 }
 
-std::optional<time_t> Input::get_last_modified() const {
+std::optional<time_t> input_t::get_last_modified() const {
   if (auto n = maybe_get_int_attr(attrs, "lastModified"))
     return *n;
   return {};
 }
 
-parsed_url_t InputScheme::toURL(const Input& input, bool abbreviate) const {
+parsed_url_t input_scheme_t::toURL(const input_t& input, bool abbreviate) const {
   throw Error("don't know how to convert input '%s' to a URL", attrs_to_json(input.attrs));
 }
 
-Input InputScheme::applyOverrides(const Input& input, std::optional<std::string> ref,
+input_t input_scheme_t::applyOverrides(const input_t& input, std::optional<std::string> ref,
                                   std::optional<Hash> rev) const {
   if (ref)
     throw Error("don't know how to set branch/tag name of input '%s' to '%s'", input.to_string(),
@@ -464,16 +464,16 @@ Input InputScheme::applyOverrides(const Input& input, std::optional<std::string>
   return input;
 }
 
-std::optional<std::filesystem::path> InputScheme::get_source_path(const Input& input) const {
+std::optional<std::filesystem::path> input_scheme_t::get_source_path(const input_t& input) const {
   return {};
 }
 
-void InputScheme::putFile(const Input& input, const canon_path_t& path, std::string_view contents,
+void input_scheme_t::putFile(const input_t& input, const canon_path_t& path, std::string_view contents,
                           std::optional<std::string> commit_msg) const {
   throw Error("input '%s' does not support modifying file '%s'", input.to_string(), path);
 }
 
-void InputScheme::clone(const settings_t& settings, Store& store, const Input& input,
+void input_scheme_t::clone(const settings_t& settings, store_t& store, const input_t& input,
                         const std::filesystem::path& dest_dir) const {
   if (std::filesystem::exists(dest_dir))
     throw Error("cannot clone into existing path %s", dest_dir);
@@ -488,7 +488,7 @@ void InputScheme::clone(const settings_t& settings, Store& store, const Input& i
   copy_recursive(*accessor, canon_path_t::root, sink, canon_path_t::root);
 }
 
-std::optional<experimental_feature_t> InputScheme::experimental_feature() const {
+std::optional<experimental_feature_t> input_scheme_t::experimental_feature() const {
   return {};
 }
 

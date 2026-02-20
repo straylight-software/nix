@@ -11,10 +11,10 @@
 
 namespace nix {
 
-nlohmann::json print_value_as_json(EvalState& state, bool strict, Value& v, const pos_idx_t pos,
+nlohmann::json print_value_as_json(eval_state_t& state, bool strict, value_t& v, const pos_idx_t pos,
                                 NixStringContext& context, bool copy_to_store = true);
 
-void print_value_as_json(EvalState& state, bool strict, Value& v, const pos_idx_t pos, std::ostream& str,
+void print_value_as_json(eval_state_t& state, bool strict, value_t& v, const pos_idx_t pos, std::ostream& str,
                       NixStringContext& context, bool copy_to_store = true);
 
 make_error(JSONSerializationError, Error);

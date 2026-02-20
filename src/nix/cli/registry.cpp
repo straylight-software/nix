@@ -11,7 +11,7 @@
 using namespace nix;
 using namespace nix::flake;
 
-class registry_command_t : virtual Args {
+class registry_command_t : virtual args_t {
   std::string registry_path;
 
   std::shared_ptr<fetchers::Registry> registry;
@@ -55,7 +55,7 @@ struct cmd_registry_list_t : StoreCommand {
         ;
   }
 
-  void run(nix::ref<nix::Store> store) override {
+  void run(nix::ref<nix::store_t> store) override {
     using namespace fetchers;
 
     auto registries = get_registries(fetch_settings, *store);
@@ -150,7 +150,7 @@ struct cmd_registry_pin_t : registry_command_t, EvalCommand {
                 }}});
   }
 
-  void run(nix::ref<nix::Store> store) override {
+  void run(nix::ref<nix::store_t> store) override {
     if (locked.empty())
       locked = url;
     auto registry = get_registry();
@@ -187,7 +187,7 @@ struct cmd_registry_resolve_t : StoreCommand {
     });
   }
 
-  void run(nix::ref<nix::Store> store) override {
+  void run(nix::ref<nix::store_t> store) override {
     for (auto& url : urls) {
       auto ref = parse_flake_ref(fetch_settings, url);
       auto resolved = ref.resolve(fetch_settings, *store);

@@ -11,7 +11,7 @@
 
 namespace nix {
 
-Counter Expr::nrExprs;
+Counter expr_t::nrExprs;
 
 // FIXME: remove, because *symbols* are abstract and do not have a single
 //        textual representation; see printIdentifier()
@@ -20,31 +20,31 @@ std::ostream& operator<<(std::ostream& str, const SymbolStr& symbol) {
   return print_identifier(str, s);
 }
 
-void Expr::show(const SymbolTable& symbols, std::ostream& str) const {
+void expr_t::show(const symbol_table_t& symbols, std::ostream& str) const {
   unreachable();
 }
 
-void ExprInt::show(const SymbolTable& symbols, std::ostream& str) const {
+void ExprInt::show(const symbol_table_t& symbols, std::ostream& str) const {
   str << v.integer();
 }
 
-void ExprFloat::show(const SymbolTable& symbols, std::ostream& str) const {
+void ExprFloat::show(const symbol_table_t& symbols, std::ostream& str) const {
   str << v.fpoint();
 }
 
-void ExprString::show(const SymbolTable& symbols, std::ostream& str) const {
+void ExprString::show(const symbol_table_t& symbols, std::ostream& str) const {
   print_literal_string(str, v.string_view());
 }
 
-void ExprPath::show(const SymbolTable& symbols, std::ostream& str) const {
+void ExprPath::show(const symbol_table_t& symbols, std::ostream& str) const {
   str << v.pathStrView();
 }
 
-void ExprVar::show(const SymbolTable& symbols, std::ostream& str) const {
+void ExprVar::show(const symbol_table_t& symbols, std::ostream& str) const {
   str << symbols[name];
 }
 
-void ExprSelect::show(const SymbolTable& symbols, std::ostream& str) const {
+void ExprSelect::show(const symbol_table_t& symbols, std::ostream& str) const {
   str << "(";
   e->show(symbols, str);
   str << ")." << show_attr_selection_path(symbols, getAttrPath());
@@ -55,25 +55,25 @@ void ExprSelect::show(const SymbolTable& symbols, std::ostream& str) const {
   }
 }
 
-void ExprOpHasAttr::show(const SymbolTable& symbols, std::ostream& str) const {
+void ExprOpHasAttr::show(const symbol_table_t& symbols, std::ostream& str) const {
   str << "((";
   e->show(symbols, str);
   str << ") ? " << show_attr_selection_path(symbols, attr_path) << ")";
 }
 
-void ExprAttrs::showBindings(const SymbolTable& symbols, std::ostream& str) const {
-  typedef const AttrDefs::value_type* Attr;
-  std::vector<Attr> sorted;
+void ExprAttrs::showBindings(const symbol_table_t& symbols, std::ostream& str) const {
+  typedef const AttrDefs::value_type* attr_t;
+  std::vector<attr_t> sorted;
   for (auto& i : *attrs)
     sorted.push_back(&i);
-  std::sort(sorted.begin(), sorted.end(), [&](Attr a, Attr b) {
+  std::sort(sorted.begin(), sorted.end(), [&](attr_t a, attr_t b) {
     std::string_view sa = symbols[a->first], sb = symbols[b->first];
     return sa < sb;
   });
-  std::vector<Symbol> inherits;
+  std::vector<symbol_t> inherits;
   // We can use the displacement as a proxy for the order in which the symbols were parsed.
   // The assignment of displacements should be deterministic, so that showBindings is deterministic.
-  std::map<Displacement, std::vector<Symbol>> inheritsFrom;
+  std::map<Displacement, std::vector<symbol_t>> inheritsFrom;
   for (auto& i : sorted) {
     switch (i->second.kind) {
       case AttrDef::Kind::Plain:
@@ -119,7 +119,7 @@ void ExprAttrs::showBindings(const SymbolTable& symbols, std::ostream& str) cons
   }
 }
 
-void ExprAttrs::show(const SymbolTable& symbols, std::ostream& str) const {
+void ExprAttrs::show(const symbol_table_t& symbols, std::ostream& str) const {
   if (recursive)
     str << "rec ";
   str << "{ ";
@@ -127,7 +127,7 @@ void ExprAttrs::show(const SymbolTable& symbols, std::ostream& str) const {
   str << "}";
 }
 
-void ExprList::show(const SymbolTable& symbols, std::ostream& str) const {
+void ExprList::show(const symbol_table_t& symbols, std::ostream& str) const {
   str << "[ ";
   for (auto& i : elems) {
     str << "(";
@@ -137,12 +137,12 @@ void ExprList::show(const SymbolTable& symbols, std::ostream& str) const {
   str << "]";
 }
 
-void ExprLambda::show(const SymbolTable& symbols, std::ostream& str) const {
+void ExprLambda::show(const symbol_table_t& symbols, std::ostream& str) const {
   str << "(";
   if (auto formals = getFormals()) {
     str << "{ ";
     bool first = true;
-    // the natural Symbol ordering is by creation time, which can lead to the
+    // the natural symbol_t ordering is by creation time, which can lead to the
     // same expression being printed in two different ways depending on its
     // context. always use lexicographic ordering to avoid this.
     for (auto& i : formals->lexicographicOrder(symbols)) {
@@ -172,7 +172,7 @@ void ExprLambda::show(const SymbolTable& symbols, std::ostream& str) const {
   str << ")";
 }
 
-void ExprCall::show(const SymbolTable& symbols, std::ostream& str) const {
+void ExprCall::show(const symbol_table_t& symbols, std::ostream& str) const {
   str << '(';
   fun->show(symbols, str);
   for (auto e : *args) {
@@ -182,7 +182,7 @@ void ExprCall::show(const SymbolTable& symbols, std::ostream& str) const {
   str << ')';
 }
 
-void ExprLet::show(const SymbolTable& symbols, std::ostream& str) const {
+void ExprLet::show(const symbol_table_t& symbols, std::ostream& str) const {
   str << "(let ";
   attrs->showBindings(symbols, str);
   str << "in ";
@@ -190,7 +190,7 @@ void ExprLet::show(const SymbolTable& symbols, std::ostream& str) const {
   str << ")";
 }
 
-void ExprWith::show(const SymbolTable& symbols, std::ostream& str) const {
+void ExprWith::show(const symbol_table_t& symbols, std::ostream& str) const {
   str << "(with ";
   attrs->show(symbols, str);
   str << "; ";
@@ -198,7 +198,7 @@ void ExprWith::show(const SymbolTable& symbols, std::ostream& str) const {
   str << ")";
 }
 
-void ExprIf::show(const SymbolTable& symbols, std::ostream& str) const {
+void ExprIf::show(const symbol_table_t& symbols, std::ostream& str) const {
   str << "(if ";
   cond->show(symbols, str);
   str << " then ";
@@ -208,20 +208,20 @@ void ExprIf::show(const SymbolTable& symbols, std::ostream& str) const {
   str << ")";
 }
 
-void ExprAssert::show(const SymbolTable& symbols, std::ostream& str) const {
+void ExprAssert::show(const symbol_table_t& symbols, std::ostream& str) const {
   str << "assert ";
   cond->show(symbols, str);
   str << "; ";
   body->show(symbols, str);
 }
 
-void ExprOpNot::show(const SymbolTable& symbols, std::ostream& str) const {
+void ExprOpNot::show(const symbol_table_t& symbols, std::ostream& str) const {
   str << "(! ";
   e->show(symbols, str);
   str << ")";
 }
 
-void ExprConcatStrings::show(const SymbolTable& symbols, std::ostream& str) const {
+void ExprConcatStrings::show(const symbol_table_t& symbols, std::ostream& str) const {
   bool first = true;
   str << "(";
   for (auto& i : es) {
@@ -234,11 +234,11 @@ void ExprConcatStrings::show(const SymbolTable& symbols, std::ostream& str) cons
   str << ")";
 }
 
-void ExprPos::show(const SymbolTable& symbols, std::ostream& str) const {
+void ExprPos::show(const symbol_table_t& symbols, std::ostream& str) const {
   str << "__curPos";
 }
 
-std::string show_attr_selection_path(const SymbolTable& symbols, std::span<const AttrName> attr_path) {
+std::string show_attr_selection_path(const symbol_table_t& symbols, std::span<const AttrName> attr_path) {
   std::ostringstream out;
   bool first = true;
   for (auto& i : attr_path) {
@@ -259,31 +259,31 @@ std::string show_attr_selection_path(const SymbolTable& symbols, std::span<const
 
 /* Computing levels/displacements for variables. */
 
-void Expr::bindVars(EvalState& es, const std::shared_ptr<const StaticEnv>& env) {
+void expr_t::bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>& env) {
   unreachable();
 }
 
-void ExprInt::bindVars(EvalState& es, const std::shared_ptr<const StaticEnv>& env) {
+void ExprInt::bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>& env) {
   if (es.debugRepl)
     es.exprEnvs.insert(std::make_pair(this, env));
 }
 
-void ExprFloat::bindVars(EvalState& es, const std::shared_ptr<const StaticEnv>& env) {
+void ExprFloat::bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>& env) {
   if (es.debugRepl)
     es.exprEnvs.insert(std::make_pair(this, env));
 }
 
-void ExprString::bindVars(EvalState& es, const std::shared_ptr<const StaticEnv>& env) {
+void ExprString::bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>& env) {
   if (es.debugRepl)
     es.exprEnvs.insert(std::make_pair(this, env));
 }
 
-void ExprPath::bindVars(EvalState& es, const std::shared_ptr<const StaticEnv>& env) {
+void ExprPath::bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>& env) {
   if (es.debugRepl)
     es.exprEnvs.insert(std::make_pair(this, env));
 }
 
-void ExprVar::bindVars(EvalState& es, const std::shared_ptr<const StaticEnv>& env) {
+void ExprVar::bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>& env) {
   if (es.debugRepl)
     es.exprEnvs.insert(std::make_pair(this, env));
 
@@ -320,12 +320,12 @@ void ExprVar::bindVars(EvalState& es, const std::shared_ptr<const StaticEnv>& en
   this->level = withLevel;
 }
 
-void ExprInheritFrom::bindVars(EvalState& es, const std::shared_ptr<const StaticEnv>& env) {
+void ExprInheritFrom::bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>& env) {
   if (es.debugRepl)
     es.exprEnvs.insert(std::make_pair(this, env));
 }
 
-void ExprSelect::bindVars(EvalState& es, const std::shared_ptr<const StaticEnv>& env) {
+void ExprSelect::bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>& env) {
   if (es.debugRepl)
     es.exprEnvs.insert(std::make_pair(this, env));
 
@@ -337,7 +337,7 @@ void ExprSelect::bindVars(EvalState& es, const std::shared_ptr<const StaticEnv>&
       i.expr->bindVars(es, env);
 }
 
-void ExprOpHasAttr::bindVars(EvalState& es, const std::shared_ptr<const StaticEnv>& env) {
+void ExprOpHasAttr::bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>& env) {
   if (es.debugRepl)
     es.exprEnvs.insert(std::make_pair(this, env));
 
@@ -348,7 +348,7 @@ void ExprOpHasAttr::bindVars(EvalState& es, const std::shared_ptr<const StaticEn
 }
 
 std::shared_ptr<const StaticEnv>
-ExprAttrs::bindInheritSources(EvalState& es, const std::shared_ptr<const StaticEnv>& env) {
+ExprAttrs::bindInheritSources(eval_state_t& es, const std::shared_ptr<const StaticEnv>& env) {
   if (!inheritFromExprs)
     return nullptr;
 
@@ -374,10 +374,10 @@ void ExprAttrs::moveDataToAllocator(std::pmr::polymorphic_allocator<char>& alloc
   dynamicAttrs.emplace(std::move(newDynamicAttrs), alloc);
   if (inheritFromExprs)
     inheritFromExprs =
-        std::make_unique<std::pmr::vector<Expr*>>(std::move(*inheritFromExprs), alloc);
+        std::make_unique<std::pmr::vector<expr_t*>>(std::move(*inheritFromExprs), alloc);
 }
 
-void ExprAttrs::bindVars(EvalState& es, const std::shared_ptr<const StaticEnv>& env) {
+void ExprAttrs::bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>& env) {
   moveDataToAllocator(es.mem.exprs.alloc);
 
   if (es.debugRepl)
@@ -416,7 +416,7 @@ void ExprAttrs::bindVars(EvalState& es, const std::shared_ptr<const StaticEnv>& 
   }
 }
 
-void ExprList::bindVars(EvalState& es, const std::shared_ptr<const StaticEnv>& env) {
+void ExprList::bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>& env) {
   if (es.debugRepl)
     es.exprEnvs.insert(std::make_pair(this, env));
 
@@ -424,7 +424,7 @@ void ExprList::bindVars(EvalState& es, const std::shared_ptr<const StaticEnv>& e
     i->bindVars(es, env);
 }
 
-void ExprLambda::bindVars(EvalState& es, const std::shared_ptr<const StaticEnv>& env) {
+void ExprLambda::bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>& env) {
   if (es.debugRepl)
     es.exprEnvs.insert(std::make_pair(this, env));
 
@@ -451,11 +451,11 @@ void ExprLambda::bindVars(EvalState& es, const std::shared_ptr<const StaticEnv>&
 }
 
 void ExprCall::moveDataToAllocator(std::pmr::polymorphic_allocator<char>& alloc) {
-  std::pmr::vector<Expr*> newArgs{std::move(*args), alloc};
+  std::pmr::vector<expr_t*> newArgs{std::move(*args), alloc};
   args.emplace(std::move(newArgs), alloc);
 }
 
-void ExprCall::bindVars(EvalState& es, const std::shared_ptr<const StaticEnv>& env) {
+void ExprCall::bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>& env) {
   moveDataToAllocator(es.mem.exprs.alloc);
   if (es.debugRepl)
     es.exprEnvs.insert(std::make_pair(this, env));
@@ -465,7 +465,7 @@ void ExprCall::bindVars(EvalState& es, const std::shared_ptr<const StaticEnv>& e
     e->bindVars(es, env);
 }
 
-void ExprLet::bindVars(EvalState& es, const std::shared_ptr<const StaticEnv>& env) {
+void ExprLet::bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>& env) {
   attrs->moveDataToAllocator(es.mem.exprs.alloc);
   auto new_env = [&]() -> std::shared_ptr<const StaticEnv> {
     auto new_env = std::make_shared<StaticEnv>(nullptr, env, attrs->attrs->size());
@@ -488,7 +488,7 @@ void ExprLet::bindVars(EvalState& es, const std::shared_ptr<const StaticEnv>& en
   body->bindVars(es, new_env);
 }
 
-void ExprWith::bindVars(EvalState& es, const std::shared_ptr<const StaticEnv>& env) {
+void ExprWith::bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>& env) {
   if (es.debugRepl)
     es.exprEnvs.insert(std::make_pair(this, env));
 
@@ -514,7 +514,7 @@ void ExprWith::bindVars(EvalState& es, const std::shared_ptr<const StaticEnv>& e
   body->bindVars(es, new_env);
 }
 
-void ExprIf::bindVars(EvalState& es, const std::shared_ptr<const StaticEnv>& env) {
+void ExprIf::bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>& env) {
   if (es.debugRepl)
     es.exprEnvs.insert(std::make_pair(this, env));
 
@@ -523,7 +523,7 @@ void ExprIf::bindVars(EvalState& es, const std::shared_ptr<const StaticEnv>& env
   else_->bindVars(es, env);
 }
 
-void ExprAssert::bindVars(EvalState& es, const std::shared_ptr<const StaticEnv>& env) {
+void ExprAssert::bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>& env) {
   if (es.debugRepl)
     es.exprEnvs.insert(std::make_pair(this, env));
 
@@ -531,14 +531,14 @@ void ExprAssert::bindVars(EvalState& es, const std::shared_ptr<const StaticEnv>&
   body->bindVars(es, env);
 }
 
-void ExprOpNot::bindVars(EvalState& es, const std::shared_ptr<const StaticEnv>& env) {
+void ExprOpNot::bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>& env) {
   if (es.debugRepl)
     es.exprEnvs.insert(std::make_pair(this, env));
 
   e->bindVars(es, env);
 }
 
-void ExprConcatStrings::bindVars(EvalState& es, const std::shared_ptr<const StaticEnv>& env) {
+void ExprConcatStrings::bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>& env) {
   if (es.debugRepl)
     es.exprEnvs.insert(std::make_pair(this, env));
 
@@ -546,21 +546,21 @@ void ExprConcatStrings::bindVars(EvalState& es, const std::shared_ptr<const Stat
     i.second->bindVars(es, env);
 }
 
-void ExprPos::bindVars(EvalState& es, const std::shared_ptr<const StaticEnv>& env) {
+void ExprPos::bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>& env) {
   if (es.debugRepl)
     es.exprEnvs.insert(std::make_pair(this, env));
 }
 
 /* Storing function names. */
 
-void Expr::setName(Symbol name) {}
+void expr_t::setName(symbol_t name) {}
 
-void ExprLambda::setName(Symbol name) {
+void ExprLambda::setName(symbol_t name) {
   this->name = name;
   body->setName(name);
 }
 
-std::string ExprLambda::showNamePos(const EvalState& state) const {
+std::string ExprLambda::showNamePos(const eval_state_t& state) const {
   std::string id(name ? concat_strings("'", state.symbols[name], "'") : "anonymous function");
   return fmt("%1% at %2%", id, state.positions[pos]);
 }
@@ -612,7 +612,7 @@ void ExprCall::resetCursedOr() {
   cursedOrEndPos.reset();
 }
 
-void ExprCall::warnIfCursedOr(const SymbolTable& symbols, const pos_table_t& positions) {
+void ExprCall::warnIfCursedOr(const symbol_table_t& symbols, const pos_table_t& positions) {
   if (cursedOrEndPos.has_value()) {
     std::ostringstream out;
     out << "at " << positions[pos]

@@ -16,9 +16,9 @@ struct cmd_info_store_t : StoreCommand, MixJSON {
         ;
   }
 
-  void run(ref<Store> store) override {
+  void run(ref<store_t> store) override {
     if (!json) {
-      notice("Store URL: %s", store->config.getReference().render(/*withParams=*/true));
+      notice("store_t URL: %s", store->config.getReference().render(/*withParams=*/true));
       store->connect();
       if (auto version = store->getVersion())
         notice("Version: %s", *version);

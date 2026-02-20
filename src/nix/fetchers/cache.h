@@ -56,24 +56,24 @@ struct cache_t {
    * it. Such cache entries are always considered stale if the
    * associated store path is invalid.
    */
-  virtual void upsert(Key key, Store& store, Attrs value, const StorePath& store_path) = 0;
+  virtual void upsert(Key key, store_t& store, Attrs value, const store_path_t& store_path) = 0;
 
   struct ResultWithStorePath : Result {
-    StorePath store_path;
+    store_path_t store_path;
   };
 
   /**
    * Look up a store path in the cache. The returned store path will
    * be valid (unless `allow_invalid` is true), but it may be expired.
    */
-  virtual std::optional<ResultWithStorePath> lookupStorePath(Key key, Store& store,
+  virtual std::optional<ResultWithStorePath> lookupStorePath(Key key, store_t& store,
                                                              bool allow_invalid = false) = 0;
 
   /**
    * Look up a store path in the cache. Return nothing if its TTL
    * has exceeded `settings.tarballTTL`.
    */
-  virtual std::optional<ResultWithStorePath> lookupStorePathWithTTL(Key key, Store& store) = 0;
+  virtual std::optional<ResultWithStorePath> lookupStorePathWithTTL(Key key, store_t& store) = 0;
 };
 
 } // namespace nix::fetchers

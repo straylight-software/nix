@@ -10,7 +10,7 @@ std::string DownstreamPlaceholder::render() const {
 }
 
 DownstreamPlaceholder
-DownstreamPlaceholder::unknownCaOutput(const StorePath& drv_path, OutputNameView output_name,
+DownstreamPlaceholder::unknownCaOutput(const store_path_t& drv_path, OutputNameView output_name,
                                        const experimental_feature_settings_t& xp_settings) {
   xp_settings.require(xp_t::ca_derivations);
   auto drvNameWithExtension = drv_path.name();
@@ -69,7 +69,7 @@ DrvRef<Item> adl_serializer<DrvRef<Item>>::from_json(const json& json) {
     }
   }
 
-  // Input case
+  // input_t case
   return adl_serializer<Item>::from_json(json);
 }
 
@@ -86,7 +86,7 @@ void adl_serializer<DrvRef<Item>>::to_json(json& json, const DrvRef<Item>& ref) 
              ref);
 }
 
-template struct adl_serializer<nix::DrvRef<StorePath>>;
+template struct adl_serializer<nix::DrvRef<store_path_t>>;
 template struct adl_serializer<nix::DrvRef<SingleDerivedPath>>;
 
 } // namespace nlohmann

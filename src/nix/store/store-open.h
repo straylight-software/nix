@@ -8,7 +8,7 @@
  *
  * For consumers of the store registration machinery defined in
  * `store-registration.hh`. Not needed by store implementation definitions, or
- * usages of a given `Store` which will be passed in.
+ * usages of a given `store_t` which will be passed in.
  */
 
 #include "nix/store/store-api.h"
@@ -18,30 +18,30 @@ namespace nix {
 /**
  * @return The store config denoted by `store_uri` (slight misnomer...).
  */
-ref<StoreConfig> resolve_store_config(StoreReference&& store_uri);
+ref<store_config_t> resolve_store_config(StoreReference&& store_uri);
 
 /**
- * @return a Store object to access the Nix store denoted by
+ * @return a store_t object to access the Nix store denoted by
  * ‘uri’ (slight misnomer...).
  */
-ref<Store> open_store(StoreReference&& store_uri);
+ref<store_t> open_store(StoreReference&& store_uri);
 
 /**
  * Opens the store at `uri`, where `uri` is in the format expected by
  * `StoreReference::parse`
  */
-ref<Store> open_store(const std::string& uri,
+ref<store_t> open_store(const std::string& uri,
                      const StoreReference::Params& extra_params = StoreReference::Params());
 
 /**
  * Short-hand which opens the default store, according to global settings
  */
-ref<Store> open_store();
+ref<store_t> open_store();
 
 /**
  * @return the default substituter stores, defined by the
  * ‘substituters’ option and various legacy options.
  */
-std::list<ref<Store>> get_default_substituters();
+std::list<ref<store_t>> get_default_substituters();
 
 } // namespace nix

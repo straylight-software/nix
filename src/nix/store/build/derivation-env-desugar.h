@@ -6,10 +6,10 @@
 
 namespace nix {
 
-class Store;
-struct Derivation;
-template <typename Input>
-struct DerivationOptions;
+class store_t;
+struct derivation_t;
+template <typename input_t>
+struct derivation_options_t;
 
 /**
  * Derivations claim to "just" specify their environment variables, but
@@ -73,11 +73,11 @@ struct DesugaredEnv {
    * desugar the environment to create a `DesguaredEnv`.
    *
    * @todo drv_options will go away as a separate argument when it is
-   * just part of `Derivation`.
+   * just part of `derivation_t`.
    */
-  static DesugaredEnv create(Store& store, const Derivation& drv,
-                             const DerivationOptions<StorePath>& drv_options,
-                             const StorePathSet& inputPaths);
+  static DesugaredEnv create(store_t& store, const derivation_t& drv,
+                             const derivation_options_t<store_path_t>& drv_options,
+                             const store_path_set_t& inputPaths);
 };
 
 } // namespace nix

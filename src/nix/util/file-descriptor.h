@@ -5,6 +5,10 @@
 #include "nix/util/error.h"
 #include "nix/util/types.h"
 
+#ifndef _WIN32
+#  include <sys/types.h> // mode_t
+#endif
+
 #ifdef _WIN32
 #  define WIN32_LEAN_AND_MEAN
 #  include <windows.h>
@@ -12,8 +16,8 @@
 
 namespace nix {
 
-struct Sink;
-struct Source;
+struct sink_t;
+struct source_t;
 
 /**
  * Operating System capability
@@ -98,7 +102,7 @@ std::string drain_fd(descriptor_t fd, bool block = true, size_t reserve_size = 0
 /**
  * The Windows version is always blocking.
  */
-void drain_fd(descriptor_t fd, Sink& sink
+void drain_fd(descriptor_t fd, sink_t& sink
 #ifndef _WIN32
               ,
               bool block = true
@@ -106,7 +110,7 @@ void drain_fd(descriptor_t fd, Sink& sink
 );
 
 /**
- * Get [Standard Input](https://en.wikipedia.org/wiki/Standard_streams#Standard_input_(stdin))
+ * Get [Standard input_t](https://en.wikipedia.org/wiki/Standard_streams#Standard_input_(stdin))
  */
 [[gnu::always_inline]]
 inline auto get_standard_input() -> descriptor_t {

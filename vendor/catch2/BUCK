@@ -1,0 +1,57 @@
+# Catch2 - C++ test framework
+# Built with Buck2 for musl static linking
+
+# Core Catch2 library (without main)
+cxx_library(
+    name = "catch2_lib",
+    srcs = glob(
+        ["src/catch2/**/*.cpp"],
+        exclude = ["src/catch2/internal/catch_main.cpp"],
+    ),
+    # Export headers with catch2/ prefix preserved
+    # header_namespace="" + exported_headers from src/catch2/** = headers at catch2/...
+    exported_headers = {
+        h.removeprefix("src/"): h
+        for h in glob(["src/catch2/**/*.hpp"])
+    },
+    header_namespace = "",
+    compiler_flags = [
+        "-std=c++17",
+        "-w",  # Suppress warnings in third-party code
+        # Disable fortify source to avoid glibc symbols
+        "-U_FORTIFY_SOURCE",
+        "-D_FORTIFY_SOURCE=0",
+    ],
+    # Internal includes for building catch2 itself
+    include_directories = ["src"],
+    preferred_linkage = "static",
+    visibility = ["PUBLIC"],
+)
+
+# Catch2 with main() provided
+cxx_library(
+    name = "catch2_main",
+    srcs = [
+        "src/catch2/internal/catch_main.cpp",
+    ],
+    compiler_flags = [
+        "-std=c++17",
+        "-w",
+        "-U_FORTIFY_SOURCE",
+        "-D_FORTIFY_SOURCE=0",
+    ],
+    # Use exported_deps to transitively export catch2_lib's headers to dependents
+    exported_deps = [
+        ":catch2_lib",
+    ],
+    include_directories = ["src"],
+    preferred_linkage = "static",
+    visibility = ["PUBLIC"],
+)
+
+# Convenience alias
+alias(
+    name = "catch2",
+    actual = ":catch2_main",
+    visibility = ["PUBLIC"],
+)

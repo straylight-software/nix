@@ -55,9 +55,9 @@
 
 namespace nix {
 
-struct not_deterministic_t : BuildError {
+struct not_deterministic_t : build_error_t {
   not_deterministic_t(auto&&... args)
-      : BuildError(BuildResult::Failure::not_deterministic_t, args...) {}
+      : build_error_t(build_result_t::Failure::not_deterministic_t, args...) {}
 };
 
 /**
@@ -77,7 +77,7 @@ protected:
   /**
    * The process ID of the builder.
    */
-  Pid pid;
+  process_handle_t pid;
 
   /**
    * Handles to track active builds for `nix ps`.
@@ -153,13 +153,13 @@ protected:
    * Hash rewriting.
    */
   string_map_t input_rewrites, outputRewrites;
-  typedef std::map<StorePath, StorePath> redirected_outputs_t;
+  typedef std::map<store_path_t, store_path_t> redirected_outputs_t;
   redirected_outputs_t redirectedOutputs;
 
   /**
    * The output paths used during the build.
    *
-   * - Input-addressed derivations or fixed content-addressed outputs are
+   * - input_t-addressed derivations or fixed content-addressed outputs are
    *   sometimes built when some of their outputs already exist, and can not
    *   be hidden via sandboxing. We use temporary locations instead and
    *   rewrite after the build. Otherwise the regular predetermined paths are
@@ -189,15 +189,15 @@ protected:
    */
   std::vector<std::thread> daemonWorkerThreads;
 
-  const StorePathSet& originalPaths() override { return inputPaths; }
+  const store_path_set_t& originalPaths() override { return inputPaths; }
 
-  bool is_allowed(const StorePath& path) override {
+  bool is_allowed(const store_path_t& path) override {
     return inputPaths.count(path) || addedPaths.count(path);
   }
 
   bool is_allowed(const DrvOutput& id) override { return addedDrvOutputs.count(id); }
 
-  bool is_allowed(const DerivedPath& req);
+  bool is_allowed(const derived_path_t& req);
 
   friend struct restricted_store_t;
 
@@ -307,7 +307,7 @@ private:
   void stop_daemon();
 
 protected:
-  void add_dependency_impl(const StorePath& path) override;
+  void add_dependency_impl(const store_path_t& path) override;
 
   /**
    * Make a file owned by the builder.
@@ -392,7 +392,7 @@ private:
    * input, so we can avoid overwriting outputs (or other store paths)
    * that already exist.
    */
-  StorePath make_fallback_path(const StorePath& path);
+  store_path_t make_fallback_path(const store_path_t& path);
 
   /**
    * Make a path to another based on the output name along with the
@@ -401,7 +401,7 @@ private:
    * @todo Add option to randomize, so we can audit whether our
    * rewrites caught everything
    */
-  StorePath make_fallback_path(OutputNameView output_name);
+  store_path_t make_fallback_path(OutputNameView output_name);
 };
 
 void handle_diff_hook(uid_t uid, uid_t gid, const Path& try_a, const Path& try_b,
@@ -507,8 +507,8 @@ SingleDrvOutputs derivation_builder_impl_t::unprepare_build() {
     cleanup_build(false);
 
     throw BuilderFailureError{
-        !derivation_type.isSandboxed() || disk_full ? BuildResult::Failure::TransientFailure
-                                                    : BuildResult::Failure::PermanentFailure,
+        !derivation_type.isSandboxed() || disk_full ? build_result_t::Failure::TransientFailure
+                                                    : build_result_t::Failure::PermanentFailure,
         status,
         disk_full ? "\nnote: build failure may have been caused by lack of free disk space" : "",
     };
@@ -803,10 +803,10 @@ std::optional<descriptor_t> derivation_builder_impl_t::start_build() {
 
 ActiveBuild derivation_builder_impl_t::get_active_build() {
   return {
-      .nixPid = getpid(),
-      .clientPid = std::nullopt, // FIXME
+      .nix_pid = getpid(),
+      .client_pid = std::nullopt, // FIXME
       .clientUid = std::nullopt, // FIXME
-      .mainPid = pid,
+      .main_pid = pid,
       .mainUser = UserInfo::fromUid(buildUser ? buildUser->getUID() : getuid()),
       .start_time = buildResult.start_time,
       .derivation = drv_path,
@@ -1172,7 +1172,7 @@ void derivation_builder_impl_t::stop_daemon() {
   daemonSocket.close();
 }
 
-void derivation_builder_impl_t::add_dependency_impl(const StorePath& path) {
+void derivation_builder_impl_t::add_dependency_impl(const store_path_t& path) {
   addedPaths.insert(path);
 }
 
@@ -1328,7 +1328,7 @@ void derivation_builder_impl_t::exec_builder(const strings_t& args, const string
 }
 
 SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
-  std::map<std::string, ValidPathInfo> infos;
+  std::map<std::string, valid_path_info_t> infos;
 
   /* Set of inodes seen during calls to canonicalise_path_meta_data()
      for this build's outputs.  This needs to be shared between
@@ -1338,7 +1338,7 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
   /* The paths that can be referenced are the input closures, the
      output paths, and any paths that have been built via recursive
      Nix calls. */
-  StorePathSet referenceable_paths;
+  store_path_set_t referenceable_paths;
   for (auto& p : inputPaths)
     referenceable_paths.insert(p);
   for (auto& i : scratchOutputs)
@@ -1354,11 +1354,11 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
   string_set_t outputs_to_sort;
 
   struct already_registered_t {
-    StorePath path;
+    store_path_t path;
   };
 
   struct perhaps_need_to_register_t {
-    StorePathSet refs;
+    store_path_set_t refs;
     /**
      * References to other outputs. Built by looking up in
      * `scratchOutputsInverse`.
@@ -1367,7 +1367,7 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
   };
 
   /* inverse map of scratchOutputs for efficient lookup */
-  std::map<StorePath, std::string> scratchOutputsInverse;
+  std::map<store_path_t, std::string> scratchOutputsInverse;
   for (auto& [output_name, path] : scratchOutputs)
     scratchOutputsInverse.insert_or_assign(path, output_name);
 
@@ -1396,7 +1396,7 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
 
     auto optSt = maybe_lstat(actualPath.c_str());
     if (!optSt)
-      throw BuildError(BuildResult::Failure::OutputRejected,
+      throw build_error_t(build_result_t::Failure::OutputRejected,
                        "builder for '%s' failed to produce output path for output '%s' at '%s'",
                        store.printStorePath(drv_path), output_name, actualPath);
     struct stat& st = *optSt;
@@ -1408,8 +1408,8 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
        user. */
     if ((!S_ISLNK(st.st_mode) && (st.st_mode & (S_IWGRP | S_IWOTH))) ||
         (buildUser && st.st_uid != buildUser->getUID()))
-      throw BuildError(
-          BuildResult::Failure::OutputRejected,
+      throw build_error_t(
+          build_result_t::Failure::OutputRejected,
           "suspicious ownership or permission on '%s' for output '%s'; rejecting this build output",
           actualPath, output_name);
 #endif
@@ -1426,14 +1426,14 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
       discardReferences = *udr;
     }
 
-    StorePathSet references;
+    store_path_set_t references;
     if (discardReferences)
       debug("discarding references of output '%s'", output_name);
     else {
       debug("scanning for references for output '%s' in temp location '%s'", output_name,
             actualPath);
 
-      /* Pass blank Sink as we are not ready to hash data at this stage. */
+      /* Pass blank sink_t as we are not ready to hash data at this stage. */
       null_sink_t blank;
       references = scan_for_references(blank, actualPath, referenceable_paths);
     }
@@ -1457,7 +1457,7 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
       topoSort(outputs_to_sort, [&](const std::string& name) -> const string_set_t& {
         auto* orifu = get(outputReferencesIfUnregistered, name);
         if (!orifu)
-          throw BuildError(BuildResult::Failure::OutputRejected,
+          throw build_error_t(build_result_t::Failure::OutputRejected,
                            "no output reference for '%s' in build of '%s'", name,
                            store.printStorePath(drv_path));
         return std::visit(
@@ -1475,10 +1475,10 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
 
   auto sorted_output_names = std::visit(
       overloaded{
-          [&](Cycle<std::string>& cycle) -> std::vector<std::string> {
+          [&](cycle_t<std::string>& cycle) -> std::vector<std::string> {
             // TODO with more -vvvv also show the temporary paths for manual inspection.
-            throw BuildError(
-                BuildResult::Failure::OutputRejected,
+            throw build_error_t(
+                build_result_t::Failure::OutputRejected,
                 "cycle detected in build of '%s' in the references of output '%s' from output '%s'",
                 store.printStorePath(drv_path), cycle.path, cycle.parent);
           },
@@ -1495,8 +1495,8 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
     assert(output && scratchPath);
     auto actualPath = real_path_in_host(store.printStorePath(*scratchPath));
 
-    auto finish = [&](StorePath finalStorePath) {
-      /* Store the final path */
+    auto finish = [&](store_path_t finalStorePath) {
+      /* store_t the final path */
       final_outputs.insert_or_assign(output_name, finalStorePath);
       /* The rewrite rule will be used in downstream outputs that refer to
          use. This is why the topological sort is essential to do first
@@ -1509,13 +1509,13 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
     auto orifu = get(outputReferencesIfUnregistered, output_name);
     assert(orifu);
 
-    std::optional<StorePathSet> referencesOpt = std::visit(
+    std::optional<store_path_set_t> referencesOpt = std::visit(
         overloaded{
-            [&](const already_registered_t& skippedFinalPath) -> std::optional<StorePathSet> {
+            [&](const already_registered_t& skippedFinalPath) -> std::optional<store_path_set_t> {
               finish(skippedFinalPath.path);
               return std::nullopt;
             },
-            [&](const perhaps_need_to_register_t& r) -> std::optional<StorePathSet> {
+            [&](const perhaps_need_to_register_t& r) -> std::optional<store_path_set_t> {
               return r.refs;
             },
         },
@@ -1531,7 +1531,7 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
         debug("rewriting hashes in '%1%'; cross fingers", actualPath);
 
         /* FIXME: Is this actually streaming? */
-        auto source = sink_to_source([&](Sink& next_sink) {
+        auto source = sink_to_source([&](sink_t& next_sink) {
           RewritingSink rsink(rewrites, next_sink);
           dump_path(actualPath, rsink);
           rsink.flush();
@@ -1547,12 +1547,12 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
       }
     };
 
-    auto rewriteRefs = [&]() -> StoreReferences {
+    auto rewriteRefs = [&]() -> store_references_t {
       /* In the CA case, we need the rewritten refs to calculate the
          final path, therefore we look for a *non-rewritten
          self-reference, and use a bool rather try to solve the
          computationally intractable fixed point. */
-      StoreReferences res{
+      store_references_t res{
           .self = false,
       };
       for (auto& r : references) {
@@ -1564,7 +1564,7 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
           std::string new_ref = *outputRewrite;
           new_ref += '-';
           new_ref += name;
-          res.others.insert(StorePath{new_ref});
+          res.others.insert(store_path_t{new_ref});
         } else {
           res.others.insert(r);
         }
@@ -1572,16 +1572,16 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
       return res;
     };
 
-    auto newInfoFromCA = [&](const DerivationOutput::CAFloating outputHash) -> ValidPathInfo {
+    auto newInfoFromCA = [&](const derivation_output_t::CAFloating outputHash) -> valid_path_info_t {
       auto st = get(outputStats, output_name);
       if (!st)
-        throw BuildError(BuildResult::Failure::OutputRejected,
+        throw build_error_t(build_result_t::Failure::OutputRejected,
                          "output path %1% without valid stats info", actualPath);
       if (outputHash.method.getFileIngestionMethod() == file_ingestion_method_t::flat) {
         /* The output path should be a regular file without execute permission. */
         if (!S_ISREG(st->st_mode) || (st->st_mode & S_IXUSR) != 0)
-          throw BuildError(
-              BuildResult::Failure::OutputRejected,
+          throw build_error_t(
+              build_result_t::Failure::OutputRejected,
               "output path '%1%' should be a non-executable regular file "
               "since recursive hashing is not enabled (one of outputHashMode={flat,text} is true)",
               actualPath);
@@ -1609,7 +1609,7 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
         assert(false);
       }();
 
-      auto newInfo0 = ValidPathInfo::makeFromCA(
+      auto newInfo0 = valid_path_info_t::makeFromCA(
           store, output_path_name(drv.name, output_name),
           ContentAddressWithReferences::fromParts(outputHash.method, std::move(got), rewriteRefs()),
           Hash::dummy);
@@ -1634,10 +1634,10 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
       return newInfo0;
     };
 
-    ValidPathInfo newInfo = std::visit(
+    valid_path_info_t newInfo = std::visit(
         overloaded{
 
-            [&](const DerivationOutput::InputAddressed& output) {
+            [&](const derivation_output_t::InputAddressed& output) {
               /* input-addressed case */
               auto requiredFinalPath = output.path;
               /* Preemptively add rewrite rule for final hash, as that is
@@ -1649,7 +1649,7 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
               hash_result_t narHashAndSize =
                   hash_path({get_fs_source_accessor(), canon_path_t(actualPath)},
                             file_serialisation_method_t::nix_archive, hash_algorithm_t::SHA256);
-              ValidPathInfo newInfo0{requiredFinalPath, {store, narHashAndSize.hash}};
+              valid_path_info_t newInfo0{requiredFinalPath, {store, narHashAndSize.hash}};
               newInfo0.nar_size = narHashAndSize.num_bytes_digested;
               auto refs = rewriteRefs();
               newInfo0.references = std::move(refs.others);
@@ -1658,7 +1658,7 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
               return newInfo0;
             },
 
-            [&](const DerivationOutput::CAFixed& dof) {
+            [&](const derivation_output_t::CAFixed& dof) {
               auto& wanted = dof.ca.hash;
 
               // Replace the output by a fresh copy of itself to make sure
@@ -1668,22 +1668,22 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
 
               std::filesystem::rename(tmpOutput, actualPath);
 
-              return newInfoFromCA(DerivationOutput::CAFloating{
+              return newInfoFromCA(derivation_output_t::CAFloating{
                   .method = dof.ca.method,
                   .hash_algo = wanted.algo(),
               });
             },
 
-            [&](const DerivationOutput::CAFloating& dof) { return newInfoFromCA(dof); },
+            [&](const derivation_output_t::CAFloating& dof) { return newInfoFromCA(dof); },
 
-            [&](const DerivationOutput::Deferred&) -> ValidPathInfo {
+            [&](const derivation_output_t::Deferred&) -> valid_path_info_t {
               // No derivation should reach that point without having been
               // rewritten first
               assert(false);
             },
 
-            [&](const DerivationOutput::Impure& doi) {
-              return newInfoFromCA(DerivationOutput::CAFloating{
+            [&](const derivation_output_t::Impure& doi) {
+              return newInfoFromCA(derivation_output_t::CAFloating{
                   .method = doi.method,
                   .hash_algo = doi.hash_algo,
               });
@@ -1737,7 +1737,7 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
       /* Check against already registered outputs */
 
       if (store.isValidPath(newInfo.path)) {
-        ValidPathInfo oldInfo(*store.queryPathInfo(newInfo.path));
+        valid_path_info_t oldInfo(*store.queryPathInfo(newInfo.path));
         if (newInfo.nar_hash != oldInfo.nar_hash) {
           if (settings.runDiffHook || settings.keep_failed) {
             auto dst = store.toRealPath(finalDestPath + ".check");
@@ -1834,7 +1834,7 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
   for (auto& [output_name, newInfo] : infos) {
     auto oldinfo = get(initialOutputs, output_name);
     assert(oldinfo);
-    auto thisRealisation = Realisation{
+    auto thisRealisation = realisation_t{
         {
             .out_path = newInfo.path,
         },
@@ -1880,7 +1880,7 @@ void derivation_builder_impl_t::cleanup_build(bool force) {
   }
 }
 
-StorePath derivation_builder_impl_t::make_fallback_path(OutputNameView output_name) {
+store_path_t derivation_builder_impl_t::make_fallback_path(OutputNameView output_name) {
   // This is a bogus path type, constructed this way to ensure that it doesn't collide with any
   // other store path See doc/manual/source/protocols/store-path.md for details
   // TODO: We may want to separate the responsibilities of constructing the path fingerprint and of
@@ -1893,7 +1893,7 @@ StorePath derivation_builder_impl_t::make_fallback_path(OutputNameView output_na
                              output_path_name(drv.name, output_name));
 }
 
-StorePath derivation_builder_impl_t::make_fallback_path(const StorePath& path) {
+store_path_t derivation_builder_impl_t::make_fallback_path(const store_path_t& path) {
   // This is a bogus path type, constructed this way to ensure that it doesn't collide with any
   // other store path See doc/manual/source/protocols/store-path.md for details
   auto path_type =

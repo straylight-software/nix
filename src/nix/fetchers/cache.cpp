@@ -95,7 +95,7 @@ struct cache_impl_t : cache_t {
     };
   }
 
-  void upsert(Key key, Store& store, Attrs value, const StorePath& store_path) override {
+  void upsert(Key key, store_t& store, Attrs value, const store_path_t& store_path) override {
     /* Add the store prefix to the cache key to handle multiple
        store prefixes. */
     key.second.insert_or_assign("store", store.store_dir);
@@ -105,7 +105,7 @@ struct cache_impl_t : cache_t {
     upsert(key, value);
   }
 
-  std::optional<ResultWithStorePath> lookupStorePath(Key key, Store& store,
+  std::optional<ResultWithStorePath> lookupStorePath(Key key, store_t& store,
                                                      bool allow_invalid) override {
     key.second.insert_or_assign("store", store.store_dir);
 
@@ -116,7 +116,7 @@ struct cache_impl_t : cache_t {
     auto store_path_s = get_str_attr(res->value, "storePath");
     res->value.erase("storePath");
 
-    ResultWithStorePath res2(*res, StorePath(store_path_s));
+    ResultWithStorePath res2(*res, store_path_t(store_path_s));
 
     store.addTempRoot(res2.store_path);
     if (!allow_invalid && !store.isValidPath(res2.store_path)) {
@@ -132,7 +132,7 @@ struct cache_impl_t : cache_t {
     return res2;
   }
 
-  std::optional<ResultWithStorePath> lookupStorePathWithTTL(Key key, Store& store) override {
+  std::optional<ResultWithStorePath> lookupStorePathWithTTL(Key key, store_t& store) override {
     auto res = lookupStorePath(std::move(key), store, false);
     return res && !res->expired ? res : std::nullopt;
   }

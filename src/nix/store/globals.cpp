@@ -251,7 +251,7 @@ Path settings_t::getDefaultSSLCertFile() {
   return "";
 }
 
-const ExternalBuilder* settings_t::findExternalDerivationBuilderIfSupported(const Derivation& drv) {
+const ExternalBuilder* settings_t::findExternalDerivationBuilderIfSupported(const derivation_t& drv) {
   if (auto it = std::ranges::find_if(
           externalBuilders.get(),
           [&](const auto& handler) { return handler.systems.contains(drv.platform); });
@@ -300,7 +300,7 @@ std::string base_setting_t<SandboxMode>::to_string() const {
 }
 
 template <>
-void base_setting_t<SandboxMode>::convert_to_arg(Args& args, const std::string& category) {
+void base_setting_t<SandboxMode>::convert_to_arg(args_t& args, const std::string& category) {
   args.add_flag({
       .long_name = name,
       .aliases = aliases,

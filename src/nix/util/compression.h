@@ -17,12 +17,12 @@ struct compression_sink_t : buffered_sink_t, finish_sink_t {
 
 std::string decompress(const std::string& method, std::string_view in);
 
-std::unique_ptr<finish_sink_t> make_decompression_sink(const std::string& method, Sink& next_sink);
+std::unique_ptr<finish_sink_t> make_decompression_sink(const std::string& method, sink_t& next_sink);
 
 std::string compress(const std::string& method, std::string_view in, const bool parallel = false,
                      int level = -1);
 
-ref<compression_sink_t> make_compression_sink(const std::string& method, Sink& next_sink,
+ref<compression_sink_t> make_compression_sink(const std::string& method, sink_t& next_sink,
                                          const bool parallel = false, int level = -1);
 
 make_error(UnknownCompressionMethod, Error);

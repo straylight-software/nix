@@ -13,7 +13,7 @@
 
 namespace nix {
 
-struct StoreDirConfig;
+struct store_dir_config_t;
 
 /**
  * An opaque derived path.
@@ -23,10 +23,10 @@ struct StoreDirConfig;
  * built, but they can fetched.
  */
 struct DerivedPathOpaque {
-  StorePath path;
+  store_path_t path;
 
-  std::string to_string(const StoreDirConfig& store) const;
-  static DerivedPathOpaque parse(const StoreDirConfig& store, std::string_view);
+  std::string to_string(const store_dir_config_t& store) const;
+  static DerivedPathOpaque parse(const store_dir_config_t& store, std::string_view);
 
   bool operator==(const DerivedPathOpaque&) const = default;
   auto operator<=>(const DerivedPathOpaque&) const = default;
@@ -55,23 +55,23 @@ struct SingleDerivedPathBuilt {
    * function breaks "referential transparency". It should therefore
    * be used only with great care.
    */
-  const StorePath& getBaseStorePath() const;
+  const store_path_t& getBaseStorePath() const;
 
   /**
    * Uses `^` as the separator
    */
-  std::string to_string(const StoreDirConfig& store) const;
+  std::string to_string(const store_dir_config_t& store) const;
   /**
    * Uses `!` as the separator
    */
-  std::string to_string_legacy(const StoreDirConfig& store) const;
+  std::string to_string_legacy(const store_dir_config_t& store) const;
   /**
    * The caller splits on the separator, so it works for both variants.
    *
    * @param xp_settings Stop-gap to avoid globals during unit tests.
    */
   static SingleDerivedPathBuilt
-  parse(const StoreDirConfig& store, ref<const SingleDerivedPath> drv_path, OutputNameView outputs,
+  parse(const store_dir_config_t& store, ref<const SingleDerivedPath> drv_path, OutputNameView outputs,
         const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
 
   bool operator==(const SingleDerivedPathBuilt&) const noexcept;
@@ -113,23 +113,23 @@ struct SingleDerivedPath : _SingleDerivedPathRaw {
    * function breaks "referential transparency". It should therefore
    * be used only with great care.
    */
-  const StorePath& getBaseStorePath() const;
+  const store_path_t& getBaseStorePath() const;
 
   /**
    * Uses `^` as the separator
    */
-  std::string to_string(const StoreDirConfig& store) const;
+  std::string to_string(const store_dir_config_t& store) const;
   /**
    * Uses `!` as the separator
    */
-  std::string to_string_legacy(const StoreDirConfig& store) const;
+  std::string to_string_legacy(const store_dir_config_t& store) const;
   /**
    * Uses `^` as the separator
    *
    * @param xp_settings Stop-gap to avoid globals during unit tests.
    */
   static SingleDerivedPath
-  parse(const StoreDirConfig& store, std::string_view,
+  parse(const store_dir_config_t& store, std::string_view,
         const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
   /**
    * Uses `!` as the separator
@@ -137,11 +137,11 @@ struct SingleDerivedPath : _SingleDerivedPathRaw {
    * @param xp_settings Stop-gap to avoid globals during unit tests.
    */
   static SingleDerivedPath
-  parseLegacy(const StoreDirConfig& store, std::string_view,
+  parseLegacy(const store_dir_config_t& store, std::string_view,
               const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
 };
 
-static inline ref<SingleDerivedPath> makeConstantStorePathRef(StorePath drv_path) {
+static inline ref<SingleDerivedPath> makeConstantStorePathRef(store_path_t drv_path) {
   return make_ref<SingleDerivedPath>(SingleDerivedPath::opaque_t{drv_path});
 }
 
@@ -171,23 +171,23 @@ struct DerivedPathBuilt {
    * function breaks "referential transparency". It should therefore
    * be used only with great care.
    */
-  const StorePath& getBaseStorePath() const;
+  const store_path_t& getBaseStorePath() const;
 
   /**
    * Uses `^` as the separator
    */
-  std::string to_string(const StoreDirConfig& store) const;
+  std::string to_string(const store_dir_config_t& store) const;
   /**
    * Uses `!` as the separator
    */
-  std::string to_string_legacy(const StoreDirConfig& store) const;
+  std::string to_string_legacy(const store_dir_config_t& store) const;
   /**
    * The caller splits on the separator, so it works for both variants.
    *
    * @param xp_settings Stop-gap to avoid globals during unit tests.
    */
   static DerivedPathBuilt
-  parse(const StoreDirConfig& store, ref<const SingleDerivedPath>, std::string_view,
+  parse(const store_dir_config_t& store, ref<const SingleDerivedPath>, std::string_view,
         const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
 
   bool operator==(const DerivedPathBuilt&) const noexcept;
@@ -207,7 +207,7 @@ using _DerivedPathRaw = std::variant<DerivedPathOpaque, DerivedPathBuilt>;
  * - built, in which case it is a pair of a derivation path and some
  *   output names.
  */
-struct DerivedPath : _DerivedPathRaw {
+struct derived_path_t : _DerivedPathRaw {
   using raw_t = _DerivedPathRaw;
   using raw_t::raw_t;
 
@@ -226,40 +226,40 @@ struct DerivedPath : _DerivedPathRaw {
    * function breaks "referential transparency". It should therefore
    * be used only with great care.
    */
-  const StorePath& getBaseStorePath() const;
+  const store_path_t& getBaseStorePath() const;
 
   /**
    * Uses `^` as the separator
    */
-  std::string to_string(const StoreDirConfig& store) const;
+  std::string to_string(const store_dir_config_t& store) const;
   /**
    * Uses `!` as the separator
    */
-  std::string to_string_legacy(const StoreDirConfig& store) const;
+  std::string to_string_legacy(const store_dir_config_t& store) const;
   /**
    * Uses `^` as the separator
    *
    * @param xp_settings Stop-gap to avoid globals during unit tests.
    */
-  static DerivedPath
-  parse(const StoreDirConfig& store, std::string_view,
+  static derived_path_t
+  parse(const store_dir_config_t& store, std::string_view,
         const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
   /**
    * Uses `!` as the separator
    *
    * @param xp_settings Stop-gap to avoid globals during unit tests.
    */
-  static DerivedPath
-  parseLegacy(const StoreDirConfig& store, std::string_view,
+  static derived_path_t
+  parseLegacy(const store_dir_config_t& store, std::string_view,
               const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
 
   /**
-   * Convert a `SingleDerivedPath` to a `DerivedPath`.
+   * Convert a `SingleDerivedPath` to a `derived_path_t`.
    */
-  static DerivedPath fromSingle(const SingleDerivedPath&);
+  static derived_path_t fromSingle(const SingleDerivedPath&);
 };
 
-using DerivedPaths = std::vector<DerivedPath>;
+using DerivedPaths = std::vector<derived_path_t>;
 
 /**
  * Used by various parser functions to require experimental features as
@@ -278,5 +278,5 @@ void drv_require_experiment(
 JSON_IMPL(nix::SingleDerivedPath::opaque_t)
 JSON_IMPL_WITH_XP_FEATURES(nix::SingleDerivedPath::Built)
 JSON_IMPL_WITH_XP_FEATURES(nix::SingleDerivedPath)
-JSON_IMPL_WITH_XP_FEATURES(nix::DerivedPath::Built)
-JSON_IMPL_WITH_XP_FEATURES(nix::DerivedPath)
+JSON_IMPL_WITH_XP_FEATURES(nix::derived_path_t::Built)
+JSON_IMPL_WITH_XP_FEATURES(nix::derived_path_t)

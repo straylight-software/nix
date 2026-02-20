@@ -62,9 +62,9 @@ auto get_integer(const nlohmann::json& value)
               8 * sizeof(T));
 }
 
-template <typename... Args>
-std::map<std::string, Args...> get_map(const nlohmann::json::object_t& json_object, auto&& f) {
-  std::map<std::string, Args...> map;
+template <typename... args_t>
+std::map<std::string, args_t...> get_map(const nlohmann::json::object_t& json_object, auto&& f) {
+  std::map<std::string, args_t...> map;
 
   for (const auto& [key, value] : json_object)
     map.insert_or_assign(key, f(value));

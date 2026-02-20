@@ -25,7 +25,7 @@ inline void* EvalMemory::allocBytes(size_t n) {
 }
 
 [[gnu::always_inline]]
-Value* EvalMemory::allocValue() {
+value_t* EvalMemory::allocValue() {
 #if NIX_USE_BOEHMGC
   /* We use the boehm batch allocator to speed up allocations of Values (of which there are many).
      GC_malloc_many returns a linked list of objects of the given size, where the first word
@@ -35,7 +35,7 @@ Value* EvalMemory::allocValue() {
       std::allocate_shared<void*>(traceable_allocator<void*>(), nullptr)};
 
   if (!*valueAllocCache) {
-    *valueAllocCache = GC_malloc_many(sizeof(Value));
+    *valueAllocCache = GC_malloc_many(sizeof(value_t));
     if (!*valueAllocCache)
       throw std::bad_alloc();
   }
@@ -46,11 +46,11 @@ Value* EvalMemory::allocValue() {
   *valueAllocCache = GC_NEXT(p);
   GC_NEXT(p) = nullptr;
 #else
-  void* p = allocBytes(sizeof(Value));
+  void* p = allocBytes(sizeof(value_t));
 #endif
 
   stats.nrValues++;
-  return (Value*)p;
+  return (value_t*)p;
 }
 
 [[gnu::always_inline]]
@@ -67,7 +67,7 @@ Env& EvalMemory::allocEnv(size_t size) {
         std::allocate_shared<void*>(traceable_allocator<void*>(), nullptr)};
 
     if (!*env1AllocCache) {
-      *env1AllocCache = GC_malloc_many(sizeof(Env) + sizeof(Value*));
+      *env1AllocCache = GC_malloc_many(sizeof(Env) + sizeof(value_t*));
       if (!*env1AllocCache)
         throw std::bad_alloc();
     }
@@ -78,7 +78,7 @@ Env& EvalMemory::allocEnv(size_t size) {
     env = (Env*)p;
   } else
 #endif
-    env = (Env*)allocBytes(sizeof(Env) + size * sizeof(Value*));
+    env = (Env*)allocBytes(sizeof(Env) + size * sizeof(value_t*));
 
   /* We assume that env->values has been cleared by the allocator; maybeThunk() and lookupVar
    * fromWith expect this. */
@@ -95,7 +95,7 @@ extern thread_local uint32_t my_eval_thread_id;
 
 template <std::size_t ptrSize>
 void ValueStorage<ptrSize, std::enable_if_t<detail::useBitPackedValueStorage<ptrSize>>>::force(
-    EvalState& state, pos_idx_t pos) {
+    eval_state_t& state, pos_idx_t pos) {
   auto p0_ = p0.load(std::memory_order_acquire);
 
   auto pd = static_cast<PrimaryDiscriminator>(p0_ & discriminatorMask);
@@ -123,17 +123,17 @@ void ValueStorage<ptrSize, std::enable_if_t<detail::useBitPackedValueStorage<ptr
 
       bool isApp = p1_ & discriminatorMask;
       if (isApp) {
-        auto left = untagPointer<Value*>(p0_);
-        auto right = untagPointer<Value*>(p1_);
-        state.callFunction(*left, *right, (Value&)*this, pos);
+        auto left = untagPointer<value_t*>(p0_);
+        auto right = untagPointer<value_t*>(p1_);
+        state.callFunction(*left, *right, (value_t&)*this, pos);
       } else {
         auto env = untagPointer<Env*>(p0_);
-        auto expr = untagPointer<Expr*>(p1_);
-        expr->eval(state, *env, (Value&)*this);
+        auto expr = untagPointer<expr_t*>(p1_);
+        expr->eval(state, *env, (value_t&)*this);
       }
     } catch (...) {
-      state.tryFixupBlackHolePos((Value&)*this, pos);
-      setStorage(new Value::Failed{.ex = std::current_exception()});
+      state.tryFixupBlackHolePos((value_t&)*this, pos);
+      setStorage(new value_t::Failed{.ex = std::current_exception()});
       throw;
     }
   }
@@ -147,13 +147,13 @@ done:
 }
 
 [[gnu::always_inline]]
-inline void EvalState::forceAttrs(Value& v, const pos_idx_t pos, std::string_view error_ctx) {
+inline void eval_state_t::forceAttrs(value_t& v, const pos_idx_t pos, std::string_view error_ctx) {
   forceAttrs(v, [&]() { return pos; }, error_ctx);
 }
 
 template <typename Callable>
 [[gnu::always_inline]]
-inline void EvalState::forceAttrs(Value& v, Callable getPos, std::string_view error_ctx) {
+inline void eval_state_t::forceAttrs(value_t& v, Callable getPos, std::string_view error_ctx) {
   pos_idx_t pos = getPos();
   forceValue(v, pos);
   if (v.type() != nAttrs) {
@@ -165,7 +165,7 @@ inline void EvalState::forceAttrs(Value& v, Callable getPos, std::string_view er
 }
 
 [[gnu::always_inline]]
-inline void EvalState::forceList(Value& v, const pos_idx_t pos, std::string_view error_ctx) {
+inline void eval_state_t::forceList(value_t& v, const pos_idx_t pos, std::string_view error_ctx) {
   forceValue(v, pos);
   if (!v.isList()) {
     error<TypeError>("expected a list but found %1%: %2%", show_type(v),
@@ -176,7 +176,7 @@ inline void EvalState::forceList(Value& v, const pos_idx_t pos, std::string_view
 }
 
 [[gnu::always_inline]]
-inline CallDepth EvalState::addCallDepth(const pos_idx_t pos) {
+inline CallDepth eval_state_t::addCallDepth(const pos_idx_t pos) {
   if (callDepth > settings.maxCallDepth)
     error<EvalBaseError>("stack overflow; max-call-depth exceeded").at_pos(pos).debugThrow();
 

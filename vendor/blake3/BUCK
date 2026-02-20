@@ -1,0 +1,42 @@
+# BLAKE3 - fast cryptographic hash
+# Built with Buck2 for musl static linking
+
+# x86-64 Unix assembly sources for SIMD acceleration
+cxx_library(
+    name = "blake3",
+    srcs = [
+        "c/blake3.c",
+        "c/blake3_dispatch.c",
+        "c/blake3_portable.c",
+        # x86-64 SIMD intrinsics (C fallback, more portable)
+        "c/blake3_sse2.c",
+        "c/blake3_sse41.c",
+        "c/blake3_avx2.c",
+        "c/blake3_avx512.c",
+        # x86-64 Unix assembly (faster than intrinsics)
+        "c/blake3_sse2_x86-64_unix.S",
+        "c/blake3_sse41_x86-64_unix.S",
+        "c/blake3_avx2_x86-64_unix.S",
+        "c/blake3_avx512_x86-64_unix.S",
+    ],
+    exported_headers = {
+        "blake3.h": "c/blake3.h",
+    },
+    header_namespace = "",
+    compiler_flags = [
+        "-std=c11",
+        "-O3",
+        "-w",  # Suppress warnings in third-party code
+        # SIMD flags for intrinsics versions
+        "-msse2",
+        "-msse4.1",
+        "-mavx2",
+        "-mavx512f",
+        "-mavx512vl",
+        # Disable fortify source to avoid __memcpy_chk
+        "-U_FORTIFY_SOURCE",
+        "-D_FORTIFY_SOURCE=0",
+    ],
+    preferred_linkage = "static",
+    visibility = ["PUBLIC"],
+)

@@ -10,17 +10,17 @@
 
 namespace nix {
 
-StorePathSet scan_for_references(Sink& to_tee, const Path& path, const StorePathSet& refs);
+store_path_set_t scan_for_references(sink_t& to_tee, const Path& path, const store_path_set_t& refs);
 
 class PathRefScanSink : public RefScanSink {
-  std::map<std::string, StorePath> backMap;
+  std::map<std::string, store_path_t> backMap;
 
-  PathRefScanSink(string_set_t&& hashes, std::map<std::string, StorePath>&& backMap);
+  PathRefScanSink(string_set_t&& hashes, std::map<std::string, store_path_t>&& backMap);
 
 public:
-  static PathRefScanSink fromPaths(const StorePathSet& refs);
+  static PathRefScanSink fromPaths(const store_path_set_t& refs);
 
-  StorePathSet getResultPaths();
+  store_path_set_t getResultPaths();
 };
 
 /**
@@ -28,7 +28,7 @@ public:
  */
 struct FileRefScanResult {
   canon_path_t filePath;     ///< The file that was scanned
-  StorePathSet found_refs; ///< Which store paths were found in this file
+  store_path_set_t found_refs; ///< Which store paths were found in this file
 };
 
 /**
@@ -47,13 +47,13 @@ struct FileRefScanResult {
  * "/nix/store/dc04vv14dak1c1r48qa0m23vr9jy8sm0-foo" will be detected if the
  * hash appears anywhere in the scanned content, regardless of the "-foo" suffix.
  *
- * @param accessor Source accessor to read the tree
+ * @param accessor source_t accessor to read the tree
  * @param root_path Root path to scan
  * @param refs Set of store paths to search for
  * @param callback Called for each file that contains at least one reference
  */
-void scan_for_references_deep(SourceAccessor& accessor, const canon_path_t& root_path,
-                           const StorePathSet& refs,
+void scan_for_references_deep(source_accessor_t& accessor, const canon_path_t& root_path,
+                           const store_path_set_t& refs,
                            std::function<void(FileRefScanResult)> callback);
 
 /**
@@ -65,13 +65,13 @@ void scan_for_references_deep(SourceAccessor& accessor, const canon_path_t& root
  * Note: This function only searches for the hash part of store paths, not the name part.
  * See the callback-based overload for details.
  *
- * @param accessor Source accessor to read the tree
+ * @param accessor source_t accessor to read the tree
  * @param root_path Root path to scan
  * @param refs Set of store paths to search for
  * @return Map from file paths to the set of references found in each file
  */
-std::map<canon_path_t, StorePathSet> scan_for_references_deep(SourceAccessor& accessor,
+std::map<canon_path_t, store_path_set_t> scan_for_references_deep(source_accessor_t& accessor,
                                                         const canon_path_t& root_path,
-                                                        const StorePathSet& refs);
+                                                        const store_path_set_t& refs);
 
 } // namespace nix

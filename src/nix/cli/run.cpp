@@ -46,7 +46,7 @@ strings_t to_envp(string_map_t env) {
   return env_strs;
 }
 
-void exec_program_in_store(ref<Store> store, use_lookup_path_t use_lookup_path, const std::string& program,
+void exec_program_in_store(ref<store_t> store, use_lookup_path_t use_lookup_path, const std::string& program,
                         const strings_t& args, std::optional<std::string_view> system,
                         std::optional<string_map_t> env) {
   logger->stop();
@@ -138,7 +138,7 @@ struct cmd_run_t : InstallableValueCommand, MixEnvironment {
     return res;
   }
 
-  void run(ref<Store> store, ref<InstallableValue> installable) override {
+  void run(ref<store_t> store, ref<InstallableValue> installable) override {
     auto state = getEvalState();
 
     lock_flags.applyNixConfig = true;

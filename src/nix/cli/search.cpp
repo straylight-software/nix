@@ -53,7 +53,7 @@ struct cmd_search_t : InstallableValueCommand, MixJSON {
     return {"packages." + settings.thisSystem.get(), "legacyPackages." + settings.thisSystem.get()};
   }
 
-  void run(ref<Store> store, ref<InstallableValue> installable) override {
+  void run(ref<store_t> store, ref<InstallableValue> installable) override {
     settings.readOnlyMode = true;
     eval_settings.enableImportFromDerivation.set_default(false);
 

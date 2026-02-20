@@ -38,7 +38,7 @@ std::filesystem::path posix_source_accessor_t::make_abs_path(const canon_path_t&
                           : root / path.rel();
 }
 
-void posix_source_accessor_t::read_file(const canon_path_t& path, Sink& sink,
+void posix_source_accessor_t::read_file(const canon_path_t& path, sink_t& sink,
                                         std::function<void(uint64_t)> size_callback) {
   assert_no_symlinks(path);
 
@@ -108,7 +108,7 @@ void posix_source_accessor_t::invalidate_cache(const canon_path_t& path) {
   cache.erase(make_abs_path(path).string());
 }
 
-std::optional<SourceAccessor::stat_t>
+std::optional<source_accessor_t::stat_t>
 posix_source_accessor_t::maybe_lstat(const canon_path_t& path) {
   if (auto parent = path.parent())
     assert_no_symlinks(*parent);
@@ -139,7 +139,7 @@ posix_source_accessor_t::maybe_lstat(const canon_path_t& path) {
   };
 }
 
-SourceAccessor::dir_entries_t posix_source_accessor_t::read_directory(const canon_path_t& path) {
+source_accessor_t::dir_entries_t posix_source_accessor_t::read_directory(const canon_path_t& path) {
   assert_no_symlinks(path);
   dir_entries_t res;
   for (auto& entry : directory_iterator_t{make_abs_path(path)}) {
@@ -211,12 +211,12 @@ void posix_source_accessor_t::assert_no_symlinks(canon_path_t path) {
   }
 }
 
-ref<SourceAccessor> get_fs_source_accessor() {
+ref<source_accessor_t> get_fs_source_accessor() {
   static auto root_fs = make_ref<posix_source_accessor_t>();
   return root_fs;
 }
 
-ref<SourceAccessor> make_fs_source_accessor(std::filesystem::path root) {
+ref<source_accessor_t> make_fs_source_accessor(std::filesystem::path root) {
   return make_ref<posix_source_accessor_t>(std::move(root));
 }
 } // namespace nix

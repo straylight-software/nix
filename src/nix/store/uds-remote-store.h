@@ -9,11 +9,11 @@ namespace nix {
 
 struct UDSRemoteStoreConfig : std::enable_shared_from_this<UDSRemoteStoreConfig>,
                               virtual LocalFSStoreConfig,
-                              virtual RemoteStoreConfig {
+                              virtual remote_store_config_t {
   // TODO(fzakaria): Delete this constructor once moved over to the factory pattern
   // outlined in https://github.com/NixOS/nix/issues/10766
   using LocalFSStoreConfig::LocalFSStoreConfig;
-  using RemoteStoreConfig::RemoteStoreConfig;
+  using remote_store_config_t::remote_store_config_t;
 
   /**
    * @param authority is the socket path.
@@ -22,7 +22,7 @@ struct UDSRemoteStoreConfig : std::enable_shared_from_this<UDSRemoteStoreConfig>
 
   UDSRemoteStoreConfig(const Params& params);
 
-  static const std::string name() { return "Local Daemon Store"; }
+  static const std::string name() { return "Local Daemon store_t"; }
 
   static std::string doc();
 
@@ -36,7 +36,7 @@ struct UDSRemoteStoreConfig : std::enable_shared_from_this<UDSRemoteStoreConfig>
 
   static string_set_t uriSchemes() { return {"unix"}; }
 
-  ref<Store> open_store() const override;
+  ref<store_t> open_store() const override;
 
   StoreReference getReference() const override;
 };
@@ -48,16 +48,16 @@ struct UDSRemoteStore : virtual IndirectRootStore, virtual remote_store {
 
   UDSRemoteStore(ref<const config_t>);
 
-  ref<SourceAccessor> getFSAccessor(bool require_valid_path = true) override {
+  ref<source_accessor_t> getFSAccessor(bool require_valid_path = true) override {
     return local_fs_store::getFSAccessor(require_valid_path);
   }
 
-  std::shared_ptr<SourceAccessor> getFSAccessor(const StorePath& path,
+  std::shared_ptr<source_accessor_t> getFSAccessor(const store_path_t& path,
                                                 bool require_valid_path = true) override {
     return local_fs_store::getFSAccessor(path, require_valid_path);
   }
 
-  void nar_from_path(const StorePath& path, Sink& sink) override { Store::nar_from_path(path, sink); }
+  void nar_from_path(const store_path_t& path, sink_t& sink) override { store_t::nar_from_path(path, sink); }
 
   /**
    * Implementation of `IndirectRootStore::addIndirectRoot()` which

@@ -47,7 +47,7 @@ struct LookupPath {
 
   /**
    * The list of search path elements. Each one is checked for a path
-   * when looking up. (The actual lookup entry point is in `EvalState`
+   * when looking up. (The actual lookup entry point is in `eval_state_t`
    * not in this class.)
    */
   std::list<LookupPath::Elem> elements;

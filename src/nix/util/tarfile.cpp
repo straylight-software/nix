@@ -24,7 +24,7 @@ ssize_t callback_read(struct archive* archive, void* _self, const void** buffer)
   } catch (EndOfFile&) {
     return 0;
   } catch (std::exception& err) {
-    archive_set_error(archive, EIO, "Source threw exception: %s", err.what());
+    archive_set_error(archive, EIO, "source_t threw exception: %s", err.what());
     return -1;
   }
 }
@@ -74,7 +74,7 @@ static void enable_supported_formats(struct archive* archive) {
   archive_read_support_format_empty(archive);
 }
 
-tar_archive_t::tar_archive_t(Source& source, bool raw, std::optional<std::string> compression_method)
+tar_archive_t::tar_archive_t(source_t& source, bool raw, std::optional<std::string> compression_method)
     : archive{archive_read_new()}, source{&source}, buffer(default_buffer_size) {
   if (!compression_method) {
     archive_read_support_filter_all(archive);
@@ -152,7 +152,7 @@ static void extract_archive(tar_archive_t& archive, const std::filesystem::path&
   archive.close();
 }
 
-void unpack_tarfile(Source& source, const std::filesystem::path& dest_dir) {
+void unpack_tarfile(source_t& source, const std::filesystem::path& dest_dir) {
   auto archive = tar_archive_t(source);
 
   create_dirs(dest_dir);

@@ -7,7 +7,7 @@
 namespace nix {
 
 // See: https://github.com/NixOS/nix/issues/9730
-void print_ambiguous(EvalState& state, Value& v, std::ostream& str, std::set<const void*>* seen,
+void print_ambiguous(eval_state_t& state, value_t& v, std::ostream& str, std::set<const void*>* seen,
                     int depth) {
   check_interrupt();
 
@@ -50,7 +50,7 @@ void print_ambiguous(EvalState& state, Value& v, std::ostream& str, std::set<con
       break;
     }
     case nList:
-      /* use pointer to the Value instead of pointer to the elements, because
+      /* use pointer to the value_t instead of pointer to the elements, because
          that would need to explicitly handle the case of SmallList. */
       if (seen && v.list_size() && !seen->insert(&v).second)
         str << "«repeated»";

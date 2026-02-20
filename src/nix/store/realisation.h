@@ -13,13 +13,13 @@
 
 namespace nix {
 
-class Store;
+class store_t;
 struct OutputsSpec;
 
 /**
- * A general `Realisation` key.
+ * A general `realisation_t` key.
  *
- * This is similar to a `DerivedPath::opaque_t`, but the derivation is
+ * This is similar to a `derived_path_t::opaque_t`, but the derivation is
  * identified by its "hash modulo" instead of by its store path.
  */
 struct DrvOutput {
@@ -48,7 +48,7 @@ struct DrvOutput {
 };
 
 struct UnkeyedRealisation {
-  StorePath out_path;
+  store_path_t out_path;
 
   string_set_t signatures;
 
@@ -58,7 +58,7 @@ struct UnkeyedRealisation {
    * When importing this realisation, the store will first check that all its
    * dependencies exist, and map to the correct output path
    */
-  std::map<DrvOutput, StorePath> dependentRealisations;
+  std::map<DrvOutput, store_path_t> dependentRealisations;
 
   std::string fingerprint(const DrvOutput& key) const;
 
@@ -69,46 +69,46 @@ struct UnkeyedRealisation {
 
   size_t checkSignatures(const DrvOutput& key, const public_keys_t& public_keys) const;
 
-  const StorePath& get_path() const { return out_path; }
+  const store_path_t& get_path() const { return out_path; }
 
   // TODO sketchy that it avoids signatures
   GENERATE_CMP(UnkeyedRealisation, me->out_path);
 };
 
-struct Realisation : UnkeyedRealisation {
+struct realisation_t : UnkeyedRealisation {
   DrvOutput id;
 
   bool isCompatibleWith(const UnkeyedRealisation& other) const;
 
-  static std::set<Realisation> closure(Store&, const std::set<Realisation>&);
+  static std::set<realisation_t> closure(store_t&, const std::set<realisation_t>&);
 
-  static void closure(Store&, const std::set<Realisation>&, std::set<Realisation>& res);
+  static void closure(store_t&, const std::set<realisation_t>&, std::set<realisation_t>& res);
 
-  bool operator==(const Realisation&) const = default;
-  auto operator<=>(const Realisation&) const = default;
+  bool operator==(const realisation_t&) const = default;
+  auto operator<=>(const realisation_t&) const = default;
 };
 
 /**
- * Collection type for a single derivation's outputs' `Realisation`s.
+ * Collection type for a single derivation's outputs' `realisation_t`s.
  *
  * Since these are the outputs of a single derivation, we know the
  * output names are unique so we can use them as the map key.
  */
-using SingleDrvOutputs = std::map<OutputName, Realisation>;
+using SingleDrvOutputs = std::map<OutputName, realisation_t>;
 
 /**
- * Collection type for multiple derivations' outputs' `Realisation`s.
+ * Collection type for multiple derivations' outputs' `realisation_t`s.
  *
  * `DrvOutput` is used because in general the derivations are not all
  * the same, so we need to identify firstly which derivation, and
  * secondly which output of that derivation.
  */
-using DrvOutputs = std::map<DrvOutput, Realisation>;
+using DrvOutputs = std::map<DrvOutput, realisation_t>;
 
 struct OpaquePath {
-  StorePath path;
+  store_path_t path;
 
-  const StorePath& get_path() const& { return path; }
+  const store_path_t& get_path() const& { return path; }
 
   bool operator==(const OpaquePath&) const = default;
   auto operator<=>(const OpaquePath&) const = default;
@@ -122,23 +122,23 @@ struct RealisedPath {
    * A path is either the result of the realisation of a derivation or
    * an opaque blob that has been directly added to the store
    */
-  using raw_t = std::variant<Realisation, OpaquePath>;
+  using raw_t = std::variant<realisation_t, OpaquePath>;
   raw_t raw;
 
   using Set = std::set<RealisedPath>;
 
-  RealisedPath(StorePath path) : raw(OpaquePath{path}) {}
+  RealisedPath(store_path_t path) : raw(OpaquePath{path}) {}
 
-  RealisedPath(Realisation r) : raw(r) {}
+  RealisedPath(realisation_t r) : raw(r) {}
 
   /**
    * Get the raw store path associated to this
    */
-  const StorePath& path() const&;
+  const store_path_t& path() const&;
 
-  void closure(Store& store, Set& ret) const;
-  static void closure(Store& store, const Set& startPaths, Set& ret);
-  Set closure(Store& store) const;
+  void closure(store_t& store, Set& ret) const;
+  static void closure(store_t& store, const Set& startPaths, Set& ret);
+  Set closure(store_t& store) const;
 
   bool operator==(const RealisedPath&) const = default;
   auto operator<=>(const RealisedPath&) const = default;
@@ -159,4 +159,4 @@ public:
 
 JSON_IMPL(nix::DrvOutput)
 JSON_IMPL(nix::UnkeyedRealisation)
-JSON_IMPL(nix::Realisation)
+JSON_IMPL(nix::realisation_t)

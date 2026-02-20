@@ -19,13 +19,13 @@ namespace nix {
 void check_name(std::string_view name);
 
 /**
- * \ref StorePath "Store path" is the fundamental reference type of Nix.
- * A store paths refers to a Store object.
+ * \ref store_path_t "store_t path" is the fundamental reference type of Nix.
+ * A store paths refers to a store_t object.
  *
  * See store/store-path.html for more information on a
  * conceptual level.
  */
-class StorePath {
+class store_path_t {
   std::string base_name;
 
 public:
@@ -36,18 +36,18 @@ public:
 
   constexpr static size_t MaxPathLen = 211;
 
-  StorePath() = delete;
+  store_path_t() = delete;
 
   /** @throws BadStorePath */
-  StorePath(std::string_view base_name);
+  store_path_t(std::string_view base_name);
 
   /** @throws BadStorePath */
-  StorePath(const Hash& hash, std::string_view name);
+  store_path_t(const Hash& hash, std::string_view name);
 
   std::string_view to_string() const noexcept { return base_name; }
 
-  bool operator==(const StorePath& other) const noexcept = default;
-  auto operator<=>(const StorePath& other) const noexcept = default;
+  bool operator==(const store_path_t& other) const noexcept = default;
+  auto operator<=>(const store_path_t& other) const noexcept = default;
 
   /**
    * Check whether a file name ends with the extension for derivations.
@@ -63,30 +63,30 @@ public:
 
   std::string_view hash_part() const { return std::string_view(base_name).substr(0, HashLen); }
 
-  static StorePath dummy;
+  static store_path_t dummy;
 
-  static StorePath random(std::string_view name);
+  static store_path_t random(std::string_view name);
 };
 
-using StorePathSet = std::set<StorePath>;
-using StorePaths = std::vector<StorePath>;
+using store_path_set_t = std::set<store_path_t>;
+using store_paths_t = std::vector<store_path_t>;
 
 /**
- * The file extension of \ref nix::Derivation derivations when serialized
+ * The file extension of \ref nix::derivation_t derivations when serialized
  * into store objects.
  */
 constexpr std::string_view drvExtension = ".drv";
 
 template <>
-struct json_avoids_null<StorePath> : std::true_type {};
+struct json_avoids_null<store_path_t> : std::true_type {};
 
 } // namespace nix
 
 namespace std {
 
 template <>
-struct hash<nix::StorePath> {
-  std::size_t operator()(const nix::StorePath& path) const noexcept {
+struct hash<nix::store_path_t> {
+  std::size_t operator()(const nix::store_path_t& path) const noexcept {
     return *(std::size_t*)path.to_string().data();
   }
 };
@@ -95,10 +95,10 @@ struct hash<nix::StorePath> {
 
 namespace nix {
 
-inline std::size_t hash_value(const StorePath& path) {
-  return std::hash<StorePath>{}(path);
+inline std::size_t hash_value(const store_path_t& path) {
+  return std::hash<store_path_t>{}(path);
 }
 
 } // namespace nix
 
-JSON_IMPL(nix::StorePath)
+JSON_IMPL(nix::store_path_t)

@@ -30,7 +30,7 @@ std::optional<Mode> decode_mode(raw_mode_t m) {
   }
 }
 
-static std::string get_string_until(Source& source, char byte) {
+static std::string get_string_until(source_t& source, char byte) {
   std::string s;
   char n[1] = {0};
   source(std::string_view{n, 1});
@@ -41,14 +41,14 @@ static std::string get_string_until(Source& source, char byte) {
   return s;
 }
 
-static std::string get_string(Source& source, int n) {
+static std::string get_string(source_t& source, int n) {
   std::string v;
   v.resize(n);
   source(v);
   return v;
 }
 
-void parse_blob(file_system_object_sink_t& sink, const canon_path_t& sink_path, Source& source,
+void parse_blob(file_system_object_sink_t& sink, const canon_path_t& sink_path, source_t& source,
                 blob_mode_t blob_mode, const experimental_feature_settings_t& xp_settings) {
   xp_settings.require(xp_t::git_hashing);
 
@@ -103,7 +103,7 @@ void parse_blob(file_system_object_sink_t& sink, const canon_path_t& sink_path, 
   }
 }
 
-void parse_tree(file_system_object_sink_t& sink, const canon_path_t& sink_path, Source& source,
+void parse_tree(file_system_object_sink_t& sink, const canon_path_t& sink_path, source_t& source,
                 hash_algorithm_t hash_algo, std::function<sink_hook_t> hook,
                 const experimental_feature_settings_t& xp_settings) {
   const unsigned long long size = std::stoi(get_string_until(source, 0));
@@ -145,7 +145,7 @@ void parse_tree(file_system_object_sink_t& sink, const canon_path_t& sink_path, 
   }
 }
 
-object_type_t parse_object_type(Source& source,
+object_type_t parse_object_type(source_t& source,
                                 const experimental_feature_settings_t& xp_settings) {
   xp_settings.require(xp_t::git_hashing);
 
@@ -160,7 +160,7 @@ object_type_t parse_object_type(Source& source,
   }
 }
 
-void parse(file_system_object_sink_t& sink, const canon_path_t& sink_path, Source& source,
+void parse(file_system_object_sink_t& sink, const canon_path_t& sink_path, source_t& source,
            blob_mode_t root_mode_if_blob, hash_algorithm_t hash_algo,
            std::function<sink_hook_t> hook, const experimental_feature_settings_t& xp_settings) {
   xp_settings.require(xp_t::git_hashing);
@@ -179,26 +179,26 @@ void parse(file_system_object_sink_t& sink, const canon_path_t& sink_path, Sourc
   };
 }
 
-std::optional<Mode> convert_mode(SourceAccessor::Type type) {
+std::optional<Mode> convert_mode(source_accessor_t::Type type) {
   switch (type) {
-    case SourceAccessor::t_symlink:
+    case source_accessor_t::t_symlink:
       return Mode::symlink;
-    case SourceAccessor::t_regular:
+    case source_accessor_t::t_regular:
       return Mode::regular;
-    case SourceAccessor::t_directory:
+    case source_accessor_t::t_directory:
       return Mode::directory_t;
-    case SourceAccessor::t_char:
-    case SourceAccessor::t_block:
-    case SourceAccessor::t_socket:
-    case SourceAccessor::t_fifo:
+    case source_accessor_t::t_char:
+    case source_accessor_t::t_block:
+    case source_accessor_t::t_socket:
+    case source_accessor_t::t_fifo:
       return std::nullopt;
-    case SourceAccessor::t_unknown:
+    case source_accessor_t::t_unknown:
     default:
       unreachable();
   }
 }
 
-void restore(file_system_object_sink_t& sink, Source& source, hash_algorithm_t hash_algo,
+void restore(file_system_object_sink_t& sink, source_t& source, hash_algorithm_t hash_algo,
              std::function<restore_hook_t> hook) {
   parse(sink, canon_path_t::root, source, blob_mode_t::regular, hash_algo,
         [&](canon_path_t name, tree_entry entry) {
@@ -219,14 +219,14 @@ void restore(file_system_object_sink_t& sink, Source& source, hash_algorithm_t h
         });
 }
 
-void dump_blob_prefix(uint64_t size, Sink& sink,
+void dump_blob_prefix(uint64_t size, sink_t& sink,
                       const experimental_feature_settings_t& xp_settings) {
   xp_settings.require(xp_t::git_hashing);
   auto s = fmt("blob %d\0"s, std::to_string(size));
   sink(s);
 }
 
-void dump_tree(const tree_t& entries, Sink& sink,
+void dump_tree(const tree_t& entries, sink_t& sink,
                const experimental_feature_settings_t& xp_settings) {
   xp_settings.require(xp_t::git_hashing);
 
@@ -252,17 +252,17 @@ void dump_tree(const tree_t& entries, Sink& sink,
   sink(v1);
 }
 
-Mode dump(const source_path_t& path, Sink& sink, std::function<dump_hook_t> hook,
+Mode dump(const source_path_t& path, sink_t& sink, std::function<dump_hook_t> hook,
           path_filter_t& filter, const experimental_feature_settings_t& xp_settings) {
   auto st = path.lstat();
 
   switch (st.type) {
-    case SourceAccessor::t_regular: {
+    case source_accessor_t::t_regular: {
       path.read_file(sink, [&](uint64_t size) { dump_blob_prefix(size, sink, xp_settings); });
       return st.is_executable ? Mode::executable : Mode::regular;
     }
 
-    case SourceAccessor::t_directory: {
+    case source_accessor_t::t_directory: {
       tree_t entries;
       for (auto& [name, _] : path.read_directory()) {
         auto child = path / name;
@@ -283,18 +283,18 @@ Mode dump(const source_path_t& path, Sink& sink, std::function<dump_hook_t> hook
       return Mode::directory_t;
     }
 
-    case SourceAccessor::t_symlink: {
+    case source_accessor_t::t_symlink: {
       auto target = path.read_link();
       dump_blob_prefix(target.size(), sink, xp_settings);
       sink(target);
       return Mode::symlink;
     }
 
-    case SourceAccessor::t_char:
-    case SourceAccessor::t_block:
-    case SourceAccessor::t_socket:
-    case SourceAccessor::t_fifo:
-    case SourceAccessor::t_unknown:
+    case source_accessor_t::t_char:
+    case source_accessor_t::t_block:
+    case source_accessor_t::t_socket:
+    case source_accessor_t::t_fifo:
+    case source_accessor_t::t_unknown:
     default:
       throw Error("file '%1%' has an unsupported type of %2%", path, st.type_string());
   }

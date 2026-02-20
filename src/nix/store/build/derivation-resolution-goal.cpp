@@ -7,11 +7,11 @@
 
 namespace nix {
 
-DerivationResolutionGoal::DerivationResolutionGoal(const StorePath& drv_path, const Derivation& drv,
+DerivationResolutionGoal::DerivationResolutionGoal(const store_path_t& drv_path, const derivation_t& drv,
                                                    Worker& worker, BuildMode build_mode)
     : Goal(worker, resolveDerivation()),
       drv_path(drv_path),
-      drv{std::make_unique<Derivation>(drv)},
+      drv{std::make_unique<derivation_t>(drv)},
       build_mode{build_mode} {
   name = fmt("resolving derivation '%s'", worker.store.printStorePath(drv_path));
   trace("created");
@@ -45,7 +45,7 @@ Goal::Co DerivationResolutionGoal::resolveDerivation() {
                                const DerivedPathMap<string_set_t>::ChildNode& input_node) {
       if (!input_node.value.empty()) {
         auto g = worker.makeGoal(
-            DerivedPath::Built{
+            derived_path_t::Built{
                 .drv_path = input_drv,
                 .outputs = input_node.value,
             },
@@ -85,7 +85,7 @@ Goal::Co DerivationResolutionGoal::resolveDerivation() {
                    magenta_t(worker.store.printStorePath(drv_path)), nrFailed,
                    nrFailed == 1 ? "dependency" : "dependencies");
     msg += show_known_outputs(worker.store, *drv);
-    co_return amDone(ecFailed, {BuildError(BuildResult::Failure::DependencyFailed, msg)});
+    co_return amDone(ecFailed, {build_error_t(build_result_t::Failure::DependencyFailed, msg)});
   }
 
   /* Gather information necessary for computing the closure and/or
@@ -129,7 +129,7 @@ Goal::Co DerivationResolutionGoal::resolveDerivation() {
       std::optional attempt = fullDrv.try_resolve(
           worker.store,
           [&](ref<const SingleDerivedPath> drv_path,
-              const std::string& output_name) -> std::optional<StorePath> {
+              const std::string& output_name) -> std::optional<store_path_t> {
             auto mEntry = get(inputGoals, drv_path);
             if (!mEntry)
               return std::nullopt;
@@ -137,10 +137,10 @@ Goal::Co DerivationResolutionGoal::resolveDerivation() {
             auto& buildResult = (*mEntry)->buildResult;
             return std::visit(
                 overloaded{
-                    [](const BuildResult::Failure&) -> std::optional<StorePath> {
+                    [](const build_result_t::Failure&) -> std::optional<store_path_t> {
                       return std::nullopt;
                     },
-                    [&](const BuildResult::Success& success) -> std::optional<StorePath> {
+                    [&](const build_result_t::Success& success) -> std::optional<store_path_t> {
                       auto i = get(success.built_outputs, output_name);
                       if (!i)
                         return std::nullopt;
@@ -171,7 +171,7 @@ Goal::Co DerivationResolutionGoal::resolveDerivation() {
               logger_t::field_t{worker.store.printStorePath(pathResolved)},
           });
 
-      resolvedDrv = std::make_unique<std::pair<StorePath, BasicDerivation>>(std::move(pathResolved),
+      resolvedDrv = std::make_unique<std::pair<store_path_t, basic_derivation_t>>(std::move(pathResolved),
                                                                             *std::move(attempt));
     }
   }

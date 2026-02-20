@@ -134,8 +134,8 @@ public:
 
   virtual auto write_to_stdout(std::string_view s) -> void;
 
-  template <typename... Args>
-  auto cout(const Args&... args) -> void {
+  template <typename... args_t>
+  auto cout(const args_t&... args) -> void {
     write_to_stdout(fmt(args...));
   }
 
@@ -186,8 +186,8 @@ struct activity_t {
     logger_.result(id_, type, json);
   }
 
-  template <typename... Args>
-  auto result(result_type_t type, const Args&... args) const -> void {
+  template <typename... args_t>
+  auto result(result_type_t type, const args_t&... args) const -> void {
     logger_t::fields_t fields;
     nop_t{(fields.emplace_back(logger_t::field_t(args)), 1)...};
     result(type, fields);
@@ -309,8 +309,8 @@ extern verbosity_t verbosity;
 /**
  * if verbosity >= lvl_warn, print a message with a yellow 'warning:' prefix.
  */
-template <typename... Args>
-inline auto warn(const std::string& fs, const Args&... args) -> void {
+template <typename... args_t>
+inline auto warn(const std::string& fs, const args_t&... args) -> void {
   boost::format f(fs);
   format_helper(f, args...);
   logger->warn(f.str());

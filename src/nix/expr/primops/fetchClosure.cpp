@@ -11,16 +11,16 @@ namespace nix {
  * Handler for the content addressed case.
  *
  * @param state Evaluator state and store to write to.
- * @param from_store Store containing the path to rewrite.
- * @param from_path Source path to be rewritten.
+ * @param from_store store_t containing the path to rewrite.
+ * @param from_path source_t path to be rewritten.
  * @param to_path_maybe Path to write the rewritten path to. If empty, the error shows the actual
  * path.
- * @param v Return `Value`
+ * @param v Return `value_t`
  */
-static void run_fetch_closure_with_rewrite(EvalState& state, const pos_idx_t pos, Store& from_store,
-                                           const StorePath& from_path,
-                                           const std::optional<StorePath>& to_path_maybe,
-                                           Value& v) {
+static void run_fetch_closure_with_rewrite(eval_state_t& state, const pos_idx_t pos, store_t& from_store,
+                                           const store_path_t& from_path,
+                                           const std::optional<store_path_t>& to_path_maybe,
+                                           value_t& v) {
   // establish toPath or throw
 
   if (!to_path_maybe || !state.store->isValidPath(*to_path_maybe)) {
@@ -67,9 +67,9 @@ static void run_fetch_closure_with_rewrite(EvalState& state, const pos_idx_t pos
 /**
  * Fetch the closure and make sure it's content addressed.
  */
-static void run_fetch_closure_with_content_addressed_path(EvalState& state, const pos_idx_t pos,
-                                                          Store& from_store,
-                                                          const StorePath& from_path, Value& v) {
+static void run_fetch_closure_with_content_addressed_path(eval_state_t& state, const pos_idx_t pos,
+                                                          store_t& from_store,
+                                                          const store_path_t& from_path, value_t& v) {
   if (!state.store->isValidPath(from_path))
     copy_closure(from_store, *state.store, RealisedPath::Set{from_path});
 
@@ -97,9 +97,9 @@ static void run_fetch_closure_with_content_addressed_path(EvalState& state, cons
 /**
  * Fetch the closure and make sure it's input addressed.
  */
-static void run_fetch_closure_with_input_addressed_path(EvalState& state, const pos_idx_t pos,
-                                                        Store& from_store,
-                                                        const StorePath& from_path, Value& v) {
+static void run_fetch_closure_with_input_addressed_path(eval_state_t& state, const pos_idx_t pos,
+                                                        store_t& from_store,
+                                                        const store_path_t& from_path, value_t& v) {
   if (!state.store->isValidPath(from_path))
     copy_closure(from_store, *state.store, RealisedPath::Set{from_path});
 
@@ -120,13 +120,13 @@ static void run_fetch_closure_with_input_addressed_path(EvalState& state, const 
   state.mkStorePathString(from_path, v);
 }
 
-typedef std::optional<StorePath> store_path_or_gap_t;
+typedef std::optional<store_path_t> store_path_or_gap_t;
 
-static void prim_fetch_closure(EvalState& state, const pos_idx_t pos, Value** args, Value& v) {
+static void prim_fetch_closure(eval_state_t& state, const pos_idx_t pos, value_t** args, value_t& v) {
   state.forceAttrs(*args[0], pos, "while evaluating the argument passed to builtins.fetchClosure");
 
   std::optional<std::string> fromStoreUrl;
-  std::optional<StorePath> from_path;
+  std::optional<store_path_t> from_path;
   std::optional<store_path_or_gap_t> to_path;
   std::optional<bool> inputAddressedMaybe;
 

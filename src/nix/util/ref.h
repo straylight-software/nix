@@ -66,13 +66,13 @@ public:
   auto operator<=>(const ref<T>& other) const { return p_ <=> other.p_; }
 
 private:
-  template <typename T2, typename... Args>
-  friend ref<T2> make_ref(Args&&... args);
+  template <typename T2, typename... args_t>
+  friend ref<T2> make_ref(args_t&&... args);
 };
 
-template <typename T, typename... Args>
-inline auto make_ref(Args&&... args) -> ref<T> {
-  auto p = std::make_shared<T>(std::forward<Args>(args)...);
+template <typename T, typename... args_t>
+inline auto make_ref(args_t&&... args) -> ref<T> {
+  auto p = std::make_shared<T>(std::forward<args_t>(args)...);
   return ref<T>(p);
 }
 

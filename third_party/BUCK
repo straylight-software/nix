@@ -12,20 +12,19 @@ load(
     ":nix-deps.bzl",
     "ADA_INCLUDE",
     "ADA_STATIC_LIB",
-    "BINARYEN_INCLUDE",
-    "BINARYEN_STATIC_LIB",
-    "BLAKE3_INCLUDE",
-    "BLAKE3_STATIC_LIB",
-    "LIBRESSL_CRYPTO_LIB",
-    "LIBRESSL_INCLUDE",
-    "LIBRESSL_SSL_LIB",
-    "LIBRESSL_TLS_LIB",
+    # Binaryen now built from vendored source (vendor/binaryen/BUCK)
+    # BLAKE3 now built from vendored source (vendor/blake3/BUCK)
+    # Catch2 now built from vendored source (vendor/catch2/BUCK)
+    # LibreSSL now built from vendored source (vendor/libressl/BUCK)
+    # Boost, brotli, libsodium, libarchive: -L paths from toolchain, just use -l flags
     "NANOBENCH_INCLUDE",
     "NANOBENCH_STATIC_LIB",
     "RAPIDCHECK_INCLUDE",
     "RAPIDCHECK_STATIC_LIB",
     "RE2_INCLUDE",
     "RE2_STATIC_LIB",
+    "WASMTIME_INCLUDE",
+    "WASMTIME_STATIC_LIB",
 )
 load(":nix_prebuilt.bzl", "nix_prebuilt_cxx_library")
 
@@ -35,37 +34,97 @@ load(":nix_prebuilt.bzl", "nix_prebuilt_cxx_library")
 
 filegroup(name = "nlohmann_json", srcs = [], visibility = ["PUBLIC"])  # header-only
 
-# BLAKE3 static library (musl)
-# TODO[b7r6]: confirm TBB performance improvement
-nix_prebuilt_cxx_library(
+# BLAKE3 (vendored, built with Buck2)
+# Avoids glibc __memcpy_chk symbols
+alias(
     name = "blake3",
-    static_lib = BLAKE3_STATIC_LIB,
-    include_dir = BLAKE3_INCLUDE,
+    actual = "//vendor/blake3:blake3",
+    visibility = ["PUBLIC"],
 )
 
-# LibreSSL static libraries (musl)
-nix_prebuilt_cxx_library(
+# LibreSSL (vendored, built with Buck2 for full TCB)
+alias(
     name = "openssl",  # alias for compatibility
-    static_lib = LIBRESSL_CRYPTO_LIB,
-    include_dir = LIBRESSL_INCLUDE,
+    actual = "//vendor/libressl:crypto",
+    visibility = ["PUBLIC"],
 )
 
-nix_prebuilt_cxx_library(
+alias(
+    name = "libressl_crypto",
+    actual = "//vendor/libressl:crypto",
+    visibility = ["PUBLIC"],
+)
+
+alias(
     name = "libressl_ssl",
-    static_lib = LIBRESSL_SSL_LIB,
-    include_dir = LIBRESSL_INCLUDE,
+    actual = "//vendor/libressl:ssl",
+    visibility = ["PUBLIC"],
 )
 
-nix_prebuilt_cxx_library(
+alias(
     name = "libressl_tls",
-    static_lib = LIBRESSL_TLS_LIB,
-    include_dir = LIBRESSL_INCLUDE,
+    actual = "//vendor/libressl:tls",
+    visibility = ["PUBLIC"],
 )
 
-filegroup(name = "boost", srcs = [], visibility = ["PUBLIC"])  # upstream nix still uses boost
-filegroup(name = "brotli", srcs = [], visibility = ["PUBLIC"])  # TODO: convert to static
-filegroup(name = "libsodium", srcs = [], visibility = ["PUBLIC"])  # TODO: convert to static
-filegroup(name = "libarchive", srcs = [], visibility = ["PUBLIC"])  # TODO: convert to static
+alias(
+    name = "libressl",
+    actual = "//vendor/libressl:libressl",
+    visibility = ["PUBLIC"],
+)
+
+# Boost static (musl) - multiple libraries
+# Note: -L paths are already in toolchain link_flags from flake.nix
+# We just need to specify which libs to link
+cxx_library(
+    name = "boost",
+    exported_linker_flags = [
+        "-lboost_context",
+        "-lboost_iostreams",
+        "-lboost_thread",
+        "-lboost_url",
+    ],
+    # Include paths are already in toolchain cxx_flags from flake.nix
+    visibility = ["PUBLIC"],
+)
+
+# Brotli static (musl)
+# -L paths are already in toolchain link_flags
+cxx_library(
+    name = "brotli",
+    exported_linker_flags = [
+        "-lbrotlienc",
+        "-lbrotlidec",
+        "-lbrotlicommon",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+# libsodium static (musl)
+# -L paths are already in toolchain link_flags
+cxx_library(
+    name = "libsodium",
+    exported_linker_flags = ["-lsodium"],
+    visibility = ["PUBLIC"],
+)
+
+# libarchive static (musl)
+# -L paths are already in toolchain link_flags
+# libarchive depends on: zstd, lzma (xz), bz2, zlib, acl, attr, crypto
+cxx_library(
+    name = "libarchive",
+    exported_linker_flags = [
+        "-larchive",
+        "-lzstd",      # zstd compression
+        "-llzma",      # xz/lzma compression
+        "-lbz2",       # bzip2 compression
+        "-lz",         # zlib compression
+        "-lacl",       # ACL support
+        "-lattr",      # extended attributes
+        "-lcrypto",    # OpenSSL/LibreSSL crypto (for HMAC)
+    ],
+    visibility = ["PUBLIC"],
+)
 
 # ada URL parser static (musl)
 nix_prebuilt_cxx_library(
@@ -85,30 +144,84 @@ nix_prebuilt_cxx_library(
 # nix-store dependencies
 # ═══════════════════════════════════════════════════════════════════════════════
 
-filegroup(name = "sqlite", srcs = [], visibility = ["PUBLIC"])  # TODO: convert to static
-filegroup(name = "sqlite3", srcs = [], visibility = ["PUBLIC"])  # alias
-filegroup(name = "curl", srcs = [], visibility = ["PUBLIC"])  # TODO: convert to static
-filegroup(name = "aws-sdk-cpp", srcs = [], visibility = ["PUBLIC"])  # TODO: convert to static
+# SQLite3 (vendored, built with Buck2)
+alias(
+    name = "sqlite",
+    actual = "//vendor/sqlite:sqlite3",
+    visibility = ["PUBLIC"],
+)
+
+alias(
+    name = "sqlite3",
+    actual = "//vendor/sqlite:sqlite3",
+    visibility = ["PUBLIC"],
+)
+
+# curl static (musl) - minimal build
+# Built with: http3Support=false, idnSupport=false, pslSupport=false, scpSupport=false
+# -L paths are already in toolchain link_flags
+cxx_library(
+    name = "curl",
+    exported_linker_flags = [
+        "-lcurl",
+        "-lz",
+    ],
+    visibility = ["PUBLIC"],
+    exported_deps = [
+        "//vendor/nghttp2:nghttp2",   # HTTP/2 support
+        "//vendor/libressl:ssl",
+        "//vendor/libressl:crypto",
+    ],
+)
+
+# AWS SDK C++ (stub for now - not needed for core nix functionality)
+filegroup(name = "aws-sdk-cpp", srcs = [], visibility = ["PUBLIC"])
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # nix-fetchers dependencies
 # ═══════════════════════════════════════════════════════════════════════════════
 
-filegroup(name = "libgit2", srcs = [], visibility = ["PUBLIC"])  # TODO: convert to static
+# libgit2 (vendored, built with Buck2)
+alias(
+    name = "libgit2",
+    actual = "//vendor/libgit2:git2",
+    visibility = ["PUBLIC"],
+)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # nix-expr dependencies
 # ═══════════════════════════════════════════════════════════════════════════════
 
-filegroup(name = "gc", srcs = [], visibility = ["PUBLIC"])  # boehm-gc, TODO: convert to static
+# Boehm GC static (musl)
+# -L paths are already in toolchain link_flags
+cxx_library(
+    name = "gc",
+    exported_linker_flags = ["-lgc"],
+    visibility = ["PUBLIC"],
+)
+
 filegroup(name = "toml11", srcs = [], visibility = ["PUBLIC"])  # header-only
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # nix-main dependencies
 # ═══════════════════════════════════════════════════════════════════════════════
 
-filegroup(name = "editline", srcs = [], visibility = ["PUBLIC"])  # TODO: convert to static
-filegroup(name = "lowdown", srcs = [], visibility = ["PUBLIC"])  # TODO: convert to static
+# editline static (musl) - troglobit/editline
+# -L paths are already in toolchain link_flags
+# Note: Library is libeditline.a, not libedit.a (different from NetBSD libedit)
+cxx_library(
+    name = "editline",
+    exported_linker_flags = ["-leditline", "-lncurses"],
+    visibility = ["PUBLIC"],
+)
+
+# lowdown static (musl)
+# -L paths are already in toolchain link_flags
+cxx_library(
+    name = "lowdown",
+    exported_linker_flags = ["-llowdown"],
+    visibility = ["PUBLIC"],
+)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # straylight primitives dependencies (all header-only)
@@ -128,21 +241,50 @@ cxx_library(
 )
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# libevring dependencies (async I/O)
+# libevring dependencies (async I/O) - ALL VENDORED FOR TCB
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# io_uring wrapper - TODO: convert to static
-prebuilt_cxx_library(
+# liburing (vendored, built with Buck2)
+alias(
     name = "liburing",
-    shared_lib = "lib/liburing.so",
-    exported_headers = [],
+    actual = "//vendor/liburing:liburing",
     visibility = ["PUBLIC"],
 )
 
-filegroup(name = "llhttp", srcs = [], visibility = ["PUBLIC"])  # TODO: convert to static
-filegroup(name = "nghttp2", srcs = [], visibility = ["PUBLIC"])  # TODO: convert to static
-filegroup(name = "ngtcp2", srcs = [], visibility = ["PUBLIC"])  # TODO: convert to static
-filegroup(name = "nghttp3", srcs = [], visibility = ["PUBLIC"])  # TODO: convert to static
+# llhttp (vendored, built with Buck2)
+alias(
+    name = "llhttp",
+    actual = "//vendor/llhttp:llhttp",
+    visibility = ["PUBLIC"],
+)
+
+# nghttp2 (vendored, built with Buck2)
+alias(
+    name = "nghttp2",
+    actual = "//vendor/nghttp2:nghttp2",
+    visibility = ["PUBLIC"],
+)
+
+# ngtcp2 (vendored, built with Buck2)
+alias(
+    name = "ngtcp2",
+    actual = "//vendor/ngtcp2:ngtcp2",
+    visibility = ["PUBLIC"],
+)
+
+# ngtcp2 LibreSSL crypto backend (vendored, built with Buck2)
+alias(
+    name = "ngtcp2_crypto_libressl",
+    actual = "//vendor/ngtcp2:ngtcp2_crypto_libressl",
+    visibility = ["PUBLIC"],
+)
+
+# nghttp3 (vendored, built with Buck2)
+alias(
+    name = "nghttp3",
+    actual = "//vendor/nghttp3:nghttp3",
+    visibility = ["PUBLIC"],
+)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # nix-language dependencies (WASM)
@@ -150,15 +292,22 @@ filegroup(name = "nghttp3", srcs = [], visibility = ["PUBLIC"])  # TODO: convert
 
 filegroup(name = "pegtl", srcs = [], visibility = ["PUBLIC"])  # header-only
 
-# Binaryen WASM codegen (static)
-nix_prebuilt_cxx_library(
+# Binaryen WASM codegen (vendored, built with Buck2)
+# This avoids glibc __isoc23_* symbols incompatible with musl
+alias(
     name = "binaryen",
-    static_lib = BINARYEN_STATIC_LIB,
-    include_dir = BINARYEN_INCLUDE,
+    actual = "//vendor/binaryen:binaryen",
+    visibility = ["PUBLIC"],
 )
 
-# Wasmtime runtime - TODO: convert to static (rust crate)
-filegroup(name = "wasmtime", srcs = [], visibility = ["PUBLIC"])
+# Wasmtime runtime (pre-built static C API from GitHub releases)
+# Static linking requires: -lpthread -ldl -lm
+nix_prebuilt_cxx_library(
+    name = "wasmtime",
+    static_lib = WASMTIME_STATIC_LIB,
+    include_dir = WASMTIME_INCLUDE,
+    exported_linker_flags = ["-lpthread", "-ldl", "-lm"],
+)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # nix-protocol dependencies (Kaitai Struct runtime)
@@ -181,26 +330,23 @@ cxx_library(
 # Test dependencies
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# Catch2 - using glibc version for now (musl static has ABI issues with clang)
-# TODO[b7r6]: build Catch2 with clang for musl static
-prebuilt_cxx_library(
+# Catch2 (vendored, built with Buck2)
+# Avoids glibc symbols (__libc_single_threaded, __isoc23_*, __snprintf_chk)
+alias(
     name = "catch2_lib",
-    static_lib = "lib/libCatch2.a",
-    exported_headers = [],
+    actual = "//vendor/catch2:catch2_lib",
     visibility = ["PUBLIC"],
 )
 
-prebuilt_cxx_library(
+alias(
     name = "catch2_main",
-    static_lib = "lib/libCatch2Main.a",
-    exported_headers = [],
-    deps = [":catch2_lib"],
+    actual = "//vendor/catch2:catch2_main",
     visibility = ["PUBLIC"],
 )
 
 alias(
     name = "catch2",
-    actual = ":catch2_main",
+    actual = "//vendor/catch2:catch2",
     visibility = ["PUBLIC"],
 )
 

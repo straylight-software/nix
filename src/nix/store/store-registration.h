@@ -38,8 +38,8 @@ struct StoreFactory {
    * The `authorityPath` parameter is `<authority>/<path>`, or really
    * whatever comes after `<scheme>://` and before `?<query-params>`.
    */
-  std::function<ref<StoreConfig>(std::string_view scheme, std::string_view authorityPath,
-                                 const Store::config_t::Params& params)>
+  std::function<ref<store_config_t>(std::string_view scheme, std::string_view authorityPath,
+                                 const store_t::config_t::Params& params)>
       parseConfig;
 
   /**
@@ -47,7 +47,7 @@ struct StoreFactory {
    * because it means we cannot require fields to be manually
    * specified so easily.
    */
-  std::function<ref<StoreConfig>()> getConfig;
+  std::function<ref<store_config_t>()> getConfig;
 };
 
 struct Implementations {
@@ -61,11 +61,11 @@ struct Implementations {
         .doc = TConfig::doc(),
         .uriSchemes = TConfig::uriSchemes(),
         .experimental_feature = TConfig::experimental_feature(),
-        .parseConfig = ([](auto scheme, auto uri, auto& params) -> ref<StoreConfig> {
+        .parseConfig = ([](auto scheme, auto uri, auto& params) -> ref<store_config_t> {
           return make_ref<TConfig>(scheme, uri, params);
         }),
         .getConfig =
-            ([]() -> ref<StoreConfig> { return make_ref<TConfig>(Store::config_t::Params{}); }),
+            ([]() -> ref<store_config_t> { return make_ref<TConfig>(store_t::config_t::Params{}); }),
     };
     auto [it, didInsert] = registered().insert({TConfig::name(), std::move(factory)});
     if (!didInsert) {

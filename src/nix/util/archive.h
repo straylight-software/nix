@@ -56,12 +56,12 @@ namespace nix {
  *   `+` denotes string concatenation.
  * ```
  */
-auto dump_path(const Path& path, Sink& sink, path_filter_t& filter = default_path_filter) -> void;
+auto dump_path(const Path& path, sink_t& sink, path_filter_t& filter = default_path_filter) -> void;
 
 /**
  * Same as dump_path(), but returns the last modified date of the path.
  */
-[[nodiscard]] auto dump_path_and_get_mtime(const Path& path, Sink& sink,
+[[nodiscard]] auto dump_path_and_get_mtime(const Path& path, sink_t& sink,
                                            path_filter_t& filter = default_path_filter) -> time_t;
 
 /**
@@ -69,17 +69,17 @@ auto dump_path(const Path& path, Sink& sink, path_filter_t& filter = default_pat
  *
  * @param str Contents of the file.
  */
-auto dump_string(std::string_view str, Sink& sink) -> void;
+auto dump_string(std::string_view str, sink_t& sink) -> void;
 
-auto parse_dump(file_system_object_sink_t& sink, Source& source) -> void;
+auto parse_dump(file_system_object_sink_t& sink, source_t& source) -> void;
 
-auto restore_path(const std::filesystem::path& path, Source& source, bool start_fsync = false)
+auto restore_path(const std::filesystem::path& path, source_t& source, bool start_fsync = false)
     -> void;
 
 /**
  * Read a NAR from 'source' and write it to 'sink'.
  */
-auto copy_nar(Source& source, Sink& sink) -> void;
+auto copy_nar(source_t& source, sink_t& sink) -> void;
 
 inline constexpr std::string_view nar_version_magic1 = "nix-archive-1";
 

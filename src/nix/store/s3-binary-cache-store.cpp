@@ -24,7 +24,7 @@ static constexpr uint64_t AWS_MAX_PART_COUNT = 10000;
 class s3_binary_cache_store_t : public virtual http_binary_cache_store {
 public:
   s3_binary_cache_store_t(ref<S3BinaryCacheStoreConfig> config)
-      : Store{*config},
+      : store_t{*config},
         binary_cache_store{*config},
         http_binary_cache_store{config},
         s3_config{config} {}
@@ -60,11 +60,11 @@ private:
                         std::string_view mime_type, std::optional<headers_t> headers);
 
   /**
-   * A Sink that manages a complete S3 multipart upload lifecycle.
+   * A sink_t that manages a complete S3 multipart upload lifecycle.
    * Creates the upload on construction, buffers and uploads chunks as data arrives,
    * and completes or aborts the upload appropriately.
    */
-  struct multipart_sink_t : Sink {
+  struct multipart_sink_t : sink_t {
     s3_binary_cache_store_t& store;
     std::string_view path;
     std::string upload_id;
@@ -366,7 +366,7 @@ string_set_t S3BinaryCacheStoreConfig::uriSchemes() {
 
 S3BinaryCacheStoreConfig::S3BinaryCacheStoreConfig(std::string_view scheme,
                                                    std::string_view _cacheUri, const Params& params)
-    : StoreConfig(params), HttpBinaryCacheStoreConfig(scheme, _cacheUri, params) {
+    : store_config_t(params), HttpBinaryCacheStoreConfig(scheme, _cacheUri, params) {
   assert(cacheUri.query().empty());
   assert(cacheUri.scheme() == "s3");
 
@@ -413,7 +413,7 @@ std::string S3BinaryCacheStoreConfig::doc() {
       ;
 }
 
-ref<Store> S3BinaryCacheStoreConfig::open_store() const {
+ref<store_t> S3BinaryCacheStoreConfig::open_store() const {
   auto sharedThis = std::const_pointer_cast<S3BinaryCacheStoreConfig>(
       std::static_pointer_cast<const S3BinaryCacheStoreConfig>(shared_from_this()));
   return make_ref<s3_binary_cache_store_t>(ref{sharedThis});

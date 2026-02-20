@@ -9,7 +9,7 @@ namespace nix {
 
 /* Very hacky way to parse $NIX_PATH, which is colon-separated, but
    can contain URLs (e.g. "nixpkgs=https://bla...:foo=https://"). */
-strings_t EvalSettings::parseNixPath(const std::string& s) {
+strings_t eval_settings_t::parseNixPath(const std::string& s) {
   strings_t res;
 
   auto p = s.begin();
@@ -32,7 +32,7 @@ strings_t EvalSettings::parseNixPath(const std::string& s) {
 
     if (*p == ':') {
       auto prefix = std::string(start2, s.end());
-      if (EvalSettings::isPseudoUrl(prefix) || has_prefix(prefix, "flake:")) {
+      if (eval_settings_t::isPseudoUrl(prefix) || has_prefix(prefix, "flake:")) {
         ++p;
         while (p != s.end() && *p != ':')
           ++p;
@@ -48,14 +48,14 @@ strings_t EvalSettings::parseNixPath(const std::string& s) {
   return res;
 }
 
-EvalSettings::EvalSettings(bool& readOnlyMode, EvalSettings::LookupPathHooks lookupPathHooks)
+eval_settings_t::eval_settings_t(bool& readOnlyMode, eval_settings_t::LookupPathHooks lookupPathHooks)
     : readOnlyMode{readOnlyMode}, lookupPathHooks{lookupPathHooks} {
   auto var = get_env("NIX_ABORT_ON_WARN");
   if (var && (var == "1" || var == "yes" || var == "true"))
     builtinsAbortOnWarn = true;
 }
 
-strings_t EvalSettings::getDefaultNixPath() {
+strings_t eval_settings_t::getDefaultNixPath() {
   strings_t res;
   auto add = [&](const std::filesystem::path& p, const std::string& s = std::string()) {
     if (std::filesystem::exists(p)) {
@@ -74,7 +74,7 @@ strings_t EvalSettings::getDefaultNixPath() {
   return res;
 }
 
-bool EvalSettings::isPseudoUrl(std::string_view s) {
+bool eval_settings_t::isPseudoUrl(std::string_view s) {
   if (s.compare(0, 8, "channel:") == 0)
     return true;
   size_t pos = s.find("://");
@@ -85,7 +85,7 @@ bool EvalSettings::isPseudoUrl(std::string_view s) {
          scheme == "git" || scheme == "s3" || scheme == "ssh";
 }
 
-std::string EvalSettings::resolvePseudoUrl(std::string_view url) {
+std::string eval_settings_t::resolvePseudoUrl(std::string_view url) {
   if (has_prefix(url, "channel:")) {
     auto realUrl = "https://channels.nixos.org/" + std::string(url.substr(8)) + "/nixexprs.tar.xz";
     static bool have_warned = false;
@@ -101,7 +101,7 @@ std::string EvalSettings::resolvePseudoUrl(std::string_view url) {
     return std::string(url);
 }
 
-const std::string& EvalSettings::getCurrentSystem() const {
+const std::string& eval_settings_t::getCurrentSystem() const {
   const auto& evalSystem = currentSystem.get();
   return evalSystem != "" ? evalSystem : settings.thisSystem.get();
 }

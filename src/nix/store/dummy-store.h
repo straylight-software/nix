@@ -11,8 +11,8 @@ namespace nix {
 struct dummy_store;
 
 struct DummyStoreConfig : public std::enable_shared_from_this<DummyStoreConfig>,
-                          virtual StoreConfig {
-  DummyStoreConfig(const Params& params) : StoreConfig(params) {
+                          virtual store_config_t {
+  DummyStoreConfig(const Params& params) : store_config_t(params) {
     // Disable caching since this a temporary in-memory store.
     pathInfoCacheSize = 0;
   }
@@ -29,7 +29,7 @@ struct DummyStoreConfig : public std::enable_shared_from_this<DummyStoreConfig>,
           No additional memory will be used, because no information needs to be stored.
         )"};
 
-  static const std::string name() { return "Dummy Store"; }
+  static const std::string name() { return "Dummy store_t"; }
 
   static std::string doc();
 
@@ -40,7 +40,7 @@ struct DummyStoreConfig : public std::enable_shared_from_this<DummyStoreConfig>,
    */
   ref<dummy_store> openDummyStore() const;
 
-  ref<Store> open_store() const override;
+  ref<store_t> open_store() const override;
 
   StoreReference getReference() const override {
     return {

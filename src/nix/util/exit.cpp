@@ -5,7 +5,7 @@
 
 namespace nix {
 
-// Explicit instantiation point for vtable
+// explicit_t instantiation point for vtable
 // (empty - all methods are inline/defaulted in header)
 
 } // namespace nix

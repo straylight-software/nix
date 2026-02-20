@@ -38,7 +38,7 @@ NLOHMANN_JSON_SERIALIZE_ENUM(EvalProfilerMode, {
                                                    {EvalProfilerMode::flamegraph, "flamegraph"},
                                                });
 
-/* Explicit instantiation of templates */
+/* explicit_t instantiation of templates */
 template class base_setting_t<EvalProfilerMode>;
 
 } // namespace nix

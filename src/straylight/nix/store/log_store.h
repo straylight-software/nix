@@ -296,61 +296,51 @@ auto deserialize_log_entry(std::span<const std::byte> data) -> store_result<log_
 namespace zpp::bits {
 
 // path_info serialization
-template <>
 constexpr auto serialize(auto& archive, const straylight::nix::store::path_info& info) {
   return archive(info.path, info.nar_hash, info.registration_time, info.deriver, info.nar_size,
                  info.ultimate, info.sigs, info.ca);
 }
 
-template <>
 constexpr auto serialize(auto& archive, straylight::nix::store::path_info& info) {
   return archive(info.path, info.nar_hash, info.registration_time, info.deriver, info.nar_size,
                  info.ultimate, info.sigs, info.ca);
 }
 
 // register_path_payload
-template <>
 constexpr auto serialize(auto& archive,
                          const straylight::nix::store::register_path_payload& payload) {
   return archive(payload.info, payload.references);
 }
 
-template <>
 constexpr auto serialize(auto& archive, straylight::nix::store::register_path_payload& payload) {
   return archive(payload.info, payload.references);
 }
 
 // invalidate_path_payload
-template <>
 constexpr auto serialize(auto& archive,
                          const straylight::nix::store::invalidate_path_payload& payload) {
   return archive(payload.path);
 }
 
-template <>
 constexpr auto serialize(auto& archive, straylight::nix::store::invalidate_path_payload& payload) {
   return archive(payload.path);
 }
 
 // add_derivation_payload
-template <>
 constexpr auto serialize(auto& archive,
                          const straylight::nix::store::add_derivation_payload& payload) {
   return archive(payload.drv_path, payload.output_name, payload.output_path);
 }
 
-template <>
 constexpr auto serialize(auto& archive, straylight::nix::store::add_derivation_payload& payload) {
   return archive(payload.drv_path, payload.output_name, payload.output_path);
 }
 
 // log_entry
-template <>
 constexpr auto serialize(auto& archive, const straylight::nix::store::log_entry& entry) {
   return archive(entry.op, entry.sequence, entry.timestamp, entry.data);
 }
 
-template <>
 constexpr auto serialize(auto& archive, straylight::nix::store::log_entry& entry) {
   return archive(entry.op, entry.sequence, entry.timestamp, entry.data);
 }

@@ -12,7 +12,7 @@
 
 namespace nix::fetchers {
 
-DownloadFileResult download_file(Store& store, const settings_t& settings, const std::string& url,
+DownloadFileResult download_file(store_t& store, const settings_t& settings, const std::string& url,
                                  const std::string& name, const headers_t& headers) {
   // FIXME: check store
 
@@ -58,7 +58,7 @@ DownloadFileResult download_file(Store& store, const settings_t& settings, const
   if (res.immutableUrl)
     info_attrs.emplace("immutableUrl", *res.immutableUrl);
 
-  std::optional<StorePath> store_path;
+  std::optional<store_path_t> store_path;
 
   if (res.cached) {
     assert(cached);
@@ -67,7 +67,7 @@ DownloadFileResult download_file(Store& store, const settings_t& settings, const
     string_sink_t sink;
     dump_string(res.data, sink);
     auto hash = hash_string(hash_algorithm_t::SHA256, res.data);
-    auto info = ValidPathInfo::makeFromCA(store, name,
+    auto info = valid_path_info_t::makeFromCA(store, name,
                                           FixedOutputInfo{
                                               .method = file_ingestion_method_t::flat,
                                               .hash = hash,
@@ -143,7 +143,7 @@ static DownloadTarballResult download_tarball_(const settings_t& settings, const
 
   auto _res = std::make_shared<sync_t<FileTransferResult>>();
 
-  auto source = sink_to_source([&](Sink& sink) {
+  auto source = sink_to_source([&](sink_t& sink) {
     FileTransferRequest req(url);
     req.expectedETag = cached ? get_str_attr(cached->value, "etag") : "";
     get_file_transfer()->download(std::move(req), sink,
@@ -211,21 +211,21 @@ static DownloadTarballResult download_tarball_(const settings_t& settings, const
   return attrs_to_result(info_attrs);
 }
 
-ref<SourceAccessor> download_tarball(Store& store, const settings_t& settings,
+ref<source_accessor_t> download_tarball(store_t& store, const settings_t& settings,
                                      const std::string& url) {
-  /* Go through Input::get_accessor() to ensure that the resulting
+  /* Go through input_t::get_accessor() to ensure that the resulting
      accessor has a fingerprint. */
   fetchers::Attrs attrs;
   attrs.insert_or_assign("type", "tarball");
   attrs.insert_or_assign("url", url);
 
-  auto input = Input::fromAttrs(settings, std::move(attrs));
+  auto input = input_t::fromAttrs(settings, std::move(attrs));
 
   return input.get_accessor(settings, store).first;
 }
 
 // An input scheme corresponding to a curl-downloadable resource.
-struct curl_input_scheme_t : InputScheme {
+struct curl_input_scheme_t : input_scheme_t {
   const string_set_t transport_url_schemes = {"file", "http", "https"};
 
   bool has_tarball_extension(const parsed_url_t& url) const {
@@ -241,12 +241,12 @@ struct curl_input_scheme_t : InputScheme {
 
   static const string_set_t special_params;
 
-  std::optional<Input> inputFromURL(const settings_t& settings, const parsed_url_t& _url,
+  std::optional<input_t> inputFromURL(const settings_t& settings, const parsed_url_t& _url,
                                     bool require_tree) const override {
     if (!is_valid_url(_url, require_tree))
       return std::nullopt;
 
-    Input input{};
+    input_t input{};
 
     auto url = _url;
 
@@ -357,16 +357,16 @@ struct curl_input_scheme_t : InputScheme {
     return allowed_attrs_impl();
   }
 
-  std::optional<Input> inputFromAttrs(const settings_t& settings,
+  std::optional<input_t> inputFromAttrs(const settings_t& settings,
                                       const Attrs& attrs) const override {
-    Input input{};
+    input_t input{};
     input.attrs = attrs;
 
     // input.locked = (bool) maybeGetStrAttr(input.attrs, "hash");
     return input;
   }
 
-  parsed_url_t toURL(const Input& input, bool abbreviate) const override {
+  parsed_url_t toURL(const input_t& input, bool abbreviate) const override {
     auto url = parse_url(get_str_attr(input.attrs, "url"));
     // NAR hashes are preferred over file hashes since tar/zip
     // files don't have a canonical representation.
@@ -375,7 +375,7 @@ struct curl_input_scheme_t : InputScheme {
     return url;
   }
 
-  bool isLocked(const settings_t& settings, const Input& input) const override {
+  bool isLocked(const settings_t& settings, const input_t& input) const override {
     return (bool)input.getNarHash();
   }
 };
@@ -398,8 +398,8 @@ struct file_input_scheme_t : curl_input_scheme_t {
                 : (!require_tree && !has_tarball_extension(url)));
   }
 
-  std::pair<ref<SourceAccessor>, Input> get_accessor(const settings_t& settings, Store& store,
-                                                     const Input& _input) const override {
+  std::pair<ref<source_accessor_t>, input_t> get_accessor(const settings_t& settings, store_t& store,
+                                                     const input_t& _input) const override {
     auto input(_input);
 
     /* Unlike tarball_input_scheme_t, this stores downloaded files in
@@ -457,15 +457,15 @@ struct tarball_input_scheme_t : curl_input_scheme_t {
                 : (require_tree || has_tarball_extension(url)));
   }
 
-  std::pair<ref<SourceAccessor>, Input> get_accessor(const settings_t& settings, Store& store,
-                                                     const Input& _input) const override {
+  std::pair<ref<source_accessor_t>, input_t> get_accessor(const settings_t& settings, store_t& store,
+                                                     const input_t& _input) const override {
     auto input(_input);
 
     auto result = download_tarball_(settings, get_str_attr(input.attrs, "url"), {},
                                     "«" + input.to_string(true) + "»");
 
     if (result.immutableUrl) {
-      auto immutable_input = Input::fromURL(settings, *result.immutableUrl);
+      auto immutable_input = input_t::fromURL(settings, *result.immutableUrl);
       // FIXME: would be nice to support arbitrary flakerefs
       // here, e.g. git flakes.
       if (immutable_input.getType() != "tarball")
@@ -483,7 +483,7 @@ struct tarball_input_scheme_t : curl_input_scheme_t {
     return {result.accessor, input};
   }
 
-  std::optional<std::string> get_fingerprint(Store& store, const Input& input) const override {
+  std::optional<std::string> get_fingerprint(store_t& store, const input_t& input) const override {
     if (auto nar_hash = input.getNarHash())
       return "tarball:" + nar_hash->to_string(hash_format_t::sri, true);
     else if (auto rev = input.getRev())

@@ -36,8 +36,8 @@ static std::string run_hg(const strings_t& args, const std::optional<std::string
   return res.second;
 }
 
-struct mercurial_input_scheme_t : InputScheme {
-  std::optional<Input> inputFromURL(const settings_t& settings, const parsed_url_t& url,
+struct mercurial_input_scheme_t : input_scheme_t {
+  std::optional<input_t> inputFromURL(const settings_t& settings, const parsed_url_t& url,
                                     bool require_tree) const override {
     if (url.scheme() != "hg+http" && url.scheme() != "hg+https" && url.scheme() != "hg+ssh" &&
         url.scheme() != "hg+file")
@@ -99,7 +99,7 @@ struct mercurial_input_scheme_t : InputScheme {
     return attrs;
   }
 
-  std::optional<Input> inputFromAttrs(const settings_t& settings,
+  std::optional<input_t> inputFromAttrs(const settings_t& settings,
                                       const Attrs& attrs) const override {
     parse_url(get_str_attr(attrs, "url"));
 
@@ -108,12 +108,12 @@ struct mercurial_input_scheme_t : InputScheme {
         throw BadURL("invalid Mercurial branch/tag name '%s'", *ref);
     }
 
-    Input input{};
+    input_t input{};
     input.attrs = attrs;
     return input;
   }
 
-  parsed_url_t toURL(const Input& input, bool abbreviate) const override {
+  parsed_url_t toURL(const input_t& input, bool abbreviate) const override {
     auto url = parse_url(get_str_attr(input.attrs, "url"));
     url.set_scheme("hg+" + url.scheme());
     if (auto rev = input.getRev())
@@ -123,7 +123,7 @@ struct mercurial_input_scheme_t : InputScheme {
     return url;
   }
 
-  Input applyOverrides(const Input& input, std::optional<std::string> ref,
+  input_t applyOverrides(const input_t& input, std::optional<std::string> ref,
                        std::optional<Hash> rev) const override {
     auto res(input);
     if (rev)
@@ -133,14 +133,14 @@ struct mercurial_input_scheme_t : InputScheme {
     return res;
   }
 
-  std::optional<std::filesystem::path> get_source_path(const Input& input) const override {
+  std::optional<std::filesystem::path> get_source_path(const input_t& input) const override {
     auto url = parse_url(get_str_attr(input.attrs, "url"));
     if (url.scheme() == "file" && !input.getRef() && !input.getRev())
       return render_url_path_ensure_legal(url.path());
     return {};
   }
 
-  void putFile(const Input& input, const canon_path_t& path, std::string_view contents,
+  void putFile(const input_t& input, const canon_path_t& path, std::string_view contents,
                std::optional<std::string> commit_msg) const override {
     auto [is_local, repo_path] = get_actual_url(input);
     if (!is_local)
@@ -158,13 +158,13 @@ struct mercurial_input_scheme_t : InputScheme {
       run_hg({"commit", abs_path.abs(), "-m", *commit_msg});
   }
 
-  std::pair<bool, std::string> get_actual_url(const Input& input) const {
+  std::pair<bool, std::string> get_actual_url(const input_t& input) const {
     auto url = parse_url(get_str_attr(input.attrs, "url"));
     bool is_local = url.scheme() == "file";
     return {is_local, is_local ? render_url_path_ensure_legal(url.path()) : url.to_string()};
   }
 
-  StorePath fetch_to_store(const settings_t& settings, Store& store, Input& input) const {
+  store_path_t fetch_to_store(const settings_t& settings, store_t& store, input_t& input) const {
     auto orig_rev = input.getRev();
 
     auto name = input.get_name();
@@ -215,7 +215,7 @@ struct mercurial_input_scheme_t : InputScheme {
 
         auto store_path = store.add_to_store(
             input.get_name(), {get_fs_source_accessor(), canon_path_t(actualPath.string())},
-            ContentAddressMethod::raw_t::nix_archive, hash_algorithm_t::SHA256, {}, filter);
+            content_address_method_t::raw_t::nix_archive, hash_algorithm_t::SHA256, {}, filter);
 
         return store_path;
       }
@@ -234,7 +234,7 @@ struct mercurial_input_scheme_t : InputScheme {
           {{"store", store.store_dir}, {"name", name}, {"rev", input.getRev()->git_rev()}}};
     };
 
-    auto make_result = [&](const Attrs& info_attrs, const StorePath& store_path) -> StorePath {
+    auto make_result = [&](const Attrs& info_attrs, const store_path_t& store_path) -> store_path_t {
       assert(input.getRev());
       assert(!orig_rev || orig_rev == input.getRev());
       input.attrs.insert_or_assign("revCount", get_int_attr(info_attrs, "revCount"));
@@ -326,9 +326,9 @@ struct mercurial_input_scheme_t : InputScheme {
     return make_result(info_attrs, std::move(store_path));
   }
 
-  std::pair<ref<SourceAccessor>, Input> get_accessor(const settings_t& settings, Store& store,
-                                                     const Input& _input) const override {
-    Input input(_input);
+  std::pair<ref<source_accessor_t>, input_t> get_accessor(const settings_t& settings, store_t& store,
+                                                     const input_t& _input) const override {
+    input_t input(_input);
 
     auto store_path = fetch_to_store(settings, store, input);
     auto accessor = store.requireStoreObjectAccessor(store_path);
@@ -338,11 +338,11 @@ struct mercurial_input_scheme_t : InputScheme {
     return {accessor, input};
   }
 
-  bool isLocked(const settings_t& settings, const Input& input) const override {
+  bool isLocked(const settings_t& settings, const input_t& input) const override {
     return (bool)input.getRev();
   }
 
-  std::optional<std::string> get_fingerprint(Store& store, const Input& input) const override {
+  std::optional<std::string> get_fingerprint(store_t& store, const input_t& input) const override {
     if (auto rev = input.getRev())
       return "hg:" + rev->git_rev();
     else

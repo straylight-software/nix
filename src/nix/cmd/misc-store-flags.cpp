@@ -11,9 +11,9 @@ static void hash_format_completer(add_completions_t& completions, size_t index,
   }
 }
 
-Args::flag_t hash_format_with_default(std::string&& long_name, hash_format_t* hf) {
+args_t::flag_t hash_format_with_default(std::string&& long_name, hash_format_t* hf) {
   assert(*hf == nix::hash_format_t::sri);
-  return Args::flag_t{
+  return args_t::flag_t{
       .long_name = std::move(long_name),
       .description = "Hash format (`base16`, `nix32`, `base64`, `sri`). Default: `sri`.",
       .labels = {"hash-format"},
@@ -22,8 +22,8 @@ Args::flag_t hash_format_with_default(std::string&& long_name, hash_format_t* hf
   };
 }
 
-Args::flag_t hash_format_opt(std::string&& long_name, std::optional<hash_format_t>* ohf) {
-  return Args::flag_t{
+args_t::flag_t hash_format_opt(std::string&& long_name, std::optional<hash_format_t>* ohf) {
+  return args_t::flag_t{
       .long_name = std::move(long_name),
       .description = "Hash format (`base16`, `nix32`, `base64`, `sri`).",
       .labels = {"hash-format"},
@@ -38,8 +38,8 @@ static void hash_algo_completer(add_completions_t& completions, size_t index, st
       completions.add(algo);
 }
 
-Args::flag_t hash_algo(std::string&& long_name, hash_algorithm_t* ha) {
-  return Args::flag_t{
+args_t::flag_t hash_algo(std::string&& long_name, hash_algorithm_t* ha) {
+  return args_t::flag_t{
       .long_name = std::move(long_name),
       .description = "Hash algorithm (`blake3`, `md5`, `sha1`, `sha256`, or `sha512`).",
       .labels = {"hash-algo"},
@@ -48,8 +48,8 @@ Args::flag_t hash_algo(std::string&& long_name, hash_algorithm_t* ha) {
   };
 }
 
-Args::flag_t hash_algo_opt(std::string&& long_name, std::optional<hash_algorithm_t>* oha) {
-  return Args::flag_t{
+args_t::flag_t hash_algo_opt(std::string&& long_name, std::optional<hash_algorithm_t>* oha) {
+  return args_t::flag_t{
       .long_name = std::move(long_name),
       .description = "Hash algorithm (`blake3`, `md5`, `sha1`, `sha256`, or `sha512`). Can be "
                      "omitted for SRI hashes.",
@@ -59,8 +59,8 @@ Args::flag_t hash_algo_opt(std::string&& long_name, std::optional<hash_algorithm
   };
 }
 
-Args::flag_t file_ingestion_method(file_ingestion_method_t* method) {
-  return Args::flag_t{
+args_t::flag_t file_ingestion_method(file_ingestion_method_t* method) {
+  return args_t::flag_t{
       .long_name = "mode",
       // FIXME indentation carefully made for context, this is messed up.
       .description = R"(
@@ -82,8 +82,8 @@ Args::flag_t file_ingestion_method(file_ingestion_method_t* method) {
   };
 }
 
-Args::flag_t content_address_method(ContentAddressMethod* method) {
-  return Args::flag_t{
+args_t::flag_t content_address_method(content_address_method_t* method) {
+  return args_t::flag_t{
       .long_name = "mode",
       // FIXME indentation carefully made for context, this is messed up.
       .description = R"(
@@ -109,7 +109,7 @@ Args::flag_t content_address_method(ContentAddressMethod* method) {
       for regular usage prefer `nar` and `flat`.
         )",
       .labels = {"content-address-method"},
-      .handler = {[method](std::string s) { *method = ContentAddressMethod::parse(s); }},
+      .handler = {[method](std::string s) { *method = content_address_method_t::parse(s); }},
   };
 }
 

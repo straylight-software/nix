@@ -13,7 +13,7 @@ struct BuilderFailureError;
 
 /**
  * A goal for resolving a derivation. Resolving a derivation (@see
- * `Derivation::try_resolve`) simplifies its inputs, replacing
+ * `derivation_t::try_resolve`) simplifies its inputs, replacing
  * `input_drvs` with `input_srcs`.
  *
  * Conceptually, we resolve all derivations. For input-addressed
@@ -34,14 +34,14 @@ struct BuilderFailureError;
  * historically used.)
  */
 struct DerivationResolutionGoal : public Goal {
-  DerivationResolutionGoal(const StorePath& drv_path, const Derivation& drv, Worker& worker,
+  DerivationResolutionGoal(const store_path_t& drv_path, const derivation_t& drv, Worker& worker,
                            BuildMode build_mode);
 
   /**
    * If the derivation needed to be resolved, this is resulting
    * resolved derivations and its path.
    */
-  std::unique_ptr<std::pair<StorePath, BasicDerivation>> resolvedDrv;
+  std::unique_ptr<std::pair<store_path_t, basic_derivation_t>> resolvedDrv;
 
   void timedOut(Error&& ex) override {}
 
@@ -49,12 +49,12 @@ private:
   /**
    * The path of the derivation.
    */
-  StorePath drv_path;
+  store_path_t drv_path;
 
   /**
    * The derivation stored at drv_path.
    */
-  std::unique_ptr<Derivation> drv;
+  std::unique_ptr<derivation_t> drv;
 
   /**
    * The remainder is state held during the build.

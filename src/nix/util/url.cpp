@@ -189,7 +189,7 @@ static parsed_url_t from_boost_url_view(boost::urls::url_view url_view, bool len
                                     percent_decode) |
               std::ranges::to<std::vector<std::string>>();
 
-  /* Get the raw query. Store URI supports smuggling doubly nested queries, where
+  /* Get the raw query. store_t URI supports smuggling doubly nested queries, where
      the inner &/? are pct-encoded. */
   auto query = std::string_view(url_view.encoded_query());
 

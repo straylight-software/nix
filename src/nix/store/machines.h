@@ -6,7 +6,7 @@
 
 namespace nix {
 
-class Store;
+class store_t;
 
 struct Machine;
 
@@ -54,14 +54,14 @@ struct Machine {
   StoreReference completeStoreReference() const;
 
   /**
-   * Open a `Store` for this machine.
+   * Open a `store_t` for this machine.
    *
    * Just a simple function composition:
    * ```c++
    * nix::open_store(completeStoreReference())
    * ```
    */
-  ref<Store> open_store() const;
+  ref<store_t> open_store() const;
 
   /**
    * Parse a machine configuration.

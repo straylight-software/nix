@@ -8,22 +8,22 @@
 
 namespace nix {
 
-void EvalProfiler::pre_function_call_hook(EvalState& state, const Value& v, std::span<Value*> args,
+void EvalProfiler::pre_function_call_hook(eval_state_t& state, const value_t& v, std::span<value_t*> args,
                                           const pos_idx_t pos) {}
 
-void EvalProfiler::post_function_call_hook(EvalState& state, const Value& v, std::span<Value*> args,
+void EvalProfiler::post_function_call_hook(eval_state_t& state, const value_t& v, std::span<value_t*> args,
                                            const pos_idx_t pos) {}
 
-void MultiEvalProfiler::pre_function_call_hook(EvalState& state, const Value& v,
-                                               std::span<Value*> args, const pos_idx_t pos) {
+void MultiEvalProfiler::pre_function_call_hook(eval_state_t& state, const value_t& v,
+                                               std::span<value_t*> args, const pos_idx_t pos) {
   for (auto& profiler : profilers) {
     if (profiler->getNeededHooks().test(Hook::preFunctionCall))
       profiler->pre_function_call_hook(state, v, args, pos);
   }
 }
 
-void MultiEvalProfiler::post_function_call_hook(EvalState& state, const Value& v,
-                                                std::span<Value*> args, const pos_idx_t pos) {
+void MultiEvalProfiler::post_function_call_hook(eval_state_t& state, const value_t& v,
+                                                std::span<value_t*> args, const pos_idx_t pos) {
   for (auto& profiler : profilers) {
     if (profiler->getNeededHooks().test(Hook::postFunctionCall))
       profiler->post_function_call_hook(state, v, args, pos);
@@ -45,10 +45,10 @@ void MultiEvalProfiler::addProfiler(ref<EvalProfiler> profiler) {
 namespace {
 
 class pos_cache_t : private lru_cache_t<pos_idx_t, pos_t> {
-  const EvalState& state;
+  const eval_state_t& state;
 
 public:
-  pos_cache_t(const EvalState& state)
+  pos_cache_t(const eval_state_t& state)
       : lru_cache_t(524288) /* ~40MiB */
         ,
         state(state) {}
@@ -68,7 +68,7 @@ struct lambda_frame_info_t {
   ExprLambda* expr;
   /** Position where the lambda has been called. */
   pos_idx_t call_pos = no_pos;
-  std::ostream& symbolize(const EvalState& state, std::ostream& os, pos_cache_t& pos_cache) const;
+  std::ostream& symbolize(const eval_state_t& state, std::ostream& os, pos_cache_t& pos_cache) const;
   auto operator<=>(const lambda_frame_info_t& rhs) const = default;
 };
 
@@ -77,28 +77,28 @@ struct prim_op_frame_info_t {
   const PrimOp* expr;
   /** Position where the primop has been called. */
   pos_idx_t call_pos = no_pos;
-  std::ostream& symbolize(const EvalState& state, std::ostream& os, pos_cache_t& pos_cache) const;
+  std::ostream& symbolize(const eval_state_t& state, std::ostream& os, pos_cache_t& pos_cache) const;
   auto operator<=>(const prim_op_frame_info_t& rhs) const = default;
 };
 
 /** Used for functor calls (attrset with __functor attr). */
 struct functor_frame_info_t {
   pos_idx_t pos;
-  std::ostream& symbolize(const EvalState& state, std::ostream& os, pos_cache_t& pos_cache) const;
+  std::ostream& symbolize(const eval_state_t& state, std::ostream& os, pos_cache_t& pos_cache) const;
   auto operator<=>(const functor_frame_info_t& rhs) const = default;
 };
 
 struct derivation_strict_frame_info_t {
   pos_idx_t call_pos = no_pos;
   std::string drv_name;
-  std::ostream& symbolize(const EvalState& state, std::ostream& os, pos_cache_t& pos_cache) const;
+  std::ostream& symbolize(const eval_state_t& state, std::ostream& os, pos_cache_t& pos_cache) const;
   auto operator<=>(const derivation_strict_frame_info_t& rhs) const = default;
 };
 
 /** Fallback frame info. */
 struct generic_frame_info_t {
   pos_idx_t pos;
-  std::ostream& symbolize(const EvalState& state, std::ostream& os, pos_cache_t& pos_cache) const;
+  std::ostream& symbolize(const eval_state_t& state, std::ostream& os, pos_cache_t& pos_cache) const;
   auto operator<=>(const generic_frame_info_t& rhs) const = default;
 };
 
@@ -120,10 +120,10 @@ class sample_stack_t : public EvalProfiler {
     return Hooks().set(preFunctionCall).set(postFunctionCall);
   }
 
-  FrameInfo get_prim_op_frame_info(const PrimOp& prim_op, std::span<Value*> args, pos_idx_t pos);
+  FrameInfo get_prim_op_frame_info(const PrimOp& prim_op, std::span<value_t*> args, pos_idx_t pos);
 
 public:
-  sample_stack_t(EvalState& state, std::filesystem::path profile_file,
+  sample_stack_t(eval_state_t& state, std::filesystem::path profile_file,
                  std::chrono::nanoseconds period)
       : state(state),
         sampleInterval(period),
@@ -136,16 +136,16 @@ public:
         }()),
         pos_cache(state) {}
 
-  [[gnu::noinline]] void pre_function_call_hook(EvalState& state, const Value& v,
-                                                std::span<Value*> args,
+  [[gnu::noinline]] void pre_function_call_hook(eval_state_t& state, const value_t& v,
+                                                std::span<value_t*> args,
                                                 const pos_idx_t pos) override;
-  [[gnu::noinline]] void post_function_call_hook(EvalState& state, const Value& v,
-                                                 std::span<Value*> args,
+  [[gnu::noinline]] void post_function_call_hook(eval_state_t& state, const value_t& v,
+                                                 std::span<value_t*> args,
                                                  const pos_idx_t pos) override;
 
   void maybe_save_profile(std::chrono::time_point<std::chrono::high_resolution_clock> now);
   void save_profile();
-  FrameInfo get_frame_info_from_value_and_pos(const Value& v, std::span<Value*> args,
+  FrameInfo get_frame_info_from_value_and_pos(const value_t& v, std::span<value_t*> args,
                                               pos_idx_t pos);
 
   sample_stack_t(sample_stack_t&&) = default;
@@ -155,8 +155,8 @@ public:
   ~sample_stack_t();
 
 private:
-  /** Hold on to an instance of EvalState for symbolizing positions. */
-  EvalState& state;
+  /** Hold on to an instance of eval_state_t for symbolizing positions. */
+  eval_state_t& state;
   std::chrono::nanoseconds sampleInterval;
   auto_close_fd_t profileFd;
   FrameStack stack;
@@ -168,7 +168,7 @@ private:
   pos_cache_t pos_cache;
 };
 
-FrameInfo sample_stack_t::get_prim_op_frame_info(const PrimOp& prim_op, std::span<Value*> args,
+FrameInfo sample_stack_t::get_prim_op_frame_info(const PrimOp& prim_op, std::span<value_t*> args,
                                                  pos_idx_t pos) {
   auto derivation_info = [&]() -> std::optional<FrameInfo> {
     /* Here we rely a bit on the implementation details of libexpr/primops/derivation.nix
@@ -194,7 +194,7 @@ FrameInfo sample_stack_t::get_prim_op_frame_info(const PrimOp& prim_op, std::spa
   return derivation_info.value_or(prim_op_frame_info_t{.expr = &prim_op, .call_pos = pos});
 }
 
-FrameInfo sample_stack_t::get_frame_info_from_value_and_pos(const Value& v, std::span<Value*> args,
+FrameInfo sample_stack_t::get_frame_info_from_value_and_pos(const value_t& v, std::span<value_t*> args,
                                                             pos_idx_t pos) {
   /* NOTE: No actual references to garbage collected values are not held in
      the profiler. */
@@ -203,7 +203,7 @@ FrameInfo sample_stack_t::get_frame_info_from_value_and_pos(const Value& v, std:
   else if (v.isPrimOp()) {
     return get_prim_op_frame_info(*v.prim_op(), args, pos);
   } else if (v.isPrimOpApp())
-    /* Resolve prim_op eagerly. Must not hold on to a reference to a Value. */
+    /* Resolve prim_op eagerly. Must not hold on to a reference to a value_t. */
     return prim_op_frame_info_t{.expr = v.primOpAppPrimOp(), .call_pos = pos};
   else if (state.isFunctor(v)) {
     const auto functor = v.attrs()->get(state.s.functor);
@@ -217,8 +217,8 @@ FrameInfo sample_stack_t::get_frame_info_from_value_and_pos(const Value& v, std:
     return generic_frame_info_t{.pos = pos};
 }
 
-[[gnu::noinline]] void sample_stack_t::pre_function_call_hook(EvalState& state, const Value& v,
-                                                              std::span<Value*> args,
+[[gnu::noinline]] void sample_stack_t::pre_function_call_hook(eval_state_t& state, const value_t& v,
+                                                              std::span<value_t*> args,
                                                               const pos_idx_t pos) {
   stack.push_back(get_frame_info_from_value_and_pos(v, args, pos));
 
@@ -234,14 +234,14 @@ FrameInfo sample_stack_t::get_frame_info_from_value_and_pos(const Value& v, std:
   maybe_save_profile(now);
 }
 
-[[gnu::noinline]] void sample_stack_t::post_function_call_hook(EvalState& state, const Value& v,
-                                                               std::span<Value*> args,
+[[gnu::noinline]] void sample_stack_t::post_function_call_hook(eval_state_t& state, const value_t& v,
+                                                               std::span<value_t*> args,
                                                                const pos_idx_t pos) {
   if (!stack.empty())
     stack.pop_back();
 }
 
-std::ostream& lambda_frame_info_t::symbolize(const EvalState& state, std::ostream& os,
+std::ostream& lambda_frame_info_t::symbolize(const eval_state_t& state, std::ostream& os,
                                              pos_cache_t& pos_cache) const {
   if (auto pos = pos_cache.lookup(call_pos); std::holds_alternative<std::monostate>(pos.origin))
     /* HACK: To avoid dubious «none»:0 in the generated profile if the origin can't be resolved
@@ -254,19 +254,19 @@ std::ostream& lambda_frame_info_t::symbolize(const EvalState& state, std::ostrea
   return os;
 }
 
-std::ostream& generic_frame_info_t::symbolize(const EvalState& state, std::ostream& os,
+std::ostream& generic_frame_info_t::symbolize(const eval_state_t& state, std::ostream& os,
                                               pos_cache_t& pos_cache) const {
   os << pos_cache.lookup(pos);
   return os;
 }
 
-std::ostream& functor_frame_info_t::symbolize(const EvalState& state, std::ostream& os,
+std::ostream& functor_frame_info_t::symbolize(const eval_state_t& state, std::ostream& os,
                                               pos_cache_t& pos_cache) const {
   os << pos_cache.lookup(pos) << ":functor";
   return os;
 }
 
-std::ostream& prim_op_frame_info_t::symbolize(const EvalState& state, std::ostream& os,
+std::ostream& prim_op_frame_info_t::symbolize(const eval_state_t& state, std::ostream& os,
                                               pos_cache_t& pos_cache) const {
   /* Sometimes callsite position can have an unresolved origin, which
      leads to confusing «none»:0 locations in the profile. */
@@ -277,7 +277,7 @@ std::ostream& prim_op_frame_info_t::symbolize(const EvalState& state, std::ostre
   return os;
 }
 
-std::ostream& derivation_strict_frame_info_t::symbolize(const EvalState& state, std::ostream& os,
+std::ostream& derivation_strict_frame_info_t::symbolize(const eval_state_t& state, std::ostream& os,
                                                         pos_cache_t& pos_cache) const {
   /* Sometimes callsite position can have an unresolved origin, which
      leads to confusing «none»:0 locations in the profile. */
@@ -335,7 +335,7 @@ sample_stack_t::~sample_stack_t() {
 
 } // namespace
 
-ref<EvalProfiler> make_sample_stack_profiler(EvalState& state, std::filesystem::path profile_file,
+ref<EvalProfiler> make_sample_stack_profiler(eval_state_t& state, std::filesystem::path profile_file,
                                              uint64_t frequency) {
   /* 0 is a special value for sampling stack after each call. */
   std::chrono::nanoseconds period =

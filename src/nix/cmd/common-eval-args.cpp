@@ -19,12 +19,12 @@
 
 namespace nix {
 
-EvalSettings eval_settings{
+eval_settings_t eval_settings{
     settings.readOnlyMode,
     {
         {
             "flake",
-            [](EvalState& state, std::string_view rest) {
+            [](eval_state_t& state, std::string_view rest) {
               // FIXME `parseFlakeRef` should take a `std::string_view`.
               auto flake_ref = parse_flake_ref(fetch_settings, std::string{rest}, {}, true, false);
               debug("fetching flake search path element '%s''", rest);
@@ -147,7 +147,7 @@ MixEvalArgs::MixEvalArgs() {
   });
 }
 
-Bindings* MixEvalArgs::getAutoArgs(EvalState& state) {
+bindings_t* MixEvalArgs::getAutoArgs(eval_state_t& state) {
   auto res = state.buildBindings(auto_args.size());
   for (auto& [name, arg] : auto_args) {
     auto v = state.allocValue();
@@ -169,11 +169,11 @@ Bindings* MixEvalArgs::getAutoArgs(EvalState& state) {
   return res.finish();
 }
 
-source_path_t lookup_file_arg(EvalState& state, std::string_view s,
+source_path_t lookup_file_arg(eval_state_t& state, std::string_view s,
                          const std::filesystem::path* base_dir) {
-  if (EvalSettings::isPseudoUrl(s)) {
+  if (eval_settings_t::isPseudoUrl(s)) {
     auto accessor = fetchers::download_tarball(*state.store, state.fetch_settings,
-                                              EvalSettings::resolvePseudoUrl(s));
+                                              eval_settings_t::resolvePseudoUrl(s));
     auto store_path =
         fetch_to_store(state.fetch_settings, *state.store, source_path_t(accessor), FetchMode::Copy);
     return state.store_path(store_path);

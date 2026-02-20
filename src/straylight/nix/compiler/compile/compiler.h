@@ -1261,7 +1261,7 @@ private:
       }
       auto store = BinaryenStore(module_.get(),
                                  8,                                                     // bytes
-                                 offset + idx * 8,                                        // offset
+                                 offset + idx * 8,                                      // offset
                                  0,                                                     // align
                                  BinaryenConst(module_.get(), BinaryenLiteralInt32(0)), // base
                                  element, BinaryenTypeInt64(), "memory");

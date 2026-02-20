@@ -38,7 +38,7 @@ static void builtin_fetch_tree(const BuiltinBuilderContext& ctx) {
 
   // FIXME: disable use of the git/tarball cache
 
-  auto input = Input::fromAttrs(my_fetch_settings,
+  auto input = input_t::fromAttrs(my_fetch_settings,
                                 json_to_attrs(ctx.drv.structured_attrs->structured_attrs.at("input")));
 
   std::cerr << fmt("fetching '%s'...\n", input.to_string());
@@ -50,7 +50,7 @@ static void builtin_fetch_tree(const BuiltinBuilderContext& ctx) {
 
   auto [accessor, lockedInput] = input.get_accessor(my_fetch_settings, *tmp_store);
 
-  auto source = sink_to_source([&](Sink& sink) { accessor->dump_path(canon_path_t::root, sink); });
+  auto source = sink_to_source([&](sink_t& sink) { accessor->dump_path(canon_path_t::root, sink); });
 
   restore_path(ctx.outputs.at("out"), *source);
 }

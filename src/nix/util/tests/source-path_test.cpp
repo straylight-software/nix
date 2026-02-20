@@ -305,7 +305,7 @@ TEST_CASE("source path lstat for file", "[source-path][fs]") {
   source_path_t path(accessor, canon_path_t("/file.txt"));
 
   auto stat = path.lstat();
-  REQUIRE(stat.type == SourceAccessor::t_regular);
+  REQUIRE(stat.type == source_accessor_t::t_regular);
 }
 
 TEST_CASE("source path lstat for directory", "[source-path][fs]") {
@@ -313,7 +313,7 @@ TEST_CASE("source path lstat for directory", "[source-path][fs]") {
   source_path_t path(accessor, canon_path_t("/dir"));
 
   auto stat = path.lstat();
-  REQUIRE(stat.type == SourceAccessor::t_directory);
+  REQUIRE(stat.type == source_accessor_t::t_directory);
 }
 
 TEST_CASE("source path maybe lstat returns nullopt for nonexistent", "[source-path][fs]") {

@@ -6,20 +6,20 @@
 
 namespace nix {
 
-bool BuildResult::operator==(const BuildResult&) const noexcept = default;
-std::strong_ordering BuildResult::operator<=>(const BuildResult&) const noexcept = default;
+bool build_result_t::operator==(const build_result_t&) const noexcept = default;
+std::strong_ordering build_result_t::operator<=>(const build_result_t&) const noexcept = default;
 
-bool BuildResult::Success::operator==(const BuildResult::Success&) const noexcept = default;
+bool build_result_t::Success::operator==(const build_result_t::Success&) const noexcept = default;
 std::strong_ordering
-BuildResult::Success::operator<=>(const BuildResult::Success&) const noexcept = default;
+build_result_t::Success::operator<=>(const build_result_t::Success&) const noexcept = default;
 
-bool BuildResult::Failure::operator==(const BuildResult::Failure&) const noexcept = default;
+bool build_result_t::Failure::operator==(const build_result_t::Failure&) const noexcept = default;
 std::strong_ordering
-BuildResult::Failure::operator<=>(const BuildResult::Failure&) const noexcept = default;
+build_result_t::Failure::operator<=>(const build_result_t::Failure&) const noexcept = default;
 
-static constexpr std::array<std::pair<BuildResult::Success::Status, std::string_view>, 4>
+static constexpr std::array<std::pair<build_result_t::Success::Status, std::string_view>, 4>
     successStatusStrings{{
-#define ENUM_ENTRY(e) {BuildResult::Success::e, #e}
+#define ENUM_ENTRY(e) {build_result_t::Success::e, #e}
         ENUM_ENTRY(Built),
         ENUM_ENTRY(Substituted),
         ENUM_ENTRY(AlreadyValid),
@@ -27,7 +27,7 @@ static constexpr std::array<std::pair<BuildResult::Success::Status, std::string_
 #undef ENUM_ENTRY
     }};
 
-std::string_view BuildResult::Success::status_to_string(BuildResult::Success::Status status) {
+std::string_view build_result_t::Success::status_to_string(build_result_t::Success::Status status) {
   for (const auto& [enumVal, str] : successStatusStrings) {
     if (enumVal == status)
       return str;
@@ -35,7 +35,7 @@ std::string_view BuildResult::Success::status_to_string(BuildResult::Success::St
   throw Error("unknown success status: %d", static_cast<int>(status));
 }
 
-static BuildResult::Success::Status successStatusFromString(std::string_view str) {
+static build_result_t::Success::Status successStatusFromString(std::string_view str) {
   for (const auto& [enumVal, enumStr] : successStatusStrings) {
     if (enumStr == str)
       return enumVal;
@@ -43,9 +43,9 @@ static BuildResult::Success::Status successStatusFromString(std::string_view str
   throw Error("unknown built result success status '%s'", str);
 }
 
-static constexpr std::array<std::pair<BuildResult::Failure::Status, std::string_view>, 13>
+static constexpr std::array<std::pair<build_result_t::Failure::Status, std::string_view>, 13>
     failureStatusStrings{{
-#define ENUM_ENTRY(e) {BuildResult::Failure::e, #e}
+#define ENUM_ENTRY(e) {build_result_t::Failure::e, #e}
         ENUM_ENTRY(PermanentFailure),
         ENUM_ENTRY(InputRejected),
         ENUM_ENTRY(OutputRejected),
@@ -62,7 +62,7 @@ static constexpr std::array<std::pair<BuildResult::Failure::Status, std::string_
 #undef ENUM_ENTRY
     }};
 
-std::string_view BuildResult::Failure::status_to_string(BuildResult::Failure::Status status) {
+std::string_view build_result_t::Failure::status_to_string(build_result_t::Failure::Status status) {
   for (const auto& [enumVal, str] : failureStatusStrings) {
     if (enumVal == status)
       return str;
@@ -70,7 +70,7 @@ std::string_view BuildResult::Failure::status_to_string(BuildResult::Failure::St
   throw Error("unknown failure status: %d", static_cast<int>(status));
 }
 
-static BuildResult::Failure::Status failureStatusFromString(std::string_view str) {
+static build_result_t::Failure::Status failureStatusFromString(std::string_view str) {
   for (const auto& [enumVal, enumStr] : failureStatusStrings) {
     if (enumStr == str)
       return enumVal;
@@ -84,7 +84,7 @@ namespace nlohmann {
 
 using namespace nix;
 
-void adl_serializer<BuildResult>::to_json(json& res, const BuildResult& br) {
+void adl_serializer<build_result_t>::to_json(json& res, const build_result_t& br) {
   res = json::object();
 
   // Common fields
@@ -101,14 +101,14 @@ void adl_serializer<BuildResult>::to_json(json& res, const BuildResult& br) {
 
   // Handle success or failure variant
   std::visit(overloaded{
-                 [&](const BuildResult::Success& success) {
+                 [&](const build_result_t::Success& success) {
                    res["success"] = true;
-                   res["status"] = BuildResult::Success::status_to_string(success.status);
+                   res["status"] = build_result_t::Success::status_to_string(success.status);
                    res["builtOutputs"] = success.built_outputs;
                  },
-                 [&](const BuildResult::Failure& failure) {
+                 [&](const build_result_t::Failure& failure) {
                    res["success"] = false;
-                   res["status"] = BuildResult::Failure::status_to_string(failure.status);
+                   res["status"] = build_result_t::Failure::status_to_string(failure.status);
                    res["errorMsg"] = failure.errorMsg;
                    res["isNonDeterministic"] = failure.isNonDeterministic;
                  },
@@ -116,10 +116,10 @@ void adl_serializer<BuildResult>::to_json(json& res, const BuildResult& br) {
              br.inner);
 }
 
-BuildResult adl_serializer<BuildResult>::from_json(const json& _json) {
+build_result_t adl_serializer<build_result_t>::from_json(const json& _json) {
   auto& json = get_object(_json);
 
-  BuildResult br;
+  build_result_t br;
 
   // Common fields
   br.timesBuilt = get_unsigned(value_at(json, "timesBuilt"));
@@ -138,12 +138,12 @@ BuildResult adl_serializer<BuildResult>::from_json(const json& _json) {
   std::string statusStr = get_string(value_at(json, "status"));
 
   if (success) {
-    BuildResult::Success s;
+    build_result_t::Success s;
     s.status = successStatusFromString(statusStr);
     s.built_outputs = value_at(json, "builtOutputs");
     br.inner = std::move(s);
   } else {
-    BuildResult::Failure f;
+    build_result_t::Failure f;
     f.status = failureStatusFromString(statusStr);
     f.errorMsg = get_string(value_at(json, "errorMsg"));
     f.isNonDeterministic = get_boolean(value_at(json, "isNonDeterministic"));
@@ -153,17 +153,17 @@ BuildResult adl_serializer<BuildResult>::from_json(const json& _json) {
   return br;
 }
 
-KeyedBuildResult adl_serializer<KeyedBuildResult>::from_json(const json& json0) {
+keyed_build_result_t adl_serializer<keyed_build_result_t>::from_json(const json& json0) {
   auto json = get_object(json0);
 
-  return KeyedBuildResult{
-      adl_serializer<BuildResult>::from_json(json0),
+  return keyed_build_result_t{
+      adl_serializer<build_result_t>::from_json(json0),
       value_at(json, "path"),
   };
 }
 
-void adl_serializer<KeyedBuildResult>::to_json(json& json, const KeyedBuildResult& kbr) {
-  adl_serializer<BuildResult>::to_json(json, kbr);
+void adl_serializer<keyed_build_result_t>::to_json(json& json, const keyed_build_result_t& kbr) {
+  adl_serializer<build_result_t>::to_json(json, kbr);
   json["path"] = kbr.path;
 }
 

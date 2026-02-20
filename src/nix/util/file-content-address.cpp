@@ -62,7 +62,7 @@ std::string_view render_file_ingestion_method(file_ingestion_method_t method) {
   }
 }
 
-void dump_path(const source_path_t& path, Sink& sink, file_serialisation_method_t method,
+void dump_path(const source_path_t& path, sink_t& sink, file_serialisation_method_t method,
               path_filter_t& filter) {
   switch (method) {
     case file_serialisation_method_t::flat:
@@ -74,7 +74,7 @@ void dump_path(const source_path_t& path, Sink& sink, file_serialisation_method_
   }
 }
 
-void restore_path(const Path& path, Source& source, file_serialisation_method_t method,
+void restore_path(const Path& path, source_t& source, file_serialisation_method_t method,
                  bool start_fsync) {
   switch (method) {
     case file_serialisation_method_t::flat:

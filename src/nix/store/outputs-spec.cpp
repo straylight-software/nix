@@ -51,7 +51,7 @@ ExtendedOutputsSpec::parseOpt(std::string_view s) {
   auto specOpt = OutputsSpec::parseOpt(s.substr(found + 1));
   if (!specOpt)
     return std::nullopt;
-  return std::pair{s.substr(0, found), ExtendedOutputsSpec::Explicit{std::move(*specOpt)}};
+  return std::pair{s.substr(0, found), ExtendedOutputsSpec::explicit_t{std::move(*specOpt)}};
 }
 
 std::pair<std::string_view, ExtendedOutputsSpec> ExtendedOutputsSpec::parse(std::string_view s) {
@@ -74,7 +74,7 @@ std::string OutputsSpec::to_string() const {
 std::string ExtendedOutputsSpec::to_string() const {
   return std::visit(overloaded{
                         [&](const ExtendedOutputsSpec::Default&) -> std::string { return ""; },
-                        [&](const ExtendedOutputsSpec::Explicit& outputSpec) -> std::string {
+                        [&](const ExtendedOutputsSpec::explicit_t& outputSpec) -> std::string {
                           return "^" + outputSpec.to_string();
                         },
                     },
@@ -149,14 +149,14 @@ ExtendedOutputsSpec adl_serializer<ExtendedOutputsSpec>::from_json(const json& j
   if (json.is_null())
     return ExtendedOutputsSpec::Default{};
   else {
-    return ExtendedOutputsSpec::Explicit{json.get<OutputsSpec>()};
+    return ExtendedOutputsSpec::explicit_t{json.get<OutputsSpec>()};
   }
 }
 
 void adl_serializer<ExtendedOutputsSpec>::to_json(json& json, const ExtendedOutputsSpec& t) {
   std::visit(overloaded{
                  [&](const ExtendedOutputsSpec::Default&) { json = nullptr; },
-                 [&](const ExtendedOutputsSpec::Explicit& e) {
+                 [&](const ExtendedOutputsSpec::explicit_t& e) {
                    adl_serializer<OutputsSpec>::to_json(json, e);
                  },
              },

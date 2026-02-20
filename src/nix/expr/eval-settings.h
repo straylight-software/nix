@@ -7,10 +7,10 @@
 
 namespace nix {
 
-class EvalState;
+class eval_state_t;
 struct PrimOp;
 
-struct EvalSettings : config_t {
+struct eval_settings_t : config_t {
   /**
    * Function used to interpret look path entries of a given scheme.
    *
@@ -20,7 +20,7 @@ struct EvalSettings : config_t {
    * The return value is (a) whether the entry was valid, and, if so,
    * what does it map to.
    */
-  using LookupPathHook = std::optional<source_path_t>(EvalState& state, std::string_view);
+  using LookupPathHook = std::optional<source_path_t>(eval_state_t& state, std::string_view);
 
   /**
    * Map from "scheme" to a `LookupPathHook`.
@@ -37,7 +37,7 @@ struct EvalSettings : config_t {
    */
   using LookupPathHooks = std::map<std::string, std::function<LookupPathHook>>;
 
-  EvalSettings(bool& readOnlyMode, LookupPathHooks lookupPathHooks = {});
+  eval_settings_t(bool& readOnlyMode, LookupPathHooks lookupPathHooks = {});
 
   bool& readOnlyMode;
 
@@ -62,7 +62,7 @@ struct EvalSettings : config_t {
           Opens dynamic shared object (DSO) at *path*, loads the function with the symbol name *symbol* from it and runs it.
           The loaded function must have the following signature:
           ```cpp
-          extern "C" typedef void (*ValueInitialiser) (EvalState & state, Value & v);
+          extern "C" typedef void (*ValueInitialiser) (eval_state_t & state, value_t & v);
           ```
 
           The [Nix C++ API documentation](@docroot@/development/documentation.md#api-documentation) has more details on evaluator internals.
@@ -149,7 +149,7 @@ struct EvalSettings : config_t {
 
   setting_t<bool> traceImportFromDerivation{this, false, "trace-import-from-derivation",
                                           R"(
-          By default, Nix allows [Import from Derivation](@docroot@/language/import-from-derivation.md).
+          By default, Nix allows [Import from derivation_t](@docroot@/language/import-from-derivation.md).
 
           When this setting is `true`, Nix logs a warning indicating that it performed such an import.
           This option has no effect if `allow-import-from-derivation` is disabled.
@@ -157,7 +157,7 @@ struct EvalSettings : config_t {
 
   setting_t<bool> enableImportFromDerivation{this, true, "allow-import-from-derivation",
                                            R"(
-          By default, Nix allows [Import from Derivation](@docroot@/language/import-from-derivation.md).
+          By default, Nix allows [Import from derivation_t](@docroot@/language/import-from-derivation.md).
 
           With this option set to `false`, Nix throws an error when evaluating an expression that uses this feature,
           even when the required store object is readily available.

@@ -25,7 +25,7 @@
 
 namespace nix {
 
-InstallableAttrPath::InstallableAttrPath(ref<EvalState> state, SourceExprCommand& cmd, Value* v,
+InstallableAttrPath::InstallableAttrPath(ref<eval_state_t> state, SourceExprCommand& cmd, value_t* v,
                                          const std::string& attr_path,
                                          ExtendedOutputsSpec extendedOutputsSpec)
     : InstallableValue(state),
@@ -34,7 +34,7 @@ InstallableAttrPath::InstallableAttrPath(ref<EvalState> state, SourceExprCommand
       attr_path(attr_path),
       extendedOutputsSpec(std::move(extendedOutputsSpec)) {}
 
-std::pair<Value*, pos_idx_t> InstallableAttrPath::toValue(EvalState& state) {
+std::pair<value_t*, pos_idx_t> InstallableAttrPath::toValue(eval_state_t& state) {
   auto [v_res, pos] = find_along_attr_path(state, attr_path, *cmd.getAutoArgs(state), **v);
   state.forceValue(*v_res, pos);
   return {v_res, pos};
@@ -48,14 +48,14 @@ DerivedPathsWithInfo InstallableAttrPath::to_derived_paths() {
     return {*derivedPathWithInfo};
   }
 
-  Bindings& auto_args = *cmd.getAutoArgs(*state);
+  bindings_t& auto_args = *cmd.getAutoArgs(*state);
 
   PackageInfos package_infos;
   get_derivations(*state, *v, "", auto_args, package_infos, false);
 
   // Backward compatibility hack: group results by drvPath. This
   // helps keep .all output together.
-  std::map<StorePath, OutputsSpec> byDrvPath;
+  std::map<store_path_t, OutputsSpec> byDrvPath;
 
   for (auto& package_info : package_infos) {
     auto drv_path = package_info.queryDrvPath();
@@ -72,7 +72,7 @@ DerivedPathsWithInfo InstallableAttrPath::to_derived_paths() {
                            outputsToInstall.insert("out");
                          return OutputsSpec::Names{std::move(outputsToInstall)};
                        },
-                       [&](const ExtendedOutputsSpec::Explicit& e) -> OutputsSpec { return e; },
+                       [&](const ExtendedOutputsSpec::explicit_t& e) -> OutputsSpec { return e; },
                    },
                    extendedOutputsSpec.raw);
 
@@ -87,11 +87,11 @@ DerivedPathsWithInfo InstallableAttrPath::to_derived_paths() {
     state->waitForPath(drv_path);
     res.push_back({
         .path =
-            DerivedPath::Built{
+            derived_path_t::Built{
                 .drv_path = makeConstantStorePathRef(drv_path),
                 .outputs = outputs,
             },
-        .info = make_ref<ExtraPathInfoValue>(ExtraPathInfoValue::Value{
+        .info = make_ref<ExtraPathInfoValue>(ExtraPathInfoValue::value_t{
             .extendedOutputsSpec = outputs,
             /* FIXME: reconsider backwards compatibility above
                so we can fill in this info. */
@@ -102,8 +102,8 @@ DerivedPathsWithInfo InstallableAttrPath::to_derived_paths() {
   return res;
 }
 
-InstallableAttrPath InstallableAttrPath::parse(ref<EvalState> state, SourceExprCommand& cmd,
-                                               Value* v, std::string_view prefix,
+InstallableAttrPath InstallableAttrPath::parse(ref<eval_state_t> state, SourceExprCommand& cmd,
+                                               value_t* v, std::string_view prefix,
                                                ExtendedOutputsSpec extendedOutputsSpec) {
   return {
       state, cmd, v, prefix == "." ? "" : std::string{prefix}, std::move(extendedOutputsSpec),

@@ -20,7 +20,7 @@ struct cmd_log_t : InstallableCommand {
 
   category_t category() override { return catSecondary; }
 
-  void run(ref<Store> store, ref<Installable> installable) override {
+  void run(ref<store_t> store, ref<Installable> installable) override {
     settings.readOnlyMode = true;
 
     auto subs = get_default_substituters();
@@ -32,8 +32,8 @@ struct cmd_log_t : InstallableCommand {
     // For compat with CLI today, TODO revisit
     auto one_up = std::visit(
         overloaded{
-            [&](const DerivedPath::opaque_t& bo) { return make_ref<const SingleDerivedPath>(bo); },
-            [&](const DerivedPath::Built& bfd) { return bfd.drv_path; },
+            [&](const derived_path_t::opaque_t& bo) { return make_ref<const SingleDerivedPath>(bo); },
+            [&](const derived_path_t::Built& bfd) { return bfd.drv_path; },
         },
         b.path.raw());
     auto path = resolve_derived_path(*store, *one_up);

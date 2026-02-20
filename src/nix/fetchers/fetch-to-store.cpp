@@ -7,22 +7,22 @@
 namespace nix {
 
 fetchers::cache_t::Key make_source_path_to_hash_cache_key(const std::string& fingerprint,
-                                                  ContentAddressMethod method,
+                                                  content_address_method_t method,
                                                   const std::string& path) {
   return fetchers::cache_t::Key{
       "sourcePathToHash",
       {{"fingerprint", fingerprint}, {"method", std::string{method.render()}}, {"path", path}}};
 }
 
-StorePath fetch_to_store(const fetchers::settings_t& settings, Store& store, const source_path_t& path,
-                       FetchMode mode, std::string_view name, ContentAddressMethod method,
+store_path_t fetch_to_store(const fetchers::settings_t& settings, store_t& store, const source_path_t& path,
+                       FetchMode mode, std::string_view name, content_address_method_t method,
                        path_filter_t* filter, RepairFlag repair) {
   return fetch_to_store2(settings, store, path, mode, name, method, filter, repair).first;
 }
 
-std::pair<StorePath, Hash> fetch_to_store2(const fetchers::settings_t& settings, Store& store,
+std::pair<store_path_t, Hash> fetch_to_store2(const fetchers::settings_t& settings, store_t& store,
                                          const source_path_t& path, FetchMode mode,
-                                         std::string_view name, ContentAddressMethod method,
+                                         std::string_view name, content_address_method_t method,
                                          path_filter_t* filter, RepairFlag repair) {
   std::optional<fetchers::cache_t::Key> cache_key;
 
@@ -73,7 +73,7 @@ std::pair<StorePath, Hash> fetch_to_store2(const fetchers::settings_t& settings,
                   store.add_to_store(name, path, method, hash_algorithm_t::SHA256, {}, filter2, repair);
               auto info = store.queryPathInfo(store_path);
               assert(info->references.empty());
-              auto hash = method == ContentAddressMethod::raw_t::nix_archive ? info->nar_hash : ({
+              auto hash = method == content_address_method_t::raw_t::nix_archive ? info->nar_hash : ({
                 if (!info->ca || info->ca->method != method)
                   throw Error("path '%s' lacks a CA field", store.printStorePath(store_path));
                 info->ca->hash;

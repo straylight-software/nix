@@ -13,8 +13,8 @@ class BadNixStringContextElem : public Error {
 public:
   std::string_view raw;
 
-  template <typename... Args>
-  BadNixStringContextElem(std::string_view raw_, const Args&... args)
+  template <typename... args_t>
+  BadNixStringContextElem(std::string_view raw_, const args_t&... args)
       : Error("Bad String Context element: %1%: %2%", uncolored_t(hint_fmt_t(args...).str()), raw_),
         raw(raw_) {}
 };
@@ -45,13 +45,13 @@ struct NixStringContextElem {
    * Encoded in the form `=<drv_path>`.
    */
   struct DrvDeep {
-    StorePath drv_path;
+    store_path_t drv_path;
 
     GENERATE_CMP(DrvDeep, me->drv_path);
   };
 
   /**
-   * Derivation output.
+   * derivation_t output.
    *
    * Encoded in the form `!<output>!<drv_path>`.
    */
@@ -75,7 +75,7 @@ struct NixStringContextElem {
    * special type of context.
    */
   struct Path {
-    StorePath store_path;
+    store_path_t store_path;
 
     GENERATE_CMP(Path, me->store_path);
   };

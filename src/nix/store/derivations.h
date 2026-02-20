@@ -17,20 +17,20 @@
 
 namespace nix {
 
-struct StoreDirConfig;
+struct store_dir_config_t;
 struct AsyncPathWriter;
 
 /* Abstract syntax of derivations. */
 
 /**
- * A single output of a BasicDerivation (and Derivation).
+ * A single output of a basic_derivation_t (and derivation_t).
  */
-struct DerivationOutput {
+struct derivation_output_t {
   /**
    * The traditional non-fixed-output derivation type.
    */
   struct InputAddressed {
-    StorePath path;
+    store_path_t path;
 
     bool operator==(const InputAddressed&) const = default;
     auto operator<=>(const InputAddressed&) const = default;
@@ -46,15 +46,15 @@ struct DerivationOutput {
      *
      * References are not allowed by fiat.
      */
-    ContentAddress ca;
+    content_address_t ca;
 
     /**
-     * Return the \ref StorePath "store path" corresponding to this output
+     * Return the \ref store_path_t "store path" corresponding to this output
      *
      * @param drv_name The name of the derivation this is an output of, without the `.drv`.
      * @param output_name The name of this output.
      */
-    StorePath path(const StoreDirConfig& store, std::string_view drv_name,
+    store_path_t path(const store_dir_config_t& store, std::string_view drv_name,
                    OutputNameView output_name) const;
 
     bool operator==(const CAFixed&) const = default;
@@ -70,7 +70,7 @@ struct DerivationOutput {
     /**
      * How the file system objects will be serialized for hashing
      */
-    ContentAddressMethod method;
+    content_address_method_t method;
 
     /**
      * How the serialization will be hashed
@@ -82,7 +82,7 @@ struct DerivationOutput {
   };
 
   /**
-   * Input-addressed output which depends on a (CA) derivation whose hash
+   * input_t-addressed output which depends on a (CA) derivation whose hash
    * isn't known yet.
    */
   struct Deferred {
@@ -98,7 +98,7 @@ struct DerivationOutput {
     /**
      * How the file system objects will be serialized for hashing
      */
-    ContentAddressMethod method;
+    content_address_method_t method;
 
     /**
      * How the serialization will be hashed
@@ -113,46 +113,46 @@ struct DerivationOutput {
 
   raw_t raw;
 
-  bool operator==(const DerivationOutput&) const = default;
-  auto operator<=>(const DerivationOutput&) const = default;
+  bool operator==(const derivation_output_t&) const = default;
+  auto operator<=>(const derivation_output_t&) const = default;
 
-  MAKE_WRAPPER_CONSTRUCTOR(DerivationOutput);
+  MAKE_WRAPPER_CONSTRUCTOR(derivation_output_t);
 
   /**
    * Force choosing a variant
    */
-  DerivationOutput() = delete;
+  derivation_output_t() = delete;
 
   /**
    * \note when you use this function you should make sure that you're
    * passing the right derivation name. When in doubt, you should use
    * the safer interface provided by
-   * BasicDerivation::outputsAndOptPaths
+   * basic_derivation_t::outputsAndOptPaths
    */
-  std::optional<StorePath> path(const StoreDirConfig& store, std::string_view drv_name,
+  std::optional<store_path_t> path(const store_dir_config_t& store, std::string_view drv_name,
                                 OutputNameView output_name) const;
 };
 
-using DerivationOutputs = std::map<std::string, DerivationOutput>;
+using DerivationOutputs = std::map<std::string, derivation_output_t>;
 
 /**
  * These are analogues to the previous DerivationOutputs data type,
  * but they also contains, for each output, the (optional) store
  * path in which it would be written. To calculate values of these
- * types, see the corresponding functions in BasicDerivation.
+ * types, see the corresponding functions in basic_derivation_t.
  */
-typedef std::map<std::string, std::pair<DerivationOutput, std::optional<StorePath>>>
+typedef std::map<std::string, std::pair<derivation_output_t, std::optional<store_path_t>>>
     DerivationOutputsAndOptPaths;
 
 /**
  * For inputs that are sub-derivations, we specify exactly which
  * output IDs we are interested in.
  */
-using DerivationInputs = std::map<StorePath, string_set_t>;
+using DerivationInputs = std::map<store_path_t, string_set_t>;
 
 struct DerivationType {
   /**
-   * Input-addressed derivation types
+   * input_t-addressed derivation types
    */
   struct InputAddressed {
     /**
@@ -257,7 +257,7 @@ struct DerivationType {
   bool hasKnownOutputPaths() const;
 };
 
-struct BasicDerivation {
+struct basic_derivation_t {
   /**
    * keyed on symbolic IDs
    */
@@ -265,7 +265,7 @@ struct BasicDerivation {
   /**
    * inputs that are sources
    */
-  StorePathSet input_srcs;
+  store_path_set_t input_srcs;
   std::string platform;
   Path builder;
   strings_t args;
@@ -277,12 +277,12 @@ struct BasicDerivation {
 
   std::string name;
 
-  BasicDerivation() = default;
-  BasicDerivation(BasicDerivation&&) = default;
-  BasicDerivation(const BasicDerivation&) = default;
-  BasicDerivation& operator=(BasicDerivation&&) = default;
-  BasicDerivation& operator=(const BasicDerivation&) = default;
-  virtual ~BasicDerivation() {};
+  basic_derivation_t() = default;
+  basic_derivation_t(basic_derivation_t&&) = default;
+  basic_derivation_t(const basic_derivation_t&) = default;
+  basic_derivation_t& operator=(basic_derivation_t&&) = default;
+  basic_derivation_t& operator=(const basic_derivation_t&) = default;
+  virtual ~basic_derivation_t() {};
 
   bool isBuiltin() const;
 
@@ -298,12 +298,12 @@ struct BasicDerivation {
 
   /**
    * Calculates the maps that contains all the DerivationOutputs, but
-   * augmented with knowledge of the Store paths they would be written
+   * augmented with knowledge of the store_t paths they would be written
    * into.
    */
-  DerivationOutputsAndOptPaths outputsAndOptPaths(const StoreDirConfig& store) const;
+  DerivationOutputsAndOptPaths outputsAndOptPaths(const store_dir_config_t& store) const;
 
-  static std::string_view nameFromPath(const StorePath& store_path);
+  static std::string_view nameFromPath(const store_path_t& store_path);
 
   /**
    * Apply string rewrites to the `env`, `args` and `builder`
@@ -311,14 +311,14 @@ struct BasicDerivation {
    */
   void applyRewrites(const string_map_t& rewrites);
 
-  bool operator==(const BasicDerivation&) const = default;
+  bool operator==(const basic_derivation_t&) const = default;
   // TODO libc++ 16 (used by darwin) missing `std::map::operator <=>`, can't do yet.
-  // auto operator <=> (const BasicDerivation &) const = default;
+  // auto operator <=> (const basic_derivation_t &) const = default;
 };
 
-class Store;
+class store_t;
 
-struct Derivation : BasicDerivation {
+struct derivation_t : basic_derivation_t {
   /**
    * inputs that are sub-derivations
    */
@@ -327,28 +327,28 @@ struct Derivation : BasicDerivation {
   /**
    * Print a derivation.
    */
-  std::string unparse(const StoreDirConfig& store, bool mask_outputs,
+  std::string unparse(const store_dir_config_t& store, bool mask_outputs,
                       DerivedPathMap<string_set_t>::ChildNode::Map* actualInputs = nullptr) const;
 
   /**
    * Return the underlying basic derivation but with these changes:
    *
-   * 1. Input drvs are emptied, but the outputs of them that were used
+   * 1. input_t drvs are emptied, but the outputs of them that were used
    *    are added directly to input sources.
    *
-   * 2. Input placeholders are replaced with realized input store
+   * 2. input_t placeholders are replaced with realized input store
    *    paths.
    */
-  std::optional<BasicDerivation> try_resolve(Store& store, Store* eval_store = nullptr) const;
+  std::optional<basic_derivation_t> try_resolve(store_t& store, store_t* eval_store = nullptr) const;
 
   /**
    * Like the above, but instead of querying the Nix database for
    * realisations, uses a given mapping from input derivation paths +
    * output names to actual output store paths.
    */
-  std::optional<BasicDerivation>
-  try_resolve(Store& store,
-             std::function<std::optional<StorePath>(ref<const SingleDerivedPath> drv_path,
+  std::optional<basic_derivation_t>
+  try_resolve(store_t& store,
+             std::function<std::optional<store_path_t>(ref<const SingleDerivedPath> drv_path,
                                                     const std::string& output_name)>
                  queryResolutionChain) const;
 
@@ -361,12 +361,12 @@ struct Derivation : BasicDerivation {
    * allow.
    *
    * This overload does not validate the derivation name or add path
-   * context to errors. use this when you don't have a `StorePath` or
+   * context to errors. use this when you don't have a `store_path_t` or
    * when you want to handle error context yourself.
    *
    * @param store The store to use for validation
    */
-  void checkInvariants(Store& store) const;
+  void checkInvariants(store_t& store) const;
 
   /**
    * This overload does everything the base `checkInvariants` does,
@@ -376,7 +376,7 @@ struct Derivation : BasicDerivation {
    * @param store The store to use for validation
    * @param drv_path The path to this derivation
    */
-  void checkInvariants(Store& store, const StorePath& drv_path) const;
+  void checkInvariants(store_t& store, const store_path_t& drv_path) const;
 
   /**
    * Fill in output paths as needed.
@@ -399,13 +399,13 @@ struct Derivation : BasicDerivation {
    * @param store The store to use for path computation
    * @param drv_name The derivation name (without .drv extension)
    */
-  void fillInOutputPaths(Store& store);
+  void fillInOutputPaths(store_t& store);
 
-  Derivation() = default;
+  derivation_t() = default;
 
-  Derivation(const BasicDerivation& bd) : BasicDerivation(bd) {}
+  derivation_t(const basic_derivation_t& bd) : basic_derivation_t(bd) {}
 
-  Derivation(BasicDerivation&& bd) : BasicDerivation(std::move(bd)) {}
+  derivation_t(basic_derivation_t&& bd) : basic_derivation_t(std::move(bd)) {}
 
   /**
    * Parse a derivation from JSON, and also perform various
@@ -420,7 +420,7 @@ struct Derivation : BasicDerivation {
    * - assist with the migration from older JSON formats.
    *
    * - (a somewhat example of the above) initialize
-   *   `DerivationOptions` from their traditional encoding inside the
+   *   `derivation_options_t` from their traditional encoding inside the
    *   `env` and `structured_attrs`.
    *
    * @param store The store to use for path computation and validation
@@ -428,32 +428,32 @@ struct Derivation : BasicDerivation {
    * @return A validated derivation with output paths filled in
    * @throws Error if parsing fails, output paths can't be computed, or validation fails
    */
-  static Derivation parseJsonAndValidate(Store& store, const nlohmann::json& json);
+  static derivation_t parseJsonAndValidate(store_t& store, const nlohmann::json& json);
 
-  bool operator==(const Derivation&) const = default;
+  bool operator==(const derivation_t&) const = default;
   // TODO libc++ 16 (used by darwin) missing `std::map::operator <=>`, can't do yet.
-  // auto operator <=> (const Derivation &) const = default;
+  // auto operator <=> (const derivation_t &) const = default;
 };
 
-class Store;
+class store_t;
 
 /**
  * Write a derivation to the Nix store, and return its path.
  */
-StorePath write_derivation(Store& store, const Derivation& drv, RepairFlag repair = NoRepair,
+store_path_t write_derivation(store_t& store, const derivation_t& drv, RepairFlag repair = NoRepair,
                           bool read_only = false);
 
 /**
  * Asynchronously write a derivation to the Nix store, and return its path.
  */
-StorePath write_derivation(Store& store, AsyncPathWriter& async_path_writer, const Derivation& drv,
+store_path_t write_derivation(store_t& store, AsyncPathWriter& async_path_writer, const derivation_t& drv,
                           RepairFlag repair = NoRepair, bool read_only = false);
 
 /**
  * Read a derivation from a file.
  */
-Derivation
-parse_derivation(const StoreDirConfig& store, std::string&& s, std::string_view name,
+derivation_t
+parse_derivation(const store_dir_config_t& store, std::string&& s, std::string_view name,
                 const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
 
 /**
@@ -531,7 +531,7 @@ void operator|=(DrvHash::Kind& self, const DrvHash::Kind& other) noexcept;
  * ATerm, after subderivations have been likewise expunged from that
  * derivation.
  */
-DrvHash hash_derivation_modulo(Store& store, const Derivation& drv, bool mask_outputs);
+DrvHash hash_derivation_modulo(store_t& store, const derivation_t& drv, bool mask_outputs);
 
 /**
  * Return a map associating each output to a hash that uniquely identifies its
@@ -539,12 +539,12 @@ DrvHash hash_derivation_modulo(Store& store, const Derivation& drv, bool mask_ou
  *
  * \todo What is the Hash in this map?
  */
-std::map<std::string, Hash> static_output_hashes(Store& store, const Derivation& drv);
+std::map<std::string, Hash> static_output_hashes(store_t& store, const derivation_t& drv);
 
 struct DrvHashFct {
   using is_avalanching = std::true_type;
 
-  std::size_t operator()(const StorePath& path) const noexcept {
+  std::size_t operator()(const store_path_t& path) const noexcept {
     return std::hash<std::string_view>{}(path.to_string());
   }
 };
@@ -552,17 +552,17 @@ struct DrvHashFct {
 /**
  * Memoisation of hash_derivation_modulo().
  */
-using DrvHashes = boost::concurrent_flat_map<StorePath, DrvHash, DrvHashFct>;
+using DrvHashes = boost::concurrent_flat_map<store_path_t, DrvHash, DrvHashFct>;
 
 // FIXME: global, though at least thread-safe.
 extern DrvHashes drv_hashes;
 
-struct Source;
-struct Sink;
+struct source_t;
+struct sink_t;
 
-Source& read_derivation(Source& in, const StoreDirConfig& store, BasicDerivation& drv,
+source_t& read_derivation(source_t& in, const store_dir_config_t& store, basic_derivation_t& drv,
                        std::string_view name);
-void write_derivation(Sink& out, const StoreDirConfig& store, const BasicDerivation& drv);
+void write_derivation(sink_t& out, const store_dir_config_t& store, const basic_derivation_t& drv);
 
 /**
  * This creates an opaque and almost certainly unique string
@@ -582,5 +582,5 @@ constexpr unsigned expectedJsonVersionDerivation = 4;
 
 } // namespace nix
 
-JSON_IMPL_WITH_XP_FEATURES(nix::DerivationOutput)
-JSON_IMPL_WITH_XP_FEATURES(nix::Derivation)
+JSON_IMPL_WITH_XP_FEATURES(nix::derivation_output_t)
+JSON_IMPL_WITH_XP_FEATURES(nix::derivation_t)

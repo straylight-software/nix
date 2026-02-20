@@ -9,7 +9,7 @@
 
 namespace nix {
 
-class EvalState;
+class eval_state_t;
 
 namespace flake {
 
@@ -20,18 +20,18 @@ struct FlakeInput;
 using FlakeInputs = std::map<FlakeId, FlakeInput>;
 
 /**
- * FlakeInput is the 'Flake'-level parsed form of the "input" entries
+ * FlakeInput is the 'flake_t'-level parsed form of the "input" entries
  * in the flake file.
  *
  * A FlakeInput is normally constructed by the 'parseFlakeInput'
  * function which parses the input specification in the '.flake' file
- * to create a 'FlakeRef' (a fetcher, the fetcher-specific
+ * to create a 'flake_ref_t' (a fetcher, the fetcher-specific
  * representation of the input specification, and possibly the fetched
  * local store path result) and then creating this FlakeInput to hold
- * that FlakeRef, along with anything that might override that
- * FlakeRef (like command-line overrides or "follows" specifications).
+ * that flake_ref_t, along with anything that might override that
+ * flake_ref_t (like command-line overrides or "follows" specifications).
  *
- * A FlakeInput is also sometimes constructed directly from a FlakeRef
+ * A FlakeInput is also sometimes constructed directly from a flake_ref_t
  * instead of starting at the flake-file input specification
  * (e.g. overrides, follows, and implicit inputs).
  *
@@ -42,7 +42,7 @@ using FlakeInputs = std::map<FlakeId, FlakeInput>;
  */
 
 struct FlakeInput {
-  std::optional<FlakeRef> ref;
+  std::optional<flake_ref_t> ref;
 
   /**
    * Whether to call the `flake.nix` file in this input to get its outputs.
@@ -60,7 +60,7 @@ struct FlakeInput {
 };
 
 struct ConfigFile {
-  using ConfigValue = std::variant<std::string, int64_t, Explicit<bool>, std::vector<std::string>>;
+  using ConfigValue = std::variant<std::string, int64_t, explicit_t<bool>, std::vector<std::string>>;
 
   std::map<std::string, ConfigValue> settings;
 
@@ -70,21 +70,21 @@ struct ConfigFile {
 /**
  * A flake in context
  */
-struct Flake {
+struct flake_t {
   /**
    * The original flake specification (by the user)
    */
-  FlakeRef original_ref;
+  flake_ref_t original_ref;
 
   /**
    * registry references and caching resolved to the specific underlying flake
    */
-  FlakeRef resolved_ref;
+  flake_ref_t resolved_ref;
 
   /**
    * the specific local store result of invoking the fetcher
    */
-  FlakeRef locked_ref;
+  flake_ref_t locked_ref;
 
   /**
    * The path of `flake.nix`.
@@ -111,12 +111,12 @@ struct Flake {
    */
   ConfigFile config;
 
-  ~Flake();
+  ~flake_t();
 
   source_path_t lock_file_path() { return path.parent() / "flake.lock"; }
 };
 
-Flake get_flake(EvalState& state, const FlakeRef& flake_ref, fetchers::UseRegistries use_registries,
+flake_t get_flake(eval_state_t& state, const flake_ref_t& flake_ref, fetchers::UseRegistries use_registries,
                bool require_lockable = true);
 
 /**
@@ -125,17 +125,17 @@ Flake get_flake(EvalState& state, const FlakeRef& flake_ref, fetchers::UseRegist
 using Fingerprint = Hash;
 
 struct LockedFlake {
-  Flake flake;
-  LockFile lock_file;
+  flake_t flake;
+  lock_file_t lock_file;
 
   /**
-   * Source tree accessors for nodes that have been fetched in
+   * source_t tree accessors for nodes that have been fetched in
    * lock_flake(); in particular, the root node and the overridden
    * inputs.
    */
   std::map<ref<Node>, source_path_t> nodePaths;
 
-  std::optional<Fingerprint> get_fingerprint(Store& store,
+  std::optional<Fingerprint> get_fingerprint(store_t& store,
                                             const fetchers::settings_t& fetch_settings) const;
 };
 
@@ -203,12 +203,12 @@ struct LockFlags {
   std::optional<std::filesystem::path> output_lock_file_path;
 
   /**
-   * Flake inputs to be overridden.
+   * flake_t inputs to be overridden.
    */
-  std::map<InputAttrPath, FlakeRef> inputOverrides;
+  std::map<InputAttrPath, flake_ref_t> inputOverrides;
 
   /**
-   * Flake inputs to be updated. This means that any existing lock
+   * flake_t inputs to be updated. This means that any existing lock
    * for those inputs will be ignored.
    */
   std::set<InputAttrPath> inputUpdates;
@@ -219,19 +219,19 @@ struct LockFlags {
   bool require_lockable = true;
 };
 
-LockedFlake lock_flake(const settings_t& settings, EvalState& state, const FlakeRef& flake_ref,
+LockedFlake lock_flake(const settings_t& settings, eval_state_t& state, const flake_ref_t& flake_ref,
                       const LockFlags& lock_flags);
 
-void call_flake(EvalState& state, const LockedFlake& locked_flake, Value& v);
+void call_flake(eval_state_t& state, const LockedFlake& locked_flake, value_t& v);
 
 /**
  * Open an evaluation cache for a flake.
  */
-ref<eval_cache::EvalCache> open_eval_cache(EvalState& state, ref<const LockedFlake> locked_flake);
+ref<eval_cache::EvalCache> open_eval_cache(eval_state_t& state, ref<const LockedFlake> locked_flake);
 
 } // namespace flake
 
-void emit_tree_attrs(EvalState& state, const StorePath& store_path, const fetchers::Input& input,
-                   Value& v, bool empty_rev_fallback = false, bool force_dirty = false);
+void emit_tree_attrs(eval_state_t& state, const store_path_t& store_path, const fetchers::input_t& input,
+                   value_t& v, bool empty_rev_fallback = false, bool force_dirty = false);
 
 } // namespace nix

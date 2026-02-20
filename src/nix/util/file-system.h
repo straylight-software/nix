@@ -33,8 +33,8 @@
 
 namespace nix {
 
-struct Sink;
-struct Source;
+struct sink_t;
+struct source_t;
 
 /**
  * Return whether the path denotes an absolute path.
@@ -171,7 +171,7 @@ auto open_directory(const std::filesystem::path& path) -> descriptor_t;
  */
 std::string read_file(const Path& path);
 std::string read_file(const std::filesystem::path& path);
-void read_file(const Path& path, Sink& sink, bool memory_map = true);
+void read_file(const Path& path, sink_t& sink, bool memory_map = true);
 
 enum struct fs_sync_t { yes, no };
 
@@ -186,10 +186,10 @@ static inline void write_file(const std::filesystem::path& path, std::string_vie
   return write_file(path.string(), s, mode, sync);
 }
 
-void write_file(const Path& path, Source& source, mode_t mode = 0666,
+void write_file(const Path& path, source_t& source, mode_t mode = 0666,
                 fs_sync_t sync = fs_sync_t::no);
 
-static inline void write_file(const std::filesystem::path& path, Source& source, mode_t mode = 0666,
+static inline void write_file(const std::filesystem::path& path, source_t& source, mode_t mode = 0666,
                               fs_sync_t sync = fs_sync_t::no) {
   return write_file(path.string(), source, mode, sync);
 }
@@ -444,14 +444,14 @@ private:
 };
 
 #ifdef __FreeBSD__
-class AutoUnmount {
+class auto_unmount_t {
   Path path;
   bool del;
 
 public:
-  AutoUnmount(Path&);
-  AutoUnmount();
-  ~AutoUnmount();
+  auto_unmount_t(Path&);
+  auto_unmount_t();
+  ~auto_unmount_t();
   void cancel();
 };
 #endif

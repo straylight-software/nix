@@ -72,7 +72,7 @@ def _llvm_toolchain_impl(ctx: AnalysisContext) -> list[Provider]:
     config_link_flags = config_link_flags_str.split() if config_link_flags_str else []
 
     # ════════════════════════════════════════════════════════════════════════════
-    # Build include flags from config paths
+    # Build include flags from config paths (musl static linking)
     # ════════════════════════════════════════════════════════════════════════════
     include_flags = []
 
@@ -82,27 +82,22 @@ def _llvm_toolchain_impl(ctx: AnalysisContext) -> list[Provider]:
         include_flags.append("-resource-dir=" + clang_resource_dir)
         include_flags.append("-isystem" + clang_resource_dir + "/include")
 
-    # GCC libstdc++ headers
-    gcc_include = read_root_config("cxx", "gcc_include", None)
-    if gcc_include:
-        include_flags.append("-isystem" + gcc_include)
+    # Musl GCC libstdc++ headers (for musl static linking)
+    musl_gcc_include = read_root_config("cxx", "musl_gcc_include", None)
+    if musl_gcc_include:
+        include_flags.append("-isystem" + musl_gcc_include)
 
-    gcc_include_arch = read_root_config("cxx", "gcc_include_arch", None)
-    if gcc_include_arch:
-        include_flags.append("-isystem" + gcc_include_arch)
+    musl_gcc_include_arch = read_root_config("cxx", "musl_gcc_include_arch", None)
+    if musl_gcc_include_arch:
+        include_flags.append("-isystem" + musl_gcc_include_arch)
 
-    # glibc headers
-    glibc_include = read_root_config("cxx", "glibc_include", None)
-    if glibc_include:
-        include_flags.append("-isystem" + glibc_include)
-
-    # mdspan (Kokkos reference implementation, until libstdc++ ships it)
-    mdspan_include = read_root_config("cxx", "mdspan_include", None)
-    if mdspan_include:
-        include_flags.append("-isystem" + mdspan_include)
+    # Musl headers
+    musl_include = read_root_config("cxx", "musl_include", None)
+    if musl_include:
+        include_flags.append("-isystem" + musl_include)
 
     # ════════════════════════════════════════════════════════════════════════════
-    # Build link flags from config paths
+    # Build link flags from config paths (musl static linking)
     # ════════════════════════════════════════════════════════════════════════════
     # Get the bin directory from the linker path for -B
     # NOTE: -B must come BEFORE -fuse-ld so clang knows where to find lld
@@ -112,26 +107,23 @@ def _llvm_toolchain_impl(ctx: AnalysisContext) -> list[Provider]:
         extra_link_flags.append("-B" + llvm_bin_dir)
     extra_link_flags.append("-fuse-ld=lld")
 
-    # glibc_lib: contains CRT files (Scrt1.o, crti.o, crtn.o) and libc, libm, libpthread
-    glibc_lib = read_root_config("cxx", "glibc_lib", None)
-    if glibc_lib:
-        # -B tells clang where to find CRT files
-        extra_link_flags.append("-B" + glibc_lib)
-        extra_link_flags.append("-L" + glibc_lib)
-        extra_link_flags.append("-Wl,-rpath," + glibc_lib)
+    # Musl static linking - no rpath needed
+    # musl_gcc_lib: contains libstdc++.a (C++ standard library)
+    musl_gcc_lib = read_root_config("cxx", "musl_gcc_lib", None)
+    if musl_gcc_lib:
+        extra_link_flags.append("-L" + musl_gcc_lib)
 
-    # gcc_lib: contains crtbeginS.o, crtendS.o, libgcc.a, libgcc_s.so
-    gcc_lib = read_root_config("cxx", "gcc_lib", None)
-    if gcc_lib:
-        extra_link_flags.append("-B" + gcc_lib)
-        extra_link_flags.append("-L" + gcc_lib)
-        extra_link_flags.append("-Wl,-rpath," + gcc_lib)
+    # musl_gcc_lib_gcc: contains libgcc.a, crt*.o (compiler runtime)
+    # This is lib/gcc/<triple>/<version>/ subdirectory
+    musl_gcc_lib_gcc = read_root_config("cxx", "musl_gcc_lib_gcc", None)
+    if musl_gcc_lib_gcc:
+        extra_link_flags.append("-B" + musl_gcc_lib_gcc)
+        extra_link_flags.append("-L" + musl_gcc_lib_gcc)
 
-    # gcc_lib_base: contains libstdc++.so
-    gcc_lib_base = read_root_config("cxx", "gcc_lib_base", None)
-    if gcc_lib_base:
-        extra_link_flags.append("-L" + gcc_lib_base)
-        extra_link_flags.append("-Wl,-rpath," + gcc_lib_base)
+    musl_lib = read_root_config("cxx", "musl_lib", None)
+    if musl_lib:
+        extra_link_flags.append("-B" + musl_lib)
+        extra_link_flags.append("-L" + musl_lib)
 
     # ════════════════════════════════════════════════════════════════════════════
     # Combine flags: include paths + turing registry + extra flags

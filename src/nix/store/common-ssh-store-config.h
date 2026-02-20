@@ -8,8 +8,8 @@ namespace nix {
 
 class SSHMaster;
 
-struct CommonSSHStoreConfig : virtual StoreConfig {
-  using StoreConfig::StoreConfig;
+struct CommonSSHStoreConfig : virtual store_config_t {
+  using store_config_t::store_config_t;
 
   CommonSSHStoreConfig(std::string_view scheme, const parsed_url_t::authority_t& authority,
                        const Params& params);
@@ -26,7 +26,7 @@ struct CommonSSHStoreConfig : virtual StoreConfig {
 
   const setting_t<std::string> remoteStore{this, "", "remote-store",
                                          R"(
-          [Store URL](@docroot@/store/types/index.md#store-url-format)
+          [store_t URL](@docroot@/store/types/index.md#store-url-format)
           to be used on the remote machine. The default is `auto`
           (i.e. use the Nix daemon or `/nix/store` directly).
         )"};

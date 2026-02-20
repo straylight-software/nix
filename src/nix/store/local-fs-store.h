@@ -7,7 +7,7 @@
 
 namespace nix {
 
-struct LocalFSStoreConfig : virtual StoreConfig {
+struct LocalFSStoreConfig : virtual store_config_t {
 private:
   static optional_path_setting_t makeRootDirSetting(LocalFSStoreConfig& self,
                                                 std::optional<Path> default_value) {
@@ -20,7 +20,7 @@ private:
   }
 
 public:
-  using StoreConfig::StoreConfig;
+  using store_config_t::store_config_t;
 
   /**
    * Used to override the `root` settings. Can't be done via modifying
@@ -58,21 +58,21 @@ public:
 };
 
 struct alignas(8) /* Work around ASAN failures on i686-linux. */
-    local_fs_store : virtual Store,
+    local_fs_store : virtual store_t,
                    virtual GcStore,
                    virtual LogStore {
   using config_t = LocalFSStoreConfig;
 
   const config_t& config;
 
-  inline static std::string operation_name = "Local Filesystem Store";
+  inline static std::string operation_name = "Local Filesystem store_t";
 
   const static std::string drvsLogDir;
 
   local_fs_store(const config_t& params);
 
-  ref<SourceAccessor> getFSAccessor(bool require_valid_path = true) override;
-  std::shared_ptr<SourceAccessor> getFSAccessor(const StorePath& path,
+  ref<source_accessor_t> getFSAccessor(bool require_valid_path = true) override;
+  std::shared_ptr<source_accessor_t> getFSAccessor(const store_path_t& path,
                                                 bool require_valid_path = true) override;
 
   /**
@@ -89,18 +89,18 @@ struct alignas(8) /* Work around ASAN failures on i686-linux. */
    * How the permanent GC root corresponding to this symlink is
    * managed is implementation-specific.
    */
-  virtual Path addPermRoot(const StorePath& store_path, const Path& gc_root) = 0;
+  virtual Path addPermRoot(const store_path_t& store_path, const Path& gc_root) = 0;
 
   virtual Path getRealStoreDir() { return config.real_store_dir; }
 
-  Path toRealPath(const StorePath& store_path) { return toRealPath(printStorePath(store_path)); }
+  Path toRealPath(const store_path_t& store_path) { return toRealPath(printStorePath(store_path)); }
 
   Path toRealPath(const Path& store_path) {
     assert(isInStore(store_path));
     return getRealStoreDir() + "/" + std::string(store_path, store_dir.size() + 1);
   }
 
-  std::optional<std::string> getBuildLogExact(const StorePath& path) override;
+  std::optional<std::string> getBuildLogExact(const store_path_t& path) override;
 };
 
 } // namespace nix

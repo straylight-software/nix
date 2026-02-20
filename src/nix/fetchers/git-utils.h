@@ -99,10 +99,10 @@ struct GitRepo {
 
   virtual bool hasObject(const Hash& oid) = 0;
 
-  virtual ref<SourceAccessor> get_accessor(const Hash& rev, const GitAccessorOptions& options,
+  virtual ref<source_accessor_t> get_accessor(const Hash& rev, const GitAccessorOptions& options,
                                           std::string display_prefix) = 0;
 
-  virtual ref<SourceAccessor> get_accessor(const WorkdirInfo& wd, const GitAccessorOptions& options,
+  virtual ref<source_accessor_t> get_accessor(const WorkdirInfo& wd, const GitAccessorOptions& options,
                                           MakeNotAllowedError make_not_allowed_error) = 0;
 
   virtual ref<GitFileSystemObjectSink> get_file_system_object_sink() = 0;

@@ -26,7 +26,7 @@ enum class Realise {
    *
    * Postcondition: the store derivation exists.
    */
-  Derivation,
+  derivation_t,
   /**
    * Evaluate in dry-run mode.
    *
@@ -49,11 +49,11 @@ enum class OperateOn {
   /**
    * Operate on the .drv path.
    */
-  Derivation
+  derivation_t
 };
 
 /**
- * Extra info about a DerivedPath
+ * Extra info about a derived_path_t
  *
  * yes, this is empty, but that is intended. It will be sub-classed by
  * the subclasses of Installable to allow those to provide more info.
@@ -64,23 +64,23 @@ struct ExtraPathInfo {
 };
 
 /**
- * A DerivedPath with \ref ExtraPathInfo "any additional info" that
+ * A derived_path_t with \ref ExtraPathInfo "any additional info" that
  * commands might need from the derivation.
  */
 struct DerivedPathWithInfo {
-  DerivedPath path;
+  derived_path_t path;
   ref<ExtraPathInfo> info;
 };
 
 /**
  * Like DerivedPathWithInfo but extending BuiltPath with \ref
- * ExtraPathInfo "extra info" and also possibly the \ref BuildResult
+ * ExtraPathInfo "extra info" and also possibly the \ref build_result_t
  * "result of building".
  */
 struct BuiltPathWithResult {
   BuiltPath path;
   ref<ExtraPathInfo> info;
-  std::optional<BuildResult> result;
+  std::optional<build_result_t> result;
 };
 
 BuiltPaths to_built_paths(const std::vector<BuiltPathWithResult>& built_paths_with_result);
@@ -98,7 +98,7 @@ struct InstallableWithBuildResult {
 
   using Success = BuiltPathWithResult;
 
-  using Failure = BuildResult; // must be a `BuildResult::Failure`
+  using Failure = build_result_t; // must be a `build_result_t::Failure`
 
   std::variant<Success, Failure> result;
 
@@ -119,7 +119,7 @@ using Installables = std::vector<ref<Installable>>;
  * command_t-line.
  *
  * This base class is very flexible, and just assumes and the
- * Installable refers to a collection of \ref DerivedPath "derived paths" with
+ * Installable refers to a collection of \ref derived_path_t "derived paths" with
  * \ref ExtraPathInfo "extra info".
  */
 struct Installable {
@@ -144,10 +144,10 @@ struct Installable {
 
   /**
    * A convenience wrapper of the above for when we expect an
-   * installable to produce a single \ref DerivedPath "derived path"
+   * installable to produce a single \ref derived_path_t "derived path"
    * only.
    *
-   * If no or multiple \ref DerivedPath "derived paths" are produced,
+   * If no or multiple \ref derived_path_t "derived paths" are produced,
    * and error is raised.
    */
   DerivedPathWithInfo toDerivedPath();
@@ -159,33 +159,33 @@ struct Installable {
    * \todo should we move this to InstallableDerivedPath? It is only
    * supposed to work there anyways. Can always downcast.
    */
-  virtual std::optional<StorePath> getStorePath() { return {}; }
+  virtual std::optional<store_path_t> getStorePath() { return {}; }
 
-  static std::vector<BuiltPathWithResult> build(ref<Store> eval_store, ref<Store> store,
+  static std::vector<BuiltPathWithResult> build(ref<store_t> eval_store, ref<store_t> store,
                                                 Realise mode, const Installables& installables,
                                                 BuildMode bMode = bmNormal);
 
-  static std::vector<InstallableWithBuildResult> build2(ref<Store> eval_store, ref<Store> store,
+  static std::vector<InstallableWithBuildResult> build2(ref<store_t> eval_store, ref<store_t> store,
                                                         Realise mode,
                                                         const Installables& installables,
                                                         BuildMode bMode = bmNormal);
 
   static void throwBuildErrors(std::vector<InstallableWithBuildResult>& build_results,
-                               const Store& store);
+                               const store_t& store);
 
-  static std::set<StorePath> toStorePathSet(ref<Store> eval_store, ref<Store> store, Realise mode,
+  static std::set<store_path_t> toStorePathSet(ref<store_t> eval_store, ref<store_t> store, Realise mode,
                                             OperateOn operateOn, const Installables& installables);
 
-  static std::vector<StorePath> toStorePaths(ref<Store> eval_store, ref<Store> store, Realise mode,
+  static std::vector<store_path_t> toStorePaths(ref<store_t> eval_store, ref<store_t> store, Realise mode,
                                              OperateOn operateOn, const Installables& installables);
 
-  static StorePath toStorePath(ref<Store> eval_store, ref<Store> store, Realise mode,
+  static store_path_t toStorePath(ref<store_t> eval_store, ref<store_t> store, Realise mode,
                                OperateOn operateOn, ref<Installable> installable);
 
-  static std::set<StorePath> toDerivations(ref<Store> store, const Installables& installables,
+  static std::set<store_path_t> toDerivations(ref<store_t> store, const Installables& installables,
                                            bool useDeriver = false);
 
-  static BuiltPaths to_built_paths(ref<Store> eval_store, ref<Store> store, Realise mode,
+  static BuiltPaths to_built_paths(ref<store_t> eval_store, ref<store_t> store, Realise mode,
                                  OperateOn operateOn, const Installables& installables);
 };
 

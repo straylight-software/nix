@@ -67,7 +67,7 @@ static void bind_connect_proc_helper(std::string_view operation_name, auto&& ope
 #else
     pipe_t pipe;
     pipe.create();
-    Pid pid = start_process([&] {
+    process_handle_t pid = start_process([&] {
       try {
         pipe.read_side.close();
         Path dir = dir_of(path);

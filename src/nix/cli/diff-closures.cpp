@@ -18,10 +18,10 @@ struct Info {
 } // namespace
 
 // name -> version -> store paths
-typedef std::map<std::string, std::map<std::string, std::map<StorePath, Info>>> GroupedPaths;
+typedef std::map<std::string, std::map<std::string, std::map<store_path_t, Info>>> GroupedPaths;
 
-GroupedPaths get_closure_info(ref<Store> store, const StorePath& toplevel) {
-  StorePathSet closure;
+GroupedPaths get_closure_info(ref<store_t> store, const store_path_t& toplevel) {
+  store_path_set_t closure;
   store->computeFSClosure({toplevel}, closure);
 
   GroupedPaths grouped_paths;
@@ -57,7 +57,7 @@ std::string show_versions(const string_set_t& versions) {
   return concat_strings_sep(", ", versions2);
 }
 
-void print_closure_diff(ref<Store> store, const StorePath& before_path, const StorePath& after_path,
+void print_closure_diff(ref<store_t> store, const store_path_t& before_path, const store_path_t& after_path,
                       std::string_view indent) {
   auto before_closure = get_closure_info(store, before_path);
   auto after_closure = get_closure_info(store, after_path);
@@ -72,7 +72,7 @@ void print_closure_diff(ref<Store> store, const StorePath& before_path, const St
     auto& beforeVersions = before_closure[name];
     auto& afterVersions = after_closure[name];
 
-    auto totalSize = [&](const std::map<std::string, std::map<StorePath, Info>>& versions) {
+    auto totalSize = [&](const std::map<std::string, std::map<store_path_t, Info>>& versions) {
       uint64_t sum = 0;
       for (auto& [_, paths] : versions)
         for (auto& [path, _] : paths)
@@ -136,7 +136,7 @@ struct cmd_diff_closures_t : SourceExprCommand, MixOperateOnOptions {
         ;
   }
 
-  void run(ref<Store> store) override {
+  void run(ref<store_t> store) override {
     auto before = parseInstallable(store, _before);
     auto before_path =
         Installable::toStorePath(getEvalStore(), store, Realise::Outputs, operateOn, before);

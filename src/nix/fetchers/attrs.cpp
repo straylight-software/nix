@@ -15,7 +15,7 @@ Attrs json_to_attrs(const nlohmann::json& json) {
     else if (i.value().is_string())
       attrs.emplace(i.key(), i.value().get<std::string>());
     else if (i.value().is_boolean())
-      attrs.emplace(i.key(), Explicit<bool>{i.value().get<bool>()});
+      attrs.emplace(i.key(), explicit_t<bool>{i.value().get<bool>()});
     else
       throw Error("unsupported input attribute type in lock file");
   }
@@ -30,7 +30,7 @@ nlohmann::json attrs_to_json(const Attrs& attrs) {
       json[attr.first] = *v;
     } else if (auto v = std::get_if<std::string>(&attr.second)) {
       json[attr.first] = *v;
-    } else if (auto v = std::get_if<Explicit<bool>>(&attr.second)) {
+    } else if (auto v = std::get_if<explicit_t<bool>>(&attr.second)) {
       json[attr.first] = v->t;
     } else
       unreachable();
@@ -74,7 +74,7 @@ std::optional<bool> maybe_get_bool_attr(const Attrs& attrs, const std::string& n
   auto i = attrs.find(name);
   if (i == attrs.end())
     return {};
-  if (auto v = std::get_if<Explicit<bool>>(&i->second))
+  if (auto v = std::get_if<explicit_t<bool>>(&i->second))
     return v->t;
   throw Error("input attribute '%s' is not a Boolean", name);
 }
@@ -93,7 +93,7 @@ string_map_t attrs_to_query(const Attrs& attrs) {
       query.insert_or_assign(attr.first, fmt("%d", *v));
     } else if (auto v = std::get_if<std::string>(&attr.second)) {
       query.insert_or_assign(attr.first, *v);
-    } else if (auto v = std::get_if<Explicit<bool>>(&attr.second)) {
+    } else if (auto v = std::get_if<explicit_t<bool>>(&attr.second)) {
       query.insert_or_assign(attr.first, v->t ? "1" : "0");
     } else
       unreachable();

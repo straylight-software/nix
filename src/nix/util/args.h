@@ -28,9 +28,9 @@ class root_args_t;
 
 class add_completions_t;
 
-class Args {
+class args_t {
 public:
-  virtual ~Args() = default;
+  virtual ~args_t() = default;
 
   /**
    * Return a short one-line description of the command.
@@ -337,7 +337,7 @@ private:
   /**
    * The parent command, used if this is a subcommand.
    *
-   * Invariant: An Args with a null parent must also be a root_args_t
+   * Invariant: An args_t with a null parent must also be a root_args_t
    *
    * \todo this would probably be better in the CommandClass.
    * get_root() could be an abstract method that peels off at most one
@@ -350,7 +350,7 @@ private:
  * A command is an argument parser that can be executed by calling its
  * run() method.
  */
-struct command_t : virtual public Args {
+struct command_t : virtual public args_t {
   friend class multi_command_t;
 
   ~command_t() override = default;
@@ -375,7 +375,7 @@ using commands_t = std::map<std::string, std::function<ref<command_t>()>>;
  * An argument parser that supports multiple subcommands,
  * i.e. `<command> <subcommand>`.
  */
-class multi_command_t : virtual public Args {
+class multi_command_t : virtual public args_t {
 public:
   ~multi_command_t() override = default;
 

@@ -232,7 +232,7 @@ TEST_CASE("topo sort multiple independent nodes", "[topo-sort]") {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Cycle detection tests
+// cycle_t detection tests
 // ─────────────────────────────────────────────────────────────────────────────
 
 TEST_CASE("topo sort detects simple cycle", "[topo-sort][cycle]") {
@@ -245,8 +245,8 @@ TEST_CASE("topo sort detects simple cycle", "[topo-sort][cycle]") {
 
   auto result = topoSort(items, make_get_children(graph));
 
-  REQUIRE(std::holds_alternative<Cycle<std::string>>(result));
-  auto cycle = std::get<Cycle<std::string>>(result);
+  REQUIRE(std::holds_alternative<cycle_t<std::string>>(result));
+  auto cycle = std::get<cycle_t<std::string>>(result);
   // The cycle should involve both a and b
   REQUIRE((cycle.path == "a" || cycle.path == "b"));
 }
@@ -262,7 +262,7 @@ TEST_CASE("topo sort detects three node cycle", "[topo-sort][cycle]") {
 
   auto result = topoSort(items, make_get_children(graph));
 
-  REQUIRE(std::holds_alternative<Cycle<std::string>>(result));
+  REQUIRE(std::holds_alternative<cycle_t<std::string>>(result));
 }
 
 TEST_CASE("topo sort detects cycle with tail", "[topo-sort][cycle]") {
@@ -277,7 +277,7 @@ TEST_CASE("topo sort detects cycle with tail", "[topo-sort][cycle]") {
 
   auto result = topoSort(items, make_get_children(graph));
 
-  REQUIRE(std::holds_alternative<Cycle<std::string>>(result));
+  REQUIRE(std::holds_alternative<cycle_t<std::string>>(result));
 }
 
 TEST_CASE("topo sort cycle provides path and parent info", "[topo-sort][cycle]") {
@@ -290,8 +290,8 @@ TEST_CASE("topo sort cycle provides path and parent info", "[topo-sort][cycle]")
 
   auto result = topoSort(items, make_get_children(graph));
 
-  REQUIRE(std::holds_alternative<Cycle<std::string>>(result));
-  auto cycle = std::get<Cycle<std::string>>(result);
+  REQUIRE(std::holds_alternative<cycle_t<std::string>>(result));
+  auto cycle = std::get<cycle_t<std::string>>(result);
 
   // The cycle should have path and parent that are both in the item set
   REQUIRE(items.count(cycle.path) == 1);
@@ -462,8 +462,8 @@ TEST_CASE("topo sort property tests", "[topo-sort][property]") {
 
     auto result = topoSort(items, make_get_children(graph));
 
-    RC_ASSERT(std::holds_alternative<Cycle<std::string>>(result));
-    auto cycle = std::get<Cycle<std::string>>(result);
+    RC_ASSERT(std::holds_alternative<cycle_t<std::string>>(result));
+    auto cycle = std::get<cycle_t<std::string>>(result);
     RC_ASSERT(items.count(cycle.path) == 1);
     RC_ASSERT(items.count(cycle.parent) == 1);
   });

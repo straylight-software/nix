@@ -12,7 +12,8 @@
 #define HAVE_UTIMENSAT 1
 #define HAVE_DECL_AT_SYMLINK_NOFOLLOW 1
 #define HAVE_LUTIMES 1
-#define HAVE_CLOSE_RANGE 1
+// musl doesn't have close_range() wrapper, use syscall directly
+#define HAVE_CLOSE_RANGE 0
 
 // Linux 5.6+ has openat2
 #if __has_include(<linux/openat2.h>)

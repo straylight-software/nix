@@ -19,13 +19,13 @@ namespace nix {
  * Denotes a build failure that stemmed from the builder exiting with a
  * failing exist status.
  */
-struct BuilderFailureError : BuildError {
+struct BuilderFailureError : build_error_t {
   int builderStatus;
 
   std::string extraMsgAfter;
 
-  BuilderFailureError(BuildResult::Failure::Status status, int builderStatus, std::string extraMsgAfter)
-        : BuildError{
+  BuilderFailureError(build_result_t::Failure::Status status, int builderStatus, std::string extraMsgAfter)
+        : build_error_t{
             status,
               /* No message for now, because the caller will make for
                  us, with extra context */
@@ -52,21 +52,21 @@ typedef std::map<Path, ChrootPath> PathsInChroot; // maps target path to source 
  */
 struct DerivationBuilderParams {
   /** The path of the derivation. */
-  const StorePath& drv_path;
+  const store_path_t& drv_path;
 
-  BuildResult& buildResult;
+  build_result_t& buildResult;
 
   /**
    * The derivation stored at drv_path.
    */
-  const BasicDerivation& drv;
+  const basic_derivation_t& drv;
 
   /**
    * The derivation options of `drv`.
    *
-   * @todo this should be part of `Derivation`.
+   * @todo this should be part of `derivation_t`.
    */
-  const DerivationOptions<StorePath>& drv_options;
+  const derivation_options_t<store_path_t>& drv_options;
 
   // The remainder is state held during the build.
 
@@ -74,7 +74,7 @@ struct DerivationBuilderParams {
    * All input paths (that is, the union of FS closures of the
    * immediate input paths).
    */
-  const StorePathSet& inputPaths;
+  const store_path_set_t& inputPaths;
 
   const std::map<std::string, InitialOutput> initialOutputs;
 
@@ -169,7 +169,7 @@ struct DerivationBuilder : RestrictionContext {
    * more information. The second case indicates success, and
    * realisations for each output of the derivation are returned.
    *
-   * @throws BuildError
+   * @throws build_error_t
    */
   virtual SingleDrvOutputs unprepare_build() = 0;
 

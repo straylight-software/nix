@@ -48,48 +48,17 @@ cxx_library(
 
     compiler_flags = [
         "-std=c++23",
-        # liburing 2.13
-        "-isystem/nix/store/myjfl2rw6jfq4fs5w585jiw2p69f4zlv-liburing-2.13-dev/include",
-        # LibreSSL 4.2.1 (NOT OpenSSL - LibreSSL only for security)
-        "-isystem/nix/store/882r5phcciarkr6zlnl9rzq1n2ax9qmd-libressl-4.2.1-dev/include",
-        # HTTP/2
-        "-isystem/nix/store/94iqqnx9wkxzx7mgidv1jgi7k906vh89-nghttp2-1.67.1-dev/include",
-        # HTTP/1.x parser
-        "-isystem/nix/store/gla5mqdh7darzw1ds3jz0dad9i6sgvid-llhttp-9.3.0-dev/include",
-        # ngtcp2 with LibreSSL crypto backend
-        "-isystem/nix/store/hgryqyq6x196jk18vr6hndf1jh92a3s0-ngtcp2-1.18.0-dev/include",
-        # HTTP/3
-        "-isystem/nix/store/bcqpmsh9w6xdy7yd81nkaij8g3vmd61g-nghttp3-1.13.1-dev/include",
     ],
 
-    exported_linker_flags = [
-        # liburing 2.13
-        "-L/nix/store/vqz7nxgmq6lgninmcpa9wddhdsgjixdj-liburing-2.13/lib",
-        "-luring",
-        "-Wl,-rpath,/nix/store/vqz7nxgmq6lgninmcpa9wddhdsgjixdj-liburing-2.13/lib",
-        # LibreSSL 4.2.1 (matching ngtcp2-libressl build)
-        "-L/nix/store/x24q11585bibprbqkawdg5s16b9hch96-libressl-4.2.1/lib",
-        "-ltls",
-        "-lssl",
-        "-lcrypto",
-        "-Wl,-rpath,/nix/store/x24q11585bibprbqkawdg5s16b9hch96-libressl-4.2.1/lib",
-        # nghttp2 (HTTP/2)
-        "-L/nix/store/bhhlhxd7xzvmgyvxhjls4x09xfxfnrwc-nghttp2-1.67.1-lib/lib",
-        "-lnghttp2",
-        "-Wl,-rpath,/nix/store/bhhlhxd7xzvmgyvxhjls4x09xfxfnrwc-nghttp2-1.67.1-lib/lib",
-        # llhttp (HTTP/1.x) - x86-64 version
-        "-L/nix/store/8kwysbrm9zrfcsfbix7hkjj72r5kgiwv-llhttp-9.3.0/lib",
-        "-lllhttp",
-        "-Wl,-rpath,/nix/store/8kwysbrm9zrfcsfbix7hkjj72r5kgiwv-llhttp-9.3.0/lib",
-        # ngtcp2 with LibreSSL crypto backend (NOT OpenSSL)
-        "-L/nix/store/z8f9rvvgi89399ky10rism4xwfn8lk60-ngtcp2-1.18.0/lib",
-        "-lngtcp2",
-        "-lngtcp2_crypto_libressl",
-        "-Wl,-rpath,/nix/store/z8f9rvvgi89399ky10rism4xwfn8lk60-ngtcp2-1.18.0/lib",
-        # nghttp3 (HTTP/3)
-        "-L/nix/store/qflgvhllyh98p52gh8wjlizfphhzsxb8-nghttp3-1.13.1/lib",
-        "-lnghttp3",
-        "-Wl,-rpath,/nix/store/qflgvhllyh98p52gh8wjlizfphhzsxb8-nghttp3-1.13.1/lib",
+    # All dependencies vendored for full static TCB
+    exported_deps = [
+        "//vendor/liburing:liburing",
+        "//vendor/libressl:libressl",
+        "//vendor/llhttp:llhttp",
+        "//vendor/nghttp2:nghttp2",
+        "//vendor/ngtcp2:ngtcp2",
+        "//vendor/ngtcp2:ngtcp2_crypto_libressl",
+        "//vendor/nghttp3:nghttp3",
     ],
 
     visibility = ["PUBLIC"],

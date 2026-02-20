@@ -220,7 +220,7 @@ std::string config_t::to_key_value() {
   return res;
 }
 
-void config_t::convert_to_args(Args& args, const std::string& category) {
+void config_t::convert_to_args(args_t& args, const std::string& category) {
   for (auto& s : settings_) {
     if (!s.second.is_alias) {
       s.second.setting->convert_to_arg(args, category);
@@ -258,7 +258,7 @@ std::map<std::string, nlohmann::json> abstract_setting_t::to_json_object() const
   return obj;
 }
 
-void abstract_setting_t::convert_to_arg(Args& args, const std::string& category) {}
+void abstract_setting_t::convert_to_arg(args_t& args, const std::string& category) {}
 
 bool abstract_setting_t::is_overridden() const {
   return overridden;
@@ -306,7 +306,7 @@ std::string base_setting_t<bool>::to_string() const {
 }
 
 template <>
-void base_setting_t<bool>::convert_to_arg(Args& args, const std::string& category) {
+void base_setting_t<bool>::convert_to_arg(args_t& args, const std::string& category) {
   args.add_flag({
       .long_name = name,
       .aliases = aliases,

@@ -29,7 +29,7 @@ private:
 
   struct State {
 #ifndef _WIN32 // TODO re-enable on Windows, once we can start processes.
-    Pid sshMaster;
+    process_handle_t sshMaster;
 #endif
     Path socket_path;
   };
@@ -50,7 +50,7 @@ public:
 
   struct Connection {
 #ifndef _WIN32 // TODO re-enable on Windows, once we can start processes.
-    Pid sshPid;
+    process_handle_t sshPid;
 #endif
     auto_close_fd_t out, in;
 

@@ -386,7 +386,7 @@ TEST_CASE("read unsigned int from source", "[serialise][integer]") {
 TEST_CASE("readNum overflow throws", "[serialise][integer]") {
   std::string data;
   data.resize(8);
-  // Value larger than uint32_t max
+  // value_t larger than uint32_t max
   data[0] = 0x00;
   data[1] = 0x00;
   data[2] = 0x00;
@@ -578,7 +578,7 @@ TEST_CASE("write string set to sink", "[serialise][strings]") {
 }
 
 // =============================================================================
-// Source operator() tests
+// source_t operator() tests
 // =============================================================================
 
 TEST_CASE("source operator reads exact bytes", "[serialise][source]") {
@@ -599,7 +599,7 @@ TEST_CASE("source operator throws on insufficient data", "[serialise][source]") 
 }
 
 // =============================================================================
-// Source drain into sink tests
+// source_t drain into sink tests
 // =============================================================================
 
 TEST_CASE("source drain_into sink", "[serialise][source]") {
@@ -1244,7 +1244,7 @@ TEST_CASE("stream_to_source_adapter eof", "[serialise][stream]") {
 }
 
 // =============================================================================
-// Source >> operator tests
+// source_t >> operator tests
 // =============================================================================
 
 TEST_CASE("source >> string operator", "[serialise][operator]") {

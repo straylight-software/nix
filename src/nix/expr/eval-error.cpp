@@ -18,7 +18,7 @@ EvalErrorBuilder<T>& EvalErrorBuilder<T>::at_pos(pos_idx_t pos) {
 }
 
 template <class T>
-EvalErrorBuilder<T>& EvalErrorBuilder<T>::at_pos(Value& value, pos_idx_t fallback) {
+EvalErrorBuilder<T>& EvalErrorBuilder<T>::at_pos(value_t& value, pos_idx_t fallback) {
   return at_pos(value.determinePos(fallback));
 }
 
@@ -35,7 +35,7 @@ EvalErrorBuilder<T>& EvalErrorBuilder<T>::withSuggestions(suggestions_t& s) {
 }
 
 template <class T>
-EvalErrorBuilder<T>& EvalErrorBuilder<T>::withFrame(const Env& env, const Expr& expr) {
+EvalErrorBuilder<T>& EvalErrorBuilder<T>::withFrame(const Env& env, const expr_t& expr) {
   // NOTE: This is abusing side-effects.
   // TODO: check compatibility with nested debugger calls.
   // TODO: What side-effects??
@@ -55,9 +55,9 @@ EvalErrorBuilder<T>& EvalErrorBuilder<T>::add_trace(pos_idx_t pos, hint_fmt_t hi
 }
 
 template <class T>
-template <typename... Args>
+template <typename... args_t>
 EvalErrorBuilder<T>& EvalErrorBuilder<T>::add_trace(pos_idx_t pos, std::string_view formatString,
-                                                    const Args&... formatArgs) {
+                                                    const args_t&... formatArgs) {
   add_trace(error.state.positions[pos], hint_fmt_t(std::string(formatString), formatArgs...));
   return *this;
 }
@@ -72,7 +72,7 @@ template <class T>
 void EvalErrorBuilder<T>::debugThrow() {
   error.state.runDebugRepl(&error);
 
-  // `EvalState` is the only class that can construct an `EvalErrorBuilder`,
+  // `eval_state_t` is the only class that can construct an `EvalErrorBuilder`,
   // and it does so in dynamic storage. This is the final method called on
   // any such instance and must delete itself before throwing the underlying
   // error.

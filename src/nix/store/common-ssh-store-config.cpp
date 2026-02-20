@@ -13,7 +13,7 @@ CommonSSHStoreConfig::CommonSSHStoreConfig(std::string_view scheme, std::string_
 CommonSSHStoreConfig::CommonSSHStoreConfig(std::string_view scheme,
                                            const parsed_url_t::authority_t& authority,
                                            const Params& params)
-    : StoreConfig(params), authority(authority) {}
+    : store_config_t(params), authority(authority) {}
 
 SSHMaster CommonSSHStoreConfig::createSSHMaster(bool useMaster, descriptor_t logFD) const {
   return {

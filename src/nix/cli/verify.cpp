@@ -54,8 +54,8 @@ struct cmd_verify_t : StorePathsCommand {
         ;
   }
 
-  void run(ref<Store> store, StorePaths&& store_paths) override {
-    std::vector<ref<Store>> substituters;
+  void run(ref<store_t> store, store_paths_t&& store_paths) override {
+    std::vector<ref<store_t>> substituters;
     for (auto& s : substituter_uris)
       substituters.push_back(open_store(s));
 
@@ -73,7 +73,7 @@ struct cmd_verify_t : StorePathsCommand {
 
     thread_pool_t pool;
 
-    auto do_path = [&](const StorePath& store_path) {
+    auto do_path = [&](const store_path_t& store_path) {
       try {
         check_interrupt();
 
@@ -120,14 +120,14 @@ struct cmd_verify_t : StorePathsCommand {
               for (const auto& sig : sigs) {
                 if (!sigs_seen.insert(sig).second)
                   continue;
-                if (valid_sigs < ValidPathInfo::maxSigs &&
+                if (valid_sigs < valid_path_info_t::maxSigs &&
                     info->checkSignature(*store, public_keys, sig))
                   valid_sigs++;
               }
             };
 
             if (info->isContentAddressed(*store))
-              valid_sigs = ValidPathInfo::maxSigs;
+              valid_sigs = valid_path_info_t::maxSigs;
 
             do_sigs(info->sigs);
 
@@ -137,7 +137,7 @@ struct cmd_verify_t : StorePathsCommand {
               try {
                 auto info2 = store2->queryPathInfo(info->path);
                 if (info2->isContentAddressed(*store))
-                  valid_sigs = ValidPathInfo::maxSigs;
+                  valid_sigs = valid_path_info_t::maxSigs;
                 do_sigs(info2->sigs);
               } catch (InvalidPath&) {
               } catch (Error& e) {

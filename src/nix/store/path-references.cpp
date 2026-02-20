@@ -14,12 +14,12 @@
 
 namespace nix {
 
-PathRefScanSink::PathRefScanSink(string_set_t&& hashes, std::map<std::string, StorePath>&& backMap)
+PathRefScanSink::PathRefScanSink(string_set_t&& hashes, std::map<std::string, store_path_t>&& backMap)
     : RefScanSink(std::move(hashes)), backMap(std::move(backMap)) {}
 
-PathRefScanSink PathRefScanSink::fromPaths(const StorePathSet& refs) {
+PathRefScanSink PathRefScanSink::fromPaths(const store_path_set_t& refs) {
   string_set_t hashes;
-  std::map<std::string, StorePath> backMap;
+  std::map<std::string, store_path_t> backMap;
 
   for (auto& i : refs) {
     std::string hash_part(i.hash_part());
@@ -31,9 +31,9 @@ PathRefScanSink PathRefScanSink::fromPaths(const StorePathSet& refs) {
   return PathRefScanSink(std::move(hashes), std::move(backMap));
 }
 
-StorePathSet PathRefScanSink::getResultPaths() {
+store_path_set_t PathRefScanSink::getResultPaths() {
   /* Map the hashes found back to their store paths. */
-  StorePathSet found;
+  store_path_set_t found;
   for (auto& i : getResult()) {
     auto j = backMap.find(i);
     assert(j != backMap.end());
@@ -43,7 +43,7 @@ StorePathSet PathRefScanSink::getResultPaths() {
   return found;
 }
 
-StorePathSet scan_for_references(Sink& to_tee, const Path& path, const StorePathSet& refs) {
+store_path_set_t scan_for_references(sink_t& to_tee, const Path& path, const store_path_set_t& refs) {
   PathRefScanSink refs_sink = PathRefScanSink::fromPaths(refs);
   tee_sink_t sink{refs_sink, to_tee};
 
@@ -53,15 +53,15 @@ StorePathSet scan_for_references(Sink& to_tee, const Path& path, const StorePath
   return refs_sink.getResultPaths();
 }
 
-void scan_for_references_deep(SourceAccessor& accessor, const canon_path_t& root_path,
-                           const StorePathSet& refs,
+void scan_for_references_deep(source_accessor_t& accessor, const canon_path_t& root_path,
+                           const store_path_set_t& refs,
                            std::function<void(FileRefScanResult)> callback) {
   // Recursive tree walker
   auto walk = [&](this auto& self, const canon_path_t& path) -> void {
     auto stat = accessor.lstat(path);
 
     switch (stat.type) {
-      case SourceAccessor::t_regular: {
+      case source_accessor_t::t_regular: {
         // Create a fresh sink for each file to independently detect references.
         // RefScanSink accumulates found hashes globally - once a hash is found,
         // it remains in the result set. If we reused the same sink across files,
@@ -83,7 +83,7 @@ void scan_for_references_deep(SourceAccessor& accessor, const canon_path_t& root
         break;
       }
 
-      case SourceAccessor::t_directory: {
+      case source_accessor_t::t_directory: {
         // Recursively scan directory contents
         auto entries = accessor.read_directory(path);
         for (const auto& [name, entryType] : entries) {
@@ -92,7 +92,7 @@ void scan_for_references_deep(SourceAccessor& accessor, const canon_path_t& root
         break;
       }
 
-      case SourceAccessor::t_symlink: {
+      case source_accessor_t::t_symlink: {
         // Create a fresh sink for the symlink target (same reason as regular files)
         PathRefScanSink sink = PathRefScanSink::fromPaths(refs);
 
@@ -111,11 +111,11 @@ void scan_for_references_deep(SourceAccessor& accessor, const canon_path_t& root
         break;
       }
 
-      case SourceAccessor::t_char:
-      case SourceAccessor::t_block:
-      case SourceAccessor::t_socket:
-      case SourceAccessor::t_fifo:
-      case SourceAccessor::t_unknown:
+      case source_accessor_t::t_char:
+      case source_accessor_t::t_block:
+      case source_accessor_t::t_socket:
+      case source_accessor_t::t_fifo:
+      case source_accessor_t::t_unknown:
       default:
         throw Error("file '%s' has an unsupported type", path.abs());
     }
@@ -125,10 +125,10 @@ void scan_for_references_deep(SourceAccessor& accessor, const canon_path_t& root
   walk(root_path);
 }
 
-std::map<canon_path_t, StorePathSet> scan_for_references_deep(SourceAccessor& accessor,
+std::map<canon_path_t, store_path_set_t> scan_for_references_deep(source_accessor_t& accessor,
                                                         const canon_path_t& root_path,
-                                                        const StorePathSet& refs) {
-  std::map<canon_path_t, StorePathSet> results;
+                                                        const store_path_set_t& refs) {
+  std::map<canon_path_t, store_path_set_t> results;
 
   scan_for_references_deep(accessor, root_path, refs, [&](FileRefScanResult result) {
     results[std::move(result.filePath)] = std::move(result.found_refs);

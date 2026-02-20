@@ -8,21 +8,21 @@
 namespace nix {
 
 struct async_path_writer_impl_t : AsyncPathWriter {
-  ref<Store> store;
+  ref<store_t> store;
 
   struct Item {
-    StorePath store_path;
+    store_path_t store_path;
     std::string contents;
     std::string name;
     Hash hash;
-    StorePathSet references;
+    store_path_set_t references;
     RepairFlag repair;
     std::promise<void> promise;
   };
 
   struct State {
     std::vector<Item> items;
-    std::unordered_map<StorePath, std::shared_future<void>> futures;
+    std::unordered_map<store_path_t, std::shared_future<void>> futures;
     bool quit = false;
   };
 
@@ -32,7 +32,7 @@ struct async_path_writer_impl_t : AsyncPathWriter {
 
   std::condition_variable wakeup_cv;
 
-  async_path_writer_impl_t(ref<Store> store) : store(store) {
+  async_path_writer_impl_t(ref<store_t> store) : store(store) {
     worker_thread = std::thread([&]() {
       while (true) {
         std::vector<Item> items;
@@ -64,7 +64,7 @@ struct async_path_writer_impl_t : AsyncPathWriter {
     worker_thread.join();
   }
 
-  StorePath add_path(std::string contents, std::string name, StorePathSet references,
+  store_path_t add_path(std::string contents, std::string name, store_path_set_t references,
                     RepairFlag repair, bool read_only) override {
     auto hash = hash_string(hash_algorithm_t::SHA256, contents);
 
@@ -92,7 +92,7 @@ struct async_path_writer_impl_t : AsyncPathWriter {
     return store_path;
   }
 
-  void waitForPath(const StorePath& path) override {
+  void waitForPath(const store_path_t& path) override {
     auto future = ({
       auto state = state_.lock();
       auto i = state->futures.find(path);
@@ -115,18 +115,18 @@ struct async_path_writer_impl_t : AsyncPathWriter {
   void writePaths(const std::vector<Item>& items) {
 // FIXME: addMultipeToStore() shouldn't require a NAR hash.
 #if 0
-        Store::PathsSource sources;
+        store_t::PathsSource sources;
         RepairFlag repair = NoRepair;
 
         for (auto & item : items) {
-            ValidPathInfo info{item.store_path, Hash(hash_algorithm_t::SHA256)};
+            valid_path_info_t info{item.store_path, Hash(hash_algorithm_t::SHA256)};
             info.references = item.references;
-            info.ca = ContentAddress {
-                .method = ContentAddressMethod::raw_t::Text,
+            info.ca = content_address_t {
+                .method = content_address_method_t::raw_t::Text,
                 .hash = item.hash,
             };
             if (item.repair) repair = item.repair;
-            auto source = sink_to_source([&](Sink & sink)
+            auto source = sink_to_source([&](sink_t & sink)
             {
                 dump_string(item.contents, sink);
             });
@@ -142,13 +142,13 @@ struct async_path_writer_impl_t : AsyncPathWriter {
       string_source_t source(item.contents);
       auto store_path = store->add_to_store_from_dump(
           source, item.store_path.name(), file_serialisation_method_t::flat,
-          ContentAddressMethod::raw_t::Text, hash_algorithm_t::SHA256, item.references, item.repair);
+          content_address_method_t::raw_t::Text, hash_algorithm_t::SHA256, item.references, item.repair);
       assert(store_path == item.store_path);
     }
   }
 };
 
-ref<AsyncPathWriter> AsyncPathWriter::make(ref<Store> store) {
+ref<AsyncPathWriter> AsyncPathWriter::make(ref<store_t> store) {
   return make_ref<async_path_writer_impl_t>(store);
 }
 

@@ -46,8 +46,8 @@ std::shared_ptr<Registry> Registry::read(const settings_t& settings, std::string
         }
         auto exact = i.find("exact");
         registry->entries.push_back(
-            Entry{.from = Input::fromAttrs(settings, json_to_attrs(i["from"])),
-                  .to = Input::fromAttrs(settings, std::move(toAttrs)),
+            Entry{.from = input_t::fromAttrs(settings, json_to_attrs(i["from"])),
+                  .to = input_t::fromAttrs(settings, std::move(toAttrs)),
                   .extra_attrs = extra_attrs,
                   .exact = exact != i.end() && exact.value()});
       }
@@ -84,11 +84,11 @@ void Registry::write(const std::filesystem::path& path) {
   write_file(path, json.dump(2));
 }
 
-void Registry::add(const Input& from, const Input& to, const Attrs& extra_attrs) {
+void Registry::add(const input_t& from, const input_t& to, const Attrs& extra_attrs) {
   entries.emplace_back(Entry{.from = from, .to = to, .extra_attrs = extra_attrs});
 }
 
-void Registry::remove(const Input& input) {
+void Registry::remove(const input_t& input) {
   entries.erase(std::remove_if(entries.begin(), entries.end(),
                                [&](const Entry& entry) { return entry.from == input; }),
                 entries.end());
@@ -133,11 +133,11 @@ std::shared_ptr<Registry> get_flag_registry() {
   return flag_registry;
 }
 
-void override_registry(const Input& from, const Input& to, const Attrs& extra_attrs) {
+void override_registry(const input_t& from, const input_t& to, const Attrs& extra_attrs) {
   get_flag_registry()->add(from, to, extra_attrs);
 }
 
-static std::shared_ptr<Registry> get_global_registry(const settings_t& settings, Store& store) {
+static std::shared_ptr<Registry> get_global_registry(const settings_t& settings, store_t& store) {
   static auto reg = [&]() {
     try {
       auto path = settings.flakeRegistry.get();
@@ -171,7 +171,7 @@ static std::shared_ptr<Registry> get_global_registry(const settings_t& settings,
   return reg;
 }
 
-Registries get_registries(const settings_t& settings, Store& store) {
+Registries get_registries(const settings_t& settings, store_t& store) {
   Registries registries;
   registries.push_back(get_flag_registry());
   registries.push_back(get_user_registry(settings));
@@ -180,11 +180,11 @@ Registries get_registries(const settings_t& settings, Store& store) {
   return registries;
 }
 
-std::pair<Input, Attrs> lookup_in_registries(const settings_t& settings, Store& store,
-                                           const Input& _input, UseRegistries use_registries) {
+std::pair<input_t, Attrs> lookup_in_registries(const settings_t& settings, store_t& store,
+                                           const input_t& _input, UseRegistries use_registries) {
   Attrs extra_attrs;
   int n = 0;
-  Input input(_input);
+  input_t input(_input);
 
   if (use_registries == UseRegistries::No)
     return {input, extra_attrs};

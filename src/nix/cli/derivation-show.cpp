@@ -34,11 +34,11 @@ struct cmd_show_derivation_t : InstallablesCommand, MixPrintJSON {
 
   category_t category() override { return catUtility; }
 
-  void run(ref<Store> store, Installables&& installables) override {
+  void run(ref<store_t> store, Installables&& installables) override {
     auto drv_paths = Installable::toDerivations(store, installables, true);
 
     if (recursive) {
-      StorePathSet closure;
+      store_path_set_t closure;
       store->computeFSClosure(drv_paths, closure);
       drv_paths = std::move(closure);
     }

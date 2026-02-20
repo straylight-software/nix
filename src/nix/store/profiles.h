@@ -17,7 +17,7 @@
 
 namespace nix {
 
-class StorePath;
+class store_path_t;
 
 /**
  * A positive number identifying a generation for a given profile.
@@ -48,7 +48,7 @@ struct Generation {
    * distinct contents to avoid bloat, but nothing stops two
    * non-adjacent generations from having the same contents.
    *
-   * @todo use `StorePath` instead of `std::filesystem::path`?
+   * @todo use `store_path_t` instead of `std::filesystem::path`?
    */
   std::filesystem::path path;
 
@@ -99,7 +99,7 @@ struct local_fs_store;
  * procedure idempotent. It also avoids clutter.
  */
 std::filesystem::path create_generation(local_fs_store& store, std::filesystem::path profile,
-                                       StorePath out_path);
+                                       store_path_t out_path);
 
 /**
  * Unconditionally delete a generation

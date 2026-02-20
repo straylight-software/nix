@@ -12,11 +12,11 @@ namespace nix {
 static const uint32_t export_magic_v1 = 0x4558494e;
 static const uint64_t export_magic_v2 = 0x324f4952414e; // = 'NARIO2'
 
-void export_paths(Store& store, const StorePathSet& paths, Sink& sink, unsigned int version) {
+void export_paths(store_t& store, const store_path_set_t& paths, sink_t& sink, unsigned int version) {
   auto sorted = store.topoSortPaths(paths);
   std::reverse(sorted.begin(), sorted.end());
 
-  auto dump_nar = [&](const ValidPathInfo& info) {
+  auto dump_nar = [&](const valid_path_info_t& info) {
     hash_sink_t hash_sink(hash_algorithm_t::SHA256);
     tee_sink_t tee_sink(sink, hash_sink);
 
@@ -54,7 +54,7 @@ void export_paths(Store& store, const StorePathSet& paths, Sink& sink, unsigned 
         sink << 1;
         auto info = store.queryPathInfo(path);
         // FIXME: move to CommonProto?
-        WorkerProto::Serialise<ValidPathInfo>::write(
+        WorkerProto::Serialise<valid_path_info_t>::write(
             store, WorkerProto::WriteConn{.to = sink, .version = 16, .shortStorePaths = true},
             *info);
         dump_nar(*info);
@@ -68,8 +68,8 @@ void export_paths(Store& store, const StorePathSet& paths, Sink& sink, unsigned 
   }
 }
 
-StorePaths import_paths(Store& store, Source& source, CheckSigsFlag check_sigs) {
-  StorePaths res;
+store_paths_t import_paths(store_t& store, source_t& source, CheckSigsFlag check_sigs) {
+  store_paths_t res;
 
   auto version = read_num<uint64_t>(source);
 
@@ -100,7 +100,7 @@ StorePaths import_paths(Store& store, Source& source, CheckSigsFlag check_sigs) 
 
         auto path = store.parseStorePath(read_string(source));
 
-        auto references = CommonProto::Serialise<StorePathSet>::read(
+        auto references = CommonProto::Serialise<store_path_set_t>::read(
             store, CommonProto::ReadConn{.from = source});
         auto deriver = read_string(source);
 
@@ -111,7 +111,7 @@ StorePaths import_paths(Store& store, Source& source, CheckSigsFlag check_sigs) 
         if (!store.isValidPath(path)) {
           auto nar_hash = hash_string(hash_algorithm_t::SHA256, saved.str());
 
-          ValidPathInfo info{path, {store, nar_hash}};
+          valid_path_info_t info{path, {store, nar_hash}};
           if (deriver != "")
             info.deriver = store.parseStorePath(deriver);
           info.references = references;
@@ -141,7 +141,7 @@ StorePaths import_paths(Store& store, Source& source, CheckSigsFlag check_sigs) 
         if (n != 1)
           throw Error("input doesn't look like a nario");
 
-        auto info = WorkerProto::Serialise<ValidPathInfo>::read(
+        auto info = WorkerProto::Serialise<valid_path_info_t>::read(
             store, WorkerProto::ReadConn{.from = source, .version = 16, .shortStorePaths = true});
 
         if (!store.isValidPath(info.path)) {

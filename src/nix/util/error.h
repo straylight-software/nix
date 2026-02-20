@@ -151,8 +151,8 @@ public:
   auto operator=(const base_error_t&) -> base_error_t& = default;
   auto operator=(base_error_t&&) -> base_error_t& = default;
 
-  template <typename... Args>
-  base_error_t(unsigned int status, const Args&... args)
+  template <typename... args_t>
+  base_error_t(unsigned int status, const args_t&... args)
       : err_{.level = verbosity_t::lvl_error,
              .msg = hint_fmt_t(args...),
              .pos = nullptr,
@@ -160,16 +160,16 @@ public:
              .status = status,
              .suggestions = {}} {}
 
-  template <typename... Args>
-  explicit base_error_t(const std::string& fmt_str, const Args&... args)
+  template <typename... args_t>
+  explicit base_error_t(const std::string& fmt_str, const args_t&... args)
       : err_{.level = verbosity_t::lvl_error,
              .msg = hint_fmt_t(fmt_str, args...),
              .pos = nullptr,
              .traces = {},
              .suggestions = {}} {}
 
-  template <typename... Args>
-  base_error_t(const suggestions_t& sug, const Args&... args)
+  template <typename... args_t>
+  base_error_t(const suggestions_t& sug, const args_t&... args)
       : err_{.level = verbosity_t::lvl_error,
              .msg = hint_fmt_t(args...),
              .pos = nullptr,
@@ -218,10 +218,10 @@ public:
    * @param fmt_str Format string, see `hint_fmt_t`
    * @param args... Format string arguments.
    */
-  template <typename... Args>
+  template <typename... args_t>
   // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
   void add_trace(std::shared_ptr<const pos_t>&& pos, std::string_view fmt_str,
-                 const Args&... args) {
+                 const args_t&... args) {
     add_trace(std::move(pos), hint_fmt_t(std::string(fmt_str), args...));
   }
 
@@ -290,8 +290,8 @@ public:
    * Construct using the explicitly-provided error number. `strerror`
    * will be used to try to add additional information to the message.
    */
-  template <typename... Args>
-  sys_error_t(int error_number, const Args&... args)
+  template <typename... args_t>
+  sys_error_t(int error_number, const args_t&... args)
       : SystemError(hint_fmt_t("%1%: %2%", uncolored_t(hint_fmt_t(args...).str()),
                                strerror(error_number))), // NOLINT(concurrency-mt-unsafe)
         err_no_(error_number) {}
@@ -302,9 +302,9 @@ public:
    * Be sure to not perform another `errno`-modifying operation before
    * calling this constructor!
    */
-  template <typename... Args>
+  template <typename... args_t>
   // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init)
-  sys_error_t(const Args&... args) : sys_error_t(errno, args...) {}
+  sys_error_t(const args_t&... args) : sys_error_t(errno, args...) {}
 
   [[nodiscard]] auto err_no() const -> int { return err_no_; }
 };

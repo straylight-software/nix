@@ -15,9 +15,9 @@ std::string& DesugaredEnv::atFileEnvPair(std::string_view name, std::string file
   return ret;
 }
 
-DesugaredEnv DesugaredEnv::create(Store& store, const Derivation& drv,
-                                  const DerivationOptions<StorePath>& drv_options,
-                                  const StorePathSet& inputPaths) {
+DesugaredEnv DesugaredEnv::create(store_t& store, const derivation_t& drv,
+                                  const derivation_options_t<store_path_t>& drv_options,
+                                  const store_path_set_t& inputPaths) {
   DesugaredEnv res;
 
   if (drv.structured_attrs) {
@@ -29,7 +29,7 @@ DesugaredEnv DesugaredEnv::create(Store& store, const Derivation& drv,
   } else {
     /* In non-structured mode, set all bindings either directory in the
        environment or via a file, as specified by
-       `DerivationOptions::passAsFile`. */
+       `derivation_options_t::passAsFile`. */
     for (auto& [envName, envValue] : drv.env) {
       if (!drv_options.passAsFile.contains(envName)) {
         res.variables.insert_or_assign(envName, EnvEntry{

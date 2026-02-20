@@ -17,7 +17,7 @@ WorkerProto::BasicClientConnection::~BasicClientConnection() {
   }
 }
 
-static logger_t::fields_t read_fields(Source& from) {
+static logger_t::fields_t read_fields(source_t& from) {
   logger_t::fields_t fields;
   size_t size = read_int(from);
   for (size_t n = 0; n < size; n++) {
@@ -32,8 +32,8 @@ static logger_t::fields_t read_fields(Source& from) {
   return fields;
 }
 
-std::exception_ptr WorkerProto::BasicClientConnection::processStderrReturn(Sink* sink,
-                                                                           Source* source,
+std::exception_ptr WorkerProto::BasicClientConnection::processStderrReturn(sink_t* sink,
+                                                                           source_t* source,
                                                                            bool flush, bool block) {
   if (flush)
     to.flush();
@@ -136,8 +136,8 @@ std::exception_ptr WorkerProto::BasicClientConnection::processStderrReturn(Sink*
   }
 }
 
-void WorkerProto::BasicClientConnection::processStderr(bool* daemonException, Sink* sink,
-                                                       Source* source, bool flush, bool block) {
+void WorkerProto::BasicClientConnection::processStderr(bool* daemonException, sink_t* sink,
+                                                       source_t* source, bool flush, bool block) {
   auto ex = processStderrReturn(sink, source, flush, block);
   if (ex) {
     *daemonException = true;
@@ -155,7 +155,7 @@ static WorkerProto::FeatureSet intersect_features(const WorkerProto::FeatureSet&
 }
 
 std::tuple<WorkerProto::Version, WorkerProto::FeatureSet>
-WorkerProto::BasicClientConnection::handshake(buffered_sink_t& to, Source& from,
+WorkerProto::BasicClientConnection::handshake(buffered_sink_t& to, source_t& from,
                                               WorkerProto::Version localVersion,
                                               const WorkerProto::FeatureSet& supportedFeatures) {
   to << WORKER_MAGIC_1 << localVersion;
@@ -185,7 +185,7 @@ WorkerProto::BasicClientConnection::handshake(buffered_sink_t& to, Source& from,
 }
 
 std::tuple<WorkerProto::Version, WorkerProto::FeatureSet>
-WorkerProto::BasicServerConnection::handshake(buffered_sink_t& to, Source& from,
+WorkerProto::BasicServerConnection::handshake(buffered_sink_t& to, source_t& from,
                                               WorkerProto::Version localVersion,
                                               const WorkerProto::FeatureSet& supportedFeatures) {
   unsigned int magic = read_int(from);
@@ -209,7 +209,7 @@ WorkerProto::BasicServerConnection::handshake(buffered_sink_t& to, Source& from,
 }
 
 WorkerProto::ClientHandshakeInfo
-WorkerProto::BasicClientConnection::postHandshake(const StoreDirConfig& store) {
+WorkerProto::BasicClientConnection::postHandshake(const store_dir_config_t& store) {
   WorkerProto::ClientHandshakeInfo res;
 
   if (GET_PROTOCOL_MINOR(protoVersion) >= 14) {
@@ -226,7 +226,7 @@ WorkerProto::BasicClientConnection::postHandshake(const StoreDirConfig& store) {
   return WorkerProto::Serialise<ClientHandshakeInfo>::read(store, *this);
 }
 
-void WorkerProto::BasicServerConnection::postHandshake(const StoreDirConfig& store,
+void WorkerProto::BasicServerConnection::postHandshake(const store_dir_config_t& store,
                                                        const ClientHandshakeInfo& info) {
   if (GET_PROTOCOL_MINOR(protoVersion) >= 14 && read_int(from)) {
     // Obsolete CPU affinity.
@@ -240,8 +240,8 @@ void WorkerProto::BasicServerConnection::postHandshake(const StoreDirConfig& sto
 }
 
 std::optional<UnkeyedValidPathInfo>
-WorkerProto::BasicClientConnection::queryPathInfo(const StoreDirConfig& store,
-                                                  bool* daemonException, const StorePath& path) {
+WorkerProto::BasicClientConnection::queryPathInfo(const store_dir_config_t& store,
+                                                  bool* daemonException, const store_path_t& path) {
   to << WorkerProto::Op::QueryPathInfo << store.printStorePath(path);
   try {
     processStderr(daemonException);
@@ -260,9 +260,9 @@ WorkerProto::BasicClientConnection::queryPathInfo(const StoreDirConfig& store,
   return WorkerProto::Serialise<UnkeyedValidPathInfo>::read(store, *this);
 }
 
-StorePathSet WorkerProto::BasicClientConnection::queryValidPaths(const StoreDirConfig& store,
+store_path_set_t WorkerProto::BasicClientConnection::queryValidPaths(const store_dir_config_t& store,
                                                                  bool* daemonException,
-                                                                 const StorePathSet& paths,
+                                                                 const store_path_set_t& paths,
                                                                  SubstituteFlag maybeSubstitute) {
   assert(GET_PROTOCOL_MINOR(protoVersion) >= 12);
   to << WorkerProto::Op::QueryValidPaths;
@@ -271,35 +271,35 @@ StorePathSet WorkerProto::BasicClientConnection::queryValidPaths(const StoreDirC
     to << maybeSubstitute;
   }
   processStderr(daemonException);
-  return WorkerProto::Serialise<StorePathSet>::read(store, *this);
+  return WorkerProto::Serialise<store_path_set_t>::read(store, *this);
 }
 
-void WorkerProto::BasicClientConnection::addTempRoot(const StoreDirConfig& store,
-                                                     bool* daemonException, const StorePath& path) {
+void WorkerProto::BasicClientConnection::addTempRoot(const store_dir_config_t& store,
+                                                     bool* daemonException, const store_path_t& path) {
   to << WorkerProto::Op::AddTempRoot << store.printStorePath(path);
   processStderr(daemonException);
   read_int(from);
 }
 
-void WorkerProto::BasicClientConnection::putBuildDerivationRequest(const StoreDirConfig& store,
+void WorkerProto::BasicClientConnection::putBuildDerivationRequest(const store_dir_config_t& store,
                                                                    bool* daemonException,
-                                                                   const StorePath& drv_path,
-                                                                   const BasicDerivation& drv,
+                                                                   const store_path_t& drv_path,
+                                                                   const basic_derivation_t& drv,
                                                                    BuildMode build_mode) {
   to << WorkerProto::Op::BuildDerivation << store.printStorePath(drv_path);
   write_derivation(to, store, drv);
   to << build_mode;
 }
 
-BuildResult
-WorkerProto::BasicClientConnection::getBuildDerivationResponse(const StoreDirConfig& store,
+build_result_t
+WorkerProto::BasicClientConnection::getBuildDerivationResponse(const store_dir_config_t& store,
                                                                bool* daemonException) {
-  return WorkerProto::Serialise<BuildResult>::read(store, *this);
+  return WorkerProto::Serialise<build_result_t>::read(store, *this);
 }
 
-void WorkerProto::BasicClientConnection::nar_from_path(const StoreDirConfig& store,
-                                                       bool* daemonException, const StorePath& path,
-                                                       std::function<void(Source&)> fun) {
+void WorkerProto::BasicClientConnection::nar_from_path(const store_dir_config_t& store,
+                                                       bool* daemonException, const store_path_t& path,
+                                                       std::function<void(source_t&)> fun) {
   to << WorkerProto::Op::NarFromPath << store.printStorePath(path);
   processStderr(daemonException);
 

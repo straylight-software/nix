@@ -10,7 +10,7 @@ namespace nix::flake {
 
 settings_t::settings_t() {}
 
-void settings_t::configureEvalSettings(nix::EvalSettings& eval_settings) const {
+void settings_t::configureEvalSettings(nix::eval_settings_t& eval_settings) const {
   eval_settings.extraPrimOps.emplace_back(primops::get_flake(*this));
   eval_settings.extraPrimOps.emplace_back(primops::parse_flake_ref);
   eval_settings.extraPrimOps.emplace_back(primops::flake_ref_to_string);

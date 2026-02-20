@@ -52,7 +52,7 @@ struct cmd_eval_t : MixJSON, InstallableValueCommand, MixReadOnlyOption {
 
   category_t category() override { return catSecondary; }
 
-  void run(ref<Store> store, ref<InstallableValue> installable) override {
+  void run(ref<store_t> store, ref<InstallableValue> installable) override {
     if (raw && json)
       throw UsageError("--raw and --json are mutually exclusive");
 
@@ -75,7 +75,7 @@ struct cmd_eval_t : MixJSON, InstallableValueCommand, MixReadOnlyOption {
       if (path_exists(*write_to))
         throw Error("path '%s' already exists", write_to->string());
 
-      [&](this const auto& recurse, Value& v, const pos_idx_t pos,
+      [&](this const auto& recurse, value_t& v, const pos_idx_t pos,
           const std::filesystem::path& path) -> void {
         state->forceValue(v, pos);
         if (v.type() == nString)

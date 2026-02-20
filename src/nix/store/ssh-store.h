@@ -9,10 +9,10 @@
 namespace nix {
 
 struct SSHStoreConfig : std::enable_shared_from_this<SSHStoreConfig>,
-                        virtual RemoteStoreConfig,
+                        virtual remote_store_config_t,
                         virtual CommonSSHStoreConfig {
   using CommonSSHStoreConfig::CommonSSHStoreConfig;
-  using RemoteStoreConfig::RemoteStoreConfig;
+  using remote_store_config_t::remote_store_config_t;
 
   SSHStoreConfig(std::string_view scheme, std::string_view authority, const Params& params);
 
@@ -22,13 +22,13 @@ struct SSHStoreConfig : std::enable_shared_from_this<SSHStoreConfig>,
       "remote-program",
       "Path to the `nix-daemon` executable on the remote machine."};
 
-  static const std::string name() { return "Experimental SSH Store"; }
+  static const std::string name() { return "Experimental SSH store_t"; }
 
   static string_set_t uriSchemes() { return {"ssh-ng"}; }
 
   static std::string doc();
 
-  ref<Store> open_store() const override;
+  ref<store_t> open_store() const override;
 
   StoreReference getReference() const override;
 };
@@ -37,7 +37,7 @@ struct MountedSSHStoreConfig : virtual SSHStoreConfig, virtual LocalFSStoreConfi
   MountedSSHStoreConfig(string_map_t params);
   MountedSSHStoreConfig(std::string_view scheme, std::string_view host, string_map_t params);
 
-  static const std::string name() { return "Experimental SSH Store with filesystem mounted"; }
+  static const std::string name() { return "Experimental SSH store_t with filesystem mounted"; }
 
   static string_set_t uriSchemes() { return {"mounted-ssh-ng"}; }
 
@@ -47,7 +47,7 @@ struct MountedSSHStoreConfig : virtual SSHStoreConfig, virtual LocalFSStoreConfi
     return experimental_feature_t::mounted_ssh_store_t;
   }
 
-  ref<Store> open_store() const override;
+  ref<store_t> open_store() const override;
 };
 
 } // namespace nix

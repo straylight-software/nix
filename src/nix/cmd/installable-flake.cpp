@@ -55,8 +55,8 @@ static std::string show_attr_paths(const std::vector<std::string>& paths) {
   return s;
 }
 
-InstallableFlake::InstallableFlake(SourceExprCommand* cmd, ref<EvalState> state,
-                                   FlakeRef&& flake_ref, std::string_view fragment,
+InstallableFlake::InstallableFlake(SourceExprCommand* cmd, ref<eval_state_t> state,
+                                   flake_ref_t&& flake_ref, std::string_view fragment,
                                    ExtendedOutputsSpec extendedOutputsSpec, strings_t attrPaths,
                                    strings_t prefixes, const flake::LockFlags& lock_flags)
     : InstallableValue(state),
@@ -103,7 +103,7 @@ DerivedPathsWithInfo InstallableFlake::to_derived_paths() {
 
   return {{
       .path =
-          DerivedPath::Built{
+          derived_path_t::Built{
               .drv_path = makeConstantStorePathRef(std::move(drv_path)),
               .outputs = std::visit(
                   overloaded{
@@ -125,28 +125,28 @@ DerivedPathsWithInfo InstallableFlake::to_derived_paths() {
 
                         return OutputsSpec::Names{std::move(outputsToInstall)};
                       },
-                      [&](const ExtendedOutputsSpec::Explicit& e) -> OutputsSpec { return e; },
+                      [&](const ExtendedOutputsSpec::explicit_t& e) -> OutputsSpec { return e; },
                   },
                   extendedOutputsSpec.raw),
           },
       .info = make_ref<ExtraPathInfoFlake>(
-          ExtraPathInfoValue::Value{
+          ExtraPathInfoValue::value_t{
               .priority = priority,
               .attr_path = attr_path,
               .extendedOutputsSpec = extendedOutputsSpec,
           },
-          ExtraPathInfoFlake::Flake{
+          ExtraPathInfoFlake::flake_t{
               .original_ref = flake_ref,
               .locked_ref = getLockedFlake()->flake.locked_ref,
           }),
   }};
 }
 
-std::pair<Value*, pos_idx_t> InstallableFlake::toValue(EvalState& state) {
+std::pair<value_t*, pos_idx_t> InstallableFlake::toValue(eval_state_t& state) {
   return {&getCursor(state)->forceValue(), no_pos};
 }
 
-std::vector<ref<eval_cache::AttrCursor>> InstallableFlake::getCursors(EvalState& state) {
+std::vector<ref<eval_cache::AttrCursor>> InstallableFlake::getCursors(eval_state_t& state) {
   auto eval_cache = open_eval_cache(state, getLockedFlake());
 
   auto root = eval_cache->get_root();
@@ -186,7 +186,7 @@ ref<flake::LockedFlake> InstallableFlake::getLockedFlake() const {
   return ref<flake::LockedFlake>(_lockedFlake);
 }
 
-FlakeRef InstallableFlake::nixpkgsFlakeRef() const {
+flake_ref_t InstallableFlake::nixpkgsFlakeRef() const {
   auto locked_flake = getLockedFlake();
 
   if (auto nixpkgsInput = locked_flake->lock_file.findInput({"nixpkgs"})) {

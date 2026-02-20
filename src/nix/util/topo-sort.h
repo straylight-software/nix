@@ -9,13 +9,13 @@
 namespace nix {
 
 template <typename T>
-struct Cycle {
+struct cycle_t {
   T path;
   T parent;
 };
 
 template <typename T>
-using TopoSortResult = std::variant<std::vector<T>, Cycle<T>>;
+using TopoSortResult = std::variant<std::vector<T>, cycle_t<T>>;
 
 template <typename T, typename Compare, std::invocable<const T&> F>
   requires std::same_as<std::remove_cvref_t<std::invoke_result_t<F, const T&>>,
@@ -24,11 +24,11 @@ TopoSortResult<T> topoSort(std::set<T, Compare> items, F&& getChildren) {
   std::vector<T> sorted;
   decltype(items) visited, parents;
 
-  std::function<std::optional<Cycle<T>>(const T& path, const T* parent)> dfsVisit;
+  std::function<std::optional<cycle_t<T>>(const T& path, const T* parent)> dfsVisit;
 
-  dfsVisit = [&](const T& path, const T* parent) -> std::optional<Cycle<T>> {
+  dfsVisit = [&](const T& path, const T* parent) -> std::optional<cycle_t<T>> {
     if (parents.count(path)) {
-      return Cycle{path, *parent};
+      return cycle_t{path, *parent};
     }
 
     if (!visited.insert(path).second) {

@@ -37,18 +37,18 @@ struct DerivationBuildingGoal : public Goal {
    * have a permanent record of such a resolved derivation in order to
    * faithfully reconstruct the build history.
    */
-  DerivationBuildingGoal(const StorePath& drv_path, const Derivation& drv, Worker& worker,
+  DerivationBuildingGoal(const store_path_t& drv_path, const derivation_t& drv, Worker& worker,
                          BuildMode build_mode, bool storeDerivation);
   ~DerivationBuildingGoal();
 
 private:
   /** The path of the derivation. */
-  StorePath drv_path;
+  store_path_t drv_path;
 
   /**
    * The derivation stored at drv_path.
    */
-  std::unique_ptr<Derivation> drv;
+  std::unique_ptr<derivation_t> drv;
 
   /**
    * The remainder is state held during the build.
@@ -58,7 +58,7 @@ private:
    * All input paths (that is, the union of FS closures of the
    * immediate input paths).
    */
-  StorePathSet inputPaths;
+  store_path_set_t inputPaths;
 
   /**
    * file_t descriptor for the log file.
@@ -112,7 +112,7 @@ private:
    * Is the build hook willing to perform the build?
    */
   HookReply tryBuildHook(const std::map<std::string, InitialOutput>& initialOutputs,
-                         const DerivationOptions<StorePath>& drv_options);
+                         const derivation_options_t<store_path_t>& drv_options);
 
   /**
    * Open a log file and a pipe to it.
@@ -134,11 +134,11 @@ private:
   void flush_line();
 
   /**
-   * Wrappers around the corresponding Store methods that first consult the
+   * Wrappers around the corresponding store_t methods that first consult the
    * derivation.  This is currently needed because when there is no drv file
    * there also is no DB entry.
    */
-  std::map<std::string, std::optional<StorePath>> queryPartialDerivationOutputMap();
+  std::map<std::string, std::optional<store_path_t>> queryPartialDerivationOutputMap();
 
   /**
    * Update 'initialOutputs' to determine the current status of the
@@ -154,11 +154,11 @@ private:
    */
   void kill_child();
 
-  done_t doneSuccess(BuildResult::Success::Status status, SingleDrvOutputs built_outputs);
+  done_t doneSuccess(build_result_t::Success::Status status, SingleDrvOutputs built_outputs);
 
-  done_t doneFailure(BuildError ex);
+  done_t doneFailure(build_error_t ex);
 
-  BuildError fixupBuilderFailureErrorMessage(BuilderFailureError msg);
+  build_error_t fixupBuilderFailureErrorMessage(BuilderFailureError msg);
 
   JobCategory jobCategory() const override { return JobCategory::Build; };
 };

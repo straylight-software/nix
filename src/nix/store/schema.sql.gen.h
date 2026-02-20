@@ -11,7 +11,7 @@ create table if not exists ValidPaths (
     nar_size          integer,
     ultimate         integer, -- null implies "false"
     sigs             text, -- space-separated
-    ca               text -- if not null, an assertion that the path is content-addressed; see ValidPathInfo
+    ca               text -- if not null, an assertion that the path is content-addressed; see valid_path_info_t
 );
 
 create table if not exists Refs (

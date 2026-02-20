@@ -44,7 +44,7 @@ struct cmd_formatter_run_t : mix_formatter_t, MixJSON {
 
   category_t category() override { return catSecondary; }
 
-  void run(ref<Store> store) override {
+  void run(ref<store_t> store) override {
     auto eval_state = getEvalState();
     auto eval_store = getEvalStore();
 
@@ -93,7 +93,7 @@ struct cmd_formatter_build_t : mix_formatter_t, MixOutLinkByDefault {
 
   category_t category() override { return catSecondary; }
 
-  void run(ref<Store> store) override {
+  void run(ref<store_t> store) override {
     auto eval_state = getEvalState();
     auto eval_store = getEvalStore();
 
@@ -111,7 +111,7 @@ struct cmd_formatter_build_t : mix_formatter_t, MixOutLinkByDefault {
 static auto r_formatter_build = registerCommand2<cmd_formatter_build_t>({"formatter", "build"});
 
 struct cmd_fmt_t : cmd_formatter_run_t {
-  void run(ref<Store> store) override { cmd_formatter_run_t::run(store); }
+  void run(ref<store_t> store) override { cmd_formatter_run_t::run(store); }
 };
 
 static auto r_fmt = registerCommand<cmd_fmt_t>("fmt");

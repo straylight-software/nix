@@ -31,34 +31,63 @@
           ...
         }:
         let
+          # ── Turing Registry (mandatory build flags) ────────────────────────────
+          isLinux = pkgs.stdenv.isLinux;
+          isX86 = pkgs.stdenv.hostPlatform.isx86_64;
+          turing-registry = import ./nix/prelude/turing-registry.nix {
+            inherit lib isLinux isX86;
+          };
+
+          # ── Toolchain (musl static linking) ─────────────────────────────────────
+          toolchain = import ./nix/prelude/toolchain.nix {
+            inherit lib pkgs turing-registry;
+          };
+
           # ── Dependencies ──────────────────────────────────────────────────────
           deps = import ./nix/deps.nix { inherit pkgs; };
 
           # Flatten all deps for Buck2
+          # EXCLUDE vendored deps (built with Buck2, not from nixpkgs):
+          #   - catch2: vendor/catch2/ (avoids glibc __libc_single_threaded symbols)
+          #   - blake3: vendor/blake3/ (avoids glibc __memcpy_chk symbols)
+          #   - binaryen: vendor/binaryen/ (avoids glibc __isoc23_* symbols)
+          # Including these would cause header/library version mismatches.
           allDeps =
-            lib.attrValues deps.util
+            # deps.util: exclude blake3 (vendored)
+            lib.attrValues (builtins.removeAttrs deps.util [ "blake3" ])
             ++ lib.attrValues deps.store
             ++ lib.attrValues deps.fetchers
             ++ lib.attrValues deps.expr
             ++ lib.attrValues deps.main
             ++ lib.attrValues deps.primitives
             ++ lib.attrValues deps.evring
-            ++ lib.attrValues deps.language
-            ++ lib.attrValues deps.test
+            # deps.language: exclude binaryen (vendored)
+            ++ lib.attrValues (builtins.removeAttrs deps.language [ "binaryen" ])
+            # deps.test: exclude catch2 (vendored)
+            ++ lib.attrValues (builtins.removeAttrs deps.test [ "catch2" ])
             ++ lib.attrValues deps.bench;
 
-          # Generate -isystem flags
+          # Generate -isystem flags for third-party deps
           mkIncludeFlags =
             depList:
             builtins.concatStringsSep " " (
               map (pkg: if pkg ? dev then "-isystem${pkg.dev}/include" else "-isystem${pkg}/include") depList
             );
 
-          # Generate -L and -rpath flags
+          # Generate -L flags for third-party deps (no rpath for static linking)
+          # Order of precedence: .lib output, .out output, root package
           mkLibFlags =
             depList:
             builtins.concatStringsSep " " (
-              map (pkg: if pkg ? lib then "-L${pkg.lib}/lib" else "-L${pkg}/lib") depList
+              map (
+                pkg:
+                if pkg ? lib then
+                  "-L${pkg.lib}/lib"
+                else if pkg ? out then
+                  "-L${pkg.out}/lib"
+                else
+                  "-L${pkg}/lib"
+              ) depList
             );
 
           includeFlags = mkIncludeFlags allDeps;
@@ -88,7 +117,7 @@
 
             toolchain.cxx = {
               enable = true;
-              llvmpackages = pkgs.llvmPackages_19;
+              llvmpackages = toolchain.llvm;
             };
 
             remoteexecution = {
@@ -101,14 +130,38 @@
               instancename = "main";
             };
 
-            extrapackages = allDeps;
+            extrapackages =
+              allDeps
+              ++ (lib.optionals isLinux [
+                # UNWRAPPED toolchain - no wrapper injection via NIX_CFLAGS_COMPILE
+                # All include/library paths are explicit in buckconfig
+                toolchain.clang-unwrapped
+                toolchain.llvm.bintools-unwrapped
+                toolchain.musl-gcc
+                pkgs.musl
+              ]);
 
+            # Musl static linking configuration
+            # Turing registry flags + musl paths + third-party deps
             extrabuckconfigsections = ''
 
+              [cxx]
+              cc = ${toolchain.buck2.cc}
+              cxx = ${toolchain.buck2.cxx}
+              ar = ${toolchain.buck2.ar}
+              ld = ${toolchain.buck2.ld}
+              clang_resource_dir = ${toolchain.buck2.clang-resource-dir}
+              musl_gcc_include = ${toolchain.buck2.musl-gcc-include}
+              musl_gcc_include_arch = ${toolchain.buck2.musl-gcc-include-arch}
+              musl_include = ${toolchain.buck2.musl-include}
+              musl_gcc_lib = ${toolchain.buck2.musl-gcc-lib}
+              musl_gcc_lib_gcc = ${toolchain.buck2.musl-gcc-lib-gcc}
+              musl_lib = ${toolchain.buck2.musl-lib}
+
               [cxx.flags]
-              c_flags = ${includeFlags}
-              cxx_flags = ${includeFlags}
-              link_flags = ${libFlags}
+              c_flags = ${toolchain.buck2.c-flags} ${includeFlags}
+              cxx_flags = ${toolchain.buck2.cxx-flags} ${includeFlags}
+              link_flags = ${toolchain.buck2.link-flags} ${libFlags}
             '';
 
             devshellpackages = [

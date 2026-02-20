@@ -14,41 +14,41 @@ namespace nix {
 
 /* protocol-agnostic definitions */
 
-std::string CommonProto::Serialise<std::string>::read(const StoreDirConfig& store,
+std::string CommonProto::Serialise<std::string>::read(const store_dir_config_t& store,
                                                       CommonProto::ReadConn conn) {
   return read_string(conn.from);
 }
 
-void CommonProto::Serialise<std::string>::write(const StoreDirConfig& store,
+void CommonProto::Serialise<std::string>::write(const store_dir_config_t& store,
                                                 CommonProto::WriteConn conn,
                                                 const std::string& str) {
   conn.to << str;
 }
 
-StorePath CommonProto::Serialise<StorePath>::read(const StoreDirConfig& store,
+store_path_t CommonProto::Serialise<store_path_t>::read(const store_dir_config_t& store,
                                                   CommonProto::ReadConn conn) {
-  return conn.shortStorePaths ? StorePath(read_string(conn.from))
+  return conn.shortStorePaths ? store_path_t(read_string(conn.from))
                               : store.parseStorePath(read_string(conn.from));
 }
 
-void CommonProto::Serialise<StorePath>::write(const StoreDirConfig& store,
+void CommonProto::Serialise<store_path_t>::write(const store_dir_config_t& store,
                                               CommonProto::WriteConn conn,
-                                              const StorePath& store_path) {
+                                              const store_path_t& store_path) {
   conn.to << (conn.shortStorePaths ? store_path.to_string() : store.printStorePath(store_path));
 }
 
-ContentAddress CommonProto::Serialise<ContentAddress>::read(const StoreDirConfig& store,
+content_address_t CommonProto::Serialise<content_address_t>::read(const store_dir_config_t& store,
                                                             CommonProto::ReadConn conn) {
-  return ContentAddress::parse(read_string(conn.from));
+  return content_address_t::parse(read_string(conn.from));
 }
 
-void CommonProto::Serialise<ContentAddress>::write(const StoreDirConfig& store,
+void CommonProto::Serialise<content_address_t>::write(const store_dir_config_t& store,
                                                    CommonProto::WriteConn conn,
-                                                   const ContentAddress& ca) {
+                                                   const content_address_t& ca) {
   conn.to << render_content_address(ca);
 }
 
-Realisation CommonProto::Serialise<Realisation>::read(const StoreDirConfig& store,
+realisation_t CommonProto::Serialise<realisation_t>::read(const store_dir_config_t& store,
                                                       CommonProto::ReadConn conn) {
   std::string rawInput = read_string(conn.from);
   try {
@@ -59,49 +59,49 @@ Realisation CommonProto::Serialise<Realisation>::read(const StoreDirConfig& stor
   }
 }
 
-void CommonProto::Serialise<Realisation>::write(const StoreDirConfig& store,
+void CommonProto::Serialise<realisation_t>::write(const store_dir_config_t& store,
                                                 CommonProto::WriteConn conn,
-                                                const Realisation& realisation) {
+                                                const realisation_t& realisation) {
   conn.to << static_cast<nlohmann::json>(realisation).dump();
 }
 
-DrvOutput CommonProto::Serialise<DrvOutput>::read(const StoreDirConfig& store,
+DrvOutput CommonProto::Serialise<DrvOutput>::read(const store_dir_config_t& store,
                                                   CommonProto::ReadConn conn) {
   return DrvOutput::parse(read_string(conn.from));
 }
 
-void CommonProto::Serialise<DrvOutput>::write(const StoreDirConfig& store,
+void CommonProto::Serialise<DrvOutput>::write(const store_dir_config_t& store,
                                               CommonProto::WriteConn conn,
                                               const DrvOutput& drvOutput) {
   conn.to << drvOutput.to_string();
 }
 
-std::optional<StorePath>
-CommonProto::Serialise<std::optional<StorePath>>::read(const StoreDirConfig& store,
+std::optional<store_path_t>
+CommonProto::Serialise<std::optional<store_path_t>>::read(const store_dir_config_t& store,
                                                        CommonProto::ReadConn conn) {
   auto s = read_string(conn.from);
-  return s == ""                ? std::optional<StorePath>{}
-         : conn.shortStorePaths ? StorePath(s)
+  return s == ""                ? std::optional<store_path_t>{}
+         : conn.shortStorePaths ? store_path_t(s)
                                 : store.parseStorePath(s);
 }
 
-void CommonProto::Serialise<std::optional<StorePath>>::write(
-    const StoreDirConfig& store, CommonProto::WriteConn conn,
-    const std::optional<StorePath>& storePathOpt) {
+void CommonProto::Serialise<std::optional<store_path_t>>::write(
+    const store_dir_config_t& store, CommonProto::WriteConn conn,
+    const std::optional<store_path_t>& storePathOpt) {
   conn.to << (storePathOpt ? (conn.shortStorePaths ? storePathOpt->to_string()
                                                    : store.printStorePath(*storePathOpt))
                            : "");
 }
 
-std::optional<ContentAddress>
-CommonProto::Serialise<std::optional<ContentAddress>>::read(const StoreDirConfig& store,
+std::optional<content_address_t>
+CommonProto::Serialise<std::optional<content_address_t>>::read(const store_dir_config_t& store,
                                                             CommonProto::ReadConn conn) {
-  return ContentAddress::parseOpt(read_string(conn.from));
+  return content_address_t::parseOpt(read_string(conn.from));
 }
 
-void CommonProto::Serialise<std::optional<ContentAddress>>::write(
-    const StoreDirConfig& store, CommonProto::WriteConn conn,
-    const std::optional<ContentAddress>& caOpt) {
+void CommonProto::Serialise<std::optional<content_address_t>>::write(
+    const store_dir_config_t& store, CommonProto::WriteConn conn,
+    const std::optional<content_address_t>& caOpt) {
   conn.to << (caOpt ? render_content_address(*caOpt) : "");
 }
 

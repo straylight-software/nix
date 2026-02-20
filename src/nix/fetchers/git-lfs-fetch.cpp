@@ -19,7 +19,7 @@ namespace nix::lfs {
 
 static void download_to_sink(const std::string& url, const std::optional<std::string>& auth_header,
                              // FIXME: passing a StringSink is superfluous, we may as well
-                             // return a string. Or use an abstract Sink for streaming.
+                             // return a string. Or use an abstract sink_t for streaming.
                              string_sink_t& sink, std::string sha256_expected,
                              size_t size_expected) {
   FileTransferRequest request(parse_url(url));

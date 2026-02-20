@@ -16,7 +16,7 @@ using json = nlohmann::json;
 
 #pragma GCC diagnostic ignored "-Wswitch-enum"
 
-static void parallel_force_deep(EvalState& state, Value& v, pos_idx_t pos) {
+static void parallel_force_deep(eval_state_t& state, value_t& v, pos_idx_t pos) {
   state.forceValue(v, pos);
 
   std::vector<std::pair<Executor::work_t, uint8_t>> work;
@@ -43,12 +43,12 @@ static void parallel_force_deep(EvalState& state, Value& v, pos_idx_t pos) {
 }
 
 // TODO: rename. It doesn't print.
-json print_value_as_json(EvalState& state, bool strict, Value& v, const pos_idx_t pos,
+json print_value_as_json(eval_state_t& state, bool strict, value_t& v, const pos_idx_t pos,
                       NixStringContext& context, bool copy_to_store) {
   if (strict && state.executor->enabled && !Executor::amWorkerThread)
     parallel_force_deep(state, v, pos);
 
-  auto recurse = [&](this const auto& recurse, json& res, Value& v, pos_idx_t pos) -> void {
+  auto recurse = [&](this const auto& recurse, json& res, value_t& v, pos_idx_t pos) -> void {
     check_interrupt();
 
     auto _level = state.addCallDepth(pos);
@@ -147,7 +147,7 @@ json print_value_as_json(EvalState& state, bool strict, Value& v, const pos_idx_
   return res;
 }
 
-void print_value_as_json(EvalState& state, bool strict, Value& v, const pos_idx_t pos, std::ostream& str,
+void print_value_as_json(eval_state_t& state, bool strict, value_t& v, const pos_idx_t pos, std::ostream& str,
                       NixStringContext& context, bool copy_to_store) {
   try {
     str << print_value_as_json(state, strict, v, pos, context, copy_to_store);
@@ -156,7 +156,7 @@ void print_value_as_json(EvalState& state, bool strict, Value& v, const pos_idx_
   }
 }
 
-json ExternalValueBase::print_value_as_json(EvalState& state, bool strict, NixStringContext& context,
+json ExternalValueBase::print_value_as_json(eval_state_t& state, bool strict, NixStringContext& context,
                                          bool copy_to_store) const {
   state.error<TypeError>("cannot convert %1% to JSON", show_type()).debugThrow();
 }

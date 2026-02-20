@@ -5,9 +5,9 @@
 namespace nix {
 
 struct mounted_source_accessor_impl_t : mounted_source_accessor_t {
-  boost::concurrent_flat_map<canon_path_t, ref<SourceAccessor>> mounts;
+  boost::concurrent_flat_map<canon_path_t, ref<source_accessor_t>> mounts;
 
-  mounted_source_accessor_impl_t(std::map<canon_path_t, ref<SourceAccessor>> _mounts) {
+  mounted_source_accessor_impl_t(std::map<canon_path_t, ref<source_accessor_t>> _mounts) {
     display_prefix.clear();
 
     // Currently we require a root filesystem. This could be relaxed.
@@ -49,7 +49,7 @@ struct mounted_source_accessor_impl_t : mounted_source_accessor_t {
     return display_prefix + accessor->show_path(subpath) + display_suffix;
   }
 
-  std::pair<ref<SourceAccessor>, canon_path_t> resolve(canon_path_t path) {
+  std::pair<ref<source_accessor_t>, canon_path_t> resolve(canon_path_t path) {
     // Find the nearest parent of `path` that is a mount point.
     std::vector<std::string> subpath;
     while (true) {
@@ -69,11 +69,11 @@ struct mounted_source_accessor_impl_t : mounted_source_accessor_t {
     return accessor->get_physical_path(subpath);
   }
 
-  void mount(canon_path_t mount_point, ref<SourceAccessor> accessor) override {
+  void mount(canon_path_t mount_point, ref<source_accessor_t> accessor) override {
     mounts.emplace(std::move(mount_point), std::move(accessor));
   }
 
-  std::shared_ptr<SourceAccessor> get_mount(canon_path_t mount_point) override {
+  std::shared_ptr<source_accessor_t> get_mount(canon_path_t mount_point) override {
     if (auto res = get_concurrent(mounts, mount_point))
       return *res;
     else
@@ -94,7 +94,7 @@ struct mounted_source_accessor_impl_t : mounted_source_accessor_t {
 };
 
 ref<mounted_source_accessor_t>
-make_mounted_source_accessor(std::map<canon_path_t, ref<SourceAccessor>> mounts) {
+make_mounted_source_accessor(std::map<canon_path_t, ref<source_accessor_t>> mounts) {
   return make_ref<mounted_source_accessor_impl_t>(std::move(mounts));
 }
 

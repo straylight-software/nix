@@ -27,11 +27,11 @@ struct download_url_t {
 const static std::string host_regex_s = "[a-zA-Z0-9.-]*"; // FIXME: check
 std::regex host_regex(host_regex_s, std::regex::ECMAScript);
 
-struct git_archive_input_scheme_t : InputScheme {
+struct git_archive_input_scheme_t : input_scheme_t {
   virtual std::optional<std::pair<std::string, std::string>>
   accessHeaderFromToken(const std::string& token) const = 0;
 
-  std::optional<Input> inputFromURL(const fetchers::settings_t& settings, const parsed_url_t& url,
+  std::optional<input_t> inputFromURL(const fetchers::settings_t& settings, const parsed_url_t& url,
                                     bool require_tree) const override {
     if (url.scheme() != schemeName())
       return {};
@@ -133,7 +133,7 @@ struct git_archive_input_scheme_t : InputScheme {
     return attrs;
   }
 
-  std::optional<Input> inputFromAttrs(const fetchers::settings_t& settings,
+  std::optional<input_t> inputFromAttrs(const fetchers::settings_t& settings,
                                       const Attrs& attrs) const override {
     get_str_attr(attrs, "owner");
     get_str_attr(attrs, "repo");
@@ -153,12 +153,12 @@ struct git_archive_input_scheme_t : InputScheme {
     if (auto host = maybe_get_str_attr(attrs, "host"); host && !std::regex_match(*host, host_regex))
       throw BadURL("input %s contains an invalid instance host", attrs_to_json(attrs));
 
-    Input input{};
+    input_t input{};
     input.attrs = attrs;
     return input;
   }
 
-  parsed_url_t toURL(const Input& input, bool abbreviate) const override {
+  parsed_url_t toURL(const input_t& input, bool abbreviate) const override {
     auto owner = get_str_attr(input.attrs, "owner");
     auto repo = get_str_attr(input.attrs, "repo");
     auto ref = input.getRef();
@@ -180,7 +180,7 @@ struct git_archive_input_scheme_t : InputScheme {
     return url;
   }
 
-  Input applyOverrides(const Input& _input, std::optional<std::string> ref,
+  input_t applyOverrides(const input_t& _input, std::optional<std::string> ref,
                        std::optional<Hash> rev) const override {
     auto input(_input);
     if (rev && ref)
@@ -225,7 +225,7 @@ struct git_archive_input_scheme_t : InputScheme {
   }
 
   headers_t make_headers_with_auth_tokens(const fetchers::settings_t& settings,
-                                          const std::string& host, const Input& input) const {
+                                          const std::string& host, const input_t& input) const {
     auto owner = get_str_attr(input.attrs, "owner");
     auto repo = get_str_attr(input.attrs, "repo");
     auto host_and_path = fmt("%s/%s/%s", host, owner, repo);
@@ -252,18 +252,18 @@ struct git_archive_input_scheme_t : InputScheme {
     std::optional<Hash> tree_hash;
   };
 
-  virtual ref_info_t get_rev_from_ref(const settings_t& settings, nix::Store& store,
-                                      const Input& input) const = 0;
+  virtual ref_info_t get_rev_from_ref(const settings_t& settings, nix::store_t& store,
+                                      const input_t& input) const = 0;
 
-  virtual download_url_t get_download_url(const settings_t& settings, const Input& input) const = 0;
+  virtual download_url_t get_download_url(const settings_t& settings, const input_t& input) const = 0;
 
   struct tarball_info_t {
     Hash tree_hash;
     time_t last_modified;
   };
 
-  std::pair<Input, tarball_info_t> download_archive(const settings_t& settings, Store& store,
-                                                    Input input) const {
+  std::pair<input_t, tarball_info_t> download_archive(const settings_t& settings, store_t& store,
+                                                    input_t input) const {
     if (!maybe_get_str_attr(input.attrs, "ref"))
       input.attrs.insert_or_assign("ref", "HEAD");
 
@@ -301,7 +301,7 @@ struct git_archive_input_scheme_t : InputScheme {
     /* Stream the tarball into the tarball cache. */
     auto url = get_download_url(settings, input);
 
-    auto source = sink_to_source([&](Sink& sink) {
+    auto source = sink_to_source([&](sink_t& sink) {
       FileTransferRequest req(url.url);
       req.headers = url.headers;
       get_file_transfer()->download(std::move(req), sink);
@@ -337,8 +337,8 @@ struct git_archive_input_scheme_t : InputScheme {
     return {std::move(input), tarball_info};
   }
 
-  std::pair<ref<SourceAccessor>, Input> get_accessor(const settings_t& settings, Store& store,
-                                                     const Input& _input) const override {
+  std::pair<ref<source_accessor_t>, input_t> get_accessor(const settings_t& settings, store_t& store,
+                                                     const input_t& _input) const override {
     auto [input, tarball_info] = download_archive(settings, store, _input);
 
 #if 0
@@ -359,7 +359,7 @@ struct git_archive_input_scheme_t : InputScheme {
     return {accessor, input};
   }
 
-  bool isLocked(const settings_t& settings, const Input& input) const override {
+  bool isLocked(const settings_t& settings, const input_t& input) const override {
     /* Since we can't verify the integrity of the tarball from the
        git revision alone, we also require a NAR hash for
        locking. FIXME: in the future, we may want to require a git
@@ -368,7 +368,7 @@ struct git_archive_input_scheme_t : InputScheme {
            (settings.trustTarballsFromGitForges || input.getNarHash().has_value());
   }
 
-  std::optional<std::string> get_fingerprint(Store& store, const Input& input) const override {
+  std::optional<std::string> get_fingerprint(store_t& store, const input_t& input) const override {
     if (auto rev = input.getRev())
       return "github:" + rev->git_rev();
     else
@@ -395,16 +395,16 @@ struct git_hub_input_scheme_t : git_archive_input_scheme_t {
     return std::pair<std::string, std::string>("Authorization", fmt("token %s", token));
   }
 
-  std::string getHost(const Input& input) const {
+  std::string getHost(const input_t& input) const {
     return maybe_get_str_attr(input.attrs, "host").value_or("github.com");
   }
 
-  std::string getOwner(const Input& input) const { return get_str_attr(input.attrs, "owner"); }
+  std::string getOwner(const input_t& input) const { return get_str_attr(input.attrs, "owner"); }
 
-  std::string getRepo(const Input& input) const { return get_str_attr(input.attrs, "repo"); }
+  std::string getRepo(const input_t& input) const { return get_str_attr(input.attrs, "repo"); }
 
-  ref_info_t get_rev_from_ref(const settings_t& settings, nix::Store& store,
-                              const Input& input) const override {
+  ref_info_t get_rev_from_ref(const settings_t& settings, nix::store_t& store,
+                              const input_t& input) const override {
     auto host = getHost(input);
     auto url = fmt(host == "github.com" ? "https://api.%s/repos/%s/%s/commits/%s"
                                         : "https://%s/api/v3/repos/%s/%s/commits/%s",
@@ -421,7 +421,7 @@ struct git_hub_input_scheme_t : git_archive_input_scheme_t {
                                                    hash_algorithm_t::SHA1)};
   }
 
-  download_url_t get_download_url(const settings_t& settings, const Input& input) const override {
+  download_url_t get_download_url(const settings_t& settings, const input_t& input) const override {
     auto host = getHost(input);
 
     headers_t headers = make_headers_with_auth_tokens(settings, host, input);
@@ -437,10 +437,10 @@ struct git_hub_input_scheme_t : git_archive_input_scheme_t {
     return download_url_t{parse_url(url), headers};
   }
 
-  void clone(const settings_t& settings, Store& store, const Input& input,
+  void clone(const settings_t& settings, store_t& store, const input_t& input,
              const std::filesystem::path& dest_dir) const override {
     auto host = getHost(input);
-    Input::fromURL(settings, fmt("git+https://%s/%s/%s.git", host, getOwner(input), getRepo(input)))
+    input_t::fromURL(settings, fmt("git+https://%s/%s/%s.git", host, getOwner(input), getRepo(input)))
         .applyOverrides(input.getRef(), input.getRev())
         .clone(settings, store, dest_dir);
   }
@@ -473,8 +473,8 @@ struct git_lab_input_scheme_t : git_archive_input_scheme_t {
     return std::make_pair(token.substr(0, fldsplit), token.substr(fldsplit + 1));
   }
 
-  ref_info_t get_rev_from_ref(const settings_t& settings, nix::Store& store,
-                              const Input& input) const override {
+  ref_info_t get_rev_from_ref(const settings_t& settings, nix::store_t& store,
+                              const input_t& input) const override {
     auto host = maybe_get_str_attr(input.attrs, "host").value_or("gitlab.com");
     // See rate limiting note below
     auto url =
@@ -497,7 +497,7 @@ struct git_lab_input_scheme_t : git_archive_input_scheme_t {
     }
   }
 
-  download_url_t get_download_url(const settings_t& settings, const Input& input) const override {
+  download_url_t get_download_url(const settings_t& settings, const input_t& input) const override {
     // This endpoint has a rate limit threshold that may be
     // server-specific and vary based whether the user is
     // authenticated via an accessToken or not, but the usual rate
@@ -512,11 +512,11 @@ struct git_lab_input_scheme_t : git_archive_input_scheme_t {
     return download_url_t{parse_url(url), headers};
   }
 
-  void clone(const settings_t& settings, Store& store, const Input& input,
+  void clone(const settings_t& settings, store_t& store, const input_t& input,
              const std::filesystem::path& dest_dir) const override {
     auto host = maybe_get_str_attr(input.attrs, "host").value_or("gitlab.com");
     // FIXME: get username somewhere
-    Input::fromURL(settings,
+    input_t::fromURL(settings,
                    fmt("git+https://%s/%s/%s.git", host, get_str_attr(input.attrs, "owner"),
                        get_str_attr(input.attrs, "repo")))
         .applyOverrides(input.getRef(), input.getRev())
@@ -542,8 +542,8 @@ struct source_hut_input_scheme_t : git_archive_input_scheme_t {
     // Once it is implemented, however, should work as expected.
   }
 
-  ref_info_t get_rev_from_ref(const settings_t& settings, nix::Store& store,
-                              const Input& input) const override {
+  ref_info_t get_rev_from_ref(const settings_t& settings, nix::store_t& store,
+                              const input_t& input) const override {
     // TODO: In the future, when the sourcehut graphql API is implemented for mercurial
     // and with anonymous access, this method should use it instead.
 
@@ -593,7 +593,7 @@ struct source_hut_input_scheme_t : git_archive_input_scheme_t {
     return ref_info_t{.rev = Hash::parse_any(*id, hash_algorithm_t::SHA1)};
   }
 
-  download_url_t get_download_url(const settings_t& settings, const Input& input) const override {
+  download_url_t get_download_url(const settings_t& settings, const input_t& input) const override {
     auto host = maybe_get_str_attr(input.attrs, "host").value_or("git.sr.ht");
     auto url = fmt("https://%s/%s/%s/archive/%s.tar.gz", host, get_str_attr(input.attrs, "owner"),
                    get_str_attr(input.attrs, "repo"), input.getRev()->git_rev());
@@ -602,10 +602,10 @@ struct source_hut_input_scheme_t : git_archive_input_scheme_t {
     return download_url_t{parse_url(url), headers};
   }
 
-  void clone(const settings_t& settings, Store& store, const Input& input,
+  void clone(const settings_t& settings, store_t& store, const input_t& input,
              const std::filesystem::path& dest_dir) const override {
     auto host = maybe_get_str_attr(input.attrs, "host").value_or("git.sr.ht");
-    Input::fromURL(settings, fmt("git+https://%s/%s/%s", host, get_str_attr(input.attrs, "owner"),
+    input_t::fromURL(settings, fmt("git+https://%s/%s/%s", host, get_str_attr(input.attrs, "owner"),
                                  get_str_attr(input.attrs, "repo")))
         .applyOverrides(input.getRef(), input.getRev())
         .clone(settings, store, dest_dir);

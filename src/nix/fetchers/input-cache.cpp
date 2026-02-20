@@ -6,11 +6,11 @@
 
 namespace nix::fetchers {
 
-InputCache::CachedResult InputCache::get_accessor(const settings_t& settings, Store& store,
-                                                 const Input& original_input,
+InputCache::CachedResult InputCache::get_accessor(const settings_t& settings, store_t& store,
+                                                 const input_t& original_input,
                                                  UseRegistries use_registries) {
   auto fetched = lookup(original_input);
-  Input resolved_input = original_input;
+  input_t resolved_input = original_input;
 
   if (!fetched) {
     if (original_input.isDirect()) {
@@ -41,9 +41,9 @@ InputCache::CachedResult InputCache::get_accessor(const settings_t& settings, St
 }
 
 struct input_cache_impl_t : InputCache {
-  sync_t<std::map<Input, CachedInput>> cache_;
+  sync_t<std::map<input_t, CachedInput>> cache_;
 
-  std::optional<CachedInput> lookup(const Input& original_input) const override {
+  std::optional<CachedInput> lookup(const input_t& original_input) const override {
     auto cache(cache_.read_lock());
     auto i = cache->find(original_input);
     if (i == cache->end())
@@ -53,7 +53,7 @@ struct input_cache_impl_t : InputCache {
     return i->second;
   }
 
-  void upsert(Input key, CachedInput cached_input) override {
+  void upsert(input_t key, CachedInput cached_input) override {
     cache_.lock()->insert_or_assign(std::move(key), std::move(cached_input));
   }
 

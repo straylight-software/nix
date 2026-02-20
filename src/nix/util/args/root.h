@@ -19,14 +19,14 @@ struct completions_t final : add_completions_t {
 };
 
 /**
- * The outermost Args object. This is the one we will actually parse a command
+ * The outermost args_t object. This is the one we will actually parse a command
  * line with, whereas the inner ones (if they exists) are subcommands (and this
  * is also a multi_command_t or something like it).
  *
- * This Args contains completions state shared between it and all of its
- * descendent Args.
+ * This args_t contains completions state shared between it and all of its
+ * descendent args_t.
  */
-class root_args_t : virtual public Args {
+class root_args_t : virtual public args_t {
 protected:
   /**
    * @brief The command's "working directory", but only set when top level.
@@ -49,7 +49,7 @@ public:
   std::filesystem::path get_command_base_dir() const override;
 
 protected:
-  friend class Args;
+  friend class args_t;
 
   /**
    * A pointer to the completion and its two arguments; a thunk;

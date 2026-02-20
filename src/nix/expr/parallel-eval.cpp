@@ -15,11 +15,11 @@ static std::array<sync_t<waiter_domain_t>, 128> waiter_domains;
 
 thread_local bool Executor::amWorkerThread{false};
 
-unsigned int Executor::getEvalCores(const EvalSettings& eval_settings) {
+unsigned int Executor::getEvalCores(const eval_settings_t& eval_settings) {
   return eval_settings.evalCores == 0UL ? settings_t::getDefaultCores() : eval_settings.evalCores;
 }
 
-Executor::Executor(const EvalSettings& eval_settings)
+Executor::Executor(const eval_settings_t& eval_settings)
     : evalCores(getEvalCores(eval_settings)),
       enabled(evalCores > 1),
       interruptCallback(create_interrupt_callback([&]() {
@@ -182,7 +182,7 @@ thread_local uint32_t my_eval_thread_id(next_eval_thread_id++);
 
 template <>
 ValueStorage<sizeof(void*)>::PackedPointer
-ValueStorage<sizeof(void*)>::waitOnThunk(EvalState& state, PackedPointer expectedP0) {
+ValueStorage<sizeof(void*)>::waitOnThunk(eval_state_t& state, PackedPointer expectedP0) {
   state.nrThunksAwaited++;
 
   auto domain = get_waiter_domain(*this).lock();
@@ -221,7 +221,7 @@ ValueStorage<sizeof(void*)>::waitOnThunk(EvalState& state, PackedPointer expecte
   /* Wait for another thread to finish this value. */
   if (threadId == my_eval_thread_id)
     state.error<InfiniteRecursionError>("infinite recursion encountered")
-        .at_pos(((Value&)*this).determinePos(no_pos))
+        .at_pos(((value_t&)*this).determinePos(no_pos))
         .debugThrow();
 
   state.nrThunksAwaitedSlow++;
@@ -254,7 +254,7 @@ void ValueStorage<sizeof(void*)>::notifyWaiters() {
   domain->cv.notify_all();
 }
 
-static void prim_parallel(EvalState& state, const pos_idx_t pos, Value** args, Value& v) {
+static void prim_parallel(eval_state_t& state, const pos_idx_t pos, value_t** args, value_t& v) {
   state.forceList(*args[0], pos, "while evaluating the first argument passed to builtins.parallel");
 
   if (state.executor->evalCores > 1) {

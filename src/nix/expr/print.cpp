@@ -129,7 +129,7 @@ bool is_important_attr_name(const std::string& attr_name) {
   return attr_name == "type" || attr_name == "_type";
 }
 
-typedef std::pair<std::string, Value*> attr_pair_t;
+typedef std::pair<std::string, value_t*> attr_pair_t;
 
 struct important_first_attr_name_cmp_t {
   bool operator()(const attr_pair_t& lhs, const attr_pair_t& rhs) const {
@@ -141,12 +141,12 @@ struct important_first_attr_name_cmp_t {
 };
 
 typedef std::set<const void*> values_seen_t;
-typedef std::vector<std::pair<std::string, Value*>> AttrVec;
+typedef std::vector<std::pair<std::string, value_t*>> AttrVec;
 
 class printer_t {
 private:
   std::ostream& output;
-  EvalState& state;
+  eval_state_t& state;
   PrintOptions options;
   std::optional<values_seen_t> seen;
   size_t totalAttrsPrinted = 0;
@@ -201,7 +201,7 @@ private:
     ::nix::print_elided(output, value, single, plural, options.ansi_colors);
   }
 
-  void print_int(Value& v) {
+  void print_int(value_t& v) {
     if (options.ansi_colors)
       output << ANSI_CYAN;
     output << v.integer();
@@ -209,7 +209,7 @@ private:
       output << ANSI_NORMAL;
   }
 
-  void print_float(Value& v) {
+  void print_float(value_t& v) {
     if (options.ansi_colors)
       output << ANSI_CYAN;
     output << v.fpoint();
@@ -217,7 +217,7 @@ private:
       output << ANSI_NORMAL;
   }
 
-  void print_bool(Value& v) {
+  void print_bool(value_t& v) {
     if (options.ansi_colors)
       output << ANSI_CYAN;
     print_literal_bool(output, v.boolean());
@@ -225,7 +225,7 @@ private:
       output << ANSI_NORMAL;
   }
 
-  void print_string(Value& v) {
+  void print_string(value_t& v) {
     NixStringContext context;
     copy_context(v, context);
     std::ostringstream s;
@@ -233,7 +233,7 @@ private:
     output << state.devirtualize(s.str(), context);
   }
 
-  void print_path(Value& v) {
+  void print_path(value_t& v) {
     if (options.ansi_colors)
       output << ANSI_GREEN;
     output << v.path().to_string(); // !!! escaping?
@@ -249,8 +249,8 @@ private:
       output << ANSI_NORMAL;
   }
 
-  void print_derivation(Value& v) {
-    std::optional<StorePath> store_path;
+  void print_derivation(value_t& v) {
+    std::optional<store_path_t> store_path;
     if (auto i = v.attrs()->get(state.s.drv_path)) {
       NixStringContext context;
       store_path = state.coerceToStorePath(i->pos, *i->value, context,
@@ -305,7 +305,7 @@ private:
     return item_type == nList || item_type == nAttrs || item_type == nThunk;
   }
 
-  void print_attrs(Value& v, size_t depth) {
+  void print_attrs(value_t& v, size_t depth) {
     if (seen && !seen->insert(v.attrs()).second) {
       print_repeated();
       return;
@@ -357,7 +357,7 @@ private:
   /**
    * @note This may force items.
    */
-  bool should_pretty_print_list(std::span<Value* const> list) {
+  bool should_pretty_print_list(std::span<value_t* const> list) {
     if (!options.shouldPrettyPrint() || list.empty()) {
       return false;
     }
@@ -381,7 +381,7 @@ private:
     return item_type == nList || item_type == nAttrs || item_type == nThunk;
   }
 
-  void print_list(Value& v, size_t depth) {
+  void print_list(value_t& v, size_t depth) {
     if (seen && v.list_size() && !seen->insert(&v).second) {
       print_repeated();
       return;
@@ -420,7 +420,7 @@ private:
     }
   }
 
-  void print_function(Value& v) {
+  void print_function(value_t& v) {
     if (options.ansi_colors)
       output << ANSI_BLUE;
     output << "«";
@@ -457,7 +457,7 @@ private:
       output << ANSI_NORMAL;
   }
 
-  void print_thunk(Value& v) {
+  void print_thunk(value_t& v) {
     if (v.isBlackhole()) {
       // Although we know for sure that it's going to be an infinite recursion
       // when this value is accessed _in the current context_, it's likely
@@ -481,9 +481,9 @@ private:
     }
   }
 
-  void print_failed(Value& v) { output << "«failed»"; }
+  void print_failed(value_t& v) { output << "«failed»"; }
 
-  void print_external(Value& v) { v.external()->print(output); }
+  void print_external(value_t& v) { v.external()->print(output); }
 
   void print_unknown() {
     if (options.ansi_colors)
@@ -501,7 +501,7 @@ private:
       output << ANSI_NORMAL;
   }
 
-  void print(Value& v, size_t depth) {
+  void print(value_t& v, size_t depth) {
     output.flush();
     check_interrupt();
 
@@ -573,10 +573,10 @@ private:
   }
 
 public:
-  printer_t(std::ostream& output, EvalState& state, PrintOptions options)
+  printer_t(std::ostream& output, eval_state_t& state, PrintOptions options)
       : output(output), state(state), options(options) {}
 
-  void print(Value& v) {
+  void print(value_t& v) {
     totalAttrsPrinted = 0;
     totalListItemsPrinted = 0;
     indent.clear();
@@ -592,7 +592,7 @@ public:
   }
 };
 
-void print_value(EvalState& state, std::ostream& output, Value& v, PrintOptions options) {
+void print_value(eval_state_t& state, std::ostream& output, value_t& v, PrintOptions options) {
   printer_t(output, state, options).print(v);
 }
 

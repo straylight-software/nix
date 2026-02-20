@@ -34,7 +34,7 @@ struct HookInstance {
   /**
    * The process ID of the hook.
    */
-  Pid pid;
+  process_handle_t pid;
 
   /**
    * The remote machine on which we're building.

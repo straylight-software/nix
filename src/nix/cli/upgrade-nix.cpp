@@ -29,7 +29,7 @@ struct cmd_upgrade_nix_t : MixDryRun, StoreCommand {
 
   category_t category() override { return catNixInstallation; }
 
-  void run(ref<Store> store) override {
+  void run(ref<store_t> store) override {
     throw Error("The upgrade-nix command isn't available in Determinate Nix; use %s instead",
                 "sudo determinate-nixd upgrade");
   }

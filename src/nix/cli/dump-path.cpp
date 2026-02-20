@@ -21,7 +21,7 @@ struct cmd_dump_path_t : StorePathCommand {
         ;
   }
 
-  void run(ref<Store> store, const StorePath& store_path) override {
+  void run(ref<store_t> store, const store_path_t& store_path) override {
     auto sink = get_nar_sink();
     store->nar_from_path(store_path, sink);
     sink.flush();

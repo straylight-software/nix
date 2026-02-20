@@ -72,23 +72,23 @@ bool memory_source_accessor_t::path_exists(const canon_path_t& path) {
 }
 
 template <>
-SourceAccessor::stat_t memory_source_accessor_t::file_t::lstat() const {
+source_accessor_t::stat_t memory_source_accessor_t::file_t::lstat() const {
   return std::visit(overloaded{
                         [](const regular& r) {
-                          return SourceAccessor::stat_t{
-                              .type = SourceAccessor::t_regular,
+                          return source_accessor_t::stat_t{
+                              .type = source_accessor_t::t_regular,
                               .file_size = r.contents.size(),
                               .is_executable = r.executable,
                           };
                         },
                         [](const directory_t&) {
-                          return SourceAccessor::stat_t{
-                              .type = SourceAccessor::t_directory,
+                          return source_accessor_t::stat_t{
+                              .type = source_accessor_t::t_directory,
                           };
                         },
                         [](const symlink&) {
-                          return SourceAccessor::stat_t{
-                              .type = SourceAccessor::t_symlink,
+                          return source_accessor_t::stat_t{
+                              .type = source_accessor_t::t_symlink,
                           };
                         },
                     },
@@ -209,16 +209,16 @@ void memory_sink_t::create_symlink(const canon_path_t& path, const std::string& 
 }
 }
 
-ref<SourceAccessor> make_empty_source_accessor() {
+ref<source_accessor_t> make_empty_source_accessor() {
   static auto empty = []() {
     auto empty = make_ref<memory_source_accessor_t>();
     memory_sink_t sink{*empty};
     sink.create_directory(canon_path_t::root);
     /* Don't forget to clear the display prefix, as the default constructed
-       SourceAccessor has the «unknown» prefix. Since this accessor is supposed
+       source_accessor_t has the «unknown» prefix. Since this accessor is supposed
        to mimic an empty root directory the prefix needs to be empty. */
     empty->set_path_display("");
-    return empty.cast<SourceAccessor>();
+    return empty.cast<source_accessor_t>();
   }();
   return empty;
 }

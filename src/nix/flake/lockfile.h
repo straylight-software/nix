@@ -6,8 +6,8 @@
 #include "nix/flake/flakeref.h"
 
 namespace nix {
-class Store;
-class StorePath;
+class store_t;
+class store_path_t;
 } // namespace nix
 
 namespace nix::flake {
@@ -33,7 +33,7 @@ struct Node : std::enable_shared_from_this<Node> {
  * A non-root node in the lock file.
  */
 struct LockedNode : Node {
-  FlakeRef locked_ref, original_ref;
+  flake_ref_t locked_ref, original_ref;
   bool is_flake = true;
   bool buildTime = false;
 
@@ -41,7 +41,7 @@ struct LockedNode : Node {
      (e.g. 'path:../foo') are interpreted. */
   std::optional<InputAttrPath> parent_input_attr_path;
 
-  LockedNode(const FlakeRef& locked_ref, const FlakeRef& original_ref, bool is_flake = true,
+  LockedNode(const flake_ref_t& locked_ref, const flake_ref_t& original_ref, bool is_flake = true,
              bool buildTime = false, std::optional<InputAttrPath> parent_input_attr_path = {})
       : locked_ref(std::move(locked_ref)),
         original_ref(std::move(original_ref)),
@@ -51,14 +51,14 @@ struct LockedNode : Node {
 
   LockedNode(const fetchers::settings_t& fetch_settings, const nlohmann::json& json);
 
-  StorePath computeStorePath(Store& store) const;
+  store_path_t computeStorePath(store_t& store) const;
 };
 
-struct LockFile {
+struct lock_file_t {
   ref<Node> root = make_ref<Node>();
 
-  LockFile() {};
-  LockFile(const fetchers::settings_t& fetch_settings, std::string_view contents,
+  lock_file_t() {};
+  lock_file_t(const fetchers::settings_t& fetch_settings, std::string_view contents,
            std::string_view path);
 
   typedef std::map<ref<const Node>, std::string> KeyMap;
@@ -71,15 +71,15 @@ struct LockFile {
    * Check whether this lock file has any unlocked or non-final
    * inputs. If so, return one.
    */
-  std::optional<FlakeRef> isUnlocked(const fetchers::settings_t& fetch_settings) const;
+  std::optional<flake_ref_t> isUnlocked(const fetchers::settings_t& fetch_settings) const;
 
-  bool operator==(const LockFile& other) const;
+  bool operator==(const lock_file_t& other) const;
 
   std::shared_ptr<Node> findInput(const InputAttrPath& path);
 
   std::map<InputAttrPath, Node::Edge> getAllInputs() const;
 
-  static std::string diff(const LockFile& oldLocks, const LockFile& newLocks);
+  static std::string diff(const lock_file_t& oldLocks, const lock_file_t& newLocks);
 
   /**
    * Check that every 'follows' input target exists.
@@ -87,7 +87,7 @@ struct LockFile {
   void check();
 };
 
-std::ostream& operator<<(std::ostream& stream, const LockFile& lock_file);
+std::ostream& operator<<(std::ostream& stream, const lock_file_t& lock_file);
 
 InputAttrPath parse_input_attr_path(std::string_view s);
 

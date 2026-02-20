@@ -51,14 +51,14 @@ struct cmd_shell_t : InstallablesCommand, MixEnvironment {
         ;
   }
 
-  void run(ref<Store> store, Installables&& installables) override {
+  void run(ref<store_t> store, Installables&& installables) override {
     auto state = getEvalState();
 
     auto out_paths = Installable::toStorePaths(getEvalStore(), store, Realise::Outputs,
                                               OperateOn::Output, installables);
 
-    boost::unordered_flat_set<StorePath, std::hash<StorePath>> done;
-    std::queue<StorePath> todo;
+    boost::unordered_flat_set<store_path_t, std::hash<store_path_t>> done;
+    std::queue<store_path_t> todo;
     for (auto& path : out_paths)
       todo.push(path);
 
@@ -81,7 +81,7 @@ struct cmd_shell_t : InstallablesCommand, MixEnvironment {
       auto prop_path = state->storeFS->resolve_symlinks(
           canon_path_t(store->printStorePath(path)) / "nix-support" / "propagated-user-env-packages");
       if (auto st = state->storeFS->maybe_lstat(prop_path);
-          st && st->type == SourceAccessor::t_regular) {
+          st && st->type == source_accessor_t::t_regular) {
         for (auto& p : tokenize_string<Paths>(state->storeFS->read_file(prop_path)))
           todo.push(store->parseStorePath(p));
       }

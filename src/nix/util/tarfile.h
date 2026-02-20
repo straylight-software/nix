@@ -10,7 +10,7 @@ namespace nix {
 
 struct tar_archive_t {
   struct archive* archive;
-  Source* source;
+  source_t* source;
   std::vector<unsigned char> buffer;
 
   void check(int err, const std::string& reason = "failed to extract archive (%s)");
@@ -18,11 +18,11 @@ struct tar_archive_t {
   explicit tar_archive_t(const std::filesystem::path& path);
 
   /// @brief Create a generic archive from source.
-  /// @param source - Input byte stream.
+  /// @param source - input_t byte stream.
   /// @param raw - Whether to enable raw file support. For more info look in docs:
   /// https://manpages.debian.org/stretch/libarchive-dev/archive_read_format.3.en.html
   /// @param compression_method - Primary compression method to use. std::nullopt means 'all'.
-  tar_archive_t(Source& source, bool raw = false,
+  tar_archive_t(source_t& source, bool raw = false,
              std::optional<std::string> compression_method = std::nullopt);
 
   /// Disable copy constructor. Explicitly default move assignment/constructor.
@@ -38,7 +38,7 @@ struct tar_archive_t {
 
 int get_archive_filter_code_by_name(const std::string& method);
 
-void unpack_tarfile(Source& source, const std::filesystem::path& dest_dir);
+void unpack_tarfile(source_t& source, const std::filesystem::path& dest_dir);
 
 void unpack_tarfile(const std::filesystem::path& tar_file, const std::filesystem::path& dest_dir);
 

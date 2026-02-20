@@ -25,11 +25,11 @@ std::string_view make_file_ingestion_prefix(file_ingestion_method_t m);
  * An enumeration of all the ways we can content-address store objects.
  *
  * Just the type of a content address. Combine with the hash itself, and
- * we have a `ContentAddress` as defined below. Combine that, in turn,
+ * we have a `content_address_t` as defined below. Combine that, in turn,
  * with info on references, and we have `ContentAddressWithReferences`,
  * as defined further below.
  */
-struct ContentAddressMethod {
+struct content_address_method_t {
   enum struct raw_t {
     /**
      * Calculate a store path using the `file_ingestion_method_t::flat`
@@ -64,7 +64,7 @@ struct ContentAddressMethod {
     /**
      * Calculate a store path using the `file_ingestion_method_t::flat`
      * hash of the file system objects, and references, but in a
-     * different way than `ContentAddressMethod::raw_t::flat`.
+     * different way than `content_address_method_t::raw_t::flat`.
      *
      * See `store-object/content-address.md#method-text` in the
      * manual.
@@ -74,17 +74,17 @@ struct ContentAddressMethod {
 
   raw_t raw;
 
-  bool operator==(const ContentAddressMethod&) const = default;
-  auto operator<=>(const ContentAddressMethod&) const = default;
+  bool operator==(const content_address_method_t&) const = default;
+  auto operator<=>(const content_address_method_t&) const = default;
 
-  MAKE_WRAPPER_CONSTRUCTOR(ContentAddressMethod);
+  MAKE_WRAPPER_CONSTRUCTOR(content_address_method_t);
 
   /**
    * Parse a content addressing method (name).
    *
    * The inverse of `render`.
    */
-  static ContentAddressMethod parse(std::string_view rawCaMethod);
+  static content_address_method_t parse(std::string_view rawCaMethod);
 
   /**
    * Render a content addressing method (name).
@@ -102,7 +102,7 @@ struct ContentAddressMethod {
    * prefix. On return, the remainder of the string after the
    * prefix.
    */
-  static ContentAddressMethod parsePrefix(std::string_view& m);
+  static content_address_method_t parsePrefix(std::string_view& m);
 
   /**
    * Render the prefix tag which indicates how the files wre ingested.
@@ -114,7 +114,7 @@ struct ContentAddressMethod {
   /**
    * Parse a content addressing method and hash algorithm.
    */
-  static std::pair<ContentAddressMethod, hash_algorithm_t> parseWithAlgo(std::string_view rawCaMethod);
+  static std::pair<content_address_method_t, hash_algorithm_t> parseWithAlgo(std::string_view rawCaMethod);
 
   /**
    * Render a content addressing method and hash algorithm in a
@@ -149,39 +149,39 @@ struct ContentAddressMethod {
  * - `FixedIngestionMethod`:
  *   `fixed:<r?>:<hash algorithm>:<hash of file contents>`
  */
-struct ContentAddress {
+struct content_address_t {
   /**
    * How the file system objects are serialized
    */
-  ContentAddressMethod method;
+  content_address_method_t method;
 
   /**
    * Hash of that serialization
    */
   Hash hash;
 
-  bool operator==(const ContentAddress&) const = default;
-  auto operator<=>(const ContentAddress&) const = default;
+  bool operator==(const content_address_t&) const = default;
+  auto operator<=>(const content_address_t&) const = default;
 
   /**
    * Compute the content-addressability assertion
-   * (`ValidPathInfo::ca`) for paths created by
-   * `Store::makeFixedOutputPath()` / `Store::add_to_store()`.
+   * (`valid_path_info_t::ca`) for paths created by
+   * `store_t::makeFixedOutputPath()` / `store_t::add_to_store()`.
    */
   std::string render() const;
 
-  static ContentAddress parse(std::string_view rawCa);
+  static content_address_t parse(std::string_view rawCa);
 
-  static std::optional<ContentAddress> parseOpt(std::string_view rawCaOpt);
+  static std::optional<content_address_t> parseOpt(std::string_view rawCaOpt);
 
   std::string printMethodAlgo() const;
 };
 
 /**
- * Render the `ContentAddress` if it exists to a string, return empty
+ * Render the `content_address_t` if it exists to a string, return empty
  * string otherwise.
  */
-std::string render_content_address(std::optional<ContentAddress> ca);
+std::string render_content_address(std::optional<content_address_t> ca);
 
 /*
  * full content address
@@ -195,11 +195,11 @@ std::string render_content_address(std::optional<ContentAddress> ca);
  * References to other store objects are tracked with store paths, self
  * references however are tracked with a boolean.
  */
-struct StoreReferences {
+struct store_references_t {
   /**
    * References to other store objects
    */
-  StorePathSet others;
+  store_path_set_t others;
 
   /**
    * Reference to this store object
@@ -218,9 +218,9 @@ struct StoreReferences {
    */
   size_t size() const;
 
-  bool operator==(const StoreReferences&) const = default;
+  bool operator==(const store_references_t&) const = default;
   // TODO libc++ 16 (used by darwin) missing `std::map::operator <=>`, can't do yet.
-  // auto operator <=>(const StoreReferences &) const = default;
+  // auto operator <=>(const store_references_t &) const = default;
 };
 
 // This matches the additional info that we need for makeTextPath
@@ -234,7 +234,7 @@ struct TextInfo {
    * References to other store objects only; self references
    * disallowed
    */
-  StorePathSet references;
+  store_path_set_t references;
 
   bool operator==(const TextInfo&) const = default;
   // TODO libc++ 16 (used by darwin) missing `std::map::operator <=>`, can't do yet.
@@ -255,7 +255,7 @@ struct FixedOutputInfo {
   /**
    * References to other store objects or this one.
    */
-  StoreReferences references;
+  store_references_t references;
 
   bool operator==(const FixedOutputInfo&) const = default;
   // TODO libc++ 16 (used by darwin) missing `std::map::operator <=>`, can't do yet.
@@ -263,9 +263,9 @@ struct FixedOutputInfo {
 };
 
 /**
- * Ways of content addressing but not a complete ContentAddress.
+ * Ways of content addressing but not a complete content_address_t.
  *
- * A ContentAddress without a Hash.
+ * A content_address_t without a Hash.
  */
 struct ContentAddressWithReferences {
   typedef std::variant<TextInfo, FixedOutputInfo> raw_t;
@@ -280,9 +280,9 @@ struct ContentAddressWithReferences {
 
   /**
    * Create a `ContentAddressWithReferences` from a mere
-   * `ContentAddress`, by claiming no references.
+   * `content_address_t`, by claiming no references.
    */
-  static ContentAddressWithReferences withoutRefs(const ContentAddress&) noexcept;
+  static ContentAddressWithReferences withoutRefs(const content_address_t&) noexcept;
 
   /**
    * Create a `ContentAddressWithReferences` from 3 parts:
@@ -297,21 +297,21 @@ struct ContentAddressWithReferences {
    * *partial function* and exceptions will be thrown for invalid
    * combinations.
    */
-  static ContentAddressWithReferences fromParts(ContentAddressMethod method, Hash hash,
-                                                StoreReferences refs);
+  static ContentAddressWithReferences fromParts(content_address_method_t method, Hash hash,
+                                                store_references_t refs);
 
-  ContentAddressMethod getMethod() const;
+  content_address_method_t getMethod() const;
 
   Hash getHash() const;
 };
 
 template <>
-struct json_avoids_null<ContentAddressMethod> : std::true_type {};
+struct json_avoids_null<content_address_method_t> : std::true_type {};
 
 template <>
-struct json_avoids_null<ContentAddress> : std::true_type {};
+struct json_avoids_null<content_address_t> : std::true_type {};
 
 } // namespace nix
 
-JSON_IMPL(nix::ContentAddressMethod)
-JSON_IMPL(nix::ContentAddress)
+JSON_IMPL(nix::content_address_method_t)
+JSON_IMPL(nix::content_address_t)

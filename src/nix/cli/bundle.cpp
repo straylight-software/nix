@@ -67,7 +67,7 @@ struct cmd_bundle_t : InstallableValueCommand {
     return res;
   }
 
-  void run(ref<Store> store, ref<InstallableValue> installable) override {
+  void run(ref<store_t> store, ref<InstallableValue> installable) override {
     auto eval_state = getEvalState();
 
     auto val = installable->toValue(*eval_state).first;
@@ -112,7 +112,7 @@ struct cmd_bundle_t : InstallableValueCommand {
     eval_state->waitForAllPaths();
 
     store->build_paths({
-        DerivedPath::Built{
+        derived_path_t::Built{
             .drv_path = makeConstantStorePathRef(drv_path),
             .outputs = OutputsSpec::All{},
         },

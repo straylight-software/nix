@@ -102,7 +102,7 @@ static cgroup_stats_t destroy_cgroup(const std::filesystem::path& cgroup, bool r
 
   int round = 1;
 
-  boost::unordered_flat_set<pid_t> pids_shown;
+  boost::unordered_flat_set<::pid_t> pids_shown;
 
   while (true) {
     auto pids = tokenize_string<std::vector<std::string>>(read_file(procs_file));
@@ -114,8 +114,8 @@ static cgroup_stats_t destroy_cgroup(const std::filesystem::path& cgroup, bool r
       throw Error("cannot kill cgroup '%s'", cgroup);
 
     for (auto& pid_s : pids) {
-      pid_t pid;
-      if (auto o = string2_int<pid_t>(pid_s))
+      ::pid_t pid;
+      if (auto o = string2_int<::pid_t>(pid_s))
         pid = *o;
       else
         throw Error("invalid pid '%s'", pid);
@@ -171,16 +171,16 @@ std::string get_root_cgroup() {
   return root_cgroup;
 }
 
-std::set<pid_t> get_pids_in_cgroup(const std::filesystem::path& cgroup) {
+std::set<::pid_t> get_pids_in_cgroup(const std::filesystem::path& cgroup) {
   if (!path_exists(cgroup))
     return {};
 
   auto procs_file = cgroup / "cgroup.procs";
 
-  std::set<pid_t> result;
+  std::set<::pid_t> result;
 
   for (auto& pidStr : tokenize_string<std::vector<std::string>>(read_file(procs_file))) {
-    if (auto o = string2_int<pid_t>(pidStr))
+    if (auto o = string2_int<::pid_t>(pidStr))
       result.insert(*o);
     else
       throw Error("invalid PID '%s'", pidStr);

@@ -16,7 +16,7 @@ struct PathSubstitutionGoal : public Goal {
   /**
    * The store path that should be realised through a substitute.
    */
-  StorePath store_path;
+  store_path_t store_path;
 
   /**
    * Whether to try to repair a valid path.
@@ -39,15 +39,15 @@ struct PathSubstitutionGoal : public Goal {
   /**
    * Content address for recomputing store path
    */
-  std::optional<ContentAddress> ca;
+  std::optional<content_address_t> ca;
 
-  done_t doneSuccess(BuildResult::Success::Status status);
+  done_t doneSuccess(build_result_t::Success::Status status);
 
-  done_t doneFailure(ExitCode result, BuildResult::Failure::Status status, std::string errorMsg);
+  done_t doneFailure(ExitCode result, build_result_t::Failure::Status status, std::string errorMsg);
 
 public:
-  PathSubstitutionGoal(const StorePath& store_path, Worker& worker, RepairFlag repair = NoRepair,
-                       std::optional<ContentAddress> ca = std::nullopt);
+  PathSubstitutionGoal(const store_path_t& store_path, Worker& worker, RepairFlag repair = NoRepair,
+                       std::optional<content_address_t> ca = std::nullopt);
   ~PathSubstitutionGoal();
 
   void timedOut(Error&& ex) override { unreachable(); };
@@ -61,7 +61,7 @@ public:
    */
   Co init();
   Co gotInfo();
-  Co tryToRun(StorePath subPath, nix::ref<Store> sub, std::shared_ptr<const ValidPathInfo> info,
+  Co tryToRun(store_path_t subPath, nix::ref<store_t> sub, std::shared_ptr<const valid_path_info_t> info,
               bool& substituterFailed);
   Co finished();
 

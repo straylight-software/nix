@@ -30,12 +30,12 @@ struct cmd_copy_sigs_t : StorePathsCommand {
         ;
   }
 
-  void run(ref<Store> store, StorePaths&& store_paths) override {
+  void run(ref<store_t> store, store_paths_t&& store_paths) override {
     if (substituter_uris.empty())
       throw UsageError("you must specify at least one substituter using '-s'");
 
     // FIXME: factor out commonality with MixVerify.
-    std::vector<ref<Store>> substituters;
+    std::vector<ref<store_t>> substituters;
     for (auto& s : substituter_uris)
       substituters.push_back(open_store(s));
 
@@ -109,7 +109,7 @@ struct cmd_sign_t : StorePathsCommand {
 
   std::string description() override { return "sign store paths with a local key"; }
 
-  void run(ref<Store> store, StorePaths&& store_paths) override {
+  void run(ref<store_t> store, store_paths_t&& store_paths) override {
     secret_key_t secret_key(read_file(secret_key_file));
     local_signer_t signer(std::move(secret_key));
 

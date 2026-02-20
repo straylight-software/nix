@@ -72,7 +72,7 @@ using sink_hook_t = void(const canon_path_t& name, tree_entry entry);
  * @throws if prefix not recognized
  */
 object_type_t
-parse_object_type(Source& source,
+parse_object_type(source_t& source,
                 const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
 
 /**
@@ -87,14 +87,14 @@ enum struct blob_mode_t : raw_mode_t {
   symlink = static_cast<raw_mode_t>(Mode::symlink),
 };
 
-void parse_blob(file_system_object_sink_t& sink, const canon_path_t& sink_path, Source& source,
+void parse_blob(file_system_object_sink_t& sink, const canon_path_t& sink_path, source_t& source,
                blob_mode_t blob_mode,
                const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
 
 /**
  * @param hash_algo must be `HashAlgo::SHA1` or `HashAlgo::SHA256` for now.
  */
-void parse_tree(file_system_object_sink_t& sink, const canon_path_t& sink_path, Source& source,
+void parse_tree(file_system_object_sink_t& sink, const canon_path_t& sink_path, source_t& source,
                hash_algorithm_t hash_algo, std::function<sink_hook_t> hook,
                const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
 
@@ -107,19 +107,19 @@ void parse_tree(file_system_object_sink_t& sink, const canon_path_t& sink_path, 
  *
  * @param hash_algo must be `HashAlgo::SHA1` or `HashAlgo::SHA256` for now.
  */
-void parse(file_system_object_sink_t& sink, const canon_path_t& sink_path, Source& source,
+void parse(file_system_object_sink_t& sink, const canon_path_t& sink_path, source_t& source,
            blob_mode_t root_mode_if_blob, hash_algorithm_t hash_algo, std::function<sink_hook_t> hook,
            const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
 
 /**
  * Assists with writing a `sink_hook_t` step (2).
  */
-std::optional<Mode> convert_mode(SourceAccessor::Type type);
+std::optional<Mode> convert_mode(source_accessor_t::Type type);
 
 /**
  * Simplified version of `sink_hook_t` for `restore`.
  *
- * Given a `Hash`, return a `SourceAccessor` and `canon_path_t` pointing to
+ * Given a `Hash`, return a `source_accessor_t` and `canon_path_t` pointing to
  * the file system object with that path.
  */
 using restore_hook_t = source_path_t(Hash);
@@ -129,7 +129,7 @@ using restore_hook_t = source_path_t(Hash);
  *
  * @param hash_algo must be `HashAlgo::SHA1` or `HashAlgo::SHA256` for now.
  */
-void restore(file_system_object_sink_t& sink, Source& source, hash_algorithm_t hash_algo,
+void restore(file_system_object_sink_t& sink, source_t& source, hash_algorithm_t hash_algo,
              std::function<restore_hook_t> hook);
 
 /**
@@ -137,13 +137,13 @@ void restore(file_system_object_sink_t& sink, Source& source, hash_algorithm_t h
  *
  * @param xp_settings for testing purposes
  */
-void dump_blob_prefix(uint64_t size, Sink& sink,
+void dump_blob_prefix(uint64_t size, sink_t& sink,
                     const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
 
 /**
  * Dumps a representation of a git tree to a sink
  */
-void dump_tree(const tree_t& entries, Sink& sink,
+void dump_tree(const tree_t& entries, sink_t& sink,
               const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
 
 /**
@@ -157,7 +157,7 @@ void dump_tree(const tree_t& entries, Sink& sink,
  */
 using dump_hook_t = tree_entry(const source_path_t& path);
 
-Mode dump(const source_path_t& path, Sink& sink, std::function<dump_hook_t> hook,
+Mode dump(const source_path_t& path, sink_t& sink, std::function<dump_hook_t> hook,
           path_filter_t& filter = default_path_filter,
           const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
 

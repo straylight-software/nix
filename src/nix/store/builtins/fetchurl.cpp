@@ -36,7 +36,7 @@ static void builtin_fetchurl(const BuiltinBuilderContext& ctx) {
   auto file_transfer = make_file_transfer();
 
   auto fetch = [&](const std::string& url) {
-    auto source = sink_to_source([&](Sink& sink) {
+    auto source = sink_to_source([&](sink_t& sink) {
       FileTransferRequest request(verbatim_url_t{url});
       request.decompress = false;
 
@@ -71,7 +71,7 @@ static void builtin_fetchurl(const BuiltinBuilderContext& ctx) {
   };
 
   /* Try the hashed mirrors first. */
-  auto dof = std::get_if<DerivationOutput::CAFixed>(&out->raw);
+  auto dof = std::get_if<derivation_output_t::CAFixed>(&out->raw);
   if (dof && dof->ca.method.getFileIngestionMethod() == file_ingestion_method_t::flat)
     for (auto hashedMirror : settings.hashedMirrors.get())
       try {

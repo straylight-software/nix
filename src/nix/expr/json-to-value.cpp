@@ -21,17 +21,17 @@ class json_sax_t : nlohmann::json_sax<json> {
     RootValue v;
 
   public:
-    virtual std::unique_ptr<json_state_t> resolve(EvalState&) {
+    virtual std::unique_ptr<json_state_t> resolve(eval_state_t&) {
       throw std::logic_error("tried to close toplevel json parser state");
     }
 
     explicit json_state_t(std::unique_ptr<json_state_t>&& p) : parent(std::move(p)) {}
 
-    explicit json_state_t(Value* v) : v(alloc_root_value(v)) {}
+    explicit json_state_t(value_t* v) : v(alloc_root_value(v)) {}
 
     json_state_t(json_state_t& p) = delete;
 
-    Value& value(EvalState& state) {
+    value_t& value(eval_state_t& state) {
       if (!v)
         v = alloc_root_value(state.allocValue());
       return **v;
@@ -46,7 +46,7 @@ class json_sax_t : nlohmann::json_sax<json> {
     using json_state_t::json_state_t;
     ValueMap attrs;
 
-    std::unique_ptr<json_state_t> resolve(EvalState& state) override {
+    std::unique_ptr<json_state_t> resolve(eval_state_t& state) override {
       auto attrs2 = state.buildBindings(attrs.size());
       for (auto& i : attrs)
         attrs2.insert(i.first, i.second);
@@ -57,7 +57,7 @@ class json_sax_t : nlohmann::json_sax<json> {
     void add() override { v = nullptr; }
 
   public:
-    void key(string_t& name, EvalState& state) {
+    void key(string_t& name, eval_state_t& state) {
       force_no_null_byte(name);
       attrs.insert_or_assign(state.symbols.create(name), &value(state));
     }
@@ -66,7 +66,7 @@ class json_sax_t : nlohmann::json_sax<json> {
   class json_list_state_t : public json_state_t {
     ValueVector values;
 
-    std::unique_ptr<json_state_t> resolve(EvalState& state) override {
+    std::unique_ptr<json_state_t> resolve(eval_state_t& state) override {
       auto list = state.buildList(values.size());
       for (const auto& [n, v2] : enumerate(list))
         v2 = values[n];
@@ -85,11 +85,11 @@ class json_sax_t : nlohmann::json_sax<json> {
     }
   };
 
-  EvalState& state;
+  eval_state_t& state;
   std::unique_ptr<json_state_t> rs;
 
 public:
-  json_sax_t(EvalState& state, Value& v) : state(state), rs(new json_state_t(&v)) {};
+  json_sax_t(eval_state_t& state, value_t& v) : state(state), rs(new json_state_t(&v)) {};
 
   bool null() override {
     rs->value(state).mkNull();
@@ -170,11 +170,11 @@ public:
   }
 };
 
-void parse_json(EvalState& state, const std::string_view& s_, Value& v) {
+void parse_json(eval_state_t& state, const std::string_view& s_, value_t& v) {
   json_sax_t parser(state, v);
   bool res = json::sax_parse(s_, &parser);
   if (!res)
-    throw JSONParseError("Invalid JSON Value");
+    throw JSONParseError("Invalid JSON value_t");
 }
 
 } // namespace nix

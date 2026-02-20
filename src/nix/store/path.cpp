@@ -8,9 +8,9 @@ namespace nix {
 void check_name(std::string_view name) {
   if (name.empty())
     throw BadStorePathName("name must not be empty");
-  if (name.size() > StorePath::MaxPathLen)
+  if (name.size() > store_path_t::MaxPathLen)
     throw BadStorePathName("name '%s' must be no longer than %d characters", name,
-                           StorePath::MaxPathLen);
+                           store_path_t::MaxPathLen);
   // See nameRegexStr for the definition
   if (name[0] == '.') {
     // check against "." and "..", followed by end or dash
@@ -41,7 +41,7 @@ static void check_path_name(std::string_view path, std::string_view name) {
   }
 }
 
-StorePath::StorePath(std::string_view _baseName) : base_name(_baseName) {
+store_path_t::store_path_t(std::string_view _baseName) : base_name(_baseName) {
   if (base_name.size() < HashLen + 1)
     throw BadStorePath("'%s' is too short to be a valid store path", base_name);
   for (auto c : hash_part())
@@ -51,24 +51,24 @@ StorePath::StorePath(std::string_view _baseName) : base_name(_baseName) {
   check_path_name(base_name, name());
 }
 
-StorePath::StorePath(const Hash& hash, std::string_view _name)
+store_path_t::store_path_t(const Hash& hash, std::string_view _name)
     : base_name((hash.to_string(hash_format_t::nix32, false) + "-").append(std::string(_name))) {
   check_path_name(base_name, name());
 }
 
-bool StorePath::is_derivation() const noexcept {
+bool store_path_t::is_derivation() const noexcept {
   return has_suffix(name(), drvExtension);
 }
 
-void StorePath::requireDerivation() const {
+void store_path_t::requireDerivation() const {
   if (!is_derivation())
     throw FormatError("store path '%s' is not a valid derivation path", to_string());
 }
 
-StorePath StorePath::dummy("ffffffffffffffffffffffffffffffff-x");
+store_path_t store_path_t::dummy("ffffffffffffffffffffffffffffffff-x");
 
-StorePath StorePath::random(std::string_view name) {
-  return StorePath(Hash::random(hash_algorithm_t::SHA1), name);
+store_path_t store_path_t::random(std::string_view name) {
+  return store_path_t(Hash::random(hash_algorithm_t::SHA1), name);
 }
 
 } // namespace nix
@@ -77,11 +77,11 @@ namespace nlohmann {
 
 using namespace nix;
 
-StorePath adl_serializer<StorePath>::from_json(const json& json) {
-  return StorePath{get_string(json)};
+store_path_t adl_serializer<store_path_t>::from_json(const json& json) {
+  return store_path_t{get_string(json)};
 }
 
-void adl_serializer<StorePath>::to_json(json& json, const StorePath& store_path) {
+void adl_serializer<store_path_t>::to_json(json& json, const store_path_t& store_path) {
   json = store_path.to_string();
 }
 

@@ -1,6 +1,8 @@
 #pragma once
 ///@file
 
+#include <nlohmann/json.hpp>
+
 #include "nix/util/fs-sink.h"
 #include "nix/util/json-impls.h"
 #include "nix/util/source-path.h"
@@ -79,7 +81,7 @@ struct variant_t {
 
   MAKE_WRAPPER_CONSTRUCTOR(variant_t);
 
-  SourceAccessor::stat_t lstat() const;
+  source_accessor_t::stat_t lstat() const;
 };
 
 template <typename Child>
@@ -102,7 +104,7 @@ inline std::strong_ordering variant_t<RegularContents, recur>::operator<=>(
 /**
  * An source accessor for an in-memory file system.
  */
-struct memory_source_accessor_t : virtual SourceAccessor {
+struct memory_source_accessor_t : virtual source_accessor_t {
   using file_t = fso::variant_t<std::string, true>;
 
   std::optional<file_t> root;
@@ -144,7 +146,7 @@ struct memory_sink_t : file_system_object_sink_t {
   void create_directory(const canon_path_t& path) override;
 
   void create_regular_file(const canon_path_t& path,
-                         std::function<void(create_regular_file_sink_t&)>) override;
+                           std::function<void(create_regular_file_sink_t&)>) override;
 
   void create_symlink(const canon_path_t& path, const std::string& target) override;
 };
@@ -181,15 +183,112 @@ JSON_IMPL_INNER(ARG);
 #undef ARG
 
 template <>
-JSON_IMPL_INNER(fso::symlink);
+struct adl_serializer<fso::symlink> {
+  static fso::symlink from_json(const json& j) {
+    fso::symlink s;
+    s.target = j.value("target", std::string{});
+    return s;
+  }
+  static void to_json(json& j, const fso::symlink& s) {
+    j = json::object();
+    j["type"] = "symlink";
+    j["target"] = s.target;
+  }
+};
 
 template <>
-JSON_IMPL_INNER(fso::opaque_t);
+struct adl_serializer<fso::opaque_t> {
+  static fso::opaque_t from_json(const json&) { return fso::opaque_t{}; }
+  static void to_json(json& j, const fso::opaque_t&) {
+    j = json::object();
+    j["type"] = "unknown";
+  }
+};
 
 #define ARG fso::variant_t<RegularContents, recur>
 template <typename RegularContents, bool recur>
 JSON_IMPL_INNER(ARG);
 #undef ARG
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Template implementations for JSON serialization
+// ═══════════════════════════════════════════════════════════════════════════════
+
+template <typename RegularContents>
+fso::regular<RegularContents>
+adl_serializer<fso::regular<RegularContents>>::from_json(const json& j) {
+  fso::regular<RegularContents> r;
+  r.executable = j.value("executable", false);
+  if constexpr (std::is_same_v<RegularContents, std::string>) {
+    r.contents = j.value("contents", std::string{});
+  }
+  return r;
+}
+
+template <typename RegularContents>
+void adl_serializer<fso::regular<RegularContents>>::to_json(
+    json& j, const fso::regular<RegularContents>& r) {
+  j = json::object();
+  j["type"] = "regular";
+  if (r.executable)
+    j["executable"] = true;
+  if constexpr (std::is_same_v<RegularContents, std::string>) {
+    if (!r.contents.empty())
+      j["contents"] = r.contents;
+  }
+}
+
+template <typename Child>
+fso::directory_t<Child> adl_serializer<fso::directory_t<Child>>::from_json(const json& j) {
+  fso::directory_t<Child> d;
+  if (j.contains("entries") && j["entries"].is_object()) {
+    for (auto& [name, child] : j["entries"].items()) {
+      d.entries[name] = child.template get<Child>();
+    }
+  }
+  return d;
+}
+
+template <typename Child>
+void adl_serializer<fso::directory_t<Child>>::to_json(json& j, const fso::directory_t<Child>& d) {
+  j = json::object();
+  j["type"] = "directory";
+  if (!d.entries.empty()) {
+    json entries = json::object();
+    for (const auto& [name, child] : d.entries) {
+      json child_json;
+      adl_serializer<Child>::to_json(child_json, child);
+      entries[name] = std::move(child_json);
+    }
+    j["entries"] = std::move(entries);
+  }
+}
+
+template <typename RegularContents, bool recur>
+fso::variant_t<RegularContents, recur>
+adl_serializer<fso::variant_t<RegularContents, recur>>::from_json(const json& j) {
+  using V = fso::variant_t<RegularContents, recur>;
+  auto type = j.value("type", std::string{});
+  if (type == "regular") {
+    return V{j.template get<typename V::regular>()};
+  } else if (type == "directory") {
+    return V{j.template get<typename V::directory_t>()};
+  } else if (type == "symlink") {
+    return V{j.template get<typename V::symlink>()};
+  }
+  throw std::runtime_error("Unknown FSO type: " + type);
+}
+
+template <typename RegularContents, bool recur>
+void adl_serializer<fso::variant_t<RegularContents, recur>>::to_json(
+    json& j, const fso::variant_t<RegularContents, recur>& v) {
+  std::visit(
+      [&j](const auto& inner) {
+        using T = std::decay_t<decltype(inner)>;
+        adl_serializer<T>::to_json(j, inner);
+      },
+      v.raw);
+}
 
 } // namespace nlohmann
 

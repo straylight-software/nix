@@ -27,7 +27,7 @@ struct ServeProto::BasicClientConnection {
    *
    * @param host Just used to add context to thrown exceptions.
    */
-  static ServeProto::Version handshake(buffered_sink_t& to, Source& from,
+  static ServeProto::Version handshake(buffered_sink_t& to, source_t& from,
                                        ServeProto::Version localVersion, std::string_view host);
 
   /**
@@ -60,27 +60,27 @@ struct ServeProto::BasicClientConnection {
     };
   }
 
-  StorePathSet queryValidPaths(const StoreDirConfig& remoteStore, bool lock,
-                               const StorePathSet& paths, SubstituteFlag maybeSubstitute);
+  store_path_set_t queryValidPaths(const store_dir_config_t& remoteStore, bool lock,
+                               const store_path_set_t& paths, SubstituteFlag maybeSubstitute);
 
-  std::map<StorePath, UnkeyedValidPathInfo> queryPathInfos(const StoreDirConfig& store,
-                                                           const StorePathSet& paths);
+  std::map<store_path_t, UnkeyedValidPathInfo> queryPathInfos(const store_dir_config_t& store,
+                                                           const store_path_set_t& paths);
   ;
 
-  void putBuildDerivationRequest(const StoreDirConfig& store, const StorePath& drv_path,
-                                 const BasicDerivation& drv,
+  void putBuildDerivationRequest(const store_dir_config_t& store, const store_path_t& drv_path,
+                                 const basic_derivation_t& drv,
                                  const ServeProto::BuildOptions& options);
 
   /**
    * Get the response, must be paired with
    * `putBuildDerivationRequest`.
    */
-  BuildResult getBuildDerivationResponse(const StoreDirConfig& store);
+  build_result_t getBuildDerivationResponse(const store_dir_config_t& store);
 
-  void nar_from_path(const StoreDirConfig& store, const StorePath& path,
-                   std::function<void(Source&)> fun);
+  void nar_from_path(const store_dir_config_t& store, const store_path_t& path,
+                   std::function<void(source_t&)> fun);
 
-  void import_paths(const StoreDirConfig& store, std::function<void(Sink&)> fun);
+  void import_paths(const store_dir_config_t& store, std::function<void(sink_t&)> fun);
 };
 
 struct ServeProto::BasicServerConnection {
@@ -98,7 +98,7 @@ struct ServeProto::BasicServerConnection {
    *
    * @param localVersion Our version which is sent over
    */
-  static ServeProto::Version handshake(buffered_sink_t& to, Source& from,
+  static ServeProto::Version handshake(buffered_sink_t& to, source_t& from,
                                        ServeProto::Version localVersion);
 };
 

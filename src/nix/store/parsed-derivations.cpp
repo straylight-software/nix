@@ -48,13 +48,13 @@ static std::regex sh_var_name("[A-Za-z_][A-Za-z0-9_]*");
  * Write a JSON representation of store object metadata, such as the
  * hash and the references.
  *
- * @note Do *not* use `ValidPathInfo::to_json` because this function is
+ * @note Do *not* use `valid_path_info_t::to_json` because this function is
  * subject to stronger stability requirements since it is used to
  * prepare build environments. Perhaps someday we'll have a versionining
  * mechanism to allow this to evolve again and get back in sync, but for
  * now we must not change - not even extend - the behavior.
  */
-static nlohmann::json path_info_to_json(Store& store, const StorePathSet& store_paths) {
+static nlohmann::json path_info_to_json(store_t& store, const store_path_set_t& store_paths) {
   using nlohmann::json;
 
   nlohmann::json::array_t json_list = json::array();
@@ -83,7 +83,7 @@ static nlohmann::json path_info_to_json(Store& store, const StorePathSet& store_
 
     jsonPath["closureSize"] = ({
       uint64_t total_nar_size = 0;
-      StorePathSet closure;
+      store_path_set_t closure;
       store.computeFSClosure(info->path, closure, false, false);
       for (auto& p : closure) {
         auto info = store.queryPathInfo(p);
@@ -96,7 +96,7 @@ static nlohmann::json path_info_to_json(Store& store, const StorePathSet& store_
 }
 
 nlohmann::json::object_t StructuredAttrs::prepareStructuredAttrs(
-    Store& store, const DerivationOptions<StorePath>& drv_options, const StorePathSet& inputPaths,
+    store_t& store, const derivation_options_t<store_path_t>& drv_options, const store_path_set_t& inputPaths,
     const DerivationOutputs& outputs) const {
   /* Copy to then modify */
   auto json = structured_attrs;

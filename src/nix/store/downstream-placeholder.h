@@ -10,21 +10,21 @@ namespace nix {
 
 /**
  * A reference is either to a to-be-registered output (by name),
- * or to an already-registered store object (by `Input`).
+ * or to an already-registered store object (by `input_t`).
  *
  * `Ref<SingleDerivedPath` is a representation of something that can be
  * turned into a placeholder. (regular own-output placeholder in the
  * first case, `DownstreamPlaceholder` in the second case.)
  */
-template <typename Input>
-using DrvRef = std::variant<OutputName, Input>;
+template <typename input_t>
+using DrvRef = std::variant<OutputName, input_t>;
 
 /**
  * Downstream Placeholders are opaque and almost certainly unique values
  * used to allow derivations to refer to store objects which are yet to
  * be built and for we do not yet have store paths for.
  *
- * They correspond to `DerivedPaths` that are not `DerivedPath::opaque_t`,
+ * They correspond to `DerivedPaths` that are not `derived_path_t::opaque_t`,
  * except for the cases involving input addressing or fixed outputs
  * where we do know a store path for the derivation output in advance.
  *
@@ -34,10 +34,10 @@ using DrvRef = std::variant<OutputName, Input>;
  * path to store object is) is unlikely to capture other stuff it
  * shouldn't.
  *
- * We use them with `Derivation`: the `render()` method is called to
+ * We use them with `derivation_t`: the `render()` method is called to
  * render an opaque string which can be used in the derivation, and the
  * resolving logic can substitute those strings for store paths when
- * resolving `Derivation.input_drvs` to `BasicDerivation.input_srcs`.
+ * resolving `derivation_t.input_drvs` to `basic_derivation_t.input_srcs`.
  */
 class DownstreamPlaceholder {
   /**
@@ -68,7 +68,7 @@ public:
    * @param xp_settings Stop-gap to avoid globals during unit tests.
    */
   static DownstreamPlaceholder
-  unknownCaOutput(const StorePath& drv_path, OutputNameView output_name,
+  unknownCaOutput(const store_path_t& drv_path, OutputNameView output_name,
                   const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
 
   /**
@@ -107,7 +107,7 @@ struct adl_serializer<nix::DrvRef<Item>> {
   static void to_json(json& json, const nix::DrvRef<Item>& t);
 };
 
-extern template struct adl_serializer<nix::DrvRef<nix::StorePath>>;
+extern template struct adl_serializer<nix::DrvRef<nix::store_path_t>>;
 extern template struct adl_serializer<nix::DrvRef<nix::SingleDerivedPath>>;
 
 } // namespace nlohmann

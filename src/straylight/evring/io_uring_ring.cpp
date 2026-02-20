@@ -5,7 +5,6 @@
 
 #include <fcntl.h>
 #include <liburing.h>
-#include <linux/stat.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <sys/stat.h>

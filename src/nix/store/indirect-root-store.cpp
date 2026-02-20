@@ -14,7 +14,7 @@ void IndirectRootStore::makeSymlink(const Path& link, const Path& target) {
   std::filesystem::rename(tempLink, link);
 }
 
-Path IndirectRootStore::addPermRoot(const StorePath& store_path, const Path& _gcRoot) {
+Path IndirectRootStore::addPermRoot(const store_path_t& store_path, const Path& _gcRoot) {
   Path gc_root(canon_path(_gcRoot));
 
   if (isInStore(gc_root))

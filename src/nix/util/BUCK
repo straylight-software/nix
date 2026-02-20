@@ -188,7 +188,8 @@ cxx_library(
 
     visibility = ["PUBLIC"],
 
-    deps = [
+    # Use exported_deps so transitive deps are available to dependents (tests, etc.)
+    exported_deps = [
         "//third_party:boost",
         "//third_party:nlohmann_json",
         "//third_party:openssl",

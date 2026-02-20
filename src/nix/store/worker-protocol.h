@@ -26,14 +26,14 @@ namespace nix {
 #define STDERR_STOP_ACTIVITY 0x53544f50
 #define STDERR_RESULT 0x52534c54
 
-struct StoreDirConfig;
-struct Source;
+struct store_dir_config_t;
+struct source_t;
 
 // items being serialised
-struct DerivedPath;
-struct BuildResult;
-struct KeyedBuildResult;
-struct ValidPathInfo;
+struct derived_path_t;
+struct build_result_t;
+struct keyed_build_result_t;
+struct valid_path_info_t;
 struct UnkeyedValidPathInfo;
 enum BuildMode : uint8_t;
 enum TrustedFlag : bool;
@@ -63,7 +63,7 @@ struct WorkerProto {
    * canonical serializers below.
    */
   struct ReadConn {
-    Source& from;
+    source_t& from;
     Version version;
     bool shortStorePaths = false;
   };
@@ -73,7 +73,7 @@ struct WorkerProto {
    * canonical serializers below.
    */
   struct WriteConn {
-    Sink& to;
+    sink_t& to;
     Version version;
     bool shortStorePaths = false;
   };
@@ -81,7 +81,7 @@ struct WorkerProto {
   /**
    * Stripped down serialization logic suitable for sharing with Hydra.
    *
-   * @todo remove once Hydra uses Store abstraction consistently.
+   * @todo remove once Hydra uses store_t abstraction consistently.
    */
   struct BasicConnection;
   struct BasicClientConnection;
@@ -118,8 +118,8 @@ struct WorkerProto {
   // This makes for a quicker debug cycle, as desired.
 #if 0
     {
-        static T read(const StoreDirConfig & store, ReadConn conn);
-        static void write(const StoreDirConfig & store, WriteConn conn, const T & t);
+        static T read(const store_dir_config_t & store, ReadConn conn);
+        static void write(const store_dir_config_t & store, WriteConn conn, const T & t);
     };
 #endif
 
@@ -128,7 +128,7 @@ struct WorkerProto {
    * infer the type instead of having to write it down explicitly.
    */
   template <typename T>
-  static void write(const StoreDirConfig& store, WriteConn conn, const T& t) {
+  static void write(const store_dir_config_t& store, WriteConn conn, const T& t) {
     WorkerProto::Serialise<T>::write(store, conn, t);
   }
 
@@ -219,7 +219,7 @@ struct WorkerProto::ClientHandshakeInfo {
  * @todo Switch to using `WorkerProto::Serialise` instead probably. But
  * this was not done at this time so there would be less churn.
  */
-inline Sink& operator<<(Sink& sink, WorkerProto::Op op) {
+inline sink_t& operator<<(sink_t& sink, WorkerProto::Op op) {
   return sink << static_cast<uint64_t>(op);
 }
 
@@ -244,18 +244,18 @@ inline std::ostream& operator<<(std::ostream& s, WorkerProto::Op op) {
  */
 #define DECLARE_WORKER_SERIALISER(T)                                                               \
   struct WorkerProto::Serialise<T> {                                                               \
-    static T read(const StoreDirConfig& store, WorkerProto::ReadConn conn);                        \
-    static void write(const StoreDirConfig& store, WorkerProto::WriteConn conn, const T& t);       \
+    static T read(const store_dir_config_t& store, WorkerProto::ReadConn conn);                        \
+    static void write(const store_dir_config_t& store, WorkerProto::WriteConn conn, const T& t);       \
   };
 
 template <>
-DECLARE_WORKER_SERIALISER(DerivedPath);
+DECLARE_WORKER_SERIALISER(derived_path_t);
 template <>
-DECLARE_WORKER_SERIALISER(BuildResult);
+DECLARE_WORKER_SERIALISER(build_result_t);
 template <>
-DECLARE_WORKER_SERIALISER(KeyedBuildResult);
+DECLARE_WORKER_SERIALISER(keyed_build_result_t);
 template <>
-DECLARE_WORKER_SERIALISER(ValidPathInfo);
+DECLARE_WORKER_SERIALISER(valid_path_info_t);
 template <>
 DECLARE_WORKER_SERIALISER(UnkeyedValidPathInfo);
 template <>

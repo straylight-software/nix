@@ -109,10 +109,10 @@ private:
   DerivedPathMap<std::map<OutputsSpec, std::weak_ptr<DerivationTrampolineGoal>>>
       derivationTrampolineGoals;
 
-  std::map<StorePath, std::map<OutputName, std::weak_ptr<DerivationGoal>>> derivationGoals;
-  std::map<StorePath, std::weak_ptr<DerivationResolutionGoal>> derivationResolutionGoals;
-  std::map<StorePath, std::weak_ptr<DerivationBuildingGoal>> derivationBuildingGoals;
-  std::map<StorePath, std::weak_ptr<PathSubstitutionGoal>> substitutionGoals;
+  std::map<store_path_t, std::map<OutputName, std::weak_ptr<DerivationGoal>>> derivationGoals;
+  std::map<store_path_t, std::weak_ptr<DerivationResolutionGoal>> derivationResolutionGoals;
+  std::map<store_path_t, std::weak_ptr<DerivationBuildingGoal>> derivationBuildingGoals;
+  std::map<store_path_t, std::weak_ptr<PathSubstitutionGoal>> substitutionGoals;
   std::map<DrvOutput, std::weak_ptr<DrvOutputSubstitutionGoal>> drvOutputSubstitutionGoals;
 
   /**
@@ -133,7 +133,7 @@ private:
   /**
    * cache_t for pathContentsGood().
    */
-  std::map<StorePath, bool> pathContentsGoodCache;
+  std::map<store_path_t, bool> pathContentsGoodCache;
 
 public:
   const activity_t act;
@@ -141,7 +141,7 @@ public:
   const activity_t actSubstitutions;
 
   /**
-   * Set if at least one derivation had a BuildError (i.e. permanent
+   * Set if at least one derivation had a build_error_t (i.e. permanent
    * failure).
    */
   bool permanentFailure;
@@ -165,8 +165,8 @@ public:
   auto_close_fd_t ioport;
 #endif
 
-  Store& store;
-  Store& eval_store;
+  store_t& store;
+  store_t& eval_store;
 
 #ifndef _WIN32 // TODO Enable building on Windows
   std::unique_ptr<HookInstance> hook;
@@ -192,7 +192,7 @@ public:
    */
   bool tryBuildHook = true;
 
-  Worker(Store& store, Store& eval_store);
+  Worker(store_t& store, store_t& eval_store);
   ~Worker();
 
   /**
@@ -203,8 +203,8 @@ public:
    * @ref DerivationGoal "derivation goal"
    */
 private:
-  template <class G, typename... Args>
-  std::shared_ptr<G> initGoalIfNeeded(std::weak_ptr<G>& goal_weak, Args&&... args);
+  template <class G, typename... args_t>
+  std::shared_ptr<G> initGoalIfNeeded(std::weak_ptr<G>& goal_weak, args_t&&... args);
 
   std::shared_ptr<DerivationTrampolineGoal>
   makeDerivationTrampolineGoal(ref<const SingleDerivedPath> drvReq,
@@ -212,26 +212,26 @@ private:
 
 public:
   std::shared_ptr<DerivationTrampolineGoal>
-  makeDerivationTrampolineGoal(const StorePath& drv_path, const OutputsSpec& wantedOutputs,
-                               const Derivation& drv, BuildMode build_mode);
+  makeDerivationTrampolineGoal(const store_path_t& drv_path, const OutputsSpec& wantedOutputs,
+                               const derivation_t& drv, BuildMode build_mode);
 
-  std::shared_ptr<DerivationGoal> makeDerivationGoal(const StorePath& drv_path,
-                                                     const Derivation& drv,
+  std::shared_ptr<DerivationGoal> makeDerivationGoal(const store_path_t& drv_path,
+                                                     const derivation_t& drv,
                                                      const OutputName& wantedOutput,
                                                      BuildMode build_mode, bool storeDerivation);
 
   /**
    * @ref DerivationResolutionGoal "derivation resolution goal"
    */
-  std::shared_ptr<DerivationResolutionGoal> makeDerivationResolutionGoal(const StorePath& drv_path,
-                                                                         const Derivation& drv,
+  std::shared_ptr<DerivationResolutionGoal> makeDerivationResolutionGoal(const store_path_t& drv_path,
+                                                                         const derivation_t& drv,
                                                                          BuildMode build_mode);
 
   /**
    * @ref DerivationBuildingGoal "derivation building goal"
    */
-  std::shared_ptr<DerivationBuildingGoal> makeDerivationBuildingGoal(const StorePath& drv_path,
-                                                                     const Derivation& drv,
+  std::shared_ptr<DerivationBuildingGoal> makeDerivationBuildingGoal(const store_path_t& drv_path,
+                                                                     const derivation_t& drv,
                                                                      BuildMode build_mode,
                                                                      bool storeDerivation);
 
@@ -239,17 +239,17 @@ public:
    * @ref PathSubstitutionGoal "substitution goal"
    */
   std::shared_ptr<PathSubstitutionGoal>
-  makePathSubstitutionGoal(const StorePath& store_path, RepairFlag repair = NoRepair,
-                           std::optional<ContentAddress> ca = std::nullopt);
+  makePathSubstitutionGoal(const store_path_t& store_path, RepairFlag repair = NoRepair,
+                           std::optional<content_address_t> ca = std::nullopt);
   std::shared_ptr<DrvOutputSubstitutionGoal> makeDrvOutputSubstitutionGoal(const DrvOutput& id);
 
   /**
-   * Make a goal corresponding to the `DerivedPath`.
+   * Make a goal corresponding to the `derived_path_t`.
    *
-   * It will be a `DerivationGoal` for a `DerivedPath::Built` or
-   * a `PathSubstitutionGoal` for a `DerivedPath::opaque_t`.
+   * It will be a `DerivationGoal` for a `derived_path_t::Built` or
+   * a `PathSubstitutionGoal` for a `derived_path_t::opaque_t`.
    */
-  GoalPtr makeGoal(const DerivedPath& req, BuildMode build_mode = bmNormal);
+  GoalPtr makeGoal(const derived_path_t& req, BuildMode build_mode = bmNormal);
 
   /**
    * Remove a dead goal.
@@ -344,9 +344,9 @@ public:
    * Check whether the given valid path exists and has the right
    * contents.
    */
-  bool pathContentsGood(const StorePath& path);
+  bool pathContentsGood(const store_path_t& path);
 
-  void markContentsGood(const StorePath& path);
+  void markContentsGood(const store_path_t& path);
 
   void updateProgress() {
     actDerivations.progress(doneBuilds, expectedBuilds + doneBuilds, runningBuilds, failedBuilds);

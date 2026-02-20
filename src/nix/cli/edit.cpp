@@ -22,7 +22,7 @@ struct cmd_edit_t : InstallableValueCommand {
 
   category_t category() override { return catSecondary; }
 
-  void run(ref<Store> store, ref<InstallableValue> installable) override {
+  void run(ref<store_t> store, ref<InstallableValue> installable) override {
     auto state = getEvalState();
 
     const auto [file, line] = [&] {

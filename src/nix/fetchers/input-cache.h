@@ -7,24 +7,24 @@ struct settings_t;
 
 struct InputCache {
   struct CachedResult {
-    ref<SourceAccessor> accessor;
-    Input resolved_input;
-    Input lockedInput;
+    ref<source_accessor_t> accessor;
+    input_t resolved_input;
+    input_t lockedInput;
     Attrs extra_attrs;
   };
 
-  CachedResult get_accessor(const settings_t& settings, Store& store, const Input& original_input,
+  CachedResult get_accessor(const settings_t& settings, store_t& store, const input_t& original_input,
                            UseRegistries use_registries);
 
   struct CachedInput {
-    Input lockedInput;
-    ref<SourceAccessor> accessor;
+    input_t lockedInput;
+    ref<source_accessor_t> accessor;
     Attrs extra_attrs;
   };
 
-  virtual std::optional<CachedInput> lookup(const Input& original_input) const = 0;
+  virtual std::optional<CachedInput> lookup(const input_t& original_input) const = 0;
 
-  virtual void upsert(Input key, CachedInput cached_input) = 0;
+  virtual void upsert(input_t key, CachedInput cached_input) = 0;
 
   virtual void clear() = 0;
 

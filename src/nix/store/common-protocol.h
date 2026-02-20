@@ -5,14 +5,14 @@
 
 namespace nix {
 
-struct StoreDirConfig;
-struct Source;
+struct store_dir_config_t;
+struct source_t;
 
 // items being serialized
-class StorePath;
-struct ContentAddress;
+class store_path_t;
+struct content_address_t;
 struct DrvOutput;
-struct Realisation;
+struct realisation_t;
 
 /**
  * Shared serializers between the worker protocol, serve protocol, and a
@@ -27,7 +27,7 @@ struct CommonProto {
    * canonical serializers below.
    */
   struct ReadConn {
-    Source& from;
+    source_t& from;
     bool shortStorePaths = false;
   };
 
@@ -36,7 +36,7 @@ struct CommonProto {
    * canonical serializers below.
    */
   struct WriteConn {
-    Sink& to;
+    sink_t& to;
     bool shortStorePaths = false;
   };
 
@@ -48,27 +48,27 @@ struct CommonProto {
    * infer the type instead of having to write it down explicitly.
    */
   template <typename T>
-  static void write(const StoreDirConfig& store, WriteConn conn, const T& t) {
+  static void write(const store_dir_config_t& store, WriteConn conn, const T& t) {
     CommonProto::Serialise<T>::write(store, conn, t);
   }
 };
 
 #define DECLARE_COMMON_SERIALISER(T)                                                               \
   struct CommonProto::Serialise<T> {                                                               \
-    static T read(const StoreDirConfig& store, CommonProto::ReadConn conn);                        \
-    static void write(const StoreDirConfig& store, CommonProto::WriteConn conn, const T& str);     \
+    static T read(const store_dir_config_t& store, CommonProto::ReadConn conn);                        \
+    static void write(const store_dir_config_t& store, CommonProto::WriteConn conn, const T& str);     \
   }
 
 template <>
 DECLARE_COMMON_SERIALISER(std::string);
 template <>
-DECLARE_COMMON_SERIALISER(StorePath);
+DECLARE_COMMON_SERIALISER(store_path_t);
 template <>
-DECLARE_COMMON_SERIALISER(ContentAddress);
+DECLARE_COMMON_SERIALISER(content_address_t);
 template <>
 DECLARE_COMMON_SERIALISER(DrvOutput);
 template <>
-DECLARE_COMMON_SERIALISER(Realisation);
+DECLARE_COMMON_SERIALISER(realisation_t);
 
 #define COMMA_ ,
 template <typename T>
@@ -97,8 +97,8 @@ DECLARE_COMMON_SERIALISER(std::map<K COMMA_ V>);
  * specializations may not be allowed.
  */
 template <>
-DECLARE_COMMON_SERIALISER(std::optional<StorePath>);
+DECLARE_COMMON_SERIALISER(std::optional<store_path_t>);
 template <>
-DECLARE_COMMON_SERIALISER(std::optional<ContentAddress>);
+DECLARE_COMMON_SERIALISER(std::optional<content_address_t>);
 
 } // namespace nix

@@ -179,7 +179,7 @@ struct chroot_derivation_builder_t : virtual derivation_builder_impl_t
         auto_del_chroot.reset(); /* this runs the destructor */
     }
 
-    std::pair<Path, Path> add_dependency_prep(const StorePath & path)
+    std::pair<Path, Path> add_dependency_prep(const store_path_t & path)
     {
         derivation_builder_impl_t::add_dependency_impl(path);
 

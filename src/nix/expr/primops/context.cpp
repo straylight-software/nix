@@ -6,8 +6,8 @@
 
 namespace nix {
 
-static void prim_unsafe_discard_string_context(EvalState& state, const pos_idx_t pos, Value** args,
-                                            Value& v) {
+static void prim_unsafe_discard_string_context(eval_state_t& state, const pos_idx_t pos, value_t** args,
+                                            value_t& v) {
   NixStringContext context, filtered;
 
   auto s = state.coerceToString(
@@ -37,7 +37,7 @@ bool has_context(const NixStringContext& context) {
   return false;
 }
 
-static void prim_has_context(EvalState& state, const pos_idx_t pos, Value** args, Value& v) {
+static void prim_has_context(eval_state_t& state, const pos_idx_t pos, value_t** args, value_t& v) {
   NixStringContext context;
   state.forceString(*args[0], context, pos,
                     "while evaluating the argument passed to builtins.hasContext");
@@ -66,8 +66,8 @@ static RegisterPrimOp primop_has_context({.name = "__hasContext",
     )",
                                          .fun = prim_has_context});
 
-static void prim_unsafe_discard_output_dependency(EvalState& state, const pos_idx_t pos, Value** args,
-                                               Value& v) {
+static void prim_unsafe_discard_output_dependency(eval_state_t& state, const pos_idx_t pos, value_t** args,
+                                               value_t& v) {
   NixStringContext context;
   auto s = state.coerceToString(
       pos, *args[0], context,
@@ -109,8 +109,8 @@ static RegisterPrimOp
     )",
                                           .fun = prim_unsafe_discard_output_dependency});
 
-static void prim_add_drv_output_dependencies(EvalState& state, const pos_idx_t pos, Value** args,
-                                          Value& v) {
+static void prim_add_drv_output_dependencies(eval_state_t& state, const pos_idx_t pos, value_t** args,
+                                          value_t& v) {
   NixStringContext context;
   auto s = state.coerceToString(
       pos, *args[0], context,
@@ -204,7 +204,7 @@ static RegisterPrimOp primop_add_drv_output_dependencies({.name = "__addDrvOutpu
    Note that for a given path any combination of the above attributes
    may be present.
 */
-static void prim_get_context(EvalState& state, const pos_idx_t pos, Value** args, Value& v) {
+static void prim_get_context(eval_state_t& state, const pos_idx_t pos, value_t** args, value_t& v) {
   struct context_info {
     bool path = false;
     bool all_outputs = false;
@@ -214,7 +214,7 @@ static void prim_get_context(EvalState& state, const pos_idx_t pos, Value** args
   NixStringContext context;
   state.forceString(*args[0], context, pos,
                     "while evaluating the argument passed to builtins.getContext");
-  auto context_infos = std::map<StorePath, context_info>();
+  auto context_infos = std::map<store_path_t, context_info>();
   for (auto&& i : context) {
     std::visit(
         overloaded{
@@ -283,7 +283,7 @@ static RegisterPrimOp primop_get_context({.name = "__getContext",
    See the commentary above getContext for details of the
    context representation.
 */
-static void prim_append_context(EvalState& state, const pos_idx_t pos, Value** args, Value& v) {
+static void prim_append_context(eval_state_t& state, const pos_idx_t pos, value_t** args, value_t& v) {
   NixStringContext context;
   auto orig =
       state.forceString(*args[0], context, no_pos,

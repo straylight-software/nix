@@ -34,7 +34,7 @@ struct OptimiseStats {
 struct LocalBuildStoreConfig : virtual LocalFSStoreConfig {
 private:
   /**
-    Input for computing the build directory. See `getBuildDir()`.
+    input_t for computing the build directory. See `getBuildDir()`.
    */
   setting_t<std::optional<Path>> build_dir{this, std::nullopt, "build-dir",
                                         R"(
@@ -64,12 +64,12 @@ public:
   Path getBuildDir() const;
 };
 
-struct LocalStoreConfig : std::enable_shared_from_this<LocalStoreConfig>,
+struct local_store_config_t : std::enable_shared_from_this<local_store_config_t>,
                           virtual LocalFSStoreConfig,
                           virtual LocalBuildStoreConfig {
   using LocalFSStoreConfig::LocalFSStoreConfig;
 
-  LocalStoreConfig(std::string_view scheme, std::string_view authority, const Params& params);
+  local_store_config_t(std::string_view scheme, std::string_view authority, const Params& params);
 
 private:
   /**
@@ -98,13 +98,13 @@ public:
           > While the filesystem the database resides on might appear to be read-only, consider whether another user or system might have write access to it.
         )"};
 
-  static const std::string name() { return "Local Store"; }
+  static const std::string name() { return "Local store_t"; }
 
   static string_set_t uriSchemes() { return {"local"}; }
 
   static std::string doc();
 
-  ref<Store> open_store() const override;
+  ref<store_t> open_store() const override;
 
   StoreReference getReference() const override;
 };
@@ -114,9 +114,9 @@ class LocalStore : public virtual IndirectRootStore,
                    public virtual TrackActiveBuildsStore,
                    public virtual QueryActiveBuildsStore {
 public:
-  using config_t = LocalStoreConfig;
+  using config_t = local_store_config_t;
 
-  ref<const LocalStoreConfig> config;
+  ref<const local_store_config_t> config;
 
 private:
   /**
@@ -192,40 +192,40 @@ public:
    * Implementations of abstract store API methods.
    */
 
-  bool isValidPathUncached(const StorePath& path) override;
+  bool isValidPathUncached(const store_path_t& path) override;
 
-  StorePathSet queryValidPaths(const StorePathSet& paths,
+  store_path_set_t queryValidPaths(const store_path_set_t& paths,
                                SubstituteFlag maybeSubstitute = NoSubstitute) override;
 
-  StorePathSet query_all_valid_paths() override;
+  store_path_set_t query_all_valid_paths() override;
 
   void
-  query_path_info_uncached(const StorePath& path,
-                        Callback<std::shared_ptr<const ValidPathInfo>> callback) noexcept override;
+  query_path_info_uncached(const store_path_t& path,
+                        Callback<std::shared_ptr<const valid_path_info_t>> callback) noexcept override;
 
-  void query_referrers(const StorePath& path, StorePathSet& referrers) override;
+  void query_referrers(const store_path_t& path, store_path_set_t& referrers) override;
 
-  StorePathSet queryValidDerivers(const StorePath& path) override;
+  store_path_set_t queryValidDerivers(const store_path_t& path) override;
 
-  std::map<std::string, std::optional<StorePath>>
-  queryStaticPartialDerivationOutputMap(const StorePath& path) override;
+  std::map<std::string, std::optional<store_path_t>>
+  queryStaticPartialDerivationOutputMap(const store_path_t& path) override;
 
-  std::optional<StorePath> queryPathFromHashPart(const std::string& hash_part) override;
+  std::optional<store_path_t> queryPathFromHashPart(const std::string& hash_part) override;
 
-  StorePathSet querySubstitutablePaths(const StorePathSet& paths) override;
+  store_path_set_t querySubstitutablePaths(const store_path_set_t& paths) override;
 
-  bool pathInfoIsUntrusted(const ValidPathInfo&) override;
-  bool realisationIsUntrusted(const Realisation&) override;
+  bool pathInfoIsUntrusted(const valid_path_info_t&) override;
+  bool realisationIsUntrusted(const realisation_t&) override;
 
-  void add_to_store(const ValidPathInfo& info, Source& source, RepairFlag repair,
+  void add_to_store(const valid_path_info_t& info, source_t& source, RepairFlag repair,
                   CheckSigsFlag check_sigs) override;
 
-  StorePath add_to_store_from_dump(Source& dump, std::string_view name,
-                               file_serialisation_method_t dump_method, ContentAddressMethod hash_method,
-                               hash_algorithm_t hash_algo, const StorePathSet& references,
+  store_path_t add_to_store_from_dump(source_t& dump, std::string_view name,
+                               file_serialisation_method_t dump_method, content_address_method_t hash_method,
+                               hash_algorithm_t hash_algo, const store_path_set_t& references,
                                RepairFlag repair) override;
 
-  void addTempRoot(const StorePath& path) override;
+  void addTempRoot(const store_path_t& path) override;
 
 private:
   void createTempRootsFile();
@@ -271,7 +271,7 @@ public:
    * fine-tune which referrers we consider for garbage collection;
    * some store implementations take advantage of this.
    */
-  virtual void queryGCReferrers(const StorePath& path, StorePathSet& referrers) {
+  virtual void queryGCReferrers(const store_path_t& path, store_path_set_t& referrers) {
     return query_referrers(path, referrers);
   }
 
@@ -312,7 +312,7 @@ protected:
      * A set of so-far valid paths. The store objects pointed to by
      * those paths are suitable for further validation checking.
      */
-    StorePathSet validPaths;
+    store_path_set_t validPaths;
   };
 
   /**
@@ -329,7 +329,7 @@ public:
    * register the hash of the file system contents of the path.  The
    * hash must be a SHA-256 hash.
    */
-  void registerValidPath(const ValidPathInfo& info);
+  void registerValidPath(const valid_path_info_t& info);
 
   virtual void registerValidPaths(const ValidPathInfos& infos);
 
@@ -339,7 +339,7 @@ public:
 
   void vacuumDB();
 
-  void addSignatures(const StorePath& store_path, const string_set_t& sigs) override;
+  void addSignatures(const store_path_t& store_path, const string_set_t& sigs) override;
 
   /**
    * If free disk space in /nix/store if below minFree, delete
@@ -351,10 +351,10 @@ public:
    * Register the store path 'output' as the output named 'outputName' of
    * derivation 'deriver'.
    */
-  void register_drv_output(const Realisation& info) override;
-  void register_drv_output(const Realisation& info, CheckSigsFlag check_sigs) override;
+  void register_drv_output(const realisation_t& info) override;
+  void register_drv_output(const realisation_t& info, CheckSigsFlag check_sigs) override;
   void cacheDrvOutputMapping(State& state, const uint64_t deriver, const std::string& output_name,
-                             const StorePath& output);
+                             const store_path_t& output);
 
   std::optional<const UnkeyedRealisation> queryRealisation_(State& state, const DrvOutput& id);
   std::optional<std::pair<int64_t, UnkeyedRealisation>> queryRealisationCore_(State& state,
@@ -366,8 +366,8 @@ public:
   std::optional<std::string> getVersion() override;
 
 protected:
-  void verifyPath(const StorePath& path, std::function<bool(const StorePath&)> existsInStoreDir,
-                  StorePathSet& done, StorePathSet& validPaths, RepairFlag repair, bool& errors);
+  void verifyPath(const store_path_t& path, std::function<bool(const store_path_t&)> existsInStoreDir,
+                  store_path_set_t& done, store_path_set_t& validPaths, RepairFlag repair, bool& errors);
 
 private:
   /**
@@ -382,23 +382,23 @@ private:
 
   void makeStoreWritable();
 
-  uint64_t queryValidPathId(State& state, const StorePath& path);
+  uint64_t queryValidPathId(State& state, const store_path_t& path);
 
-  uint64_t addValidPath(State& state, const ValidPathInfo& info, bool check_outputs = true);
+  uint64_t addValidPath(State& state, const valid_path_info_t& info, bool check_outputs = true);
 
-  void invalidatePath(State& state, const StorePath& path);
+  void invalidatePath(State& state, const store_path_t& path);
 
   /**
    * Delete a path from the Nix store.
    */
-  void invalidatePathChecked(const StorePath& path);
+  void invalidatePathChecked(const store_path_t& path);
 
-  std::shared_ptr<const ValidPathInfo> queryPathInfoInternal(State& state, const StorePath& path);
+  std::shared_ptr<const valid_path_info_t> queryPathInfoInternal(State& state, const store_path_t& path);
 
-  void updatePathInfo(State& state, const ValidPathInfo& info);
+  void updatePathInfo(State& state, const valid_path_info_t& info);
 
   path_set_t queryValidPathsOld();
-  ValidPathInfo queryPathInfoOld(const Path& path);
+  valid_path_info_t queryPathInfoOld(const Path& path);
 
   void findRoots(const Path& path, std::filesystem::file_type type, Roots& roots);
 
@@ -416,10 +416,10 @@ private:
                      RepairFlag repair);
 
   // Internal versions that are not wrapped in retry_sqlite.
-  bool isValidPath_(State& state, const StorePath& path);
-  void query_referrers(State& state, const StorePath& path, StorePathSet& referrers);
+  bool isValidPath_(State& state, const store_path_t& path);
+  void query_referrers(State& state, const store_path_t& path, store_path_set_t& referrers);
 
-  void addBuildLog(const StorePath& drv_path, std::string_view log) override;
+  void addBuildLog(const store_path_t& drv_path, std::string_view log) override;
 
   friend struct PathSubstitutionGoal;
   friend struct DerivationGoal;

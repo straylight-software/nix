@@ -11,7 +11,7 @@ using namespace nix;
 struct cmd_add_to_store_t : MixDryRun, StoreCommand {
   Path path;
   std::optional<std::string> name_part;
-  ContentAddressMethod ca_method = ContentAddressMethod::raw_t::nix_archive;
+  content_address_method_t ca_method = content_address_method_t::raw_t::nix_archive;
   hash_algorithm_t hash_algo = hash_algorithm_t::SHA256;
 
   cmd_add_to_store_t() {
@@ -32,7 +32,7 @@ struct cmd_add_to_store_t : MixDryRun, StoreCommand {
     add_flag(flag::hash_algo(&hash_algo));
   }
 
-  void run(ref<Store> store) override {
+  void run(ref<store_t> store) override {
     if (!name_part)
       name_part = base_name_of(path);
 
@@ -57,7 +57,7 @@ struct cmd_add_t : cmd_add_to_store_t {
 };
 
 struct cmd_add_file_t : cmd_add_to_store_t {
-  cmd_add_file_t() { ca_method = ContentAddressMethod::raw_t::flat; }
+  cmd_add_file_t() { ca_method = content_address_method_t::raw_t::flat; }
 
   std::string description() override {
     return "Deprecated. Use [`nix store add --mode "

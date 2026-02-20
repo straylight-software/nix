@@ -44,12 +44,12 @@ struct cmd_nario_export_t : StorePathsCommand {
         ;
   }
 
-  void run(ref<Store> store, StorePaths&& store_paths) override {
+  void run(ref<store_t> store, store_paths_t&& store_paths) override {
     auto fd = get_standard_output();
     if (isatty(fd))
       throw UsageError("refusing to write nario to a terminal");
     fd_sink_t sink(std::move(fd));
-    export_paths(*store, StorePathSet(store_paths.begin(), store_paths.end()), sink, version);
+    export_paths(*store, store_path_set_t(store_paths.begin(), store_paths.end()), sink, version);
   }
 };
 
@@ -73,7 +73,7 @@ struct cmd_nario_import_t : StoreCommand, MixNoCheckSigs {
         ;
   }
 
-  void run(ref<Store> store) override {
+  void run(ref<store_t> store) override {
     auto source{get_nario_source()};
     import_paths(*store, source, check_sigs);
   }
@@ -81,7 +81,7 @@ struct cmd_nario_import_t : StoreCommand, MixNoCheckSigs {
 
 static auto r_cmd_nario_import = registerCommand2<cmd_nario_import_t>({"nario", "import"});
 
-nlohmann::json list_nar(Source& source) {
+nlohmann::json list_nar(source_t& source) {
   struct : file_system_object_sink_t {
     nlohmann::json root = nlohmann::json::object();
 
@@ -186,31 +186,31 @@ struct cmd_nario_list_t : command_t, MixJSON, mix_long_listing_t {
   }
 
   void run() override {
-    struct config_t : StoreConfig {
-      config_t(const Params& params) : StoreConfig(params) {}
+    struct config_t : store_config_t {
+      config_t(const Params& params) : store_config_t(params) {}
 
-      ref<Store> open_store() const override { abort(); }
+      ref<store_t> open_store() const override { abort(); }
     };
 
-    struct listing_store_t : Store {
+    struct listing_store_t : store_t {
       std::optional<nlohmann::json> json;
       cmd_nario_list_t& cmd;
 
-      listing_store_t(ref<const config_t> config, cmd_nario_list_t& cmd) : Store{*config}, cmd(cmd) {}
+      listing_store_t(ref<const config_t> config, cmd_nario_list_t& cmd) : store_t{*config}, cmd(cmd) {}
 
       void query_path_info_uncached(
-          const StorePath& path,
-          Callback<std::shared_ptr<const ValidPathInfo>> callback) noexcept override {
+          const store_path_t& path,
+          Callback<std::shared_ptr<const valid_path_info_t>> callback) noexcept override {
         callback(nullptr);
       }
 
       std::optional<TrustedFlag> isTrustedClient() override { return Trusted; }
 
-      std::optional<StorePath> queryPathFromHashPart(const std::string& hash_part) override {
+      std::optional<store_path_t> queryPathFromHashPart(const std::string& hash_part) override {
         return std::nullopt;
       }
 
-      void add_to_store(const ValidPathInfo& info, Source& source, RepairFlag repair,
+      void add_to_store(const valid_path_info_t& info, source_t& source, RepairFlag repair,
                       CheckSigsFlag check_sigs) override {
         std::optional<nlohmann::json> contents;
         if (cmd.list_contents)
@@ -232,14 +232,14 @@ struct cmd_nario_list_t : command_t, MixJSON, mix_long_listing_t {
         }
       }
 
-      StorePath add_to_store_from_dump(Source& dump, std::string_view name,
+      store_path_t add_to_store_from_dump(source_t& dump, std::string_view name,
                                    file_serialisation_method_t dump_method,
-                                   ContentAddressMethod hash_method, hash_algorithm_t hash_algo,
-                                   const StorePathSet& references, RepairFlag repair) override {
+                                   content_address_method_t hash_method, hash_algorithm_t hash_algo,
+                                   const store_path_set_t& references, RepairFlag repair) override {
         unsupported("addToStoreFromDump");
       }
 
-      void nar_from_path(const StorePath& path, Sink& sink) override { unsupported("narFromPath"); }
+      void nar_from_path(const store_path_t& path, sink_t& sink) override { unsupported("narFromPath"); }
 
       void query_realisation_uncached(
           const DrvOutput&,
@@ -247,22 +247,22 @@ struct cmd_nario_list_t : command_t, MixJSON, mix_long_listing_t {
         callback(nullptr);
       }
 
-      ref<SourceAccessor> getFSAccessor(bool require_valid_path) override {
+      ref<source_accessor_t> getFSAccessor(bool require_valid_path) override {
         return make_empty_source_accessor();
       }
 
-      std::shared_ptr<SourceAccessor> getFSAccessor(const StorePath& path,
+      std::shared_ptr<source_accessor_t> getFSAccessor(const store_path_t& path,
                                                     bool require_valid_path) override {
         unsupported("getFSAccessor");
       }
 
-      void register_drv_output(const Realisation& output) override {
+      void register_drv_output(const realisation_t& output) override {
         unsupported("registerDrvOutput");
       }
     };
 
     auto source{get_nario_source()};
-    auto config = make_ref<config_t>(StoreConfig::Params());
+    auto config = make_ref<config_t>(store_config_t::Params());
     listing_store_t lister(config, *this);
     if (json)
       lister.json = nlohmann::json::object();

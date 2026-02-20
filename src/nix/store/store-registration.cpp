@@ -7,26 +7,26 @@
 
 namespace nix {
 
-ref<Store> open_store() {
+ref<store_t> open_store() {
   return open_store(settings.storeUri.get());
 }
 
-ref<Store> open_store(const std::string& uri, const Store::config_t::Params& extra_params) {
+ref<store_t> open_store(const std::string& uri, const store_t::config_t::Params& extra_params) {
   return open_store(StoreReference::parse(uri, extra_params));
 }
 
-ref<Store> open_store(StoreReference&& store_uri) {
+ref<store_t> open_store(StoreReference&& store_uri) {
   auto store = resolve_store_config(std::move(store_uri))->open_store();
   store->init();
   return store;
 }
 
-ref<StoreConfig> resolve_store_config(StoreReference&& store_uri) {
+ref<store_config_t> resolve_store_config(StoreReference&& store_uri) {
   auto& params = store_uri.params;
 
   auto store_config = std::visit(
       overloaded{
-          [&](const StoreReference::Auto&) -> ref<StoreConfig> {
+          [&](const StoreReference::Auto&) -> ref<store_config_t> {
             auto stateDir = get_or(params, "state", settings.nixStateDir);
             if (access(stateDir.c_str(), R_OK | W_OK) == 0)
               return make_ref<LocalStore::config_t>(params);
@@ -72,9 +72,9 @@ ref<StoreConfig> resolve_store_config(StoreReference&& store_uri) {
   return store_config;
 }
 
-std::list<ref<Store>> get_default_substituters() {
+std::list<ref<store_t>> get_default_substituters() {
   static auto stores([]() {
-    std::list<ref<Store>> stores;
+    std::list<ref<store_t>> stores;
 
     string_set_t done;
 
@@ -92,7 +92,7 @@ std::list<ref<Store>> get_default_substituters() {
       add_store(uri);
 
     stores.sort(
-        [](ref<Store>& a, ref<Store>& b) { return a->config.priority < b->config.priority; });
+        [](ref<store_t>& a, ref<store_t>& b) { return a->config.priority < b->config.priority; });
 
     return stores;
   }());

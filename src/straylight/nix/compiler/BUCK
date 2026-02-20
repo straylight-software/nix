@@ -47,7 +47,7 @@ cxx_library(
     ],
     header_namespace = "straylight/nix/compiler",
     visibility = ["PUBLIC"],
-    deps = [
+    exported_deps = [
         ":ast",
         "//third_party:binaryen",
     ],
@@ -102,14 +102,8 @@ cxx_library(
     visibility = ["PUBLIC"],
     compiler_flags = [
         "-std=c++23",
-        "-isystem/nix/store/5csjs5zrln4x5y3wxy6pi42bh2816c1s-wasmtime-40.0.0/include",
         # Enable sync I/O backend for import, readFile, etc.
         "-DSTRAYLIGHT_EVAL_IO_SYNC=1",
-    ],
-    linker_flags = [
-        "-L/nix/store/c76a64xqlv5h3i94dzv221pia3pginp1-wasmtime-40.0.0-lib/lib",
-        "-lwasmtime",
-        "-Wl,-rpath,/nix/store/c76a64xqlv5h3i94dzv221pia3pginp1-wasmtime-40.0.0-lib/lib",
     ],
     exported_deps = [
         ":compile",
@@ -130,20 +124,15 @@ cxx_library(
     visibility = ["PUBLIC"],
     compiler_flags = [
         "-std=c++23",
-        "-isystem/nix/store/5csjs5zrln4x5y3wxy6pi42bh2816c1s-wasmtime-40.0.0/include",
         # Enable sync I/O backend for import, readFile, etc.
         "-DSTRAYLIGHT_EVAL_IO_SYNC=1",
-    ],
-    linker_flags = [
-        "-L/nix/store/c76a64xqlv5h3i94dzv221pia3pginp1-wasmtime-40.0.0-lib/lib",
-        "-lwasmtime",
-        "-Wl,-rpath,/nix/store/c76a64xqlv5h3i94dzv221pia3pginp1-wasmtime-40.0.0-lib/lib",
     ],
     deps = [
         ":ast",
         ":compile",
         ":parse",
         ":wasm_executor",
+        "//third_party:wasmtime",
     ],
 )
 
@@ -182,19 +171,6 @@ cxx_binary(
     visibility = ["PUBLIC"],
     compiler_flags = [
         "-std=c++23",
-        "-isystem/nix/store/5csjs5zrln4x5y3wxy6pi42bh2816c1s-wasmtime-40.0.0/include",
-    ],
-    linker_flags = [
-        # binaryen is now statically linked via //third_party:binaryen
-        # Wasmtime (for WASM execution) - TODO: convert to static
-        "-L/nix/store/c76a64xqlv5h3i94dzv221pia3pginp1-wasmtime-40.0.0-lib/lib",
-        "-lwasmtime",
-        "-Wl,-rpath,/nix/store/c76a64xqlv5h3i94dzv221pia3pginp1-wasmtime-40.0.0-lib/lib",
-        # Hash libraries (for builtins.hashString, etc.)
-        # Note: blake3 is now statically linked via //third_party:blake3
-        "-L/nix/store/61i74yjkj9p1qphfl7018ja4sdwkipx0-openssl-3.6.0/lib",
-        "-Wl,-rpath,/nix/store/61i74yjkj9p1qphfl7018ja4sdwkipx0-openssl-3.6.0/lib",
-        # boost removed - using std::vector
     ],
     deps = [
         ":ast",

@@ -18,7 +18,7 @@ struct cmd_flake_prefetch_inputs_t : flake_command_t {
         ;
   }
 
-  void run(nix::ref<nix::Store> store) override {
+  void run(nix::ref<nix::store_t> store) override {
     auto flake = lock_flake();
 
     thread_pool_t pool{file_transfer_settings.httpConnections};

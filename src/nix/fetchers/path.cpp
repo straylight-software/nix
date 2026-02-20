@@ -7,8 +7,8 @@
 
 namespace nix::fetchers {
 
-struct path_input_scheme_t : InputScheme {
-  std::optional<Input> inputFromURL(const settings_t& settings, const parsed_url_t& url,
+struct path_input_scheme_t : input_scheme_t {
+  std::optional<input_t> inputFromURL(const settings_t& settings, const parsed_url_t& url,
                                     bool require_tree) const override {
     if (url.scheme() != "path")
       return {};
@@ -16,7 +16,7 @@ struct path_input_scheme_t : InputScheme {
     if (url.authority() && url.authority()->host().size())
       throw Error("path URL '%s' should not have an authority ('%s')", url, *url.authority());
 
-    Input input{};
+    input_t input{};
     input.attrs.insert_or_assign("type", "path");
     input.attrs.insert_or_assign("path", render_url_path_ensure_legal(url.path()));
 
@@ -72,16 +72,16 @@ struct path_input_scheme_t : InputScheme {
     return attrs;
   }
 
-  std::optional<Input> inputFromAttrs(const settings_t& settings,
+  std::optional<input_t> inputFromAttrs(const settings_t& settings,
                                       const Attrs& attrs) const override {
     get_str_attr(attrs, "path");
 
-    Input input{};
+    input_t input{};
     input.attrs = attrs;
     return input;
   }
 
-  parsed_url_t toURL(const Input& input, bool abbreviate) const override {
+  parsed_url_t toURL(const input_t& input, bool abbreviate) const override {
     auto query = attrs_to_query(input.attrs);
     query.erase("path");
     query.erase("type");
@@ -93,16 +93,16 @@ struct path_input_scheme_t : InputScheme {
     return url;
   }
 
-  std::optional<std::filesystem::path> get_source_path(const Input& input) const override {
+  std::optional<std::filesystem::path> get_source_path(const input_t& input) const override {
     return get_abs_path(input);
   }
 
-  void putFile(const Input& input, const canon_path_t& path, std::string_view contents,
+  void putFile(const input_t& input, const canon_path_t& path, std::string_view contents,
                std::optional<std::string> commit_msg) const override {
     write_file(get_abs_path(input) / path.rel(), contents);
   }
 
-  std::optional<std::string> isRelative(const Input& input) const override {
+  std::optional<std::string> isRelative(const input_t& input) const override {
     auto path = get_str_attr(input.attrs, "path");
     if (is_absolute(path))
       return std::nullopt;
@@ -110,11 +110,11 @@ struct path_input_scheme_t : InputScheme {
       return path;
   }
 
-  bool isLocked(const settings_t& settings, const Input& input) const override {
+  bool isLocked(const settings_t& settings, const input_t& input) const override {
     return (bool)input.getNarHash();
   }
 
-  std::filesystem::path get_abs_path(const Input& input) const {
+  std::filesystem::path get_abs_path(const input_t& input) const {
     auto path = get_str_attr(input.attrs, "path");
 
     if (is_absolute(path))
@@ -123,9 +123,9 @@ struct path_input_scheme_t : InputScheme {
     throw Error("cannot fetch input '%s' because it uses a relative path", input.to_string());
   }
 
-  std::pair<ref<SourceAccessor>, Input> get_accessor(const settings_t& settings, Store& store,
-                                                     const Input& _input) const override {
-    Input input(_input);
+  std::pair<ref<source_accessor_t>, input_t> get_accessor(const settings_t& settings, store_t& store,
+                                                     const input_t& _input) const override {
+    input_t input(_input);
 
     auto abs_path = get_abs_path(input);
 
@@ -145,7 +145,7 @@ struct path_input_scheme_t : InputScheme {
         accessor->fingerprint = fmt("path:%s", info->nar_hash.to_string(hash_format_t::sri, true));
         settings.get_cache()->upsert(
             make_source_path_to_hash_cache_key(*accessor->fingerprint,
-                                               ContentAddressMethod::raw_t::nix_archive, "/"),
+                                               content_address_method_t::raw_t::nix_archive, "/"),
             {{"hash", info->nar_hash.to_string(hash_format_t::sri, true)}});
       }
     }

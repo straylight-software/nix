@@ -16,17 +16,17 @@
 
 namespace nix {
 
-void copy_recursive(SourceAccessor& accessor, const canon_path_t& from, file_system_object_sink_t& sink,
+void copy_recursive(source_accessor_t& accessor, const canon_path_t& from, file_system_object_sink_t& sink,
                    const canon_path_t& to) {
   auto stat = accessor.lstat(from);
 
   switch (stat.type) {
-    case SourceAccessor::t_symlink: {
+    case source_accessor_t::t_symlink: {
       sink.create_symlink(to, accessor.read_link(from));
       break;
     }
 
-    case SourceAccessor::t_regular: {
+    case source_accessor_t::t_regular: {
       sink.create_regular_file(to, [&](create_regular_file_sink_t& crf) {
         if (stat.is_executable) {
           crf.is_executable();
@@ -36,7 +36,7 @@ void copy_recursive(SourceAccessor& accessor, const canon_path_t& from, file_sys
       break;
     }
 
-    case SourceAccessor::t_directory: {
+    case source_accessor_t::t_directory: {
       sink.create_directory(to, [&](file_system_object_sink_t& dir_sink, const canon_path_t& rel_dir_path) {
         for (auto& [name, _] : accessor.read_directory(from)) {
           copy_recursive(accessor, from / name, dir_sink, rel_dir_path / name);
@@ -45,11 +45,11 @@ void copy_recursive(SourceAccessor& accessor, const canon_path_t& from, file_sys
       break;
     }
 
-    case SourceAccessor::t_char:
-    case SourceAccessor::t_block:
-    case SourceAccessor::t_socket:
-    case SourceAccessor::t_fifo:
-    case SourceAccessor::t_unknown:
+    case source_accessor_t::t_char:
+    case source_accessor_t::t_block:
+    case source_accessor_t::t_socket:
+    case source_accessor_t::t_fifo:
+    case source_accessor_t::t_unknown:
     default:
       throw Error("file '%1%' has an unsupported type of %2%", from, stat.type_string());
   }

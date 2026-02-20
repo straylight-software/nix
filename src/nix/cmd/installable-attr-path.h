@@ -31,17 +31,17 @@ class InstallableAttrPath : public InstallableValue {
   std::string attr_path;
   ExtendedOutputsSpec extendedOutputsSpec;
 
-  InstallableAttrPath(ref<EvalState> state, SourceExprCommand& cmd, Value* v,
+  InstallableAttrPath(ref<eval_state_t> state, SourceExprCommand& cmd, value_t* v,
                       const std::string& attr_path, ExtendedOutputsSpec extendedOutputsSpec);
 
   std::string what() const override { return attr_path; };
 
-  std::pair<Value*, pos_idx_t> toValue(EvalState& state) override;
+  std::pair<value_t*, pos_idx_t> toValue(eval_state_t& state) override;
 
   DerivedPathsWithInfo to_derived_paths() override;
 
 public:
-  static InstallableAttrPath parse(ref<EvalState> state, SourceExprCommand& cmd, Value* v,
+  static InstallableAttrPath parse(ref<eval_state_t> state, SourceExprCommand& cmd, value_t* v,
                                    std::string_view prefix,
                                    ExtendedOutputsSpec extendedOutputsSpec);
 };

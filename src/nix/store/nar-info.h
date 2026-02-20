@@ -7,7 +7,7 @@
 
 namespace nix {
 
-struct StoreDirConfig;
+struct store_dir_config_t;
 
 struct UnkeyedNarInfo : virtual UnkeyedValidPathInfo {
   std::string url;
@@ -19,20 +19,20 @@ struct UnkeyedNarInfo : virtual UnkeyedValidPathInfo {
 
   bool operator==(const UnkeyedNarInfo&) const = default;
   // TODO libc++ 16 (used by darwin) missing `std::optional::operator <=>`, can't do yet
-  // auto operator <=>(const NarInfo &) const = default;
+  // auto operator <=>(const nar_info_t &) const = default;
 
-  nlohmann::json to_json(const StoreDirConfig* store, bool includeImpureInfo,
+  nlohmann::json to_json(const store_dir_config_t* store, bool includeImpureInfo,
                         PathInfoJsonFormat format) const override;
-  static UnkeyedNarInfo from_json(const StoreDirConfig* store, const nlohmann::json& json);
+  static UnkeyedNarInfo from_json(const store_dir_config_t* store, const nlohmann::json& json);
 };
 
 /**
  * Key and the extra NAR fields
  */
-struct NarInfo : ValidPathInfo, UnkeyedNarInfo {
-  NarInfo() = delete;
+struct nar_info_t : valid_path_info_t, UnkeyedNarInfo {
+  nar_info_t() = delete;
 
-  NarInfo(ValidPathInfo info)
+  nar_info_t(valid_path_info_t info)
       : UnkeyedValidPathInfo{static_cast<UnkeyedValidPathInfo&&>(info)}
         /* Later copies from `*this` are pointless. The argument is only
            there so the constructors can also call
@@ -40,26 +40,26 @@ struct NarInfo : ValidPathInfo, UnkeyedNarInfo {
            class is virtual. Only this counstructor (assuming it is most
            derived) will initialize that virtual base class. */
         ,
-        ValidPathInfo{info.path, static_cast<const UnkeyedValidPathInfo&>(*this)},
+        valid_path_info_t{info.path, static_cast<const UnkeyedValidPathInfo&>(*this)},
         UnkeyedNarInfo{static_cast<const UnkeyedValidPathInfo&>(*this)} {}
 
-  NarInfo(const StoreDirConfig& store, StorePath path, Hash nar_hash)
-      : NarInfo{ValidPathInfo{std::move(path), UnkeyedValidPathInfo{store, nar_hash}}} {}
+  nar_info_t(const store_dir_config_t& store, store_path_t path, Hash nar_hash)
+      : nar_info_t{valid_path_info_t{std::move(path), UnkeyedValidPathInfo{store, nar_hash}}} {}
 
-  NarInfo(std::string store_dir, StorePath path, Hash nar_hash)
-      : NarInfo{
-            ValidPathInfo{std::move(path), UnkeyedValidPathInfo{std::move(store_dir), nar_hash}}} {}
+  nar_info_t(std::string store_dir, store_path_t path, Hash nar_hash)
+      : nar_info_t{
+            valid_path_info_t{std::move(path), UnkeyedValidPathInfo{std::move(store_dir), nar_hash}}} {}
 
-  static NarInfo makeFromCA(const StoreDirConfig& store, std::string_view name,
+  static nar_info_t makeFromCA(const store_dir_config_t& store, std::string_view name,
                             ContentAddressWithReferences ca, Hash nar_hash) {
-    return ValidPathInfo::makeFromCA(store, std::move(name), std::move(ca), nar_hash);
+    return valid_path_info_t::makeFromCA(store, std::move(name), std::move(ca), nar_hash);
   }
 
-  NarInfo(const StoreDirConfig& store, const std::string& s, const std::string& whence);
+  nar_info_t(const store_dir_config_t& store, const std::string& s, const std::string& whence);
 
-  bool operator==(const NarInfo&) const = default;
+  bool operator==(const nar_info_t&) const = default;
 
-  std::string to_string(const StoreDirConfig& store) const;
+  std::string to_string(const store_dir_config_t& store) const;
 };
 
 } // namespace nix

@@ -16,7 +16,7 @@
 
 namespace nix {
 
-Worker::Worker(Store& store, Store& eval_store)
+Worker::Worker(store_t& store, store_t& eval_store)
     : act(*logger, act_realise),
       actDerivations(*logger, act_builds),
       actSubstitutions(*logger, act_copy_paths),
@@ -43,8 +43,8 @@ Worker::~Worker() {
   assert(expectedNarSize == 0);
 }
 
-template <class G, typename... Args>
-std::shared_ptr<G> Worker::initGoalIfNeeded(std::weak_ptr<G>& goal_weak, Args&&... args) {
+template <class G, typename... args_t>
+std::shared_ptr<G> Worker::initGoalIfNeeded(std::weak_ptr<G>& goal_weak, args_t&&... args) {
   if (auto goal = goal_weak.lock())
     return goal;
 
@@ -62,15 +62,15 @@ Worker::makeDerivationTrampolineGoal(ref<const SingleDerivedPath> drvReq,
 }
 
 std::shared_ptr<DerivationTrampolineGoal>
-Worker::makeDerivationTrampolineGoal(const StorePath& drv_path, const OutputsSpec& wantedOutputs,
-                                     const Derivation& drv, BuildMode build_mode) {
+Worker::makeDerivationTrampolineGoal(const store_path_t& drv_path, const OutputsSpec& wantedOutputs,
+                                     const derivation_t& drv, BuildMode build_mode) {
   return initGoalIfNeeded(
-      derivationTrampolineGoals.ensureSlot(DerivedPath::opaque_t{drv_path}).value[wantedOutputs],
+      derivationTrampolineGoals.ensureSlot(derived_path_t::opaque_t{drv_path}).value[wantedOutputs],
       drv_path, wantedOutputs, drv, *this, build_mode);
 }
 
-std::shared_ptr<DerivationGoal> Worker::makeDerivationGoal(const StorePath& drv_path,
-                                                           const Derivation& drv,
+std::shared_ptr<DerivationGoal> Worker::makeDerivationGoal(const store_path_t& drv_path,
+                                                           const derivation_t& drv,
                                                            const OutputName& wantedOutput,
                                                            BuildMode build_mode,
                                                            bool storeDerivation) {
@@ -79,13 +79,13 @@ std::shared_ptr<DerivationGoal> Worker::makeDerivationGoal(const StorePath& drv_
 }
 
 std::shared_ptr<DerivationResolutionGoal>
-Worker::makeDerivationResolutionGoal(const StorePath& drv_path, const Derivation& drv,
+Worker::makeDerivationResolutionGoal(const store_path_t& drv_path, const derivation_t& drv,
                                      BuildMode build_mode) {
   return initGoalIfNeeded(derivationResolutionGoals[drv_path], drv_path, drv, *this, build_mode);
 }
 
-std::shared_ptr<DerivationBuildingGoal> Worker::makeDerivationBuildingGoal(const StorePath& drv_path,
-                                                                           const Derivation& drv,
+std::shared_ptr<DerivationBuildingGoal> Worker::makeDerivationBuildingGoal(const store_path_t& drv_path,
+                                                                           const derivation_t& drv,
                                                                            BuildMode build_mode,
                                                                            bool storeDerivation) {
   return initGoalIfNeeded(derivationBuildingGoals[drv_path], drv_path, drv, *this, build_mode,
@@ -93,8 +93,8 @@ std::shared_ptr<DerivationBuildingGoal> Worker::makeDerivationBuildingGoal(const
 }
 
 std::shared_ptr<PathSubstitutionGoal>
-Worker::makePathSubstitutionGoal(const StorePath& path, RepairFlag repair,
-                                 std::optional<ContentAddress> ca) {
+Worker::makePathSubstitutionGoal(const store_path_t& path, RepairFlag repair,
+                                 std::optional<content_address_t> ca) {
   return initGoalIfNeeded(substitutionGoals[path], path, *this, repair, ca);
 }
 
@@ -103,12 +103,12 @@ Worker::makeDrvOutputSubstitutionGoal(const DrvOutput& id) {
   return initGoalIfNeeded(drvOutputSubstitutionGoals[id], id, *this);
 }
 
-GoalPtr Worker::makeGoal(const DerivedPath& req, BuildMode build_mode) {
+GoalPtr Worker::makeGoal(const derived_path_t& req, BuildMode build_mode) {
   return std::visit(overloaded{
-                        [&](const DerivedPath::Built& bfd) -> GoalPtr {
+                        [&](const derived_path_t::Built& bfd) -> GoalPtr {
                           return makeDerivationTrampolineGoal(bfd.drv_path, bfd.outputs, build_mode);
                         },
-                        [&](const DerivedPath::opaque_t& bo) -> GoalPtr {
+                        [&](const derived_path_t::opaque_t& bo) -> GoalPtr {
                           return makePathSubstitutionGoal(
                               bo.path, build_mode == bmRepair ? Repair : NoRepair);
                         },
@@ -287,17 +287,17 @@ void Worker::waitForAWhile(GoalPtr goal) {
 }
 
 void Worker::run(const Goals& _topGoals) {
-  std::vector<nix::DerivedPath> topPaths;
+  std::vector<nix::derived_path_t> topPaths;
 
   for (auto& i : _topGoals) {
     topGoals.insert(i);
     if (auto goal = dynamic_cast<DerivationTrampolineGoal*>(i.get())) {
-      topPaths.push_back(DerivedPath::Built{
+      topPaths.push_back(derived_path_t::Built{
           .drv_path = goal->drvReq,
           .outputs = goal->wantedOutputs,
       });
     } else if (auto goal = dynamic_cast<PathSubstitutionGoal*>(i.get())) {
-      topPaths.push_back(DerivedPath::opaque_t{goal->store_path});
+      topPaths.push_back(derived_path_t::opaque_t{goal->store_path});
     }
   }
 
@@ -498,7 +498,7 @@ unsigned int Worker::failingExitStatus() {
   return mask ? mask : 1;
 }
 
-bool Worker::pathContentsGood(const StorePath& path) {
+bool Worker::pathContentsGood(const store_path_t& path) {
   auto i = pathContentsGoodCache.find(path);
   if (i != pathContentsGoodCache.end())
     return i->second;
@@ -517,7 +517,7 @@ bool Worker::pathContentsGood(const StorePath& path) {
   return res;
 }
 
-void Worker::markContentsGood(const StorePath& path) {
+void Worker::markContentsGood(const store_path_t& path) {
   pathContentsGoodCache.insert_or_assign(path, true);
 }
 

@@ -11,10 +11,10 @@
 
 using namespace nix;
 
-struct mix_cat_t : virtual Args {
-  void cat(ref<SourceAccessor> accessor, canon_path_t path) {
+struct mix_cat_t : virtual args_t {
+  void cat(ref<source_accessor_t> accessor, canon_path_t path) {
     auto st = accessor->lstat(path);
-    if (st.type != SourceAccessor::Type::t_regular)
+    if (st.type != source_accessor_t::Type::t_regular)
       throw Error("path '%1%' is not a regular file", path.abs());
     logger->stop();
 
@@ -39,7 +39,7 @@ struct cmd_cat_store_t : StoreCommand, mix_cat_t {
         ;
   }
 
-  void run(ref<Store> store) override {
+  void run(ref<store_t> store) override {
     auto [store_path, rest] = store->toStorePath(path);
     cat(store->requireStoreObjectAccessor(store_path), canon_path_t{rest});
   }
@@ -65,7 +65,7 @@ struct cmd_cat_nar_t : StoreCommand, mix_cat_t {
         ;
   }
 
-  void run(ref<Store> store) override {
+  void run(ref<store_t> store) override {
     auto_close_fd_t fd = to_descriptor(open(nar_path.c_str(), O_RDONLY));
     if (!fd)
       throw sys_error_t("opening NAR file '%s'", nar_path);

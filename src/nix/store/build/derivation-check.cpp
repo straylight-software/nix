@@ -7,11 +7,11 @@
 
 namespace nix {
 
-void check_outputs(Store& store, const StorePath& drv_path,
-                  const decltype(Derivation::outputs)& drv_outputs,
-                  const decltype(DerivationOptions<StorePath>::output_checks)& output_checks,
-                  const std::map<std::string, ValidPathInfo>& outputs, activity_t& act) {
-  std::map<Path, const ValidPathInfo&> outputsByPath;
+void check_outputs(store_t& store, const store_path_t& drv_path,
+                  const decltype(derivation_t::outputs)& drv_outputs,
+                  const decltype(derivation_options_t<store_path_t>::output_checks)& output_checks,
+                  const std::map<std::string, valid_path_info_t>& outputs, activity_t& act) {
+  std::map<Path, const valid_path_info_t&> outputsByPath;
   for (auto& output : outputs)
     outputsByPath.emplace(store.printStorePath(output.second.path), output.second);
 
@@ -24,7 +24,7 @@ void check_outputs(Store& store, const StorePath& drv_path,
     auto* outputSpec = get(drv_outputs, output_name);
     assert(outputSpec);
 
-    if (const auto* dof = std::get_if<DerivationOutput::CAFixed>(&outputSpec->raw)) {
+    if (const auto* dof = std::get_if<derivation_output_t::CAFixed>(&outputSpec->raw)) {
       auto& wanted = dof->ca.hash;
 
       /* Check wanted hash */
@@ -38,15 +38,15 @@ void check_outputs(Store& store, const StorePath& drv_path,
                                         {"wanted", wanted},
                                         {"got", got},
                                     });
-        throw BuildError(
-            BuildResult::Failure::HashMismatch,
+        throw build_error_t(
+            build_result_t::Failure::HashMismatch,
             "hash mismatch in fixed-output derivation '%s':\n  specified: %s\n     got:    %s",
             store.printStorePath(drv_path), wanted.to_string(hash_format_t::sri, true),
             got.to_string(hash_format_t::sri, true));
       }
       if (!info.references.empty()) {
         auto numViolations = info.references.size();
-        throw BuildError(BuildResult::Failure::HashMismatch,
+        throw build_error_t(build_result_t::Failure::HashMismatch,
                          "fixed-output derivations must not reference store paths: '%s' references "
                          "%d distinct paths, e.g. '%s'",
                          store.printStorePath(drv_path), numViolations,
@@ -57,10 +57,10 @@ void check_outputs(Store& store, const StorePath& drv_path,
     /* Compute the closure and closure size of some output. This
        is slightly tricky because some of its references (namely
        other outputs) may not be valid yet. */
-    auto getClosure = [&](const StorePath& path) {
+    auto getClosure = [&](const store_path_t& path) {
       uint64_t closureSize = 0;
-      StorePathSet pathsDone;
-      std::queue<StorePath> pathsLeft;
+      store_path_set_t pathsDone;
+      std::queue<store_path_t> pathsLeft;
       pathsLeft.push(path);
 
       while (!pathsLeft.empty()) {
@@ -85,36 +85,36 @@ void check_outputs(Store& store, const StorePath& drv_path,
       return std::make_pair(std::move(pathsDone), closureSize);
     };
 
-    auto applyChecks = [&](const DerivationOptions<StorePath>::OutputChecks& checks) {
+    auto applyChecks = [&](const derivation_options_t<store_path_t>::OutputChecks& checks) {
       if (checks.max_size && info.nar_size > *checks.max_size)
-        throw BuildError(BuildResult::Failure::OutputRejected,
+        throw build_error_t(build_result_t::Failure::OutputRejected,
                          "path '%s' is too large at %d bytes; limit is %d bytes",
                          store.printStorePath(info.path), info.nar_size, *checks.max_size);
 
       if (checks.maxClosureSize) {
         uint64_t closureSize = getClosure(info.path).second;
         if (closureSize > *checks.maxClosureSize)
-          throw BuildError(BuildResult::Failure::OutputRejected,
+          throw build_error_t(build_result_t::Failure::OutputRejected,
                            "closure of path '%s' is too large at %d bytes; limit is %d bytes",
                            store.printStorePath(info.path), closureSize, *checks.maxClosureSize);
       }
 
-      auto checkRefs = [&](const std::set<DrvRef<StorePath>>& value, bool allowed, bool recursive) {
+      auto checkRefs = [&](const std::set<DrvRef<store_path_t>>& value, bool allowed, bool recursive) {
         /* Parse a list of reference specifiers.  Each element must
            either be a store path, or the symbolic name of the output
            of the derivation (such as `out'). */
-        StorePathSet spec;
+        store_path_set_t spec;
         for (auto& i : value) {
           std::visit(
-              overloaded{[&](const StorePath& path) { spec.insert(path); },
+              overloaded{[&](const store_path_t& path) { spec.insert(path); },
                          [&](const OutputName& refOutputName) {
                            if (auto output = get(outputs, refOutputName))
                              spec.insert(output->path);
                            else {
                              std::string outputsListing = concat_map_strings_sep(
                                  ", ", outputs, [](auto& o) { return o.first; });
-                             throw BuildError(
-                                 BuildResult::Failure::OutputRejected,
+                             throw build_error_t(
+                                 build_result_t::Failure::OutputRejected,
                                  "derivation '%s' output check for '%s' contains output name '%s',"
                                  " but this is not a valid output of this derivation."
                                  " (Valid outputs are [%s].)",
@@ -130,7 +130,7 @@ void check_outputs(Store& store, const StorePath& drv_path,
         if (recursive && checks.ignoreSelfRefs)
           used.erase(info.path);
 
-        StorePathSet badPaths;
+        store_path_set_t badPaths;
 
         for (auto& i : used)
           if (allowed) {
@@ -147,7 +147,7 @@ void check_outputs(Store& store, const StorePath& drv_path,
             badPathsStr += "\n  ";
             badPathsStr += store.printStorePath(i);
           }
-          throw BuildError(BuildResult::Failure::OutputRejected,
+          throw build_error_t(build_result_t::Failure::OutputRejected,
                            "output '%s' is not allowed to refer to the following paths:%s",
                            store.printStorePath(info.path), badPathsStr);
         }
@@ -174,8 +174,8 @@ void check_outputs(Store& store, const StorePath& drv_path,
 
     std::visit(
         overloaded{
-            [&](const DerivationOptions<StorePath>::OutputChecks& checks) { applyChecks(checks); },
-            [&](const std::map<std::string, DerivationOptions<StorePath>::OutputChecks>&
+            [&](const derivation_options_t<store_path_t>::OutputChecks& checks) { applyChecks(checks); },
+            [&](const std::map<std::string, derivation_options_t<store_path_t>::OutputChecks>&
                     checksPerOutput) {
               if (auto output_checks = get(checksPerOutput, output_name))
 

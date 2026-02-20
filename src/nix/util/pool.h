@@ -19,7 +19,7 @@ namespace nix {
  *
  *   class Connection { ... };
  *
- *   Pool<Connection> pool;
+ *   pool_t<Connection> pool;
  *
  *   {
  *     auto conn(pool.get());
@@ -30,7 +30,7 @@ namespace nix {
  * returned to the pool when ‘conn’ goes out of scope.
  */
 template <class R>
-class Pool {
+class pool_t {
 public:
   /**
    * A function that produces new instances of R on demand.
@@ -58,7 +58,7 @@ private:
   std::condition_variable wakeup;
 
 public:
-  Pool(
+  pool_t(
       size_t max = std::numeric_limits<size_t>::max(),
       const Factory& factory = []() { return make_ref<R>(); },
       const Validator& validator = [](ref<R> r) { return true; })
@@ -71,7 +71,7 @@ public:
     auto state_(state.lock());
     state_->max++;
     /* we could wakeup here, but this is only used when we're
-     * about to nest Pool usages, and we want to save the slot for
+     * about to nest pool_t usages, and we want to save the slot for
      * the nested use if we can
      */
   }
@@ -81,7 +81,7 @@ public:
     state_->max--;
   }
 
-  ~Pool() {
+  ~pool_t() {
     auto state_(state.lock());
     assert(!state_->inUse);
     state_->max = 0;
@@ -90,13 +90,13 @@ public:
 
   class Handle {
   private:
-    Pool& pool;
+    pool_t& pool;
     std::shared_ptr<R> r;
     bool bad = false;
 
-    friend Pool;
+    friend pool_t;
 
-    Handle(Pool& pool, std::shared_ptr<R> r) : pool(pool), r(r) {}
+    Handle(pool_t& pool, std::shared_ptr<R> r) : pool(pool), r(r) {}
 
   public:
     // NOTE: Copying std::shared_ptr and calling a .reset() on it is always noexcept.

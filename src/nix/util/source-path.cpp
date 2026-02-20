@@ -20,15 +20,15 @@ bool source_path_t::path_exists() const {
   return accessor->path_exists(path);
 }
 
-SourceAccessor::stat_t source_path_t::lstat() const {
+source_accessor_t::stat_t source_path_t::lstat() const {
   return accessor->lstat(path);
 }
 
-std::optional<SourceAccessor::stat_t> source_path_t::maybe_lstat() const {
+std::optional<source_accessor_t::stat_t> source_path_t::maybe_lstat() const {
   return accessor->maybe_lstat(path);
 }
 
-SourceAccessor::dir_entries_t source_path_t::read_directory() const {
+source_accessor_t::dir_entries_t source_path_t::read_directory() const {
   return accessor->read_directory(path);
 }
 
@@ -36,7 +36,7 @@ std::string source_path_t::read_link() const {
   return accessor->read_link(path);
 }
 
-void source_path_t::dump_path(Sink& sink, path_filter_t& filter) const {
+void source_path_t::dump_path(sink_t& sink, path_filter_t& filter) const {
   return accessor->dump_path(path, sink, filter);
 }
 

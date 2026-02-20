@@ -24,24 +24,24 @@ struct UserInfo {
 };
 
 struct ActiveBuild {
-  pid_t nixPid;
+  ::pid_t nix_pid;
 
-  std::optional<pid_t> clientPid;
+  std::optional<::pid_t> client_pid;
   std::optional<uid_t> clientUid;
 
-  pid_t mainPid;
+  ::pid_t main_pid;
   UserInfo mainUser;
   std::optional<Path> cgroup;
 
   time_t start_time;
 
-  StorePath derivation;
+  store_path_t derivation;
 };
 
 struct ActiveBuildInfo : ActiveBuild {
   struct ProcessInfo {
-    pid_t pid = 0;
-    pid_t parentPid = 0;
+    ::pid_t pid = 0;
+    ::pid_t parent_pid = 0;
     UserInfo user;
     std::vector<std::string> argv;
     std::optional<std::chrono::microseconds> utime, stime, cutime, cstime;

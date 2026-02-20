@@ -67,7 +67,7 @@ struct cmd_why_depends_t : SourceExprCommand, MixOperateOnOptions {
 
   category_t category() override { return catSecondary; }
 
-  void run(ref<Store> store) override {
+  void run(ref<store_t> store) override {
     auto package = parseInstallable(store, _package);
     auto package_path =
         Installable::toStorePath(getEvalStore(), store, Realise::Outputs, operateOn, package);
@@ -83,16 +83,16 @@ struct cmd_why_depends_t : SourceExprCommand, MixOperateOnOptions {
      * to build.
      */
     auto dependency = parseInstallable(store, _dependency);
-    auto opt_dependency_path = [&]() -> std::optional<StorePath> {
+    auto opt_dependency_path = [&]() -> std::optional<store_path_t> {
       try {
-        return {Installable::toStorePath(getEvalStore(), store, Realise::Derivation, operateOn,
+        return {Installable::toStorePath(getEvalStore(), store, Realise::derivation_t, operateOn,
                                          dependency)};
       } catch (MissingRealisation&) {
         return std::nullopt;
       }
     }();
 
-    StorePathSet closure;
+    store_path_set_t closure;
     store->computeFSClosure({package_path}, closure, false, false);
 
     if (!opt_dependency_path.has_value() || !closure.count(*opt_dependency_path)) {
@@ -106,16 +106,16 @@ struct cmd_why_depends_t : SourceExprCommand, MixOperateOnOptions {
     auto const inf = std::numeric_limits<size_t>::max();
 
     struct Node {
-      StorePath path;
-      StorePathSet refs;
-      StorePathSet rrefs;
+      store_path_t path;
+      store_path_set_t refs;
+      store_path_set_t rrefs;
       size_t dist = inf;
       Node* prev = nullptr;
       bool queued = false;
       bool visited = false;
     };
 
-    std::map<StorePath, Node> graph;
+    std::map<store_path_t, Node> graph;
 
     for (auto& path : closure)
       graph.emplace(path, Node{.path = path,
@@ -177,7 +177,7 @@ struct cmd_why_depends_t : SourceExprCommand, MixOperateOnOptions {
       /* Sort the references by distance to `dependency` to
          ensure that the shortest path is printed first. */
       std::multimap<size_t, Node*> refs;
-      StorePathSet refPaths;
+      store_path_set_t refPaths;
 
       for (auto& ref : node.refs) {
         if (ref == node.path && package_path != dependency_path)
@@ -205,7 +205,7 @@ struct cmd_why_depends_t : SourceExprCommand, MixOperateOnOptions {
           auto p2 = result.filePath.is_root() ? result.filePath.abs() : result.filePath.rel();
           auto st = accessor->lstat(result.filePath);
 
-          if (st.type == SourceAccessor::Type::t_regular) {
+          if (st.type == source_accessor_t::Type::t_regular) {
             auto contents = accessor->read_file(result.filePath);
 
             // For each reference found in this file, extract context
@@ -219,10 +219,10 @@ struct cmd_why_depends_t : SourceExprCommand, MixOperateOnOptions {
                     fmt("%s: …%s…", p2,
                         hilite(filter_printable(
                                    std::string(contents, pos2, pos - pos2 + hash.size() + margin)),
-                               pos - pos2, StorePath::HashLen, getColour(hash))));
+                               pos - pos2, store_path_t::HashLen, getColour(hash))));
               }
             }
-          } else if (st.type == SourceAccessor::Type::t_symlink) {
+          } else if (st.type == source_accessor_t::Type::t_symlink) {
             auto target = accessor->read_link(result.filePath);
 
             // For each reference found in this symlink, show it
@@ -231,7 +231,7 @@ struct cmd_why_depends_t : SourceExprCommand, MixOperateOnOptions {
               auto pos = target.find(hash);
               if (pos != std::string::npos)
                 hits[hash].emplace_back(
-                    fmt("%s -> %s", p2, hilite(target, pos, StorePath::HashLen, getColour(hash))));
+                    fmt("%s -> %s", p2, hilite(target, pos, store_path_t::HashLen, getColour(hash))));
             }
           }
         });

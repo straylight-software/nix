@@ -16,7 +16,7 @@
 
 namespace nix {
 
-void Args::add_flag(flag_t&& flag_arg) {
+void args_t::add_flag(flag_t&& flag_arg) {
   auto flag = std::make_shared<flag_t>(std::move(flag_arg));
   if (flag->handler.get_arity() != arity_any) {
     assert(flag->handler.get_arity() == flag->labels.size());
@@ -31,7 +31,7 @@ void Args::add_flag(flag_t&& flag_arg) {
   }
 }
 
-void Args::remove_flag(const std::string& long_name) {
+void args_t::remove_flag(const std::string& long_name) {
   auto flag = long_flags_.find(long_name);
   assert(flag != long_flags_.end());
   if (flag->second->short_name != 0) {
@@ -67,8 +67,8 @@ auto completion_t::operator<=>(const completion_t& other) const noexcept -> std:
 
 const std::string completion_marker = "___COMPLETE___";
 
-auto Args::get_root() -> root_args_t& {
-  Args* ptr = this;
+auto args_t::get_root() -> root_args_t& {
+  args_t* ptr = this;
   while (ptr->get_parent() != nullptr) {
     ptr = ptr->get_parent();
   }
@@ -383,7 +383,7 @@ void root_args_t::parse_cmdline(const strings_t& _cmdline, bool allow_shebang) {
   }
 }
 
-auto Args::get_command_base_dir() const -> std::filesystem::path {
+auto args_t::get_command_base_dir() const -> std::filesystem::path {
   assert(parent_);
   return parent_->get_command_base_dir();
 }
@@ -392,7 +392,7 @@ std::filesystem::path root_args_t::get_command_base_dir() const {
   return commandBaseDir;
 }
 
-auto Args::process_flag(strings_t::iterator& pos, strings_t::iterator end) -> bool {
+auto args_t::process_flag(strings_t::iterator& pos, strings_t::iterator end) -> bool {
   assert(pos != end);
 
   auto& root_args = get_root();
@@ -476,7 +476,7 @@ auto Args::process_flag(strings_t::iterator& pos, strings_t::iterator end) -> bo
   return false;
 }
 
-auto Args::process_args(const strings_t& args, bool finish) -> bool {
+auto args_t::process_args(const strings_t& args, bool finish) -> bool {
   if (expected_args_.empty()) {
     if (!args.empty()) {
       throw UsageError("unexpected argument '%1%'", args.front());
@@ -531,7 +531,7 @@ auto Args::process_args(const strings_t& args, bool finish) -> bool {
   return res;
 }
 
-void Args::check_args() {
+void args_t::check_args() {
   for (auto& [name, flag] : long_flags_) {
     if (flag->required && flag->times_used == 0) {
       throw UsageError("required argument '%s' is missing", "--" + name);
@@ -539,7 +539,7 @@ void Args::check_args() {
   }
 }
 
-auto Args::to_json() -> nlohmann::json {
+auto args_t::to_json() -> nlohmann::json {
   auto flags = nlohmann::json::object();
 
   for (auto& [name, flag] : long_flags_) {
@@ -615,12 +615,12 @@ static void complete_path_(add_completions_t& completions_ref, std::string_view 
 #endif
 }
 
-void Args::complete_path(add_completions_t& completions_ref, size_t /*idx*/,
+void args_t::complete_path(add_completions_t& completions_ref, size_t /*idx*/,
                          std::string_view prefix) {
   complete_path_(completions_ref, prefix, false);
 }
 
-void Args::complete_dir(add_completions_t& completions_ref, size_t /*idx*/,
+void args_t::complete_dir(add_completions_t& completions_ref, size_t /*idx*/,
                         std::string_view prefix) {
   complete_path_(completions_ref, prefix, true);
 }
@@ -670,7 +670,7 @@ multi_command_t::multi_command_t(std::string_view cmd_name, const commands_t& cm
 }
 
 auto multi_command_t::process_flag(strings_t::iterator& pos, strings_t::iterator end) -> bool {
-  if (Args::process_flag(pos, end)) {
+  if (args_t::process_flag(pos, end)) {
     return true;
   }
   if (command_ && command_->second->process_flag(pos, end)) {
@@ -683,12 +683,12 @@ auto multi_command_t::process_args(const strings_t& args, bool finish) -> bool {
   if (command_) {
     return command_->second->process_args(args, finish);
   } else {
-    return Args::process_args(args, finish);
+    return args_t::process_args(args, finish);
   }
 }
 
 void multi_command_t::check_args() {
-  Args::check_args();
+  args_t::check_args();
   if (command_) {
     command_->second->check_args();
   }
@@ -708,7 +708,7 @@ auto multi_command_t::to_json() -> nlohmann::json {
     cmds[name] = std::move(json_obj);
   }
 
-  auto res = Args::to_json();
+  auto res = args_t::to_json();
   res["commands"] = std::move(cmds);
   return res;
 }

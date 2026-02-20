@@ -11,9 +11,9 @@ namespace nix {
 struct memory_source_accessor_t;
 
 /**
- * Enough of the Dummy Store exposed for sake of writing unit tests
+ * Enough of the Dummy store_t exposed for sake of writing unit tests
  */
-struct dummy_store : virtual Store {
+struct dummy_store : virtual store_t {
   using config_t = DummyStoreConfig;
 
   ref<const config_t> config;
@@ -29,13 +29,13 @@ struct dummy_store : virtual Store {
    * This map conceptually owns the file system objects for each
    * store object.
    */
-  boost::concurrent_flat_map<StorePath, PathInfoAndContents> contents;
+  boost::concurrent_flat_map<store_path_t, PathInfoAndContents> contents;
 
   /**
    * This map conceptually owns every derivation, allowing us to
    * avoid "on-disk drv format" serialization round-trips.
    */
-  boost::concurrent_flat_map<StorePath, Derivation> derivations;
+  boost::concurrent_flat_map<store_path_t, derivation_t> derivations;
 
   /**
    * The build trace maps the pair of a content-addressing (fixed or
@@ -49,7 +49,7 @@ struct dummy_store : virtual Store {
    */
   boost::concurrent_flat_map<Hash, std::map<std::string, UnkeyedRealisation>> buildTrace;
 
-  dummy_store(ref<const config_t> config) : Store{*config}, config(config) {}
+  dummy_store(ref<const config_t> config) : store_t{*config}, config(config) {}
 
   bool operator==(const dummy_store&) const;
 };

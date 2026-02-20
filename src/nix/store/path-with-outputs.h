@@ -6,30 +6,30 @@
 
 namespace nix {
 
-struct StoreDirConfig;
+struct store_dir_config_t;
 
 /**
  * This is a deprecated old type just for use by the old CLI, and older
  * versions of the RPC protocols. In new code don't use it; you want
- * `DerivedPath` instead.
+ * `derived_path_t` instead.
  *
- * `DerivedPath` is better because it handles more cases, and does so more
+ * `derived_path_t` is better because it handles more cases, and does so more
  * explicitly without devious punning tricks.
  */
 struct StorePathWithOutputs {
-  StorePath path;
+  store_path_t path;
   string_set_t outputs;
 
-  std::string to_string(const StoreDirConfig& store) const;
+  std::string to_string(const store_dir_config_t& store) const;
 
-  DerivedPath toDerivedPath() const;
+  derived_path_t toDerivedPath() const;
 
-  typedef std::variant<StorePathWithOutputs, StorePath, std::monostate> ParseResult;
+  typedef std::variant<StorePathWithOutputs, store_path_t, std::monostate> ParseResult;
 
-  static StorePathWithOutputs::ParseResult tryFromDerivedPath(const DerivedPath&);
+  static StorePathWithOutputs::ParseResult tryFromDerivedPath(const derived_path_t&);
 };
 
-std::vector<DerivedPath> to_derived_paths(const std::vector<StorePathWithOutputs>);
+std::vector<derived_path_t> to_derived_paths(const std::vector<StorePathWithOutputs>);
 
 std::pair<std::string_view, string_set_t> parse_path_with_outputs(std::string_view s);
 
@@ -38,12 +38,12 @@ std::pair<std::string_view, string_set_t> parse_path_with_outputs(std::string_vi
  * (/nix/store/hash-foo!out1,out2,...) into the derivation path
  * and the outputs.
  */
-StorePathWithOutputs parse_path_with_outputs(const StoreDirConfig& store,
+StorePathWithOutputs parse_path_with_outputs(const store_dir_config_t& store,
                                           std::string_view path_with_outputs);
 
-class Store;
+class store_t;
 
-StorePathWithOutputs follow_links_to_store_path_with_outputs(const Store& store,
+StorePathWithOutputs follow_links_to_store_path_with_outputs(const store_t& store,
                                                        std::string_view path_with_outputs);
 
 } // namespace nix

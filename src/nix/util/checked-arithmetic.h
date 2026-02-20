@@ -2,7 +2,7 @@
 /**
  * @file
  *
- * Checked arithmetic with classes that make it hard to accidentally make something an unchecked
+ * checked_t arithmetic with classes that make it hard to accidentally make something an unchecked
  * operation.
  */
 
@@ -16,29 +16,29 @@
 
 namespace nix::checked {
 
-class DivideByZero : std::exception {};
+class divide_by_zero_t : std::exception {};
 
 /**
  * Numeric value enforcing checked arithmetic. Performing mathematical operations on such values
  * will return a Result type which needs to be checked.
  */
 template <std::integral T>
-struct Checked {
+struct checked_t {
   using Inner = T;
 
   // TODO: this must be a "trivial default constructor", which means it
   // cannot set the value to NOT DO UB on uninit.
   T value;
 
-  Checked() = default;
+  checked_t() = default;
 
-  explicit Checked(T const value) : value{value} {}
+  explicit checked_t(T const value) : value{value} {}
 
-  Checked(Checked<T> const& other) = default;
-  Checked(Checked<T>&& other) = default;
-  Checked<T>& operator=(Checked<T> const& other) = default;
+  checked_t(checked_t<T> const& other) = default;
+  checked_t(checked_t<T>&& other) = default;
+  checked_t<T>& operator=(checked_t<T> const& other) = default;
 
-  std::strong_ordering operator<=>(Checked<T> const& other) const = default;
+  std::strong_ordering operator<=>(checked_t<T> const& other) const = default;
 
   std::strong_ordering operator<=>(T const& other) const { return value <=> other; }
 
@@ -76,11 +76,11 @@ struct Checked {
     /**
      * Returns the result as if the arithmetic were performed as wrapping arithmetic.
      *
-     * \throws DivideByZero if the operation was a divide by zero.
+     * \throws divide_by_zero_t if the operation was a divide by zero.
      */
     T valueWrapping() const {
       if (overflowed_ == OverflowKind::DivByZero) {
-        throw DivideByZero{};
+        throw divide_by_zero_t{};
       }
       return value;
     }
@@ -90,7 +90,7 @@ struct Checked {
     bool divideByZero() const { return overflowed_ == OverflowKind::DivByZero; }
   };
 
-  Result operator+(Checked<T> const other) const { return (*this) + other.value; }
+  Result operator+(checked_t<T> const other) const { return (*this) + other.value; }
 
   Result operator+(T const other) const {
     T result;
@@ -98,7 +98,7 @@ struct Checked {
     return Result{result, overflowed};
   }
 
-  Result operator-(Checked<T> const other) const { return (*this) - other.value; }
+  Result operator-(checked_t<T> const other) const { return (*this) - other.value; }
 
   Result operator-(T const other) const {
     T result;
@@ -106,7 +106,7 @@ struct Checked {
     return Result{result, overflowed};
   }
 
-  Result operator*(Checked<T> const other) const { return (*this) * other.value; }
+  Result operator*(checked_t<T> const other) const { return (*this) * other.value; }
 
   Result operator*(T const other) const {
     T result;
@@ -114,7 +114,7 @@ struct Checked {
     return Result{result, overflowed};
   }
 
-  Result operator/(Checked<T> const other) const { return (*this) / other.value; }
+  Result operator/(checked_t<T> const other) const { return (*this) / other.value; }
 
   /**
    * Performs a checked division.
@@ -141,7 +141,7 @@ struct Checked {
 };
 
 template <std::integral T>
-std::ostream& operator<<(std::ostream& ios, Checked<T> v) {
+std::ostream& operator<<(std::ostream& ios, checked_t<T> v) {
   ios << v.value;
   return ios;
 }

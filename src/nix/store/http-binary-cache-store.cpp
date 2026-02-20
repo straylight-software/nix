@@ -21,13 +21,13 @@ string_set_t HttpBinaryCacheStoreConfig::uriSchemes() {
 HttpBinaryCacheStoreConfig::HttpBinaryCacheStoreConfig(std::string_view scheme,
                                                        std::string_view _cacheUri,
                                                        const Params& params)
-    : StoreConfig(params),
-      BinaryCacheStoreConfig(params),
+    : store_config_t(params),
+      binary_cache_store_config_t(params),
       cacheUri(parse_url(
           std::string{scheme} + "://" +
           (!_cacheUri.empty()
                ? _cacheUri
-               : throw UsageError("`%s` Store requires a non-empty authority in Store URL",
+               : throw UsageError("`%s` store_t requires a non-empty authority in store_t URL",
                                   scheme)))) {
   while (!cacheUri.path().empty() && cacheUri.path().back() == "")
     cacheUri.path().pop_back();
@@ -51,7 +51,7 @@ std::string HttpBinaryCacheStoreConfig::doc() {
 }
 
 http_binary_cache_store::http_binary_cache_store(ref<config_t> config)
-    : Store{*config} // TODO it will actually mutate the configuration
+    : store_t{*config} // TODO it will actually mutate the configuration
       ,
       binary_cache_store{*config},
       config{config} {
@@ -61,7 +61,7 @@ http_binary_cache_store::http_binary_cache_store(ref<config_t> config)
 void http_binary_cache_store::init() {
   // FIXME: do this lazily?
   // For consistent cache key handling, use the reference without parameters
-  // This matches what's used in Store::queryPathInfo() lookups
+  // This matches what's used in store_t::queryPathInfo() lookups
   auto cache_key = config->getReference().render(/*withParams=*/false);
 
   if (auto cacheInfo = diskCache->upToDateCacheExists(cache_key)) {
@@ -186,7 +186,7 @@ FileTransferRequest http_binary_cache_store::makeRequest(std::string_view path) 
   return FileTransferRequest(result);
 }
 
-void http_binary_cache_store::getFile(const std::string& path, Sink& sink) {
+void http_binary_cache_store::getFile(const std::string& path, sink_t& sink) {
   checkEnabled();
   auto request(makeRequest(path));
   try {
@@ -253,7 +253,7 @@ std::optional<TrustedFlag> http_binary_cache_store::isTrustedClient() {
   return std::nullopt;
 }
 
-ref<Store> http_binary_cache_store::config_t::open_store() const {
+ref<store_t> http_binary_cache_store::config_t::open_store() const {
   return make_ref<http_binary_cache_store>(
       ref{// FIXME we shouldn't actually need a mutable config
           std::const_pointer_cast<http_binary_cache_store::config_t>(shared_from_this())});

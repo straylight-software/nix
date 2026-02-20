@@ -81,10 +81,10 @@ void base_setting_t<T>::set(const std::string& str, bool append) {
 }
 
 template <>
-void base_setting_t<bool>::convert_to_arg(Args& args, const std::string& category);
+void base_setting_t<bool>::convert_to_arg(args_t& args, const std::string& category);
 
 template <typename T>
-void base_setting_t<T>::convert_to_arg(Args& args, const std::string& category) {
+void base_setting_t<T>::convert_to_arg(args_t& args, const std::string& category) {
   args.add_flag({
       .long_name = name,
       .aliases = aliases,

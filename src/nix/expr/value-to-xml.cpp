@@ -14,17 +14,17 @@ static xml_attrs_t singleton_attrs(const std::string& name, std::string_view val
   return attrs;
 }
 
-static void print_value_as_xml(EvalState& state, bool strict, bool location, Value& v, xml_writer_t& doc,
+static void print_value_as_xml(eval_state_t& state, bool strict, bool location, value_t& v, xml_writer_t& doc,
                             NixStringContext& context, path_set_t& drvs_seen, const pos_idx_t pos);
 
-static void pos_to_xml(EvalState& state, xml_attrs_t& xml_attrs, const pos_t& pos) {
+static void pos_to_xml(eval_state_t& state, xml_attrs_t& xml_attrs, const pos_t& pos) {
   if (auto path = std::get_if<source_path_t>(&pos.origin))
     xml_attrs["path"] = path->path.abs();
   xml_attrs["line"] = fmt("%1%", pos.line);
   xml_attrs["column"] = fmt("%1%", pos.column);
 }
 
-static void show_attrs(EvalState& state, bool strict, bool location, const Bindings& attrs,
+static void show_attrs(eval_state_t& state, bool strict, bool location, const bindings_t& attrs,
                       xml_writer_t& doc, NixStringContext& context, path_set_t& drvs_seen) {
   string_set_t names;
 
@@ -39,7 +39,7 @@ static void show_attrs(EvalState& state, bool strict, bool location, const Bindi
   }
 }
 
-static void print_value_as_xml(EvalState& state, bool strict, bool location, Value& v, xml_writer_t& doc,
+static void print_value_as_xml(eval_state_t& state, bool strict, bool location, value_t& v, xml_writer_t& doc,
                             NixStringContext& context, path_set_t& drvs_seen, const pos_idx_t pos) {
   check_interrupt();
 
@@ -154,13 +154,13 @@ static void print_value_as_xml(EvalState& state, bool strict, bool location, Val
   }
 }
 
-void ExternalValueBase::print_value_as_xml(EvalState& state, bool strict, bool location,
+void ExternalValueBase::print_value_as_xml(eval_state_t& state, bool strict, bool location,
                                         xml_writer_t& doc, NixStringContext& context,
                                         path_set_t& drvs_seen, const pos_idx_t pos) const {
   doc.write_empty_element("unevaluated");
 }
 
-void print_value_as_xml(EvalState& state, bool strict, bool location, Value& v, std::ostream& out,
+void print_value_as_xml(eval_state_t& state, bool strict, bool location, value_t& v, std::ostream& out,
                      NixStringContext& context, const pos_idx_t pos) {
   xml_writer_t doc(true, out);
   xml_open_element_t root(doc, "expr");

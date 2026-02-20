@@ -56,7 +56,7 @@ std::string_view render_file_serialisation_method(file_serialisation_method_t me
 /**
  * Dump a serialization of the given file system object.
  */
-void dump_path(const source_path_t& path, Sink& sink, file_serialisation_method_t method,
+void dump_path(const source_path_t& path, sink_t& sink, file_serialisation_method_t method,
               path_filter_t& filter = default_path_filter);
 
 /**
@@ -64,7 +64,7 @@ void dump_path(const source_path_t& path, Sink& sink, file_serialisation_method_
  *
  * \todo use an arbitrary `file_system_object_sink_t`.
  */
-void restore_path(const Path& path, Source& source, file_serialisation_method_t method,
+void restore_path(const Path& path, source_t& source, file_serialisation_method_t method,
                  bool start_fsync = false);
 
 /**

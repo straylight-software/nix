@@ -95,9 +95,9 @@ struct OutputsSpec {
 struct ExtendedOutputsSpec {
   struct Default : std::monostate {};
 
-  using Explicit = OutputsSpec;
+  using explicit_t = OutputsSpec;
 
-  typedef std::variant<Default, Explicit> raw_t;
+  typedef std::variant<Default, explicit_t> raw_t;
 
   raw_t raw;
 

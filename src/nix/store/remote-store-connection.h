@@ -9,10 +9,10 @@
 namespace nix {
 
 /**
- * Bidirectional connection (send and receive) used by the Remote Store
+ * Bidirectional connection (send and receive) used by the Remote store_t
  * implementation.
  *
- * Contains `Source` and `Sink` for actual communication, along with
+ * Contains `source_t` and `sink_t` for actual communication, along with
  * other information learned when negotiating the connection.
  */
 struct remote_store::Connection : WorkerProto::BasicClientConnection,
@@ -24,17 +24,17 @@ struct remote_store::Connection : WorkerProto::BasicClientConnection,
 };
 
 /**
- * A wrapper around Pool<remote_store::Connection>::Handle that marks
+ * A wrapper around pool_t<remote_store::Connection>::Handle that marks
  * the connection as bad (causing it to be closed) if a non-daemon
  * exception is thrown before the handle is closed. Such an exception
  * causes a deviation from the expected protocol and therefore a
  * desynchronization between the client and daemon.
  */
 struct remote_store::ConnectionHandle {
-  Pool<remote_store::Connection>::Handle handle;
+  pool_t<remote_store::Connection>::Handle handle;
   bool daemonException = false;
 
-  ConnectionHandle(Pool<remote_store::Connection>::Handle&& handle) : handle(std::move(handle)) {}
+  ConnectionHandle(pool_t<remote_store::Connection>::Handle&& handle) : handle(std::move(handle)) {}
 
   ConnectionHandle(ConnectionHandle&& h) noexcept : handle(std::move(h.handle)) {}
 
@@ -44,9 +44,9 @@ struct remote_store::ConnectionHandle {
 
   remote_store::Connection* operator->() { return &*handle; }
 
-  void processStderr(Sink* sink = 0, Source* source = 0, bool flush = true, bool block = true);
+  void processStderr(sink_t* sink = 0, source_t* source = 0, bool flush = true, bool block = true);
 
-  void withFramedSink(std::function<void(Sink& sink)> fun);
+  void withFramedSink(std::function<void(sink_t& sink)> fun);
 };
 
 } // namespace nix

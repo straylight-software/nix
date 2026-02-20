@@ -5,19 +5,19 @@
 
 namespace nix {
 
-source_path_t EvalState::root_path(canon_path_t path) {
+source_path_t eval_state_t::root_path(canon_path_t path) {
   return {root_fs, std::move(path)};
 }
 
-source_path_t EvalState::root_path(path_view_t path) {
+source_path_t eval_state_t::root_path(path_view_t path) {
   return {root_fs, canon_path_t(abs_path(path))};
 }
 
-source_path_t EvalState::store_path(const StorePath& path) {
+source_path_t eval_state_t::store_path(const store_path_t& path) {
   return {root_fs, canon_path_t{store->printStorePath(path)}};
 }
 
-StorePath EvalState::devirtualize(const StorePath& path, string_map_t* rewrites) {
+store_path_t eval_state_t::devirtualize(const store_path_t& path, string_map_t* rewrites) {
   if (auto mount = storeFS->get_mount(canon_path_t(store->printStorePath(path)))) {
     auto store_path =
         fetch_to_store(fetch_settings, *store, source_path_t{ref(mount)},
@@ -30,14 +30,14 @@ StorePath EvalState::devirtualize(const StorePath& path, string_map_t* rewrites)
     return path;
 }
 
-SingleDerivedPath EvalState::devirtualize(const SingleDerivedPath& path, string_map_t* rewrites) {
+SingleDerivedPath eval_state_t::devirtualize(const SingleDerivedPath& path, string_map_t* rewrites) {
   if (auto o = std::get_if<SingleDerivedPath::opaque_t>(&path.raw()))
     return SingleDerivedPath::opaque_t{devirtualize(o->path, rewrites)};
   else
     return path;
 }
 
-std::string EvalState::devirtualize(std::string_view s, const NixStringContext& context) {
+std::string eval_state_t::devirtualize(std::string_view s, const NixStringContext& context) {
   string_map_t rewrites;
 
   for (auto& c : context)
@@ -47,7 +47,7 @@ std::string EvalState::devirtualize(std::string_view s, const NixStringContext& 
   return rewrite_strings(std::string(s), rewrites);
 }
 
-std::string EvalState::computeBaseName(const source_path_t& path, pos_idx_t pos) {
+std::string eval_state_t::computeBaseName(const source_path_t& path, pos_idx_t pos) {
   if (path.accessor == root_fs) {
     if (auto store_path = store->maybeParseStorePath(path.path.abs())) {
       debug("Copying '%s' to the store again.\n"
@@ -63,10 +63,10 @@ std::string EvalState::computeBaseName(const source_path_t& path, pos_idx_t pos)
   return std::string(path.base_name());
 }
 
-StorePath EvalState::mountInput(fetchers::Input& input, const fetchers::Input& original_input,
-                                ref<SourceAccessor> accessor, bool require_lockable,
+store_path_t eval_state_t::mountInput(fetchers::input_t& input, const fetchers::input_t& original_input,
+                                ref<source_accessor_t> accessor, bool require_lockable,
                                 bool forceNarHash) {
-  auto store_path = settings.lazyTrees ? StorePath::random(input.get_name())
+  auto store_path = settings.lazyTrees ? store_path_t::random(input.get_name())
                                       : fetch_to_store(fetch_settings, *store, accessor,
                                                      FetchMode::Copy, input.get_name());
 

@@ -4,16 +4,16 @@
 
 namespace nix {
 
-std::map<StorePath, StorePath> make_content_addressed(Store& src_store, Store& dst_store,
-                                                    const StorePathSet& store_paths) {
-  StorePathSet closure;
+std::map<store_path_t, store_path_t> make_content_addressed(store_t& src_store, store_t& dst_store,
+                                                    const store_path_set_t& store_paths) {
+  store_path_set_t closure;
   src_store.computeFSClosure(store_paths, closure);
 
   auto paths = src_store.topoSortPaths(closure);
 
   std::reverse(paths.begin(), paths.end());
 
-  std::map<StorePath, StorePath> remappings;
+  std::map<store_path_t, store_path_t> remappings;
 
   for (auto& path : paths) {
     auto path_s = src_store.printStorePath(path);
@@ -25,7 +25,7 @@ std::map<StorePath, StorePath> make_content_addressed(Store& src_store, Store& d
 
     string_map_t rewrites;
 
-    StoreReferences refs;
+    store_references_t refs;
     for (auto& ref : oldInfo->references) {
       if (ref == path)
         refs.self = true;
@@ -47,7 +47,7 @@ std::map<StorePath, StorePath> make_content_addressed(Store& src_store, Store& d
 
     auto narModuloHash = hashModuloSink.finish().hash;
 
-    auto info = ValidPathInfo::makeFromCA(dst_store, path.name(),
+    auto info = valid_path_info_t::makeFromCA(dst_store, path.name(),
                                           FixedOutputInfo{
                                               .method = file_ingestion_method_t::nix_archive,
                                               .hash = narModuloHash,
@@ -74,8 +74,8 @@ std::map<StorePath, StorePath> make_content_addressed(Store& src_store, Store& d
   return remappings;
 }
 
-StorePath make_content_addressed(Store& src_store, Store& dst_store, const StorePath& from_path) {
-  auto remappings = make_content_addressed(src_store, dst_store, StorePathSet{from_path});
+store_path_t make_content_addressed(store_t& src_store, store_t& dst_store, const store_path_t& from_path) {
+  auto remappings = make_content_addressed(src_store, dst_store, store_path_set_t{from_path});
   auto i = remappings.find(from_path);
   assert(i != remappings.end());
   return i->second;

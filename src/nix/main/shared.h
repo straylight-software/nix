@@ -39,12 +39,12 @@ void print_version(const std::string& program_name);
  */
 void print_gc_warning();
 
-class Store;
+class store_t;
 struct MissingPaths;
 
-void print_missing(ref<Store> store, const std::vector<DerivedPath>& paths, verbosity_t lvl = lvl_info);
+void print_missing(ref<store_t> store, const std::vector<derived_path_t>& paths, verbosity_t lvl = lvl_info);
 
-void print_missing(ref<Store> store, const MissingPaths& missing, verbosity_t lvl = lvl_info);
+void print_missing(ref<store_t> store, const MissingPaths& missing, verbosity_t lvl = lvl_info);
 
 std::string get_arg(const std::string& opt, strings_t::iterator& i, const strings_t::iterator& end);
 
@@ -80,7 +80,7 @@ public:
 
 private:
 #ifndef _WIN32 // TODO re-enable on Windows, once we can start processes.
-  Pid pid;
+  process_handle_t pid;
 #endif
   descriptor_t std_out;
 };

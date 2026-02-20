@@ -9,7 +9,7 @@ struct source_path_t;
 /**
  * A source accessor that uses the Unix filesystem.
  */
-class posix_source_accessor_t : virtual public SourceAccessor {
+class posix_source_accessor_t : virtual public source_accessor_t {
   /**
    * Optional root path to prefix all operations into the native file
    * system. This allows prepending funny things like `C:\` that
@@ -29,7 +29,7 @@ public:
    */
   time_t mtime = 0;
 
-  void read_file(const canon_path_t& path, Sink& sink,
+  void read_file(const canon_path_t& path, sink_t& sink,
                 std::function<void(uint64_t)> size_callback) override;
 
   auto path_exists(const canon_path_t& path) -> bool override;

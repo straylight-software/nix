@@ -48,7 +48,7 @@ struct wasi_derivation_builder_t : derivation_builder_impl_t {
 
     auto module =
         unwrap(Module::compile(engine, string2span(read_file(real_path_in_host(drv.builder)))));
-    wasmtime::Store wasmStore(engine);
+    wasmtime::store_t wasmStore(engine);
     unwrap(wasmStore.context().set_wasi(std::move(wasiConfig)));
     auto instance = unwrap(linker.instantiate(wasmStore, module));
 

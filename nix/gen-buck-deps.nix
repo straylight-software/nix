@@ -75,10 +75,42 @@ let
     RAPIDCHECK_INCLUDE = "${devPath s.rapidcheck-static}/include"
 
     # ════════════════════════════════════════════════════════════════════════════
-    # binaryen - WebAssembly compiler infrastructure
+    # boost - C++ libraries (used heavily by upstream nix)
     # ════════════════════════════════════════════════════════════════════════════
-    BINARYEN_STATIC_LIB = "${libPath s.binaryen-static}/lib/libbinaryen.a"
-    BINARYEN_INCLUDE = "${libPath s.binaryen-static}/include"
+    BOOST_LIB_DIR = "${libPath s.boost-static}/lib"
+    BOOST_INCLUDE = "${devPath s.boost-static}/include"
+
+    # ════════════════════════════════════════════════════════════════════════════
+    # brotli - compression
+    # ════════════════════════════════════════════════════════════════════════════
+    BROTLI_COMMON_LIB = "${libPath s.brotli-static}/lib/libbrotlicommon.a"
+    BROTLI_DEC_LIB = "${libPath s.brotli-static}/lib/libbrotlidec.a"
+    BROTLI_ENC_LIB = "${libPath s.brotli-static}/lib/libbrotlienc.a"
+    BROTLI_INCLUDE = "${devPath s.brotli-static}/include"
+
+    # ════════════════════════════════════════════════════════════════════════════
+    # libsodium - cryptography
+    # ════════════════════════════════════════════════════════════════════════════
+    LIBSODIUM_STATIC_LIB = "${libPath s.libsodium-static}/lib/libsodium.a"
+    LIBSODIUM_INCLUDE = "${devPath s.libsodium-static}/include"
+
+    # ════════════════════════════════════════════════════════════════════════════
+    # libarchive - archive handling
+    # ════════════════════════════════════════════════════════════════════════════
+    LIBARCHIVE_STATIC_LIB = "${libPath s.libarchive-static}/lib/libarchive.a"
+    LIBARCHIVE_INCLUDE = "${devPath s.libarchive-static}/include"
+
+    # ════════════════════════════════════════════════════════════════════════════
+    # binaryen - NOW BUILT WITH BUCK2 (vendor/binaryen/BUCK)
+    # Avoids glibc __isoc23_* symbols that are incompatible with musl
+    # ════════════════════════════════════════════════════════════════════════════
+
+    # ════════════════════════════════════════════════════════════════════════════
+    # wasmtime - WebAssembly runtime (pre-built C API)
+    # ════════════════════════════════════════════════════════════════════════════
+    # Note: Static linking requires additional system libs: -lpthread -ldl -lm
+    WASMTIME_STATIC_LIB = "${s.wasmtime-c-api}/lib/libwasmtime.a"
+    WASMTIME_INCLUDE = "${s.wasmtime-c-api}/include"
   '';
 in
 pkgs.writeText "nix-deps.bzl" content

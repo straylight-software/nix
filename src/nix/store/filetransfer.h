@@ -221,7 +221,7 @@ struct FileTransferResult {
   std::optional<std::string> immutableUrl;
 };
 
-class Store;
+class store_t;
 
 struct FileTransfer {
 protected:
@@ -275,7 +275,7 @@ public:
    * Download a file, writing its data to a sink. The sink will be
    * invoked on the thread of the caller.
    */
-  void download(FileTransferRequest&& request, Sink& sink,
+  void download(FileTransferRequest&& request, sink_t& sink,
                 std::function<void(FileTransferResult)> resultCallback = {});
 
   enum Error { NotFound, Forbidden, Misc, Transient, Interrupted };
@@ -304,9 +304,9 @@ public:
   /// intentionally optional
   std::optional<std::string> response;
 
-  template <typename... Args>
+  template <typename... args_t>
   FileTransferError(FileTransfer::Error error, std::optional<std::string> response,
-                    const Args&... args);
+                    const args_t&... args);
 };
 
 } // namespace nix

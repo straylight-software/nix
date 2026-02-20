@@ -254,7 +254,7 @@ parse_hash_algo(std::string_view s,
  */
 [[nodiscard]] auto print_hash_algo(hash_algorithm_t ha) -> std::string_view;
 
-struct abstract_hash_sink_t : virtual Sink {
+struct abstract_hash_sink_t : virtual sink_t {
   [[nodiscard]] virtual auto finish() -> hash_result_t = 0;
 };
 

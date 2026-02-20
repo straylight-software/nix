@@ -97,7 +97,7 @@ struct S3BinaryCacheStoreConfig : HttpBinaryCacheStoreConfig {
    */
   const std::set<const abstract_setting_t*> s3UriSettings = {&profile, &region, &scheme, &endpoint};
 
-  static const std::string name() { return "S3 Binary Cache Store"; }
+  static const std::string name() { return "S3 Binary Cache store_t"; }
 
   static string_set_t uriSchemes();
 
@@ -105,7 +105,7 @@ struct S3BinaryCacheStoreConfig : HttpBinaryCacheStoreConfig {
 
   std::string getHumanReadableURI() const override;
 
-  ref<Store> open_store() const override;
+  ref<store_t> open_store() const override;
 };
 
 } // namespace nix

@@ -1,0 +1,42 @@
+# liburing 2.8 - io_uring wrapper library
+# Built with Buck2 for musl static linking
+
+cxx_library(
+    name = "liburing",
+    srcs = [
+        "src/queue.c",
+        "src/register.c",
+        "src/setup.c",
+        "src/syscall.c",
+        "src/version.c",
+    ],
+    exported_headers = {
+        "liburing.h": "src/include/liburing.h",
+        "liburing/barrier.h": "src/include/liburing/barrier.h",
+        "liburing/compat.h": "src/include/liburing/compat.h",
+        "liburing/io_uring.h": "src/include/liburing/io_uring.h",
+        "liburing/io_uring_version.h": "src/include/liburing/io_uring_version.h",
+        "liburing/sanitize.h": "src/include/liburing/sanitize.h",
+    },
+    headers = {
+        "lib.h": "src/lib.h",
+        "int_flags.h": "src/int_flags.h",
+        "setup.h": "src/setup.h",
+        "syscall.h": "src/syscall.h",
+    },
+    header_namespace = "",
+    include_directories = [
+        "src/include",
+        "src",
+    ],
+    compiler_flags = [
+        "-std=c11",
+        "-D__STDC_HOSTED__=0",  # Use clang's stdatomic.h, not C++ version
+        "-D_GNU_SOURCE",
+        "-D__SANE_USERSPACE_TYPES__",
+        "-fno-stack-protector",
+        "-w",  # Suppress warnings in third-party code
+    ],
+    preferred_linkage = "static",
+    visibility = ["PUBLIC"],
+)

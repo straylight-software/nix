@@ -26,7 +26,7 @@ struct cmd_store_delete_t : StorePathsCommand {
         ;
   }
 
-  void run(ref<Store> store, StorePaths&& store_paths) override {
+  void run(ref<store_t> store, store_paths_t&& store_paths) override {
     auto& gc_store = require<GcStore>(*store);
 
     for (auto& path : store_paths)

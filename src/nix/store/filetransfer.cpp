@@ -1007,7 +1007,7 @@ FileTransferResult FileTransfer::deleteResource(const FileTransferRequest& reque
   return enqueueFileTransfer(request).get();
 }
 
-void FileTransfer::download(FileTransferRequest&& request, Sink& sink,
+void FileTransfer::download(FileTransferRequest&& request, sink_t& sink,
                             std::function<void(FileTransferResult)> resultCallback) {
   /* Note: we can't call 'sink' via request.dataCallback, because
      that would cause the sink to execute on the file_transfer
@@ -1121,9 +1121,9 @@ void FileTransfer::download(FileTransferRequest&& request, Sink& sink,
   }
 }
 
-template <typename... Args>
+template <typename... args_t>
 FileTransferError::FileTransferError(FileTransfer::Error error, std::optional<std::string> response,
-                                     const Args&... args)
+                                     const args_t&... args)
     : Error(args...), error(error), response(response) {
   const auto hf = hint_fmt_t(args...);
   // FIXME: Due to https://github.com/NixOS/nix/issues/3841 we don't know how

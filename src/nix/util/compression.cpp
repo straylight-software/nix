@@ -33,12 +33,12 @@ struct chunked_compression_sink_t : compression_sink_t {
   virtual void write_internal(std::string_view data) = 0;
 };
 
-struct archive_decompression_source_t : Source {
+struct archive_decompression_source_t : source_t {
   std::unique_ptr<tar_archive_t> archive = 0;
-  Source& src;
+  source_t& src;
   std::optional<std::string> compression_method;
 
-  archive_decompression_source_t(Source& src,
+  archive_decompression_source_t(source_t& src,
                                  std::optional<std::string> compression_method = std::nullopt)
       : src(src), compression_method(std::move(compression_method)) {}
 
@@ -67,10 +67,10 @@ struct archive_decompression_source_t : Source {
 };
 
 struct archive_compression_sink_t : compression_sink_t {
-  Sink& next_sink;
+  sink_t& next_sink;
   struct archive* archive;
 
-  archive_compression_sink_t(Sink& next_sink, std::string format, bool parallel,
+  archive_compression_sink_t(sink_t& next_sink, std::string format, bool parallel,
                              int level = COMPRESSION_LEVEL_DEFAULT)
       : next_sink(next_sink) {
     archive = archive_write_new();
@@ -139,9 +139,9 @@ private:
 };
 
 struct none_sink_t : compression_sink_t {
-  Sink& next_sink;
+  sink_t& next_sink;
 
-  none_sink_t(Sink& next_sink, int level = COMPRESSION_LEVEL_DEFAULT) : next_sink(next_sink) {
+  none_sink_t(sink_t& next_sink, int level = COMPRESSION_LEVEL_DEFAULT) : next_sink(next_sink) {
     if (level != COMPRESSION_LEVEL_DEFAULT) {
       warn("requested compression level '%d' not supported by compression method 'none'", level);
     }
@@ -153,11 +153,11 @@ struct none_sink_t : compression_sink_t {
 };
 
 struct brotli_decompression_sink_t : chunked_compression_sink_t {
-  Sink& next_sink;
+  sink_t& next_sink;
   BrotliDecoderState* state;
   bool finished = false;
 
-  brotli_decompression_sink_t(Sink& next_sink) : next_sink(next_sink) {
+  brotli_decompression_sink_t(sink_t& next_sink) : next_sink(next_sink) {
     state = BrotliDecoderCreateInstance(nullptr, nullptr, nullptr);
     if (!state) {
       throw CompressionError("unable to initialize brotli decoder");
@@ -204,13 +204,13 @@ std::string decompress(const std::string& method, std::string_view in) {
   return std::move(ssink.str());
 }
 
-std::unique_ptr<finish_sink_t> make_decompression_sink(const std::string& method, Sink& next_sink) {
+std::unique_ptr<finish_sink_t> make_decompression_sink(const std::string& method, sink_t& next_sink) {
   if (method == "none" || method == "" || method == "identity") {
     return std::make_unique<none_sink_t>(next_sink);
   } else if (method == "br") {
     return std::make_unique<brotli_decompression_sink_t>(next_sink);
   } else {
-    return source_to_sink([method, &next_sink](Source& source) {
+    return source_to_sink([method, &next_sink](source_t& source) {
       auto decompression_source = std::make_unique<archive_decompression_source_t>(source, method);
       decompression_source->drain_into(next_sink);
     });
@@ -218,12 +218,12 @@ std::unique_ptr<finish_sink_t> make_decompression_sink(const std::string& method
 }
 
 struct brotli_compression_sink_t : chunked_compression_sink_t {
-  Sink& next_sink;
+  sink_t& next_sink;
   uint8_t outbuf[BUFSIZ];
   BrotliEncoderState* state;
   bool finished = false;
 
-  brotli_compression_sink_t(Sink& next_sink) : next_sink(next_sink) {
+  brotli_compression_sink_t(sink_t& next_sink) : next_sink(next_sink) {
     state = BrotliEncoderCreateInstance(nullptr, nullptr, nullptr);
     if (!state) {
       throw CompressionError("unable to initialise brotli encoder");
@@ -263,7 +263,7 @@ struct brotli_compression_sink_t : chunked_compression_sink_t {
   }
 };
 
-ref<compression_sink_t> make_compression_sink(const std::string& method, Sink& next_sink,
+ref<compression_sink_t> make_compression_sink(const std::string& method, sink_t& next_sink,
                                               const bool parallel, int level) {
   std::vector<std::string> la_supports = {"bzip2", "compress", "grzip", "gzip", "lrzip", "lz4",
                                           "lzip",  "lzma",     "lzop",  "xz",   "zstd"};

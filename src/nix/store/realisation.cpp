@@ -26,17 +26,17 @@ std::string DrvOutput::to_string() const {
   return strHash() + "!" + output_name;
 }
 
-std::set<Realisation> Realisation::closure(Store& store,
-                                           const std::set<Realisation>& startOutputs) {
-  std::set<Realisation> res;
-  Realisation::closure(store, startOutputs, res);
+std::set<realisation_t> realisation_t::closure(store_t& store,
+                                           const std::set<realisation_t>& startOutputs) {
+  std::set<realisation_t> res;
+  realisation_t::closure(store, startOutputs, res);
   return res;
 }
 
-void Realisation::closure(Store& store, const std::set<Realisation>& startOutputs,
-                          std::set<Realisation>& res) {
-  auto getDeps = [&](const Realisation& current) -> std::set<Realisation> {
-    std::set<Realisation> res;
+void realisation_t::closure(store_t& store, const std::set<realisation_t>& startOutputs,
+                          std::set<realisation_t>& res) {
+  auto getDeps = [&](const realisation_t& current) -> std::set<realisation_t> {
+    std::set<realisation_t> res;
     for (auto& [currentDep, _] : current.dependentRealisations) {
       if (auto currentRealisation = store.query_realisation(currentDep))
         res.insert({*currentRealisation, currentDep});
@@ -46,11 +46,11 @@ void Realisation::closure(Store& store, const std::set<Realisation>& startOutput
     return res;
   };
 
-  compute_closure<Realisation>(
+  compute_closure<realisation_t>(
       startOutputs, res,
-      [&](const Realisation& current,
-          std::function<void(std::promise<std::set<Realisation>>&)> processEdges) {
-        std::promise<std::set<Realisation>> promise;
+      [&](const realisation_t& current,
+          std::function<void(std::promise<std::set<realisation_t>>&)> processEdges) {
+        std::promise<std::set<realisation_t>> promise;
         try {
           auto res = getDeps(current);
           promise.set_value(res);
@@ -62,7 +62,7 @@ void Realisation::closure(Store& store, const std::set<Realisation>& startOutput
 }
 
 std::string UnkeyedRealisation::fingerprint(const DrvOutput& key) const {
-  nlohmann::json serialized = Realisation{*this, key};
+  nlohmann::json serialized = realisation_t{*this, key};
   serialized.erase("signatures");
   return serialized.dump();
 }
@@ -89,11 +89,11 @@ size_t UnkeyedRealisation::checkSignatures(const DrvOutput& key,
   return good;
 }
 
-const StorePath& RealisedPath::path() const& {
+const store_path_t& RealisedPath::path() const& {
   return std::visit([](auto& arg) -> auto& { return arg.get_path(); }, raw);
 }
 
-bool Realisation::isCompatibleWith(const UnkeyedRealisation& other) const {
+bool realisation_t::isCompatibleWith(const UnkeyedRealisation& other) const {
   if (out_path == other.out_path) {
     if (dependentRealisations.empty() != other.dependentRealisations.empty()) {
       warn("Encountered a realisation for '%s' with an empty set of "
@@ -108,11 +108,11 @@ bool Realisation::isCompatibleWith(const UnkeyedRealisation& other) const {
   return false;
 }
 
-void RealisedPath::closure(Store& store, const RealisedPath::Set& startPaths,
+void RealisedPath::closure(store_t& store, const RealisedPath::Set& startPaths,
                            RealisedPath::Set& ret) {
   // FIXME: This only builds the store-path closure, not the real realisation
   // closure
-  StorePathSet initialStorePaths, pathsClosure;
+  store_path_set_t initialStorePaths, pathsClosure;
   for (auto& path : startPaths)
     initialStorePaths.insert(path.path());
   store.computeFSClosure(initialStorePaths, pathsClosure);
@@ -120,11 +120,11 @@ void RealisedPath::closure(Store& store, const RealisedPath::Set& startPaths,
   ret.insert(pathsClosure.begin(), pathsClosure.end());
 }
 
-void RealisedPath::closure(Store& store, RealisedPath::Set& ret) const {
+void RealisedPath::closure(store_t& store, RealisedPath::Set& ret) const {
   RealisedPath::closure(store, {*this}, ret);
 }
 
-RealisedPath::Set RealisedPath::closure(Store& store) const {
+RealisedPath::Set RealisedPath::closure(store_t& store) const {
   RealisedPath::Set ret;
   closure(store, ret);
   return ret;
@@ -151,7 +151,7 @@ UnkeyedRealisation adl_serializer<UnkeyedRealisation>::from_json(const json& jso
   if (auto signaturesOpt = optional_value_at(json, "signatures"))
     signatures = *signaturesOpt;
 
-  std::map<DrvOutput, StorePath> dependentRealisations;
+  std::map<DrvOutput, store_path_t> dependentRealisations;
   if (auto jsonDependencies = optional_value_at(json, "dependentRealisations"))
     for (auto& [jsonDepId, jsonDepOutPath] : get_object(*jsonDependencies))
       dependentRealisations.insert({DrvOutput::parse(jsonDepId), jsonDepOutPath});
@@ -174,16 +174,16 @@ void adl_serializer<UnkeyedRealisation>::to_json(json& json, const UnkeyedRealis
   };
 }
 
-Realisation adl_serializer<Realisation>::from_json(const json& json0) {
+realisation_t adl_serializer<realisation_t>::from_json(const json& json0) {
   auto json = get_object(json0);
 
-  return Realisation{
+  return realisation_t{
       static_cast<UnkeyedRealisation>(json0),
       value_at(json, "id"),
   };
 }
 
-void adl_serializer<Realisation>::to_json(json& json, const Realisation& r) {
+void adl_serializer<realisation_t>::to_json(json& json, const realisation_t& r) {
   json = static_cast<const UnkeyedRealisation&>(r);
   json["id"] = r.id;
 }

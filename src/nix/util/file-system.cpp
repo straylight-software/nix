@@ -270,7 +270,7 @@ std::string read_file(const std::filesystem::path& path) {
   return read_file(os_string_to_string(path_view_ng_t{path}));
 }
 
-void read_file(const Path& path, Sink& sink, bool memory_map) {
+void read_file(const Path& path, sink_t& sink, bool memory_map) {
   // Memory-map the file for faster processing where possible.
   if (memory_map) {
     try {
@@ -330,7 +330,7 @@ void write_file(auto_close_fd_t& fd, const Path& orig_path, std::string_view s, 
   }
 }
 
-void write_file(const Path& path, Source& source, mode_t mode, fs_sync_t sync) {
+void write_file(const Path& path, source_t& source, mode_t mode, fs_sync_t sync) {
   auto_close_fd_t fd = to_descriptor(open(path.c_str(),
                                           O_WRONLY | O_TRUNC | O_CREAT
 #ifdef O_CLOEXEC
@@ -631,11 +631,11 @@ void auto_delete_t::reset(const std::filesystem::path& p, bool recursive) {
 //////////////////////////////////////////////////////////////////////
 
 #ifdef __FreeBSD__
-AutoUnmount::AutoUnmount() : del{false} {}
+auto_unmount_t::auto_unmount_t() : del{false} {}
 
-AutoUnmount::AutoUnmount(Path& p) : path(p), del(true) {}
+auto_unmount_t::auto_unmount_t(Path& p) : path(p), del(true) {}
 
-AutoUnmount::~AutoUnmount() {
+auto_unmount_t::~auto_unmount_t() {
   try {
     if (del) {
       if (unmount(path.c_str(), 0) < 0) {
@@ -647,7 +647,7 @@ AutoUnmount::~AutoUnmount() {
   }
 }
 
-void AutoUnmount::cancel() {
+void auto_unmount_t::cancel() {
   del = false;
 }
 #endif

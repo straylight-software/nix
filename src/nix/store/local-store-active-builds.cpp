@@ -24,7 +24,7 @@
 namespace nix {
 
 #ifdef __linux__
-static ActiveBuildInfo::ProcessInfo get_process_info(pid_t pid) {
+static ActiveBuildInfo::ProcessInfo get_process_info(::pid_t pid) {
   ActiveBuildInfo::ProcessInfo info;
   info.pid = pid;
   info.argv = tokenize_string<std::vector<std::string>>(read_file(fmt("/proc/%d/cmdline", pid)),
@@ -55,7 +55,7 @@ static ActiveBuildInfo::ProcessInfo get_process_info(pid_t pid) {
   auto remaining_fields = tokenize_string<std::vector<std::string>>(match[3].str());
 
   if (remaining_fields.size() > 1)
-    info.parentPid = string2_int<pid_t>(remaining_fields[1]).value_or(0);
+    info.parent_pid = string2_int<::pid_t>(remaining_fields[1]).value_or(0);
 
   static long clk_tck = sysconf(_SC_CLK_TCK);
   if (remaining_fields.size() > 14 && clk_tck > 0) {
@@ -75,15 +75,15 @@ static ActiveBuildInfo::ProcessInfo get_process_info(pid_t pid) {
 /**
  * Recursively get all descendant PIDs of a given PID using /proc/[pid]/task/[pid]/children.
  */
-static std::set<pid_t> get_descendant_pids(pid_t pid) {
-  std::set<pid_t> descendants;
+static std::set<::pid_t> get_descendant_pids(::pid_t pid) {
+  std::set<::pid_t> descendants;
 
-  [&](this auto self, pid_t pid) -> void {
+  [&](this auto self, ::pid_t pid) -> void {
     try {
       descendants.insert(pid);
       for (const auto& childPidStr : tokenize_string<std::vector<std::string>>(
                read_file(fmt("/proc/%d/task/%d/children", pid, pid))))
-        if (auto childPid = string2_int<pid_t>(childPidStr))
+        if (auto childPid = string2_int<::pid_t>(childPidStr))
           self(*childPid);
     } catch (...) {
       // Process may have exited.
@@ -96,7 +96,7 @@ static std::set<pid_t> get_descendant_pids(pid_t pid) {
 #endif
 
 #ifdef __APPLE__
-static ActiveBuildInfo::ProcessInfo get_process_info(pid_t pid) {
+static ActiveBuildInfo::ProcessInfo get_process_info(::pid_t pid) {
   ActiveBuildInfo::ProcessInfo info;
   info.pid = pid;
 
@@ -105,7 +105,7 @@ static ActiveBuildInfo::ProcessInfo get_process_info(pid_t pid) {
   if (proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &procInfo, sizeof(procInfo)) != sizeof(procInfo))
     throw sys_error_t("getting process info for pid %d", pid);
 
-  info.parentPid = procInfo.pbi_ppid;
+  info.parent_pid = procInfo.pbi_ppid;
   info.user = UserInfo::fromUid(procInfo.pbi_uid);
 
   // Get CPU times.
@@ -162,7 +162,7 @@ static ActiveBuildInfo::ProcessInfo get_process_info(pid_t pid) {
 /**
  * Recursively get all descendant PIDs using sysctl with KERN_PROC.
  */
-static std::set<pid_t> get_descendant_pids(pid_t startPid) {
+static std::set<::pid_t> get_descendant_pids(::pid_t startPid) {
   // Get all processes.
   int mib[4] = {CTL_KERN, KERN_PROC, KERN_PROC_ALL, 0};
   size_t size = 0;
@@ -175,17 +175,17 @@ static std::set<pid_t> get_descendant_pids(pid_t startPid) {
     return {startPid};
 
   // Get the children of all processes.
-  std::map<pid_t, std::set<pid_t>> children;
+  std::map<::pid_t, std::set<::pid_t>> children;
   size_t count = size / sizeof(struct kinfo_proc);
   for (size_t i = 0; i < count; i++) {
-    pid_t childPid = procs[i].kp_proc.p_pid;
-    pid_t parentPid = procs[i].kp_eproc.e_ppid;
+    ::pid_t child_pid = procs[i].kp_proc.p_pid;
+    ::pid_t parent_pid = procs[i].kp_eproc.e_ppid;
     children[parentPid].insert(childPid);
   }
 
   // Get all children of `pid`.
-  std::set<pid_t> descendants;
-  std::queue<pid_t> todo;
+  std::set<::pid_t> descendants;
+  std::queue<::pid_t> todo;
   todo.push(startPid);
   while (auto pid = pop(todo)) {
     if (!descendants.insert(*pid).second)
@@ -229,7 +229,7 @@ std::vector<ActiveBuildInfo> LocalStore::queryActiveBuilds() {
         } else
 #  endif
         {
-          for (auto pid : get_descendant_pids(info.mainPid))
+          for (auto pid : get_descendant_pids(info.main_pid))
             info.processes.push_back(get_process_info(pid));
         }
       } catch (...) {

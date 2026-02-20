@@ -8,12 +8,12 @@
 
 namespace nix {
 
-class Store;
-template <typename Input>
-struct DerivationOptions;
-struct DerivationOutput;
+class store_t;
+template <typename input_t>
+struct derivation_options_t;
+struct derivation_output_t;
 
-using DerivationOutputs = std::map<std::string, DerivationOutput>;
+using DerivationOutputs = std::map<std::string, derivation_output_t>;
 
 struct StructuredAttrs {
   static constexpr std::string_view envVarName{"__json"};
@@ -45,9 +45,9 @@ struct StructuredAttrs {
    */
   static void checkKeyNotInUse(const string_pairs_t& env);
 
-  nlohmann::json::object_t prepareStructuredAttrs(Store& store,
-                                                  const DerivationOptions<StorePath>& drv_options,
-                                                  const StorePathSet& inputPaths,
+  nlohmann::json::object_t prepareStructuredAttrs(store_t& store,
+                                                  const derivation_options_t<store_path_t>& drv_options,
+                                                  const store_path_set_t& inputPaths,
                                                   const DerivationOutputs& outputs) const;
 
   /**

@@ -79,7 +79,7 @@ void LocalStore::createTempRootsFile() {
   }
 }
 
-void LocalStore::addTempRoot(const StorePath& path) {
+void LocalStore::addTempRoot(const store_path_t& path) {
   if (config->read_only) {
     debug("Read-only store doesn't support creating lock files for temp roots, but nothing can be "
           "deleted anyways.");
@@ -170,7 +170,7 @@ void LocalStore::findTempRoots(Roots& tempRoots, bool censor) {
     }
     Path path = i.path().string();
 
-    pid_t pid = std::stoi(name);
+    ::pid_t pid = std::stoi(name);
 
     debug("reading temporary root file '%1%'", path);
     auto_close_fd_t fd(to_descriptor(open(path.c_str(),
@@ -456,7 +456,7 @@ void LocalStore::collectGarbage(const GCOptions& options, GCResults& results) {
   bool gcKeepDerivations = settings.gcKeepDerivations;
 
   Roots roots;
-  boost::unordered_flat_set<StorePath, std::hash<StorePath>> dead, alive;
+  boost::unordered_flat_set<store_path_t, std::hash<store_path_t>> dead, alive;
 
   struct Shared {
     // The temp roots only store the hash part to make it easier to
@@ -662,15 +662,15 @@ void LocalStore::collectGarbage(const GCOptions& options, GCResults& results) {
     }
   };
 
-  boost::unordered_flat_map<StorePath, StorePathSet, std::hash<StorePath>> referrersCache;
+  boost::unordered_flat_map<store_path_t, store_path_set_t, std::hash<store_path_t>> referrersCache;
 
   /* Helper function that visits all paths reachable from `start`
      via the referrers edges and optionally derivers and derivation
      output edges. If none of those paths are roots, then all
      visited paths are garbage and are deleted. */
-  auto deleteReferrersClosure = [&](const StorePath& start) {
-    StorePathSet visited;
-    std::queue<StorePath> todo;
+  auto deleteReferrersClosure = [&](const store_path_t& start) {
+    store_path_set_t visited;
+    std::queue<store_path_t> todo;
 
     /* Wake up any GC client waiting for deletion of the paths in
        'visited' to finish. */
@@ -680,7 +680,7 @@ void LocalStore::collectGarbage(const GCOptions& options, GCResults& results) {
       wakeup.notify_all();
     });
 
-    auto enqueue = [&](const StorePath& path) {
+    auto enqueue = [&](const store_path_t& path) {
       if (visited.insert(path).second)
         todo.push(path);
     };
@@ -706,7 +706,7 @@ void LocalStore::collectGarbage(const GCOptions& options, GCResults& results) {
         alive.insert(*path);
         alive.insert(start);
         try {
-          StorePathSet closure;
+          store_path_set_t closure;
           computeFSClosure(*path, closure,
                            /* flipDirection */ false, gcKeepOutputs, gcKeepDerivations);
           for (auto& p : closure)
@@ -746,7 +746,7 @@ void LocalStore::collectGarbage(const GCOptions& options, GCResults& results) {
         /* Visit the referrers of this path. */
         auto i = referrersCache.find(*path);
         if (i == referrersCache.end()) {
-          StorePathSet referrers;
+          store_path_set_t referrers;
           queryGCReferrers(*path, referrers);
           referrersCache.emplace(*path, std::move(referrers));
           i = referrersCache.find(*path);

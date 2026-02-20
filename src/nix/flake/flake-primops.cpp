@@ -35,7 +35,7 @@
 namespace nix::flake::primops {
 
 PrimOp get_flake(const settings_t& settings) {
-  auto prim_get_flake = [&settings](EvalState& state, const pos_idx_t pos, Value** args, Value& v) {
+  auto prim_get_flake = [&settings](eval_state_t& state, const pos_idx_t pos, value_t** args, value_t& v) {
     std::string flake_ref_s(state.forceStringNoCtx(
         *args[0], pos, "while evaluating the argument passed to builtins.getFlake"));
     auto flake_ref = nix::parse_flake_ref(state.fetch_settings, flake_ref_s, {}, true);
@@ -77,7 +77,7 @@ PrimOp get_flake(const settings_t& settings) {
   };
 }
 
-static void prim_parse_flake_ref(EvalState& state, const pos_idx_t pos, Value** args, Value& v) {
+static void prim_parse_flake_ref(eval_state_t& state, const pos_idx_t pos, value_t** args, value_t& v) {
   std::string flake_ref_s(state.forceStringNoCtx(
       *args[0], pos, "while evaluating the argument passed to builtins.parseFlakeRef"));
   auto attrs = nix::parse_flake_ref(state.fetch_settings, flake_ref_s, {}, true).toAttrs();
@@ -88,7 +88,7 @@ static void prim_parse_flake_ref(EvalState& state, const pos_idx_t pos, Value** 
     std::visit(
         overloaded{[&vv, &state](const std::string& value) { vv.mk_string(value, state.mem); },
                    [&vv](const uint64_t& value) { vv.mkInt(value); },
-                   [&vv](const Explicit<bool>& value) { vv.mkBool(value.t); }},
+                   [&vv](const explicit_t<bool>& value) { vv.mkBool(value.t); }},
         value);
   }
   v.mkAttrs(binds);
@@ -115,7 +115,7 @@ nix::PrimOp parse_flake_ref({
     .fun = prim_parse_flake_ref,
 });
 
-static void prim_flake_ref_to_string(EvalState& state, const pos_idx_t pos, Value** args, Value& v) {
+static void prim_flake_ref_to_string(eval_state_t& state, const pos_idx_t pos, value_t** args, value_t& v) {
   state.forceAttrs(*args[0], no_pos,
                    "while evaluating the argument passed to builtins.flakeRefToString");
   fetchers::Attrs attrs;
@@ -134,7 +134,7 @@ static void prim_flake_ref_to_string(EvalState& state, const pos_idx_t pos, Valu
 
       attrs.emplace(state.symbols[attr.name], uint64_t(int_value));
     } else if (t == nBool) {
-      attrs.emplace(state.symbols[attr.name], Explicit<bool>{attr.value->boolean()});
+      attrs.emplace(state.symbols[attr.name], explicit_t<bool>{attr.value->boolean()});
     } else if (t == nString) {
       attrs.emplace(state.symbols[attr.name], std::string(attr.value->string_view()));
     } else {
@@ -145,7 +145,7 @@ static void prim_flake_ref_to_string(EvalState& state, const pos_idx_t pos, Valu
           .debugThrow();
     }
   }
-  auto flake_ref = FlakeRef::fromAttrs(state.fetch_settings, attrs);
+  auto flake_ref = flake_ref_t::fromAttrs(state.fetch_settings, attrs);
   v.mk_string(flake_ref.to_string(), state.mem);
 }
 

@@ -15,7 +15,7 @@ namespace nix {
 struct StructuredAttrs;
 
 struct BuiltinBuilderContext {
-  const BasicDerivation& drv;
+  const basic_derivation_t& drv;
   std::map<std::string, Path> outputs;
   std::string netrcData;
   std::string caFileData;

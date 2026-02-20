@@ -19,7 +19,7 @@ GENERATE_CMP_EXT(, std::strong_ordering, SingleBuiltPathBuilt, *me->drv_path, me
 // Darwin, per header.
 GENERATE_EQUAL(, BuiltPathBuilt ::, BuiltPathBuilt, *me->drv_path, me->outputs);
 
-StorePath SingleBuiltPath::out_path() const {
+store_path_t SingleBuiltPath::out_path() const {
   return std::visit(overloaded{
                         [](const SingleBuiltPath::opaque_t& p) { return p.path; },
                         [](const SingleBuiltPath::Built& b) { return b.output.second; },
@@ -27,11 +27,11 @@ StorePath SingleBuiltPath::out_path() const {
                     raw());
 }
 
-StorePathSet BuiltPath::out_paths() const {
+store_path_set_t BuiltPath::out_paths() const {
   return std::visit(overloaded{
-                        [](const BuiltPath::opaque_t& p) { return StorePathSet{p.path}; },
+                        [](const BuiltPath::opaque_t& p) { return store_path_set_t{p.path}; },
                         [](const BuiltPath::Built& b) {
-                          StorePathSet res;
+                          store_path_set_t res;
                           for (auto& [_, path] : b.outputs)
                             res.insert(path);
                           return res;
@@ -57,7 +57,7 @@ SingleDerivedPath SingleBuiltPath::discardOutputPath() const {
                     raw());
 }
 
-nlohmann::json BuiltPath::Built::to_json(const StoreDirConfig& store) const {
+nlohmann::json BuiltPath::Built::to_json(const store_dir_config_t& store) const {
   nlohmann::json res;
   res["drvPath"] = drv_path->to_json(store);
   for (const auto& [output_name, output_path] : outputs) {
@@ -66,7 +66,7 @@ nlohmann::json BuiltPath::Built::to_json(const StoreDirConfig& store) const {
   return res;
 }
 
-nlohmann::json SingleBuiltPath::Built::to_json(const StoreDirConfig& store) const {
+nlohmann::json SingleBuiltPath::Built::to_json(const store_dir_config_t& store) const {
   nlohmann::json res;
   res["drvPath"] = drv_path->to_json(store);
   auto& [output_name, output_path] = output;
@@ -75,7 +75,7 @@ nlohmann::json SingleBuiltPath::Built::to_json(const StoreDirConfig& store) cons
   return res;
 }
 
-nlohmann::json SingleBuiltPath::to_json(const StoreDirConfig& store) const {
+nlohmann::json SingleBuiltPath::to_json(const store_dir_config_t& store) const {
   return std::visit(overloaded{
                         [&](const SingleBuiltPath::opaque_t& o) -> nlohmann::json {
                           return store.printStorePath(o.path);
@@ -85,7 +85,7 @@ nlohmann::json SingleBuiltPath::to_json(const StoreDirConfig& store) const {
                     raw());
 }
 
-nlohmann::json BuiltPath::to_json(const StoreDirConfig& store) const {
+nlohmann::json BuiltPath::to_json(const store_dir_config_t& store) const {
   return std::visit(overloaded{
                         [&](const BuiltPath::opaque_t& o) -> nlohmann::json {
                           return store.printStorePath(o.path);
@@ -95,7 +95,7 @@ nlohmann::json BuiltPath::to_json(const StoreDirConfig& store) const {
                     raw());
 }
 
-RealisedPath::Set BuiltPath::toRealisedPaths(Store& store) const {
+RealisedPath::Set BuiltPath::toRealisedPaths(store_t& store) const {
   RealisedPath::Set res;
   std::visit(overloaded{
                  [&](const BuiltPath::opaque_t& p) { res.insert(p.path); },
@@ -113,7 +113,7 @@ RealisedPath::Set BuiltPath::toRealisedPaths(Store& store) const {
                        auto thisRealisation = store.query_realisation(key);
                        assert(thisRealisation); // We’ve built it, so we must
                                                 // have the realisation
-                       res.insert(Realisation{*thisRealisation, std::move(key)});
+                       res.insert(realisation_t{*thisRealisation, std::move(key)});
                      } else {
                        res.insert(output_path);
                      }

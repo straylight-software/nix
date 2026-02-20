@@ -5,7 +5,7 @@
 
 namespace nix {
 
-class RefScanSink : public Sink {
+class RefScanSink : public sink_t {
   string_set_t hashes;
   string_set_t seen;
 
@@ -19,17 +19,17 @@ public:
   void operator()(std::string_view data) override;
 };
 
-struct RewritingSink : Sink {
+struct RewritingSink : sink_t {
   const string_map_t rewrites;
   std::string::size_type maxRewriteSize;
   std::string prev;
-  Sink& next_sink;
+  sink_t& next_sink;
   uint64_t pos = 0;
 
   std::vector<uint64_t> matches;
 
-  RewritingSink(const std::string& from, const std::string& to, Sink& next_sink);
-  RewritingSink(const string_map_t& rewrites, Sink& next_sink);
+  RewritingSink(const std::string& from, const std::string& to, sink_t& next_sink);
+  RewritingSink(const string_map_t& rewrites, sink_t& next_sink);
 
   void operator()(std::string_view data) override;
 

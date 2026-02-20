@@ -51,7 +51,7 @@ std::string global_config_t::to_key_value() {
   return res;
 }
 
-void global_config_t::convert_to_args(Args& args, const std::string& category) {
+void global_config_t::convert_to_args(args_t& args, const std::string& category) {
   for (auto& config : config_registrations()) {
     config->convert_to_args(args, category);
 }

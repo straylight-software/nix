@@ -11,7 +11,7 @@
 
 namespace nix {
 
-struct BuildResult {
+struct build_result_t {
   struct Success {
     /**
      * @note This is directly used in the nix-store --serve protocol.
@@ -36,8 +36,8 @@ struct BuildResult {
      */
     SingleDrvOutputs built_outputs;
 
-    bool operator==(const BuildResult::Success&) const noexcept;
-    std::strong_ordering operator<=>(const BuildResult::Success&) const noexcept;
+    bool operator==(const build_result_t::Success&) const noexcept;
+    std::strong_ordering operator<=>(const build_result_t::Success&) const noexcept;
 
     static bool statusIs(uint8_t status) {
       return status == Built || status == Substituted || status == AlreadyValid ||
@@ -93,8 +93,8 @@ struct BuildResult {
      */
     bool isNonDeterministic = false;
 
-    bool operator==(const BuildResult::Failure&) const noexcept;
-    std::strong_ordering operator<=>(const BuildResult::Failure&) const noexcept;
+    bool operator==(const build_result_t::Failure&) const noexcept;
+    std::strong_ordering operator<=>(const build_result_t::Failure&) const noexcept;
 
     [[noreturn]] void rethrow() const {
       throw Error("%s", errorMsg.empty() ? status_to_string(status) : errorMsg);
@@ -105,14 +105,14 @@ struct BuildResult {
 
   /**
    * Convenience wrapper to avoid a longer `std::get_if` usage by the
-   * caller (which will have to add more `BuildResult::` than we do
+   * caller (which will have to add more `build_result_t::` than we do
    * below also, do note.)
    */
   auto* tryGetSuccess(this auto& self) { return std::get_if<Success>(&self.inner); }
 
   /**
    * Convenience wrapper to avoid a longer `std::get_if` usage by the
-   * caller (which will have to add more `BuildResult::` than we do
+   * caller (which will have to add more `build_result_t::` than we do
    * below also, do note.)
    */
   auto* tryGetFailure(this auto& self) { return std::get_if<Failure>(&self.inner); }
@@ -133,8 +133,8 @@ struct BuildResult {
    */
   std::optional<std::chrono::microseconds> cpu_user, cpu_system;
 
-  bool operator==(const BuildResult&) const noexcept;
-  std::strong_ordering operator<=>(const BuildResult&) const noexcept;
+  bool operator==(const build_result_t&) const noexcept;
+  std::strong_ordering operator<=>(const build_result_t&) const noexcept;
 
   bool isCancelled() const {
     auto failure = tryGetFailure();
@@ -147,28 +147,28 @@ struct BuildResult {
 /**
  * denotes a permanent build failure
  */
-struct BuildError : public Error {
-  BuildResult::Failure::Status status;
+struct build_error_t : public Error {
+  build_result_t::Failure::Status status;
 
-  BuildError(BuildResult::Failure::Status status, auto&&... args)
+  build_error_t(build_result_t::Failure::Status status, auto&&... args)
       : Error{args...}, status{status} {}
 };
 
 /**
- * A `BuildResult` together with its "primary key".
+ * A `build_result_t` together with its "primary key".
  */
-struct KeyedBuildResult : BuildResult {
+struct keyed_build_result_t : build_result_t {
   /**
    * The derivation we built or the store path we substituted.
    */
-  DerivedPath path;
+  derived_path_t path;
 
   // Hack to work around a gcc "may be used uninitialized" warning.
-  KeyedBuildResult(BuildResult res, DerivedPath path)
-      : BuildResult(std::move(res)), path(std::move(path)) {}
+  keyed_build_result_t(build_result_t res, derived_path_t path)
+      : build_result_t(std::move(res)), path(std::move(path)) {}
 };
 
 } // namespace nix
 
-JSON_IMPL(nix::BuildResult)
-JSON_IMPL(nix::KeyedBuildResult)
+JSON_IMPL(nix::build_result_t)
+JSON_IMPL(nix::keyed_build_result_t)

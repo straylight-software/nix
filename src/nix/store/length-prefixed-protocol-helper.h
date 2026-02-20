@@ -12,7 +12,7 @@
 
 namespace nix {
 
-struct StoreDirConfig;
+struct store_dir_config_t;
 
 /**
  * Reusable serialisers for serialization container types in a
@@ -32,8 +32,8 @@ struct LengthPrefixedProtoHelper;
 
 #define LENGTH_PREFIXED_PROTO_HELPER(Inner, T)                                                     \
   struct LengthPrefixedProtoHelper<Inner, T> {                                                     \
-    static T read(const StoreDirConfig& store, typename Inner::ReadConn conn);                     \
-    static void write(const StoreDirConfig& store, typename Inner::WriteConn conn, const T& str);  \
+    static T read(const store_dir_config_t& store, typename Inner::ReadConn conn);                     \
+    static void write(const store_dir_config_t& store, typename Inner::WriteConn conn, const T& str);  \
                                                                                                    \
   private:                                                                                         \
     /*!                                                                                            \
@@ -67,7 +67,7 @@ LENGTH_PREFIXED_PROTO_HELPER(Inner, LENGTH_PREFIXED_PROTO_HELPER_X);
 
 template <class Inner, typename T>
 std::vector<T>
-LengthPrefixedProtoHelper<Inner, std::vector<T>>::read(const StoreDirConfig& store,
+LengthPrefixedProtoHelper<Inner, std::vector<T>>::read(const store_dir_config_t& store,
                                                        typename Inner::ReadConn conn) {
   std::vector<T> resSet;
   auto size = read_num<size_t>(conn.from);
@@ -78,7 +78,7 @@ LengthPrefixedProtoHelper<Inner, std::vector<T>>::read(const StoreDirConfig& sto
 }
 
 template <class Inner, typename T>
-void LengthPrefixedProtoHelper<Inner, std::vector<T>>::write(const StoreDirConfig& store,
+void LengthPrefixedProtoHelper<Inner, std::vector<T>>::write(const store_dir_config_t& store,
                                                              typename Inner::WriteConn conn,
                                                              const std::vector<T>& resSet) {
   conn.to << resSet.size();
@@ -89,7 +89,7 @@ void LengthPrefixedProtoHelper<Inner, std::vector<T>>::write(const StoreDirConfi
 
 template <class Inner, typename T, typename Compare>
 std::set<T, Compare>
-LengthPrefixedProtoHelper<Inner, std::set<T, Compare>>::read(const StoreDirConfig& store,
+LengthPrefixedProtoHelper<Inner, std::set<T, Compare>>::read(const store_dir_config_t& store,
                                                              typename Inner::ReadConn conn) {
   std::set<T, Compare> resSet;
   auto size = read_num<size_t>(conn.from);
@@ -101,7 +101,7 @@ LengthPrefixedProtoHelper<Inner, std::set<T, Compare>>::read(const StoreDirConfi
 
 template <class Inner, typename T, typename Compare>
 void LengthPrefixedProtoHelper<Inner, std::set<T, Compare>>::write(
-    const StoreDirConfig& store, typename Inner::WriteConn conn,
+    const store_dir_config_t& store, typename Inner::WriteConn conn,
     const std::set<T, Compare>& resSet) {
   conn.to << resSet.size();
   for (auto& key : resSet) {
@@ -111,7 +111,7 @@ void LengthPrefixedProtoHelper<Inner, std::set<T, Compare>>::write(
 
 template <class Inner, typename K, typename V>
 std::map<K, V>
-LengthPrefixedProtoHelper<Inner, std::map<K, V>>::read(const StoreDirConfig& store,
+LengthPrefixedProtoHelper<Inner, std::map<K, V>>::read(const store_dir_config_t& store,
                                                        typename Inner::ReadConn conn) {
   std::map<K, V> resMap;
   auto size = read_num<size_t>(conn.from);
@@ -124,7 +124,7 @@ LengthPrefixedProtoHelper<Inner, std::map<K, V>>::read(const StoreDirConfig& sto
 }
 
 template <class Inner, typename K, typename V>
-void LengthPrefixedProtoHelper<Inner, std::map<K, V>>::write(const StoreDirConfig& store,
+void LengthPrefixedProtoHelper<Inner, std::map<K, V>>::write(const store_dir_config_t& store,
                                                              typename Inner::WriteConn conn,
                                                              const std::map<K, V>& resMap) {
   conn.to << resMap.size();
@@ -136,7 +136,7 @@ void LengthPrefixedProtoHelper<Inner, std::map<K, V>>::write(const StoreDirConfi
 
 template <class Inner, typename... Ts>
 std::tuple<Ts...>
-LengthPrefixedProtoHelper<Inner, std::tuple<Ts...>>::read(const StoreDirConfig& store,
+LengthPrefixedProtoHelper<Inner, std::tuple<Ts...>>::read(const store_dir_config_t& store,
                                                           typename Inner::ReadConn conn) {
   return std::tuple<Ts...>{
       S<Ts>::read(store, conn)...,
@@ -144,7 +144,7 @@ LengthPrefixedProtoHelper<Inner, std::tuple<Ts...>>::read(const StoreDirConfig& 
 }
 
 template <class Inner, typename... Ts>
-void LengthPrefixedProtoHelper<Inner, std::tuple<Ts...>>::write(const StoreDirConfig& store,
+void LengthPrefixedProtoHelper<Inner, std::tuple<Ts...>>::write(const store_dir_config_t& store,
                                                                 typename Inner::WriteConn conn,
                                                                 const std::tuple<Ts...>& res) {
   std::apply([&]<typename... Us>(const Us&... args) { (S<Us>::write(store, conn, args), ...); },

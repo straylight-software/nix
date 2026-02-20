@@ -11,7 +11,7 @@
 
 namespace nix {
 
-static constexpr auto ref_length = StorePath::HashLen;
+static constexpr auto ref_length = store_path_t::HashLen;
 
 static void search(std::string_view s, string_set_t& hashes, string_set_t& seen) {
   for (size_t i = 0; i + ref_length <= s.size();) {
@@ -51,10 +51,10 @@ void RefScanSink::operator()(std::string_view data) {
   tail.append(data.data() + data.size() - tailLen, tailLen);
 }
 
-RewritingSink::RewritingSink(const std::string& from, const std::string& to, Sink& next_sink)
+RewritingSink::RewritingSink(const std::string& from, const std::string& to, sink_t& next_sink)
     : RewritingSink({{from, to}}, next_sink) {}
 
-RewritingSink::RewritingSink(const string_map_t& rewrites, Sink& next_sink)
+RewritingSink::RewritingSink(const string_map_t& rewrites, sink_t& next_sink)
     : rewrites(rewrites), next_sink(next_sink) {
   std::string::size_type maxRewriteSize = 0;
   for (auto& [from, to] : rewrites) {

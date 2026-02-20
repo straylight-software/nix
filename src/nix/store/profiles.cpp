@@ -63,7 +63,7 @@ static std::filesystem::path make_name(const std::filesystem::path& profile, Gen
 }
 
 std::filesystem::path create_generation(local_fs_store& store, std::filesystem::path profile,
-                                       StorePath out_path) {
+                                       store_path_t out_path) {
   /* The new generation number should be higher than old the
      previous ones. */
   auto [gens, dummy] = findGenerations(profile);

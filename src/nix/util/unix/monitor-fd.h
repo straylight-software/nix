@@ -17,7 +17,7 @@
 
 namespace nix {
 
-class MonitorFdHup {
+class monitor_fd_hup_t {
 private:
   std::thread thread;
   pipe_t notifyPipe;
@@ -25,9 +25,9 @@ private:
   void runThread(int watchFd, int notifyFd);
 
 public:
-  MonitorFdHup(int fd);
+  monitor_fd_hup_t(int fd);
 
-  ~MonitorFdHup() {
+  ~monitor_fd_hup_t() {
     // Close the write side to signal termination via POLLHUP
     notifyPipe.write_side.close();
     thread.join();
@@ -50,10 +50,10 @@ public:
  * See: https://git.lix.systems/lix-project/lix/issues/729
  * Apple bug in poll(2): FB17447257, available at https://openradar.appspot.com/FB17447257
  */
-inline void MonitorFdHup::runThread(int watchFd, int notifyFd) {
+inline void monitor_fd_hup_t::runThread(int watchFd, int notifyFd) {
   int kqResult = kqueue();
   if (kqResult < 0) {
-    throw sys_error_t("MonitorFdHup kqueue");
+    throw sys_error_t("monitor_fd_hup_t kqueue");
   }
   auto_close_fd_t kq{kqResult};
 
@@ -71,14 +71,14 @@ inline void MonitorFdHup::runThread(int watchFd, int notifyFd) {
 
   int result = kevent(kq.get(), kevs.data(), kevs.size(), nullptr, 0, nullptr);
   if (result < 0) {
-    throw sys_error_t("MonitorFdHup kevent add");
+    throw sys_error_t("monitor_fd_hup_t kevent add");
   }
 
   while (true) {
     struct kevent event;
     int numEvents = kevent(kq.get(), nullptr, 0, &event, 1, nullptr);
     if (numEvents < 0) {
-      throw sys_error_t("MonitorFdHup kevent watch");
+      throw sys_error_t("monitor_fd_hup_t kevent watch");
     }
 
     if (numEvents > 0 && (event.flags & EV_EOF)) {
@@ -91,7 +91,7 @@ inline void MonitorFdHup::runThread(int watchFd, int notifyFd) {
   }
 }
 #else
-inline void MonitorFdHup::runThread(int watchFd, int notifyFd) {
+inline void monitor_fd_hup_t::runThread(int watchFd, int notifyFd) {
   while (true) {
     struct pollfd fds[2];
     fds[0].fd = watchFd;
@@ -104,7 +104,7 @@ inline void MonitorFdHup::runThread(int watchFd, int notifyFd) {
       if (errno == EINTR || errno == EAGAIN) {
         continue;
       } else {
-        throw sys_error_t("in MonitorFdHup poll()");
+        throw sys_error_t("in monitor_fd_hup_t poll()");
       }
     }
 
@@ -121,7 +121,7 @@ inline void MonitorFdHup::runThread(int watchFd, int notifyFd) {
 }
 #endif
 
-inline MonitorFdHup::MonitorFdHup(int fd) {
+inline monitor_fd_hup_t::monitor_fd_hup_t(int fd) {
   notifyPipe.create();
   int notifyFd = notifyPipe.read_side.get();
   thread = std::thread([this, fd, notifyFd]() { this->runThread(fd, notifyFd); });

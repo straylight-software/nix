@@ -9,7 +9,7 @@
 
 namespace nix {
 // Forward declarations
-struct EvalSettings;
+struct eval_settings_t;
 
 } // namespace nix
 
@@ -18,7 +18,7 @@ namespace nix::flake {
 struct settings_t : public config_t {
   settings_t();
 
-  void configureEvalSettings(nix::EvalSettings& eval_settings) const;
+  void configureEvalSettings(nix::eval_settings_t& eval_settings) const;
 
   setting_t<bool> use_registries{
       this, true, "use-registries", "Whether to use flake registries to resolve flake references.",

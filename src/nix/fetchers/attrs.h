@@ -11,14 +11,14 @@
 
 namespace nix::fetchers {
 
-using Attr = std::variant<std::string, uint64_t, Explicit<bool>>;
+using attr_t = std::variant<std::string, uint64_t, explicit_t<bool>>;
 
 /**
  * An `Attrs` can be thought of a JSON object restricted or simplified
  * to be "flat", not containing any subcontainers (arrays or objects)
  * and also not containing any `null`s.
  */
-using Attrs = std::map<std::string, Attr>;
+using Attrs = std::map<std::string, attr_t>;
 
 Attrs json_to_attrs(const nlohmann::json& json);
 

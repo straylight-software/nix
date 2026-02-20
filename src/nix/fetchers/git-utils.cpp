@@ -107,7 +107,11 @@ static void init_lib_git2() {
 
 static git_oid hash_to_oid(const Hash& hash) {
   git_oid oid;
+#ifdef GIT_EXPERIMENTAL_SHA256
+  if (git_oid_fromstr(&oid, hash.git_rev().c_str(), GIT_OID_SHA1))
+#else
   if (git_oid_fromstr(&oid, hash.git_rev().c_str()))
+#endif
     throw Error("cannot convert '%s' to a Git OID", hash.git_rev());
   return oid;
 }
@@ -265,10 +269,18 @@ struct git_repo_impl_t : GitRepo, std::enable_shared_from_this<git_repo_impl_t> 
          enabling the specific backend.
          */
 
+#ifdef GIT_EXPERIMENTAL_SHA256
+      if (git_odb_new(Setter(odb), nullptr))
+#else
       if (git_odb_new(Setter(odb)))
+#endif
         throw Error("creating Git object database: %s", git_error_last()->message);
 
+#ifdef GIT_EXPERIMENTAL_SHA256
+      if (git_odb_backend_pack(&pack_backend, (path / "objects").string().c_str(), nullptr))
+#else
       if (git_odb_backend_pack(&pack_backend, (path / "objects").string().c_str()))
+#endif
         throw Error("creating pack backend: %s", git_error_last()->message);
 
       if (git_odb_add_backend(odb.get(), pack_backend, 1))
@@ -324,7 +336,11 @@ struct git_repo_impl_t : GitRepo, std::enable_shared_from_this<git_repo_impl_t> 
     //                     (synchronously on the git_packbuilder_write_buf thread)
     Indexer indexer;
     git_indexer_progress stats;
+#ifdef GIT_EXPERIMENTAL_SHA256
+    if (git_indexer_new(Setter(indexer), pack_dir_path.c_str(), nullptr))
+#else
     if (git_indexer_new(Setter(indexer), pack_dir_path.c_str(), 0, nullptr, nullptr))
+#endif
       throw Error("creating git packfile indexer: %s", git_error_last()->message);
 
     // TODO: provide index callback for checkInterrupt() termination
@@ -351,9 +367,9 @@ struct git_repo_impl_t : GitRepo, std::enable_shared_from_this<git_repo_impl_t> 
    * Return a connection pool for this repo. Useful for
    * multithreaded access.
    */
-  Pool<git_repo_impl_t> getPool() {
+  pool_t<git_repo_impl_t> getPool() {
     // TODO: as an optimization, it would be nice to include `this` in the pool.
-    return Pool<git_repo_impl_t>(std::numeric_limits<size_t>::max(),
+    return pool_t<git_repo_impl_t>(std::numeric_limits<size_t>::max(),
                                  [this]() -> ref<git_repo_impl_t> {
                                    auto repo = make_ref<git_repo_impl_t>(path, options);
 
@@ -579,10 +595,10 @@ struct git_repo_impl_t : GitRepo, std::enable_shared_from_this<git_repo_impl_t> 
    */
   ref<git_source_accessor_t> get_raw_accessor(const Hash& rev, const GitAccessorOptions& options);
 
-  ref<SourceAccessor> get_accessor(const Hash& rev, const GitAccessorOptions& options,
+  ref<source_accessor_t> get_accessor(const Hash& rev, const GitAccessorOptions& options,
                                    std::string display_prefix) override;
 
-  ref<SourceAccessor> get_accessor(const WorkdirInfo& wd, const GitAccessorOptions& options,
+  ref<source_accessor_t> get_accessor(const WorkdirInfo& wd, const GitAccessorOptions& options,
                                    MakeNotAllowedError e) override;
 
   ref<GitFileSystemObjectSink> get_file_system_object_sink() override;
@@ -742,7 +758,7 @@ std::string GitAccessorOptions::makeFingerprint(const Hash& rev) const {
 /**
  * raw_t git tree input accessor.
  */
-struct git_source_accessor_t : SourceAccessor {
+struct git_source_accessor_t : source_accessor_t {
   struct State {
     ref<git_repo_impl_t> repo;
     Object root;
@@ -1002,7 +1018,7 @@ struct git_export_ignore_source_accessor_t : CachingFilteringSourceAccessor {
   ref<git_repo_impl_t> repo;
   std::optional<Hash> rev;
 
-  git_export_ignore_source_accessor_t(ref<git_repo_impl_t> repo, ref<SourceAccessor> next,
+  git_export_ignore_source_accessor_t(ref<git_repo_impl_t> repo, ref<source_accessor_t> next,
                                       std::optional<Hash> rev)
       : CachingFilteringSourceAccessor(
             next,
@@ -1054,7 +1070,7 @@ struct git_export_ignore_source_accessor_t : CachingFilteringSourceAccessor {
 struct git_file_system_object_sink_impl_t : GitFileSystemObjectSink {
   ref<git_repo_impl_t> repo;
 
-  Pool<git_repo_impl_t> repo_pool;
+  pool_t<git_repo_impl_t> repo_pool;
 
   unsigned int concurrency = std::min(std::thread::hardware_concurrency(), 10U);
 
@@ -1330,7 +1346,7 @@ ref<git_source_accessor_t> git_repo_impl_t::get_raw_accessor(const Hash& rev,
   return make_ref<git_source_accessor_t>(self, rev, options);
 }
 
-ref<SourceAccessor> git_repo_impl_t::get_accessor(const Hash& rev,
+ref<source_accessor_t> git_repo_impl_t::get_accessor(const Hash& rev,
                                                   const GitAccessorOptions& options,
                                                   std::string display_prefix) {
   auto self = ref<git_repo_impl_t>(shared_from_this());
@@ -1342,17 +1358,17 @@ ref<SourceAccessor> git_repo_impl_t::get_accessor(const Hash& rev,
     return raw_git_accessor;
 }
 
-ref<SourceAccessor> git_repo_impl_t::get_accessor(const WorkdirInfo& wd,
+ref<source_accessor_t> git_repo_impl_t::get_accessor(const WorkdirInfo& wd,
                                                   const GitAccessorOptions& options,
                                                   MakeNotAllowedError make_not_allowed_error) {
   auto self = ref<git_repo_impl_t>(shared_from_this());
-  ref<SourceAccessor> file_accessor =
+  ref<source_accessor_t> file_accessor =
       AllowListSourceAccessor::create(make_fs_source_accessor(path),
                                       std::set<canon_path_t>{wd.files},
                                       // Always allow access to the root, but not its children.
                                       boost::unordered_flat_set<canon_path_t>{canon_path_t::root},
                                       std::move(make_not_allowed_error))
-          .cast<SourceAccessor>();
+          .cast<source_accessor_t>();
   if (options.export_ignore)
     file_accessor =
         make_ref<git_export_ignore_source_accessor_t>(self, file_accessor, std::nullopt);

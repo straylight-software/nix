@@ -33,7 +33,7 @@ using WeakGoals = std::set<WeakGoalPtr, std::owner_less<WeakGoalPtr>>;
 /**
  * A map of paths to goals (and the other way around).
  */
-using WeakGoalMap = std::map<StorePath, WeakGoalPtr>;
+using WeakGoalMap = std::map<store_path_t, WeakGoalPtr>;
 
 /**
  * Used as a hint to the worker on how to schedule a particular goal. For example,
@@ -107,8 +107,8 @@ public:
   /**
    * Build result.
    */
-  BuildResult buildResult = {.inner =
-                                 BuildResult::Failure{.status = BuildResult::Failure::Cancelled}};
+  build_result_t buildResult = {.inner =
+                                 build_result_t::Failure{.status = build_result_t::Failure::Cancelled}};
 
   /**
    * Suspend our goal and wait until we get `work`-ed again.
@@ -407,7 +407,7 @@ public:
    * want:
    *
    * 1. Substitution
-   * 2. Derivation administrativia
+   * 2. derivation_t administrativia
    * 3. Actual building
    *
    * Also, ensure that derivations get processed in order of their

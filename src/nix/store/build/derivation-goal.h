@@ -32,7 +32,7 @@ using std::map;
  */
 struct DerivationGoal : public Goal {
   /** The path of the derivation. */
-  StorePath drv_path;
+  store_path_t drv_path;
 
   /**
    * The specific outputs that we need to build.
@@ -42,7 +42,7 @@ struct DerivationGoal : public Goal {
   /**
    * @param storeDerivation See `DerivationBuildingGoal`. This is just passed along.
    */
-  DerivationGoal(const StorePath& drv_path, const Derivation& drv, const OutputName& wantedOutput,
+  DerivationGoal(const store_path_t& drv_path, const derivation_t& drv, const OutputName& wantedOutput,
                  Worker& worker, BuildMode build_mode, bool storeDerivation);
   ~DerivationGoal() = default;
 
@@ -56,7 +56,7 @@ private:
   /**
    * The derivation stored at drv_path.
    */
-  std::unique_ptr<Derivation> drv;
+  std::unique_ptr<derivation_t> drv;
 
   const Hash outputHash;
 
@@ -76,7 +76,7 @@ private:
   /**
    * Return `std::nullopt` if the output is unknown, e.g. un unbuilt
    * floating content-addressing derivation. Otherwise, returns a pair
-   * of a `Realisation`, containing among other things the store path
+   * of a `realisation_t`, containing among other things the store path
    * of the wanted output, and a `PathStatus` with the
    * current status of that output.
    */
@@ -84,15 +84,15 @@ private:
 
   /**
    * Aborts if any output is not valid or corrupt, and otherwise
-   * returns a 'Realisation' for the wanted output.
+   * returns a 'realisation_t' for the wanted output.
    */
   UnkeyedRealisation assertPathValidity();
 
   Co repairClosure();
 
-  done_t doneSuccess(BuildResult::Success::Status status, UnkeyedRealisation builtOutput);
+  done_t doneSuccess(build_result_t::Success::Status status, UnkeyedRealisation builtOutput);
 
-  done_t doneFailure(BuildError ex);
+  done_t doneFailure(build_error_t ex);
 };
 
 } // namespace nix

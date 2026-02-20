@@ -3,9 +3,9 @@
 namespace nix {
 
 struct LocalBinaryCacheStoreConfig : std::enable_shared_from_this<LocalBinaryCacheStoreConfig>,
-                                     virtual Store::config_t,
-                                     BinaryCacheStoreConfig {
-  using BinaryCacheStoreConfig::BinaryCacheStoreConfig;
+                                     virtual store_t::config_t,
+                                     binary_cache_store_config_t {
+  using binary_cache_store_config_t::binary_cache_store_config_t;
 
   /**
    * @param binaryCacheDir `file://` is a short-hand for `file:///`
@@ -16,13 +16,13 @@ struct LocalBinaryCacheStoreConfig : std::enable_shared_from_this<LocalBinaryCac
 
   Path binaryCacheDir;
 
-  static const std::string name() { return "Local Binary Cache Store"; }
+  static const std::string name() { return "Local Binary Cache store_t"; }
 
   static string_set_t uriSchemes();
 
   static std::string doc();
 
-  ref<Store> open_store() const override;
+  ref<store_t> open_store() const override;
 
   StoreReference getReference() const override;
 };

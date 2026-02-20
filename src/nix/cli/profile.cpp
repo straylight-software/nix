@@ -22,9 +22,9 @@
 using namespace nix;
 
 struct profile_element_source_t {
-  FlakeRef original_ref;
+  flake_ref_t original_ref;
   // FIXME: record original attrpath.
-  FlakeRef locked_ref;
+  flake_ref_t locked_ref;
   std::string attr_path;
   ExtendedOutputsSpec outputs;
 
@@ -43,7 +43,7 @@ struct profile_element_source_t {
 const int default_priority = 5;
 
 struct profile_element_t {
-  StorePathSet store_paths;
+  store_path_set_t store_paths;
   std::optional<profile_element_source_t> source;
   bool active = true;
   int priority = default_priority;
@@ -61,7 +61,7 @@ struct profile_element_t {
    * Return a string representing an installable corresponding to the current
    * element, either a flakeref or a plain store path
    */
-  string_set_t to_installables(Store& store) {
+  string_set_t to_installables(store_t& store) {
     if (source)
       return {source->to_string()};
     string_set_t raw_paths;
@@ -77,7 +77,7 @@ struct profile_element_t {
     return show_versions(versions);
   }
 
-  void update_store_paths(ref<Store> eval_store, ref<Store> store, const BuiltPaths& built_paths) {
+  void update_store_paths(ref<store_t> eval_store, ref<store_t> store, const BuiltPaths& built_paths) {
     store_paths.clear();
     for (auto& buildable : built_paths) {
       std::visit(overloaded{
@@ -95,7 +95,7 @@ struct profile_element_t {
 std::string get_name_from_element(const profile_element_t& element) {
   std::optional<std::string> result = std::nullopt;
   if (element.source) {
-    // Seems to be for Flake URLs
+    // Seems to be for flake_t URLs
     result = get_name_from_url(parse_url(element.source->to_string(), /*lenient=*/true));
   }
   return result.value_or(element.identifier());
@@ -108,7 +108,7 @@ struct profile_manifest_t {
 
   profile_manifest_t() {}
 
-  profile_manifest_t(EvalState& state, const std::filesystem::path& profile) {
+  profile_manifest_t(eval_state_t& state, const std::filesystem::path& profile) {
     auto manifest_path = profile / "manifest.json";
 
     if (std::filesystem::exists(manifest_path)) {
@@ -192,7 +192,7 @@ struct profile_manifest_t {
     add_element(name, std::move(element));
   }
 
-  nlohmann::json to_json(Store& store) const {
+  nlohmann::json to_json(store_t& store) const {
     auto es = nlohmann::json::object();
     for (auto& [name, element] : elements) {
       auto paths = nlohmann::json::array();
@@ -218,10 +218,10 @@ struct profile_manifest_t {
     return json;
   }
 
-  StorePath build(ref<Store> store) {
+  store_path_t build(ref<store_t> store) {
     auto temp_dir = create_temp_dir();
 
-    StorePathSet references;
+    store_path_set_t references;
 
     Packages pkgs;
     for (auto& [name, element] : elements) {
@@ -242,7 +242,7 @@ struct profile_manifest_t {
 
     auto nar_hash = hash_string(hash_algorithm_t::SHA256, sink.str());
 
-    auto info = ValidPathInfo::makeFromCA(*store, "profile",
+    auto info = valid_path_info_t::makeFromCA(*store, "profile",
                                           FixedOutputInfo{
                                               .method = file_ingestion_method_t::nix_archive,
                                               .hash = nar_hash,
@@ -336,7 +336,7 @@ struct cmd_profile_add_t : InstallablesCommand, MixDefaultProfile {
         ;
   }
 
-  void run(ref<Store> store, Installables&& installables) override {
+  void run(ref<store_t> store, Installables&& installables) override {
     profile_manifest_t manifest(*getEvalState(), *profile);
 
     auto build_results =
@@ -470,11 +470,11 @@ struct regex_matcher_t final : public matcher_t {
 };
 
 struct store_path_matcher_t final : public matcher_t {
-  nix::StorePath store_path;
+  nix::store_path_t store_path;
 
-  store_path_matcher_t(const nix::StorePath& store_path) : store_path(store_path) {}
+  store_path_matcher_t(const nix::store_path_t& store_path) : store_path(store_path) {}
 
-  std::string get_title() override { return fmt("Store path '%s'", store_path.to_string()); }
+  std::string get_title() override { return fmt("store_t path '%s'", store_path.to_string()); }
 
   bool matches(const std::string& name, const profile_element_t& element) override {
     return element.store_paths.count(store_path);
@@ -501,7 +501,7 @@ struct all_matcher_t final : public matcher_t {
 
 all_matcher_t all;
 
-class mix_profile_element_matchers_t : virtual Args, virtual StoreCommand {
+class mix_profile_element_matchers_t : virtual args_t, virtual StoreCommand {
   std::vector<ref<matcher_t>> _matchers;
 
 public:
@@ -584,7 +584,7 @@ struct cmd_profile_remove_t : virtual EvalCommand,
         ;
   }
 
-  void run(ref<Store> store) override {
+  void run(ref<store_t> store) override {
     profile_manifest_t old_manifest(*getEvalState(), *profile);
 
     profile_manifest_t new_manifest = old_manifest;
@@ -620,7 +620,7 @@ struct cmd_profile_upgrade_t : virtual SourceExprCommand,
         ;
   }
 
-  void run(ref<Store> store) override {
+  void run(ref<store_t> store) override {
     profile_manifest_t manifest(*getEvalState(), *profile);
 
     Installables installables;
@@ -657,7 +657,7 @@ struct cmd_profile_upgrade_t : virtual SourceExprCommand,
                      fmt("checking '%s' for updates", element.source->attr_path));
 
       auto installable = make_ref<InstallableFlake>(
-          this, getEvalState(), FlakeRef(element.source->original_ref), "", element.source->outputs,
+          this, getEvalState(), flake_ref_t(element.source->original_ref), "", element.source->outputs,
           strings_t{element.source->attr_path}, strings_t{}, lock_flags);
 
       auto derivedPaths = installable->to_derived_paths();
@@ -717,7 +717,7 @@ struct cmd_profile_list_t : virtual EvalCommand, virtual StoreCommand, MixDefaul
         ;
   }
 
-  void run(ref<Store> store) override {
+  void run(ref<store_t> store) override {
     profile_manifest_t manifest(*getEvalState(), *profile);
 
     if (json) {
@@ -730,12 +730,12 @@ struct cmd_profile_list_t : virtual EvalCommand, virtual StoreCommand, MixDefaul
         logger->cout("Name:               " ANSI_BOLD "%s" ANSI_NORMAL "%s", name,
                      element.active ? "" : " " ANSI_RED "(inactive)" ANSI_NORMAL);
         if (element.source) {
-          logger->cout("Flake attribute:    %s%s", element.source->attr_path,
+          logger->cout("flake_t attribute:    %s%s", element.source->attr_path,
                        element.source->outputs.to_string());
           logger->cout("Original flake URL: %s", element.source->original_ref.to_string());
           logger->cout("Locked flake URL:   %s", element.source->locked_ref.to_string());
         }
-        logger->cout("Store paths:        %s",
+        logger->cout("store_t paths:        %s",
                      concat_strings_sep(" ", store->printStorePathSet(element.store_paths)));
       }
     }
@@ -753,7 +753,7 @@ struct cmd_profile_diff_closures_t : virtual StoreCommand, MixDefaultProfile {
         ;
   }
 
-  void run(ref<Store> store) override {
+  void run(ref<store_t> store) override {
     auto [gens, cur_gen] = findGenerations(*profile);
 
     std::optional<Generation> prevGen;
@@ -783,7 +783,7 @@ struct cmd_profile_history_t : virtual StoreCommand, EvalCommand, MixDefaultProf
         ;
   }
 
-  void run(ref<Store> store) override {
+  void run(ref<store_t> store) override {
     auto [gens, cur_gen] = findGenerations(*profile);
 
     std::optional<std::pair<Generation, profile_manifest_t>> prevGen;
@@ -831,7 +831,7 @@ struct cmd_profile_rollback_t : virtual StoreCommand, MixDefaultProfile, MixDryR
         ;
   }
 
-  void run(ref<Store> store) override { switch_generation(*profile, version, dry_run); }
+  void run(ref<store_t> store) override { switch_generation(*profile, version, dry_run); }
 };
 
 struct cmd_profile_wipe_history_t : virtual StoreCommand, MixDefaultProfile, MixDryRun {
@@ -856,7 +856,7 @@ struct cmd_profile_wipe_history_t : virtual StoreCommand, MixDefaultProfile, Mix
         ;
   }
 
-  void run(ref<Store> store) override {
+  void run(ref<store_t> store) override {
     if (min_age) {
       auto t = parse_older_than_time_spec(*min_age);
       delete_generations_older_than(*profile, t, dry_run);

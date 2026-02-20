@@ -11,15 +11,15 @@
 
 namespace nix {
 
-class Store;
+class store_t;
 
 namespace fetchers {
 struct settings_t;
 }
 
-class EvalState;
+class eval_state_t;
 struct CompatibilitySettings;
-class Bindings;
+class bindings_t;
 
 namespace flake {
 struct settings_t;
@@ -30,7 +30,7 @@ extern fetchers::settings_t fetch_settings;
 /**
  * @todo Get rid of global settings variables
  */
-extern EvalSettings eval_settings;
+extern eval_settings_t eval_settings;
 
 /**
  * @todo Get rid of global settings variables
@@ -42,12 +42,12 @@ extern flake::settings_t flake_settings;
  */
 extern CompatibilitySettings compatibility_settings;
 
-struct MixEvalArgs : virtual Args, virtual MixRepair {
+struct MixEvalArgs : virtual args_t, virtual MixRepair {
   static constexpr auto category = "Common evaluation options";
 
   MixEvalArgs();
 
-  Bindings* getAutoArgs(EvalState& state);
+  bindings_t* getAutoArgs(eval_state_t& state);
 
   LookupPath lookup_path;
 
@@ -77,7 +77,7 @@ private:
  * @param base_dir Optional [base
  * directory](https://nix.dev/manual/nix/development/glossary#gloss-base-directory)
  */
-source_path_t lookup_file_arg(EvalState& state, std::string_view s,
+source_path_t lookup_file_arg(eval_state_t& state, std::string_view s,
                          const std::filesystem::path* base_dir = nullptr);
 
 } // namespace nix

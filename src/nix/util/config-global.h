@@ -21,7 +21,7 @@ struct global_config_t : public abstract_config_t {
 
   std::string to_key_value() override;
 
-  void convert_to_args(Args& args, const std::string& category) override;
+  void convert_to_args(args_t& args, const std::string& category) override;
 
   struct Register {
     Register(config_t* config);

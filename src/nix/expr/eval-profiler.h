@@ -15,9 +15,9 @@
 
 namespace nix {
 
-class EvalState;
+class eval_state_t;
 class pos_idx_t;
-struct Value;
+struct value_t;
 
 class EvalProfiler {
 public:
@@ -47,7 +47,7 @@ protected:
 
 public:
   /**
-   * Hook called in the EvalState::callFunction preamble.
+   * Hook called in the eval_state_t::callFunction preamble.
    * Gets called only if (getNeededHooks().test(Hook::preFunctionCall)) is true.
    *
    * @param state Evaluator state.
@@ -55,11 +55,11 @@ public:
    * @param args Function arguments.
    * @param pos Function position.
    */
-  virtual void pre_function_call_hook(EvalState& state, const Value& v, std::span<Value*> args,
+  virtual void pre_function_call_hook(eval_state_t& state, const value_t& v, std::span<value_t*> args,
                                    const pos_idx_t pos);
 
   /**
-   * Hook called on EvalState::callFunction exit.
+   * Hook called on eval_state_t::callFunction exit.
    * Gets called only if (getNeededHooks().test(Hook::postFunctionCall)) is true.
    *
    * @param state Evaluator state.
@@ -67,7 +67,7 @@ public:
    * @param args Function arguments.
    * @param pos Function position.
    */
-  virtual void post_function_call_hook(EvalState& state, const Value& v, std::span<Value*> args,
+  virtual void post_function_call_hook(eval_state_t& state, const value_t& v, std::span<value_t*> args,
                                     const pos_idx_t pos);
 
   virtual ~EvalProfiler() = default;
@@ -96,13 +96,13 @@ public:
   /** Register a profiler instance. */
   void addProfiler(ref<EvalProfiler> profiler);
 
-  [[gnu::noinline]] void pre_function_call_hook(EvalState& state, const Value& v,
-                                             std::span<Value*> args, const pos_idx_t pos) override;
-  [[gnu::noinline]] void post_function_call_hook(EvalState& state, const Value& v,
-                                              std::span<Value*> args, const pos_idx_t pos) override;
+  [[gnu::noinline]] void pre_function_call_hook(eval_state_t& state, const value_t& v,
+                                             std::span<value_t*> args, const pos_idx_t pos) override;
+  [[gnu::noinline]] void post_function_call_hook(eval_state_t& state, const value_t& v,
+                                              std::span<value_t*> args, const pos_idx_t pos) override;
 };
 
-ref<EvalProfiler> make_sample_stack_profiler(EvalState& state, std::filesystem::path profile_file,
+ref<EvalProfiler> make_sample_stack_profiler(eval_state_t& state, std::filesystem::path profile_file,
                                           uint64_t frequency);
 
 } // namespace nix

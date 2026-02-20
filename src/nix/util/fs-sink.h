@@ -12,7 +12,7 @@ namespace nix {
  *
  * See `file_system_object_sink_t::create_regular_file`.
  */
-struct create_regular_file_sink_t : virtual Sink {
+struct create_regular_file_sink_t : virtual sink_t {
   /**
    * If set to true, the sink will not be called with the contents
    * of the file. `preallocate_contents()` will still be called to
@@ -76,7 +76,7 @@ struct extended_file_system_object_sink_t : virtual file_system_object_sink_t {
 /**
  * Recursively copy file system objects from the source into the sink.
  */
-void copy_recursive(SourceAccessor& accessor, const canon_path_t& source_path,
+void copy_recursive(source_accessor_t& accessor, const canon_path_t& source_path,
                     file_system_object_sink_t& sink, const canon_path_t& dest_path);
 
 /**
@@ -126,14 +126,14 @@ struct restore_sink_t : file_system_object_sink_t {
 
 /**
  * Restore a single file at the top level, passing along
- * `receiveContents` to the underlying `Sink`. For anything but a single
+ * `receiveContents` to the underlying `sink_t`. For anything but a single
  * file, set `regular = true` so the caller can fail accordingly.
  */
 struct regular_file_sink_t : file_system_object_sink_t {
   bool regular = true;
-  Sink& sink_;
+  sink_t& sink_;
 
-  regular_file_sink_t(Sink& s) : sink_(s) {}
+  regular_file_sink_t(sink_t& s) : sink_(s) {}
 
   void create_directory(const canon_path_t& /*path*/) override { regular = false; }
 

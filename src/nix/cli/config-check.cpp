@@ -58,7 +58,7 @@ struct cmd_config_check_t : StoreCommand {
 
   category_t category() override { return catNixInstallation; }
 
-  void run(ref<Store> store) override {
+  void run(ref<store_t> store) override {
     logger->log("Running checks against store uri: " + store->config.getHumanReadableURI());
 
     if (store.dynamic_pointer_cast<local_fs_store>()) {
@@ -92,7 +92,7 @@ struct cmd_config_check_t : StoreCommand {
     return check_pass("PATH contains only one nix version.");
   }
 
-  bool check_profile_roots(ref<Store> store) {
+  bool check_profile_roots(ref<store_t> store) {
     std::set<std::filesystem::path> dirs;
 
     for (auto& dir : executable_path_t::load().directories) {
@@ -147,19 +147,19 @@ struct cmd_config_check_t : StoreCommand {
          << "While this is not necessarily a problem it's recommended to keep the client in\n"
          << "sync with the daemon.\n\n"
          << "Client protocol: " << format_protocol(client_proto) << "\n"
-         << "Store protocol: " << format_protocol(store_proto) << "\n\n";
+         << "store_t protocol: " << format_protocol(store_proto) << "\n\n";
       return check_fail(ss.view());
     }
 
     return check_pass("Client protocol matches store protocol.");
   }
 
-  void check_trusted_user(ref<Store> store) {
+  void check_trusted_user(ref<store_t> store) {
     if (auto trustedMay = store->isTrustedClient()) {
       std::string_view trusted = trustedMay.value() ? "trusted" : "not trusted";
       check_info(fmt("You are %s by store uri: %s", trusted, store->config.getHumanReadableURI()));
     } else {
-      check_info(fmt("Store uri: %s doesn't have a notion of trusted user",
+      check_info(fmt("store_t uri: %s doesn't have a notion of trusted user",
                     store->config.getHumanReadableURI()));
     }
   }

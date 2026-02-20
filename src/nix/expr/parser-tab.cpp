@@ -70,7 +70,7 @@ static void set_doc_position(const LexerState& lexer_state, ExprLambda* lambda, 
   }
 }
 
-static Expr* make_call(Exprs& exprs, pos_idx_t pos, Expr* fn, Expr* arg) {
+static expr_t* make_call(Exprs& exprs, pos_idx_t pos, expr_t* fn, expr_t* arg) {
   if (auto e2 = dynamic_cast<ExprCall*>(fn)) {
     e2->args->push_back(arg);
     return fn;
@@ -133,11 +133,11 @@ static Expr* make_call(Exprs& exprs, pos_idx_t pos, Expr* fn, Expr* arg) {
     if (yydebug_)                                                                                  \
     (*yycdebug_)
 
-#  define YY_SYMBOL_PRINT(Title, Symbol)                                                           \
+#  define YY_SYMBOL_PRINT(Title, symbol_t)                                                           \
     do {                                                                                           \
       if (yydebug_) {                                                                              \
         *yycdebug_ << Title << ' ';                                                                \
-        yy_print_(*yycdebug_, Symbol);                                                             \
+        yy_print_(*yycdebug_, symbol_t);                                                             \
         *yycdebug_ << '\n';                                                                        \
       }                                                                                            \
     } while (false)
@@ -159,7 +159,7 @@ static Expr* make_call(Exprs& exprs, pos_idx_t pos, Expr* fn, Expr* arg) {
 #  define YYCDEBUG                                                                                 \
     if (false)                                                                                     \
     std::cerr
-#  define YY_SYMBOL_PRINT(Title, Symbol) YY_USE(Symbol)
+#  define YY_SYMBOL_PRINT(Title, symbol_t) YY_USE(symbol_t)
 #  define YY_REDUCE_PRINT(Rule) static_cast<void>(0)
 #  define YY_STACK_PRINT() static_cast<void>(0)
 
@@ -214,7 +214,7 @@ bison_parser_t ::basic_symbol<Base>::basic_symbol(const basic_symbol& that)
     case symbol_kind::s_expr_select:    // expr_select
     case symbol_kind::s_expr_simple:    // expr_simple
     case symbol_kind::s_path_start:     // path_start
-      value.copy<Expr*>(YY_MOVE(that.value));
+      value.copy<expr_t*>(YY_MOVE(that.value));
       break;
 
     case symbol_kind::s_binds:  // binds
@@ -257,7 +257,7 @@ bison_parser_t ::basic_symbol<Base>::basic_symbol(const basic_symbol& that)
       break;
 
     case symbol_kind::s_list: // list
-      value.copy<std::pmr::vector<Expr*>>(YY_MOVE(that.value));
+      value.copy<std::pmr::vector<expr_t*>>(YY_MOVE(that.value));
       break;
 
     case symbol_kind::s_attrpath: // attrpath
@@ -269,11 +269,11 @@ bison_parser_t ::basic_symbol<Base>::basic_symbol(const basic_symbol& that)
       break;
 
     case symbol_kind::s_string_parts_interpolated: // string_parts_interpolated
-      value.copy<std::vector<std::pair<pos_idx_t, Expr*>>>(YY_MOVE(that.value));
+      value.copy<std::vector<std::pair<pos_idx_t, expr_t*>>>(YY_MOVE(that.value));
       break;
 
     case symbol_kind::s_ind_string_parts: // ind_string_parts
-      value.copy<std::vector<std::pair<pos_idx_t, std::variant<Expr*, StringToken>>>>(
+      value.copy<std::vector<std::pair<pos_idx_t, std::variant<expr_t*, StringToken>>>>(
           YY_MOVE(that.value));
       break;
 
@@ -309,7 +309,7 @@ void bison_parser_t ::basic_symbol<Base>::move(basic_symbol& s) {
     case symbol_kind::s_expr_select:    // expr_select
     case symbol_kind::s_expr_simple:    // expr_simple
     case symbol_kind::s_path_start:     // path_start
-      value.move<Expr*>(YY_MOVE(s.value));
+      value.move<expr_t*>(YY_MOVE(s.value));
       break;
 
     case symbol_kind::s_binds:  // binds
@@ -352,7 +352,7 @@ void bison_parser_t ::basic_symbol<Base>::move(basic_symbol& s) {
       break;
 
     case symbol_kind::s_list: // list
-      value.move<std::pmr::vector<Expr*>>(YY_MOVE(s.value));
+      value.move<std::pmr::vector<expr_t*>>(YY_MOVE(s.value));
       break;
 
     case symbol_kind::s_attrpath: // attrpath
@@ -364,11 +364,11 @@ void bison_parser_t ::basic_symbol<Base>::move(basic_symbol& s) {
       break;
 
     case symbol_kind::s_string_parts_interpolated: // string_parts_interpolated
-      value.move<std::vector<std::pair<pos_idx_t, Expr*>>>(YY_MOVE(s.value));
+      value.move<std::vector<std::pair<pos_idx_t, expr_t*>>>(YY_MOVE(s.value));
       break;
 
     case symbol_kind::s_ind_string_parts: // ind_string_parts
-      value.move<std::vector<std::pair<pos_idx_t, std::variant<Expr*, StringToken>>>>(
+      value.move<std::vector<std::pair<pos_idx_t, std::variant<expr_t*, StringToken>>>>(
           YY_MOVE(s.value));
       break;
 
@@ -451,7 +451,7 @@ bison_parser_t ::stack_symbol_type::stack_symbol_type(YY_RVREF(stack_symbol_type
     case symbol_kind::s_expr_select:    // expr_select
     case symbol_kind::s_expr_simple:    // expr_simple
     case symbol_kind::s_path_start:     // path_start
-      value.YY_MOVE_OR_COPY<Expr*>(YY_MOVE(that.value));
+      value.YY_MOVE_OR_COPY<expr_t*>(YY_MOVE(that.value));
       break;
 
     case symbol_kind::s_binds:  // binds
@@ -494,7 +494,7 @@ bison_parser_t ::stack_symbol_type::stack_symbol_type(YY_RVREF(stack_symbol_type
       break;
 
     case symbol_kind::s_list: // list
-      value.YY_MOVE_OR_COPY<std::pmr::vector<Expr*>>(YY_MOVE(that.value));
+      value.YY_MOVE_OR_COPY<std::pmr::vector<expr_t*>>(YY_MOVE(that.value));
       break;
 
     case symbol_kind::s_attrpath: // attrpath
@@ -506,11 +506,11 @@ bison_parser_t ::stack_symbol_type::stack_symbol_type(YY_RVREF(stack_symbol_type
       break;
 
     case symbol_kind::s_string_parts_interpolated: // string_parts_interpolated
-      value.YY_MOVE_OR_COPY<std::vector<std::pair<pos_idx_t, Expr*>>>(YY_MOVE(that.value));
+      value.YY_MOVE_OR_COPY<std::vector<std::pair<pos_idx_t, expr_t*>>>(YY_MOVE(that.value));
       break;
 
     case symbol_kind::s_ind_string_parts: // ind_string_parts
-      value.YY_MOVE_OR_COPY<std::vector<std::pair<pos_idx_t, std::variant<Expr*, StringToken>>>>(
+      value.YY_MOVE_OR_COPY<std::vector<std::pair<pos_idx_t, std::variant<expr_t*, StringToken>>>>(
           YY_MOVE(that.value));
       break;
 
@@ -538,7 +538,7 @@ bison_parser_t ::stack_symbol_type::stack_symbol_type(state_type s, YY_MOVE_REF(
     case symbol_kind::s_expr_select:    // expr_select
     case symbol_kind::s_expr_simple:    // expr_simple
     case symbol_kind::s_path_start:     // path_start
-      value.move<Expr*>(YY_MOVE(that.value));
+      value.move<expr_t*>(YY_MOVE(that.value));
       break;
 
     case symbol_kind::s_binds:  // binds
@@ -581,7 +581,7 @@ bison_parser_t ::stack_symbol_type::stack_symbol_type(state_type s, YY_MOVE_REF(
       break;
 
     case symbol_kind::s_list: // list
-      value.move<std::pmr::vector<Expr*>>(YY_MOVE(that.value));
+      value.move<std::pmr::vector<expr_t*>>(YY_MOVE(that.value));
       break;
 
     case symbol_kind::s_attrpath: // attrpath
@@ -593,11 +593,11 @@ bison_parser_t ::stack_symbol_type::stack_symbol_type(state_type s, YY_MOVE_REF(
       break;
 
     case symbol_kind::s_string_parts_interpolated: // string_parts_interpolated
-      value.move<std::vector<std::pair<pos_idx_t, Expr*>>>(YY_MOVE(that.value));
+      value.move<std::vector<std::pair<pos_idx_t, expr_t*>>>(YY_MOVE(that.value));
       break;
 
     case symbol_kind::s_ind_string_parts: // ind_string_parts
-      value.move<std::vector<std::pair<pos_idx_t, std::variant<Expr*, StringToken>>>>(
+      value.move<std::vector<std::pair<pos_idx_t, std::variant<expr_t*, StringToken>>>>(
           YY_MOVE(that.value));
       break;
 
@@ -625,7 +625,7 @@ bison_parser_t ::stack_symbol_type::operator=(const stack_symbol_type& that) {
     case symbol_kind::s_expr_select:    // expr_select
     case symbol_kind::s_expr_simple:    // expr_simple
     case symbol_kind::s_path_start:     // path_start
-      value.copy<Expr*>(that.value);
+      value.copy<expr_t*>(that.value);
       break;
 
     case symbol_kind::s_binds:  // binds
@@ -668,7 +668,7 @@ bison_parser_t ::stack_symbol_type::operator=(const stack_symbol_type& that) {
       break;
 
     case symbol_kind::s_list: // list
-      value.copy<std::pmr::vector<Expr*>>(that.value);
+      value.copy<std::pmr::vector<expr_t*>>(that.value);
       break;
 
     case symbol_kind::s_attrpath: // attrpath
@@ -680,11 +680,11 @@ bison_parser_t ::stack_symbol_type::operator=(const stack_symbol_type& that) {
       break;
 
     case symbol_kind::s_string_parts_interpolated: // string_parts_interpolated
-      value.copy<std::vector<std::pair<pos_idx_t, Expr*>>>(that.value);
+      value.copy<std::vector<std::pair<pos_idx_t, expr_t*>>>(that.value);
       break;
 
     case symbol_kind::s_ind_string_parts: // ind_string_parts
-      value.copy<std::vector<std::pair<pos_idx_t, std::variant<Expr*, StringToken>>>>(that.value);
+      value.copy<std::vector<std::pair<pos_idx_t, std::variant<expr_t*, StringToken>>>>(that.value);
       break;
 
     default:
@@ -710,7 +710,7 @@ bison_parser_t ::stack_symbol_type::operator=(stack_symbol_type& that) {
     case symbol_kind::s_expr_select:    // expr_select
     case symbol_kind::s_expr_simple:    // expr_simple
     case symbol_kind::s_path_start:     // path_start
-      value.move<Expr*>(that.value);
+      value.move<expr_t*>(that.value);
       break;
 
     case symbol_kind::s_binds:  // binds
@@ -753,7 +753,7 @@ bison_parser_t ::stack_symbol_type::operator=(stack_symbol_type& that) {
       break;
 
     case symbol_kind::s_list: // list
-      value.move<std::pmr::vector<Expr*>>(that.value);
+      value.move<std::pmr::vector<expr_t*>>(that.value);
       break;
 
     case symbol_kind::s_attrpath: // attrpath
@@ -765,11 +765,11 @@ bison_parser_t ::stack_symbol_type::operator=(stack_symbol_type& that) {
       break;
 
     case symbol_kind::s_string_parts_interpolated: // string_parts_interpolated
-      value.move<std::vector<std::pair<pos_idx_t, Expr*>>>(that.value);
+      value.move<std::vector<std::pair<pos_idx_t, expr_t*>>>(that.value);
       break;
 
     case symbol_kind::s_ind_string_parts: // ind_string_parts
-      value.move<std::vector<std::pair<pos_idx_t, std::variant<Expr*, StringToken>>>>(that.value);
+      value.move<std::vector<std::pair<pos_idx_t, std::variant<expr_t*, StringToken>>>>(that.value);
       break;
 
     default:
@@ -1005,7 +1005,7 @@ int bison_parser_t ::parse() {
         case symbol_kind::s_expr_select:    // expr_select
         case symbol_kind::s_expr_simple:    // expr_simple
         case symbol_kind::s_path_start:     // path_start
-          yylhs.value.emplace<Expr*>();
+          yylhs.value.emplace<expr_t*>();
           break;
 
         case symbol_kind::s_binds:  // binds
@@ -1048,7 +1048,7 @@ int bison_parser_t ::parse() {
           break;
 
         case symbol_kind::s_list: // list
-          yylhs.value.emplace<std::pmr::vector<Expr*>>();
+          yylhs.value.emplace<std::pmr::vector<expr_t*>>();
           break;
 
         case symbol_kind::s_attrpath: // attrpath
@@ -1060,11 +1060,11 @@ int bison_parser_t ::parse() {
           break;
 
         case symbol_kind::s_string_parts_interpolated: // string_parts_interpolated
-          yylhs.value.emplace<std::vector<std::pair<pos_idx_t, Expr*>>>();
+          yylhs.value.emplace<std::vector<std::pair<pos_idx_t, expr_t*>>>();
           break;
 
         case symbol_kind::s_ind_string_parts: // ind_string_parts
-          yylhs.value.emplace<std::vector<std::pair<pos_idx_t, std::variant<Expr*, StringToken>>>>();
+          yylhs.value.emplace<std::vector<std::pair<pos_idx_t, std::variant<expr_t*, StringToken>>>>();
           break;
 
         default:
@@ -1089,7 +1089,7 @@ int bison_parser_t ::parse() {
           case 2: // start: expr
 #line 171 "parser.y"
           {
-            state->result = yystack_[0].value.as<Expr*>();
+            state->result = yystack_[0].value.as<expr_t*>();
 
             // This parser does not use yynerrs; suppress the warning.
             (void)yynerrs_;
@@ -1100,7 +1100,7 @@ int bison_parser_t ::parse() {
           case 3: // expr: expr_function
 #line 178 "parser.y"
           {
-            yylhs.value.as<Expr*>() = yystack_[0].value.as<Expr*>();
+            yylhs.value.as<expr_t*>() = yystack_[0].value.as<expr_t*>();
           }
 #line 1199 "parser-tab.cpp"
           break;
@@ -1110,8 +1110,8 @@ int bison_parser_t ::parse() {
           {
             auto me = state->exprs.add<ExprLambda>(
                 CUR_POS, state->symbols.create(yystack_[2].value.as<StringToken>()),
-                yystack_[0].value.as<Expr*>());
-            yylhs.value.as<Expr*>() = me;
+                yystack_[0].value.as<expr_t*>());
+            yylhs.value.as<expr_t*>() = me;
             SET_DOC_POS(me, yystack_[2].location);
           }
 #line 1208 "parser-tab.cpp"
@@ -1123,8 +1123,8 @@ int bison_parser_t ::parse() {
             state->validateFormals(yystack_[2].value.as<FormalsBuilder>());
             auto me = state->exprs.add<ExprLambda>(state->positions, state->exprs.alloc, CUR_POS,
                                                    yystack_[2].value.as<FormalsBuilder>(),
-                                                   yystack_[0].value.as<Expr*>());
-            yylhs.value.as<Expr*>() = me;
+                                                   yystack_[0].value.as<expr_t*>());
+            yylhs.value.as<expr_t*>() = me;
             SET_DOC_POS(me, yystack_[2].location);
           }
 #line 1219 "parser-tab.cpp"
@@ -1137,8 +1137,8 @@ int bison_parser_t ::parse() {
             state->validateFormals(yystack_[4].value.as<FormalsBuilder>(), CUR_POS, arg);
             auto me = state->exprs.add<ExprLambda>(state->positions, state->exprs.alloc, CUR_POS,
                                                    arg, yystack_[4].value.as<FormalsBuilder>(),
-                                                   yystack_[0].value.as<Expr*>());
-            yylhs.value.as<Expr*>() = me;
+                                                   yystack_[0].value.as<expr_t*>());
+            yylhs.value.as<expr_t*>() = me;
             SET_DOC_POS(me, yystack_[4].location);
           }
 #line 1231 "parser-tab.cpp"
@@ -1151,8 +1151,8 @@ int bison_parser_t ::parse() {
             state->validateFormals(yystack_[2].value.as<FormalsBuilder>(), CUR_POS, arg);
             auto me = state->exprs.add<ExprLambda>(state->positions, state->exprs.alloc, CUR_POS,
                                                    arg, yystack_[2].value.as<FormalsBuilder>(),
-                                                   yystack_[0].value.as<Expr*>());
-            yylhs.value.as<Expr*>() = me;
+                                                   yystack_[0].value.as<expr_t*>());
+            yylhs.value.as<expr_t*>() = me;
             SET_DOC_POS(me, yystack_[4].location);
           }
 #line 1243 "parser-tab.cpp"
@@ -1161,8 +1161,8 @@ int bison_parser_t ::parse() {
           case 8: // expr_function: ASSERT expr ';' expr_function
 #line 210 "parser.y"
           {
-            yylhs.value.as<Expr*>() = state->exprs.add<ExprAssert>(
-                CUR_POS, yystack_[2].value.as<Expr*>(), yystack_[0].value.as<Expr*>());
+            yylhs.value.as<expr_t*>() = state->exprs.add<ExprAssert>(
+                CUR_POS, yystack_[2].value.as<expr_t*>(), yystack_[0].value.as<expr_t*>());
           }
 #line 1249 "parser-tab.cpp"
           break;
@@ -1170,8 +1170,8 @@ int bison_parser_t ::parse() {
           case 9: // expr_function: WITH expr ';' expr_function
 #line 212 "parser.y"
           {
-            yylhs.value.as<Expr*>() = state->exprs.add<ExprWith>(
-                CUR_POS, yystack_[2].value.as<Expr*>(), yystack_[0].value.as<Expr*>());
+            yylhs.value.as<expr_t*>() = state->exprs.add<ExprWith>(
+                CUR_POS, yystack_[2].value.as<expr_t*>(), yystack_[0].value.as<expr_t*>());
           }
 #line 1255 "parser-tab.cpp"
           break;
@@ -1182,8 +1182,8 @@ int bison_parser_t ::parse() {
             if (!yystack_[2].value.as<ExprAttrs*>()->dynamicAttrs->empty())
               throw ParseError({.msg = hint_fmt_t("dynamic attributes not allowed in let"),
                                 .pos = state->positions[CUR_POS]});
-            yylhs.value.as<Expr*>() = state->exprs.add<ExprLet>(yystack_[2].value.as<ExprAttrs*>(),
-                                                                yystack_[0].value.as<Expr*>());
+            yylhs.value.as<expr_t*>() = state->exprs.add<ExprLet>(yystack_[2].value.as<ExprAttrs*>(),
+                                                                yystack_[0].value.as<expr_t*>());
           }
 #line 1267 "parser-tab.cpp"
           break;
@@ -1191,7 +1191,7 @@ int bison_parser_t ::parse() {
           case 11: // expr_function: expr_if
 #line 221 "parser.y"
           {
-            yylhs.value.as<Expr*>() = yystack_[0].value.as<Expr*>();
+            yylhs.value.as<expr_t*>() = yystack_[0].value.as<expr_t*>();
           }
 #line 1273 "parser-tab.cpp"
           break;
@@ -1199,9 +1199,9 @@ int bison_parser_t ::parse() {
           case 12: // expr_if: IF expr THEN expr ELSE expr
 #line 225 "parser.y"
           {
-            yylhs.value.as<Expr*>() = state->exprs.add<ExprIf>(
-                CUR_POS, yystack_[4].value.as<Expr*>(), yystack_[2].value.as<Expr*>(),
-                yystack_[0].value.as<Expr*>());
+            yylhs.value.as<expr_t*>() = state->exprs.add<ExprIf>(
+                CUR_POS, yystack_[4].value.as<expr_t*>(), yystack_[2].value.as<expr_t*>(),
+                yystack_[0].value.as<expr_t*>());
           }
 #line 1279 "parser-tab.cpp"
           break;
@@ -1209,7 +1209,7 @@ int bison_parser_t ::parse() {
           case 13: // expr_if: expr_pipe_from
 #line 226 "parser.y"
           {
-            yylhs.value.as<Expr*>() = yystack_[0].value.as<Expr*>();
+            yylhs.value.as<expr_t*>() = yystack_[0].value.as<expr_t*>();
           }
 #line 1285 "parser-tab.cpp"
           break;
@@ -1217,7 +1217,7 @@ int bison_parser_t ::parse() {
           case 14: // expr_if: expr_pipe_into
 #line 227 "parser.y"
           {
-            yylhs.value.as<Expr*>() = yystack_[0].value.as<Expr*>();
+            yylhs.value.as<expr_t*>() = yystack_[0].value.as<expr_t*>();
           }
 #line 1291 "parser-tab.cpp"
           break;
@@ -1225,7 +1225,7 @@ int bison_parser_t ::parse() {
           case 15: // expr_if: expr_op
 #line 228 "parser.y"
           {
-            yylhs.value.as<Expr*>() = yystack_[0].value.as<Expr*>();
+            yylhs.value.as<expr_t*>() = yystack_[0].value.as<expr_t*>();
           }
 #line 1297 "parser-tab.cpp"
           break;
@@ -1233,9 +1233,9 @@ int bison_parser_t ::parse() {
           case 16: // expr_pipe_from: expr_op PIPE_FROM expr_pipe_from
 #line 232 "parser.y"
           {
-            yylhs.value.as<Expr*>() =
+            yylhs.value.as<expr_t*>() =
                 make_call(state->exprs, state->at(yystack_[1].location),
-                         yystack_[2].value.as<Expr*>(), yystack_[0].value.as<Expr*>());
+                         yystack_[2].value.as<expr_t*>(), yystack_[0].value.as<expr_t*>());
           }
 #line 1303 "parser-tab.cpp"
           break;
@@ -1243,9 +1243,9 @@ int bison_parser_t ::parse() {
           case 17: // expr_pipe_from: expr_op PIPE_FROM expr_op
 #line 233 "parser.y"
           {
-            yylhs.value.as<Expr*>() =
+            yylhs.value.as<expr_t*>() =
                 make_call(state->exprs, state->at(yystack_[1].location),
-                         yystack_[2].value.as<Expr*>(), yystack_[0].value.as<Expr*>());
+                         yystack_[2].value.as<expr_t*>(), yystack_[0].value.as<expr_t*>());
           }
 #line 1309 "parser-tab.cpp"
           break;
@@ -1253,9 +1253,9 @@ int bison_parser_t ::parse() {
           case 18: // expr_pipe_into: expr_pipe_into PIPE_INTO expr_op
 #line 237 "parser.y"
           {
-            yylhs.value.as<Expr*>() =
+            yylhs.value.as<expr_t*>() =
                 make_call(state->exprs, state->at(yystack_[1].location),
-                         yystack_[0].value.as<Expr*>(), yystack_[2].value.as<Expr*>());
+                         yystack_[0].value.as<expr_t*>(), yystack_[2].value.as<expr_t*>());
           }
 #line 1315 "parser-tab.cpp"
           break;
@@ -1263,9 +1263,9 @@ int bison_parser_t ::parse() {
           case 19: // expr_pipe_into: expr_op PIPE_INTO expr_op
 #line 238 "parser.y"
           {
-            yylhs.value.as<Expr*>() =
+            yylhs.value.as<expr_t*>() =
                 make_call(state->exprs, state->at(yystack_[1].location),
-                         yystack_[0].value.as<Expr*>(), yystack_[2].value.as<Expr*>());
+                         yystack_[0].value.as<expr_t*>(), yystack_[2].value.as<expr_t*>());
           }
 #line 1321 "parser-tab.cpp"
           break;
@@ -1273,7 +1273,7 @@ int bison_parser_t ::parse() {
           case 20: // expr_op: '!' expr_op
 #line 242 "parser.y"
           {
-            yylhs.value.as<Expr*>() = state->exprs.add<ExprOpNot>(yystack_[0].value.as<Expr*>());
+            yylhs.value.as<expr_t*>() = state->exprs.add<ExprOpNot>(yystack_[0].value.as<expr_t*>());
           }
 #line 1327 "parser-tab.cpp"
           break;
@@ -1281,9 +1281,9 @@ int bison_parser_t ::parse() {
           case 21: // expr_op: '-' expr_op
 #line 243 "parser.y"
           {
-            yylhs.value.as<Expr*>() = state->exprs.add<ExprCall>(
+            yylhs.value.as<expr_t*>() = state->exprs.add<ExprCall>(
                 CUR_POS, state->exprs.add<ExprVar>(state->s.sub),
-                {state->exprs.add<ExprInt>(0), yystack_[0].value.as<Expr*>()});
+                {state->exprs.add<ExprInt>(0), yystack_[0].value.as<expr_t*>()});
           }
 #line 1333 "parser-tab.cpp"
           break;
@@ -1291,8 +1291,8 @@ int bison_parser_t ::parse() {
           case 22: // expr_op: expr_op EQ expr_op
 #line 244 "parser.y"
           {
-            yylhs.value.as<Expr*>() = state->exprs.add<ExprOpEq>(yystack_[2].value.as<Expr*>(),
-                                                                 yystack_[0].value.as<Expr*>());
+            yylhs.value.as<expr_t*>() = state->exprs.add<ExprOpEq>(yystack_[2].value.as<expr_t*>(),
+                                                                 yystack_[0].value.as<expr_t*>());
           }
 #line 1339 "parser-tab.cpp"
           break;
@@ -1300,8 +1300,8 @@ int bison_parser_t ::parse() {
           case 23: // expr_op: expr_op NEQ expr_op
 #line 245 "parser.y"
           {
-            yylhs.value.as<Expr*>() = state->exprs.add<ExprOpNEq>(yystack_[2].value.as<Expr*>(),
-                                                                  yystack_[0].value.as<Expr*>());
+            yylhs.value.as<expr_t*>() = state->exprs.add<ExprOpNEq>(yystack_[2].value.as<expr_t*>(),
+                                                                  yystack_[0].value.as<expr_t*>());
           }
 #line 1345 "parser-tab.cpp"
           break;
@@ -1309,9 +1309,9 @@ int bison_parser_t ::parse() {
           case 24: // expr_op: expr_op '<' expr_op
 #line 246 "parser.y"
           {
-            yylhs.value.as<Expr*>() = state->exprs.add<ExprCall>(
+            yylhs.value.as<expr_t*>() = state->exprs.add<ExprCall>(
                 state->at(yystack_[1].location), state->exprs.add<ExprVar>(state->s.lessThan),
-                {yystack_[2].value.as<Expr*>(), yystack_[0].value.as<Expr*>()});
+                {yystack_[2].value.as<expr_t*>(), yystack_[0].value.as<expr_t*>()});
           }
 #line 1351 "parser-tab.cpp"
           break;
@@ -1319,9 +1319,9 @@ int bison_parser_t ::parse() {
           case 25: // expr_op: expr_op LEQ expr_op
 #line 247 "parser.y"
           {
-            yylhs.value.as<Expr*>() = state->exprs.add<ExprOpNot>(state->exprs.add<ExprCall>(
+            yylhs.value.as<expr_t*>() = state->exprs.add<ExprOpNot>(state->exprs.add<ExprCall>(
                 state->at(yystack_[1].location), state->exprs.add<ExprVar>(state->s.lessThan),
-                {yystack_[0].value.as<Expr*>(), yystack_[2].value.as<Expr*>()}));
+                {yystack_[0].value.as<expr_t*>(), yystack_[2].value.as<expr_t*>()}));
           }
 #line 1357 "parser-tab.cpp"
           break;
@@ -1329,9 +1329,9 @@ int bison_parser_t ::parse() {
           case 26: // expr_op: expr_op '>' expr_op
 #line 248 "parser.y"
           {
-            yylhs.value.as<Expr*>() = state->exprs.add<ExprCall>(
+            yylhs.value.as<expr_t*>() = state->exprs.add<ExprCall>(
                 state->at(yystack_[1].location), state->exprs.add<ExprVar>(state->s.lessThan),
-                {yystack_[0].value.as<Expr*>(), yystack_[2].value.as<Expr*>()});
+                {yystack_[0].value.as<expr_t*>(), yystack_[2].value.as<expr_t*>()});
           }
 #line 1363 "parser-tab.cpp"
           break;
@@ -1339,9 +1339,9 @@ int bison_parser_t ::parse() {
           case 27: // expr_op: expr_op GEQ expr_op
 #line 249 "parser.y"
           {
-            yylhs.value.as<Expr*>() = state->exprs.add<ExprOpNot>(state->exprs.add<ExprCall>(
+            yylhs.value.as<expr_t*>() = state->exprs.add<ExprOpNot>(state->exprs.add<ExprCall>(
                 state->at(yystack_[1].location), state->exprs.add<ExprVar>(state->s.lessThan),
-                {yystack_[2].value.as<Expr*>(), yystack_[0].value.as<Expr*>()}));
+                {yystack_[2].value.as<expr_t*>(), yystack_[0].value.as<expr_t*>()}));
           }
 #line 1369 "parser-tab.cpp"
           break;
@@ -1349,9 +1349,9 @@ int bison_parser_t ::parse() {
           case 28: // expr_op: expr_op AND expr_op
 #line 250 "parser.y"
           {
-            yylhs.value.as<Expr*>() = state->exprs.add<ExprOpAnd>(state->at(yystack_[1].location),
-                                                                  yystack_[2].value.as<Expr*>(),
-                                                                  yystack_[0].value.as<Expr*>());
+            yylhs.value.as<expr_t*>() = state->exprs.add<ExprOpAnd>(state->at(yystack_[1].location),
+                                                                  yystack_[2].value.as<expr_t*>(),
+                                                                  yystack_[0].value.as<expr_t*>());
           }
 #line 1375 "parser-tab.cpp"
           break;
@@ -1359,9 +1359,9 @@ int bison_parser_t ::parse() {
           case 29: // expr_op: expr_op OR expr_op
 #line 251 "parser.y"
           {
-            yylhs.value.as<Expr*>() = state->exprs.add<ExprOpOr>(state->at(yystack_[1].location),
-                                                                 yystack_[2].value.as<Expr*>(),
-                                                                 yystack_[0].value.as<Expr*>());
+            yylhs.value.as<expr_t*>() = state->exprs.add<ExprOpOr>(state->at(yystack_[1].location),
+                                                                 yystack_[2].value.as<expr_t*>(),
+                                                                 yystack_[0].value.as<expr_t*>());
           }
 #line 1381 "parser-tab.cpp"
           break;
@@ -1369,9 +1369,9 @@ int bison_parser_t ::parse() {
           case 30: // expr_op: expr_op IMPL expr_op
 #line 252 "parser.y"
           {
-            yylhs.value.as<Expr*>() = state->exprs.add<ExprOpImpl>(state->at(yystack_[1].location),
-                                                                   yystack_[2].value.as<Expr*>(),
-                                                                   yystack_[0].value.as<Expr*>());
+            yylhs.value.as<expr_t*>() = state->exprs.add<ExprOpImpl>(state->at(yystack_[1].location),
+                                                                   yystack_[2].value.as<expr_t*>(),
+                                                                   yystack_[0].value.as<expr_t*>());
           }
 #line 1387 "parser-tab.cpp"
           break;
@@ -1379,9 +1379,9 @@ int bison_parser_t ::parse() {
           case 31: // expr_op: expr_op UPDATE expr_op
 #line 253 "parser.y"
           {
-            yylhs.value.as<Expr*>() = state->exprs.add<ExprOpUpdate>(
-                state->at(yystack_[1].location), yystack_[2].value.as<Expr*>(),
-                yystack_[0].value.as<Expr*>());
+            yylhs.value.as<expr_t*>() = state->exprs.add<ExprOpUpdate>(
+                state->at(yystack_[1].location), yystack_[2].value.as<expr_t*>(),
+                yystack_[0].value.as<expr_t*>());
           }
 #line 1393 "parser-tab.cpp"
           break;
@@ -1389,8 +1389,8 @@ int bison_parser_t ::parse() {
           case 32: // expr_op: expr_op '?' attrpath
 #line 254 "parser.y"
           {
-            yylhs.value.as<Expr*>() =
-                state->exprs.add<ExprOpHasAttr>(state->exprs.alloc, yystack_[2].value.as<Expr*>(),
+            yylhs.value.as<expr_t*>() =
+                state->exprs.add<ExprOpHasAttr>(state->exprs.alloc, yystack_[2].value.as<expr_t*>(),
                                                 yystack_[0].value.as<std::vector<AttrName>>());
           }
 #line 1399 "parser-tab.cpp"
@@ -1399,10 +1399,10 @@ int bison_parser_t ::parse() {
           case 33: // expr_op: expr_op '+' expr_op
 #line 256 "parser.y"
           {
-            yylhs.value.as<Expr*>() = state->exprs.add<ExprConcatStrings>(
+            yylhs.value.as<expr_t*>() = state->exprs.add<ExprConcatStrings>(
                 state->exprs.alloc, state->at(yystack_[1].location), false,
-                {{state->at(yystack_[2].location), yystack_[2].value.as<Expr*>()},
-                 {state->at(yystack_[0].location), yystack_[0].value.as<Expr*>()}});
+                {{state->at(yystack_[2].location), yystack_[2].value.as<expr_t*>()},
+                 {state->at(yystack_[0].location), yystack_[0].value.as<expr_t*>()}});
           }
 #line 1405 "parser-tab.cpp"
           break;
@@ -1410,9 +1410,9 @@ int bison_parser_t ::parse() {
           case 34: // expr_op: expr_op '-' expr_op
 #line 257 "parser.y"
           {
-            yylhs.value.as<Expr*>() = state->exprs.add<ExprCall>(
+            yylhs.value.as<expr_t*>() = state->exprs.add<ExprCall>(
                 state->at(yystack_[1].location), state->exprs.add<ExprVar>(state->s.sub),
-                {yystack_[2].value.as<Expr*>(), yystack_[0].value.as<Expr*>()});
+                {yystack_[2].value.as<expr_t*>(), yystack_[0].value.as<expr_t*>()});
           }
 #line 1411 "parser-tab.cpp"
           break;
@@ -1420,9 +1420,9 @@ int bison_parser_t ::parse() {
           case 35: // expr_op: expr_op '*' expr_op
 #line 258 "parser.y"
           {
-            yylhs.value.as<Expr*>() = state->exprs.add<ExprCall>(
+            yylhs.value.as<expr_t*>() = state->exprs.add<ExprCall>(
                 state->at(yystack_[1].location), state->exprs.add<ExprVar>(state->s.mul),
-                {yystack_[2].value.as<Expr*>(), yystack_[0].value.as<Expr*>()});
+                {yystack_[2].value.as<expr_t*>(), yystack_[0].value.as<expr_t*>()});
           }
 #line 1417 "parser-tab.cpp"
           break;
@@ -1430,9 +1430,9 @@ int bison_parser_t ::parse() {
           case 36: // expr_op: expr_op '/' expr_op
 #line 259 "parser.y"
           {
-            yylhs.value.as<Expr*>() = state->exprs.add<ExprCall>(
+            yylhs.value.as<expr_t*>() = state->exprs.add<ExprCall>(
                 state->at(yystack_[1].location), state->exprs.add<ExprVar>(state->s.div),
-                {yystack_[2].value.as<Expr*>(), yystack_[0].value.as<Expr*>()});
+                {yystack_[2].value.as<expr_t*>(), yystack_[0].value.as<expr_t*>()});
           }
 #line 1423 "parser-tab.cpp"
           break;
@@ -1440,9 +1440,9 @@ int bison_parser_t ::parse() {
           case 37: // expr_op: expr_op CONCAT expr_op
 #line 260 "parser.y"
           {
-            yylhs.value.as<Expr*>() = state->exprs.add<ExprOpConcatLists>(
-                state->at(yystack_[1].location), yystack_[2].value.as<Expr*>(),
-                yystack_[0].value.as<Expr*>());
+            yylhs.value.as<expr_t*>() = state->exprs.add<ExprOpConcatLists>(
+                state->at(yystack_[1].location), yystack_[2].value.as<expr_t*>(),
+                yystack_[0].value.as<expr_t*>());
           }
 #line 1429 "parser-tab.cpp"
           break;
@@ -1450,7 +1450,7 @@ int bison_parser_t ::parse() {
           case 38: // expr_op: expr_app
 #line 261 "parser.y"
           {
-            yylhs.value.as<Expr*>() = yystack_[0].value.as<Expr*>();
+            yylhs.value.as<expr_t*>() = yystack_[0].value.as<expr_t*>();
           }
 #line 1435 "parser-tab.cpp"
           break;
@@ -1458,9 +1458,9 @@ int bison_parser_t ::parse() {
           case 39: // expr_app: expr_app expr_select
 #line 265 "parser.y"
           {
-            yylhs.value.as<Expr*>() = make_call(state->exprs, CUR_POS, yystack_[1].value.as<Expr*>(),
-                                               yystack_[0].value.as<Expr*>());
-            yystack_[0].value.as<Expr*>()->warnIfCursedOr(state->symbols, state->positions);
+            yylhs.value.as<expr_t*>() = make_call(state->exprs, CUR_POS, yystack_[1].value.as<expr_t*>(),
+                                               yystack_[0].value.as<expr_t*>());
+            yystack_[0].value.as<expr_t*>()->warnIfCursedOr(state->symbols, state->positions);
           }
 #line 1441 "parser-tab.cpp"
           break;
@@ -1468,8 +1468,8 @@ int bison_parser_t ::parse() {
           case 40: // expr_app: expr_select
 #line 270 "parser.y"
           {
-            yylhs.value.as<Expr*>() = yystack_[0].value.as<Expr*>();
-            yylhs.value.as<Expr*>()->resetCursedOr();
+            yylhs.value.as<expr_t*>() = yystack_[0].value.as<expr_t*>();
+            yylhs.value.as<expr_t*>()->resetCursedOr();
           }
 #line 1447 "parser-tab.cpp"
           break;
@@ -1477,8 +1477,8 @@ int bison_parser_t ::parse() {
           case 41: // expr_select: expr_simple '.' attrpath
 #line 275 "parser.y"
           {
-            yylhs.value.as<Expr*>() = state->exprs.add<ExprSelect>(
-                state->exprs.alloc, CUR_POS, yystack_[2].value.as<Expr*>(),
+            yylhs.value.as<expr_t*>() = state->exprs.add<ExprSelect>(
+                state->exprs.alloc, CUR_POS, yystack_[2].value.as<expr_t*>(),
                 yystack_[0].value.as<std::vector<AttrName>>(), nullptr);
           }
 #line 1453 "parser-tab.cpp"
@@ -1487,10 +1487,10 @@ int bison_parser_t ::parse() {
           case 42: // expr_select: expr_simple '.' attrpath OR_KW expr_select
 #line 277 "parser.y"
           {
-            yylhs.value.as<Expr*>() = state->exprs.add<ExprSelect>(
-                state->exprs.alloc, CUR_POS, yystack_[4].value.as<Expr*>(),
-                yystack_[2].value.as<std::vector<AttrName>>(), yystack_[0].value.as<Expr*>());
-            yystack_[0].value.as<Expr*>()->warnIfCursedOr(state->symbols, state->positions);
+            yylhs.value.as<expr_t*>() = state->exprs.add<ExprSelect>(
+                state->exprs.alloc, CUR_POS, yystack_[4].value.as<expr_t*>(),
+                yystack_[2].value.as<std::vector<AttrName>>(), yystack_[0].value.as<expr_t*>());
+            yystack_[0].value.as<expr_t*>()->warnIfCursedOr(state->symbols, state->positions);
           }
 #line 1459 "parser-tab.cpp"
           break;
@@ -1498,8 +1498,8 @@ int bison_parser_t ::parse() {
           case 43: // expr_select: expr_simple OR_KW
 #line 286 "parser.y"
           {
-            yylhs.value.as<Expr*>() = state->exprs.add<ExprCall>(
-                CUR_POS, yystack_[1].value.as<Expr*>(),
+            yylhs.value.as<expr_t*>() = state->exprs.add<ExprCall>(
+                CUR_POS, yystack_[1].value.as<expr_t*>(),
                 {state->exprs.add<ExprVar>(CUR_POS, state->s.or_)},
                 state->positions.add(state->origin, yylhs.location.endOffset));
           }
@@ -1509,7 +1509,7 @@ int bison_parser_t ::parse() {
           case 44: // expr_select: expr_simple
 #line 287 "parser.y"
           {
-            yylhs.value.as<Expr*>() = yystack_[0].value.as<Expr*>();
+            yylhs.value.as<expr_t*>() = yystack_[0].value.as<expr_t*>();
           }
 #line 1471 "parser-tab.cpp"
           break;
@@ -1520,9 +1520,9 @@ int bison_parser_t ::parse() {
             std::string_view s = "__curPos";
             if (yystack_[0].value.as<StringToken>().l == s.size() &&
                 strncmp(yystack_[0].value.as<StringToken>().p, s.data(), s.size()) == 0)
-              yylhs.value.as<Expr*>() = state->exprs.add<ExprPos>(CUR_POS);
+              yylhs.value.as<expr_t*>() = state->exprs.add<ExprPos>(CUR_POS);
             else
-              yylhs.value.as<Expr*>() = state->exprs.add<ExprVar>(
+              yylhs.value.as<expr_t*>() = state->exprs.add<ExprVar>(
                   CUR_POS, state->symbols.create(yystack_[0].value.as<StringToken>()));
           }
 #line 1483 "parser-tab.cpp"
@@ -1531,7 +1531,7 @@ int bison_parser_t ::parse() {
           case 46: // expr_simple: INT_LIT
 #line 298 "parser.y"
           {
-            yylhs.value.as<Expr*>() = state->exprs.add<ExprInt>(yystack_[0].value.as<NixInt>());
+            yylhs.value.as<expr_t*>() = state->exprs.add<ExprInt>(yystack_[0].value.as<NixInt>());
           }
 #line 1489 "parser-tab.cpp"
           break;
@@ -1539,7 +1539,7 @@ int bison_parser_t ::parse() {
           case 47: // expr_simple: FLOAT_LIT
 #line 299 "parser.y"
           {
-            yylhs.value.as<Expr*>() = state->exprs.add<ExprFloat>(yystack_[0].value.as<NixFloat>());
+            yylhs.value.as<expr_t*>() = state->exprs.add<ExprFloat>(yystack_[0].value.as<NixFloat>());
           }
 #line 1495 "parser-tab.cpp"
           break;
@@ -1547,7 +1547,7 @@ int bison_parser_t ::parse() {
           case 48: // expr_simple: '"' string_parts '"'
 #line 300 "parser.y"
           {
-            yylhs.value.as<Expr*>() = yystack_[1].value.as<ToBeStringyExpr>().toExpr(state->exprs);
+            yylhs.value.as<expr_t*>() = yystack_[1].value.as<ToBeStringyExpr>().toExpr(state->exprs);
           }
 #line 1501 "parser-tab.cpp"
           break;
@@ -1555,10 +1555,10 @@ int bison_parser_t ::parse() {
           case 49: // expr_simple: IND_STRING_OPEN ind_string_parts IND_STRING_CLOSE
 #line 301 "parser.y"
           {
-            yylhs.value.as<Expr*>() = state->strip_indentation(
+            yylhs.value.as<expr_t*>() = state->strip_indentation(
                 CUR_POS,
                 yystack_[1]
-                    .value.as<std::vector<std::pair<pos_idx_t, std::variant<Expr*, StringToken>>>>());
+                    .value.as<std::vector<std::pair<pos_idx_t, std::variant<expr_t*, StringToken>>>>());
           }
 #line 1509 "parser-tab.cpp"
           break;
@@ -1566,7 +1566,7 @@ int bison_parser_t ::parse() {
           case 50: // expr_simple: path_start PATH_END
 #line 304 "parser.y"
           {
-            yylhs.value.as<Expr*>() = yystack_[1].value.as<Expr*>();
+            yylhs.value.as<expr_t*>() = yystack_[1].value.as<expr_t*>();
           }
 #line 1515 "parser-tab.cpp"
           break;
@@ -1574,12 +1574,12 @@ int bison_parser_t ::parse() {
           case 51: // expr_simple: path_start string_parts_interpolated PATH_END
 #line 305 "parser.y"
           {
-            yystack_[1].value.as<std::vector<std::pair<pos_idx_t, Expr*>>>().insert(
-                yystack_[1].value.as<std::vector<std::pair<pos_idx_t, Expr*>>>().begin(),
-                {state->at(yystack_[2].location), yystack_[2].value.as<Expr*>()});
-            yylhs.value.as<Expr*>() = state->exprs.add<ExprConcatStrings>(
+            yystack_[1].value.as<std::vector<std::pair<pos_idx_t, expr_t*>>>().insert(
+                yystack_[1].value.as<std::vector<std::pair<pos_idx_t, expr_t*>>>().begin(),
+                {state->at(yystack_[2].location), yystack_[2].value.as<expr_t*>()});
+            yylhs.value.as<expr_t*>() = state->exprs.add<ExprConcatStrings>(
                 state->exprs.alloc, CUR_POS, false,
-                yystack_[1].value.as<std::vector<std::pair<pos_idx_t, Expr*>>>());
+                yystack_[1].value.as<std::vector<std::pair<pos_idx_t, expr_t*>>>());
           }
 #line 1524 "parser-tab.cpp"
           break;
@@ -1589,7 +1589,7 @@ int bison_parser_t ::parse() {
           {
             std::string_view path(yystack_[0].value.as<StringToken>().p + 1,
                                   yystack_[0].value.as<StringToken>().l - 2);
-            yylhs.value.as<Expr*>() = state->exprs.add<ExprCall>(
+            yylhs.value.as<expr_t*>() = state->exprs.add<ExprCall>(
                 CUR_POS, state->exprs.add<ExprVar>(state->s.findFile),
                 {state->exprs.add<ExprVar>(state->s.nixPath),
                  state->exprs.add<ExprString>(state->exprs.alloc, path)});
@@ -1604,7 +1604,7 @@ int bison_parser_t ::parse() {
             if (no_url_literals)
               throw ParseError(
                   {.msg = hint_fmt_t("URL literals are disabled"), .pos = state->positions[CUR_POS]});
-            yylhs.value.as<Expr*>() = state->exprs.add<ExprString>(
+            yylhs.value.as<expr_t*>() = state->exprs.add<ExprString>(
                 state->exprs.alloc, yystack_[0].value.as<StringToken>());
           }
 #line 1550 "parser-tab.cpp"
@@ -1613,7 +1613,7 @@ int bison_parser_t ::parse() {
           case 54: // expr_simple: '(' expr ')'
 #line 325 "parser.y"
           {
-            yylhs.value.as<Expr*>() = yystack_[1].value.as<Expr*>();
+            yylhs.value.as<expr_t*>() = yystack_[1].value.as<expr_t*>();
           }
 #line 1556 "parser-tab.cpp"
           break;
@@ -1623,7 +1623,7 @@ int bison_parser_t ::parse() {
           {
             yystack_[1].value.as<ExprAttrs*>()->recursive = true;
             yystack_[1].value.as<ExprAttrs*>()->pos = CUR_POS;
-            yylhs.value.as<Expr*>() = state->exprs.add<ExprSelect>(
+            yylhs.value.as<expr_t*>() = state->exprs.add<ExprSelect>(
                 state->exprs.alloc, no_pos, yystack_[1].value.as<ExprAttrs*>(), state->s.body);
           }
 #line 1562 "parser-tab.cpp"
@@ -1634,7 +1634,7 @@ int bison_parser_t ::parse() {
           {
             yystack_[1].value.as<ExprAttrs*>()->recursive = true;
             yystack_[1].value.as<ExprAttrs*>()->pos = CUR_POS;
-            yylhs.value.as<Expr*>() = yystack_[1].value.as<ExprAttrs*>();
+            yylhs.value.as<expr_t*>() = yystack_[1].value.as<ExprAttrs*>();
           }
 #line 1568 "parser-tab.cpp"
           break;
@@ -1643,7 +1643,7 @@ int bison_parser_t ::parse() {
 #line 333 "parser.y"
           {
             yystack_[1].value.as<ExprAttrs*>()->pos = CUR_POS;
-            yylhs.value.as<Expr*>() = yystack_[1].value.as<ExprAttrs*>();
+            yylhs.value.as<expr_t*>() = yystack_[1].value.as<ExprAttrs*>();
           }
 #line 1574 "parser-tab.cpp"
           break;
@@ -1651,7 +1651,7 @@ int bison_parser_t ::parse() {
           case 58: // expr_simple: '{' '}'
 #line 335 "parser.y"
           {
-            yylhs.value.as<Expr*>() = state->exprs.add<ExprAttrs>(CUR_POS);
+            yylhs.value.as<expr_t*>() = state->exprs.add<ExprAttrs>(CUR_POS);
           }
 #line 1580 "parser-tab.cpp"
           break;
@@ -1659,8 +1659,8 @@ int bison_parser_t ::parse() {
           case 59: // expr_simple: '[' list ']'
 #line 336 "parser.y"
           {
-            yylhs.value.as<Expr*>() = state->exprs.add<ExprList>(
-                state->exprs.alloc, yystack_[1].value.as<std::pmr::vector<Expr*>>());
+            yylhs.value.as<expr_t*>() = state->exprs.add<ExprList>(
+                state->exprs.alloc, yystack_[1].value.as<std::pmr::vector<expr_t*>>());
           }
 #line 1586 "parser-tab.cpp"
           break;
@@ -1678,7 +1678,7 @@ int bison_parser_t ::parse() {
           {
             yylhs.value.as<ToBeStringyExpr>() = {state->exprs.add<ExprConcatStrings>(
                 state->exprs.alloc, CUR_POS, true,
-                yystack_[0].value.as<std::vector<std::pair<pos_idx_t, Expr*>>>())};
+                yystack_[0].value.as<std::vector<std::pair<pos_idx_t, expr_t*>>>())};
           }
 #line 1598 "parser-tab.cpp"
           break;
@@ -1694,9 +1694,9 @@ int bison_parser_t ::parse() {
           case 63: // string_parts_interpolated: string_parts_interpolated STR
 #line 347 "parser.y"
           {
-            yylhs.value.as<std::vector<std::pair<pos_idx_t, Expr*>>>() =
-                std::move(yystack_[1].value.as<std::vector<std::pair<pos_idx_t, Expr*>>>());
-            yylhs.value.as<std::vector<std::pair<pos_idx_t, Expr*>>>().emplace_back(
+            yylhs.value.as<std::vector<std::pair<pos_idx_t, expr_t*>>>() =
+                std::move(yystack_[1].value.as<std::vector<std::pair<pos_idx_t, expr_t*>>>());
+            yylhs.value.as<std::vector<std::pair<pos_idx_t, expr_t*>>>().emplace_back(
                 state->at(yystack_[0].location),
                 state->exprs.add<ExprString>(state->exprs.alloc,
                                              yystack_[0].value.as<StringToken>()));
@@ -1707,10 +1707,10 @@ int bison_parser_t ::parse() {
           case 64: // string_parts_interpolated: string_parts_interpolated DOLLAR_CURLY expr '}'
 #line 348 "parser.y"
           {
-            yylhs.value.as<std::vector<std::pair<pos_idx_t, Expr*>>>() =
-                std::move(yystack_[3].value.as<std::vector<std::pair<pos_idx_t, Expr*>>>());
-            yylhs.value.as<std::vector<std::pair<pos_idx_t, Expr*>>>().emplace_back(
-                state->at(yystack_[2].location), yystack_[1].value.as<Expr*>());
+            yylhs.value.as<std::vector<std::pair<pos_idx_t, expr_t*>>>() =
+                std::move(yystack_[3].value.as<std::vector<std::pair<pos_idx_t, expr_t*>>>());
+            yylhs.value.as<std::vector<std::pair<pos_idx_t, expr_t*>>>().emplace_back(
+                state->at(yystack_[2].location), yystack_[1].value.as<expr_t*>());
           }
 #line 1616 "parser-tab.cpp"
           break;
@@ -1718,8 +1718,8 @@ int bison_parser_t ::parse() {
           case 65: // string_parts_interpolated: DOLLAR_CURLY expr '}'
 #line 349 "parser.y"
           {
-            yylhs.value.as<std::vector<std::pair<pos_idx_t, Expr*>>>().emplace_back(
-                state->at(yystack_[2].location), yystack_[1].value.as<Expr*>());
+            yylhs.value.as<std::vector<std::pair<pos_idx_t, expr_t*>>>().emplace_back(
+                state->at(yystack_[2].location), yystack_[1].value.as<expr_t*>());
           }
 #line 1622 "parser-tab.cpp"
           break;
@@ -1727,12 +1727,12 @@ int bison_parser_t ::parse() {
           case 66: // string_parts_interpolated: STR DOLLAR_CURLY expr '}'
 #line 350 "parser.y"
           {
-            yylhs.value.as<std::vector<std::pair<pos_idx_t, Expr*>>>().emplace_back(
+            yylhs.value.as<std::vector<std::pair<pos_idx_t, expr_t*>>>().emplace_back(
                 state->at(yystack_[3].location),
                 state->exprs.add<ExprString>(state->exprs.alloc,
                                              yystack_[3].value.as<StringToken>()));
-            yylhs.value.as<std::vector<std::pair<pos_idx_t, Expr*>>>().emplace_back(
-                state->at(yystack_[2].location), yystack_[1].value.as<Expr*>());
+            yylhs.value.as<std::vector<std::pair<pos_idx_t, expr_t*>>>().emplace_back(
+                state->at(yystack_[2].location), yystack_[1].value.as<expr_t*>());
           }
 #line 1631 "parser-tab.cpp"
           break;
@@ -1757,7 +1757,7 @@ int bison_parser_t ::parse() {
             /* add back in the trailing '/' to the first segment */
             if (literal.size() > 1 && literal.back() == '/')
               path += '/';
-            yylhs.value.as<Expr*>() =
+            yylhs.value.as<expr_t*>() =
                 /* Absolute paths are always interpreted relative to the
                    root filesystem accessor, rather than the accessor of the
                    current Nix expression. */
@@ -1779,8 +1779,8 @@ int bison_parser_t ::parse() {
             }
             Path path(get_home().string() + std::string(yystack_[0].value.as<StringToken>().p + 1,
                                                        yystack_[0].value.as<StringToken>().l - 1));
-            yylhs.value.as<Expr*>() = state->exprs.add<ExprPath>(
-                state->exprs.alloc, ref<SourceAccessor>(state->root_fs), path);
+            yylhs.value.as<expr_t*>() = state->exprs.add<ExprPath>(
+                state->exprs.alloc, ref<source_accessor_t>(state->root_fs), path);
           }
 #line 1674 "parser-tab.cpp"
           break;
@@ -1789,10 +1789,10 @@ int bison_parser_t ::parse() {
 #line 393 "parser.y"
           {
             yylhs.value
-                .as<std::vector<std::pair<pos_idx_t, std::variant<Expr*, StringToken>>>>() = std::move(
+                .as<std::vector<std::pair<pos_idx_t, std::variant<expr_t*, StringToken>>>>() = std::move(
                 yystack_[1]
-                    .value.as<std::vector<std::pair<pos_idx_t, std::variant<Expr*, StringToken>>>>());
-            yylhs.value.as<std::vector<std::pair<pos_idx_t, std::variant<Expr*, StringToken>>>>()
+                    .value.as<std::vector<std::pair<pos_idx_t, std::variant<expr_t*, StringToken>>>>());
+            yylhs.value.as<std::vector<std::pair<pos_idx_t, std::variant<expr_t*, StringToken>>>>()
                 .emplace_back(state->at(yystack_[0].location), yystack_[0].value.as<StringToken>());
           }
 #line 1680 "parser-tab.cpp"
@@ -1802,11 +1802,11 @@ int bison_parser_t ::parse() {
 #line 394 "parser.y"
           {
             yylhs.value
-                .as<std::vector<std::pair<pos_idx_t, std::variant<Expr*, StringToken>>>>() = std::move(
+                .as<std::vector<std::pair<pos_idx_t, std::variant<expr_t*, StringToken>>>>() = std::move(
                 yystack_[3]
-                    .value.as<std::vector<std::pair<pos_idx_t, std::variant<Expr*, StringToken>>>>());
-            yylhs.value.as<std::vector<std::pair<pos_idx_t, std::variant<Expr*, StringToken>>>>()
-                .emplace_back(state->at(yystack_[2].location), yystack_[1].value.as<Expr*>());
+                    .value.as<std::vector<std::pair<pos_idx_t, std::variant<expr_t*, StringToken>>>>());
+            yylhs.value.as<std::vector<std::pair<pos_idx_t, std::variant<expr_t*, StringToken>>>>()
+                .emplace_back(state->at(yystack_[2].location), yystack_[1].value.as<expr_t*>());
           }
 #line 1686 "parser-tab.cpp"
           break;
@@ -1840,7 +1840,7 @@ int bison_parser_t ::parse() {
             yylhs.value.as<ExprAttrs*>() = yystack_[4].value.as<ExprAttrs*>();
             state->addAttr(yylhs.value.as<ExprAttrs*>(),
                            std::move(yystack_[3].value.as<std::vector<AttrName>>()),
-                           yystack_[3].location, yystack_[1].value.as<Expr*>(),
+                           yystack_[3].location, yystack_[1].value.as<expr_t*>(),
                            yystack_[1].location);
           }
 #line 1712 "parser-tab.cpp"
@@ -1870,9 +1870,9 @@ int bison_parser_t ::parse() {
             yylhs.value.as<ExprAttrs*>() = yystack_[6].value.as<ExprAttrs*>();
             if (!yystack_[6].value.as<ExprAttrs*>()->inheritFromExprs)
               yystack_[6].value.as<ExprAttrs*>()->inheritFromExprs =
-                  std::make_unique<std::pmr::vector<Expr*>>();
+                  std::make_unique<std::pmr::vector<expr_t*>>();
             yystack_[6].value.as<ExprAttrs*>()->inheritFromExprs->push_back(
-                yystack_[3].value.as<Expr*>());
+                yystack_[3].value.as<expr_t*>());
             auto from = state->exprs.add<ExprInheritFrom>(
                 state->at(yystack_[3].location),
                 yystack_[6].value.as<ExprAttrs*>()->inheritFromExprs->size() - 1);
@@ -1897,7 +1897,7 @@ int bison_parser_t ::parse() {
             yylhs.value.as<ExprAttrs*>() = state->exprs.add<ExprAttrs>();
             state->addAttr(yylhs.value.as<ExprAttrs*>(),
                            std::move(yystack_[3].value.as<std::vector<AttrName>>()),
-                           yystack_[3].location, yystack_[1].value.as<Expr*>(),
+                           yystack_[3].location, yystack_[1].value.as<expr_t*>(),
                            yystack_[1].location);
           }
 #line 1755 "parser-tab.cpp"
@@ -1925,7 +1925,7 @@ int bison_parser_t ::parse() {
                   yylhs.value.as<std::vector<std::pair<AttrName, pos_idx_t>>>().emplace_back(
                       state->symbols.create(str), state->at(yystack_[0].location));
                 },
-                [&](Expr* expr) {
+                [&](expr_t* expr) {
                   throw ParseError({.msg = hint_fmt_t("dynamic attributes not allowed in inherit"),
                                     .pos = state->positions[state->at(yystack_[0].location)]});
                 }});
@@ -1960,7 +1960,7 @@ int bison_parser_t ::parse() {
                 [&](std::string_view str) {
                   yylhs.value.as<std::vector<AttrName>>().emplace_back(state->symbols.create(str));
                 },
-                [&](Expr* expr) { yylhs.value.as<std::vector<AttrName>>().emplace_back(expr); }});
+                [&](expr_t* expr) { yylhs.value.as<std::vector<AttrName>>().emplace_back(expr); }});
           }
 #line 1800 "parser-tab.cpp"
           break;
@@ -1981,7 +1981,7 @@ int bison_parser_t ::parse() {
                 [&](std::string_view str) {
                   yylhs.value.as<std::vector<AttrName>>().emplace_back(state->symbols.create(str));
                 },
-                [&](Expr* expr) { yylhs.value.as<std::vector<AttrName>>().emplace_back(expr); }});
+                [&](expr_t* expr) { yylhs.value.as<std::vector<AttrName>>().emplace_back(expr); }});
           }
 #line 1816 "parser-tab.cpp"
           break;
@@ -2013,7 +2013,7 @@ int bison_parser_t ::parse() {
           case 88: // string_attr: DOLLAR_CURLY expr '}'
 #line 483 "parser.y"
           {
-            yylhs.value.as<ToBeStringyExpr>() = {yystack_[1].value.as<Expr*>()};
+            yylhs.value.as<ToBeStringyExpr>() = {yystack_[1].value.as<expr_t*>()};
           }
 #line 1840 "parser-tab.cpp"
           break;
@@ -2021,12 +2021,12 @@ int bison_parser_t ::parse() {
           case 89: // list: list expr_select
 #line 487 "parser.y"
           {
-            yylhs.value.as<std::pmr::vector<Expr*>>() =
-                std::move(yystack_[1].value.as<std::pmr::vector<Expr*>>());
-            yylhs.value.as<std::pmr::vector<Expr*>>().push_back(
-                yystack_[0].value.as<Expr*>()); /* !!! dangerous */
+            yylhs.value.as<std::pmr::vector<expr_t*>>() =
+                std::move(yystack_[1].value.as<std::pmr::vector<expr_t*>>());
+            yylhs.value.as<std::pmr::vector<expr_t*>>().push_back(
+                yystack_[0].value.as<expr_t*>()); /* !!! dangerous */
             ;
-            yystack_[0].value.as<Expr*>()->warnIfCursedOr(state->symbols, state->positions);
+            yystack_[0].value.as<expr_t*>()->warnIfCursedOr(state->symbols, state->positions);
           }
 #line 1846 "parser-tab.cpp"
           break;
@@ -2114,7 +2114,7 @@ int bison_parser_t ::parse() {
           {
             yylhs.value.as<Formal>() =
                 Formal{CUR_POS, state->symbols.create(yystack_[2].value.as<StringToken>()),
-                       yystack_[0].value.as<Expr*>()};
+                       yystack_[0].value.as<expr_t*>()};
           }
 #line 1906 "parser-tab.cpp"
           break;
@@ -2665,7 +2665,7 @@ void bison_parser_t ::yy_reduce_print_(int yyrule) const {
 #endif // YYDEBUG
 
 bison_parser_t ::symbol_kind_type bison_parser_t ::yytranslate_(int t) YY_NOEXCEPT {
-  // YYTRANSLATE[TOKEN-NUM] -- Symbol number corresponding to
+  // YYTRANSLATE[TOKEN-NUM] -- symbol_t number corresponding to
   // TOKEN-NUM as returned by yylex.
   static const signed char translate_table[] = {
       0,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,
@@ -2705,10 +2705,10 @@ bison_parser_t ::symbol_kind_type bison_parser_t ::yytranslate_(int t) YY_NOEXCE
 
 namespace nix {
 
-Expr* parse_expr_from_buf(char* text, size_t length, pos_t::origin_t origin, const source_path_t& base_path,
-                       Exprs& exprs, SymbolTable& symbols, const EvalSettings& settings,
+expr_t* parse_expr_from_buf(char* text, size_t length, pos_t::origin_t origin, const source_path_t& base_path,
+                       Exprs& exprs, symbol_table_t& symbols, const eval_settings_t& settings,
                        pos_table_t& positions, DocCommentMap& doc_comments,
-                       const ref<SourceAccessor> root_fs) {
+                       const ref<source_accessor_t> root_fs) {
   yyscan_t scanner;
   LexerState lexer_state{
       .positionToDocComment = doc_comments,

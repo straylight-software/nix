@@ -24,8 +24,8 @@ namespace nix {
 template <class F>
 inline void format_helper(F& /*f*/) {}
 
-template <class F, typename T, typename... Args>
-inline void format_helper(F& f, const T& x, const Args&... args) {
+template <class F, typename T, typename... args_t>
+inline void format_helper(F& f, const T& x, const args_t&... args) {
   // Interpolate one argument and then recurse.
   format_helper(f % x, args...);
 }
@@ -72,8 +72,8 @@ inline std::string fmt(const char* s) {
   return s;
 }
 
-template <typename... Args>
-inline std::string fmt(const std::string& fs, const Args&... args) {
+template <typename... args_t>
+inline std::string fmt(const std::string& fs, const args_t&... args) {
   boost::format f(fs);
   set_exceptions(f);
   format_helper(f, args...);
@@ -140,14 +140,14 @@ public:
   /**
    * Interpolate the given arguments into the format string.
    */
-  template <typename... Args>
-  hint_fmt_t(const std::string& format, const Args&... args)
+  template <typename... args_t>
+  hint_fmt_t(const std::string& format, const args_t&... args)
       : hint_fmt_t(boost::format(format), args...) {}
 
   hint_fmt_t(const hint_fmt_t& hf) : fmt_(hf.fmt_) {}
 
-  template <typename... Args>
-  hint_fmt_t(boost::format&& format, const Args&... args) : fmt_(std::move(format)) {
+  template <typename... args_t>
+  hint_fmt_t(boost::format&& format, const args_t&... args) : fmt_(std::move(format)) {
     set_exceptions(fmt_);
     format_helper(*this, args...);
   }

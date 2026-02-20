@@ -14,7 +14,6 @@
 #include <dirent.h>
 #include <fcntl.h>
 #include <liburing.h>
-#include <linux/stat.h>
 #include <sys/stat.h>
 #include <unistd.h>
 

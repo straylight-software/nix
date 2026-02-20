@@ -12,9 +12,9 @@ DerivationTrampolineGoal::DerivationTrampolineGoal(ref<const SingleDerivedPath> 
   commonInit();
 }
 
-DerivationTrampolineGoal::DerivationTrampolineGoal(const StorePath& drv_path,
+DerivationTrampolineGoal::DerivationTrampolineGoal(const store_path_t& drv_path,
                                                    const OutputsSpec& wantedOutputs,
-                                                   const Derivation& drv, Worker& worker,
+                                                   const derivation_t& drv, Worker& worker,
                                                    BuildMode build_mode)
     : Goal(worker, haveDerivation(drv_path, drv)),
       drvReq(makeConstantStorePathRef(drv_path)),
@@ -41,7 +41,7 @@ void DerivationTrampolineGoal::commonInit() {
 
 DerivationTrampolineGoal::~DerivationTrampolineGoal() {}
 
-static StorePath path_part_of_req(const SingleDerivedPath& req) {
+static store_path_t path_part_of_req(const SingleDerivedPath& req) {
   return std::visit(
       overloaded{
           [&](const SingleDerivedPath::opaque_t& bo) { return bo.path; },
@@ -52,7 +52,7 @@ static StorePath path_part_of_req(const SingleDerivedPath& req) {
 
 std::string DerivationTrampolineGoal::key() {
   return "da$" + std::string(path_part_of_req(*drvReq).name()) + "$" +
-         DerivedPath::Built{
+         derived_path_t::Built{
              .drv_path = drvReq,
              .outputs = wantedOutputs,
          }
@@ -66,11 +66,11 @@ Goal::Co DerivationTrampolineGoal::init() {
      exists.  If it doesn't, it may be built from another derivation,
      or merely substituted. We can make goal to get it and not worry
      about which method it takes to get the derivation. */
-  if (auto optDrvPath = [this]() -> std::optional<StorePath> {
+  if (auto optDrvPath = [this]() -> std::optional<store_path_t> {
         if (build_mode != bmNormal)
           return std::nullopt;
 
-        auto drv_path = StorePath::dummy;
+        auto drv_path = store_path_t::dummy;
         try {
           drv_path = resolve_derived_path(worker.store, *drvReq);
         } catch (MissingRealisation&) {
@@ -83,7 +83,7 @@ Goal::Co DerivationTrampolineGoal::init() {
               worker.store.printStorePath(*optDrvPath), drvReq->to_string(worker.store)));
   } else {
     trace("need to obtain drv we want to build");
-    Goals waitees{worker.makeGoal(DerivedPath::fromSingle(*drvReq))};
+    Goals waitees{worker.makeGoal(derived_path_t::fromSingle(*drvReq))};
     co_await await(std::move(waitees));
   }
 
@@ -94,7 +94,7 @@ Goal::Co DerivationTrampolineGoal::init() {
         ecFailed, Error("cannot build missing derivation '%s'", drvReq->to_string(worker.store)));
   }
 
-  StorePath drv_path = resolve_derived_path(worker.store, *drvReq);
+  store_path_t drv_path = resolve_derived_path(worker.store, *drvReq);
 
   /* `drv_path' should already be a root, but let's be on the safe
      side: if the user forgot to make it a root, we wouldn't want
@@ -118,7 +118,7 @@ Goal::Co DerivationTrampolineGoal::init() {
   co_return haveDerivation(std::move(drv_path), std::move(drv));
 }
 
-Goal::Co DerivationTrampolineGoal::haveDerivation(StorePath drv_path, Derivation drv) {
+Goal::Co DerivationTrampolineGoal::haveDerivation(store_path_t drv_path, derivation_t drv) {
   trace("have derivation, will kick off derivations goals per wanted output");
 
   auto resolvedWantedOutputs =

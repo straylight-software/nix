@@ -61,11 +61,11 @@
 
 namespace nix {
 
-LocalStoreConfig::LocalStoreConfig(std::string_view scheme, std::string_view authority,
+local_store_config_t::local_store_config_t(std::string_view scheme, std::string_view authority,
                                    const Params& params)
-    : StoreConfig(params), LocalFSStoreConfig(authority, params) {}
+    : store_config_t(params), LocalFSStoreConfig(authority, params) {}
 
-std::string LocalStoreConfig::doc() {
+std::string local_store_config_t::doc() {
   return
 #include "local-store.md"
       ;
@@ -77,11 +77,11 @@ Path LocalBuildStoreConfig::getBuildDir() const {
                                               : stateDir.get() + "/builds";
 }
 
-ref<Store> LocalStore::config_t::open_store() const {
+ref<store_t> LocalStore::config_t::open_store() const {
   return make_ref<LocalStore>(ref{shared_from_this()});
 }
 
-bool LocalStoreConfig::getDefaultRequireSigs() {
+bool local_store_config_t::getDefaultRequireSigs() {
   return settings.requireSigs;
 }
 
@@ -108,7 +108,7 @@ struct LocalStore::State::Stmts {
 };
 
 LocalStore::LocalStore(ref<const config_t> config)
-    : Store{*config},
+    : store_t{*config},
       local_fs_store{*config},
       config{config},
       _state(make_ref<sync_t<State>>()),
@@ -439,7 +439,7 @@ LocalStore::~LocalStore() {
   }
 }
 
-StoreReference LocalStoreConfig::getReference() const {
+StoreReference local_store_config_t::getReference() const {
   auto params = getQueryParams();
   /* Back-compatibility kludge. Tools like nix-output-monitor expect 'local'
      and can't parse 'local://'. */
@@ -595,7 +595,7 @@ void LocalStore::makeStoreWritable() {
 #endif
 }
 
-void LocalStore::register_drv_output(const Realisation& info, CheckSigsFlag check_sigs) {
+void LocalStore::register_drv_output(const realisation_t& info, CheckSigsFlag check_sigs) {
   experimental_feature_settings.require(xp_t::ca_derivations);
   if (check_sigs == NoCheckSigs || !realisationIsUntrusted(info))
     register_drv_output(info);
@@ -604,7 +604,7 @@ void LocalStore::register_drv_output(const Realisation& info, CheckSigsFlag chec
                 info.out_path.to_string());
 }
 
-void LocalStore::register_drv_output(const Realisation& info) {
+void LocalStore::register_drv_output(const realisation_t& info) {
   experimental_feature_settings.require(xp_t::ca_derivations);
   retrySQLite<void>([&]() {
     auto state(_state->lock());
@@ -649,13 +649,13 @@ void LocalStore::register_drv_output(const Realisation& info) {
 }
 
 void LocalStore::cacheDrvOutputMapping(State& state, const uint64_t deriver,
-                                       const std::string& output_name, const StorePath& output) {
+                                       const std::string& output_name, const store_path_t& output) {
   retrySQLite<void>([&]() {
     state.stmts->AddDerivationOutput.use()(deriver)(output_name)(printStorePath(output)).exec();
   });
 }
 
-uint64_t LocalStore::addValidPath(State& state, const ValidPathInfo& info, bool check_outputs) {
+uint64_t LocalStore::addValidPath(State& state, const valid_path_info_t& info, bool check_outputs) {
   if (info.ca.has_value() && !info.isContentAddressed(*this))
     throw Error(
         "cannot add path '%s' to the Nix store because it claims to be content-addressed but isn't",
@@ -695,15 +695,15 @@ uint64_t LocalStore::addValidPath(State& state, const ValidPathInfo& info, bool 
   }
 
   pathInfoCache->lock()->upsert(
-      info.path, PathInfoCacheValue{.value = std::make_shared<const ValidPathInfo>(info)});
+      info.path, PathInfoCacheValue{.value = std::make_shared<const valid_path_info_t>(info)});
 
   return id;
 }
 
 void LocalStore::query_path_info_uncached(
-    const StorePath& path, Callback<std::shared_ptr<const ValidPathInfo>> callback) noexcept {
+    const store_path_t& path, Callback<std::shared_ptr<const valid_path_info_t>> callback) noexcept {
   try {
-    callback(retrySQLite<std::shared_ptr<const ValidPathInfo>>(
+    callback(retrySQLite<std::shared_ptr<const valid_path_info_t>>(
         [&]() { return queryPathInfoInternal(*_state->lock(), path); }));
 
   } catch (...) {
@@ -711,13 +711,13 @@ void LocalStore::query_path_info_uncached(
   }
 }
 
-std::shared_ptr<const ValidPathInfo> LocalStore::queryPathInfoInternal(State& state,
-                                                                       const StorePath& path) {
+std::shared_ptr<const valid_path_info_t> LocalStore::queryPathInfoInternal(State& state,
+                                                                       const store_path_t& path) {
   /* Get the path info. */
   auto useQueryPathInfo(state.stmts->QueryPathInfo.use()(printStorePath(path)));
 
   if (!useQueryPathInfo.next())
-    return std::shared_ptr<ValidPathInfo>();
+    return std::shared_ptr<valid_path_info_t>();
 
   auto id = useQueryPathInfo.getInt(0);
 
@@ -728,7 +728,7 @@ std::shared_ptr<const ValidPathInfo> LocalStore::queryPathInfoInternal(State& st
     throw Error("invalid-path entry for '%s': %s", printStorePath(path), e.what());
   }
 
-  auto info = std::make_shared<ValidPathInfo>(path, UnkeyedValidPathInfo(*this, nar_hash));
+  auto info = std::make_shared<valid_path_info_t>(path, UnkeyedValidPathInfo(*this, nar_hash));
 
   info->id = id;
 
@@ -749,7 +749,7 @@ std::shared_ptr<const ValidPathInfo> LocalStore::queryPathInfoInternal(State& st
 
   s = (const char*)sqlite3_column_text(state.stmts->QueryPathInfo, 7);
   if (s)
-    info->ca = ContentAddress::parseOpt(s);
+    info->ca = content_address_t::parseOpt(s);
 
   /* Get the references. */
   auto useQueryReferences(state.stmts->QueryReferences.use()(info->id));
@@ -761,7 +761,7 @@ std::shared_ptr<const ValidPathInfo> LocalStore::queryPathInfoInternal(State& st
 }
 
 /* Update path info in the database. */
-void LocalStore::updatePathInfo(State& state, const ValidPathInfo& info) {
+void LocalStore::updatePathInfo(State& state, const valid_path_info_t& info) {
   state.stmts->UpdatePathInfo
       .use()(info.nar_size, info.nar_size != 0)(info.nar_hash.to_string(
           hash_format_t::base16, true))(info.ultimate ? 1 : 0, info.ultimate)(
@@ -770,59 +770,59 @@ void LocalStore::updatePathInfo(State& state, const ValidPathInfo& info) {
       .exec();
 }
 
-uint64_t LocalStore::queryValidPathId(State& state, const StorePath& path) {
+uint64_t LocalStore::queryValidPathId(State& state, const store_path_t& path) {
   auto use(state.stmts->QueryPathInfo.use()(printStorePath(path)));
   if (!use.next())
     throw InvalidPath("path '%s' is not valid", printStorePath(path));
   return use.getInt(0);
 }
 
-bool LocalStore::isValidPath_(State& state, const StorePath& path) {
+bool LocalStore::isValidPath_(State& state, const store_path_t& path) {
   return state.stmts->QueryPathInfo.use()(printStorePath(path)).next();
 }
 
-bool LocalStore::isValidPathUncached(const StorePath& path) {
+bool LocalStore::isValidPathUncached(const store_path_t& path) {
   return retrySQLite<bool>([&]() { return isValidPath_(*_state->lock(), path); });
 }
 
-StorePathSet LocalStore::queryValidPaths(const StorePathSet& paths,
+store_path_set_t LocalStore::queryValidPaths(const store_path_set_t& paths,
                                          SubstituteFlag maybeSubstitute) {
-  StorePathSet res;
+  store_path_set_t res;
   for (auto& i : paths)
     if (isValidPath(i))
       res.insert(i);
   return res;
 }
 
-StorePathSet LocalStore::query_all_valid_paths() {
-  return retrySQLite<StorePathSet>([&]() {
+store_path_set_t LocalStore::query_all_valid_paths() {
+  return retrySQLite<store_path_set_t>([&]() {
     auto state(_state->lock());
     auto use(state->stmts->QueryValidPaths.use());
-    StorePathSet res;
+    store_path_set_t res;
     while (use.next())
       res.insert(parseStorePath(use.getStr(0)));
     return res;
   });
 }
 
-void LocalStore::query_referrers(State& state, const StorePath& path, StorePathSet& referrers) {
+void LocalStore::query_referrers(State& state, const store_path_t& path, store_path_set_t& referrers) {
   auto useQueryReferrers(state.stmts->QueryReferrers.use()(printStorePath(path)));
 
   while (useQueryReferrers.next())
     referrers.insert(parseStorePath(useQueryReferrers.getStr(0)));
 }
 
-void LocalStore::query_referrers(const StorePath& path, StorePathSet& referrers) {
+void LocalStore::query_referrers(const store_path_t& path, store_path_set_t& referrers) {
   return retrySQLite<void>([&]() { query_referrers(*_state->lock(), path, referrers); });
 }
 
-StorePathSet LocalStore::queryValidDerivers(const StorePath& path) {
-  return retrySQLite<StorePathSet>([&]() {
+store_path_set_t LocalStore::queryValidDerivers(const store_path_t& path) {
+  return retrySQLite<store_path_set_t>([&]() {
     auto state(_state->lock());
 
     auto useQueryValidDerivers(state->stmts->QueryValidDerivers.use()(printStorePath(path)));
 
-    StorePathSet derivers;
+    store_path_set_t derivers;
     while (useQueryValidDerivers.next())
       derivers.insert(parseStorePath(useQueryValidDerivers.getStr(1)));
 
@@ -830,11 +830,11 @@ StorePathSet LocalStore::queryValidDerivers(const StorePath& path) {
   });
 }
 
-std::map<std::string, std::optional<StorePath>>
-LocalStore::queryStaticPartialDerivationOutputMap(const StorePath& path) {
-  return retrySQLite<std::map<std::string, std::optional<StorePath>>>([&]() {
+std::map<std::string, std::optional<store_path_t>>
+LocalStore::queryStaticPartialDerivationOutputMap(const store_path_t& path) {
+  return retrySQLite<std::map<std::string, std::optional<store_path_t>>>([&]() {
     auto state(_state->lock());
-    std::map<std::string, std::optional<StorePath>> outputs;
+    std::map<std::string, std::optional<store_path_t>> outputs;
     uint64_t drvId;
     drvId = queryValidPathId(*state, path);
     auto use(state->stmts->QueryDerivationOutputs.use()(drvId));
@@ -845,13 +845,13 @@ LocalStore::queryStaticPartialDerivationOutputMap(const StorePath& path) {
   });
 }
 
-std::optional<StorePath> LocalStore::queryPathFromHashPart(const std::string& hash_part) {
-  if (hash_part.size() != StorePath::HashLen)
+std::optional<store_path_t> LocalStore::queryPathFromHashPart(const std::string& hash_part) {
+  if (hash_part.size() != store_path_t::HashLen)
     throw Error("invalid hash part");
 
   Path prefix = store_dir + "/" + hash_part;
 
-  return retrySQLite<std::optional<StorePath>>([&]() -> std::optional<StorePath> {
+  return retrySQLite<std::optional<store_path_t>>([&]() -> std::optional<store_path_t> {
     auto state(_state->lock());
 
     auto useQueryPathFromHashPart(state->stmts->QueryPathFromHashPart.use()(prefix));
@@ -866,15 +866,15 @@ std::optional<StorePath> LocalStore::queryPathFromHashPart(const std::string& ha
   });
 }
 
-StorePathSet LocalStore::querySubstitutablePaths(const StorePathSet& paths) {
+store_path_set_t LocalStore::querySubstitutablePaths(const store_path_set_t& paths) {
   if (!settings.use_substitutes)
-    return StorePathSet();
+    return store_path_set_t();
 
-  StorePathSet remaining;
+  store_path_set_t remaining;
   for (auto& i : paths)
     remaining.insert(i);
 
-  StorePathSet res;
+  store_path_set_t res;
 
   for (auto& sub : get_default_substituters()) {
     if (remaining.empty())
@@ -886,7 +886,7 @@ StorePathSet LocalStore::querySubstitutablePaths(const StorePathSet& paths) {
 
     auto valid = sub->queryValidPaths(remaining);
 
-    StorePathSet remaining2;
+    store_path_set_t remaining2;
     for (auto& path : remaining)
       if (valid.count(path))
         res.insert(path);
@@ -899,7 +899,7 @@ StorePathSet LocalStore::querySubstitutablePaths(const StorePathSet& paths) {
   return res;
 }
 
-void LocalStore::registerValidPath(const ValidPathInfo& info) {
+void LocalStore::registerValidPath(const valid_path_info_t& info) {
   registerValidPaths({{info.path, info}});
 }
 
@@ -917,7 +917,7 @@ void LocalStore::registerValidPaths(const ValidPathInfos& infos) {
     auto state(_state->lock());
 
     SQLiteTxn txn(state->db);
-    StorePathSet paths;
+    store_path_set_t paths;
 
     for (auto& [_, i] : infos) {
       assert(i.nar_hash.algo() == hash_algorithm_t::SHA256);
@@ -947,13 +947,13 @@ void LocalStore::registerValidPaths(const ValidPathInfos& infos) {
        error if a cycle is detected and roll back the
        transaction.  Cycles can only occur when a derivation
        has multiple outputs. */
-    auto topo_sort_result = topoSort(paths, [&](const StorePath& path) {
+    auto topo_sort_result = topoSort(paths, [&](const store_path_t& path) {
       auto i = infos.find(path);
-      return i == infos.end() ? StorePathSet() : i->second.references;
+      return i == infos.end() ? store_path_set_t() : i->second.references;
     });
 
-    std::visit(overloaded{[&](const Cycle<StorePath>& cycle) {
-                            throw BuildError(BuildResult::Failure::OutputRejected,
+    std::visit(overloaded{[&](const cycle_t<store_path_t>& cycle) {
+                            throw build_error_t(build_result_t::Failure::OutputRejected,
                                              "cycle detected in the references of '%s' from '%s'",
                                              printStorePath(cycle.path),
                                              printStorePath(cycle.parent));
@@ -967,7 +967,7 @@ void LocalStore::registerValidPaths(const ValidPathInfos& infos) {
 
 /* Invalidate a path.  The caller is responsible for checking that
    there are no referrers. */
-void LocalStore::invalidatePath(State& state, const StorePath& path) {
+void LocalStore::invalidatePath(State& state, const store_path_t& path) {
   debug("invalidating path '%s'", printStorePath(path));
 
   state.stmts->InvalidatePath.use()(printStorePath(path)).exec();
@@ -985,15 +985,15 @@ const public_keys_t& LocalStore::get_public_keys() {
   return *state->public_keys;
 }
 
-bool LocalStore::pathInfoIsUntrusted(const ValidPathInfo& info) {
+bool LocalStore::pathInfoIsUntrusted(const valid_path_info_t& info) {
   return config->requireSigs && !info.checkSignatures(*this, get_public_keys());
 }
 
-bool LocalStore::realisationIsUntrusted(const Realisation& realisation) {
+bool LocalStore::realisationIsUntrusted(const realisation_t& realisation) {
   return config->requireSigs && !realisation.checkSignatures(realisation.id, get_public_keys());
 }
 
-void LocalStore::add_to_store(const ValidPathInfo& info, Source& source, RepairFlag repair,
+void LocalStore::add_to_store(const valid_path_info_t& info, source_t& source, RepairFlag repair,
                               CheckSigsFlag check_sigs) {
   if (check_sigs && pathInfoIsUntrusted(info))
     throw Error("cannot add path '%s' because it lacks a signature by a trusted key",
@@ -1071,7 +1071,7 @@ void LocalStore::add_to_store(const ValidPathInfo& info, Source& source, RepairF
                 h = git::dump_hash(specified.hash.algo(), {accessor, path}).hash;
                 break;
             }
-            ContentAddress{
+            content_address_t{
                 .method = specified.method,
                 .hash = std::move(h),
             };
@@ -1106,11 +1106,11 @@ void LocalStore::add_to_store(const ValidPathInfo& info, Source& source, RepairF
   check_interrupt();
 }
 
-StorePath LocalStore::add_to_store_from_dump(Source& source0, std::string_view name,
+store_path_t LocalStore::add_to_store_from_dump(source_t& source0, std::string_view name,
                                              file_serialisation_method_t dump_method,
-                                             ContentAddressMethod hash_method,
+                                             content_address_method_t hash_method,
                                              hash_algorithm_t hash_algo,
-                                             const StorePathSet& references, RepairFlag repair) {
+                                             const store_path_set_t& references, RepairFlag repair) {
   /* For computing the store path. */
   auto hash_sink = std::make_unique<hash_sink_t>(hash_algo);
   tee_source_t source{source0, *hash_sink};
@@ -1251,7 +1251,7 @@ StorePath LocalStore::add_to_store_from_dump(Source& source0, std::string_view n
         sync_parent(realPath);
       }
 
-      auto info = ValidPathInfo::makeFromCA(*this, name, std::move(desc), nar_hash.hash);
+      auto info = valid_path_info_t::makeFromCA(*this, name, std::move(desc), nar_hash.hash);
       info.nar_size = nar_hash.num_bytes_digested;
       registerValidPath(info);
     }
@@ -1282,14 +1282,14 @@ std::pair<std::filesystem::path, auto_close_fd_t> LocalStore::createTempDirInSto
   return {tmpDirFn, std::move(tmpDirFd)};
 }
 
-void LocalStore::invalidatePathChecked(const StorePath& path) {
+void LocalStore::invalidatePathChecked(const store_path_t& path) {
   retrySQLite<void>([&]() {
     auto state(_state->lock());
 
     SQLiteTxn txn(state->db);
 
     if (isValidPath_(*state, path)) {
-      StorePathSet referrers;
+      store_path_set_t referrers;
       query_referrers(*state, path, referrers);
       referrers.erase(path); /* ignore self-references */
       if (!referrers.empty())
@@ -1340,8 +1340,8 @@ bool LocalStore::verifyStore(bool check_contents, RepairFlag repair) {
 
     for (auto& i : validPaths) {
       try {
-        auto info = std::const_pointer_cast<ValidPathInfo>(
-            std::shared_ptr<const ValidPathInfo>(queryPathInfo(i)));
+        auto info = std::const_pointer_cast<valid_path_info_t>(
+            std::shared_ptr<const valid_path_info_t>(queryPathInfo(i)));
 
         /* Check the content hash (optionally - slow). */
         printMsg(lvl_talkative, "checking contents of '%s'", printStorePath(i));
@@ -1397,7 +1397,7 @@ bool LocalStore::verifyStore(bool check_contents, RepairFlag repair) {
 }
 
 LocalStore::VerificationResult LocalStore::verifyAllValidPaths(RepairFlag repair) {
-  StorePathSet storePathsInStoreDir;
+  store_path_set_t storePathsInStoreDir;
   /* Why aren't we using `query_all_valid_paths`? Because that would
      tell us about all the paths than the database knows about. Here we
      want to know about all the store paths in the store directory,
@@ -1418,14 +1418,14 @@ LocalStore::VerificationResult LocalStore::verifyAllValidPaths(RepairFlag repair
   /* Check whether all valid paths actually exist. */
   printInfo("checking path existence...");
 
-  StorePathSet done;
+  store_path_set_t done;
 
-  auto existsInStoreDir = [&](const StorePath& store_path) {
+  auto existsInStoreDir = [&](const store_path_t& store_path) {
     return storePathsInStoreDir.count(store_path);
   };
 
   bool errors = false;
-  StorePathSet validPaths;
+  store_path_set_t validPaths;
 
   for (auto& i : query_all_valid_paths())
     verifyPath(i, existsInStoreDir, done, validPaths, repair, errors);
@@ -1436,9 +1436,9 @@ LocalStore::VerificationResult LocalStore::verifyAllValidPaths(RepairFlag repair
   };
 }
 
-void LocalStore::verifyPath(const StorePath& path,
-                            std::function<bool(const StorePath&)> existsInStoreDir,
-                            StorePathSet& done, StorePathSet& validPaths, RepairFlag repair,
+void LocalStore::verifyPath(const store_path_t& path,
+                            std::function<bool(const store_path_t&)> existsInStoreDir,
+                            store_path_set_t& done, store_path_set_t& validPaths, RepairFlag repair,
                             bool& errors) {
   check_interrupt();
 
@@ -1449,7 +1449,7 @@ void LocalStore::verifyPath(const StorePath& path,
     /* Check any referrers first.  If we can invalidate them
        first, then we can invalidate this path as well. */
     bool canInvalidate = true;
-    StorePathSet referrers;
+    store_path_set_t referrers;
     query_referrers(path, referrers);
     for (auto& i : referrers)
       if (i != path) {
@@ -1494,13 +1494,13 @@ void LocalStore::vacuumDB() {
   _state->lock()->db.exec("vacuum");
 }
 
-void LocalStore::addSignatures(const StorePath& store_path, const string_set_t& sigs) {
+void LocalStore::addSignatures(const store_path_t& store_path, const string_set_t& sigs) {
   retrySQLite<void>([&]() {
     auto state(_state->lock());
 
     SQLiteTxn txn(state->db);
 
-    auto info = std::const_pointer_cast<ValidPathInfo>(queryPathInfoInternal(*state, store_path));
+    auto info = std::const_pointer_cast<valid_path_info_t>(queryPathInfoInternal(*state, store_path));
 
     info->sigs.insert(sigs.begin(), sigs.end());
 
@@ -1532,7 +1532,7 @@ std::optional<const UnkeyedRealisation> LocalStore::queryRealisation_(LocalStore
     return std::nullopt;
   auto [realisationDbId, res] = *maybeCore;
 
-  std::map<DrvOutput, StorePath> dependentRealisations;
+  std::map<DrvOutput, store_path_t> dependentRealisations;
   auto useRealisationRefs(state.stmts->QueryRealisationReferences.use()(realisationDbId));
   while (useRealisationRefs.next()) {
     auto depId = DrvOutput{
@@ -1569,7 +1569,7 @@ void LocalStore::query_realisation_uncached(
   }
 }
 
-void LocalStore::addBuildLog(const StorePath& drv_path, std::string_view log) {
+void LocalStore::addBuildLog(const store_path_t& drv_path, std::string_view log) {
   assert(drv_path.is_derivation());
 
   auto base_name = drv_path.to_string();

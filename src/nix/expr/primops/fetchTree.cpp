@@ -20,8 +20,8 @@
 
 namespace nix {
 
-void emit_tree_attrs(EvalState& state, const StorePath& store_path, const fetchers::Input& input,
-                   Value& v, bool empty_rev_fallback, bool force_dirty) {
+void emit_tree_attrs(eval_state_t& state, const store_path_t& store_path, const fetchers::input_t& input,
+                   value_t& v, bool empty_rev_fallback, bool force_dirty) {
   auto attrs = state.buildBindings(100);
 
   state.mkStorePathString(store_path, attrs.alloc(state.s.out_path));
@@ -73,9 +73,9 @@ struct fetch_tree_params_t {
   bool is_fetch_git = false;
 };
 
-static void fetch_tree(EvalState& state, const pos_idx_t pos, Value** args, Value& v,
+static void fetch_tree(eval_state_t& state, const pos_idx_t pos, value_t** args, value_t& v,
                       const fetch_tree_params_t& params = fetch_tree_params_t{}) {
-  fetchers::Input input{};
+  fetchers::input_t input{};
   NixStringContext context;
   std::optional<std::string> type;
   auto fetcher = params.is_fetch_git ? "fetchGit" : "fetchTree";
@@ -112,7 +112,7 @@ static void fetch_tree(EvalState& state, const pos_idx_t pos, Value** args, Valu
             state.symbols[attr.name],
             params.is_fetch_git && state.symbols[attr.name] == "url" ? fix_git_url(s).to_string() : s);
       } else if (attr.value->type() == nBool)
-        attrs.emplace(state.symbols[attr.name], Explicit<bool>{attr.value->boolean()});
+        attrs.emplace(state.symbols[attr.name], explicit_t<bool>{attr.value->boolean()});
       else if (attr.value->type() == nInt) {
         auto int_value = attr.value->integer().value;
 
@@ -138,7 +138,7 @@ static void fetch_tree(EvalState& state, const pos_idx_t pos, Value** args, Valu
 
     if (params.is_fetch_git && !attrs.contains("exportIgnore") &&
         (!attrs.contains("submodules") || !*fetchers::maybe_get_bool_attr(attrs, "submodules"))) {
-      attrs.emplace("exportIgnore", Explicit<bool>{true});
+      attrs.emplace("exportIgnore", explicit_t<bool>{true});
     }
 
     if (!params.allow_name_argument)
@@ -147,7 +147,7 @@ static void fetch_tree(EvalState& state, const pos_idx_t pos, Value** args, Valu
             .at_pos(pos)
             .debugThrow();
 
-    input = fetchers::Input::fromAttrs(state.fetch_settings, std::move(attrs));
+    input = fetchers::input_t::fromAttrs(state.fetch_settings, std::move(attrs));
   } else {
     auto url =
         state
@@ -162,11 +162,11 @@ static void fetch_tree(EvalState& state, const pos_idx_t pos, Value** args, Valu
       attrs.emplace("url", fix_git_url(url).to_string());
       if (!attrs.contains("exportIgnore") &&
           (!attrs.contains("submodules") || !*fetchers::maybe_get_bool_attr(attrs, "submodules"))) {
-        attrs.emplace("exportIgnore", Explicit<bool>{true});
+        attrs.emplace("exportIgnore", explicit_t<bool>{true});
       }
-      input = fetchers::Input::fromAttrs(state.fetch_settings, std::move(attrs));
+      input = fetchers::input_t::fromAttrs(state.fetch_settings, std::move(attrs));
     } else {
-      input = fetchers::Input::fromURL(state.fetch_settings, url);
+      input = fetchers::input_t::fromURL(state.fetch_settings, url);
     }
   }
 
@@ -177,7 +177,7 @@ static void fetch_tree(EvalState& state, const pos_idx_t pos, Value** args, Valu
 
   if (state.settings.pureEval && !input.isLocked(state.fetch_settings)) {
     if (input.getNarHash())
-      warn("Input '%s' is unlocked (e.g. lacks a Git revision) but is checked by NAR hash. "
+      warn("input_t '%s' is unlocked (e.g. lacks a Git revision) but is checked by NAR hash. "
            "This is not reproducible and will break after garbage collection or when shared.",
            input.to_string());
     else
@@ -191,7 +191,7 @@ static void fetch_tree(EvalState& state, const pos_idx_t pos, Value** args, Valu
   state.checkURI(input.toURLString());
 
   if (input.getNarHash())
-    input.attrs.insert_or_assign("__final", Explicit<bool>(true));
+    input.attrs.insert_or_assign("__final", explicit_t<bool>(true));
 
   auto cached_input = state.inputCache->get_accessor(state.fetch_settings, *state.store, input,
                                                    fetchers::UseRegistries::No);
@@ -201,7 +201,7 @@ static void fetch_tree(EvalState& state, const pos_idx_t pos, Value** args, Valu
   emit_tree_attrs(state, store_path, cached_input.lockedInput, v, params.empty_rev_fallback, false);
 }
 
-static void prim_fetch_tree(EvalState& state, const pos_idx_t pos, Value** args, Value& v) {
+static void prim_fetch_tree(eval_state_t& state, const pos_idx_t pos, value_t** args, value_t& v) {
   fetch_tree(state, pos, args, v, {});
 }
 
@@ -242,7 +242,7 @@ static RegisterPrimOp primop_fetch_tree({
 
           - There is no cache entry or the cache entry is older than [`tarball-ttl`](@docroot@/command-ref/conf-file.md#conf-tarball-ttl)
 
-          ## Source types
+          ## source_t types
 
           The following source types and associated input attributes are supported.
 
@@ -331,7 +331,7 @@ static RegisterPrimOp primop_fetch_tree({
     .fun = prim_fetch_tree,
 });
 
-static void fetch(EvalState& state, const pos_idx_t pos, Value** args, Value& v,
+static void fetch(eval_state_t& state, const pos_idx_t pos, value_t** args, value_t& v,
                   const std::string& who, bool unpack, std::string name) {
   std::optional<std::string> url;
   std::optional<Hash> expected_hash;
@@ -447,7 +447,7 @@ static void fetch(EvalState& state, const pos_idx_t pos, Value** args, Value& v,
   state.allowAndSetStorePathString(store_path, v);
 }
 
-static void prim_fetchurl(EvalState& state, const pos_idx_t pos, Value** args, Value& v) {
+static void prim_fetchurl(eval_state_t& state, const pos_idx_t pos, value_t** args, value_t& v) {
   fetch(state, pos, args, v, "fetchurl", false, "");
 }
 
@@ -472,7 +472,7 @@ static RegisterPrimOp primop_fetchurl({
     .fun = prim_fetchurl,
 });
 
-static void prim_fetch_tarball(EvalState& state, const pos_idx_t pos, Value** args, Value& v) {
+static void prim_fetch_tarball(eval_state_t& state, const pos_idx_t pos, value_t** args, value_t& v) {
   fetch(state, pos, args, v, "fetchTarball", true, "source");
 }
 
@@ -521,7 +521,7 @@ static RegisterPrimOp primop_fetch_tarball({
     .fun = prim_fetch_tarball,
 });
 
-static void prim_fetch_git(EvalState& state, const pos_idx_t pos, Value** args, Value& v) {
+static void prim_fetch_git(eval_state_t& state, const pos_idx_t pos, value_t** args, value_t& v) {
   fetch_tree(
       state, pos, args, v,
       fetch_tree_params_t{.empty_rev_fallback = true, .allow_name_argument = true, .is_fetch_git = true});

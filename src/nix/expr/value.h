@@ -24,7 +24,7 @@
 
 namespace nix {
 
-struct Value;
+struct value_t;
 class BindingsBuilder;
 
 static constexpr int discriminatorBits = 3;
@@ -113,22 +113,22 @@ typedef enum {
   nExternal,
 } ValueType;
 
-class Bindings;
+class bindings_t;
 struct Env;
-struct Expr;
+struct expr_t;
 struct ExprLambda;
 struct PrimOp;
-class Symbol;
+class symbol_t;
 class SymbolStr;
 class pos_idx_t;
 struct pos_t;
-class StorePath;
-class EvalState;
+class store_path_t;
+class eval_state_t;
 class EvalMemory;
 class xml_writer_t;
 class printer_t;
 
-using NixInt = checked::Checked<int64_t>;
+using NixInt = checked::checked_t<int64_t>;
 using NixFloat = double;
 
 /**
@@ -160,7 +160,7 @@ public:
    * Coerce the value to a string. Defaults to uncoercable, i.e. throws an
    * error.
    */
-  virtual std::string coerceToString(EvalState& state, const pos_idx_t& pos, NixStringContext& context,
+  virtual std::string coerceToString(eval_state_t& state, const pos_idx_t& pos, NixStringContext& context,
                                      bool copyMore, bool copy_to_store) const;
 
   /**
@@ -172,13 +172,13 @@ public:
   /**
    * Print the value as JSON. Defaults to unconvertable, i.e. throws an error
    */
-  virtual nlohmann::json print_value_as_json(EvalState& state, bool strict, NixStringContext& context,
+  virtual nlohmann::json print_value_as_json(eval_state_t& state, bool strict, NixStringContext& context,
                                           bool copy_to_store = true) const;
 
   /**
    * Print the value as XML. Defaults to unevaluated
    */
-  virtual void print_value_as_xml(EvalState& state, bool strict, bool location, xml_writer_t& doc,
+  virtual void print_value_as_xml(eval_state_t& state, bool strict, bool location, xml_writer_t& doc,
                                NixStringContext& context, path_set_t& drvs_seen,
                                const pos_idx_t pos) const;
 
@@ -189,10 +189,10 @@ std::ostream& operator<<(std::ostream& str, const ExternalValueBase& v);
 
 class ListBuilder {
   const size_t size;
-  Value* inlineElems[2] = {nullptr, nullptr};
+  value_t* inlineElems[2] = {nullptr, nullptr};
 
 public:
-  Value** elems;
+  value_t** elems;
   ListBuilder(EvalMemory& mem, size_t size);
 
   // NOTE: Can be noexcept because we are just copying integral values and
@@ -202,15 +202,15 @@ public:
         inlineElems{x.inlineElems[0], x.inlineElems[1]},
         elems(size <= 2 ? inlineElems : x.elems) {}
 
-  Value*& operator[](size_t n) { return elems[n]; }
+  value_t*& operator[](size_t n) { return elems[n]; }
 
-  typedef Value** iterator;
+  typedef value_t** iterator;
 
   iterator begin() { return &elems[0]; }
 
   iterator end() { return &elems[size]; }
 
-  friend struct Value;
+  friend struct value_t;
 };
 
 class StringData {
@@ -360,7 +360,7 @@ struct ValueBase {
   };
 
   struct Path {
-    SourceAccessor* accessor;
+    source_accessor_t* accessor;
     const StringData* path;
   };
 
@@ -368,11 +368,11 @@ struct ValueBase {
 
   struct ClosureThunk {
     Env* env;
-    Expr* expr;
+    expr_t* expr;
   };
 
   struct FunctionApplicationThunk {
-    Value *left, *right;
+    value_t *left, *right;
   };
 
   /**
@@ -381,7 +381,7 @@ struct ValueBase {
    * This type helps with the efficient implementation of arity>=2 primop calls.
    */
   struct PrimOpApplicationThunk {
-    Value *left, *right;
+    value_t *left, *right;
   };
 
   struct Lambda {
@@ -389,11 +389,11 @@ struct ValueBase {
     ExprLambda* fun;
   };
 
-  using SmallList = std::array<Value*, 2>;
+  using SmallList = std::array<value_t*, 2>;
 
   struct List {
     size_t size;
-    Value* const* elems;
+    value_t* const* elems;
   };
 
   struct Failed : gc {
@@ -415,7 +415,7 @@ struct PayloadTypeToInternalType {};
   MACRO(ValueBase::StringWithContext, string, t_string)                                             \
   MACRO(ValueBase::Path, path, tPath)                                                              \
   MACRO(ValueBase::Null, null_, tNull)                                                             \
-  MACRO(Bindings*, attrs, tAttrs)                                                                  \
+  MACRO(bindings_t*, attrs, tAttrs)                                                                  \
   MACRO(ValueBase::List, bigList, tListN)                                                          \
   MACRO(ValueBase::SmallList, smallList, tListSmall)                                               \
   MACRO(ValueBase::ClosureThunk, thunk, tThunk)                                                    \
@@ -501,7 +501,7 @@ inline constexpr bool useBitPackedValueStorage =
 } // namespace detail
 
 /**
- * Value storage that is optimized for 64 bit systems.
+ * value_t storage that is optimized for 64 bit systems.
  * Packs discriminator bits into the pointer alignment niches.
  */
 template <std::size_t ptrSize>
@@ -729,7 +729,7 @@ protected:
 
   void getStorage(PrimOp*& prim_op) const noexcept { prim_op = std::bit_cast<PrimOp*>(p1); }
 
-  void getStorage(Bindings*& attrs) const noexcept { attrs = std::bit_cast<Bindings*>(p1); }
+  void getStorage(bindings_t*& attrs) const noexcept { attrs = std::bit_cast<bindings_t*>(p1); }
 
   void getStorage(List& list) const noexcept {
     list.elems = untagPointer<decltype(list.elems)>(p0);
@@ -766,7 +766,7 @@ protected:
     setSingleDWordPayload<tPrimOp>(std::bit_cast<PackedPointer>(prim_op));
   }
 
-  void setStorage(Bindings* bindings) noexcept {
+  void setStorage(bindings_t* bindings) noexcept {
     setSingleDWordPayload<tAttrs>(std::bit_cast<PackedPointer>(bindings));
   }
 
@@ -819,7 +819,7 @@ public:
   /// Only used for testing.
   inline void mkBlackhole() { p0.store(pdPending, std::memory_order_relaxed); }
 
-  void force(EvalState& state, pos_idx_t pos);
+  void force(eval_state_t& state, pos_idx_t pos);
 
 private:
   /**
@@ -827,7 +827,7 @@ private:
    * state, wait for it to finish. Returns the first word of the
    * value.
    */
-  PackedPointer waitOnThunk(EvalState& state, PackedPointer p0);
+  PackedPointer waitOnThunk(eval_state_t& state, PackedPointer p0);
 
   /**
    * Wake up any threads that are waiting on this value.
@@ -840,20 +840,20 @@ void ValueStorage<sizeof(void*)>::notifyWaiters();
 
 template <>
 ValueStorage<sizeof(void*)>::PackedPointer
-ValueStorage<sizeof(void*)>::waitOnThunk(EvalState& state, PackedPointer p0);
+ValueStorage<sizeof(void*)>::waitOnThunk(eval_state_t& state, PackedPointer p0);
 
 template <>
 bool ValueStorage<sizeof(void*)>::isTrivial() const;
 
 /**
- * View into a list of Value * that is itself immutable.
+ * View into a list of value_t * that is itself immutable.
  *
  * Since not all representations of ValueStorage can provide
- * a pointer to a const array of Value * this proxy class either
+ * a pointer to a const array of value_t * this proxy class either
  * stores the small list inline or points to the big list.
  */
 class ListView {
-  using SpanType = std::span<Value* const>;
+  using SpanType = std::span<value_t* const>;
   using SmallList = detail::ValueBase::SmallList;
   using List = detail::ValueBase::List;
 
@@ -864,7 +864,7 @@ public:
 
   ListView(List list) : raw(list) {}
 
-  Value* const* data() const& noexcept {
+  value_t* const* data() const& noexcept {
     return std::visit(overloaded{[](const SmallList& list) { return list.data(); },
                                  [](const List& list) { return list.elems; }},
                       raw);
@@ -878,25 +878,25 @@ public:
                       raw);
   }
 
-  Value* operator[](std::size_t i) const noexcept { return data()[i]; }
+  value_t* operator[](std::size_t i) const noexcept { return data()[i]; }
 
   SpanType span() const& { return SpanType(data(), size()); }
 
   /* Ensure that no dangling views can be created accidentally, as that
      would lead to hard to diagnose bugs that only affect small lists. */
   SpanType span() && = delete;
-  Value* const* data() && noexcept = delete;
+  value_t* const* data() && noexcept = delete;
 
   /**
    * Random-access iterator that only allows iterating over a constant range
-   * of mutable Value pointers.
+   * of mutable value_t pointers.
    *
    * @note Not a pointer to minimize potential misuses and implicitly relying
    * on the iterator being a pointer.
    **/
   class iterator {
   public:
-    using value_type = Value*;
+    using value_type = value_t*;
     using pointer = const value_type*;
     using reference = const value_type&;
     using difference_type = std::ptrdiff_t;
@@ -977,36 +977,36 @@ public:
 
 static_assert(std::random_access_iterator<ListView::iterator>);
 
-struct Value : public ValueStorage<sizeof(void*)> {
-  friend std::string show_type(const Value& v);
+struct value_t : public ValueStorage<sizeof(void*)> {
+  friend std::string show_type(const value_t& v);
 
   /**
    * Empty list constant.
    *
    * This is _not_ a singleton. Pointer equality is _not_ sufficient.
    */
-  static Value vEmptyList;
+  static value_t vEmptyList;
 
   /**
    * `null` constant.
    *
    * This is _not_ a singleton. Pointer equality is _not_ sufficient.
    */
-  static Value vNull;
+  static value_t vNull;
 
   /**
    * `true` constant.
    *
    * This is _not_ a singleton. Pointer equality is _not_ sufficient.
    */
-  static Value vTrue;
+  static value_t vTrue;
 
   /**
    * `true` constant.
    *
    * This is _not_ a singleton. Pointer equality is _not_ sufficient.
    */
-  static Value vFalse;
+  static value_t vFalse;
 
 private:
   template <InternalType... discriminator>
@@ -1025,11 +1025,11 @@ private:
 
 public:
   /**
-   * Never modify the backing `Value` object!
+   * Never modify the backing `value_t` object!
    */
-  static Value* toPtr(SymbolStr str) noexcept;
+  static value_t* toPtr(SymbolStr str) noexcept;
 
-  void print(EvalState& state, std::ostream& str, PrintOptions options = PrintOptions{});
+  void print(eval_state_t& state, std::ostream& str, PrintOptions options = PrintOptions{});
 
   // FIXME: optimize, only look at first word
   inline bool isFinished() const { return nix::isFinished(getInternalType()); }
@@ -1057,8 +1057,8 @@ public:
   inline bool isFailed() const { return isa<tFailed>(); }
 
   /**
-   * Returns the normal type of a Value. This only returns nThunk if
-   * the Value hasn't been forceValue'd
+   * Returns the normal type of a value_t. This only returns nThunk if
+   * the value_t hasn't been forceValue'd
    */
   inline ValueType type() const {
     switch (getInternalType()) {
@@ -1112,7 +1112,7 @@ public:
   inline void mkBool(bool b) noexcept { setStorage(b); }
 
   void mkStringNoCopy(const StringData& s,
-                      const Value::StringWithContext::Context* context = nullptr) noexcept {
+                      const value_t::StringWithContext::Context* context = nullptr) noexcept {
     setStorage(StringWithContext{.str = &s, .context = context});
   }
 
@@ -1124,15 +1124,15 @@ public:
 
   void mkPath(const source_path_t& path, EvalMemory& mem);
 
-  inline void mkPath(SourceAccessor* accessor, const StringData& path) noexcept {
+  inline void mkPath(source_accessor_t* accessor, const StringData& path) noexcept {
     setStorage(Path{.accessor = accessor, .path = &path});
   }
 
   inline void mkNull() noexcept { setStorage(Null{}); }
 
-  inline void mkAttrs(Bindings* a) noexcept { setStorage(a); }
+  inline void mkAttrs(bindings_t* a) noexcept { setStorage(a); }
 
-  Value& mkAttrs(BindingsBuilder& bindings);
+  value_t& mkAttrs(BindingsBuilder& bindings);
 
   void mkList(const ListBuilder& builder) noexcept {
     switch (builder.size) {
@@ -1140,10 +1140,10 @@ public:
         setStorage(List{.size = 0, .elems = nullptr});
         break;
       case 1:
-        setStorage(std::array<Value*, 2>{builder.inlineElems[0], nullptr});
+        setStorage(std::array<value_t*, 2>{builder.inlineElems[0], nullptr});
         break;
       case 2:
-        setStorage(std::array<Value*, 2>{builder.inlineElems[0], builder.inlineElems[1]});
+        setStorage(std::array<value_t*, 2>{builder.inlineElems[0], builder.inlineElems[1]});
         break;
       default:
         setStorage(List{.size = builder.size, .elems = builder.elems});
@@ -1151,9 +1151,9 @@ public:
     }
   }
 
-  inline void mk_thunk(Env* e, Expr* ex) noexcept { setStorage(ClosureThunk{.env = e, .expr = ex}); }
+  inline void mk_thunk(Env* e, expr_t* ex) noexcept { setStorage(ClosureThunk{.env = e, .expr = ex}); }
 
-  inline void mkApp(Value* l, Value* r) noexcept {
+  inline void mkApp(value_t* l, value_t* r) noexcept {
     setStorage(FunctionApplicationThunk{.left = l, .right = r});
   }
 
@@ -1161,7 +1161,7 @@ public:
 
   void mkPrimOp(PrimOp* p);
 
-  inline void mkPrimOpApp(Value* l, Value* r) noexcept {
+  inline void mkPrimOpApp(value_t* l, value_t* r) noexcept {
     setStorage(PrimOpApplicationThunk{.left = l, .right = r});
   }
 
@@ -1174,7 +1174,7 @@ public:
 
   inline void mkFloat(NixFloat n) noexcept { setStorage(n); }
 
-  inline void mkFailed() noexcept { setStorage(new Value::Failed{.ex = std::current_exception()}); }
+  inline void mkFailed() noexcept { setStorage(new value_t::Failed{.ex = std::current_exception()}); }
 
   bool isList() const noexcept { return isa<tListSmall, tListN>(); }
 
@@ -1200,13 +1200,13 @@ public:
 
   std::string_view string_view() const noexcept { return string_data().view(); }
 
-  const Value::StringWithContext::Context* context() const noexcept {
+  const value_t::StringWithContext::Context* context() const noexcept {
     return getStorage<StringWithContext>().context;
   }
 
   ExternalValueBase* external() const noexcept { return getStorage<ExternalValueBase*>(); }
 
-  const Bindings* attrs() const noexcept { return getStorage<Bindings*>(); }
+  const bindings_t* attrs() const noexcept { return getStorage<bindings_t*>(); }
 
   const PrimOp* prim_op() const noexcept { return getStorage<PrimOp*>(); }
 
@@ -1230,25 +1230,25 @@ public:
 
   std::string_view pathStrView() const noexcept { return getStorage<Path>().path->view(); }
 
-  SourceAccessor* pathAccessor() const noexcept { return getStorage<Path>().accessor; }
+  source_accessor_t* pathAccessor() const noexcept { return getStorage<Path>().accessor; }
 
   Failed* failed() const noexcept { return getStorage<Failed*>(); }
 };
 
-using ValueVector = std::vector<Value*, traceable_allocator<Value*>>;
-typedef boost::unordered_flat_map<Symbol, Value*, std::hash<Symbol>, std::equal_to<Symbol>,
-                                  traceable_allocator<std::pair<const Symbol, Value*>>>
+using ValueVector = std::vector<value_t*, traceable_allocator<value_t*>>;
+typedef boost::unordered_flat_map<symbol_t, value_t*, std::hash<symbol_t>, std::equal_to<symbol_t>,
+                                  traceable_allocator<std::pair<const symbol_t, value_t*>>>
     ValueMap;
-typedef std::map<Symbol, ValueVector, std::less<Symbol>,
-                 traceable_allocator<std::pair<const Symbol, ValueVector>>>
+typedef std::map<symbol_t, ValueVector, std::less<symbol_t>,
+                 traceable_allocator<std::pair<const symbol_t, ValueVector>>>
     ValueVectorMap;
 
 /**
  * A value allocated in traceable memory.
  */
-using RootValue = std::shared_ptr<Value*>;
+using RootValue = std::shared_ptr<value_t*>;
 
-RootValue alloc_root_value(Value* v);
+RootValue alloc_root_value(value_t* v);
 
 void force_no_null_byte(std::string_view s, std::function<pos_t()> = nullptr);
 } // namespace nix

@@ -16,11 +16,11 @@ namespace nix {
 /* protocol-agnostic templates */
 
 #define SERVE_USE_LENGTH_PREFIX_SERIALISER(TEMPLATE, T)                                            \
-  TEMPLATE T ServeProto::Serialise<T>::read(const StoreDirConfig& store,                           \
+  TEMPLATE T ServeProto::Serialise<T>::read(const store_dir_config_t& store,                           \
                                             ServeProto::ReadConn conn) {                           \
     return LengthPrefixedProtoHelper<ServeProto, T>::read(store, conn);                            \
   }                                                                                                \
-  TEMPLATE void ServeProto::Serialise<T>::write(const StoreDirConfig& store,                       \
+  TEMPLATE void ServeProto::Serialise<T>::write(const store_dir_config_t& store,                       \
                                                 ServeProto::WriteConn conn, const T& t) {          \
     LengthPrefixedProtoHelper<ServeProto, T>::write(store, conn, t);                               \
   }
@@ -42,11 +42,11 @@ SERVE_USE_LENGTH_PREFIX_SERIALISER(
  */
 template <typename T>
 struct ServeProto::Serialise {
-  static T read(const StoreDirConfig& store, ServeProto::ReadConn conn) {
+  static T read(const store_dir_config_t& store, ServeProto::ReadConn conn) {
     return CommonProto::Serialise<T>::read(store, CommonProto::ReadConn{.from = conn.from});
   }
 
-  static void write(const StoreDirConfig& store, ServeProto::WriteConn conn, const T& t) {
+  static void write(const store_dir_config_t& store, ServeProto::WriteConn conn, const T& t) {
     CommonProto::Serialise<T>::write(store, CommonProto::WriteConn{.to = conn.to}, t);
   }
 };

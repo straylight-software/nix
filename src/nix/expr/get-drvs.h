@@ -14,15 +14,15 @@ namespace nix {
  */
 struct PackageInfo {
 public:
-  typedef std::map<std::string, std::optional<StorePath>, std::less<>> Outputs;
+  typedef std::map<std::string, std::optional<store_path_t>, std::less<>> Outputs;
 
 private:
-  EvalState* state;
+  eval_state_t* state;
 
   mutable std::string name;
   mutable std::string system;
-  mutable std::optional<std::optional<StorePath>> drv_path;
-  mutable std::optional<StorePath> out_path;
+  mutable std::optional<std::optional<store_path_t>> drv_path;
+  mutable std::optional<store_path_t> out_path;
   mutable std::string output_name;
   Outputs outputs;
 
@@ -31,11 +31,11 @@ private:
    */
   bool failed = false;
 
-  const Bindings *attrs = nullptr, *meta = nullptr;
+  const bindings_t *attrs = nullptr, *meta = nullptr;
 
-  const Bindings* getMeta();
+  const bindings_t* getMeta();
 
-  bool checkMeta(Value& v);
+  bool checkMeta(value_t& v);
 
 public:
   /**
@@ -43,15 +43,15 @@ public:
    */
   std::string attr_path;
 
-  PackageInfo(EvalState& state) : state(&state) {};
-  PackageInfo(EvalState& state, std::string attr_path, const Bindings* attrs);
-  PackageInfo(EvalState& state, ref<Store> store, const std::string& drvPathWithOutputs);
+  PackageInfo(eval_state_t& state) : state(&state) {};
+  PackageInfo(eval_state_t& state, std::string attr_path, const bindings_t* attrs);
+  PackageInfo(eval_state_t& state, ref<store_t> store, const std::string& drvPathWithOutputs);
 
   std::string queryName() const;
   std::string querySystem() const;
-  std::optional<StorePath> queryDrvPath() const;
-  StorePath requireDrvPath() const;
-  StorePath queryOutPath() const;
+  std::optional<store_path_t> queryDrvPath() const;
+  store_path_t requireDrvPath() const;
+  store_path_t queryOutPath() const;
   std::string queryOutputName() const;
   /**
    * Return the unordered map of output names to (optional) output paths.
@@ -60,23 +60,23 @@ public:
   Outputs queryOutputs(bool withPaths = true, bool onlyOutputsToInstall = false);
 
   string_set_t queryMetaNames();
-  Value* queryMeta(const std::string& name);
+  value_t* queryMeta(const std::string& name);
   std::string queryMetaString(const std::string& name);
   NixInt queryMetaInt(const std::string& name, NixInt def);
   NixFloat queryMetaFloat(const std::string& name, NixFloat def);
   bool queryMetaBool(const std::string& name, bool def);
-  void setMeta(const std::string& name, Value* v);
+  void setMeta(const std::string& name, value_t* v);
 
   /*
-  MetaInfo queryMetaInfo(EvalState & state) const;
-  MetaValue queryMetaInfo(EvalState & state, const string & name) const;
+  MetaInfo queryMetaInfo(eval_state_t & state) const;
+  MetaValue queryMetaInfo(eval_state_t & state, const string & name) const;
   */
 
   void setName(const std::string& s) { name = s; }
 
-  void setDrvPath(StorePath path) { drv_path = {{std::move(path)}}; }
+  void setDrvPath(store_path_t path) { drv_path = {{std::move(path)}}; }
 
-  void setOutPath(StorePath path) { out_path = {{std::move(path)}}; }
+  void setOutPath(store_path_t path) { out_path = {{std::move(path)}}; }
 
   void set_failed() { failed = true; };
 
@@ -89,9 +89,9 @@ using PackageInfos = std::list<PackageInfo, traceable_allocator<PackageInfo>>;
  * If value `v` denotes a derivation, return a PackageInfo object
  * describing it. Otherwise return nothing.
  */
-std::optional<PackageInfo> get_derivation(EvalState& state, Value& v, bool ignore_assertion_failures);
+std::optional<PackageInfo> get_derivation(eval_state_t& state, value_t& v, bool ignore_assertion_failures);
 
-void get_derivations(EvalState& state, Value& v, const std::string& path_prefix, Bindings& auto_args,
+void get_derivations(eval_state_t& state, value_t& v, const std::string& path_prefix, bindings_t& auto_args,
                     PackageInfos& drvs, bool ignore_assertion_failures);
 
 } // namespace nix

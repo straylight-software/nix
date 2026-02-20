@@ -28,14 +28,14 @@ size_t ContiguousArena::allocate(size_t bytes) {
   return offset;
 }
 
-Symbol SymbolTable::create(std::string_view s) {
+symbol_t symbol_table_t::create(std::string_view s) {
   uint32_t idx;
 
   auto visit = [&](const SymbolStr& sym) { idx = ((const char*)sym.s) - arena.data; };
 
   symbols.insert_and_visit(SymbolStr::Key{s, arena}, visit, visit);
 
-  return Symbol(idx);
+  return symbol_t(idx);
 }
 
 SymbolStr::SymbolStr(const SymbolStr::Key& key) {

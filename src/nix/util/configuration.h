@@ -44,7 +44,7 @@ namespace nix {
  * and adds them to the `settings` map.
  */
 
-class Args;
+class args_t;
 class abstract_setting_t;
 
 class abstract_config_t {
@@ -98,11 +98,11 @@ public:
   virtual std::string to_key_value() = 0;
 
   /**
-   * Converts settings to `Args` to be used on the command line interface
+   * Converts settings to `args_t` to be used on the command line interface
    * - args: args to write to
    * - category: category of the settings
    */
-  virtual void convert_to_args(Args& args, const std::string& category) = 0;
+  virtual void convert_to_args(args_t& args, const std::string& category) = 0;
 
   /**
    * Logs a warning for each unregistered setting
@@ -162,7 +162,7 @@ public:
 
   std::string to_key_value() override;
 
-  void convert_to_args(Args& args, const std::string& category) override;
+  void convert_to_args(args_t& args, const std::string& category) override;
 };
 
 class abstract_setting_t {
@@ -200,7 +200,7 @@ protected:
 
   [[nodiscard]] virtual std::map<std::string, nlohmann::json> to_json_object() const;
 
-  virtual void convert_to_arg(Args& args, const std::string& category);
+  virtual void convert_to_arg(args_t& args, const std::string& category);
 
   [[nodiscard]] auto is_overridden() const -> bool;
 };
@@ -300,7 +300,7 @@ public:
 
   [[nodiscard]] std::string to_string() const override;
 
-  void convert_to_arg(Args& args, const std::string& category) override;
+  void convert_to_arg(args_t& args, const std::string& category) override;
 
   [[nodiscard]] std::map<std::string, nlohmann::json> to_json_object() const override;
 };

@@ -6,7 +6,7 @@
 namespace nix {
 
 class LocalStore;
-struct LocalStoreConfig;
+struct local_store_config_t;
 
 /**
  * A restricted store has a pointer to one of these, which manages the
@@ -25,12 +25,12 @@ struct RestrictionContext {
   /**
    * Paths that are already allowed to begin with
    */
-  virtual const StorePathSet& originalPaths() = 0;
+  virtual const store_path_set_t& originalPaths() = 0;
 
   /**
    * Paths that were added via recursive Nix calls.
    */
-  StorePathSet addedPaths;
+  store_path_set_t addedPaths;
 
   /**
    * Realisations that were added via recursive Nix calls.
@@ -43,15 +43,15 @@ struct RestrictionContext {
    * (so e.g. you can't do 'nix-store -r /nix/store/<bla>' where
    * /nix/store/<bla> is some arbitrary path in a binary cache).
    */
-  virtual bool is_allowed(const StorePath&) = 0;
+  virtual bool is_allowed(const store_path_t&) = 0;
   virtual bool is_allowed(const DrvOutput& id) = 0;
-  bool is_allowed(const DerivedPath& id);
+  bool is_allowed(const derived_path_t& id);
 
   /**
    * Add 'path' to the set of paths that may be referenced by the
    * outputs, and make it appear in the sandbox.
    */
-  void addDependency(const StorePath& path) {
+  void addDependency(const store_path_t& path) {
     if (is_allowed(path))
       return;
     add_dependency_impl(path);
@@ -63,13 +63,13 @@ protected:
    * will ensure that this is only called on newly added dependencies,
    * and that idempotent calls are a no-op.
    */
-  virtual void add_dependency_impl(const StorePath& path) = 0;
+  virtual void add_dependency_impl(const store_path_t& path) = 0;
 };
 
 /**
  * Create a shared pointer to a restricted store.
  */
-ref<Store> make_restricted_store(ref<LocalStoreConfig> config, ref<LocalStore> next,
+ref<store_t> make_restricted_store(ref<local_store_config_t> config, ref<LocalStore> next,
                                RestrictionContext& context);
 
 } // namespace nix

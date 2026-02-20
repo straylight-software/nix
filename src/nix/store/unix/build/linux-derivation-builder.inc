@@ -323,7 +323,7 @@ struct chroot_linux_derivation_builder_t : chroot_derivation_builder_t, linux_de
         pipe_t send_pid;
         send_pid.create();
 
-        Pid helper = start_process([&]() {
+        process_handle_t helper = start_process([&]() {
             send_pid.read_side.close();
 
             /* We need to open the slave early, before
@@ -709,7 +709,7 @@ struct chroot_linux_derivation_builder_t : chroot_derivation_builder_t, linux_de
         derivation_builder_impl_t::kill_sandbox(get_stats);
     }
 
-    void add_dependency_impl(const StorePath & path) override
+    void add_dependency_impl(const store_path_t & path) override
     {
         if (is_allowed(path))
             return;
@@ -720,7 +720,7 @@ struct chroot_linux_derivation_builder_t : chroot_derivation_builder_t, linux_de
            entering its mount namespace, which is not possible
            in multithreaded programs. So we do this in a
            child process.*/
-        Pid child(start_process([&]() {
+        process_handle_t child(start_process([&]() {
             if (using_user_namespace && (setns(sandbox_user_namespace.get(), 0) == -1))
                 throw sys_error_t("entering sandbox user namespace");
 

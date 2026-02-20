@@ -22,7 +22,7 @@ struct cmd_ps_t : MixJSON, StoreCommand {
         ;
   }
 
-  void run(ref<Store> store) override {
+  void run(ref<store_t> store) override {
     auto& tracker = require<QueryActiveBuildsStore>(*store);
 
     auto builds = tracker.queryActiveBuilds();
@@ -64,7 +64,7 @@ struct cmd_ps_t : MixJSON, StoreCommand {
       /* Add build summary row. */
       table.push_back(
           {format_user(build.mainUser),
-           std::to_string(build.mainPid),
+           std::to_string(build.main_pid),
            {fmt("%.1fs", std::chrono::duration_cast<
                              std::chrono::duration<float, std::chrono::seconds::period>>(cpuTime)
                              .count()),
@@ -74,21 +74,21 @@ struct cmd_ps_t : MixJSON, StoreCommand {
 
       if (build.processes.empty()) {
         table.push_back({format_user(build.mainUser),
-                         std::to_string(build.mainPid),
+                         std::to_string(build.main_pid),
                          {"", table_cell_t::alignment_t::right},
                          fmt("%s" ANSI_ITALIC "(no process info)" ANSI_NORMAL, tree_last)});
       } else {
         /* Recover the tree structure of the processes. */
-        std::set<pid_t> pids;
+        std::set<::pid_t> pids;
         for (auto& process : build.processes)
           pids.insert(process.pid);
 
         using Processes = std::set<const ActiveBuildInfo::ProcessInfo*>;
-        std::map<pid_t, Processes> children;
+        std::map<::pid_t, Processes> children;
         Processes rootProcesses;
         for (auto& process : build.processes) {
-          if (pids.contains(process.parentPid))
-            children[process.parentPid].insert(&process);
+          if (pids.contains(process.parent_pid))
+            children[process.parent_pid].insert(&process);
           else
             rootProcesses.insert(&process);
         }

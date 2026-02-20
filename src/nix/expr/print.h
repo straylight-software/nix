@@ -14,8 +14,8 @@
 
 namespace nix {
 
-class EvalState;
-struct Value;
+class eval_state_t;
+struct value_t;
 
 /**
  * Print a string as a Nix string literal.
@@ -62,7 +62,7 @@ bool is_reserved_keyword(const std::string_view str);
  */
 std::ostream& print_identifier(std::ostream& o, std::string_view s);
 
-void print_value(EvalState& state, std::ostream& str, Value& v,
+void print_value(eval_state_t& state, std::ostream& str, value_t& v,
                 PrintOptions options = PrintOptions{});
 
 /**
@@ -73,12 +73,12 @@ class ValuePrinter {
   friend std::ostream& operator<<(std::ostream& output, const ValuePrinter& printer);
 
 private:
-  EvalState& state;
-  Value& value;
+  eval_state_t& state;
+  value_t& value;
   PrintOptions options;
 
 public:
-  ValuePrinter(EvalState& state, Value& value, PrintOptions options = PrintOptions{})
+  ValuePrinter(eval_state_t& state, value_t& value, PrintOptions options = PrintOptions{})
       : state(state), value(value), options(options) {}
 };
 

@@ -46,7 +46,7 @@ make_error(BadCanonPath, Error); // NOLINT(readability-identifier-naming)
  * Unix. `"foo/bar"` is a relative path because an absolute path would
  * "override" the `some_fd` directory file descriptor and escape to the
  * "system root". Conversely, Nix's abstract file operations *never* escape the
- * designated virtual file system (i.e. `SourceAccessor` or
+ * designated virtual file system (i.e. `source_accessor_t` or
  * `ParseSink`), so `canon_path_t` does not need an absolute/relative
  * distinction.
  *

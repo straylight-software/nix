@@ -20,7 +20,7 @@ namespace nix {
  * references to its elements.
  */
 template <typename T, size_t ChunkSize>
-class ChunkedVector {
+class chunked_vector_t {
 private:
   uint32_t size_ = 0;
   std::vector<std::vector<T>> chunks;
@@ -38,22 +38,22 @@ private:
   }
 
 public:
-  ChunkedVector(uint32_t reserve) {
+  chunked_vector_t(uint32_t reserve) {
     chunks.reserve(reserve);
     addChunk();
   }
 
   uint32_t size() const noexcept { return size_; }
 
-  template <typename... Args>
-  std::pair<T&, uint32_t> add(Args&&... args) {
+  template <typename... args_t>
+  std::pair<T&, uint32_t> add(args_t&&... args) {
     const auto idx = size_++;
     auto& chunk = [&]() -> auto& {
       if (auto& back = chunks.back(); back.size() < ChunkSize)
         return back;
       return addChunk();
     }();
-    auto& result = chunk.emplace_back(std::forward<Args>(args)...);
+    auto& result = chunk.emplace_back(std::forward<args_t>(args)...);
     return {result, idx};
   }
 

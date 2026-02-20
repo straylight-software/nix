@@ -7,7 +7,7 @@
 
 namespace nix {
 
-StorePath StoreDirConfig::parseStorePath(std::string_view path) const {
+store_path_t store_dir_config_t::parseStorePath(std::string_view path) const {
   // On Windows, `/nix/store` is not a canonical path. More broadly it
   // is unclear whether this function should be using the native
   // notion of a canonical path at all. For example, it makes to
@@ -22,10 +22,10 @@ StorePath StoreDirConfig::parseStorePath(std::string_view path) const {
       ;
   if (dir_of(p) != store_dir)
     throw BadStorePath("path '%s' is not in the Nix store", p);
-  return StorePath(base_name_of(p));
+  return store_path_t(base_name_of(p));
 }
 
-std::optional<StorePath> StoreDirConfig::maybeParseStorePath(std::string_view path) const {
+std::optional<store_path_t> store_dir_config_t::maybeParseStorePath(std::string_view path) const {
   try {
     return parseStorePath(path);
   } catch (Error&) {
@@ -33,22 +33,22 @@ std::optional<StorePath> StoreDirConfig::maybeParseStorePath(std::string_view pa
   }
 }
 
-bool StoreDirConfig::isStorePath(std::string_view path) const {
+bool store_dir_config_t::isStorePath(std::string_view path) const {
   return (bool)maybeParseStorePath(path);
 }
 
-StorePathSet StoreDirConfig::parseStorePathSet(const path_set_t& paths) const {
-  StorePathSet res;
+store_path_set_t store_dir_config_t::parseStorePathSet(const path_set_t& paths) const {
+  store_path_set_t res;
   for (auto& i : paths)
     res.insert(parseStorePath(i));
   return res;
 }
 
-std::string StoreDirConfig::printStorePath(const StorePath& path) const {
+std::string store_dir_config_t::printStorePath(const store_path_t& path) const {
   return (store_dir + "/").append(path.to_string());
 }
 
-path_set_t StoreDirConfig::printStorePathSet(const StorePathSet& paths) const {
+path_set_t store_dir_config_t::printStorePathSet(const store_path_set_t& paths) const {
   path_set_t res;
   for (auto& i : paths)
     res.insert(printStorePath(i));
@@ -64,20 +64,20 @@ also update the user-visible behavior, please update the specification
 to match.
 */
 
-StorePath StoreDirConfig::makeStorePath(std::string_view type, std::string_view hash,
+store_path_t store_dir_config_t::makeStorePath(std::string_view type, std::string_view hash,
                                         std::string_view name) const {
   /* e.g., "source:sha256:1abc...:/nix/store:foo.tar.gz" */
   auto s = std::string(type) + ":" + std::string(hash) + ":" + store_dir + ":" + std::string(name);
   auto h = compress_hash(hash_string(hash_algorithm_t::SHA256, s), 20);
-  return StorePath(h, name);
+  return store_path_t(h, name);
 }
 
-StorePath StoreDirConfig::makeStorePath(std::string_view type, const Hash& hash,
+store_path_t store_dir_config_t::makeStorePath(std::string_view type, const Hash& hash,
                                         std::string_view name) const {
   return makeStorePath(type, hash.to_string(hash_format_t::base16, true), name);
 }
 
-StorePath StoreDirConfig::makeOutputPath(std::string_view id, const Hash& hash,
+store_path_t store_dir_config_t::makeOutputPath(std::string_view id, const Hash& hash,
                                          std::string_view name) const {
   return makeStorePath("output:" + std::string{id}, hash, output_path_name(name, id));
 }
@@ -85,8 +85,8 @@ StorePath StoreDirConfig::makeOutputPath(std::string_view id, const Hash& hash,
 /* Stuff the references (if any) into the type.  This is a bit
    hacky, but we can't put them in, say, <s2> (per the grammar above)
    since that would be ambiguous. */
-static std::string make_type(const StoreDirConfig& store, std::string&& type,
-                            const StoreReferences& references) {
+static std::string make_type(const store_dir_config_t& store, std::string&& type,
+                            const store_references_t& references) {
   for (auto& i : references.others) {
     type += ":";
     type += store.printStorePath(i);
@@ -96,7 +96,7 @@ static std::string make_type(const StoreDirConfig& store, std::string&& type,
   return std::move(type);
 }
 
-StorePath StoreDirConfig::makeFixedOutputPath(std::string_view name,
+store_path_t store_dir_config_t::makeFixedOutputPath(std::string_view name,
                                               const FixedOutputInfo& info) const {
   if (info.method == file_ingestion_method_t::git &&
       !(info.hash.algo() == hash_algorithm_t::SHA1 || info.hash.algo() == hash_algorithm_t::SHA256)) {
@@ -121,14 +121,14 @@ StorePath StoreDirConfig::makeFixedOutputPath(std::string_view name,
   }
 }
 
-StorePath StoreDirConfig::makeFixedOutputPathFromCA(std::string_view name,
+store_path_t store_dir_config_t::makeFixedOutputPathFromCA(std::string_view name,
                                                     const ContentAddressWithReferences& ca) const {
   // New template
   return std::visit(
       overloaded{[&](const TextInfo& ti) {
                    assert(ti.hash.algo() == hash_algorithm_t::SHA256);
                    return makeStorePath(make_type(*this, "text",
-                                                 StoreReferences{
+                                                 store_references_t{
                                                      .others = ti.references,
                                                      .self = false,
                                                  }),
@@ -138,10 +138,10 @@ StorePath StoreDirConfig::makeFixedOutputPathFromCA(std::string_view name,
       ca.raw);
 }
 
-std::pair<StorePath, Hash>
-StoreDirConfig::computeStorePath(std::string_view name, const source_path_t& path,
-                                 ContentAddressMethod method, hash_algorithm_t hash_algo,
-                                 const StorePathSet& references, path_filter_t& filter) const {
+std::pair<store_path_t, Hash>
+store_dir_config_t::computeStorePath(std::string_view name, const source_path_t& path,
+                                 content_address_method_t method, hash_algorithm_t hash_algo,
+                                 const store_path_set_t& references, path_filter_t& filter) const {
   auto [h, size] = hash_path(path, method.getFileIngestionMethod(), hash_algo, filter);
   if (settings.warnLargePathThreshold && size && *size >= settings.warnLargePathThreshold)
     warn("hashed large path '%s' (%s)", path, render_size(*size));

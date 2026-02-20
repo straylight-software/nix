@@ -84,10 +84,10 @@ namespace nix {
 
 typedef boost::unordered_flat_map<pos_idx_t, DocComment, std::hash<pos_idx_t>> DocCommentMap;
 
-Expr* parse_expr_from_buf(char* text, size_t length, pos_t::origin_t origin, const source_path_t& base_path,
-                       Exprs& exprs, SymbolTable& symbols, const EvalSettings& settings,
+expr_t* parse_expr_from_buf(char* text, size_t length, pos_t::origin_t origin, const source_path_t& base_path,
+                       Exprs& exprs, symbol_table_t& symbols, const eval_settings_t& settings,
                        pos_table_t& positions, DocCommentMap& doc_comments,
-                       const ref<SourceAccessor> root_fs);
+                       const ref<source_accessor_t> root_fs);
 
 } // namespace nix
 
@@ -176,14 +176,14 @@ Expr* parse_expr_from_buf(char* text, size_t length, pos_t::origin_t origin, con
 #  endif
 #  define YY_IGNORE_MAYBE_UNINITIALIZED_END _Pragma("GCC diagnostic pop")
 #else
-#  define YY_INITIAL_VALUE(Value) Value
+#  define YY_INITIAL_VALUE(value_t) value_t
 #endif
 #ifndef YY_IGNORE_MAYBE_UNINITIALIZED_BEGIN
 #  define YY_IGNORE_MAYBE_UNINITIALIZED_BEGIN
 #  define YY_IGNORE_MAYBE_UNINITIALIZED_END
 #endif
 #ifndef YY_INITIAL_VALUE
-#  define YY_INITIAL_VALUE(Value) /* Nothing. */
+#  define YY_INITIAL_VALUE(value_t) /* Nothing. */
 #endif
 
 #if defined __cplusplus && defined __GNUC__ && !defined __ICC && 6 <= __GNUC__
@@ -395,7 +395,7 @@ public:
       // expr_select
       // expr_simple
       // path_start
-      char dummy1[sizeof(Expr*)];
+      char dummy1[sizeof(expr_t*)];
 
       // binds
       // binds1
@@ -430,7 +430,7 @@ public:
       char dummy8[sizeof(ToBeStringyExpr)];
 
       // list
-      char dummy9[sizeof(std::pmr::vector<Expr*>)];
+      char dummy9[sizeof(std::pmr::vector<expr_t*>)];
 
       // attrpath
       char dummy10[sizeof(std::vector<AttrName>)];
@@ -439,10 +439,10 @@ public:
       char dummy11[sizeof(std::vector<std::pair<AttrName, pos_idx_t>>)];
 
       // string_parts_interpolated
-      char dummy12[sizeof(std::vector<std::pair<pos_idx_t, Expr*>>)];
+      char dummy12[sizeof(std::vector<std::pair<pos_idx_t, expr_t*>>)];
 
       // ind_string_parts
-      char dummy13[sizeof(std::vector<std::pair<pos_idx_t, std::variant<Expr*, StringToken>>>)];
+      char dummy13[sizeof(std::vector<std::pair<pos_idx_t, std::variant<expr_t*, StringToken>>>)];
     };
 
     /// The size of the largest semantic type.
@@ -461,7 +461,7 @@ public:
   /// Backward compatibility (Bison 3.8).
   typedef value_type semantic_type;
 
-  /// Symbol locations.
+  /// symbol_t locations.
   typedef ::nix::ParserLocation location_type;
 
   /// Syntax errors thrown from user actions.
@@ -531,7 +531,7 @@ public:
   /// Backward compatibility alias (Bison 3.6).
   typedef token_kind_type token_type;
 
-  /// Symbol kinds.
+  /// symbol_t kinds.
   struct symbol_kind {
     enum symbol_kind_type {
       YYNTOKENS = 61, ///< Number of tokens.
@@ -661,7 +661,7 @@ public:
         case symbol_kind::s_expr_select:    // expr_select
         case symbol_kind::s_expr_simple:    // expr_simple
         case symbol_kind::s_path_start:     // path_start
-          value.move<Expr*>(std::move(that.value));
+          value.move<expr_t*>(std::move(that.value));
           break;
 
         case symbol_kind::s_binds:  // binds
@@ -704,7 +704,7 @@ public:
           break;
 
         case symbol_kind::s_list: // list
-          value.move<std::pmr::vector<Expr*>>(std::move(that.value));
+          value.move<std::pmr::vector<expr_t*>>(std::move(that.value));
           break;
 
         case symbol_kind::s_attrpath: // attrpath
@@ -716,11 +716,11 @@ public:
           break;
 
         case symbol_kind::s_string_parts_interpolated: // string_parts_interpolated
-          value.move<std::vector<std::pair<pos_idx_t, Expr*>>>(std::move(that.value));
+          value.move<std::vector<std::pair<pos_idx_t, expr_t*>>>(std::move(that.value));
           break;
 
         case symbol_kind::s_ind_string_parts: // ind_string_parts
-          value.move<std::vector<std::pair<pos_idx_t, std::variant<Expr*, StringToken>>>>(
+          value.move<std::vector<std::pair<pos_idx_t, std::variant<expr_t*, StringToken>>>>(
               std::move(that.value));
           break;
 
@@ -741,10 +741,10 @@ public:
 #endif
 
 #if 201103L <= YY_CPLUSPLUS
-    basic_symbol(typename Base::kind_type t, Expr*&& v, location_type&& l)
+    basic_symbol(typename Base::kind_type t, expr_t*&& v, location_type&& l)
         : Base(t), value(std::move(v)), location(std::move(l)) {}
 #else
-    basic_symbol(typename Base::kind_type t, const Expr*& v, const location_type& l)
+    basic_symbol(typename Base::kind_type t, const expr_t*& v, const location_type& l)
         : Base(t), value(v), location(l) {}
 #endif
 
@@ -805,10 +805,10 @@ public:
 #endif
 
 #if 201103L <= YY_CPLUSPLUS
-    basic_symbol(typename Base::kind_type t, std::pmr::vector<Expr*>&& v, location_type&& l)
+    basic_symbol(typename Base::kind_type t, std::pmr::vector<expr_t*>&& v, location_type&& l)
         : Base(t), value(std::move(v)), location(std::move(l)) {}
 #else
-    basic_symbol(typename Base::kind_type t, const std::pmr::vector<Expr*>& v,
+    basic_symbol(typename Base::kind_type t, const std::pmr::vector<expr_t*>& v,
                  const location_type& l)
         : Base(t), value(v), location(l) {}
 #endif
@@ -832,23 +832,23 @@ public:
 #endif
 
 #if 201103L <= YY_CPLUSPLUS
-    basic_symbol(typename Base::kind_type t, std::vector<std::pair<pos_idx_t, Expr*>>&& v,
+    basic_symbol(typename Base::kind_type t, std::vector<std::pair<pos_idx_t, expr_t*>>&& v,
                  location_type&& l)
         : Base(t), value(std::move(v)), location(std::move(l)) {}
 #else
-    basic_symbol(typename Base::kind_type t, const std::vector<std::pair<pos_idx_t, Expr*>>& v,
+    basic_symbol(typename Base::kind_type t, const std::vector<std::pair<pos_idx_t, expr_t*>>& v,
                  const location_type& l)
         : Base(t), value(v), location(l) {}
 #endif
 
 #if 201103L <= YY_CPLUSPLUS
     basic_symbol(typename Base::kind_type t,
-                 std::vector<std::pair<pos_idx_t, std::variant<Expr*, StringToken>>>&& v,
+                 std::vector<std::pair<pos_idx_t, std::variant<expr_t*, StringToken>>>&& v,
                  location_type&& l)
         : Base(t), value(std::move(v)), location(std::move(l)) {}
 #else
     basic_symbol(typename Base::kind_type t,
-                 const std::vector<std::pair<pos_idx_t, std::variant<Expr*, StringToken>>>& v,
+                 const std::vector<std::pair<pos_idx_t, std::variant<expr_t*, StringToken>>>& v,
                  const location_type& l)
         : Base(t), value(v), location(l) {}
 #endif
@@ -868,7 +868,7 @@ public:
           break;
       }
 
-      // Value type destructor.
+      // value_t type destructor.
       switch (yykind) {
         case symbol_kind::s_start:          // start
         case symbol_kind::s_expr:           // expr
@@ -881,7 +881,7 @@ public:
         case symbol_kind::s_expr_select:    // expr_select
         case symbol_kind::s_expr_simple:    // expr_simple
         case symbol_kind::s_path_start:     // path_start
-          value.template destroy<Expr*>();
+          value.template destroy<expr_t*>();
           break;
 
         case symbol_kind::s_binds:  // binds
@@ -924,7 +924,7 @@ public:
           break;
 
         case symbol_kind::s_list: // list
-          value.template destroy<std::pmr::vector<Expr*>>();
+          value.template destroy<std::pmr::vector<expr_t*>>();
           break;
 
         case symbol_kind::s_attrpath: // attrpath
@@ -936,12 +936,12 @@ public:
           break;
 
         case symbol_kind::s_string_parts_interpolated: // string_parts_interpolated
-          value.template destroy<std::vector<std::pair<pos_idx_t, Expr*>>>();
+          value.template destroy<std::vector<std::pair<pos_idx_t, expr_t*>>>();
           break;
 
         case symbol_kind::s_ind_string_parts: // ind_string_parts
           value
-              .template destroy<std::vector<std::pair<pos_idx_t, std::variant<Expr*, StringToken>>>>();
+              .template destroy<std::vector<std::pair<pos_idx_t, std::variant<expr_t*, StringToken>>>>();
           break;
 
         default:
@@ -1480,7 +1480,7 @@ private:
   // state STATE-NUM.
   static const signed char yystos_[];
 
-  // YYR1[RULE-NUM] -- Symbol kind of the left-hand side of rule RULE-NUM.
+  // YYR1[RULE-NUM] -- symbol_t kind of the left-hand side of rule RULE-NUM.
   static const signed char yyr1_[];
 
   // YYR2[RULE-NUM] -- Number of symbols on the right-hand side of rule RULE-NUM.
@@ -1488,7 +1488,7 @@ private:
 
 
 #if YYDEBUG
-  // YYRLINE[YYN] -- Source line where rule number YYN was defined.
+  // YYRLINE[YYN] -- source_t line where rule number YYN was defined.
   static const short yyrline_[];
   /// Report on the debug stream that the rule \a r is going to be reduced.
   virtual void yy_reduce_print_(int r) const;

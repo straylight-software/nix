@@ -11,12 +11,12 @@
 namespace nix {
 
 struct HttpBinaryCacheStoreConfig : std::enable_shared_from_this<HttpBinaryCacheStoreConfig>,
-                                    virtual Store::config_t,
-                                    BinaryCacheStoreConfig {
-  using BinaryCacheStoreConfig::BinaryCacheStoreConfig;
+                                    virtual store_t::config_t,
+                                    binary_cache_store_config_t {
+  using binary_cache_store_config_t::binary_cache_store_config_t;
 
   HttpBinaryCacheStoreConfig(std::string_view scheme, std::string_view cacheUri,
-                             const Store::config_t::Params& params);
+                             const store_t::config_t::Params& params);
 
   parsed_url_t cacheUri;
 
@@ -33,13 +33,13 @@ struct HttpBinaryCacheStoreConfig : std::enable_shared_from_this<HttpBinaryCache
           (e.g. `brotli`).
         )"};
 
-  static const std::string name() { return "HTTP Binary Cache Store"; }
+  static const std::string name() { return "HTTP Binary Cache store_t"; }
 
   static string_set_t uriSchemes();
 
   static std::string doc();
 
-  ref<Store> open_store() const override;
+  ref<store_t> open_store() const override;
 
   StoreReference getReference() const override;
 };
@@ -91,7 +91,7 @@ protected:
   void upload(std::string_view path, restartable_source_t& source, uint64_t size_hint,
               std::string_view mime_type, std::optional<headers_t> headers);
 
-  void getFile(const std::string& path, Sink& sink) override;
+  void getFile(const std::string& path, sink_t& sink) override;
 
   void getFile(const std::string& path,
                Callback<std::optional<std::string>> callback) noexcept override;

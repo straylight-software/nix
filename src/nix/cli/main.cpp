@@ -248,7 +248,7 @@ static void show_help(std::vector<std::string> subcommand, nix_args_t& toplevel)
 
   eval_settings.restrictEval = true;
   eval_settings.pureEval = true;
-  EvalState state({}, open_store("dummy://"), fetch_settings, eval_settings);
+  eval_state_t state({}, open_store("dummy://"), fetch_settings, eval_settings);
 
   auto vGenerateManpage = state.allocValue();
   state.eval(state.parseExprFromString(
@@ -272,7 +272,7 @@ static void show_help(std::vector<std::string> subcommand, nix_args_t& toplevel)
   vDump->mk_string(toplevel.dump_cli(), state.mem);
 
   auto v_res = state.allocValue();
-  Value* args[]{&state.getBuiltin("false"), vDump};
+  value_t* args[]{&state.getBuiltin("false"), vDump};
   state.callFunction(*vGenerateManpage, args, *v_res, no_pos);
 
   auto attr = v_res->attrs()->get(state.symbols.create(mdName + ".md"));
@@ -420,7 +420,7 @@ void main_wrapped(int argc, char** argv) {
         xp_t::fetch_tree,
     };
     eval_settings.pureEval = false;
-    EvalState state({}, open_store("dummy://"), fetch_settings, eval_settings);
+    eval_state_t state({}, open_store("dummy://"), fetch_settings, eval_settings);
     auto builtins_json = nlohmann::json::object();
     for (auto& builtinPtr : state.getBuiltins().attrs()->lexicographicOrder(state.symbols)) {
       auto& builtin = *builtinPtr;

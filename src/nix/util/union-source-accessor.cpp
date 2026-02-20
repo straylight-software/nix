@@ -2,10 +2,10 @@
 
 namespace nix {
 
-struct union_source_accessor_t : SourceAccessor {
-  std::vector<ref<SourceAccessor>> accessors;
+struct union_source_accessor_t : source_accessor_t {
+  std::vector<ref<source_accessor_t>> accessors;
 
-  union_source_accessor_t(std::vector<ref<SourceAccessor>> _accessors)
+  union_source_accessor_t(std::vector<ref<source_accessor_t>> _accessors)
       : accessors(std::move(_accessors)) {
     display_prefix.clear();
   }
@@ -64,7 +64,7 @@ struct union_source_accessor_t : SourceAccessor {
     for (auto& accessor : accessors) {
       return accessor->show_path(path);
 }
-    return SourceAccessor::show_path(path);
+    return source_accessor_t::show_path(path);
   }
 
   std::optional<std::filesystem::path> get_physical_path(const canon_path_t& path) override {
@@ -97,7 +97,7 @@ struct union_source_accessor_t : SourceAccessor {
   }
 };
 
-ref<SourceAccessor> make_union_source_accessor(std::vector<ref<SourceAccessor>>&& accessors) {
+ref<source_accessor_t> make_union_source_accessor(std::vector<ref<source_accessor_t>>&& accessors) {
   return make_ref<union_source_accessor_t>(std::move(accessors));
 }
 

@@ -21,7 +21,7 @@ struct cmd_path_from_hash_part_t : StoreCommand {
         ;
   }
 
-  void run(ref<Store> store) override {
+  void run(ref<store_t> store) override {
     if (auto store_path = store->queryPathFromHashPart(hash_part))
       logger->cout(store->printStorePath(*store_path));
     else

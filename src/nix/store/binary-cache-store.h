@@ -10,11 +10,11 @@
 
 namespace nix {
 
-struct NarInfo;
+struct nar_info_t;
 class RemoteFSAccessor;
 
-struct BinaryCacheStoreConfig : virtual StoreConfig {
-  using StoreConfig::StoreConfig;
+struct binary_cache_store_config_t : virtual store_config_t {
+  using store_config_t::store_config_t;
 
   const setting_t<std::string> compression{
       this, "xz", "compression",
@@ -58,9 +58,9 @@ struct BinaryCacheStoreConfig : virtual StoreConfig {
  * virtual getFile() methods.
  */
 struct alignas(8) /* Work around ASAN failures on i686-linux. */
-    binary_cache_store : virtual Store,
+    binary_cache_store : virtual store_t,
                        virtual LogStore {
-  using config_t = BinaryCacheStoreConfig;
+  using config_t = binary_cache_store_config_t;
 
   /**
    * Intentionally mutable because some things we update due to the
@@ -108,7 +108,7 @@ public:
   /**
    * Dump the contents of the specified file to a sink.
    */
-  virtual void getFile(const std::string& path, Sink& sink);
+  virtual void getFile(const std::string& path, sink_t& sink);
 
   /**
    * Get the contents of /nix-cache-info. Return std::nullopt if it
@@ -131,13 +131,13 @@ public:
 private:
   std::string narMagic;
 
-  std::string narInfoFileFor(const StorePath& store_path);
+  std::string narInfoFileFor(const store_path_t& store_path);
 
-  void writeNarInfo(ref<NarInfo> narInfo);
+  void writeNarInfo(ref<nar_info_t> narInfo);
 
-  ref<const ValidPathInfo> addToStoreCommon(Source& nar_source, RepairFlag repair,
+  ref<const valid_path_info_t> addToStoreCommon(source_t& nar_source, RepairFlag repair,
                                             CheckSigsFlag check_sigs,
-                                            std::function<ValidPathInfo(hash_result_t)> mkInfo);
+                                            std::function<valid_path_info_t(hash_result_t)> mkInfo);
 
   /**
    * Same as `getFSAccessor`, but with a more preceise return type.
@@ -145,44 +145,44 @@ private:
   ref<RemoteFSAccessor> getRemoteFSAccessor(bool require_valid_path = true);
 
 public:
-  bool isValidPathUncached(const StorePath& path) override;
+  bool isValidPathUncached(const store_path_t& path) override;
 
   void
-  query_path_info_uncached(const StorePath& path,
-                        Callback<std::shared_ptr<const ValidPathInfo>> callback) noexcept override;
+  query_path_info_uncached(const store_path_t& path,
+                        Callback<std::shared_ptr<const valid_path_info_t>> callback) noexcept override;
 
-  std::optional<StorePath> queryPathFromHashPart(const std::string& hash_part) override;
+  std::optional<store_path_t> queryPathFromHashPart(const std::string& hash_part) override;
 
-  void add_to_store(const ValidPathInfo& info, Source& nar_source, RepairFlag repair,
+  void add_to_store(const valid_path_info_t& info, source_t& nar_source, RepairFlag repair,
                   CheckSigsFlag check_sigs) override;
 
-  StorePath add_to_store_from_dump(Source& dump, std::string_view name,
-                               file_serialisation_method_t dump_method, ContentAddressMethod hash_method,
-                               hash_algorithm_t hash_algo, const StorePathSet& references,
+  store_path_t add_to_store_from_dump(source_t& dump, std::string_view name,
+                               file_serialisation_method_t dump_method, content_address_method_t hash_method,
+                               hash_algorithm_t hash_algo, const store_path_set_t& references,
                                RepairFlag repair) override;
 
-  StorePath add_to_store(std::string_view name, const source_path_t& path, ContentAddressMethod method,
-                       hash_algorithm_t hash_algo, const StorePathSet& references, path_filter_t& filter,
+  store_path_t add_to_store(std::string_view name, const source_path_t& path, content_address_method_t method,
+                       hash_algorithm_t hash_algo, const store_path_set_t& references, path_filter_t& filter,
                        RepairFlag repair) override;
 
-  void register_drv_output(const Realisation& info) override;
+  void register_drv_output(const realisation_t& info) override;
 
   void query_realisation_uncached(
       const DrvOutput&,
       Callback<std::shared_ptr<const UnkeyedRealisation>> callback) noexcept override;
 
-  void nar_from_path(const StorePath& path, Sink& sink) override;
+  void nar_from_path(const store_path_t& path, sink_t& sink) override;
 
-  ref<SourceAccessor> getFSAccessor(bool require_valid_path = true) override;
+  ref<source_accessor_t> getFSAccessor(bool require_valid_path = true) override;
 
-  std::shared_ptr<SourceAccessor> getFSAccessor(const StorePath&,
+  std::shared_ptr<source_accessor_t> getFSAccessor(const store_path_t&,
                                                 bool require_valid_path = true) override;
 
-  void addSignatures(const StorePath& store_path, const string_set_t& sigs) override;
+  void addSignatures(const store_path_t& store_path, const string_set_t& sigs) override;
 
-  std::optional<std::string> getBuildLogExact(const StorePath& path) override;
+  std::optional<std::string> getBuildLogExact(const store_path_t& path) override;
 
-  void addBuildLog(const StorePath& drv_path, std::string_view log) override;
+  void addBuildLog(const store_path_t& drv_path, std::string_view log) override;
 };
 
 make_error(NoSuchBinaryCacheFile, Error);

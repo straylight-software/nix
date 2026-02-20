@@ -31,26 +31,26 @@ static strings_t parse_attr_path(std::string_view s) {
   return res;
 }
 
-AttrPath AttrPath::parse(EvalState& state, std::string_view s) {
+AttrPath AttrPath::parse(eval_state_t& state, std::string_view s) {
   AttrPath res;
   for (auto& a : parse_attr_path(s))
     res.push_back(state.symbols.create(a));
   return res;
 }
 
-std::string AttrPath::to_string(EvalState& state) const {
+std::string AttrPath::to_string(eval_state_t& state) const {
   return drop_empty_init_then_concat_strings_sep(".", state.symbols.resolve({*this}));
 }
 
-std::vector<SymbolStr> AttrPath::resolve(EvalState& state) const {
+std::vector<SymbolStr> AttrPath::resolve(eval_state_t& state) const {
   return state.symbols.resolve({*this});
 }
 
-std::pair<Value*, pos_idx_t> find_along_attr_path(EvalState& state, const std::string& attr_path,
-                                            Bindings& auto_args, Value& v_in) {
+std::pair<value_t*, pos_idx_t> find_along_attr_path(eval_state_t& state, const std::string& attr_path,
+                                            bindings_t& auto_args, value_t& v_in) {
   strings_t tokens = parse_attr_path(attr_path);
 
-  Value* v = &v_in;
+  value_t* v = &v_in;
   pos_idx_t pos = no_pos;
 
   for (auto& attr : tokens) {
@@ -58,7 +58,7 @@ std::pair<Value*, pos_idx_t> find_along_attr_path(EvalState& state, const std::s
     auto attrIndex = string2_int<unsigned int>(attr);
 
     /* Evaluate the expression. */
-    Value* vNew = state.allocValue();
+    value_t* vNew = state.allocValue();
     state.autoCallFunction(auto_args, *v, *vNew);
     v = vNew;
     state.forceValue(*v, no_pos);
@@ -109,10 +109,10 @@ std::pair<Value*, pos_idx_t> find_along_attr_path(EvalState& state, const std::s
   return {v, pos};
 }
 
-std::pair<source_path_t, uint32_t> find_package_filename(EvalState& state, Value& v, std::string what) {
-  Value* v2;
+std::pair<source_path_t, uint32_t> find_package_filename(eval_state_t& state, value_t& v, std::string what) {
+  value_t* v2;
   try {
-    auto& dummy_args = Bindings::emptyBindings;
+    auto& dummy_args = bindings_t::emptyBindings;
     v2 = find_along_attr_path(state, "meta.position", dummy_args, v).first;
   } catch (Error&) {
     throw NoPositionInfo("package '%s' has no source location information", what);

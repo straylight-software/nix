@@ -7,47 +7,47 @@
 
 namespace nix {
 
-std::string StorePathWithOutputs::to_string(const StoreDirConfig& store) const {
+std::string StorePathWithOutputs::to_string(const store_dir_config_t& store) const {
   return outputs.empty() ? store.printStorePath(path)
                          : store.printStorePath(path) + "!" + concat_strings_sep(",", outputs);
 }
 
-DerivedPath StorePathWithOutputs::toDerivedPath() const {
+derived_path_t StorePathWithOutputs::toDerivedPath() const {
   if (!outputs.empty()) {
-    return DerivedPath::Built{
+    return derived_path_t::Built{
         .drv_path = makeConstantStorePathRef(path),
         .outputs = OutputsSpec::Names{outputs},
     };
   } else if (path.is_derivation()) {
     assert(outputs.empty());
-    return DerivedPath::Built{
+    return derived_path_t::Built{
         .drv_path = makeConstantStorePathRef(path),
         .outputs = OutputsSpec::All{},
     };
   } else {
-    return DerivedPath::opaque_t{path};
+    return derived_path_t::opaque_t{path};
   }
 }
 
-std::vector<DerivedPath> to_derived_paths(const std::vector<StorePathWithOutputs> ss) {
-  std::vector<DerivedPath> reqs;
+std::vector<derived_path_t> to_derived_paths(const std::vector<StorePathWithOutputs> ss) {
+  std::vector<derived_path_t> reqs;
   reqs.reserve(ss.size());
   for (auto& s : ss)
     reqs.push_back(s.toDerivedPath());
   return reqs;
 }
 
-StorePathWithOutputs::ParseResult StorePathWithOutputs::tryFromDerivedPath(const DerivedPath& p) {
+StorePathWithOutputs::ParseResult StorePathWithOutputs::tryFromDerivedPath(const derived_path_t& p) {
   return std::visit(
       overloaded{
-          [&](const DerivedPath::opaque_t& bo) -> StorePathWithOutputs::ParseResult {
+          [&](const derived_path_t::opaque_t& bo) -> StorePathWithOutputs::ParseResult {
             if (bo.path.is_derivation()) {
               // drv path gets interpreted as "build", not "get drv file itself"
               return bo.path;
             }
             return StorePathWithOutputs{bo.path};
           },
-          [&](const DerivedPath::Built& bfd) -> StorePathWithOutputs::ParseResult {
+          [&](const derived_path_t::Built& bfd) -> StorePathWithOutputs::ParseResult {
             return std::visit(
                 overloaded{
                     [&](const SingleDerivedPath::opaque_t& bo) -> StorePathWithOutputs::ParseResult {
@@ -81,13 +81,13 @@ std::pair<std::string_view, string_set_t> parse_path_with_outputs(std::string_vi
              : std::make_pair(s.substr(0, n), tokenize_string<string_set_t>(s.substr(n + 1), ","));
 }
 
-StorePathWithOutputs parse_path_with_outputs(const StoreDirConfig& store,
+StorePathWithOutputs parse_path_with_outputs(const store_dir_config_t& store,
                                           std::string_view path_with_outputs) {
   auto [path, outputs] = parse_path_with_outputs(path_with_outputs);
   return StorePathWithOutputs{store.parseStorePath(path), std::move(outputs)};
 }
 
-StorePathWithOutputs follow_links_to_store_path_with_outputs(const Store& store,
+StorePathWithOutputs follow_links_to_store_path_with_outputs(const store_t& store,
                                                        std::string_view path_with_outputs) {
   auto [path, outputs] = parse_path_with_outputs(path_with_outputs);
   return StorePathWithOutputs{store.followLinksToStorePath(path), std::move(outputs)};

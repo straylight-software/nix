@@ -23,11 +23,11 @@ struct cmd_make_content_addressed_t : virtual CopyCommand, virtual StorePathsCom
         ;
   }
 
-  void run(ref<Store> src_store, StorePaths&& store_paths) override {
+  void run(ref<store_t> src_store, store_paths_t&& store_paths) override {
     auto dst_store = dst_uri.empty() ? open_store() : open_store(dst_uri);
 
     auto remappings = make_content_addressed(*src_store, *dst_store,
-                                           StorePathSet(store_paths.begin(), store_paths.end()));
+                                           store_path_set_t(store_paths.begin(), store_paths.end()));
 
     if (json) {
       auto json_rewrites = json::object();

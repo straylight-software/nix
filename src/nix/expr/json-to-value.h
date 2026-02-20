@@ -7,11 +7,11 @@
 
 namespace nix {
 
-class EvalState;
-struct Value;
+class eval_state_t;
+struct value_t;
 
 make_error(JSONParseError, Error);
 
-void parse_json(EvalState& state, const std::string_view& s, Value& v);
+void parse_json(eval_state_t& state, const std::string_view& s, value_t& v);
 
 } // namespace nix

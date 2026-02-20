@@ -34,7 +34,7 @@ struct DerivedPathMap {
    */
   struct ChildNode {
     /**
-     * Value of this child node.
+     * value_t of this child node.
      *
      * @see DerivedPathMap for what `V` should be.
      */
@@ -60,7 +60,7 @@ struct DerivedPathMap {
   /**
    * The map type for the root node.
    */
-  using Map = std::map<StorePath, ChildNode>;
+  using Map = std::map<store_path_t, ChildNode>;
 
   /**
    * The map of root node.

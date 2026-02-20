@@ -25,7 +25,7 @@ using namespace nix;
 
 /* If ‘url’ starts with ‘mirror://’, then resolve it using the list of
    mirrors defined in Nixpkgs. */
-std::string resolve_mirror_url(EvalState& state, const std::string& url) {
+std::string resolve_mirror_url(eval_state_t& state, const std::string& url) {
   if (url.substr(0, 9) != "mirror://")
     return url;
 
@@ -35,7 +35,7 @@ std::string resolve_mirror_url(EvalState& state, const std::string& url) {
     throw Error("invalid mirror URL '%s'", url);
   std::string mirrorName(s, 0, p);
 
-  Value v_mirrors;
+  value_t v_mirrors;
   // FIXME: use nixpkgs flake
   state.eval(state.parseExprFromString("import <nixpkgs/pkgs/build-support/fetchurl/mirrors.nix>",
                                        state.root_path(canon_path_t::root)),
@@ -55,13 +55,13 @@ std::string resolve_mirror_url(EvalState& state, const std::string& url) {
   return mirror + (has_suffix(mirror, "/") ? "" : "/") + s.substr(p + 1);
 }
 
-std::tuple<StorePath, Hash> prefetch_file(ref<Store> store, const verbatim_url_t& url,
+std::tuple<store_path_t, Hash> prefetch_file(ref<store_t> store, const verbatim_url_t& url,
                                           std::optional<std::string> maybe_name,
                                           hash_algorithm_t hash_algo,
                                           std::optional<Hash> expected_hash, bool unpack,
                                           bool executable) {
-  ContentAddressMethod method = unpack || executable ? ContentAddressMethod::raw_t::nix_archive
-                                                     : ContentAddressMethod::raw_t::flat;
+  content_address_method_t method = unpack || executable ? content_address_method_t::raw_t::nix_archive
+                                                     : content_address_method_t::raw_t::flat;
 
   std::string name = maybe_name
                          .or_else([&]() {
@@ -81,7 +81,7 @@ std::tuple<StorePath, Hash> prefetch_file(ref<Store> store, const verbatim_url_t
     throw;
   }
 
-  std::optional<StorePath> store_path;
+  std::optional<store_path_t> store_path;
   std::optional<Hash> hash;
 
   /* If an expected hash is given, the file may already exist in
@@ -200,9 +200,9 @@ static int main_nix_prefetch_url(int argc, char** argv) {
 
     auto store = open_store();
     auto state =
-        std::make_unique<EvalState>(my_args.lookup_path, store, fetch_settings, eval_settings);
+        std::make_unique<eval_state_t>(my_args.lookup_path, store, fetch_settings, eval_settings);
 
-    Bindings& auto_args = *my_args.getAutoArgs(*state);
+    bindings_t& auto_args = *my_args.getAutoArgs(*state);
 
     /* If -A is given, get the URL from the specified Nix
        expression. */
@@ -212,10 +212,10 @@ static int main_nix_prefetch_url(int argc, char** argv) {
         throw UsageError("you must specify a URL");
       url = args[0];
     } else {
-      Value v_root;
+      value_t v_root;
       state->evalFile(resolve_expr_path(lookup_file_arg(*state, args.empty() ? "." : args[0])),
                       v_root);
-      Value& v(*find_along_attr_path(*state, attr_path, auto_args, v_root).first);
+      value_t& v(*find_along_attr_path(*state, attr_path, auto_args, v_root).first);
       state->forceAttrs(v, no_pos, "while evaluating the source attribute to prefetch");
 
       /* Extract the URL. */
@@ -324,7 +324,7 @@ struct cmd_store_prefetch_file_t : StoreCommand, MixJSON {
         ;
   }
 
-  void run(ref<Store> store) override {
+  void run(ref<store_t> store) override {
     auto [store_path, hash] =
         prefetch_file(store, url, name, hash_algo, expected_hash, unpack, executable);
 

@@ -54,7 +54,7 @@ struct TempDir {
 /**
  * In-memory sink to capture NAR output.
  */
-struct CaptureSink : Sink {
+struct CaptureSink : sink_t {
   std::string data;
 
   void operator()(std::string_view s) override { data.append(s); }

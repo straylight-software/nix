@@ -5,14 +5,14 @@
 namespace nix {
 
 struct AbstractNixRepl {
-  ref<EvalState> state;
-  Bindings* auto_args;
+  ref<eval_state_t> state;
+  bindings_t* auto_args;
 
-  AbstractNixRepl(ref<EvalState> state) : state(state) {}
+  AbstractNixRepl(ref<eval_state_t> state) : state(state) {}
 
   virtual ~AbstractNixRepl() {}
 
-  typedef std::vector<std::pair<Value*, std::string>> AnnotatedValues;
+  typedef std::vector<std::pair<value_t*, std::string>> AnnotatedValues;
 
   /**
    * Run a nix executable
@@ -31,11 +31,11 @@ struct AbstractNixRepl {
    * everything else will still work fine, but those commands won't.
    */
   static std::unique_ptr<AbstractNixRepl> create(const LookupPath& lookup_path,
-                                                 nix::ref<Store> store, ref<EvalState> state,
+                                                 nix::ref<store_t> store, ref<eval_state_t> state,
                                                  std::function<AnnotatedValues()> get_values,
                                                  RunNix* run_nix = nullptr);
 
-  static ReplExitStatus runSimple(ref<EvalState> eval_state, const ValMap& extraEnv);
+  static ReplExitStatus runSimple(ref<eval_state_t> eval_state, const ValMap& extraEnv);
 
   virtual void init_env() = 0;
 

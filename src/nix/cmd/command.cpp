@@ -62,13 +62,13 @@ void NixMultiCommand::run() {
 
 StoreCommand::StoreCommand() {}
 
-ref<Store> StoreCommand::getStore() {
+ref<store_t> StoreCommand::getStore() {
   if (!_store)
     _store = createStore();
-  return ref<Store>(_store);
+  return ref<store_t>(_store);
 }
 
-ref<Store> StoreCommand::createStore() {
+ref<store_t> StoreCommand::createStore() {
   return open_store();
 }
 
@@ -92,11 +92,11 @@ CopyCommand::CopyCommand() {
   });
 }
 
-ref<Store> CopyCommand::createStore() {
+ref<store_t> CopyCommand::createStore() {
   return srcUri.empty() ? StoreCommand::createStore() : open_store(srcUri);
 }
 
-ref<Store> CopyCommand::getDstStore() {
+ref<store_t> CopyCommand::getDstStore() {
   if (srcUri.empty() && dst_uri.empty())
     throw UsageError("you must pass '--from' and/or '--to'");
 
@@ -117,13 +117,13 @@ EvalCommand::~EvalCommand() {
     eval_state->maybePrintStats();
 }
 
-ref<Store> EvalCommand::getEvalStore() {
+ref<store_t> EvalCommand::getEvalStore() {
   if (!eval_store)
     eval_store = evalStoreUrl ? open_store(*evalStoreUrl) : getStore();
-  return ref<Store>(eval_store);
+  return ref<store_t>(eval_store);
 }
 
-ref<EvalState> EvalCommand::getEvalState() {
+ref<eval_state_t> EvalCommand::getEvalState() {
   if (!eval_state) {
     if (startReplOnEvalErrors && eval_settings.evalCores != 1U) {
       // Disable parallel eval if the debugger is enabled, since
@@ -133,7 +133,7 @@ ref<EvalState> EvalCommand::getEvalState() {
     }
 
     eval_state =
-        std::allocate_shared<EvalState>(traceable_allocator<EvalState>(), lookup_path,
+        std::allocate_shared<eval_state_t>(traceable_allocator<eval_state_t>(), lookup_path,
                                         getEvalStore(), fetch_settings, eval_settings, getStore());
 
     eval_state->repair = repair;
@@ -142,7 +142,7 @@ ref<EvalState> EvalCommand::getEvalState() {
       eval_state->debugRepl = &AbstractNixRepl::runSimple;
     };
   }
-  return ref<EvalState>(eval_state);
+  return ref<eval_state_t>(eval_state);
 }
 
 MixOperateOnOptions::MixOperateOnOptions() {
@@ -152,7 +152,7 @@ MixOperateOnOptions::MixOperateOnOptions() {
           "Operate on the [store derivation](@docroot@/glossary.md#gloss-store-derivation) rather "
           "than its outputs.",
       .category = installablesCategory,
-      .handler = {&operateOn, OperateOn::Derivation},
+      .handler = {&operateOn, OperateOn::derivation_t},
   });
 }
 
@@ -181,7 +181,7 @@ BuiltPathsCommand::BuiltPathsCommand(bool recursive) : recursive(recursive) {
   });
 }
 
-void BuiltPathsCommand::run(ref<Store> store, Installables&& installables) {
+void BuiltPathsCommand::run(ref<store_t> store, Installables&& installables) {
   BuiltPaths root_paths, all_paths;
 
   if (all) {
@@ -199,7 +199,7 @@ void BuiltPathsCommand::run(ref<Store> store, Installables&& installables) {
     if (recursive) {
       // XXX: This only computes the store path closure, ignoring
       // intermediate realisations
-      StorePathSet pathsRoots, pathsClosure;
+      store_path_set_t pathsRoots, pathsClosure;
       for (auto& root : root_paths) {
         auto rootFromThis = root.out_paths();
         pathsRoots.insert(rootFromThis.begin(), rootFromThis.end());
@@ -215,8 +215,8 @@ void BuiltPathsCommand::run(ref<Store> store, Installables&& installables) {
 
 StorePathsCommand::StorePathsCommand(bool recursive) : BuiltPathsCommand(recursive) {}
 
-void StorePathsCommand::run(ref<Store> store, BuiltPaths&& all_paths, BuiltPaths&& root_paths) {
-  StorePathSet store_paths;
+void StorePathsCommand::run(ref<store_t> store, BuiltPaths&& all_paths, BuiltPaths&& root_paths) {
+  store_path_set_t store_paths;
   for (auto& builtPath : all_paths)
     for (auto& p : builtPath.out_paths())
       store_paths.insert(p);
@@ -227,7 +227,7 @@ void StorePathsCommand::run(ref<Store> store, BuiltPaths&& all_paths, BuiltPaths
   run(store, std::move(sorted));
 }
 
-void StorePathCommand::run(ref<Store> store, StorePaths&& store_paths) {
+void StorePathCommand::run(ref<store_t> store, store_paths_t&& store_paths) {
   if (store_paths.size() != 1)
     throw UsageError("this command requires exactly one store path");
 
@@ -244,7 +244,7 @@ MixProfile::MixProfile() {
   });
 }
 
-void MixProfile::updateProfile(const StorePath& store_path) {
+void MixProfile::updateProfile(const store_path_t& store_path) {
   if (!profile)
     return;
   auto store = getDstStore().dynamic_pointer_cast<local_fs_store>();
@@ -258,7 +258,7 @@ void MixProfile::updateProfile(const BuiltPaths& buildables) {
   if (!profile)
     return;
 
-  StorePaths result;
+  store_paths_t result;
 
   for (auto& buildable : buildables) {
     std::visit(overloaded{
@@ -392,7 +392,7 @@ void create_out_links(const std::filesystem::path& out_link, const BuiltPaths& b
 }
 
 void MixOutLinkBase::createOutLinksMaybe(const std::vector<BuiltPathWithResult>& buildables,
-                                         ref<Store>& store) {
+                                         ref<store_t>& store) {
   if (out_link != "")
     if (auto store2 = store.dynamic_pointer_cast<local_fs_store>())
       create_out_links(out_link, to_built_paths(buildables), *store2);

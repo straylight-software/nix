@@ -10,7 +10,7 @@
 
 namespace nix {
 
-RemoteFSAccessor::RemoteFSAccessor(ref<Store> store, bool require_valid_path, const Path& cache_dir)
+RemoteFSAccessor::RemoteFSAccessor(ref<store_t> store, bool require_valid_path, const Path& cache_dir)
     : store(store), require_valid_path(require_valid_path), cache_dir(cache_dir) {
   if (cache_dir != "")
     create_dirs(cache_dir);
@@ -21,7 +21,7 @@ Path RemoteFSAccessor::makeCacheFile(std::string_view hash_part, const std::stri
   return fmt("%s/%s.%s", cache_dir, hash_part, ext);
 }
 
-ref<SourceAccessor> RemoteFSAccessor::addToCache(std::string_view hash_part, std::string&& nar) {
+ref<source_accessor_t> RemoteFSAccessor::addToCache(std::string_view hash_part, std::string&& nar) {
   if (cache_dir != "") {
     try {
       /* FIXME: do this asynchronously. */
@@ -46,14 +46,14 @@ ref<SourceAccessor> RemoteFSAccessor::addToCache(std::string_view hash_part, std
   return narAccessor;
 }
 
-std::pair<ref<SourceAccessor>, canon_path_t> RemoteFSAccessor::fetch(const canon_path_t& path) {
+std::pair<ref<source_accessor_t>, canon_path_t> RemoteFSAccessor::fetch(const canon_path_t& path) {
   auto [store_path, restPath] = store->toStorePath(store->store_dir + path.abs());
   if (require_valid_path && !store->isValidPath(store_path))
     throw InvalidPath("path '%1%' is not a valid store path", store->printStorePath(store_path));
   return {ref{accessObject(store_path)}, canon_path_t{restPath}};
 }
 
-std::shared_ptr<SourceAccessor> RemoteFSAccessor::accessObject(const StorePath& store_path) {
+std::shared_ptr<source_accessor_t> RemoteFSAccessor::accessObject(const store_path_t& store_path) {
   auto i = nars.find(std::string(store_path.hash_part()));
   if (i != nars.end())
     return i->second;
@@ -86,12 +86,12 @@ std::shared_ptr<SourceAccessor> RemoteFSAccessor::accessObject(const StorePath& 
   return addToCache(store_path.hash_part(), std::move(sink.str()));
 }
 
-std::optional<SourceAccessor::stat_t> RemoteFSAccessor::maybe_lstat(const canon_path_t& path) {
+std::optional<source_accessor_t::stat_t> RemoteFSAccessor::maybe_lstat(const canon_path_t& path) {
   auto res = fetch(path);
   return res.first->maybe_lstat(res.second);
 }
 
-SourceAccessor::dir_entries_t RemoteFSAccessor::read_directory(const canon_path_t& path) {
+source_accessor_t::dir_entries_t RemoteFSAccessor::read_directory(const canon_path_t& path) {
   auto res = fetch(path);
   return res.first->read_directory(res.second);
 }

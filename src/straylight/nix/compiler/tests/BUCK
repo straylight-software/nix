@@ -3,17 +3,8 @@
 # Unit and property-based tests for nix-language module
 
 # Common linker flags for nix-language tests
-# NOTE: -L flags MUST come before corresponding -l flags
-# boost removed - using std::vector instead of boost::container::small_vector
-# rapidcheck is now statically linked via //third_party:rapidcheck
+# All deps are now statically linked via //third_party (no manual -L/-rpath needed)
 LANGUAGE_LINKER_FLAGS = []
-
-# Hash library linker flags (for hashFile/hashString builtins)
-# Note: blake3 is now statically linked via //third_party:blake3, no -lblake3 or rpath needed
-HASH_LINKER_FLAGS = [
-    "-L/nix/store/61i74yjkj9p1qphfl7018ja4sdwkipx0-openssl-3.6.0/lib",
-    "-Wl,-rpath,/nix/store/61i74yjkj9p1qphfl7018ja4sdwkipx0-openssl-3.6.0/lib",
-]
 
 # Common test dependencies
 LANGUAGE_TEST_DEPS = [
@@ -131,17 +122,7 @@ cxx_test(
     link_style = "static",
 )
 
-# Common flags for tests using wasmtime
-WASMTIME_COMPILER_FLAGS = [
-    "-isystem/nix/store/5csjs5zrln4x5y3wxy6pi42bh2816c1s-wasmtime-40.0.0/include",
-]
-
-# Wasmtime linker flags (binaryen is now statically linked via //third_party:binaryen)
-WASMTIME_LINKER_FLAGS = [
-    "-L/nix/store/c76a64xqlv5h3i94dzv221pia3pginp1-wasmtime-40.0.0-lib/lib",
-    "-lwasmtime",
-    "-Wl,-rpath,/nix/store/c76a64xqlv5h3i94dzv221pia3pginp1-wasmtime-40.0.0-lib/lib",
-]
+# Wasmtime is now statically linked via //third_party:wasmtime (no manual flags needed)
 
 # Common deps for execution tests
 LANGUAGE_EXECUTION_TEST_DEPS = LANGUAGE_PARSE_TEST_DEPS + [
@@ -158,8 +139,8 @@ cxx_test(
     name = "execution_test",
     srcs = ["execution_test.cpp"],
     deps = LANGUAGE_EXECUTION_TEST_DEPS,
-    compiler_flags = LANGUAGE_TEST_COMPILER_FLAGS + WASMTIME_COMPILER_FLAGS,
-    linker_flags = LANGUAGE_LINKER_FLAGS + WASMTIME_LINKER_FLAGS + HASH_LINKER_FLAGS,
+    compiler_flags = LANGUAGE_TEST_COMPILER_FLAGS,
+    linker_flags = LANGUAGE_LINKER_FLAGS,
     link_style = "static",
 )
 
@@ -170,8 +151,20 @@ cxx_test(
     name = "property_test",
     srcs = ["property_test.cpp"],
     deps = LANGUAGE_EXECUTION_TEST_DEPS,
-    compiler_flags = LANGUAGE_TEST_COMPILER_FLAGS + WASMTIME_COMPILER_FLAGS,
-    linker_flags = LANGUAGE_LINKER_FLAGS + WASMTIME_LINKER_FLAGS + HASH_LINKER_FLAGS,
+    compiler_flags = LANGUAGE_TEST_COMPILER_FLAGS,
+    linker_flags = LANGUAGE_LINKER_FLAGS,
+    link_style = "static",
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Nondeterminism tests (prove AST walker bugs)
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_test(
+    name = "nondeterminism_test",
+    srcs = ["nondeterminism_test.cpp"],
+    deps = LANGUAGE_EXECUTION_TEST_DEPS,
+    compiler_flags = LANGUAGE_TEST_COMPILER_FLAGS,
+    linker_flags = LANGUAGE_LINKER_FLAGS,
     link_style = "static",
 )
 
@@ -182,8 +175,8 @@ cxx_test(
     name = "adversarial_test",
     srcs = ["adversarial_test.cpp"],
     deps = LANGUAGE_EXECUTION_TEST_DEPS,
-    compiler_flags = LANGUAGE_TEST_COMPILER_FLAGS + WASMTIME_COMPILER_FLAGS,
-    linker_flags = LANGUAGE_LINKER_FLAGS + WASMTIME_LINKER_FLAGS + HASH_LINKER_FLAGS,
+    compiler_flags = LANGUAGE_TEST_COMPILER_FLAGS,
+    linker_flags = LANGUAGE_LINKER_FLAGS,
     link_style = "static",
 )
 
@@ -201,8 +194,8 @@ cxx_test(
 #         "//third_party:catch2",
 #         "//third_party:wasmtime",
 #     ],
-#     compiler_flags = LANGUAGE_TEST_COMPILER_FLAGS + WASMTIME_COMPILER_FLAGS,
-#     linker_flags = LANGUAGE_LINKER_FLAGS + WASMTIME_LINKER_FLAGS,
+#     compiler_flags = LANGUAGE_TEST_COMPILER_FLAGS,
+#     linker_flags = LANGUAGE_LINKER_FLAGS,
 #     link_style = "static",
 # )
 
@@ -215,13 +208,8 @@ cxx_binary(
     deps = LANGUAGE_EXECUTION_TEST_DEPS + [
         "//third_party:nanobench",
     ],
-    compiler_flags = LANGUAGE_TEST_COMPILER_FLAGS + WASMTIME_COMPILER_FLAGS + [
-        "-isystem/nix/store/zwd7hw4x8g8hnvdzp4biq2c46rcrvsj4-nanobench-4.3.11/include",
-    ],
-    linker_flags = LANGUAGE_LINKER_FLAGS + WASMTIME_LINKER_FLAGS + [
-        "-L/nix/store/zwd7hw4x8g8hnvdzp4biq2c46rcrvsj4-nanobench-4.3.11/lib",
-        "-Wl,-rpath,/nix/store/zwd7hw4x8g8hnvdzp4biq2c46rcrvsj4-nanobench-4.3.11/lib",
-    ],
+    compiler_flags = LANGUAGE_TEST_COMPILER_FLAGS,
+    linker_flags = LANGUAGE_LINKER_FLAGS,
     link_style = "static",
 )
 
@@ -235,11 +223,12 @@ cxx_test(
         "//src/straylight/nix/compiler:evaluator",
         "//src/straylight/nix/compiler:runtime",
         "//third_party:catch2",
+        "//third_party:wasmtime",
     ],
-    compiler_flags = LANGUAGE_TEST_COMPILER_FLAGS + WASMTIME_COMPILER_FLAGS + [
+    compiler_flags = LANGUAGE_TEST_COMPILER_FLAGS + [
         "-DSTRAYLIGHT_EVAL_IO_SYNC=1",
     ],
-    linker_flags = LANGUAGE_LINKER_FLAGS + WASMTIME_LINKER_FLAGS + HASH_LINKER_FLAGS,
+    linker_flags = LANGUAGE_LINKER_FLAGS,
     link_style = "static",
 )
 

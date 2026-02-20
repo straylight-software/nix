@@ -17,7 +17,7 @@ struct cmd_optimise_store_t : StoreCommand {
         ;
   }
 
-  void run(ref<Store> store) override { store->optimiseStore(); }
+  void run(ref<store_t> store) override { store->optimiseStore(); }
 };
 
 static auto r_cmd_optimise_store = registerCommand2<cmd_optimise_store_t>({"store", "optimise"});

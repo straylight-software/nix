@@ -14,11 +14,11 @@ namespace nix {
 
 /* protocol-specific definitions */
 
-BuildResult ServeProto::Serialise<BuildResult>::read(const StoreDirConfig& store,
+build_result_t ServeProto::Serialise<build_result_t>::read(const store_dir_config_t& store,
                                                      ServeProto::ReadConn conn) {
-  BuildResult status;
-  BuildResult::Success success;
-  BuildResult::Failure failure;
+  build_result_t status;
+  build_result_t::Success success;
+  build_result_t::Failure failure;
 
   auto rawStatus = read_int(conn.from);
   conn.from >> failure.errorMsg;
@@ -32,19 +32,19 @@ BuildResult ServeProto::Serialise<BuildResult>::read(const StoreDirConfig& store
       success.built_outputs.insert_or_assign(std::move(output.output_name), std::move(realisation));
   }
 
-  if (BuildResult::Success::statusIs(rawStatus)) {
-    success.status = static_cast<BuildResult::Success::Status>(rawStatus);
+  if (build_result_t::Success::statusIs(rawStatus)) {
+    success.status = static_cast<build_result_t::Success::Status>(rawStatus);
     status.inner = std::move(success);
   } else {
-    failure.status = static_cast<BuildResult::Failure::Status>(rawStatus);
+    failure.status = static_cast<build_result_t::Failure::Status>(rawStatus);
     status.inner = std::move(failure);
   }
 
   return status;
 }
 
-void ServeProto::Serialise<BuildResult>::write(const StoreDirConfig& store,
-                                               ServeProto::WriteConn conn, const BuildResult& res) {
+void ServeProto::Serialise<build_result_t>::write(const store_dir_config_t& store,
+                                               ServeProto::WriteConn conn, const build_result_t& res) {
   /* The protocol predates the use of sum types (std::variant) to
      separate the success or failure cases. As such, it transits some
      success- or failure-only fields in both cases. This helper
@@ -62,12 +62,12 @@ void ServeProto::Serialise<BuildResult>::write(const StoreDirConfig& store,
     }
   };
   std::visit(overloaded{
-                 [&](const BuildResult::Failure& failure) {
+                 [&](const build_result_t::Failure& failure) {
                    conn.to << failure.status;
                    common(failure.errorMsg, failure.isNonDeterministic,
-                          decltype(BuildResult::Success::built_outputs){});
+                          decltype(build_result_t::Success::built_outputs){});
                  },
-                 [&](const BuildResult::Success& success) {
+                 [&](const build_result_t::Success& success) {
                    conn.to << success.status;
                    common(/*errorMsg=*/"", /*isNonDeterministic=*/false, success.built_outputs);
                  },
@@ -75,7 +75,7 @@ void ServeProto::Serialise<BuildResult>::write(const StoreDirConfig& store,
              res.inner);
 }
 
-UnkeyedValidPathInfo ServeProto::Serialise<UnkeyedValidPathInfo>::read(const StoreDirConfig& store,
+UnkeyedValidPathInfo ServeProto::Serialise<UnkeyedValidPathInfo>::read(const store_dir_config_t& store,
                                                                        ReadConn conn) {
   /* Hash should be set below unless very old `nix-store --serve`.
      Caller should assert that it did set it. */
@@ -84,7 +84,7 @@ UnkeyedValidPathInfo ServeProto::Serialise<UnkeyedValidPathInfo>::read(const Sto
   auto deriver = read_string(conn.from);
   if (deriver != "")
     info.deriver = store.parseStorePath(deriver);
-  info.references = ServeProto::Serialise<StorePathSet>::read(store, conn);
+  info.references = ServeProto::Serialise<store_path_set_t>::read(store, conn);
 
   read_long_long(conn.from); // download size, unused
   info.nar_size = read_long_long(conn.from);
@@ -93,14 +93,14 @@ UnkeyedValidPathInfo ServeProto::Serialise<UnkeyedValidPathInfo>::read(const Sto
     auto s = read_string(conn.from);
     if (!s.empty())
       info.nar_hash = Hash::parse_any_prefixed(s);
-    info.ca = ContentAddress::parseOpt(read_string(conn.from));
+    info.ca = content_address_t::parseOpt(read_string(conn.from));
     info.sigs = read_strings<string_set_t>(conn.from);
   }
 
   return info;
 }
 
-void ServeProto::Serialise<UnkeyedValidPathInfo>::write(const StoreDirConfig& store, WriteConn conn,
+void ServeProto::Serialise<UnkeyedValidPathInfo>::write(const store_dir_config_t& store, WriteConn conn,
                                                         const UnkeyedValidPathInfo& info) {
   conn.to << (info.deriver ? store.printStorePath(*info.deriver) : "");
 
@@ -114,7 +114,7 @@ void ServeProto::Serialise<UnkeyedValidPathInfo>::write(const StoreDirConfig& st
 }
 
 ServeProto::BuildOptions
-ServeProto::Serialise<ServeProto::BuildOptions>::read(const StoreDirConfig& store, ReadConn conn) {
+ServeProto::Serialise<ServeProto::BuildOptions>::read(const store_dir_config_t& store, ReadConn conn) {
   BuildOptions options;
   options.max_silent_time = read_int(conn.from);
   options.buildTimeout = read_int(conn.from);
@@ -131,7 +131,7 @@ ServeProto::Serialise<ServeProto::BuildOptions>::read(const StoreDirConfig& stor
 }
 
 void ServeProto::Serialise<ServeProto::BuildOptions>::write(
-    const StoreDirConfig& store, WriteConn conn, const ServeProto::BuildOptions& options) {
+    const store_dir_config_t& store, WriteConn conn, const ServeProto::BuildOptions& options) {
   conn.to << options.max_silent_time << options.buildTimeout;
   if (GET_PROTOCOL_MINOR(conn.version) >= 2)
     conn.to << options.maxLogSize;

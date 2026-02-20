@@ -77,7 +77,7 @@ bool fd_sink_t::good() {
   return good_;
 }
 
-void Source::operator()(char* data, size_t len) {
+void source_t::operator()(char* data, size_t len) {
   while (len) {
     size_t n = read(data, len);
     data += n;
@@ -85,11 +85,11 @@ void Source::operator()(char* data, size_t len) {
   }
 }
 
-void Source::operator()(std::string_view data) {
+void source_t::operator()(std::string_view data) {
   (*this)((char*)data.data(), data.size());
 }
 
-void Source::drain_into(Sink& sink) {
+void source_t::drain_into(sink_t& sink) {
   std::array<char, 8192> buf;
   while (true) {
     try {
@@ -101,13 +101,13 @@ void Source::drain_into(Sink& sink) {
   }
 }
 
-std::string Source::drain() {
+std::string source_t::drain() {
   string_sink_t s;
   drain_into(s);
   return std::move(s.str());
 }
 
-void Source::skip(size_t len) {
+void source_t::skip(size_t len) {
   std::array<char, 8192> buf;
   while (len) {
     auto n = read(buf.data(), std::min(len, buf.size()));
@@ -272,14 +272,14 @@ compressed_source_t::compressed_source_t(restartable_source_t& source,
       compression_method_(compression_method),
       string_source_(compressed_data_) {}
 
-std::unique_ptr<finish_sink_t> source_to_sink(std::function<void(Source&)> fun) {
+std::unique_ptr<finish_sink_t> source_to_sink(std::function<void(source_t&)> fun) {
   struct source_to_sink_t : finish_sink_t {
     typedef boost::coroutines2::coroutine<bool> coro_t;
 
-    std::function<void(Source&)> fun;
+    std::function<void(source_t&)> fun;
     std::optional<coro_t::push_type> coro;
 
-    source_to_sink_t(std::function<void(Source&)> fun) : fun(fun) {}
+    source_to_sink_t(std::function<void(source_t&)> fun) : fun(fun) {}
 
     std::string_view cur;
 
@@ -326,15 +326,15 @@ std::unique_ptr<finish_sink_t> source_to_sink(std::function<void(Source&)> fun) 
   return std::make_unique<source_to_sink_t>(fun);
 }
 
-std::unique_ptr<Source> sink_to_source(std::function<void(Sink&)> fun, std::function<void()> eof) {
-  struct sink_to_source_t : Source {
+std::unique_ptr<source_t> sink_to_source(std::function<void(sink_t&)> fun, std::function<void()> eof) {
+  struct sink_to_source_t : source_t {
     typedef boost::coroutines2::coroutine<std::string_view> coro_t;
 
-    std::function<void(Sink&)> fun;
+    std::function<void(sink_t&)> fun;
     std::function<void()> eof;
     std::optional<coro_t::pull_type> coro;
 
-    sink_to_source_t(std::function<void(Sink&)> fun, std::function<void()> eof)
+    sink_to_source_t(std::function<void(sink_t&)> fun, std::function<void()> eof)
         : fun(fun), eof(eof) {}
 
     std::string_view cur;
@@ -375,7 +375,7 @@ std::unique_ptr<Source> sink_to_source(std::function<void(Sink&)> fun, std::func
   return std::make_unique<sink_to_source_t>(fun, eof);
 }
 
-void write_padding(size_t len, Sink& sink) {
+void write_padding(size_t len, sink_t& sink) {
   if (len % 8) {
     char zero[8];
     memset(zero, 0, sizeof(zero));
@@ -383,36 +383,36 @@ void write_padding(size_t len, Sink& sink) {
   }
 }
 
-void write_string(std::string_view data, Sink& sink) {
+void write_string(std::string_view data, sink_t& sink) {
   sink << data.size();
   sink(data);
   write_padding(data.size(), sink);
 }
 
-Sink& operator<<(Sink& sink, std::string_view s) {
+sink_t& operator<<(sink_t& sink, std::string_view s) {
   write_string(s, sink);
   return sink;
 }
 
 template <class T>
-void write_strings(const T& ss, Sink& sink) {
+void write_strings(const T& ss, sink_t& sink) {
   sink << ss.size();
   for (auto& i : ss) {
     sink << i;
   }
 }
 
-Sink& operator<<(Sink& sink, const strings_t& s) {
+sink_t& operator<<(sink_t& sink, const strings_t& s) {
   write_strings(s, sink);
   return sink;
 }
 
-Sink& operator<<(Sink& sink, const string_set_t& s) {
+sink_t& operator<<(sink_t& sink, const string_set_t& s) {
   write_strings(s, sink);
   return sink;
 }
 
-Sink& operator<<(Sink& sink, const Error& ex) {
+sink_t& operator<<(sink_t& sink, const Error& ex) {
   auto& info = ex.info();
   sink << "Error" << static_cast<uint64_t>(info.level) << "Error" // removed
        << info.msg.str() << 0                                     // FIXME: info.errPos
@@ -424,7 +424,7 @@ Sink& operator<<(Sink& sink, const Error& ex) {
   return sink;
 }
 
-void read_padding(size_t len, Source& source) {
+void read_padding(size_t len, source_t& source) {
   if (len % 8) {
     char zero[8];
     size_t n = 8 - (len % 8);
@@ -437,7 +437,7 @@ void read_padding(size_t len, Source& source) {
   }
 }
 
-size_t read_string(char* buf, size_t max, Source& source) {
+size_t read_string(char* buf, size_t max, source_t& source) {
   auto len = read_num<size_t>(source);
   if (len > max) {
     throw SerialisationError("string is too long");
@@ -447,7 +447,7 @@ size_t read_string(char* buf, size_t max, Source& source) {
   return len;
 }
 
-std::string read_string(Source& source, size_t max) {
+std::string read_string(source_t& source, size_t max) {
   auto len = read_num<size_t>(source);
   if (len > max) {
     throw SerialisationError("string is too long");
@@ -458,13 +458,13 @@ std::string read_string(Source& source, size_t max) {
   return res;
 }
 
-Source& operator>>(Source& in, std::string& s) {
+source_t& operator>>(source_t& in, std::string& s) {
   s = read_string(in);
   return in;
 }
 
 template <class T>
-T read_strings(Source& source) {
+T read_strings(source_t& source) {
   auto count = read_num<size_t>(source);
   T ss;
   while (count--) {
@@ -473,10 +473,10 @@ T read_strings(Source& source) {
   return ss;
 }
 
-template Paths read_strings(Source& source);
-template path_set_t read_strings(Source& source);
+template Paths read_strings(source_t& source);
+template path_set_t read_strings(source_t& source);
 
-Error read_error(Source& source) {
+Error read_error(source_t& source) {
   auto type = read_string(source);
   assert(type == "Error");
   auto level = (verbosity_t)read_int(source);

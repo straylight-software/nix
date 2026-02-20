@@ -28,7 +28,6 @@ cxx_library(
         "hash.cpp",
         "log.cpp",
         "ls.cpp",
-        "main.cpp",
         "make-content-addressed.cpp",
         "man-pages.cpp",
         "nar.cpp",
@@ -69,7 +68,7 @@ cxx_library(
     header_namespace = "nix/cli",
 
     visibility = ["PUBLIC"],
-    deps = [
+    exported_deps = [
         "//src/nix/util:util",
         "//src/nix/store:store",
         "//src/nix/fetchers:fetchers",
@@ -77,5 +76,28 @@ cxx_library(
         "//src/nix/flake:flake",
         "//src/nix/main:main",
         "//src/nix/cmd:cmd",
+    ],
+)
+
+cxx_binary(
+    name = "nix",
+    srcs = ["main.cpp"],
+    headers = [
+        "cli-config-private.h",
+        "crash-handler.h",
+        "generate-manpage.nix.gen.h",
+        "generate-settings.nix.gen.h",
+        "generate-store-info.nix.gen.h",
+        "help.md",
+        "help-stores.md.gen.h",
+        "nix.md",
+        "utils.nix.gen.h",
+    ],
+    compiler_flags = [
+        "-DNIX_CLI_VERSION=\"2.29.0\"",
+    ],
+    visibility = ["PUBLIC"],
+    deps = [
+        ":cli",
     ],
 )

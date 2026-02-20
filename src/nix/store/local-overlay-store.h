@@ -5,30 +5,30 @@ namespace nix {
 /**
  * Configuration for `local_overlay_store`.
  */
-struct LocalOverlayStoreConfig : virtual LocalStoreConfig {
+struct LocalOverlayStoreConfig : virtual local_store_config_t {
   LocalOverlayStoreConfig(const string_map_t& params)
       : LocalOverlayStoreConfig("local-overlay", "", params) {}
 
   LocalOverlayStoreConfig(std::string_view scheme, path_view_t path, const Params& params)
-      : StoreConfig(params),
+      : store_config_t(params),
         LocalFSStoreConfig(path, params),
-        LocalStoreConfig(scheme, path, params) {}
+        local_store_config_t(scheme, path, params) {}
 
-  const setting_t<std::string> lowerStoreUri{(StoreConfig*)this, "", "lower-store",
+  const setting_t<std::string> lowerStoreUri{(store_config_t*)this, "", "lower-store",
                                            R"(
-          [Store URL](@docroot@/command-ref/new-cli/nix3-help-stores.md#store-url-format)
+          [store_t URL](@docroot@/command-ref/new-cli/nix3-help-stores.md#store-url-format)
           for the lower store. The default is `auto` (i.e. use the Nix daemon or `/nix/store` directly).
 
           Must be a store with a store dir on the file system.
           Must be used as OverlayFS lower layer for this store's store dir.
         )"};
 
-  const path_setting_t upperLayer{(StoreConfig*)this, "", "upper-layer",
+  const path_setting_t upperLayer{(store_config_t*)this, "", "upper-layer",
                                R"(
           directory_t containing the OverlayFS upper layer for this store's store dir.
         )"};
 
-  setting_t<bool> checkMount{(StoreConfig*)this, true, "check-mount",
+  setting_t<bool> checkMount{(store_config_t*)this, true, "check-mount",
                            R"(
           Check that the overlay filesystem is correctly mounted.
 
@@ -39,7 +39,7 @@ struct LocalOverlayStoreConfig : virtual LocalStoreConfig {
           default, but can be disabled if needed.
         )"};
 
-  const path_setting_t remountHook{(StoreConfig*)this, "", "remount-hook",
+  const path_setting_t remountHook{(store_config_t*)this, "", "remount-hook",
                                 R"(
           Script or other executable to run when overlay filesystem needs remounting.
 
@@ -52,7 +52,7 @@ struct LocalOverlayStoreConfig : virtual LocalStoreConfig {
           The store directory is passed as an argument to the invoked executable.
         )"};
 
-  static const std::string name() { return "Experimental Local Overlay Store"; }
+  static const std::string name() { return "Experimental Local Overlay store_t"; }
 
   static std::optional<experimental_feature_t> experimental_feature() {
     return experimental_feature_t::local_overlay_store;
@@ -62,7 +62,7 @@ struct LocalOverlayStoreConfig : virtual LocalStoreConfig {
 
   static std::string doc();
 
-  ref<Store> open_store() const override;
+  ref<store_t> open_store() const override;
 
   StoreReference getReference() const override;
 
@@ -75,7 +75,7 @@ protected:
    * at that file path. It might be stored in the lower layer instead,
    * or it might not be part of this store at all.
    */
-  Path toUpperPath(const StorePath& path) const;
+  Path toUpperPath(const store_path_t& path) const;
 
   friend struct local_overlay_store;
 };
@@ -107,14 +107,14 @@ private:
    * First copy up any lower store realisation with the same key, so we
    * merge rather than mask it.
    */
-  void register_drv_output(const Realisation& info) override;
+  void register_drv_output(const realisation_t& info) override;
 
   /**
    * Check lower store if upper DB does not have.
    */
   void
-  query_path_info_uncached(const StorePath& path,
-                        Callback<std::shared_ptr<const ValidPathInfo>> callback) noexcept override;
+  query_path_info_uncached(const store_path_t& path,
+                        Callback<std::shared_ptr<const valid_path_info_t>> callback) noexcept override;
 
   /**
    * Check lower store if upper DB does not have.
@@ -122,22 +122,22 @@ private:
    * In addition, copy up metadata for lower store objects (and their
    * closure). (I.e. Optimistically cache in the upper DB.)
    */
-  bool isValidPathUncached(const StorePath& path) override;
+  bool isValidPathUncached(const store_path_t& path) override;
 
   /**
    * Check the lower store and upper DB.
    */
-  void query_referrers(const StorePath& path, StorePathSet& referrers) override;
+  void query_referrers(const store_path_t& path, store_path_set_t& referrers) override;
 
   /**
    * Check the lower store and upper DB.
    */
-  StorePathSet queryValidDerivers(const StorePath& path) override;
+  store_path_set_t queryValidDerivers(const store_path_t& path) override;
 
   /**
    * Check lower store if upper DB does not have.
    */
-  std::optional<StorePath> queryPathFromHashPart(const std::string& hash_part) override;
+  std::optional<store_path_t> queryPathFromHashPart(const std::string& hash_part) override;
 
   /**
    * First copy up any lower store realisation with the same key, so we
@@ -193,7 +193,7 @@ private:
   /**
    * Deletion only effects the upper layer, so we ignore lower-layer referrers.
    */
-  void queryGCReferrers(const StorePath& path, StorePathSet& referrers) override;
+  void queryGCReferrers(const store_path_t& path, store_path_set_t& referrers) override;
 
   /**
    * Call the `remountHook` if we have done something such that the

@@ -48,7 +48,7 @@ flake_command_t::flake_command_t() {
                }}});
 }
 
-FlakeRef flake_command_t::get_flake_ref() {
+flake_ref_t flake_command_t::get_flake_ref() {
   return parse_flake_ref(fetch_settings, flakeUrl,
                          std::filesystem::current_path().string()); // FIXME
 }
@@ -57,7 +57,7 @@ LockedFlake flake_command_t::lock_flake() {
   return flake::lock_flake(flake_settings, *getEvalState(), get_flake_ref(), lock_flags);
 }
 
-std::vector<FlakeRef> flake_command_t::get_flake_refs_for_completion() {
+std::vector<flake_ref_t> flake_command_t::get_flake_refs_for_completion() {
   return {// Like getFlakeRef but with expandTilde called first
           parse_flake_ref(fetch_settings, expand_tilde(flakeUrl),
                           std::filesystem::current_path().string())};
@@ -93,7 +93,7 @@ public:
               throw e;
             }
             if (lock_flags.inputUpdates.contains(inputAttrPath))
-              warn("Input '%s' was specified multiple times. You may have done this by accident.",
+              warn("input_t '%s' was specified multiple times. You may have done this by accident.",
                    print_input_attr_path(inputAttrPath));
             lock_flags.inputUpdates.insert(inputAttrPath);
           }
@@ -115,7 +115,7 @@ public:
         ;
   }
 
-  void run(nix::ref<nix::Store> store) override {
+  void run(nix::ref<nix::store_t> store) override {
     settings.tarballTtl = 0;
     auto update_all = lock_flags.inputUpdates.empty();
 
@@ -142,7 +142,7 @@ struct cmd_flake_lock_t : flake_command_t {
         ;
   }
 
-  void run(nix::ref<nix::Store> store) override {
+  void run(nix::ref<nix::store_t> store) override {
     settings.tarballTtl = 0;
 
     lock_flags.writeLockFile = true;
@@ -155,8 +155,8 @@ struct cmd_flake_lock_t : flake_command_t {
 };
 
 static void enumerate_outputs(
-    EvalState& state, Value& v_flake,
-    std::function<void(std::string_view name, Value& vProvide, const pos_idx_t pos)> callback) {
+    eval_state_t& state, value_t& v_flake,
+    std::function<void(std::string_view name, value_t& vProvide, const pos_idx_t pos)> callback) {
   auto pos = v_flake.determinePos(no_pos);
   state.forceAttrs(v_flake, pos, "while evaluating a flake to get its outputs");
 
@@ -188,13 +188,13 @@ struct cmd_flake_metadata_t : flake_command_t, MixJSON {
         ;
   }
 
-  void run(nix::ref<nix::Store> store) override {
+  void run(nix::ref<nix::store_t> store) override {
     lock_flags.require_lockable = false;
     auto locked_flake = lock_flake();
     auto& flake = locked_flake.flake;
 
     /* Hack to show the store path if available. */
-    std::optional<StorePath> store_path;
+    std::optional<store_path_t> store_path;
     if (store->isInStore(flake.path.path.abs())) {
       auto path = store->toStorePath(flake.path.path.abs()).first;
       if (store->isValidPath(path))
@@ -283,7 +283,7 @@ struct cmd_flake_metadata_t : flake_command_t, MixJSON {
 };
 
 struct cmd_flake_info_t : cmd_flake_metadata_t {
-  void run(nix::ref<nix::Store> store) override {
+  void run(nix::ref<nix::store_t> store) override {
     warn("'nix flake info' is a deprecated alias for 'nix flake metadata'");
     cmd_flake_metadata_t::run(store);
   }
@@ -316,7 +316,7 @@ struct cmd_flake_check_t : flake_command_t {
         ;
   }
 
-  void run(nix::ref<nix::Store> store) override {
+  void run(nix::ref<nix::store_t> store) override {
     if (!build) {
       settings.readOnlyMode = true;
       eval_settings.enableImportFromDerivation.set_default(false);
@@ -343,15 +343,15 @@ struct cmd_flake_check_t : flake_command_t {
       }
     };
 
-    sync_t<std::vector<DerivedPath>> drvPaths_;
+    sync_t<std::vector<derived_path_t>> drvPaths_;
     sync_t<std::set<std::string>> omittedSystems;
-    sync_t<std::map<DerivedPath, std::vector<AttrPath>>> derivedPathToAttrPaths_;
+    sync_t<std::map<derived_path_t, std::vector<AttrPath>>> derivedPathToAttrPaths_;
 
     // FIXME: rewrite to use EvalCache.
 
     auto resolve = [&](pos_idx_t p) { return state->positions[p]; };
 
-    auto arg_has_name = [&](Symbol arg, std::string_view expected) {
+    auto arg_has_name = [&](symbol_t arg, std::string_view expected) {
       std::string_view name = state->symbols[arg];
       return name == expected || name == "_" ||
              (has_prefix(name, "_") && name.substr(1) == expected);
@@ -372,8 +372,8 @@ struct cmd_flake_check_t : flake_command_t {
       }
     };
 
-    auto check_derivation = [&](const std::string& attr_path, Value& v,
-                                const pos_idx_t pos) -> std::optional<StorePath> {
+    auto check_derivation = [&](const std::string& attr_path, value_t& v,
+                                const pos_idx_t pos) -> std::optional<store_path_t> {
       try {
         activity_t act(*logger, lvl_info, act_unknown, fmt("checking derivation %s", attr_path));
         auto package_info = get_derivation(*state, v, false);
@@ -397,7 +397,7 @@ struct cmd_flake_check_t : flake_command_t {
 
     FutureVector futures(*state->executor);
 
-    auto check_app = [&](const std::string& attr_path, Value& v, const pos_idx_t pos) {
+    auto check_app = [&](const std::string& attr_path, value_t& v, const pos_idx_t pos) {
       try {
         activity_t act(*logger, lvl_info, act_unknown, fmt("checking app '%s'", attr_path));
         state->forceAttrs(v, pos, "");
@@ -438,7 +438,7 @@ struct cmd_flake_check_t : flake_command_t {
       }
     };
 
-    auto check_overlay = [&](std::string_view attr_path, Value& v, const pos_idx_t pos) {
+    auto check_overlay = [&](std::string_view attr_path, value_t& v, const pos_idx_t pos) {
       try {
         activity_t act(*logger, lvl_info, act_unknown, fmt("checking overlay '%s'", attr_path));
         state->forceValue(v, pos);
@@ -455,7 +455,7 @@ struct cmd_flake_check_t : flake_command_t {
       }
     };
 
-    auto check_module = [&](std::string_view attr_path, Value& v, const pos_idx_t pos) {
+    auto check_module = [&](std::string_view attr_path, value_t& v, const pos_idx_t pos) {
       try {
         activity_t act(*logger, lvl_info, act_unknown,
                        fmt("checking NixOS module '%s'", attr_path));
@@ -466,9 +466,9 @@ struct cmd_flake_check_t : flake_command_t {
       }
     };
 
-    std::function<void(const std::string& attr_path, Value& v, const pos_idx_t pos)> checkHydraJobs;
+    std::function<void(const std::string& attr_path, value_t& v, const pos_idx_t pos)> checkHydraJobs;
 
-    checkHydraJobs = [&](const std::string& attr_path, Value& v, const pos_idx_t pos) {
+    checkHydraJobs = [&](const std::string& attr_path, value_t& v, const pos_idx_t pos) {
       try {
         activity_t act(*logger, lvl_info, act_unknown, fmt("checking Hydra job '%s'", attr_path));
         state->forceAttrs(v, pos, "");
@@ -494,12 +494,12 @@ struct cmd_flake_check_t : flake_command_t {
       }
     };
 
-    auto check_nix_os_configuration = [&](const std::string& attr_path, Value& v,
+    auto check_nix_os_configuration = [&](const std::string& attr_path, value_t& v,
                                           const pos_idx_t pos) {
       try {
         activity_t act(*logger, lvl_info, act_unknown,
                        fmt("checking NixOS configuration '%s'", attr_path));
-        Bindings& bindings = Bindings::emptyBindings;
+        bindings_t& bindings = bindings_t::emptyBindings;
         auto v_toplevel =
             find_along_attr_path(*state, "config.system.build.toplevel", bindings, v).first;
         state->forceValue(*v_toplevel, pos);
@@ -512,7 +512,7 @@ struct cmd_flake_check_t : flake_command_t {
       }
     };
 
-    auto check_template = [&](std::string_view attr_path, Value& v, const pos_idx_t pos) {
+    auto check_template = [&](std::string_view attr_path, value_t& v, const pos_idx_t pos) {
       try {
         activity_t act(*logger, lvl_info, act_unknown, fmt("checking template '%s'", attr_path));
 
@@ -545,7 +545,7 @@ struct cmd_flake_check_t : flake_command_t {
       }
     };
 
-    auto check_bundler = [&](const std::string& attr_path, Value& v, const pos_idx_t pos) {
+    auto check_bundler = [&](const std::string& attr_path, value_t& v, const pos_idx_t pos) {
       try {
         activity_t act(*logger, lvl_info, act_unknown, fmt("checking bundler '%s'", attr_path));
         state->forceValue(v, pos);
@@ -565,7 +565,7 @@ struct cmd_flake_check_t : flake_command_t {
       flake::call_flake(*state, flake, *v_flake);
 
       enumerate_outputs(
-          *state, *v_flake, [&](std::string_view name, Value& v_output, const pos_idx_t pos) {
+          *state, *v_flake, [&](std::string_view name, value_t& v_output, const pos_idx_t pos) {
             futures.spawn(2, [&, name, pos]() {
               activity_t act(*logger, lvl_info, act_unknown,
                              fmt("checking flake output '%s'", name));
@@ -601,7 +601,7 @@ struct cmd_flake_check_t : flake_command_t {
                               fmt("%s.%s.%s", name, attr_name, state->symbols[attr2.name]),
                               *attr2.value, attr2.pos);
                           if (drv_path && attr_name == settings.thisSystem.get()) {
-                            auto derived_path = DerivedPath::Built{
+                            auto derived_path = derived_path_t::Built{
                                 .drv_path = makeConstantStorePathRef(*drv_path),
                                 .outputs = OutputsSpec::All{},
                             };
@@ -792,10 +792,10 @@ struct cmd_flake_check_t : flake_command_t {
       state->waitForAllPaths();
       auto missing = store->query_missing(*drv_paths);
 
-      std::vector<DerivedPath> toBuild;
-      std::set<DerivedPath> toBuildSet;
+      std::vector<derived_path_t> toBuild;
+      std::set<derived_path_t> toBuildSet;
       for (auto& path : missing.willBuild) {
-        auto derived_path = DerivedPath::Built{
+        auto derived_path = derived_path_t::Built{
             .drv_path = makeConstantStorePathRef(path),
             .outputs = OutputsSpec::All{},
         };
@@ -857,7 +857,7 @@ struct cmd_flake_check_t : flake_command_t {
 static strings_t default_template_attr_paths_prefixes{"templates."};
 static strings_t default_template_attr_paths = {"templates.default", "defaultTemplate"};
 
-struct cmd_flake_init_common_t : virtual Args, EvalCommand {
+struct cmd_flake_init_common_t : virtual args_t, EvalCommand {
   std::string template_url = "https://flakehub.com/f/DeterminateSystems/flake-templates/0.1";
   Path dest_dir;
 
@@ -878,7 +878,7 @@ struct cmd_flake_init_common_t : virtual Args, EvalCommand {
     });
   }
 
-  void run(nix::ref<nix::Store> store) override {
+  void run(nix::ref<nix::store_t> store) override {
     auto flake_dir = abs_path(dest_dir);
 
     auto eval_state = getEvalState();
@@ -910,9 +910,9 @@ struct cmd_flake_init_common_t : virtual Args, EvalCommand {
         auto to2 = to / name;
         auto st = from2.lstat();
         auto to_st = std::filesystem::symlink_status(to2);
-        if (st.type == SourceAccessor::t_directory)
+        if (st.type == source_accessor_t::t_directory)
           copy_dir(from2, to2);
-        else if (st.type == SourceAccessor::t_regular) {
+        else if (st.type == source_accessor_t::t_regular) {
           auto contents = from2.read_file();
           if (std::filesystem::exists(to_st)) {
             auto contents2 = read_file(to2.string());
@@ -927,7 +927,7 @@ struct cmd_flake_init_common_t : virtual Args, EvalCommand {
             continue;
           } else
             write_file(to2, contents);
-        } else if (st.type == SourceAccessor::t_symlink) {
+        } else if (st.type == source_accessor_t::t_symlink) {
           auto target = from2.read_link();
           if (std::filesystem::exists(to_st)) {
             if (std::filesystem::read_symlink(to2) != target) {
@@ -1018,7 +1018,7 @@ struct cmd_flake_clone_t : flake_command_t {
     });
   }
 
-  void run(nix::ref<nix::Store> store) override {
+  void run(nix::ref<nix::store_t> store) override {
     if (dest_dir.empty())
       throw Error("missing flag '--dest'");
 
@@ -1048,13 +1048,13 @@ struct cmd_flake_archive_t : flake_command_t, MixJSON, MixDryRun, MixNoCheckSigs
         ;
   }
 
-  void run(nix::ref<nix::Store> store) override {
+  void run(nix::ref<nix::store_t> store) override {
     auto flake = lock_flake();
 
-    StorePathSet sources;
+    store_path_set_t sources;
 
     auto store_path = dry_run ? flake.flake.locked_ref.input.computeStorePath(*store)
-                              : std::get<StorePath>(flake.flake.locked_ref.input.fetch_to_store(
+                              : std::get<store_path_t>(flake.flake.locked_ref.input.fetch_to_store(
                                     fetch_settings, *store));
 
     sources.insert(store_path);
@@ -1065,12 +1065,12 @@ struct cmd_flake_archive_t : flake_command_t, MixJSON, MixDryRun, MixNoCheckSigs
       nlohmann::json jsonObj2 = json ? json::object() : nlohmann::json(nullptr);
       for (auto& [inputName, input] : node.inputs) {
         if (auto input_node = std::get_if<0>(&input)) {
-          std::optional<StorePath> store_path;
+          std::optional<store_path_t> store_path;
           if (!(*input_node)->locked_ref.input.isRelative()) {
             store_path =
                 dry_run
                     ? (*input_node)->locked_ref.input.computeStorePath(*store)
-                    : std::get<StorePath>(
+                    : std::get<store_path_t>(
                           (*input_node)->locked_ref.input.fetch_to_store(fetch_settings, *store));
             sources.insert(*store_path);
           }
@@ -1097,7 +1097,7 @@ struct cmd_flake_archive_t : flake_command_t, MixJSON, MixDryRun, MixNoCheckSigs
     }
 
     if (!dry_run && !dst_uri.empty()) {
-      ref<Store> dst_store = dst_uri.empty() ? open_store() : open_store(dst_uri);
+      ref<store_t> dst_store = dst_uri.empty() ? open_store() : open_store(dst_uri);
 
       copy_paths(*store, *dst_store, sources, NoRepair, check_sigs, substitute);
     }
@@ -1129,7 +1129,7 @@ struct cmd_flake_show_t : flake_command_t, MixJSON {
         ;
   }
 
-  void run(nix::ref<nix::Store> store) override {
+  void run(nix::ref<nix::store_t> store) override {
     eval_settings.enableImportFromDerivation.set_default(false);
 
     auto state = getEvalState();
@@ -1398,7 +1398,7 @@ struct cmd_flake_prefetch_t : flake_command_t, MixJSON {
         ;
   }
 
-  void run(ref<Store> store) override {
+  void run(ref<store_t> store) override {
     auto original_ref = get_flake_ref();
     auto resolved_ref = original_ref.resolve(fetch_settings, *store);
     auto [accessor, locked_ref] = resolved_ref.lazyFetch(getEvalState()->fetch_settings, *store);

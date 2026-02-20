@@ -34,76 +34,76 @@
 
 namespace nix {
 
-Pid::Pid() {}
+process_handle_t::process_handle_t() {}
 
-Pid::Pid(pid_t pid) : pid(pid) {}
+process_handle_t::process_handle_t(::pid_t pid) : pid_(pid) {}
 
-Pid::~Pid() {
-  if (pid != -1) {
+process_handle_t::~process_handle_t() {
+  if (pid_ != -1) {
     kill();
   }
 }
 
-void Pid::operator=(pid_t pid) {
-  if (this->pid != -1 && this->pid != pid) {
+void process_handle_t::operator=(::pid_t pid) {
+  if (this->pid_ != -1 && this->pid_ != pid) {
     kill();
   }
-  this->pid = pid;
-  killSignal = SIGKILL; // reset signal to default
+  this->pid_ = pid;
+  kill_signal_ = SIGKILL; // reset signal to default
 }
 
-Pid::operator pid_t() {
-  return pid;
+process_handle_t::operator ::pid_t() {
+  return pid_;
 }
 
-int Pid::kill() {
-  assert(pid != -1);
+int process_handle_t::kill() {
+  assert(pid_ != -1);
 
-  debug("killing process %1%", pid);
+  debug("killing process %1%", pid_);
 
   /* Send the requested signal to the child.  If it has its own
      process group, send the signal to every process in the child
      process group (which hopefully includes *all* its children). */
-  if (::kill(separate_pg ? -pid : pid, killSignal) != 0) {
+  if (::kill(separate_pg_ ? -pid_ : pid_, kill_signal_) != 0) {
     /* On BSDs, killing a process group will return EPERM if all
        processes in the group are zombies (or something like
        that). So try to detect and ignore that situation. */
 #if defined(__FreeBSD__) || defined(__APPLE__)
-    if (errno != EPERM || ::kill(pid, 0) != 0)
+    if (errno != EPERM || ::kill(pid_, 0) != 0)
 #endif
-      logError(sys_error_t("killing process %d", pid).info());
+      logError(sys_error_t("killing process %d", pid_).info());
   }
 
   return wait();
 }
 
-int Pid::wait() {
-  assert(pid != -1);
+int process_handle_t::wait() {
+  assert(pid_ != -1);
   while (1) {
     int status;
-    int res = waitpid(pid, &status, 0);
-    if (res == pid) {
-      pid = -1;
+    int res = waitpid(pid_, &status, 0);
+    if (res == pid_) {
+      pid_ = -1;
       return status;
     }
     if (errno != EINTR) {
-      throw sys_error_t("cannot get exit status of PID %d", pid);
+      throw sys_error_t("cannot get exit status of PID %d", pid_);
     }
     check_interrupt();
   }
 }
 
-void Pid::set_separate_pg(bool separate_pg) {
-  this->separate_pg = separate_pg;
+void process_handle_t::set_separate_pg(bool separate_pg) {
+  this->separate_pg_ = separate_pg;
 }
 
-void Pid::set_kill_signal(int signal) {
-  this->killSignal = signal;
+void process_handle_t::set_kill_signal(int signal) {
+  this->kill_signal_ = signal;
 }
 
-pid_t Pid::release() {
-  pid_t p = pid;
-  pid = -1;
+::pid_t process_handle_t::release() {
+  ::pid_t p = pid_;
+  pid_ = -1;
   return p;
 }
 
@@ -116,7 +116,7 @@ void kill_user(uid_t uid) {
      users to which the current process can send signals.  So we
      fork a process, switch to uid, and send a mass kill. */
 
-  Pid pid = start_process([&] {
+  process_handle_t pid = start_process([&] {
     if (setuid(uid) == -1) {
       throw sys_error_t("setting uid");
     }
@@ -163,13 +163,14 @@ using child_wrapper_function_t = std::function<void()>;
 
 /* Wrapper around vfork to prevent the child process from clobbering
    the caller's stack frame in the parent. */
-static pid_t do_fork(bool allow_vfork, child_wrapper_function_t& fun) __attribute__((noinline));
+static process_handle_t do_fork(bool allow_vfork, child_wrapper_function_t& fun)
+    __attribute__((noinline));
 
-static pid_t do_fork(bool allow_vfork, child_wrapper_function_t& fun) {
+static process_handle_t do_fork(bool allow_vfork, child_wrapper_function_t& fun) {
 #ifdef __linux__
-  pid_t pid = allow_vfork ? vfork() : fork();
+  process_handle_t pid = allow_vfork ? vfork() : fork();
 #else
-  pid_t pid = fork();
+  process_handle_t pid = fork();
 #endif
   if (pid != 0) {
     return pid;
@@ -186,7 +187,7 @@ static int child_entry(void* arg) {
 }
 #endif
 
-pid_t start_process(std::function<void()> fun, const process_options_t& options) {
+process_handle_t start_process(std::function<void()> fun, const process_options_t& options) {
   auto new_logger = make_simple_logger();
   child_wrapper_function_t wrapper = [&] {
     if (!options.allow_vfork) {
@@ -219,7 +220,7 @@ pid_t start_process(std::function<void()> fun, const process_options_t& options)
     }
   };
 
-  pid_t pid = -1;
+  process_handle_t pid = -1;
 
   if (options.clone_flags) {
 #ifdef __linux__
@@ -286,8 +287,8 @@ void run_program2(const run_options_t& options) {
 
   assert(!(options.standard_in && options.input));
 
-  std::unique_ptr<Source> source_;
-  Source* source = options.standard_in;
+  std::unique_ptr<source_t> source_;
+  source_t* source = options.standard_in;
 
   if (options.input) {
     source_ = std::make_unique<string_source_t>(*options.input);
@@ -312,7 +313,7 @@ void run_program2(const run_options_t& options) {
   auto suspension = logger->suspend_if(options.is_interactive);
 
   /* Fork. */
-  Pid pid = start_process(
+  process_handle_t pid = start_process(
       [&] {
         if (options.environment) {
           replace_env(*options.environment);

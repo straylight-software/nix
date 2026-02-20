@@ -7,8 +7,8 @@
 
 namespace nix {
 
-void Store::build_paths(const std::vector<DerivedPath>& reqs, BuildMode build_mode,
-                       std::shared_ptr<Store> eval_store) {
+void store_t::build_paths(const std::vector<derived_path_t>& reqs, BuildMode build_mode,
+                       std::shared_ptr<store_t> eval_store) {
   Worker worker(*this, eval_store ? *eval_store : *this);
 
   Goals goals;
@@ -45,13 +45,13 @@ void Store::build_paths(const std::vector<DerivedPath>& reqs, BuildMode build_mo
   }
 }
 
-std::vector<KeyedBuildResult> Store::build_paths_with_results(const std::vector<DerivedPath>& reqs,
+std::vector<keyed_build_result_t> store_t::build_paths_with_results(const std::vector<derived_path_t>& reqs,
                                                            BuildMode build_mode,
-                                                           std::shared_ptr<Store> eval_store) {
+                                                           std::shared_ptr<store_t> eval_store) {
   Worker worker(*this, eval_store ? *eval_store : *this);
 
   Goals goals;
-  std::vector<std::pair<const DerivedPath&, GoalPtr>> state;
+  std::vector<std::pair<const derived_path_t&, GoalPtr>> state;
 
   for (const auto& req : reqs) {
     auto goal = worker.makeGoal(req, build_mode);
@@ -61,11 +61,11 @@ std::vector<KeyedBuildResult> Store::build_paths_with_results(const std::vector<
 
   worker.run(goals);
 
-  std::vector<KeyedBuildResult> results;
+  std::vector<keyed_build_result_t> results;
   results.reserve(state.size());
 
   for (auto& [req, goalPtr] : state)
-    results.emplace_back(KeyedBuildResult{
+    results.emplace_back(keyed_build_result_t{
         goalPtr->buildResult,
         /* .path = */ req,
     });
@@ -73,7 +73,7 @@ std::vector<KeyedBuildResult> Store::build_paths_with_results(const std::vector<
   return results;
 }
 
-BuildResult Store::buildDerivation(const StorePath& drv_path, const BasicDerivation& drv,
+build_result_t store_t::buildDerivation(const store_path_t& drv_path, const basic_derivation_t& drv,
                                    BuildMode build_mode) {
   Worker worker(*this, *this);
   auto goal = worker.makeDerivationTrampolineGoal(drv_path, OutputsSpec::All{}, drv, build_mode);
@@ -82,14 +82,14 @@ BuildResult Store::buildDerivation(const StorePath& drv_path, const BasicDerivat
     worker.run(Goals{goal});
     return goal->buildResult;
   } catch (Error& e) {
-    return BuildResult{.inner{BuildResult::Failure{
-        .status = BuildResult::Failure::MiscFailure,
+    return build_result_t{.inner{build_result_t::Failure{
+        .status = build_result_t::Failure::MiscFailure,
         .errorMsg = e.msg(),
     }}};
   };
 }
 
-void Store::ensure_path(const StorePath& path) {
+void store_t::ensure_path(const store_path_t& path) {
   /* If the path is already valid, we're done. */
   if (isValidPath(path))
     return;
@@ -110,7 +110,7 @@ void Store::ensure_path(const StorePath& path) {
   }
 }
 
-void Store::repairPath(const StorePath& path) {
+void store_t::repairPath(const store_path_t& path) {
   Worker worker(*this, *this);
   GoalPtr goal = worker.makePathSubstitutionGoal(path, Repair);
   Goals goals = {goal};
@@ -124,7 +124,7 @@ void Store::repairPath(const StorePath& path) {
     if (info->deriver && isValidPath(*info->deriver)) {
       goals.clear();
       goals.insert(worker.makeGoal(
-          DerivedPath::Built{
+          derived_path_t::Built{
               .drv_path = makeConstantStorePathRef(*info->deriver),
               // FIXME: Should just build the specific output we need.
               .outputs = OutputsSpec::All{},

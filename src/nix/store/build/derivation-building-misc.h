@@ -8,9 +8,9 @@
 
 namespace nix {
 
-class Store;
-struct Derivation;
-struct StoreDirConfig;
+class store_t;
+struct derivation_t;
+struct store_dir_config_t;
 
 /**
  * Unless we are repairing, we don't both to test validity and just assume it,
@@ -23,7 +23,7 @@ enum struct PathStatus {
 };
 
 struct InitialOutputStatus {
-  StorePath path;
+  store_path_t path;
   PathStatus status;
 
   /**
@@ -45,6 +45,6 @@ struct InitialOutput {
 /**
  * Format the known outputs of a derivation for use in error messages.
  */
-std::string show_known_outputs(const StoreDirConfig& store, const Derivation& drv);
+std::string show_known_outputs(const store_dir_config_t& store, const derivation_t& drv);
 
 } // namespace nix

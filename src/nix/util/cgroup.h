@@ -42,6 +42,6 @@ std::string get_root_cgroup();
 /**
  * Get the PIDs of all processes in the given cgroup.
  */
-std::set<pid_t> get_pids_in_cgroup(const std::filesystem::path& cgroup);
+std::set<::pid_t> get_pids_in_cgroup(const std::filesystem::path& cgroup);
 
 } // namespace nix

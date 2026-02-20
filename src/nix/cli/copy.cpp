@@ -41,7 +41,7 @@ struct cmd_copy_t : virtual CopyCommand, virtual BuiltPathsCommand, MixProfile, 
 
   category_t category() override { return catSecondary; }
 
-  void run(ref<Store> src_store, BuiltPaths&& all_paths, BuiltPaths&& root_paths) override {
+  void run(ref<store_t> src_store, BuiltPaths&& all_paths, BuiltPaths&& root_paths) override {
     auto dst_store = getDstStore();
 
     RealisedPath::Set stuff_to_copy;

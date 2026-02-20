@@ -12,7 +12,7 @@ namespace nix {
 LocalBinaryCacheStoreConfig::LocalBinaryCacheStoreConfig(std::string_view scheme,
                                                          path_view_t binaryCacheDir,
                                                          const StoreReference::Params& params)
-    : Store::config_t{params}, BinaryCacheStoreConfig{params}, binaryCacheDir(binaryCacheDir) {}
+    : store_t::config_t{params}, binary_cache_store_config_t{params}, binaryCacheDir(binaryCacheDir) {}
 
 std::string LocalBinaryCacheStoreConfig::doc() {
   return
@@ -36,7 +36,7 @@ struct local_binary_cache_store_t : virtual binary_cache_store {
   ref<config_t> config;
 
   local_binary_cache_store_t(ref<config_t> config)
-      : Store{*config}, binary_cache_store{*config}, config{config} {}
+      : store_t{*config}, binary_cache_store{*config}, config{config} {}
 
   void init() override;
 
@@ -54,7 +54,7 @@ protected:
     del.cancel();
   }
 
-  void getFile(const std::string& path, Sink& sink) override {
+  void getFile(const std::string& path, sink_t& sink) override {
     try {
       read_file(config->binaryCacheDir + "/" + path, sink);
     } catch (sys_error_t& e) {
@@ -64,8 +64,8 @@ protected:
     }
   }
 
-  StorePathSet query_all_valid_paths() override {
-    StorePathSet paths;
+  store_path_set_t query_all_valid_paths() override {
+    store_path_set_t paths;
 
     for (auto& entry : directory_iterator_t{config->binaryCacheDir}) {
       check_interrupt();
@@ -102,7 +102,7 @@ string_set_t LocalBinaryCacheStoreConfig::uriSchemes() {
     return {"file"};
 }
 
-ref<Store> LocalBinaryCacheStoreConfig::open_store() const {
+ref<store_t> LocalBinaryCacheStoreConfig::open_store() const {
   auto store = make_ref<local_binary_cache_store_t>(
       ref{// FIXME we shouldn't actually need a mutable config
           std::const_pointer_cast<local_binary_cache_store_t::config_t>(shared_from_this())});

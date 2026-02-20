@@ -22,7 +22,7 @@ namespace nix {
 
 UDSRemoteStoreConfig::UDSRemoteStoreConfig(std::string_view scheme, std::string_view authority,
                                            const StoreReference::Params& params)
-    : Store::config_t{params},
+    : store_t::config_t{params},
       local_fs_store::config_t{params},
       remote_store::config_t{params},
       path{authority.empty() ? settings.nixDaemonSocketFile : authority} {
@@ -45,7 +45,7 @@ UDSRemoteStoreConfig::UDSRemoteStoreConfig(const Params& params)
     : UDSRemoteStoreConfig(*uriSchemes().begin(), "", params) {}
 
 UDSRemoteStore::UDSRemoteStore(ref<const config_t> config)
-    : Store{*config}, local_fs_store{*config}, remote_store{*config}, config{config} {}
+    : store_t{*config}, local_fs_store{*config}, remote_store{*config}, config{config} {}
 
 StoreReference UDSRemoteStoreConfig::getReference() const {
   /* We specifically return "daemon" here instead of "unix://" or "unix://${path}"
@@ -91,7 +91,7 @@ void UDSRemoteStore::addIndirectRoot(const Path& path) {
   read_int(conn->from);
 }
 
-ref<Store> UDSRemoteStore::config_t::open_store() const {
+ref<store_t> UDSRemoteStore::config_t::open_store() const {
   return make_ref<UDSRemoteStore>(ref{shared_from_this()});
 }
 

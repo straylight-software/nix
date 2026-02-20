@@ -1,0 +1,177 @@
+# straylight // nix // tests
+#
+# Protological tests for the nix codebase:
+# - Link integrity tests (verify all symbols are defined)
+# - Fuzz tests (malformed input handling)
+# - Property tests (invariant verification)
+# - Benchmark tests (performance baselines)
+
+# =============================================================================
+# Test utilities library (correct include order for Catch2 + RapidCheck)
+# =============================================================================
+
+cxx_library(
+    name = "test_utils",
+    header_namespace = "",
+    exported_headers = {
+        "nix/tests/property.h": "include/nix/tests/property.h",
+    },
+    exported_deps = [
+        "//third_party:catch2",
+        "//third_party:rapidcheck",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+# Common test dependencies
+TEST_DEPS = [
+    ":test_utils",
+    "//src/nix/util:util",
+    "//src/nix/store:store",
+    "//src/nix/fetchers:fetchers",
+    "//src/nix/expr:expr",
+    "//src/nix/flake:flake",
+    "//src/nix/main:main",
+    "//src/nix/cmd:cmd",
+    # NOTE: cli headers are private (not exported), so we test via cmd
+]
+
+# Minimal deps for util-only tests
+UTIL_TEST_DEPS = [
+    ":test_utils",
+    "//src/nix/util:util",
+]
+
+# Store-level deps (util + store)
+STORE_TEST_DEPS = [
+    ":test_utils",
+    "//src/nix/util:util",
+    "//src/nix/store:store",
+]
+
+TEST_COMPILER_FLAGS = [
+    "-std=c++23",
+]
+
+TEST_LINKER_FLAGS = [
+    "-lpthread",
+]
+
+# =============================================================================
+# Protological tests - link integrity
+# =============================================================================
+
+cxx_test(
+    name = "link_integrity_test",
+    srcs = ["proto/link_integrity_test.cpp"],
+    deps = TEST_DEPS,
+    compiler_flags = TEST_COMPILER_FLAGS,
+    linker_flags = TEST_LINKER_FLAGS,
+    link_style = "static",
+)
+
+# =============================================================================
+# Fuzz tests - URL parsing
+# =============================================================================
+
+cxx_test(
+    name = "url_fuzz_test",
+    srcs = ["fuzz/url_fuzz_test.cpp"],
+    deps = UTIL_TEST_DEPS,
+    compiler_flags = TEST_COMPILER_FLAGS,
+    linker_flags = TEST_LINKER_FLAGS,
+    link_style = "static",
+)
+
+# =============================================================================
+# Fuzz tests - Hash parsing
+# =============================================================================
+
+cxx_test(
+    name = "hash_fuzz_test",
+    srcs = ["fuzz/hash_fuzz_test.cpp"],
+    deps = UTIL_TEST_DEPS,
+    compiler_flags = TEST_COMPILER_FLAGS,
+    linker_flags = TEST_LINKER_FLAGS,
+    link_style = "static",
+)
+
+# =============================================================================
+# Fuzz tests - NAR archive parsing
+# =============================================================================
+
+cxx_test(
+    name = "nar_fuzz_test",
+    srcs = ["fuzz/nar_fuzz_test.cpp"],
+    deps = UTIL_TEST_DEPS,
+    compiler_flags = TEST_COMPILER_FLAGS,
+    linker_flags = TEST_LINKER_FLAGS,
+    link_style = "static",
+)
+
+# =============================================================================
+# Fuzz tests - Store path parsing
+# =============================================================================
+
+cxx_test(
+    name = "store_path_fuzz_test",
+    srcs = ["fuzz/store_path_fuzz_test.cpp"],
+    deps = STORE_TEST_DEPS,
+    compiler_flags = TEST_COMPILER_FLAGS,
+    linker_flags = TEST_LINKER_FLAGS,
+    link_style = "static",
+)
+
+# =============================================================================
+# Fuzz tests - Compression/decompression
+# =============================================================================
+
+cxx_test(
+    name = "compression_fuzz_test",
+    srcs = ["fuzz/compression_fuzz_test.cpp"],
+    deps = UTIL_TEST_DEPS,
+    compiler_flags = TEST_COMPILER_FLAGS,
+    linker_flags = TEST_LINKER_FLAGS,
+    link_style = "static",
+)
+
+# =============================================================================
+# Fuzz tests - Eval cache
+# =============================================================================
+
+cxx_test(
+    name = "eval_cache_fuzz_test",
+    srcs = ["fuzz/eval_cache_fuzz_test.cpp"],
+    deps = TEST_DEPS + [
+        "//third_party:sqlite3",
+    ],
+    compiler_flags = TEST_COMPILER_FLAGS,
+    linker_flags = TEST_LINKER_FLAGS,
+    link_style = "static",
+)
+
+# =============================================================================
+# Fuzz tests - Serialisation (daemon protocol)
+# =============================================================================
+
+cxx_test(
+    name = "serialise_fuzz_test",
+    srcs = ["fuzz/serialise_fuzz_test.cpp"],
+    deps = UTIL_TEST_DEPS,
+    compiler_flags = TEST_COMPILER_FLAGS,
+    linker_flags = TEST_LINKER_FLAGS,
+    link_style = "static",
+)
+
+# =============================================================================
+# Fuzz tests - Canon path
+# =============================================================================
+
+cxx_test(
+    name = "canon_path_fuzz_test",
+    srcs = ["fuzz/canon_path_fuzz_test.cpp"],
+    deps = UTIL_TEST_DEPS,
+    compiler_flags = TEST_COMPILER_FLAGS,
+    linker_flags = TEST_LINKER_FLAGS,
+    link_style = "static",
+)

@@ -11,7 +11,7 @@ namespace nix {
 /**
  * A simple least-recently used cache. Not thread-safe.
  */
-template <typename Key, typename Value, typename Compare = std::less<>>
+template <typename Key, typename value_t, typename Compare = std::less<>>
 class lru_cache_t {
 private:
   size_t capacity;
@@ -20,7 +20,7 @@ private:
   // and LRU.
   struct lru_iterator_t;
 
-  using Data = std::map<Key, std::pair<lru_iterator_t, Value>, Compare>;
+  using Data = std::map<Key, std::pair<lru_iterator_t, value_t>, Compare>;
   using LRU = std::list<typename Data::iterator>;
 
   struct lru_iterator_t {
@@ -48,7 +48,7 @@ public:
    * Insert or upsert an item in the cache.
    */
   template <typename K>
-  void upsert(const K& key, const Value& value) {
+  void upsert(const K& key, const value_t& value) {
     if (capacity == 0)
       return;
 
@@ -89,7 +89,7 @@ public:
    * @returns corresponding cache entry, std::nullopt if it's not in the cache
    */
   template <typename K>
-  std::optional<Value> get(const K& key) {
+  std::optional<value_t> get(const K& key) {
     auto i = data.find(key);
     if (i == data.end())
       return {};
@@ -107,7 +107,7 @@ public:
    * it's not in the cache
    */
   template <typename K>
-  Value* get_or_nullptr(const K& key) {
+  value_t* get_or_nullptr(const K& key) {
     auto i = data.find(key);
     if (i == data.end())
       return nullptr;

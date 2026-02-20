@@ -234,10 +234,10 @@ public:
     });
   }
 
-  std::pair<Outcome, std::shared_ptr<NarInfo>> lookupNarInfo(const std::string& uri,
+  std::pair<Outcome, std::shared_ptr<nar_info_t>> lookupNarInfo(const std::string& uri,
                                                              const std::string& hash_part) override {
-    return retrySQLite<std::pair<Outcome, std::shared_ptr<NarInfo>>>(
-        [&]() -> std::pair<Outcome, std::shared_ptr<NarInfo>> {
+    return retrySQLite<std::pair<Outcome, std::shared_ptr<nar_info_t>>>(
+        [&]() -> std::pair<Outcome, std::shared_ptr<nar_info_t>> {
           auto state(_state.lock());
 
           auto& cache(get_cache(*state, uri));
@@ -255,7 +255,7 @@ public:
             return {oInvalid, 0};
 
           auto name_part = query_nar.getStr(1);
-          auto narInfo = make_ref<NarInfo>(cache.store_dir, StorePath(hash_part + "-" + name_part),
+          auto narInfo = make_ref<nar_info_t>(cache.store_dir, store_path_t(hash_part + "-" + name_part),
                                            Hash::parse_any_prefixed(query_nar.getStr(6)));
           narInfo->url = query_nar.getStr(2);
           narInfo->compression = query_nar.getStr(3);
@@ -264,21 +264,21 @@ public:
           narInfo->file_size = query_nar.getInt(5);
           narInfo->nar_size = query_nar.getInt(7);
           for (auto& r : tokenize_string<strings_t>(query_nar.getStr(8), " "))
-            narInfo->references.insert(StorePath(r));
+            narInfo->references.insert(store_path_t(r));
           if (!query_nar.isNull(9))
-            narInfo->deriver = StorePath(query_nar.getStr(9));
+            narInfo->deriver = store_path_t(query_nar.getStr(9));
           for (auto& sig : tokenize_string<strings_t>(query_nar.getStr(10), " "))
             narInfo->sigs.insert(sig);
-          narInfo->ca = ContentAddress::parseOpt(query_nar.getStr(11));
+          narInfo->ca = content_address_t::parseOpt(query_nar.getStr(11));
 
           return {oValid, narInfo};
         });
   }
 
-  std::pair<Outcome, std::shared_ptr<Realisation>> lookupRealisation(const std::string& uri,
+  std::pair<Outcome, std::shared_ptr<realisation_t>> lookupRealisation(const std::string& uri,
                                                                      const DrvOutput& id) override {
-    return retrySQLite<std::pair<Outcome, std::shared_ptr<Realisation>>>(
-        [&]() -> std::pair<Outcome, std::shared_ptr<Realisation>> {
+    return retrySQLite<std::pair<Outcome, std::shared_ptr<realisation_t>>>(
+        [&]() -> std::pair<Outcome, std::shared_ptr<realisation_t>> {
           auto state(_state.lock());
 
           auto& cache(get_cache(*state, uri));
@@ -297,7 +297,7 @@ public:
           try {
             return {
                 oValid,
-                std::make_shared<Realisation>(nlohmann::json::parse(query_realisation.getStr(0))),
+                std::make_shared<realisation_t>(nlohmann::json::parse(query_realisation.getStr(0))),
             };
           } catch (Error& e) {
             e.add_trace({}, "while parsing the local disk cache");
@@ -307,14 +307,14 @@ public:
   }
 
   void upsertNarInfo(const std::string& uri, const std::string& hash_part,
-                     std::shared_ptr<const ValidPathInfo> info) override {
+                     std::shared_ptr<const valid_path_info_t> info) override {
     retrySQLite<void>([&]() {
       auto state(_state.lock());
 
       auto& cache(get_cache(*state, uri));
 
       if (info) {
-        auto narInfo = std::dynamic_pointer_cast<const NarInfo>(info);
+        auto narInfo = std::dynamic_pointer_cast<const nar_info_t>(info);
 
         // assert(hashPart == storePathToHash(info->path));
 
@@ -338,7 +338,7 @@ public:
     });
   }
 
-  void upsertRealisation(const std::string& uri, const Realisation& realisation) override {
+  void upsertRealisation(const std::string& uri, const realisation_t& realisation) override {
     retrySQLite<void>([&]() {
       auto state(_state.lock());
 

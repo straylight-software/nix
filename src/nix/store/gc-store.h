@@ -13,8 +13,8 @@ namespace nix {
 using GcRootInfo = std::string;
 
 typedef boost::unordered_flat_map<
-    StorePath, boost::unordered_flat_set<GcRootInfo, string_view_hash_t, std::equal_to<>>,
-    std::hash<StorePath>>
+    store_path_t, boost::unordered_flat_set<GcRootInfo, string_view_hash_t, std::equal_to<>>,
+    std::hash<store_path_t>>
     Roots;
 
 /**
@@ -55,7 +55,7 @@ struct GCOptions {
   /**
    * For `gcDeleteSpecific`, the paths to delete.
    */
-  StorePathSet pathsToDelete;
+  store_path_set_t pathsToDelete;
 
   /**
    * Stop after at least `maxFreed` bytes have been freed.
@@ -84,7 +84,7 @@ struct GCResults {
 };
 
 /**
- * Mix-in class for \ref Store "stores" which expose a notion of garbage
+ * Mix-in class for \ref store_t "stores" which expose a notion of garbage
  * collection.
  *
  * Garbage collection will allow deleting paths which are not
@@ -92,7 +92,7 @@ struct GCResults {
  *
  * The notion of GC roots actually not part of this class.
  *
- *  - The base `Store` class has `Store::addTempRoot()` because for a store
+ *  - The base `store_t` class has `store_t::addTempRoot()` because for a store
  *    that doesn't support garbage collection at all, a temporary GC root is
  *    safely implementable as no-op.
  *
@@ -109,7 +109,7 @@ struct GCResults {
  *    system, and `local_fs_store::addPermRoot` thus does not make sense
  *    for them.
  */
-struct GcStore : public virtual Store {
+struct GcStore : public virtual store_t {
   inline static std::string operation_name = "Garbage collection";
 
   /**

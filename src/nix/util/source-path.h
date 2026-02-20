@@ -19,10 +19,10 @@ namespace nix {
  * support fetching files in other ways.
  */
 struct source_path_t {
-  ref<SourceAccessor> accessor;
+  ref<source_accessor_t> accessor;
   canon_path_t path;
 
-  source_path_t(ref<SourceAccessor> accessor, canon_path_t path = canon_path_t::root)
+  source_path_t(ref<source_accessor_t> accessor, canon_path_t path = canon_path_t::root)
       : accessor(std::move(accessor)), path(std::move(path)) {}
 
   [[nodiscard]] std::string_view base_name() const;
@@ -39,7 +39,7 @@ struct source_path_t {
    */
   [[nodiscard]] std::string read_file() const;
 
-  void read_file(Sink& sink, std::function<void(uint64_t)> size_callback = [](uint64_t) {}) const {
+  void read_file(sink_t& sink, std::function<void(uint64_t)> size_callback = [](uint64_t) {}) const {
     return accessor->read_file(path, sink, size_callback);
   }
 
@@ -53,19 +53,19 @@ struct source_path_t {
    * Return stats about this `source_path_t`, or throw an exception if
    * it doesn't exist.
    */
-  [[nodiscard]] auto lstat() const -> SourceAccessor::stat_t;
+  [[nodiscard]] auto lstat() const -> source_accessor_t::stat_t;
 
   /**
    * Return stats about this `source_path_t`, or std::nullopt if it
    * doesn't exist.
    */
-  [[nodiscard]] std::optional<SourceAccessor::stat_t> maybe_lstat() const;
+  [[nodiscard]] std::optional<source_accessor_t::stat_t> maybe_lstat() const;
 
   /**
    * If this `source_path_t` denotes a directory (not a symlink),
    * return its directory entries; otherwise throw an error.
    */
-  [[nodiscard]] auto read_directory() const -> SourceAccessor::dir_entries_t;
+  [[nodiscard]] auto read_directory() const -> source_accessor_t::dir_entries_t;
 
   /**
    * If this `source_path_t` denotes a symlink, return its target;
@@ -76,7 +76,7 @@ struct source_path_t {
   /**
    * Dump this `source_path_t` to `sink` as a NAR archive.
    */
-  void dump_path(Sink& sink, path_filter_t& filter = default_path_filter) const;
+  void dump_path(sink_t& sink, path_filter_t& filter = default_path_filter) const;
 
   /**
    * Return the location of this path in the "real" filesystem, if
@@ -102,7 +102,7 @@ struct source_path_t {
   std::strong_ordering operator<=>(const source_path_t& x) const noexcept;
 
   /**
-   * Convenience wrapper around `SourceAccessor::resolve_symlinks()`.
+   * Convenience wrapper around `source_accessor_t::resolve_symlinks()`.
    */
   [[nodiscard]] auto resolve_symlinks(symlink_resolution_t mode = symlink_resolution_t::full) const
       -> source_path_t {

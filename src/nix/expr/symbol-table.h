@@ -13,9 +13,9 @@
 
 namespace nix {
 
-class SymbolValue : protected Value {
+class SymbolValue : protected value_t {
   friend class SymbolStr;
-  friend class SymbolTable;
+  friend class symbol_table_t;
 
   operator std::string_view() const noexcept { return string_view(); }
 };
@@ -41,19 +41,19 @@ class StaticSymbolTable;
  * (using an equality test), because the symbol table stores only one
  * copy of each string.
  */
-class Symbol {
+class symbol_t {
   friend class SymbolStr;
-  friend class SymbolTable;
+  friend class symbol_table_t;
   friend class StaticSymbolTable;
 
 private:
-  /// The offset of the symbol in `SymbolTable::arena`.
+  /// The offset of the symbol in `symbol_table_t::arena`.
   uint32_t id;
 
-  explicit constexpr Symbol(uint32_t id) noexcept : id(id) {}
+  explicit constexpr symbol_t(uint32_t id) noexcept : id(id) {}
 
 public:
-  constexpr Symbol() noexcept : id(0) {}
+  constexpr symbol_t() noexcept : id(0) {}
 
   [[gnu::always_inline]]
   constexpr explicit operator bool() const noexcept {
@@ -68,20 +68,20 @@ public:
     return id;
   }
 
-  constexpr auto operator<=>(const Symbol& other) const noexcept = default;
+  constexpr auto operator<=>(const symbol_t& other) const noexcept = default;
 
-  friend class std::hash<Symbol>;
+  friend class std::hash<symbol_t>;
 
   constexpr static size_t alignment = alignof(SymbolValue);
 };
 
 /**
  * This class mainly exists to give us an operator<< for ostreams. We could also
- * return plain strings from SymbolTable, but then we'd have to wrap every
+ * return plain strings from symbol_table_t, but then we'd have to wrap every
  * instance of a symbol that is fmt()ed, which is inconvenient and error-prone.
  */
 class SymbolStr {
-  friend class SymbolTable;
+  friend class symbol_table_t;
 
   const SymbolValue* s;
 
@@ -127,7 +127,7 @@ public:
   }
 
   [[gnu::always_inline]]
-  const Value* valuePtr() const noexcept {
+  const value_t* valuePtr() const noexcept {
     return s;
   }
 
@@ -157,11 +157,11 @@ public:
   };
 
   constexpr static size_t computeSize(std::string_view s) {
-    return align_up(sizeof(Value) + sizeof(StringData) + s.size() + 1, Symbol::alignment);
+    return align_up(sizeof(value_t) + sizeof(StringData) + s.size() + 1, symbol_t::alignment);
   }
 };
 
-class SymbolTable;
+class symbol_table_t;
 
 /**
  * Convenience class to statically assign symbol identifiers at compile-time.
@@ -171,7 +171,7 @@ class StaticSymbolTable {
 
   struct StaticSymbolInfo {
     std::string_view str;
-    Symbol sym;
+    symbol_t sym;
   };
 
   std::array<StaticSymbolInfo, max_size> symbols;
@@ -181,26 +181,26 @@ class StaticSymbolTable {
 public:
   constexpr StaticSymbolTable() = default;
 
-  constexpr Symbol create(std::string_view str) {
+  constexpr symbol_t create(std::string_view str) {
     /* No need to check bounds because out of bounds access is
        a compilation error. */
-    auto sym = Symbol(next_id);
+    auto sym = symbol_t(next_id);
     symbols[size++] = {str, sym};
     next_id += SymbolStr::computeSize(str);
     return sym;
   }
 
-  void copyIntoSymbolTable(SymbolTable& symtab) const;
+  void copyIntoSymbolTable(symbol_table_t& symtab) const;
 };
 
 /**
- * Symbol table used by the parser and evaluator to represent and look
+ * symbol_t table used by the parser and evaluator to represent and look
  * up identifiers and attributes efficiently.
  */
-class SymbolTable {
+class symbol_table_t {
 private:
   /**
-   * SymbolTable is an append only data structure.
+   * symbol_table_t is an append only data structure.
    * During its lifetime the monotonic buffer holds all strings and nodes, if the symbol set is node
    * based.
    */
@@ -213,9 +213,9 @@ private:
   boost::concurrent_flat_set<SymbolStr, SymbolStr::Hash, SymbolStr::Equal> symbols;
 
 public:
-  SymbolTable(const StaticSymbolTable& staticSymtab) : arena(1 << 30) {
+  symbol_table_t(const StaticSymbolTable& staticSymtab) : arena(1 << 30) {
     // Reserve symbol ID 0 and ensure alignment of the first allocation.
-    arena.allocate(Symbol::alignment);
+    arena.allocate(symbol_t::alignment);
 
     staticSymtab.copyIntoSymbolTable(*this);
   }
@@ -223,9 +223,9 @@ public:
   /**
    * Converts a string into a symbol.
    */
-  Symbol create(std::string_view s);
+  symbol_t create(std::string_view s);
 
-  std::vector<SymbolStr> resolve(const std::span<const Symbol>& symbols) const {
+  std::vector<SymbolStr> resolve(const std::span<const symbol_t>& symbols) const {
     std::vector<SymbolStr> result;
     result.reserve(symbols.size());
     for (auto& sym : symbols)
@@ -233,7 +233,7 @@ public:
     return result;
   }
 
-  SymbolStr operator[](Symbol s) const {
+  SymbolStr operator[](symbol_t s) const {
     assert(s.id);
     // Note: we don't check arena.size here to avoid a dependency
     // on other threads creating new symbols.
@@ -247,18 +247,18 @@ public:
   template <typename T>
   void dump(T callback) const {
     std::string_view left{arena.data, arena.size};
-    left = left.substr(Symbol::alignment);
+    left = left.substr(symbol_t::alignment);
     while (!left.empty()) {
       auto v = reinterpret_cast<const SymbolValue*>(left.data());
       callback(v->string_view());
       left = left.substr(
           align_up(sizeof(SymbolValue) + sizeof(StringData) + v->string_view().size() + 1,
-                  Symbol::alignment));
+                  symbol_t::alignment));
     }
   }
 };
 
-inline void StaticSymbolTable::copyIntoSymbolTable(SymbolTable& symtab) const {
+inline void StaticSymbolTable::copyIntoSymbolTable(symbol_table_t& symtab) const {
   for (std::size_t i = 0; i < size; ++i) {
     auto [str, staticSym] = symbols[i];
     auto sym = symtab.create(str);
@@ -270,8 +270,8 @@ inline void StaticSymbolTable::copyIntoSymbolTable(SymbolTable& symtab) const {
 } // namespace nix
 
 template <>
-struct std::hash<nix::Symbol> {
-  std::size_t operator()(const nix::Symbol& s) const noexcept {
+struct std::hash<nix::symbol_t> {
+  std::size_t operator()(const nix::symbol_t& s) const noexcept {
     return std::hash<decltype(s.id)>{}(s.id);
   }
 };

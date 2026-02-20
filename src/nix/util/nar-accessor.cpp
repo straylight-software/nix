@@ -12,7 +12,7 @@
 namespace nix {
 
 struct nar_member_t {
-  SourceAccessor::stat_t stat;
+  source_accessor_t::stat_t stat;
 
   std::string target;
 
@@ -39,16 +39,16 @@ public:
   void operator()(std::string_view data) override {}
 };
 
-struct nar_accessor_t : public SourceAccessor {
+struct nar_accessor_t : public source_accessor_t {
   std::optional<const std::string> nar;
 
   get_nar_bytes_t get_nar_bytes;
 
   nar_member_t root;
 
-  struct nar_indexer_t : file_system_object_sink_t, Source {
+  struct nar_indexer_t : file_system_object_sink_t, source_t {
     nar_accessor_t& acc;
-    Source& source;
+    source_t& source;
 
     std::stack<nar_member_t*> parents;
 
@@ -56,7 +56,7 @@ struct nar_accessor_t : public SourceAccessor {
 
     uint64_t pos = 0;
 
-    nar_indexer_t(nar_accessor_t& acc, Source& source) : acc(acc), source(source) {}
+    nar_indexer_t(nar_accessor_t& acc, source_t& source) : acc(acc), source(source) {}
 
     nar_member_t& create_member(const canon_path_t& path, nar_member_t member) {
       size_t level = 0;
@@ -119,12 +119,12 @@ struct nar_accessor_t : public SourceAccessor {
     parse_dump(indexer, indexer);
   }
 
-  nar_accessor_t(Source& source) {
+  nar_accessor_t(source_t& source) {
     nar_indexer_t indexer(*this, source);
     parse_dump(indexer, indexer);
   }
 
-  nar_accessor_t(Source& source, get_nar_bytes_t get_nar_bytes)
+  nar_accessor_t(source_t& source, get_nar_bytes_t get_nar_bytes)
       : get_nar_bytes(std::move(get_nar_bytes)) {
     nar_indexer_t indexer(*this, source);
     parse_dump(indexer, indexer);
@@ -225,20 +225,20 @@ struct nar_accessor_t : public SourceAccessor {
   }
 };
 
-ref<SourceAccessor> make_nar_accessor(std::string&& nar) {
+ref<source_accessor_t> make_nar_accessor(std::string&& nar) {
   return make_ref<nar_accessor_t>(std::move(nar));
 }
 
-ref<SourceAccessor> make_nar_accessor(Source& source) {
+ref<source_accessor_t> make_nar_accessor(source_t& source) {
   return make_ref<nar_accessor_t>(source);
 }
 
-ref<SourceAccessor> make_lazy_nar_accessor(const nlohmann::json& listing,
+ref<source_accessor_t> make_lazy_nar_accessor(const nlohmann::json& listing,
                                            get_nar_bytes_t get_nar_bytes) {
   return make_ref<nar_accessor_t>(listing, get_nar_bytes);
 }
 
-ref<SourceAccessor> make_lazy_nar_accessor(Source& source, get_nar_bytes_t get_nar_bytes) {
+ref<source_accessor_t> make_lazy_nar_accessor(source_t& source, get_nar_bytes_t get_nar_bytes) {
   return make_ref<nar_accessor_t>(source, get_nar_bytes);
 }
 
@@ -274,11 +274,11 @@ template <bool deep>
 using list_nar_result_t = std::conditional_t<deep, nar_listing_t, shallow_nar_listing_t>;
 
 template <bool deep>
-static list_nar_result_t<deep> list_nar_impl(SourceAccessor& accessor, const canon_path_t& path) {
+static list_nar_result_t<deep> list_nar_impl(source_accessor_t& accessor, const canon_path_t& path) {
   auto st = accessor.lstat(path);
 
   switch (st.type) {
-    case SourceAccessor::Type::t_regular:
+    case source_accessor_t::Type::t_regular:
       return typename list_nar_result_t<deep>::regular{
           .executable = st.is_executable,
           .contents =
@@ -287,7 +287,7 @@ static list_nar_result_t<deep> list_nar_impl(SourceAccessor& accessor, const can
                   .nar_offset = st.nar_offset && *st.nar_offset ? st.nar_offset : std::nullopt,
               },
       };
-    case SourceAccessor::Type::t_directory: {
+    case source_accessor_t::Type::t_directory: {
       typename list_nar_result_t<deep>::directory_t dir;
       for (const auto& [name, type] : accessor.read_directory(path)) {
         if constexpr (deep) {
@@ -298,24 +298,24 @@ static list_nar_result_t<deep> list_nar_impl(SourceAccessor& accessor, const can
       }
       return dir;
     }
-    case SourceAccessor::Type::t_symlink:
+    case source_accessor_t::Type::t_symlink:
       return typename list_nar_result_t<deep>::symlink{
           .target = accessor.read_link(path),
       };
-    case SourceAccessor::Type::t_block:
-    case SourceAccessor::Type::t_char:
-    case SourceAccessor::Type::t_socket:
-    case SourceAccessor::Type::t_fifo:
-    case SourceAccessor::Type::t_unknown:
+    case source_accessor_t::Type::t_block:
+    case source_accessor_t::Type::t_char:
+    case source_accessor_t::Type::t_socket:
+    case source_accessor_t::Type::t_fifo:
+    case source_accessor_t::Type::t_unknown:
       assert(false); // cannot happen for NARs
   }
 }
 
-nar_listing_t list_nar_deep(SourceAccessor& accessor, const canon_path_t& path) {
+nar_listing_t list_nar_deep(source_accessor_t& accessor, const canon_path_t& path) {
   return list_nar_impl<true>(accessor, path);
 }
 
-shallow_nar_listing_t list_nar_shallow(SourceAccessor& accessor, const canon_path_t& path) {
+shallow_nar_listing_t list_nar_shallow(source_accessor_t& accessor, const canon_path_t& path) {
   return list_nar_impl<false>(accessor, path);
 }
 

@@ -14,16 +14,16 @@
 
 namespace nix {
 
-class Store;
-struct StoreDirConfig;
-struct BasicDerivation;
+class store_t;
+struct store_dir_config_t;
+struct basic_derivation_t;
 struct StructuredAttrs;
 
 template <typename V>
 struct DerivedPathMap;
 
 /**
- * This represents all the special options on a `Derivation`.
+ * This represents all the special options on a `derivation_t`.
  *
  * Currently, these options are parsed from the environment variables
  * with the aid of `StructuredAttrs`.
@@ -39,13 +39,13 @@ struct DerivedPathMap;
  * separately. That would be nice to separate concerns, and not make any
  * environment variable names magical.
  */
-template <typename Input>
-struct DerivationOptions {
+template <typename input_t>
+struct derivation_options_t {
   struct OutputChecks {
     bool ignoreSelfRefs = false;
     std::optional<uint64_t> max_size, maxClosureSize;
 
-    using DrvRef = nix::DrvRef<Input>;
+    using DrvRef = nix::DrvRef<input_t>;
 
     /**
      * env: allowedReferences
@@ -120,9 +120,9 @@ struct DerivationOptions {
    *
    * The same information will be put put in the final structured
    * attributes give to the builder. The set of paths in the original JSON
-   * is replaced with a list of `PathInfo` in JSON format.
+   * is replaced with a list of `path_info_t` in JSON format.
    */
-  std::map<std::string, std::set<Input>> exportReferencesGraph;
+  std::map<std::string, std::set<input_t>> exportReferencesGraph;
 
   /**
    * env: __sandboxProfile
@@ -134,7 +134,7 @@ struct DerivationOptions {
   /**
    * env: __noChroot
    *
-   * Derivation would like to opt out of the sandbox.
+   * derivation_t would like to opt out of the sandbox.
    *
    * Builder is free to not respect this wish (because it is
    * insecure) and fail the build instead.
@@ -173,37 +173,37 @@ struct DerivationOptions {
    */
   bool allowSubstitutes = true;
 
-  bool operator==(const DerivationOptions&) const = default;
+  bool operator==(const derivation_options_t&) const = default;
 
   /**
    * @param drv Must be the same derivation we parsed this from. In
-   * the future we'll flip things around so a `BasicDerivation` has
-   * `DerivationOptions` instead.
+   * the future we'll flip things around so a `basic_derivation_t` has
+   * `derivation_options_t` instead.
    */
-  string_set_t getRequiredSystemFeatures(const BasicDerivation& drv) const;
+  string_set_t getRequiredSystemFeatures(const basic_derivation_t& drv) const;
 
   /**
    * @param drv See note on `getRequiredSystemFeatures`
    */
-  bool canBuildLocally(Store& localStore, const BasicDerivation& drv) const;
+  bool canBuildLocally(store_t& localStore, const basic_derivation_t& drv) const;
 
   /**
    * @param drv See note on `getRequiredSystemFeatures`
    */
-  bool willBuildLocally(Store& localStore, const BasicDerivation& drv) const;
+  bool willBuildLocally(store_t& localStore, const basic_derivation_t& drv) const;
 
   bool substitutesAllowed() const;
 
   /**
    * @param drv See note on `getRequiredSystemFeatures`
    */
-  bool useUidRange(const BasicDerivation& drv) const;
+  bool useUidRange(const basic_derivation_t& drv) const;
 };
 
-extern template struct DerivationOptions<StorePath>;
-extern template struct DerivationOptions<SingleDerivedPath>;
+extern template struct derivation_options_t<store_path_t>;
+extern template struct derivation_options_t<SingleDerivedPath>;
 
-struct DerivationOutput;
+struct derivation_output_t;
 
 /**
  * Parse this information from its legacy encoding as part of the
@@ -211,34 +211,34 @@ struct DerivationOutput;
  * (e.g. JSON) but is necessary for supporting old formats (e.g.
  * ATerm).
  */
-DerivationOptions<SingleDerivedPath> derivation_options_from_structured_attrs(
-    const StoreDirConfig& store, const DerivedPathMap<string_set_t>& input_drvs, const string_map_t& env,
+derivation_options_t<SingleDerivedPath> derivation_options_from_structured_attrs(
+    const store_dir_config_t& store, const DerivedPathMap<string_set_t>& input_drvs, const string_map_t& env,
     const StructuredAttrs* parsed, bool should_warn = true,
     const experimental_feature_settings_t& mock_xp_settings = experimental_feature_settings);
 
-DerivationOptions<StorePath> derivation_options_from_structured_attrs(
-    const StoreDirConfig& store, const string_map_t& env, const StructuredAttrs* parsed,
+derivation_options_t<store_path_t> derivation_options_from_structured_attrs(
+    const store_dir_config_t& store, const string_map_t& env, const StructuredAttrs* parsed,
     bool should_warn = true,
     const experimental_feature_settings_t& mock_xp_settings = experimental_feature_settings);
 
 /**
- * This is the counterpart of `Derivation::try_resolve`. In particular,
+ * This is the counterpart of `derivation_t::try_resolve`. In particular,
  * it takes the same sort of callback, which is used to reolve
  * non-constant deriving paths.
  *
  * We need this function when resolving a derivation, and we will use
- * this as part of that if/when `Derivation` includes
- * `DerivationOptions`
+ * this as part of that if/when `derivation_t` includes
+ * `derivation_options_t`
  */
-std::optional<DerivationOptions<StorePath>>
-try_resolve(const DerivationOptions<SingleDerivedPath>& drv_options,
-           std::function<std::optional<StorePath>(ref<const SingleDerivedPath> drv_path,
+std::optional<derivation_options_t<store_path_t>>
+try_resolve(const derivation_options_t<SingleDerivedPath>& drv_options,
+           std::function<std::optional<store_path_t>(ref<const SingleDerivedPath> drv_path,
                                                   const std::string& output_name)>
                queryResolutionChain);
 
 }; // namespace nix
 
-JSON_IMPL(nix::DerivationOptions<nix::StorePath>);
-JSON_IMPL(nix::DerivationOptions<nix::SingleDerivedPath>);
-JSON_IMPL(nix::DerivationOptions<nix::StorePath>::OutputChecks)
-JSON_IMPL(nix::DerivationOptions<nix::SingleDerivedPath>::OutputChecks)
+JSON_IMPL(nix::derivation_options_t<nix::store_path_t>);
+JSON_IMPL(nix::derivation_options_t<nix::SingleDerivedPath>);
+JSON_IMPL(nix::derivation_options_t<nix::store_path_t>::OutputChecks)
+JSON_IMPL(nix::derivation_options_t<nix::SingleDerivedPath>::OutputChecks)

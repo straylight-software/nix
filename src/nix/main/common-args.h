@@ -10,7 +10,7 @@ namespace nix {
 static constexpr auto loggingCategory = "Logging-related options";
 static constexpr auto miscCategory = "Miscellaneous global options";
 
-class MixCommonArgs : public virtual Args {
+class MixCommonArgs : public virtual args_t {
   void initial_flags_processed() override;
 
 public:
@@ -21,7 +21,7 @@ protected:
   virtual void plugins_inited() {}
 };
 
-struct MixDryRun : virtual Args {
+struct MixDryRun : virtual args_t {
   bool dry_run = false;
 
   MixDryRun() {
@@ -40,7 +40,7 @@ struct MixDryRun : virtual Args {
  * This is distinct from MixJSON, because for some commands,
  * JSON outputs is not optional.
  */
-struct MixPrintJSON : virtual Args {
+struct MixPrintJSON : virtual args_t {
   bool outputPretty = isatty(STDOUT_FILENO);
 
   MixPrintJSON() {
@@ -88,7 +88,7 @@ struct MixPrintJSON : virtual Args {
 };
 
 /** Optional JSON support via `--json` flag */
-struct MixJSON : virtual Args, virtual MixPrintJSON {
+struct MixJSON : virtual args_t, virtual MixPrintJSON {
   bool json = false;
 
   MixJSON() {
@@ -101,7 +101,7 @@ struct MixJSON : virtual Args, virtual MixPrintJSON {
   }
 };
 
-struct MixRepair : virtual Args {
+struct MixRepair : virtual args_t {
   RepairFlag repair = NoRepair;
 
   MixRepair() {
