@@ -800,8 +800,8 @@ void eval_state_t::runDebugRepl(const Error* error, const Env& env, const expr_t
   auto dts = [&]() -> std::unique_ptr<DebugTraceStacker> {
     if (error && expr.getPos()) {
       auto trace = DebugTrace{.pos = [&]() -> std::variant<pos_t, pos_idx_t> {
-                                if (error->info().pos) {
-                                  if (auto* pos = error->info().pos.get())
+                                if (error->info().pos_) {
+                                  if (auto* pos = error->info().pos_.get())
                                     return *pos;
                                   return no_pos;
                                 }
@@ -809,7 +809,7 @@ void eval_state_t::runDebugRepl(const Error* error, const Env& env, const expr_t
                               }(),
                               .expr = expr,
                               .env = env,
-                              .hint = error->info().msg,
+                              .hint = error->info().msg_,
                               .isError = true};
 
       return std::make_unique<DebugTraceStacker>(*this, std::move(trace));
@@ -820,7 +820,7 @@ void eval_state_t::runDebugRepl(const Error* error, const Env& env, const expr_t
   if (error) {
     printError("%s\n", error->what());
 
-    if (trylevel > 0 && error->info().level != lvl_info)
+    if (trylevel > 0 && error->info().level_ != lvl_info)
       printError("This exception occurred in a 'tryEval' call. Use " ANSI_GREEN
                  "--ignore-try" ANSI_NORMAL " to skip these.\n");
   }
@@ -3120,8 +3120,8 @@ std::optional<source_path_t> eval_state_t::resolveLookupPathPath(const LookupPat
           fetch_to_store(fetch_settings, *store, source_path_t(accessor), FetchMode::Copy);
       return finish(this->store_path(store_path));
     } catch (Error& e) {
-      logWarning(
-          {.msg = hint_fmt_t("Nix search path entry '%1%' cannot be downloaded, ignoring", value)});
+      logWarning({.msg_ = hint_fmt_t("Nix search path entry '%1%' cannot be downloaded, ignoring",
+                                     value)});
     }
   }
 
@@ -3158,7 +3158,7 @@ std::optional<source_path_t> eval_state_t::resolveLookupPathPath(const LookupPat
         accessor->checkAccess(path.path);
 
       logWarning(
-          {.msg = hint_fmt_t("Nix search path entry '%1%' does not exist, ignoring", value)});
+          {.msg_ = hint_fmt_t("Nix search path entry '%1%' does not exist, ignoring", value)});
     }
   }
 

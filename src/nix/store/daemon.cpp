@@ -31,11 +31,11 @@ namespace nix::daemon {
 sink_t& operator<<(sink_t& sink, const logger_t::fields_t& fields) {
   sink << fields.size();
   for (auto& f : fields) {
-    sink << f.type;
-    if (f.type == logger_t::field_t::t_int)
-      sink << f.i;
-    else if (f.type == logger_t::field_t::t_string)
-      sink << f.s;
+    sink << f.type_;
+    if (f.type_ == logger_t::field_t::t_int)
+      sink << f.i_;
+    else if (f.type_ == logger_t::field_t::t_string)
+      sink << f.s_;
     else
       unreachable();
   }
@@ -88,7 +88,7 @@ struct tunnel_logger_t : public logger_t {
   }
 
   void log_ei(const error_info_t& ei) override {
-    if (ei.level > verbosity)
+    if (ei.level_ > verbosity)
       return;
 
     std::ostringstream oss;
@@ -126,7 +126,7 @@ struct tunnel_logger_t : public logger_t {
       if (GET_PROTOCOL_MINOR(client_version) >= 26) {
         to << STDERR_ERROR << *ex;
       } else {
-        to << STDERR_ERROR << ex->what() << ex->info().status;
+        to << STDERR_ERROR << ex->what() << ex->info().status_;
       }
     }
   }

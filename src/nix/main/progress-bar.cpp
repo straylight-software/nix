@@ -16,14 +16,14 @@ namespace nix {
 
 static std::string_view get_s(const std::vector<logger_t::field_t>& fields, size_t n) {
   assert(n < fields.size());
-  assert(fields[n].type == logger_t::field_t::t_string);
-  return fields[n].s;
+  assert(fields[n].type_ == logger_t::field_t::t_string);
+  return fields[n].s_;
 }
 
 static uint64_t get_i(const std::vector<logger_t::field_t>& fields, size_t n) {
   assert(n < fields.size());
-  assert(fields[n].type == logger_t::field_t::t_int);
-  return fields[n].i;
+  assert(fields[n].type_ == logger_t::field_t::t_int);
+  return fields[n].i_;
 }
 
 static std::string_view store_path_to_name(std::string_view path) {
@@ -167,7 +167,7 @@ public:
     std::ostringstream oss;
     show_error_info(oss, ei, logger_settings.show_trace.get());
 
-    log(*state, ei.level, oss.view());
+    log(*state, ei.level_, oss.view());
   }
 
   void log(State& state, verbosity_t lvl, std::string_view s) {

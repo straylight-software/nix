@@ -76,9 +76,9 @@ template <typename T>
 struct explicit_t {
   T t;
 
-  auto operator==(const explicit_t<T>& other) const -> bool = default;
+  [[nodiscard]] auto operator==(const explicit_t<T>& other) const -> bool = default;
 
-  auto operator<(const explicit_t<T>& other) const -> bool { return t < other.t; }
+  [[nodiscard]] auto operator<(const explicit_t<T>& other) const -> bool { return t < other.t; }
 };
 
 /**
@@ -107,7 +107,7 @@ private:
   public:
     explicit ptr(std::string_view sv) : view_(sv) {}
 
-    auto operator->() const -> const std::string_view* { return &view_; }
+    [[nodiscard]] auto operator->() const -> const std::string_view* { return &view_; }
   };
 
 public:
@@ -130,16 +130,16 @@ public:
 
   [[nodiscard]] auto is_owned() const -> bool { return std::holds_alternative<std::string>(data_); }
 
-  auto to_owned() && -> std::string {
+  [[nodiscard]] auto to_owned() && -> std::string {
     return is_owned() ? std::move(std::get<std::string>(data_))
                       : std::string(std::get<std::string_view>(data_));
   }
 
-  auto operator*() const -> std::string_view {
+  [[nodiscard]] auto operator*() const -> std::string_view {
     return is_owned() ? std::get<std::string>(data_) : std::get<std::string_view>(data_);
   }
 
-  auto operator->() const -> ptr { return ptr(**this); }
+  [[nodiscard]] auto operator->() const -> ptr { return ptr(**this); }
 };
 
 } // namespace nix

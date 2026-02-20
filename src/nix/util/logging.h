@@ -72,16 +72,16 @@ class logger_t {
 public:
   struct field_t {
     // FIXME: use std::variant.
-    enum { t_int = 0, t_string = 1 } type;
+    enum { t_int = 0, t_string = 1 } type_;
 
-    uint64_t i = 0;
-    std::string s{};
+    uint64_t i_ = 0;
+    std::string s_{};
 
-    explicit field_t(const std::string& s) : type(t_string), s(s) {}
+    explicit field_t(const std::string& str) : type_(t_string), s_(str) {}
 
-    explicit field_t(const char* s) : type(t_string), s(s) {}
+    explicit field_t(const char* str) : type_(t_string), s_(str) {}
 
-    explicit field_t(const uint64_t& i) : type(t_int), i(i) {}
+    explicit field_t(const uint64_t& val) : type_(t_int), i_(val) {}
   };
 
   using fields_t = std::vector<field_t>;
@@ -107,39 +107,39 @@ public:
   // Whether the logger prints the whole build log
   [[nodiscard]] virtual auto is_verbose() -> bool { return false; }
 
-  virtual auto log(verbosity_t lvl, std::string_view s) -> void = 0;
+  virtual auto log(verbosity_t lvl, std::string_view msg) -> void = 0;
 
-  auto log(std::string_view s) -> void { log(lvl_info, s); }
+  auto log(std::string_view msg) -> void { log(lvl_info, msg); }
 
   virtual auto log_ei(const error_info_t& ei) -> void = 0;
 
   auto log_ei(verbosity_t lvl, error_info_t ei) -> void {
-    ei.level = lvl;
+    ei.level_ = lvl;
     log_ei(ei);
   }
 
   virtual auto warn(const std::string& msg) -> void;
 
-  virtual auto start_activity(activity_id_t act, verbosity_t /*lvl*/, activity_type_t /*type*/,
-                              const std::string& s, const fields_t& /*fields*/,
-                              activity_id_t parent) -> void {};
+  virtual auto start_activity(activity_id_t /*act*/, verbosity_t /*lvl*/, activity_type_t /*type*/,
+                              const std::string& /*msg*/, const fields_t& /*fields*/,
+                              activity_id_t /*parent*/) -> void {};
 
-  virtual auto stop_activity(activity_id_t act) -> void {};
+  virtual auto stop_activity(activity_id_t /*act*/) -> void{};
 
-  virtual auto result(activity_id_t act, result_type_t /*type*/, const fields_t& /*fields*/)
+  virtual auto result(activity_id_t /*act*/, result_type_t /*type*/, const fields_t& /*fields*/)
       -> void {};
 
-  virtual auto result(activity_id_t act, result_type_t /*type*/, const nlohmann::json& json)
+  virtual auto result(activity_id_t /*act*/, result_type_t /*type*/, const nlohmann::json& /*json*/)
       -> void {};
 
-  virtual auto write_to_stdout(std::string_view s) -> void;
+  virtual auto write_to_stdout(std::string_view msg) -> void;
 
   template <typename... args_t>
   auto cout(const args_t&... args) -> void {
     write_to_stdout(fmt(args...));
   }
 
-  [[nodiscard]] virtual auto ask(std::string_view s) -> std::optional<char> { return {}; }
+  [[nodiscard]] virtual auto ask(std::string_view /*msg*/) -> std::optional<char> { return {}; }
 
   virtual auto set_print_build_logs(bool /*print_build_logs*/) -> void {}
 };
@@ -325,6 +325,6 @@ inline auto warn(const std::string& fs, const args_t&... args) -> void {
 // Backward compatibility alias
 #define warnOnce(have_warned, args...) WARN_ONCE(have_warned, args)
 
-auto write_to_stderr(std::string_view s) -> void;
+auto write_to_stderr(std::string_view msg) -> void;
 
 } // namespace nix

@@ -162,7 +162,7 @@ static std::shared_ptr<Registry> get_global_registry(const settings_t& settings,
           Registry::Global);
     } catch (Error& e) {
       warn("cannot fetch global flake registry '%s', will use builtin fallback registry: %s",
-           settings.flakeRegistry.get(), e.info().msg);
+           settings.flakeRegistry.get(), e.info().msg_);
       // Use builtin registry as fallback
       return Registry::read(settings, "builtin flake registry",
 #include "builtin-flake-registry.json.gen.h"

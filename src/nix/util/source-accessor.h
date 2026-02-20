@@ -57,7 +57,7 @@ struct source_accessor_t : std::enable_shared_from_this<source_accessor_t> {
    * targets of symlinks should only occasionally be done, and only
    * with care.
    */
-  virtual std::string read_file(const canon_path_t& path);
+  [[nodiscard]] virtual auto read_file(const canon_path_t& path) -> std::string;
 
   /**
    * Write the contents of a file as a sink. `size_callback` must be
@@ -70,11 +70,11 @@ struct source_accessor_t : std::enable_shared_from_this<source_accessor_t> {
    * @note subclasses of `source_accessor_t` need to implement at least
    * one of the `read_file()` variants.
    */
-  virtual void read_file(
+  virtual auto read_file(
       const canon_path_t& path, sink_t& sink,
-      std::function<void(uint64_t)> size_callback = [](uint64_t size) {});
+      std::function<void(uint64_t)> size_callback = [](uint64_t size) {}) -> void;
 
-  virtual auto path_exists(const canon_path_t& path) -> bool;
+  [[nodiscard]] virtual auto path_exists(const canon_path_t& path) -> bool;
 
   enum Type {
     t_regular,
@@ -116,13 +116,13 @@ struct source_accessor_t : std::enable_shared_from_this<source_accessor_t> {
      */
     std::optional<uint64_t> nar_offset{};
 
-    auto is_not_nar_serialisable() -> bool;
-    std::string type_string();
+    [[nodiscard]] auto is_not_nar_serialisable() -> bool;
+    [[nodiscard]] auto type_string() -> std::string;
   };
 
-  virtual auto lstat(const canon_path_t& path) -> stat_t;
+  [[nodiscard]] virtual auto lstat(const canon_path_t& path) -> stat_t;
 
-  virtual std::optional<stat_t> maybe_lstat(const canon_path_t& path) = 0;
+  [[nodiscard]] virtual auto maybe_lstat(const canon_path_t& path) -> std::optional<stat_t> = 0;
 
   using dir_entry_t = std::optional<Type>;
 
@@ -131,32 +131,38 @@ struct source_accessor_t : std::enable_shared_from_this<source_accessor_t> {
   /**
    * @note Like `read_file`, this method should *not* follow symlinks.
    */
-  virtual auto read_directory(const canon_path_t& path) -> dir_entries_t = 0;
+  [[nodiscard]] virtual auto read_directory(const canon_path_t& path) -> dir_entries_t = 0;
 
-  virtual std::string read_link(const canon_path_t& path) = 0;
+  [[nodiscard]] virtual auto read_link(const canon_path_t& path) -> std::string = 0;
 
-  virtual void dump_path(const canon_path_t& path, sink_t& sink,
-                         path_filter_t& filter = default_path_filter);
+  virtual auto dump_path(const canon_path_t& path, sink_t& sink,
+                         path_filter_t& filter = default_path_filter) -> void;
 
-  Hash hash_path(const canon_path_t& path, path_filter_t& filter = default_path_filter,
-                 hash_algorithm_t ha = hash_algorithm_t::SHA256);
+  [[nodiscard]] auto hash_path(const canon_path_t& path,
+                               path_filter_t& filter = default_path_filter,
+                               hash_algorithm_t ha = hash_algorithm_t::SHA256) -> Hash;
 
   /**
    * Return a corresponding path in the root filesystem, if
    * possible. This is only possible for filesystems that are
    * materialized in the root filesystem.
    */
-  virtual std::optional<std::filesystem::path> get_physical_path(const canon_path_t& /*path*/) {
+  [[nodiscard]] virtual auto get_physical_path(const canon_path_t& /*path*/)
+      -> std::optional<std::filesystem::path> {
     return std::nullopt;
   }
 
-  auto operator==(const source_accessor_t& x) const -> bool { return number == x.number; }
+  [[nodiscard]] auto operator==(const source_accessor_t& other) const -> bool {
+    return number == other.number;
+  }
 
-  auto operator<=>(const source_accessor_t& x) const { return number <=> x.number; }
+  [[nodiscard]] auto operator<=>(const source_accessor_t& other) const {
+    return number <=> other.number;
+  }
 
-  void set_path_display(std::string display_prefix, std::string display_suffix = "");
+  auto set_path_display(std::string display_prefix, std::string display_suffix = "") -> void;
 
-  virtual std::string show_path(const canon_path_t& path);
+  [[nodiscard]] virtual auto show_path(const canon_path_t& path) -> std::string;
 
   /**
    * Resolve any symlinks in `path` according to the given
@@ -165,8 +171,9 @@ struct source_accessor_t : std::enable_shared_from_this<source_accessor_t> {
    * @param mode might only be a temporary solution for this.
    * See the discussion in https://github.com/NixOS/nix/pull/9985.
    */
-  auto resolve_symlinks(const canon_path_t& path,
-                        symlink_resolution_t mode = symlink_resolution_t::full) -> canon_path_t;
+  [[nodiscard]] auto resolve_symlinks(const canon_path_t& path,
+                                      symlink_resolution_t mode = symlink_resolution_t::full)
+      -> canon_path_t;
 
   /**
    * A string that uniquely represents the contents of this
@@ -190,8 +197,8 @@ struct source_accessor_t : std::enable_shared_from_this<source_accessor_t> {
    * `get_fingerprint("/nix/store/foo/bar")` will return the path
    * `/bar` and the fingerprint of the `/nix/store/foo` accessor.
    */
-  virtual std::pair<canon_path_t, std::optional<std::string>>
-  get_fingerprint(const canon_path_t& path) {
+  [[nodiscard]] virtual auto get_fingerprint(const canon_path_t& path)
+      -> std::pair<canon_path_t, std::optional<std::string>> {
     return {path, fingerprint};
   }
 
@@ -199,12 +206,12 @@ struct source_accessor_t : std::enable_shared_from_this<source_accessor_t> {
    * Return the maximum last-modified time of the files in this
    * tree, if available.
    */
-  virtual std::optional<time_t> get_last_modified() { return std::nullopt; }
+  [[nodiscard]] virtual auto get_last_modified() -> std::optional<time_t> { return std::nullopt; }
 
   /**
    * Invalidate any cached value the accessor may have for the specified path.
    */
-  virtual void invalidate_cache(const canon_path_t& path) {}
+  virtual auto invalidate_cache(const canon_path_t& path) -> void {}
 };
 
 /**
@@ -235,6 +242,7 @@ auto make_fs_source_accessor(std::filesystem::path root) -> ref<source_accessor_
  * Construct an accessor that presents a "union" view of a vector of
  * underlying accessors. Earlier accessors take precedence over later.
  */
-ref<source_accessor_t> make_union_source_accessor(std::vector<ref<source_accessor_t>>&& accessors);
+[[nodiscard]] auto make_union_source_accessor(std::vector<ref<source_accessor_t>>&& accessors)
+    -> ref<source_accessor_t>;
 
 } // namespace nix

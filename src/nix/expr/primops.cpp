@@ -944,9 +944,9 @@ static RegisterPrimOp
                   .fun = [](eval_state_t& state, const pos_idx_t pos, value_t** args, value_t& v) {
                     if (state.canDebug()) {
                       auto error = Error(error_info_t{
-                          .level = lvl_info,
-                          .msg = hint_fmt_t("breakpoint reached"),
-                          .pos = state.positions[pos],
+                          .level_ = lvl_info,
+                          .msg_ = hint_fmt_t("breakpoint reached"),
+                          .pos_ = state.positions[pos],
                       });
 
                       state.runDebugRepl(&error);
@@ -1293,8 +1293,8 @@ static void prim_warn(eval_state_t& state, const pos_idx_t pos, value_t** args, 
     base_error_t msg(std::string{msg_str});
     msg.at_pos(state.positions[pos]);
     auto info = msg.info();
-    info.level = lvl_warn;
-    info.is_from_expr = true;
+    info.level_ = lvl_warn;
+    info.is_from_expr_ = true;
     logWarning(info);
   }
 

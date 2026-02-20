@@ -315,7 +315,7 @@ int handle_exceptions(const std::string& program_name, std::function<void()> fun
     return 1;
   } catch (base_error_t& e) {
     logError(e.info());
-    return e.info().status;
+    return e.info().status_;
   } catch (std::bad_alloc& e) {
     printError(error + "out of memory");
     return 1;

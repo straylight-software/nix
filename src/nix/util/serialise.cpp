@@ -415,12 +415,12 @@ sink_t& operator<<(sink_t& sink, const string_set_t& s) {
 
 sink_t& operator<<(sink_t& sink, const Error& ex) {
   auto& info = ex.info();
-  sink << "Error" << static_cast<uint64_t>(info.level) << "Error" // removed
-       << info.msg.str() << 0                                     // FIXME: info.errPos
-       << info.traces.size();
-  for (auto& trace : info.traces) {
+  sink << "Error" << static_cast<uint64_t>(info.level_) << "Error" // removed
+       << info.msg_.str() << 0                                     // FIXME: info.errPos
+       << info.traces_.size();
+  for (auto& trace : info.traces_) {
     sink << 0; // FIXME: trace.pos
-    sink << trace.hint.str();
+    sink << trace.hint_.str();
   }
   return sink;
 }
@@ -484,8 +484,8 @@ Error read_error(source_t& source) {
   [[maybe_unused]] auto name = read_string(source); // removed
   auto msg = read_string(source);
   error_info_t info{
-      .level = level,
-      .msg = hint_fmt_t(msg),
+      .level_ = level,
+      .msg_ = hint_fmt_t(msg),
   };
   auto have_pos = read_num<size_t>(source);
   assert(have_pos == 0);
@@ -493,7 +493,7 @@ Error read_error(source_t& source) {
   for (size_t i = 0; i < nr_traces; ++i) {
     have_pos = read_num<size_t>(source);
     assert(have_pos == 0);
-    info.traces.push_back(trace_t{.hint = hint_fmt_t(read_string(source))});
+    info.traces_.push_back(trace_t{.hint_ = hint_fmt_t(read_string(source))});
   }
   return Error(std::move(info));
 }

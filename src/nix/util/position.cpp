@@ -19,13 +19,13 @@ std::optional<lines_of_code_t> pos_t::get_code_lines() const {
       std::advance(lines, line - 2);
     }
     if (lines != end && line > 1) {
-      loc.prev_line_of_code = *lines++;
+      loc.prev_line_of_code_ = *lines++;
     }
     if (lines != end) {
-      loc.err_line_of_code = *lines++;
+      loc.err_line_of_code_ = *lines++;
     }
     if (lines != end) {
-      loc.next_line_of_code = *lines++;
+      loc.next_line_of_code_ = *lines++;
     }
 
     return loc;

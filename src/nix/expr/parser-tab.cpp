@@ -59,7 +59,7 @@ void parser::bison_parser_t::error(const location_type& loc_, const std::string&
   if (std::string_view(error).starts_with("syntax error, unexpected end of file")) {
     loc.beginOffset = loc.endOffset;
   }
-  throw ParseError({.msg = hint_fmt_t(error), .pos = state->positions[state->at(loc)]});
+  throw ParseError({.msg_ = hint_fmt_t(error), .pos_ = state->positions[state->at(loc)]});
 }
 
 #define SET_DOC_POS(lambda, pos) set_doc_position(state->lexer_state, lambda, state->at(pos))
@@ -1182,8 +1182,8 @@ int bison_parser_t ::parse() {
 #line 214 "parser.y"
           {
             if (!yystack_[2].value.as<ExprAttrs*>()->dynamicAttrs->empty())
-              throw ParseError({.msg = hint_fmt_t("dynamic attributes not allowed in let"),
-                                .pos = state->positions[CUR_POS]});
+              throw ParseError({.msg_ = hint_fmt_t("dynamic attributes not allowed in let"),
+                                .pos_ = state->positions[CUR_POS]});
             yylhs.value.as<expr_t*>() = state->exprs.add<ExprLet>(
                 yystack_[2].value.as<ExprAttrs*>(), yystack_[0].value.as<expr_t*>());
           }
@@ -1610,8 +1610,8 @@ int bison_parser_t ::parse() {
             static bool no_url_literals =
                 experimental_feature_settings.is_enabled(xp_t::no_url_literals);
             if (no_url_literals)
-              throw ParseError({.msg = hint_fmt_t("URL literals are disabled"),
-                                .pos = state->positions[CUR_POS]});
+              throw ParseError({.msg_ = hint_fmt_t("URL literals are disabled"),
+                                .pos_ = state->positions[CUR_POS]});
             yylhs.value.as<expr_t*>() = state->exprs.add<ExprString>(
                 state->exprs.alloc, yystack_[0].value.as<StringToken>());
           }
@@ -1755,11 +1755,11 @@ int bison_parser_t ::parse() {
             if (state->settings.warnShortPathLiterals && literal.front() != '/' &&
                 literal.front() != '.') {
               logWarning(
-                  {.msg = hint_fmt_t("relative path literal '%s' should be prefixed with '.' "
+                  {.msg_ = hint_fmt_t("relative path literal '%s' should be prefixed with '.' "
                                      "for clarity: './%s'. (" ANSI_BOLD
                                      "warn-short-path-literals" ANSI_NORMAL " = true)",
                                      literal, literal),
-                   .pos = state->positions[CUR_POS]});
+                   .pos_ = state->positions[CUR_POS]});
             }
 
             Path path(abs_path(literal, state->base_path.path.abs()));
@@ -1937,8 +1937,8 @@ int bison_parser_t ::parse() {
                       state->symbols.create(str), state->at(yystack_[0].location));
                 },
                 [&](expr_t* expr) {
-                  throw ParseError({.msg = hint_fmt_t("dynamic attributes not allowed in inherit"),
-                                    .pos = state->positions[state->at(yystack_[0].location)]});
+                  throw ParseError({.msg_ = hint_fmt_t("dynamic attributes not allowed in inherit"),
+                                    .pos_ = state->positions[state->at(yystack_[0].location)]});
                 }});
           }
 #line 1777 "parser-tab.cpp"

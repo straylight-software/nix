@@ -25,7 +25,7 @@ namespace nix {
 
 void base_error_t::add_trace(std::shared_ptr<const pos_t>&& pos, const hint_fmt_t& hint,
                              trace_print_t print) {
-  err_.traces.push_front(trace_t{.pos = std::move(pos), .hint = hint, .print = print});
+  err_.traces_.push_front(trace_t{.pos_ = std::move(pos), .hint_ = hint, .print_ = print});
 }
 
 void throw_exception_self_check() {
@@ -60,34 +60,34 @@ inline auto operator<=>(const trace_t& lhs, const trace_t& rhs) -> std::strong_o
   // `std::shared_ptr` does not have value semantics for its comparison
   // functions, so we need to check for nulls and compare the dereferenced
   // values here.
-  if (lhs.pos != rhs.pos) {
+  if (lhs.pos_ != rhs.pos_) {
     // Compare null status first
-    const int lhs_has_pos = lhs.pos ? 1 : 0;
-    const int rhs_has_pos = rhs.pos ? 1 : 0;
+    const int lhs_has_pos = lhs.pos_ ? 1 : 0;
+    const int rhs_has_pos = rhs.pos_ ? 1 : 0;
     if (auto cmp = lhs_has_pos <=> rhs_has_pos; cmp != 0) {
       return cmp;
     }
-    if (auto cmp = *lhs.pos <=> *rhs.pos; cmp != 0) {
+    if (auto cmp = *lhs.pos_ <=> *rhs.pos_; cmp != 0) {
       return cmp;
     }
   }
   // This formats a freshly formatted hint string and then throws it away, which
   // shouldn't be much of a problem because it only runs when pos is equal, and this function is
   // used for trace printing, which is infrequent.
-  return lhs.hint.str() <=> rhs.hint.str();
+  return lhs.hint_.str() <=> rhs.hint_.str();
 }
 
 // print lines of code to the ostream, indicating the error column.
 void print_code_lines(std::ostream& out, const std::string& prefix, const pos_t& err_pos,
                       const lines_of_code_t& loc) {
   // previous line of code.
-  if (loc.prev_line_of_code.has_value()) {
-    out << '\n' << fmt("%1% %|2$5d|| %3%", prefix, (err_pos.line - 1), *loc.prev_line_of_code);
+  if (loc.prev_line_of_code_.has_value()) {
+    out << '\n' << fmt("%1% %|2$5d|| %3%", prefix, (err_pos.line - 1), *loc.prev_line_of_code_);
   }
 
-  if (loc.err_line_of_code.has_value()) {
+  if (loc.err_line_of_code_.has_value()) {
     // line of code containing the error.
-    out << '\n' << fmt("%1% %|2$5d|| %3%", prefix, (err_pos.line), *loc.err_line_of_code);
+    out << '\n' << fmt("%1% %|2$5d|| %3%", prefix, (err_pos.line), *loc.err_line_of_code_);
     // error arrows for the column range.
     if (err_pos.column > 0) {
       const auto start = static_cast<std::size_t>(err_pos.column);
@@ -99,8 +99,8 @@ void print_code_lines(std::ostream& out, const std::string& prefix, const pos_t&
   }
 
   // next line of code.
-  if (loc.next_line_of_code.has_value()) {
-    out << '\n' << fmt("%1% %|2$5d|| %3%", prefix, (err_pos.line + 1), *loc.next_line_of_code);
+  if (loc.next_line_of_code_.has_value()) {
+    out << '\n' << fmt("%1% %|2$5d|| %3%", prefix, (err_pos.line + 1), *loc.next_line_of_code_);
   }
 }
 
@@ -161,9 +161,9 @@ auto print_pos_maybe(std::ostream& oss, std::string_view indent_str,
 
 void print_trace(std::ostream& output, std::string_view indent_str, std::size_t& count,
                  const trace_t& trace) {
-  output << "\n" << "… " << trace.hint.str() << "\n";
+  output << "\n" << "… " << trace.hint_.str() << "\n";
 
-  if (print_pos_maybe(output, indent_str, trace.pos)) {
+  if (print_pos_maybe(output, indent_str, trace.pos_)) {
     count++;
   }
 }
@@ -223,7 +223,7 @@ void print_skipped_traces_maybe(std::ostream& output, std::string_view indent_st
 auto show_error_info(std::ostream& out, const error_info_t& einfo, bool show_trace)
     -> std::ostream& {
   std::string prefix;
-  switch (einfo.level) {
+  switch (einfo.level_) {
     case verbosity_t::lvl_error: {
       prefix = ANSI_RED "error";
       break;
@@ -233,7 +233,7 @@ auto show_error_info(std::ostream& out, const error_info_t& einfo, bool show_tra
       break;
     }
     case verbosity_t::lvl_warn: {
-      if (einfo.is_from_expr) {
+      if (einfo.is_from_expr_) {
         prefix = ANSI_WARNING "evaluation warning";
       } else {
         prefix = ANSI_WARNING "warning";
@@ -373,7 +373,7 @@ auto show_error_info(std::ostream& out, const error_info_t& einfo, bool show_tra
   // prepended to each element of the trace
   const auto* ellipsis_indent = "  ";
 
-  if (!einfo.traces.empty()) {
+  if (!einfo.traces_.empty()) {
     // Stack traces seen since we last printed a chunk of `duplicate frames
     // omitted`.
     std::set<trace_t> traces_seen;
@@ -382,8 +382,8 @@ auto show_error_info(std::ostream& out, const error_info_t& einfo, bool show_tra
     size_t count = 0;
     bool truncate = false;
 
-    for (const auto& trace : einfo.traces) {
-      if (trace.hint.str().empty()) {
+    for (const auto& trace : einfo.traces_) {
+      if (trace.hint_.str().empty()) {
         continue;
       }
 
@@ -391,7 +391,7 @@ auto show_error_info(std::ostream& out, const error_info_t& einfo, bool show_tra
         truncate = true;
       }
 
-      if (!truncate || trace.print == trace_print_t::always) {
+      if (!truncate || trace.print_ == trace_print_t::always) {
         if (traces_seen.count(trace)) {
           skipped_traces.push_back(trace);
           continue;
@@ -419,11 +419,11 @@ auto show_error_info(std::ostream& out, const error_info_t& einfo, bool show_tra
     oss << "\n" << prefix;
   }
 
-  oss << einfo.msg << "\n";
+  oss << einfo.msg_ << "\n";
 
-  print_pos_maybe(oss, "", einfo.pos);
+  print_pos_maybe(oss, "", einfo.pos_);
 
-  auto suggestions = einfo.suggestions.trim();
+  auto suggestions = einfo.suggestions_.trim();
   if (!suggestions.suggestions.empty()) {
     oss << "Did you mean " << suggestions.trim() << "?" << std::endl;
   }

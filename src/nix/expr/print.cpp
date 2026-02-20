@@ -496,7 +496,7 @@ private:
   void print_error_(Error& e) {
     if (options.ansi_colors)
       output << ANSI_RED;
-    output << "«error: " << filter_ansi_escapes(e.info().msg.str(), true) << "»";
+    output << "«error: " << filter_ansi_escapes(e.info().msg_.str(), true) << "»";
     if (options.ansi_colors)
       output << ANSI_NORMAL;
   }

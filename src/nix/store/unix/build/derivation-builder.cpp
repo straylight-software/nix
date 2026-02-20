@@ -425,7 +425,7 @@ void handle_diff_hook(uid_t uid, uid_t gid, const Path& try_a, const Path& try_b
     } catch (Error& error) {
       error_info_t ei = error.info();
       // FIXME: wrap errors.
-      ei.msg = hint_fmt_t("diff hook execution failed: %s", ei.msg.str());
+      ei.msg_ = hint_fmt_t("diff hook execution failed: %s", ei.msg_.str());
       logError(ei);
     }
   }

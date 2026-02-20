@@ -1156,7 +1156,7 @@ Goal::done_t DerivationBuildingGoal::doneSuccess(build_result_t::Success::Status
 Goal::done_t DerivationBuildingGoal::doneFailure(build_error_t ex) {
   buildResult.inner = build_result_t::Failure{
       .status = ex.status,
-      .errorMsg = fmt("%s", uncolored_t(ex.info().msg)),
+      .errorMsg = fmt("%s", uncolored_t(ex.info().msg_)),
   };
 
   logger->result(

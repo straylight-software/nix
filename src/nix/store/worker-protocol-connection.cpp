@@ -21,7 +21,7 @@ static logger_t::fields_t read_fields(source_t& from) {
   logger_t::fields_t fields;
   size_t size = read_int(from);
   for (size_t n = 0; n < size; n++) {
-    auto type = (decltype(logger_t::field_t::type))read_int(from);
+    auto type = (decltype(logger_t::field_t::type_))read_int(from);
     if (type == logger_t::field_t::t_int) {
       fields.push_back(logger_t::field_t(read_num<uint64_t>(from)));
     } else if (type == logger_t::field_t::t_string) {

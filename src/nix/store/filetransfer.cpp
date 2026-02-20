@@ -1130,9 +1130,9 @@ FileTransferError::FileTransferError(FileTransfer::Error error, std::optional<st
   // to print different messages for different verbosity levels. For now
   // we add some heuristics for detecting when we want to show the response.
   if (response && (response->size() < 1024 || response->find("<html>") != std::string::npos))
-    err_.msg = hint_fmt_t("%1%\n\nresponse body:\n\n%2%", uncolored_t(hf.str()), chomp(*response));
+    err_.msg_ = hint_fmt_t("%1%\n\nresponse body:\n\n%2%", uncolored_t(hf.str()), chomp(*response));
   else
-    err_.msg = hf;
+    err_.msg_ = hf;
 }
 
 } // namespace nix

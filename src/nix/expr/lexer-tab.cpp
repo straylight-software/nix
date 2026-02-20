@@ -3961,10 +3961,10 @@ static StringToken unescape_str(char* const s, size_t length, std::function<pos_
 static void require_experimental_feature(const experimental_feature_t& feature, const pos_t& pos) {
   if (!experimental_feature_settings.is_enabled(feature))
     throw ParseError(error_info_t{
-        .msg = hint_fmt_t("experimental Nix feature '%1%' is disabled; add "
+        .msg_ = hint_fmt_t("experimental Nix feature '%1%' is disabled; add "
                           "'--extra-experimental-features %1%' to enable it",
                           show_experimental_feature(feature)),
-        .pos = pos,
+        .pos_ = pos,
     });
 }
 
@@ -4483,8 +4483,8 @@ YY_DECL {
               yylval->emplace<NixInt>(*numMay);
             } else {
               throw ParseError(error_info_t{
-                  .msg = hint_fmt_t("invalid integer '%1%'", yytext),
-                  .pos = state->positions[CUR_POS],
+                  .msg_ = hint_fmt_t("invalid integer '%1%'", yytext),
+                  .pos_ = state->positions[CUR_POS],
               });
             }
             return INT_LIT;
@@ -4498,8 +4498,8 @@ YY_DECL {
             yylval->emplace<NixFloat>(strtod(yytext, 0));
             if (errno != 0)
               throw ParseError(error_info_t{
-                  .msg = hint_fmt_t("invalid float '%1%'", yytext),
-                  .pos = state->positions[CUR_POS],
+                  .msg_ = hint_fmt_t("invalid float '%1%'", yytext),
+                  .pos_ = state->positions[CUR_POS],
               });
             return FLOAT_LIT;
           }
@@ -4774,8 +4774,8 @@ YY_DECL {
 #line 298 "lexer.l"
         {
           throw ParseError(error_info_t{
-              .msg = hint_fmt_t("path has a trailing slash"),
-              .pos = state->positions[CUR_POS],
+              .msg_ = hint_fmt_t("path has a trailing slash"),
+              .pos_ = state->positions[CUR_POS],
           });
         }
           YY_BREAK

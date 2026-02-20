@@ -884,7 +884,7 @@ struct git_input_scheme_t : input_scheme_t {
           if (!input.getRev())
             set_write_time(local_ref_file, now, now);
         } catch (Error& e) {
-          warn("could not update mtime for file %s: %s", local_ref_file, e.info().msg);
+          warn("could not update mtime for file %s: %s", local_ref_file, e.info().msg_);
         }
         if (!original_ref && !store_cached_head(repo_url.to_string(), shallow, ref))
           warn("could not update cached head '%s' for '%s'", ref, repo_info.location_to_arg());

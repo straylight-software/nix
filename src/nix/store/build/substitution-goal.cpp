@@ -279,7 +279,7 @@ Goal::Co PathSubstitutionGoal::tryToRun(store_path_t subPath, nix::ref<store_t> 
     } catch (SubstituteGone& sg) {
       /* Missing NARs are expected when they've been garbage collected.
          This is not a failure, so log as a warning instead of an error. */
-      logWarning({.msg = sg.info().msg});
+      logWarning({.msg_ = sg.info().msg_});
     } catch (...) {
       printError(e.what());
       substituterFailed = true;

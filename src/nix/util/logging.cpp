@@ -112,7 +112,7 @@ public:
     std::ostringstream oss;
     show_error_info(oss, ei, logger_settings.show_trace.get());
 
-    log(ei.level, oss.view());
+    log(ei.level_, oss.view());
   }
 
   void start_activity(activity_id_t act, verbosity_t lvl, activity_type_t type,
@@ -124,10 +124,10 @@ public:
 
   void result(activity_id_t act, result_type_t type, const fields_t& fields) override {
     if (type == res_build_log_line && print_build_logs) {
-      auto last_line = fields[0].s;
+      auto last_line = fields[0].s_;
       printError(last_line);
     } else if (type == res_post_build_log_line && print_build_logs) {
-      auto last_line = fields[0].s;
+      auto last_line = fields[0].s_;
       printError("post-build-hook: " + last_line);
     }
   }
@@ -195,10 +195,10 @@ struct json_logger_t : logger_t {
     }
     auto& arr = json["fields"] = nlohmann::json::array();
     for (auto& f : fields) {
-      if (f.type == logger_t::field_t::t_int) {
-        arr.push_back(f.i);
-      } else if (f.type == logger_t::field_t::t_string) {
-        arr.push_back(f.s);
+      if (f.type_ == logger_t::field_t::t_int) {
+        arr.push_back(f.i_);
+      } else if (f.type_ == logger_t::field_t::t_string) {
+        arr.push_back(f.s_);
       } else {
         unreachable();
       }
@@ -246,17 +246,17 @@ struct json_logger_t : logger_t {
 
     nlohmann::json json;
     json["action"] = "msg";
-    json["level"] = ei.level;
+    json["level"] = ei.level_;
     json["msg"] = oss.str();
-    json["raw_msg"] = ei.msg.str();
-    to_json(json, ei.pos);
+    json["raw_msg"] = ei.msg_.str();
+    to_json(json, ei.pos_);
 
-    if (logger_settings.show_trace.get() && !ei.traces.empty()) {
+    if (logger_settings.show_trace.get() && !ei.traces_.empty()) {
       nlohmann::json traces = nlohmann::json::array();
-      for (auto iter = ei.traces.rbegin(); iter != ei.traces.rend(); ++iter) {
+      for (auto iter = ei.traces_.rbegin(); iter != ei.traces_.rend(); ++iter) {
         nlohmann::json stack_frame;
-        stack_frame["raw_msg"] = iter->hint.str();
-        to_json(stack_frame, iter->pos);
+        stack_frame["raw_msg"] = iter->hint_.str();
+        to_json(stack_frame, iter->pos_);
         traces.push_back(stack_frame);
       }
 

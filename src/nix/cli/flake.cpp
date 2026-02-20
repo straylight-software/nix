@@ -420,11 +420,11 @@ struct cmd_flake_check_t : flake_command_t {
             state->forceStringNoCtx(*dAttr->value, dAttr->pos, "");
           else
             logWarning({
-                .msg = hint_fmt_t("app '%s' lacks attribute 'meta.description'", attr_path),
+                .msg_ = hint_fmt_t("app '%s' lacks attribute 'meta.description'", attr_path),
             });
         } else
           logWarning({
-              .msg = hint_fmt_t("app '%s' lacks attribute 'meta'", attr_path),
+              .msg_ = hint_fmt_t("app '%s' lacks attribute 'meta'", attr_path),
           });
 
         for (auto& attr : *v.attrs()) {

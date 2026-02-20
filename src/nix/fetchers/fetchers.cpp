@@ -350,12 +350,12 @@ std::pair<ref<source_accessor_t>, input_t> input_t::getAccessorUnchecked(const s
         store.ensure_path(*store_path);
         warn("Successfully substituted input '%s' after failing to fetch it from its original "
              "location: %s",
-             to_string(), e.info().msg);
+             to_string(), e.info().msg_);
         return makeStoreAccessor();
       }
       // Ignore any substitution error, rethrow the original error.
       catch (Error& e2) {
-        debug("substitution of input '%s' failed: %s", to_string(), e2.info().msg);
+        debug("substitution of input '%s' failed: %s", to_string(), e2.info().msg_);
       } catch (...) {
       }
     }

@@ -61,9 +61,9 @@ inline constexpr verbosity_t lvl_vomit = verbosity_t::lvl_vomit;
  */
 // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init)
 struct lines_of_code_t {
-  std::optional<std::string> prev_line_of_code;
-  std::optional<std::string> err_line_of_code;
-  std::optional<std::string> next_line_of_code;
+  std::optional<std::string> prev_line_of_code_;
+  std::optional<std::string> err_line_of_code_;
+  std::optional<std::string> next_line_of_code_;
 };
 
 /* NOTE: position.hh recursively depends on source-path.hh -> source-accessor.hh
@@ -93,9 +93,9 @@ enum struct trace_print_t : std::uint8_t {
 
 // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init)
 struct trace_t {
-  std::shared_ptr<const pos_t> pos;
-  hint_fmt_t hint;
-  trace_print_t print = trace_print_t::default_print;
+  std::shared_ptr<const pos_t> pos_;
+  hint_fmt_t hint_;
+  trace_print_t print_ = trace_print_t::default_print;
 };
 
 [[nodiscard]] inline auto operator<=>(const trace_t& lhs, const trace_t& rhs)
@@ -103,22 +103,22 @@ struct trace_t {
 
 // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init)
 struct error_info_t {
-  verbosity_t level;
-  hint_fmt_t msg;
-  std::shared_ptr<const pos_t> pos;
-  std::list<trace_t> traces;
+  verbosity_t level_;
+  hint_fmt_t msg_;
+  std::shared_ptr<const pos_t> pos_;
+  std::list<trace_t> traces_;
   /**
    * Some messages are generated directly by expressions; notably `builtins.warn`, `abort`, `throw`.
    * These may be rendered differently, so that users can distinguish them.
    */
-  bool is_from_expr = false;
+  bool is_from_expr_ = false;
 
   /**
    * Exit status.
    */
-  unsigned int status = 1;
+  unsigned int status_ = 1;
 
-  suggestions_t suggestions;
+  suggestions_t suggestions_;
 
   static std::optional<std::string> program_name;
 };
@@ -154,35 +154,35 @@ public:
 
   template <typename... args_t>
   base_error_t(unsigned int status, const args_t&... args)
-      : err_{.level = verbosity_t::lvl_error,
-             .msg = hint_fmt_t(args...),
-             .pos = nullptr,
-             .traces = {},
-             .status = status,
-             .suggestions = {}} {}
+      : err_{.level_ = verbosity_t::lvl_error,
+             .msg_ = hint_fmt_t(args...),
+             .pos_ = nullptr,
+             .traces_ = {},
+             .status_ = status,
+             .suggestions_ = {}} {}
 
   template <typename... args_t>
   explicit base_error_t(const std::string& fmt_str, const args_t&... args)
-      : err_{.level = verbosity_t::lvl_error,
-             .msg = hint_fmt_t(fmt_str, args...),
-             .pos = nullptr,
-             .traces = {},
-             .suggestions = {}} {}
+      : err_{.level_ = verbosity_t::lvl_error,
+             .msg_ = hint_fmt_t(fmt_str, args...),
+             .pos_ = nullptr,
+             .traces_ = {},
+             .suggestions_ = {}} {}
 
   template <typename... args_t>
   base_error_t(const suggestions_t& sug, const args_t&... args)
-      : err_{.level = verbosity_t::lvl_error,
-             .msg = hint_fmt_t(args...),
-             .pos = nullptr,
-             .traces = {},
-             .suggestions = sug} {}
+      : err_{.level_ = verbosity_t::lvl_error,
+             .msg_ = hint_fmt_t(args...),
+             .pos_ = nullptr,
+             .traces_ = {},
+             .suggestions_ = sug} {}
 
   base_error_t(const hint_fmt_t& hint)
-      : err_{.level = verbosity_t::lvl_error,
-             .msg = hint,
-             .pos = nullptr,
-             .traces = {},
-             .suggestions = {}} {}
+      : err_{.level_ = verbosity_t::lvl_error,
+             .msg_ = hint,
+             .pos_ = nullptr,
+             .traces_ = {},
+             .suggestions_ = {}} {}
 
   // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved,readability-redundant-member-init)
   explicit base_error_t(error_info_t&& info) : err_(std::move(info)), what_{} {}
@@ -191,7 +191,7 @@ public:
   explicit base_error_t(const error_info_t& info) : err_(info), what_{} {}
 
   /** The error message without "error: " prefixed to it. */
-  [[nodiscard]] auto message() const -> std::string { return err_.msg.str(); }
+  [[nodiscard]] auto message() const -> std::string { return err_.msg_.str(); }
 
   [[nodiscard]] auto what() const noexcept -> const char* override { return calc_what().c_str(); }
 
@@ -202,15 +202,15 @@ public:
     return err_;
   }
 
-  auto with_exit_status(unsigned int status) -> void { err_.status = status; }
+  auto with_exit_status(unsigned int status) -> void { err_.status_ = status; }
 
-  auto at_pos(std::shared_ptr<const pos_t> pos) -> void { err_.pos = std::move(pos); }
+  auto at_pos(std::shared_ptr<const pos_t> pos) -> void { err_.pos_ = std::move(pos); }
 
-  auto set_suggestions(const suggestions_t& sug) -> void { err_.suggestions = sug; }
+  auto set_suggestions(const suggestions_t& sug) -> void { err_.suggestions_ = sug; }
 
-  auto set_is_from_expr(bool value) -> void { err_.is_from_expr = value; }
+  auto set_is_from_expr(bool value) -> void { err_.is_from_expr_ = value; }
 
-  auto push_trace(const trace_t& trace) -> void { err_.traces.push_front(trace); }
+  auto push_trace(const trace_t& trace) -> void { err_.traces_.push_front(trace); }
 
   /**
    * Prepends an item to the error trace, as is usual for extra context.
@@ -236,7 +236,7 @@ public:
   auto add_trace(std::shared_ptr<const pos_t>&& pos, const hint_fmt_t& hint,
                  trace_print_t print = trace_print_t::default_print) -> void;
 
-  [[nodiscard]] auto has_trace() const -> bool { return !err_.traces.empty(); }
+  [[nodiscard]] auto has_trace() const -> bool { return !err_.traces_.empty(); }
 
   [[nodiscard]] auto info() -> const error_info_t& { return err_; }
 };
