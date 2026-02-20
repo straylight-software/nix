@@ -13,10 +13,10 @@ make_error(BadHash, Error);
 
 enum struct hash_algorithm_t : char {
   md5 = 42,
-  sha1,
-  sha256,
-  sha512,
-  blake3,
+  sha1 = 43,
+  sha256 = 44,
+  sha512 = 45,
+  blake3 = 46,
   // Uppercase aliases for backward compatibility
   MD5 = md5,
   SHA1 = sha1,
@@ -296,8 +296,8 @@ struct std::hash<nix::hash_t> {
 
 namespace nix {
 
-[[nodiscard]] inline auto hash_value(const hash_t& hash) -> std::size_t {
-  return std::hash<hash_t>{}(hash);
+[[nodiscard]] inline auto hash_value(const hash_t& h) -> std::size_t {
+  return std::hash<hash_t>{}(h);
 }
 
 } // namespace nix

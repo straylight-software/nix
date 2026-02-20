@@ -279,7 +279,7 @@ SandboxMode base_setting_t<SandboxMode>::parse(const std::string& str) const {
   else if (str == "false")
     return smDisabled;
   else
-    throw UsageError("option '%s' has invalid value '%s'", name, str);
+    throw UsageError("option '%s' has invalid value_ '%s'", name, str);
 }
 
 template <>
@@ -289,11 +289,11 @@ struct base_setting_t<SandboxMode>::trait {
 
 template <>
 std::string base_setting_t<SandboxMode>::to_string() const {
-  if (value == smEnabled)
+  if (value_ == smEnabled)
     return "true";
-  else if (value == smRelaxed)
+  else if (value_ == smRelaxed)
     return "relaxed";
-  else if (value == smDisabled)
+  else if (value_ == smDisabled)
     return "false";
   else
     unreachable();
@@ -354,7 +354,7 @@ PathsInChroot base_setting_t<PathsInChroot>::parse(const std::string& str) const
 template <>
 std::string base_setting_t<PathsInChroot>::to_string() const {
   std::vector<std::string> accum;
-  for (auto& [name, cp] : value) {
+  for (auto& [name, cp] : value_) {
     std::string s = name == cp.source ? name : name + "=" + cp.source;
     if (cp.optional)
       s += "?";
@@ -367,7 +367,7 @@ unsigned int MaxBuildJobsSetting::parse(const std::string& str) const {
   if (str == "auto")
     return std::max(1U, std::thread::hardware_concurrency());
   else {
-    if (auto n = string2_int<decltype(value)>(str))
+    if (auto n = string2_int<decltype(value_)>(str))
       return *n;
     else
       throw UsageError("configuration setting '%s' should be 'auto' or an integer", name);
@@ -386,14 +386,14 @@ base_setting_t<settings_t::external_builders>::parse(const std::string& str) con
 
 template <>
 std::string base_setting_t<settings_t::external_builders>::to_string() const {
-  return nlohmann::json(value).dump();
+  return nlohmann::json(value_).dump();
 }
 
 template <>
 void base_setting_t<PathsInChroot>::append_or_set(PathsInChroot new_value, bool append) {
   if (!append)
-    value.clear();
-  value.insert(std::make_move_iterator(new_value.begin()), std::make_move_iterator(new_value.end()));
+    value_.clear();
+  value_.insert(std::make_move_iterator(new_value.begin()), std::make_move_iterator(new_value.end()));
 }
 
 static void preloadNSS() {

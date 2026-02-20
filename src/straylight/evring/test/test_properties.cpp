@@ -137,7 +137,7 @@ void property_handle_table_no_aliasing() {
         assert(table.valid(h));
 
         // Property: new handle is distinct from all previously seen
-        auto key = std::make_pair(h.index, h.generation);
+        auto key = std::make_pair(h.index_, h.generation_);
         assert(seen_handles.find(key) == seen_handles.end());
         seen_handles.insert(key);
 
@@ -385,7 +385,7 @@ void property_generator_monotonicity() {
 
     auto ring = evring::make_io_uring_ring(64);
     evring::bulk_stat_machine machine{std::span{paths.data(), paths.size()},
-                                      std::span{buffers.data(), buffers.size()}};
+                                      evring::make_stable_span(buffers)};
 
     auto state = machine.initial();
     std::size_t prev_completed = 0;

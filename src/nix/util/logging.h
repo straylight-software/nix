@@ -12,7 +12,7 @@
 
 namespace nix {
 
-typedef enum {
+using activity_type_t = enum {
   act_unknown = 0,
   act_copy_path = 100,
   act_file_transfer = 101,
@@ -27,9 +27,9 @@ typedef enum {
   act_post_build_hook = 110,
   act_build_waiting = 111,
   act_fetch_tree = 112,
-} activity_type_t;
+};
 
-typedef enum {
+using result_type_t = enum {
   res_file_linked = 100,
   res_build_log_line = 101,
   res_untrusted_path = 102,
@@ -41,7 +41,7 @@ typedef enum {
   res_fetch_status = 108,
   res_hash_mismatch = 109,
   res_build_result = 110,
-} result_type_t;
+};
 
 using activity_id_t = uint64_t;
 
@@ -75,7 +75,7 @@ public:
     enum { t_int = 0, t_string = 1 } type;
 
     uint64_t i = 0;
-    std::string s;
+    std::string s{};
 
     explicit field_t(const std::string& s) : type(t_string), s(s) {}
 
@@ -84,7 +84,7 @@ public:
     explicit field_t(const uint64_t& i) : type(t_int), i(i) {}
   };
 
-  typedef std::vector<field_t> fields_t;
+  using fields_t = std::vector<field_t>;
 
   virtual ~logger_t() = default;
 
@@ -120,26 +120,28 @@ public:
 
   virtual auto warn(const std::string& msg) -> void;
 
-  virtual auto start_activity(activity_id_t act, verbosity_t lvl, activity_type_t type,
-                              const std::string& s, const fields_t& fields, activity_id_t parent)
-      -> void {};
+  virtual auto start_activity(activity_id_t act, verbosity_t /*lvl*/, activity_type_t /*type*/,
+                              const std::string& s, const fields_t& /*fields*/,
+                              activity_id_t parent) -> void {};
 
   virtual auto stop_activity(activity_id_t act) -> void {};
 
-  virtual auto result(activity_id_t act, result_type_t type, const fields_t& fields) -> void {};
+  virtual auto result(activity_id_t act, result_type_t /*type*/, const fields_t& /*fields*/)
+      -> void {};
 
-  virtual auto result(activity_id_t act, result_type_t type, const nlohmann::json& json) -> void {};
+  virtual auto result(activity_id_t act, result_type_t /*type*/, const nlohmann::json& json)
+      -> void {};
 
   virtual auto write_to_stdout(std::string_view s) -> void;
 
   template <typename... Args>
-  inline auto cout(const Args&... args) -> void {
+  auto cout(const Args&... args) -> void {
     write_to_stdout(fmt(args...));
   }
 
   [[nodiscard]] virtual auto ask(std::string_view s) -> std::optional<char> { return {}; }
 
-  virtual auto set_print_build_logs(bool print_build_logs) -> void {}
+  virtual auto set_print_build_logs(bool /*print_build_logs*/) -> void {}
 };
 
 /**
@@ -149,11 +151,11 @@ public:
  */
 struct nop_t {
   template <typename... T>
-  nop_t(T...) {}
+  nop_t(T... /*unused*/) {}
 };
 
 [[nodiscard]] auto get_cur_activity() -> activity_id_t;
-auto set_cur_activity(const activity_id_t activity_id) -> void;
+auto set_cur_activity(activity_id_t activity_id) -> void;
 
 struct activity_t {
   logger_t& logger_;
@@ -260,15 +262,20 @@ extern verbosity_t verbosity;
  * intervention or that need more explanation.  use the 'print' macros for more
  * lightweight status messages.
  */
-#define logErrorInfo(level, errorInfo...)                                                          \
+#define LOG_ERROR_INFO(level, errorInfo...)                                                        \
   do {                                                                                             \
     if ((level) <= nix::verbosity) {                                                               \
       logger->log_ei((level), errorInfo);                                                          \
     }                                                                                              \
   } while (0)
 
-#define logError(errorInfo...) logErrorInfo(lvl_error, errorInfo)
-#define logWarning(errorInfo...) logErrorInfo(lvl_warn, errorInfo)
+#define LOG_ERROR(errorInfo...) LOG_ERROR_INFO(nix::lvl_error, errorInfo)
+#define LOG_WARNING(errorInfo...) LOG_ERROR_INFO(nix::lvl_warn, errorInfo)
+
+// Backward compatibility aliases
+#define logErrorInfo(level, errorInfo...) LOG_ERROR_INFO(level, errorInfo)
+#define logError(errorInfo...) LOG_ERROR(errorInfo)
+#define logWarning(errorInfo...) LOG_WARNING(errorInfo)
 
 /**
  * Print a string message if the current log level is at least the specified
@@ -284,12 +291,20 @@ extern verbosity_t verbosity;
   } while (0)
 #define printMsg(level, args...) printMsgUsing(logger, level, args)
 
-#define printError(args...) printMsg(lvl_error, args)
-#define notice(args...) printMsg(lvl_notice, args)
-#define printInfo(args...) printMsg(lvl_info, args)
-#define printTalkative(args...) printMsg(lvl_talkative, args)
-#define debug(args...) printMsg(lvl_debug, args)
-#define vomit(args...) printMsg(lvl_vomit, args)
+#define PRINT_ERROR(args...) printMsg(nix::lvl_error, args)
+#define NOTICE(args...) printMsg(nix::lvl_notice, args)
+#define PRINT_INFO(args...) printMsg(nix::lvl_info, args)
+#define PRINT_TALKATIVE(args...) printMsg(nix::lvl_talkative, args)
+#define DEBUG(args...) printMsg(nix::lvl_debug, args)
+#define VOMIT(args...) printMsg(nix::lvl_vomit, args)
+
+// Backward compatibility aliases
+#define printError(args...) PRINT_ERROR(args)
+#define notice(args...) NOTICE(args)
+#define printInfo(args...) PRINT_INFO(args)
+#define printTalkative(args...) PRINT_TALKATIVE(args)
+#define debug(args...) DEBUG(args)
+#define vomit(args...) VOMIT(args)
 
 /**
  * if verbosity >= lvl_warn, print a message with a yellow 'warning:' prefix.
@@ -301,11 +316,14 @@ inline auto warn(const std::string& fs, const Args&... args) -> void {
   logger->warn(f.str());
 }
 
-#define warnOnce(have_warned, args...)                                                             \
+#define WARN_ONCE(have_warned, args...)                                                            \
   if (!have_warned) {                                                                              \
     have_warned = true;                                                                            \
     warn(args);                                                                                    \
   }
+
+// Backward compatibility alias
+#define warnOnce(have_warned, args...) WARN_ONCE(have_warned, args)
 
 auto write_to_stderr(std::string_view s) -> void;
 

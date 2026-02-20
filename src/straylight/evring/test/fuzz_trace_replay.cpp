@@ -161,10 +161,10 @@ auto make_event_from_bytes(const std::uint8_t* data, std::size_t size,
   evring::event e{};
 
   if (size >= 4) {
-    std::memcpy(&e.resource_handle.index, data, 4);
+    std::memcpy(&e.resource_handle.index_, data, 4);
   }
   if (size >= 8) {
-    std::memcpy(&e.resource_handle.generation, data + 4, 4);
+    std::memcpy(&e.resource_handle.generation_, data + 4, 4);
   }
   if (size >= 9) {
     e.operation = static_cast<evring::operation_type>(data[8] % 27);

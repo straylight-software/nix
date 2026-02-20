@@ -39,7 +39,7 @@ const descriptor_t INVALID_DESCRIPTOR =
  *
  * This is a no-op except on Windows.
  */
-static inline descriptor_t to_descriptor(int fd) {
+static inline auto to_descriptor(int fd) -> descriptor_t {
 #ifdef _WIN32
   return reinterpret_cast<HANDLE>(_get_osfhandle(fd));
 #else
@@ -53,7 +53,7 @@ static inline descriptor_t to_descriptor(int fd) {
  *
  * This is a no-op except on Windows.
  */
-static inline int from_descriptor_read_only(descriptor_t fd) {
+static inline auto from_descriptor_read_only(descriptor_t fd) -> int {
 #ifdef _WIN32
   return _open_osfhandle(reinterpret_cast<intptr_t>(fd), _O_RDONLY);
 #else
@@ -93,15 +93,15 @@ void write_line(descriptor_t fd, std::string s);
 /**
  * Read a file descriptor until EOF occurs.
  */
-std::string drain_fd(descriptor_t fd, bool block = true, const size_t reserve_size = 0);
+std::string drain_fd(descriptor_t fd, bool block = true, size_t reserve_size = 0);
 
 /**
  * The Windows version is always blocking.
  */
 void drain_fd(descriptor_t fd, Sink& sink
 #ifndef _WIN32
-             ,
-             bool block = true
+              ,
+              bool block = true
 #endif
 );
 
@@ -109,7 +109,7 @@ void drain_fd(descriptor_t fd, Sink& sink
  * Get [Standard Input](https://en.wikipedia.org/wiki/Standard_streams#Standard_input_(stdin))
  */
 [[gnu::always_inline]]
-inline descriptor_t get_standard_input() {
+inline auto get_standard_input() -> descriptor_t {
 #ifndef _WIN32
   return STDIN_FILENO;
 #else
@@ -121,7 +121,7 @@ inline descriptor_t get_standard_input() {
  * Get [Standard Output](https://en.wikipedia.org/wiki/Standard_streams#Standard_output_(stdout))
  */
 [[gnu::always_inline]]
-inline descriptor_t get_standard_output() {
+inline auto get_standard_output() -> descriptor_t {
 #ifndef _WIN32
   return STDOUT_FILENO;
 #else
@@ -133,7 +133,7 @@ inline descriptor_t get_standard_output() {
  * Get [Standard Error](https://en.wikipedia.org/wiki/Standard_streams#Standard_error_(stderr))
  */
 [[gnu::always_inline]]
-inline descriptor_t get_standard_error() {
+inline auto get_standard_error() -> descriptor_t {
 #ifndef _WIN32
   return STDERR_FILENO;
 #else
@@ -145,7 +145,7 @@ inline descriptor_t get_standard_error() {
  * Automatic cleanup of resources.
  */
 class auto_close_fd_t {
-  descriptor_t fd;
+  descriptor_t fd_;
 
 public:
   auto_close_fd_t();
@@ -153,11 +153,11 @@ public:
   auto_close_fd_t(const auto_close_fd_t& fd) = delete;
   auto_close_fd_t(auto_close_fd_t&& fd) noexcept;
   ~auto_close_fd_t();
-  auto_close_fd_t& operator=(const auto_close_fd_t& fd) = delete;
-  auto_close_fd_t& operator=(auto_close_fd_t&& fd);
-  descriptor_t get() const;
+  auto operator=(const auto_close_fd_t& fd) -> auto_close_fd_t& = delete;
+  auto operator=(auto_close_fd_t&& fd) noexcept -> auto_close_fd_t&;
+  [[nodiscard]] auto get() const -> descriptor_t;
   explicit operator bool() const;
-  descriptor_t release();
+  auto release() -> descriptor_t;
   void close();
 
   /**
@@ -212,8 +212,8 @@ v*
  *
  * @return nullopt if openat2 is not supported by the kernel.
  */
-std::optional<descriptor_t> openat2(descriptor_t dir_fd, const char* path, uint64_t flags, uint64_t mode,
-                                  uint64_t resolve);
+std::optional<descriptor_t> openat2(descriptor_t dir_fd, const char* path, uint64_t flags,
+                                    uint64_t mode, uint64_t resolve);
 
 } // namespace linux
 #endif
@@ -259,8 +259,8 @@ struct symlink_not_allowed_t : public Error {
  *
  * @throws symlink_not_allowed_t if any path components
  */
-descriptor_t open_file_ensure_beneath_no_symlinks(descriptor_t dir_fd, const canon_path_t& path, int flags,
-                                           mode_t mode = 0);
+auto open_file_ensure_beneath_no_symlinks(descriptor_t dir_fd, const canon_path_t& path, int flags,
+                                          mode_t mode = 0) -> descriptor_t;
 
 } // namespace unix
 #endif

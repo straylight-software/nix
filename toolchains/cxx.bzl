@@ -64,10 +64,12 @@ def _llvm_toolchain_impl(ctx: AnalysisContext) -> list[Provider]:
     # These are the non-negotiable flags from nix/prelude/turing-registry.nix
     config_c_flags_str = read_root_config("cxx.flags", "c_flags", "")
     config_cxx_flags_str = read_root_config("cxx.flags", "cxx_flags", "")
+    config_link_flags_str = read_root_config("cxx.flags", "link_flags", "")
 
     # Parse space-separated flags into list
     config_c_flags = config_c_flags_str.split() if config_c_flags_str else []
     config_cxx_flags = config_cxx_flags_str.split() if config_cxx_flags_str else []
+    config_link_flags = config_link_flags_str.split() if config_link_flags_str else []
 
     # ════════════════════════════════════════════════════════════════════════════
     # Build include flags from config paths
@@ -137,7 +139,8 @@ def _llvm_toolchain_impl(ctx: AnalysisContext) -> list[Provider]:
     # Order: include_flags (paths) + config flags (turing registry) + extra flags (project-specific)
     c_flags = include_flags + config_c_flags + ctx.attrs.c_extra_flags
     cxx_flags = include_flags + config_cxx_flags + ctx.attrs.cxx_extra_flags
-    link_flags = extra_link_flags + ctx.attrs.link_flags
+    # Link flags: extra (glibc, gcc_lib) + config (Nix dep -L paths) + attrs (project-specific)
+    link_flags = extra_link_flags + config_link_flags + ctx.attrs.link_flags
 
     # ════════════════════════════════════════════════════════════════════════════
     # Build the toolchain provider

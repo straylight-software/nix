@@ -7,30 +7,31 @@ from pathlib import Path
 
 # Include paths based on the new structure
 INCLUDES = [
-    "-Isrc/nix",
-    "-Isrc/nix/util",
-    "-Isrc/nix/store", 
-    "-Isrc/nix/expr",
-    "-Isrc/nix/fetchers",
-    "-Isrc/nix/flake",
-    "-Isrc/nix/main",
-    "-Isrc/nix/cmd",
-    "-Isrc/nix/cli",
+    "-Isrc",
 ]
 
-# System includes (from nix develop)
+# System includes (from nix develop - extracted from g++ -v output)
 SYS_INCLUDES = [
-    "-isystem/nix/store/2iqpqx03bxg16hn6d4k6w7dci4hgllph-boost-1.87.0-dev/include",
-    "-isystem/nix/store/mwlmrp65kqqrp8b25nshm6qyqxb70pf7-nlohmann_json-3.12.0/include",
-    "-isystem/nix/store/5g76svmwc0f7cbz90xdhq6r3s62cszqp-openssl-3.5.0-dev/include",
-    "-isystem/nix/store/76za4vjf98fxkf06hj4bwzfxv8cn1bbi-libarchive-3.8.0-dev/include",
-    "-isystem/nix/store/mbr23m9fmpcrn3sxz8r22fk1vnpbbkhz-sqlite-3.50.1-dev/include",
-    "-isystem/nix/store/q9hk8gsh0wlz2yxr9pf59hn3b04wmjp7-curl-8.15.0-dev/include",
-    "-isystem/nix/store/38yj3dfdi9z9r1hy7v35znl3nfh82ggs-libgit2-1.9.1/include",
-    "-isystem/nix/store/pzrvvrvs2ynfvz8ycm3dw02a0lbj0ylz-brotli-1.1.0-dev/include",
-    "-isystem/nix/store/7d2vmwh8cqbzgicpzznmqrn9w4ys4v7b-editline-1.17.2-dev/include",
-    "-isystem/nix/store/q1bkd0cna7jb1ixwdvynq99fzjmq3aps-libsodium-1.0.20-dev/include",
-    "-isystem/nix/store/88xafmpx61dwpvr1lhl6nq72wq78d1l5-lowdown-1.3.0/include",
+    # C++ standard library (gcc libstdc++)
+    "-isystem/nix/store/mjf8jlq9grydcdvyw6hb063x5c34g5gf-gcc-15.2.0/include/c++/15.2.0",
+    "-isystem/nix/store/mjf8jlq9grydcdvyw6hb063x5c34g5gf-gcc-15.2.0/include/c++/15.2.0/x86_64-unknown-linux-gnu",
+    "-isystem/nix/store/mjf8jlq9grydcdvyw6hb063x5c34g5gf-gcc-15.2.0/include/c++/15.2.0/backward",
+    "-isystem/nix/store/mjf8jlq9grydcdvyw6hb063x5c34g5gf-gcc-15.2.0/lib/gcc/x86_64-unknown-linux-gnu/15.2.0/include",
+    "-isystem/nix/store/mjf8jlq9grydcdvyw6hb063x5c34g5gf-gcc-15.2.0/include",
+    "-isystem/nix/store/mjf8jlq9grydcdvyw6hb063x5c34g5gf-gcc-15.2.0/lib/gcc/x86_64-unknown-linux-gnu/15.2.0/include-fixed",
+    "-isystem/nix/store/rwalsamz4246k8f1zzxa54qx7w3fbzdg-glibc-2.42-47-dev/include",
+    # Project dependencies
+    "-isystem/nix/store/074p1j77fjfk52951r6x3l4kq2i62p67-boost-1.87.0-dev/include",
+    "-isystem/nix/store/6zpgsxs888i5ifqkj4bbb1czf2my655n-nlohmann_json-3.12.0/include",
+    "-isystem/nix/store/fgm3pz8486ksh3f94629lpb7xjr2wjp7-openssl-3.6.0-dev/include",
+    "-isystem/nix/store/72hw5y7rbf4k33gnnwxkny5x4ahpi8k6-libarchive-3.8.4-dev/include",
+    "-isystem/nix/store/6k6dpcdv1bxcipcgdbi89g9fxws0vhvc-sqlite-3.51.2-dev/include",
+    "-isystem/nix/store/gy73p60881n9nagq7grffjgy4ycw9a85-curl-8.17.0-dev/include",
+    "-isystem/nix/store/mvag6c76z2f3328c6db13798j1lg9vfy-libgit2-1.9.2-dev/include",
+    "-isystem/nix/store/gm1v2azbnb96yi4fapfd1jx9f0jrnpzq-brotli-1.2.0-dev/include",
+    "-isystem/nix/store/w3a55rkannhpzvfs65s0rsnphg6szahz-editline-1.17.1-unstable-2025-05-24-dev/include",
+    "-isystem/nix/store/mb060ad9n7w3knx52700vr2c8q4g5w4z-libsodium-1.0.20-unstable-2025-12-31-dev/include",
+    "-isystem/nix/store/p4a76cda0nh70q287v4jglzwacwwhrki-lowdown-2.0.4-dev/include",
 ]
 
 FLAGS = [

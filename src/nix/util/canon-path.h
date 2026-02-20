@@ -54,7 +54,7 @@ make_error(BadCanonPath, Error); // NOLINT(readability-identifier-naming)
  * path, and the path may or may not have unresolved symlinks.
  */
 class canon_path_t {
-  std::string path_;
+  std::string path_{};
 
 public:
   /**

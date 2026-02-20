@@ -23,8 +23,7 @@ struct resource {
 };
 
 /// ring: abstract interface for I/O submission/completion
-class ring {
-public:
+struct ring {
   ring() = default;
   virtual ~ring() = default;
 

@@ -219,8 +219,8 @@ void fuzz_tracked_table(const std::uint8_t* data, std::size_t size) {
         // Check random handle
         evring::handle h;
         if (offset + 8 <= size) {
-          std::memcpy(&h.index, data + offset, 4);
-          std::memcpy(&h.generation, data + offset + 4, 4);
+          std::memcpy(&h.index_, data + offset, 4);
+          std::memcpy(&h.generation_, data + offset + 4, 4);
           offset += 8;
         }
 
@@ -459,7 +459,7 @@ void fuzz_aba_protection(const std::uint8_t* data, std::size_t size) {
   // Old handle MUST be invalid even if same index
   if (table.valid(h1)) {
     // If same index was reused, generations should differ
-    if (h1.index == h2.index && h1.generation == h2.generation) {
+    if (h1.index_ == h2.index_ && h1.generation_ == h2.generation_) {
       __builtin_trap(); // ABA protection failed!
     }
   }
@@ -496,11 +496,11 @@ void fuzz_aba_protection(const std::uint8_t* data, std::size_t size) {
 
   // Verify no stale handles are valid
   std::set<std::uint32_t> valid_indices;
-  table.for_each([&](evring::handle h, std::uint64_t&) { valid_indices.insert(h.index); });
+  table.for_each([&](evring::handle h, std::uint64_t&) { valid_indices.insert(h.index_); });
 
   for (const auto& h : all_handles) {
     bool is_valid = table.valid(h);
-    bool should_be_valid = valid_indices.count(h.index) > 0;
+    bool should_be_valid = valid_indices.count(h.index_) > 0;
 
     // If index is in valid set, handle must match current generation
     // This is a softer check since we can't know exact generation

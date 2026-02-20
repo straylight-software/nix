@@ -39,7 +39,7 @@ struct Source;
 /**
  * Return whether the path denotes an absolute path.
  */
-bool is_absolute(path_view_t path);
+auto is_absolute(path_view_t path) -> bool;
 
 /**
  * @return An absolutized path, resolving paths relative to the
@@ -51,13 +51,13 @@ bool is_absolute(path_view_t path);
 Path abs_path(path_view_t path, std::optional<path_view_t> dir = {}, bool resolve_symlinks = false);
 
 inline Path abs_path(const Path& path, std::optional<path_view_t> dir = {},
-                    bool resolve_symlinks = false) {
+                     bool resolve_symlinks = false) {
   return abs_path(path_view_t{path}, dir, resolve_symlinks);
 }
 
 std::filesystem::path abs_path(const std::filesystem::path& path,
-                              const std::filesystem::path* dir = nullptr,
-                              bool resolve_symlinks = false);
+                               const std::filesystem::path* dir = nullptr,
+                               bool resolve_symlinks = false);
 
 /**
  * Canonicalise a path by removing all `.` or `..` components and
@@ -81,7 +81,7 @@ Path canon_path(path_view_t path, bool resolve_symlinks = false);
  * In the process of being deprecated for
  * `std::filesystem::path::parent_path`.
  */
-Path dir_of(const path_view_t path);
+Path dir_of(path_view_t path);
 
 /**
  * @return the base name of the given canonical path, i.e., everything
@@ -96,19 +96,19 @@ std::string_view base_name_of(std::string_view path);
  * Check whether 'path' is a descendant of 'dir'. Both paths must be
  * canonicalized.
  */
-bool is_in_dir(const std::filesystem::path& path, const std::filesystem::path& dir);
+auto is_in_dir(const std::filesystem::path& path, const std::filesystem::path& dir) -> bool;
 
 /**
  * Check whether 'path' is equal to 'dir' or a descendant of
  * 'dir'. Both paths must be canonicalized.
  */
-bool is_dir_or_in_dir(const std::filesystem::path& path, const std::filesystem::path& dir);
+auto is_dir_or_in_dir(const std::filesystem::path& path, const std::filesystem::path& dir) -> bool;
 
 /**
  * Get status of `path`.
  */
-struct stat stat(const Path& path);
-struct stat lstat(const Path& path);
+auto stat(const Path& path) -> struct stat;
+auto lstat(const Path& path) -> struct stat;
 /**
  * `lstat` the given path if it exists.
  * @return std::nullopt if the path doesn't exist, or an optional containing the result of `lstat`
@@ -119,7 +119,7 @@ std::optional<struct stat> maybe_lstat(const Path& path);
 /**
  * @return true iff the given path exists.
  */
-bool path_exists(const std::filesystem::path& path);
+auto path_exists(const std::filesystem::path& path) -> bool;
 
 /**
  * Canonicalize a path except for the last component.
@@ -144,7 +144,7 @@ std::filesystem::path make_parent_canonical(const std::filesystem::path& path);
  * be readable.
  * @return true iff the given path can be accessed and exists
  */
-bool path_accessible(const std::filesystem::path& path);
+auto path_accessible(const std::filesystem::path& path) -> bool;
 
 /**
  * Read the contents (target) of a symbolic link.  The result is not
@@ -164,7 +164,7 @@ std::filesystem::path read_link(const std::filesystem::path& path);
 /**
  * Open a `descriptor_t` with read-only access to the given directory.
  */
-descriptor_t open_directory(const std::filesystem::path& path);
+auto open_directory(const std::filesystem::path& path) -> descriptor_t;
 
 /**
  * Read the contents of a file into a string.
@@ -173,27 +173,29 @@ std::string read_file(const Path& path);
 std::string read_file(const std::filesystem::path& path);
 void read_file(const Path& path, Sink& sink, bool memory_map = true);
 
-enum struct fs_sync_t { yes, No };
+enum struct fs_sync_t { yes, no };
 
 /**
  * Write a string to a file.
  */
-void write_file(const Path& path, std::string_view s, mode_t mode = 0666, fs_sync_t sync = fs_sync_t::No);
+void write_file(const Path& path, std::string_view s, mode_t mode = 0666,
+                fs_sync_t sync = fs_sync_t::no);
 
 static inline void write_file(const std::filesystem::path& path, std::string_view s,
-                             mode_t mode = 0666, fs_sync_t sync = fs_sync_t::No) {
+                              mode_t mode = 0666, fs_sync_t sync = fs_sync_t::no) {
   return write_file(path.string(), s, mode, sync);
 }
 
-void write_file(const Path& path, Source& source, mode_t mode = 0666, fs_sync_t sync = fs_sync_t::No);
+void write_file(const Path& path, Source& source, mode_t mode = 0666,
+                fs_sync_t sync = fs_sync_t::no);
 
 static inline void write_file(const std::filesystem::path& path, Source& source, mode_t mode = 0666,
-                             fs_sync_t sync = fs_sync_t::No) {
+                              fs_sync_t sync = fs_sync_t::no) {
   return write_file(path.string(), source, mode, sync);
 }
 
 void write_file(auto_close_fd_t& fd, const Path& orig_path, std::string_view s, mode_t mode = 0666,
-               fs_sync_t sync = fs_sync_t::No);
+                fs_sync_t sync = fs_sync_t::no);
 
 /**
  * Flush a path's parent directory to disk.
@@ -239,8 +241,8 @@ void create_dir(const Path& path, mode_t mode = 0755);
  * `std::optional` is passed, the information will be recomputed if it
  * is needed. Race conditions are possible so be careful!
  */
-void set_write_time(const std::filesystem::path& path, time_t accessed_time, time_t modification_time,
-                  std::optional<bool> is_symlink = std::nullopt);
+void set_write_time(const std::filesystem::path& path, time_t accessed_time,
+                    time_t modification_time, std::optional<bool> is_symlink = std::nullopt);
 
 /**
  * Convenience wrapper that takes all arguments from the `struct stat`.
@@ -283,37 +285,35 @@ void copy_file(const std::filesystem::path& from, const std::filesystem::path& t
  * Automatic cleanup of resources.
  */
 class auto_delete_t {
-  std::filesystem::path _path;
+  std::filesystem::path path_{};
   bool del;
   bool recursive;
 
 public:
   auto_delete_t();
 
-  auto_delete_t(auto_delete_t&& x) noexcept {
-    _path = std::move(x._path);
-    del = x.del;
-    recursive = x.recursive;
+  auto_delete_t(auto_delete_t&& x) noexcept : del(x.del), recursive(x.recursive) {
+    path_ = std::move(x.path_);
     x.del = false;
   }
 
   auto_delete_t(const std::filesystem::path& p, bool recursive = true);
   auto_delete_t(const auto_delete_t&) = delete;
-  auto_delete_t& operator=(auto_delete_t&&) = delete;
-  auto_delete_t& operator=(const auto_delete_t&) = delete;
+  auto operator=(auto_delete_t&&) -> auto_delete_t& = delete;
+  auto operator=(const auto_delete_t&) -> auto_delete_t& = delete;
   ~auto_delete_t();
 
   void cancel();
 
   void reset(const std::filesystem::path& p, bool recursive = true);
 
-  const std::filesystem::path& path() const { return _path; }
+  [[nodiscard]] auto path() const -> const std::filesystem::path& { return path_; }
 
-  path_view_ng_t view() const { return _path; }
+  [[nodiscard]] auto view() const -> path_view_ng_t { return path_; }
 
-  operator const std::filesystem::path&() const { return _path; }
+  operator const std::filesystem::path&() const { return path_; }
 
-  operator path_view_ng_t() const { return _path; }
+  operator path_view_ng_t() const { return path_; }
 };
 
 struct dir_deleter_t {
@@ -326,13 +326,13 @@ using auto_close_dir_t = std::unique_ptr<DIR, dir_deleter_t>;
  * Create a temporary directory.
  */
 std::filesystem::path create_temp_dir(const std::filesystem::path& tmp_root = "",
-                                    const std::string& prefix = "nix", mode_t mode = 0755);
+                                      const std::string& prefix = "nix", mode_t mode = 0755);
 
 /**
  * Create an anonymous readable/writable temporary file, returning a file handle.
  * On UNIX there resulting file isn't linked to any path on the filesystem.
  */
-auto_close_fd_t create_anonymous_temp_file();
+auto create_anonymous_temp_file() -> auto_close_fd_t;
 
 /**
  * Create a temporary file, returning a file handle and its path.
@@ -348,7 +348,7 @@ std::filesystem::path default_temp_dir();
  * Interpret `exe` as a location in the ambient file system and return
  * whether it resolves to a file that is executable.
  */
-bool is_executable_file_ambient(const std::filesystem::path& exe);
+auto is_executable_file_ambient(const std::filesystem::path& exe) -> bool;
 
 /**
  * Return temporary path constructed by appending a suffix to a root path.
@@ -357,7 +357,7 @@ bool is_executable_file_ambient(const std::filesystem::path& exe);
  * path nested in a directory, provide a suffix starting with `/`.
  */
 std::filesystem::path make_temp_path(const std::filesystem::path& root,
-                                   const std::string& suffix = ".tmp");
+                                     const std::string& suffix = ".tmp");
 
 /**
  * Used in various places.
@@ -380,8 +380,8 @@ extern path_filter_t default_path_filter;
  *
  * @return true if permissions changed, false otherwise.
  */
-bool chmod_if_needed(const std::filesystem::path& path, mode_t mode,
-                   mode_t mask = S_IRWXU | S_IRWXG | S_IRWXO);
+auto chmod_if_needed(const std::filesystem::path& path, mode_t mode,
+                     mode_t mask = S_IRWXU | S_IRWXG | S_IRWXO) -> bool;
 
 /**
  * @brief A directory iterator that can be used to iterate over the
@@ -412,33 +412,35 @@ public:
 
   pointer operator->() const { return &(*it_); }
 
-  directory_iterator_t& operator++();
+  auto operator++() -> directory_iterator_t&;
 
   // Postfix increment operator
-  directory_iterator_t operator++(int) {
+  auto operator++(int) -> directory_iterator_t {
     directory_iterator_t temp = *this;
     ++(*this); // Uses the prefix increment's try-catch logic
     return temp;
   }
 
   // Equality comparison
-  friend bool operator==(const directory_iterator_t& a, const directory_iterator_t& b) noexcept {
+  friend auto operator==(const directory_iterator_t& a, const directory_iterator_t& b) noexcept
+      -> bool {
     return a.it_ == b.it_;
   }
 
   // Inequality comparison
-  friend bool operator!=(const directory_iterator_t& a, const directory_iterator_t& b) noexcept {
+  friend auto operator!=(const directory_iterator_t& a, const directory_iterator_t& b) noexcept
+      -> bool {
     return !(a == b);
   }
 
   // Allow direct use in range-based for loops if iterating over an instance
-  directory_iterator_t begin() const { return *this; }
+  [[nodiscard]] auto begin() const -> directory_iterator_t { return *this; }
 
-  directory_iterator_t end() const { return directory_iterator_t{}; }
+  [[nodiscard]] static auto end() -> directory_iterator_t { return directory_iterator_t{}; }
 
 
 private:
-  std::filesystem::directory_iterator it_;
+  std::filesystem::directory_iterator it_{};
 };
 
 #ifdef __FreeBSD__

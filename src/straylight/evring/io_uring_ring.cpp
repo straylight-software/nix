@@ -243,7 +243,7 @@ public:
 
       case operation_type::cancel: {
         const auto& parameters = std::get<cancel_parameters>(operation_to_enqueue.parameters);
-        io_uring_prep_cancel64(sqe, parameters.target.index, 0);
+        io_uring_prep_cancel64(sqe, parameters.target.index_, 0);
         break;
       }
 

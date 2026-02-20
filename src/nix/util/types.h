@@ -76,9 +76,9 @@ template <typename T>
 struct Explicit {
   T t;
 
-  bool operator==(const Explicit<T>& other) const = default;
+  auto operator==(const Explicit<T>& other) const -> bool = default;
 
-  bool operator<(const Explicit<T>& other) const { return t < other.t; }
+  auto operator<(const Explicit<T>& other) const -> bool { return t < other.t; }
 };
 
 /**
@@ -93,53 +93,53 @@ struct Explicit {
  */
 class backed_string_view_t {
 private:
-  std::variant<std::string, std::string_view> data;
+  std::variant<std::string, std::string_view> data_{};
 
   /**
    * Needed to introduce a temporary since operator-> must return
    * a pointer. Without this we'd need to store the view object
    * even when we already own a string.
    */
-  class Ptr {
+  class ptr {
   private:
-    std::string_view view;
+    std::string_view view_{};
 
   public:
-    Ptr(std::string_view view) : view(view) {}
+    explicit ptr(std::string_view sv) : view_(sv) {}
 
-    const std::string_view* operator->() const { return &view; }
+    auto operator->() const -> const std::string_view* { return &view_; }
   };
 
 public:
-  backed_string_view_t(std::string&& s) : data(std::move(s)) {}
+  backed_string_view_t(std::string&& s) : data_(std::move(s)) {}
 
-  backed_string_view_t(std::string_view sv) : data(sv) {}
+  backed_string_view_t(std::string_view sv) : data_(sv) {}
 
   template <size_t N>
-  backed_string_view_t(const char (&lit)[N]) : data(std::string_view(lit)) {}
+  backed_string_view_t(const char (&lit)[N]) : data_(std::string_view(lit)) {}
 
   backed_string_view_t(const backed_string_view_t&) = delete;
-  backed_string_view_t& operator=(const backed_string_view_t&) = delete;
+  auto operator=(const backed_string_view_t&) -> backed_string_view_t& = delete;
 
   /**
    * We only want move operations defined since the sole purpose of
    * this type is to avoid copies.
    */
   backed_string_view_t(backed_string_view_t&& other) = default;
-  backed_string_view_t& operator=(backed_string_view_t&& other) = default;
+  auto operator=(backed_string_view_t&& other) -> backed_string_view_t& = default;
 
-  bool is_owned() const { return std::holds_alternative<std::string>(data); }
+  [[nodiscard]] auto is_owned() const -> bool { return std::holds_alternative<std::string>(data_); }
 
   std::string to_owned() && {
-    return is_owned() ? std::move(std::get<std::string>(data))
-                     : std::string(std::get<std::string_view>(data));
+    return is_owned() ? std::move(std::get<std::string>(data_))
+                      : std::string(std::get<std::string_view>(data_));
   }
 
   std::string_view operator*() const {
-    return is_owned() ? std::get<std::string>(data) : std::get<std::string_view>(data);
+    return is_owned() ? std::get<std::string>(data_) : std::get<std::string_view>(data_);
   }
 
-  Ptr operator->() const { return Ptr(**this); }
+  ptr operator->() const { return ptr(**this); }
 };
 
 } // namespace nix

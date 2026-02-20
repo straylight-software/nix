@@ -55,9 +55,9 @@ public:
 protected:
   virtual auto write_unbuffered(std::string_view data) -> void = 0;
 
-  size_t buf_size_;
-  size_t buf_pos_;
-  std::unique_ptr<char[]> buffer_;
+  size_t buf_size_{};
+  size_t buf_pos_{};
+  std::unique_ptr<char[]> buffer_{};
 };
 
 /**
@@ -116,10 +116,10 @@ protected:
    */
   virtual auto read_unbuffered(char* data, size_t len) -> size_t = 0;
 
-  size_t buf_size_;
-  size_t buf_pos_in_;
-  size_t buf_pos_out_;
-  std::unique_ptr<char[]> buffer_;
+  size_t buf_size_{};
+  size_t buf_pos_in_{};
+  size_t buf_pos_out_{};
+  std::unique_ptr<char[]> buffer_{};
 };
 
 /**
@@ -140,7 +140,7 @@ public:
 
   fd_sink_t(fd_sink_t&&) = default;
 
-  auto operator=(fd_sink_t&& s) -> fd_sink_t& {
+  auto operator=(fd_sink_t&& s) noexcept -> fd_sink_t& {
     flush();
     fd_ = s.fd_;
     s.fd_ = INVALID_DESCRIPTOR;
@@ -227,7 +227,7 @@ public:
   [[nodiscard]] auto str() -> std::string& { return s_; }
 
 private:
-  std::string s_;
+  std::string s_{};
 };
 
 /**
@@ -254,8 +254,8 @@ public:
   [[nodiscard]] auto pos() const -> size_t { return pos_; }
 
 private:
-  std::string_view s_;
-  size_t pos_;
+  std::string_view s_{};
+  size_t pos_{};
 };
 
 /**
@@ -332,7 +332,7 @@ private:
  */
 class sized_source_t : public Source {
 public:
-  sized_source_t(Source& orig, size_t size) : orig_(orig), remain_(size) {}
+  sized_source_t(Source& orig, std::size_t size) : orig_(orig), remain_(size) {}
 
   auto read(char* data, size_t len) -> size_t override {
     if (remain_ <= 0) {
@@ -361,7 +361,7 @@ public:
 
 private:
   Source& orig_;
-  size_t remain_;
+  std::size_t remain_{};
 };
 
 /**
@@ -394,7 +394,7 @@ public:
 
 private:
   Source& next_;
-  uint64_t total_ = 0;
+  std::uint64_t total_ = 0;
 };
 
 /**
@@ -406,7 +406,7 @@ public:
   using cleanup_t = std::function<void()>;
 
   lambda_sink_t(
-      const data_t& data_fun, const cleanup_t& cleanup_fun = []() {})
+      const data_t& data_fun, const cleanup_t& cleanup_fun = []() -> void {})
       : data_fun_(data_fun), cleanup_fun_(cleanup_fun) {}
 
   ~lambda_sink_t() override { cleanup_fun_(); }
@@ -414,8 +414,8 @@ public:
   auto operator()(std::string_view data) -> void override { data_fun_(data); }
 
 private:
-  data_t data_fun_;
-  cleanup_t cleanup_fun_;
+  data_t data_fun_{};
+  cleanup_t cleanup_fun_{};
 };
 
 /**
@@ -430,7 +430,7 @@ public:
   auto read(char* data, size_t len) -> size_t override { return lambda_(data, len); }
 
 private:
-  lambda_t lambda_;
+  lambda_t lambda_{};
 };
 
 /**
@@ -461,10 +461,10 @@ private:
       throw EndOfFile("coroutine has finished");
     }) -> std::unique_ptr<Source>;
 
-auto write_padding(size_t len, Sink& sink) -> void;
+auto write_padding(std::size_t len, Sink& sink) -> void;
 auto write_string(std::string_view s, Sink& sink) -> void;
 
-inline auto operator<<(Sink& sink, uint64_t n) -> Sink& {
+inline auto operator<<(Sink& sink, std::uint64_t n) -> Sink& {
   unsigned char buf[8];
   buf[0] = n & 0xff;
   buf[1] = (n >> 8) & 0xff;
@@ -474,11 +474,11 @@ inline auto operator<<(Sink& sink, uint64_t n) -> Sink& {
   buf[5] = (n >> 40) & 0xff;
   buf[6] = (n >> 48) & 0xff;
   buf[7] = (unsigned char)(n >> 56) & 0xff;
-  sink({(char*)buf, sizeof(buf)});
+  sink({reinterpret_cast<char*>(buf), sizeof(buf)});
   return sink;
 }
 
-auto operator<<(Sink& in, const Error& ex) -> Sink&;
+auto operator<<(Sink& sink, const Error& ex) -> Sink&;
 auto operator<<(Sink& sink, std::string_view s) -> Sink&;
 auto operator<<(Sink& sink, const strings_t& s) -> Sink&;
 auto operator<<(Sink& sink, const string_set_t& s) -> Sink&;
@@ -488,7 +488,7 @@ make_error(SerialisationError, Error);
 template <typename T>
 [[nodiscard]] auto read_num(Source& source) -> T {
   unsigned char buf[8];
-  source((char*)buf, sizeof(buf));
+  source(reinterpret_cast<char*>(buf), sizeof(buf));
 
   auto n = read_little_endian<uint64_t>(buf);
 
@@ -503,13 +503,14 @@ template <typename T>
   return read_num<unsigned int>(source);
 }
 
-[[nodiscard]] inline auto read_long_long(Source& source) -> uint64_t {
-  return read_num<uint64_t>(source);
+[[nodiscard]] inline auto read_long_long(Source& source) -> std::uint64_t {
+  return read_num<std::uint64_t>(source);
 }
 
-auto read_padding(size_t len, Source& source) -> void;
-[[nodiscard]] auto read_string(char* buf, size_t max, Source& source) -> size_t;
-[[nodiscard]] auto read_string(Source& source, size_t max = std::numeric_limits<size_t>::max())
+auto read_padding(std::size_t len, Source& source) -> void;
+[[nodiscard]] auto read_string(char* buf, std::size_t max, Source& source) -> std::size_t;
+[[nodiscard]] auto read_string(Source& source,
+                               std::size_t max = std::numeric_limits<std::size_t>::max())
     -> std::string;
 
 template <class T>
@@ -525,7 +526,7 @@ auto operator>>(Source& in, T& n) -> Source& {
 
 template <typename T>
 auto operator>>(Source& in, bool& b) -> Source& {
-  b = read_num<uint64_t>(in);
+  b = read_num<std::uint64_t>(in);
   return in;
 }
 
@@ -539,13 +540,15 @@ public:
   explicit stream_to_source_adapter_t(std::shared_ptr<std::basic_istream<char>> istream)
       : istream_(std::move(istream)) {}
 
-  auto read(char* data, size_t len) -> size_t override {
+  auto read(char* data, std::size_t len) -> std::size_t override {
     if (!istream_->read(data, len)) {
       if (istream_->eof()) {
-        if (istream_->gcount() == 0)
+        if (istream_->gcount() == 0) {
           throw EndOfFile("end of file");
-      } else
+        }
+      } else {
         throw Error("I/O error in StreamToSourceAdapter");
+      }
     }
     return istream_->gcount();
   }
@@ -571,8 +574,9 @@ public:
       if (!eof_) {
         while (true) {
           auto n = read_int(from_);
-          if (!n)
+          if (n == 0u) {
             break;
+          }
           std::vector<char> data(n);
           from_(data.data(), n);
         }
@@ -583,8 +587,9 @@ public:
   }
 
   auto read(char* data, size_t len) -> size_t override {
-    if (eof_)
+    if (eof_) {
       throw EndOfFile("reached end of FramedSource");
+    }
 
     if (pos_ >= pending_.size()) {
       size_t chunk_len = read_int(from_);
@@ -606,8 +611,8 @@ public:
 private:
   Source& from_;
   bool eof_ = false;
-  std::vector<char> pending_;
-  size_t pos_ = 0;
+  std::vector<char> pending_{};
+  std::size_t pos_ = 0;
 };
 
 /**
@@ -640,7 +645,7 @@ public:
 
 private:
   buffered_sink_t& to_;
-  std::function<void()> check_error_;
+  std::function<void()> check_error_{};
 };
 
 } // namespace nix

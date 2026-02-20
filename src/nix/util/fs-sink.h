@@ -56,7 +56,7 @@ struct file_system_object_sink_t {
    * written at a time.
    */
   virtual void create_regular_file(const canon_path_t& path,
-                                 std::function<void(create_regular_file_sink_t&)>) = 0;
+                                   std::function<void(create_regular_file_sink_t&)>) = 0;
 
   virtual void create_symlink(const canon_path_t& path, const std::string& target) = 0;
 };
@@ -77,25 +77,25 @@ struct extended_file_system_object_sink_t : virtual file_system_object_sink_t {
  * Recursively copy file system objects from the source into the sink.
  */
 void copy_recursive(SourceAccessor& accessor, const canon_path_t& source_path,
-                   file_system_object_sink_t& sink, const canon_path_t& dest_path);
+                    file_system_object_sink_t& sink, const canon_path_t& dest_path);
 
 /**
  * Ignore everything and do nothing
  */
 struct null_file_system_object_sink_t : file_system_object_sink_t {
-  void create_directory(const canon_path_t& path) override {}
+  void create_directory(const canon_path_t& /*path*/) override {}
 
-  void create_symlink(const canon_path_t& path, const std::string& target) override {}
+  void create_symlink(const canon_path_t& /*path*/, const std::string& target) override {}
 
   void create_regular_file(const canon_path_t& path,
-                         std::function<void(create_regular_file_sink_t&)>) override;
+                           std::function<void(create_regular_file_sink_t&)>) override;
 };
 
 /**
  * Write files at the given path
  */
 struct restore_sink_t : file_system_object_sink_t {
-  std::filesystem::path dst_path;
+  std::filesystem::path dst_path{};
 #ifndef _WIN32
   /**
    * file_t descriptor for the directory located at dst_path. Used for *at
@@ -119,7 +119,7 @@ struct restore_sink_t : file_system_object_sink_t {
 #endif
 
   void create_regular_file(const canon_path_t& path,
-                         std::function<void(create_regular_file_sink_t&)>) override;
+                           std::function<void(create_regular_file_sink_t&)>) override;
 
   void create_symlink(const canon_path_t& path, const std::string& target) override;
 };
@@ -131,16 +131,18 @@ struct restore_sink_t : file_system_object_sink_t {
  */
 struct regular_file_sink_t : file_system_object_sink_t {
   bool regular = true;
-  Sink& sink;
+  Sink& sink_;
 
-  regular_file_sink_t(Sink& sink) : sink(sink) {}
+  regular_file_sink_t(Sink& s) : sink_(s) {}
 
-  void create_directory(const canon_path_t& path) override { regular = false; }
+  void create_directory(const canon_path_t& /*path*/) override { regular = false; }
 
-  void create_symlink(const canon_path_t& path, const std::string& target) override { regular = false; }
+  void create_symlink(const canon_path_t& /*path*/, const std::string& target) override {
+    regular = false;
+  }
 
   void create_regular_file(const canon_path_t& path,
-                         std::function<void(create_regular_file_sink_t&)>) override;
+                           std::function<void(create_regular_file_sink_t&)>) override;
 };
 
 } // namespace nix

@@ -78,7 +78,7 @@ void restore_path(const Path& path, Source& source, file_serialisation_method_t 
                  bool start_fsync) {
   switch (method) {
     case file_serialisation_method_t::flat:
-      write_file(path, source, 0666, start_fsync ? fs_sync_t::yes : fs_sync_t::No);
+      write_file(path, source, 0666, start_fsync ? fs_sync_t::yes : fs_sync_t::no);
       break;
     case file_serialisation_method_t::nix_archive:
       restore_path(path, source, start_fsync);

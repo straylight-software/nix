@@ -49,7 +49,7 @@ class abstract_setting_t;
 
 class abstract_config_t {
 protected:
-  string_map_t unknownSettings;
+  string_map_t unknownSettings_;
 
   abstract_config_t(string_map_t initials = {});
 
@@ -58,11 +58,11 @@ public:
    * Sets the value referenced by `name` to `value`. Returns true if the
    * setting is known, false otherwise.
    */
-  virtual bool set(const std::string& name, const std::string& value) = 0;
+  virtual auto set(const std::string& name, const std::string& value) -> bool = 0;
 
   struct setting_info_t {
-    std::string value;
-    std::string description;
+    std::string value{};
+    std::string description{};
   };
 
   /**
@@ -71,7 +71,7 @@ public:
    * - overridden_only: when set to true only overridden settings will be added to `res`
    */
   virtual void get_settings(std::map<std::string, setting_info_t>& res,
-                           bool overridden_only = false) const = 0;
+                            bool overridden_only = false) const = 0;
 
   /**
    * Parses the configuration in `contents` and applies it
@@ -144,17 +144,17 @@ public:
   using settings_t = std::map<std::string, setting_data_t>;
 
 private:
-  settings_t _settings;
+  settings_t settings_;
 
 public:
   config_t(string_map_t initials = {});
 
-  bool set(const std::string& name, const std::string& value) override;
+  auto set(const std::string& name, const std::string& value) -> bool override;
 
   void add_setting(abstract_setting_t* setting);
 
   void get_settings(std::map<std::string, setting_info_t>& res,
-                   bool overridden_only = false) const override;
+                    bool overridden_only = false) const override;
 
   void reset_overridden() override;
 
@@ -180,8 +180,9 @@ public:
   std::optional<experimental_feature_t> experimental_feature;
 
 protected:
-  abstract_setting_t(const std::string& name, const std::string& description, const string_set_t& aliases,
-                  std::optional<experimental_feature_t> experimental_feature = std::nullopt);
+  abstract_setting_t(const std::string& name, const std::string& description,
+                     const string_set_t& aliases,
+                     std::optional<experimental_feature_t> experimental_feature = std::nullopt);
 
   virtual ~abstract_setting_t();
 
@@ -191,17 +192,17 @@ protected:
    * Whether the type is appendable; i.e. whether the `append`
    * parameter to `set()` is allowed to be `true`.
    */
-  virtual bool is_appendable() = 0;
+  virtual auto is_appendable() -> bool = 0;
 
-  virtual std::string to_string() const = 0;
+  [[nodiscard]] virtual std::string to_string() const = 0;
 
   nlohmann::json to_json();
 
-  virtual std::map<std::string, nlohmann::json> to_json_object() const;
+  [[nodiscard]] virtual std::map<std::string, nlohmann::json> to_json_object() const;
 
   virtual void convert_to_arg(Args& args, const std::string& category);
 
-  bool is_overridden() const;
+  [[nodiscard]] auto is_overridden() const -> bool;
 };
 
 /**
@@ -210,7 +211,7 @@ protected:
 template <typename T>
 class base_setting_t : public abstract_setting_t {
 protected:
-  T value;
+  T value_;
   const T default_value;
   const bool document_default;
 
@@ -219,7 +220,7 @@ protected:
    *
    * Used by `set()`.
    */
-  virtual T parse(const std::string& str) const;
+  virtual auto parse(const std::string& str) const -> T;
 
   /**
    * Append or overwrite `value` with `new_value`.
@@ -233,29 +234,29 @@ protected:
 
 public:
   base_setting_t(const T& def, const bool document_default, const std::string& name,
-              const std::string& description, const string_set_t& aliases = {},
-              std::optional<experimental_feature_t> experimental_feature = std::nullopt)
+                 const std::string& description, const string_set_t& aliases = {},
+                 std::optional<experimental_feature_t> experimental_feature = std::nullopt)
       : abstract_setting_t(name, description, aliases, experimental_feature),
-        value(def),
+        value_(def),
         default_value(def),
         document_default(document_default) {}
 
-  operator const T&() const { return value; }
+  operator const T&() const { return value_; }
 
-  operator T&() { return value; }
+  operator T&() { return value_; }
 
-  const T& get() const { return value; }
+  auto get() const -> const T& { return value_; }
 
-  T& get() { return value; }
+  auto get() -> T& { return value_; }
 
   template <typename U>
-  bool operator==(const U& v2) const {
-    return value == v2;
+  auto operator==(const U& v2) const -> bool {
+    return value_ == v2;
   }
 
   template <typename U>
-  bool operator!=(const U& v2) const {
-    return value != v2;
+  auto operator!=(const U& v2) const -> bool {
+    return value_ != v2;
   }
 
   template <typename U>
@@ -263,12 +264,13 @@ public:
     assign(v);
   }
 
-  virtual void assign(const T& v) { value = v; }
+  virtual void assign(const T& v) { value_ = v; }
 
   template <typename U>
   void set_default(const U& v) {
-    if (!overridden)
-      value = v;
+    if (!overridden) {
+      value_ = v;
+    }
   }
 
   /**
@@ -277,7 +279,7 @@ public:
    * Uses `parse()` to get the value from `str`, and `append_or_set()`
    * to set it.
    */
-  void set(const std::string& str, bool append = false) override final;
+  void set(const std::string& str, bool append = false) final;
 
   /**
    * C++ trick; This is template-specialized to compile-time indicate whether
@@ -289,38 +291,39 @@ public:
    * always defined based on the C++ magic
    * with `trait` above.
    */
-  bool is_appendable() override final;
+  auto is_appendable() -> bool final;
 
   virtual void override(const T& v) {
     overridden = true;
-    value = v;
+    value_ = v;
   }
 
-  std::string to_string() const override;
+  [[nodiscard]] std::string to_string() const override;
 
   void convert_to_arg(Args& args, const std::string& category) override;
 
-  std::map<std::string, nlohmann::json> to_json_object() const override;
+  [[nodiscard]] std::map<std::string, nlohmann::json> to_json_object() const override;
 };
 
 template <typename T>
-std::ostream& operator<<(std::ostream& str, const base_setting_t<T>& opt) {
+auto operator<<(std::ostream& str, const base_setting_t<T>& opt) -> std::ostream& {
   return str << static_cast<const T&>(opt);
 }
 
 template <typename T>
-bool operator==(const T& v1, const base_setting_t<T>& v2) {
+auto operator==(const T& v1, const base_setting_t<T>& v2) -> bool {
   return v1 == static_cast<const T&>(v2);
 }
 
 template <typename T>
 class setting_t : public base_setting_t<T> {
 public:
-  setting_t(config_t* options, const T& def, const std::string& name, const std::string& description,
-          const string_set_t& aliases = {}, const bool document_default = true,
-          std::optional<experimental_feature_t> experimental_feature = std::nullopt)
+  setting_t(config_t* options, const T& def, const std::string& name,
+            const std::string& description, const string_set_t& aliases = {},
+            const bool document_default = true,
+            std::optional<experimental_feature_t> experimental_feature = std::nullopt)
       : base_setting_t<T>(def, document_default, name, description, aliases,
-                       std::move(experimental_feature)) {
+                          std::move(experimental_feature)) {
     options->add_setting(this);
   }
 
@@ -337,11 +340,11 @@ public:
 class path_setting_t : public base_setting_t<Path> {
 public:
   path_setting_t(config_t* options, const Path& def, const std::string& name,
-              const std::string& description, const string_set_t& aliases = {});
+                 const std::string& description, const string_set_t& aliases = {});
 
-  Path parse(const std::string& str) const override;
+  [[nodiscard]] Path parse(const std::string& str) const override;
 
-  Path operator+(const char* p) const { return value + p; }
+  Path operator+(const char* p) const { return value_ + p; }
 
   void operator=(const Path& v) { this->assign(v); }
 };
@@ -353,19 +356,20 @@ public:
  */
 class optional_path_setting_t : public base_setting_t<std::optional<Path>> {
 public:
-  optional_path_setting_t(config_t* options, const std::optional<Path>& def, const std::string& name,
-                      const std::string& description, const string_set_t& aliases = {});
+  optional_path_setting_t(config_t* options, const std::optional<Path>& def,
+                          const std::string& name, const std::string& description,
+                          const string_set_t& aliases = {});
 
-  std::optional<Path> parse(const std::string& str) const override;
+  [[nodiscard]] std::optional<Path> parse(const std::string& str) const override;
 
   void operator=(const std::optional<Path>& v);
 };
 
 struct experimental_feature_settings_t : config_t {
   setting_t<std::set<experimental_feature_t>> experimental_features{this,
-                                                              {},
-                                                              "experimental-features",
-                                                              R"(
+                                                                    {},
+                                                                    "experimental-features",
+                                                                    R"(
           Experimental features that are enabled.
 
           Example:
@@ -384,7 +388,7 @@ struct experimental_feature_settings_t : config_t {
   /**
    * Check whether the given experimental feature is enabled.
    */
-  bool is_enabled(const experimental_feature_t&) const;
+  [[nodiscard]] auto is_enabled(const experimental_feature_t&) const -> bool;
 
   /**
    * Require an experimental feature be enabled, throwing an error if it is

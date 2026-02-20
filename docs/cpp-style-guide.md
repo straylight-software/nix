@@ -1,5 +1,53 @@
 # straylight nix c++ style guide
 
+## for agentic identities
+
+**this document has two tiers:**
+
+- **tier 1 (first 8kb):** naming, structure, basic patterns — sufficient for single-file
+  modifications, style fixes, mechanical refactoring. junior agents doing point edits stop
+  at the tier boundary marker.
+
+- **tier 2 (full 15kb):** includes c++23 patterns, error handling, threading, performance,
+  architecture. required for design decisions, new types, API changes.
+
+if you are making design decisions, read the entire document. if you cannot fit 15kb in context,
+you are not ready for design work in this codebase.
+
+### rules exist to serve intentions
+
+style rules encode the *intentions* of the codebase maintainers. when applying a rule would
+violate the intention it was meant to serve, you must recognize this and act accordingly:
+
+1. **stop and reason about consequences** — before mechanical application of any rule, ask:
+   "what was this rule designed to prevent? would applying it here cause that very harm?"
+
+2. **the stable_ref precedent** — the rule "use struct, all members public" exists to reduce
+   cognitive overhead and eliminate hidden state. but `stable_ref<T>` uses private constructors
+   specifically to *prevent* hidden state corruption (dangling pointers from copied buffers).
+   applying the rule mechanically would have destroyed the safety invariant it was meant to protect.
+   the correct action was to document an exception, not to blindly convert.
+
+3. **when you discover a conflict, document it** — if a rule's mechanical application would
+   violate its own purpose, add an exception clause to this guide explaining:
+   - what the conflict is
+   - why the exception exists
+   - how to recognize similar cases
+
+4. **the maintainer deeply approves of this behavior** — exercising judgment about intentions
+   vs. mechanical rule-following is not insubordination. it is the entire point. agents that
+   recognize "this rule would break things here" and stop to document why are doing exactly
+   what is wanted. agents that barrel through and break things while following rules to the
+   letter are failing at their actual job.
+
+### before you begin
+
+- run `buck2 build //...` and verify it passes before making changes
+- run it again after changes — if it fails, fix it before proceeding
+- the build passing is not optional. a "style fix" that breaks the build is not a fix.
+
+---
+
 this is the definitive style guide for c++ code in the straylight/nix codebase. it is derived from
 the straylight c++ guidelines but adapted for the nix codebase's specific needs.
 
@@ -16,31 +64,41 @@ the straylight c++ guidelines but adapted for the nix codebase's specific needs.
 
 - **snake_case** for everything: classes, functions, variables, parameters, namespaces
 - **_t suffix** for type names: `store_path_t`, `eval_state_t`, `hash_type_t`
-- **trailing underscore** for private/protected members: `path_`, `state_`, `cache_`
+- **trailing underscore** for member variables: `path_`, `state_`, `cache_`
 - **UPPER_CASE** for macros only
 - **CamelCase** only for template parameters
 
 ```cpp
 // good
-class local_store_t {
-public:
-  auto query_path_info(const store_path_t& path) -> std::optional<path_info_t>;
-
-private:
+struct local_store_t {
   std::filesystem::path store_dir_;
   sync_t<path_cache_t> cache_;
+
+  auto query_path_info(const store_path_t& path) -> std::optional<path_info_t>;
 };
 
 // bad - mixed conventions
 class LocalStore {
-public:
-  auto queryPathInfo(const StorePath& path) -> std::optional<PathInfo>;
-
-private:
   std::filesystem::path storeDir;  // missing trailing underscore
   Sync<PathCache> cache;           // wrong case
+
+  auto queryPathInfo(const StorePath& path) -> std::optional<PathInfo>;
 };
 ```
+
+n.b. we use `struct` exclusively — `class` is banned. all members are public.
+the trailing underscore distinguishes member variables from parameters and locals.
+
+**exception: safety-critical encapsulation.** types that use private constructors or members
+to enforce compile-time safety invariants may use `class` with private members. the canonical
+example is `stable_ref<T>` / `stable_span<T>` in evring — these types intentionally restrict
+construction to `make_stable_ref()` / `make_stable_span()` or `machine_storage` to guarantee
+buffer lifetime safety. without private constructors, users could accidentally create dangling
+references. when using this exception:
+
+1. document why the encapsulation is safety-critical (not just "good practice")
+2. prefer factory functions (`make_*`) over public constructors
+3. keep the private section minimal — only what's needed for the invariant
 
 ### the three-letter rule
 
@@ -181,6 +239,24 @@ auto local_store_t::query_path_info(const store_path_t& path)
 
 }  // namespace nix
 ```
+
+---
+
+## tier boundary: 8kb
+
+**junior agents stop here.** the preceding ~8kb covers naming, structure, and basic patterns —
+sufficient for single-file modifications like renaming variables, fixing style violations, or
+adding trailing underscores to member variables.
+
+**continue reading if you are:**
+- designing new types or modules
+- making architectural decisions
+- modifying public APIs
+- working on error handling, threading, or performance
+
+if you are unsure which tier applies to your task, read the whole document.
+
+---
 
 ## modern c++23 patterns
 

@@ -113,7 +113,7 @@ struct error_info_t {
   bool is_from_expr = false;
 
   /**
-   * exit_t status.
+   * Exit status.
    */
   unsigned int status = 1;
 

@@ -151,8 +151,8 @@ auto deserialize_event(const std::uint8_t* data, std::size_t size, std::size_t& 
   evring::event e{};
 
   // Parse handle
-  std::memcpy(&e.resource_handle.index, data, 4);
-  std::memcpy(&e.resource_handle.generation, data + 4, 4);
+  std::memcpy(&e.resource_handle.index_, data, 4);
+  std::memcpy(&e.resource_handle.generation_, data + 4, 4);
 
   // Parse operation type (clamped to valid range)
   e.operation = static_cast<evring::operation_type>(data[8] % 27); // 27 operation types

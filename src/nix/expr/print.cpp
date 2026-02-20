@@ -15,7 +15,7 @@
 namespace nix {
 
 void print_elided(std::ostream& output, unsigned int value, const std::string_view single,
-                 const std::string_view plural, bool ansi_colors) {
+                  const std::string_view plural, bool ansi_colors) {
   if (ansi_colors)
     output << ANSI_FAINT;
   output << "«";
@@ -25,8 +25,8 @@ void print_elided(std::ostream& output, unsigned int value, const std::string_vi
     output << ANSI_NORMAL;
 }
 
-std::ostream& print_literal_string(std::ostream& str, const std::string_view string, size_t max_length,
-                                 bool ansi_colors) {
+std::ostream& print_literal_string(std::ostream& str, const std::string_view string,
+                                   size_t max_length, bool ansi_colors) {
   size_t chars_printed = 0;
   if (ansi_colors)
     str << ANSI_MAGENTA;
@@ -197,7 +197,7 @@ private:
   }
 
   void print_elided(unsigned int value, const std::string_view single,
-                   const std::string_view plural) {
+                    const std::string_view plural) {
     ::nix::print_elided(output, value, single, plural, options.ansi_colors);
   }
 
@@ -254,7 +254,7 @@ private:
     if (auto i = v.attrs()->get(state.s.drv_path)) {
       NixStringContext context;
       store_path = state.coerceToStorePath(i->pos, *i->value, context,
-                                          "while evaluating the drvPath of a derivation");
+                                           "while evaluating the drvPath of a derivation");
     }
 
     /* This unfortunately breaks printing nested values because of
@@ -603,7 +603,7 @@ std::ostream& operator<<(std::ostream& output, const ValuePrinter& printer) {
 
 template <>
 hint_fmt_t& hint_fmt_t::operator%(const ValuePrinter& value) {
-  fmt % value;
+  fmt_ % value;
   return *this;
 }
 

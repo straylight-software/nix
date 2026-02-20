@@ -91,7 +91,7 @@ int main(int argc, char* argv[]) {
 
   // Create generator machine
   evring::bulk_stat_machine statter{std::span{path_ptrs.data(), path_ptrs.size()},
-                                    std::span{statx_buffers.data(), statx_buffers.size()}};
+                                    evring::make_stable_span(statx_buffers)};
 
   // Time the operation
   std::printf("Stating %zu files with generator machine...\n", paths.size());

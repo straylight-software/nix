@@ -11,11 +11,11 @@
 template <typename Fn>
 class [[nodiscard("Finally values must be used")]] finally_t {
 private:
-  Fn fun;
-  bool movedFrom = false;
+  Fn fun_;
+  bool movedFrom_ = false;
 
 public:
-  finally_t(Fn fun) : fun(std::move(fun)) {}
+  finally_t(Fn fun) : fun_(std::move(fun)) {}
 
   // Copying Finallys is definitely not a good idea and will cause them to be
   // called twice.
@@ -24,14 +24,15 @@ public:
   // NOTE: Move constructor can be nothrow if the callable type is itself nothrow
   // move-constructible.
   finally_t(finally_t&& other) noexcept(std::is_nothrow_move_constructible_v<Fn>)
-      : fun(std::move(other.fun)) {
-    other.movedFrom = true;
+      : fun_(std::move(other.fun_)) {
+    other.movedFrom_ = true;
   }
 
   ~finally_t() noexcept(false) {
     try {
-      if (!movedFrom)
-        fun();
+      if (!movedFrom_) {
+        fun_();
+      }
     } catch (...) {
       // finally may only throw an exception if exception handling is not already
       // in progress. if handling *is* in progress we have to return cleanly here
@@ -40,9 +41,7 @@ public:
       // to handle this is to abort entirely and leave a message, so we'll assert
       // (and rethrow anyway, just as a defense against possible NASSERT builds.)
       if (std::uncaught_exceptions()) {
-        assert(false && "Finally function threw an exception during exception handling. "
-                        "this is not what you want, please use some other methods (like "
-                        "std::promise or async) instead.");
+        assert(false);
       }
       throw;
     }

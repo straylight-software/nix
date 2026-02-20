@@ -32,11 +32,11 @@ public:
   void read_file(const canon_path_t& path, Sink& sink,
                 std::function<void(uint64_t)> size_callback) override;
 
-  bool path_exists(const canon_path_t& path) override;
+  auto path_exists(const canon_path_t& path) -> bool override;
 
   std::optional<stat_t> maybe_lstat(const canon_path_t& path) override;
 
-  dir_entries_t read_directory(const canon_path_t& path) override;
+  auto read_directory(const canon_path_t& path) -> dir_entries_t override;
 
   std::string read_link(const canon_path_t& path) override;
 
@@ -71,7 +71,7 @@ public:
    * and
    * [`std::filesystem::path::relative_path`](https://en.cppreference.com/w/cpp/filesystem/path/relative_path).
    */
-  static source_path_t create_at_root(const std::filesystem::path& path, bool track_last_modified = false);
+  static auto create_at_root(const std::filesystem::path& path, bool track_last_modified = false) -> source_path_t;
 
   std::optional<std::time_t> get_last_modified() override {
     return track_last_modified ? std::optional{mtime} : std::nullopt;

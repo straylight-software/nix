@@ -25,9 +25,9 @@ struct base_setting_t<EvalProfilerMode>::trait {
 
 template <>
 std::string base_setting_t<EvalProfilerMode>::to_string() const {
-  if (value == EvalProfilerMode::disabled)
+  if (value_ == EvalProfilerMode::disabled)
     return "disabled";
-  else if (value == EvalProfilerMode::flamegraph)
+  else if (value_ == EvalProfilerMode::flamegraph)
     return "flamegraph";
   else
     unreachable();

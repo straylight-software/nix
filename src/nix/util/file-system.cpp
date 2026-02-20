@@ -599,7 +599,7 @@ void delete_path(const std::filesystem::path& path, uint64_t& bytes_freed) {
 
 auto_delete_t::auto_delete_t() : del{false} {}
 
-auto_delete_t::auto_delete_t(const std::filesystem::path& p, bool recursive) : _path(p) {
+auto_delete_t::auto_delete_t(const std::filesystem::path& p, bool recursive) : path_(p) {
   del = true;
   this->recursive = recursive;
 }
@@ -608,9 +608,9 @@ auto_delete_t::~auto_delete_t() {
   try {
     if (del) {
       if (recursive) {
-        delete_path(_path);
+        delete_path(path_);
       } else {
-        std::filesystem::remove(_path);
+        std::filesystem::remove(path_);
       }
     }
   } catch (...) {
@@ -623,7 +623,7 @@ void auto_delete_t::cancel() {
 }
 
 void auto_delete_t::reset(const std::filesystem::path& p, bool recursive) {
-  _path = p;
+  path_ = p;
   this->recursive = recursive;
   del = true;
 }

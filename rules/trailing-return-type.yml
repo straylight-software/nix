@@ -1,0 +1,27 @@
+# modernize-use-trailing-return-type equivalent
+# bool foo() → auto foo() -> bool
+# int bar() const → auto bar() const -> int
+id: trailing-return-type
+language: cpp
+severity: warning
+message: "Use trailing return type: auto $NAME($$$PARAMS) -> $TYPE"
+note: "Consistent trailing return types improve readability"
+rule:
+  any:
+    - pattern: $TYPE $NAME($$$PARAMS) {$$$BODY}
+    - pattern: $TYPE $NAME($$$PARAMS) const {$$$BODY}
+    - pattern: $TYPE $NAME($$$PARAMS) noexcept {$$$BODY}
+    - pattern: $TYPE $NAME($$$PARAMS) const noexcept {$$$BODY}
+  not:
+    any:
+      - pattern: auto $NAME($$$_) -> $_ {$$$_}
+      - pattern: auto $NAME($$$_) const -> $_ {$$$_}
+      # skip constructors/destructors via regex on name
+      - regex: "^~?[A-Z][a-zA-Z0-9_]*\\s*\\("
+  inside:
+    any:
+      - kind: struct_specifier
+      - kind: class_specifier
+      - kind: namespace_definition
+      - kind: translation_unit
+# Note: auto-fix is tricky due to qualifiers - clang-tidy --fix handles this better

@@ -25,22 +25,21 @@ struct source_path_t {
   source_path_t(ref<SourceAccessor> accessor, canon_path_t path = canon_path_t::root)
       : accessor(std::move(accessor)), path(std::move(path)) {}
 
-  std::string_view base_name() const;
+  [[nodiscard]] std::string_view base_name() const;
 
   /**
    * Construct the parent of this `source_path_t`. Aborts if `this`
    * denotes the root.
    */
-  source_path_t parent() const;
+  [[nodiscard]] auto parent() const -> source_path_t;
 
   /**
    * If this `source_path_t` denotes a regular file (not a symlink),
    * return its contents; otherwise throw an error.
    */
-  std::string read_file() const;
+  [[nodiscard]] std::string read_file() const;
 
-  void
-  read_file(Sink& sink, std::function<void(uint64_t)> size_callback = [](uint64_t size) {}) const {
+  void read_file(Sink& sink, std::function<void(uint64_t)> size_callback = [](uint64_t) {}) const {
     return accessor->read_file(path, sink, size_callback);
   }
 
@@ -48,31 +47,31 @@ struct source_path_t {
    * Return whether this `source_path_t` denotes a file (of any type)
    * that exists
    */
-  bool path_exists() const;
+  [[nodiscard]] auto path_exists() const -> bool;
 
   /**
    * Return stats about this `source_path_t`, or throw an exception if
    * it doesn't exist.
    */
-  SourceAccessor::stat_t lstat() const;
+  [[nodiscard]] auto lstat() const -> SourceAccessor::stat_t;
 
   /**
    * Return stats about this `source_path_t`, or std::nullopt if it
    * doesn't exist.
    */
-  std::optional<SourceAccessor::stat_t> maybe_lstat() const;
+  [[nodiscard]] std::optional<SourceAccessor::stat_t> maybe_lstat() const;
 
   /**
    * If this `source_path_t` denotes a directory (not a symlink),
    * return its directory entries; otherwise throw an error.
    */
-  SourceAccessor::dir_entries_t read_directory() const;
+  [[nodiscard]] auto read_directory() const -> SourceAccessor::dir_entries_t;
 
   /**
    * If this `source_path_t` denotes a symlink, return its target;
    * otherwise throw an error.
    */
-  std::string read_link() const;
+  [[nodiscard]] std::string read_link() const;
 
   /**
    * Dump this `source_path_t` to `sink` as a NAR archive.
@@ -83,29 +82,30 @@ struct source_path_t {
    * Return the location of this path in the "real" filesystem, if
    * it has a physical location.
    */
-  std::optional<std::filesystem::path> get_physical_path() const;
+  [[nodiscard]] std::optional<std::filesystem::path> get_physical_path() const;
 
-  std::string to_string() const;
+  [[nodiscard]] std::string to_string() const;
 
   /**
    * Append a `canon_path_t` to this path.
    */
-  source_path_t operator/(const canon_path_t& x) const;
+  auto operator/(const canon_path_t& x) const -> source_path_t;
 
   /**
    * Append a single component `c` to this path. `c` must not
    * contain a slash. A slash is implicitly added between this path
    * and `c`.
    */
-  source_path_t operator/(std::string_view c) const;
+  auto operator/(std::string_view c) const -> source_path_t;
 
-  bool operator==(const source_path_t& x) const noexcept;
+  auto operator==(const source_path_t& x) const noexcept -> bool;
   std::strong_ordering operator<=>(const source_path_t& x) const noexcept;
 
   /**
    * Convenience wrapper around `SourceAccessor::resolve_symlinks()`.
    */
-  source_path_t resolve_symlinks(symlink_resolution_t mode = symlink_resolution_t::full) const {
+  [[nodiscard]] auto resolve_symlinks(symlink_resolution_t mode = symlink_resolution_t::full) const
+      -> source_path_t {
     return {accessor, accessor->resolve_symlinks(path, mode)};
   }
 
@@ -114,7 +114,7 @@ struct source_path_t {
   friend class std::hash<nix::source_path_t>;
 };
 
-std::ostream& operator<<(std::ostream& str, const source_path_t& path);
+auto operator<<(std::ostream& str, const source_path_t& path) -> std::ostream&;
 
 inline std::size_t hash_value(const source_path_t& path) {
   std::size_t hash = 0;

@@ -70,11 +70,11 @@ static inline void set_interrupted(bool is_interrupted) {
   unix::is_interrupted = is_interrupted;
 }
 
-static inline bool get_interrupted() {
+static inline auto get_interrupted() -> bool {
   return unix::is_interrupted;
 }
 
-static inline bool is_interrupted() {
+static inline auto is_interrupted() -> bool {
   return unix::is_interrupted || (unix::interrupt_check && unix::interrupt_check());
 }
 
@@ -85,8 +85,9 @@ static inline bool is_interrupted() {
  * them as needed.
  */
 inline void check_interrupt() {
-  if (is_interrupted())
+  if (is_interrupted()) {
     unix::_interrupted();
+  }
 }
 
 /**
@@ -95,12 +96,12 @@ inline void check_interrupt() {
  * SIGINT to be multiplexed to multiple threads.
  */
 struct receive_interrupts_t {
-  pthread_t target;
-  std::unique_ptr<interrupt_callback_t> callback;
+  pthread_t target{};
+  std::unique_ptr<nix::interrupt_callback_t> callback{};
 
   receive_interrupts_t()
       : target(pthread_self()),
-        callback(create_interrupt_callback([&]() { pthread_kill(target, SIGUSR1); })) {}
+        callback(nix::create_interrupt_callback([&]() { pthread_kill(target, SIGUSR1); })) {}
 };
 
 } // namespace nix

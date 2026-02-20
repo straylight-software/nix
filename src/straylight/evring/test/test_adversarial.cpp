@@ -142,8 +142,8 @@ void test_handle_generation_aba() {
   assert(*table.get(h2) == 99);
 
   // h1 and h2 have same index but different generations
-  assert(h1.index == h2.index);
-  assert(h1.generation != h2.generation);
+  assert(h1.index_ == h2.index_);
+  assert(h1.generation_ != h2.generation_);
 
   // h1 is STILL invalid even though slot is reused
   assert(!table.valid(h1));

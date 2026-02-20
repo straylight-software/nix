@@ -237,7 +237,7 @@ void regular_file_sink_t::create_regular_file(const canon_path_t& path,
 
     CRF(regular_file_sink_t& back) : back(back) {}
 
-    void operator()(std::string_view data) override { back.sink(data); }
+    void operator()(std::string_view data) override { back.sink_(data); }
 
     void is_executable() override {}
   } crf{*this};

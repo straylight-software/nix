@@ -8,10 +8,16 @@
 #include <strings.h> // for strcasecmp
 
 #include "nix/util/alignment.h"
+#include "nix/util/canon-path.h"
 #include "nix/util/config-global.h"
+#include "nix/util/configuration.h"
 #include "nix/util/file-system.h"
+#include "nix/util/fs-sink.h"
+#include "nix/util/logging.h"
 #include "nix/util/posix-source-accessor.h"
+#include "nix/util/serialise.h"
 #include "nix/util/signals.h"
+#include "nix/util/source-accessor.h"
 #include "nix/util/source-path.h"
 
 namespace nix {
@@ -36,54 +42,54 @@ global_config_t::Register r_archive_settings(&archive_settings);
 
 } // namespace
 
-path_filter_t default_path_filter = [](const Path& /*path*/) { return true; };
+path_filter_t default_path_filter = [](const Path& /*path*/) -> bool { return true; };
 
-void SourceAccessor::dump_path(const canon_path_t& path, Sink& sink, path_filter_t& filter) {
-  auto dump_contents = [&](const canon_path_t& path) {
-    sink << "contents";
+void SourceAccessor::dump_path(const canon_path_t& path, nix::Sink& s, path_filter_t& filter) {
+  auto dump_contents = [&](const canon_path_t& p) -> void {
+    s << "contents";
     std::optional<uint64_t> size;
-    read_file(path, sink, [&](uint64_t file_size) {
+    read_file(p, s, [&](uint64_t file_size) {
       size = file_size;
-      sink << file_size;
+      s << file_size;
     });
     assert(size);
-    write_padding(*size, sink);
+    write_padding(*size, s);
   };
 
-  sink << nar_version_magic1;
+  s << nar_version_magic1;
 
-  [&, &this_(*this)](this const auto& dump, const canon_path_t& path) -> void {
+  [&, &this_(*this)](this const auto& dump, const canon_path_t& p) -> void {
     check_interrupt();
 
-    auto stat = this_.lstat(path);
+    auto stat = this_.lstat(p);
 
-    sink << "(";
+    s << "(";
 
     if (stat.type == t_regular) {
-      sink << "type" << "regular";
+      s << "type" << "regular";
       if (stat.is_executable) {
-        sink << "executable" << "";
+        s << "executable" << "";
       }
-      dump_contents(path);
+      dump_contents(p);
     }
 
     else if (stat.type == t_directory) {
-      sink << "type" << "directory";
+      s << "type" << "directory";
 
       /* If we're on a case-insensitive system like macOS, undo
          the case hack applied by restore_path(). */
       string_map_t unhacked;
-      for (auto& entry : this_.read_directory(path)) {
+      for (auto& entry : this_.read_directory(p)) {
         if (archive_settings.use_case_hack) {
           std::string name(entry.first);
-          const size_t pos = entry.first.find(case_hack_suffix);
+          const std::size_t pos = entry.first.find(case_hack_suffix);
           if (pos != std::string::npos) {
-            debug("removing case hack suffix from '%s'", path / entry.first);
+            debug("removing case hack suffix from '%s'", p / entry.first);
             name.erase(pos);
           }
           if (!unhacked.emplace(name, entry.first).second) {
-            throw Error("file name collision between '%s' and '%s'", (path / unhacked[name]),
-                        (path / entry.first));
+            throw Error("file name collision between '%s' and '%s'", (p / unhacked[name]),
+                        (p / entry.first));
           }
         } else {
           unhacked.emplace(entry.first, entry.first);
@@ -91,37 +97,37 @@ void SourceAccessor::dump_path(const canon_path_t& path, Sink& sink, path_filter
       }
 
       for (auto& entry : unhacked) {
-        if (filter((path / entry.first).abs())) {
-          sink << "entry" << "(" << "name" << entry.first << "node";
-          dump(path / entry.second);
-          sink << ")";
+        if (filter((p / entry.first).abs())) {
+          s << "entry" << "(" << "name" << entry.first << "node";
+          dump(p / entry.second);
+          s << ")";
         }
       }
     }
 
     else if (stat.type == t_symlink) {
-      sink << "type" << "symlink" << "target" << this_.read_link(path);
+      s << "type" << "symlink" << "target" << this_.read_link(p);
 
     } else {
-      throw Error("file '%s' has an unsupported type", path);
+      throw Error("file '%s' has an unsupported type", p);
     }
 
-    sink << ")";
+    s << ")";
   }(path);
 }
 
-auto dump_path_and_get_mtime(const Path& path, Sink& sink, path_filter_t& filter) -> time_t {
+auto dump_path_and_get_mtime(const Path& path, nix::Sink& s, path_filter_t& filter) -> time_t {
   auto path2 = posix_source_accessor_t::create_at_root(path, /*track_last_modified=*/true);
-  path2.dump_path(sink, filter);
+  path2.dump_path(s, filter);
   return path2.accessor->get_last_modified().value();
 }
 
-void dump_path(const Path& path, Sink& sink, path_filter_t& filter) {
-  (void)dump_path_and_get_mtime(path, sink, filter);
+auto dump_path(const Path& path, nix::Sink& s, path_filter_t& filter) -> void {
+  (void)dump_path_and_get_mtime(path, s, filter);
 }
 
-void dump_string(std::string_view str, Sink& sink) {
-  sink << nar_version_magic1 << "(" << "type" << "regular" << "contents" << str << ")";
+auto dump_string(std::string_view str, nix::Sink& s) -> void {
+  s << nar_version_magic1 << "(" << "type" << "regular" << "contents" << str << ")";
 }
 
 namespace {
@@ -169,7 +175,7 @@ struct case_insensitive_compare_t {
 };
 
 void parse(file_system_object_sink_t& sink, Source& source, const canon_path_t& path) {
-  auto get_string = [&]() {
+  auto get_string = [&]() -> std::string {
     check_interrupt();
     return read_string(source);
   };
@@ -189,7 +195,7 @@ void parse(file_system_object_sink_t& sink, Source& source, const canon_path_t& 
   auto type = get_string();
 
   if (type == "regular") {
-    sink.create_regular_file(path, [&](auto& crf) {
+    sink.create_regular_file(path, [&](auto& crf) -> void {
       auto tag = get_string();
 
       if (tag == "executable") {
@@ -213,7 +219,7 @@ void parse(file_system_object_sink_t& sink, Source& source, const canon_path_t& 
 
   else if (type == "directory") {
     sink.create_directory(
-        path, [&](file_system_object_sink_t& dir_sink, const canon_path_t& rel_dir_path) {
+        path, [&](file_system_object_sink_t& dir_sink, const canon_path_t& rel_dir_path) -> void {
           std::map<Path, int, case_insensitive_compare_t> names;
 
           std::string prev_name;
@@ -284,10 +290,10 @@ void parse(file_system_object_sink_t& sink, Source& source, const canon_path_t& 
 
 } // namespace
 
-void parse_dump(file_system_object_sink_t& sink, Source& source) {
+auto parse_dump(nix::file_system_object_sink_t& fso_sink, nix::Source& src) -> void {
   std::string version;
   try {
-    version = read_string(source, nar_version_magic1.size());
+    version = read_string(src, nar_version_magic1.size());
   } catch (SerialisationError& e) {
     /* This generally means the integer at the start couldn't be
        decoded.  Ignore and throw the exception below. */
@@ -295,22 +301,22 @@ void parse_dump(file_system_object_sink_t& sink, Source& source) {
   if (version != nar_version_magic1) {
     throw bad_archive("input doesn't look like a Nix archive");
   }
-  parse(sink, source, canon_path_t::root);
+  parse(fso_sink, src, canon_path_t::root);
 }
 
-void restore_path(const std::filesystem::path& path, Source& source, bool start_fsync) {
-  restore_sink_t sink{start_fsync};
-  sink.dst_path = path;
-  parse_dump(sink, source);
+auto restore_path(const std::filesystem::path& path, nix::Source& src, bool start_fsync) -> void {
+  nix::restore_sink_t restore_sink{start_fsync};
+  restore_sink.dst_path = path;
+  parse_dump(restore_sink, src);
 }
 
-void copy_nar(Source& source, Sink& sink) {
+auto copy_nar(nix::Source& src, nix::Sink& s) -> void {
   // FIXME: if 'source' is the output of dumpPath() followed by EOF,
   // we should just forward all data directly without parsing.
 
-  null_file_system_object_sink_t parse_sink; /* just parse the NAR */
+  nix::null_file_system_object_sink_t parse_sink; /* just parse the NAR */
 
-  tee_source_t wrapper{source, sink};
+  nix::tee_source_t wrapper{src, s};
 
   parse_dump(parse_sink, wrapper);
 }

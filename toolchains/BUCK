@@ -56,7 +56,7 @@ system_genrule_toolchain(
 # ════════════════════════════════════════════════════════════════════════════════
 
 lre_execution_platform(
-    name = "local",
+    name = "lre",
     cpu_configuration = host_configuration.cpu,
     os_configuration = host_configuration.os,
     local_enabled = True,

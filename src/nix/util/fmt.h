@@ -22,7 +22,7 @@ namespace nix {
  * With a single argument, `format_helper(s)` is a no-op.
  */
 template <class F>
-inline void format_helper(F& f) {}
+inline void format_helper(F& /*f*/) {}
 
 template <class F, typename T, typename... Args>
 inline void format_helper(F& f, const T& x, const Args&... args) {
@@ -95,7 +95,7 @@ struct magenta_t {
 };
 
 template <class T>
-std::ostream& operator<<(std::ostream& out, const magenta_t<T>& y) {
+auto operator<<(std::ostream& out, const magenta_t<T>& y) -> std::ostream& {
   return out << ANSI_WARNING << y.value << ANSI_NORMAL;
 }
 
@@ -114,7 +114,7 @@ struct uncolored_t {
 };
 
 template <class T>
-std::ostream& operator<<(std::ostream& out, const uncolored_t<T>& y) {
+auto operator<<(std::ostream& out, const uncolored_t<T>& y) -> std::ostream& {
   return out << ANSI_NORMAL << y.value;
 }
 
@@ -124,7 +124,7 @@ std::ostream& operator<<(std::ostream& out, const uncolored_t<T>& y) {
  */
 class hint_fmt_t {
 private:
-  boost::format fmt;
+  boost::format fmt_{};
 
 public:
   /**
@@ -133,7 +133,7 @@ public:
    */
   hint_fmt_t(const std::string& literal) : hint_fmt_t("%s", uncolored_t(literal)) {}
 
-  static hint_fmt_t from_format_string(const std::string& format) {
+  static auto from_format_string(const std::string& format) -> hint_fmt_t {
     return hint_fmt_t(boost::format(format));
   }
 
@@ -144,31 +144,31 @@ public:
   hint_fmt_t(const std::string& format, const Args&... args)
       : hint_fmt_t(boost::format(format), args...) {}
 
-  hint_fmt_t(const hint_fmt_t& hf) : fmt(hf.fmt) {}
+  hint_fmt_t(const hint_fmt_t& hf) : fmt_(hf.fmt_) {}
 
   template <typename... Args>
-  hint_fmt_t(boost::format&& fmt, const Args&... args) : fmt(std::move(fmt)) {
-    set_exceptions(fmt);
+  hint_fmt_t(boost::format&& format, const Args&... args) : fmt_(std::move(format)) {
+    set_exceptions(fmt_);
     format_helper(*this, args...);
   }
 
   template <class T>
-  hint_fmt_t& operator%(const T& value) {
-    fmt % magenta_t(value);
+  auto operator%(const T& value) -> hint_fmt_t& {
+    fmt_ % magenta_t(value);
     return *this;
   }
 
   template <class T>
-  hint_fmt_t& operator%(const uncolored_t<T>& value) {
-    fmt % value.value;
+  auto operator%(const uncolored_t<T>& value) -> hint_fmt_t& {
+    fmt_ % value.value;
     return *this;
   }
 
-  hint_fmt_t& operator=(hint_fmt_t const& rhs) = default;
+  auto operator=(hint_fmt_t const& rhs) -> hint_fmt_t& = default;
 
-  std::string str() const { return fmt.str(); }
+  [[nodiscard]] std::string str() const { return fmt_.str(); }
 };
 
-std::ostream& operator<<(std::ostream& os, const hint_fmt_t& hf);
+auto operator<<(std::ostream& os, const hint_fmt_t& hf) -> std::ostream&;
 
 } // namespace nix

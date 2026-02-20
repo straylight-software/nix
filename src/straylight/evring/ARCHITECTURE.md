@@ -448,7 +448,7 @@ cxx_library(
     compiler_flags = ["-std=c++23"],
     exported_linker_flags = [
         "-luring", "-ltls", "-lnghttp2", "-lllhttp",
-        "-lngtcp2", "-lngtcp2_crypto_ossl", "-lnghttp3"
+        "-lngtcp2", "-lngtcp2_crypto_quictls", "-lnghttp3"
     ],
 )
 ```
@@ -1007,10 +1007,10 @@ QUIC requires timer management for:
 
 The machine yields `make_timeout` operations when ngtcp2 reports an expiry deadline.
 
-### TLS 1.3 via OpenSSL
+### TLS 1.3 via quictls/LibreSSL
 
-Unlike the TLS layer (which uses libressl/libtls), HTTP/3 uses OpenSSL for TLS 1.3:
-- ngtcp2 provides `ngtcp2_crypto_ossl_*` APIs for OpenSSL integration
+HTTP/3 uses the quictls crypto backend:
+- ngtcp2 provides `ngtcp2_crypto_quictls_*` APIs for quictls/LibreSSL integration
 - ALPN is set to "h3" for HTTP/3 negotiation
 - Certificate verification uses system CA bundle
 
@@ -1019,9 +1019,9 @@ Unlike the TLS layer (which uses libressl/libtls), HTTP/3 uses OpenSSL for TLS 1
 ```python
 # BUCK linker flags
 "-lngtcp2",
-"-lngtcp2_crypto_ossl",
+"-lngtcp2_crypto_quictls",
 "-lnghttp3",
-# OpenSSL (from nix store, separate from libressl)
+# LibreSSL (from nix store)
 ```
 
 ---

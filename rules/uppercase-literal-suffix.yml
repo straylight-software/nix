@@ -1,0 +1,10 @@
+# readability-uppercase-literal-suffix equivalent
+# 0ul → 0UL, 1.0f → 1.0F
+# n.b. ast-grep regex doesn't support auto-fix; use clang-tidy --fix
+id: uppercase-literal-suffix-ul
+language: cpp
+severity: warning
+message: "Use uppercase literal suffix: UL not ul"
+rule:
+  kind: number_literal
+  regex: '\d+ul\b'

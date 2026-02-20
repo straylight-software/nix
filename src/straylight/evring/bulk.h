@@ -26,7 +26,7 @@
 namespace evring {
 
 // Forward declarations
-class ring;
+struct ring;
 
 /// result of a bulk operation
 struct bulk_result {

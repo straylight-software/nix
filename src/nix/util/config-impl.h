@@ -57,8 +57,8 @@ void base_setting_t<string_set_t>::append_or_set(string_set_t new_value, bool ap
 template <>
 void base_setting_t<string_map_t>::append_or_set(string_map_t new_value, bool append);
 template <>
-void base_setting_t<std::set<experimental_feature_t>>::append_or_set(std::set<experimental_feature_t> new_value,
-                                                             bool append);
+void base_setting_t<std::set<experimental_feature_t>>::append_or_set(
+    std::set<experimental_feature_t> new_value, bool append);
 
 template <typename T>
 void base_setting_t<T>::append_or_set(T new_value, bool append) {
@@ -66,7 +66,7 @@ void base_setting_t<T>::append_or_set(T new_value, bool append) {
                 "using default `appendOrSet` implementation with an appendable type");
   assert(!append);
 
-  value = std::move(new_value);
+  value_ = std::move(new_value);
 }
 
 template <typename T>
@@ -115,7 +115,7 @@ void base_setting_t<T>::convert_to_arg(Args& args, const std::string& category) 
 
 #define DECLARE_CONFIG_SERIALISER(TY)                                                              \
   template <>                                                                                      \
-  TY base_setting_t<TY>::parse(const std::string& str) const;                                         \
+  TY base_setting_t<TY>::parse(const std::string& str) const;                                      \
   template <>                                                                                      \
   std::string base_setting_t<TY>::to_string() const;
 
@@ -144,7 +144,7 @@ template <typename T>
 std::string base_setting_t<T>::to_string() const {
   static_assert(std::is_integral<T>::value, "Integer required.");
 
-  return std::to_string(value);
+  return std::to_string(value_);
 }
 
 } // namespace nix

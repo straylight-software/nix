@@ -153,7 +153,6 @@ struct file_creator_machine {
 
 auto bench_create_files_evring(std::string const& directory, std::size_t count)
     -> benchmark_result {
-
   std::vector<std::string> paths;
   paths.reserve(count);
   for (std::size_t index = 0; index < count; ++index) {
@@ -258,8 +257,9 @@ struct file_copier_machine {
         state.dest_handle = completion_event.resource_handle;
         state.current_phase = phase::copy;
         operations.push_back(evring::operation::make_read(
-            state.source_handle, std::span<std::byte>(buffer.data(), buffer.size()), state.offset,
-            1));
+            state.source_handle,
+            evring::make_stable_span(std::span<std::byte>(buffer.data(), buffer.size())),
+            state.offset, 1));
         break;
       }
 
@@ -286,7 +286,8 @@ struct file_copier_machine {
             state.offset += state.pending_write_bytes;
             // Read more
             operations.push_back(evring::operation::make_read(
-                state.source_handle, std::span<std::byte>(buffer.data(), buffer.size()),
+                state.source_handle,
+                evring::make_stable_span(std::span<std::byte>(buffer.data(), buffer.size())),
                 state.offset, 1));
           } else {
             state.current_phase = phase::close_dest;
@@ -426,8 +427,9 @@ struct file_statter_machine {
     if (completion_event.operation == evring::operation_type::nop && state.next_to_submit == 0) {
       std::size_t const count = std::min(batch_size, paths.size());
       for (std::size_t index = 0; index < count; ++index) {
-        operations.push_back(evring::operation::make_statx(
-            AT_FDCWD, paths[index].c_str(), 0, STATX_BASIC_STATS, &stat_buffers[index], index));
+        operations.push_back(
+            evring::operation::make_statx(AT_FDCWD, paths[index].c_str(), 0, STATX_BASIC_STATS,
+                                          evring::make_stable_ref(stat_buffers[index]), index));
       }
       state.next_to_submit = count;
       return {std::move(state), std::move(operations)};
@@ -438,7 +440,7 @@ struct file_statter_machine {
     if (state.next_to_submit < paths.size()) {
       operations.push_back(evring::operation::make_statx(
           AT_FDCWD, paths[state.next_to_submit].c_str(), 0, STATX_BASIC_STATS,
-          &stat_buffers[state.next_to_submit], state.next_to_submit));
+          evring::make_stable_ref(stat_buffers[state.next_to_submit]), state.next_to_submit));
       ++state.next_to_submit;
     }
 

@@ -259,7 +259,7 @@ struct tls_handshake_state {
 };
 
 // Forward declaration
-class ring;
+struct ring;
 
 /// TLS handshake state machine
 ///

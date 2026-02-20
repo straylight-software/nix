@@ -4,53 +4,57 @@
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
-a nix fork for the continuity project.
+a ground-up rethinking of nix.
 
-*continuity is continuity. continuity is continuity's job.*
+### // `what`
 
-### // `provenance`
+**nix2 store** — daemonless, io_uring-native store database. no sqlite, no nix-daemon. log-structured
+with lockless reads and BLAKE3 checksums. 10-25x faster than sqlite.
 
-rebased against [determinate nix](https://github.com/DeterminateSystems/nix-src), which is rebased
-against [upstream nix](https://github.com/NixOS/nix).
+**libevring** — deterministic async I/O. state machines over io_uring with perfect replay for
+testing. http/1, http/2, http/3 (quic via libressl).
 
-### // `changes`
+**nix-language** — nix expression compiler targeting wasm. parse → ast → binaryen → wasm module.
+`builtins.wasm` runs pure functions in the evaluator.
 
-- `ca-derivations` enabled by default
-- `flakes` and `nix-command` enabled by default
-- `wasm` builtins (`builtins.wasm` + `wasm32-wasip1` system type)
-- remote builders disabled (build hook has unsound log streaming)
+**nix-protocol** — formal protocol specs in kaitai struct with polyglot serializers (c++, rust,
+haskell). test vectors from captured daemon traffic.
 
-### // `installation`
+**primitives** — 34 utility modules replacing nix's NIH implementations with modern libraries.
+stringzilla, ada url, blake3, re2, taskflow, rapidfuzz. 1251 test cases.
+
+### // `build`
 
 ```bash
-# from flakehub (when published)
-nix run "https://flakehub.com/f/straylight-software/nix/*.tar.gz"
-
-# from source
-nix build github:straylight-software/nix
+nix develop
+buck2 build //...
+buck2 test //src/straylight/...
 ```
 
-### // `rationale`
-
-the nix daemon is the conceptual computer.
-
-content addressing is the artifact identity. `ca-derivations` make the hash the truth.
-
-wasm is the portable sandbox. `builtins.wasm` runs pure functions in the evaluator.
-
-the build hook log streaming is unsound. remote builders are disabled until fixed.
-
-### // `upstream`
-
-this fork tracks determinate nix's sync points with upstream. contributions should go upstream when
-possible.
+### // `architecture`
 
 ```
-cbeb167 Disable remote builders - build hook has unsound log streaming
-e5c41c0 Enable stable experimental features by default
-844a213 WASM support (builtins.wasm + wasm32-wasip1 system type)
+src/
+├── nix/                      # core nix fork (C++23)
+├── nix-c/                    # C API bindings
+└── straylight/
+    ├── evring/               # deterministic async I/O (io_uring)
+    ├── language/             # nix → wasm compiler
+    ├── nix/primitives/       # modern utility replacements
+    └── protocol/             # formal protocol specs (kaitai)
 ```
+
+### // `defaults`
+
+- `ca-derivations` enabled
+- `flakes` and `nix-command` enabled
+- `wasm` builtins enabled
+- remote builders disabled (unsound log streaming)
+
+### // `dependencies`
+
+libressl (not openssl), blake3, ada, re2, binaryen, wasmtime, liburing, nghttp2, ngtcp2, nghttp3.
 
 ### // `license`
 
-[LGPL v2.1](./COPYING), same as upstream.
+[LGPL v2.1](./COPYING)

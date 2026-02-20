@@ -51,8 +51,9 @@ inline std::string quote_string(std::string_view s, char quote = '\'') {
 template <class C>
 strings_t quote_strings(const C& c, char quote = '\'') {
   strings_t res;
-  for (auto& s : c)
+  for (auto& s : c) {
     res.push_back(quote_string(s, quote));
+  }
   return res;
 }
 
@@ -85,33 +86,35 @@ std::string rewrite_strings(std::string s, const string_map_t& rewrites);
  * Parse a string into an integer.
  */
 template <class N>
-std::optional<N> string2_int(const std::string_view s);
+std::optional<N> string2_int(std::string_view s);
 
 /**
  * Like string2_int(), but support an optional suffix 'K', 'M', 'G' or
  * 'T' denoting a binary unit prefix.
  */
 template <class N>
-N string2_int_with_unit_prefix(std::string_view s) {
+auto string2_int_with_unit_prefix(std::string_view s) -> N {
   uint64_t multiplier = 1;
   if (!s.empty()) {
     char u = std::toupper(*s.rbegin());
     if (std::isalpha(u)) {
-      if (u == 'K')
+      if (u == 'K') {
         multiplier = 1ULL << 10;
-      else if (u == 'M')
+      } else if (u == 'M') {
         multiplier = 1ULL << 20;
-      else if (u == 'G')
+      } else if (u == 'G') {
         multiplier = 1ULL << 30;
-      else if (u == 'T')
+      } else if (u == 'T') {
         multiplier = 1ULL << 40;
-      else
+      } else {
         throw UsageError("invalid unit specifier '%1%'", u);
+      }
       s.remove_suffix(1);
     }
   }
-  if (auto n = string2_int<N>(s))
+  if (auto n = string2_int<N>(s)) {
     return *n * multiplier;
+  }
   throw UsageError("'%s' is not an integer", s);
 }
 
@@ -162,13 +165,13 @@ std::string render_size(int64_t value, bool align = false);
  * Parse a string into a float.
  */
 template <class N>
-std::optional<N> string2_float(const std::string_view s);
+std::optional<N> string2_float(std::string_view s);
 
 /**
  * Convert a little-endian integer to host order.
  */
 template <typename T>
-T read_little_endian(unsigned char* p) {
+auto read_little_endian(unsigned char* p) -> T {
   T x = 0;
   for (size_t i = 0; i < sizeof(x); ++i, ++p) {
     x |= ((T)*p) << (i * 8);
@@ -179,12 +182,12 @@ T read_little_endian(unsigned char* p) {
 /**
  * @return true iff `s` starts with `prefix`.
  */
-bool has_prefix(std::string_view s, std::string_view prefix);
+auto has_prefix(std::string_view s, std::string_view prefix) -> bool;
 
 /**
  * @return true iff `s` ends in `suffix`.
  */
-bool has_suffix(std::string_view s, std::string_view suffix);
+auto has_suffix(std::string_view s, std::string_view suffix) -> bool;
 
 /**
  * Convert a string to lower case.
@@ -199,7 +202,7 @@ std::string to_lower(std::string s);
  * - `"hello world"` -> `"'hello world'"`, which needs escaping because of the space
  * - `"echo"` -> `"'echo'"`, which doesn't need escaping
  */
-std::string escape_shell_arg_always(const std::string_view s);
+std::string escape_shell_arg_always(std::string_view s);
 
 /**
  * Exception handling in destructors: print an error message, then
@@ -251,7 +254,7 @@ std::pair<std::string_view, std::string_view> get_line(std::string_view s);
  * Const version.
  */
 template <class T>
-const T* get(const std::optional<T>& opt) {
+auto get(const std::optional<T>& opt) -> const T* {
   return opt ? &*opt : nullptr;
 }
 
@@ -268,18 +271,20 @@ T* get(std::optional<T>& opt) {
  * Get a value for the specified key from an associate container.
  */
 template <class T, typename K>
-const typename T::mapped_type* get(const T& map, const K& key) {
+auto get(const T& map, const K& key) -> const typename T::mapped_type* {
   auto i = map.find(key);
-  if (i == map.end())
+  if (i == map.end()) {
     return nullptr;
+  }
   return &i->second;
 }
 
 template <class T, typename K>
-typename T::mapped_type* get(T& map, const K& key) {
+auto get(T& map, const K& key) -> typename T::mapped_type* {
   auto i = map.find(key);
-  if (i == map.end())
+  if (i == map.end()) {
     return nullptr;
+  }
   return &i->second;
 }
 
@@ -288,7 +293,7 @@ typename T::mapped_type* get(T& map, const K& key) {
  * set.
  */
 template <class T, typename K>
-typename T::mapped_type* get(T&& map, const K& key) = delete;
+auto get(T&& map, const K& key) -> typename T::mapped_type* = delete;
 
 template <class T>
 std::optional<typename T::mapped_type> get_optional(const T& map, const typename T::key_type& key) {
@@ -311,11 +316,12 @@ std::optional<typename T::mapped_type> get_concurrent(const T& map,
  * isn't present.
  */
 template <class T, typename K>
-const typename T::mapped_type& get_or(T& map, const K& key,
-                                      const typename T::mapped_type& default_value) {
+auto get_or(T& map, const K& key, const typename T::mapped_type& default_value) -> const
+    typename T::mapped_type& {
   auto i = map.find(key);
-  if (i == map.end())
+  if (i == map.end()) {
     return default_value;
+  }
   return i->second;
 }
 
@@ -324,8 +330,8 @@ const typename T::mapped_type& get_or(T& map, const K& key,
  * set.
  */
 template <class T, typename K>
-const typename T::mapped_type& get_or(T&& map, const K& key,
-                                      const typename T::mapped_type& default_value) = delete;
+auto get_or(T&& map, const K& key, const typename T::mapped_type& default_value) -> const
+    typename T::mapped_type& = delete;
 
 /**
  * Remove and return the first item from a container.
@@ -333,8 +339,9 @@ const typename T::mapped_type& get_or(T&& map, const K& key,
 template <class T>
 std::optional<typename T::value_type> remove_begin(T& c) {
   auto i = c.begin();
-  if (i == c.end())
+  if (i == c.end()) {
     return {};
+  }
   auto v = std::move(*i);
   c.erase(i);
   return v;
@@ -345,8 +352,9 @@ std::optional<typename T::value_type> remove_begin(T& c) {
  */
 template <class T>
 std::optional<typename T::value_type> pop(T& c) {
-  if (c.empty())
+  if (c.empty()) {
     return {};
+  }
   auto v = std::move(c.front());
   c.pop();
   return v;

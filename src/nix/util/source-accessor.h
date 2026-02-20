@@ -45,7 +45,7 @@ struct SourceAccessor : std::enable_shared_from_this<SourceAccessor> {
 
   SourceAccessor();
 
-  virtual ~SourceAccessor() {}
+  virtual ~SourceAccessor() = default;
 
   /**
    * Return the contents of a file as a string.
@@ -74,7 +74,7 @@ struct SourceAccessor : std::enable_shared_from_this<SourceAccessor> {
       const canon_path_t& path, Sink& sink,
       std::function<void(uint64_t)> size_callback = [](uint64_t size) {});
 
-  virtual bool path_exists(const canon_path_t& path);
+  virtual auto path_exists(const canon_path_t& path) -> bool;
 
   enum Type {
     t_regular,
@@ -103,7 +103,7 @@ struct SourceAccessor : std::enable_shared_from_this<SourceAccessor> {
      * accessors return this since it may be too expensive to
      * compute.
      */
-    std::optional<uint64_t> file_size;
+    std::optional<uint64_t> file_size{};
 
     /**
      * For regular files only: whether this is an executable.
@@ -114,24 +114,24 @@ struct SourceAccessor : std::enable_shared_from_this<SourceAccessor> {
      * For regular files only: the position of the contents of this
      * file in the NAR. Only returned by NAR accessors.
      */
-    std::optional<uint64_t> nar_offset;
+    std::optional<uint64_t> nar_offset{};
 
-    bool is_not_nar_serialisable();
+    auto is_not_nar_serialisable() -> bool;
     std::string type_string();
   };
 
-  virtual stat_t lstat(const canon_path_t& path);
+  virtual auto lstat(const canon_path_t& path) -> stat_t;
 
   virtual std::optional<stat_t> maybe_lstat(const canon_path_t& path) = 0;
 
-  typedef std::optional<Type> dir_entry_t;
+  using dir_entry_t = std::optional<Type>;
 
-  typedef std::map<std::string, dir_entry_t> dir_entries_t;
+  using dir_entries_t = std::map<std::string, dir_entry_t>;
 
   /**
    * @note Like `read_file`, this method should *not* follow symlinks.
    */
-  virtual dir_entries_t read_directory(const canon_path_t& path) = 0;
+  virtual auto read_directory(const canon_path_t& path) -> dir_entries_t = 0;
 
   virtual std::string read_link(const canon_path_t& path) = 0;
 
@@ -146,11 +146,11 @@ struct SourceAccessor : std::enable_shared_from_this<SourceAccessor> {
    * possible. This is only possible for filesystems that are
    * materialized in the root filesystem.
    */
-  virtual std::optional<std::filesystem::path> get_physical_path(const canon_path_t& path) {
+  virtual std::optional<std::filesystem::path> get_physical_path(const canon_path_t& /*path*/) {
     return std::nullopt;
   }
 
-  bool operator==(const SourceAccessor& x) const { return number == x.number; }
+  auto operator==(const SourceAccessor& x) const -> bool { return number == x.number; }
 
   auto operator<=>(const SourceAccessor& x) const { return number <=> x.number; }
 
@@ -165,8 +165,8 @@ struct SourceAccessor : std::enable_shared_from_this<SourceAccessor> {
    * @param mode might only be a temporary solution for this.
    * See the discussion in https://github.com/NixOS/nix/pull/9985.
    */
-  canon_path_t resolve_symlinks(const canon_path_t& path,
-                                symlink_resolution_t mode = symlink_resolution_t::full);
+  auto resolve_symlinks(const canon_path_t& path,
+                        symlink_resolution_t mode = symlink_resolution_t::full) -> canon_path_t;
 
   /**
    * A string that uniquely represents the contents of this
@@ -210,7 +210,7 @@ struct SourceAccessor : std::enable_shared_from_this<SourceAccessor> {
 /**
  * Return a source accessor that contains only an empty root directory.
  */
-ref<SourceAccessor> make_empty_source_accessor();
+auto make_empty_source_accessor() -> ref<SourceAccessor>;
 
 /**
  * Exception thrown when accessing a filtered path (see
@@ -221,7 +221,7 @@ make_error(RestrictedPathError, Error);
 /**
  * Return an accessor for the root filesystem.
  */
-ref<SourceAccessor> get_fs_source_accessor();
+auto get_fs_source_accessor() -> ref<SourceAccessor>;
 
 /**
  * Construct an accessor for the filesystem rooted at `root`. Note
@@ -229,7 +229,7 @@ ref<SourceAccessor> get_fs_source_accessor();
  * elements, and that absolute symlinks are resolved relative to
  * `root`.
  */
-ref<SourceAccessor> make_fs_source_accessor(std::filesystem::path root);
+auto make_fs_source_accessor(std::filesystem::path root) -> ref<SourceAccessor>;
 
 /**
  * Construct an accessor that presents a "union" view of a vector of

@@ -16,7 +16,7 @@ bool global_config_t::set(const std::string& name, const std::string& value) {
 }
 }
 
-  unknownSettings.emplace(name, value);
+  unknownSettings_.emplace(name, value);
 
   return false;
 }

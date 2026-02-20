@@ -5,12 +5,6 @@ severity: warning
 message: "Use nullptr instead of NULL"
 note: "nullptr is type-safe, NULL is a macro that may be defined as 0"
 rule:
-  pattern: NULL
-  inside:
-    any:
-      - kind: assignment_expression
-      - kind: return_statement
-      - kind: argument_list
-      - kind: binary_expression
-      - kind: conditional_expression
+  kind: identifier
+  regex: "^NULL$"
 fix: "nullptr"

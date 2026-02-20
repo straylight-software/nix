@@ -15,7 +15,7 @@
 #include <nghttp3/nghttp3.h>
 #include <ngtcp2/ngtcp2.h>
 #include <ngtcp2/ngtcp2_crypto.h>
-#include <ngtcp2/ngtcp2_crypto_ossl.h>
+#include <ngtcp2/ngtcp2_crypto_quictls.h>
 #include <openssl/err.h>
 #include <openssl/rand.h>
 #include <openssl/ssl.h>
@@ -526,6 +526,12 @@ auto http3_session::setup_ssl(const char* server_name) -> bool {
   // Load system CA certificates
   SSL_CTX_set_default_verify_paths(ssl_ctx_);
 
+  // Configure SSL context for QUIC (quictls API - must be before SSL_new)
+  if (ngtcp2_crypto_quictls_configure_client_context(ssl_ctx_) != 0) {
+    error_message_ = "Failed to configure ngtcp2 crypto context";
+    return false;
+  }
+
   ssl_ = SSL_new(ssl_ctx_);
   if (!ssl_) {
     error_message_ = "Failed to create SSL";
@@ -534,12 +540,6 @@ auto http3_session::setup_ssl(const char* server_name) -> bool {
 
   SSL_set_connect_state(ssl_);
   SSL_set_tlsext_host_name(ssl_, server_name);
-
-  // Install QUIC methods on SSL session (must be called after SSL_new)
-  if (ngtcp2_crypto_ossl_configure_client_session(ssl_) != 0) {
-    error_message_ = "Failed to configure ngtcp2 crypto session";
-    return false;
-  }
 
   return true;
 }

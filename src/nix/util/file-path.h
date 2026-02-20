@@ -32,9 +32,9 @@ struct path_view_ng_t : os_string_view_t {
 
   path_view_ng_t(const os_string_t& path) : os_string_view_t{path} {}
 
-  const string_view& native() const { return *this; }
+  [[nodiscard]] auto native() const -> const string_view& { return *this; }
 
-  string_view& native() { return *this; }
+  auto native() -> string_view& { return *this; }
 };
 
 std::optional<std::filesystem::path> maybe_path(path_view_t path);

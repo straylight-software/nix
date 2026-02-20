@@ -301,7 +301,7 @@ struct http2_connection_state {
 };
 
 // Forward declaration
-class ring;
+struct ring;
 
 /// HTTP/2 connection establishment machine
 ///

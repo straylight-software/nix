@@ -6,14 +6,14 @@
 namespace nix {
 
 struct global_config_t : public abstract_config_t {
-  typedef std::vector<config_t*> config_registrations_t;
+  using config_registrations_t = std::vector<config_t*>;
 
-  static config_registrations_t& config_registrations();
+  static auto config_registrations() -> config_registrations_t&;
 
-  bool set(const std::string& name, const std::string& value) override;
+  auto set(const std::string& name, const std::string& value) -> bool override;
 
   void get_settings(std::map<std::string, setting_info_t>& res,
-                   bool overridden_only = false) const override;
+                    bool overridden_only = false) const override;
 
   void reset_overridden() override;
 

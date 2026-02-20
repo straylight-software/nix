@@ -38,6 +38,9 @@ Checks: >
   -objc-*,
   -openmp-*,
   -zircon-*,
+  -portability-avoid-pragma-once,
+  -misc-include-cleaner,
+  -misc-non-private-member-variables-in-classes,
 
 WarningsAsErrors: '*'
 
@@ -83,10 +86,8 @@ CheckOptions:
   - key: readability-identifier-naming.MemberCase
     value: lower_case
 
-  - key: readability-identifier-naming.PrivateMemberSuffix
-    value: '_'
-
-  - key: readability-identifier-naming.ProtectedMemberSuffix
+  # all members get trailing underscore (we use struct, not class)
+  - key: readability-identifier-naming.MemberSuffix
     value: '_'
 
   - key: readability-identifier-naming.ConstantCase
@@ -183,8 +184,7 @@ CheckOptions:
   - key: misc-throw-by-value-catch-by-reference.CheckThrowTemporaries
     value: true
 
-  - key: misc-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic
-    value: false
+
 
   # ──────────────────────────────────────────────────────────────────────────
   #                                                          // bugprone
@@ -213,7 +213,31 @@ CheckOptions:
     value: true
 
   - key: cppcoreguidelines-macro-usage.AllowedRegexp
-    value: '^(CATCH_|TEST_|REQUIRE|CHECK|SECTION|INFO|WARN|FAIL|NIX_|RAPIDCHECK_)'
+    value: '^(CATCH_|TEST_|REQUIRE|CHECK|SECTION|INFO|WARN|FAIL|NIX_|RAPIDCHECK_|STRAYLIGHT_)'
+
+  # ──────────────────────────────────────────────────────────────────────────
+  #                                                          // readability
+  # ──────────────────────────────────────────────────────────────────────────
+
+  # allow well-known short identifiers (unix conventions, domain terms)
+  # n.b. we use idx/jdx/kdx for loop counters, not i/j/k
+  - key: readability-identifier-length.IgnoredVariableNames
+    value: '^(io|id|fd|ok|it|op)$'
+
+  - key: readability-identifier-length.IgnoredParameterNames
+    value: '^(io|id|fd|ok|it|op)$'
+
+  - key: readability-identifier-length.IgnoredLoopCounterNames
+    value: '^(idx|jdx|kdx)$'
+
+  - key: readability-identifier-length.MinimumVariableNameLength
+    value: 2
+
+  - key: readability-identifier-length.MinimumParameterNameLength
+    value: 2
+
+  - key: readability-identifier-length.MinimumLoopCounterNameLength
+    value: 3
 
 # ══════════════════════════════════════════════════════════════════════════════
 #                                                               // header filter

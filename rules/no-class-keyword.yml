@@ -1,0 +1,12 @@
+# straylight policy: struct only, no class
+id: no-class-keyword
+language: cpp
+severity: error
+message: "Use 'struct' instead of 'class' — all members are public"
+note: "straylight convention: struct everywhere, no private/protected"
+rule:
+  kind: class_specifier
+  not:
+    inside:
+      # allow in template parameters like template<class T>
+      kind: template_parameter_list

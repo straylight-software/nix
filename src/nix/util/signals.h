@@ -19,12 +19,12 @@ static inline void set_interrupted(bool is_interrupted);
 /**
  * @note Does nothing on Windows
  */
-static inline bool get_interrupted();
+static inline auto get_interrupted() -> bool;
 
 /**
  * @note Does nothing on Windows
  */
-static inline bool is_interrupted();
+static inline auto is_interrupted() -> bool;
 
 /**
  * @note Does nothing on Windows
@@ -37,7 +37,7 @@ inline void check_interrupt();
 make_error(Interrupted, base_error_t);
 
 struct interrupt_callback_t {
-  virtual ~interrupt_callback_t() {};
+  virtual ~interrupt_callback_t() {}
 };
 
 /**
