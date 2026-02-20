@@ -16,6 +16,153 @@ Both phases share a single WASM linear memory, so they must coordinate to avoid 
 
 ---
 
+## Dual-Memory Architecture
+
+**Critical**: The runtime maintains two separate memory buffers that must stay synchronized:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        MEMORY ARCHITECTURE                                   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌──────────────────────┐         ┌──────────────────────┐                 │
+│  │   WASM Linear Memory │   sync  │  runtime_context     │                 │
+│  │   (wasmtime::Memory) │ ◄─────► │  .memory vector      │                 │
+│  │                      │         │                      │                 │
+│  │  - WASM code reads/  │         │  - Host functions    │                 │
+│  │    writes here       │         │    read/write here   │                 │
+│  │  - Direct i32.load/  │         │  - ctx.read_*()      │                 │
+│  │    i32.store ops     │         │    ctx.write_*()     │                 │
+│  └──────────────────────┘         └──────────────────────┘                 │
+│           ▲                                   │                             │
+│           │        sync_to_ctx()              │                             │
+│           │   (WASM → context, on entry)      │                             │
+│           └───────────────────────────────────┘                             │
+│           │                                   ▲                             │
+│           │        sync_from_ctx()            │                             │
+│           │   (context → WASM, on exit)       │                             │
+│           └───────────────────────────────────┘                             │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Why Two Buffers?
+
+1. **WASM Memory** (`wasmtime::Memory`): The actual linear memory visible to WASM code. WASM instructions like `i32.load` and `i64.store` operate on this buffer directly.
+
+2. **Context Memory** (`runtime_context::memory`): A `std::vector<uint8_t>` used by host functions. This allows the runtime to read/write memory without repeatedly calling into wasmtime APIs.
+
+### Synchronization Points
+
+Memory must be synchronized at specific points to ensure consistency:
+
+| Direction | When | Function |
+|-----------|------|----------|
+| WASM → Context | Before host function reads memory | `sync_to_ctx()` |
+| Context → WASM | After host function writes memory | `sync_from_ctx()` |
+
+### Critical Invariant: Host Functions That Allocate
+
+**Any host function that allocates memory (writes to `ctx.memory`) MUST sync back to WASM before returning.**
+
+This is because:
+1. Host function allocates (e.g., `rt_make_closure` allocates closure on heap)
+2. Host function writes to `ctx.memory` 
+3. If no sync, WASM memory still has stale/zero data
+4. WASM code tries to read the closure → gets garbage/null
+
+**Functions requiring sync after return:**
+- `__makeClosure` - allocates closure struct, copies captures
+- `__makeThunk` - allocates thunk header
+- `__makeList` - allocates list with elements
+- `__makeAttrs` / `__makeAttrsDynamic` - allocates attrset
+- `__concatStrings` - allocates concatenated string
+- `__update` - allocates merged attrset
+- `__concat` - allocates concatenated list
+- Any `rt_*` function that calls `ctx.allocate()`
+
+### Implementation
+
+```cpp
+// wasm_executor.cpp - helper functions
+
+/// sync WASM memory to the runtime context (on host function entry)
+static void sync_to_ctx(wasmtime::Caller& caller, store_data* data) {
+  if (data->memory) {
+    auto wasm_data = data->memory->data(caller.context());
+    if (wasm_data.size() > data->ctx->memory.size()) {
+      data->ctx->memory.resize(wasm_data.size());
+    }
+    std::memcpy(data->ctx->memory.data(), wasm_data.data(), wasm_data.size());
+  }
+}
+
+/// sync runtime context memory back to WASM (after host function allocates)
+static void sync_from_ctx(wasmtime::Caller& caller, store_data* data) {
+  if (data->memory) {
+    auto wasm_data = data->memory->data(caller.context());
+    auto copy_size = std::min(wasm_data.size(), data->ctx->memory.size());
+    std::memcpy(wasm_data.data(), data->ctx->memory.data(), copy_size);
+  }
+}
+
+/// get context, automatically syncs WASM → context
+static auto get_ctx(wasmtime::Caller& caller) -> runtime_context* {
+  auto& data = caller.context().get_data();
+  auto* sd = std::any_cast<store_data*>(data);
+  sync_to_ctx(caller, sd);  // <-- automatic sync on entry
+  return sd->ctx;
+}
+
+/// sync memory after a host function modifies ctx.memory
+static void sync_ctx_to_wasm(wasmtime::Caller& caller) {
+  auto& data = caller.context().get_data();
+  auto* sd = std::any_cast<store_data*>(data);
+  sync_from_ctx(caller, sd);  // <-- explicit sync on exit
+}
+```
+
+### Example: __makeClosure
+
+```cpp
+linker.func_wrap("runtime", "__makeClosure",
+  [](wasmtime::Caller caller, int32_t func_index, int32_t env_offset,
+     int32_t env_size) -> wasmtime::Result<int64_t, wasmtime::Trap> {
+    try {
+      auto* ctx = get_ctx(caller);  // syncs WASM → context
+      auto result = rt_make_closure(*ctx,
+                                    static_cast<uint32_t>(func_index),
+                                    static_cast<uint32_t>(env_offset),
+                                    static_cast<uint32_t>(env_size));
+      sync_ctx_to_wasm(caller);     // syncs context → WASM (CRITICAL!)
+      return result;
+    } catch (const runtime_error& e) {
+      return wasmtime::Trap(e.what());
+    }
+  });
+```
+
+### Bug That This Fixes
+
+Without the sync, closures with captured variables fail:
+
+```nix
+let x = 10; in (y: x + y) 5
+```
+
+**Failure mode:**
+1. Compiler generates code that calls `__makeClosure(0, env_offset, 12)`
+2. `rt_make_closure` allocates closure at heap offset (e.g., 0x20780)
+3. `rt_make_closure` copies captured value `x = 10` to `ctx.memory` at 0x20788
+4. `rt_make_closure` returns closure value (tag=8, payload=0x20780)
+5. **WITHOUT SYNC**: WASM memory at 0x20788 is still 0
+6. Lambda body reads capture from `env_ptr + 0` → gets 0 (null)
+7. Addition `x + y` fails: "expected numeric type, got 'null'"
+
+**With sync:** Step 4.5 copies `ctx.memory` back to WASM memory, so step 6 reads the correct value.
+
+---
+
 ## Memory Layout
 
 ```
@@ -292,6 +439,8 @@ When WASM GC proposal is widely supported, migrate to GC-managed structs:
 
 ## Invariants
 
+### Memory Layout Invariants
+
 1. **Data segment boundary**: `data_offset_ < 0x10000` at compile completion
 2. **Heap boundary**: `next_free_ < heap_end_` at every allocation
 3. **No overlap**: Data segment [0, 0x10000) and heap [0x20000, heap_end_) never overlap
@@ -300,6 +449,28 @@ When WASM GC proposal is widely supported, migrate to GC-managed structs:
    - 0 (pending) → 1 (evaluating) → 2 (evaluated)
    - 1 → 1 means infinite recursion (error)
 6. **Closure safety**: Closure environments are always fully initialized before the closure value is returned
+
+### Memory Synchronization Invariants
+
+7. **WASM-to-context sync**: `sync_to_ctx()` MUST be called before any host function reads from `ctx.memory`. Currently enforced automatically by `get_ctx()`.
+
+8. **Context-to-WASM sync**: `sync_from_ctx()` (via `sync_ctx_to_wasm()`) MUST be called after any host function that:
+   - Calls `ctx.allocate()`
+   - Writes to `ctx.memory` at heap offsets (≥ 0x20000)
+   - Creates closures, thunks, lists, attrsets, or concatenated strings
+   
+9. **No stale pointers**: Raw pointers derived from WASM memory (`wasmtime::Memory::data()`) are invalidated by any `memory.grow` operation. The handle-based `mem_offset` type remains valid across growth.
+
+10. **Initial memory size**: WASM memory MUST be initialized with at least 16 pages (1MB) to cover the heap region starting at 0x20000. The minimum is 3 pages (192KB) but 16 pages provides the documented 1MB default.
+
+### Violation Symptoms
+
+| Invariant | Symptom if Violated |
+|-----------|---------------------|
+| #7 | Host reads stale/incorrect data |
+| #8 | WASM reads 0/garbage after host allocates |
+| #9 | Silent memory corruption, UB |
+| #10 | "memory access out of bounds" at heap offsets |
 
 ---
 
@@ -354,9 +525,15 @@ When WASM GC proposal is widely supported, migrate to GC-managed structs:
    - Currently bump allocator never frees
    - For long-running sessions, need arena collection
 
-2. **Memory growth**
-   - Currently fixed at 1MB
-   - Should grow on demand up to configurable limit
+2. **Dynamic memory growth**
+   - Currently fixed at 1MB (16 pages) initial allocation
+   - WASM memory can grow to 256 pages (16MB) max
+   - Should implement demand-driven growth with proper sync
+
+3. **Single-buffer architecture**
+   - Currently using dual-buffer (WASM + context) with explicit sync
+   - Future: consider direct WASM memory access from host functions
+   - Would eliminate sync overhead but requires careful pointer management
 
 ---
 

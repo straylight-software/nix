@@ -157,7 +157,8 @@ auto rt_make_closure(runtime_context& ctx, std::uint32_t func_index, std::uint32
   // Copy captures from environment to closure
   for (std::uint32_t idx = 0; idx < capture_count; ++idx) {
     auto capture = ctx.read_value(env_offset + mem::ENV_CAPTURES_OFFSET + idx * mem::VALUE_SIZE);
-    ctx.write_value(closure_ptr + mem::CLOSURE_CAPTURES_OFFSET + idx * mem::VALUE_SIZE, capture);
+    auto write_offset = closure_ptr + mem::CLOSURE_CAPTURES_OFFSET + idx * mem::VALUE_SIZE;
+    ctx.write_value(write_offset, capture);
   }
 
   return make_value(value_tag::lambda, closure_ptr);

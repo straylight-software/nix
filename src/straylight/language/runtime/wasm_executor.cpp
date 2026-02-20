@@ -66,6 +66,13 @@ static auto get_ctx(wasmtime::Caller& caller) -> runtime_context* {
   return sd->ctx;
 }
 
+/// sync memory after a host function modifies ctx.memory
+static void sync_ctx_to_wasm(wasmtime::Caller& caller) {
+  auto& data = caller.context().get_data();
+  auto* sd = std::any_cast<wasm_executor::store_data*>(data);
+  sync_from_ctx(caller, sd);
+}
+
 static auto get_io(wasmtime::Caller& caller) -> io_backend_interface* {
   auto& data = caller.context().get_data();
   auto* sd = std::any_cast<wasm_executor::store_data*>(data);
@@ -305,9 +312,12 @@ void wasm_executor::setup_linker(wasmtime::Linker& linker) {
                     std::int32_t env_size) -> wasmtime::Result<std::int64_t, wasmtime::Trap> {
                    try {
                      auto* ctx = get_ctx(caller);
-                     return rt_make_closure(*ctx, static_cast<std::uint32_t>(func_index),
-                                            static_cast<std::uint32_t>(env_offset),
-                                            static_cast<std::uint32_t>(env_size));
+                     auto result = rt_make_closure(*ctx, static_cast<std::uint32_t>(func_index),
+                                                   static_cast<std::uint32_t>(env_offset),
+                                                   static_cast<std::uint32_t>(env_size));
+                     // sync memory back to WASM after allocating closure
+                     sync_ctx_to_wasm(caller);
+                     return result;
                    } catch (const runtime_error& e) {
                      return wasmtime::Trap(e.what());
                    }
@@ -321,9 +331,12 @@ void wasm_executor::setup_linker(wasmtime::Linker& linker) {
                     std::int32_t env_size) -> wasmtime::Result<std::int64_t, wasmtime::Trap> {
                    try {
                      auto* ctx = get_ctx(caller);
-                     return rt_make_thunk(*ctx, static_cast<std::uint32_t>(func_index),
-                                          static_cast<std::uint32_t>(env_offset),
-                                          static_cast<std::uint32_t>(env_size));
+                     auto result = rt_make_thunk(*ctx, static_cast<std::uint32_t>(func_index),
+                                                 static_cast<std::uint32_t>(env_offset),
+                                                 static_cast<std::uint32_t>(env_size));
+                     // sync memory back to WASM after allocating thunk
+                     sync_ctx_to_wasm(caller);
+                     return result;
                    } catch (const runtime_error& e) {
                      return wasmtime::Trap(e.what());
                    }
@@ -720,8 +733,9 @@ auto wasm_executor::execute(std::span<const std::uint8_t> wasm_binary) -> execut
     rt_init_builtins(ctx_);
 
     // Create memory to provide to the module
-    // Start with 1 page (64KB), allow growing to 256 pages (16MB)
-    wasmtime::MemoryType mem_type(1, 256);
+    // Start with 16 pages (1MB) to cover heap at HEAP_BASE (0x20000 = 128KB)
+    // Allow growing to 256 pages (16MB)
+    wasmtime::MemoryType mem_type(16, 256);
     auto mem_result = wasmtime::Memory::create(store_->context(), mem_type);
     if (!mem_result) {
       return execution_result::err("failed to create memory: " + mem_result.err().message());
@@ -792,11 +806,6 @@ auto wasm_executor::execute(std::span<const std::uint8_t> wasm_binary) -> execut
                             " not found or has no function table");
       }
 
-      // DEBUG: trace function call
-      std::cerr << "DEBUG call_wasm_func: encoded=" << encoded_func_index
-                << " module_id=" << module_id << " local_func_index=" << local_func_index
-                << " env_ptr=" << env_ptr << " arg=" << arg << "\n";
-
       // Save and switch current_module_id so closures created during this call
       // get the correct module_id encoded
       auto saved_module_id = ctx_.current_module_id;
@@ -826,20 +835,16 @@ auto wasm_executor::execute(std::span<const std::uint8_t> wasm_binary) -> execut
           wasmtime::Val(static_cast<std::int64_t>(arg)),
       };
 
-      std::cerr << "DEBUG call_wasm_func: calling func.call\n";
       auto call_result = func.call(store_->context(), params);
-      std::cerr << "DEBUG call_wasm_func: func.call returned\n";
       if (!call_result) {
         auto err = std::move(call_result).err();
         ctx_.current_module_id = saved_module_id;
         throw runtime_error("indirect call failed: " + err.message());
       }
       auto results = std::move(call_result).ok();
-      std::cerr << "DEBUG call_wasm_func: got results\n";
 
       // Sync memory back to context after the call
       sync_memory_to_context();
-      std::cerr << "DEBUG call_wasm_func: synced memory\n";
 
       // Restore the original module_id
       ctx_.current_module_id = saved_module_id;
@@ -847,7 +852,6 @@ auto wasm_executor::execute(std::span<const std::uint8_t> wasm_binary) -> execut
       if (results.empty()) {
         throw runtime_error("function returned no value");
       }
-      std::cerr << "DEBUG call_wasm_func: returning " << results[0].i64() << "\n";
       return results[0].i64();
     };
 

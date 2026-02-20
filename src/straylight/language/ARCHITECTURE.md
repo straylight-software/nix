@@ -432,7 +432,7 @@ auto rt_apply(runtime_context& ctx, nix_value fn, nix_value arg) -> nix_value;
 
 ### `wasm_executor.h` / `wasm_executor.cpp` - WASM Execution
 
-~950 lines total (132 hh + 822 cpp) providing wasmtime-based execution:
+~1100 lines total providing wasmtime-based execution:
 
 ```cpp
 struct execution_result {
@@ -455,17 +455,60 @@ private:
   std::unique_ptr<wasmtime::Engine> engine_;
   std::unique_ptr<wasmtime::Store> store_;
   runtime_context ctx_;
+  std::optional<wasmtime::Memory> memory_;  // WASM linear memory
   // ...
 };
 ```
 
 **Execution Flow**:
-1. Create fresh store and memory
+1. Create fresh store and memory (16 pages = 1MB initial, 256 pages max)
 2. Setup linker with all runtime imports
 3. Compile and instantiate module
 4. Setup indirect call callbacks for closures/thunks
-5. Call `main()`, force the result
-6. Return formatted result or error
+5. Sync WASM memory to context
+6. Call `main()`, force the result
+7. Return formatted result or error
+
+### Dual-Memory Architecture
+
+The executor maintains two memory buffers:
+
+1. **WASM Memory** (`wasmtime::Memory`): Linear memory visible to WASM code
+2. **Context Memory** (`runtime_context::memory`): Buffer used by host functions
+
+These must stay synchronized. See `MEMORY.md` for detailed invariants.
+
+```cpp
+/// Sync WASM memory → context (before host reads)
+void sync_memory_to_context() {
+  auto data = memory_->data(store_->context());
+  std::memcpy(ctx_.memory.data(), data.data(), data.size());
+}
+
+/// Sync context → WASM memory (after host writes)
+void sync_memory_from_context() {
+  auto data = memory_->data(store_->context());
+  std::memcpy(data.data(), ctx_.memory.data(), 
+              std::min(data.size(), ctx_.memory.size()));
+}
+```
+
+**Critical Invariant**: Host functions that allocate (write to `ctx_.memory` at heap offsets) MUST call `sync_ctx_to_wasm()` before returning, or WASM code will read stale/zero data.
+
+### Memory Initialization
+
+WASM memory is created with 16 initial pages (1MB) to cover:
+- Data segment: 0x00000 - 0x0FFFF (64KB)
+- Stack: 0x0F000 - 0x10000 (4KB, grows down)
+- Reserved: 0x10000 - 0x1FFFF (64KB)
+- Heap: 0x20000+ (runtime allocations)
+
+```cpp
+// wasm_executor.cpp:725
+wasmtime::MemoryType mem_type(16, 256);  // 16 initial, 256 max pages
+```
+
+Starting with fewer pages (e.g., 1 page = 64KB) causes "memory access out of bounds" when the runtime tries to allocate at `HEAP_BASE = 0x20000`.
 
 ---
 
@@ -704,6 +747,16 @@ cxx_library(
 
 4. **Data segment limit** ✓
    - Compiler throws `compilation_error` if data segment exceeds 64KB
+
+5. **WASM memory initialization** ✓
+   - Memory now starts with 16 pages (1MB) instead of 1 page (64KB)
+   - Heap at `HEAP_BASE = 0x20000` (128KB) is now accessible
+   - Fixes "memory access out of bounds" for closure/thunk allocation
+
+6. **Memory synchronization for closures** ✓
+   - Host functions `__makeClosure` and `__makeThunk` now sync memory after allocation
+   - Fixes "expected numeric type, got 'null'" when accessing captured variables
+   - Root cause: WASM memory wasn't updated after host allocated closure on heap
 
 ### Features Not Implemented
 
