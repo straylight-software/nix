@@ -335,13 +335,39 @@ TEST_CASE("bug: malicious eval cache database causes crash", "[fuzz][eval-cache]
   }
 
   SECTION("orphan child attribute - missing parent triggers assertion") {
+    // ===========================================================================
     // BUG: eval-cache.cpp:322 - assert(parent->first->cachedValue)
+    // ===========================================================================
+    // SEVERITY: CRASH (SIGABRT)
+    // ATTACK SURFACE: Local file system access to ~/.cache/nix/eval-cache-v6/
+    //
+    // VULNERABILITY:
     // If we create a child attribute whose parent doesn't exist in the database,
     // traversing to that child will cause an assertion failure.
     //
-    // Attack: Create child with parent=999, but no row with rowid=999 exists
-    // When nix tries to look up the child's parent, get_attr returns nullopt
-    // and the assertion fails.
+    // CODE PATH:
+    // 1. AttrCursor::getKey() is called (line 317)
+    // 2. If parent exists and !parent->first->cachedValue (line 320)
+    // 3. It tries to fetch from DB: root->db->get_attr(parent->first->getKey())
+    // 4. If the parent doesn't exist in DB, get_attr returns std::nullopt
+    // 5. assert(parent->first->cachedValue) FAILS (line 322)
+    //
+    // EXPLOITATION:
+    // 1. Attacker creates malicious SQLite database at:
+    //    ~/.cache/nix/eval-cache-v6/<fingerprint>.sqlite
+    // 2. Database contains: INSERT INTO Attributes (parent, name, type, value)
+    //    VALUES (999, 'orphan', 2, 'value')  -- parent 999 doesn't exist
+    // 3. Victim runs `nix build` on a flake matching the fingerprint
+    // 4. EvalCache loads the malicious database
+    // 5. When traversing attributes, AttrCursor::getKey() is called
+    // 6. The assertion fails, crashing nix with SIGABRT
+    //
+    // FINGERPRINT COMPUTATION:
+    // The fingerprint is: Hash(flake locked inputs + nix version + store dir)
+    // See: src/nix/flake/flake.cpp:967-982
+    //
+    // MITIGATION: Replace assert() with proper error handling
+    // ===========================================================================
 
     sqlite3* db = nullptr;
     sqlite3_open(db_path.c_str(), &db);
@@ -358,7 +384,15 @@ TEST_CASE("bug: malicious eval cache database causes crash", "[fuzz][eval-cache]
     )sql",
                  nullptr, nullptr, nullptr);
 
-    // Insert orphan child - parent 999 doesn't exist
+    // Create a proper root first (rowid=1)
+    sqlite3_exec(db,
+                 "INSERT INTO Attributes (parent, name, type, value) "
+                 "VALUES (0, '', 1, '')", // Root: parent=0, type=1 (FullAttrs)
+                 nullptr, nullptr, nullptr);
+
+    // Insert orphan child - parent 999 doesn't exist (no row with rowid=999)
+    // When nix tries to traverse: root -> child, it will fail
+    // because child's parent (999) has no cachedValue
     sqlite3_exec(db,
                  "INSERT INTO Attributes (parent, name, type, value) "
                  "VALUES (999, 'orphan', 2, 'value')",
@@ -366,8 +400,40 @@ TEST_CASE("bug: malicious eval cache database causes crash", "[fuzz][eval-cache]
 
     sqlite3_close(db);
 
-    INFO("Created orphan child attribute with non-existent parent=999");
-    INFO("Reading this through eval cache will trigger: assert(parent->first->cachedValue)");
+    // Verify database structure
+    sqlite3_open(db_path.c_str(), &db);
+    sqlite3_stmt* stmt = nullptr;
+
+    // Check root exists
+    sqlite3_prepare_v2(db, "SELECT rowid FROM Attributes WHERE parent=0 AND name=''", -1, &stmt,
+                       nullptr);
+    REQUIRE(sqlite3_step(stmt) == SQLITE_ROW);
+    auto root_rowid = sqlite3_column_int64(stmt, 0);
+    INFO("Root rowid: " << root_rowid);
+    sqlite3_finalize(stmt);
+
+    // Check orphan exists
+    sqlite3_prepare_v2(db, "SELECT rowid, parent FROM Attributes WHERE name='orphan'", -1, &stmt,
+                       nullptr);
+    REQUIRE(sqlite3_step(stmt) == SQLITE_ROW);
+    auto orphan_rowid = sqlite3_column_int64(stmt, 0);
+    auto orphan_parent = sqlite3_column_int64(stmt, 1);
+    INFO("Orphan rowid: " << orphan_rowid << ", parent: " << orphan_parent);
+    REQUIRE(orphan_parent == 999);
+    sqlite3_finalize(stmt);
+
+    // Verify parent 999 doesn't exist
+    sqlite3_prepare_v2(db, "SELECT rowid FROM Attributes WHERE rowid=999", -1, &stmt, nullptr);
+    REQUIRE(sqlite3_step(stmt) == SQLITE_DONE); // No row found
+    sqlite3_finalize(stmt);
+
+    sqlite3_close(db);
+
+    INFO("Created malicious database with orphan child");
+    INFO("To trigger crash:");
+    INFO("  1. Copy database to ~/.cache/nix/eval-cache-v6/<hash>.sqlite");
+    INFO("  2. Run nix build on a flake with matching fingerprint hash");
+    INFO("  3. Observe SIGABRT from assertion failure at eval-cache.cpp:322");
     REQUIRE(std::filesystem::exists(db_path));
   }
 

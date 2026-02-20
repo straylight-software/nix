@@ -175,3 +175,55 @@ cxx_test(
     linker_flags = TEST_LINKER_FLAGS,
     link_style = "static",
 )
+
+# =============================================================================
+# Fuzz tests - NixStringContextElem::parse()
+# =============================================================================
+
+cxx_test(
+    name = "context_parse_fuzz_test",
+    srcs = ["fuzz/context_parse_fuzz_test.cpp"],
+    deps = TEST_DEPS,
+    compiler_flags = TEST_COMPILER_FLAGS,
+    linker_flags = TEST_LINKER_FLAGS,
+    link_style = "static",
+)
+
+# =============================================================================
+# Fuzz tests - Derivation ATerm parsing
+# =============================================================================
+
+cxx_test(
+    name = "derivation_fuzz_test",
+    srcs = ["fuzz/derivation_fuzz_test.cpp"],
+    deps = STORE_TEST_DEPS,
+    compiler_flags = TEST_COMPILER_FLAGS,
+    linker_flags = TEST_LINKER_FLAGS,
+    link_style = "static",
+)
+
+# =============================================================================
+# Fuzz tests - NAR info (.narinfo) parsing
+# =============================================================================
+
+cxx_test(
+    name = "narinfo_fuzz_test",
+    srcs = ["fuzz/narinfo_fuzz_test.cpp"],
+    deps = STORE_TEST_DEPS,
+    compiler_flags = TEST_COMPILER_FLAGS,
+    linker_flags = TEST_LINKER_FLAGS,
+    link_style = "static",
+)
+
+# =============================================================================
+# Fuzz tests - Git object parsing
+# =============================================================================
+
+cxx_test(
+    name = "git_fuzz_test",
+    srcs = ["fuzz/git_fuzz_test.cpp"],
+    deps = UTIL_TEST_DEPS,
+    compiler_flags = TEST_COMPILER_FLAGS,
+    linker_flags = TEST_LINKER_FLAGS,
+    link_style = "static",
+)
