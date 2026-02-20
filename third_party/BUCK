@@ -12,6 +12,8 @@ load(
     ":nix-deps.bzl",
     "ADA_INCLUDE",
     "ADA_STATIC_LIB",
+    "BINARYEN_INCLUDE",
+    "BINARYEN_STATIC_LIB",
     "BLAKE3_INCLUDE",
     "BLAKE3_STATIC_LIB",
     "LIBRESSL_CRYPTO_LIB",
@@ -148,12 +150,11 @@ filegroup(name = "nghttp3", srcs = [], visibility = ["PUBLIC"])  # TODO: convert
 
 filegroup(name = "pegtl", srcs = [], visibility = ["PUBLIC"])  # header-only
 
-# Binaryen WASM codegen - TODO: convert to static (long build time)
-prebuilt_cxx_library(
+# Binaryen WASM codegen (static)
+nix_prebuilt_cxx_library(
     name = "binaryen",
-    shared_lib = "lib/libbinaryen.so",
-    exported_headers = [],
-    visibility = ["PUBLIC"],
+    static_lib = BINARYEN_STATIC_LIB,
+    include_dir = BINARYEN_INCLUDE,
 )
 
 # Wasmtime runtime - TODO: convert to static (rust crate)

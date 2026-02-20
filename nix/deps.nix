@@ -46,6 +46,16 @@ let
 
   # Static rapidcheck (musl)
   rapidcheck-static = pkgs.pkgsStatic.rapidcheck;
+
+  # Static binaryen (WASM codegen)
+  # Note: pkgsStatic.binaryen fails due to nodejs test dependency, so we override
+  # the regular package to build static lib instead
+  binaryen-static = pkgs.binaryen.overrideAttrs (old: {
+    cmakeFlags = (old.cmakeFlags or [ ]) ++ [
+      "-DBUILD_SHARED_LIBS=OFF"
+      "-DBUILD_STATIC_LIB=ON"
+    ];
+  });
 in
 {
   # ── Core util deps ──────────────────────────────────────────────────────────
@@ -105,7 +115,7 @@ in
   # ── nix-language deps (WASM) ────────────────────────────────────────────────
   language = {
     inherit (pkgs) pegtl; # header-only
-    inherit (pkgs) binaryen; # TODO: convert to static (build takes long)
+    binaryen = binaryen-static;
   };
 
   # ── Test deps ───────────────────────────────────────────────────────────────
@@ -129,6 +139,7 @@ in
     inherit catch2-static;
     inherit nanobench-static;
     inherit rapidcheck-static;
+    inherit binaryen-static;
   };
 
   # ── Custom packages (for export) ────────────────────────────────────────────
@@ -144,6 +155,7 @@ in
       catch2-static
       nanobench-static
       rapidcheck-static
+      binaryen-static
       ;
   };
 }

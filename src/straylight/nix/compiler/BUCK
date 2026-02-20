@@ -185,11 +185,8 @@ cxx_binary(
         "-isystem/nix/store/5csjs5zrln4x5y3wxy6pi42bh2816c1s-wasmtime-40.0.0/include",
     ],
     linker_flags = [
-        # Binaryen (for WASM compilation)
-        "-L/nix/store/4jp1vkr9gj5n3zbpp2xvkp8n3g56lpv0-binaryen-125/lib",
-        "-lbinaryen",
-        "-Wl,-rpath,/nix/store/4jp1vkr9gj5n3zbpp2xvkp8n3g56lpv0-binaryen-125/lib",
-        # Wasmtime (for WASM execution)
+        # binaryen is now statically linked via //third_party:binaryen
+        # Wasmtime (for WASM execution) - TODO: convert to static
         "-L/nix/store/c76a64xqlv5h3i94dzv221pia3pginp1-wasmtime-40.0.0-lib/lib",
         "-lwasmtime",
         "-Wl,-rpath,/nix/store/c76a64xqlv5h3i94dzv221pia3pginp1-wasmtime-40.0.0-lib/lib",
@@ -197,9 +194,7 @@ cxx_binary(
         # Note: blake3 is now statically linked via //third_party:blake3
         "-L/nix/store/61i74yjkj9p1qphfl7018ja4sdwkipx0-openssl-3.6.0/lib",
         "-Wl,-rpath,/nix/store/61i74yjkj9p1qphfl7018ja4sdwkipx0-openssl-3.6.0/lib",
-        # Boost (for parse)
-        "-L/nix/store/2izjh733byjickw9719nnkckxd63ghpm-boost-1.87.0/lib",
-        "-Wl,-rpath,/nix/store/2izjh733byjickw9719nnkckxd63ghpm-boost-1.87.0/lib",
+        # boost removed - using std::vector
     ],
     deps = [
         ":ast",

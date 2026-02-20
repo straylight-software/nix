@@ -99,11 +99,7 @@ cxx_test(
     srcs = ["compiler_test.cpp"],
     deps = LANGUAGE_COMPILE_TEST_DEPS,
     compiler_flags = LANGUAGE_TEST_COMPILER_FLAGS,
-    linker_flags = LANGUAGE_LINKER_FLAGS + [
-        "-L/nix/store/4jp1vkr9gj5n3zbpp2xvkp8n3g56lpv0-binaryen-125/lib",
-        "-lbinaryen",
-        "-Wl,-rpath,/nix/store/4jp1vkr9gj5n3zbpp2xvkp8n3g56lpv0-binaryen-125/lib",
-    ],
+    linker_flags = LANGUAGE_LINKER_FLAGS,
     link_style = "static",
 )
 
@@ -131,11 +127,7 @@ cxx_test(
         "//third_party:binaryen",
     ],
     compiler_flags = LANGUAGE_TEST_COMPILER_FLAGS,
-    linker_flags = LANGUAGE_LINKER_FLAGS + [
-        "-L/nix/store/4jp1vkr9gj5n3zbpp2xvkp8n3g56lpv0-binaryen-125/lib",
-        "-lbinaryen",
-        "-Wl,-rpath,/nix/store/4jp1vkr9gj5n3zbpp2xvkp8n3g56lpv0-binaryen-125/lib",
-    ],
+    linker_flags = LANGUAGE_LINKER_FLAGS,
     link_style = "static",
 )
 
@@ -144,10 +136,8 @@ WASMTIME_COMPILER_FLAGS = [
     "-isystem/nix/store/5csjs5zrln4x5y3wxy6pi42bh2816c1s-wasmtime-40.0.0/include",
 ]
 
+# Wasmtime linker flags (binaryen is now statically linked via //third_party:binaryen)
 WASMTIME_LINKER_FLAGS = [
-    "-L/nix/store/4jp1vkr9gj5n3zbpp2xvkp8n3g56lpv0-binaryen-125/lib",
-    "-lbinaryen",
-    "-Wl,-rpath,/nix/store/4jp1vkr9gj5n3zbpp2xvkp8n3g56lpv0-binaryen-125/lib",
     "-L/nix/store/c76a64xqlv5h3i94dzv221pia3pginp1-wasmtime-40.0.0-lib/lib",
     "-lwasmtime",
     "-Wl,-rpath,/nix/store/c76a64xqlv5h3i94dzv221pia3pginp1-wasmtime-40.0.0-lib/lib",
@@ -290,10 +280,6 @@ cxx_library(
         "//third_party:binaryen",
     ],
     compiler_flags = LANGUAGE_TEST_COMPILER_FLAGS,
-    linker_flags = [
-        "-L/nix/store/4jp1vkr9gj5n3zbpp2xvkp8n3g56lpv0-binaryen-125/lib",
-        "-lbinaryen",
-        "-Wl,-rpath,/nix/store/4jp1vkr9gj5n3zbpp2xvkp8n3g56lpv0-binaryen-125/lib",
-    ],
+    # binaryen is now statically linked via //third_party:binaryen
     visibility = ["PUBLIC"],
 )

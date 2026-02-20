@@ -73,6 +73,12 @@ let
     # ════════════════════════════════════════════════════════════════════════════
     RAPIDCHECK_STATIC_LIB = "${libPath s.rapidcheck-static}/lib/librapidcheck.a"
     RAPIDCHECK_INCLUDE = "${devPath s.rapidcheck-static}/include"
+
+    # ════════════════════════════════════════════════════════════════════════════
+    # binaryen - WebAssembly compiler infrastructure
+    # ════════════════════════════════════════════════════════════════════════════
+    BINARYEN_STATIC_LIB = "${libPath s.binaryen-static}/lib/libbinaryen.a"
+    BINARYEN_INCLUDE = "${libPath s.binaryen-static}/include"
   '';
 in
 pkgs.writeText "nix-deps.bzl" content
