@@ -55,7 +55,7 @@ struct derivation_output_t {
      * @param output_name The name of this output.
      */
     store_path_t path(const store_dir_config_t& store, std::string_view drv_name,
-                   OutputNameView output_name) const;
+                      OutputNameView output_name) const;
 
     bool operator==(const CAFixed&) const = default;
     auto operator<=>(const CAFixed&) const = default;
@@ -130,7 +130,7 @@ struct derivation_output_t {
    * basic_derivation_t::outputsAndOptPaths
    */
   std::optional<store_path_t> path(const store_dir_config_t& store, std::string_view drv_name,
-                                OutputNameView output_name) const;
+                                   OutputNameView output_name) const;
 };
 
 using DerivationOutputs = std::map<std::string, derivation_output_t>;
@@ -339,7 +339,8 @@ struct derivation_t : basic_derivation_t {
    * 2. input_t placeholders are replaced with realized input store
    *    paths.
    */
-  std::optional<basic_derivation_t> try_resolve(store_t& store, store_t* eval_store = nullptr) const;
+  std::optional<basic_derivation_t> try_resolve(store_t& store,
+                                                store_t* eval_store = nullptr) const;
 
   /**
    * Like the above, but instead of querying the Nix database for
@@ -348,9 +349,9 @@ struct derivation_t : basic_derivation_t {
    */
   std::optional<basic_derivation_t>
   try_resolve(store_t& store,
-             std::function<std::optional<store_path_t>(ref<const SingleDerivedPath> drv_path,
-                                                    const std::string& output_name)>
-                 queryResolutionChain) const;
+              std::function<std::optional<store_path_t>(ref<const SingleDerivedPath> drv_path,
+                                                        const std::string& output_name)>
+                  queryResolutionChain) const;
 
   /**
    * Check that the derivation is valid and does not present any
@@ -441,20 +442,21 @@ class store_t;
  * Write a derivation to the Nix store, and return its path.
  */
 store_path_t write_derivation(store_t& store, const derivation_t& drv, RepairFlag repair = NoRepair,
-                          bool read_only = false);
+                              bool read_only = false);
 
 /**
  * Asynchronously write a derivation to the Nix store, and return its path.
  */
-store_path_t write_derivation(store_t& store, AsyncPathWriter& async_path_writer, const derivation_t& drv,
-                          RepairFlag repair = NoRepair, bool read_only = false);
+store_path_t write_derivation(store_t& store, AsyncPathWriter& async_path_writer,
+                              const derivation_t& drv, RepairFlag repair = NoRepair,
+                              bool read_only = false);
 
 /**
  * Read a derivation from a file.
  */
-derivation_t
-parse_derivation(const store_dir_config_t& store, std::string&& s, std::string_view name,
-                const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
+derivation_t parse_derivation(
+    const store_dir_config_t& store, std::string&& s, std::string_view name,
+    const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
 
 /**
  * \todo Remove.
@@ -561,7 +563,7 @@ struct source_t;
 struct sink_t;
 
 source_t& read_derivation(source_t& in, const store_dir_config_t& store, basic_derivation_t& drv,
-                       std::string_view name);
+                          std::string_view name);
 void write_derivation(sink_t& out, const store_dir_config_t& store, const basic_derivation_t& drv);
 
 /**

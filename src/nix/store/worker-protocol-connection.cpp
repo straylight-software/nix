@@ -260,10 +260,9 @@ WorkerProto::BasicClientConnection::queryPathInfo(const store_dir_config_t& stor
   return WorkerProto::Serialise<UnkeyedValidPathInfo>::read(store, *this);
 }
 
-store_path_set_t WorkerProto::BasicClientConnection::queryValidPaths(const store_dir_config_t& store,
-                                                                 bool* daemonException,
-                                                                 const store_path_set_t& paths,
-                                                                 SubstituteFlag maybeSubstitute) {
+store_path_set_t WorkerProto::BasicClientConnection::queryValidPaths(
+    const store_dir_config_t& store, bool* daemonException, const store_path_set_t& paths,
+    SubstituteFlag maybeSubstitute) {
   assert(GET_PROTOCOL_MINOR(protoVersion) >= 12);
   to << WorkerProto::Op::QueryValidPaths;
   WorkerProto::write(store, *this, paths);
@@ -275,7 +274,8 @@ store_path_set_t WorkerProto::BasicClientConnection::queryValidPaths(const store
 }
 
 void WorkerProto::BasicClientConnection::addTempRoot(const store_dir_config_t& store,
-                                                     bool* daemonException, const store_path_t& path) {
+                                                     bool* daemonException,
+                                                     const store_path_t& path) {
   to << WorkerProto::Op::AddTempRoot << store.printStorePath(path);
   processStderr(daemonException);
   read_int(from);
@@ -298,7 +298,8 @@ WorkerProto::BasicClientConnection::getBuildDerivationResponse(const store_dir_c
 }
 
 void WorkerProto::BasicClientConnection::nar_from_path(const store_dir_config_t& store,
-                                                       bool* daemonException, const store_path_t& path,
+                                                       bool* daemonException,
+                                                       const store_path_t& path,
                                                        std::function<void(source_t&)> fun) {
   to << WorkerProto::Op::NarFromPath << store.printStorePath(path);
   processStderr(daemonException);

@@ -291,7 +291,8 @@ int main() {
     std::vector<std::byte> buf;
     Writer w{buf};
 
-    auto captured = read_file("src/straylight/nix/protocol/captures/buildpathswithresults_request.bin");
+    auto captured =
+        read_file("src/straylight/nix/protocol/captures/buildpathswithresults_request.bin");
     if (captured.size() >= 24) {
       uint64_t num_paths;
       std::memcpy(&num_paths, captured.data() + 8, 8);
@@ -495,7 +496,8 @@ int main() {
 
   // Test 20: Read buildpathswithresults_response
   {
-    auto data = read_file("src/straylight/nix/protocol/captures/buildpathswithresults_response.bin");
+    auto data =
+        read_file("src/straylight/nix/protocol/captures/buildpathswithresults_response.bin");
     try {
       Reader r{data};
       auto results = read_build_paths_with_results_response(r, 0x0126);

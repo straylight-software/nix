@@ -33,7 +33,9 @@ static auto r_dump_path = registerCommand2<cmd_dump_path_t>({"store", "dump-path
 struct cmd_dump_path2_t : command_t {
   Path path;
 
-  cmd_dump_path2_t() { expect_args({.label = "path", .handler = {&path}, .completer = complete_path}); }
+  cmd_dump_path2_t() {
+    expect_args({.label = "path", .handler = {&path}, .completer = complete_path});
+  }
 
   std::string description() override { return "serialise a path to stdout in NAR format"; }
 

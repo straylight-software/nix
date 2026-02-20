@@ -4,8 +4,6 @@
 // Tests base16, base64, and nix32 encoding/decoding roundtrips.
 
 // Catch2 MUST be included before rapidcheck/catch.h for v3 compatibility
-#include <catch2/catch_test_macros.hpp>
-
 #include <algorithm>
 #include <cstdint>
 #include <string>
@@ -13,6 +11,8 @@
 
 #include <rapidcheck.h>
 #include <rapidcheck/catch.h>
+
+#include <catch2/catch_test_macros.hpp>
 
 #include "../encoding.h"
 namespace encoding = straylight::nix::crypto;

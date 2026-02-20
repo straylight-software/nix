@@ -179,8 +179,8 @@ bool input_t::contains(const input_t& other) const {
 }
 
 // FIXME: remove
-std::tuple<store_path_t, ref<source_accessor_t>, input_t> input_t::fetch_to_store(const settings_t& settings,
-                                                                        store_t& store) const {
+std::tuple<store_path_t, ref<source_accessor_t>, input_t>
+input_t::fetch_to_store(const settings_t& settings, store_t& store) const {
   if (!scheme)
     throw Error("cannot fetch unsupported input '%s'", attrs_to_json(toAttrs()));
 
@@ -256,7 +256,7 @@ void input_t::checkLocks(input_t specified, input_t& result) {
 }
 
 std::pair<ref<source_accessor_t>, input_t> input_t::get_accessor(const settings_t& settings,
-                                                          store_t& store) const {
+                                                                 store_t& store) const {
   try {
     auto [accessor, result] = getAccessorUnchecked(settings, store);
 
@@ -285,7 +285,7 @@ struct substituted_source_accessor_t : forwarding_source_accessor_t {
 };
 
 std::pair<ref<source_accessor_t>, input_t> input_t::getAccessorUnchecked(const settings_t& settings,
-                                                                  store_t& store) const {
+                                                                         store_t& store) const {
   // FIXME: cache the accessor
 
   if (!scheme)
@@ -370,7 +370,7 @@ input_t input_t::applyOverrides(std::optional<std::string> ref, std::optional<Ha
 }
 
 void input_t::clone(const settings_t& settings, store_t& store,
-                  const std::filesystem::path& dest_dir) const {
+                    const std::filesystem::path& dest_dir) const {
   assert(scheme);
   scheme->clone(settings, store, *this, dest_dir);
 }
@@ -381,7 +381,7 @@ std::optional<std::filesystem::path> input_t::get_source_path() const {
 }
 
 void input_t::putFile(const canon_path_t& path, std::string_view contents,
-                    std::optional<std::string> commit_msg) const {
+                      std::optional<std::string> commit_msg) const {
   assert(scheme);
   return scheme->putFile(*this, path, contents, commit_msg);
 }
@@ -454,7 +454,7 @@ parsed_url_t input_scheme_t::toURL(const input_t& input, bool abbreviate) const 
 }
 
 input_t input_scheme_t::applyOverrides(const input_t& input, std::optional<std::string> ref,
-                                  std::optional<Hash> rev) const {
+                                       std::optional<Hash> rev) const {
   if (ref)
     throw Error("don't know how to set branch/tag name of input '%s' to '%s'", input.to_string(),
                 *ref);
@@ -468,13 +468,14 @@ std::optional<std::filesystem::path> input_scheme_t::get_source_path(const input
   return {};
 }
 
-void input_scheme_t::putFile(const input_t& input, const canon_path_t& path, std::string_view contents,
-                          std::optional<std::string> commit_msg) const {
+void input_scheme_t::putFile(const input_t& input, const canon_path_t& path,
+                             std::string_view contents,
+                             std::optional<std::string> commit_msg) const {
   throw Error("input '%s' does not support modifying file '%s'", input.to_string(), path);
 }
 
 void input_scheme_t::clone(const settings_t& settings, store_t& store, const input_t& input,
-                        const std::filesystem::path& dest_dir) const {
+                           const std::filesystem::path& dest_dir) const {
   if (std::filesystem::exists(dest_dir))
     throw Error("cannot clone into existing path %s", dest_dir);
 

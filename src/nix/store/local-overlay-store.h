@@ -15,7 +15,7 @@ struct LocalOverlayStoreConfig : virtual local_store_config_t {
         local_store_config_t(scheme, path, params) {}
 
   const setting_t<std::string> lowerStoreUri{(store_config_t*)this, "", "lower-store",
-                                           R"(
+                                             R"(
           [store_t URL](@docroot@/command-ref/new-cli/nix3-help-stores.md#store-url-format)
           for the lower store. The default is `auto` (i.e. use the Nix daemon or `/nix/store` directly).
 
@@ -24,12 +24,12 @@ struct LocalOverlayStoreConfig : virtual local_store_config_t {
         )"};
 
   const path_setting_t upperLayer{(store_config_t*)this, "", "upper-layer",
-                               R"(
+                                  R"(
           directory_t containing the OverlayFS upper layer for this store's store dir.
         )"};
 
   setting_t<bool> checkMount{(store_config_t*)this, true, "check-mount",
-                           R"(
+                             R"(
           Check that the overlay filesystem is correctly mounted.
 
           Nix does not manage the overlayfs mount point itself, but the correct
@@ -40,7 +40,7 @@ struct LocalOverlayStoreConfig : virtual local_store_config_t {
         )"};
 
   const path_setting_t remountHook{(store_config_t*)this, "", "remount-hook",
-                                R"(
+                                   R"(
           Script or other executable to run when overlay filesystem needs remounting.
 
           This is occasionally necessary when deleting a store path that exists in both upper and lower layers.
@@ -112,9 +112,9 @@ private:
   /**
    * Check lower store if upper DB does not have.
    */
-  void
-  query_path_info_uncached(const store_path_t& path,
-                        Callback<std::shared_ptr<const valid_path_info_t>> callback) noexcept override;
+  void query_path_info_uncached(
+      const store_path_t& path,
+      Callback<std::shared_ptr<const valid_path_info_t>> callback) noexcept override;
 
   /**
    * Check lower store if upper DB does not have.

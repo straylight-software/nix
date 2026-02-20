@@ -7,11 +7,12 @@
 
 namespace nix {
 
-nar_info_t::nar_info_t(const store_dir_config_t& store, const std::string& s, const std::string& whence)
+nar_info_t::nar_info_t(const store_dir_config_t& store, const std::string& s,
+                       const std::string& whence)
     : UnkeyedValidPathInfo(store, Hash::dummy) // FIXME: hack
       ,
       valid_path_info_t(store_path_t::dummy,
-                    static_cast<const UnkeyedValidPathInfo&>(*this)) // FIXME: hack
+                        static_cast<const UnkeyedValidPathInfo&>(*this)) // FIXME: hack
       ,
       UnkeyedNarInfo(static_cast<const UnkeyedValidPathInfo&>(*this)) {
   unsigned line = 1;
@@ -154,7 +155,8 @@ nlohmann::json UnkeyedNarInfo::to_json(const store_dir_config_t* store, bool inc
   return json_object;
 }
 
-UnkeyedNarInfo UnkeyedNarInfo::from_json(const store_dir_config_t* store, const nlohmann::json& json) {
+UnkeyedNarInfo UnkeyedNarInfo::from_json(const store_dir_config_t* store,
+                                         const nlohmann::json& json) {
   UnkeyedNarInfo res{UnkeyedValidPathInfo::from_json(store, json)};
 
   auto& obj = get_object(json);

@@ -70,8 +70,8 @@ inline auto is_has_attribute_operator(std::string_view op_type) -> bool {
 }
 
 inline auto get_operator_info(std::string_view op_type) -> std::optional<operator_info> {
-  // The op_type is the demangled rule name, e.g. "straylight::nix::compiler::parse::grammar::op::add"
-  // We check for the operator name at the end
+  // The op_type is the demangled rule name, e.g.
+  // "straylight::nix::compiler::parse::grammar::op::add" We check for the operator name at the end
 
   if (op_type.find("op::add") != std::string_view::npos) {
     return operator_info{binary_op_kind::add, 6, false};

@@ -329,25 +329,28 @@ struct MixNoCheckSigs : virtual args_t {
 };
 
 void complete_flake_input_attr_path(add_completions_t& completions, ref<eval_state_t> eval_state,
-                                const std::vector<flake_ref_t>& flake_refs, std::string_view prefix);
+                                    const std::vector<flake_ref_t>& flake_refs,
+                                    std::string_view prefix);
 
-void complete_flake_ref(add_completions_t& completions, ref<store_t> store, std::string_view prefix);
+void complete_flake_ref(add_completions_t& completions, ref<store_t> store,
+                        std::string_view prefix);
 
 void complete_flake_ref_with_fragment(add_completions_t& completions, ref<eval_state_t> eval_state,
-                                  flake::LockFlags lock_flags, strings_t attr_path_prefixes,
-                                  const strings_t& default_flake_attr_paths, std::string_view prefix);
+                                      flake::LockFlags lock_flags, strings_t attr_path_prefixes,
+                                      const strings_t& default_flake_attr_paths,
+                                      std::string_view prefix);
 
 std::string show_versions(const string_set_t& versions);
 
-void print_closure_diff(ref<store_t> store, const store_path_t& before_path, const store_path_t& after_path,
-                      std::string_view indent);
+void print_closure_diff(ref<store_t> store, const store_path_t& before_path,
+                        const store_path_t& after_path, std::string_view indent);
 
 /**
  * Create symlinks prefixed by `out_link` to the store paths in
  * `buildables`.
  */
 void create_out_links(const std::filesystem::path& out_link, const BuiltPaths& buildables,
-                    local_fs_store& store);
+                      local_fs_store& store);
 
 /** `out_link` parameter, `createOutLinksMaybe` method. See `MixOutLinkByDefault`. */
 struct MixOutLinkBase : virtual args_t {

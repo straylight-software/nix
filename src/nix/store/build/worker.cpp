@@ -74,8 +74,8 @@ std::shared_ptr<DerivationGoal> Worker::makeDerivationGoal(const store_path_t& d
                                                            const OutputName& wantedOutput,
                                                            BuildMode build_mode,
                                                            bool storeDerivation) {
-  return initGoalIfNeeded(derivationGoals[drv_path][wantedOutput], drv_path, drv, wantedOutput, *this,
-                          build_mode, storeDerivation);
+  return initGoalIfNeeded(derivationGoals[drv_path][wantedOutput], drv_path, drv, wantedOutput,
+                          *this, build_mode, storeDerivation);
 }
 
 std::shared_ptr<DerivationResolutionGoal>
@@ -84,10 +84,9 @@ Worker::makeDerivationResolutionGoal(const store_path_t& drv_path, const derivat
   return initGoalIfNeeded(derivationResolutionGoals[drv_path], drv_path, drv, *this, build_mode);
 }
 
-std::shared_ptr<DerivationBuildingGoal> Worker::makeDerivationBuildingGoal(const store_path_t& drv_path,
-                                                                           const derivation_t& drv,
-                                                                           BuildMode build_mode,
-                                                                           bool storeDerivation) {
+std::shared_ptr<DerivationBuildingGoal>
+Worker::makeDerivationBuildingGoal(const store_path_t& drv_path, const derivation_t& drv,
+                                   BuildMode build_mode, bool storeDerivation) {
   return initGoalIfNeeded(derivationBuildingGoals[drv_path], drv_path, drv, *this, build_mode,
                           storeDerivation);
 }
@@ -104,16 +103,16 @@ Worker::makeDrvOutputSubstitutionGoal(const DrvOutput& id) {
 }
 
 GoalPtr Worker::makeGoal(const derived_path_t& req, BuildMode build_mode) {
-  return std::visit(overloaded{
-                        [&](const derived_path_t::Built& bfd) -> GoalPtr {
-                          return makeDerivationTrampolineGoal(bfd.drv_path, bfd.outputs, build_mode);
-                        },
-                        [&](const derived_path_t::opaque_t& bo) -> GoalPtr {
-                          return makePathSubstitutionGoal(
-                              bo.path, build_mode == bmRepair ? Repair : NoRepair);
-                        },
-                    },
-                    req.raw());
+  return std::visit(
+      overloaded{
+          [&](const derived_path_t::Built& bfd) -> GoalPtr {
+            return makeDerivationTrampolineGoal(bfd.drv_path, bfd.outputs, build_mode);
+          },
+          [&](const derived_path_t::opaque_t& bo) -> GoalPtr {
+            return makePathSubstitutionGoal(bo.path, build_mode == bmRepair ? Repair : NoRepair);
+          },
+      },
+      req.raw());
 }
 
 /**
@@ -150,7 +149,7 @@ static bool remove_goal(std::shared_ptr<G> goal, std::map<K, Inner>& goalMap) {
 template <typename G>
 static bool
 remove_goal(std::shared_ptr<G> goal,
-           typename DerivedPathMap<std::map<OutputsSpec, std::weak_ptr<G>>>::ChildNode& node) {
+            typename DerivedPathMap<std::map<OutputsSpec, std::weak_ptr<G>>>::ChildNode& node) {
   return remove_goal(goal, node.value) || remove_goal(goal, node.childMap);
 }
 
@@ -201,7 +200,8 @@ size_t Worker::getNrSubstitutions() {
   return nrSubstitutions;
 }
 
-void Worker::childStarted(GoalPtr goal, const std::set<muxable_pipe_poll_state_t::comm_channel_t>& channels,
+void Worker::childStarted(GoalPtr goal,
+                          const std::set<muxable_pipe_poll_state_t::comm_channel_t>& channels,
                           bool inBuildSlot, bool respectTimeouts) {
   Child child;
   child.goal = goal;
@@ -507,7 +507,8 @@ bool Worker::pathContentsGood(const store_path_t& path) {
   bool res = false;
   if (auto accessor = store.getFSAccessor(path, /*require_valid_path=*/false)) {
     auto current =
-        hash_path({ref{accessor}}, file_ingestion_method_t::nix_archive, info->nar_hash.algo()).first;
+        hash_path({ref{accessor}}, file_ingestion_method_t::nix_archive, info->nar_hash.algo())
+            .first;
     Hash nullHash(hash_algorithm_t::SHA256);
     res = info->nar_hash == nullHash || info->nar_hash == current;
   }

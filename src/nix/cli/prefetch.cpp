@@ -56,12 +56,13 @@ std::string resolve_mirror_url(eval_state_t& state, const std::string& url) {
 }
 
 std::tuple<store_path_t, Hash> prefetch_file(ref<store_t> store, const verbatim_url_t& url,
-                                          std::optional<std::string> maybe_name,
-                                          hash_algorithm_t hash_algo,
-                                          std::optional<Hash> expected_hash, bool unpack,
-                                          bool executable) {
-  content_address_method_t method = unpack || executable ? content_address_method_t::raw_t::nix_archive
-                                                     : content_address_method_t::raw_t::flat;
+                                             std::optional<std::string> maybe_name,
+                                             hash_algorithm_t hash_algo,
+                                             std::optional<Hash> expected_hash, bool unpack,
+                                             bool executable) {
+  content_address_method_t method = unpack || executable
+                                        ? content_address_method_t::raw_t::nix_archive
+                                        : content_address_method_t::raw_t::flat;
 
   std::string name = maybe_name
                          .or_else([&]() {

@@ -104,9 +104,9 @@ invalid_ref 'heads///foo.lock'
 invalid_ref 'foo.lock/bar'
 invalid_ref 'foo.lock///bar'
 invalid_ref 'heads/v@{ation'
-invalid_ref 'heads/foo\.ar'invalid_ref 'heads/foo\bar'invalid_ref "$(printf 'heads/foo\t' # should fail due to \
-# should fail due to \
-)" # should fail because it has a TAB
+invalid_ref 'heads/foo\.ar'invalid_ref 'heads/foo\bar'invalid_ref "$(
+  printf 'heads/foo\t'# should fail due to # should fail due to \
+)"                                         # should fail because it has a TAB
 invalid_ref "$(printf 'heads/foo\37')"
 invalid_ref "$(printf 'heads/foo\177')"
 invalid_ref '@'

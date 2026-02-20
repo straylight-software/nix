@@ -15,7 +15,7 @@ namespace nix {
  *
  * See: https://github.com/NixOS/nix/issues/9730
  */
-void print_ambiguous(eval_state_t& state, value_t& v, std::ostream& str, std::set<const void*>* seen,
-                    int depth);
+void print_ambiguous(eval_state_t& state, value_t& v, std::ostream& str,
+                     std::set<const void*>* seen, int depth);
 
 } // namespace nix

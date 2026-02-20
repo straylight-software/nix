@@ -62,4 +62,5 @@ struct cmd_realisation_info_t : BuiltPathsCommand, MixJSON {
   }
 };
 
-static auto r_cmd_realisation_info = registerCommand2<cmd_realisation_info_t>({"realisation", "info"});
+static auto r_cmd_realisation_info =
+    registerCommand2<cmd_realisation_info_t>({"realisation", "info"});

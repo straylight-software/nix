@@ -683,7 +683,8 @@ TEST_CASE("pool destruction with active handles", "[pool][edge]") {
   // NOTE: the pool asserts no resources are in use at destruction,
   // so we must ensure all handles are released before pool destruction
 
-  auto pool = std::make_unique<pool_t<test_resource>>(10, []() { return make_ref<test_resource>(); });
+  auto pool =
+      std::make_unique<pool_t<test_resource>>(10, []() { return make_ref<test_resource>(); });
 
   {
     auto handle = pool->get();

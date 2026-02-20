@@ -30,7 +30,7 @@ public:
   time_t mtime = 0;
 
   void read_file(const canon_path_t& path, sink_t& sink,
-                std::function<void(uint64_t)> size_callback) override;
+                 std::function<void(uint64_t)> size_callback) override;
 
   auto path_exists(const canon_path_t& path) -> bool override;
 
@@ -54,24 +54,24 @@ public:
    * `C:\`). This allows more `..` parent accessing to work.
    *
    * @note When `path` is trusted user input, canonicalize it using
-   * `std::filesystem::canonical`, `make_parent_canonical`, `std::filesystem::weakly_canonical`, etc,
-   * as appropriate for the use case. At least weak canonicalization is
-   * required for the `source_path_t` to do anything useful at the location it
-   * points to.
+   * `std::filesystem::canonical`, `make_parent_canonical`, `std::filesystem::weakly_canonical`,
+   * etc, as appropriate for the use case. At least weak canonicalization is required for the
+   * `source_path_t` to do anything useful at the location it points to.
    *
    * @note A canonicalizing behavior is not built in `create_at_root` so that
    * callers do not accidentally introduce symlink-related security vulnerabilities.
    * Furthermore, `create_at_root` does not know whether the file pointed to by
    * `path` should be resolved if it is itself a symlink. In other words,
-   * `create_at_root` can not decide between aforementioned `canonical`, `make_parent_canonical`, etc.
-   * for its callers.
+   * `create_at_root` can not decide between aforementioned `canonical`, `make_parent_canonical`,
+   * etc. for its callers.
    *
    * See
    * [`std::filesystem::path::root_path`](https://en.cppreference.com/w/cpp/filesystem/path/root_path)
    * and
    * [`std::filesystem::path::relative_path`](https://en.cppreference.com/w/cpp/filesystem/path/relative_path).
    */
-  static auto create_at_root(const std::filesystem::path& path, bool track_last_modified = false) -> source_path_t;
+  static auto create_at_root(const std::filesystem::path& path, bool track_last_modified = false)
+      -> source_path_t;
 
   std::optional<std::time_t> get_last_modified() override {
     return track_last_modified ? std::optional{mtime} : std::nullopt;

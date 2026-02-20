@@ -31,7 +31,7 @@ using namespace nix;
 
 struct develop_settings_t : config_t {
   setting_t<std::string> bash_prompt{this, "", "bash-prompt",
-                                  "The bash prompt (`PS1`) in `nix develop` shells."};
+                                     "The bash prompt (`PS1`) in `nix develop` shells."};
 
   setting_t<std::string> bash_prompt_prefix{
       this, "", "bash-prompt-prefix",
@@ -75,7 +75,7 @@ struct build_environment_t {
       std::string type = info["type"];
       if (type == "var" || type == "exported")
         res.vars.insert({name, build_environment_t::String{.exported = type == "exported",
-                                                        .value = info["value"]}});
+                                                           .value = info["value"]}});
       else if (type == "array")
         res.vars.insert({name, (Array)info["value"]});
       else if (type == "associative")
@@ -88,7 +88,7 @@ struct build_environment_t {
 
     if (json.contains("structuredAttrs")) {
       res.structured_attrs = {json["structuredAttrs"][".attrs.json"],
-                             json["structuredAttrs"][".attrs.sh"]};
+                              json["structuredAttrs"][".attrs.sh"]};
     }
 
     return res;
@@ -223,7 +223,7 @@ const static std::string get_env_sh =
  * environment to a file and exits.
  */
 static store_path_t get_derivation_environment(ref<store_t> store, ref<store_t> eval_store,
-                                          const store_path_t& drv_path) {
+                                               const store_path_t& drv_path) {
   auto drv = eval_store->derivationFromPath(drv_path);
 
   auto builder = base_name_of(drv.builder);
@@ -233,7 +233,8 @@ static store_path_t get_derivation_environment(ref<store_t> store, ref<store_t> 
   auto get_env_sh_path = ({
     string_source_t source{get_env_sh};
     eval_store->add_to_store_from_dump(source, "get-env.sh", file_serialisation_method_t::flat,
-                                  content_address_method_t::raw_t::Text, hash_algorithm_t::SHA256, {});
+                                       content_address_method_t::raw_t::Text,
+                                       hash_algorithm_t::SHA256, {});
   });
 
   drv.args = {store->printStorePath(get_env_sh_path)};
@@ -277,10 +278,10 @@ static store_path_t get_derivation_environment(ref<store_t> store, ref<store_t> 
 
   /* Build the derivation. */
   store->build_paths({derived_path_t::Built{
-                        .drv_path = makeConstantStorePathRef(shell_drv_path),
-                        .outputs = OutputsSpec::All{},
-                    }},
-                    bmNormal, eval_store);
+                         .drv_path = makeConstantStorePathRef(shell_drv_path),
+                         .outputs = OutputsSpec::All{},
+                     }},
+                     bmNormal, eval_store);
 
   // `get-env.sh` will write its JSON output to an arbitrary output
   // path, so return the first non-empty output path.
@@ -322,9 +323,10 @@ struct common_t : InstallableCommand, MixProfile {
   }
 
   std::string make_rc_script(ref<store_t> store, const build_environment_t& build_environment,
-                           const std::filesystem::path& tmp_dir,
-                           const std::filesystem::path& outputs_dir =
-                               std::filesystem::path{std::filesystem::current_path()} / "outputs") {
+                             const std::filesystem::path& tmp_dir,
+                             const std::filesystem::path& outputs_dir =
+                                 std::filesystem::path{std::filesystem::current_path()} /
+                                 "outputs") {
     // A list of colon-separated environment variables that should be
     // prepended to, rather than overwritten, in order to keep the shell usable.
     // Please keep this list minimal in order to avoid impurities.
@@ -380,7 +382,7 @@ struct common_t : InstallableCommand, MixProfile {
       auto dir = abs_path(dir_);
       auto installable = parseInstallable(store, installable_);
       auto built_paths = Installable::toStorePathSet(getEvalStore(), store, Realise::Nothing,
-                                                    OperateOn::Output, {installable});
+                                                     OperateOn::Output, {installable});
       for (auto& path : built_paths) {
         auto from = store->printStorePath(path);
         if (script.find(from) == std::string::npos)
@@ -394,9 +396,10 @@ struct common_t : InstallableCommand, MixProfile {
 
     if (build_environment.provides_structured_attrs()) {
       fixup_structured_attrs(OS_STR("sh"), "NIX_ATTRS_SH_FILE", build_environment.get_attrs_sh(),
-                           rewrites, build_environment, tmp_dir);
-      fixup_structured_attrs(OS_STR("json"), "NIX_ATTRS_JSON_FILE", build_environment.get_attrs_json(),
-                           rewrites, build_environment, tmp_dir);
+                             rewrites, build_environment, tmp_dir);
+      fixup_structured_attrs(OS_STR("json"), "NIX_ATTRS_JSON_FILE",
+                             build_environment.get_attrs_json(), rewrites, build_environment,
+                             tmp_dir);
     }
 
     return rewrite_strings(script, rewrites);
@@ -407,9 +410,9 @@ struct common_t : InstallableCommand, MixProfile {
    * that's accessible from the interactive shell session.
    */
   void fixup_structured_attrs(path_view_ng_t::string_view ext, const std::string& env_var,
-                            const std::string& content, string_map_t& rewrites,
-                            const build_environment_t& build_environment,
-                            const std::filesystem::path& tmp_dir) {
+                              const std::string& content, string_map_t& rewrites,
+                              const build_environment_t& build_environment,
+                              const std::filesystem::path& tmp_dir) {
     auto target_file_path = tmp_dir / OS_STR(".attrs.");
     target_file_path += ext;
 
@@ -456,7 +459,7 @@ struct common_t : InstallableCommand, MixProfile {
   }
 
   std::pair<build_environment_t, store_path_t> get_build_environment(ref<store_t> store,
-                                                             ref<Installable> installable) {
+                                                                     ref<Installable> installable) {
     auto shell_out_path = get_shell_out_path(store, installable);
 
     updateProfile(shell_out_path);
@@ -666,7 +669,8 @@ struct cmd_develop_t : common_t, MixEnvironment {
     // we are about to exec out of this process without running C++ destructors.
     getEvalState()->evalCaches.clear();
 
-    exec_program_in_store(store, use_lookup_path_t::use, shell, args, build_environment.get_system());
+    exec_program_in_store(store, use_lookup_path_t::use, shell, args,
+                          build_environment.get_system());
 #endif
   }
 };

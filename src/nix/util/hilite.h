@@ -15,6 +15,6 @@ namespace nix {
  * than the individual matches.
  */
 std::string hilite_matches(std::string_view s, std::vector<std::smatch> matches,
-                          std::string_view prefix, std::string_view postfix);
+                           std::string_view prefix, std::string_view postfix);
 
 } // namespace nix

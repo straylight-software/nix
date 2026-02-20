@@ -17,13 +17,17 @@ struct forwarding_source_accessor_t : source_accessor_t {
   std::string read_file(const canon_path_t& path) override { return next->read_file(path); }
 
   void read_file(const canon_path_t& path, sink_t& sink,
-                std::function<void(uint64_t)> size_callback) override {
+                 std::function<void(uint64_t)> size_callback) override {
     next->read_file(path, sink, size_callback);
   }
 
-  std::optional<stat_t> maybe_lstat(const canon_path_t& path) override { return next->maybe_lstat(path); }
+  std::optional<stat_t> maybe_lstat(const canon_path_t& path) override {
+    return next->maybe_lstat(path);
+  }
 
-  dir_entries_t read_directory(const canon_path_t& path) override { return next->read_directory(path); }
+  dir_entries_t read_directory(const canon_path_t& path) override {
+    return next->read_directory(path);
+  }
 
   std::string read_link(const canon_path_t& path) override { return next->read_link(path); }
 

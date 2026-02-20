@@ -7,28 +7,33 @@ against real binary captures.
 ## Files
 
 ### Kaitai Struct Schemas (Source of Truth)
+
 - `nix_daemon.ksy` - Protocol schema (all 48 operations)
 - `nar.ksy` - NAR format schema
 
 ### C++ (Header-only, C++23)
+
 - `nix_daemon_serialize.h` - Protocol serializer (14/14 tests)
 - `nar_serialize.h` - NAR serializer + parser (15/15 tests)
 - `test_serialize.cpp` - Protocol tests
 - `test_nar_serialize.cpp` - NAR tests (includes round-trip)
 
 ### Rust
+
 - `src/lib.rs` - Protocol serializer (14/14 tests)
 - `src/nar.rs` - NAR serializer + parser (16/16 tests)
 - `tests/captures.rs` - Protocol tests
 - `tests/nar_captures.rs` - NAR tests (includes round-trip)
 
 ### Haskell
+
 - `hs/src/Nix/Protocol.hs` - Protocol serializer (14/14 tests)
 - `hs/src/Nix/Nar.hs` - NAR serializer + parser (16/16 tests)
 - `hs/test/Captures.hs` - Protocol tests
 - `hs/test/NarCaptures.hs` - NAR tests (includes round-trip)
 
 ### Test Vectors
+
 - `captures/` - Protocol binary captures (14 operations)
 - `nar_captures/` - NAR binary captures (6 archives)
 
@@ -101,11 +106,9 @@ NAR is a deterministic archive format used by Nix for content-addressed storage.
 
 ### NAR Wire Format
 
-| Type | Wire Format |
-|------|-------------|
-| `string` | `u64` length + bytes + padding to 8-byte boundary |
-| `magic` | `"nix-archive-1"` (13 bytes + 3 padding) |
-| `node` | Parenthesized structure with type field |
+| Type | Wire Format | |------|-------------| | `string` | `u64` length + bytes + padding to 8-byte
+boundary | | `magic` | `"nix-archive-1"` (13 bytes + 3 padding) | | `node` | Parenthesized structure
+with type field |
 
 ### Node Types
 
@@ -131,19 +134,15 @@ contents                         # "contents" keyword
 
 ### NAR Captures
 
-| File | Description | Size |
-|------|-------------|------|
-| `regular_file.nar` | `"hello world\n"` | 128B |
-| `executable_file.nar` | `"#!/bin/bash\n"` with +x | 160B |
-| `symlink.nar` | -> /etc/passwd | 128B |
-| `empty_file.nar` | 0 bytes | 112B |
-| `empty_directory.nar` | empty dir | 96B |
-| `directory.nar` | dir with a.txt, b.txt, subdir/c.txt | 840B |
+| File | Description | Size | |------|-------------|------| | `regular_file.nar` | `"hello world\n"`
+| 128B | | `executable_file.nar` | `"#!/bin/bash\n"` with +x | 160B | | `symlink.nar` | ->
+/etc/passwd | 128B | | `empty_file.nar` | 0 bytes | 112B | | `empty_directory.nar` | empty dir | 96B
+| | `directory.nar` | dir with a.txt, b.txt, subdir/c.txt | 840B |
 
 ### NAR Serializers & Parsers
 
-All three languages provide both writing (serialization) and reading (parsing) capabilities
-with validated round-trip support.
+All three languages provide both writing (serialization) and reading (parsing) capabilities with
+validated round-trip support.
 
 #### C++ NAR (nar_serialize.h)
 
@@ -176,6 +175,7 @@ if (!nar::is_error(result)) {
 ```
 
 **Build and test:**
+
 ```bash
 buck2 test //src/straylight/protocol:nar_serialize_test
 # Results: 15 passed, 0 failed (includes round-trip tests)
@@ -206,6 +206,7 @@ assert_eq!(tree, parsed);  // Round-trip works!
 ```
 
 **Build and test:**
+
 ```bash
 cargo test
 # NAR tests: 16 passed (includes round-trip tests)
@@ -247,6 +248,7 @@ roundTrip bs = do
 ```
 
 **Build and test:**
+
 ```bash
 nix-shell -p "haskellPackages.ghcWithPackages (p: [p.bytestring p.text p.tasty p.tasty-hunit])" cabal-install
 cabal test nar-captures
@@ -310,21 +312,16 @@ detailed results | | `QueryMissing` | 40 | Query what needs building/fetching | 
 
 ### Protocol (nix_daemon.ksy)
 
-| Language | File | Status |
-|----------|------|--------|
-| C++ | `nix_daemon_protocol.{h,cpp}` | Validated (reader) |
-| C++ | `nix_daemon_serialize.h` | Validated (writer, 14/14 tests) |
-| Python | `nix_daemon_protocol.py` | Validated |
-| Rust | `nix_daemon_protocol.rs` | Generated (reader) |
-| Rust | `src/lib.rs` | Validated (writer, 14/14 tests) |
-| Haskell | `hs/src/Nix/Protocol.hs` | Validated (writer, 14/14 tests) |
+| Language | File | Status | |----------|------|--------| | C++ | `nix_daemon_protocol.{h,cpp}` |
+Validated (reader) | | C++ | `nix_daemon_serialize.h` | Validated (writer, 14/14 tests) | | Python |
+`nix_daemon_protocol.py` | Validated | | Rust | `nix_daemon_protocol.rs` | Generated (reader) | |
+Rust | `src/lib.rs` | Validated (writer, 14/14 tests) | | Haskell | `hs/src/Nix/Protocol.hs` |
+Validated (writer, 14/14 tests) |
 
 ### NAR (nar.ksy)
 
-| Language | File | Status |
-|----------|------|--------|
-| C++ | `nar_serialize.h` | Validated (reader + writer, 15/15 tests) |
-| Rust | `src/nar.rs` | Validated (reader + writer, 16/16 tests) |
+| Language | File | Status | |----------|------|--------| | C++ | `nar_serialize.h` | Validated
+(reader + writer, 15/15 tests) | | Rust | `src/nar.rs` | Validated (reader + writer, 16/16 tests) |
 | Haskell | `hs/src/Nix/Nar.hs` | Validated (reader + writer, 16/16 tests) |
 
 ### C++ Serializer (Writer)
@@ -351,6 +348,7 @@ nix::proto::write_set_options_request(w, settings, 38);
 ```
 
 **Compile and test:**
+
 ```bash
 buck2 test //src/straylight/protocol:serialize_test
 # Results: 14 passed, 0 failed
@@ -394,6 +392,7 @@ write_set_options_request(&mut w, &settings, 38).unwrap();
 ```
 
 **Build and test:**
+
 ```bash
 cargo test
 # running 14 tests (captures) + 3 unit tests
@@ -433,6 +432,7 @@ settingsRequest = execWriter $ writeSetOptionsRequest settings 38
 ```
 
 **Build and test:**
+
 ```bash
 # Using nix-shell for dependencies
 nix-shell -p "ghc.withPackages (p: [p.bytestring p.text p.tasty p.tasty-hunit p.filepath])" cabal-install
@@ -448,60 +448,60 @@ cabal test
 # Run tests via Buck2
 buck2 test //src/straylight/protocol:parser_test
 ```
+
 ### Test Captures
 
-Binary test vectors in `captures/`. Each operation has `*_request.bin`, `*_response.bin`, and `*_stderr.txt`.
+Binary test vectors in `captures/`. Each operation has `*_request.bin`, `*_response.bin`, and
+`*_stderr.txt`.
 
 #### Captured Operations (12 unique)
 
 | Operation | Op Code | Request | Response | Description |
-|-----------|---------|---------|----------|-------------|
-| `SetOptions` | 19 | 448B | 48B | Client configuration |
-| `IsValidPath` | 1 | 80B | 8B | Check path exists |
-| `QueryPathInfo` | 26 | 72B | 456B | Get ValidPathInfo metadata |
-| `QueryMissing` | 40 | 88B | 40B | What needs building/fetching |
-| `QueryReferrers` | 6 | 72B | 4KB | What references this path |
-| `BuildPaths` | 9 | 88B | 8B | Build derivations |
-| `BuildPathsWithResults` | 46 | 96B | 440B | Build with detailed results |
-| `AddTempRoot` | 11 | 80B | 8B | Add temporary GC root |
-| `AddIndirectRoot` | 12 | 64B | 8B | Add indirect GC root |
-| `FindRoots` | 14 | 8B | 65KB | List all GC roots |
-| `AddToStoreNar` | 39 | 288B | 64B | Add NAR to store (streaming) |
-| `NarFromPath` | 38 | 80B | 144B | Get NAR from store (synthetic) |
-| `client_hello` | - | 16B | - | Handshake |
-| `server_hello` | - | - | 16B | Handshake |
+|-----------|---------|---------|----------|-------------| | `SetOptions` | 19 | 448B | 48B | Client
+configuration | | `IsValidPath` | 1 | 80B | 8B | Check path exists | | `QueryPathInfo` | 26 | 72B |
+456B | Get ValidPathInfo metadata | | `QueryMissing` | 40 | 88B | 40B | What needs building/fetching
+| | `QueryReferrers` | 6 | 72B | 4KB | What references this path | | `BuildPaths` | 9 | 88B | 8B |
+Build derivations | | `BuildPathsWithResults` | 46 | 96B | 440B | Build with detailed results | |
+`AddTempRoot` | 11 | 80B | 8B | Add temporary GC root | | `AddIndirectRoot` | 12 | 64B | 8B | Add
+indirect GC root | | `FindRoots` | 14 | 8B | 65KB | List all GC roots | | `AddToStoreNar` | 39 |
+288B | 64B | Add NAR to store (streaming) | | `NarFromPath` | 38 | 80B | 144B | Get NAR from store
+(synthetic) | | `client_hello` | - | 16B | - | Handshake | | `server_hello` | - | - | 16B |
+Handshake |
 
 #### AddToStoreNar (op 39) - Streaming Capture
 
 `AddToStoreNar` uses the framed streaming protocol (version >= 1.23):
-- Request header contains: path, deriver, nar_hash, refs, registration_time, nar_size, ultimate, sigs, ca, repair, dont_check_sigs
+
+- Request header contains: path, deriver, nar_hash, refs, registration_time, nar_size, ultimate,
+  sigs, ca, repair, dont_check_sigs
 - NAR data follows as framed chunks: `[u64 length][data]...`, terminated by `length=0`
 
 Captured files:
+
 - `addtostorenar_request.bin` - Request header (288B)
 - `addtostorenar_nar.bin` - Framed NAR data (152B, 1 frame + end marker)
 - `addtostorenar_response.bin` - Store path result (64B)
 
 #### NarFromPath (op 38) - Synthetic Capture
 
-`NarFromPath` is only triggered when the client **cannot access /nix/store directly** 
-(e.g., SSH to remote machine). The request/response format is simple:
+`NarFromPath` is only triggered when the client **cannot access /nix/store directly** (e.g., SSH to
+remote machine). The request/response format is simple:
 
 - **Request**: `op(8) + store_path(nix_string)` = 80 bytes
 - **Response**: Raw NAR bytes (after `STDERR_LAST`)
 
 Captured files:
+
 - `narfrompath_request.bin` - Request (80B, synthetic)
 - `narfrompath_response.bin` - NAR data (144B, real NAR from nix-store --dump)
 
 #### Not Captured
 
-| Operation | Reason |
-|-----------|--------|
-| `AddToStore` (7) | Legacy, superseded by AddToStoreNar |
-| `AddMultipleToStore` (44) | Streaming protocol, similar to AddToStoreNar |
+| Operation | Reason | |-----------|--------| | `AddToStore` (7) | Legacy, superseded by
+AddToStoreNar | | `AddMultipleToStore` (44) | Streaming protocol, similar to AddToStoreNar |
 
 These operations use similar streaming patterns to AddToStoreNar.
+
 ## tvix nix-compat Cross-Validation
 
 Our Kaitai schema has been cross-validated against
@@ -618,6 +618,7 @@ daemon protocol clients/servers.
 ## TODO
 
 ### Protocol
+
 - [x] Complete schema for all 48 operations
 - [x] Add test vectors (captured traffic)
 - [x] Generate and validate C++ parser
@@ -631,6 +632,7 @@ daemon protocol clients/servers.
 - [x] Generate Haskell serializers - validated against all captures (14/14 tests)
 
 ### NAR
+
 - [x] Create NAR Kaitai schema (nar.ksy)
 - [x] Capture NAR test vectors (6 archives from nix-store --dump)
 - [x] Generate Rust NAR serializers - validated (9/9 tests)
@@ -641,6 +643,7 @@ daemon protocol clients/servers.
 - [x] Generate Haskell NAR parser - validated with round-trip tests (16/16 tests)
 
 ### Future Work
+
 - [ ] Lean4 serializers (protocol + NAR)
 - [ ] Streaming NAR writer (for large archives)
 - [ ] Protocol reader/parser implementations

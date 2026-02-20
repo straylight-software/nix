@@ -48,7 +48,7 @@ bool match_user(const std::optional<std::string>& user, const std::optional<std:
   // Group matching (entries starting with @)
   for (const auto& entry : users) {
     if (entry.substr(0, 1) == "@") {
-      std::string group_name = entry.substr(1);
+      const std::string group_name = entry.substr(1);
 
       // Check if it's the user's primary group
       if (group && *group == group_name) {

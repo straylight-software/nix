@@ -17,11 +17,12 @@ static store_path_t path_part_of_req(const SingleDerivedPath& req) {
 }
 
 static store_path_t path_part_of_req(const derived_path_t& req) {
-  return std::visit(overloaded{
-                        [&](const derived_path_t::opaque_t& bo) { return bo.path; },
-                        [&](const derived_path_t::Built& bfd) { return path_part_of_req(*bfd.drv_path); },
-                    },
-                    req.raw());
+  return std::visit(
+      overloaded{
+          [&](const derived_path_t::opaque_t& bo) { return bo.path; },
+          [&](const derived_path_t::Built& bfd) { return path_part_of_req(*bfd.drv_path); },
+      },
+      req.raw());
 }
 
 bool RestrictionContext::is_allowed(const derived_path_t& req) {
@@ -40,16 +41,17 @@ struct restricted_store_t : public virtual IndirectRootStore, public virtual GcS
 
   RestrictionContext& goal;
 
-  restricted_store_t(ref<LocalStore::config_t> config, ref<LocalStore> next, RestrictionContext& goal)
+  restricted_store_t(ref<LocalStore::config_t> config, ref<LocalStore> next,
+                     RestrictionContext& goal)
       : store_t{*config}, local_fs_store{*config}, config{config}, next(next), goal(goal) {}
 
   Path getRealStoreDir() override { return next->config->real_store_dir; }
 
   store_path_set_t query_all_valid_paths() override;
 
-  void
-  query_path_info_uncached(const store_path_t& path,
-                        Callback<std::shared_ptr<const valid_path_info_t>> callback) noexcept override;
+  void query_path_info_uncached(
+      const store_path_t& path,
+      Callback<std::shared_ptr<const valid_path_info_t>> callback) noexcept override;
 
   void query_referrers(const store_path_t& path, store_path_set_t& referrers) override;
 
@@ -61,19 +63,21 @@ struct restricted_store_t : public virtual IndirectRootStore, public virtual GcS
   }
 
   store_path_t add_to_store(std::string_view name, const source_path_t& src_path,
-                       content_address_method_t method, hash_algorithm_t hash_algo,
-                       const store_path_set_t& references, path_filter_t& filter,
-                       RepairFlag repair) override {
+                            content_address_method_t method, hash_algorithm_t hash_algo,
+                            const store_path_set_t& references, path_filter_t& filter,
+                            RepairFlag repair) override {
     throw Error("addToStore");
   }
 
-  void add_to_store(const valid_path_info_t& info, source_t& nar_source, RepairFlag repair = NoRepair,
-                  CheckSigsFlag check_sigs = CheckSigs) override;
+  void add_to_store(const valid_path_info_t& info, source_t& nar_source,
+                    RepairFlag repair = NoRepair, CheckSigsFlag check_sigs = CheckSigs) override;
 
   store_path_t add_to_store_from_dump(source_t& dump, std::string_view name,
-                               file_serialisation_method_t dump_method, content_address_method_t hash_method,
-                               hash_algorithm_t hash_algo, const store_path_set_t& references,
-                               RepairFlag repair) override;
+                                      file_serialisation_method_t dump_method,
+                                      content_address_method_t hash_method,
+                                      hash_algorithm_t hash_algo,
+                                      const store_path_set_t& references,
+                                      RepairFlag repair) override;
 
   void nar_from_path(const store_path_t& path, sink_t& sink) override;
 
@@ -86,14 +90,15 @@ struct restricted_store_t : public virtual IndirectRootStore, public virtual GcS
       Callback<std::shared_ptr<const UnkeyedRealisation>> callback) noexcept override;
 
   void build_paths(const std::vector<derived_path_t>& paths, BuildMode build_mode,
-                  std::shared_ptr<store_t> eval_store) override;
+                   std::shared_ptr<store_t> eval_store) override;
 
   std::vector<keyed_build_result_t>
-  build_paths_with_results(const std::vector<derived_path_t>& paths, BuildMode build_mode = bmNormal,
-                        std::shared_ptr<store_t> eval_store = nullptr) override;
+  build_paths_with_results(const std::vector<derived_path_t>& paths,
+                           BuildMode build_mode = bmNormal,
+                           std::shared_ptr<store_t> eval_store = nullptr) override;
 
   build_result_t buildDerivation(const store_path_t& drv_path, const basic_derivation_t& drv,
-                              BuildMode build_mode = bmNormal) override {
+                                 BuildMode build_mode = bmNormal) override {
     unsupported("buildDerivation");
   }
 
@@ -123,7 +128,7 @@ struct restricted_store_t : public virtual IndirectRootStore, public virtual GcS
 };
 
 ref<store_t> make_restricted_store(ref<LocalStore::config_t> config, ref<LocalStore> next,
-                               RestrictionContext& context) {
+                                   RestrictionContext& context) {
   return make_ref<restricted_store_t>(config, next, context);
 }
 
@@ -137,7 +142,8 @@ store_path_set_t restricted_store_t::query_all_valid_paths() {
 }
 
 void restricted_store_t::query_path_info_uncached(
-    const store_path_t& path, Callback<std::shared_ptr<const valid_path_info_t>> callback) noexcept {
+    const store_path_t& path,
+    Callback<std::shared_ptr<const valid_path_info_t>> callback) noexcept {
   if (goal.is_allowed(path)) {
     try {
       /* Censor impure information. */
@@ -164,19 +170,20 @@ restricted_store_t::queryPartialDerivationOutputMap(const store_path_t& path, st
   return next->queryPartialDerivationOutputMap(path, eval_store);
 }
 
-void restricted_store_t::add_to_store(const valid_path_info_t& info, source_t& nar_source, RepairFlag repair,
-                                 CheckSigsFlag check_sigs) {
+void restricted_store_t::add_to_store(const valid_path_info_t& info, source_t& nar_source,
+                                      RepairFlag repair, CheckSigsFlag check_sigs) {
   next->add_to_store(info, nar_source, repair, check_sigs);
   goal.addDependency(info.path);
 }
 
 store_path_t restricted_store_t::add_to_store_from_dump(source_t& dump, std::string_view name,
-                                              file_serialisation_method_t dump_method,
-                                              content_address_method_t hash_method,
-                                              hash_algorithm_t hash_algo,
-                                              const store_path_set_t& references, RepairFlag repair) {
-  auto path =
-      next->add_to_store_from_dump(dump, name, dump_method, hash_method, hash_algo, references, repair);
+                                                        file_serialisation_method_t dump_method,
+                                                        content_address_method_t hash_method,
+                                                        hash_algorithm_t hash_algo,
+                                                        const store_path_set_t& references,
+                                                        RepairFlag repair) {
+  auto path = next->add_to_store_from_dump(dump, name, dump_method, hash_method, hash_algo,
+                                           references, repair);
   goal.addDependency(path);
   return path;
 }
@@ -211,15 +218,16 @@ void restricted_store_t::query_realisation_uncached(
 }
 
 void restricted_store_t::build_paths(const std::vector<derived_path_t>& paths, BuildMode build_mode,
-                                 std::shared_ptr<store_t> eval_store) {
+                                     std::shared_ptr<store_t> eval_store) {
   for (auto& result : build_paths_with_results(paths, build_mode, eval_store))
     if (auto* failureP = result.tryGetFailure())
       failureP->rethrow();
 }
 
 std::vector<keyed_build_result_t>
-restricted_store_t::build_paths_with_results(const std::vector<derived_path_t>& paths, BuildMode build_mode,
-                                       std::shared_ptr<store_t> eval_store) {
+restricted_store_t::build_paths_with_results(const std::vector<derived_path_t>& paths,
+                                             BuildMode build_mode,
+                                             std::shared_ptr<store_t> eval_store) {
   assert(!eval_store);
 
   if (build_mode != bmNormal)

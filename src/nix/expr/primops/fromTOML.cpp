@@ -166,8 +166,8 @@ static void prim_from_toml(eval_state_t& state, const pos_idx_t pos, value_t** a
 }
 
 static RegisterPrimOp primop_from_toml({.name = "fromTOML",
-                                       .args = {"e"},
-                                       .doc = R"(
+                                        .args = {"e"},
+                                        .doc = R"(
       Convert a TOML string to a Nix value. For example,
 
       ```nix
@@ -181,6 +181,6 @@ static RegisterPrimOp primop_from_toml({.name = "fromTOML",
 
       returns the value `{ s = "a"; table = { y = 2; }; x = 1; }`.
     )",
-                                       .fun = prim_from_toml});
+                                        .fun = prim_from_toml});
 
 } // namespace nix

@@ -5,7 +5,7 @@
 namespace nix {
 
 std::map<store_path_t, store_path_t> make_content_addressed(store_t& src_store, store_t& dst_store,
-                                                    const store_path_set_t& store_paths) {
+                                                            const store_path_set_t& store_paths) {
   store_path_set_t closure;
   src_store.computeFSClosure(store_paths, closure);
 
@@ -48,12 +48,12 @@ std::map<store_path_t, store_path_t> make_content_addressed(store_t& src_store, 
     auto narModuloHash = hashModuloSink.finish().hash;
 
     auto info = valid_path_info_t::makeFromCA(dst_store, path.name(),
-                                          FixedOutputInfo{
-                                              .method = file_ingestion_method_t::nix_archive,
-                                              .hash = narModuloHash,
-                                              .references = std::move(refs),
-                                          },
-                                          Hash::dummy);
+                                              FixedOutputInfo{
+                                                  .method = file_ingestion_method_t::nix_archive,
+                                                  .hash = narModuloHash,
+                                                  .references = std::move(refs),
+                                              },
+                                              Hash::dummy);
 
     printInfo("rewriting '%s' to '%s'", path_s, dst_store.printStorePath(info.path));
 
@@ -74,7 +74,8 @@ std::map<store_path_t, store_path_t> make_content_addressed(store_t& src_store, 
   return remappings;
 }
 
-store_path_t make_content_addressed(store_t& src_store, store_t& dst_store, const store_path_t& from_path) {
+store_path_t make_content_addressed(store_t& src_store, store_t& dst_store,
+                                    const store_path_t& from_path) {
   auto remappings = make_content_addressed(src_store, dst_store, store_path_set_t{from_path});
   auto i = remappings.find(from_path);
   assert(i != remappings.end());

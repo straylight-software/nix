@@ -29,10 +29,10 @@ eval_settings_t eval_settings{
               auto flake_ref = parse_flake_ref(fetch_settings, std::string{rest}, {}, true, false);
               debug("fetching flake search path element '%s''", rest);
               auto [accessor, locked_ref] = flake_ref.resolve(fetch_settings, *state.store)
-                                               .lazyFetch(fetch_settings, *state.store);
+                                                .lazyFetch(fetch_settings, *state.store);
               auto store_path =
                   nix::fetch_to_store(state.fetch_settings, *state.store, source_path_t(accessor),
-                                    FetchMode::Copy, locked_ref.input.get_name());
+                                      FetchMode::Copy, locked_ref.input.get_name());
               state.allowPath(store_path);
               return state.store_path(store_path);
             },
@@ -122,7 +122,8 @@ MixEvalArgs::MixEvalArgs() {
       .category = category,
       .labels = {"original-ref", "resolved-ref"},
       .handler = {[&](std::string _from, std::string _to) {
-        auto from = parse_flake_ref(fetch_settings, _from, std::filesystem::current_path().string());
+        auto from =
+            parse_flake_ref(fetch_settings, _from, std::filesystem::current_path().string());
         auto to = parse_flake_ref(fetch_settings, _to, std::filesystem::current_path().string());
         fetchers::Attrs extra_attrs;
         if (to.subdir != "")
@@ -170,12 +171,12 @@ bindings_t* MixEvalArgs::getAutoArgs(eval_state_t& state) {
 }
 
 source_path_t lookup_file_arg(eval_state_t& state, std::string_view s,
-                         const std::filesystem::path* base_dir) {
+                              const std::filesystem::path* base_dir) {
   if (eval_settings_t::isPseudoUrl(s)) {
     auto accessor = fetchers::download_tarball(*state.store, state.fetch_settings,
-                                              eval_settings_t::resolvePseudoUrl(s));
-    auto store_path =
-        fetch_to_store(state.fetch_settings, *state.store, source_path_t(accessor), FetchMode::Copy);
+                                               eval_settings_t::resolvePseudoUrl(s));
+    auto store_path = fetch_to_store(state.fetch_settings, *state.store, source_path_t(accessor),
+                                     FetchMode::Copy);
     return state.store_path(store_path);
   }
 
@@ -183,8 +184,9 @@ source_path_t lookup_file_arg(eval_state_t& state, std::string_view s,
     auto flake_ref = parse_flake_ref(fetch_settings, std::string(s.substr(6)), {}, true, false);
     auto [accessor, locked_ref] =
         flake_ref.resolve(fetch_settings, *state.store).lazyFetch(fetch_settings, *state.store);
-    auto store_path = nix::fetch_to_store(state.fetch_settings, *state.store, source_path_t(accessor),
-                                       FetchMode::Copy, locked_ref.input.get_name());
+    auto store_path =
+        nix::fetch_to_store(state.fetch_settings, *state.store, source_path_t(accessor),
+                            FetchMode::Copy, locked_ref.input.get_name());
     state.allowPath(store_path);
     return state.store_path(store_path);
   }

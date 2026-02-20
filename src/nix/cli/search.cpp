@@ -159,12 +159,12 @@ struct cmd_search_t : InstallableValueCommand, MixJSON {
               };
             } else {
               auto out = fmt("%s* %s%s", results > 1 ? "\n" : "",
-                             wrap("\e[0;1m", hilite_matches(attrPathStr, attrPathMatches, ANSI_GREEN,
-                                                           "\e[0;1m")),
+                             wrap("\e[0;1m", hilite_matches(attrPathStr, attrPathMatches,
+                                                            ANSI_GREEN, "\e[0;1m")),
                              optional_bracket(" (", name.version, ")"));
               if (description != "")
-                out += fmt("\n  %s",
-                           hilite_matches(description, descriptionMatches, ANSI_GREEN, ANSI_NORMAL));
+                out += fmt("\n  %s", hilite_matches(description, descriptionMatches, ANSI_GREEN,
+                                                    ANSI_NORMAL));
               logger->cout(out);
             }
           }

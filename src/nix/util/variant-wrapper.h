@@ -25,7 +25,7 @@
 #define MAKE_WRAPPER_CONSTRUCTOR(CLASS_NAME)                                                       \
   FORCE_DEFAULT_CONSTRUCTORS(CLASS_NAME)                                                           \
                                                                                                    \
-  template <typename... args_t>                                                                      \
-    requires(                                                                                      \
-        !(sizeof...(args_t) == 1 && (std::is_same_v<std::remove_cvref_t<args_t>, CLASS_NAME> && ...))) \
+  template <typename... args_t>                                                                    \
+    requires(!(sizeof...(args_t) == 1 &&                                                           \
+               (std::is_same_v<std::remove_cvref_t<args_t>, CLASS_NAME> && ...)))                  \
   CLASS_NAME(args_t&&... arg) : raw(std::forward<args_t>(arg)...) {}

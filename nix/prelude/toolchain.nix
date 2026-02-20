@@ -26,7 +26,6 @@
 }:
 let
   isLinux = pkgs.stdenv.isLinux;
-  triple = pkgs.stdenv.hostPlatform.config;
 
   # ──────────────────────────────────────────────────────────────────────────
   #                          // llvm toolchain //

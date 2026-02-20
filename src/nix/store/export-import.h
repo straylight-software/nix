@@ -8,7 +8,8 @@ namespace nix {
  * Export multiple paths in the format expected by `nix-store
  * --import`. The paths will be sorted topologically.
  */
-void export_paths(store_t& store, const store_path_set_t& paths, sink_t& sink, unsigned int version);
+void export_paths(store_t& store, const store_path_set_t& paths, sink_t& sink,
+                  unsigned int version);
 
 /**
  * Import a sequence of NAR dumps created by `export_paths()` into the

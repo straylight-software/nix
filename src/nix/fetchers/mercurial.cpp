@@ -38,7 +38,7 @@ static std::string run_hg(const strings_t& args, const std::optional<std::string
 
 struct mercurial_input_scheme_t : input_scheme_t {
   std::optional<input_t> inputFromURL(const settings_t& settings, const parsed_url_t& url,
-                                    bool require_tree) const override {
+                                      bool require_tree) const override {
     if (url.scheme() != "hg+http" && url.scheme() != "hg+https" && url.scheme() != "hg+ssh" &&
         url.scheme() != "hg+file")
       return {};
@@ -100,7 +100,7 @@ struct mercurial_input_scheme_t : input_scheme_t {
   }
 
   std::optional<input_t> inputFromAttrs(const settings_t& settings,
-                                      const Attrs& attrs) const override {
+                                        const Attrs& attrs) const override {
     parse_url(get_str_attr(attrs, "url"));
 
     if (auto ref = maybe_get_str_attr(attrs, "ref")) {
@@ -124,7 +124,7 @@ struct mercurial_input_scheme_t : input_scheme_t {
   }
 
   input_t applyOverrides(const input_t& input, std::optional<std::string> ref,
-                       std::optional<Hash> rev) const override {
+                         std::optional<Hash> rev) const override {
     auto res(input);
     if (rev)
       res.attrs.insert_or_assign("rev", rev->git_rev());
@@ -234,7 +234,8 @@ struct mercurial_input_scheme_t : input_scheme_t {
           {{"store", store.store_dir}, {"name", name}, {"rev", input.getRev()->git_rev()}}};
     };
 
-    auto make_result = [&](const Attrs& info_attrs, const store_path_t& store_path) -> store_path_t {
+    auto make_result = [&](const Attrs& info_attrs,
+                           const store_path_t& store_path) -> store_path_t {
       assert(input.getRev());
       assert(!orig_rev || orig_rev == input.getRev());
       input.attrs.insert_or_assign("revCount", get_int_attr(info_attrs, "revCount"));
@@ -326,8 +327,8 @@ struct mercurial_input_scheme_t : input_scheme_t {
     return make_result(info_attrs, std::move(store_path));
   }
 
-  std::pair<ref<source_accessor_t>, input_t> get_accessor(const settings_t& settings, store_t& store,
-                                                     const input_t& _input) const override {
+  std::pair<ref<source_accessor_t>, input_t>
+  get_accessor(const settings_t& settings, store_t& store, const input_t& _input) const override {
     input_t input(_input);
 
     auto store_path = fetch_to_store(settings, store, input);

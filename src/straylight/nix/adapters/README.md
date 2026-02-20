@@ -4,16 +4,14 @@ Migration shims for transitioning from Nix util/ to straylight primitives.
 
 ## Overview
 
-The adapters provide source-compatible replacements for Nix utility headers,
-allowing gradual migration without rewriting all call sites at once.
+The adapters provide source-compatible replacements for Nix utility headers, allowing gradual
+migration without rewriting all call sites at once.
 
 ## Available Adapters
 
-| Adapter | Replaces | Description |
-|---------|----------|-------------|
-| `nix_fmt_adapter.h` | `nix/util/fmt.h` | boost::format → std::format |
-| `nix_strings_adapter.h` | `nix/util/strings.h` | String operations shim |
-| `thread_pool_adapter.h` | `nix/util/thread-pool.h` | Thread pool shim |
+| Adapter | Replaces | Description | |---------|----------|-------------| | `nix_fmt_adapter.h` |
+`nix/util/fmt.h` | boost::format → std::format | | `nix_strings_adapter.h` | `nix/util/strings.h` |
+String operations shim | | `thread_pool_adapter.h` | `nix/util/thread-pool.h` | Thread pool shim |
 
 ## Quick Start
 
@@ -37,12 +35,9 @@ auto s = fmt_("path '%s' has %d references", path, count);
 
 ## Format String Conversion
 
-| boost/printf | std::format | Example |
-|--------------|-------------|---------|
-| `%s` | `{}` | `fmt_("hello %s", name)` |
-| `%d` | `{:d}` | `fmt_("count: %d", n)` |
-| `%1%` | `{0}` | `fmt_("%1% + %1%", x)` |
-| `%%` | `%` | Literal percent |
+| boost/printf | std::format | Example | |--------------|-------------|---------| | `%s` | `{}` |
+`fmt_("hello %s", name)` | | `%d` | `{:d}` | `fmt_("count: %d", n)` | | `%1%` | `{0}` |
+`fmt_("%1% + %1%", x)` | | `%%` | `%` | Literal percent |
 
 ## Building
 

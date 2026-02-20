@@ -17,8 +17,8 @@ namespace nix {
  * path.
  * @param v Return `value_t`
  */
-static void run_fetch_closure_with_rewrite(eval_state_t& state, const pos_idx_t pos, store_t& from_store,
-                                           const store_path_t& from_path,
+static void run_fetch_closure_with_rewrite(eval_state_t& state, const pos_idx_t pos,
+                                           store_t& from_store, const store_path_t& from_path,
                                            const std::optional<store_path_t>& to_path_maybe,
                                            value_t& v) {
   // establish toPath or throw
@@ -69,7 +69,8 @@ static void run_fetch_closure_with_rewrite(eval_state_t& state, const pos_idx_t 
  */
 static void run_fetch_closure_with_content_addressed_path(eval_state_t& state, const pos_idx_t pos,
                                                           store_t& from_store,
-                                                          const store_path_t& from_path, value_t& v) {
+                                                          const store_path_t& from_path,
+                                                          value_t& v) {
   if (!state.store->isValidPath(from_path))
     copy_closure(from_store, *state.store, RealisedPath::Set{from_path});
 
@@ -122,7 +123,8 @@ static void run_fetch_closure_with_input_addressed_path(eval_state_t& state, con
 
 typedef std::optional<store_path_t> store_path_or_gap_t;
 
-static void prim_fetch_closure(eval_state_t& state, const pos_idx_t pos, value_t** args, value_t& v) {
+static void prim_fetch_closure(eval_state_t& state, const pos_idx_t pos, value_t** args,
+                               value_t& v) {
   state.forceAttrs(*args[0], pos, "while evaluating the argument passed to builtins.fetchClosure");
 
   std::optional<std::string> fromStoreUrl;

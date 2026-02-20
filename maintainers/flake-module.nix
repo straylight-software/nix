@@ -1,9 +1,4 @@
-{
-  lib,
-  getSystem,
-  inputs,
-  ...
-}:
+{ getSystem, inputs, ... }:
 
 {
   imports = [ inputs.git-hooks-nix.flakeModule ];

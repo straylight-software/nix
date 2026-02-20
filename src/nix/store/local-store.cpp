@@ -62,7 +62,7 @@
 namespace nix {
 
 local_store_config_t::local_store_config_t(std::string_view scheme, std::string_view authority,
-                                   const Params& params)
+                                           const Params& params)
     : store_config_t(params), LocalFSStoreConfig(authority, params) {}
 
 std::string local_store_config_t::doc() {
@@ -701,7 +701,8 @@ uint64_t LocalStore::addValidPath(State& state, const valid_path_info_t& info, b
 }
 
 void LocalStore::query_path_info_uncached(
-    const store_path_t& path, Callback<std::shared_ptr<const valid_path_info_t>> callback) noexcept {
+    const store_path_t& path,
+    Callback<std::shared_ptr<const valid_path_info_t>> callback) noexcept {
   try {
     callback(retrySQLite<std::shared_ptr<const valid_path_info_t>>(
         [&]() { return queryPathInfoInternal(*_state->lock(), path); }));
@@ -711,8 +712,8 @@ void LocalStore::query_path_info_uncached(
   }
 }
 
-std::shared_ptr<const valid_path_info_t> LocalStore::queryPathInfoInternal(State& state,
-                                                                       const store_path_t& path) {
+std::shared_ptr<const valid_path_info_t>
+LocalStore::queryPathInfoInternal(State& state, const store_path_t& path) {
   /* Get the path info. */
   auto useQueryPathInfo(state.stmts->QueryPathInfo.use()(printStorePath(path)));
 
@@ -786,7 +787,7 @@ bool LocalStore::isValidPathUncached(const store_path_t& path) {
 }
 
 store_path_set_t LocalStore::queryValidPaths(const store_path_set_t& paths,
-                                         SubstituteFlag maybeSubstitute) {
+                                             SubstituteFlag maybeSubstitute) {
   store_path_set_t res;
   for (auto& i : paths)
     if (isValidPath(i))
@@ -805,7 +806,8 @@ store_path_set_t LocalStore::query_all_valid_paths() {
   });
 }
 
-void LocalStore::query_referrers(State& state, const store_path_t& path, store_path_set_t& referrers) {
+void LocalStore::query_referrers(State& state, const store_path_t& path,
+                                 store_path_set_t& referrers) {
   auto useQueryReferrers(state.stmts->QueryReferrers.use()(printStorePath(path)));
 
   while (useQueryReferrers.next())
@@ -953,10 +955,10 @@ void LocalStore::registerValidPaths(const ValidPathInfos& infos) {
     });
 
     std::visit(overloaded{[&](const cycle_t<store_path_t>& cycle) {
-                            throw build_error_t(build_result_t::Failure::OutputRejected,
-                                             "cycle detected in the references of '%s' from '%s'",
-                                             printStorePath(cycle.path),
-                                             printStorePath(cycle.parent));
+                            throw build_error_t(
+                                build_result_t::Failure::OutputRejected,
+                                "cycle detected in the references of '%s' from '%s'",
+                                printStorePath(cycle.path), printStorePath(cycle.parent));
                           },
                           [](auto&) { /* Success, continue */ }},
                topo_sort_result);
@@ -1107,10 +1109,11 @@ void LocalStore::add_to_store(const valid_path_info_t& info, source_t& source, R
 }
 
 store_path_t LocalStore::add_to_store_from_dump(source_t& source0, std::string_view name,
-                                             file_serialisation_method_t dump_method,
-                                             content_address_method_t hash_method,
-                                             hash_algorithm_t hash_algo,
-                                             const store_path_set_t& references, RepairFlag repair) {
+                                                file_serialisation_method_t dump_method,
+                                                content_address_method_t hash_method,
+                                                hash_algorithm_t hash_algo,
+                                                const store_path_set_t& references,
+                                                RepairFlag repair) {
   /* For computing the store path. */
   auto hash_sink = std::make_unique<hash_sink_t>(hash_algo);
   tee_source_t source{source0, *hash_sink};
@@ -1500,7 +1503,8 @@ void LocalStore::addSignatures(const store_path_t& store_path, const string_set_
 
     SQLiteTxn txn(state->db);
 
-    auto info = std::const_pointer_cast<valid_path_info_t>(queryPathInfoInternal(*state, store_path));
+    auto info =
+        std::const_pointer_cast<valid_path_info_t>(queryPathInfoInternal(*state, store_path));
 
     info->sigs.insert(sigs.begin(), sigs.end());
 

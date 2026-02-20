@@ -85,17 +85,17 @@ echo "=== Results ==="
 # KNOWN_ISSUE: The second result should be "version 2" but due to caching bug
 # it will still be "version 1"
 
-if [[ "$SECOND_RESULT" == "version 1" ]]; then
-    echo "KNOWN ISSUE REVEALED: fetchGit returned stale cached result!"
-    echo "Expected: 'version 2' (new tag target)"
-    echo "Got: 'version 1' (old cached result)"
-    echo "See GitHub issue #7146"
-    exit 0 # Expected broken behavior
-elif [[ "$SECOND_RESULT" == "version 2" ]]; then
-    echo "fetchGit correctly re-fetched the moved tag"
-    echo "If this passes consistently, the bug may be fixed!"
-    exit 0
+if [[ $SECOND_RESULT == "version 1" ]]; then
+  echo "KNOWN ISSUE REVEALED: fetchGit returned stale cached result!"
+  echo "Expected: 'version 2' (new tag target)"
+  echo "Got: 'version 1' (old cached result)"
+  echo "See GitHub issue #7146"
+  exit 0 # Expected broken behavior
+elif [[ $SECOND_RESULT == "version 2" ]]; then
+  echo "fetchGit correctly re-fetched the moved tag"
+  echo "If this passes consistently, the bug may be fixed!"
+  exit 0
 else
-    echo "Unexpected result: $SECOND_RESULT"
-    exit 1
+  echo "Unexpected result: $SECOND_RESULT"
+  exit 1
 fi

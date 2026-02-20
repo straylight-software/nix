@@ -2,11 +2,13 @@
 
 ## Thesis
 
-The bulk API is fast not because it abandons the state machine model, but because it uses better batching. A properly optimized `run()` loop with batching-aware machines should match or exceed bulk performance while remaining fully replayable.
+The bulk API is fast not because it abandons the state machine model, but because it uses better
+batching. A properly optimized `run()` loop with batching-aware machines should match or exceed bulk
+performance while remaining fully replayable.
 
 **Goal:** Prove this with benchmarks, then deprecate the non-replayable bulk internals.
 
----
+______________________________________________________________________
 
 ## Current State
 
@@ -26,6 +28,7 @@ while (!machine.done(state)) {
 ```
 
 Problems:
+
 1. **Waits for 1 completion** - leaves CQ completions sitting there
 2. **Steps one event at a time** - N events = N function calls
 3. **Enqueues one op at a time** - no batching awareness
@@ -55,7 +58,7 @@ while (completed < total) {
 
 The key insight: **keep SQ full, drain CQ completely, minimize syscalls**.
 
----
+______________________________________________________________________
 
 ## Proposal
 
@@ -75,7 +78,8 @@ concept batch_machine = machine<M> && requires(
 };
 ```
 
-Machines can implement `step_batch()` for efficiency, or we provide a default that loops over `step()`:
+Machines can implement `step_batch()` for efficiency, or we provide a default that loops over
+`step()`:
 
 ```cpp
 // Default implementation for machines that don't specialize
@@ -190,7 +194,8 @@ while (!machine.done(state)) {
 
 ### 4. "Work generator" pattern for bulk-style machines
 
-For bulk operations (stat 10k files, create 10k files), the machine knows upfront what work it needs to do. Instead of waiting for completions to generate more ops, it can fill the SQ proactively:
+For bulk operations (stat 10k files, create 10k files), the machine knows upfront what work it needs
+to do. Instead of waiting for completions to generate more ops, it can fill the SQ proactively:
 
 ```cpp
 struct bulk_stat_machine {
@@ -276,7 +281,7 @@ auto run_bulk(M& machine, ring& ring) -> typename M::state_type {
 }
 ```
 
----
+______________________________________________________________________
 
 ## Benchmark Plan
 
@@ -290,13 +295,10 @@ auto run_bulk(M& machine, ring& ring) -> typename M::state_type {
 
 ### Contestants
 
-| Name | Description |
-|------|-------------|
-| `posix` | Baseline synchronous syscalls |
-| `bulk_current` | Current bulk API (non-replayable) |
-| `machine_naive` | Current `run()` with naive machine |
-| `machine_batch` | New `run_fast()` with batch machine |
-| `machine_bulk` | New `run_bulk()` with generator pattern |
+| Name | Description | |------|-------------| | `posix` | Baseline synchronous syscalls | |
+`bulk_current` | Current bulk API (non-replayable) | | `machine_naive` | Current `run()` with naive
+machine | | `machine_batch` | New `run_fast()` with batch machine | | `machine_bulk` | New
+`run_bulk()` with generator pattern |
 
 ### Metrics
 
@@ -309,9 +311,10 @@ auto run_bulk(M& machine, ring& ring) -> typename M::state_type {
 
 `machine_bulk` should match `bulk_current` within 5%, while remaining fully replayable.
 
-The overhead of `step()` calls is O(nanoseconds). The kernel round-trip is O(microseconds). As long as we keep the SQ full and drain the CQ efficiently, the abstraction cost is noise.
+The overhead of `step()` calls is O(nanoseconds). The kernel round-trip is O(microseconds). As long
+as we keep the SQ full and drain the CQ efficiently, the abstraction cost is noise.
 
----
+______________________________________________________________________
 
 ## Implementation Steps
 
@@ -394,18 +397,17 @@ Run benchmarks, profile, optimize until `machine_bulk >= bulk_current`.
 
 Once proven, remove the private `bulk_context` and raw `io_uring` usage from bulk.cpp.
 
----
+______________________________________________________________________
 
 ## Risks and Mitigations
 
-| Risk | Mitigation |
-|------|------------|
-| `step()` overhead adds up | Profile. If hot, consider `step_batch()` with SIMD-friendly state layout |
-| Vector allocations in hot path | Pre-allocate in state, reuse buffers |
-| Cache misses from state machine indirection | Keep hot state contiguous, profile cache behavior |
-| Concept complexity hurts compile times | Keep concepts minimal, test compile times |
+| Risk | Mitigation | |------|------------| | `step()` overhead adds up | Profile. If hot, consider
+`step_batch()` with SIMD-friendly state layout | | Vector allocations in hot path | Pre-allocate in
+state, reuse buffers | | Cache misses from state machine indirection | Keep hot state contiguous,
+profile cache behavior | | Concept complexity hurts compile times | Keep concepts minimal, test
+compile times |
 
----
+______________________________________________________________________
 
 ## Success Criteria
 
@@ -414,7 +416,7 @@ Once proven, remove the private `bulk_context` and raw `io_uring` usage from bul
 3. **API simplicity:** No new concepts required for basic usage
 4. **Backwards compatible:** Existing machines work unchanged with existing `run()`
 
----
+______________________________________________________________________
 
 ## The Payoff
 
@@ -425,7 +427,7 @@ If this works:
 3. **Simpler codebase** - Remove duplicate io_uring management in bulk.cpp
 4. **Confidence for networking** - We know the model scales before building HTTP
 
----
+______________________________________________________________________
 
 ## Next Steps
 
@@ -438,21 +440,25 @@ If this works:
 
 Estimated effort: 2-3 days to prove the concept, 1 week to convert all bulk operations.
 
----
+______________________________________________________________________
 
 ## Questions to Resolve
 
-1. **Should `step_batch()` be required or optional?** 
+1. **Should `step_batch()` be required or optional?**
+
    - Leaning optional with default fallback to `step()` loop
 
 2. **Should `generate()` be a separate method or overload of `step()`?**
+
    - Separate is clearer, but adds API surface
 
 3. **How to handle mixed generate/reactive machines?**
+
    - HTTP needs both: fill SQ with requests, react to responses
    - Maybe `step()` returns `{state, ops, wants_to_generate: bool}`?
 
 4. **Should replay understand batching?**
+
    - Current `replay()` feeds events one at a time
    - Should `replay_batch()` exist for batch machines?
    - Or just have `replay()` detect `batch_machine` and use `step_batch()`?

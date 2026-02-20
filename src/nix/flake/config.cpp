@@ -53,7 +53,7 @@ static void write_trusted_list(const TrustedList& trusted_list) {
 
 void ConfigFile::apply(const settings_t& flake_settings) {
   string_set_t whitelist{"bash-prompt",    "bash-prompt-prefix",       "bash-prompt-suffix",
-                      "flake-registry", "commit-lock-file-summary", "commit-lockfile-summary"};
+                         "flake-registry", "commit-lock-file-summary", "commit-lockfile-summary"};
 
   for (auto& [name, value] : settings) {
     auto base_name = has_prefix(name, "extra-") ? std::string(name, 6) : name;

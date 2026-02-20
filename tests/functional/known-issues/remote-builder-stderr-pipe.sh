@@ -94,11 +94,11 @@ RESULT=$(nix-build --no-out-link -E "
   }
 " 2>&1) || true
 
-if [[ -n "$RESULT" ]] && [[ "$RESULT" == /nix/store/* ]]; then
-    echo "Local build succeeded (expected - issue is with remote builders)"
+if [[ -n $RESULT ]] && [[ $RESULT == /nix/store/* ]]; then
+  echo "Local build succeeded (expected - issue is with remote builders)"
 else
-    echo "Local build result: $RESULT"
-    echo "(May fail in sandboxed environments without /bin/sh)"
+  echo "Local build result: $RESULT"
+  echo "(May fail in sandboxed environments without /bin/sh)"
 fi
 
 echo ""

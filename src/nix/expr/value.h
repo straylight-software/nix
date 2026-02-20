@@ -160,8 +160,9 @@ public:
    * Coerce the value to a string. Defaults to uncoercable, i.e. throws an
    * error.
    */
-  virtual std::string coerceToString(eval_state_t& state, const pos_idx_t& pos, NixStringContext& context,
-                                     bool copyMore, bool copy_to_store) const;
+  virtual std::string coerceToString(eval_state_t& state, const pos_idx_t& pos,
+                                     NixStringContext& context, bool copyMore,
+                                     bool copy_to_store) const;
 
   /**
    * Compare to another value of the same type. Defaults to uncomparable,
@@ -172,15 +173,16 @@ public:
   /**
    * Print the value as JSON. Defaults to unconvertable, i.e. throws an error
    */
-  virtual nlohmann::json print_value_as_json(eval_state_t& state, bool strict, NixStringContext& context,
-                                          bool copy_to_store = true) const;
+  virtual nlohmann::json print_value_as_json(eval_state_t& state, bool strict,
+                                             NixStringContext& context,
+                                             bool copy_to_store = true) const;
 
   /**
    * Print the value as XML. Defaults to unevaluated
    */
-  virtual void print_value_as_xml(eval_state_t& state, bool strict, bool location, xml_writer_t& doc,
-                               NixStringContext& context, path_set_t& drvs_seen,
-                               const pos_idx_t pos) const;
+  virtual void print_value_as_xml(eval_state_t& state, bool strict, bool location,
+                                  xml_writer_t& doc, NixStringContext& context,
+                                  path_set_t& drvs_seen, const pos_idx_t pos) const;
 
   virtual ~ExternalValueBase() {};
 };
@@ -410,18 +412,18 @@ struct PayloadTypeToInternalType {};
  * InternalType <-> C++ type.
  */
 #define NIX_VALUE_STORAGE_FOR_EACH_FIELD(MACRO)                                                    \
-  MACRO(NixInt, integer, t_int)                                                                     \
+  MACRO(NixInt, integer, t_int)                                                                    \
   MACRO(bool, boolean, tBool)                                                                      \
-  MACRO(ValueBase::StringWithContext, string, t_string)                                             \
+  MACRO(ValueBase::StringWithContext, string, t_string)                                            \
   MACRO(ValueBase::Path, path, tPath)                                                              \
   MACRO(ValueBase::Null, null_, tNull)                                                             \
-  MACRO(bindings_t*, attrs, tAttrs)                                                                  \
+  MACRO(bindings_t*, attrs, tAttrs)                                                                \
   MACRO(ValueBase::List, bigList, tListN)                                                          \
   MACRO(ValueBase::SmallList, smallList, tListSmall)                                               \
   MACRO(ValueBase::ClosureThunk, thunk, tThunk)                                                    \
   MACRO(ValueBase::FunctionApplicationThunk, app, tApp)                                            \
   MACRO(ValueBase::Lambda, lambda, tLambda)                                                        \
-  MACRO(PrimOp*, prim_op, tPrimOp)                                                                  \
+  MACRO(PrimOp*, prim_op, tPrimOp)                                                                 \
   MACRO(ValueBase::PrimOpApplicationThunk, primOpApp, tPrimOpApp)                                  \
   MACRO(ExternalValueBase*, external, tExternal)                                                   \
   MACRO(ValueBase::Failed*, failed, tFailed)                                                       \
@@ -1151,7 +1153,9 @@ public:
     }
   }
 
-  inline void mk_thunk(Env* e, expr_t* ex) noexcept { setStorage(ClosureThunk{.env = e, .expr = ex}); }
+  inline void mk_thunk(Env* e, expr_t* ex) noexcept {
+    setStorage(ClosureThunk{.env = e, .expr = ex});
+  }
 
   inline void mkApp(value_t* l, value_t* r) noexcept {
     setStorage(FunctionApplicationThunk{.left = l, .right = r});
@@ -1174,7 +1178,9 @@ public:
 
   inline void mkFloat(NixFloat n) noexcept { setStorage(n); }
 
-  inline void mkFailed() noexcept { setStorage(new value_t::Failed{.ex = std::current_exception()}); }
+  inline void mkFailed() noexcept {
+    setStorage(new value_t::Failed{.ex = std::current_exception()});
+  }
 
   bool isList() const noexcept { return isa<tListSmall, tListN>(); }
 
@@ -1191,7 +1197,7 @@ public:
 
   source_path_t path() const {
     return source_path_t(ref(pathAccessor()->shared_from_this()),
-                      canon_path_t(canon_path_t::unchecked_t(), std::string(pathStrView())));
+                         canon_path_t(canon_path_t::unchecked_t(), std::string(pathStrView())));
   }
 
   const StringData& string_data() const noexcept { return *getStorage<StringWithContext>().str; }

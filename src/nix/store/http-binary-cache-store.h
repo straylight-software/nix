@@ -21,13 +21,13 @@ struct HttpBinaryCacheStoreConfig : std::enable_shared_from_this<HttpBinaryCache
   parsed_url_t cacheUri;
 
   const setting_t<std::string> narinfoCompression{this, "", "narinfo-compression",
-                                                "Compression method for `.narinfo` files."};
+                                                  "Compression method for `.narinfo` files."};
 
   const setting_t<std::string> lsCompression{this, "", "ls-compression",
-                                           "Compression method for `.ls` files."};
+                                             "Compression method for `.ls` files."};
 
   const setting_t<std::string> logCompression{this, "", "log-compression",
-                                            R"(
+                                              R"(
           Compression method for `log/*` files. It is recommended to
           use a compression method supported by most web browsers
           (e.g. `brotli`).
@@ -70,8 +70,8 @@ protected:
 
   bool file_exists(const std::string& path) override;
 
-  void upsert_file(const std::string& path, restartable_source_t& source, const std::string& mime_type,
-                  uint64_t size_hint) override;
+  void upsert_file(const std::string& path, restartable_source_t& source,
+                   const std::string& mime_type, uint64_t size_hint) override;
 
   FileTransferRequest makeRequest(std::string_view path);
 

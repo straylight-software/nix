@@ -70,6 +70,6 @@ protected:
  * Create a shared pointer to a restricted store.
  */
 ref<store_t> make_restricted_store(ref<local_store_config_t> config, ref<LocalStore> next,
-                               RestrictionContext& context);
+                                   RestrictionContext& context);
 
 } // namespace nix

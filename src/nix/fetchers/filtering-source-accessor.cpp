@@ -18,7 +18,7 @@ std::string FilteringSourceAccessor::read_file(const canon_path_t& path) {
 }
 
 void FilteringSourceAccessor::read_file(const canon_path_t& path, sink_t& sink,
-                                       std::function<void(uint64_t)> size_callback) {
+                                        std::function<void(uint64_t)> size_callback) {
   checkAccess(path);
   return next->read_file(prefix / path, sink, size_callback);
 }
@@ -27,7 +27,8 @@ bool FilteringSourceAccessor::path_exists(const canon_path_t& path) {
   return is_allowed(path) && next->path_exists(prefix / path);
 }
 
-std::optional<source_accessor_t::stat_t> FilteringSourceAccessor::maybe_lstat(const canon_path_t& path) {
+std::optional<source_accessor_t::stat_t>
+FilteringSourceAccessor::maybe_lstat(const canon_path_t& path) {
   return is_allowed(path) ? next->maybe_lstat(prefix / path) : std::nullopt;
 }
 
@@ -77,26 +78,32 @@ struct allow_list_source_accessor_impl_t : AllowListSourceAccessor {
   shared_sync_t<std::set<canon_path_t>> allowed_prefixes;
   shared_sync_t<boost::unordered_flat_set<canon_path_t>> allowed_paths;
 
-  allow_list_source_accessor_impl_t(ref<source_accessor_t> next, std::set<canon_path_t>&& allowed_prefixes,
-                              boost::unordered_flat_set<canon_path_t>&& allowed_paths,
-                              MakeNotAllowedError&& make_not_allowed_error)
+  allow_list_source_accessor_impl_t(ref<source_accessor_t> next,
+                                    std::set<canon_path_t>&& allowed_prefixes,
+                                    boost::unordered_flat_set<canon_path_t>&& allowed_paths,
+                                    MakeNotAllowedError&& make_not_allowed_error)
       : AllowListSourceAccessor(source_path_t(next), std::move(make_not_allowed_error)),
         allowed_prefixes(std::move(allowed_prefixes)),
         allowed_paths(std::move(allowed_paths)) {}
 
   bool is_allowed(const canon_path_t& path) override {
-    return allowed_paths.read_lock()->contains(path) || path.is_allowed(*allowed_prefixes.read_lock());
+    return allowed_paths.read_lock()->contains(path) ||
+           path.is_allowed(*allowed_prefixes.read_lock());
   }
 
-  void allowPrefix(canon_path_t prefix) override { allowed_prefixes.lock()->insert(std::move(prefix)); }
+  void allowPrefix(canon_path_t prefix) override {
+    allowed_prefixes.lock()->insert(std::move(prefix));
+  }
 };
 
 ref<AllowListSourceAccessor>
-AllowListSourceAccessor::create(ref<source_accessor_t> next, std::set<canon_path_t>&& allowed_prefixes,
+AllowListSourceAccessor::create(ref<source_accessor_t> next,
+                                std::set<canon_path_t>&& allowed_prefixes,
                                 boost::unordered_flat_set<canon_path_t>&& allowed_paths,
                                 MakeNotAllowedError&& make_not_allowed_error) {
-  return make_ref<allow_list_source_accessor_impl_t>(
-      next, std::move(allowed_prefixes), std::move(allowed_paths), std::move(make_not_allowed_error));
+  return make_ref<allow_list_source_accessor_impl_t>(next, std::move(allowed_prefixes),
+                                                     std::move(allowed_paths),
+                                                     std::move(make_not_allowed_error));
 }
 
 bool CachingFilteringSourceAccessor::is_allowed(const canon_path_t& path) {

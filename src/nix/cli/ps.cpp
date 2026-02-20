@@ -114,7 +114,7 @@ struct cmd_ps_t : MixJSON, StoreCommand {
 
             // Format argv with tree structure
             auto argv = concat_strings_sep(" ", tokenize_string<std::vector<std::string>>(
-                                                  concat_strings_sep(" ", process->argv)));
+                                                    concat_strings_sep(" ", process->argv)));
 
             table.push_back({format_user(process->user),
                              std::to_string(process->pid),
@@ -128,7 +128,7 @@ struct cmd_ps_t : MixJSON, StoreCommand {
     }
 
     auto width = is_tty() && isatty(STDOUT_FILENO) ? get_window_width()
-                                                  : std::numeric_limits<unsigned int>::max();
+                                                   : std::numeric_limits<unsigned int>::max();
 
     print_table(std::cout, table, width);
   }

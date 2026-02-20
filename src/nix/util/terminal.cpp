@@ -98,15 +98,15 @@ std::string filter_ansi_escapes(std::string_view s, bool filter_all, unsigned in
         // eat parameter bytes
         while (i != s.end() && *i >= 0x30 && *i <= 0x3f) {
           e += *i++;
-}
+        }
         // eat intermediate bytes
         while (i != s.end() && *i >= 0x20 && *i <= 0x2f) {
           e += *i++;
-}
+        }
         // eat final byte
         if (i != s.end() && *i >= 0x40 && *i <= 0x7e) {
           e += last = *i++;
-}
+        }
       } else if (i != s.end() && *i == ']') {
         // OSC
         e += *i++;
@@ -118,31 +118,31 @@ std::string filter_ansi_escapes(std::string_view s, bool filter_all, unsigned in
         // eat ESC or BEL
         while (i != s.end() && *i != '\e' && *i != '\a') {
           e += *i++;
-}
+        }
         if (i != s.end()) {
           char v = *i;
           e += *i++;
           // eat backslash after ESC
           if (i != s.end() && v == '\e' && *i == '\\') {
             e += last = *i++;
-}
+          }
         }
       } else {
         if (i != s.end() && *i >= 0x40 && *i <= 0x5f) {
           e += *i++;
-}
+        }
       }
 
       if (!filter_all && last == 'm') {
         t += e;
-}
+      }
     }
 
     else if (*i == '\t') {
       do {
         if (++w > (size_t)width) {
           return t;
-}
+        }
         t += ' ';
       } while (w % 8);
       i++;
@@ -197,7 +197,7 @@ unsigned int get_window_width() {
   unsigned int width = get_window_size().second;
   if (width <= 0) {
     width = std::numeric_limits<unsigned int>::max();
-}
+  }
   return width;
 }
 

@@ -1,19 +1,23 @@
 # nix-language Architecture
 
-A world-class C++23 implementation of the Nix expression language, designed for ahead-of-time (AOT) compilation to WebAssembly.
+A world-class C++23 implementation of the Nix expression language, designed for ahead-of-time (AOT)
+compilation to WebAssembly.
 
-**License Note**: The PEGTL grammar (`parse/grammar.h`) is substantially derived from the Lix project (LGPL-2.1).
+**License Note**: The PEGTL grammar (`parse/grammar.h`) is substantially derived from the Lix
+project (LGPL-2.1).
 
----
+______________________________________________________________________
 
 ## Design Philosophy
 
-1. **Modern C++23**: Variants over inheritance, `[[nodiscard]]`, concepts, spaceship operator, RAII everywhere
+1. **Modern C++23**: Variants over inheritance, `[[nodiscard]]`, concepts, spaceship operator, RAII
+   everywhere
 2. **AOT Compilation**: Compile Nix expressions to WASM instead of tree-walking interpretation
-3. **Clean Separation**: Parse → AST → Compile pipeline with well-defined intermediate representations
+3. **Clean Separation**: Parse → AST → Compile pipeline with well-defined intermediate
+   representations
 4. **Header-Only Where Sensible**: Most modules are header-only for simplicity and inlining
 
----
+______________________________________________________________________
 
 ## Module Overview
 
@@ -62,7 +66,7 @@ language/
     └── fuzz_compile.cpp    # libFuzzer harness for compiler
 ```
 
----
+______________________________________________________________________
 
 ## 1. AST Layer (`ast/`)
 
@@ -101,6 +105,7 @@ using expression = std::unique_ptr<expression_node>;
 ```
 
 **Key Design Decisions**:
+
 - `unique_ptr<expression_node>` for heap allocation (expressions can be large)
 - Forward declaration pattern enables recursive types
 - `source_position` embedded in every expression for error reporting
@@ -122,9 +127,10 @@ public:
 };
 ```
 
-**Why `std::deque`**: Provides stable references - strings don't move when new ones are added, allowing `string_view` keys in the index map.
+**Why `std::deque`**: Provides stable references - strings don't move when new ones are added,
+allowing `string_view` keys in the index map.
 
----
+______________________________________________________________________
 
 ## 2. Parse Layer (`parse/`)
 
@@ -190,6 +196,7 @@ struct keyword_or : keyword_<TAO_PEGTL_STRING("or")> {};
 ```
 
 **Lexical Challenges Handled**:
+
 - `./foo/bar` (path) vs `a/b` (division)
 - `http://example.com` (URI literal)
 - `or` as keyword vs identifier
@@ -219,6 +226,7 @@ using tree = std::unique_ptr<tree_node>;
 ### `convert.h` - PEGTL → Tree
 
 Walks PEGTL's parse tree once, building our tree types:
+
 - Extracts literal values from source spans
 - Handles operator precedence climbing for binary expressions
 - Collects list elements, bindings, formals
@@ -226,11 +234,12 @@ Walks PEGTL's parse tree once, building our tree types:
 ### `lower.h` - Tree → AST
 
 Final lowering pass:
+
 - Interns symbol names via `symbol_table`
 - Converts `source_span` to `ast::source_position`
 - Transforms tree nodes to AST expression types
 
----
+______________________________________________________________________
 
 ## 3. Compile Layer (`compile/`)
 
@@ -256,6 +265,7 @@ enum class value_tag : std::uint8_t {
 ```
 
 **Memory Layout**:
+
 ```
 String:  [length: i32][data: bytes...]
 List:    [length: i32][elements: nix_value*...]
@@ -297,6 +307,7 @@ public:
 #### Closure Compilation
 
 Lambdas are compiled to:
+
 1. A WASM function `__lambda_N(env_ptr: i32, arg: nix_value) -> nix_value`
 2. A closure struct with captured variables
 3. Indirect calls via function table
@@ -306,6 +317,7 @@ Lambdas are compiled to:
 The compiler imports host functions split across two WASM modules:
 
 **`runtime` module** - Core runtime operations:
+
 ```cpp
 __throw(msg_offset: i32, line: i32, col: i32) -> i64  // with position
 __force(value: i64) -> i64                            // evaluate thunks
@@ -316,6 +328,7 @@ __makeThunk(func_index: i32, env_offset: i32, env_size: i32) -> i64
 ```
 
 **`builtins` module** - Operations on values:
+
 ```cpp
 // Arithmetic (with source position for type error reporting)
 __add(a: i64, b: i64, line: i32, col: i32) -> i64
@@ -357,6 +370,7 @@ let x = 1; y = 2; in x + y
 ```
 
 Compiles to (conceptually):
+
 ```wasm
 (func $main (result i64)
     (local $x i64)
@@ -373,11 +387,12 @@ Compiles to (conceptually):
 )
 ```
 
----
+______________________________________________________________________
 
 ## 4. Runtime Layer (`runtime/`)
 
-The runtime provides host-side implementations of the functions imported by compiled WASM modules, plus a wasmtime-based executor.
+The runtime provides host-side implementations of the functions imported by compiled WASM modules,
+plus a wasmtime-based executor.
 
 ### `memory_layout.h` - Shared Constants
 
@@ -425,6 +440,7 @@ auto rt_apply(runtime_context& ctx, nix_value fn, nix_value arg) -> nix_value;
 ```
 
 **Key Features**:
+
 - Bump allocator for heap (`heap_allocator`)
 - Memory read/write helpers (little-endian i32/i64/string)
 - Thunk evaluation with infinite recursion detection
@@ -461,6 +477,7 @@ private:
 ```
 
 **Execution Flow**:
+
 1. Create fresh store and memory (16 pages = 1MB initial, 256 pages max)
 2. Setup linker with all runtime imports
 3. Compile and instantiate module
@@ -493,11 +510,13 @@ void sync_memory_from_context() {
 }
 ```
 
-**Critical Invariant**: Host functions that allocate (write to `ctx_.memory` at heap offsets) MUST call `sync_ctx_to_wasm()` before returning, or WASM code will read stale/zero data.
+**Critical Invariant**: Host functions that allocate (write to `ctx_.memory` at heap offsets) MUST
+call `sync_ctx_to_wasm()` before returning, or WASM code will read stale/zero data.
 
 ### Memory Initialization
 
 WASM memory is created with 16 initial pages (1MB) to cover:
+
 - Data segment: 0x00000 - 0x0FFFF (64KB)
 - Stack: 0x0F000 - 0x10000 (4KB, grows down)
 - Reserved: 0x10000 - 0x1FFFF (64KB)
@@ -508,9 +527,10 @@ WASM memory is created with 16 initial pages (1MB) to cover:
 wasmtime::MemoryType mem_type(16, 256);  // 16 initial, 256 max pages
 ```
 
-Starting with fewer pages (e.g., 1 page = 64KB) causes "memory access out of bounds" when the runtime tries to allocate at `HEAP_BASE = 0x20000`.
+Starting with fewer pages (e.g., 1 page = 64KB) causes "memory access out of bounds" when the
+runtime tries to allocate at `HEAP_BASE = 0x20000`.
 
----
+______________________________________________________________________
 
 ## 4b. Memory Safety: The Pointer Invalidation Problem
 
@@ -527,6 +547,7 @@ When runtime functions like `genericClosure` operate:
 5. Reading through those pointers = undefined behavior
 
 This is subtle because:
+
 - Memory growth is non-deterministic (depends on heap pressure)
 - Small test cases pass; large real-world expressions fail
 - Failure mode is silent corruption, not crashes
@@ -550,7 +571,8 @@ class wasm_memory {
 };
 ```
 
-**Invariant**: Never store a raw pointer derived from WASM memory across any call that might allocate.
+**Invariant**: Never store a raw pointer derived from WASM memory across any call that might
+allocate.
 
 ### Correct Pattern (genericClosure)
 
@@ -567,13 +589,14 @@ auto op_opt = find_attr(ctx, attrs_ptr, "operator");
 ### Test Coverage
 
 `tests/wasm_memory_test.cpp` includes:
+
 - `regression - simulated genericClosure pattern`: exact failure mode
 - `mem_ptr must not be cached`: demonstrates correct vs incorrect patterns
 - `growth at exact page boundary`: edge case verification
 
 See also: `MEMORY.md` for full memory layout documentation.
 
----
+______________________________________________________________________
 
 ## 5. Eval Layer (`eval/`)
 
@@ -609,6 +632,7 @@ struct value {
 ### `eval.h` - The Evaluator
 
 ~1500 lines implementing:
+
 - Lazy evaluation via thunks
 - Memoization of forced values
 - Cycle detection
@@ -616,6 +640,7 @@ struct value {
 - `import` support with cycle detection
 
 **Lazy Evaluation**:
+
 ```cpp
 auto force(value_ptr val) -> value_ptr {
     while (is_thunk(val)) {
@@ -631,7 +656,7 @@ auto force(value_ptr val) -> value_ptr {
 }
 ```
 
----
+______________________________________________________________________
 
 ## 6. Build System
 
@@ -677,53 +702,36 @@ cxx_library(
 )
 ```
 
----
+______________________________________________________________________
 
 ## Current Status
 
 ### Working
 
-| Component | Status | Confidence |
-|-----------|--------|------------|
-| **Grammar** | Complete - handles full Nix lexical grammar | 95% |
-| **Parsing** | Complete - all expression types supported | 95% |
-| **AST Types** | Complete - full expression coverage | 95% |
-| **Tree-Walking Eval** | ~90% - most builtins, import, lazy eval | 85% |
-| **WASM Compiler** | ~90% - core expressions, closures, lazy eval, path merging | 85% |
-| **Runtime** | ~95% - arithmetic, comparison, collections, thunks, closures, deep equality | 90% |
-| **WASM Executor** | Complete - wasmtime integration, full execution pipeline | 90% |
+| Component | Status | Confidence | |-----------|--------|------------| | **Grammar** | Complete -
+handles full Nix lexical grammar | 95% | | **Parsing** | Complete - all expression types supported |
+95% | | **AST Types** | Complete - full expression coverage | 95% | | **Tree-Walking Eval** | ~90% -
+most builtins, import, lazy eval | 85% | | **WASM Compiler** | ~90% - core expressions, closures,
+lazy eval, path merging | 85% | | **Runtime** | ~95% - arithmetic, comparison, collections, thunks,
+closures, deep equality | 90% | | **WASM Executor** | Complete - wasmtime integration, full
+execution pipeline | 90% |
 
 ### Expression Coverage (Compiler)
 
-| Expression | Status | Notes |
-|------------|--------|-------|
-| Integer literals | Complete | |
-| Float literals | Complete | |
-| String literals | Complete | |
-| String interpolation | Complete | |
-| Path literals | Complete | |
-| Path interpolation | Complete | |
-| Identifiers | Complete | Thunks forced on access |
-| Lists | Complete | Lazy elements |
-| Attribute sets | Complete | Static and dynamic keys |
-| Empty attrsets | Complete | Special `{}` handling |
-| Recursive attrsets | Complete | |
-| Select (a.b.c) | Complete | With error on missing |
-| Has attribute (a ? b) | Complete | Works on empty sets |
-| Lambdas (simple) | Complete | `x: body` |
-| Lambdas (attrset pattern) | Complete | `{ x, y }: body` |
-| Pattern defaults | Complete | `{ x, y ? 10 }: body` |
-| Pattern with @ | Complete | `args@{ x }: body` |
-| Closures | Complete | Free variable capture |
-| Application | Complete | Curried |
-| Let expressions | Complete | Thunks forced on reference |
-| With expressions | Complete | Dynamic scope lookup |
-| If expressions | Complete | |
-| Assert | Complete | |
-| Binary operators | Complete | All operators, INT_MIN/-1 handled |
-| Unary operators | Complete | |
-| Multi-segment paths | Complete | Path merging supported |
-| Lazy evaluation | Complete | Thunks for lists, attrsets, let |
+| Expression | Status | Notes | |------------|--------|-------| | Integer literals | Complete | | |
+Float literals | Complete | | | String literals | Complete | | | String interpolation | Complete | |
+| Path literals | Complete | | | Path interpolation | Complete | | | Identifiers | Complete | Thunks
+forced on access | | Lists | Complete | Lazy elements | | Attribute sets | Complete | Static and
+dynamic keys | | Empty attrsets | Complete | Special `{}` handling | | Recursive attrsets | Complete
+| | | Select (a.b.c) | Complete | With error on missing | | Has attribute (a ? b) | Complete | Works
+on empty sets | | Lambdas (simple) | Complete | `x: body` | | Lambdas (attrset pattern) | Complete |
+`{ x, y }: body` | | Pattern defaults | Complete | `{ x, y ? 10 }: body` | | Pattern with @ |
+Complete | `args@{ x }: body` | | Closures | Complete | Free variable capture | | Application |
+Complete | Curried | | Let expressions | Complete | Thunks forced on reference | | With expressions
+| Complete | Dynamic scope lookup | | If expressions | Complete | | | Assert | Complete | | | Binary
+operators | Complete | All operators, INT_MIN/-1 handled | | Unary operators | Complete | | |
+Multi-segment paths | Complete | Path merging supported | | Lazy evaluation | Complete | Thunks for
+lists, attrsets, let |
 
 ### Not Yet Implemented (Compiler)
 
@@ -734,26 +742,32 @@ cxx_library(
 ### Recently Fixed
 
 1. **`rt_update` proper merge** ✓
+
    - Now correctly merges: `{ a = 1; } // { b = 2; }` → `{ a = 1; b = 2; }`
    - Right side wins on key conflicts
 
 2. **String coercion** ✓
+
    - `rt_to_string` handles: strings, integers, floats, paths, null
    - Booleans correctly throw (Nix doesn't coerce bools to strings)
 
 3. **Deep equality** ✓
+
    - Lists and attrsets now compare structurally (recursively)
    - Empty collections handled correctly
 
 4. **Data segment limit** ✓
+
    - Compiler throws `compilation_error` if data segment exceeds 64KB
 
 5. **WASM memory initialization** ✓
+
    - Memory now starts with 16 pages (1MB) instead of 1 page (64KB)
    - Heap at `HEAP_BASE = 0x20000` (128KB) is now accessible
    - Fixes "memory access out of bounds" for closure/thunk allocation
 
 6. **Memory synchronization for closures** ✓
+
    - Host functions `__makeClosure` and `__makeThunk` now sync memory after allocation
    - Fixes "expected numeric type, got 'null'" when accessing captured variables
    - Root cause: WASM memory wasn't updated after host allocated closure on heap
@@ -774,36 +788,31 @@ cxx_library(
 3. Inlining of small functions
 4. WASM GC when available
 
----
+______________________________________________________________________
 
 ## Testing Strategy
 
 ### Test Files
 
 | File | Lines | Test Cases | Assertions | Focus |
-|------|-------|------------|------------|-------|
-| `ast_test.cpp` | 572 | 40 | 74 | AST type construction |
-| `grammar_test.cpp` | 654 | 27 | 197 | PEGTL grammar rules |
-| `parse_test.cpp` | 1,109 | 21 | 526 | Parse → AST round-trips |
-| `wasm_types_test.cpp` | 310 | 19 | 116 | Value packing/unpacking |
-| `compiler_test.cpp` | 1,881 | 67 | 138 | WASM compilation + validation |
-| `eval_test.cpp` | 417 | 55 | 129 | Tree-walking interpreter |
-| `integration_test.cpp` | 343 | 34 | 71 | Parse → compile → WASM binary |
-| `execution_test.cpp` | 448 | 49 | 328 | Full pipeline with wasmtime |
-| `runtime_test.cpp` | 526 | 14 | 185 | Direct runtime function tests |
-| `property_test.cpp` | 600 | 28 | 2,800* | Property-based tests (RapidCheck) |
-| `adversarial_test.cpp` | 800+ | 15 | 173 | Edge cases, boundary conditions |
-| **Total** | **~8,200** | **369** | **~4,700** | |
+|------|-------|------------|------------|-------| | `ast_test.cpp` | 572 | 40 | 74 | AST type
+construction | | `grammar_test.cpp` | 654 | 27 | 197 | PEGTL grammar rules | | `parse_test.cpp` |
+1,109 | 21 | 526 | Parse → AST round-trips | | `wasm_types_test.cpp` | 310 | 19 | 116 | Value
+packing/unpacking | | `compiler_test.cpp` | 1,881 | 67 | 138 | WASM compilation + validation | |
+`eval_test.cpp` | 417 | 55 | 129 | Tree-walking interpreter | | `integration_test.cpp` | 343 | 34 |
+71 | Parse → compile → WASM binary | | `execution_test.cpp` | 448 | 49 | 328 | Full pipeline with
+wasmtime | | `runtime_test.cpp` | 526 | 14 | 185 | Direct runtime function tests | |
+`property_test.cpp` | 600 | 28 | 2,800\* | Property-based tests (RapidCheck) | |
+`adversarial_test.cpp` | 800+ | 15 | 173 | Edge cases, boundary conditions | | **Total** |
+**~8,200** | **369** | **~4,700** | |
 
-*Property tests run 100 iterations each
+\*Property tests run 100 iterations each
 
 ### Additional Test Infrastructure
 
-| File | Purpose |
-|------|---------|
-| `bench.cpp` | Microbenchmarks using nanobench |
-| `fuzz_parse.cpp` | libFuzzer harness for parser |
-| `fuzz_compile.cpp` | libFuzzer harness for compiler |
+| File | Purpose | |------|---------| | `bench.cpp` | Microbenchmarks using nanobench | |
+`fuzz_parse.cpp` | libFuzzer harness for parser | | `fuzz_compile.cpp` | libFuzzer harness for
+compiler |
 
 ### Testing Approach
 
@@ -814,21 +823,16 @@ cxx_library(
 5. **End-to-end tests**: `parse → compile → execute → verify result`
 6. **Fuzzing harnesses** for parser and compiler (manual execution)
 
----
+______________________________________________________________________
 
 ## Dependencies
 
-| Dependency | Version | Purpose |
-|------------|---------|---------|
-| PEGTL | 3.x | PEG parser generator |
-| Binaryen | 125 | WASM code generation |
-| Boost | 1.87 | `small_vector` for parse state |
-| Wasmtime | 40.0 | WASM execution runtime |
-| Catch2 | 3.x | Test framework |
-| RapidCheck | - | Property-based testing |
-| nanobench | 4.3.11 | Microbenchmarking |
+| Dependency | Version | Purpose | |------------|---------|---------| | PEGTL | 3.x | PEG parser
+generator | | Binaryen | 125 | WASM code generation | | Boost | 1.87 | `small_vector` for parse
+state | | Wasmtime | 40.0 | WASM execution runtime | | Catch2 | 3.x | Test framework | | RapidCheck
+| - | Property-based testing | | nanobench | 4.3.11 | Microbenchmarking |
 
----
+______________________________________________________________________
 
 ## Code Style
 

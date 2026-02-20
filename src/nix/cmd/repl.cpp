@@ -71,12 +71,12 @@ struct nix_repl_t : AbstractNixRepl, detail::ReplCompleterMixin, gc {
   RunNix* run_nix_ptr;
 
   void run_nix(const std::string& program, const strings_t& args,
-              const std::optional<std::string>& input = {});
+               const std::optional<std::string>& input = {});
 
   std::unique_ptr<ReplInteracter> interacter;
 
   nix_repl_t(const LookupPath& lookup_path, nix::ref<store_t> store, ref<eval_state_t> state,
-          std::function<AnnotatedValues()> get_values, RunNix* run_nix);
+             std::function<AnnotatedValues()> get_values, RunNix* run_nix);
   virtual ~nix_repl_t() = default;
 
   ReplExitStatus main_loop() override;
@@ -99,18 +99,18 @@ struct nix_repl_t : AbstractNixRepl, detail::ReplCompleterMixin, gc {
   void load_debug_trace_env(DebugTrace& dt);
 
   void print_value(std::ostream& str, value_t& v,
-                  unsigned int max_depth = std::numeric_limits<unsigned int>::max()) {
+                   unsigned int max_depth = std::numeric_limits<unsigned int>::max()) {
     // Hide the progress bar during printing because it might interfere
     auto suspension = logger->suspend();
     ::nix::print_value(*state, str, v,
-                      PrintOptions{
-                          .ansi_colors = true,
-                          .force = true,
-                          .derivationPaths = true,
-                          .max_depth = max_depth,
-                          .prettyIndent = 2,
-                          .errors = ErrorPrintBehavior::ThrowTopLevel,
-                      });
+                       PrintOptions{
+                           .ansi_colors = true,
+                           .force = true,
+                           .derivationPaths = true,
+                           .max_depth = max_depth,
+                           .prettyIndent = 2,
+                           .errors = ErrorPrintBehavior::ThrowTopLevel,
+                       });
   }
 };
 
@@ -122,8 +122,9 @@ std::string remove_whitespace(std::string s) {
   return s;
 }
 
-nix_repl_t::nix_repl_t(const LookupPath& lookup_path, nix::ref<store_t> store, ref<eval_state_t> state,
-                 std::function<nix_repl_t::AnnotatedValues()> get_values, RunNix* run_nix)
+nix_repl_t::nix_repl_t(const LookupPath& lookup_path, nix::ref<store_t> store,
+                       ref<eval_state_t> state,
+                       std::function<nix_repl_t::AnnotatedValues()> get_values, RunNix* run_nix)
     : AbstractNixRepl(state),
       debug_trace_index(0),
       get_values(get_values),
@@ -132,7 +133,7 @@ nix_repl_t::nix_repl_t(const LookupPath& lookup_path, nix::ref<store_t> store, r
       interacter(make_unique<ReadlineLikeInteracter>((get_data_dir() / "repl-history").string())) {}
 
 static std::ostream& show_debug_trace(std::ostream& out, const pos_table_t& positions,
-                                    const DebugTrace& dt) {
+                                      const DebugTrace& dt) {
   if (dt.isError)
     out << ANSI_RED "error: " << ANSI_NORMAL;
   out << dt.hint.str() << "\n";
@@ -179,7 +180,7 @@ ReplExitStatus nix_repl_t::main_loop() {
       // When continuing input from previous lines, don't print a prompt, just align to the same
       // number of chars as the prompt.
       if (!interacter->get_line(input, input.empty() ? ReplPromptType::ReplPrompt
-                                                    : ReplPromptType::ContinuationPrompt)) {
+                                                     : ReplPromptType::ContinuationPrompt)) {
         // Ctrl-D should exit the debugger.
         state->debugStop = false;
         logger->cout("");
@@ -471,7 +472,8 @@ process_line_result_t nix_repl_t::process_line(std::string line) {
     const auto [path, line] = [&]() -> std::pair<source_path_t, uint32_t> {
       if (v.type() == nPath || v.type() == nString) {
         NixStringContext context;
-        auto path = state->coerceToPath(no_pos, v, context, "while evaluating the filename to edit");
+        auto path =
+            state->coerceToPath(no_pos, v, context, "while evaluating the filename to edit");
         return {path, 0};
       } else if (v.isLambda()) {
         auto pos = state->positions[v.lambda().fun->pos];
@@ -492,8 +494,8 @@ process_line_result_t nix_repl_t::process_line(std::string line) {
 
     // runProgram redirects stdout to a StringSink,
     // using runProgram2 to allow editors to display their UI
-    run_program2(
-        run_options_t{.program = editor, .lookup_path = true, .args = args, .is_interactive = true});
+    run_program2(run_options_t{
+        .program = editor, .lookup_path = true, .args = args, .is_interactive = true});
 
     // Reload right after exiting the editor
     state->resetFileCache();
@@ -510,7 +512,7 @@ process_line_result_t nix_repl_t::process_line(std::string line) {
     value_t v, f, result;
     eval_string(arg, v);
     eval_string("drv: (import <nixpkgs> {}).runCommand \"shell\" { buildInputs = [ drv ]; } \"\"",
-               f);
+                f);
     state->callFunction(f, v, result, pos_idx_t());
 
     store_path_t drv_path = get_derivation_path(result);
@@ -732,13 +734,13 @@ void nix_repl_t::load_flake(const std::string& flake_ref_s) {
   value_t v;
 
   flake::call_flake(*state,
-                   flake::lock_flake(flake_settings, *state, flake_ref,
-                                    flake::LockFlags{
-                                        .updateLockFile = false,
-                                        .use_registries = !eval_settings.pureEval,
-                                        .allowUnlocked = !eval_settings.pureEval,
-                                    }),
-                   v);
+                    flake::lock_flake(flake_settings, *state, flake_ref,
+                                      flake::LockFlags{
+                                          .updateLockFile = false,
+                                          .use_registries = !eval_settings.pureEval,
+                                          .allowUnlocked = !eval_settings.pureEval,
+                                      }),
+                    v);
   add_attrs_to_scope(v);
 }
 
@@ -863,7 +865,7 @@ void nix_repl_t::eval_string(std::string s, value_t& v) {
 }
 
 void nix_repl_t::run_nix(const std::string& program, const strings_t& args,
-                     const std::optional<std::string>& input) {
+                         const std::optional<std::string>& input) {
   if (run_nix_ptr)
     (*run_nix_ptr)(program, args, input);
   else
@@ -874,8 +876,9 @@ void nix_repl_t::run_nix(const std::string& program, const strings_t& args,
 }
 
 std::unique_ptr<AbstractNixRepl>
-AbstractNixRepl::create(const LookupPath& lookup_path, nix::ref<store_t> store, ref<eval_state_t> state,
-                        std::function<AnnotatedValues()> get_values, RunNix* run_nix) {
+AbstractNixRepl::create(const LookupPath& lookup_path, nix::ref<store_t> store,
+                        ref<eval_state_t> state, std::function<AnnotatedValues()> get_values,
+                        RunNix* run_nix) {
   return std::make_unique<nix_repl_t>(lookup_path, std::move(store), state, get_values, run_nix);
 }
 
@@ -887,7 +890,7 @@ ReplExitStatus AbstractNixRepl::runSimple(ref<eval_state_t> eval_state, const Va
   LookupPath lookup_path = {};
   // NOLINTNEXTLINE(clang-analyzer-cplusplus.NewDelete)
   auto repl = std::make_unique<nix_repl_t>(lookup_path, open_store(), eval_state, get_values,
-                                        /*run_nix=*/nullptr);
+                                           /*run_nix=*/nullptr);
 
   repl->init_env();
 

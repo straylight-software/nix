@@ -23,8 +23,8 @@
 #include <fcntl.h>
 
 #include "straylight/evring/evring.h"
-#include "straylight/nix/store/ca_store.h"
 #include "straylight/nix/crypto/hash.h"
+#include "straylight/nix/store/ca_store.h"
 
 namespace straylight::nix::store {
 

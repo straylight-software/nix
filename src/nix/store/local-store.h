@@ -37,7 +37,7 @@ private:
     input_t for computing the build directory. See `getBuildDir()`.
    */
   setting_t<std::optional<Path>> build_dir{this, std::nullopt, "build-dir",
-                                        R"(
+                                           R"(
             The directory on the host, in which derivations' temporary build directories are created.
 
             If not set, Nix will use the `builds` subdirectory of its configured state directory.
@@ -65,8 +65,8 @@ public:
 };
 
 struct local_store_config_t : std::enable_shared_from_this<local_store_config_t>,
-                          virtual LocalFSStoreConfig,
-                          virtual LocalBuildStoreConfig {
+                              virtual LocalFSStoreConfig,
+                              virtual LocalBuildStoreConfig {
   using LocalFSStoreConfig::LocalFSStoreConfig;
 
   local_store_config_t(std::string_view scheme, std::string_view authority, const Params& params);
@@ -84,7 +84,7 @@ public:
       "Whether store paths copied into this store should have a trusted signature."};
 
   setting_t<bool> read_only{this, false, "read-only",
-                         R"(
+                            R"(
           Allow this store to be opened when its [database](@docroot@/glossary.md#gloss-nix-database) is on a read-only filesystem.
 
           Normally Nix attempts to open the store database in read-write mode, even for querying (when write access is not needed), causing it to fail if the database is on a read-only filesystem.
@@ -195,13 +195,13 @@ public:
   bool isValidPathUncached(const store_path_t& path) override;
 
   store_path_set_t queryValidPaths(const store_path_set_t& paths,
-                               SubstituteFlag maybeSubstitute = NoSubstitute) override;
+                                   SubstituteFlag maybeSubstitute = NoSubstitute) override;
 
   store_path_set_t query_all_valid_paths() override;
 
-  void
-  query_path_info_uncached(const store_path_t& path,
-                        Callback<std::shared_ptr<const valid_path_info_t>> callback) noexcept override;
+  void query_path_info_uncached(
+      const store_path_t& path,
+      Callback<std::shared_ptr<const valid_path_info_t>> callback) noexcept override;
 
   void query_referrers(const store_path_t& path, store_path_set_t& referrers) override;
 
@@ -218,12 +218,14 @@ public:
   bool realisationIsUntrusted(const realisation_t&) override;
 
   void add_to_store(const valid_path_info_t& info, source_t& source, RepairFlag repair,
-                  CheckSigsFlag check_sigs) override;
+                    CheckSigsFlag check_sigs) override;
 
   store_path_t add_to_store_from_dump(source_t& dump, std::string_view name,
-                               file_serialisation_method_t dump_method, content_address_method_t hash_method,
-                               hash_algorithm_t hash_algo, const store_path_set_t& references,
-                               RepairFlag repair) override;
+                                      file_serialisation_method_t dump_method,
+                                      content_address_method_t hash_method,
+                                      hash_algorithm_t hash_algo,
+                                      const store_path_set_t& references,
+                                      RepairFlag repair) override;
 
   void addTempRoot(const store_path_t& path) override;
 
@@ -366,8 +368,9 @@ public:
   std::optional<std::string> getVersion() override;
 
 protected:
-  void verifyPath(const store_path_t& path, std::function<bool(const store_path_t&)> existsInStoreDir,
-                  store_path_set_t& done, store_path_set_t& validPaths, RepairFlag repair, bool& errors);
+  void verifyPath(const store_path_t& path,
+                  std::function<bool(const store_path_t&)> existsInStoreDir, store_path_set_t& done,
+                  store_path_set_t& validPaths, RepairFlag repair, bool& errors);
 
 private:
   /**
@@ -393,7 +396,8 @@ private:
    */
   void invalidatePathChecked(const store_path_t& path);
 
-  std::shared_ptr<const valid_path_info_t> queryPathInfoInternal(State& state, const store_path_t& path);
+  std::shared_ptr<const valid_path_info_t> queryPathInfoInternal(State& state,
+                                                                 const store_path_t& path);
 
   void updatePathInfo(State& state, const valid_path_info_t& info);
 

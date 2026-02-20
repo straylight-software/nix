@@ -350,8 +350,7 @@ TEST_CASE("streaming chunked matches one-shot property", "[hash][property]") {
 TEST_CASE("compression is deterministic property", "[hash][property]") {
   rc::prop("compress is deterministic", []() {
     auto data = *bytes_gen();
-    auto new_size = *rc::gen::inRange<std::size_t>(
-        1, straylight::nix::crypto::sha256_size + 1);
+    auto new_size = *rc::gen::inRange<std::size_t>(1, straylight::nix::crypto::sha256_size + 1);
 
     auto h = sha256(data);
     auto c1 = h.compress(new_size);

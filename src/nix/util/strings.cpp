@@ -18,13 +18,13 @@ template string_set_t split_string(std::string_view s, std::string_view separato
 template std::vector<std::string> split_string(std::string_view s, std::string_view separators);
 
 template std::list<os_string_t> basic_split_string(std::basic_string_view<os_char_t> s,
-                                              std::basic_string_view<os_char_t> separators);
+                                                   std::basic_string_view<os_char_t> separators);
 
 template std::string concat_strings_sep(std::string_view, const std::list<std::string>&);
 template std::string concat_strings_sep(std::string_view, const string_set_t&);
 template std::string concat_strings_sep(std::string_view, const std::vector<std::string>&);
 template std::string concat_strings_sep(std::string_view,
-                                      const boost::container::small_vector<std::string, 64>&);
+                                        const boost::container::small_vector<std::string, 64>&);
 
 typedef std::string_view strings_2[2];
 template std::string concat_strings_sep(std::string_view, const strings_2&);
@@ -34,10 +34,10 @@ typedef std::string_view strings_4[4];
 template std::string concat_strings_sep(std::string_view, const strings_4&);
 
 template std::string drop_empty_init_then_concat_strings_sep(std::string_view,
-                                                       const std::list<std::string>&);
+                                                             const std::list<std::string>&);
 template std::string drop_empty_init_then_concat_strings_sep(std::string_view, const string_set_t&);
 template std::string drop_empty_init_then_concat_strings_sep(std::string_view,
-                                                       const std::vector<std::string>&);
+                                                             const std::vector<std::string>&);
 
 /**
  * Shell split string: split a string into shell arguments, respecting quotes and backslashes.
@@ -143,7 +143,7 @@ std::list<std::string> shell_split_string(std::string_view s) {
 }
 
 std::string optional_bracket(std::string_view prefix, std::string_view content,
-                            std::string_view suffix) {
+                             std::string_view suffix) {
   if (content.empty()) {
     return "";
   }

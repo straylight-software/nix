@@ -97,7 +97,8 @@ struct DerivationTrampolineGoal : public Goal {
                            Worker& worker, BuildMode build_mode = bmNormal);
 
   DerivationTrampolineGoal(const store_path_t& drv_path, const OutputsSpec& wantedOutputs,
-                           const derivation_t& drv, Worker& worker, BuildMode build_mode = bmNormal);
+                           const derivation_t& drv, Worker& worker,
+                           BuildMode build_mode = bmNormal);
 
   virtual ~DerivationTrampolineGoal();
 

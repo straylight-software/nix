@@ -466,7 +466,8 @@ struct cmd_flake_check_t : flake_command_t {
       }
     };
 
-    std::function<void(const std::string& attr_path, value_t& v, const pos_idx_t pos)> checkHydraJobs;
+    std::function<void(const std::string& attr_path, value_t& v, const pos_idx_t pos)>
+        checkHydraJobs;
 
     checkHydraJobs = [&](const std::string& attr_path, value_t& v, const pos_idx_t pos) {
       try {

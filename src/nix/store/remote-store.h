@@ -22,12 +22,12 @@ class RemoteFSAccessor;
 struct remote_store_config_t : virtual store_config_t {
   using store_config_t::store_config_t;
 
-  const setting_t<int> maxConnections{this, 64, "max-connections",
-                                    "Maximum number of concurrent connections to the Nix daemon."};
+  const setting_t<int> maxConnections{
+      this, 64, "max-connections", "Maximum number of concurrent connections to the Nix daemon."};
 
-  const setting_t<unsigned int> maxConnectionAge{this, std::numeric_limits<unsigned int>::max(),
-                                               "max-connection-age",
-                                               "Maximum age of a connection before it is closed."};
+  const setting_t<unsigned int> maxConnectionAge{
+      this, std::numeric_limits<unsigned int>::max(), "max-connection-age",
+      "Maximum age of a connection before it is closed."};
 };
 
 /**
@@ -35,9 +35,9 @@ struct remote_store_config_t : virtual store_config_t {
  * DaemonStore.
  */
 struct remote_store : public virtual store_t,
-                     public virtual GcStore,
-                     public virtual LogStore,
-                     public virtual QueryActiveBuildsStore {
+                      public virtual GcStore,
+                      public virtual LogStore,
+                      public virtual QueryActiveBuildsStore {
   using config_t = remote_store_config_t;
 
   const config_t& config;
@@ -49,13 +49,13 @@ struct remote_store : public virtual store_t,
   bool isValidPathUncached(const store_path_t& path) override;
 
   store_path_set_t queryValidPaths(const store_path_set_t& paths,
-                               SubstituteFlag maybeSubstitute = NoSubstitute) override;
+                                   SubstituteFlag maybeSubstitute = NoSubstitute) override;
 
   store_path_set_t query_all_valid_paths() override;
 
-  void
-  query_path_info_uncached(const store_path_t& path,
-                        Callback<std::shared_ptr<const valid_path_info_t>> callback) noexcept override;
+  void query_path_info_uncached(
+      const store_path_t& path,
+      Callback<std::shared_ptr<const valid_path_info_t>> callback) noexcept override;
 
   void query_referrers(const store_path_t& path, store_path_set_t& referrers) override;
 
@@ -76,22 +76,23 @@ struct remote_store : public virtual store_t,
    * Add a content-addressable store path. `dump` will be drained.
    */
   ref<const valid_path_info_t> addCAToStore(source_t& dump, std::string_view name,
-                                        content_address_method_t ca_method, hash_algorithm_t hash_algo,
-                                        const store_path_set_t& references, RepairFlag repair);
+                                            content_address_method_t ca_method,
+                                            hash_algorithm_t hash_algo,
+                                            const store_path_set_t& references, RepairFlag repair);
 
   /**
    * Add a content-addressable store path. `dump` will be drained.
    */
-  store_path_t
-  add_to_store_from_dump(source_t& dump, std::string_view name,
-                     file_serialisation_method_t dump_method = file_serialisation_method_t::nix_archive,
-                     content_address_method_t hash_method = file_ingestion_method_t::nix_archive,
-                     hash_algorithm_t hash_algo = hash_algorithm_t::SHA256,
-                     const store_path_set_t& references = store_path_set_t(),
-                     RepairFlag repair = NoRepair) override;
+  store_path_t add_to_store_from_dump(
+      source_t& dump, std::string_view name,
+      file_serialisation_method_t dump_method = file_serialisation_method_t::nix_archive,
+      content_address_method_t hash_method = file_ingestion_method_t::nix_archive,
+      hash_algorithm_t hash_algo = hash_algorithm_t::SHA256,
+      const store_path_set_t& references = store_path_set_t(),
+      RepairFlag repair = NoRepair) override;
 
   void add_to_store(const valid_path_info_t& info, source_t& nar, RepairFlag repair,
-                  CheckSigsFlag check_sigs) override;
+                    CheckSigsFlag check_sigs) override;
 
   void addMultipleToStore(source_t& source, RepairFlag repair, CheckSigsFlag check_sigs) override;
 
@@ -105,14 +106,14 @@ struct remote_store : public virtual store_t,
       Callback<std::shared_ptr<const UnkeyedRealisation>> callback) noexcept override;
 
   void build_paths(const std::vector<derived_path_t>& paths, BuildMode build_mode,
-                  std::shared_ptr<store_t> eval_store) override;
+                   std::shared_ptr<store_t> eval_store) override;
 
-  std::vector<keyed_build_result_t> build_paths_with_results(const std::vector<derived_path_t>& paths,
-                                                      BuildMode build_mode,
-                                                      std::shared_ptr<store_t> eval_store) override;
+  std::vector<keyed_build_result_t>
+  build_paths_with_results(const std::vector<derived_path_t>& paths, BuildMode build_mode,
+                           std::shared_ptr<store_t> eval_store) override;
 
   build_result_t buildDerivation(const store_path_t& drv_path, const basic_derivation_t& drv,
-                              BuildMode build_mode) override;
+                                 BuildMode build_mode) override;
 
   void ensure_path(const store_path_t& path) override;
 
@@ -178,7 +179,7 @@ protected:
   virtual ref<source_accessor_t> getFSAccessor(bool require_valid_path = true) override;
 
   virtual std::shared_ptr<source_accessor_t> getFSAccessor(const store_path_t& path,
-                                                        bool require_valid_path = true) override;
+                                                           bool require_valid_path = true) override;
 
   virtual void nar_from_path(const store_path_t& path, sink_t& sink) override;
 

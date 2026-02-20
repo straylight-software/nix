@@ -42,8 +42,9 @@ struct DerivationGoal : public Goal {
   /**
    * @param storeDerivation See `DerivationBuildingGoal`. This is just passed along.
    */
-  DerivationGoal(const store_path_t& drv_path, const derivation_t& drv, const OutputName& wantedOutput,
-                 Worker& worker, BuildMode build_mode, bool storeDerivation);
+  DerivationGoal(const store_path_t& drv_path, const derivation_t& drv,
+                 const OutputName& wantedOutput, Worker& worker, BuildMode build_mode,
+                 bool storeDerivation);
   ~DerivationGoal() = default;
 
   void timedOut(Error&& ex) override { unreachable(); };

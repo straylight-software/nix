@@ -203,7 +203,7 @@ void init_gc() {
   // See the comment in applyConfig
   if (auto nixPathEnv = get_env("NIX_PATH")) {
     global_config.set("nix-path",
-                     concat_strings_sep(" ", eval_settings_t::parseNixPath(nixPathEnv.value())));
+                      concat_strings_sep(" ", eval_settings_t::parseNixPath(nixPathEnv.value())));
   }
 
   gc_initialised = true;

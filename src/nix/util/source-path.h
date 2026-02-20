@@ -39,7 +39,8 @@ struct source_path_t {
    */
   [[nodiscard]] std::string read_file() const;
 
-  void read_file(sink_t& sink, std::function<void(uint64_t)> size_callback = [](uint64_t) {}) const {
+  void
+  read_file(sink_t& sink, std::function<void(uint64_t)> size_callback = [](uint64_t) {}) const {
     return accessor->read_file(path, sink, size_callback);
   }
 

@@ -64,7 +64,7 @@ struct cmd_registry_list_t : StoreCommand {
       for (auto& entry : registry->entries) {
         // FIXME: format nicely
         logger->cout("%s %s %s",
-                     registry->type == Registry::flag_t     ? "flags "
+                     registry->type == Registry::flag_t   ? "flags "
                      : registry->type == Registry::User   ? "user  "
                      : registry->type == Registry::System ? "system"
                                                           : "global",
@@ -142,12 +142,13 @@ struct cmd_registry_pin_t : registry_command_t, EvalCommand {
   cmd_registry_pin_t() {
     expect_arg("url", &url);
 
-    expect_args({.label = "locked",
-                .optional = true,
-                .handler = {&locked},
-                .completer = {[&](add_completions_t& completions, size_t, std::string_view prefix) {
-                  complete_flake_ref(completions, getStore(), prefix);
-                }}});
+    expect_args(
+        {.label = "locked",
+         .optional = true,
+         .handler = {&locked},
+         .completer = {[&](add_completions_t& completions, size_t, std::string_view prefix) {
+           complete_flake_ref(completions, getStore(), prefix);
+         }}});
   }
 
   void run(nix::ref<nix::store_t> store) override {

@@ -19,6 +19,6 @@ using table_row_t = std::vector<table_cell_t>;
 using table_t = std::vector<table_row_t>;
 
 void print_table(std::ostream& out, table_t& table,
-                unsigned int width = std::numeric_limits<unsigned int>::max());
+                 unsigned int width = std::numeric_limits<unsigned int>::max());
 
 } // namespace nix

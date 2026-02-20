@@ -13,7 +13,8 @@ namespace nix {
 PackageInfo::PackageInfo(eval_state_t& state, std::string attr_path, const bindings_t* attrs)
     : state(&state), attrs(attrs), attr_path(std::move(attr_path)) {}
 
-PackageInfo::PackageInfo(eval_state_t& state, ref<store_t> store, const std::string& drvPathWithOutputs)
+PackageInfo::PackageInfo(eval_state_t& state, ref<store_t> store,
+                         const std::string& drvPathWithOutputs)
     : state(&state), attrs(nullptr), attr_path("") {
   auto [drv_path, selectedOutputs] = parse_path_with_outputs(*store, drvPathWithOutputs);
 
@@ -70,7 +71,7 @@ std::optional<store_path_t> PackageInfo::queryDrvPath() const {
         found.requireDerivation();
       } catch (Error& e) {
         e.add_trace(state->positions[i->pos],
-                   "while evaluating the 'drvPath' attribute of a derivation");
+                    "while evaluating the 'drvPath' attribute of a derivation");
         throw;
       }
       drv_path = {std::move(found)};
@@ -92,7 +93,7 @@ store_path_t PackageInfo::queryOutPath() const {
     NixStringContext context;
     if (i)
       out_path = state->coerceToStorePath(i->pos, *i->value, context,
-                                         "while evaluating the output path of a derivation");
+                                          "while evaluating the output path of a derivation");
   }
   if (!out_path)
     throw UnimplementedError("CA derivations are not yet supported");
@@ -175,8 +176,8 @@ std::string PackageInfo::queryOutputName() const {
   if (output_name == "" && attrs) {
     auto i = attrs->get(state->s.output_name);
     output_name = i ? state->forceStringNoCtx(*i->value, no_pos,
-                                             "while evaluating the output name of a derivation")
-                   : "";
+                                              "while evaluating the output name of a derivation")
+                    : "";
   }
   return output_name;
 }
@@ -305,7 +306,7 @@ typedef std::set<const bindings_t*> done_t;
    The result boolean indicates whether it makes sense
    for the caller to recursively search for derivations in `v'. */
 static bool get_derivation(eval_state_t& state, value_t& v, const std::string& attr_path,
-                          PackageInfos& drvs, done_t& done, bool ignore_assertion_failures) {
+                           PackageInfos& drvs, done_t& done, bool ignore_assertion_failures) {
   try {
     state.forceValue(v, v.determinePos(no_pos));
     if (!state.is_derivation(v))
@@ -331,7 +332,8 @@ static bool get_derivation(eval_state_t& state, value_t& v, const std::string& a
   }
 }
 
-std::optional<PackageInfo> get_derivation(eval_state_t& state, value_t& v, bool ignore_assertion_failures) {
+std::optional<PackageInfo> get_derivation(eval_state_t& state, value_t& v,
+                                          bool ignore_assertion_failures) {
   done_t done;
   PackageInfos drvs;
   get_derivation(state, v, "", drvs, done, ignore_assertion_failures);
@@ -347,8 +349,8 @@ static std::string add_to_path(const std::string& s1, std::string_view s2) {
 static std::regex attr_regex("[A-Za-z_][A-Za-z0-9-_+]*");
 
 static void get_derivations(eval_state_t& state, value_t& v_in, const std::string& path_prefix,
-                           bindings_t& auto_args, PackageInfos& drvs, done_t& done,
-                           bool ignore_assertion_failures) {
+                            bindings_t& auto_args, PackageInfos& drvs, done_t& done,
+                            bool ignore_assertion_failures) {
   value_t v;
   state.autoCallFunction(auto_args, v_in, v);
 
@@ -375,9 +377,9 @@ static void get_derivations(eval_state_t& state, value_t& v_in, const std::strin
         std::string pathPrefix2 = add_to_path(path_prefix, symbol);
         if (combine_channels)
           get_derivations(state, *i->value, pathPrefix2, auto_args, drvs, done,
-                         ignore_assertion_failures);
+                          ignore_assertion_failures);
         else if (get_derivation(state, *i->value, pathPrefix2, drvs, done,
-                               ignore_assertion_failures)) {
+                                ignore_assertion_failures)) {
           /* If the value of this attribute is itself a set,
           should we recurse into it?  => Only if it has a
           `recurseForDerivations = true' attribute. */
@@ -386,7 +388,7 @@ static void get_derivations(eval_state_t& state, value_t& v_in, const std::strin
             if (j && state.forceBool(*j->value, j->pos,
                                      "while evaluating the attribute `recurseForDerivations`"))
               get_derivations(state, *i->value, pathPrefix2, auto_args, drvs, done,
-                             ignore_assertion_failures);
+                              ignore_assertion_failures);
           }
         }
       } catch (Error& e) {
@@ -401,7 +403,8 @@ static void get_derivations(eval_state_t& state, value_t& v_in, const std::strin
     for (auto [n, elem] : enumerate(list_view)) {
       std::string pathPrefix2 = add_to_path(path_prefix, fmt("%d", n));
       if (get_derivation(state, *elem, pathPrefix2, drvs, done, ignore_assertion_failures))
-        get_derivations(state, *elem, pathPrefix2, auto_args, drvs, done, ignore_assertion_failures);
+        get_derivations(state, *elem, pathPrefix2, auto_args, drvs, done,
+                        ignore_assertion_failures);
     }
   }
 
@@ -412,8 +415,8 @@ static void get_derivations(eval_state_t& state, value_t& v_in, const std::strin
         .debugThrow();
 }
 
-void get_derivations(eval_state_t& state, value_t& v, const std::string& path_prefix, bindings_t& auto_args,
-                    PackageInfos& drvs, bool ignore_assertion_failures) {
+void get_derivations(eval_state_t& state, value_t& v, const std::string& path_prefix,
+                     bindings_t& auto_args, PackageInfos& drvs, bool ignore_assertion_failures) {
   done_t done;
   get_derivations(state, v, path_prefix, auto_args, drvs, done, ignore_assertion_failures);
 }

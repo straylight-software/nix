@@ -15,7 +15,7 @@ struct union_source_accessor_t : source_accessor_t {
       auto st = accessor->maybe_lstat(path);
       if (st) {
         return accessor->read_file(path);
-}
+      }
     }
     throw FileNotFound("path '%s' does not exist", show_path(path));
   }
@@ -25,7 +25,7 @@ struct union_source_accessor_t : source_accessor_t {
       auto st = accessor->maybe_lstat(path);
       if (st) {
         return st;
-}
+      }
     }
     return std::nullopt;
   }
@@ -37,16 +37,16 @@ struct union_source_accessor_t : source_accessor_t {
       auto st = accessor->maybe_lstat(path);
       if (!st) {
         continue;
-}
+      }
       exists = true;
       for (auto& entry : accessor->read_directory(path)) {
         // Don't override entries from previous accessors.
         result.insert(entry);
-}
+      }
     }
     if (!exists) {
       throw FileNotFound("path '%s' does not exist", show_path(path));
-}
+    }
     return result;
   }
 
@@ -55,7 +55,7 @@ struct union_source_accessor_t : source_accessor_t {
       auto st = accessor->maybe_lstat(path);
       if (st) {
         return accessor->read_link(path);
-}
+      }
     }
     throw FileNotFound("path '%s' does not exist", show_path(path));
   }
@@ -63,7 +63,7 @@ struct union_source_accessor_t : source_accessor_t {
   std::string show_path(const canon_path_t& path) override {
     for (auto& accessor : accessors) {
       return accessor->show_path(path);
-}
+    }
     return source_accessor_t::show_path(path);
   }
 
@@ -72,20 +72,21 @@ struct union_source_accessor_t : source_accessor_t {
       auto p = accessor->get_physical_path(path);
       if (p) {
         return p;
-}
+      }
     }
     return std::nullopt;
   }
 
-  std::pair<canon_path_t, std::optional<std::string>> get_fingerprint(const canon_path_t& path) override {
+  std::pair<canon_path_t, std::optional<std::string>>
+  get_fingerprint(const canon_path_t& path) override {
     if (fingerprint) {
       return {path, fingerprint};
-}
+    }
     for (auto& accessor : accessors) {
       auto [subpath, fingerprint] = accessor->get_fingerprint(path);
       if (fingerprint) {
         return {subpath, fingerprint};
-}
+      }
     }
     return {path, std::nullopt};
   }
@@ -93,7 +94,7 @@ struct union_source_accessor_t : source_accessor_t {
   void invalidate_cache(const canon_path_t& path) override {
     for (auto& accessor : accessors) {
       accessor->invalidate_cache(path);
-}
+    }
   }
 };
 

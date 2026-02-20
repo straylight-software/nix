@@ -198,14 +198,12 @@ public:
     if (finalized_) {
       // Already finalized, append to string (unusual usage)
       std::ostringstream oss;
-      oss << straylight::nix::text::kAnsiMagenta << value
-          << straylight::nix::text::kAnsiNormal;
+      oss << straylight::nix::text::kAnsiMagenta << value << straylight::nix::text::kAnsiNormal;
       str_ += oss.str();
     } else {
       // Store for deferred formatting
       std::ostringstream oss;
-      oss << straylight::nix::text::kAnsiMagenta << value
-          << straylight::nix::text::kAnsiNormal;
+      oss << straylight::nix::text::kAnsiMagenta << value << straylight::nix::text::kAnsiNormal;
       pending_args_.push_back(oss.str());
     }
     return *this;

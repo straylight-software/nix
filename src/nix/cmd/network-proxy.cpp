@@ -7,7 +7,7 @@
 namespace nix {
 
 static const string_set_t lowercase_variables{"http_proxy", "https_proxy", "ftp_proxy", "all_proxy",
-                                          "no_proxy"};
+                                              "no_proxy"};
 
 static string_set_t get_all_variables() {
   string_set_t variables = lowercase_variables;

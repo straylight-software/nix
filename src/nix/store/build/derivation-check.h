@@ -18,8 +18,8 @@ namespace nix {
  * closure size.
  */
 void check_outputs(store_t& store, const store_path_t& drv_path,
-                  const decltype(derivation_t::outputs)& drv_outputs,
-                  const decltype(derivation_options_t<store_path_t>::output_checks)& drv_options,
-                  const std::map<std::string, valid_path_info_t>& outputs, activity_t& act);
+                   const decltype(derivation_t::outputs)& drv_outputs,
+                   const decltype(derivation_options_t<store_path_t>::output_checks)& drv_options,
+                   const std::map<std::string, valid_path_info_t>& outputs, activity_t& act);
 
 } // namespace nix

@@ -363,7 +363,7 @@ TEST_CASE("hash parse_any_prefixed requires prefix", "[hash][parse]") {
 TEST_CASE("hash parse_any with optional algo", "[hash][parse]") {
   // Without prefix, algo provided
   auto hash = Hash::parse_any("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-                             hash_algorithm_t::SHA256);
+                              hash_algorithm_t::SHA256);
   REQUIRE(hash.algo() == hash_algorithm_t::SHA256);
 }
 
@@ -371,7 +371,7 @@ TEST_CASE("hash parse_any with prefix overrides algo", "[hash][parse]") {
   // With prefix matching optional algo - should work
   auto hash =
       Hash::parse_any("sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-                     hash_algorithm_t::SHA256);
+                      hash_algorithm_t::SHA256);
   REQUIRE(hash.algo() == hash_algorithm_t::SHA256);
 }
 
@@ -379,22 +379,22 @@ TEST_CASE("hash parse_any with conflicting algo throws", "[hash][parse]") {
   // With prefix not matching optional algo - should throw
   REQUIRE_THROWS_AS(
       Hash::parse_any("sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-                     hash_algorithm_t::SHA512),
+                      hash_algorithm_t::SHA512),
       BadHash);
 }
 
 TEST_CASE("hash parse_any no algo available throws", "[hash][parse]") {
   REQUIRE_THROWS_AS(
       Hash::parse_any("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-                     std::nullopt),
+                      std::nullopt),
       BadHash);
 }
 
 TEST_CASE("hash parse_any_returning_format base16", "[hash][parse]") {
-  auto [hash, format] =
-      Hash::parse_any_returning_format("sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca4959"
-                                    "91b7852b855",
-                                    std::nullopt);
+  auto [hash, format] = Hash::parse_any_returning_format(
+      "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca4959"
+      "91b7852b855",
+      std::nullopt);
   REQUIRE(hash.algo() == hash_algorithm_t::SHA256);
   REQUIRE(format == hash_format_t::base16);
 }
@@ -414,7 +414,8 @@ TEST_CASE("hash parse_sri", "[hash][parse]") {
 
 TEST_CASE("hash parse_sri invalid format throws", "[hash][parse]") {
   // No hyphen separator
-  REQUIRE_THROWS_AS(Hash::parse_sri("sha256:47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU="), BadHash);
+  REQUIRE_THROWS_AS(Hash::parse_sri("sha256:47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU="),
+                    BadHash);
   // Invalid algo
   REQUIRE_THROWS_AS(Hash::parse_sri("invalid-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU="),
                     UsageError);
@@ -429,7 +430,7 @@ TEST_CASE("hash parse_non_sri_unprefixed base16", "[hash][parse]") {
 TEST_CASE("hash parse_non_sri_unprefixed nix32", "[hash][parse]") {
   // SHA256 of empty string in nix32
   auto hash = Hash::parse_non_sri_unprefixed("0mdqa9w1p6cmli6976v4wi0sw9r4p5prkj7lzfd1877wk11c9c73",
-                                          hash_algorithm_t::SHA256);
+                                             hash_algorithm_t::SHA256);
   REQUIRE(hash.algo() == hash_algorithm_t::SHA256);
 }
 
@@ -663,8 +664,8 @@ TEST_CASE("parse malformed nix32 throws", "[hash][parse][malformed]") {
 }
 
 TEST_CASE("parse empty algo throws", "[hash][parse][malformed]") {
-  REQUIRE_THROWS(
-      Hash::parse_any_prefixed(":e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"));
+  REQUIRE_THROWS(Hash::parse_any_prefixed(
+      ":e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"));
 }
 
 TEST_CASE("parse unknown algo throws", "[hash][parse][malformed]") {
@@ -697,8 +698,8 @@ TEST_CASE("hash property tests", "[hash][property]") {
 
   rc::prop("hash size is always correct for algorithm", []() {
     auto data = *rc::gen::arbitrary<std::string>();
-    auto algo = *rc::gen::element(hash_algorithm_t::MD5, hash_algorithm_t::SHA1, hash_algorithm_t::SHA256,
-                                  hash_algorithm_t::SHA512);
+    auto algo = *rc::gen::element(hash_algorithm_t::MD5, hash_algorithm_t::SHA1,
+                                  hash_algorithm_t::SHA256, hash_algorithm_t::SHA512);
     auto hash = hash_string(algo, data);
     RC_ASSERT(hash.hash_size() == regular_hash_size(algo));
   });
@@ -741,8 +742,8 @@ TEST_CASE("hash format roundtrip property tests", "[hash][property][roundtrip]")
 TEST_CASE("hash prefixed parse roundtrip property tests", "[hash][property][roundtrip]") {
   rc::prop("prefixed base16 roundtrip", []() {
     auto data = *rc::gen::arbitrary<std::string>();
-    auto algo = *rc::gen::element(hash_algorithm_t::MD5, hash_algorithm_t::SHA1, hash_algorithm_t::SHA256,
-                                  hash_algorithm_t::SHA512);
+    auto algo = *rc::gen::element(hash_algorithm_t::MD5, hash_algorithm_t::SHA1,
+                                  hash_algorithm_t::SHA256, hash_algorithm_t::SHA512);
     auto original = hash_string(algo, data);
     auto encoded = original.to_string(hash_format_t::base16, true);
     auto parsed = Hash::parse_any_prefixed(encoded);
@@ -752,8 +753,8 @@ TEST_CASE("hash prefixed parse roundtrip property tests", "[hash][property][roun
 
   rc::prop("sri format roundtrip", []() {
     auto data = *rc::gen::arbitrary<std::string>();
-    auto algo = *rc::gen::element(hash_algorithm_t::MD5, hash_algorithm_t::SHA1, hash_algorithm_t::SHA256,
-                                  hash_algorithm_t::SHA512);
+    auto algo = *rc::gen::element(hash_algorithm_t::MD5, hash_algorithm_t::SHA1,
+                                  hash_algorithm_t::SHA256, hash_algorithm_t::SHA512);
     auto original = hash_string(algo, data);
     auto encoded = original.to_string(hash_format_t::sri, true);
     auto parsed = Hash::parse_any_prefixed(encoded);
@@ -764,8 +765,8 @@ TEST_CASE("hash prefixed parse roundtrip property tests", "[hash][property][roun
 
 TEST_CASE("hash algo parse/print roundtrip property", "[hash][property][algo]") {
   rc::prop("parseHashAlgo(printHashAlgo(algo)) == algo", []() {
-    auto algo = *rc::gen::element(hash_algorithm_t::MD5, hash_algorithm_t::SHA1, hash_algorithm_t::SHA256,
-                                  hash_algorithm_t::SHA512);
+    auto algo = *rc::gen::element(hash_algorithm_t::MD5, hash_algorithm_t::SHA1,
+                                  hash_algorithm_t::SHA256, hash_algorithm_t::SHA512);
     auto printed = print_hash_algo(algo);
     auto parsed = parse_hash_algo(std::string(printed));
     RC_ASSERT(parsed == algo);
@@ -785,8 +786,8 @@ TEST_CASE("hash format parse/print roundtrip property", "[hash][property][format
 TEST_CASE("hash incremental equals whole property", "[hash][property][sink]") {
   rc::prop("incremental hashing equals whole string hashing", []() {
     auto parts = *rc::gen::container<std::vector<std::string>>(rc::gen::arbitrary<std::string>());
-    auto algo = *rc::gen::element(hash_algorithm_t::MD5, hash_algorithm_t::SHA1, hash_algorithm_t::SHA256,
-                                  hash_algorithm_t::SHA512);
+    auto algo = *rc::gen::element(hash_algorithm_t::MD5, hash_algorithm_t::SHA1,
+                                  hash_algorithm_t::SHA256, hash_algorithm_t::SHA512);
 
     // Concatenate all parts
     std::string whole;
@@ -868,8 +869,8 @@ TEST_CASE("hash comparison property tests", "[hash][property][comparison]") {
 TEST_CASE("hash encoding length property tests", "[hash][property][encoding]") {
   rc::prop("base16 encoding is twice hash size", []() {
     auto data = *rc::gen::arbitrary<std::string>();
-    auto algo = *rc::gen::element(hash_algorithm_t::MD5, hash_algorithm_t::SHA1, hash_algorithm_t::SHA256,
-                                  hash_algorithm_t::SHA512);
+    auto algo = *rc::gen::element(hash_algorithm_t::MD5, hash_algorithm_t::SHA1,
+                                  hash_algorithm_t::SHA256, hash_algorithm_t::SHA512);
     auto hash = hash_string(algo, data);
     auto encoded = hash.to_string(hash_format_t::base16, false);
     RC_ASSERT(encoded.size() == hash.hash_size() * 2);
@@ -948,8 +949,8 @@ TEST_CASE("fuzz hashString with binary data", "[hash][fuzz]") {
   rc::prop("hashString handles all binary data", []() {
     // Generate arbitrary binary data including null bytes
     auto data = *rc::gen::container<std::string>(rc::gen::inRange<char>(0, 127));
-    auto algo = *rc::gen::element(hash_algorithm_t::MD5, hash_algorithm_t::SHA1, hash_algorithm_t::SHA256,
-                                  hash_algorithm_t::SHA512);
+    auto algo = *rc::gen::element(hash_algorithm_t::MD5, hash_algorithm_t::SHA1,
+                                  hash_algorithm_t::SHA256, hash_algorithm_t::SHA512);
     auto hash = hash_string(algo, data);
 
     // Should always succeed and produce valid hash
@@ -969,8 +970,8 @@ TEST_CASE("fuzz hashString with binary data", "[hash][fuzz]") {
 
 TEST_CASE("hash buffer bounds check", "[hash][security]") {
   // Verify that hash data doesn't overflow maxHashSize
-  for (auto algo :
-       {hash_algorithm_t::MD5, hash_algorithm_t::SHA1, hash_algorithm_t::SHA256, hash_algorithm_t::SHA512}) {
+  for (auto algo : {hash_algorithm_t::MD5, hash_algorithm_t::SHA1, hash_algorithm_t::SHA256,
+                    hash_algorithm_t::SHA512}) {
     auto hash = hash_string(algo, "test");
     REQUIRE(hash.hash_size() <= Hash::max_hash_size);
     // Verify the hash can be serialized without error (implicitly checks bounds)

@@ -15,7 +15,7 @@ std::string get_user_name() {
   std::string name = pw ? pw->pw_name : get_env("USER").value_or("");
   if (name.empty()) {
     throw Error("cannot figure out user name");
-}
+  }
   return name;
 }
 
@@ -26,7 +26,7 @@ std::filesystem::path get_home_of(uid_t user_id) {
   if (getpwuid_r(user_id, &pwbuf, buf.data(), buf.size(), &pw) != 0 || !pw || !pw->pw_dir ||
       !pw->pw_dir[0]) {
     throw Error("cannot determine user's home directory");
-}
+  }
   return pw->pw_dir;
 }
 

@@ -2,7 +2,6 @@
 # Hypermodern C++ house style enforcement
 ruleDirs:
   - rules
-
 # Exclude vendor and build directories
 ignores:
   - vendor/

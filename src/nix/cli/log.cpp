@@ -30,12 +30,13 @@ struct cmd_log_t : InstallableCommand {
     auto b = installable->toDerivedPath();
 
     // For compat with CLI today, TODO revisit
-    auto one_up = std::visit(
-        overloaded{
-            [&](const derived_path_t::opaque_t& bo) { return make_ref<const SingleDerivedPath>(bo); },
-            [&](const derived_path_t::Built& bfd) { return bfd.drv_path; },
-        },
-        b.path.raw());
+    auto one_up = std::visit(overloaded{
+                                 [&](const derived_path_t::opaque_t& bo) {
+                                   return make_ref<const SingleDerivedPath>(bo);
+                                 },
+                                 [&](const derived_path_t::Built& bfd) { return bfd.drv_path; },
+                             },
+                             b.path.raw());
     auto path = resolve_derived_path(*store, *one_up);
 
     RunPager pager;

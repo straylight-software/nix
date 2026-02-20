@@ -370,31 +370,32 @@ struct git_repo_impl_t : GitRepo, std::enable_shared_from_this<git_repo_impl_t> 
   pool_t<git_repo_impl_t> getPool() {
     // TODO: as an optimization, it would be nice to include `this` in the pool.
     return pool_t<git_repo_impl_t>(std::numeric_limits<size_t>::max(),
-                                 [this]() -> ref<git_repo_impl_t> {
-                                   auto repo = make_ref<git_repo_impl_t>(path, options);
+                                   [this]() -> ref<git_repo_impl_t> {
+                                     auto repo = make_ref<git_repo_impl_t>(path, options);
 
-                                   /* Monkey-patching the pack backend to only read the pack
-                                      directory once. Otherwise it will do a readdir for each added
-                                      oid when it's not found and that translates to ~6 syscalls.
-                                      Since we are never writing pack files until flushing we can
-                                      force the odb backend to read the directory just once. It's
-                                      very convenient that the vtable is semi-public interface and
-                                      is up for grabs.
+                                     /* Monkey-patching the pack backend to only read the pack
+                                        directory once. Otherwise it will do a readdir for each
+                                        added oid when it's not found and that translates to ~6
+                                        syscalls. Since we are never writing pack files until
+                                        flushing we can force the odb backend to read the directory
+                                        just once. It's very convenient that the vtable is
+                                        semi-public interface and is up for grabs.
 
-                                      This is purely an optimization for our use-case with a tarball
-                                      cache. libgit2 calls refresh() if the backend provides it when
-                                      an oid isn't found. We are only writing objects to a mempack
-                                      (it has higher priority) and there isn't a realistic use-case
-                                      where a previously missing object would appear from thin air
-                                      on the disk (unless another process happens to be unpacking a
-                                      similar tarball to the cache at the same time, but that's a
-                                      very unrealistic scenario).
-                                   */
-                                   if (auto* backend = repo->pack_backend)
-                                     backend->refresh = nullptr;
+                                        This is purely an optimization for our use-case with a
+                                        tarball cache. libgit2 calls refresh() if the backend
+                                        provides it when an oid isn't found. We are only writing
+                                        objects to a mempack (it has higher priority) and there
+                                        isn't a realistic use-case where a previously missing object
+                                        would appear from thin air on the disk (unless another
+                                        process happens to be unpacking a similar tarball to the
+                                        cache at the same time, but that's a very unrealistic
+                                        scenario).
+                                     */
+                                     if (auto* backend = repo->pack_backend)
+                                       backend->refresh = nullptr;
 
-                                   return repo;
-                                 });
+                                     return repo;
+                                   });
   }
 
   uint64_t get_rev_count(const Hash& rev) override {
@@ -596,10 +597,10 @@ struct git_repo_impl_t : GitRepo, std::enable_shared_from_this<git_repo_impl_t> 
   ref<git_source_accessor_t> get_raw_accessor(const Hash& rev, const GitAccessorOptions& options);
 
   ref<source_accessor_t> get_accessor(const Hash& rev, const GitAccessorOptions& options,
-                                   std::string display_prefix) override;
+                                      std::string display_prefix) override;
 
   ref<source_accessor_t> get_accessor(const WorkdirInfo& wd, const GitAccessorOptions& options,
-                                   MakeNotAllowedError e) override;
+                                      MakeNotAllowedError e) override;
 
   ref<GitFileSystemObjectSink> get_file_system_object_sink() override;
 
@@ -1347,8 +1348,8 @@ ref<git_source_accessor_t> git_repo_impl_t::get_raw_accessor(const Hash& rev,
 }
 
 ref<source_accessor_t> git_repo_impl_t::get_accessor(const Hash& rev,
-                                                  const GitAccessorOptions& options,
-                                                  std::string display_prefix) {
+                                                     const GitAccessorOptions& options,
+                                                     std::string display_prefix) {
   auto self = ref<git_repo_impl_t>(shared_from_this());
   ref<git_source_accessor_t> raw_git_accessor = get_raw_accessor(rev, options);
   raw_git_accessor->set_path_display(std::move(display_prefix));
@@ -1359,8 +1360,8 @@ ref<source_accessor_t> git_repo_impl_t::get_accessor(const Hash& rev,
 }
 
 ref<source_accessor_t> git_repo_impl_t::get_accessor(const WorkdirInfo& wd,
-                                                  const GitAccessorOptions& options,
-                                                  MakeNotAllowedError make_not_allowed_error) {
+                                                     const GitAccessorOptions& options,
+                                                     MakeNotAllowedError make_not_allowed_error) {
   auto self = ref<git_repo_impl_t>(shared_from_this());
   ref<source_accessor_t> file_accessor =
       AllowListSourceAccessor::create(make_fs_source_accessor(path),

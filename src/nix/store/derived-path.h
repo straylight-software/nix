@@ -71,7 +71,8 @@ struct SingleDerivedPathBuilt {
    * @param xp_settings Stop-gap to avoid globals during unit tests.
    */
   static SingleDerivedPathBuilt
-  parse(const store_dir_config_t& store, ref<const SingleDerivedPath> drv_path, OutputNameView outputs,
+  parse(const store_dir_config_t& store, ref<const SingleDerivedPath> drv_path,
+        OutputNameView outputs,
         const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
 
   bool operator==(const SingleDerivedPathBuilt&) const noexcept;

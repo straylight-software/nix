@@ -49,9 +49,11 @@ public:
    *
    * The URL indicate which sort of fetcher, and provides information to that fetcher.
    */
-  static input_t fromURL(const settings_t& settings, const std::string& url, bool require_tree = true);
+  static input_t fromURL(const settings_t& settings, const std::string& url,
+                         bool require_tree = true);
 
-  static input_t fromURL(const settings_t& settings, const parsed_url_t& url, bool require_tree = true);
+  static input_t fromURL(const settings_t& settings, const parsed_url_t& url,
+                         bool require_tree = true);
 
   /**
    * Create an `input_t` from a an `Attrs`.
@@ -109,8 +111,8 @@ public:
    * Fetch the entire input into the Nix store, returning the
    * location in the Nix store and the locked input.
    */
-  std::tuple<store_path_t, ref<source_accessor_t>, input_t> fetch_to_store(const settings_t& settings,
-                                                                 store_t& store) const;
+  std::tuple<store_path_t, ref<source_accessor_t>, input_t>
+  fetch_to_store(const settings_t& settings, store_t& store) const;
 
   /**
    * Check the locking attributes in `result` against
@@ -130,16 +132,18 @@ public:
    * input without copying it to the store. Also return a possibly
    * unlocked input.
    */
-  std::pair<ref<source_accessor_t>, input_t> get_accessor(const settings_t& settings, store_t& store) const;
+  std::pair<ref<source_accessor_t>, input_t> get_accessor(const settings_t& settings,
+                                                          store_t& store) const;
 
 private:
   std::pair<ref<source_accessor_t>, input_t> getAccessorUnchecked(const settings_t& settings,
-                                                             store_t& store) const;
+                                                                  store_t& store) const;
 
 public:
   input_t applyOverrides(std::optional<std::string> ref, std::optional<Hash> rev) const;
 
-  void clone(const settings_t& settings, store_t& store, const std::filesystem::path& dest_dir) const;
+  void clone(const settings_t& settings, store_t& store,
+             const std::filesystem::path& dest_dir) const;
 
   std::optional<std::filesystem::path> get_source_path() const;
 
@@ -186,10 +190,10 @@ struct input_scheme_t {
   virtual ~input_scheme_t() {}
 
   virtual std::optional<input_t> inputFromURL(const settings_t& settings, const parsed_url_t& url,
-                                            bool require_tree) const = 0;
+                                              bool require_tree) const = 0;
 
   virtual std::optional<input_t> inputFromAttrs(const settings_t& settings,
-                                              const Attrs& attrs) const = 0;
+                                                const Attrs& attrs) const = 0;
 
   /**
    * What is the name of the scheme?
@@ -224,7 +228,7 @@ struct input_scheme_t {
   virtual parsed_url_t toURL(const input_t& input, bool abbreviate = false) const;
 
   virtual input_t applyOverrides(const input_t& input, std::optional<std::string> ref,
-                               std::optional<Hash> rev) const;
+                                 std::optional<Hash> rev) const;
 
   virtual void clone(const settings_t& settings, store_t& store, const input_t& input,
                      const std::filesystem::path& dest_dir) const;
@@ -234,8 +238,8 @@ struct input_scheme_t {
   virtual void putFile(const input_t& input, const canon_path_t& path, std::string_view contents,
                        std::optional<std::string> commit_msg) const;
 
-  virtual std::pair<ref<source_accessor_t>, input_t> get_accessor(const settings_t& settings, store_t& store,
-                                                            const input_t& input) const = 0;
+  virtual std::pair<ref<source_accessor_t>, input_t>
+  get_accessor(const settings_t& settings, store_t& store, const input_t& input) const = 0;
 
   /**
    * Is this `input_scheme_t` part of an experimental feature?

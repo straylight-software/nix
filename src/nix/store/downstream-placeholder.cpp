@@ -28,14 +28,13 @@ DownstreamPlaceholder::unknownDerivation(const DownstreamPlaceholder& placeholde
     return fmt("placeholder for unknown derivation output '%s'", output_name);
   });
   auto compressed = compress_hash(placeholder.hash, 20);
-  auto clearText = "nix-computed-output:" + compressed.to_string(hash_format_t::nix32, false) + ":" +
-                   std::string{output_name};
+  auto clearText = "nix-computed-output:" + compressed.to_string(hash_format_t::nix32, false) +
+                   ":" + std::string{output_name};
   return DownstreamPlaceholder{hash_string(hash_algorithm_t::SHA256, clearText)};
 }
 
-DownstreamPlaceholder
-DownstreamPlaceholder::fromSingleDerivedPathBuilt(const SingleDerivedPath::Built& b,
-                                                  const experimental_feature_settings_t& xp_settings) {
+DownstreamPlaceholder DownstreamPlaceholder::fromSingleDerivedPathBuilt(
+    const SingleDerivedPath::Built& b, const experimental_feature_settings_t& xp_settings) {
   return std::visit(overloaded{
                         [&](const SingleDerivedPath::opaque_t& o) {
                           return DownstreamPlaceholder::unknownCaOutput(o.path, b.output,

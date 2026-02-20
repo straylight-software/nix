@@ -16,17 +16,17 @@ xml_writer_t::~xml_writer_t() {
 void xml_writer_t::close() {
   if (closed) {
     return;
-}
+  }
   while (!pendingElems.empty()) {
     close_element();
-}
+  }
   closed = true;
 }
 
 void xml_writer_t::indent_(size_t depth) {
   if (!indent) {
     return;
-}
+  }
   output << std::string(depth * 2, ' ');
 }
 
@@ -38,7 +38,7 @@ void xml_writer_t::open_element(std::string_view name, const xml_attrs_t& attrs)
   output << ">";
   if (indent) {
     output << std::endl;
-}
+  }
   pendingElems.push_back(std::string(name));
 }
 
@@ -48,11 +48,11 @@ void xml_writer_t::close_element() {
   output << "</" << pendingElems.back() << ">";
   if (indent) {
     output << std::endl;
-}
+  }
   pendingElems.pop_back();
   if (pendingElems.empty()) {
     closed = true;
-}
+  }
 }
 
 void xml_writer_t::write_empty_element(std::string_view name, const xml_attrs_t& attrs) {
@@ -63,7 +63,7 @@ void xml_writer_t::write_empty_element(std::string_view name, const xml_attrs_t&
   output << " />";
   if (indent) {
     output << std::endl;
-}
+  }
 }
 
 void xml_writer_t::write_attrs(const xml_attrs_t& attrs) {
@@ -79,13 +79,13 @@ void xml_writer_t::write_attrs(const xml_attrs_t& attrs) {
         output << "&gt;";
       } else if (c == '&') {
         output << "&amp;";
-      /* Escape newlines to prevent attribute normalisation (see
-         XML spec, section 3.3.3. */
+        /* Escape newlines to prevent attribute normalisation (see
+           XML spec, section 3.3.3. */
       } else if (c == '\n') {
         output << "&#xA;";
       } else {
         output << c;
-}
+      }
     }
     output << "\"";
   }

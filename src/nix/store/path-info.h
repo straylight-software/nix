@@ -147,8 +147,9 @@ struct UnkeyedValidPathInfo {
    *               hashes and structured content addresses.
    */
   virtual nlohmann::json to_json(const store_dir_config_t* store, bool includeImpureInfo,
-                                PathInfoJsonFormat format) const;
-  static UnkeyedValidPathInfo from_json(const store_dir_config_t* store, const nlohmann::json& json);
+                                 PathInfoJsonFormat format) const;
+  static UnkeyedValidPathInfo from_json(const store_dir_config_t* store,
+                                        const nlohmann::json& json);
 };
 
 struct valid_path_info_t : virtual UnkeyedValidPathInfo {
@@ -209,7 +210,7 @@ struct valid_path_info_t : virtual UnkeyedValidPathInfo {
       : valid_path_info_t(store_path_t{path}, std::move(info)) {}
 
   static valid_path_info_t makeFromCA(const store_dir_config_t& store, std::string_view name,
-                                  ContentAddressWithReferences&& ca, Hash nar_hash);
+                                      ContentAddressWithReferences&& ca, Hash nar_hash);
 };
 
 static_assert(std::is_move_assignable_v<valid_path_info_t>);

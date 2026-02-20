@@ -38,7 +38,7 @@ void check_lib_archive(archive* archive, int err, const std::string& reason) {
     throw EndOfFile("reached end of archive");
   } else if (err != ARCHIVE_OK) {
     throw Error(reason, archive_error_string(archive));
-}
+  }
 }
 
 constexpr auto default_buffer_size = std::size_t{65536};
@@ -74,12 +74,14 @@ static void enable_supported_formats(struct archive* archive) {
   archive_read_support_format_empty(archive);
 }
 
-tar_archive_t::tar_archive_t(source_t& source, bool raw, std::optional<std::string> compression_method)
+tar_archive_t::tar_archive_t(source_t& source, bool raw,
+                             std::optional<std::string> compression_method)
     : archive{archive_read_new()}, source{&source}, buffer(default_buffer_size) {
   if (!compression_method) {
     archive_read_support_filter_all(archive);
   } else {
-    archive_read_support_filter_by_code(archive, get_archive_filter_code_by_name(*compression_method));
+    archive_read_support_filter_by_code(archive,
+                                        get_archive_filter_code_by_name(*compression_method));
   }
 
   if (!raw) {
@@ -110,7 +112,7 @@ void tar_archive_t::close() {
 tar_archive_t::~tar_archive_t() {
   if (this->archive) {
     archive_read_free(this->archive);
-}
+  }
 }
 
 static void extract_archive(tar_archive_t& archive, const std::filesystem::path& dest_dir) {
@@ -122,23 +124,23 @@ static void extract_archive(tar_archive_t& archive, const std::filesystem::path&
     int r = archive_read_next_header(archive.archive, &entry);
     if (r == ARCHIVE_EOF) {
       break;
-}
+    }
     auto name = archive_entry_pathname(entry);
     if (!name) {
       throw Error("cannot get archive member name: %s", archive_error_string(archive.archive));
-}
+    }
     if (r == ARCHIVE_WARN) {
       warn(archive_error_string(archive.archive));
     } else {
       archive.check(r);
-}
+    }
 
     archive_entry_copy_pathname(entry, (dest_dir / name).string().c_str());
 
     // sources can and do contain dirs with no rx bits
     if (archive_entry_filetype(entry) == AE_IFDIR && (archive_entry_mode(entry) & 0500) != 0500) {
       archive_entry_set_mode(entry, archive_entry_mode(entry) | 0500);
-}
+    }
 
     // Patch hardlink path
     const char* original_hardlink = archive_entry_hardlink(entry);
@@ -166,7 +168,8 @@ void unpack_tarfile(const std::filesystem::path& tar_file, const std::filesystem
   extract_archive(archive, dest_dir);
 }
 
-time_t unpack_tarfile_to_sink(tar_archive_t& archive, extended_file_system_object_sink_t& parse_sink) {
+time_t unpack_tarfile_to_sink(tar_archive_t& archive,
+                              extended_file_system_object_sink_t& parse_sink) {
   time_t last_modified = 0;
 
   /* Only allocate the buffer once. use the heap because 131 KiB is a bit too
@@ -179,17 +182,17 @@ time_t unpack_tarfile_to_sink(tar_archive_t& archive, extended_file_system_objec
     int r = archive_read_next_header(archive.archive, &entry);
     if (r == ARCHIVE_EOF) {
       break;
-}
+    }
     auto path = archive_entry_pathname(entry);
     if (!path) {
       throw Error("cannot get archive member name: %s", archive_error_string(archive.archive));
-}
+    }
     auto cpath = canon_path_t{path};
     if (r == ARCHIVE_WARN) {
       warn(archive_error_string(archive.archive));
     } else {
       archive.check(r);
-}
+    }
 
     last_modified = std::max(last_modified, archive_entry_mtime(entry));
 
@@ -207,16 +210,16 @@ time_t unpack_tarfile_to_sink(tar_archive_t& archive, extended_file_system_objec
         parse_sink.create_regular_file(cpath, [&](auto& crf) {
           if (archive_entry_mode(entry) & S_IXUSR) {
             crf.is_executable();
-}
+          }
 
           while (true) {
             auto n = archive_read_data(archive.archive, buf.data(), buf.size());
             if (n < 0) {
               check_lib_archive(archive.archive, n, "cannot read file from tarball: %s");
-}
+            }
             if (n == 0) {
               break;
-}
+            }
             crf(std::string_view{
                 (const char*)buf.data(),
                 (size_t)n,

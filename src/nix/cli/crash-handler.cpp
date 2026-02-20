@@ -33,8 +33,8 @@ void log_fatal(std::string const& s) {
 
 void on_terminate() {
   log_fatal("Determinate Nix crashed. This is a bug. Please report this at "
-           "https://github.com/DeterminateSystems/nix-src/issues with the following information "
-           "included:\n");
+            "https://github.com/DeterminateSystems/nix-src/issues with the following information "
+            "included:\n");
   try {
     std::exception_ptr eptr = std::current_exception();
     if (eptr) {

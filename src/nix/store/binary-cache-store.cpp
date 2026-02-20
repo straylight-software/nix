@@ -294,11 +294,11 @@ void binary_cache_store::add_to_store(const valid_path_info_t& info, source_t& n
 }
 
 store_path_t binary_cache_store::add_to_store_from_dump(source_t& dump, std::string_view name,
-                                                     file_serialisation_method_t dump_method,
-                                                     content_address_method_t hash_method,
-                                                     hash_algorithm_t hash_algo,
-                                                     const store_path_set_t& references,
-                                                     RepairFlag repair) {
+                                                        file_serialisation_method_t dump_method,
+                                                        content_address_method_t hash_method,
+                                                        hash_algorithm_t hash_algo,
+                                                        const store_path_set_t& references,
+                                                        RepairFlag repair) {
   std::optional<Hash> caHash;
   std::string nar;
 
@@ -368,7 +368,8 @@ bool binary_cache_store::isValidPathUncached(const store_path_t& store_path) {
   return file_exists(narInfoFileFor(store_path));
 }
 
-std::optional<store_path_t> binary_cache_store::queryPathFromHashPart(const std::string& hash_part) {
+std::optional<store_path_t>
+binary_cache_store::queryPathFromHashPart(const std::string& hash_part) {
   auto pseudoPath = store_path_t(hash_part + "-" + MissingName);
   try {
     auto info = queryPathInfo(pseudoPath);
@@ -407,7 +408,8 @@ void binary_cache_store::nar_from_path(const store_path_t& store_path, sink_t& s
 }
 
 void binary_cache_store::query_path_info_uncached(
-    const store_path_t& store_path, Callback<std::shared_ptr<const valid_path_info_t>> callback) noexcept {
+    const store_path_t& store_path,
+    Callback<std::shared_ptr<const valid_path_info_t>> callback) noexcept {
   auto uri = config.getReference().render(/*FIXME withParams=*/false);
   auto store_path_s = printStorePath(store_path);
   logger_t::fields_t fields;
@@ -442,9 +444,10 @@ void binary_cache_store::query_path_info_uncached(
 }
 
 store_path_t binary_cache_store::add_to_store(std::string_view name, const source_path_t& path,
-                                           content_address_method_t method, hash_algorithm_t hash_algo,
-                                           const store_path_set_t& references, path_filter_t& filter,
-                                           RepairFlag repair) {
+                                              content_address_method_t method,
+                                              hash_algorithm_t hash_algo,
+                                              const store_path_set_t& references,
+                                              path_filter_t& filter, RepairFlag repair) {
   /* FIXME: Make binary_cache_store::addToStoreCommon support
      non-recursive+sha256 so we can just use the default
      implementation of this method in terms of add_to_store_from_dump. */
@@ -522,7 +525,7 @@ ref<source_accessor_t> binary_cache_store::getFSAccessor(bool require_valid_path
 }
 
 std::shared_ptr<source_accessor_t> binary_cache_store::getFSAccessor(const store_path_t& store_path,
-                                                                  bool require_valid_path) {
+                                                                     bool require_valid_path) {
   return getRemoteFSAccessor(require_valid_path)->accessObject(store_path);
 }
 

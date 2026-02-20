@@ -40,7 +40,8 @@ std::optional<DerivedPathWithInfo>
 InstallableValue::trySinglePathToDerivedPaths(value_t& v, const pos_idx_t pos,
                                               std::string_view error_ctx) {
   if (v.type() == nPath) {
-    auto store_path = fetch_to_store(state->fetch_settings, *state->store, v.path(), FetchMode::Copy);
+    auto store_path =
+        fetch_to_store(state->fetch_settings, *state->store, v.path(), FetchMode::Copy);
     return {{
         .path =
             derived_path_t::opaque_t{

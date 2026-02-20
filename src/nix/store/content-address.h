@@ -114,7 +114,8 @@ struct content_address_method_t {
   /**
    * Parse a content addressing method and hash algorithm.
    */
-  static std::pair<content_address_method_t, hash_algorithm_t> parseWithAlgo(std::string_view rawCaMethod);
+  static std::pair<content_address_method_t, hash_algorithm_t>
+  parseWithAlgo(std::string_view rawCaMethod);
 
   /**
    * Render a content addressing method and hash algorithm in a

@@ -107,9 +107,7 @@ struct parse_result {
 
   std::variant<ok_t, incomplete_t, ambiguous_t> data;
 
-  [[nodiscard]] auto is_ok() const noexcept -> bool {
-    return std::holds_alternative<ok_t>(data);
-  }
+  [[nodiscard]] auto is_ok() const noexcept -> bool { return std::holds_alternative<ok_t>(data); }
   [[nodiscard]] auto is_incomplete() const noexcept -> bool {
     return std::holds_alternative<incomplete_t>(data);
   }
@@ -146,7 +144,7 @@ struct parse_result {
 //   | plain  : Mechanism
 //   | curve  : Mechanism
 enum class mechanism : std::uint8_t {
-  null_,  // underscore to avoid C++ keyword
+  null_, // underscore to avoid C++ keyword
   plain,
   curve,
 };
@@ -208,7 +206,8 @@ struct greeting {
   auto const sig0 = static_cast<std::uint8_t>(bytes[0]);
   auto const sig9 = static_cast<std::uint8_t>(bytes[9]);
 
-  // Lean: if sig0 != signatureByte0 || sig9 != signatureByte9 then .ambiguous (.invalidSignature sig0 sig9)
+  // Lean: if sig0 != signatureByte0 || sig9 != signatureByte9 then .ambiguous (.invalidSignature
+  // sig0 sig9)
   if (sig0 != signature_byte_0 || sig9 != signature_byte_9) {
     return parse_result<greeting>::ambiguous(ambiguity_reason::invalid_signature);
   }
@@ -432,8 +431,7 @@ struct command {
   else if (name == "PONG")
     type = command_type::pong;
 
-  return parse_result<command>::ok(command{type, std::move(name), std::move(data)},
-                                   body.size());
+  return parse_result<command>::ok(command{type, std::move(name), std::move(data)}, body.size());
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -480,8 +478,7 @@ struct zmtp_machine {
 
   [[nodiscard]] auto initial() const -> state_type { return zmtp_state{}; }
 
-  [[nodiscard]] auto step(state_type state, event const& ev) const
-      -> step_result<state_type> {
+  [[nodiscard]] auto step(state_type state, event const& ev) const -> step_result<state_type> {
     // Append received data to buffer
     if (!ev.data.empty()) {
       state.buffer.insert(state.buffer.end(), ev.data.begin(), ev.data.end());
@@ -490,93 +487,93 @@ struct zmtp_machine {
     std::vector<operation> ops;
 
     switch (state.phase) {
-    case conn_phase::await_greeting: {
-      auto result = parse_greeting(state.buffer);
+      case conn_phase::await_greeting: {
+        auto result = parse_greeting(state.buffer);
 
-      if (result.is_incomplete()) {
-        return {std::move(state), {}};
+        if (result.is_incomplete()) {
+          return {std::move(state), {}};
+        }
+
+        if (result.is_ambiguous()) {
+          state.phase = conn_phase::failed;
+          state.failure_reason = result.get_ambiguous().reason;
+          return {std::move(state), {}};
+        }
+
+        auto const& [greet, consumed] = result.get_ok();
+        state.peer_greeting = greet;
+        state.buffer.erase(state.buffer.begin(), state.buffer.begin() + consumed);
+        state.phase = conn_phase::await_handshake;
+
+        return {std::move(state), std::move(ops)};
       }
 
-      if (result.is_ambiguous()) {
-        state.phase = conn_phase::failed;
-        state.failure_reason = result.get_ambiguous().reason;
-        return {std::move(state), {}};
-      }
+      case conn_phase::await_handshake: {
+        auto result = parse_frame(state.buffer);
 
-      auto const& [greet, consumed] = result.get_ok();
-      state.peer_greeting = greet;
-      state.buffer.erase(state.buffer.begin(), state.buffer.begin() + consumed);
-      state.phase = conn_phase::await_handshake;
+        if (result.is_incomplete()) {
+          return {std::move(state), {}};
+        }
 
-      return {std::move(state), std::move(ops)};
-    }
+        if (result.is_ambiguous()) {
+          state.phase = conn_phase::failed;
+          state.failure_reason = result.get_ambiguous().reason;
+          return {std::move(state), {}};
+        }
 
-    case conn_phase::await_handshake: {
-      auto result = parse_frame(state.buffer);
+        auto const& [frm, consumed] = result.get_ok();
 
-      if (result.is_incomplete()) {
-        return {std::move(state), {}};
-      }
-
-      if (result.is_ambiguous()) {
-        state.phase = conn_phase::failed;
-        state.failure_reason = result.get_ambiguous().reason;
-        return {std::move(state), {}};
-      }
-
-      auto const& [frm, consumed] = result.get_ok();
-
-      if (!frm.header.is_command) {
-        state.phase = conn_phase::failed;
-        state.failure_reason = ambiguity_reason::unexpected_command;
-        return {std::move(state), {}};
-      }
-
-      auto cmd_result = parse_command(frm.body);
-
-      if (cmd_result.is_ambiguous()) {
-        state.phase = conn_phase::failed;
-        state.failure_reason = cmd_result.get_ambiguous().reason;
-        return {std::move(state), {}};
-      }
-
-      if (cmd_result.is_ok()) {
-        auto const& cmd = cmd_result.get_ok().value;
-        if (cmd.type == command_type::ready) {
-          state.buffer.erase(state.buffer.begin(), state.buffer.begin() + consumed);
-          state.phase = conn_phase::ready;
-          return {std::move(state), std::move(ops)};
-        } else {
+        if (!frm.header.is_command) {
           state.phase = conn_phase::failed;
           state.failure_reason = ambiguity_reason::unexpected_command;
           return {std::move(state), {}};
         }
-      }
 
-      return {std::move(state), {}};
-    }
+        auto cmd_result = parse_command(frm.body);
 
-    case conn_phase::ready: {
-      auto result = parse_frame(state.buffer);
+        if (cmd_result.is_ambiguous()) {
+          state.phase = conn_phase::failed;
+          state.failure_reason = cmd_result.get_ambiguous().reason;
+          return {std::move(state), {}};
+        }
 
-      if (result.is_incomplete()) {
+        if (cmd_result.is_ok()) {
+          auto const& cmd = cmd_result.get_ok().value;
+          if (cmd.type == command_type::ready) {
+            state.buffer.erase(state.buffer.begin(), state.buffer.begin() + consumed);
+            state.phase = conn_phase::ready;
+            return {std::move(state), std::move(ops)};
+          } else {
+            state.phase = conn_phase::failed;
+            state.failure_reason = ambiguity_reason::unexpected_command;
+            return {std::move(state), {}};
+          }
+        }
+
         return {std::move(state), {}};
       }
 
-      if (result.is_ambiguous()) {
-        state.phase = conn_phase::failed;
-        state.failure_reason = result.get_ambiguous().reason;
-        return {std::move(state), {}};
+      case conn_phase::ready: {
+        auto result = parse_frame(state.buffer);
+
+        if (result.is_incomplete()) {
+          return {std::move(state), {}};
+        }
+
+        if (result.is_ambiguous()) {
+          state.phase = conn_phase::failed;
+          state.failure_reason = result.get_ambiguous().reason;
+          return {std::move(state), {}};
+        }
+
+        auto const& [frm, consumed] = result.get_ok();
+        state.buffer.erase(state.buffer.begin(), state.buffer.begin() + consumed);
+
+        return {std::move(state), std::move(ops)};
       }
 
-      auto const& [frm, consumed] = result.get_ok();
-      state.buffer.erase(state.buffer.begin(), state.buffer.begin() + consumed);
-
-      return {std::move(state), std::move(ops)};
-    }
-
-    case conn_phase::failed:
-      return {std::move(state), {}};
+      case conn_phase::failed:
+        return {std::move(state), {}};
     }
 
     return {std::move(state), {}};
@@ -590,4 +587,3 @@ static_assert(machine<zmtp_machine>);
 
 
 } // namespace evring::zmtp
-

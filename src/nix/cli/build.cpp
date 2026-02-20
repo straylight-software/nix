@@ -81,8 +81,9 @@ static nlohmann::json derived_paths_to_json(const DerivedPaths& paths, store_t& 
   return res;
 }
 
-static nlohmann::json built_paths_with_result_to_json(const std::vector<BuiltPathWithResult>& buildables,
-                                                 const store_t& store) {
+static nlohmann::json
+built_paths_with_result_to_json(const std::vector<BuiltPathWithResult>& buildables,
+                                const store_t& store) {
   auto res = nlohmann::json::array();
   for (auto& b : buildables) {
     auto j = b.path.to_json(store);
@@ -155,16 +156,17 @@ struct cmd_build_t : InstallablesCommand, MixOutLinkByDefault, MixDryRun, MixJSO
     if (print_output_paths) {
       logger->stop();
       for (auto& buildable : buildables) {
-        std::visit(
-            overloaded{
-                [&](const BuiltPath::opaque_t& bo) { logger->cout(store->printStorePath(bo.path)); },
-                [&](const BuiltPath::Built& bfd) {
-                  for (auto& output : bfd.outputs) {
-                    logger->cout(store->printStorePath(output.second));
-                  }
-                },
-            },
-            buildable.path.raw());
+        std::visit(overloaded{
+                       [&](const BuiltPath::opaque_t& bo) {
+                         logger->cout(store->printStorePath(bo.path));
+                       },
+                       [&](const BuiltPath::Built& bfd) {
+                         for (auto& output : bfd.outputs) {
+                           logger->cout(store->printStorePath(output.second));
+                         }
+                       },
+                   },
+                   buildable.path.raw());
       }
     }
 

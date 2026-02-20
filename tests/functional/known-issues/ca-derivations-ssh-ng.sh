@@ -75,25 +75,25 @@ TEST_DRV=$(nix eval --impure --raw --expr '
   in drv.drvPath
 ' 2>&1) || true
 
-if [[ -n "$TEST_DRV" ]] && [[ "$TEST_DRV" == /nix/store/* ]]; then
-    echo "CA derivation created: $TEST_DRV"
+if [[ -n $TEST_DRV ]] && [[ $TEST_DRV == /nix/store/* ]]; then
+  echo "CA derivation created: $TEST_DRV"
 
-    # Try to build it
-    if nix build --no-link "$TEST_DRV^*" 2>&1; then
-        echo "Local CA build succeeded"
+  # Try to build it
+  if nix build --no-link "$TEST_DRV^*" 2>&1; then
+    echo "Local CA build succeeded"
 
-        # Check if log is available
-        if nix log "$TEST_DRV" 2>&1 | head -5; then
-            echo "Log is available locally"
-        else
-            echo "Log not available (may be expected for FOD)"
-        fi
+    # Check if log is available
+    if nix log "$TEST_DRV" 2>&1 | head -5; then
+      echo "Log is available locally"
     else
-        echo "Local CA build failed (expected in some environments)"
+      echo "Log not available (may be expected for FOD)"
     fi
+  else
+    echo "Local CA build failed (expected in some environments)"
+  fi
 else
-    echo "Could not create CA derivation (expected in some environments)"
-    echo "Result: $TEST_DRV"
+  echo "Could not create CA derivation (expected in some environments)"
+  echo "Result: $TEST_DRV"
 fi
 
 echo ""

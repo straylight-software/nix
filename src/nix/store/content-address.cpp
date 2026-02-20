@@ -43,7 +43,8 @@ std::string_view content_address_method_t::render() const {
  * this when the latter is ruled out (e.g. because it is already
  * handled).
  */
-static content_address_method_t file_ingestion_method_to_content_address_method(file_ingestion_method_t m) {
+static content_address_method_t
+file_ingestion_method_to_content_address_method(file_ingestion_method_t m) {
   switch (m) {
     case file_ingestion_method_t::flat:
       return content_address_method_t::raw_t::flat;
@@ -242,9 +243,9 @@ ContentAddressWithReferences::withoutRefs(const content_address_t& ca) noexcept 
   }
 }
 
-ContentAddressWithReferences ContentAddressWithReferences::fromParts(content_address_method_t method,
-                                                                     Hash hash,
-                                                                     store_references_t refs) {
+ContentAddressWithReferences
+ContentAddressWithReferences::fromParts(content_address_method_t method, Hash hash,
+                                        store_references_t refs) {
   switch (method.raw) {
     case content_address_method_t::raw_t::Text:
       if (refs.self)
@@ -296,7 +297,8 @@ content_address_method_t adl_serializer<content_address_method_t>::from_json(con
   return content_address_method_t::parse(get_string(json));
 }
 
-void adl_serializer<content_address_method_t>::to_json(json& json, const content_address_method_t& m) {
+void adl_serializer<content_address_method_t>::to_json(json& json,
+                                                       const content_address_method_t& m) {
   json = m.render();
 }
 

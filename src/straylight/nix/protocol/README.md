@@ -5,6 +5,7 @@ Formal specifications and parsers for Nix daemon protocol and NAR format.
 ## Overview
 
 This module contains:
+
 - **Kaitai Struct** specifications (`.ksy`) for Nix protocols
 - Generated parsers in multiple languages (C++, Rust, Haskell, Python)
 - Protocol capture files for testing and documentation
@@ -20,6 +21,7 @@ nix_daemon.ksy → nix_daemon_protocol.{h,cpp,rs,py}
 ```
 
 Wire format:
+
 - Integers: little-endian u64
 - Strings: u64 length + bytes + padding to 8-byte boundary
 - Booleans: u64 (0 = false, nonzero = true)

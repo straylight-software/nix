@@ -9,7 +9,7 @@ namespace nix::fetchers {
 
 struct path_input_scheme_t : input_scheme_t {
   std::optional<input_t> inputFromURL(const settings_t& settings, const parsed_url_t& url,
-                                    bool require_tree) const override {
+                                      bool require_tree) const override {
     if (url.scheme() != "path")
       return {};
 
@@ -73,7 +73,7 @@ struct path_input_scheme_t : input_scheme_t {
   }
 
   std::optional<input_t> inputFromAttrs(const settings_t& settings,
-                                      const Attrs& attrs) const override {
+                                        const Attrs& attrs) const override {
     get_str_attr(attrs, "path");
 
     input_t input{};
@@ -123,8 +123,8 @@ struct path_input_scheme_t : input_scheme_t {
     throw Error("cannot fetch input '%s' because it uses a relative path", input.to_string());
   }
 
-  std::pair<ref<source_accessor_t>, input_t> get_accessor(const settings_t& settings, store_t& store,
-                                                     const input_t& _input) const override {
+  std::pair<ref<source_accessor_t>, input_t>
+  get_accessor(const settings_t& settings, store_t& store, const input_t& _input) const override {
     input_t input(_input);
 
     auto abs_path = get_abs_path(input);

@@ -8,7 +8,7 @@
 namespace nix {
 
 void store_t::build_paths(const std::vector<derived_path_t>& reqs, BuildMode build_mode,
-                       std::shared_ptr<store_t> eval_store) {
+                          std::shared_ptr<store_t> eval_store) {
   Worker worker(*this, eval_store ? *eval_store : *this);
 
   Goals goals;
@@ -45,9 +45,9 @@ void store_t::build_paths(const std::vector<derived_path_t>& reqs, BuildMode bui
   }
 }
 
-std::vector<keyed_build_result_t> store_t::build_paths_with_results(const std::vector<derived_path_t>& reqs,
-                                                           BuildMode build_mode,
-                                                           std::shared_ptr<store_t> eval_store) {
+std::vector<keyed_build_result_t>
+store_t::build_paths_with_results(const std::vector<derived_path_t>& reqs, BuildMode build_mode,
+                                  std::shared_ptr<store_t> eval_store) {
   Worker worker(*this, eval_store ? *eval_store : *this);
 
   Goals goals;
@@ -74,7 +74,7 @@ std::vector<keyed_build_result_t> store_t::build_paths_with_results(const std::v
 }
 
 build_result_t store_t::buildDerivation(const store_path_t& drv_path, const basic_derivation_t& drv,
-                                   BuildMode build_mode) {
+                                        BuildMode build_mode) {
   Worker worker(*this, *this);
   auto goal = worker.makeDerivationTrampolineGoal(drv_path, OutputsSpec::All{}, drv, build_mode);
 

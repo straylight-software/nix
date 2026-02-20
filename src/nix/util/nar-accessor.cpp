@@ -234,7 +234,7 @@ ref<source_accessor_t> make_nar_accessor(source_t& source) {
 }
 
 ref<source_accessor_t> make_lazy_nar_accessor(const nlohmann::json& listing,
-                                           get_nar_bytes_t get_nar_bytes) {
+                                              get_nar_bytes_t get_nar_bytes) {
   return make_ref<nar_accessor_t>(listing, get_nar_bytes);
 }
 
@@ -274,7 +274,8 @@ template <bool deep>
 using list_nar_result_t = std::conditional_t<deep, nar_listing_t, shallow_nar_listing_t>;
 
 template <bool deep>
-static list_nar_result_t<deep> list_nar_impl(source_accessor_t& accessor, const canon_path_t& path) {
+static list_nar_result_t<deep> list_nar_impl(source_accessor_t& accessor,
+                                             const canon_path_t& path) {
   auto st = accessor.lstat(path);
 
   switch (st.type) {

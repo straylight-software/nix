@@ -326,7 +326,8 @@ std::unique_ptr<finish_sink_t> source_to_sink(std::function<void(source_t&)> fun
   return std::make_unique<source_to_sink_t>(fun);
 }
 
-std::unique_ptr<source_t> sink_to_source(std::function<void(sink_t&)> fun, std::function<void()> eof) {
+std::unique_ptr<source_t> sink_to_source(std::function<void(sink_t&)> fun,
+                                         std::function<void()> eof) {
   struct sink_to_source_t : source_t {
     typedef boost::coroutines2::coroutine<std::string_view> coro_t;
 

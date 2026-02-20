@@ -191,7 +191,7 @@ struct ExternalBuilder {
 #ifndef _WIN32 // TODO enable `DerivationBuilder` on Windows
 std::unique_ptr<DerivationBuilder>
 make_derivation_builder(LocalStore& store, std::unique_ptr<DerivationBuilderCallbacks> misc_methods,
-                      DerivationBuilderParams params);
+                        DerivationBuilderParams params);
 
 /**
  * @param handler Must be chosen such that it supports the given
@@ -199,8 +199,8 @@ make_derivation_builder(LocalStore& store, std::unique_ptr<DerivationBuilderCall
  */
 std::unique_ptr<DerivationBuilder>
 make_external_derivation_builder(LocalStore& store,
-                              std::unique_ptr<DerivationBuilderCallbacks> misc_methods,
-                              DerivationBuilderParams params, const ExternalBuilder& handler);
+                                 std::unique_ptr<DerivationBuilderCallbacks> misc_methods,
+                                 DerivationBuilderParams params, const ExternalBuilder& handler);
 #endif
 
 } // namespace nix

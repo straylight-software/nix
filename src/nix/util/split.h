@@ -15,7 +15,7 @@ namespace nix {
  * string alone.
  */
 static inline std::optional<std::string_view> split_prefix_to(std::string_view& string,
-                                                            char separator) {
+                                                              char separator) {
   auto sep_instance = string.find(separator);
 
   if (sep_instance != std::string_view::npos) {

@@ -39,11 +39,11 @@ std::pair<std::string_view, string_set_t> parse_path_with_outputs(std::string_vi
  * and the outputs.
  */
 StorePathWithOutputs parse_path_with_outputs(const store_dir_config_t& store,
-                                          std::string_view path_with_outputs);
+                                             std::string_view path_with_outputs);
 
 class store_t;
 
 StorePathWithOutputs follow_links_to_store_path_with_outputs(const store_t& store,
-                                                       std::string_view path_with_outputs);
+                                                             std::string_view path_with_outputs);
 
 } // namespace nix

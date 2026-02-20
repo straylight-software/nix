@@ -71,9 +71,9 @@ using sink_hook_t = void(const canon_path_t& name, tree_entry entry);
  *
  * @throws if prefix not recognized
  */
-object_type_t
-parse_object_type(source_t& source,
-                const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
+object_type_t parse_object_type(
+    source_t& source,
+    const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
 
 /**
  * These 3 modes are represented by blob objects.
@@ -88,15 +88,15 @@ enum struct blob_mode_t : raw_mode_t {
 };
 
 void parse_blob(file_system_object_sink_t& sink, const canon_path_t& sink_path, source_t& source,
-               blob_mode_t blob_mode,
-               const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
+                blob_mode_t blob_mode,
+                const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
 
 /**
  * @param hash_algo must be `HashAlgo::SHA1` or `HashAlgo::SHA256` for now.
  */
 void parse_tree(file_system_object_sink_t& sink, const canon_path_t& sink_path, source_t& source,
-               hash_algorithm_t hash_algo, std::function<sink_hook_t> hook,
-               const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
+                hash_algorithm_t hash_algo, std::function<sink_hook_t> hook,
+                const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
 
 /**
  * Helper putting the previous three `parse*` functions together.
@@ -108,7 +108,8 @@ void parse_tree(file_system_object_sink_t& sink, const canon_path_t& sink_path, 
  * @param hash_algo must be `HashAlgo::SHA1` or `HashAlgo::SHA256` for now.
  */
 void parse(file_system_object_sink_t& sink, const canon_path_t& sink_path, source_t& source,
-           blob_mode_t root_mode_if_blob, hash_algorithm_t hash_algo, std::function<sink_hook_t> hook,
+           blob_mode_t root_mode_if_blob, hash_algorithm_t hash_algo,
+           std::function<sink_hook_t> hook,
            const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
 
 /**
@@ -137,14 +138,15 @@ void restore(file_system_object_sink_t& sink, source_t& source, hash_algorithm_t
  *
  * @param xp_settings for testing purposes
  */
-void dump_blob_prefix(uint64_t size, sink_t& sink,
-                    const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
+void dump_blob_prefix(
+    uint64_t size, sink_t& sink,
+    const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
 
 /**
  * Dumps a representation of a git tree to a sink
  */
 void dump_tree(const tree_t& entries, sink_t& sink,
-              const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
+               const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
 
 /**
  * Callback for processing a child with `dump`
@@ -167,7 +169,7 @@ Mode dump(const source_path_t& path, sink_t& sink, std::function<dump_hook_t> ho
  * A smaller wrapper around `dump`.
  */
 tree_entry dump_hash(hash_algorithm_t ha, const source_path_t& path,
-                   path_filter_t& filter = default_path_filter);
+                     path_filter_t& filter = default_path_filter);
 
 /**
  * A line from the output of `git ls-remote --symref`.

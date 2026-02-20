@@ -45,10 +45,10 @@ struct StructuredAttrs {
    */
   static void checkKeyNotInUse(const string_pairs_t& env);
 
-  nlohmann::json::object_t prepareStructuredAttrs(store_t& store,
-                                                  const derivation_options_t<store_path_t>& drv_options,
-                                                  const store_path_set_t& inputPaths,
-                                                  const DerivationOutputs& outputs) const;
+  nlohmann::json::object_t
+  prepareStructuredAttrs(store_t& store, const derivation_options_t<store_path_t>& drv_options,
+                         const store_path_set_t& inputPaths,
+                         const DerivationOutputs& outputs) const;
 
   /**
    * As a convenience to bash scripts, write a shell file that

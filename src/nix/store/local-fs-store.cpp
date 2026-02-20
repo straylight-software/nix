@@ -29,8 +29,8 @@ LocalFSStoreConfig::LocalFSStoreConfig(path_view_t root_dir, const Params& param
        */
       ,
       root_dir{makeRootDirSetting(*this, !root_dir.empty() && params.count("root") == 0
-                                            ? std::optional<Path>{canon_path(root_dir)}
-                                            : std::nullopt)} {}
+                                             ? std::optional<Path>{canon_path(root_dir)}
+                                             : std::nullopt)} {}
 
 local_fs_store::local_fs_store(const config_t& config)
     : store_t{static_cast<const store_t::config_t&>(*this)}, config{config} {}
@@ -66,7 +66,7 @@ struct local_store_accessor_t : posix_source_accessor_t {
   }
 
   void read_file(const canon_path_t& path, sink_t& sink,
-                std::function<void(uint64_t)> size_callback) override {
+                 std::function<void(uint64_t)> size_callback) override {
     requireStoreObject(path);
     return posix_source_accessor_t::read_file(path, sink, size_callback);
   }
@@ -84,7 +84,7 @@ ref<source_accessor_t> local_fs_store::getFSAccessor(bool require_valid_path) {
 }
 
 std::shared_ptr<source_accessor_t> local_fs_store::getFSAccessor(const store_path_t& path,
-                                                            bool require_valid_path) {
+                                                                 bool require_valid_path) {
   auto abs_path = std::filesystem::path{config.real_store_dir.get()} / path.to_string();
   if (require_valid_path) {
     /* Only return non-null if the store object is a fully-valid

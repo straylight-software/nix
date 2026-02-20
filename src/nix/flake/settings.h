@@ -33,14 +33,14 @@ struct settings_t : public config_t {
       true};
 
   setting_t<std::string> commitLockFileSummary{this,
-                                             "",
-                                             "commit-lock-file-summary",
-                                             R"(
+                                               "",
+                                               "commit-lock-file-summary",
+                                               R"(
           The commit summary to use when committing changed flake lock files. If
           empty, the summary is generated based on the action performed.
         )",
-                                             {"commit-lockfile-summary"},
-                                             true};
+                                               {"commit-lockfile-summary"},
+                                               true};
 };
 
 } // namespace nix::flake

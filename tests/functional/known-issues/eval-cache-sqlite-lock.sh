@@ -76,18 +76,18 @@ ERRORS=0
 
 # Start 5 concurrent searches
 for i in {1..5}; do
-    (
-        # Each process searches the flake, triggering cache reads/writes
-        nix search "$flakeDir" "pkg-" 2>&1
-    ) &
-    PIDS+=($!)
+  (
+    # Each process searches the flake, triggering cache reads/writes
+    nix search "$flakeDir" "pkg-" 2>&1
+  ) &
+  PIDS+=($!)
 done
 
 # Wait for all processes and check for errors
 for pid in "${PIDS[@]}"; do
-    if ! wait "$pid"; then
-        ERRORS=$((ERRORS + 1))
-    fi
+  if ! wait "$pid"; then
+    ERRORS=$((ERRORS + 1))
+  fi
 done
 
 echo ""
@@ -98,12 +98,12 @@ echo "Processes with errors: $ERRORS / ${#PIDS[@]}"
 # or take excessively long. When fixed, all should complete quickly.
 
 if [[ $ERRORS -gt 0 ]]; then
-    echo "KNOWN ISSUE REVEALED: Some processes failed due to lock contention"
-    echo "See GitHub issues #3794, #6847"
-    exit 0 # Expected broken behavior
+  echo "KNOWN ISSUE REVEALED: Some processes failed due to lock contention"
+  echo "See GitHub issues #3794, #6847"
+  exit 0 # Expected broken behavior
 else
-    echo "All processes completed successfully"
-    echo "NOTE: Lock contention may still exist but didn't cause failures"
-    echo "To fully test, run with higher concurrency or slower storage"
-    exit 0 # Test passes either way - we're documenting the issue
+  echo "All processes completed successfully"
+  echo "NOTE: Lock contention may still exist but didn't cause failures"
+  echo "To fully test, run with higher concurrency or slower storage"
+  exit 0 # Test passes either way - we're documenting the issue
 fi

@@ -53,11 +53,13 @@ struct UDSRemoteStore : virtual IndirectRootStore, virtual remote_store {
   }
 
   std::shared_ptr<source_accessor_t> getFSAccessor(const store_path_t& path,
-                                                bool require_valid_path = true) override {
+                                                   bool require_valid_path = true) override {
     return local_fs_store::getFSAccessor(path, require_valid_path);
   }
 
-  void nar_from_path(const store_path_t& path, sink_t& sink) override { store_t::nar_from_path(path, sink); }
+  void nar_from_path(const store_path_t& path, sink_t& sink) override {
+    store_t::nar_from_path(path, sink);
+  }
 
   /**
    * Implementation of `IndirectRootStore::addIndirectRoot()` which

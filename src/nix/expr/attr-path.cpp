@@ -46,8 +46,9 @@ std::vector<SymbolStr> AttrPath::resolve(eval_state_t& state) const {
   return state.symbols.resolve({*this});
 }
 
-std::pair<value_t*, pos_idx_t> find_along_attr_path(eval_state_t& state, const std::string& attr_path,
-                                            bindings_t& auto_args, value_t& v_in) {
+std::pair<value_t*, pos_idx_t> find_along_attr_path(eval_state_t& state,
+                                                    const std::string& attr_path,
+                                                    bindings_t& auto_args, value_t& v_in) {
   strings_t tokens = parse_attr_path(attr_path);
 
   value_t* v = &v_in;
@@ -109,7 +110,8 @@ std::pair<value_t*, pos_idx_t> find_along_attr_path(eval_state_t& state, const s
   return {v, pos};
 }
 
-std::pair<source_path_t, uint32_t> find_package_filename(eval_state_t& state, value_t& v, std::string what) {
+std::pair<source_path_t, uint32_t> find_package_filename(eval_state_t& state, value_t& v,
+                                                         std::string what) {
   value_t* v2;
   try {
     auto& dummy_args = bindings_t::emptyBindings;

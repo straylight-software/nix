@@ -80,7 +80,7 @@ struct RecordingSink : file_system_object_sink_t {
   }
 
   void create_regular_file(const canon_path_t& path,
-                         std::function<void(create_regular_file_sink_t&)> write_fn) override {
+                           std::function<void(create_regular_file_sink_t&)> write_fn) override {
     struct ContentCaptureSink : create_regular_file_sink_t {
       std::string contents;
       bool is_exec_ = false;

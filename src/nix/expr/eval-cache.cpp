@@ -78,8 +78,8 @@ struct attr_db_t {
         "insert or replace into Attributes(parent, name, type, value) values (?, ?, ?, ?)");
 
     state->insert_attribute_with_context.create(state->db,
-                                             "insert or replace into Attributes(parent, name, "
-                                             "type, value, context) values (?, ?, ?, ?, ?)");
+                                                "insert or replace into Attributes(parent, name, "
+                                                "type, value, context) values (?, ?, ?, ?, ?)");
 
     state->query_attribute.create(
         state->db,
@@ -125,14 +125,15 @@ struct attr_db_t {
       assert(row_id);
 
       for (auto& attr : attrs)
-        state->insert_attribute.use()(row_id)(symbols[attr])(AttrType::Placeholder)(0, false).exec();
+        state->insert_attribute.use()(row_id)(symbols[attr])(AttrType::Placeholder)(0, false)
+            .exec();
 
       return row_id;
     });
   }
 
   AttrId set_string(AttrKey key, std::string_view s,
-                   const value_t::StringWithContext::Context* context = nullptr) {
+                    const value_t::StringWithContext::Context* context = nullptr) {
     return do_sq_lite([&]() {
       auto state(_state->lock());
 
@@ -216,7 +217,8 @@ struct attr_db_t {
     return do_sq_lite([&]() {
       auto state(_state->lock());
 
-      state->insert_attribute.use()(key.first)(symbols[key.second])(AttrType::Misc)(0, false).exec();
+      state->insert_attribute.use()(key.first)(symbols[key.second])(AttrType::Misc)(0, false)
+          .exec();
 
       return state->db.getLastInsertedRowId();
     });
@@ -266,7 +268,8 @@ struct attr_db_t {
       case AttrType::Int:
         return {{row_id, int_t{NixInt{query_attribute.getInt(2)}}}};
       case AttrType::ListOfStrings:
-        return {{row_id, tokenize_string<std::vector<std::string>>(query_attribute.getStr(2), "\t")}};
+        return {
+            {row_id, tokenize_string<std::vector<std::string>>(query_attribute.getStr(2), "\t")}};
       case AttrType::Missing:
         return {{row_id, missing_t()}};
       case AttrType::Misc:
@@ -279,8 +282,8 @@ struct attr_db_t {
   }
 };
 
-static std::shared_ptr<attr_db_t> make_attr_db(const store_dir_config_t& cfg, const Hash& fingerprint,
-                                          symbol_table_t& symbols) {
+static std::shared_ptr<attr_db_t> make_attr_db(const store_dir_config_t& cfg,
+                                               const Hash& fingerprint, symbol_table_t& symbols) {
   try {
     return std::make_shared<attr_db_t>(cfg, fingerprint, symbols);
   } catch (SQLiteError&) {
@@ -289,8 +292,8 @@ static std::shared_ptr<attr_db_t> make_attr_db(const store_dir_config_t& cfg, co
   }
 }
 
-EvalCache::EvalCache(std::optional<std::reference_wrapper<const Hash>> useCache, eval_state_t& state,
-                     RootLoader root_loader)
+EvalCache::EvalCache(std::optional<std::reference_wrapper<const Hash>> useCache,
+                     eval_state_t& state, RootLoader root_loader)
     : db(useCache ? make_attr_db(*state.store, *useCache, state.symbols) : nullptr),
       state(state),
       root_loader(root_loader) {}
@@ -526,20 +529,22 @@ string_t AttrCursor::getStringWithContext() {
       if (auto s = std::get_if<string_t>(&cachedValue->second)) {
         bool valid = true;
         for (auto& c : s->second) {
-          const store_path_t* path = std::visit(
-              overloaded{
-                  [&](const NixStringContextElem::DrvDeep& d) -> const store_path_t* {
-                    return &d.drv_path;
-                  },
-                  [&](const NixStringContextElem::Built& b) -> const store_path_t* {
-                    return &b.drv_path->getBaseStorePath();
-                  },
-                  [&](const NixStringContextElem::opaque_t& o) -> const store_path_t* {
-                    return &o.path;
-                  },
-                  [&](const NixStringContextElem::Path& p) -> const store_path_t* { return nullptr; },
-              },
-              c.raw);
+          const store_path_t* path =
+              std::visit(overloaded{
+                             [&](const NixStringContextElem::DrvDeep& d) -> const store_path_t* {
+                               return &d.drv_path;
+                             },
+                             [&](const NixStringContextElem::Built& b) -> const store_path_t* {
+                               return &b.drv_path->getBaseStorePath();
+                             },
+                             [&](const NixStringContextElem::opaque_t& o) -> const store_path_t* {
+                               return &o.path;
+                             },
+                             [&](const NixStringContextElem::Path& p) -> const store_path_t* {
+                               return nullptr;
+                             },
+                         },
+                         c.raw);
           if (!path || !root->state.store->isValidPath(*path)) {
             valid = false;
             break;

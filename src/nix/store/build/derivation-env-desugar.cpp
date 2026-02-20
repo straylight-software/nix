@@ -36,11 +36,9 @@ DesugaredEnv DesugaredEnv::create(store_t& store, const derivation_t& drv,
                                                     .value = envValue,
                                                 });
       } else {
-        res.atFileEnvPair(
-            envName + "Path",
-            ".attr-" +
-                hash_string(hash_algorithm_t::SHA256, envName).to_string(hash_format_t::nix32, false)) =
-            envValue;
+        res.atFileEnvPair(envName + "Path",
+                          ".attr-" + hash_string(hash_algorithm_t::SHA256, envName)
+                                         .to_string(hash_format_t::nix32, false)) = envValue;
       }
     }
 
@@ -49,7 +47,7 @@ DesugaredEnv DesugaredEnv::create(store_t& store, const derivation_t& drv,
       /* Write closure info to <file_name>. */
       res.extraFiles.insert_or_assign(
           file_name, store.makeValidityRegistration(store.exportReferences(store_paths, inputPaths),
-                                                   false, false));
+                                                    false, false));
     }
   }
 

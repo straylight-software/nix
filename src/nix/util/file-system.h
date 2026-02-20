@@ -189,8 +189,8 @@ static inline void write_file(const std::filesystem::path& path, std::string_vie
 void write_file(const Path& path, source_t& source, mode_t mode = 0666,
                 fs_sync_t sync = fs_sync_t::no);
 
-static inline void write_file(const std::filesystem::path& path, source_t& source, mode_t mode = 0666,
-                              fs_sync_t sync = fs_sync_t::no) {
+static inline void write_file(const std::filesystem::path& path, source_t& source,
+                              mode_t mode = 0666, fs_sync_t sync = fs_sync_t::no) {
   return write_file(path.string(), source, mode, sync);
 }
 

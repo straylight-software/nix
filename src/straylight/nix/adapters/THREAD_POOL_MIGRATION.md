@@ -1,7 +1,7 @@
 # Migration Guide: Nix ThreadPool to straylight::nix::primitives::async
 
-This document describes how to migrate Nix code from the legacy `nix::ThreadPool`
-and `nix::processGraph` to the new `straylight::nix::primitives::async` primitives.
+This document describes how to migrate Nix code from the legacy `nix::ThreadPool` and
+`nix::processGraph` to the new `straylight::nix::primitives::async` primitives.
 
 ## Overview
 
@@ -51,51 +51,53 @@ pool.process();
 processGraph<StorePath>(nodes, getEdges, processNode, discoverNodes, maxThreads);
 ```
 
----
+______________________________________________________________________
 
 ## API Mapping
 
 ### ThreadPool Methods
 
-| nix::ThreadPool          | straylight Executor       | Adapter                   |
-|--------------------------|---------------------------|---------------------------|
-| `ThreadPool(n)`          | `Executor(n)`             | `ThreadPool(n)`           |
-| `enqueue(work)`          | `silent_async(work)`      | `enqueue(work)`           |
-| `process()`              | `wait_for_all()`          | `process()`               |
-| `shutdown()`             | destructor handles it     | `shutdown()`              |
-| `ThreadPoolShutDown`     | N/A (throws std::runtime) | `ThreadPoolShutDown`      |
+| nix::ThreadPool | straylight Executor | Adapter |
+|--------------------------|---------------------------|---------------------------| |
+`ThreadPool(n)` | `Executor(n)` | `ThreadPool(n)` | | `enqueue(work)` | `silent_async(work)` |
+`enqueue(work)` | | `process()` | `wait_for_all()` | `process()` | | `shutdown()` | destructor
+handles it | `shutdown()` | | `ThreadPoolShutDown` | N/A (throws std::runtime) |
+`ThreadPoolShutDown` |
 
 ### Key Behavioral Differences
 
 1. **Scheduling Strategy**
+
    - Old: FIFO queue - tasks execute in submission order
    - New: Work-stealing - better load balancing for unbalanced workloads
    - Impact: Task execution order may differ, but correctness should be preserved
 
 2. **Thread Creation**
+
    - Old: Lazy - threads created as needed up to max
    - New: Eager - all threads created at construction
    - Impact: Slightly more resource usage at startup, but better steady-state performance
 
 3. **Exception Handling**
+
    - Old: First exception stored, others printed to stderr
    - New: First exception stored, others silently ignored
    - Impact: Less noisy output, but may lose some debugging info
 
 4. **Return Values**
+
    - Old: `enqueue()` returns void
    - New: `async()` returns `std::future<T>` for the result
    - Impact: New API is more flexible; use `silent_async()` for old behavior
 
 ### processGraph
 
-| nix::processGraph                        | straylight process_graph          |
-|------------------------------------------|-----------------------------------|
-| `processGraph<T>(nodes, getEdges, ...)`  | `process_graph<T>(nodes, ...)`    |
-| `discoverNodes` parameter                | `discover` parameter              |
-| `maxThreads` parameter                   | Uses passed executor's threads    |
+| nix::processGraph | straylight process_graph |
+|------------------------------------------|-----------------------------------| |
+`processGraph<T>(nodes, getEdges, ...)` | `process_graph<T>(nodes, ...)` | | `discoverNodes`
+parameter | `discover` parameter | | `maxThreads` parameter | Uses passed executor's threads |
 
----
+______________________________________________________________________
 
 ## Migration Strategy
 
@@ -155,16 +157,16 @@ process_graph<StorePath>(
 );
 ```
 
----
+______________________________________________________________________
 
 ## Boehm GC Integration
 
-The original Nix ThreadPool does NOT register worker threads with Boehm GC.
-This is safe because Nix typically uses ThreadPool for I/O-bound work where
-GC-managed objects aren't accessed from worker threads.
+The original Nix ThreadPool does NOT register worker threads with Boehm GC. This is safe because Nix
+typically uses ThreadPool for I/O-bound work where GC-managed objects aren't accessed from worker
+threads.
 
-However, if you're accessing Nix values (which are GC-managed) from worker
-threads, you MUST use the GC-aware variants:
+However, if you're accessing Nix values (which are GC-managed) from worker threads, you MUST use the
+GC-aware variants:
 
 ### Using the Adapter
 
@@ -191,22 +193,25 @@ straylight::nix::primitives::async::GcExecutor exec(4);
 ### When to Use GC-Aware Execution
 
 Use `GcExecutor` / `GcThreadPool` when:
-- Processing Nix expressions (Value*)
+
+- Processing Nix expressions (Value\*)
 - Accessing the Nix evaluator state from workers
 - Working with any GC-allocated Nix objects
 
 Use regular `Executor` / `ThreadPool` when:
+
 - Doing I/O operations (file reads, network requests)
 - Processing store paths (StorePath is not GC-managed)
 - Working with derivations (Derivation is not GC-managed)
 
----
+______________________________________________________________________
 
 ## Files Requiring Migration
 
 Based on the current codebase, these files use ThreadPool:
 
 ### src/nix/store/store-api.cpp
+
 ```cpp
 // Current usage (line ~717):
 ThreadPool pool(maxThreads);
@@ -222,6 +227,7 @@ exec.wait_for_all();
 ```
 
 ### src/nix/store/misc.cpp
+
 ```cpp
 // Current usage: Complex callback-based pattern with dynamic discovery
 ThreadPool pool(maxThreads);
@@ -232,6 +238,7 @@ pool.enqueue(std::bind(do_path, DerivedPath::Built{...}));
 ```
 
 ### src/nix/cli/verify.cpp
+
 ```cpp
 // Current usage (line ~170):
 ThreadPool pool(maxThreads);
@@ -248,23 +255,26 @@ exec.wait_for_all();
 ```
 
 ### src/nix/cli/sigs.cpp
+
 ```cpp
 // Similar pattern to verify.cpp - straightforward migration
 ```
 
 ### src/nix/cli/flake-prefetch-inputs.cpp
+
 ```cpp
 // Current usage: Recursive tree traversal with pool.enqueue
 // Consider: parallel_for or process_graph depending on structure
 ```
 
 ### src/nix/fetchers/git-utils.cpp
+
 ```cpp
 // Current usage: Git history traversal (commit graph)
 // Consider: process_graph for commit DAG traversal
 ```
 
----
+______________________________________________________________________
 
 ## Testing Migration
 
@@ -273,15 +283,15 @@ After migrating a file:
 1. **Run unit tests** for that component
 2. **Check for race conditions** - work-stealing may expose latent bugs
 3. **Verify exception behavior** - ensure errors are still properly reported
-4. **Profile if performance-critical** - work-stealing should be faster for
-   unbalanced workloads, but may have slightly higher overhead for trivial tasks
+4. **Profile if performance-critical** - work-stealing should be faster for unbalanced workloads,
+   but may have slightly higher overhead for trivial tasks
 
----
+______________________________________________________________________
 
 ## Advanced: Using TaskGraph for Static DAGs
 
-If you have a DAG where all edges are known upfront (not discovered during
-processing), use `TaskGraph` for better performance:
+If you have a DAG where all edges are known upfront (not discovered during processing), use
+`TaskGraph` for better performance:
 
 ```cpp
 #include "straylight/nix/primitives/async/task_graph.h"
@@ -307,15 +317,14 @@ Executor exec(4);
 graph.execute(exec);
 ```
 
-This is more efficient than `process_graph` when edges are known upfront
-because taskflow can optimize the execution order.
+This is more efficient than `process_graph` when edges are known upfront because taskflow can
+optimize the execution order.
 
----
+______________________________________________________________________
 
 ## Advanced: Parallel Algorithms
 
-For simple parallel iteration without DAG dependencies, use the parallel
-algorithms in `parallel.h`:
+For simple parallel iteration without DAG dependencies, use the parallel algorithms in `parallel.h`:
 
 ```cpp
 #include "straylight/nix/primitives/async/parallel.h"
@@ -339,7 +348,7 @@ parallel_for_index(exec, paths.size(), [&](std::size_t i) {
 });
 ```
 
----
+______________________________________________________________________
 
 ## Summary Checklist
 

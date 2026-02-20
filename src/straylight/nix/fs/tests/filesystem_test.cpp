@@ -4,11 +4,11 @@
 
 // IMPORTANT: Catch2 v3 MUST be included BEFORE rapidcheck/catch.h
 // rapidcheck checks for CATCH_TEST_MACROS_HPP_INCLUDED macro
-#include <catch2/catch_test_macros.hpp>
-
 #include <cstring>
 #include <fstream>
 #include <thread>
+
+#include <catch2/catch_test_macros.hpp>
 
 #include "straylight/nix/fs/file_lock.h"
 #include "straylight/nix/fs/mmap.h"
@@ -53,7 +53,7 @@ TEST_CASE("TempFile::release prevents deletion", "[temp]") {
     auto [fd, path] = tmp->release();
     REQUIRE(fd >= 0);
     REQUIRE(path == saved_path);
-    close(fd);  // We own the fd now
+    close(fd); // We own the fd now
   }
   // File should still exist after release
   REQUIRE(std::filesystem::exists(saved_path));
@@ -264,7 +264,7 @@ TEST_CASE("MappedFileRead maps file contents", "[mmap]") {
 
   const char* data = "hello mmap world";
   [[maybe_unused]] auto n = write(tmp->fd(), data, strlen(data));
-  tmp->keep();  // Close fd but keep file
+  tmp->keep(); // Close fd but keep file
 
   auto path = tmp->path();
   auto mapped = fs::MappedFileRead::open(path);
@@ -283,7 +283,7 @@ TEST_CASE("MappedFileRead::from_fd maps from descriptor", "[mmap]") {
 
   const char* data = "fd mapping";
   [[maybe_unused]] auto n = write(tmp->fd(), data, strlen(data));
-  fsync(tmp->fd());  // Ensure data is flushed
+  fsync(tmp->fd()); // Ensure data is flushed
 
   auto mapped = fs::MappedFileRead::from_fd(tmp->fd());
   REQUIRE(mapped.has_value());
@@ -327,7 +327,7 @@ TEST_CASE("MappedFileRead returns error for nonexistent file", "[mmap]") {
 TEST_CASE("page_size returns reasonable value", "[mmap]") {
   auto ps = fs::page_size();
   REQUIRE(ps >= 4096);
-  REQUIRE(ps <= 65536);  // Reasonable upper bound
+  REQUIRE(ps <= 65536); // Reasonable upper bound
   // Should be power of 2
   REQUIRE((ps & (ps - 1)) == 0);
 }

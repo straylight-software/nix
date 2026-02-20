@@ -15,7 +15,8 @@ namespace nix {
  * Return the rewrites that are needed to resolve a string whose context is
  * included in `dependencies`.
  */
-string_pairs_t resolve_rewrites(store_t& store, const std::vector<BuiltPathWithResult>& dependencies) {
+string_pairs_t resolve_rewrites(store_t& store,
+                                const std::vector<BuiltPathWithResult>& dependencies) {
   string_pairs_t res;
   if (!experimental_feature_settings.is_enabled(xp_t::ca_derivations)) {
     return res;
@@ -44,7 +45,7 @@ string_pairs_t resolve_rewrites(store_t& store, const std::vector<BuiltPathWithR
  * Resolve the given string assuming the given context.
  */
 std::string resolve_string(store_t& store, const std::string& to_resolve,
-                          const std::vector<BuiltPathWithResult>& dependencies) {
+                           const std::vector<BuiltPathWithResult>& dependencies) {
   auto rewrites = resolve_rewrites(store, dependencies);
   return rewrite_strings(to_resolve, rewrites);
 }
@@ -56,9 +57,9 @@ UnresolvedApp InstallableValue::toApp(eval_state_t& state) {
   auto type = cursor->get_attr("type")->get_string();
 
   std::string expected_type = !attr_path.empty() && (state.symbols[attr_path[0]] == "apps" ||
-                                                   state.symbols[attr_path[0]] == "defaultApp")
-                                 ? "app"
-                                 : "derivation";
+                                                     state.symbols[attr_path[0]] == "defaultApp")
+                                  ? "app"
+                                  : "derivation";
   if (type != expected_type)
     throw Error("attribute '%s' should have type '%s'", cursor->getAttrPathStr(), expected_type);
 

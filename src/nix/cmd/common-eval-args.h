@@ -78,6 +78,6 @@ private:
  * directory](https://nix.dev/manual/nix/development/glossary#gloss-base-directory)
  */
 source_path_t lookup_file_arg(eval_state_t& state, std::string_view s,
-                         const std::filesystem::path* base_dir = nullptr);
+                              const std::filesystem::path* base_dir = nullptr);
 
 } // namespace nix

@@ -54,7 +54,7 @@ struct cmd_bundle_t : InstallableValueCommand {
   // FIXME: cut&paste from CmdRun.
   strings_t getDefaultFlakeAttrPaths() override {
     strings_t res{"apps." + settings.thisSystem.get() + ".default",
-                "defaultApp." + settings.thisSystem.get()};
+                  "defaultApp." + settings.thisSystem.get()};
     for (auto& s : SourceExprCommand::getDefaultFlakeAttrPaths())
       res.push_back(s);
     return res;
@@ -73,8 +73,8 @@ struct cmd_bundle_t : InstallableValueCommand {
     auto val = installable->toValue(*eval_state).first;
 
     auto [bundlerFlakeRef, bundlerName, extendedOutputsSpec] =
-        parse_flake_ref_with_fragment_and_extended_outputs_spec(fetch_settings, bundler,
-                                                        std::filesystem::current_path().string());
+        parse_flake_ref_with_fragment_and_extended_outputs_spec(
+            fetch_settings, bundler, std::filesystem::current_path().string());
     const flake::LockFlags lock_flags{.writeLockFile = false};
     InstallableFlake bundler{this,
                              eval_state,

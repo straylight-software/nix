@@ -60,8 +60,9 @@ struct executable_path_t {
    * @return path to a resolved executable
    */
   std::optional<std::filesystem::path>
-  find_name(const os_string_t& exe, std::function<bool(const std::filesystem::path&)> is_executable_file =
-                                    is_executable_file_ambient) const;
+  find_name(const os_string_t& exe,
+            std::function<bool(const std::filesystem::path&)> is_executable_file =
+                is_executable_file_ambient) const;
 
   /**
    * Like the `find_name` but also allows a file path as input.
@@ -71,8 +72,8 @@ struct executable_path_t {
    * If (in the name case) the search fails, an exception is thrown.
    */
   std::filesystem::path find_path(const std::filesystem::path& exe,
-                                 std::function<bool(const std::filesystem::path&)> is_executable =
-                                     is_executable_file_ambient) const;
+                                  std::function<bool(const std::filesystem::path&)> is_executable =
+                                      is_executable_file_ambient) const;
 
   bool operator==(const executable_path_t&) const = default;
 };

@@ -107,8 +107,8 @@ public:
   /**
    * Build result.
    */
-  build_result_t buildResult = {.inner =
-                                 build_result_t::Failure{.status = build_result_t::Failure::Cancelled}};
+  build_result_t buildResult = {
+      .inner = build_result_t::Failure{.status = build_result_t::Failure::Cancelled}};
 
   /**
    * Suspend our goal and wait until we get `work`-ed again.

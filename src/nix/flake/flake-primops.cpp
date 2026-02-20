@@ -35,7 +35,8 @@
 namespace nix::flake::primops {
 
 PrimOp get_flake(const settings_t& settings) {
-  auto prim_get_flake = [&settings](eval_state_t& state, const pos_idx_t pos, value_t** args, value_t& v) {
+  auto prim_get_flake = [&settings](eval_state_t& state, const pos_idx_t pos, value_t** args,
+                                    value_t& v) {
     std::string flake_ref_s(state.forceStringNoCtx(
         *args[0], pos, "while evaluating the argument passed to builtins.getFlake"));
     auto flake_ref = nix::parse_flake_ref(state.fetch_settings, flake_ref_s, {}, true);
@@ -45,14 +46,14 @@ PrimOp get_flake(const settings_t& settings) {
                   flake_ref_s, state.positions[pos]);
 
     call_flake(state,
-              lock_flake(settings, state, flake_ref,
-                        LockFlags{
-                            .updateLockFile = false,
-                            .writeLockFile = false,
-                            .use_registries = !state.settings.pureEval && settings.use_registries,
-                            .allowUnlocked = !state.settings.pureEval,
-                        }),
-              v);
+               lock_flake(settings, state, flake_ref,
+                          LockFlags{
+                              .updateLockFile = false,
+                              .writeLockFile = false,
+                              .use_registries = !state.settings.pureEval && settings.use_registries,
+                              .allowUnlocked = !state.settings.pureEval,
+                          }),
+               v);
   };
 
   return PrimOp{
@@ -77,7 +78,8 @@ PrimOp get_flake(const settings_t& settings) {
   };
 }
 
-static void prim_parse_flake_ref(eval_state_t& state, const pos_idx_t pos, value_t** args, value_t& v) {
+static void prim_parse_flake_ref(eval_state_t& state, const pos_idx_t pos, value_t** args,
+                                 value_t& v) {
   std::string flake_ref_s(state.forceStringNoCtx(
       *args[0], pos, "while evaluating the argument passed to builtins.parseFlakeRef"));
   auto attrs = nix::parse_flake_ref(state.fetch_settings, flake_ref_s, {}, true).toAttrs();
@@ -115,7 +117,8 @@ nix::PrimOp parse_flake_ref({
     .fun = prim_parse_flake_ref,
 });
 
-static void prim_flake_ref_to_string(eval_state_t& state, const pos_idx_t pos, value_t** args, value_t& v) {
+static void prim_flake_ref_to_string(eval_state_t& state, const pos_idx_t pos, value_t** args,
+                                     value_t& v) {
   state.forceAttrs(*args[0], no_pos,
                    "while evaluating the argument passed to builtins.flakeRefToString");
   fetchers::Attrs attrs;

@@ -223,9 +223,9 @@ public:
   /**
    * @ref DerivationResolutionGoal "derivation resolution goal"
    */
-  std::shared_ptr<DerivationResolutionGoal> makeDerivationResolutionGoal(const store_path_t& drv_path,
-                                                                         const derivation_t& drv,
-                                                                         BuildMode build_mode);
+  std::shared_ptr<DerivationResolutionGoal>
+  makeDerivationResolutionGoal(const store_path_t& drv_path, const derivation_t& drv,
+                               BuildMode build_mode);
 
   /**
    * @ref DerivationBuildingGoal "derivation building goal"
@@ -276,7 +276,8 @@ public:
    * Registers a running child process.  `inBuildSlot` means that
    * the process counts towards the jobs limit.
    */
-  void childStarted(GoalPtr goal, const std::set<muxable_pipe_poll_state_t::comm_channel_t>& channels,
+  void childStarted(GoalPtr goal,
+                    const std::set<muxable_pipe_poll_state_t::comm_channel_t>& channels,
                     bool inBuildSlot, bool respectTimeouts);
 
   /**

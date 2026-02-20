@@ -55,7 +55,7 @@ struct cmd_shell_t : InstallablesCommand, MixEnvironment {
     auto state = getEvalState();
 
     auto out_paths = Installable::toStorePaths(getEvalStore(), store, Realise::Outputs,
-                                              OperateOn::Output, installables);
+                                               OperateOn::Output, installables);
 
     boost::unordered_flat_set<store_path_t, std::hash<store_path_t>> done;
     std::queue<store_path_t> todo;
@@ -72,14 +72,16 @@ struct cmd_shell_t : InstallablesCommand, MixEnvironment {
       if (!done.insert(path).second)
         continue;
 
-      auto bin_dir = state->storeFS->resolve_symlinks(canon_path_t(store->printStorePath(path)) / "bin");
+      auto bin_dir =
+          state->storeFS->resolve_symlinks(canon_path_t(store->printStorePath(path)) / "bin");
       if (!store->isInStore(bin_dir.abs()))
         throw Error("path '%s' is not in the Nix store", bin_dir);
 
       pathAdditions.push_back(bin_dir.abs());
 
-      auto prop_path = state->storeFS->resolve_symlinks(
-          canon_path_t(store->printStorePath(path)) / "nix-support" / "propagated-user-env-packages");
+      auto prop_path =
+          state->storeFS->resolve_symlinks(canon_path_t(store->printStorePath(path)) /
+                                           "nix-support" / "propagated-user-env-packages");
       if (auto st = state->storeFS->maybe_lstat(prop_path);
           st && st->type == source_accessor_t::t_regular) {
         for (auto& p : tokenize_string<Paths>(state->storeFS->read_file(prop_path)))
@@ -90,7 +92,7 @@ struct cmd_shell_t : InstallablesCommand, MixEnvironment {
     // TODO: split losslessly; empty means .
     auto unix_path = executable_path_t::load();
     unix_path.directories.insert(unix_path.directories.begin(), pathAdditions.begin(),
-                                pathAdditions.end());
+                                 pathAdditions.end());
     auto unix_path_string = unix_path.render();
     set_env_os(OS_STR("PATH"), unix_path_string.c_str());
 

@@ -173,20 +173,22 @@ struct Installable {
   static void throwBuildErrors(std::vector<InstallableWithBuildResult>& build_results,
                                const store_t& store);
 
-  static std::set<store_path_t> toStorePathSet(ref<store_t> eval_store, ref<store_t> store, Realise mode,
-                                            OperateOn operateOn, const Installables& installables);
+  static std::set<store_path_t> toStorePathSet(ref<store_t> eval_store, ref<store_t> store,
+                                               Realise mode, OperateOn operateOn,
+                                               const Installables& installables);
 
-  static std::vector<store_path_t> toStorePaths(ref<store_t> eval_store, ref<store_t> store, Realise mode,
-                                             OperateOn operateOn, const Installables& installables);
+  static std::vector<store_path_t> toStorePaths(ref<store_t> eval_store, ref<store_t> store,
+                                                Realise mode, OperateOn operateOn,
+                                                const Installables& installables);
 
   static store_path_t toStorePath(ref<store_t> eval_store, ref<store_t> store, Realise mode,
-                               OperateOn operateOn, ref<Installable> installable);
+                                  OperateOn operateOn, ref<Installable> installable);
 
   static std::set<store_path_t> toDerivations(ref<store_t> store, const Installables& installables,
-                                           bool useDeriver = false);
+                                              bool useDeriver = false);
 
   static BuiltPaths to_built_paths(ref<store_t> eval_store, ref<store_t> store, Realise mode,
-                                 OperateOn operateOn, const Installables& installables);
+                                   OperateOn operateOn, const Installables& installables);
 };
 
 } // namespace nix

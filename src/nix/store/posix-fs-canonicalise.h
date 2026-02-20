@@ -31,14 +31,14 @@ using InodesSeen = std::set<Inode>;
  */
 void canonicalise_path_meta_data(const Path& path,
 #ifndef _WIN32
-                              std::optional<std::pair<uid_t, uid_t>> uidRange,
+                                 std::optional<std::pair<uid_t, uid_t>> uidRange,
 #endif
-                              InodesSeen& inodes_seen);
+                                 InodesSeen& inodes_seen);
 
 void canonicalise_path_meta_data(const Path& path
 #ifndef _WIN32
-                              ,
-                              std::optional<std::pair<uid_t, uid_t>> uidRange = std::nullopt
+                                 ,
+                                 std::optional<std::pair<uid_t, uid_t>> uidRange = std::nullopt
 #endif
 );
 

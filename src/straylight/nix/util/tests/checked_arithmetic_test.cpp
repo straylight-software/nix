@@ -4,8 +4,6 @@
 // Tests checked_add, checked_sub, checked_mul and saturating variants.
 
 // Catch2 MUST be included before rapidcheck/catch.h for v3 compatibility
-#include <catch2/catch_test_macros.hpp>
-
 #include <cstdint>
 #include <limits>
 #include <optional>
@@ -13,6 +11,8 @@
 
 #include <rapidcheck.h>
 #include <rapidcheck/catch.h>
+
+#include <catch2/catch_test_macros.hpp>
 
 #include "../checked_arithmetic.h"
 namespace arith = straylight::nix::util;

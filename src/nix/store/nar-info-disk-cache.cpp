@@ -76,8 +76,8 @@ public:
 
   struct State {
     SQLite db;
-    SQLiteStmt insert_cache, query_cache, insert_nar, insert_missing_nar, query_nar, insert_realisation,
-        insert_missing_realisation, query_realisation, purge_cache;
+    SQLiteStmt insert_cache, query_cache, insert_nar, insert_missing_nar, query_nar,
+        insert_realisation, insert_missing_realisation, query_realisation, purge_cache;
     std::map<std::string, cache_t> caches;
   };
 
@@ -100,12 +100,12 @@ public:
                    "storeDir = ?3, wantMassQuery = ?4, priority = ?5 returning id;");
 
     state->query_cache.create(state->db, "select id, storeDir, wantMassQuery, priority from "
-                                        "BinaryCaches where url = ? and timestamp > ?");
+                                         "BinaryCaches where url = ? and timestamp > ?");
 
     state->insert_nar.create(state->db, "insert or replace into NARs(cache, hashPart, namePart, "
-                                       "url, compression, fileHash, fileSize, narHash, "
-                                       "narSize, refs, deriver, sigs, ca, timestamp, present) "
-                                       "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)");
+                                        "url, compression, fileHash, fileSize, narHash, "
+                                        "narSize, refs, deriver, sigs, ca, timestamp, present) "
+                                        "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)");
 
     state->insert_missing_nar.create(
         state->db,
@@ -117,19 +117,19 @@ public:
                    "and ((present = 0 and timestamp > ?) or (present = 1 and timestamp > ?))");
 
     state->insert_realisation.create(state->db,
-                                    R"(
+                                     R"(
                 insert or replace into Realisations(cache, output_id, content, timestamp)
                     values (?, ?, ?, ?)
             )");
 
     state->insert_missing_realisation.create(state->db,
-                                           R"(
+                                             R"(
                 insert or replace into Realisations(cache, output_id, timestamp)
                     values (?, ?, ?)
             )");
 
     state->query_realisation.create(state->db,
-                                   R"(
+                                    R"(
                 select content from Realisations
                     where cache = ? and output_id = ?  and
                         ((content is null and timestamp > ?) or
@@ -234,8 +234,8 @@ public:
     });
   }
 
-  std::pair<Outcome, std::shared_ptr<nar_info_t>> lookupNarInfo(const std::string& uri,
-                                                             const std::string& hash_part) override {
+  std::pair<Outcome, std::shared_ptr<nar_info_t>>
+  lookupNarInfo(const std::string& uri, const std::string& hash_part) override {
     return retrySQLite<std::pair<Outcome, std::shared_ptr<nar_info_t>>>(
         [&]() -> std::pair<Outcome, std::shared_ptr<nar_info_t>> {
           auto state(_state.lock());
@@ -255,8 +255,9 @@ public:
             return {oInvalid, 0};
 
           auto name_part = query_nar.getStr(1);
-          auto narInfo = make_ref<nar_info_t>(cache.store_dir, store_path_t(hash_part + "-" + name_part),
-                                           Hash::parse_any_prefixed(query_nar.getStr(6)));
+          auto narInfo =
+              make_ref<nar_info_t>(cache.store_dir, store_path_t(hash_part + "-" + name_part),
+                                   Hash::parse_any_prefixed(query_nar.getStr(6)));
           narInfo->url = query_nar.getStr(2);
           narInfo->compression = query_nar.getStr(3);
           if (!query_nar.isNull(4))
@@ -275,8 +276,8 @@ public:
         });
   }
 
-  std::pair<Outcome, std::shared_ptr<realisation_t>> lookupRealisation(const std::string& uri,
-                                                                     const DrvOutput& id) override {
+  std::pair<Outcome, std::shared_ptr<realisation_t>>
+  lookupRealisation(const std::string& uri, const DrvOutput& id) override {
     return retrySQLite<std::pair<Outcome, std::shared_ptr<realisation_t>>>(
         [&]() -> std::pair<Outcome, std::shared_ptr<realisation_t>> {
           auto state(_state.lock());
@@ -319,13 +320,14 @@ public:
         // assert(hashPart == storePathToHash(info->path));
 
         state->insert_nar
-            .use()(cache.id)(hash_part)(std::string(info->path.name()))(
-                narInfo ? narInfo->url : "", narInfo != 0)(narInfo ? narInfo->compression : "",
-                                                           narInfo != 0)(
-                narInfo && narInfo->fileHash ? narInfo->fileHash->to_string(hash_format_t::nix32, true)
-                                             : "",
-                narInfo && narInfo->fileHash)(narInfo ? narInfo->file_size : 0,
-                                              narInfo != 0 && narInfo->file_size)(
+            .use()(cache.id)(hash_part)(std::string(info->path.name()))(narInfo ? narInfo->url : "",
+                                                                        narInfo != 0)(
+                narInfo ? narInfo->compression : "",
+                narInfo != 0)(narInfo && narInfo->fileHash
+                                  ? narInfo->fileHash->to_string(hash_format_t::nix32, true)
+                                  : "",
+                              narInfo && narInfo->fileHash)(narInfo ? narInfo->file_size : 0,
+                                                            narInfo != 0 && narInfo->file_size)(
                 info->nar_hash.to_string(hash_format_t::nix32, true))(info->nar_size)(
                 concat_strings_sep(" ", info->shortRefs()))(
                 info->deriver ? std::string(info->deriver->to_string()) : "", (bool)info->deriver)(

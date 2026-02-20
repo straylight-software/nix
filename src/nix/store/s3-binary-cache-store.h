@@ -13,20 +13,20 @@ struct S3BinaryCacheStoreConfig : HttpBinaryCacheStoreConfig {
                            const Params& params);
 
   const setting_t<std::string> profile{this, "default", "profile",
-                                     R"(
+                                       R"(
           The name of the AWS configuration profile to use. By default
           Nix uses the `default` profile.
         )"};
 
   const setting_t<std::string> region{this, "us-east-1", "region",
-                                    R"(
+                                      R"(
           The region of the S3 bucket. If your bucket is not in
           `us-east-1`, you should always explicitly specify the region
           parameter.
         )"};
 
   const setting_t<std::string> scheme{this, "https", "scheme",
-                                    R"(
+                                      R"(
           The scheme used for S3 requests, `https` (default) or `http`. This
           option allows you to disable HTTPS for binary caches which don't
           support it.
@@ -38,7 +38,7 @@ struct S3BinaryCacheStoreConfig : HttpBinaryCacheStoreConfig {
         )"};
 
   const setting_t<std::string> endpoint{this, "", "endpoint",
-                                      R"(
+                                        R"(
           The S3 endpoint to use. When empty (default), uses AWS S3 with
           region-specific endpoints (e.g., s3.us-east-1.amazonaws.com).
           For S3-compatible services such as MinIO, set this to your service's endpoint.
@@ -50,7 +50,7 @@ struct S3BinaryCacheStoreConfig : HttpBinaryCacheStoreConfig {
         )"};
 
   const setting_t<bool> multipartUpload{this, false, "multipart-upload",
-                                      R"(
+                                        R"(
           Whether to use multipart uploads for large files. When enabled,
           files exceeding the multipart threshold will be uploaded in
           multiple parts, which is required for files larger than 5 GiB and
@@ -58,24 +58,24 @@ struct S3BinaryCacheStoreConfig : HttpBinaryCacheStoreConfig {
         )"};
 
   const setting_t<uint64_t> multipartChunkSize{this,
-                                             5 * 1024 * 1024,
-                                             "multipart-chunk-size",
-                                             R"(
+                                               5 * 1024 * 1024,
+                                               "multipart-chunk-size",
+                                               R"(
           The size (in bytes) of each part in multipart uploads. Must be
           at least 5 MiB (AWS S3 requirement). Larger chunk sizes reduce the
           number of requests but use more memory. Default is 5 MiB.
         )",
-                                             {"buffer-size"}};
+                                               {"buffer-size"}};
 
   const setting_t<uint64_t> multipartThreshold{this, 100 * 1024 * 1024, "multipart-threshold",
-                                             R"(
+                                               R"(
           The minimum file size (in bytes) for using multipart uploads.
           Files smaller than this threshold will use regular PUT requests.
           Default is 100 MiB. Only takes effect when multipart-upload is enabled.
         )"};
 
   const setting_t<std::optional<std::string>> storageClass{this, std::nullopt, "storage-class",
-                                                         R"(
+                                                           R"(
           The S3 storage class to use for uploaded objects. When not set (default),
           uses the bucket's default storage class. Valid values include:
           - STANDARD (default, frequently accessed data)

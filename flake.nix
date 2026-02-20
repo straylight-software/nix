@@ -34,14 +34,10 @@
           # ── Turing Registry (mandatory build flags) ────────────────────────────
           isLinux = pkgs.stdenv.isLinux;
           isX86 = pkgs.stdenv.hostPlatform.isx86_64;
-          turing-registry = import ./nix/prelude/turing-registry.nix {
-            inherit lib isLinux isX86;
-          };
+          turing-registry = import ./nix/prelude/turing-registry.nix { inherit lib isLinux isX86; };
 
           # ── Toolchain (musl static linking) ─────────────────────────────────────
-          toolchain = import ./nix/prelude/toolchain.nix {
-            inherit lib pkgs turing-registry;
-          };
+          toolchain = import ./nix/prelude/toolchain.nix { inherit lib pkgs turing-registry; };
 
           # ── Dependencies ──────────────────────────────────────────────────────
           deps = import ./nix/deps.nix { inherit pkgs; };

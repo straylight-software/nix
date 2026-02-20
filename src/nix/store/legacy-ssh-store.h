@@ -21,18 +21,19 @@ struct LegacySSHStoreConfig : std::enable_shared_from_this<LegacySSHStoreConfig>
   // Intentionally not in `LegacySSHStoreConfig` so that it doesn't appear in
   // the documentation
   const setting_t<int> logFD{this, INVALID_DESCRIPTOR, "log-fd",
-                           "file descriptor to which SSH's stderr is connected"};
+                             "file descriptor to which SSH's stderr is connected"};
 #else
   descriptor_t logFD = INVALID_DESCRIPTOR;
 #endif
 
-  const setting_t<strings_t> remoteProgram{this,
-                                       {"nix-store"},
-                                       "remote-program",
-                                       "Path to the `nix-store` executable on the remote machine."};
+  const setting_t<strings_t> remoteProgram{
+      this,
+      {"nix-store"},
+      "remote-program",
+      "Path to the `nix-store` executable on the remote machine."};
 
   const setting_t<int> maxConnections{this, 1, "max-connections",
-                                    "Maximum number of concurrent SSH connections."};
+                                      "Maximum number of concurrent SSH connections."};
 
   /**
    * Hack for hydra
@@ -70,14 +71,15 @@ struct LegacySSHStore : public virtual store_t {
 
   ref<Connection> open_connection();
 
-  void
-  query_path_info_uncached(const store_path_t& path,
-                        Callback<std::shared_ptr<const valid_path_info_t>> callback) noexcept override;
+  void query_path_info_uncached(
+      const store_path_t& path,
+      Callback<std::shared_ptr<const valid_path_info_t>> callback) noexcept override;
 
-  std::map<store_path_t, UnkeyedValidPathInfo> queryPathInfosUncached(const store_path_set_t& paths);
+  std::map<store_path_t, UnkeyedValidPathInfo>
+  queryPathInfosUncached(const store_path_set_t& paths);
 
   void add_to_store(const valid_path_info_t& info, source_t& source, RepairFlag repair,
-                  CheckSigsFlag check_sigs) override;
+                    CheckSigsFlag check_sigs) override;
 
   void nar_from_path(const store_path_t& path, sink_t& sink) override;
 
@@ -95,27 +97,30 @@ struct LegacySSHStore : public virtual store_t {
     unsupported("queryPathFromHashPart");
   }
 
-  store_path_t add_to_store(std::string_view name, const source_path_t& path, content_address_method_t method,
-                       hash_algorithm_t hash_algo, const store_path_set_t& references, path_filter_t& filter,
-                       RepairFlag repair) override {
+  store_path_t add_to_store(std::string_view name, const source_path_t& path,
+                            content_address_method_t method, hash_algorithm_t hash_algo,
+                            const store_path_set_t& references, path_filter_t& filter,
+                            RepairFlag repair) override {
     unsupported("addToStore");
   }
 
-  store_path_t
-  add_to_store_from_dump(source_t& dump, std::string_view name,
-                     file_serialisation_method_t dump_method = file_serialisation_method_t::nix_archive,
-                     content_address_method_t hash_method = file_ingestion_method_t::nix_archive,
-                     hash_algorithm_t hash_algo = hash_algorithm_t::SHA256,
-                     const store_path_set_t& references = store_path_set_t(),
-                     RepairFlag repair = NoRepair) override {
+  store_path_t add_to_store_from_dump(
+      source_t& dump, std::string_view name,
+      file_serialisation_method_t dump_method = file_serialisation_method_t::nix_archive,
+      content_address_method_t hash_method = file_ingestion_method_t::nix_archive,
+      hash_algorithm_t hash_algo = hash_algorithm_t::SHA256,
+      const store_path_set_t& references = store_path_set_t(),
+      RepairFlag repair = NoRepair) override {
     unsupported("addToStore");
   }
 
-  void register_drv_output(const realisation_t& output) override { unsupported("registerDrvOutput"); }
+  void register_drv_output(const realisation_t& output) override {
+    unsupported("registerDrvOutput");
+  }
 
 public:
   build_result_t buildDerivation(const store_path_t& drv_path, const basic_derivation_t& drv,
-                              BuildMode build_mode) override;
+                                 BuildMode build_mode) override;
 
   /**
    * Note, the returned function must only be called once, or we'll
@@ -124,11 +129,11 @@ public:
    * @todo use C++23 `std::move_only_function`.
    */
   std::function<build_result_t()> buildDerivationAsync(const store_path_t& drv_path,
-                                                    const basic_derivation_t& drv,
-                                                    const ServeProto::BuildOptions& options);
+                                                       const basic_derivation_t& drv,
+                                                       const ServeProto::BuildOptions& options);
 
   void build_paths(const std::vector<derived_path_t>& drv_paths, BuildMode build_mode,
-                  std::shared_ptr<store_t> eval_store) override;
+                   std::shared_ptr<store_t> eval_store) override;
 
   void ensure_path(const store_path_t& path) override { unsupported("ensurePath"); }
 
@@ -137,7 +142,7 @@ public:
   }
 
   std::shared_ptr<source_accessor_t> getFSAccessor(const store_path_t& path,
-                                                bool require_valid_path) override {
+                                                   bool require_valid_path) override {
     unsupported("getFSAccessor");
   }
 
@@ -151,11 +156,12 @@ public:
    */
   void repairPath(const store_path_t& path) override { unsupported("repairPath"); }
 
-  void computeFSClosure(const store_path_set_t& paths, store_path_set_t& out, bool flipDirection = false,
-                        bool includeOutputs = false, bool includeDerivers = false) override;
+  void computeFSClosure(const store_path_set_t& paths, store_path_set_t& out,
+                        bool flipDirection = false, bool includeOutputs = false,
+                        bool includeDerivers = false) override;
 
   store_path_set_t queryValidPaths(const store_path_set_t& paths,
-                               SubstituteFlag maybeSubstitute = NoSubstitute) override;
+                                   SubstituteFlag maybeSubstitute = NoSubstitute) override;
 
   /**
    * Custom variation that atomically creates temp locks on the remote
@@ -166,7 +172,7 @@ public:
    * the remote host to substitute missing paths.
    */
   store_path_set_t queryValidPaths(const store_path_set_t& paths, bool lock,
-                               SubstituteFlag maybeSubstitute = NoSubstitute);
+                                   SubstituteFlag maybeSubstitute = NoSubstitute);
 
   void connect() override;
 

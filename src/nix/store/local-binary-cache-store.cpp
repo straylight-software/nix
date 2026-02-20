@@ -12,7 +12,9 @@ namespace nix {
 LocalBinaryCacheStoreConfig::LocalBinaryCacheStoreConfig(std::string_view scheme,
                                                          path_view_t binaryCacheDir,
                                                          const StoreReference::Params& params)
-    : store_t::config_t{params}, binary_cache_store_config_t{params}, binaryCacheDir(binaryCacheDir) {}
+    : store_t::config_t{params},
+      binary_cache_store_config_t{params},
+      binaryCacheDir(binaryCacheDir) {}
 
 std::string LocalBinaryCacheStoreConfig::doc() {
   return

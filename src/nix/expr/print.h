@@ -63,7 +63,7 @@ bool is_reserved_keyword(const std::string_view str);
 std::ostream& print_identifier(std::ostream& o, std::string_view s);
 
 void print_value(eval_state_t& state, std::ostream& str, value_t& v,
-                PrintOptions options = PrintOptions{});
+                 PrintOptions options = PrintOptions{});
 
 /**
  * A partially-applied form of `print_value` which can be formatted using `<<`

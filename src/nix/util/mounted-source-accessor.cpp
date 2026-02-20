@@ -80,7 +80,8 @@ struct mounted_source_accessor_impl_t : mounted_source_accessor_t {
       return nullptr;
   }
 
-  std::pair<canon_path_t, std::optional<std::string>> get_fingerprint(const canon_path_t& path) override {
+  std::pair<canon_path_t, std::optional<std::string>>
+  get_fingerprint(const canon_path_t& path) override {
     if (fingerprint)
       return {path, fingerprint};
     auto [accessor, subpath] = resolve(path);

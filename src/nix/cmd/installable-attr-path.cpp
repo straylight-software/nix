@@ -25,8 +25,8 @@
 
 namespace nix {
 
-InstallableAttrPath::InstallableAttrPath(ref<eval_state_t> state, SourceExprCommand& cmd, value_t* v,
-                                         const std::string& attr_path,
+InstallableAttrPath::InstallableAttrPath(ref<eval_state_t> state, SourceExprCommand& cmd,
+                                         value_t* v, const std::string& attr_path,
                                          ExtendedOutputsSpec extendedOutputsSpec)
     : InstallableValue(state),
       cmd(cmd),

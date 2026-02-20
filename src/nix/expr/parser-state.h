@@ -145,27 +145,28 @@ struct ParserState {
 
   void dupAttr(const AttrSelectionPath& attr_path, const pos_idx_t pos, const pos_idx_t prevPos);
   void dupAttr(symbol_t attr, const pos_idx_t pos, const pos_idx_t prevPos);
-  void addAttr(ExprAttrs* attrs, AttrSelectionPath&& attr_path, const ParserLocation& loc, expr_t* e,
-               const ParserLocation& exprLoc);
+  void addAttr(ExprAttrs* attrs, AttrSelectionPath&& attr_path, const ParserLocation& loc,
+               expr_t* e, const ParserLocation& exprLoc);
   void addAttr(ExprAttrs* attrs, AttrSelectionPath& attr_path, const symbol_t& symbol,
                ExprAttrs::AttrDef&& def);
   void validateFormals(FormalsBuilder& formals, pos_idx_t pos = no_pos, symbol_t arg = {});
   expr_t* strip_indentation(const pos_idx_t pos,
-                         std::span<std::pair<pos_idx_t, std::variant<expr_t*, StringToken>>> es);
+                            std::span<std::pair<pos_idx_t, std::variant<expr_t*, StringToken>>> es);
   pos_idx_t at(const ParserLocation& loc);
 };
 
 inline void ParserState::dupAttr(const AttrSelectionPath& attr_path, const pos_idx_t pos,
                                  const pos_idx_t prevPos) {
-  throw ParseError({.msg = hint_fmt_t("attribute '%1%' already defined at %2%",
-                                   show_attr_selection_path(symbols, attr_path), positions[prevPos]),
-                    .pos = positions[pos]});
+  throw ParseError(
+      {.msg = hint_fmt_t("attribute '%1%' already defined at %2%",
+                         show_attr_selection_path(symbols, attr_path), positions[prevPos]),
+       .pos = positions[pos]});
 }
 
 inline void ParserState::dupAttr(symbol_t attr, const pos_idx_t pos, const pos_idx_t prevPos) {
-  throw ParseError(
-      {.msg = hint_fmt_t("attribute '%1%' already defined at %2%", symbols[attr], positions[prevPos]),
-       .pos = positions[pos]});
+  throw ParseError({.msg = hint_fmt_t("attribute '%1%' already defined at %2%", symbols[attr],
+                                      positions[prevPos]),
+                    .pos = positions[pos]});
 }
 
 inline void ParserState::addAttr(ExprAttrs* attrs, AttrSelectionPath&& attr_path,
@@ -288,9 +289,8 @@ inline void ParserState::validateFormals(FormalsBuilder& formals, pos_idx_t pos,
                       .pos = positions[pos]});
 }
 
-inline expr_t*
-ParserState::strip_indentation(const pos_idx_t pos,
-                              std::span<std::pair<pos_idx_t, std::variant<expr_t*, StringToken>>> es) {
+inline expr_t* ParserState::strip_indentation(
+    const pos_idx_t pos, std::span<std::pair<pos_idx_t, std::variant<expr_t*, StringToken>>> es) {
   if (es.empty())
     return exprs.add<ExprString>(""_sds);
 

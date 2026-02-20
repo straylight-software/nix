@@ -16,11 +16,11 @@ namespace nix {
 /* protocol-agnostic templates */
 
 #define WORKER_USE_LENGTH_PREFIX_SERIALISER(TEMPLATE, T)                                           \
-  TEMPLATE T WorkerProto::Serialise<T>::read(const store_dir_config_t& store,                          \
+  TEMPLATE T WorkerProto::Serialise<T>::read(const store_dir_config_t& store,                      \
                                              WorkerProto::ReadConn conn) {                         \
     return LengthPrefixedProtoHelper<WorkerProto, T>::read(store, conn);                           \
   }                                                                                                \
-  TEMPLATE void WorkerProto::Serialise<T>::write(const store_dir_config_t& store,                      \
+  TEMPLATE void WorkerProto::Serialise<T>::write(const store_dir_config_t& store,                  \
                                                  WorkerProto::WriteConn conn, const T& t) {        \
     LengthPrefixedProtoHelper<WorkerProto, T>::write(store, conn, t);                              \
   }

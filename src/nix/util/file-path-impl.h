@@ -98,7 +98,7 @@ using os_path_trait_t =
  */
 template <class PathDict>
 typename PathDict::String canon_path_inner(typename PathDict::string_view_t remaining,
-                                         auto&& hook_component) {
+                                           auto&& hook_component) {
   assert(remaining != "");
 
   typename PathDict::String result;

@@ -67,8 +67,8 @@ settings_t::settings_t()
       nixStateDir(canon_path(get_env_non_empty("NIX_STATE_DIR").value_or(NIX_STATE_DIR))),
       nixConfDir(canon_path(get_env_non_empty("NIX_CONF_DIR").value_or(NIX_CONF_DIR))),
       nixUserConfFiles(get_user_config_files()),
-      nixDaemonSocketFile(canon_path(
-          get_env_non_empty("NIX_DAEMON_SOCKET_PATH").value_or(nixStateDir + DEFAULT_SOCKET_PATH))) {
+      nixDaemonSocketFile(canon_path(get_env_non_empty("NIX_DAEMON_SOCKET_PATH")
+                                         .value_or(nixStateDir + DEFAULT_SOCKET_PATH))) {
 #ifndef _WIN32
   buildUsersGroup = is_root_user() ? "nixbld" : "";
 #endif
@@ -104,7 +104,8 @@ settings_t::settings_t()
        }) {
     sandboxPaths.get().insert_or_assign(std::string{p}, ChrootPath{.source = std::string{p}});
   }
-  allowedImpureHostPrefixes = tokenize_string<string_set_t>("/System/Library /usr/lib /dev /bin/sh");
+  allowedImpureHostPrefixes =
+      tokenize_string<string_set_t>("/System/Library /usr/lib /dev /bin/sh");
 #endif
 }
 
@@ -222,8 +223,8 @@ string_set_t settings_t::getDefaultExtraPlatforms() {
   // always exec with their own binary preferences.
   if (std::string{NIX_LOCAL_SYSTEM} == "aarch64-darwin" &&
       run_program(run_options_t{.program = "arch",
-                            .args = {"-arch", "x86_64", "/usr/bin/true"},
-                            .merge_stderr_to_stdout = true})
+                                .args = {"-arch", "x86_64", "/usr/bin/true"},
+                                .merge_stderr_to_stdout = true})
               .first == 0)
     extraPlatforms.insert("x86_64-darwin");
 #endif
@@ -251,7 +252,8 @@ Path settings_t::getDefaultSSLCertFile() {
   return "";
 }
 
-const ExternalBuilder* settings_t::findExternalDerivationBuilderIfSupported(const derivation_t& drv) {
+const ExternalBuilder*
+settings_t::findExternalDerivationBuilderIfSupported(const derivation_t& drv) {
   if (auto it = std::ranges::find_if(
           externalBuilders.get(),
           [&](const auto& handler) { return handler.systems.contains(drv.platform); });
@@ -393,7 +395,8 @@ template <>
 void base_setting_t<PathsInChroot>::append_or_set(PathsInChroot new_value, bool append) {
   if (!append)
     value_.clear();
-  value_.insert(std::make_move_iterator(new_value.begin()), std::make_move_iterator(new_value.end()));
+  value_.insert(std::make_move_iterator(new_value.begin()),
+                std::make_move_iterator(new_value.end()));
 }
 
 static void preloadNSS() {

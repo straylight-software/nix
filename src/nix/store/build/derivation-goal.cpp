@@ -64,7 +64,7 @@ Goal::Co DerivationGoal::haveDerivation(bool storeDerivation) {
   auto drv_options = [&]() -> derivation_options_t<SingleDerivedPath> {
     try {
       return derivation_options_from_structured_attrs(worker.store, drv->input_drvs, drv->env,
-                                                  get(drv->structured_attrs));
+                                                      get(drv->structured_attrs));
     } catch (Error& e) {
       e.add_trace({}, "while parsing derivation '%s'", worker.store.printStorePath(drv_path));
       throw;
@@ -115,11 +115,11 @@ Goal::Co DerivationGoal::haveDerivation(bool storeDerivation) {
     assert(!drv->type().is_impure());
 
     if (nrFailed > 0 && nrFailed > nrNoSubstituters && !settings.try_fallback) {
-      co_return doneFailure(
-          build_error_t(build_result_t::Failure::TransientFailure,
-                     "some substitutes for the outputs of derivation '%s' failed (usually happens "
-                     "due to networking issues); try '--fallback' to build derivation from source ",
-                     worker.store.printStorePath(drv_path)));
+      co_return doneFailure(build_error_t(
+          build_result_t::Failure::TransientFailure,
+          "some substitutes for the outputs of derivation '%s' failed (usually happens "
+          "due to networking issues); try '--fallback' to build derivation from source ",
+          worker.store.printStorePath(drv_path)));
     }
 
     nrFailed = nrNoSubstituters = 0;
@@ -199,13 +199,14 @@ Goal::Co DerivationGoal::haveDerivation(bool storeDerivation) {
 
       if (!drv->type().is_impure()) {
         realisation_t newRealisation{realisation,
-                                   {
-                                       .drvHash = *outputHash,
-                                       .output_name = wantedOutput,
-                                   }};
+                                     {
+                                         .drvHash = *outputHash,
+                                         .output_name = wantedOutput,
+                                     }};
         newRealisation.signatures.clear();
         if (!drv->type().isFixed()) {
-          auto& drvStore = worker.eval_store.isValidPath(drv_path) ? worker.eval_store : worker.store;
+          auto& drvStore =
+              worker.eval_store.isValidPath(drv_path) ? worker.eval_store : worker.store;
           newRealisation.dependentRealisations =
               drv_output_references(worker.store, *drv, realisation.out_path, &drvStore);
         }
@@ -409,9 +410,10 @@ std::optional<std::pair<UnkeyedRealisation, PathStatus>> DerivationGoal::checkPa
     bool checkHash = build_mode == bmRepair;
     PathStatus status = !worker.store.isValidPath(output_path)               ? PathStatus::Absent
                         : !checkHash || worker.pathContentsGood(output_path) ? PathStatus::Valid
-                                                                            : PathStatus::Corrupt;
+                                                                             : PathStatus::Corrupt;
 
-    if (experimental_feature_settings.is_enabled(xp_t::ca_derivations) && status == PathStatus::Valid) {
+    if (experimental_feature_settings.is_enabled(xp_t::ca_derivations) &&
+        status == PathStatus::Valid) {
       // We know the output because it's a static output of the
       // derivation, and the output path is valid, but we don't have
       // its realisation stored (probably because it has been built
@@ -438,7 +440,7 @@ UnkeyedRealisation DerivationGoal::assertPathValidity() {
 }
 
 Goal::done_t DerivationGoal::doneSuccess(build_result_t::Success::Status status,
-                                       UnkeyedRealisation builtOutput) {
+                                         UnkeyedRealisation builtOutput) {
   buildResult.inner = build_result_t::Success{
       .status = status,
       .built_outputs = {{
@@ -453,10 +455,11 @@ Goal::done_t DerivationGoal::doneSuccess(build_result_t::Success::Status status,
       }},
   };
 
-  logger->result(get_cur_activity(), res_build_result,
-                 nlohmann::json(keyed_build_result_t(
-                     buildResult, derived_path_t::Built{.drv_path = makeConstantStorePathRef(drv_path),
-                                                     .outputs = OutputsSpec::All{}})));
+  logger->result(
+      get_cur_activity(), res_build_result,
+      nlohmann::json(keyed_build_result_t(
+          buildResult, derived_path_t::Built{.drv_path = makeConstantStorePathRef(drv_path),
+                                             .outputs = OutputsSpec::All{}})));
 
   mcExpectedBuilds.reset();
 
@@ -474,10 +477,11 @@ Goal::done_t DerivationGoal::doneFailure(build_error_t ex) {
       .errorMsg = fmt("%s", uncolored_t(ex.info().msg)),
   };
 
-  logger->result(get_cur_activity(), res_build_result,
-                 nlohmann::json(keyed_build_result_t(
-                     buildResult, derived_path_t::Built{.drv_path = makeConstantStorePathRef(drv_path),
-                                                     .outputs = OutputsSpec::All{}})));
+  logger->result(
+      get_cur_activity(), res_build_result,
+      nlohmann::json(keyed_build_result_t(
+          buildResult, derived_path_t::Built{.drv_path = makeConstantStorePathRef(drv_path),
+                                             .outputs = OutputsSpec::All{}})));
 
   mcExpectedBuilds.reset();
 

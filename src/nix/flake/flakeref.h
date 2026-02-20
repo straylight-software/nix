@@ -58,19 +58,21 @@ struct flake_ref_t {
     return std::tie(input, subdir) < std::tie(other.input, other.subdir);
   }
 
-  flake_ref_t(fetchers::input_t&& input, const Path& subdir) : input(std::move(input)), subdir(subdir) {}
+  flake_ref_t(fetchers::input_t&& input, const Path& subdir)
+      : input(std::move(input)), subdir(subdir) {}
 
   std::string to_string(bool abbreviate = false) const;
 
   fetchers::Attrs toAttrs() const;
 
   flake_ref_t resolve(const fetchers::settings_t& fetch_settings, store_t& store,
-                   fetchers::UseRegistries use_registries = fetchers::UseRegistries::All) const;
+                      fetchers::UseRegistries use_registries = fetchers::UseRegistries::All) const;
 
-  static flake_ref_t fromAttrs(const fetchers::settings_t& fetch_settings, const fetchers::Attrs& attrs);
+  static flake_ref_t fromAttrs(const fetchers::settings_t& fetch_settings,
+                               const fetchers::Attrs& attrs);
 
-  std::pair<ref<source_accessor_t>, flake_ref_t> lazyFetch(const fetchers::settings_t& fetch_settings,
-                                                     store_t& store) const;
+  std::pair<ref<source_accessor_t>, flake_ref_t>
+  lazyFetch(const fetchers::settings_t& fetch_settings, store_t& store) const;
 
   /**
    * Canonicalize a flakeref for the purpose of comparing "old" and
@@ -86,9 +88,9 @@ std::ostream& operator<<(std::ostream& str, const flake_ref_t& flake_ref);
  * directory](https://nix.dev/manual/nix/development/glossary.html#gloss-base-directory)
  */
 flake_ref_t parse_flake_ref(const fetchers::settings_t& fetch_settings, const std::string& url,
-                       const std::optional<std::filesystem::path>& base_dir = {},
-                       bool allow_missing = false, bool is_flake = true,
-                       bool preserve_relative_paths = false);
+                            const std::optional<std::filesystem::path>& base_dir = {},
+                            bool allow_missing = false, bool is_flake = true,
+                            bool preserve_relative_paths = false);
 
 /**
  * @param base_dir Optional [base
@@ -96,9 +98,9 @@ flake_ref_t parse_flake_ref(const fetchers::settings_t& fetch_settings, const st
  */
 std::pair<flake_ref_t, std::string>
 parse_flake_ref_with_fragment(const fetchers::settings_t& fetch_settings, const std::string& url,
-                          const std::optional<std::filesystem::path>& base_dir = {},
-                          bool allow_missing = false, bool is_flake = true,
-                          bool preserve_relative_paths = false);
+                              const std::optional<std::filesystem::path>& base_dir = {},
+                              bool allow_missing = false, bool is_flake = true,
+                              bool preserve_relative_paths = false);
 
 /**
  * @param base_dir Optional [base

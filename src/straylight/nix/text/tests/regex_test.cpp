@@ -4,8 +4,6 @@
 // Tests ERE compatibility, match semantics, and cache behavior.
 
 // Catch2 MUST be included before rapidcheck/catch.h for v3 compatibility
-#include <catch2/catch_test_macros.hpp>
-
 #include <algorithm>
 #include <cstdint>
 #include <string>
@@ -14,6 +12,8 @@
 
 #include <rapidcheck.h>
 #include <rapidcheck/catch.h>
+
+#include <catch2/catch_test_macros.hpp>
 
 #include "../regex.h"
 namespace regex = straylight::nix::text;

@@ -61,10 +61,10 @@ struct ServeProto::BasicClientConnection {
   }
 
   store_path_set_t queryValidPaths(const store_dir_config_t& remoteStore, bool lock,
-                               const store_path_set_t& paths, SubstituteFlag maybeSubstitute);
+                                   const store_path_set_t& paths, SubstituteFlag maybeSubstitute);
 
   std::map<store_path_t, UnkeyedValidPathInfo> queryPathInfos(const store_dir_config_t& store,
-                                                           const store_path_set_t& paths);
+                                                              const store_path_set_t& paths);
   ;
 
   void putBuildDerivationRequest(const store_dir_config_t& store, const store_path_t& drv_path,
@@ -78,7 +78,7 @@ struct ServeProto::BasicClientConnection {
   build_result_t getBuildDerivationResponse(const store_dir_config_t& store);
 
   void nar_from_path(const store_dir_config_t& store, const store_path_t& path,
-                   std::function<void(source_t&)> fun);
+                     std::function<void(source_t&)> fun);
 
   void import_paths(const store_dir_config_t& store, std::function<void(sink_t&)> fun);
 };

@@ -133,11 +133,11 @@ static expr_t* make_call(Exprs& exprs, pos_idx_t pos, expr_t* fn, expr_t* arg) {
     if (yydebug_)                                                                                  \
     (*yycdebug_)
 
-#  define YY_SYMBOL_PRINT(Title, symbol_t)                                                           \
+#  define YY_SYMBOL_PRINT(Title, symbol_t)                                                         \
     do {                                                                                           \
       if (yydebug_) {                                                                              \
         *yycdebug_ << Title << ' ';                                                                \
-        yy_print_(*yycdebug_, symbol_t);                                                             \
+        yy_print_(*yycdebug_, symbol_t);                                                           \
         *yycdebug_ << '\n';                                                                        \
       }                                                                                            \
     } while (false)
@@ -284,7 +284,8 @@ bison_parser_t ::basic_symbol<Base>::basic_symbol(const basic_symbol& that)
 
 
 template <typename Base>
-bison_parser_t ::symbol_kind_type bison_parser_t ::basic_symbol<Base>::type_get() const YY_NOEXCEPT {
+bison_parser_t ::symbol_kind_type
+bison_parser_t ::basic_symbol<Base>::type_get() const YY_NOEXCEPT {
   return this->kind();
 }
 
@@ -1064,7 +1065,8 @@ int bison_parser_t ::parse() {
           break;
 
         case symbol_kind::s_ind_string_parts: // ind_string_parts
-          yylhs.value.emplace<std::vector<std::pair<pos_idx_t, std::variant<expr_t*, StringToken>>>>();
+          yylhs.value
+              .emplace<std::vector<std::pair<pos_idx_t, std::variant<expr_t*, StringToken>>>>();
           break;
 
         default:
@@ -1182,8 +1184,8 @@ int bison_parser_t ::parse() {
             if (!yystack_[2].value.as<ExprAttrs*>()->dynamicAttrs->empty())
               throw ParseError({.msg = hint_fmt_t("dynamic attributes not allowed in let"),
                                 .pos = state->positions[CUR_POS]});
-            yylhs.value.as<expr_t*>() = state->exprs.add<ExprLet>(yystack_[2].value.as<ExprAttrs*>(),
-                                                                yystack_[0].value.as<expr_t*>());
+            yylhs.value.as<expr_t*>() = state->exprs.add<ExprLet>(
+                yystack_[2].value.as<ExprAttrs*>(), yystack_[0].value.as<expr_t*>());
           }
 #line 1267 "parser-tab.cpp"
           break;
@@ -1235,7 +1237,7 @@ int bison_parser_t ::parse() {
           {
             yylhs.value.as<expr_t*>() =
                 make_call(state->exprs, state->at(yystack_[1].location),
-                         yystack_[2].value.as<expr_t*>(), yystack_[0].value.as<expr_t*>());
+                          yystack_[2].value.as<expr_t*>(), yystack_[0].value.as<expr_t*>());
           }
 #line 1303 "parser-tab.cpp"
           break;
@@ -1245,7 +1247,7 @@ int bison_parser_t ::parse() {
           {
             yylhs.value.as<expr_t*>() =
                 make_call(state->exprs, state->at(yystack_[1].location),
-                         yystack_[2].value.as<expr_t*>(), yystack_[0].value.as<expr_t*>());
+                          yystack_[2].value.as<expr_t*>(), yystack_[0].value.as<expr_t*>());
           }
 #line 1309 "parser-tab.cpp"
           break;
@@ -1255,7 +1257,7 @@ int bison_parser_t ::parse() {
           {
             yylhs.value.as<expr_t*>() =
                 make_call(state->exprs, state->at(yystack_[1].location),
-                         yystack_[0].value.as<expr_t*>(), yystack_[2].value.as<expr_t*>());
+                          yystack_[0].value.as<expr_t*>(), yystack_[2].value.as<expr_t*>());
           }
 #line 1315 "parser-tab.cpp"
           break;
@@ -1265,7 +1267,7 @@ int bison_parser_t ::parse() {
           {
             yylhs.value.as<expr_t*>() =
                 make_call(state->exprs, state->at(yystack_[1].location),
-                         yystack_[0].value.as<expr_t*>(), yystack_[2].value.as<expr_t*>());
+                          yystack_[0].value.as<expr_t*>(), yystack_[2].value.as<expr_t*>());
           }
 #line 1321 "parser-tab.cpp"
           break;
@@ -1273,7 +1275,8 @@ int bison_parser_t ::parse() {
           case 20: // expr_op: '!' expr_op
 #line 242 "parser.y"
           {
-            yylhs.value.as<expr_t*>() = state->exprs.add<ExprOpNot>(yystack_[0].value.as<expr_t*>());
+            yylhs.value.as<expr_t*>() =
+                state->exprs.add<ExprOpNot>(yystack_[0].value.as<expr_t*>());
           }
 #line 1327 "parser-tab.cpp"
           break;
@@ -1292,7 +1295,7 @@ int bison_parser_t ::parse() {
 #line 244 "parser.y"
           {
             yylhs.value.as<expr_t*>() = state->exprs.add<ExprOpEq>(yystack_[2].value.as<expr_t*>(),
-                                                                 yystack_[0].value.as<expr_t*>());
+                                                                   yystack_[0].value.as<expr_t*>());
           }
 #line 1339 "parser-tab.cpp"
           break;
@@ -1300,8 +1303,8 @@ int bison_parser_t ::parse() {
           case 23: // expr_op: expr_op NEQ expr_op
 #line 245 "parser.y"
           {
-            yylhs.value.as<expr_t*>() = state->exprs.add<ExprOpNEq>(yystack_[2].value.as<expr_t*>(),
-                                                                  yystack_[0].value.as<expr_t*>());
+            yylhs.value.as<expr_t*>() = state->exprs.add<ExprOpNEq>(
+                yystack_[2].value.as<expr_t*>(), yystack_[0].value.as<expr_t*>());
           }
 #line 1345 "parser-tab.cpp"
           break;
@@ -1349,9 +1352,9 @@ int bison_parser_t ::parse() {
           case 28: // expr_op: expr_op AND expr_op
 #line 250 "parser.y"
           {
-            yylhs.value.as<expr_t*>() = state->exprs.add<ExprOpAnd>(state->at(yystack_[1].location),
-                                                                  yystack_[2].value.as<expr_t*>(),
-                                                                  yystack_[0].value.as<expr_t*>());
+            yylhs.value.as<expr_t*>() = state->exprs.add<ExprOpAnd>(
+                state->at(yystack_[1].location), yystack_[2].value.as<expr_t*>(),
+                yystack_[0].value.as<expr_t*>());
           }
 #line 1375 "parser-tab.cpp"
           break;
@@ -1360,8 +1363,8 @@ int bison_parser_t ::parse() {
 #line 251 "parser.y"
           {
             yylhs.value.as<expr_t*>() = state->exprs.add<ExprOpOr>(state->at(yystack_[1].location),
-                                                                 yystack_[2].value.as<expr_t*>(),
-                                                                 yystack_[0].value.as<expr_t*>());
+                                                                   yystack_[2].value.as<expr_t*>(),
+                                                                   yystack_[0].value.as<expr_t*>());
           }
 #line 1381 "parser-tab.cpp"
           break;
@@ -1369,9 +1372,9 @@ int bison_parser_t ::parse() {
           case 30: // expr_op: expr_op IMPL expr_op
 #line 252 "parser.y"
           {
-            yylhs.value.as<expr_t*>() = state->exprs.add<ExprOpImpl>(state->at(yystack_[1].location),
-                                                                   yystack_[2].value.as<expr_t*>(),
-                                                                   yystack_[0].value.as<expr_t*>());
+            yylhs.value.as<expr_t*>() = state->exprs.add<ExprOpImpl>(
+                state->at(yystack_[1].location), yystack_[2].value.as<expr_t*>(),
+                yystack_[0].value.as<expr_t*>());
           }
 #line 1387 "parser-tab.cpp"
           break;
@@ -1458,8 +1461,9 @@ int bison_parser_t ::parse() {
           case 39: // expr_app: expr_app expr_select
 #line 265 "parser.y"
           {
-            yylhs.value.as<expr_t*>() = make_call(state->exprs, CUR_POS, yystack_[1].value.as<expr_t*>(),
-                                               yystack_[0].value.as<expr_t*>());
+            yylhs.value.as<expr_t*>() =
+                make_call(state->exprs, CUR_POS, yystack_[1].value.as<expr_t*>(),
+                          yystack_[0].value.as<expr_t*>());
             yystack_[0].value.as<expr_t*>()->warnIfCursedOr(state->symbols, state->positions);
           }
 #line 1441 "parser-tab.cpp"
@@ -1539,7 +1543,8 @@ int bison_parser_t ::parse() {
           case 47: // expr_simple: FLOAT_LIT
 #line 299 "parser.y"
           {
-            yylhs.value.as<expr_t*>() = state->exprs.add<ExprFloat>(yystack_[0].value.as<NixFloat>());
+            yylhs.value.as<expr_t*>() =
+                state->exprs.add<ExprFloat>(yystack_[0].value.as<NixFloat>());
           }
 #line 1495 "parser-tab.cpp"
           break;
@@ -1547,7 +1552,8 @@ int bison_parser_t ::parse() {
           case 48: // expr_simple: '"' string_parts '"'
 #line 300 "parser.y"
           {
-            yylhs.value.as<expr_t*>() = yystack_[1].value.as<ToBeStringyExpr>().toExpr(state->exprs);
+            yylhs.value.as<expr_t*>() =
+                yystack_[1].value.as<ToBeStringyExpr>().toExpr(state->exprs);
           }
 #line 1501 "parser-tab.cpp"
           break;
@@ -1558,7 +1564,8 @@ int bison_parser_t ::parse() {
             yylhs.value.as<expr_t*>() = state->strip_indentation(
                 CUR_POS,
                 yystack_[1]
-                    .value.as<std::vector<std::pair<pos_idx_t, std::variant<expr_t*, StringToken>>>>());
+                    .value
+                    .as<std::vector<std::pair<pos_idx_t, std::variant<expr_t*, StringToken>>>>());
           }
 #line 1509 "parser-tab.cpp"
           break;
@@ -1600,10 +1607,11 @@ int bison_parser_t ::parse() {
           case 53: // expr_simple: URI
 #line 316 "parser.y"
           {
-            static bool no_url_literals = experimental_feature_settings.is_enabled(xp_t::no_url_literals);
+            static bool no_url_literals =
+                experimental_feature_settings.is_enabled(xp_t::no_url_literals);
             if (no_url_literals)
-              throw ParseError(
-                  {.msg = hint_fmt_t("URL literals are disabled"), .pos = state->positions[CUR_POS]});
+              throw ParseError({.msg = hint_fmt_t("URL literals are disabled"),
+                                .pos = state->positions[CUR_POS]});
             yylhs.value.as<expr_t*>() = state->exprs.add<ExprString>(
                 state->exprs.alloc, yystack_[0].value.as<StringToken>());
           }
@@ -1746,11 +1754,12 @@ int bison_parser_t ::parse() {
             /* check for short path literals */
             if (state->settings.warnShortPathLiterals && literal.front() != '/' &&
                 literal.front() != '.') {
-              logWarning({.msg = hint_fmt_t("relative path literal '%s' should be prefixed with '.' "
-                                         "for clarity: './%s'. (" ANSI_BOLD
-                                         "warn-short-path-literals" ANSI_NORMAL " = true)",
-                                         literal, literal),
-                          .pos = state->positions[CUR_POS]});
+              logWarning(
+                  {.msg = hint_fmt_t("relative path literal '%s' should be prefixed with '.' "
+                                     "for clarity: './%s'. (" ANSI_BOLD
+                                     "warn-short-path-literals" ANSI_NORMAL " = true)",
+                                     literal, literal),
+                   .pos = state->positions[CUR_POS]});
             }
 
             Path path(abs_path(literal, state->base_path.path.abs()));
@@ -1778,7 +1787,7 @@ int bison_parser_t ::parse() {
                                            yystack_[0].value.as<StringToken>().l));
             }
             Path path(get_home().string() + std::string(yystack_[0].value.as<StringToken>().p + 1,
-                                                       yystack_[0].value.as<StringToken>().l - 1));
+                                                        yystack_[0].value.as<StringToken>().l - 1));
             yylhs.value.as<expr_t*>() = state->exprs.add<ExprPath>(
                 state->exprs.alloc, ref<source_accessor_t>(state->root_fs), path);
           }
@@ -1789,9 +1798,10 @@ int bison_parser_t ::parse() {
 #line 393 "parser.y"
           {
             yylhs.value
-                .as<std::vector<std::pair<pos_idx_t, std::variant<expr_t*, StringToken>>>>() = std::move(
-                yystack_[1]
-                    .value.as<std::vector<std::pair<pos_idx_t, std::variant<expr_t*, StringToken>>>>());
+                .as<std::vector<std::pair<pos_idx_t, std::variant<expr_t*, StringToken>>>>() =
+                std::move(yystack_[1]
+                              .value.as<std::vector<
+                                  std::pair<pos_idx_t, std::variant<expr_t*, StringToken>>>>());
             yylhs.value.as<std::vector<std::pair<pos_idx_t, std::variant<expr_t*, StringToken>>>>()
                 .emplace_back(state->at(yystack_[0].location), yystack_[0].value.as<StringToken>());
           }
@@ -1802,9 +1812,10 @@ int bison_parser_t ::parse() {
 #line 394 "parser.y"
           {
             yylhs.value
-                .as<std::vector<std::pair<pos_idx_t, std::variant<expr_t*, StringToken>>>>() = std::move(
-                yystack_[3]
-                    .value.as<std::vector<std::pair<pos_idx_t, std::variant<expr_t*, StringToken>>>>());
+                .as<std::vector<std::pair<pos_idx_t, std::variant<expr_t*, StringToken>>>>() =
+                std::move(yystack_[3]
+                              .value.as<std::vector<
+                                  std::pair<pos_idx_t, std::variant<expr_t*, StringToken>>>>());
             yylhs.value.as<std::vector<std::pair<pos_idx_t, std::variant<expr_t*, StringToken>>>>()
                 .emplace_back(state->at(yystack_[2].location), yystack_[1].value.as<expr_t*>());
           }
@@ -2362,7 +2373,7 @@ int bison_parser_t ::context::expected_tokens(symbol_kind_type yyarg[], int yyar
 
 
 int bison_parser_t ::yy_syntax_error_arguments_(const context& yyctx, symbol_kind_type yyarg[],
-                                             int yyargn) const {
+                                                int yyargn) const {
   /* There are many possibilities here to consider:
      - If this state is a consistent state with a default action, then
        the only way this function was invoked is if the default action
@@ -2465,12 +2476,12 @@ const signed char bison_parser_t ::yydefact_[] = {
     0,  0,  7,  0,  0,  75, 78, 79, 0,  77, 70, 66, 64, 91, 42, 6,  12, 80, 74, 0,  76};
 
 const short bison_parser_t ::yypgoto_[] = {-103, -103, -8,   -28,  -103, 122,  -103, 59, -103,
-                                        -24,  -103, 188,  204,  -103, -103, 8,    -1, 42,
-                                        -35,  -102, -101, -103, 205,  -103, 116};
+                                           -24,  -103, 188,  204,  -103, -103, 8,    -1, 42,
+                                           -35,  -102, -101, -103, 205,  -103, 116};
 
 const unsigned char bison_parser_t ::yydefgoto_[] = {0,  20, 21, 22, 23, 24, 25, 26, 27,
-                                                  28, 29, 56, 57, 30, 48, 62, 43, 162,
-                                                  44, 45, 46, 66, 31, 64, 65};
+                                                     28, 29, 56, 57, 30, 48, 62, 43, 162,
+                                                     44, 45, 46, 66, 31, 64, 65};
 
 const short bison_parser_t ::yytable_[] = {
     34,  35,  36,  87,  95,  164, 165, 123, 106, 58,  107, 124, 120, 59,  110, 151, 47,  63,  108,
@@ -2548,92 +2559,92 @@ const signed char bison_parser_t ::yyr2_[] = {
 // YYTNAME[SYMBOL-NUM] -- String name of the symbol SYMBOL-NUM.
 // First, the terminals, then, starting at \a YYNTOKENS, nonterminals.
 const char* const bison_parser_t ::yytname_[] = {"\"end of file\"",
-                                              "error",
-                                              "\"invalid token\"",
-                                              "ID",
-                                              "STR",
-                                              "IND_STR",
-                                              "INT_LIT",
-                                              "FLOAT_LIT",
-                                              "PATH",
-                                              "HPATH",
-                                              "SPATH",
-                                              "PATH_END",
-                                              "URI",
-                                              "IF",
-                                              "THEN",
-                                              "ELSE",
-                                              "ASSERT",
-                                              "WITH",
-                                              "LET",
-                                              "IN_KW",
-                                              "REC",
-                                              "INHERIT",
-                                              "EQ",
-                                              "NEQ",
-                                              "AND",
-                                              "OR",
-                                              "IMPL",
-                                              "OR_KW",
-                                              "PIPE_FROM",
-                                              "PIPE_INTO",
-                                              "DOLLAR_CURLY",
-                                              "IND_STRING_OPEN",
-                                              "IND_STRING_CLOSE",
-                                              "ELLIPSIS",
-                                              "'<'",
-                                              "'>'",
-                                              "LEQ",
-                                              "GEQ",
-                                              "UPDATE",
-                                              "NOT",
-                                              "'+'",
-                                              "'-'",
-                                              "'*'",
-                                              "'/'",
-                                              "CONCAT",
-                                              "'?'",
-                                              "NEGATE",
-                                              "':'",
-                                              "'@'",
-                                              "';'",
-                                              "'!'",
-                                              "'.'",
-                                              "'\"'",
-                                              "'('",
-                                              "')'",
-                                              "'{'",
-                                              "'}'",
-                                              "'['",
-                                              "']'",
-                                              "'='",
-                                              "','",
-                                              "$accept",
-                                              "start",
-                                              "expr",
-                                              "expr_function",
-                                              "expr_if",
-                                              "expr_pipe_from",
-                                              "expr_pipe_into",
-                                              "expr_op",
-                                              "expr_app",
-                                              "expr_select",
-                                              "expr_simple",
-                                              "string_parts",
-                                              "string_parts_interpolated",
-                                              "path_start",
-                                              "ind_string_parts",
-                                              "binds",
-                                              "binds1",
-                                              "attrs",
-                                              "attrpath",
-                                              "attr",
-                                              "string_attr",
-                                              "list",
-                                              "formal_set",
-                                              "formals",
-                                              "formal",
-                                              YY_NULLPTR};
+                                                 "error",
+                                                 "\"invalid token\"",
+                                                 "ID",
+                                                 "STR",
+                                                 "IND_STR",
+                                                 "INT_LIT",
+                                                 "FLOAT_LIT",
+                                                 "PATH",
+                                                 "HPATH",
+                                                 "SPATH",
+                                                 "PATH_END",
+                                                 "URI",
+                                                 "IF",
+                                                 "THEN",
+                                                 "ELSE",
+                                                 "ASSERT",
+                                                 "WITH",
+                                                 "LET",
+                                                 "IN_KW",
+                                                 "REC",
+                                                 "INHERIT",
+                                                 "EQ",
+                                                 "NEQ",
+                                                 "AND",
+                                                 "OR",
+                                                 "IMPL",
+                                                 "OR_KW",
+                                                 "PIPE_FROM",
+                                                 "PIPE_INTO",
+                                                 "DOLLAR_CURLY",
+                                                 "IND_STRING_OPEN",
+                                                 "IND_STRING_CLOSE",
+                                                 "ELLIPSIS",
+                                                 "'<'",
+                                                 "'>'",
+                                                 "LEQ",
+                                                 "GEQ",
+                                                 "UPDATE",
+                                                 "NOT",
+                                                 "'+'",
+                                                 "'-'",
+                                                 "'*'",
+                                                 "'/'",
+                                                 "CONCAT",
+                                                 "'?'",
+                                                 "NEGATE",
+                                                 "':'",
+                                                 "'@'",
+                                                 "';'",
+                                                 "'!'",
+                                                 "'.'",
+                                                 "'\"'",
+                                                 "'('",
+                                                 "')'",
+                                                 "'{'",
+                                                 "'}'",
+                                                 "'['",
+                                                 "']'",
+                                                 "'='",
+                                                 "','",
+                                                 "$accept",
+                                                 "start",
+                                                 "expr",
+                                                 "expr_function",
+                                                 "expr_if",
+                                                 "expr_pipe_from",
+                                                 "expr_pipe_into",
+                                                 "expr_op",
+                                                 "expr_app",
+                                                 "expr_select",
+                                                 "expr_simple",
+                                                 "string_parts",
+                                                 "string_parts_interpolated",
+                                                 "path_start",
+                                                 "ind_string_parts",
+                                                 "binds",
+                                                 "binds1",
+                                                 "attrs",
+                                                 "attrpath",
+                                                 "attr",
+                                                 "string_attr",
+                                                 "list",
+                                                 "formal_set",
+                                                 "formals",
+                                                 "formal",
+                                                 YY_NULLPTR};
 #endif
 
 
@@ -2705,10 +2716,10 @@ bison_parser_t ::symbol_kind_type bison_parser_t ::yytranslate_(int t) YY_NOEXCE
 
 namespace nix {
 
-expr_t* parse_expr_from_buf(char* text, size_t length, pos_t::origin_t origin, const source_path_t& base_path,
-                       Exprs& exprs, symbol_table_t& symbols, const eval_settings_t& settings,
-                       pos_table_t& positions, DocCommentMap& doc_comments,
-                       const ref<source_accessor_t> root_fs) {
+expr_t* parse_expr_from_buf(char* text, size_t length, pos_t::origin_t origin,
+                            const source_path_t& base_path, Exprs& exprs, symbol_table_t& symbols,
+                            const eval_settings_t& settings, pos_table_t& positions,
+                            DocCommentMap& doc_comments, const ref<source_accessor_t> root_fs) {
   yyscan_t scanner;
   LexerState lexer_state{
       .positionToDocComment = doc_comments,

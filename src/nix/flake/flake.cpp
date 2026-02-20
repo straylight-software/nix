@@ -83,14 +83,17 @@ static void expect_type(eval_state_t& state, ValueType type, value_t& value, con
   force_trivial_value(state, value, pos);
   auto t = value.type();
   if (t != type)
-    throw Error("expected %s but got %s at %s", show_type(type), show_type(t), state.positions[pos]);
+    throw Error("expected %s but got %s at %s", show_type(type), show_type(t),
+                state.positions[pos]);
 }
 
 static std::pair<std::map<FlakeId, FlakeInput>, fetchers::Attrs>
 parseFlakeInputs(eval_state_t& state, value_t* value, const pos_idx_t pos,
-                 const InputAttrPath& lock_root_attr_path, const source_path_t& flake_dir, bool allowSelf);
+                 const InputAttrPath& lock_root_attr_path, const source_path_t& flake_dir,
+                 bool allowSelf);
 
-static void parse_flake_input_attr(eval_state_t& state, const nix::attr_t& attr, fetchers::Attrs& attrs) {
+static void parse_flake_input_attr(eval_state_t& state, const nix::attr_t& attr,
+                                   fetchers::Attrs& attrs) {
 // Allow selecting a subset of enum values
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wswitch-enum"
@@ -115,8 +118,9 @@ static void parse_flake_input_attr(eval_state_t& state, const nix::attr_t& attr,
       if (attr.name == state.symbols.create("publicKeys")) {
         experimental_feature_settings.require(xp_t::verified_fetches);
         NixStringContext empty_context = {};
-        attrs.emplace(state.symbols[attr.name],
-                      print_value_as_json(state, true, *attr.value, attr.pos, empty_context).dump());
+        attrs.emplace(
+            state.symbols[attr.name],
+            print_value_as_json(state, true, *attr.value, attr.pos, empty_context).dump());
       } else
         state
             .error<TypeError>(
@@ -128,8 +132,8 @@ static void parse_flake_input_attr(eval_state_t& state, const nix::attr_t& attr,
 }
 
 static FlakeInput parse_flake_input(eval_state_t& state, value_t* value, const pos_idx_t pos,
-                                  const InputAttrPath& lock_root_attr_path,
-                                  const source_path_t& flake_dir) {
+                                    const InputAttrPath& lock_root_attr_path,
+                                    const source_path_t& flake_dir) {
   expect_type(state, nAttrs, *value, pos);
 
   FlakeInput input;
@@ -169,7 +173,8 @@ static FlakeInput parse_flake_input(eval_state_t& state, value_t* value, const p
           experimental_feature_settings.require(xp_t::build_time_fetch_tree);
       } else if (attr.name == s_inputs) {
         input.overrides =
-            parseFlakeInputs(state, attr.value, attr.pos, lock_root_attr_path, flake_dir, false).first;
+            parseFlakeInputs(state, attr.value, attr.pos, lock_root_attr_path, flake_dir, false)
+                .first;
       } else if (attr.name == s_follows) {
         expect_type(state, nString, *attr.value, attr.pos);
         auto follows(parse_input_attr_path(attr.value->string_view()));
@@ -179,7 +184,7 @@ static FlakeInput parse_flake_input(eval_state_t& state, value_t* value, const p
         parse_flake_input_attr(state, attr, attrs);
     } catch (Error& e) {
       e.add_trace(state.positions[attr.pos],
-                 hint_fmt_t("while evaluating flake attribute '%s'", state.symbols[attr.name]));
+                  hint_fmt_t("while evaluating flake attribute '%s'", state.symbols[attr.name]));
       throw;
     }
   }
@@ -226,16 +231,16 @@ parseFlakeInputs(eval_state_t& state, value_t* value, const pos_idx_t pos,
         parse_flake_input_attr(state, attr, selfAttrs);
     } else {
       inputs.emplace(inputName, parse_flake_input(state, inputAttr.value, inputAttr.pos,
-                                                lock_root_attr_path, flake_dir));
+                                                  lock_root_attr_path, flake_dir));
     }
   }
 
   return {inputs, selfAttrs};
 }
 
-static flake_t read_flake(eval_state_t& state, const flake_ref_t& original_ref, const flake_ref_t& resolved_ref,
-                       const flake_ref_t& locked_ref, const source_path_t& root_dir,
-                       const InputAttrPath& lock_root_attr_path) {
+static flake_t read_flake(eval_state_t& state, const flake_ref_t& original_ref,
+                          const flake_ref_t& resolved_ref, const flake_ref_t& locked_ref,
+                          const source_path_t& root_dir, const InputAttrPath& lock_root_attr_path) {
   auto flake_dir = root_dir / canon_path_t(resolved_ref.subdir);
   auto flake_path = flake_dir / "flake.nix";
 
@@ -276,7 +281,7 @@ static flake_t read_flake(eval_state_t& state, const flake_ref_t& original_ref, 
             flake.inputs.emplace(
                 state.symbols[formal.name],
                 FlakeInput{.ref = parse_flake_ref(state.fetch_settings,
-                                                std::string(state.symbols[formal.name]))});
+                                                  std::string(state.symbols[formal.name]))});
         }
       }
     }
@@ -296,8 +301,8 @@ static flake_t read_flake(eval_state_t& state, const flake_ref_t& original_ref, 
             state.symbols[setting.name],
             std::string(state.forceStringNoCtx(*setting.value, setting.pos, "")));
       else if (setting.value->type() == nPath) {
-        auto store_path =
-            fetch_to_store(state.fetch_settings, *state.store, setting.value->path(), FetchMode::Copy);
+        auto store_path = fetch_to_store(state.fetch_settings, *state.store, setting.value->path(),
+                                         FetchMode::Copy);
         flake.config.settings.emplace(state.symbols[setting.name],
                                       state.store->printStorePath(store_path));
       } else if (setting.value->type() == nInt)
@@ -352,11 +357,11 @@ static flake_ref_t apply_self_attrs(const flake_ref_t& ref, const flake_t& flake
 }
 
 static flake_t get_flake(eval_state_t& state, const flake_ref_t& original_ref,
-                      fetchers::UseRegistries use_registries, const InputAttrPath& lock_root_attr_path,
-                      bool require_lockable) {
+                         fetchers::UseRegistries use_registries,
+                         const InputAttrPath& lock_root_attr_path, bool require_lockable) {
   // Fetch a lazy tree first.
   auto cached_input = state.inputCache->get_accessor(state.fetch_settings, *state.store,
-                                                   original_ref.input, use_registries);
+                                                     original_ref.input, use_registries);
 
   auto subdir =
       fetchers::maybe_get_str_attr(cached_input.extra_attrs, "dir").value_or(original_ref.subdir);
@@ -365,7 +370,7 @@ static flake_t get_flake(eval_state_t& state, const flake_ref_t& original_ref,
 
   // Parse/eval flake.nix to get at the input.self attributes.
   auto flake = read_flake(state, original_ref, resolved_ref, locked_ref, {cached_input.accessor},
-                         lock_root_attr_path);
+                          lock_root_attr_path);
 
   // Re-fetch the tree if necessary.
   auto new_locked_ref = apply_self_attrs(locked_ref, flake);
@@ -383,18 +388,18 @@ static flake_t get_flake(eval_state_t& state, const flake_ref_t& original_ref,
 
   // Re-parse flake.nix from the store.
   return read_flake(state, original_ref, resolved_ref, locked_ref,
-                   state.store_path(state.mountInput(locked_ref.input, original_ref.input,
-                                                    cached_input.accessor, require_lockable)),
-                   lock_root_attr_path);
+                    state.store_path(state.mountInput(locked_ref.input, original_ref.input,
+                                                      cached_input.accessor, require_lockable)),
+                    lock_root_attr_path);
 }
 
-flake_t get_flake(eval_state_t& state, const flake_ref_t& original_ref, fetchers::UseRegistries use_registries,
-               bool require_lockable) {
+flake_t get_flake(eval_state_t& state, const flake_ref_t& original_ref,
+                  fetchers::UseRegistries use_registries, bool require_lockable) {
   return get_flake(state, original_ref, use_registries, {}, require_lockable);
 }
 
 static lock_file_t read_lock_file(const fetchers::settings_t& fetch_settings,
-                             const source_path_t& lock_file_path) {
+                                  const source_path_t& lock_file_path) {
   return lock_file_path.path_exists()
              ? lock_file_t(fetch_settings, lock_file_path.read_file(), fmt("%s", lock_file_path))
              : lock_file_t();
@@ -403,7 +408,7 @@ static lock_file_t read_lock_file(const fetchers::settings_t& fetch_settings,
 /* Compute an in-memory lock file for the specified top-level flake,
    and optionally write it to file, if the flake is writable. */
 LockedFlake lock_flake(const settings_t& settings, eval_state_t& state, const flake_ref_t& top_ref,
-                      const LockFlags& lock_flags) {
+                       const LockFlags& lock_flags) {
   auto use_registries = lock_flags.use_registries.value_or(settings.use_registries);
   auto use_registries_top =
       use_registries ? fetchers::UseRegistries::All : fetchers::UseRegistries::No;
@@ -423,8 +428,8 @@ LockedFlake lock_flake(const settings_t& settings, eval_state_t& state, const fl
           "reference lock file was provided, but the `allow-dirty` setting is set to false");
     }
 
-    auto old_lock_file = read_lock_file(state.fetch_settings,
-                                    lock_flags.referenceLockFilePath.value_or(flake.lock_file_path()));
+    auto old_lock_file = read_lock_file(
+        state.fetch_settings, lock_flags.referenceLockFilePath.value_or(flake.lock_file_path()));
 
     debug("old lock file: %s", old_lock_file);
 
@@ -491,8 +496,8 @@ LockedFlake lock_flake(const settings_t& settings, eval_state_t& state, const fl
           if (inputOverride.ref || inputOverride.follows)
             overrides.emplace(inputAttrPath,
                               override_target_t{.input = inputOverride,
-                                             .source_path = source_path,
-                                             .parent_input_attr_path = inputAttrPathPrefix});
+                                                .source_path = source_path,
+                                                .parent_input_attr_path = inputAttrPathPrefix});
           addOverrides(inputOverride, inputAttrPath);
         }
       };
@@ -556,7 +561,7 @@ LockedFlake lock_flake(const settings_t& settings, eval_state_t& state, const fl
 
           if (!input.ref)
             input.ref = flake_ref_t::fromAttrs(state.fetch_settings,
-                                            {{"type", "indirect"}, {"id", std::string(id)}});
+                                               {{"type", "indirect"}, {"id", std::string(id)}});
 
           auto overriddenParentPath =
               input.ref->input.isRelative()
@@ -661,8 +666,8 @@ LockedFlake lock_flake(const settings_t& settings, eval_state_t& state, const fl
               computeLocks(inputFlake.inputs, childNode, inputAttrPath, oldLock, followsPrefix,
                            inputFlake.path, false);
             } else {
-              computeLocks(fakeInputs, childNode, inputAttrPath, oldLock, followsPrefix, source_path,
-                           true);
+              computeLocks(fakeInputs, childNode, inputAttrPath, oldLock, followsPrefix,
+                           source_path, true);
             }
 
           } else {
@@ -705,8 +710,9 @@ LockedFlake lock_flake(const settings_t& settings, eval_state_t& state, const fl
             };
 
             if (input.is_flake) {
-              auto inputFlake = getInputFlake(
-                  *input.ref, inputIsOverride ? fetchers::UseRegistries::All : use_registries_inputs);
+              auto inputFlake =
+                  getInputFlake(*input.ref, inputIsOverride ? fetchers::UseRegistries::All
+                                                            : use_registries_inputs);
 
               auto childNode = make_ref<LockedNode>(inputFlake.locked_ref, ref, true,
                                                     input.buildTime, overriddenParentPath);
@@ -742,12 +748,13 @@ LockedFlake lock_flake(const settings_t& settings, eval_state_t& state, const fl
 
                   auto resolved_ref =
                       flake_ref_t(std::move(cached_input.resolved_input), input.ref->subdir);
-                  auto locked_ref = flake_ref_t(std::move(cached_input.lockedInput), input.ref->subdir);
+                  auto locked_ref =
+                      flake_ref_t(std::move(cached_input.lockedInput), input.ref->subdir);
 
                   warnRegistry(resolved_ref);
 
                   return {state.store_path(state.mountInput(locked_ref.input, input.ref->input,
-                                                           cached_input.accessor, true, true)),
+                                                            cached_input.accessor, true, true)),
                           locked_ref};
                 }
               }();
@@ -771,8 +778,8 @@ LockedFlake lock_flake(const settings_t& settings, eval_state_t& state, const fl
     nodePaths.emplace(new_lock_file.root, flake.path.parent());
 
     computeLocks(flake.inputs, new_lock_file.root, {},
-                 lock_flags.recreateLockFile ? nullptr : old_lock_file.root.get_ptr(), {}, flake.path,
-                 false);
+                 lock_flags.recreateLockFile ? nullptr : old_lock_file.root.get_ptr(), {},
+                 flake.path, false);
 
     for (auto& i : lock_flags.inputOverrides)
       if (!overridesUsed.count(i.first))
@@ -918,8 +925,9 @@ void call_flake(eval_state_t& state, const LockedFlake& locked_flake, value_t& v
     auto [store_path, subdir] = state.store->toStorePath(source_path.path.abs());
 
     emit_tree_attrs(state, store_path,
-                  locked_node ? locked_node->locked_ref.input : locked_flake.flake.locked_ref.input,
-                  vSourceInfo, false, !locked_node && locked_flake.flake.force_dirty);
+                    locked_node ? locked_node->locked_ref.input
+                                : locked_flake.flake.locked_ref.input,
+                    vSourceInfo, false, !locked_node && locked_flake.flake.force_dirty);
 
     auto key = keyMap.find(node);
     assert(key != keyMap.end());
@@ -967,7 +975,8 @@ LockedFlake::get_fingerprint(store_t& store, const fetchers::settings_t& fetch_s
 
 flake_t::~flake_t() {}
 
-ref<eval_cache::EvalCache> open_eval_cache(eval_state_t& state, ref<const LockedFlake> locked_flake) {
+ref<eval_cache::EvalCache> open_eval_cache(eval_state_t& state,
+                                           ref<const LockedFlake> locked_flake) {
   auto fingerprint = state.settings.useEvalCache && state.settings.pureEval
                          ? locked_flake->get_fingerprint(*state.store, state.fetch_settings)
                          : std::nullopt;

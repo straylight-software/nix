@@ -6,7 +6,8 @@
 
 namespace nix {
 
-ServeProto::Version ServeProto::BasicClientConnection::handshake(buffered_sink_t& to, source_t& from,
+ServeProto::Version ServeProto::BasicClientConnection::handshake(buffered_sink_t& to,
+                                                                 source_t& from,
                                                                  ServeProto::Version localVersion,
                                                                  std::string_view host) {
   to << SERVE_MAGIC_1 << localVersion;
@@ -21,7 +22,8 @@ ServeProto::Version ServeProto::BasicClientConnection::handshake(buffered_sink_t
   return std::min(remoteVersion, localVersion);
 }
 
-ServeProto::Version ServeProto::BasicServerConnection::handshake(buffered_sink_t& to, source_t& from,
+ServeProto::Version ServeProto::BasicServerConnection::handshake(buffered_sink_t& to,
+                                                                 source_t& from,
                                                                  ServeProto::Version localVersion) {
   unsigned int magic = read_int(from);
   if (magic != SERVE_MAGIC_1)
@@ -32,10 +34,10 @@ ServeProto::Version ServeProto::BasicServerConnection::handshake(buffered_sink_t
   return std::min(remoteVersion, localVersion);
 }
 
-store_path_set_t ServeProto::BasicClientConnection::queryValidPaths(const store_dir_config_t& store,
-                                                                bool lock,
-                                                                const store_path_set_t& paths,
-                                                                SubstituteFlag maybeSubstitute) {
+store_path_set_t
+ServeProto::BasicClientConnection::queryValidPaths(const store_dir_config_t& store, bool lock,
+                                                   const store_path_set_t& paths,
+                                                   SubstituteFlag maybeSubstitute) {
   to << ServeProto::command_t::QueryValidPaths << lock << maybeSubstitute;
   write(store, *this, paths);
   to.flush();
@@ -83,8 +85,8 @@ ServeProto::BasicClientConnection::getBuildDerivationResponse(const store_dir_co
 }
 
 void ServeProto::BasicClientConnection::nar_from_path(const store_dir_config_t& store,
-                                                    const store_path_t& path,
-                                                    std::function<void(source_t&)> fun) {
+                                                      const store_path_t& path,
+                                                      std::function<void(source_t&)> fun) {
   to << ServeProto::command_t::DumpStorePath << store.printStorePath(path);
   to.flush();
 
@@ -92,7 +94,7 @@ void ServeProto::BasicClientConnection::nar_from_path(const store_dir_config_t& 
 }
 
 void ServeProto::BasicClientConnection::import_paths(const store_dir_config_t& store,
-                                                    std::function<void(sink_t&)> fun) {
+                                                     std::function<void(sink_t&)> fun) {
   to << ServeProto::command_t::ImportPaths;
   fun(to);
   to.flush();

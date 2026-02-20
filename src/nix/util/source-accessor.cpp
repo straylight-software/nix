@@ -48,14 +48,14 @@ std::string source_accessor_t::read_file(const canon_path_t& path) {
 }
 
 void source_accessor_t::read_file(const canon_path_t& path, sink_t& sink,
-                               std::function<void(uint64_t)> size_callback) {
+                                  std::function<void(uint64_t)> size_callback) {
   auto s = read_file(path);
   size_callback(s.size());
   sink(s);
 }
 
 Hash source_accessor_t::hash_path(const canon_path_t& path, path_filter_t& filter,
-                               hash_algorithm_t ha) {
+                                  hash_algorithm_t ha) {
   hash_sink_t sink(ha);
   dump_path(path, sink, filter);
   return sink.finish().hash;
@@ -78,7 +78,8 @@ std::string source_accessor_t::show_path(const canon_path_t& path) {
   return display_prefix + path.abs() + display_suffix;
 }
 
-canon_path_t source_accessor_t::resolve_symlinks(const canon_path_t& path, symlink_resolution_t mode) {
+canon_path_t source_accessor_t::resolve_symlinks(const canon_path_t& path,
+                                                 symlink_resolution_t mode) {
   auto res = canon_path_t::root;
 
   int links_allowed = 1024;

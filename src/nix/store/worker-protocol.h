@@ -244,8 +244,8 @@ inline std::ostream& operator<<(std::ostream& s, WorkerProto::Op op) {
  */
 #define DECLARE_WORKER_SERIALISER(T)                                                               \
   struct WorkerProto::Serialise<T> {                                                               \
-    static T read(const store_dir_config_t& store, WorkerProto::ReadConn conn);                        \
-    static void write(const store_dir_config_t& store, WorkerProto::WriteConn conn, const T& t);       \
+    static T read(const store_dir_config_t& store, WorkerProto::ReadConn conn);                    \
+    static void write(const store_dir_config_t& store, WorkerProto::WriteConn conn, const T& t);   \
   };
 
 template <>

@@ -36,10 +36,12 @@ The **two-tier store** combines:
 - **Legacy tier** (`legacy_store`): SQLite for input-addressed paths with flock coordination
 
 Dispatch rules:
+
 - Paths with `ca:` field → `ca_store`
 - Input-addressed paths → `legacy_store`
 
 Benefits:
+
 - No daemon required (kernel flock + atomic rename)
 - CA paths are fully parallel
 - Legacy paths use SQLite ACID guarantees
@@ -48,12 +50,9 @@ Benefits:
 
 ## Store Implementations
 
-| Store | Description |
-|-------|-------------|
-| `two_tier_store` | Unified CA + Legacy (recommended) |
-| `ca_store` | Content-addressed blob storage |
-| `legacy_store` | SQLite-backed input-addressed store |
-| `log_store` | Experimental log-structured store |
+| Store | Description | |-------|-------------| | `two_tier_store` | Unified CA + Legacy
+(recommended) | | `ca_store` | Content-addressed blob storage | | `legacy_store` | SQLite-backed
+input-addressed store | | `log_store` | Experimental log-structured store |
 
 ## Building
 

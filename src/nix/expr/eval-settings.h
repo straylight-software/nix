@@ -73,7 +73,7 @@ struct eval_settings_t : config_t {
     )"};
 
   setting_t<strings_t> nixPath{this, {}, "nix-path",
-                           R"(
+                               R"(
           List of search paths to use for [lookup path](@docroot@/language/constructs/lookup-path.md) resolution.
           This setting determines the value of
           [`builtins.nixPath`](@docroot@/language/builtins.md#builtins-nixPath) and can be used with [`builtins.findFile`](@docroot@/language/builtins.md#builtins-findFile).
@@ -108,7 +108,7 @@ struct eval_settings_t : config_t {
         )",  {}, false};
 
   setting_t<std::string> currentSystem{this, "", "eval-system",
-                                     R"(
+                                       R"(
           This option defines
           [`builtins.currentSystem`](@docroot@/language/builtins.md#builtins-currentSystem)
           in the Nix language if it is set as a non-empty string.
@@ -127,7 +127,7 @@ struct eval_settings_t : config_t {
   const std::string& getCurrentSystem() const;
 
   setting_t<bool> restrictEval{this, false, "restrict-eval",
-                             R"(
+                               R"(
           If set to `true`, the Nix evaluator doesn't allow access to any
           files outside of
           [`builtins.nixPath`](@docroot@/language/builtins.md#builtins-nixPath)
@@ -136,7 +136,7 @@ struct eval_settings_t : config_t {
         )"};
 
   setting_t<bool> pureEval{this, false, "pure-eval",
-                         R"(
+                           R"(
           Pure evaluation mode ensures that the result of Nix expressions is fully determined by explicitly declared inputs, and not influenced by external state:
 
           - Restrict file system and network access to files specified by cryptographic hash
@@ -148,7 +148,7 @@ struct eval_settings_t : config_t {
         )"};
 
   setting_t<bool> traceImportFromDerivation{this, false, "trace-import-from-derivation",
-                                          R"(
+                                            R"(
           By default, Nix allows [Import from derivation_t](@docroot@/language/import-from-derivation.md).
 
           When this setting is `true`, Nix logs a warning indicating that it performed such an import.
@@ -156,7 +156,7 @@ struct eval_settings_t : config_t {
         )"};
 
   setting_t<bool> enableImportFromDerivation{this, true, "allow-import-from-derivation",
-                                           R"(
+                                             R"(
           By default, Nix allows [Import from derivation_t](@docroot@/language/import-from-derivation.md).
 
           With this option set to `false`, Nix throws an error when evaluating an expression that uses this feature,
@@ -166,9 +166,9 @@ struct eval_settings_t : config_t {
         )"};
 
   setting_t<strings_t> allowed_uris{this,
-                               {},
-                               "allowed-uris",
-                               R"(
+                                    {},
+                                    "allowed-uris",
+                                    R"(
           A list of URI prefixes to which access is allowed in restricted
           evaluation mode. For example, when set to
           `https://github.com/NixOS`, builtin functions such as `fetchGit` are
@@ -181,7 +181,7 @@ struct eval_settings_t : config_t {
         )"};
 
   setting_t<bool> traceFunctionCalls{this, false, "trace-function-calls",
-                                   R"(
+                                     R"(
           If set to `true`, the Nix evaluator traces every function call.
           Nix prints a log message at the "vomit" level for every function
           entrance and function exit.
@@ -199,7 +199,7 @@ struct eval_settings_t : config_t {
         )"};
 
   setting_t<EvalProfilerMode> evalProfilerMode{this, EvalProfilerMode::disabled, "eval-profiler",
-                                             R"(
+                                               R"(
           Enables evaluation profiling. The following modes are supported:
 
           * `flamegraph` stack sampling profiler. Outputs folded format, one line per stack (suitable for `flamegraph.pl` and compatible tools).
@@ -210,19 +210,19 @@ struct eval_settings_t : config_t {
         )"};
 
   setting_t<Path> evalProfileFile{this, "nix.profile", "eval-profile-file",
-                                R"(
+                                  R"(
           Specifies the file where [evaluation profile](#conf-eval-profiler) is saved.
         )"};
 
   setting_t<uint32_t> evalProfilerFrequency{this, 99, "eval-profiler-frequency",
-                                          R"(
+                                            R"(
           Specifies the sampling rate in hertz for sampling evaluation profilers.
           use `0` to sample the stack after each function call.
           See [`eval-profiler`](#conf-eval-profiler).
         )"};
 
   setting_t<bool> useEvalCache{this, false, "eval-cache",
-                             R"(
+                               R"(
             Whether to use the flake evaluation cache.
             Certain commands won't have to evaluate when invoked for the second time with a particular version of a flake.
             Intermediate results are not cached.
@@ -231,7 +231,7 @@ struct eval_settings_t : config_t {
         )"};
 
   setting_t<bool> ignoreExceptionsDuringTry{this, false, "ignore-try",
-                                          R"(
+                                            R"(
           If set to true, ignore exceptions inside 'tryEval' calls when evaluating Nix expressions in
           debug mode (using the --debugger flag). By default, the debugger pauses on all exceptions.
         )"};
@@ -241,10 +241,10 @@ struct eval_settings_t : config_t {
       "Whether `builtins.traceVerbose` should trace its first argument when evaluated."};
 
   setting_t<unsigned int> maxCallDepth{this, 10000, "max-call-depth",
-                                     "The maximum function call depth to allow before erroring."};
+                                       "The maximum function call depth to allow before erroring."};
 
   setting_t<bool> builtinsTraceDebugger{this, false, "debugger-on-trace",
-                                      R"(
+                                        R"(
           If set to true and the `--debugger` flag is given, the following functions
           enter the debugger like [`builtins.break`](@docroot@/language/builtins.md#builtins-break).
 
@@ -257,7 +257,7 @@ struct eval_settings_t : config_t {
         )"};
 
   setting_t<bool> builtinsDebuggerOnWarn{this, false, "debugger-on-warn",
-                                       R"(
+                                         R"(
           If set to true and the `--debugger` flag is given, [`builtins.warn`](@docroot@/language/builtins.md#builtins-warn)
           enter the debugger like [`builtins.break`](@docroot@/language/builtins.md#builtins-break).
 
@@ -267,7 +267,7 @@ struct eval_settings_t : config_t {
         )"};
 
   setting_t<bool> builtinsAbortOnWarn{this, false, "abort-on-warn",
-                                    R"(
+                                      R"(
           If set to true, [`builtins.warn`](@docroot@/language/builtins.md#builtins-warn) throws an error when logging a warning.
 
           This gives you a stack trace that leads to the location of the warning.
@@ -280,7 +280,7 @@ struct eval_settings_t : config_t {
         )"};
 
   setting_t<bool> warnShortPathLiterals{this, false, "warn-short-path-literals",
-                                      R"(
+                                        R"(
           If set to true, the Nix evaluator will warn when encountering relative path literals
           that don't start with `./` or `../`.
 
@@ -292,8 +292,8 @@ struct eval_settings_t : config_t {
     )"};
 
   setting_t<unsigned> bindingsUpdateLayerRhsSizeThreshold{this, sizeof(void*) == 4 ? 8192 : 16,
-                                                        "eval-attrset-update-layer-rhs-threshold",
-                                                        R"(
+                                                          "eval-attrset-update-layer-rhs-threshold",
+                                                          R"(
           Tunes the maximum size of an attribute set that, when used
           as a right operand in an [attribute set update expression](@docroot@/language/operators.md#update),
           uses a more space-efficient linked-list representation of attribute sets.
@@ -309,21 +309,21 @@ struct eval_settings_t : config_t {
     )"};
 
   setting_t<bool> lazyTrees{this, false, "lazy-trees",
-                          R"(
+                            R"(
           If set to true, flakes and trees fetched by [`builtins.fetch_tree`](@docroot@/language/builtins.md#builtins-fetch_tree) are only copied to the Nix store when they're used as a dependency of a derivation. This avoids copying (potentially large) source trees unnecessarily.
         )"};
 
   // FIXME: this setting should really be in libflake, but it's
   // currently needed in mountInput().
   setting_t<bool> lazyLocks{this, false, "lazy-locks",
-                          R"(
+                            R"(
           If enabled, Nix only includes NAR hashes in lock file entries if they're necessary to lock the input (i.e. when there is no other attribute that allows the content to be verified, like a git revision).
           This is not backward compatible with older versions of Nix.
           If disabled, lock file entries always contain a NAR hash.
         )"};
 
   setting_t<unsigned int> evalCores{this, 1, "eval-cores",
-                                  R"(
+                                    R"(
           The number of threads used to evaluate Nix expressions. This currently affects the following commands:
 
           * `nix search`

@@ -24,8 +24,8 @@ PathInfoJsonFormat parse_path_info_json_format(uint64_t version) {
 UnkeyedValidPathInfo::UnkeyedValidPathInfo(const store_dir_config_t& store, Hash nar_hash)
     : UnkeyedValidPathInfo{store.store_dir, nar_hash} {}
 
-GENERATE_CMP_EXT(, std::weak_ordering, UnkeyedValidPathInfo, me->store_dir, me->deriver, me->nar_hash,
-                 me->references, me->registrationTime, me->nar_size,
+GENERATE_CMP_EXT(, std::weak_ordering, UnkeyedValidPathInfo, me->store_dir, me->deriver,
+                 me->nar_hash, me->references, me->registrationTime, me->nar_size,
                  // me->id,
                  me->ultimate, me->sigs, me->ca);
 
@@ -42,14 +42,16 @@ void valid_path_info_t::sign(const store_t& store, const signer_t& signer) {
   sigs.insert(signer.sign_detached(fingerprint(store)));
 }
 
-void valid_path_info_t::sign(const store_t& store, const std::vector<std::unique_ptr<signer_t>>& signers) {
+void valid_path_info_t::sign(const store_t& store,
+                             const std::vector<std::unique_ptr<signer_t>>& signers) {
   auto fingerprint = this->fingerprint(store);
   for (auto& signer : signers) {
     sigs.insert(signer->sign_detached(fingerprint));
   }
 }
 
-std::optional<ContentAddressWithReferences> valid_path_info_t::contentAddressWithReferences() const {
+std::optional<ContentAddressWithReferences>
+valid_path_info_t::contentAddressWithReferences() const {
   if (!ca)
     return std::nullopt;
 
@@ -103,7 +105,7 @@ bool valid_path_info_t::isContentAddressed(const store_dir_config_t& store) cons
 }
 
 size_t valid_path_info_t::checkSignatures(const store_dir_config_t& store,
-                                      const public_keys_t& public_keys) const {
+                                          const public_keys_t& public_keys) const {
   if (isContentAddressed(store))
     return maxSigs;
 
@@ -114,8 +116,9 @@ size_t valid_path_info_t::checkSignatures(const store_dir_config_t& store,
   return good;
 }
 
-bool valid_path_info_t::checkSignature(const store_dir_config_t& store, const public_keys_t& public_keys,
-                                   const std::string& sig) const {
+bool valid_path_info_t::checkSignature(const store_dir_config_t& store,
+                                       const public_keys_t& public_keys,
+                                       const std::string& sig) const {
   return verify_detached(fingerprint(store), sig, public_keys);
 }
 
@@ -126,8 +129,9 @@ strings_t valid_path_info_t::shortRefs() const {
   return refs;
 }
 
-valid_path_info_t valid_path_info_t::makeFromCA(const store_dir_config_t& store, std::string_view name,
-                                        ContentAddressWithReferences&& ca, Hash nar_hash) {
+valid_path_info_t valid_path_info_t::makeFromCA(const store_dir_config_t& store,
+                                                std::string_view name,
+                                                ContentAddressWithReferences&& ca, Hash nar_hash) {
   valid_path_info_t res{
       store.makeFixedOutputPathFromCA(name, ca),
       UnkeyedValidPathInfo(store, nar_hash),
@@ -149,8 +153,9 @@ valid_path_info_t valid_path_info_t::makeFromCA(const store_dir_config_t& store,
   return res;
 }
 
-nlohmann::json UnkeyedValidPathInfo::to_json(const store_dir_config_t* store, bool includeImpureInfo,
-                                            PathInfoJsonFormat format) const {
+nlohmann::json UnkeyedValidPathInfo::to_json(const store_dir_config_t* store,
+                                             bool includeImpureInfo,
+                                             PathInfoJsonFormat format) const {
   using nlohmann::json;
 
   if (format == PathInfoJsonFormat::V1)
@@ -163,8 +168,8 @@ nlohmann::json UnkeyedValidPathInfo::to_json(const store_dir_config_t* store, bo
   json_object["storeDir"] = store_dir;
 
   json_object["narHash"] = format == PathInfoJsonFormat::V1
-                              ? static_cast<json>(nar_hash.to_string(hash_format_t::sri, true))
-                              : static_cast<json>(nar_hash);
+                               ? static_cast<json>(nar_hash.to_string(hash_format_t::sri, true))
+                               : static_cast<json>(nar_hash);
 
   json_object["narSize"] = nar_size;
 
@@ -203,7 +208,7 @@ nlohmann::json UnkeyedValidPathInfo::to_json(const store_dir_config_t* store, bo
 }
 
 UnkeyedValidPathInfo UnkeyedValidPathInfo::from_json(const store_dir_config_t* store,
-                                                    const nlohmann::json& _json) {
+                                                     const nlohmann::json& _json) {
   auto& json = get_object(_json);
 
   PathInfoJsonFormat format = PathInfoJsonFormat::V1;

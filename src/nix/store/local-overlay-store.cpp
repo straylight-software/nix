@@ -80,7 +80,8 @@ void local_overlay_store::register_drv_output(const realisation_t& info) {
 }
 
 void local_overlay_store::query_path_info_uncached(
-    const store_path_t& path, Callback<std::shared_ptr<const valid_path_info_t>> callback) noexcept {
+    const store_path_t& path,
+    Callback<std::shared_ptr<const valid_path_info_t>> callback) noexcept {
   auto callbackPtr = std::make_shared<decltype(callback)>(std::move(callback));
 
   LocalStore::query_path_info_uncached(
@@ -93,14 +94,14 @@ void local_overlay_store::query_path_info_uncached(
           return callbackPtr->rethrow();
         }
         // If we don't have it, check lower store
-        lowerStore->queryPathInfo(path,
-                                  {[path, callbackPtr](std::future<ref<const valid_path_info_t>> fut) {
-                                    try {
-                                      (*callbackPtr)(fut.get().get_ptr());
-                                    } catch (...) {
-                                      return callbackPtr->rethrow();
-                                    }
-                                  }});
+        lowerStore->queryPathInfo(
+            path, {[path, callbackPtr](std::future<ref<const valid_path_info_t>> fut) {
+              try {
+                (*callbackPtr)(fut.get().get_ptr());
+              } catch (...) {
+                return callbackPtr->rethrow();
+              }
+            }});
       }});
 }
 
@@ -164,7 +165,8 @@ store_path_set_t local_overlay_store::queryValidDerivers(const store_path_t& pat
   return res;
 }
 
-std::optional<store_path_t> local_overlay_store::queryPathFromHashPart(const std::string& hash_part) {
+std::optional<store_path_t>
+local_overlay_store::queryPathFromHashPart(const std::string& hash_part) {
   auto res = LocalStore::queryPathFromHashPart(hash_part);
   if (res)
     return res;

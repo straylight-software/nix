@@ -95,7 +95,8 @@ auto legacy_store::ensure_db() -> legacy_result<void> {
     return {};
   }
 
-  auto result = straylight::nix::compat::Database::open(db_path(), straylight::nix::compat::OpenMode::read_write_create);
+  auto result = straylight::nix::compat::Database::open(
+      db_path(), straylight::nix::compat::OpenMode::read_write_create);
   if (!result) {
     return std::unexpected(legacy_error::database_error);
   }

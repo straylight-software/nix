@@ -36,7 +36,7 @@ unsigned int get_max_cpu() {
     auto cgroup_fs = get_cgroup_fs();
     if (!cgroup_fs) {
       return 0;
-}
+    }
 
     auto cpu_file = *cgroup_fs + "/" + get_current_cgroup() + "/cpu.max";
 
@@ -51,7 +51,7 @@ unsigned int get_max_cpu() {
     auto period = cpu_max_parts[1];
     if (quota != "max") {
       return std::ceil(std::stoi(quota) / std::stof(period));
-}
+    }
   } catch (Error&) {
     ignore_exception_in_destructor(lvl_debug);
   }
@@ -71,21 +71,23 @@ void set_stack_size(size_t stack_size) {
     saved_stack_size = limit.rlim_cur;
     if (limit.rlim_max < static_cast<rlim_t>(stack_size)) {
       if (get_env("_NIX_TEST_NO_ENVIRONMENT_WARNINGS") != "1") {
-        logger->log(lvl_warn,
-                    hint_fmt_t("Stack size hard limit is %1%, which is less than the desired %2%. If "
-                            "possible, increase the hard limit, e.g. with 'ulimit -Hs %3%'.",
-                            limit.rlim_max, stack_size, stack_size / 1024)
-                        .str());
+        logger->log(
+            lvl_warn,
+            hint_fmt_t("Stack size hard limit is %1%, which is less than the desired %2%. If "
+                       "possible, increase the hard limit, e.g. with 'ulimit -Hs %3%'.",
+                       limit.rlim_max, stack_size, stack_size / 1024)
+                .str());
       }
     }
     auto requested_size = std::min(static_cast<rlim_t>(stack_size), limit.rlim_max);
     limit.rlim_cur = requested_size;
     if (setrlimit(RLIMIT_STACK, &limit) != 0) {
-      logger->log(lvl_error, hint_fmt_t("Failed to increase stack size from %1% to %2% (desired: %3%, "
-                                    "maximum allowed: %4%): %5%",
-                                    saved_stack_size, requested_size, stack_size, limit.rlim_max,
-                                    std::strerror(errno))
-                                .str());
+      logger->log(lvl_error,
+                  hint_fmt_t("Failed to increase stack size from %1% to %2% (desired: %3%, "
+                             "maximum allowed: %4%): %5%",
+                             saved_stack_size, requested_size, stack_size, limit.rlim_max,
+                             std::strerror(errno))
+                      .str());
     }
   }
 }

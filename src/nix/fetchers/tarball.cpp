@@ -68,12 +68,12 @@ DownloadFileResult download_file(store_t& store, const settings_t& settings, con
     dump_string(res.data, sink);
     auto hash = hash_string(hash_algorithm_t::SHA256, res.data);
     auto info = valid_path_info_t::makeFromCA(store, name,
-                                          FixedOutputInfo{
-                                              .method = file_ingestion_method_t::flat,
-                                              .hash = hash,
-                                              .references = {},
-                                          },
-                                          hash_string(hash_algorithm_t::SHA256, sink.str()));
+                                              FixedOutputInfo{
+                                                  .method = file_ingestion_method_t::flat,
+                                                  .hash = hash,
+                                                  .references = {},
+                                              },
+                                              hash_string(hash_algorithm_t::SHA256, sink.str()));
     info.nar_size = sink.str().size();
     auto source = string_source_t{sink.str()};
     store.add_to_store(info, source, NoRepair, NoCheckSigs);
@@ -212,7 +212,7 @@ static DownloadTarballResult download_tarball_(const settings_t& settings, const
 }
 
 ref<source_accessor_t> download_tarball(store_t& store, const settings_t& settings,
-                                     const std::string& url) {
+                                        const std::string& url) {
   /* Go through input_t::get_accessor() to ensure that the resulting
      accessor has a fingerprint. */
   fetchers::Attrs attrs;
@@ -242,7 +242,7 @@ struct curl_input_scheme_t : input_scheme_t {
   static const string_set_t special_params;
 
   std::optional<input_t> inputFromURL(const settings_t& settings, const parsed_url_t& _url,
-                                    bool require_tree) const override {
+                                      bool require_tree) const override {
     if (!is_valid_url(_url, require_tree))
       return std::nullopt;
 
@@ -358,7 +358,7 @@ struct curl_input_scheme_t : input_scheme_t {
   }
 
   std::optional<input_t> inputFromAttrs(const settings_t& settings,
-                                      const Attrs& attrs) const override {
+                                        const Attrs& attrs) const override {
     input_t input{};
     input.attrs = attrs;
 
@@ -398,8 +398,8 @@ struct file_input_scheme_t : curl_input_scheme_t {
                 : (!require_tree && !has_tarball_extension(url)));
   }
 
-  std::pair<ref<source_accessor_t>, input_t> get_accessor(const settings_t& settings, store_t& store,
-                                                     const input_t& _input) const override {
+  std::pair<ref<source_accessor_t>, input_t>
+  get_accessor(const settings_t& settings, store_t& store, const input_t& _input) const override {
     auto input(_input);
 
     /* Unlike tarball_input_scheme_t, this stores downloaded files in
@@ -457,8 +457,8 @@ struct tarball_input_scheme_t : curl_input_scheme_t {
                 : (require_tree || has_tarball_extension(url)));
   }
 
-  std::pair<ref<source_accessor_t>, input_t> get_accessor(const settings_t& settings, store_t& store,
-                                                     const input_t& _input) const override {
+  std::pair<ref<source_accessor_t>, input_t>
+  get_accessor(const settings_t& settings, store_t& store, const input_t& _input) const override {
     auto input(_input);
 
     auto result = download_tarball_(settings, get_str_attr(input.attrs, "url"), {},

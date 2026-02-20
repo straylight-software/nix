@@ -50,8 +50,8 @@ class store_t;
 
 namespace nix::flake {
 
-static flake_ref_t get_flake_ref(const fetchers::settings_t& fetch_settings, const nlohmann::json& json,
-                            const char* attr, const char* info) {
+static flake_ref_t get_flake_ref(const fetchers::settings_t& fetch_settings,
+                                 const nlohmann::json& json, const char* attr, const char* info) {
   auto i = json.find(attr);
   if (i != json.end()) {
     auto attrs = fetchers::json_to_attrs(*i);
@@ -76,8 +76,8 @@ LockedNode::LockedNode(const fetchers::settings_t& fetch_settings, const nlohman
       is_flake(json.find("flake") != json.end() ? (bool)json["flake"] : true),
       buildTime(json.find("buildTime") != json.end() ? (bool)json["buildTime"] : false),
       parent_input_attr_path(json.find("parent") != json.end()
-                              ? (std::optional<InputAttrPath>)json["parent"]
-                              : std::nullopt) {
+                                 ? (std::optional<InputAttrPath>)json["parent"]
+                                 : std::nullopt) {
   if (!locked_ref.input.isLocked(fetch_settings) && !locked_ref.input.isRelative()) {
     if (locked_ref.input.getNarHash())
       warn("Lock file entry '%s' is unlocked (e.g. lacks a Git revision) but is checked by NAR "
@@ -100,7 +100,7 @@ store_path_t LockedNode::computeStorePath(store_t& store) const {
 }
 
 static std::shared_ptr<Node> do_find(const ref<Node>& root, const InputAttrPath& path,
-                                    std::vector<InputAttrPath>& visited) {
+                                     std::vector<InputAttrPath>& visited) {
   auto pos = root;
 
   auto found = std::find(visited.cbegin(), visited.cend(), path);
@@ -136,7 +136,7 @@ std::shared_ptr<Node> lock_file_t::findInput(const InputAttrPath& path) {
 }
 
 lock_file_t::lock_file_t(const fetchers::settings_t& fetch_settings, std::string_view contents,
-                   std::string_view path) {
+                         std::string_view path) {
   auto json = [=] {
     try {
       return nlohmann::json::parse(contents);
@@ -265,7 +265,8 @@ std::ostream& operator<<(std::ostream& stream, const lock_file_t& lock_file) {
   return stream;
 }
 
-std::optional<flake_ref_t> lock_file_t::isUnlocked(const fetchers::settings_t& fetch_settings) const {
+std::optional<flake_ref_t>
+lock_file_t::isUnlocked(const fetchers::settings_t& fetch_settings) const {
   std::set<ref<const Node>> nodes;
 
   [&](this const auto& visit, ref<const Node> node) {
@@ -288,7 +289,8 @@ std::optional<flake_ref_t> lock_file_t::isUnlocked(const fetchers::settings_t& f
     if (i == ref<const Node>(root))
       continue;
     auto node = i.dynamic_pointer_cast<const LockedNode>();
-    if (node && (!isConsideredLocked(node->locked_ref.input) || !node->locked_ref.input.isFinal()) &&
+    if (node &&
+        (!isConsideredLocked(node->locked_ref.input) || !node->locked_ref.input.isFinal()) &&
         !node->locked_ref.input.isRelative())
       return node->locked_ref;
   }
@@ -374,7 +376,8 @@ std::string lock_file_t::diff(const lock_file_t& oldLocks, const lock_file_t& ne
                  print_input_attr_path(j->first), j->second);
       ++j;
     } else if (i != oldFlat.end() && (j == newFlat.end() || i->first < j->first)) {
-      res += fmt("• " ANSI_RED "Removed input '%s'" ANSI_NORMAL "\n", print_input_attr_path(i->first));
+      res +=
+          fmt("• " ANSI_RED "Removed input '%s'" ANSI_NORMAL "\n", print_input_attr_path(i->first));
       ++i;
     } else {
       if (!equals(i->second, j->second)) {

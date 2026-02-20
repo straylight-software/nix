@@ -83,8 +83,8 @@ private:
  */
 template <typename T>
 void process_graph(const std::set<T>& nodes, std::function<std::set<T>(const T&)> get_edges,
-                  std::function<void(const T&)> process_node, bool discover_nodes = false,
-                  size_t max_threads = 0) {
+                   std::function<void(const T&)> process_node, bool discover_nodes = false,
+                   size_t max_threads = 0) {
   struct graph_t {
     std::set<T> known;
     std::set<T> left;

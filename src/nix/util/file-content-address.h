@@ -57,7 +57,7 @@ std::string_view render_file_serialisation_method(file_serialisation_method_t me
  * Dump a serialization of the given file system object.
  */
 void dump_path(const source_path_t& path, sink_t& sink, file_serialisation_method_t method,
-              path_filter_t& filter = default_path_filter);
+               path_filter_t& filter = default_path_filter);
 
 /**
  * Restore a serialisation of the given file system object.
@@ -65,7 +65,7 @@ void dump_path(const source_path_t& path, sink_t& sink, file_serialisation_metho
  * \todo use an arbitrary `file_system_object_sink_t`.
  */
 void restore_path(const Path& path, source_t& source, file_serialisation_method_t method,
-                 bool start_fsync = false);
+                  bool start_fsync = false);
 
 /**
  * Compute the hash of the given file system object according to the
@@ -77,8 +77,8 @@ void restore_path(const Path& path, source_t& source, file_serialisation_method_
  * hash_string(ha, dump_path(...))
  * ```
  */
-hash_result_t hash_path(const source_path_t& path, file_serialisation_method_t method, hash_algorithm_t ha,
-                    path_filter_t& filter = default_path_filter);
+hash_result_t hash_path(const source_path_t& path, file_serialisation_method_t method,
+                        hash_algorithm_t ha, path_filter_t& filter = default_path_filter);
 
 /**
  * An enumeration of the ways we can ingest file system
@@ -144,7 +144,8 @@ std::string_view render_file_ingestion_method(file_ingestion_method_t method);
  * useful defined for a merkle format.
  */
 std::pair<Hash, std::optional<uint64_t>> hash_path(const source_path_t& path,
-                                                  file_ingestion_method_t method, hash_algorithm_t ha,
-                                                  path_filter_t& filter = default_path_filter);
+                                                   file_ingestion_method_t method,
+                                                   hash_algorithm_t ha,
+                                                   path_filter_t& filter = default_path_filter);
 
 } // namespace nix

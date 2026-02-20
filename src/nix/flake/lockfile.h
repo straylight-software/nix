@@ -59,7 +59,7 @@ struct lock_file_t {
 
   lock_file_t() {};
   lock_file_t(const fetchers::settings_t& fetch_settings, std::string_view contents,
-           std::string_view path);
+              std::string_view path);
 
   typedef std::map<ref<const Node>, std::string> KeyMap;
 

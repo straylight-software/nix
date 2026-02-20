@@ -26,30 +26,30 @@ void CommonProto::Serialise<std::string>::write(const store_dir_config_t& store,
 }
 
 store_path_t CommonProto::Serialise<store_path_t>::read(const store_dir_config_t& store,
-                                                  CommonProto::ReadConn conn) {
+                                                        CommonProto::ReadConn conn) {
   return conn.shortStorePaths ? store_path_t(read_string(conn.from))
                               : store.parseStorePath(read_string(conn.from));
 }
 
 void CommonProto::Serialise<store_path_t>::write(const store_dir_config_t& store,
-                                              CommonProto::WriteConn conn,
-                                              const store_path_t& store_path) {
+                                                 CommonProto::WriteConn conn,
+                                                 const store_path_t& store_path) {
   conn.to << (conn.shortStorePaths ? store_path.to_string() : store.printStorePath(store_path));
 }
 
 content_address_t CommonProto::Serialise<content_address_t>::read(const store_dir_config_t& store,
-                                                            CommonProto::ReadConn conn) {
+                                                                  CommonProto::ReadConn conn) {
   return content_address_t::parse(read_string(conn.from));
 }
 
 void CommonProto::Serialise<content_address_t>::write(const store_dir_config_t& store,
-                                                   CommonProto::WriteConn conn,
-                                                   const content_address_t& ca) {
+                                                      CommonProto::WriteConn conn,
+                                                      const content_address_t& ca) {
   conn.to << render_content_address(ca);
 }
 
 realisation_t CommonProto::Serialise<realisation_t>::read(const store_dir_config_t& store,
-                                                      CommonProto::ReadConn conn) {
+                                                          CommonProto::ReadConn conn) {
   std::string rawInput = read_string(conn.from);
   try {
     return nlohmann::json::parse(rawInput);
@@ -60,8 +60,8 @@ realisation_t CommonProto::Serialise<realisation_t>::read(const store_dir_config
 }
 
 void CommonProto::Serialise<realisation_t>::write(const store_dir_config_t& store,
-                                                CommonProto::WriteConn conn,
-                                                const realisation_t& realisation) {
+                                                  CommonProto::WriteConn conn,
+                                                  const realisation_t& realisation) {
   conn.to << static_cast<nlohmann::json>(realisation).dump();
 }
 
@@ -78,7 +78,7 @@ void CommonProto::Serialise<DrvOutput>::write(const store_dir_config_t& store,
 
 std::optional<store_path_t>
 CommonProto::Serialise<std::optional<store_path_t>>::read(const store_dir_config_t& store,
-                                                       CommonProto::ReadConn conn) {
+                                                          CommonProto::ReadConn conn) {
   auto s = read_string(conn.from);
   return s == ""                ? std::optional<store_path_t>{}
          : conn.shortStorePaths ? store_path_t(s)
@@ -95,7 +95,7 @@ void CommonProto::Serialise<std::optional<store_path_t>>::write(
 
 std::optional<content_address_t>
 CommonProto::Serialise<std::optional<content_address_t>>::read(const store_dir_config_t& store,
-                                                            CommonProto::ReadConn conn) {
+                                                               CommonProto::ReadConn conn) {
   return content_address_t::parseOpt(read_string(conn.from));
 }
 

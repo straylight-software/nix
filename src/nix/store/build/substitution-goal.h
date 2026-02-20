@@ -61,8 +61,8 @@ public:
    */
   Co init();
   Co gotInfo();
-  Co tryToRun(store_path_t subPath, nix::ref<store_t> sub, std::shared_ptr<const valid_path_info_t> info,
-              bool& substituterFailed);
+  Co tryToRun(store_path_t subPath, nix::ref<store_t> sub,
+              std::shared_ptr<const valid_path_info_t> info, bool& substituterFailed);
   Co finished();
 
   /**

@@ -24,7 +24,7 @@ struct DummyStoreConfig : public std::enable_shared_from_this<DummyStoreConfig>,
   }
 
   setting_t<bool> read_only{this, true, "read-only",
-                         R"(
+                            R"(
           Make any sort of write fail instead of succeeding.
           No additional memory will be used, because no information needs to be stored.
         )"};

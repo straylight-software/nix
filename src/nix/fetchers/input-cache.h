@@ -13,8 +13,8 @@ struct InputCache {
     Attrs extra_attrs;
   };
 
-  CachedResult get_accessor(const settings_t& settings, store_t& store, const input_t& original_input,
-                           UseRegistries use_registries);
+  CachedResult get_accessor(const settings_t& settings, store_t& store,
+                            const input_t& original_input, UseRegistries use_registries);
 
   struct CachedInput {
     input_t lockedInput;

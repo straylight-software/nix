@@ -77,7 +77,8 @@ struct profile_element_t {
     return show_versions(versions);
   }
 
-  void update_store_paths(ref<store_t> eval_store, ref<store_t> store, const BuiltPaths& built_paths) {
+  void update_store_paths(ref<store_t> eval_store, ref<store_t> store,
+                          const BuiltPaths& built_paths) {
     store_paths.clear();
     for (auto& buildable : built_paths) {
       std::visit(overloaded{
@@ -243,17 +244,17 @@ struct profile_manifest_t {
     auto nar_hash = hash_string(hash_algorithm_t::SHA256, sink.str());
 
     auto info = valid_path_info_t::makeFromCA(*store, "profile",
-                                          FixedOutputInfo{
-                                              .method = file_ingestion_method_t::nix_archive,
-                                              .hash = nar_hash,
-                                              .references =
-                                                  {
-                                                      .others = std::move(references),
-                                                      // profiles never refer to themselves
-                                                      .self = false,
-                                                  },
-                                          },
-                                          nar_hash);
+                                              FixedOutputInfo{
+                                                  .method = file_ingestion_method_t::nix_archive,
+                                                  .hash = nar_hash,
+                                                  .references =
+                                                      {
+                                                          .others = std::move(references),
+                                                          // profiles never refer to themselves
+                                                          .self = false,
+                                                      },
+                                              },
+                                              nar_hash);
     info.nar_size = sink.str().size();
 
     string_source_t source(sink.str());
@@ -657,8 +658,8 @@ struct cmd_profile_upgrade_t : virtual SourceExprCommand,
                      fmt("checking '%s' for updates", element.source->attr_path));
 
       auto installable = make_ref<InstallableFlake>(
-          this, getEvalState(), flake_ref_t(element.source->original_ref), "", element.source->outputs,
-          strings_t{element.source->attr_path}, strings_t{}, lock_flags);
+          this, getEvalState(), flake_ref_t(element.source->original_ref), "",
+          element.source->outputs, strings_t{element.source->attr_path}, strings_t{}, lock_flags);
 
       auto derivedPaths = installable->to_derived_paths();
       if (derivedPaths.empty())

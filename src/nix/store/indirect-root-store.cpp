@@ -30,7 +30,8 @@ Path IndirectRootStore::addPermRoot(const store_path_t& store_path, const Path& 
 
   /* Don't clobber the link if it already exists and doesn't
      point to the Nix store. */
-  if (path_exists(gc_root) && (!std::filesystem::is_symlink(gc_root) || !isInStore(read_link(gc_root))))
+  if (path_exists(gc_root) &&
+      (!std::filesystem::is_symlink(gc_root) || !isInStore(read_link(gc_root))))
     throw Error("cannot create symlink '%1%'; already exists", gc_root);
 
   makeSymlink(gc_root, printStorePath(store_path));

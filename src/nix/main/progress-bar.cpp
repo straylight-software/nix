@@ -186,8 +186,8 @@ public:
     }
   }
 
-  void start_activity(activity_id_t act, verbosity_t lvl, activity_type_t type, const std::string& s,
-                     const fields_t& fields, activity_id_t parent) override {
+  void start_activity(activity_id_t act, verbosity_t lvl, activity_type_t type,
+                      const std::string& s, const fields_t& fields, activity_id_t parent) override {
     auto state(state_.lock());
 
     state->activities.emplace_back(act_info_t{
@@ -220,7 +220,7 @@ public:
       auto name = store_path_to_name(get_s(fields, 0));
       auto sub = get_s(fields, 1);
       i->s = fmt(has_prefix(sub, "local") ? "copying " ANSI_BOLD "%s" ANSI_NORMAL " from %s"
-                                         : "fetching " ANSI_BOLD "%s" ANSI_NORMAL " from %s",
+                                          : "fetching " ANSI_BOLD "%s" ANSI_NORMAL " from %s",
                  name, sub);
     }
 
@@ -410,8 +410,9 @@ public:
           if (i->start_time + delay < now)
             break;
           else
-            next_wakeup = std::min(next_wakeup, std::chrono::duration_cast<std::chrono::milliseconds>(
-                                                  delay - (now - i->start_time)));
+            next_wakeup =
+                std::min(next_wakeup, std::chrono::duration_cast<std::chrono::milliseconds>(
+                                          delay - (now - i->start_time)));
         }
         ++i;
       }
@@ -440,7 +441,8 @@ public:
     std::string res;
 
     auto render_activity = [&] [[nodiscard]] (activity_type_t type, const std::string& item_fmt,
-                                             const std::string& number_fmt = "%d", double unit = 1) {
+                                              const std::string& number_fmt = "%d",
+                                              double unit = 1) {
       auto& act = state.activities_by_type[type];
       uint64_t done = act.done, expected = act.done, running = 0, failed = act.failed;
       for (auto& j : act.its) {
@@ -481,7 +483,7 @@ public:
     };
 
     auto render_size_activity = [&] [[nodiscard]] (activity_type_t type,
-                                                 const std::string& item_fmt = "%s") {
+                                                   const std::string& item_fmt = "%s") {
       auto& act = state.activities_by_type[type];
       uint64_t done = act.done, expected = act.done, running = 0, failed = act.failed;
       for (auto& j : act.its) {
@@ -501,14 +503,16 @@ public:
           if (expected != 0) {
             commonUnit = get_common_size_unit({(int64_t)running, (int64_t)done, (int64_t)expected});
             s = fmt(ANSI_BLUE "%s" ANSI_NORMAL "/" ANSI_GREEN "%s" ANSI_NORMAL "/%s",
-                    commonUnit ? render_size_without_unit(running, *commonUnit) : render_size(running),
+                    commonUnit ? render_size_without_unit(running, *commonUnit)
+                               : render_size(running),
                     commonUnit ? render_size_without_unit(done, *commonUnit) : render_size(done),
                     commonUnit ? render_size_without_unit(expected, *commonUnit)
                                : render_size(expected));
           } else {
             commonUnit = get_common_size_unit({(int64_t)running, (int64_t)done});
             s = fmt(ANSI_BLUE "%s" ANSI_NORMAL "/" ANSI_GREEN "%s" ANSI_NORMAL,
-                    commonUnit ? render_size_without_unit(running, *commonUnit) : render_size(running),
+                    commonUnit ? render_size_without_unit(running, *commonUnit)
+                               : render_size(running),
                     commonUnit ? render_size_without_unit(done, *commonUnit) : render_size(done));
           }
         else if (expected != done)
@@ -549,7 +553,7 @@ public:
     };
 
     auto show_activity = [&](activity_type_t type, const std::string& item_fmt,
-                            const std::string& number_fmt = "%d", double unit = 1) {
+                             const std::string& number_fmt = "%d", double unit = 1) {
       maybe_append_to_result(render_activity(type, item_fmt, number_fmt, unit));
     };
 
@@ -625,7 +629,9 @@ public:
     return s[0];
   }
 
-  void set_print_build_logs(bool print_build_logs) override { this->print_build_logs = print_build_logs; }
+  void set_print_build_logs(bool print_build_logs) override {
+    this->print_build_logs = print_build_logs;
+  }
 };
 
 std::unique_ptr<logger_t> make_progress_bar() {

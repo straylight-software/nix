@@ -57,8 +57,8 @@ std::string show_versions(const string_set_t& versions) {
   return concat_strings_sep(", ", versions2);
 }
 
-void print_closure_diff(ref<store_t> store, const store_path_t& before_path, const store_path_t& after_path,
-                      std::string_view indent) {
+void print_closure_diff(ref<store_t> store, const store_path_t& before_path,
+                        const store_path_t& after_path, std::string_view indent) {
   auto before_closure = get_closure_info(store, before_path);
   auto after_closure = get_closure_info(store, after_path);
 

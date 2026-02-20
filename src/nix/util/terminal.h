@@ -27,7 +27,7 @@ bool is_tty();
  * spaces.
  */
 std::string filter_ansi_escapes(std::string_view s, bool filter_all = false,
-                              unsigned int width = std::numeric_limits<unsigned int>::max());
+                                unsigned int width = std::numeric_limits<unsigned int>::max());
 
 /**
  * Recalculate the window size, updating a global variable.

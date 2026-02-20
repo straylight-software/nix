@@ -80,7 +80,8 @@ class json_sax_t : nlohmann::json_sax<json> {
     }
 
   public:
-    json_list_state_t(std::unique_ptr<json_state_t>&& p, std::size_t reserve) : json_state_t(std::move(p)) {
+    json_list_state_t(std::unique_ptr<json_state_t>&& p, std::size_t reserve)
+        : json_state_t(std::move(p)) {
       values.reserve(reserve);
     }
   };
@@ -160,7 +161,7 @@ public:
 
   bool start_array(size_t len) override {
     rs = std::make_unique<json_list_state_t>(std::move(rs),
-                                         len != std::numeric_limits<size_t>::max() ? len : 128);
+                                             len != std::numeric_limits<size_t>::max() ? len : 128);
     return true;
   }
 

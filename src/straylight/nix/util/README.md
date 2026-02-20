@@ -40,13 +40,10 @@ if (result) {
 
 ## API Overview
 
-| Type/Function | Description |
-|---------------|-------------|
-| `Ref<T>` | Non-nullable reference-counted pointer |
-| `make_ref<T>()` | Create a Ref<T> |
-| `ref_cast<To>()` | Cast between Ref types |
-| `finally()` | Create scope guard |
-| `checked_add/sub/mul` | Overflow-checked arithmetic |
+| Type/Function | Description | |---------------|-------------| | `Ref<T>` | Non-nullable
+reference-counted pointer | | `make_ref<T>()` | Create a Ref<T> | | `ref_cast<To>()` | Cast between
+Ref types | | `finally()` | Create scope guard | | `checked_add/sub/mul` | Overflow-checked
+arithmetic |
 
 ## Building
 

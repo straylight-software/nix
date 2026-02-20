@@ -11,7 +11,8 @@
 using namespace nix;
 
 struct cmd_formatter_t : NixMultiCommand {
-  cmd_formatter_t() : NixMultiCommand("formatter", RegisterCommand::getCommandsFor({"formatter"})) {}
+  cmd_formatter_t()
+      : NixMultiCommand("formatter", RegisterCommand::getCommandsFor({"formatter"})) {}
 
   std::string description() override { return "build or run the formatter"; }
 
@@ -73,8 +74,8 @@ struct cmd_formatter_run_t : mix_formatter_t, MixJSON {
     eval_state->evalCaches.clear();
 
     exec_program_in_store(store, use_lookup_path_t::dont_use, app.program.string(), program_args,
-                       std::nullopt, // Use default system
-                       env);
+                          std::nullopt, // Use default system
+                          env);
   };
 };
 

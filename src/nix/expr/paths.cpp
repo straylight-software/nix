@@ -21,7 +21,7 @@ store_path_t eval_state_t::devirtualize(const store_path_t& path, string_map_t* 
   if (auto mount = storeFS->get_mount(canon_path_t(store->printStorePath(path)))) {
     auto store_path =
         fetch_to_store(fetch_settings, *store, source_path_t{ref(mount)},
-                     settings.readOnlyMode ? FetchMode::DryRun : FetchMode::Copy, path.name());
+                       settings.readOnlyMode ? FetchMode::DryRun : FetchMode::Copy, path.name());
     assert(store_path.name() == path.name());
     if (rewrites)
       rewrites->emplace(path.hash_part(), store_path.hash_part());
@@ -30,7 +30,8 @@ store_path_t eval_state_t::devirtualize(const store_path_t& path, string_map_t* 
     return path;
 }
 
-SingleDerivedPath eval_state_t::devirtualize(const SingleDerivedPath& path, string_map_t* rewrites) {
+SingleDerivedPath eval_state_t::devirtualize(const SingleDerivedPath& path,
+                                             string_map_t* rewrites) {
   if (auto o = std::get_if<SingleDerivedPath::opaque_t>(&path.raw()))
     return SingleDerivedPath::opaque_t{devirtualize(o->path, rewrites)};
   else
@@ -63,12 +64,13 @@ std::string eval_state_t::computeBaseName(const source_path_t& path, pos_idx_t p
   return std::string(path.base_name());
 }
 
-store_path_t eval_state_t::mountInput(fetchers::input_t& input, const fetchers::input_t& original_input,
-                                ref<source_accessor_t> accessor, bool require_lockable,
-                                bool forceNarHash) {
+store_path_t eval_state_t::mountInput(fetchers::input_t& input,
+                                      const fetchers::input_t& original_input,
+                                      ref<source_accessor_t> accessor, bool require_lockable,
+                                      bool forceNarHash) {
   auto store_path = settings.lazyTrees ? store_path_t::random(input.get_name())
-                                      : fetch_to_store(fetch_settings, *store, accessor,
-                                                     FetchMode::Copy, input.get_name());
+                                       : fetch_to_store(fetch_settings, *store, accessor,
+                                                        FetchMode::Copy, input.get_name());
 
   allowPath(store_path); // FIXME: should just whitelist the entire virtual store
 

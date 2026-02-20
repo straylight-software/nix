@@ -238,7 +238,8 @@ void ExprPos::show(const symbol_table_t& symbols, std::ostream& str) const {
   str << "__curPos";
 }
 
-std::string show_attr_selection_path(const symbol_table_t& symbols, std::span<const AttrName> attr_path) {
+std::string show_attr_selection_path(const symbol_table_t& symbols,
+                                     std::span<const AttrName> attr_path) {
   std::ostringstream out;
   bool first = true;
   for (auto& i : attr_path) {

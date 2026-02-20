@@ -55,8 +55,8 @@ struct CommonProto {
 
 #define DECLARE_COMMON_SERIALISER(T)                                                               \
   struct CommonProto::Serialise<T> {                                                               \
-    static T read(const store_dir_config_t& store, CommonProto::ReadConn conn);                        \
-    static void write(const store_dir_config_t& store, CommonProto::WriteConn conn, const T& str);     \
+    static T read(const store_dir_config_t& store, CommonProto::ReadConn conn);                    \
+    static void write(const store_dir_config_t& store, CommonProto::WriteConn conn, const T& str); \
   }
 
 template <>

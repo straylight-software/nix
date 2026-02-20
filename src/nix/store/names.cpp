@@ -48,7 +48,7 @@ bool DrvName::matches(const DrvName& n) {
 }
 
 std::string_view next_component(std::string_view::const_iterator& p,
-                               const std::string_view::const_iterator end) {
+                                const std::string_view::const_iterator end) {
   /* Skip any dots and dashes (component separators). */
   while (p != end && (*p == '.' || *p == '-'))
     ++p;

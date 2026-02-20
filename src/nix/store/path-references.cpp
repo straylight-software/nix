@@ -14,7 +14,8 @@
 
 namespace nix {
 
-PathRefScanSink::PathRefScanSink(string_set_t&& hashes, std::map<std::string, store_path_t>&& backMap)
+PathRefScanSink::PathRefScanSink(string_set_t&& hashes,
+                                 std::map<std::string, store_path_t>&& backMap)
     : RefScanSink(std::move(hashes)), backMap(std::move(backMap)) {}
 
 PathRefScanSink PathRefScanSink::fromPaths(const store_path_set_t& refs) {
@@ -43,7 +44,8 @@ store_path_set_t PathRefScanSink::getResultPaths() {
   return found;
 }
 
-store_path_set_t scan_for_references(sink_t& to_tee, const Path& path, const store_path_set_t& refs) {
+store_path_set_t scan_for_references(sink_t& to_tee, const Path& path,
+                                     const store_path_set_t& refs) {
   PathRefScanSink refs_sink = PathRefScanSink::fromPaths(refs);
   tee_sink_t sink{refs_sink, to_tee};
 
@@ -54,8 +56,8 @@ store_path_set_t scan_for_references(sink_t& to_tee, const Path& path, const sto
 }
 
 void scan_for_references_deep(source_accessor_t& accessor, const canon_path_t& root_path,
-                           const store_path_set_t& refs,
-                           std::function<void(FileRefScanResult)> callback) {
+                              const store_path_set_t& refs,
+                              std::function<void(FileRefScanResult)> callback) {
   // Recursive tree walker
   auto walk = [&](this auto& self, const canon_path_t& path) -> void {
     auto stat = accessor.lstat(path);
@@ -126,8 +128,8 @@ void scan_for_references_deep(source_accessor_t& accessor, const canon_path_t& r
 }
 
 std::map<canon_path_t, store_path_set_t> scan_for_references_deep(source_accessor_t& accessor,
-                                                        const canon_path_t& root_path,
-                                                        const store_path_set_t& refs) {
+                                                                  const canon_path_t& root_path,
+                                                                  const store_path_set_t& refs) {
   std::map<canon_path_t, store_path_set_t> results;
 
   scan_for_references_deep(accessor, root_path, refs, [&](FileRefScanResult result) {

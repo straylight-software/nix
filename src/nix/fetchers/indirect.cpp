@@ -9,7 +9,7 @@ std::regex flake_regex("[a-zA-Z][a-zA-Z0-9_-]*", std::regex::ECMAScript);
 
 struct indirect_input_scheme_t : input_scheme_t {
   std::optional<input_t> inputFromURL(const settings_t& settings, const parsed_url_t& url,
-                                    bool require_tree) const override {
+                                      bool require_tree) const override {
     if (url.scheme() != "flake")
       return {};
 
@@ -87,7 +87,7 @@ struct indirect_input_scheme_t : input_scheme_t {
   }
 
   std::optional<input_t> inputFromAttrs(const settings_t& settings,
-                                      const Attrs& attrs) const override {
+                                        const Attrs& attrs) const override {
     auto id = get_str_attr(attrs, "id");
     if (!std::regex_match(id, flake_regex))
       throw BadURL("'%s' is not a valid flake ID", id);
@@ -111,7 +111,7 @@ struct indirect_input_scheme_t : input_scheme_t {
   }
 
   input_t applyOverrides(const input_t& _input, std::optional<std::string> ref,
-                       std::optional<Hash> rev) const override {
+                         std::optional<Hash> rev) const override {
     auto input(_input);
     if (rev)
       input.attrs.insert_or_assign("rev", rev->git_rev());
@@ -120,8 +120,8 @@ struct indirect_input_scheme_t : input_scheme_t {
     return input;
   }
 
-  std::pair<ref<source_accessor_t>, input_t> get_accessor(const settings_t& settings, store_t& store,
-                                                     const input_t& input) const override {
+  std::pair<ref<source_accessor_t>, input_t>
+  get_accessor(const settings_t& settings, store_t& store, const input_t& input) const override {
     throw Error("indirect input '%s' cannot be fetched directly", input.to_string());
   }
 

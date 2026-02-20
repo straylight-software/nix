@@ -41,7 +41,8 @@ private:
   xml_writer_t& writer;
 
 public:
-  xml_open_element_t(xml_writer_t& writer, std::string_view name, const xml_attrs_t& attrs = xml_attrs_t())
+  xml_open_element_t(xml_writer_t& writer, std::string_view name,
+                     const xml_attrs_t& attrs = xml_attrs_t())
       : writer(writer) {
     writer.open_element(name, attrs);
   }

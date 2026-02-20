@@ -6,8 +6,9 @@
 
 namespace nix {
 
-NixStringContextElem NixStringContextElem::parse(std::string_view s0,
-                                                 const experimental_feature_settings_t& xp_settings) {
+NixStringContextElem
+NixStringContextElem::parse(std::string_view s0,
+                            const experimental_feature_settings_t& xp_settings) {
   std::string_view s = s0;
 
   auto parseRest = [&](this auto& parseRest) -> SingleDerivedPath {

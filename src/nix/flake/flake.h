@@ -60,7 +60,8 @@ struct FlakeInput {
 };
 
 struct ConfigFile {
-  using ConfigValue = std::variant<std::string, int64_t, explicit_t<bool>, std::vector<std::string>>;
+  using ConfigValue =
+      std::variant<std::string, int64_t, explicit_t<bool>, std::vector<std::string>>;
 
   std::map<std::string, ConfigValue> settings;
 
@@ -116,8 +117,8 @@ struct flake_t {
   source_path_t lock_file_path() { return path.parent() / "flake.lock"; }
 };
 
-flake_t get_flake(eval_state_t& state, const flake_ref_t& flake_ref, fetchers::UseRegistries use_registries,
-               bool require_lockable = true);
+flake_t get_flake(eval_state_t& state, const flake_ref_t& flake_ref,
+                  fetchers::UseRegistries use_registries, bool require_lockable = true);
 
 /**
  * Fingerprint of a locked flake; used as a cache key.
@@ -136,7 +137,7 @@ struct LockedFlake {
   std::map<ref<Node>, source_path_t> nodePaths;
 
   std::optional<Fingerprint> get_fingerprint(store_t& store,
-                                            const fetchers::settings_t& fetch_settings) const;
+                                             const fetchers::settings_t& fetch_settings) const;
 };
 
 struct LockFlags {
@@ -219,19 +220,21 @@ struct LockFlags {
   bool require_lockable = true;
 };
 
-LockedFlake lock_flake(const settings_t& settings, eval_state_t& state, const flake_ref_t& flake_ref,
-                      const LockFlags& lock_flags);
+LockedFlake lock_flake(const settings_t& settings, eval_state_t& state,
+                       const flake_ref_t& flake_ref, const LockFlags& lock_flags);
 
 void call_flake(eval_state_t& state, const LockedFlake& locked_flake, value_t& v);
 
 /**
  * Open an evaluation cache for a flake.
  */
-ref<eval_cache::EvalCache> open_eval_cache(eval_state_t& state, ref<const LockedFlake> locked_flake);
+ref<eval_cache::EvalCache> open_eval_cache(eval_state_t& state,
+                                           ref<const LockedFlake> locked_flake);
 
 } // namespace flake
 
-void emit_tree_attrs(eval_state_t& state, const store_path_t& store_path, const fetchers::input_t& input,
-                   value_t& v, bool empty_rev_fallback = false, bool force_dirty = false);
+void emit_tree_attrs(eval_state_t& state, const store_path_t& store_path,
+                     const fetchers::input_t& input, value_t& v, bool empty_rev_fallback = false,
+                     bool force_dirty = false);
 
 } // namespace nix

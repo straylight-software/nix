@@ -17,8 +17,9 @@
 namespace nix {
 
 void store_t::computeFSClosure(const store_path_set_t& startPaths, store_path_set_t& paths_,
-                             bool flipDirection, bool includeOutputs, bool includeDerivers) {
-  std::function<std::set<store_path_t>(const store_path_t& path, std::future<ref<const valid_path_info_t>>&)>
+                               bool flipDirection, bool includeOutputs, bool includeDerivers) {
+  std::function<std::set<store_path_t>(const store_path_t& path,
+                                       std::future<ref<const valid_path_info_t>>&)>
       queryDeps;
   if (flipDirection)
     queryDeps = [&](const store_path_t& path, std::future<ref<const valid_path_info_t>>& fut) {
@@ -75,8 +76,8 @@ void store_t::computeFSClosure(const store_path_set_t& startPaths, store_path_se
       });
 }
 
-void store_t::computeFSClosure(const store_path_t& startPath, store_path_set_t& paths_, bool flipDirection,
-                             bool includeOutputs, bool includeDerivers) {
+void store_t::computeFSClosure(const store_path_t& startPath, store_path_set_t& paths_,
+                               bool flipDirection, bool includeOutputs, bool includeDerivers) {
   store_path_set_t paths;
   paths.insert(startPath);
   computeFSClosure(paths, paths_, flipDirection, includeOutputs, includeDerivers);
@@ -136,8 +137,8 @@ MissingPaths store_t::query_missing(const std::vector<derived_path_t>& targets) 
     }
   };
 
-  auto checkOutput = [&](const store_path_t& drv_path, ref<derivation_t> drv, const store_path_t& out_path,
-                         ref<sync_t<DrvState>> drvState_) {
+  auto checkOutput = [&](const store_path_t& drv_path, ref<derivation_t> drv,
+                         const store_path_t& out_path, ref<sync_t<DrvState>> drvState_) {
     if (drvState_->lock()->done)
       return;
 
@@ -336,8 +337,8 @@ drv_output_references(const std::set<realisation_t>& input_realisations,
 }
 
 std::map<DrvOutput, store_path_t> drv_output_references(store_t& store, const derivation_t& drv,
-                                                     const store_path_t& output_path,
-                                                     store_t* eval_store_) {
+                                                        const store_path_t& output_path,
+                                                        store_t* eval_store_) {
   auto& eval_store = eval_store_ ? *eval_store_ : store;
 
   std::set<realisation_t> input_realisations;
@@ -415,7 +416,8 @@ OutputPathMap resolve_derived_path(store_t& store, const derived_path_t::Built& 
   return outputs;
 }
 
-store_path_t resolve_derived_path(store_t& store, const SingleDerivedPath& req, store_t* eval_store_) {
+store_path_t resolve_derived_path(store_t& store, const SingleDerivedPath& req,
+                                  store_t* eval_store_) {
   auto& eval_store = eval_store_ ? *eval_store_ : store;
 
   return std::visit(overloaded{

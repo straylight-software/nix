@@ -43,14 +43,14 @@ Goal::Co DrvOutputSubstitutionGoal::init() {
     auto promise = std::make_shared<std::promise<std::shared_ptr<const UnkeyedRealisation>>>();
 
     sub->query_realisation(id, {[outPipe(outPipe), promise(promise)](
-                                   std::future<std::shared_ptr<const UnkeyedRealisation>> res) {
-                            try {
-                              finally_t updateStats([&]() { outPipe->write_side.close(); });
-                              promise->set_value(res.get());
-                            } catch (...) {
-                              promise->set_exception(std::current_exception());
-                            }
-                          }});
+                                    std::future<std::shared_ptr<const UnkeyedRealisation>> res) {
+                             try {
+                               finally_t updateStats([&]() { outPipe->write_side.close(); });
+                               promise->set_value(res.get());
+                             } catch (...) {
+                               promise->set_exception(std::current_exception());
+                             }
+                           }});
 
     worker.childStarted(shared_from_this(),
                         {

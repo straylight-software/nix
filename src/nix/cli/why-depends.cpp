@@ -201,40 +201,42 @@ struct cmd_why_depends_t : SourceExprCommand, MixOperateOnOptions {
 
       if (precise) {
         // Use scanForReferencesDeep to find files containing references
-        scan_for_references_deep(*accessor, canon_path_t::root, refPaths, [&](FileRefScanResult result) {
-          auto p2 = result.filePath.is_root() ? result.filePath.abs() : result.filePath.rel();
-          auto st = accessor->lstat(result.filePath);
+        scan_for_references_deep(
+            *accessor, canon_path_t::root, refPaths, [&](FileRefScanResult result) {
+              auto p2 = result.filePath.is_root() ? result.filePath.abs() : result.filePath.rel();
+              auto st = accessor->lstat(result.filePath);
 
-          if (st.type == source_accessor_t::Type::t_regular) {
-            auto contents = accessor->read_file(result.filePath);
+              if (st.type == source_accessor_t::Type::t_regular) {
+                auto contents = accessor->read_file(result.filePath);
 
-            // For each reference found in this file, extract context
-            for (auto& foundRef : result.found_refs) {
-              std::string hash(foundRef.hash_part());
-              auto pos = contents.find(hash);
-              if (pos != std::string::npos) {
-                size_t margin = 32;
-                auto pos2 = pos >= margin ? pos - margin : 0;
-                hits[hash].emplace_back(
-                    fmt("%s: …%s…", p2,
-                        hilite(filter_printable(
-                                   std::string(contents, pos2, pos - pos2 + hash.size() + margin)),
-                               pos - pos2, store_path_t::HashLen, getColour(hash))));
+                // For each reference found in this file, extract context
+                for (auto& foundRef : result.found_refs) {
+                  std::string hash(foundRef.hash_part());
+                  auto pos = contents.find(hash);
+                  if (pos != std::string::npos) {
+                    size_t margin = 32;
+                    auto pos2 = pos >= margin ? pos - margin : 0;
+                    hits[hash].emplace_back(
+                        fmt("%s: …%s…", p2,
+                            hilite(filter_printable(std::string(contents, pos2,
+                                                                pos - pos2 + hash.size() + margin)),
+                                   pos - pos2, store_path_t::HashLen, getColour(hash))));
+                  }
+                }
+              } else if (st.type == source_accessor_t::Type::t_symlink) {
+                auto target = accessor->read_link(result.filePath);
+
+                // For each reference found in this symlink, show it
+                for (auto& foundRef : result.found_refs) {
+                  std::string hash(foundRef.hash_part());
+                  auto pos = target.find(hash);
+                  if (pos != std::string::npos)
+                    hits[hash].emplace_back(
+                        fmt("%s -> %s", p2,
+                            hilite(target, pos, store_path_t::HashLen, getColour(hash))));
+                }
               }
-            }
-          } else if (st.type == source_accessor_t::Type::t_symlink) {
-            auto target = accessor->read_link(result.filePath);
-
-            // For each reference found in this symlink, show it
-            for (auto& foundRef : result.found_refs) {
-              std::string hash(foundRef.hash_part());
-              auto pos = target.find(hash);
-              if (pos != std::string::npos)
-                hits[hash].emplace_back(
-                    fmt("%s -> %s", p2, hilite(target, pos, store_path_t::HashLen, getColour(hash))));
-            }
-          }
-        });
+            });
       }
 
       for (auto& ref : refs) {
@@ -245,7 +247,8 @@ struct cmd_why_depends_t : SourceExprCommand, MixOperateOnOptions {
         for (auto& hit : hits[hash]) {
           bool first = hit == *hits[hash].begin();
           logger->cout("%s%s%s", tailPad,
-                       (first ? (last ? tree_last : tree_conn) : (last ? tree_null : tree_line)), hit);
+                       (first ? (last ? tree_last : tree_conn) : (last ? tree_null : tree_line)),
+                       hit);
           if (!all)
             break;
         }

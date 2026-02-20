@@ -40,7 +40,8 @@ ref<memory_source_accessor_t> make_test_accessor() {
 ref<memory_source_accessor_t> make_empty_accessor() {
   auto accessor = make_ref<memory_source_accessor_t>();
   // Initialize with an empty root directory
-  accessor->root = memory_source_accessor_t::file_t{memory_source_accessor_t::file_t::directory_t{}};
+  accessor->root =
+      memory_source_accessor_t::file_t{memory_source_accessor_t::file_t::directory_t{}};
   return accessor;
 }
 
@@ -468,14 +469,14 @@ TEST_CASE("source path with zero width characters", "[source-path][unicode][secu
 
   // Zero-width space U+200B
   source_path_t path(accessor, canon_path_t("/test\xE2\x80"
-                                      "\x8B"
-                                      "file"));
+                                            "\x8B"
+                                            "file"));
   REQUIRE_FALSE(path.path.is_root());
 
   // Zero-width joiner U+200D
   source_path_t path2(accessor, canon_path_t("/test\xE2\x80"
-                                       "\x8D"
-                                       "file"));
+                                             "\x8D"
+                                             "file"));
   REQUIRE_FALSE(path2.path.is_root());
 }
 

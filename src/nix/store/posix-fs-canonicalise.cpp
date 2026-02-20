@@ -41,9 +41,9 @@ void canonicalise_timestamp_and_permissions(const Path& path) {
 
 static void canonicalise_path_meta_data_(const Path& path,
 #ifndef _WIN32
-                                      std::optional<std::pair<uid_t, uid_t>> uidRange,
+                                         std::optional<std::pair<uid_t, uid_t>> uidRange,
 #endif
-                                      InodesSeen& inodes_seen) {
+                                         InodesSeen& inodes_seen) {
   check_interrupt();
 
 #ifdef __APPLE__
@@ -94,11 +94,11 @@ static void canonicalise_path_meta_data_(const Path& path,
      (i.e. "touch $out/foo; ln $out/foo $out/bar"). */
   if (uidRange && (st.st_uid < uidRange->first || st.st_uid > uidRange->second)) {
     if (S_ISDIR(st.st_mode) || !inodes_seen.count(Inode(st.st_dev, st.st_ino)))
-      throw build_error_t(build_result_t::Failure::OutputRejected, "invalid ownership on file '%1%'",
-                       path);
+      throw build_error_t(build_result_t::Failure::OutputRejected,
+                          "invalid ownership on file '%1%'", path);
     mode_t mode = st.st_mode & ~S_IFMT;
-    assert(S_ISLNK(st.st_mode) ||
-           (st.st_uid == geteuid() && (mode == 0444 || mode == 0555) && st.st_mtime == mtime_store));
+    assert(S_ISLNK(st.st_mode) || (st.st_uid == geteuid() && (mode == 0444 || mode == 0555) &&
+                                   st.st_mtime == mtime_store));
     return;
   }
 #endif
@@ -130,23 +130,23 @@ static void canonicalise_path_meta_data_(const Path& path,
       check_interrupt();
       canonicalise_path_meta_data_(i.path().string(),
 #ifndef _WIN32
-                                uidRange,
+                                   uidRange,
 #endif
-                                inodes_seen);
+                                   inodes_seen);
     }
   }
 }
 
 void canonicalise_path_meta_data(const Path& path,
 #ifndef _WIN32
-                              std::optional<std::pair<uid_t, uid_t>> uidRange,
+                                 std::optional<std::pair<uid_t, uid_t>> uidRange,
 #endif
-                              InodesSeen& inodes_seen) {
+                                 InodesSeen& inodes_seen) {
   canonicalise_path_meta_data_(path,
 #ifndef _WIN32
-                            uidRange,
+                               uidRange,
 #endif
-                            inodes_seen);
+                               inodes_seen);
 
 #ifndef _WIN32
   /* On platforms that don't have lchown(), the top-level path can't
@@ -162,16 +162,16 @@ void canonicalise_path_meta_data(const Path& path,
 
 void canonicalise_path_meta_data(const Path& path
 #ifndef _WIN32
-                              ,
-                              std::optional<std::pair<uid_t, uid_t>> uidRange
+                                 ,
+                                 std::optional<std::pair<uid_t, uid_t>> uidRange
 #endif
 ) {
   InodesSeen inodes_seen;
   canonicalise_path_meta_data_(path,
 #ifndef _WIN32
-                            uidRange,
+                               uidRange,
 #endif
-                            inodes_seen);
+                               inodes_seen);
 }
 
 } // namespace nix

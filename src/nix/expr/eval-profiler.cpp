@@ -8,11 +8,11 @@
 
 namespace nix {
 
-void EvalProfiler::pre_function_call_hook(eval_state_t& state, const value_t& v, std::span<value_t*> args,
-                                          const pos_idx_t pos) {}
+void EvalProfiler::pre_function_call_hook(eval_state_t& state, const value_t& v,
+                                          std::span<value_t*> args, const pos_idx_t pos) {}
 
-void EvalProfiler::post_function_call_hook(eval_state_t& state, const value_t& v, std::span<value_t*> args,
-                                           const pos_idx_t pos) {}
+void EvalProfiler::post_function_call_hook(eval_state_t& state, const value_t& v,
+                                           std::span<value_t*> args, const pos_idx_t pos) {}
 
 void MultiEvalProfiler::pre_function_call_hook(eval_state_t& state, const value_t& v,
                                                std::span<value_t*> args, const pos_idx_t pos) {
@@ -68,7 +68,8 @@ struct lambda_frame_info_t {
   ExprLambda* expr;
   /** Position where the lambda has been called. */
   pos_idx_t call_pos = no_pos;
-  std::ostream& symbolize(const eval_state_t& state, std::ostream& os, pos_cache_t& pos_cache) const;
+  std::ostream& symbolize(const eval_state_t& state, std::ostream& os,
+                          pos_cache_t& pos_cache) const;
   auto operator<=>(const lambda_frame_info_t& rhs) const = default;
 };
 
@@ -77,28 +78,32 @@ struct prim_op_frame_info_t {
   const PrimOp* expr;
   /** Position where the primop has been called. */
   pos_idx_t call_pos = no_pos;
-  std::ostream& symbolize(const eval_state_t& state, std::ostream& os, pos_cache_t& pos_cache) const;
+  std::ostream& symbolize(const eval_state_t& state, std::ostream& os,
+                          pos_cache_t& pos_cache) const;
   auto operator<=>(const prim_op_frame_info_t& rhs) const = default;
 };
 
 /** Used for functor calls (attrset with __functor attr). */
 struct functor_frame_info_t {
   pos_idx_t pos;
-  std::ostream& symbolize(const eval_state_t& state, std::ostream& os, pos_cache_t& pos_cache) const;
+  std::ostream& symbolize(const eval_state_t& state, std::ostream& os,
+                          pos_cache_t& pos_cache) const;
   auto operator<=>(const functor_frame_info_t& rhs) const = default;
 };
 
 struct derivation_strict_frame_info_t {
   pos_idx_t call_pos = no_pos;
   std::string drv_name;
-  std::ostream& symbolize(const eval_state_t& state, std::ostream& os, pos_cache_t& pos_cache) const;
+  std::ostream& symbolize(const eval_state_t& state, std::ostream& os,
+                          pos_cache_t& pos_cache) const;
   auto operator<=>(const derivation_strict_frame_info_t& rhs) const = default;
 };
 
 /** Fallback frame info. */
 struct generic_frame_info_t {
   pos_idx_t pos;
-  std::ostream& symbolize(const eval_state_t& state, std::ostream& os, pos_cache_t& pos_cache) const;
+  std::ostream& symbolize(const eval_state_t& state, std::ostream& os,
+                          pos_cache_t& pos_cache) const;
   auto operator<=>(const generic_frame_info_t& rhs) const = default;
 };
 
@@ -194,7 +199,8 @@ FrameInfo sample_stack_t::get_prim_op_frame_info(const PrimOp& prim_op, std::spa
   return derivation_info.value_or(prim_op_frame_info_t{.expr = &prim_op, .call_pos = pos});
 }
 
-FrameInfo sample_stack_t::get_frame_info_from_value_and_pos(const value_t& v, std::span<value_t*> args,
+FrameInfo sample_stack_t::get_frame_info_from_value_and_pos(const value_t& v,
+                                                            std::span<value_t*> args,
                                                             pos_idx_t pos) {
   /* NOTE: No actual references to garbage collected values are not held in
      the profiler. */
@@ -234,7 +240,8 @@ FrameInfo sample_stack_t::get_frame_info_from_value_and_pos(const value_t& v, st
   maybe_save_profile(now);
 }
 
-[[gnu::noinline]] void sample_stack_t::post_function_call_hook(eval_state_t& state, const value_t& v,
+[[gnu::noinline]] void sample_stack_t::post_function_call_hook(eval_state_t& state,
+                                                               const value_t& v,
                                                                std::span<value_t*> args,
                                                                const pos_idx_t pos) {
   if (!stack.empty())
@@ -335,7 +342,8 @@ sample_stack_t::~sample_stack_t() {
 
 } // namespace
 
-ref<EvalProfiler> make_sample_stack_profiler(eval_state_t& state, std::filesystem::path profile_file,
+ref<EvalProfiler> make_sample_stack_profiler(eval_state_t& state,
+                                             std::filesystem::path profile_file,
                                              uint64_t frequency) {
   /* 0 is a special value for sampling stack after each call. */
   std::chrono::nanoseconds period =

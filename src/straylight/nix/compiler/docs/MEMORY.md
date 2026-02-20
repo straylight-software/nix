@@ -1,20 +1,23 @@
 # Memory Architecture
 
-This document describes the memory layout and allocation strategy for the Nix-to-WASM compiler and runtime.
+This document describes the memory layout and allocation strategy for the Nix-to-WASM compiler and
+runtime.
 
----
+______________________________________________________________________
 
 ## Overview
 
 The system has two phases of memory management:
 
-1. **Compile-time**: The compiler allocates space in the WASM data segment for static data (strings, initial attrset layouts, closure environments for statically-known closures)
+1. **Compile-time**: The compiler allocates space in the WASM data segment for static data (strings,
+   initial attrset layouts, closure environments for statically-known closures)
 
-2. **Runtime**: The runtime allocates memory dynamically for values created during evaluation (thunks, new attrsets, concatenated strings, etc.)
+2. **Runtime**: The runtime allocates memory dynamically for values created during evaluation
+   (thunks, new attrsets, concatenated strings, etc.)
 
 Both phases share a single WASM linear memory.
 
----
+______________________________________________________________________
 
 ## Unified Memory Architecture
 
@@ -50,15 +53,18 @@ The runtime uses a single source of truth for all memory access:
 ### Key Design Points
 
 1. **`wasm_memory` class** provides handle-based access to WASM linear memory
+
    - Callbacks fetch current memory pointer on every access
    - Safe across memory growth (no stale pointers)
    - Built-in bump allocator for heap region
 
 2. **`runtime_context::mem`** points to the `wasm_memory` instance
+
    - All host function reads/writes go through this
    - No separate buffer, no syncing needed
 
 3. **`mem_offset`** is a stable handle (32-bit offset)
+
    - Always valid regardless of memory growth
    - Never store raw pointers across allocating operations
 
@@ -87,7 +93,7 @@ wasm_mem_ = std::make_unique<wasm_memory>(
 ctx_.mem = wasm_mem_.get();
 ```
 
----
+______________________________________________________________________
 
 ## Memory Layout
 
@@ -125,16 +131,14 @@ ctx_.mem = wasm_mem_.get();
 
 ### Region Boundaries
 
-| Region | Start | End | Size | Purpose |
-|--------|-------|-----|------|---------|
-| Data Segment | 0x00000 | 0x0FFFF | 64 KB | Compile-time static data |
-| Stack | 0x0F000 | 0x10000 | 4 KB | WASM call stack (grows down) |
-| Reserved | 0x10000 | 0x1FFFF | 64 KB | Future use / guard region |
-| Runtime Heap | 0x20000 | 0xFFFFF | 896 KB | Runtime allocations |
+| Region | Start | End | Size | Purpose | |--------|-------|-----|------|---------| | Data Segment |
+0x00000 | 0x0FFFF | 64 KB | Compile-time static data | | Stack | 0x0F000 | 0x10000 | 4 KB | WASM
+call stack (grows down) | | Reserved | 0x10000 | 0x1FFFF | 64 KB | Future use / guard region | |
+Runtime Heap | 0x20000 | 0xFFFFF | 896 KB | Runtime allocations |
 
 **Total minimum memory: 1 MB (16 WASM pages)**
 
----
+______________________________________________________________________
 
 ## Value Representation
 
@@ -161,21 +165,14 @@ All Nix values are represented as a single `i64`:
 
 ### Payload Interpretation by Tag
 
-| Tag | Type | Payload Meaning |
-|-----|------|-----------------|
-| 0 | null | Always 0 |
-| 1 | bool | 0 = false, 1 = true |
-| 2 | int | Signed 32-bit integer value |
-| 3 | float | Pointer to f64 in memory |
-| 4 | string | Pointer to null-terminated string |
-| 5 | path | Pointer to null-terminated path string |
-| 6 | list | Pointer to list header |
-| 7 | attrset | Pointer to attrset header |
-| 8 | lambda | Pointer to closure struct |
-| 9 | thunk | Pointer to thunk struct |
-| 10 | primop | Builtin function index |
+| Tag | Type | Payload Meaning | |-----|------|-----------------| | 0 | null | Always 0 | | 1 | bool
+| 0 = false, 1 = true | | 2 | int | Signed 32-bit integer value | | 3 | float | Pointer to f64 in
+memory | | 4 | string | Pointer to null-terminated string | | 5 | path | Pointer to null-terminated
+path string | | 6 | list | Pointer to list header | | 7 | attrset | Pointer to attrset header | | 8
+| lambda | Pointer to closure struct | | 9 | thunk | Pointer to thunk struct | | 10 | primop |
+Builtin function index |
 
----
+______________________________________________________________________
 
 ## Data Structures in Memory
 
@@ -216,7 +213,8 @@ Total size: `4 + count * 12` bytes
 
 ### Attrset (Dynamic Keys)
 
-Used when attribute names are computed at runtime. Same layout as static keys, but entries are sorted by key string for binary search.
+Used when attribute names are computed at runtime. Same layout as static keys, but entries are
+sorted by key string for binary search.
 
 ### Closure
 
@@ -244,12 +242,13 @@ offset+24: capture[1] (nix_value, 8 bytes)
 Total size: `16 + capture_count * 8` bytes
 
 When a thunk is forced:
+
 1. Check if `cached_value` is non-null → return it
 2. Otherwise, call the thunk function with captures
 3. Store result in `cached_value`
 4. Return result
 
----
+______________________________________________________________________
 
 ## Initialization Order
 
@@ -264,9 +263,10 @@ At executor startup:
 7. Set up WASM function callbacks for lambda/thunk evaluation
 8. Execute main function
 
-**Critical**: `rt_init_builtins()` must be called AFTER the module is instantiated, so the builtins attrset is allocated at the heap base (0x20000) and doesn't conflict with the data segment.
+**Critical**: `rt_init_builtins()` must be called AFTER the module is instantiated, so the builtins
+attrset is allocated at the heap base (0x20000) and doesn't conflict with the data segment.
 
----
+______________________________________________________________________
 
 ## Memory Constants
 

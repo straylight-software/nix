@@ -22,27 +22,34 @@ buck2 build //src/straylight/evring:example_directory_tree
 ### File I/O
 
 #### file_reader.cpp
-Simple file reading with the state machine pattern. Demonstrates the basic evring state machine lifecycle: `initial() -> step(state, event) -> done(state)`.
+
+Simple file reading with the state machine pattern. Demonstrates the basic evring state machine
+lifecycle: `initial() -> step(state, event) -> done(state)`.
 
 ```bash
 buck2 run //src/straylight/evring:example_file_reader -- /etc/hosts
 ```
 
 #### file_copy.cpp
-Copy a file with progress reporting. Shows multi-resource state machines (source and dest file handles) and error handling with cleanup.
+
+Copy a file with progress reporting. Shows multi-resource state machines (source and dest file
+handles) and error handling with cleanup.
 
 ```bash
 buck2 run //src/straylight/evring:example_file_copy -- source.txt dest.txt
 ```
 
 #### bulk_stat.cpp
-High-throughput file stat using generator machines. Demonstrates `stat_generator_machine` for bulk operations with minimal state overhead.
+
+High-throughput file stat using generator machines. Demonstrates `stat_generator_machine` for bulk
+operations with minimal state overhead.
 
 ```bash
 buck2 run //src/straylight/evring:example_bulk_stat -- /usr/lib
 ```
 
 #### directory_tree.cpp
+
 Recursive directory listing with statx. Prints a tree view with file metadata (permissions, size).
 
 ```bash
@@ -53,7 +60,9 @@ buck2 run //src/straylight/evring:example_directory_tree -- /path/to/dir 3  # ma
 ### Network I/O
 
 #### http_get.cpp
+
 HTTP GET requests using HTTP/1.1 and HTTP/2. Demonstrates:
+
 - URL parsing
 - TCP connect via io_uring
 - TLS handshake with ALPN negotiation
@@ -67,7 +76,9 @@ buck2 run //src/straylight/evring:example_http_get -- -1 https://httpbin.org/hea
 ```
 
 #### echo_server.cpp
+
 TCP echo server. Demonstrates:
+
 - Socket creation and binding
 - Accept loop
 - Concurrent client handling
@@ -81,7 +92,9 @@ buck2 run //src/straylight/evring:example_echo_server -- 8080
 ### Mixed Workloads
 
 #### file_downloader.cpp
+
 Download a file over HTTPS with progress display. Combines network and file I/O:
+
 - HTTP download via HTTP/1.1
 - Chunked file writing with progress bar
 

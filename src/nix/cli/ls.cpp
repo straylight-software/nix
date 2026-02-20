@@ -32,7 +32,8 @@ struct mix_ls_t : virtual args_t, MixJSON, mix_long_listing_t {
   }
 
   void list_text(ref<source_accessor_t> accessor, canon_path_t path) {
-    std::function<void(const source_accessor_t::stat_t&, const canon_path_t&, std::string_view, bool)>
+    std::function<void(const source_accessor_t::stat_t&, const canon_path_t&, std::string_view,
+                       bool)>
         do_path;
 
     auto show_file = [&](const canon_path_t& cur_path, std::string_view rel_path) {
@@ -41,7 +42,7 @@ struct mix_ls_t : virtual args_t, MixJSON, mix_long_listing_t {
         std::string tp = st.type == source_accessor_t::Type::t_regular
                              ? (st.is_executable ? "-r-xr-xr-x" : "-r--r--r--")
                          : st.type == source_accessor_t::Type::t_symlink ? "lrwxrwxrwx"
-                                                                      : "dr-xr-xr-x";
+                                                                         : "dr-xr-xr-x";
         auto line = fmt("%s %9d %s", tp, st.file_size.value_or(0), rel_path);
         if (st.type == source_accessor_t::Type::t_symlink)
           line += " -> " + accessor->read_link(cur_path);

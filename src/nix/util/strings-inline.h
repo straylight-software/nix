@@ -5,7 +5,8 @@
 namespace nix {
 
 template <class C, class char_t>
-C basic_tokenize_string(std::basic_string_view<char_t> s, std::basic_string_view<char_t> separators) {
+C basic_tokenize_string(std::basic_string_view<char_t> s,
+                        std::basic_string_view<char_t> separators) {
   C result;
   auto pos = s.find_first_not_of(separators, 0);
   while (pos != s.npos) {
@@ -25,7 +26,7 @@ C tokenize_string(std::string_view s, std::string_view separators) {
 
 template <class C, class char_t>
 void basic_split_string_into(C& accum, std::basic_string_view<char_t> s,
-                          std::basic_string_view<char_t> separators) {
+                             std::basic_string_view<char_t> separators) {
   size_t pos = 0;
   while (pos <= s.size()) {
     auto end = s.find_first_of(separators, pos);
@@ -55,7 +56,7 @@ C split_string(std::string_view s, std::string_view separators) {
 
 template <class char_t, class C>
 std::basic_string<char_t> basic_concat_strings_sep(const std::basic_string_view<char_t> sep,
-                                               const C& ss) {
+                                                   const C& ss) {
   size_t size = 0;
   bool tail = false;
   // need a cast to string_view since this is also called with Symbols

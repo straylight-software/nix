@@ -20,8 +20,9 @@
 
 namespace nix {
 
-void emit_tree_attrs(eval_state_t& state, const store_path_t& store_path, const fetchers::input_t& input,
-                   value_t& v, bool empty_rev_fallback, bool force_dirty) {
+void emit_tree_attrs(eval_state_t& state, const store_path_t& store_path,
+                     const fetchers::input_t& input, value_t& v, bool empty_rev_fallback,
+                     bool force_dirty) {
   auto attrs = state.buildBindings(100);
 
   state.mkStorePathString(store_path, attrs.alloc(state.s.out_path));
@@ -61,7 +62,8 @@ void emit_tree_attrs(eval_state_t& state, const store_path_t& store_path, const 
   if (auto last_modified = input.get_last_modified()) {
     attrs.alloc("lastModified").mkInt(*last_modified);
     attrs.alloc("lastModifiedDate")
-        .mk_string(fmt("%s", std::put_time(std::gmtime(&*last_modified), "%Y%m%d%H%M%S")), state.mem);
+        .mk_string(fmt("%s", std::put_time(std::gmtime(&*last_modified), "%Y%m%d%H%M%S")),
+                   state.mem);
   }
 
   v.mkAttrs(attrs);
@@ -74,7 +76,7 @@ struct fetch_tree_params_t {
 };
 
 static void fetch_tree(eval_state_t& state, const pos_idx_t pos, value_t** args, value_t& v,
-                      const fetch_tree_params_t& params = fetch_tree_params_t{}) {
+                       const fetch_tree_params_t& params = fetch_tree_params_t{}) {
   fetchers::input_t input{};
   NixStringContext context;
   std::optional<std::string> type;
@@ -108,9 +110,10 @@ static void fetch_tree(eval_state_t& state, const pos_idx_t pos, value_t** args,
       state.forceValue(*attr.value, attr.pos);
       if (attr.value->type() == nPath || attr.value->type() == nString) {
         auto s = state.coerceToString(attr.pos, *attr.value, context, "", false, false).to_owned();
-        attrs.emplace(
-            state.symbols[attr.name],
-            params.is_fetch_git && state.symbols[attr.name] == "url" ? fix_git_url(s).to_string() : s);
+        attrs.emplace(state.symbols[attr.name],
+                      params.is_fetch_git && state.symbols[attr.name] == "url"
+                          ? fix_git_url(s).to_string()
+                          : s);
       } else if (attr.value->type() == nBool)
         attrs.emplace(state.symbols[attr.name], explicit_t<bool>{attr.value->boolean()});
       else if (attr.value->type() == nInt) {
@@ -172,7 +175,7 @@ static void fetch_tree(eval_state_t& state, const pos_idx_t pos, value_t** args,
 
   if (!state.settings.pureEval && !input.isDirect())
     input = lookup_in_registries(state.fetch_settings, *state.store, input,
-                               fetchers::UseRegistries::Limited)
+                                 fetchers::UseRegistries::Limited)
                 .first;
 
   if (state.settings.pureEval && !input.isLocked(state.fetch_settings)) {
@@ -194,7 +197,7 @@ static void fetch_tree(eval_state_t& state, const pos_idx_t pos, value_t** args,
     input.attrs.insert_or_assign("__final", explicit_t<bool>(true));
 
   auto cached_input = state.inputCache->get_accessor(state.fetch_settings, *state.store, input,
-                                                   fetchers::UseRegistries::No);
+                                                     fetchers::UseRegistries::No);
 
   auto store_path = state.mountInput(cached_input.lockedInput, input, cached_input.accessor, true);
 
@@ -357,7 +360,9 @@ static void fetch(eval_state_t& state, const pos_idx_t pos, value_t** args, valu
         name = state.forceStringNoCtx(*attr.value, attr.pos,
                                       "while evaluating the name of the content we should fetch");
       } else
-        state.error<EvalError>("unsupported argument '%s' to '%s'", n, who).at_pos(pos).debugThrow();
+        state.error<EvalError>("unsupported argument '%s' to '%s'", n, who)
+            .at_pos(pos)
+            .debugThrow();
     }
 
     if (!url)
@@ -377,15 +382,17 @@ static void fetch(eval_state_t& state, const pos_idx_t pos, value_t** args, valu
     check_name(name);
   } catch (BadStorePathName& e) {
     auto resolution =
-        name_attr_passed ? hint_fmt_t("Please change the value for the 'name' attribute passed to '%s', "
-                                 "so that it can create a valid store path.",
-                                 who)
-        : is_arg_attrs   ? hint_fmt_t("Please add a valid 'name' attribute to the argument for '%s', so "
-                                   "that it can create a valid store path.",
-                                 who)
-                       : hint_fmt_t("Please pass an attribute set with 'url' and 'name' attributes to "
-                                   "'%s',  so that it can create a valid store path.",
-                                 who);
+        name_attr_passed
+            ? hint_fmt_t("Please change the value for the 'name' attribute passed to '%s', "
+                         "so that it can create a valid store path.",
+                         who)
+        : is_arg_attrs
+            ? hint_fmt_t("Please add a valid 'name' attribute to the argument for '%s', so "
+                         "that it can create a valid store path.",
+                         who)
+            : hint_fmt_t("Please pass an attribute set with 'url' and 'name' attributes to "
+                         "'%s',  so that it can create a valid store path.",
+                         who);
 
     state
         .error<EvalError>(std::string("invalid store path name when fetching URL '%s': %s. %s"),
@@ -424,14 +431,14 @@ static void fetch(eval_state_t& state, const pos_idx_t pos, value_t** args, valu
   // Download the file/tarball if substitution failed or no hash was provided
   auto store_path =
       unpack ? fetch_to_store(state.fetch_settings, *state.store,
-                            fetchers::download_tarball(*state.store, state.fetch_settings, *url),
-                            FetchMode::Copy, name)
+                              fetchers::download_tarball(*state.store, state.fetch_settings, *url),
+                              FetchMode::Copy, name)
              : fetchers::download_file(*state.store, state.fetch_settings, *url, name).store_path;
 
   if (expected_hash) {
     auto hash = unpack ? state.store->queryPathInfo(store_path)->nar_hash
                        : hash_path({state.store->requireStoreObjectAccessor(store_path)},
-                                  file_serialisation_method_t::flat, hash_algorithm_t::SHA256)
+                                   file_serialisation_method_t::flat, hash_algorithm_t::SHA256)
                              .hash;
     if (hash != *expected_hash) {
       state
@@ -472,7 +479,8 @@ static RegisterPrimOp primop_fetchurl({
     .fun = prim_fetchurl,
 });
 
-static void prim_fetch_tarball(eval_state_t& state, const pos_idx_t pos, value_t** args, value_t& v) {
+static void prim_fetch_tarball(eval_state_t& state, const pos_idx_t pos, value_t** args,
+                               value_t& v) {
   fetch(state, pos, args, v, "fetchTarball", true, "source");
 }
 
@@ -522,9 +530,9 @@ static RegisterPrimOp primop_fetch_tarball({
 });
 
 static void prim_fetch_git(eval_state_t& state, const pos_idx_t pos, value_t** args, value_t& v) {
-  fetch_tree(
-      state, pos, args, v,
-      fetch_tree_params_t{.empty_rev_fallback = true, .allow_name_argument = true, .is_fetch_git = true});
+  fetch_tree(state, pos, args, v,
+             fetch_tree_params_t{
+                 .empty_rev_fallback = true, .allow_name_argument = true, .is_fetch_git = true});
 }
 
 static RegisterPrimOp primop_fetch_git({

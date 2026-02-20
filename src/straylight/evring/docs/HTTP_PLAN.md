@@ -4,7 +4,9 @@
 
 **What if HTTP clients were as testable as pure functions?**
 
-Every HTTP library is the same story: callbacks, mutable state, mocking nightmares. You want to test your retry logic? Spin up a server. Test timeout handling? Sleep in your tests. Test connection pooling under load? Good luck.
+Every HTTP library is the same story: callbacks, mutable state, mocking nightmares. You want to test
+your retry logic? Spin up a server. Test timeout handling? Sleep in your tests. Test connection
+pooling under load? Good luck.
 
 libevring already solved this for file I/O. The same insight applies to networking:
 
@@ -25,6 +27,7 @@ assert(final.responses[0].body == "hello");
 ```
 
 Test edge cases that are nearly impossible otherwise:
+
 - Server sends GOAWAY mid-request
 - TLS renegotiation during data transfer
 - HTTP/2 flow control backpressure
@@ -33,7 +36,7 @@ Test edge cases that are nearly impossible otherwise:
 
 All without touching the network. All deterministic. All fast.
 
----
+______________________________________________________________________
 
 ## Architecture Overview
 
@@ -67,7 +70,7 @@ All without touching the network. All deterministic. All fast.
 
 Each layer is a state machine. Composition via events flowing up, operations flowing down.
 
----
+______________________________________________________________________
 
 ## Phase 1: Socket Foundation
 
@@ -108,11 +111,13 @@ case operation_type::recv: {
 ### 1.2 DNS Resolution
 
 Options:
+
 - **Blocking getaddrinfo** in thread pool (simple, matches most libraries)
 - **c-ares** async DNS (complex, but no threads)
 - **Stub resolver** parsing /etc/resolv.conf + UDP via io_uring (hardcore mode)
 
-Recommendation: Start with **blocking getaddrinfo** wrapped in a thread, exposed as an event. Upgrade later if needed.
+Recommendation: Start with **blocking getaddrinfo** wrapped in a thread, exposed as an event.
+Upgrade later if needed.
 
 ```cpp
 struct dns_resolve_operation {
@@ -167,7 +172,7 @@ struct tcp_client_machine {
 - [ ] Tests: connect to localhost, echo server
 - [ ] Replay tests for connection failure, partial sends
 
----
+______________________________________________________________________
 
 ## Phase 2: TLS Layer
 
@@ -306,13 +311,14 @@ struct tls_connection_machine {
 - [ ] Tests: handshake with real server
 - [ ] Replay tests: handshake failure, certificate error, ALPN mismatch
 
----
+______________________________________________________________________
 
 ## Phase 3: HTTP/1.1
 
 **Goal:** Basic HTTP/1.1 client with keep-alive
 
-**Why before HTTP/2:** Simpler protocol, validates the architecture, still widely needed (HTTP/2 upgrade, fallback).
+**Why before HTTP/2:** Simpler protocol, validates the architecture, still widely needed (HTTP/2
+upgrade, fallback).
 
 ### 3.1 HTTP Types
 
@@ -483,7 +489,7 @@ struct h1_connection_machine {
 - [ ] Tests: parse various responses (200, 404, chunked, etc.)
 - [ ] Replay tests: partial responses, connection close mid-body
 
----
+______________________________________________________________________
 
 ## Phase 4: HTTP/2
 
@@ -666,7 +672,7 @@ nghttp2 handles HPACK (header compression) internally. We just pass headers in/o
 - [ ] Tests: basic request/response, multiple streams
 - [ ] Replay tests: flow control, GOAWAY, RST_STREAM, SETTINGS changes
 
----
+______________________________________________________________________
 
 ## Phase 5: HTTP Client
 
@@ -786,7 +792,7 @@ auto handle_redirect(http_response const& resp, http_request const& req)
 - [ ] Tests: connection reuse, pool limits
 - [ ] Replay tests: redirect chains, mixed HTTP/1.1 and HTTP/2
 
----
+______________________________________________________________________
 
 ## Phase 6: Bulk HTTP API
 
@@ -841,7 +847,7 @@ auto bulk_fetch(ring& r, span<http_request> requests,
 - [ ] Tests: fetch many URLs
 - [ ] Benchmarks vs curl, wget, etc.
 
----
+______________________________________________________________________
 
 ## Phase 7: Polish and Performance
 
@@ -900,7 +906,7 @@ HTTP/2 allows connection coalescing for same-IP different-hostname:
 - [ ] Benchmarks: requests/sec, latency percentiles, memory usage
 - [ ] Comparison with beast, nghttp2 examples, curl
 
----
+______________________________________________________________________
 
 ## Testing Strategy
 
@@ -969,7 +975,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 }
 ```
 
----
+______________________________________________________________________
 
 ## File Structure
 
@@ -1021,35 +1027,24 @@ bench/
   bench_http.cpp          # HTTP benchmarks
 ```
 
----
+______________________________________________________________________
 
 ## Dependencies
 
-| Dependency | Purpose | Required? |
-|------------|---------|-----------|
-| liburing   | io_uring interface | Yes (existing) |
-| OpenSSL    | TLS (libssl, libcrypto) | Yes |
-| nghttp2    | HTTP/2 framing, HPACK | Yes |
-| c-ares     | Async DNS | Optional |
-| brotli     | Brotli decompression | Optional |
-| zlib       | gzip/deflate decompression | Optional |
+| Dependency | Purpose | Required? | |------------|---------|-----------| | liburing | io_uring
+interface | Yes (existing) | | OpenSSL | TLS (libssl, libcrypto) | Yes | | nghttp2 | HTTP/2 framing,
+HPACK | Yes | | c-ares | Async DNS | Optional | | brotli | Brotli decompression | Optional | | zlib
+| gzip/deflate decompression | Optional |
 
----
+______________________________________________________________________
 
 ## Timeline Estimate
 
-| Phase | Description | Effort |
-|-------|-------------|--------|
-| 1 | Socket foundation | 1 week |
-| 2 | TLS layer | 1 week |
-| 3 | HTTP/1.1 | 1 week |
-| 4 | HTTP/2 | 2 weeks |
-| 5 | HTTP client | 1 week |
-| 6 | Bulk API | 1 week |
-| 7 | Polish | 1 week |
-| **Total** | | **8 weeks** |
+| Phase | Description | Effort | |-------|-------------|--------| | 1 | Socket foundation | 1 week |
+| 2 | TLS layer | 1 week | | 3 | HTTP/1.1 | 1 week | | 4 | HTTP/2 | 2 weeks | | 5 | HTTP client | 1
+week | | 6 | Bulk API | 1 week | | 7 | Polish | 1 week | | **Total** | | **8 weeks** |
 
----
+______________________________________________________________________
 
 ## Success Criteria
 
@@ -1059,7 +1054,7 @@ bench/
 4. **Simplicity**: Clear, minimal API surface
 5. **Composability**: Each layer usable independently
 
----
+______________________________________________________________________
 
 ## The Payoff
 
@@ -1083,6 +1078,7 @@ auto state = replay(http_client, events);
 // Now step through in debugger
 ```
 
-The same property that makes libevring great for file I/O - deterministic async via pure state machines - makes it great for networking too.
+The same property that makes libevring great for file I/O - deterministic async via pure state
+machines - makes it great for networking too.
 
 Let's build it.

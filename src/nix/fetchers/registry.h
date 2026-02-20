@@ -50,7 +50,7 @@ using Registries = std::vector<std::shared_ptr<Registry>>;
 std::shared_ptr<Registry> get_user_registry(const settings_t& settings);
 
 std::shared_ptr<Registry> get_custom_registry(const settings_t& settings,
-                                            const std::filesystem::path& p);
+                                              const std::filesystem::path& p);
 
 std::filesystem::path get_user_registry_path();
 
@@ -69,6 +69,6 @@ enum class UseRegistries : int {
  * use the registries for which the filter function returns true.
  */
 std::pair<input_t, Attrs> lookup_in_registries(const settings_t& settings, store_t& store,
-                                           const input_t& input, UseRegistries use_registries);
+                                               const input_t& input, UseRegistries use_registries);
 
 } // namespace nix::fetchers

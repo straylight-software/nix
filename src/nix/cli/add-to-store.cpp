@@ -40,7 +40,7 @@ struct cmd_add_to_store_t : MixDryRun, StoreCommand {
 
     auto store_path =
         dry_run ? store->computeStorePath(*name_part, source_path, ca_method, hash_algo, {}).first
-               : store->addToStoreSlow(*name_part, source_path, ca_method, hash_algo, {}).path;
+                : store->addToStoreSlow(*name_part, source_path, ca_method, hash_algo, {}).path;
 
     logger->cout("%s", store->printStorePath(store_path));
   }

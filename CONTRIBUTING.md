@@ -1,11 +1,13 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#                                                    // straylight // nix // contributing
+
+# // straylight // nix // contributing
+
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Contributing to straylight/nix
 
-This is a fork of Nix with experimental components for deterministic async I/O,
-Nix-to-WASM compilation, and formal protocol specifications.
+This is a fork of Nix with experimental components for deterministic async I/O, Nix-to-WASM
+compilation, and formal protocol specifications.
 
 ## // build
 
@@ -17,9 +19,8 @@ buck2 test //src/straylight/...
 
 The build system is Buck2 via sensenet.
 
-n.b. The `doc/manual/` directory contains upstream Nix documentation which
-references Meson. That applies to the upstream project; straylight components
-(`src/straylight/`) build with Buck2 only.
+n.b. The `doc/manual/` directory contains upstream Nix documentation which references Meson. That
+applies to the upstream project; straylight components (`src/straylight/`) build with Buck2 only.
 
 ## // architecture
 
@@ -42,6 +43,7 @@ For typographical conventions (comment style, delimiters, epigraphs), see
 https://github.com/straylight-software — these are organization-wide standards.
 
 Key points:
+
 - `snake_case` for everything
 - `_t` suffix for types: `store_path_t`, `hash_type_t`
 - trailing underscore for private members: `path_`, `cache_`
@@ -61,8 +63,9 @@ buck2 test //src/straylight/language/tests:execution_test
 ## // commits
 
 Follow conventional commit style:
+
 - `fix:` bug fixes
-- `feat:` new features  
+- `feat:` new features
 - `refactor:` code changes that neither fix bugs nor add features
 - `docs:` documentation only
 - `test:` adding or updating tests

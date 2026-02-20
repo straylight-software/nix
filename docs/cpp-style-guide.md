@@ -5,22 +5,22 @@
 **this document has two tiers:**
 
 - **tier 1 (first 8kb):** naming, structure, basic patterns — sufficient for single-file
-  modifications, style fixes, mechanical refactoring. junior agents doing point edits stop
-  at the tier boundary marker.
+  modifications, style fixes, mechanical refactoring. junior agents doing point edits stop at the
+  tier boundary marker.
 
 - **tier 2 (full 15kb):** includes c++23 patterns, error handling, threading, performance,
   architecture. required for design decisions, new types, API changes.
 
-if you are making design decisions, read the entire document. if you cannot fit 15kb in context,
-you are not ready for design work in this codebase.
+if you are making design decisions, read the entire document. if you cannot fit 15kb in context, you
+are not ready for design work in this codebase.
 
 ### rules exist to serve intentions
 
-style rules encode the *intentions* of the codebase maintainers. when applying a rule would
-violate the intention it was meant to serve, you must recognize this and act accordingly:
+style rules encode the *intentions* of the codebase maintainers. when applying a rule would violate
+the intention it was meant to serve, you must recognize this and act accordingly:
 
-1. **stop and reason about consequences** — before mechanical application of any rule, ask:
-   "what was this rule designed to prevent? would applying it here cause that very harm?"
+1. **stop and reason about consequences** — before mechanical application of any rule, ask: "what
+   was this rule designed to prevent? would applying it here cause that very harm?"
 
 2. **the stable_ref precedent** — the rule "use struct, all members public" exists to reduce
    cognitive overhead and eliminate hidden state. but `stable_ref<T>` uses private constructors
@@ -28,17 +28,18 @@ violate the intention it was meant to serve, you must recognize this and act acc
    applying the rule mechanically would have destroyed the safety invariant it was meant to protect.
    the correct action was to document an exception, not to blindly convert.
 
-3. **when you discover a conflict, document it** — if a rule's mechanical application would
-   violate its own purpose, add an exception clause to this guide explaining:
+3. **when you discover a conflict, document it** — if a rule's mechanical application would violate
+   its own purpose, add an exception clause to this guide explaining:
+
    - what the conflict is
    - why the exception exists
    - how to recognize similar cases
 
-4. **the maintainer deeply approves of this behavior** — exercising judgment about intentions
-   vs. mechanical rule-following is not insubordination. it is the entire point. agents that
-   recognize "this rule would break things here" and stop to document why are doing exactly
-   what is wanted. agents that barrel through and break things while following rules to the
-   letter are failing at their actual job.
+4. **the maintainer deeply approves of this behavior** — exercising judgment about intentions vs.
+   mechanical rule-following is not insubordination. it is the entire point. agents that recognize
+   "this rule would break things here" and stop to document why are doing exactly what is wanted.
+   agents that barrel through and break things while following rules to the letter are failing at
+   their actual job.
 
 ### before you begin
 
@@ -46,14 +47,15 @@ violate the intention it was meant to serve, you must recognize this and act acc
 - run it again after changes — if it fails, fix it before proceeding
 - the build passing is not optional. a "style fix" that breaks the build is not a fix.
 
----
+______________________________________________________________________
 
 this is the definitive style guide for c++ code in the straylight/nix codebase. it is derived from
 the straylight c++ guidelines but adapted for the nix codebase's specific needs.
 
 ## core principles
 
-1. **optimize for disambiguation, not brevity** - agents write code in seconds, humans debug it for hours
+1. **optimize for disambiguation, not brevity** - agents write code in seconds, humans debug it for
+   hours
 2. **name for grep** - every identifier must be globally searchable
 3. **explicit over implicit** - type annotations, full names, clear state machines
 4. **modern c++23** - use the latest features, they exist to help
@@ -63,7 +65,7 @@ the straylight c++ guidelines but adapted for the nix codebase's specific needs.
 ### the fundamental rules
 
 - **snake_case** for everything: classes, functions, variables, parameters, namespaces
-- **_t suffix** for type names: `store_path_t`, `eval_state_t`, `hash_type_t`
+- **\_t suffix** for type names: `store_path_t`, `eval_state_t`, `hash_type_t`
 - **trailing underscore** for member variables: `path_`, `state_`, `cache_`
 - **UPPER_CASE** for macros only
 - **CamelCase** only for template parameters
@@ -86,15 +88,15 @@ class LocalStore {
 };
 ```
 
-n.b. we use `struct` exclusively — `class` is banned. all members are public.
-the trailing underscore distinguishes member variables from parameters and locals.
+n.b. we use `struct` exclusively — `class` is banned. all members are public. the trailing
+underscore distinguishes member variables from parameters and locals.
 
-**exception: safety-critical encapsulation.** types that use private constructors or members
-to enforce compile-time safety invariants may use `class` with private members. the canonical
-example is `stable_ref<T>` / `stable_span<T>` in evring — these types intentionally restrict
-construction to `make_stable_ref()` / `make_stable_span()` or `machine_storage` to guarantee
-buffer lifetime safety. without private constructors, users could accidentally create dangling
-references. when using this exception:
+**exception: safety-critical encapsulation.** types that use private constructors or members to
+enforce compile-time safety invariants may use `class` with private members. the canonical example
+is `stable_ref<T>` / `stable_span<T>` in evring — these types intentionally restrict construction to
+`make_stable_ref()` / `make_stable_span()` or `machine_storage` to guarantee buffer lifetime safety.
+without private constructors, users could accidentally create dangling references. when using this
+exception:
 
 1. document why the encapsulation is safety-critical (not just "good practice")
 2. prefer factory functions (`make_*`) over public constructors
@@ -125,8 +127,8 @@ auto result = process_request(request);
 
 ### dangerous names to avoid
 
-these names cause collisions when used as member variables because they match common
-function/type names. choose more specific names:
+these names cause collisions when used as member variables because they match common function/type
+names. choose more specific names:
 
 ```cpp
 // dangerous - will collide with functions or types
@@ -240,15 +242,16 @@ auto local_store_t::query_path_info(const store_path_t& path)
 }  // namespace nix
 ```
 
----
+______________________________________________________________________
 
 ## tier boundary: 8kb
 
 **junior agents stop here.** the preceding ~8kb covers naming, structure, and basic patterns —
-sufficient for single-file modifications like renaming variables, fixing style violations, or
-adding trailing underscores to member variables.
+sufficient for single-file modifications like renaming variables, fixing style violations, or adding
+trailing underscores to member variables.
 
 **continue reading if you are:**
+
 - designing new types or modules
 - making architectural decisions
 - modifying public APIs
@@ -256,7 +259,7 @@ adding trailing underscores to member variables.
 
 if you are unsure which tier applies to your task, read the whole document.
 
----
+______________________________________________________________________
 
 ## modern c++23 patterns
 
@@ -358,12 +361,11 @@ the codebase uses a comprehensive lint pipeline with four tools, each covering d
 
 ### tool stack
 
-| tool | purpose | configuration |
-|------|---------|---------------|
-| **clang-format** | mechanical layout (indentation, spacing, braces) | `.clang-format` |
-| **clang-tidy** | semantic lint (naming, complexity, bugs) | `.clang-tidy` |
-| **ast-grep** | pattern-based rules clang-tidy can't express | `sgconfig.yml`, `rules/` |
-| **cppcheck** | deep static analysis, inter-procedural bugs | `.cppcheck`, `cppcheck.cfg` |
+| tool | purpose | configuration | |------|---------|---------------| | **clang-format** |
+mechanical layout (indentation, spacing, braces) | `.clang-format` | | **clang-tidy** | semantic
+lint (naming, complexity, bugs) | `.clang-tidy` | | **ast-grep** | pattern-based rules clang-tidy
+can't express | `sgconfig.yml`, `rules/` | | **cppcheck** | deep static analysis, inter-procedural
+bugs | `.cppcheck`, `cppcheck.cfg` |
 
 ### running the linters
 
@@ -383,25 +385,17 @@ cppcheck --suppressions-list=.cppcheck src/nix/ src/straylight/
 
 ### ast-grep rules (19 rules in `rules/`)
 
-| rule | severity | purpose |
-|------|----------|---------|
-| `no-class-keyword` | error | enforce `struct` over `class` |
-| `no-c-style-cast` | warning | use C++ casts |
-| `no-using-namespace-std` | error | prevent namespace pollution |
-| `no-raw-new` | warning | use `make_unique`/`make_shared` |
-| `no-std-endl` | warning | prefer `'\n'` (no flush) |
-| `no-typedef` | warning | use `using` instead |
-| `no-short-identifier` | warning | three-letter rule (no cfg, conn, res, etc.) |
-| `no-assert` | warning | proper error handling over assert |
-| `no-magic-numbers` | hint | name your constants (256, 1024, 4096) |
-| `prefer-nullptr` | warning | use `nullptr` not `NULL` |
-| `prefer-string-view` | hint | `string_view` for read-only params |
-| `prefer-span` | warning | `span` over pointer+size |
-| `trailing-return-type` | warning | `auto f() -> T` style |
-| `uppercase-literal-suffix` | warning | `1UL` not `1ul` |
-| `aaa-make-shared` | hint | auto with make_shared |
-| `aaa-make-unique` | hint | auto with make_unique |
-| `aaa-static-cast` | hint | auto with static_cast |
+| rule | severity | purpose | |------|----------|---------| | `no-class-keyword` | error | enforce
+`struct` over `class` | | `no-c-style-cast` | warning | use C++ casts | | `no-using-namespace-std` |
+error | prevent namespace pollution | | `no-raw-new` | warning | use `make_unique`/`make_shared` | |
+`no-std-endl` | warning | prefer `'\n'` (no flush) | | `no-typedef` | warning | use `using` instead
+| | `no-short-identifier` | warning | three-letter rule (no cfg, conn, res, etc.) | | `no-assert` |
+warning | proper error handling over assert | | `no-magic-numbers` | hint | name your constants
+(256, 1024, 4096) | | `prefer-nullptr` | warning | use `nullptr` not `NULL` | | `prefer-string-view`
+| hint | `string_view` for read-only params | | `prefer-span` | warning | `span` over pointer+size |
+| `trailing-return-type` | warning | `auto f() -> T` style | | `uppercase-literal-suffix` | warning
+| `1UL` not `1ul` | | `aaa-make-shared` | hint | auto with make_shared | | `aaa-make-unique` | hint
+| auto with make_unique | | `aaa-static-cast` | hint | auto with static_cast |
 
 ### clang-tidy key rules
 

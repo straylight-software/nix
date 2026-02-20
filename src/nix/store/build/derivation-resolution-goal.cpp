@@ -7,8 +7,9 @@
 
 namespace nix {
 
-DerivationResolutionGoal::DerivationResolutionGoal(const store_path_t& drv_path, const derivation_t& drv,
-                                                   Worker& worker, BuildMode build_mode)
+DerivationResolutionGoal::DerivationResolutionGoal(const store_path_t& drv_path,
+                                                   const derivation_t& drv, Worker& worker,
+                                                   BuildMode build_mode)
     : Goal(worker, resolveDerivation()),
       drv_path(drv_path),
       drv{std::make_unique<derivation_t>(drv)},
@@ -171,8 +172,8 @@ Goal::Co DerivationResolutionGoal::resolveDerivation() {
               logger_t::field_t{worker.store.printStorePath(pathResolved)},
           });
 
-      resolvedDrv = std::make_unique<std::pair<store_path_t, basic_derivation_t>>(std::move(pathResolved),
-                                                                            *std::move(attempt));
+      resolvedDrv = std::make_unique<std::pair<store_path_t, basic_derivation_t>>(
+          std::move(pathResolved), *std::move(attempt));
     }
   }
 

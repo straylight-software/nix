@@ -8,7 +8,7 @@
 
 This guide provides everything you need to understand, build, and contribute to straylight/nix.
 
----
+______________________________________________________________________
 
 ## Table of Contents
 
@@ -21,7 +21,7 @@ This guide provides everything you need to understand, build, and contribute to 
 7. [Troubleshooting](#troubleshooting)
 8. [Architecture Decision Records](#architecture-decision-records)
 
----
+______________________________________________________________________
 
 ## Quick Start
 
@@ -60,7 +60,7 @@ ls compile_commands.json
 buck2 test //src/straylight/nix/primitives/tests:strings_test
 ```
 
----
+______________________________________________________________________
 
 ## Understanding the Codebase
 
@@ -125,16 +125,15 @@ src/
 
 ### Key Files to Read First
 
-| File | Description | Why Read It |
-|------|-------------|-------------|
-| `ARCHITECTURE.md` | Project overview | Understand the whole system |
-| `docs/cpp-style-guide.md` | Code conventions | Write conformant code |
-| `src/straylight/evring/ARCHITECTURE.md` | evring deep dive | Understand async I/O |
-| `src/straylight/language/ARCHITECTURE.md` | Compiler deep dive | Understand WASM compilation |
-| `src/straylight/nix/primitives/NIH.md` | NIH replacement tracking | Understand modernization |
-| `src/straylight/protocol/README.md` | Protocol specs | Understand daemon communication |
+| File | Description | Why Read It | |------|-------------|-------------| | `ARCHITECTURE.md` |
+Project overview | Understand the whole system | | `docs/cpp-style-guide.md` | Code conventions |
+Write conformant code | | `src/straylight/evring/ARCHITECTURE.md` | evring deep dive | Understand
+async I/O | | `src/straylight/language/ARCHITECTURE.md` | Compiler deep dive | Understand WASM
+compilation | | `src/straylight/nix/primitives/NIH.md` | NIH replacement tracking | Understand
+modernization | | `src/straylight/protocol/README.md` | Protocol specs | Understand daemon
+communication |
 
----
+______________________________________________________________________
 
 ## Component Deep Dives
 
@@ -191,7 +190,7 @@ if (final_state.ok()) {
 
 **For more:** See `src/straylight/evring/ARCHITECTURE.md`
 
----
+______________________________________________________________________
 
 ### 2. nix-language - Nix → WASM Compiler
 
@@ -261,7 +260,7 @@ assert(get_int_value(result.value) == 3);
 
 **For more:** See `src/straylight/language/ARCHITECTURE.md`
 
----
+______________________________________________________________________
 
 ### 3. nix-protocol - Formal Protocol Specifications
 
@@ -300,12 +299,12 @@ Client                    Server
 
 **For more:** See `src/straylight/protocol/README.md`
 
----
+______________________________________________________________________
 
 ### 4. primitives - Modern Utility Replacements
 
-**Problem:** Nix has many Not-Invented-Here implementations that are slower and buggier
-than well-tested libraries.
+**Problem:** Nix has many Not-Invented-Here implementations that are slower and buggier than
+well-tested libraries.
 
 **Solution:** Systematic replacement with modern, high-quality libraries.
 
@@ -331,7 +330,7 @@ than well-tested libraries.
 
 **For more:** See `src/straylight/nix/primitives/NIH.md`
 
----
+______________________________________________________________________
 
 ### 5. Nix2 Store - Daemonless Log-Structured Store
 
@@ -375,7 +374,7 @@ releases the lock. No daemon needed.
 
 **For more:** See `src/straylight/nix/primitives/STORE_DESIGN.md`
 
----
+______________________________________________________________________
 
 ## Development Workflow
 
@@ -454,21 +453,17 @@ pre-commit-hooks-install
 pre-commit run --all-files
 ```
 
----
+______________________________________________________________________
 
 ## Testing
 
 ### Test Categories
 
-| Category | Framework | Purpose |
-|----------|-----------|---------|
-| Unit tests | Catch2 | Per-function correctness |
-| Property tests | RapidCheck | Algebraic invariants |
-| Adversarial tests | Catch2 | Edge cases (INT_MIN, overflow) |
-| Integration tests | Catch2 | Multi-component pipelines |
-| End-to-end tests | Catch2 | Full parse → execute |
-| Fuzzing | libFuzzer | Crash/undefined behavior |
-| Capture tests | Custom | Protocol validation |
+| Category | Framework | Purpose | |----------|-----------|---------| | Unit tests | Catch2 |
+Per-function correctness | | Property tests | RapidCheck | Algebraic invariants | | Adversarial
+tests | Catch2 | Edge cases (INT_MIN, overflow) | | Integration tests | Catch2 | Multi-component
+pipelines | | End-to-end tests | Catch2 | Full parse → execute | | Fuzzing | libFuzzer |
+Crash/undefined behavior | | Capture tests | Custom | Protocol validation |
 
 ### Writing Tests
 
@@ -501,7 +496,7 @@ TEST_CASE("handles INT_MIN division", "[adversarial]") {
 - Component tests: `src/straylight/<component>/tests/`
 - Nix core tests: `src/nix/<component>/tests/`
 
----
+______________________________________________________________________
 
 ## Common Tasks
 
@@ -534,7 +529,7 @@ TEST_CASE("handles INT_MIN division", "[adversarial]") {
 4. Add runtime support if needed
 5. Write tests at each level
 
----
+______________________________________________________________________
 
 ## Troubleshooting
 
@@ -577,7 +572,7 @@ curl -s https://sense-scheduler.fly.dev/health
 buck2 build --no-remote //...
 ```
 
----
+______________________________________________________________________
 
 ## Architecture Decision Records
 
@@ -588,6 +583,7 @@ buck2 build --no-remote //...
 **Decision:** Model all async operations as pure state machines.
 
 **Consequences:**
+
 - All async code is trivially testable via replay
 - Slight overhead from state copying (~2%)
 - More verbose than callbacks, but more debuggable
@@ -599,6 +595,7 @@ buck2 build --no-remote //...
 **Decision:** AOT compile Nix to WebAssembly.
 
 **Consequences:**
+
 - Significant speedup for pure computation
 - Can run sandboxed (WASM capabilities)
 - Requires runtime for builtins that access store
@@ -610,6 +607,7 @@ buck2 build --no-remote //...
 **Decision:** Log-structured design with flock coordination.
 
 **Consequences:**
+
 - No daemon required
 - Crash-safe via checksums + log replay
 - Slightly more disk space (log + index)
@@ -621,6 +619,7 @@ buck2 build --no-remote //...
 **Decision:** Use LibreSSL for all TLS/crypto.
 
 **Consequences:**
+
 - Cleaner libtls API
 - Smaller attack surface
 - Some libraries need patches for LibreSSL
@@ -632,11 +631,12 @@ buck2 build --no-remote //...
 **Decision:** Formal machine-readable specifications.
 
 **Consequences:**
+
 - Auto-generate parsers in multiple languages
 - Test vectors ensure implementations agree
 - Some Kaitai limitations for complex protocols
 
----
+______________________________________________________________________
 
 ## Further Reading
 

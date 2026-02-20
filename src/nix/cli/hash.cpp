@@ -178,7 +178,7 @@ struct cmd_to_base_t : command_t {
                hash_format == hash_format_t::base16   ? "base-16"
                : hash_format == hash_format_t::nix32  ? "base-32"
                : hash_format == hash_format_t::base64 ? "base-64"
-                                                  : "SRI");
+                                                      : "SRI");
   }
 
   void run() override {
@@ -234,16 +234,17 @@ struct cmd_hash_convert_t : command_t {
 
 struct cmd_hash_t : NixMultiCommand {
   cmd_hash_t()
-      : NixMultiCommand("hash",
-                        {
-                            {"convert", []() { return make_ref<cmd_hash_convert_t>(); }},
-                            {"path", []() { return make_ref<cmd_hash_path_t>(); }},
-                            {"file", []() { return make_ref<cmd_hash_file_t>(); }},
-                            {"to-base16", []() { return make_ref<cmd_to_base_t>(hash_format_t::base16); }},
-                            {"to-base32", []() { return make_ref<cmd_to_base_t>(hash_format_t::nix32); }},
-                            {"to-base64", []() { return make_ref<cmd_to_base_t>(hash_format_t::base64); }},
-                            {"to-sri", []() { return make_ref<cmd_to_base_t>(hash_format_t::sri); }},
-                        }) {}
+      : NixMultiCommand(
+            "hash",
+            {
+                {"convert", []() { return make_ref<cmd_hash_convert_t>(); }},
+                {"path", []() { return make_ref<cmd_hash_path_t>(); }},
+                {"file", []() { return make_ref<cmd_hash_file_t>(); }},
+                {"to-base16", []() { return make_ref<cmd_to_base_t>(hash_format_t::base16); }},
+                {"to-base32", []() { return make_ref<cmd_to_base_t>(hash_format_t::nix32); }},
+                {"to-base64", []() { return make_ref<cmd_to_base_t>(hash_format_t::base64); }},
+                {"to-sri", []() { return make_ref<cmd_to_base_t>(hash_format_t::sri); }},
+            }) {}
 
   std::string description() override { return "compute and convert cryptographic hashes"; }
 
@@ -306,7 +307,8 @@ static int compat_nix_hash(int argc, char** argv) {
   });
 
   if (op == opHash) {
-    cmd_hash_base_t cmd(flat ? file_ingestion_method_t::flat : file_ingestion_method_t::nix_archive);
+    cmd_hash_base_t cmd(flat ? file_ingestion_method_t::flat
+                             : file_ingestion_method_t::nix_archive);
     if (!hash_algo.has_value())
       hash_algo = hash_algorithm_t::MD5;
     cmd.hash_algo = hash_algo.value();

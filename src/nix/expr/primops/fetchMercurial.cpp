@@ -8,7 +8,8 @@
 
 namespace nix {
 
-static void prim_fetch_mercurial(eval_state_t& state, const pos_idx_t pos, value_t** args, value_t& v) {
+static void prim_fetch_mercurial(eval_state_t& state, const pos_idx_t pos, value_t** args,
+                                 value_t& v) {
   std::string url;
   std::optional<Hash> rev;
   std::optional<std::string> ref;

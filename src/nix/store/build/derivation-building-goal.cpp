@@ -26,9 +26,9 @@
 
 namespace nix {
 
-DerivationBuildingGoal::DerivationBuildingGoal(const store_path_t& drv_path, const derivation_t& drv,
-                                               Worker& worker, BuildMode build_mode,
-                                               bool storeDerivation)
+DerivationBuildingGoal::DerivationBuildingGoal(const store_path_t& drv_path,
+                                               const derivation_t& drv, Worker& worker,
+                                               BuildMode build_mode, bool storeDerivation)
     : Goal(worker, gaveUpOnSubstitution(storeDerivation)),
       drv_path(drv_path),
       drv{std::make_unique<derivation_t>(drv)},
@@ -390,15 +390,16 @@ Goal::Co DerivationBuildingGoal::tryToBuild() {
           external_builder = settings.findExternalDerivationBuilderIfSupported(*drv);
 
           if (!external_builder && !drv_options.canBuildLocally(worker.store, *drv)) {
-            auto msg = fmt(
-                "Cannot build '%s'.\n"
-                "Reason: " ANSI_RED "required system or feature not available" ANSI_NORMAL "\n"
-                "Required system: '%s' with features {%s}\n"
-                "Current system: '%s' with features {%s}",
-                magenta_t(worker.store.printStorePath(drv_path)), magenta_t(drv->platform),
-                concat_strings_sep(", ", drv_options.getRequiredSystemFeatures(*drv)),
-                magenta_t(settings.thisSystem),
-                concat_strings_sep<string_set_t>(", ", worker.store.store_t::config.systemFeatures));
+            auto msg =
+                fmt("Cannot build '%s'.\n"
+                    "Reason: " ANSI_RED "required system or feature not available" ANSI_NORMAL "\n"
+                    "Required system: '%s' with features {%s}\n"
+                    "Current system: '%s' with features {%s}",
+                    magenta_t(worker.store.printStorePath(drv_path)), magenta_t(drv->platform),
+                    concat_strings_sep(", ", drv_options.getRequiredSystemFeatures(*drv)),
+                    magenta_t(settings.thisSystem),
+                    concat_strings_sep<string_set_t>(", ",
+                                                     worker.store.store_t::config.systemFeatures));
 
             // since aarch64-darwin has Rosetta 2, this user can actually run x86_64-darwin on their
             // hardware - we should tell them to run the command to install Darwin 2
@@ -701,7 +702,8 @@ Goal::Co DerivationBuildingGoal::tryToBuild() {
 }
 
 static void run_post_build_hook(const store_dir_config_t& store, logger_t& logger,
-                                const store_path_t& drv_path, const store_path_set_t& output_paths) {
+                                const store_path_t& drv_path,
+                                const store_path_set_t& output_paths) {
   auto hook = settings.postBuildHook;
   if (hook == "")
     return;
@@ -964,8 +966,8 @@ void DerivationBuildingGoal::handleChildOutput(descriptor_t fd, std::string_view
       // Thus we ignore the return value.
       [[maybe_unused]] done_t _ =
           doneFailure(build_error_t(build_result_t::Failure::LogLimitExceeded,
-                                 "%s killed after writing more than %d bytes of log output",
-                                 get_name(), settings.maxLogSize));
+                                    "%s killed after writing more than %d bytes of log output",
+                                    get_name(), settings.maxLogSize));
       return;
     }
 
@@ -1135,10 +1137,11 @@ Goal::done_t DerivationBuildingGoal::doneSuccess(build_result_t::Success::Status
       .built_outputs = std::move(built_outputs),
   };
 
-  logger->result(act ? act->id_ : get_cur_activity(), res_build_result,
-                 nlohmann::json(keyed_build_result_t(
-                     buildResult, derived_path_t::Built{.drv_path = makeConstantStorePathRef(drv_path),
-                                                     .outputs = OutputsSpec::All{}})));
+  logger->result(
+      act ? act->id_ : get_cur_activity(), res_build_result,
+      nlohmann::json(keyed_build_result_t(
+          buildResult, derived_path_t::Built{.drv_path = makeConstantStorePathRef(drv_path),
+                                             .outputs = OutputsSpec::All{}})));
 
   mcRunningBuilds.reset();
 
@@ -1156,10 +1159,11 @@ Goal::done_t DerivationBuildingGoal::doneFailure(build_error_t ex) {
       .errorMsg = fmt("%s", uncolored_t(ex.info().msg)),
   };
 
-  logger->result(act ? act->id_ : get_cur_activity(), res_build_result,
-                 nlohmann::json(keyed_build_result_t(
-                     buildResult, derived_path_t::Built{.drv_path = makeConstantStorePathRef(drv_path),
-                                                     .outputs = OutputsSpec::All{}})));
+  logger->result(
+      act ? act->id_ : get_cur_activity(), res_build_result,
+      nlohmann::json(keyed_build_result_t(
+          buildResult, derived_path_t::Built{.drv_path = makeConstantStorePathRef(drv_path),
+                                             .outputs = OutputsSpec::All{}})));
 
   mcRunningBuilds.reset();
 

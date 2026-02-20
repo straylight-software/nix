@@ -23,14 +23,15 @@ const nlohmann::json& value_at(const nlohmann::json::object_t& map, std::string_
  * @return A pointer to the value assiocated with `key` if `value`
  * contains `key`, otherwise return  `nullptr` (not JSON `null`!).
  */
-const nlohmann::json* optional_value_at(const nlohmann::json::object_t& value, std::string_view key);
+const nlohmann::json* optional_value_at(const nlohmann::json::object_t& value,
+                                        std::string_view key);
 
 /**
  * Prevents bugs; see `get` for the same trick.
  */
 const nlohmann::json& value_at(nlohmann::json::object_t&& map, std::string_view key) = delete;
 const nlohmann::json* optional_value_at(nlohmann::json::object_t&& value,
-                                      std::string_view key) = delete;
+                                        std::string_view key) = delete;
 
 /**
  * Downcast the json object, failing with a nice error if the conversion fails.
@@ -55,8 +56,8 @@ auto get_integer(const nlohmann::json& value)
     }
   } else {
     auto type_name = value.is_number_float() ? "floating point number" : value.type_name();
-    throw Error("Expected JSON value to be an integral number but it is of type '%s': %s", type_name,
-                value.dump());
+    throw Error("Expected JSON value to be an integral number but it is of type '%s': %s",
+                type_name, value.dump());
   }
   throw Error("Out of range: JSON value '%s' cannot be casted to %d-bit integer", value.dump(),
               8 * sizeof(T));

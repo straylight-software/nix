@@ -32,7 +32,7 @@ struct git_archive_input_scheme_t : input_scheme_t {
   accessHeaderFromToken(const std::string& token) const = 0;
 
   std::optional<input_t> inputFromURL(const fetchers::settings_t& settings, const parsed_url_t& url,
-                                    bool require_tree) const override {
+                                      bool require_tree) const override {
     if (url.scheme() != schemeName())
       return {};
 
@@ -134,7 +134,7 @@ struct git_archive_input_scheme_t : input_scheme_t {
   }
 
   std::optional<input_t> inputFromAttrs(const fetchers::settings_t& settings,
-                                      const Attrs& attrs) const override {
+                                        const Attrs& attrs) const override {
     get_str_attr(attrs, "owner");
     get_str_attr(attrs, "repo");
 
@@ -181,7 +181,7 @@ struct git_archive_input_scheme_t : input_scheme_t {
   }
 
   input_t applyOverrides(const input_t& _input, std::optional<std::string> ref,
-                       std::optional<Hash> rev) const override {
+                         std::optional<Hash> rev) const override {
     auto input(_input);
     if (rev && ref)
       throw BadURL(
@@ -255,7 +255,8 @@ struct git_archive_input_scheme_t : input_scheme_t {
   virtual ref_info_t get_rev_from_ref(const settings_t& settings, nix::store_t& store,
                                       const input_t& input) const = 0;
 
-  virtual download_url_t get_download_url(const settings_t& settings, const input_t& input) const = 0;
+  virtual download_url_t get_download_url(const settings_t& settings,
+                                          const input_t& input) const = 0;
 
   struct tarball_info_t {
     Hash tree_hash;
@@ -263,7 +264,7 @@ struct git_archive_input_scheme_t : input_scheme_t {
   };
 
   std::pair<input_t, tarball_info_t> download_archive(const settings_t& settings, store_t& store,
-                                                    input_t input) const {
+                                                      input_t input) const {
     if (!maybe_get_str_attr(input.attrs, "ref"))
       input.attrs.insert_or_assign("ref", "HEAD");
 
@@ -337,8 +338,8 @@ struct git_archive_input_scheme_t : input_scheme_t {
     return {std::move(input), tarball_info};
   }
 
-  std::pair<ref<source_accessor_t>, input_t> get_accessor(const settings_t& settings, store_t& store,
-                                                     const input_t& _input) const override {
+  std::pair<ref<source_accessor_t>, input_t>
+  get_accessor(const settings_t& settings, store_t& store, const input_t& _input) const override {
     auto [input, tarball_info] = download_archive(settings, store, _input);
 
 #if 0
@@ -440,7 +441,8 @@ struct git_hub_input_scheme_t : git_archive_input_scheme_t {
   void clone(const settings_t& settings, store_t& store, const input_t& input,
              const std::filesystem::path& dest_dir) const override {
     auto host = getHost(input);
-    input_t::fromURL(settings, fmt("git+https://%s/%s/%s.git", host, getOwner(input), getRepo(input)))
+    input_t::fromURL(settings,
+                     fmt("git+https://%s/%s/%s.git", host, getOwner(input), getRepo(input)))
         .applyOverrides(input.getRef(), input.getRev())
         .clone(settings, store, dest_dir);
   }
@@ -517,8 +519,8 @@ struct git_lab_input_scheme_t : git_archive_input_scheme_t {
     auto host = maybe_get_str_attr(input.attrs, "host").value_or("gitlab.com");
     // FIXME: get username somewhere
     input_t::fromURL(settings,
-                   fmt("git+https://%s/%s/%s.git", host, get_str_attr(input.attrs, "owner"),
-                       get_str_attr(input.attrs, "repo")))
+                     fmt("git+https://%s/%s/%s.git", host, get_str_attr(input.attrs, "owner"),
+                         get_str_attr(input.attrs, "repo")))
         .applyOverrides(input.getRef(), input.getRev())
         .clone(settings, store, dest_dir);
   }
@@ -606,7 +608,7 @@ struct source_hut_input_scheme_t : git_archive_input_scheme_t {
              const std::filesystem::path& dest_dir) const override {
     auto host = maybe_get_str_attr(input.attrs, "host").value_or("git.sr.ht");
     input_t::fromURL(settings, fmt("git+https://%s/%s/%s", host, get_str_attr(input.attrs, "owner"),
-                                 get_str_attr(input.attrs, "repo")))
+                                   get_str_attr(input.attrs, "repo")))
         .applyOverrides(input.getRef(), input.getRev())
         .clone(settings, store, dest_dir);
   }

@@ -5,7 +5,7 @@ void nix::lexer::internal::init_loc(Parser::location_type* loc) {
 }
 
 void nix::lexer::internal::adjust_loc(yyscan_t yyscanner, Parser::location_type* loc, const char* s,
-                                     size_t len) {
+                                      size_t len) {
   loc->stash();
 
   LexerState& lexer_state = *yyget_extra(yyscanner);

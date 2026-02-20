@@ -18,8 +18,8 @@
 
 namespace nix {
 
-static std::optional<std::string> get_string_attr(const string_map_t& env, const StructuredAttrs* parsed,
-                                                const std::string& name) {
+static std::optional<std::string>
+get_string_attr(const string_map_t& env, const StructuredAttrs* parsed, const std::string& name) {
   if (parsed) {
     auto i = parsed->structured_attrs.find(name);
     if (i == parsed->structured_attrs.end())
@@ -39,7 +39,7 @@ static std::optional<std::string> get_string_attr(const string_map_t& env, const
 }
 
 static bool get_bool_attr(const string_map_t& env, const StructuredAttrs* parsed,
-                        const std::string& name, bool def) {
+                          const std::string& name, bool def) {
   if (parsed) {
     auto i = parsed->structured_attrs.find(name);
     if (i == parsed->structured_attrs.end())
@@ -58,8 +58,8 @@ static bool get_bool_attr(const string_map_t& env, const StructuredAttrs* parsed
   }
 }
 
-static std::optional<strings_t> get_strings_attr(const string_map_t& env, const StructuredAttrs* parsed,
-                                             const std::string& name) {
+static std::optional<strings_t>
+get_strings_attr(const string_map_t& env, const StructuredAttrs* parsed, const std::string& name) {
   if (parsed) {
     auto i = parsed->structured_attrs.find(name);
     if (i == parsed->structured_attrs.end())
@@ -85,10 +85,12 @@ static std::optional<strings_t> get_strings_attr(const string_map_t& env, const 
   }
 }
 
-static std::optional<string_set_t>
-get_string_set_attr(const string_map_t& env, const StructuredAttrs* parsed, const std::string& name) {
+static std::optional<string_set_t> get_string_set_attr(const string_map_t& env,
+                                                       const StructuredAttrs* parsed,
+                                                       const std::string& name) {
   auto ss = get_strings_attr(env, parsed, name);
-  return ss ? (std::optional{string_set_t{ss->begin(), ss->end()}}) : (std::optional<string_set_t>{});
+  return ss ? (std::optional{string_set_t{ss->begin(), ss->end()}})
+            : (std::optional<string_set_t>{});
 }
 
 template <typename Inputs>
@@ -100,8 +102,8 @@ using OutputChecksVariant =
 
 derivation_options_t<store_path_t>
 derivation_options_from_structured_attrs(const store_dir_config_t& store, const string_map_t& env,
-                                     const StructuredAttrs* parsed, bool should_warn,
-                                     const experimental_feature_settings_t& mock_xp_settings) {
+                                         const StructuredAttrs* parsed, bool should_warn,
+                                         const experimental_feature_settings_t& mock_xp_settings) {
   /* use the SingleDerivedPath version with empty input_drvs, then
      resolve. */
   DerivedPathMap<string_set_t> empty_input_drvs{};
@@ -110,11 +112,11 @@ derivation_options_from_structured_attrs(const store_dir_config_t& store, const 
 
   /* "Resolve" all SingleDerivedPath inputs to store_path_t. */
   auto resolved = try_resolve(single_derived_path_options,
-                             [&](ref<const SingleDerivedPath> drv_path,
-                                 const std::string& output_name) -> std::optional<store_path_t> {
-                               // there should be nothing to resolve
-                               assert(false);
-                             });
+                              [&](ref<const SingleDerivedPath> drv_path,
+                                  const std::string& output_name) -> std::optional<store_path_t> {
+                                // there should be nothing to resolve
+                                assert(false);
+                              });
 
   /* Since we should never need to call the call back, there should be
      no way it fails. */
@@ -134,8 +136,8 @@ static void flatten(const nlohmann::json& value, string_set_t& res) {
 }
 
 derivation_options_t<SingleDerivedPath> derivation_options_from_structured_attrs(
-    const store_dir_config_t& store, const DerivedPathMap<string_set_t>& input_drvs, const string_map_t& env,
-    const StructuredAttrs* parsed, bool should_warn,
+    const store_dir_config_t& store, const DerivedPathMap<string_set_t>& input_drvs,
+    const string_map_t& env, const StructuredAttrs* parsed, bool should_warn,
     const experimental_feature_settings_t& mock_xp_settings) {
   derivation_options_t<SingleDerivedPath> defaults = {};
 
@@ -143,8 +145,8 @@ derivation_options_t<SingleDerivedPath> derivation_options_from_structured_attrs
   if (mock_xp_settings.is_enabled(xp_t::ca_derivations)) {
     /* Initialize placeholder map from input_drvs */
     auto init_placeholders = [&](this const auto& init_placeholders,
-                                ref<const SingleDerivedPath> base_path,
-                                const DerivedPathMap<string_set_t>::ChildNode& node) -> void {
+                                 ref<const SingleDerivedPath> base_path,
+                                 const DerivedPathMap<string_set_t>::ChildNode& node) -> void {
       for (const auto& output_name : node.value) {
         auto built = SingleDerivedPath::Built{
             .drv_path = base_path,
@@ -157,10 +159,10 @@ derivation_options_t<SingleDerivedPath> derivation_options_from_structured_attrs
 
       for (const auto& [output_name, childNode] : node.childMap) {
         init_placeholders(make_ref<const SingleDerivedPath>(SingleDerivedPath::Built{
-                             .drv_path = base_path,
-                             .output = output_name,
-                         }),
-                         childNode);
+                              .drv_path = base_path,
+                              .output = output_name,
+                          }),
+                          childNode);
       }
     };
 
@@ -283,11 +285,13 @@ derivation_options_t<SingleDerivedPath> derivation_options_from_structured_attrs
           return OutputChecks<SingleDerivedPath>{
               // legacy non-structured-attributes case
               .ignoreSelfRefs = true,
-              .allowedReferences = parseRefSet(get_string_set_attr(env, parsed, "allowedReferences")),
+              .allowedReferences =
+                  parseRefSet(get_string_set_attr(env, parsed, "allowedReferences")),
               .disallowedReferences =
                   parseRefSet(get_string_set_attr(env, parsed, "disallowedReferences"))
                       .value_or(std::set<DrvRef<SingleDerivedPath>>{}),
-              .allowedRequisites = parseRefSet(get_string_set_attr(env, parsed, "allowedRequisites")),
+              .allowedRequisites =
+                  parseRefSet(get_string_set_attr(env, parsed, "allowedRequisites")),
               .disallowedRequisites =
                   parseRefSet(get_string_set_attr(env, parsed, "disallowedRequisites"))
                       .value_or(std::set<DrvRef<SingleDerivedPath>>{}),
@@ -379,7 +383,8 @@ derivation_options_t<SingleDerivedPath> derivation_options_from_structured_attrs
 }
 
 template <typename input_t>
-string_set_t derivation_options_t<input_t>::getRequiredSystemFeatures(const basic_derivation_t& drv) const {
+string_set_t
+derivation_options_t<input_t>::getRequiredSystemFeatures(const basic_derivation_t& drv) const {
   // FIXME: cache this?
   string_set_t res;
   for (auto& i : requiredSystemFeatures)
@@ -391,7 +396,7 @@ string_set_t derivation_options_t<input_t>::getRequiredSystemFeatures(const basi
 
 template <typename input_t>
 bool derivation_options_t<input_t>::canBuildLocally(store_t& localStore,
-                                               const basic_derivation_t& drv) const {
+                                                    const basic_derivation_t& drv) const {
   if (drv.platform != settings.thisSystem.get() && drv.platform != "wasm32-wasip1" &&
       !settings.extraPlatforms.get().count(drv.platform) && !drv.isBuiltin())
     return false;
@@ -408,7 +413,7 @@ bool derivation_options_t<input_t>::canBuildLocally(store_t& localStore,
 
 template <typename input_t>
 bool derivation_options_t<input_t>::willBuildLocally(store_t& localStore,
-                                                const basic_derivation_t& drv) const {
+                                                     const basic_derivation_t& drv) const {
   return preferLocalBuild && canBuildLocally(localStore, drv);
 }
 
@@ -424,16 +429,17 @@ bool derivation_options_t<input_t>::useUidRange(const basic_derivation_t& drv) c
 
 std::optional<derivation_options_t<store_path_t>>
 try_resolve(const derivation_options_t<SingleDerivedPath>& drv_options,
-           std::function<std::optional<store_path_t>(ref<const SingleDerivedPath> drv_path,
-                                                  const std::string& output_name)>
-               queryResolutionChain) {
+            std::function<std::optional<store_path_t>(ref<const SingleDerivedPath> drv_path,
+                                                      const std::string& output_name)>
+                queryResolutionChain) {
   auto try_resolve_path = [&](const SingleDerivedPath& input) -> std::optional<store_path_t> {
     return std::visit(
-        overloaded{
-            [](const SingleDerivedPath::opaque_t& p) -> std::optional<store_path_t> { return p.path; },
-            [&](const SingleDerivedPath::Built& p) -> std::optional<store_path_t> {
-              return queryResolutionChain(p.drv_path, p.output);
-            }},
+        overloaded{[](const SingleDerivedPath::opaque_t& p) -> std::optional<store_path_t> {
+                     return p.path;
+                   },
+                   [&](const SingleDerivedPath::Built& p) -> std::optional<store_path_t> {
+                     return queryResolutionChain(p.drv_path, p.output);
+                   }},
         input.raw());
   };
 
@@ -520,21 +526,21 @@ try_resolve(const derivation_options_t<SingleDerivedPath>& drv_options,
   auto resolved_output_checks = std::visit(
       overloaded{
           [&](const derivation_options_t<SingleDerivedPath>::OutputChecks& checks)
-              -> std::optional<
-                  std::variant<derivation_options_t<store_path_t>::OutputChecks,
-                               std::map<std::string, derivation_options_t<store_path_t>::OutputChecks>>> {
+              -> std::optional<std::variant<
+                  derivation_options_t<store_path_t>::OutputChecks,
+                  std::map<std::string, derivation_options_t<store_path_t>::OutputChecks>>> {
             auto resolved = try_resolve_output_checks(checks);
             if (!resolved)
               return std::nullopt;
-            return std::variant<derivation_options_t<store_path_t>::OutputChecks,
-                                std::map<std::string, derivation_options_t<store_path_t>::OutputChecks>>(
-                *resolved);
+            return std::variant<
+                derivation_options_t<store_path_t>::OutputChecks,
+                std::map<std::string, derivation_options_t<store_path_t>::OutputChecks>>(*resolved);
           },
           [&](const std::map<std::string, derivation_options_t<SingleDerivedPath>::OutputChecks>&
                   checksMap)
-              -> std::optional<
-                  std::variant<derivation_options_t<store_path_t>::OutputChecks,
-                               std::map<std::string, derivation_options_t<store_path_t>::OutputChecks>>> {
+              -> std::optional<std::variant<
+                  derivation_options_t<store_path_t>::OutputChecks,
+                  std::map<std::string, derivation_options_t<store_path_t>::OutputChecks>>> {
             std::map<std::string, derivation_options_t<store_path_t>::OutputChecks> resolvedMap;
             for (const auto& [output_name, checks] : checksMap) {
               auto resolved = try_resolve_output_checks(checks);
@@ -542,8 +548,9 @@ try_resolve(const derivation_options_t<SingleDerivedPath>& drv_options,
                 return std::nullopt;
               resolvedMap.emplace(output_name, *resolved);
             }
-            return std::variant<derivation_options_t<store_path_t>::OutputChecks,
-                                std::map<std::string, derivation_options_t<store_path_t>::OutputChecks>>(
+            return std::variant<
+                derivation_options_t<store_path_t>::OutputChecks,
+                std::map<std::string, derivation_options_t<store_path_t>::OutputChecks>>(
                 resolvedMap);
           }},
       drv_options.output_checks);
@@ -552,7 +559,8 @@ try_resolve(const derivation_options_t<SingleDerivedPath>& drv_options,
     return std::nullopt;
 
   // Resolve exportReferencesGraph
-  auto resolved_export_graph = try_resolve_export_references_graph(drv_options.exportReferencesGraph);
+  auto resolved_export_graph =
+      try_resolve_export_references_graph(drv_options.exportReferencesGraph);
   if (!resolved_export_graph)
     return std::nullopt;
 

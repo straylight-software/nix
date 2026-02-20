@@ -14,7 +14,7 @@ rule:
       - pattern: "[[nodiscard]] $$$"
       - pattern: void $NAME($$$_) {$$$_}
       - pattern: auto $NAME($$$_) -> void {$$$_}
-      - regex: "^(main|operator)"  # skip main and operators
+      - regex: "^(main|operator)" # skip main and operators
   inside:
     any:
       - kind: struct_specifier

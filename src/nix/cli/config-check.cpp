@@ -160,7 +160,7 @@ struct cmd_config_check_t : StoreCommand {
       check_info(fmt("You are %s by store uri: %s", trusted, store->config.getHumanReadableURI()));
     } else {
       check_info(fmt("store_t uri: %s doesn't have a notion of trusted user",
-                    store->config.getHumanReadableURI()));
+                     store->config.getHumanReadableURI()));
     }
   }
 };

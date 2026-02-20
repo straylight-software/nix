@@ -12,7 +12,8 @@ namespace nix {
 static const uint32_t export_magic_v1 = 0x4558494e;
 static const uint64_t export_magic_v2 = 0x324f4952414e; // = 'NARIO2'
 
-void export_paths(store_t& store, const store_path_set_t& paths, sink_t& sink, unsigned int version) {
+void export_paths(store_t& store, const store_path_set_t& paths, sink_t& sink,
+                  unsigned int version) {
   auto sorted = store.topoSortPaths(paths);
   std::reverse(sorted.begin(), sorted.end());
 
@@ -28,7 +29,8 @@ void export_paths(store_t& store, const store_path_set_t& paths, sink_t& sink, u
     Hash hash = hash_sink.current_hash().hash;
     if (hash != info.nar_hash && info.nar_hash != Hash(info.nar_hash.algo()))
       throw Error("hash of path '%s' has changed from '%s' to '%s'!",
-                  store.printStorePath(info.path), info.nar_hash.to_string(hash_format_t::nix32, true),
+                  store.printStorePath(info.path),
+                  info.nar_hash.to_string(hash_format_t::nix32, true),
                   hash.to_string(hash_format_t::nix32, true));
   };
 
@@ -50,7 +52,7 @@ void export_paths(store_t& store, const store_path_set_t& paths, sink_t& sink, u
 
       for (auto& path : sorted) {
         activity_t act(*logger, lvl_talkative, act_unknown,
-                     fmt("exporting path '%s'", store.printStorePath(path)));
+                       fmt("exporting path '%s'", store.printStorePath(path)));
         sink << 1;
         auto info = store.queryPathInfo(path);
         // FIXME: move to CommonProto?
@@ -146,7 +148,7 @@ store_paths_t import_paths(store_t& store, source_t& source, CheckSigsFlag check
 
         if (!store.isValidPath(info.path)) {
           activity_t act(*logger, lvl_talkative, act_unknown,
-                       fmt("importing path '%s'", store.printStorePath(info.path)));
+                         fmt("importing path '%s'", store.printStorePath(info.path)));
 
           store.add_to_store(info, source, NoRepair, check_sigs);
         } else

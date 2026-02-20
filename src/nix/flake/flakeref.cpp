@@ -65,15 +65,15 @@ std::ostream& operator<<(std::ostream& str, const flake_ref_t& flake_ref) {
 }
 
 flake_ref_t flake_ref_t::resolve(const fetchers::settings_t& fetch_settings, store_t& store,
-                           fetchers::UseRegistries use_registries) const {
+                                 fetchers::UseRegistries use_registries) const {
   auto [input2, extra_attrs] = lookup_in_registries(fetch_settings, store, input, use_registries);
   return flake_ref_t(std::move(input2),
-                  fetchers::maybe_get_str_attr(extra_attrs, "dir").value_or(subdir));
+                     fetchers::maybe_get_str_attr(extra_attrs, "dir").value_or(subdir));
 }
 
 flake_ref_t parse_flake_ref(const fetchers::settings_t& fetch_settings, const std::string& url,
-                         const std::optional<std::filesystem::path>& base_dir, bool allow_missing,
-                         bool is_flake, bool preserve_relative_paths) {
+                            const std::optional<std::filesystem::path>& base_dir,
+                            bool allow_missing, bool is_flake, bool preserve_relative_paths) {
   auto [flake_ref, fragment] = parse_flake_ref_with_fragment(
       fetch_settings, url, base_dir, allow_missing, is_flake, preserve_relative_paths);
   if (fragment != "")
@@ -81,8 +81,9 @@ flake_ref_t parse_flake_ref(const fetchers::settings_t& fetch_settings, const st
   return flake_ref;
 }
 
-static std::pair<flake_ref_t, std::string> from_parsed_url(const fetchers::settings_t& fetch_settings,
-                                                        parsed_url_t&& parsed_url, bool is_flake) {
+static std::pair<flake_ref_t, std::string>
+from_parsed_url(const fetchers::settings_t& fetch_settings, parsed_url_t&& parsed_url,
+                bool is_flake) {
   auto dir = get_or(parsed_url.query(), "dir", "");
   if (!fetch_settings.nix219Compat)
     parsed_url.query().erase("dir");
@@ -90,7 +91,8 @@ static std::pair<flake_ref_t, std::string> from_parsed_url(const fetchers::setti
   std::string fragment = parsed_url.fragment();
   parsed_url.set_fragment("");
 
-  return {flake_ref_t(fetchers::input_t::fromURL(fetch_settings, parsed_url, is_flake), dir), fragment};
+  return {flake_ref_t(fetchers::input_t::fromURL(fetch_settings, parsed_url, is_flake), dir),
+          fragment};
 }
 
 std::pair<flake_ref_t, std::string> parse_path_flake_ref_with_fragment(
@@ -261,11 +263,11 @@ parse_flake_ref_with_fragment(const fetchers::settings_t& fetch_settings, const 
 }
 
 flake_ref_t flake_ref_t::fromAttrs(const fetchers::settings_t& fetch_settings,
-                             const fetchers::Attrs& attrs) {
+                                   const fetchers::Attrs& attrs) {
   auto attrs2(attrs);
   attrs2.erase("dir");
   return flake_ref_t(fetchers::input_t::fromAttrs(fetch_settings, std::move(attrs2)),
-                  fetchers::maybe_get_str_attr(attrs, "dir").value_or(""));
+                     fetchers::maybe_get_str_attr(attrs, "dir").value_or(""));
 }
 
 std::pair<ref<source_accessor_t>, flake_ref_t>

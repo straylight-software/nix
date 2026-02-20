@@ -79,7 +79,7 @@ struct process_options_t {
 
 #ifndef _WIN32
 process_handle_t start_process(std::function<void()> fun,
-                        const process_options_t& options = process_options_t());
+                               const process_options_t& options = process_options_t());
 #endif
 
 /**

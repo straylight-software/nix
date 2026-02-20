@@ -3,7 +3,7 @@
 namespace nix::flag {
 
 static void hash_format_completer(add_completions_t& completions, size_t index,
-                                std::string_view prefix) {
+                                  std::string_view prefix) {
   for (auto& format : hash_formats) {
     if (has_prefix(format, prefix)) {
       completions.add(format);
@@ -27,12 +27,15 @@ args_t::flag_t hash_format_opt(std::string&& long_name, std::optional<hash_forma
       .long_name = std::move(long_name),
       .description = "Hash format (`base16`, `nix32`, `base64`, `sri`).",
       .labels = {"hash-format"},
-      .handler = {[ohf](std::string s) { *ohf = std::optional<hash_format_t>{parse_hash_format(s)}; }},
+      .handler = {[ohf](std::string s) {
+        *ohf = std::optional<hash_format_t>{parse_hash_format(s)};
+      }},
       .completer = hash_format_completer,
   };
 }
 
-static void hash_algo_completer(add_completions_t& completions, size_t index, std::string_view prefix) {
+static void hash_algo_completer(add_completions_t& completions, size_t index,
+                                std::string_view prefix) {
   for (auto& algo : hash_algorithms)
     if (has_prefix(algo, prefix))
       completions.add(algo);
@@ -54,7 +57,9 @@ args_t::flag_t hash_algo_opt(std::string&& long_name, std::optional<hash_algorit
       .description = "Hash algorithm (`blake3`, `md5`, `sha1`, `sha256`, or `sha512`). Can be "
                      "omitted for SRI hashes.",
       .labels = {"hash-algo"},
-      .handler = {[oha](std::string s) { *oha = std::optional<hash_algorithm_t>{parse_hash_algo(s)}; }},
+      .handler = {[oha](std::string s) {
+        *oha = std::optional<hash_algorithm_t>{parse_hash_algo(s)};
+      }},
       .completer = hash_algo_completer,
   };
 }

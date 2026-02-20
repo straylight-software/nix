@@ -7,23 +7,25 @@
 namespace nix {
 
 fetchers::cache_t::Key make_source_path_to_hash_cache_key(const std::string& fingerprint,
-                                                  content_address_method_t method,
-                                                  const std::string& path) {
+                                                          content_address_method_t method,
+                                                          const std::string& path) {
   return fetchers::cache_t::Key{
       "sourcePathToHash",
       {{"fingerprint", fingerprint}, {"method", std::string{method.render()}}, {"path", path}}};
 }
 
-store_path_t fetch_to_store(const fetchers::settings_t& settings, store_t& store, const source_path_t& path,
-                       FetchMode mode, std::string_view name, content_address_method_t method,
-                       path_filter_t* filter, RepairFlag repair) {
+store_path_t fetch_to_store(const fetchers::settings_t& settings, store_t& store,
+                            const source_path_t& path, FetchMode mode, std::string_view name,
+                            content_address_method_t method, path_filter_t* filter,
+                            RepairFlag repair) {
   return fetch_to_store2(settings, store, path, mode, name, method, filter, repair).first;
 }
 
 std::pair<store_path_t, Hash> fetch_to_store2(const fetchers::settings_t& settings, store_t& store,
-                                         const source_path_t& path, FetchMode mode,
-                                         std::string_view name, content_address_method_t method,
-                                         path_filter_t* filter, RepairFlag repair) {
+                                              const source_path_t& path, FetchMode mode,
+                                              std::string_view name,
+                                              content_address_method_t method,
+                                              path_filter_t* filter, RepairFlag repair) {
   std::optional<fetchers::cache_t::Key> cache_key;
 
   auto [subpath, fingerprint] =
@@ -52,8 +54,9 @@ std::pair<store_path_t, Hash> fetch_to_store2(const fetchers::settings_t& settin
     debug("source path '%s' is uncacheable", path);
   }
 
-  activity_t act(*logger, lvl_chatty, act_unknown,
-               fmt(mode == FetchMode::DryRun ? "hashing '%s'" : "copying '%s' to the store", path));
+  activity_t act(
+      *logger, lvl_chatty, act_unknown,
+      fmt(mode == FetchMode::DryRun ? "hashing '%s'" : "copying '%s' to the store", path));
 
   auto filter2 = filter ? *filter : default_path_filter;
 
@@ -69,15 +72,16 @@ std::pair<store_path_t, Hash> fetch_to_store2(const fetchers::settings_t& settin
           : ({
               // FIXME: ideally addToStore() would return the hash
               // right away (like computeStorePath()).
-              auto store_path =
-                  store.add_to_store(name, path, method, hash_algorithm_t::SHA256, {}, filter2, repair);
+              auto store_path = store.add_to_store(name, path, method, hash_algorithm_t::SHA256, {},
+                                                   filter2, repair);
               auto info = store.queryPathInfo(store_path);
               assert(info->references.empty());
-              auto hash = method == content_address_method_t::raw_t::nix_archive ? info->nar_hash : ({
-                if (!info->ca || info->ca->method != method)
-                  throw Error("path '%s' lacks a CA field", store.printStorePath(store_path));
-                info->ca->hash;
-              });
+              auto hash =
+                  method == content_address_method_t::raw_t::nix_archive ? info->nar_hash : ({
+                    if (!info->ca || info->ca->method != method)
+                      throw Error("path '%s' lacks a CA field", store.printStorePath(store_path));
+                    info->ca->hash;
+                  });
               debug("copied '%s' to '%s' (hash '%s')", path, store.printStorePath(store_path),
                     hash.to_string(hash_format_t::sri, true));
               std::make_pair(store_path, hash);

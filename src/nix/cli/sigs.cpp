@@ -183,12 +183,12 @@ struct cmd_key_convert_secret_to_public_t : command_t {
 
 struct cmd_key_t : NixMultiCommand {
   cmd_key_t()
-      : NixMultiCommand("key",
-                        {
-                            {"generate-secret", []() { return make_ref<cmd_key_generate_secret_t>(); }},
-                            {"convert-secret-to-public",
-                             []() { return make_ref<cmd_key_convert_secret_to_public_t>(); }},
-                        }) {}
+      : NixMultiCommand(
+            "key", {
+                       {"generate-secret", []() { return make_ref<cmd_key_generate_secret_t>(); }},
+                       {"convert-secret-to-public",
+                        []() { return make_ref<cmd_key_convert_secret_to_public_t>(); }},
+                   }) {}
 
   std::string description() override { return "generate and convert Nix signing keys"; }
 

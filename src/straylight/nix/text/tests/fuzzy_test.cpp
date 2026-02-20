@@ -3,14 +3,15 @@
 // Tests for SIMD-optimized fuzzy string matching.
 
 // Catch2 MUST be included before rapidcheck/catch.h for v3 compatibility
-#include <catch2/catch_test_macros.hpp>
-
 #include <set>
 #include <string>
 #include <vector>
 
 #include <rapidcheck.h>
 #include <rapidcheck/catch.h>
+
+#include <catch2/catch_test_macros.hpp>
+
 #include "../fuzzy.h"
 namespace fuzzy = straylight::nix::text;
 

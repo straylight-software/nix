@@ -25,9 +25,9 @@ struct settings_t : public config_t {
   settings_t();
 
   setting_t<string_map_t> accessTokens{this,
-                                  {},
-                                  "access-tokens",
-                                  R"(
+                                       {},
+                                       "access-tokens",
+                                       R"(
           Access tokens used to access protected GitHub, GitLab, or
           other locations requiring token-based authentication.
 
@@ -78,13 +78,13 @@ struct settings_t : public config_t {
           )"};
 
   setting_t<bool> allowDirty{this, true, "allow-dirty",
-                           "Whether to allow dirty Git/Mercurial trees."};
+                             "Whether to allow dirty Git/Mercurial trees."};
 
   setting_t<bool> warn_dirty{this, true, "warn-dirty",
-                          "Whether to warn about dirty Git/Mercurial trees."};
+                             "Whether to warn about dirty Git/Mercurial trees."};
 
   setting_t<bool> allowDirtyLocks{this, false, "allow-dirty-locks",
-                                R"(
+                                  R"(
           Whether to allow dirty inputs (such as dirty git workdirs)
           to be locked via their NAR hash. This is generally bad
           practice since Nix has no way to obtain such inputs if they
@@ -94,7 +94,7 @@ struct settings_t : public config_t {
         )"};
 
   setting_t<bool> trustTarballsFromGitForges{this, true, "trust-tarballs-from-git-forges",
-                                           R"(
+                                             R"(
           If enabled (the default), Nix considers tarballs from
           GitHub and similar git forges to be locked if a git revision
           is specified,
@@ -117,7 +117,7 @@ struct settings_t : public config_t {
         )"};
 
   setting_t<bool> nix219Compat{this, false, "nix-219-compat",
-                             R"(
+                               R"(
           If enabled, Nix will generate lock files that are compatible with Nix 2.19.
           In particular, Nix will use `git archive` rather than `libgit2` to copy git inputs.
           The resulting locks may not be compatible with Nix >= 2.20.

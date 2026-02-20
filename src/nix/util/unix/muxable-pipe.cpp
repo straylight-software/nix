@@ -11,7 +11,7 @@ void muxable_pipe_poll_state_t::poll(std::optional<unsigned int> timeout) {
   if (::poll(poll_status.data(), poll_status.size(), timeout ? *timeout : -1) == -1) {
     if (errno == EINTR) {
       return;
-}
+    }
     throw sys_error_t("waiting for input");
   }
 }
@@ -36,7 +36,7 @@ void muxable_pipe_poll_state_t::iterate(
       } else if (rd == -1) {
         if (errno != EINTR) {
           throw sys_error_t("read failed");
-}
+        }
       } else {
         std::string_view data((char*)buffer.data(), rd);
         handle_read(k, data);

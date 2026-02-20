@@ -39,7 +39,7 @@ struct StoreFactory {
    * whatever comes after `<scheme>://` and before `?<query-params>`.
    */
   std::function<ref<store_config_t>(std::string_view scheme, std::string_view authorityPath,
-                                 const store_t::config_t::Params& params)>
+                                    const store_t::config_t::Params& params)>
       parseConfig;
 
   /**
@@ -64,8 +64,9 @@ struct Implementations {
         .parseConfig = ([](auto scheme, auto uri, auto& params) -> ref<store_config_t> {
           return make_ref<TConfig>(scheme, uri, params);
         }),
-        .getConfig =
-            ([]() -> ref<store_config_t> { return make_ref<TConfig>(store_t::config_t::Params{}); }),
+        .getConfig = ([]() -> ref<store_config_t> {
+          return make_ref<TConfig>(store_t::config_t::Params{});
+        }),
     };
     auto [it, didInsert] = registered().insert({TConfig::name(), std::move(factory)});
     if (!didInsert) {

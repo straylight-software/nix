@@ -110,7 +110,8 @@ LegacySSHStore::queryPathInfosUncached(const store_path_set_t& paths) {
 }
 
 void LegacySSHStore::query_path_info_uncached(
-    const store_path_t& path, Callback<std::shared_ptr<const valid_path_info_t>> callback) noexcept {
+    const store_path_t& path,
+    Callback<std::shared_ptr<const valid_path_info_t>> callback) noexcept {
   try {
     auto infos = queryPathInfosUncached({path});
 
@@ -131,8 +132,8 @@ void LegacySSHStore::query_path_info_uncached(
   }
 }
 
-void LegacySSHStore::add_to_store(const valid_path_info_t& info, source_t& source, RepairFlag repair,
-                                  CheckSigsFlag check_sigs) {
+void LegacySSHStore::add_to_store(const valid_path_info_t& info, source_t& source,
+                                  RepairFlag repair, CheckSigsFlag check_sigs) {
   debug("adding path '%s' to remote host '%s'", printStorePath(info.path),
         config->authority.host());
 
@@ -177,8 +178,9 @@ static ServeProto::BuildOptions build_settings() {
   };
 }
 
-build_result_t LegacySSHStore::buildDerivation(const store_path_t& drv_path, const basic_derivation_t& drv,
-                                            BuildMode build_mode) {
+build_result_t LegacySSHStore::buildDerivation(const store_path_t& drv_path,
+                                               const basic_derivation_t& drv,
+                                               BuildMode build_mode) {
   auto conn(connections->get());
 
   conn->putBuildDerivationRequest(*this, drv_path, drv, build_settings());
@@ -257,13 +259,13 @@ void LegacySSHStore::computeFSClosure(const store_path_set_t& paths, store_path_
 }
 
 store_path_set_t LegacySSHStore::queryValidPaths(const store_path_set_t& paths,
-                                             SubstituteFlag maybeSubstitute) {
+                                                 SubstituteFlag maybeSubstitute) {
   auto conn(connections->get());
   return conn->queryValidPaths(*this, false, paths, maybeSubstitute);
 }
 
 store_path_set_t LegacySSHStore::queryValidPaths(const store_path_set_t& paths, bool lock,
-                                             SubstituteFlag maybeSubstitute) {
+                                                 SubstituteFlag maybeSubstitute) {
   auto conn(connections->get());
   return conn->queryValidPaths(*this, lock, paths, maybeSubstitute);
 }

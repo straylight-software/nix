@@ -148,7 +148,7 @@ void LocalStore::optimisePath_(activity_t* act, OptimiseStats& stats, const Path
      the contents of the target (which may not even exist). */
   Hash hash = ({
     hash_path({make_ref<posix_source_accessor_t>(), canon_path_t(path)},
-             file_serialisation_method_t::nix_archive, hash_algorithm_t::SHA256)
+              file_serialisation_method_t::nix_archive, hash_algorithm_t::SHA256)
         .hash;
   });
   debug("'%1%' has hash '%2%'", path, hash.to_string(hash_format_t::nix32, true));
@@ -160,12 +160,12 @@ void LocalStore::optimisePath_(activity_t* act, OptimiseStats& stats, const Path
   /* Maybe delete the link, if it has been corrupted. */
   if (std::filesystem::exists(std::filesystem::symlink_status(linkPath))) {
     auto stLink = lstat(linkPath.string());
-    if (st.st_size != stLink.st_size || (repair && hash != ({
-                                                     hash_path(make_fs_source_accessor(linkPath),
-                                                              file_serialisation_method_t::nix_archive,
-                                                              hash_algorithm_t::SHA256)
-                                                         .hash;
-                                                   }))) {
+    if (st.st_size != stLink.st_size ||
+        (repair && hash != ({
+                     hash_path(make_fs_source_accessor(linkPath),
+                               file_serialisation_method_t::nix_archive, hash_algorithm_t::SHA256)
+                         .hash;
+                   }))) {
       // XXX: Consider overwriting linkPath with our valid version.
       warn("removing corrupted link %s", linkPath);
       warn("There may be more corrupted paths."
@@ -288,9 +288,9 @@ void LocalStore::optimiseStore(OptimiseStats& stats) {
       continue; /* path was GC'ed, probably */
     {
       activity_t act(*logger, lvl_talkative, act_unknown,
-                   fmt("optimising path '%s'", printStorePath(i)));
-      optimisePath_(&act, stats, config->real_store_dir + "/" + std::string(i.to_string()), inodeHash,
-                    NoRepair);
+                     fmt("optimising path '%s'", printStorePath(i)));
+      optimisePath_(&act, stats, config->real_store_dir + "/" + std::string(i.to_string()),
+                    inodeHash, NoRepair);
     }
     done++;
     act.progress(done, paths.size());
@@ -302,7 +302,8 @@ void LocalStore::optimiseStore() {
 
   optimiseStore(stats);
 
-  printInfo("%s freed by hard-linking %d files", render_size(stats.bytes_freed), stats.files_linked);
+  printInfo("%s freed by hard-linking %d files", render_size(stats.bytes_freed),
+            stats.files_linked);
 }
 
 void LocalStore::optimisePath(const Path& path, RepairFlag repair) {

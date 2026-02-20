@@ -6,8 +6,8 @@
 
 namespace nix {
 
-static void prim_unsafe_discard_string_context(eval_state_t& state, const pos_idx_t pos, value_t** args,
-                                            value_t& v) {
+static void prim_unsafe_discard_string_context(eval_state_t& state, const pos_idx_t pos,
+                                               value_t** args, value_t& v) {
   NixStringContext context, filtered;
 
   auto s = state.coerceToString(
@@ -45,8 +45,8 @@ static void prim_has_context(eval_state_t& state, const pos_idx_t pos, value_t**
 }
 
 static RegisterPrimOp primop_has_context({.name = "__hasContext",
-                                         .args = {"s"},
-                                         .doc = R"(
+                                          .args = {"s"},
+                                          .doc = R"(
       Return `true` if string *s* has a non-empty context.
       The context can be obtained with
       [`getContext`](#builtins-getContext).
@@ -64,10 +64,10 @@ static RegisterPrimOp primop_has_context({.name = "__hasContext",
       > else { ${name} = meta; }
       > ```
     )",
-                                         .fun = prim_has_context});
+                                          .fun = prim_has_context});
 
-static void prim_unsafe_discard_output_dependency(eval_state_t& state, const pos_idx_t pos, value_t** args,
-                                               value_t& v) {
+static void prim_unsafe_discard_output_dependency(eval_state_t& state, const pos_idx_t pos,
+                                                  value_t** args, value_t& v) {
   NixStringContext context;
   auto s = state.coerceToString(
       pos, *args[0], context,
@@ -89,8 +89,8 @@ static void prim_unsafe_discard_output_dependency(eval_state_t& state, const pos
 
 static RegisterPrimOp
     primop_unsafe_discard_output_dependency({.name = "__unsafeDiscardOutputDependency",
-                                          .args = {"s"},
-                                          .doc = R"(
+                                             .args = {"s"},
+                                             .doc = R"(
       Create a copy of the given string where every
       [derivation deep](@docroot@/language/string-context.md#string-context-element-derivation-deep)
       string context element is turned into a
@@ -107,10 +107,10 @@ static RegisterPrimOp
 
       [`builtins.addDrvOutputDependencies`]: #builtins-addDrvOutputDependencies
     )",
-                                          .fun = prim_unsafe_discard_output_dependency});
+                                             .fun = prim_unsafe_discard_output_dependency});
 
-static void prim_add_drv_output_dependencies(eval_state_t& state, const pos_idx_t pos, value_t** args,
-                                          value_t& v) {
+static void prim_add_drv_output_dependencies(eval_state_t& state, const pos_idx_t pos,
+                                             value_t** args, value_t& v) {
   NixStringContext context;
   auto s = state.coerceToString(
       pos, *args[0], context,
@@ -168,8 +168,8 @@ static void prim_add_drv_output_dependencies(eval_state_t& state, const pos_idx_
 }
 
 static RegisterPrimOp primop_add_drv_output_dependencies({.name = "__addDrvOutputDependencies",
-                                                       .args = {"s"},
-                                                       .doc = R"(
+                                                          .args = {"s"},
+                                                          .doc = R"(
       Create a copy of the given string where a single
       [constant](@docroot@/language/string-context.md#string-context-constant)
       string context element is turned into a
@@ -183,7 +183,7 @@ static RegisterPrimOp primop_add_drv_output_dependencies({.name = "__addDrvOutpu
 
       This is the opposite of [`builtins.unsafeDiscardOutputDependency`](#builtins-unsafeDiscardOutputDependency).
     )",
-                                                       .fun = prim_add_drv_output_dependencies});
+                                                          .fun = prim_add_drv_output_dependencies});
 
 /* Extract the context of a string as a structured Nix value.
 
@@ -216,21 +216,22 @@ static void prim_get_context(eval_state_t& state, const pos_idx_t pos, value_t**
                     "while evaluating the argument passed to builtins.getContext");
   auto context_infos = std::map<store_path_t, context_info>();
   for (auto&& i : context) {
-    std::visit(
-        overloaded{
-            [&](NixStringContextElem::DrvDeep&& d) {
-              context_infos[std::move(d.drv_path)].all_outputs = true;
-            },
-            [&](NixStringContextElem::Built&& b) {
-              // FIXME should eventually show string context as is, no
-              // resolving here.
-              auto drv_path = resolve_derived_path(*state.store, *b.drv_path);
-              context_infos[std::move(drv_path)].outputs.emplace_back(std::move(b.output));
-            },
-            [&](NixStringContextElem::opaque_t&& o) { context_infos[std::move(o.path)].path = true; },
-            [&](NixStringContextElem::Path&& p) {},
-        },
-        ((NixStringContextElem&&)i).raw);
+    std::visit(overloaded{
+                   [&](NixStringContextElem::DrvDeep&& d) {
+                     context_infos[std::move(d.drv_path)].all_outputs = true;
+                   },
+                   [&](NixStringContextElem::Built&& b) {
+                     // FIXME should eventually show string context as is, no
+                     // resolving here.
+                     auto drv_path = resolve_derived_path(*state.store, *b.drv_path);
+                     context_infos[std::move(drv_path)].outputs.emplace_back(std::move(b.output));
+                   },
+                   [&](NixStringContextElem::opaque_t&& o) {
+                     context_infos[std::move(o.path)].path = true;
+                   },
+                   [&](NixStringContextElem::Path&& p) {},
+               },
+               ((NixStringContextElem&&)i).raw);
   }
 
   auto attrs = state.buildBindings(context_infos.size());
@@ -256,8 +257,8 @@ static void prim_get_context(eval_state_t& state, const pos_idx_t pos, value_t**
 }
 
 static RegisterPrimOp primop_get_context({.name = "__getContext",
-                                         .args = {"s"},
-                                         .doc = R"(
+                                          .args = {"s"},
+                                          .doc = R"(
       Return the string context of *s*.
 
       The string context tracks references to derivations within a string.
@@ -276,14 +277,15 @@ static RegisterPrimOp primop_get_context({.name = "__getContext",
       { "/nix/store/arhvjaf6zmlyn8vh8fgn55rpwnxq0n7l-a.drv" = { outputs = [ "out" ]; }; }
       ```
     )",
-                                         .fun = prim_get_context});
+                                          .fun = prim_get_context});
 
 /* Append the given context to a given string.
 
    See the commentary above getContext for details of the
    context representation.
 */
-static void prim_append_context(eval_state_t& state, const pos_idx_t pos, value_t** args, value_t& v) {
+static void prim_append_context(eval_state_t& state, const pos_idx_t pos, value_t** args,
+                                value_t& v) {
   NixStringContext context;
   auto orig =
       state.forceString(*args[0], context, no_pos,

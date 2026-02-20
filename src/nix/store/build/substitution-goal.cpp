@@ -31,13 +31,15 @@ Goal::done_t PathSubstitutionGoal::doneSuccess(build_result_t::Success::Status s
       .status = status,
   };
 
-  logger->result(get_cur_activity(), res_build_result,
-                 nlohmann::json(keyed_build_result_t(buildResult, derived_path_t::opaque_t{store_path})));
+  logger->result(
+      get_cur_activity(), res_build_result,
+      nlohmann::json(keyed_build_result_t(buildResult, derived_path_t::opaque_t{store_path})));
 
   return amDone(ecSuccess);
 }
 
-Goal::done_t PathSubstitutionGoal::doneFailure(ExitCode result, build_result_t::Failure::Status status,
+Goal::done_t PathSubstitutionGoal::doneFailure(ExitCode result,
+                                               build_result_t::Failure::Status status,
                                                std::string errorMsg) {
   debug(errorMsg);
   buildResult.inner = build_result_t::Failure{
@@ -45,8 +47,9 @@ Goal::done_t PathSubstitutionGoal::doneFailure(ExitCode result, build_result_t::
       .errorMsg = std::move(errorMsg),
   };
 
-  logger->result(get_cur_activity(), res_build_result,
-                 nlohmann::json(keyed_build_result_t(buildResult, derived_path_t::opaque_t{store_path})));
+  logger->result(
+      get_cur_activity(), res_build_result,
+      nlohmann::json(keyed_build_result_t(buildResult, derived_path_t::opaque_t{store_path})));
 
   return amDone(result);
 }

@@ -18,8 +18,8 @@ descriptor_t open_directory(const std::filesystem::path& path) {
   return open(path.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
 }
 
-void set_write_time(const std::filesystem::path& path, time_t accessed_time, time_t modification_time,
-                  std::optional<bool> opt_is_symlink) {
+void set_write_time(const std::filesystem::path& path, time_t accessed_time,
+                    time_t modification_time, std::optional<bool> opt_is_symlink) {
   // Would be nice to use std::filesystem unconditionally, but
   // doesn't support access time just modification time.
   //
@@ -37,7 +37,7 @@ void set_write_time(const std::filesystem::path& path, time_t accessed_time, tim
   };
   if (utimensat(AT_FDCWD, path.c_str(), times, AT_SYMLINK_NOFOLLOW) == -1) {
     throw sys_error_t("changing modification time of %s (using `utimensat`)", path);
-}
+  }
 #else
   struct timeval times[2] = {
       {

@@ -16,8 +16,8 @@
 
 namespace nix {
 
-void copy_recursive(source_accessor_t& accessor, const canon_path_t& from, file_system_object_sink_t& sink,
-                   const canon_path_t& to) {
+void copy_recursive(source_accessor_t& accessor, const canon_path_t& from,
+                    file_system_object_sink_t& sink, const canon_path_t& to) {
   auto stat = accessor.lstat(from);
 
   switch (stat.type) {
@@ -30,18 +30,19 @@ void copy_recursive(source_accessor_t& accessor, const canon_path_t& from, file_
       sink.create_regular_file(to, [&](create_regular_file_sink_t& crf) {
         if (stat.is_executable) {
           crf.is_executable();
-}
+        }
         accessor.read_file(from, crf, [&](uint64_t size) { crf.preallocate_contents(size); });
       });
       break;
     }
 
     case source_accessor_t::t_directory: {
-      sink.create_directory(to, [&](file_system_object_sink_t& dir_sink, const canon_path_t& rel_dir_path) {
-        for (auto& [name, _] : accessor.read_directory(from)) {
-          copy_recursive(accessor, from / name, dir_sink, rel_dir_path / name);
-        }
-      });
+      sink.create_directory(
+          to, [&](file_system_object_sink_t& dir_sink, const canon_path_t& rel_dir_path) {
+            for (auto& [name, _] : accessor.read_directory(from)) {
+              copy_recursive(accessor, from / name, dir_sink, rel_dir_path / name);
+            }
+          });
       break;
     }
 
@@ -69,12 +70,13 @@ static std::filesystem::path append(const std::filesystem::path& src, const cano
   auto dst = src;
   if (!path.rel().empty()) {
     dst /= path.rel();
-}
+  }
   return dst;
 }
 
 #ifndef _WIN32
-void restore_sink_t::create_directory(const canon_path_t& path, directory_created_callback_t callback) {
+void restore_sink_t::create_directory(const canon_path_t& path,
+                                      directory_created_callback_t callback) {
   if (path.is_root()) {
     create_directory(path);
     callback(*this, path);
@@ -91,7 +93,7 @@ void restore_sink_t::create_directory(const canon_path_t& path, directory_create
 
   if (!dir_sink.dir_fd) {
     throw sys_error_t("opening directory '%s'", dir_sink.dst_path.string());
-}
+  }
 
   callback(dir_sink, canon_path_t::root);
 }
@@ -105,11 +107,11 @@ void restore_sink_t::create_directory(const canon_path_t& path) {
     if (path.is_root()) {
       /* Trying to create a directory that we already have a file descriptor for. */
       throw Error("path '%s' already exists", p.string());
-}
+    }
 
     if (::mkdirat(dir_fd.get(), path.rel_c_str(), 0777) == -1) {
       throw sys_error_t("creating directory '%s'", p.string());
-}
+    }
 
     return;
   }
@@ -117,7 +119,7 @@ void restore_sink_t::create_directory(const canon_path_t& path) {
 
   if (!std::filesystem::create_directory(p)) {
     throw Error("path '%s' already exists", p.string());
-}
+  }
 
 #ifndef _WIN32
   if (path.is_root()) {
@@ -128,7 +130,7 @@ void restore_sink_t::create_directory(const canon_path_t& path) {
     dir_fd = open(p.c_str(), O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
     if (!dir_fd) {
       throw sys_error_t("creating directory '%1%'", p.string());
-}
+    }
   }
 #endif
 };
@@ -144,7 +146,7 @@ struct restore_regular_file_t : create_regular_file_sink_t {
        the disk write to start early. */
     if (fd && start_fsync) {
       fd.start_fsync();
-}
+    }
   }
 
   void operator()(std::string_view data) override;
@@ -153,7 +155,7 @@ struct restore_regular_file_t : create_regular_file_sink_t {
 };
 
 void restore_sink_t::create_regular_file(const canon_path_t& path,
-                                    std::function<void(create_regular_file_sink_t&)> func) {
+                                         std::function<void(create_regular_file_sink_t&)> func) {
   auto p = append(dst_path, path);
 
   restore_regular_file_t crf;
@@ -169,14 +171,14 @@ void restore_sink_t::create_regular_file(const canon_path_t& path,
         constexpr int flags = O_CREAT | O_EXCL | O_WRONLY | O_CLOEXEC;
         if (!dir_fd) {
           return ::open(p.c_str(), flags, 0666);
-}
+        }
         return unix::open_file_ensure_beneath_no_symlinks(dir_fd.get(), path, flags, 0666);
       }();
 #endif
       ;
   if (!crf.fd) {
     throw native_sys_error_t("creating file '%1%'", p);
-}
+  }
   func(crf);
 }
 
@@ -187,17 +189,17 @@ void restore_regular_file_t::is_executable() {
   struct stat st;
   if (fstat(fd.get(), &st) == -1) {
     throw sys_error_t("fstat");
-}
+  }
   if (fchmod(fd.get(), st.st_mode | (S_IXUSR | S_IXGRP | S_IXOTH)) == -1) {
     throw sys_error_t("fchmod");
-}
+  }
 #endif
 }
 
 void restore_regular_file_t::preallocate_contents(uint64_t len) {
   if (!restore_sink_settings.preallocate_contents) {
     return;
-}
+  }
 
 #if HAVE_POSIX_FALLOCATE
   if (len) {
@@ -208,7 +210,7 @@ void restore_regular_file_t::preallocate_contents(uint64_t len) {
        optimisation, ignore it. */
     if (errno && errno != EINVAL && errno != EOPNOTSUPP && errno != ENOSYS) {
       throw sys_error_t("preallocating file of %1% bytes", len);
-}
+    }
   }
 #endif
 }
@@ -223,15 +225,15 @@ void restore_sink_t::create_symlink(const canon_path_t& path, const std::string&
   if (dir_fd) {
     if (::symlinkat(require_c_string(target), dir_fd.get(), path.rel_c_str()) == -1) {
       throw sys_error_t("creating symlink from '%1%' -> '%2%'", p.string(), target);
-}
+    }
     return;
   }
 #endif
   nix::create_symlink(target, p.string());
 }
 
-void regular_file_sink_t::create_regular_file(const canon_path_t& path,
-                                        std::function<void(create_regular_file_sink_t&)> func) {
+void regular_file_sink_t::create_regular_file(
+    const canon_path_t& path, std::function<void(create_regular_file_sink_t&)> func) {
   struct CRF : create_regular_file_sink_t {
     regular_file_sink_t& back;
 
@@ -245,8 +247,8 @@ void regular_file_sink_t::create_regular_file(const canon_path_t& path,
   func(crf);
 }
 
-void null_file_system_object_sink_t::create_regular_file(const canon_path_t& path,
-                                                 std::function<void(create_regular_file_sink_t&)> func) {
+void null_file_system_object_sink_t::create_regular_file(
+    const canon_path_t& path, std::function<void(create_regular_file_sink_t&)> func) {
   struct : create_regular_file_sink_t {
     void operator()(std::string_view data) override {}
 

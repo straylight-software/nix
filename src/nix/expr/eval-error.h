@@ -69,7 +69,8 @@ class EvalErrorBuilder final {
   friend class eval_state_t;
 
   template <typename... args_t>
-  explicit EvalErrorBuilder(eval_state_t& state, const args_t&... args) : error(T(state, args...)) {}
+  explicit EvalErrorBuilder(eval_state_t& state, const args_t&... args)
+      : error(T(state, args...)) {}
 
 public:
   T error;
@@ -78,7 +79,8 @@ public:
 
   [[nodiscard, gnu::noinline]] EvalErrorBuilder<T>& at_pos(pos_idx_t pos);
 
-  [[nodiscard, gnu::noinline]] EvalErrorBuilder<T>& at_pos(value_t& value, pos_idx_t fallback = no_pos);
+  [[nodiscard, gnu::noinline]] EvalErrorBuilder<T>& at_pos(value_t& value,
+                                                           pos_idx_t fallback = no_pos);
 
   [[nodiscard, gnu::noinline]] EvalErrorBuilder<T>& withTrace(pos_idx_t pos,
                                                               const std::string_view text);

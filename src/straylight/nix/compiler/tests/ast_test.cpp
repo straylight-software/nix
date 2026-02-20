@@ -3,14 +3,14 @@
 // Unit tests for AST types and symbol table
 
 // Catch2 must be included before rapidcheck/catch.h for v3 compatibility
-#include <catch2/catch_test_macros.hpp>
-
 #include <memory>
 #include <string>
 #include <variant>
 
 #include <rapidcheck.h>
 #include <rapidcheck/catch.h>
+
+#include <catch2/catch_test_macros.hpp>
 
 #include "straylight/nix/compiler/ast/expression.h"
 #include "straylight/nix/compiler/ast/symbol_table.h"

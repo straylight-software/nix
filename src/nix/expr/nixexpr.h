@@ -81,7 +81,8 @@ static_assert(std::is_trivially_copy_constructible_v<AttrName>);
 
 using AttrSelectionPath = std::vector<AttrName>;
 
-std::string show_attr_selection_path(const symbol_table_t& symbols, std::span<const AttrName> attr_path);
+std::string show_attr_selection_path(const symbol_table_t& symbols,
+                                     std::span<const AttrName> attr_path);
 
 /* Abstract syntax of Nix expressions. */
 
@@ -119,8 +120,8 @@ struct expr_t {
 };
 
 #define COMMON_METHODS                                                                             \
-  void show(const symbol_table_t& symbols, std::ostream& str) const override;                         \
-  void eval(eval_state_t& state, Env& env, value_t& v) override;                                        \
+  void show(const symbol_table_t& symbols, std::ostream& str) const override;                      \
+  void eval(eval_state_t& state, Env& env, value_t& v) override;                                   \
   void bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>& env) override;
 
 struct ExprInt : expr_t {
@@ -242,7 +243,8 @@ struct ExprSelect : expr_t {
     std::ranges::copy(attr_path, attrPathStart);
   };
 
-  ExprSelect(std::pmr::polymorphic_allocator<char>& alloc, const pos_idx_t& pos, expr_t* e, symbol_t name)
+  ExprSelect(std::pmr::polymorphic_allocator<char>& alloc, const pos_idx_t& pos, expr_t* e,
+             symbol_t name)
       : pos(pos), nAttrPath(1), e(e), def(0), attrPathStart((alloc.allocate_object<AttrName>())) {
     *attrPathStart = AttrName(name);
   };
@@ -269,7 +271,8 @@ struct ExprOpHasAttr : expr_t {
   expr_t* e;
   std::span<AttrName> attr_path;
 
-  ExprOpHasAttr(std::pmr::polymorphic_allocator<char>& alloc, expr_t* e, std::span<AttrName> attr_path)
+  ExprOpHasAttr(std::pmr::polymorphic_allocator<char>& alloc, expr_t* e,
+                std::span<AttrName> attr_path)
       : e(e), attr_path({alloc.allocate_object<AttrName>(attr_path.size()), attr_path.size()}) {
     std::ranges::copy(attr_path, this->attr_path.begin());
   };
@@ -297,7 +300,8 @@ struct ExprAttrs : expr_t {
     expr_t* e;
     pos_idx_t pos;
     Displacement displ = 0; // displacement
-    AttrDef(expr_t* e, const pos_idx_t& pos, Kind kind = Kind::Plain) : kind(kind), e(e), pos(pos) {};
+    AttrDef(expr_t* e, const pos_idx_t& pos, Kind kind = Kind::Plain)
+        : kind(kind), e(e), pos(pos) {};
     AttrDef() {};
 
     template <typename T>
@@ -429,8 +433,8 @@ public:
   expr_t* body;
   DocComment doc_comment;
 
-  ExprLambda(const pos_table_t& positions, std::pmr::polymorphic_allocator<char>& alloc, pos_idx_t pos,
-             symbol_t arg, const FormalsBuilder& formals, expr_t* body)
+  ExprLambda(const pos_table_t& positions, std::pmr::polymorphic_allocator<char>& alloc,
+             pos_idx_t pos, symbol_t arg, const FormalsBuilder& formals, expr_t* body)
       : pos(pos),
         arg(arg),
         hasFormals(true),
@@ -457,8 +461,8 @@ public:
         formalsStart(nullptr),
         body(body) {};
 
-  ExprLambda(const pos_table_t& positions, std::pmr::polymorphic_allocator<char>& alloc, pos_idx_t pos,
-             const FormalsBuilder& formals, expr_t* body)
+  ExprLambda(const pos_table_t& positions, std::pmr::polymorphic_allocator<char>& alloc,
+             pos_idx_t pos, const FormalsBuilder& formals, expr_t* body)
       : ExprLambda(positions, alloc, pos, symbol_t(), formals, body) {};
 
   void setName(symbol_t name) override;
@@ -483,7 +487,8 @@ struct ExprCall : expr_t {
   ExprCall(const pos_idx_t& pos, expr_t* fun, std::pmr::vector<expr_t*>&& args)
       : fun(fun), args(args), pos(pos), cursedOrEndPos({}) {}
 
-  ExprCall(const pos_idx_t& pos, expr_t* fun, std::pmr::vector<expr_t*>&& args, pos_idx_t&& cursedOrEndPos)
+  ExprCall(const pos_idx_t& pos, expr_t* fun, std::pmr::vector<expr_t*>&& args,
+           pos_idx_t&& cursedOrEndPos)
       : fun(fun), args(args), pos(pos), cursedOrEndPos(cursedOrEndPos) {}
 
   pos_idx_t getPos() const override { return pos; }
@@ -506,7 +511,8 @@ struct ExprWith : expr_t {
   uint32_t prevWith;
   expr_t *attrs, *body;
   ExprWith* parentWith;
-  ExprWith(const pos_idx_t& pos, expr_t* attrs, expr_t* body) : pos(pos), attrs(attrs), body(body) {};
+  ExprWith(const pos_idx_t& pos, expr_t* attrs, expr_t* body)
+      : pos(pos), attrs(attrs), body(body) {};
 
   pos_idx_t getPos() const override { return pos; }
 
@@ -527,7 +533,8 @@ struct ExprIf : expr_t {
 struct ExprAssert : expr_t {
   pos_idx_t pos;
   expr_t *cond, *body;
-  ExprAssert(const pos_idx_t& pos, expr_t* cond, expr_t* body) : pos(pos), cond(cond), body(body) {};
+  ExprAssert(const pos_idx_t& pos, expr_t* cond, expr_t* body)
+      : pos(pos), cond(cond), body(body) {};
 
   pos_idx_t getPos() const override { return pos; }
 
@@ -544,28 +551,28 @@ struct ExprOpNot : expr_t {
 };
 
 #define MakeBinOpMembers(name, s)                                                                  \
-  pos_idx_t pos;                                                                                      \
-  expr_t *e1, *e2;                                                                                   \
-  name(expr_t* e1, expr_t* e2) : e1(e1), e2(e2){};                                                     \
-  name(const pos_idx_t& pos, expr_t* e1, expr_t* e2) : pos(pos), e1(e1), e2(e2){};                        \
-  void show(const symbol_table_t& symbols, std::ostream& str) const override {                        \
+  pos_idx_t pos;                                                                                   \
+  expr_t *e1, *e2;                                                                                 \
+  name(expr_t* e1, expr_t* e2) : e1(e1), e2(e2){};                                                 \
+  name(const pos_idx_t& pos, expr_t* e1, expr_t* e2) : pos(pos), e1(e1), e2(e2){};                 \
+  void show(const symbol_table_t& symbols, std::ostream& str) const override {                     \
     str << "(";                                                                                    \
     e1->show(symbols, str);                                                                        \
     str << " " s " ";                                                                              \
     e2->show(symbols, str);                                                                        \
     str << ")";                                                                                    \
   }                                                                                                \
-  void bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>& env) override {             \
+  void bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>& env) override {          \
     e1->bindVars(es, env);                                                                         \
     e2->bindVars(es, env);                                                                         \
   }                                                                                                \
-  void eval(eval_state_t& state, Env& env, value_t& v) override;                                        \
-  pos_idx_t getPos() const override {                                                                 \
+  void eval(eval_state_t& state, Env& env, value_t& v) override;                                   \
+  pos_idx_t getPos() const override {                                                              \
     return pos;                                                                                    \
   }
 
 #define MakeBinOp(name, s)                                                                         \
-  struct name : expr_t {                                                                             \
+  struct name : expr_t {                                                                           \
     MakeBinOpMembers(name, s)                                                                      \
   };
 
@@ -641,7 +648,8 @@ public:
 
   template <class C>
   [[gnu::always_inline]]
-  C* add(const pos_idx_t& pos, expr_t* fun, std::pmr::vector<expr_t*>&& args, pos_idx_t&& cursedOrEndPos)
+  C* add(const pos_idx_t& pos, expr_t* fun, std::pmr::vector<expr_t*>&& args,
+         pos_idx_t&& cursedOrEndPos)
     requires(std::same_as<C, ExprCall>)
   {
     return alloc.new_object<C>(pos, fun, std::move(args), std::move(cursedOrEndPos));

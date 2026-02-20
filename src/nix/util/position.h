@@ -46,7 +46,8 @@ struct pos_t {
 
   pos_t() {}
 
-  pos_t(uint32_t line, uint32_t column, origin_t origin) : line(line), column(column), origin(origin) {}
+  pos_t(uint32_t line, uint32_t column, origin_t origin)
+      : line(line), column(column), origin(origin) {}
 
   explicit operator bool() const { return line > 0; }
 

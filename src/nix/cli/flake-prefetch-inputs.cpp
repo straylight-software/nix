@@ -39,11 +39,12 @@ struct cmd_flake_prefetch_inputs_t : flake_command_t {
         if (locked_node->buildTime)
           return;
         try {
-          activity_t act(*logger, lvl_info, act_unknown, fmt("fetching '%s'", locked_node->locked_ref));
+          activity_t act(*logger, lvl_info, act_unknown,
+                         fmt("fetching '%s'", locked_node->locked_ref));
           auto accessor = locked_node->locked_ref.input.get_accessor(fetch_settings, *store).first;
           if (!eval_settings.lazyTrees)
             fetch_to_store(fetch_settings, *store, accessor, FetchMode::Copy,
-                         locked_node->locked_ref.input.get_name());
+                           locked_node->locked_ref.input.get_name());
         } catch (Error& e) {
           printError("%s", e.what());
           nrFailed++;

@@ -28,7 +28,7 @@ private:
 using DrvNames = std::list<DrvName>;
 
 std::string_view next_component(std::string_view::const_iterator& p,
-                               const std::string_view::const_iterator end);
+                                const std::string_view::const_iterator end);
 std::strong_ordering compare_versions(const std::string_view v1, const std::string_view v2);
 DrvNames drv_names_from_args(const strings_t& op_args);
 

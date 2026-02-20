@@ -4,11 +4,6 @@
 // Tests thread-safe access, locking semantics, and condition variables.
 
 // IMPORTANT: Catch2 v3 MUST be included BEFORE rapidcheck/catch.h
-#include <catch2/catch_test_macros.hpp>
-
-#include <rapidcheck.h>
-#include <rapidcheck/catch.h>
-
 #include <atomic>
 #include <chrono>
 #include <cstddef>
@@ -19,6 +14,11 @@
 #include <string>
 #include <thread>
 #include <vector>
+
+#include <rapidcheck.h>
+#include <rapidcheck/catch.h>
+
+#include <catch2/catch_test_macros.hpp>
 
 #include "../sync.h"
 
@@ -686,8 +686,8 @@ TEST_CASE("SharedSync concurrent read property", "[sync][shared][property]") {
 
 TEST_CASE("Sync modifications are visible after lock release", "[sync][property]") {
   rc::prop("modifications visible after lock release", []() {
-    std::vector<int> values = *rc::gen::nonEmpty(rc::gen::container<std::vector<int>>(
-        rc::gen::arbitrary<int>()));
+    std::vector<int> values =
+        *rc::gen::nonEmpty(rc::gen::container<std::vector<int>>(rc::gen::arbitrary<int>()));
 
     prims::Sync<int> s(0);
 

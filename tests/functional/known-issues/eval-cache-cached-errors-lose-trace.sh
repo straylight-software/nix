@@ -88,17 +88,17 @@ echo "=== Results ==="
 # but due to the bug, it will have fewer or no trace lines
 
 if [[ $SECOND_TRACE_LINES -lt $FIRST_TRACE_LINES ]]; then
-    echo "KNOWN ISSUE REVEALED: Cached error lost trace information!"
-    echo "First evaluation had $FIRST_TRACE_LINES trace lines"
-    echo "Cached evaluation had $SECOND_TRACE_LINES trace lines"
-    echo "See GitHub issues #3872, #9165"
-    exit 0 # Expected broken behavior
+  echo "KNOWN ISSUE REVEALED: Cached error lost trace information!"
+  echo "First evaluation had $FIRST_TRACE_LINES trace lines"
+  echo "Cached evaluation had $SECOND_TRACE_LINES trace lines"
+  echo "See GitHub issues #3872, #9165"
+  exit 0 # Expected broken behavior
 elif [[ $FIRST_TRACE_LINES -eq 0 ]]; then
-    echo "NOTE: Neither evaluation showed trace lines"
-    echo "This may indicate --show-trace is needed or trace format changed"
-    exit 0
+  echo "NOTE: Neither evaluation showed trace lines"
+  echo "This may indicate --show-trace is needed or trace format changed"
+  exit 0
 else
-    echo "Both evaluations have equal trace information ($FIRST_TRACE_LINES lines)"
-    echo "If this passes consistently, the bug may be fixed!"
-    exit 0
+  echo "Both evaluations have equal trace information ($FIRST_TRACE_LINES lines)"
+  echo "If this passes consistently, the bug may be fixed!"
+  exit 0
 fi

@@ -33,8 +33,8 @@
 #include <string_view>
 #include <vector>
 
-#include "straylight/nix/sync/lock.h"
 #include "straylight/nix/compat/sqlite.h"
+#include "straylight/nix/sync/lock.h"
 
 namespace straylight::nix::store {
 

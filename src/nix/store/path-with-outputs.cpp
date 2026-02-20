@@ -37,7 +37,8 @@ std::vector<derived_path_t> to_derived_paths(const std::vector<StorePathWithOutp
   return reqs;
 }
 
-StorePathWithOutputs::ParseResult StorePathWithOutputs::tryFromDerivedPath(const derived_path_t& p) {
+StorePathWithOutputs::ParseResult
+StorePathWithOutputs::tryFromDerivedPath(const derived_path_t& p) {
   return std::visit(
       overloaded{
           [&](const derived_path_t::opaque_t& bo) -> StorePathWithOutputs::ParseResult {
@@ -50,7 +51,8 @@ StorePathWithOutputs::ParseResult StorePathWithOutputs::tryFromDerivedPath(const
           [&](const derived_path_t::Built& bfd) -> StorePathWithOutputs::ParseResult {
             return std::visit(
                 overloaded{
-                    [&](const SingleDerivedPath::opaque_t& bo) -> StorePathWithOutputs::ParseResult {
+                    [&](const SingleDerivedPath::opaque_t& bo)
+                        -> StorePathWithOutputs::ParseResult {
                       return StorePathWithOutputs{
                           .path = bo.path,
                           // Use legacy encoding of wildcard as empty set
@@ -82,13 +84,13 @@ std::pair<std::string_view, string_set_t> parse_path_with_outputs(std::string_vi
 }
 
 StorePathWithOutputs parse_path_with_outputs(const store_dir_config_t& store,
-                                          std::string_view path_with_outputs) {
+                                             std::string_view path_with_outputs) {
   auto [path, outputs] = parse_path_with_outputs(path_with_outputs);
   return StorePathWithOutputs{store.parseStorePath(path), std::move(outputs)};
 }
 
 StorePathWithOutputs follow_links_to_store_path_with_outputs(const store_t& store,
-                                                       std::string_view path_with_outputs) {
+                                                             std::string_view path_with_outputs) {
   auto [path, outputs] = parse_path_with_outputs(path_with_outputs);
   return StorePathWithOutputs{store.followLinksToStorePath(path), std::move(outputs)};
 }

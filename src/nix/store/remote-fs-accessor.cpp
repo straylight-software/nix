@@ -10,7 +10,8 @@
 
 namespace nix {
 
-RemoteFSAccessor::RemoteFSAccessor(ref<store_t> store, bool require_valid_path, const Path& cache_dir)
+RemoteFSAccessor::RemoteFSAccessor(ref<store_t> store, bool require_valid_path,
+                                   const Path& cache_dir)
     : store(store), require_valid_path(require_valid_path), cache_dir(cache_dir) {
   if (cache_dir != "")
     create_dirs(cache_dir);
@@ -61,7 +62,8 @@ std::shared_ptr<source_accessor_t> RemoteFSAccessor::accessObject(const store_pa
   std::string listing;
   Path cacheFile;
 
-  if (cache_dir != "" && nix::path_exists(cacheFile = makeCacheFile(store_path.hash_part(), "nar"))) {
+  if (cache_dir != "" &&
+      nix::path_exists(cacheFile = makeCacheFile(store_path.hash_part(), "nar"))) {
     try {
       listing = nix::read_file(makeCacheFile(store_path.hash_part(), "ls"));
       auto listingJson = nlohmann::json::parse(listing);

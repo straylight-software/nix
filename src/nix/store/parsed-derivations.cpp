@@ -96,8 +96,8 @@ static nlohmann::json path_info_to_json(store_t& store, const store_path_set_t& 
 }
 
 nlohmann::json::object_t StructuredAttrs::prepareStructuredAttrs(
-    store_t& store, const derivation_options_t<store_path_t>& drv_options, const store_path_set_t& inputPaths,
-    const DerivationOutputs& outputs) const {
+    store_t& store, const derivation_options_t<store_path_t>& drv_options,
+    const store_path_set_t& inputPaths, const DerivationOutputs& outputs) const {
   /* Copy to then modify */
   auto json = structured_attrs;
 

@@ -163,8 +163,8 @@ inline std::ostream& operator<<(std::ostream& s, ServeProto::command_t op) {
  */
 #define DECLARE_SERVE_SERIALISER(T)                                                                \
   struct ServeProto::Serialise<T> {                                                                \
-    static T read(const store_dir_config_t& store, ServeProto::ReadConn conn);                         \
-    static void write(const store_dir_config_t& store, ServeProto::WriteConn conn, const T& t);        \
+    static T read(const store_dir_config_t& store, ServeProto::ReadConn conn);                     \
+    static void write(const store_dir_config_t& store, ServeProto::WriteConn conn, const T& t);    \
   };
 
 template <>

@@ -99,7 +99,7 @@ struct local_fs_store;
  * procedure idempotent. It also avoids clutter.
  */
 std::filesystem::path create_generation(local_fs_store& store, std::filesystem::path profile,
-                                       store_path_t out_path);
+                                        store_path_t out_path);
 
 /**
  * Unconditionally delete a generation
@@ -132,7 +132,7 @@ void delete_generation(const std::filesystem::path& profile, GenerationNumber ge
  * no generations to be deleted.
  */
 void delete_generations(const std::filesystem::path& profile,
-                       const std::set<GenerationNumber>& gens_to_delete, bool dry_run);
+                        const std::set<GenerationNumber>& gens_to_delete, bool dry_run);
 
 /**
  * Delete generations older than `max` passed the current generation.
@@ -147,7 +147,7 @@ void delete_generations(const std::filesystem::path& profile,
  * so.
  */
 void delete_generations_greater_than(const std::filesystem::path& profile, GenerationNumber max,
-                                  bool dry_run);
+                                     bool dry_run);
 
 /**
  * Delete all generations other than the current one
@@ -191,8 +191,8 @@ void switch_link(std::filesystem::path link, std::filesystem::path target);
  * Roll back a profile to the specified generation, or to the most
  * recent one older than the current.
  */
-void switch_generation(const std::filesystem::path& profile, std::optional<GenerationNumber> dst_gen,
-                      bool dry_run);
+void switch_generation(const std::filesystem::path& profile,
+                       std::optional<GenerationNumber> dst_gen, bool dry_run);
 
 /**
  * Ensure exclusive access to a profile.  Any command that modifies

@@ -403,7 +403,8 @@ static void perform_op(tunnel_logger_t* logger, ref<store_t> store, TrustedFlag 
           // FIXME: this means that if there is an error
           // half-way through, the client will keep sending
           // data, since we haven't sent it the error yet.
-          auto [content_address_method, hash_algo] = content_address_method_t::parseWithAlgo(cam_str);
+          auto [content_address_method, hash_algo] =
+              content_address_method_t::parseWithAlgo(cam_str);
           framed_source_t source(conn.from);
           file_serialisation_method_t dump_method;
           switch (content_address_method.getFileIngestionMethod()) {
@@ -499,8 +500,8 @@ static void perform_op(tunnel_logger_t* logger, ref<store_t> store, TrustedFlag 
       auto path = ({
         string_source_t source{s};
         store->add_to_store_from_dump(source, suffix, file_serialisation_method_t::flat,
-                                      content_address_method_t::raw_t::Text, hash_algorithm_t::SHA256,
-                                      refs, NoRepair);
+                                      content_address_method_t::raw_t::Text,
+                                      hash_algorithm_t::SHA256, refs, NoRepair);
       });
       logger->stop_work();
       WorkerProto::write(*store, wconn, path);

@@ -1,14 +1,13 @@
 # Migration Guide: Nix String Functions to straylight::nix::primitives
 
-This document describes how to migrate Nix codebase string operations to use
-the SIMD-accelerated `straylight::nix::primitives` implementation.
+This document describes how to migrate Nix codebase string operations to use the SIMD-accelerated
+`straylight::nix::primitives` implementation.
 
 ## Overview
 
-The `straylight::nix::primitives::strings` library provides high-performance
-string operations with adaptive backend selection. It uses SIMD (via stringzilla)
-for large strings where it helps, and falls back to std::string_view for small
-strings where SIMD overhead would hurt performance.
+The `straylight::nix::primitives::strings` library provides high-performance string operations with
+adaptive backend selection. It uses SIMD (via stringzilla) for large strings where it helps, and
+falls back to std::string_view for small strings where SIMD overhead would hurt performance.
 
 ## Migration Strategies
 
@@ -50,9 +49,9 @@ bool has = sp::starts_with(path, "/nix/store/");
 ### Prefix/Suffix Checks
 
 | Nix Function | Location | Primitives Function | Adapter Function |
-|--------------|----------|---------------------|------------------|
-| `hasPrefix(s, prefix)` | util.h | `starts_with(s, prefix)` | `hasPrefix(s, prefix)` |
-| `hasSuffix(s, suffix)` | util.h | `ends_with(s, suffix)` | `hasSuffix(s, suffix)` |
+|--------------|----------|---------------------|------------------| | `hasPrefix(s, prefix)` |
+util.h | `starts_with(s, prefix)` | `hasPrefix(s, prefix)` | | `hasSuffix(s, suffix)` | util.h |
+`ends_with(s, suffix)` | `hasSuffix(s, suffix)` |
 
 **Example migration:**
 
@@ -68,6 +67,7 @@ if (hasPrefix(path, "/nix/store/")) { ... }
 ```
 
 **Notes:**
+
 - Primitives uses adaptive SIMD: std for small strings, SIMD for large strings
 - Threshold is configurable via `STRAYLIGHT_STRINGS_PREFIX_THRESHOLD`
 - Default threshold: 256 bytes (SIMD overhead hurts for small strings)
@@ -75,14 +75,14 @@ if (hasPrefix(path, "/nix/store/")) { ... }
 ### Tokenize/Split
 
 | Nix Function | Location | Primitives Function | Adapter Function |
-|--------------|----------|---------------------|------------------|
-| `tokenizeString<C>(s, seps)` | strings.h | `tokenize(s, seps)` | `tokenizeString<C>(s, seps)` |
-| `splitString<C>(s, seps)` | strings.h | N/A (see note) | `splitString<C>(s, seps)` |
+|--------------|----------|---------------------|------------------| | `tokenizeString<C>(s, seps)`
+| strings.h | `tokenize(s, seps)` | `tokenizeString<C>(s, seps)` | | `splitString<C>(s, seps)` |
+strings.h | N/A (see note) | `splitString<C>(s, seps)` |
 
 **Important difference:**
 
-Nix `tokenizeString` and `splitString` treat the separator parameter as a
-**character set** - each character is a potential separator:
+Nix `tokenizeString` and `splitString` treat the separator parameter as a **character set** - each
+character is a potential separator:
 
 ```cpp
 // Nix behavior: splits on ',' OR ' ' OR '\t'
@@ -109,16 +109,17 @@ auto parts = sp::tokenize("a,b c\td", ", \t");
 ```
 
 **tokenize vs split:**
+
 - `tokenizeString` / `tokenize`: Filters out empty strings
 - `splitString` / `split_to_strings`: Preserves empty strings
 
 ### Join/Concat
 
 | Nix Function | Location | Primitives Function | Adapter Function |
-|--------------|----------|---------------------|------------------|
-| `concatStringsSep(sep, ss)` | strings.h | `join(sep, ss)` | `concatStringsSep(sep, ss)` |
-| `concatMapStringsSep(sep, c, fn)` | strings.h | N/A | `concatMapStringsSep(sep, c, fn)` |
-| `dropEmptyInitThenConcatStringsSep` | strings.h | N/A (deprecated) | Available but deprecated |
+|--------------|----------|---------------------|------------------| | `concatStringsSep(sep, ss)` |
+strings.h | `join(sep, ss)` | `concatStringsSep(sep, ss)` | | `concatMapStringsSep(sep, c, fn)` |
+strings.h | N/A | `concatMapStringsSep(sep, c, fn)` | | `dropEmptyInitThenConcatStringsSep` |
+strings.h | N/A (deprecated) | Available but deprecated |
 
 **Example migration:**
 
@@ -136,17 +137,16 @@ auto result = concatStringsSep("/", pathParts);
 ### Trim
 
 | Nix Function | Location | Primitives Function | Adapter Function |
-|--------------|----------|---------------------|------------------|
-| `trim(s, ws)` | util.h | `trim(s, ws)` | `trim(s, ws)` |
-| `chomp(s)` | util.h | `trim_right(s, ws)` | `chomp(s)` |
+|--------------|----------|---------------------|------------------| | `trim(s, ws)` | util.h |
+`trim(s, ws)` | `trim(s, ws)` | | `chomp(s)` | util.h | `trim_right(s, ws)` | `chomp(s)` |
 
 **Important difference:**
 
-Nix `trim` returns `std::string` (allocates).
-Primitives `trim` returns `std::string_view` (zero-copy).
+Nix `trim` returns `std::string` (allocates). Primitives `trim` returns `std::string_view`
+(zero-copy).
 
-The adapter returns `std::string` for compatibility. For better performance,
-use primitives directly or the `trim_view()` adapter function:
+The adapter returns `std::string` for compatibility. For better performance, use primitives directly
+or the `trim_view()` adapter function:
 
 ```cpp
 // Before (nix::trim)
@@ -165,6 +165,7 @@ std::string_view cleaned = trim_view(input);
 ```
 
 **Whitespace characters:**
+
 - Nix default: `" \n\r\t"`
 - Primitives default: `" \t\n\r\f\v"` (includes form feed and vertical tab)
 - Adapter uses Nix default for compatibility
@@ -172,8 +173,8 @@ std::string_view cleaned = trim_view(input);
 ### Replace
 
 | Nix Function | Location | Primitives Function | Adapter Function |
-|--------------|----------|---------------------|------------------|
-| `replaceStrings(s, from, to)` | util.h | `replace_all(s, from, to)` | `replaceStrings(s, from, to)` |
+|--------------|----------|---------------------|------------------| | `replaceStrings(s, from, to)`
+| util.h | `replace_all(s, from, to)` | `replaceStrings(s, from, to)` |
 
 **Example migration:**
 
@@ -190,8 +191,8 @@ auto result = replaceStrings(input, "\n", "\\n");
 
 ### Contains/Find
 
-Nix doesn't have dedicated `contains` or `find` functions in strings.h/util.h,
-but primitives provides them:
+Nix doesn't have dedicated `contains` or `find` functions in strings.h/util.h, but primitives
+provides them:
 
 ```cpp
 // Check if string contains substring
@@ -210,6 +211,7 @@ auto pos = sp::rfind(content, "\n");
 ### When SIMD Helps
 
 SIMD acceleration is most beneficial for:
+
 - Large strings (> 64-256 bytes depending on operation)
 - Multiple substring searches in the same string
 - Character set operations (find_first_of, etc.)
@@ -218,12 +220,13 @@ SIMD acceleration is most beneficial for:
 ### When SIMD Hurts
 
 SIMD has overhead that makes it slower for:
+
 - Short strings (< 64 bytes)
 - Simple prefix/suffix checks (< 256 bytes)
 - Single-character operations
 
-The primitives library uses adaptive selection based on string size. You can
-tune thresholds via compile-time configuration:
+The primitives library uses adaptive selection based on string size. You can tune thresholds via
+compile-time configuration:
 
 ```cpp
 // Before including strings.h:
@@ -234,6 +237,7 @@ tune thresholds via compile-time configuration:
 ```
 
 Or force a specific backend:
+
 ```cpp
 #define STRAYLIGHT_STRINGS_FORCE_STD 1   // Always use std (no SIMD)
 #define STRAYLIGHT_STRINGS_FORCE_SZ 1    // Always use SIMD
@@ -251,8 +255,7 @@ std::string_view trimmed = sp::trim(input);
 std::vector<std::string_view> parts = sp::split_to_views(input, "\n");
 ```
 
-Use these when you don't need to own the result and the source string
-outlives the views.
+Use these when you don't need to own the result and the source string outlives the views.
 
 ## Migration Checklist
 
@@ -300,6 +303,7 @@ Based on grep analysis, here are the Nix util files with string operations:
 See `src/straylight/nix/primitives/strings.h` for full API documentation.
 
 Key namespaces:
+
 - `straylight::nix::primitives` - Core primitives API
 - `straylight::nix::primitives::simd` - Direct SIMD access (always uses stringzilla)
 - `straylight::nix::primitives::nix_compat` - Nix-compatible adapter functions

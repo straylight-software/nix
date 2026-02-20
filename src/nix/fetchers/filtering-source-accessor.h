@@ -24,7 +24,9 @@ struct FilteringSourceAccessor : source_accessor_t {
   MakeNotAllowedError make_not_allowed_error;
 
   FilteringSourceAccessor(const source_path_t& src, MakeNotAllowedError&& make_not_allowed_error)
-      : next(src.accessor), prefix(src.path), make_not_allowed_error(std::move(make_not_allowed_error)) {
+      : next(src.accessor),
+        prefix(src.path),
+        make_not_allowed_error(std::move(make_not_allowed_error)) {
     display_prefix.clear();
   }
 
@@ -33,7 +35,7 @@ struct FilteringSourceAccessor : source_accessor_t {
   std::string read_file(const canon_path_t& path) override;
 
   void read_file(const canon_path_t& path, sink_t& sink,
-                std::function<void(uint64_t)> size_callback) override;
+                 std::function<void(uint64_t)> size_callback) override;
 
   bool path_exists(const canon_path_t& path) override;
 
@@ -47,7 +49,8 @@ struct FilteringSourceAccessor : source_accessor_t {
 
   std::string show_path(const canon_path_t& path) override;
 
-  std::pair<canon_path_t, std::optional<std::string>> get_fingerprint(const canon_path_t& path) override;
+  std::pair<canon_path_t, std::optional<std::string>>
+  get_fingerprint(const canon_path_t& path) override;
 
   void invalidate_cache(const canon_path_t& path) override;
 
@@ -73,10 +76,10 @@ struct AllowListSourceAccessor : public FilteringSourceAccessor {
    */
   virtual void allowPrefix(canon_path_t prefix) = 0;
 
-  static ref<AllowListSourceAccessor> create(ref<source_accessor_t> next,
-                                             std::set<canon_path_t>&& allowed_prefixes,
-                                             boost::unordered_flat_set<canon_path_t>&& allowed_paths,
-                                             MakeNotAllowedError&& make_not_allowed_error);
+  static ref<AllowListSourceAccessor>
+  create(ref<source_accessor_t> next, std::set<canon_path_t>&& allowed_prefixes,
+         boost::unordered_flat_set<canon_path_t>&& allowed_paths,
+         MakeNotAllowedError&& make_not_allowed_error);
 
   using FilteringSourceAccessor::FilteringSourceAccessor;
 };

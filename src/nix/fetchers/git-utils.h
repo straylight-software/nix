@@ -93,17 +93,18 @@ struct GitRepo {
    * along with the revision of each submodule.
    */
   virtual std::vector<std::tuple<submodule_t, Hash>> getSubmodules(const Hash& rev,
-                                                                 bool export_ignore) = 0;
+                                                                   bool export_ignore) = 0;
 
   virtual std::string resolveSubmoduleUrl(const std::string& url) = 0;
 
   virtual bool hasObject(const Hash& oid) = 0;
 
   virtual ref<source_accessor_t> get_accessor(const Hash& rev, const GitAccessorOptions& options,
-                                          std::string display_prefix) = 0;
+                                              std::string display_prefix) = 0;
 
-  virtual ref<source_accessor_t> get_accessor(const WorkdirInfo& wd, const GitAccessorOptions& options,
-                                          MakeNotAllowedError make_not_allowed_error) = 0;
+  virtual ref<source_accessor_t> get_accessor(const WorkdirInfo& wd,
+                                              const GitAccessorOptions& options,
+                                              MakeNotAllowedError make_not_allowed_error) = 0;
 
   virtual ref<GitFileSystemObjectSink> get_file_system_object_sink() = 0;
 
@@ -116,7 +117,7 @@ struct GitRepo {
    * `public_keys`. Throw an error if it isn't.
    */
   virtual void verify_commit(const Hash& rev,
-                            const std::vector<fetchers::public_key_t>& public_keys) = 0;
+                             const std::vector<fetchers::public_key_t>& public_keys) = 0;
 
   /**
    * Given a git tree hash, compute the hash of its NAR

@@ -16,7 +16,7 @@ namespace nix {
  * other information learned when negotiating the connection.
  */
 struct remote_store::Connection : WorkerProto::BasicClientConnection,
-                                 WorkerProto::ClientHandshakeInfo {
+                                  WorkerProto::ClientHandshakeInfo {
   /**
    * Time this connection was established.
    */

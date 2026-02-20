@@ -28,7 +28,8 @@ struct attr_t {
   symbol_t name;
   pos_idx_t pos;
   value_t* value = nullptr;
-  attr_t(symbol_t name, value_t* value, pos_idx_t pos = no_pos) : name(name), pos(pos), value(value) {};
+  attr_t(symbol_t name, value_t* value, pos_idx_t pos = no_pos)
+      : name(name), pos(pos), value(value) {};
   attr_t() {};
 
   auto operator<=>(const attr_t& a) const { return name <=> a.name; }
@@ -384,7 +385,8 @@ private:
 
   friend class EvalMemory;
 
-  BindingsBuilder(EvalMemory& mem, symbol_table_t& symbols, bindings_t* bindings, size_type capacity)
+  BindingsBuilder(EvalMemory& mem, symbol_table_t& symbols, bindings_t* bindings,
+                  size_type capacity)
       : bindings(bindings), capacity_(capacity), mem(mem), symbols(symbols) {}
 
   bool hasBaseLayer() const noexcept { return bindings->baseLayer; }
@@ -433,7 +435,9 @@ public:
   std::reference_wrapper<EvalMemory> mem;
   std::reference_wrapper<symbol_table_t> symbols;
 
-  void insert(symbol_t name, value_t* value, pos_idx_t pos = no_pos) { insert(attr_t(name, value, pos)); }
+  void insert(symbol_t name, value_t* value, pos_idx_t pos = no_pos) {
+    insert(attr_t(name, value, pos));
+  }
 
   void insert(const attr_t& attr) { push_back(attr); }
 

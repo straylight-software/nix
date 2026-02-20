@@ -84,10 +84,10 @@ namespace nix {
 
 typedef boost::unordered_flat_map<pos_idx_t, DocComment, std::hash<pos_idx_t>> DocCommentMap;
 
-expr_t* parse_expr_from_buf(char* text, size_t length, pos_t::origin_t origin, const source_path_t& base_path,
-                       Exprs& exprs, symbol_table_t& symbols, const eval_settings_t& settings,
-                       pos_table_t& positions, DocCommentMap& doc_comments,
-                       const ref<source_accessor_t> root_fs);
+expr_t* parse_expr_from_buf(char* text, size_t length, pos_t::origin_t origin,
+                            const source_path_t& base_path, Exprs& exprs, symbol_table_t& symbols,
+                            const eval_settings_t& settings, pos_table_t& positions,
+                            DocCommentMap& doc_comments, const ref<source_accessor_t> root_fs);
 
 } // namespace nix
 
@@ -481,7 +481,7 @@ public:
     enum token_kind_type {
       YYEMPTY = -2,
       YYEOF = 0,              // "end of file"
-      y_yerror = 256,          // error
+      y_yerror = 256,         // error
       YYUNDEF = 257,          // "invalid token"
       ID = 258,               // ID
       STR = 259,              // STR
@@ -537,7 +537,7 @@ public:
       YYNTOKENS = 61, ///< Number of tokens.
       S_YYEMPTY = -2,
       S_YYEOF = 0,                      // "end of file"
-      s_y_yerror = 1,                    // error
+      s_y_yerror = 1,                   // error
       S_YYUNDEF = 2,                    // "invalid token"
       S_ID = 3,                         // ID
       S_STR = 4,                        // STR
@@ -940,8 +940,8 @@ public:
           break;
 
         case symbol_kind::s_ind_string_parts: // ind_string_parts
-          value
-              .template destroy<std::vector<std::pair<pos_idx_t, std::variant<expr_t*, StringToken>>>>();
+          value.template destroy<
+              std::vector<std::pair<pos_idx_t, std::variant<expr_t*, StringToken>>>>();
           break;
 
         default:
@@ -1120,7 +1120,9 @@ public:
     return symbol_type(token::y_yerror, std::move(l));
   }
 #else
-  static symbol_type make_y_yerror(const location_type& l) { return symbol_type(token::y_yerror, l); }
+  static symbol_type make_y_yerror(const location_type& l) {
+    return symbol_type(token::y_yerror, l);
+  }
 #endif
 #if 201103L <= YY_CPLUSPLUS
   static symbol_type make_yyundef(location_type l) {

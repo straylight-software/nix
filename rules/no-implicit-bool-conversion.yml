@@ -11,4 +11,4 @@ rule:
     kind: function_definition
 constraints:
   PTR:
-    regex: '^[a-z_]+$'  # simple identifier, likely a pointer
+    regex: '^[a-z_]+$' # simple identifier, likely a pointer

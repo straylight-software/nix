@@ -30,19 +30,13 @@ $ buck2 test //src/nix/util/tests/...
 
 ## Build Targets
 
-| Target | Description |
-|--------|-------------|
-| `//src/nix/util:util` | Core utilities library |
-| `//src/nix/store:store` | Store operations |
-| `//src/nix/fetchers:fetchers` | Input fetchers (git, github, etc) |
-| `//src/nix/expr:expr` | Expression evaluator |
-| `//src/nix/flake:flake` | Flake support |
-| `//src/nix/main:main` | Main entry/logging |
-| `//src/nix/cmd:cmd` | Command infrastructure |
-| `//src/nix/cli:cli` | CLI commands |
-| `//src/straylight/evring:evring` | Deterministic async I/O |
-| `//src/straylight/nix/primitives:primitives` | Modernized utilities |
-| `//src/nix-language:language` | Nix → WASM compiler |
+| Target | Description | |--------|-------------| | `//src/nix/util:util` | Core utilities library |
+| `//src/nix/store:store` | Store operations | | `//src/nix/fetchers:fetchers` | Input fetchers
+(git, github, etc) | | `//src/nix/expr:expr` | Expression evaluator | | `//src/nix/flake:flake` |
+Flake support | | `//src/nix/main:main` | Main entry/logging | | `//src/nix/cmd:cmd` | Command
+infrastructure | | `//src/nix/cli:cli` | CLI commands | | `//src/straylight/evring:evring` |
+Deterministic async I/O | | `//src/straylight/nix/primitives:primitives` | Modernized utilities | |
+`//src/nix-language:language` | Nix → WASM compiler |
 
 ## Remote Execution
 
@@ -67,8 +61,8 @@ $ dhall text <<< '(./dhall/package.dhall).targets'
 
 ## Editor Integration
 
-The `clangd` LSP server is available in the development shell. Buck2 generates `compile_commands.json`
-automatically.
+The `clangd` LSP server is available in the development shell. Buck2 generates
+`compile_commands.json` automatically.
 
 Configure your editor to use clangd from the development shell, or use
 [nix-direnv](https://github.com/nix-community/nix-direnv) with your editor's direnv plugin.

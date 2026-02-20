@@ -52,7 +52,8 @@ using xp_t = experimental_feature_t;
  * Parse an experimental feature (enum value) from its name. Experimental
  * feature flag names are hyphenated and do not contain spaces.
  */
-const std::optional<experimental_feature_t> parse_experimental_feature(const std::string_view& name);
+const std::optional<experimental_feature_t>
+parse_experimental_feature(const std::string_view& name);
 
 /**
  * Show the name of an experimental feature. This is the opposite of

@@ -16,8 +16,9 @@ static std::span<uint8_t> string2span(std::string_view s) {
 }
 
 struct wasi_derivation_builder_t : derivation_builder_impl_t {
-  wasi_derivation_builder_t(LocalStore& store, std::unique_ptr<DerivationBuilderCallbacks> misc_methods,
-                        DerivationBuilderParams params)
+  wasi_derivation_builder_t(LocalStore& store,
+                            std::unique_ptr<DerivationBuilderCallbacks> misc_methods,
+                            DerivationBuilderParams params)
       : derivation_builder_impl_t(store, std::move(misc_methods), std::move(params)) {
     // experimentalFeatureSettings.require(Xp::WasiBuilders);
   }

@@ -14,8 +14,9 @@ static xml_attrs_t singleton_attrs(const std::string& name, std::string_view val
   return attrs;
 }
 
-static void print_value_as_xml(eval_state_t& state, bool strict, bool location, value_t& v, xml_writer_t& doc,
-                            NixStringContext& context, path_set_t& drvs_seen, const pos_idx_t pos);
+static void print_value_as_xml(eval_state_t& state, bool strict, bool location, value_t& v,
+                               xml_writer_t& doc, NixStringContext& context, path_set_t& drvs_seen,
+                               const pos_idx_t pos);
 
 static void pos_to_xml(eval_state_t& state, xml_attrs_t& xml_attrs, const pos_t& pos) {
   if (auto path = std::get_if<source_path_t>(&pos.origin))
@@ -25,7 +26,7 @@ static void pos_to_xml(eval_state_t& state, xml_attrs_t& xml_attrs, const pos_t&
 }
 
 static void show_attrs(eval_state_t& state, bool strict, bool location, const bindings_t& attrs,
-                      xml_writer_t& doc, NixStringContext& context, path_set_t& drvs_seen) {
+                       xml_writer_t& doc, NixStringContext& context, path_set_t& drvs_seen) {
   string_set_t names;
 
   for (auto& a : attrs.lexicographicOrder(state.symbols)) {
@@ -39,8 +40,9 @@ static void show_attrs(eval_state_t& state, bool strict, bool location, const bi
   }
 }
 
-static void print_value_as_xml(eval_state_t& state, bool strict, bool location, value_t& v, xml_writer_t& doc,
-                            NixStringContext& context, path_set_t& drvs_seen, const pos_idx_t pos) {
+static void print_value_as_xml(eval_state_t& state, bool strict, bool location, value_t& v,
+                               xml_writer_t& doc, NixStringContext& context, path_set_t& drvs_seen,
+                               const pos_idx_t pos) {
   check_interrupt();
 
   if (strict)
@@ -131,7 +133,8 @@ static void print_value_as_xml(eval_state_t& state, bool strict, bool location, 
         for (auto& i : formals->lexicographicOrder(state.symbols))
           doc.write_empty_element("attr", singleton_attrs("name", state.symbols[i.name]));
       } else
-        doc.write_empty_element("varpat", singleton_attrs("name", state.symbols[v.lambda().fun->arg]));
+        doc.write_empty_element("varpat",
+                                singleton_attrs("name", state.symbols[v.lambda().fun->arg]));
 
       break;
     }
@@ -155,13 +158,13 @@ static void print_value_as_xml(eval_state_t& state, bool strict, bool location, 
 }
 
 void ExternalValueBase::print_value_as_xml(eval_state_t& state, bool strict, bool location,
-                                        xml_writer_t& doc, NixStringContext& context,
-                                        path_set_t& drvs_seen, const pos_idx_t pos) const {
+                                           xml_writer_t& doc, NixStringContext& context,
+                                           path_set_t& drvs_seen, const pos_idx_t pos) const {
   doc.write_empty_element("unevaluated");
 }
 
-void print_value_as_xml(eval_state_t& state, bool strict, bool location, value_t& v, std::ostream& out,
-                     NixStringContext& context, const pos_idx_t pos) {
+void print_value_as_xml(eval_state_t& state, bool strict, bool location, value_t& v,
+                        std::ostream& out, NixStringContext& context, const pos_idx_t pos) {
   xml_writer_t doc(true, out);
   xml_open_element_t root(doc, "expr");
   path_set_t drvs_seen;

@@ -204,7 +204,8 @@ std::string decompress(const std::string& method, std::string_view in) {
   return std::move(ssink.str());
 }
 
-std::unique_ptr<finish_sink_t> make_decompression_sink(const std::string& method, sink_t& next_sink) {
+std::unique_ptr<finish_sink_t> make_decompression_sink(const std::string& method,
+                                                       sink_t& next_sink) {
   if (method == "none" || method == "" || method == "identity") {
     return std::make_unique<none_sink_t>(next_sink);
   } else if (method == "br") {

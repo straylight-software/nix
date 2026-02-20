@@ -253,7 +253,7 @@ public:
       callback(v->string_view());
       left = left.substr(
           align_up(sizeof(SymbolValue) + sizeof(StringData) + v->string_view().size() + 1,
-                  symbol_t::alignment));
+                   symbol_t::alignment));
     }
   }
 };

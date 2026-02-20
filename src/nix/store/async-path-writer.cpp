@@ -65,13 +65,13 @@ struct async_path_writer_impl_t : AsyncPathWriter {
   }
 
   store_path_t add_path(std::string contents, std::string name, store_path_set_t references,
-                    RepairFlag repair, bool read_only) override {
+                        RepairFlag repair, bool read_only) override {
     auto hash = hash_string(hash_algorithm_t::SHA256, contents);
 
     auto store_path = store->makeFixedOutputPathFromCA(name, TextInfo{
-                                                                .hash = hash,
-                                                                .references = references,
-                                                            });
+                                                                 .hash = hash,
+                                                                 .references = references,
+                                                             });
 
     if (!read_only) {
       auto state(state_.lock());
@@ -142,7 +142,8 @@ struct async_path_writer_impl_t : AsyncPathWriter {
       string_source_t source(item.contents);
       auto store_path = store->add_to_store_from_dump(
           source, item.store_path.name(), file_serialisation_method_t::flat,
-          content_address_method_t::raw_t::Text, hash_algorithm_t::SHA256, item.references, item.repair);
+          content_address_method_t::raw_t::Text, hash_algorithm_t::SHA256, item.references,
+          item.repair);
       assert(store_path == item.store_path);
     }
   }

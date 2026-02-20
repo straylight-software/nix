@@ -86,7 +86,7 @@ struct cmd_verify_t : StorePathsCommand {
         // for binary cache stores when using --all (since we
         // can't enumerate names efficiently).
         activity_t act2(*logger, lvl_info, act_unknown,
-                      fmt("checking '%s'", store->printStorePath(info->path)));
+                        fmt("checking '%s'", store->printStorePath(info->path)));
 
         if (!no_contents) {
           auto hash_sink = hash_sink_t(info->nar_hash.algo());

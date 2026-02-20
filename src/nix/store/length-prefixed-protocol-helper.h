@@ -32,8 +32,9 @@ struct LengthPrefixedProtoHelper;
 
 #define LENGTH_PREFIXED_PROTO_HELPER(Inner, T)                                                     \
   struct LengthPrefixedProtoHelper<Inner, T> {                                                     \
-    static T read(const store_dir_config_t& store, typename Inner::ReadConn conn);                     \
-    static void write(const store_dir_config_t& store, typename Inner::WriteConn conn, const T& str);  \
+    static T read(const store_dir_config_t& store, typename Inner::ReadConn conn);                 \
+    static void write(const store_dir_config_t& store, typename Inner::WriteConn conn,             \
+                      const T& str);                                                               \
                                                                                                    \
   private:                                                                                         \
     /*!                                                                                            \

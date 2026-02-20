@@ -19,7 +19,7 @@ namespace nix {
  * `<profilename>-<number>-link'.
  */
 static std::optional<GenerationNumber> parse_name(const std::string& profile_name,
-                                                 const std::string& name) {
+                                                  const std::string& name) {
   if (name.substr(0, profile_name.size() + 1) != profile_name + "-")
     return {};
   auto s = name.substr(profile_name.size() + 1);
@@ -49,8 +49,8 @@ findGenerations(std::filesystem::path profile) {
 
   gens.sort([](const Generation& a, const Generation& b) { return a.number < b.number; });
 
-  return {gens,
-          path_exists(profile) ? parse_name(profile_name, read_link(profile).string()) : std::nullopt};
+  return {gens, path_exists(profile) ? parse_name(profile_name, read_link(profile).string())
+                                     : std::nullopt};
 }
 
 /**
@@ -63,7 +63,7 @@ static std::filesystem::path make_name(const std::filesystem::path& profile, Gen
 }
 
 std::filesystem::path create_generation(local_fs_store& store, std::filesystem::path profile,
-                                       store_path_t out_path) {
+                                        store_path_t out_path) {
   /* The new generation number should be higher than old the
      previous ones. */
   auto [gens, dummy] = findGenerations(profile);
@@ -122,7 +122,7 @@ void delete_generation(const std::filesystem::path& profile, GenerationNumber ge
  *  - We only actually delete if `dry_run` is false.
  */
 static void delete_generation2(const std::filesystem::path& profile, GenerationNumber gen,
-                              bool dry_run) {
+                               bool dry_run) {
   if (dry_run)
     notice("would remove profile version %1%", gen);
   else {
@@ -132,7 +132,7 @@ static void delete_generation2(const std::filesystem::path& profile, GenerationN
 }
 
 void delete_generations(const std::filesystem::path& profile,
-                       const std::set<GenerationNumber>& gens_to_delete, bool dry_run) {
+                        const std::set<GenerationNumber>& gens_to_delete, bool dry_run) {
   PathLocks lock;
   lock_profile(lock, profile);
 
@@ -157,7 +157,7 @@ static inline void iter_drop_until(Generations& gens, auto&& i, auto&& cond) {
 }
 
 void delete_generations_greater_than(const std::filesystem::path& profile, GenerationNumber max,
-                                  bool dry_run) {
+                                     bool dry_run) {
   if (max == 0)
     throw Error("Must keep at least one generation, otherwise the current one would be deleted");
 
@@ -247,8 +247,8 @@ void switch_link(std::filesystem::path link, std::filesystem::path target) {
   replace_symlink(target, link);
 }
 
-void switch_generation(const std::filesystem::path& profile, std::optional<GenerationNumber> dst_gen,
-                      bool dry_run) {
+void switch_generation(const std::filesystem::path& profile,
+                       std::optional<GenerationNumber> dst_gen, bool dry_run) {
   PathLocks lock;
   lock_profile(lock, profile);
 
@@ -284,8 +284,8 @@ std::string optimistic_lock_profile(const std::filesystem::path& profile) {
 }
 
 std::filesystem::path profiles_dir() {
-  auto profile_root =
-      is_root_user() ? root_profiles_dir() : std::filesystem::path{create_nix_state_dir()} / "profiles";
+  auto profile_root = is_root_user() ? root_profiles_dir()
+                                     : std::filesystem::path{create_nix_state_dir()} / "profiles";
   create_dirs(profile_root);
   return profile_root;
 }
@@ -295,9 +295,9 @@ std::filesystem::path root_profiles_dir() {
 }
 
 std::filesystem::path get_default_profile() {
-  std::filesystem::path profile_link = settings.useXDGBaseDirectories
-                                          ? std::filesystem::path{create_nix_state_dir()} / "profile"
-                                          : std::filesystem::path{get_home()} / ".nix-profile";
+  std::filesystem::path profile_link =
+      settings.useXDGBaseDirectories ? std::filesystem::path{create_nix_state_dir()} / "profile"
+                                     : std::filesystem::path{get_home()} / ".nix-profile";
   try {
     auto profile = profiles_dir() / "profile";
     if (!path_exists(profile_link)) {

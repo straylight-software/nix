@@ -2,7 +2,8 @@
 
 ## Overview
 
-libevring is a C++23 library for deterministic async I/O built on Linux's `io_uring`. The core insight is that async programming becomes trivial to test when modeled as pure state machines:
+libevring is a C++23 library for deterministic async I/O built on Linux's `io_uring`. The core
+insight is that async programming becomes trivial to test when modeled as pure state machines:
 
 ```
 State × Event → State × [Operation]
@@ -13,18 +14,21 @@ State × Event → State × [Operation]
 ### Deterministic by Construction
 
 Traditional async code is hard to test because:
+
 - I/O timing is non-deterministic
 - Callbacks create implicit state
 - Error paths are hard to exercise
 
 `libevring` solves this by separating **what** from **how**:
+
 - **Machines** define pure state transitions (testable without I/O)
 - **Rings** execute operations against the kernel (real I/O)
 - **Replay** runs machines against recorded event streams (no I/O)
 
 ### Generator Machines for High Throughput
 
-For bulk operations (stat 10k files, copy tree), we use **generator machines** - a variant of regular machines that proactively fill the submission queue:
+For bulk operations (stat 10k files, copy tree), we use **generator machines** - a variant of
+regular machines that proactively fill the submission queue:
 
 ```cpp
 template <typename M>
@@ -35,12 +39,15 @@ concept generator_machine = machine<M> && requires(M m, typename M::state_type s
 ```
 
 Key differences from regular machines:
+
 - `wants_to_submit(state)` - Returns true if more work can be generated
 - `generate(state, max_ops)` - Produces up to `max_ops` operations without waiting for completions
 
-This achieves the same throughput as bypassing the state machine (93-108% in benchmarks) while remaining fully replayable and testable.
+This achieves the same throughput as bypassing the state machine (93-108% in benchmarks) while
+remaining fully replayable and testable.
 
 Execution loop (`run_generate`):
+
 1. Fill SQ using `generate()` while `wants_to_submit()` and SQ has space
 2. Submit batch to kernel
 3. Harvest completions from CQ
@@ -51,7 +58,10 @@ Execution loop (`run_generate`):
 
 ### stable_ref.h - Buffer Lifetime Safety
 
-Operations that write to user buffers (`make_read`, `make_recv`, `make_statx`) require `stable_span<T>` or `stable_ref<T>` instead of raw pointers/spans. This prevents a subtle bug where buffers stored in state (which gets copied between steps) are passed to async operations, causing the kernel to write to stale memory.
+Operations that write to user buffers (`make_read`, `make_recv`, `make_statx`) require
+`stable_span<T>` or `stable_ref<T>` instead of raw pointers/spans. This prevents a subtle bug where
+buffers stored in state (which gets copied between steps) are passed to async operations, causing
+the kernel to write to stale memory.
 
 ```cpp
 // stable_span<T> - A span that asserts stable address
@@ -95,6 +105,7 @@ auto step(bad_state s, event e) -> step_result<bad_state> {
 **Correct patterns:**
 
 1. **Buffer in machine** (for state machines):
+
    ```cpp
    struct my_machine {
      mutable std::vector<std::byte> buffer_;
@@ -106,6 +117,7 @@ auto step(bad_state s, event e) -> step_result<bad_state> {
    ```
 
 2. **Direct ring operations** (buffer outlives completion):
+
    ```cpp
    std::vector<std::byte> buf(4096);
    ring->enqueue(make_read(handle, make_stable_span(span{buf})));
@@ -113,6 +125,7 @@ auto step(bad_state s, event e) -> step_result<bad_state> {
    ```
 
 3. **Single value** (like `struct statx`):
+
    ```cpp
    struct statx statx_buf;
    ring->enqueue(make_statx(AT_FDCWD, path, 0, mask, make_stable_ref(statx_buf)));
@@ -127,13 +140,15 @@ struct handle {
 };
 ```
 
-Prevents ABA problems in async completion dispatch. When a handle is freed and reused, the generation increments, invalidating stale references.
+Prevents ABA problems in async completion dispatch. When a handle is freed and reused, the
+generation increments, invalidating stale references.
 
 `handle_table<T>` provides O(1) insert/remove/lookup with generation checking.
 
 ### event.h - Events and Operations
 
 **Events** are completions from the kernel:
+
 ```cpp
 struct event {
   handle resource_handle;           // which resource
@@ -149,6 +164,7 @@ struct event {
 ```
 
 **Operations** are submissions to the kernel:
+
 ```cpp
 struct operation {
   handle resource_handle;
@@ -165,6 +181,7 @@ struct operation {
 ```
 
 Supported operation types:
+
 - File: `open`, `openat`, `close`, `read`, `write`, `fsync`, `fdatasync`
 - Metadata: `statx`, `fstat`
 - Directory: `mkdir`, `mkdirat`, `rmdir`, `unlink`, `unlinkat`, `rename`, `renameat`
@@ -185,11 +202,13 @@ concept machine = requires(M m, typename M::state_type s, event e) {
 ```
 
 A machine defines:
+
 - `initial()` - Initial state before any I/O
 - `step(state, event)` - Pure transition function
 - `done(state)` - Termination condition
 
 The `step` function returns:
+
 ```cpp
 struct step_result<State> {
   State state;
@@ -218,11 +237,13 @@ class ring {
 ```
 
 `io_uring_ring` implements this using Linux's `io_uring`:
+
 - Enqueue operations to submission queue
 - Submit and wait for completions
 - Map between handles and file descriptors
 
 **Ring flags** for performance tuning:
+
 ```cpp
 enum class ring_flags {
   none,
@@ -234,6 +255,7 @@ enum class ring_flags {
 ```
 
 **Registered resources** for reduced overhead:
+
 - `register_files()` - Pre-register FDs for faster submission
 - `register_buffers()` - Pre-register memory for zero-copy I/O
 
@@ -276,7 +298,8 @@ auto replay_generate(M& machine, span<const event> events)
 
 ### bulk.h - Legacy Batch Operations (Deprecated)
 
-> **Deprecated**: Use generator machines instead. The bulk API bypasses the state machine, making operations non-replayable and untestable.
+> **Deprecated**: Use generator machines instead. The bulk API bypasses the state machine, making
+> operations non-replayable and untestable.
 
 The bulk API exists for backwards compatibility:
 
@@ -288,7 +311,8 @@ auto bulk_create_files(ring&, span<const char* const> paths,
                        mode_t mode = 0644) -> bulk_result;
 ```
 
-The key insight from bulk operations - keeping the SQ full at all times - is now available via generator machines with full replayability.
+The key insight from bulk operations - keeping the SQ full at all times - is now available via
+generator machines with full replayability.
 
 ## Example: File Reader Machine
 
@@ -382,13 +406,12 @@ auto replayed_state = replay(reader, recorded_events);
 
 Benchmarks on typical NVMe SSD:
 
-| Operation          | POSIX      | Generator Machine | Speedup |
-|--------------------|------------|-------------------|---------|
-| stat 10k files     | 16k ops/s  | 1M+ ops/s         | 66x     |
-| copy 1GB file      | 1.4 GB/s   | 4.2 GB/s          | 3x      |
-| create 10k files   | 247k ops/s | 119k ops/s        | 0.5x*   |
+| Operation | POSIX | Generator Machine | Speedup |
+|--------------------|------------|-------------------|---------| | stat 10k files | 16k ops/s | 1M+
+ops/s | 66x | | copy 1GB file | 1.4 GB/s | 4.2 GB/s | 3x | | create 10k files | 247k ops/s | 119k
+ops/s | 0.5x\* |
 
-*File creation is slower due to open+close overhead per file.
+\*File creation is slower due to open+close overhead per file.
 
 Generator machines achieve 93-108% of the raw bulk API throughput while remaining fully replayable.
 
@@ -457,7 +480,9 @@ cxx_library(
 
 ### inflight_operations Vector
 
-In `io_uring_ring.cpp`, we store `inflight_operation` contexts in a vector indexed by submission order. This works because:
+In `io_uring_ring.cpp`, we store `inflight_operation` contexts in a vector indexed by submission
+order. This works because:
+
 - We clear on `pending_count_ == 0`
 - Index is stored in SQE user_data
 - Simple and fast, but wastes memory if operations complete out of order
@@ -466,15 +491,18 @@ A slot-based approach with freelist would be more memory-efficient for long-runn
 
 ### readlink Fallback
 
-`io_uring` doesn't have native `readlink` support. `bulk_readlink` falls back to synchronous `readlink()`. Could potentially use `openat(O_PATH)` + read from `/proc/self/fd/N`.
+`io_uring` doesn't have native `readlink` support. `bulk_readlink` falls back to synchronous
+`readlink()`. Could potentially use `openat(O_PATH)` + read from `/proc/self/fd/N`.
 
 ### Timeout Storage
 
-`__kernel_timespec` structs for timeouts are stored in a vector (`timeout_specs_`) to keep them alive until completion. Cleared along with `inflight_operations_`.
+`__kernel_timespec` structs for timeouts are stored in a vector (`timeout_specs_`) to keep them
+alive until completion. Cleared along with `inflight_operations_`.
 
 ### Error Handling
 
-Errors are reported via negative `result` in events (matching kernel convention). The `event::ok()` and `event::error_code()` helpers make this ergonomic:
+Errors are reported via negative `result` in events (matching kernel convention). The `event::ok()`
+and `event::error_code()` helpers make this ergonomic:
 
 ```cpp
 if (!event.ok()) {
@@ -482,13 +510,14 @@ if (!event.ok()) {
 }
 ```
 
----
+______________________________________________________________________
 
 # TLS Layer
 
 ## Overview
 
-TLS support is implemented using **libtls** (LibreSSL's simplified TLS API) as state machines that yield `poll_add` operations when the underlying socket needs I/O.
+TLS support is implemented using **libtls** (LibreSSL's simplified TLS API) as state machines that
+yield `poll_add` operations when the underlying socket needs I/O.
 
 ## tls.h - TLS State Machines
 
@@ -528,14 +557,12 @@ class tls_connection {
 
 ### State Machines
 
-| Machine | Purpose |
-|---------|---------|
-| `tls_handshake_machine` | Client/server TLS handshake with ALPN |
-| `tls_read_machine` | Decrypt and read data |
-| `tls_write_machine` | Encrypt and write data |
-| `tls_close_machine` | TLS shutdown handshake |
+| Machine | Purpose | |---------|---------| | `tls_handshake_machine` | Client/server TLS handshake
+with ALPN | | `tls_read_machine` | Decrypt and read data | | `tls_write_machine` | Encrypt and write
+data | | `tls_close_machine` | TLS shutdown handshake |
 
-All machines yield `poll_add` operations when libtls returns `TLS_WANT_POLLIN` or `TLS_WANT_POLLOUT`.
+All machines yield `poll_add` operations when libtls returns `TLS_WANT_POLLIN` or
+`TLS_WANT_POLLOUT`.
 
 ### Example: TLS Client Handshake
 
@@ -557,13 +584,14 @@ if (final_state.ok()) {
 }
 ```
 
----
+______________________________________________________________________
 
 # HTTP/2 Layer
 
 ## Overview
 
-HTTP/2 is implemented using **nghttp2** for framing and HPACK, wrapped as evring state machines. The implementation uses libtls for transport.
+HTTP/2 is implemented using **nghttp2** for framing and HPACK, wrapped as evring state machines. The
+implementation uses libtls for transport.
 
 ## http2.h - HTTP/2 State Machines
 
@@ -617,10 +645,9 @@ struct http2_response {
 
 ### State Machines
 
-| Machine | Purpose |
-|---------|---------|
-| `http2_connection_machine` | Send client preface + SETTINGS, receive server SETTINGS |
-| `http2_request_machine` | Submit request, collect response (multiplexed) |
+| Machine | Purpose | |---------|---------| | `http2_connection_machine` | Send client preface +
+SETTINGS, receive server SETTINGS | | `http2_request_machine` | Submit request, collect response
+(multiplexed) |
 
 ### Example: HTTP/2 Request
 
@@ -684,6 +711,7 @@ enum class http2_error_code : uint32_t {
 ### poll_add Integration
 
 TLS and HTTP/2 machines use `poll_add` operations to wait for socket readiness:
+
 - When `tls_read`/`tls_write` returns `TLS_WANT_POLLIN` → yield `poll_add(POLLIN)`
 - When `tls_read`/`tls_write` returns `TLS_WANT_POLLOUT` → yield `poll_add(POLLOUT)`
 
@@ -692,6 +720,7 @@ This integrates cleanly with io_uring's poll mechanism.
 ### nghttp2 Callbacks
 
 The `http2_session` class registers nghttp2 callbacks that:
+
 - Accumulate headers per stream in `pending_headers_`
 - Accumulate response body in `stream_responses_`
 - Track stream close events in `closed_streams_`
@@ -700,18 +729,21 @@ The `http2_session` class registers nghttp2 callbacks that:
 ### Replayability
 
 TLS and HTTP/2 machines are replayable for testing:
+
 ```cpp
 vector<event> events = {...};  // captured poll completions
 auto replayed = evring::replay(http2_request_machine{...}, events);
 ```
 
----
+______________________________________________________________________
 
 # HTTP/1.1 Layer
 
 ## Overview
 
-HTTP/1.1 is implemented using **llhttp** (the official HTTP parser extracted from Node.js) for parsing, wrapped as evring state machines. The implementation supports both plain TCP and TLS transport.
+HTTP/1.1 is implemented using **llhttp** (the official HTTP parser extracted from Node.js) for
+parsing, wrapped as evring state machines. The implementation supports both plain TCP and TLS
+transport.
 
 ## http1.h - HTTP/1.1 State Machines
 
@@ -763,10 +795,8 @@ class http1_parser {
 
 ### State Machines
 
-| Machine | Purpose |
-|---------|---------|
-| `http1_client_machine` | HTTP/1.1 client over plain TCP |
-| `http1_tls_client_machine` | HTTP/1.1 client over TLS |
+| Machine | Purpose | |---------|---------| | `http1_client_machine` | HTTP/1.1 client over plain
+TCP | | `http1_tls_client_machine` | HTTP/1.1 client over TLS |
 
 ### Example: HTTPS Request
 
@@ -812,23 +842,30 @@ if (state.ok()) {
 
 ### Parser Ownership
 
-The `http1_parser` contains mutable state (llhttp instance, accumulated response). Since state machine states must be copyable, the parser is owned by the machine (as a `mutable` member) rather than the state. The state receives a copy of the parsed response upon completion.
+The `http1_parser` contains mutable state (llhttp instance, accumulated response). Since state
+machine states must be copyable, the parser is owned by the machine (as a `mutable` member) rather
+than the state. The state receives a copy of the parsed response upon completion.
 
 ### TLS Integration
 
-`http1_tls_client_machine` uses the raw libtls C API (`tls_read`, `tls_write`) and yields `poll_add` operations when TLS needs socket I/O:
+`http1_tls_client_machine` uses the raw libtls C API (`tls_read`, `tls_write`) and yields `poll_add`
+operations when TLS needs socket I/O:
+
 - `TLS_WANT_POLLIN` → yield `poll_add(POLLIN)`
 - `TLS_WANT_POLLOUT` → yield `poll_add(POLLOUT)`
 
----
+______________________________________________________________________
 
 # HTTP/3 Layer
 
 ## Overview
 
-HTTP/3 is implemented using **ngtcp2** (QUIC transport) and **nghttp3** (HTTP/3 framing), wrapped as evring state machines. Unlike HTTP/1.1 and HTTP/2 which use TCP, HTTP/3 uses UDP with the QUIC protocol for transport.
+HTTP/3 is implemented using **ngtcp2** (QUIC transport) and **nghttp3** (HTTP/3 framing), wrapped as
+evring state machines. Unlike HTTP/1.1 and HTTP/2 which use TCP, HTTP/3 uses UDP with the QUIC
+protocol for transport.
 
 Key differences from HTTP/2:
+
 - UDP-based (connectionless at transport layer)
 - Built-in TLS 1.3 (via OpenSSL, not libressl/libtls)
 - QPACK header compression (similar to HPACK but adapted for unordered delivery)
@@ -908,10 +945,8 @@ struct http3_settings {
 
 ### State Machines
 
-| Machine | Purpose |
-|---------|---------|
-| `http3_client_machine` | QUIC connection establishment + HTTP/3 setup |
-| `http3_request_machine` | Submit request, collect response |
+| Machine | Purpose | |---------|---------| | `http3_client_machine` | QUIC connection establishment
+\+ HTTP/3 setup | | `http3_request_machine` | Submit request, collect response |
 
 ### Example: HTTP/3 Request
 
@@ -977,7 +1012,9 @@ enum class http3_error_code : uint32_t {
 
 ### Session Ownership
 
-The `http3_session` contains non-copyable resources (ngtcp2/nghttp3 handles, OpenSSL contexts). Since state machine states must be copyable, the session is owned by the machine (as a `mutable` member) rather than the state:
+The `http3_session` contains non-copyable resources (ngtcp2/nghttp3 handles, OpenSSL contexts).
+Since state machine states must be copyable, the session is owned by the machine (as a `mutable`
+member) rather than the state:
 
 ```cpp
 class http3_client_machine {
@@ -992,6 +1029,7 @@ private:
 ### UDP Socket Handling
 
 HTTP/3 uses UDP with connected sockets for simplicity:
+
 1. Create UDP socket (`SOCK_DGRAM`)
 2. Connect to remote address (enables `send`/`recv` instead of `sendto`/`recvfrom`)
 3. Use standard `make_send`/`make_recv` operations
@@ -1001,6 +1039,7 @@ This matches the existing evring operation types without requiring new UDP-speci
 ### QUIC Timer Integration
 
 QUIC requires timer management for:
+
 - Retransmission timeouts
 - Idle timeout
 - Connection migration
@@ -1010,6 +1049,7 @@ The machine yields `make_timeout` operations when ngtcp2 reports an expiry deadl
 ### TLS 1.3 via quictls/LibreSSL
 
 HTTP/3 uses the quictls crypto backend:
+
 - ngtcp2 provides `ngtcp2_crypto_quictls_*` APIs for quictls/LibreSSL integration
 - ALPN is set to "h3" for HTTP/3 negotiation
 - Certificate verification uses system CA bundle
@@ -1024,7 +1064,7 @@ HTTP/3 uses the quictls crypto backend:
 # LibreSSL (from nix store)
 ```
 
----
+______________________________________________________________________
 
 ## Future Work
 

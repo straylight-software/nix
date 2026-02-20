@@ -87,7 +87,7 @@ std::string expand_tilde(std::string_view path) {
     return get_home().string() + std::string(path.substr(1));
   } else {
     return std::string(path);
-}
+  }
 }
 
 } // namespace nix

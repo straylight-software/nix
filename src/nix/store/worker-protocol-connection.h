@@ -69,8 +69,8 @@ struct WorkerProto::BasicClientConnection : WorkerProto::BasicConnection {
   std::exception_ptr processStderrReturn(sink_t* sink = 0, source_t* source = 0, bool flush = true,
                                          bool block = true);
 
-  void processStderr(bool* daemonException, sink_t* sink = 0, source_t* source = 0, bool flush = true,
-                     bool block = true);
+  void processStderr(bool* daemonException, sink_t* sink = 0, source_t* source = 0,
+                     bool flush = true, bool block = true);
 
   /**
    * Establishes connection, negotiating version.
@@ -99,13 +99,14 @@ struct WorkerProto::BasicClientConnection : WorkerProto::BasicConnection {
    */
   ClientHandshakeInfo postHandshake(const store_dir_config_t& store);
 
-  void addTempRoot(const store_dir_config_t& remoteStore, bool* daemonException, const store_path_t& path);
+  void addTempRoot(const store_dir_config_t& remoteStore, bool* daemonException,
+                   const store_path_t& path);
 
   store_path_set_t queryValidPaths(const store_dir_config_t& remoteStore, bool* daemonException,
-                               const store_path_set_t& paths, SubstituteFlag maybeSubstitute);
+                                   const store_path_set_t& paths, SubstituteFlag maybeSubstitute);
 
-  std::optional<UnkeyedValidPathInfo> queryPathInfo(const store_dir_config_t& store,
-                                                    bool* daemonException, const store_path_t& path);
+  std::optional<UnkeyedValidPathInfo>
+  queryPathInfo(const store_dir_config_t& store, bool* daemonException, const store_path_t& path);
 
   void putBuildDerivationRequest(const store_dir_config_t& store, bool* daemonException,
                                  const store_path_t& drv_path, const basic_derivation_t& drv,
@@ -117,8 +118,8 @@ struct WorkerProto::BasicClientConnection : WorkerProto::BasicConnection {
    */
   build_result_t getBuildDerivationResponse(const store_dir_config_t& store, bool* daemonException);
 
-  void nar_from_path(const store_dir_config_t& store, bool* daemonException, const store_path_t& path,
-                   std::function<void(source_t&)> fun);
+  void nar_from_path(const store_dir_config_t& store, bool* daemonException,
+                     const store_path_t& path, std::function<void(source_t&)> fun);
 };
 
 struct WorkerProto::BasicServerConnection : WorkerProto::BasicConnection {

@@ -35,7 +35,7 @@ get_nar_bytes_t seekable_get_nar_bytes(const Path& path);
 get_nar_bytes_t seekable_get_nar_bytes(descriptor_t fd);
 
 ref<source_accessor_t> make_lazy_nar_accessor(const nlohmann::json& listing,
-                                           get_nar_bytes_t get_nar_bytes);
+                                              get_nar_bytes_t get_nar_bytes);
 
 /**
  * Creates a NAR accessor from a given stream and a get_nar_bytes_t getter.

@@ -67,9 +67,9 @@ public:
    *
    * @param xp_settings Stop-gap to avoid globals during unit tests.
    */
-  static DownstreamPlaceholder
-  unknownCaOutput(const store_path_t& drv_path, OutputNameView output_name,
-                  const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
+  static DownstreamPlaceholder unknownCaOutput(
+      const store_path_t& drv_path, OutputNameView output_name,
+      const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
 
   /**
    * Create a placehold for the output of an unknown derivation.
@@ -80,9 +80,9 @@ public:
    *
    * @param xp_settings Stop-gap to avoid globals during unit tests.
    */
-  static DownstreamPlaceholder
-  unknownDerivation(const DownstreamPlaceholder& drvPlaceholder, OutputNameView output_name,
-                    const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
+  static DownstreamPlaceholder unknownDerivation(
+      const DownstreamPlaceholder& drvPlaceholder, OutputNameView output_name,
+      const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
 
   /**
    * Convenience constructor that handles both cases (unknown

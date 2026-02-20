@@ -132,9 +132,9 @@ ref<eval_state_t> EvalCommand::getEvalState() {
       eval_settings.evalCores = 1;
     }
 
-    eval_state =
-        std::allocate_shared<eval_state_t>(traceable_allocator<eval_state_t>(), lookup_path,
-                                        getEvalStore(), fetch_settings, eval_settings, getStore());
+    eval_state = std::allocate_shared<eval_state_t>(traceable_allocator<eval_state_t>(),
+                                                    lookup_path, getEvalStore(), fetch_settings,
+                                                    eval_settings, getStore());
 
     eval_state->repair = repair;
 

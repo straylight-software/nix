@@ -13,7 +13,7 @@
 namespace nix {
 
 void run_nix(const std::string& program, const strings_t& args,
-            const std::optional<std::string>& input = {}) {
+             const std::optional<std::string>& input = {}) {
   auto subprocess_env = get_env();
   subprocess_env["NIX_CONFIG"] = global_config.to_key_value();
   // isInteractive avoid grabling interactive commands

@@ -25,28 +25,29 @@ struct binary_cache_store_config_t : virtual store_config_t {
       "Whether to write a JSON file that lists the files in each NAR."};
 
   const setting_t<bool> writeDebugInfo{this, false, "index-debug-info",
-                                     R"(
+                                       R"(
           Whether to index DWARF debug info files by build ID. This allows [`dwarffs`](https://github.com/edolstra/dwarffs) to
           fetch debug info on demand
         )"};
 
   const setting_t<Path> secret_key_file{this, "", "secret-key",
-                                    "Path to the secret key used to sign the binary cache."};
+                                        "Path to the secret key used to sign the binary cache."};
 
   const setting_t<std::string> secretKeyFiles{
       this, "", "secret-keys",
       "List of comma-separated paths to the secret keys used to sign the binary cache."};
 
-  const setting_t<Path> localNarCache{this, "", "local-nar-cache",
-                                    "Path to a local cache of NARs fetched from this binary cache, "
-                                    "used by commands such as `nix store cat`."};
+  const setting_t<Path> localNarCache{
+      this, "", "local-nar-cache",
+      "Path to a local cache of NARs fetched from this binary cache, "
+      "used by commands such as `nix store cat`."};
 
   const setting_t<bool> parallelCompression{this, false, "parallel-compression",
-                                          "Enable multi-threaded compression of NARs. This is "
-                                          "currently only available for `xz` and `zstd`."};
+                                            "Enable multi-threaded compression of NARs. This is "
+                                            "currently only available for `xz` and `zstd`."};
 
   const setting_t<int> compressionLevel{this, -1, "compression-level",
-                                      R"(
+                                        R"(
           The *preset level* to be used when compressing NARs.
           The meaning and accepted values depend on the compression method selected.
           `-1` specifies that the default compression level should be used.
@@ -59,7 +60,7 @@ struct binary_cache_store_config_t : virtual store_config_t {
  */
 struct alignas(8) /* Work around ASAN failures on i686-linux. */
     binary_cache_store : virtual store_t,
-                       virtual LogStore {
+                         virtual LogStore {
   using config_t = binary_cache_store_config_t;
 
   /**
@@ -92,15 +93,15 @@ public:
   virtual bool file_exists(const std::string& path) = 0;
 
   virtual void upsert_file(const std::string& path, restartable_source_t& source,
-                          const std::string& mime_type, uint64_t size_hint) = 0;
+                           const std::string& mime_type, uint64_t size_hint) = 0;
 
   void upsert_file(const std::string& path,
-                  // FIXME: use std::string_view
-                  std::string&& data, const std::string& mime_type, uint64_t size_hint);
+                   // FIXME: use std::string_view
+                   std::string&& data, const std::string& mime_type, uint64_t size_hint);
 
   void upsert_file(const std::string& path,
-                  // FIXME: use std::string_view
-                  std::string&& data, const std::string& mime_type) {
+                   // FIXME: use std::string_view
+                   std::string&& data, const std::string& mime_type) {
     auto size = data.size();
     upsert_file(path, std::move(data), mime_type, size);
   }
@@ -135,9 +136,9 @@ private:
 
   void writeNarInfo(ref<nar_info_t> narInfo);
 
-  ref<const valid_path_info_t> addToStoreCommon(source_t& nar_source, RepairFlag repair,
-                                            CheckSigsFlag check_sigs,
-                                            std::function<valid_path_info_t(hash_result_t)> mkInfo);
+  ref<const valid_path_info_t>
+  addToStoreCommon(source_t& nar_source, RepairFlag repair, CheckSigsFlag check_sigs,
+                   std::function<valid_path_info_t(hash_result_t)> mkInfo);
 
   /**
    * Same as `getFSAccessor`, but with a more preceise return type.
@@ -147,23 +148,26 @@ private:
 public:
   bool isValidPathUncached(const store_path_t& path) override;
 
-  void
-  query_path_info_uncached(const store_path_t& path,
-                        Callback<std::shared_ptr<const valid_path_info_t>> callback) noexcept override;
+  void query_path_info_uncached(
+      const store_path_t& path,
+      Callback<std::shared_ptr<const valid_path_info_t>> callback) noexcept override;
 
   std::optional<store_path_t> queryPathFromHashPart(const std::string& hash_part) override;
 
   void add_to_store(const valid_path_info_t& info, source_t& nar_source, RepairFlag repair,
-                  CheckSigsFlag check_sigs) override;
+                    CheckSigsFlag check_sigs) override;
 
   store_path_t add_to_store_from_dump(source_t& dump, std::string_view name,
-                               file_serialisation_method_t dump_method, content_address_method_t hash_method,
-                               hash_algorithm_t hash_algo, const store_path_set_t& references,
-                               RepairFlag repair) override;
+                                      file_serialisation_method_t dump_method,
+                                      content_address_method_t hash_method,
+                                      hash_algorithm_t hash_algo,
+                                      const store_path_set_t& references,
+                                      RepairFlag repair) override;
 
-  store_path_t add_to_store(std::string_view name, const source_path_t& path, content_address_method_t method,
-                       hash_algorithm_t hash_algo, const store_path_set_t& references, path_filter_t& filter,
-                       RepairFlag repair) override;
+  store_path_t add_to_store(std::string_view name, const source_path_t& path,
+                            content_address_method_t method, hash_algorithm_t hash_algo,
+                            const store_path_set_t& references, path_filter_t& filter,
+                            RepairFlag repair) override;
 
   void register_drv_output(const realisation_t& info) override;
 
@@ -176,7 +180,7 @@ public:
   ref<source_accessor_t> getFSAccessor(bool require_valid_path = true) override;
 
   std::shared_ptr<source_accessor_t> getFSAccessor(const store_path_t&,
-                                                bool require_valid_path = true) override;
+                                                   bool require_valid_path = true) override;
 
   void addSignatures(const store_path_t& store_path, const string_set_t& sigs) override;
 

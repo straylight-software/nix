@@ -31,7 +31,7 @@ ref<store_t> open_store(StoreReference&& store_uri);
  * `StoreReference::parse`
  */
 ref<store_t> open_store(const std::string& uri,
-                     const StoreReference::Params& extra_params = StoreReference::Params());
+                        const StoreReference::Params& extra_params = StoreReference::Params());
 
 /**
  * Short-hand which opens the default store, according to global settings

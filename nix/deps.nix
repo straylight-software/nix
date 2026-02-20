@@ -10,23 +10,14 @@
 #
 { pkgs }:
 let
-  lib = pkgs.lib;
 
   # ════════════════════════════════════════════════════════════════════════════
   # Turing Registry - mandatory build flags
   # ════════════════════════════════════════════════════════════════════════════
-  isLinux = pkgs.stdenv.isLinux;
-  isX86 = pkgs.stdenv.hostPlatform.isx86_64;
-  turing-registry = import ./prelude/turing-registry.nix { inherit lib isLinux isX86; };
 
   # ════════════════════════════════════════════════════════════════════════════
   # Musl stdenv with turing registry flags
   # ════════════════════════════════════════════════════════════════════════════
-  musl-stdenv = pkgs.pkgsMusl.stdenv.override {
-    cc = pkgs.pkgsMusl.stdenv.cc.override {
-      # Apply turing flags via NIX_CFLAGS_COMPILE
-    };
-  };
 
   # NOTE: Turing flags are clang-specific (-fno-limit-debug-info, -fstandalone-debug)
   # pkgsStatic/pkgsMusl use GCC, so we can't apply turing flags here.
@@ -37,13 +28,6 @@ let
   with-musl-flags = drv: drv;
 
   # Helper to build with musl
-  musl-with-flags =
-    drv:
-    with-musl-flags (
-      drv.override {
-        stdenv = pkgs.pkgsMusl.stdenv;
-      }
-    );
 
   # ════════════════════════════════════════════════════════════════════════════
   # Custom packages not in nixpkgs
@@ -97,9 +81,7 @@ let
   # Default pkgsStatic.libarchive uses OpenSSL 3.x which has EVP_MAC_* API
   # that LibreSSL doesn't support. We override to use LibreSSL.
   libarchive-static = with-musl-flags (
-    pkgs.pkgsStatic.libarchive.override {
-      openssl = pkgs.pkgsStatic.libressl;
-    }
+    pkgs.pkgsStatic.libarchive.override { openssl = pkgs.pkgsStatic.libressl; }
   );
 
   # Static compression libs (transitive deps of libarchive)

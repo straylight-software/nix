@@ -75,7 +75,7 @@ struct store_dir_config_t {
    * Constructs a unique store path name.
    */
   store_path_t makeStorePath(std::string_view type, std::string_view hash,
-                          std::string_view name) const;
+                             std::string_view name) const;
   store_path_t makeStorePath(std::string_view type, const Hash& hash, std::string_view name) const;
 
   store_path_t makeOutputPath(std::string_view id, const Hash& hash, std::string_view name) const;
@@ -83,7 +83,7 @@ struct store_dir_config_t {
   store_path_t makeFixedOutputPath(std::string_view name, const FixedOutputInfo& info) const;
 
   store_path_t makeFixedOutputPathFromCA(std::string_view name,
-                                      const ContentAddressWithReferences& ca) const;
+                                         const ContentAddressWithReferences& ca) const;
 
   /**
    * Read-only variant of add_to_store(). It returns the store

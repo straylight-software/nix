@@ -22,7 +22,7 @@ struct UnkeyedNarInfo : virtual UnkeyedValidPathInfo {
   // auto operator <=>(const nar_info_t &) const = default;
 
   nlohmann::json to_json(const store_dir_config_t* store, bool includeImpureInfo,
-                        PathInfoJsonFormat format) const override;
+                         PathInfoJsonFormat format) const override;
   static UnkeyedNarInfo from_json(const store_dir_config_t* store, const nlohmann::json& json);
 };
 
@@ -47,11 +47,11 @@ struct nar_info_t : valid_path_info_t, UnkeyedNarInfo {
       : nar_info_t{valid_path_info_t{std::move(path), UnkeyedValidPathInfo{store, nar_hash}}} {}
 
   nar_info_t(std::string store_dir, store_path_t path, Hash nar_hash)
-      : nar_info_t{
-            valid_path_info_t{std::move(path), UnkeyedValidPathInfo{std::move(store_dir), nar_hash}}} {}
+      : nar_info_t{valid_path_info_t{std::move(path),
+                                     UnkeyedValidPathInfo{std::move(store_dir), nar_hash}}} {}
 
   static nar_info_t makeFromCA(const store_dir_config_t& store, std::string_view name,
-                            ContentAddressWithReferences ca, Hash nar_hash) {
+                               ContentAddressWithReferences ca, Hash nar_hash) {
     return valid_path_info_t::makeFromCA(store, std::move(name), std::move(ca), nar_hash);
   }
 

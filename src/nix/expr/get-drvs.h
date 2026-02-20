@@ -89,9 +89,10 @@ using PackageInfos = std::list<PackageInfo, traceable_allocator<PackageInfo>>;
  * If value `v` denotes a derivation, return a PackageInfo object
  * describing it. Otherwise return nothing.
  */
-std::optional<PackageInfo> get_derivation(eval_state_t& state, value_t& v, bool ignore_assertion_failures);
+std::optional<PackageInfo> get_derivation(eval_state_t& state, value_t& v,
+                                          bool ignore_assertion_failures);
 
-void get_derivations(eval_state_t& state, value_t& v, const std::string& path_prefix, bindings_t& auto_args,
-                    PackageInfos& drvs, bool ignore_assertion_failures);
+void get_derivations(eval_state_t& state, value_t& v, const std::string& path_prefix,
+                     bindings_t& auto_args, PackageInfos& drvs, bool ignore_assertion_failures);
 
 } // namespace nix

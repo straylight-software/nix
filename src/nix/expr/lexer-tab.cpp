@@ -3962,8 +3962,8 @@ static void require_experimental_feature(const experimental_feature_t& feature, 
   if (!experimental_feature_settings.is_enabled(feature))
     throw ParseError(error_info_t{
         .msg = hint_fmt_t("experimental Nix feature '%1%' is disabled; add "
-                       "'--extra-experimental-features %1%' to enable it",
-                       show_experimental_feature(feature)),
+                          "'--extra-experimental-features %1%' to enable it",
+                          show_experimental_feature(feature)),
         .pos = pos,
     });
 }
@@ -4602,7 +4602,8 @@ YY_DECL {
 #line 200 "lexer.l"
           {
             yylval->emplace<StringToken>(yytext, (size_t)yyleng, true);
-            force_no_null_byte(yylval->as<StringToken>(), [&]() { return state->positions[CUR_POS]; });
+            force_no_null_byte(yylval->as<StringToken>(),
+                               [&]() { return state->positions[CUR_POS]; });
             return IND_STR;
           }
           YY_BREAK

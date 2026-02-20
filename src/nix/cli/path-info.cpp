@@ -34,8 +34,8 @@ static uint64_t get_store_objects_total_size(store_t& store, const store_path_se
  * included.
  * @param format The JSON format version to use.
  */
-static json path_info_to_json(store_t& store, const store_path_set_t& store_paths, bool show_closure_size,
-                           PathInfoJsonFormat format) {
+static json path_info_to_json(store_t& store, const store_path_set_t& store_paths,
+                              bool show_closure_size, PathInfoJsonFormat format) {
   json::object_t json_all_objects = json::object();
 
   auto make_key = [&](const store_path_t& path) {
@@ -56,7 +56,8 @@ static json path_info_to_json(store_t& store, const store_path_set_t& store_path
       // know the name yet until we've read the NAR info.
       key = make_key(info->path);
 
-      json_object = info->to_json(format == PathInfoJsonFormat::V1 ? &store : nullptr, true, format);
+      json_object =
+          info->to_json(format == PathInfoJsonFormat::V1 ? &store : nullptr, true, format);
 
       /* Hack in the store dir for now. TODO update the data type
          instead. */

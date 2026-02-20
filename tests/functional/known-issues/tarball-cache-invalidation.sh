@@ -42,8 +42,8 @@ tar -czf "$testDir/serve/test.tar.gz" -C "$testDir/serve" content.txt
 
 # Start a simple HTTP server (if python3 available)
 if ! command -v python3 &>/dev/null; then
-    echo "SKIP: python3 not available for HTTP server"
-    exit 77
+  echo "SKIP: python3 not available for HTTP server"
+  exit 77
 fi
 
 # Start HTTP server in background
@@ -57,7 +57,7 @@ sleep 1
 
 # Cleanup function
 cleanup() {
-    kill $HTTP_PID 2>/dev/null || true
+  kill $HTTP_PID 2>/dev/null || true
 }
 trap cleanup EXIT
 
@@ -66,7 +66,7 @@ echo "HTTP server started on port 18888 (PID: $HTTP_PID)"
 # First fetch
 echo ""
 echo "--- First fetch (should get 'version 1') ---"
-FIRST_RESULT=$(nix eval --impure --raw --expr "builtins.readFile ((builtins.fetchTarball \"http://localhost:18888/test.tar.gz\") + \"/content.txt\")" 2>&1) || true
+FIRST_RESULT=$(nix eval --impure --raw --expr 'builtins.readFile ((builtins.fetchTarball "http://localhost:18888/test.tar.gz") + "/content.txt")' 2>&1) || true
 echo "Content: $FIRST_RESULT"
 
 # Update tarball content (same URL, different content)
@@ -79,13 +79,13 @@ echo "Tarball updated to 'version 2' at same URL"
 # Second fetch - should still return cached version 1
 echo ""
 echo "--- Second fetch (bug: returns cached 'version 1', should get 'version 2') ---"
-SECOND_RESULT=$(nix eval --impure --raw --expr "builtins.readFile ((builtins.fetchTarball \"http://localhost:18888/test.tar.gz\") + \"/content.txt\")" 2>&1) || true
+SECOND_RESULT=$(nix eval --impure --raw --expr 'builtins.readFile ((builtins.fetchTarball "http://localhost:18888/test.tar.gz") + "/content.txt")' 2>&1) || true
 echo "Content: $SECOND_RESULT"
 
 # Try with --refresh (should force re-fetch but may not work)
 echo ""
 echo "--- Third fetch with refresh flag ---"
-THIRD_RESULT=$(nix eval --refresh --impure --raw --expr "builtins.readFile ((builtins.fetchTarball \"http://localhost:18888/test.tar.gz\") + \"/content.txt\")" 2>&1) || true
+THIRD_RESULT=$(nix eval --refresh --impure --raw --expr 'builtins.readFile ((builtins.fetchTarball "http://localhost:18888/test.tar.gz") + "/content.txt")' 2>&1) || true
 echo "Content: $THIRD_RESULT"
 
 echo ""
@@ -93,19 +93,19 @@ echo "=== Results ==="
 
 # Check if we can ever get the new version
 GOT_NEW_VERSION=false
-if [[ "$SECOND_RESULT" == "version 2" ]] || [[ "$THIRD_RESULT" == "version 2" ]]; then
-    GOT_NEW_VERSION=true
+if [[ $SECOND_RESULT == "version 2" ]] || [[ $THIRD_RESULT == "version 2" ]]; then
+  GOT_NEW_VERSION=true
 fi
 
-if [[ "$GOT_NEW_VERSION" == "false" ]]; then
-    echo "KNOWN ISSUE REVEALED: Cannot invalidate tarball cache!"
-    echo "First fetch: '$FIRST_RESULT'"
-    echo "After update: '$SECOND_RESULT' (expected 'version 2')"
-    echo "With --refresh: '$THIRD_RESULT' (expected 'version 2')"
-    echo "See GitHub issue #9814"
-    exit 0 # Expected broken behavior
+if [[ $GOT_NEW_VERSION == "false" ]]; then
+  echo "KNOWN ISSUE REVEALED: Cannot invalidate tarball cache!"
+  echo "First fetch: '$FIRST_RESULT'"
+  echo "After update: '$SECOND_RESULT' (expected 'version 2')"
+  echo "With --refresh: '$THIRD_RESULT' (expected 'version 2')"
+  echo "See GitHub issue #9814"
+  exit 0 # Expected broken behavior
 else
-    echo "Cache was properly invalidated"
-    echo "If this passes consistently, the bug may be fixed!"
-    exit 0
+  echo "Cache was properly invalidated"
+  echo "If this passes consistently, the bug may be fixed!"
+  exit 0
 fi

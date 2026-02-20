@@ -24,7 +24,7 @@ struct DownloadFileResult {
 };
 
 DownloadFileResult download_file(store_t& store, const settings_t& settings, const std::string& url,
-                                const std::string& name, const headers_t& headers = {});
+                                 const std::string& name, const headers_t& headers = {});
 
 struct DownloadTarballResult {
   Hash tree_hash;
@@ -37,6 +37,7 @@ struct DownloadTarballResult {
  * Download and import a tarball into the git cache. The result is the
  * git tree hash of the root directory.
  */
-ref<source_accessor_t> download_tarball(store_t& store, const settings_t& settings, const std::string& url);
+ref<source_accessor_t> download_tarball(store_t& store, const settings_t& settings,
+                                        const std::string& url);
 
 } // namespace nix::fetchers

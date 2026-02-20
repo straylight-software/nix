@@ -10,7 +10,8 @@
 
 namespace nix {
 
-store_path_set_t scan_for_references(sink_t& to_tee, const Path& path, const store_path_set_t& refs);
+store_path_set_t scan_for_references(sink_t& to_tee, const Path& path,
+                                     const store_path_set_t& refs);
 
 class PathRefScanSink : public RefScanSink {
   std::map<std::string, store_path_t> backMap;
@@ -27,7 +28,7 @@ public:
  * Result of scanning a single file for references.
  */
 struct FileRefScanResult {
-  canon_path_t filePath;     ///< The file that was scanned
+  canon_path_t filePath;       ///< The file that was scanned
   store_path_set_t found_refs; ///< Which store paths were found in this file
 };
 
@@ -53,8 +54,8 @@ struct FileRefScanResult {
  * @param callback Called for each file that contains at least one reference
  */
 void scan_for_references_deep(source_accessor_t& accessor, const canon_path_t& root_path,
-                           const store_path_set_t& refs,
-                           std::function<void(FileRefScanResult)> callback);
+                              const store_path_set_t& refs,
+                              std::function<void(FileRefScanResult)> callback);
 
 /**
  * Scan a store path tree and return which references appear in which files.
@@ -71,7 +72,7 @@ void scan_for_references_deep(source_accessor_t& accessor, const canon_path_t& r
  * @return Map from file paths to the set of references found in each file
  */
 std::map<canon_path_t, store_path_set_t> scan_for_references_deep(source_accessor_t& accessor,
-                                                        const canon_path_t& root_path,
-                                                        const store_path_set_t& refs);
+                                                                  const canon_path_t& root_path,
+                                                                  const store_path_set_t& refs);
 
 } // namespace nix

@@ -4,8 +4,6 @@
 // Property-based testing with rapidcheck for concurrency correctness.
 
 // IMPORTANT: Catch2 v3 MUST be included BEFORE rapidcheck/catch.h
-#include <catch2/catch_test_macros.hpp>
-
 #include <atomic>
 #include <chrono>
 #include <cstddef>
@@ -18,6 +16,8 @@
 
 #include <rapidcheck.h>
 #include <rapidcheck/catch.h>
+
+#include <catch2/catch_test_macros.hpp>
 
 #include "../pool.h"
 

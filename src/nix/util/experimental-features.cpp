@@ -327,8 +327,8 @@ static_assert(
       for (auto [index, feature] : enumerate(xp_feature_details)) {
         if (index != (size_t)feature.tag) {
           return false;
-}
-}
+        }
+      }
       return true;
     }(),
     "array order does not match enum tag order");
@@ -339,14 +339,15 @@ static_assert(
  */
 std::set<std::string> stabilized_features{"flakes", "nix-command"};
 
-const std::optional<experimental_feature_t> parse_experimental_feature(const std::string_view& name) {
+const std::optional<experimental_feature_t>
+parse_experimental_feature(const std::string_view& name) {
   using reverse_xp_map_t = std::map<std::string_view, experimental_feature_t>;
 
   static std::unique_ptr<reverse_xp_map_t> reverse_xp_map = []() {
     auto reverse_xp_map = std::make_unique<reverse_xp_map_t>();
     for (auto& xp_feature : xp_feature_details) {
       (*reverse_xp_map)[xp_feature.name] = xp_feature.tag;
-}
+    }
     return reverse_xp_map;
   }();
 
@@ -354,7 +355,7 @@ const std::optional<experimental_feature_t> parse_experimental_feature(const std
     return *feature;
   } else {
     return std::nullopt;
-}
+  }
 }
 
 std::string_view show_experimental_feature(const experimental_feature_t tag) {
@@ -368,7 +369,7 @@ nlohmann::json document_experimental_features() {
     std::stringstream doc_oss;
     doc_oss << strip_indentation(xp_feature.description);
     doc_oss << fmt("\nRefer to [%1% tracking issue](%2%) for feature tracking.", xp_feature.name,
-                  xp_feature.tracking_url);
+                   xp_feature.tracking_url);
     res[std::string{xp_feature.name}] = trim(doc_oss.str());
   }
   return (nlohmann::json)res;
@@ -379,13 +380,13 @@ std::set<experimental_feature_t> parse_features(const string_set_t& raw_features
   for (auto& raw_feature : raw_features) {
     if (auto feature = parse_experimental_feature(raw_feature)) {
       res.insert(*feature);
-}
-}
+    }
+  }
   return res;
 }
 
 missing_experimental_feature_t::missing_experimental_feature_t(experimental_feature_t feature,
-                                                       std::string reason)
+                                                               std::string reason)
     : Error("experimental Nix feature '%1%' is disabled%2%; add '--extra-experimental-features "
             "%1%' to enable it",
             show_experimental_feature(feature), uncolored_t(optional_bracket(" (", reason, ")"))),
@@ -408,7 +409,7 @@ void from_json(const nlohmann::json& j, experimental_feature_t& feature) {
     feature = *parsed;
   } else {
     throw Error("Unknown experimental feature '%s' in JSON input", input);
-}
+  }
 }
 
 } // namespace nix

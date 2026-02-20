@@ -65,7 +65,7 @@ to match.
 */
 
 store_path_t store_dir_config_t::makeStorePath(std::string_view type, std::string_view hash,
-                                        std::string_view name) const {
+                                               std::string_view name) const {
   /* e.g., "source:sha256:1abc...:/nix/store:foo.tar.gz" */
   auto s = std::string(type) + ":" + std::string(hash) + ":" + store_dir + ":" + std::string(name);
   auto h = compress_hash(hash_string(hash_algorithm_t::SHA256, s), 20);
@@ -73,12 +73,12 @@ store_path_t store_dir_config_t::makeStorePath(std::string_view type, std::strin
 }
 
 store_path_t store_dir_config_t::makeStorePath(std::string_view type, const Hash& hash,
-                                        std::string_view name) const {
+                                               std::string_view name) const {
   return makeStorePath(type, hash.to_string(hash_format_t::base16, true), name);
 }
 
 store_path_t store_dir_config_t::makeOutputPath(std::string_view id, const Hash& hash,
-                                         std::string_view name) const {
+                                                std::string_view name) const {
   return makeStorePath("output:" + std::string{id}, hash, output_path_name(name, id));
 }
 
@@ -86,7 +86,7 @@ store_path_t store_dir_config_t::makeOutputPath(std::string_view id, const Hash&
    hacky, but we can't put them in, say, <s2> (per the grammar above)
    since that would be ambiguous. */
 static std::string make_type(const store_dir_config_t& store, std::string&& type,
-                            const store_references_t& references) {
+                             const store_references_t& references) {
   for (auto& i : references.others) {
     type += ":";
     type += store.printStorePath(i);
@@ -97,14 +97,16 @@ static std::string make_type(const store_dir_config_t& store, std::string&& type
 }
 
 store_path_t store_dir_config_t::makeFixedOutputPath(std::string_view name,
-                                              const FixedOutputInfo& info) const {
+                                                     const FixedOutputInfo& info) const {
   if (info.method == file_ingestion_method_t::git &&
-      !(info.hash.algo() == hash_algorithm_t::SHA1 || info.hash.algo() == hash_algorithm_t::SHA256)) {
+      !(info.hash.algo() == hash_algorithm_t::SHA1 ||
+        info.hash.algo() == hash_algorithm_t::SHA256)) {
     throw Error("Git file ingestion must use SHA-1 or SHA-256 hash, but instead using: %s",
                 print_hash_algo(info.hash.algo()));
   }
 
-  if (info.hash.algo() == hash_algorithm_t::SHA256 && info.method == file_ingestion_method_t::nix_archive) {
+  if (info.hash.algo() == hash_algorithm_t::SHA256 &&
+      info.method == file_ingestion_method_t::nix_archive) {
     return makeStorePath(make_type(*this, "source", info.references), info.hash, name);
   } else {
     if (!info.references.empty()) {
@@ -121,27 +123,27 @@ store_path_t store_dir_config_t::makeFixedOutputPath(std::string_view name,
   }
 }
 
-store_path_t store_dir_config_t::makeFixedOutputPathFromCA(std::string_view name,
-                                                    const ContentAddressWithReferences& ca) const {
+store_path_t
+store_dir_config_t::makeFixedOutputPathFromCA(std::string_view name,
+                                              const ContentAddressWithReferences& ca) const {
   // New template
   return std::visit(
       overloaded{[&](const TextInfo& ti) {
                    assert(ti.hash.algo() == hash_algorithm_t::SHA256);
                    return makeStorePath(make_type(*this, "text",
-                                                 store_references_t{
-                                                     .others = ti.references,
-                                                     .self = false,
-                                                 }),
+                                                  store_references_t{
+                                                      .others = ti.references,
+                                                      .self = false,
+                                                  }),
                                         ti.hash, name);
                  },
                  [&](const FixedOutputInfo& foi) { return makeFixedOutputPath(name, foi); }},
       ca.raw);
 }
 
-std::pair<store_path_t, Hash>
-store_dir_config_t::computeStorePath(std::string_view name, const source_path_t& path,
-                                 content_address_method_t method, hash_algorithm_t hash_algo,
-                                 const store_path_set_t& references, path_filter_t& filter) const {
+std::pair<store_path_t, Hash> store_dir_config_t::computeStorePath(
+    std::string_view name, const source_path_t& path, content_address_method_t method,
+    hash_algorithm_t hash_algo, const store_path_set_t& references, path_filter_t& filter) const {
   auto [h, size] = hash_path(path, method.getFileIngestionMethod(), hash_algo, filter);
   if (settings.warnLargePathThreshold && size && *size >= settings.warnLargePathThreshold)
     warn("hashed large path '%s' (%s)", path, render_size(*size));

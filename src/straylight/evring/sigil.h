@@ -83,7 +83,7 @@ using token_id = std::uint32_t;
 
 enum class parse_mode : std::uint8_t {
   text,       // Lean: | text
-  think,      // Lean: | think  
+  think,      // Lean: | think
   tool_call,  // Lean: | toolCall
   code_block, // Lean: | codeBlock
 };
@@ -94,11 +94,11 @@ enum class parse_mode : std::uint8_t {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 enum class ambiguity_reason : std::uint8_t {
-  unmatched_mode_end,  // Lean: | unmatchedModeEnd : ParseMode → AmbiguityReason
-  nested_mode_start,   // Lean: | nestedModeStart : ParseMode → ParseMode → AmbiguityReason
-  reserved_opcode,     // Lean: | reservedOpcode : UInt8 → AmbiguityReason
-  varint_overflow,     // Lean: | varintOverflow : AmbiguityReason
-  upstream_error,      // Lean: | upstreamError : String → AmbiguityReason
+  unmatched_mode_end, // Lean: | unmatchedModeEnd : ParseMode → AmbiguityReason
+  nested_mode_start,  // Lean: | nestedModeStart : ParseMode → ParseMode → AmbiguityReason
+  reserved_opcode,    // Lean: | reservedOpcode : UInt8 → AmbiguityReason
+  varint_overflow,    // Lean: | varintOverflow : AmbiguityReason
+  upstream_error,     // Lean: | upstreamError : String → AmbiguityReason
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -135,15 +135,9 @@ struct ambiguity_reset_content {
   std::uint8_t opcode;
 };
 
-using chunk_content = std::variant<
-  text_content,
-  think_content,
-  tool_call_content,
-  code_block_content,
-  stream_end_content,
-  decode_error_content,
-  ambiguity_reset_content
->;
+using chunk_content =
+    std::variant<text_content, think_content, tool_call_content, code_block_content,
+                 stream_end_content, decode_error_content, ambiguity_reset_content>;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Chunk
@@ -152,7 +146,7 @@ using chunk_content = std::variant<
 
 struct chunk {
   chunk_content content;
-  bool complete;  // Lean: complete : Bool  -- True if ends on semantic boundary
+  bool complete; // Lean: complete : Bool  -- True if ends on semantic boundary
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -173,9 +167,7 @@ struct parse_result {
 
   std::variant<ok_t, incomplete_t, ambiguous_t> data;
 
-  [[nodiscard]] auto is_ok() const noexcept -> bool {
-    return std::holds_alternative<ok_t>(data);
-  }
+  [[nodiscard]] auto is_ok() const noexcept -> bool { return std::holds_alternative<ok_t>(data); }
   [[nodiscard]] auto is_incomplete() const noexcept -> bool {
     return std::holds_alternative<incomplete_t>(data);
   }
@@ -221,11 +213,11 @@ struct parse_result {
     shift += 7;
     // Lean: else if shift >= 28 then .ambiguous .varintOverflow
     if (shift >= 35) {
-      return std::nullopt;  // Overflow
+      return std::nullopt; // Overflow
     }
   }
 
-  return std::nullopt;  // Incomplete
+  return std::nullopt; // Incomplete
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -234,27 +226,32 @@ struct parse_result {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 struct sigil_state {
-  parse_mode mode = parse_mode::text;       // Lean: parseMode : ParseMode
-  std::vector<token_id> buffer;             // Lean: buffer : List TokenId
-  std::vector<std::byte> leftover;          // Lean: leftover : Bytes
-  std::vector<chunk> chunks;                // Accumulated chunks
+  parse_mode mode = parse_mode::text; // Lean: parseMode : ParseMode
+  std::vector<token_id> buffer;       // Lean: buffer : List TokenId
+  std::vector<std::byte> leftover;    // Lean: leftover : Bytes
+  std::vector<chunk> chunks;          // Accumulated chunks
   bool stream_done = false;
 
   [[nodiscard]] auto is_done() const noexcept -> bool { return stream_done; }
 };
 
 /// Initial decode state (the unique ground state)
-/// Lean: def initDecodeState : DecodeState := { parseMode := .text, buffer := [], leftover := ByteArray.empty }
-[[nodiscard]] inline auto init_sigil_state() -> sigil_state { return sigil_state{}; }
+/// Lean: def initDecodeState : DecodeState := { parseMode := .text, buffer := [], leftover :=
+/// ByteArray.empty }
+[[nodiscard]] inline auto init_sigil_state() -> sigil_state {
+  return sigil_state{};
+}
 
 /// Reset to ground state, discarding any accumulated context
 /// Lean: def resetDecodeState (_s : DecodeState) : DecodeState := initDecodeState
-/// 
+///
 /// Proven properties (from Cornell.Sigil):
 ///   - reset_is_ground: ∀ s, resetDecodeState s = initDecodeState
 ///   - no_leakage: ∀ s₁ s₂, resetDecodeState s₁ = resetDecodeState s₂
 ///   - reset_idempotent: ∀ s, resetDecodeState (resetDecodeState s) = resetDecodeState s
-[[nodiscard]] inline auto reset_sigil_state() -> sigil_state { return sigil_state{}; }
+[[nodiscard]] inline auto reset_sigil_state() -> sigil_state {
+  return sigil_state{};
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Chunk building
@@ -266,18 +263,18 @@ struct sigil_state {
 
   // Lean: let content := match state.parseMode with
   switch (state.mode) {
-  case parse_mode::text:
-    content = text_content{state.buffer};
-    break;
-  case parse_mode::think:
-    content = think_content{state.buffer};
-    break;
-  case parse_mode::tool_call:
-    content = tool_call_content{state.buffer};
-    break;
-  case parse_mode::code_block:
-    content = code_block_content{state.buffer};
-    break;
+    case parse_mode::text:
+      content = text_content{state.buffer};
+      break;
+    case parse_mode::think:
+      content = think_content{state.buffer};
+      break;
+    case parse_mode::tool_call:
+      content = tool_call_content{state.buffer};
+      break;
+    case parse_mode::code_block:
+      content = code_block_content{state.buffer};
+      break;
   }
 
   return chunk{std::move(content), complete};
@@ -303,145 +300,152 @@ struct control_result {
 [[nodiscard]] inline auto handle_control_byte(sigil_state state, std::uint8_t opcode)
     -> control_result {
   switch (opcode) {
-  
-  // Lean: | .chunkEnd => let chunk := buildChunk state true
-  //                      ({ state with buffer := [] }, some chunk)
-  case op_chunk_end: {
-    auto emitted = build_chunk(state, true);
-    state.buffer.clear();
-    return {std::move(state), std::move(emitted), 1};
-  }
+    // Lean: | .chunkEnd => let chunk := buildChunk state true
+    //                      ({ state with buffer := [] }, some chunk)
+    case op_chunk_end: {
+      auto emitted = build_chunk(state, true);
+      state.buffer.clear();
+      return {std::move(state), std::move(emitted), 1};
+    }
 
-  // Lean: | .toolCallStart =>
-  //         match state.parseMode with
-  //         | .text => ... valid transition ...
-  //         | mode => ... AMBIGUITY: nested mode start ...
-  case op_tool_call_start: {
-    if (state.mode != parse_mode::text) {
-      auto reset = reset_sigil_state();
-      chunk amb{ambiguity_reset_content{ambiguity_reason::nested_mode_start, state.mode,
-                                        parse_mode::tool_call, opcode}, true};
-      return {std::move(reset), std::move(amb), 1};
+    // Lean: | .toolCallStart =>
+    //         match state.parseMode with
+    //         | .text => ... valid transition ...
+    //         | mode => ... AMBIGUITY: nested mode start ...
+    case op_tool_call_start: {
+      if (state.mode != parse_mode::text) {
+        auto reset = reset_sigil_state();
+        chunk amb{ambiguity_reset_content{ambiguity_reason::nested_mode_start, state.mode,
+                                          parse_mode::tool_call, opcode},
+                  true};
+        return {std::move(reset), std::move(amb), 1};
+      }
+      std::optional<chunk> pending;
+      if (!state.buffer.empty()) {
+        pending = build_chunk(state, false);
+      }
+      state.mode = parse_mode::tool_call;
+      state.buffer.clear();
+      return {std::move(state), std::move(pending), 1};
     }
-    std::optional<chunk> pending;
-    if (!state.buffer.empty()) {
-      pending = build_chunk(state, false);
-    }
-    state.mode = parse_mode::tool_call;
-    state.buffer.clear();
-    return {std::move(state), std::move(pending), 1};
-  }
 
-  // Lean: | .toolCallEnd =>
-  //         match state.parseMode with
-  //         | .toolCall => ... valid transition ...
-  //         | mode => ... AMBIGUITY: end without matching start ...
-  case op_tool_call_end: {
-    if (state.mode != parse_mode::tool_call) {
-      auto reset = reset_sigil_state();
-      chunk amb{ambiguity_reset_content{ambiguity_reason::unmatched_mode_end, state.mode,
-                                        parse_mode::tool_call, opcode}, true};
-      return {std::move(reset), std::move(amb), 1};
+    // Lean: | .toolCallEnd =>
+    //         match state.parseMode with
+    //         | .toolCall => ... valid transition ...
+    //         | mode => ... AMBIGUITY: end without matching start ...
+    case op_tool_call_end: {
+      if (state.mode != parse_mode::tool_call) {
+        auto reset = reset_sigil_state();
+        chunk amb{ambiguity_reset_content{ambiguity_reason::unmatched_mode_end, state.mode,
+                                          parse_mode::tool_call, opcode},
+                  true};
+        return {std::move(reset), std::move(amb), 1};
+      }
+      auto emitted = build_chunk(state, true);
+      state.mode = parse_mode::text;
+      state.buffer.clear();
+      return {std::move(state), std::move(emitted), 1};
     }
-    auto emitted = build_chunk(state, true);
-    state.mode = parse_mode::text;
-    state.buffer.clear();
-    return {std::move(state), std::move(emitted), 1};
-  }
 
-  case op_think_start: {
-    if (state.mode != parse_mode::text) {
-      auto reset = reset_sigil_state();
-      chunk amb{ambiguity_reset_content{ambiguity_reason::nested_mode_start, state.mode,
-                                        parse_mode::think, opcode}, true};
-      return {std::move(reset), std::move(amb), 1};
+    case op_think_start: {
+      if (state.mode != parse_mode::text) {
+        auto reset = reset_sigil_state();
+        chunk amb{ambiguity_reset_content{ambiguity_reason::nested_mode_start, state.mode,
+                                          parse_mode::think, opcode},
+                  true};
+        return {std::move(reset), std::move(amb), 1};
+      }
+      std::optional<chunk> pending;
+      if (!state.buffer.empty()) {
+        pending = build_chunk(state, false);
+      }
+      state.mode = parse_mode::think;
+      state.buffer.clear();
+      return {std::move(state), std::move(pending), 1};
     }
-    std::optional<chunk> pending;
-    if (!state.buffer.empty()) {
-      pending = build_chunk(state, false);
-    }
-    state.mode = parse_mode::think;
-    state.buffer.clear();
-    return {std::move(state), std::move(pending), 1};
-  }
 
-  case op_think_end: {
-    if (state.mode != parse_mode::think) {
-      auto reset = reset_sigil_state();
-      chunk amb{ambiguity_reset_content{ambiguity_reason::unmatched_mode_end, state.mode,
-                                        parse_mode::think, opcode}, true};
-      return {std::move(reset), std::move(amb), 1};
+    case op_think_end: {
+      if (state.mode != parse_mode::think) {
+        auto reset = reset_sigil_state();
+        chunk amb{ambiguity_reset_content{ambiguity_reason::unmatched_mode_end, state.mode,
+                                          parse_mode::think, opcode},
+                  true};
+        return {std::move(reset), std::move(amb), 1};
+      }
+      auto emitted = build_chunk(state, true);
+      state.mode = parse_mode::text;
+      state.buffer.clear();
+      return {std::move(state), std::move(emitted), 1};
     }
-    auto emitted = build_chunk(state, true);
-    state.mode = parse_mode::text;
-    state.buffer.clear();
-    return {std::move(state), std::move(emitted), 1};
-  }
 
-  case op_code_block_start: {
-    if (state.mode != parse_mode::text) {
-      auto reset = reset_sigil_state();
-      chunk amb{ambiguity_reset_content{ambiguity_reason::nested_mode_start, state.mode,
-                                        parse_mode::code_block, opcode}, true};
-      return {std::move(reset), std::move(amb), 1};
+    case op_code_block_start: {
+      if (state.mode != parse_mode::text) {
+        auto reset = reset_sigil_state();
+        chunk amb{ambiguity_reset_content{ambiguity_reason::nested_mode_start, state.mode,
+                                          parse_mode::code_block, opcode},
+                  true};
+        return {std::move(reset), std::move(amb), 1};
+      }
+      std::optional<chunk> pending;
+      if (!state.buffer.empty()) {
+        pending = build_chunk(state, false);
+      }
+      state.mode = parse_mode::code_block;
+      state.buffer.clear();
+      return {std::move(state), std::move(pending), 1};
     }
-    std::optional<chunk> pending;
-    if (!state.buffer.empty()) {
-      pending = build_chunk(state, false);
-    }
-    state.mode = parse_mode::code_block;
-    state.buffer.clear();
-    return {std::move(state), std::move(pending), 1};
-  }
 
-  case op_code_block_end: {
-    if (state.mode != parse_mode::code_block) {
-      auto reset = reset_sigil_state();
-      chunk amb{ambiguity_reset_content{ambiguity_reason::unmatched_mode_end, state.mode,
-                                        parse_mode::code_block, opcode}, true};
-      return {std::move(reset), std::move(amb), 1};
+    case op_code_block_end: {
+      if (state.mode != parse_mode::code_block) {
+        auto reset = reset_sigil_state();
+        chunk amb{ambiguity_reset_content{ambiguity_reason::unmatched_mode_end, state.mode,
+                                          parse_mode::code_block, opcode},
+                  true};
+        return {std::move(reset), std::move(amb), 1};
+      }
+      auto emitted = build_chunk(state, true);
+      state.mode = parse_mode::text;
+      state.buffer.clear();
+      return {std::move(state), std::move(emitted), 1};
     }
-    auto emitted = build_chunk(state, true);
-    state.mode = parse_mode::text;
-    state.buffer.clear();
-    return {std::move(state), std::move(emitted), 1};
-  }
 
-  // Lean: | .flush => let chunk := buildChunk state false
-  //                   ({ state with buffer := [] }, some chunk)
-  case op_flush: {
-    auto emitted = build_chunk(state, false);
-    state.buffer.clear();
-    return {std::move(state), std::move(emitted), 1};
-  }
-
-  // Lean: | .streamEnd => let chunk := if state.buffer.isEmpty 
-  //                         then { content := ChunkContent.streamEnd, complete := true }
-  //                         else buildChunk state true
-  //                       (initDecodeState, some chunk)
-  case op_stream_end: {
-    chunk emitted;
-    if (state.buffer.empty()) {
-      emitted = chunk{stream_end_content{}, true};
-    } else {
-      emitted = build_chunk(state, true);
+    // Lean: | .flush => let chunk := buildChunk state false
+    //                   ({ state with buffer := [] }, some chunk)
+    case op_flush: {
+      auto emitted = build_chunk(state, false);
+      state.buffer.clear();
+      return {std::move(state), std::move(emitted), 1};
     }
-    state = reset_sigil_state();
-    state.stream_done = true;
-    return {std::move(state), std::move(emitted), 1};
-  }
 
-  default:
-    // Lean: | .reserved code => let chunk := { content := ChunkContent.ambiguityReset (.reservedOpcode code), complete := true }
-    //                          (initDecodeState, some chunk)
-    if (is_reserved_control(opcode)) {
-      auto reset = reset_sigil_state();
-      chunk amb{ambiguity_reset_content{ambiguity_reason::reserved_opcode, state.mode,
-                                        parse_mode::text, opcode}, true};
-      return {std::move(reset), std::move(amb), 1};
+    // Lean: | .streamEnd => let chunk := if state.buffer.isEmpty
+    //                         then { content := ChunkContent.streamEnd, complete := true }
+    //                         else buildChunk state true
+    //                       (initDecodeState, some chunk)
+    case op_stream_end: {
+      chunk emitted;
+      if (state.buffer.empty()) {
+        emitted = chunk{stream_end_content{}, true};
+      } else {
+        emitted = build_chunk(state, true);
+      }
+      state = reset_sigil_state();
+      state.stream_done = true;
+      return {std::move(state), std::move(emitted), 1};
     }
-    // Unknown control outside reserved range, ignore
-    return {std::move(state), std::nullopt, 1};
+
+    default:
+      // Lean: | .reserved code => let chunk := { content := ChunkContent.ambiguityReset
+      // (.reservedOpcode code), complete := true }
+      //                          (initDecodeState, some chunk)
+      if (is_reserved_control(opcode)) {
+        auto reset = reset_sigil_state();
+        chunk amb{ambiguity_reset_content{ambiguity_reason::reserved_opcode, state.mode,
+                                          parse_mode::text, opcode},
+                  true};
+        return {std::move(reset), std::move(amb), 1};
+      }
+      // Unknown control outside reserved range, ignore
+      return {std::move(state), std::nullopt, 1};
   }
 }
 
@@ -478,7 +482,7 @@ struct byte_result {
   if (is_extended_byte(byte)) {
     auto varint_result = decode_varint(rest);
     if (!varint_result) {
-      return {std::move(state), std::nullopt, 0, true};  // Incomplete
+      return {std::move(state), std::nullopt, 0, true}; // Incomplete
     }
     auto [token, varint_len] = *varint_result;
     state.buffer.push_back(token);
@@ -568,4 +572,3 @@ static_assert(machine<sigil_machine>);
 
 
 } // namespace evring::sigil
-

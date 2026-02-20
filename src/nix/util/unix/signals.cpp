@@ -69,7 +69,7 @@ void unix::trigger_interrupt() {
         auto lb = ic_lock->callbacks.lower_bound(i);
         if (lb == ic_lock->callbacks.end()) {
           break;
-}
+        }
 
         callback = lb->second;
         i = lb->first + 1;
@@ -90,7 +90,7 @@ static bool saved_signal_mask_is_set = false;
 void unix::save_signal_mask() {
   if (sigprocmask(SIG_BLOCK, nullptr, &saved_signal_mask)) {
     throw sys_error_t("querying signal mask");
-}
+  }
 
   saved_signal_mask_is_set = true;
 }
@@ -109,7 +109,7 @@ void unix::start_signal_handler_thread() {
   sigaddset(&set, SIGWINCH);
   if (pthread_sigmask(SIG_BLOCK, &set, nullptr)) {
     throw sys_error_t("blocking signals");
-}
+  }
 
   std::thread(signal_handler_thread, set).detach();
 }
@@ -128,11 +128,11 @@ void unix::restore_signals() {
   //       I don't know what the larger unix ecosystem expects from us here.
   if (!saved_signal_mask_is_set) {
     return;
-}
+  }
 
   if (sigprocmask(SIG_SETMASK, &saved_signal_mask, nullptr)) {
     throw sys_error_t("restoring signals");
-}
+  }
 }
 
 /* RAII helper to automatically deregister a callback. */

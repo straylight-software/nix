@@ -46,9 +46,10 @@ strings_t to_envp(string_map_t env) {
   return env_strs;
 }
 
-void exec_program_in_store(ref<store_t> store, use_lookup_path_t use_lookup_path, const std::string& program,
-                        const strings_t& args, std::optional<std::string_view> system,
-                        std::optional<string_map_t> env) {
+void exec_program_in_store(ref<store_t> store, use_lookup_path_t use_lookup_path,
+                           const std::string& program, const strings_t& args,
+                           std::optional<std::string_view> system,
+                           std::optional<string_map_t> env) {
   logger->stop();
 
   char** envp;
@@ -80,7 +81,7 @@ void exec_program_in_store(ref<store_t> store, use_lookup_path_t use_lookup_path
 
   if (store->store_dir != store2->getRealStoreDir()) {
     strings_t helper_args = {chroot_helper_name, store->store_dir, store2->getRealStoreDir(),
-                          std::string(system.value_or("")), program};
+                             std::string(system.value_or("")), program};
     for (auto& arg : args)
       helper_args.push_back(arg);
 

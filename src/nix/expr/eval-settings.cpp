@@ -48,7 +48,8 @@ strings_t eval_settings_t::parseNixPath(const std::string& s) {
   return res;
 }
 
-eval_settings_t::eval_settings_t(bool& readOnlyMode, eval_settings_t::LookupPathHooks lookupPathHooks)
+eval_settings_t::eval_settings_t(bool& readOnlyMode,
+                                 eval_settings_t::LookupPathHooks lookupPathHooks)
     : readOnlyMode{readOnlyMode}, lookupPathHooks{lookupPathHooks} {
   auto var = get_env("NIX_ABORT_ON_WARN");
   if (var && (var == "1" || var == "yes" || var == "true"))

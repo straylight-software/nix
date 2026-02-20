@@ -805,7 +805,7 @@ ActiveBuild derivation_builder_impl_t::get_active_build() {
   return {
       .nix_pid = getpid(),
       .client_pid = std::nullopt, // FIXME
-      .clientUid = std::nullopt, // FIXME
+      .clientUid = std::nullopt,  // FIXME
       .main_pid = pid,
       .mainUser = UserInfo::fromUid(buildUser ? buildUser->getUID() : getuid()),
       .start_time = buildResult.start_time,
@@ -1397,8 +1397,8 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
     auto optSt = maybe_lstat(actualPath.c_str());
     if (!optSt)
       throw build_error_t(build_result_t::Failure::OutputRejected,
-                       "builder for '%s' failed to produce output path for output '%s' at '%s'",
-                       store.printStorePath(drv_path), output_name, actualPath);
+                          "builder for '%s' failed to produce output path for output '%s' at '%s'",
+                          store.printStorePath(drv_path), output_name, actualPath);
     struct stat& st = *optSt;
 
 #ifndef __CYGWIN__
@@ -1458,8 +1458,8 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
         auto* orifu = get(outputReferencesIfUnregistered, name);
         if (!orifu)
           throw build_error_t(build_result_t::Failure::OutputRejected,
-                           "no output reference for '%s' in build of '%s'", name,
-                           store.printStorePath(drv_path));
+                              "no output reference for '%s' in build of '%s'", name,
+                              store.printStorePath(drv_path));
         return std::visit(
             overloaded{
                 /* Since we'll use the already installed versions of these, we
@@ -1572,11 +1572,12 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
       return res;
     };
 
-    auto newInfoFromCA = [&](const derivation_output_t::CAFloating outputHash) -> valid_path_info_t {
+    auto newInfoFromCA =
+        [&](const derivation_output_t::CAFloating outputHash) -> valid_path_info_t {
       auto st = get(outputStats, output_name);
       if (!st)
         throw build_error_t(build_result_t::Failure::OutputRejected,
-                         "output path %1% without valid stats info", actualPath);
+                            "output path %1% without valid stats info", actualPath);
       if (outputHash.method.getFileIngestionMethod() == file_ingestion_method_t::flat) {
         /* The output path should be a regular file without execute permission. */
         if (!S_ISREG(st->st_mode) || (st->st_mode & S_IXUSR) != 0)

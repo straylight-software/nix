@@ -616,12 +616,12 @@ static void complete_path_(add_completions_t& completions_ref, std::string_view 
 }
 
 void args_t::complete_path(add_completions_t& completions_ref, size_t /*idx*/,
-                         std::string_view prefix) {
+                           std::string_view prefix) {
   complete_path_(completions_ref, prefix, false);
 }
 
 void args_t::complete_dir(add_completions_t& completions_ref, size_t /*idx*/,
-                        std::string_view prefix) {
+                          std::string_view prefix) {
   complete_path_(completions_ref, prefix, true);
 }
 

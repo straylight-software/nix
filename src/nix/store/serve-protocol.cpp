@@ -15,7 +15,7 @@ namespace nix {
 /* protocol-specific definitions */
 
 build_result_t ServeProto::Serialise<build_result_t>::read(const store_dir_config_t& store,
-                                                     ServeProto::ReadConn conn) {
+                                                           ServeProto::ReadConn conn) {
   build_result_t status;
   build_result_t::Success success;
   build_result_t::Failure failure;
@@ -44,7 +44,8 @@ build_result_t ServeProto::Serialise<build_result_t>::read(const store_dir_confi
 }
 
 void ServeProto::Serialise<build_result_t>::write(const store_dir_config_t& store,
-                                               ServeProto::WriteConn conn, const build_result_t& res) {
+                                                  ServeProto::WriteConn conn,
+                                                  const build_result_t& res) {
   /* The protocol predates the use of sum types (std::variant) to
      separate the success or failure cases. As such, it transits some
      success- or failure-only fields in both cases. This helper
@@ -75,8 +76,8 @@ void ServeProto::Serialise<build_result_t>::write(const store_dir_config_t& stor
              res.inner);
 }
 
-UnkeyedValidPathInfo ServeProto::Serialise<UnkeyedValidPathInfo>::read(const store_dir_config_t& store,
-                                                                       ReadConn conn) {
+UnkeyedValidPathInfo
+ServeProto::Serialise<UnkeyedValidPathInfo>::read(const store_dir_config_t& store, ReadConn conn) {
   /* Hash should be set below unless very old `nix-store --serve`.
      Caller should assert that it did set it. */
   UnkeyedValidPathInfo info{store, Hash::dummy};
@@ -100,7 +101,8 @@ UnkeyedValidPathInfo ServeProto::Serialise<UnkeyedValidPathInfo>::read(const sto
   return info;
 }
 
-void ServeProto::Serialise<UnkeyedValidPathInfo>::write(const store_dir_config_t& store, WriteConn conn,
+void ServeProto::Serialise<UnkeyedValidPathInfo>::write(const store_dir_config_t& store,
+                                                        WriteConn conn,
                                                         const UnkeyedValidPathInfo& info) {
   conn.to << (info.deriver ? store.printStorePath(*info.deriver) : "");
 
@@ -109,12 +111,13 @@ void ServeProto::Serialise<UnkeyedValidPathInfo>::write(const store_dir_config_t
   conn.to << info.nar_size // downloadSize, lie a little
           << info.nar_size;
   if (GET_PROTOCOL_MINOR(conn.version) >= 4)
-    conn.to << info.nar_hash.to_string(hash_format_t::nix32, true) << render_content_address(info.ca)
-            << info.sigs;
+    conn.to << info.nar_hash.to_string(hash_format_t::nix32, true)
+            << render_content_address(info.ca) << info.sigs;
 }
 
 ServeProto::BuildOptions
-ServeProto::Serialise<ServeProto::BuildOptions>::read(const store_dir_config_t& store, ReadConn conn) {
+ServeProto::Serialise<ServeProto::BuildOptions>::read(const store_dir_config_t& store,
+                                                      ReadConn conn) {
   BuildOptions options;
   options.max_silent_time = read_int(conn.from);
   options.buildTimeout = read_int(conn.from);

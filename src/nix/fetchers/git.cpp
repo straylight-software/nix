@@ -164,7 +164,7 @@ static const Hash null_rev{hash_algorithm_t::SHA1};
 
 struct git_input_scheme_t : input_scheme_t {
   std::optional<input_t> inputFromURL(const settings_t& settings, const parsed_url_t& url,
-                                    bool require_tree) const override {
+                                      bool require_tree) const override {
     if (url.scheme() != "git" && parse_url_scheme(url.scheme()).application() != "git")
       return {};
 
@@ -370,7 +370,7 @@ struct git_input_scheme_t : input_scheme_t {
   }
 
   std::optional<input_t> inputFromAttrs(const settings_t& settings,
-                                      const Attrs& attrs) const override {
+                                        const Attrs& attrs) const override {
     for (auto& [name, _] : attrs)
       if (name == "verifyCommit" || name == "keytype" || name == "publicKey" ||
           name == "publicKeys")
@@ -420,7 +420,7 @@ struct git_input_scheme_t : input_scheme_t {
   }
 
   input_t applyOverrides(const input_t& input, std::optional<std::string> ref,
-                       std::optional<Hash> rev) const override {
+                         std::optional<Hash> rev) const override {
     auto res(input);
     if (rev)
       res.attrs.insert_or_assign("rev", rev->git_rev());
@@ -742,12 +742,13 @@ struct git_input_scheme_t : input_scheme_t {
   }
 
   /**
-   * Get a `source_accessor_t` for the given git revision using Nix < 2.20 semantics, i.e. using `git
-   * archive` or `git checkout`.
+   * Get a `source_accessor_t` for the given git revision using Nix < 2.20 semantics, i.e. using
+   * `git archive` or `git checkout`.
    */
   ref<source_accessor_t> get_legacy_git_accessor(store_t& store, repo_info_t& repo_info,
-                                              const std::filesystem::path& repo_dir,
-                                              const Hash& rev, GitAccessorOptions& options) const {
+                                                 const std::filesystem::path& repo_dir,
+                                                 const Hash& rev,
+                                                 GitAccessorOptions& options) const {
     auto tmp_dir = create_temp_dir();
     auto_delete_t del_tmp_dir(tmp_dir, true);
 
@@ -791,9 +792,9 @@ struct git_input_scheme_t : input_scheme_t {
   }
 
   std::pair<ref<source_accessor_t>, input_t> get_accessor_from_commit(const settings_t& settings,
-                                                                 store_t& store,
-                                                                 repo_info_t& repo_info,
-                                                                 input_t&& input) const {
+                                                                      store_t& store,
+                                                                      repo_info_t& repo_info,
+                                                                      input_t&& input) const {
     assert(!repo_info.workdir_info.isDirty);
 
     auto orig_rev = input.getRev();
@@ -1032,9 +1033,9 @@ struct git_input_scheme_t : input_scheme_t {
   }
 
   std::pair<ref<source_accessor_t>, input_t> get_accessor_from_workdir(const settings_t& settings,
-                                                                  store_t& store,
-                                                                  repo_info_t& repo_info,
-                                                                  input_t&& input) const {
+                                                                       store_t& store,
+                                                                       repo_info_t& repo_info,
+                                                                       input_t&& input) const {
     auto repo_path = repo_info.get_path().value();
 
     if (get_submodules_attr(input))
@@ -1120,8 +1121,8 @@ struct git_input_scheme_t : input_scheme_t {
     return {accessor, std::move(input)};
   }
 
-  std::pair<ref<source_accessor_t>, input_t> get_accessor(const settings_t& settings, store_t& store,
-                                                     const input_t& _input) const override {
+  std::pair<ref<source_accessor_t>, input_t>
+  get_accessor(const settings_t& settings, store_t& store, const input_t& _input) const override {
     input_t input(_input);
 
     auto repo_info = get_repo_info(input);

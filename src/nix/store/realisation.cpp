@@ -27,14 +27,14 @@ std::string DrvOutput::to_string() const {
 }
 
 std::set<realisation_t> realisation_t::closure(store_t& store,
-                                           const std::set<realisation_t>& startOutputs) {
+                                               const std::set<realisation_t>& startOutputs) {
   std::set<realisation_t> res;
   realisation_t::closure(store, startOutputs, res);
   return res;
 }
 
 void realisation_t::closure(store_t& store, const std::set<realisation_t>& startOutputs,
-                          std::set<realisation_t>& res) {
+                            std::set<realisation_t>& res) {
   auto getDeps = [&](const realisation_t& current) -> std::set<realisation_t> {
     std::set<realisation_t> res;
     for (auto& [currentDep, _] : current.dependentRealisations) {

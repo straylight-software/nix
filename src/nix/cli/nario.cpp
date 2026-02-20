@@ -103,7 +103,7 @@ nlohmann::json list_nar(source_t& source) {
     }
 
     void create_regular_file(const canon_path_t& path,
-                           std::function<void(create_regular_file_sink_t&)> func) override {
+                             std::function<void(create_regular_file_sink_t&)> func) override {
       struct : create_regular_file_sink_t {
         bool executable = false;
         std::optional<uint64_t> size;
@@ -196,7 +196,8 @@ struct cmd_nario_list_t : command_t, MixJSON, mix_long_listing_t {
       std::optional<nlohmann::json> json;
       cmd_nario_list_t& cmd;
 
-      listing_store_t(ref<const config_t> config, cmd_nario_list_t& cmd) : store_t{*config}, cmd(cmd) {}
+      listing_store_t(ref<const config_t> config, cmd_nario_list_t& cmd)
+          : store_t{*config}, cmd(cmd) {}
 
       void query_path_info_uncached(
           const store_path_t& path,
@@ -211,7 +212,7 @@ struct cmd_nario_list_t : command_t, MixJSON, mix_long_listing_t {
       }
 
       void add_to_store(const valid_path_info_t& info, source_t& source, RepairFlag repair,
-                      CheckSigsFlag check_sigs) override {
+                        CheckSigsFlag check_sigs) override {
         std::optional<nlohmann::json> contents;
         if (cmd.list_contents)
           contents = list_nar(source);
@@ -226,20 +227,25 @@ struct cmd_nario_list_t : command_t, MixJSON, mix_long_listing_t {
           json->emplace(printStorePath(info.path), std::move(obj));
         } else {
           if (contents)
-            render_nar_listing(canon_path_t(printStorePath(info.path)), *contents, cmd.long_listing);
+            render_nar_listing(canon_path_t(printStorePath(info.path)), *contents,
+                               cmd.long_listing);
           else
             logger->cout(fmt("%s: %d bytes", printStorePath(info.path), info.nar_size));
         }
       }
 
       store_path_t add_to_store_from_dump(source_t& dump, std::string_view name,
-                                   file_serialisation_method_t dump_method,
-                                   content_address_method_t hash_method, hash_algorithm_t hash_algo,
-                                   const store_path_set_t& references, RepairFlag repair) override {
+                                          file_serialisation_method_t dump_method,
+                                          content_address_method_t hash_method,
+                                          hash_algorithm_t hash_algo,
+                                          const store_path_set_t& references,
+                                          RepairFlag repair) override {
         unsupported("addToStoreFromDump");
       }
 
-      void nar_from_path(const store_path_t& path, sink_t& sink) override { unsupported("narFromPath"); }
+      void nar_from_path(const store_path_t& path, sink_t& sink) override {
+        unsupported("narFromPath");
+      }
 
       void query_realisation_uncached(
           const DrvOutput&,
@@ -252,7 +258,7 @@ struct cmd_nario_list_t : command_t, MixJSON, mix_long_listing_t {
       }
 
       std::shared_ptr<source_accessor_t> getFSAccessor(const store_path_t& path,
-                                                    bool require_valid_path) override {
+                                                       bool require_valid_path) override {
         unsupported("getFSAccessor");
       }
 

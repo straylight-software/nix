@@ -131,7 +131,7 @@ struct mounted_ssh_store_t : virtual ssh_store, virtual local_fs_store {
   }
 
   std::shared_ptr<source_accessor_t> getFSAccessor(const store_path_t& path,
-                                                bool require_valid_path) override {
+                                                   bool require_valid_path) override {
     return local_fs_store::getFSAccessor(path, require_valid_path);
   }
 

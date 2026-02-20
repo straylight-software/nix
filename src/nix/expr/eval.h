@@ -208,12 +208,12 @@ struct DebugTrace {
 };
 
 struct StaticEvalSymbols {
-  symbol_t with, out_path, drv_path, type, meta, name, value, system, overrides, outputs, output_name,
-      ignore_nulls, file, line, column, functor, toString, right, wrong, structured_attrs, json,
-      allowedReferences, allowedRequisites, disallowedReferences, disallowedRequisites, max_size,
-      maxClosureSize, builder, args, content_addressed, impure, outputHash, outputHashAlgo,
-      outputHashMode, recurseForDerivations, description, self, epsilon, start_set, operator_, key,
-      path, prefix, outputSpecified;
+  symbol_t with, out_path, drv_path, type, meta, name, value, system, overrides, outputs,
+      output_name, ignore_nulls, file, line, column, functor, toString, right, wrong,
+      structured_attrs, json, allowedReferences, allowedRequisites, disallowedReferences,
+      disallowedRequisites, max_size, maxClosureSize, builder, args, content_addressed, impure,
+      outputHash, outputHashAlgo, outputHashMode, recurseForDerivations, description, self, epsilon,
+      start_set, operator_, key, path, prefix, outputSpecified;
 
   expr_t::AstSymbols exprSymbols;
 
@@ -457,9 +457,9 @@ private:
   /**
    * A cache from resolved paths to values.
    */
-  const ref<boost::concurrent_flat_map<source_path_t, value_t*, std::hash<source_path_t>,
-                                       std::equal_to<source_path_t>,
-                                       traceable_allocator<std::pair<const source_path_t, value_t*>>>>
+  const ref<boost::concurrent_flat_map<
+      source_path_t, value_t*, std::hash<source_path_t>, std::equal_to<source_path_t>,
+      traceable_allocator<std::pair<const source_path_t, value_t*>>>>
       fileEvalCache;
 
   /**
@@ -490,8 +490,8 @@ public:
    * `nix_string_realise`)
    */
   eval_state_t(const LookupPath& lookup_path, ref<store_t> store,
-            const fetchers::settings_t& fetch_settings, const eval_settings_t& settings,
-            std::shared_ptr<store_t> buildStore = nullptr);
+               const fetchers::settings_t& fetch_settings, const eval_settings_t& settings,
+               std::shared_ptr<store_t> buildStore = nullptr);
   ~eval_state_t();
 
   /**
@@ -552,20 +552,21 @@ public:
    * Mount an input on the Nix store.
    */
   store_path_t mountInput(fetchers::input_t& input, const fetchers::input_t& original_input,
-                       ref<source_accessor_t> accessor, bool require_lockable,
-                       bool forceNarHash = false);
+                          ref<source_accessor_t> accessor, bool require_lockable,
+                          bool forceNarHash = false);
 
   /**
    * Parse a Nix expression from the specified file.
    */
   expr_t* parseExprFromFile(const source_path_t& path);
-  expr_t* parseExprFromFile(const source_path_t& path, const std::shared_ptr<StaticEnv>& static_env);
+  expr_t* parseExprFromFile(const source_path_t& path,
+                            const std::shared_ptr<StaticEnv>& static_env);
 
   /**
    * Parse a Nix expression from the specified string.
    */
   expr_t* parseExprFromString(std::string s, const source_path_t& base_path,
-                            const std::shared_ptr<StaticEnv>& static_env);
+                              const std::shared_ptr<StaticEnv>& static_env);
   expr_t* parseExprFromString(std::string s, const source_path_t& base_path);
 
   expr_t* parseStdin();
@@ -647,7 +648,8 @@ public:
   void forceFunction(value_t& v, const pos_idx_t pos, std::string_view error_ctx);
   std::string_view forceString(value_t& v, const pos_idx_t pos, std::string_view error_ctx);
   std::string_view
-  forceString(value_t& v, NixStringContext& context, const pos_idx_t pos, std::string_view error_ctx,
+  forceString(value_t& v, NixStringContext& context, const pos_idx_t pos,
+              std::string_view error_ctx,
               const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
   std::string_view forceStringNoCtx(value_t& v, const pos_idx_t pos, std::string_view error_ctx);
 
@@ -720,7 +722,7 @@ public:
    * Like coerceToPath, but the result must be a store path.
    */
   store_path_t coerceToStorePath(const pos_idx_t pos, value_t& v, NixStringContext& context,
-                              std::string_view error_ctx);
+                                 std::string_view error_ctx);
 
   /**
    * Part of `coerceToSingleDerivedPath()` without any store IO which is exposed for unit testing
@@ -833,7 +835,7 @@ private:
   friend struct ExprLet;
 
   expr_t* parse(char* text, size_t length, pos_t::origin_t origin, const source_path_t& base_path,
-              const std::shared_ptr<StaticEnv>& static_env);
+                const std::shared_ptr<StaticEnv>& static_env);
 
   /**
    * Current Nix call stack depth, used with `max-call-depth`
@@ -920,7 +922,8 @@ public:
    * @param xp_settings Stop-gap to avoid globals during unit tests.
    */
   void mk_output_string(
-      value_t& value, const SingleDerivedPath::Built& b, std::optional<store_path_t> optStaticOutputPath,
+      value_t& value, const SingleDerivedPath::Built& b,
+      std::optional<store_path_t> optStaticOutputPath,
       const experimental_feature_settings_t& xp_settings = experimental_feature_settings);
 
   /**
@@ -963,7 +966,8 @@ public:
    * store path.
    */
   [[nodiscard]] string_map_t realiseContext(const NixStringContext& context,
-                                            store_path_set_t* maybePaths = nullptr, bool isIFD = true);
+                                            store_path_set_t* maybePaths = nullptr,
+                                            bool isIFD = true);
 
   /**
    * Realise the given string with context, and return the string with outputs instead of downstream

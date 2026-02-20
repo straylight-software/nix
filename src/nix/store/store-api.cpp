@@ -78,9 +78,9 @@ store_path_t store_t::followLinksToStorePath(std::string_view path) const {
 }
 
 store_path_t store_t::add_to_store(std::string_view name, const source_path_t& path,
-                              content_address_method_t method, hash_algorithm_t hash_algo,
-                              const store_path_set_t& references, path_filter_t& filter,
-                              RepairFlag repair) {
+                                   content_address_method_t method, hash_algorithm_t hash_algo,
+                                   const store_path_set_t& references, path_filter_t& filter,
+                                   RepairFlag repair) {
   file_serialisation_method_t fsm;
   switch (method.getFileIngestionMethod()) {
     case file_ingestion_method_t::flat:
@@ -114,7 +114,7 @@ store_path_t store_t::add_to_store(std::string_view name, const source_path_t& p
 }
 
 void store_t::addMultipleToStore(PathsSource&& paths_to_copy, activity_t& act, RepairFlag repair,
-                               CheckSigsFlag check_sigs) {
+                                 CheckSigsFlag check_sigs) {
   std::atomic<size_t> nrDone{0};
   std::atomic<size_t> nrFailed{0};
   std::atomic<uint64_t> nrRunning{0};
@@ -192,9 +192,9 @@ void store_t::addMultipleToStore(source_t& source, RepairFlag repair, CheckSigsF
     // FIXME we should not be using the worker protocol here, let
     // alone the worker protocol with a hard-coded version!
     auto info = WorkerProto::Serialise<valid_path_info_t>::read(*this, WorkerProto::ReadConn{
-                                                                       .from = source,
-                                                                       .version = 16,
-                                                                   });
+                                                                           .from = source,
+                                                                           .version = 16,
+                                                                       });
     info.ultimate = false;
     add_to_store(info, source, repair, check_sigs);
   }
@@ -224,9 +224,10 @@ digraph graphname {
 }
 */
 valid_path_info_t store_t::addToStoreSlow(std::string_view name, const source_path_t& src_path,
-                                    content_address_method_t method, hash_algorithm_t hash_algo,
-                                    const store_path_set_t& references,
-                                    std::optional<Hash> expectedCAHash) {
+                                          content_address_method_t method,
+                                          hash_algorithm_t hash_algo,
+                                          const store_path_set_t& references,
+                                          std::optional<Hash> expectedCAHash) {
   hash_sink_t narHashSink{hash_algorithm_t::SHA256};
   hash_sink_t caHashSink{hash_algo};
 
@@ -236,10 +237,10 @@ valid_path_info_t store_t::addToStoreSlow(std::string_view name, const source_pa
   regular_file_sink_t fileSink{caHashSink};
   tee_sink_t unusualHashTee{narHashSink, caHashSink};
 
-  auto& narSink =
-      method == content_address_method_t::raw_t::nix_archive && hash_algo != hash_algorithm_t::SHA256
-          ? static_cast<sink_t&>(unusualHashTee)
-          : narHashSink;
+  auto& narSink = method == content_address_method_t::raw_t::nix_archive &&
+                          hash_algo != hash_algorithm_t::SHA256
+                      ? static_cast<sink_t&>(unusualHashTee)
+                      : narHashSink;
 
   /* Functionally, this means that fileSource will yield the content of
      src_path. The fact that we use scratchpadSink as a temporary buffer here
@@ -265,27 +266,29 @@ valid_path_info_t store_t::addToStoreSlow(std::string_view name, const source_pa
      finish. */
   auto [nar_hash, nar_size] = narHashSink.finish();
 
-  auto hash =
-      method == content_address_method_t::raw_t::nix_archive && hash_algo == hash_algorithm_t::SHA256
-          ? nar_hash
-      : method == content_address_method_t::raw_t::git ? git::dump_hash(hash_algo, src_path).hash
-                                                   : caHashSink.finish().hash;
+  auto hash = method == content_address_method_t::raw_t::nix_archive &&
+                      hash_algo == hash_algorithm_t::SHA256
+                  ? nar_hash
+              : method == content_address_method_t::raw_t::git
+                  ? git::dump_hash(hash_algo, src_path).hash
+                  : caHashSink.finish().hash;
 
   if (expectedCAHash && expectedCAHash != hash)
     throw Error("hash mismatch for '%s'", src_path);
 
-  auto info =
-      valid_path_info_t::makeFromCA(*this, name,
-                                ContentAddressWithReferences::fromParts(method, hash,
-                                                                        {
-                                                                            .others = references,
-                                                                            .self = false,
-                                                                        }),
-                                nar_hash);
+  auto info = valid_path_info_t::makeFromCA(
+      *this, name,
+      ContentAddressWithReferences::fromParts(method, hash,
+                                              {
+                                                  .others = references,
+                                                  .self = false,
+                                              }),
+      nar_hash);
   info.nar_size = nar_size;
 
   if (!isValidPath(info.path)) {
-    auto source = sink_to_source([&](sink_t& scratchpadSink) { src_path.dump_path(scratchpadSink); });
+    auto source =
+        sink_to_source([&](sink_t& scratchpadSink) { src_path.dump_path(scratchpadSink); });
     add_to_store(info, *source);
   }
 
@@ -390,7 +393,7 @@ store_path_set_t store_t::queryDerivationOutputs(const store_path_t& path) {
 }
 
 void store_t::querySubstitutablePathInfos(const StorePathCAMap& paths,
-                                        SubstitutablePathInfos& infos) {
+                                          SubstitutablePathInfos& infos) {
   if (!settings.use_substitutes)
     return;
 
@@ -425,8 +428,8 @@ void store_t::querySubstitutablePathInfos(const StorePathCAMap& paths,
             !(info->isContentAddressed(*sub) && info->references.empty()))
           continue;
 
-        auto narInfo =
-            std::dynamic_pointer_cast<const nar_info_t>(std::shared_ptr<const valid_path_info_t>(info));
+        auto narInfo = std::dynamic_pointer_cast<const nar_info_t>(
+            std::shared_ptr<const valid_path_info_t>(info));
         infos.insert_or_assign(path.first, SubstitutablePathInfo{
                                                .deriver = info->deriver,
                                                .references = info->references,
@@ -504,7 +507,8 @@ ref<const valid_path_info_t> store_t::queryPathInfo(const store_path_t& store_pa
   return promise.get_future().get();
 }
 
-std::shared_ptr<const valid_path_info_t> store_t::maybeQueryPathInfo(const store_path_t& store_path) {
+std::shared_ptr<const valid_path_info_t>
+store_t::maybeQueryPathInfo(const store_path_t& store_path) {
   std::promise<std::shared_ptr<const valid_path_info_t>> promise;
 
   queryPathInfo(store_path, {[&](std::future<ref<const valid_path_info_t>> result) {
@@ -557,7 +561,7 @@ store_t::queryPathInfoFromClientCache(const store_path_t& store_path) {
 }
 
 void store_t::queryPathInfo(const store_path_t& store_path,
-                          Callback<ref<const valid_path_info_t>> callback) noexcept {
+                            Callback<ref<const valid_path_info_t>> callback) noexcept {
   auto hash_part = std::string(store_path.hash_part());
 
   try {
@@ -679,7 +683,8 @@ void store_t::substitutePaths(const store_path_set_t& paths) {
     }
 }
 
-store_path_set_t store_t::queryValidPaths(const store_path_set_t& paths, SubstituteFlag maybeSubstitute) {
+store_path_set_t store_t::queryValidPaths(const store_path_set_t& paths,
+                                          SubstituteFlag maybeSubstitute) {
   struct State {
     size_t left;
     store_path_set_t valid;
@@ -739,7 +744,7 @@ store_path_set_t store_t::queryValidPaths(const store_path_set_t& paths, Substit
    registers the specified paths as valid.  Note: it's the
    responsibility of the caller to provide a closure. */
 std::string store_t::makeValidityRegistration(const store_path_set_t& paths, bool showDerivers,
-                                            bool showHash) {
+                                              bool showHash) {
   std::string s = "";
 
   for (auto& i : paths) {
@@ -765,15 +770,15 @@ std::string store_t::makeValidityRegistration(const store_path_set_t& paths, boo
 }
 
 store_path_set_t store_t::exportReferences(const store_path_set_t& store_paths,
-                                     const store_path_set_t& inputPaths) {
+                                           const store_path_set_t& inputPaths) {
   store_path_set_t paths;
 
   for (auto& store_path : store_paths) {
     if (!inputPaths.count(store_path))
       throw build_error_t(build_result_t::Failure::InputRejected,
-                       "cannot export references of path '%s' because it is not in the input "
-                       "closure of the derivation",
-                       printStorePath(store_path));
+                          "cannot export references of path '%s' because it is not in the input "
+                          "closure of the derivation",
+                          printStorePath(store_path));
 
     computeFSClosure({store_path}, paths);
   }
@@ -807,7 +812,8 @@ const store_t::Stats& store_t::get_stats() {
   return stats;
 }
 
-static std::string make_copy_path_message(const store_config_t& src_cfg, const store_config_t& dst_cfg,
+static std::string make_copy_path_message(const store_config_t& src_cfg,
+                                          const store_config_t& dst_cfg,
                                           std::string_view store_path) {
   auto src = src_cfg.getReference();
   auto dst = dst_cfg.getReference();
@@ -891,8 +897,9 @@ void copy_store_path(store_t& src_store, store_t& dst_store, const store_path_t&
 }
 
 std::map<store_path_t, store_path_t> copy_paths(store_t& src_store, store_t& dst_store,
-                                          const RealisedPath::Set& paths, RepairFlag repair,
-                                          CheckSigsFlag check_sigs, SubstituteFlag substitute) {
+                                                const RealisedPath::Set& paths, RepairFlag repair,
+                                                CheckSigsFlag check_sigs,
+                                                SubstituteFlag substitute) {
   store_path_set_t store_paths;
   std::set<realisation_t> toplevelRealisations;
   for (auto& path : paths) {
@@ -938,8 +945,9 @@ std::map<store_path_t, store_path_t> copy_paths(store_t& src_store, store_t& dst
 }
 
 std::map<store_path_t, store_path_t> copy_paths(store_t& src_store, store_t& dst_store,
-                                          const store_path_set_t& store_paths, RepairFlag repair,
-                                          CheckSigsFlag check_sigs, SubstituteFlag substitute) {
+                                                const store_path_set_t& store_paths,
+                                                RepairFlag repair, CheckSigsFlag check_sigs,
+                                                SubstituteFlag substitute) {
   auto valid = dst_store.queryValidPaths(store_paths, substitute);
 
   store_path_set_t missing;
@@ -1037,7 +1045,7 @@ void copy_closure(store_t& src_store, store_t& dst_store, const store_path_set_t
 }
 
 std::optional<valid_path_info_t> decode_valid_path_info(const store_t& store, std::istream& str,
-                                                    std::optional<hash_result_t> hash_given) {
+                                                        std::optional<hash_result_t> hash_given) {
   std::string path;
   getline(str, path);
   if (str.eof()) {
@@ -1097,7 +1105,7 @@ derivation_t store_t::derivationFromPath(const store_path_t& drv_path) {
 }
 
 static derivation_t read_derivation_common(store_t& store, const store_path_t& drv_path,
-                                         bool require_valid_path) {
+                                           bool require_valid_path) {
   auto accessor = store.requireStoreObjectAccessor(drv_path, require_valid_path);
   try {
     return parse_derivation(store, accessor->read_file(canon_path_t::root),

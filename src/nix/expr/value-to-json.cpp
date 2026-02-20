@@ -44,7 +44,7 @@ static void parallel_force_deep(eval_state_t& state, value_t& v, pos_idx_t pos) 
 
 // TODO: rename. It doesn't print.
 json print_value_as_json(eval_state_t& state, bool strict, value_t& v, const pos_idx_t pos,
-                      NixStringContext& context, bool copy_to_store) {
+                         NixStringContext& context, bool copy_to_store) {
   if (strict && state.executor->enabled && !Executor::amWorkerThread)
     parallel_force_deep(state, v, pos);
 
@@ -99,7 +99,7 @@ json print_value_as_json(eval_state_t& state, bool strict, value_t& v, const pos
               recurse(j, *a->value, a->pos);
             } catch (Error& e) {
               e.add_trace(state.positions[a->pos],
-                         hint_fmt_t("while evaluating attribute '%1%'", state.symbols[a->name]));
+                          hint_fmt_t("while evaluating attribute '%1%'", state.symbols[a->name]));
               throw;
             }
           }
@@ -115,7 +115,7 @@ json print_value_as_json(eval_state_t& state, bool strict, value_t& v, const pos
             recurse(res.back(), *elem, pos);
           } catch (Error& e) {
             e.add_trace(state.positions[pos],
-                       hint_fmt_t("while evaluating list element at index %1%", i));
+                        hint_fmt_t("while evaluating list element at index %1%", i));
             throw;
           }
         }
@@ -147,8 +147,8 @@ json print_value_as_json(eval_state_t& state, bool strict, value_t& v, const pos
   return res;
 }
 
-void print_value_as_json(eval_state_t& state, bool strict, value_t& v, const pos_idx_t pos, std::ostream& str,
-                      NixStringContext& context, bool copy_to_store) {
+void print_value_as_json(eval_state_t& state, bool strict, value_t& v, const pos_idx_t pos,
+                         std::ostream& str, NixStringContext& context, bool copy_to_store) {
   try {
     str << print_value_as_json(state, strict, v, pos, context, copy_to_store);
   } catch (nlohmann::json::exception& e) {
@@ -156,8 +156,8 @@ void print_value_as_json(eval_state_t& state, bool strict, value_t& v, const pos
   }
 }
 
-json ExternalValueBase::print_value_as_json(eval_state_t& state, bool strict, NixStringContext& context,
-                                         bool copy_to_store) const {
+json ExternalValueBase::print_value_as_json(eval_state_t& state, bool strict,
+                                            NixStringContext& context, bool copy_to_store) const {
   state.error<TypeError>("cannot convert %1% to JSON", show_type()).debugThrow();
 }
 

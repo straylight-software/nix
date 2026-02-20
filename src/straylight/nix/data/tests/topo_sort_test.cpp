@@ -63,18 +63,16 @@ bool is_valid_topo_order(const std::vector<std::string>& sorted, const Graph& de
 
 TEST_CASE("topoSort empty input", "[topo_sort]") {
   std::vector<std::string> items;
-  auto result = topo::topoSort(items, [](const std::string&) {
-    return std::vector<std::string>{};
-  });
+  auto result =
+      topo::topoSort(items, [](const std::string&) { return std::vector<std::string>{}; });
   REQUIRE(result.has_value());
   REQUIRE(result->empty());
 }
 
 TEST_CASE("topoSort single item no deps", "[topo_sort]") {
   std::vector<std::string> items = {"a"};
-  auto result = topo::topoSort(items, [](const std::string&) {
-    return std::vector<std::string>{};
-  });
+  auto result =
+      topo::topoSort(items, [](const std::string&) { return std::vector<std::string>{}; });
   REQUIRE(result.has_value());
   REQUIRE(result->size() == 1);
   REQUIRE((*result)[0] == "a");
@@ -102,9 +100,8 @@ TEST_CASE("topoSort diamond dependency", "[topo_sort]") {
 
 TEST_CASE("topoSort independent items", "[topo_sort]") {
   std::vector<std::string> items = {"a", "b", "c"};
-  auto result = topo::topoSort(items, [](const std::string&) {
-    return std::vector<std::string>{};
-  });
+  auto result =
+      topo::topoSort(items, [](const std::string&) { return std::vector<std::string>{}; });
   REQUIRE(result.has_value());
   REQUIRE(result->size() == 3);
   std::set<std::string> result_set(result->begin(), result->end());
@@ -183,18 +180,16 @@ TEST_CASE("CycleError message with int type", "[topo_sort][cycle]") {
 
 TEST_CASE("topoSortParallel empty input", "[topo_sort][parallel]") {
   std::vector<std::string> items;
-  auto result = topo::topoSortParallel(items, [](const std::string&) {
-    return std::vector<std::string>{};
-  });
+  auto result =
+      topo::topoSortParallel(items, [](const std::string&) { return std::vector<std::string>{}; });
   REQUIRE(result.has_value());
   REQUIRE(result->empty());
 }
 
 TEST_CASE("topoSortParallel independent items in one level", "[topo_sort][parallel]") {
   std::vector<std::string> items = {"a", "b", "c"};
-  auto result = topo::topoSortParallel(items, [](const std::string&) {
-    return std::vector<std::string>{};
-  });
+  auto result =
+      topo::topoSortParallel(items, [](const std::string&) { return std::vector<std::string>{}; });
   REQUIRE(result.has_value());
   REQUIRE(result->size() == 1);
   REQUIRE((*result)[0].size() == 3);
@@ -247,9 +242,8 @@ TEST_CASE("topoSort output contains all input items", "[topo_sort][property]") {
     for (std::size_t i = 0; i < n; ++i) {
       items.push_back("item" + std::to_string(i));
     }
-    auto result = topo::topoSort(items, [](const std::string&) {
-      return std::vector<std::string>{};
-    });
+    auto result =
+        topo::topoSort(items, [](const std::string&) { return std::vector<std::string>{}; });
     RC_ASSERT(result.has_value());
     std::set<std::string> input_set(items.begin(), items.end());
     std::set<std::string> output_set(result->begin(), result->end());
@@ -327,9 +321,8 @@ TEST_CASE("topoSort large graph", "[topo_sort][stress]") {
 
 TEST_CASE("topoSort duplicate items in input", "[topo_sort]") {
   std::vector<std::string> items = {"a", "b", "a", "c", "b"};
-  auto result = topo::topoSort(items, [](const std::string&) {
-    return std::vector<std::string>{};
-  });
+  auto result =
+      topo::topoSort(items, [](const std::string&) { return std::vector<std::string>{}; });
   REQUIRE(result.has_value());
   REQUIRE(result->size() == 3);
   std::set<std::string> result_set(result->begin(), result->end());

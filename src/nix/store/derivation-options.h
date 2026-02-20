@@ -212,8 +212,8 @@ struct derivation_output_t;
  * ATerm).
  */
 derivation_options_t<SingleDerivedPath> derivation_options_from_structured_attrs(
-    const store_dir_config_t& store, const DerivedPathMap<string_set_t>& input_drvs, const string_map_t& env,
-    const StructuredAttrs* parsed, bool should_warn = true,
+    const store_dir_config_t& store, const DerivedPathMap<string_set_t>& input_drvs,
+    const string_map_t& env, const StructuredAttrs* parsed, bool should_warn = true,
     const experimental_feature_settings_t& mock_xp_settings = experimental_feature_settings);
 
 derivation_options_t<store_path_t> derivation_options_from_structured_attrs(
@@ -232,9 +232,9 @@ derivation_options_t<store_path_t> derivation_options_from_structured_attrs(
  */
 std::optional<derivation_options_t<store_path_t>>
 try_resolve(const derivation_options_t<SingleDerivedPath>& drv_options,
-           std::function<std::optional<store_path_t>(ref<const SingleDerivedPath> drv_path,
-                                                  const std::string& output_name)>
-               queryResolutionChain);
+            std::function<std::optional<store_path_t>(ref<const SingleDerivedPath> drv_path,
+                                                      const std::string& output_name)>
+                queryResolutionChain);
 
 }; // namespace nix
 

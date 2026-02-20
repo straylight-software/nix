@@ -112,10 +112,11 @@ public:
 };
 
 template <class T>
-using sync_t = sync_base_t<T, std::mutex, std::unique_lock<std::mutex>, std::unique_lock<std::mutex>>;
+using sync_t =
+    sync_base_t<T, std::mutex, std::unique_lock<std::mutex>, std::unique_lock<std::mutex>>;
 
 template <class T>
 using shared_sync_t = sync_base_t<T, std::shared_mutex, std::unique_lock<std::shared_mutex>,
-                            std::shared_lock<std::shared_mutex>>;
+                                  std::shared_lock<std::shared_mutex>>;
 
 } // namespace nix

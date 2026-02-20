@@ -10,7 +10,7 @@ namespace nix {
 struct LocalFSStoreConfig : virtual store_config_t {
 private:
   static optional_path_setting_t makeRootDirSetting(LocalFSStoreConfig& self,
-                                                std::optional<Path> default_value) {
+                                                    std::optional<Path> default_value) {
     return {
         &self,
         std::move(default_value),
@@ -47,20 +47,22 @@ private:
   static Path getDefaultLogDir();
 
 public:
-  path_setting_t stateDir{this, root_dir.get() ? *root_dir.get() + "/nix/var/nix" : getDefaultStateDir(),
-                       "state", "Directory where Nix stores state."};
+  path_setting_t stateDir{this,
+                          root_dir.get() ? *root_dir.get() + "/nix/var/nix" : getDefaultStateDir(),
+                          "state", "Directory where Nix stores state."};
 
-  path_setting_t logDir{this, root_dir.get() ? *root_dir.get() + "/nix/var/log/nix" : getDefaultLogDir(),
-                     "log", "directory where Nix stores log files."};
+  path_setting_t logDir{this,
+                        root_dir.get() ? *root_dir.get() + "/nix/var/log/nix" : getDefaultLogDir(),
+                        "log", "directory where Nix stores log files."};
 
-  path_setting_t real_store_dir{this, root_dir.get() ? *root_dir.get() + "/nix/store" : store_dir, "real",
-                           "Physical path of the Nix store."};
+  path_setting_t real_store_dir{this, root_dir.get() ? *root_dir.get() + "/nix/store" : store_dir,
+                                "real", "Physical path of the Nix store."};
 };
 
 struct alignas(8) /* Work around ASAN failures on i686-linux. */
     local_fs_store : virtual store_t,
-                   virtual GcStore,
-                   virtual LogStore {
+                     virtual GcStore,
+                     virtual LogStore {
   using config_t = LocalFSStoreConfig;
 
   const config_t& config;
@@ -73,7 +75,7 @@ struct alignas(8) /* Work around ASAN failures on i686-linux. */
 
   ref<source_accessor_t> getFSAccessor(bool require_valid_path = true) override;
   std::shared_ptr<source_accessor_t> getFSAccessor(const store_path_t& path,
-                                                bool require_valid_path = true) override;
+                                                   bool require_valid_path = true) override;
 
   /**
    * Creates symlink from the `gc_root` to the `store_path` and
