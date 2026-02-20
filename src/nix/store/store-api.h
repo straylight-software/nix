@@ -151,7 +151,7 @@ struct store_config_t : public StoreConfigBase, public store_dir_config_t {
     get_settings(queryParams, /*overridden_only=*/true);
     string_map_t res;
     for (const auto& [name, info] : queryParams)
-      res.insert({name, info.value});
+      res.insert({name, info.value_});
     return res;
   }
 

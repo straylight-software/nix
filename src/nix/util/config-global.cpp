@@ -47,7 +47,7 @@ std::string global_config_t::to_key_value() {
   std::map<std::string, config_t::setting_info_t> settings;
   global_config.get_settings(settings);
   for (const auto& s : settings) {
-    res += fmt("%s = %s\n", s.first, s.second.value);
+    res += fmt("%s = %s\n", s.first, s.second.value_);
   }
   return res;
 }

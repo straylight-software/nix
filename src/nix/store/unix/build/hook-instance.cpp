@@ -80,7 +80,7 @@ HookInstance::HookInstance() {
   std::map<std::string, config_t::setting_info_t> settings;
   global_config.get_settings(settings);
   for (auto& setting : settings)
-    sink << 1 << setting.first << setting.second.value;
+    sink << 1 << setting.first << setting.second.value_;
   sink << 0;
 }
 

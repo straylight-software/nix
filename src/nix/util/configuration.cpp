@@ -21,7 +21,7 @@ bool config_t::set(const std::string& name, const std::string& value) {
   if (i == settings_.end()) {
     if (has_prefix(name, "extra-")) {
       i = settings_.find(std::string(name, 6));
-      if (i == settings_.end() || !i->second.setting->is_appendable()) {
+      if (i == settings_.end() || !i->second.setting_->is_appendable()) {
         return false;
       }
       append = true;
@@ -29,8 +29,8 @@ bool config_t::set(const std::string& name, const std::string& value) {
       return false;
     }
   }
-  i->second.setting->set(value, append);
-  i->second.setting->overridden = true;
+  i->second.setting_->set(value, append);
+  i->second.setting_->overridden = true;
   return true;
 }
 
@@ -84,10 +84,10 @@ void abstract_config_t::reapply_unknown_settings() {
 void config_t::get_settings(std::map<std::string, setting_info_t>& res,
                             bool overridden_only) const {
   for (const auto& opt : settings_) {
-    if (!opt.second.is_alias && (!overridden_only || opt.second.setting->overridden) &&
-        experimental_feature_settings.is_enabled(opt.second.setting->experimental_feature)) {
-      res.emplace(opt.first,
-                  setting_info_t{opt.second.setting->to_string(), opt.second.setting->description});
+    if (!opt.second.is_alias_ && (!overridden_only || opt.second.setting_->overridden) &&
+        experimental_feature_settings.is_enabled(opt.second.setting_->experimental_feature)) {
+      res.emplace(opt.first, setting_info_t{opt.second.setting_->to_string(),
+                                            opt.second.setting_->description});
     }
   }
 }
@@ -196,15 +196,15 @@ void abstract_config_t::apply_config(const std::string& contents, const std::str
 
 void config_t::reset_overridden() {
   for (auto& s : settings_) {
-    s.second.setting->overridden = false;
+    s.second.setting_->overridden = false;
   }
 }
 
 nlohmann::json config_t::to_json() {
   auto res = nlohmann::json::object();
   for (const auto& s : settings_) {
-    if (!s.second.is_alias) {
-      res.emplace(s.first, s.second.setting->to_json());
+    if (!s.second.is_alias_) {
+      res.emplace(s.first, s.second.setting_->to_json());
     }
   }
   return res;
@@ -213,8 +213,8 @@ nlohmann::json config_t::to_json() {
 std::string config_t::to_key_value() {
   std::string res;
   for (const auto& s : settings_) {
-    if (s.second.is_alias) {
-      res += fmt("%s = %s\n", s.first, s.second.setting->to_string());
+    if (s.second.is_alias_) {
+      res += fmt("%s = %s\n", s.first, s.second.setting_->to_string());
     }
   }
   return res;
@@ -222,8 +222,8 @@ std::string config_t::to_key_value() {
 
 void config_t::convert_to_args(args_t& args, const std::string& category) {
   for (auto& s : settings_) {
-    if (!s.second.is_alias) {
-      s.second.setting->convert_to_arg(args, category);
+    if (!s.second.is_alias_) {
+      s.second.setting_->convert_to_arg(args, category);
     }
   }
 }

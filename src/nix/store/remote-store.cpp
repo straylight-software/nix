@@ -124,7 +124,7 @@ void remote_store::setOptions(Connection& conn) {
   overrides.erase("plugin-files");
   conn.to << overrides.size();
   for (auto& i : overrides)
-    conn.to << i.first << i.second.value;
+    conn.to << i.first << i.second.value_;
 
   auto ex = conn.processStderrReturn();
   if (ex)

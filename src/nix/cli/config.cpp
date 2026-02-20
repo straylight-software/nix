@@ -46,7 +46,7 @@ struct cmd_config_show_t : command_t, MixJSON {
       if (setting == settings.end()) {
         throw Error("could not find setting '%1%'", *name);
       } else {
-        const auto& value = setting->second.value;
+        const auto& value = setting->second.value_;
         logger->cout("%s", value);
       }
 

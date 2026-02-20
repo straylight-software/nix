@@ -61,8 +61,8 @@ public:
   [[nodiscard]] virtual auto set(const std::string& name, const std::string& value) -> bool = 0;
 
   struct setting_info_t {
-    std::string value;
-    std::string description;
+    std::string value_;
+    std::string description_;
   };
 
   /**
@@ -137,8 +137,8 @@ class config_t : public abstract_config_t {
 
 public:
   struct setting_data_t {
-    bool is_alias;
-    abstract_setting_t* setting;
+    bool is_alias_;
+    abstract_setting_t* setting_;
   };
 
   using settings_t = std::map<std::string, setting_data_t>;
