@@ -1166,14 +1166,24 @@ auto wasm_executor::format_value(nix_value v) const -> std::string {
     }
 
     case value_tag::list: {
-      auto count = get_payload(v);
-      ss << "[" << count << " elements]";
+      auto ptr = get_payload(v);
+      if (ptr == 0) {
+        ss << "[ ]";
+      } else {
+        auto count = ctx_.read_u32(ptr + mem::LIST_COUNT_OFFSET);
+        ss << "[" << count << " elements]";
+      }
       break;
     }
 
     case value_tag::attribute_set: {
-      auto count = get_payload(v);
-      ss << "{ " << count << " attrs }";
+      auto ptr = get_payload(v);
+      if (ptr == 0) {
+        ss << "{ }";
+      } else {
+        auto count = ctx_.read_u32(ptr + mem::ATTRSET_COUNT_OFFSET);
+        ss << "{ " << count << " attrs }";
+      }
       break;
     }
 
