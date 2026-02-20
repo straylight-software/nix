@@ -512,8 +512,10 @@ void wasm_executor::setup_linker(wasmtime::Linker& linker) {
                     std::int32_t count) -> wasmtime::Result<std::int64_t, wasmtime::Trap> {
                    try {
                      auto* ctx = get_ctx(caller);
-                     return rt_make_list(*ctx, static_cast<std::uint32_t>(offset),
-                                         static_cast<std::uint32_t>(count));
+                     auto result = rt_make_list(*ctx, static_cast<std::uint32_t>(offset),
+                                                static_cast<std::uint32_t>(count));
+                     sync_ctx_to_wasm(caller);
+                     return result;
                    } catch (const runtime_error& e) {
                      return wasmtime::Trap(e.what());
                    }
@@ -527,8 +529,10 @@ void wasm_executor::setup_linker(wasmtime::Linker& linker) {
                     std::int32_t count) -> wasmtime::Result<std::int64_t, wasmtime::Trap> {
                    try {
                      auto* ctx = get_ctx(caller);
-                     return rt_make_attrs(*ctx, static_cast<std::uint32_t>(offset),
-                                          static_cast<std::uint32_t>(count));
+                     auto result = rt_make_attrs(*ctx, static_cast<std::uint32_t>(offset),
+                                                 static_cast<std::uint32_t>(count));
+                     sync_ctx_to_wasm(caller);
+                     return result;
                    } catch (const runtime_error& e) {
                      return wasmtime::Trap(e.what());
                    }
@@ -542,8 +546,10 @@ void wasm_executor::setup_linker(wasmtime::Linker& linker) {
                     std::int32_t count) -> wasmtime::Result<std::int64_t, wasmtime::Trap> {
                    try {
                      auto* ctx = get_ctx(caller);
-                     return rt_make_attrs_dynamic(*ctx, static_cast<std::uint32_t>(offset),
-                                                  static_cast<std::uint32_t>(count));
+                     auto result = rt_make_attrs_dynamic(*ctx, static_cast<std::uint32_t>(offset),
+                                                         static_cast<std::uint32_t>(count));
+                     sync_ctx_to_wasm(caller);
+                     return result;
                    } catch (const runtime_error& e) {
                      return wasmtime::Trap(e.what());
                    }
@@ -616,7 +622,9 @@ void wasm_executor::setup_linker(wasmtime::Linker& linker) {
                     std::int64_t b) -> wasmtime::Result<std::int64_t, wasmtime::Trap> {
                    try {
                      auto* ctx = get_ctx(caller);
-                     return rt_update(*ctx, a, b);
+                     auto result = rt_update(*ctx, a, b);
+                     sync_ctx_to_wasm(caller);
+                     return result;
                    } catch (const runtime_error& e) {
                      return wasmtime::Trap(e.what());
                    }
@@ -630,7 +638,9 @@ void wasm_executor::setup_linker(wasmtime::Linker& linker) {
                     std::int64_t b) -> wasmtime::Result<std::int64_t, wasmtime::Trap> {
                    try {
                      auto* ctx = get_ctx(caller);
-                     return rt_concat(*ctx, a, b);
+                     auto result = rt_concat(*ctx, a, b);
+                     sync_ctx_to_wasm(caller);
+                     return result;
                    } catch (const runtime_error& e) {
                      return wasmtime::Trap(e.what());
                    }
@@ -644,7 +654,9 @@ void wasm_executor::setup_linker(wasmtime::Linker& linker) {
                     std::int64_t v) -> wasmtime::Result<std::int64_t, wasmtime::Trap> {
                    try {
                      auto* ctx = get_ctx(caller);
-                     return rt_to_string(*ctx, v);
+                     auto result = rt_to_string(*ctx, v);
+                     sync_ctx_to_wasm(caller);
+                     return result;
                    } catch (const runtime_error& e) {
                      return wasmtime::Trap(e.what());
                    }
@@ -658,8 +670,10 @@ void wasm_executor::setup_linker(wasmtime::Linker& linker) {
                     std::int32_t count) -> wasmtime::Result<std::int64_t, wasmtime::Trap> {
                    try {
                      auto* ctx = get_ctx(caller);
-                     return rt_concat_strings(*ctx, static_cast<std::uint32_t>(offset),
-                                              static_cast<std::uint32_t>(count));
+                     auto result = rt_concat_strings(*ctx, static_cast<std::uint32_t>(offset),
+                                                     static_cast<std::uint32_t>(count));
+                     sync_ctx_to_wasm(caller);
+                     return result;
                    } catch (const runtime_error& e) {
                      return wasmtime::Trap(e.what());
                    }
