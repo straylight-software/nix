@@ -164,7 +164,7 @@ cxx_library(
     ],
 )
 
-# CLI for evaluating Nix expressions
+# CLI for evaluating Nix expressions (tree-walking interpreter)
 cxx_binary(
     name = "nix_eval",
     srcs = ["cli/nix_eval.cpp"],
@@ -173,5 +173,46 @@ cxx_binary(
         ":ast",
         ":eval",
         ":parse",
+    ],
+)
+
+# CLI for evaluating Nix expressions via WASM
+cxx_binary(
+    name = "nix_wasm_eval",
+    srcs = ["cli/nix_wasm_eval.cpp"],
+    visibility = ["PUBLIC"],
+    compiler_flags = [
+        "-std=c++23",
+        "-isystem/nix/store/5csjs5zrln4x5y3wxy6pi42bh2816c1s-wasmtime-40.0.0/include",
+    ],
+    linker_flags = [
+        # Binaryen (for WASM compilation)
+        "-L/nix/store/4jp1vkr9gj5n3zbpp2xvkp8n3g56lpv0-binaryen-125/lib",
+        "-lbinaryen",
+        "-Wl,-rpath,/nix/store/4jp1vkr9gj5n3zbpp2xvkp8n3g56lpv0-binaryen-125/lib",
+        # Wasmtime (for WASM execution)
+        "-L/nix/store/c76a64xqlv5h3i94dzv221pia3pginp1-wasmtime-40.0.0-lib/lib",
+        "-lwasmtime",
+        "-Wl,-rpath,/nix/store/c76a64xqlv5h3i94dzv221pia3pginp1-wasmtime-40.0.0-lib/lib",
+        # Hash libraries (for builtins.hashString, etc.)
+        "-L/nix/store/nvzryxzj8yqbsws3a9inmpqs9xrl8v58-libblake3-1.8.2/lib",
+        "-lblake3",
+        "-Wl,-rpath,/nix/store/nvzryxzj8yqbsws3a9inmpqs9xrl8v58-libblake3-1.8.2/lib",
+        "-L/nix/store/61i74yjkj9p1qphfl7018ja4sdwkipx0-openssl-3.6.0/lib",
+        "-lcrypto",
+        "-Wl,-rpath,/nix/store/61i74yjkj9p1qphfl7018ja4sdwkipx0-openssl-3.6.0/lib",
+        # Boost (for parse)
+        "-L/nix/store/2izjh733byjickw9719nnkckxd63ghpm-boost-1.87.0/lib",
+        "-lboost_container",
+        "-Wl,-rpath,/nix/store/2izjh733byjickw9719nnkckxd63ghpm-boost-1.87.0/lib",
+    ],
+    deps = [
+        ":ast",
+        ":compile",
+        ":parse",
+        ":wasm_executor",
+        "//third_party:binaryen",
+        "//third_party:boost",
+        "//third_party:wasmtime",
     ],
 )
