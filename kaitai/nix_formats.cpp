@@ -243,7 +243,7 @@ auto parse_narinfo(std::string_view text) -> parse_result_t<narinfo_t> {
   bool has_nar_size = false;
   bool has_nar_hash = false;
 
-  std::istringstream stream(std::string(text));
+  std::istringstream stream{std::string{text}};
   std::string line;
 
   while (std::getline(stream, line)) {
