@@ -108,7 +108,9 @@ std::filesystem::path abs_path(const std::filesystem::path& path, const std::fil
 }
 
 Path canon_path(path_view_t path, bool resolve_symlinks) {
-  assert(path != "");
+  if (path.empty()) {
+    throw Error("cannot canonicalize empty path");
+  }
 
   if (!is_absolute(path)) {
     throw Error("not an absolute path: '%1%'", path);

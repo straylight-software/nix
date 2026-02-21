@@ -36,7 +36,9 @@ std::string base16::decode(std::string_view s) {
     throw FormatError("invalid character in Base16 string: '%c'", c);
   };
 
-  assert(s.size() % 2 == 0);
+  if (s.size() % 2 != 0) {
+    throw FormatError("Base16 string has odd length: %d", s.size());
+  }
   auto decoded_size = s.size() / 2;
 
   std::string res;

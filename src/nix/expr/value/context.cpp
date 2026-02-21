@@ -6,12 +6,21 @@
 
 namespace nix {
 
+// Maximum nesting depth for derived paths to prevent stack overflow
+// from malicious inputs (e.g., 100000 consecutive '!' characters)
+constexpr size_t max_derived_path_depth = 64;
+
 NixStringContextElem
 NixStringContextElem::parse(std::string_view s0,
                             const experimental_feature_settings_t& xp_settings) {
   std::string_view s = s0;
+  size_t depth = 0;
 
   auto parseRest = [&](this auto& parseRest) -> SingleDerivedPath {
+    if (++depth > max_derived_path_depth) {
+      throw BadNixStringContextElem(s0, "Derived path nesting depth exceeds limit");
+    }
+
     // Case on whether there is a '!'
     size_t index = s.find("!");
     if (index == std::string_view::npos) {
