@@ -1,6 +1,14 @@
 #pragma once
 ///@file
 
+// TODO[b7r6]: !! clean this up !!
+// This file needs full snake_case refactor:
+// - StoreCommand → store_command_t
+// - NixMultiCommand → nix_multi_command_t
+// - EvalCommand → eval_command_t
+// - etc.
+// The refactor was started but cli/ files also need updates to match.
+
 #include <optional>
 
 #include "nix/cmd/common-eval-args.h"
