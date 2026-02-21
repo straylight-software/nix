@@ -5,7 +5,7 @@ R"__NIX_STR(
 lockFileStr:
 
 # A mapping of lock file node IDs to { sourceInfo, subdir } attrsets,
-# with sourceInfo.out_path providing an source_accessor_t to a previously
+# with sourceInfo.outPath providing an source_accessor_t to a previously
 # fetched tree. This is necessary for possibly unlocked inputs, in
 # particular the root input, but also --override-inputs pointing to
 # unlocked trees.
@@ -60,17 +60,17 @@ let
         else
           # FIXME: remove obsolete node.info.
           # Note: lock file entries are always final.
-          builtins.fetch_tree (node.info or { } // removeAttrs node.locked [ "dir" ]);
+          builtins.fetchTree (node.info or { } // removeAttrs node.locked [ "dir" ]);
 
       subdir = overrides.${key}.dir or node.locked.dir or "";
 
-      out_path =
+      outPath =
         if !hasOverride && isRelative then
-          parentNode.out_path + (if node.locked.path == "" then "" else "/" + node.locked.path)
+          parentNode.outPath + (if node.locked.path == "" then "" else "/" + node.locked.path)
         else
-          sourceInfo.out_path + (if subdir == "" then "" else "/" + subdir);
+          sourceInfo.outPath + (if subdir == "" then "" else "/" + subdir);
 
-      flake = import (out_path + "/flake.nix");
+      flake = import (outPath + "/flake.nix");
 
       inputs = mapAttrs (inputName: inputSpec: allNodes.${resolveInput inputSpec}.result) (
         node.inputs or { }
@@ -81,14 +81,14 @@ let
       result =
         outputs
         # We add the sourceInfo attribute for its metadata, as they are
-        # relevant metadata for the flake. However, the out_path of the
-        # sourceInfo does not necessarily match the out_path of the flake,
+        # relevant metadata for the flake. However, the outPath of the
+        # sourceInfo does not necessarily match the outPath of the flake,
         # as the flake may be in a subdirectory of a source.
         # This is shadowed in the next //
         // sourceInfo
         // {
-          # This shadows the sourceInfo.out_path
-          inherit out_path;
+          # This shadows the sourceInfo.outPath
+          inherit outPath;
 
           inherit inputs;
           inherit outputs;
@@ -106,7 +106,7 @@ let
         else
           sourceInfo // { inherit sourceInfo outPath; };
 
-      inherit out_path sourceInfo;
+      inherit outPath sourceInfo;
     }
   ) lock_file.nodes;
 

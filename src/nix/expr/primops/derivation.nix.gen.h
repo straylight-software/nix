@@ -1,6 +1,6 @@
 R"__NIX_STR(
-# This is the implementation of the ‘derivation’ builtin function.
-# It's actually a wrapper around the ‘derivationStrict’ primop.
+# This is the implementation of the 'derivation' builtin function.
+# It's actually a wrapper around the 'derivationStrict' primop.
 # Note that the following comment will be shown in :doc in the repl, but not in the manual.
 
 /**
@@ -20,7 +20,7 @@ R"__NIX_STR(
     * When `nix-build` or a similar command is run, it realises the outputs that were requested on its command line.
       See https://nix.dev/manual/nix/2.23/command-ref/nix-build
 
-    * When `import`, `read_file`, `readDir` or some other functions are called, they have to realise the outputs they depend on.
+    * When `import`, `readFile`, `readDir` or some other functions are called, they have to realise the outputs they depend on.
       This is referred to as "import from derivation".
       See https://nix.dev/manual/nix/2.23/language/import-from-derivation
 
@@ -44,13 +44,13 @@ let
       inherit drvAttrs;
     };
 
-  outputToAttrListElement = output_name: {
-    name = output_name;
+  outputToAttrListElement = outputName: {
+    name = outputName;
     value = commonAttrs // {
-      out_path = builtins.get_attr output_name strict;
-      drv_path = strict.drv_path;
+      outPath = builtins.getAttr outputName strict;
+      drvPath = strict.drvPath;
       type = "derivation";
-      inherit output_name;
+      inherit outputName;
     };
   };
 

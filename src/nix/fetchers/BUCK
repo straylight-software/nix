@@ -37,6 +37,7 @@ cxx_library(
     ],
     header_namespace = "nix/fetchers",
     visibility = ["PUBLIC"],
+    link_whole = True,
     deps = [
         "//src/nix/util:util",
         "//src/nix/store:store",

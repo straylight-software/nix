@@ -1,6 +1,6 @@
 R"__NIX_STR(
 attrs@{
-  drv_path,
+  drvPath,
   outputs,
   name,
   ...
@@ -10,15 +10,15 @@ let
 
   commonAttrs = (builtins.listToAttrs outputsList) // {
     all = map (x: x.value) outputsList;
-    inherit drv_path name;
+    inherit drvPath name;
     type = "derivation";
   };
 
-  outputToAttrListElement = output_name: {
-    name = output_name;
+  outputToAttrListElement = outputName: {
+    name = outputName;
     value = commonAttrs // {
-      out_path = builtins.get_attr output_name attrs;
-      inherit output_name;
+      outPath = builtins.getAttr outputName attrs;
+      inherit outputName;
     };
   };
 

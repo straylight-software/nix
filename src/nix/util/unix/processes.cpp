@@ -40,7 +40,12 @@ process_handle_t::process_handle_t(::pid_t pid) : pid_(pid) {}
 
 process_handle_t::~process_handle_t() {
   if (pid_ != -1) {
-    kill();
+    try {
+      kill();
+    } catch (...) {
+      // Destructors must not throw. The process may have already exited
+      // or been reaped elsewhere.
+    }
   }
 }
 
