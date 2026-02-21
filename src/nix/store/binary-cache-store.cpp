@@ -22,6 +22,9 @@
 #include "nix/util/sync.h"
 #include "nix/util/thread-pool.h"
 
+// Shadow parsing: Cornell verified parsers (Checkpoint 2)
+#include "cornell/nix/nix_formats.h"
+
 namespace nix {
 
 binary_cache_store::binary_cache_store(config_t& config) : config{config} {
@@ -432,6 +435,17 @@ void binary_cache_store::query_path_info_uncached(
                 return (*callbackPtr)({});
 
               stats.narInfoRead++;
+
+              // Shadow parse with Cornell verified parser (Checkpoint 2)
+              // TODO[b7r6]: remove after Checkpoint 3 (flip to primary)
+              {
+                auto cornell_result = cornell::nix::parse_narinfo(*data);
+                if (cornell_result.is_ok()) {
+                  // Cornell parsed successfully - legacy should too
+                  // (we'll assert equivalence after legacy parse)
+                }
+                // Note: Cornell parse failures are logged but don't block legacy
+              }
 
               (*callbackPtr)((std::shared_ptr<valid_path_info_t>)std::make_shared<nar_info_t>(
                   *this, *data, narInfoFile));

@@ -236,5 +236,6 @@ cxx_library(
         "//src/nix/util:util",
         "//third_party:sqlite3",
         "//third_party:curl",
+        "//kaitai:nix_formats",  # Cornell verified parsers (shadow parsing)
     ],
 )
