@@ -31,7 +31,7 @@ nlohmann::json attrs_to_json(const Attrs& attrs) {
     } else if (auto v = std::get_if<std::string>(&attr.second)) {
       json[attr.first] = *v;
     } else if (auto v = std::get_if<explicit_t<bool>>(&attr.second)) {
-      json[attr.first] = v->t;
+      json[attr.first] = v->t_;
     } else
       unreachable();
   }
@@ -75,7 +75,7 @@ std::optional<bool> maybe_get_bool_attr(const Attrs& attrs, const std::string& n
   if (i == attrs.end())
     return {};
   if (auto v = std::get_if<explicit_t<bool>>(&i->second))
-    return v->t;
+    return v->t_;
   throw Error("input attribute '%s' is not a Boolean", name);
 }
 
@@ -94,7 +94,7 @@ string_map_t attrs_to_query(const Attrs& attrs) {
     } else if (auto v = std::get_if<std::string>(&attr.second)) {
       query.insert_or_assign(attr.first, *v);
     } else if (auto v = std::get_if<explicit_t<bool>>(&attr.second)) {
-      query.insert_or_assign(attr.first, v->t ? "1" : "0");
+      query.insert_or_assign(attr.first, v->t_ ? "1" : "0");
     } else
       unreachable();
   }

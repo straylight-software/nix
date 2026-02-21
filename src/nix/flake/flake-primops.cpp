@@ -90,7 +90,7 @@ static void prim_parse_flake_ref(eval_state_t& state, const pos_idx_t pos, value
     std::visit(
         overloaded{[&vv, &state](const std::string& value) { vv.mk_string(value, state.mem); },
                    [&vv](const uint64_t& value) { vv.mkInt(value); },
-                   [&vv](const explicit_t<bool>& value) { vv.mkBool(value.t); }},
+                   [&vv](const explicit_t<bool>& value) { vv.mkBool(value.t_); }},
         value);
   }
   v.mkAttrs(binds);

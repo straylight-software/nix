@@ -65,7 +65,7 @@ using headers_t = std::vector<std::pair<std::string, std::string>>;
  */
 template <typename T>
 struct on_startup_t {
-  on_startup_t(T&& t) { t(); }
+  on_startup_t(T&& val) { val(); }
 };
 
 /**
@@ -74,11 +74,11 @@ struct on_startup_t {
  */
 template <typename T>
 struct explicit_t {
-  T t;
+  T t_;
 
   [[nodiscard]] auto operator==(const explicit_t<T>& other) const -> bool = default;
 
-  [[nodiscard]] auto operator<(const explicit_t<T>& other) const -> bool { return t < other.t; }
+  [[nodiscard]] auto operator<(const explicit_t<T>& other) const -> bool { return t_ < other.t_; }
 };
 
 /**
@@ -93,25 +93,25 @@ struct explicit_t {
  */
 class backed_string_view_t {
 private:
-  std::variant<std::string, std::string_view> data_{};
+  std::variant<std::string, std::string_view> data_;
 
   /**
    * Needed to introduce a temporary since operator-> must return
    * a pointer. Without this we'd need to store the view object
    * even when we already own a string.
    */
-  class ptr {
+  class ptr_t {
   private:
-    std::string_view view_{};
+    std::string_view view_;
 
   public:
-    explicit ptr(std::string_view sv) : view_(sv) {}
+    explicit ptr_t(std::string_view sv) : view_(sv) {}
 
     [[nodiscard]] auto operator->() const -> const std::string_view* { return &view_; }
   };
 
 public:
-  backed_string_view_t(std::string&& s) : data_(std::move(s)) {}
+  backed_string_view_t(std::string&& str) : data_(std::move(str)) {}
 
   backed_string_view_t(std::string_view sv) : data_(sv) {}
 
@@ -139,7 +139,7 @@ public:
     return is_owned() ? std::get<std::string>(data_) : std::get<std::string_view>(data_);
   }
 
-  [[nodiscard]] auto operator->() const -> ptr { return ptr(**this); }
+  [[nodiscard]] auto operator->() const -> ptr_t { return ptr_t(**this); }
 };
 
 } // namespace nix

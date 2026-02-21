@@ -24,8 +24,8 @@ namespace nix {
 template <class F>
 inline auto format_helper(F& /*f*/) -> void {}
 
-template <class F, typename T, typename... args_t>
-inline auto format_helper(F& formatter, const T& arg, const args_t&... args) -> void {
+template <class F, typename T, typename... ArgsT>
+inline auto format_helper(F& formatter, const T& arg, const ArgsT&... args) -> void {
   // Interpolate one argument and then recurse.
   format_helper(formatter % arg, args...);
 }
@@ -72,8 +72,8 @@ inline auto fmt(const char* str) -> std::string {
   return str;
 }
 
-template <typename... args_t>
-inline auto fmt(const std::string& fs, const args_t&... args) -> std::string {
+template <typename... ArgsT>
+inline auto fmt(const std::string& fs, const ArgsT&... args) -> std::string {
   boost::format formatter(fs);
   set_exceptions(formatter);
   format_helper(formatter, args...);
@@ -89,14 +89,15 @@ inline auto fmt(const std::string& fs, const args_t&... args) -> std::string {
  */
 template <class T>
 struct magenta_t {
-  magenta_t(const T& val) : value(val) {}
+  magenta_t(const T& val) : value_(val) {}
 
-  const T& value;
+  // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
+  const T& value_;
 };
 
 template <class T>
 auto operator<<(std::ostream& out, const magenta_t<T>& arg) -> std::ostream& {
-  return out << ANSI_WARNING << arg.value << ANSI_NORMAL;
+  return out << ANSI_WARNING << arg.value_ << ANSI_NORMAL;
 }
 
 /**
@@ -108,23 +109,25 @@ auto operator<<(std::ostream& out, const magenta_t<T>& arg) -> std::ostream& {
  */
 template <class T>
 struct uncolored_t {
-  uncolored_t(const T& val) : value(val) {}
+  uncolored_t(const T& val) : value_(val) {}
 
-  const T& value;
+  // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
+  const T& value_;
 };
 
 template <class T>
 auto operator<<(std::ostream& out, const uncolored_t<T>& arg) -> std::ostream& {
-  return out << ANSI_NORMAL << arg.value;
+  return out << ANSI_NORMAL << arg.value_;
 }
 
 /**
  * A wrapper around `boost::format` which colors interpolated arguments in
  * magenta by default.
  */
+// NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 class hint_fmt_t {
 private:
-  boost::format fmt_{};
+  boost::format fmt_;
 
 public:
   /**
@@ -134,20 +137,20 @@ public:
   hint_fmt_t(const std::string& literal) : hint_fmt_t("%s", uncolored_t(literal)) {}
 
   static auto from_format_string(const std::string& format) -> hint_fmt_t {
-    return hint_fmt_t(boost::format(format));
+    return {boost::format(format)};
   }
 
   /**
    * Interpolate the given arguments into the format string.
    */
-  template <typename... args_t>
-  hint_fmt_t(const std::string& format, const args_t&... args)
+  template <typename... ArgsT>
+  hint_fmt_t(const std::string& format, const ArgsT&... args)
       : hint_fmt_t(boost::format(format), args...) {}
 
-  hint_fmt_t(const hint_fmt_t& hf) : fmt_(hf.fmt_) {}
+  hint_fmt_t(const hint_fmt_t& hf) = default;
 
-  template <typename... args_t>
-  hint_fmt_t(boost::format&& format, const args_t&... args) : fmt_(std::move(format)) {
+  template <typename... ArgsT>
+  hint_fmt_t(boost::format&& format, const ArgsT&... args) : fmt_(std::move(format)) {
     set_exceptions(fmt_);
     format_helper(*this, args...);
   }
@@ -160,7 +163,7 @@ public:
 
   template <class T>
   auto operator%(const uncolored_t<T>& value) -> hint_fmt_t& {
-    fmt_ % value.value;
+    fmt_ % value.value_;
     return *this;
   }
 
