@@ -182,6 +182,9 @@ cxx_library(
         "signature/signer.h",
         "unix/monitor-fd.h",
         "unix/signals-impl.h",
+
+        # A-team backend configuration
+        "backend-config.h",
     ],
 
     header_namespace = "nix/util",
