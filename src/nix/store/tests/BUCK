@@ -52,3 +52,51 @@ cxx_test(
     linker_flags = STORE_LINKER_FLAGS,
     link_style = "static",
 )
+
+# ─────────────────────────────────────────────────────────────────────────────
+# store path format tests - P0 store path compatibility with upstream nix
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_test(
+    name = "store-path-format_test",
+    srcs = ["store-path-format_test.cpp"],
+    deps = STORE_TEST_DEPS,
+    compiler_flags = STORE_TEST_COMPILER_FLAGS,
+    linker_flags = STORE_LINKER_FLAGS,
+    link_style = "static",
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# hash format compatibility tests - P0 hash format compatibility with upstream nix
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_test(
+    name = "hash-format_test",
+    srcs = ["hash-format_test.cpp"],
+    deps = STORE_TEST_DEPS,
+    compiler_flags = STORE_TEST_COMPILER_FLAGS,
+    linker_flags = STORE_LINKER_FLAGS,
+    link_style = "static",
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# narinfo format tests - binary cache interop compatibility
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_test(
+    name = "narinfo-format_test",
+    srcs = ["narinfo-format_test.cpp"],
+    deps = STORE_TEST_DEPS,
+    compiler_flags = STORE_TEST_COMPILER_FLAGS,
+    linker_flags = STORE_LINKER_FLAGS,
+    link_style = "static",
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# derivation format tests - ATerm derivation format compatibility
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_test(
+    name = "derivation-format_test",
+    srcs = ["derivation-format_test.cpp"],
+    deps = STORE_TEST_DEPS,
+    compiler_flags = STORE_TEST_COMPILER_FLAGS,
+    linker_flags = STORE_LINKER_FLAGS,
+    link_style = "static",
+)
