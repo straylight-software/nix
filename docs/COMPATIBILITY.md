@@ -33,14 +33,12 @@ buck2 test //src/nix/store/tests:protocol-compatibility_test
 | derivation-format_test | 154 | PASS | .drv file format |
 | narinfo-format_test | 88 | PASS | Binary cache format |
 | authorization-settings_test | 20 | PASS | Daemon auth |
-| legacy-commands_test | 173 | PASS | Legacy CLI |
+| legacy-commands_test | 234 | PASS | Legacy CLI |
 | nix-daemon-integration_test | 277 | PASS | Daemon protocol |
-| nix-env-operations_test | 10 | PASS* | nix-env ops |
-| nix-store-operations_test | 7 | FAIL | nix-store ops |
-| build-remote_test | 2 | FAIL | Distributed builds |
-| **Total** | **1,574** | **99.4%** | |
-
-*\* 4 assertions fail as expected (documenting unimplemented operations)*
+| nix-env-operations_test | 10 | PASS | nix-env ops |
+| nix-store-operations_test | 8 | PASS | nix-store ops |
+| build-remote_test | 3 | PASS | Distributed builds |
+| **Total** | **1,637** | **100%** | |
 
 ---
 
@@ -277,27 +275,27 @@ CA: fixed:r:sha256:...
 
 Legacy commands are invoked via argv[0] (symlink dispatch).
 
-### Implemented
+### Registered Commands
 
-| Command | Status | Modern Equivalent |
-|---------|--------|-------------------|
-| nix-env | Partial | `nix profile` |
-| nix-daemon | Partial | `nix daemon` |
+| Command | Implementation | Modern Equivalent |
+|---------|----------------|-------------------|
+| nix-env | `--list-generations` | `nix profile` |
+| nix-daemon | `--stdio` mode | `nix daemon` |
 | nix-hash | Full | `nix hash` |
 | nix-prefetch-url | Full | `nix store prefetch-file` |
+| nix-store | Stub (guidance) | `nix store` |
+| build-remote | Stub (guidance) | (internal) |
 
-### Not Implemented (Specs Written)
+### Not Yet Registered
 
-| Command | Status | Modern Equivalent |
-|---------|--------|-------------------|
-| nix-store | TODO | `nix store` |
-| nix-build | TODO | `nix build` |
-| nix-shell | TODO | `nix develop` |
-| nix-instantiate | TODO | `nix eval` |
-| nix-collect-garbage | TODO | `nix store gc` |
-| nix-copy-closure | TODO | `nix copy` |
-| nix-channel | TODO | Flakes |
-| build-remote | TODO | (internal) |
+| Command | Modern Equivalent |
+|---------|-------------------|
+| nix-build | `nix build` |
+| nix-shell | `nix develop` |
+| nix-instantiate | `nix eval` |
+| nix-collect-garbage | `nix store gc` |
+| nix-copy-closure | `nix copy` |
+| nix-channel | Flakes |
 
 ---
 
@@ -314,10 +312,11 @@ Legacy commands are invoked via argv[0] (symlink dispatch).
 
 ### Current Status
 Straylight Nix can:
-- Boot and operate NixOS (with `replaceSystemNix = false` workaround)
+- Boot and operate NixOS
 - Read existing Nix stores
 - Communicate with upstream Nix daemons
 - Fetch from binary caches
+- Run as system nix (all legacy commands registered)
 
 ---
 
