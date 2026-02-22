@@ -40,3 +40,15 @@ cxx_test(
     linker_flags = STORE_LINKER_FLAGS,
     link_style = "static",
 )
+
+# ─────────────────────────────────────────────────────────────────────────────
+# protocol compatibility tests - P0 worker protocol compatibility
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_test(
+    name = "protocol-compatibility_test",
+    srcs = ["protocol-compatibility_test.cpp"],
+    deps = STORE_TEST_DEPS,
+    compiler_flags = STORE_TEST_COMPILER_FLAGS,
+    linker_flags = STORE_LINKER_FLAGS,
+    link_style = "static",
+)

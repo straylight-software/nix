@@ -31,3 +31,53 @@ cxx_test(
     linker_flags = CLI_LINKER_FLAGS,
     link_style = "static",
 )
+
+# ─────────────────────────────────────────────────────────────────────────────
+# nix-store operations tests - store manipulation and query commands
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_test(
+    name = "nix-store-operations_test",
+    srcs = ["nix-store-operations_test.cpp"],
+    deps = CLI_TEST_DEPS,
+    compiler_flags = CLI_TEST_COMPILER_FLAGS,
+    linker_flags = CLI_LINKER_FLAGS,
+    link_style = "static",
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# build-remote tests - P0 distributed builds compatibility
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_test(
+    name = "build-remote_test",
+    srcs = ["build-remote_test.cpp"],
+    deps = CLI_TEST_DEPS,
+    compiler_flags = CLI_TEST_COMPILER_FLAGS,
+    linker_flags = CLI_LINKER_FLAGS,
+    link_style = "static",
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# nix-env operations tests - executable specification for required operations
+# Tests for unimplemented operations are expected to FAIL (test-first development)
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_test(
+    name = "nix-env-operations_test",
+    srcs = ["nix-env-operations_test.cpp"],
+    deps = CLI_TEST_DEPS,
+    compiler_flags = CLI_TEST_COMPILER_FLAGS,
+    linker_flags = CLI_LINKER_FLAGS,
+    link_style = "static",
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# nix-daemon integration tests - NixOS multi-user mode compatibility
+# Tests daemon registration, protocol constants, and documents missing features
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_test(
+    name = "nix-daemon-integration_test",
+    srcs = ["nix-daemon-integration_test.cpp"],
+    deps = CLI_TEST_DEPS,
+    compiler_flags = CLI_TEST_COMPILER_FLAGS,
+    linker_flags = CLI_LINKER_FLAGS,
+    link_style = "static",
+)
