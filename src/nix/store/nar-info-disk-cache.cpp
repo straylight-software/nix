@@ -18,37 +18,37 @@ create table if not exists BinaryCaches (
     id        integer primary key autoincrement not null,
     url       text unique not null,
     timestamp integer not null,
-    store_dir  text not null,
-    want_mass_query integer not null,
+    storeDir  text not null,
+    wantMassQuery integer not null,
     priority  integer not null
 );
 
 create table if not exists NARs (
     cache            integer not null,
-    hash_part         text not null,
-    name_part         text,
+    hashPart         text not null,
+    namePart         text,
     url              text,
     compression      text,
     fileHash         text,
-    file_size         integer,
-    nar_hash          text,
-    nar_size          integer,
+    fileSize         integer,
+    narHash          text,
+    narSize          integer,
     refs             text,
     deriver          text,
     sigs             text,
     ca               text,
     timestamp        integer not null,
     present          integer not null,
-    primary key (cache, hash_part),
+    primary key (cache, hashPart),
     foreign key (cache) references BinaryCaches(id) on delete cascade
 );
 
 create table if not exists Realisations (
     cache integer not null,
-    output_id text not null,
+    outputId text not null,
     content blob, -- Json serialisation of the realisation, or null if the realisation is absent
     timestamp        integer not null,
-    primary key (cache, output_id),
+    primary key (cache, outputId),
     foreign key (cache) references BinaryCaches(id) on delete cascade
 );
 
@@ -118,20 +118,20 @@ public:
 
     state->insert_realisation.create(state->db,
                                      R"(
-                insert or replace into Realisations(cache, output_id, content, timestamp)
+                insert or replace into Realisations(cache, outputId, content, timestamp)
                     values (?, ?, ?, ?)
             )");
 
     state->insert_missing_realisation.create(state->db,
                                              R"(
-                insert or replace into Realisations(cache, output_id, timestamp)
+                insert or replace into Realisations(cache, outputId, timestamp)
                     values (?, ?, ?)
             )");
 
     state->query_realisation.create(state->db,
                                     R"(
                 select content from Realisations
-                    where cache = ? and output_id = ?  and
+                    where cache = ? and outputId = ?  and
                         ((content is null and timestamp > ?) or
                          (content is not null and timestamp > ?))
             )");

@@ -8,14 +8,14 @@ R"sql(
 
 create table if not exists Realisations (
     id integer primary key autoincrement not null,
-    drv_path text not null,
-    output_name text not null, -- symbolic output id, usually "out"
-    output_path integer not null,
+    drvPath text not null,
+    outputName text not null, -- symbolic output id, usually "out"
+    outputPath integer not null,
     signatures text, -- space-separated list
-    foreign key (output_path) references ValidPaths(id) on delete cascade
+    foreign key (outputPath) references ValidPaths(id) on delete cascade
 );
 
-create index if not exists IndexRealisations on Realisations(drv_path, output_name);
+create index if not exists IndexRealisations on Realisations(drvPath, outputName);
 
 -- We can end-up in a weird edge-case where a path depends on itself because
 -- it’s an output of a CA derivation, that happens to be the same as one of its
@@ -26,7 +26,7 @@ create index if not exists IndexRealisations on Realisations(drv_path, output_na
 create trigger if not exists DeleteSelfRefsViaRealisations before delete on ValidPaths
   begin
     delete from RealisationsRefs where realisationReference in (
-      select id from Realisations where output_path = old.id
+      select id from Realisations where outputPath = old.id
     );
   end;
 
@@ -42,5 +42,5 @@ create index if not exists IndexRealisationsRefsRealisationReference on Realisat
 -- used by QueryRealisationReferences
 create index if not exists IndexRealisationsRefs on RealisationsRefs(referrer);
 -- used by cascade deletion when ValidPaths is deleted
-create index if not exists IndexRealisationsRefsOnOutputPath on Realisations(output_path);
+create index if not exists IndexRealisationsRefsOnOutputPath on Realisations(outputPath);
 )sql"
