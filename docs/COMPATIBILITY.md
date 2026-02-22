@@ -36,9 +36,9 @@ buck2 test //src/nix/store/tests:protocol-compatibility_test
 | legacy-commands_test | 234 | PASS | Legacy CLI |
 | nix-daemon-integration_test | 277 | PASS | Daemon protocol |
 | nix-env-operations_test | 10 | PASS | nix-env ops |
-| nix-store-operations_test | 8 | PASS | nix-store ops |
+| nix-store-operations_test | 24 | PASS | nix-store ops |
 | build-remote_test | 3 | PASS | Distributed builds |
-| **Total** | **1,637** | **100%** | |
+| **Total** | **1,653** | **100%** | |
 
 ---
 
@@ -283,8 +283,47 @@ Legacy commands are invoked via argv[0] (symlink dispatch).
 | nix-daemon | `--stdio` mode | `nix daemon` |
 | nix-hash | Full | `nix hash` |
 | nix-prefetch-url | Full | `nix store prefetch-file` |
-| nix-store | Stub (guidance) | `nix store` |
-| build-remote | Stub (guidance) | (internal) |
+| nix-store | Full | `nix store` |
+| build-remote | Full | (internal) |
+
+### nix-store Operations
+
+| Operation | Status | Implementation |
+|-----------|--------|----------------|
+| `--query / -q` | Full | `computeFSClosure()`, `queryPathInfo()`, `query_referrers()` |
+| `--requisites / -R` | Full | Closure computation via `computeFSClosure()` |
+| `--references` | Full | Direct references via `queryPathInfo()->references` |
+| `--referrers` | Full | Incoming refs via `query_referrers()` |
+| `--deriver / -d` | Full | `queryPathInfo()->deriver` |
+| `--outputs` | Full | `queryPartialDerivationOutputMap()` |
+| `--hash` | Full | `queryPathInfo()->nar_hash` in SRI format |
+| `--size` | Full | `queryPathInfo()->nar_size` |
+| `--valid-derivers` | Full | `queryValidDerivers()` |
+| `--roots` | Full | GC roots via `findRoots()` |
+| `--realise / -r` | Full | `build_paths_with_results()` |
+| `--gc` | Full | `collectGarbage()` with print-dead/print-live/max-freed |
+| `--delete` | Full | `collectGarbage()` with `gcDeleteSpecific` |
+| `--dump` | Full | `nar_from_path()` to stdout |
+| `--restore` | Full | `restore_path()` from stdin |
+| `--verify` | Full | `verifyStore()` with check-contents/repair |
+| `--optimise` | Full | `optimiseStore()` |
+| `--print-roots` | Full | `findRoots()` |
+| `--add` | Full | `add_to_store()` |
+| `--export` | Stub | Not yet implemented |
+| `--import` | Stub | Not yet implemented |
+| `--read-log` | Stub | Not yet implemented |
+
+### build-remote Operations
+
+| Operation | Status | Implementation |
+|-----------|--------|----------------|
+| Parse machine config | Full | `get_machines()`, `Machine::parseConfig()` |
+| Select machine | Full | Check system, features, mandatory features |
+| Connect to remote | Full | `Machine::open_store()` |
+| Copy inputs | Full | `copy_closure()` |
+| Remote build | Full | `buildDerivation()` |
+| Copy outputs | Full | `copy_closure()` |
+| Protocol handling | Full | CommonProto serialization, hook protocol |
 
 ### Not Yet Registered
 
