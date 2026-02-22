@@ -100,3 +100,91 @@ cxx_test(
     linker_flags = STORE_LINKER_FLAGS,
     link_style = "static",
 )
+
+# ─────────────────────────────────────────────────────────────────────────────
+# store path benchmarks - performance tests for store path operations
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_test(
+    name = "store-path_bench",
+    srcs = ["store-path_bench.cpp"],
+    deps = STORE_TEST_DEPS,
+    compiler_flags = STORE_TEST_COMPILER_FLAGS,
+    linker_flags = STORE_LINKER_FLAGS,
+    link_style = "static",
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# hash benchmarks - performance of hash operations on every store path access
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_test(
+    name = "hash_bench",
+    srcs = ["hash_bench.cpp"],
+    deps = STORE_TEST_DEPS,
+    compiler_flags = STORE_TEST_COMPILER_FLAGS,
+    linker_flags = STORE_LINKER_FLAGS,
+    link_style = "static",
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# narinfo benchmarks - critical path performance for binary cache fetches
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_test(
+    name = "narinfo_bench",
+    srcs = ["narinfo_bench.cpp"],
+    deps = STORE_TEST_DEPS,
+    compiler_flags = STORE_TEST_COMPILER_FLAGS,
+    linker_flags = STORE_LINKER_FLAGS,
+    link_style = "static",
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# NAR benchmarks - core store path content handling performance
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_test(
+    name = "nar_bench",
+    srcs = ["nar_bench.cpp"],
+    deps = STORE_TEST_DEPS,
+    compiler_flags = STORE_TEST_COMPILER_FLAGS,
+    linker_flags = STORE_LINKER_FLAGS,
+    link_style = "static",
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# derivation benchmarks - parsing/serialization performance
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_test(
+    name = "derivation_bench",
+    srcs = ["derivation_bench.cpp"],
+    deps = STORE_TEST_DEPS,
+    compiler_flags = STORE_TEST_COMPILER_FLAGS,
+    linker_flags = STORE_LINKER_FLAGS,
+    link_style = "static",
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SQLite benchmarks - hot path performance for local store operations
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_test(
+    name = "sqlite_bench",
+    srcs = ["sqlite_bench.cpp"],
+    deps = [
+        "//third_party:catch2",
+        "//third_party:sqlite3",
+    ],
+    compiler_flags = STORE_TEST_COMPILER_FLAGS,
+    linker_flags = STORE_LINKER_FLAGS,
+    link_style = "static",
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# protocol benchmarks - worker protocol serialization performance
+# critical for multi-user nix where all operations go through daemon
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_test(
+    name = "protocol_bench",
+    srcs = ["protocol_bench.cpp"],
+    deps = STORE_TEST_DEPS,
+    compiler_flags = STORE_TEST_COMPILER_FLAGS,
+    linker_flags = STORE_LINKER_FLAGS,
+    link_style = "static",
+)

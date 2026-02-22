@@ -81,3 +81,16 @@ cxx_test(
     linker_flags = CLI_LINKER_FLAGS,
     link_style = "static",
 )
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CLI performance benchmarks - verify sub-millisecond dispatch latency
+# Run with: buck2 test //src/nix/cli/tests:cli_bench
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_test(
+    name = "cli_bench",
+    srcs = ["cli_bench.cpp"],
+    deps = CLI_TEST_DEPS,
+    compiler_flags = CLI_TEST_COMPILER_FLAGS,
+    linker_flags = CLI_LINKER_FLAGS,
+    link_style = "static",
+)
