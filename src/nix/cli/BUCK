@@ -55,6 +55,9 @@ cxx_library(
         "verify.cpp",
         "why-depends.cpp",
 
+        # Legacy command support
+        "nix-env.cpp",
+
         # nix-env/
         "nix-env/user-env.cpp",
     ],
