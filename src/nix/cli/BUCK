@@ -58,6 +58,8 @@ cxx_library(
         # Legacy command support
         "nix-env.cpp",
         "nix-daemon.cpp",
+        "nix-store.cpp",
+        "build-remote.cpp",
 
         # nix-env/
         "nix-env/user-env.cpp",
