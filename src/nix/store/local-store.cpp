@@ -1228,7 +1228,7 @@ store_path_t LocalStore::add_to_store_from_dump(source_t& source0, std::string_v
           case file_ingestion_method_t::git:
             // doesn't correspond to serialization method, so
             // this should be unreachable
-            assert(false);
+            throw Error("git file ingestion method has no corresponding serialization method");
         }
       } else {
         /* Move the temporary path we restored above. */

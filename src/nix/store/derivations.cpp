@@ -400,8 +400,7 @@ parse_derived_path_map_node(const store_dir_config_t& store, string_view_stream_
       }
       break;
     default:
-      // invalid format, not a parse error but internal error
-      assert(false);
+      throw FormatError("unknown derivation ATerm version: %d", static_cast<int>(version));
   }
   return node;
 }

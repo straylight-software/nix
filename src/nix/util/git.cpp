@@ -99,7 +99,7 @@ void parse_blob(file_system_object_sink_t& sink, const canon_path_t& sink_path, 
     }
 
     default:
-      assert(false);
+      throw Error("invalid git blob mode: %d", static_cast<int>(blob_mode));
   }
 }
 
@@ -175,7 +175,7 @@ void parse(file_system_object_sink_t& sink, const canon_path_t& sink_path, sourc
       parse_tree(sink, sink_path, source, hash_algo, hook, xp_settings);
       break;
     default:
-      assert(false);
+      throw Error("unknown git object type: %d", static_cast<int>(type));
   };
 }
 

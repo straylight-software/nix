@@ -397,7 +397,8 @@ store_path_t remote_store::add_to_store_from_dump(source_t& dump, std::string_vi
       fsm = file_serialisation_method_t::nix_archive;
       break;
     default:
-      assert(false);
+      throw Error("unsupported file ingestion method: %d",
+                  static_cast<int>(hash_method.getFileIngestionMethod()));
   }
   if (fsm != dump_method)
     unsupported("RemoteStore::addToStoreFromDump doesn't support this `dumpMethod` `hashMethod` "

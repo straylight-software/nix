@@ -46,7 +46,7 @@ void WorkerProto::Serialise<BuildMode>::write(const store_dir_config_t& store,
       conn.to << uint8_t{2};
       break;
     default:
-      assert(false);
+      throw Error("invalid build mode: %d", static_cast<int>(build_mode));
   };
 }
 
@@ -85,7 +85,7 @@ void WorkerProto::Serialise<GCAction>::write(const store_dir_config_t& store,
       conn.to << unsigned{3};
       break;
     default:
-      assert(false);
+      throw Error("invalid GC action: %d", static_cast<int>(action));
   }
 }
 
@@ -119,7 +119,7 @@ void WorkerProto::Serialise<std::optional<TrustedFlag>>::write(
         conn.to << uint8_t{2};
         break;
       default:
-        assert(false);
+        throw Error("invalid trusted flag: %d", static_cast<int>(*optTrusted));
     };
   }
 }

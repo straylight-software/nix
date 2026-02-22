@@ -431,24 +431,57 @@ void binary_cache_store::query_path_info_uncached(
             try {
               auto data = fut.get();
 
-              if (!data)
+              if (!data) {
                 return (*callbackPtr)({});
+              }
 
               stats.narInfoRead++;
 
-              // Shadow parse with Cornell verified parser (Checkpoint 2)
-              // TODO[b7r6]: remove after Checkpoint 3 (flip to primary)
-              {
-                auto cornell_result = cornell::nix::parse_narinfo(*data);
-                if (cornell_result.is_ok()) {
-                  // Cornell parsed successfully - legacy should too
-                  // (we'll assert equivalence after legacy parse)
-                }
-                // Note: Cornell parse failures are logged but don't block legacy
+              // ═══════════════════════════════════════════════════════════════
+              // Checkpoint 3: Cornell verified parser is PRIMARY
+              // Legacy parser shadows in debug builds for correctness assertion
+              // ═══════════════════════════════════════════════════════════════
+
+              auto cornell_result = cornell::nix::parse_narinfo(*data);
+              if (!cornell_result.is_ok()) {
+                // Cornell parse failed - fall through to legacy for error handling
+                // TODO[b7r6]: !! clean this up !! - once we trust Cornell fully,
+                // this should throw directly with cornell_result.error
+                throw Error("Cornell narinfo parse failed for '%s': %s", narInfoFile,
+                            cornell_result.error.value_or("incomplete input"));
               }
 
-              (*callbackPtr)((std::shared_ptr<valid_path_info_t>)std::make_shared<nar_info_t>(
-                  *this, *data, narInfoFile));
+              // Convert Cornell result to legacy nar_info_t
+              auto info =
+                  std::make_shared<nar_info_t>(from_cornell_narinfo(*this, *cornell_result.value));
+
+#ifndef NDEBUG
+              // Shadow parse with legacy - assert equivalence
+              try {
+                nar_info_t legacy_info(*this, *data, narInfoFile);
+
+                // Assert key fields match
+                assert(info->path == legacy_info.path);
+                assert(info->nar_hash == legacy_info.nar_hash);
+                assert(info->nar_size == legacy_info.nar_size);
+                assert(info->url == legacy_info.url);
+                assert(info->compression == legacy_info.compression);
+                assert(info->file_size == legacy_info.file_size);
+                assert(info->references == legacy_info.references);
+                assert(info->deriver == legacy_info.deriver);
+                assert(info->sigs == legacy_info.sigs);
+                // Note: fileHash and ca may differ in representation, check separately
+                assert(info->fileHash.has_value() == legacy_info.fileHash.has_value());
+                assert(info->ca.has_value() == legacy_info.ca.has_value());
+              } catch (const Error& e) {
+                // Legacy parse failed but Cornell succeeded - log but continue
+                // This indicates Cornell is more permissive or legacy has a bug
+                warn("Shadow parse divergence for '%s': Cornell succeeded but legacy failed: %s",
+                     narInfoFile, e.what());
+              }
+#endif
+
+              (*callbackPtr)((std::shared_ptr<valid_path_info_t>)info);
 
               (void)act; // force Activity into this lambda to ensure it stays alive
             } catch (...) {

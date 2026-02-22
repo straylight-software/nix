@@ -479,20 +479,27 @@ template path_set_t read_strings(source_t& source);
 
 Error read_error(source_t& source) {
   auto type = read_string(source);
-  assert(type == "Error");
+  if (type != "Error") {
+    throw SerialisationError("expected error type 'Error', got '%s'", type);
+  }
   auto level = (verbosity_t)read_int(source);
   [[maybe_unused]] auto name = read_string(source); // removed
   auto msg = read_string(source);
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init)
   error_info_t info{
       .level_ = level,
       .msg_ = hint_fmt_t(msg),
   };
   auto have_pos = read_num<size_t>(source);
-  assert(have_pos == 0);
+  if (have_pos != 0) {
+    throw SerialisationError("expected have_pos == 0, got %d", have_pos);
+  }
   auto nr_traces = read_num<size_t>(source);
   for (size_t i = 0; i < nr_traces; ++i) {
     have_pos = read_num<size_t>(source);
-    assert(have_pos == 0);
+    if (have_pos != 0) {
+      throw SerialisationError("expected trace have_pos == 0, got %d", have_pos);
+    }
     info.traces_.push_back(trace_t{.hint_ = hint_fmt_t(read_string(source))});
   }
   return Error(std::move(info));

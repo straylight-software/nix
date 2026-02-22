@@ -1,11 +1,67 @@
 #include "nix/store/nar-info.h"
 
+#include "cornell/nix/nix_formats.h"
 #include "nix/store/globals.h"
 #include "nix/store/store-api.h"
 #include "nix/util/json-utils.h"
 #include "nix/util/strings.h"
 
 namespace nix {
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Cornell Conversion (Checkpoint 3)
+// Convert verified Cornell narinfo_t to legacy nar_info_t
+// ═══════════════════════════════════════════════════════════════════════════════
+
+[[nodiscard]] auto from_cornell_narinfo(const store_dir_config_t& store,
+                                        const cornell::nix::narinfo_t& cn) -> nar_info_t {
+  // Parse store path
+  auto path = store.parseStorePath(cn.store_path);
+
+  // Parse nar_hash (required field)
+  auto nar_hash = Hash::parse_any_prefixed(cn.nar_hash);
+
+  // Construct base nar_info_t
+  nar_info_t info(store, std::move(path), nar_hash);
+
+  // URL and compression
+  info.url = cn.url;
+  info.compression = std::string(cornell::nix::compression_to_string(cn.compression));
+  if (info.compression.empty()) {
+    info.compression = "bzip2"; // default per legacy parser
+  }
+
+  // File hash (optional)
+  if (cn.file_hash) {
+    info.fileHash = Hash::parse_any_prefixed(*cn.file_hash);
+  }
+
+  // Sizes
+  info.file_size = cn.file_size;
+  info.nar_size = cn.nar_size;
+
+  // References
+  for (const auto& ref : cn.references) {
+    info.references.insert(store_path_t(ref));
+  }
+
+  // Deriver (optional)
+  if (cn.deriver && *cn.deriver != "unknown-deriver") {
+    info.deriver = store_path_t(*cn.deriver);
+  }
+
+  // Signatures
+  for (const auto& sig : cn.sigs) {
+    info.sigs.insert(sig.key_name + ":" + sig.sig);
+  }
+
+  // Content address (optional)
+  if (cn.ca) {
+    info.ca = content_address_t::parseOpt(*cn.ca);
+  }
+
+  return info;
+}
 
 nar_info_t::nar_info_t(const store_dir_config_t& store, const std::string& s,
                        const std::string& whence)

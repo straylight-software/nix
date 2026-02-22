@@ -419,7 +419,8 @@ static void perform_op(tunnel_logger_t* logger, ref<store_t> store, TrustedFlag 
               dump_method = file_serialisation_method_t::nix_archive;
               break;
             default:
-              assert(false);
+              throw Error("unsupported file ingestion method: %d",
+                          static_cast<int>(content_address_method.getFileIngestionMethod()));
           }
           // TODO these two steps are essentially RemoteStore::addCAToStore. Move it up to store_t.
           auto path = store->add_to_store_from_dump(

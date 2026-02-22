@@ -5,6 +5,11 @@
 #include "nix/util/hash.h"
 #include "nix/util/types.h"
 
+// Forward declaration for Cornell verified narinfo type
+namespace cornell::nix {
+struct narinfo_t;
+}
+
 namespace nix {
 
 struct store_dir_config_t;
@@ -61,6 +66,17 @@ struct nar_info_t : valid_path_info_t, UnkeyedNarInfo {
 
   std::string to_string(const store_dir_config_t& store) const;
 };
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Cornell Conversion (Checkpoint 3)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Convert Cornell verified narinfo to legacy nar_info_t.
+ * Used for shadow-then-flip pattern: Cornell parses, we convert, legacy shadows.
+ */
+[[nodiscard]] auto from_cornell_narinfo(const store_dir_config_t& store,
+                                        const cornell::nix::narinfo_t& cn) -> nar_info_t;
 
 } // namespace nix
 

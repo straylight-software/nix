@@ -283,7 +283,7 @@ struct ContentAddressWithReferences {
    * Create a `ContentAddressWithReferences` from a mere
    * `content_address_t`, by claiming no references.
    */
-  static ContentAddressWithReferences withoutRefs(const content_address_t&) noexcept;
+  static ContentAddressWithReferences withoutRefs(const content_address_t&);
 
   /**
    * Create a `ContentAddressWithReferences` from 3 parts:

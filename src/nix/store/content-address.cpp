@@ -17,7 +17,7 @@ std::string_view make_file_ingestion_prefix(file_ingestion_method_t m) {
       experimental_feature_settings.require(xp_t::git_hashing);
       return "git:";
     default:
-      assert(false);
+      throw Error("unknown file ingestion method: %d", static_cast<int>(m));
   }
 }
 
@@ -30,7 +30,7 @@ std::string_view content_address_method_t::render() const {
     case content_address_method_t::raw_t::git:
       return render_file_ingestion_method(getFileIngestionMethod());
     default:
-      assert(false);
+      throw Error("unknown content address method: %d", static_cast<int>(raw));
   }
 }
 
@@ -53,7 +53,7 @@ file_ingestion_method_to_content_address_method(file_ingestion_method_t m) {
     case file_ingestion_method_t::git:
       return content_address_method_t::raw_t::git;
     default:
-      assert(false);
+      throw Error("unknown file ingestion method: %d", static_cast<int>(m));
   }
 }
 
@@ -73,7 +73,7 @@ std::string_view content_address_method_t::renderPrefix() const {
     case content_address_method_t::raw_t::git:
       return make_file_ingestion_prefix(getFileIngestionMethod());
     default:
-      assert(false);
+      throw Error("unknown content address method: %d", static_cast<int>(raw));
   }
 }
 
@@ -103,7 +103,7 @@ static std::string render_prefix_modern(const content_address_method_t& ca) {
     case content_address_method_t::raw_t::git:
       return "fixed:" + make_file_ingestion_prefix(ca.getFileIngestionMethod());
     default:
-      assert(false);
+      throw Error("unknown content address method: %d", static_cast<int>(ca.raw));
   }
 }
 
@@ -122,7 +122,7 @@ file_ingestion_method_t content_address_method_t::getFileIngestionMethod() const
     case content_address_method_t::raw_t::Text:
       return file_ingestion_method_t::flat;
     default:
-      assert(false);
+      throw Error("unknown content address method: %d", static_cast<int>(raw));
   }
 }
 
@@ -223,7 +223,7 @@ size_t store_references_t::size() const {
 }
 
 ContentAddressWithReferences
-ContentAddressWithReferences::withoutRefs(const content_address_t& ca) noexcept {
+ContentAddressWithReferences::withoutRefs(const content_address_t& ca) {
   switch (ca.method.raw) {
     case content_address_method_t::raw_t::Text:
       return TextInfo{
@@ -239,7 +239,7 @@ ContentAddressWithReferences::withoutRefs(const content_address_t& ca) noexcept 
           .references = {},
       };
     default:
-      assert(false);
+      throw Error("unknown content address method: %d", static_cast<int>(ca.method.raw));
   }
 }
 
@@ -263,7 +263,7 @@ ContentAddressWithReferences::fromParts(content_address_method_t method, Hash ha
           .references = std::move(refs),
       };
     default:
-      assert(false);
+      throw Error("unknown content address method: %d", static_cast<int>(method.raw));
   }
 }
 
