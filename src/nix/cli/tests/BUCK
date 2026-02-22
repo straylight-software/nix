@@ -1,0 +1,33 @@
+# // straylight // nix // cli // tests
+#
+# Unit tests for CLI commands and legacy command compatibility
+
+CLI_TEST_DEPS = [
+    "//src/nix/cli:cli",
+    "//src/nix/cmd:cmd",
+    "//src/nix/main:main",
+    "//src/nix/store:store",
+    "//src/nix/util:util",
+    "//third_party:catch2",
+    "//third_party:rapidcheck",
+]
+
+CLI_TEST_COMPILER_FLAGS = [
+    "-std=c++23",
+]
+
+CLI_LINKER_FLAGS = [
+    "-lpthread",
+]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# legacy commands compatibility tests - P0 NixOS compatibility
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_test(
+    name = "legacy-commands_test",
+    srcs = ["legacy-commands_test.cpp"],
+    deps = CLI_TEST_DEPS,
+    compiler_flags = CLI_TEST_COMPILER_FLAGS,
+    linker_flags = CLI_LINKER_FLAGS,
+    link_style = "static",
+)

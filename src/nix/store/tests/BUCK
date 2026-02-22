@@ -28,3 +28,15 @@ cxx_test(
     linker_flags = STORE_LINKER_FLAGS,
     link_style = "static",
 )
+
+# ─────────────────────────────────────────────────────────────────────────────
+# schema compatibility tests - P0 database compatibility
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_test(
+    name = "schema-compatibility_test",
+    srcs = ["schema-compatibility_test.cpp"],
+    deps = STORE_TEST_DEPS,
+    compiler_flags = STORE_TEST_COMPILER_FLAGS,
+    linker_flags = STORE_LINKER_FLAGS,
+    link_style = "static",
+)
