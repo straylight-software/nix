@@ -8,10 +8,10 @@ create table if not exists ValidPaths (
     hash             text not null, -- base16 representation
     registrationTime integer not null,
     deriver          text,
-    nar_size          integer,
+    narSize          integer,
     ultimate         integer, -- null implies "false"
     sigs             text, -- space-separated
-    ca               text -- if not null, an assertion that the path is content-addressed; see valid_path_info_t
+    ca               text -- if not null, an assertion that the path is content-addressed; see ValidPathInfo
 );
 
 create table if not exists Refs (

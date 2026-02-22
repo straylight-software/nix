@@ -353,7 +353,7 @@ LocalStore::LocalStore(ref<const config_t> config)
   if (experimental_feature_settings.is_enabled(xp_t::ca_derivations)) {
     state->stmts->RegisterRealisedOutput.create(state->db,
                                                 R"(
-                insert into Realisations (drv_path, output_name, output_path, signatures)
+                insert into Realisations (drvPath, outputName, outputPath, signatures)
                 values (?, ?, (select id from ValidPaths where path = ?), ?)
                 ;
             )");
@@ -362,27 +362,27 @@ LocalStore::LocalStore(ref<const config_t> config)
                 update Realisations
                     set signatures = ?
                 where
-                    drv_path = ? and
-                    output_name = ?
+                    drvPath = ? and
+                    outputName = ?
                 ;
             )");
     state->stmts->QueryRealisedOutput.create(state->db,
                                              R"(
                 select Realisations.id, Output.path, Realisations.signatures from Realisations
-                    inner join ValidPaths as Output on Output.id = Realisations.output_path
-                    where drv_path = ? and output_name = ?
+                    inner join ValidPaths as Output on Output.id = Realisations.outputPath
+                    where drvPath = ? and outputName = ?
                     ;
             )");
     state->stmts->QueryAllRealisedOutputs.create(state->db,
                                                  R"(
-                select output_name, Output.path from Realisations
-                    inner join ValidPaths as Output on Output.id = Realisations.output_path
-                    where drv_path = ?
+                select outputName, Output.path from Realisations
+                    inner join ValidPaths as Output on Output.id = Realisations.outputPath
+                    where drvPath = ?
                     ;
             )");
     state->stmts->QueryRealisationReferences.create(state->db,
                                                     R"(
-                select drv_path, output_name from Realisations
+                select drvPath, outputName from Realisations
                     join RealisationsRefs on realisationReference = Realisations.id
                     where referrer = ?;
             )");
@@ -390,8 +390,8 @@ LocalStore::LocalStore(ref<const config_t> config)
                                                  R"(
                 insert or replace into RealisationsRefs (referrer, realisationReference)
                 values (
-                    (select id from Realisations where drv_path = ? and output_name = ?),
-                    (select id from Realisations where drv_path = ? and output_name = ?));
+                    (select id from Realisations where drvPath = ? and outputName = ?),
+                    (select id from Realisations where drvPath = ? and outputName = ?));
             )");
   }
 }
