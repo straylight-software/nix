@@ -2,7 +2,7 @@
 //
 // Tests for SIMD-optimized fuzzy string matching.
 
-// Catch2 MUST be included before rapidcheck/catch.h for v3 compatibility
+// Catch2 must be included before rapidcheck/catch.h for v3 compatibility
 #include <set>
 #include <string>
 #include <vector>

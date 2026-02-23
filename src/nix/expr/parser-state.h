@@ -159,13 +159,13 @@ inline void ParserState::dupAttr(const AttrSelectionPath& attr_path, const pos_i
                                  const pos_idx_t prevPos) {
   throw ParseError(
       {.msg_ = hint_fmt_t("attribute '%1%' already defined at %2%",
-                         show_attr_selection_path(symbols, attr_path), positions[prevPos]),
+                          show_attr_selection_path(symbols, attr_path), positions[prevPos]),
        .pos_ = positions[pos]});
 }
 
 inline void ParserState::dupAttr(symbol_t attr, const pos_idx_t pos, const pos_idx_t prevPos) {
   throw ParseError({.msg_ = hint_fmt_t("attribute '%1%' already defined at %2%", symbols[attr],
-                                      positions[prevPos]),
+                                       positions[prevPos]),
                     .pos_ = positions[pos]});
 }
 

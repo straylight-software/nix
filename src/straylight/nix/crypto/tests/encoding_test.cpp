@@ -3,7 +3,7 @@
 // Property-based testing with rapidcheck for encoding primitives.
 // Tests base16, base64, and nix32 encoding/decoding roundtrips.
 
-// Catch2 MUST be included before rapidcheck/catch.h for v3 compatibility
+// Catch2 must be included before rapidcheck/catch.h for v3 compatibility
 #include <algorithm>
 #include <cstdint>
 #include <string>

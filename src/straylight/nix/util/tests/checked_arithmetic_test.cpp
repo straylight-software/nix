@@ -3,7 +3,7 @@
 // Property-based testing with rapidcheck for checked arithmetic primitives.
 // Tests checked_add, checked_sub, checked_mul and saturating variants.
 
-// Catch2 MUST be included before rapidcheck/catch.h for v3 compatibility
+// Catch2 must be included before rapidcheck/catch.h for v3 compatibility
 #include <cstdint>
 #include <limits>
 #include <optional>

@@ -32,9 +32,9 @@
         }:
         let
           # ── Turing Registry (mandatory build flags) ────────────────────────────
-          isLinux = pkgs.stdenv.isLinux;
+          inherit (pkgs.stdenv) isLinux;
           isX86 = pkgs.stdenv.hostPlatform.isx86_64;
-          turing-registry = import ./nix/prelude/turing-registry.nix { inherit lib isLinux isX86; };
+          turing-registry = import ./nix/prelude/turing-registry.nix { inherit lib isX86; };
 
           # ── Toolchain (musl static linking) ─────────────────────────────────────
           toolchain = import ./nix/prelude/toolchain.nix { inherit lib pkgs turing-registry; };
@@ -171,14 +171,23 @@
 
           # ── Custom packages ───────────────────────────────────────────────────
           packages = {
-            stringzilla = deps.custom.stringzilla;
-            zpp_bits = deps.custom.zpp_bits;
-            ngtcp2-libressl = deps.custom.ngtcp2-libressl;
+            inherit (deps.custom) stringzilla;
+            inherit (deps.custom) zpp_bits;
+            inherit (deps.custom) ngtcp2-libressl;
           };
 
           # ── Formatting ────────────────────────────────────────────────────────
           treefmt = {
             projectRootFile = "flake.nix";
+
+            # Global excludes: vendor, tests (intentionally malformed files), generated
+            settings.global.excludes = [
+              "vendor/*"
+              "third_party/*"
+              "tests/*"
+              "src/nix/expr/*-tab.cpp" # bison/flex generated
+              "src/nix/expr/lexer-tab.h"
+            ];
 
             programs.clang-format.enable = true;
             programs.clang-format.includes = [
@@ -202,6 +211,11 @@
             programs.mdformat.enable = true;
             programs.mdformat.settings.number = true;
             programs.mdformat.settings.wrap = 100;
+            # Exclude raw string literals embedded in C++ (src/nix/cli/*.md, src/nix/store/*.md)
+            programs.mdformat.excludes = [
+              "src/nix/cli/*.md"
+              "src/nix/store/*.md"
+            ];
           };
 
           # ── Checks ────────────────────────────────────────────────────────────

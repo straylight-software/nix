@@ -4,6 +4,10 @@
 // Tests stable reference guarantees, iterator correctness, and container semantics.
 
 // Catch2 MUST be included before rapidcheck/catch.h for v3 compatibility
+// clang-format off
+#include <catch2/catch_test_macros.hpp>
+// clang-format on
+
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
@@ -14,8 +18,6 @@
 
 #include <rapidcheck.h>
 #include <rapidcheck/catch.h>
-
-#include <catch2/catch_test_macros.hpp>
 
 #include "../chunked_vector.h"
 

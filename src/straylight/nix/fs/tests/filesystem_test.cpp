@@ -2,8 +2,7 @@
 //
 // Tests for filesystem primitives: file locking, mmap, temp files/dirs
 
-// IMPORTANT: Catch2 v3 MUST be included BEFORE rapidcheck/catch.h
-// rapidcheck checks for CATCH_TEST_MACROS_HPP_INCLUDED macro
+// Catch2 must be included before rapidcheck/catch.h for v3 compatibility
 #include <cstring>
 #include <fstream>
 #include <thread>

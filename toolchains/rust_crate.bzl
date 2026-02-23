@@ -16,7 +16,7 @@
 #       deps = [":serde_derive"],
 #   )
 
-load("@prelude//http_archive.bzl", "http_archive")
+# http_archive is a native rule, access via native.http_archive()
 
 # Provider for crate outputs
 RustCrateInfo = provider(fields = [
@@ -201,7 +201,7 @@ def crates_io(
     archive_name = "{}-{}.crate".format(name, version)
     
     # Fetch the crate
-    http_archive(
+    native.http_archive(
         name = archive_name,
         urls = [_crate_url(pkg, version)],
         sha256 = sha256,

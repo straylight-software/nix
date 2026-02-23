@@ -5,24 +5,27 @@
 ### Invariant
 
 At every commit:
+
 1. `buck2 test //...` passes
 2. `straylight-nix flake show` works
 3. `straylight-nix develop .#` spawns a shell
 
 If any of these break, revert and retry.
 
----
+______________________________________________________________________
 
 ## Checkpoint 1: Kaitai Specs
 
 **Add, don't change.**
 
 Write Kaitai specs for existing formats alongside current parsers:
+
 - `kaitai/nar.ksy` — NAR archive format
 - `kaitai/narinfo.ksy` — binary cache metadata
 - `kaitai/drv.ksy` — derivation ATerm
 
 **Correctness proof:**
+
 ```bash
 # Generate test vectors from current impl
 buck2 run //src/nix/cli:nix -- derivation show nixpkgs#hello > hello.drv.json
@@ -37,13 +40,14 @@ Fuzz both parsers with same inputs. They must agree.
 
 **Commit:** `feat(kaitai): add NAR/narinfo/drv specs with roundtrip tests`
 
----
+______________________________________________________________________
 
 ## Checkpoint 2: Parallel Parsers
 
 **Run both, compare.**
 
 For every parse call site, add shadow parsing:
+
 ```cpp
 auto legacy_result = legacy_parse_narinfo(data);
 auto kaitai_result = kaitai_parse_narinfo(data);
@@ -57,7 +61,7 @@ return legacy_result;  // Still use legacy
 
 **Commit:** `test: shadow Kaitai parsers against legacy`
 
----
+______________________________________________________________________
 
 ## Checkpoint 3: Kaitai Primary
 
@@ -74,7 +78,8 @@ return kaitai_result;  // Now use Kaitai
 
 **Correctness proof:** Debug builds still compare. Release uses Kaitai.
 
-**Performance lift:** 
+**Performance lift:**
+
 ```
 narinfo parse: 847ns → 312ns (2.7x)
 nar validate:  1.2ms → 0.4ms (3x)
@@ -84,13 +89,14 @@ Benchmark in CI. Regression = revert.
 
 **Commit:** `perf: switch to Kaitai parsers (2-3x faster)`
 
----
+______________________________________________________________________
 
 ## Checkpoint 4: Extract core/
 
 **Move, don't modify.**
 
 Extract pure types from `util/` and `store/`:
+
 ```
 src/nix/core/
 ├── hash.h        # from util/hash.h (types only)
@@ -100,6 +106,7 @@ src/nix/core/
 ```
 
 Each extraction:
+
 1. Copy file to `core/`
 2. Update includes in original to re-export from `core/`
 3. Run tests
@@ -111,7 +118,7 @@ Each extraction:
 
 **Commit series:** `refactor: extract {hash,path,derivation} to core/`
 
----
+______________________________________________________________________
 
 ## Checkpoint 5: eval_backend_t Trait
 
@@ -137,7 +144,7 @@ Wrap existing `eval_state_t` in `interpreter_backend_t`.
 
 **Commit:** `refactor: introduce eval_backend_t trait`
 
----
+______________________________________________________________________
 
 ## Checkpoint 6: WASM Eval Shadow
 
@@ -158,7 +165,8 @@ Start with pure expressions (no I/O, no imports).
 
 **Correctness proof:** Shadow comparison on every eval.
 
-**Performance lift:** 
+**Performance lift:**
+
 ```
 eval "1 + 1":           12μs → 0.3μs (40x)
 eval "builtins.map ...": 2ms → 0.1ms (20x)
@@ -166,19 +174,21 @@ eval "builtins.map ...": 2ms → 0.1ms (20x)
 
 **Commit:** `feat: WASM eval backend (shadow mode)`
 
----
+______________________________________________________________________
 
 ## Checkpoint 7: WASM Primary for Pure
 
 **Flip for subset.**
 
 WASM primary for:
+
 - Arithmetic
 - String ops
 - List/attrset construction
 - Pure builtins
 
 Interpreter fallback for:
+
 - `import`
 - `builtins.readFile`
 - `derivation`
@@ -186,19 +196,21 @@ Interpreter fallback for:
 **Correctness proof:** Fallback ensures no behavior change.
 
 **Performance lift:**
+
 ```
 nixpkgs eval (lib): 4.2s → 1.8s (2.3x)
 ```
 
 **Commit:** `perf: WASM primary for pure expressions`
 
----
+______________________________________________________________________
 
 ## Checkpoint 8: store_backend_t Trait
 
 **Abstract, don't replace.**
 
 Same pattern as eval:
+
 ```cpp
 struct store_backend_t {
   virtual auto query_path_info(const store_path_t&) -> path_info_t = 0;
@@ -215,13 +227,14 @@ Wrap existing stores in trait.
 
 **Commit:** `refactor: introduce store_backend_t trait`
 
----
+______________________________________________________________________
 
 ## Checkpoint 9: evring Store Shadow
 
 **Run both, compare.**
 
 For read operations only:
+
 ```cpp
 auto legacy_info = daemon_store.query_path_info(path);
 auto evring_info = evring_store.query_path_info(path);
@@ -235,7 +248,7 @@ return legacy_info;
 
 **Commit:** `feat: evring store backend (shadow mode, reads only)`
 
----
+______________________________________________________________________
 
 ## Checkpoint 10: evring Reads Primary
 
@@ -251,6 +264,7 @@ return evring_info;
 ```
 
 **Performance lift:**
+
 ```
 query_path_info: 1.2ms → 0.08ms (15x)
 batch 1000 queries: 1.1s → 0.02s (55x, batched SQEs)
@@ -258,13 +272,14 @@ batch 1000 queries: 1.1s → 0.02s (55x, batched SQEs)
 
 **Commit:** `perf: evring primary for store reads`
 
----
+______________________________________________________________________
 
 ## Checkpoint 11: evring Writes
 
 **Shadow, then flip.**
 
 Same pattern for:
+
 - `add_to_store`
 - `add_text_to_store`
 - `register_drv_output`
@@ -272,13 +287,14 @@ Same pattern for:
 **Correctness proof:** Shadow comparison, then flip.
 
 **Performance lift:**
+
 ```
 add_to_store (100MB): 2.1s → 0.4s (5x)
 ```
 
 **Commit:** `perf: evring primary for store writes`
 
----
+______________________________________________________________________
 
 ## Checkpoint 12: Daemonless Mode
 
@@ -292,6 +308,7 @@ if constexpr (store_backend == store_backend_t::evring) {
 ```
 
 User-facing:
+
 ```bash
 NIX_STORE_BACKEND=evring nix build .#
 ```
@@ -299,19 +316,21 @@ NIX_STORE_BACKEND=evring nix build .#
 **Correctness proof:** Same outputs as daemon mode.
 
 **Performance lift:**
+
 ```
 nix build hello (cached): 180ms → 12ms (15x, no daemon RTT)
 ```
 
 **Commit:** `feat: daemonless store mode via evring`
 
----
+______________________________________________________________________
 
 ## Checkpoint 13: io_uring Fetchers
 
 **Shadow, then flip.**
 
 Replace blocking HTTP/git fetches with io_uring:
+
 ```cpp
 if constexpr (io_backend == io_backend_t::io_uring) {
   return evring_fetch(url);
@@ -319,13 +338,14 @@ if constexpr (io_backend == io_backend_t::io_uring) {
 ```
 
 **Performance lift:**
+
 ```
 fetch 10 tarballs: 3.2s → 0.8s (4x, parallel SQEs)
 ```
 
 **Commit:** `perf: io_uring fetchers`
 
----
+______________________________________________________________________
 
 ## Checkpoint 14: Full A-Team
 
@@ -339,6 +359,7 @@ buck2 build //src/nix/cli:nix \
 ```
 
 **Final benchmarks:**
+
 ```
 nix eval nixpkgs#lib:     4.2s → 0.4s   (10x)
 nix flake show nixpkgs:   8.1s → 1.2s   (7x)
@@ -349,13 +370,14 @@ nix develop (cached):     2.1s → 0.3s   (7x)
 
 **Commit:** `feat: full A-team mode`
 
----
+______________________________________________________________________
 
 ## Checkpoint 15: Delete Legacy
 
 **Only after 2 weeks of A-team in production.**
 
 Remove:
+
 - Interpreter eval (keep for debugging?)
 - Daemon store client
 - Blocking I/O paths
@@ -365,11 +387,12 @@ Remove:
 
 **Commit:** `chore: remove legacy backends`
 
----
+______________________________________________________________________
 
 ## The Guarantee
 
 Every checkpoint:
+
 - Tests pass
 - Self-hosting works
 - Performance same or better
@@ -377,7 +400,7 @@ Every checkpoint:
 
 No big bang. No "trust me it'll work when it's done." Demonstrable lift at every step.
 
----
+______________________________________________________________________
 
 ## The Denominator
 

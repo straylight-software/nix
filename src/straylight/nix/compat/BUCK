@@ -10,17 +10,6 @@ COMMON_FLAGS = [
     "-Wpedantic",
 ]
 
-# SQLite flags
-SQLITE_COMPILER_FLAGS = COMMON_FLAGS + [
-    "-isystem/nix/store/yd47pmkv6iv58gs5v5jgyblvkw87pqx3-sqlite-3.50.2/include",
-]
-
-SQLITE_LINKER_FLAGS = [
-    "-L/nix/store/yd47pmkv6iv58gs5v5jgyblvkw87pqx3-sqlite-3.50.2/lib",
-    "-lsqlite3",
-    "-Wl,-rpath,/nix/store/yd47pmkv6iv58gs5v5jgyblvkw87pqx3-sqlite-3.50.2/lib",
-]
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Git - Git format compatibility
 # ─────────────────────────────────────────────────────────────────────────────
@@ -39,10 +28,9 @@ cxx_library(
     name = "sqlite",
     exported_headers = ["sqlite.h"],
     header_namespace = "straylight/nix/compat",
-    compiler_flags = SQLITE_COMPILER_FLAGS,
-    exported_linker_flags = SQLITE_LINKER_FLAGS,
-    deps = [
-        "//third_party:sqlite3",
+    compiler_flags = COMMON_FLAGS,
+    exported_deps = [
+        "//vendor/sqlite:sqlite3",
     ],
     visibility = ["PUBLIC"],
 )

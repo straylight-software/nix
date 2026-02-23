@@ -25,7 +25,7 @@
   turing-registry,
 }:
 let
-  isLinux = pkgs.stdenv.isLinux;
+  inherit (pkgs.stdenv) isLinux;
 
   # ──────────────────────────────────────────────────────────────────────────
   #                          // llvm toolchain //
@@ -34,7 +34,7 @@ let
   llvm = pkgs.llvmPackages_20; # TODO: move to llvm-git overlay for LLVM 22
 
   # UNWRAPPED clang - no NIX_CFLAGS_COMPILE injection
-  clang-unwrapped = llvm.clang-unwrapped;
+  inherit (llvm) clang-unwrapped;
   clang-version = lib.versions.major llvm.clang.version;
 
   # Resource directory for clang builtins (__stddef.h, sanitizer headers, etc.)
@@ -203,7 +203,7 @@ in
     ld = "${llvm.bintools-unwrapped}/bin/ld.lld";
 
     # Include directories (explicit, no wrapper injection)
-    clang-resource-dir = clang-resource-dir;
+    inherit clang-resource-dir;
     musl-gcc-include = musl-gcc-paths.include;
     musl-gcc-include-arch = musl-gcc-paths.include-arch;
     musl-include = "${pkgs.musl.dev}/include";

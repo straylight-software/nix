@@ -3,7 +3,7 @@
 // Property-based testing with rapidcheck for regex primitives.
 // Tests ERE compatibility, match semantics, and cache behavior.
 
-// Catch2 MUST be included before rapidcheck/catch.h for v3 compatibility
+// Catch2 must be included before rapidcheck/catch.h for v3 compatibility
 #include <algorithm>
 #include <cstdint>
 #include <string>

@@ -183,8 +183,8 @@ in
   primitives = {
     inherit stringzilla; # header-only
     inherit zpp_bits; # header-only
-    rapidfuzz-cpp = pkgs.rapidfuzz-cpp; # header-only
-    taskflow = pkgs.taskflow; # header-only
+    inherit (pkgs) rapidfuzz-cpp; # header-only
+    inherit (pkgs) taskflow; # header-only
   };
 
   # ── libevring deps (async I/O) ──────────────────────────────────────────────
