@@ -243,18 +243,17 @@ TEST_CASE("brutal: string edge cases", "[brutal][string]") {
   }
 
   SECTION("string interpolation - integer coercion") {
-    // NOTE: toString is not implemented yet
-    // TODO: Implement builtins.toString
-    // auto v = must_succeed("\"value: ${toString 42}\"");
-    // REQUIRE(is_string(v));
-    must_fail("\"value: ${toString 42}\""); // toString not implemented
+    // toString requires builtins. prefix (not a global like in nixpkgs)
+    must_fail("\"value: ${toString 42}\""); // toString not in global scope
+    auto v = must_succeed("\"value: ${builtins.toString 42}\"");
+    REQUIRE(is_string(v));
   }
 
   SECTION("string interpolation - empty") {
-    // NOTE: toString is not implemented yet
-    // auto v = must_succeed("\"${toString \"\"}\"");
-    // REQUIRE(is_string(v));
-    must_fail("\"${toString \"\"}\""); // toString not implemented
+    // toString requires builtins. prefix
+    must_fail("\"${toString \"\"}\""); // toString not in global scope
+    auto v = must_succeed("\"${builtins.toString \"\"}\"");
+    REQUIRE(is_string(v));
   }
 
   SECTION("many concatenations") {
@@ -1057,11 +1056,21 @@ TEST_CASE("brutal: nixpkgs patterns", "[brutal][nixpkgs]") {
   }
 
   SECTION("lib.attrByPath pattern") {
-    // NOTE: This pattern requires builtins.head, builtins.tail, and dynamic
-    // attribute access (set.${expr}), none of which are implemented yet.
-    // TODO: Implement builtins.head, builtins.tail, dynamic attr access
-    // For now, just test a simplified version that doesn't use these features
-    auto v = must_succeed("let attrByPath = path: default: set: default; in attrByPath [] 42 {}");
+    // builtins.head, builtins.tail, and dynamic attr access all work,
+    // but recursive let bindings don't yet work (need to use rec { } instead)
+    // For now, test with rec attrset pattern
+    auto v = must_succeed(R"(
+      rec {
+        attrByPath = path: default: set:
+          if path == []
+          then set
+          else
+            let h = builtins.head path; in
+            if builtins.hasAttr h set
+            then attrByPath (builtins.tail path) default (builtins.getAttr h set)
+            else default;
+      }.attrByPath ["x" "y"] 0 { x = { y = 42; }; }
+    )");
     REQUIRE(get_int_value(v) == 42);
   }
 }

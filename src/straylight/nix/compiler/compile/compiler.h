@@ -556,6 +556,11 @@ private:
   // being captured. This enables mutual references.
   std::unordered_map<std::uint32_t, std::uint32_t> current_rec_binding_offsets_;
 
+  // For let bindings: maps symbol index to their memory offset.
+  // When compiling values in a let scope, let-bound variables read from these offsets
+  // instead of being captured. This enables recursive let bindings (let f = x: f ...).
+  std::unordered_map<std::uint32_t, std::uint32_t> current_let_binding_offsets_;
+
   /// set up the module with imports and types
   void setup_module() {
     // import memory from host
@@ -728,8 +733,17 @@ private:
     auto free_vars = free_variable_analyzer::analyze(expr, bound_names);
 
     // filter free variables: only keep those that are actually in scope
+    // Also exclude let-bound and rec-bound variables - they're accessed via shared memory
     std::vector<ast::symbol> captures;
     for (auto sym : free_vars) {
+      // Skip variables in let scope (accessed via shared memory)
+      if (current_let_binding_offsets_.count(sym.index_) > 0) {
+        continue;
+      }
+      // Skip variables in rec scope (accessed via shared memory)
+      if (current_rec_binding_offsets_.count(sym.index_) > 0) {
+        continue;
+      }
       if (current_scope_ && current_scope_->lookup(sym).has_value()) {
         captures.push_back(sym);
       }
@@ -1044,6 +1058,18 @@ private:
                                 BinaryenConst(module_.get(), BinaryenLiteralInt32(0)), "memory");
       // Force the value (it's a thunk stored in the rec environment)
       return compile_force(value);
+    }
+
+    // Check if this is a let-scope variable (for recursive let bindings)
+    // These are read from shared memory to enable self-references in closures
+    auto let_it = current_let_binding_offsets_.find(name.index_);
+    if (let_it != current_let_binding_offsets_.end()) {
+      // Read from the let environment in memory
+      auto mem_offset = let_it->second;
+      auto value = BinaryenLoad(module_.get(), 8, 0, mem_offset, 0, BinaryenTypeInt64(),
+                                BinaryenConst(module_.get(), BinaryenLiteralInt32(0)), "memory");
+      // Force the value in case it's a thunk
+      return force_value ? compile_force(value) : value;
     }
 
     // first check the current scope hierarchy for local variables
@@ -2333,8 +2359,17 @@ private:
 
     // filter free variables: only keep those that are actually in scope
     // (others are builtins or globals that will be looked up at runtime)
+    // Also exclude let-bound and rec-bound variables - they're accessed via shared memory
     std::vector<ast::symbol> captures;
     for (auto sym : free_vars) {
+      // Skip variables in let scope (accessed via shared memory)
+      if (current_let_binding_offsets_.count(sym.index_) > 0) {
+        continue;
+      }
+      // Skip variables in rec scope (accessed via shared memory)
+      if (current_rec_binding_offsets_.count(sym.index_) > 0) {
+        continue;
+      }
       if (current_scope_ && current_scope_->lookup(sym).has_value()) {
         captures.push_back(sym);
       }
@@ -2554,8 +2589,28 @@ private:
     auto result = func;
     for (const auto& arg : expr.arguments_) {
       BinaryenExpressionRef compiled_arg;
-      if (is_trivial_expression(arg)) {
-        // trivial expressions (literals, identifiers) can be evaluated immediately
+
+      // Check if arg is an identifier that's in let scope - pass without forcing
+      bool is_let_bound_identifier = false;
+      if (std::holds_alternative<ast::expression_identifier>(arg->data_)) {
+        const auto& ident = std::get<ast::expression_identifier>(arg->data_);
+        if (current_let_binding_offsets_.count(ident.name_.index_) > 0) {
+          is_let_bound_identifier = true;
+        }
+      }
+
+      if (is_let_bound_identifier) {
+        // Let-bound identifier - read from shared memory WITHOUT forcing
+        // This is crucial for patterns like: let result = overlay result base; in result
+        // where `result` is passed to a function before it's fully evaluated
+        const auto& ident = std::get<ast::expression_identifier>(arg->data_);
+        auto let_it = current_let_binding_offsets_.find(ident.name_.index_);
+        auto mem_offset = let_it->second;
+        compiled_arg =
+            BinaryenLoad(module_.get(), 8, 0, mem_offset, 0, BinaryenTypeInt64(),
+                         BinaryenConst(module_.get(), BinaryenLiteralInt32(0)), "memory");
+      } else if (is_trivial_expression(arg)) {
+        // trivial expressions (literals, non-let identifiers) can be evaluated immediately
         compiled_arg = compile_expression(arg);
       } else {
         // non-trivial expressions are wrapped in thunks for lazy evaluation
@@ -2570,6 +2625,7 @@ private:
 
   [[nodiscard]] auto compile_variant(const ast::expression_let& expr) -> BinaryenExpressionRef {
     // create a new scope for the let bindings
+    // Let bindings in Nix are mutually recursive (like OCaml's "let rec")
     std::uint32_t scope_depth = current_scope_ ? current_scope_->depth() : 0;
     lexical_scope let_scope(current_scope_, scope_depth);
     auto* outer_scope = current_scope_;
@@ -2592,11 +2648,20 @@ private:
       }
     }
 
-    std::vector<BinaryenExpressionRef> binding_ops;
+    // ========================================================================
+    // PASS 1: Allocate locals and add to scope for ALL bindings first
+    // This enables mutual recursion - all bindings are in scope when compiling values
+    // ========================================================================
 
-    // Process grouped attribute bindings (handles multi-segment path merging)
+    // Track grouped bindings: symbol -> (local_index, slices)
+    struct grouped_binding_info {
+      ast::symbol sym;
+      std::uint32_t local_index;
+      std::vector<binding_path_slice> slices;
+    };
+    std::vector<grouped_binding_info> grouped_bindings;
+
     for (const auto& [first_sym, slices] : grouped) {
-      // allocate a local for this binding
       std::uint32_t local_index;
       if (current_lambda_context_.has_value()) {
         local_index = current_lambda_context_->next_local_index++;
@@ -2604,49 +2669,29 @@ private:
       } else {
         throw compilation_error("top-level let expressions not supported");
       }
-
       let_scope.add_local(first_sym, local_index);
-
-      // compile the (possibly merged) value
-      // segment_index=1 because we already consumed the first segment (first_sym)
-      auto value = compile_merged_attrset_value(slices, 1);
-
-      auto store_local = BinaryenLocalSet(module_.get(), local_index, value);
-      binding_ops.push_back(store_local);
+      grouped_bindings.push_back(grouped_binding_info{first_sym, local_index, slices});
     }
 
-    // Process inherit bindings
+    // Track inherit bindings: symbol -> (local_index, inherit_binding ptr, attr_index)
+    struct inherit_binding_info {
+      ast::symbol sym;
+      std::uint32_t local_index;
+      const ast::binding_inherit* inherit_binding;
+      std::size_t attr_index;
+    };
+    std::vector<inherit_binding_info> inherit_bindings;
+
     for (const auto& binding : expr.bindings_) {
       if (std::holds_alternative<ast::binding_inherit>(binding)) {
-        // inherit binding: inherit x y; or inherit (expr) x y;
         const auto& inherit_binding = std::get<ast::binding_inherit>(binding);
-
-        // if there's a from_expression, compile it once and select from it
-        BinaryenExpressionRef from_value = nullptr;
-        std::uint32_t from_local_index = 0;
-
-        if (inherit_binding.from_expression_.has_value()) {
-          from_value = compile_expression(*inherit_binding.from_expression_);
-
-          // store the from_expression result in a temporary local to avoid re-evaluating
-          if (current_lambda_context_.has_value() && inherit_binding.attributes_.size() > 1) {
-            from_local_index = current_lambda_context_->next_local_index++;
-            current_lambda_context_->local_types.push_back(make_nix_value_type());
-            auto store_from = BinaryenLocalSet(module_.get(), from_local_index, from_value);
-            binding_ops.push_back(store_from);
-            from_value = nullptr; // will use local get instead
-          }
-        }
-
-        for (const auto& attr_name : inherit_binding.attributes_) {
-          // for now only handle static attribute names
+        for (std::size_t idx = 0; idx < inherit_binding.attributes_.size(); ++idx) {
+          const auto& attr_name = inherit_binding.attributes_[idx];
           if (attr_name.is_dynamic()) {
             throw compilation_error("dynamic inherit attribute names not yet implemented");
           }
-
           auto sym = std::get<ast::symbol>(attr_name.value_);
 
-          // allocate a local for this inherited binding
           std::uint32_t local_index;
           if (current_lambda_context_.has_value()) {
             local_index = current_lambda_context_->next_local_index++;
@@ -2654,40 +2699,146 @@ private:
           } else {
             throw compilation_error("top-level let expressions not supported");
           }
-
           let_scope.add_local(sym, local_index);
-
-          // get the value to store
-          BinaryenExpressionRef value;
-          if (inherit_binding.from_expression_.has_value()) {
-            // inherit (expr) x; -> select x from expr
-            auto key_str = symbols_.lookup(sym);
-
-            BinaryenExpressionRef source;
-            if (from_value != nullptr) {
-              // single attribute, use the compiled expression directly
-              source = from_value;
-              from_value = nullptr; // consumed
-            } else {
-              // multiple attributes, read from local
-              source = BinaryenLocalGet(module_.get(), from_local_index, make_nix_value_type());
-            }
-
-            value = compile_select(source, key_str, attr_name.position_);
-          } else {
-            // inherit x; -> look up x from outer scope (before adding to let_scope)
-            // we need to look up in the parent scope, not the current let_scope
-            auto* saved_scope = current_scope_;
-            current_scope_ = outer_scope;
-            value = compile_identifier_lookup(sym, attr_name.position_);
-            current_scope_ = saved_scope;
-          }
-
-          auto store_local = BinaryenLocalSet(module_.get(), local_index, value);
-          binding_ops.push_back(store_local);
+          inherit_bindings.push_back({sym, local_index, &inherit_binding, idx});
         }
       }
     }
+
+    // ========================================================================
+    // PASS 2: Allocate shared memory and set up let binding offsets
+    // This enables recursive let bindings (closures can reference other let bindings)
+    // ========================================================================
+
+    auto total_bindings = grouped_bindings.size() + inherit_bindings.size();
+    auto let_env_offset = data_offset_;
+    auto let_env_size = static_cast<std::uint32_t>(total_bindings) * 8; // 8 bytes per nix_value
+    data_offset_ += let_env_size;
+    data_offset_ = (data_offset_ + 7) & ~7u; // align
+
+    // Build the let binding offsets map
+    std::unordered_map<std::uint32_t, std::uint32_t> let_binding_offsets;
+    std::uint32_t offset_idx = 0;
+    for (const auto& info : grouped_bindings) {
+      let_binding_offsets[info.sym.index_] = let_env_offset + offset_idx * 8;
+      offset_idx++;
+    }
+    for (const auto& info : inherit_bindings) {
+      let_binding_offsets[info.sym.index_] = let_env_offset + offset_idx * 8;
+      offset_idx++;
+    }
+
+    // Save outer let binding offsets and set current
+    auto outer_let_offsets = std::move(current_let_binding_offsets_);
+    current_let_binding_offsets_ = let_binding_offsets;
+
+    // ========================================================================
+    // PASS 3: Compile all values and store in shared memory + locals
+    // ========================================================================
+
+    std::vector<BinaryenExpressionRef> binding_ops;
+
+    // Compile grouped attribute bindings as thunks for lazy evaluation
+    // All let bindings must be thunks to support forward/mutual references
+    offset_idx = 0;
+    for (const auto& info : grouped_bindings) {
+      BinaryenExpressionRef value;
+
+      // Check if this is a single simple binding (one path segment, direct value)
+      if (info.slices.size() == 1 && info.slices[0].binding->path_.segments_.size() == 1) {
+        // Single simple binding - wrap the value expression in a thunk
+        // This is critical for forward references like: let x = y; y = 1; in x
+        value = compile_as_thunk(info.slices[0].binding->value_);
+      } else {
+        // Multi-segment path or merged binding - use normal merging logic
+        // This already wraps non-trivial sub-expressions in thunks
+        value = compile_merged_attrset_value(info.slices, 1);
+      }
+
+      // Store in shared memory (for closure captures to read from)
+      auto store_to_mem = BinaryenStore(module_.get(), 8, let_env_offset + offset_idx * 8, 0,
+                                        BinaryenConst(module_.get(), BinaryenLiteralInt32(0)),
+                                        value, BinaryenTypeInt64(), "memory");
+      binding_ops.push_back(store_to_mem);
+
+      // Also store in local (for direct access in the let body)
+      auto store_local = BinaryenLocalSet(module_.get(), info.local_index, value);
+      binding_ops.push_back(store_local);
+      offset_idx++;
+    }
+
+    // Compile inherit bindings
+    // Group by inherit_binding to share from_expression evaluation
+    const ast::binding_inherit* current_inherit = nullptr;
+    BinaryenExpressionRef from_value = nullptr;
+    std::uint32_t from_local_index = 0;
+
+    for (const auto& info : inherit_bindings) {
+      // If this is a new inherit binding with from_expression, compile it
+      if (info.inherit_binding != current_inherit) {
+        current_inherit = info.inherit_binding;
+        from_value = nullptr;
+
+        if (current_inherit->from_expression_.has_value()) {
+          from_value = compile_expression(*current_inherit->from_expression_);
+
+          // Count how many attrs use this from_expression
+          std::size_t count = 0;
+          for (const auto& other : inherit_bindings) {
+            if (other.inherit_binding == current_inherit)
+              count++;
+          }
+
+          // Store in temporary local if used multiple times
+          if (count > 1) {
+            from_local_index = current_lambda_context_->next_local_index++;
+            current_lambda_context_->local_types.push_back(make_nix_value_type());
+            auto store_from = BinaryenLocalSet(module_.get(), from_local_index, from_value);
+            binding_ops.push_back(store_from);
+            from_value = nullptr; // will use local get instead
+          }
+        }
+      }
+
+      // Get the value to store
+      BinaryenExpressionRef value;
+      if (info.inherit_binding->from_expression_.has_value()) {
+        // inherit (expr) x; -> select x from expr
+        auto key_str = symbols_.lookup(info.sym);
+
+        BinaryenExpressionRef source;
+        if (from_value != nullptr) {
+          source = from_value;
+          from_value = nullptr; // consumed
+        } else {
+          source = BinaryenLocalGet(module_.get(), from_local_index, make_nix_value_type());
+        }
+
+        value = compile_select(source, key_str,
+                               info.inherit_binding->attributes_[info.attr_index].position_);
+      } else {
+        // inherit x; -> look up x from outer scope
+        auto* saved_scope = current_scope_;
+        current_scope_ = outer_scope;
+        value = compile_identifier_lookup(
+            info.sym, info.inherit_binding->attributes_[info.attr_index].position_);
+        current_scope_ = saved_scope;
+      }
+
+      // Store in shared memory
+      auto store_to_mem = BinaryenStore(module_.get(), 8, let_env_offset + offset_idx * 8, 0,
+                                        BinaryenConst(module_.get(), BinaryenLiteralInt32(0)),
+                                        value, BinaryenTypeInt64(), "memory");
+      binding_ops.push_back(store_to_mem);
+
+      // Also store in local
+      auto store_local = BinaryenLocalSet(module_.get(), info.local_index, value);
+      binding_ops.push_back(store_local);
+      offset_idx++;
+    }
+
+    // Restore outer let binding offsets
+    current_let_binding_offsets_ = std::move(outer_let_offsets);
 
     // compile the body
     auto body_expr = compile_expression(expr.body_);
