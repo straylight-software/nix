@@ -7,6 +7,7 @@
 /// - Converts source_span to ast::source_position
 /// - Transforms tree nodes to ast expression types
 
+#include <filesystem>
 #include <stdexcept>
 #include <variant>
 
@@ -31,8 +32,10 @@ public:
 
 struct lower_context {
   ast::symbol_table& symbols;
+  std::filesystem::path base_path;
 
-  explicit lower_context(ast::symbol_table& sym) : symbols(sym) {}
+  explicit lower_context(ast::symbol_table& sym, std::filesystem::path base = ".")
+      : symbols(sym), base_path(std::move(base)) {}
 
   [[nodiscard]] auto make_position(const source_span& span) const -> ast::source_position {
     return ast::source_position{static_cast<std::uint32_t>(span.begin_byte),
@@ -106,8 +109,61 @@ inline auto lower_string_interpolated(const node_string_interpolated& node, lowe
 
 inline auto lower_path(const node_path& node, lower_context& context) -> ast::expression {
   auto position = context.make_position(node.span);
+
+  // Check if this is a search path like <nixpkgs>
+  if (!node.value.empty() && node.value[0] == '<' && node.value.back() == '>') {
+    // Extract the name from <name> or <name/subpath>
+    std::string search_name = node.value.substr(1, node.value.size() - 2);
+
+    // Transform to: builtins.findFile builtins.nixPath "name"
+    // This is the canonical Nix representation of search paths
+
+    // Create "builtins" identifier
+    auto builtins_sym = context.symbols.intern("builtins");
+    auto builtins_ref = std::make_unique<ast::expression_node>(
+        ast::expression_variant{ast::expression_identifier{position, builtins_sym}});
+
+    // Create builtins.findFile
+    auto findFile_sym = context.symbols.intern("findFile");
+    ast::attribute_path findFile_path;
+    findFile_path.segments_.push_back(ast::attribute_name{position, findFile_sym});
+    auto findFile_select =
+        std::make_unique<ast::expression_node>(ast::expression_variant{ast::expression_select{
+            position, std::move(builtins_ref), std::move(findFile_path), std::nullopt}});
+
+    // Create builtins.nixPath (need another builtins reference)
+    auto builtins_ref2 = std::make_unique<ast::expression_node>(
+        ast::expression_variant{ast::expression_identifier{position, builtins_sym}});
+    auto nixPath_sym = context.symbols.intern("nixPath");
+    ast::attribute_path nixPath_path;
+    nixPath_path.segments_.push_back(ast::attribute_name{position, nixPath_sym});
+    auto nixPath_select =
+        std::make_unique<ast::expression_node>(ast::expression_variant{ast::expression_select{
+            position, std::move(builtins_ref2), std::move(nixPath_path), std::nullopt}});
+
+    // Create the string argument (the search name)
+    auto name_string = std::make_unique<ast::expression_node>(
+        ast::expression_variant{ast::expression_string{position, search_name}});
+
+    // Build arguments vector for the application: [nixPath, name]
+    std::vector<ast::expression> args;
+    args.push_back(std::move(nixPath_select));
+    args.push_back(std::move(name_string));
+
+    // Apply findFile to [nixPath, name]
+    return std::make_unique<ast::expression_node>(ast::expression_variant{
+        ast::expression_application{position, std::move(findFile_select), std::move(args)}});
+  }
+
+  // Resolve relative paths to absolute using base_path
+  std::string resolved_path = node.value;
+  std::filesystem::path p(node.value);
+  if (p.is_relative()) {
+    resolved_path = std::filesystem::absolute(context.base_path / p).string();
+  }
+
   return std::make_unique<ast::expression_node>(
-      ast::expression_variant{ast::expression_path{position, node.value}});
+      ast::expression_variant{ast::expression_path{position, resolved_path}});
 }
 
 inline auto lower_path_interpolated(const node_path_interpolated& node, lower_context& context)
@@ -552,8 +608,9 @@ inline auto lower_lambda(const node_lambda& node, lower_context& context) -> ast
 // ============================================================================
 
 /// Lower a parse tree to AST
-[[nodiscard]] inline auto lower(const tree& root, ast::symbol_table& symbols) -> ast::expression {
-  lower_context context{symbols};
+[[nodiscard]] inline auto lower(const tree& root, ast::symbol_table& symbols,
+                                std::filesystem::path base_path = ".") -> ast::expression {
+  lower_context context{symbols, std::move(base_path)};
   return lower_tree(*root, context);
 }
 

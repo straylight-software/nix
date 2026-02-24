@@ -243,16 +243,17 @@ TEST_CASE("brutal: string edge cases", "[brutal][string]") {
   }
 
   SECTION("string interpolation - integer coercion") {
-    // toString requires builtins. prefix (not a global like in nixpkgs)
-    must_fail("\"value: ${toString 42}\""); // toString not in global scope
-    auto v = must_succeed("\"value: ${builtins.toString 42}\"");
+    // toString is a global (like in nixpkgs)
+    auto v = must_succeed("\"value: ${toString 42}\"");
     REQUIRE(is_string(v));
+    // Also works with builtins prefix
+    auto v2 = must_succeed("\"value: ${builtins.toString 42}\"");
+    REQUIRE(is_string(v2));
   }
 
   SECTION("string interpolation - empty") {
-    // toString requires builtins. prefix
-    must_fail("\"${toString \"\"}\""); // toString not in global scope
-    auto v = must_succeed("\"${builtins.toString \"\"}\"");
+    // toString is a global
+    auto v = must_succeed("\"${toString \"\"}\"");
     REQUIRE(is_string(v));
   }
 

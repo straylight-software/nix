@@ -70,8 +70,8 @@ public:
     // Step 2: Convert PEGTL tree to our tree types
     tree our_tree = convert(*pegtl_tree);
 
-    // Step 3: Lower our tree to AST
-    return lower(our_tree, symbols);
+    // Step 3: Lower our tree to AST (passing base_path for path resolution)
+    return lower(our_tree, symbols, base_path);
 
   } catch (const p::parse_error& error) {
     // Extract position from PEGTL error

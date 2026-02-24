@@ -86,6 +86,7 @@ cxx_library(
         "runtime/io_backend.h",
         "runtime/io_config.h",
         "runtime/memory_layout.h",
+        "runtime/result.h",
         "runtime/runtime.h",
         "runtime/wasm_memory.h",
     ],

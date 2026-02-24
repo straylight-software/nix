@@ -20,6 +20,7 @@
 
 #include "straylight/nix/compiler/compile/wasm_types.h"
 #include "straylight/nix/compiler/runtime/memory_layout.h"
+#include "straylight/nix/compiler/runtime/result.h"
 #include "straylight/nix/compiler/runtime/wasm_memory.h"
 
 namespace straylight::nix::compiler::runtime {
@@ -106,6 +107,9 @@ constexpr nix_value null_value = make_value(value_tag::null_value, 0);
 constexpr nix_value bool_true = make_value(value_tag::boolean, 1);
 constexpr nix_value bool_false = make_value(value_tag::boolean, 0);
 } // namespace constants
+
+/// Result type for runtime operations returning nix_value
+using rt_result = rt_result_t<nix_value>;
 
 /// check if value is null
 [[nodiscard]] constexpr auto is_null(nix_value v) noexcept -> bool {
@@ -249,10 +253,10 @@ private:
 
 /// function type for WASM lambda calls (func_index, env_ptr, arg) -> result
 using wasm_func_t =
-    std::function<nix_value(std::uint32_t func_index, std::uint32_t env_ptr, nix_value arg)>;
+    std::function<rt_result(std::uint32_t func_index, std::uint32_t env_ptr, nix_value arg)>;
 
 /// function type for WASM thunk calls (func_index, env_ptr) -> result (no arg parameter)
-using wasm_thunk_func_t = std::function<nix_value(std::uint32_t func_index, std::uint32_t env_ptr)>;
+using wasm_thunk_func_t = std::function<rt_result(std::uint32_t func_index, std::uint32_t env_ptr)>;
 
 /// the runtime context holding memory and function table
 /// All memory access goes through wasm_memory* - no separate buffer, no syncing.
@@ -339,368 +343,368 @@ struct runtime_context {
 // =============================================================================
 
 /// force a value (evaluate thunks)
-[[nodiscard]] auto rt_force(runtime_context& ctx, nix_value v) -> nix_value;
+[[nodiscard]] auto rt_force(runtime_context& ctx, nix_value v) -> rt_result;
 
 /// Reify a value by copying data segment strings to the heap.
 /// This is needed when returning values from imported modules, since each
 /// module's data segment initialization overwrites the previous one.
 /// After reification, all string pointers (including attrset keys) point
 /// to heap memory which survives module reloads.
-[[nodiscard]] auto rt_reify_value(runtime_context& ctx, nix_value v) -> nix_value;
+[[nodiscard]] auto rt_reify_value(runtime_context& ctx, nix_value v) -> rt_result;
 
 /// apply a function to an argument
-[[nodiscard]] auto rt_apply(runtime_context& ctx, nix_value fn, nix_value arg) -> nix_value;
+[[nodiscard]] auto rt_apply(runtime_context& ctx, nix_value fn, nix_value arg) -> rt_result;
 
 /// throw an error with position
 [[noreturn]] void rt_throw(runtime_context& ctx, std::uint32_t msg_offset, std::uint32_t line,
                            std::uint32_t col);
 
 /// lookup a variable by name
-[[nodiscard]] auto rt_lookup_var(runtime_context& ctx, std::uint32_t name_offset) -> nix_value;
+[[nodiscard]] auto rt_lookup_var(runtime_context& ctx, std::uint32_t name_offset) -> rt_result;
 
 /// create a closure
 [[nodiscard]] auto rt_make_closure(runtime_context& ctx, std::uint32_t func_index,
-                                   std::uint32_t env_offset, std::uint32_t env_size) -> nix_value;
+                                   std::uint32_t env_offset, std::uint32_t env_size) -> rt_result;
 
 /// create a thunk
 [[nodiscard]] auto rt_make_thunk(runtime_context& ctx, std::uint32_t func_index,
-                                 std::uint32_t env_offset, std::uint32_t env_size) -> nix_value;
+                                 std::uint32_t env_offset, std::uint32_t env_size) -> rt_result;
 
 // --- Arithmetic ---
 
 [[nodiscard]] auto rt_add(runtime_context& ctx, nix_value a, nix_value b, std::uint32_t line,
-                          std::uint32_t col) -> nix_value;
+                          std::uint32_t col) -> rt_result;
 
 [[nodiscard]] auto rt_sub(runtime_context& ctx, nix_value a, nix_value b, std::uint32_t line,
-                          std::uint32_t col) -> nix_value;
+                          std::uint32_t col) -> rt_result;
 
 [[nodiscard]] auto rt_mul(runtime_context& ctx, nix_value a, nix_value b, std::uint32_t line,
-                          std::uint32_t col) -> nix_value;
+                          std::uint32_t col) -> rt_result;
 
 [[nodiscard]] auto rt_div(runtime_context& ctx, nix_value a, nix_value b, std::uint32_t line,
-                          std::uint32_t col) -> nix_value;
+                          std::uint32_t col) -> rt_result;
 
-[[nodiscard]] auto rt_negate(runtime_context& ctx, nix_value v) -> nix_value;
+[[nodiscard]] auto rt_negate(runtime_context& ctx, nix_value v) -> rt_result;
 
 // --- Comparison ---
 
-[[nodiscard]] auto rt_less_than(runtime_context& ctx, nix_value a, nix_value b) -> nix_value;
-[[nodiscard]] auto rt_less_eq(runtime_context& ctx, nix_value a, nix_value b) -> nix_value;
-[[nodiscard]] auto rt_eq(runtime_context& ctx, nix_value a, nix_value b) -> nix_value;
-[[nodiscard]] auto rt_neq(runtime_context& ctx, nix_value a, nix_value b) -> nix_value;
+[[nodiscard]] auto rt_less_than(runtime_context& ctx, nix_value a, nix_value b) -> rt_result;
+[[nodiscard]] auto rt_less_eq(runtime_context& ctx, nix_value a, nix_value b) -> rt_result;
+[[nodiscard]] auto rt_eq(runtime_context& ctx, nix_value a, nix_value b) -> rt_result;
+[[nodiscard]] auto rt_neq(runtime_context& ctx, nix_value a, nix_value b) -> rt_result;
 
 // --- Boolean ---
 
-[[nodiscard]] auto rt_not(runtime_context& ctx, nix_value v) -> nix_value;
-[[nodiscard]] auto rt_is_bool(runtime_context& ctx, nix_value v) -> std::int32_t;
+[[nodiscard]] auto rt_not(runtime_context& ctx, nix_value v) -> rt_result;
+[[nodiscard]] auto rt_is_bool(runtime_context& ctx, nix_value v) -> rt_result;
 
 /// Force and type-check a value to be boolean. Throws type_error if not.
 /// Used for if conditions and assert conditions.
 [[nodiscard]] auto rt_expect_bool(runtime_context& ctx, nix_value v, std::uint32_t line,
-                                  std::uint32_t col) -> nix_value;
+                                  std::uint32_t col) -> rt_result;
 
 // --- Collections ---
 
 [[nodiscard]] auto rt_make_list(runtime_context& ctx, std::uint32_t offset, std::uint32_t count)
-    -> nix_value;
+    -> rt_result;
 
 [[nodiscard]] auto rt_make_attrs(runtime_context& ctx, std::uint32_t offset, std::uint32_t count)
-    -> nix_value;
+    -> rt_result;
 
 [[nodiscard]] auto rt_make_attrs_dynamic(runtime_context& ctx, std::uint32_t offset,
-                                         std::uint32_t count) -> nix_value;
+                                         std::uint32_t count) -> rt_result;
 
 [[nodiscard]] auto rt_select(runtime_context& ctx, nix_value set, std::uint32_t key_offset,
-                             std::uint32_t line, std::uint32_t col) -> nix_value;
+                             std::uint32_t line, std::uint32_t col) -> rt_result;
 
 [[nodiscard]] auto rt_select_dynamic(runtime_context& ctx, nix_value set, nix_value key,
-                                     std::uint32_t line, std::uint32_t col) -> nix_value;
+                                     std::uint32_t line, std::uint32_t col) -> rt_result;
 
 [[nodiscard]] auto rt_has_attr(runtime_context& ctx, nix_value set, std::uint32_t key_offset)
-    -> nix_value;
+    -> rt_result;
 
 [[nodiscard]] auto rt_has_attr_dynamic(runtime_context& ctx, nix_value set, nix_value key)
-    -> nix_value;
+    -> rt_result;
 
-[[nodiscard]] auto rt_update(runtime_context& ctx, nix_value a, nix_value b) -> nix_value;
+[[nodiscard]] auto rt_update(runtime_context& ctx, nix_value a, nix_value b) -> rt_result;
 
-[[nodiscard]] auto rt_concat(runtime_context& ctx, nix_value a, nix_value b) -> nix_value;
+[[nodiscard]] auto rt_concat(runtime_context& ctx, nix_value a, nix_value b) -> rt_result;
 
 // --- Strings ---
 
-[[nodiscard]] auto rt_to_string(runtime_context& ctx, nix_value v) -> nix_value;
+[[nodiscard]] auto rt_to_string(runtime_context& ctx, nix_value v) -> rt_result;
 
 [[nodiscard]] auto rt_concat_strings(runtime_context& ctx, std::uint32_t offset,
-                                     std::uint32_t count) -> nix_value;
+                                     std::uint32_t count) -> rt_result;
 
 // --- Builtins (primops) ---
 
 /// Get the length of a list or string
-[[nodiscard]] auto rt_length(runtime_context& ctx, nix_value v) -> nix_value;
+[[nodiscard]] auto rt_length(runtime_context& ctx, nix_value v) -> rt_result;
 
 /// Get the first element of a list
-[[nodiscard]] auto rt_head(runtime_context& ctx, nix_value v) -> nix_value;
+[[nodiscard]] auto rt_head(runtime_context& ctx, nix_value v) -> rt_result;
 
 /// Get all but the first element of a list
-[[nodiscard]] auto rt_tail(runtime_context& ctx, nix_value v) -> nix_value;
+[[nodiscard]] auto rt_tail(runtime_context& ctx, nix_value v) -> rt_result;
 
 /// Get element at index from a list
-[[nodiscard]] auto rt_elem_at(runtime_context& ctx, nix_value list, nix_value index) -> nix_value;
+[[nodiscard]] auto rt_elem_at(runtime_context& ctx, nix_value list, nix_value index) -> rt_result;
 
 /// Check if element is in list
-[[nodiscard]] auto rt_elem(runtime_context& ctx, nix_value x, nix_value list) -> nix_value;
+[[nodiscard]] auto rt_elem(runtime_context& ctx, nix_value x, nix_value list) -> rt_result;
 
 /// Get the type of a value as a string
-[[nodiscard]] auto rt_type_of(runtime_context& ctx, nix_value v) -> nix_value;
+[[nodiscard]] auto rt_type_of(runtime_context& ctx, nix_value v) -> rt_result;
 
 /// Get attribute names from an attrset (returns sorted list)
-[[nodiscard]] auto rt_attr_names(runtime_context& ctx, nix_value set) -> nix_value;
+[[nodiscard]] auto rt_attr_names(runtime_context& ctx, nix_value set) -> rt_result;
 
 /// Get attribute values from an attrset (sorted by key name)
-[[nodiscard]] auto rt_attr_values(runtime_context& ctx, nix_value set) -> nix_value;
+[[nodiscard]] auto rt_attr_values(runtime_context& ctx, nix_value set) -> rt_result;
 
 /// Get string length
-[[nodiscard]] auto rt_string_length(runtime_context& ctx, nix_value s) -> nix_value;
+[[nodiscard]] auto rt_string_length(runtime_context& ctx, nix_value s) -> rt_result;
 
 /// Apply a primop to arguments (handles currying)
 [[nodiscard]] auto rt_apply_primop(runtime_context& ctx, std::uint32_t primop_index, nix_value arg)
-    -> nix_value;
+    -> rt_result;
 
 /// Initialize the builtins attrset in the runtime context
 void rt_init_builtins(runtime_context& ctx);
 
 // --- Type predicates ---
 
-[[nodiscard]] auto rt_is_null(runtime_context& ctx, nix_value v) -> nix_value;
-[[nodiscard]] auto rt_is_int(runtime_context& ctx, nix_value v) -> nix_value;
-[[nodiscard]] auto rt_is_float(runtime_context& ctx, nix_value v) -> nix_value;
-[[nodiscard]] auto rt_is_string(runtime_context& ctx, nix_value v) -> nix_value;
-[[nodiscard]] auto rt_is_path(runtime_context& ctx, nix_value v) -> nix_value;
-[[nodiscard]] auto rt_is_list(runtime_context& ctx, nix_value v) -> nix_value;
-[[nodiscard]] auto rt_is_attrs(runtime_context& ctx, nix_value v) -> nix_value;
-[[nodiscard]] auto rt_is_function(runtime_context& ctx, nix_value v) -> nix_value;
+[[nodiscard]] auto rt_is_null(runtime_context& ctx, nix_value v) -> rt_result;
+[[nodiscard]] auto rt_is_int(runtime_context& ctx, nix_value v) -> rt_result;
+[[nodiscard]] auto rt_is_float(runtime_context& ctx, nix_value v) -> rt_result;
+[[nodiscard]] auto rt_is_string(runtime_context& ctx, nix_value v) -> rt_result;
+[[nodiscard]] auto rt_is_path(runtime_context& ctx, nix_value v) -> rt_result;
+[[nodiscard]] auto rt_is_list(runtime_context& ctx, nix_value v) -> rt_result;
+[[nodiscard]] auto rt_is_attrs(runtime_context& ctx, nix_value v) -> rt_result;
+[[nodiscard]] auto rt_is_function(runtime_context& ctx, nix_value v) -> rt_result;
 
 // --- Higher-order functions ---
 
 /// Map a function over a list: map f [x1 x2 ...] = [f x1  f x2  ...]
-[[nodiscard]] auto rt_map(runtime_context& ctx, nix_value f, nix_value list) -> nix_value;
+[[nodiscard]] auto rt_map(runtime_context& ctx, nix_value f, nix_value list) -> rt_result;
 
 /// Filter a list by a predicate: filter p [x1 x2 ...] = elements where p xi is true
-[[nodiscard]] auto rt_filter(runtime_context& ctx, nix_value pred, nix_value list) -> nix_value;
+[[nodiscard]] auto rt_filter(runtime_context& ctx, nix_value pred, nix_value list) -> rt_result;
 
 /// Fold left: foldl' op init [x1 x2 ...] = op (op (op init x1) x2) ...
 [[nodiscard]] auto rt_foldl(runtime_context& ctx, nix_value op, nix_value init, nix_value list)
-    -> nix_value;
+    -> rt_result;
 
 /// Generate a list: genList f n = [f 0  f 1  ... f (n-1)]
-[[nodiscard]] auto rt_gen_list(runtime_context& ctx, nix_value f, nix_value n) -> nix_value;
+[[nodiscard]] auto rt_gen_list(runtime_context& ctx, nix_value f, nix_value n) -> rt_result;
 
 /// Concatenate a list of lists: concatLists [[a b] [c d]] = [a b c d]
-[[nodiscard]] auto rt_concat_lists(runtime_context& ctx, nix_value lists) -> nix_value;
+[[nodiscard]] auto rt_concat_lists(runtime_context& ctx, nix_value lists) -> rt_result;
 
 /// Sort a list using comparator: sort comparator list
-[[nodiscard]] auto rt_sort(runtime_context& ctx, nix_value comparator, nix_value list) -> nix_value;
+[[nodiscard]] auto rt_sort(runtime_context& ctx, nix_value comparator, nix_value list) -> rt_result;
 
 // --- String Builtins ---
 
 /// Extract substring: substring start len str
 [[nodiscard]] auto rt_substring(runtime_context& ctx, nix_value start, nix_value len, nix_value str)
-    -> nix_value;
+    -> rt_result;
 
 /// Replace strings: replaceStrings from to str
 [[nodiscard]] auto rt_replace_strings(runtime_context& ctx, nix_value from, nix_value to,
-                                      nix_value str) -> nix_value;
+                                      nix_value str) -> rt_result;
 
 /// Convert to string: toString val
-[[nodiscard]] auto rt_to_string(runtime_context& ctx, nix_value v) -> nix_value;
+[[nodiscard]] auto rt_to_string(runtime_context& ctx, nix_value v) -> rt_result;
 
 /// Concatenate strings: concatStrings list
-[[nodiscard]] auto rt_concat_strings(runtime_context& ctx, nix_value list) -> nix_value;
+[[nodiscard]] auto rt_concat_strings(runtime_context& ctx, nix_value list) -> rt_result;
 
 /// Concatenate strings with separator: concatStringsSep sep list
 [[nodiscard]] auto rt_concat_string_sep(runtime_context& ctx, nix_value sep, nix_value list)
-    -> nix_value;
+    -> rt_result;
 
 // --- List Builtins (additional) ---
 
 /// Check if all elements satisfy predicate: all pred list
-[[nodiscard]] auto rt_all(runtime_context& ctx, nix_value pred, nix_value list) -> nix_value;
+[[nodiscard]] auto rt_all(runtime_context& ctx, nix_value pred, nix_value list) -> rt_result;
 
 /// Check if any element satisfies predicate: any pred list
-[[nodiscard]] auto rt_any(runtime_context& ctx, nix_value pred, nix_value list) -> nix_value;
+[[nodiscard]] auto rt_any(runtime_context& ctx, nix_value pred, nix_value list) -> rt_result;
 
 /// Map then concat: concatMap f list
-[[nodiscard]] auto rt_concat_map(runtime_context& ctx, nix_value f, nix_value list) -> nix_value;
+[[nodiscard]] auto rt_concat_map(runtime_context& ctx, nix_value f, nix_value list) -> rt_result;
 
 /// Partition list by predicate: partition pred list
-[[nodiscard]] auto rt_partition(runtime_context& ctx, nix_value pred, nix_value list) -> nix_value;
+[[nodiscard]] auto rt_partition(runtime_context& ctx, nix_value pred, nix_value list) -> rt_result;
 
 /// Group list elements by key function: groupBy f list
-[[nodiscard]] auto rt_group_by(runtime_context& ctx, nix_value f, nix_value list) -> nix_value;
+[[nodiscard]] auto rt_group_by(runtime_context& ctx, nix_value f, nix_value list) -> rt_result;
 
 /// Reverse a list: reverse list
-[[nodiscard]] auto rt_reverse(runtime_context& ctx, nix_value list) -> nix_value;
+[[nodiscard]] auto rt_reverse(runtime_context& ctx, nix_value list) -> rt_result;
 
 /// Take first n elements: take n list
-[[nodiscard]] auto rt_take(runtime_context& ctx, nix_value n, nix_value list) -> nix_value;
+[[nodiscard]] auto rt_take(runtime_context& ctx, nix_value n, nix_value list) -> rt_result;
 
 /// Drop first n elements: drop n list
-[[nodiscard]] auto rt_drop(runtime_context& ctx, nix_value n, nix_value list) -> nix_value;
+[[nodiscard]] auto rt_drop(runtime_context& ctx, nix_value n, nix_value list) -> rt_result;
 
 /// Generate list from a to b (inclusive): range a b
-[[nodiscard]] auto rt_range(runtime_context& ctx, nix_value a, nix_value b) -> nix_value;
+[[nodiscard]] auto rt_range(runtime_context& ctx, nix_value a, nix_value b) -> rt_result;
 
 /// Zip two lists into list of {fst, snd} attrsets: zipLists list1 list2
 [[nodiscard]] auto rt_zip_lists(runtime_context& ctx, nix_value list1, nix_value list2)
-    -> nix_value;
+    -> rt_result;
 
 /// Convert list of {name, value} to attrset: listToAttrs list
-[[nodiscard]] auto rt_list_to_attrs(runtime_context& ctx, nix_value list) -> nix_value;
+[[nodiscard]] auto rt_list_to_attrs(runtime_context& ctx, nix_value list) -> rt_result;
 
 /// Map function over attrset values: mapAttrs f set
-[[nodiscard]] auto rt_map_attrs(runtime_context& ctx, nix_value f, nix_value set) -> nix_value;
+[[nodiscard]] auto rt_map_attrs(runtime_context& ctx, nix_value f, nix_value set) -> rt_result;
 
 /// Extract attribute from list of attrsets: catAttrs name list
-[[nodiscard]] auto rt_cat_attrs(runtime_context& ctx, nix_value name, nix_value list) -> nix_value;
+[[nodiscard]] auto rt_cat_attrs(runtime_context& ctx, nix_value name, nix_value list) -> rt_result;
 
 /// Intersect attrsets: intersectAttrs a b (returns attrs from b that exist in a)
-[[nodiscard]] auto rt_intersect_attrs(runtime_context& ctx, nix_value a, nix_value b) -> nix_value;
+[[nodiscard]] auto rt_intersect_attrs(runtime_context& ctx, nix_value a, nix_value b) -> rt_result;
 
 /// Get function arguments: functionArgs f
-[[nodiscard]] auto rt_function_args(runtime_context& ctx, nix_value f) -> nix_value;
+[[nodiscard]] auto rt_function_args(runtime_context& ctx, nix_value f) -> rt_result;
 
 /// Get environment variable: getEnv name
-[[nodiscard]] auto rt_get_env(runtime_context& ctx, nix_value name) -> nix_value;
+[[nodiscard]] auto rt_get_env(runtime_context& ctx, nix_value name) -> rt_result;
 
 /// Convert to lowercase: toLower str
-[[nodiscard]] auto rt_to_lower(runtime_context& ctx, nix_value s) -> nix_value;
+[[nodiscard]] auto rt_to_lower(runtime_context& ctx, nix_value s) -> rt_result;
 
 /// Convert to uppercase: toUpper str
-[[nodiscard]] auto rt_to_upper(runtime_context& ctx, nix_value s) -> nix_value;
+[[nodiscard]] auto rt_to_upper(runtime_context& ctx, nix_value s) -> rt_result;
 
 /// Compare version strings: compareVersions a b
-[[nodiscard]] auto rt_compare_versions(runtime_context& ctx, nix_value a, nix_value b) -> nix_value;
+[[nodiscard]] auto rt_compare_versions(runtime_context& ctx, nix_value a, nix_value b) -> rt_result;
 
 /// Split version string: splitVersion v
-[[nodiscard]] auto rt_split_version(runtime_context& ctx, nix_value v) -> nix_value;
+[[nodiscard]] auto rt_split_version(runtime_context& ctx, nix_value v) -> rt_result;
 
 /// Parse derivation name: parseDrvName name
-[[nodiscard]] auto rt_parse_drv_name(runtime_context& ctx, nix_value s) -> nix_value;
+[[nodiscard]] auto rt_parse_drv_name(runtime_context& ctx, nix_value s) -> rt_result;
 
 /// Get base name of path: baseNameOf path
-[[nodiscard]] auto rt_base_name_of(runtime_context& ctx, nix_value s) -> nix_value;
+[[nodiscard]] auto rt_base_name_of(runtime_context& ctx, nix_value s) -> rt_result;
 
 /// Get directory of path: dirOf path
-[[nodiscard]] auto rt_dir_of(runtime_context& ctx, nix_value s) -> nix_value;
+[[nodiscard]] auto rt_dir_of(runtime_context& ctx, nix_value s) -> rt_result;
 
 /// Check if string has prefix: hasPrefix prefix str
 [[nodiscard]] auto rt_has_prefix(runtime_context& ctx, nix_value prefix, nix_value str)
-    -> nix_value;
+    -> rt_result;
 
 /// Check if string has suffix: hasSuffix suffix str
 [[nodiscard]] auto rt_has_suffix(runtime_context& ctx, nix_value suffix, nix_value str)
-    -> nix_value;
+    -> rt_result;
 
 /// Remove prefix from string: removePrefix prefix str
 [[nodiscard]] auto rt_remove_prefix(runtime_context& ctx, nix_value prefix, nix_value str)
-    -> nix_value;
+    -> rt_result;
 
 /// Remove suffix from string: removeSuffix suffix str
 [[nodiscard]] auto rt_remove_suffix(runtime_context& ctx, nix_value suffix, nix_value str)
-    -> nix_value;
+    -> rt_result;
 
 // --- JSON Builtins ---
 
 /// Convert Nix value to JSON string: toJSON val
-[[nodiscard]] auto rt_to_json(runtime_context& ctx, nix_value v) -> nix_value;
+[[nodiscard]] auto rt_to_json(runtime_context& ctx, nix_value v) -> rt_result;
 
 /// Parse JSON string to Nix value: fromJSON str
-[[nodiscard]] auto rt_from_json(runtime_context& ctx, nix_value s) -> nix_value;
+[[nodiscard]] auto rt_from_json(runtime_context& ctx, nix_value s) -> rt_result;
 
 // --- Arithmetic Builtins (as functions) ---
 
 /// Add: add a b
-[[nodiscard]] auto rt_builtin_add(runtime_context& ctx, nix_value a, nix_value b) -> nix_value;
+[[nodiscard]] auto rt_builtin_add(runtime_context& ctx, nix_value a, nix_value b) -> rt_result;
 
 /// Subtract: sub a b
-[[nodiscard]] auto rt_builtin_sub(runtime_context& ctx, nix_value a, nix_value b) -> nix_value;
+[[nodiscard]] auto rt_builtin_sub(runtime_context& ctx, nix_value a, nix_value b) -> rt_result;
 
 /// Multiply: mul a b
-[[nodiscard]] auto rt_builtin_mul(runtime_context& ctx, nix_value a, nix_value b) -> nix_value;
+[[nodiscard]] auto rt_builtin_mul(runtime_context& ctx, nix_value a, nix_value b) -> rt_result;
 
 /// Divide: div a b
-[[nodiscard]] auto rt_builtin_div(runtime_context& ctx, nix_value a, nix_value b) -> nix_value;
+[[nodiscard]] auto rt_builtin_div(runtime_context& ctx, nix_value a, nix_value b) -> rt_result;
 
 /// Less than comparison: lessThan a b
 [[nodiscard]] auto rt_builtin_less_than(runtime_context& ctx, nix_value a, nix_value b)
-    -> nix_value;
+    -> rt_result;
 
 /// Floor: floor x
-[[nodiscard]] auto rt_floor(runtime_context& ctx, nix_value v) -> nix_value;
+[[nodiscard]] auto rt_floor(runtime_context& ctx, nix_value v) -> rt_result;
 
 /// Ceil: ceil x
-[[nodiscard]] auto rt_ceil(runtime_context& ctx, nix_value v) -> nix_value;
+[[nodiscard]] auto rt_ceil(runtime_context& ctx, nix_value v) -> rt_result;
 
 /// Bitwise and: bitAnd a b
-[[nodiscard]] auto rt_bit_and(runtime_context& ctx, nix_value a, nix_value b) -> nix_value;
+[[nodiscard]] auto rt_bit_and(runtime_context& ctx, nix_value a, nix_value b) -> rt_result;
 
 /// Bitwise or: bitOr a b
-[[nodiscard]] auto rt_bit_or(runtime_context& ctx, nix_value a, nix_value b) -> nix_value;
+[[nodiscard]] auto rt_bit_or(runtime_context& ctx, nix_value a, nix_value b) -> rt_result;
 
 /// Bitwise xor: bitXor a b
-[[nodiscard]] auto rt_bit_xor(runtime_context& ctx, nix_value a, nix_value b) -> nix_value;
+[[nodiscard]] auto rt_bit_xor(runtime_context& ctx, nix_value a, nix_value b) -> rt_result;
 
 // --- Attrset Builtins ---
 
 /// Check if attrset has attribute: hasAttr name set
 [[nodiscard]] auto rt_builtin_has_attr(runtime_context& ctx, nix_value name, nix_value set)
-    -> nix_value;
+    -> rt_result;
 
 /// Get attribute from attrset: getAttr name set
 [[nodiscard]] auto rt_builtin_get_attr(runtime_context& ctx, nix_value name, nix_value set)
-    -> nix_value;
+    -> rt_result;
 
 /// Remove attributes from attrset: removeAttrs set names
 [[nodiscard]] auto rt_remove_attrs(runtime_context& ctx, nix_value set, nix_value names)
-    -> nix_value;
+    -> rt_result;
 
 // --- Error Handling ---
 
 /// Throw an error with message: throw "message"
-/// Returns a sentinel value if inside tryEval (ctx.try_eval_depth > 0)
-auto rt_throw_error(runtime_context& ctx, nix_value msg) -> nix_value;
+/// Returns rt_error_t with kind throw_error (catchable by tryEval)
+[[nodiscard]] auto rt_throw_error(runtime_context& ctx, nix_value msg) -> rt_result;
 
 /// Abort evaluation with message: abort "message"
-[[noreturn]] auto rt_abort(runtime_context& ctx, nix_value msg) -> nix_value;
+[[noreturn]] auto rt_abort(runtime_context& ctx, nix_value msg) -> rt_result;
 
 /// Try to evaluate, return { success, value }: tryEval expr
-[[nodiscard]] auto rt_try_eval(runtime_context& ctx, nix_value expr) -> nix_value;
+[[nodiscard]] auto rt_try_eval(runtime_context& ctx, nix_value expr) -> rt_result;
 
 /// Print trace message and return second arg: trace msg val
-[[nodiscard]] auto rt_trace(runtime_context& ctx, nix_value msg, nix_value val) -> nix_value;
+[[nodiscard]] auto rt_trace(runtime_context& ctx, nix_value msg, nix_value val) -> rt_result;
 
 /// Force first arg, return second: seq a b
-[[nodiscard]] auto rt_seq(runtime_context& ctx, nix_value a, nix_value b) -> nix_value;
+[[nodiscard]] auto rt_seq(runtime_context& ctx, nix_value a, nix_value b) -> rt_result;
 
 /// Deeply force first arg, return second: deepSeq a b
-[[nodiscard]] auto rt_deep_seq(runtime_context& ctx, nix_value a, nix_value b) -> nix_value;
+[[nodiscard]] auto rt_deep_seq(runtime_context& ctx, nix_value a, nix_value b) -> rt_result;
 
 // --- Advanced Builtins ---
 
 /// Compute transitive closure: genericClosure { startSet, operator }
-[[nodiscard]] auto rt_generic_closure(runtime_context& ctx, nix_value attrs) -> nix_value;
+[[nodiscard]] auto rt_generic_closure(runtime_context& ctx, nix_value attrs) -> rt_result;
 
 /// Find first element matching predicate: findFirst pred default list
 [[nodiscard]] auto rt_find_first(runtime_context& ctx, nix_value pred, nix_value def,
-                                 nix_value list) -> nix_value;
+                                 nix_value list) -> rt_result;
 
 /// Hash a string: hashString type str
-[[nodiscard]] auto rt_hash_string(runtime_context& ctx, nix_value type, nix_value str) -> nix_value;
+[[nodiscard]] auto rt_hash_string(runtime_context& ctx, nix_value type, nix_value str) -> rt_result;
 
 /// Match regex: match regex str (returns list or null)
-[[nodiscard]] auto rt_match(runtime_context& ctx, nix_value regex, nix_value str) -> nix_value;
+[[nodiscard]] auto rt_match(runtime_context& ctx, nix_value regex, nix_value str) -> rt_result;
 
 /// Split by regex: split regex str (returns list)
-[[nodiscard]] auto rt_split(runtime_context& ctx, nix_value regex, nix_value str) -> nix_value;
+[[nodiscard]] auto rt_split(runtime_context& ctx, nix_value regex, nix_value str) -> rt_result;
 
 } // namespace straylight::nix::compiler::runtime

@@ -9,6 +9,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
+#include <format>
 #include <iomanip>
 #include <iostream>
 #include <limits>
@@ -24,10 +25,12 @@
 namespace straylight::nix::compiler::runtime {
 
 // =============================================================================
+// Internal Helpers
+// =============================================================================
 // Core Runtime
 // =============================================================================
 
-auto rt_force(runtime_context& ctx, nix_value v) -> nix_value {
+auto rt_force(runtime_context& ctx, nix_value v) -> rt_result {
   // repeatedly force until we get a non-thunk value
   while (is_thunk(v)) {
     auto thunk_ptr = get_payload(v);
@@ -48,7 +51,7 @@ auto rt_force(runtime_context& ctx, nix_value v) -> nix_value {
       auto local_idx = encoded_func_index & 0xFFFF;
       LOG_ERROR("infinite recursion detected: thunk_ptr={} module={} local_idx={}", thunk_ptr,
                 module_id, local_idx);
-      throw runtime_error("infinite recursion detected");
+      return std::unexpected(rt_error_t::infinite_recursion("infinite recursion detected"));
     }
 
     // mark as in progress
@@ -65,16 +68,24 @@ auto rt_force(runtime_context& ctx, nix_value v) -> nix_value {
     LOG_TRACE("forcing thunk: ptr={} module={} idx={}", thunk_ptr, encoded_func_index >> 16,
               encoded_func_index & 0xFFFF);
 
-    // call the thunk function (thunks take only env_ptr and return nix_value)
+    // call the thunk function (thunks take only env_ptr and return rt_result)
     auto result = ctx.call_wasm_thunk(encoded_func_index, env_ptr);
+
+    if (!result) {
+      // Error during thunk evaluation - cache the error state and propagate
+      // Mark thunk as evaluated to avoid re-evaluation loops
+      ctx.write_value(thunk_ptr + mem::THUNK_CACHED_VALUE_OFFSET, constants::bool_false);
+      ctx.write_i32(thunk_ptr + mem::THUNK_STATE_OFFSET, mem::THUNK_STATE_EVALUATED);
+      return result; // propagate the error
+    }
 
     LOG_TRACE("thunk completed: ptr={}", thunk_ptr);
 
     // cache the result
-    ctx.write_value(thunk_ptr + mem::THUNK_CACHED_VALUE_OFFSET, result);
+    ctx.write_value(thunk_ptr + mem::THUNK_CACHED_VALUE_OFFSET, *result);
     ctx.write_i32(thunk_ptr + mem::THUNK_STATE_OFFSET, mem::THUNK_STATE_EVALUATED);
 
-    v = result;
+    v = *result;
   }
 
   return v;
@@ -104,9 +115,9 @@ auto rt_force(runtime_context& ctx, nix_value v) -> nix_value {
   return ctx.alloc_string(str);
 }
 
-auto rt_reify_value(runtime_context& ctx, nix_value v) -> nix_value {
+auto rt_reify_value(runtime_context& ctx, nix_value v) -> rt_result {
   // Force any thunks first (we need to see the actual value structure)
-  v = rt_force(ctx, v);
+  v = RT_TRY(rt_force(ctx, v));
 
   auto tag = get_tag(v);
   auto payload = get_payload(v);
@@ -170,7 +181,7 @@ auto rt_reify_value(runtime_context& ctx, nix_value v) -> nix_value {
 
       for (std::uint32_t idx = 0; idx < count; ++idx) {
         auto elem = ctx.read_value(payload + mem::LIST_ELEMENTS_OFFSET + idx * mem::VALUE_SIZE);
-        auto reified = rt_reify_value(ctx, elem);
+        auto reified = RT_TRY(rt_reify_value(ctx, elem));
         elements.push_back(reified);
         if (reified != elem) {
           any_changed = true;
@@ -226,7 +237,7 @@ auto rt_reify_value(runtime_context& ctx, nix_value v) -> nix_value {
         auto new_key_off = copy_string_to_heap(ctx, key_off);
 
         // Recursively reify the value
-        auto reified_val = rt_reify_value(ctx, val);
+        auto reified_val = RT_TRY(rt_reify_value(ctx, val));
 
         entries.push_back({new_key_off, reified_val});
 
@@ -271,7 +282,7 @@ auto rt_reify_value(runtime_context& ctx, nix_value v) -> nix_value {
 
       for (std::uint32_t idx = 0; idx < capture_count; ++idx) {
         auto cap = ctx.read_value(payload + mem::CLOSURE_CAPTURES_OFFSET + idx * mem::VALUE_SIZE);
-        auto reified = rt_reify_value(ctx, cap);
+        auto reified = RT_TRY(rt_reify_value(ctx, cap));
         captures.push_back(reified);
         if (reified != cap) {
           any_changed = true;
@@ -298,7 +309,7 @@ auto rt_reify_value(runtime_context& ctx, nix_value v) -> nix_value {
 
     case value_tag::thunk:
       // Should have been forced above, but handle defensively
-      return rt_reify_value(ctx, rt_force(ctx, v));
+      return rt_reify_value(ctx, RT_TRY(rt_force(ctx, v)));
 
     case value_tag::primop:
       // Primops are immediate values with no heap data
@@ -312,13 +323,16 @@ auto rt_reify_value(runtime_context& ctx, nix_value v) -> nix_value {
 
 // Forward declarations for partial primop application
 static auto rt_apply_partial_primop(runtime_context& ctx, std::uint32_t partial_ptr, nix_value arg)
-    -> nix_value;
+    -> rt_result;
 static auto rt_apply_partial_primop_3arg(runtime_context& ctx, std::uint32_t partial_ptr,
-                                         nix_value arg) -> nix_value;
+                                         nix_value arg) -> rt_result;
 
-auto rt_apply(runtime_context& ctx, nix_value fn, nix_value arg) -> nix_value {
+auto rt_apply(runtime_context& ctx, nix_value fn, nix_value arg) -> rt_result {
   // force the function in case it's a thunk
-  fn = rt_force(ctx, fn);
+  auto fn_result = rt_force(ctx, fn);
+  if (!fn_result)
+    return fn_result;
+  fn = *fn_result;
 
   // Handle primop (builtin function)
   if (is_primop(fn)) {
@@ -341,7 +355,8 @@ auto rt_apply(runtime_context& ctx, nix_value fn, nix_value arg) -> nix_value {
   }
 
   if (!is_lambda(fn)) {
-    throw type_error("cannot call non-function value of type '" + std::string(type_name(fn)) + "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("cannot call non-function value of type '{}'", type_name(fn))));
   }
 
   // closure layout: func_index (i32) + capture_count (i32) + captures[]
@@ -353,13 +368,7 @@ auto rt_apply(runtime_context& ctx, nix_value fn, nix_value arg) -> nix_value {
   return ctx.call_wasm_func(func_index, env_ptr, arg);
 }
 
-void rt_throw([[maybe_unused]] runtime_context& ctx, std::uint32_t msg_offset, std::uint32_t line,
-              std::uint32_t col) {
-  auto msg = ctx.read_string(msg_offset);
-  throw runtime_error(msg, line, col);
-}
-
-auto rt_lookup_var(runtime_context& ctx, std::uint32_t name_offset) -> nix_value {
+auto rt_lookup_var(runtime_context& ctx, std::uint32_t name_offset) -> rt_result {
   auto name = ctx.read_string(name_offset);
 
   // look up in builtins
@@ -368,11 +377,11 @@ auto rt_lookup_var(runtime_context& ctx, std::uint32_t name_offset) -> nix_value
     return it->second;
   }
 
-  throw runtime_error("undefined variable '" + std::string(name) + "'");
+  return std::unexpected(rt_error_t::throw_error(std::format("undefined variable '{}'", name)));
 }
 
 auto rt_make_closure(runtime_context& ctx, std::uint32_t func_index, std::uint32_t env_offset,
-                     [[maybe_unused]] std::uint32_t env_size) -> nix_value {
+                     [[maybe_unused]] std::uint32_t env_size) -> rt_result {
   // The environment is already allocated by the compiler at env_offset.
   // We need to create a closure struct that references it.
 
@@ -407,7 +416,7 @@ auto rt_make_closure(runtime_context& ctx, std::uint32_t func_index, std::uint32
 }
 
 auto rt_make_thunk(runtime_context& ctx, std::uint32_t func_index, std::uint32_t env_offset,
-                   [[maybe_unused]] std::uint32_t env_size) -> nix_value {
+                   [[maybe_unused]] std::uint32_t env_size) -> rt_result {
   // Allocate thunk header
   auto thunk_ptr = ctx.allocate(mem::THUNK_SIZE);
 
@@ -435,10 +444,12 @@ auto rt_make_thunk(runtime_context& ctx, std::uint32_t func_index, std::uint32_t
 
 namespace {
 
-auto expect_numeric(nix_value v, std::uint32_t line, std::uint32_t col) -> void {
+auto expect_numeric(nix_value v, std::uint32_t line, std::uint32_t col) -> rt_result {
   if (!is_numeric(v)) {
-    throw type_error("expected numeric type, got '" + std::string(type_name(v)) + "'", line, col);
+    return std::unexpected(rt_error_t::type_error(
+        std::format("expected numeric type, got '{}'", type_name(v)), line, col));
   }
+  return v;
 }
 
 auto to_double(runtime_context& ctx, nix_value v) -> double {
@@ -450,11 +461,11 @@ auto to_double(runtime_context& ctx, nix_value v) -> double {
   return ctx.read_f64(offset);
 }
 
-auto make_int(std::int32_t i) -> nix_value {
+auto make_int(std::int32_t i) -> rt_result {
   return make_value(value_tag::integer, static_cast<std::uint32_t>(i));
 }
 
-auto make_float(runtime_context& ctx, double d) -> nix_value {
+auto make_float(runtime_context& ctx, double d) -> rt_result {
   // Allocate 8 bytes for the double
   auto offset = ctx.allocate(8);
   ctx.write_f64(offset, d);
@@ -468,10 +479,10 @@ auto find_attr(runtime_context& ctx, std::uint32_t attrs_ptr, std::string_view k
 } // namespace
 
 auto rt_add([[maybe_unused]] runtime_context& ctx, nix_value a, nix_value b, std::uint32_t line,
-            std::uint32_t col) -> nix_value {
+            std::uint32_t col) -> rt_result {
   // Force arguments first
-  a = rt_force(ctx, a);
-  b = rt_force(ctx, b);
+  a = RT_TRY(rt_force(ctx, a));
+  b = RT_TRY(rt_force(ctx, b));
 
   // string concatenation
   if (is_string(a) && is_string(b)) {
@@ -485,8 +496,8 @@ auto rt_add([[maybe_unused]] runtime_context& ctx, nix_value a, nix_value b, std
     return make_value(value_tag::string, ptr);
   }
 
-  expect_numeric(a, line, col);
-  expect_numeric(b, line, col);
+  RT_TRY(expect_numeric(a, line, col));
+  RT_TRY(expect_numeric(b, line, col));
 
   // if both are ints, return int
   if (is_int(a) && is_int(b)) {
@@ -500,11 +511,11 @@ auto rt_add([[maybe_unused]] runtime_context& ctx, nix_value a, nix_value b, std
 }
 
 auto rt_sub([[maybe_unused]] runtime_context& ctx, nix_value a, nix_value b, std::uint32_t line,
-            std::uint32_t col) -> nix_value {
-  a = rt_force(ctx, a);
-  b = rt_force(ctx, b);
-  expect_numeric(a, line, col);
-  expect_numeric(b, line, col);
+            std::uint32_t col) -> rt_result {
+  a = RT_TRY(rt_force(ctx, a));
+  b = RT_TRY(rt_force(ctx, b));
+  RT_TRY(expect_numeric(a, line, col));
+  RT_TRY(expect_numeric(b, line, col));
 
   if (is_int(a) && is_int(b)) {
     auto ia = static_cast<std::int32_t>(get_payload(a));
@@ -516,11 +527,11 @@ auto rt_sub([[maybe_unused]] runtime_context& ctx, nix_value a, nix_value b, std
 }
 
 auto rt_mul([[maybe_unused]] runtime_context& ctx, nix_value a, nix_value b, std::uint32_t line,
-            std::uint32_t col) -> nix_value {
-  a = rt_force(ctx, a);
-  b = rt_force(ctx, b);
-  expect_numeric(a, line, col);
-  expect_numeric(b, line, col);
+            std::uint32_t col) -> rt_result {
+  a = RT_TRY(rt_force(ctx, a));
+  b = RT_TRY(rt_force(ctx, b));
+  RT_TRY(expect_numeric(a, line, col));
+  RT_TRY(expect_numeric(b, line, col));
 
   if (is_int(a) && is_int(b)) {
     auto ia = static_cast<std::int32_t>(get_payload(a));
@@ -532,11 +543,11 @@ auto rt_mul([[maybe_unused]] runtime_context& ctx, nix_value a, nix_value b, std
 }
 
 auto rt_div([[maybe_unused]] runtime_context& ctx, nix_value a, nix_value b, std::uint32_t line,
-            std::uint32_t col) -> nix_value {
-  a = rt_force(ctx, a);
-  b = rt_force(ctx, b);
-  expect_numeric(a, line, col);
-  expect_numeric(b, line, col);
+            std::uint32_t col) -> rt_result {
+  a = RT_TRY(rt_force(ctx, a));
+  b = RT_TRY(rt_force(ctx, b));
+  RT_TRY(expect_numeric(a, line, col));
+  RT_TRY(expect_numeric(b, line, col));
 
   // Nix integer division uses truncated division (toward zero) and returns an integer
   // Float division returns a float
@@ -544,13 +555,13 @@ auto rt_div([[maybe_unused]] runtime_context& ctx, nix_value a, nix_value b, std
     auto ia = static_cast<std::int32_t>(get_payload(a));
     auto ib = static_cast<std::int32_t>(get_payload(b));
     if (ib == 0) {
-      throw runtime_error("division by zero", line, col);
+      return std::unexpected(rt_error_t("division by zero", line, col));
     }
     // Handle INT_MIN / -1 which would overflow (result is INT_MAX + 1)
     // This is the only case where signed division can overflow
     constexpr auto int_min = std::numeric_limits<std::int32_t>::min();
     if (ia == int_min && ib == -1) {
-      throw runtime_error("integer overflow: INT_MIN / -1", line, col);
+      return std::unexpected(rt_error_t("integer overflow: INT_MIN / -1", line, col));
     }
     // C++ integer division already truncates toward zero, matching Nix semantics
     return make_int(ia / ib);
@@ -559,12 +570,12 @@ auto rt_div([[maybe_unused]] runtime_context& ctx, nix_value a, nix_value b, std
   // Float division
   auto db = to_double(ctx, b);
   if (db == 0.0) {
-    throw runtime_error("division by zero", line, col);
+    return std::unexpected(rt_error_t("division by zero", line, col));
   }
   return make_float(ctx, to_double(ctx, a) / db);
 }
 
-auto rt_negate(runtime_context& ctx, nix_value v) -> nix_value {
+auto rt_negate(runtime_context& ctx, nix_value v) -> rt_result {
   if (is_int(v)) {
     auto i = static_cast<std::int32_t>(get_payload(v));
     return make_int(-i);
@@ -572,17 +583,18 @@ auto rt_negate(runtime_context& ctx, nix_value v) -> nix_value {
   if (is_float(v)) {
     return make_float(ctx, -to_double(ctx, v));
   }
-  throw type_error("cannot negate value of type '" + std::string(type_name(v)) + "'");
+  return std::unexpected(
+      rt_error_t::type_error(std::format("cannot negate value of type '{}'", type_name(v))));
 }
 
 // =============================================================================
 // Comparison
 // =============================================================================
 
-auto rt_less_than(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
+auto rt_less_than(runtime_context& ctx, nix_value a, nix_value b) -> rt_result {
   // force both values
-  a = rt_force(ctx, a);
-  b = rt_force(ctx, b);
+  a = RT_TRY(rt_force(ctx, a));
+  b = RT_TRY(rt_force(ctx, b));
 
   if (is_int(a) && is_int(b)) {
     auto ia = static_cast<std::int32_t>(get_payload(a));
@@ -600,11 +612,11 @@ auto rt_less_than(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
     return sa < sb ? constants::bool_true : constants::bool_false;
   }
 
-  throw type_error("cannot compare values of types '" + std::string(type_name(a)) + "' and '" +
-                   std::string(type_name(b)) + "'");
+  return std::unexpected(rt_error_t::type_error(
+      std::format("cannot compare values of types '{}' and '{}'", type_name(a), type_name(b))));
 }
 
-auto rt_less_eq(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
+auto rt_less_eq(runtime_context& ctx, nix_value a, nix_value b) -> rt_result {
   auto lt = rt_less_than(ctx, a, b);
   if (lt == constants::bool_true) {
     return constants::bool_true;
@@ -612,10 +624,10 @@ auto rt_less_eq(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
   return rt_eq(ctx, a, b);
 }
 
-auto rt_eq(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
+auto rt_eq(runtime_context& ctx, nix_value a, nix_value b) -> rt_result {
   // force both values
-  a = rt_force(ctx, a);
-  b = rt_force(ctx, b);
+  a = RT_TRY(rt_force(ctx, a));
+  b = RT_TRY(rt_force(ctx, b));
 
   // different types are not equal
   if (get_tag(a) != get_tag(b)) {
@@ -710,7 +722,7 @@ auto rt_eq(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
   }
 }
 
-auto rt_neq(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
+auto rt_neq(runtime_context& ctx, nix_value a, nix_value b) -> rt_result {
   return rt_eq(ctx, a, b) == constants::bool_true ? constants::bool_false : constants::bool_true;
 }
 
@@ -718,24 +730,26 @@ auto rt_neq(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
 // Boolean
 // =============================================================================
 
-auto rt_not(runtime_context& ctx, nix_value v) -> nix_value {
-  v = rt_force(ctx, v);
+auto rt_not(runtime_context& ctx, nix_value v) -> rt_result {
+  v = RT_TRY(rt_force(ctx, v));
   if (!is_bool(v)) {
-    throw type_error("cannot apply 'not' to value of type '" + std::string(type_name(v)) + "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("cannot apply 'not' to value of type '{}'", type_name(v))));
   }
   return v == constants::bool_true ? constants::bool_false : constants::bool_true;
 }
 
-auto rt_is_bool(runtime_context& ctx, nix_value v) -> std::int32_t {
-  v = rt_force(ctx, v);
-  return is_bool(v) ? 1 : 0;
+auto rt_is_bool(runtime_context& ctx, nix_value v) -> rt_result {
+  v = RT_TRY(rt_force(ctx, v));
+  return is_bool(v) ? constants::bool_true : constants::bool_false;
 }
 
 auto rt_expect_bool(runtime_context& ctx, nix_value v, std::uint32_t line, std::uint32_t col)
-    -> nix_value {
-  v = rt_force(ctx, v);
+    -> rt_result {
+  v = RT_TRY(rt_force(ctx, v));
   if (!is_bool(v)) {
-    throw type_error("expected a Boolean but found " + std::string(type_name(v)), line, col);
+    return std::unexpected(rt_error_t::type_error(
+        std::format("expected a Boolean but found {}", type_name(v)), line, col));
   }
   return v;
 }
@@ -744,7 +758,7 @@ auto rt_expect_bool(runtime_context& ctx, nix_value v, std::uint32_t line, std::
 // Collections
 // =============================================================================
 
-auto rt_make_list(runtime_context& ctx, std::uint32_t offset, std::uint32_t count) -> nix_value {
+auto rt_make_list(runtime_context& ctx, std::uint32_t offset, std::uint32_t count) -> rt_result {
   // Allocate list: header + elements
   auto list_size = mem::list_size(count);
   auto list_ptr = ctx.allocate(list_size);
@@ -761,7 +775,7 @@ auto rt_make_list(runtime_context& ctx, std::uint32_t offset, std::uint32_t coun
   return make_value(value_tag::list, list_ptr);
 }
 
-auto rt_make_attrs(runtime_context& ctx, std::uint32_t offset, std::uint32_t count) -> nix_value {
+auto rt_make_attrs(runtime_context& ctx, std::uint32_t offset, std::uint32_t count) -> rt_result {
   // Allocate attrset: header + entries
   auto attrs_size = mem::attrset_size(count);
   auto attrs_ptr = ctx.allocate(attrs_size);
@@ -785,7 +799,7 @@ auto rt_make_attrs(runtime_context& ctx, std::uint32_t offset, std::uint32_t cou
 }
 
 auto rt_make_attrs_dynamic(runtime_context& ctx, std::uint32_t offset, std::uint32_t count)
-    -> nix_value {
+    -> rt_result {
   // Allocate attrset: header + entries (static layout)
   auto attrs_size = mem::attrset_size(count);
   auto attrs_ptr = ctx.allocate(attrs_size);
@@ -799,9 +813,9 @@ auto rt_make_attrs_dynamic(runtime_context& ctx, std::uint32_t offset, std::uint
     auto value = ctx.read_value(offset + idx * mem::ATTRSET_DYNAMIC_ENTRY_SIZE + mem::VALUE_SIZE);
 
     // force and extract key string offset
-    key_value = rt_force(ctx, key_value);
+    key_value = RT_TRY(rt_force(ctx, key_value));
     if (!is_string(key_value)) {
-      throw type_error("attribute name must be a string");
+      return std::unexpected(rt_error_t::type_error("attribute name must be a string"));
     }
     auto key_offset = get_payload(key_value);
 
@@ -840,12 +854,12 @@ auto find_attr(runtime_context& ctx, std::uint32_t attrs_ptr, std::string_view k
 } // namespace
 
 auto rt_select(runtime_context& ctx, nix_value set, std::uint32_t key_offset, std::uint32_t line,
-               std::uint32_t col) -> nix_value {
-  set = rt_force(ctx, set);
+               std::uint32_t col) -> rt_result {
+  set = RT_TRY(rt_force(ctx, set));
 
   if (!is_attrset(set)) {
-    throw type_error("cannot select from value of type '" + std::string(type_name(set)) + "'", line,
-                     col);
+    return std::unexpected(rt_error_t::type_error(
+        std::format("cannot select from value of type '{}'", type_name(set)), line, col));
   }
 
   auto key = ctx.read_string(key_offset);
@@ -853,26 +867,27 @@ auto rt_select(runtime_context& ctx, nix_value set, std::uint32_t key_offset, st
   auto result = find_attr(ctx, attrs_ptr, key);
 
   if (!result.has_value()) {
-    throw attr_error("attribute '" + std::string(key) + "' not found", line, col);
+    return std::unexpected(
+        rt_error_t::attr_not_found(std::format("attribute '{}' not found", key), line, col));
   }
 
   return *result;
 }
 
 auto rt_select_dynamic(runtime_context& ctx, nix_value set, nix_value key, std::uint32_t line,
-                       std::uint32_t col) -> nix_value {
-  key = rt_force(ctx, key);
+                       std::uint32_t col) -> rt_result {
+  key = RT_TRY(rt_force(ctx, key));
 
   if (!is_string(key)) {
-    throw type_error("attribute name must be a string, got '" + std::string(type_name(key)) + "'",
-                     line, col);
+    return std::unexpected(rt_error_t::type_error(
+        std::format("attribute name must be a string, got '{}'", type_name(key)), line, col));
   }
 
   return rt_select(ctx, set, get_payload(key), line, col);
 }
 
-auto rt_has_attr(runtime_context& ctx, nix_value set, std::uint32_t key_offset) -> nix_value {
-  set = rt_force(ctx, set);
+auto rt_has_attr(runtime_context& ctx, nix_value set, std::uint32_t key_offset) -> rt_result {
+  set = RT_TRY(rt_force(ctx, set));
 
   if (!is_attrset(set)) {
     return constants::bool_false;
@@ -885,8 +900,8 @@ auto rt_has_attr(runtime_context& ctx, nix_value set, std::uint32_t key_offset) 
   return result.has_value() ? constants::bool_true : constants::bool_false;
 }
 
-auto rt_has_attr_dynamic(runtime_context& ctx, nix_value set, nix_value key) -> nix_value {
-  key = rt_force(ctx, key);
+auto rt_has_attr_dynamic(runtime_context& ctx, nix_value set, nix_value key) -> rt_result {
+  key = RT_TRY(rt_force(ctx, key));
 
   if (!is_string(key)) {
     return constants::bool_false;
@@ -895,12 +910,12 @@ auto rt_has_attr_dynamic(runtime_context& ctx, nix_value set, nix_value key) -> 
   return rt_has_attr(ctx, set, get_payload(key));
 }
 
-auto rt_update(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
-  a = rt_force(ctx, a);
-  b = rt_force(ctx, b);
+auto rt_update(runtime_context& ctx, nix_value a, nix_value b) -> rt_result {
+  a = RT_TRY(rt_force(ctx, a));
+  b = RT_TRY(rt_force(ctx, b));
 
   if (!is_attrset(a) || !is_attrset(b)) {
-    throw type_error("cannot update: expected attribute sets");
+    return std::unexpected(rt_error_t::type_error("cannot update: expected attribute sets"));
   }
 
   auto a_ptr = get_payload(a);
@@ -965,12 +980,12 @@ auto rt_update(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
   return make_value(value_tag::attribute_set, attrs_ptr);
 }
 
-auto rt_concat(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
-  a = rt_force(ctx, a);
-  b = rt_force(ctx, b);
+auto rt_concat(runtime_context& ctx, nix_value a, nix_value b) -> rt_result {
+  a = RT_TRY(rt_force(ctx, a));
+  b = RT_TRY(rt_force(ctx, b));
 
   if (!is_list(a) || !is_list(b)) {
-    throw type_error("cannot concatenate: expected lists");
+    return std::unexpected(rt_error_t::type_error("cannot concatenate: expected lists"));
   }
 
   auto a_ptr = get_payload(a);
@@ -1005,16 +1020,16 @@ auto rt_concat(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
 // =============================================================================
 
 // Forward declaration for recursive list stringification
-static auto rt_to_string_coerce(runtime_context& ctx, nix_value v) -> std::string;
+static auto rt_to_string_coerce(runtime_context& ctx, nix_value v) -> rt_result_t<std::string>;
 
-auto rt_to_string(runtime_context& ctx, nix_value v) -> nix_value {
-  auto result = rt_to_string_coerce(ctx, v);
+auto rt_to_string(runtime_context& ctx, nix_value v) -> rt_result {
+  auto result = RT_TRY(rt_to_string_coerce(ctx, v));
   auto ptr = ctx.alloc_string(result);
   return make_value(value_tag::string, ptr);
 }
 
-static auto rt_to_string_coerce(runtime_context& ctx, nix_value v) -> std::string {
-  v = rt_force(ctx, v);
+static auto rt_to_string_coerce(runtime_context& ctx, nix_value v) -> rt_result_t<std::string> {
+  v = RT_TRY(rt_force(ctx, v));
 
   switch (get_tag(v)) {
     case value_tag::string:
@@ -1022,11 +1037,11 @@ static auto rt_to_string_coerce(runtime_context& ctx, nix_value v) -> std::strin
 
     case value_tag::null_value:
       // null coerces to empty string
-      return "";
+      return std::string{};
 
     case value_tag::boolean:
       // Nix coerceMore semantics: true -> "1", false -> ""
-      return (v == constants::bool_true) ? "1" : "";
+      return std::string{(v == constants::bool_true) ? "1" : ""};
 
     case value_tag::integer: {
       auto i = static_cast<std::int32_t>(get_payload(v));
@@ -1048,7 +1063,7 @@ static auto rt_to_string_coerce(runtime_context& ctx, nix_value v) -> std::strin
       // List: recursively stringify elements, join with spaces
       auto list_ptr = get_payload(v);
       if (list_ptr == 0) {
-        return ""; // empty list
+        return std::string{}; // empty list
       }
 
       auto count = ctx.read_u32(list_ptr + mem::LIST_COUNT_OFFSET);
@@ -1056,7 +1071,7 @@ static auto rt_to_string_coerce(runtime_context& ctx, nix_value v) -> std::strin
 
       for (std::uint32_t idx = 0; idx < count; ++idx) {
         auto elem = ctx.read_value(list_ptr + mem::LIST_ELEMENTS_OFFSET + idx * mem::VALUE_SIZE);
-        auto elem_str = rt_to_string_coerce(ctx, elem);
+        auto elem_str = RT_TRY(rt_to_string_coerce(ctx, elem));
 
         if (idx > 0 && !elem_str.empty()) {
           result += " ";
@@ -1067,22 +1082,23 @@ static auto rt_to_string_coerce(runtime_context& ctx, nix_value v) -> std::strin
     }
 
     default:
-      throw type_error("cannot coerce " + std::string(type_name(v)) + " to a string");
+      return std::unexpected(
+          rt_error_t::type_error(std::format("cannot coerce {} to a string", type_name(v))));
   }
 }
 
 auto rt_concat_strings(runtime_context& ctx, std::uint32_t offset, std::uint32_t count)
-    -> nix_value {
+    -> rt_result {
   // read and concatenate all strings
   std::string result;
 
   for (std::uint32_t idx = 0; idx < count; ++idx) {
     auto part = ctx.read_value(offset + idx * mem::VALUE_SIZE);
-    part = rt_force(ctx, part);
+    part = RT_TRY(rt_force(ctx, part));
 
     if (!is_string(part)) {
-      throw type_error("expected string in concatenation, got '" + std::string(type_name(part)) +
-                       "'");
+      return std::unexpected(rt_error_t::type_error(
+          std::format("expected string in concatenation, got '{}'", type_name(part))));
     }
 
     auto str = ctx.read_string(get_payload(part));
@@ -1107,8 +1123,8 @@ auto allocate_string(runtime_context& ctx, std::string_view str) -> std::uint32_
 
 } // namespace
 
-auto rt_length(runtime_context& ctx, nix_value v) -> nix_value {
-  v = rt_force(ctx, v);
+auto rt_length(runtime_context& ctx, nix_value v) -> rt_result {
+  v = RT_TRY(rt_force(ctx, v));
 
   if (is_list(v)) {
     auto ptr = get_payload(v);
@@ -1124,44 +1140,47 @@ auto rt_length(runtime_context& ctx, nix_value v) -> nix_value {
     return make_int(static_cast<std::int32_t>(str.size()));
   }
 
-  throw type_error("builtins.length: expected list, got '" + std::string(type_name(v)) + "'");
+  return std::unexpected(rt_error_t::type_error(
+      std::format("builtins.length: expected list, got '{}'", type_name(v))));
 }
 
-auto rt_head(runtime_context& ctx, nix_value v) -> nix_value {
-  v = rt_force(ctx, v);
+auto rt_head(runtime_context& ctx, nix_value v) -> rt_result {
+  v = RT_TRY(rt_force(ctx, v));
 
   if (!is_list(v)) {
-    throw type_error("builtins.head: expected list, got '" + std::string(type_name(v)) + "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.head: expected list, got '{}'", type_name(v))));
   }
 
   auto ptr = get_payload(v);
   if (ptr == 0) {
-    throw runtime_error("builtins.head: list is empty");
+    return std::unexpected(rt_error_t("builtins.head: list is empty"));
   }
 
   auto count = ctx.read_u32(ptr + mem::LIST_COUNT_OFFSET);
   if (count == 0) {
-    throw runtime_error("builtins.head: list is empty");
+    return std::unexpected(rt_error_t("builtins.head: list is empty"));
   }
 
   return ctx.read_value(ptr + mem::LIST_ELEMENTS_OFFSET);
 }
 
-auto rt_tail(runtime_context& ctx, nix_value v) -> nix_value {
-  v = rt_force(ctx, v);
+auto rt_tail(runtime_context& ctx, nix_value v) -> rt_result {
+  v = RT_TRY(rt_force(ctx, v));
 
   if (!is_list(v)) {
-    throw type_error("builtins.tail: expected list, got '" + std::string(type_name(v)) + "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.tail: expected list, got '{}'", type_name(v))));
   }
 
   auto ptr = get_payload(v);
   if (ptr == 0) {
-    throw runtime_error("builtins.tail: list is empty");
+    return std::unexpected(rt_error_t("builtins.tail: list is empty"));
   }
 
   auto count = ctx.read_u32(ptr + mem::LIST_COUNT_OFFSET);
   if (count == 0) {
-    throw runtime_error("builtins.tail: list is empty");
+    return std::unexpected(rt_error_t("builtins.tail: list is empty"));
   }
 
   if (count == 1) {
@@ -1185,45 +1204,48 @@ auto rt_tail(runtime_context& ctx, nix_value v) -> nix_value {
   return make_value(value_tag::list, list_ptr);
 }
 
-auto rt_elem_at(runtime_context& ctx, nix_value list, nix_value index) -> nix_value {
-  list = rt_force(ctx, list);
-  index = rt_force(ctx, index);
+auto rt_elem_at(runtime_context& ctx, nix_value list, nix_value index) -> rt_result {
+  list = RT_TRY(rt_force(ctx, list));
+  index = RT_TRY(rt_force(ctx, index));
 
   if (!is_list(list)) {
-    throw type_error("builtins.elemAt: expected list, got '" + std::string(type_name(list)) + "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.elemAt: expected list, got '{}'", type_name(list))));
   }
 
   if (!is_int(index)) {
-    throw type_error("builtins.elemAt: expected integer index, got '" +
-                     std::string(type_name(index)) + "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.elemAt: expected integer index, got '{}'", type_name(index))));
   }
 
   auto idx = static_cast<std::int32_t>(get_payload(index));
   if (idx < 0) {
-    throw runtime_error("builtins.elemAt: index " + std::to_string(idx) + " is negative");
+    return std::unexpected(
+        rt_error_t::throw_error(std::format("builtins.elemAt: index {} is negative", idx)));
   }
 
   auto ptr = get_payload(list);
   if (ptr == 0) {
-    throw runtime_error("builtins.elemAt: index " + std::to_string(idx) +
-                        " is out of bounds for empty list");
+    return std::unexpected(rt_error_t::throw_error(
+        std::format("builtins.elemAt: index {} is out of bounds for empty list", idx)));
   }
 
   auto count = ctx.read_u32(ptr + mem::LIST_COUNT_OFFSET);
   if (static_cast<std::uint32_t>(idx) >= count) {
-    throw runtime_error("builtins.elemAt: index " + std::to_string(idx) +
-                        " is out of bounds for list of length " + std::to_string(count));
+    return std::unexpected(rt_error_t::throw_error(std::format(
+        "builtins.elemAt: index {} is out of bounds for list of length {}", idx, count)));
   }
 
   return ctx.read_value(ptr + mem::LIST_ELEMENTS_OFFSET +
                         static_cast<std::uint32_t>(idx) * mem::VALUE_SIZE);
 }
 
-auto rt_elem(runtime_context& ctx, nix_value x, nix_value list) -> nix_value {
-  list = rt_force(ctx, list);
+auto rt_elem(runtime_context& ctx, nix_value x, nix_value list) -> rt_result {
+  list = RT_TRY(rt_force(ctx, list));
 
   if (!is_list(list)) {
-    throw type_error("builtins.elem: expected list, got '" + std::string(type_name(list)) + "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.elem: expected list, got '{}'", type_name(list))));
   }
 
   auto ptr = get_payload(list);
@@ -1242,8 +1264,8 @@ auto rt_elem(runtime_context& ctx, nix_value x, nix_value list) -> nix_value {
   return constants::bool_false;
 }
 
-auto rt_type_of(runtime_context& ctx, nix_value v) -> nix_value {
-  v = rt_force(ctx, v);
+auto rt_type_of(runtime_context& ctx, nix_value v) -> rt_result {
+  v = RT_TRY(rt_force(ctx, v));
 
   std::string_view type_str;
   switch (get_tag(v)) {
@@ -1284,11 +1306,12 @@ auto rt_type_of(runtime_context& ctx, nix_value v) -> nix_value {
   return make_value(value_tag::string, ptr);
 }
 
-auto rt_attr_names(runtime_context& ctx, nix_value set) -> nix_value {
-  set = rt_force(ctx, set);
+auto rt_attr_names(runtime_context& ctx, nix_value set) -> rt_result {
+  set = RT_TRY(rt_force(ctx, set));
 
   if (!is_attrset(set)) {
-    throw type_error("builtins.attrNames: expected set, got '" + std::string(type_name(set)) + "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.attrNames: expected set, got '{}'", type_name(set))));
   }
 
   auto attrs_ptr = get_payload(set);
@@ -1329,12 +1352,12 @@ auto rt_attr_names(runtime_context& ctx, nix_value set) -> nix_value {
   return make_value(value_tag::list, list_ptr);
 }
 
-auto rt_attr_values(runtime_context& ctx, nix_value set) -> nix_value {
-  set = rt_force(ctx, set);
+auto rt_attr_values(runtime_context& ctx, nix_value set) -> rt_result {
+  set = RT_TRY(rt_force(ctx, set));
 
   if (!is_attrset(set)) {
-    throw type_error("builtins.attrValues: expected set, got '" + std::string(type_name(set)) +
-                     "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.attrValues: expected set, got '{}'", type_name(set))));
   }
 
   auto attrs_ptr = get_payload(set);
@@ -1374,12 +1397,12 @@ auto rt_attr_values(runtime_context& ctx, nix_value set) -> nix_value {
   return make_value(value_tag::list, list_ptr);
 }
 
-auto rt_string_length(runtime_context& ctx, nix_value s) -> nix_value {
-  s = rt_force(ctx, s);
+auto rt_string_length(runtime_context& ctx, nix_value s) -> rt_result {
+  s = RT_TRY(rt_force(ctx, s));
 
   if (!is_string(s)) {
-    throw type_error("builtins.stringLength: expected string, got '" + std::string(type_name(s)) +
-                     "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.stringLength: expected string, got '{}'", type_name(s))));
   }
 
   auto str = ctx.read_string(get_payload(s));
@@ -1387,22 +1410,22 @@ auto rt_string_length(runtime_context& ctx, nix_value s) -> nix_value {
 }
 
 auto rt_substring(runtime_context& ctx, nix_value start, nix_value len, nix_value str)
-    -> nix_value {
-  start = rt_force(ctx, start);
-  len = rt_force(ctx, len);
-  str = rt_force(ctx, str);
+    -> rt_result {
+  start = RT_TRY(rt_force(ctx, start));
+  len = RT_TRY(rt_force(ctx, len));
+  str = RT_TRY(rt_force(ctx, str));
 
   if (!is_int(start)) {
-    throw type_error("builtins.substring: start must be int, got '" +
-                     std::string(type_name(start)) + "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.substring: start must be int, got '{}'", type_name(start))));
   }
   if (!is_int(len)) {
-    throw type_error("builtins.substring: length must be int, got '" + std::string(type_name(len)) +
-                     "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.substring: length must be int, got '{}'", type_name(len))));
   }
   if (!is_string(str)) {
-    throw type_error("builtins.substring: expected string, got '" + std::string(type_name(str)) +
-                     "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.substring: expected string, got '{}'", type_name(str))));
   }
 
   auto start_val = static_cast<std::int32_t>(get_payload(start));
@@ -1435,22 +1458,22 @@ auto rt_substring(runtime_context& ctx, nix_value start, nix_value len, nix_valu
 }
 
 auto rt_replace_strings(runtime_context& ctx, nix_value from, nix_value to, nix_value str)
-    -> nix_value {
-  from = rt_force(ctx, from);
-  to = rt_force(ctx, to);
-  str = rt_force(ctx, str);
+    -> rt_result {
+  from = RT_TRY(rt_force(ctx, from));
+  to = RT_TRY(rt_force(ctx, to));
+  str = RT_TRY(rt_force(ctx, str));
 
   if (!is_list(from)) {
-    throw type_error("builtins.replaceStrings: 'from' must be list, got '" +
-                     std::string(type_name(from)) + "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.replaceStrings: 'from' must be list, got '{}'", type_name(from))));
   }
   if (!is_list(to)) {
-    throw type_error("builtins.replaceStrings: 'to' must be list, got '" +
-                     std::string(type_name(to)) + "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.replaceStrings: 'to' must be list, got '{}'", type_name(to))));
   }
   if (!is_string(str)) {
-    throw type_error("builtins.replaceStrings: expected string, got '" +
-                     std::string(type_name(str)) + "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.replaceStrings: expected string, got '{}'", type_name(str))));
   }
 
   // Collect from/to pairs
@@ -1471,16 +1494,18 @@ auto rt_replace_strings(runtime_context& ctx, nix_value from, nix_value to, nix_
   }
 
   if (from_count != to_count) {
-    throw runtime_error("builtins.replaceStrings: 'from' and 'to' lists must have same length");
+    return std::unexpected(
+        rt_error_t("builtins.replaceStrings: 'from' and 'to' lists must have same length"));
   }
 
   for (std::uint32_t idx = 0; idx < from_count; ++idx) {
     auto f = ctx.read_value(from_ptr + mem::LIST_ELEMENTS_OFFSET + idx * mem::VALUE_SIZE);
     auto t = ctx.read_value(to_ptr + mem::LIST_ELEMENTS_OFFSET + idx * mem::VALUE_SIZE);
-    f = rt_force(ctx, f);
-    t = rt_force(ctx, t);
+    f = RT_TRY(rt_force(ctx, f));
+    t = RT_TRY(rt_force(ctx, t));
     if (!is_string(f) || !is_string(t)) {
-      throw type_error("builtins.replaceStrings: all elements must be strings");
+      return std::unexpected(
+          rt_error_t::type_error("builtins.replaceStrings: all elements must be strings"));
     }
     from_strs.push_back(std::string(ctx.read_string(get_payload(f))));
     to_strs.push_back(std::string(ctx.read_string(get_payload(t))));
@@ -1531,12 +1556,12 @@ auto rt_replace_strings(runtime_context& ctx, nix_value from, nix_value to, nix_
   return make_value(value_tag::string, result_ptr);
 }
 
-auto rt_concat_strings(runtime_context& ctx, nix_value list) -> nix_value {
-  list = rt_force(ctx, list);
+auto rt_concat_strings(runtime_context& ctx, nix_value list) -> rt_result {
+  list = RT_TRY(rt_force(ctx, list));
 
   if (!is_list(list)) {
-    throw type_error("builtins.concatStrings: expected list, got '" + std::string(type_name(list)) +
-                     "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.concatStrings: expected list, got '{}'", type_name(list))));
   }
 
   auto list_ptr = get_payload(list);
@@ -1550,9 +1575,10 @@ auto rt_concat_strings(runtime_context& ctx, nix_value list) -> nix_value {
 
   for (std::uint32_t idx = 0; idx < count; ++idx) {
     auto elem = ctx.read_value(list_ptr + mem::LIST_ELEMENTS_OFFSET + idx * mem::VALUE_SIZE);
-    elem = rt_force(ctx, elem);
+    elem = RT_TRY(rt_force(ctx, elem));
     if (!is_string(elem)) {
-      throw type_error("builtins.concatStrings: all elements must be strings");
+      return std::unexpected(
+          rt_error_t::type_error("builtins.concatStrings: all elements must be strings"));
     }
     result += ctx.read_string(get_payload(elem));
   }
@@ -1561,17 +1587,17 @@ auto rt_concat_strings(runtime_context& ctx, nix_value list) -> nix_value {
   return make_value(value_tag::string, ptr);
 }
 
-auto rt_concat_string_sep(runtime_context& ctx, nix_value sep, nix_value list) -> nix_value {
-  sep = rt_force(ctx, sep);
-  list = rt_force(ctx, list);
+auto rt_concat_string_sep(runtime_context& ctx, nix_value sep, nix_value list) -> rt_result {
+  sep = RT_TRY(rt_force(ctx, sep));
+  list = RT_TRY(rt_force(ctx, list));
 
   if (!is_string(sep)) {
-    throw type_error("builtins.concatStringsSep: first argument must be a string, got '" +
-                     std::string(type_name(sep)) + "'");
+    return std::unexpected(rt_error_t::type_error(std::format(
+        "builtins.concatStringsSep: first argument must be a string, got '{}'", type_name(sep))));
   }
   if (!is_list(list)) {
-    throw type_error("builtins.concatStringsSep: second argument must be a list, got '" +
-                     std::string(type_name(list)) + "'");
+    return std::unexpected(rt_error_t::type_error(std::format(
+        "builtins.concatStringsSep: second argument must be a list, got '{}'", type_name(list))));
   }
 
   auto sep_str = ctx.read_string(get_payload(sep));
@@ -1590,10 +1616,11 @@ auto rt_concat_string_sep(runtime_context& ctx, nix_value sep, nix_value list) -
       result += sep_str;
     }
     auto elem = ctx.read_value(list_ptr + mem::LIST_ELEMENTS_OFFSET + idx * mem::VALUE_SIZE);
-    elem = rt_force(ctx, elem);
+    elem = RT_TRY(rt_force(ctx, elem));
     if (!is_string(elem)) {
-      throw type_error("builtins.concatStringsSep: all list elements must be strings, got '" +
-                       std::string(type_name(elem)) + "'");
+      return std::unexpected(rt_error_t::type_error(
+          std::format("builtins.concatStringsSep: all list elements must be strings, got '{}'",
+                      type_name(elem))));
     }
     result += ctx.read_string(get_payload(elem));
   }
@@ -1606,11 +1633,12 @@ auto rt_concat_string_sep(runtime_context& ctx, nix_value sep, nix_value list) -
 // List Builtins (additional)
 // =============================================================================
 
-auto rt_all(runtime_context& ctx, nix_value pred, nix_value list) -> nix_value {
-  list = rt_force(ctx, list);
+auto rt_all(runtime_context& ctx, nix_value pred, nix_value list) -> rt_result {
+  list = RT_TRY(rt_force(ctx, list));
 
   if (!is_list(list)) {
-    throw type_error("builtins.all: expected list, got '" + std::string(type_name(list)) + "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.all: expected list, got '{}'", type_name(list))));
   }
 
   auto list_ptr = get_payload(list);
@@ -1621,10 +1649,10 @@ auto rt_all(runtime_context& ctx, nix_value pred, nix_value list) -> nix_value {
   auto count = ctx.read_u32(list_ptr + mem::LIST_COUNT_OFFSET);
   for (std::uint32_t idx = 0; idx < count; ++idx) {
     auto elem = ctx.read_value(list_ptr + mem::LIST_ELEMENTS_OFFSET + idx * mem::VALUE_SIZE);
-    auto result = rt_apply(ctx, pred, elem);
-    result = rt_force(ctx, result);
+    auto result = RT_TRY(rt_apply(ctx, pred, elem));
+    result = RT_TRY(rt_force(ctx, result));
     if (!is_bool(result)) {
-      throw type_error("builtins.all: predicate must return bool");
+      return std::unexpected(rt_error_t::type_error("builtins.all: predicate must return bool"));
     }
     if (result == constants::bool_false) {
       return constants::bool_false;
@@ -1634,11 +1662,12 @@ auto rt_all(runtime_context& ctx, nix_value pred, nix_value list) -> nix_value {
   return constants::bool_true;
 }
 
-auto rt_any(runtime_context& ctx, nix_value pred, nix_value list) -> nix_value {
-  list = rt_force(ctx, list);
+auto rt_any(runtime_context& ctx, nix_value pred, nix_value list) -> rt_result {
+  list = RT_TRY(rt_force(ctx, list));
 
   if (!is_list(list)) {
-    throw type_error("builtins.any: expected list, got '" + std::string(type_name(list)) + "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.any: expected list, got '{}'", type_name(list))));
   }
 
   auto list_ptr = get_payload(list);
@@ -1649,10 +1678,10 @@ auto rt_any(runtime_context& ctx, nix_value pred, nix_value list) -> nix_value {
   auto count = ctx.read_u32(list_ptr + mem::LIST_COUNT_OFFSET);
   for (std::uint32_t idx = 0; idx < count; ++idx) {
     auto elem = ctx.read_value(list_ptr + mem::LIST_ELEMENTS_OFFSET + idx * mem::VALUE_SIZE);
-    auto result = rt_apply(ctx, pred, elem);
-    result = rt_force(ctx, result);
+    auto result = RT_TRY(rt_apply(ctx, pred, elem));
+    result = RT_TRY(rt_force(ctx, result));
     if (!is_bool(result)) {
-      throw type_error("builtins.any: predicate must return bool");
+      return std::unexpected(rt_error_t::type_error("builtins.any: predicate must return bool"));
     }
     if (result == constants::bool_true) {
       return constants::bool_true;
@@ -1662,18 +1691,18 @@ auto rt_any(runtime_context& ctx, nix_value pred, nix_value list) -> nix_value {
   return constants::bool_false;
 }
 
-auto rt_concat_map(runtime_context& ctx, nix_value f, nix_value list) -> nix_value {
+auto rt_concat_map(runtime_context& ctx, nix_value f, nix_value list) -> rt_result {
   // concatMap f list = concatLists (map f list)
-  auto mapped = rt_map(ctx, f, list);
+  auto mapped = RT_TRY(rt_map(ctx, f, list));
   return rt_concat_lists(ctx, mapped);
 }
 
-auto rt_list_to_attrs(runtime_context& ctx, nix_value list) -> nix_value {
-  list = rt_force(ctx, list);
+auto rt_list_to_attrs(runtime_context& ctx, nix_value list) -> rt_result {
+  list = RT_TRY(rt_force(ctx, list));
 
   if (!is_list(list)) {
-    throw type_error("builtins.listToAttrs: expected list, got '" + std::string(type_name(list)) +
-                     "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.listToAttrs: expected list, got '{}'", type_name(list))));
   }
 
   auto list_ptr = get_payload(list);
@@ -1689,10 +1718,11 @@ auto rt_list_to_attrs(runtime_context& ctx, nix_value list) -> nix_value {
 
   for (std::uint32_t idx = 0; idx < count; ++idx) {
     auto elem = ctx.read_value(list_ptr + mem::LIST_ELEMENTS_OFFSET + idx * mem::VALUE_SIZE);
-    elem = rt_force(ctx, elem);
+    elem = RT_TRY(rt_force(ctx, elem));
 
     if (!is_attrset(elem)) {
-      throw type_error("builtins.listToAttrs: elements must be attrsets with 'name' and 'value'");
+      return std::unexpected(rt_error_t::type_error(
+          "builtins.listToAttrs: elements must be attrsets with 'name' and 'value'"));
     }
 
     auto elem_ptr = get_payload(elem);
@@ -1700,15 +1730,17 @@ auto rt_list_to_attrs(runtime_context& ctx, nix_value list) -> nix_value {
     auto value_val = find_attr(ctx, elem_ptr, "value");
 
     if (!name_val.has_value()) {
-      throw attr_error("builtins.listToAttrs: element missing 'name' attribute");
+      return std::unexpected(
+          rt_error_t::attr_not_found("builtins.listToAttrs: element missing 'name' attribute"));
     }
     if (!value_val.has_value()) {
-      throw attr_error("builtins.listToAttrs: element missing 'value' attribute");
+      return std::unexpected(
+          rt_error_t::attr_not_found("builtins.listToAttrs: element missing 'value' attribute"));
     }
 
-    auto name = rt_force(ctx, *name_val);
+    auto name = RT_TRY(rt_force(ctx, *name_val));
     if (!is_string(name)) {
-      throw type_error("builtins.listToAttrs: 'name' must be string");
+      return std::unexpected(rt_error_t::type_error("builtins.listToAttrs: 'name' must be string"));
     }
 
     auto key = std::string(ctx.read_string(get_payload(name)));
@@ -1741,11 +1773,12 @@ auto rt_list_to_attrs(runtime_context& ctx, nix_value list) -> nix_value {
   return make_value(value_tag::attribute_set, new_ptr);
 }
 
-auto rt_map_attrs(runtime_context& ctx, nix_value f, nix_value set) -> nix_value {
-  set = rt_force(ctx, set);
+auto rt_map_attrs(runtime_context& ctx, nix_value f, nix_value set) -> rt_result {
+  set = RT_TRY(rt_force(ctx, set));
 
   if (!is_attrset(set)) {
-    throw type_error("builtins.mapAttrs: expected set, got '" + std::string(type_name(set)) + "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.mapAttrs: expected set, got '{}'", type_name(set))));
   }
 
   auto attrs_ptr = get_payload(set);
@@ -1771,8 +1804,8 @@ auto rt_map_attrs(runtime_context& ctx, nix_value f, nix_value set) -> nix_value
     // Apply f to name then to value: (f name value)
     auto name_ptr = allocate_string(ctx, key_str);
     auto name_val = make_value(value_tag::string, name_ptr);
-    auto partial = rt_apply(ctx, f, name_val);
-    auto result = rt_apply(ctx, partial, value);
+    auto partial = RT_TRY(rt_apply(ctx, f, name_val));
+    auto result = RT_TRY(rt_apply(ctx, partial, value));
 
     results.emplace_back(std::move(key_str), result);
   }
@@ -1793,17 +1826,17 @@ auto rt_map_attrs(runtime_context& ctx, nix_value f, nix_value set) -> nix_value
   return make_value(value_tag::attribute_set, new_ptr);
 }
 
-auto rt_cat_attrs(runtime_context& ctx, nix_value name, nix_value list) -> nix_value {
-  name = rt_force(ctx, name);
-  list = rt_force(ctx, list);
+auto rt_cat_attrs(runtime_context& ctx, nix_value name, nix_value list) -> rt_result {
+  name = RT_TRY(rt_force(ctx, name));
+  list = RT_TRY(rt_force(ctx, list));
 
   if (!is_string(name)) {
-    throw type_error("builtins.catAttrs: first argument must be a string, got '" +
-                     std::string(type_name(name)) + "'");
+    return std::unexpected(rt_error_t::type_error(std::format(
+        "builtins.catAttrs: first argument must be a string, got '{}'", type_name(name))));
   }
   if (!is_list(list)) {
-    throw type_error("builtins.catAttrs: second argument must be a list, got '" +
-                     std::string(type_name(list)) + "'");
+    return std::unexpected(rt_error_t::type_error(std::format(
+        "builtins.catAttrs: second argument must be a list, got '{}'", type_name(list))));
   }
 
   auto name_str = std::string(ctx.read_string(get_payload(name)));
@@ -1820,10 +1853,11 @@ auto rt_cat_attrs(runtime_context& ctx, nix_value name, nix_value list) -> nix_v
 
   for (std::uint32_t idx = 0; idx < count; ++idx) {
     auto elem = ctx.read_value(list_ptr + mem::LIST_ELEMENTS_OFFSET + idx * mem::VALUE_SIZE);
-    elem = rt_force(ctx, elem);
+    elem = RT_TRY(rt_force(ctx, elem));
 
     if (!is_attrset(elem)) {
-      throw type_error("builtins.catAttrs: list elements must be attrsets");
+      return std::unexpected(
+          rt_error_t::type_error("builtins.catAttrs: list elements must be attrsets"));
     }
 
     auto elem_ptr = get_payload(elem);
@@ -1854,12 +1888,12 @@ auto rt_cat_attrs(runtime_context& ctx, nix_value name, nix_value list) -> nix_v
   return make_value(value_tag::list, result_ptr);
 }
 
-auto rt_partition(runtime_context& ctx, nix_value pred, nix_value list) -> nix_value {
-  list = rt_force(ctx, list);
+auto rt_partition(runtime_context& ctx, nix_value pred, nix_value list) -> rt_result {
+  list = RT_TRY(rt_force(ctx, list));
 
   if (!is_list(list)) {
-    throw type_error("builtins.partition: expected list, got '" + std::string(type_name(list)) +
-                     "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.partition: expected list, got '{}'", type_name(list))));
   }
 
   std::vector<nix_value> right_elems;
@@ -1870,10 +1904,11 @@ auto rt_partition(runtime_context& ctx, nix_value pred, nix_value list) -> nix_v
     auto count = ctx.read_u32(list_ptr + mem::LIST_COUNT_OFFSET);
     for (std::uint32_t idx = 0; idx < count; ++idx) {
       auto elem = ctx.read_value(list_ptr + mem::LIST_ELEMENTS_OFFSET + idx * mem::VALUE_SIZE);
-      auto result = rt_apply(ctx, pred, elem);
-      result = rt_force(ctx, result);
+      auto result = RT_TRY(rt_apply(ctx, pred, elem));
+      result = RT_TRY(rt_force(ctx, result));
       if (!is_bool(result)) {
-        throw type_error("builtins.partition: predicate must return bool");
+        return std::unexpected(
+            rt_error_t::type_error("builtins.partition: predicate must return bool"));
       }
       if (result == constants::bool_true) {
         right_elems.push_back(elem);
@@ -1884,7 +1919,7 @@ auto rt_partition(runtime_context& ctx, nix_value pred, nix_value list) -> nix_v
   }
 
   // Create the two lists
-  auto make_list = [&ctx](const std::vector<nix_value>& elems) -> nix_value {
+  auto make_list = [&ctx](const std::vector<nix_value>& elems) -> rt_result {
     if (elems.empty()) {
       return make_value(value_tag::list, 0);
     }
@@ -1898,8 +1933,8 @@ auto rt_partition(runtime_context& ctx, nix_value pred, nix_value list) -> nix_v
     return make_value(value_tag::list, list_ptr);
   };
 
-  auto right_list = make_list(right_elems);
-  auto wrong_list = make_list(wrong_elems);
+  auto right_list = RT_TRY(make_list(right_elems));
+  auto wrong_list = RT_TRY(make_list(wrong_elems));
 
   // Create result attrset { right = ...; wrong = ...; }
   auto attrs_size = mem::attrset_size(2);
@@ -1920,11 +1955,12 @@ auto rt_partition(runtime_context& ctx, nix_value pred, nix_value list) -> nix_v
   return make_value(value_tag::attribute_set, attrs_ptr);
 }
 
-auto rt_group_by(runtime_context& ctx, nix_value f, nix_value list) -> nix_value {
-  list = rt_force(ctx, list);
+auto rt_group_by(runtime_context& ctx, nix_value f, nix_value list) -> rt_result {
+  list = RT_TRY(rt_force(ctx, list));
 
   if (!is_list(list)) {
-    throw type_error("builtins.groupBy: expected list, got '" + std::string(type_name(list)) + "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.groupBy: expected list, got '{}'", type_name(list))));
   }
 
   // Map from key to list of elements
@@ -1935,10 +1971,11 @@ auto rt_group_by(runtime_context& ctx, nix_value f, nix_value list) -> nix_value
     auto count = ctx.read_u32(list_ptr + mem::LIST_COUNT_OFFSET);
     for (std::uint32_t idx = 0; idx < count; ++idx) {
       auto elem = ctx.read_value(list_ptr + mem::LIST_ELEMENTS_OFFSET + idx * mem::VALUE_SIZE);
-      auto key_val = rt_apply(ctx, f, elem);
-      key_val = rt_force(ctx, key_val);
+      auto key_val = RT_TRY(rt_apply(ctx, f, elem));
+      key_val = RT_TRY(rt_force(ctx, key_val));
       if (!is_string(key_val)) {
-        throw type_error("builtins.groupBy: function must return string");
+        return std::unexpected(
+            rt_error_t::type_error("builtins.groupBy: function must return string"));
       }
       auto key = std::string(ctx.read_string(get_payload(key_val)));
       groups[key].push_back(elem);
@@ -1978,11 +2015,12 @@ auto rt_group_by(runtime_context& ctx, nix_value f, nix_value list) -> nix_value
   return make_value(value_tag::attribute_set, attrs_ptr);
 }
 
-auto rt_reverse(runtime_context& ctx, nix_value list) -> nix_value {
-  list = rt_force(ctx, list);
+auto rt_reverse(runtime_context& ctx, nix_value list) -> rt_result {
+  list = RT_TRY(rt_force(ctx, list));
 
   if (!is_list(list)) {
-    throw type_error("builtins.reverse: expected list, got '" + std::string(type_name(list)) + "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.reverse: expected list, got '{}'", type_name(list))));
   }
 
   auto list_ptr = get_payload(list);
@@ -2010,17 +2048,17 @@ auto rt_reverse(runtime_context& ctx, nix_value list) -> nix_value {
   return make_value(value_tag::list, result_ptr);
 }
 
-auto rt_take(runtime_context& ctx, nix_value n, nix_value list) -> nix_value {
-  n = rt_force(ctx, n);
-  list = rt_force(ctx, list);
+auto rt_take(runtime_context& ctx, nix_value n, nix_value list) -> rt_result {
+  n = RT_TRY(rt_force(ctx, n));
+  list = RT_TRY(rt_force(ctx, list));
 
   if (!is_int(n)) {
-    throw type_error("builtins.take: first argument must be int, got '" +
-                     std::string(type_name(n)) + "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.take: first argument must be int, got '{}'", type_name(n))));
   }
   if (!is_list(list)) {
-    throw type_error("builtins.take: second argument must be list, got '" +
-                     std::string(type_name(list)) + "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.take: second argument must be list, got '{}'", type_name(list))));
   }
 
   auto take_count = static_cast<std::int32_t>(get_payload(n));
@@ -2054,17 +2092,17 @@ auto rt_take(runtime_context& ctx, nix_value n, nix_value list) -> nix_value {
   return make_value(value_tag::list, result_ptr);
 }
 
-auto rt_drop(runtime_context& ctx, nix_value n, nix_value list) -> nix_value {
-  n = rt_force(ctx, n);
-  list = rt_force(ctx, list);
+auto rt_drop(runtime_context& ctx, nix_value n, nix_value list) -> rt_result {
+  n = RT_TRY(rt_force(ctx, n));
+  list = RT_TRY(rt_force(ctx, list));
 
   if (!is_int(n)) {
-    throw type_error("builtins.drop: first argument must be int, got '" +
-                     std::string(type_name(n)) + "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.drop: first argument must be int, got '{}'", type_name(n))));
   }
   if (!is_list(list)) {
-    throw type_error("builtins.drop: second argument must be list, got '" +
-                     std::string(type_name(list)) + "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.drop: second argument must be list, got '{}'", type_name(list))));
   }
 
   auto drop_count = static_cast<std::int32_t>(get_payload(n));
@@ -2099,17 +2137,17 @@ auto rt_drop(runtime_context& ctx, nix_value n, nix_value list) -> nix_value {
   return make_value(value_tag::list, result_ptr);
 }
 
-auto rt_range(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
-  a = rt_force(ctx, a);
-  b = rt_force(ctx, b);
+auto rt_range(runtime_context& ctx, nix_value a, nix_value b) -> rt_result {
+  a = RT_TRY(rt_force(ctx, a));
+  b = RT_TRY(rt_force(ctx, b));
 
   if (!is_int(a)) {
-    throw type_error("builtins.range: first argument must be int, got '" +
-                     std::string(type_name(a)) + "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.range: first argument must be int, got '{}'", type_name(a))));
   }
   if (!is_int(b)) {
-    throw type_error("builtins.range: second argument must be int, got '" +
-                     std::string(type_name(b)) + "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.range: second argument must be int, got '{}'", type_name(b))));
   }
 
   auto start = static_cast<std::int32_t>(get_payload(a));
@@ -2136,17 +2174,17 @@ auto rt_range(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
   return make_value(value_tag::list, result_ptr);
 }
 
-auto rt_zip_lists(runtime_context& ctx, nix_value list1, nix_value list2) -> nix_value {
-  list1 = rt_force(ctx, list1);
-  list2 = rt_force(ctx, list2);
+auto rt_zip_lists(runtime_context& ctx, nix_value list1, nix_value list2) -> rt_result {
+  list1 = RT_TRY(rt_force(ctx, list1));
+  list2 = RT_TRY(rt_force(ctx, list2));
 
   if (!is_list(list1)) {
-    throw type_error("builtins.zipLists: first argument must be list, got '" +
-                     std::string(type_name(list1)) + "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.zipLists: first argument must be list, got '{}'", type_name(list1))));
   }
   if (!is_list(list2)) {
-    throw type_error("builtins.zipLists: second argument must be list, got '" +
-                     std::string(type_name(list2)) + "'");
+    return std::unexpected(rt_error_t::type_error(std::format(
+        "builtins.zipLists: second argument must be list, got '{}'", type_name(list2))));
   }
 
   auto ptr1 = get_payload(list1);
@@ -2202,17 +2240,17 @@ auto rt_zip_lists(runtime_context& ctx, nix_value list1, nix_value list2) -> nix
   return make_value(value_tag::list, result_ptr);
 }
 
-auto rt_intersect_attrs(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
-  a = rt_force(ctx, a);
-  b = rt_force(ctx, b);
+auto rt_intersect_attrs(runtime_context& ctx, nix_value a, nix_value b) -> rt_result {
+  a = RT_TRY(rt_force(ctx, a));
+  b = RT_TRY(rt_force(ctx, b));
 
   if (!is_attrset(a)) {
-    throw type_error("builtins.intersectAttrs: first argument must be a set, got '" +
-                     std::string(type_name(a)) + "'");
+    return std::unexpected(rt_error_t::type_error(std::format(
+        "builtins.intersectAttrs: first argument must be a set, got '{}'", type_name(a))));
   }
   if (!is_attrset(b)) {
-    throw type_error("builtins.intersectAttrs: second argument must be a set, got '" +
-                     std::string(type_name(b)) + "'");
+    return std::unexpected(rt_error_t::type_error(std::format(
+        "builtins.intersectAttrs: second argument must be a set, got '{}'", type_name(b))));
   }
 
   auto a_ptr = get_payload(a);
@@ -2265,27 +2303,27 @@ auto rt_intersect_attrs(runtime_context& ctx, nix_value a, nix_value b) -> nix_v
   return make_value(value_tag::attribute_set, attrs_ptr);
 }
 
-auto rt_function_args(runtime_context& ctx, nix_value f) -> nix_value {
-  f = rt_force(ctx, f);
+auto rt_function_args(runtime_context& ctx, nix_value f) -> rt_result {
+  f = RT_TRY(rt_force(ctx, f));
 
   // For now, return empty set - full implementation would need closure introspection
   // to extract the formal argument names and default value info
   // This is sufficient for basic usage patterns
   if (!is_lambda(f) && !is_primop(f)) {
-    throw type_error("builtins.functionArgs: expected function, got '" + std::string(type_name(f)) +
-                     "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.functionArgs: expected function, got '{}'", type_name(f))));
   }
 
   // Return empty attrset for now
   return make_value(value_tag::attribute_set, 0);
 }
 
-auto rt_get_env(runtime_context& ctx, nix_value name) -> nix_value {
-  name = rt_force(ctx, name);
+auto rt_get_env(runtime_context& ctx, nix_value name) -> rt_result {
+  name = RT_TRY(rt_force(ctx, name));
 
   if (!is_string(name)) {
-    throw type_error("builtins.getEnv: expected string, got '" + std::string(type_name(name)) +
-                     "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.getEnv: expected string, got '{}'", type_name(name))));
   }
 
   auto name_str = std::string(ctx.read_string(get_payload(name)));
@@ -2301,11 +2339,12 @@ auto rt_get_env(runtime_context& ctx, nix_value name) -> nix_value {
   return make_value(value_tag::string, ptr);
 }
 
-auto rt_to_lower(runtime_context& ctx, nix_value s) -> nix_value {
-  s = rt_force(ctx, s);
+auto rt_to_lower(runtime_context& ctx, nix_value s) -> rt_result {
+  s = RT_TRY(rt_force(ctx, s));
 
   if (!is_string(s)) {
-    throw type_error("builtins.toLower: expected string, got '" + std::string(type_name(s)) + "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.toLower: expected string, got '{}'", type_name(s))));
   }
 
   auto str = std::string(ctx.read_string(get_payload(s)));
@@ -2317,11 +2356,12 @@ auto rt_to_lower(runtime_context& ctx, nix_value s) -> nix_value {
   return make_value(value_tag::string, ptr);
 }
 
-auto rt_to_upper(runtime_context& ctx, nix_value s) -> nix_value {
-  s = rt_force(ctx, s);
+auto rt_to_upper(runtime_context& ctx, nix_value s) -> rt_result {
+  s = RT_TRY(rt_force(ctx, s));
 
   if (!is_string(s)) {
-    throw type_error("builtins.toUpper: expected string, got '" + std::string(type_name(s)) + "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.toUpper: expected string, got '{}'", type_name(s))));
   }
 
   auto str = std::string(ctx.read_string(get_payload(s)));
@@ -2334,17 +2374,17 @@ auto rt_to_upper(runtime_context& ctx, nix_value s) -> nix_value {
 }
 
 // Compare version strings: -1 if a < b, 0 if a == b, 1 if a > b
-auto rt_compare_versions(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
-  a = rt_force(ctx, a);
-  b = rt_force(ctx, b);
+auto rt_compare_versions(runtime_context& ctx, nix_value a, nix_value b) -> rt_result {
+  a = RT_TRY(rt_force(ctx, a));
+  b = RT_TRY(rt_force(ctx, b));
 
   if (!is_string(a)) {
-    throw type_error("builtins.compareVersions: first argument must be string, got '" +
-                     std::string(type_name(a)) + "'");
+    return std::unexpected(rt_error_t::type_error(std::format(
+        "builtins.compareVersions: first argument must be string, got '{}'", type_name(a))));
   }
   if (!is_string(b)) {
-    throw type_error("builtins.compareVersions: second argument must be string, got '" +
-                     std::string(type_name(b)) + "'");
+    return std::unexpected(rt_error_t::type_error(std::format(
+        "builtins.compareVersions: second argument must be string, got '{}'", type_name(b))));
   }
 
   auto va = std::string(ctx.read_string(get_payload(a)));
@@ -2413,12 +2453,12 @@ auto rt_compare_versions(runtime_context& ctx, nix_value a, nix_value b) -> nix_
   return make_value(value_tag::integer, 0);
 }
 
-auto rt_split_version(runtime_context& ctx, nix_value v) -> nix_value {
-  v = rt_force(ctx, v);
+auto rt_split_version(runtime_context& ctx, nix_value v) -> rt_result {
+  v = RT_TRY(rt_force(ctx, v));
 
   if (!is_string(v)) {
-    throw type_error("builtins.splitVersion: expected string, got '" + std::string(type_name(v)) +
-                     "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.splitVersion: expected string, got '{}'", type_name(v))));
   }
 
   auto ver = std::string(ctx.read_string(get_payload(v)));
@@ -2458,12 +2498,12 @@ auto rt_split_version(runtime_context& ctx, nix_value v) -> nix_value {
   return make_value(value_tag::list, list_ptr);
 }
 
-auto rt_parse_drv_name(runtime_context& ctx, nix_value s) -> nix_value {
-  s = rt_force(ctx, s);
+auto rt_parse_drv_name(runtime_context& ctx, nix_value s) -> rt_result {
+  s = RT_TRY(rt_force(ctx, s));
 
   if (!is_string(s)) {
-    throw type_error("builtins.parseDrvName: expected string, got '" + std::string(type_name(s)) +
-                     "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.parseDrvName: expected string, got '{}'", type_name(s))));
   }
 
   auto name = std::string(ctx.read_string(get_payload(s)));
@@ -2505,12 +2545,12 @@ auto rt_parse_drv_name(runtime_context& ctx, nix_value s) -> nix_value {
   return make_value(value_tag::attribute_set, attrs_ptr);
 }
 
-auto rt_base_name_of(runtime_context& ctx, nix_value s) -> nix_value {
-  s = rt_force(ctx, s);
+auto rt_base_name_of(runtime_context& ctx, nix_value s) -> rt_result {
+  s = RT_TRY(rt_force(ctx, s));
 
   if (!is_string(s) && !is_path(s)) {
-    throw type_error("builtins.baseNameOf: expected string or path, got '" +
-                     std::string(type_name(s)) + "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.baseNameOf: expected string or path, got '{}'", type_name(s))));
   }
 
   auto path = std::string(ctx.read_string(get_payload(s)));
@@ -2528,12 +2568,12 @@ auto rt_base_name_of(runtime_context& ctx, nix_value s) -> nix_value {
   return make_value(value_tag::string, ptr);
 }
 
-auto rt_dir_of(runtime_context& ctx, nix_value s) -> nix_value {
-  s = rt_force(ctx, s);
+auto rt_dir_of(runtime_context& ctx, nix_value s) -> rt_result {
+  s = RT_TRY(rt_force(ctx, s));
 
   if (!is_string(s) && !is_path(s)) {
-    throw type_error("builtins.dirOf: expected string or path, got '" + std::string(type_name(s)) +
-                     "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.dirOf: expected string or path, got '{}'", type_name(s))));
   }
 
   auto path = std::string(ctx.read_string(get_payload(s)));
@@ -2553,17 +2593,130 @@ auto rt_dir_of(runtime_context& ctx, nix_value s) -> nix_value {
   return make_value(is_path(s) ? value_tag::path : value_tag::string, ptr);
 }
 
-auto rt_has_prefix(runtime_context& ctx, nix_value prefix, nix_value str) -> nix_value {
-  prefix = rt_force(ctx, prefix);
-  str = rt_force(ctx, str);
+/// findFile searchPath name
+/// searchPath is a list of { path, prefix } attrsets
+/// Returns the resolved path or throws an error
+auto rt_find_file(runtime_context& ctx, nix_value search_path, nix_value name) -> rt_result {
+  search_path = RT_TRY(rt_force(ctx, search_path));
+  name = RT_TRY(rt_force(ctx, name));
+
+  if (!is_list(search_path)) {
+    return std::unexpected(rt_error_t::type_error(std::format(
+        "builtins.findFile: first argument must be a list, got '{}'", type_name(search_path))));
+  }
+  if (!is_string(name)) {
+    return std::unexpected(rt_error_t::type_error(std::format(
+        "builtins.findFile: second argument must be a string, got '{}'", type_name(name))));
+  }
+
+  auto name_str = std::string(ctx.read_string(get_payload(name)));
+
+  // Split name into prefix and subpath (e.g., "nixpkgs/lib" -> prefix="nixpkgs", subpath="lib")
+  std::string prefix_part;
+  std::string subpath;
+  auto slash_pos = name_str.find('/');
+  if (slash_pos != std::string::npos) {
+    prefix_part = name_str.substr(0, slash_pos);
+    subpath = name_str.substr(slash_pos); // includes leading /
+  } else {
+    prefix_part = name_str;
+    subpath = "";
+  }
+
+  // Iterate through search path entries
+  auto list_ptr = get_payload(search_path);
+  auto count = ctx.read_u32(list_ptr);
+
+  for (std::uint32_t idx = 0; idx < count; ++idx) {
+    auto entry = RT_TRY(rt_force(ctx, ctx.read_value(list_ptr + 4 + idx * 8)));
+
+    if (!is_attrset(entry)) {
+      return std::unexpected(
+          rt_error_t::type_error("builtins.findFile: search path entry must be an attrset"));
+    }
+
+    // Get 'prefix' attribute
+    auto entry_ptr = get_payload(entry);
+    auto entry_count = ctx.read_u32(entry_ptr);
+    std::string_view entry_prefix;
+    std::string_view entry_path_str;
+    bool has_prefix = false;
+    bool has_path = false;
+
+    for (std::uint32_t j = 0; j < entry_count; ++j) {
+      auto attr_off = entry_ptr + mem::ATTRSET_ENTRIES_OFFSET + j * mem::ATTRSET_ENTRY_SIZE;
+      auto key_ptr = ctx.read_u32(attr_off + mem::ATTRSET_ENTRY_KEY_OFFSET);
+      auto key = ctx.read_string(key_ptr);
+      auto val = ctx.read_value(attr_off + mem::ATTRSET_ENTRY_VALUE_OFFSET);
+      val = RT_TRY(rt_force(ctx, val));
+
+      if (key == "prefix") {
+        if (!is_string(val)) {
+          return std::unexpected(
+              rt_error_t::type_error("builtins.findFile: prefix must be a string"));
+        }
+        entry_prefix = ctx.read_string(get_payload(val));
+        has_prefix = true;
+      } else if (key == "path") {
+        if (!is_string(val) && !is_path(val)) {
+          return std::unexpected(
+              rt_error_t::type_error("builtins.findFile: path must be a string or path"));
+        }
+        entry_path_str = ctx.read_string(get_payload(val));
+        has_path = true;
+      }
+    }
+
+    if (!has_path) {
+      return std::unexpected(
+          rt_error_t("builtins.findFile: search path entry missing 'path' attribute"));
+    }
+
+    // Check if this entry's prefix matches
+    if (has_prefix && entry_prefix == prefix_part) {
+      // Found a match! Construct the full path
+      std::string result = std::string(entry_path_str) + subpath;
+
+      // Check if the path exists
+      if (ctx.io && ctx.io->path_exists(result)) {
+        auto ptr = allocate_string(ctx, result);
+        return make_value(value_tag::path, ptr);
+      }
+    } else if (!has_prefix || entry_prefix.empty()) {
+      // No prefix means try to match directly
+      std::string result = std::string(entry_path_str) + "/" + name_str;
+      if (ctx.io && ctx.io->path_exists(result)) {
+        auto ptr = allocate_string(ctx, result);
+        return make_value(value_tag::path, ptr);
+      }
+    }
+  }
+
+  // Not found in any search path entry
+  std::string error_msg =
+      "file '" + name_str + "' was not found in the Nix search path (add it using $NIX_PATH or -I)";
+
+  // If we're inside a tryEval, set the caught error flag instead of throwing
+  if (ctx.try_eval_depth > 0) {
+    ctx.try_eval_caught_error = true;
+    ctx.error_message = error_msg;
+    return constants::bool_false; // Sentinel value, tryEval will detect the flag
+  }
+
+  return std::unexpected(rt_error_t(error_msg));
+}
+
+auto rt_has_prefix(runtime_context& ctx, nix_value prefix, nix_value str) -> rt_result {
+  prefix = RT_TRY(rt_force(ctx, prefix));
+  str = RT_TRY(rt_force(ctx, str));
 
   if (!is_string(prefix)) {
-    throw type_error("builtins.hasPrefix: first argument must be a string, got '" +
-                     std::string(type_name(prefix)) + "'");
+    return std::unexpected(rt_error_t::type_error(std::format(
+        "builtins.hasPrefix: first argument must be a string, got '{}'", type_name(prefix))));
   }
   if (!is_string(str)) {
-    throw type_error("builtins.hasPrefix: second argument must be a string, got '" +
-                     std::string(type_name(str)) + "'");
+    return std::unexpected(rt_error_t::type_error(std::format(
+        "builtins.hasPrefix: second argument must be a string, got '{}'", type_name(str))));
   }
 
   auto prefix_str = ctx.read_string(get_payload(prefix));
@@ -2574,17 +2727,17 @@ auto rt_has_prefix(runtime_context& ctx, nix_value prefix, nix_value str) -> nix
   return result ? constants::bool_true : constants::bool_false;
 }
 
-auto rt_has_suffix(runtime_context& ctx, nix_value suffix, nix_value str) -> nix_value {
-  suffix = rt_force(ctx, suffix);
-  str = rt_force(ctx, str);
+auto rt_has_suffix(runtime_context& ctx, nix_value suffix, nix_value str) -> rt_result {
+  suffix = RT_TRY(rt_force(ctx, suffix));
+  str = RT_TRY(rt_force(ctx, str));
 
   if (!is_string(suffix)) {
-    throw type_error("builtins.hasSuffix: first argument must be a string, got '" +
-                     std::string(type_name(suffix)) + "'");
+    return std::unexpected(rt_error_t::type_error(std::format(
+        "builtins.hasSuffix: first argument must be a string, got '{}'", type_name(suffix))));
   }
   if (!is_string(str)) {
-    throw type_error("builtins.hasSuffix: second argument must be a string, got '" +
-                     std::string(type_name(str)) + "'");
+    return std::unexpected(rt_error_t::type_error(std::format(
+        "builtins.hasSuffix: second argument must be a string, got '{}'", type_name(str))));
   }
 
   auto suffix_str = ctx.read_string(get_payload(suffix));
@@ -2596,17 +2749,17 @@ auto rt_has_suffix(runtime_context& ctx, nix_value suffix, nix_value str) -> nix
   return result ? constants::bool_true : constants::bool_false;
 }
 
-auto rt_remove_prefix(runtime_context& ctx, nix_value prefix, nix_value str) -> nix_value {
-  prefix = rt_force(ctx, prefix);
-  str = rt_force(ctx, str);
+auto rt_remove_prefix(runtime_context& ctx, nix_value prefix, nix_value str) -> rt_result {
+  prefix = RT_TRY(rt_force(ctx, prefix));
+  str = RT_TRY(rt_force(ctx, str));
 
   if (!is_string(prefix)) {
-    throw type_error("builtins.removePrefix: first argument must be a string, got '" +
-                     std::string(type_name(prefix)) + "'");
+    return std::unexpected(rt_error_t::type_error(std::format(
+        "builtins.removePrefix: first argument must be a string, got '{}'", type_name(prefix))));
   }
   if (!is_string(str)) {
-    throw type_error("builtins.removePrefix: second argument must be a string, got '" +
-                     std::string(type_name(str)) + "'");
+    return std::unexpected(rt_error_t::type_error(std::format(
+        "builtins.removePrefix: second argument must be a string, got '{}'", type_name(str))));
   }
 
   auto prefix_str = ctx.read_string(get_payload(prefix));
@@ -2624,17 +2777,17 @@ auto rt_remove_prefix(runtime_context& ctx, nix_value prefix, nix_value str) -> 
   return str;
 }
 
-auto rt_remove_suffix(runtime_context& ctx, nix_value suffix, nix_value str) -> nix_value {
-  suffix = rt_force(ctx, suffix);
-  str = rt_force(ctx, str);
+auto rt_remove_suffix(runtime_context& ctx, nix_value suffix, nix_value str) -> rt_result {
+  suffix = RT_TRY(rt_force(ctx, suffix));
+  str = RT_TRY(rt_force(ctx, str));
 
   if (!is_string(suffix)) {
-    throw type_error("builtins.removeSuffix: first argument must be a string, got '" +
-                     std::string(type_name(suffix)) + "'");
+    return std::unexpected(rt_error_t::type_error(std::format(
+        "builtins.removeSuffix: first argument must be a string, got '{}'", type_name(suffix))));
   }
   if (!is_string(str)) {
-    throw type_error("builtins.removeSuffix: second argument must be a string, got '" +
-                     std::string(type_name(str)) + "'");
+    return std::unexpected(rt_error_t::type_error(std::format(
+        "builtins.removeSuffix: second argument must be a string, got '{}'", type_name(str))));
   }
 
   auto suffix_str = ctx.read_string(get_payload(suffix));
@@ -2703,10 +2856,10 @@ auto json_escape_string(std::string_view s) -> std::string {
 }
 
 // Forward declaration for recursive JSON conversion
-auto value_to_json(runtime_context& ctx, nix_value v) -> std::string;
+auto value_to_json(runtime_context& ctx, nix_value v) -> rt_result_t<std::string>;
 
-auto value_to_json(runtime_context& ctx, nix_value v) -> std::string {
-  v = rt_force(ctx, v);
+auto value_to_json(runtime_context& ctx, nix_value v) -> rt_result_t<std::string> {
+  v = RT_TRY(rt_force(ctx, v));
 
   switch (get_tag(v)) {
     case value_tag::null_value:
@@ -2792,7 +2945,7 @@ auto value_to_json(runtime_context& ctx, nix_value v) -> std::string {
         first = false;
         result += json_escape_string(key);
         result += ":";
-        result += value_to_json(ctx, val);
+        result += RT_TRY(value_to_json(ctx, val));
       }
       result += "}";
       return result;
@@ -2800,14 +2953,16 @@ auto value_to_json(runtime_context& ctx, nix_value v) -> std::string {
 
     case value_tag::lambda:
     case value_tag::primop:
-      throw type_error("builtins.toJSON: cannot convert function to JSON");
+      return std::unexpected(
+          rt_error_t::type_error("builtins.toJSON: cannot convert function to JSON"));
 
     case value_tag::thunk:
       // Should have been forced above, but handle defensively
-      throw runtime_error("builtins.toJSON: unexpected thunk");
+      return std::unexpected(rt_error_t("builtins.toJSON: unexpected thunk"));
 
     default:
-      throw type_error("builtins.toJSON: unsupported type '" + std::string(type_name(v)) + "'");
+      return std::unexpected(rt_error_t::type_error(
+          std::format("builtins.toJSON: unsupported type '{}'", type_name(v))));
   }
 }
 
@@ -2815,12 +2970,12 @@ auto value_to_json(runtime_context& ctx, nix_value v) -> std::string {
 struct json_parser {
   json_parser(runtime_context& ctx, std::string_view input) : ctx_(ctx), input_(input), pos_(0) {}
 
-  auto parse() -> nix_value {
+  auto parse() -> rt_result {
     skip_whitespace();
     auto result = parse_value();
     skip_whitespace();
     if (pos_ < input_.size()) {
-      throw runtime_error("builtins.fromJSON: unexpected trailing content");
+      return std::unexpected(rt_error_t("builtins.fromJSON: unexpected trailing content"));
     }
     return result;
   }
@@ -2837,9 +2992,9 @@ private:
     return input_[pos_];
   }
 
-  auto advance() -> char {
+  auto advance() -> rt_result_t<char> {
     if (pos_ >= input_.size()) {
-      throw runtime_error("builtins.fromJSON: unexpected end of input");
+      return std::unexpected(rt_error_t("builtins.fromJSON: unexpected end of input"));
     }
     return input_[pos_++];
   }
@@ -2850,7 +3005,7 @@ private:
     }
   }
 
-  auto parse_value() -> nix_value {
+  auto parse_value() -> rt_result {
     skip_whitespace();
     char c = peek();
 
@@ -2876,34 +3031,35 @@ private:
       return parse_number();
     }
 
-    throw runtime_error("builtins.fromJSON: unexpected character '" + std::string(1, c) + "'");
+    return std::unexpected(
+        rt_error_t("builtins.fromJSON: unexpected character '" + std::string(1, c)) + "'");
   }
 
-  auto parse_null() -> nix_value {
+  auto parse_null() -> rt_result {
     if (input_.substr(pos_, 4) == "null") {
       pos_ += 4;
       return constants::null_value;
     }
-    throw runtime_error("builtins.fromJSON: expected 'null'");
+    return std::unexpected(rt_error_t("builtins.fromJSON: expected 'null'"));
   }
 
-  auto parse_true() -> nix_value {
+  auto parse_true() -> rt_result {
     if (input_.substr(pos_, 4) == "true") {
       pos_ += 4;
       return constants::bool_true;
     }
-    throw runtime_error("builtins.fromJSON: expected 'true'");
+    return std::unexpected(rt_error_t("builtins.fromJSON: expected 'true'"));
   }
 
-  auto parse_false() -> nix_value {
+  auto parse_false() -> rt_result {
     if (input_.substr(pos_, 5) == "false") {
       pos_ += 5;
       return constants::bool_false;
     }
-    throw runtime_error("builtins.fromJSON: expected 'false'");
+    return std::unexpected(rt_error_t("builtins.fromJSON: expected 'false'"));
   }
 
-  auto parse_string() -> nix_value {
+  auto parse_string() -> rt_result {
     advance(); // consume opening quote
     std::string result;
 
@@ -2942,14 +3098,14 @@ private:
           case 'u': {
             // Parse \uXXXX
             if (pos_ + 4 > input_.size()) {
-              throw runtime_error("builtins.fromJSON: incomplete \\uXXXX escape");
+              return std::unexpected(rt_error_t("builtins.fromJSON: incomplete \\uXXXX escape"));
             }
             auto hex = input_.substr(pos_, 4);
             pos_ += 4;
             char* end;
             auto codepoint = std::strtoul(std::string(hex).c_str(), &end, 16);
             if (end != std::string(hex).c_str() + 4) {
-              throw runtime_error("builtins.fromJSON: invalid \\uXXXX escape");
+              return std::unexpected(rt_error_t("builtins.fromJSON: invalid \\uXXXX escape"));
             }
             // Convert codepoint to UTF-8 (basic case for BMP)
             if (codepoint < 0x80) {
@@ -2965,8 +3121,9 @@ private:
             break;
           }
           default:
-            throw runtime_error("builtins.fromJSON: invalid escape sequence '\\" +
-                                std::string(1, escaped) + "'");
+            return std::unexpected(rt_error_t("builtins.fromJSON: invalid escape sequence '\\" +
+                                              std::string(1, escaped)) +
+                                   "'");
         }
       } else {
         result += c;
@@ -2977,7 +3134,7 @@ private:
     return make_value(value_tag::string, ptr);
   }
 
-  auto parse_number() -> nix_value {
+  auto parse_number() -> rt_result {
     auto start = pos_;
     bool is_float = false;
 
@@ -2994,7 +3151,7 @@ private:
         advance();
       }
     } else {
-      throw runtime_error("builtins.fromJSON: expected digit");
+      return std::unexpected(rt_error_t("builtins.fromJSON: expected digit"));
     }
 
     // Fractional part
@@ -3002,7 +3159,7 @@ private:
       is_float = true;
       advance();
       if (!std::isdigit(static_cast<unsigned char>(peek()))) {
-        throw runtime_error("builtins.fromJSON: expected digit after decimal point");
+        return std::unexpected(rt_error_t("builtins.fromJSON: expected digit after decimal point"));
       }
       while (std::isdigit(static_cast<unsigned char>(peek()))) {
         advance();
@@ -3017,7 +3174,7 @@ private:
         advance();
       }
       if (!std::isdigit(static_cast<unsigned char>(peek()))) {
-        throw runtime_error("builtins.fromJSON: expected digit in exponent");
+        return std::unexpected(rt_error_t("builtins.fromJSON: expected digit in exponent"));
       }
       while (std::isdigit(static_cast<unsigned char>(peek()))) {
         advance();
@@ -3044,7 +3201,7 @@ private:
     }
   }
 
-  auto parse_array() -> nix_value {
+  auto parse_array() -> rt_result {
     advance(); // consume '['
     skip_whitespace();
 
@@ -3068,7 +3225,7 @@ private:
         advance();
         skip_whitespace();
       } else {
-        throw runtime_error("builtins.fromJSON: expected ',' or ']'");
+        return std::unexpected(rt_error_t("builtins.fromJSON: expected ',' or ']'"));
       }
     }
 
@@ -3085,7 +3242,7 @@ private:
     return make_value(value_tag::list, list_ptr);
   }
 
-  auto parse_object() -> nix_value {
+  auto parse_object() -> rt_result {
     advance(); // consume '{'
     skip_whitespace();
 
@@ -3100,7 +3257,7 @@ private:
       skip_whitespace();
 
       if (peek() != '"') {
-        throw runtime_error("builtins.fromJSON: expected string key");
+        return std::unexpected(rt_error_t("builtins.fromJSON: expected string key"));
       }
 
       // Parse key as string
@@ -3110,7 +3267,7 @@ private:
 
       skip_whitespace();
       if (advance() != ':') {
-        throw runtime_error("builtins.fromJSON: expected ':'");
+        return std::unexpected(rt_error_t("builtins.fromJSON: expected ':'"));
       }
 
       auto value = parse_value();
@@ -3125,7 +3282,7 @@ private:
       if (c == ',') {
         advance();
       } else {
-        throw runtime_error("builtins.fromJSON: expected ',' or '}'");
+        return std::unexpected(rt_error_t("builtins.fromJSON: expected ',' or '}'"));
       }
     }
 
@@ -3149,17 +3306,18 @@ private:
 
 } // namespace
 
-auto rt_to_json(runtime_context& ctx, nix_value v) -> nix_value {
+auto rt_to_json(runtime_context& ctx, nix_value v) -> rt_result {
   auto json_str = value_to_json(ctx, v);
   auto ptr = allocate_string(ctx, json_str);
   return make_value(value_tag::string, ptr);
 }
 
-auto rt_from_json(runtime_context& ctx, nix_value s) -> nix_value {
-  s = rt_force(ctx, s);
+auto rt_from_json(runtime_context& ctx, nix_value s) -> rt_result {
+  s = RT_TRY(rt_force(ctx, s));
 
   if (!is_string(s)) {
-    throw type_error("builtins.fromJSON: expected string, got '" + std::string(type_name(s)) + "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.fromJSON: expected string, got '{}'", type_name(s))));
   }
 
   auto json_str = ctx.read_string(get_payload(s));
@@ -3171,25 +3329,25 @@ auto rt_from_json(runtime_context& ctx, nix_value s) -> nix_value {
 // Arithmetic Builtins (as functions)
 // =============================================================================
 
-auto rt_builtin_add(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
+auto rt_builtin_add(runtime_context& ctx, nix_value a, nix_value b) -> rt_result {
   return rt_add(ctx, a, b, 0, 0);
 }
 
-auto rt_builtin_sub(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
+auto rt_builtin_sub(runtime_context& ctx, nix_value a, nix_value b) -> rt_result {
   return rt_sub(ctx, a, b, 0, 0);
 }
 
-auto rt_builtin_mul(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
+auto rt_builtin_mul(runtime_context& ctx, nix_value a, nix_value b) -> rt_result {
   return rt_mul(ctx, a, b, 0, 0);
 }
 
-auto rt_builtin_div(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
+auto rt_builtin_div(runtime_context& ctx, nix_value a, nix_value b) -> rt_result {
   return rt_div(ctx, a, b, 0, 0);
 }
 
-auto rt_builtin_less_than(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
-  a = rt_force(ctx, a);
-  b = rt_force(ctx, b);
+auto rt_builtin_less_than(runtime_context& ctx, nix_value a, nix_value b) -> rt_result {
+  a = RT_TRY(rt_force(ctx, a));
+  b = RT_TRY(rt_force(ctx, b));
 
   if (is_int(a) && is_int(b)) {
     auto ia = static_cast<std::int32_t>(get_payload(a));
@@ -3197,11 +3355,11 @@ auto rt_builtin_less_than(runtime_context& ctx, nix_value a, nix_value b) -> nix
     return (ia < ib) ? constants::bool_true : constants::bool_false;
   }
 
-  throw type_error("builtins.lessThan: expected integers");
+  return std::unexpected(rt_error_t::type_error("builtins.lessThan: expected integers"));
 }
 
-auto rt_floor(runtime_context& ctx, nix_value v) -> nix_value {
-  v = rt_force(ctx, v);
+auto rt_floor(runtime_context& ctx, nix_value v) -> rt_result {
+  v = RT_TRY(rt_force(ctx, v));
 
   if (is_int(v)) {
     return v; // floor of int is itself
@@ -3213,11 +3371,12 @@ auto rt_floor(runtime_context& ctx, nix_value v) -> nix_value {
     return make_value(value_tag::integer, static_cast<std::uint32_t>(result));
   }
 
-  throw type_error("builtins.floor: expected number, got '" + std::string(type_name(v)) + "'");
+  return std::unexpected(rt_error_t::type_error(
+      std::format("builtins.floor: expected number, got '{}'", type_name(v))));
 }
 
-auto rt_ceil(runtime_context& ctx, nix_value v) -> nix_value {
-  v = rt_force(ctx, v);
+auto rt_ceil(runtime_context& ctx, nix_value v) -> rt_result {
+  v = RT_TRY(rt_force(ctx, v));
 
   if (is_int(v)) {
     return v; // ceil of int is itself
@@ -3229,20 +3388,21 @@ auto rt_ceil(runtime_context& ctx, nix_value v) -> nix_value {
     return make_value(value_tag::integer, static_cast<std::uint32_t>(result));
   }
 
-  throw type_error("builtins.ceil: expected number, got '" + std::string(type_name(v)) + "'");
+  return std::unexpected(rt_error_t::type_error(
+      std::format("builtins.ceil: expected number, got '{}'", type_name(v))));
 }
 
-auto rt_bit_and(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
-  a = rt_force(ctx, a);
-  b = rt_force(ctx, b);
+auto rt_bit_and(runtime_context& ctx, nix_value a, nix_value b) -> rt_result {
+  a = RT_TRY(rt_force(ctx, a));
+  b = RT_TRY(rt_force(ctx, b));
 
   if (!is_int(a)) {
-    throw type_error("builtins.bitAnd: first argument must be int, got '" +
-                     std::string(type_name(a)) + "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.bitAnd: first argument must be int, got '{}'", type_name(a))));
   }
   if (!is_int(b)) {
-    throw type_error("builtins.bitAnd: second argument must be int, got '" +
-                     std::string(type_name(b)) + "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.bitAnd: second argument must be int, got '{}'", type_name(b))));
   }
 
   auto ia = static_cast<std::int32_t>(get_payload(a));
@@ -3251,17 +3411,17 @@ auto rt_bit_and(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
   return make_value(value_tag::integer, static_cast<std::uint32_t>(result));
 }
 
-auto rt_bit_or(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
-  a = rt_force(ctx, a);
-  b = rt_force(ctx, b);
+auto rt_bit_or(runtime_context& ctx, nix_value a, nix_value b) -> rt_result {
+  a = RT_TRY(rt_force(ctx, a));
+  b = RT_TRY(rt_force(ctx, b));
 
   if (!is_int(a)) {
-    throw type_error("builtins.bitOr: first argument must be int, got '" +
-                     std::string(type_name(a)) + "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.bitOr: first argument must be int, got '{}'", type_name(a))));
   }
   if (!is_int(b)) {
-    throw type_error("builtins.bitOr: second argument must be int, got '" +
-                     std::string(type_name(b)) + "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.bitOr: second argument must be int, got '{}'", type_name(b))));
   }
 
   auto ia = static_cast<std::int32_t>(get_payload(a));
@@ -3270,17 +3430,17 @@ auto rt_bit_or(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
   return make_value(value_tag::integer, static_cast<std::uint32_t>(result));
 }
 
-auto rt_bit_xor(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
-  a = rt_force(ctx, a);
-  b = rt_force(ctx, b);
+auto rt_bit_xor(runtime_context& ctx, nix_value a, nix_value b) -> rt_result {
+  a = RT_TRY(rt_force(ctx, a));
+  b = RT_TRY(rt_force(ctx, b));
 
   if (!is_int(a)) {
-    throw type_error("builtins.bitXor: first argument must be int, got '" +
-                     std::string(type_name(a)) + "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.bitXor: first argument must be int, got '{}'", type_name(a))));
   }
   if (!is_int(b)) {
-    throw type_error("builtins.bitXor: second argument must be int, got '" +
-                     std::string(type_name(b)) + "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.bitXor: second argument must be int, got '{}'", type_name(b))));
   }
 
   auto ia = static_cast<std::int32_t>(get_payload(a));
@@ -3293,16 +3453,17 @@ auto rt_bit_xor(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
 // Attrset Builtins (2-arg)
 // =============================================================================
 
-auto rt_builtin_has_attr(runtime_context& ctx, nix_value name, nix_value set) -> nix_value {
-  name = rt_force(ctx, name);
-  set = rt_force(ctx, set);
+auto rt_builtin_has_attr(runtime_context& ctx, nix_value name, nix_value set) -> rt_result {
+  name = RT_TRY(rt_force(ctx, name));
+  set = RT_TRY(rt_force(ctx, set));
 
   if (!is_string(name)) {
-    throw type_error("builtins.hasAttr: name must be string, got '" + std::string(type_name(name)) +
-                     "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.hasAttr: name must be string, got '{}'", type_name(name))));
   }
   if (!is_attrset(set)) {
-    throw type_error("builtins.hasAttr: expected set, got '" + std::string(type_name(set)) + "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.hasAttr: expected set, got '{}'", type_name(set))));
   }
 
   auto key = ctx.read_string(get_payload(name));
@@ -3312,16 +3473,17 @@ auto rt_builtin_has_attr(runtime_context& ctx, nix_value name, nix_value set) ->
   return result.has_value() ? constants::bool_true : constants::bool_false;
 }
 
-auto rt_builtin_get_attr(runtime_context& ctx, nix_value name, nix_value set) -> nix_value {
-  name = rt_force(ctx, name);
-  set = rt_force(ctx, set);
+auto rt_builtin_get_attr(runtime_context& ctx, nix_value name, nix_value set) -> rt_result {
+  name = RT_TRY(rt_force(ctx, name));
+  set = RT_TRY(rt_force(ctx, set));
 
   if (!is_string(name)) {
-    throw type_error("builtins.getAttr: name must be string, got '" + std::string(type_name(name)) +
-                     "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.getAttr: name must be string, got '{}'", type_name(name))));
   }
   if (!is_attrset(set)) {
-    throw type_error("builtins.getAttr: expected set, got '" + std::string(type_name(set)) + "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.getAttr: expected set, got '{}'", type_name(set))));
   }
 
   auto key = ctx.read_string(get_payload(name));
@@ -3329,23 +3491,25 @@ auto rt_builtin_get_attr(runtime_context& ctx, nix_value name, nix_value set) ->
   auto result = find_attr(ctx, attrs_ptr, key);
 
   if (!result.has_value()) {
-    throw attr_error("builtins.getAttr: attribute '" + std::string(key) + "' not found");
+    return std::unexpected(
+        rt_error_t::attr_not_found("builtins.getAttr: attribute '" + std::string(key)) +
+        "' not found");
   }
 
   return *result;
 }
 
-auto rt_remove_attrs(runtime_context& ctx, nix_value set, nix_value names) -> nix_value {
-  set = rt_force(ctx, set);
-  names = rt_force(ctx, names);
+auto rt_remove_attrs(runtime_context& ctx, nix_value set, nix_value names) -> rt_result {
+  set = RT_TRY(rt_force(ctx, set));
+  names = RT_TRY(rt_force(ctx, names));
 
   if (!is_attrset(set)) {
-    throw type_error("builtins.removeAttrs: expected set, got '" + std::string(type_name(set)) +
-                     "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.removeAttrs: expected set, got '{}'", type_name(set))));
   }
   if (!is_list(names)) {
-    throw type_error("builtins.removeAttrs: names must be list, got '" +
-                     std::string(type_name(names)) + "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.removeAttrs: names must be list, got '{}'", type_name(names))));
   }
 
   auto attrs_ptr = get_payload(set);
@@ -3360,7 +3524,7 @@ auto rt_remove_attrs(runtime_context& ctx, nix_value set, nix_value names) -> ni
     auto names_count = ctx.read_u32(names_ptr + mem::LIST_COUNT_OFFSET);
     for (std::uint32_t idx = 0; idx < names_count; ++idx) {
       auto elem = ctx.read_value(names_ptr + mem::LIST_ELEMENTS_OFFSET + idx * mem::VALUE_SIZE);
-      elem = rt_force(ctx, elem);
+      elem = RT_TRY(rt_force(ctx, elem));
       if (is_string(elem)) {
         remove_set.insert(std::string(ctx.read_string(get_payload(elem))));
       }
@@ -3409,11 +3573,12 @@ auto rt_remove_attrs(runtime_context& ctx, nix_value set, nix_value names) -> ni
 // Higher-Order Functions
 // =============================================================================
 
-auto rt_map(runtime_context& ctx, nix_value f, nix_value list) -> nix_value {
-  list = rt_force(ctx, list);
+auto rt_map(runtime_context& ctx, nix_value f, nix_value list) -> rt_result {
+  list = RT_TRY(rt_force(ctx, list));
 
   if (!is_list(list)) {
-    throw type_error("builtins.map: expected list, got '" + std::string(type_name(list)) + "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.map: expected list, got '{}'", type_name(list))));
   }
 
   auto list_ptr = get_payload(list);
@@ -3435,18 +3600,19 @@ auto rt_map(runtime_context& ctx, nix_value f, nix_value list) -> nix_value {
   // Apply f to each element
   for (std::uint32_t idx = 0; idx < count; ++idx) {
     auto elem = ctx.read_value(list_ptr + mem::LIST_ELEMENTS_OFFSET + idx * mem::VALUE_SIZE);
-    auto mapped = rt_apply(ctx, f, elem);
+    auto mapped = RT_TRY(rt_apply(ctx, f, elem));
     ctx.write_value(result_ptr + mem::LIST_ELEMENTS_OFFSET + idx * mem::VALUE_SIZE, mapped);
   }
 
   return make_value(value_tag::list, result_ptr);
 }
 
-auto rt_filter(runtime_context& ctx, nix_value pred, nix_value list) -> nix_value {
-  list = rt_force(ctx, list);
+auto rt_filter(runtime_context& ctx, nix_value pred, nix_value list) -> rt_result {
+  list = RT_TRY(rt_force(ctx, list));
 
   if (!is_list(list)) {
-    throw type_error("builtins.filter: expected list, got '" + std::string(type_name(list)) + "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.filter: expected list, got '{}'", type_name(list))));
   }
 
   auto list_ptr = get_payload(list);
@@ -3465,12 +3631,12 @@ auto rt_filter(runtime_context& ctx, nix_value pred, nix_value list) -> nix_valu
 
   for (std::uint32_t idx = 0; idx < count; ++idx) {
     auto elem = ctx.read_value(list_ptr + mem::LIST_ELEMENTS_OFFSET + idx * mem::VALUE_SIZE);
-    auto result = rt_apply(ctx, pred, elem);
-    result = rt_force(ctx, result);
+    auto result = RT_TRY(rt_apply(ctx, pred, elem));
+    result = RT_TRY(rt_force(ctx, result));
 
     if (!is_bool(result)) {
-      throw type_error("builtins.filter: predicate must return bool, got '" +
-                       std::string(type_name(result)) + "'");
+      return std::unexpected(rt_error_t::type_error(
+          std::format("builtins.filter: predicate must return bool, got '{}'", type_name(result))));
     }
 
     if (result == constants::bool_true) {
@@ -3495,11 +3661,12 @@ auto rt_filter(runtime_context& ctx, nix_value pred, nix_value list) -> nix_valu
   return make_value(value_tag::list, result_ptr);
 }
 
-auto rt_foldl(runtime_context& ctx, nix_value op, nix_value init, nix_value list) -> nix_value {
-  list = rt_force(ctx, list);
+auto rt_foldl(runtime_context& ctx, nix_value op, nix_value init, nix_value list) -> rt_result {
+  list = RT_TRY(rt_force(ctx, list));
 
   if (!is_list(list)) {
-    throw type_error("builtins.foldl': expected list, got '" + std::string(type_name(list)) + "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.foldl': expected list, got '{}'", type_name(list))));
   }
 
   auto list_ptr = get_payload(list);
@@ -3518,26 +3685,28 @@ auto rt_foldl(runtime_context& ctx, nix_value op, nix_value init, nix_value list
   for (std::uint32_t idx = 0; idx < count; ++idx) {
     auto elem = ctx.read_value(list_ptr + mem::LIST_ELEMENTS_OFFSET + idx * mem::VALUE_SIZE);
     // Apply op to acc, getting a partial application
-    auto partial = rt_apply(ctx, op, acc);
+    auto partial = RT_TRY(rt_apply(ctx, op, acc));
     // Apply partial to elem
-    acc = rt_apply(ctx, partial, elem);
+    acc = RT_TRY(rt_apply(ctx, partial, elem));
     // Force the accumulator (strict foldl')
-    acc = rt_force(ctx, acc);
+    acc = RT_TRY(rt_force(ctx, acc));
   }
 
   return acc;
 }
 
-auto rt_gen_list(runtime_context& ctx, nix_value f, nix_value n) -> nix_value {
-  n = rt_force(ctx, n);
+auto rt_gen_list(runtime_context& ctx, nix_value f, nix_value n) -> rt_result {
+  n = RT_TRY(rt_force(ctx, n));
 
   if (!is_int(n)) {
-    throw type_error("builtins.genList: expected integer, got '" + std::string(type_name(n)) + "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.genList: expected integer, got '{}'", type_name(n))));
   }
 
   auto count = static_cast<std::int32_t>(get_payload(n));
   if (count < 0) {
-    throw runtime_error("builtins.genList: negative length " + std::to_string(count));
+    return std::unexpected(
+        rt_error_t("builtins.genList: negative length " + std::to_string(count)));
   }
   if (count == 0) {
     return make_value(value_tag::list, 0);
@@ -3550,19 +3719,19 @@ auto rt_gen_list(runtime_context& ctx, nix_value f, nix_value n) -> nix_value {
 
   for (std::uint32_t idx = 0; idx < ucount; ++idx) {
     auto idx_val = make_int(static_cast<std::int32_t>(idx));
-    auto elem = rt_apply(ctx, f, idx_val);
+    auto elem = RT_TRY(rt_apply(ctx, f, idx_val));
     ctx.write_value(list_ptr + mem::LIST_ELEMENTS_OFFSET + idx * mem::VALUE_SIZE, elem);
   }
 
   return make_value(value_tag::list, list_ptr);
 }
 
-auto rt_concat_lists(runtime_context& ctx, nix_value lists) -> nix_value {
-  lists = rt_force(ctx, lists);
+auto rt_concat_lists(runtime_context& ctx, nix_value lists) -> rt_result {
+  lists = RT_TRY(rt_force(ctx, lists));
 
   if (!is_list(lists)) {
-    throw type_error("builtins.concatLists: expected list of lists, got '" +
-                     std::string(type_name(lists)) + "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.concatLists: expected list of lists, got '{}'", type_name(lists))));
   }
 
   auto lists_ptr = get_payload(lists);
@@ -3579,9 +3748,9 @@ auto rt_concat_lists(runtime_context& ctx, nix_value lists) -> nix_value {
   std::uint32_t total = 0;
   for (std::uint32_t idx = 0; idx < num_lists; ++idx) {
     auto inner = ctx.read_value(lists_ptr + mem::LIST_ELEMENTS_OFFSET + idx * mem::VALUE_SIZE);
-    inner = rt_force(ctx, inner);
+    inner = RT_TRY(rt_force(ctx, inner));
     if (!is_list(inner)) {
-      throw type_error("builtins.concatLists: element is not a list");
+      return std::unexpected(rt_error_t::type_error("builtins.concatLists: element is not a list"));
     }
     auto inner_ptr = get_payload(inner);
     if (inner_ptr != 0) {
@@ -3602,7 +3771,7 @@ auto rt_concat_lists(runtime_context& ctx, nix_value lists) -> nix_value {
   std::uint32_t dest_idx = 0;
   for (std::uint32_t idx = 0; idx < num_lists; ++idx) {
     auto inner = ctx.read_value(lists_ptr + mem::LIST_ELEMENTS_OFFSET + idx * mem::VALUE_SIZE);
-    inner = rt_force(ctx, inner);
+    inner = RT_TRY(rt_force(ctx, inner));
     auto inner_ptr = get_payload(inner);
     if (inner_ptr == 0)
       continue;
@@ -3617,11 +3786,12 @@ auto rt_concat_lists(runtime_context& ctx, nix_value lists) -> nix_value {
   return make_value(value_tag::list, result_ptr);
 }
 
-auto rt_sort(runtime_context& ctx, nix_value comparator, nix_value list) -> nix_value {
-  list = rt_force(ctx, list);
+auto rt_sort(runtime_context& ctx, nix_value comparator, nix_value list) -> rt_result {
+  list = RT_TRY(rt_force(ctx, list));
 
   if (!is_list(list)) {
-    throw type_error("builtins.sort: expected list, got '" + std::string(type_name(list)) + "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.sort: expected list, got '{}'", type_name(list))));
   }
 
   auto list_ptr = get_payload(list);
@@ -3645,18 +3815,18 @@ auto rt_sort(runtime_context& ctx, nix_value comparator, nix_value list) -> nix_
   // Sort using the comparator function
   // comparator a b should return true if a < b
   // We use stable_sort for consistency
-  std::stable_sort(elements.begin(), elements.end(),
-                   [&ctx, comparator](nix_value a, nix_value b) -> bool {
-                     // Apply comparator to a, then to b
-                     auto partial = rt_apply(ctx, comparator, a);
-                     auto result = rt_apply(ctx, partial, b);
-                     result = rt_force(ctx, result);
-                     if (!is_bool(result)) {
-                       throw type_error("builtins.sort: comparator must return bool, got '" +
-                                        std::string(type_name(result)) + "'");
-                     }
-                     return result == constants::bool_true;
-                   });
+  std::stable_sort(
+      elements.begin(), elements.end(), [&ctx, comparator](nix_value a, nix_value b) -> bool {
+        // Apply comparator to a, then to b
+        auto partial = RT_TRY(rt_apply(ctx, comparator, a));
+        auto result = RT_TRY(rt_apply(ctx, partial, b));
+        result = RT_TRY(rt_force(ctx, result));
+        if (!is_bool(result)) {
+          return std::unexpected(rt_error_t::type_error(std::format(
+              "builtins.sort: comparator must return bool, got '{}'", type_name(result))));
+        }
+        return result == constants::bool_true;
+      });
 
   // Allocate result list
   auto result_size = mem::list_size(count);
@@ -3674,8 +3844,11 @@ auto rt_sort(runtime_context& ctx, nix_value comparator, nix_value list) -> nix_
 // Error Handling
 // =============================================================================
 
-auto rt_throw_error(runtime_context& ctx, nix_value msg) -> nix_value {
-  msg = rt_force(ctx, msg);
+auto rt_throw_error(runtime_context& ctx, nix_value msg) -> rt_result {
+  auto msg_result = rt_force(ctx, msg);
+  if (!msg_result)
+    return msg_result;
+  msg = *msg_result;
 
   std::string error_msg;
   if (is_string(msg)) {
@@ -3684,46 +3857,45 @@ auto rt_throw_error(runtime_context& ctx, nix_value msg) -> nix_value {
     error_msg = "error thrown";
   }
 
-  // If we're inside a tryEval, set the caught error flag and return a sentinel
-  if (ctx.try_eval_depth > 0) {
-    ctx.try_eval_caught_error = true;
-    ctx.error_message = error_msg;
-    // Return false as sentinel - tryEval will detect the caught error flag
-    return constants::bool_false;
-  }
-
-  throw runtime_error(error_msg);
+  // Return a throw_error result - this is catchable by tryEval
+  return std::unexpected(rt_error_t::throw_error(error_msg));
 }
 
-auto rt_abort(runtime_context& ctx, nix_value msg) -> nix_value {
-  msg = rt_force(ctx, msg);
+auto rt_abort(runtime_context& ctx, nix_value msg) -> rt_result {
+  msg = RT_TRY(rt_force(ctx, msg));
 
   if (is_string(msg)) {
     auto str = ctx.read_string(get_payload(msg));
-    throw runtime_error("evaluation aborted: " + std::string(str));
+    return std::unexpected(rt_error_t("evaluation aborted: " + std::string(str)));
   }
 
-  throw runtime_error("evaluation aborted");
+  return std::unexpected(rt_error_t("evaluation aborted"));
 }
 
-auto rt_try_eval(runtime_context& ctx, nix_value expr) -> nix_value {
+auto rt_try_eval(runtime_context& ctx, nix_value expr) -> rt_result {
   // tryEval returns { success = true/false; value = result or false }
-  // We use try_eval_depth to signal to rt_throw_error that it should
-  // set a flag instead of throwing, allowing us to catch errors.
+  // Uses rt_result to check for catchable errors without exceptions.
 
-  // Increment depth and clear any previous caught error
-  ++ctx.try_eval_depth;
-  ctx.try_eval_caught_error = false;
+  // Force the expression - returns rt_result which may be an error
+  auto force_result = rt_force(ctx, expr);
 
-  // Force the expression - if it calls throw, the caught error flag will be set
-  auto result = rt_force(ctx, expr);
+  // Check if evaluation succeeded and if any error is catchable
+  bool success = true;
+  nix_value result_value = constants::bool_false;
 
-  // Decrement depth
-  --ctx.try_eval_depth;
-
-  // Check if an error was caught
-  bool success = !ctx.try_eval_caught_error;
-  ctx.try_eval_caught_error = false; // Clear for next tryEval
+  if (!force_result) {
+    // Got an error - check if it's catchable
+    auto& err = force_result.error();
+    if (err.is_catchable()) {
+      // Catchable error - tryEval catches it
+      success = false;
+    } else {
+      // Non-catchable error (abort) - re-throw
+      return std::unexpected(rt_error_t(err.format()));
+    }
+  } else {
+    result_value = *force_result;
+  }
 
   // Create the result attrset
   auto success_key = allocate_string(ctx, "success");
@@ -3744,13 +3916,13 @@ auto rt_try_eval(runtime_context& ctx, nix_value expr) -> nix_value {
   auto entry1 = attrs_ptr + mem::ATTRSET_ENTRIES_OFFSET + mem::ATTRSET_ENTRY_SIZE;
   ctx.write_i32(entry1 + mem::ATTRSET_ENTRY_KEY_OFFSET, static_cast<std::int32_t>(value_key));
   ctx.write_value(entry1 + mem::ATTRSET_ENTRY_VALUE_OFFSET,
-                  success ? result : constants::bool_false);
+                  success ? result_value : constants::bool_false);
 
   return make_value(value_tag::attribute_set, attrs_ptr);
 }
 
-auto rt_trace(runtime_context& ctx, nix_value msg, nix_value val) -> nix_value {
-  msg = rt_force(ctx, msg);
+auto rt_trace(runtime_context& ctx, nix_value msg, nix_value val) -> rt_result {
+  msg = RT_TRY(rt_force(ctx, msg));
 
   // Print trace message to stderr
   std::string trace_msg = "trace: ";
@@ -3770,16 +3942,16 @@ auto rt_trace(runtime_context& ctx, nix_value msg, nix_value val) -> nix_value {
   return val; // Return second argument unevaluated (lazy)
 }
 
-auto rt_seq(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
+auto rt_seq(runtime_context& ctx, nix_value a, nix_value b) -> rt_result {
   // Force the first argument, then return the second
-  (void)rt_force(ctx, a);
+  (void)RT_TRY(rt_force(ctx, a));
   return b;
 }
 
 // Helper to deeply force a value (recursively force all nested values)
 namespace {
 void deep_force(runtime_context& ctx, nix_value v) {
-  v = rt_force(ctx, v);
+  v = RT_TRY(rt_force(ctx, v));
 
   if (is_list(v)) {
     auto ptr = get_payload(v);
@@ -3805,7 +3977,7 @@ void deep_force(runtime_context& ctx, nix_value v) {
 }
 } // namespace
 
-auto rt_deep_seq(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
+auto rt_deep_seq(runtime_context& ctx, nix_value a, nix_value b) -> rt_result {
   // Deeply force the first argument, then return the second
   deep_force(ctx, a);
   return b;
@@ -3815,43 +3987,43 @@ auto rt_deep_seq(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
 // Type Predicates
 // =============================================================================
 
-auto rt_is_null(runtime_context& ctx, nix_value v) -> nix_value {
-  v = rt_force(ctx, v);
+auto rt_is_null(runtime_context& ctx, nix_value v) -> rt_result {
+  v = RT_TRY(rt_force(ctx, v));
   return is_null(v) ? constants::bool_true : constants::bool_false;
 }
 
-auto rt_is_int(runtime_context& ctx, nix_value v) -> nix_value {
-  v = rt_force(ctx, v);
+auto rt_is_int(runtime_context& ctx, nix_value v) -> rt_result {
+  v = RT_TRY(rt_force(ctx, v));
   return is_int(v) ? constants::bool_true : constants::bool_false;
 }
 
-auto rt_is_float(runtime_context& ctx, nix_value v) -> nix_value {
-  v = rt_force(ctx, v);
+auto rt_is_float(runtime_context& ctx, nix_value v) -> rt_result {
+  v = RT_TRY(rt_force(ctx, v));
   return is_float(v) ? constants::bool_true : constants::bool_false;
 }
 
-auto rt_is_string(runtime_context& ctx, nix_value v) -> nix_value {
-  v = rt_force(ctx, v);
+auto rt_is_string(runtime_context& ctx, nix_value v) -> rt_result {
+  v = RT_TRY(rt_force(ctx, v));
   return is_string(v) ? constants::bool_true : constants::bool_false;
 }
 
-auto rt_is_path(runtime_context& ctx, nix_value v) -> nix_value {
-  v = rt_force(ctx, v);
+auto rt_is_path(runtime_context& ctx, nix_value v) -> rt_result {
+  v = RT_TRY(rt_force(ctx, v));
   return is_path(v) ? constants::bool_true : constants::bool_false;
 }
 
-auto rt_is_list(runtime_context& ctx, nix_value v) -> nix_value {
-  v = rt_force(ctx, v);
+auto rt_is_list(runtime_context& ctx, nix_value v) -> rt_result {
+  v = RT_TRY(rt_force(ctx, v));
   return is_list(v) ? constants::bool_true : constants::bool_false;
 }
 
-auto rt_is_attrs(runtime_context& ctx, nix_value v) -> nix_value {
-  v = rt_force(ctx, v);
+auto rt_is_attrs(runtime_context& ctx, nix_value v) -> rt_result {
+  v = RT_TRY(rt_force(ctx, v));
   return is_attrset(v) ? constants::bool_true : constants::bool_false;
 }
 
-auto rt_is_function(runtime_context& ctx, nix_value v) -> nix_value {
-  v = rt_force(ctx, v);
+auto rt_is_function(runtime_context& ctx, nix_value v) -> rt_result {
+  v = RT_TRY(rt_force(ctx, v));
   return (is_lambda(v) || is_primop(v)) ? constants::bool_true : constants::bool_false;
 }
 
@@ -3859,7 +4031,7 @@ auto rt_is_function(runtime_context& ctx, nix_value v) -> nix_value {
 // Advanced Builtins
 // =============================================================================
 
-auto rt_generic_closure(runtime_context& ctx, nix_value attrs) -> nix_value {
+auto rt_generic_closure(runtime_context& ctx, nix_value attrs) -> rt_result {
   // genericClosure { startSet, operator }
   // Computes a transitive closure by repeatedly applying operator to elements
   // until no new elements are produced.
@@ -3867,11 +4039,11 @@ auto rt_generic_closure(runtime_context& ctx, nix_value attrs) -> nix_value {
   // Each element must be an attrset with a "key" attribute for deduplication.
   // Returns the list of all reachable elements.
 
-  attrs = rt_force(ctx, attrs);
+  attrs = RT_TRY(rt_force(ctx, attrs));
 
   if (!is_attrset(attrs)) {
-    throw type_error("builtins.genericClosure: expected attrset, got '" +
-                     std::string(type_name(attrs)) + "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.genericClosure: expected attrset, got '{}'", type_name(attrs))));
   }
 
   auto attrs_ptr = get_payload(attrs);
@@ -3879,12 +4051,12 @@ auto rt_generic_closure(runtime_context& ctx, nix_value attrs) -> nix_value {
   // Get startSet - copy value out before any allocations can invalidate pointers
   auto start_set_opt = find_attr(ctx, attrs_ptr, "startSet");
   if (!start_set_opt) {
-    throw runtime_error("builtins.genericClosure: attribute 'startSet' required");
+    return std::unexpected(rt_error_t("builtins.genericClosure: attribute 'startSet' required"));
   }
-  auto start_set_val = rt_force(ctx, *start_set_opt);
+  auto start_set_val = RT_TRY(rt_force(ctx, *start_set_opt));
   if (!is_list(start_set_val)) {
-    throw type_error("builtins.genericClosure: 'startSet' must be a list, got '" +
-                     std::string(type_name(start_set_val)) + "'");
+    return std::unexpected(rt_error_t::type_error(std::format(
+        "builtins.genericClosure: 'startSet' must be a list, got '{}'", type_name(start_set_val))));
   }
 
   // Get operator function - copy value out before any allocations can invalidate pointers
@@ -3892,12 +4064,12 @@ auto rt_generic_closure(runtime_context& ctx, nix_value attrs) -> nix_value {
   attrs_ptr = get_payload(attrs);
   auto op_opt = find_attr(ctx, attrs_ptr, "operator");
   if (!op_opt) {
-    throw runtime_error("builtins.genericClosure: attribute 'operator' required");
+    return std::unexpected(rt_error_t("builtins.genericClosure: attribute 'operator' required"));
   }
-  auto op_val = rt_force(ctx, *op_opt);
+  auto op_val = RT_TRY(rt_force(ctx, *op_opt));
   if (!is_lambda(op_val) && !is_primop(op_val)) {
-    throw type_error("builtins.genericClosure: 'operator' must be a function, got '" +
-                     std::string(type_name(op_val)) + "'");
+    return std::unexpected(rt_error_t::type_error(std::format(
+        "builtins.genericClosure: 'operator' must be a function, got '{}'", type_name(op_val))));
   }
 
   // Track seen keys (for deduplication)
@@ -3909,18 +4081,19 @@ auto rt_generic_closure(runtime_context& ctx, nix_value attrs) -> nix_value {
 
   // Helper to extract key from element
   auto extract_key = [&](nix_value elem) -> std::string {
-    elem = rt_force(ctx, elem);
+    elem = RT_TRY(rt_force(ctx, elem));
     if (!is_attrset(elem)) {
-      throw type_error("builtins.genericClosure: element must be an attrset, got '" +
-                       std::string(type_name(elem)) + "'");
+      return std::unexpected(rt_error_t::type_error(std::format(
+          "builtins.genericClosure: element must be an attrset, got '{}'", type_name(elem))));
     }
     auto elem_ptr = get_payload(elem);
     auto key_opt = find_attr(ctx, elem_ptr, "key");
     if (!key_opt) {
-      throw runtime_error("builtins.genericClosure: element must have 'key' attribute");
+      return std::unexpected(
+          rt_error_t("builtins.genericClosure: element must have 'key' attribute"));
     }
     // Copy value out before forcing - pointers into WASM memory may be invalidated by rt_force
-    auto key_val = rt_force(ctx, *key_opt);
+    auto key_val = RT_TRY(rt_force(ctx, *key_opt));
 
     // Convert key to string representation for hashing
     if (is_string(key_val)) {
@@ -3961,12 +4134,13 @@ auto rt_generic_closure(runtime_context& ctx, nix_value attrs) -> nix_value {
     result.push_back(elem);
 
     // Apply operator to get new elements
-    auto new_elems = rt_apply(ctx, op_val, elem);
-    new_elems = rt_force(ctx, new_elems);
+    auto new_elems = RT_TRY(rt_apply(ctx, op_val, elem));
+    new_elems = RT_TRY(rt_force(ctx, new_elems));
 
     if (!is_list(new_elems)) {
-      throw type_error("builtins.genericClosure: 'operator' must return a list, got '" +
-                       std::string(type_name(new_elems)) + "'");
+      return std::unexpected(rt_error_t::type_error(
+          std::format("builtins.genericClosure: 'operator' must return a list, got '{}'",
+                      type_name(new_elems))));
     }
 
     auto new_ptr = get_payload(new_elems);
@@ -3993,40 +4167,40 @@ auto rt_generic_closure(runtime_context& ctx, nix_value attrs) -> nix_value {
 }
 
 auto rt_find_first(runtime_context& ctx, nix_value pred, nix_value def, nix_value list)
-    -> nix_value {
+    -> rt_result {
   // findFirst pred default list
   // Returns the first element for which pred returns true, or default if none found
 
-  pred = rt_force(ctx, pred);
-  list = rt_force(ctx, list);
+  pred = RT_TRY(rt_force(ctx, pred));
+  list = RT_TRY(rt_force(ctx, list));
 
   if (!is_lambda(pred) && !is_primop(pred)) {
-    throw type_error("builtins.findFirst: first argument must be a function, got '" +
-                     std::string(type_name(pred)) + "'");
+    return std::unexpected(rt_error_t::type_error(std::format(
+        "builtins.findFirst: first argument must be a function, got '{}'", type_name(pred))));
   }
 
   if (!is_list(list)) {
-    throw type_error("builtins.findFirst: third argument must be a list, got '" +
-                     std::string(type_name(list)) + "'");
+    return std::unexpected(rt_error_t::type_error(std::format(
+        "builtins.findFirst: third argument must be a list, got '{}'", type_name(list))));
   }
 
   auto ptr = get_payload(list);
 
   // Handle empty list (ptr == 0)
   if (ptr == 0) {
-    return rt_force(ctx, def);
+    return RT_TRY(rt_force(ctx, def));
   }
 
   auto count = ctx.read_u32(ptr + mem::LIST_COUNT_OFFSET);
 
   for (std::uint32_t idx = 0; idx < count; ++idx) {
     auto elem = ctx.read_value(ptr + mem::LIST_ELEMENTS_OFFSET + idx * 8);
-    auto result = rt_apply(ctx, pred, elem);
-    result = rt_force(ctx, result);
+    auto apply_result = RT_TRY(rt_apply(ctx, pred, elem));
+    auto result = RT_TRY(rt_force(ctx, apply_result));
 
     if (!is_bool(result)) {
-      throw type_error("builtins.findFirst: predicate must return a bool, got '" +
-                       std::string(type_name(result)) + "'");
+      return std::unexpected(rt_error_t::type_error(std::format(
+          "builtins.findFirst: predicate must return a bool, got '{}'", type_name(result))));
     }
 
     if (get_payload(result) != 0) {
@@ -4035,24 +4209,24 @@ auto rt_find_first(runtime_context& ctx, nix_value pred, nix_value def, nix_valu
   }
 
   // No match found, return default (force it since it may be a thunk)
-  return rt_force(ctx, def);
+  return RT_TRY(rt_force(ctx, def));
 }
 
-auto rt_hash_string(runtime_context& ctx, nix_value type, nix_value str) -> nix_value {
+auto rt_hash_string(runtime_context& ctx, nix_value type, nix_value str) -> rt_result {
   // hashString type str
   // Supported types: "md5", "sha1", "sha256", "sha512"
 
-  type = rt_force(ctx, type);
-  str = rt_force(ctx, str);
+  type = RT_TRY(rt_force(ctx, type));
+  str = RT_TRY(rt_force(ctx, str));
 
   if (!is_string(type)) {
-    throw type_error("builtins.hashString: first argument must be a string, got '" +
-                     std::string(type_name(type)) + "'");
+    return std::unexpected(rt_error_t::type_error(std::format(
+        "builtins.hashString: first argument must be a string, got '{}'", type_name(type))));
   }
 
   if (!is_string(str)) {
-    throw type_error("builtins.hashString: second argument must be a string, got '" +
-                     std::string(type_name(str)) + "'");
+    return std::unexpected(rt_error_t::type_error(std::format(
+        "builtins.hashString: second argument must be a string, got '{}'", type_name(str))));
   }
 
   std::string hash_type(ctx.read_string(get_payload(type)));
@@ -4123,29 +4297,29 @@ auto rt_hash_string(runtime_context& ctx, nix_value type, nix_value str) -> nix_
     }
     hash_result = ss.str();
   } else {
-    throw runtime_error("builtins.hashString: unknown hash type '" + hash_type +
-                        "' (supported: md5, sha1, sha256, sha512)");
+    return std::unexpected(rt_error_t("builtins.hashString: unknown hash type '" + hash_type +
+                        "' (supported: md5, sha1, sha256, sha512))");
   }
 
   auto result_ptr = allocate_string(ctx, hash_result);
   return make_value(value_tag::string, result_ptr);
 }
 
-auto rt_match(runtime_context& ctx, nix_value regex, nix_value str) -> nix_value {
+auto rt_match(runtime_context& ctx, nix_value regex, nix_value str) -> rt_result {
   // match regex str
   // Returns null if no match, or a list of captured groups if match
 
-  regex = rt_force(ctx, regex);
-  str = rt_force(ctx, str);
+  regex = RT_TRY(rt_force(ctx, regex));
+  str = RT_TRY(rt_force(ctx, str));
 
   if (!is_string(regex)) {
-    throw type_error("builtins.match: first argument must be a string, got '" +
-                     std::string(type_name(regex)) + "'");
+    return std::unexpected(rt_error_t::type_error(std::format(
+        "builtins.match: first argument must be a string, got '{}'", type_name(regex))));
   }
 
   if (!is_string(str)) {
-    throw type_error("builtins.match: second argument must be a string, got '" +
-                     std::string(type_name(str)) + "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.match: second argument must be a string, got '{}'", type_name(str))));
   }
 
   auto pattern_sv = ctx.read_string(get_payload(regex));
@@ -4190,25 +4364,26 @@ auto rt_match(runtime_context& ctx, nix_value regex, nix_value str) -> nix_value
     return make_value(value_tag::list, result_ptr);
 
   } catch (const std::regex_error& e) {
-    throw runtime_error("builtins.match: invalid regex '" + pattern + "': " + e.what());
+    return std::unexpected(
+        rt_error_t("builtins.match: invalid regex '" + pattern + "': " + e.what()));
   }
 }
 
-auto rt_split(runtime_context& ctx, nix_value regex, nix_value str) -> nix_value {
+auto rt_split(runtime_context& ctx, nix_value regex, nix_value str) -> rt_result {
   // split regex str
   // Returns a list alternating between non-matched strings and lists of captured groups
 
-  regex = rt_force(ctx, regex);
-  str = rt_force(ctx, str);
+  regex = RT_TRY(rt_force(ctx, regex));
+  str = RT_TRY(rt_force(ctx, str));
 
   if (!is_string(regex)) {
-    throw type_error("builtins.split: first argument must be a string, got '" +
-                     std::string(type_name(regex)) + "'");
+    return std::unexpected(rt_error_t::type_error(std::format(
+        "builtins.split: first argument must be a string, got '{}'", type_name(regex))));
   }
 
   if (!is_string(str)) {
-    throw type_error("builtins.split: second argument must be a string, got '" +
-                     std::string(type_name(str)) + "'");
+    return std::unexpected(rt_error_t::type_error(
+        std::format("builtins.split: second argument must be a string, got '{}'", type_name(str))));
   }
 
   auto pattern_sv = ctx.read_string(get_payload(regex));
@@ -4280,7 +4455,8 @@ auto rt_split(runtime_context& ctx, nix_value regex, nix_value str) -> nix_value
     return make_value(value_tag::list, result_ptr);
 
   } catch (const std::regex_error& e) {
-    throw runtime_error("builtins.split: invalid regex '" + pattern + "': " + e.what());
+    return std::unexpected(
+        rt_error_t("builtins.split: invalid regex '" + pattern + "': " + e.what()));
   }
 }
 
@@ -4388,6 +4564,7 @@ constexpr std::uint32_t primop_arity(std::uint32_t index) {
     case b::split:               // split regex str
     case b::add_error_context:   // addErrorContext ctx val
     case b::unsafe_get_attr_pos: // unsafeGetAttrPos name set
+    case b::find_file:           // findFile searchPath name
       return 2;
 
     // 3-arg primops
@@ -4404,7 +4581,7 @@ constexpr std::uint32_t primop_arity(std::uint32_t index) {
 
 } // namespace
 
-auto rt_apply_primop(runtime_context& ctx, std::uint32_t primop_index, nix_value arg) -> nix_value {
+auto rt_apply_primop(runtime_context& ctx, std::uint32_t primop_index, nix_value arg) -> rt_result {
   namespace b = compile::builtins;
 
   // Check if this is a partial application (high bit set means we have stored args)
@@ -4426,7 +4603,7 @@ auto rt_apply_primop(runtime_context& ctx, std::uint32_t primop_index, nix_value
       case b::is_null:
         return rt_is_null(ctx, arg);
       case b::is_bool: {
-        auto v = rt_force(ctx, arg);
+        auto v = RT_TRY(rt_force(ctx, arg));
         return is_bool(v) ? constants::bool_true : constants::bool_false;
       }
       case b::is_int:
@@ -4495,43 +4672,47 @@ auto rt_apply_primop(runtime_context& ctx, std::uint32_t primop_index, nix_value
       // I/O builtins - require io backend
       case b::import_path: {
         // import expects a path or string argument
-        auto v = rt_force(ctx, arg);
+        auto v = RT_TRY(rt_force(ctx, arg));
         std::string_view path;
         if (is_path(v)) {
           path = ctx.read_string(get_payload(v));
         } else if (is_string(v)) {
           path = ctx.read_string(get_payload(v));
         } else {
-          throw type_error("import: expected path or string, got " + std::string(type_name(v)));
+          return std::unexpected(rt_error_t::type_error("import: expected path or string, got " +
+                                                        std::string(type_name(v))));
         }
 
         if (!ctx.io) {
-          throw runtime_error("import: I/O operations not available (pure evaluator)");
+          return std::unexpected(rt_error_t("import: I/O operations not available (pure evaluator))");
         }
 
         auto result = ctx.io->import_file(ctx, path);
         if (!result) {
           switch (result.error()) {
             case io_error::not_found:
-              throw runtime_error("import: file not found: " + std::string(path));
+              return std::unexpected(rt_error_t("import: file not found: " + std::string(path)));
             case io_error::import_cycle:
-              throw runtime_error("import: cycle detected importing: " + std::string(path));
+              return std::unexpected(
+                  rt_error_t("import: cycle detected importing: " + std::string(path)));
             case io_error::parse_error:
-              throw runtime_error("import: parse error in: " + std::string(path));
+              return std::unexpected(rt_error_t("import: parse error in: " + std::string(path)));
             case io_error::eval_error: {
               // Try to get more details from the backend
               std::string details = ctx.io->last_import_error();
               if (details.empty()) {
-                throw runtime_error("import: evaluation error in: " + std::string(path));
+                return std::unexpected(
+                    rt_error_t("import: evaluation error in: " + std::string(path)));
               } else {
-                throw runtime_error("import: evaluation error in " + std::string(path) + ": " +
-                                    details);
+                return std::unexpected(
+                    rt_error_t("import: evaluation error in " + std::string(path)) + ": " +
+                    details);
               }
             }
             case io_error::not_supported:
-              throw runtime_error("import: operation not supported");
+              return std::unexpected(rt_error_t("import: operation not supported"));
             default:
-              throw runtime_error("import: error importing: " + std::string(path));
+              return std::unexpected(rt_error_t("import: error importing: " + std::string(path)));
           }
         }
         return result.value();
@@ -4539,31 +4720,33 @@ auto rt_apply_primop(runtime_context& ctx, std::uint32_t primop_index, nix_value
 
       case b::read_file: {
         // readFile expects a path or string argument
-        auto v = rt_force(ctx, arg);
+        auto v = RT_TRY(rt_force(ctx, arg));
         std::string_view path;
         if (is_path(v)) {
           path = ctx.read_string(get_payload(v));
         } else if (is_string(v)) {
           path = ctx.read_string(get_payload(v));
         } else {
-          throw type_error("readFile: expected path or string, got " + std::string(type_name(v)));
+          return std::unexpected(rt_error_t::type_error("readFile: expected path or string, got " +
+                                                        std::string(type_name(v))));
         }
 
         if (!ctx.io) {
-          throw runtime_error("readFile: I/O operations not available (pure evaluator)");
+          return std::unexpected(rt_error_t("readFile: I/O operations not available (pure evaluator))");
         }
 
         auto result = ctx.io->read_file(path);
         if (!result) {
           switch (result.error()) {
             case io_error::not_found:
-              throw runtime_error("readFile: file not found: " + std::string(path));
+              return std::unexpected(rt_error_t("readFile: file not found: " + std::string(path)));
             case io_error::permission_denied:
-              throw runtime_error("readFile: permission denied: " + std::string(path));
+              return std::unexpected(
+                  rt_error_t("readFile: permission denied: " + std::string(path)));
             case io_error::is_directory:
-              throw runtime_error("readFile: is a directory: " + std::string(path));
+              return std::unexpected(rt_error_t("readFile: is a directory: " + std::string(path)));
             default:
-              throw runtime_error("readFile: error reading: " + std::string(path));
+              return std::unexpected(rt_error_t("readFile: error reading: " + std::string(path)));
           }
         }
         // Allocate and return string value
@@ -4573,18 +4756,19 @@ auto rt_apply_primop(runtime_context& ctx, std::uint32_t primop_index, nix_value
 
       case b::path_exists: {
         // pathExists expects a path or string argument
-        auto v = rt_force(ctx, arg);
+        auto v = RT_TRY(rt_force(ctx, arg));
         std::string_view path;
         if (is_path(v)) {
           path = ctx.read_string(get_payload(v));
         } else if (is_string(v)) {
           path = ctx.read_string(get_payload(v));
         } else {
-          throw type_error("pathExists: expected path or string, got " + std::string(type_name(v)));
+          return std::unexpected(rt_error_t::type_error(
+              "pathExists: expected path or string, got " + std::string(type_name(v))));
         }
 
         if (!ctx.io) {
-          throw runtime_error("pathExists: I/O operations not available (pure evaluator)");
+          return std::unexpected(rt_error_t("pathExists: I/O operations not available (pure evaluator))");
         }
 
         bool exists = ctx.io->path_exists(path);
@@ -4594,34 +4778,36 @@ auto rt_apply_primop(runtime_context& ctx, std::uint32_t primop_index, nix_value
       case b::unsafe_discard_string_context: {
         // unsafeDiscardStringContext just returns the string as-is
         // (we don't track string contexts yet)
-        auto v = rt_force(ctx, arg);
+        auto v = RT_TRY(rt_force(ctx, arg));
         if (!is_string(v)) {
-          throw type_error("unsafeDiscardStringContext: expected string, got " +
-                           std::string(type_name(v)));
+          return std::unexpected(rt_error_t::type_error(
+              "unsafeDiscardStringContext: expected string, got " + std::string(type_name(v))));
         }
         return v;
       }
 
       case b::has_context: {
         // hasContext returns false since we don't track contexts
-        auto v = rt_force(ctx, arg);
+        auto v = RT_TRY(rt_force(ctx, arg));
         if (!is_string(v)) {
-          throw type_error("hasContext: expected string, got " + std::string(type_name(v)));
+          return std::unexpected(rt_error_t::type_error("hasContext: expected string, got " +
+                                                        std::string(type_name(v))));
         }
         return constants::bool_false;
       }
 
       case b::get_context: {
         // getContext returns empty attrset since we don't track contexts
-        auto v = rt_force(ctx, arg);
+        auto v = RT_TRY(rt_force(ctx, arg));
         if (!is_string(v)) {
-          throw type_error("getContext: expected string, got " + std::string(type_name(v)));
+          return std::unexpected(rt_error_t::type_error("getContext: expected string, got " +
+                                                        std::string(type_name(v))));
         }
         return compile::packed::empty_attribute_set;
       }
 
       default:
-        throw runtime_error("unknown primop index: " + std::to_string(primop_index));
+        return std::unexpected(rt_error_t("unknown primop index: " + std::to_string(primop_index)));
     }
   }
 
@@ -4637,12 +4823,12 @@ auto rt_apply_primop(runtime_context& ctx, std::uint32_t primop_index, nix_value
     return make_value(value_tag::primop, partial_ptr | 0x80000000);
   }
 
-  throw runtime_error("primop arity > 3 not supported");
+  return std::unexpected(rt_error_t("primop arity > 3 not supported"));
 }
 
 // Handle partial primop application (second arg)
 static auto rt_apply_partial_primop(runtime_context& ctx, std::uint32_t partial_ptr, nix_value arg2)
-    -> nix_value {
+    -> rt_result {
   auto primop_index = ctx.read_u32(partial_ptr + PARTIAL_PRIMOP_INDEX_OFFSET);
   auto arg1 = ctx.read_value(partial_ptr + PARTIAL_PRIMOP_ARG1_OFFSET);
 
@@ -4736,12 +4922,15 @@ static auto rt_apply_partial_primop(runtime_context& ctx, std::uint32_t partial_
         return rt_split(ctx, arg1, arg2);
       case b::add_error_context:
         // addErrorContext ctx val -> val (context is for error messages, we ignore it)
-        return rt_force(ctx, arg2);
+        return RT_TRY(rt_force(ctx, arg2));
+      case b::find_file:
+        return rt_find_file(ctx, arg1, arg2);
       case b::unsafe_get_attr_pos:
         // unsafeGetAttrPos name set -> null (we don't track source positions in attrs)
         return make_value(value_tag::null_value, 0);
       default:
-        throw runtime_error("unknown 2-arg primop index: " + std::to_string(primop_index));
+        return std::unexpected(
+            rt_error_t("unknown 2-arg primop index: " + std::to_string(primop_index)));
     }
   }
 
@@ -4760,12 +4949,12 @@ static auto rt_apply_partial_primop(runtime_context& ctx, std::uint32_t partial_
     return make_value(value_tag::primop, partial2_ptr | 0xC0000000);
   }
 
-  throw runtime_error("unexpected partial primop arity");
+  return std::unexpected(rt_error_t("unexpected partial primop arity"));
 }
 
 // Handle partial primop application (third arg for 3-arg primops)
 static auto rt_apply_partial_primop_3arg(runtime_context& ctx, std::uint32_t partial_ptr,
-                                         nix_value arg3) -> nix_value {
+                                         nix_value arg3) -> rt_result {
   constexpr std::uint32_t PARTIAL_PRIMOP_ARG2_OFFSET = 12;
 
   auto primop_index = ctx.read_u32(partial_ptr + PARTIAL_PRIMOP_INDEX_OFFSET);
@@ -4783,7 +4972,8 @@ static auto rt_apply_partial_primop_3arg(runtime_context& ctx, std::uint32_t par
     case b::find_first:
       return rt_find_first(ctx, arg1, arg2, arg3);
     default:
-      throw runtime_error("unknown 3-arg primop index: " + std::to_string(primop_index));
+      return std::unexpected(
+          rt_error_t("unknown 3-arg primop index: " + std::to_string(primop_index)));
   }
 }
 
@@ -4916,6 +5106,88 @@ void rt_init_builtins(runtime_context& ctx) {
   entries.emplace_back("import", make_value(value_tag::primop, b::import_path));
   entries.emplace_back("readFile", make_value(value_tag::primop, b::read_file));
   entries.emplace_back("pathExists", make_value(value_tag::primop, b::path_exists));
+  entries.emplace_back("findFile", make_value(value_tag::primop, b::find_file));
+
+  // nixPath - list of { path, prefix } for search path resolution
+  // Try to read from NIX_PATH environment variable
+  {
+    std::vector<nix_value> nix_path_entries;
+
+    // Check NIX_PATH environment variable
+    const char* nix_path_env = std::getenv("NIX_PATH");
+    if (nix_path_env != nullptr && nix_path_env[0] != '\0') {
+      std::string nix_path_str(nix_path_env);
+      // Parse NIX_PATH format: name=path:name=path:...
+      // or just path:path:...
+      size_t start = 0;
+      while (start < nix_path_str.size()) {
+        auto colon_pos = nix_path_str.find(':', start);
+        std::string entry_str;
+        if (colon_pos == std::string::npos) {
+          entry_str = nix_path_str.substr(start);
+          start = nix_path_str.size();
+        } else {
+          entry_str = nix_path_str.substr(start, colon_pos - start);
+          start = colon_pos + 1;
+        }
+
+        if (entry_str.empty())
+          continue;
+
+        // Check for name=path format
+        auto eq_pos = entry_str.find('=');
+        std::string prefix;
+        std::string path;
+        if (eq_pos != std::string::npos) {
+          prefix = entry_str.substr(0, eq_pos);
+          path = entry_str.substr(eq_pos + 1);
+        } else {
+          prefix = "";
+          path = entry_str;
+        }
+
+        // Create { path, prefix } attrset
+        auto path_ptr = allocate_string(ctx, path);
+        auto prefix_ptr = allocate_string(ctx, prefix);
+
+        // Allocate attrset with 2 entries (path and prefix)
+        auto entry_count = 2U;
+        auto entry_size = mem::attrset_size(entry_count);
+        auto entry_ptr = ctx.allocate(entry_size);
+        ctx.write_i32(entry_ptr + mem::ATTRSET_COUNT_OFFSET,
+                      static_cast<std::int32_t>(entry_count));
+
+        // Write entries (sorted by key name: "path" < "prefix")
+        auto entry0_off = entry_ptr + mem::ATTRSET_ENTRIES_OFFSET;
+        auto entry1_off = entry0_off + mem::ATTRSET_ENTRY_SIZE;
+
+        auto path_key = allocate_string(ctx, "path");
+        auto prefix_key = allocate_string(ctx, "prefix");
+
+        ctx.write_i32(entry0_off + mem::ATTRSET_ENTRY_KEY_OFFSET,
+                      static_cast<std::int32_t>(path_key));
+        ctx.write_value(entry0_off + mem::ATTRSET_ENTRY_VALUE_OFFSET,
+                        make_value(value_tag::path, path_ptr));
+
+        ctx.write_i32(entry1_off + mem::ATTRSET_ENTRY_KEY_OFFSET,
+                      static_cast<std::int32_t>(prefix_key));
+        ctx.write_value(entry1_off + mem::ATTRSET_ENTRY_VALUE_OFFSET,
+                        make_value(value_tag::string, prefix_ptr));
+
+        nix_path_entries.push_back(make_value(value_tag::attribute_set, entry_ptr));
+      }
+    }
+
+    // Allocate the nixPath list
+    auto list_count = static_cast<std::uint32_t>(nix_path_entries.size());
+    auto list_size = 4 + list_count * 8;
+    auto list_ptr = ctx.allocate(list_size);
+    ctx.write_i32(list_ptr, static_cast<std::int32_t>(list_count));
+    for (std::uint32_t idx = 0; idx < list_count; ++idx) {
+      ctx.write_value(list_ptr + 4 + idx * 8, nix_path_entries[idx]);
+    }
+    entries.emplace_back("nixPath", make_value(value_tag::list, list_ptr));
+  }
 
   // Also add true, false, null to the builtins attrset
   entries.emplace_back("true", constants::bool_true);
@@ -4966,6 +5238,19 @@ void rt_init_builtins(runtime_context& ctx) {
 
   auto builtins_value = make_value(value_tag::attribute_set, attrs_ptr);
   ctx.builtins["builtins"] = builtins_value;
+
+  // Add global aliases for commonly used builtins
+  // These are available without the "builtins." prefix in Nix
+  ctx.builtins["true"] = constants::bool_true;
+  ctx.builtins["false"] = constants::bool_false;
+  ctx.builtins["null"] = constants::null_value;
+  ctx.builtins["throw"] = make_value(value_tag::primop, b::throw_error);
+  ctx.builtins["abort"] = make_value(value_tag::primop, b::abort_eval);
+  ctx.builtins["import"] = make_value(value_tag::primop, b::import_path);
+  ctx.builtins["map"] = make_value(value_tag::primop, b::map);
+  ctx.builtins["toString"] = make_value(value_tag::primop, b::to_string);
+  ctx.builtins["baseNameOf"] = make_value(value_tag::primop, b::base_name_of);
+  ctx.builtins["dirOf"] = make_value(value_tag::primop, b::dir_of);
 }
 
 // =============================================================================

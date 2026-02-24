@@ -125,6 +125,7 @@ constexpr std::uint32_t fetch_url = 103;
 constexpr std::uint32_t to_file = 104;
 constexpr std::uint32_t derivation = 105;
 constexpr std::uint32_t store_path = 106;
+constexpr std::uint32_t find_file = 107;
 
 // string builtins
 constexpr std::uint32_t string_length = 200;

@@ -6,7 +6,6 @@
 
 #include <any>
 #include <cstring>
-#include <iostream>
 #include <sstream>
 
 #include "straylight/nix/compiler/runtime/io_backend.h"
@@ -68,6 +67,15 @@ auto wrap_callback(F&& f) {
           return wasmtime::Trap(std::string("runtime error: ") + e.what());
         }
       };
+}
+
+// Convert rt_result to wasmtime::Result
+// If the rt_result has an error, it becomes a wasmtime trap.
+static auto to_wasm_result(rt_result result) -> wasmtime::Result<std::int64_t, wasmtime::Trap> {
+  if (result) {
+    return *result;
+  }
+  return wasmtime::Trap(result.error().format());
 }
 
 // =============================================================================
@@ -242,14 +250,8 @@ void wasm_executor::setup_linker(wasmtime::Linker& linker) {
       .func_wrap("runtime", "__force",
                  [](wasmtime::Caller caller,
                     std::int64_t value) -> wasmtime::Result<std::int64_t, wasmtime::Trap> {
-                   try {
-                     auto* ctx = get_ctx(caller);
-                     return rt_force(*ctx, value);
-                   } catch (const runtime_error& e) {
-                     return wasmtime::Trap(e.what());
-                   } catch (const std::exception& e) {
-                     return wasmtime::Trap(std::string("runtime error: ") + e.what());
-                   }
+                   auto* ctx = get_ctx(caller);
+                   return to_wasm_result(rt_force(*ctx, value));
                  })
       .unwrap();
 
@@ -275,14 +277,8 @@ void wasm_executor::setup_linker(wasmtime::Linker& linker) {
       .func_wrap("runtime", "__apply",
                  [](wasmtime::Caller caller, std::int64_t fn,
                     std::int64_t arg) -> wasmtime::Result<std::int64_t, wasmtime::Trap> {
-                   try {
-                     auto* ctx = get_ctx(caller);
-                     return rt_apply(*ctx, fn, arg);
-                   } catch (const runtime_error& e) {
-                     return wasmtime::Trap(e.what());
-                   } catch (const std::exception& e) {
-                     return wasmtime::Trap(std::string("runtime error: ") + e.what());
-                   }
+                   auto* ctx = get_ctx(caller);
+                   return to_wasm_result(rt_apply(*ctx, fn, arg));
                  })
       .unwrap();
 
@@ -528,15 +524,9 @@ void wasm_executor::setup_linker(wasmtime::Linker& linker) {
   linker
       .func_wrap("builtins", "__isBool",
                  [](wasmtime::Caller caller,
-                    std::int64_t v) -> wasmtime::Result<std::int32_t, wasmtime::Trap> {
-                   try {
-                     auto* ctx = get_ctx(caller);
-                     return rt_is_bool(*ctx, v);
-                   } catch (const runtime_error& e) {
-                     return wasmtime::Trap(e.what());
-                   } catch (const std::exception& e) {
-                     return wasmtime::Trap(std::string("runtime error: ") + e.what());
-                   }
+                    std::int64_t v) -> wasmtime::Result<std::int64_t, wasmtime::Trap> {
+                   auto* ctx = get_ctx(caller);
+                   return to_wasm_result(rt_is_bool(*ctx, v));
                  })
       .unwrap();
 
@@ -889,15 +879,15 @@ auto wasm_executor::execute(std::span<const std::uint8_t> wasm_binary) -> execut
     // Set up the callback for calling WASM functions from the runtime
     // This callback handles cross-module lambda calls by decoding the module_id
     ctx_.call_wasm_func = [this](std::uint32_t encoded_func_index, std::uint32_t env_ptr,
-                                 nix_value arg) -> nix_value {
+                                 nix_value arg) -> rt_result {
       // Decode module_id and local func_index
       auto module_id = static_cast<std::uint16_t>(encoded_func_index >> 16);
       auto local_func_index = encoded_func_index & 0xFFFF;
 
       auto* mod = get_module(module_id);
       if (!mod || !mod->func_table) {
-        throw runtime_error("module " + std::to_string(module_id) +
-                            " not found or has no function table");
+        return std::unexpected(rt_error_t("module " + std::to_string(module_id) +
+                                          " not found or has no function table"));
       }
 
       // Save and switch current_module_id so closures created during this call
@@ -909,14 +899,14 @@ auto wasm_executor::execute(std::span<const std::uint8_t> wasm_binary) -> execut
       auto val_opt = mod->func_table->get(store_->context(), local_func_index);
       if (!val_opt) {
         ctx_.current_module_id = saved_module_id;
-        throw runtime_error("function index " + std::to_string(local_func_index) +
-                            " out of bounds in module " + std::to_string(module_id));
+        return std::unexpected(rt_error_t("function index " + std::to_string(local_func_index) +
+                                          " out of bounds in module " + std::to_string(module_id)));
       }
       auto& val = *val_opt;
       auto func_opt = val.funcref();
       if (!func_opt) {
         ctx_.current_module_id = saved_module_id;
-        throw runtime_error("table entry is not a function (null funcref)");
+        return std::unexpected(rt_error_t("table entry is not a function (null funcref)"));
       }
       auto func = *func_opt;
 
@@ -930,7 +920,13 @@ auto wasm_executor::execute(std::span<const std::uint8_t> wasm_binary) -> execut
       if (!call_result) {
         auto err = std::move(call_result).err();
         ctx_.current_module_id = saved_module_id;
-        throw runtime_error("indirect call failed: " + err.message());
+
+        // Convert wasmtime trap to rt_error_t
+        // Check if it's an abort error (non-catchable)
+        auto msg = err.message();
+        bool is_abort = msg.find("abort") != std::string::npos;
+        auto kind = is_abort ? rt_error_kind::abort_error : rt_error_kind::generic;
+        return std::unexpected(rt_error_t(msg, kind));
       }
       auto results = std::move(call_result).ok();
 
@@ -938,14 +934,14 @@ auto wasm_executor::execute(std::span<const std::uint8_t> wasm_binary) -> execut
       ctx_.current_module_id = saved_module_id;
 
       if (results.empty()) {
-        throw runtime_error("function returned no value");
+        return std::unexpected(rt_error_t("function returned no value"));
       }
       return results[0].i64();
     };
 
     // Set up the callback for calling thunk functions (single env_ptr argument)
     ctx_.call_wasm_thunk = [this](std::uint32_t encoded_func_index,
-                                  std::uint32_t env_ptr) -> nix_value {
+                                  std::uint32_t env_ptr) -> rt_result {
       // Decode module_id and local thunk index
       // Format: (module_id << 16) | local_thunk_index
       // local_thunk_index is the thunk's index (0, 1, 2...) within that module's thunks
@@ -954,8 +950,8 @@ auto wasm_executor::execute(std::span<const std::uint8_t> wasm_binary) -> execut
 
       auto* mod = get_module(module_id);
       if (!mod || !mod->func_table) {
-        throw runtime_error("module " + std::to_string(module_id) +
-                            " not found or has no function table for thunk");
+        return std::unexpected(rt_error_t("module " + std::to_string(module_id) +
+                                          " not found or has no function table for thunk"));
       }
 
       // Thunks are stored at [lambda_count, lambda_count + thunk_count) in the function table
@@ -982,10 +978,11 @@ auto wasm_executor::execute(std::span<const std::uint8_t> wasm_binary) -> execut
         if (ctx_.io && !mod->source_file.empty()) {
           ctx_.io->set_import_base_path(saved_base_path);
         }
-        throw runtime_error("thunk index " + std::to_string(table_index) +
-                            " (local=" + std::to_string(local_thunk_index) +
-                            ", lambda_count=" + std::to_string(mod->lambda_count) +
-                            ") out of bounds in module " + std::to_string(module_id));
+        return std::unexpected(rt_error_t("thunk index " + std::to_string(table_index) +
+                                          " (local=" + std::to_string(local_thunk_index) +
+                                          ", lambda_count=" + std::to_string(mod->lambda_count) +
+                                          ") out of bounds in module " +
+                                          std::to_string(module_id)));
       }
       auto& val = *val_opt;
       auto func_opt = val.funcref();
@@ -994,7 +991,7 @@ auto wasm_executor::execute(std::span<const std::uint8_t> wasm_binary) -> execut
         if (ctx_.io && !mod->source_file.empty()) {
           ctx_.io->set_import_base_path(saved_base_path);
         }
-        throw runtime_error("table entry is not a function (null funcref)");
+        return std::unexpected(rt_error_t("table entry is not a function (null funcref)"));
       }
       auto func = *func_opt;
 
@@ -1010,7 +1007,13 @@ auto wasm_executor::execute(std::span<const std::uint8_t> wasm_binary) -> execut
         if (ctx_.io && !mod->source_file.empty()) {
           ctx_.io->set_import_base_path(saved_base_path);
         }
-        throw runtime_error("thunk call failed: " + err.message());
+
+        // Convert wasmtime trap to rt_error_t
+        // Check if it's an abort error (non-catchable)
+        auto msg = err.message();
+        bool is_abort = msg.find("abort") != std::string::npos;
+        auto kind = is_abort ? rt_error_kind::abort_error : rt_error_kind::generic;
+        return std::unexpected(rt_error_t(msg, kind));
       }
       auto results = std::move(call_result).ok();
 
@@ -1021,7 +1024,7 @@ auto wasm_executor::execute(std::span<const std::uint8_t> wasm_binary) -> execut
       }
 
       if (results.empty()) {
-        throw runtime_error("thunk returned no value");
+        return std::unexpected(rt_error_t("thunk returned no value"));
       }
       return results[0].i64();
     };
@@ -1052,7 +1055,11 @@ auto wasm_executor::execute(std::span<const std::uint8_t> wasm_binary) -> execut
 
     // Force the result if it's a thunk (lazy evaluation requires final force)
     auto value = results[0].i64();
-    value = rt_force(ctx_, value);
+    auto force_result = rt_force(ctx_, value);
+    if (!force_result) {
+      return execution_result::err(force_result.error().format());
+    }
+    value = *force_result;
 
     return execution_result::ok(value);
 
