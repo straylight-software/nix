@@ -14,9 +14,12 @@ The restructure is complete. All files have been moved, namespaces updated, and 
 ### Remaining work (not blocking):
 
 - ~~Create README.md for each new module~~ ✓ Done
-- Fix runtime_test.cpp API mismatch (test disabled)
-- Update stale nix store paths in BUCK files (unrelated to restructure)
+- Fix runtime_test.cpp API mismatch (test disabled - needs make_int/get_int_value helpers)
 - ~~Migrate to static musl builds~~ ✓ Done (toolchain configured, binaries statically linked)
+
+### Separate issue (not restructure-related):
+
+- Hardcoded nix store paths in BUCK files (third_party deps) - should read from buckconfig instead
 
 ______________________________________________________________________
 

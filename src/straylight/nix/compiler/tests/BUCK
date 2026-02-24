@@ -182,7 +182,8 @@ cxx_test(
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Runtime tests (direct runtime function testing)
-# TODO: Test needs update to match new runtime_context API (wasm_memory* instead of direct memory)
+# TODO: runtime_test.cpp needs make_int/get_int_value helpers added to runtime.h
+#       or rewritten to use the existing value construction via make_value()
 # ─────────────────────────────────────────────────────────────────────────────
 # cxx_test(
 #     name = "runtime_test",
@@ -190,9 +191,7 @@ cxx_test(
 #     deps = [
 #         "//src/straylight/nix/compiler:compile",
 #         "//src/straylight/nix/compiler:runtime",
-#         "//src/straylight/nix/compiler:wasm_executor",
 #         "//third_party:catch2",
-#         "//third_party:wasmtime",
 #     ],
 #     compiler_flags = LANGUAGE_TEST_COMPILER_FLAGS,
 #     linker_flags = LANGUAGE_LINKER_FLAGS,
