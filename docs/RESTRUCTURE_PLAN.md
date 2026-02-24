@@ -2,7 +2,7 @@
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-                                    // straylight // restructure
+                                  // straylight // restructure
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
@@ -250,51 +250,81 @@ ______________________________________________________________________
 
 ### Phase 1: Top-level moves
 
-| From | To | |------|-----| | `src/straylight/language/` | `src/straylight/nix/compiler/` | |
-`src/straylight/protocol/` | `src/straylight/nix/protocol/` |
+| From | To |
+|------|-----|
+| `src/straylight/language/` | `src/straylight/nix/compiler/` |
+| `src/straylight/protocol/` | `src/straylight/nix/protocol/` |
 
 ### Phase 2: Split primitives/
 
-| From | To | |------|-----| | `primitives/ca_store*` | `nix/store/` | | `primitives/legacy_store*`
-| `nix/store/` | | `primitives/two_tier_store*` | `nix/store/` | | `primitives/store.h/cpp` |
-`nix/store/log_store.h/cpp` | | `primitives/store_async.h` | `nix/store/async.h` | |
-`primitives/STORE_DESIGN.md` | `nix/store/docs/ARCHITECTURE.md` | | `primitives/hash*` |
-`nix/crypto/` | | `primitives/encoding*` | `nix/crypto/` | | `primitives/strings*` | `nix/text/` | |
-`primitives/regex*` | `nix/text/` | | `primitives/fuzzy*` | `nix/text/` | | `primitives/format*` |
-`nix/text/` | | `primitives/markdown*` | `nix/text/` | | `primitives/xml_writer*` | `nix/text/` | |
-`primitives/table*` | `nix/text/` | | `primitives/split*` | `nix/text/` | | `primitives/url*` |
-`nix/url/` | | `primitives/async/` | `nix/async/` | | `primitives/sync.h` |
-`nix/sync/synchronized.h` | | `primitives/lock.h` | `nix/sync/` | | `primitives/pool.h` |
-`nix/sync/` | | `primitives/callback.h` | `nix/sync/` | | `primitives/signals.h` | `nix/sync/` | |
-`primitives/chunked_vector.h` | `nix/data/` | | `primitives/lru_cache.h` | `nix/data/` | |
-`primitives/topo_sort.h` | `nix/data/` | | `primitives/serialise.h` | `nix/data/` | |
-`primitives/ref.h` | `nix/util/` | | `primitives/finally.h` | `nix/util/` | |
-`primitives/checked_arithmetic.h` | `nix/util/` | | `primitives/comparator.h` | `nix/util/` | |
-`primitives/config.h` | `nix/util/` | | `primitives/filesystem/` | `nix/fs/` | | `primitives/args.h`
-| `nix/cli/` | | `primitives/git.h` | `nix/compat/` | | `primitives/sqlite.h` | `nix/compat/` | |
-`primitives/adapters/` | `nix/adapters/` | | `primitives/NIH.md` | `nix/docs/NIH.md` |
+| From | To |
+|------|-----|
+| `primitives/ca_store*` | `nix/store/` |
+| `primitives/legacy_store*` | `nix/store/` |
+| `primitives/two_tier_store*` | `nix/store/` |
+| `primitives/store.h/cpp` | `nix/store/log_store.h/cpp` |
+| `primitives/store_async.h` | `nix/store/async.h` |
+| `primitives/STORE_DESIGN.md` | `nix/store/docs/ARCHITECTURE.md` |
+| `primitives/hash*` | `nix/crypto/` |
+| `primitives/encoding*` | `nix/crypto/` |
+| `primitives/strings*` | `nix/text/` |
+| `primitives/regex*` | `nix/text/` |
+| `primitives/fuzzy*` | `nix/text/` |
+| `primitives/format*` | `nix/text/` |
+| `primitives/markdown*` | `nix/text/` |
+| `primitives/xml_writer*` | `nix/text/` |
+| `primitives/table*` | `nix/text/` |
+| `primitives/split*` | `nix/text/` |
+| `primitives/url*` | `nix/url/` |
+| `primitives/async/` | `nix/async/` |
+| `primitives/sync.h` | `nix/sync/synchronized.h` |
+| `primitives/lock.h` | `nix/sync/` |
+| `primitives/pool.h` | `nix/sync/` |
+| `primitives/callback.h` | `nix/sync/` |
+| `primitives/signals.h` | `nix/sync/` |
+| `primitives/chunked_vector.h` | `nix/data/` |
+| `primitives/lru_cache.h` | `nix/data/` |
+| `primitives/topo_sort.h` | `nix/data/` |
+| `primitives/serialise.h` | `nix/data/` |
+| `primitives/ref.h` | `nix/util/` |
+| `primitives/finally.h` | `nix/util/` |
+| `primitives/checked_arithmetic.h` | `nix/util/` |
+| `primitives/comparator.h` | `nix/util/` |
+| `primitives/config.h` | `nix/util/` |
+| `primitives/filesystem/` | `nix/fs/` |
+| `primitives/args.h` | `nix/cli/` |
+| `primitives/git.h` | `nix/compat/` |
+| `primitives/sqlite.h` | `nix/compat/` |
+| `primitives/adapters/` | `nix/adapters/` |
+| `primitives/NIH.md` | `nix/docs/NIH.md` |
 
 ______________________________________________________________________
 
 ## Namespace Changes
 
-| Old | New | |-----|-----| | `straylight::language::*` | `straylight::nix::compiler::*` | |
-`straylight::language::ast` | `straylight::nix::compiler::ast` | | `straylight::language::parse` |
-`straylight::nix::compiler::parse` | | `straylight::language::compile` |
-`straylight::nix::compiler::compile` | | `straylight::language::runtime` |
-`straylight::nix::compiler::runtime` | | `straylight::protocol::*` | `straylight::nix::protocol::*`
-| | `straylight::nix::primitives::*` | Split across new namespaces | |
-`straylight::nix::primitives::hash` | `straylight::nix::crypto` | | (etc.) | (etc.) |
+| Old | New |
+|-----|-----|
+| `straylight::language::*` | `straylight::nix::compiler::*` |
+| `straylight::language::ast` | `straylight::nix::compiler::ast` |
+| `straylight::language::parse` | `straylight::nix::compiler::parse` |
+| `straylight::language::compile` | `straylight::nix::compiler::compile` |
+| `straylight::language::runtime` | `straylight::nix::compiler::runtime` |
+| `straylight::protocol::*` | `straylight::nix::protocol::*` |
+| `straylight::nix::primitives::*` | Split across new namespaces |
+| `straylight::nix::primitives::hash` | `straylight::nix::crypto` |
+| (etc.) | (etc.) |
 
 ______________________________________________________________________
 
 ## Include Path Changes
 
-| Old | New | |-----|-----| | `straylight/language/ast/expression.h` |
-`straylight/nix/compiler/ast/expression.h` | | `straylight/protocol/nix_daemon.ksy` |
-`straylight/nix/protocol/nix_daemon.ksy` | | `straylight/nix/primitives/hash.h` |
-`straylight/nix/crypto/hash.h` | | `straylight/nix/primitives/strings.h` |
-`straylight/nix/text/strings.h` | | (etc.) | (etc.) |
+| Old | New |
+|-----|-----|
+| `straylight/language/ast/expression.h` | `straylight/nix/compiler/ast/expression.h` |
+| `straylight/protocol/nix_daemon.ksy` | `straylight/nix/protocol/nix_daemon.ksy` |
+| `straylight/nix/primitives/hash.h` | `straylight/nix/crypto/hash.h` |
+| `straylight/nix/primitives/strings.h` | `straylight/nix/text/strings.h` |
+| (etc.) | (etc.) |
 
 ______________________________________________________________________
 

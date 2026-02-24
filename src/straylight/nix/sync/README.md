@@ -52,10 +52,13 @@ if (signal.is_raised()) { /* cleanup */ }
 
 ## API Overview
 
-| Type | Description | |------|-------------| | `Sync<T>` | Mutex-protected value with lock() proxy
-| | `SharedSync<T>` | Shared mutex with read_lock()/write_lock() | | `Pool<T>` | Resource pool with
-acquire()/release() | | `Callback<T>` | Async result callback | | `InterruptSignal` | Thread
-interrupt signaling |
+| Type | Description |
+|------|-------------|
+| `Sync<T>` | Mutex-protected value with lock() proxy |
+| `SharedSync<T>` | Shared mutex with read_lock()/write_lock() |
+| `Pool<T>` | Resource pool with acquire()/release() |
+| `Callback<T>` | Async result callback |
+| `InterruptSignal` | Thread interrupt signaling |
 
 ## Building
 

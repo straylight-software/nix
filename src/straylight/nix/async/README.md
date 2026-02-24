@@ -40,10 +40,14 @@ parallel_for(items, [](auto& item) { process(item); });
 
 ## API Overview
 
-| Type/Function | Description | |---------------|-------------| | `Executor` | Work-stealing thread
-pool | | `GcExecutor` | Executor with Boehm GC thread registration | | `TaskGraph` | DAG task
-execution | | `parallel_for()` | Parallel iteration | | `parallel_reduce()` | Parallel reduction | |
-`async_closure()` | Async transitive closure computation |
+| Type/Function | Description |
+|---------------|-------------|
+| `Executor` | Work-stealing thread pool |
+| `GcExecutor` | Executor with Boehm GC thread registration |
+| `TaskGraph` | DAG task execution |
+| `parallel_for()` | Parallel iteration |
+| `parallel_reduce()` | Parallel reduction |
+| `async_closure()` | Async transitive closure computation |
 
 ## Building
 

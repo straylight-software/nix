@@ -38,12 +38,17 @@ auto matches = fuzzy_extract("nix", candidates, 3);
 
 ## API Overview
 
-| Header | Description | |--------|-------------| | `strings.h` | Adaptive find, contains,
-starts_with, ends_with, split, join | | `strings_config.h` | SIMD threshold configuration | |
-`regex.h` | RE2-backed regex with match/find_all/replace | | `fuzzy.h` | rapidfuzz-backed fuzzy
-matching | | `format.h` | std::format convenience wrappers | | `markdown.h` | Markdown rendering
-utilities | | `xml_writer.h` | Streaming XML writer | | `table.h` | ASCII table formatting | |
-`split.h` | String splitting utilities |
+| Header | Description |
+|--------|-------------|
+| `strings.h` | Adaptive find, contains, starts_with, ends_with, split, join |
+| `strings_config.h` | SIMD threshold configuration |
+| `regex.h` | RE2-backed regex with match/find_all/replace |
+| `fuzzy.h` | rapidfuzz-backed fuzzy matching |
+| `format.h` | std::format convenience wrappers |
+| `markdown.h` | Markdown rendering utilities |
+| `xml_writer.h` | Streaming XML writer |
+| `table.h` | ASCII table formatting |
+| `split.h` | String splitting utilities |
 
 ## Configuration
 

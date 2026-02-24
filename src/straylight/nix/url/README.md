@@ -37,10 +37,14 @@ auto canonical = u.canonicalize();
 
 ## API Overview
 
-| Type/Function | Description | |---------------|-------------| | `url` | Parsed URL structure with
-components | | `authority` | Host, port, user, password | | `parse()` | Parse URL string | |
-`parse_lenient()` | Parse with Nix flake URL support | | `percent_encode()` | Encode string for URL
-use | | `percent_decode()` | Decode percent-encoded string |
+| Type/Function | Description |
+|---------------|-------------|
+| `url` | Parsed URL structure with components |
+| `authority` | Host, port, user, password |
+| `parse()` | Parse URL string |
+| `parse_lenient()` | Parse with Nix flake URL support |
+| `percent_encode()` | Encode string for URL use |
+| `percent_decode()` | Decode percent-encoded string |
 
 ## Building
 

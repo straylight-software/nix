@@ -57,7 +57,7 @@ which clangd
 ls compile_commands.json
 
 # Run a quick test
-buck2 test //src/straylight/nix/primitives/tests:strings_test
+buck2 test //src/straylight/nix/text/tests:strings_test
 ```
 
 ______________________________________________________________________
@@ -86,7 +86,7 @@ straylight/nix is a ground-up rethinking of Nix with four major innovations:
 │           └────────────────────┼────────────────────┘                   │
 │                                │                                        │
 │  ┌─────────────────────────────┴─────────────────────────────┐          │
-│  │                       primitives                          │          │
+│  │              modern utilities (crypto, text, url, etc.)   │          │
 │  │                                                           │          │
 │  │  34 modernized utility modules replacing NIH code         │          │
 │  │  StringZilla | RE2 | BLAKE3 | taskflow | zpp_bits         │          │
@@ -120,18 +120,19 @@ src/
     ├── evring/               # Deterministic async I/O
     ├── language/             # Nix → WASM compiler
     ├── protocol/             # Formal protocol specs
-    └── nix/primitives/       # Modern utility replacements
+    └── nix/                  # Modern utility modules (crypto, text, url, async, sync, etc.)
 ```
 
 ### Key Files to Read First
 
-| File | Description | Why Read It | |------|-------------|-------------| | `ARCHITECTURE.md` |
-Project overview | Understand the whole system | | `docs/cpp-style-guide.md` | Code conventions |
-Write conformant code | | `src/straylight/evring/ARCHITECTURE.md` | evring deep dive | Understand
-async I/O | | `src/straylight/language/ARCHITECTURE.md` | Compiler deep dive | Understand WASM
-compilation | | `src/straylight/nix/primitives/NIH.md` | NIH replacement tracking | Understand
-modernization | | `src/straylight/protocol/README.md` | Protocol specs | Understand daemon
-communication |
+| File | Description | Why Read It |
+|------|-------------|-------------|
+| `ARCHITECTURE.md` | Project overview | Understand the whole system |
+| `docs/cpp-style-guide.md` | Code conventions | Write conformant code |
+| `src/straylight/evring/ARCHITECTURE.md` | evring deep dive | Understand async I/O |
+| `src/straylight/nix/compiler/docs/ARCHITECTURE.md` | Compiler deep dive | Understand WASM compilation |
+| `src/straylight/nix/docs/NIH.md` | NIH replacement tracking | Understand modernization |
+| `src/straylight/nix/protocol/README.md` | Protocol specs | Understand daemon communication |
 
 ______________________________________________________________________
 
@@ -258,7 +259,7 @@ assert(result.success);
 assert(get_int_value(result.value) == 3);
 ```
 
-**For more:** See `src/straylight/language/ARCHITECTURE.md`
+**For more:** See `src/straylight/nix/compiler/docs/ARCHITECTURE.md`
 
 ______________________________________________________________________
 
@@ -297,11 +298,11 @@ Client                    Server
   │◀── STDERR_LAST + Resp ──│
 ```
 
-**For more:** See `src/straylight/protocol/README.md`
+**For more:** See `src/straylight/nix/protocol/README.md`
 
 ______________________________________________________________________
 
-### 4. primitives - Modern Utility Replacements
+### 4. Modern Utility Modules
 
 **Problem:** Nix has many Not-Invented-Here implementations that are slower and buggier than
 well-tested libraries.
@@ -328,7 +329,7 @@ well-tested libraries.
 }
 ```
 
-**For more:** See `src/straylight/nix/primitives/NIH.md`
+**For more:** See `src/straylight/nix/docs/NIH.md`
 
 ______________________________________________________________________
 
@@ -372,7 +373,7 @@ releases the lock. No daemon needed.
 2. io_uring for bulk operations
 ```
 
-**For more:** See `src/straylight/nix/primitives/STORE_DESIGN.md`
+**For more:** See `src/straylight/nix/store/docs/ARCHITECTURE.md`
 
 ______________________________________________________________________
 
@@ -423,13 +424,13 @@ buck2 build --prefer-remote //...
 buck2 test //src/straylight/...
 
 # Specific component
-buck2 test //src/straylight/language/tests:...
+buck2 test //src/straylight/nix/compiler/tests:...
 
 # Single test file
-buck2 test //src/straylight/language/tests:execution_test
+buck2 test //src/straylight/nix/compiler/tests:execution_test
 
 # Run with output
-buck2 test //src/straylight/language/tests:execution_test -- --verbose
+buck2 test //src/straylight/nix/compiler/tests:execution_test -- --verbose
 ```
 
 ### Formatting
@@ -459,11 +460,15 @@ ______________________________________________________________________
 
 ### Test Categories
 
-| Category | Framework | Purpose | |----------|-----------|---------| | Unit tests | Catch2 |
-Per-function correctness | | Property tests | RapidCheck | Algebraic invariants | | Adversarial
-tests | Catch2 | Edge cases (INT_MIN, overflow) | | Integration tests | Catch2 | Multi-component
-pipelines | | End-to-end tests | Catch2 | Full parse → execute | | Fuzzing | libFuzzer |
-Crash/undefined behavior | | Capture tests | Custom | Protocol validation |
+| Category | Framework | Purpose |
+|----------|-----------|---------|
+| Unit tests | Catch2 | Per-function correctness |
+| Property tests | RapidCheck | Algebraic invariants |
+| Adversarial tests | Catch2 | Edge cases (INT_MIN, overflow) |
+| Integration tests | Catch2 | Multi-component pipelines |
+| End-to-end tests | Catch2 | Full parse → execute |
+| Fuzzing | libFuzzer | Crash/undefined behavior |
+| Capture tests | Custom | Protocol validation |
 
 ### Writing Tests
 
@@ -500,11 +505,11 @@ ______________________________________________________________________
 
 ## Common Tasks
 
-### Adding a New Primitive
+### Adding a New Utility Module
 
-1. Create header in `src/straylight/nix/primitives/`
-2. Add tests in `src/straylight/nix/primitives/tests/`
-3. Update `NIH.md` with the new primitive
+1. Create header in appropriate `src/straylight/nix/<module>/` (crypto, text, url, async, sync, data, util, fs, cli, compat)
+2. Add tests in `src/straylight/nix/<module>/tests/`
+3. Update `NIH.md` with the new module
 4. Add to `dhall/package.dhall` if needed
 
 ### Adding a New evring Operation
@@ -643,7 +648,7 @@ ______________________________________________________________________
 - [ARCHITECTURE.md](../ARCHITECTURE.md) — Project overview
 - [cpp-style-guide.md](cpp-style-guide.md) — Code conventions
 - [evring ARCHITECTURE](../src/straylight/evring/ARCHITECTURE.md) — Async I/O details
-- [language ARCHITECTURE](../src/straylight/language/ARCHITECTURE.md) — Compiler details
-- [protocol README](../src/straylight/protocol/README.md) — Protocol specs
-- [NIH.md](../src/straylight/nix/primitives/NIH.md) — Primitive tracking
-- [STORE_DESIGN.md](../src/straylight/nix/primitives/STORE_DESIGN.md) — Store design
+- [Compiler ARCHITECTURE](../src/straylight/nix/compiler/docs/ARCHITECTURE.md) — Compiler details
+- [protocol README](../src/straylight/nix/protocol/README.md) — Protocol specs
+- [NIH.md](../src/straylight/nix/docs/NIH.md) — Primitive tracking
+- [STORE_DESIGN.md](../src/straylight/nix/store/docs/ARCHITECTURE.md) — Store design

@@ -5,9 +5,13 @@ history, normalized by time and resources.
 
 ## The Numbers
 
-| Metric | Value | |--------|-------| | Time to self-hosting | 47 hours | | Engineers | 1 human + 1
-AI | | Lines touched | ~50,000 | | Original Nix development time | ~20 years | | Original Nix
-contributors | ~500 |
+| Metric | Value |
+|--------|-------|
+| Time to self-hosting | 47 hours |
+| Engineers | 1 human + 1 AI |
+| Lines touched | ~50,000 |
+| Original Nix development time | ~20 years |
+| Original Nix contributors | ~500 |
 
 ## What Was Built
 
@@ -25,12 +29,15 @@ This is not a toy. This is not a subset. This is Nix.
 
 The reimplementation isn't just the old code cleaned up. It's architecturally next-generation:
 
-| Component | Original Nix | straylight/nix | |-----------|--------------|----------------| | Build
-system | Meson/Autotools | Buck2 (hermetic, remote-exec) | | Linking | Dynamic | Static (single
-binary) | | Event loop | pthreads + poll | io_uring (libevring) | | Evaluation | AST interpreter |
-WASM compiler (ahead-of-time) | | Protocol specs | Implicit in code | Kaitai (formal, generatable) |
-| Style | Mixed conventions | snake_case, C++23, `[[nodiscard]]` | | Feature flags | `#ifdef` soup |
-`if constexpr` (type-checked) |
+| Component | Original Nix | straylight/nix |
+|-----------|--------------|----------------|
+| Build system | Meson/Autotools | Buck2 (hermetic, remote-exec) |
+| Linking | Dynamic | Static (single binary) |
+| Event loop | pthreads + poll | io_uring (libevring) |
+| Evaluation | AST interpreter | WASM compiler (ahead-of-time) |
+| Protocol specs | Implicit in code | Kaitai (formal, generatable) |
+| Style | Mixed conventions | snake_case, C++23, `[[nodiscard]]` |
+| Feature flags | `#ifdef` soup | `if constexpr` (type-checked) |
 
 The A-team components (io_uring store, WASM eval, Kaitai protocols) are staged and ready.
 Integration is hours away, not months.

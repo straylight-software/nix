@@ -43,10 +43,14 @@ auto result = deserialize<T>(bytes);
 
 ## API Overview
 
-| Type/Function | Description | |---------------|-------------| | `LRUCache<K, V>` | Non-thread-safe
-LRU cache | | `LRUCacheSafe<K, V>` | Thread-safe LRU cache | | `ChunkedVector<T>` | Vector with
-stable element addresses | | `topo_sort()` | Topological sort for DAGs | | `serialize()` | Binary
-serialization | | `deserialize<T>()` | Binary deserialization |
+| Type/Function | Description |
+|---------------|-------------|
+| `LRUCache<K, V>` | Non-thread-safe LRU cache |
+| `LRUCacheSafe<K, V>` | Thread-safe LRU cache |
+| `ChunkedVector<T>` | Vector with stable element addresses |
+| `topo_sort()` | Topological sort for DAGs |
+| `serialize()` | Binary serialization |
+| `deserialize<T>()` | Binary deserialization |
 
 ## Building
 

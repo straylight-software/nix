@@ -49,15 +49,21 @@ if (auto* tree = std::get_if<git::tree>(&obj)) {
 
 ### SQLite
 
-| Type | Description | |------|-------------| | `Database` | RAII sqlite3\* handle | | `Statement` |
-Prepared statement with bind/execute | | `Transaction` | RAII transaction with commit/rollback | |
-`Row` | Result row with typed column access |
+| Type | Description |
+|------|-------------|
+| `Database` | RAII sqlite3\* handle |
+| `Statement` | Prepared statement with bind/execute |
+| `Transaction` | RAII transaction with commit/rollback |
+| `Row` | Result row with typed column access |
 
 ### Git
 
-| Type | Description | |------|-------------| | `git::tree` | Git tree object | | `git::blob` | Git
-blob object | | `git::commit` | Git commit object | | `parse_object()` | Parse git object from bytes
-|
+| Type | Description |
+|------|-------------|
+| `git::tree` | Git tree object |
+| `git::blob` | Git blob object |
+| `git::commit` | Git commit object |
+| `parse_object()` | Parse git object from bytes |
 
 ## Building
 

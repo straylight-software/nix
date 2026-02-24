@@ -361,11 +361,12 @@ the codebase uses a comprehensive lint pipeline with four tools, each covering d
 
 ### tool stack
 
-| tool | purpose | configuration | |------|---------|---------------| | **clang-format** |
-mechanical layout (indentation, spacing, braces) | `.clang-format` | | **clang-tidy** | semantic
-lint (naming, complexity, bugs) | `.clang-tidy` | | **ast-grep** | pattern-based rules clang-tidy
-can't express | `sgconfig.yml`, `rules/` | | **cppcheck** | deep static analysis, inter-procedural
-bugs | `.cppcheck`, `cppcheck.cfg` |
+| tool | purpose | configuration |
+|------|---------|---------------|
+| **clang-format** | mechanical layout (indentation, spacing, braces) | `.clang-format` |
+| **clang-tidy** | semantic lint (naming, complexity, bugs) | `.clang-tidy` |
+| **ast-grep** | pattern-based rules clang-tidy can't express | `sgconfig.yml`, `rules/` |
+| **cppcheck** | deep static analysis, inter-procedural bugs | `.cppcheck`, `cppcheck.cfg` |
 
 ### running the linters
 
@@ -385,17 +386,25 @@ cppcheck --suppressions-list=.cppcheck src/nix/ src/straylight/
 
 ### ast-grep rules (19 rules in `rules/`)
 
-| rule | severity | purpose | |------|----------|---------| | `no-class-keyword` | error | enforce
-`struct` over `class` | | `no-c-style-cast` | warning | use C++ casts | | `no-using-namespace-std` |
-error | prevent namespace pollution | | `no-raw-new` | warning | use `make_unique`/`make_shared` | |
-`no-std-endl` | warning | prefer `'\n'` (no flush) | | `no-typedef` | warning | use `using` instead
-| | `no-short-identifier` | warning | three-letter rule (no cfg, conn, res, etc.) | | `no-assert` |
-warning | proper error handling over assert | | `no-magic-numbers` | hint | name your constants
-(256, 1024, 4096) | | `prefer-nullptr` | warning | use `nullptr` not `NULL` | | `prefer-string-view`
-| hint | `string_view` for read-only params | | `prefer-span` | warning | `span` over pointer+size |
-| `trailing-return-type` | warning | `auto f() -> T` style | | `uppercase-literal-suffix` | warning
-| `1UL` not `1ul` | | `aaa-make-shared` | hint | auto with make_shared | | `aaa-make-unique` | hint
-| auto with make_unique | | `aaa-static-cast` | hint | auto with static_cast |
+| rule | severity | purpose |
+|------|----------|---------|
+| `no-class-keyword` | error | enforce `struct` over `class` |
+| `no-c-style-cast` | warning | use C++ casts |
+| `no-using-namespace-std` | error | prevent namespace pollution |
+| `no-raw-new` | warning | use `make_unique`/`make_shared` |
+| `no-std-endl` | warning | prefer `'\n'` (no flush) |
+| `no-typedef` | warning | use `using` instead |
+| `no-short-identifier` | warning | three-letter rule (no cfg, conn, res, etc.) |
+| `no-assert` | warning | proper error handling over assert |
+| `no-magic-numbers` | hint | name your constants (256, 1024, 4096) |
+| `prefer-nullptr` | warning | use `nullptr` not `NULL` |
+| `prefer-string-view` | hint | `string_view` for read-only params |
+| `prefer-span` | warning | `span` over pointer+size |
+| `trailing-return-type` | warning | `auto f() -> T` style |
+| `uppercase-literal-suffix` | warning | `1UL` not `1ul` |
+| `aaa-make-shared` | hint | auto with make_shared |
+| `aaa-make-unique` | hint | auto with make_unique |
+| `aaa-static-cast` | hint | auto with static_cast |
 
 ### clang-tidy key rules
 

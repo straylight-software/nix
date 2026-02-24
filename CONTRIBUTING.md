@@ -31,7 +31,7 @@ src/
 └── straylight/
     ├── evring/               # deterministic async I/O (io_uring)
     ├── language/             # nix → wasm compiler
-    ├── nix/primitives/       # modern utility replacements
+    ├── nix/                  # modern utility modules (crypto, text, url, async, sync, etc.)
     └── protocol/             # formal protocol specs (kaitai)
 ```
 
@@ -57,7 +57,7 @@ Key points:
 buck2 test //src/straylight/...
 
 # run specific test target
-buck2 test //src/straylight/language/tests:execution_test
+buck2 test //src/straylight/nix/compiler/tests:execution_test
 ```
 
 ## // commits
