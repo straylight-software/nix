@@ -3004,11 +3004,14 @@ private:
               BinaryenTypeInt32(), "memory");
           store_ops.push_back(store_count);
 
-          // Store captured values (from outer scope)
+          // Store captured values (from outer scope) WITHOUT forcing.
+          // This is critical for fixpoint patterns like:
+          //   fix (self: { trivial = let inherit (self.trivial) x; in {...}; })
+          // Here `self` is captured but must not be forced during thunk creation.
           auto* saved_scope = current_scope_;
           current_scope_ = outer_scope;
           for (std::uint32_t idx = 0; idx < capture_count; ++idx) {
-            auto cap_value = compile_identifier_lookup(captured_vars[idx], {0, 0, 0}, true);
+            auto cap_value = compile_identifier_lookup(captured_vars[idx], {0, 0, 0}, false);
             auto store_cap = BinaryenStore(module_.get(), 8, env_offset + 4 + idx * 8, 0,
                                            BinaryenConst(module_.get(), BinaryenLiteralInt32(0)),
                                            cap_value, BinaryenTypeInt64(), "memory");
