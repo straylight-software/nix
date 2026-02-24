@@ -457,13 +457,12 @@ TEST_CASE("brutal: attrset edge cases", "[brutal][attrset]") {
   }
 
   SECTION("recursive attrset - mutual reference") {
-    // NOTE: Mutual references where definition order matters are not yet supported.
-    // This requires thunks that capture locals without reading them at creation time.
-    // TODO: Implement proper lazy rec attrset binding capture
-    // auto v = must_succeed("rec { x = y + 1; y = 1; }.x");
-    // REQUIRE(get_int_value(v) == 2);
+    // Mutual references work with lazy thunk capture
+    auto v = must_succeed("rec { x = y + 1; y = 1; }.x");
+    REQUIRE(get_int_value(v) == 2);
+  }
 
-    // For now, test the simpler case where forward refs are defined before use
+  SECTION("recursive attrset - forward reference") {
     auto v = must_succeed("rec { y = 1; x = y + 1; }.x");
     REQUIRE(get_int_value(v) == 2);
   }

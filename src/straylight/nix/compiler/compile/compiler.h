@@ -551,6 +551,11 @@ private:
   // stack of with scopes (innermost last)
   std::vector<with_scope> with_scopes_;
 
+  // For rec attrset thunks: maps symbol values to their memory offset in the rec environment.
+  // When compiling a rec thunk body, rec-scope variables read from these offsets instead of
+  // being captured. This enables mutual references.
+  std::unordered_map<std::uint32_t, std::uint32_t> current_rec_binding_offsets_;
+
   /// set up the module with imports and types
   void setup_module() {
     // import memory from host
@@ -709,7 +714,10 @@ private:
   /// This creates a function that evaluates the expression when called,
   /// capturing any free variables from the current scope.
   /// Returns a nix_value with tag=thunk.
-  [[nodiscard]] auto compile_as_thunk(const ast::expression& expr) -> BinaryenExpressionRef {
+  /// @param force_captures if true (default), captured values are forced at capture time;
+  ///        if false, values are captured without forcing (for rec attrset bindings)
+  [[nodiscard]] auto compile_as_thunk(const ast::expression& expr, bool force_captures = true)
+      -> BinaryenExpressionRef {
     // generate a unique function name for this thunk
     auto func_index = thunk_counter_++;
     auto func_name = "__thunk_" + std::to_string(func_index);
@@ -815,13 +823,147 @@ private:
     for (std::uint32_t idx = 0; idx < capture_count; ++idx) {
       auto sym = captured_vars[idx];
       // look up the variable in the outer scope to get its value
-      auto var_value = compile_identifier_lookup(sym);
+      // For rec attrsets, we capture without forcing so mutual references work
+      auto var_value = compile_identifier_lookup(sym, {0, 0, 0}, force_captures);
       thunk_setup.push_back(BinaryenStore(module_.get(), 8, env_offset + 4 + idx * 8, 0,
                                           BinaryenConst(module_.get(), BinaryenLiteralInt32(0)),
                                           var_value, BinaryenTypeInt64(), "memory"));
     }
 
     // call __makeThunk(func_index, env_offset, env_size)
+    BinaryenExpressionRef make_thunk_args[] = {
+        BinaryenConst(module_.get(), BinaryenLiteralInt32(static_cast<std::int32_t>(func_index))),
+        BinaryenConst(module_.get(), BinaryenLiteralInt32(static_cast<std::int32_t>(env_offset))),
+        BinaryenConst(module_.get(), BinaryenLiteralInt32(static_cast<std::int32_t>(env_size)))};
+    auto make_thunk =
+        BinaryenCall(module_.get(), "__makeThunk", make_thunk_args, 3, make_nix_value_type());
+
+    thunk_setup.push_back(make_thunk);
+    return BinaryenBlock(module_.get(), nullptr, thunk_setup.data(),
+                         static_cast<BinaryenIndex>(thunk_setup.size()), make_nix_value_type());
+  }
+
+  /// compile an expression as a thunk for recursive attrset bindings
+  /// The thunk reads rec-scope variables from shared memory at force-time, not capture-time.
+  /// This enables mutual references like rec { x = y + 1; y = 1; }.
+  [[nodiscard]] auto
+  compile_rec_thunk(const ast::expression& expr, std::uint32_t rec_env_offset,
+                    const std::unordered_map<std::uint32_t, std::uint32_t>& rec_binding_offsets)
+      -> BinaryenExpressionRef {
+    // generate a unique function name for this thunk
+    auto func_index = thunk_counter_++;
+    auto func_name = "__thunk_" + std::to_string(func_index);
+    thunk_function_names_.push_back(func_name);
+
+    // analyze free variables in the expression
+    std::vector<ast::symbol> bound_names;
+    auto free_vars = free_variable_analyzer::analyze(expr, bound_names);
+
+    // separate free variables into:
+    // 1. rec-scope variables (read from shared memory at force-time)
+    // 2. other variables (captured normally)
+    std::vector<ast::symbol> captures;
+    std::vector<ast::symbol> rec_vars;
+    for (auto sym : free_vars) {
+      if (rec_binding_offsets.count(sym.index_)) {
+        rec_vars.push_back(sym);
+      } else if (current_scope_ && current_scope_->lookup(sym).has_value()) {
+        captures.push_back(sym);
+      }
+    }
+
+    // save current lambda context
+    auto outer_lambda_context = std::move(current_lambda_context_);
+    current_lambda_context_ = lambda_context{};
+    current_lambda_context_->captures = captures;
+
+    // build capture index map (only for non-rec captures)
+    for (std::uint32_t idx = 0; idx < captures.size(); ++idx) {
+      current_lambda_context_->capture_indices[captures[idx]] = idx;
+    }
+
+    // create a new scope for the thunk body
+    std::uint32_t new_depth = current_scope_ ? current_scope_->depth() + 1 : 1;
+    lexical_scope thunk_scope(nullptr, new_depth);
+    auto* outer_scope = current_scope_;
+    current_scope_ = &thunk_scope;
+
+    // thunk function takes (env_ptr: i32) -> nix_value
+    // env layout: capture_count (i32), captures[], rec_env_offset (i32)
+    current_lambda_context_->local_types.push_back(BinaryenTypeInt32()); // env_ptr
+    current_lambda_context_->next_local_index = 1;
+
+    // add captured variables to scope
+    for (std::uint32_t idx = 0; idx < captures.size(); ++idx) {
+      thunk_scope.add_captured(captures[idx], idx);
+    }
+
+    // For rec-scope variables, we'll generate code that reads from shared memory
+    // Store the rec_binding_offsets in a member so compile_identifier_lookup can use it
+    auto outer_rec_offsets = std::move(current_rec_binding_offsets_);
+    current_rec_binding_offsets_ = rec_binding_offsets;
+
+    // compile the body
+    auto body_expr = compile_expression(expr);
+
+    // restore rec offsets
+    current_rec_binding_offsets_ = std::move(outer_rec_offsets);
+
+    // create the function
+    BinaryenType param_types[] = {BinaryenTypeInt32()};
+    auto params = BinaryenTypeCreate(param_types, 1);
+
+    std::vector<BinaryenType> local_types;
+    for (std::size_t idx = 1; idx < current_lambda_context_->local_types.size(); ++idx) {
+      local_types.push_back(current_lambda_context_->local_types[idx]);
+    }
+
+    BinaryenAddFunction(module_.get(), func_name.c_str(), params, make_nix_value_type(),
+                        local_types.empty() ? nullptr : local_types.data(),
+                        static_cast<BinaryenIndex>(local_types.size()), body_expr);
+
+    // restore scope and context
+    current_scope_ = outer_scope;
+    auto captured_vars = std::move(current_lambda_context_->captures);
+    current_lambda_context_ = std::move(outer_lambda_context);
+
+    // Build thunk environment:
+    // Layout: capture_count (i32), captures[], rec_env_offset (i32)
+    auto capture_count = static_cast<std::uint32_t>(captured_vars.size());
+    // +4 for capture_count, +4 for rec_env_offset
+    auto env_size = 4 + capture_count * 8 + 4;
+
+    auto env_offset = data_offset_;
+    data_offset_ += env_size;
+    data_offset_ = (data_offset_ + 7) & ~7u;
+
+    std::vector<BinaryenExpressionRef> thunk_setup;
+
+    // store capture_count
+    thunk_setup.push_back(BinaryenStore(
+        module_.get(), 4, env_offset, 0, BinaryenConst(module_.get(), BinaryenLiteralInt32(0)),
+        BinaryenConst(module_.get(),
+                      BinaryenLiteralInt32(static_cast<std::int32_t>(capture_count))),
+        BinaryenTypeInt32(), "memory"));
+
+    // store captured values (from outer scope, not rec scope)
+    for (std::uint32_t idx = 0; idx < capture_count; ++idx) {
+      auto sym = captured_vars[idx];
+      auto var_value = compile_identifier_lookup(sym);
+      thunk_setup.push_back(BinaryenStore(module_.get(), 8, env_offset + 4 + idx * 8, 0,
+                                          BinaryenConst(module_.get(), BinaryenLiteralInt32(0)),
+                                          var_value, BinaryenTypeInt64(), "memory"));
+    }
+
+    // store rec_env_offset at the end
+    thunk_setup.push_back(BinaryenStore(
+        module_.get(), 4, env_offset + 4 + capture_count * 8, 0,
+        BinaryenConst(module_.get(), BinaryenLiteralInt32(0)),
+        BinaryenConst(module_.get(),
+                      BinaryenLiteralInt32(static_cast<std::int32_t>(rec_env_offset))),
+        BinaryenTypeInt32(), "memory"));
+
+    // call __makeThunk
     BinaryenExpressionRef make_thunk_args[] = {
         BinaryenConst(module_.get(), BinaryenLiteralInt32(static_cast<std::int32_t>(func_index))),
         BinaryenConst(module_.get(), BinaryenLiteralInt32(static_cast<std::int32_t>(env_offset))),
@@ -887,9 +1029,23 @@ private:
 
   /// compile identifier lookup - shared between direct identifier references and closure capture
   /// position is used for error reporting when looking up in with scopes
+  /// force_value: if true (default), forces the value (for normal access); if false, returns raw
+  /// value
   [[nodiscard]] auto compile_identifier_lookup(ast::symbol name,
-                                               ast::source_position position = {0, 0, 0})
-      -> BinaryenExpressionRef {
+                                               ast::source_position position = {0, 0, 0},
+                                               bool force_value = true) -> BinaryenExpressionRef {
+    // Check if this is a rec-scope variable (when compiling rec thunk bodies)
+    // These are read from shared memory at force-time, not captured
+    auto rec_it = current_rec_binding_offsets_.find(name.index_);
+    if (rec_it != current_rec_binding_offsets_.end()) {
+      // Read from the rec environment in memory
+      auto mem_offset = rec_it->second;
+      auto value = BinaryenLoad(module_.get(), 8, 0, mem_offset, 0, BinaryenTypeInt64(),
+                                BinaryenConst(module_.get(), BinaryenLiteralInt32(0)), "memory");
+      // Force the value (it's a thunk stored in the rec environment)
+      return compile_force(value);
+    }
+
     // first check the current scope hierarchy for local variables
     if (current_scope_) {
       auto lookup_result = current_scope_->lookup(name);
@@ -897,11 +1053,10 @@ private:
         const auto& local_binding = lookup_result->first;
         if (local_binding.location == variable_location::local) {
           // local variable - read from WASM local
-          // IMPORTANT: we must force the value because let bindings store thunks
-          // that need to be evaluated when accessed
           auto local_value =
               BinaryenLocalGet(module_.get(), local_binding.local_index, make_nix_value_type());
-          return compile_force(local_value);
+          // Force the value unless explicitly asked not to (for rec attrset captures)
+          return force_value ? compile_force(local_value) : local_value;
         } else {
           // captured variable - read from closure environment
           // env_ptr is local 0 and already points to the captures area (closure_ptr + 8)
@@ -910,8 +1065,8 @@ private:
           auto capture_offset = local_binding.capture_index * 8;
           auto captured_value = BinaryenLoad(module_.get(), 8, 0, capture_offset, 0,
                                              BinaryenTypeInt64(), env_ptr, "memory");
-          // Also force captured variables - they might also be thunks
-          return compile_force(captured_value);
+          // Force captured variables unless asked not to
+          return force_value ? compile_force(captured_value) : captured_value;
         }
       }
     }
@@ -1867,16 +2022,34 @@ private:
 
     std::vector<BinaryenExpressionRef> ops;
 
-    // second pass: compile all values and store in locals
-    // NOTE: Mutual references where definition order matters (e.g., rec { x = y + 1; y = 1; })
-    // are not yet supported. This would require thunks that capture local indices
-    // without reading the values at creation time.
-    for (const auto& binding : bindings) {
+    // For rec attrsets with mutual references, we need a different approach:
+    // 1. Allocate shared memory for all binding values
+    // 2. Create thunks that read from this shared memory (not from captured values)
+    // 3. Store thunks in shared memory
+    // 4. Thunk bodies read from shared memory at force-time (not capture-time)
+
+    // Allocate shared memory for rec bindings
+    auto rec_env_offset = data_offset_;
+    auto rec_env_size = static_cast<std::uint32_t>(bindings.size()) * 8; // 8 bytes per nix_value
+    data_offset_ += rec_env_size;
+    data_offset_ = (data_offset_ + 7) & ~7u; // align
+
+    // Map binding names to their offsets in the shared rec environment
+    std::unordered_map<std::uint32_t, std::uint32_t> rec_binding_offsets;
+    for (std::uint32_t idx = 0; idx < bindings.size(); ++idx) {
+      rec_binding_offsets[bindings[idx].name.index_] = rec_env_offset + idx * 8;
+    }
+
+    // Second pass: compile all values and store in shared memory + locals
+    for (std::uint32_t idx = 0; idx < bindings.size(); ++idx) {
+      const auto& binding = bindings[idx];
       BinaryenExpressionRef value;
 
       if (binding.attr_binding != nullptr) {
-        // regular attribute binding
-        value = compile_expression(binding.attr_binding->value_);
+        // regular attribute binding - compile as thunk
+        // The thunk will capture the rec_env_offset and read from it at force-time
+        value =
+            compile_rec_thunk(binding.attr_binding->value_, rec_env_offset, rec_binding_offsets);
       } else {
         // inherit binding
         const auto& inherit = *binding.inherit_binding;
@@ -1885,20 +2058,24 @@ private:
 
         if (inherit.from_expression_.has_value()) {
           // inherit (expr) x; - select from expression
-          // note: this re-evaluates the expression for each attribute
-          // a smarter implementation would cache it
           auto from_value = compile_expression(*inherit.from_expression_);
           auto key_str = symbols_.lookup(sym);
           value = compile_select(from_value, key_str, attr_name.position_);
         } else {
-          // inherit x; - look up from outer scope (before rec bindings)
-          // temporarily switch to outer scope
+          // inherit x; - look up from outer scope
           current_scope_ = outer_scope;
           value = compile_identifier_lookup(sym, attr_name.position_);
           current_scope_ = &rec_scope;
         }
       }
 
+      // Store in shared memory location
+      auto store_to_rec_env = BinaryenStore(module_.get(), 8, rec_env_offset + idx * 8, 0,
+                                            BinaryenConst(module_.get(), BinaryenLiteralInt32(0)),
+                                            value, BinaryenTypeInt64(), "memory");
+      ops.push_back(store_to_rec_env);
+
+      // Also store in local (for attrset construction)
       auto store_local = BinaryenLocalSet(module_.get(), binding.local_index, value);
       ops.push_back(store_local);
     }
