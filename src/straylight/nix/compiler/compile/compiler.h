@@ -937,8 +937,10 @@ private:
       BinaryenExpressionRef result =
           BinaryenCall(module_.get(), "__lookupVar", fallback_args, 1, make_nix_value_type());
 
-      // iterate from outermost to innermost (reverse order) to build nested if-else
-      for (auto it = with_scopes_.rbegin(); it != with_scopes_.rend(); ++it) {
+      // iterate from outermost to innermost to build nested if-else
+      // The last processed (innermost) becomes the outermost `if` condition,
+      // so it gets checked first. This ensures inner `with` shadows outer.
+      for (auto it = with_scopes_.begin(); it != with_scopes_.end(); ++it) {
         auto namespace_value =
             BinaryenLocalGet(module_.get(), it->namespace_local_index, make_nix_value_type());
 
@@ -1945,38 +1947,99 @@ private:
   }
 
   [[nodiscard]] auto compile_variant(const ast::expression_select& expr) -> BinaryenExpressionRef {
-    auto subject = compile_expression(expr.subject_);
-
     if (expr.path_.segments_.empty()) {
       throw compilation_error("empty attribute path");
     }
 
-    auto result = subject;
-    for (const auto& segment : expr.path_.segments_) {
-      if (segment.is_dynamic()) {
-        // dynamic key: compile the expression and use __selectDynamic
-        const auto& key_expr = std::get<ast::expression>(segment.value_);
-        auto key_value = compile_expression(key_expr);
-        result = compile_select_dynamic(result, key_value, segment.position_);
-      } else {
-        // static key: use __select with string offset
-        auto sym = std::get<ast::symbol>(segment.value_);
-        auto key_str = symbols_.lookup(sym);
-        result = compile_select(result, key_str, segment.position_);
+    // If there's no default value, use the simple selection path (can throw on missing attr)
+    if (!expr.default_value_.has_value()) {
+      auto result = compile_expression(expr.subject_);
+      for (const auto& segment : expr.path_.segments_) {
+        if (segment.is_dynamic()) {
+          const auto& key_expr = std::get<ast::expression>(segment.value_);
+          auto key_value = compile_expression(key_expr);
+          result = compile_select_dynamic(result, key_value, segment.position_);
+        } else {
+          auto sym = std::get<ast::symbol>(segment.value_);
+          auto key_str = symbols_.lookup(sym);
+          result = compile_select(result, key_str, segment.position_);
+        }
       }
+      return result;
     }
 
-    // handle default value
-    if (expr.default_value_.has_value()) {
-      // check if result is null, if so use default
-      auto is_null = BinaryenBinary(
-          module_.get(), BinaryenEqInt64(),
-          BinaryenConst(module_.get(), BinaryenLiteralInt64(packed::null_value)), result);
-      auto default_val = compile_expression(*expr.default_value_);
-      result = BinaryenIf(module_.get(), is_null, default_val, result);
+    // With default value: check hasAttr before each select.
+    // If any attribute is missing, return the default value.
+    // Generate nested conditionals that short-circuit on missing attributes.
+    auto default_val = compile_expression(*expr.default_value_);
+    auto subject = compile_expression(expr.subject_);
+
+    // Build the selection chain with hasAttr checks
+    // For a.b.c or default, we generate:
+    //   if hasAttr(a, "b") then
+    //     let tmp = a.b in
+    //     if hasAttr(tmp, "c") then tmp.c else default
+    //   else default
+    return compile_select_with_default(subject, expr.path_.segments_, 0, default_val);
+  }
+
+  /// Helper to compile a select with default, handling each path segment recursively
+  [[nodiscard]] auto compile_select_with_default(BinaryenExpressionRef current,
+                                                 const std::vector<ast::attribute_name>& segments,
+                                                 std::size_t idx, BinaryenExpressionRef default_val)
+      -> BinaryenExpressionRef {
+    if (idx >= segments.size()) {
+      return current; // All segments processed, return the final value
     }
 
-    return result;
+    const auto& segment = segments[idx];
+    bool is_last = (idx == segments.size() - 1);
+
+    // Build hasAttr check for this segment
+    BinaryenExpressionRef has_attr_result;
+    if (segment.is_dynamic()) {
+      const auto& key_expr = std::get<ast::expression>(segment.value_);
+      auto key_value = compile_expression(key_expr);
+      BinaryenExpressionRef args[] = {current, key_value};
+      has_attr_result =
+          BinaryenCall(module_.get(), "__hasAttrDynamic", args, 2, make_nix_value_type());
+    } else {
+      auto sym = std::get<ast::symbol>(segment.value_);
+      auto key_str = symbols_.lookup(sym);
+      auto key_offset = allocate_string(key_str);
+      BinaryenExpressionRef args[] = {
+          current, BinaryenConst(module_.get(),
+                                 BinaryenLiteralInt32(static_cast<std::int32_t>(key_offset)))};
+      has_attr_result = BinaryenCall(module_.get(), "__hasAttr", args, 2, make_nix_value_type());
+    }
+
+    auto has_attr_is_true = BinaryenBinary(
+        module_.get(), BinaryenEqInt64(),
+        BinaryenConst(module_.get(), BinaryenLiteralInt64(packed::boolean_true)), has_attr_result);
+
+    // Build select for this segment (only evaluated if hasAttr is true)
+    BinaryenExpressionRef select_result;
+    if (segment.is_dynamic()) {
+      const auto& key_expr = std::get<ast::expression>(segment.value_);
+      auto key_value = compile_expression(key_expr);
+      select_result = compile_select_dynamic(current, key_value, segment.position_);
+    } else {
+      auto sym = std::get<ast::symbol>(segment.value_);
+      auto key_str = symbols_.lookup(sym);
+      select_result = compile_select(current, key_str, segment.position_);
+    }
+
+    BinaryenExpressionRef then_branch;
+    if (is_last) {
+      // Last segment: just return the selected value
+      then_branch = select_result;
+    } else {
+      // More segments to go: recursively process the rest
+      then_branch = compile_select_with_default(select_result, segments, idx + 1, default_val);
+    }
+
+    // if hasAttr then continue else default
+    return BinaryenIf(module_.get(), has_attr_is_true, then_branch, default_val);
   }
 
   [[nodiscard]] auto compile_variant(const ast::expression_has_attribute& expr)

@@ -527,7 +527,7 @@ auto rt_div([[maybe_unused]] runtime_context& ctx, nix_value a, nix_value b, std
   expect_numeric(a, line, col);
   expect_numeric(b, line, col);
 
-  // Nix integer division is floor division and returns an integer
+  // Nix integer division uses truncated division (toward zero) and returns an integer
   // Float division returns a float
   if (is_int(a) && is_int(b)) {
     auto ia = static_cast<std::int32_t>(get_payload(a));
@@ -541,13 +541,8 @@ auto rt_div([[maybe_unused]] runtime_context& ctx, nix_value a, nix_value b, std
     if (ia == int_min && ib == -1) {
       throw runtime_error("integer overflow: INT_MIN / -1", line, col);
     }
-    // Nix uses floor division (rounds toward negative infinity)
-    // C++ integer division truncates toward zero, so we need to adjust
-    auto result = ia / ib;
-    if ((ia % ib != 0) && ((ia < 0) != (ib < 0))) {
-      result -= 1;
-    }
-    return make_int(result);
+    // C++ integer division already truncates toward zero, matching Nix semantics
+    return make_int(ia / ib);
   }
 
   // Float division

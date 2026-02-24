@@ -140,16 +140,14 @@ TEST_CASE("brutal: integer edge cases", "[brutal][integer]") {
 
   SECTION("division rounding - negative dividend") {
     auto v = must_succeed("-7 / 3");
-    // NOTE: Nix uses truncated division (toward zero), returning -2.
-    // Our implementation uses floor division (toward -inf), returning -3.
-    // TODO: Fix to match Nix truncated division semantics
-    REQUIRE(get_int_value(v) == -3); // floor division (known deviation)
+    // Nix uses truncated division (toward zero)
+    REQUIRE(get_int_value(v) == -2);
   }
 
   SECTION("division rounding - negative divisor") {
     auto v = must_succeed("7 / -3");
-    // NOTE: Same as above - floor vs truncated division
-    REQUIRE(get_int_value(v) == -3); // floor division (known deviation)
+    // Nix uses truncated division (toward zero)
+    REQUIRE(get_int_value(v) == -2);
   }
 
   SECTION("division rounding - both negative") {
@@ -444,19 +442,13 @@ TEST_CASE("brutal: attrset edge cases", "[brutal][attrset]") {
   }
 
   SECTION("select with default - missing") {
-    // NOTE: The `or` default fallback is not fully implemented yet
-    // When attribute is missing, it errors instead of returning default
-    // TODO: Implement proper fallback to default value
-    // auto v = must_succeed("{ a = 1; }.b or 999");
-    // REQUIRE(get_int_value(v) == 999);
-    must_fail("{ a = 1; }.b or 999"); // or-default fallback not implemented
+    auto v = must_succeed("{ a = 1; }.b or 999");
+    REQUIRE(get_int_value(v) == 999);
   }
 
   SECTION("select with default - empty set") {
-    // NOTE: The `or` default fallback is not fully implemented yet
-    // auto v = must_succeed("{}.x or 999");
-    // REQUIRE(get_int_value(v) == 999);
-    must_fail("{}.x or 999"); // or-default fallback not implemented
+    auto v = must_succeed("{}.x or 999");
+    REQUIRE(get_int_value(v) == 999);
   }
 
   SECTION("recursive attrset - self reference") {
@@ -694,13 +686,12 @@ TEST_CASE("brutal: with edge cases", "[brutal][with]") {
   }
 
   SECTION("nested with - inner shadows outer") {
-    // NOTE: In Nix, nested with should have inner shadow outer.
-    // Our current implementation doesn't do this correctly.
-    // TODO: Fix nested with shadowing
-    // auto v = must_succeed("with { x = 1; }; with { x = 2; }; x");
-    // REQUIRE(get_int_value(v) == 2);
+    // Inner with should shadow outer with
+    auto v = must_succeed("with { x = 1; }; with { x = 2; }; x");
+    REQUIRE(get_int_value(v) == 2);
+  }
 
-    // For now just test that nested with works at all
+  SECTION("nested with - different keys") {
     auto v = must_succeed("with { x = 1; }; with { y = 2; }; x + y");
     REQUIRE(get_int_value(v) == 3);
   }
