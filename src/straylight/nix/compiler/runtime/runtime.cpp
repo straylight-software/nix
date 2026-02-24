@@ -4336,45 +4336,47 @@ constexpr std::uint32_t primop_arity(std::uint32_t index) {
     // 2-arg primops
     case b::elem: // elem x list
     case BUILTIN_ELEM_AT:
-    case b::map:               // map f list
-    case b::filter:            // filter pred list
-    case b::gen_list:          // genList f n
-    case b::trace:             // trace msg val
-    case b::seq:               // seq a b
-    case b::deep_seq:          // deepSeq a b
-    case b::has_attr:          // hasAttr name set
-    case b::get_attr:          // getAttr name set
-    case b::remove_attrs:      // removeAttrs set names
-    case b::sort:              // sort comparator list
-    case b::all:               // all pred list
-    case b::any:               // any pred list
-    case b::concat_map:        // concatMap f list
-    case b::builtin_add:       // add a b
-    case b::builtin_sub:       // sub a b
-    case b::builtin_mul:       // mul a b
-    case b::builtin_div:       // div a b
-    case b::builtin_less_than: // lessThan a b
-    case b::concat_string_sep: // concatStringsSep sep list
-    case b::map_attrs:         // mapAttrs f set
-    case b::cat_attrs:         // catAttrs name list
-    case b::partition:         // partition pred list
-    case b::group_by:          // groupBy f list
-    case b::bit_and:           // bitAnd a b
-    case b::bit_or:            // bitOr a b
-    case b::bit_xor:           // bitXor a b
-    case b::intersect_attrs:   // intersectAttrs a b
-    case b::compare_versions:  // compareVersions a b
-    case b::has_prefix:        // hasPrefix prefix str
-    case b::has_suffix:        // hasSuffix suffix str
-    case b::remove_prefix:     // removePrefix prefix str
-    case b::remove_suffix:     // removeSuffix suffix str
-    case b::take:              // take n list
-    case b::drop:              // drop n list
-    case b::range:             // range a b
-    case b::zip_lists:         // zipLists list1 list2
-    case b::hash_string:       // hashString type str
-    case b::match:             // match regex str
-    case b::split:             // split regex str
+    case b::map:                 // map f list
+    case b::filter:              // filter pred list
+    case b::gen_list:            // genList f n
+    case b::trace:               // trace msg val
+    case b::seq:                 // seq a b
+    case b::deep_seq:            // deepSeq a b
+    case b::has_attr:            // hasAttr name set
+    case b::get_attr:            // getAttr name set
+    case b::remove_attrs:        // removeAttrs set names
+    case b::sort:                // sort comparator list
+    case b::all:                 // all pred list
+    case b::any:                 // any pred list
+    case b::concat_map:          // concatMap f list
+    case b::builtin_add:         // add a b
+    case b::builtin_sub:         // sub a b
+    case b::builtin_mul:         // mul a b
+    case b::builtin_div:         // div a b
+    case b::builtin_less_than:   // lessThan a b
+    case b::concat_string_sep:   // concatStringsSep sep list
+    case b::map_attrs:           // mapAttrs f set
+    case b::cat_attrs:           // catAttrs name list
+    case b::partition:           // partition pred list
+    case b::group_by:            // groupBy f list
+    case b::bit_and:             // bitAnd a b
+    case b::bit_or:              // bitOr a b
+    case b::bit_xor:             // bitXor a b
+    case b::intersect_attrs:     // intersectAttrs a b
+    case b::compare_versions:    // compareVersions a b
+    case b::has_prefix:          // hasPrefix prefix str
+    case b::has_suffix:          // hasSuffix suffix str
+    case b::remove_prefix:       // removePrefix prefix str
+    case b::remove_suffix:       // removeSuffix suffix str
+    case b::take:                // take n list
+    case b::drop:                // drop n list
+    case b::range:               // range a b
+    case b::zip_lists:           // zipLists list1 list2
+    case b::hash_string:         // hashString type str
+    case b::match:               // match regex str
+    case b::split:               // split regex str
+    case b::add_error_context:   // addErrorContext ctx val
+    case b::unsafe_get_attr_pos: // unsafeGetAttrPos name set
       return 2;
 
     // 3-arg primops
@@ -4630,6 +4632,12 @@ static auto rt_apply_partial_primop(runtime_context& ctx, std::uint32_t partial_
         return rt_match(ctx, arg1, arg2);
       case b::split:
         return rt_split(ctx, arg1, arg2);
+      case b::add_error_context:
+        // addErrorContext ctx val -> val (context is for error messages, we ignore it)
+        return rt_force(ctx, arg2);
+      case b::unsafe_get_attr_pos:
+        // unsafeGetAttrPos name set -> null (we don't track source positions in attrs)
+        return make_value(value_tag::null_value, 0);
       default:
         throw runtime_error("unknown 2-arg primop index: " + std::to_string(primop_index));
     }
@@ -4791,6 +4799,10 @@ void rt_init_builtins(runtime_context& ctx) {
   entries.emplace_back("trace", make_value(value_tag::primop, b::trace));
   entries.emplace_back("seq", make_value(value_tag::primop, b::seq));
   entries.emplace_back("deepSeq", make_value(value_tag::primop, b::deep_seq));
+  entries.emplace_back("addErrorContext", make_value(value_tag::primop, b::add_error_context));
+
+  // Debugging/introspection
+  entries.emplace_back("unsafeGetAttrPos", make_value(value_tag::primop, b::unsafe_get_attr_pos));
 
   // I/O operations (require io backend at runtime)
   entries.emplace_back("import", make_value(value_tag::primop, b::import_path));

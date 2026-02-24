@@ -171,13 +171,11 @@ cxx_binary(
     visibility = ["PUBLIC"],
     compiler_flags = [
         "-std=c++23",
+        # Enable sync I/O backend for import, readFile, etc.
+        "-DSTRAYLIGHT_EVAL_IO_SYNC=1",
     ],
     deps = [
-        ":ast",
-        ":compile",
-        ":parse",
-        ":wasm_executor",
-        "//third_party:binaryen",
-        "//third_party:wasmtime",
+        ":evaluator",
+        ":runtime",  # for io_config.h
     ],
 )

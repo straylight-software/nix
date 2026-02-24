@@ -208,6 +208,10 @@ constexpr std::uint32_t from_json = 701;
 constexpr std::uint32_t generic_closure = 800;
 constexpr std::uint32_t find_first = 801;
 
+// Context/debugging builtins
+constexpr std::uint32_t add_error_context = 900;
+constexpr std::uint32_t unsafe_get_attr_pos = 901;
+
 } // namespace builtins
 
 /// helper functions for creating packed nix_value constants
