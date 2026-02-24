@@ -107,6 +107,15 @@ public:
     import_base_path_ = std::move(path);
   }
 
+  /// Get the base path for relative imports.
+  [[nodiscard]] virtual auto import_base_path() const -> const std::filesystem::path& {
+    return import_base_path_;
+  }
+
+  /// Get the last import error message (for debugging).
+  /// Returns empty string by default; sync backend overrides with detailed error.
+  [[nodiscard]] virtual auto last_import_error() const -> std::string { return ""; }
+
   // -------------------------------------------------------------------------
   // File Operations
   // -------------------------------------------------------------------------
@@ -228,6 +237,11 @@ public:
     import_in_progress_.clear();
   }
 
+  /// Get the last import error message (for debugging).
+  [[nodiscard]] auto last_import_error() const -> std::string override {
+    return last_import_error_;
+  }
+
 private:
   std::filesystem::path base_dir_;
 
@@ -238,6 +252,9 @@ private:
   // Paths currently being imported (for cycle detection).
   // If we encounter a path that's in this set, we have a cycle.
   std::unordered_set<std::string> import_in_progress_;
+
+  // Last import error message (for debugging).
+  std::string last_import_error_;
 
   /// Resolve an import path to a canonical path.
   /// Handles: relative paths, absolute paths, directory → default.nix

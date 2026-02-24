@@ -253,9 +253,11 @@ auto io_backend_sync::import_file(runtime_context& /*ctx*/, std::string_view pat
   std::int64_t result;
   try {
     result = import_eval_(*content, canonical_path);
-  } catch (const std::exception& /*e*/) {
+  } catch (const std::exception& e) {
     import_base_path_ = old_base_path;
     import_in_progress_.erase(canonical_path);
+    // Store the error message for better debugging
+    last_import_error_ = e.what();
     return std::unexpected(io_error::eval_error);
   }
 

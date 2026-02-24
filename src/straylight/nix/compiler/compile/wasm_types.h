@@ -211,6 +211,9 @@ constexpr std::uint32_t find_first = 801;
 // Context/debugging builtins
 constexpr std::uint32_t add_error_context = 900;
 constexpr std::uint32_t unsafe_get_attr_pos = 901;
+constexpr std::uint32_t unsafe_discard_string_context = 902;
+constexpr std::uint32_t has_context = 903;
+constexpr std::uint32_t get_context = 904;
 
 } // namespace builtins
 

@@ -891,7 +891,11 @@ inline auto convert_select(const p::parse_tree::node& node) -> tree {
     const auto& type = child.type;
 
     // Skip 'or' marker but note we've seen it
-    if (type.find("select_as_app_or") != std::string_view::npos) {
+    // There are two types of 'or' markers:
+    // - select_as_app_or: for function application context (f or g)
+    // - select_or_default: for select with default (x.a or default)
+    if (type.find("select_as_app_or") != std::string_view::npos ||
+        type.find("select_or_default") != std::string_view::npos) {
       found_or = true;
       continue;
     }
@@ -1165,8 +1169,13 @@ inline auto convert_application(const p::parse_tree::node& node) -> tree {
   }
 
   // Select expression (when it has an attribute path - due to fold_one)
-  if (type.find("::select>") != std::string_view::npos ||
-      type.find("expr::select") != std::string_view::npos) {
+  // Be careful not to match select_or_default or select_as_app_or or select_attr or select_head
+  if ((type.find("::select>") != std::string_view::npos ||
+       type.find("expr::select") != std::string_view::npos) &&
+      type.find("select_or") == std::string_view::npos &&
+      type.find("select_as") == std::string_view::npos &&
+      type.find("select_attr") == std::string_view::npos &&
+      type.find("select_head") == std::string_view::npos) {
     return convert_select(node);
   }
 

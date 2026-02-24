@@ -742,7 +742,8 @@ void wasm_executor::setup_linker(wasmtime::Linker& linker) {
 // Execution
 // =============================================================================
 
-auto wasm_executor::register_module(wasmtime::Instance instance) -> std::uint16_t {
+auto wasm_executor::register_module(wasmtime::Instance instance, std::filesystem::path source_file)
+    -> std::uint16_t {
   auto module_id = static_cast<std::uint16_t>(modules_.size());
 
   // Get function table
@@ -765,6 +766,7 @@ auto wasm_executor::register_module(wasmtime::Instance instance) -> std::uint16_
       .instance = std::move(instance),
       .func_table = std::move(func_table),
       .lambda_count = lambda_count,
+      .source_file = std::move(source_file),
   });
 
   return module_id;
@@ -864,8 +866,14 @@ auto wasm_executor::execute(std::span<const std::uint8_t> wasm_binary) -> execut
     // Save instance before registering (register_module moves it)
     instance_ = instance;
 
+    // Get source file for module 0 from io backend (if set)
+    std::filesystem::path source_file;
+    if (ctx_.io) {
+      source_file = ctx_.io->import_base_path();
+    }
+
     // Register the parent module (ID 0)
-    current_module_id_ = register_module(std::move(instance));
+    current_module_id_ = register_module(std::move(instance), std::move(source_file));
 
     // Set current module ID in context for closure creation
     ctx_.current_module_id = current_module_id_;
@@ -959,10 +967,21 @@ auto wasm_executor::execute(std::span<const std::uint8_t> wasm_binary) -> execut
       auto saved_module_id = ctx_.current_module_id;
       ctx_.current_module_id = module_id;
 
+      // Set the import base path for this module's source file
+      // so relative imports resolve correctly
+      std::filesystem::path saved_base_path;
+      if (ctx_.io && !mod->source_file.empty()) {
+        saved_base_path = ctx_.io->import_base_path();
+        ctx_.io->set_import_base_path(mod->source_file);
+      }
+
       // Get the function from the module's table
       auto val_opt = mod->func_table->get(store_->context(), table_index);
       if (!val_opt) {
         ctx_.current_module_id = saved_module_id;
+        if (ctx_.io && !mod->source_file.empty()) {
+          ctx_.io->set_import_base_path(saved_base_path);
+        }
         throw runtime_error("thunk index " + std::to_string(table_index) +
                             " (local=" + std::to_string(local_thunk_index) +
                             ", lambda_count=" + std::to_string(mod->lambda_count) +
@@ -972,6 +991,9 @@ auto wasm_executor::execute(std::span<const std::uint8_t> wasm_binary) -> execut
       auto func_opt = val.funcref();
       if (!func_opt) {
         ctx_.current_module_id = saved_module_id;
+        if (ctx_.io && !mod->source_file.empty()) {
+          ctx_.io->set_import_base_path(saved_base_path);
+        }
         throw runtime_error("table entry is not a function (null funcref)");
       }
       auto func = *func_opt;
@@ -985,12 +1007,18 @@ auto wasm_executor::execute(std::span<const std::uint8_t> wasm_binary) -> execut
       if (!call_result) {
         auto err = std::move(call_result).err();
         ctx_.current_module_id = saved_module_id;
+        if (ctx_.io && !mod->source_file.empty()) {
+          ctx_.io->set_import_base_path(saved_base_path);
+        }
         throw runtime_error("thunk call failed: " + err.message());
       }
       auto results = std::move(call_result).ok();
 
-      // Restore the original module_id
+      // Restore the original module_id and base path
       ctx_.current_module_id = saved_module_id;
+      if (ctx_.io && !mod->source_file.empty()) {
+        ctx_.io->set_import_base_path(saved_base_path);
+      }
 
       if (results.empty()) {
         throw runtime_error("thunk returned no value");
@@ -1086,10 +1114,19 @@ auto wasm_executor::execute_within(std::span<const std::uint8_t> wasm_binary) ->
     }
     auto main_func = std::get<wasmtime::Func>(*main_export);
 
+    // Get source file for this module from io backend
+    std::filesystem::path source_file;
+    if (ctx_.io) {
+      source_file = ctx_.io->import_base_path();
+    }
+
     // Register this child module and get its ID
     // Save the parent's module ID to restore after execution
-    auto parent_module_id = current_module_id_;
-    current_module_id_ = register_module(std::move(instance));
+    // IMPORTANT: We save ctx_.current_module_id, not current_module_id_, because
+    // ctx_.current_module_id may have been changed by call_wasm_func/call_wasm_thunk
+    // callbacks if this import is happening during a cross-module lambda/thunk call.
+    auto parent_module_id = ctx_.current_module_id;
+    current_module_id_ = register_module(std::move(instance), std::move(source_file));
     ctx_.current_module_id = current_module_id_;
 
     // Call main()
@@ -1110,16 +1147,12 @@ auto wasm_executor::execute_within(std::span<const std::uint8_t> wasm_binary) ->
       return execution_result::err("main returned no value");
     }
 
-    // Force the result (while still in child module context)
+    // Return the value WITHOUT forcing.
+    // Nix is lazy - we must not eagerly evaluate the import result.
+    // Patterns like makeExtensible rely on self-reference through laziness.
+    // Each module gets its own data segment range (via next_data_segment_offset_),
+    // so data segment pointers remain valid - we never overwrite them.
     auto value = results[0].i64();
-    value = rt_force(ctx_, value);
-
-    // CRITICAL: Reify the value before returning.
-    // Each module's data segment initialization overwrites the previous one,
-    // so any strings (including attrset keys) that point to the data segment
-    // will become invalid when the next module is imported.
-    // Reification copies all data segment strings to the heap.
-    value = rt_reify_value(ctx_, value);
 
     // Restore parent module ID
     current_module_id_ = parent_module_id;

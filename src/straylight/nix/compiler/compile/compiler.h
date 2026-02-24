@@ -857,6 +857,131 @@ private:
                          static_cast<BinaryenIndex>(thunk_setup.size()), make_nix_value_type());
   }
 
+  /// Compile `inherit (from_expr) attr;` as a thunk for lazy evaluation.
+  /// The thunk evaluates from_expr and selects attr from it when forced.
+  /// This is crucial for fixpoint patterns like:
+  ///   makeExtensible (self: { trivial = {...}; inherit (self.trivial) id; })
+  [[nodiscard]] auto compile_inherit_from_as_thunk(const ast::expression& from_expr,
+                                                   std::string_view attr,
+                                                   const ast::source_position& position)
+      -> BinaryenExpressionRef {
+    // Generate thunk function
+    auto func_index = thunk_counter_++;
+    auto func_name = "__thunk_" + std::to_string(func_index);
+    thunk_function_names_.push_back(func_name);
+
+    // Analyze free variables in from_expr
+    std::vector<ast::symbol> bound_names;
+    auto free_vars = free_variable_analyzer::analyze(from_expr, bound_names);
+
+    // Filter to variables in scope (excluding let/rec bindings which use shared memory)
+    std::vector<ast::symbol> captures;
+    for (auto sym : free_vars) {
+      if (current_let_binding_offsets_.count(sym.index_) > 0) {
+        continue;
+      }
+      if (current_rec_binding_offsets_.count(sym.index_) > 0) {
+        continue;
+      }
+      if (current_scope_ && current_scope_->lookup(sym).has_value()) {
+        captures.push_back(sym);
+      }
+    }
+
+    // Save context
+    auto outer_lambda_context = std::move(current_lambda_context_);
+    current_lambda_context_ = lambda_context{};
+    current_lambda_context_->captures = captures;
+
+    // Build capture index map
+    for (std::uint32_t idx = 0; idx < captures.size(); ++idx) {
+      current_lambda_context_->capture_indices[captures[idx]] = idx;
+    }
+
+    // Create thunk scope
+    std::uint32_t new_depth = current_scope_ ? current_scope_->depth() + 1 : 1;
+    lexical_scope thunk_scope(nullptr, new_depth);
+    auto* outer_scope = current_scope_;
+    current_scope_ = &thunk_scope;
+
+    // Thunk params: (env_ptr: i32) -> nix_value
+    current_lambda_context_->local_types.push_back(BinaryenTypeInt32());
+    current_lambda_context_->next_local_index = 1;
+
+    // Add captures to scope
+    for (std::uint32_t idx = 0; idx < captures.size(); ++idx) {
+      thunk_scope.add_captured(captures[idx], idx);
+    }
+
+    // Compile: from_expr.attr
+    auto from_value = compile_expression(from_expr);
+    auto thunk_body = compile_select(from_value, attr, position);
+
+    // Create the function
+    BinaryenType param_types[] = {BinaryenTypeInt32()};
+    auto params = BinaryenTypeCreate(param_types, 1);
+
+    std::vector<BinaryenType> local_types;
+    for (std::size_t idx = 1; idx < current_lambda_context_->local_types.size(); ++idx) {
+      local_types.push_back(current_lambda_context_->local_types[idx]);
+    }
+
+    BinaryenAddFunction(module_.get(), func_name.c_str(), params, make_nix_value_type(),
+                        local_types.empty() ? nullptr : local_types.data(),
+                        static_cast<BinaryenIndex>(local_types.size()), thunk_body);
+
+    // Restore context
+    current_scope_ = outer_scope;
+    auto captured_vars = std::move(current_lambda_context_->captures);
+    current_lambda_context_ = std::move(outer_lambda_context);
+
+    // Create thunk value
+    if (captured_vars.empty()) {
+      BinaryenExpressionRef make_thunk_args[] = {
+          BinaryenConst(module_.get(), BinaryenLiteralInt32(static_cast<std::int32_t>(func_index))),
+          BinaryenConst(module_.get(), BinaryenLiteralInt32(0)),
+          BinaryenConst(module_.get(), BinaryenLiteralInt32(0))};
+      return BinaryenCall(module_.get(), "__makeThunk", make_thunk_args, 3, make_nix_value_type());
+    }
+
+    // Allocate environment for captures
+    auto capture_count = static_cast<std::uint32_t>(captured_vars.size());
+    auto env_size = 4 + capture_count * 8;
+    auto env_offset = data_offset_;
+    data_offset_ += env_size;
+    data_offset_ = (data_offset_ + 7) & ~7u;
+
+    std::vector<BinaryenExpressionRef> thunk_setup;
+
+    // Store capture count
+    thunk_setup.push_back(BinaryenStore(
+        module_.get(), 4, env_offset, 0, BinaryenConst(module_.get(), BinaryenLiteralInt32(0)),
+        BinaryenConst(module_.get(),
+                      BinaryenLiteralInt32(static_cast<std::int32_t>(capture_count))),
+        BinaryenTypeInt32(), "memory"));
+
+    // Store captured values WITHOUT forcing (crucial for fixpoints)
+    for (std::uint32_t idx = 0; idx < capture_count; ++idx) {
+      auto sym = captured_vars[idx];
+      auto var_value = compile_identifier_lookup(sym, {0, 0, 0}, false);
+      thunk_setup.push_back(BinaryenStore(module_.get(), 8, env_offset + 4 + idx * 8, 0,
+                                          BinaryenConst(module_.get(), BinaryenLiteralInt32(0)),
+                                          var_value, BinaryenTypeInt64(), "memory"));
+    }
+
+    // Create thunk
+    BinaryenExpressionRef make_thunk_args[] = {
+        BinaryenConst(module_.get(), BinaryenLiteralInt32(static_cast<std::int32_t>(func_index))),
+        BinaryenConst(module_.get(), BinaryenLiteralInt32(static_cast<std::int32_t>(env_offset))),
+        BinaryenConst(module_.get(), BinaryenLiteralInt32(static_cast<std::int32_t>(env_size)))};
+    auto make_thunk =
+        BinaryenCall(module_.get(), "__makeThunk", make_thunk_args, 3, make_nix_value_type());
+
+    thunk_setup.push_back(make_thunk);
+    return BinaryenBlock(module_.get(), nullptr, thunk_setup.data(),
+                         static_cast<BinaryenIndex>(thunk_setup.size()), make_nix_value_type());
+  }
+
   /// compile an expression as a thunk for recursive attrset bindings
   /// The thunk reads rec-scope variables from shared memory at force-time, not capture-time.
   /// This enables mutual references like rec { x = y + 1; y = 1; }.
@@ -1688,7 +1813,10 @@ private:
         return compile_expression(*direct_value);
       } else {
         // Non-trivial expression - wrap in thunk
-        return compile_as_thunk(*direct_value);
+        // Use force_captures=false to avoid forcing captured variables during thunk creation.
+        // This is crucial for patterns like: makeExtensible (self: { inner = { lib = self; }; })
+        // where `self` is a fixpoint parameter and must not be forced when creating the thunk.
+        return compile_as_thunk(*direct_value, false);
       }
     }
 
@@ -1828,23 +1956,6 @@ private:
       if (std::holds_alternative<ast::binding_inherit>(binding)) {
         const auto& inherit_binding = std::get<ast::binding_inherit>(binding);
 
-        // if there's a from_expression, compile it once and select from it
-        BinaryenExpressionRef from_value = nullptr;
-        std::uint32_t from_local_index = 0;
-
-        if (inherit_binding.from_expression_.has_value()) {
-          from_value = compile_expression(*inherit_binding.from_expression_);
-
-          // store the from_expression result in a temporary local to avoid re-evaluating
-          if (current_lambda_context_.has_value() && inherit_binding.attributes_.size() > 1) {
-            from_local_index = current_lambda_context_->next_local_index++;
-            current_lambda_context_->local_types.push_back(make_nix_value_type());
-            auto store_from = BinaryenLocalSet(module_.get(), from_local_index, from_value);
-            store_ops.push_back(store_from);
-            from_value = nullptr; // will use local get instead
-          }
-        }
-
         for (const auto& attr_name : inherit_binding.attributes_) {
           // for now only handle static attribute names
           if (attr_name.is_dynamic()) {
@@ -1869,20 +1980,15 @@ private:
           BinaryenExpressionRef value;
           if (inherit_binding.from_expression_.has_value()) {
             // inherit (expr) x; -> select x from expr
-            BinaryenExpressionRef source;
-            if (from_value != nullptr) {
-              // single attribute, use the compiled expression directly
-              source = from_value;
-              from_value = nullptr; // consumed
-            } else {
-              // multiple attributes, read from local
-              source = BinaryenLocalGet(module_.get(), from_local_index, make_nix_value_type());
-            }
-
-            value = compile_select(source, key_str, attr_name.position_);
+            // Wrap in thunk for lazy evaluation - crucial for fixpoint patterns like:
+            //   makeExtensible (self: { trivial = {...}; inherit (self.trivial) id; })
+            // Without thunking, evaluating self.trivial during attrset construction
+            // triggers infinite recursion.
+            value = compile_inherit_from_as_thunk(*inherit_binding.from_expression_, key_str,
+                                                  attr_name.position_);
           } else {
-            // inherit x; -> look up x from outer scope
-            value = compile_identifier_lookup(sym, attr_name.position_);
+            // inherit x; -> look up x from outer scope (without forcing)
+            value = compile_identifier_lookup(sym, attr_name.position_, false);
           }
 
           auto store_value = BinaryenStore(module_.get(), 8, pair_offset + 4, 0,
@@ -3192,10 +3298,10 @@ private:
     auto offset = data_offset_;
     auto total_size = str.size() + 1; // +1 for null terminator
 
-    // Check data segment limit (64KB)
-    constexpr std::uint32_t data_segment_limit = 0x10000;
+    // Check data segment limit (256KB - increased for large nixpkgs files)
+    constexpr std::uint32_t data_segment_limit = 0x40000;
     if (data_offset_ + total_size > data_segment_limit) {
-      throw compilation_error("data segment overflow: expression too large (limit: 64KB)");
+      throw compilation_error("data segment overflow: expression too large (limit: 256KB)");
     }
 
     // create data segment

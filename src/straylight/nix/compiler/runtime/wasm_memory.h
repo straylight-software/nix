@@ -346,7 +346,7 @@ private:
 class test_memory {
 public:
   explicit test_memory(std::uint32_t initial_pages = 1, std::uint32_t max_pages = 256,
-                       std::uint32_t heap_base = 0x20000)
+                       std::uint32_t heap_base = 0x50000)
       : data_(initial_pages * WASM_PAGE_SIZE, 0),
         max_pages_(max_pages),
         memory_([this]() -> std::span<std::uint8_t> { return std::span{data_}; },

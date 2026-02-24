@@ -15,20 +15,20 @@ namespace straylight::nix::compiler::memory_layout {
 /// Base address of data segment (compile-time allocations)
 constexpr std::uint32_t DATA_SEGMENT_BASE = 0x00000;
 
-/// Maximum size of data segment (64 KB)
-constexpr std::uint32_t DATA_SEGMENT_LIMIT = 0x10000;
+/// Maximum size of data segment (256 KB - increased for large nixpkgs files)
+constexpr std::uint32_t DATA_SEGMENT_LIMIT = 0x40000;
 
-/// Top of WASM stack (grows down from here)
-constexpr std::uint32_t STACK_TOP = 0x10000;
+/// Top of WASM stack (grows down from here, after data segment)
+constexpr std::uint32_t STACK_TOP = 0x40000;
 
 /// Size of WASM stack (4 KB)
 constexpr std::uint32_t STACK_SIZE = 0x01000;
 
 /// Base address of runtime heap (runtime allocations)
-constexpr std::uint32_t HEAP_BASE = 0x20000;
+constexpr std::uint32_t HEAP_BASE = 0x50000;
 
-/// Default heap size (896 KB)
-constexpr std::uint32_t DEFAULT_HEAP_SIZE = 0xE0000;
+/// Default heap size (704 KB)
+constexpr std::uint32_t DEFAULT_HEAP_SIZE = 0xB0000;
 
 /// Default total memory size (1 MB = 16 WASM pages)
 constexpr std::uint32_t DEFAULT_MEMORY_SIZE = 0x100000;

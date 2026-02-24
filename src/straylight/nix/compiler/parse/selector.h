@@ -144,10 +144,10 @@ struct tree_selector<g::expr::attribute_set> : std::true_type {};
 template <>
 struct tree_selector<g::expr::recursive_set> : std::true_type {};
 
-// select is transparent - for now select expressions aren't fully supported
-// TODO: implement proper select expression handling
-// template <>
-// struct tree_selector<g::expr::select> : std::true_type {};
+// select is now stored as a node to handle nested select expressions like:
+//   x.a or x.b or x  =>  (x.a or (x.b or x))
+template <>
+struct tree_selector<g::expr::select> : std::true_type {};
 
 // select_head is transparent - values bubble up
 // template <>

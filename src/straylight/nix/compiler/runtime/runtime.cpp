@@ -42,7 +42,7 @@ auto rt_force(runtime_context& ctx, nix_value v) -> nix_value {
 
     if (state == mem::THUNK_STATE_EVALUATING) {
       // infinite recursion detected
-      throw runtime_error("infinite recursion detected while evaluating thunk");
+      throw runtime_error("infinite recursion detected");
     }
 
     // mark as in progress
@@ -404,7 +404,6 @@ auto rt_make_thunk(runtime_context& ctx, std::uint32_t func_index, std::uint32_t
   // Format: (module_id << 16) | local_func_index
   auto encoded_func_index =
       (static_cast<std::uint32_t>(ctx.current_module_id) << 16) | (func_index & 0xFFFF);
-
   // Write thunk fields
   ctx.write_i32(thunk_ptr + mem::THUNK_FUNC_INDEX_OFFSET,
                 static_cast<std::int32_t>(encoded_func_index));
@@ -4508,8 +4507,16 @@ auto rt_apply_primop(runtime_context& ctx, std::uint32_t primop_index, nix_value
               throw runtime_error("import: cycle detected importing: " + std::string(path));
             case io_error::parse_error:
               throw runtime_error("import: parse error in: " + std::string(path));
-            case io_error::eval_error:
-              throw runtime_error("import: evaluation error in: " + std::string(path));
+            case io_error::eval_error: {
+              // Try to get more details from the backend
+              std::string details = ctx.io->last_import_error();
+              if (details.empty()) {
+                throw runtime_error("import: evaluation error in: " + std::string(path));
+              } else {
+                throw runtime_error("import: evaluation error in " + std::string(path) + ": " +
+                                    details);
+              }
+            }
             case io_error::not_supported:
               throw runtime_error("import: operation not supported");
             default:
@@ -4517,6 +4524,89 @@ auto rt_apply_primop(runtime_context& ctx, std::uint32_t primop_index, nix_value
           }
         }
         return result.value();
+      }
+
+      case b::read_file: {
+        // readFile expects a path or string argument
+        auto v = rt_force(ctx, arg);
+        std::string_view path;
+        if (is_path(v)) {
+          path = ctx.read_string(get_payload(v));
+        } else if (is_string(v)) {
+          path = ctx.read_string(get_payload(v));
+        } else {
+          throw type_error("readFile: expected path or string, got " + std::string(type_name(v)));
+        }
+
+        if (!ctx.io) {
+          throw runtime_error("readFile: I/O operations not available (pure evaluator)");
+        }
+
+        auto result = ctx.io->read_file(path);
+        if (!result) {
+          switch (result.error()) {
+            case io_error::not_found:
+              throw runtime_error("readFile: file not found: " + std::string(path));
+            case io_error::permission_denied:
+              throw runtime_error("readFile: permission denied: " + std::string(path));
+            case io_error::is_directory:
+              throw runtime_error("readFile: is a directory: " + std::string(path));
+            default:
+              throw runtime_error("readFile: error reading: " + std::string(path));
+          }
+        }
+        // Allocate and return string value
+        auto str_ptr = allocate_string(ctx, result.value());
+        return make_value(value_tag::string, str_ptr);
+      }
+
+      case b::path_exists: {
+        // pathExists expects a path or string argument
+        auto v = rt_force(ctx, arg);
+        std::string_view path;
+        if (is_path(v)) {
+          path = ctx.read_string(get_payload(v));
+        } else if (is_string(v)) {
+          path = ctx.read_string(get_payload(v));
+        } else {
+          throw type_error("pathExists: expected path or string, got " + std::string(type_name(v)));
+        }
+
+        if (!ctx.io) {
+          throw runtime_error("pathExists: I/O operations not available (pure evaluator)");
+        }
+
+        bool exists = ctx.io->path_exists(path);
+        return exists ? constants::bool_true : constants::bool_false;
+      }
+
+      case b::unsafe_discard_string_context: {
+        // unsafeDiscardStringContext just returns the string as-is
+        // (we don't track string contexts yet)
+        auto v = rt_force(ctx, arg);
+        if (!is_string(v)) {
+          throw type_error("unsafeDiscardStringContext: expected string, got " +
+                           std::string(type_name(v)));
+        }
+        return v;
+      }
+
+      case b::has_context: {
+        // hasContext returns false since we don't track contexts
+        auto v = rt_force(ctx, arg);
+        if (!is_string(v)) {
+          throw type_error("hasContext: expected string, got " + std::string(type_name(v)));
+        }
+        return constants::bool_false;
+      }
+
+      case b::get_context: {
+        // getContext returns empty attrset since we don't track contexts
+        auto v = rt_force(ctx, arg);
+        if (!is_string(v)) {
+          throw type_error("getContext: expected string, got " + std::string(type_name(v)));
+        }
+        return compile::packed::empty_attribute_set;
       }
 
       default:
@@ -4805,13 +4895,44 @@ void rt_init_builtins(runtime_context& ctx) {
   // Debugging/introspection
   entries.emplace_back("unsafeGetAttrPos", make_value(value_tag::primop, b::unsafe_get_attr_pos));
 
+  // String context operations (no-op for now since we don't track contexts)
+  entries.emplace_back("unsafeDiscardStringContext",
+                       make_value(value_tag::primop, b::unsafe_discard_string_context));
+  entries.emplace_back("hasContext", make_value(value_tag::primop, b::has_context));
+  entries.emplace_back("getContext", make_value(value_tag::primop, b::get_context));
+
   // I/O operations (require io backend at runtime)
   entries.emplace_back("import", make_value(value_tag::primop, b::import_path));
+  entries.emplace_back("readFile", make_value(value_tag::primop, b::read_file));
+  entries.emplace_back("pathExists", make_value(value_tag::primop, b::path_exists));
 
   // Also add true, false, null to the builtins attrset
   entries.emplace_back("true", constants::bool_true);
   entries.emplace_back("false", constants::bool_false);
   entries.emplace_back("null", constants::null_value);
+
+  // Nix configuration constants
+  // storeDir is the path to the Nix store
+  auto store_dir_ptr = allocate_string(ctx, "/nix/store");
+  entries.emplace_back("storeDir", make_value(value_tag::string, store_dir_ptr));
+
+  // currentSystem is the system type (e.g., "x86_64-linux")
+  // We detect this at runtime, but for now hardcode to linux
+#if defined(__x86_64__)
+  auto current_system_ptr = allocate_string(ctx, "x86_64-linux");
+#elif defined(__aarch64__)
+  auto current_system_ptr = allocate_string(ctx, "aarch64-linux");
+#else
+  auto current_system_ptr = allocate_string(ctx, "x86_64-linux");
+#endif
+  entries.emplace_back("currentSystem", make_value(value_tag::string, current_system_ptr));
+
+  // nixVersion is the Nix version string
+  auto nix_version_ptr = allocate_string(ctx, "2.18.0");
+  entries.emplace_back("nixVersion", make_value(value_tag::string, nix_version_ptr));
+
+  // langVersion is the Nix language version (integer)
+  entries.emplace_back("langVersion", make_value(value_tag::integer, 6));
 
   // Sort entries by name for binary search in find_attr
   std::sort(entries.begin(), entries.end(),

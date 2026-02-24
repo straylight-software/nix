@@ -6,6 +6,7 @@
 /// It implements all the runtime imports required by the compiled code.
 
 #include <cstdint>
+#include <filesystem>
 #include <memory>
 #include <optional>
 #include <span>
@@ -113,6 +114,7 @@ public:
     wasmtime::Instance instance;
     std::optional<wasmtime::Table> func_table;
     std::uint32_t lambda_count;
+    std::filesystem::path source_file; // full path to source file, for relative imports
   };
 
   /// Get module info by ID. Used for cross-module lambda calls.
@@ -153,7 +155,8 @@ private:
   void setup_io_linker(wasmtime::Linker& linker);
 
   // Register a new module and return its ID
-  auto register_module(wasmtime::Instance instance) -> std::uint16_t;
+  auto register_module(wasmtime::Instance instance, std::filesystem::path source_file)
+      -> std::uint16_t;
 };
 
 // =============================================================================
