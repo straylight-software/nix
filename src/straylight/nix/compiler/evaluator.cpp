@@ -57,9 +57,15 @@ auto evaluator::compile_source(std::string_view source, std::string_view path)
     ast::symbol_table symbols;
     auto ast_result = parse::parse(source, symbols, std::filesystem::path(path).parent_path());
 
-    // 2. Compile
-    compile::compiler comp(symbols);
+    // 2. Compile with the current data segment offset.
+    // Each module's data segment starts after the previous one to avoid collisions
+    // when sharing memory between parent and imported modules.
+    compile::compiler comp(symbols, next_data_segment_offset_);
     auto wasm_module = comp.compile(ast_result);
+
+    // Update the next data segment offset for future modules
+    next_data_segment_offset_ = comp.data_segment_end();
+
     auto wasm_result = wasm_module.emit_binary();
 
     if (wasm_result.empty()) {

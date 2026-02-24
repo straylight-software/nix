@@ -115,7 +115,12 @@ public:
 private:
   std::unique_ptr<runtime::wasm_executor> executor_;
 
+  /// Next available data segment offset for imported modules.
+  /// Each module's data segment starts after the previous one to avoid collisions.
+  std::uint32_t next_data_segment_offset_ = 0;
+
   /// Compile Nix source to WASM binary.
+  /// Also updates next_data_segment_offset_ based on the compiled module's data segment usage.
   [[nodiscard]] auto compile_source(std::string_view source, std::string_view path)
       -> eval_result<std::vector<std::uint8_t>>;
 };

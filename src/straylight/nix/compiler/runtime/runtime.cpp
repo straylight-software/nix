@@ -68,6 +68,236 @@ auto rt_force(runtime_context& ctx, nix_value v) -> nix_value {
   return v;
 }
 
+// =============================================================================
+// Value Reification (for imports)
+// =============================================================================
+
+/// Check if an offset is in the data segment (needs to be copied to heap)
+[[nodiscard]] static auto is_in_data_segment(std::uint32_t offset) noexcept -> bool {
+  return offset < mem::DATA_SEGMENT_LIMIT;
+}
+
+/// Copy a null-terminated string from data segment to heap, return new offset
+[[nodiscard]] static auto copy_string_to_heap(runtime_context& ctx, std::uint32_t offset)
+    -> std::uint32_t {
+  if (!is_in_data_segment(offset)) {
+    // Already on heap, no copy needed
+    return offset;
+  }
+
+  // Read the string
+  auto str = ctx.read_string(offset);
+
+  // Allocate on heap and copy
+  return ctx.alloc_string(str);
+}
+
+auto rt_reify_value(runtime_context& ctx, nix_value v) -> nix_value {
+  // Force any thunks first (we need to see the actual value structure)
+  v = rt_force(ctx, v);
+
+  auto tag = get_tag(v);
+  auto payload = get_payload(v);
+
+  switch (tag) {
+    case value_tag::null_value:
+    case value_tag::boolean:
+    case value_tag::integer:
+      // Immediate values, no heap data to copy
+      return v;
+
+    case value_tag::floating: {
+      // Float payload is a pointer to f64
+      if (is_in_data_segment(payload)) {
+        // Copy float to heap
+        auto f = ctx.read_f64(payload);
+        auto new_offset = ctx.allocate(mem::FLOAT_SIZE);
+        ctx.write_f64(new_offset, f);
+        return make_value(value_tag::floating, new_offset);
+      }
+      return v;
+    }
+
+    case value_tag::string: {
+      // String payload is pointer to null-terminated string
+      if (is_in_data_segment(payload)) {
+        auto new_offset = copy_string_to_heap(ctx, payload);
+        return make_value(value_tag::string, new_offset);
+      }
+      return v;
+    }
+
+    case value_tag::path: {
+      // Path payload is pointer to null-terminated string
+      if (is_in_data_segment(payload)) {
+        auto new_offset = copy_string_to_heap(ctx, payload);
+        return make_value(value_tag::path, new_offset);
+      }
+      return v;
+    }
+
+    case value_tag::list: {
+      if (payload == 0) {
+        // Empty list, nothing to do
+        return v;
+      }
+
+      // List layout: count (i32) + elements[]
+      auto count = ctx.read_u32(payload + mem::LIST_COUNT_OFFSET);
+      if (count == 0) {
+        return v;
+      }
+
+      // Check if list is in data segment - if so, we need to copy the whole thing
+      bool list_in_data_seg = is_in_data_segment(payload);
+
+      // Recursively reify each element
+      std::vector<nix_value> elements;
+      elements.reserve(count);
+      bool any_changed = false;
+
+      for (std::uint32_t idx = 0; idx < count; ++idx) {
+        auto elem = ctx.read_value(payload + mem::LIST_ELEMENTS_OFFSET + idx * mem::VALUE_SIZE);
+        auto reified = rt_reify_value(ctx, elem);
+        elements.push_back(reified);
+        if (reified != elem) {
+          any_changed = true;
+        }
+      }
+
+      if (!any_changed && !list_in_data_seg) {
+        // Nothing changed, return original
+        return v;
+      }
+
+      // Allocate new list on heap
+      auto new_list = ctx.allocate(mem::list_size(count));
+      ctx.write_i32(new_list + mem::LIST_COUNT_OFFSET, static_cast<std::int32_t>(count));
+      for (std::uint32_t idx = 0; idx < count; ++idx) {
+        ctx.write_value(new_list + mem::LIST_ELEMENTS_OFFSET + idx * mem::VALUE_SIZE,
+                        elements[idx]);
+      }
+
+      return make_value(value_tag::list, new_list);
+    }
+
+    case value_tag::attribute_set: {
+      if (payload == 0) {
+        // Empty attrset, nothing to do
+        return v;
+      }
+
+      // Attrset layout: count (i32) + entries[]
+      // Entry: key_offset (i32) + value (nix_value)
+      auto count = ctx.read_u32(payload + mem::ATTRSET_COUNT_OFFSET);
+      if (count == 0) {
+        return v;
+      }
+
+      bool attrs_in_data_seg = is_in_data_segment(payload);
+
+      // Collect and reify all entries
+      struct entry {
+        std::uint32_t key_offset;
+        nix_value value;
+      };
+      std::vector<entry> entries;
+      entries.reserve(count);
+      bool any_changed = false;
+
+      for (std::uint32_t idx = 0; idx < count; ++idx) {
+        auto entry_off = payload + mem::ATTRSET_ENTRIES_OFFSET + idx * mem::ATTRSET_ENTRY_SIZE;
+        auto key_off = ctx.read_u32(entry_off + mem::ATTRSET_ENTRY_KEY_OFFSET);
+        auto val = ctx.read_value(entry_off + mem::ATTRSET_ENTRY_VALUE_OFFSET);
+
+        // Reify the key (copy string to heap if in data segment)
+        auto new_key_off = copy_string_to_heap(ctx, key_off);
+
+        // Recursively reify the value
+        auto reified_val = rt_reify_value(ctx, val);
+
+        entries.push_back({new_key_off, reified_val});
+
+        if (new_key_off != key_off || reified_val != val) {
+          any_changed = true;
+        }
+      }
+
+      if (!any_changed && !attrs_in_data_seg) {
+        // Nothing changed, return original
+        return v;
+      }
+
+      // Allocate new attrset on heap
+      auto new_attrs = ctx.allocate(mem::attrset_size(count));
+      ctx.write_i32(new_attrs + mem::ATTRSET_COUNT_OFFSET, static_cast<std::int32_t>(count));
+      for (std::uint32_t idx = 0; idx < count; ++idx) {
+        auto entry_off = new_attrs + mem::ATTRSET_ENTRIES_OFFSET + idx * mem::ATTRSET_ENTRY_SIZE;
+        ctx.write_i32(entry_off + mem::ATTRSET_ENTRY_KEY_OFFSET,
+                      static_cast<std::int32_t>(entries[idx].key_offset));
+        ctx.write_value(entry_off + mem::ATTRSET_ENTRY_VALUE_OFFSET, entries[idx].value);
+      }
+
+      return make_value(value_tag::attribute_set, new_attrs);
+    }
+
+    case value_tag::lambda: {
+      // Closures: func_index (i32) + capture_count (i32) + captures[]
+      if (payload == 0) {
+        return v;
+      }
+
+      bool closure_in_data_seg = is_in_data_segment(payload);
+
+      auto func_index = ctx.read_u32(payload + mem::CLOSURE_FUNC_INDEX_OFFSET);
+      auto capture_count = ctx.read_u32(payload + mem::CLOSURE_CAPTURE_COUNT_OFFSET);
+
+      // Reify captured values
+      std::vector<nix_value> captures;
+      captures.reserve(capture_count);
+      bool any_changed = false;
+
+      for (std::uint32_t idx = 0; idx < capture_count; ++idx) {
+        auto cap = ctx.read_value(payload + mem::CLOSURE_CAPTURES_OFFSET + idx * mem::VALUE_SIZE);
+        auto reified = rt_reify_value(ctx, cap);
+        captures.push_back(reified);
+        if (reified != cap) {
+          any_changed = true;
+        }
+      }
+
+      if (!any_changed && !closure_in_data_seg) {
+        return v;
+      }
+
+      // Allocate new closure on heap
+      auto new_closure = ctx.allocate(mem::closure_size(capture_count));
+      ctx.write_i32(new_closure + mem::CLOSURE_FUNC_INDEX_OFFSET,
+                    static_cast<std::int32_t>(func_index));
+      ctx.write_i32(new_closure + mem::CLOSURE_CAPTURE_COUNT_OFFSET,
+                    static_cast<std::int32_t>(capture_count));
+      for (std::uint32_t idx = 0; idx < capture_count; ++idx) {
+        ctx.write_value(new_closure + mem::CLOSURE_CAPTURES_OFFSET + idx * mem::VALUE_SIZE,
+                        captures[idx]);
+      }
+
+      return make_value(value_tag::lambda, new_closure);
+    }
+
+    case value_tag::thunk:
+      // Should have been forced above, but handle defensively
+      return rt_reify_value(ctx, rt_force(ctx, v));
+
+    case value_tag::primop:
+      // Primops are immediate values with no heap data
+      return v;
+
+    default:
+      // Unknown tag, return as-is
+      return v;
+  }
+}
+
 // Forward declarations for partial primop application
 static auto rt_apply_partial_primop(runtime_context& ctx, std::uint32_t partial_ptr, nix_value arg)
     -> nix_value;

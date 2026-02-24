@@ -75,9 +75,8 @@ TEST_CASE("evaluator - basic expressions", "[evaluator]") {
   SECTION("attrset") {
     auto result = eval.eval_string("{ a = 1; b = 2; }");
     REQUIRE(result.has_value());
-    // The format might be different, just check it contains the values
-    CHECK(result.value().find("1") != std::string::npos);
-    CHECK(result.value().find("2") != std::string::npos);
+    // format_value returns summary form "{ N attrs }"
+    CHECK(result.value() == "{ 2 attrs }");
   }
 }
 
@@ -100,7 +99,8 @@ TEST_CASE("evaluator - eval_file", "[evaluator]") {
     dir.write_file("config.nix", "{ foo = 42; bar = \"hello\"; }");
     auto result = eval.eval_file(dir.file_path("config.nix"));
     REQUIRE(result.has_value());
-    CHECK(result.value().find("42") != std::string::npos);
+    // format_value returns summary form "{ N attrs }"
+    CHECK(result.value() == "{ 2 attrs }");
   }
 
   SECTION("let expression") {
@@ -158,6 +158,10 @@ TEST_CASE("evaluator - import", "[evaluator][import]") {
     dir.write_file("top.nix", "(import ./middle.nix).doubled");
 
     auto result = eval.eval_file(dir.file_path("top.nix"));
+    if (!result.has_value()) {
+      std::cerr << "nested imports failed: " << result.error().message << "\n";
+      std::cerr << "File: " << result.error().file << "\n";
+    }
     REQUIRE(result.has_value());
     CHECK(result.value() == "200");
   }
@@ -183,6 +187,10 @@ TEST_CASE("evaluator - import", "[evaluator][import]") {
     dir.write_file("main.nix", "(import ./mylib).name");
 
     auto result = eval.eval_file(dir.file_path("main.nix"));
+    if (!result.has_value()) {
+      std::cerr << "directory import failed: " << result.error().message << "\n";
+      std::cerr << "File: " << result.error().file << "\n";
+    }
     REQUIRE(result.has_value());
     CHECK(result.value() == "\"mylib\"");
   }

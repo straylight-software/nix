@@ -439,6 +439,18 @@ class compiler {
 public:
   explicit compiler(const ast::symbol_table& symbols) : symbols_(symbols) { setup_module(); }
 
+  /// Construct with a data segment base offset.
+  /// Used when compiling imported modules to avoid data segment collisions.
+  /// Each module's data segment will start at base_offset.
+  compiler(const ast::symbol_table& symbols, std::uint32_t data_segment_base)
+      : symbols_(symbols), data_offset_(data_segment_base) {
+    setup_module();
+  }
+
+  /// Get the final data segment offset (high water mark).
+  /// Use this to determine the base offset for the next module.
+  [[nodiscard]] auto data_segment_end() const noexcept -> std::uint32_t { return data_offset_; }
+
   /// compile an expression to WASM
   /// returns a module that exports a single "main" function
   [[nodiscard]] auto compile(const ast::expression& expr) -> wasm_module {

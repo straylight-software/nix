@@ -232,6 +232,18 @@ cxx_test(
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Brutal tests (the nastiest edge cases)
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_test(
+    name = "brutal_test",
+    srcs = ["brutal_test.cpp"],
+    deps = LANGUAGE_EXECUTION_TEST_DEPS,
+    compiler_flags = LANGUAGE_TEST_COMPILER_FLAGS,
+    linker_flags = LANGUAGE_LINKER_FLAGS,
+    link_style = "static",
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Fuzz targets (libFuzzer)
 #
 # These are not run as regular tests - they're built separately and run
@@ -269,5 +281,13 @@ cxx_library(
     ],
     compiler_flags = LANGUAGE_TEST_COMPILER_FLAGS,
     # binaryen is now statically linked via //third_party:binaryen
+    visibility = ["PUBLIC"],
+)
+
+cxx_library(
+    name = "fuzz_execute_src",
+    srcs = ["fuzz_execute.cpp"],
+    deps = LANGUAGE_EXECUTION_TEST_DEPS,
+    compiler_flags = LANGUAGE_TEST_COMPILER_FLAGS,
     visibility = ["PUBLIC"],
 )

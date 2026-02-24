@@ -1089,6 +1089,13 @@ auto wasm_executor::execute_within(std::span<const std::uint8_t> wasm_binary) ->
     auto value = results[0].i64();
     value = rt_force(ctx_, value);
 
+    // CRITICAL: Reify the value before returning.
+    // Each module's data segment initialization overwrites the previous one,
+    // so any strings (including attrset keys) that point to the data segment
+    // will become invalid when the next module is imported.
+    // Reification copies all data segment strings to the heap.
+    value = rt_reify_value(ctx_, value);
+
     // Restore parent module ID
     current_module_id_ = parent_module_id;
     ctx_.current_module_id = parent_module_id;

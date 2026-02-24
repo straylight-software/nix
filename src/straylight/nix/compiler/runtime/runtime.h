@@ -341,6 +341,13 @@ struct runtime_context {
 /// force a value (evaluate thunks)
 [[nodiscard]] auto rt_force(runtime_context& ctx, nix_value v) -> nix_value;
 
+/// Reify a value by copying data segment strings to the heap.
+/// This is needed when returning values from imported modules, since each
+/// module's data segment initialization overwrites the previous one.
+/// After reification, all string pointers (including attrset keys) point
+/// to heap memory which survives module reloads.
+[[nodiscard]] auto rt_reify_value(runtime_context& ctx, nix_value v) -> nix_value;
+
 /// apply a function to an argument
 [[nodiscard]] auto rt_apply(runtime_context& ctx, nix_value fn, nix_value arg) -> nix_value;
 
