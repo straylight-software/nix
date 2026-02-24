@@ -2481,8 +2481,28 @@ private:
       }
     }
 
-    // analyze free variables in the lambda body
+    // analyze free variables in the lambda body AND default values
+    // Default values are evaluated in the outer scope, so they may reference
+    // variables that are not bound by the lambda itself.
     auto free_vars = free_variable_analyzer::analyze(expr.body_, bound_names);
+
+    // Also analyze default values (they reference outer scope, not lambda bindings)
+    if (std::holds_alternative<ast::pattern_attrset>(pattern)) {
+      const auto& attrset_pattern = std::get<ast::pattern_attrset>(pattern);
+      for (const auto& formal : attrset_pattern.formals_) {
+        if (formal.default_value_.has_value()) {
+          // Default values are NOT in scope of lambda bindings, so we analyze
+          // with an empty bound_names to find all their free variables
+          auto default_free = free_variable_analyzer::analyze(*formal.default_value_, {});
+          for (auto sym : default_free) {
+            // Only add if not already in lambda bindings (they shadow outer scope)
+            if (std::find(bound_names.begin(), bound_names.end(), sym) == bound_names.end()) {
+              free_vars.push_back(sym);
+            }
+          }
+        }
+      }
+    }
 
     // filter free variables: only keep those that are actually in scope
     // (others are builtins or globals that will be looked up at runtime)
