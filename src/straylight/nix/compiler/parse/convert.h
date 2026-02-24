@@ -128,12 +128,26 @@ inline auto get_operator_info(std::string_view op_type) -> std::optional<operato
   return std::nullopt;
 }
 
-inline auto is_unary_operator(std::string_view op_type) -> std::optional<unary_op_kind> {
+struct unary_operator_info {
+  unary_op_kind kind;
+  std::uint8_t precedence; // Higher = tighter binding (same convention as binary ops in this file)
+};
+
+inline auto get_unary_operator_info(std::string_view op_type)
+    -> std::optional<unary_operator_info> {
+  // Precedence values use "higher = tighter binding" convention (matching binary ops in this file).
+  // In Nix, unary minus binds tighter than logical not:
+  //   -x ? y  parses as  (-x) ? y   (unary minus is tighter)
+  //   !x ? y  parses as  !(x ? y)   (? is tighter than !)
+  //
+  // has_attribute (?) has precedence 4, so:
+  //   unary_minus needs precedence > 4 to bind tighter than ?
+  //   logical_not needs precedence < 4 to bind looser than ?
   if (op_type.find("op::unary_minus") != std::string_view::npos) {
-    return unary_op_kind::negate;
+    return unary_operator_info{unary_op_kind::negate, 9}; // Tighter than ? (4)
   }
   if (op_type.find("op::logical_not") != std::string_view::npos) {
-    return unary_op_kind::logical_not;
+    return unary_operator_info{unary_op_kind::logical_not, 3}; // Looser than ? (4)
   }
   return std::nullopt;
 }
@@ -262,11 +276,16 @@ private:
     const auto& child = *children_[pos_];
 
     // check for unary operator
-    auto unary = is_unary_operator(child.type);
-    if (unary.has_value()) {
+    auto unary_info = get_unary_operator_info(child.type);
+    if (unary_info.has_value()) {
       ++pos_;
-      auto operand = parse_primary();
-      return make_tree<node_unary_op>(*unary, std::move(operand), make_span(child));
+      // Parse the operand with the unary operator's precedence.
+      // This ensures that binary operators with tighter binding (lower precedence number)
+      // are included in the operand. For example:
+      //   !builtins ? nixVersion  ->  !(builtins ? nixVersion)
+      // Because ? (precedence 4) binds tighter than ! (precedence 8).
+      auto operand = parse_expression(unary_info->precedence);
+      return make_tree<node_unary_op>(unary_info->kind, std::move(operand), make_span(child));
     }
 
     // otherwise it's a value
