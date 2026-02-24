@@ -614,6 +614,12 @@ private:
     BinaryenAddFunctionImport(module_.get(), "__isBool", "builtins", "__isBool", unary_params,
                               BinaryenTypeInt32());
 
+    // expect boolean (force + type check): (nix_value, line: i32, col: i32) -> nix_value
+    // Throws type_error if value is not a boolean
+    BinaryenType expect_bool_params[] = {nix_value_type, BinaryenTypeInt32(), BinaryenTypeInt32()};
+    BinaryenAddFunctionImport(module_.get(), "__expectBool", "runtime", "__expectBool",
+                              BinaryenTypeCreate(expect_bool_params, 3), nix_value_type);
+
     // list construction: (i32 count, ...elements) - variadic, use memory
     // __makeList(offset: i32, count: i32) -> nix_value
     BinaryenType make_list_params[] = {BinaryenTypeInt32(), BinaryenTypeInt32()};
@@ -1862,7 +1868,9 @@ private:
     std::vector<BinaryenExpressionRef> ops;
 
     // second pass: compile all values and store in locals
-    // note: all bindings are already in scope, so they can reference each other
+    // NOTE: Mutual references where definition order matters (e.g., rec { x = y + 1; y = 1; })
+    // are not yet supported. This would require thunks that capture local indices
+    // without reading the values at creation time.
     for (const auto& binding : bindings) {
       BinaryenExpressionRef value;
 
@@ -2611,13 +2619,21 @@ private:
     auto then_branch = compile_expression(expr.then_branch_);
     auto else_branch = compile_expression(expr.else_branch_);
 
-    // force the condition (it might be a thunk)
-    auto forced_condition = compile_force(condition);
+    // Call __expectBool to force and type-check the condition
+    BinaryenExpressionRef expect_args[] = {
+        condition,
+        BinaryenConst(module_.get(),
+                      BinaryenLiteralInt32(static_cast<std::int32_t>(expr.position_.line_))),
+        BinaryenConst(module_.get(),
+                      BinaryenLiteralInt32(static_cast<std::int32_t>(expr.position_.column_)))};
+    auto validated_condition =
+        BinaryenCall(module_.get(), "__expectBool", expect_args, 3, make_nix_value_type());
 
     // condition must be a boolean - check if it equals true
-    auto cond_is_true = BinaryenBinary(
-        module_.get(), BinaryenEqInt64(),
-        BinaryenConst(module_.get(), BinaryenLiteralInt64(packed::boolean_true)), forced_condition);
+    auto cond_is_true =
+        BinaryenBinary(module_.get(), BinaryenEqInt64(),
+                       BinaryenConst(module_.get(), BinaryenLiteralInt64(packed::boolean_true)),
+                       validated_condition);
 
     return BinaryenIf(module_.get(), cond_is_true, then_branch, else_branch);
   }
@@ -2626,13 +2642,21 @@ private:
     auto condition = compile_expression(expr.condition_);
     auto body = compile_expression(expr.body_);
 
-    // force the condition (it might be a thunk)
-    auto forced_condition = compile_force(condition);
+    // Call __expectBool to force and type-check the condition
+    BinaryenExpressionRef expect_args[] = {
+        condition,
+        BinaryenConst(module_.get(),
+                      BinaryenLiteralInt32(static_cast<std::int32_t>(expr.position_.line_))),
+        BinaryenConst(module_.get(),
+                      BinaryenLiteralInt32(static_cast<std::int32_t>(expr.position_.column_)))};
+    auto validated_condition =
+        BinaryenCall(module_.get(), "__expectBool", expect_args, 3, make_nix_value_type());
 
     // check if condition is true
-    auto cond_is_true = BinaryenBinary(
-        module_.get(), BinaryenEqInt64(),
-        BinaryenConst(module_.get(), BinaryenLiteralInt64(packed::boolean_true)), forced_condition);
+    auto cond_is_true =
+        BinaryenBinary(module_.get(), BinaryenEqInt64(),
+                       BinaryenConst(module_.get(), BinaryenLiteralInt64(packed::boolean_true)),
+                       validated_condition);
 
     // if false, throw with position; otherwise return body
     auto throw_expr = compile_throw("assertion failed", expr.position_);

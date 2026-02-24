@@ -253,6 +253,23 @@ void wasm_executor::setup_linker(wasmtime::Linker& linker) {
                  })
       .unwrap();
 
+  // __expectBool(value: i64, line: i32, col: i32) -> i64
+  linker
+      .func_wrap("runtime", "__expectBool",
+                 [](wasmtime::Caller caller, std::int64_t value, std::int32_t line,
+                    std::int32_t col) -> wasmtime::Result<std::int64_t, wasmtime::Trap> {
+                   try {
+                     auto* ctx = get_ctx(caller);
+                     return rt_expect_bool(*ctx, value, static_cast<std::uint32_t>(line),
+                                           static_cast<std::uint32_t>(col));
+                   } catch (const runtime_error& e) {
+                     return wasmtime::Trap(e.what());
+                   } catch (const std::exception& e) {
+                     return wasmtime::Trap(std::string("runtime error: ") + e.what());
+                   }
+                 })
+      .unwrap();
+
   // __apply(fn: i64, arg: i64) -> i64
   linker
       .func_wrap("runtime", "__apply",

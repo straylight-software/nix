@@ -457,13 +457,13 @@ TEST_CASE("brutal: attrset edge cases", "[brutal][attrset]") {
   }
 
   SECTION("recursive attrset - mutual reference") {
-    // NOTE: This requires proper lazy evaluation order in rec attrsets.
-    // Currently broken - y evaluates to null when x tries to use it.
-    // TODO: Fix recursive attrset evaluation order
+    // NOTE: Mutual references where definition order matters are not yet supported.
+    // This requires thunks that capture locals without reading them at creation time.
+    // TODO: Implement proper lazy rec attrset binding capture
     // auto v = must_succeed("rec { x = y + 1; y = 1; }.x");
     // REQUIRE(get_int_value(v) == 2);
 
-    // For now, test the simpler case that works
+    // For now, test the simpler case where forward refs are defined before use
     auto v = must_succeed("rec { y = 1; x = y + 1; }.x");
     REQUIRE(get_int_value(v) == 2);
   }
@@ -825,18 +825,12 @@ TEST_CASE("brutal: type errors", "[brutal][type]") {
   }
 
   SECTION("if with non-bool condition") {
-    // NOTE: Nix requires boolean for if condition. Our implementation
-    // currently doesn't type-check the condition properly.
-    // TODO: Add type checking for if condition
-    // must_fail("if 1 then 2 else 3");    // integers should fail
-    // must_fail("if \"\" then 2 else 3"); // strings should fail
-
-    // For now, just test that these don't crash (known deviation from Nix)
-    // Our implementation treats some non-bool values as valid conditions
-    eval("if \"\" then 2 else 3"); // doesn't type-check (known bug)
-    eval("if [] then 2 else 3");   // doesn't type-check (known bug)
-    eval("if {} then 2 else 3");   // doesn't type-check (known bug)
-    eval("if null then 2 else 3"); // doesn't type-check (known bug)
+    // Nix requires boolean for if condition - these should all fail
+    must_fail("if 1 then 2 else 3");
+    must_fail("if \"\" then 2 else 3");
+    must_fail("if [] then 2 else 3");
+    must_fail("if {} then 2 else 3");
+    must_fail("if null then 2 else 3");
   }
 
   SECTION("assert with non-bool") {

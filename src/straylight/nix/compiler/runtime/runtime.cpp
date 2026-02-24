@@ -720,6 +720,15 @@ auto rt_is_bool(runtime_context& ctx, nix_value v) -> std::int32_t {
   return is_bool(v) ? 1 : 0;
 }
 
+auto rt_expect_bool(runtime_context& ctx, nix_value v, std::uint32_t line, std::uint32_t col)
+    -> nix_value {
+  v = rt_force(ctx, v);
+  if (!is_bool(v)) {
+    throw type_error("expected a Boolean but found " + std::string(type_name(v)), line, col);
+  }
+  return v;
+}
+
 // =============================================================================
 // Collections
 // =============================================================================
@@ -984,52 +993,71 @@ auto rt_concat(runtime_context& ctx, nix_value a, nix_value b) -> nix_value {
 // Strings
 // =============================================================================
 
+// Forward declaration for recursive list stringification
+static auto rt_to_string_coerce(runtime_context& ctx, nix_value v) -> std::string;
+
 auto rt_to_string(runtime_context& ctx, nix_value v) -> nix_value {
+  auto result = rt_to_string_coerce(ctx, v);
+  auto ptr = ctx.alloc_string(result);
+  return make_value(value_tag::string, ptr);
+}
+
+static auto rt_to_string_coerce(runtime_context& ctx, nix_value v) -> std::string {
   v = rt_force(ctx, v);
 
-  // if already a string, return as-is
-  if (is_string(v)) {
-    return v;
-  }
-
-  std::string result;
-
   switch (get_tag(v)) {
+    case value_tag::string:
+      return std::string(ctx.read_string(get_payload(v)));
+
     case value_tag::null_value:
-      // null coerces to empty string in some contexts
-      result = "";
-      break;
+      // null coerces to empty string
+      return "";
 
     case value_tag::boolean:
-      // booleans don't coerce to string in Nix (this is an error)
-      throw type_error("cannot coerce a Boolean to a string");
+      // Nix coerceMore semantics: true -> "1", false -> ""
+      return (v == constants::bool_true) ? "1" : "";
 
     case value_tag::integer: {
       auto i = static_cast<std::int32_t>(get_payload(v));
-      result = std::to_string(i);
-      break;
+      return std::to_string(i);
     }
 
     case value_tag::floating: {
-      auto bits = get_payload(v);
-      float f;
-      std::memcpy(&f, &bits, sizeof(f));
-      result = std::to_string(static_cast<double>(f));
-      break;
+      // Float payload is a POINTER to f64 in memory
+      auto offset = get_payload(v);
+      auto d = ctx.read_f64(offset);
+      return std::to_string(d);
     }
 
     case value_tag::path:
       // paths coerce to their string representation
-      result = std::string(ctx.read_string(get_payload(v)));
-      break;
+      return std::string(ctx.read_string(get_payload(v)));
+
+    case value_tag::list: {
+      // List: recursively stringify elements, join with spaces
+      auto list_ptr = get_payload(v);
+      if (list_ptr == 0) {
+        return ""; // empty list
+      }
+
+      auto count = ctx.read_u32(list_ptr + mem::LIST_COUNT_OFFSET);
+      std::string result;
+
+      for (std::uint32_t idx = 0; idx < count; ++idx) {
+        auto elem = ctx.read_value(list_ptr + mem::LIST_ELEMENTS_OFFSET + idx * mem::VALUE_SIZE);
+        auto elem_str = rt_to_string_coerce(ctx, elem);
+
+        if (idx > 0 && !elem_str.empty()) {
+          result += " ";
+        }
+        result += elem_str;
+      }
+      return result;
+    }
 
     default:
       throw type_error("cannot coerce " + std::string(type_name(v)) + " to a string");
   }
-
-  // Allocate and store the result string - use alloc_string for simplicity
-  auto ptr = ctx.alloc_string(result);
-  return make_value(value_tag::string, ptr);
 }
 
 auto rt_concat_strings(runtime_context& ctx, std::uint32_t offset, std::uint32_t count)

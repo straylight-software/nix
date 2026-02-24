@@ -394,6 +394,11 @@ struct runtime_context {
 [[nodiscard]] auto rt_not(runtime_context& ctx, nix_value v) -> nix_value;
 [[nodiscard]] auto rt_is_bool(runtime_context& ctx, nix_value v) -> std::int32_t;
 
+/// Force and type-check a value to be boolean. Throws type_error if not.
+/// Used for if conditions and assert conditions.
+[[nodiscard]] auto rt_expect_bool(runtime_context& ctx, nix_value v, std::uint32_t line,
+                                  std::uint32_t col) -> nix_value;
+
 // --- Collections ---
 
 [[nodiscard]] auto rt_make_list(runtime_context& ctx, std::uint32_t offset, std::uint32_t count)
