@@ -42,7 +42,10 @@ cxx_library(
 cxx_library(
     name = "compile",
     exported_headers = [
+        "compile/capture.h",
         "compile/compiler.h",
+        "compile/scope.h",
+        "compile/value.h",
         "compile/wasm_types.h",
     ],
     header_namespace = "straylight/nix/compiler",

@@ -14,6 +14,7 @@
 
 #include "straylight/nix/compiler/ast/expression.h"
 #include "straylight/nix/compiler/ast/symbol_table.h"
+#include "straylight/nix/compiler/compile/capture.h"
 #include "straylight/nix/compiler/compile/wasm_types.h"
 
 namespace straylight::nix::compiler::compile {
@@ -719,9 +720,11 @@ private:
   /// This creates a function that evaluates the expression when called,
   /// capturing any free variables from the current scope.
   /// Returns a nix_value with tag=thunk.
-  /// @param force_captures if true (default), captured values are forced at capture time;
-  ///        if false, values are captured without forcing (for rec attrset bindings)
-  [[nodiscard]] auto compile_as_thunk(const ast::expression& expr, bool force_captures = true)
+  /// @param policy Controls whether captured values are forced at capture time.
+  ///        - force_eager (default): force captures at thunk creation (non-recursive contexts)
+  ///        - preserve_lazy: store captures without forcing (recursive contexts like let/rec)
+  [[nodiscard]] auto compile_as_thunk(const ast::expression& expr,
+                                      capture_policy policy = capture_policy::force_eager)
       -> BinaryenExpressionRef {
     // generate a unique function name for this thunk
     auto func_index = thunk_counter_++;
@@ -838,7 +841,7 @@ private:
       auto sym = captured_vars[idx];
       // look up the variable in the outer scope to get its value
       // For rec attrsets, we capture without forcing so mutual references work
-      auto var_value = compile_identifier_lookup(sym, {0, 0, 0}, force_captures);
+      auto var_value = compile_identifier_lookup(sym, {0, 0, 0}, should_force_captures(policy));
       thunk_setup.push_back(BinaryenStore(module_.get(), 8, env_offset + 4 + idx * 8, 0,
                                           BinaryenConst(module_.get(), BinaryenLiteralInt32(0)),
                                           var_value, BinaryenTypeInt64(), "memory"));
@@ -960,10 +963,11 @@ private:
                       BinaryenLiteralInt32(static_cast<std::int32_t>(capture_count))),
         BinaryenTypeInt32(), "memory"));
 
-    // Store captured values WITHOUT forcing (crucial for fixpoints)
+    // Store captured values using preserve_lazy semantics (crucial for fixpoints)
     for (std::uint32_t idx = 0; idx < capture_count; ++idx) {
       auto sym = captured_vars[idx];
-      auto var_value = compile_identifier_lookup(sym, {0, 0, 0}, false);
+      auto var_value = compile_identifier_lookup(
+          sym, {0, 0, 0}, should_force_captures(capture_policy::preserve_lazy));
       thunk_setup.push_back(BinaryenStore(module_.get(), 8, env_offset + 4 + idx * 8, 0,
                                           BinaryenConst(module_.get(), BinaryenLiteralInt32(0)),
                                           var_value, BinaryenTypeInt64(), "memory"));
@@ -1813,10 +1817,10 @@ private:
         return compile_expression(*direct_value);
       } else {
         // Non-trivial expression - wrap in thunk
-        // Use force_captures=false to avoid forcing captured variables during thunk creation.
+        // Use preserve_lazy to avoid forcing captured variables during thunk creation.
         // This is crucial for patterns like: makeExtensible (self: { inner = { lib = self; }; })
         // where `self` is a fixpoint parameter and must not be forced when creating the thunk.
-        return compile_as_thunk(*direct_value, false);
+        return compile_as_thunk(*direct_value, capture_policy::preserve_lazy);
       }
     }
 
@@ -2871,10 +2875,10 @@ private:
       if (info.slices.size() == 1 && info.slices[0].binding->path_.segments_.size() == 1) {
         // Single simple binding - wrap the value expression in a thunk
         // This is critical for forward references like: let x = y; y = 1; in x
-        // Use force_captures=false because let bindings are mutually recursive
+        // Use preserve_lazy because let bindings are mutually recursive
         // and we don't want to force captured values during thunk creation.
         // Example: let foo = { lib = self; }; in ... where self is a fixpoint.
-        value = compile_as_thunk(info.slices[0].binding->value_, false);
+        value = compile_as_thunk(info.slices[0].binding->value_, capture_policy::preserve_lazy);
       } else {
         // Multi-segment path or merged binding - use normal merging logic
         // This already wraps non-trivial sub-expressions in thunks
@@ -3004,14 +3008,16 @@ private:
               BinaryenTypeInt32(), "memory");
           store_ops.push_back(store_count);
 
-          // Store captured values (from outer scope) WITHOUT forcing.
+          // Store captured values using preserve_lazy semantics (don't force).
           // This is critical for fixpoint patterns like:
           //   fix (self: { trivial = let inherit (self.trivial) x; in {...}; })
           // Here `self` is captured but must not be forced during thunk creation.
           auto* saved_scope = current_scope_;
           current_scope_ = outer_scope;
           for (std::uint32_t idx = 0; idx < capture_count; ++idx) {
-            auto cap_value = compile_identifier_lookup(captured_vars[idx], {0, 0, 0}, false);
+            auto cap_value =
+                compile_identifier_lookup(captured_vars[idx], {0, 0, 0},
+                                          should_force_captures(capture_policy::preserve_lazy));
             auto store_cap = BinaryenStore(module_.get(), 8, env_offset + 4 + idx * 8, 0,
                                            BinaryenConst(module_.get(), BinaryenLiteralInt32(0)),
                                            cap_value, BinaryenTypeInt64(), "memory");
