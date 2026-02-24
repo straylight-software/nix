@@ -13,10 +13,10 @@ The restructure is complete. All files have been moved, namespaces updated, and 
 
 ### Remaining work (not blocking):
 
-- Create README.md for each new module
+- ~~Create README.md for each new module~~ ✓ Done
 - Fix runtime_test.cpp API mismatch (test disabled)
 - Update stale nix store paths in BUCK files (pre-existing issue)
-- Migrate to static musl builds (separate effort)
+- ~~Migrate to static musl builds~~ ✓ Done (toolchain configured, binaries statically linked)
 
 ______________________________________________________________________
 
