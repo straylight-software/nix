@@ -938,9 +938,11 @@ auto wasm_executor::execute(std::span<const std::uint8_t> wasm_binary) -> execut
     // Set up the callback for calling thunk functions (single env_ptr argument)
     ctx_.call_wasm_thunk = [this](std::uint32_t encoded_func_index,
                                   std::uint32_t env_ptr) -> nix_value {
-      // Decode module_id and local func_index
+      // Decode module_id and local thunk index
+      // Format: (module_id << 16) | local_thunk_index
+      // local_thunk_index is the thunk's index (0, 1, 2...) within that module's thunks
       auto module_id = static_cast<std::uint16_t>(encoded_func_index >> 16);
-      auto local_func_index = encoded_func_index & 0xFFFF;
+      auto local_thunk_index = encoded_func_index & 0xFFFF;
 
       auto* mod = get_module(module_id);
       if (!mod || !mod->func_table) {
@@ -948,17 +950,23 @@ auto wasm_executor::execute(std::span<const std::uint8_t> wasm_binary) -> execut
                             " not found or has no function table for thunk");
       }
 
+      // Thunks are stored at [lambda_count, lambda_count + thunk_count) in the function table
+      // Add the module-specific lambda_count to get the actual table index
+      auto table_index = local_thunk_index + mod->lambda_count;
+
       // Save and switch current_module_id so closures created during this call
       // get the correct module_id encoded
       auto saved_module_id = ctx_.current_module_id;
       ctx_.current_module_id = module_id;
 
       // Get the function from the module's table
-      auto val_opt = mod->func_table->get(store_->context(), local_func_index);
+      auto val_opt = mod->func_table->get(store_->context(), table_index);
       if (!val_opt) {
         ctx_.current_module_id = saved_module_id;
-        throw runtime_error("thunk index " + std::to_string(local_func_index) +
-                            " out of bounds in module " + std::to_string(module_id));
+        throw runtime_error("thunk index " + std::to_string(table_index) +
+                            " (local=" + std::to_string(local_thunk_index) +
+                            ", lambda_count=" + std::to_string(mod->lambda_count) +
+                            ") out of bounds in module " + std::to_string(module_id));
       }
       auto& val = *val_opt;
       auto func_opt = val.funcref();

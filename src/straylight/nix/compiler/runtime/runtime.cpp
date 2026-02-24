@@ -49,14 +49,15 @@ auto rt_force(runtime_context& ctx, nix_value v) -> nix_value {
     ctx.write_i32(thunk_ptr + mem::THUNK_STATE_OFFSET, mem::THUNK_STATE_EVALUATING);
 
     // get function and environment
-    auto thunk_func_index = ctx.read_u32(thunk_ptr + mem::THUNK_FUNC_INDEX_OFFSET);
+    // thunk_func_index is encoded as (module_id << 16) | local_thunk_index
+    // where local_thunk_index is the thunk's index within that module's thunks (0, 1, 2...)
+    // The actual table index adjustment (adding lambda_count) is done in call_wasm_thunk
+    // which has access to the per-module lambda_count.
+    auto encoded_func_index = ctx.read_u32(thunk_ptr + mem::THUNK_FUNC_INDEX_OFFSET);
     auto env_ptr = ctx.read_u32(thunk_ptr + mem::THUNK_ENV_PTR_OFFSET);
 
-    // thunks store relative indices (0, 1, 2...) but are at [lambda_count, ...) in the table
-    auto table_index = thunk_func_index + ctx.lambda_count;
-
     // call the thunk function (thunks take only env_ptr and return nix_value)
-    auto result = ctx.call_wasm_thunk(table_index, env_ptr);
+    auto result = ctx.call_wasm_thunk(encoded_func_index, env_ptr);
 
     // cache the result
     ctx.write_value(thunk_ptr + mem::THUNK_CACHED_VALUE_OFFSET, result);
