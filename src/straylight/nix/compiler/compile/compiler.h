@@ -1666,11 +1666,28 @@ private:
       throw compilation_error("attribute has both a direct value and nested attributes");
     }
 
-    // If only direct value, return it (wrapped in thunk for lazy evaluation if non-trivial)
+    // If only direct value, return it wrapped in a thunk for lazy evaluation
+    // This is crucial for self-referential attrsets like: let x = { a = 1; b = x; };
+    // The value `x` should not be forced until attribute `b` is actually accessed
     if (direct_value != nullptr) {
-      if (is_trivial_expression(*direct_value)) {
+      // Check if this is an identifier - identifiers must be read WITHOUT forcing
+      // because they might hold thunk values that shouldn't be forced during attrset
+      // construction. This applies to:
+      // - Let-bound variables: let x = { a = 1; b = x; }; (self-reference)
+      // - Function parameters: fix (self: { a = 1; b = self; }) (fixpoint pattern)
+      // - Captured variables: any closure that captures a thunk
+      //
+      // We just store the raw value (which might be a thunk). When the attribute
+      // is accessed and its value is used, the thunk will be forced then.
+      if (std::holds_alternative<ast::expression_identifier>(direct_value->get()->data_)) {
+        const auto& ident = std::get<ast::expression_identifier>(direct_value->get()->data_);
+        // Read identifier value WITHOUT forcing - preserve thunks as-is
+        return compile_identifier_lookup(ident.name_, ident.position_, false);
+      } else if (is_trivial_expression(*direct_value)) {
+        // Non-identifier trivial expression (literals) - safe to evaluate immediately
         return compile_expression(*direct_value);
       } else {
+        // Non-trivial expression - wrap in thunk
         return compile_as_thunk(*direct_value);
       }
     }
