@@ -232,6 +232,13 @@ filegroup(name = "rapidfuzz-cpp", srcs = [], visibility = ["PUBLIC"])
 filegroup(name = "zpp_bits", srcs = [], visibility = ["PUBLIC"])
 filegroup(name = "taskflow", srcs = [], visibility = ["PUBLIC"])
 
+# spdlog - fast logging (vendored, header-only with std::format)
+alias(
+    name = "spdlog",
+    actual = "//vendor/spdlog:spdlog",
+    visibility = ["PUBLIC"],
+)
+
 # mio - memory mapping (vendored header-only)
 cxx_library(
     name = "mio",

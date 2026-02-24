@@ -1,0 +1,42 @@
+# vendor/spdlog/BUCK
+#
+# spdlog - Fast C++ logging library
+# https://github.com/gabime/spdlog
+#
+# Header-only by default. We also provide a compiled version for faster
+# compilation in large projects.
+
+# Header-only version (default) - include this for most uses
+cxx_library(
+    name = "spdlog",
+    exported_headers = {h.removeprefix("include/"): h for h in glob(["include/**/*.h"])},
+    header_namespace = "",
+    exported_preprocessor_flags = [
+        # Use header-only mode
+        "-DSPDLOG_HEADER_ONLY=1",
+        # Use std::format instead of bundled fmt (C++20/23)
+        "-DSPDLOG_USE_STD_FORMAT=1",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+# Compiled version - faster compile times for large projects
+# Use this if you have many translation units including spdlog
+cxx_library(
+    name = "spdlog_compiled",
+    srcs = ["src/spdlog.cpp"],
+    exported_headers = {h.removeprefix("include/"): h for h in glob(["include/**/*.h"])},
+    header_namespace = "",
+    exported_preprocessor_flags = [
+        # Compiled mode - don't inline everything
+        "-DSPDLOG_COMPILED_LIB=1",
+        # Use std::format instead of bundled fmt (C++20/23)
+        "-DSPDLOG_USE_STD_FORMAT=1",
+    ],
+    compiler_flags = [
+        "-std=c++23",
+        "-DSPDLOG_COMPILED_LIB=1",
+        "-DSPDLOG_USE_STD_FORMAT=1",
+    ],
+    visibility = ["PUBLIC"],
+)

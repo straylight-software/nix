@@ -18,6 +18,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "straylight/nix/compiler/log.h"
 #include "straylight/nix/compiler/runtime/io_backend.h"
 
 namespace straylight::nix::compiler::runtime {
@@ -42,6 +43,11 @@ auto rt_force(runtime_context& ctx, nix_value v) -> nix_value {
 
     if (state == mem::THUNK_STATE_EVALUATING) {
       // infinite recursion detected
+      auto encoded_func_index = ctx.read_u32(thunk_ptr + mem::THUNK_FUNC_INDEX_OFFSET);
+      auto module_id = encoded_func_index >> 16;
+      auto local_idx = encoded_func_index & 0xFFFF;
+      LOG_ERROR("infinite recursion detected: thunk_ptr={} module={} local_idx={}", thunk_ptr,
+                module_id, local_idx);
       throw runtime_error("infinite recursion detected");
     }
 
@@ -56,8 +62,13 @@ auto rt_force(runtime_context& ctx, nix_value v) -> nix_value {
     auto encoded_func_index = ctx.read_u32(thunk_ptr + mem::THUNK_FUNC_INDEX_OFFSET);
     auto env_ptr = ctx.read_u32(thunk_ptr + mem::THUNK_ENV_PTR_OFFSET);
 
+    LOG_TRACE("forcing thunk: ptr={} module={} idx={}", thunk_ptr, encoded_func_index >> 16,
+              encoded_func_index & 0xFFFF);
+
     // call the thunk function (thunks take only env_ptr and return nix_value)
     auto result = ctx.call_wasm_thunk(encoded_func_index, env_ptr);
+
+    LOG_TRACE("thunk completed: ptr={}", thunk_ptr);
 
     // cache the result
     ctx.write_value(thunk_ptr + mem::THUNK_CACHED_VALUE_OFFSET, result);

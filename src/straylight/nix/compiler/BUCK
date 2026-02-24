@@ -67,6 +67,16 @@ cxx_library(
 )
 
 cxx_library(
+    name = "log",
+    exported_headers = ["log.h"],
+    header_namespace = "straylight/nix/compiler",
+    visibility = ["PUBLIC"],
+    exported_deps = [
+        "//third_party:spdlog",
+    ],
+)
+
+cxx_library(
     name = "runtime",
     srcs = ["runtime/runtime.cpp"],
     exported_headers = [
@@ -85,6 +95,7 @@ cxx_library(
     ],
     deps = [
         ":compile",  # for wasm_types.hh
+        ":log",      # for structured logging
     ],
 )
 
