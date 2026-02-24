@@ -11,11 +11,6 @@ COMMON_FLAGS = [
     "-Wpedantic",
 ]
 
-# Taskflow headers (until devshell picks up the new dep)
-TASKFLOW_FLAGS = [
-    "-isystem/nix/store/2rwbs7x5bmyx37svcqvvqz8kgxf413pc-taskflow-3.11.0/include",
-]
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Executor - work-stealing thread pool with Boehm GC integration
 # ─────────────────────────────────────────────────────────────────────────────
@@ -23,7 +18,10 @@ cxx_library(
     name = "executor",
     exported_headers = ["executor.h"],
     header_namespace = "straylight/nix/async",
-    compiler_flags = COMMON_FLAGS + TASKFLOW_FLAGS,
+    compiler_flags = COMMON_FLAGS,
+    deps = [
+        "//third_party:taskflow",
+    ],
     # For Boehm GC support, users should link with -lgc and define NIX_USE_BOEHMGC=1
     visibility = ["PUBLIC"],
 )
@@ -35,7 +33,10 @@ cxx_library(
     name = "task_graph",
     exported_headers = ["task_graph.h"],
     header_namespace = "straylight/nix/async",
-    compiler_flags = COMMON_FLAGS + TASKFLOW_FLAGS,
+    compiler_flags = COMMON_FLAGS,
+    deps = [
+        "//third_party:taskflow",
+    ],
     exported_deps = [
         ":executor",
     ],
@@ -49,7 +50,10 @@ cxx_library(
     name = "parallel",
     exported_headers = ["parallel.h"],
     header_namespace = "straylight/nix/async",
-    compiler_flags = COMMON_FLAGS + TASKFLOW_FLAGS,
+    compiler_flags = COMMON_FLAGS,
+    deps = [
+        "//third_party:taskflow",
+    ],
     exported_deps = [
         ":executor",
     ],
@@ -63,7 +67,10 @@ cxx_library(
     name = "closure",
     exported_headers = ["closure.h"],
     header_namespace = "straylight/nix/async",
-    compiler_flags = COMMON_FLAGS + TASKFLOW_FLAGS,
+    compiler_flags = COMMON_FLAGS,
+    deps = [
+        "//third_party:taskflow",
+    ],
     exported_deps = [
         ":executor",
     ],
@@ -82,7 +89,10 @@ cxx_library(
         "closure.h",
     ],
     header_namespace = "straylight/nix/async",
-    compiler_flags = COMMON_FLAGS + TASKFLOW_FLAGS,
+    compiler_flags = COMMON_FLAGS,
+    deps = [
+        "//third_party:taskflow",
+    ],
     exported_deps = [
         ":executor",
         ":task_graph",
@@ -112,7 +122,10 @@ cxx_library(
         "closure.h",
     ],
     header_namespace = "straylight/nix/async",
-    compiler_flags = COMMON_FLAGS + TASKFLOW_FLAGS + GC_FLAGS,
+    compiler_flags = COMMON_FLAGS + GC_FLAGS,
+    deps = [
+        "//third_party:taskflow",
+    ],
     linker_flags = GC_LINKER_FLAGS,
     exported_deps = [
         ":executor",

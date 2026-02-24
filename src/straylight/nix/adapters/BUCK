@@ -35,22 +35,10 @@ cxx_library(
 # Tests for adapters
 # ─────────────────────────────────────────────────────────────────────────────
 
-ADAPTER_TEST_LINKER_FLAGS = [
-    # RapidCheck
-    "-L/nix/store/16g9kcg05l7rpllkqh549mmybsrpqcj1-rapidcheck-0-unstable-2023-12-14/lib",
-    "-lrapidcheck",
-    "-Wl,-rpath,/nix/store/16g9kcg05l7rpllkqh549mmybsrpqcj1-rapidcheck-0-unstable-2023-12-14/lib",
-]
-
-ADAPTER_TEST_COMPILER_FLAGS = [
-    "-std=c++23",
-]
-
 cxx_test(
     name = "nix_strings_adapter_test",
     srcs = ["tests/nix_strings_adapter_test.cpp"],
-    compiler_flags = ADAPTER_TEST_COMPILER_FLAGS,
-    linker_flags = ADAPTER_TEST_LINKER_FLAGS,
+    compiler_flags = ["-std=c++23"],
     link_style = "static",
     deps = [
         ":nix_strings_adapter",

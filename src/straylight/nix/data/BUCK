@@ -10,11 +10,6 @@ COMMON_FLAGS = [
     "-Wpedantic",
 ]
 
-# zpp_bits include path
-ZPP_BITS_COMPILER_FLAGS = COMMON_FLAGS + [
-    "-isystem/nix/store/bx9q2zgry31v0fq01ylw6w9w4fbk2lza-zpp_bits-4.5/include",
-]
-
 # ─────────────────────────────────────────────────────────────────────────────
 # ChunkedVector - stable reference vector
 # ─────────────────────────────────────────────────────────────────────────────
@@ -55,7 +50,7 @@ cxx_library(
     name = "serialise",
     exported_headers = ["serialise.h"],
     header_namespace = "straylight/nix/data",
-    compiler_flags = ZPP_BITS_COMPILER_FLAGS,
+    compiler_flags = COMMON_FLAGS,
     deps = [
         "//third_party:zpp_bits",
     ],

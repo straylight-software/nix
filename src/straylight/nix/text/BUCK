@@ -10,23 +10,6 @@ COMMON_FLAGS = [
     "-Wpedantic",
 ]
 
-# RE2 flags
-REGEX_COMPILER_FLAGS = COMMON_FLAGS + [
-    "-isystem/nix/store/bvklk6khay8hv186g21vh4cz0b1h24cg-re2-2025-08-12-dev/include",
-    "-isystem/nix/store/d4qrcnr91qgbwp1sfb9q4mgw8mjqhk1v-abseil-cpp-20250512.1/include",
-]
-
-REGEX_LINKER_FLAGS = [
-    "-L/nix/store/g2sz6lsqmm054v9lkgkrz5gddxi7yipr-re2-2025-08-12/lib",
-    "-lre2",
-    "-Wl,-rpath,/nix/store/g2sz6lsqmm054v9lkgkrz5gddxi7yipr-re2-2025-08-12/lib",
-]
-
-# rapidfuzz flags
-FUZZY_COMPILER_FLAGS = COMMON_FLAGS + [
-    "-isystem/nix/store/ckb9dac1i1yww14lgj3y4ab0a04lwab9-rapidfuzz-cpp-3.3.3/include",
-]
-
 # ─────────────────────────────────────────────────────────────────────────────
 # String primitives (stringzilla backend)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -52,8 +35,7 @@ cxx_library(
     srcs = ["regex.cpp"],
     exported_headers = ["regex.h"],
     header_namespace = "straylight/nix/text",
-    compiler_flags = REGEX_COMPILER_FLAGS,
-    linker_flags = REGEX_LINKER_FLAGS,
+    compiler_flags = COMMON_FLAGS,
     deps = [
         "//third_party:re2",
     ],
@@ -67,7 +49,7 @@ cxx_library(
     name = "fuzzy",
     exported_headers = ["fuzzy.h"],
     header_namespace = "straylight/nix/text",
-    compiler_flags = FUZZY_COMPILER_FLAGS,
+    compiler_flags = COMMON_FLAGS,
     deps = [
         "//third_party:rapidfuzz-cpp",
     ],
