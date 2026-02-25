@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -16,6 +17,7 @@
 #include "straylight/nix/compiler/ast/expression.h"
 #include "straylight/nix/compiler/ast/symbol_table.h"
 #include "straylight/nix/compiler/compile/capture.h"
+#include "straylight/nix/compiler/compile/guard.h"
 #include "straylight/nix/compiler/compile/wasm_types.h"
 
 namespace straylight::nix::compiler::compile {
@@ -438,6 +440,14 @@ private:
 
 /// compiler state for a single compilation unit
 class compiler {
+  // RAII guards need access to private state for save/restore
+  friend class scope_guard;
+  friend class lambda_context_guard;
+  friend class rec_bindings_guard;
+  friend class let_bindings_guard;
+  friend class with_scope_guard;
+  friend class compilation_context_guard;
+
 public:
   explicit compiler(const ast::symbol_table& symbols) : symbols_(symbols) { setup_module(); }
 
@@ -753,59 +763,53 @@ private:
       }
     }
 
-    // save current lambda context
-    auto outer_lambda_context = std::move(current_lambda_context_);
-    current_lambda_context_ = lambda_context{};
-    current_lambda_context_->captures = captures;
-
-    // build capture index map
-    for (std::uint32_t idx = 0; idx < captures.size(); ++idx) {
-      current_lambda_context_->capture_indices[captures[idx]] = idx;
-    }
-
-    // create a new scope for the thunk body
+    // Create thunk scope and compile body
     std::uint32_t new_depth = current_scope_ ? current_scope_->depth() + 1 : 1;
     lexical_scope thunk_scope(nullptr, new_depth);
-    auto* outer_scope = current_scope_;
-    current_scope_ = &thunk_scope;
 
-    // thunk functions take only (env_ptr: i32) -> nix_value
-    // local 0: env_ptr (pointer to thunk environment)
-    current_lambda_context_->local_types.push_back(BinaryenTypeInt32()); // env_ptr
-    current_lambda_context_->next_local_index = 1;
-
-    // add captured variables to the scope
-    for (std::uint32_t idx = 0; idx < captures.size(); ++idx) {
-      thunk_scope.add_captured(captures[idx], idx);
-    }
-
-    // compile the body
-    auto body_expr = compile_expression(expr);
-
-    // create the function
-    // params: (env_ptr: i32)
-    BinaryenType param_types[] = {BinaryenTypeInt32()};
-    auto params = BinaryenTypeCreate(param_types, 1);
-
-    // locals: skip the first 1 (env_ptr param), the rest are actual locals
+    // Compile the thunk body with RAII-guarded context
     std::vector<BinaryenType> local_types;
-    for (std::size_t idx = 1; idx < current_lambda_context_->local_types.size(); ++idx) {
-      local_types.push_back(current_lambda_context_->local_types[idx]);
+    {
+      // RAII guards ensure state is restored even on early return/exception
+      scope_guard scope_g(*this, thunk_scope);
+      lambda_context_guard lambda_g(*this);
+
+      // Initialize lambda context for thunk
+      current_lambda_context_->captures = captures;
+      for (std::uint32_t idx = 0; idx < captures.size(); ++idx) {
+        current_lambda_context_->capture_indices[captures[idx]] = idx;
+      }
+
+      // thunk functions take only (env_ptr: i32) -> nix_value
+      current_lambda_context_->local_types.push_back(BinaryenTypeInt32()); // env_ptr
+      current_lambda_context_->next_local_index = 1;
+
+      // add captured variables to the scope
+      for (std::uint32_t idx = 0; idx < captures.size(); ++idx) {
+        thunk_scope.add_captured(captures[idx], idx);
+      }
+
+      // compile the body
+      auto body_expr = compile_expression(expr);
+
+      // extract local types before context is restored
+      for (std::size_t idx = 1; idx < current_lambda_context_->local_types.size(); ++idx) {
+        local_types.push_back(current_lambda_context_->local_types[idx]);
+      }
+
+      // create the function
+      BinaryenType param_types[] = {BinaryenTypeInt32()};
+      auto params = BinaryenTypeCreate(param_types, 1);
+      BinaryenAddFunction(module_.get(), func_name.c_str(), params, make_nix_value_type(),
+                          local_types.empty() ? nullptr : local_types.data(),
+                          static_cast<BinaryenIndex>(local_types.size()), body_expr);
+
+      // Guards restore state automatically at end of scope
     }
 
-    BinaryenAddFunction(module_.get(), func_name.c_str(), params, make_nix_value_type(),
-                        local_types.empty() ? nullptr : local_types.data(),
-                        static_cast<BinaryenIndex>(local_types.size()), body_expr);
-
-    // restore scope and context
-    current_scope_ = outer_scope;
-    auto captured_vars = std::move(current_lambda_context_->captures);
-    current_lambda_context_ = std::move(outer_lambda_context);
-
-    // create thunk value
-    if (captured_vars.empty()) {
+    // create thunk value (using captures from before the guarded scope)
+    if (captures.empty()) {
       // no captures - create a simple thunk with null env
-      // call __makeThunk(func_index, 0, 0)
       BinaryenExpressionRef make_thunk_args[] = {
           BinaryenConst(module_.get(), BinaryenLiteralInt32(static_cast<std::int32_t>(func_index))),
           BinaryenConst(module_.get(), BinaryenLiteralInt32(0)),
@@ -814,9 +818,7 @@ private:
     }
 
     // has captures - need to allocate environment and store captured values
-    // env layout: capture_count (i32) + captures[N] (nix_value each)
-    // total size: 4 + N * 8 bytes
-    auto capture_count = static_cast<std::uint32_t>(captured_vars.size());
+    auto capture_count = static_cast<std::uint32_t>(captures.size());
     auto env_size = 4 + capture_count * 8;
 
     // allocate env memory
@@ -824,10 +826,7 @@ private:
     data_offset_ += env_size;
     data_offset_ = (data_offset_ + 7) & ~7u; // align to 8
 
-    // generate code to:
-    // 1. store capture_count at env_offset
-    // 2. store each captured value at env_offset + 4 + i*8
-    // 3. call __makeThunk
+    // generate code to store captures and call __makeThunk
     std::vector<BinaryenExpressionRef> thunk_setup;
 
     // store capture_count
@@ -839,9 +838,7 @@ private:
 
     // store each captured value
     for (std::uint32_t idx = 0; idx < capture_count; ++idx) {
-      auto sym = captured_vars[idx];
-      // look up the variable in the outer scope to get its value
-      // For rec attrsets, we capture without forcing so mutual references work
+      auto sym = captures[idx];
       auto var_value = compile_identifier_lookup(sym, {0, 0, 0}, should_force_captures(policy));
       thunk_setup.push_back(BinaryenStore(module_.get(), 8, env_offset + 4 + idx * 8, 0,
                                           BinaryenConst(module_.get(), BinaryenLiteralInt32(0)),
@@ -892,55 +889,52 @@ private:
       }
     }
 
-    // Save context
-    auto outer_lambda_context = std::move(current_lambda_context_);
-    current_lambda_context_ = lambda_context{};
-    current_lambda_context_->captures = captures;
-
-    // Build capture index map
-    for (std::uint32_t idx = 0; idx < captures.size(); ++idx) {
-      current_lambda_context_->capture_indices[captures[idx]] = idx;
-    }
-
-    // Create thunk scope
+    // Create thunk scope and compile body
     std::uint32_t new_depth = current_scope_ ? current_scope_->depth() + 1 : 1;
     lexical_scope thunk_scope(nullptr, new_depth);
-    auto* outer_scope = current_scope_;
-    current_scope_ = &thunk_scope;
 
-    // Thunk params: (env_ptr: i32) -> nix_value
-    current_lambda_context_->local_types.push_back(BinaryenTypeInt32());
-    current_lambda_context_->next_local_index = 1;
+    // Compile thunk body with RAII-guarded context
+    {
+      scope_guard scope_g(*this, thunk_scope);
+      lambda_context_guard lambda_g(*this);
 
-    // Add captures to scope
-    for (std::uint32_t idx = 0; idx < captures.size(); ++idx) {
-      thunk_scope.add_captured(captures[idx], idx);
+      // Initialize lambda context
+      current_lambda_context_->captures = captures;
+      for (std::uint32_t idx = 0; idx < captures.size(); ++idx) {
+        current_lambda_context_->capture_indices[captures[idx]] = idx;
+      }
+
+      // Thunk params: (env_ptr: i32) -> nix_value
+      current_lambda_context_->local_types.push_back(BinaryenTypeInt32());
+      current_lambda_context_->next_local_index = 1;
+
+      // Add captures to scope
+      for (std::uint32_t idx = 0; idx < captures.size(); ++idx) {
+        thunk_scope.add_captured(captures[idx], idx);
+      }
+
+      // Compile: from_expr.attr
+      auto from_value = compile_expression(from_expr);
+      auto thunk_body = compile_select(from_value, attr, position);
+
+      // Extract local types before context is restored
+      std::vector<BinaryenType> local_types;
+      for (std::size_t idx = 1; idx < current_lambda_context_->local_types.size(); ++idx) {
+        local_types.push_back(current_lambda_context_->local_types[idx]);
+      }
+
+      // Create the function
+      BinaryenType param_types[] = {BinaryenTypeInt32()};
+      auto params = BinaryenTypeCreate(param_types, 1);
+      BinaryenAddFunction(module_.get(), func_name.c_str(), params, make_nix_value_type(),
+                          local_types.empty() ? nullptr : local_types.data(),
+                          static_cast<BinaryenIndex>(local_types.size()), thunk_body);
+
+      // Guards restore context automatically
     }
-
-    // Compile: from_expr.attr
-    auto from_value = compile_expression(from_expr);
-    auto thunk_body = compile_select(from_value, attr, position);
-
-    // Create the function
-    BinaryenType param_types[] = {BinaryenTypeInt32()};
-    auto params = BinaryenTypeCreate(param_types, 1);
-
-    std::vector<BinaryenType> local_types;
-    for (std::size_t idx = 1; idx < current_lambda_context_->local_types.size(); ++idx) {
-      local_types.push_back(current_lambda_context_->local_types[idx]);
-    }
-
-    BinaryenAddFunction(module_.get(), func_name.c_str(), params, make_nix_value_type(),
-                        local_types.empty() ? nullptr : local_types.data(),
-                        static_cast<BinaryenIndex>(local_types.size()), thunk_body);
-
-    // Restore context
-    current_scope_ = outer_scope;
-    auto captured_vars = std::move(current_lambda_context_->captures);
-    current_lambda_context_ = std::move(outer_lambda_context);
 
     // Create thunk value
-    if (captured_vars.empty()) {
+    if (captures.empty()) {
       BinaryenExpressionRef make_thunk_args[] = {
           BinaryenConst(module_.get(), BinaryenLiteralInt32(static_cast<std::int32_t>(func_index))),
           BinaryenConst(module_.get(), BinaryenLiteralInt32(0)),
@@ -949,7 +943,7 @@ private:
     }
 
     // Allocate environment for captures
-    auto capture_count = static_cast<std::uint32_t>(captured_vars.size());
+    auto capture_count = static_cast<std::uint32_t>(captures.size());
     auto env_size = 4 + capture_count * 8;
     auto env_offset = data_offset_;
     data_offset_ += env_size;
@@ -966,7 +960,7 @@ private:
 
     // Store captured values using preserve_lazy semantics (crucial for fixpoints)
     for (std::uint32_t idx = 0; idx < capture_count; ++idx) {
-      auto sym = captured_vars[idx];
+      auto sym = captures[idx];
       auto var_value = compile_identifier_lookup(
           sym, {0, 0, 0}, should_force_captures(capture_policy::preserve_lazy));
       thunk_setup.push_back(BinaryenStore(module_.get(), 8, env_offset + 4 + idx * 8, 0,
@@ -1007,74 +1001,63 @@ private:
     // 1. rec-scope variables (read from shared memory at force-time)
     // 2. other variables (captured normally)
     std::vector<ast::symbol> captures;
-    std::vector<ast::symbol> rec_vars;
     for (auto sym : free_vars) {
       if (rec_binding_offsets.count(sym.index_)) {
-        rec_vars.push_back(sym);
-      } else if (current_scope_ && current_scope_->lookup(sym).has_value()) {
+        // rec-scope variable - handled via shared memory, not captured
+        continue;
+      }
+      if (current_scope_ && current_scope_->lookup(sym).has_value()) {
         captures.push_back(sym);
       }
     }
 
-    // save current lambda context
-    auto outer_lambda_context = std::move(current_lambda_context_);
-    current_lambda_context_ = lambda_context{};
-    current_lambda_context_->captures = captures;
-
-    // build capture index map (only for non-rec captures)
-    for (std::uint32_t idx = 0; idx < captures.size(); ++idx) {
-      current_lambda_context_->capture_indices[captures[idx]] = idx;
-    }
-
-    // create a new scope for the thunk body
+    // Create thunk scope and compile body
     std::uint32_t new_depth = current_scope_ ? current_scope_->depth() + 1 : 1;
     lexical_scope thunk_scope(nullptr, new_depth);
-    auto* outer_scope = current_scope_;
-    current_scope_ = &thunk_scope;
 
-    // thunk function takes (env_ptr: i32) -> nix_value
-    // env layout: capture_count (i32), captures[], rec_env_offset (i32)
-    current_lambda_context_->local_types.push_back(BinaryenTypeInt32()); // env_ptr
-    current_lambda_context_->next_local_index = 1;
+    // Compile thunk body with RAII-guarded context
+    {
+      scope_guard scope_g(*this, thunk_scope);
+      lambda_context_guard lambda_g(*this);
+      rec_bindings_guard rec_g(*this, rec_binding_offsets);
 
-    // add captured variables to scope
-    for (std::uint32_t idx = 0; idx < captures.size(); ++idx) {
-      thunk_scope.add_captured(captures[idx], idx);
+      // Initialize lambda context
+      current_lambda_context_->captures = captures;
+      for (std::uint32_t idx = 0; idx < captures.size(); ++idx) {
+        current_lambda_context_->capture_indices[captures[idx]] = idx;
+      }
+
+      // thunk function takes (env_ptr: i32) -> nix_value
+      current_lambda_context_->local_types.push_back(BinaryenTypeInt32());
+      current_lambda_context_->next_local_index = 1;
+
+      // add captured variables to scope
+      for (std::uint32_t idx = 0; idx < captures.size(); ++idx) {
+        thunk_scope.add_captured(captures[idx], idx);
+      }
+
+      // compile the body
+      auto body_expr = compile_expression(expr);
+
+      // Extract local types before context is restored
+      std::vector<BinaryenType> local_types;
+      for (std::size_t idx = 1; idx < current_lambda_context_->local_types.size(); ++idx) {
+        local_types.push_back(current_lambda_context_->local_types[idx]);
+      }
+
+      // create the function
+      BinaryenType param_types[] = {BinaryenTypeInt32()};
+      auto params = BinaryenTypeCreate(param_types, 1);
+      BinaryenAddFunction(module_.get(), func_name.c_str(), params, make_nix_value_type(),
+                          local_types.empty() ? nullptr : local_types.data(),
+                          static_cast<BinaryenIndex>(local_types.size()), body_expr);
+
+      // Guards restore context automatically
     }
-
-    // For rec-scope variables, we'll generate code that reads from shared memory
-    // Store the rec_binding_offsets in a member so compile_identifier_lookup can use it
-    auto outer_rec_offsets = std::move(current_rec_binding_offsets_);
-    current_rec_binding_offsets_ = rec_binding_offsets;
-
-    // compile the body
-    auto body_expr = compile_expression(expr);
-
-    // restore rec offsets
-    current_rec_binding_offsets_ = std::move(outer_rec_offsets);
-
-    // create the function
-    BinaryenType param_types[] = {BinaryenTypeInt32()};
-    auto params = BinaryenTypeCreate(param_types, 1);
-
-    std::vector<BinaryenType> local_types;
-    for (std::size_t idx = 1; idx < current_lambda_context_->local_types.size(); ++idx) {
-      local_types.push_back(current_lambda_context_->local_types[idx]);
-    }
-
-    BinaryenAddFunction(module_.get(), func_name.c_str(), params, make_nix_value_type(),
-                        local_types.empty() ? nullptr : local_types.data(),
-                        static_cast<BinaryenIndex>(local_types.size()), body_expr);
-
-    // restore scope and context
-    current_scope_ = outer_scope;
-    auto captured_vars = std::move(current_lambda_context_->captures);
-    current_lambda_context_ = std::move(outer_lambda_context);
 
     // Build thunk environment:
     // Layout: capture_count (i32), captures[], rec_env_offset (i32)
-    auto capture_count = static_cast<std::uint32_t>(captured_vars.size());
-    // +4 for capture_count, +4 for rec_env_offset
+    auto capture_count = static_cast<std::uint32_t>(captures.size());
     auto env_size = 4 + capture_count * 8 + 4;
 
     auto env_offset = data_offset_;
@@ -1092,7 +1075,7 @@ private:
 
     // store captured values (from outer scope, not rec scope)
     for (std::uint32_t idx = 0; idx < capture_count; ++idx) {
-      auto sym = captured_vars[idx];
+      auto sym = captures[idx];
       auto var_value = compile_identifier_lookup(sym);
       thunk_setup.push_back(BinaryenStore(module_.get(), 8, env_offset + 4 + idx * 8, 0,
                                           BinaryenConst(module_.get(), BinaryenLiteralInt32(0)),
@@ -2126,7 +2109,7 @@ private:
     std::uint32_t scope_depth = current_scope_ ? current_scope_->depth() : 0;
     lexical_scope rec_scope(current_scope_, scope_depth);
     auto* outer_scope = current_scope_;
-    current_scope_ = &rec_scope;
+    scope_guard rec_scope_g(*this, rec_scope);
 
     // first pass: allocate locals for all bindings
     for (const auto& binding : expr.bindings_) {
@@ -2135,16 +2118,13 @@ private:
 
         // for now, only single-segment static paths
         if (attr_binding.path_.segments_.empty()) {
-          current_scope_ = outer_scope;
           throw compilation_error("empty attribute path in rec");
         }
         if (attr_binding.path_.segments_.size() > 1) {
-          current_scope_ = outer_scope;
           throw compilation_error("multi-segment attribute paths in rec not yet implemented");
         }
         const auto& segment = attr_binding.path_.segments_[0];
         if (segment.is_dynamic()) {
-          current_scope_ = outer_scope;
           throw compilation_error("dynamic attribute names in rec not yet implemented");
         }
 
@@ -2160,7 +2140,6 @@ private:
         for (std::size_t idx = 0; idx < inherit_binding.attributes_.size(); ++idx) {
           const auto& attr_name = inherit_binding.attributes_[idx];
           if (attr_name.is_dynamic()) {
-            current_scope_ = outer_scope;
             throw compilation_error("dynamic inherit names in rec not yet implemented");
           }
 
@@ -2217,9 +2196,8 @@ private:
           value = compile_select(from_value, key_str, attr_name.position_);
         } else {
           // inherit x; - look up from outer scope
-          current_scope_ = outer_scope;
+          scope_guard outer_g(*this, *outer_scope);
           value = compile_identifier_lookup(sym, attr_name.position_);
-          current_scope_ = &rec_scope;
         }
       }
 
@@ -2238,7 +2216,6 @@ private:
     auto attr_count = static_cast<std::uint32_t>(bindings.size());
 
     if (attr_count == 0) {
-      current_scope_ = outer_scope;
       return BinaryenConst(module_.get(), BinaryenLiteralInt64(packed::empty_attribute_set));
     }
 
@@ -2278,8 +2255,7 @@ private:
         BinaryenCall(module_.get(), "__makeAttrs", make_attrs_args, 2, make_nix_value_type());
     ops.push_back(make_attrs);
 
-    // restore outer scope
-    current_scope_ = outer_scope;
+    // Guard restores outer scope automatically
 
     return BinaryenBlock(module_.get(), nullptr, ops.data(), static_cast<BinaryenIndex>(ops.size()),
                          make_nix_value_type());
@@ -2523,143 +2499,139 @@ private:
       }
     }
 
-    // save current lambda context
-    auto outer_lambda_context = std::move(current_lambda_context_);
-    current_lambda_context_ = lambda_context{};
-    current_lambda_context_->captures = captures;
-
-    // build capture index map
-    for (std::uint32_t idx = 0; idx < captures.size(); ++idx) {
-      current_lambda_context_->capture_indices[captures[idx]] = idx;
-    }
-
-    // create a new scope for the lambda body
-    // depth is incremented to track we're in a nested function
+    // Create lambda scope and compile body with RAII-guarded context
     std::uint32_t new_depth = current_scope_ ? current_scope_->depth() + 1 : 1;
     lexical_scope lambda_scope(nullptr, new_depth); // no parent - captures are explicit
-    auto* outer_scope = current_scope_;
-    current_scope_ = &lambda_scope;
 
-    // lambda functions take (env_ptr: i32, arg: nix_value) -> nix_value
-    // local 0: env_ptr (pointer to closure environment)
-    // local 1: arg (the function argument)
-    current_lambda_context_->local_types.push_back(BinaryenTypeInt32());   // env_ptr
-    current_lambda_context_->local_types.push_back(make_nix_value_type()); // arg
-    current_lambda_context_->next_local_index = 2;
+    // Compile lambda body in guarded context
+    {
+      scope_guard scope_g(*this, lambda_scope);
+      lambda_context_guard lambda_g(*this);
 
-    // add captured variables to the scope
-    for (std::uint32_t idx = 0; idx < captures.size(); ++idx) {
-      lambda_scope.add_captured(captures[idx], idx);
-    }
-
-    // add the argument binding to the scope
-    std::uint32_t arg_local_index = 1;
-
-    // handle the pattern binding
-    BinaryenExpressionRef pattern_setup = nullptr;
-
-    if (std::holds_alternative<ast::pattern_simple>(pattern)) {
-      // simple pattern: x: body
-      const auto& simple = std::get<ast::pattern_simple>(pattern);
-      lambda_scope.add_local(simple.argument_name_, arg_local_index);
-    } else {
-      // attrset pattern: { a, b ? default, ... }@name: body
-      const auto& attrset_pattern = std::get<ast::pattern_attrset>(pattern);
-
-      // if there's an @name binding, bind the whole argument
-      if (attrset_pattern.argument_name_.has_value()) {
-        lambda_scope.add_local(*attrset_pattern.argument_name_, arg_local_index);
+      // Initialize lambda context with captures
+      current_lambda_context_->captures = captures;
+      for (std::uint32_t idx = 0; idx < captures.size(); ++idx) {
+        current_lambda_context_->capture_indices[captures[idx]] = idx;
       }
 
-      // for each formal parameter, we need to extract it from the argument attrset
-      std::vector<BinaryenExpressionRef> setup_ops;
+      // lambda functions take (env_ptr: i32, arg: nix_value) -> nix_value
+      // local 0: env_ptr (pointer to closure environment)
+      // local 1: arg (the function argument)
+      current_lambda_context_->local_types.push_back(BinaryenTypeInt32());   // env_ptr
+      current_lambda_context_->local_types.push_back(make_nix_value_type()); // arg
+      current_lambda_context_->next_local_index = 2;
 
-      for (const auto& formal : attrset_pattern.formals_) {
-        // allocate a local for this formal parameter
-        auto formal_local = current_lambda_context_->next_local_index++;
-        current_lambda_context_->local_types.push_back(make_nix_value_type());
-        lambda_scope.add_local(formal.name_, formal_local);
+      // add captured variables to the scope
+      for (std::uint32_t idx = 0; idx < captures.size(); ++idx) {
+        lambda_scope.add_captured(captures[idx], idx);
+      }
 
-        // generate code to extract the attribute from the argument
-        auto key_str = symbols_.lookup(formal.name_);
-        auto key_offset = allocate_string(key_str);
+      // add the argument binding to the scope
+      std::uint32_t arg_local_index = 1;
 
-        BinaryenExpressionRef value_expr;
-        if (formal.default_value_.has_value()) {
-          // has default: use __hasAttr to check, then select or use default
-          // if (hasAttr(arg, key)) select(arg, key) else default
-          auto arg_value_has =
-              BinaryenLocalGet(module_.get(), arg_local_index, make_nix_value_type());
-          BinaryenExpressionRef has_attr_args[] = {
-              arg_value_has,
-              BinaryenConst(module_.get(),
-                            BinaryenLiteralInt32(static_cast<std::int32_t>(key_offset)))};
-          auto has_attr_result =
-              BinaryenCall(module_.get(), "__hasAttr", has_attr_args, 2, make_nix_value_type());
+      // handle the pattern binding
+      BinaryenExpressionRef pattern_setup = nullptr;
 
-          // convert nix_value bool to wasm i32 condition
-          auto condition = BinaryenBinary(
-              module_.get(), BinaryenEqInt64(), has_attr_result,
-              BinaryenConst(module_.get(), BinaryenLiteralInt64(packed::boolean_true)));
+      if (std::holds_alternative<ast::pattern_simple>(pattern)) {
+        // simple pattern: x: body
+        const auto& simple = std::get<ast::pattern_simple>(pattern);
+        lambda_scope.add_local(simple.argument_name_, arg_local_index);
+      } else {
+        // attrset pattern: { a, b ? default, ... }@name: body
+        const auto& attrset_pattern = std::get<ast::pattern_attrset>(pattern);
 
-          // then branch: select the attribute
-          auto arg_value_select =
-              BinaryenLocalGet(module_.get(), arg_local_index, make_nix_value_type());
-          auto selected_value = compile_select(arg_value_select, key_str, formal.position_);
-
-          // else branch: use default value
-          auto default_val = compile_expression(*formal.default_value_);
-
-          value_expr = BinaryenIf(module_.get(), condition, selected_value, default_val);
-        } else {
-          // no default: just select (will error if not found)
-          auto arg_value = BinaryenLocalGet(module_.get(), arg_local_index, make_nix_value_type());
-          value_expr = compile_select(arg_value, key_str, formal.position_);
+        // if there's an @name binding, bind the whole argument
+        if (attrset_pattern.argument_name_.has_value()) {
+          lambda_scope.add_local(*attrset_pattern.argument_name_, arg_local_index);
         }
 
-        // store to local
-        auto store_local = BinaryenLocalSet(module_.get(), formal_local, value_expr);
-        setup_ops.push_back(store_local);
+        // for each formal parameter, we need to extract it from the argument attrset
+        std::vector<BinaryenExpressionRef> setup_ops;
+
+        for (const auto& formal : attrset_pattern.formals_) {
+          // allocate a local for this formal parameter
+          auto formal_local = current_lambda_context_->next_local_index++;
+          current_lambda_context_->local_types.push_back(make_nix_value_type());
+          lambda_scope.add_local(formal.name_, formal_local);
+
+          // generate code to extract the attribute from the argument
+          auto key_str = symbols_.lookup(formal.name_);
+          auto key_offset = allocate_string(key_str);
+
+          BinaryenExpressionRef value_expr;
+          if (formal.default_value_.has_value()) {
+            // has default: use __hasAttr to check, then select or use default
+            // if (hasAttr(arg, key)) select(arg, key) else default
+            auto arg_value_has =
+                BinaryenLocalGet(module_.get(), arg_local_index, make_nix_value_type());
+            BinaryenExpressionRef has_attr_args[] = {
+                arg_value_has,
+                BinaryenConst(module_.get(),
+                              BinaryenLiteralInt32(static_cast<std::int32_t>(key_offset)))};
+            auto has_attr_result =
+                BinaryenCall(module_.get(), "__hasAttr", has_attr_args, 2, make_nix_value_type());
+
+            // convert nix_value bool to wasm i32 condition
+            auto condition = BinaryenBinary(
+                module_.get(), BinaryenEqInt64(), has_attr_result,
+                BinaryenConst(module_.get(), BinaryenLiteralInt64(packed::boolean_true)));
+
+            // then branch: select the attribute
+            auto arg_value_select =
+                BinaryenLocalGet(module_.get(), arg_local_index, make_nix_value_type());
+            auto selected_value = compile_select(arg_value_select, key_str, formal.position_);
+
+            // else branch: use default value
+            auto default_val = compile_expression(*formal.default_value_);
+
+            value_expr = BinaryenIf(module_.get(), condition, selected_value, default_val);
+          } else {
+            // no default: just select (will error if not found)
+            auto arg_value = BinaryenLocalGet(module_.get(), arg_local_index, make_nix_value_type());
+            value_expr = compile_select(arg_value, key_str, formal.position_);
+          }
+
+          // store to local
+          auto store_local = BinaryenLocalSet(module_.get(), formal_local, value_expr);
+          setup_ops.push_back(store_local);
+        }
+
+        if (!setup_ops.empty()) {
+          pattern_setup =
+              BinaryenBlock(module_.get(), nullptr, setup_ops.data(),
+                            static_cast<BinaryenIndex>(setup_ops.size()), BinaryenTypeNone());
+        }
       }
 
-      if (!setup_ops.empty()) {
-        pattern_setup =
-            BinaryenBlock(module_.get(), nullptr, setup_ops.data(),
-                          static_cast<BinaryenIndex>(setup_ops.size()), BinaryenTypeNone());
+      // compile the body
+      auto body_expr = compile_expression(expr.body_);
+
+      // if we have pattern setup, combine it with the body
+      BinaryenExpressionRef full_body;
+      if (pattern_setup) {
+        BinaryenExpressionRef body_parts[] = {pattern_setup, body_expr};
+        full_body = BinaryenBlock(module_.get(), nullptr, body_parts, 2, make_nix_value_type());
+      } else {
+        full_body = body_expr;
       }
+
+      // create the function
+      // params: (env_ptr: i32, arg: nix_value)
+      BinaryenType param_types[] = {BinaryenTypeInt32(), make_nix_value_type()};
+      auto params = BinaryenTypeCreate(param_types, 2);
+
+      // locals: skip the first 2 (params), the rest are actual locals
+      std::vector<BinaryenType> local_types;
+      for (std::size_t idx = 2; idx < current_lambda_context_->local_types.size(); ++idx) {
+        local_types.push_back(current_lambda_context_->local_types[idx]);
+      }
+
+      BinaryenAddFunction(module_.get(), func_name.c_str(), params, make_nix_value_type(),
+                          local_types.empty() ? nullptr : local_types.data(),
+                          static_cast<BinaryenIndex>(local_types.size()), full_body);
+
+      // Guards restore scope and context automatically
     }
-
-    // compile the body
-    auto body_expr = compile_expression(expr.body_);
-
-    // if we have pattern setup, combine it with the body
-    BinaryenExpressionRef full_body;
-    if (pattern_setup) {
-      BinaryenExpressionRef body_parts[] = {pattern_setup, body_expr};
-      full_body = BinaryenBlock(module_.get(), nullptr, body_parts, 2, make_nix_value_type());
-    } else {
-      full_body = body_expr;
-    }
-
-    // create the function
-    // params: (env_ptr: i32, arg: nix_value)
-    BinaryenType param_types[] = {BinaryenTypeInt32(), make_nix_value_type()};
-    auto params = BinaryenTypeCreate(param_types, 2);
-
-    // locals: skip the first 2 (params), the rest are actual locals
-    std::vector<BinaryenType> local_types;
-    for (std::size_t idx = 2; idx < current_lambda_context_->local_types.size(); ++idx) {
-      local_types.push_back(current_lambda_context_->local_types[idx]);
-    }
-
-    BinaryenAddFunction(module_.get(), func_name.c_str(), params, make_nix_value_type(),
-                        local_types.empty() ? nullptr : local_types.data(),
-                        static_cast<BinaryenIndex>(local_types.size()), full_body);
-
-    // restore scope and context
-    current_scope_ = outer_scope;
-    auto captured_vars = std::move(current_lambda_context_->captures);
-    current_lambda_context_ = std::move(outer_lambda_context);
 
     // Create closure value via __makeClosure host call.
     // This allows the runtime to encode the module_id for cross-module lambda support.
@@ -2670,7 +2642,7 @@ private:
     //   1. Encodes the module_id into func_index
     //   2. Allocates the closure on the heap
     //   3. Returns the packed closure value
-    auto capture_count = static_cast<std::uint32_t>(captured_vars.size());
+    auto capture_count = static_cast<std::uint32_t>(captures.size());
     auto env_size = 4 + capture_count * 8; // capture_count (i32) + captures
 
     // Allocate environment in data segment
@@ -2678,7 +2650,7 @@ private:
     data_offset_ += env_size;
     data_offset_ = (data_offset_ + 7) & ~7u; // align to 8
 
-    if (captured_vars.empty()) {
+    if (captures.empty()) {
       // Zero-capture lambda: environment is just [capture_count=0]
       std::vector<char> env_data(4, 0); // capture_count = 0
       BinaryenAddDataSegment(module_.get(), nullptr, "memory", false,
@@ -2708,7 +2680,7 @@ private:
     // IMPORTANT: Don't force captured values! They remain lazy.
     // This is critical for builtins like tryEval that need to catch errors.
     for (std::uint32_t idx = 0; idx < capture_count; ++idx) {
-      auto sym = captured_vars[idx];
+      auto sym = captures[idx];
       auto var_value = compile_identifier_lookup(sym, {0, 0, 0}, false); // Don't force
       env_setup.push_back(BinaryenStore(module_.get(), 8, env_offset + 4 + idx * 8, 0,
                                         BinaryenConst(module_.get(), BinaryenLiteralInt32(0)),
@@ -2785,7 +2757,7 @@ private:
     std::uint32_t scope_depth = current_scope_ ? current_scope_->depth() : 0;
     lexical_scope let_scope(current_scope_, scope_depth);
     auto* outer_scope = current_scope_;
-    current_scope_ = &let_scope;
+    scope_guard let_scope_g(*this, let_scope);
 
     // Group bindings by first segment for multi-segment path merging
     auto grouped = group_bindings_by_first_segment(expr.bindings_);
@@ -2884,15 +2856,16 @@ private:
       offset_idx++;
     }
 
-    // Save outer let binding offsets and set current
-    auto outer_let_offsets = std::move(current_let_binding_offsets_);
-    current_let_binding_offsets_ = let_binding_offsets;
-
     // ========================================================================
     // PASS 3: Compile all values and store in shared memory + locals
     // ========================================================================
 
     std::vector<BinaryenExpressionRef> binding_ops;
+
+    // Compile bindings with let_binding_offsets in scope
+    // (needed so thunks know to access let-bound vars via memory)
+    {
+      let_bindings_guard let_offsets_g(*this, let_binding_offsets);
 
     // Compile grouped attribute bindings as thunks for lazy evaluation
     // All let bindings must be thunks to support forward/mutual references
@@ -2946,11 +2919,6 @@ private:
         auto func_name = "__thunk_" + std::to_string(func_index);
         thunk_function_names_.push_back(func_name);
 
-        // The thunk body will compile the from_expression and select
-        // Save current context
-        auto outer_lambda_context = std::move(current_lambda_context_);
-        current_lambda_context_ = lambda_context{};
-
         // Thunk needs to capture variables from from_expression
         std::vector<ast::symbol> bound_names;
         auto free_vars =
@@ -2967,50 +2935,53 @@ private:
             captures.push_back(sym);
         }
 
-        current_lambda_context_->captures = captures;
-        for (std::uint32_t idx = 0; idx < captures.size(); ++idx) {
-          current_lambda_context_->capture_indices[captures[idx]] = idx;
-        }
-
-        // Create thunk scope
+        // Create thunk scope and compile body with RAII-guarded context
         std::uint32_t new_depth = outer_scope ? outer_scope->depth() + 1 : 1;
         lexical_scope thunk_scope(nullptr, new_depth);
-        current_scope_ = &thunk_scope;
 
-        // Thunk takes only env_ptr
-        current_lambda_context_->local_types.push_back(BinaryenTypeInt32());
-        current_lambda_context_->next_local_index = 1;
+        // Compile thunk body in guarded context
+        {
+          scope_guard scope_g(*this, thunk_scope);
+          lambda_context_guard lambda_g(*this);
 
-        // Add captures to thunk scope
-        for (std::uint32_t idx = 0; idx < captures.size(); ++idx) {
-          thunk_scope.add_captured(captures[idx], idx);
+          // Initialize lambda context with captures
+          current_lambda_context_->captures = captures;
+          for (std::uint32_t idx = 0; idx < captures.size(); ++idx) {
+            current_lambda_context_->capture_indices[captures[idx]] = idx;
+          }
+
+          // Thunk takes only env_ptr
+          current_lambda_context_->local_types.push_back(BinaryenTypeInt32());
+          current_lambda_context_->next_local_index = 1;
+
+          // Add captures to thunk scope
+          for (std::uint32_t idx = 0; idx < captures.size(); ++idx) {
+            thunk_scope.add_captured(captures[idx], idx);
+          }
+
+          // Compile: from_expr.attr_name
+          auto from_expr = compile_expression(*info.inherit_binding->from_expression_);
+          auto thunk_body = compile_select(
+              from_expr, key_str, info.inherit_binding->attributes_[info.attr_index].position_);
+
+          // Create the thunk function
+          BinaryenType param_types[] = {BinaryenTypeInt32()};
+          auto params = BinaryenTypeCreate(param_types, 1);
+
+          std::vector<BinaryenType> local_types;
+          for (std::size_t idx = 1; idx < current_lambda_context_->local_types.size(); ++idx) {
+            local_types.push_back(current_lambda_context_->local_types[idx]);
+          }
+
+          BinaryenAddFunction(module_.get(), func_name.c_str(), params, make_nix_value_type(),
+                              local_types.empty() ? nullptr : local_types.data(),
+                              static_cast<BinaryenIndex>(local_types.size()), thunk_body);
+
+          // Guards restore scope and context automatically
         }
 
-        // Compile: from_expr.attr_name
-        auto from_expr = compile_expression(*info.inherit_binding->from_expression_);
-        auto thunk_body = compile_select(
-            from_expr, key_str, info.inherit_binding->attributes_[info.attr_index].position_);
-
-        // Create the thunk function
-        BinaryenType param_types[] = {BinaryenTypeInt32()};
-        auto params = BinaryenTypeCreate(param_types, 1);
-
-        std::vector<BinaryenType> local_types;
-        for (std::size_t idx = 1; idx < current_lambda_context_->local_types.size(); ++idx) {
-          local_types.push_back(current_lambda_context_->local_types[idx]);
-        }
-
-        BinaryenAddFunction(module_.get(), func_name.c_str(), params, make_nix_value_type(),
-                            local_types.empty() ? nullptr : local_types.data(),
-                            static_cast<BinaryenIndex>(local_types.size()), thunk_body);
-
-        // Restore context
-        current_scope_ = &let_scope;
-        auto captured_vars = std::move(current_lambda_context_->captures);
-        current_lambda_context_ = std::move(outer_lambda_context);
-
-        // Create the thunk value
-        if (captured_vars.empty()) {
+        // Create the thunk value (captures available from outer scope)
+        if (captures.empty()) {
           BinaryenExpressionRef make_thunk_args[] = {
               BinaryenConst(module_.get(),
                             BinaryenLiteralInt32(static_cast<std::int32_t>(func_index))),
@@ -3020,7 +2991,7 @@ private:
               BinaryenCall(module_.get(), "__makeThunk", make_thunk_args, 3, make_nix_value_type());
         } else {
           // Allocate and populate environment
-          auto capture_count = static_cast<std::uint32_t>(captured_vars.size());
+          auto capture_count = static_cast<std::uint32_t>(captures.size());
           auto env_size = 4 + capture_count * 8;
           auto env_offset = data_offset_;
           data_offset_ += env_size;
@@ -3041,18 +3012,19 @@ private:
           // This is critical for fixpoint patterns like:
           //   fix (self: { trivial = let inherit (self.trivial) x; in {...}; })
           // Here `self` is captured but must not be forced during thunk creation.
-          auto* saved_scope = current_scope_;
-          current_scope_ = outer_scope;
-          for (std::uint32_t idx = 0; idx < capture_count; ++idx) {
-            auto cap_value =
-                compile_identifier_lookup(captured_vars[idx], {0, 0, 0},
-                                          should_force_captures(capture_policy::preserve_lazy));
-            auto store_cap = BinaryenStore(module_.get(), 8, env_offset + 4 + idx * 8, 0,
-                                           BinaryenConst(module_.get(), BinaryenLiteralInt32(0)),
-                                           cap_value, BinaryenTypeInt64(), "memory");
-            store_ops.push_back(store_cap);
+          // Look up captures in outer_scope (the let scope's parent)
+          {
+            scope_guard capture_scope_g(*this, *outer_scope);
+            for (std::uint32_t idx = 0; idx < capture_count; ++idx) {
+              auto cap_value =
+                  compile_identifier_lookup(captures[idx], {0, 0, 0},
+                                            should_force_captures(capture_policy::preserve_lazy));
+              auto store_cap = BinaryenStore(module_.get(), 8, env_offset + 4 + idx * 8, 0,
+                                             BinaryenConst(module_.get(), BinaryenLiteralInt32(0)),
+                                             cap_value, BinaryenTypeInt64(), "memory");
+              store_ops.push_back(store_cap);
+            }
           }
-          current_scope_ = saved_scope;
 
           // Create thunk with environment
           BinaryenExpressionRef make_thunk_args[] = {
@@ -3072,13 +3044,13 @@ private:
         }
       } else {
         // inherit x; -> look up x from outer scope (still wrap in thunk for consistency)
-        auto* saved_scope = current_scope_;
-        current_scope_ = outer_scope;
         // For simple inherit without from, just read the identifier without forcing
         // It may already be a thunk if the inherited var is a let binding
-        value = compile_identifier_lookup(
-            info.sym, info.inherit_binding->attributes_[info.attr_index].position_, false);
-        current_scope_ = saved_scope;
+        {
+          scope_guard outer_scope_g(*this, *outer_scope);
+          value = compile_identifier_lookup(
+              info.sym, info.inherit_binding->attributes_[info.attr_index].position_, false);
+        }
       }
 
       // Store in shared memory
@@ -3093,14 +3065,12 @@ private:
       offset_idx++;
     }
 
-    // Restore outer let binding offsets
-    current_let_binding_offsets_ = std::move(outer_let_offsets);
+    } // let_bindings_guard restores outer offsets here
 
     // compile the body
     auto body_expr = compile_expression(expr.body_);
 
-    // restore scope
-    current_scope_ = outer_scope;
+    // Guard restores scope automatically
 
     // combine binding setup with body
     if (binding_ops.empty()) {
@@ -3135,14 +3105,13 @@ private:
     // store namespace in the local
     auto store_namespace = BinaryenLocalSet(module_.get(), namespace_local, namespace_expr);
 
-    // push with scope
-    with_scopes_.push_back({namespace_local});
-
-    // compile the body
-    auto body_expr = compile_expression(expr.body_);
-
-    // pop with scope
-    with_scopes_.pop_back();
+    // compile the body with RAII-guarded with scope
+    BinaryenExpressionRef body_expr;
+    {
+      with_scope_guard with_g(*this, namespace_local);
+      body_expr = compile_expression(expr.body_);
+      // Guard pops with scope automatically
+    }
 
     // combine: store namespace, then evaluate body
     BinaryenExpressionRef parts[] = {store_namespace, body_expr};

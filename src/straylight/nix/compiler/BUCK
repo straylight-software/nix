@@ -41,9 +41,13 @@ cxx_library(
 
 cxx_library(
     name = "compile",
+    srcs = [
+        "compile/guard.cpp",
+    ],
     exported_headers = [
         "compile/capture.h",
         "compile/compiler.h",
+        "compile/guard.h",
         "compile/scope.h",
         "compile/value.h",
         "compile/wasm_types.h",
