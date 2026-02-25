@@ -93,7 +93,35 @@ $ nixfmt flake.nix
 Install pre-commit hooks:
 
 ```console
-$ pre-commit-hooks-install
+$ pre-commit install --install-hooks
+```
+
+The hooks run:
+
+- `nix fmt` on commit (formatting)
+- `ast-grep` on commit (pattern rules for C++)
+- `clang-tidy` on push (semantic lint, requires compile_commands.json)
+
+Configuration is generated from `dhall/pre-commit.dhall`:
+
+```console
+$ dhall-to-yaml --file dhall/pre-commit.dhall > .pre-commit-config.yaml
+```
+
+### Lint Checks
+
+`nix flake check` runs ast-grep on `src/straylight/` and fails on errors:
+
+```console
+$ nix flake check
+```
+
+For full clang-tidy lint (requires build first):
+
+```console
+$ buck2 build //src/nix/cli:nix  # generates compile_commands.json
+$ ./scripts/lint                  # lint changed files
+$ ./scripts/lint --all           # lint everything
 ```
 
 ## Platforms
