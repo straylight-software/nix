@@ -10,6 +10,7 @@ def nix_prebuilt_cxx_library(
         shared_lib = None,
         include_dir = None,
         deps = [],
+        exported_deps = [],
         exported_linker_flags = [],
         visibility = ["PUBLIC"]):
     """
@@ -21,6 +22,7 @@ def nix_prebuilt_cxx_library(
         shared_lib: Absolute path to .so file
         include_dir: Absolute path to include directory
         deps: Dependencies
+        exported_deps: Exported dependencies (headers/flags propagated to dependents)
         exported_linker_flags: Additional linker flags (e.g. -lpthread)
         visibility: Visibility
     """
@@ -42,6 +44,6 @@ def nix_prebuilt_cxx_library(
         name = name,
         exported_preprocessor_flags = exported_preprocessor_flags,
         exported_linker_flags = linker_flags,
-        exported_deps = deps,
+        exported_deps = deps + exported_deps,
         visibility = visibility,
     )

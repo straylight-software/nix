@@ -17,6 +17,7 @@
 
 #include <cstdint>
 #include <expected>
+#include <format>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -128,7 +129,7 @@ struct rt_error_t {
     if (line == 0 && column == 0) {
       return message;
     }
-    return message + " at line " + std::to_string(line) + ", column " + std::to_string(column);
+    return std::format("{} at line {}, column {}", message, line, column);
   }
 };
 

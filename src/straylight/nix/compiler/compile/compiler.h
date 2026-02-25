@@ -2,6 +2,7 @@
 ///@file straylight/nix/compiler/compile/compiler.h
 /// Compiles Nix AST to WebAssembly using binaryen.
 
+#include <algorithm>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -2704,9 +2705,11 @@ private:
         BinaryenTypeInt32(), "memory"));
 
     // Store each captured value at env_offset + 4 + idx*8
+    // IMPORTANT: Don't force captured values! They remain lazy.
+    // This is critical for builtins like tryEval that need to catch errors.
     for (std::uint32_t idx = 0; idx < capture_count; ++idx) {
       auto sym = captured_vars[idx];
-      auto var_value = compile_identifier_lookup(sym);
+      auto var_value = compile_identifier_lookup(sym, {0, 0, 0}, false); // Don't force
       env_setup.push_back(BinaryenStore(module_.get(), 8, env_offset + 4 + idx * 8, 0,
                                         BinaryenConst(module_.get(), BinaryenLiteralInt32(0)),
                                         var_value, BinaryenTypeInt64(), "memory"));
@@ -2756,8 +2759,14 @@ private:
         compiled_arg =
             BinaryenLoad(module_.get(), 8, 0, mem_offset, 0, BinaryenTypeInt64(),
                          BinaryenConst(module_.get(), BinaryenLiteralInt32(0)), "memory");
+      } else if (std::holds_alternative<ast::expression_identifier>(arg->data_)) {
+        // Identifiers: pass WITHOUT forcing when used as function arguments.
+        // The called function will force if/when needed. This is critical for
+        // builtins like tryEval that need to catch errors during forcing.
+        const auto& ident = std::get<ast::expression_identifier>(arg->data_);
+        compiled_arg = compile_identifier_lookup(ident.name_, ident.position_, false);
       } else if (is_trivial_expression(arg)) {
-        // trivial expressions (literals, non-let identifiers) can be evaluated immediately
+        // trivial expressions (literals) can be evaluated immediately
         compiled_arg = compile_expression(arg);
       } else {
         // non-trivial expressions are wrapped in thunks for lazy evaluation

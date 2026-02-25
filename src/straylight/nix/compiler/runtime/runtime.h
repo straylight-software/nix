@@ -675,7 +675,7 @@ void rt_init_builtins(runtime_context& ctx);
 [[nodiscard]] auto rt_throw_error(runtime_context& ctx, nix_value msg) -> rt_result;
 
 /// Abort evaluation with message: abort "message"
-[[noreturn]] auto rt_abort(runtime_context& ctx, nix_value msg) -> rt_result;
+[[nodiscard]] auto rt_abort(runtime_context& ctx, nix_value msg) -> rt_result;
 
 /// Try to evaluate, return { success, value }: tryEval expr
 [[nodiscard]] auto rt_try_eval(runtime_context& ctx, nix_value expr) -> rt_result;

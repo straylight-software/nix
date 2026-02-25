@@ -125,6 +125,7 @@ cxx_library(
         ":runtime",
     ],
     deps = [
+        ":log",
         "//src/straylight/nix/crypto:hash",
         "//third_party:wasmtime",
     ],

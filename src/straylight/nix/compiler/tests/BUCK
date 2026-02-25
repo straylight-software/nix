@@ -127,6 +127,7 @@ cxx_test(
 # Common deps for execution tests
 LANGUAGE_EXECUTION_TEST_DEPS = LANGUAGE_PARSE_TEST_DEPS + [
     "//src/straylight/nix/compiler:compile",
+    "//src/straylight/nix/compiler:log",
     "//src/straylight/nix/compiler:wasm_executor",
     "//third_party:binaryen",
     "//third_party:wasmtime",

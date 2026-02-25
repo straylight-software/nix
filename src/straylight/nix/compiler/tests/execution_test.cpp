@@ -12,6 +12,7 @@
 
 #include "straylight/nix/compiler/compile/compiler.h"
 #include "straylight/nix/compiler/compile/wasm_types.h"
+#include "straylight/nix/compiler/log.h"
 #include "straylight/nix/compiler/parse/parser.h"
 #include "straylight/nix/compiler/runtime/wasm_executor.h"
 
@@ -31,6 +32,12 @@ struct eval_result {
 };
 
 auto eval_nix(std::string_view source) -> eval_result {
+  static bool log_initialized = false;
+  if (!log_initialized) {
+    log::init();
+    log_initialized = true;
+  }
+
   try {
     // Parse
     ast::symbol_table symbols;

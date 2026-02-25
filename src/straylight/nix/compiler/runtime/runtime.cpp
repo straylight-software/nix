@@ -2907,7 +2907,7 @@ auto value_to_json(runtime_context& ctx, nix_value v) -> rt_result_t<std::string
           result += ",";
         }
         auto elem = ctx.read_value(ptr + mem::LIST_ELEMENTS_OFFSET + idx * mem::VALUE_SIZE);
-        result += value_to_json(ctx, elem);
+        result += RT_TRY(value_to_json(ctx, elem));
       }
       result += "]";
       return result;
@@ -3032,7 +3032,7 @@ private:
     }
 
     return std::unexpected(
-        rt_error_t("builtins.fromJSON: unexpected character '" + std::string(1, c)) + "'");
+        rt_error_t(std::format("builtins.fromJSON: unexpected character '{}'", c)));
   }
 
   auto parse_null() -> rt_result {
@@ -3060,16 +3060,16 @@ private:
   }
 
   auto parse_string() -> rt_result {
-    advance(); // consume opening quote
+    RT_TRY(advance()); // consume opening quote
     std::string result;
 
     while (true) {
-      char c = advance();
+      char c = RT_TRY(advance());
       if (c == '"') {
         break;
       }
       if (c == '\\') {
-        char escaped = advance();
+        char escaped = RT_TRY(advance());
         switch (escaped) {
           case '"':
             result += '"';
@@ -3121,9 +3121,8 @@ private:
             break;
           }
           default:
-            return std::unexpected(rt_error_t("builtins.fromJSON: invalid escape sequence '\\" +
-                                              std::string(1, escaped)) +
-                                   "'");
+            return std::unexpected(rt_error_t(
+                std::format("builtins.fromJSON: invalid escape sequence '\\{}'", escaped)));
         }
       } else {
         result += c;
@@ -3140,15 +3139,15 @@ private:
 
     // Optional minus
     if (peek() == '-') {
-      advance();
+      RT_TRY(advance());
     }
 
     // Integer part
     if (peek() == '0') {
-      advance();
+      RT_TRY(advance());
     } else if (std::isdigit(static_cast<unsigned char>(peek()))) {
       while (std::isdigit(static_cast<unsigned char>(peek()))) {
-        advance();
+        RT_TRY(advance());
       }
     } else {
       return std::unexpected(rt_error_t("builtins.fromJSON: expected digit"));
@@ -3157,27 +3156,27 @@ private:
     // Fractional part
     if (peek() == '.') {
       is_float = true;
-      advance();
+      RT_TRY(advance());
       if (!std::isdigit(static_cast<unsigned char>(peek()))) {
         return std::unexpected(rt_error_t("builtins.fromJSON: expected digit after decimal point"));
       }
       while (std::isdigit(static_cast<unsigned char>(peek()))) {
-        advance();
+        RT_TRY(advance());
       }
     }
 
     // Exponent
     if (peek() == 'e' || peek() == 'E') {
       is_float = true;
-      advance();
+      RT_TRY(advance());
       if (peek() == '+' || peek() == '-') {
-        advance();
+        RT_TRY(advance());
       }
       if (!std::isdigit(static_cast<unsigned char>(peek()))) {
         return std::unexpected(rt_error_t("builtins.fromJSON: expected digit in exponent"));
       }
       while (std::isdigit(static_cast<unsigned char>(peek()))) {
-        advance();
+        RT_TRY(advance());
       }
     }
 
@@ -3202,27 +3201,27 @@ private:
   }
 
   auto parse_array() -> rt_result {
-    advance(); // consume '['
+    RT_TRY(advance()); // consume '['
     skip_whitespace();
 
     if (peek() == ']') {
-      advance();
+      RT_TRY(advance());
       return make_value(value_tag::list, 0);
     }
 
     std::vector<nix_value> elements;
 
     while (true) {
-      elements.push_back(parse_value());
+      elements.push_back(RT_TRY(parse_value()));
       skip_whitespace();
 
       char c = peek();
       if (c == ']') {
-        advance();
+        RT_TRY(advance());
         break;
       }
       if (c == ',') {
-        advance();
+        RT_TRY(advance());
         skip_whitespace();
       } else {
         return std::unexpected(rt_error_t("builtins.fromJSON: expected ',' or ']'"));
@@ -3261,26 +3260,26 @@ private:
       }
 
       // Parse key as string
-      auto key_val = parse_string();
+      auto key_val = RT_TRY(parse_string());
       auto key_ptr = get_payload(key_val);
       auto key = std::string(ctx_.read_string(key_ptr));
 
       skip_whitespace();
-      if (advance() != ':') {
+      if (RT_TRY(advance()) != ':') {
         return std::unexpected(rt_error_t("builtins.fromJSON: expected ':'"));
       }
 
-      auto value = parse_value();
+      auto value = RT_TRY(parse_value());
       entries.emplace_back(std::move(key), value);
 
       skip_whitespace();
       char c = peek();
       if (c == '}') {
-        advance();
+        RT_TRY(advance());
         break;
       }
       if (c == ',') {
-        advance();
+        RT_TRY(advance());
       } else {
         return std::unexpected(rt_error_t("builtins.fromJSON: expected ',' or '}'"));
       }
@@ -3307,7 +3306,7 @@ private:
 } // namespace
 
 auto rt_to_json(runtime_context& ctx, nix_value v) -> rt_result {
-  auto json_str = value_to_json(ctx, v);
+  auto json_str = RT_TRY(value_to_json(ctx, v));
   auto ptr = allocate_string(ctx, json_str);
   return make_value(value_tag::string, ptr);
 }
@@ -3492,8 +3491,7 @@ auto rt_builtin_get_attr(runtime_context& ctx, nix_value name, nix_value set) ->
 
   if (!result.has_value()) {
     return std::unexpected(
-        rt_error_t::attr_not_found("builtins.getAttr: attribute '" + std::string(key)) +
-        "' not found");
+        rt_error_t::attr_not_found(std::format("builtins.getAttr: attribute '{}' not found", key)));
   }
 
   return *result;
@@ -3718,7 +3716,7 @@ auto rt_gen_list(runtime_context& ctx, nix_value f, nix_value n) -> rt_result {
   ctx.write_i32(list_ptr + mem::LIST_COUNT_OFFSET, count);
 
   for (std::uint32_t idx = 0; idx < ucount; ++idx) {
-    auto idx_val = make_int(static_cast<std::int32_t>(idx));
+    auto idx_val = RT_TRY(make_int(static_cast<std::int32_t>(idx)));
     auto elem = RT_TRY(rt_apply(ctx, f, idx_val));
     ctx.write_value(list_ptr + mem::LIST_ELEMENTS_OFFSET + idx * mem::VALUE_SIZE, elem);
   }
@@ -3815,18 +3813,39 @@ auto rt_sort(runtime_context& ctx, nix_value comparator, nix_value list) -> rt_r
   // Sort using the comparator function
   // comparator a b should return true if a < b
   // We use stable_sort for consistency
-  std::stable_sort(
-      elements.begin(), elements.end(), [&ctx, comparator](nix_value a, nix_value b) -> bool {
-        // Apply comparator to a, then to b
-        auto partial = RT_TRY(rt_apply(ctx, comparator, a));
-        auto result = RT_TRY(rt_apply(ctx, partial, b));
-        result = RT_TRY(rt_force(ctx, result));
-        if (!is_bool(result)) {
-          return std::unexpected(rt_error_t::type_error(std::format(
-              "builtins.sort: comparator must return bool, got '{}'", type_name(result))));
-        }
-        return result == constants::bool_true;
-      });
+  // Since we can't propagate errors from the comparator lambda, we capture any error
+  std::optional<rt_error_t> sort_error;
+  std::stable_sort(elements.begin(), elements.end(),
+                   [&ctx, comparator, &sort_error](nix_value a, nix_value b) -> bool {
+                     if (sort_error)
+                       return false; // Short-circuit if already errored
+                     // Apply comparator to a, then to b
+                     auto partial = rt_apply(ctx, comparator, a);
+                     if (!partial) {
+                       sort_error = partial.error();
+                       return false;
+                     }
+                     auto result = rt_apply(ctx, *partial, b);
+                     if (!result) {
+                       sort_error = result.error();
+                       return false;
+                     }
+                     auto forced = rt_force(ctx, *result);
+                     if (!forced) {
+                       sort_error = forced.error();
+                       return false;
+                     }
+                     if (!is_bool(*forced)) {
+                       sort_error = rt_error_t::type_error(
+                           std::format("builtins.sort: comparator must return bool, got '{}'",
+                                       type_name(*forced)));
+                       return false;
+                     }
+                     return *forced == constants::bool_true;
+                   });
+  if (sort_error) {
+    return std::unexpected(*sort_error);
+  }
 
   // Allocate result list
   auto result_size = mem::list_size(count);
@@ -3862,14 +3881,20 @@ auto rt_throw_error(runtime_context& ctx, nix_value msg) -> rt_result {
 }
 
 auto rt_abort(runtime_context& ctx, nix_value msg) -> rt_result {
-  msg = RT_TRY(rt_force(ctx, msg));
+  auto msg_result = rt_force(ctx, msg);
+  if (!msg_result) {
+    return msg_result;
+  }
+  msg = *msg_result;
 
+  std::string error_msg;
   if (is_string(msg)) {
-    auto str = ctx.read_string(get_payload(msg));
-    return std::unexpected(rt_error_t("evaluation aborted: " + std::string(str)));
+    error_msg = std::format("evaluation aborted: {}", ctx.read_string(get_payload(msg)));
+  } else {
+    error_msg = "evaluation aborted";
   }
 
-  return std::unexpected(rt_error_t("evaluation aborted"));
+  return std::unexpected(rt_error_t::abort_error(std::move(error_msg)));
 }
 
 auto rt_try_eval(runtime_context& ctx, nix_value expr) -> rt_result {
@@ -3950,36 +3975,37 @@ auto rt_seq(runtime_context& ctx, nix_value a, nix_value b) -> rt_result {
 
 // Helper to deeply force a value (recursively force all nested values)
 namespace {
-void deep_force(runtime_context& ctx, nix_value v) {
+auto deep_force(runtime_context& ctx, nix_value v) -> rt_result_t<void> {
   v = RT_TRY(rt_force(ctx, v));
 
   if (is_list(v)) {
     auto ptr = get_payload(v);
     if (ptr == 0)
-      return;
+      return {};
     auto count = ctx.read_u32(ptr + mem::LIST_COUNT_OFFSET);
     for (std::uint32_t idx = 0; idx < count; ++idx) {
       auto elem = ctx.read_value(ptr + mem::LIST_ELEMENTS_OFFSET + idx * mem::VALUE_SIZE);
-      deep_force(ctx, elem);
+      RT_TRY_VOID(deep_force(ctx, elem));
     }
   } else if (is_attrset(v)) {
     auto ptr = get_payload(v);
     if (ptr == 0)
-      return;
+      return {};
     auto count = ctx.read_u32(ptr + mem::ATTRSET_COUNT_OFFSET);
     for (std::uint32_t idx = 0; idx < count; ++idx) {
       auto entry = ptr + mem::ATTRSET_ENTRIES_OFFSET + idx * mem::ATTRSET_ENTRY_SIZE;
       auto val = ctx.read_value(entry + mem::ATTRSET_ENTRY_VALUE_OFFSET);
-      deep_force(ctx, val);
+      RT_TRY_VOID(deep_force(ctx, val));
     }
   }
   // Other types are already forced
+  return {};
 }
 } // namespace
 
 auto rt_deep_seq(runtime_context& ctx, nix_value a, nix_value b) -> rt_result {
   // Deeply force the first argument, then return the second
-  deep_force(ctx, a);
+  RT_TRY_VOID(deep_force(ctx, a));
   return b;
 }
 
@@ -4080,7 +4106,7 @@ auto rt_generic_closure(runtime_context& ctx, nix_value attrs) -> rt_result {
   std::vector<nix_value> work_list;
 
   // Helper to extract key from element
-  auto extract_key = [&](nix_value elem) -> std::string {
+  auto extract_key = [&](nix_value elem) -> rt_result_t<std::string> {
     elem = RT_TRY(rt_force(ctx, elem));
     if (!is_attrset(elem)) {
       return std::unexpected(rt_error_t::type_error(std::format(
@@ -4106,8 +4132,7 @@ auto rt_generic_closure(runtime_context& ctx, nix_value attrs) -> rt_result {
       return std::string(ctx.read_string(get_payload(key_val)));
     }
     // For other types, use type + payload as key
-    return std::to_string(static_cast<int>(get_tag(key_val))) + ":" +
-           std::to_string(get_payload(key_val));
+    return std::format("{}:{}", static_cast<int>(get_tag(key_val)), get_payload(key_val));
   };
 
   // Initialize work list with startSet
@@ -4126,7 +4151,7 @@ auto rt_generic_closure(runtime_context& ctx, nix_value attrs) -> rt_result {
     auto elem = work_list.back();
     work_list.pop_back();
 
-    auto key = extract_key(elem);
+    auto key = RT_TRY(extract_key(elem));
     if (seen_keys.count(key) != 0U) {
       continue; // Already seen
     }
@@ -4297,8 +4322,9 @@ auto rt_hash_string(runtime_context& ctx, nix_value type, nix_value str) -> rt_r
     }
     hash_result = ss.str();
   } else {
-    return std::unexpected(rt_error_t("builtins.hashString: unknown hash type '" + hash_type +
-                        "' (supported: md5, sha1, sha256, sha512))");
+    return std::unexpected(rt_error_t(std::format(
+        "builtins.hashString: unknown hash type '{}' (supported: md5, sha1, sha256, sha512)",
+        hash_type)));
   }
 
   auto result_ptr = allocate_string(ctx, hash_result);
@@ -4679,40 +4705,40 @@ auto rt_apply_primop(runtime_context& ctx, std::uint32_t primop_index, nix_value
         } else if (is_string(v)) {
           path = ctx.read_string(get_payload(v));
         } else {
-          return std::unexpected(rt_error_t::type_error("import: expected path or string, got " +
-                                                        std::string(type_name(v))));
+          return std::unexpected(rt_error_t::type_error(
+              std::format("import: expected path or string, got {}", type_name(v))));
         }
 
         if (!ctx.io) {
-          return std::unexpected(rt_error_t("import: I/O operations not available (pure evaluator))");
+          return std::unexpected(
+              rt_error_t("import: I/O operations not available (pure evaluator)"));
         }
 
         auto result = ctx.io->import_file(ctx, path);
         if (!result) {
           switch (result.error()) {
             case io_error::not_found:
-              return std::unexpected(rt_error_t("import: file not found: " + std::string(path)));
+              return std::unexpected(rt_error_t(std::format("import: file not found: {}", path)));
             case io_error::import_cycle:
               return std::unexpected(
-                  rt_error_t("import: cycle detected importing: " + std::string(path)));
+                  rt_error_t(std::format("import: cycle detected importing: {}", path)));
             case io_error::parse_error:
-              return std::unexpected(rt_error_t("import: parse error in: " + std::string(path)));
+              return std::unexpected(rt_error_t(std::format("import: parse error in: {}", path)));
             case io_error::eval_error: {
               // Try to get more details from the backend
               std::string details = ctx.io->last_import_error();
               if (details.empty()) {
                 return std::unexpected(
-                    rt_error_t("import: evaluation error in: " + std::string(path)));
+                    rt_error_t(std::format("import: evaluation error in: {}", path)));
               } else {
                 return std::unexpected(
-                    rt_error_t("import: evaluation error in " + std::string(path)) + ": " +
-                    details);
+                    rt_error_t(std::format("import: evaluation error in {}: {}", path, details)));
               }
             }
             case io_error::not_supported:
               return std::unexpected(rt_error_t("import: operation not supported"));
             default:
-              return std::unexpected(rt_error_t("import: error importing: " + std::string(path)));
+              return std::unexpected(rt_error_t(std::format("import: error importing: {}", path)));
           }
         }
         return result.value();
@@ -4727,26 +4753,27 @@ auto rt_apply_primop(runtime_context& ctx, std::uint32_t primop_index, nix_value
         } else if (is_string(v)) {
           path = ctx.read_string(get_payload(v));
         } else {
-          return std::unexpected(rt_error_t::type_error("readFile: expected path or string, got " +
-                                                        std::string(type_name(v))));
+          return std::unexpected(rt_error_t::type_error(
+              std::format("readFile: expected path or string, got {}", type_name(v))));
         }
 
         if (!ctx.io) {
-          return std::unexpected(rt_error_t("readFile: I/O operations not available (pure evaluator))");
+          return std::unexpected(
+              rt_error_t("readFile: I/O operations not available (pure evaluator)"));
         }
 
         auto result = ctx.io->read_file(path);
         if (!result) {
           switch (result.error()) {
             case io_error::not_found:
-              return std::unexpected(rt_error_t("readFile: file not found: " + std::string(path)));
+              return std::unexpected(rt_error_t(std::format("readFile: file not found: {}", path)));
             case io_error::permission_denied:
               return std::unexpected(
-                  rt_error_t("readFile: permission denied: " + std::string(path)));
+                  rt_error_t(std::format("readFile: permission denied: {}", path)));
             case io_error::is_directory:
-              return std::unexpected(rt_error_t("readFile: is a directory: " + std::string(path)));
+              return std::unexpected(rt_error_t(std::format("readFile: is a directory: {}", path)));
             default:
-              return std::unexpected(rt_error_t("readFile: error reading: " + std::string(path)));
+              return std::unexpected(rt_error_t(std::format("readFile: error reading: {}", path)));
           }
         }
         // Allocate and return string value
@@ -4764,11 +4791,12 @@ auto rt_apply_primop(runtime_context& ctx, std::uint32_t primop_index, nix_value
           path = ctx.read_string(get_payload(v));
         } else {
           return std::unexpected(rt_error_t::type_error(
-              "pathExists: expected path or string, got " + std::string(type_name(v))));
+              std::format("pathExists: expected path or string, got {}", type_name(v))));
         }
 
         if (!ctx.io) {
-          return std::unexpected(rt_error_t("pathExists: I/O operations not available (pure evaluator))");
+          return std::unexpected(
+              rt_error_t("pathExists: I/O operations not available (pure evaluator)"));
         }
 
         bool exists = ctx.io->path_exists(path);

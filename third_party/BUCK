@@ -10,6 +10,7 @@
 
 load(
     ":nix-deps.bzl",
+    "ABSEIL_INCLUDE",
     "ADA_INCLUDE",
     "ADA_STATIC_LIB",
     # Binaryen now built from vendored source (vendor/binaryen/BUCK)
@@ -133,11 +134,20 @@ nix_prebuilt_cxx_library(
     include_dir = ADA_INCLUDE,
 )
 
+# Abseil (header-only for Buck2 - libs linked via -l flags)
+# Required by RE2 which uses absl::string_view and absl::call_once
+cxx_library(
+    name = "abseil",
+    exported_preprocessor_flags = ["-isystem" + ABSEIL_INCLUDE],
+    visibility = ["PUBLIC"],
+)
+
 # RE2 regex static (musl)
 nix_prebuilt_cxx_library(
     name = "re2",
     static_lib = RE2_STATIC_LIB,
     include_dir = RE2_INCLUDE,
+    exported_deps = [":abseil"],
 )
 
 # ═══════════════════════════════════════════════════════════════════════════════

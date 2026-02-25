@@ -57,6 +57,9 @@ let
   # Static re2 regex (musl)
   re2-static = with-musl-flags pkgs.pkgsStatic.re2;
 
+  # Static abseil (musl) - required by re2
+  abseil-static = with-musl-flags pkgs.pkgsStatic.abseil-cpp;
+
   # Static catch2 (musl)
   catch2-static = with-musl-flags pkgs.pkgsStatic.catch2_3;
 
@@ -149,6 +152,7 @@ in
     attr = attr-static;
     ada = ada-static;
     re2 = re2-static;
+    abseil = abseil-static;
   };
 
   # ── Store deps ──────────────────────────────────────────────────────────────
@@ -222,6 +226,7 @@ in
     inherit libressl-static;
     inherit ada-static;
     inherit re2-static;
+    inherit abseil-static;
     inherit catch2-static;
     inherit nanobench-static;
     inherit rapidcheck-static;
