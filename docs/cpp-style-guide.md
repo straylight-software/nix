@@ -384,27 +384,32 @@ ast-grep scan --config sgconfig.yml src/
 cppcheck --suppressions-list=.cppcheck src/nix/ src/straylight/
 ```
 
-### ast-grep rules (19 rules in `rules/`)
+### ast-grep rules (22 rules in `rules/`)
 
 | rule | severity | purpose |
 |------|----------|---------|
 | `no-class-keyword` | error | enforce `struct` over `class` |
+| `no-using-namespace-file-scope` | error | prevent namespace pollution |
+| `no-sstream` | error | ban stringstream (use fmt/to_string) |
+| `no-dangerous-member-names` | error | ban generic names (hash_, value_, state_, etc.) |
 | `no-c-style-cast` | warning | use C++ casts |
-| `no-using-namespace-std` | error | prevent namespace pollution |
 | `no-raw-new` | warning | use `make_unique`/`make_shared` |
 | `no-std-endl` | warning | prefer `'\n'` (no flush) |
 | `no-typedef` | warning | use `using` instead |
-| `no-short-identifier` | warning | three-letter rule (no cfg, conn, res, etc.) |
+| `no-short-identifier` | warning | three-letter rule (cfg, conn, res, req, mgr, ptr, buf, tmp, str, err) |
 | `no-assert` | warning | proper error handling over assert |
-| `no-magic-numbers` | hint | name your constants (256, 1024, 4096) |
 | `prefer-nullptr` | warning | use `nullptr` not `NULL` |
-| `prefer-string-view` | hint | `string_view` for read-only params |
 | `prefer-span` | warning | `span` over pointer+size |
+| `prefer-span-over-vector-ref` | hint | `span` over `const vector&` |
+| `prefer-string-view` | hint | `string_view` for read-only params |
 | `trailing-return-type` | warning | `auto f() -> T` style |
 | `uppercase-literal-suffix` | warning | `1UL` not `1ul` |
+| `no-magic-numbers` | hint | name your constants (256, 1024, 4096) |
 | `aaa-make-shared` | hint | auto with make_shared |
 | `aaa-make-unique` | hint | auto with make_unique |
 | `aaa-static-cast` | hint | auto with static_cast |
+| `no-nodiscard-missing` | hint | consider `[[nodiscard]]` |
+| `no-implicit-bool-conversion` | hint | explicit nullptr comparison |
 
 ### clang-tidy key rules
 

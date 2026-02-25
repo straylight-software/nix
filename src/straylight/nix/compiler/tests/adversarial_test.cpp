@@ -30,11 +30,13 @@ namespace runtime = straylight::nix::compiler::runtime;
 // Helper
 // =============================================================================
 
+namespace {
 struct eval_result {
   bool success;
   runtime::nix_value value;
   std::string error;
 };
+} // namespace
 
 auto eval_nix(std::string_view source) -> eval_result {
   try {

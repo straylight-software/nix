@@ -249,6 +249,34 @@
                   echo "ast-grep: no errors found"
                   touch $out
                 '';
+
+            # cppcheck: deep static analysis (inter-procedural, memory safety)
+            # Catches bugs clang-tidy and ast-grep miss
+            cppcheck = pkgs.runCommand "cppcheck-lint" { nativeBuildInputs = [ pkgs.cppcheck ]; } ''
+              cd ${inputs.self}
+
+              # Run cppcheck on src/straylight/ with error-exitcode
+              # --error-exitcode=1 makes it fail on any error-level issue
+              # Only enable 'error' severity for CI gate (not warning/performance/style)
+              # Developers should run full analysis locally
+              cppcheck \
+                --error-exitcode=1 \
+                --inline-suppr \
+                --suppress=missingIncludeSystem \
+                --suppress=unmatchedSuppression \
+                --suppress=normalCheckLevelMaxBranches \
+                --suppress=toomanyconfigs \
+                --suppress=preprocessorErrorDirective \
+                --std=c++23 \
+                --quiet \
+                src/straylight/ 2>&1 || {
+                  echo "cppcheck found errors"
+                  exit 1
+                }
+
+              echo "cppcheck: no errors found"
+              touch $out
+            '';
           };
 
           # ── Default devShell ──────────────────────────────────────────────────

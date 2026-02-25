@@ -1,0 +1,16 @@
+# straylight policy: use span for non-owning views
+# Prefer std::span over const std::vector& for read-only parameters
+id: prefer-span-over-vector-ref
+language: cpp
+severity: hint
+message: "Consider std::span<const $TYPE> instead of const std::vector<$TYPE>&"
+note: |
+  std::span is more flexible - it accepts vector, array, C arrays, etc.
+  Use span for read-only views where you don't need vector-specific operations.
+  
+  Before: void process(const std::vector<int>& items)
+  After:  void process(std::span<const int> items)
+rule:
+  pattern: const std::vector<$TYPE>& $PARAM
+  inside:
+    kind: parameter_declaration

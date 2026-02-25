@@ -264,7 +264,7 @@ static auto deserialize_register_payload(std::span<const std::byte> data) -> reg
   std::string_view view(reinterpret_cast<const char*>(data.data()), data.size());
   StringSource source(view);
 
-  register_path_payload payload;
+  register_path_payload payload{.info = {}, .references = {}};
 
   // Read path_info bytes
   std::uint64_t info_size = read_uint64(source);

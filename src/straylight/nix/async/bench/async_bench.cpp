@@ -46,9 +46,9 @@ void do_medium_work() {
 }
 
 void do_heavy_work() {
-  uint64_t sum = 0;
-  for (int i = 0; i < 1000000; ++i) {
-    sum += i * i;
+  std::uint64_t sum = 0;
+  for (std::int64_t i = 0; i < 1000000; ++i) {
+    sum += static_cast<std::uint64_t>(i * i);
   }
   g_sink = sum;
 }

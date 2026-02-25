@@ -20,12 +20,14 @@
 // Helper: compile and execute Nix source
 // =============================================================================
 
+namespace {
 struct eval_result {
   bool success;
   straylight::nix::compiler::compile::nix_value value;
   std::string error;
   std::string formatted; // formatted value for display
 };
+} // namespace
 
 auto eval_nix(std::string_view source) -> eval_result {
   static bool log_initialized = false;

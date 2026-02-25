@@ -1,0 +1,73 @@
+# straylight policy: no generic member names
+# these names collide with common function/type names and create ambiguity
+id: no-dangerous-member-hash
+language: cpp
+severity: error
+message: "Generic member name 'hash_' - use specific name like 'content_hash_' or 'path_hash_'"
+note: "'hash' collides with std::hash and hash functions. Be specific about what is hashed."
+rule:
+  kind: field_declaration
+  pattern: $TYPE hash_;
+---
+id: no-dangerous-member-value
+language: cpp
+severity: error
+message: "Generic member name 'value_' - use specific name like 'cached_value_' or 'parsed_value_'"
+note: "'value' is too generic. What kind of value? Be specific."
+rule:
+  kind: field_declaration
+  pattern: $TYPE value_;
+---
+id: no-dangerous-member-state
+language: cpp
+severity: error
+message: "Generic member name 'state_' - use specific name like 'parser_state_' or 'connection_state_'"
+note: "'state' is ambiguous. What state machine? Be specific."
+rule:
+  kind: field_declaration
+  pattern: $TYPE state_;
+---
+id: no-dangerous-member-path
+language: cpp
+severity: error
+message: "Generic member name 'path_' - use specific name like 'store_path_' or 'output_path_'"
+note: "'path' could mean filesystem path, store path, search path. Be specific."
+rule:
+  kind: field_declaration
+  pattern: $TYPE path_;
+---
+id: no-dangerous-member-data
+language: cpp
+severity: error
+message: "Generic member name 'data_' - use specific name like 'payload_data_' or 'raw_bytes_'"
+note: "'data' tells you nothing. What data? Be specific."
+rule:
+  kind: field_declaration
+  pattern: $TYPE data_;
+---
+id: no-dangerous-member-result
+language: cpp
+severity: error
+message: "Generic member name 'result_' - use specific name like 'parse_result_' or 'eval_result_'"
+note: "'result' is too generic. Result of what operation? Be specific."
+rule:
+  kind: field_declaration
+  pattern: $TYPE result_;
+---
+id: no-dangerous-member-buffer
+language: cpp
+severity: error
+message: "Generic member name 'buffer_' - use specific name like 'read_buffer_' or 'output_buffer_'"
+note: "'buffer' is ambiguous. Input buffer? Output buffer? Be specific."
+rule:
+  kind: field_declaration
+  pattern: $TYPE buffer_;
+---
+id: no-dangerous-member-cache
+language: cpp
+severity: error
+message: "Generic member name 'cache_' - use specific name like 'path_cache_' or 'eval_cache_'"
+note: "'cache' doesn't say what's cached. Be specific."
+rule:
+  kind: field_declaration
+  pattern: $TYPE cache_;

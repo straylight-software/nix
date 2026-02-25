@@ -288,6 +288,9 @@ int main() {
   });
 
   // Same pattern with std::deque (also has stable refs)
+  // Note: std::deque guarantees that push_back doesn't invalidate references
+  // to existing elements - this is intentional to compare with chunked_vector
+  // cppcheck-suppress invalidContainer
   bench.run("std::deque/stable_refs/save_and_grow", [&] {
     std::deque<int> deq;
     std::vector<int*> refs;
@@ -303,6 +306,7 @@ int main() {
     }
 
     std::int64_t sum = 0;
+    // cppcheck-suppress invalidContainer
     for (int* p : refs) {
       sum += *p;
     }
