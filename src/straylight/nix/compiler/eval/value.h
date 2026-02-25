@@ -117,8 +117,9 @@ struct environment {
   std::unordered_map<std::string, value_ptr> bindings;
 
   explicit environment(env_ptr p = nullptr) : parent(std::move(p)) {}
+  virtual ~environment() = default;
 
-  auto lookup(std::string_view name) const -> value_ptr {
+  virtual auto lookup(std::string_view name) const -> value_ptr {
     auto it = bindings.find(std::string(name));
     if (it != bindings.end()) {
       return it->second;
@@ -198,5 +199,56 @@ inline auto as_builtin(const value_ptr& v) -> builtin& {
 inline auto as_thunk(const value_ptr& v) -> thunk& {
   return std::get<thunk>(v->data);
 }
+
+/// With environment - for `with expr; body`
+/// Lexical bindings take precedence over `with` bindings.
+/// Inner `with` shadows outer `with`.
+struct with_environment : environment {
+  value_ptr namespace_;
+
+  with_environment(env_ptr parent, value_ptr ns)
+      : environment(std::move(parent)), namespace_(std::move(ns)) {}
+
+  /// Lookup only in lexical bindings (direct environment bindings, not with namespaces)
+  auto lookup_lexical(std::string_view name) const -> value_ptr {
+    // Check our own direct bindings (shouldn't have any for with_environment, but be safe)
+    auto it = bindings.find(std::string(name));
+    if (it != bindings.end())
+      return it->second;
+
+    // Check parent's lexical bindings
+    if (parent) {
+      if (auto* with_parent = dynamic_cast<const with_environment*>(parent.get()))
+        return with_parent->lookup_lexical(name);
+      return parent->lookup(name); // Regular env: lookup checks bindings then parent
+    }
+    return nullptr;
+  }
+
+  /// Lookup only in with namespaces (this and parent with_environments)
+  auto lookup_with_namespaces(std::string_view name) const -> value_ptr {
+    // Check this with namespace first (inner shadows outer)
+    if (is_attrs(namespace_)) {
+      auto& attrs = as_attrs(namespace_).attrs;
+      auto it = attrs.find(std::string(name));
+      if (it != attrs.end())
+        return it->second;
+    }
+    // Check parent's with namespace
+    if (auto* with_parent = dynamic_cast<const with_environment*>(parent.get()))
+      return with_parent->lookup_with_namespaces(name);
+    return nullptr;
+  }
+
+  auto lookup(std::string_view name) const -> value_ptr override {
+    // 1. Lexical bindings take precedence over all with bindings
+    auto result = lookup_lexical(name);
+    if (result)
+      return result;
+
+    // 2. Then check with namespaces (inner shadows outer)
+    return lookup_with_namespaces(name);
+  }
+};
 
 } // namespace straylight::nix::compiler::eval

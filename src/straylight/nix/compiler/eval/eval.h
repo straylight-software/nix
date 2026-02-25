@@ -1288,10 +1288,9 @@ private:
     if (!is_attrs(ns))
       throw eval_error("with: expected attrset");
 
-    auto with_env = std::make_shared<environment>(env);
-    for (const auto& [name, val] : as_attrs(ns).attrs) {
-      with_env->bind(name, val);
-    }
+    // Create a with_environment that checks the parent BEFORE the namespace.
+    // In Nix, lexical bindings take precedence over `with` bindings.
+    auto with_env = std::make_shared<with_environment>(env, ns);
 
     return eval_expr(expr.body_, with_env);
   }
