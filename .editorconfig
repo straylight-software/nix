@@ -16,10 +16,15 @@ charset = utf-8
 indent_style = space
 indent_size = 2
 
-# Match C++/C/shell/Perl, set indent to spaces with width of four
-[*.{hpp,cc,hh,c,h,sh,pl,xs}]
+# Match C++/C files - 2 space indent (matches .clang-format)
+[*.{cpp,hpp,cc,hh,c,h}]
 indent_style = space
-indent_size = 4
+indent_size = 2
+
+# Match shell/Perl - 2 space indent (matches shfmt)
+[*.{sh,pl,xs}]
+indent_style = space
+indent_size = 2
 
 # Match diffs, avoid to trim trailing whitespace
 [*.{diff,patch}]

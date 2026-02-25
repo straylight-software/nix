@@ -166,6 +166,7 @@
               pkgs.ast-grep
               pkgs.dhall
               pkgs.dhall-json
+              pkgs.pre-commit
             ];
           };
 
@@ -221,6 +222,33 @@
           # ── Checks ────────────────────────────────────────────────────────────
           checks = {
             formatting = config.treefmt.build.check inputs.self;
+
+            # ast-grep: pattern-based lint rules (errors only)
+            # Enforces: no-class-keyword, no-using-namespace-file-scope, no-sstream, etc.
+            ast-grep =
+              pkgs.runCommand "ast-grep-lint"
+                {
+                  nativeBuildInputs = [
+                    pkgs.ast-grep
+                    pkgs.jq
+                  ];
+                }
+                ''
+                  cd ${inputs.self}
+
+                  # Run ast-grep and check for errors (not warnings/hints)
+                  error_count=$(ast-grep scan --config sgconfig.yml --json src/straylight/ 2>/dev/null | \
+                    jq '[.[] | select(.severity == "error")] | length')
+
+                  if [ "$error_count" -gt 0 ]; then
+                    echo "ast-grep found $error_count error(s):"
+                    ast-grep scan --config sgconfig.yml src/straylight/ 2>/dev/null | grep -A5 "^error\["
+                    exit 1
+                  fi
+
+                  echo "ast-grep: no errors found"
+                  touch $out
+                '';
           };
 
           # ── Default devShell ──────────────────────────────────────────────────

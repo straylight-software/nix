@@ -1,0 +1,20 @@
+# straylight policy: no stringstream
+# sstream is slow (allocations, type erasure, locale overhead)
+id: no-sstream
+language: cpp
+severity: error
+message: "std::stringstream/ostringstream/istringstream banned"
+note: |
+  sstream is slow due to allocations and type erasure. alternatives:
+    - fmt::format("{}", value) or std::format for string building
+    - std::to_string() for simple numeric conversions
+    - std::from_chars() / std::to_chars() for parsing/formatting
+    - direct string concatenation with reserve()
+rule:
+  any:
+    - pattern: std::ostringstream $$$
+    - pattern: std::istringstream $$$
+    - pattern: std::stringstream $$$
+    - pattern: ostringstream $$$
+    - pattern: istringstream $$$
+    - pattern: stringstream $$$
