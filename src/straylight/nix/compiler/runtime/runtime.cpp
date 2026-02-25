@@ -6,16 +6,15 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <charconv>
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
 #include <format>
-#include <iomanip>
 #include <iostream>
 #include <limits>
 #include <map>
 #include <regex>
-#include <sstream>
 #include <unordered_set>
 #include <vector>
 
@@ -2874,10 +2873,12 @@ auto value_to_json(runtime_context& ctx, nix_value v) -> rt_result_t<std::string
     case value_tag::floating: {
       double d = to_double(ctx, v);
       // Use a format that preserves precision
-      std::ostringstream oss;
-      oss.precision(17);
-      oss << d;
-      auto s = oss.str();
+      std::array<char, 32> buf{};
+      auto [ptr, ec] = std::to_chars(buf.data(), buf.data() + buf.size(), d);
+      if (ec != std::errc()) {
+        return "0.0"; // fallback on error
+      }
+      std::string s(buf.data(), ptr);
       // Ensure it looks like a float (has '.' or 'e')
       if (s.find('.') == std::string::npos && s.find('e') == std::string::npos) {
         s += ".0";
@@ -4272,13 +4273,11 @@ auto rt_hash_string(runtime_context& ctx, nix_value type, nix_value str) -> rt_r
       h *= 0x100000001b3ULL; // FNV prime
     }
     // Expand to 64 hex chars (256 bits) by repeated hashing
-    std::ostringstream ss;
     for (int idx = 0; idx < 4; ++idx) {
       h ^= (h >> 17);
       h *= 0x100000001b3ULL;
-      ss << std::hex << std::setfill('0') << std::setw(16) << h;
+      hash_result += std::format("{:016x}", h);
     }
-    hash_result = ss.str();
   } else if (hash_type == "sha512") {
     // 128 hex chars (512 bits)
     std::uint64_t h = 0xcbf29ce484222325ULL;
@@ -4286,13 +4285,11 @@ auto rt_hash_string(runtime_context& ctx, nix_value type, nix_value str) -> rt_r
       h ^= static_cast<std::uint8_t>(c);
       h *= 0x100000001b3ULL;
     }
-    std::ostringstream ss;
     for (int idx = 0; idx < 8; ++idx) {
       h ^= (h >> 17);
       h *= 0x100000001b3ULL;
-      ss << std::hex << std::setfill('0') << std::setw(16) << h;
+      hash_result += std::format("{:016x}", h);
     }
-    hash_result = ss.str();
   } else if (hash_type == "sha1") {
     // 40 hex chars (160 bits)
     std::uint64_t h = 0xcbf29ce484222325ULL;
@@ -4300,13 +4297,13 @@ auto rt_hash_string(runtime_context& ctx, nix_value type, nix_value str) -> rt_r
       h ^= static_cast<std::uint8_t>(c);
       h *= 0x100000001b3ULL;
     }
-    std::ostringstream ss;
+    std::string temp;
     for (int idx = 0; idx < 3; ++idx) {
       h ^= (h >> 17);
       h *= 0x100000001b3ULL;
-      ss << std::hex << std::setfill('0') << std::setw(16) << h;
+      temp += std::format("{:016x}", h);
     }
-    hash_result = ss.str().substr(0, 40); // truncate to 40 chars
+    hash_result = temp.substr(0, 40); // truncate to 40 chars
   } else if (hash_type == "md5") {
     // 32 hex chars (128 bits)
     std::uint64_t h = 0xcbf29ce484222325ULL;
@@ -4314,13 +4311,11 @@ auto rt_hash_string(runtime_context& ctx, nix_value type, nix_value str) -> rt_r
       h ^= static_cast<std::uint8_t>(c);
       h *= 0x100000001b3ULL;
     }
-    std::ostringstream ss;
     for (int idx = 0; idx < 2; ++idx) {
       h ^= (h >> 17);
       h *= 0x100000001b3ULL;
-      ss << std::hex << std::setfill('0') << std::setw(16) << h;
+      hash_result += std::format("{:016x}", h);
     }
-    hash_result = ss.str();
   } else {
     return std::unexpected(rt_error_t(std::format(
         "builtins.hashString: unknown hash type '{}' (supported: md5, sha1, sha256, sha512)",

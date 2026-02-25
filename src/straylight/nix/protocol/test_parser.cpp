@@ -13,7 +13,6 @@
 #include <iomanip>
 #include <iostream>
 #include <memory>
-#include <sstream>
 #include <vector>
 
 #include "kaitai/kaitaistream.h"
@@ -63,8 +62,7 @@ void test_client_hello() {
   hexdump(data);
 
   std::string str_data(data.begin(), data.end());
-  std::istringstream iss(str_data);
-  kaitai::kstream ks(&iss);
+  kaitai::kstream ks(str_data);
 
   nix_daemon_protocol_t proto(PROTOCOL_VERSION_1_38, &ks);
   auto hello = std::make_unique<nix_daemon_protocol_t::client_hello_t>(&ks, nullptr, &proto);
@@ -92,8 +90,7 @@ void test_server_hello() {
   hexdump(data);
 
   std::string str_data(data.begin(), data.end());
-  std::istringstream iss(str_data);
-  kaitai::kstream ks(&iss);
+  kaitai::kstream ks(str_data);
 
   nix_daemon_protocol_t proto(PROTOCOL_VERSION_1_38, &ks);
   auto hello = std::make_unique<nix_daemon_protocol_t::server_hello_t>(&ks, nullptr, &proto);
@@ -121,8 +118,7 @@ void test_query_path_info_request() {
   hexdump(data);
 
   std::string str_data(data.begin(), data.end());
-  std::istringstream iss(str_data);
-  kaitai::kstream ks(&iss);
+  kaitai::kstream ks(str_data);
 
   nix_daemon_protocol_t proto(PROTOCOL_VERSION_1_38, &ks);
   auto request = std::make_unique<nix_daemon_protocol_t::request_t>(&ks, nullptr, &proto);
@@ -150,8 +146,7 @@ void test_query_path_info_response() {
   hexdump(data);
 
   std::string str_data(data.begin(), data.end());
-  std::istringstream iss(str_data);
-  kaitai::kstream ks(&iss);
+  kaitai::kstream ks(str_data);
 
   nix_daemon_protocol_t proto(PROTOCOL_VERSION_1_38, &ks);
   auto response =

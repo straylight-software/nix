@@ -24,34 +24,30 @@
 #include "straylight/nix/compiler/parse/parser.h"
 #include "straylight/nix/compiler/runtime/wasm_executor.h"
 
-using namespace straylight::nix::compiler;
-using namespace straylight::nix::compiler::runtime;
-using namespace straylight::nix::compiler::compile;
-
 // =============================================================================
 // Helper: compile and execute Nix source, returning formatted result
 // =============================================================================
 
 struct eval_result_t {
   bool success;
-  nix_value value;
+  straylight::nix::compiler::compile::nix_value value;
   std::string error;
   std::string formatted;
 };
 
 auto eval_nix(std::string_view source) -> eval_result_t {
   try {
-    ast::symbol_table symbols;
-    auto expr = parse::parse(source, symbols);
+    straylight::nix::compiler::ast::symbol_table symbols;
+    auto expr = straylight::nix::compiler::parse::parse(source, symbols);
 
-    compile::compiler comp(symbols);
+    straylight::nix::compiler::compile::compiler comp(symbols);
     auto module = comp.compile(expr);
 
     if (!module.validate()) {
       return {false, 0, "WASM validation failed", ""};
     }
 
-    wasm_executor executor;
+    straylight::nix::compiler::runtime::wasm_executor executor;
     auto result = executor.execute(module.emit_binary());
 
     if (!result.success) {
@@ -70,9 +66,9 @@ auto eval_nix(std::string_view source) -> eval_result_t {
 // =============================================================================
 
 auto compile_to_wasm(std::string_view source) -> std::vector<std::uint8_t> {
-  ast::symbol_table symbols;
-  auto expr = parse::parse(source, symbols);
-  compile::compiler comp(symbols);
+  straylight::nix::compiler::ast::symbol_table symbols;
+  auto expr = straylight::nix::compiler::parse::parse(source, symbols);
+  straylight::nix::compiler::compile::compiler comp(symbols);
   auto module = comp.compile(expr);
   return module.emit_binary();
 }

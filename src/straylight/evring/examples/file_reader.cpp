@@ -50,8 +50,7 @@ struct file_reader_state {
 // Machine: The pure state transition logic
 // ============================================================================
 
-class file_reader_machine {
-public:
+struct file_reader_machine {
   using state_type = file_reader_state;
 
   explicit file_reader_machine(const char* path, std::size_t chunk_size = 4096)
@@ -131,7 +130,6 @@ public:
   // Termination condition
   [[nodiscard]] auto done(const state_type& s) const -> bool { return s.finished(); }
 
-private:
   const char* path_;
   std::size_t chunk_size_;
   // Buffer for reads (mutable because step() is const but we need storage)

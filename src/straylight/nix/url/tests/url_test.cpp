@@ -17,7 +17,7 @@
 #include "../config.h"
 #include "../url.h"
 
-using namespace straylight::nix::url;
+namespace url = straylight::nix::url;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Generators for property-based tests
@@ -71,13 +71,13 @@ rc::Gen<std::string> arbitrary_bytes_gen() {
 
 TEST_CASE("url backend config", "[url][config]") {
 #if defined(STRAYLIGHT_URL_BACKEND_ADA)
-  REQUIRE(active_url_backend == url_backend::ada);
-  REQUIRE(std::string(url_backend_name) == "ada");
-  REQUIRE(url_backend_is_whatwg == true);
+  REQUIRE(url::active_url_backend == url::url_backend::ada);
+  REQUIRE(std::string(url::url_backend_name) == "ada");
+  REQUIRE(url::url_backend_is_whatwg == true);
 #else
-  REQUIRE(active_url_backend == url_backend::boost);
-  REQUIRE(std::string(url_backend_name) == "boost::url");
-  REQUIRE(url_backend_is_whatwg == false);
+  REQUIRE(url::active_url_backend == url::url_backend::boost);
+  REQUIRE(std::string(url::url_backend_name) == "boost::url");
+  REQUIRE(url::url_backend_is_whatwg == false);
 #endif
 }
 
@@ -86,53 +86,53 @@ TEST_CASE("url backend config", "[url][config]") {
 // ─────────────────────────────────────────────────────────────────────────────
 
 TEST_CASE("percent_decode basic", "[url][encode]") {
-  REQUIRE(percent_decode("hello") == "hello");
-  REQUIRE(percent_decode("hello%20world") == "hello world");
-  REQUIRE(percent_decode("%2F") == "/");
-  REQUIRE(percent_decode("%2f") == "/"); // lowercase hex
-  REQUIRE(percent_decode("100%25") == "100%");
-  REQUIRE(percent_decode("") == "");
+  REQUIRE(url::percent_decode("hello") == "hello");
+  REQUIRE(url::percent_decode("hello%20world") == "hello world");
+  REQUIRE(url::percent_decode("%2F") == "/");
+  REQUIRE(url::percent_decode("%2f") == "/"); // lowercase hex
+  REQUIRE(url::percent_decode("100%25") == "100%");
+  REQUIRE(url::percent_decode("") == "");
 }
 
 TEST_CASE("percent_decode invalid sequences", "[url][encode]") {
   // Invalid sequences should be passed through
-  REQUIRE(percent_decode("%") == "%");
-  REQUIRE(percent_decode("%2") == "%2");
-  REQUIRE(percent_decode("%GG") == "%GG");
-  REQUIRE(percent_decode("%%20") == "% ");
+  REQUIRE(url::percent_decode("%") == "%");
+  REQUIRE(url::percent_decode("%2") == "%2");
+  REQUIRE(url::percent_decode("%GG") == "%GG");
+  REQUIRE(url::percent_decode("%%20") == "% ");
 }
 
 TEST_CASE("percent_encode basic", "[url][encode]") {
-  REQUIRE(percent_encode("hello") == "hello");
-  REQUIRE(percent_encode("hello world") == "hello%20world");
-  REQUIRE(percent_encode("/path/to/file") == "%2Fpath%2Fto%2Ffile");
-  REQUIRE(percent_encode("") == "");
+  REQUIRE(url::percent_encode("hello") == "hello");
+  REQUIRE(url::percent_encode("hello world") == "hello%20world");
+  REQUIRE(url::percent_encode("/path/to/file") == "%2Fpath%2Fto%2Ffile");
+  REQUIRE(url::percent_encode("") == "");
 }
 
 TEST_CASE("percent_encode with keep", "[url][encode]") {
-  REQUIRE(percent_encode("/path/to/file", "/") == "/path/to/file");
-  REQUIRE(percent_encode("a:b@c", ":@") == "a:b@c");
-  REQUIRE(percent_encode("a:b c", ":") == "a:b%20c");
+  REQUIRE(url::percent_encode("/path/to/file", "/") == "/path/to/file");
+  REQUIRE(url::percent_encode("a:b@c", ":@") == "a:b@c");
+  REQUIRE(url::percent_encode("a:b c", ":") == "a:b%20c");
 }
 
 TEST_CASE("is_unreserved", "[url][encode]") {
   // Unreserved: A-Z, a-z, 0-9, -, ., _, ~
-  REQUIRE(is_unreserved('a'));
-  REQUIRE(is_unreserved('z'));
-  REQUIRE(is_unreserved('A'));
-  REQUIRE(is_unreserved('Z'));
-  REQUIRE(is_unreserved('0'));
-  REQUIRE(is_unreserved('9'));
-  REQUIRE(is_unreserved('-'));
-  REQUIRE(is_unreserved('.'));
-  REQUIRE(is_unreserved('_'));
-  REQUIRE(is_unreserved('~'));
+  REQUIRE(url::is_unreserved('a'));
+  REQUIRE(url::is_unreserved('z'));
+  REQUIRE(url::is_unreserved('A'));
+  REQUIRE(url::is_unreserved('Z'));
+  REQUIRE(url::is_unreserved('0'));
+  REQUIRE(url::is_unreserved('9'));
+  REQUIRE(url::is_unreserved('-'));
+  REQUIRE(url::is_unreserved('.'));
+  REQUIRE(url::is_unreserved('_'));
+  REQUIRE(url::is_unreserved('~'));
 
-  REQUIRE_FALSE(is_unreserved(' '));
-  REQUIRE_FALSE(is_unreserved('/'));
-  REQUIRE_FALSE(is_unreserved(':'));
-  REQUIRE_FALSE(is_unreserved('@'));
-  REQUIRE_FALSE(is_unreserved('%'));
+  REQUIRE_FALSE(url::is_unreserved(' '));
+  REQUIRE_FALSE(url::is_unreserved('/'));
+  REQUIRE_FALSE(url::is_unreserved(':'));
+  REQUIRE_FALSE(url::is_unreserved('@'));
+  REQUIRE_FALSE(url::is_unreserved('%'));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -140,7 +140,7 @@ TEST_CASE("is_unreserved", "[url][encode]") {
 // ─────────────────────────────────────────────────────────────────────────────
 
 TEST_CASE("parse simple https url", "[url][parse]") {
-  auto result = parse("https://example.com/path/to/resource");
+  auto result = url::parse("https://example.com/path/to/resource");
   REQUIRE(result.has_value());
 
   auto& u = *result;
@@ -155,7 +155,7 @@ TEST_CASE("parse simple https url", "[url][parse]") {
 }
 
 TEST_CASE("parse url with port", "[url][parse]") {
-  auto result = parse("http://localhost:8080/api");
+  auto result = url::parse("http://localhost:8080/api");
   REQUIRE(result.has_value());
 
   auto& u = *result;
@@ -166,7 +166,7 @@ TEST_CASE("parse url with port", "[url][parse]") {
 }
 
 TEST_CASE("parse url with query parameters", "[url][parse]") {
-  auto result = parse("https://example.com/search?key=value&foo=bar");
+  auto result = url::parse("https://example.com/search?key=value&foo=bar");
   REQUIRE(result.has_value());
 
   auto& u = *result;

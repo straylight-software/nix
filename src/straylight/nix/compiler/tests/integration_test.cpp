@@ -18,8 +18,6 @@
 #include "straylight/nix/compiler/parse/parser.h"
 #include "straylight/nix/compiler/runtime/memory_layout.h"
 
-using namespace straylight::nix::compiler;
-
 // =============================================================================
 // Helper: compile Nix source to WASM
 // =============================================================================
@@ -33,9 +31,9 @@ struct compilation_result {
 
 auto compile_nix(std::string_view source) -> compilation_result {
   try {
-    ast::symbol_table symbols;
-    auto expr = parse::parse(source, symbols);
-    compile::compiler comp(symbols);
+    straylight::nix::compiler::ast::symbol_table symbols;
+    auto expr = straylight::nix::compiler::parse::parse(source, symbols);
+    straylight::nix::compiler::compile::compiler comp(symbols);
     auto module = comp.compile(expr);
 
     if (!module.validate()) {
@@ -263,7 +261,7 @@ TEST_CASE("integration: error positions in select", "[integration]") {
 // =============================================================================
 
 TEST_CASE("integration: memory layout constants", "[integration][memory]") {
-  namespace mem = memory_layout;
+  namespace mem = straylight::nix::compiler::memory_layout;
 
   // Verify our memory layout makes sense
   REQUIRE(mem::DATA_SEGMENT_LIMIT <= mem::HEAP_BASE);

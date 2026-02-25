@@ -13,7 +13,6 @@
 #include <cstring>
 #include <iostream>
 #include <random>
-#include <sstream>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -117,10 +116,12 @@ std::vector<std::string> generate_drv_outputs(std::size_t count) {
   std::vector<std::string> outputs;
   outputs.reserve(count);
   for (std::size_t i = 0; i < count; ++i) {
-    std::ostringstream oss;
-    oss << "out\t/nix/store/abc" << i << "-package-" << i << ".0.0\t"
-        << "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-    outputs.push_back(oss.str());
+    std::string line = "out\t/nix/store/abc";
+    line += std::to_string(i);
+    line += "-package-";
+    line += std::to_string(i);
+    line += ".0.0\tsha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+    outputs.push_back(std::move(line));
   }
   return outputs;
 }

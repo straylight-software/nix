@@ -30,8 +30,7 @@ struct inflight_operation {
 } // namespace
 
 /// io_uring implementation of ring interface
-class io_uring_ring final : public ring {
-public:
+struct io_uring_ring final : public ring {
   explicit io_uring_ring(unsigned entries, unsigned flags) {
     int result = io_uring_queue_init(entries, &ring_, flags);
     if (result < 0) {
@@ -365,7 +364,6 @@ public:
   /// get raw io_uring pointer for registration functions
   [[nodiscard]] auto raw_ring() -> struct io_uring* { return &ring_; }
 
-private:
   auto harvest_completions() -> std::span<event> {
     completed_events_.clear();
 
@@ -448,8 +446,7 @@ auto make_io_uring_ring(unsigned entries, unsigned flags) -> std::unique_ptr<rin
 // Registered files implementation
 // ============================================================================
 
-class io_uring_registered_files final : public registered_files {
-public:
+struct io_uring_registered_files final : public registered_files {
   io_uring_registered_files(struct io_uring* ring, std::vector<int> initial_slots)
       : ring_(ring), slots_(std::move(initial_slots)), used_count_(0) {
     // count non-empty slots
@@ -507,7 +504,6 @@ public:
     return slots_[slot];
   }
 
-private:
   struct io_uring* ring_;
   std::vector<int> slots_;
   std::size_t used_count_;
@@ -517,8 +513,7 @@ private:
 // Registered buffers implementation
 // ============================================================================
 
-class io_uring_registered_buffers final : public registered_buffers {
-public:
+struct io_uring_registered_buffers final : public registered_buffers {
   io_uring_registered_buffers(struct io_uring* ring, std::vector<std::span<std::byte>> bufs)
       : ring_(ring), buffers_(std::move(bufs)) {}
 
@@ -537,7 +532,6 @@ public:
     return buffers_;
   }
 
-private:
   struct io_uring* ring_;
   std::vector<std::span<std::byte>> buffers_;
 };

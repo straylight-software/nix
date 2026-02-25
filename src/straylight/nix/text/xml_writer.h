@@ -3,7 +3,8 @@
 // Modern XML writer for generating well-formed XML output.
 //
 // Features:
-// - Stream-based output to std::ostream
+// - Stream-based output to std::ostream (XmlWriter)
+// - String-based output without sstream (StringXmlWriter)
 // - Manual control via openElement()/closeElement()
 // - RAII Element class for automatic closing
 // - Self-closing empty elements
@@ -12,9 +13,8 @@
 // - Configurable indentation
 // - XML declaration generation
 //
-// Usage:
-//   std::ostringstream ss;
-//   XmlWriter writer(ss);
+// Usage (StringXmlWriter - preferred, no sstream):
+//   StringXmlWriter writer;
 //   writer.writeDeclaration();
 //   {
 //     auto root = writer.element("root", {{"version", "1.0"}});
@@ -24,6 +24,12 @@
 //       writer.writeEmptyElement("empty", {{"attr", "value"}});
 //     }
 //   }
+//   std::string result = writer.str();
+//
+// Usage (XmlWriter - for stream output):
+//   XmlWriter writer(some_ostream);
+//   writer.writeDeclaration();
+//   // ...
 
 #pragma once
 
@@ -91,10 +97,15 @@ namespace detail {
 } // namespace detail
 
 // ─────────────────────────────────────────────────────────────────────────────
-// XmlWriter class
+// Forward declarations
 // ─────────────────────────────────────────────────────────────────────────────
 
 class XmlWriter;
+class StringXmlWriter;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Element (RAII wrapper for XmlWriter)
+// ─────────────────────────────────────────────────────────────────────────────
 
 /// RAII wrapper for automatic element closing.
 /// When destroyed, closes the element that was opened on construction.
@@ -130,6 +141,48 @@ private:
   XmlWriter* writer_;
   bool active_;
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// StringElement (RAII wrapper for StringXmlWriter)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// RAII wrapper for automatic element closing (StringXmlWriter version).
+class StringElement {
+public:
+  StringElement(StringElement const&) = delete;
+  StringElement& operator=(StringElement const&) = delete;
+
+  StringElement(StringElement&& other) noexcept : writer_(other.writer_), active_(other.active_) {
+    other.active_ = false;
+  }
+
+  StringElement& operator=(StringElement&& other) noexcept {
+    if (this != &other) {
+      close();
+      writer_ = other.writer_;
+      active_ = other.active_;
+      other.active_ = false;
+    }
+    return *this;
+  }
+
+  ~StringElement() { close(); }
+
+  /// Explicitly close the element (idempotent).
+  void close();
+
+private:
+  friend class StringXmlWriter;
+
+  explicit StringElement(StringXmlWriter& writer) : writer_(&writer), active_(true) {}
+
+  StringXmlWriter* writer_;
+  bool active_;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// XmlWriter class
+// ─────────────────────────────────────────────────────────────────────────────
 
 /// XML writer for generating well-formed XML output.
 class XmlWriter {
@@ -297,6 +350,198 @@ private:
 // ─────────────────────────────────────────────────────────────────────────────
 
 inline void Element::close() {
+  if (active_ && writer_ != nullptr) {
+    writer_->closeElement();
+    active_ = false;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// StringXmlWriter class (sstream-free alternative)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// XML writer that outputs directly to a std::string.
+/// Use this instead of XmlWriter + std::ostringstream to avoid sstream overhead.
+class StringXmlWriter {
+public:
+  /// Construct a writer that outputs to an internal string.
+  /// @param indent Whether to indent nested elements (default: true).
+  /// @param indent_str The string to use for each indentation level (default: 2 spaces).
+  explicit StringXmlWriter(bool indent = true, std::string_view indent_str = "  ")
+      : indent_(indent), indent_str_(indent_str) {}
+
+  // Non-copyable
+  StringXmlWriter(StringXmlWriter const&) = delete;
+  StringXmlWriter& operator=(StringXmlWriter const&) = delete;
+
+  // Movable
+  StringXmlWriter(StringXmlWriter&&) = default;
+  StringXmlWriter& operator=(StringXmlWriter&&) = default;
+
+  ~StringXmlWriter() = default;
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // XML Declaration
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /// Write the XML declaration.
+  void writeDeclaration(std::string_view version = "1.0", std::string_view encoding = "UTF-8",
+                        std::string_view standalone = "") {
+    output_ += "<?xml version=\"";
+    output_ += version;
+    output_ += "\" encoding=\"";
+    output_ += encoding;
+    output_ += "\"";
+    if (!standalone.empty()) {
+      output_ += " standalone=\"";
+      output_ += standalone;
+      output_ += "\"";
+    }
+    output_ += "?>";
+    if (indent_) {
+      output_ += '\n';
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Element management
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /// Open an element manually.
+  void openElement(std::string_view name, XmlAttrs const& attrs = {}) {
+    writeIndent();
+    output_ += '<';
+    output_ += name;
+    writeAttrs(attrs);
+    output_ += '>';
+    if (indent_) {
+      output_ += '\n';
+    }
+    element_stack_.push(std::string(name));
+  }
+
+  /// Close the most recently opened element.
+  void closeElement() {
+    if (element_stack_.empty()) {
+      return;
+    }
+    std::string name = std::move(element_stack_.top());
+    element_stack_.pop();
+    writeIndent();
+    output_ += "</";
+    output_ += name;
+    output_ += '>';
+    if (indent_) {
+      output_ += '\n';
+    }
+  }
+
+  /// Create an RAII element that closes automatically.
+  [[nodiscard]] StringElement element(std::string_view name, XmlAttrs const& attrs = {}) {
+    openElement(name, attrs);
+    return StringElement(*this);
+  }
+
+  /// Write a self-closing empty element.
+  void writeEmptyElement(std::string_view name, XmlAttrs const& attrs = {}) {
+    writeIndent();
+    output_ += '<';
+    output_ += name;
+    writeAttrs(attrs);
+    output_ += " />";
+    if (indent_) {
+      output_ += '\n';
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Content writing
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /// Write escaped text content.
+  void writeText(std::string_view content) {
+    writeIndent();
+    output_ += detail::escape_xml(content);
+    if (indent_) {
+      output_ += '\n';
+    }
+  }
+
+  /// Write raw text content (no escaping, no indentation).
+  void writeRaw(std::string_view content) { output_ += content; }
+
+  /// Write a CDATA section.
+  void writeCdata(std::string_view content) {
+    writeIndent();
+    output_ += "<![CDATA[";
+    output_ += content;
+    output_ += "]]>";
+    if (indent_) {
+      output_ += '\n';
+    }
+  }
+
+  /// Write an XML comment.
+  void writeComment(std::string_view content) {
+    writeIndent();
+    output_ += "<!-- ";
+    output_ += content;
+    output_ += " -->";
+    if (indent_) {
+      output_ += '\n';
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Accessors
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /// Get the current nesting depth.
+  [[nodiscard]] auto depth() const -> std::size_t { return element_stack_.size(); }
+
+  /// Check if indentation is enabled.
+  [[nodiscard]] auto indenting() const -> bool { return indent_; }
+
+  /// Get the output string.
+  [[nodiscard]] auto str() const& -> std::string const& { return output_; }
+
+  /// Move the output string out.
+  [[nodiscard]] auto str() && -> std::string { return std::move(output_); }
+
+  /// Direct access to output string for appending.
+  [[nodiscard]] auto output() -> std::string& { return output_; }
+
+private:
+  void writeAttrs(XmlAttrs const& attrs) {
+    for (auto const& [name, value] : attrs) {
+      output_ += ' ';
+      output_ += name;
+      output_ += "=\"";
+      output_ += detail::escape_attr(value);
+      output_ += '"';
+    }
+  }
+
+  void writeIndent() {
+    if (!indent_) {
+      return;
+    }
+    for (std::size_t i = 0; i < element_stack_.size(); ++i) {
+      output_ += indent_str_;
+    }
+  }
+
+  std::string output_;
+  bool indent_;
+  std::string indent_str_;
+  std::stack<std::string> element_stack_;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// StringElement implementation
+// ─────────────────────────────────────────────────────────────────────────────
+
+inline void StringElement::close() {
   if (active_ && writer_ != nullptr) {
     writer_->closeElement();
     active_ = false;

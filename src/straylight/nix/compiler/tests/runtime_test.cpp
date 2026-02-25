@@ -18,8 +18,8 @@
 #include "straylight/nix/compiler/runtime/runtime.h"
 #include "straylight/nix/compiler/runtime/wasm_executor.h"
 
-using namespace straylight::nix::compiler::runtime;
-using namespace straylight::nix::compiler::compile;
+namespace runtime = straylight::nix::compiler::runtime;
+namespace compile = straylight::nix::compiler::compile;
 namespace mem = straylight::nix::compiler::memory_layout;
 
 // =============================================================================
@@ -28,54 +28,54 @@ namespace mem = straylight::nix::compiler::memory_layout;
 
 TEST_CASE("runtime: value creation", "[runtime][value]") {
   SECTION("null value") {
-    auto v = constants::null_value;
-    REQUIRE(is_null(v));
-    REQUIRE(!is_bool(v));
-    REQUIRE(!is_int(v));
-    REQUIRE(type_name(v) == "null");
+    auto v = runtime::constants::null_value;
+    REQUIRE(runtime::is_null(v));
+    REQUIRE(!runtime::is_bool(v));
+    REQUIRE(!runtime::is_int(v));
+    REQUIRE(runtime::type_name(v) == "null");
   }
 
   SECTION("boolean true") {
-    auto v = constants::bool_true;
-    REQUIRE(is_bool(v));
-    REQUIRE(get_bool_value(v) == true);
-    REQUIRE(type_name(v) == "bool");
+    auto v = runtime::constants::bool_true;
+    REQUIRE(runtime::is_bool(v));
+    REQUIRE(runtime::get_bool_value(v) == true);
+    REQUIRE(runtime::type_name(v) == "bool");
   }
 
   SECTION("boolean false") {
-    auto v = constants::bool_false;
-    REQUIRE(is_bool(v));
-    REQUIRE(get_bool_value(v) == false);
+    auto v = runtime::constants::bool_false;
+    REQUIRE(runtime::is_bool(v));
+    REQUIRE(runtime::get_bool_value(v) == false);
   }
 
   SECTION("integer") {
-    auto v = make_int(42);
-    REQUIRE(is_int(v));
-    REQUIRE(get_int_value(v) == 42);
-    REQUIRE(type_name(v) == "int");
+    auto v = runtime::make_int(42);
+    REQUIRE(runtime::is_int(v));
+    REQUIRE(runtime::get_int_value(v) == 42);
+    REQUIRE(runtime::type_name(v) == "int");
   }
 
   SECTION("negative integer") {
-    auto v = make_int(-123);
-    REQUIRE(is_int(v));
-    REQUIRE(get_int_value(v) == -123);
+    auto v = runtime::make_int(-123);
+    REQUIRE(runtime::is_int(v));
+    REQUIRE(runtime::get_int_value(v) == -123);
   }
 
   SECTION("max int32") {
-    auto v = make_int(std::numeric_limits<std::int32_t>::max());
-    REQUIRE(is_int(v));
-    REQUIRE(get_int_value(v) == std::numeric_limits<std::int32_t>::max());
+    auto v = runtime::make_int(std::numeric_limits<std::int32_t>::max());
+    REQUIRE(runtime::is_int(v));
+    REQUIRE(runtime::get_int_value(v) == std::numeric_limits<std::int32_t>::max());
   }
 
   SECTION("min int32") {
-    auto v = make_int(std::numeric_limits<std::int32_t>::min());
-    REQUIRE(is_int(v));
-    REQUIRE(get_int_value(v) == std::numeric_limits<std::int32_t>::min());
+    auto v = runtime::make_int(std::numeric_limits<std::int32_t>::min());
+    REQUIRE(runtime::is_int(v));
+    REQUIRE(runtime::get_int_value(v) == std::numeric_limits<std::int32_t>::min());
   }
 
   SECTION("make_bool") {
-    REQUIRE(make_bool(true) == constants::bool_true);
-    REQUIRE(make_bool(false) == constants::bool_false);
+    REQUIRE(runtime::make_bool(true) == runtime::constants::bool_true);
+    REQUIRE(runtime::make_bool(false) == runtime::constants::bool_false);
   }
 }
 
@@ -85,14 +85,14 @@ TEST_CASE("runtime: value creation", "[runtime][value]") {
 
 TEST_CASE("runtime: heap allocator", "[runtime][heap]") {
   SECTION("basic allocation") {
-    heap_allocator heap(mem::HEAP_BASE, mem::DEFAULT_MEMORY_SIZE);
+    runtime::heap_allocator heap(mem::HEAP_BASE, mem::DEFAULT_MEMORY_SIZE);
     auto ptr = heap.allocate(100);
     REQUIRE(ptr == mem::HEAP_BASE);
     REQUIRE(ptr % mem::ALIGNMENT == 0);
   }
 
   SECTION("sequential allocations don't overlap") {
-    heap_allocator heap(mem::HEAP_BASE, mem::DEFAULT_MEMORY_SIZE);
+    runtime::heap_allocator heap(mem::HEAP_BASE, mem::DEFAULT_MEMORY_SIZE);
 
     auto p1 = heap.allocate(100);
     auto p2 = heap.allocate(200);
@@ -106,7 +106,7 @@ TEST_CASE("runtime: heap allocator", "[runtime][heap]") {
   }
 
   SECTION("all allocations are aligned") {
-    heap_allocator heap(mem::HEAP_BASE, mem::DEFAULT_MEMORY_SIZE);
+    runtime::heap_allocator heap(mem::HEAP_BASE, mem::DEFAULT_MEMORY_SIZE);
 
     for (int idx = 1; idx <= 100; ++idx) {
       auto ptr = heap.allocate(idx);
@@ -115,7 +115,7 @@ TEST_CASE("runtime: heap allocator", "[runtime][heap]") {
   }
 
   SECTION("bytes_allocated tracks usage") {
-    heap_allocator heap(mem::HEAP_BASE, mem::DEFAULT_MEMORY_SIZE);
+    runtime::heap_allocator heap(mem::HEAP_BASE, mem::DEFAULT_MEMORY_SIZE);
     REQUIRE(heap.bytes_allocated() == 0);
 
     heap.allocate(100);
@@ -126,7 +126,7 @@ TEST_CASE("runtime: heap allocator", "[runtime][heap]") {
   }
 
   SECTION("reset clears allocations") {
-    heap_allocator heap(mem::HEAP_BASE, mem::DEFAULT_MEMORY_SIZE);
+    runtime::heap_allocator heap(mem::HEAP_BASE, mem::DEFAULT_MEMORY_SIZE);
 
     heap.allocate(1000);
     heap.allocate(2000);
@@ -141,17 +141,17 @@ TEST_CASE("runtime: heap allocator", "[runtime][heap]") {
   }
 
   SECTION("oom throws on exhaustion") {
-    heap_allocator heap(mem::HEAP_BASE, mem::HEAP_BASE + 1000); // tiny heap
+    runtime::heap_allocator heap(mem::HEAP_BASE, mem::HEAP_BASE + 1000); // tiny heap
 
-    REQUIRE_THROWS_AS(heap.allocate(2000), oom_error);
+    REQUIRE_THROWS_AS(heap.allocate(2000), runtime::oom_error);
   }
 
   SECTION("oom throws on cumulative exhaustion") {
-    heap_allocator heap(mem::HEAP_BASE, mem::HEAP_BASE + 1000);
+    runtime::heap_allocator heap(mem::HEAP_BASE, mem::HEAP_BASE + 1000);
 
     heap.allocate(400);
     heap.allocate(400);
-    REQUIRE_THROWS_AS(heap.allocate(400), oom_error);
+    REQUIRE_THROWS_AS(heap.allocate(400), runtime::oom_error);
   }
 }
 
@@ -160,7 +160,7 @@ TEST_CASE("runtime: heap allocator", "[runtime][heap]") {
 // =============================================================================
 
 TEST_CASE("runtime: context memory operations", "[runtime][context]") {
-  runtime_context ctx(mem::DEFAULT_MEMORY_SIZE);
+  runtime::runtime_context ctx(mem::DEFAULT_MEMORY_SIZE);
 
   SECTION("read/write i32") {
     ctx.write_i32(100, 0x12345678);
@@ -173,7 +173,7 @@ TEST_CASE("runtime: context memory operations", "[runtime][context]") {
   }
 
   SECTION("read/write value") {
-    auto v = make_int(42);
+    auto v = runtime::make_int(42);
     ctx.write_value(100, v);
     REQUIRE(ctx.read_value(100) == v);
   }
@@ -194,12 +194,13 @@ TEST_CASE("runtime: context memory operations", "[runtime][context]") {
   }
 
   SECTION("out of bounds read throws") {
-    REQUIRE_THROWS_AS(ctx.read_bytes(mem::DEFAULT_MEMORY_SIZE + 100, 10), runtime_error);
+    REQUIRE_THROWS_AS(ctx.read_bytes(mem::DEFAULT_MEMORY_SIZE + 100, 10), runtime::runtime_error);
   }
 
   SECTION("out of bounds write throws") {
     std::uint8_t data[10] = {0};
-    REQUIRE_THROWS_AS(ctx.write_bytes(mem::DEFAULT_MEMORY_SIZE + 100, data), runtime_error);
+    REQUIRE_THROWS_AS(ctx.write_bytes(mem::DEFAULT_MEMORY_SIZE + 100, data),
+                      runtime::runtime_error);
   }
 }
 
@@ -208,143 +209,143 @@ TEST_CASE("runtime: context memory operations", "[runtime][context]") {
 // =============================================================================
 
 TEST_CASE("runtime: rt_add", "[runtime][arithmetic]") {
-  runtime_context ctx;
+  runtime::runtime_context ctx;
 
   SECTION("add two positive integers") {
-    auto a = make_int(10);
-    auto b = make_int(20);
-    auto result = rt_add(ctx, a, b, 0, 0);
-    REQUIRE(is_int(result));
-    REQUIRE(get_int_value(result) == 30);
+    auto a = runtime::make_int(10);
+    auto b = runtime::make_int(20);
+    auto result = runtime::rt_add(ctx, a, b, 0, 0);
+    REQUIRE(runtime::is_int(result));
+    REQUIRE(runtime::get_int_value(result) == 30);
   }
 
   SECTION("add positive and negative") {
-    auto a = make_int(10);
-    auto b = make_int(-3);
-    auto result = rt_add(ctx, a, b, 0, 0);
-    REQUIRE(get_int_value(result) == 7);
+    auto a = runtime::make_int(10);
+    auto b = runtime::make_int(-3);
+    auto result = runtime::rt_add(ctx, a, b, 0, 0);
+    REQUIRE(runtime::get_int_value(result) == 7);
   }
 
   SECTION("add two negatives") {
-    auto a = make_int(-10);
-    auto b = make_int(-20);
-    auto result = rt_add(ctx, a, b, 0, 0);
-    REQUIRE(get_int_value(result) == -30);
+    auto a = runtime::make_int(-10);
+    auto b = runtime::make_int(-20);
+    auto result = runtime::rt_add(ctx, a, b, 0, 0);
+    REQUIRE(runtime::get_int_value(result) == -30);
   }
 
   SECTION("add zero") {
-    auto a = make_int(42);
-    auto b = make_int(0);
-    auto result = rt_add(ctx, a, b, 0, 0);
-    REQUIRE(get_int_value(result) == 42);
+    auto a = runtime::make_int(42);
+    auto b = runtime::make_int(0);
+    auto result = runtime::rt_add(ctx, a, b, 0, 0);
+    REQUIRE(runtime::get_int_value(result) == 42);
   }
 
   SECTION("type error on non-numeric") {
-    auto a = make_int(1);
-    auto b = constants::bool_true;
-    REQUIRE_THROWS_AS(rt_add(ctx, a, b, 1, 1), type_error);
+    auto a = runtime::make_int(1);
+    auto b = runtime::constants::bool_true;
+    REQUIRE_THROWS_AS(runtime::rt_add(ctx, a, b, 1, 1), runtime::type_error);
   }
 }
 
 TEST_CASE("runtime: rt_sub", "[runtime][arithmetic]") {
-  runtime_context ctx;
+  runtime::runtime_context ctx;
 
   SECTION("subtract") {
-    auto a = make_int(30);
-    auto b = make_int(10);
-    auto result = rt_sub(ctx, a, b, 0, 0);
-    REQUIRE(get_int_value(result) == 20);
+    auto a = runtime::make_int(30);
+    auto b = runtime::make_int(10);
+    auto result = runtime::rt_sub(ctx, a, b, 0, 0);
+    REQUIRE(runtime::get_int_value(result) == 20);
   }
 
   SECTION("subtract to negative") {
-    auto a = make_int(10);
-    auto b = make_int(30);
-    auto result = rt_sub(ctx, a, b, 0, 0);
-    REQUIRE(get_int_value(result) == -20);
+    auto a = runtime::make_int(10);
+    auto b = runtime::make_int(30);
+    auto result = runtime::rt_sub(ctx, a, b, 0, 0);
+    REQUIRE(runtime::get_int_value(result) == -20);
   }
 }
 
 TEST_CASE("runtime: rt_mul", "[runtime][arithmetic]") {
-  runtime_context ctx;
+  runtime::runtime_context ctx;
 
   SECTION("multiply") {
-    auto a = make_int(6);
-    auto b = make_int(7);
-    auto result = rt_mul(ctx, a, b, 0, 0);
-    REQUIRE(get_int_value(result) == 42);
+    auto a = runtime::make_int(6);
+    auto b = runtime::make_int(7);
+    auto result = runtime::rt_mul(ctx, a, b, 0, 0);
+    REQUIRE(runtime::get_int_value(result) == 42);
   }
 
   SECTION("multiply by zero") {
-    auto a = make_int(12345);
-    auto b = make_int(0);
-    auto result = rt_mul(ctx, a, b, 0, 0);
-    REQUIRE(get_int_value(result) == 0);
+    auto a = runtime::make_int(12345);
+    auto b = runtime::make_int(0);
+    auto result = runtime::rt_mul(ctx, a, b, 0, 0);
+    REQUIRE(runtime::get_int_value(result) == 0);
   }
 
   SECTION("multiply negatives") {
-    auto a = make_int(-3);
-    auto b = make_int(-4);
-    auto result = rt_mul(ctx, a, b, 0, 0);
-    REQUIRE(get_int_value(result) == 12);
+    auto a = runtime::make_int(-3);
+    auto b = runtime::make_int(-4);
+    auto result = runtime::rt_mul(ctx, a, b, 0, 0);
+    REQUIRE(runtime::get_int_value(result) == 12);
   }
 }
 
 TEST_CASE("runtime: rt_div", "[runtime][arithmetic]") {
-  runtime_context ctx;
+  runtime::runtime_context ctx;
 
   SECTION("divide evenly") {
-    auto a = make_int(42);
-    auto b = make_int(6);
-    auto result = rt_div(ctx, a, b, 0, 0);
-    REQUIRE(get_int_value(result) == 7);
+    auto a = runtime::make_int(42);
+    auto b = runtime::make_int(6);
+    auto result = runtime::rt_div(ctx, a, b, 0, 0);
+    REQUIRE(runtime::get_int_value(result) == 7);
   }
 
   SECTION("divide with truncation") {
-    auto a = make_int(7);
-    auto b = make_int(2);
-    auto result = rt_div(ctx, a, b, 0, 0);
-    REQUIRE(get_int_value(result) == 3); // floor division
+    auto a = runtime::make_int(7);
+    auto b = runtime::make_int(2);
+    auto result = runtime::rt_div(ctx, a, b, 0, 0);
+    REQUIRE(runtime::get_int_value(result) == 3); // floor division
   }
 
   SECTION("divide by zero throws") {
-    auto a = make_int(42);
-    auto b = make_int(0);
-    REQUIRE_THROWS_AS(rt_div(ctx, a, b, 1, 1), runtime_error);
+    auto a = runtime::make_int(42);
+    auto b = runtime::make_int(0);
+    REQUIRE_THROWS_AS(runtime::rt_div(ctx, a, b, 1, 1), runtime::runtime_error);
   }
 
   SECTION("negative division - floor semantics") {
     // Nix uses floor division (rounds toward negative infinity)
-    auto a = make_int(-7);
-    auto b = make_int(2);
-    auto result = rt_div(ctx, a, b, 0, 0);
-    REQUIRE(get_int_value(result) == -4); // floor(-3.5) = -4
+    auto a = runtime::make_int(-7);
+    auto b = runtime::make_int(2);
+    auto result = runtime::rt_div(ctx, a, b, 0, 0);
+    REQUIRE(runtime::get_int_value(result) == -4); // floor(-3.5) = -4
   }
 }
 
 TEST_CASE("runtime: rt_negate", "[runtime][arithmetic]") {
-  runtime_context ctx;
+  runtime::runtime_context ctx;
 
   SECTION("negate positive") {
-    auto v = make_int(42);
-    auto result = rt_negate(ctx, v);
-    REQUIRE(get_int_value(result) == -42);
+    auto v = runtime::make_int(42);
+    auto result = runtime::rt_negate(ctx, v);
+    REQUIRE(runtime::get_int_value(result) == -42);
   }
 
   SECTION("negate negative") {
-    auto v = make_int(-42);
-    auto result = rt_negate(ctx, v);
-    REQUIRE(get_int_value(result) == 42);
+    auto v = runtime::make_int(-42);
+    auto result = runtime::rt_negate(ctx, v);
+    REQUIRE(runtime::get_int_value(result) == 42);
   }
 
   SECTION("negate zero") {
-    auto v = make_int(0);
-    auto result = rt_negate(ctx, v);
-    REQUIRE(get_int_value(result) == 0);
+    auto v = runtime::make_int(0);
+    auto result = runtime::rt_negate(ctx, v);
+    REQUIRE(runtime::get_int_value(result) == 0);
   }
 
   SECTION("negate non-numeric throws") {
-    auto v = constants::bool_true;
-    REQUIRE_THROWS_AS(rt_negate(ctx, v), type_error);
+    auto v = runtime::constants::bool_true;
+    REQUIRE_THROWS_AS(runtime::rt_negate(ctx, v), runtime::type_error);
   }
 }
 
@@ -353,62 +354,66 @@ TEST_CASE("runtime: rt_negate", "[runtime][arithmetic]") {
 // =============================================================================
 
 TEST_CASE("runtime: rt_less_than", "[runtime][comparison]") {
-  runtime_context ctx;
+  runtime::runtime_context ctx;
 
   SECTION("less than true") {
-    auto a = make_int(1);
-    auto b = make_int(2);
-    auto result = rt_less_than(ctx, a, b);
-    REQUIRE(result == constants::bool_true);
+    auto a = runtime::make_int(1);
+    auto b = runtime::make_int(2);
+    auto result = runtime::rt_less_than(ctx, a, b);
+    REQUIRE(result == runtime::constants::bool_true);
   }
 
   SECTION("less than false") {
-    auto a = make_int(2);
-    auto b = make_int(1);
-    auto result = rt_less_than(ctx, a, b);
-    REQUIRE(result == constants::bool_false);
+    auto a = runtime::make_int(2);
+    auto b = runtime::make_int(1);
+    auto result = runtime::rt_less_than(ctx, a, b);
+    REQUIRE(result == runtime::constants::bool_false);
   }
 
   SECTION("equal is not less") {
-    auto a = make_int(5);
-    auto b = make_int(5);
-    auto result = rt_less_than(ctx, a, b);
-    REQUIRE(result == constants::bool_false);
+    auto a = runtime::make_int(5);
+    auto b = runtime::make_int(5);
+    auto result = runtime::rt_less_than(ctx, a, b);
+    REQUIRE(result == runtime::constants::bool_false);
   }
 }
 
 TEST_CASE("runtime: rt_eq", "[runtime][comparison]") {
-  runtime_context ctx;
+  runtime::runtime_context ctx;
 
   SECTION("integers equal") {
-    auto a = make_int(42);
-    auto b = make_int(42);
-    REQUIRE(rt_eq(ctx, a, b) == constants::bool_true);
+    auto a = runtime::make_int(42);
+    auto b = runtime::make_int(42);
+    REQUIRE(runtime::rt_eq(ctx, a, b) == runtime::constants::bool_true);
   }
 
   SECTION("integers not equal") {
-    auto a = make_int(1);
-    auto b = make_int(2);
-    REQUIRE(rt_eq(ctx, a, b) == constants::bool_false);
+    auto a = runtime::make_int(1);
+    auto b = runtime::make_int(2);
+    REQUIRE(runtime::rt_eq(ctx, a, b) == runtime::constants::bool_false);
   }
 
   SECTION("booleans equal") {
-    REQUIRE(rt_eq(ctx, constants::bool_true, constants::bool_true) == constants::bool_true);
-    REQUIRE(rt_eq(ctx, constants::bool_false, constants::bool_false) == constants::bool_true);
+    REQUIRE(runtime::rt_eq(ctx, runtime::constants::bool_true, runtime::constants::bool_true) ==
+            runtime::constants::bool_true);
+    REQUIRE(runtime::rt_eq(ctx, runtime::constants::bool_false, runtime::constants::bool_false) ==
+            runtime::constants::bool_true);
   }
 
   SECTION("booleans not equal") {
-    REQUIRE(rt_eq(ctx, constants::bool_true, constants::bool_false) == constants::bool_false);
+    REQUIRE(runtime::rt_eq(ctx, runtime::constants::bool_true, runtime::constants::bool_false) ==
+            runtime::constants::bool_false);
   }
 
   SECTION("null equals null") {
-    REQUIRE(rt_eq(ctx, constants::null_value, constants::null_value) == constants::bool_true);
+    REQUIRE(runtime::rt_eq(ctx, runtime::constants::null_value, runtime::constants::null_value) ==
+            runtime::constants::bool_true);
   }
 
   SECTION("different types not equal") {
-    auto i = make_int(1);
-    auto b = constants::bool_true;
-    REQUIRE(rt_eq(ctx, i, b) == constants::bool_false);
+    auto i = runtime::make_int(1);
+    auto b = runtime::constants::bool_true;
+    REQUIRE(runtime::rt_eq(ctx, i, b) == runtime::constants::bool_false);
   }
 }
 
@@ -417,20 +422,20 @@ TEST_CASE("runtime: rt_eq", "[runtime][comparison]") {
 // =============================================================================
 
 TEST_CASE("runtime: rt_not", "[runtime][boolean]") {
-  runtime_context ctx;
+  runtime::runtime_context ctx;
 
   SECTION("not true") {
-    auto result = rt_not(ctx, constants::bool_true);
-    REQUIRE(result == constants::bool_false);
+    auto result = runtime::rt_not(ctx, runtime::constants::bool_true);
+    REQUIRE(result == runtime::constants::bool_false);
   }
 
   SECTION("not false") {
-    auto result = rt_not(ctx, constants::bool_false);
-    REQUIRE(result == constants::bool_true);
+    auto result = runtime::rt_not(ctx, runtime::constants::bool_false);
+    REQUIRE(result == runtime::constants::bool_true);
   }
 
   SECTION("not non-boolean throws") {
-    REQUIRE_THROWS_AS(rt_not(ctx, make_int(1)), type_error);
+    REQUIRE_THROWS_AS(runtime::rt_not(ctx, runtime::make_int(1)), runtime::type_error);
   }
 }
 
@@ -439,47 +444,47 @@ TEST_CASE("runtime: rt_not", "[runtime][boolean]") {
 // =============================================================================
 
 TEST_CASE("runtime: rt_make_list", "[runtime][collection]") {
-  runtime_context ctx;
+  runtime::runtime_context ctx;
 
   SECTION("empty list") {
-    auto result = rt_make_list(ctx, 0, 0);
-    REQUIRE(is_list(result));
+    auto result = runtime::rt_make_list(ctx, 0, 0);
+    REQUIRE(runtime::is_list(result));
   }
 
   SECTION("list with elements") {
     // Write elements to memory first
     std::uint32_t offset = mem::HEAP_BASE;
-    ctx.write_value(offset, make_int(1));
-    ctx.write_value(offset + 8, make_int(2));
-    ctx.write_value(offset + 16, make_int(3));
+    ctx.write_value(offset, runtime::make_int(1));
+    ctx.write_value(offset + 8, runtime::make_int(2));
+    ctx.write_value(offset + 16, runtime::make_int(3));
 
-    auto result = rt_make_list(ctx, offset, 3);
-    REQUIRE(is_list(result));
+    auto result = runtime::rt_make_list(ctx, offset, 3);
+    REQUIRE(runtime::is_list(result));
   }
 }
 
 TEST_CASE("runtime: rt_concat lists", "[runtime][collection]") {
-  runtime_context ctx;
+  runtime::runtime_context ctx;
 
   // Create two lists in memory
   auto list1_ptr = ctx.allocate(mem::list_size(2));
   ctx.write_i32(list1_ptr + mem::LIST_COUNT_OFFSET, 2);
-  ctx.write_value(list1_ptr + mem::LIST_ELEMENTS_OFFSET, make_int(1));
-  ctx.write_value(list1_ptr + mem::LIST_ELEMENTS_OFFSET + 8, make_int(2));
+  ctx.write_value(list1_ptr + mem::LIST_ELEMENTS_OFFSET, runtime::make_int(1));
+  ctx.write_value(list1_ptr + mem::LIST_ELEMENTS_OFFSET + 8, runtime::make_int(2));
 
   auto list2_ptr = ctx.allocate(mem::list_size(2));
   ctx.write_i32(list2_ptr + mem::LIST_COUNT_OFFSET, 2);
-  ctx.write_value(list2_ptr + mem::LIST_ELEMENTS_OFFSET, make_int(3));
-  ctx.write_value(list2_ptr + mem::LIST_ELEMENTS_OFFSET + 8, make_int(4));
+  ctx.write_value(list2_ptr + mem::LIST_ELEMENTS_OFFSET, runtime::make_int(3));
+  ctx.write_value(list2_ptr + mem::LIST_ELEMENTS_OFFSET + 8, runtime::make_int(4));
 
-  auto list1 = make_value(value_tag::list, list1_ptr);
-  auto list2 = make_value(value_tag::list, list2_ptr);
+  auto list1 = runtime::make_value(compile::value_tag::list, list1_ptr);
+  auto list2 = runtime::make_value(compile::value_tag::list, list2_ptr);
 
-  auto result = rt_concat(ctx, list1, list2);
-  REQUIRE(is_list(result));
+  auto result = runtime::rt_concat(ctx, list1, list2);
+  REQUIRE(runtime::is_list(result));
 
   // Check the result has 4 elements
-  auto result_ptr = get_payload(result);
+  auto result_ptr = runtime::get_payload(result);
   auto count = ctx.read_u32(result_ptr + mem::LIST_COUNT_OFFSET);
   REQUIRE(count == 4);
 }
@@ -490,7 +495,7 @@ TEST_CASE("runtime: rt_concat lists", "[runtime][collection]") {
 
 TEST_CASE("runtime: error types", "[runtime][error]") {
   SECTION("runtime_error with position") {
-    runtime_error err("test error", 10, 20);
+    runtime::runtime_error err("test error", 10, 20);
     REQUIRE(err.line == 10);
     REQUIRE(err.column == 20);
     std::string msg = err.what();
@@ -500,26 +505,26 @@ TEST_CASE("runtime: error types", "[runtime][error]") {
   }
 
   SECTION("runtime_error without position") {
-    runtime_error err("test error");
+    runtime::runtime_error err("test error");
     REQUIRE(err.line == 0);
     REQUIRE(err.column == 0);
   }
 
   SECTION("type_error is runtime_error") {
-    type_error err("type error message", 5, 10);
-    const runtime_error& base = err;
+    runtime::type_error err("type error message", 5, 10);
+    const runtime::runtime_error& base = err;
     REQUIRE(base.line == 5);
   }
 
   SECTION("attr_error is runtime_error") {
-    attr_error err("attr error message", 1, 2);
-    const runtime_error& base = err;
+    runtime::attr_error err("attr error message", 1, 2);
+    const runtime::runtime_error& base = err;
     REQUIRE(base.line == 1);
   }
 
   SECTION("oom_error is runtime_error") {
-    oom_error err("out of memory");
-    const runtime_error& base = err;
+    runtime::oom_error err("out of memory");
+    const runtime::runtime_error& base = err;
     std::string msg = base.what();
     REQUIRE(msg.find("out of memory") != std::string::npos);
   }

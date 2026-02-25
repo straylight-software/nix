@@ -6,7 +6,7 @@
 
 #include <cstring>
 #include <fstream>
-#include <sstream>
+#include <iterator>
 
 #include "straylight/nix/compiler/ast/symbol_table.h"
 #include "straylight/nix/compiler/compile/compiler.h"
@@ -148,9 +148,7 @@ auto evaluator::eval_file_raw(const std::filesystem::path& path)
     });
   }
 
-  std::ostringstream ss;
-  ss << file.rdbuf();
-  std::string source = ss.str();
+  std::string source(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
 
   // Set the import base path for relative imports
   if constexpr (runtime::has_io()) {

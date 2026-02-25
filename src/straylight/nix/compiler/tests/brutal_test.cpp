@@ -25,10 +25,11 @@
 #include "straylight/nix/compiler/runtime/runtime.h"
 #include "straylight/nix/compiler/runtime/wasm_executor.h"
 
-using namespace straylight::nix::compiler;
-using namespace straylight::nix::compiler::runtime;
-using namespace straylight::nix::compiler::compile;
 namespace mem = straylight::nix::compiler::memory_layout;
+namespace ast = straylight::nix::compiler::ast;
+namespace parse = straylight::nix::compiler::parse;
+namespace compile = straylight::nix::compiler::compile;
+namespace runtime = straylight::nix::compiler::runtime;
 
 // =============================================================================
 // Helpers

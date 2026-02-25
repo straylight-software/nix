@@ -21,12 +21,8 @@
 #include "straylight/nix/compiler/parse/parser.h"
 #include "straylight/nix/compiler/runtime/memory_layout.h"
 #include "straylight/nix/compiler/runtime/runtime.h"
-#include "straylight/nix/compiler/runtime/wasm_executor.h"
+#include "straylight/nix/compiler/runtime/straylight::nix::compiler::runtime::wasm_executor.h"
 
-using namespace straylight::nix::compiler;
-using namespace straylight::nix::compiler::runtime;
-using namespace straylight::nix::compiler::compile;
-namespace mem = straylight::nix::compiler::memory_layout;
 
 // =============================================================================
 // Generators for Nix types
@@ -67,11 +63,11 @@ TEST_CASE("property: value tag round-trip", "[property][wasm_types]") {
   rc::check("tag survives round-trip", [](std::uint8_t raw_tag) {
     if (raw_tag > 10)
       return; // only valid tags
-    auto tag = static_cast<value_tag>(raw_tag);
+    auto tag = static_cast<straylight::nix::compiler::compile::value_tag>(raw_tag);
     auto payload = *rc::gen::inRange<std::uint32_t>(0, 0xFFFFFFFF);
-    auto packed = make_value(tag, payload);
-    RC_ASSERT(get_tag(packed) == tag);
-    RC_ASSERT(get_payload(packed) == payload);
+    auto packed = straylight::nix::compiler::compile::make_value(tag, payload);
+    RC_ASSERT(straylight::nix::compiler::compile::get_tag(packed) == tag);
+    RC_ASSERT(straylight::nix::compiler::compile::get_payload(packed) == payload);
   });
 }
 
@@ -79,20 +75,20 @@ TEST_CASE("property: integer value encoding", "[property][wasm_types]") {
   rc::check("integers encode correctly", []() {
     auto n = *rc::gen::inRange<std::int32_t>(std::numeric_limits<std::int32_t>::min(),
                                              std::numeric_limits<std::int32_t>::max());
-    auto packed = make_int(n);
-    RC_ASSERT(is_int(packed));
-    RC_ASSERT(!is_bool(packed));
-    RC_ASSERT(!is_string(packed));
-    RC_ASSERT(get_int_value(packed) == n);
+    auto packed = straylight::nix::compiler::compile::make_int(n);
+    RC_ASSERT(straylight::nix::compiler::compile::is_int(packed));
+    RC_ASSERT(!straylight::nix::compiler::compile::is_bool(packed));
+    RC_ASSERT(!straylight::nix::compiler::compile::is_string(packed));
+    RC_ASSERT(straylight::nix::compiler::compile::get_int_value(packed) == n);
   });
 }
 
 TEST_CASE("property: boolean value encoding", "[property][wasm_types]") {
   rc::check("booleans encode correctly", [](bool b) {
-    auto packed = make_bool(b);
-    RC_ASSERT(is_bool(packed));
-    RC_ASSERT(!is_int(packed));
-    RC_ASSERT(get_bool_value(packed) == b);
+    auto packed = straylight::nix::compiler::compile::make_bool(b);
+    RC_ASSERT(straylight::nix::compiler::compile::is_bool(packed));
+    RC_ASSERT(!straylight::nix::compiler::compile::is_int(packed));
+    RC_ASSERT(straylight::nix::compiler::compile::get_bool_value(packed) == b);
   });
 }
 
@@ -101,7 +97,9 @@ TEST_CASE("property: boolean value encoding", "[property][wasm_types]") {
 // =============================================================================
 
 TEST_CASE("property: alignment always produces aligned values", "[property][memory]") {
+  namespace mem = straylight::nix::compiler::memory_layout;
   rc::check("align_up produces aligned values", []() {
+    namespace mem = straylight::nix::compiler::memory_layout;
     auto size = *rc::gen::inRange<std::uint32_t>(0, 0x100000);
     auto aligned = mem::align_up(size);
     RC_ASSERT(aligned % mem::ALIGNMENT == 0);
@@ -112,6 +110,7 @@ TEST_CASE("property: alignment always produces aligned values", "[property][memo
 
 TEST_CASE("property: list size calculation", "[property][memory]") {
   rc::check("list size is header + elements", []() {
+    namespace mem = straylight::nix::compiler::memory_layout;
     auto count = *rc::gen::inRange<std::uint32_t>(0, 10000);
     auto size = mem::list_size(count);
     RC_ASSERT(size == mem::LIST_HEADER_SIZE + count * mem::VALUE_SIZE);
@@ -121,6 +120,7 @@ TEST_CASE("property: list size calculation", "[property][memory]") {
 
 TEST_CASE("property: attrset size calculation", "[property][memory]") {
   rc::check("attrset size is header + entries", []() {
+    namespace mem = straylight::nix::compiler::memory_layout;
     auto count = *rc::gen::inRange<std::uint32_t>(0, 10000);
     auto size = mem::attrset_size(count);
     RC_ASSERT(size == mem::ATTRSET_HEADER_SIZE + count * mem::ATTRSET_ENTRY_SIZE);
@@ -129,6 +129,7 @@ TEST_CASE("property: attrset size calculation", "[property][memory]") {
 
 TEST_CASE("property: closure size calculation", "[property][memory]") {
   rc::check("closure size is header + captures", []() {
+    namespace mem = straylight::nix::compiler::memory_layout;
     auto count = *rc::gen::inRange<std::uint32_t>(0, 10000);
     auto size = mem::closure_size(count);
     RC_ASSERT(size == mem::CLOSURE_HEADER_SIZE + count * mem::VALUE_SIZE);
@@ -141,7 +142,9 @@ TEST_CASE("property: closure size calculation", "[property][memory]") {
 
 TEST_CASE("property: heap allocator never returns overlapping regions", "[property][runtime]") {
   rc::check("allocations don't overlap", []() {
-    heap_allocator heap(mem::HEAP_BASE, mem::DEFAULT_MEMORY_SIZE);
+    namespace mem = straylight::nix::compiler::memory_layout;
+    straylight::nix::compiler::runtime::heap_allocator heap(mem::HEAP_BASE,
+                                                            mem::DEFAULT_MEMORY_SIZE);
 
     std::vector<std::pair<std::uint32_t, std::uint32_t>> allocations;
     auto num_allocs = *rc::gen::inRange(1, 100);
@@ -152,7 +155,7 @@ TEST_CASE("property: heap allocator never returns overlapping regions", "[proper
         auto ptr = heap.allocate(size);
         auto aligned_size = mem::align_up(size);
         allocations.emplace_back(ptr, ptr + aligned_size);
-      } catch (const oom_error&) {
+      } catch (const straylight::nix::compiler::runtime::oom_error&) {
         break; // ran out of memory, that's fine
       }
     }
@@ -170,7 +173,9 @@ TEST_CASE("property: heap allocator never returns overlapping regions", "[proper
 
 TEST_CASE("property: heap allocator returns aligned pointers", "[property][runtime]") {
   rc::check("allocations are aligned", []() {
-    heap_allocator heap(mem::HEAP_BASE, mem::DEFAULT_MEMORY_SIZE);
+    namespace mem = straylight::nix::compiler::memory_layout;
+    straylight::nix::compiler::runtime::heap_allocator heap(mem::HEAP_BASE,
+                                                            mem::DEFAULT_MEMORY_SIZE);
 
     auto num_allocs = *rc::gen::inRange(1, 50);
     for (int idx = 0; idx < num_allocs; ++idx) {
@@ -178,7 +183,7 @@ TEST_CASE("property: heap allocator returns aligned pointers", "[property][runti
       try {
         auto ptr = heap.allocate(size);
         RC_ASSERT(ptr % mem::ALIGNMENT == 0);
-      } catch (const oom_error&) {
+      } catch (const straylight::nix::compiler::runtime::oom_error&) {
         break;
       }
     }
@@ -194,18 +199,20 @@ TEST_CASE("property: integer addition is commutative", "[property][execution]") 
     auto a = *gen_safe_int();
     auto b = *gen_safe_int();
 
-    ast::symbol_table symbols1, symbols2;
+    straylight::nix::compiler::straylight::nix::compiler::ast::symbol_table symbols1, symbols2;
     auto src1 = std::to_string(a) + " + " + std::to_string(b);
     auto src2 = std::to_string(b) + " + " + std::to_string(a);
 
-    auto expr1 = parse::parse(src1, symbols1);
-    auto expr2 = parse::parse(src2, symbols2);
+    auto expr1 = straylight::nix::compiler::straylight::nix::compiler::parse::parse(src1, symbols1);
+    auto expr2 = straylight::nix::compiler::straylight::nix::compiler::parse::parse(src2, symbols2);
 
-    compile::compiler comp1(symbols1), comp2(symbols2);
+    straylight::nix::compiler::straylight::nix::compiler::compile::compiler comp1(symbols1),
+        comp2(symbols2);
     auto mod1 = comp1.compile(expr1);
     auto mod2 = comp2.compile(expr2);
 
-    wasm_executor exec1, exec2;
+    straylight::nix::compiler::runtime::straylight::nix::compiler::runtime::wasm_executor exec1,
+        exec2;
     auto res1 = exec1.execute(mod1.emit_binary());
     auto res2 = exec2.execute(mod2.emit_binary());
 
@@ -220,18 +227,20 @@ TEST_CASE("property: integer multiplication is commutative", "[property][executi
     auto a = *rc::gen::inRange<std::int32_t>(-1000, 1000);
     auto b = *rc::gen::inRange<std::int32_t>(-1000, 1000);
 
-    ast::symbol_table symbols1, symbols2;
+    straylight::nix::compiler::straylight::nix::compiler::ast::symbol_table symbols1, symbols2;
     auto src1 = std::to_string(a) + " * " + std::to_string(b);
     auto src2 = std::to_string(b) + " * " + std::to_string(a);
 
-    auto expr1 = parse::parse(src1, symbols1);
-    auto expr2 = parse::parse(src2, symbols2);
+    auto expr1 = straylight::nix::compiler::straylight::nix::compiler::parse::parse(src1, symbols1);
+    auto expr2 = straylight::nix::compiler::straylight::nix::compiler::parse::parse(src2, symbols2);
 
-    compile::compiler comp1(symbols1), comp2(symbols2);
+    straylight::nix::compiler::straylight::nix::compiler::compile::compiler comp1(symbols1),
+        comp2(symbols2);
     auto mod1 = comp1.compile(expr1);
     auto mod2 = comp2.compile(expr2);
 
-    wasm_executor exec1, exec2;
+    straylight::nix::compiler::runtime::straylight::nix::compiler::runtime::wasm_executor exec1,
+        exec2;
     auto res1 = exec1.execute(mod1.emit_binary());
     auto res2 = exec2.execute(mod2.emit_binary());
 
@@ -245,19 +254,19 @@ TEST_CASE("property: addition identity", "[property][execution]") {
   rc::check("a + 0 == a", []() {
     auto a = *gen_safe_int();
 
-    ast::symbol_table symbols;
+    straylight::nix::compiler::straylight::nix::compiler::ast::symbol_table symbols;
     auto src = std::to_string(a) + " + 0";
-    auto expr = parse::parse(src, symbols);
+    auto expr = straylight::nix::compiler::straylight::nix::compiler::parse::parse(src, symbols);
 
-    compile::compiler comp(symbols);
+    straylight::nix::compiler::straylight::nix::compiler::compile::compiler comp(symbols);
     auto mod = comp.compile(expr);
 
-    wasm_executor exec;
+    straylight::nix::compiler::runtime::straylight::nix::compiler::runtime::wasm_executor exec;
     auto res = exec.execute(mod.emit_binary());
 
     RC_ASSERT(res.success);
-    RC_ASSERT(is_int(res.value));
-    RC_ASSERT(get_int_value(res.value) == a);
+    RC_ASSERT(straylight::nix::compiler::compile::is_int(res.value));
+    RC_ASSERT(straylight::nix::compiler::compile::get_int_value(res.value) == a);
   });
 }
 
@@ -265,19 +274,19 @@ TEST_CASE("property: multiplication identity", "[property][execution]") {
   rc::check("a * 1 == a", []() {
     auto a = *gen_safe_int();
 
-    ast::symbol_table symbols;
+    straylight::nix::compiler::straylight::nix::compiler::ast::symbol_table symbols;
     auto src = std::to_string(a) + " * 1";
-    auto expr = parse::parse(src, symbols);
+    auto expr = straylight::nix::compiler::straylight::nix::compiler::parse::parse(src, symbols);
 
-    compile::compiler comp(symbols);
+    straylight::nix::compiler::straylight::nix::compiler::compile::compiler comp(symbols);
     auto mod = comp.compile(expr);
 
-    wasm_executor exec;
+    straylight::nix::compiler::runtime::straylight::nix::compiler::runtime::wasm_executor exec;
     auto res = exec.execute(mod.emit_binary());
 
     RC_ASSERT(res.success);
-    RC_ASSERT(is_int(res.value));
-    RC_ASSERT(get_int_value(res.value) == a);
+    RC_ASSERT(straylight::nix::compiler::compile::is_int(res.value));
+    RC_ASSERT(straylight::nix::compiler::compile::get_int_value(res.value) == a);
   });
 }
 
@@ -285,19 +294,19 @@ TEST_CASE("property: multiplication by zero", "[property][execution]") {
   rc::check("a * 0 == 0", []() {
     auto a = *gen_safe_int();
 
-    ast::symbol_table symbols;
+    straylight::nix::compiler::straylight::nix::compiler::ast::symbol_table symbols;
     auto src = std::to_string(a) + " * 0";
-    auto expr = parse::parse(src, symbols);
+    auto expr = straylight::nix::compiler::straylight::nix::compiler::parse::parse(src, symbols);
 
-    compile::compiler comp(symbols);
+    straylight::nix::compiler::straylight::nix::compiler::compile::compiler comp(symbols);
     auto mod = comp.compile(expr);
 
-    wasm_executor exec;
+    straylight::nix::compiler::runtime::straylight::nix::compiler::runtime::wasm_executor exec;
     auto res = exec.execute(mod.emit_binary());
 
     RC_ASSERT(res.success);
-    RC_ASSERT(is_int(res.value));
-    RC_ASSERT(get_int_value(res.value) == 0);
+    RC_ASSERT(straylight::nix::compiler::compile::is_int(res.value));
+    RC_ASSERT(straylight::nix::compiler::compile::get_int_value(res.value) == 0);
   });
 }
 
@@ -307,39 +316,39 @@ TEST_CASE("property: multiplication by zero", "[property][execution]") {
 
 TEST_CASE("property: double negation", "[property][execution]") {
   rc::check("!!b == b", [](bool b) {
-    ast::symbol_table symbols;
+    straylight::nix::compiler::ast::symbol_table symbols;
     auto src = std::string("!!(") + (b ? "true" : "false") + ")";
-    auto expr = parse::parse(src, symbols);
+    auto expr = straylight::nix::compiler::parse::parse(src, symbols);
 
-    compile::compiler comp(symbols);
+    straylight::nix::compiler::compile::compiler comp(symbols);
     auto mod = comp.compile(expr);
 
-    wasm_executor exec;
+    straylight::nix::compiler::runtime::wasm_executor exec;
     auto res = exec.execute(mod.emit_binary());
 
     RC_ASSERT(res.success);
-    RC_ASSERT(is_bool(res.value));
-    RC_ASSERT(get_bool_value(res.value) == b);
+    RC_ASSERT(straylight::nix::compiler::compile::is_bool(res.value));
+    RC_ASSERT(straylight::nix::compiler::compile::get_bool_value(res.value) == b);
   });
 }
 
 TEST_CASE("property: de morgan's law (and)", "[property][execution]") {
   rc::check("!(a && b) == (!a || !b)", [](bool a, bool b) {
-    ast::symbol_table symbols1, symbols2;
+    straylight::nix::compiler::ast::symbol_table symbols1, symbols2;
     auto as = a ? "true" : "false";
     auto bs = b ? "true" : "false";
 
     auto src1 = std::string("!(") + as + " && " + bs + ")";
     auto src2 = std::string("(!") + as + " || !" + bs + ")";
 
-    auto expr1 = parse::parse(src1, symbols1);
-    auto expr2 = parse::parse(src2, symbols2);
+    auto expr1 = straylight::nix::compiler::parse::parse(src1, symbols1);
+    auto expr2 = straylight::nix::compiler::parse::parse(src2, symbols2);
 
-    compile::compiler comp1(symbols1), comp2(symbols2);
+    straylight::nix::compiler::compile::compiler comp1(symbols1), comp2(symbols2);
     auto mod1 = comp1.compile(expr1);
     auto mod2 = comp2.compile(expr2);
 
-    wasm_executor exec1, exec2;
+    straylight::nix::compiler::runtime::wasm_executor exec1, exec2;
     auto res1 = exec1.execute(mod1.emit_binary());
     auto res2 = exec2.execute(mod2.emit_binary());
 
@@ -351,21 +360,21 @@ TEST_CASE("property: de morgan's law (and)", "[property][execution]") {
 
 TEST_CASE("property: de morgan's law (or)", "[property][execution]") {
   rc::check("!(a || b) == (!a && !b)", [](bool a, bool b) {
-    ast::symbol_table symbols1, symbols2;
+    straylight::nix::compiler::ast::symbol_table symbols1, symbols2;
     auto as = a ? "true" : "false";
     auto bs = b ? "true" : "false";
 
     auto src1 = std::string("!(") + as + " || " + bs + ")";
     auto src2 = std::string("(!") + as + " && !" + bs + ")";
 
-    auto expr1 = parse::parse(src1, symbols1);
-    auto expr2 = parse::parse(src2, symbols2);
+    auto expr1 = straylight::nix::compiler::parse::parse(src1, symbols1);
+    auto expr2 = straylight::nix::compiler::parse::parse(src2, symbols2);
 
-    compile::compiler comp1(symbols1), comp2(symbols2);
+    straylight::nix::compiler::compile::compiler comp1(symbols1), comp2(symbols2);
     auto mod1 = comp1.compile(expr1);
     auto mod2 = comp2.compile(expr2);
 
-    wasm_executor exec1, exec2;
+    straylight::nix::compiler::runtime::wasm_executor exec1, exec2;
     auto res1 = exec1.execute(mod1.emit_binary());
     auto res2 = exec2.execute(mod2.emit_binary());
 
@@ -383,19 +392,19 @@ TEST_CASE("property: equality is reflexive", "[property][execution]") {
   rc::check("a == a is true", []() {
     auto a = *gen_safe_int();
 
-    ast::symbol_table symbols;
+    straylight::nix::compiler::ast::symbol_table symbols;
     auto src = std::to_string(a) + " == " + std::to_string(a);
-    auto expr = parse::parse(src, symbols);
+    auto expr = straylight::nix::compiler::parse::parse(src, symbols);
 
-    compile::compiler comp(symbols);
+    straylight::nix::compiler::compile::compiler comp(symbols);
     auto mod = comp.compile(expr);
 
-    wasm_executor exec;
+    straylight::nix::compiler::runtime::wasm_executor exec;
     auto res = exec.execute(mod.emit_binary());
 
     RC_ASSERT(res.success);
-    RC_ASSERT(is_bool(res.value));
-    RC_ASSERT(get_bool_value(res.value) == true);
+    RC_ASSERT(straylight::nix::compiler::compile::is_bool(res.value));
+    RC_ASSERT(straylight::nix::compiler::compile::get_bool_value(res.value) == true);
   });
 }
 
@@ -403,19 +412,19 @@ TEST_CASE("property: inequality is irreflexive", "[property][execution]") {
   rc::check("a != a is false", []() {
     auto a = *gen_safe_int();
 
-    ast::symbol_table symbols;
+    straylight::nix::compiler::ast::symbol_table symbols;
     auto src = std::to_string(a) + " != " + std::to_string(a);
-    auto expr = parse::parse(src, symbols);
+    auto expr = straylight::nix::compiler::parse::parse(src, symbols);
 
-    compile::compiler comp(symbols);
+    straylight::nix::compiler::compile::compiler comp(symbols);
     auto mod = comp.compile(expr);
 
-    wasm_executor exec;
+    straylight::nix::compiler::runtime::wasm_executor exec;
     auto res = exec.execute(mod.emit_binary());
 
     RC_ASSERT(res.success);
-    RC_ASSERT(is_bool(res.value));
-    RC_ASSERT(get_bool_value(res.value) == false);
+    RC_ASSERT(straylight::nix::compiler::compile::is_bool(res.value));
+    RC_ASSERT(straylight::nix::compiler::compile::get_bool_value(res.value) == false);
   });
 }
 
@@ -423,19 +432,19 @@ TEST_CASE("property: less than is irreflexive", "[property][execution]") {
   rc::check("a < a is false", []() {
     auto a = *gen_safe_int();
 
-    ast::symbol_table symbols;
+    straylight::nix::compiler::ast::symbol_table symbols;
     auto src = std::to_string(a) + " < " + std::to_string(a);
-    auto expr = parse::parse(src, symbols);
+    auto expr = straylight::nix::compiler::parse::parse(src, symbols);
 
-    compile::compiler comp(symbols);
+    straylight::nix::compiler::compile::compiler comp(symbols);
     auto mod = comp.compile(expr);
 
-    wasm_executor exec;
+    straylight::nix::compiler::runtime::wasm_executor exec;
     auto res = exec.execute(mod.emit_binary());
 
     RC_ASSERT(res.success);
-    RC_ASSERT(is_bool(res.value));
-    RC_ASSERT(get_bool_value(res.value) == false);
+    RC_ASSERT(straylight::nix::compiler::compile::is_bool(res.value));
+    RC_ASSERT(straylight::nix::compiler::compile::get_bool_value(res.value) == false);
   });
 }
 
@@ -443,19 +452,19 @@ TEST_CASE("property: less than or equal is reflexive", "[property][execution]") 
   rc::check("a <= a is true", []() {
     auto a = *gen_safe_int();
 
-    ast::symbol_table symbols;
+    straylight::nix::compiler::ast::symbol_table symbols;
     auto src = std::to_string(a) + " <= " + std::to_string(a);
-    auto expr = parse::parse(src, symbols);
+    auto expr = straylight::nix::compiler::parse::parse(src, symbols);
 
-    compile::compiler comp(symbols);
+    straylight::nix::compiler::compile::compiler comp(symbols);
     auto mod = comp.compile(expr);
 
-    wasm_executor exec;
+    straylight::nix::compiler::runtime::wasm_executor exec;
     auto res = exec.execute(mod.emit_binary());
 
     RC_ASSERT(res.success);
-    RC_ASSERT(is_bool(res.value));
-    RC_ASSERT(get_bool_value(res.value) == true);
+    RC_ASSERT(straylight::nix::compiler::compile::is_bool(res.value));
+    RC_ASSERT(straylight::nix::compiler::compile::get_bool_value(res.value) == true);
   });
 }
 
@@ -465,13 +474,14 @@ TEST_CASE("property: comparison trichotomy", "[property][execution]") {
     auto b = *gen_safe_int();
 
     auto check = [](const std::string& src) {
-      ast::symbol_table symbols;
-      auto expr = parse::parse(src, symbols);
-      compile::compiler comp(symbols);
+      straylight::nix::compiler::ast::symbol_table symbols;
+      auto expr = straylight::nix::compiler::parse::parse(src, symbols);
+      straylight::nix::compiler::compile::compiler comp(symbols);
       auto mod = comp.compile(expr);
-      wasm_executor exec;
+      straylight::nix::compiler::runtime::wasm_executor exec;
       auto res = exec.execute(mod.emit_binary());
-      return res.success && is_bool(res.value) && get_bool_value(res.value);
+      return res.success && straylight::nix::compiler::compile::is_bool(res.value) &&
+             straylight::nix::compiler::compile::get_bool_value(res.value);
     };
 
     auto as = std::to_string(a);
@@ -494,20 +504,20 @@ TEST_CASE("property: let binding shadows outer", "[property][execution]") {
     auto outer = *gen_safe_int();
     auto inner = *gen_safe_int();
 
-    ast::symbol_table symbols;
+    straylight::nix::compiler::ast::symbol_table symbols;
     auto src =
         "let x = " + std::to_string(outer) + "; in let x = " + std::to_string(inner) + "; in x";
-    auto expr = parse::parse(src, symbols);
+    auto expr = straylight::nix::compiler::parse::parse(src, symbols);
 
-    compile::compiler comp(symbols);
+    straylight::nix::compiler::compile::compiler comp(symbols);
     auto mod = comp.compile(expr);
 
-    wasm_executor exec;
+    straylight::nix::compiler::runtime::wasm_executor exec;
     auto res = exec.execute(mod.emit_binary());
 
     RC_ASSERT(res.success);
-    RC_ASSERT(is_int(res.value));
-    RC_ASSERT(get_int_value(res.value) == inner);
+    RC_ASSERT(straylight::nix::compiler::compile::is_int(res.value));
+    RC_ASSERT(straylight::nix::compiler::compile::get_int_value(res.value) == inner);
   });
 }
 
@@ -520,19 +530,19 @@ TEST_CASE("property: if true returns then branch", "[property][execution]") {
     auto a = *gen_safe_int();
     auto b = *gen_safe_int();
 
-    ast::symbol_table symbols;
+    straylight::nix::compiler::ast::symbol_table symbols;
     auto src = "if true then " + std::to_string(a) + " else " + std::to_string(b);
-    auto expr = parse::parse(src, symbols);
+    auto expr = straylight::nix::compiler::parse::parse(src, symbols);
 
-    compile::compiler comp(symbols);
+    straylight::nix::compiler::compile::compiler comp(symbols);
     auto mod = comp.compile(expr);
 
-    wasm_executor exec;
+    straylight::nix::compiler::runtime::wasm_executor exec;
     auto res = exec.execute(mod.emit_binary());
 
     RC_ASSERT(res.success);
-    RC_ASSERT(is_int(res.value));
-    RC_ASSERT(get_int_value(res.value) == a);
+    RC_ASSERT(straylight::nix::compiler::compile::is_int(res.value));
+    RC_ASSERT(straylight::nix::compiler::compile::get_int_value(res.value) == a);
   });
 }
 
@@ -541,19 +551,19 @@ TEST_CASE("property: if false returns else branch", "[property][execution]") {
     auto a = *gen_safe_int();
     auto b = *gen_safe_int();
 
-    ast::symbol_table symbols;
+    straylight::nix::compiler::ast::symbol_table symbols;
     auto src = "if false then " + std::to_string(a) + " else " + std::to_string(b);
-    auto expr = parse::parse(src, symbols);
+    auto expr = straylight::nix::compiler::parse::parse(src, symbols);
 
-    compile::compiler comp(symbols);
+    straylight::nix::compiler::compile::compiler comp(symbols);
     auto mod = comp.compile(expr);
 
-    wasm_executor exec;
+    straylight::nix::compiler::runtime::wasm_executor exec;
     auto res = exec.execute(mod.emit_binary());
 
     RC_ASSERT(res.success);
-    RC_ASSERT(is_int(res.value));
-    RC_ASSERT(get_int_value(res.value) == b);
+    RC_ASSERT(straylight::nix::compiler::compile::is_int(res.value));
+    RC_ASSERT(straylight::nix::compiler::compile::get_int_value(res.value) == b);
   });
 }
 
@@ -564,7 +574,7 @@ TEST_CASE("property: if false returns else branch", "[property][execution]") {
 TEST_CASE("property: symbol table interning is idempotent", "[property][ast]") {
   rc::check("interning same string twice gives same symbol", []() {
     auto name = *gen_identifier();
-    ast::symbol_table symbols;
+    straylight::nix::compiler::ast::symbol_table symbols;
 
     auto s1 = symbols.intern(name);
     auto s2 = symbols.intern(name);
@@ -576,7 +586,7 @@ TEST_CASE("property: symbol table interning is idempotent", "[property][ast]") {
 TEST_CASE("property: symbol table lookup round-trips", "[property][ast]") {
   rc::check("lookup(intern(s)) == s", []() {
     auto name = *gen_identifier();
-    ast::symbol_table symbols;
+    straylight::nix::compiler::ast::symbol_table symbols;
 
     auto sym = symbols.intern(name);
     auto retrieved = symbols.lookup(sym);
@@ -591,7 +601,7 @@ TEST_CASE("property: different strings get different symbols", "[property][ast]"
     auto name2 = *gen_identifier();
     RC_PRE(name1 != name2); // precondition: names are different
 
-    ast::symbol_table symbols;
+    straylight::nix::compiler::ast::symbol_table symbols;
     auto s1 = symbols.intern(name1);
     auto s2 = symbols.intern(name2);
 

@@ -11,7 +11,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
-#include <sstream>
+#include <iterator>
 #include <string>
 
 #include "straylight/nix/compiler/ast/symbol_table.h"
@@ -65,9 +65,7 @@ auto read_file(const std::string& path) -> std::string {
   if (!file) {
     throw std::runtime_error("Cannot open file: " + path);
   }
-  std::stringstream buffer;
-  buffer << file.rdbuf();
-  return buffer.str();
+  return std::string(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
 }
 
 auto run_repl(ast::symbol_table& symbols) -> int {

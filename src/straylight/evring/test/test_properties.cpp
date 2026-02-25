@@ -37,10 +37,9 @@ namespace {
 // Random generators
 // ============================================================================
 
-class random_generator {
+struct random_generator {
   std::mt19937_64 rng_;
 
-public:
   explicit random_generator(std::uint64_t seed = 0) {
     if (seed == 0) {
       seed = std::random_device{}();

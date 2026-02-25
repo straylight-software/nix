@@ -325,12 +325,10 @@ TEST_CASE("callback with move-only type", "[callback][types]") {
 // Custom exception tests
 // ─────────────────────────────────────────────────────────────────────────────
 
-class CustomException : public std::exception {
-public:
+struct CustomException : public std::exception {
   explicit CustomException(std::string msg) : msg_(std::move(msg)) {}
   [[nodiscard]] const char* what() const noexcept override { return msg_.c_str(); }
 
-private:
   std::string msg_;
 };
 

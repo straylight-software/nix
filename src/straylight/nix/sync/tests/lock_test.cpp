@@ -15,7 +15,7 @@
 #include "straylight/nix/sync/lock.h"
 
 namespace fs = std::filesystem;
-using namespace straylight::nix::sync;
+namespace sync = straylight::nix::sync;
 
 // ============================================================================
 // Test helpers
@@ -67,14 +67,14 @@ TEST(acquire_and_release) {
   auto lock_path = test_dir / "test1.lock";
 
   {
-    auto lock = exclusive_lock::acquire(lock_path);
+    auto lock = sync::exclusive_lock::acquire(lock_path);
     ASSERT(lock.has_value());
     ASSERT(lock->is_held());
   }
 
   // Should be able to acquire again after release
   {
-    auto lock = exclusive_lock::acquire(lock_path);
+    auto lock = sync::exclusive_lock::acquire(lock_path);
     ASSERT(lock.has_value());
   }
 }
@@ -82,7 +82,7 @@ TEST(acquire_and_release) {
 TEST(try_acquire_succeeds_when_free) {
   auto lock_path = test_dir / "test2.lock";
 
-  auto lock = exclusive_lock::try_acquire(lock_path);
+  auto lock = sync::exclusive_lock::try_acquire(lock_path);
   ASSERT(lock.has_value());
   ASSERT(lock->is_held());
 }
@@ -90,28 +90,28 @@ TEST(try_acquire_succeeds_when_free) {
 TEST(try_acquire_fails_when_held) {
   auto lock_path = test_dir / "test3.lock";
 
-  auto lock1 = exclusive_lock::acquire(lock_path);
+  auto lock1 = sync::exclusive_lock::acquire(lock_path);
   ASSERT(lock1.has_value());
 
   // Second try_acquire should fail immediately
-  auto lock2 = exclusive_lock::try_acquire(lock_path);
+  auto lock2 = sync::exclusive_lock::try_acquire(lock_path);
   ASSERT(!lock2.has_value());
-  ASSERT_EQ(lock2.error(), lock_error::lock_failed);
+  ASSERT_EQ(lock2.error(), sync::lock_error::lock_failed);
 }
 
 TEST(move_semantics) {
   auto lock_path = test_dir / "test4.lock";
 
-  auto lock1 = exclusive_lock::acquire(lock_path);
+  auto lock1 = sync::exclusive_lock::acquire(lock_path);
   ASSERT(lock1.has_value());
 
   // Move construct
-  exclusive_lock lock2 = std::move(*lock1);
+  sync::exclusive_lock lock2 = std::move(*lock1);
   ASSERT(lock2.is_held());
   ASSERT(!lock1->is_held());
 
   // Move assign
-  exclusive_lock lock3 = exclusive_lock::try_acquire(test_dir / "dummy.lock").value();
+  sync::exclusive_lock lock3 = sync::exclusive_lock::try_acquire(test_dir / "dummy.lock").value();
   lock3 = std::move(lock2);
   ASSERT(lock3.is_held());
   ASSERT(!lock2.is_held());
@@ -120,35 +120,35 @@ TEST(move_semantics) {
 TEST(shared_lock_multiple_readers) {
   auto lock_path = test_dir / "test5.lock";
 
-  auto r1 = shared_lock::acquire(lock_path);
+  auto r1 = sync::shared_lock::acquire(lock_path);
   ASSERT(r1.has_value());
 
-  auto r2 = shared_lock::acquire(lock_path);
+  auto r2 = sync::shared_lock::acquire(lock_path);
   ASSERT(r2.has_value());
 
-  auto r3 = shared_lock::acquire(lock_path);
+  auto r3 = sync::shared_lock::acquire(lock_path);
   ASSERT(r3.has_value());
 }
 
 TEST(shared_exclusive_conflict) {
   auto lock_path = test_dir / "test6.lock";
 
-  auto shared = shared_lock::acquire(lock_path);
+  auto shared = sync::shared_lock::acquire(lock_path);
   ASSERT(shared.has_value());
 
   // Exclusive should fail while shared is held
-  auto exclusive = exclusive_lock::try_acquire(lock_path);
+  auto exclusive = sync::exclusive_lock::try_acquire(lock_path);
   ASSERT(!exclusive.has_value());
 }
 
 TEST(exclusive_shared_conflict) {
   auto lock_path = test_dir / "test7.lock";
 
-  auto exclusive = exclusive_lock::acquire(lock_path);
+  auto exclusive = sync::exclusive_lock::acquire(lock_path);
   ASSERT(exclusive.has_value());
 
   // Shared should fail while exclusive is held
-  auto shared = shared_lock::try_acquire(lock_path);
+  auto shared = sync::shared_lock::try_acquire(lock_path);
   ASSERT(!shared.has_value());
 }
 
@@ -164,7 +164,7 @@ TEST(multithread_mutual_exclusion) {
 
   auto worker = [&]() {
     for (int i = 0; i < iterations; ++i) {
-      auto lock = exclusive_lock::acquire(lock_path);
+      auto lock = sync::exclusive_lock::acquire(lock_path);
       ASSERT(lock.has_value());
 
       int prev = counter.fetch_add(1);
@@ -207,7 +207,7 @@ TEST(process_death_releases_lock) {
   pid_t child = fork();
   if (child == 0) {
     // Child: acquire lock and exit without releasing
-    auto lock = exclusive_lock::acquire(lock_path);
+    auto lock = sync::exclusive_lock::acquire(lock_path);
     if (!lock.has_value()) {
       _exit(1);
     }
@@ -253,7 +253,7 @@ TEST(fork_does_not_inherit_ownership) {
   // Another process should not be able to acquire
   pid_t child2 = fork();
   if (child2 == 0) {
-    auto lock2 = exclusive_lock::try_acquire(lock_path);
+    auto lock2 = sync::exclusive_lock::try_acquire(lock_path);
     _exit(lock2.has_value() ? 1 : 0); // Expect failure (0)
   }
 
@@ -265,15 +265,15 @@ TEST(lock_guard_raii) {
   auto lock_path = test_dir / "test11.lock";
 
   {
-    lock_guard guard(lock_path);
+    sync::lock_guard guard(lock_path);
 
     // Should not be able to acquire while guard is held
-    auto lock2 = exclusive_lock::try_acquire(lock_path);
+    auto lock2 = sync::exclusive_lock::try_acquire(lock_path);
     ASSERT(!lock2.has_value());
   }
 
   // Should be able to acquire after guard destroyed
-  auto lock3 = exclusive_lock::try_acquire(lock_path);
+  auto lock3 = sync::exclusive_lock::try_acquire(lock_path);
   ASSERT(lock3.has_value());
 }
 
@@ -287,7 +287,7 @@ TEST(stress_test) {
     pid_t child = fork();
     if (child == 0) {
       for (int i = 0; i < iterations; ++i) {
-        auto lock = exclusive_lock::acquire(lock_path);
+        auto lock = sync::exclusive_lock::acquire(lock_path);
         if (!lock.has_value()) {
           _exit(1);
         }

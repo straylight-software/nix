@@ -18,7 +18,7 @@
 
 #include "straylight/nix/compiler/runtime/wasm_memory.h"
 
-using namespace straylight::nix::compiler::runtime;
+namespace runtime = straylight::nix::compiler::runtime;
 
 // =============================================================================
 // Fuzzer operation encoding
@@ -107,12 +107,12 @@ bool fuzz_memory_ops(const uint8_t* data, size_t size) {
   data += 4;
   size -= 4;
 
-  test_memory tm(initial_pages, max_pages, heap_base);
+  runtime::test_memory tm(initial_pages, max_pages, heap_base);
   auto& mem = tm.memory();
   shadow_memory shadow;
 
   // Track allocations for later verification
-  std::vector<std::pair<mem_offset, std::uint32_t>> allocations;
+  std::vector<std::pair<runtime::mem_offset, std::uint32_t>> allocations;
 
   size_t pos = 0;
   while (pos < size) {
@@ -133,7 +133,7 @@ bool fuzz_memory_ops(const uint8_t* data, size_t size) {
         try {
           auto off = mem.allocate(alloc_size);
           allocations.emplace_back(off, alloc_size);
-        } catch (const memory_exhausted_error&) {
+        } catch (const runtime::memory_exhausted_error&) {
           // Expected when we run out of memory
         }
         break;
@@ -151,7 +151,7 @@ bool fuzz_memory_ops(const uint8_t* data, size_t size) {
           try {
             mem.write<uint8_t>(off, val);
             shadow.write(off.raw(), &val, 1);
-          } catch (const memory_bounds_error&) {
+          } catch (const runtime::memory_bounds_error&) {
             // Shouldn't happen for valid allocations
             return false;
           }
@@ -172,7 +172,7 @@ bool fuzz_memory_ops(const uint8_t* data, size_t size) {
           try {
             mem.write<uint32_t>(off, val);
             shadow.write(off.raw(), &val, 4);
-          } catch (const memory_bounds_error&) {
+          } catch (const runtime::memory_bounds_error&) {
             return false;
           }
         }
@@ -192,7 +192,7 @@ bool fuzz_memory_ops(const uint8_t* data, size_t size) {
           try {
             mem.write<uint64_t>(off, val);
             shadow.write(off.raw(), &val, 8);
-          } catch (const memory_bounds_error&) {
+          } catch (const runtime::memory_bounds_error&) {
             return false;
           }
         }
@@ -212,7 +212,7 @@ bool fuzz_memory_ops(const uint8_t* data, size_t size) {
             if (!shadow.verify(off.raw(), &val, 1)) {
               return false; // Data corruption!
             }
-          } catch (const memory_bounds_error&) {
+          } catch (const runtime::memory_bounds_error&) {
             return false;
           }
         }
@@ -232,7 +232,7 @@ bool fuzz_memory_ops(const uint8_t* data, size_t size) {
             if (!shadow.verify(off.raw(), &val, 4)) {
               return false;
             }
-          } catch (const memory_bounds_error&) {
+          } catch (const runtime::memory_bounds_error&) {
             return false;
           }
         }
@@ -252,7 +252,7 @@ bool fuzz_memory_ops(const uint8_t* data, size_t size) {
             if (!shadow.verify(off.raw(), &val, 8)) {
               return false;
             }
-          } catch (const memory_bounds_error&) {
+          } catch (const runtime::memory_bounds_error&) {
             return false;
           }
         }
@@ -282,7 +282,7 @@ bool fuzz_memory_ops(const uint8_t* data, size_t size) {
             mem.write_string(off, clean_str);
             // Invalidate shadow for bytes written (string + null terminator)
             shadow.invalidate(off.raw(), clean_str.size() + 1);
-          } catch (const memory_bounds_error&) {
+          } catch (const runtime::memory_bounds_error&) {
             // OK
           }
         }
@@ -307,7 +307,7 @@ bool fuzz_memory_ops(const uint8_t* data, size_t size) {
             auto str = mem.read_string(off);
             // Just verify it doesn't crash
             (void)str;
-          } catch (const memory_bounds_error&) {
+          } catch (const runtime::memory_bounds_error&) {
             // OK
           }
         }
@@ -331,7 +331,7 @@ bool fuzz_memory_ops(const uint8_t* data, size_t size) {
             mem.copy(dst_off, src_off, static_cast<uint32_t>(len));
             // Invalidate destination shadow since we don't track source data
             shadow.invalidate(dst_off.raw(), len);
-          } catch (const memory_bounds_error&) {
+          } catch (const runtime::memory_bounds_error&) {
             // OK
           }
         }
@@ -358,7 +358,7 @@ bool fuzz_memory_ops(const uint8_t* data, size_t size) {
         if (!shadow.verify(off.raw(), &val, 8)) {
           return false;
         }
-      } catch (const memory_bounds_error&) {
+      } catch (const runtime::memory_bounds_error&) {
         // Allocation might have been overwritten by reset
       }
     }
@@ -394,7 +394,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
 TEST_CASE("wasm_memory: property - allocations never overlap", "[memory][property]") {
   rc::check("allocations are disjoint", []() {
-    test_memory tm(1, 64, 0x1000);
+    runtime::test_memory tm(1, 64, 0x1000);
     auto& mem = tm.memory();
 
     auto sizes = *rc::gen::container<std::vector<uint32_t>>(rc::gen::inRange(1u, 1000u));
@@ -406,7 +406,7 @@ TEST_CASE("wasm_memory: property - allocations never overlap", "[memory][propert
         auto off = mem.allocate(size);
         uint32_t aligned_size = (size + 7) & ~7u;
         ranges.emplace_back(off.raw(), off.raw() + aligned_size);
-      } catch (const memory_exhausted_error&) {
+      } catch (const runtime::memory_exhausted_error&) {
         break;
       }
     }
@@ -424,7 +424,7 @@ TEST_CASE("wasm_memory: property - allocations never overlap", "[memory][propert
 
 TEST_CASE("wasm_memory: property - data survives growth", "[memory][property]") {
   rc::check("written data readable after growth", []() {
-    test_memory tm(1, 256, 0x1000);
+    runtime::test_memory tm(1, 256, 0x1000);
     auto& mem = tm.memory();
 
     // Write some data
@@ -436,7 +436,7 @@ TEST_CASE("wasm_memory: property - data survives growth", "[memory][property]") 
     auto grow_size = *rc::gen::inRange(65536u, 500000u);
     try {
       mem.allocate(grow_size);
-    } catch (const memory_exhausted_error&) {
+    } catch (const runtime::memory_exhausted_error&) {
       // OK
     }
 
@@ -447,7 +447,7 @@ TEST_CASE("wasm_memory: property - data survives growth", "[memory][property]") 
 
 TEST_CASE("wasm_memory: property - alignment always correct", "[memory][property]") {
   rc::check("all allocations 8-byte aligned", []() {
-    test_memory tm(1, 64, 0); // heap at 0 for easy checking
+    runtime::test_memory tm(1, 64, 0); // heap at 0 for easy checking
     auto& mem = tm.memory();
 
     auto sizes = *rc::gen::container<std::vector<uint32_t>>(rc::gen::inRange(0u, 500u));
@@ -456,7 +456,7 @@ TEST_CASE("wasm_memory: property - alignment always correct", "[memory][property
       try {
         auto off = mem.allocate(size);
         RC_ASSERT(off.raw() % 8 == 0);
-      } catch (const memory_exhausted_error&) {
+      } catch (const runtime::memory_exhausted_error&) {
         break;
       }
     }
@@ -465,7 +465,7 @@ TEST_CASE("wasm_memory: property - alignment always correct", "[memory][property
 
 TEST_CASE("wasm_memory: property - heap usage monotonic", "[memory][property]") {
   rc::check("heap usage only increases (until reset)", []() {
-    test_memory tm(1, 64, 0x1000);
+    runtime::test_memory tm(1, 64, 0x1000);
     auto& mem = tm.memory();
 
     uint32_t prev_usage = 0;
@@ -477,7 +477,7 @@ TEST_CASE("wasm_memory: property - heap usage monotonic", "[memory][property]") 
         auto usage = mem.heap_used();
         RC_ASSERT(usage >= prev_usage);
         prev_usage = usage;
-      } catch (const memory_exhausted_error&) {
+      } catch (const runtime::memory_exhausted_error&) {
         break;
       }
     }
@@ -486,11 +486,11 @@ TEST_CASE("wasm_memory: property - heap usage monotonic", "[memory][property]") 
 
 TEST_CASE("wasm_memory: property - bounds always checked", "[memory][property]") {
   rc::check("out of bounds access throws", []() {
-    test_memory tm(1, 1, 0); // 1 page, can't grow
+    runtime::test_memory tm(1, 1, 0); // 1 page, can't grow
     auto& mem = tm.memory();
 
     auto offset = *rc::gen::inRange(65536u, 100000u); // Beyond memory
-    RC_ASSERT_THROWS_AS(mem.read_u64(mem_offset{offset}), memory_bounds_error);
+    RC_ASSERT_THROWS_AS(mem.read_u64(runtime::mem_offset{offset}), runtime::memory_bounds_error);
   });
 }
 

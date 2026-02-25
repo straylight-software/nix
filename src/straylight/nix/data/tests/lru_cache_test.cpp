@@ -18,14 +18,14 @@
 
 #include "../lru_cache.h"
 
-using namespace straylight::nix::data;
+namespace data = straylight::nix::data;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Basic functionality tests
 // ─────────────────────────────────────────────────────────────────────────────
 
 TEST_CASE("LRUCache basic put and get", "[lru][basic]") {
-  LRUCache<std::string, int> cache(3);
+  data::LRUCache<std::string, int> cache(3);
 
   REQUIRE(cache.capacity() == 3);
   REQUIRE(cache.size() == 0);
@@ -45,7 +45,7 @@ TEST_CASE("LRUCache basic put and get", "[lru][basic]") {
 }
 
 TEST_CASE("LRUCache eviction on overflow", "[lru][eviction]") {
-  LRUCache<std::string, int> cache(2);
+  data::LRUCache<std::string, int> cache(2);
 
   cache.put("a", 1);
   cache.put("b", 2);
@@ -60,7 +60,7 @@ TEST_CASE("LRUCache eviction on overflow", "[lru][eviction]") {
 }
 
 TEST_CASE("LRUCache access promotes entry", "[lru][promotion]") {
-  LRUCache<std::string, int> cache(2);
+  data::LRUCache<std::string, int> cache(2);
 
   cache.put("a", 1);
   cache.put("b", 2);
@@ -77,7 +77,7 @@ TEST_CASE("LRUCache access promotes entry", "[lru][promotion]") {
 }
 
 TEST_CASE("LRUCache update existing key", "[lru][update]") {
-  LRUCache<std::string, int> cache(2);
+  data::LRUCache<std::string, int> cache(2);
 
   cache.put("a", 1);
   cache.put("a", 10);
@@ -87,7 +87,7 @@ TEST_CASE("LRUCache update existing key", "[lru][update]") {
 }
 
 TEST_CASE("LRUCache erase", "[lru][erase]") {
-  LRUCache<std::string, int> cache(3);
+  data::LRUCache<std::string, int> cache(3);
 
   cache.put("a", 1);
   cache.put("b", 2);
@@ -101,7 +101,7 @@ TEST_CASE("LRUCache erase", "[lru][erase]") {
 }
 
 TEST_CASE("LRUCache clear", "[lru][clear]") {
-  LRUCache<std::string, int> cache(3);
+  data::LRUCache<std::string, int> cache(3);
 
   cache.put("a", 1);
   cache.put("b", 2);
@@ -114,7 +114,7 @@ TEST_CASE("LRUCache clear", "[lru][clear]") {
 }
 
 TEST_CASE("LRUCache contains", "[lru][contains]") {
-  LRUCache<std::string, int> cache(3);
+  data::LRUCache<std::string, int> cache(3);
 
   cache.put("a", 1);
 
@@ -123,7 +123,7 @@ TEST_CASE("LRUCache contains", "[lru][contains]") {
 }
 
 TEST_CASE("LRUCache peek does not promote", "[lru][peek]") {
-  LRUCache<std::string, int> cache(2);
+  data::LRUCache<std::string, int> cache(2);
 
   cache.put("a", 1);
   cache.put("b", 2);
@@ -140,7 +140,7 @@ TEST_CASE("LRUCache peek does not promote", "[lru][peek]") {
 }
 
 TEST_CASE("LRUCache get_ptr", "[lru][get_ptr]") {
-  LRUCache<std::string, std::string> cache(3);
+  data::LRUCache<std::string, std::string> cache(3);
 
   cache.put("a", "hello");
 
@@ -156,7 +156,7 @@ TEST_CASE("LRUCache get_ptr", "[lru][get_ptr]") {
 }
 
 TEST_CASE("LRUCache get_or_put", "[lru][get_or_put]") {
-  LRUCache<std::string, int> cache(3);
+  data::LRUCache<std::string, int> cache(3);
 
   // Insert new entry
   auto& val1 = cache.get_or_put("a", 1);
@@ -170,7 +170,7 @@ TEST_CASE("LRUCache get_or_put", "[lru][get_or_put]") {
 }
 
 TEST_CASE("LRUCache try_emplace", "[lru][try_emplace]") {
-  LRUCache<std::string, std::string> cache(3);
+  data::LRUCache<std::string, std::string> cache(3);
 
   auto [val1, inserted1] = cache.try_emplace("a", "hello");
   REQUIRE(inserted1);
@@ -186,7 +186,7 @@ TEST_CASE("LRUCache try_emplace", "[lru][try_emplace]") {
 // ─────────────────────────────────────────────────────────────────────────────
 
 TEST_CASE("LRUCache iteration order (MRU to LRU)", "[lru][iterator]") {
-  LRUCache<std::string, int> cache(5);
+  data::LRUCache<std::string, int> cache(5);
 
   cache.put("a", 1);
   cache.put("b", 2);
@@ -208,7 +208,7 @@ TEST_CASE("LRUCache iteration order (MRU to LRU)", "[lru][iterator]") {
 }
 
 TEST_CASE("LRUCache front and back", "[lru][endpoints]") {
-  LRUCache<std::string, int> cache(3);
+  data::LRUCache<std::string, int> cache(3);
 
   REQUIRE(cache.front() == std::nullopt);
   REQUIRE(cache.back() == std::nullopt);
@@ -237,7 +237,7 @@ TEST_CASE("LRUCache front and back", "[lru][endpoints]") {
 TEST_CASE("LRUCache eviction callback", "[lru][callback]") {
   std::vector<std::pair<std::string, int>> evicted;
 
-  LRUCache<std::string, int> cache(
+  data::LRUCache<std::string, int> cache(
       2, [&](const std::string& key, int& value) { evicted.emplace_back(key, value); });
 
   cache.put("a", 1);
@@ -252,8 +252,8 @@ TEST_CASE("LRUCache eviction callback", "[lru][callback]") {
 TEST_CASE("LRUCache eviction callback on clear", "[lru][callback]") {
   std::vector<std::string> evicted;
 
-  LRUCache<std::string, int> cache(3,
-                                   [&](const std::string& key, int&) { evicted.push_back(key); });
+  data::LRUCache<std::string, int> cache(
+      3, [&](const std::string& key, int&) { evicted.push_back(key); });
 
   cache.put("a", 1);
   cache.put("b", 2);
@@ -267,7 +267,7 @@ TEST_CASE("LRUCache eviction callback on clear", "[lru][callback]") {
 TEST_CASE("LRUCache set_eviction_callback", "[lru][callback]") {
   std::vector<int> evicted;
 
-  LRUCache<int, int> cache(2);
+  data::LRUCache<int, int> cache(2);
 
   cache.put(1, 100);
   cache.put(2, 200);
@@ -286,7 +286,7 @@ TEST_CASE("LRUCache set_eviction_callback", "[lru][callback]") {
 // ─────────────────────────────────────────────────────────────────────────────
 
 TEST_CASE("LRUCache resize larger", "[lru][resize]") {
-  LRUCache<int, int> cache(2);
+  data::LRUCache<int, int> cache(2);
 
   cache.put(1, 100);
   cache.put(2, 200);
@@ -307,7 +307,7 @@ TEST_CASE("LRUCache resize larger", "[lru][resize]") {
 TEST_CASE("LRUCache resize smaller triggers eviction", "[lru][resize]") {
   std::vector<int> evicted;
 
-  LRUCache<int, int> cache(5, [&](const int& key, int&) { evicted.push_back(key); });
+  data::LRUCache<int, int> cache(5, [&](const int& key, int&) { evicted.push_back(key); });
 
   cache.put(1, 100);
   cache.put(2, 200);
@@ -334,7 +334,7 @@ TEST_CASE("LRUCache resize smaller triggers eviction", "[lru][resize]") {
 // ─────────────────────────────────────────────────────────────────────────────
 
 TEST_CASE("LRUCache zero capacity", "[lru][edge]") {
-  LRUCache<std::string, int> cache(0);
+  data::LRUCache<std::string, int> cache(0);
 
   REQUIRE(cache.capacity() == 0);
   REQUIRE(cache.size() == 0);
@@ -350,7 +350,7 @@ TEST_CASE("LRUCache zero capacity", "[lru][edge]") {
 // ─────────────────────────────────────────────────────────────────────────────
 
 TEST_CASE("LRUCache with move-only values", "[lru][move]") {
-  LRUCache<std::string, std::unique_ptr<int>> cache(3);
+  data::LRUCache<std::string, std::unique_ptr<int>> cache(3);
 
   cache.put("a", std::make_unique<int>(42));
 
@@ -360,11 +360,11 @@ TEST_CASE("LRUCache with move-only values", "[lru][move]") {
 }
 
 TEST_CASE("LRUCache move construction", "[lru][move]") {
-  LRUCache<std::string, int> cache1(3);
+  data::LRUCache<std::string, int> cache1(3);
   cache1.put("a", 1);
   cache1.put("b", 2);
 
-  LRUCache<std::string, int> cache2(std::move(cache1));
+  data::LRUCache<std::string, int> cache2(std::move(cache1));
 
   REQUIRE(cache2.size() == 2);
   REQUIRE(cache2.get("a") == 1);
@@ -376,7 +376,7 @@ TEST_CASE("LRUCache move construction", "[lru][move]") {
 // ─────────────────────────────────────────────────────────────────────────────
 
 TEST_CASE("LRUCacheSafe basic operations", "[lru][threadsafe]") {
-  LRUCacheSafe<std::string, int> cache(3);
+  data::LRUCacheSafe<std::string, int> cache(3);
 
   cache.put("a", 1);
   cache.put("b", 2);
@@ -391,7 +391,7 @@ TEST_CASE("LRUCacheSafe basic operations", "[lru][threadsafe]") {
 }
 
 TEST_CASE("LRUCacheSafe concurrent access", "[lru][threadsafe]") {
-  LRUCacheSafe<int, int> cache(1000);
+  data::LRUCacheSafe<int, int> cache(1000);
 
   constexpr int num_threads = 4;
   constexpr int ops_per_thread = 1000;
@@ -422,7 +422,7 @@ TEST_CASE("LRUCacheSafe concurrent access", "[lru][threadsafe]") {
 }
 
 TEST_CASE("LRUCacheSafe peek vs get", "[lru][threadsafe]") {
-  LRUCacheSafe<std::string, int> cache(3);
+  data::LRUCacheSafe<std::string, int> cache(3);
 
   cache.put("a", 1);
   cache.put("b", 2);
@@ -433,7 +433,7 @@ TEST_CASE("LRUCacheSafe peek vs get", "[lru][threadsafe]") {
 }
 
 TEST_CASE("LRUCacheSafe with_lock for batch operations", "[lru][threadsafe]") {
-  LRUCacheSafe<std::string, int> cache(10);
+  data::LRUCacheSafe<std::string, int> cache(10);
 
   cache.with_lock([](auto& c) {
     c.put("a", 1);
@@ -461,7 +461,7 @@ TEST_CASE("LRUCacheSafe with_lock for batch operations", "[lru][threadsafe]") {
 TEST_CASE("LRUCache size never exceeds capacity", "[lru][property]") {
   rc::prop("size <= capacity always holds", []() {
     auto capacity = *rc::gen::inRange<std::size_t>(1, 100);
-    LRUCache<int, int> cache(capacity);
+    data::LRUCache<int, int> cache(capacity);
 
     auto ops = *rc::gen::inRange<int>(0, 200);
     for (int i = 0; i < ops; ++i) {
@@ -474,7 +474,7 @@ TEST_CASE("LRUCache size never exceeds capacity", "[lru][property]") {
 
 TEST_CASE("LRUCache get after put returns correct value", "[lru][property]") {
   rc::prop("put then get returns same value", []() {
-    LRUCache<int, int> cache(100);
+    data::LRUCache<int, int> cache(100);
 
     auto key = *rc::gen::arbitrary<int>();
     auto value = *rc::gen::arbitrary<int>();
@@ -489,7 +489,7 @@ TEST_CASE("LRUCache get after put returns correct value", "[lru][property]") {
 
 TEST_CASE("LRUCache erase makes key unavailable", "[lru][property]") {
   rc::prop("erase removes key", []() {
-    LRUCache<int, int> cache(100);
+    data::LRUCache<int, int> cache(100);
 
     auto key = *rc::gen::arbitrary<int>();
     auto value = *rc::gen::arbitrary<int>();
@@ -505,7 +505,7 @@ TEST_CASE("LRUCache erase makes key unavailable", "[lru][property]") {
 
 TEST_CASE("LRUCache update preserves key", "[lru][property]") {
   rc::prop("update doesn't change size", []() {
-    LRUCache<int, int> cache(100);
+    data::LRUCache<int, int> cache(100);
 
     auto key = *rc::gen::arbitrary<int>();
     auto value1 = *rc::gen::arbitrary<int>();
@@ -525,7 +525,7 @@ TEST_CASE("LRUCache update preserves key", "[lru][property]") {
 TEST_CASE("LRUCache LRU eviction order", "[lru][property]") {
   rc::prop("oldest untouched entry is evicted", []() {
     constexpr std::size_t capacity = 5;
-    LRUCache<int, int> cache(capacity);
+    data::LRUCache<int, int> cache(capacity);
 
     // Fill cache
     for (std::size_t i = 0; i < capacity; ++i) {
@@ -548,7 +548,7 @@ TEST_CASE("LRUCache LRU eviction order", "[lru][property]") {
 TEST_CASE("LRUCache iteration visits all entries", "[lru][property]") {
   rc::prop("iteration count equals size", []() {
     auto capacity = *rc::gen::inRange<std::size_t>(1, 50);
-    LRUCache<int, int> cache(capacity);
+    data::LRUCache<int, int> cache(capacity);
 
     auto num_entries = *rc::gen::inRange<std::size_t>(0, capacity);
     for (std::size_t i = 0; i < num_entries; ++i) {
@@ -569,7 +569,7 @@ TEST_CASE("LRUCache iteration visits all entries", "[lru][property]") {
 TEST_CASE("LRUCache clear empties cache", "[lru][property]") {
   rc::prop("clear results in empty cache", []() {
     auto capacity = *rc::gen::inRange<std::size_t>(1, 50);
-    LRUCache<int, int> cache(capacity);
+    data::LRUCache<int, int> cache(capacity);
 
     auto num_entries = *rc::gen::inRange<std::size_t>(0, capacity);
     for (std::size_t i = 0; i < num_entries; ++i) {
@@ -601,4 +601,4 @@ TEST_CASE("LRUCache clear empties cache", "[lru][property]") {
 //     using is_transparent = void;
 //     bool operator()(std::string_view a, std::string_view b) const { ... }
 //   };
-//   LRUCache<std::string, int, StringHash, StringEqual> cache(100);
+//   data::LRUCache<std::string, int, StringHash, StringEqual> cache(100);

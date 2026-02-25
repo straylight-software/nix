@@ -16,7 +16,7 @@
 
 #include "nix_daemon_serialize.h"
 
-using namespace straylight::protocol;
+namespace protocol = straylight::protocol;
 
 // Read binary file
 std::vector<std::byte> read_file(const char* path) {
@@ -73,8 +73,8 @@ int main() {
   // Test 1: Client Hello
   {
     std::vector<std::byte> buf;
-    Writer w{buf};
-    write_client_hello(w, 0x0126); // version 1.38
+    protocol::Writer w{buf};
+    protocol::write_client_hello(w, 0x0126); // version 1.38
 
     auto expected = read_file("src/straylight/nix/protocol/captures/client_hello.bin");
     if (compare(buf, expected, "client_hello"))
@@ -86,8 +86,8 @@ int main() {
   // Test 2: Server Hello
   {
     std::vector<std::byte> buf;
-    Writer w{buf};
-    write_server_hello(w, 0x0126);
+    protocol::Writer w{buf};
+    protocol::write_server_hello(w, 0x0126);
 
     auto expected = read_file("src/straylight/nix/protocol/captures/server_hello.bin");
     if (compare(buf, expected, "server_hello"))
@@ -99,7 +99,7 @@ int main() {
   // Test 3: IsValidPath request
   {
     std::vector<std::byte> buf;
-    Writer w{buf};
+    protocol::Writer w{buf};
 
     // Read captured request to get the path
     auto captured = read_file("src/straylight/nix/protocol/captures/isvalidpath_request.bin");
@@ -109,7 +109,7 @@ int main() {
       std::memcpy(&len, captured.data() + 8, 8);
       std::string path(reinterpret_cast<const char*>(captured.data() + 16), len);
 
-      write_is_valid_path_request(w, path);
+      protocol::write_is_valid_path_request(w, path);
       if (compare(buf, captured, "isvalidpath_request"))
         ++passed;
       else
@@ -120,7 +120,7 @@ int main() {
   // Test 4: QueryPathInfo request
   {
     std::vector<std::byte> buf;
-    Writer w{buf};
+    protocol::Writer w{buf};
 
     auto captured = read_file("src/straylight/nix/protocol/captures/querypathinfo_request.bin");
     if (captured.size() >= 16) {
@@ -128,7 +128,7 @@ int main() {
       std::memcpy(&len, captured.data() + 8, 8);
       std::string path(reinterpret_cast<const char*>(captured.data() + 16), len);
 
-      write_query_path_info_request(w, path);
+      protocol::write_query_path_info_request(w, path);
       if (compare(buf, captured, "querypathinfo_request"))
         ++passed;
       else
@@ -139,7 +139,7 @@ int main() {
   // Test 5: QueryReferrers request
   {
     std::vector<std::byte> buf;
-    Writer w{buf};
+    protocol::Writer w{buf};
 
     auto captured = read_file("src/straylight/nix/protocol/captures/queryreferrers_request.bin");
     if (captured.size() >= 16) {
@@ -147,7 +147,7 @@ int main() {
       std::memcpy(&len, captured.data() + 8, 8);
       std::string path(reinterpret_cast<const char*>(captured.data() + 16), len);
 
-      write_query_referrers_request(w, path);
+      protocol::write_query_referrers_request(w, path);
       if (compare(buf, captured, "queryreferrers_request"))
         ++passed;
       else
@@ -158,7 +158,7 @@ int main() {
   // Test 6: AddTempRoot request
   {
     std::vector<std::byte> buf;
-    Writer w{buf};
+    protocol::Writer w{buf};
 
     auto captured = read_file("src/straylight/nix/protocol/captures/addtemproot_request.bin");
     if (captured.size() >= 16) {
@@ -166,7 +166,7 @@ int main() {
       std::memcpy(&len, captured.data() + 8, 8);
       std::string path(reinterpret_cast<const char*>(captured.data() + 16), len);
 
-      write_add_temp_root_request(w, path);
+      protocol::write_add_temp_root_request(w, path);
       if (compare(buf, captured, "addtemproot_request"))
         ++passed;
       else
@@ -177,7 +177,7 @@ int main() {
   // Test 7: AddIndirectRoot request
   {
     std::vector<std::byte> buf;
-    Writer w{buf};
+    protocol::Writer w{buf};
 
     auto captured = read_file("src/straylight/nix/protocol/captures/addindirectroot_request.bin");
     if (captured.size() >= 16) {
@@ -185,7 +185,7 @@ int main() {
       std::memcpy(&len, captured.data() + 8, 8);
       std::string path(reinterpret_cast<const char*>(captured.data() + 16), len);
 
-      write_add_indirect_root_request(w, path);
+      protocol::write_add_indirect_root_request(w, path);
       if (compare(buf, captured, "addindirectroot_request"))
         ++passed;
       else
@@ -196,8 +196,8 @@ int main() {
   // Test 8: FindRoots request (no payload)
   {
     std::vector<std::byte> buf;
-    Writer w{buf};
-    write_find_roots_request(w);
+    protocol::Writer w{buf};
+    protocol::write_find_roots_request(w);
 
     auto captured = read_file("src/straylight/nix/protocol/captures/findroots_request.bin");
     if (compare(buf, captured, "findroots_request"))
@@ -209,7 +209,7 @@ int main() {
   // Test 9: NarFromPath request (synthetic)
   {
     std::vector<std::byte> buf;
-    Writer w{buf};
+    protocol::Writer w{buf};
 
     auto captured = read_file("src/straylight/nix/protocol/captures/narfrompath_request.bin");
     if (captured.size() >= 16) {
@@ -217,7 +217,7 @@ int main() {
       std::memcpy(&len, captured.data() + 8, 8);
       std::string path(reinterpret_cast<const char*>(captured.data() + 16), len);
 
-      write_nar_from_path_request(w, path);
+      protocol::write_nar_from_path_request(w, path);
       if (compare(buf, captured, "narfrompath_request"))
         ++passed;
       else
@@ -228,7 +228,7 @@ int main() {
   // Test 10: QueryMissing request
   {
     std::vector<std::byte> buf;
-    Writer w{buf};
+    protocol::Writer w{buf};
 
     auto captured = read_file("src/straylight/nix/protocol/captures/querymissing_request.bin");
     if (captured.size() >= 24) {
@@ -246,7 +246,7 @@ int main() {
         offset += 8 + len + padding;
       }
 
-      write_query_missing_request(w, paths);
+      protocol::write_query_missing_request(w, paths);
       if (compare(buf, captured, "querymissing_request"))
         ++passed;
       else
@@ -257,7 +257,7 @@ int main() {
   // Test 11: BuildPaths request
   {
     std::vector<std::byte> buf;
-    Writer w{buf};
+    protocol::Writer w{buf};
 
     auto captured = read_file("src/straylight/nix/protocol/captures/buildpaths_request.bin");
     if (captured.size() >= 24) {
@@ -278,7 +278,7 @@ int main() {
       uint64_t mode;
       std::memcpy(&mode, captured.data() + captured.size() - 8, 8);
 
-      write_build_paths_request(w, paths, static_cast<BuildMode>(mode));
+      protocol::write_build_paths_request(w, paths, static_cast<protocol::BuildMode>(mode));
       if (compare(buf, captured, "buildpaths_request"))
         ++passed;
       else
@@ -289,7 +289,7 @@ int main() {
   // Test 12: BuildPathsWithResults request
   {
     std::vector<std::byte> buf;
-    Writer w{buf};
+    protocol::Writer w{buf};
 
     auto captured =
         read_file("src/straylight/nix/protocol/captures/buildpathswithresults_request.bin");
@@ -310,7 +310,8 @@ int main() {
       uint64_t mode;
       std::memcpy(&mode, captured.data() + captured.size() - 8, 8);
 
-      write_build_paths_with_results_request(w, paths, static_cast<BuildMode>(mode));
+      protocol::write_build_paths_with_results_request(w, paths,
+                                                       static_cast<protocol::BuildMode>(mode));
       if (compare(buf, captured, "buildpathswithresults_request"))
         ++passed;
       else
@@ -321,9 +322,9 @@ int main() {
   // Test 13: SetOptions request
   {
     std::vector<std::byte> buf;
-    Writer w{buf};
+    protocol::Writer w{buf};
 
-    ClientSettings settings;
+    protocol::ClientSettings settings;
     settings.keep_failed_ = false;
     settings.keep_going_ = false;
     settings.try_fallback_ = false;
@@ -343,7 +344,7 @@ int main() {
                             "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= "
                             "weyl-ai.cachix.org-1:cR0SpSAPw7wejZ21ep4SLojE77gp5F2os260eEWqTTw="}};
 
-    write_set_options_request(w, settings, 38);
+    protocol::write_set_options_request(w, settings, 38);
 
     auto captured = read_file("src/straylight/nix/protocol/captures/setoptions_request.bin");
     if (compare(buf, captured, "setoptions_request"))
@@ -360,9 +361,9 @@ int main() {
   // Test 14: AddToStoreNar request
   {
     std::vector<std::byte> buf;
-    Writer w{buf};
+    protocol::Writer w{buf};
 
-    AddToStoreNarRequest req;
+    protocol::AddToStoreNarRequest req;
     req.path_ = "/nix/store/v4wqkf7dq9619yyv1wbf1jvpw4dhbs2f-tf.txt";
     req.deriver_ = ""; // none
     req.nar_hash_ = "60e5106c2a1d4ef9f82b58df02be7a482f35438ff9e6556194ab02e355256352";
@@ -375,7 +376,7 @@ int main() {
     req.repair_ = false;
     req.dont_check_sigs_ = false;
 
-    write_add_to_store_nar_request(w, req);
+    protocol::write_add_to_store_nar_request(w, req);
 
     auto captured = read_file("src/straylight/nix/protocol/captures/addtostorenar_request.bin");
     if (compare(buf, captured, "addtostorenar_request"))
@@ -399,9 +400,9 @@ int main() {
   {
     auto data = read_file("src/straylight/nix/protocol/captures/server_hello.bin");
     try {
-      Reader r{data};
-      auto hello = read_server_hello(r);
-      if (hello.magic_ == WORKER_MAGIC_2 && hello.version_ == 0x0126) {
+      protocol::Reader r{data};
+      auto hello = protocol::read_server_hello(r);
+      if (hello.magic_ == protocol::WORKER_MAGIC_2 && hello.version_ == 0x0126) {
         std::cout << "PASS read_server_hello (magic=0x" << std::hex << hello.magic_
                   << ", version=0x" << hello.version_ << std::dec << ")\n";
         ++passed;
@@ -419,8 +420,8 @@ int main() {
   {
     auto data = read_file("src/straylight/nix/protocol/captures/isvalidpath_response.bin");
     try {
-      Reader r{data};
-      bool valid = read_is_valid_path_response(r);
+      protocol::Reader r{data};
+      bool valid = protocol::read_is_valid_path_response(r);
       if (valid) {
         std::cout << "PASS read_isvalidpath_response (valid=true)\n";
         ++passed;
@@ -438,8 +439,8 @@ int main() {
   {
     auto data = read_file("src/straylight/nix/protocol/captures/querypathinfo_response.bin");
     try {
-      Reader r{data};
-      auto info = read_query_path_info_response(r, 0x0126);
+      protocol::Reader r{data};
+      auto info = protocol::read_query_path_info_response(r, 0x0126);
       if (info && info->deriver_.find("bash") != std::string::npos &&
           info->nar_hash_.find("f7b02ee0") == 0 && info->references_.size() == 2) {
         std::cout << "PASS read_querypathinfo_response (deriver=" << info->deriver_.substr(0, 40)
@@ -459,8 +460,8 @@ int main() {
   {
     auto data = read_file("src/straylight/nix/protocol/captures/querymissing_response.bin");
     try {
-      Reader r{data};
-      auto result = read_query_missing_response(r);
+      protocol::Reader r{data};
+      auto result = protocol::read_query_missing_response(r);
       if (result.will_build_.empty() && result.will_substitute_.empty() &&
           result.download_size_ == 0 && result.nar_size_ == 0) {
         std::cout << "PASS read_querymissing_response (all empty)\n";
@@ -479,8 +480,8 @@ int main() {
   {
     auto data = read_file("src/straylight/nix/protocol/captures/queryreferrers_response.bin");
     try {
-      Reader r{data};
-      auto referrers = read_query_referrers_response(r);
+      protocol::Reader r{data};
+      auto referrers = protocol::read_query_referrers_response(r);
       if (!referrers.empty() && referrers[0].find("/nix/store/") == 0) {
         std::cout << "PASS read_queryreferrers_response (count=" << referrers.size() << ")\n";
         ++passed;
@@ -499,8 +500,8 @@ int main() {
     auto data =
         read_file("src/straylight/nix/protocol/captures/buildpathswithresults_response.bin");
     try {
-      Reader r{data};
-      auto results = read_build_paths_with_results_response(r, 0x0126);
+      protocol::Reader r{data};
+      auto results = protocol::read_build_paths_with_results_response(r, 0x0126);
       if (results.size() == 1 && results[0].path_.find("hello") != std::string::npos &&
           results[0].status_ == 2 && results[0].built_outputs_.size() == 1) {
         std::cout << "PASS read_buildpathswithresults_response (path="

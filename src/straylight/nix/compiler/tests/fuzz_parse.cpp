@@ -14,8 +14,6 @@
 #include "straylight/nix/compiler/ast/symbol_table.h"
 #include "straylight/nix/compiler/parse/parser.h"
 
-using namespace straylight::nix::compiler;
-
 // Fuzz target: try to parse arbitrary input
 // Goal: Ensure the parser never crashes, regardless of input
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
@@ -29,8 +27,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
   // Try to parse - should never crash
   try {
-    ast::symbol_table symbols;
-    auto expr = parse::parse(input, symbols);
+    straylight::nix::compiler::ast::symbol_table symbols;
+    auto expr = straylight::nix::compiler::parse::parse(input, symbols);
     // If parsing succeeds, expr should be valid
     (void)expr;
   } catch (const std::exception&) {

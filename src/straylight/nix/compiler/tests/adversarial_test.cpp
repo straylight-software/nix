@@ -20,10 +20,11 @@
 #include "straylight/nix/compiler/runtime/runtime.h"
 #include "straylight/nix/compiler/runtime/wasm_executor.h"
 
-using namespace straylight::nix::compiler;
-using namespace straylight::nix::compiler::runtime;
-using namespace straylight::nix::compiler::compile;
 namespace mem = straylight::nix::compiler::memory_layout;
+namespace ast = straylight::nix::compiler::ast;
+namespace parse = straylight::nix::compiler::parse;
+namespace compile = straylight::nix::compiler::compile;
+namespace runtime = straylight::nix::compiler::runtime;
 
 // =============================================================================
 // Helper
@@ -31,7 +32,7 @@ namespace mem = straylight::nix::compiler::memory_layout;
 
 struct eval_result {
   bool success;
-  nix_value value;
+  runtime::nix_value value;
   std::string error;
 };
 
@@ -46,7 +47,7 @@ auto eval_nix(std::string_view source) -> eval_result {
       return {false, 0, "WASM validation failed"};
     }
 
-    wasm_executor executor;
+    runtime::wasm_executor executor;
     auto result = executor.execute(module.emit_binary());
 
     if (!result.success) {
@@ -93,8 +94,8 @@ TEST_CASE("adversarial: integer overflow", "[adversarial][integer]") {
   SECTION("max int32") {
     auto result = eval_nix("2147483647"); // INT32_MAX
     REQUIRE(result.success);
-    REQUIRE(is_int(result.value));
-    REQUIRE(get_int_value(result.value) == 2147483647);
+    REQUIRE(runtime::is_int(result.value));
+    REQUIRE(runtime::get_int_value(result.value) == 2147483647);
   }
 
   SECTION("min int32") {
@@ -172,8 +173,8 @@ TEST_CASE("adversarial: deep nesting", "[adversarial][nesting]") {
     }
     auto result = eval_nix(expr);
     REQUIRE(result.success);
-    REQUIRE(is_int(result.value));
-    REQUIRE(get_int_value(result.value) == 1);
+    REQUIRE(runtime::is_int(result.value));
+    REQUIRE(runtime::get_int_value(result.value) == 1);
   }
 
   SECTION("deeply nested let expressions") {
@@ -192,7 +193,7 @@ TEST_CASE("adversarial: deep nesting", "[adversarial][nesting]") {
     }
     auto result = eval_nix(expr);
     REQUIRE(result.success);
-    REQUIRE(get_int_value(result.value) == 42);
+    REQUIRE(runtime::get_int_value(result.value) == 42);
   }
 
   SECTION("deeply nested function application") {
@@ -202,7 +203,7 @@ TEST_CASE("adversarial: deep nesting", "[adversarial][nesting]") {
     }
     auto result = eval_nix(expr);
     REQUIRE(result.success);
-    REQUIRE(get_int_value(result.value) == 31);
+    REQUIRE(runtime::get_int_value(result.value) == 31);
   }
 
   SECTION("deeply nested attrset selection") {
@@ -217,7 +218,7 @@ TEST_CASE("adversarial: deep nesting", "[adversarial][nesting]") {
     }
     auto result = eval_nix(inner + select);
     REQUIRE(result.success);
-    REQUIRE(get_int_value(result.value) == 1);
+    REQUIRE(runtime::get_int_value(result.value) == 1);
   }
 }
 
@@ -228,7 +229,7 @@ TEST_CASE("adversarial: deep nesting", "[adversarial][nesting]") {
 TEST_CASE("adversarial: string edge cases", "[adversarial][string]") {
   SECTION("empty string") {
     auto result = expect_success("\"\"");
-    REQUIRE(is_string(result.value));
+    REQUIRE(runtime::is_string(result.value));
   }
 
   SECTION("string with null byte") {
@@ -239,29 +240,29 @@ TEST_CASE("adversarial: string edge cases", "[adversarial][string]") {
 
   SECTION("string with all escape sequences") {
     auto result = expect_success("\"\\n\\r\\t\\\\\\\"\"");
-    REQUIRE(is_string(result.value));
+    REQUIRE(runtime::is_string(result.value));
   }
 
   SECTION("very long string") {
     std::string long_str = "\"" + std::string(10000, 'x') + "\"";
     auto result = eval_nix(long_str);
     REQUIRE(result.success);
-    REQUIRE(is_string(result.value));
+    REQUIRE(runtime::is_string(result.value));
   }
 
   SECTION("unicode in string") {
     auto result = expect_success("\"hello\"");
-    REQUIRE(is_string(result.value));
+    REQUIRE(runtime::is_string(result.value));
   }
 
   SECTION("multiline string") {
     auto result = expect_success("''\n  hello\n  world\n''");
-    REQUIRE(is_string(result.value));
+    REQUIRE(runtime::is_string(result.value));
   }
 
   SECTION("empty multiline string") {
     auto result = expect_success("''''");
-    REQUIRE(is_string(result.value));
+    REQUIRE(runtime::is_string(result.value));
   }
 }
 
@@ -272,12 +273,12 @@ TEST_CASE("adversarial: string edge cases", "[adversarial][string]") {
 TEST_CASE("adversarial: list edge cases", "[adversarial][list]") {
   SECTION("empty list") {
     auto result = expect_success("[]");
-    REQUIRE(is_list(result.value));
+    REQUIRE(runtime::is_list(result.value));
   }
 
   SECTION("single element list") {
     auto result = expect_success("[ 1 ]");
-    REQUIRE(is_list(result.value));
+    REQUIRE(runtime::is_list(result.value));
   }
 
   SECTION("large list") {
@@ -288,22 +289,22 @@ TEST_CASE("adversarial: list edge cases", "[adversarial][list]") {
     list += " ]";
     auto result = eval_nix(list);
     REQUIRE(result.success);
-    REQUIRE(is_list(result.value));
+    REQUIRE(runtime::is_list(result.value));
   }
 
   SECTION("nested lists") {
     auto result = expect_success("[ [ [ [ 1 ] ] ] ]");
-    REQUIRE(is_list(result.value));
+    REQUIRE(runtime::is_list(result.value));
   }
 
   SECTION("list concatenation") {
     auto result = expect_success("[ 1 2 ] ++ [ 3 4 ]");
-    REQUIRE(is_list(result.value));
+    REQUIRE(runtime::is_list(result.value));
   }
 
   SECTION("empty list concatenation") {
     auto result = expect_success("[] ++ []");
-    REQUIRE(is_list(result.value));
+    REQUIRE(runtime::is_list(result.value));
   }
 }
 
@@ -314,12 +315,12 @@ TEST_CASE("adversarial: list edge cases", "[adversarial][list]") {
 TEST_CASE("adversarial: attrset edge cases", "[adversarial][attrset]") {
   SECTION("empty attrset") {
     auto result = expect_success("{}");
-    REQUIRE(is_attrset(result.value));
+    REQUIRE(runtime::is_attrset(result.value));
   }
 
   SECTION("single attribute") {
     auto result = expect_success("{ x = 1; }");
-    REQUIRE(is_attrset(result.value));
+    REQUIRE(runtime::is_attrset(result.value));
   }
 
   SECTION("many attributes") {
@@ -330,12 +331,12 @@ TEST_CASE("adversarial: attrset edge cases", "[adversarial][attrset]") {
     attrs += " }";
     auto result = eval_nix(attrs);
     REQUIRE(result.success);
-    REQUIRE(is_attrset(result.value));
+    REQUIRE(runtime::is_attrset(result.value));
   }
 
   SECTION("deeply nested attrset") {
     auto result = expect_success("{ a = { b = { c = { d = 1; }; }; }; }");
-    REQUIRE(is_attrset(result.value));
+    REQUIRE(runtime::is_attrset(result.value));
   }
 
   SECTION("select from empty attrset - error") {
@@ -348,83 +349,83 @@ TEST_CASE("adversarial: attrset edge cases", "[adversarial][attrset]") {
 
   SECTION("has attribute on empty set") {
     auto result = expect_success("{} ? x");
-    REQUIRE(is_bool(result.value));
-    REQUIRE(get_bool_value(result.value) == false);
+    REQUIRE(runtime::is_bool(result.value));
+    REQUIRE(runtime::get_bool_value(result.value) == false);
   }
 
   SECTION("attrset update merge") {
     // Both attributes should be present
     auto result = expect_success("let r = { a = 1; } // { b = 2; }; in r.a + r.b");
-    REQUIRE(is_int(result.value));
-    REQUIRE(get_int_value(result.value) == 3);
+    REQUIRE(runtime::is_int(result.value));
+    REQUIRE(runtime::get_int_value(result.value) == 3);
   }
 
   SECTION("attrset update override") {
     auto result = expect_success("({ a = 1; } // { a = 2; }).a");
-    REQUIRE(is_int(result.value));
-    REQUIRE(get_int_value(result.value) == 2); // right side wins
+    REQUIRE(runtime::is_int(result.value));
+    REQUIRE(runtime::get_int_value(result.value) == 2); // right side wins
   }
 
   SECTION("attrset update with empty left") {
     auto result = expect_success("({} // { a = 1; }).a");
-    REQUIRE(get_int_value(result.value) == 1);
+    REQUIRE(runtime::get_int_value(result.value) == 1);
   }
 
   SECTION("attrset update with empty right") {
     auto result = expect_success("({ a = 1; } // {}).a");
-    REQUIRE(get_int_value(result.value) == 1);
+    REQUIRE(runtime::get_int_value(result.value) == 1);
   }
 
   SECTION("deep equality - lists") {
     auto result = expect_success("[1 2 3] == [1 2 3]");
-    REQUIRE(is_bool(result.value));
-    REQUIRE(get_bool_value(result.value) == true);
+    REQUIRE(runtime::is_bool(result.value));
+    REQUIRE(runtime::get_bool_value(result.value) == true);
   }
 
   SECTION("deep equality - lists different") {
     auto result = expect_success("[1 2 3] == [1 2 4]");
-    REQUIRE(get_bool_value(result.value) == false);
+    REQUIRE(runtime::get_bool_value(result.value) == false);
   }
 
   SECTION("deep equality - lists different length") {
     auto result = expect_success("[1 2] == [1 2 3]");
-    REQUIRE(get_bool_value(result.value) == false);
+    REQUIRE(runtime::get_bool_value(result.value) == false);
   }
 
   SECTION("deep equality - nested lists") {
     auto result = expect_success("[[1] [2]] == [[1] [2]]");
-    REQUIRE(get_bool_value(result.value) == true);
+    REQUIRE(runtime::get_bool_value(result.value) == true);
   }
 
   SECTION("deep equality - attrsets") {
     auto result = expect_success("{ a = 1; b = 2; } == { a = 1; b = 2; }");
-    REQUIRE(get_bool_value(result.value) == true);
+    REQUIRE(runtime::get_bool_value(result.value) == true);
   }
 
   SECTION("deep equality - attrsets different value") {
     auto result = expect_success("{ a = 1; } == { a = 2; }");
-    REQUIRE(get_bool_value(result.value) == false);
+    REQUIRE(runtime::get_bool_value(result.value) == false);
   }
 
   SECTION("deep equality - attrsets different keys") {
     auto result = expect_success("{ a = 1; } == { b = 1; }");
-    REQUIRE(get_bool_value(result.value) == false);
+    REQUIRE(runtime::get_bool_value(result.value) == false);
   }
 
   SECTION("deep equality - empty") {
     auto result = expect_success("{} == {}");
-    REQUIRE(get_bool_value(result.value) == true);
+    REQUIRE(runtime::get_bool_value(result.value) == true);
   }
 
   SECTION("deep equality - empty lists") {
     auto result = expect_success("[] == []");
-    REQUIRE(get_bool_value(result.value) == true);
+    REQUIRE(runtime::get_bool_value(result.value) == true);
   }
 
   SECTION("recursive attrset self-reference") {
     auto result = expect_success("rec { x = 1; y = x + 1; }.y");
-    REQUIRE(is_int(result.value));
-    REQUIRE(get_int_value(result.value) == 2);
+    REQUIRE(runtime::is_int(result.value));
+    REQUIRE(runtime::get_int_value(result.value) == 2);
   }
 }
 
@@ -435,48 +436,48 @@ TEST_CASE("adversarial: attrset edge cases", "[adversarial][attrset]") {
 TEST_CASE("adversarial: lambda edge cases", "[adversarial][lambda]") {
   SECTION("identity function") {
     auto result = expect_success("(x: x) 42");
-    REQUIRE(get_int_value(result.value) == 42);
+    REQUIRE(runtime::get_int_value(result.value) == 42);
   }
 
   SECTION("constant function") {
     auto result = expect_success("(x: 42) 0");
-    REQUIRE(get_int_value(result.value) == 42);
+    REQUIRE(runtime::get_int_value(result.value) == 42);
   }
 
   SECTION("deeply curried function") {
     auto result = expect_success("(a: b: c: d: e: a + b + c + d + e) 1 2 3 4 5");
-    REQUIRE(get_int_value(result.value) == 15);
+    REQUIRE(runtime::get_int_value(result.value) == 15);
   }
 
   SECTION("closure captures many variables") {
     auto result = expect_success("let a = 1; b = 2; c = 3; d = 4; e = 5; "
                                  "in (x: a + b + c + d + e + x) 10");
-    REQUIRE(get_int_value(result.value) == 25);
+    REQUIRE(runtime::get_int_value(result.value) == 25);
   }
 
   SECTION("returning a lambda") {
     auto result = expect_success("((x: y: x + y) 1) 2");
-    REQUIRE(get_int_value(result.value) == 3);
+    REQUIRE(runtime::get_int_value(result.value) == 3);
   }
 
   SECTION("lambda shadowing") {
     auto result = expect_success("let x = 1; in (x: x) 2");
-    REQUIRE(get_int_value(result.value) == 2);
+    REQUIRE(runtime::get_int_value(result.value) == 2);
   }
 
   SECTION("attrset pattern") {
     auto result = expect_success("({ x, y }: x + y) { x = 1; y = 2; }");
-    REQUIRE(get_int_value(result.value) == 3);
+    REQUIRE(runtime::get_int_value(result.value) == 3);
   }
 
   SECTION("attrset pattern with default") {
     auto result = expect_success("({ x, y ? 10 }: x + y) { x = 1; }");
-    REQUIRE(get_int_value(result.value) == 11);
+    REQUIRE(runtime::get_int_value(result.value) == 11);
   }
 
   SECTION("attrset pattern with @") {
     auto result = expect_success("(args@{ x }: x + args.x) { x = 1; }");
-    REQUIRE(get_int_value(result.value) == 2);
+    REQUIRE(runtime::get_int_value(result.value) == 2);
   }
 }
 
@@ -487,18 +488,18 @@ TEST_CASE("adversarial: lambda edge cases", "[adversarial][lambda]") {
 TEST_CASE("adversarial: with edge cases", "[adversarial][with]") {
   SECTION("with shadows nothing") {
     auto result = expect_success("with { x = 1; }; x");
-    REQUIRE(get_int_value(result.value) == 1);
+    REQUIRE(runtime::get_int_value(result.value) == 1);
   }
 
   SECTION("let shadows with") {
     auto result = expect_success("let x = 1; in with { x = 2; }; x");
     // let should shadow with
-    REQUIRE(get_int_value(result.value) == 1);
+    REQUIRE(runtime::get_int_value(result.value) == 1);
   }
 
   SECTION("nested with") {
     auto result = expect_success("with { x = 1; }; with { y = 2; }; x + y");
-    REQUIRE(get_int_value(result.value) == 3);
+    REQUIRE(runtime::get_int_value(result.value) == 3);
   }
 
   SECTION("with on non-attrset - error") {
@@ -517,7 +518,7 @@ TEST_CASE("adversarial: with edge cases", "[adversarial][with]") {
 TEST_CASE("adversarial: assert edge cases", "[adversarial][assert]") {
   SECTION("assert true") {
     auto result = expect_success("assert true; 42");
-    REQUIRE(get_int_value(result.value) == 42);
+    REQUIRE(runtime::get_int_value(result.value) == 42);
   }
 
   SECTION("assert false") {
@@ -526,12 +527,12 @@ TEST_CASE("adversarial: assert edge cases", "[adversarial][assert]") {
 
   SECTION("assert with expression") {
     auto result = expect_success("assert 1 < 2; 42");
-    REQUIRE(get_int_value(result.value) == 42);
+    REQUIRE(runtime::get_int_value(result.value) == 42);
   }
 
   SECTION("chained asserts") {
     auto result = expect_success("assert true; assert true; assert true; 42");
-    REQUIRE(get_int_value(result.value) == 42);
+    REQUIRE(runtime::get_int_value(result.value) == 42);
   }
 
   SECTION("assert non-boolean - error") {
@@ -551,44 +552,44 @@ TEST_CASE("adversarial: lazy evaluation", "[adversarial][lazy]") {
   SECTION("unused error doesn't crash") {
     // The error is in an unused branch
     auto result = expect_success("let x = 1 / 0; in 42");
-    REQUIRE(get_int_value(result.value) == 42);
+    REQUIRE(runtime::get_int_value(result.value) == 42);
   }
 
   SECTION("unused assertion doesn't fail") {
     auto result = expect_success("let x = assert false; 1; in 42");
-    REQUIRE(get_int_value(result.value) == 42);
+    REQUIRE(runtime::get_int_value(result.value) == 42);
   }
 
   SECTION("short-circuit and") {
     // false && (1/0) should not evaluate the division
     auto result = expect_success("false && (1 / 0 == 1)");
-    REQUIRE(is_bool(result.value));
-    REQUIRE(get_bool_value(result.value) == false);
+    REQUIRE(runtime::is_bool(result.value));
+    REQUIRE(runtime::get_bool_value(result.value) == false);
   }
 
   SECTION("short-circuit or") {
     // true || (1/0) should not evaluate the division
     auto result = expect_success("true || (1 / 0 == 1)");
-    REQUIRE(is_bool(result.value));
-    REQUIRE(get_bool_value(result.value) == true);
+    REQUIRE(runtime::is_bool(result.value));
+    REQUIRE(runtime::get_bool_value(result.value) == true);
   }
 
   SECTION("short-circuit implication") {
     // false -> (1/0) should not evaluate the division (false implies anything)
     auto result = expect_success("false -> (1 / 0 == 1)");
-    REQUIRE(is_bool(result.value));
-    REQUIRE(get_bool_value(result.value) == true);
+    REQUIRE(runtime::is_bool(result.value));
+    REQUIRE(runtime::get_bool_value(result.value) == true);
   }
 
   SECTION("list elements are lazy") {
     // Error in list element shouldn't crash if not accessed
     auto result = expect_success("let xs = [ 1 (1/0) 3 ]; in 42");
-    REQUIRE(get_int_value(result.value) == 42);
+    REQUIRE(runtime::get_int_value(result.value) == 42);
   }
 
   SECTION("attrset values are lazy") {
     auto result = expect_success("let s = { x = 1; y = 1/0; }; in s.x");
-    REQUIRE(get_int_value(result.value) == 1);
+    REQUIRE(runtime::get_int_value(result.value) == 1);
   }
 }
 
@@ -733,27 +734,27 @@ TEST_CASE("adversarial: type errors", "[adversarial][type]") {
 TEST_CASE("adversarial: identifier edge cases", "[adversarial][identifier]") {
   SECTION("single letter identifier") {
     auto result = expect_success("let x = 1; in x");
-    REQUIRE(get_int_value(result.value) == 1);
+    REQUIRE(runtime::get_int_value(result.value) == 1);
   }
 
   SECTION("underscore identifier") {
     auto result = expect_success("let _ = 1; in _");
-    REQUIRE(get_int_value(result.value) == 1);
+    REQUIRE(runtime::get_int_value(result.value) == 1);
   }
 
   SECTION("identifier with numbers") {
     auto result = expect_success("let x123 = 42; in x123");
-    REQUIRE(get_int_value(result.value) == 42);
+    REQUIRE(runtime::get_int_value(result.value) == 42);
   }
 
   SECTION("identifier with hyphens") {
     auto result = expect_success("let my-var = 42; in my-var");
-    REQUIRE(get_int_value(result.value) == 42);
+    REQUIRE(runtime::get_int_value(result.value) == 42);
   }
 
   SECTION("identifier with apostrophe") {
     auto result = expect_success("let x' = 42; in x'");
-    REQUIRE(get_int_value(result.value) == 42);
+    REQUIRE(runtime::get_int_value(result.value) == 42);
   }
 
   SECTION("or as identifier (special case)") {
@@ -779,7 +780,7 @@ TEST_CASE("adversarial: memory stress", "[adversarial][memory]") {
     expr += "in s99";
     auto result = eval_nix(expr);
     REQUIRE(result.success);
-    REQUIRE(is_string(result.value));
+    REQUIRE(runtime::is_string(result.value));
   }
 
   SECTION("many attrsets") {
@@ -790,7 +791,7 @@ TEST_CASE("adversarial: memory stress", "[adversarial][memory]") {
     expr += "in a49.x";
     auto result = eval_nix(expr);
     REQUIRE(result.success);
-    REQUIRE(get_int_value(result.value) == 49);
+    REQUIRE(runtime::get_int_value(result.value) == 49);
   }
 
   SECTION("many closures") {
@@ -801,6 +802,6 @@ TEST_CASE("adversarial: memory stress", "[adversarial][memory]") {
     expr += "in f49 1";
     auto result = eval_nix(expr);
     REQUIRE(result.success);
-    REQUIRE(get_int_value(result.value) == 50);
+    REQUIRE(runtime::get_int_value(result.value) == 50);
   }
 }

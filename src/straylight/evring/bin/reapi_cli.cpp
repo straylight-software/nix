@@ -29,8 +29,6 @@
 #include "straylight/evring/reapi.h"
 #include "straylight/evring/tls.h"
 
-using namespace evring;
-
 namespace {
 
 // Parse host:port
@@ -44,13 +42,13 @@ std::pair<std::string, std::uint16_t> parse_endpoint(const char* endpoint) {
 }
 
 // Parse digest string "hash/size"
-std::optional<reapi_digest> parse_digest(const char* str) {
+std::optional<evring::reapi_digest> parse_digest(const char* str) {
   std::string s(str);
   auto pos = s.find('/');
   if (pos == std::string::npos) {
     return std::nullopt;
   }
-  reapi_digest d;
+  evring::reapi_digest d;
   d.hash = s.substr(0, pos);
   d.size = std::stoll(s.substr(pos + 1));
   return d;
@@ -125,12 +123,12 @@ Examples:
 }
 
 struct cli_context {
-  std::unique_ptr<ring> ring;
+  std::unique_ptr<evring::ring> ring;
   int socket_fd{-1};
-  handle socket_handle;
-  std::unique_ptr<tls_client_config> tls_config;
-  std::unique_ptr<tls_connection> tls_conn;
-  http2_session session;
+  evring::handle socket_handle;
+  std::unique_ptr<evring::tls_client_config> tls_config;
+  std::unique_ptr<evring::tls_connection> tls_conn;
+  evring::http2_session session;
   std::string instance_name;
   bool insecure{false};
 
@@ -142,7 +140,7 @@ struct cli_context {
 
   bool connect(const std::string& host, std::uint16_t port) {
     // Create io_uring
-    ring = make_io_uring_ring(256);
+    ring = evring::make_io_uring_ring(256);
     if (!ring) {
       std::cerr << "error: failed to create io_uring\n";
       return false;
@@ -155,26 +153,28 @@ struct cli_context {
       std::cerr << "error: TCP connect failed\n";
       return false;
     }
-    socket_handle = handle{static_cast<std::uint32_t>(socket_fd)};
+    socket_handle = evring::handle{static_cast<std::uint32_t>(socket_fd)};
     std::cerr << "TCP connected\n";
 
     // TLS setup
     if (insecure) {
-      tls_config = std::make_unique<tls_client_config>(tls_client_config::create_insecure());
+      tls_config =
+          std::make_unique<evring::tls_client_config>(evring::tls_client_config::create_insecure());
     } else {
-      tls_config = std::make_unique<tls_client_config>(tls_client_config::create_default());
+      tls_config =
+          std::make_unique<evring::tls_client_config>(evring::tls_client_config::create_default());
     }
     tls_config->set_alpn("h2");
 
     // TLS handshake
     std::cerr << "TLS handshake...\n";
-    tls_handshake_machine hs{socket_handle, *ring, *tls_config, host};
-    auto hs_state = run(hs, *ring);
+    evring::tls_handshake_machine hs{socket_handle, *ring, *tls_config, host};
+    auto hs_state = evring::run(hs, *ring);
     if (!hs_state.ok()) {
       std::cerr << "error: TLS handshake failed: " << hs_state.error_message << "\n";
       return false;
     }
-    tls_conn = std::make_unique<tls_connection>(hs_state.take_context());
+    tls_conn = std::make_unique<evring::tls_connection>(hs_state.take_context());
     std::cerr << "TLS connected: " << tls_conn->version() << "\n";
 
     // HTTP/2 setup
@@ -184,8 +184,8 @@ struct cli_context {
     }
 
     std::cerr << "HTTP/2 connection...\n";
-    http2_connection_machine conn{session, *tls_conn, socket_handle};
-    auto conn_state = run(conn, *ring);
+    evring::http2_connection_machine conn{session, *tls_conn, socket_handle};
+    auto conn_state = evring::run(conn, *ring);
     if (!conn_state.ok()) {
       std::cerr << "error: HTTP/2 connection failed: " << conn_state.error_message << "\n";
       return false;
@@ -202,7 +202,7 @@ int cmd_upload(cli_context& ctx, int argc, char** argv) {
     return 1;
   }
 
-  std::vector<batch_update_blob> blobs;
+  std::vector<evring::batch_update_blob> blobs;
 
   for (int i = 0; i < argc; ++i) {
     auto data = read_file(argv[i]);
@@ -211,7 +211,7 @@ int cmd_upload(cli_context& ctx, int argc, char** argv) {
       return 1;
     }
 
-    auto digest = reapi_digest_from_bytes(*data);
+    auto digest = evring::reapi_digest_from_bytes(*data);
     std::cerr << "uploading " << argv[i] << " (" << data->size() << " bytes)\n";
     std::cerr << "  digest: " << digest.hash << "/" << digest.size << "\n";
 
@@ -219,14 +219,14 @@ int cmd_upload(cli_context& ctx, int argc, char** argv) {
   }
 
   // Check which are missing first
-  std::vector<reapi_digest> digests;
+  std::vector<evring::reapi_digest> digests;
   for (const auto& b : blobs) {
     digests.push_back(b.digest);
   }
 
-  find_missing_blobs_machine finder{ctx.session, *ctx.tls_conn, ctx.socket_handle,
-                                    ctx.instance_name, digests};
-  auto find_state = run(finder, *ctx.ring);
+  evring::find_missing_blobs_machine finder{ctx.session, *ctx.tls_conn, ctx.socket_handle,
+                                            ctx.instance_name, digests};
+  auto find_state = evring::run(finder, *ctx.ring);
 
   if (!find_state.ok()) {
     std::cerr << "error: FindMissingBlobs failed: " << find_state.status_message << "\n";
@@ -241,7 +241,7 @@ int cmd_upload(cli_context& ctx, int argc, char** argv) {
   }
 
   // Filter to only missing blobs
-  std::vector<batch_update_blob> to_upload;
+  std::vector<evring::batch_update_blob> to_upload;
   for (auto& b : blobs) {
     for (const auto& missing : find_state.missing_digests) {
       if (b.digest == missing) {
@@ -252,9 +252,9 @@ int cmd_upload(cli_context& ctx, int argc, char** argv) {
   }
 
   // Upload
-  batch_update_blobs_machine uploader{ctx.session, *ctx.tls_conn, ctx.socket_handle,
-                                      ctx.instance_name, std::move(to_upload)};
-  auto upload_state = run(uploader, *ctx.ring);
+  evring::batch_update_blobs_machine uploader{ctx.session, *ctx.tls_conn, ctx.socket_handle,
+                                              ctx.instance_name, std::move(to_upload)};
+  auto upload_state = evring::run(uploader, *ctx.ring);
 
   if (!upload_state.ok()) {
     std::cerr << "error: BatchUpdateBlobs failed: " << upload_state.status_message << "\n";
@@ -290,9 +290,9 @@ int cmd_download(cli_context& ctx, int argc, char** argv) {
   std::cerr << "downloading " << digest->hash << "/" << digest->size << "...\n";
 
   // Try batch read first (simpler for small blobs)
-  batch_read_blobs_machine reader{
+  evring::batch_read_blobs_machine reader{
       ctx.session, *ctx.tls_conn, ctx.socket_handle, ctx.instance_name, {*digest}};
-  auto read_state = run(reader, *ctx.ring);
+  auto read_state = evring::run(reader, *ctx.ring);
 
   if (!read_state.ok()) {
     std::cerr << "error: BatchReadBlobs failed: " << read_state.status_message << "\n";
@@ -332,7 +332,7 @@ int cmd_exists(cli_context& ctx, int argc, char** argv) {
     return 1;
   }
 
-  std::vector<reapi_digest> digests;
+  std::vector<evring::reapi_digest> digests;
   for (int i = 0; i < argc; ++i) {
     auto d = parse_digest(argv[i]);
     if (!d) {
@@ -342,9 +342,9 @@ int cmd_exists(cli_context& ctx, int argc, char** argv) {
     digests.push_back(*d);
   }
 
-  find_missing_blobs_machine finder{ctx.session, *ctx.tls_conn, ctx.socket_handle,
-                                    ctx.instance_name, digests};
-  auto state = run(finder, *ctx.ring);
+  evring::find_missing_blobs_machine finder{ctx.session, *ctx.tls_conn, ctx.socket_handle,
+                                            ctx.instance_name, digests};
+  auto state = evring::run(finder, *ctx.ring);
 
   if (!state.ok()) {
     std::cerr << "error: FindMissingBlobs failed: " << state.status_message << "\n";
@@ -375,7 +375,7 @@ int cmd_missing(cli_context& ctx, int argc, char** argv) {
     return 1;
   }
 
-  std::vector<reapi_digest> digests;
+  std::vector<evring::reapi_digest> digests;
   for (int i = 0; i < argc; ++i) {
     auto d = parse_digest(argv[i]);
     if (!d) {
@@ -385,9 +385,9 @@ int cmd_missing(cli_context& ctx, int argc, char** argv) {
     digests.push_back(*d);
   }
 
-  find_missing_blobs_machine finder{ctx.session, *ctx.tls_conn, ctx.socket_handle,
-                                    ctx.instance_name, digests};
-  auto state = run(finder, *ctx.ring);
+  evring::find_missing_blobs_machine finder{ctx.session, *ctx.tls_conn, ctx.socket_handle,
+                                            ctx.instance_name, digests};
+  auto state = evring::run(finder, *ctx.ring);
 
   if (!state.ok()) {
     std::cerr << "error: FindMissingBlobs failed: " << state.status_message << "\n";

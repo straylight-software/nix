@@ -15,8 +15,6 @@
 #include "straylight/nix/compiler/compile/compiler.h"
 #include "straylight/nix/compiler/parse/parser.h"
 
-using namespace straylight::nix::compiler;
-
 // Fuzz target: parse and compile arbitrary input
 // Goal: Ensure the compiler never crashes on valid ASTs
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
@@ -30,11 +28,11 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
   try {
     // Parse
-    ast::symbol_table symbols;
-    auto expr = parse::parse(input, symbols);
+    straylight::nix::compiler::ast::symbol_table symbols;
+    auto expr = straylight::nix::compiler::parse::parse(input, symbols);
 
     // Compile - this is the main target
-    compile::compiler comp(symbols);
+    straylight::nix::compiler::compile::compiler comp(symbols);
     auto module = comp.compile(expr);
 
     // Validate the output

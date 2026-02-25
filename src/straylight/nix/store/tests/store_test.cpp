@@ -11,7 +11,7 @@
 #include "../store.h"
 
 namespace fs = std::filesystem;
-using namespace straylight::nix::store;
+namespace store = straylight::nix::store;
 
 // Helper to create a vector of refs for passing to register_path
 template <typename... Args>
@@ -23,8 +23,7 @@ auto refs(Args&&... args) -> std::vector<std::string> {
 // Test fixtures
 // ============================================================================
 
-class temp_store {
-public:
+struct temp_store {
   temp_store() : path_(fs::temp_directory_path() / ("store_test_" + std::to_string(counter_++))) {
     fs::create_directories(path_);
   }
@@ -33,21 +32,20 @@ public:
 
   [[nodiscard]] auto path() const -> const fs::path& { return path_; }
 
-  [[nodiscard]] auto make_store() -> store {
-    store s(path_);
+  [[nodiscard]] auto make_store() -> store::store {
+    store::store s(path_);
     auto result = s.init();
     REQUIRE(result.has_value());
     return s;
   }
 
-private:
   fs::path path_;
   static inline int counter_ = 0;
 };
 
 static inline std::atomic<int> path_counter{0};
 
-static auto make_path_info(std::string_view name) -> path_info {
+static auto make_path_info(std::string_view name) -> store::path_info {
   // Use counter + name to ensure unique hashes for different paths
   // Nix store paths look like /nix/store/<hash>-<name>
   // Format: 8-char counter hex + 24 chars from name (padded)
@@ -58,7 +56,7 @@ static auto make_path_info(std::string_view name) -> path_info {
   std::string name_part(name);
   name_part.resize(24, '0'); // pad/truncate name portion
   hash_str += name_part;
-  return path_info{
+  return store::path_info{
       .path = "/nix/store/" + hash_str + "-" + std::string(name),
       .nar_hash = "sha256:0000000000000000000000000000000000000000000000000000",
       .registration_time = 1234567890,
@@ -94,12 +92,12 @@ TEST_CASE("store::init is idempotent", "[store]") {
   temp_store tmp;
 
   {
-    store s1(tmp.path());
+    store::store s1(tmp.path());
     REQUIRE(s1.init().has_value());
   }
 
   {
-    store s2(tmp.path());
+    store::store s2(tmp.path());
     REQUIRE(s2.init().has_value());
   }
 }
@@ -169,7 +167,7 @@ TEST_CASE("store: invalidate path", "[store]") {
 
   auto queried = s.query_path_info(info.path);
   REQUIRE_FALSE(queried.has_value());
-  REQUIRE(queried.error() == store_error::not_found);
+  REQUIRE(queried.error() == store::store_error::not_found);
 }
 
 TEST_CASE("store: invalidate updates referrers", "[store]") {
@@ -204,7 +202,7 @@ TEST_CASE("store: query non-existent path", "[store]") {
 
   auto result = s.query_path_info("/nix/store/nonexistent");
   REQUIRE_FALSE(result.has_value());
-  REQUIRE(result.error() == store_error::not_found);
+  REQUIRE(result.error() == store::store_error::not_found);
 }
 
 TEST_CASE("store: query all valid paths", "[store]") {
@@ -246,7 +244,7 @@ TEST_CASE("store: recovery replays log", "[store][recovery]") {
 
   // Second session: should recover from log
   {
-    store s(tmp.path());
+    store::store s(tmp.path());
     REQUIRE(s.init().has_value());
 
     // Path should still be valid
@@ -256,7 +254,7 @@ TEST_CASE("store: recovery replays log", "[store][recovery]") {
 
 TEST_CASE("store: recovery handles multiple entries", "[store][recovery]") {
   temp_store tmp;
-  std::vector<path_info> infos;
+  std::vector<store::path_info> infos;
   for (int i = 0; i < 10; ++i) {
     infos.push_back(make_path_info("pkg" + std::to_string(i)));
   }
@@ -269,7 +267,7 @@ TEST_CASE("store: recovery handles multiple entries", "[store][recovery]") {
   }
 
   {
-    store s(tmp.path());
+    store::store s(tmp.path());
     REQUIRE(s.init().has_value());
 
     for (const auto& info : infos) {
@@ -324,7 +322,7 @@ TEST_CASE("store: concurrent writers serialize via flock", "[store][concurrent]"
   REQUIRE(success_count.load() == num_threads * paths_per_thread);
 
   // Create fresh store to see all writes
-  store fresh_store(tmp.path());
+  store::store fresh_store(tmp.path());
   REQUIRE(fresh_store.init().has_value());
 
   auto all = fresh_store.query_all_valid_paths();
@@ -355,14 +353,14 @@ TEST_CASE("serialize_refs round-trips", "[store][serialization]") {
 TEST_CASE("serialize_refs handles empty", "[store][serialization]") {
   std::vector<std::string> refs = {};
 
-  auto serialized = serialize_refs(refs);
-  auto deserialized = deserialize_refs(serialized);
+  auto serialized = store::serialize_refs(refs);
+  auto deserialized = store::deserialize_refs(serialized);
 
   REQUIRE(deserialized.empty());
 }
 
 TEST_CASE("path_info serialization round-trips", "[store][serialization]") {
-  path_info info = {
+  store::path_info info = {
       .path = "/nix/store/xyz789-test",
       .nar_hash = "sha256:abcdef123456",
       .registration_time = 9999999999,
@@ -373,8 +371,8 @@ TEST_CASE("path_info serialization round-trips", "[store][serialization]") {
       .ca = "fixed:sha256:abc",
   };
 
-  auto serialized = serialize(info);
-  auto deserialized = deserialize_path_info(serialized);
+  auto serialized = store::serialize(info);
+  auto deserialized = store::deserialize_path_info(serialized);
 
   REQUIRE(deserialized.has_value());
   REQUIRE(deserialized->path == info.path);
@@ -552,7 +550,7 @@ TEST_CASE("store: bulk_query_path_info", "[store][io_uring]") {
   REQUIRE(results[2].has_value());
   REQUIRE(results[2]->path == c.path);
   REQUIRE_FALSE(results[3].has_value());
-  REQUIRE(results[3].error() == store_error::not_found);
+  REQUIRE(results[3].error() == store::store_error::not_found);
 }
 
 TEST_CASE("store: bulk_query_references", "[store][io_uring]") {
@@ -666,7 +664,7 @@ TEST_CASE("store: bulk_query_path_info many paths", "[store][io_uring]") {
   REQUIRE(s.init_ring(256).has_value());
 
   // Register 100 paths
-  std::vector<path_info> infos;
+  std::vector<store::path_info> infos;
   std::vector<std::string> paths;
   for (int i = 0; i < 100; ++i) {
     auto info = make_path_info("pkg" + std::to_string(i));

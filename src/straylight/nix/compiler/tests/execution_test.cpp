@@ -16,17 +16,13 @@
 #include "straylight/nix/compiler/parse/parser.h"
 #include "straylight/nix/compiler/runtime/wasm_executor.h"
 
-using namespace straylight::nix::compiler;
-using namespace straylight::nix::compiler::runtime;
-using namespace straylight::nix::compiler::compile;
-
 // =============================================================================
 // Helper: compile and execute Nix source
 // =============================================================================
 
 struct eval_result {
   bool success;
-  nix_value value;
+  straylight::nix::compiler::compile::nix_value value;
   std::string error;
   std::string formatted; // formatted value for display
 };
@@ -34,17 +30,17 @@ struct eval_result {
 auto eval_nix(std::string_view source) -> eval_result {
   static bool log_initialized = false;
   if (!log_initialized) {
-    log::init();
+    straylight::nix::compiler::log::init();
     log_initialized = true;
   }
 
   try {
     // Parse
-    ast::symbol_table symbols;
-    auto expr = parse::parse(source, symbols);
+    straylight::nix::compiler::ast::symbol_table symbols;
+    auto expr = straylight::nix::compiler::parse::parse(source, symbols);
 
     // Compile
-    compile::compiler comp(symbols);
+    straylight::nix::compiler::compile::compiler comp(symbols);
     auto module = comp.compile(expr);
 
     if (!module.validate()) {
@@ -52,7 +48,7 @@ auto eval_nix(std::string_view source) -> eval_result {
     }
 
     // Execute
-    wasm_executor executor;
+    straylight::nix::compiler::runtime::wasm_executor executor;
     auto result = executor.execute(module.emit_binary());
 
     if (!result.success) {
@@ -72,8 +68,8 @@ auto expect_int(std::string_view source, std::int32_t expected) -> void {
   INFO("Source: " << source);
   INFO("Error: " << result.error);
   REQUIRE(result.success);
-  REQUIRE(is_int(result.value));
-  REQUIRE(get_int_value(result.value) == expected);
+  REQUIRE(straylight::nix::compiler::compile::is_int(result.value));
+  REQUIRE(straylight::nix::compiler::compile::get_int_value(result.value) == expected);
 }
 
 /// helper to check boolean result
@@ -82,8 +78,8 @@ auto expect_bool(std::string_view source, bool expected) -> void {
   INFO("Source: " << source);
   INFO("Error: " << result.error);
   REQUIRE(result.success);
-  REQUIRE(is_bool(result.value));
-  REQUIRE(get_bool_value(result.value) == expected);
+  REQUIRE(straylight::nix::compiler::compile::is_bool(result.value));
+  REQUIRE(straylight::nix::compiler::compile::get_bool_value(result.value) == expected);
 }
 
 /// helper to check null result
@@ -92,7 +88,7 @@ auto expect_null(std::string_view source) -> void {
   INFO("Source: " << source);
   INFO("Error: " << result.error);
   REQUIRE(result.success);
-  REQUIRE(is_null(result.value));
+  REQUIRE(straylight::nix::compiler::compile::is_null(result.value));
 }
 
 /// helper to check string result
@@ -102,7 +98,7 @@ auto expect_string(std::string_view source, std::string_view expected) -> void {
   INFO("Error: " << result.error);
   INFO("Formatted: " << result.formatted);
   REQUIRE(result.success);
-  REQUIRE(is_string(result.value));
+  REQUIRE(straylight::nix::compiler::compile::is_string(result.value));
   // The formatted output includes quotes, so check the formatted value
   REQUIRE(result.formatted == "\"" + std::string(expected) + "\"");
 }
@@ -331,15 +327,15 @@ TEST_CASE("exec: empty list", "[execution]") {
   auto result = eval_nix("[]");
   INFO("Error: " << result.error);
   REQUIRE(result.success);
-  REQUIRE(is_list(result.value));
-  REQUIRE(get_payload(result.value) == 0); // count = 0
+  REQUIRE(straylight::nix::compiler::compile::is_list(result.value));
+  REQUIRE(straylight::nix::compiler::compile::get_payload(result.value) == 0); // count = 0
 }
 
 TEST_CASE("exec: simple list", "[execution]") {
   auto result = eval_nix("[1 2 3]");
   INFO("Error: " << result.error);
   REQUIRE(result.success);
-  REQUIRE(is_list(result.value));
+  REQUIRE(straylight::nix::compiler::compile::is_list(result.value));
   // For now just check it's a list with some elements
   // (full element access requires more runtime support)
 }
@@ -352,15 +348,15 @@ TEST_CASE("exec: empty attrset", "[execution]") {
   auto result = eval_nix("{}");
   INFO("Error: " << result.error);
   REQUIRE(result.success);
-  REQUIRE(is_attrset(result.value));
-  REQUIRE(get_payload(result.value) == 0); // count = 0
+  REQUIRE(straylight::nix::compiler::compile::is_attrset(result.value));
+  REQUIRE(straylight::nix::compiler::compile::get_payload(result.value) == 0); // count = 0
 }
 
 TEST_CASE("exec: simple attrset", "[execution]") {
   auto result = eval_nix("{ x = 1; y = 2; }");
   INFO("Error: " << result.error);
   REQUIRE(result.success);
-  REQUIRE(is_attrset(result.value));
+  REQUIRE(straylight::nix::compiler::compile::is_attrset(result.value));
 }
 
 TEST_CASE("exec: attrset selection", "[execution]") {
@@ -457,13 +453,13 @@ TEST_CASE("debug: let ref earlier binding", "[debug]") {
   INFO("Formatted: " << result.formatted);
 
   if (result.success) {
-    INFO("is_int: " << is_int(result.value));
-    INFO("is_thunk: " << is_thunk(result.value));
-    INFO("is_null: " << is_null(result.value));
+    INFO("is_int: " << straylight::nix::compiler::compile::is_int(result.value));
+    INFO("is_thunk: " << straylight::nix::compiler::compile::is_thunk(result.value));
+    INFO("is_null: " << straylight::nix::compiler::compile::is_null(result.value));
   }
 
   REQUIRE(result.success);
-  REQUIRE(is_int(result.value));
+  REQUIRE(straylight::nix::compiler::compile::is_int(result.value));
 }
 
 // =============================================================================

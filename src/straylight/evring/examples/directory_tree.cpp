@@ -123,8 +123,7 @@ struct stat_entries_state {
   std::string error_message;
 };
 
-class stat_entries_machine {
-public:
+struct stat_entries_machine {
   using state_type = stat_entries_state;
 
   stat_entries_machine(std::vector<dir_entry> entries) : entries_(std::move(entries)) {}
@@ -188,7 +187,6 @@ public:
            s.current_phase == state_type::phase::error;
   }
 
-private:
   std::vector<dir_entry> entries_;
   mutable struct statx statx_buf_; // Stable buffer for statx results
 };

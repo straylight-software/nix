@@ -17,7 +17,7 @@
 
 #include "../ref.h"
 
-using namespace straylight::nix::util;
+namespace util = straylight::nix::util;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Test fixtures and helpers

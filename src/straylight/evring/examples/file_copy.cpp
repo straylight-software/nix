@@ -54,8 +54,7 @@ struct file_copy_state {
 // Machine
 // ============================================================================
 
-class file_copy_machine {
-public:
+struct file_copy_machine {
   using state_type = file_copy_state;
 
   file_copy_machine(const char* source, const char* dest, std::size_t buffer_size = 64 * 1024)
@@ -165,7 +164,6 @@ public:
            s.current_phase == state_type::phase::error;
   }
 
-private:
   const char* source_;
   const char* dest_;
   mutable std::vector<std::byte> buffer_;

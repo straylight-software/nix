@@ -33,8 +33,7 @@ struct echo_client_state {
   std::size_t bytes_sent{0};
 };
 
-class echo_client_machine {
-public:
+struct echo_client_machine {
   using state_type = echo_client_state;
 
   explicit echo_client_machine(evring::handle client, std::size_t buffer_size = 4096)
@@ -95,7 +94,6 @@ public:
            s.current_phase == state_type::phase::error;
   }
 
-private:
   evring::handle client_;
   mutable std::vector<std::byte> buffer_;
 };

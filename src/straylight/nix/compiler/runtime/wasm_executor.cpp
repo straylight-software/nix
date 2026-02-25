@@ -6,7 +6,7 @@
 
 #include <any>
 #include <cstring>
-#include <sstream>
+#include <format>
 
 #include "straylight/nix/compiler/log.h"
 #include "straylight/nix/compiler/runtime/io_backend.h"
@@ -1187,81 +1187,63 @@ auto wasm_executor::read_string_value(nix_value v) const -> std::string {
 }
 
 auto wasm_executor::format_value(nix_value v) const -> std::string {
-  std::ostringstream ss;
-
   switch (get_tag(v)) {
     case value_tag::null_value:
-      ss << "null";
-      break;
+      return "null";
 
     case value_tag::boolean:
-      ss << (get_bool_value(v) ? "true" : "false");
-      break;
+      return get_bool_value(v) ? "true" : "false";
 
     case value_tag::integer:
-      ss << get_int_value(v);
-      break;
+      return std::to_string(get_int_value(v));
 
     case value_tag::floating: {
       // payload is a pointer to f64 in memory
       auto offset = get_payload(v);
       auto d = ctx_.read_f64(offset);
-      ss << d;
-      break;
+      return std::format("{}", d);
     }
 
     case value_tag::string: {
       auto offset = get_payload(v);
-      ss << "\"" << ctx_.read_string(offset) << "\"";
-      break;
+      return std::format("\"{}\"", ctx_.read_string(offset));
     }
 
     case value_tag::path: {
       auto offset = get_payload(v);
-      ss << ctx_.read_string(offset);
-      break;
+      return std::string(ctx_.read_string(offset));
     }
 
     case value_tag::list: {
       auto ptr = get_payload(v);
       if (ptr == 0) {
-        ss << "[ ]";
-      } else {
-        auto count = ctx_.read_u32(ptr + mem::LIST_COUNT_OFFSET);
-        ss << "[" << count << " elements]";
+        return "[ ]";
       }
-      break;
+      auto count = ctx_.read_u32(ptr + mem::LIST_COUNT_OFFSET);
+      return std::format("[{} elements]", count);
     }
 
     case value_tag::attribute_set: {
       auto ptr = get_payload(v);
       if (ptr == 0) {
-        ss << "{ }";
-      } else {
-        auto count = ctx_.read_u32(ptr + mem::ATTRSET_COUNT_OFFSET);
-        ss << "{ " << count << " attrs }";
+        return "{ }";
       }
-      break;
+      auto count = ctx_.read_u32(ptr + mem::ATTRSET_COUNT_OFFSET);
+      return std::format("{{ {} attrs }}", count);
     }
 
     case value_tag::lambda:
-      ss << "<lambda>";
-      break;
+      return "<lambda>";
 
     case value_tag::thunk:
-      ss << "<thunk>";
-      break;
+      return "<thunk>";
 
     case value_tag::primop:
-      ss << "<primop>";
-      break;
+      return "<primop>";
 
     default:
-      ss << "<unknown:" << static_cast<int>(get_tag(v)) << ">";
-      break;
+      return std::format("<unknown:{}>", static_cast<int>(get_tag(v)));
   }
-
-  return ss.str();
 }
 
 } // namespace straylight::nix::compiler::runtime

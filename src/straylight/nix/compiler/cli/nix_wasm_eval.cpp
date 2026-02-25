@@ -13,16 +13,14 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
-#include <sstream>
+#include <iterator>
 #include <string>
 
 #include "straylight/nix/compiler/evaluator.h"
 
-using namespace straylight::nix::compiler;
-
 auto eval_expr(std::string_view source) -> int {
   try {
-    evaluator eval;
+    straylight::nix::compiler::evaluator eval;
     auto result = eval.eval_string(source);
 
     if (!result) {
@@ -41,7 +39,7 @@ auto eval_expr(std::string_view source) -> int {
 
 auto eval_file(const std::filesystem::path& path) -> int {
   try {
-    evaluator eval;
+    straylight::nix::compiler::evaluator eval;
     auto result = eval.eval_file(path);
 
     if (!result) {
@@ -84,9 +82,7 @@ auto main(int argc, char* argv[]) -> int {
   }
 
   // Read from stdin
-  std::ostringstream ss;
-  ss << std::cin.rdbuf();
-  std::string source = ss.str();
+  std::string source(std::istreambuf_iterator<char>(std::cin), std::istreambuf_iterator<char>());
 
   if (source.empty()) {
     std::cerr << "error: no expression provided\n";

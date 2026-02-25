@@ -15,7 +15,6 @@
 #include <straylight/nix/store/ca_store.h>
 
 namespace fs = std::filesystem;
-using namespace straylight::nix::store;
 
 // ============================================================================
 // Test helpers
@@ -89,7 +88,7 @@ int g_failed = 0;
 
 TEST(init_creates_directories) {
   auto path = unique_test_path("init");
-  ca_store store(path);
+  straylight::nix::store::ca_store store(path);
   auto result = store.init();
   REQUIRE(result.has_value());
 
@@ -104,7 +103,7 @@ TEST(init_creates_directories) {
 
 TEST(put_returns_hash) {
   auto path = unique_test_path("put");
-  ca_store store(path);
+  straylight::nix::store::ca_store store(path);
   store.init();
 
   auto data = make_data("hello world");
@@ -116,7 +115,7 @@ TEST(put_returns_hash) {
 
 TEST(put_is_idempotent) {
   auto path = unique_test_path("idempotent");
-  ca_store store(path);
+  straylight::nix::store::ca_store store(path);
   store.init();
 
   auto data = make_data("test content");
@@ -130,7 +129,7 @@ TEST(put_is_idempotent) {
 
 TEST(get_returns_content) {
   auto path = unique_test_path("get");
-  ca_store store(path);
+  straylight::nix::store::ca_store store(path);
   store.init();
 
   auto original = make_data("hello world");
@@ -145,7 +144,7 @@ TEST(get_returns_content) {
 
 TEST(get_not_found) {
   auto path = unique_test_path("notfound");
-  ca_store store(path);
+  straylight::nix::store::ca_store store(path);
   store.init();
 
   // Valid-looking hash that doesn't exist
@@ -153,29 +152,29 @@ TEST(get_not_found) {
   auto result = store.get(fake_hash);
 
   REQUIRE(!result.has_value());
-  REQUIRE(result.error() == ca_error::not_found);
+  REQUIRE(result.error() == straylight::nix::store::ca_error::not_found);
 }
 
 TEST(get_invalid_hash) {
   auto path = unique_test_path("invalid");
-  ca_store store(path);
+  straylight::nix::store::ca_store store(path);
   store.init();
 
   // Too short
   auto result1 = store.get("abc");
   REQUIRE(!result1.has_value());
-  REQUIRE(result1.error() == ca_error::invalid_hash);
+  REQUIRE(result1.error() == straylight::nix::store::ca_error::invalid_hash);
 
   // Invalid characters
   std::string bad_hash(64, 'x');
   auto result2 = store.get(bad_hash);
   REQUIRE(!result2.has_value());
-  REQUIRE(result2.error() == ca_error::invalid_hash);
+  REQUIRE(result2.error() == straylight::nix::store::ca_error::invalid_hash);
 }
 
 TEST(has_returns_correct_value) {
   auto path = unique_test_path("has");
-  ca_store store(path);
+  straylight::nix::store::ca_store store(path);
   store.init();
 
   auto data = make_data("test");
@@ -192,7 +191,7 @@ TEST(has_returns_correct_value) {
 
 TEST(remove_deletes_blob) {
   auto path = unique_test_path("remove");
-  ca_store store(path);
+  straylight::nix::store::ca_store store(path);
   store.init();
 
   auto data = make_data("to be removed");
@@ -213,7 +212,7 @@ TEST(remove_deletes_blob) {
 
 TEST(put_with_hash_verifies) {
   auto path = unique_test_path("verify");
-  ca_store store(path);
+  straylight::nix::store::ca_store store(path);
   store.init();
 
   auto data = make_data("content");
@@ -233,12 +232,12 @@ TEST(put_with_hash_verifies) {
   std::string wrong_hash(64, 'c');
   auto result2 = store.put(wrong_hash, data);
   REQUIRE(!result2.has_value());
-  REQUIRE(result2.error() == ca_error::hash_mismatch);
+  REQUIRE(result2.error() == straylight::nix::store::ca_error::hash_mismatch);
 }
 
 TEST(verify_detects_corruption) {
   auto path = unique_test_path("corrupt");
-  ca_store store(path);
+  straylight::nix::store::ca_store store(path);
   store.init();
 
   auto data = make_data("original content");
@@ -253,7 +252,7 @@ TEST(verify_detects_corruption) {
 
 TEST(count_and_size) {
   auto path = unique_test_path("stats");
-  ca_store store(path);
+  straylight::nix::store::ca_store store(path);
   store.init();
 
   // Initially empty
@@ -273,7 +272,7 @@ TEST(count_and_size) {
 
 TEST(list_all) {
   auto path = unique_test_path("list");
-  ca_store store(path);
+  straylight::nix::store::ca_store store(path);
   store.init();
 
   auto data1 = make_data("first");
@@ -300,7 +299,7 @@ TEST(list_all) {
 
 TEST(cleanup_temps) {
   auto path = unique_test_path("temps");
-  ca_store store(path);
+  straylight::nix::store::ca_store store(path);
   store.init();
 
   // Create some fake .tmp files
@@ -319,7 +318,7 @@ TEST(cleanup_temps) {
 
 TEST(large_blob) {
   auto path = unique_test_path("large");
-  ca_store store(path);
+  straylight::nix::store::ca_store store(path);
   store.init();
 
   // 1MB of random data
@@ -336,7 +335,7 @@ TEST(large_blob) {
 
 TEST(concurrent_writes_same_content) {
   auto path = unique_test_path("concurrent");
-  ca_store store(path);
+  straylight::nix::store::ca_store store(path);
   store.init();
 
   auto data = make_data("shared content for concurrent writes");
@@ -367,7 +366,7 @@ TEST(concurrent_writes_same_content) {
 
 TEST(concurrent_writes_different_content) {
   auto path = unique_test_path("concurrent2");
-  ca_store store(path);
+  straylight::nix::store::ca_store store(path);
   store.init();
 
   constexpr int num_threads = 8;
@@ -401,7 +400,7 @@ TEST(concurrent_writes_different_content) {
 
 TEST(bulk_has) {
   auto path = unique_test_path("bulk");
-  ca_store store(path);
+  straylight::nix::store::ca_store store(path);
   store.init();
 
   // Add some blobs
@@ -431,7 +430,7 @@ TEST(bulk_has) {
 
 TEST(verify_all) {
   auto path = unique_test_path("verifyall");
-  ca_store store(path);
+  straylight::nix::store::ca_store store(path);
   store.init();
 
   // Add several blobs

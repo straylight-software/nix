@@ -19,7 +19,6 @@
 #include "../store.h"
 
 namespace fs = std::filesystem;
-using namespace straylight::nix::store;
 
 // ============================================================================
 // Benchmark harness
@@ -55,10 +54,10 @@ void print_result(const bench_result& r) {
 // Test data generation
 // ============================================================================
 
-auto make_test_path_info(int idx) -> path_info {
+auto make_test_path_info(int idx) -> straylight::nix::store::path_info {
   char hash[33];
   std::snprintf(hash, sizeof(hash), "%032x", idx);
-  return path_info{
+  return straylight::nix::store::path_info{
       .path = std::string("/nix/store/") + hash + "-pkg" + std::to_string(idx),
       .nar_hash = "sha256:" + std::string(hash),
       .registration_time = 1700000000 + idx,
@@ -74,8 +73,7 @@ auto make_test_path_info(int idx) -> path_info {
 // SQLite baseline (mimics Nix's pattern)
 // ============================================================================
 
-class sqlite_store {
-public:
+struct sqlite_store {
   explicit sqlite_store(const fs::path& db_path) {
     int rc = sqlite3_open(db_path.c_str(), &db_);
     if (rc != SQLITE_OK) {
@@ -133,7 +131,7 @@ public:
     sqlite3_close(db_);
   }
 
-  void register_path(const path_info& info) {
+  void register_path(const straylight::nix::store::path_info& info) {
     sqlite3_reset(insert_stmt_);
     sqlite3_bind_text(insert_stmt_, 1, info.path.c_str(), -1, SQLITE_TRANSIENT);
     sqlite3_bind_text(insert_stmt_, 2, info.nar_hash.c_str(), -1, SQLITE_TRANSIENT);
@@ -146,12 +144,13 @@ public:
     sqlite3_step(insert_stmt_);
   }
 
-  auto query_path_info(const std::string& path) -> std::optional<path_info> {
+  auto query_path_info(const std::string& path)
+      -> std::optional<straylight::nix::store::path_info> {
     sqlite3_reset(query_stmt_);
     sqlite3_bind_text(query_stmt_, 1, path.c_str(), -1, SQLITE_TRANSIENT);
 
     if (sqlite3_step(query_stmt_) == SQLITE_ROW) {
-      path_info info;
+      straylight::nix::store::path_info info;
       info.path = reinterpret_cast<const char*>(sqlite3_column_text(query_stmt_, 1));
       info.nar_hash = reinterpret_cast<const char*>(sqlite3_column_text(query_stmt_, 2));
       info.registration_time = sqlite3_column_int64(query_stmt_, 3);
@@ -176,7 +175,6 @@ public:
 
   void commit() { sqlite3_exec(db_, "COMMIT", nullptr, nullptr, nullptr); }
 
-private:
   sqlite3* db_ = nullptr;
   sqlite3_stmt* insert_stmt_ = nullptr;
   sqlite3_stmt* query_stmt_ = nullptr;
@@ -213,7 +211,7 @@ void run_benchmarks() {
   std::printf("--- WRITE (register_path) ---\n\n");
 
   // Generate test data
-  std::vector<path_info> infos;
+  std::vector<straylight::nix::store::path_info> infos;
   for (std::size_t i = 0; i < large_n; ++i) {
     infos.push_back(make_test_path_info(static_cast<int>(i)));
   }
@@ -249,7 +247,7 @@ void run_benchmarks() {
   // Log store - individual writes
   {
     fs::remove_all(log_store_path);
-    store s(log_store_path);
+    straylight::nix::store::store s(log_store_path);
     s.init();
     auto r = bench("Log store: register " + std::to_string(small_n) + " paths (flock each)",
                    small_n, [&]() {
@@ -278,7 +276,7 @@ void run_benchmarks() {
   sq_read.commit();
 
   fs::remove_all(log_store_path);
-  store log_read(log_store_path);
+  straylight::nix::store::store log_read(log_store_path);
   log_read.init();
   for (std::size_t i = 0; i < large_n; ++i) {
     log_read.register_path(infos[i], {});

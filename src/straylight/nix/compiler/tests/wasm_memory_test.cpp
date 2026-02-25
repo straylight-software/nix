@@ -16,14 +16,14 @@
 
 #include "straylight/nix/compiler/runtime/wasm_memory.h"
 
-using namespace straylight::nix::compiler::runtime;
+namespace runtime = straylight::nix::compiler::runtime;
 
 // =============================================================================
 // Basic allocation tests
 // =============================================================================
 
 TEST_CASE("wasm_memory: basic allocation", "[memory]") {
-  test_memory tm(1, 256, 0x1000); // 1 page, heap at 4KB
+  runtime::test_memory tm(1, 256, 0x1000); // 1 page, heap at 4KB
   auto& mem = tm.memory();
 
   SECTION("allocates at heap base") {
@@ -66,7 +66,7 @@ TEST_CASE("wasm_memory: basic allocation", "[memory]") {
 // =============================================================================
 
 TEST_CASE("wasm_memory: automatic growth", "[memory]") {
-  test_memory tm(1, 16, 0); // 1 page (64KB), max 16 pages, heap at 0
+  runtime::test_memory tm(1, 16, 0); // 1 page (64KB), max 16 pages, heap at 0
   auto& mem = tm.memory();
 
   SECTION("grows when allocation exceeds current size") {
@@ -87,7 +87,7 @@ TEST_CASE("wasm_memory: automatic growth", "[memory]") {
 
   SECTION("throws when max pages exceeded") {
     // Try to allocate more than max (16 pages = 1MB)
-    REQUIRE_THROWS_AS(mem.allocate(17 * 65536), memory_exhausted_error);
+    REQUIRE_THROWS_AS(mem.allocate(17 * 65536), runtime::memory_exhausted_error);
   }
 }
 
@@ -96,7 +96,7 @@ TEST_CASE("wasm_memory: automatic growth", "[memory]") {
 // =============================================================================
 
 TEST_CASE("wasm_memory: handles remain valid after growth", "[memory][critical]") {
-  test_memory tm(1, 256, 0); // Start with 1 page
+  runtime::test_memory tm(1, 256, 0); // Start with 1 page
   auto& mem = tm.memory();
 
   SECTION("data survives growth") {
@@ -116,7 +116,7 @@ TEST_CASE("wasm_memory: handles remain valid after growth", "[memory][critical]"
   }
 
   SECTION("multiple handles survive growth") {
-    std::vector<mem_offset> handles;
+    std::vector<runtime::mem_offset> handles;
     std::vector<std::uint64_t> values;
 
     // Allocate many small chunks
@@ -143,7 +143,7 @@ TEST_CASE("wasm_memory: handles remain valid after growth", "[memory][critical]"
 // =============================================================================
 
 TEST_CASE("wasm_memory: nested operations with growth", "[memory][adversarial]") {
-  test_memory tm(1, 256, 0x1000);
+  runtime::test_memory tm(1, 256, 0x1000);
   auto& mem = tm.memory();
 
   // Simulate the problematic pattern:
@@ -170,7 +170,7 @@ TEST_CASE("wasm_memory: nested operations with growth", "[memory][adversarial]")
   }
 
   SECTION("deeply nested allocations all remain valid") {
-    std::vector<std::pair<mem_offset, std::uint64_t>> stack;
+    std::vector<std::pair<runtime::mem_offset, std::uint64_t>> stack;
 
     // Simulate 10 levels of nesting, each allocating and triggering growth
     for (int depth = 0; depth < 10; ++depth) {
@@ -197,24 +197,24 @@ TEST_CASE("wasm_memory: nested operations with growth", "[memory][adversarial]")
 // =============================================================================
 
 TEST_CASE("wasm_memory: bounds checking", "[memory]") {
-  test_memory tm(1, 1, 0); // 1 page, cannot grow
+  runtime::test_memory tm(1, 1, 0); // 1 page, cannot grow
   auto& mem = tm.memory();
 
   SECTION("read past end throws") {
-    REQUIRE_THROWS_AS(mem.read_u64(mem_offset{65530}), memory_bounds_error);
+    REQUIRE_THROWS_AS(mem.read_u64(runtime::mem_offset{65530}), runtime::memory_bounds_error);
   }
 
   SECTION("write past end throws") {
-    REQUIRE_THROWS_AS(mem.write_u64(mem_offset{65530}, 0), memory_bounds_error);
+    REQUIRE_THROWS_AS(mem.write_u64(runtime::mem_offset{65530}, 0), runtime::memory_bounds_error);
   }
 
   SECTION("allocation past max throws") {
-    REQUIRE_THROWS_AS(mem.allocate(70000), memory_exhausted_error);
+    REQUIRE_THROWS_AS(mem.allocate(70000), runtime::memory_exhausted_error);
   }
 
   SECTION("exact boundary works") {
     // Write at the last valid position
-    auto off = mem_offset{65536 - 8};
+    auto off = runtime::mem_offset{65536 - 8};
     mem.write_u64(off, 0x12345678);
     REQUIRE(mem.read_u64(off) == 0x12345678);
   }
@@ -225,7 +225,7 @@ TEST_CASE("wasm_memory: bounds checking", "[memory]") {
 // =============================================================================
 
 TEST_CASE("wasm_memory: string operations", "[memory]") {
-  test_memory tm(1, 256, 0x1000);
+  runtime::test_memory tm(1, 256, 0x1000);
   auto& mem = tm.memory();
 
   SECTION("write and read string") {
@@ -257,7 +257,7 @@ TEST_CASE("wasm_memory: string operations", "[memory]") {
 // =============================================================================
 
 TEST_CASE("wasm_memory: copy operations", "[memory]") {
-  test_memory tm(1, 256, 0x1000);
+  runtime::test_memory tm(1, 256, 0x1000);
   auto& mem = tm.memory();
 
   SECTION("basic copy") {
@@ -293,7 +293,7 @@ TEST_CASE("wasm_memory: copy operations", "[memory]") {
 // =============================================================================
 
 TEST_CASE("wasm_memory: allocation alignment", "[memory]") {
-  test_memory tm(1, 256, 0x1000);
+  runtime::test_memory tm(1, 256, 0x1000);
   auto& mem = tm.memory();
 
   SECTION("all allocations are 8-byte aligned") {
@@ -316,14 +316,14 @@ TEST_CASE("wasm_memory: allocation alignment", "[memory]") {
 // =============================================================================
 
 TEST_CASE("wasm_memory: stress test", "[memory][stress]") {
-  test_memory tm(1, 256, 0x1000);
+  runtime::test_memory tm(1, 256, 0x1000);
   auto& mem = tm.memory();
 
   std::mt19937 rng(42); // Fixed seed for reproducibility
   std::uniform_int_distribution<std::uint32_t> size_dist(1, 1000);
   std::uniform_int_distribution<std::uint64_t> value_dist;
 
-  std::vector<std::pair<mem_offset, std::uint64_t>> allocated;
+  std::vector<std::pair<runtime::mem_offset, std::uint64_t>> allocated;
 
   SECTION("random allocations and verifications") {
     // Do 1000 allocations
@@ -371,11 +371,11 @@ TEST_CASE("wasm_memory: regression - simulated genericClosure pattern", "[memory
   // 3. The allocation triggers memory growth
   // 4. Original read data must still be valid
 
-  test_memory tm(2, 256, 0x20000); // 2 pages (128KB), heap at 128KB (same as real layout)
+  runtime::test_memory tm(2, 256, 0x20000); // 2 pages (128KB), heap at 128KB (same as real layout)
   auto& mem = tm.memory();
 
   // Simulate: data section has an attrset at offset 0x100
-  auto attrset_off = mem_offset{0x100};
+  auto attrset_off = runtime::mem_offset{0x100};
   mem.write_u32(attrset_off, 2);                 // count = 2
   mem.write_u32(attrset_off + 4, 0x200);         // key1 offset
   mem.write_u64(attrset_off + 8, 0x1234567890);  // value1
@@ -408,7 +408,7 @@ TEST_CASE("wasm_memory: regression - simulated genericClosure pattern", "[memory
 // =============================================================================
 
 TEST_CASE("wasm_memory: mem_ptr must not be cached", "[memory][adversarial]") {
-  test_memory tm(1, 256, 0x1000);
+  runtime::test_memory tm(1, 256, 0x1000);
   auto& mem = tm.memory();
 
   // This test demonstrates the CORRECT pattern vs INCORRECT pattern
@@ -440,7 +440,7 @@ TEST_CASE("wasm_memory: mem_ptr must not be cached", "[memory][adversarial]") {
 // =============================================================================
 
 TEST_CASE("wasm_memory: allocation at exact page boundary", "[memory][adversarial]") {
-  test_memory tm(1, 256, 0); // heap at 0
+  runtime::test_memory tm(1, 256, 0); // heap at 0
   auto& mem = tm.memory();
 
   // Fill up to near page boundary
@@ -469,10 +469,10 @@ TEST_CASE("wasm_memory: allocation at exact page boundary", "[memory][adversaria
 // =============================================================================
 
 TEST_CASE("wasm_memory: repeated growth stress", "[memory][adversarial][stress]") {
-  test_memory tm(1, 256, 0);
+  runtime::test_memory tm(1, 256, 0);
   auto& mem = tm.memory();
 
-  std::vector<std::pair<mem_offset, std::uint64_t>> allocations;
+  std::vector<std::pair<runtime::mem_offset, std::uint64_t>> allocations;
 
   // Force 100 memory growths
   for (int idx = 0; idx < 100; ++idx) {
@@ -496,7 +496,7 @@ TEST_CASE("wasm_memory: repeated growth stress", "[memory][adversarial][stress]"
 // =============================================================================
 
 TEST_CASE("wasm_memory: zero size allocation", "[memory][adversarial]") {
-  test_memory tm(1, 256, 0x1000);
+  runtime::test_memory tm(1, 256, 0x1000);
   auto& mem = tm.memory();
 
   // Zero-size allocations return the current heap pointer without advancing
@@ -522,7 +522,7 @@ TEST_CASE("wasm_memory: zero size allocation", "[memory][adversarial]") {
 // =============================================================================
 
 TEST_CASE("wasm_memory: read/write at allocation edge", "[memory][adversarial]") {
-  test_memory tm(1, 256, 0x1000);
+  runtime::test_memory tm(1, 256, 0x1000);
   auto& mem = tm.memory();
 
   // Allocate exactly 8 bytes

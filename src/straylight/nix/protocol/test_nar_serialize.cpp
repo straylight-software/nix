@@ -15,7 +15,7 @@
 
 #include "nar_serialize.h"
 
-using namespace straylight;
+namespace nar = straylight::nar;
 
 // Read binary file
 std::vector<std::byte> read_file(const char* path) {

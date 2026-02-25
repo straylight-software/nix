@@ -13,7 +13,8 @@
 #include "straylight/nix/compiler/compile/compiler.h"
 #include "straylight/nix/compiler/compile/wasm_types.h"
 
-using namespace straylight::nix::compiler;
+namespace ast = straylight::nix::compiler::ast;
+namespace compile = straylight::nix::compiler::compile;
 
 // =============================================================================
 // helper: create expression nodes

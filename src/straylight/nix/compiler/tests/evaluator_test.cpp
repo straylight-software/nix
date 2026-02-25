@@ -1,6 +1,6 @@
 // straylight // nix-language // tests
 //
-// Tests for the evaluator with I/O support
+// Tests for the straylight::nix::compiler::evaluator with I/O support
 
 // Enable sync I/O for these tests
 #define STRAYLIGHT_EVAL_IO_SYNC 1
@@ -11,11 +11,9 @@
 
 #include <catch2/catch_test_macros.hpp>
 
-#include "straylight/nix/compiler/evaluator.h"
+#include "straylight/nix/compiler/straylight::nix::compiler::evaluator.h"
 
 namespace {
-
-using namespace straylight::nix::compiler;
 
 // Helper to create a temporary directory with test files
 struct test_directory {
@@ -51,8 +49,9 @@ private:
 // Basic Evaluator Tests
 // =============================================================================
 
-TEST_CASE("evaluator - basic expressions", "[evaluator]") {
-  evaluator eval;
+TEST_CASE("straylight::nix::compiler::evaluator - basic expressions",
+          "[straylight::nix::compiler::evaluator]") {
+  straylight::nix::compiler::evaluator eval;
 
   SECTION("integer") {
     auto result = eval.eval_string("42");
@@ -84,9 +83,10 @@ TEST_CASE("evaluator - basic expressions", "[evaluator]") {
 // File Evaluation Tests
 // =============================================================================
 
-TEST_CASE("evaluator - eval_file", "[evaluator]") {
+TEST_CASE("straylight::nix::compiler::evaluator - eval_file",
+          "[straylight::nix::compiler::evaluator]") {
   test_directory dir;
-  evaluator eval;
+  straylight::nix::compiler::evaluator eval;
 
   SECTION("simple file") {
     dir.write_file("test.nix", "1 + 2");
@@ -115,9 +115,10 @@ TEST_CASE("evaluator - eval_file", "[evaluator]") {
 // Import Tests (require sync I/O backend)
 // =============================================================================
 
-TEST_CASE("evaluator - import", "[evaluator][import]") {
+TEST_CASE("straylight::nix::compiler::evaluator - import",
+          "[straylight::nix::compiler::evaluator][import]") {
   test_directory dir;
-  evaluator eval;
+  straylight::nix::compiler::evaluator eval;
 
   SECTION("simple import") {
     // Create a file to import
@@ -200,9 +201,10 @@ TEST_CASE("evaluator - import", "[evaluator][import]") {
 // Import Error Tests
 // =============================================================================
 
-TEST_CASE("evaluator - import errors", "[evaluator][import][error]") {
+TEST_CASE("straylight::nix::compiler::evaluator - import errors",
+          "[straylight::nix::compiler::evaluator][import][error]") {
   test_directory dir;
-  evaluator eval;
+  straylight::nix::compiler::evaluator eval;
 
   SECTION("import non-existent file") {
     dir.write_file("main.nix", "import ./does-not-exist.nix");

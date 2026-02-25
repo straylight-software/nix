@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <array>
 #include <charconv>
-#include <sstream>
 
 #if defined(STRAYLIGHT_URL_BACKEND_ADA)
 #  include <ada.h>
@@ -133,31 +132,35 @@ void restore_zone_id(authority& auth, std::string_view zone_id) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 std::string authority::to_string() const {
-  std::ostringstream os;
+  std::string result;
 
   if (user) {
-    os << percent_encode(*user);
+    result += percent_encode(*user);
     if (password) {
-      os << ':' << percent_encode(*password);
+      result += ':';
+      result += percent_encode(*password);
     }
-    os << '@';
+    result += '@';
   }
 
   switch (type) {
     case host_type::ipv6:
     case host_type::ipv_future:
-      os << '[' << host << ']';
+      result += '[';
+      result += host;
+      result += ']';
       break;
     default:
-      os << percent_encode(host);
+      result += percent_encode(host);
       break;
   }
 
   if (port) {
-    os << ':' << *port;
+    result += ':';
+    result += std::to_string(*port);
   }
 
-  return os.str();
+  return result;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -165,25 +168,29 @@ std::string authority::to_string() const {
 // ─────────────────────────────────────────────────────────────────────────────
 
 std::string url::to_string() const {
-  std::ostringstream os;
+  std::string result;
 
-  os << scheme << ':';
+  result += scheme;
+  result += ':';
 
   if (auth) {
-    os << "//" << auth->to_string();
+    result += "//";
+    result += auth->to_string();
   }
 
-  os << render_path(true);
+  result += render_path(true);
 
   if (!query.empty()) {
-    os << '?' << encode_query(query);
+    result += '?';
+    result += encode_query(query);
   }
 
   if (!fragment.empty()) {
-    os << '#' << percent_encode(fragment);
+    result += '#';
+    result += percent_encode(fragment);
   }
 
-  return os.str();
+  return result;
 }
 
 std::string url::render_path(bool encode) const {
@@ -191,17 +198,17 @@ std::string url::render_path(bool encode) const {
     return "";
   }
 
-  std::ostringstream os;
+  std::string result;
   bool first = true;
   for (const auto& segment : path) {
     if (!first) {
-      os << '/';
+      result += '/';
     }
     first = false;
-    os << (encode ? percent_encode(segment, ":@") : segment);
+    result += (encode ? percent_encode(segment, ":@") : segment);
   }
 
-  return os.str();
+  return result;
 }
 
 url url::canonicalize() const {
@@ -260,18 +267,20 @@ query_params parse_query(std::string_view query) {
 }
 
 std::string encode_query(const query_params& params) {
-  std::ostringstream os;
+  std::string result;
   bool first = true;
 
   for (const auto& [key, value] : params) {
     if (!first) {
-      os << '&';
+      result += '&';
     }
     first = false;
-    os << percent_encode(key, ":@/?") << '=' << percent_encode(value, ":@/?");
+    result += percent_encode(key, ":@/?");
+    result += '=';
+    result += percent_encode(value, ":@/?");
   }
 
-  return os.str();
+  return result;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

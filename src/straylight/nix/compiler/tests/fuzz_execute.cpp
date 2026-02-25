@@ -24,8 +24,6 @@
 #include "straylight/nix/compiler/parse/parser.h"
 #include "straylight/nix/compiler/runtime/wasm_executor.h"
 
-using namespace straylight::nix::compiler;
-
 // Fuzz target: parse, compile, and execute arbitrary input
 // Goal: Ensure the entire pipeline never crashes
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
@@ -39,11 +37,11 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
   try {
     // 1. Parse
-    ast::symbol_table symbols;
-    auto expr = parse::parse(input, symbols);
+    straylight::nix::compiler::ast::symbol_table symbols;
+    auto expr = straylight::nix::compiler::parse::parse(input, symbols);
 
     // 2. Compile
-    compile::compiler comp(symbols);
+    straylight::nix::compiler::compile::compiler comp(symbols);
     auto module = comp.compile(expr);
 
     // 3. Validate (catches some compiler bugs)
@@ -52,7 +50,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     }
 
     // 4. Execute
-    runtime::wasm_executor executor;
+    straylight::nix::compiler::runtime::wasm_executor executor;
     auto result = executor.execute(module.emit_binary());
 
     // 5. If successful, try to format the result (exercises more code paths)

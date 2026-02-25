@@ -5,7 +5,6 @@
 #include "legacy_store.h"
 
 #include <chrono>
-#include <sstream>
 
 namespace straylight::nix::store {
 
@@ -578,14 +577,14 @@ auto legacy_store::serialize_sigs(const std::vector<std::string>& sigs) -> std::
     return "";
   }
 
-  std::ostringstream oss;
+  std::string result;
   for (std::size_t i = 0; i < sigs.size(); ++i) {
     if (i > 0) {
-      oss << ' ';
+      result += ' ';
     }
-    oss << sigs[i];
+    result += sigs[i];
   }
-  return oss.str();
+  return result;
 }
 
 auto legacy_store::deserialize_sigs(std::string_view data) -> std::vector<std::string> {

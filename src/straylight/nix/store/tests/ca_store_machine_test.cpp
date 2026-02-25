@@ -13,7 +13,6 @@
 #include <straylight/nix/store/ca_store_machine.h>
 
 namespace fs = std::filesystem;
-using namespace straylight::nix::store;
 
 // ============================================================================
 // Test helpers
@@ -77,7 +76,7 @@ int g_failed = 0;
 
 TEST(bulk_ca_has_machine_finds_existing) {
   auto path = unique_test_path("bulk_has");
-  ca_store store(path);
+  straylight::nix::store::ca_store store(path);
   (void)store.init();
 
   // Put some blobs
@@ -95,7 +94,8 @@ TEST(bulk_ca_has_machine_finds_existing) {
   auto ring = evring::make_io_uring_ring(64);
   REQUIRE(ring);
 
-  bulk_ca_has_machine machine(path, hashes, evring::make_stable_span(results));
+  straylight::nix::store::bulk_ca_has_machine machine(path, hashes,
+                                                      evring::make_stable_span(results));
   auto final_state = evring::run_generate(machine, *ring);
 
   REQUIRE(final_state.finished);
@@ -107,7 +107,7 @@ TEST(bulk_ca_has_machine_finds_existing) {
 
 TEST(ca_put_machine_writes_atomically) {
   auto path = unique_test_path("put_machine");
-  ca_store store(path);
+  straylight::nix::store::ca_store store(path);
   (void)store.init();
 
   auto data = make_data("test content for put machine");
@@ -115,12 +115,12 @@ TEST(ca_put_machine_writes_atomically) {
   auto ring = evring::make_io_uring_ring(64);
   REQUIRE(ring);
 
-  ca_put_machine machine(path, data);
+  straylight::nix::store::ca_put_machine machine(path, data);
   auto expected_hash = machine.hash();
 
   auto final_state = evring::run(machine, *ring);
 
-  REQUIRE(final_state.current_phase == ca_put_state::phase::done);
+  REQUIRE(final_state.current_phase == straylight::nix::store::ca_put_state::phase::done);
   REQUIRE(final_state.hash == expected_hash);
 
   // Verify we can read it back
@@ -132,7 +132,7 @@ TEST(ca_put_machine_writes_atomically) {
 
 TEST(bulk_ca_read_machine_reads_blobs) {
   auto path = unique_test_path("bulk_read");
-  ca_store store(path);
+  straylight::nix::store::ca_store store(path);
   (void)store.init();
 
   // Put some blobs
@@ -144,15 +144,16 @@ TEST(bulk_ca_read_machine_reads_blobs) {
   REQUIRE(hash2.has_value());
 
   std::vector<std::string> hashes = {*hash1, *hash2};
-  std::vector<ca_read_result> results(hashes.size());
+  std::vector<straylight::nix::store::ca_read_result> results(hashes.size());
 
   auto ring = evring::make_io_uring_ring(64);
   REQUIRE(ring);
 
-  bulk_ca_read_machine machine(path, hashes, evring::make_stable_span(results));
+  straylight::nix::store::bulk_ca_read_machine machine(path, hashes,
+                                                       evring::make_stable_span(results));
   auto final_state = evring::run_generate(machine, *ring);
 
-  REQUIRE(final_state.current_phase == bulk_ca_read_state::phase::done);
+  REQUIRE(final_state.current_phase == straylight::nix::store::bulk_ca_read_state::phase::done);
   REQUIRE(results[0].success);
   REQUIRE(results[1].success);
   REQUIRE(results[0].data.size() == data1.size());

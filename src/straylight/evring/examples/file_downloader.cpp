@@ -157,8 +157,7 @@ struct download_state {
   std::string error_message;
 };
 
-class download_machine {
-public:
+struct download_machine {
   using state_type = download_state;
 
   download_machine(const char* output_path, std::vector<std::byte> data, std::size_t total_size)
@@ -241,7 +240,6 @@ public:
            s.current_phase == state_type::phase::error;
   }
 
-private:
   const char* output_path_;
   std::vector<std::byte> data_;
   std::size_t total_size_;
