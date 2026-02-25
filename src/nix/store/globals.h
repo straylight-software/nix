@@ -803,7 +803,7 @@ public:
           can add it to `trusted-public-keys` in their `nix.conf`.
         )"};
 
-  setting_t<unsigned int> tarballTtl{this, 60 * 60, "tarball-ttl",
+  setting_t<unsigned int> tarballTtl{this, 0, "tarball-ttl",
                                      R"(
           The number of seconds a downloaded tarball is considered fresh. If
           the cached tarball is stale, Nix checks whether it is still up
