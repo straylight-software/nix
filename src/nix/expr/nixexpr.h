@@ -97,6 +97,8 @@ struct expr_t {
 
   virtual ~expr_t() {};
   virtual void show(const symbol_table_t& symbols, std::ostream& str) const;
+  // Returns the expression as a string (avoids need for ostringstream at call sites)
+  [[nodiscard]] auto show_str(const symbol_table_t& symbols) const -> std::string;
   virtual void bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>& env);
 
   /** normal evaluation, implemented directly by all subclasses. */

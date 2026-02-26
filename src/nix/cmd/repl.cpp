@@ -651,11 +651,7 @@ process_line_result_t nix_repl_t::process_line(std::string line) {
     } else if (fallback_pos) {
       std::string markdown;
       markdown += "Attribute `" + std::string(fallback_name) + "`\n\n";
-      {
-        string_sink_t sink;
-        sink << "  … defined at " << state->positions[fallback_pos] << "\n\n";
-        markdown += sink.str();
-      }
+      markdown += "  … defined at " + state->positions[fallback_pos].to_string() + "\n\n";
       if (fallback_doc) {
         markdown += fallback_doc.getInnerText(state->positions);
       } else {

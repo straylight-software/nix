@@ -10,12 +10,17 @@ note: |
     - std::to_string() for simple numeric conversions
     - std::from_chars() / std::to_chars() for parsing/formatting
     - direct string concatenation with reserve()
-# Allow in test files that test operator<< (ostream interface)
-# Allow in error.cpp which implements format_error_info using internal ostream helpers
+# Allowed exceptions (documented rationale required):
+# - test/bench: testing operator<< implementations (interface verification)
+# - nixexpr.cpp: implements expr_t::show_str() which wraps ostream API
+# - eval.cpp: print_value() + getDoc() wrap value_t::print() ostream API
+# - print.cpp: print_literal_string() and print functions use ostream API
 ignores:
   - "**/*_test.cpp"
   - "**/*_bench.cpp"
-  - "**/error.cpp"
+  - "**/nixexpr.cpp"
+  - "**/eval.cpp"
+  - "**/print.cpp"
 rule:
   any:
     - pattern: std::ostringstream $$$

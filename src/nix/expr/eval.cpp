@@ -115,9 +115,9 @@ std::ostream& operator<<(std::ostream& os, const ValueType t) {
 }
 
 std::string print_value(eval_state_t& state, value_t& v) {
-  string_sink_t out;
-  v.print(state, out);
-  return out.str();
+  std::ostringstream oss;
+  v.print(state, oss);
+  return oss.str();
 }
 
 value_t* value_t::toPtr(SymbolStr str) noexcept {
@@ -618,7 +618,6 @@ std::optional<eval_state_t::Doc> eval_state_t::getDoc(value_t& v) {
   if (v.isLambda()) {
     auto exprLambda = v.lambda().fun;
 
-    string_sink_t s;
     std::string name;
     auto pos = positions[exprLambda->getPos()];
     std::string docStr;
@@ -631,23 +630,24 @@ std::optional<eval_state_t::Doc> eval_state_t::getDoc(value_t& v) {
       docStr = exprLambda->doc_comment.getInnerText(positions);
     }
 
+    std::string result;
     if (name.empty()) {
-      s << "Function ";
+      result += "Function ";
     } else {
-      s << "Function `" << name << "`";
+      result += "Function `" + name + "`";
       if (pos)
-        s << "\\\n  … ";
+        result += "\\\n  … ";
       else
-        s << "\\\n";
+        result += "\\\n";
     }
     if (pos) {
-      s << "defined at " << pos;
+      result += "defined at " + pos.to_string();
     }
     if (!docStr.empty()) {
-      s << "\n\n";
+      result += "\n\n";
     }
 
-    s << docStr;
+    result += docStr;
 
     return Doc{
         .pos = pos,
@@ -657,7 +657,7 @@ std::optional<eval_state_t::Doc> eval_state_t::getDoc(value_t& v) {
         .args = {},
         /* N.B. Can't use StringData here, because that would lead to an interior pointer.
            NOTE: memory leak when compiled without GC. */
-        .doc = make_immutable_string(s.view()),
+        .doc = make_immutable_string(result),
     };
   }
   if (isFunctor(v)) {
@@ -1364,9 +1364,7 @@ static std::string show_attr_selection_path(eval_state_t& state, Env& env,
     } catch (Error& e) {
       assert(!i.symbol);
       result += "\"${";
-      string_sink_t sink;
-      i.expr->show(state.symbols, sink);
-      result += sink.str();
+      result += i.expr->show_str(state.symbols);
       result += "}\"";
     }
   }
@@ -1814,9 +1812,7 @@ void ExprIf::eval(eval_state_t& state, Env& env, value_t& v) {
 
 void ExprAssert::eval(eval_state_t& state, Env& env, value_t& v) {
   if (!state.evalBool(env, cond, pos, "in the condition of the assert statement")) {
-    string_sink_t out;
-    cond->show(state.symbols, out);
-    auto exprStr = out.str();
+    auto exprStr = cond->show_str(state.symbols);
 
     if (auto eq = dynamic_cast<ExprOpEq*>(cond)) {
       try {

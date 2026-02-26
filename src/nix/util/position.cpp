@@ -63,23 +63,30 @@ std::optional<source_path_t> pos_t::get_source_path() const {
 }
 
 void pos_t::print(std::ostream& out, bool show_origin) const {
-  if (show_origin) {
-    std::visit(overloaded{[&](const std::monostate&) { out << "«none»"; },
-                          [&](const pos_t::Stdin&) { out << "«stdin»"; },
-                          [&](const pos_t::String& s) { out << "«string»"; },
-                          [&](const source_path_t& path) { out << path; }},
-               origin);
-    out << ":";
-  }
-  out << line;
+  out << to_string();
+}
+
+auto pos_t::to_string() const -> std::string {
+  std::string result;
+
+  // Show origin
+  std::visit(overloaded{[&](const std::monostate&) { result += "«none»"; },
+                        [&](const pos_t::Stdin&) { result += "«stdin»"; },
+                        [&](const pos_t::String& s) { result += "«string»"; },
+                        [&](const source_path_t& path) { result += path.to_string(); }},
+             origin);
+
+  result += ":";
+  result += std::to_string(line);
   if (column > 0) {
-    out << ":" << column;
+    result += ":";
+    result += std::to_string(column);
   }
+  return result;
 }
 
 std::ostream& operator<<(std::ostream& str, const pos_t& pos) {
-  pos.print(str, true);
-  return str;
+  return str << pos.to_string();
 }
 
 void pos_t::lines_iterator_t::bump(bool at_first) {

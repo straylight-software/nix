@@ -165,9 +165,7 @@ void to_json(nlohmann::json& json, std::shared_ptr<const pos_t> pos) {
   if (pos) {
     json["line"] = pos->line;
     json["column"] = pos->column;
-    string_sink_t sink;
-    pos->print(sink, true);
-    json["file"] = sink.str();
+    json["file"] = pos->to_string();
   } else {
     json["line"] = nullptr;
     json["column"] = nullptr;

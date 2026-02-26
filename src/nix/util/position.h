@@ -60,6 +60,9 @@ struct pos_t {
 
   void print(std::ostream& out, bool show_origin) const;
 
+  // Returns the position as a string (with origin)
+  [[nodiscard]] auto to_string() const -> std::string;
+
   std::optional<lines_of_code_t> get_code_lines() const;
 
   bool operator==(const pos_t& rhs) const = default;

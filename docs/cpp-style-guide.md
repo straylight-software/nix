@@ -387,11 +387,11 @@ cppcheck --suppressions-list=.cppcheck src/nix/ src/straylight/
 
 | rule | severity | purpose | |------|----------|---------| | `no-class-keyword` | error | enforce
 `struct` over `class` | | `no-using-namespace-file-scope` | error | prevent namespace pollution | |
-`no-sstream` | error | ban stringstream (use fmt/to_string) | | `no-dangerous-member-names` | error
-| ban generic names (hash\_, value\_, state\_, etc.) | | `no-c-style-cast` | warning | use C++ casts
-| | `no-raw-new` | warning | use `make_unique`/`make_shared` | | `no-std-endl` | warning | prefer
-`'\n'` (no flush) | | `no-typedef` | warning | use `using` instead | | `no-short-identifier` |
-warning | three-letter rule (cfg, conn, res, req, mgr, ptr, buf, tmp, str, err) | | `no-assert` |
+`no-sstream` | error | ban stringstream (see exceptions below) | | `no-dangerous-member-names` |
+error | ban generic names (hash\_, value\_, state\_, etc.) | | `no-c-style-cast` | warning | use C++
+casts | | `no-raw-new` | warning | use `make_unique`/`make_shared` | | `no-std-endl` | warning |
+prefer `'\n'` (no flush) | | `no-typedef` | warning | use `using` instead | | `no-short-identifier`
+| warning | three-letter rule (cfg, conn, res, req, mgr, ptr, buf, tmp, str, err) | | `no-assert` |
 warning | proper error handling over assert | | `prefer-nullptr` | warning | use `nullptr` not
 `NULL` | | `prefer-span` | warning | `span` over pointer+size | | `prefer-span-over-vector-ref` |
 hint | `span` over `const vector&` | | `prefer-string-view` | hint | `string_view` for read-only
@@ -410,6 +410,22 @@ consider `[[nodiscard]]` | | `no-implicit-bool-conversion` | hint | explicit nul
 - `modernize-use-nodiscard` - mark functions that should be checked
 - `readability-function-size` - max 100 lines, 25 cognitive complexity
 - `performance-*` - all performance checks enabled
+
+### no-sstream exceptions
+
+the `no-sstream` rule bans `std::stringstream`/`ostringstream`/`istringstream` because they're slow
+(allocations, type erasure, locale overhead). use `std::format`, `std::to_string()`, or direct
+string concatenation instead.
+
+**allowed exceptions** (in `rules/no-sstream.yml` ignores list):
+
+- `**/*_test.cpp`, `**/*_bench.cpp` - test files that verify `operator<<` implementations
+- `**/nixexpr.cpp` - implements `expr_t::show_str()` wrapper around ostream API
+- `**/eval.cpp` - `print_value()` and `getDoc()` wrap `value_t::print()` ostream API
+- `**/print.cpp` - `print_literal_string()` and print functions use ostream API
+
+when adding new code, prefer adding `_str()` / `to_string()` methods to types rather than using
+ostringstream. see `pos_t::to_string()` and `expr_t::show_str()` as examples.
 
 ### fixing violations
 

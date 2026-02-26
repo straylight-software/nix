@@ -251,7 +251,7 @@
                 '';
 
             # cppcheck: deep static analysis (inter-procedural, memory safety)
-            # Catches bugs clang-tidy and ast-grep miss
+            # Catches bugs clang-tidy and ast-grep miss (ODR violations, uninitialized members, etc.)
             cppcheck = pkgs.runCommand "cppcheck-lint" { nativeBuildInputs = [ pkgs.cppcheck ]; } ''
               cd ${inputs.self}
 
@@ -259,6 +259,10 @@
               # --error-exitcode=1 makes it fail on any error-level issue
               # Only enable 'error' severity for CI gate (not warning/performance/style)
               # Developers should run full analysis locally
+              #
+              # Suppressed false positives:
+              # - unknownMacro: ANSI_* color codes, LIBCURL_VERSION, bison YY_* macros
+              # - syntaxError: flex/bison generated code, C++23 syntax cppcheck doesn't parse
               cppcheck \
                 --error-exitcode=1 \
                 --inline-suppr \

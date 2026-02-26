@@ -24,6 +24,12 @@ void expr_t::show(const symbol_table_t& symbols, std::ostream& str) const {
   unreachable();
 }
 
+auto expr_t::show_str(const symbol_table_t& symbols) const -> std::string {
+  std::ostringstream oss;
+  show(symbols, oss);
+  return oss.str();
+}
+
 void ExprInt::show(const symbol_table_t& symbols, std::ostream& str) const {
   str << v.integer();
 }
@@ -251,9 +257,7 @@ std::string show_attr_selection_path(const symbol_table_t& symbols,
       result += symbols[i.symbol];
     else {
       result += "\"${";
-      string_sink_t sink;
-      i.expr->show(symbols, sink);
-      result += sink.str();
+      result += i.expr->show_str(symbols);
       result += "}\"";
     }
   }
@@ -617,19 +621,19 @@ void ExprCall::resetCursedOr() {
 
 void ExprCall::warnIfCursedOr(const symbol_table_t& symbols, const pos_table_t& positions) {
   if (cursedOrEndPos.has_value()) {
-    string_sink_t out;
-    out << "at " << positions[pos]
-        << ": "
-           "This expression uses `or` as an identifier in a way that will change in a future Nix "
-           "release.\n"
-           "Wrap this entire expression in parentheses to preserve its current meaning:\n"
-           "    ("
-        << positions[pos]
-               .get_snippet_up_to(positions[*cursedOrEndPos])
-               .value_or("could not read expression")
-        << ")\n"
-           "Give feedback at https://github.com/NixOS/nix/pull/11121";
-    warn(out.str());
+    std::string msg =
+        "at " + positions[pos].to_string() +
+        ": "
+        "This expression uses `or` as an identifier in a way that will change in a "
+        "future Nix release.\n"
+        "Wrap this entire expression in parentheses to preserve its current meaning:\n"
+        "    (" +
+        positions[pos]
+            .get_snippet_up_to(positions[*cursedOrEndPos])
+            .value_or("could not read expression") +
+        ")\n"
+        "Give feedback at https://github.com/NixOS/nix/pull/11121";
+    warn(msg);
   }
 }
 

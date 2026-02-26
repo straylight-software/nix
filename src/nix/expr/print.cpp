@@ -227,9 +227,9 @@ struct printer_t {
   void print_string(value_t& v) {
     NixStringContext context;
     copy_context(v, context);
-    string_sink_t s;
-    print_literal_string(s, v.string_view(), options.maxStringLength, options.ansi_colors);
-    output << state.devirtualize(s.str(), context);
+    std::ostringstream oss;
+    print_literal_string(oss, v.string_view(), options.maxStringLength, options.ansi_colors);
+    output << state.devirtualize(oss.str(), context);
   }
 
   void print_path(value_t& v) {
@@ -431,9 +431,7 @@ struct printer_t {
           output << " " << state.symbols[v.lambda().fun->name];
         }
 
-        string_sink_t s;
-        s << state.positions[v.lambda().fun->pos];
-        output << " @ " << filter_ansi_escapes(s.str());
+        output << " @ " << filter_ansi_escapes(state.positions[v.lambda().fun->pos].to_string());
       }
     } else if (v.isPrimOp()) {
       if (v.prim_op())
