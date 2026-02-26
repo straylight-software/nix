@@ -1,9 +1,7 @@
 #include "nix/cmd/command.h"
 
-using namespace nix;
-
-struct cmd_nar_t : NixMultiCommand {
-  cmd_nar_t() : NixMultiCommand("nar", RegisterCommand::getCommandsFor({"nar"})) {}
+struct cmd_nar_t : nix::NixMultiCommand {
+  cmd_nar_t() : NixMultiCommand("nar", nix::RegisterCommand::getCommandsFor({"nar"})) {}
 
   std::string description() override { return "create or inspect NAR files"; }
 
@@ -13,7 +11,7 @@ struct cmd_nar_t : NixMultiCommand {
         ;
   }
 
-  category_t category() override { return catUtility; }
+  nix::category_t category() override { return nix::catUtility; }
 };
 
-static auto r_cmd_nar = registerCommand<cmd_nar_t>("nar");
+static auto r_cmd_nar = nix::registerCommand<cmd_nar_t>("nar");

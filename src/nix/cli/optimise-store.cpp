@@ -4,9 +4,7 @@
 #include "nix/main/shared.h"
 #include "nix/store/store-api.h"
 
-using namespace nix;
-
-struct cmd_optimise_store_t : StoreCommand {
+struct cmd_optimise_store_t : nix::StoreCommand {
   std::string description() override {
     return "replace identical files in the store by hard links";
   }
@@ -17,7 +15,8 @@ struct cmd_optimise_store_t : StoreCommand {
         ;
   }
 
-  void run(ref<store_t> store) override { store->optimiseStore(); }
+  void run(nix::ref<nix::store_t> store) override { store->optimiseStore(); }
 };
 
-static auto r_cmd_optimise_store = registerCommand2<cmd_optimise_store_t>({"store", "optimise"});
+static auto r_cmd_optimise_store =
+    nix::registerCommand2<cmd_optimise_store_t>({"store", "optimise"});

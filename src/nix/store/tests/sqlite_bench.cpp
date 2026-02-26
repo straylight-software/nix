@@ -115,8 +115,7 @@ std::string generate_nar_hash() {
 }
 
 // RAII wrapper for sqlite3 prepared statement
-class Stmt {
-public:
+struct Stmt {
   sqlite3_stmt* stmt = nullptr;
   sqlite3* db = nullptr;
 
@@ -190,8 +189,7 @@ public:
 };
 
 // Test fixture: in-memory SQLite database with Nix schema
-class SqliteBenchFixture {
-public:
+struct SqliteBenchFixture {
   sqlite3* db = nullptr;
 
   Stmt queryPathInfo;
@@ -257,7 +255,6 @@ public:
 
   int64_t get_last_insert_rowid() { return sqlite3_last_insert_rowid(db); }
 
-private:
   void populate_test_data(size_t num_paths, size_t refs_per_path) {
     sqlite3_exec(db, "BEGIN", nullptr, nullptr, nullptr);
 

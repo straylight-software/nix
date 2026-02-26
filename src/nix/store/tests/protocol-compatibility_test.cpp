@@ -16,9 +16,9 @@
 
 #include <cstdint>
 #include <fstream>
+#include <iterator>
 #include <regex>
 #include <set>
-#include <sstream>
 #include <string>
 #include <vector>
 
@@ -46,9 +46,7 @@ std::string read_file(const std::string& path) {
   if (!file.is_open()) {
     return "";
   }
-  std::stringstream buffer;
-  buffer << file.rdbuf();
-  return buffer.str();
+  return std::string(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
 }
 
 bool contains_pattern(const std::string& content, const std::string& pattern) {

@@ -72,8 +72,7 @@ struct not_deterministic_t : build_error_t {
  * become (higher order) function parameters.
  */
 // FIXME: rename this to UnixDerivationBuilder or something like that.
-class derivation_builder_impl_t : public DerivationBuilder, public DerivationBuilderParams {
-protected:
+struct derivation_builder_impl_t : public DerivationBuilder, public DerivationBuilderParams {
   /**
    * The process ID of the builder.
    */
@@ -88,7 +87,6 @@ protected:
 
   std::unique_ptr<DerivationBuilderCallbacks> misc_methods;
 
-public:
   derivation_builder_impl_t(LocalStore& store,
                             std::unique_ptr<DerivationBuilderCallbacks> misc_methods,
                             DerivationBuilderParams params)
@@ -117,7 +115,6 @@ public:
     }
   }
 
-protected:
   /**
    * User selected for running the builder.
    */
@@ -206,12 +203,10 @@ protected:
    */
   virtual bool needs_hash_rewrite() { return true; }
 
-public:
   std::optional<descriptor_t> start_build() override;
 
   SingleDrvOutputs unprepare_build() override;
 
-protected:
   /**
    * Acquire a build user lock. Return nullptr if no lock is available.
    */
@@ -282,19 +277,16 @@ protected:
   std::optional<AwsCredentials> preResolveAwsCredentials();
 #endif
 
-private:
   /**
    * Fill in the environment for the builder.
    */
   void init_env();
 
-protected:
   /**
    * Process messages send by the sandbox initialization.
    */
   void process_sandbox_setup_messages();
 
-private:
   /**
    * Start an in-process nix daemon thread for recursive-nix.
    */
@@ -306,7 +298,6 @@ private:
    */
   void stop_daemon();
 
-protected:
   void add_dependency_impl(const store_path_t& path) override;
 
   /**
@@ -359,14 +350,12 @@ protected:
    */
   virtual void exec_builder(const strings_t& args, const strings_t& env_strs);
 
-private:
   /**
    * Check that the derivation outputs all exist and register them
    * as valid.
    */
   SingleDrvOutputs register_outputs();
 
-protected:
   /**
    * Delete the temporary directory, if we have one.
    *
@@ -381,10 +370,8 @@ protected:
    */
   virtual void kill_sandbox(bool get_stats);
 
-public:
   bool kill_child() override;
 
-private:
   bool decide_whether_disk_full();
 
   /**

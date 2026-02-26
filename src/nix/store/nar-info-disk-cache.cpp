@@ -59,8 +59,7 @@ create table if not exists LastPurge (
 
 )sql";
 
-class nar_info_disk_cache_impl_t : public NarInfoDiskCache {
-public:
+struct nar_info_disk_cache_impl_t : public NarInfoDiskCache {
   /* How often to purge expired entries from the cache. */
   const int purge_interval = 24 * 3600;
 
@@ -169,7 +168,6 @@ public:
     return i->second;
   }
 
-private:
   std::optional<cache_t> query_cache_raw(State& state, const std::string& uri) {
     auto i = state.caches.find(uri);
     if (i == state.caches.end()) {
@@ -187,7 +185,6 @@ private:
     return get_cache(state, uri);
   }
 
-public:
   int createCache(const std::string& uri, const Path& store_dir, bool want_mass_query,
                   int priority) override {
     return retrySQLite<int>([&]() {

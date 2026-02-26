@@ -171,21 +171,21 @@ nix::basic_derivation_t make_basic_derivation(int idx, int num_outputs = 1, int 
 }
 
 // Buffer-based sink for benchmarking
-class BenchSink : public nix::sink_t {
-public:
+struct BenchSink : public nix::sink_t {
+  std::string buffer;
+
   void operator()(std::string_view data) override { buffer.append(data); }
 
   void clear() { buffer.clear(); }
   const std::string& data() const { return buffer; }
   size_t size() const { return buffer.size(); }
-
-private:
-  std::string buffer;
 };
 
 // Buffer-based source for benchmarking
-class BenchSource : public nix::source_t {
-public:
+struct BenchSource : public nix::source_t {
+  std::string_view data_;
+  size_t pos_;
+
   explicit BenchSource(std::string_view data) : data_(data), pos_(0) {}
 
   size_t read(char* buf, size_t len) override {
@@ -199,10 +199,6 @@ public:
   }
 
   void reset() { pos_ = 0; }
-
-private:
-  std::string_view data_;
-  size_t pos_;
 };
 
 } // anonymous namespace

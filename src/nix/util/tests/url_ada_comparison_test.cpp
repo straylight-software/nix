@@ -6,7 +6,6 @@
 #include <cstdint>
 #include <iostream>
 #include <optional>
-#include <sstream>
 #include <string>
 #include <vector>
 
@@ -419,47 +418,49 @@ TEST_CASE("summary: print all behavioral differences", "[url][comparison][.summa
     auto ada_result = parseWithAda(tc.url);
 
     bool has_differences = false;
-    std::ostringstream diff;
+    std::string diff;
 
     if (boost_result.valid != ada_result.valid) {
       has_differences = true;
-      diff << "  validity: boost=" << boost_result.valid << " ada=" << ada_result.valid << "\n";
+      diff += "  validity: boost=" + std::to_string(boost_result.valid) +
+              " ada=" + std::to_string(ada_result.valid) + "\n";
     }
 
     if (boost_result.valid && ada_result.valid) {
       if (boost_result.scheme != ada_result.scheme) {
         has_differences = true;
-        diff << "  scheme: boost='" << boost_result.scheme << "' ada='" << ada_result.scheme
-             << "'\n";
+        diff += "  scheme: boost='" + boost_result.scheme + "' ada='" + ada_result.scheme + "'\n";
       }
       if (boost_result.host != ada_result.host) {
         has_differences = true;
-        diff << "  host: boost='" << boost_result.host << "' ada='" << ada_result.host << "'\n";
+        diff += "  host: boost='" + boost_result.host + "' ada='" + ada_result.host + "'\n";
       }
       if (boost_result.port != ada_result.port) {
         has_differences = true;
-        diff << "  port: boost="
-             << (boost_result.port ? std::to_string(*boost_result.port) : "none")
-             << " ada=" << (ada_result.port ? std::to_string(*ada_result.port) : "none") << "\n";
+        diff +=
+            "  port: boost=" +
+            (boost_result.port ? std::to_string(*boost_result.port) : std::string("none")) +
+            " ada=" + (ada_result.port ? std::to_string(*ada_result.port) : std::string("none")) +
+            "\n";
       }
       if (boost_result.path != ada_result.path) {
         has_differences = true;
-        diff << "  path: boost='" << boost_result.path << "' ada='" << ada_result.path << "'\n";
+        diff += "  path: boost='" + boost_result.path + "' ada='" + ada_result.path + "'\n";
       }
       if (boost_result.query != ada_result.query) {
         has_differences = true;
-        diff << "  query: boost='" << boost_result.query << "' ada='" << ada_result.query << "'\n";
+        diff += "  query: boost='" + boost_result.query + "' ada='" + ada_result.query + "'\n";
       }
       if (boost_result.fragment != ada_result.fragment) {
         has_differences = true;
-        diff << "  fragment: boost='" << boost_result.fragment << "' ada='" << ada_result.fragment
-             << "'\n";
+        diff +=
+            "  fragment: boost='" + boost_result.fragment + "' ada='" + ada_result.fragment + "'\n";
       }
     }
 
     if (has_differences) {
       std::cout << tc.description << ": " << tc.url << "\n";
-      std::cout << diff.str();
+      std::cout << diff;
       std::cout << "\n";
     }
   }

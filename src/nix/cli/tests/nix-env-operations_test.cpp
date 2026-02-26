@@ -15,7 +15,6 @@
 
 #include "nix/cmd/legacy.h"
 
-using namespace nix;
 
 // =============================================================================
 // Helper: Check if nix-env command handler accepts an operation
@@ -30,7 +29,7 @@ using namespace nix;
 // =============================================================================
 
 TEST_CASE("nix-env --list-generations is registered", "[cli][nix-env][implemented]") {
-  auto& commands = RegisterLegacyCommand::commands();
+  auto& commands = nix::RegisterLegacyCommand::commands();
 
   SECTION("nix-env command exists for --list-generations support") {
     INFO("NixOS bootloader installer uses: nix-env --list-generations -p "
@@ -50,7 +49,7 @@ TEST_CASE("nix-env --list-generations is registered", "[cli][nix-env][implemente
 // =============================================================================
 
 TEST_CASE("nix-env -q / --query operation", "[cli][nix-env][query][!shouldfail]") {
-  auto& commands = RegisterLegacyCommand::commands();
+  auto& commands = nix::RegisterLegacyCommand::commands();
 
   SECTION("query operation is needed for legacy NixOS scripts") {
     INFO("Legacy NixOS scripts use `nix-env -q` to list installed packages");
@@ -87,7 +86,7 @@ TEST_CASE("nix-env -q / --query operation", "[cli][nix-env][query][!shouldfail]"
 // =============================================================================
 
 TEST_CASE("nix-env -i / --install operation", "[cli][nix-env][install][!shouldfail]") {
-  auto& commands = RegisterLegacyCommand::commands();
+  auto& commands = nix::RegisterLegacyCommand::commands();
 
   SECTION("install operation is needed for legacy package management") {
     INFO("Traditional Nix package management uses `nix-env -i` to install packages");
@@ -125,7 +124,7 @@ TEST_CASE("nix-env -i / --install operation", "[cli][nix-env][install][!shouldfa
 // =============================================================================
 
 TEST_CASE("nix-env -e / --uninstall operation", "[cli][nix-env][uninstall][!shouldfail]") {
-  auto& commands = RegisterLegacyCommand::commands();
+  auto& commands = nix::RegisterLegacyCommand::commands();
 
   SECTION("uninstall operation is needed for legacy package management") {
     INFO("Traditional Nix package management uses `nix-env -e` to remove packages");
@@ -159,7 +158,7 @@ TEST_CASE("nix-env operations compatibility summary", "[cli][nix-env][summary]")
     INFO("  Status: IMPLEMENTED");
 
     // This should pass
-    auto& commands = RegisterLegacyCommand::commands();
+    auto& commands = nix::RegisterLegacyCommand::commands();
     REQUIRE(commands.contains("nix-env"));
   }
 

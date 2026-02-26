@@ -19,7 +19,6 @@
 #include "nix/util/strings.h"
 #include "nix/util/url.h"
 
-using namespace nix;
 
 struct profile_element_source_t {
   flake_ref_t original_ref;

@@ -30,7 +30,6 @@
 
 #include "nix/cmd/legacy.h"
 
-using namespace nix;
 
 // =============================================================================
 // nix-store command registration tests
@@ -40,7 +39,7 @@ TEST_CASE("nix-store legacy command is registered", "[cli][legacy][compatibility
   INFO("nix-store is required by NixOS tooling and legacy scripts that interact with the store");
   INFO("Many build systems and CI pipelines use nix-store for querying and realising paths");
 
-  auto& commands = RegisterLegacyCommand::commands();
+  auto& commands = nix::RegisterLegacyCommand::commands();
 
   SECTION("nix-store command exists in registered commands") {
     auto it = commands.find("nix-store");
@@ -58,7 +57,7 @@ TEST_CASE("nix-store --query operations are implemented", "[cli][legacy][nix-sto
   INFO("Common queries: --requisites, --references, --referrers, --deriver, --outputs");
   INFO("NixOS boot scripts use: nix-store -q --requisites to find closure");
 
-  auto& commands = RegisterLegacyCommand::commands();
+  auto& commands = nix::RegisterLegacyCommand::commands();
 
   SECTION("nix-store is registered for query operations") {
     REQUIRE(commands.contains("nix-store"));
@@ -96,7 +95,7 @@ TEST_CASE("nix-store --realise operations are implemented", "[cli][legacy][nix-s
   INFO("This is the low-level build command used by nix-build and other tools");
   INFO("Hydra CI and other build systems invoke nix-store -r directly");
 
-  auto& commands = RegisterLegacyCommand::commands();
+  auto& commands = nix::RegisterLegacyCommand::commands();
 
   SECTION("nix-store is registered for realise operations") {
     REQUIRE(commands.contains("nix-store"));
@@ -119,7 +118,7 @@ TEST_CASE("nix-store --gc operations are implemented", "[cli][legacy][nix-store]
   INFO("NixOS runs this via nix-gc.service timer unit");
   INFO("Options include: --print-dead, --print-live, --delete, --max-freed");
 
-  auto& commands = RegisterLegacyCommand::commands();
+  auto& commands = nix::RegisterLegacyCommand::commands();
 
   SECTION("nix-store is registered for gc operations") {
     REQUIRE(commands.contains("nix-store"));
@@ -143,7 +142,7 @@ TEST_CASE("nix-store --dump/--restore operations are implemented",
   INFO("nix-store --restore deserializes NAR format from stdin to a path");
   INFO("These are used for manual path transfers and backup");
 
-  auto& commands = RegisterLegacyCommand::commands();
+  auto& commands = nix::RegisterLegacyCommand::commands();
 
   SECTION("nix-store is registered for NAR operations") {
     REQUIRE(commands.contains("nix-store"));
@@ -168,7 +167,7 @@ TEST_CASE("nix-store --verify operations are implemented", "[cli][legacy][nix-st
   INFO("nix-store --verify checks store integrity");
   INFO("Options: --check-contents to verify NAR hashes, --repair to fix invalid paths");
 
-  auto& commands = RegisterLegacyCommand::commands();
+  auto& commands = nix::RegisterLegacyCommand::commands();
 
   SECTION("nix-store is registered for verify operations") {
     REQUIRE(commands.contains("nix-store"));
@@ -188,7 +187,7 @@ TEST_CASE("nix-store --optimise operations are implemented", "[cli][legacy][nix-
   INFO("nix-store --optimise deduplicates store contents using hard links");
   INFO("This can save significant disk space");
 
-  auto& commands = RegisterLegacyCommand::commands();
+  auto& commands = nix::RegisterLegacyCommand::commands();
 
   SECTION("nix-store is registered for optimise operations") {
     REQUIRE(commands.contains("nix-store"));
@@ -208,7 +207,7 @@ TEST_CASE("nix-store --print-roots operations are implemented", "[cli][legacy][n
   INFO("nix-store --print-roots lists GC roots");
   INFO("Output format: <root_link> -> <store_path>");
 
-  auto& commands = RegisterLegacyCommand::commands();
+  auto& commands = nix::RegisterLegacyCommand::commands();
 
   SECTION("nix-store is registered for print-roots operations") {
     REQUIRE(commands.contains("nix-store"));
@@ -228,7 +227,7 @@ TEST_CASE("nix-store --add operations are implemented", "[cli][legacy][nix-store
   INFO("nix-store --add imports a path into the store");
   INFO("Returns the resulting store path on stdout");
 
-  auto& commands = RegisterLegacyCommand::commands();
+  auto& commands = nix::RegisterLegacyCommand::commands();
 
   SECTION("nix-store is registered for add operations") {
     REQUIRE(commands.contains("nix-store"));
@@ -247,7 +246,7 @@ TEST_CASE("nix-store --add operations are implemented", "[cli][legacy][nix-store
 TEST_CASE("nix-store --delete operations are implemented", "[cli][legacy][nix-store][delete]") {
   INFO("nix-store --delete removes specific paths if they are unreferenced");
 
-  auto& commands = RegisterLegacyCommand::commands();
+  auto& commands = nix::RegisterLegacyCommand::commands();
 
   SECTION("nix-store is registered for delete operations") {
     REQUIRE(commands.contains("nix-store"));
@@ -266,7 +265,7 @@ TEST_CASE("nix-store --delete operations are implemented", "[cli][legacy][nix-st
 TEST_CASE("nix-store is required for NixOS system operations", "[cli][legacy][nixos][nix-store]") {
   INFO("nix-store is a fundamental command for NixOS operations");
 
-  auto& commands = RegisterLegacyCommand::commands();
+  auto& commands = nix::RegisterLegacyCommand::commands();
 
   SECTION("NixOS bootloader installer uses nix-store -q --requisites") {
     // The bootloader installer needs to query the closure of the system profile
@@ -293,7 +292,7 @@ TEST_CASE("nix-store operations pending implementation",
           "[cli][legacy][nix-store][pending][.skip]") {
   INFO("These operations are registered but not yet fully implemented");
 
-  auto& commands = RegisterLegacyCommand::commands();
+  auto& commands = nix::RegisterLegacyCommand::commands();
   REQUIRE(commands.contains("nix-store"));
 
   SECTION("--export not yet implemented") {

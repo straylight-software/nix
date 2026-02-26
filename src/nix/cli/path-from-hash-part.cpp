@@ -1,9 +1,7 @@
 #include "nix/cmd/command.h"
 #include "nix/store/store-api.h"
 
-using namespace nix;
-
-struct cmd_path_from_hash_part_t : StoreCommand {
+struct cmd_path_from_hash_part_t : nix::StoreCommand {
   std::string hash_part;
 
   cmd_path_from_hash_part_t() {
@@ -21,13 +19,13 @@ struct cmd_path_from_hash_part_t : StoreCommand {
         ;
   }
 
-  void run(ref<store_t> store) override {
+  void run(nix::ref<nix::store_t> store) override {
     if (auto store_path = store->queryPathFromHashPart(hash_part))
-      logger->cout(store->printStorePath(*store_path));
+      nix::logger->cout(store->printStorePath(*store_path));
     else
-      throw Error("there is no store path corresponding to '%s'", hash_part);
+      throw nix::Error("there is no store path corresponding to '%s'", hash_part);
   }
 };
 
 static auto r_cmd_path_from_hash_part =
-    registerCommand2<cmd_path_from_hash_part_t>({"store", "path-from-hash-part"});
+    nix::registerCommand2<cmd_path_from_hash_part_t>({"store", "path-from-hash-part"});

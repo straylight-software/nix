@@ -19,8 +19,7 @@ static std::string parse_public_host_key(std::string_view host,
   }
 }
 
-class invalid_ssh_authority_t : public Error {
-public:
+struct invalid_ssh_authority_t : public Error {
   invalid_ssh_authority_t(const parsed_url_t::authority_t& authority, std::string_view reason)
       : Error("invalid SSH authority: '%s': %s", authority.to_string(), reason) {}
 };
@@ -65,11 +64,11 @@ SSHMaster::SSHMaster(const parsed_url_t::authority_t& authority, std::string_vie
                      descriptor_t logFD)
     : authority(authority),
       hostname_and_user([authority]() {
-        std::ostringstream oss;
+        std::string result;
         if (authority.user())
-          oss << *authority.user() << "@";
-        oss << authority.host();
-        return std::move(oss).str();
+          result = *authority.user() + "@";
+        result += authority.host();
+        return result;
       }()),
       fakeSSH(authority.to_string() == "localhost"),
       keyFile(keyFile),

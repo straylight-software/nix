@@ -13,7 +13,6 @@
 // Derivation parsing is on the critical path for every build operation.
 
 #include <random>
-#include <sstream>
 #include <string>
 #include <vector>
 
@@ -53,16 +52,16 @@ std::string make_store_path(uint32_t seed, const std::string& name) {
 // Generate a small derivation (typical simple package)
 // Pattern: few outputs, 5-10 inputDrvs, small env
 std::string generate_small_derivation() {
-  std::ostringstream drv;
+  std::string drv;
 
   // Small package with out, lib outputs
   std::string out_path = make_store_path(100, "hello-2.12.1");
   std::string lib_path = make_store_path(101, "hello-2.12.1-lib");
 
-  drv << "Derive([";
-  drv << "(\"lib\",\"" << lib_path << "\",\"\",\"\"),";
-  drv << "(\"out\",\"" << out_path << "\",\"\",\"\")";
-  drv << "],[";
+  drv += "Derive([";
+  drv += "(\"lib\",\"" + lib_path + "\",\"\",\"\"),";
+  drv += "(\"out\",\"" + out_path + "\",\"\",\"\")";
+  drv += "],[";
 
   // 8 input derivations (typical for a simple package)
   std::vector<std::string> input_names = {"bash-5.2",     "coreutils-9.3", "gcc-13.2.0",
@@ -70,49 +69,49 @@ std::string generate_small_derivation() {
                                           "stdenv-linux", "gzip-1.12"};
   for (size_t i = 0; i < input_names.size(); ++i) {
     if (i > 0)
-      drv << ",";
-    drv << "(\"" << make_store_path(200 + i, input_names[i]) << ".drv\",[\"out\"])";
+      drv += ",";
+    drv += "(\"" + make_store_path(200 + i, input_names[i]) + ".drv\",[\"out\"])";
   }
 
-  drv << "],[";
+  drv += "],[";
   // 2 input sources
-  drv << "\"" << make_store_path(300, "hello-2.12.1.tar.gz") << "\",";
-  drv << "\"" << make_store_path(301, "setup.sh") << "\"";
-  drv << "],";
+  drv += "\"" + make_store_path(300, "hello-2.12.1.tar.gz") + "\",";
+  drv += "\"" + make_store_path(301, "setup.sh") + "\"";
+  drv += "],";
 
   // System
-  drv << "\"x86_64-linux\",";
+  drv += "\"x86_64-linux\",";
 
   // Builder
-  drv << "\"/nix/store/" << make_nix32_hash(400) << "-bash-5.2/bin/bash\",";
+  drv += "\"/nix/store/" + make_nix32_hash(400) + "-bash-5.2/bin/bash\",";
 
   // Args
-  drv << "[\"-e\",\"/nix/store/" << make_nix32_hash(401) << "-builder.sh\"],";
+  drv += "[\"-e\",\"/nix/store/" + make_nix32_hash(401) + "-builder.sh\"],";
 
   // Environment variables (typical small set)
-  drv << "[";
-  drv << "(\"buildInputs\",\"\"),";
-  drv << "(\"builder\",\"/nix/store/" << make_nix32_hash(400) << "-bash-5.2/bin/bash\"),";
-  drv << "(\"configureFlags\",\"--prefix=$out\"),";
-  drv << "(\"lib\",\"" << lib_path << "\"),";
-  drv << "(\"name\",\"hello-2.12.1\"),";
-  drv << "(\"nativeBuildInputs\",\"\"),";
-  drv << "(\"out\",\"" << out_path << "\"),";
-  drv << "(\"outputs\",\"out lib\"),";
-  drv << "(\"pname\",\"hello\"),";
-  drv << "(\"src\",\"" << make_store_path(300, "hello-2.12.1.tar.gz") << "\"),";
-  drv << "(\"stdenv\",\"" << make_store_path(207, "stdenv-linux") << "\"),";
-  drv << "(\"system\",\"x86_64-linux\"),";
-  drv << "(\"version\",\"2.12.1\")";
-  drv << "])";
+  drv += "[";
+  drv += "(\"buildInputs\",\"\"),";
+  drv += "(\"builder\",\"/nix/store/" + make_nix32_hash(400) + "-bash-5.2/bin/bash\"),";
+  drv += "(\"configureFlags\",\"--prefix=$out\"),";
+  drv += "(\"lib\",\"" + lib_path + "\"),";
+  drv += "(\"name\",\"hello-2.12.1\"),";
+  drv += "(\"nativeBuildInputs\",\"\"),";
+  drv += "(\"out\",\"" + out_path + "\"),";
+  drv += "(\"outputs\",\"out lib\"),";
+  drv += "(\"pname\",\"hello\"),";
+  drv += "(\"src\",\"" + make_store_path(300, "hello-2.12.1.tar.gz") + "\"),";
+  drv += "(\"stdenv\",\"" + make_store_path(207, "stdenv-linux") + "\"),";
+  drv += "(\"system\",\"x86_64-linux\"),";
+  drv += "(\"version\",\"2.12.1\")";
+  drv += "])";
 
-  return drv.str();
+  return drv;
 }
 
 // Generate a large derivation (typical complex package like firefox, chromium)
 // Pattern: many outputs, 100+ inputDrvs, large env with many paths
 std::string generate_large_derivation(size_t num_input_drvs = 150) {
-  std::ostringstream drv;
+  std::string drv;
 
   // Multiple outputs (like a complex package)
   std::vector<std::pair<std::string, std::string>> outputs = {
@@ -123,13 +122,13 @@ std::string generate_large_derivation(size_t num_input_drvs = 150) {
       {"out", make_store_path(1004, "firefox-120.0")},
   };
 
-  drv << "Derive([";
+  drv += "Derive([";
   for (size_t i = 0; i < outputs.size(); ++i) {
     if (i > 0)
-      drv << ",";
-    drv << "(\"" << outputs[i].first << "\",\"" << outputs[i].second << "\",\"\",\"\")";
+      drv += ",";
+    drv += "(\"" + outputs[i].first + "\",\"" + outputs[i].second + "\",\"\",\"\")";
   }
-  drv << "],[";
+  drv += "],[";
 
   // Many input derivations (simulate large dependency tree)
   std::vector<std::string> dep_names = {
@@ -153,63 +152,63 @@ std::string generate_large_derivation(size_t num_input_drvs = 150) {
 
   for (size_t i = 0; i < num_input_drvs; ++i) {
     if (i > 0)
-      drv << ",";
+      drv += ",";
     std::string name = (i < dep_names.size()) ? dep_names[i] + "-1.0" : "dep-" + std::to_string(i);
     // Mix of ["out"] and ["out", "dev", "lib"] outputs
     if (i % 4 == 0) {
-      drv << "(\"" << make_store_path(2000 + i, name) << ".drv\",[\"dev\",\"lib\",\"out\"])";
+      drv += "(\"" + make_store_path(2000 + i, name) + ".drv\",[\"dev\",\"lib\",\"out\"])";
     } else if (i % 3 == 0) {
-      drv << "(\"" << make_store_path(2000 + i, name) << ".drv\",[\"dev\",\"out\"])";
+      drv += "(\"" + make_store_path(2000 + i, name) + ".drv\",[\"dev\",\"out\"])";
     } else {
-      drv << "(\"" << make_store_path(2000 + i, name) << ".drv\",[\"out\"])";
+      drv += "(\"" + make_store_path(2000 + i, name) + ".drv\",[\"out\"])";
     }
   }
-  drv << "],[";
+  drv += "],[";
 
   // Many input sources
   for (int i = 0; i < 20; ++i) {
     if (i > 0)
-      drv << ",";
-    drv << "\"" << make_store_path(3000 + i, "source-" + std::to_string(i)) << "\"";
+      drv += ",";
+    drv += "\"" + make_store_path(3000 + i, "source-" + std::to_string(i)) + "\"";
   }
-  drv << "],";
+  drv += "],";
 
-  drv << "\"x86_64-linux\",";
-  drv << "\"/nix/store/" << make_nix32_hash(4000) << "-bash-5.2/bin/bash\",";
-  drv << "[\"-e\",\"/nix/store/" << make_nix32_hash(4001) << "-builder.sh\"],";
+  drv += "\"x86_64-linux\",";
+  drv += "\"/nix/store/" + make_nix32_hash(4000) + "-bash-5.2/bin/bash\",";
+  drv += "[\"-e\",\"/nix/store/" + make_nix32_hash(4001) + "-builder.sh\"],";
 
   // Large environment (many variables with long path lists)
-  drv << "[";
+  drv += "[";
 
   // Build inputs with many paths
-  drv << "(\"buildInputs\",\"";
+  drv += "(\"buildInputs\",\"";
   for (size_t i = 0; i < 30; ++i) {
     if (i > 0)
-      drv << " ";
-    drv << make_store_path(5000 + i, "input-" + std::to_string(i));
+      drv += " ";
+    drv += make_store_path(5000 + i, "input-" + std::to_string(i));
   }
-  drv << "\"),";
+  drv += "\"),";
 
   // Native build inputs
-  drv << "(\"nativeBuildInputs\",\"";
+  drv += "(\"nativeBuildInputs\",\"";
   for (size_t i = 0; i < 20; ++i) {
     if (i > 0)
-      drv << " ";
-    drv << make_store_path(5100 + i, "native-" + std::to_string(i));
+      drv += " ";
+    drv += make_store_path(5100 + i, "native-" + std::to_string(i));
   }
-  drv << "\"),";
+  drv += "\"),";
 
   // Propagated build inputs
-  drv << "(\"propagatedBuildInputs\",\"";
+  drv += "(\"propagatedBuildInputs\",\"";
   for (size_t i = 0; i < 15; ++i) {
     if (i > 0)
-      drv << " ";
-    drv << make_store_path(5200 + i, "prop-" + std::to_string(i));
+      drv += " ";
+    drv += make_store_path(5200 + i, "prop-" + std::to_string(i));
   }
-  drv << "\"),";
+  drv += "\"),";
 
   // Many configure flags
-  drv << "(\"configureFlags\",\"--enable-official-branding --enable-application=browser "
+  drv += "(\"configureFlags\",\"--enable-official-branding --enable-application=browser "
          "--with-system-jpeg --with-system-zlib --with-system-bz2 --with-system-png "
          "--with-system-libevent --with-system-libvpx --with-system-icu --enable-system-ffi "
          "--enable-system-pixman --enable-alsa --enable-jack --enable-pulseaudio "
@@ -218,108 +217,108 @@ std::string generate_large_derivation(size_t num_input_drvs = 150) {
 
   // Standard outputs
   for (const auto& [name, path] : outputs) {
-    drv << "(\"" << name << "\",\"" << path << "\"),";
+    drv += "(\"" + name + "\",\"" + path + "\"),";
   }
 
-  drv << "(\"outputs\",\"out bin lib dev doc\"),";
-  drv << "(\"pname\",\"firefox\"),";
-  drv << "(\"version\",\"120.0\"),";
-  drv << "(\"name\",\"firefox-120.0\"),";
-  drv << "(\"system\",\"x86_64-linux\"),";
+  drv += "(\"outputs\",\"out bin lib dev doc\"),";
+  drv += "(\"pname\",\"firefox\"),";
+  drv += "(\"version\",\"120.0\"),";
+  drv += "(\"name\",\"firefox-120.0\"),";
+  drv += "(\"system\",\"x86_64-linux\"),";
 
   // More typical environment variables
-  drv << "(\"dontStrip\",\"\"),";
-  drv << "(\"enableParallelBuilding\",\"1\"),";
-  drv << "(\"hardeningDisable\",\"format\"),";
-  drv << "(\"meta\",\"{\\\"description\\\":\\\"Firefox web browser\\\","
+  drv += "(\"dontStrip\",\"\"),";
+  drv += "(\"enableParallelBuilding\",\"1\"),";
+  drv += "(\"hardeningDisable\",\"format\"),";
+  drv += "(\"meta\",\"{\\\"description\\\":\\\"Firefox web browser\\\","
          "\\\"homepage\\\":\\\"https://www.mozilla.org/firefox/\\\","
          "\\\"license\\\":{\\\"shortName\\\":\\\"MPL-2.0\\\"},"
          "\\\"platforms\\\":[\\\"x86_64-linux\\\",\\\"aarch64-linux\\\"]}\"),";
 
-  drv << "(\"builder\",\"/nix/store/" << make_nix32_hash(4000) << "-bash-5.2/bin/bash\")";
-  drv << "])";
+  drv += "(\"builder\",\"/nix/store/" + make_nix32_hash(4000) + "-bash-5.2/bin/bash\")";
+  drv += "])";
 
-  return drv.str();
+  return drv;
 }
 
 // Generate a derivation with structured attrs (__structuredAttrs = true)
 // This uses JSON encoding in __json env var
 std::string generate_structured_attrs_derivation() {
-  std::ostringstream drv;
+  std::string drv;
 
   std::string out_path = make_store_path(6000, "structured-attrs-pkg");
   std::string bin_path = make_store_path(6001, "structured-attrs-pkg-bin");
   std::string dev_path = make_store_path(6002, "structured-attrs-pkg-dev");
 
-  drv << "Derive([";
-  drv << "(\"bin\",\"" << bin_path << "\",\"\",\"\"),";
-  drv << "(\"dev\",\"" << dev_path << "\",\"\",\"\"),";
-  drv << "(\"out\",\"" << out_path << "\",\"\",\"\")";
-  drv << "],[";
+  drv += "Derive([";
+  drv += "(\"bin\",\"" + bin_path + "\",\"\",\"\"),";
+  drv += "(\"dev\",\"" + dev_path + "\",\"\",\"\"),";
+  drv += "(\"out\",\"" + out_path + "\",\"\",\"\")";
+  drv += "],[";
 
   // Input derivations
   for (int i = 0; i < 15; ++i) {
     if (i > 0)
-      drv << ",";
-    drv << "(\"" << make_store_path(7000 + i, "dep-" + std::to_string(i)) << ".drv\",[\"out\"])";
+      drv += ",";
+    drv += "(\"" + make_store_path(7000 + i, "dep-" + std::to_string(i)) + ".drv\",[\"out\"])";
   }
-  drv << "],[";
+  drv += "],[";
 
   // Input sources
-  drv << "\"" << make_store_path(7100, "source.tar.gz") << "\"";
-  drv << "],";
+  drv += "\"" + make_store_path(7100, "source.tar.gz") + "\"";
+  drv += "],";
 
-  drv << "\"x86_64-linux\",";
-  drv << "\"/bin/bash\",";
-  drv << "[\"-c\",\"echo hello > $out\"],";
+  drv += "\"x86_64-linux\",";
+  drv += "\"/bin/bash\",";
+  drv += "[\"-c\",\"echo hello > $out\"],";
 
   // Environment with __json structured attrs
-  drv << "[";
+  drv += "[";
 
   // The __json contains a complex JSON structure
   // This is a realistic structured attrs block
-  drv << "(\"__json\",\"{";
-  drv << "\\\"__darwinAllowLocalNetworking\\\":true,";
-  drv << "\\\"__impureHostDeps\\\":[\\\"/usr/bin/ditto\\\",\\\"/usr/bin/xcrun\\\"],";
-  drv << "\\\"__noChroot\\\":false,";
-  drv << "\\\"__sandboxProfile\\\":\\\"(version 1)\\\\n(allow default)\\\",";
-  drv << "\\\"allowSubstitutes\\\":true,";
-  drv << "\\\"builder\\\":\\\"/bin/bash\\\",";
-  drv << "\\\"exportReferencesGraph\\\":{";
-  drv << "\\\"refs1\\\":[\\\"" << make_store_path(8000, "ref1") << "\\\"],";
-  drv << "\\\"refs2\\\":[\\\"" << make_store_path(8001, "ref2") << "\\\"]";
-  drv << "},";
-  drv << "\\\"impureEnvVars\\\":[\\\"HOME\\\",\\\"USER\\\",\\\"DISPLAY\\\"],";
-  drv << "\\\"name\\\":\\\"structured-attrs-pkg\\\",";
-  drv << "\\\"outputChecks\\\":{";
-  drv << "\\\"bin\\\":{";
-  drv << "\\\"disallowedReferences\\\":[\\\"" << make_store_path(8100, "forbidden1") << "\\\"],";
-  drv << "\\\"disallowedRequisites\\\":[\\\"" << make_store_path(8101, "forbidden2") << "\\\"]";
-  drv << "},";
-  drv << "\\\"dev\\\":{";
-  drv << "\\\"maxClosureSize\\\":104857600,";
-  drv << "\\\"maxSize\\\":10485760";
-  drv << "},";
-  drv << "\\\"out\\\":{";
-  drv << "\\\"allowedReferences\\\":[\\\"" << make_store_path(8200, "allowed1") << "\\\"],";
-  drv << "\\\"allowedRequisites\\\":[\\\"" << make_store_path(8201, "allowed2")
-      << "\\\",\\\"bin\\\"]";
-  drv << "}";
-  drv << "},";
-  drv << "\\\"outputs\\\":[\\\"out\\\",\\\"bin\\\",\\\"dev\\\"],";
-  drv << "\\\"passAsFile\\\":[\\\"buildCommand\\\"],";
-  drv << "\\\"preferLocalBuild\\\":true,";
-  drv << "\\\"requiredSystemFeatures\\\":[\\\"kvm\\\",\\\"big-parallel\\\"],";
-  drv << "\\\"system\\\":\\\"x86_64-linux\\\"";
-  drv << "}\"),";
+  drv += "(\"__json\",\"{";
+  drv += "\\\"__darwinAllowLocalNetworking\\\":true,";
+  drv += "\\\"__impureHostDeps\\\":[\\\"/usr/bin/ditto\\\",\\\"/usr/bin/xcrun\\\"],";
+  drv += "\\\"__noChroot\\\":false,";
+  drv += "\\\"__sandboxProfile\\\":\\\"(version 1)\\\\n(allow default)\\\",";
+  drv += "\\\"allowSubstitutes\\\":true,";
+  drv += "\\\"builder\\\":\\\"/bin/bash\\\",";
+  drv += "\\\"exportReferencesGraph\\\":{";
+  drv += "\\\"refs1\\\":[\\\"" + make_store_path(8000, "ref1") + "\\\"],";
+  drv += "\\\"refs2\\\":[\\\"" + make_store_path(8001, "ref2") + "\\\"]";
+  drv += "},";
+  drv += "\\\"impureEnvVars\\\":[\\\"HOME\\\",\\\"USER\\\",\\\"DISPLAY\\\"],";
+  drv += "\\\"name\\\":\\\"structured-attrs-pkg\\\",";
+  drv += "\\\"outputChecks\\\":{";
+  drv += "\\\"bin\\\":{";
+  drv += "\\\"disallowedReferences\\\":[\\\"" + make_store_path(8100, "forbidden1") + "\\\"],";
+  drv += "\\\"disallowedRequisites\\\":[\\\"" + make_store_path(8101, "forbidden2") + "\\\"]";
+  drv += "},";
+  drv += "\\\"dev\\\":{";
+  drv += "\\\"maxClosureSize\\\":104857600,";
+  drv += "\\\"maxSize\\\":10485760";
+  drv += "},";
+  drv += "\\\"out\\\":{";
+  drv += "\\\"allowedReferences\\\":[\\\"" + make_store_path(8200, "allowed1") + "\\\"],";
+  drv +=
+      "\\\"allowedRequisites\\\":[\\\"" + make_store_path(8201, "allowed2") + "\\\",\\\"bin\\\"]";
+  drv += "}";
+  drv += "},";
+  drv += "\\\"outputs\\\":[\\\"out\\\",\\\"bin\\\",\\\"dev\\\"],";
+  drv += "\\\"passAsFile\\\":[\\\"buildCommand\\\"],";
+  drv += "\\\"preferLocalBuild\\\":true,";
+  drv += "\\\"requiredSystemFeatures\\\":[\\\"kvm\\\",\\\"big-parallel\\\"],";
+  drv += "\\\"system\\\":\\\"x86_64-linux\\\"";
+  drv += "}\"),";
 
   // Output paths in env (required for parsing)
-  drv << "(\"bin\",\"" << bin_path << "\"),";
-  drv << "(\"dev\",\"" << dev_path << "\"),";
-  drv << "(\"out\",\"" << out_path << "\")";
-  drv << "])";
+  drv += "(\"bin\",\"" + bin_path + "\"),";
+  drv += "(\"dev\",\"" + dev_path + "\"),";
+  drv += "(\"out\",\"" + out_path + "\")";
+  drv += "])";
 
-  return drv.str();
+  return drv;
 }
 
 // Store directory path for benchmarking

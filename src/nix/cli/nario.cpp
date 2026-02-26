@@ -9,19 +9,17 @@
 #include "nix/util/callback.h"
 #include "nix/util/fs-sink.h"
 
-using namespace nix;
-
-struct cmd_nario_t : NixMultiCommand {
-  cmd_nario_t() : NixMultiCommand("nario", RegisterCommand::getCommandsFor({"nario"})) {}
+struct cmd_nario_t : nix::NixMultiCommand {
+  cmd_nario_t() : NixMultiCommand("nario", nix::RegisterCommand::getCommandsFor({"nario"})) {}
 
   std::string description() override { return "operations for manipulating nario files"; }
 
-  category_t category() override { return catUtility; }
+  nix::category_t category() override { return nix::catUtility; }
 };
 
-static auto r_cmd_nario = registerCommand<cmd_nario_t>("nario");
+static auto r_cmd_nario = nix::registerCommand<cmd_nario_t>("nario");
 
-struct cmd_nario_export_t : StorePathsCommand {
+struct cmd_nario_export_t : nix::StorePathsCommand {
   unsigned int version = 0;
 
   cmd_nario_export_t() {
@@ -44,25 +42,26 @@ struct cmd_nario_export_t : StorePathsCommand {
         ;
   }
 
-  void run(ref<store_t> store, store_paths_t&& store_paths) override {
-    auto fd = get_standard_output();
+  void run(nix::ref<nix::store_t> store, nix::store_paths_t&& store_paths) override {
+    auto fd = nix::get_standard_output();
     if (isatty(fd))
-      throw UsageError("refusing to write nario to a terminal");
-    fd_sink_t sink(std::move(fd));
-    export_paths(*store, store_path_set_t(store_paths.begin(), store_paths.end()), sink, version);
+      throw nix::UsageError("refusing to write nario to a terminal");
+    nix::fd_sink_t sink(std::move(fd));
+    nix::export_paths(*store, nix::store_path_set_t(store_paths.begin(), store_paths.end()), sink,
+                      version);
   }
 };
 
-static auto r_cmd_nario_export = registerCommand2<cmd_nario_export_t>({"nario", "export"});
+static auto r_cmd_nario_export = nix::registerCommand2<cmd_nario_export_t>({"nario", "export"});
 
-static fd_source_t get_nario_source() {
-  auto fd = get_standard_input();
+static nix::fd_source_t get_nario_source() {
+  auto fd = nix::get_standard_input();
   if (isatty(fd))
-    throw UsageError("refusing to read nario from a terminal");
-  return fd_source_t(std::move(fd));
+    throw nix::UsageError("refusing to read nario from a terminal");
+  return nix::fd_source_t(std::move(fd));
 }
 
-struct cmd_nario_import_t : StoreCommand, MixNoCheckSigs {
+struct cmd_nario_import_t : nix::StoreCommand, nix::MixNoCheckSigs {
   std::string description() override {
     return "import store paths from a nario file on standard input";
   }
@@ -73,19 +72,19 @@ struct cmd_nario_import_t : StoreCommand, MixNoCheckSigs {
         ;
   }
 
-  void run(ref<store_t> store) override {
+  void run(nix::ref<nix::store_t> store) override {
     auto source{get_nario_source()};
-    import_paths(*store, source, check_sigs);
+    nix::import_paths(*store, source, check_sigs);
   }
 };
 
-static auto r_cmd_nario_import = registerCommand2<cmd_nario_import_t>({"nario", "import"});
+static auto r_cmd_nario_import = nix::registerCommand2<cmd_nario_import_t>({"nario", "import"});
 
-nlohmann::json list_nar(source_t& source) {
-  struct : file_system_object_sink_t {
+nlohmann::json list_nar(nix::source_t& source) {
+  struct : nix::file_system_object_sink_t {
     nlohmann::json root = nlohmann::json::object();
 
-    nlohmann::json& make_object(const canon_path_t& path, std::string_view type) {
+    nlohmann::json& make_object(const nix::canon_path_t& path, std::string_view type) {
       auto* cur = &root;
       for (auto& c : path) {
         assert((*cur)["type"] == "directory");
@@ -97,14 +96,14 @@ nlohmann::json list_nar(source_t& source) {
       return *cur;
     }
 
-    void create_directory(const canon_path_t& path) override {
+    void create_directory(const nix::canon_path_t& path) override {
       auto& j = make_object(path, "directory");
       j["entries"] = nlohmann::json::object();
     }
 
-    void create_regular_file(const canon_path_t& path,
-                             std::function<void(create_regular_file_sink_t&)> func) override {
-      struct : create_regular_file_sink_t {
+    void create_regular_file(const nix::canon_path_t& path,
+                             std::function<void(nix::create_regular_file_sink_t&)> func) override {
+      struct : nix::create_regular_file_sink_t {
         bool executable = false;
         std::optional<uint64_t> size;
 
@@ -125,21 +124,22 @@ nlohmann::json list_nar(source_t& source) {
         j.emplace("executable", true);
     }
 
-    void create_symlink(const canon_path_t& path, const std::string& target) override {
+    void create_symlink(const nix::canon_path_t& path, const std::string& target) override {
       auto& j = make_object(path, "symlink");
       j.emplace("target", target);
     }
 
   } parse_sink;
 
-  parse_dump(parse_sink, source);
+  nix::parse_dump(parse_sink, source);
 
   return parse_sink.root;
 }
 
-void render_nar_listing(const canon_path_t& prefix, const nlohmann::json& root, bool long_listing) {
-  std::function<void(const nlohmann::json& json, const canon_path_t& path)> recurse;
-  recurse = [&](const nlohmann::json& json, const canon_path_t& path) {
+void render_nar_listing(const nix::canon_path_t& prefix, const nlohmann::json& root,
+                        bool long_listing) {
+  std::function<void(const nlohmann::json& json, const nix::canon_path_t& path)> recurse;
+  recurse = [&](const nlohmann::json& json, const nix::canon_path_t& path) {
     auto type = json["type"];
 
     if (long_listing) {
@@ -148,12 +148,12 @@ void render_nar_listing(const canon_path_t& prefix, const nlohmann::json& root, 
                 : type == "symlink" ? "lrwxrwxrwx"
                                     : "dr-xr-xr-x";
       auto line =
-          fmt("%s %9d %s", tp, type == "regular" ? (uint64_t)json["size"] : 0, prefix / path);
+          nix::fmt("%s %9d %s", tp, type == "regular" ? (uint64_t)json["size"] : 0, prefix / path);
       if (type == "symlink")
         line += " -> " + (std::string)json["target"];
-      logger->cout(line);
+      nix::logger->cout(line);
     } else
-      logger->cout(fmt("%s", prefix / path));
+      nix::logger->cout(nix::fmt("%s", prefix / path));
 
     if (type == "directory") {
       for (auto& entry : json["entries"].items()) {
@@ -162,10 +162,10 @@ void render_nar_listing(const canon_path_t& prefix, const nlohmann::json& root, 
     }
   };
 
-  recurse(root, canon_path_t::root);
+  recurse(root, nix::canon_path_t::root);
 }
 
-struct cmd_nario_list_t : command_t, MixJSON, mix_long_listing_t {
+struct cmd_nario_list_t : nix::command_t, nix::MixJSON, nix::mix_long_listing_t {
   bool list_contents = false;
 
   cmd_nario_list_t() {
@@ -186,33 +186,34 @@ struct cmd_nario_list_t : command_t, MixJSON, mix_long_listing_t {
   }
 
   void run() override {
-    struct config_t : store_config_t {
+    struct config_t : nix::store_config_t {
       config_t(const Params& params) : store_config_t(params) {}
 
-      ref<store_t> open_store() const override { abort(); }
+      nix::ref<nix::store_t> open_store() const override { abort(); }
     };
 
-    struct listing_store_t : store_t {
+    struct listing_store_t : nix::store_t {
       std::optional<nlohmann::json> json;
       cmd_nario_list_t& cmd;
 
-      listing_store_t(ref<const config_t> config, cmd_nario_list_t& cmd)
+      listing_store_t(nix::ref<const config_t> config, cmd_nario_list_t& cmd)
           : store_t{*config}, cmd(cmd) {}
 
       void query_path_info_uncached(
-          const store_path_t& path,
-          Callback<std::shared_ptr<const valid_path_info_t>> callback) noexcept override {
+          const nix::store_path_t& path,
+          nix::Callback<std::shared_ptr<const nix::valid_path_info_t>> callback) noexcept override {
         callback(nullptr);
       }
 
-      std::optional<TrustedFlag> isTrustedClient() override { return Trusted; }
+      std::optional<nix::TrustedFlag> isTrustedClient() override { return nix::Trusted; }
 
-      std::optional<store_path_t> queryPathFromHashPart(const std::string& hash_part) override {
+      std::optional<nix::store_path_t>
+      queryPathFromHashPart(const std::string& hash_part) override {
         return std::nullopt;
       }
 
-      void add_to_store(const valid_path_info_t& info, source_t& source, RepairFlag repair,
-                        CheckSigsFlag check_sigs) override {
+      void add_to_store(const nix::valid_path_info_t& info, nix::source_t& source,
+                        nix::RepairFlag repair, nix::CheckSigsFlag check_sigs) override {
         std::optional<nlohmann::json> contents;
         if (cmd.list_contents)
           contents = list_nar(source);
@@ -221,58 +222,58 @@ struct cmd_nario_list_t : command_t, MixJSON, mix_long_listing_t {
 
         if (json) {
           // FIXME: make the JSON format configurable.
-          auto obj = info.to_json(this, true, PathInfoJsonFormat::V1);
+          auto obj = info.to_json(this, true, nix::PathInfoJsonFormat::V1);
           if (contents)
             obj.emplace("contents", *contents);
           json->emplace(printStorePath(info.path), std::move(obj));
         } else {
           if (contents)
-            render_nar_listing(canon_path_t(printStorePath(info.path)), *contents,
+            render_nar_listing(nix::canon_path_t(printStorePath(info.path)), *contents,
                                cmd.long_listing);
           else
-            logger->cout(fmt("%s: %d bytes", printStorePath(info.path), info.nar_size));
+            nix::logger->cout(nix::fmt("%s: %d bytes", printStorePath(info.path), info.nar_size));
         }
       }
 
-      store_path_t add_to_store_from_dump(source_t& dump, std::string_view name,
-                                          file_serialisation_method_t dump_method,
-                                          content_address_method_t hash_method,
-                                          hash_algorithm_t hash_algo,
-                                          const store_path_set_t& references,
-                                          RepairFlag repair) override {
+      nix::store_path_t add_to_store_from_dump(nix::source_t& dump, std::string_view name,
+                                               nix::file_serialisation_method_t dump_method,
+                                               nix::content_address_method_t hash_method,
+                                               nix::hash_algorithm_t hash_algo,
+                                               const nix::store_path_set_t& references,
+                                               nix::RepairFlag repair) override {
         unsupported("addToStoreFromDump");
       }
 
-      void nar_from_path(const store_path_t& path, sink_t& sink) override {
+      void nar_from_path(const nix::store_path_t& path, nix::sink_t& sink) override {
         unsupported("narFromPath");
       }
 
-      void query_realisation_uncached(
-          const DrvOutput&,
-          Callback<std::shared_ptr<const UnkeyedRealisation>> callback) noexcept override {
+      void query_realisation_uncached(const nix::DrvOutput&,
+                                      nix::Callback<std::shared_ptr<const nix::UnkeyedRealisation>>
+                                          callback) noexcept override {
         callback(nullptr);
       }
 
-      ref<source_accessor_t> getFSAccessor(bool require_valid_path) override {
-        return make_empty_source_accessor();
+      nix::ref<nix::source_accessor_t> getFSAccessor(bool require_valid_path) override {
+        return nix::make_empty_source_accessor();
       }
 
-      std::shared_ptr<source_accessor_t> getFSAccessor(const store_path_t& path,
-                                                       bool require_valid_path) override {
+      std::shared_ptr<nix::source_accessor_t> getFSAccessor(const nix::store_path_t& path,
+                                                            bool require_valid_path) override {
         unsupported("getFSAccessor");
       }
 
-      void register_drv_output(const realisation_t& output) override {
+      void register_drv_output(const nix::realisation_t& output) override {
         unsupported("registerDrvOutput");
       }
     };
 
     auto source{get_nario_source()};
-    auto config = make_ref<config_t>(store_config_t::Params());
+    auto config = nix::make_ref<config_t>(nix::store_config_t::Params());
     listing_store_t lister(config, *this);
     if (json)
       lister.json = nlohmann::json::object();
-    import_paths(lister, source, NoCheckSigs);
+    nix::import_paths(lister, source, nix::NoCheckSigs);
     if (json) {
       auto j = nlohmann::json::object();
       j["version"] = 1;
@@ -282,4 +283,4 @@ struct cmd_nario_list_t : command_t, MixJSON, mix_long_listing_t {
   }
 };
 
-static auto r_cmd_nario_list = registerCommand2<cmd_nario_list_t>({"nario", "list"});
+static auto r_cmd_nario_list = nix::registerCommand2<cmd_nario_list_t>({"nario", "list"});

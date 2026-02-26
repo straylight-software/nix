@@ -3,20 +3,18 @@
 #include "nix/cmd/command.h"
 #include "nix/main/common-args.h"
 
-using namespace nix;
-
-struct cmd_realisation_t : NixMultiCommand {
+struct cmd_realisation_t : nix::NixMultiCommand {
   cmd_realisation_t()
-      : NixMultiCommand("realisation", RegisterCommand::getCommandsFor({"realisation"})) {}
+      : NixMultiCommand("realisation", nix::RegisterCommand::getCommandsFor({"realisation"})) {}
 
   std::string description() override { return "manipulate a Nix realisation"; }
 
-  category_t category() override { return catUtility; }
+  nix::category_t category() override { return nix::catUtility; }
 };
 
-static auto r_cmd_realisation = registerCommand<cmd_realisation_t>("realisation");
+static auto r_cmd_realisation = nix::registerCommand<cmd_realisation_t>("realisation");
 
-struct cmd_realisation_info_t : BuiltPathsCommand, MixJSON {
+struct cmd_realisation_info_t : nix::BuiltPathsCommand, nix::MixJSON {
   std::string description() override {
     return "query information about one or several realisations";
   }
@@ -27,11 +25,12 @@ struct cmd_realisation_info_t : BuiltPathsCommand, MixJSON {
         ;
   }
 
-  category_t category() override { return catSecondary; }
+  nix::category_t category() override { return nix::catSecondary; }
 
-  void run(ref<store_t> store, BuiltPaths&& paths, BuiltPaths&& root_paths) override {
-    experimental_feature_settings.require(xp_t::ca_derivations);
-    RealisedPath::Set realisations;
+  void run(nix::ref<nix::store_t> store, nix::BuiltPaths&& paths,
+           nix::BuiltPaths&& root_paths) override {
+    nix::experimental_feature_settings.require(nix::xp_t::ca_derivations);
+    nix::RealisedPath::Set realisations;
 
     for (auto& builtPath : paths) {
       auto theseRealisations = builtPath.toRealisedPaths(*store);
@@ -42,7 +41,7 @@ struct cmd_realisation_info_t : BuiltPathsCommand, MixJSON {
       nlohmann::json res = nlohmann::json::array();
       for (auto& path : realisations) {
         nlohmann::json currentPath;
-        if (auto realisation = std::get_if<realisation_t>(&path.raw))
+        if (auto realisation = std::get_if<nix::realisation_t>(&path.raw))
           currentPath = *realisation;
         else
           currentPath["opaquePath"] = store->printStorePath(path.path());
@@ -52,15 +51,15 @@ struct cmd_realisation_info_t : BuiltPathsCommand, MixJSON {
       printJSON(res);
     } else {
       for (auto& path : realisations) {
-        if (auto realisation = std::get_if<realisation_t>(&path.raw)) {
-          logger->cout("%s %s", realisation->id.to_string(),
-                       store->printStorePath(realisation->out_path));
+        if (auto realisation = std::get_if<nix::realisation_t>(&path.raw)) {
+          nix::logger->cout("%s %s", realisation->id.to_string(),
+                            store->printStorePath(realisation->out_path));
         } else
-          logger->cout("%s", store->printStorePath(path.path()));
+          nix::logger->cout("%s", store->printStorePath(path.path()));
       }
     }
   }
 };
 
 static auto r_cmd_realisation_info =
-    registerCommand2<cmd_realisation_info_t>({"realisation", "info"});
+    nix::registerCommand2<cmd_realisation_info_t>({"realisation", "info"});

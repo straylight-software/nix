@@ -26,11 +26,6 @@
 
 extern char** environ __attribute__((weak));
 
-namespace nix::fs {
-using namespace std::filesystem;
-}
-
-using namespace nix;
 
 std::string chroot_helper_name = "__run_in_chroot";
 
@@ -107,12 +102,14 @@ void exec_program_in_store(ref<store_t> store, use_lookup_path_t use_lookup_path
 
 } // namespace nix
 
-struct cmd_run_t : InstallableValueCommand, MixEnvironment {
+struct cmd_run_t : nix::InstallableValueCommand, nix::MixEnvironment {
   using InstallableCommand::run;
 
   std::vector<std::string> args;
 
-  cmd_run_t() { expect_args({.label = "args", .handler = {&args}, .completer = complete_path}); }
+  cmd_run_t() {
+    expect_args({.label = "args", .handler = {&args}, .completer = nix::complete_path});
+  }
 
   std::string description() override { return "run a Nix application"; }
 
@@ -122,30 +119,30 @@ struct cmd_run_t : InstallableValueCommand, MixEnvironment {
         ;
   }
 
-  strings_t getDefaultFlakeAttrPaths() override {
-    strings_t res{
-        "apps." + settings.thisSystem.get() + ".default",
-        "defaultApp." + settings.thisSystem.get(),
+  nix::strings_t getDefaultFlakeAttrPaths() override {
+    nix::strings_t res{
+        "apps." + nix::settings.thisSystem.get() + ".default",
+        "defaultApp." + nix::settings.thisSystem.get(),
     };
     for (auto& s : SourceExprCommand::getDefaultFlakeAttrPaths())
       res.push_back(s);
     return res;
   }
 
-  strings_t getDefaultFlakeAttrPathPrefixes() override {
-    strings_t res{"apps." + settings.thisSystem.get() + "."};
+  nix::strings_t getDefaultFlakeAttrPathPrefixes() override {
+    nix::strings_t res{"apps." + nix::settings.thisSystem.get() + "."};
     for (auto& s : SourceExprCommand::getDefaultFlakeAttrPathPrefixes())
       res.push_back(s);
     return res;
   }
 
-  void run(ref<store_t> store, ref<InstallableValue> installable) override {
+  void run(nix::ref<nix::store_t> store, nix::ref<nix::InstallableValue> installable) override {
     auto state = getEvalState();
 
     lock_flags.applyNixConfig = true;
     auto app = installable->toApp(*state).resolve(getEvalStore(), store);
 
-    strings_t all_args{app.program.string()};
+    nix::strings_t all_args{app.program.string()};
     for (auto& i : args)
       all_args.push_back(i);
 
@@ -155,11 +152,12 @@ struct cmd_run_t : InstallableValueCommand, MixEnvironment {
 
     setEnviron();
 
-    exec_program_in_store(store, use_lookup_path_t::dont_use, app.program.string(), all_args);
+    nix::exec_program_in_store(store, nix::use_lookup_path_t::dont_use, app.program.string(),
+                               all_args);
   }
 };
 
-static auto r_cmd_run = registerCommand<cmd_run_t>("run");
+static auto r_cmd_run = nix::registerCommand<cmd_run_t>("run");
 
 void chroot_helper(int argc, char** argv) {
   int p = 1;
@@ -167,7 +165,7 @@ void chroot_helper(int argc, char** argv) {
   std::string real_store_dir = argv[p++];
   std::string system = argv[p++];
   std::string cmd = argv[p++];
-  strings_t args;
+  nix::strings_t args;
   while (p < argc)
     args.push_back(argv[p++]);
 
@@ -179,7 +177,7 @@ void chroot_helper(int argc, char** argv) {
     /* Try with just CLONE_NEWNS in case user namespaces are
        specifically disabled. */
     if (unshare(CLONE_NEWNS) == -1)
-      throw sys_error_t("setting up a private mount namespace");
+      throw nix::sys_error_t("setting up a private mount namespace");
 
   /* Bind-mount real_store_dir on /nix/store. If the latter mount
      point doesn't already exists, we have to create a chroot
@@ -187,61 +185,61 @@ void chroot_helper(int argc, char** argv) {
      children of /.
      Overlayfs for user namespaces is fixed in Linux since ac519625ed
      (v5.11, 14 February 2021) */
-  if (!path_exists(store_dir)) {
+  if (!nix::path_exists(store_dir)) {
     // FIXME: Use overlayfs?
 
-    std::filesystem::path tmp_dir = create_temp_dir();
+    std::filesystem::path tmp_dir = nix::create_temp_dir();
 
-    create_dirs(tmp_dir + store_dir);
+    nix::create_dirs(tmp_dir + store_dir);
 
     if (mount(real_store_dir.c_str(), (tmp_dir + store_dir).c_str(), "", MS_BIND, 0) == -1)
-      throw sys_error_t("mounting '%s' on '%s'", real_store_dir, store_dir);
+      throw nix::sys_error_t("mounting '%s' on '%s'", real_store_dir, store_dir);
 
-    for (const auto& entry : directory_iterator_t{"/"}) {
-      check_interrupt();
+    for (const auto& entry : nix::directory_iterator_t{"/"}) {
+      nix::check_interrupt();
       const auto& src = entry.path();
       std::filesystem::path dst = tmp_dir / entry.path().filename();
-      if (path_exists(dst))
+      if (nix::path_exists(dst))
         continue;
       auto st = entry.symlink_status();
       if (std::filesystem::is_directory(st)) {
         if (mkdir(dst.c_str(), 0700) == -1)
-          throw sys_error_t("creating directory '%s'", dst);
+          throw nix::sys_error_t("creating directory '%s'", dst);
         if (mount(src.c_str(), dst.c_str(), "", MS_BIND | MS_REC, 0) == -1)
-          throw sys_error_t("mounting '%s' on '%s'", src, dst);
+          throw nix::sys_error_t("mounting '%s' on '%s'", src, dst);
       } else if (std::filesystem::is_symlink(st))
-        create_symlink(read_link(src), dst);
+        nix::create_symlink(nix::read_link(src), dst);
     }
 
     char* cwd = getcwd(0, 0);
     if (!cwd)
-      throw sys_error_t("getting current directory");
-    finally_t free_cwd([&]() { free(cwd); });
+      throw nix::sys_error_t("getting current directory");
+    nix::finally_t free_cwd([&]() { free(cwd); });
 
     if (chroot(tmp_dir.c_str()) == -1)
-      throw sys_error_t("chrooting into '%s'", tmp_dir);
+      throw nix::sys_error_t("chrooting into '%s'", tmp_dir);
 
     if (chdir(cwd) == -1)
-      throw sys_error_t("chdir to '%s' in chroot", cwd);
+      throw nix::sys_error_t("chdir to '%s' in chroot", cwd);
   } else if (mount("overlay", store_dir.c_str(), "overlay", MS_MGC_VAL,
-                   fmt("lowerdir=%s:%s", store_dir, real_store_dir).c_str()) == -1)
+                   nix::fmt("lowerdir=%s:%s", store_dir, real_store_dir).c_str()) == -1)
     if (mount(real_store_dir.c_str(), store_dir.c_str(), "", MS_BIND, 0) == -1)
-      throw sys_error_t("mounting '%s' on '%s'", real_store_dir, store_dir);
+      throw nix::sys_error_t("mounting '%s' on '%s'", real_store_dir, store_dir);
 
-  write_file(std::filesystem::path{"/proc/self/setgroups"}, "deny");
-  write_file(std::filesystem::path{"/proc/self/uid_map"}, fmt("%d %d %d", uid, uid, 1));
-  write_file(std::filesystem::path{"/proc/self/gid_map"}, fmt("%d %d %d", gid, gid, 1));
+  nix::write_file(std::filesystem::path{"/proc/self/setgroups"}, "deny");
+  nix::write_file(std::filesystem::path{"/proc/self/uid_map"}, nix::fmt("%d %d %d", uid, uid, 1));
+  nix::write_file(std::filesystem::path{"/proc/self/gid_map"}, nix::fmt("%d %d %d", gid, gid, 1));
 
 #  ifdef __linux__
   if (system != "")
-    linux::setPersonality(system);
+    nix::linux::setPersonality(system);
 #  endif
 
-  execvp(cmd.c_str(), strings_to_char_ptrs(args).data());
+  execvp(cmd.c_str(), nix::strings_to_char_ptrs(args).data());
 
-  throw sys_error_t("unable to exec '%s'", cmd);
+  throw nix::sys_error_t("unable to exec '%s'", cmd);
 
 #else
-  throw Error("mounting the Nix store on '%s' is not supported on this platform", store_dir);
+  throw nix::Error("mounting the Nix store on '%s' is not supported on this platform", store_dir);
 #endif
 }

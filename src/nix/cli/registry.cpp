@@ -8,13 +8,10 @@
 #include "nix/main/shared.h"
 #include "nix/store/store-api.h"
 
-using namespace nix;
-using namespace nix::flake;
-
-struct registry_command_t : virtual args_t {
+struct registry_command_t : virtual nix::args_t {
   std::string registry_path;
 
-  std::shared_ptr<fetchers::Registry> registry;
+  std::shared_ptr<nix::fetchers::Registry> registry;
 
   registry_command_t() {
     add_flag({
@@ -25,27 +22,27 @@ struct registry_command_t : virtual args_t {
     });
   }
 
-  std::shared_ptr<fetchers::Registry> get_registry() {
+  std::shared_ptr<nix::fetchers::Registry> get_registry() {
     if (registry)
       return registry;
     if (registry_path.empty()) {
-      registry = fetchers::get_user_registry(fetch_settings);
+      registry = nix::fetchers::get_user_registry(nix::fetch_settings);
     } else {
-      registry = fetchers::get_custom_registry(fetch_settings, registry_path);
+      registry = nix::fetchers::get_custom_registry(nix::fetch_settings, registry_path);
     }
     return registry;
   }
 
-  Path get_registry_path() {
+  nix::Path get_registry_path() {
     if (registry_path.empty()) {
-      return fetchers::get_user_registry_path().string();
+      return nix::fetchers::get_user_registry_path().string();
     } else {
       return registry_path;
     }
   }
 };
 
-struct cmd_registry_list_t : StoreCommand {
+struct cmd_registry_list_t : nix::StoreCommand {
   std::string description() override { return "list available Nix flakes"; }
 
   std::string doc() override {
@@ -55,26 +52,24 @@ struct cmd_registry_list_t : StoreCommand {
   }
 
   void run(nix::ref<nix::store_t> store) override {
-    using namespace fetchers;
-
-    auto registries = get_registries(fetch_settings, *store);
+    auto registries = nix::fetchers::get_registries(nix::fetch_settings, *store);
 
     for (auto& registry : registries) {
       for (auto& entry : registry->entries) {
         // FIXME: format nicely
-        logger->cout("%s %s %s",
-                     registry->type == Registry::flag_t   ? "flags "
-                     : registry->type == Registry::User   ? "user  "
-                     : registry->type == Registry::System ? "system"
-                                                          : "global",
-                     entry.from.toURLString(),
-                     entry.to.toURLString(attrs_to_query(entry.extra_attrs)));
+        nix::logger->cout("%s %s %s",
+                          registry->type == nix::fetchers::Registry::flag_t   ? "flags "
+                          : registry->type == nix::fetchers::Registry::User   ? "user  "
+                          : registry->type == nix::fetchers::Registry::System ? "system"
+                                                                              : "global",
+                          entry.from.toURLString(),
+                          entry.to.toURLString(nix::fetchers::attrs_to_query(entry.extra_attrs)));
       }
     }
   }
 };
 
-struct cmd_registry_add_t : MixEvalArgs, command_t, registry_command_t {
+struct cmd_registry_add_t : nix::MixEvalArgs, nix::command_t, registry_command_t {
   std::string from_url, to_url;
 
   std::string description() override { return "add/replace flake in user flake registry"; }
@@ -91,10 +86,10 @@ struct cmd_registry_add_t : MixEvalArgs, command_t, registry_command_t {
   }
 
   void run() override {
-    auto from_ref = parse_flake_ref(fetch_settings, from_url);
-    auto to_ref = parse_flake_ref(fetch_settings, to_url);
+    auto from_ref = nix::flake::parse_flake_ref(nix::fetch_settings, from_url);
+    auto to_ref = nix::flake::parse_flake_ref(nix::fetch_settings, to_url);
     auto registry = get_registry();
-    fetchers::Attrs extra_attrs;
+    nix::fetchers::Attrs extra_attrs;
     if (to_ref.subdir != "")
       extra_attrs["dir"] = to_ref.subdir;
     registry->remove(from_ref.input);
@@ -103,7 +98,7 @@ struct cmd_registry_add_t : MixEvalArgs, command_t, registry_command_t {
   }
 };
 
-struct cmd_registry_remove_t : registry_command_t, command_t {
+struct cmd_registry_remove_t : registry_command_t, nix::command_t {
   std::string url;
 
   std::string description() override { return "remove flake from user flake registry"; }
@@ -118,12 +113,12 @@ struct cmd_registry_remove_t : registry_command_t, command_t {
 
   void run() override {
     auto registry = get_registry();
-    registry->remove(parse_flake_ref(fetch_settings, url).input);
+    registry->remove(nix::flake::parse_flake_ref(nix::fetch_settings, url).input);
     registry->write(get_registry_path());
   }
 };
 
-struct cmd_registry_pin_t : registry_command_t, EvalCommand {
+struct cmd_registry_pin_t : registry_command_t, nix::EvalCommand {
   std::string url;
 
   std::string locked;
@@ -145,8 +140,8 @@ struct cmd_registry_pin_t : registry_command_t, EvalCommand {
         {.label = "locked",
          .optional = true,
          .handler = {&locked},
-         .completer = {[&](add_completions_t& completions, size_t, std::string_view prefix) {
-           complete_flake_ref(completions, getStore(), prefix);
+         .completer = {[&](nix::add_completions_t& completions, size_t, std::string_view prefix) {
+           nix::complete_flake_ref(completions, getStore(), prefix);
          }}});
   }
 
@@ -154,13 +149,13 @@ struct cmd_registry_pin_t : registry_command_t, EvalCommand {
     if (locked.empty())
       locked = url;
     auto registry = get_registry();
-    auto ref = parse_flake_ref(fetch_settings, url);
-    auto locked_ref = parse_flake_ref(fetch_settings, locked);
-    auto resolved_input = locked_ref.resolve(fetch_settings, *store).input;
-    auto resolved = resolved_input.get_accessor(fetch_settings, *store).second;
-    if (!resolved.isLocked(fetch_settings))
-      warn("flake '%s' is not locked", resolved.to_string());
-    fetchers::Attrs extra_attrs;
+    auto ref = nix::flake::parse_flake_ref(nix::fetch_settings, url);
+    auto locked_ref = nix::flake::parse_flake_ref(nix::fetch_settings, locked);
+    auto resolved_input = locked_ref.resolve(nix::fetch_settings, *store).input;
+    auto resolved = resolved_input.get_accessor(nix::fetch_settings, *store).second;
+    if (!resolved.isLocked(nix::fetch_settings))
+      nix::warn("flake '%s' is not locked", resolved.to_string());
+    nix::fetchers::Attrs extra_attrs;
     if (ref.subdir != "")
       extra_attrs["dir"] = ref.subdir;
     registry->remove(ref.input);
@@ -169,7 +164,7 @@ struct cmd_registry_pin_t : registry_command_t, EvalCommand {
   }
 };
 
-struct cmd_registry_resolve_t : StoreCommand {
+struct cmd_registry_resolve_t : nix::StoreCommand {
   std::vector<std::string> urls;
 
   std::string description() override { return "resolve flake references using the registry"; }
@@ -189,22 +184,22 @@ struct cmd_registry_resolve_t : StoreCommand {
 
   void run(nix::ref<nix::store_t> store) override {
     for (auto& url : urls) {
-      auto ref = parse_flake_ref(fetch_settings, url);
-      auto resolved = ref.resolve(fetch_settings, *store);
-      logger->cout("%s", resolved.to_string());
+      auto ref = nix::flake::parse_flake_ref(nix::fetch_settings, url);
+      auto resolved = ref.resolve(nix::fetch_settings, *store);
+      nix::logger->cout("%s", resolved.to_string());
     }
   }
 };
 
-struct cmd_registry_t : NixMultiCommand {
+struct cmd_registry_t : nix::NixMultiCommand {
   cmd_registry_t()
       : NixMultiCommand("registry",
                         {
-                            {"list", []() { return make_ref<cmd_registry_list_t>(); }},
-                            {"add", []() { return make_ref<cmd_registry_add_t>(); }},
-                            {"remove", []() { return make_ref<cmd_registry_remove_t>(); }},
-                            {"pin", []() { return make_ref<cmd_registry_pin_t>(); }},
-                            {"resolve", []() { return make_ref<cmd_registry_resolve_t>(); }},
+                            {"list", []() { return nix::make_ref<cmd_registry_list_t>(); }},
+                            {"add", []() { return nix::make_ref<cmd_registry_add_t>(); }},
+                            {"remove", []() { return nix::make_ref<cmd_registry_remove_t>(); }},
+                            {"pin", []() { return nix::make_ref<cmd_registry_pin_t>(); }},
+                            {"resolve", []() { return nix::make_ref<cmd_registry_resolve_t>(); }},
                         }) {}
 
   std::string description() override { return "manage the flake registry"; }
@@ -215,7 +210,7 @@ struct cmd_registry_t : NixMultiCommand {
         ;
   }
 
-  category_t category() override { return catSecondary; }
+  nix::category_t category() override { return nix::catSecondary; }
 };
 
-static auto r_cmd_registry = registerCommand<cmd_registry_t>("registry");
+static auto r_cmd_registry = nix::registerCommand<cmd_registry_t>("registry");

@@ -4,7 +4,6 @@
 #include <fstream>
 #include <future>
 #include <regex>
-#include <sstream>
 
 #include <nlohmann/json.hpp>
 
@@ -33,9 +32,7 @@ binary_cache_store::binary_cache_store(config_t& config) : config{config} {
         std::make_unique<local_signer_t>(secret_key_t{read_file(config.secret_key_file)}));
 
   if (config.secretKeyFiles != "") {
-    std::stringstream ss(config.secretKeyFiles);
-    Path keyPath;
-    while (std::getline(ss, keyPath, ',')) {
+    for (const auto& keyPath : tokenize_string<strings_t>(config.secretKeyFiles, ",")) {
       signers.push_back(std::make_unique<local_signer_t>(secret_key_t{read_file(keyPath)}));
     }
   }

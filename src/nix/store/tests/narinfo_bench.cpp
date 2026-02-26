@@ -12,7 +12,6 @@
 // Every binary cache fetch parses narinfo - this is critical path performance.
 
 #include <random>
-#include <sstream>
 #include <string>
 #include <vector>
 
@@ -80,18 +79,18 @@ std::string generate_typical_narinfo(std::mt19937& rng) {
   auto drv_hash = generate_nix32_hash(rng);
   auto sig = generate_base64_sig(rng);
 
-  std::ostringstream oss;
-  oss << "store_path_t: /nix/store/" << hash << "-hello-2.12.1\n"
-      << "URL: nar/" << generate_sha256_hex(rng).substr(0, 32) << ".nar.xz\n"
-      << "Compression: xz\n"
-      << "FileHash: sha256:" << file_hash << "\n"
-      << "FileSize: 45678\n"
-      << "NarHash: sha256:" << nar_hash << "\n"
-      << "NarSize: 123456\n"
-      << "References: " << dep1_hash << "-glibc-2.38 " << dep2_hash << "-gcc-libs-13.2.0\n"
-      << "Deriver: " << drv_hash << "-hello-2.12.1.drv\n"
-      << "Sig: cache.nixos.org-1:" << sig << "\n";
-  return oss.str();
+  std::string result;
+  result += "store_path_t: /nix/store/" + hash + "-hello-2.12.1\n";
+  result += "URL: nar/" + generate_sha256_hex(rng).substr(0, 32) + ".nar.xz\n";
+  result += "Compression: xz\n";
+  result += "FileHash: sha256:" + file_hash + "\n";
+  result += "FileSize: 45678\n";
+  result += "NarHash: sha256:" + nar_hash + "\n";
+  result += "NarSize: 123456\n";
+  result += "References: " + dep1_hash + "-glibc-2.38 " + dep2_hash + "-gcc-libs-13.2.0\n";
+  result += "Deriver: " + drv_hash + "-hello-2.12.1.drv\n";
+  result += "Sig: cache.nixos.org-1:" + sig + "\n";
+  return result;
 }
 
 // Generate narinfo with multiple signatures (multi-cache scenario)
@@ -100,21 +99,22 @@ std::string generate_multi_sig_narinfo(std::mt19937& rng, int sig_count) {
   auto nar_hash = generate_sha256_hex(rng);
   auto file_hash = generate_sha256_hex(rng);
 
-  std::ostringstream oss;
-  oss << "store_path_t: /nix/store/" << hash << "-multi-sig-pkg-1.0\n"
-      << "URL: nar/" << generate_sha256_hex(rng).substr(0, 32) << ".nar.zstd\n"
-      << "Compression: zstd\n"
-      << "FileHash: sha256:" << file_hash << "\n"
-      << "FileSize: 98765\n"
-      << "NarHash: sha256:" << nar_hash << "\n"
-      << "NarSize: 234567\n"
-      << "References: \n";
+  std::string result;
+  result += "store_path_t: /nix/store/" + hash + "-multi-sig-pkg-1.0\n";
+  result += "URL: nar/" + generate_sha256_hex(rng).substr(0, 32) + ".nar.zstd\n";
+  result += "Compression: zstd\n";
+  result += "FileHash: sha256:" + file_hash + "\n";
+  result += "FileSize: 98765\n";
+  result += "NarHash: sha256:" + nar_hash + "\n";
+  result += "NarSize: 234567\n";
+  result += "References: \n";
 
   // Add multiple signatures
   for (int i = 0; i < sig_count; ++i) {
-    oss << "Sig: cache" << i << ".example.org-1:" << generate_base64_sig(rng) << "\n";
+    result +=
+        "Sig: cache" + std::to_string(i) + ".example.org-1:" + generate_base64_sig(rng) + "\n";
   }
-  return oss.str();
+  return result;
 }
 
 // Generate narinfo with many references (heavy dependency package like chromium)
@@ -123,24 +123,24 @@ std::string generate_many_refs_narinfo(std::mt19937& rng, int ref_count) {
   auto nar_hash = generate_sha256_hex(rng);
   auto file_hash = generate_sha256_hex(rng);
 
-  std::ostringstream oss;
-  oss << "store_path_t: /nix/store/" << hash << "-chromium-120.0.6099.129\n"
-      << "URL: nar/" << generate_sha256_hex(rng).substr(0, 32) << ".nar.xz\n"
-      << "Compression: xz\n"
-      << "FileHash: sha256:" << file_hash << "\n"
-      << "FileSize: 567890123\n"
-      << "NarHash: sha256:" << nar_hash << "\n"
-      << "NarSize: 1234567890\n"
-      << "References:";
+  std::string result;
+  result += "store_path_t: /nix/store/" + hash + "-chromium-120.0.6099.129\n";
+  result += "URL: nar/" + generate_sha256_hex(rng).substr(0, 32) + ".nar.xz\n";
+  result += "Compression: xz\n";
+  result += "FileHash: sha256:" + file_hash + "\n";
+  result += "FileSize: 567890123\n";
+  result += "NarHash: sha256:" + nar_hash + "\n";
+  result += "NarSize: 1234567890\n";
+  result += "References:";
 
   // Add many references
   for (int i = 0; i < ref_count; ++i) {
-    oss << " " << generate_nix32_hash(rng) << "-dep" << i;
+    result += " " + generate_nix32_hash(rng) + "-dep" + std::to_string(i);
   }
-  oss << "\n"
-      << "Deriver: " << generate_nix32_hash(rng) << "-chromium-120.0.6099.129.drv\n"
-      << "Sig: cache.nixos.org-1:" << generate_base64_sig(rng) << "\n";
-  return oss.str();
+  result += "\n";
+  result += "Deriver: " + generate_nix32_hash(rng) + "-chromium-120.0.6099.129.drv\n";
+  result += "Sig: cache.nixos.org-1:" + generate_base64_sig(rng) + "\n";
+  return result;
 }
 
 // Generate a minimal narinfo (fastest possible parse)
@@ -148,12 +148,12 @@ std::string generate_minimal_narinfo(std::mt19937& rng) {
   auto hash = generate_nix32_hash(rng);
   auto nar_hash = generate_sha256_hex(rng);
 
-  std::ostringstream oss;
-  oss << "store_path_t: /nix/store/" << hash << "-minimal-1.0\n"
-      << "URL: nar/min.nar\n"
-      << "NarHash: sha256:" << nar_hash << "\n"
-      << "NarSize: 1024\n";
-  return oss.str();
+  std::string result;
+  result += "store_path_t: /nix/store/" + hash + "-minimal-1.0\n";
+  result += "URL: nar/min.nar\n";
+  result += "NarHash: sha256:" + nar_hash + "\n";
+  result += "NarSize: 1024\n";
+  return result;
 }
 
 // Build a nar_info_t programmatically for serialization benchmarks

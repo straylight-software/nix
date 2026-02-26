@@ -11,8 +11,8 @@
 //   - A snake_case refactoring broke compatibility - these tests prevent regression
 
 #include <fstream>
+#include <iterator>
 #include <regex>
-#include <sstream>
 #include <string>
 #include <string_view>
 
@@ -29,9 +29,7 @@ std::string read_file(const std::string& path) {
   if (!file.is_open()) {
     return "";
   }
-  std::stringstream buffer;
-  buffer << file.rdbuf();
-  return buffer.str();
+  return std::string(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
 }
 
 bool schema_contains_column(const std::string& schema, const std::string& column_name) {

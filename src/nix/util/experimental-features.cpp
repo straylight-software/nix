@@ -366,11 +366,10 @@ std::string_view show_experimental_feature(const experimental_feature_t tag) {
 nlohmann::json document_experimental_features() {
   string_map_t res;
   for (auto& xp_feature : xp_feature_details) {
-    std::stringstream doc_oss;
-    doc_oss << strip_indentation(xp_feature.description);
-    doc_oss << fmt("\nRefer to [%1% tracking issue](%2%) for feature tracking.", xp_feature.name,
-                   xp_feature.tracking_url);
-    res[std::string{xp_feature.name}] = trim(doc_oss.str());
+    std::string doc = strip_indentation(xp_feature.description);
+    doc += fmt("\nRefer to [%1% tracking issue](%2%) for feature tracking.", xp_feature.name,
+               xp_feature.tracking_url);
+    res[std::string{xp_feature.name}] = trim(doc);
   }
   return (nlohmann::json)res;
 }

@@ -6,12 +6,10 @@
 #include "nix/main/common-args.h"
 #include "nix/store/store-open.h"
 
-using namespace nix;
-
-using nlohmann::json;
-
-struct cmd_make_content_addressed_t : virtual CopyCommand, virtual StorePathsCommand, MixJSON {
-  cmd_make_content_addressed_t() { realiseMode = Realise::Outputs; }
+struct cmd_make_content_addressed_t : virtual nix::CopyCommand,
+                                      virtual nix::StorePathsCommand,
+                                      nix::MixJSON {
+  cmd_make_content_addressed_t() { realiseMode = nix::Realise::Outputs; }
 
   std::string description() override {
     return "rewrite a path or closure to content-addressed form";
@@ -23,32 +21,32 @@ struct cmd_make_content_addressed_t : virtual CopyCommand, virtual StorePathsCom
         ;
   }
 
-  void run(ref<store_t> src_store, store_paths_t&& store_paths) override {
-    auto dst_store = dst_uri.empty() ? open_store() : open_store(dst_uri);
+  void run(nix::ref<nix::store_t> src_store, nix::store_paths_t&& store_paths) override {
+    auto dst_store = dst_uri.empty() ? nix::open_store() : nix::open_store(dst_uri);
 
-    auto remappings = make_content_addressed(
-        *src_store, *dst_store, store_path_set_t(store_paths.begin(), store_paths.end()));
+    auto remappings = nix::make_content_addressed(
+        *src_store, *dst_store, nix::store_path_set_t(store_paths.begin(), store_paths.end()));
 
     if (json) {
-      auto json_rewrites = json::object();
+      auto json_rewrites = nlohmann::json::object();
       for (auto& path : store_paths) {
         auto i = remappings.find(path);
         assert(i != remappings.end());
         json_rewrites[src_store->printStorePath(path)] = src_store->printStorePath(i->second);
       }
-      auto json = json::object();
-      json["rewrites"] = json_rewrites;
-      printJSON(json);
+      auto json_obj = nlohmann::json::object();
+      json_obj["rewrites"] = json_rewrites;
+      printJSON(json_obj);
     } else {
       for (auto& path : store_paths) {
         auto i = remappings.find(path);
         assert(i != remappings.end());
-        notice("rewrote '%s' to '%s'", src_store->printStorePath(path),
-               src_store->printStorePath(i->second));
+        nix::notice("rewrote '%s' to '%s'", src_store->printStorePath(path),
+                    src_store->printStorePath(i->second));
       }
     }
   }
 };
 
 static auto r_cmd_make_content_addressed =
-    registerCommand2<cmd_make_content_addressed_t>({"store", "make-content-addressed"});
+    nix::registerCommand2<cmd_make_content_addressed_t>({"store", "make-content-addressed"});

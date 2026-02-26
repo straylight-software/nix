@@ -38,8 +38,9 @@ namespace {
  * RAII temporary directory for benchmark fixtures.
  * Uses current directory as base since /tmp may not exist in test sandbox.
  */
-class temp_dir_t {
-public:
+struct temp_dir_t {
+  fs::path path_;
+
   temp_dir_t() {
     // Try /tmp first, fall back to current directory
     fs::path base;
@@ -63,9 +64,6 @@ public:
   temp_dir_t& operator=(const temp_dir_t&) = delete;
 
   [[nodiscard]] const fs::path& path() const { return path_; }
-
-private:
-  fs::path path_;
 };
 
 /**
@@ -129,34 +127,32 @@ void create_large_file(const fs::path& path, size_t size_mb) {
 /**
  * Counting sink - counts bytes written without storing.
  */
-class counting_sink_t : public nix::sink_t {
-public:
+struct counting_sink_t : public nix::sink_t {
+  uint64_t bytes_written_ = 0;
+
   void operator()(std::string_view data) override { bytes_written_ += data.size(); }
   [[nodiscard]] uint64_t bytes_written() const { return bytes_written_; }
   void reset() { bytes_written_ = 0; }
-
-private:
-  uint64_t bytes_written_ = 0;
 };
 
 /**
  * Memory sink - stores NAR in memory for deserialization benchmark.
  */
-class memory_sink_t : public nix::sink_t {
-public:
+struct memory_sink_t : public nix::sink_t {
+  std::string buffer_;
+
   void operator()(std::string_view data) override { buffer_.append(data); }
   [[nodiscard]] const std::string& data() const { return buffer_; }
   void clear() { buffer_.clear(); }
-
-private:
-  std::string buffer_;
 };
 
 /**
  * String source - reads from a string buffer.
  */
-class string_source_t : public nix::source_t {
-public:
+struct string_source_t : public nix::source_t {
+  const std::string& data_;
+  size_t pos_;
+
   explicit string_source_t(const std::string& data) : data_(data), pos_(0) {}
 
   size_t read(char* buf, size_t len) override {
@@ -171,10 +167,6 @@ public:
   }
 
   void reset() { pos_ = 0; }
-
-private:
-  const std::string& data_;
-  size_t pos_;
 };
 
 } // namespace

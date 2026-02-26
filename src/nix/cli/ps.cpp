@@ -9,12 +9,10 @@
 #include "nix/util/table.h"
 #include "nix/util/terminal.h"
 
-using namespace nix;
-
-struct cmd_ps_t : MixJSON, StoreCommand {
+struct cmd_ps_t : nix::MixJSON, nix::StoreCommand {
   std::string description() override { return "list active builds"; }
 
-  category_t category() override { return catUtility; }
+  nix::category_t category() override { return nix::catUtility; }
 
   std::string doc() override {
     return
@@ -22,8 +20,8 @@ struct cmd_ps_t : MixJSON, StoreCommand {
         ;
   }
 
-  void run(ref<store_t> store) override {
-    auto& tracker = require<QueryActiveBuildsStore>(*store);
+  void run(nix::ref<nix::store_t> store) override {
+    auto& tracker = nix::require<nix::QueryActiveBuildsStore>(*store);
 
     auto builds = tracker.queryActiveBuilds();
 
@@ -33,20 +31,22 @@ struct cmd_ps_t : MixJSON, StoreCommand {
     }
 
     if (builds.empty()) {
-      notice("No active builds.");
+      nix::notice("No active builds.");
       return;
     }
 
     /* Helper to format user info: show name if available, else UID */
-    auto format_user = [](const UserInfo& user) -> std::string {
+    auto format_user = [](const nix::UserInfo& user) -> std::string {
       return user.name ? *user.name : std::to_string(user.uid);
     };
 
-    table_t table;
+    nix::table_t table;
 
     /* Add column headers. */
-    table.push_back(
-        {{"USER"}, {"PID"}, {"CPU", table_cell_t::alignment_t::right}, {"DERIVATION/COMMAND"}});
+    table.push_back({{"USER"},
+                     {"PID"},
+                     {"CPU", nix::table_cell_t::alignment_t::right},
+                     {"DERIVATION/COMMAND"}});
 
     for (const auto& build : builds) {
       /* Calculate CPU time - use cgroup stats if available, otherwise sum process times. */
@@ -65,25 +65,27 @@ struct cmd_ps_t : MixJSON, StoreCommand {
       table.push_back(
           {format_user(build.mainUser),
            std::to_string(build.main_pid),
-           {fmt("%.1fs", std::chrono::duration_cast<
-                             std::chrono::duration<float, std::chrono::seconds::period>>(cpuTime)
-                             .count()),
-            table_cell_t::alignment_t::right},
-           fmt(ANSI_BOLD "%s" ANSI_NORMAL " (wall=%ds)", store->printStorePath(build.derivation),
-               time(nullptr) - build.start_time)});
+           {nix::fmt("%.1fs",
+                     std::chrono::duration_cast<
+                         std::chrono::duration<float, std::chrono::seconds::period>>(cpuTime)
+                         .count()),
+            nix::table_cell_t::alignment_t::right},
+           nix::fmt(ANSI_BOLD "%s" ANSI_NORMAL " (wall=%ds)",
+                    store->printStorePath(build.derivation), time(nullptr) - build.start_time)});
 
       if (build.processes.empty()) {
-        table.push_back({format_user(build.mainUser),
-                         std::to_string(build.main_pid),
-                         {"", table_cell_t::alignment_t::right},
-                         fmt("%s" ANSI_ITALIC "(no process info)" ANSI_NORMAL, tree_last)});
+        table.push_back(
+            {format_user(build.mainUser),
+             std::to_string(build.main_pid),
+             {"", nix::table_cell_t::alignment_t::right},
+             nix::fmt("%s" ANSI_ITALIC "(no process info)" ANSI_NORMAL, nix::tree_last)});
       } else {
         /* Recover the tree structure of the processes. */
         std::set<::pid_t> pids;
         for (auto& process : build.processes)
           pids.insert(process.pid);
 
-        using Processes = std::set<const ActiveBuildInfo::ProcessInfo*>;
+        using Processes = std::set<const nix::ActiveBuildInfo::ProcessInfo*>;
         std::map<::pid_t, Processes> children;
         Processes rootProcesses;
         for (auto& process : build.processes) {
@@ -95,7 +97,7 @@ struct cmd_ps_t : MixJSON, StoreCommand {
 
         /* Render the process tree. */
         [&](this auto const& visit, const Processes& processes, std::string_view prefix) -> void {
-          for (const auto& [n, process] : enumerate(processes)) {
+          for (const auto& [n, process] : nix::enumerate(processes)) {
             bool last = n + 1 == processes.size();
 
             // Format CPU time if available
@@ -109,29 +111,31 @@ struct cmd_ps_t : MixJSON, StoreCommand {
                   std::chrono::duration_cast<
                       std::chrono::duration<float, std::chrono::seconds::period>>(totalCpu)
                       .count();
-              cpuInfo = fmt("%.1fs", totalSecs);
+              cpuInfo = nix::fmt("%.1fs", totalSecs);
             }
 
             // Format argv with tree structure
-            auto argv = concat_strings_sep(" ", tokenize_string<std::vector<std::string>>(
-                                                    concat_strings_sep(" ", process->argv)));
+            auto argv =
+                nix::concat_strings_sep(" ", nix::tokenize_string<std::vector<std::string>>(
+                                                 nix::concat_strings_sep(" ", process->argv)));
 
-            table.push_back({format_user(process->user),
-                             std::to_string(process->pid),
-                             {cpuInfo, table_cell_t::alignment_t::right},
-                             fmt("%s%s%s", prefix, last ? tree_last : tree_conn, argv)});
+            table.push_back(
+                {format_user(process->user),
+                 std::to_string(process->pid),
+                 {cpuInfo, nix::table_cell_t::alignment_t::right},
+                 nix::fmt("%s%s%s", prefix, last ? nix::tree_last : nix::tree_conn, argv)});
 
-            visit(children[process->pid], last ? prefix + tree_null : prefix + tree_line);
+            visit(children[process->pid], last ? prefix + nix::tree_null : prefix + nix::tree_line);
           }
         }(rootProcesses, "");
       }
     }
 
-    auto width = is_tty() && isatty(STDOUT_FILENO) ? get_window_width()
-                                                   : std::numeric_limits<unsigned int>::max();
+    auto width = nix::is_tty() && isatty(STDOUT_FILENO) ? nix::get_window_width()
+                                                        : std::numeric_limits<unsigned int>::max();
 
-    print_table(std::cout, table, width);
+    nix::print_table(std::cout, table, width);
   }
 };
 
-static auto r_cmd_ps = registerCommand2<cmd_ps_t>({"ps"});
+static auto r_cmd_ps = nix::registerCommand2<cmd_ps_t>({"ps"});

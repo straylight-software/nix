@@ -767,10 +767,9 @@ std::unique_ptr<ValMap> map_static_env_bindings(const symbol_table_t& st, const 
 /**
  * Sets `inDebugger` to true on construction and false on destruction.
  */
-class debugger_guard_t {
+struct debugger_guard_t {
   bool& inDebugger;
 
-public:
   debugger_guard_t(bool& inDebugger) : inDebugger(inDebugger) { inDebugger = true; }
 
   ~debugger_guard_t() { inDebugger = false; }
