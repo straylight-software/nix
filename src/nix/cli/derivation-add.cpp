@@ -17,7 +17,7 @@ struct cmd_add_derivation_t : nix::MixDryRun, nix::StoreCommand {
         ;
   }
 
-  nix::category_t category() override { return nix::catUtility; }
+  category_t category() override { return nix::catUtility; }
 
   void run(nix::ref<nix::store_t> store) override {
     auto json = nlohmann::json::parse(nix::drain_fd(STDIN_FILENO));

@@ -1,5 +1,7 @@
 #include "nix/util/url.h"
 
+#include <sstream>
+
 #include <boost/url.hpp>
 
 #include "nix/util/canon-path.h"
@@ -84,7 +86,7 @@ std::ostream& operator<<(std::ostream& os, const parsed_url_t::authority_t& self
 }
 
 std::string parsed_url_t::authority_t::to_string() const {
-  string_sink_t oss;
+  std::ostringstream oss;
   oss << *this;
   return std::move(oss).str();
 }

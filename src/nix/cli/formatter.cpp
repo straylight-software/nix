@@ -8,13 +8,17 @@
 #include "nix/util/environment-variables.h"
 #include "run.h"
 
+using nix::catSecondary;
+using nix::ref;
+using nix::store_t;
+
 struct cmd_formatter_t : nix::NixMultiCommand {
   cmd_formatter_t()
       : nix::NixMultiCommand("formatter", nix::RegisterCommand::getCommandsFor({"formatter"})) {}
 
   std::string description() override { return "build or run the formatter"; }
 
-  nix::category_t category() override { return nix::catSecondary; }
+  category_t category() override { return nix::catSecondary; }
 };
 
 static auto r_cmd_formatter = nix::registerCommand<cmd_formatter_t>("formatter");
@@ -91,7 +95,7 @@ struct cmd_formatter_build_t : mix_formatter_t, nix::MixOutLinkByDefault {
         ;
   }
 
-  nix::category_t category() override { return nix::catSecondary; }
+  category_t category() override { return nix::catSecondary; }
 
   void run(nix::ref<nix::store_t> store) override {
     auto eval_state = getEvalState();

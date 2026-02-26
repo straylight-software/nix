@@ -7,6 +7,9 @@
 #include "nix/util/signals.h"
 #include "nix/util/thread-pool.h"
 
+using nix::fmt;
+using nix::logger;
+
 struct cmd_copy_sigs_t : nix::StorePathsCommand {
   nix::strings_t substituter_uris;
 
@@ -84,7 +87,7 @@ struct cmd_copy_sigs_t : nix::StorePathsCommand {
 
     pool.process();
 
-    nix::printInfo("imported %d signatures", added);
+    printInfo("imported %d signatures", added);
   }
 };
 
@@ -100,7 +103,7 @@ struct cmd_sign_t : nix::StorePathsCommand {
         .description = "File containing the secret signing key.",
         .labels = {"file"},
         .handler = {&secret_key_file},
-        .completer = nix::complete_path,
+        .completer = complete_path,
         .required = true,
     });
   }
@@ -127,7 +130,7 @@ struct cmd_sign_t : nix::StorePathsCommand {
       }
     }
 
-    nix::printInfo("added %d signatures", added);
+    printInfo("added %d signatures", added);
   }
 };
 
@@ -191,7 +194,7 @@ struct cmd_key_t : nix::NixMultiCommand {
 
   std::string description() override { return "generate and convert Nix signing keys"; }
 
-  nix::category_t category() override { return nix::catUtility; }
+  category_t category() override { return nix::catUtility; }
 };
 
 static auto r_cmd_key = nix::registerCommand<cmd_key_t>("key");

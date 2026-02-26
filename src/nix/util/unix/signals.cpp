@@ -47,7 +47,7 @@ static void signal_handler_thread(sigset_t set) {
     sigwait(&set, &signal);
 
     if (signal == SIGINT || signal == SIGTERM || signal == SIGHUP) {
-      trigger_interrupt();
+      unix::trigger_interrupt();
 
     } else if (signal == SIGWINCH) {
       update_window_size();

@@ -19,6 +19,7 @@
 #include "nix/util/strings.h"
 #include "nix/util/url.h"
 
+namespace nix {
 
 struct profile_element_source_t {
   flake_ref_t original_ref;
@@ -470,9 +471,9 @@ struct regex_matcher_t final : public matcher_t {
 };
 
 struct store_path_matcher_t final : public matcher_t {
-  nix::store_path_t store_path;
+  store_path_t store_path;
 
-  store_path_matcher_t(const nix::store_path_t& store_path) : store_path(store_path) {}
+  store_path_matcher_t(const store_path_t& store_path) : store_path(store_path) {}
 
   std::string get_title() override { return fmt("store_t path '%s'", store_path.to_string()); }
 
@@ -893,3 +894,5 @@ struct cmd_profile_t : NixMultiCommand {
 };
 
 static auto r_cmd_profile = registerCommand<cmd_profile_t>("profile");
+
+} // namespace nix

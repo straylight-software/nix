@@ -5,6 +5,10 @@
 #include "nix/store/store-api.h"
 #include "nix/util/finally.h"
 
+// Required for notice macro
+using nix::fmt;
+using nix::logger;
+
 struct cmd_info_store_t : nix::StoreCommand, nix::MixJSON {
   std::string description() override { return "test whether a store can be accessed"; }
 
@@ -16,15 +20,15 @@ struct cmd_info_store_t : nix::StoreCommand, nix::MixJSON {
 
   void run(nix::ref<nix::store_t> store) override {
     if (!json) {
-      nix::notice("store_t URL: %s", store->config.getReference().render(/*withParams=*/true));
+      notice("store_t URL: %s", store->config.getReference().render(/*withParams=*/true));
       store->connect();
       if (auto version = store->getVersion())
-        nix::notice("Version: %s", *version);
+        notice("Version: %s", *version);
       if (auto trusted = store->isTrustedClient())
-        nix::notice("Trusted: %s", *trusted);
+        notice("Trusted: %s", *trusted);
     } else {
       nlohmann::json res;
-      nix::finally_t print_res([&]() { printJSON(res); });
+      auto print_res = finally_t([&]() { printJSON(res); });
 
       res["url"] = store->config.getReference().render(/*withParams=*/true);
       store->connect();

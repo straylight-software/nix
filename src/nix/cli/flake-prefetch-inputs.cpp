@@ -6,6 +6,8 @@
 #include "nix/util/exit.h"
 #include "nix/util/thread-pool.h"
 
+using nix::fmt;
+using nix::logger;
 
 struct cmd_flake_prefetch_inputs_t : nix::flake_command_t {
   std::string description() override { return "fetch the inputs of a flake"; }
@@ -45,7 +47,7 @@ struct cmd_flake_prefetch_inputs_t : nix::flake_command_t {
             nix::fetch_to_store(nix::fetch_settings, *store, accessor, nix::FetchMode::Copy,
                                 locked_node->locked_ref.input.get_name());
         } catch (nix::Error& e) {
-          nix::printError("%s", e.what());
+          printError("%s", e.what());
           nrFailed++;
         }
       }

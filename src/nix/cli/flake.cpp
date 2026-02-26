@@ -29,6 +29,110 @@
 // FIXME is this supposed to be private or not?
 #include "flake-command.h"
 
+// Required for code outside namespace nix
+using nix::abs_path;
+using nix::act_unknown;
+using nix::activity_t;
+using nix::add_completions_t;
+using nix::args_t;
+using nix::AttrPath;
+using nix::bindings_t;
+using nix::BuiltPath;
+using nix::check_interrupt;
+using nix::CheckSigs;
+using nix::complete_flake_input_attr_path;
+using nix::complete_flake_ref;
+using nix::complete_flake_ref_with_fragment;
+using nix::concat_strings;
+using nix::concat_strings_sep;
+using nix::copy_paths;
+using nix::create_dirs;
+using nix::create_out_links;
+using nix::create_symlink;
+using nix::derived_path_t;
+using nix::enumerate;
+using nix::Error;
+using nix::eval_settings;
+using nix::eval_state_t;
+using nix::EvalCommand;
+using nix::EvalError;
+using nix::exit_t;
+using nix::expand_tilde;
+using nix::ExtendedOutputsSpec;
+using nix::fetch_settings;
+using nix::fetch_to_store;
+using nix::FetchMode;
+using nix::find_along_attr_path;
+using nix::flake_command_t;
+using nix::flake_ref_t;
+using nix::flake_settings;
+using nix::fmt;
+using nix::FutureVector;
+using nix::get_derivation;
+using nix::has_prefix;
+using nix::hash_format_t;
+using nix::hint_fmt_t;
+using nix::IFDError;
+using nix::InputAttrPath;
+using nix::InstallableFlake;
+using nix::Interrupted;
+using nix::local_fs_store;
+using nix::LockedFlake;
+using nix::LockFlags;
+using nix::logger;
+using nix::lvl_info;
+using nix::make_ref;
+using nix::makeConstantStorePathRef;
+using nix::MixDryRun;
+using nix::MixJSON;
+using nix::MixNoCheckSigs;
+using nix::NixMultiCommand;
+using nix::NixStringContext;
+using nix::no_pos;
+using nix::Node;
+using nix::NoRepair;
+using nix::NoSubstitute;
+using nix::open_eval_cache;
+using nix::open_store;
+using nix::os_string_to_string;
+using nix::OutputsSpec;
+using nix::parse_flake_ref;
+using nix::parse_flake_ref_with_fragment;
+using nix::Path;
+using nix::path_view_ng_t;
+using nix::pos_idx_t;
+using nix::print_input_attr_path;
+using nix::read_file;
+using nix::ref;
+using nix::RegisterCommand;
+using nix::registerCommand;
+using nix::registerCommand2;
+using nix::render_markdown_to_terminal;
+using nix::run_program;
+using nix::settings;
+using nix::show_type;
+using nix::source_accessor_t;
+using nix::source_path_t;
+using nix::store_path_set_t;
+using nix::store_path_t;
+using nix::store_t;
+using nix::strings_t;
+using nix::SubstituteFlag;
+using nix::symbol_t;
+using nix::sync_t;
+using nix::tree_conn;
+using nix::tree_last;
+using nix::tree_line;
+using nix::tree_null;
+using nix::UsageError;
+using nix::value_t;
+using nix::warn;
+using nix::write_file;
+
+// Namespaces
+using namespace nix::eval_cache;
+using namespace nix::fetchers;
+using namespace nix::flake;
 
 struct cmd_flake_update_t;
 
@@ -78,7 +182,7 @@ public:
           for (const auto& inputToUpdate : inputs_to_update) {
             InputAttrPath inputAttrPath;
             try {
-              inputAttrPath = flake::parse_input_attr_path(inputToUpdate);
+              inputAttrPath = parse_input_attr_path(inputToUpdate);
             } catch (Error& e) {
               warn("Invalid flake input '%s'. To update a specific flake, use 'nix flake update "
                    "--flake %s' instead.",
@@ -199,16 +303,16 @@ struct cmd_flake_metadata_t : flake_command_t, MixJSON {
       if (flake.description)
         j["description"] = *flake.description;
       j["originalUrl"] = flake.original_ref.to_string();
-      j["original"] = fetchers::attrs_to_json(flake.original_ref.toAttrs());
+      j["original"] = nix::fetchers::attrs_to_json(flake.original_ref.toAttrs());
       j["resolvedUrl"] = flake.resolved_ref.to_string();
-      j["resolved"] = fetchers::attrs_to_json(flake.resolved_ref.toAttrs());
+      j["resolved"] = nix::fetchers::attrs_to_json(flake.resolved_ref.toAttrs());
       j["url"] = flake.locked_ref.to_string(); // FIXME: rename to lockedUrl
       // "locked" is a misnomer - this is the result of the
       // attempt to lock.
-      j["locked"] = fetchers::attrs_to_json(flake.locked_ref.toAttrs());
+      j["locked"] = nix::fetchers::attrs_to_json(flake.locked_ref.toAttrs());
       if (auto rev = flake.locked_ref.input.getRev())
         j["revision"] = rev->to_string(hash_format_t::base16, false);
-      if (auto dirtyRev = fetchers::maybe_get_str_attr(flake.locked_ref.toAttrs(), "dirtyRev"))
+      if (auto dirtyRev = nix::fetchers::maybe_get_str_attr(flake.locked_ref.toAttrs(), "dirtyRev"))
         j["dirtyRevision"] = *dirtyRev;
       if (auto rev_count = flake.locked_ref.input.get_rev_count())
         j["revCount"] = *rev_count;
@@ -232,7 +336,7 @@ struct cmd_flake_metadata_t : flake_command_t, MixJSON {
       if (auto rev = flake.locked_ref.input.getRev())
         logger->cout(ANSI_BOLD "Revision:" ANSI_NORMAL "      %s",
                      rev->to_string(hash_format_t::base16, false));
-      if (auto dirtyRev = fetchers::maybe_get_str_attr(flake.locked_ref.toAttrs(), "dirtyRev"))
+      if (auto dirtyRev = nix::fetchers::maybe_get_str_attr(flake.locked_ref.toAttrs(), "dirtyRev"))
         logger->cout(ANSI_BOLD "Revision:" ANSI_NORMAL "      %s", *dirtyRev);
       if (auto rev_count = flake.locked_ref.input.get_rev_count())
         logger->cout(ANSI_BOLD "Revisions:" ANSI_NORMAL "     %s", *rev_count);
@@ -556,7 +660,7 @@ struct cmd_flake_check_t : flake_command_t {
       activity_t act(*logger, lvl_info, act_unknown, "evaluating flake");
 
       auto v_flake = state->allocValue();
-      flake::call_flake(*state, flake, *v_flake);
+      nix::flake::call_flake(*state, flake, *v_flake);
 
       enumerate_outputs(
           *state, *v_flake, [&](std::string_view name, value_t& v_output, const pos_idx_t pos) {
@@ -1056,7 +1160,7 @@ struct cmd_flake_archive_t : flake_command_t, MixJSON, MixDryRun, MixNoCheckSigs
     // FIXME: use graph output, handle cycles.
     std::function<nlohmann::json(const Node& node)> traverse;
     traverse = [&](const Node& node) {
-      nlohmann::json jsonObj2 = json ? json::object() : nlohmann::json(nullptr);
+      nlohmann::json jsonObj2 = json ? nlohmann::json::object() : nlohmann::json(nullptr);
       for (auto& [inputName, input] : node.inputs) {
         if (auto input_node = std::get_if<0>(&input)) {
           std::optional<store_path_t> store_path;
@@ -1134,11 +1238,11 @@ struct cmd_flake_show_t : flake_command_t, MixJSON {
 
     auto j = nlohmann::json::object();
 
-    std::function<void(eval_cache::AttrCursor & visitor, nlohmann::json & result)> visit;
+    std::function<void(nix::eval_cache::AttrCursor & visitor, nlohmann::json & result)> visit;
 
     FutureVector futures(*state->executor);
 
-    visit = [&](eval_cache::AttrCursor& visitor, nlohmann::json& j) {
+    visit = [&](nix::eval_cache::AttrCursor& visitor, nlohmann::json& j) {
       auto attr_path = visitor.getAttrPath();
       auto attrPathS = attr_path.resolve(*state);
 
@@ -1404,8 +1508,8 @@ struct cmd_flake_prefetch_t : flake_command_t, MixJSON {
       auto res = nlohmann::json::object();
       res["storePath"] = store->printStorePath(store_path);
       res["hash"] = hash.to_string(hash_format_t::sri, true);
-      res["original"] = fetchers::attrs_to_json(resolved_ref.toAttrs());
-      res["locked"] = fetchers::attrs_to_json(locked_ref.toAttrs());
+      res["original"] = nix::fetchers::attrs_to_json(resolved_ref.toAttrs());
+      res["locked"] = nix::fetchers::attrs_to_json(locked_ref.toAttrs());
       res["locked"].erase("__final"); // internal for now
       printJSON(res);
     } else {

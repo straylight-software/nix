@@ -134,7 +134,7 @@ std::vector<BuiltPathWithResult> UnresolvedApp::build(ref<store_t> eval_store, r
   for (auto& ctxElt : unresolved.context)
     installableContext.push_back(make_ref<InstallableDerivedPath>(store, derived_path_t{ctxElt}));
 
-  return Installable::build(eval_store, store, Realise::Outputs, installableContext);
+  return Installable::build(eval_store, store, nix::Realise::Outputs, installableContext);
 }
 
 // FIXME: move to libcmd

@@ -15,7 +15,7 @@ struct cmd_env_t : nix::NixMultiCommand {
 
   std::string description() override { return "manipulate the process environment"; }
 
-  nix::category_t category() override { return nix::catUtility; }
+  category_t category() override { return nix::catUtility; }
 };
 
 static auto r_cmd_env = nix::registerCommand<cmd_env_t>("env");

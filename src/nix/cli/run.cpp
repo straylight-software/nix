@@ -107,9 +107,7 @@ struct cmd_run_t : nix::InstallableValueCommand, nix::MixEnvironment {
 
   std::vector<std::string> args;
 
-  cmd_run_t() {
-    expect_args({.label = "args", .handler = {&args}, .completer = nix::complete_path});
-  }
+  cmd_run_t() { expect_args({.label = "args", .handler = {&args}, .completer = complete_path}); }
 
   std::string description() override { return "run a Nix application"; }
 
@@ -190,9 +188,9 @@ void chroot_helper(int argc, char** argv) {
 
     std::filesystem::path tmp_dir = nix::create_temp_dir();
 
-    nix::create_dirs(tmp_dir + store_dir);
+    nix::create_dirs(tmp_dir / store_dir);
 
-    if (mount(real_store_dir.c_str(), (tmp_dir + store_dir).c_str(), "", MS_BIND, 0) == -1)
+    if (mount(real_store_dir.c_str(), (tmp_dir / store_dir).c_str(), "", MS_BIND, 0) == -1)
       throw nix::sys_error_t("mounting '%s' on '%s'", real_store_dir, store_dir);
 
     for (const auto& entry : nix::directory_iterator_t{"/"}) {
@@ -214,7 +212,7 @@ void chroot_helper(int argc, char** argv) {
     char* cwd = getcwd(0, 0);
     if (!cwd)
       throw nix::sys_error_t("getting current directory");
-    nix::finally_t free_cwd([&]() { free(cwd); });
+    auto free_cwd = finally_t([&]() { free(cwd); });
 
     if (chroot(tmp_dir.c_str()) == -1)
       throw nix::sys_error_t("chrooting into '%s'", tmp_dir);

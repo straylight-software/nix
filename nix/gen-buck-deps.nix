@@ -116,6 +116,12 @@ let
     # Note: Static linking requires additional system libs: -lpthread -ldl -lm
     WASMTIME_STATIC_LIB = "${s.wasmtime-c-api}/lib/libwasmtime.a"
     WASMTIME_INCLUDE = "${s.wasmtime-c-api}/include"
+
+    # ════════════════════════════════════════════════════════════════════════════
+    # mimalloc - fast allocator (replaces musl malloc, reduces lock contention)
+    # ════════════════════════════════════════════════════════════════════════════
+    MIMALLOC_STATIC_LIB = "${libPath s.mimalloc-static}/lib/libmimalloc.a"
+    MIMALLOC_INCLUDE = "${devPath s.mimalloc-static}/include"
   '';
 in
 pkgs.writeText "nix-deps.bzl" content

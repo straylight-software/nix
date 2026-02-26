@@ -19,7 +19,7 @@ struct cmd_copy_t : virtual nix::CopyCommand,
                        "from the source store.",
         .labels = {"path"},
         .handler = {&out_link},
-        .completer = nix::complete_path,
+        .completer = complete_path,
     });
     add_flag({
         .long_name = "substitute-on-destination",
@@ -29,7 +29,7 @@ struct cmd_copy_t : virtual nix::CopyCommand,
         .handler = {&substitute, nix::Substitute},
     });
 
-    realiseMode = Realise::Outputs;
+    realiseMode = nix::Realise::Outputs;
   }
 
   std::string description() override { return "copy paths between Nix stores"; }
@@ -40,7 +40,7 @@ struct cmd_copy_t : virtual nix::CopyCommand,
         ;
   }
 
-  nix::category_t category() override { return nix::catSecondary; }
+  category_t category() override { return nix::catSecondary; }
 
   void run(nix::ref<nix::store_t> src_store, nix::BuiltPaths&& all_paths,
            nix::BuiltPaths&& root_paths) override {

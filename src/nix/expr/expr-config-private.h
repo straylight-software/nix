@@ -7,4 +7,4 @@
 #define HAVE_PTHREAD_GETATTR_NP 1
 
 // Using toml11 >= 4.0.0
-#define HAVE_TOML11_4 0
+#define HAVE_TOML11_4 1

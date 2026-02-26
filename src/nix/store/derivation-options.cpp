@@ -664,13 +664,13 @@ adl_serializer<nix::OutputChecks<nix::SingleDerivedPath>>::from_json(const json&
 
   return {
       .ignoreSelfRefs = nix::get_boolean(nix::value_at(json, "ignoreSelfRefs")),
-      .max_size = nix::ptr_to_owned<uint64_t>(nix::get_nullable(nix::value_at(json, "maxSize"))),
+      .max_size = ptr_to_owned<uint64_t>(nix::get_nullable(nix::value_at(json, "maxSize"))),
       .maxClosureSize =
-          nix::ptr_to_owned<uint64_t>(nix::get_nullable(nix::value_at(json, "maxClosureSize"))),
-      .allowedReferences = nix::ptr_to_owned<std::set<nix::DrvRef<nix::SingleDerivedPath>>>(
+          ptr_to_owned<uint64_t>(nix::get_nullable(nix::value_at(json, "maxClosureSize"))),
+      .allowedReferences = ptr_to_owned<std::set<nix::DrvRef<nix::SingleDerivedPath>>>(
           nix::get_nullable(nix::value_at(json, "allowedReferences"))),
       .disallowedReferences = nix::value_at(json, "disallowedReferences"),
-      .allowedRequisites = nix::ptr_to_owned<std::set<nix::DrvRef<nix::SingleDerivedPath>>>(
+      .allowedRequisites = ptr_to_owned<std::set<nix::DrvRef<nix::SingleDerivedPath>>>(
           nix::get_nullable(nix::value_at(json, "allowedRequisites"))),
       .disallowedRequisites = nix::value_at(json, "disallowedRequisites"),
   };

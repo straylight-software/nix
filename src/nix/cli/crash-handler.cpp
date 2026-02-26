@@ -1,6 +1,7 @@
 #include "crash-handler.h"
 
 #include <exception>
+#include <sstream>
 
 #include <boost/core/demangle.hpp>
 
@@ -48,7 +49,7 @@ void on_terminate() {
   }
 
   log_fatal("Stack trace:");
-  string_sink_t ss;
+  std::ostringstream ss;
   ss << boost::stacktrace::stacktrace();
   log_fatal(ss.str());
 

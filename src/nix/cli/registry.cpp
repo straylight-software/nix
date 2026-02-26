@@ -86,8 +86,8 @@ struct cmd_registry_add_t : nix::MixEvalArgs, nix::command_t, registry_command_t
   }
 
   void run() override {
-    auto from_ref = nix::flake::parse_flake_ref(nix::fetch_settings, from_url);
-    auto to_ref = nix::flake::parse_flake_ref(nix::fetch_settings, to_url);
+    auto from_ref = nix::parse_flake_ref(nix::fetch_settings, from_url);
+    auto to_ref = nix::parse_flake_ref(nix::fetch_settings, to_url);
     auto registry = get_registry();
     nix::fetchers::Attrs extra_attrs;
     if (to_ref.subdir != "")
@@ -113,7 +113,7 @@ struct cmd_registry_remove_t : registry_command_t, nix::command_t {
 
   void run() override {
     auto registry = get_registry();
-    registry->remove(nix::flake::parse_flake_ref(nix::fetch_settings, url).input);
+    registry->remove(nix::parse_flake_ref(nix::fetch_settings, url).input);
     registry->write(get_registry_path());
   }
 };
@@ -149,8 +149,8 @@ struct cmd_registry_pin_t : registry_command_t, nix::EvalCommand {
     if (locked.empty())
       locked = url;
     auto registry = get_registry();
-    auto ref = nix::flake::parse_flake_ref(nix::fetch_settings, url);
-    auto locked_ref = nix::flake::parse_flake_ref(nix::fetch_settings, locked);
+    auto ref = nix::parse_flake_ref(nix::fetch_settings, url);
+    auto locked_ref = nix::parse_flake_ref(nix::fetch_settings, locked);
     auto resolved_input = locked_ref.resolve(nix::fetch_settings, *store).input;
     auto resolved = resolved_input.get_accessor(nix::fetch_settings, *store).second;
     if (!resolved.isLocked(nix::fetch_settings))
@@ -184,7 +184,7 @@ struct cmd_registry_resolve_t : nix::StoreCommand {
 
   void run(nix::ref<nix::store_t> store) override {
     for (auto& url : urls) {
-      auto ref = nix::flake::parse_flake_ref(nix::fetch_settings, url);
+      auto ref = nix::parse_flake_ref(nix::fetch_settings, url);
       auto resolved = ref.resolve(nix::fetch_settings, *store);
       nix::logger->cout("%s", resolved.to_string());
     }
@@ -210,7 +210,7 @@ struct cmd_registry_t : nix::NixMultiCommand {
         ;
   }
 
-  nix::category_t category() override { return nix::catSecondary; }
+  category_t category() override { return nix::catSecondary; }
 };
 
 static auto r_cmd_registry = nix::registerCommand<cmd_registry_t>("registry");

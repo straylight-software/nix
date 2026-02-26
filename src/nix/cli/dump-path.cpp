@@ -3,6 +3,9 @@
 #include "nix/util/archive.h"
 #include "nix/util/terminal.h"
 
+using nix::fmt;
+using nix::logger;
+
 static nix::fd_sink_t get_nar_sink() {
   auto fd = nix::get_standard_output();
   if (nix::is_tty(fd))
@@ -32,7 +35,7 @@ struct cmd_dump_path2_t : nix::command_t {
   nix::Path path;
 
   cmd_dump_path2_t() {
-    expect_args({.label = "path", .handler = {&path}, .completer = nix::complete_path});
+    expect_args({.label = "path", .handler = {&path}, .completer = complete_path});
   }
 
   std::string description() override { return "serialise a path to stdout in NAR format"; }

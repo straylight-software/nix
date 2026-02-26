@@ -24,7 +24,7 @@ struct cmd_cat_store_t : nix::StoreCommand, mix_cat_t {
   std::string path;
 
   cmd_cat_store_t() {
-    expect_args({.label = "path", .handler = {&path}, .completer = nix::complete_path});
+    expect_args({.label = "path", .handler = {&path}, .completer = complete_path});
   }
 
   std::string description() override {
@@ -49,7 +49,7 @@ struct cmd_cat_nar_t : nix::StoreCommand, mix_cat_t {
   std::string path;
 
   cmd_cat_nar_t() {
-    expect_args({.label = "nar", .handler = {&nar_path}, .completer = nix::complete_path});
+    expect_args({.label = "nar", .handler = {&nar_path}, .completer = complete_path});
     expect_arg("path", &path);
   }
 

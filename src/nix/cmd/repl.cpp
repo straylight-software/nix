@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
+#include <sstream>
 
 #include "nix/cmd/common-eval-args.h"
 #include "nix/cmd/editor-for.h"
@@ -823,7 +824,7 @@ void nix_repl_t::add_attrs_to_scope(value_t& attrs) {
     if (counter > 0)
       loaded += ", ";
 
-    string_sink_t sink;
+    std::ostringstream sink;
     print_identifier(sink, state->symbols[i->name]);
     loaded += sink.str();
     counter += 1;

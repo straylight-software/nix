@@ -9,10 +9,14 @@
 #include "nix/util/table.h"
 #include "nix/util/terminal.h"
 
+// Required for notice macro
+using nix::fmt;
+using nix::logger;
+
 struct cmd_ps_t : nix::MixJSON, nix::StoreCommand {
   std::string description() override { return "list active builds"; }
 
-  nix::category_t category() override { return nix::catUtility; }
+  category_t category() override { return nix::catUtility; }
 
   std::string doc() override {
     return
@@ -31,7 +35,7 @@ struct cmd_ps_t : nix::MixJSON, nix::StoreCommand {
     }
 
     if (builds.empty()) {
-      nix::notice("No active builds.");
+      notice("No active builds.");
       return;
     }
 
@@ -125,7 +129,8 @@ struct cmd_ps_t : nix::MixJSON, nix::StoreCommand {
                  {cpuInfo, nix::table_cell_t::alignment_t::right},
                  nix::fmt("%s%s%s", prefix, last ? nix::tree_last : nix::tree_conn, argv)});
 
-            visit(children[process->pid], last ? prefix + nix::tree_null : prefix + nix::tree_line);
+            visit(children[process->pid], std::string(last ? prefix : prefix) +
+                                              std::string(last ? nix::tree_null : nix::tree_line));
           }
         }(rootProcesses, "");
       }

@@ -9,6 +9,10 @@
 #include "nix/util/exit.h"
 #include "nix/util/logging.h"
 
+// Required for notice/printInfo/printError macros
+using nix::fmt;
+using nix::logger;
+
 namespace {
 
 std::string format_protocol(unsigned int proto) {
@@ -21,17 +25,17 @@ std::string format_protocol(unsigned int proto) {
 }
 
 bool check_pass(std::string_view msg) {
-  nix::notice(ANSI_GREEN "[PASS] " ANSI_NORMAL + msg);
+  notice("%s", (ANSI_GREEN "[PASS] " ANSI_NORMAL + std::string(msg)).c_str());
   return true;
 }
 
 bool check_fail(std::string_view msg) {
-  nix::notice(ANSI_RED "[FAIL] " ANSI_NORMAL + msg);
+  notice("%s", (ANSI_RED "[FAIL] " ANSI_NORMAL + std::string(msg)).c_str());
   return false;
 }
 
 void check_info(std::string_view msg) {
-  nix::notice(ANSI_BLUE "[INFO] " ANSI_NORMAL + msg);
+  notice("%s", (ANSI_BLUE "[INFO] " ANSI_NORMAL + std::string(msg)).c_str());
 }
 
 } // namespace
@@ -50,7 +54,7 @@ struct cmd_config_check_t : nix::StoreCommand {
     return "check your system for potential problems and print a PASS or FAIL for each check";
   }
 
-  nix::category_t category() override { return nix::catNixInstallation; }
+  category_t category() override { return nix::catNixInstallation; }
 
   void run(nix::ref<nix::store_t> store) override {
     nix::logger->log("Running checks against store uri: " + store->config.getHumanReadableURI());

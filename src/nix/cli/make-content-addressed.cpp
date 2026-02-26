@@ -6,6 +6,9 @@
 #include "nix/main/common-args.h"
 #include "nix/store/store-open.h"
 
+using nix::fmt;
+using nix::logger;
+
 struct cmd_make_content_addressed_t : virtual nix::CopyCommand,
                                       virtual nix::StorePathsCommand,
                                       nix::MixJSON {
@@ -41,8 +44,8 @@ struct cmd_make_content_addressed_t : virtual nix::CopyCommand,
       for (auto& path : store_paths) {
         auto i = remappings.find(path);
         assert(i != remappings.end());
-        nix::notice("rewrote '%s' to '%s'", src_store->printStorePath(path),
-                    src_store->printStorePath(i->second));
+        notice("rewrote '%s' to '%s'", src_store->printStorePath(path),
+               src_store->printStorePath(i->second));
       }
     }
   }

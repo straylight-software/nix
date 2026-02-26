@@ -18,6 +18,7 @@
 #include "nix/util/base-nix-32.h"
 #include "nix/util/configuration.h"
 #include "nix/util/json-utils.h"
+#include "nix/util/sha256-ni.h"
 #include "nix/util/split.h"
 
 namespace nix {
@@ -296,7 +297,19 @@ union hash_t::ctx_t {
   SHA_CTX sha1;
   SHA256_CTX sha256;
   SHA512_CTX sha512;
+  sha256_ni_ctx sha256_ni; // SHA-NI accelerated SHA256
 };
+
+// Cached check for SHA-NI availability (checked once at startup)
+static bool use_sha256_ni() {
+  static bool checked = false;
+  static bool available = false;
+  if (!checked) {
+    available = sha256_ni_available();
+    checked = true;
+  }
+  return available;
+}
 
 static void start(hash_algorithm_t ha, hash_t::ctx_t& ctx) {
   if (ha == hash_algorithm_t::BLAKE3) {
@@ -306,7 +319,11 @@ static void start(hash_algorithm_t ha, hash_t::ctx_t& ctx) {
   } else if (ha == hash_algorithm_t::SHA1) {
     SHA1_Init(&ctx.sha1);
   } else if (ha == hash_algorithm_t::SHA256) {
-    SHA256_Init(&ctx.sha256);
+    if (use_sha256_ni()) {
+      sha256_ni_init(&ctx.sha256_ni);
+    } else {
+      SHA256_Init(&ctx.sha256);
+    }
   } else if (ha == hash_algorithm_t::SHA512) {
     SHA512_Init(&ctx.sha512);
   }
@@ -341,7 +358,11 @@ static void update(hash_algorithm_t ha, hash_t::ctx_t& ctx, std::string_view dat
   } else if (ha == hash_algorithm_t::SHA1) {
     SHA1_Update(&ctx.sha1, data.data(), data.size());
   } else if (ha == hash_algorithm_t::SHA256) {
-    SHA256_Update(&ctx.sha256, data.data(), data.size());
+    if (use_sha256_ni()) {
+      sha256_ni_update(&ctx.sha256_ni, data.data(), data.size());
+    } else {
+      SHA256_Update(&ctx.sha256, data.data(), data.size());
+    }
   } else if (ha == hash_algorithm_t::SHA512) {
     SHA512_Update(&ctx.sha512, data.data(), data.size());
   }
@@ -355,7 +376,11 @@ static void finish(hash_algorithm_t ha, hash_t::ctx_t& ctx, unsigned char* hash)
   } else if (ha == hash_algorithm_t::SHA1) {
     SHA1_Final(hash, &ctx.sha1);
   } else if (ha == hash_algorithm_t::SHA256) {
-    SHA256_Final(hash, &ctx.sha256);
+    if (use_sha256_ni()) {
+      sha256_ni_final(hash, &ctx.sha256_ni);
+    } else {
+      SHA256_Final(hash, &ctx.sha256);
+    }
   } else if (ha == hash_algorithm_t::SHA512) {
     SHA512_Final(hash, &ctx.sha512);
   }

@@ -44,7 +44,7 @@ struct cmd_eval_t : nix::MixJSON, nix::InstallableValueCommand, nix::MixReadOnly
         ;
   }
 
-  nix::category_t category() override { return nix::catSecondary; }
+  category_t category() override { return nix::catSecondary; }
 
   void run(nix::ref<nix::store_t> store, nix::ref<nix::InstallableValue> installable) override {
     if (raw && json)

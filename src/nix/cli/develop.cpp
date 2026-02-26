@@ -23,6 +23,10 @@
 
 #include "nix/util/strings.h"
 
+using nix::defaultNixpkgsFlakeRef;
+using nix::fmt;
+using nix::logger;
+
 struct develop_settings_t : nix::config_t {
   nix::setting_t<std::string> bash_prompt{this, "", "bash-prompt",
                                           "The bash prompt (`PS1`) in `nix develop` shells."};
@@ -341,7 +345,7 @@ struct common_t : nix::InstallableCommand, nix::MixProfile {
     }
 
     {
-      nix::string_sink_t sink;
+      std::ostringstream sink;
       build_environment.to_bash(sink, ignore_vars);
       out += sink.str();
     }
@@ -389,7 +393,7 @@ struct common_t : nix::InstallableCommand, nix::MixProfile {
           nix::warn("'%s' (path '%s') is not used by this build environment", installable->what(),
                     from);
         else {
-          nix::printInfo("redirecting '%s' to '%s'", from, dir);
+          printInfo("redirecting '%s' to '%s'", from, dir);
           rewrites.insert({from, dir});
         }
       }
@@ -466,7 +470,7 @@ struct common_t : nix::InstallableCommand, nix::MixProfile {
 
     updateProfile(shell_out_path);
 
-    nix::debug("reading environment file '%s'", store->printStorePath(shell_out_path));
+    debug("reading environment file '%s'", store->printStorePath(shell_out_path));
 
     return {
         build_environment_t::parse_json(
@@ -693,7 +697,7 @@ struct cmd_print_dev_env_t : common_t, nix::MixJSON {
         ;
   }
 
-  nix::category_t category() override { return nix::catUtility; }
+  category_t category() override { return nix::catUtility; }
 
   void run(nix::ref<nix::store_t> store, nix::ref<nix::Installable> installable) override {
     auto build_environment = get_build_environment(store, installable).first;

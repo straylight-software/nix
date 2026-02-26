@@ -27,7 +27,7 @@ struct cmd_upgrade_nix_t : nix::MixDryRun, nix::StoreCommand {
         ;
   }
 
-  nix::category_t category() override { return nix::catNixInstallation; }
+  category_t category() override { return nix::catNixInstallation; }
 
   void run(nix::ref<nix::store_t> store) override {
     throw nix::Error("The upgrade-nix command isn't available in Determinate Nix; use %s instead",

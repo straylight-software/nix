@@ -5,6 +5,9 @@
 #include "nix/store/log-store.h"
 #include "nix/store/store-open.h"
 
+using nix::fmt;
+using nix::logger;
+
 struct cmd_log_t : nix::InstallableCommand {
   std::string description() override {
     return "show the build log of the specified packages or paths, if available";
@@ -16,7 +19,7 @@ struct cmd_log_t : nix::InstallableCommand {
         ;
   }
 
-  nix::category_t category() override { return nix::catSecondary; }
+  category_t category() override { return nix::catSecondary; }
 
   void run(nix::ref<nix::store_t> store, nix::ref<nix::Installable> installable) override {
     nix::settings.readOnlyMode = true;
@@ -42,8 +45,8 @@ struct cmd_log_t : nix::InstallableCommand {
     for (auto& sub : subs) {
       auto* logSubP = dynamic_cast<nix::LogStore*>(&*sub);
       if (!logSubP) {
-        nix::printInfo("Skipped '%s' which does not support retrieving build logs",
-                       sub->config.getHumanReadableURI());
+        printInfo("Skipped '%s' which does not support retrieving build logs",
+                  sub->config.getHumanReadableURI());
         continue;
       }
       auto& logSub = *logSubP;
@@ -52,8 +55,8 @@ struct cmd_log_t : nix::InstallableCommand {
       if (!log)
         continue;
       nix::logger->stop();
-      nix::printInfo("got build log for '%s' from '%s'", installable->what(),
-                     logSub.config.getHumanReadableURI());
+      printInfo("got build log for '%s' from '%s'", installable->what(),
+                logSub.config.getHumanReadableURI());
       nix::write_full(nix::get_standard_output(), *log);
       return;
     }

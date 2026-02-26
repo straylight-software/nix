@@ -176,6 +176,12 @@ in
     inherit (pkgs) toml11; # header-only
   };
 
+  # ── Performance deps ────────────────────────────────────────────────────────
+  perf = {
+    # mimalloc - fast allocator to replace musl's malloc (reduces lock contention)
+    mimalloc = with-musl-flags pkgs.pkgsStatic.mimalloc;
+  };
+
   # ── Main deps ───────────────────────────────────────────────────────────────
   main = {
     editline = with-musl-flags pkgs.pkgsStatic.editline;
@@ -235,6 +241,8 @@ in
     inherit libsodium-static;
     inherit libarchive-static;
     inherit wasmtime-c-api; # pre-built static lib from GitHub releases
+    # Performance allocator - replaces musl malloc to reduce lock contention
+    mimalloc-static = with-musl-flags pkgs.pkgsStatic.mimalloc;
   };
 
   # ── Custom packages (for export) ────────────────────────────────────────────

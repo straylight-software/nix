@@ -14,7 +14,7 @@ struct cmd_nario_t : nix::NixMultiCommand {
 
   std::string description() override { return "operations for manipulating nario files"; }
 
-  nix::category_t category() override { return nix::catUtility; }
+  category_t category() override { return nix::catUtility; }
 };
 
 static auto r_cmd_nario = nix::registerCommand<cmd_nario_t>("nario");

@@ -3971,6 +3971,20 @@ using enum nix::Parser::token::token_kind_type;
 using YYSTYPE = nix::Parser::value_type;
 using YYLTYPE = nix::Parser::location_type;
 
+// Required for flex-generated code that uses unqualified nix types
+using nix::error_info_t;
+using nix::hint_fmt_t;
+using nix::LexerState;
+using nix::NixFloat;
+using nix::NixInt;
+using nix::ParseError;
+using nix::require_experimental_feature;
+using nix::string2_int;
+using nix::StringToken;
+using nix::unescape_str;
+using nix::unreachable;
+using nix::xp_t;
+
 // yacc generates code that uses unannotated fallthrough.
 #pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
 

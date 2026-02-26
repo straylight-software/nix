@@ -25,7 +25,7 @@ struct cmd_hash_base_t : nix::command_t {
   std::optional<std::string> modulus;
 
   explicit cmd_hash_base_t(nix::file_ingestion_method_t mode) : mode(mode) {
-    expect_args({.label = "paths", .handler = {&paths}, .completer = nix::complete_path});
+    expect_args({.label = "paths", .handler = {&paths}, .completer = complete_path});
 
     // FIXME The following flags should be deprecated, but we don't
     // yet have a mechanism for that.
@@ -218,7 +218,7 @@ struct cmd_hash_convert_t : nix::command_t {
         ;
   }
 
-  nix::category_t category() override { return nix::catUtility; }
+  category_t category() override { return nix::catUtility; }
 
   void run() override {
     for (const auto& s : hash_strings) {
@@ -251,7 +251,7 @@ struct cmd_hash_t : nix::NixMultiCommand {
 
   std::string description() override { return "compute and convert cryptographic hashes"; }
 
-  nix::category_t category() override { return nix::catUtility; }
+  category_t category() override { return nix::catUtility; }
 };
 
 static auto r_cmd_hash = nix::registerCommand<cmd_hash_t>("hash");

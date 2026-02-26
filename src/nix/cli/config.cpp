@@ -11,7 +11,7 @@ struct cmd_config_t : nix::NixMultiCommand {
 
   std::string description() override { return "manipulate the Nix configuration"; }
 
-  nix::category_t category() override { return nix::catUtility; }
+  category_t category() override { return nix::catUtility; }
 };
 
 struct cmd_config_show_t : nix::command_t, nix::MixJSON {
@@ -29,7 +29,7 @@ struct cmd_config_show_t : nix::command_t, nix::MixJSON {
     return "show the Nix configuration or the value of a specific setting";
   }
 
-  nix::category_t category() override { return nix::catUtility; }
+  category_t category() override { return nix::catUtility; }
 
   void run() override {
     if (name) {
@@ -53,7 +53,7 @@ struct cmd_config_show_t : nix::command_t, nix::MixJSON {
 
     if (json) {
       // FIXME: use appropriate JSON types (bool, ints, etc).
-      nix::printJSON(nix::global_config.to_json());
+      printJSON(nix::global_config.to_json());
     } else {
       nix::logger->cout("%s", nix::global_config.to_key_value());
     }

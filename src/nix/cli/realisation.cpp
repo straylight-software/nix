@@ -9,7 +9,7 @@ struct cmd_realisation_t : nix::NixMultiCommand {
 
   std::string description() override { return "manipulate a Nix realisation"; }
 
-  nix::category_t category() override { return nix::catUtility; }
+  category_t category() override { return nix::catUtility; }
 };
 
 static auto r_cmd_realisation = nix::registerCommand<cmd_realisation_t>("realisation");
@@ -25,7 +25,7 @@ struct cmd_realisation_info_t : nix::BuiltPathsCommand, nix::MixJSON {
         ;
   }
 
-  nix::category_t category() override { return nix::catSecondary; }
+  category_t category() override { return nix::catSecondary; }
 
   void run(nix::ref<nix::store_t> store, nix::BuiltPaths&& paths,
            nix::BuiltPaths&& root_paths) override {

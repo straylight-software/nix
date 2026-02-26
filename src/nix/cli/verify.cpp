@@ -8,6 +8,9 @@
 #include "nix/util/signals.h"
 #include "nix/util/thread-pool.h"
 
+using nix::fmt;
+using nix::logger;
+
 struct cmd_verify_t : nix::StorePathsCommand {
   bool no_contents = false;
   bool no_trust = false;
@@ -96,10 +99,10 @@ struct cmd_verify_t : nix::StorePathsCommand {
           if (hash.hash != info->nar_hash) {
             corrupted++;
             act2.result(nix::res_corrupted_path, store->printStorePath(info->path));
-            nix::printError("path '%s' was modified! expected hash '%s', got '%s'",
-                            store->printStorePath(info->path),
-                            info->nar_hash.to_string(nix::hash_format_t::nix32, true),
-                            hash.hash.to_string(nix::hash_format_t::nix32, true));
+            printError("path '%s' was modified! expected hash '%s', got '%s'",
+                       store->printStorePath(info->path),
+                       info->nar_hash.to_string(nix::hash_format_t::nix32, true),
+                       hash.hash.to_string(nix::hash_format_t::nix32, true));
           }
         }
 
@@ -139,7 +142,7 @@ struct cmd_verify_t : nix::StorePathsCommand {
                 do_sigs(info2->sigs);
               } catch (nix::InvalidPath&) {
               } catch (nix::Error& e) {
-                nix::logError(e.info());
+                logError(e.info());
               }
             }
 
@@ -150,14 +153,14 @@ struct cmd_verify_t : nix::StorePathsCommand {
           if (!good) {
             untrusted++;
             act2.result(nix::res_untrusted_path, store->printStorePath(info->path));
-            nix::printError("path '%s' is untrusted", store->printStorePath(info->path));
+            printError("path '%s' is untrusted", store->printStorePath(info->path));
           }
         }
 
         done++;
 
       } catch (nix::Error& e) {
-        nix::logError(e.info());
+        logError(e.info());
         failed++;
       }
 

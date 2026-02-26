@@ -29,7 +29,7 @@ struct cmd_bundle_t : nix::InstallableValueCommand {
                        "base name of the app.",
         .labels = {"path"},
         .handler = {&out_link},
-        .completer = nix::complete_path,
+        .completer = complete_path,
     });
   }
 
@@ -43,7 +43,7 @@ struct cmd_bundle_t : nix::InstallableValueCommand {
         ;
   }
 
-  nix::category_t category() override { return nix::catSecondary; }
+  category_t category() override { return nix::catSecondary; }
 
   // FIXME: cut&paste from CmdRun.
   nix::strings_t getDefaultFlakeAttrPaths() override {

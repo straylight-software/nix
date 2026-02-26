@@ -18,7 +18,7 @@ struct cmd_edit_t : nix::InstallableValueCommand {
         ;
   }
 
-  nix::category_t category() override { return nix::catSecondary; }
+  category_t category() override { return nix::catSecondary; }
 
   void run(nix::ref<nix::store_t> store, nix::ref<nix::InstallableValue> installable) override {
     auto state = getEvalState();

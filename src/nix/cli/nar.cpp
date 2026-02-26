@@ -11,7 +11,7 @@ struct cmd_nar_t : nix::NixMultiCommand {
         ;
   }
 
-  nix::category_t category() override { return nix::catUtility; }
+  category_t category() override { return nix::catUtility; }
 };
 
 static auto r_cmd_nar = nix::registerCommand<cmd_nar_t>("nar");

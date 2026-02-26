@@ -115,6 +115,8 @@ cxx_binary(
     ],
     visibility = ["PUBLIC"],
     deps = [
+        # mimalloc MUST be first to override musl's malloc (reduces lock contention ~4x)
+        "//third_party:mimalloc",
         ":cli",
     ],
 )

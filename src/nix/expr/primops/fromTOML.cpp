@@ -1,3 +1,5 @@
+#include <sstream>
+
 #include <toml.hpp>
 
 #include "nix/expr/eval-inline.h"
@@ -133,7 +135,7 @@ static void prim_from_toml(eval_state_t& state, const pos_idx_t pos, value_t** a
 #endif
           auto attrs = state.buildBindings(2);
           attrs.alloc("_type").mkStringNoCopy("timestamp"_sds);
-          string_sink_t s;
+          std::ostringstream s;
           s << t;
           auto str = s.str();
           force_no_null_byte(str);
@@ -150,14 +152,13 @@ static void prim_from_toml(eval_state_t& state, const pos_idx_t pos, value_t** a
   };
 
   try {
-    visit(val,
-          toml::parse(tomlString, "fromTOML" /* the "filename" */
 #if HAVE_TOML11_4
-                      ,
-                      toml::spec::v(
-                          1, 0, 0) // Be explicit that we are parsing TOML 1.0.0 without extensions
+    visit(val,
+          toml::parse_str(tomlString,
+                          toml::spec::v(1, 0, 0))); // Be explicit that we are parsing TOML 1.0.0
+#else
+    visit(val, toml::parse(tomlString, "fromTOML" /* the "filename" */));
 #endif
-                      ));
   } catch (std::exception& e) { // TODO: toml::syntax_error
     state.error<EvalError>("while parsing TOML: %s", e.what()).at_pos(pos).debugThrow();
   }

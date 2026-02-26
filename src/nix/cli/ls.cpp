@@ -62,7 +62,7 @@ struct mix_ls_t : virtual nix::args_t, nix::MixJSON, nix::mix_long_listing_t {
       if (st.type == nix::source_accessor_t::Type::t_directory && !show_directory) {
         auto names = accessor->read_directory(cur_path);
         for (auto& [name, type] : names)
-          show_file(cur_path / name, rel_path + "/" + name);
+          show_file(cur_path / name, std::string(rel_path) + "/" + std::string(name));
       } else
         show_file(cur_path, rel_path);
     };
@@ -93,7 +93,7 @@ struct cmd_ls_store_t : nix::StoreCommand, mix_ls_t {
   std::string path;
 
   cmd_ls_store_t() {
-    expect_args({.label = "path", .handler = {&path}, .completer = nix::complete_path});
+    expect_args({.label = "path", .handler = {&path}, .completer = complete_path});
   }
 
   std::string description() override { return "show information about a path in the Nix store"; }
@@ -116,7 +116,7 @@ struct cmd_ls_nar_t : nix::command_t, mix_ls_t {
   std::string path;
 
   cmd_ls_nar_t() {
-    expect_args({.label = "nar", .handler = {&nar_path}, .completer = nix::complete_path});
+    expect_args({.label = "nar", .handler = {&nar_path}, .completer = complete_path});
     expect_arg("path", &path);
   }
 

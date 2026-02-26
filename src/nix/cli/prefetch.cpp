@@ -21,6 +21,9 @@
 #include "nix/util/terminal.h"
 #include "nix/util/url.h"
 
+using nix::fmt;
+using nix::logger;
+
 /* If 'url' starts with 'mirror://', then resolve it using the list of
    mirrors defined in Nixpkgs. */
 std::string resolve_mirror_url(nix::eval_state_t& state, const std::string& url) {
@@ -232,7 +235,7 @@ static int main_nix_prefetch_url(int argc, char** argv) {
       /* Extract the hash mode. */
       auto attr2 = v.attrs()->get(state->symbols.create("outputHashMode"));
       if (!attr2)
-        nix::printInfo("warning: this does not look like a fetchurl call");
+        printInfo("warning: this does not look like a fetchurl call");
       else
         unpack =
             state->forceString(*attr2->value, nix::no_pos,
@@ -258,7 +261,7 @@ static int main_nix_prefetch_url(int argc, char** argv) {
     nix::logger->stop();
 
     if (!print_path)
-      nix::printInfo("path is '%s'", store->printStorePath(store_path));
+      printInfo("path is '%s'", store->printStorePath(store_path));
 
     assert(static_cast<char>(hash.algo()));
     nix::logger->cout(hash.to_string(hash.algo() == nix::hash_algorithm_t::MD5
@@ -336,8 +339,8 @@ struct cmd_store_prefetch_file_t : nix::StoreCommand, nix::MixJSON {
       res["hash"] = hash.to_string(nix::hash_format_t::sri, true);
       printJSON(res);
     } else {
-      nix::notice("Downloaded '%s' to '%s' (hash '%s').", url, store->printStorePath(store_path),
-                  hash.to_string(nix::hash_format_t::sri, true));
+      notice("Downloaded '%s' to '%s' (hash '%s').", url, store->printStorePath(store_path),
+             hash.to_string(nix::hash_format_t::sri, true));
     }
   }
 };

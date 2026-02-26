@@ -18,6 +18,8 @@ load(
     # Catch2 now built from vendored source (vendor/catch2/BUCK)
     # LibreSSL now built from vendored source (vendor/libressl/BUCK)
     # Boost, brotli, libsodium, libarchive: -L paths from toolchain, just use -l flags
+    "MIMALLOC_INCLUDE",
+    "MIMALLOC_STATIC_LIB",
     "NANOBENCH_INCLUDE",
     "NANOBENCH_STATIC_LIB",
     "RAPIDCHECK_INCLUDE",
@@ -28,6 +30,20 @@ load(
     "WASMTIME_STATIC_LIB",
 )
 load(":nix_prebuilt.bzl", "nix_prebuilt_cxx_library")
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Performance allocator (linked first to override musl malloc)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# mimalloc - fast allocator that reduces lock contention vs musl's malloc
+# Must be linked early to override malloc/free/realloc
+nix_prebuilt_cxx_library(
+    name = "mimalloc",
+    static_lib = MIMALLOC_STATIC_LIB,
+    include_dir = MIMALLOC_INCLUDE,
+    # Link flags to ensure mimalloc overrides malloc
+    exported_linker_flags = ["-Wl,--whole-archive", MIMALLOC_STATIC_LIB, "-Wl,--no-whole-archive"],
+)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # nix-util dependencies

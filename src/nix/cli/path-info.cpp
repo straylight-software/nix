@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <array>
+#include <sstream>
 
 #include <nlohmann/json.hpp>
 
@@ -157,7 +158,7 @@ struct cmd_path_info_t : nix::StorePathsCommand, nix::MixJSON {
         ;
   }
 
-  nix::category_t category() override { return nix::catSecondary; }
+  category_t category() override { return nix::catSecondary; }
 
   void print_size(std::ostream& str, uint64_t value) {
     if (human_readable)
@@ -197,7 +198,7 @@ struct cmd_path_info_t : nix::StorePathsCommand, nix::MixJSON {
           result += std::string(std::max(0, (int)path_len - (int)store_path_s.size()), ' ');
 
         if (show_size) {
-          nix::string_sink_t sink;
+          std::ostringstream sink;
           print_size(sink, info->nar_size);
           result += sink.str();
         }
@@ -205,7 +206,7 @@ struct cmd_path_info_t : nix::StorePathsCommand, nix::MixJSON {
         if (show_closure_size) {
           nix::store_path_set_t closure;
           store->computeFSClosure(store_path, closure, false, false);
-          nix::string_sink_t sink;
+          std::ostringstream sink;
           print_size(sink, get_store_objects_total_size(*store, closure));
           result += sink.str();
         }

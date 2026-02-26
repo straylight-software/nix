@@ -21,6 +21,10 @@
 
 using json = nlohmann::json;
 
+// Required for notice macro
+using nix::fmt;
+using nix::logger;
+
 std::string wrap(std::string prefix, std::string s) {
   return nix::concat_strings(prefix, s, ANSI_NORMAL);
 }
@@ -31,7 +35,7 @@ struct cmd_search_t : nix::InstallableValueCommand, nix::MixJSON {
 
   cmd_search_t() {
     expect_args("regex", &res);
-    add_flag(nix::flag_t{
+    add_flag(flag_t{
         .long_name = "exclude",
         .short_name = 'e',
         .description = "Hide packages whose attribute path, name or description contain *regex*.",
@@ -200,12 +204,12 @@ struct cmd_search_t : nix::InstallableValueCommand, nix::MixJSON {
     futures.finishAll();
 
     if (json)
-      nix::printJSON(*(jsonOut->lock()));
+      printJSON(*(jsonOut->lock()));
 
     if (!json && !results)
       throw nix::Error("no results for the given search term(s)!");
 
-    nix::notice("Found %d matching packages.", results);
+    notice("Found %d matching packages.", results);
   }
 };
 

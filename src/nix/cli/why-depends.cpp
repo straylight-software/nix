@@ -6,6 +6,10 @@
 #include "nix/store/store-api.h"
 #include "nix/util/source-accessor.h"
 
+// Required for printError/printInfo macros which use these unqualified
+using nix::fmt;
+using nix::logger;
+
 static std::string hilite(const std::string& s, size_t pos, size_t len,
                           const std::string& colour = ANSI_RED) {
   return std::string(s, 0, pos) + colour + std::string(s, pos, len) + ANSI_NORMAL +
@@ -63,12 +67,12 @@ struct cmd_why_depends_t : nix::SourceExprCommand, nix::MixOperateOnOptions {
         ;
   }
 
-  nix::category_t category() override { return nix::catSecondary; }
+  category_t category() override { return nix::catSecondary; }
 
   void run(nix::ref<nix::store_t> store) override {
     auto package = parseInstallable(store, _package);
-    auto package_path =
-        nix::Installable::toStorePath(getEvalStore(), store, Realise::Outputs, operateOn, package);
+    auto package_path = nix::Installable::toStorePath(getEvalStore(), store, nix::Realise::Outputs,
+                                                      operateOn, package);
 
     /* We don't need to build `dependency`. We try to get the store
      * path if it's already known, and if not, then it's not a dependency.
@@ -83,7 +87,7 @@ struct cmd_why_depends_t : nix::SourceExprCommand, nix::MixOperateOnOptions {
     auto dependency = parseInstallable(store, _dependency);
     auto opt_dependency_path = [&]() -> std::optional<nix::store_path_t> {
       try {
-        return {nix::Installable::toStorePath(getEvalStore(), store, Realise::derivation_t,
+        return {nix::Installable::toStorePath(getEvalStore(), store, nix::Realise::derivation_t,
                                               operateOn, dependency)};
       } catch (nix::MissingRealisation&) {
         return std::nullopt;
@@ -94,7 +98,7 @@ struct cmd_why_depends_t : nix::SourceExprCommand, nix::MixOperateOnOptions {
     store->computeFSClosure({package_path}, closure, false, false);
 
     if (!opt_dependency_path.has_value() || !closure.count(*opt_dependency_path)) {
-      nix::printError("'%s' does not depend on '%s'", package->what(), dependency->what());
+      printError("'%s' does not depend on '%s'", package->what(), dependency->what());
       return;
     }
 

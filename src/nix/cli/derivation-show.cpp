@@ -29,7 +29,7 @@ struct cmd_show_derivation_t : nix::InstallablesCommand, nix::MixPrintJSON {
         ;
   }
 
-  nix::category_t category() override { return nix::catUtility; }
+  category_t category() override { return nix::catUtility; }
 
   void run(nix::ref<nix::store_t> store, nix::Installables&& installables) override {
     auto drv_paths = nix::Installable::toDerivations(store, installables, true);

@@ -18,6 +18,7 @@
 #include "nix/util/nar-accessor.h"
 #include "nix/util/signals.h"
 #include "nix/util/source-accessor.h"
+#include "nix/util/strings.h"
 #include "nix/util/sync.h"
 #include "nix/util/thread-pool.h"
 
@@ -31,8 +32,8 @@ binary_cache_store::binary_cache_store(config_t& config) : config{config} {
     signers.push_back(
         std::make_unique<local_signer_t>(secret_key_t{read_file(config.secret_key_file)}));
 
-  if (config.secretKeyFiles != "") {
-    for (const auto& keyPath : tokenize_string<strings_t>(config.secretKeyFiles, ",")) {
+  if (config.secretKeyFiles.get() != "") {
+    for (const auto& keyPath : tokenize_string<strings_t>(config.secretKeyFiles.get(), ",")) {
       signers.push_back(std::make_unique<local_signer_t>(secret_key_t{read_file(keyPath)}));
     }
   }
