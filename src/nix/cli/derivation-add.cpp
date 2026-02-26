@@ -8,10 +8,7 @@
 #include "nix/store/store-api.h"
 #include "nix/util/archive.h"
 
-using namespace nix;
-using json = nlohmann::json;
-
-struct cmd_add_derivation_t : MixDryRun, StoreCommand {
+struct cmd_add_derivation_t : nix::MixDryRun, nix::StoreCommand {
   std::string description() override { return "Add a store derivation"; }
 
   std::string doc() override {
@@ -20,19 +17,20 @@ struct cmd_add_derivation_t : MixDryRun, StoreCommand {
         ;
   }
 
-  category_t category() override { return catUtility; }
+  nix::category_t category() override { return nix::catUtility; }
 
-  void run(ref<store_t> store) override {
-    auto json = nlohmann::json::parse(drain_fd(STDIN_FILENO));
+  void run(nix::ref<nix::store_t> store) override {
+    auto json = nlohmann::json::parse(nix::drain_fd(STDIN_FILENO));
 
-    auto drv = derivation_t::parseJsonAndValidate(*store, json);
+    auto drv = nix::derivation_t::parseJsonAndValidate(*store, json);
 
-    auto drv_path = write_derivation(*store, drv, NoRepair, /* read only */ dry_run);
+    auto drv_path = nix::write_derivation(*store, drv, nix::NoRepair, /* read only */ dry_run);
 
-    write_derivation(*store, drv, NoRepair, dry_run);
+    nix::write_derivation(*store, drv, nix::NoRepair, dry_run);
 
-    logger->cout("%s", store->printStorePath(drv_path));
+    nix::logger->cout("%s", store->printStorePath(drv_path));
   }
 };
 
-static auto r_cmd_add_derivation = registerCommand2<cmd_add_derivation_t>({"derivation", "add"});
+static auto r_cmd_add_derivation =
+    nix::registerCommand2<cmd_add_derivation_t>({"derivation", "add"});

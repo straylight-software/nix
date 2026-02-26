@@ -291,26 +291,26 @@ Hash ContentAddressWithReferences::getHash() const {
 
 namespace nlohmann {
 
-using namespace nix;
-
-content_address_method_t adl_serializer<content_address_method_t>::from_json(const json& json) {
-  return content_address_method_t::parse(get_string(json));
+nix::content_address_method_t
+adl_serializer<nix::content_address_method_t>::from_json(const json& json) {
+  return nix::content_address_method_t::parse(nix::get_string(json));
 }
 
-void adl_serializer<content_address_method_t>::to_json(json& json,
-                                                       const content_address_method_t& m) {
+void adl_serializer<nix::content_address_method_t>::to_json(
+    json& json, const nix::content_address_method_t& m) {
   json = m.render();
 }
 
-content_address_t adl_serializer<content_address_t>::from_json(const json& json) {
-  auto obj = get_object(json);
+nix::content_address_t adl_serializer<nix::content_address_t>::from_json(const json& json) {
+  auto obj = nix::get_object(json);
   return {
-      .method = adl_serializer<content_address_method_t>::from_json(value_at(obj, "method")),
-      .hash = value_at(obj, "hash"),
+      .method =
+          adl_serializer<nix::content_address_method_t>::from_json(nix::value_at(obj, "method")),
+      .hash = nix::value_at(obj, "hash"),
   };
 }
 
-void adl_serializer<content_address_t>::to_json(json& json, const content_address_t& ca) {
+void adl_serializer<nix::content_address_t>::to_json(json& json, const nix::content_address_t& ca) {
   json = {
       {"method", ca.method},
       {"hash", ca.hash},

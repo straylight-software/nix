@@ -9,10 +9,7 @@
 #include "nix/store/store-api.h"
 #include "nix/util/archive.h"
 
-using namespace nix;
-using json = nlohmann::json;
-
-struct cmd_show_derivation_t : InstallablesCommand, MixPrintJSON {
+struct cmd_show_derivation_t : nix::InstallablesCommand, nix::MixPrintJSON {
   bool recursive = false;
 
   cmd_show_derivation_t() {
@@ -32,18 +29,18 @@ struct cmd_show_derivation_t : InstallablesCommand, MixPrintJSON {
         ;
   }
 
-  category_t category() override { return catUtility; }
+  nix::category_t category() override { return nix::catUtility; }
 
-  void run(ref<store_t> store, Installables&& installables) override {
-    auto drv_paths = Installable::toDerivations(store, installables, true);
+  void run(nix::ref<nix::store_t> store, nix::Installables&& installables) override {
+    auto drv_paths = nix::Installable::toDerivations(store, installables, true);
 
     if (recursive) {
-      store_path_set_t closure;
+      nix::store_path_set_t closure;
       store->computeFSClosure(drv_paths, closure);
       drv_paths = std::move(closure);
     }
 
-    json json_root = json::object();
+    nlohmann::json json_root = nlohmann::json::object();
 
     for (auto& drv_path : drv_paths) {
       if (!drv_path.is_derivation())
@@ -52,10 +49,11 @@ struct cmd_show_derivation_t : InstallablesCommand, MixPrintJSON {
       json_root[drv_path.to_string()] = store->read_derivation(drv_path);
     }
     printJSON(nlohmann::json{
-        {"version", expectedJsonVersionDerivation},
+        {"version", nix::expectedJsonVersionDerivation},
         {"derivations", std::move(json_root)},
     });
   }
 };
 
-static auto r_cmd_show_derivation = registerCommand2<cmd_show_derivation_t>({"derivation", "show"});
+static auto r_cmd_show_derivation =
+    nix::registerCommand2<cmd_show_derivation_t>({"derivation", "show"});

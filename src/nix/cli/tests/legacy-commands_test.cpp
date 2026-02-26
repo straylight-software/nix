@@ -29,19 +29,17 @@
 
 #include "nix/cmd/legacy.h"
 
-using namespace nix;
-
 // =============================================================================
 // Legacy command registry structure tests
 // =============================================================================
 
 TEST_CASE("RegisterLegacyCommand provides a static command registry",
           "[cli][legacy][architecture]") {
-  auto& commands = RegisterLegacyCommand::commands();
+  auto& commands = nix::RegisterLegacyCommand::commands();
 
   SECTION("commands() returns a reference to a static map") {
     // The registry should be the same object on every call
-    auto& commands2 = RegisterLegacyCommand::commands();
+    auto& commands2 = nix::RegisterLegacyCommand::commands();
     REQUIRE(&commands == &commands2);
   }
 
@@ -62,10 +60,10 @@ TEST_CASE("RegisterLegacyCommand provides a static command registry",
 // =============================================================================
 
 TEST_CASE("Legacy command functions have correct signature", "[cli][legacy][signature]") {
-  // MainFunction is defined as: std::function<void(int, char**)>
+  // nix::MainFunction is defined as: std::function<void(int, char**)>
   // All registered commands must match this signature.
 
-  auto& commands = RegisterLegacyCommand::commands();
+  auto& commands = nix::RegisterLegacyCommand::commands();
 
   SECTION("All registered commands are callable with (int, char**)") {
     for (const auto& [name, func] : commands) {
@@ -75,7 +73,7 @@ TEST_CASE("Legacy command functions have correct signature", "[cli][legacy][sign
       // Verify the function is a valid std::function<void(int, char**)>
       // We can't call it without proper setup, but we can verify it's not null
       // and that it's stored as the correct type
-      MainFunction& main_func = const_cast<MainFunction&>(func);
+      nix::MainFunction& main_func = const_cast<nix::MainFunction&>(func);
       REQUIRE(static_cast<bool>(main_func));
     }
   }
@@ -84,8 +82,8 @@ TEST_CASE("Legacy command functions have correct signature", "[cli][legacy][sign
     auto it = commands.find("nix-env");
     REQUIRE(it != commands.end());
 
-    // MainFunction should be std::function<void(int, char**)>
-    MainFunction func = it->second;
+    // nix::MainFunction should be std::function<void(int, char**)>
+    nix::MainFunction func = it->second;
     REQUIRE(static_cast<bool>(func));
   }
 
@@ -93,7 +91,7 @@ TEST_CASE("Legacy command functions have correct signature", "[cli][legacy][sign
     auto it = commands.find("nix-daemon");
     REQUIRE(it != commands.end());
 
-    MainFunction func = it->second;
+    nix::MainFunction func = it->second;
     REQUIRE(static_cast<bool>(func));
   }
 
@@ -101,7 +99,7 @@ TEST_CASE("Legacy command functions have correct signature", "[cli][legacy][sign
     auto it = commands.find("nix-hash");
     REQUIRE(it != commands.end());
 
-    MainFunction func = it->second;
+    nix::MainFunction func = it->second;
     REQUIRE(static_cast<bool>(func));
   }
 
@@ -109,7 +107,7 @@ TEST_CASE("Legacy command functions have correct signature", "[cli][legacy][sign
     auto it = commands.find("nix-prefetch-url");
     REQUIRE(it != commands.end());
 
-    MainFunction func = it->second;
+    nix::MainFunction func = it->second;
     REQUIRE(static_cast<bool>(func));
   }
 }
@@ -129,7 +127,7 @@ TEST_CASE("nix-env legacy command is registered", "[cli][legacy][compatibility]"
   //   - nix-env -q         -> nix profile list
   //   - nix-env --list-generations -> nix profile history
 
-  auto& commands = RegisterLegacyCommand::commands();
+  auto& commands = nix::RegisterLegacyCommand::commands();
 
   SECTION("nix-env command exists") {
     auto it = commands.find("nix-env");
@@ -145,7 +143,7 @@ TEST_CASE("nix-daemon legacy command is registered", "[cli][legacy][compatibilit
   //   - nix-daemon --stdio -> nix daemon --stdio
   //   - The daemon handles store operations for unprivileged users
 
-  auto& commands = RegisterLegacyCommand::commands();
+  auto& commands = nix::RegisterLegacyCommand::commands();
 
   SECTION("nix-daemon command exists") {
     auto it = commands.find("nix-daemon");
@@ -162,7 +160,7 @@ TEST_CASE("nix-hash legacy command is registered", "[cli][legacy][compatibility]
   //   - nix-hash --base32 --type sha256 file -> nix hash file --sri --type sha256 file
   //   - nix-hash --to-base32          -> nix hash to-base32
 
-  auto& commands = RegisterLegacyCommand::commands();
+  auto& commands = nix::RegisterLegacyCommand::commands();
 
   SECTION("nix-hash command exists") {
     auto it = commands.find("nix-hash");
@@ -178,7 +176,7 @@ TEST_CASE("nix-prefetch-url legacy command is registered", "[cli][legacy][compat
   //   - nix-prefetch-url <url>        -> nix store prefetch-file <url>
   //   - nix-prefetch-url --unpack     -> nix store prefetch-file --unpack
 
-  auto& commands = RegisterLegacyCommand::commands();
+  auto& commands = nix::RegisterLegacyCommand::commands();
 
   SECTION("nix-prefetch-url command exists") {
     auto it = commands.find("nix-prefetch-url");
@@ -192,7 +190,7 @@ TEST_CASE("nix-prefetch-url legacy command is registered", "[cli][legacy][compat
 // =============================================================================
 
 TEST_CASE("All NixOS-required legacy commands are registered", "[cli][legacy][nixos]") {
-  auto& commands = RegisterLegacyCommand::commands();
+  auto& commands = nix::RegisterLegacyCommand::commands();
 
   SECTION("nix-env is required for NixOS bootloader installer") {
     // The bootloader installer calls: nix-env --list-generations -p /nix/var/nix/profiles/system
@@ -222,9 +220,9 @@ TEST_CASE("All NixOS-required legacy commands are registered", "[cli][legacy][ni
 
 TEST_CASE("Legacy command dispatch is based on program name", "[cli][legacy][dispatch]") {
   // main.cpp:380: auto program_name = std::string(base_name_of(program_path));
-  // main.cpp:392: auto legacy = RegisterLegacyCommand::commands()[program_name];
+  // main.cpp:392: auto legacy = nix::RegisterLegacyCommand::commands()[program_name];
 
-  auto& commands = RegisterLegacyCommand::commands();
+  auto& commands = nix::RegisterLegacyCommand::commands();
 
   SECTION("Commands are registered with their base name (no path)") {
     // Verify commands are registered with names like "nix-env", not "/usr/bin/nix-env"
@@ -253,7 +251,7 @@ TEST_CASE("__build-remote special case dispatch", "[cli][legacy][dispatch][build
   //     argc--;
   //   }
 
-  auto& commands = RegisterLegacyCommand::commands();
+  auto& commands = nix::RegisterLegacyCommand::commands();
 
   SECTION("build-remote command should be registered for distributed builds") {
     // When invoked as "nix __build-remote", main.cpp rewrites to "build-remote"
@@ -283,9 +281,9 @@ TEST_CASE("Symlink-based legacy command invocation", "[cli][legacy][symlink]") {
   //   etc.
   //
   // When the binary is invoked via a symlink, argv[0] contains the symlink name.
-  // main.cpp extracts the base name and looks it up in RegisterLegacyCommand::commands().
+  // main.cpp extracts the base name and looks it up in nix::RegisterLegacyCommand::commands().
 
-  auto& commands = RegisterLegacyCommand::commands();
+  auto& commands = nix::RegisterLegacyCommand::commands();
 
   SECTION("nix-env symlink invocation") {
     // ln -s nix nix-env && ./nix-env --list-generations
@@ -321,7 +319,7 @@ TEST_CASE("Symlink-based legacy command invocation", "[cli][legacy][symlink]") {
 // Integration tests should verify the actual behavior.
 
 TEST_CASE("Legacy command lookup returns callable function", "[cli][legacy]") {
-  auto& commands = RegisterLegacyCommand::commands();
+  auto& commands = nix::RegisterLegacyCommand::commands();
 
   for (const auto& [name, func] : commands) {
     INFO("Checking command: " << name);
@@ -338,7 +336,7 @@ TEST_CASE("Document legacy commands and their modern equivalents", "[cli][legacy
   // It serves as executable documentation and helps ensure we implement
   // the right set of legacy commands.
 
-  auto& commands = RegisterLegacyCommand::commands();
+  auto& commands = nix::RegisterLegacyCommand::commands();
 
   SECTION("nix-env -> nix profile") {
     // nix-env is the legacy package manager
@@ -446,7 +444,7 @@ TEST_CASE("Document legacy commands and their modern equivalents", "[cli][legacy
 // =============================================================================
 
 TEST_CASE("Minimum required legacy commands are registered", "[cli][legacy][count]") {
-  auto& commands = RegisterLegacyCommand::commands();
+  auto& commands = nix::RegisterLegacyCommand::commands();
 
   // We require at minimum these 4 commands for basic NixOS compatibility
   REQUIRE(commands.size() >= 4);
@@ -463,7 +461,7 @@ TEST_CASE("Minimum required legacy commands are registered", "[cli][legacy][coun
 // =============================================================================
 
 TEST_CASE("Legacy command names follow naming conventions", "[cli][legacy][naming]") {
-  auto& commands = RegisterLegacyCommand::commands();
+  auto& commands = nix::RegisterLegacyCommand::commands();
 
   SECTION("Legacy Nix commands use nix- prefix") {
     // Traditional legacy commands follow the nix-<command> pattern
@@ -505,16 +503,16 @@ TEST_CASE("Legacy command names follow naming conventions", "[cli][legacy][namin
 // =============================================================================
 
 TEST_CASE("RegisterLegacyCommand constructor registers commands", "[cli][legacy][registration]") {
-  // The RegisterLegacyCommand struct registers commands via its constructor.
+  // The nix::RegisterLegacyCommand struct registers commands via its constructor.
   // This pattern allows static initialization in each command's .cpp file.
   //
   // Example usage:
-  //   static RegisterLegacyCommand r_nix_env("nix-env", main_nix_env);
+  //   static nix::RegisterLegacyCommand r_nix_env("nix-env", main_nix_env);
   //
   // This creates a static object whose constructor adds "nix-env" -> main_nix_env
   // to the commands() map.
 
-  auto& commands = RegisterLegacyCommand::commands();
+  auto& commands = nix::RegisterLegacyCommand::commands();
 
   SECTION("Commands persist after registration") {
     // Because registration happens at static init time, all commands
@@ -537,7 +535,7 @@ TEST_CASE("RegisterLegacyCommand constructor registers commands", "[cli][legacy]
 // =============================================================================
 
 TEST_CASE("Legacy command lookup handles edge cases", "[cli][legacy][lookup]") {
-  auto& commands = RegisterLegacyCommand::commands();
+  auto& commands = nix::RegisterLegacyCommand::commands();
 
   SECTION("Looking up non-existent command returns null") {
     auto func = commands["this-command-does-not-exist"];
@@ -568,7 +566,7 @@ TEST_CASE("Legacy command lookup handles edge cases", "[cli][legacy][lookup]") {
 
 TEST_CASE("Document expected legacy commands status", "[cli][legacy][status]") {
   // This test documents which legacy commands are implemented vs expected
-  auto& commands = RegisterLegacyCommand::commands();
+  auto& commands = nix::RegisterLegacyCommand::commands();
 
   SECTION("Implemented: nix-env (minimal - --list-generations only)") {
     // Only --list-generations is implemented
@@ -644,7 +642,7 @@ TEST_CASE("Document expected legacy commands status", "[cli][legacy][status]") {
 // =============================================================================
 
 TEST_CASE("Each legacy command has a distinct implementation", "[cli][legacy][distinct]") {
-  auto& commands = RegisterLegacyCommand::commands();
+  auto& commands = nix::RegisterLegacyCommand::commands();
 
   SECTION("nix-env and nix-daemon are different functions") {
     auto nix_env = commands.find("nix-env");

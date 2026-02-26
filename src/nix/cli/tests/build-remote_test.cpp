@@ -23,8 +23,6 @@
 
 #include "nix/cmd/legacy.h"
 
-using namespace nix;
-
 // =============================================================================
 // build-remote command registration tests
 // =============================================================================
@@ -34,7 +32,7 @@ TEST_CASE("build-remote legacy command is registered", "[cli][legacy][distribute
   INFO("The build hook setting defaults to 'nix __build-remote'");
   INFO("Without this command, remote/distributed builds will fail");
 
-  auto& commands = RegisterLegacyCommand::commands();
+  auto& commands = nix::RegisterLegacyCommand::commands();
 
   SECTION("build-remote command exists") {
     auto it = commands.find("build-remote");
@@ -53,7 +51,7 @@ TEST_CASE("build-remote is available for distributed builds",
   INFO("This command is invoked by the build hook when builds are delegated to remote machines");
   INFO("See: https://nixos.org/manual/nix/stable/advanced-topics/distributed-builds.html");
 
-  auto& commands = RegisterLegacyCommand::commands();
+  auto& commands = nix::RegisterLegacyCommand::commands();
 
   // build-remote must be registered for distributed builds to work
   REQUIRE(commands.contains("build-remote"));

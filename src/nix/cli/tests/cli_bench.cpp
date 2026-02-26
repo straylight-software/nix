@@ -27,14 +27,12 @@
 #include "nix/util/args.h"
 #include "nix/util/args/root.h"
 
-using namespace nix;
-
 // =============================================================================
 // Legacy command lookup benchmarks
 // =============================================================================
 
 TEST_CASE("Legacy command lookup performance", "[benchmark][cli][legacy]") {
-  auto& commands = RegisterLegacyCommand::commands();
+  auto& commands = nix::RegisterLegacyCommand::commands();
 
   // Verify we have commands to benchmark
   REQUIRE(commands.size() >= 4);
@@ -70,14 +68,14 @@ TEST_CASE("Legacy command lookup performance", "[benchmark][cli][legacy]") {
 
   SECTION("Full legacy dispatch simulation") {
     // Simulates the dispatch path in main.cpp:392
-    // auto legacy = RegisterLegacyCommand::commands()[program_name];
+    // auto legacy = nix::RegisterLegacyCommand::commands()[program_name];
     BENCHMARK("legacy dispatch lookup (nix-env)") {
-      auto legacy = RegisterLegacyCommand::commands()["nix-env"];
+      auto legacy = nix::RegisterLegacyCommand::commands()["nix-env"];
       return legacy != nullptr;
     };
 
     BENCHMARK("legacy dispatch lookup (nix-daemon)") {
-      auto legacy = RegisterLegacyCommand::commands()["nix-daemon"];
+      auto legacy = nix::RegisterLegacyCommand::commands()["nix-daemon"];
       return legacy != nullptr;
     };
   }
@@ -90,30 +88,30 @@ TEST_CASE("Legacy command lookup performance", "[benchmark][cli][legacy]") {
 TEST_CASE("New command registration lookup performance", "[benchmark][cli][commands]") {
   SECTION("Get commands for root level") {
     BENCHMARK("getCommandsFor({}) - root commands") {
-      auto cmds = RegisterCommand::getCommandsFor({});
+      auto cmds = nix::RegisterCommand::getCommandsFor({});
       return cmds.size();
     };
   }
 
   SECTION("Get commands for subcommand prefixes") {
     BENCHMARK("getCommandsFor({\"store\"})") {
-      auto cmds = RegisterCommand::getCommandsFor({"store"});
+      auto cmds = nix::RegisterCommand::getCommandsFor({"store"});
       return cmds.size();
     };
 
     BENCHMARK("getCommandsFor({\"flake\"})") {
-      auto cmds = RegisterCommand::getCommandsFor({"flake"});
+      auto cmds = nix::RegisterCommand::getCommandsFor({"flake"});
       return cmds.size();
     };
 
     BENCHMARK("getCommandsFor({\"profile\"})") {
-      auto cmds = RegisterCommand::getCommandsFor({"profile"});
+      auto cmds = nix::RegisterCommand::getCommandsFor({"profile"});
       return cmds.size();
     };
   }
 
   SECTION("Command existence checks") {
-    auto& commands = RegisterCommand::commands();
+    auto& commands = nix::RegisterCommand::commands();
 
     BENCHMARK("check build command exists") {
       auto it = commands.find({"build"});
@@ -136,9 +134,9 @@ TEST_CASE("New command registration lookup performance", "[benchmark][cli][comma
 // Argument parsing benchmarks
 // =============================================================================
 
-// A minimal root_args_t subclass for benchmarking argument parsing
-// We need root_args_t to get access to parse_cmdline()
-struct BenchmarkArgs : public root_args_t {
+// A minimal nix::root_args_t subclass for benchmarking argument parsing
+// We need nix::root_args_t to get access to parse_cmdline()
+struct BenchmarkArgs : public nix::root_args_t {
   bool verbose = false;
   bool quiet = false;
   std::string store_uri;
@@ -282,7 +280,7 @@ TEST_CASE("Help text generation performance", "[benchmark][cli][help]") {
 // =============================================================================
 
 // A simple completions collector for benchmarking
-struct BenchmarkCompletions : public add_completions_t {
+struct BenchmarkCompletions : public nix::add_completions_t {
   std::vector<std::pair<std::string, std::string>> completions;
   Type type = Type::normal;
 
@@ -300,7 +298,7 @@ struct BenchmarkCompletions : public add_completions_t {
 
 TEST_CASE("Command completion performance", "[benchmark][cli][completion]") {
   SECTION("Complete legacy commands") {
-    auto& commands = RegisterLegacyCommand::commands();
+    auto& commands = nix::RegisterLegacyCommand::commands();
 
     BENCHMARK("iterate all legacy commands") {
       size_t count = 0;
@@ -315,7 +313,7 @@ TEST_CASE("Command completion performance", "[benchmark][cli][completion]") {
 
   SECTION("Complete new commands") {
     BENCHMARK("iterate root commands") {
-      auto cmds = RegisterCommand::getCommandsFor({});
+      auto cmds = nix::RegisterCommand::getCommandsFor({});
       size_t count = 0;
       for ([[maybe_unused]] const auto& cmd : cmds) {
         count++;
@@ -324,7 +322,7 @@ TEST_CASE("Command completion performance", "[benchmark][cli][completion]") {
     };
 
     BENCHMARK("iterate store subcommands") {
-      auto cmds = RegisterCommand::getCommandsFor({"store"});
+      auto cmds = nix::RegisterCommand::getCommandsFor({"store"});
       size_t count = 0;
       for ([[maybe_unused]] const auto& cmd : cmds) {
         count++;
@@ -333,7 +331,7 @@ TEST_CASE("Command completion performance", "[benchmark][cli][completion]") {
     };
 
     BENCHMARK("iterate flake subcommands") {
-      auto cmds = RegisterCommand::getCommandsFor({"flake"});
+      auto cmds = nix::RegisterCommand::getCommandsFor({"flake"});
       size_t count = 0;
       for ([[maybe_unused]] const auto& cmd : cmds) {
         count++;
@@ -343,7 +341,7 @@ TEST_CASE("Command completion performance", "[benchmark][cli][completion]") {
   }
 
   SECTION("Filter commands by prefix") {
-    auto cmds = RegisterCommand::getCommandsFor({});
+    auto cmds = nix::RegisterCommand::getCommandsFor({});
 
     BENCHMARK("filter commands starting with 'b'") {
       size_t count = 0;
@@ -368,7 +366,7 @@ TEST_CASE("Command completion performance", "[benchmark][cli][completion]") {
 
   SECTION("Completions collection") {
     BenchmarkCompletions completions;
-    auto cmds = RegisterCommand::getCommandsFor({});
+    auto cmds = nix::RegisterCommand::getCommandsFor({});
 
     BENCHMARK("collect all root command completions") {
       completions.clear();
@@ -405,7 +403,7 @@ TEST_CASE("Full CLI dispatch simulation", "[benchmark][cli][dispatch]") {
       }
 
       // Look up command
-      auto legacy = RegisterLegacyCommand::commands()[program_name];
+      auto legacy = nix::RegisterLegacyCommand::commands()[program_name];
       return legacy != nullptr;
     };
 
@@ -421,7 +419,7 @@ TEST_CASE("Full CLI dispatch simulation", "[benchmark][cli][dispatch]") {
         program_name.erase(extension_pos);
       }
 
-      auto legacy = RegisterLegacyCommand::commands()[program_name];
+      auto legacy = nix::RegisterLegacyCommand::commands()[program_name];
       return legacy != nullptr;
     };
   }
@@ -429,19 +427,19 @@ TEST_CASE("Full CLI dispatch simulation", "[benchmark][cli][dispatch]") {
   SECTION("New command dispatch path") {
     // Simulates looking up a new-style command
     BENCHMARK("new command dispatch (build)") {
-      auto cmds = RegisterCommand::getCommandsFor({});
+      auto cmds = nix::RegisterCommand::getCommandsFor({});
       auto it = cmds.find("build");
       return it != cmds.end();
     };
 
     BENCHMARK("new command dispatch (store info)") {
-      auto cmds = RegisterCommand::getCommandsFor({"store"});
+      auto cmds = nix::RegisterCommand::getCommandsFor({"store"});
       auto it = cmds.find("info");
       return it != cmds.end();
     };
 
     BENCHMARK("new command dispatch (flake check)") {
-      auto cmds = RegisterCommand::getCommandsFor({"flake"});
+      auto cmds = nix::RegisterCommand::getCommandsFor({"flake"});
       auto it = cmds.find("check");
       return it != cmds.end();
     };
@@ -464,7 +462,7 @@ TEST_CASE("CLI dispatch is sub-millisecond", "[cli][performance]") {
 
     // Perform 1000 lookups
     for (int i = 0; i < 1000; i++) {
-      auto legacy = RegisterLegacyCommand::commands()["nix-env"];
+      auto legacy = nix::RegisterLegacyCommand::commands()["nix-env"];
       (void)legacy;
     }
 
@@ -481,7 +479,7 @@ TEST_CASE("CLI dispatch is sub-millisecond", "[cli][performance]") {
 
     // Perform 1000 lookups
     for (int i = 0; i < 1000; i++) {
-      auto cmds = RegisterCommand::getCommandsFor({});
+      auto cmds = nix::RegisterCommand::getCommandsFor({});
       auto it = cmds.find("build");
       (void)it;
     }
@@ -505,7 +503,7 @@ TEST_CASE("CLI dispatch is sub-millisecond", "[cli][performance]") {
     auto last_slash = program_path.find_last_of('/');
     std::string program_name =
         last_slash != std::string::npos ? program_path.substr(last_slash + 1) : program_path;
-    auto legacy = RegisterLegacyCommand::commands()[program_name];
+    auto legacy = nix::RegisterLegacyCommand::commands()[program_name];
     (void)legacy;
 
     auto end = clock::now();
@@ -521,8 +519,8 @@ TEST_CASE("CLI dispatch is sub-millisecond", "[cli][performance]") {
 // =============================================================================
 
 TEST_CASE("Command lookup scales with command count", "[benchmark][cli][scalability]") {
-  auto& legacy_commands = RegisterLegacyCommand::commands();
-  auto& new_commands = RegisterCommand::commands();
+  auto& legacy_commands = nix::RegisterLegacyCommand::commands();
+  auto& new_commands = nix::RegisterCommand::commands();
 
   INFO("Legacy commands registered: " << legacy_commands.size());
   INFO("New commands registered: " << new_commands.size());

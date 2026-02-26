@@ -134,36 +134,35 @@ RealisedPath::Set RealisedPath::closure(store_t& store) const {
 
 namespace nlohmann {
 
-using namespace nix;
-
-DrvOutput adl_serializer<DrvOutput>::from_json(const json& json) {
-  return DrvOutput::parse(get_string(json));
+nix::DrvOutput adl_serializer<nix::DrvOutput>::from_json(const json& json) {
+  return nix::DrvOutput::parse(nix::get_string(json));
 }
 
-void adl_serializer<DrvOutput>::to_json(json& json, const DrvOutput& drvOutput) {
+void adl_serializer<nix::DrvOutput>::to_json(json& json, const nix::DrvOutput& drvOutput) {
   json = drvOutput.to_string();
 }
 
-UnkeyedRealisation adl_serializer<UnkeyedRealisation>::from_json(const json& json0) {
-  auto json = get_object(json0);
+nix::UnkeyedRealisation adl_serializer<nix::UnkeyedRealisation>::from_json(const json& json0) {
+  auto json = nix::get_object(json0);
 
-  string_set_t signatures;
-  if (auto signaturesOpt = optional_value_at(json, "signatures"))
+  nix::string_set_t signatures;
+  if (auto signaturesOpt = nix::optional_value_at(json, "signatures"))
     signatures = *signaturesOpt;
 
-  std::map<DrvOutput, store_path_t> dependentRealisations;
-  if (auto jsonDependencies = optional_value_at(json, "dependentRealisations"))
-    for (auto& [jsonDepId, jsonDepOutPath] : get_object(*jsonDependencies))
-      dependentRealisations.insert({DrvOutput::parse(jsonDepId), jsonDepOutPath});
+  std::map<nix::DrvOutput, nix::store_path_t> dependentRealisations;
+  if (auto jsonDependencies = nix::optional_value_at(json, "dependentRealisations"))
+    for (auto& [jsonDepId, jsonDepOutPath] : nix::get_object(*jsonDependencies))
+      dependentRealisations.insert({nix::DrvOutput::parse(jsonDepId), jsonDepOutPath});
 
-  return UnkeyedRealisation{
-      .out_path = value_at(json, "outPath"),
+  return nix::UnkeyedRealisation{
+      .out_path = nix::value_at(json, "outPath"),
       .signatures = signatures,
       .dependentRealisations = dependentRealisations,
   };
 }
 
-void adl_serializer<UnkeyedRealisation>::to_json(json& json, const UnkeyedRealisation& r) {
+void adl_serializer<nix::UnkeyedRealisation>::to_json(json& json,
+                                                      const nix::UnkeyedRealisation& r) {
   auto jsonDependentRealisations = nlohmann::json::object();
   for (auto& [depId, depOutPath] : r.dependentRealisations)
     jsonDependentRealisations.emplace(depId.to_string(), depOutPath);
@@ -174,17 +173,17 @@ void adl_serializer<UnkeyedRealisation>::to_json(json& json, const UnkeyedRealis
   };
 }
 
-realisation_t adl_serializer<realisation_t>::from_json(const json& json0) {
-  auto json = get_object(json0);
+nix::realisation_t adl_serializer<nix::realisation_t>::from_json(const json& json0) {
+  auto json = nix::get_object(json0);
 
-  return realisation_t{
-      static_cast<UnkeyedRealisation>(json0),
-      value_at(json, "id"),
+  return nix::realisation_t{
+      static_cast<nix::UnkeyedRealisation>(json0),
+      nix::value_at(json, "id"),
   };
 }
 
-void adl_serializer<realisation_t>::to_json(json& json, const realisation_t& r) {
-  json = static_cast<const UnkeyedRealisation&>(r);
+void adl_serializer<nix::realisation_t>::to_json(json& json, const nix::realisation_t& r) {
+  json = static_cast<const nix::UnkeyedRealisation&>(r);
   json["id"] = r.id;
 }
 

@@ -13,7 +13,6 @@
 
 #include "nix/util/url.h"
 
-using namespace nix;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // parseURL basic tests

@@ -1,4 +1,4 @@
-# straylight::evring
+# evring
 
 Deterministic async I/O library built on Linux's io_uring with pure state machine architecture.
 

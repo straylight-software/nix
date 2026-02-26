@@ -17,7 +17,6 @@
 #include "nix/util/experimental-features.h"
 #include "nix/util/hash.h"
 
-using namespace nix;
 
 // =============================================================================
 // Helper to enable BLAKE3 for tests

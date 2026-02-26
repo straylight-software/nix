@@ -467,13 +467,11 @@ OutputPathMap resolve_derived_path(store_t& store, const derived_path_t::Built& 
 
 namespace nlohmann {
 
-using namespace nix;
-
-TrustedFlag adl_serializer<TrustedFlag>::from_json(const json& json) {
-  return get_boolean(json) ? TrustedFlag::Trusted : TrustedFlag::NotTrusted;
+nix::TrustedFlag adl_serializer<nix::TrustedFlag>::from_json(const json& json) {
+  return nix::get_boolean(json) ? nix::TrustedFlag::Trusted : nix::TrustedFlag::NotTrusted;
 }
 
-void adl_serializer<TrustedFlag>::to_json(json& json, const TrustedFlag& trustedFlag) {
+void adl_serializer<nix::TrustedFlag>::to_json(json& json, const nix::TrustedFlag& trustedFlag) {
   json = static_cast<bool>(trustedFlag);
 }
 

@@ -20,7 +20,6 @@
 
 #include "nix/util/serialise.h"
 
-using namespace nix;
 
 // =============================================================================
 // StringSink / StringSource basic tests

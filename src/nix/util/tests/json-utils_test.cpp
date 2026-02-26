@@ -25,7 +25,7 @@
 
 #include "nix/util/json-utils.h"
 
-using namespace nix;
+
 using json = nlohmann::json;
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -1,16 +1,14 @@
 #include "nix/cmd/command.h"
 
-using namespace nix;
-
-struct cmd_derivation_t : NixMultiCommand {
+struct cmd_derivation_t : nix::NixMultiCommand {
   cmd_derivation_t()
-      : NixMultiCommand("derivation", RegisterCommand::getCommandsFor({"derivation"})) {}
+      : NixMultiCommand("derivation", nix::RegisterCommand::getCommandsFor({"derivation"})) {}
 
   std::string description() override {
     return "Work with derivations, Nix's notion of a build plan.";
   }
 
-  category_t category() override { return catUtility; }
+  nix::category_t category() override { return nix::catUtility; }
 };
 
-static auto r_cmd_derivation = registerCommand<cmd_derivation_t>("derivation");
+static auto r_cmd_derivation = nix::registerCommand<cmd_derivation_t>("derivation");

@@ -16,7 +16,6 @@
 
 #include "nix/util/canon-path.h"
 
-using namespace nix;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Construction tests

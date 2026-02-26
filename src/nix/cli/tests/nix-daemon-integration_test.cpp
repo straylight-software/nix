@@ -26,8 +26,6 @@
 #include "nix/store/worker-protocol.h"
 #include "nix/util/logging.h"
 
-using namespace nix;
-
 // =============================================================================
 // nix-daemon command registration
 // =============================================================================
@@ -37,7 +35,7 @@ TEST_CASE("nix-daemon command is registered for NixOS compatibility",
   INFO("NixOS multi-user mode requires nix-daemon to be available as a legacy command");
   INFO("systemd starts nix-daemon to provide store access to unprivileged users");
 
-  auto& commands = RegisterLegacyCommand::commands();
+  auto& commands = nix::RegisterLegacyCommand::commands();
 
   SECTION("nix-daemon is registered as a legacy command") {
     auto it = commands.find("nix-daemon");
@@ -68,7 +66,7 @@ TEST_CASE("nix-daemon command is registered for NixOS compatibility",
 TEST_CASE("nix-daemon CLI argument parsing behavior", "[daemon][cli][integration]") {
   INFO("nix-daemon supports various command-line arguments for different modes");
 
-  auto& commands = RegisterLegacyCommand::commands();
+  auto& commands = nix::RegisterLegacyCommand::commands();
   auto it = commands.find("nix-daemon");
   REQUIRE(it != commands.end());
 
@@ -83,14 +81,14 @@ TEST_CASE("nix-daemon CLI argument parsing behavior", "[daemon][cli][integration
     // When --force-trusted is specified, the daemon trusts the connecting client
     // This bypasses normal trust verification
     INFO("--force-trusted forces Trusted mode regardless of peer credentials");
-    REQUIRE(static_cast<bool>(Trusted) == true);
+    REQUIRE(static_cast<bool>(nix::Trusted) == true);
   }
 
   SECTION("--force-untrusted flag forces untrusted client mode") {
     // When --force-untrusted is specified, the client is treated as untrusted
     // This limits available operations for security
     INFO("--force-untrusted forces NotTrusted mode for restricted operations");
-    REQUIRE(static_cast<bool>(NotTrusted) == false);
+    REQUIRE(static_cast<bool>(nix::NotTrusted) == false);
   }
 
   SECTION("--version flag outputs version information") {
@@ -128,7 +126,7 @@ TEST_CASE("nix-daemon supports --stdio mode for systemd socket activation",
   INFO("nix-daemon --stdio processes a single connection via these file descriptors");
   INFO("This is the primary mode used in NixOS multi-user installations");
 
-  auto& commands = RegisterLegacyCommand::commands();
+  auto& commands = nix::RegisterLegacyCommand::commands();
   auto it = commands.find("nix-daemon");
   REQUIRE(it != commands.end());
 
@@ -165,7 +163,7 @@ TEST_CASE("nix-daemon socket mode is not yet implemented",
   SECTION("socket mode is explicitly unsupported") {
     // We can verify the command exists but cannot easily test the error
     // without actually invoking it (which would try to open the store)
-    auto& commands = RegisterLegacyCommand::commands();
+    auto& commands = nix::RegisterLegacyCommand::commands();
     REQUIRE(commands.contains("nix-daemon"));
 
     // Document the expected behavior:
@@ -192,45 +190,46 @@ TEST_CASE("Worker protocol constants are defined for daemon communication",
   SECTION("WORKER_MAGIC_1 is the client greeting") {
     // Client sends this first to identify itself as a Nix client
     // The value 0x6e697863 spells "nixc" in ASCII (little-endian)
-    REQUIRE(WORKER_MAGIC_1 == 0x6e697863);
+    REQUIRE(nix::WORKER_MAGIC_1 == 0x6e697863);
   }
 
   SECTION("WORKER_MAGIC_2 is the daemon response") {
     // Daemon responds with this to acknowledge a valid connection
     // The value 0x6478696f spells "dxio" in ASCII (little-endian)
-    REQUIRE(WORKER_MAGIC_2 == 0x6478696f);
+    REQUIRE(nix::WORKER_MAGIC_2 == 0x6478696f);
   }
 
   SECTION("Worker magic values are distinct") {
-    REQUIRE(WORKER_MAGIC_1 != WORKER_MAGIC_2);
+    REQUIRE(nix::WORKER_MAGIC_1 != nix::WORKER_MAGIC_2);
   }
 
   SECTION("Protocol version is defined") {
     // Protocol version uses major.minor encoding: (major << 8) | minor
-    REQUIRE(GET_PROTOCOL_MAJOR(PROTOCOL_VERSION) == 0x100); // major = 1
-    REQUIRE(GET_PROTOCOL_MINOR(PROTOCOL_VERSION) == 38);    // minor = 38
+    REQUIRE(nix::GET_PROTOCOL_MAJOR(nix::PROTOCOL_VERSION) == 0x100); // major = 1
+    REQUIRE(nix::GET_PROTOCOL_MINOR(nix::PROTOCOL_VERSION) == 38);    // minor = 38
   }
 
   SECTION("Protocol version encoding is correct") {
     // Verify the encoding formula: (major << 8) | minor
     unsigned int test_version = (1 << 8) | 38;
-    REQUIRE(test_version == PROTOCOL_VERSION);
-    REQUIRE(GET_PROTOCOL_MAJOR(test_version) == 0x100);
-    REQUIRE(GET_PROTOCOL_MINOR(test_version) == 38);
+    REQUIRE(test_version == nix::PROTOCOL_VERSION);
+    REQUIRE(nix::GET_PROTOCOL_MAJOR(test_version) == 0x100);
+    REQUIRE(nix::GET_PROTOCOL_MINOR(test_version) == 38);
   }
 
   SECTION("Minimum protocol version is defined") {
     // Clients below this version are rejected
-    REQUIRE(GET_PROTOCOL_MAJOR(MINIMUM_PROTOCOL_VERSION) == 0x100); // major = 1
-    REQUIRE(GET_PROTOCOL_MINOR(MINIMUM_PROTOCOL_VERSION) == 18);    // minor = 18
+    REQUIRE(nix::GET_PROTOCOL_MAJOR(nix::MINIMUM_PROTOCOL_VERSION) == 0x100); // major = 1
+    REQUIRE(nix::GET_PROTOCOL_MINOR(nix::MINIMUM_PROTOCOL_VERSION) == 18);    // minor = 18
   }
 
   SECTION("Current protocol version is greater than minimum") {
-    REQUIRE(PROTOCOL_VERSION >= MINIMUM_PROTOCOL_VERSION);
+    REQUIRE(nix::PROTOCOL_VERSION >= nix::MINIMUM_PROTOCOL_VERSION);
   }
 
   SECTION("Protocol major versions match between current and minimum") {
-    REQUIRE(GET_PROTOCOL_MAJOR(PROTOCOL_VERSION) == GET_PROTOCOL_MAJOR(MINIMUM_PROTOCOL_VERSION));
+    REQUIRE(nix::GET_PROTOCOL_MAJOR(nix::PROTOCOL_VERSION) ==
+            nix::GET_PROTOCOL_MAJOR(nix::MINIMUM_PROTOCOL_VERSION));
   }
 }
 
@@ -244,90 +243,90 @@ TEST_CASE("Worker protocol defines required store operations", "[daemon][protoco
 
   SECTION("Basic query operations are defined") {
     // These are the most commonly used operations
-    REQUIRE(static_cast<uint64_t>(WorkerProto::Op::IsValidPath) == 1);
-    REQUIRE(static_cast<uint64_t>(WorkerProto::Op::QueryPathInfo) == 26);
-    REQUIRE(static_cast<uint64_t>(WorkerProto::Op::QueryValidPaths) == 31);
+    REQUIRE(static_cast<uint64_t>(nix::WorkerProto::Op::IsValidPath) == 1);
+    REQUIRE(static_cast<uint64_t>(nix::WorkerProto::Op::QueryPathInfo) == 26);
+    REQUIRE(static_cast<uint64_t>(nix::WorkerProto::Op::QueryValidPaths) == 31);
   }
 
   SECTION("Build operations are defined") {
-    REQUIRE(static_cast<uint64_t>(WorkerProto::Op::BuildPaths) == 9);
-    REQUIRE(static_cast<uint64_t>(WorkerProto::Op::BuildDerivation) == 36);
-    REQUIRE(static_cast<uint64_t>(WorkerProto::Op::BuildPathsWithResults) == 46);
+    REQUIRE(static_cast<uint64_t>(nix::WorkerProto::Op::BuildPaths) == 9);
+    REQUIRE(static_cast<uint64_t>(nix::WorkerProto::Op::BuildDerivation) == 36);
+    REQUIRE(static_cast<uint64_t>(nix::WorkerProto::Op::BuildPathsWithResults) == 46);
   }
 
   SECTION("Store modification operations are defined") {
-    REQUIRE(static_cast<uint64_t>(WorkerProto::Op::AddToStore) == 7);
-    REQUIRE(static_cast<uint64_t>(WorkerProto::Op::AddToStoreNar) == 39);
-    REQUIRE(static_cast<uint64_t>(WorkerProto::Op::AddMultipleToStore) == 44);
+    REQUIRE(static_cast<uint64_t>(nix::WorkerProto::Op::AddToStore) == 7);
+    REQUIRE(static_cast<uint64_t>(nix::WorkerProto::Op::AddToStoreNar) == 39);
+    REQUIRE(static_cast<uint64_t>(nix::WorkerProto::Op::AddMultipleToStore) == 44);
   }
 
   SECTION("Garbage collection operations are defined") {
-    REQUIRE(static_cast<uint64_t>(WorkerProto::Op::CollectGarbage) == 20);
-    REQUIRE(static_cast<uint64_t>(WorkerProto::Op::AddTempRoot) == 11);
-    REQUIRE(static_cast<uint64_t>(WorkerProto::Op::AddIndirectRoot) == 12);
+    REQUIRE(static_cast<uint64_t>(nix::WorkerProto::Op::CollectGarbage) == 20);
+    REQUIRE(static_cast<uint64_t>(nix::WorkerProto::Op::AddTempRoot) == 11);
+    REQUIRE(static_cast<uint64_t>(nix::WorkerProto::Op::AddIndirectRoot) == 12);
   }
 
   SECTION("Path query operations are defined") {
-    REQUIRE(static_cast<uint64_t>(WorkerProto::Op::QueryReferrers) == 6);
-    REQUIRE(static_cast<uint64_t>(WorkerProto::Op::QueryPathFromHashPart) == 29);
-    REQUIRE(static_cast<uint64_t>(WorkerProto::Op::QueryAllValidPaths) == 23);
+    REQUIRE(static_cast<uint64_t>(nix::WorkerProto::Op::QueryReferrers) == 6);
+    REQUIRE(static_cast<uint64_t>(nix::WorkerProto::Op::QueryPathFromHashPart) == 29);
+    REQUIRE(static_cast<uint64_t>(nix::WorkerProto::Op::QueryAllValidPaths) == 23);
   }
 
   SECTION("Substitution operations are defined") {
-    REQUIRE(static_cast<uint64_t>(WorkerProto::Op::HasSubstitutes) == 3);
-    REQUIRE(static_cast<uint64_t>(WorkerProto::Op::QuerySubstitutablePathInfo) == 21);
-    REQUIRE(static_cast<uint64_t>(WorkerProto::Op::QuerySubstitutablePathInfos) == 30);
-    REQUIRE(static_cast<uint64_t>(WorkerProto::Op::QuerySubstitutablePaths) == 32);
+    REQUIRE(static_cast<uint64_t>(nix::WorkerProto::Op::HasSubstitutes) == 3);
+    REQUIRE(static_cast<uint64_t>(nix::WorkerProto::Op::QuerySubstitutablePathInfo) == 21);
+    REQUIRE(static_cast<uint64_t>(nix::WorkerProto::Op::QuerySubstitutablePathInfos) == 30);
+    REQUIRE(static_cast<uint64_t>(nix::WorkerProto::Op::QuerySubstitutablePaths) == 32);
   }
 
   SECTION("Store maintenance operations are defined") {
-    REQUIRE(static_cast<uint64_t>(WorkerProto::Op::OptimiseStore) == 34);
-    REQUIRE(static_cast<uint64_t>(WorkerProto::Op::VerifyStore) == 35);
-    REQUIRE(static_cast<uint64_t>(WorkerProto::Op::SyncWithGC) == 13);
+    REQUIRE(static_cast<uint64_t>(nix::WorkerProto::Op::OptimiseStore) == 34);
+    REQUIRE(static_cast<uint64_t>(nix::WorkerProto::Op::VerifyStore) == 35);
+    REQUIRE(static_cast<uint64_t>(nix::WorkerProto::Op::SyncWithGC) == 13);
   }
 
   SECTION("Derivation operations are defined") {
-    REQUIRE(static_cast<uint64_t>(WorkerProto::Op::QueryDerivationOutputMap) == 41);
-    REQUIRE(static_cast<uint64_t>(WorkerProto::Op::QueryMissing) == 40);
-    REQUIRE(static_cast<uint64_t>(WorkerProto::Op::QueryValidDerivers) == 33);
+    REQUIRE(static_cast<uint64_t>(nix::WorkerProto::Op::QueryDerivationOutputMap) == 41);
+    REQUIRE(static_cast<uint64_t>(nix::WorkerProto::Op::QueryMissing) == 40);
+    REQUIRE(static_cast<uint64_t>(nix::WorkerProto::Op::QueryValidDerivers) == 33);
   }
 
   SECTION("NAR operations are defined") {
-    REQUIRE(static_cast<uint64_t>(WorkerProto::Op::NarFromPath) == 38);
-    REQUIRE(static_cast<uint64_t>(WorkerProto::Op::AddToStoreNar) == 39);
+    REQUIRE(static_cast<uint64_t>(nix::WorkerProto::Op::NarFromPath) == 38);
+    REQUIRE(static_cast<uint64_t>(nix::WorkerProto::Op::AddToStoreNar) == 39);
   }
 
   SECTION("Realisation operations are defined") {
-    REQUIRE(static_cast<uint64_t>(WorkerProto::Op::RegisterDrvOutput) == 42);
-    REQUIRE(static_cast<uint64_t>(WorkerProto::Op::QueryRealisation) == 43);
+    REQUIRE(static_cast<uint64_t>(nix::WorkerProto::Op::RegisterDrvOutput) == 42);
+    REQUIRE(static_cast<uint64_t>(nix::WorkerProto::Op::QueryRealisation) == 43);
   }
 
   SECTION("Root management operations are defined") {
-    REQUIRE(static_cast<uint64_t>(WorkerProto::Op::FindRoots) == 14);
-    REQUIRE(static_cast<uint64_t>(WorkerProto::Op::AddPermRoot) == 47);
-    REQUIRE(static_cast<uint64_t>(WorkerProto::Op::AddTempRoot) == 11);
-    REQUIRE(static_cast<uint64_t>(WorkerProto::Op::AddIndirectRoot) == 12);
+    REQUIRE(static_cast<uint64_t>(nix::WorkerProto::Op::FindRoots) == 14);
+    REQUIRE(static_cast<uint64_t>(nix::WorkerProto::Op::AddPermRoot) == 47);
+    REQUIRE(static_cast<uint64_t>(nix::WorkerProto::Op::AddTempRoot) == 11);
+    REQUIRE(static_cast<uint64_t>(nix::WorkerProto::Op::AddIndirectRoot) == 12);
   }
 
   SECTION("Build log operations are defined") {
-    REQUIRE(static_cast<uint64_t>(WorkerProto::Op::AddBuildLog) == 45);
+    REQUIRE(static_cast<uint64_t>(nix::WorkerProto::Op::AddBuildLog) == 45);
   }
 
   SECTION("Active builds query is defined") {
-    REQUIRE(static_cast<uint64_t>(WorkerProto::Op::QueryActiveBuilds) == 48);
+    REQUIRE(static_cast<uint64_t>(nix::WorkerProto::Op::QueryActiveBuilds) == 48);
   }
 
   SECTION("Failed paths operations are defined") {
-    REQUIRE(static_cast<uint64_t>(WorkerProto::Op::QueryFailedPaths) == 24);
-    REQUIRE(static_cast<uint64_t>(WorkerProto::Op::ClearFailedPaths) == 25);
+    REQUIRE(static_cast<uint64_t>(nix::WorkerProto::Op::QueryFailedPaths) == 24);
+    REQUIRE(static_cast<uint64_t>(nix::WorkerProto::Op::ClearFailedPaths) == 25);
   }
 
   SECTION("Options operation is defined") {
-    REQUIRE(static_cast<uint64_t>(WorkerProto::Op::SetOptions) == 19);
+    REQUIRE(static_cast<uint64_t>(nix::WorkerProto::Op::SetOptions) == 19);
   }
 
   SECTION("Path existence operation is defined") {
-    REQUIRE(static_cast<uint64_t>(WorkerProto::Op::EnsurePath) == 10);
+    REQUIRE(static_cast<uint64_t>(nix::WorkerProto::Op::EnsurePath) == 10);
   }
 }
 
@@ -342,63 +341,63 @@ TEST_CASE("Stderr protocol constants are defined for daemon logging",
   INFO("TunnelLogger uses these constants to multiplex logging over the protocol");
 
   SECTION("Log message markers are defined") {
-    REQUIRE(STDERR_NEXT == 0x6f6c6d67);  // More log messages follow
-    REQUIRE(STDERR_LAST == 0x616c7473);  // Operation completed successfully
-    REQUIRE(STDERR_ERROR == 0x63787470); // Operation failed with error
+    REQUIRE(nix::STDERR_NEXT == 0x6f6c6d67);  // More log messages follow
+    REQUIRE(nix::STDERR_LAST == 0x616c7473);  // Operation completed successfully
+    REQUIRE(nix::STDERR_ERROR == 0x63787470); // Operation failed with error
   }
 
   SECTION("All stderr markers have distinct values") {
-    REQUIRE(STDERR_NEXT != STDERR_LAST);
-    REQUIRE(STDERR_NEXT != STDERR_ERROR);
-    REQUIRE(STDERR_LAST != STDERR_ERROR);
+    REQUIRE(nix::STDERR_NEXT != nix::STDERR_LAST);
+    REQUIRE(nix::STDERR_NEXT != nix::STDERR_ERROR);
+    REQUIRE(nix::STDERR_LAST != nix::STDERR_ERROR);
   }
 
   SECTION("Activity markers are defined for progress reporting") {
-    REQUIRE(STDERR_START_ACTIVITY == 0x53545254); // "STRT"
-    REQUIRE(STDERR_STOP_ACTIVITY == 0x53544f50);  // "STOP"
-    REQUIRE(STDERR_RESULT == 0x52534c54);         // "RSLT"
+    REQUIRE(nix::STDERR_START_ACTIVITY == 0x53545254); // "STRT"
+    REQUIRE(nix::STDERR_STOP_ACTIVITY == 0x53544f50);  // "STOP"
+    REQUIRE(nix::STDERR_RESULT == 0x52534c54);         // "RSLT"
   }
 
   SECTION("Activity markers are distinct from log markers") {
-    REQUIRE(STDERR_START_ACTIVITY != STDERR_NEXT);
-    REQUIRE(STDERR_START_ACTIVITY != STDERR_LAST);
-    REQUIRE(STDERR_START_ACTIVITY != STDERR_ERROR);
-    REQUIRE(STDERR_STOP_ACTIVITY != STDERR_NEXT);
-    REQUIRE(STDERR_STOP_ACTIVITY != STDERR_LAST);
-    REQUIRE(STDERR_STOP_ACTIVITY != STDERR_ERROR);
-    REQUIRE(STDERR_RESULT != STDERR_NEXT);
-    REQUIRE(STDERR_RESULT != STDERR_LAST);
-    REQUIRE(STDERR_RESULT != STDERR_ERROR);
+    REQUIRE(nix::STDERR_START_ACTIVITY != nix::STDERR_NEXT);
+    REQUIRE(nix::STDERR_START_ACTIVITY != nix::STDERR_LAST);
+    REQUIRE(nix::STDERR_START_ACTIVITY != nix::STDERR_ERROR);
+    REQUIRE(nix::STDERR_STOP_ACTIVITY != nix::STDERR_NEXT);
+    REQUIRE(nix::STDERR_STOP_ACTIVITY != nix::STDERR_LAST);
+    REQUIRE(nix::STDERR_STOP_ACTIVITY != nix::STDERR_ERROR);
+    REQUIRE(nix::STDERR_RESULT != nix::STDERR_NEXT);
+    REQUIRE(nix::STDERR_RESULT != nix::STDERR_LAST);
+    REQUIRE(nix::STDERR_RESULT != nix::STDERR_ERROR);
   }
 
   SECTION("Activity start/stop markers are distinct") {
-    REQUIRE(STDERR_START_ACTIVITY != STDERR_STOP_ACTIVITY);
-    REQUIRE(STDERR_START_ACTIVITY != STDERR_RESULT);
-    REQUIRE(STDERR_STOP_ACTIVITY != STDERR_RESULT);
+    REQUIRE(nix::STDERR_START_ACTIVITY != nix::STDERR_STOP_ACTIVITY);
+    REQUIRE(nix::STDERR_START_ACTIVITY != nix::STDERR_RESULT);
+    REQUIRE(nix::STDERR_STOP_ACTIVITY != nix::STDERR_RESULT);
   }
 
   SECTION("Data transfer markers are defined") {
-    REQUIRE(STDERR_READ == 0x64617461);  // Daemon needs data from client
-    REQUIRE(STDERR_WRITE == 0x64617416); // Daemon sending data to client
+    REQUIRE(nix::STDERR_READ == 0x64617461);  // Daemon needs data from client
+    REQUIRE(nix::STDERR_WRITE == 0x64617416); // Daemon sending data to client
   }
 
   SECTION("Data transfer markers are distinct") {
-    REQUIRE(STDERR_READ != STDERR_WRITE);
-    REQUIRE(STDERR_READ != STDERR_NEXT);
-    REQUIRE(STDERR_READ != STDERR_LAST);
-    REQUIRE(STDERR_WRITE != STDERR_NEXT);
-    REQUIRE(STDERR_WRITE != STDERR_LAST);
+    REQUIRE(nix::STDERR_READ != nix::STDERR_WRITE);
+    REQUIRE(nix::STDERR_READ != nix::STDERR_NEXT);
+    REQUIRE(nix::STDERR_READ != nix::STDERR_LAST);
+    REQUIRE(nix::STDERR_WRITE != nix::STDERR_NEXT);
+    REQUIRE(nix::STDERR_WRITE != nix::STDERR_LAST);
   }
 
   SECTION("All protocol markers fit in 32-bit values") {
-    REQUIRE(STDERR_NEXT <= 0xFFFFFFFF);
-    REQUIRE(STDERR_LAST <= 0xFFFFFFFF);
-    REQUIRE(STDERR_ERROR <= 0xFFFFFFFF);
-    REQUIRE(STDERR_START_ACTIVITY <= 0xFFFFFFFF);
-    REQUIRE(STDERR_STOP_ACTIVITY <= 0xFFFFFFFF);
-    REQUIRE(STDERR_RESULT <= 0xFFFFFFFF);
-    REQUIRE(STDERR_READ <= 0xFFFFFFFF);
-    REQUIRE(STDERR_WRITE <= 0xFFFFFFFF);
+    REQUIRE(nix::STDERR_NEXT <= 0xFFFFFFFF);
+    REQUIRE(nix::STDERR_LAST <= 0xFFFFFFFF);
+    REQUIRE(nix::STDERR_ERROR <= 0xFFFFFFFF);
+    REQUIRE(nix::STDERR_START_ACTIVITY <= 0xFFFFFFFF);
+    REQUIRE(nix::STDERR_STOP_ACTIVITY <= 0xFFFFFFFF);
+    REQUIRE(nix::STDERR_RESULT <= 0xFFFFFFFF);
+    REQUIRE(nix::STDERR_READ <= 0xFFFFFFFF);
+    REQUIRE(nix::STDERR_WRITE <= 0xFFFFFFFF);
   }
 }
 
@@ -412,55 +411,56 @@ TEST_CASE("All activity types are defined for tunnel logger progress reporting",
   INFO("The tunnel logger uses these to report progress to connected clients");
 
   SECTION("Unknown activity type is the default") {
-    REQUIRE(act_unknown == 0);
+    REQUIRE(nix::act_unknown == 0);
   }
 
   SECTION("File transfer activities are defined") {
-    REQUIRE(act_copy_path == 100);
-    REQUIRE(act_file_transfer == 101);
-    REQUIRE(act_copy_paths == 103);
+    REQUIRE(nix::act_copy_path == 100);
+    REQUIRE(nix::act_file_transfer == 101);
+    REQUIRE(nix::act_copy_paths == 103);
   }
 
   SECTION("Build activities are defined") {
-    REQUIRE(act_realise == 102);
-    REQUIRE(act_builds == 104);
-    REQUIRE(act_build == 105);
-    REQUIRE(act_build_waiting == 111);
+    REQUIRE(nix::act_realise == 102);
+    REQUIRE(nix::act_builds == 104);
+    REQUIRE(nix::act_build == 105);
+    REQUIRE(nix::act_build_waiting == 111);
   }
 
   SECTION("Store maintenance activities are defined") {
-    REQUIRE(act_optimise_store == 106);
-    REQUIRE(act_verify_paths == 107);
+    REQUIRE(nix::act_optimise_store == 106);
+    REQUIRE(nix::act_verify_paths == 107);
   }
 
   SECTION("Substitution activities are defined") {
-    REQUIRE(act_substitute == 108);
-    REQUIRE(act_query_path_info == 109);
+    REQUIRE(nix::act_substitute == 108);
+    REQUIRE(nix::act_query_path_info == 109);
   }
 
   SECTION("Hook activities are defined") {
-    REQUIRE(act_post_build_hook == 110);
+    REQUIRE(nix::act_post_build_hook == 110);
   }
 
   SECTION("Tree fetch activities are defined") {
-    REQUIRE(act_fetch_tree == 112);
+    REQUIRE(nix::act_fetch_tree == 112);
   }
 
   SECTION("Activity IDs start at reasonable values") {
-    // act_unknown is 0, others start at 100
-    REQUIRE(act_unknown == 0);
-    REQUIRE(act_copy_path >= 100);
-    REQUIRE(act_file_transfer >= 100);
-    REQUIRE(act_realise >= 100);
+    // nix::act_unknown is 0, others start at 100
+    REQUIRE(nix::act_unknown == 0);
+    REQUIRE(nix::act_copy_path >= 100);
+    REQUIRE(nix::act_file_transfer >= 100);
+    REQUIRE(nix::act_realise >= 100);
   }
 
   SECTION("All activity types are distinct") {
-    std::vector<activity_type_t> activities = {
-        act_unknown,       act_copy_path,  act_file_transfer,   act_realise,
-        act_copy_paths,    act_builds,     act_build,           act_optimise_store,
-        act_verify_paths,  act_substitute, act_query_path_info, act_post_build_hook,
-        act_build_waiting, act_fetch_tree};
-    std::set<activity_type_t> unique_activities(activities.begin(), activities.end());
+    std::vector<nix::activity_type_t> activities = {
+        nix::act_unknown,       nix::act_copy_path,       nix::act_file_transfer,
+        nix::act_realise,       nix::act_copy_paths,      nix::act_builds,
+        nix::act_build,         nix::act_optimise_store,  nix::act_verify_paths,
+        nix::act_substitute,    nix::act_query_path_info, nix::act_post_build_hook,
+        nix::act_build_waiting, nix::act_fetch_tree};
+    std::set<nix::activity_type_t> unique_activities(activities.begin(), activities.end());
     REQUIRE(unique_activities.size() == activities.size());
   }
 }
@@ -474,40 +474,41 @@ TEST_CASE("Result types are defined for activity result reporting",
   INFO("Result types report different kinds of outcomes from activities");
 
   SECTION("File operation results are defined") {
-    REQUIRE(res_file_linked == 100);
+    REQUIRE(nix::res_file_linked == 100);
   }
 
   SECTION("Build log results are defined") {
-    REQUIRE(res_build_log_line == 101);
-    REQUIRE(res_post_build_log_line == 107);
+    REQUIRE(nix::res_build_log_line == 101);
+    REQUIRE(nix::res_post_build_log_line == 107);
   }
 
   SECTION("Path verification results are defined") {
-    REQUIRE(res_untrusted_path == 102);
-    REQUIRE(res_corrupted_path == 103);
+    REQUIRE(nix::res_untrusted_path == 102);
+    REQUIRE(nix::res_corrupted_path == 103);
   }
 
   SECTION("Build phase results are defined") {
-    REQUIRE(res_set_phase == 104);
-    REQUIRE(res_build_result == 110);
+    REQUIRE(nix::res_set_phase == 104);
+    REQUIRE(nix::res_build_result == 110);
   }
 
   SECTION("Progress results are defined") {
-    REQUIRE(res_progress == 105);
-    REQUIRE(res_set_expected == 106);
+    REQUIRE(nix::res_progress == 105);
+    REQUIRE(nix::res_set_expected == 106);
   }
 
   SECTION("Fetch results are defined") {
-    REQUIRE(res_fetch_status == 108);
-    REQUIRE(res_hash_mismatch == 109);
+    REQUIRE(nix::res_fetch_status == 108);
+    REQUIRE(nix::res_hash_mismatch == 109);
   }
 
   SECTION("All result types are distinct") {
-    std::vector<result_type_t> results = {
-        res_file_linked,  res_build_log_line, res_untrusted_path, res_corrupted_path,
-        res_set_phase,    res_progress,       res_set_expected,   res_post_build_log_line,
-        res_fetch_status, res_hash_mismatch,  res_build_result};
-    std::set<result_type_t> unique_results(results.begin(), results.end());
+    std::vector<nix::result_type_t> results = {
+        nix::res_file_linked,    nix::res_build_log_line,      nix::res_untrusted_path,
+        nix::res_corrupted_path, nix::res_set_phase,           nix::res_progress,
+        nix::res_set_expected,   nix::res_post_build_log_line, nix::res_fetch_status,
+        nix::res_hash_mismatch,  nix::res_build_result};
+    std::set<nix::result_type_t> unique_results(results.begin(), results.end());
     REQUIRE(unique_results.size() == results.size());
   }
 }
@@ -523,20 +524,20 @@ TEST_CASE("Daemon trust levels are available", "[daemon][trust][integration]") {
 
   SECTION("TrustedFlag values are defined") {
     // These are used to control client capabilities
-    REQUIRE(static_cast<bool>(Trusted) == true);
-    REQUIRE(static_cast<bool>(NotTrusted) == false);
+    REQUIRE(static_cast<bool>(nix::Trusted) == true);
+    REQUIRE(static_cast<bool>(nix::NotTrusted) == false);
   }
 
   SECTION("TrustedFlag is a boolean enum") {
     // Verify enum to bool conversion works correctly
-    TrustedFlag trusted = Trusted;
-    TrustedFlag untrusted = NotTrusted;
+    nix::TrustedFlag trusted = nix::Trusted;
+    nix::TrustedFlag untrusted = nix::NotTrusted;
     REQUIRE(trusted == true);
     REQUIRE(untrusted == false);
   }
 
   SECTION("Trust levels are mutually exclusive") {
-    REQUIRE(Trusted != NotTrusted);
+    REQUIRE(nix::Trusted != nix::NotTrusted);
   }
 }
 
@@ -549,13 +550,13 @@ TEST_CASE("Daemon trust level transitions and implications",
   INFO("Trust levels affect which operations are permitted");
 
   SECTION("Trusted clients can perform privileged operations") {
-    TrustedFlag trust = Trusted;
+    nix::TrustedFlag trust = nix::Trusted;
     REQUIRE(trust == true);
     // Trusted clients can: modify store, build derivations, etc.
   }
 
   SECTION("Untrusted clients have restricted capabilities") {
-    TrustedFlag trust = NotTrusted;
+    nix::TrustedFlag trust = nix::NotTrusted;
     REQUIRE(trust == false);
     // Untrusted clients have limited access to store operations
   }
@@ -563,31 +564,31 @@ TEST_CASE("Daemon trust level transitions and implications",
   SECTION("Default trust in stdio mode is Trusted") {
     // In stdio mode, the default trust is Trusted
     // This is because systemd socket activation typically runs as root
-    TrustedFlag default_trust = Trusted;
+    nix::TrustedFlag default_trust = nix::Trusted;
     REQUIRE(default_trust == true);
   }
 
   SECTION("--force-trusted overrides to Trusted") {
-    TrustedFlag forced = Trusted;
+    nix::TrustedFlag forced = nix::Trusted;
     REQUIRE(forced == true);
   }
 
   SECTION("--force-untrusted overrides to NotTrusted") {
-    TrustedFlag forced = NotTrusted;
+    nix::TrustedFlag forced = nix::NotTrusted;
     REQUIRE(forced == false);
   }
 
   SECTION("Trust can be represented as optional") {
-    std::optional<TrustedFlag> trust_opt = std::nullopt;
+    std::optional<nix::TrustedFlag> trust_opt = std::nullopt;
     REQUIRE(!trust_opt.has_value());
 
-    trust_opt = Trusted;
+    trust_opt = nix::Trusted;
     REQUIRE(trust_opt.has_value());
-    REQUIRE(trust_opt.value() == Trusted);
+    REQUIRE(trust_opt.value() == nix::Trusted);
 
-    trust_opt = NotTrusted;
+    trust_opt = nix::NotTrusted;
     REQUIRE(trust_opt.has_value());
-    REQUIRE(trust_opt.value() == NotTrusted);
+    REQUIRE(trust_opt.value() == nix::NotTrusted);
   }
 }
 
@@ -642,25 +643,25 @@ TEST_CASE("Worker protocol supports feature negotiation", "[daemon][protocol][in
 
   SECTION("allFeatures set is available") {
     // The daemon advertises its supported features during handshake
-    // This is a static member of WorkerProto
-    const auto& features = WorkerProto::allFeatures;
+    // This is a static member of nix::WorkerProto
+    const auto& features = nix::WorkerProto::allFeatures;
     // The set exists (may be empty or contain features)
     REQUIRE(features.size() >= 0);
   }
 
   SECTION("Known features are defined as constants") {
     // Feature strings for capability negotiation
-    REQUIRE(WorkerProto::featureQueryActiveBuilds == "queryActiveBuilds");
+    REQUIRE(nix::WorkerProto::featureQueryActiveBuilds == "queryActiveBuilds");
   }
 
   SECTION("Feature type is string-based") {
-    WorkerProto::Feature feature = "testFeature";
+    nix::WorkerProto::Feature feature = "testFeature";
     REQUIRE(feature == "testFeature");
     REQUIRE(feature.size() == 11);
   }
 
   SECTION("FeatureSet supports standard set operations") {
-    WorkerProto::FeatureSet features;
+    nix::WorkerProto::FeatureSet features;
     features.insert("feature1");
     features.insert("feature2");
     REQUIRE(features.size() == 2);
@@ -670,10 +671,10 @@ TEST_CASE("Worker protocol supports feature negotiation", "[daemon][protocol][in
   }
 
   SECTION("Feature negotiation produces intersection of capabilities") {
-    WorkerProto::FeatureSet client_features = {"feature1", "feature2", "feature3"};
-    WorkerProto::FeatureSet server_features = {"feature2", "feature3", "feature4"};
+    nix::WorkerProto::FeatureSet client_features = {"feature1", "feature2", "feature3"};
+    nix::WorkerProto::FeatureSet server_features = {"feature2", "feature3", "feature4"};
 
-    WorkerProto::FeatureSet negotiated;
+    nix::WorkerProto::FeatureSet negotiated;
     for (const auto& f : client_features) {
       if (server_features.contains(f)) {
         negotiated.insert(f);
@@ -695,53 +696,53 @@ TEST_CASE("Connection state machine for daemon protocol", "[daemon][state][integ
 
   SECTION("Initial state expects WORKER_MAGIC_1 from client") {
     // Client sends WORKER_MAGIC_1 to initiate connection
-    REQUIRE(WORKER_MAGIC_1 == 0x6e697863);
+    REQUIRE(nix::WORKER_MAGIC_1 == 0x6e697863);
   }
 
   SECTION("After receiving client magic, daemon responds with WORKER_MAGIC_2") {
     // Daemon responds with WORKER_MAGIC_2 and protocol version
-    REQUIRE(WORKER_MAGIC_2 == 0x6478696f);
+    REQUIRE(nix::WORKER_MAGIC_2 == 0x6478696f);
   }
 
   SECTION("Version negotiation uses minimum of client and server versions") {
     // Both sides advertise their version
     // The negotiated version is the minimum
-    unsigned int client_version = PROTOCOL_VERSION;
-    unsigned int server_version = PROTOCOL_VERSION;
+    unsigned int client_version = nix::PROTOCOL_VERSION;
+    unsigned int server_version = nix::PROTOCOL_VERSION;
     unsigned int negotiated = std::min(client_version, server_version);
-    REQUIRE(negotiated == PROTOCOL_VERSION);
+    REQUIRE(negotiated == nix::PROTOCOL_VERSION);
   }
 
   SECTION("Connection must be above minimum protocol version") {
     // Connections with versions below MINIMUM_PROTOCOL_VERSION are rejected
-    REQUIRE(MINIMUM_PROTOCOL_VERSION > 0);
-    REQUIRE(PROTOCOL_VERSION >= MINIMUM_PROTOCOL_VERSION);
+    REQUIRE(nix::MINIMUM_PROTOCOL_VERSION > 0);
+    REQUIRE(nix::PROTOCOL_VERSION >= nix::MINIMUM_PROTOCOL_VERSION);
   }
 
   SECTION("Post-handshake exchanges client info") {
     // After protocol version negotiation, client info is exchanged
     // This includes trust level and daemon version
-    WorkerProto::ClientHandshakeInfo info;
+    nix::WorkerProto::ClientHandshakeInfo info;
     REQUIRE(!info.daemonNixVersion.has_value());
     REQUIRE(!info.remoteTrustsUs.has_value());
   }
 
   SECTION("Ready state processes operation requests") {
     // After handshake, daemon processes operation codes
-    REQUIRE(static_cast<uint64_t>(WorkerProto::Op::IsValidPath) > 0);
+    REQUIRE(static_cast<uint64_t>(nix::WorkerProto::Op::IsValidPath) > 0);
   }
 
   SECTION("Operations are processed until connection closes") {
     // The daemon continuously processes operations until:
     // - Client closes connection
     // - Error occurs
-    // - STDERR_LAST signals completion
-    REQUIRE(STDERR_LAST == 0x616c7473);
+    // - nix::STDERR_LAST signals completion
+    REQUIRE(nix::STDERR_LAST == 0x616c7473);
   }
 
   SECTION("STDERR_ERROR indicates operation failure") {
-    // Errors are signaled with STDERR_ERROR
-    REQUIRE(STDERR_ERROR == 0x63787470);
+    // Errors are signaled with nix::STDERR_ERROR
+    REQUIRE(nix::STDERR_ERROR == 0x63787470);
   }
 }
 

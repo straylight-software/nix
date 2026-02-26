@@ -6,13 +6,11 @@
 #include "nix/util/git.h"
 #include "nix/util/posix-source-accessor.h"
 
-using namespace nix;
-
-struct cmd_add_to_store_t : MixDryRun, StoreCommand {
-  Path path;
+struct cmd_add_to_store_t : nix::MixDryRun, nix::StoreCommand {
+  nix::Path path;
   std::optional<std::string> name_part;
-  content_address_method_t ca_method = content_address_method_t::raw_t::nix_archive;
-  hash_algorithm_t hash_algo = hash_algorithm_t::SHA256;
+  nix::content_address_method_t ca_method = nix::content_address_method_t::raw_t::nix_archive;
+  nix::hash_algorithm_t hash_algo = nix::hash_algorithm_t::SHA256;
 
   cmd_add_to_store_t() {
     // FIXME: completion
@@ -27,22 +25,23 @@ struct cmd_add_to_store_t : MixDryRun, StoreCommand {
         .handler = {&name_part},
     });
 
-    add_flag(flag::content_address_method(&ca_method));
+    add_flag(nix::flag::content_address_method(&ca_method));
 
-    add_flag(flag::hash_algo(&hash_algo));
+    add_flag(nix::flag::hash_algo(&hash_algo));
   }
 
-  void run(ref<store_t> store) override {
+  void run(nix::ref<nix::store_t> store) override {
     if (!name_part)
-      name_part = base_name_of(path);
+      name_part = nix::base_name_of(path);
 
-    auto source_path = posix_source_accessor_t::create_at_root(make_parent_canonical(path));
+    auto source_path =
+        nix::posix_source_accessor_t::create_at_root(nix::make_parent_canonical(path));
 
     auto store_path =
         dry_run ? store->computeStorePath(*name_part, source_path, ca_method, hash_algo, {}).first
                 : store->addToStoreSlow(*name_part, source_path, ca_method, hash_algo, {}).path;
 
-    logger->cout("%s", store->printStorePath(store_path));
+    nix::logger->cout("%s", store->printStorePath(store_path));
   }
 };
 
@@ -57,7 +56,7 @@ struct cmd_add_t : cmd_add_to_store_t {
 };
 
 struct cmd_add_file_t : cmd_add_to_store_t {
-  cmd_add_file_t() { ca_method = content_address_method_t::raw_t::flat; }
+  cmd_add_file_t() { ca_method = nix::content_address_method_t::raw_t::flat; }
 
   std::string description() override {
     return "Deprecated. Use [`nix store add --mode "
@@ -72,6 +71,6 @@ struct cmd_add_path_t : cmd_add_to_store_t {
   }
 };
 
-static auto r_cmd_add_file = registerCommand2<cmd_add_file_t>({"store", "add-file"});
-static auto r_cmd_add_path = registerCommand2<cmd_add_path_t>({"store", "add-path"});
-static auto r_cmd_add = registerCommand2<cmd_add_t>({"store", "add"});
+static auto r_cmd_add_file = nix::registerCommand2<cmd_add_file_t>({"store", "add-file"});
+static auto r_cmd_add_path = nix::registerCommand2<cmd_add_path_t>({"store", "add-path"});
+static auto r_cmd_add = nix::registerCommand2<cmd_add_t>({"store", "add"});

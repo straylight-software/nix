@@ -10,22 +10,20 @@
 #include "nix/util/strings.h"
 #include "run.h"
 
-using namespace nix;
-
-struct cmd_env_t : NixMultiCommand {
-  cmd_env_t() : NixMultiCommand("env", RegisterCommand::getCommandsFor({"env"})) {}
+struct cmd_env_t : nix::NixMultiCommand {
+  cmd_env_t() : NixMultiCommand("env", nix::RegisterCommand::getCommandsFor({"env"})) {}
 
   std::string description() override { return "manipulate the process environment"; }
 
-  category_t category() override { return catUtility; }
+  nix::category_t category() override { return nix::catUtility; }
 };
 
-static auto r_cmd_env = registerCommand<cmd_env_t>("env");
+static auto r_cmd_env = nix::registerCommand<cmd_env_t>("env");
 
-struct cmd_shell_t : InstallablesCommand, MixEnvironment {
+struct cmd_shell_t : nix::InstallablesCommand, nix::MixEnvironment {
   using InstallablesCommand::run;
 
-  std::vector<std::string> command = {get_env("SHELL").value_or("bash")};
+  std::vector<std::string> command = {nix::get_env("SHELL").value_or("bash")};
 
   cmd_shell_t() {
     add_flag({
@@ -35,7 +33,7 @@ struct cmd_shell_t : InstallablesCommand, MixEnvironment {
         .labels = {"command", "args"},
         .handler = {[&](std::vector<std::string> ss) {
           if (ss.empty())
-            throw UsageError("--command requires at least one argument");
+            throw nix::UsageError("--command requires at least one argument");
           command = ss;
         }},
     });
@@ -51,14 +49,14 @@ struct cmd_shell_t : InstallablesCommand, MixEnvironment {
         ;
   }
 
-  void run(ref<store_t> store, Installables&& installables) override {
+  void run(nix::ref<nix::store_t> store, nix::Installables&& installables) override {
     auto state = getEvalState();
 
-    auto out_paths = Installable::toStorePaths(getEvalStore(), store, Realise::Outputs,
-                                               OperateOn::Output, installables);
+    auto out_paths = nix::Installable::toStorePaths(getEvalStore(), store, nix::Realise::Outputs,
+                                                    nix::OperateOn::Output, installables);
 
-    boost::unordered_flat_set<store_path_t, std::hash<store_path_t>> done;
-    std::queue<store_path_t> todo;
+    boost::unordered_flat_set<nix::store_path_t, std::hash<nix::store_path_t>> done;
+    std::queue<nix::store_path_t> todo;
     for (auto& path : out_paths)
       todo.push(path);
 
@@ -73,30 +71,30 @@ struct cmd_shell_t : InstallablesCommand, MixEnvironment {
         continue;
 
       auto bin_dir =
-          state->storeFS->resolve_symlinks(canon_path_t(store->printStorePath(path)) / "bin");
+          state->storeFS->resolve_symlinks(nix::canon_path_t(store->printStorePath(path)) / "bin");
       if (!store->isInStore(bin_dir.abs()))
-        throw Error("path '%s' is not in the Nix store", bin_dir);
+        throw nix::Error("path '%s' is not in the Nix store", bin_dir);
 
       pathAdditions.push_back(bin_dir.abs());
 
       auto prop_path =
-          state->storeFS->resolve_symlinks(canon_path_t(store->printStorePath(path)) /
+          state->storeFS->resolve_symlinks(nix::canon_path_t(store->printStorePath(path)) /
                                            "nix-support" / "propagated-user-env-packages");
       if (auto st = state->storeFS->maybe_lstat(prop_path);
-          st && st->type == source_accessor_t::t_regular) {
-        for (auto& p : tokenize_string<Paths>(state->storeFS->read_file(prop_path)))
+          st && st->type == nix::source_accessor_t::t_regular) {
+        for (auto& p : nix::tokenize_string<nix::Paths>(state->storeFS->read_file(prop_path)))
           todo.push(store->parseStorePath(p));
       }
     }
 
     // TODO: split losslessly; empty means .
-    auto unix_path = executable_path_t::load();
+    auto unix_path = nix::executable_path_t::load();
     unix_path.directories.insert(unix_path.directories.begin(), pathAdditions.begin(),
                                  pathAdditions.end());
     auto unix_path_string = unix_path.render();
-    set_env_os(OS_STR("PATH"), unix_path_string.c_str());
+    nix::set_env_os(OS_STR("PATH"), unix_path_string.c_str());
 
-    strings_t args;
+    nix::strings_t args;
     for (auto& arg : command)
       args.push_back(arg);
 
@@ -104,8 +102,8 @@ struct cmd_shell_t : InstallablesCommand, MixEnvironment {
     // we are about to exec out of this process without running C++ destructors.
     state->evalCaches.clear();
 
-    exec_program_in_store(store, use_lookup_path_t::use, *command.begin(), args);
+    exec_program_in_store(store, nix::use_lookup_path_t::use, *command.begin(), args);
   }
 };
 
-static auto r_cmd_shell = registerCommand2<cmd_shell_t>({"env", "shell"});
+static auto r_cmd_shell = nix::registerCommand2<cmd_shell_t>({"env", "shell"});

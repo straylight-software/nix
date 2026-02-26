@@ -6,10 +6,8 @@
 #include "nix/util/exit.h"
 #include "nix/util/thread-pool.h"
 
-using namespace nix;
-using namespace nix::flake;
 
-struct cmd_flake_prefetch_inputs_t : flake_command_t {
+struct cmd_flake_prefetch_inputs_t : nix::flake_command_t {
   std::string description() override { return "fetch the inputs of a flake"; }
 
   std::string doc() override {
@@ -21,32 +19,33 @@ struct cmd_flake_prefetch_inputs_t : flake_command_t {
   void run(nix::ref<nix::store_t> store) override {
     auto flake = lock_flake();
 
-    thread_pool_t pool{file_transfer_settings.httpConnections};
+    nix::thread_pool_t pool{nix::file_transfer_settings.httpConnections};
 
     struct State {
-      std::set<const Node*> done;
+      std::set<const nix::flake::Node*> done;
     };
 
-    sync_t<State> state_;
+    nix::sync_t<State> state_;
 
     std::atomic<size_t> nrFailed{0};
 
-    auto visit = [&](this const auto& visit, const Node& node) {
+    auto visit = [&](this const auto& visit, const nix::flake::Node& node) {
       if (!state_.lock()->done.insert(&node).second)
         return;
 
-      if (auto locked_node = dynamic_cast<const LockedNode*>(&node)) {
+      if (auto locked_node = dynamic_cast<const nix::flake::LockedNode*>(&node)) {
         if (locked_node->buildTime)
           return;
         try {
-          activity_t act(*logger, lvl_info, act_unknown,
-                         fmt("fetching '%s'", locked_node->locked_ref));
-          auto accessor = locked_node->locked_ref.input.get_accessor(fetch_settings, *store).first;
-          if (!eval_settings.lazyTrees)
-            fetch_to_store(fetch_settings, *store, accessor, FetchMode::Copy,
-                           locked_node->locked_ref.input.get_name());
-        } catch (Error& e) {
-          printError("%s", e.what());
+          nix::activity_t act(*nix::logger, nix::lvl_info, nix::act_unknown,
+                              nix::fmt("fetching '%s'", locked_node->locked_ref));
+          auto accessor =
+              locked_node->locked_ref.input.get_accessor(nix::fetch_settings, *store).first;
+          if (!nix::eval_settings.lazyTrees)
+            nix::fetch_to_store(nix::fetch_settings, *store, accessor, nix::FetchMode::Copy,
+                                locked_node->locked_ref.input.get_name());
+        } catch (nix::Error& e) {
+          nix::printError("%s", e.what());
           nrFailed++;
         }
       }
@@ -61,9 +60,9 @@ struct cmd_flake_prefetch_inputs_t : flake_command_t {
 
     pool.process();
 
-    throw exit_t(nrFailed ? 1 : 0);
+    throw nix::exit_t(nrFailed ? 1 : 0);
   }
 };
 
 static auto r_cmd_flake_prefetch_inputs =
-    registerCommand2<cmd_flake_prefetch_inputs_t>({"flake", "prefetch-inputs"});
+    nix::registerCommand2<cmd_flake_prefetch_inputs_t>({"flake", "prefetch-inputs"});

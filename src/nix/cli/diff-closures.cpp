@@ -116,9 +116,7 @@ void print_closure_diff(ref<store_t> store, const store_path_t& before_path,
 
 } // namespace nix
 
-using namespace nix;
-
-struct cmd_diff_closures_t : SourceExprCommand, MixOperateOnOptions {
+struct cmd_diff_closures_t : nix::SourceExprCommand, nix::MixOperateOnOptions {
   std::string _before, _after;
 
   cmd_diff_closures_t() {
@@ -136,15 +134,16 @@ struct cmd_diff_closures_t : SourceExprCommand, MixOperateOnOptions {
         ;
   }
 
-  void run(ref<store_t> store) override {
+  void run(nix::ref<nix::store_t> store) override {
     auto before = parseInstallable(store, _before);
-    auto before_path =
-        Installable::toStorePath(getEvalStore(), store, Realise::Outputs, operateOn, before);
+    auto before_path = nix::Installable::toStorePath(getEvalStore(), store, nix::Realise::Outputs,
+                                                     operateOn, before);
     auto after = parseInstallable(store, _after);
-    auto after_path =
-        Installable::toStorePath(getEvalStore(), store, Realise::Outputs, operateOn, after);
-    print_closure_diff(store, before_path, after_path, "");
+    auto after_path = nix::Installable::toStorePath(getEvalStore(), store, nix::Realise::Outputs,
+                                                    operateOn, after);
+    nix::print_closure_diff(store, before_path, after_path, "");
   }
 };
 
-static auto r_cmd_diff_closures = registerCommand2<cmd_diff_closures_t>({"store", "diff-closures"});
+static auto r_cmd_diff_closures =
+    nix::registerCommand2<cmd_diff_closures_t>({"store", "diff-closures"});

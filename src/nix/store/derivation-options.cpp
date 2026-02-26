@@ -588,60 +588,60 @@ template struct derivation_options_t<SingleDerivedPath>;
 
 namespace nlohmann {
 
-using namespace nix;
-
-derivation_options_t<SingleDerivedPath>
-adl_serializer<derivation_options_t<SingleDerivedPath>>::from_json(const json& json_) {
-  auto& json = get_object(json_);
+nix::derivation_options_t<nix::SingleDerivedPath>
+adl_serializer<nix::derivation_options_t<nix::SingleDerivedPath>>::from_json(const json& json_) {
+  auto& json = nix::get_object(json_);
 
   return {
-      .output_checks = [&]() -> OutputChecksVariant<SingleDerivedPath> {
-        auto output_checks = get_object(value_at(json, "outputChecks"));
+      .output_checks = [&]() -> nix::OutputChecksVariant<nix::SingleDerivedPath> {
+        auto output_checks = nix::get_object(nix::value_at(json, "outputChecks"));
 
-        auto forAllOutputsOpt = optional_value_at(output_checks, "forAllOutputs");
-        auto perOutputOpt = optional_value_at(output_checks, "perOutput");
+        auto forAllOutputsOpt = nix::optional_value_at(output_checks, "forAllOutputs");
+        auto perOutputOpt = nix::optional_value_at(output_checks, "perOutput");
 
         if (forAllOutputsOpt && !perOutputOpt) {
-          return static_cast<OutputChecks<SingleDerivedPath>>(*forAllOutputsOpt);
+          return static_cast<nix::OutputChecks<nix::SingleDerivedPath>>(*forAllOutputsOpt);
         } else if (perOutputOpt && !forAllOutputsOpt) {
-          return static_cast<std::map<std::string, OutputChecks<SingleDerivedPath>>>(*perOutputOpt);
+          return static_cast<std::map<std::string, nix::OutputChecks<nix::SingleDerivedPath>>>(
+              *perOutputOpt);
         } else {
-          throw Error("Exactly one of 'perOutput' or 'forAllOutputs' is required");
+          throw nix::Error("Exactly one of 'perOutput' or 'forAllOutputs' is required");
         }
       }(),
 
-      .unsafeDiscardReferences = value_at(json, "unsafeDiscardReferences"),
-      .passAsFile = get_string_set(value_at(json, "passAsFile")),
-      .exportReferencesGraph = value_at(json, "exportReferencesGraph"),
+      .unsafeDiscardReferences = nix::value_at(json, "unsafeDiscardReferences"),
+      .passAsFile = nix::get_string_set(nix::value_at(json, "passAsFile")),
+      .exportReferencesGraph = nix::value_at(json, "exportReferencesGraph"),
 
-      .additionalSandboxProfile = get_string(value_at(json, "additionalSandboxProfile")),
-      .noChroot = get_boolean(value_at(json, "noChroot")),
-      .impureHostDeps = get_string_set(value_at(json, "impureHostDeps")),
-      .impureEnvVars = get_string_set(value_at(json, "impureEnvVars")),
-      .allowLocalNetworking = get_boolean(value_at(json, "allowLocalNetworking")),
+      .additionalSandboxProfile = nix::get_string(nix::value_at(json, "additionalSandboxProfile")),
+      .noChroot = nix::get_boolean(nix::value_at(json, "noChroot")),
+      .impureHostDeps = nix::get_string_set(nix::value_at(json, "impureHostDeps")),
+      .impureEnvVars = nix::get_string_set(nix::value_at(json, "impureEnvVars")),
+      .allowLocalNetworking = nix::get_boolean(nix::value_at(json, "allowLocalNetworking")),
 
-      .requiredSystemFeatures = get_string_set(value_at(json, "requiredSystemFeatures")),
-      .preferLocalBuild = get_boolean(value_at(json, "preferLocalBuild")),
-      .allowSubstitutes = get_boolean(value_at(json, "allowSubstitutes")),
+      .requiredSystemFeatures = nix::get_string_set(nix::value_at(json, "requiredSystemFeatures")),
+      .preferLocalBuild = nix::get_boolean(nix::value_at(json, "preferLocalBuild")),
+      .allowSubstitutes = nix::get_boolean(nix::value_at(json, "allowSubstitutes")),
   };
 }
 
-void adl_serializer<derivation_options_t<SingleDerivedPath>>::to_json(
-    json& json, const derivation_options_t<SingleDerivedPath>& o) {
-  json["outputChecks"] = std::visit(
-      overloaded{
-          [&](const OutputChecks<SingleDerivedPath>& checks) {
-            nlohmann::json output_checks;
-            output_checks["forAllOutputs"] = checks;
-            return output_checks;
-          },
-          [&](const std::map<std::string, OutputChecks<SingleDerivedPath>>& checksPerOutput) {
-            nlohmann::json output_checks;
-            output_checks["perOutput"] = checksPerOutput;
-            return output_checks;
-          },
-      },
-      o.output_checks);
+void adl_serializer<nix::derivation_options_t<nix::SingleDerivedPath>>::to_json(
+    json& json, const nix::derivation_options_t<nix::SingleDerivedPath>& o) {
+  json["outputChecks"] =
+      std::visit(nix::overloaded{
+                     [&](const nix::OutputChecks<nix::SingleDerivedPath>& checks) {
+                       nlohmann::json output_checks;
+                       output_checks["forAllOutputs"] = checks;
+                       return output_checks;
+                     },
+                     [&](const std::map<std::string, nix::OutputChecks<nix::SingleDerivedPath>>&
+                             checksPerOutput) {
+                       nlohmann::json output_checks;
+                       output_checks["perOutput"] = checksPerOutput;
+                       return output_checks;
+                     },
+                 },
+                 o.output_checks);
 
   json["unsafeDiscardReferences"] = o.unsafeDiscardReferences;
   json["passAsFile"] = o.passAsFile;
@@ -658,25 +658,26 @@ void adl_serializer<derivation_options_t<SingleDerivedPath>>::to_json(
   json["allowSubstitutes"] = o.allowSubstitutes;
 }
 
-OutputChecks<SingleDerivedPath>
-adl_serializer<OutputChecks<SingleDerivedPath>>::from_json(const json& json_) {
-  auto& json = get_object(json_);
+nix::OutputChecks<nix::SingleDerivedPath>
+adl_serializer<nix::OutputChecks<nix::SingleDerivedPath>>::from_json(const json& json_) {
+  auto& json = nix::get_object(json_);
 
   return {
-      .ignoreSelfRefs = get_boolean(value_at(json, "ignoreSelfRefs")),
-      .max_size = ptr_to_owned<uint64_t>(get_nullable(value_at(json, "maxSize"))),
-      .maxClosureSize = ptr_to_owned<uint64_t>(get_nullable(value_at(json, "maxClosureSize"))),
-      .allowedReferences = ptr_to_owned<std::set<DrvRef<SingleDerivedPath>>>(
-          get_nullable(value_at(json, "allowedReferences"))),
-      .disallowedReferences = value_at(json, "disallowedReferences"),
-      .allowedRequisites = ptr_to_owned<std::set<DrvRef<SingleDerivedPath>>>(
-          get_nullable(value_at(json, "allowedRequisites"))),
-      .disallowedRequisites = value_at(json, "disallowedRequisites"),
+      .ignoreSelfRefs = nix::get_boolean(nix::value_at(json, "ignoreSelfRefs")),
+      .max_size = nix::ptr_to_owned<uint64_t>(nix::get_nullable(nix::value_at(json, "maxSize"))),
+      .maxClosureSize =
+          nix::ptr_to_owned<uint64_t>(nix::get_nullable(nix::value_at(json, "maxClosureSize"))),
+      .allowedReferences = nix::ptr_to_owned<std::set<nix::DrvRef<nix::SingleDerivedPath>>>(
+          nix::get_nullable(nix::value_at(json, "allowedReferences"))),
+      .disallowedReferences = nix::value_at(json, "disallowedReferences"),
+      .allowedRequisites = nix::ptr_to_owned<std::set<nix::DrvRef<nix::SingleDerivedPath>>>(
+          nix::get_nullable(nix::value_at(json, "allowedRequisites"))),
+      .disallowedRequisites = nix::value_at(json, "disallowedRequisites"),
   };
 }
 
-void adl_serializer<OutputChecks<SingleDerivedPath>>::to_json(
-    json& json, const OutputChecks<SingleDerivedPath>& c) {
+void adl_serializer<nix::OutputChecks<nix::SingleDerivedPath>>::to_json(
+    json& json, const nix::OutputChecks<nix::SingleDerivedPath>& c) {
   json["ignoreSelfRefs"] = c.ignoreSelfRefs;
   json["maxSize"] = c.max_size;
   json["maxClosureSize"] = c.maxClosureSize;

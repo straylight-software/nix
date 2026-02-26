@@ -18,7 +18,6 @@
 #include "nix/util/strings.h"
 #include "nix/util/util.h"
 
-using namespace nix;
 
 // =============================================================================
 // tokenizeString tests

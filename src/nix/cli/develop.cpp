@@ -23,28 +23,22 @@
 
 #include "nix/util/strings.h"
 
-namespace nix::fs {
-using namespace std::filesystem;
-}
+struct develop_settings_t : nix::config_t {
+  nix::setting_t<std::string> bash_prompt{this, "", "bash-prompt",
+                                          "The bash prompt (`PS1`) in `nix develop` shells."};
 
-using namespace nix;
-
-struct develop_settings_t : config_t {
-  setting_t<std::string> bash_prompt{this, "", "bash-prompt",
-                                     "The bash prompt (`PS1`) in `nix develop` shells."};
-
-  setting_t<std::string> bash_prompt_prefix{
+  nix::setting_t<std::string> bash_prompt_prefix{
       this, "", "bash-prompt-prefix",
       "Prefix prepended to the `PS1` environment variable in `nix develop` shells."};
 
-  setting_t<std::string> bash_prompt_suffix{
+  nix::setting_t<std::string> bash_prompt_suffix{
       this, "", "bash-prompt-suffix",
       "Suffix appended to the `PS1` environment variable in `nix develop` shells."};
 };
 
 static develop_settings_t develop_settings;
 
-static global_config_t::Register r_develop_settings(&develop_settings);
+static nix::global_config_t::Register r_develop_settings(&develop_settings);
 
 struct build_environment_t {
   struct String {
@@ -58,18 +52,18 @@ struct build_environment_t {
 
   using Array = std::vector<std::string>;
 
-  using Associative = string_map_t;
+  using Associative = nix::string_map_t;
 
   using value_t = std::variant<String, Array, Associative>;
 
   std::map<std::string, value_t> vars;
-  string_map_t bash_functions;
+  nix::string_map_t bash_functions;
   std::optional<std::pair<std::string, std::string>> structured_attrs;
 
   static build_environment_t from_json(const nlohmann::json& json) {
     build_environment_t res;
 
-    string_set_t exported;
+    nix::string_set_t exported;
 
     for (auto& [name, info] : json["variables"].items()) {
       std::string type = info["type"];
@@ -146,22 +140,23 @@ struct build_environment_t {
     return structured_attrs->second;
   }
 
-  void to_bash(std::ostream& out, const string_set_t& ignore_vars) const {
+  void to_bash(std::ostream& out, const nix::string_set_t& ignore_vars) const {
     for (auto& [name, value] : vars) {
       if (!ignore_vars.count(name)) {
         if (auto str = std::get_if<String>(&value)) {
-          out << fmt("%s=%s\n", name, escape_shell_arg_always(str->value));
+          out << nix::fmt("%s=%s\n", name, nix::escape_shell_arg_always(str->value));
           if (str->exported)
-            out << fmt("export %s\n", name);
+            out << nix::fmt("export %s\n", name);
         } else if (auto arr = std::get_if<Array>(&value)) {
           out << "declare -a " << name << "=(";
           for (auto& s : *arr)
-            out << escape_shell_arg_always(s) << " ";
+            out << nix::escape_shell_arg_always(s) << " ";
           out << ")\n";
         } else if (auto arr = std::get_if<Associative>(&value)) {
           out << "declare -A " << name << "=(";
           for (auto& [n, v] : *arr)
-            out << "[" << escape_shell_arg_always(n) << "]=" << escape_shell_arg_always(v) << " ";
+            out << "[" << nix::escape_shell_arg_always(n) << "]=" << nix::escape_shell_arg_always(v)
+                << " ";
           out << ")\n";
         }
       }
@@ -176,19 +171,19 @@ struct build_environment_t {
     if (auto str = std::get_if<String>(&value))
       return str->value;
     else
-      throw Error("bash variable is not a string");
+      throw nix::Error("bash variable is not a string");
   }
 
   static Associative get_associative(const value_t& value) {
     if (auto assoc = std::get_if<Associative>(&value))
       return *assoc;
     else
-      throw Error("bash variable is not an associative array");
+      throw nix::Error("bash variable is not an associative array");
   }
 
   static Array get_strings(const value_t& value) {
     if (auto str = std::get_if<String>(&value))
-      return tokenize_string<Array>(str->value);
+      return nix::tokenize_string<Array>(str->value);
     else if (auto arr = std::get_if<Array>(&value)) {
       return *arr;
     } else if (auto assoc = std::get_if<Associative>(&value)) {
@@ -196,7 +191,7 @@ struct build_environment_t {
       std::for_each(assoc->begin(), assoc->end(), [&](auto& n) { assoc_keys.push_back(n.first); });
       return assoc_keys;
     } else
-      throw Error("bash variable is not a string or array");
+      throw nix::Error("bash variable is not a string or array");
   }
 
   bool operator==(const build_environment_t& other) const {
@@ -204,10 +199,10 @@ struct build_environment_t {
   }
 
   std::string get_system() const {
-    if (auto v = get(vars, "system"))
+    if (auto v = nix::get(vars, "system"))
       return get_string(*v);
     else
-      return settings.thisSystem;
+      return nix::settings.thisSystem;
   }
 };
 
@@ -222,19 +217,20 @@ const static std::string get_env_sh =
  * initial environment variables, that just writes the resulting
  * environment to a file and exits.
  */
-static store_path_t get_derivation_environment(ref<store_t> store, ref<store_t> eval_store,
-                                               const store_path_t& drv_path) {
+static nix::store_path_t get_derivation_environment(nix::ref<nix::store_t> store,
+                                                    nix::ref<nix::store_t> eval_store,
+                                                    const nix::store_path_t& drv_path) {
   auto drv = eval_store->derivationFromPath(drv_path);
 
-  auto builder = base_name_of(drv.builder);
+  auto builder = nix::base_name_of(drv.builder);
   if (builder != "bash")
-    throw Error("'nix develop' only works on derivations that use 'bash' as their builder");
+    throw nix::Error("'nix develop' only works on derivations that use 'bash' as their builder");
 
   auto get_env_sh_path = ({
-    string_source_t source{get_env_sh};
-    eval_store->add_to_store_from_dump(source, "get-env.sh", file_serialisation_method_t::flat,
-                                       content_address_method_t::raw_t::Text,
-                                       hash_algorithm_t::SHA256, {});
+    nix::string_source_t source{get_env_sh};
+    eval_store->add_to_store_from_dump(source, "get-env.sh", nix::file_serialisation_method_t::flat,
+                                       nix::content_address_method_t::raw_t::Text,
+                                       nix::hash_algorithm_t::SHA256, {});
   });
 
   drv.args = {store->printStorePath(get_env_sh_path)};
@@ -257,13 +253,13 @@ static store_path_t get_derivation_environment(ref<store_t> store, ref<store_t> 
   drv.env.emplace("name", drv.name);
   drv.input_srcs.insert(std::move(get_env_sh_path));
   for (auto& [output_name, output] : drv.outputs) {
-    std::visit(overloaded{
-                   [&](const derivation_output_t::InputAddressed&) {
-                     output = derivation_output_t::Deferred{};
+    std::visit(nix::overloaded{
+                   [&](const nix::derivation_output_t::InputAddressed&) {
+                     output = nix::derivation_output_t::Deferred{};
                      drv.env[output_name] = "";
                    },
-                   [&](const derivation_output_t::CAFixed&) {
-                     output = derivation_output_t::Deferred{};
+                   [&](const nix::derivation_output_t::CAFixed&) {
+                     output = nix::derivation_output_t::Deferred{};
                      drv.env[output_name] = "";
                    },
                    [&](const auto&) {
@@ -274,29 +270,29 @@ static store_path_t get_derivation_environment(ref<store_t> store, ref<store_t> 
   }
   drv.fillInOutputPaths(*eval_store);
 
-  auto shell_drv_path = write_derivation(*eval_store, drv);
+  auto shell_drv_path = nix::write_derivation(*eval_store, drv);
 
   /* Build the derivation. */
-  store->build_paths({derived_path_t::Built{
-                         .drv_path = makeConstantStorePathRef(shell_drv_path),
-                         .outputs = OutputsSpec::All{},
+  store->build_paths({nix::derived_path_t::Built{
+                         .drv_path = nix::makeConstantStorePathRef(shell_drv_path),
+                         .outputs = nix::OutputsSpec::All{},
                      }},
-                     bmNormal, eval_store);
+                     nix::bmNormal, eval_store);
 
   // `get-env.sh` will write its JSON output to an arbitrary output
   // path, so return the first non-empty output path.
   for (auto& [_0, optPath] : eval_store->queryPartialDerivationOutputMap(shell_drv_path)) {
     assert(optPath);
     auto accessor = eval_store->requireStoreObjectAccessor(*optPath);
-    if (auto st = accessor->maybe_lstat(canon_path_t::root); st && st->file_size.value_or(0))
+    if (auto st = accessor->maybe_lstat(nix::canon_path_t::root); st && st->file_size.value_or(0))
       return *optPath;
   }
 
-  throw Error("get-env.sh failed to produce an environment");
+  throw nix::Error("get-env.sh failed to produce an environment");
 }
 
-struct common_t : InstallableCommand, MixProfile {
-  string_set_t ignore_vars{
+struct common_t : nix::InstallableCommand, nix::MixProfile {
+  nix::string_set_t ignore_vars{
       "BASHOPTS",
       "HOME", // FIXME: don't ignore in pure mode?
       "NIX_BUILD_TOP", "NIX_ENFORCE_PURITY",
@@ -322,11 +318,11 @@ struct common_t : InstallableCommand, MixProfile {
     });
   }
 
-  std::string make_rc_script(ref<store_t> store, const build_environment_t& build_environment,
-                             const std::filesystem::path& tmp_dir,
-                             const std::filesystem::path& outputs_dir =
-                                 std::filesystem::path{std::filesystem::current_path()} /
-                                 "outputs") {
+  std::string
+  make_rc_script(nix::ref<nix::store_t> store, const build_environment_t& build_environment,
+                 const std::filesystem::path& tmp_dir,
+                 const std::filesystem::path& outputs_dir =
+                     std::filesystem::path{std::filesystem::current_path()} / "outputs") {
     // A list of colon-separated environment variables that should be
     // prepended to, rather than overwritten, in order to keep the shell usable.
     // Please keep this list minimal in order to avoid impurities.
@@ -340,22 +336,22 @@ struct common_t : InstallableCommand, MixProfile {
     out += "unset shellHook\n";
 
     for (auto& var : saved_vars) {
-      out += fmt("%s=${%s:-}\n", var, var);
-      out += fmt("nix_saved_%s=\"$%s\"\n", var, var);
+      out += nix::fmt("%s=${%s:-}\n", var, var);
+      out += nix::fmt("nix_saved_%s=\"$%s\"\n", var, var);
     }
 
     {
-      string_sink_t sink;
+      nix::string_sink_t sink;
       build_environment.to_bash(sink, ignore_vars);
       out += sink.str();
     }
 
     for (auto& var : saved_vars)
-      out += fmt("%s=\"$%s${nix_saved_%s:+:$nix_saved_%s}\"\n", var, var, var, var);
+      out += nix::fmt("%s=\"$%s${nix_saved_%s:+:$nix_saved_%s}\"\n", var, var, var, var);
 
     out += "export NIX_BUILD_TOP=\"$(mktemp -d -t nix-shell.XXXXXX)\"\n";
     for (auto& i : {"TMP", "TMPDIR", "TEMP", "TEMPDIR"})
-      out += fmt("export %s=\"$NIX_BUILD_TOP\"\n", i);
+      out += nix::fmt("export %s=\"$NIX_BUILD_TOP\"\n", i);
 
     out += "eval \"${shellHook:-}\"\n";
 
@@ -365,7 +361,7 @@ struct common_t : InstallableCommand, MixProfile {
     auto outputs = build_environment.vars.find("outputs");
     assert(outputs != build_environment.vars.end());
 
-    string_map_t rewrites;
+    nix::string_map_t rewrites;
     if (build_environment.provides_structured_attrs()) {
       for (auto& [output_name, from] : build_environment_t::get_associative(outputs->second)) {
         rewrites.insert({from, (outputs_dir / output_name).string()});
@@ -383,16 +379,17 @@ struct common_t : InstallableCommand, MixProfile {
 
     /* Substitute redirects. */
     for (auto& [installable_, dir_] : redirects) {
-      auto dir = abs_path(dir_);
+      auto dir = nix::abs_path(dir_);
       auto installable = parseInstallable(store, installable_);
-      auto built_paths = Installable::toStorePathSet(getEvalStore(), store, Realise::Nothing,
-                                                     OperateOn::Output, {installable});
+      auto built_paths = nix::Installable::toStorePathSet(
+          getEvalStore(), store, nix::Realise::Nothing, nix::OperateOn::Output, {installable});
       for (auto& path : built_paths) {
         auto from = store->printStorePath(path);
         if (script.find(from) == std::string::npos)
-          warn("'%s' (path '%s') is not used by this build environment", installable->what(), from);
+          nix::warn("'%s' (path '%s') is not used by this build environment", installable->what(),
+                    from);
         else {
-          printInfo("redirecting '%s' to '%s'", from, dir);
+          nix::printInfo("redirecting '%s' to '%s'", from, dir);
           rewrites.insert({from, dir});
         }
       }
@@ -406,21 +403,21 @@ struct common_t : InstallableCommand, MixProfile {
                              tmp_dir);
     }
 
-    return rewrite_strings(script, rewrites);
+    return nix::rewrite_strings(script, rewrites);
   }
 
   /**
    * Replace the value of NIX_ATTRS_*_FILE (`/build/.attrs.*`) with a tmp file
    * that's accessible from the interactive shell session.
    */
-  void fixup_structured_attrs(path_view_ng_t::string_view ext, const std::string& env_var,
-                              const std::string& content, string_map_t& rewrites,
+  void fixup_structured_attrs(nix::path_view_ng_t::string_view ext, const std::string& env_var,
+                              const std::string& content, nix::string_map_t& rewrites,
                               const build_environment_t& build_environment,
                               const std::filesystem::path& tmp_dir) {
     auto target_file_path = tmp_dir / OS_STR(".attrs.");
     target_file_path += ext;
 
-    write_file(target_file_path, content);
+    nix::write_file(target_file_path, content);
 
     auto file_in_builder_env = build_environment.vars.find(env_var);
     assert(file_in_builder_env != build_environment.vars.end());
@@ -428,31 +425,32 @@ struct common_t : InstallableCommand, MixProfile {
         {build_environment_t::get_string(file_in_builder_env->second), target_file_path.string()});
   }
 
-  strings_t getDefaultFlakeAttrPaths() override {
-    strings_t paths{
-        "devShells." + settings.thisSystem.get() + ".default",
-        "devShell." + settings.thisSystem.get(),
+  nix::strings_t getDefaultFlakeAttrPaths() override {
+    nix::strings_t paths{
+        "devShells." + nix::settings.thisSystem.get() + ".default",
+        "devShell." + nix::settings.thisSystem.get(),
     };
     for (auto& p : SourceExprCommand::getDefaultFlakeAttrPaths())
       paths.push_back(p);
     return paths;
   }
 
-  strings_t getDefaultFlakeAttrPathPrefixes() override {
+  nix::strings_t getDefaultFlakeAttrPathPrefixes() override {
     auto res = SourceExprCommand::getDefaultFlakeAttrPathPrefixes();
-    res.emplace_front("devShells." + settings.thisSystem.get() + ".");
+    res.emplace_front("devShells." + nix::settings.thisSystem.get() + ".");
     return res;
   }
 
-  store_path_t get_shell_out_path(ref<store_t> store, ref<Installable> installable) {
+  nix::store_path_t get_shell_out_path(nix::ref<nix::store_t> store,
+                                       nix::ref<nix::Installable> installable) {
     auto path = installable->getStorePath();
-    if (path && has_suffix(path->to_string(), "-env"))
+    if (path && nix::has_suffix(path->to_string(), "-env"))
       return *path;
     else {
-      auto drvs = Installable::toDerivations(store, {installable});
+      auto drvs = nix::Installable::toDerivations(store, {installable});
 
       if (drvs.size() != 1)
-        throw Error(
+        throw nix::Error(
             "'%s' needs to evaluate to a single derivation, but it evaluated to %d derivations",
             installable->what(), drvs.size());
 
@@ -462,23 +460,23 @@ struct common_t : InstallableCommand, MixProfile {
     }
   }
 
-  std::pair<build_environment_t, store_path_t> get_build_environment(ref<store_t> store,
-                                                                     ref<Installable> installable) {
+  std::pair<build_environment_t, nix::store_path_t>
+  get_build_environment(nix::ref<nix::store_t> store, nix::ref<nix::Installable> installable) {
     auto shell_out_path = get_shell_out_path(store, installable);
 
     updateProfile(shell_out_path);
 
-    debug("reading environment file '%s'", store->printStorePath(shell_out_path));
+    nix::debug("reading environment file '%s'", store->printStorePath(shell_out_path));
 
     return {
         build_environment_t::parse_json(
-            store->requireStoreObjectAccessor(shell_out_path)->read_file(canon_path_t::root)),
+            store->requireStoreObjectAccessor(shell_out_path)->read_file(nix::canon_path_t::root)),
         shell_out_path,
     };
   }
 };
 
-struct cmd_develop_t : common_t, MixEnvironment {
+struct cmd_develop_t : common_t, nix::MixEnvironment {
   std::vector<std::string> command;
   std::optional<std::string> phase;
 
@@ -491,7 +489,7 @@ struct cmd_develop_t : common_t, MixEnvironment {
         .labels = {"command", "args"},
         .handler = {[&](std::vector<std::string> ss) {
           if (ss.empty())
-            throw UsageError("--command requires at least one argument");
+            throw nix::UsageError("--command requires at least one argument");
           command = ss;
         }},
     });
@@ -550,35 +548,35 @@ struct cmd_develop_t : common_t, MixEnvironment {
         ;
   }
 
-  void run(ref<store_t> store, ref<Installable> installable) override {
+  void run(nix::ref<nix::store_t> store, nix::ref<nix::Installable> installable) override {
     auto [build_environment, gcroot] = get_build_environment(store, installable);
 
-    auto [rcFileFd, rcFilePath] = create_temp_file("nix-shell");
+    auto [rcFileFd, rcFilePath] = nix::create_temp_file("nix-shell");
 
-    auto_delete_t tmp_dir(create_temp_dir("", "nix-develop"), true);
+    nix::auto_delete_t tmp_dir(nix::create_temp_dir("", "nix-develop"), true);
 
     auto script = make_rc_script(store, build_environment, tmp_dir);
 
-    if (verbosity >= lvl_debug)
+    if (nix::verbosity >= nix::lvl_debug)
       script += "set -x\n";
 
-    script += fmt("command rm -f '%s'\n", rcFilePath);
+    script += nix::fmt("command rm -f '%s'\n", rcFilePath);
 
     if (phase) {
       if (!command.empty())
-        throw UsageError("you cannot use both '--command' and '--phase'");
+        throw nix::UsageError("you cannot use both '--command' and '--phase'");
       // FIXME: foundMakefile is set by buildPhase, need to get
       // rid of that.
-      script += fmt("foundMakefile=1\n");
-      script += fmt("runHook %1%Phase\n", *phase);
+      script += nix::fmt("foundMakefile=1\n");
+      script += nix::fmt("runHook %1%Phase\n", *phase);
     }
 
     else if (!command.empty()) {
       std::vector<std::string> args;
       args.reserve(command.size());
       for (const auto& s : command)
-        args.push_back(escape_shell_arg_always(s));
-      script += fmt("exec %s\n", concat_strings_sep(" ", args));
+        args.push_back(nix::escape_shell_arg_always(s));
+      script += nix::fmt("exec %s\n", nix::concat_strings_sep(" ", args));
     }
 
     else {
@@ -586,21 +584,21 @@ struct cmd_develop_t : common_t, MixEnvironment {
           "[ -n \"$PS1\" ] && [ -e ~/.bashrc ] && source ~/.bashrc;\nshopt -u expand_aliases\n" +
           script + "\nshopt -s expand_aliases\n";
       if (develop_settings.bash_prompt != "")
-        script += fmt("[ -n \"$PS1\" ] && PS1=%s;\n",
-                      escape_shell_arg_always(develop_settings.bash_prompt.get()));
+        script += nix::fmt("[ -n \"$PS1\" ] && PS1=%s;\n",
+                           nix::escape_shell_arg_always(develop_settings.bash_prompt.get()));
       if (develop_settings.bash_prompt_prefix != "")
-        script += fmt("[ -n \"$PS1\" ] && PS1=%s\"$PS1\";\n",
-                      escape_shell_arg_always(develop_settings.bash_prompt_prefix.get()));
+        script += nix::fmt("[ -n \"$PS1\" ] && PS1=%s\"$PS1\";\n",
+                           nix::escape_shell_arg_always(develop_settings.bash_prompt_prefix.get()));
       if (develop_settings.bash_prompt_suffix != "")
-        script += fmt("[ -n \"$PS1\" ] && PS1+=%s;\n",
-                      escape_shell_arg_always(develop_settings.bash_prompt_suffix.get()));
+        script += nix::fmt("[ -n \"$PS1\" ] && PS1+=%s;\n",
+                           nix::escape_shell_arg_always(develop_settings.bash_prompt_suffix.get()));
     }
 
     setEnviron();
     // prevent garbage collection until shell exits
-    set_env("NIX_GCROOT", store->printStorePath(gcroot).c_str());
+    nix::set_env("NIX_GCROOT", store->printStorePath(gcroot).c_str());
 
-    Path shell = "bash";
+    nix::Path shell = "bash";
     bool found_interactive = false;
 
     try {
@@ -611,18 +609,21 @@ struct cmd_develop_t : common_t, MixEnvironment {
       nixpkgs_lock_flags.inputUpdates = {};
 
       auto nixpkgs = defaultNixpkgsFlakeRef();
-      if (auto* i = dynamic_cast<const InstallableFlake*>(&*installable))
+      if (auto* i = dynamic_cast<const nix::InstallableFlake*>(&*installable))
         nixpkgs = i->nixpkgsFlakeRef();
 
-      auto bash_installable = make_ref<InstallableFlake>(
+      auto bash_installable = nix::make_ref<nix::InstallableFlake>(
           nullptr, //< Don't barf when the command is run with --arg/--argstr
-          state, std::move(nixpkgs), "bashInteractive", ExtendedOutputsSpec::Default(), strings_t{},
-          strings_t{"legacyPackages." + settings.thisSystem.get() + "."}, nixpkgs_lock_flags);
+          state, std::move(nixpkgs), "bashInteractive", nix::ExtendedOutputsSpec::Default(),
+          nix::strings_t{},
+          nix::strings_t{"legacyPackages." + nix::settings.thisSystem.get() + "."},
+          nixpkgs_lock_flags);
 
-      for (auto& path : Installable::toStorePathSet(getEvalStore(), store, Realise::Outputs,
-                                                    OperateOn::Output, {bash_installable})) {
+      for (auto& path :
+           nix::Installable::toStorePathSet(getEvalStore(), store, nix::Realise::Outputs,
+                                            nix::OperateOn::Output, {bash_installable})) {
         auto s = store->printStorePath(path) + "/bin/bash";
-        if (path_exists(s)) {
+        if (nix::path_exists(s)) {
           shell = s;
           found_interactive = true;
           break;
@@ -630,40 +631,41 @@ struct cmd_develop_t : common_t, MixEnvironment {
       }
 
       if (!found_interactive)
-        throw Error("package 'nixpkgs#bashInteractive' does not provide a 'bin/bash'");
+        throw nix::Error("package 'nixpkgs#bashInteractive' does not provide a 'bin/bash'");
 
-    } catch (Error&) {
-      ignore_exception_except_interrupt();
+    } catch (nix::Error&) {
+      nix::ignore_exception_except_interrupt();
     }
 
     // Override SHELL with the one chosen for this environment.
     // This is to make sure the system shell doesn't leak into the build environment.
-    set_env("SHELL", shell.c_str());
+    nix::set_env("SHELL", shell.c_str());
     // https://github.com/NixOS/nix/issues/5873
-    script += fmt("SHELL=\"%s\"\n", shell);
+    script += nix::fmt("SHELL=\"%s\"\n", shell);
     if (found_interactive)
-      script += fmt("PATH=\"%s${PATH:+:$PATH}\"\n", std::filesystem::path(shell).parent_path());
-    write_full(rcFileFd.get(), script);
+      script +=
+          nix::fmt("PATH=\"%s${PATH:+:$PATH}\"\n", std::filesystem::path(shell).parent_path());
+    nix::write_full(rcFileFd.get(), script);
 
 #ifdef _WIN32 // TODO re-enable on Windows
-    throw UnimplementedError("Cannot yet spawn processes on Windows");
+    throw nix::UnimplementedError("Cannot yet spawn processes on Windows");
 #else
     // If running a phase or single command, don't want an interactive shell running after
     // Ctrl-C, so don't pass --rcfile
     auto args = phase || !command.empty()
-                    ? strings_t{std::string(base_name_of(shell)), rcFilePath}
-                    : strings_t{std::string(base_name_of(shell)), "--rcfile", rcFilePath};
+                    ? nix::strings_t{std::string(nix::base_name_of(shell)), rcFilePath}
+                    : nix::strings_t{std::string(nix::base_name_of(shell)), "--rcfile", rcFilePath};
 
     // Need to chdir since phases assume in flake directory
     if (phase) {
       // chdir if installable is a flake of type git+file or path
-      auto installable_flake = installable.dynamic_pointer_cast<InstallableFlake>();
+      auto installable_flake = installable.dynamic_pointer_cast<nix::InstallableFlake>();
       if (installable_flake) {
         auto source_path =
             installable_flake->getLockedFlake()->flake.resolved_ref.input.get_source_path();
         if (source_path) {
           if (chdir(source_path->c_str()) == -1) {
-            throw sys_error_t("chdir to %s failed", *source_path);
+            throw nix::sys_error_t("chdir to %s failed", *source_path);
           }
         }
       }
@@ -673,13 +675,13 @@ struct cmd_develop_t : common_t, MixEnvironment {
     // we are about to exec out of this process without running C++ destructors.
     getEvalState()->evalCaches.clear();
 
-    exec_program_in_store(store, use_lookup_path_t::use, shell, args,
+    exec_program_in_store(store, nix::use_lookup_path_t::use, shell, args,
                           build_environment.get_system());
 #endif
   }
 };
 
-struct cmd_print_dev_env_t : common_t, MixJSON {
+struct cmd_print_dev_env_t : common_t, nix::MixJSON {
   std::string description() override {
     return "print shell code that can be sourced by bash to reproduce the build environment of a "
            "derivation";
@@ -691,21 +693,21 @@ struct cmd_print_dev_env_t : common_t, MixJSON {
         ;
   }
 
-  category_t category() override { return catUtility; }
+  nix::category_t category() override { return nix::catUtility; }
 
-  void run(ref<store_t> store, ref<Installable> installable) override {
+  void run(nix::ref<nix::store_t> store, nix::ref<nix::Installable> installable) override {
     auto build_environment = get_build_environment(store, installable).first;
 
-    logger->stop();
+    nix::logger->stop();
 
     if (json) {
       printJSON(build_environment.to_json());
     } else {
-      auto_delete_t tmp_dir(create_temp_dir("", "nix-dev-env"), true);
-      logger->write_to_stdout(make_rc_script(store, build_environment, tmp_dir));
+      nix::auto_delete_t tmp_dir(nix::create_temp_dir("", "nix-dev-env"), true);
+      nix::logger->write_to_stdout(make_rc_script(store, build_environment, tmp_dir));
     }
   }
 };
 
-static auto r_cmd_print_dev_env = registerCommand<cmd_print_dev_env_t>("print-dev-env");
-static auto r_cmd_develop = registerCommand<cmd_develop_t>("develop");
+static auto r_cmd_print_dev_env = nix::registerCommand<cmd_print_dev_env_t>("print-dev-env");
+static auto r_cmd_develop = nix::registerCommand<cmd_develop_t>("develop");
