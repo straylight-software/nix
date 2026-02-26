@@ -71,8 +71,11 @@ getCredentialsFromProvider(std::shared_ptr<Aws::Crt::Auth::ICredentialsProvider>
 
 } // anonymous namespace
 
-class AwsCredentialProviderImpl : public AwsCredentialProvider {
-public:
+struct AwsCredentialProviderImpl : public AwsCredentialProvider {
+  Aws::Crt::ApiHandle apiHandle;
+  boost::concurrent_flat_map<std::string, std::shared_ptr<Aws::Crt::Auth::ICredentialsProvider>>
+      credentialProviderCache;
+
   AwsCredentialProviderImpl() {
     // Map Nix's verbosity to AWS CRT log level
     Aws::Crt::LogLevel logLevel;
@@ -103,11 +106,6 @@ public:
 
   std::shared_ptr<Aws::Crt::Auth::ICredentialsProvider>
   createProviderForProfile(const std::string& profile);
-
-private:
-  Aws::Crt::ApiHandle apiHandle;
-  boost::concurrent_flat_map<std::string, std::shared_ptr<Aws::Crt::Auth::ICredentialsProvider>>
-      credentialProviderCache;
 };
 
 std::shared_ptr<Aws::Crt::Auth::ICredentialsProvider>

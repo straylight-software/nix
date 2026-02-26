@@ -7,10 +7,8 @@
 #include "nix/util/signals.h"
 #include "nix/util/thread-pool.h"
 
-using namespace nix;
-
-struct cmd_copy_sigs_t : StorePathsCommand {
-  strings_t substituter_uris;
+struct cmd_copy_sigs_t : nix::StorePathsCommand {
+  nix::strings_t substituter_uris;
 
   cmd_copy_sigs_t() {
     add_flag({
@@ -30,31 +28,31 @@ struct cmd_copy_sigs_t : StorePathsCommand {
         ;
   }
 
-  void run(ref<store_t> store, store_paths_t&& store_paths) override {
+  void run(nix::ref<nix::store_t> store, nix::store_paths_t&& store_paths) override {
     if (substituter_uris.empty())
-      throw UsageError("you must specify at least one substituter using '-s'");
+      throw nix::UsageError("you must specify at least one substituter using '-s'");
 
     // FIXME: factor out commonality with MixVerify.
-    std::vector<ref<store_t>> substituters;
+    std::vector<nix::ref<nix::store_t>> substituters;
     for (auto& s : substituter_uris)
-      substituters.push_back(open_store(s));
+      substituters.push_back(nix::open_store(s));
 
-    thread_pool_t pool{file_transfer_settings.httpConnections};
+    nix::thread_pool_t pool{nix::file_transfer_settings.httpConnections};
 
     std::atomic<size_t> added{0};
 
     // logger->setExpected(doneLabel, storePaths.size());
 
-    auto do_path = [&](const Path& store_path_s) {
+    auto do_path = [&](const nix::Path& store_path_s) {
       // Activity act(*logger, lvlInfo, "getting signatures for '%s'", storePath);
 
-      check_interrupt();
+      nix::check_interrupt();
 
       auto store_path = store->parseStorePath(store_path_s);
 
       auto info = store->queryPathInfo(store_path);
 
-      string_set_t new_sigs;
+      nix::string_set_t new_sigs;
 
       for (auto& store2 : substituters) {
         try {
@@ -69,7 +67,7 @@ struct cmd_copy_sigs_t : StorePathsCommand {
           for (auto& sig : info2->sigs)
             if (!info->sigs.count(sig))
               new_sigs.insert(sig);
-        } catch (InvalidPath&) {
+        } catch (nix::InvalidPath&) {
         }
       }
 
@@ -86,14 +84,14 @@ struct cmd_copy_sigs_t : StorePathsCommand {
 
     pool.process();
 
-    printInfo("imported %d signatures", added);
+    nix::printInfo("imported %d signatures", added);
   }
 };
 
-static auto r_cmd_copy_sigs = registerCommand2<cmd_copy_sigs_t>({"store", "copy-sigs"});
+static auto r_cmd_copy_sigs = nix::registerCommand2<cmd_copy_sigs_t>({"store", "copy-sigs"});
 
-struct cmd_sign_t : StorePathsCommand {
-  Path secret_key_file;
+struct cmd_sign_t : nix::StorePathsCommand {
+  nix::Path secret_key_file;
 
   cmd_sign_t() {
     add_flag({
@@ -102,16 +100,16 @@ struct cmd_sign_t : StorePathsCommand {
         .description = "File containing the secret signing key.",
         .labels = {"file"},
         .handler = {&secret_key_file},
-        .completer = complete_path,
+        .completer = nix::complete_path,
         .required = true,
     });
   }
 
   std::string description() override { return "sign store paths with a local key"; }
 
-  void run(ref<store_t> store, store_paths_t&& store_paths) override {
-    secret_key_t secret_key(read_file(secret_key_file));
-    local_signer_t signer(std::move(secret_key));
+  void run(nix::ref<nix::store_t> store, nix::store_paths_t&& store_paths) override {
+    nix::secret_key_t secret_key(nix::read_file(secret_key_file));
+    nix::local_signer_t signer(std::move(secret_key));
 
     size_t added{0};
 
@@ -129,13 +127,13 @@ struct cmd_sign_t : StorePathsCommand {
       }
     }
 
-    printInfo("added %d signatures", added);
+    nix::printInfo("added %d signatures", added);
   }
 };
 
-static auto r_cmd_sign = registerCommand2<cmd_sign_t>({"store", "sign"});
+static auto r_cmd_sign = nix::registerCommand2<cmd_sign_t>({"store", "sign"});
 
-struct cmd_key_generate_secret_t : command_t {
+struct cmd_key_generate_secret_t : nix::command_t {
   std::string key_name;
 
   cmd_key_generate_secret_t() {
@@ -157,12 +155,12 @@ struct cmd_key_generate_secret_t : command_t {
   }
 
   void run() override {
-    logger->stop();
-    write_full(get_standard_output(), secret_key_t::generate(key_name).to_string());
+    nix::logger->stop();
+    nix::write_full(nix::get_standard_output(), nix::secret_key_t::generate(key_name).to_string());
   }
 };
 
-struct cmd_key_convert_secret_to_public_t : command_t {
+struct cmd_key_convert_secret_to_public_t : nix::command_t {
   std::string description() override {
     return "generate a public key for verifying store paths from a secret key read from standard "
            "input";
@@ -175,24 +173,25 @@ struct cmd_key_convert_secret_to_public_t : command_t {
   }
 
   void run() override {
-    secret_key_t secret_key(drain_fd(STDIN_FILENO));
-    logger->stop();
-    write_full(get_standard_output(), secret_key.to_public_key().to_string());
+    nix::secret_key_t secret_key(nix::drain_fd(STDIN_FILENO));
+    nix::logger->stop();
+    nix::write_full(nix::get_standard_output(), secret_key.to_public_key().to_string());
   }
 };
 
-struct cmd_key_t : NixMultiCommand {
+struct cmd_key_t : nix::NixMultiCommand {
   cmd_key_t()
       : NixMultiCommand(
-            "key", {
-                       {"generate-secret", []() { return make_ref<cmd_key_generate_secret_t>(); }},
-                       {"convert-secret-to-public",
-                        []() { return make_ref<cmd_key_convert_secret_to_public_t>(); }},
-                   }) {}
+            "key",
+            {
+                {"generate-secret", []() { return nix::make_ref<cmd_key_generate_secret_t>(); }},
+                {"convert-secret-to-public",
+                 []() { return nix::make_ref<cmd_key_convert_secret_to_public_t>(); }},
+            }) {}
 
   std::string description() override { return "generate and convert Nix signing keys"; }
 
-  category_t category() override { return catUtility; }
+  nix::category_t category() override { return nix::catUtility; }
 };
 
-static auto r_cmd_key = registerCommand<cmd_key_t>("key");
+static auto r_cmd_key = nix::registerCommand<cmd_key_t>("key");

@@ -14,13 +14,11 @@ namespace nix {
 
 // for more information, refer to
 // https://github.com/nlohmann/json/blob/master/include/nlohmann/detail/input/json_sax.hpp
-class json_sax_t : nlohmann::json_sax<json> {
-  class json_state_t {
-  protected:
+struct json_sax_t : nlohmann::json_sax<json> {
+  struct json_state_t {
     std::unique_ptr<json_state_t> parent;
     RootValue v;
 
-  public:
     virtual std::unique_ptr<json_state_t> resolve(eval_state_t&) {
       throw std::logic_error("tried to close toplevel json parser state");
     }
@@ -42,7 +40,7 @@ class json_sax_t : nlohmann::json_sax<json> {
     virtual void add() {}
   };
 
-  class json_object_state_t : public json_state_t {
+  struct json_object_state_t : public json_state_t {
     using json_state_t::json_state_t;
     ValueMap attrs;
 
@@ -56,14 +54,13 @@ class json_sax_t : nlohmann::json_sax<json> {
 
     void add() override { v = nullptr; }
 
-  public:
     void key(string_t& name, eval_state_t& state) {
       force_no_null_byte(name);
       attrs.insert_or_assign(state.symbols.create(name), &value(state));
     }
   };
 
-  class json_list_state_t : public json_state_t {
+  struct json_list_state_t : public json_state_t {
     ValueVector values;
 
     std::unique_ptr<json_state_t> resolve(eval_state_t& state) override {
@@ -79,7 +76,6 @@ class json_sax_t : nlohmann::json_sax<json> {
       v = nullptr;
     }
 
-  public:
     json_list_state_t(std::unique_ptr<json_state_t>&& p, std::size_t reserve)
         : json_state_t(std::move(p)) {
       values.reserve(reserve);
@@ -89,7 +85,6 @@ class json_sax_t : nlohmann::json_sax<json> {
   eval_state_t& state;
   std::unique_ptr<json_state_t> rs;
 
-public:
   json_sax_t(eval_state_t& state, value_t& v) : state(state), rs(new json_state_t(&v)) {};
 
   bool null() override {

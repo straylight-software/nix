@@ -11,12 +11,11 @@
 using namespace nix;
 using namespace nix::flake;
 
-class registry_command_t : virtual args_t {
+struct registry_command_t : virtual args_t {
   std::string registry_path;
 
   std::shared_ptr<fetchers::Registry> registry;
 
-public:
   registry_command_t() {
     add_flag({
         .long_name = "registry",

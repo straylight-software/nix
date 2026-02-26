@@ -3,12 +3,13 @@
 #include "nix/store/local-fs-store.h"
 #include "nix/store/store-api.h"
 
-using namespace nix;
-
-struct cmd_copy_t : virtual CopyCommand, virtual BuiltPathsCommand, MixProfile, MixNoCheckSigs {
+struct cmd_copy_t : virtual nix::CopyCommand,
+                    virtual nix::BuiltPathsCommand,
+                    nix::MixProfile,
+                    nix::MixNoCheckSigs {
   std::optional<std::filesystem::path> out_link;
 
-  SubstituteFlag substitute = NoSubstitute;
+  nix::SubstituteFlag substitute = nix::NoSubstitute;
 
   cmd_copy_t() : BuiltPathsCommand(true) {
     add_flag({
@@ -18,14 +19,14 @@ struct cmd_copy_t : virtual CopyCommand, virtual BuiltPathsCommand, MixProfile, 
                        "from the source store.",
         .labels = {"path"},
         .handler = {&out_link},
-        .completer = complete_path,
+        .completer = nix::complete_path,
     });
     add_flag({
         .long_name = "substitute-on-destination",
         .short_name = 's',
         .description =
             "Whether to try substitutes on the destination store (only supported by SSH stores).",
-        .handler = {&substitute, Substitute},
+        .handler = {&substitute, nix::Substitute},
     });
 
     realiseMode = Realise::Outputs;
@@ -39,29 +40,30 @@ struct cmd_copy_t : virtual CopyCommand, virtual BuiltPathsCommand, MixProfile, 
         ;
   }
 
-  category_t category() override { return catSecondary; }
+  nix::category_t category() override { return nix::catSecondary; }
 
-  void run(ref<store_t> src_store, BuiltPaths&& all_paths, BuiltPaths&& root_paths) override {
+  void run(nix::ref<nix::store_t> src_store, nix::BuiltPaths&& all_paths,
+           nix::BuiltPaths&& root_paths) override {
     auto dst_store = getDstStore();
 
-    RealisedPath::Set stuff_to_copy;
+    nix::RealisedPath::Set stuff_to_copy;
 
     for (auto& builtPath : all_paths) {
       auto theseRealisations = builtPath.toRealisedPaths(*src_store);
       stuff_to_copy.insert(theseRealisations.begin(), theseRealisations.end());
     }
 
-    copy_paths(*src_store, *dst_store, stuff_to_copy, NoRepair, check_sigs, substitute);
+    nix::copy_paths(*src_store, *dst_store, stuff_to_copy, nix::NoRepair, check_sigs, substitute);
 
     updateProfile(root_paths);
 
     if (out_link) {
-      if (auto store2 = dst_store.dynamic_pointer_cast<local_fs_store>())
-        create_out_links(*out_link, root_paths, *store2);
+      if (auto store2 = dst_store.dynamic_pointer_cast<nix::local_fs_store>())
+        nix::create_out_links(*out_link, root_paths, *store2);
       else
-        throw Error("'--out-link' is not supported for this Nix store");
+        throw nix::Error("'--out-link' is not supported for this Nix store");
     }
   }
 };
 
-static auto r_cmd_copy = registerCommand<cmd_copy_t>("copy");
+static auto r_cmd_copy = nix::registerCommand<cmd_copy_t>("copy");

@@ -191,24 +191,27 @@ struct cmd_path_info_t : StorePathsCommand, MixJSON {
         auto info = store->queryPathInfo(store_path);
         auto store_path_s = store->printStorePath(info->path);
 
-        std::ostringstream str;
-
-        str << store_path_s;
+        std::string result = store_path_s;
 
         if (show_size || show_closure_size || show_sigs)
-          str << std::string(std::max(0, (int)path_len - (int)store_path_s.size()), ' ');
+          result += std::string(std::max(0, (int)path_len - (int)store_path_s.size()), ' ');
 
-        if (show_size)
-          print_size(str, info->nar_size);
+        if (show_size) {
+          string_sink_t sink;
+          print_size(sink, info->nar_size);
+          result += sink.str();
+        }
 
         if (show_closure_size) {
           store_path_set_t closure;
           store->computeFSClosure(store_path, closure, false, false);
-          print_size(str, get_store_objects_total_size(*store, closure));
+          string_sink_t sink;
+          print_size(sink, get_store_objects_total_size(*store, closure));
+          result += sink.str();
         }
 
         if (show_sigs) {
-          str << '\t';
+          result += '\t';
           strings_t ss;
           if (info->ultimate)
             ss.push_back("ultimate");
@@ -216,10 +219,10 @@ struct cmd_path_info_t : StorePathsCommand, MixJSON {
             ss.push_back("ca:" + render_content_address(*info->ca));
           for (auto& sig : info->sigs)
             ss.push_back(sig);
-          str << concat_strings_sep(" ", ss);
+          result += concat_strings_sep(" ", ss);
         }
 
-        logger->cout(str.str());
+        logger->cout(result);
       }
     }
   }

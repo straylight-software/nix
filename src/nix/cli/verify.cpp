@@ -8,12 +8,10 @@
 #include "nix/util/signals.h"
 #include "nix/util/thread-pool.h"
 
-using namespace nix;
-
-struct cmd_verify_t : StorePathsCommand {
+struct cmd_verify_t : nix::StorePathsCommand {
   bool no_contents = false;
   bool no_trust = false;
-  strings_t substituter_uris;
+  nix::strings_t substituter_uris;
   size_t sigs_needed = 0;
 
   cmd_verify_t() {
@@ -54,14 +52,14 @@ struct cmd_verify_t : StorePathsCommand {
         ;
   }
 
-  void run(ref<store_t> store, store_paths_t&& store_paths) override {
-    std::vector<ref<store_t>> substituters;
+  void run(nix::ref<nix::store_t> store, nix::store_paths_t&& store_paths) override {
+    std::vector<nix::ref<nix::store_t>> substituters;
     for (auto& s : substituter_uris)
-      substituters.push_back(open_store(s));
+      substituters.push_back(nix::open_store(s));
 
-    auto public_keys = get_default_public_keys();
+    auto public_keys = nix::get_default_public_keys();
 
-    activity_t act(*logger, act_verify_paths);
+    nix::activity_t act(*nix::logger, nix::act_verify_paths);
 
     std::atomic<size_t> done{0};
     std::atomic<size_t> untrusted{0};
@@ -71,13 +69,13 @@ struct cmd_verify_t : StorePathsCommand {
 
     auto update = [&]() { act.progress(done, store_paths.size(), active, failed); };
 
-    thread_pool_t pool;
+    nix::thread_pool_t pool;
 
-    auto do_path = [&](const store_path_t& store_path) {
+    auto do_path = [&](const nix::store_path_t& store_path) {
       try {
-        check_interrupt();
+        nix::check_interrupt();
 
-        maintain_count_t<std::atomic<size_t>> mcActive(active);
+        nix::maintain_count_t<std::atomic<size_t>> mcActive(active);
         update();
 
         auto info = store->queryPathInfo(store_path);
@@ -85,11 +83,11 @@ struct cmd_verify_t : StorePathsCommand {
         // Note: info->path can be different from storePath
         // for binary cache stores when using --all (since we
         // can't enumerate names efficiently).
-        activity_t act2(*logger, lvl_info, act_unknown,
-                        fmt("checking '%s'", store->printStorePath(info->path)));
+        nix::activity_t act2(*nix::logger, nix::lvl_info, nix::act_unknown,
+                             nix::fmt("checking '%s'", store->printStorePath(info->path)));
 
         if (!no_contents) {
-          auto hash_sink = hash_sink_t(info->nar_hash.algo());
+          auto hash_sink = nix::hash_sink_t(info->nar_hash.algo());
 
           store->nar_from_path(info->path, hash_sink);
 
@@ -97,11 +95,11 @@ struct cmd_verify_t : StorePathsCommand {
 
           if (hash.hash != info->nar_hash) {
             corrupted++;
-            act2.result(res_corrupted_path, store->printStorePath(info->path));
-            printError("path '%s' was modified! expected hash '%s', got '%s'",
-                       store->printStorePath(info->path),
-                       info->nar_hash.to_string(hash_format_t::nix32, true),
-                       hash.hash.to_string(hash_format_t::nix32, true));
+            act2.result(nix::res_corrupted_path, store->printStorePath(info->path));
+            nix::printError("path '%s' was modified! expected hash '%s', got '%s'",
+                            store->printStorePath(info->path),
+                            info->nar_hash.to_string(nix::hash_format_t::nix32, true),
+                            hash.hash.to_string(nix::hash_format_t::nix32, true));
           }
         }
 
@@ -112,22 +110,22 @@ struct cmd_verify_t : StorePathsCommand {
             good = true;
 
           else {
-            string_set_t sigs_seen;
+            nix::string_set_t sigs_seen;
             size_t actual_sigs_needed = std::max(sigs_needed, (size_t)1);
             size_t valid_sigs = 0;
 
-            auto do_sigs = [&](string_set_t sigs) {
+            auto do_sigs = [&](nix::string_set_t sigs) {
               for (const auto& sig : sigs) {
                 if (!sigs_seen.insert(sig).second)
                   continue;
-                if (valid_sigs < valid_path_info_t::maxSigs &&
+                if (valid_sigs < nix::valid_path_info_t::maxSigs &&
                     info->checkSignature(*store, public_keys, sig))
                   valid_sigs++;
               }
             };
 
             if (info->isContentAddressed(*store))
-              valid_sigs = valid_path_info_t::maxSigs;
+              valid_sigs = nix::valid_path_info_t::maxSigs;
 
             do_sigs(info->sigs);
 
@@ -137,11 +135,11 @@ struct cmd_verify_t : StorePathsCommand {
               try {
                 auto info2 = store2->queryPathInfo(info->path);
                 if (info2->isContentAddressed(*store))
-                  valid_sigs = valid_path_info_t::maxSigs;
+                  valid_sigs = nix::valid_path_info_t::maxSigs;
                 do_sigs(info2->sigs);
-              } catch (InvalidPath&) {
-              } catch (Error& e) {
-                logError(e.info());
+              } catch (nix::InvalidPath&) {
+              } catch (nix::Error& e) {
+                nix::logError(e.info());
               }
             }
 
@@ -151,15 +149,15 @@ struct cmd_verify_t : StorePathsCommand {
 
           if (!good) {
             untrusted++;
-            act2.result(res_untrusted_path, store->printStorePath(info->path));
-            printError("path '%s' is untrusted", store->printStorePath(info->path));
+            act2.result(nix::res_untrusted_path, store->printStorePath(info->path));
+            nix::printError("path '%s' is untrusted", store->printStorePath(info->path));
           }
         }
 
         done++;
 
-      } catch (Error& e) {
-        logError(e.info());
+      } catch (nix::Error& e) {
+        nix::logError(e.info());
         failed++;
       }
 
@@ -171,8 +169,8 @@ struct cmd_verify_t : StorePathsCommand {
 
     pool.process();
 
-    throw exit_t((corrupted ? 1 : 0) | (untrusted ? 2 : 0) | (failed ? 4 : 0));
+    throw nix::exit_t((corrupted ? 1 : 0) | (untrusted ? 2 : 0) | (failed ? 4 : 0));
   }
 };
 
-static auto r_cmd_verify = registerCommand2<cmd_verify_t>({"store", "verify"});
+static auto r_cmd_verify = nix::registerCommand2<cmd_verify_t>({"store", "verify"});

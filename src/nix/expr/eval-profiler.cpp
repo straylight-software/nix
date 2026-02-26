@@ -44,10 +44,9 @@ void MultiEvalProfiler::addProfiler(ref<EvalProfiler> profiler) {
 
 namespace {
 
-class pos_cache_t : private lru_cache_t<pos_idx_t, pos_t> {
+struct pos_cache_t : private lru_cache_t<pos_idx_t, pos_t> {
   const eval_state_t& state;
 
-public:
   pos_cache_t(const eval_state_t& state)
       : lru_cache_t(524288) /* ~40MiB */
         ,
@@ -114,7 +113,7 @@ using FrameStack = std::vector<FrameInfo>;
 /**
  * Stack sampling profiler.
  */
-class sample_stack_t : public EvalProfiler {
+struct sample_stack_t : public EvalProfiler {
   /* How often stack profiles should be flushed to file. This avoids the need
      to persist stack samples across the whole evaluation at the cost
      of periodically flushing data to disk. */
@@ -127,7 +126,6 @@ class sample_stack_t : public EvalProfiler {
 
   FrameInfo get_prim_op_frame_info(const PrimOp& prim_op, std::span<value_t*> args, pos_idx_t pos);
 
-public:
   sample_stack_t(eval_state_t& state, std::filesystem::path profile_file,
                  std::chrono::nanoseconds period)
       : state(state),
@@ -159,7 +157,6 @@ public:
   sample_stack_t& operator=(const sample_stack_t&) = delete;
   ~sample_stack_t();
 
-private:
   /** Hold on to an instance of eval_state_t for symbolizing positions. */
   eval_state_t& state;
   std::chrono::nanoseconds sampleInterval;

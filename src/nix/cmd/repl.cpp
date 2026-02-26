@@ -649,16 +649,19 @@ process_line_result_t nix_repl_t::process_line(std::string line) {
 
       logger->cout(trim(render_markdown_to_terminal(markdown)));
     } else if (fallback_pos) {
-      std::ostringstream ss;
-      ss << "Attribute `" << fallback_name << "`\n\n";
-      ss << "  … defined at " << state->positions[fallback_pos] << "\n\n";
+      std::string markdown;
+      markdown += "Attribute `" + std::string(fallback_name) + "`\n\n";
+      {
+        string_sink_t sink;
+        sink << "  … defined at " << state->positions[fallback_pos] << "\n\n";
+        markdown += sink.str();
+      }
       if (fallback_doc) {
-        ss << fallback_doc.getInnerText(state->positions);
+        markdown += fallback_doc.getInnerText(state->positions);
       } else {
-        ss << "No documentation found.\n\n";
+        markdown += "No documentation found.\n\n";
       }
 
-      auto markdown = ss.view();
       logger->cout(trim(render_markdown_to_terminal(markdown)));
 
     } else
@@ -816,19 +819,21 @@ void nix_repl_t::add_attrs_to_scope(value_t& attrs) {
 
   const int max_print = 20;
   int counter = 0;
-  std::ostringstream loaded;
+  std::string loaded;
   for (auto& i : attrs.attrs()->lexicographicOrder(state->symbols)) {
     if (counter >= max_print)
       break;
 
     if (counter > 0)
-      loaded << ", ";
+      loaded += ", ";
 
-    print_identifier(loaded, state->symbols[i->name]);
+    string_sink_t sink;
+    print_identifier(sink, state->symbols[i->name]);
+    loaded += sink.str();
     counter += 1;
   }
 
-  notice("%1%", loaded.str());
+  notice("%1%", loaded);
 
   if (attrs.attrs()->size() > max_print)
     notice("... and %1% more; view with :ll", attrs.attrs()->size() - max_print);

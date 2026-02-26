@@ -39,6 +39,6 @@ NLOHMANN_JSON_SERIALIZE_ENUM(EvalProfilerMode, {
                                                });
 
 /* explicit_t instantiation of templates */
-template class base_setting_t<EvalProfilerMode>;
+template struct base_setting_t<EvalProfilerMode>;
 
 } // namespace nix

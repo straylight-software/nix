@@ -5,10 +5,8 @@
 #include "nix/store/store-api.h"
 #include "nix/store/store-cast.h"
 
-using namespace nix;
-
-struct cmd_store_gc_t : StoreCommand, MixDryRun {
-  GCOptions options;
+struct cmd_store_gc_t : nix::StoreCommand, nix::MixDryRun {
+  nix::GCOptions options;
 
   cmd_store_gc_t() {
     add_flag({
@@ -27,14 +25,14 @@ struct cmd_store_gc_t : StoreCommand, MixDryRun {
         ;
   }
 
-  void run(ref<store_t> store) override {
-    auto& gc_store = require<GcStore>(*store);
+  void run(nix::ref<nix::store_t> store) override {
+    auto& gc_store = nix::require<nix::GcStore>(*store);
 
-    options.action = dry_run ? GCOptions::gcReturnDead : GCOptions::gcDeleteDead;
-    GCResults results;
-    PrintFreed freed(options.action == GCOptions::gcDeleteDead, results);
+    options.action = dry_run ? nix::GCOptions::gcReturnDead : nix::GCOptions::gcDeleteDead;
+    nix::GCResults results;
+    nix::PrintFreed freed(options.action == nix::GCOptions::gcDeleteDead, results);
     gc_store.collectGarbage(options, results);
   }
 };
 
-static auto r_cmd_store_gc = registerCommand2<cmd_store_gc_t>({"store", "gc"});
+static auto r_cmd_store_gc = nix::registerCommand2<cmd_store_gc_t>({"store", "gc"});

@@ -2481,10 +2481,10 @@ static RegisterPrimOp primop_output_of({
    representation returned in a string.  Not all Nix expressions can
    be sensibly or completely represented (e.g., functions). */
 static void prim_to_xml(eval_state_t& state, const pos_idx_t pos, value_t** args, value_t& v) {
-  std::ostringstream out;
+  string_sink_t out;
   NixStringContext context;
   print_value_as_xml(state, true, false, *args[0], out, context, pos);
-  v.mk_string(out.view(), context, state.mem);
+  v.mk_string(out.str(), context, state.mem);
 }
 
 static RegisterPrimOp primop_to_xml({
@@ -2588,10 +2588,10 @@ static RegisterPrimOp primop_to_xml({
    string.  Not all Nix expressions can be sensibly or completely
    represented (e.g., functions). */
 static void prim_to_json(eval_state_t& state, const pos_idx_t pos, value_t** args, value_t& v) {
-  std::ostringstream out;
+  string_sink_t out;
   NixStringContext context;
   print_value_as_json(state, true, *args[0], pos, out, context);
-  v.mk_string(out.view(), context, state.mem);
+  v.mk_string(out.str(), context, state.mem);
 }
 
 static RegisterPrimOp primop_to_json({

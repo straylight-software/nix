@@ -15,9 +15,6 @@
 
 namespace nix::git {
 
-using namespace nix;
-using namespace std::string_literals;
-
 std::optional<Mode> decode_mode(raw_mode_t m) {
   switch (m) {
     case (raw_mode_t)Mode::directory_t:
@@ -221,6 +218,7 @@ void restore(file_system_object_sink_t& sink, source_t& source, hash_algorithm_t
 
 void dump_blob_prefix(uint64_t size, sink_t& sink,
                       const experimental_feature_settings_t& xp_settings) {
+  using namespace std::string_literals;
   xp_settings.require(xp_t::git_hashing);
   auto s = fmt("blob %d\0"s, std::to_string(size));
   sink(s);
@@ -228,6 +226,7 @@ void dump_blob_prefix(uint64_t size, sink_t& sink,
 
 void dump_tree(const tree_t& entries, sink_t& sink,
                const experimental_feature_settings_t& xp_settings) {
+  using namespace std::string_literals;
   xp_settings.require(xp_t::git_hashing);
 
   std::string v1;

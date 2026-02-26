@@ -502,10 +502,9 @@ struct all_matcher_t final : public matcher_t {
 
 all_matcher_t all;
 
-class mix_profile_element_matchers_t : virtual args_t, virtual StoreCommand {
+struct mix_profile_element_matchers_t : virtual args_t, virtual StoreCommand {
   std::vector<ref<matcher_t>> _matchers;
 
-public:
   mix_profile_element_matchers_t() {
     add_flag({
         .long_name = "all",

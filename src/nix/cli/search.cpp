@@ -19,20 +19,19 @@
 #include "nix/util/strings-inline.h"
 #include "nix/util/strings.h"
 
-using namespace nix;
 using json = nlohmann::json;
 
 std::string wrap(std::string prefix, std::string s) {
-  return concat_strings(prefix, s, ANSI_NORMAL);
+  return nix::concat_strings(prefix, s, ANSI_NORMAL);
 }
 
-struct cmd_search_t : InstallableValueCommand, MixJSON {
+struct cmd_search_t : nix::InstallableValueCommand, nix::MixJSON {
   std::vector<std::string> res;
   std::vector<std::string> exclude_res;
 
   cmd_search_t() {
     expect_args("regex", &res);
-    add_flag(flag_t{
+    add_flag(nix::flag_t{
         .long_name = "exclude",
         .short_name = 'e',
         .description = "Hide packages whose attribute path, name or description contain *regex*.",
@@ -49,18 +48,19 @@ struct cmd_search_t : InstallableValueCommand, MixJSON {
         ;
   }
 
-  strings_t getDefaultFlakeAttrPaths() override {
-    return {"packages." + settings.thisSystem.get(), "legacyPackages." + settings.thisSystem.get()};
+  nix::strings_t getDefaultFlakeAttrPaths() override {
+    return {"packages." + nix::settings.thisSystem.get(),
+            "legacyPackages." + nix::settings.thisSystem.get()};
   }
 
-  void run(ref<store_t> store, ref<InstallableValue> installable) override {
-    settings.readOnlyMode = true;
-    eval_settings.enableImportFromDerivation.set_default(false);
+  void run(nix::ref<nix::store_t> store, nix::ref<nix::InstallableValue> installable) override {
+    nix::settings.readOnlyMode = true;
+    nix::eval_settings.enableImportFromDerivation.set_default(false);
 
     // Recommend "^" here instead of ".*" due to differences in resulting highlighting
     if (res.empty())
-      throw UsageError("Must provide at least one regex! To match all packages, use '%s'.",
-                       "nix search <installable> ^");
+      throw nix::UsageError("Must provide at least one regex! To match all packages, use '%s'.",
+                            "nix search <installable> ^");
 
     std::vector<std::regex> regexes;
     std::vector<std::regex> excludeRegexes;
@@ -75,19 +75,20 @@ struct cmd_search_t : InstallableValueCommand, MixJSON {
 
     auto state = getEvalState();
 
-    std::optional<sync_t<nlohmann::json>> jsonOut;
+    std::optional<nix::sync_t<nlohmann::json>> jsonOut;
     if (json)
       jsonOut.emplace(json::object());
 
     std::atomic<uint64_t> results = 0;
 
-    FutureVector futures(*state->executor);
+    nix::FutureVector futures(*state->executor);
 
-    std::function<void(eval_cache::AttrCursor & cursor, const AttrPath& attr_path,
+    std::function<void(nix::eval_cache::AttrCursor & cursor, const nix::AttrPath& attr_path,
                        bool initialRecurse)>
         visit;
 
-    visit = [&](eval_cache::AttrCursor& cursor, const AttrPath& attr_path, bool initialRecurse) {
+    visit = [&](nix::eval_cache::AttrCursor& cursor, const nix::AttrPath& attr_path,
+                bool initialRecurse) {
       auto attrPathS = state->symbols.resolve({attr_path});
       auto attrPathStr = attr_path.to_string(*state);
 
@@ -96,7 +97,7 @@ struct cmd_search_t : InstallableValueCommand, MixJSON {
       */
       try {
         auto recurse = [&]() {
-          std::vector<std::pair<Executor::work_t, uint8_t>> work;
+          std::vector<std::pair<nix::Executor::work_t, uint8_t>> work;
           for (const auto& attr : cursor.getAttrs()) {
             auto cursor2 = cursor.get_attr(state->symbols[attr]);
             auto attrPath2(attr_path);
@@ -111,7 +112,7 @@ struct cmd_search_t : InstallableValueCommand, MixJSON {
         };
 
         if (cursor.is_derivation()) {
-          DrvName name(cursor.get_attr(state->s.name)->get_string());
+          nix::DrvName name(cursor.get_attr(state->s.name)->get_string());
 
           auto aMeta = cursor.maybeGetAttr(state->s.meta);
           auto aDescription = aMeta ? aMeta->maybeGetAttr(state->s.description) : nullptr;
@@ -158,14 +159,14 @@ struct cmd_search_t : InstallableValueCommand, MixJSON {
                   {"description", description},
               };
             } else {
-              auto out = fmt("%s* %s%s", results > 1 ? "\n" : "",
-                             wrap("\e[0;1m", hilite_matches(attrPathStr, attrPathMatches,
-                                                            ANSI_GREEN, "\e[0;1m")),
-                             optional_bracket(" (", name.version, ")"));
+              auto out = nix::fmt("%s* %s%s", results > 1 ? "\n" : "",
+                                  wrap("\e[0;1m", nix::hilite_matches(attrPathStr, attrPathMatches,
+                                                                      ANSI_GREEN, "\e[0;1m")),
+                                  nix::optional_bracket(" (", name.version, ")"));
               if (description != "")
-                out += fmt("\n  %s", hilite_matches(description, descriptionMatches, ANSI_GREEN,
-                                                    ANSI_NORMAL));
-              logger->cout(out);
+                out += nix::fmt("\n  %s", nix::hilite_matches(description, descriptionMatches,
+                                                              ANSI_GREEN, ANSI_NORMAL));
+              nix::logger->cout(out);
             }
           }
         }
@@ -184,13 +185,13 @@ struct cmd_search_t : InstallableValueCommand, MixJSON {
             recurse();
         }
 
-      } catch (EvalError& e) {
+      } catch (nix::EvalError& e) {
         if (!(attr_path.size() > 0 && attrPathS[0] == "legacyPackages"))
           throw;
       }
     };
 
-    std::vector<std::pair<Executor::work_t, uint8_t>> work;
+    std::vector<std::pair<nix::Executor::work_t, uint8_t>> work;
     for (auto& cursor : installable->getCursors(*state)) {
       work.emplace_back([cursor, visit]() { visit(*cursor, cursor->getAttrPath(), true); }, 1);
     }
@@ -199,13 +200,13 @@ struct cmd_search_t : InstallableValueCommand, MixJSON {
     futures.finishAll();
 
     if (json)
-      printJSON(*(jsonOut->lock()));
+      nix::printJSON(*(jsonOut->lock()));
 
     if (!json && !results)
-      throw Error("no results for the given search term(s)!");
+      throw nix::Error("no results for the given search term(s)!");
 
-    notice("Found %d matching packages.", results);
+    nix::notice("Found %d matching packages.", results);
   }
 };
 
-static auto r_cmd_search = registerCommand<cmd_search_t>("search");
+static auto r_cmd_search = nix::registerCommand<cmd_search_t>("search");

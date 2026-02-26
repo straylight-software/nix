@@ -50,32 +50,32 @@
 
 YY_DECL;
 
-using namespace nix;
-
 #define CUR_POS state->at(yylhs.location)
 
-void parser::bison_parser_t::error(const location_type& loc_, const std::string& error) {
+void nix::parser::bison_parser_t::error(const location_type& loc_, const std::string& error) {
   auto loc = loc_;
   if (std::string_view(error).starts_with("syntax error, unexpected end of file")) {
     loc.beginOffset = loc.endOffset;
   }
-  throw ParseError({.msg_ = hint_fmt_t(error), .pos_ = state->positions[state->at(loc)]});
+  throw nix::ParseError({.msg_ = nix::hint_fmt_t(error), .pos_ = state->positions[state->at(loc)]});
 }
 
 #define SET_DOC_POS(lambda, pos) set_doc_position(state->lexer_state, lambda, state->at(pos))
-static void set_doc_position(const LexerState& lexer_state, ExprLambda* lambda, pos_idx_t start) {
+static void set_doc_position(const nix::LexerState& lexer_state, nix::ExprLambda* lambda,
+                             nix::pos_idx_t start) {
   auto it = lexer_state.positionToDocComment.find(start);
   if (it != lexer_state.positionToDocComment.end()) {
     lambda->setDocComment(it->second);
   }
 }
 
-static expr_t* make_call(Exprs& exprs, pos_idx_t pos, expr_t* fn, expr_t* arg) {
-  if (auto e2 = dynamic_cast<ExprCall*>(fn)) {
+static nix::expr_t* make_call(nix::Exprs& exprs, nix::pos_idx_t pos, nix::expr_t* fn,
+                              nix::expr_t* arg) {
+  if (auto e2 = dynamic_cast<nix::ExprCall*>(fn)) {
     e2->args->push_back(arg);
     return fn;
   }
-  return exprs.add<ExprCall>(pos, fn, {arg});
+  return exprs.add<nix::ExprCall>(pos, fn, {arg});
 }
 
 
@@ -1756,9 +1756,9 @@ int bison_parser_t ::parse() {
                 literal.front() != '.') {
               logWarning(
                   {.msg_ = hint_fmt_t("relative path literal '%s' should be prefixed with '.' "
-                                     "for clarity: './%s'. (" ANSI_BOLD
-                                     "warn-short-path-literals" ANSI_NORMAL " = true)",
-                                     literal, literal),
+                                      "for clarity: './%s'. (" ANSI_BOLD
+                                      "warn-short-path-literals" ANSI_NORMAL " = true)",
+                                      literal, literal),
                    .pos_ = state->positions[CUR_POS]});
             }
 

@@ -27,7 +27,7 @@ bool dummy_store::operator==(const dummy_store& other) const {
 
 namespace {
 
-class whole_store_view_accessor_t : public source_accessor_t {
+struct whole_store_view_accessor_t : public source_accessor_t {
   using BaseName = std::string;
 
   /**
@@ -65,7 +65,6 @@ class whole_store_view_accessor_t : public source_accessor_t {
     return callback(*res, path);
   }
 
-public:
   whole_store_view_accessor_t() {
     memory_sink_t sink{rootPathAccessor};
     sink.create_directory(canon_path_t::root);
@@ -378,54 +377,55 @@ static RegisterStoreImplementation<dummy_store::config_t> reg_dummy_store;
 
 namespace nlohmann {
 
-using namespace nix;
-
-dummy_store::PathInfoAndContents
-adl_serializer<dummy_store::PathInfoAndContents>::from_json(const json& json) {
-  auto& obj = get_object(json);
-  return dummy_store::PathInfoAndContents{
-      .info = value_at(obj, "info"),
-      .contents = make_ref<memory_source_accessor_t>(value_at(obj, "contents")),
+nix::dummy_store::PathInfoAndContents
+adl_serializer<nix::dummy_store::PathInfoAndContents>::from_json(const json& json) {
+  auto& obj = nix::get_object(json);
+  return nix::dummy_store::PathInfoAndContents{
+      .info = nix::value_at(obj, "info"),
+      .contents = nix::make_ref<nix::memory_source_accessor_t>(nix::value_at(obj, "contents")),
   };
 }
 
-void adl_serializer<dummy_store::PathInfoAndContents>::to_json(
-    json& json, const dummy_store::PathInfoAndContents& val) {
+void adl_serializer<nix::dummy_store::PathInfoAndContents>::to_json(
+    json& json, const nix::dummy_store::PathInfoAndContents& val) {
   json = {
       {"info", val.info},
       {"contents", *val.contents},
   };
 }
 
-ref<DummyStoreConfig> adl_serializer<ref<dummy_store::config_t>>::from_json(const json& json) {
-  auto& obj = get_object(json);
-  auto cfg = make_ref<dummy_store::config_t>(dummy_store::config_t::Params{});
-  const_cast<path_setting_t&>(cfg->storeDir_).set(get_string(value_at(obj, "store")));
+nix::ref<nix::DummyStoreConfig>
+adl_serializer<nix::ref<nix::dummy_store::config_t>>::from_json(const json& json) {
+  auto& obj = nix::get_object(json);
+  auto cfg = nix::make_ref<nix::dummy_store::config_t>(nix::dummy_store::config_t::Params{});
+  const_cast<nix::path_setting_t&>(cfg->storeDir_)
+      .set(nix::get_string(nix::value_at(obj, "store")));
   cfg->read_only = true;
   return cfg;
 }
 
-void adl_serializer<DummyStoreConfig>::to_json(json& json, const DummyStoreConfig& val) {
+void adl_serializer<nix::DummyStoreConfig>::to_json(json& json, const nix::DummyStoreConfig& val) {
   json = {
       {"store", val.store_dir},
   };
 }
 
-ref<dummy_store> adl_serializer<ref<dummy_store>>::from_json(const json& json) {
-  auto& obj = get_object(json);
-  ref<dummy_store> res =
-      adl_serializer<ref<DummyStoreConfig>>::from_json(value_at(obj, "config"))->openDummyStore();
-  for (auto& [k, v] : get_object(value_at(obj, "contents")))
-    res->contents.insert({store_path_t{k}, v});
-  for (auto& [k, v] : get_object(value_at(obj, "derivations")))
-    res->derivations.insert({store_path_t{k}, v});
-  for (auto& [k0, v] : get_object(value_at(obj, "buildTrace"))) {
-    for (auto& [k1, v2] : get_object(v)) {
-      UnkeyedRealisation realisation = v2;
+nix::ref<nix::dummy_store> adl_serializer<nix::ref<nix::dummy_store>>::from_json(const json& json) {
+  auto& obj = nix::get_object(json);
+  nix::ref<nix::dummy_store> res =
+      adl_serializer<nix::ref<nix::DummyStoreConfig>>::from_json(nix::value_at(obj, "config"))
+          ->openDummyStore();
+  for (auto& [k, v] : nix::get_object(nix::value_at(obj, "contents")))
+    res->contents.insert({nix::store_path_t{k}, v});
+  for (auto& [k, v] : nix::get_object(nix::value_at(obj, "derivations")))
+    res->derivations.insert({nix::store_path_t{k}, v});
+  for (auto& [k0, v] : nix::get_object(nix::value_at(obj, "buildTrace"))) {
+    for (auto& [k1, v2] : nix::get_object(v)) {
+      nix::UnkeyedRealisation realisation = v2;
       res->buildTrace.insert_or_visit(
           {
-              Hash::parse_explicit_format_unprefixed(k0, hash_algorithm_t::SHA256,
-                                                     hash_format_t::base64),
+              nix::Hash::parse_explicit_format_unprefixed(k0, nix::hash_algorithm_t::SHA256,
+                                                          nix::hash_format_t::base64),
               {{k1, realisation}},
           },
           [&](auto& kv) { kv.second.insert_or_assign(k1, realisation); });
@@ -434,7 +434,7 @@ ref<dummy_store> adl_serializer<ref<dummy_store>>::from_json(const json& json) {
   return res;
 }
 
-void adl_serializer<dummy_store>::to_json(json& json, const dummy_store& val) {
+void adl_serializer<nix::dummy_store>::to_json(json& json, const nix::dummy_store& val) {
   json = {
       {"config", *val.config},
       {"contents",
@@ -460,7 +460,7 @@ void adl_serializer<dummy_store>::to_json(json& json, const dummy_store& val) {
          auto obj = json::object();
          val.buildTrace.cvisit_all([&](const auto& kv) {
            auto& [k, v] = kv;
-           auto& obj2 = obj[k.to_string(hash_format_t::base64, false)] = json::object();
+           auto& obj2 = obj[k.to_string(nix::hash_format_t::base64, false)] = json::object();
            for (auto& [k2, v2] : kv.second)
              obj2[k2] = v2;
          });

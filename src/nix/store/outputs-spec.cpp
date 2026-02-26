@@ -125,39 +125,38 @@ bool OutputsSpec::isSubsetOf(const OutputsSpec& that) const {
 
 namespace nlohmann {
 
-using namespace nix;
-
 #ifndef DOXYGEN_SKIP
 
-OutputsSpec adl_serializer<OutputsSpec>::from_json(const json& json) {
-  auto names = json.get<string_set_t>();
-  if (names == string_set_t({"*"}))
-    return OutputsSpec::All{};
+nix::OutputsSpec adl_serializer<nix::OutputsSpec>::from_json(const json& json) {
+  auto names = json.get<nix::string_set_t>();
+  if (names == nix::string_set_t({"*"}))
+    return nix::OutputsSpec::All{};
   else
-    return OutputsSpec::Names{std::move(names)};
+    return nix::OutputsSpec::Names{std::move(names)};
 }
 
-void adl_serializer<OutputsSpec>::to_json(json& json, const OutputsSpec& t) {
-  std::visit(overloaded{
-                 [&](const OutputsSpec::All&) { json = std::vector<std::string>({"*"}); },
-                 [&](const OutputsSpec::Names& names) { json = names; },
+void adl_serializer<nix::OutputsSpec>::to_json(json& json, const nix::OutputsSpec& t) {
+  std::visit(nix::overloaded{
+                 [&](const nix::OutputsSpec::All&) { json = std::vector<std::string>({"*"}); },
+                 [&](const nix::OutputsSpec::Names& names) { json = names; },
              },
              t.raw);
 }
 
-ExtendedOutputsSpec adl_serializer<ExtendedOutputsSpec>::from_json(const json& json) {
+nix::ExtendedOutputsSpec adl_serializer<nix::ExtendedOutputsSpec>::from_json(const json& json) {
   if (json.is_null())
-    return ExtendedOutputsSpec::Default{};
+    return nix::ExtendedOutputsSpec::Default{};
   else {
-    return ExtendedOutputsSpec::explicit_t{json.get<OutputsSpec>()};
+    return nix::ExtendedOutputsSpec::explicit_t{json.get<nix::OutputsSpec>()};
   }
 }
 
-void adl_serializer<ExtendedOutputsSpec>::to_json(json& json, const ExtendedOutputsSpec& t) {
-  std::visit(overloaded{
-                 [&](const ExtendedOutputsSpec::Default&) { json = nullptr; },
-                 [&](const ExtendedOutputsSpec::explicit_t& e) {
-                   adl_serializer<OutputsSpec>::to_json(json, e);
+void adl_serializer<nix::ExtendedOutputsSpec>::to_json(json& json,
+                                                       const nix::ExtendedOutputsSpec& t) {
+  std::visit(nix::overloaded{
+                 [&](const nix::ExtendedOutputsSpec::Default&) { json = nullptr; },
+                 [&](const nix::ExtendedOutputsSpec::explicit_t& e) {
+                   adl_serializer<nix::OutputsSpec>::to_json(json, e);
                  },
              },
              t.raw);

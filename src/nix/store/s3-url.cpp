@@ -7,12 +7,10 @@
 #include "nix/util/split.h"
 #include "nix/util/strings-inline.h"
 
-using namespace std::string_view_literals;
-
 namespace nix {
 
 ParsedS3URL ParsedS3URL::parse(const parsed_url_t& parsed) try {
-  if (parsed.scheme() != "s3"sv)
+  if (parsed.scheme() != std::string_view{"s3"})
     throw BadURL("URI scheme '%s' is not 's3'", parsed.scheme());
 
   /* Yeah, S3 URLs in Nix have the bucket name as authority. Luckily registered name type

@@ -75,13 +75,11 @@ store_path_t store_path_t::random(std::string_view name) {
 
 namespace nlohmann {
 
-using namespace nix;
-
-store_path_t adl_serializer<store_path_t>::from_json(const json& json) {
-  return store_path_t{get_string(json)};
+nix::store_path_t adl_serializer<nix::store_path_t>::from_json(const json& json) {
+  return nix::store_path_t{nix::get_string(json)};
 }
 
-void adl_serializer<store_path_t>::to_json(json& json, const store_path_t& store_path) {
+void adl_serializer<nix::store_path_t>::to_json(json& json, const nix::store_path_t& store_path) {
   json = store_path.to_string();
 }
 

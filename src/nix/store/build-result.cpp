@@ -82,9 +82,7 @@ static build_result_t::Failure::Status failureStatusFromString(std::string_view 
 
 namespace nlohmann {
 
-using namespace nix;
-
-void adl_serializer<build_result_t>::to_json(json& res, const build_result_t& br) {
+void adl_serializer<nix::build_result_t>::to_json(json& res, const nix::build_result_t& br) {
   res = json::object();
 
   // Common fields
@@ -100,15 +98,15 @@ void adl_serializer<build_result_t>::to_json(json& res, const build_result_t& br
   }
 
   // Handle success or failure variant
-  std::visit(overloaded{
-                 [&](const build_result_t::Success& success) {
+  std::visit(nix::overloaded{
+                 [&](const nix::build_result_t::Success& success) {
                    res["success"] = true;
-                   res["status"] = build_result_t::Success::status_to_string(success.status);
+                   res["status"] = nix::build_result_t::Success::status_to_string(success.status);
                    res["builtOutputs"] = success.built_outputs;
                  },
-                 [&](const build_result_t::Failure& failure) {
+                 [&](const nix::build_result_t::Failure& failure) {
                    res["success"] = false;
-                   res["status"] = build_result_t::Failure::status_to_string(failure.status);
+                   res["status"] = nix::build_result_t::Failure::status_to_string(failure.status);
                    res["errorMsg"] = failure.errorMsg;
                    res["isNonDeterministic"] = failure.isNonDeterministic;
                  },
@@ -116,54 +114,55 @@ void adl_serializer<build_result_t>::to_json(json& res, const build_result_t& br
              br.inner);
 }
 
-build_result_t adl_serializer<build_result_t>::from_json(const json& _json) {
-  auto& json = get_object(_json);
+nix::build_result_t adl_serializer<nix::build_result_t>::from_json(const json& _json) {
+  auto& json = nix::get_object(_json);
 
-  build_result_t br;
+  nix::build_result_t br;
 
   // Common fields
-  br.timesBuilt = get_unsigned(value_at(json, "timesBuilt"));
-  br.start_time = get_unsigned(value_at(json, "startTime"));
-  br.stopTime = get_unsigned(value_at(json, "stopTime"));
+  br.timesBuilt = nix::get_unsigned(nix::value_at(json, "timesBuilt"));
+  br.start_time = nix::get_unsigned(nix::value_at(json, "startTime"));
+  br.stopTime = nix::get_unsigned(nix::value_at(json, "stopTime"));
 
-  if (auto cpu_user = optional_value_at(json, "cpuUser")) {
-    br.cpu_user = std::chrono::microseconds(get_unsigned(*cpu_user));
+  if (auto cpu_user = nix::optional_value_at(json, "cpuUser")) {
+    br.cpu_user = std::chrono::microseconds(nix::get_unsigned(*cpu_user));
   }
-  if (auto cpu_system = optional_value_at(json, "cpuSystem")) {
-    br.cpu_system = std::chrono::microseconds(get_unsigned(*cpu_system));
+  if (auto cpu_system = nix::optional_value_at(json, "cpuSystem")) {
+    br.cpu_system = std::chrono::microseconds(nix::get_unsigned(*cpu_system));
   }
 
   // Determine success or failure based on success field
-  bool success = get_boolean(value_at(json, "success"));
-  std::string statusStr = get_string(value_at(json, "status"));
+  bool success = nix::get_boolean(nix::value_at(json, "success"));
+  std::string statusStr = nix::get_string(nix::value_at(json, "status"));
 
   if (success) {
-    build_result_t::Success s;
+    nix::build_result_t::Success s;
     s.status = successStatusFromString(statusStr);
-    s.built_outputs = value_at(json, "builtOutputs");
+    s.built_outputs = nix::value_at(json, "builtOutputs");
     br.inner = std::move(s);
   } else {
-    build_result_t::Failure f;
+    nix::build_result_t::Failure f;
     f.status = failureStatusFromString(statusStr);
-    f.errorMsg = get_string(value_at(json, "errorMsg"));
-    f.isNonDeterministic = get_boolean(value_at(json, "isNonDeterministic"));
+    f.errorMsg = nix::get_string(nix::value_at(json, "errorMsg"));
+    f.isNonDeterministic = nix::get_boolean(nix::value_at(json, "isNonDeterministic"));
     br.inner = std::move(f);
   }
 
   return br;
 }
 
-keyed_build_result_t adl_serializer<keyed_build_result_t>::from_json(const json& json0) {
-  auto json = get_object(json0);
+nix::keyed_build_result_t adl_serializer<nix::keyed_build_result_t>::from_json(const json& json0) {
+  auto json = nix::get_object(json0);
 
-  return keyed_build_result_t{
-      adl_serializer<build_result_t>::from_json(json0),
-      value_at(json, "path"),
+  return nix::keyed_build_result_t{
+      adl_serializer<nix::build_result_t>::from_json(json0),
+      nix::value_at(json, "path"),
   };
 }
 
-void adl_serializer<keyed_build_result_t>::to_json(json& json, const keyed_build_result_t& kbr) {
-  adl_serializer<build_result_t>::to_json(json, kbr);
+void adl_serializer<nix::keyed_build_result_t>::to_json(json& json,
+                                                        const nix::keyed_build_result_t& kbr) {
+  adl_serializer<nix::build_result_t>::to_json(json, kbr);
   json["path"] = kbr.path;
 }
 

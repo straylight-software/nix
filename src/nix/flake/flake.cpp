@@ -69,9 +69,6 @@
 namespace nix {
 struct source_accessor_t;
 
-using namespace flake;
-using namespace fetchers;
-
 namespace flake {
 
 static void force_trivial_value(eval_state_t& state, value_t& value, const pos_idx_t pos) {
@@ -695,7 +692,7 @@ LockedFlake lock_flake(const settings_t& settings, eval_state_t& state, const fl
                under their control). */
             auto warnRegistry = [&](const flake_ref_t& resolved_ref) {
               if (inputAttrPath.size() == 1 && !input.ref->input.isDirect()) {
-                std::ostringstream s;
+                string_sink_t s;
                 print_literal_string(s, resolved_ref.to_string());
                 warn("flake_t input '%1%' uses the flake registry. "
                      "Using the registry in flake inputs is deprecated in Determinate Nix. "

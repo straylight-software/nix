@@ -10,8 +10,6 @@
 #include "nix/util/url-parts.h"
 #include "nix/util/users.h"
 
-using namespace std::string_literals;
-
 namespace nix::fetchers {
 
 static run_options_t hg_options(const strings_t& args) {
@@ -194,7 +192,7 @@ struct mercurial_input_scheme_t : input_scheme_t {
         auto files = tokenize_string<string_set_t>(
             run_hg({"status", "-R", actual_url, "--clean", "--modified", "--added", "--no-status",
                     "--print0"}),
-            "\0"s);
+            std::string("\0", 1));
 
         std::filesystem::path actualPath(abs_path(actual_url));
 

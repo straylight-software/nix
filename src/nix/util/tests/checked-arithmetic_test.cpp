@@ -15,28 +15,27 @@
 
 #include "nix/util/checked-arithmetic.h"
 
-using namespace nix::checked;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Construction and basic value access
 // ─────────────────────────────────────────────────────────────────────────────
 
 TEST_CASE("checked construction and value access", "[checked][construction]") {
-  checked_t<int32_t> value{42};
+  nix::checked::checked_t<int32_t> value{42};
   REQUIRE(static_cast<int32_t>(value) == 42);
   REQUIRE(value.value == 42);
 }
 
 TEST_CASE("checked copy construction", "[checked][construction]") {
-  checked_t<int64_t> original{123456789};
-  checked_t<int64_t> copy{original};
+  nix::checked::checked_t<int64_t> original{123456789};
+  nix::checked::checked_t<int64_t> copy{original};
   REQUIRE(copy.value == 123456789);
 }
 
 TEST_CASE("checked comparison operators", "[checked][comparison]") {
-  checked_t<int32_t> a{10};
-  checked_t<int32_t> b{20};
-  checked_t<int32_t> c{10};
+  nix::checked::checked_t<int32_t> a{10};
+  nix::checked::checked_t<int32_t> b{20};
+  nix::checked::checked_t<int32_t> c{10};
 
   REQUIRE(a < b);
   REQUIRE(b > a);
@@ -56,8 +55,8 @@ TEST_CASE("checked comparison operators", "[checked][comparison]") {
 // ─────────────────────────────────────────────────────────────────────────────
 
 TEST_CASE("checked addition no overflow", "[checked][addition]") {
-  checked_t<int32_t> a{100};
-  checked_t<int32_t> b{200};
+  nix::checked::checked_t<int32_t> a{100};
+  nix::checked::checked_t<int32_t> b{200};
 
   auto result = a + b;
   REQUIRE_FALSE(result.overflowed());
@@ -68,7 +67,7 @@ TEST_CASE("checked addition no overflow", "[checked][addition]") {
 }
 
 TEST_CASE("checked addition with raw value", "[checked][addition]") {
-  checked_t<int32_t> a{50};
+  nix::checked::checked_t<int32_t> a{50};
 
   auto result = a + 25;
   REQUIRE_FALSE(result.overflowed());
@@ -77,8 +76,8 @@ TEST_CASE("checked addition with raw value", "[checked][addition]") {
 
 TEST_CASE("checked addition overflow at int_max", "[checked][addition]") {
   constexpr int32_t max_value = std::numeric_limits<int32_t>::max();
-  checked_t<int32_t> a{max_value};
-  checked_t<int32_t> b{1};
+  nix::checked::checked_t<int32_t> a{max_value};
+  nix::checked::checked_t<int32_t> b{1};
 
   auto result = a + b;
   REQUIRE(result.overflowed());
@@ -90,8 +89,8 @@ TEST_CASE("checked addition overflow at int_max", "[checked][addition]") {
 
 TEST_CASE("checked addition overflow with large values", "[checked][addition]") {
   constexpr int32_t max_value = std::numeric_limits<int32_t>::max();
-  checked_t<int32_t> a{max_value};
-  checked_t<int32_t> b{max_value};
+  nix::checked::checked_t<int32_t> a{max_value};
+  nix::checked::checked_t<int32_t> b{max_value};
 
   auto result = a + b;
   REQUIRE(result.overflowed());
@@ -100,8 +99,8 @@ TEST_CASE("checked addition overflow with large values", "[checked][addition]") 
 
 TEST_CASE("checked addition negative overflow", "[checked][addition]") {
   constexpr int32_t min_value = std::numeric_limits<int32_t>::min();
-  checked_t<int32_t> a{min_value};
-  checked_t<int32_t> b{-1};
+  nix::checked::checked_t<int32_t> a{min_value};
+  nix::checked::checked_t<int32_t> b{-1};
 
   auto result = a + b;
   REQUIRE(result.overflowed());
@@ -110,8 +109,8 @@ TEST_CASE("checked addition negative overflow", "[checked][addition]") {
 
 TEST_CASE("checked addition unsigned overflow", "[checked][addition]") {
   constexpr uint32_t max_value = std::numeric_limits<uint32_t>::max();
-  checked_t<uint32_t> a{max_value};
-  checked_t<uint32_t> b{1};
+  nix::checked::checked_t<uint32_t> a{max_value};
+  nix::checked::checked_t<uint32_t> b{1};
 
   auto result = a + b;
   REQUIRE(result.overflowed());
@@ -124,8 +123,8 @@ TEST_CASE("checked addition unsigned overflow", "[checked][addition]") {
 // ─────────────────────────────────────────────────────────────────────────────
 
 TEST_CASE("checked subtraction no overflow", "[checked][subtraction]") {
-  checked_t<int32_t> a{300};
-  checked_t<int32_t> b{100};
+  nix::checked::checked_t<int32_t> a{300};
+  nix::checked::checked_t<int32_t> b{100};
 
   auto result = a - b;
   REQUIRE_FALSE(result.overflowed());
@@ -133,7 +132,7 @@ TEST_CASE("checked subtraction no overflow", "[checked][subtraction]") {
 }
 
 TEST_CASE("checked subtraction with raw value", "[checked][subtraction]") {
-  checked_t<int32_t> a{100};
+  nix::checked::checked_t<int32_t> a{100};
 
   auto result = a - 30;
   REQUIRE_FALSE(result.overflowed());
@@ -142,8 +141,8 @@ TEST_CASE("checked subtraction with raw value", "[checked][subtraction]") {
 
 TEST_CASE("checked subtraction overflow at int_min", "[checked][subtraction]") {
   constexpr int32_t min_value = std::numeric_limits<int32_t>::min();
-  checked_t<int32_t> a{min_value};
-  checked_t<int32_t> b{1};
+  nix::checked::checked_t<int32_t> a{min_value};
+  nix::checked::checked_t<int32_t> b{1};
 
   auto result = a - b;
   REQUIRE(result.overflowed());
@@ -151,8 +150,8 @@ TEST_CASE("checked subtraction overflow at int_min", "[checked][subtraction]") {
 }
 
 TEST_CASE("checked subtraction unsigned underflow", "[checked][subtraction]") {
-  checked_t<uint32_t> a{0};
-  checked_t<uint32_t> b{1};
+  nix::checked::checked_t<uint32_t> a{0};
+  nix::checked::checked_t<uint32_t> b{1};
 
   auto result = a - b;
   REQUIRE(result.overflowed());
@@ -165,8 +164,8 @@ TEST_CASE("checked subtraction unsigned underflow", "[checked][subtraction]") {
 // ─────────────────────────────────────────────────────────────────────────────
 
 TEST_CASE("checked multiplication no overflow", "[checked][multiplication]") {
-  checked_t<int32_t> a{100};
-  checked_t<int32_t> b{200};
+  nix::checked::checked_t<int32_t> a{100};
+  nix::checked::checked_t<int32_t> b{200};
 
   auto result = a * b;
   REQUIRE_FALSE(result.overflowed());
@@ -174,7 +173,7 @@ TEST_CASE("checked multiplication no overflow", "[checked][multiplication]") {
 }
 
 TEST_CASE("checked multiplication with raw value", "[checked][multiplication]") {
-  checked_t<int32_t> a{50};
+  nix::checked::checked_t<int32_t> a{50};
 
   auto result = a * 10;
   REQUIRE_FALSE(result.overflowed());
@@ -183,8 +182,8 @@ TEST_CASE("checked multiplication with raw value", "[checked][multiplication]") 
 
 TEST_CASE("checked multiplication overflow", "[checked][multiplication]") {
   constexpr int32_t max_value = std::numeric_limits<int32_t>::max();
-  checked_t<int32_t> a{max_value};
-  checked_t<int32_t> b{2};
+  nix::checked::checked_t<int32_t> a{max_value};
+  nix::checked::checked_t<int32_t> b{2};
 
   auto result = a * b;
   REQUIRE(result.overflowed());
@@ -193,8 +192,8 @@ TEST_CASE("checked multiplication overflow", "[checked][multiplication]") {
 
 TEST_CASE("checked multiplication by zero", "[checked][multiplication]") {
   constexpr int32_t max_value = std::numeric_limits<int32_t>::max();
-  checked_t<int32_t> a{max_value};
-  checked_t<int32_t> b{0};
+  nix::checked::checked_t<int32_t> a{max_value};
+  nix::checked::checked_t<int32_t> b{0};
 
   auto result = a * b;
   REQUIRE_FALSE(result.overflowed());
@@ -203,8 +202,8 @@ TEST_CASE("checked multiplication by zero", "[checked][multiplication]") {
 
 TEST_CASE("checked multiplication negative overflow", "[checked][multiplication]") {
   constexpr int32_t min_value = std::numeric_limits<int32_t>::min();
-  checked_t<int32_t> a{min_value};
-  checked_t<int32_t> b{2};
+  nix::checked::checked_t<int32_t> a{min_value};
+  nix::checked::checked_t<int32_t> b{2};
 
   auto result = a * b;
   REQUIRE(result.overflowed());
@@ -216,8 +215,8 @@ TEST_CASE("checked multiplication negative overflow", "[checked][multiplication]
 // ─────────────────────────────────────────────────────────────────────────────
 
 TEST_CASE("checked division no overflow", "[checked][division]") {
-  checked_t<int32_t> a{100};
-  checked_t<int32_t> b{5};
+  nix::checked::checked_t<int32_t> a{100};
+  nix::checked::checked_t<int32_t> b{5};
 
   auto result = a / b;
   REQUIRE_FALSE(result.overflowed());
@@ -226,7 +225,7 @@ TEST_CASE("checked division no overflow", "[checked][division]") {
 }
 
 TEST_CASE("checked division with raw value", "[checked][division]") {
-  checked_t<int32_t> a{100};
+  nix::checked::checked_t<int32_t> a{100};
 
   auto result = a / 4;
   REQUIRE_FALSE(result.overflowed());
@@ -234,30 +233,30 @@ TEST_CASE("checked division with raw value", "[checked][division]") {
 }
 
 TEST_CASE("checked division by zero", "[checked][division]") {
-  checked_t<int32_t> a{100};
-  checked_t<int32_t> b{0};
+  nix::checked::checked_t<int32_t> a{100};
+  nix::checked::checked_t<int32_t> b{0};
 
   auto result = a / b;
   REQUIRE(result.divideByZero());
   REQUIRE_FALSE(result.overflowed());
   REQUIRE_FALSE(result.valueChecked().has_value());
-  REQUIRE_THROWS_AS(result.valueWrapping(), divide_by_zero_t);
+  REQUIRE_THROWS_AS(result.valueWrapping(), nix::checked::divide_by_zero_t);
 }
 
 TEST_CASE("checked division by zero with raw value", "[checked][division]") {
-  checked_t<int32_t> a{100};
+  nix::checked::checked_t<int32_t> a{100};
 
   auto result = a / 0;
   REQUIRE(result.divideByZero());
-  REQUIRE_THROWS_AS(result.valueWrapping(), divide_by_zero_t);
+  REQUIRE_THROWS_AS(result.valueWrapping(), nix::checked::divide_by_zero_t);
 }
 
 TEST_CASE("checked division overflow int_min by negative one", "[checked][division]") {
   // This is the only way signed division can overflow:
   // INT_MIN / -1 would produce -INT_MIN which exceeds INT_MAX
   constexpr int32_t min_value = std::numeric_limits<int32_t>::min();
-  checked_t<int32_t> a{min_value};
-  checked_t<int32_t> b{-1};
+  nix::checked::checked_t<int32_t> a{min_value};
+  nix::checked::checked_t<int32_t> b{-1};
 
   auto result = a / b;
   REQUIRE(result.overflowed());
@@ -269,8 +268,8 @@ TEST_CASE("checked division overflow int_min by negative one", "[checked][divisi
 
 TEST_CASE("checked division unsigned cannot overflow", "[checked][division]") {
   constexpr uint32_t max_value = std::numeric_limits<uint32_t>::max();
-  checked_t<uint32_t> a{max_value};
-  checked_t<uint32_t> b{1};
+  nix::checked::checked_t<uint32_t> a{max_value};
+  nix::checked::checked_t<uint32_t> b{1};
 
   auto result = a / b;
   REQUIRE_FALSE(result.overflowed());
@@ -282,8 +281,8 @@ TEST_CASE("checked division unsigned cannot overflow", "[checked][division]") {
 // ─────────────────────────────────────────────────────────────────────────────
 
 TEST_CASE("result equality", "[checked][result]") {
-  checked_t<int32_t> a{10};
-  checked_t<int32_t> b{20};
+  nix::checked::checked_t<int32_t> a{10};
+  nix::checked::checked_t<int32_t> b{20};
 
   auto result_one = a + b;
   auto result_two = a + b;
@@ -293,14 +292,14 @@ TEST_CASE("result equality", "[checked][result]") {
 
 TEST_CASE("result value_checked returns nullopt on overflow", "[checked][result]") {
   constexpr int32_t max_value = std::numeric_limits<int32_t>::max();
-  checked_t<int32_t> a{max_value};
+  nix::checked::checked_t<int32_t> a{max_value};
 
   auto result = a + 1;
   REQUIRE_FALSE(result.valueChecked().has_value());
 }
 
 TEST_CASE("result value_checked returns nullopt on divide by zero", "[checked][result]") {
-  checked_t<int32_t> a{10};
+  nix::checked::checked_t<int32_t> a{10};
 
   auto result = a / 0;
   REQUIRE_FALSE(result.valueChecked().has_value());
@@ -312,7 +311,7 @@ TEST_CASE("result value_checked returns nullopt on divide by zero", "[checked][r
 
 TEST_CASE("checked int8_t overflow detection", "[checked][int8]") {
   constexpr int8_t max_value = std::numeric_limits<int8_t>::max();
-  checked_t<int8_t> a{max_value};
+  nix::checked::checked_t<int8_t> a{max_value};
 
   auto result = a + static_cast<int8_t>(1);
   REQUIRE(result.overflowed());
@@ -320,8 +319,8 @@ TEST_CASE("checked int8_t overflow detection", "[checked][int8]") {
 
 TEST_CASE("checked int64_t large values", "[checked][int64]") {
   constexpr int64_t large_value = 1'000'000'000'000LL;
-  checked_t<int64_t> a{large_value};
-  checked_t<int64_t> b{large_value};
+  nix::checked::checked_t<int64_t> a{large_value};
+  nix::checked::checked_t<int64_t> b{large_value};
 
   auto result = a * b;
   // This should overflow since 10^12 * 10^12 = 10^24 > INT64_MAX (~9.2 * 10^18)
@@ -330,7 +329,7 @@ TEST_CASE("checked int64_t large values", "[checked][int64]") {
 
 TEST_CASE("checked uint8_t wraparound detection", "[checked][uint8]") {
   constexpr uint8_t max_value = std::numeric_limits<uint8_t>::max();
-  checked_t<uint8_t> a{max_value};
+  nix::checked::checked_t<uint8_t> a{max_value};
 
   auto result = a + static_cast<uint8_t>(1);
   REQUIRE(result.overflowed());
@@ -342,7 +341,7 @@ TEST_CASE("checked uint8_t wraparound detection", "[checked][uint8]") {
 // ─────────────────────────────────────────────────────────────────────────────
 
 TEST_CASE("checked ostream output", "[checked][ostream]") {
-  checked_t<int32_t> value{42};
+  nix::checked::checked_t<int32_t> value{42};
   std::ostringstream stream;
   stream << value;
   REQUIRE(stream.str() == "42");
@@ -355,7 +354,7 @@ TEST_CASE("checked ostream output", "[checked][ostream]") {
 TEST_CASE("checked arithmetic properties int32", "[checked][property]") {
   rc::prop("addition identity: x + 0 == x", []() {
     auto x = *rc::gen::arbitrary<int32_t>();
-    checked_t<int32_t> checked_x{x};
+    nix::checked::checked_t<int32_t> checked_x{x};
 
     auto result = checked_x + 0;
     RC_ASSERT(!result.overflowed());
@@ -364,7 +363,7 @@ TEST_CASE("checked arithmetic properties int32", "[checked][property]") {
 
   rc::prop("subtraction identity: x - 0 == x", []() {
     auto x = *rc::gen::arbitrary<int32_t>();
-    checked_t<int32_t> checked_x{x};
+    nix::checked::checked_t<int32_t> checked_x{x};
 
     auto result = checked_x - 0;
     RC_ASSERT(!result.overflowed());
@@ -373,7 +372,7 @@ TEST_CASE("checked arithmetic properties int32", "[checked][property]") {
 
   rc::prop("multiplication identity: x * 1 == x", []() {
     auto x = *rc::gen::arbitrary<int32_t>();
-    checked_t<int32_t> checked_x{x};
+    nix::checked::checked_t<int32_t> checked_x{x};
 
     auto result = checked_x * 1;
     RC_ASSERT(!result.overflowed());
@@ -382,7 +381,7 @@ TEST_CASE("checked arithmetic properties int32", "[checked][property]") {
 
   rc::prop("division identity: x / 1 == x", []() {
     auto x = *rc::gen::arbitrary<int32_t>();
-    checked_t<int32_t> checked_x{x};
+    nix::checked::checked_t<int32_t> checked_x{x};
 
     auto result = checked_x / 1;
     RC_ASSERT(!result.overflowed());
@@ -392,7 +391,7 @@ TEST_CASE("checked arithmetic properties int32", "[checked][property]") {
 
   rc::prop("self subtraction: x - x == 0", []() {
     auto x = *rc::gen::arbitrary<int32_t>();
-    checked_t<int32_t> checked_x{x};
+    nix::checked::checked_t<int32_t> checked_x{x};
 
     auto result = checked_x - x;
     RC_ASSERT(!result.overflowed());
@@ -401,7 +400,7 @@ TEST_CASE("checked arithmetic properties int32", "[checked][property]") {
 
   rc::prop("multiplication by zero: x * 0 == 0", []() {
     auto x = *rc::gen::arbitrary<int32_t>();
-    checked_t<int32_t> checked_x{x};
+    nix::checked::checked_t<int32_t> checked_x{x};
 
     auto result = checked_x * 0;
     RC_ASSERT(!result.overflowed());
@@ -412,8 +411,8 @@ TEST_CASE("checked arithmetic properties int32", "[checked][property]") {
     // Use smaller range to reduce overflow likelihood
     auto a = *rc::gen::inRange<int32_t>(-1000000, 1000000);
     auto b = *rc::gen::inRange<int32_t>(-1000000, 1000000);
-    checked_t<int32_t> checked_a{a};
-    checked_t<int32_t> checked_b{b};
+    nix::checked::checked_t<int32_t> checked_a{a};
+    nix::checked::checked_t<int32_t> checked_b{b};
 
     auto result_ab = checked_a + b;
     auto result_ba = checked_b + a;
@@ -428,8 +427,8 @@ TEST_CASE("checked arithmetic properties int32", "[checked][property]") {
     // Use smaller range to reduce overflow likelihood
     auto a = *rc::gen::inRange<int32_t>(-10000, 10000);
     auto b = *rc::gen::inRange<int32_t>(-10000, 10000);
-    checked_t<int32_t> checked_a{a};
-    checked_t<int32_t> checked_b{b};
+    nix::checked::checked_t<int32_t> checked_a{a};
+    nix::checked::checked_t<int32_t> checked_b{b};
 
     auto result_ab = checked_a * b;
     auto result_ba = checked_b * a;
@@ -445,7 +444,7 @@ TEST_CASE("checked overflow detection properties", "[checked][property][overflow
   rc::prop("int_max + positive always overflows", []() {
     constexpr int32_t max_value = std::numeric_limits<int32_t>::max();
     auto positive = *rc::gen::inRange<int32_t>(1, 1000000);
-    checked_t<int32_t> checked_max{max_value};
+    nix::checked::checked_t<int32_t> checked_max{max_value};
 
     auto result = checked_max + positive;
     RC_ASSERT(result.overflowed());
@@ -454,7 +453,7 @@ TEST_CASE("checked overflow detection properties", "[checked][property][overflow
   rc::prop("int_min - positive always overflows", []() {
     constexpr int32_t min_value = std::numeric_limits<int32_t>::min();
     auto positive = *rc::gen::inRange<int32_t>(1, 1000000);
-    checked_t<int32_t> checked_min{min_value};
+    nix::checked::checked_t<int32_t> checked_min{min_value};
 
     auto result = checked_min - positive;
     RC_ASSERT(result.overflowed());
@@ -462,7 +461,7 @@ TEST_CASE("checked overflow detection properties", "[checked][property][overflow
 
   rc::prop("division by zero is always detected", []() {
     auto x = *rc::gen::arbitrary<int32_t>();
-    checked_t<int32_t> checked_x{x};
+    nix::checked::checked_t<int32_t> checked_x{x};
 
     auto result = checked_x / 0;
     RC_ASSERT(result.divideByZero());
@@ -472,7 +471,7 @@ TEST_CASE("checked overflow detection properties", "[checked][property][overflow
   rc::prop("self division equals one (except for zero)", []() {
     auto x = *rc::gen::arbitrary<int32_t>();
     RC_PRE(x != 0); // Precondition: x is not zero
-    checked_t<int32_t> checked_x{x};
+    nix::checked::checked_t<int32_t> checked_x{x};
 
     auto result = checked_x / x;
     RC_ASSERT(!result.overflowed());
@@ -483,7 +482,7 @@ TEST_CASE("checked overflow detection properties", "[checked][property][overflow
   rc::prop("wrapping value is accessible on overflow (not div by zero)", []() {
     constexpr int32_t max_value = std::numeric_limits<int32_t>::max();
     auto positive = *rc::gen::inRange<int32_t>(1, 1000000);
-    checked_t<int32_t> checked_max{max_value};
+    nix::checked::checked_t<int32_t> checked_max{max_value};
 
     auto result = checked_max + positive;
     // Should not throw - overflow allows wrapped access
@@ -496,7 +495,7 @@ TEST_CASE("checked overflow detection properties", "[checked][property][overflow
 TEST_CASE("checked unsigned arithmetic properties", "[checked][property][unsigned]") {
   rc::prop("uint32 addition identity: x + 0 == x", []() {
     auto x = *rc::gen::arbitrary<uint32_t>();
-    checked_t<uint32_t> checked_x{x};
+    nix::checked::checked_t<uint32_t> checked_x{x};
 
     auto result = checked_x + static_cast<uint32_t>(0);
     RC_ASSERT(!result.overflowed());
@@ -506,7 +505,7 @@ TEST_CASE("checked unsigned arithmetic properties", "[checked][property][unsigne
   rc::prop("uint32_max + positive always overflows", []() {
     constexpr uint32_t max_value = std::numeric_limits<uint32_t>::max();
     auto positive = *rc::gen::inRange<uint32_t>(1, 1000000);
-    checked_t<uint32_t> checked_max{max_value};
+    nix::checked::checked_t<uint32_t> checked_max{max_value};
 
     auto result = checked_max + positive;
     RC_ASSERT(result.overflowed());
@@ -514,7 +513,7 @@ TEST_CASE("checked unsigned arithmetic properties", "[checked][property][unsigne
 
   rc::prop("uint32 zero minus positive always overflows", []() {
     auto positive = *rc::gen::inRange<uint32_t>(1, 1000000);
-    checked_t<uint32_t> zero{0};
+    nix::checked::checked_t<uint32_t> zero{0};
 
     auto result = zero - positive;
     RC_ASSERT(result.overflowed());

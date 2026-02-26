@@ -501,22 +501,22 @@ std::string public_keys_to_string(const std::vector<public_key_t>& public_keys) 
 
 namespace nlohmann {
 
-using namespace nix;
-
 #ifndef DOXYGEN_SKIP
 
-fetchers::public_key_t adl_serializer<fetchers::public_key_t>::from_json(const json& json) {
-  fetchers::public_key_t res = {};
-  auto& obj = get_object(json);
-  if (auto* type = optional_value_at(obj, "type"))
-    res.type = get_string(*type);
+nix::fetchers::public_key_t
+adl_serializer<nix::fetchers::public_key_t>::from_json(const json& json) {
+  nix::fetchers::public_key_t res = {};
+  auto& obj = nix::get_object(json);
+  if (auto* type = nix::optional_value_at(obj, "type"))
+    res.type = nix::get_string(*type);
 
-  res.key = get_string(value_at(obj, "key"));
+  res.key = nix::get_string(nix::value_at(obj, "key"));
 
   return res;
 }
 
-void adl_serializer<fetchers::public_key_t>::to_json(json& json, const fetchers::public_key_t& p) {
+void adl_serializer<nix::fetchers::public_key_t>::to_json(json& json,
+                                                          const nix::fetchers::public_key_t& p) {
   json["type"] = p.type;
   json["key"] = p.key;
 }

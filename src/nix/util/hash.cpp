@@ -518,8 +518,6 @@ std::string_view print_hash_algo(hash_algorithm_t ha) {
 
 namespace nlohmann {
 
-using namespace nix;
-
 hash_t adl_serializer<hash_t>::from_json(const json& json,
                                          const experimental_feature_settings_t& xp_settings) {
   auto& s = get_string(json);

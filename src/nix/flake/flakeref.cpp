@@ -31,7 +31,7 @@
 #include "nix/util/util.h"
 
 namespace nix {
-class store_t;
+struct store_t;
 struct source_accessor_t;
 
 namespace fetchers {

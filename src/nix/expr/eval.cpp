@@ -115,7 +115,7 @@ std::ostream& operator<<(std::ostream& os, const ValueType t) {
 }
 
 std::string print_value(eval_state_t& state, value_t& v) {
-  std::ostringstream out;
+  string_sink_t out;
   v.print(state, out);
   return out.str();
 }
@@ -618,7 +618,7 @@ std::optional<eval_state_t::Doc> eval_state_t::getDoc(value_t& v) {
   if (v.isLambda()) {
     auto exprLambda = v.lambda().fun;
 
-    std::ostringstream s;
+    string_sink_t s;
     std::string name;
     auto pos = positions[exprLambda->getPos()];
     std::string docStr;
@@ -1353,23 +1353,25 @@ void ExprVar::eval(eval_state_t& state, Env& env, value_t& v) {
 
 static std::string show_attr_selection_path(eval_state_t& state, Env& env,
                                             std::span<const AttrName> attr_path) {
-  std::ostringstream out;
+  std::string result;
   bool first = true;
   for (auto& i : attr_path) {
     if (!first)
-      out << '.';
+      result += '.';
     else
       first = false;
     try {
-      out << state.symbols[get_name(i, state, env)];
+      result += state.symbols[get_name(i, state, env)];
     } catch (Error& e) {
       assert(!i.symbol);
-      out << "\"${";
-      i.expr->show(state.symbols, out);
-      out << "}\"";
+      result += "\"${";
+      string_sink_t sink;
+      i.expr->show(state.symbols, sink);
+      result += sink.str();
+      result += "}\"";
     }
   }
-  return out.str();
+  return result;
 }
 
 void ExprSelect::eval(eval_state_t& state, Env& env, value_t& v) {
@@ -1813,9 +1815,9 @@ void ExprIf::eval(eval_state_t& state, Env& env, value_t& v) {
 
 void ExprAssert::eval(eval_state_t& state, Env& env, value_t& v) {
   if (!state.evalBool(env, cond, pos, "in the condition of the assert statement")) {
-    std::ostringstream out;
+    string_sink_t out;
     cond->show(state.symbols, out);
-    auto exprStr = out.view();
+    auto exprStr = out.str();
 
     if (auto eq = dynamic_cast<ExprOpEq*>(cond)) {
       try {

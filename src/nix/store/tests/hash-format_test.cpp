@@ -26,7 +26,22 @@
 #include "nix/util/base-nix-32.h"
 #include "nix/util/hash.h"
 
-using namespace nix;
+using nix::base16;
+using nix::base64;
+using nix::base_nix32_t;
+using nix::content_address_method_t;
+using nix::content_address_t;
+using nix::hash_algorithm_t;
+using nix::hash_format_t;
+using nix::hash_sizes;
+using nix::hash_string;
+using nix::hash_t;
+using nix::parse_hash_algo;
+using nix::parse_hash_format;
+using nix::print_hash_algo;
+using nix::print_hash_format;
+using nix::regular_hash_size;
+using nix::render_content_address;
 
 // =============================================================================
 // Hash algorithm support tests

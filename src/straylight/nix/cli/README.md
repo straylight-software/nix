@@ -42,25 +42,16 @@ int main(int argc, char* argv[]) {
 
 ## API Overview
 
-| Type/Function | Description |
-|---------------|-------------|
-| `ArgumentParser` | Main parser with program name/description |
-| `add_option()` | Add option with value (`--name value`) |
-| `add_flag()` | Add boolean flag (`--verbose`) |
-| `add_positional()` | Add positional argument |
-| `add_subcommand()` | Add subcommand |
-| `parse()` | Parse argc/argv, returns ParseResult |
+| Type/Function | Description | |---------------|-------------| | `ArgumentParser` | Main parser
+with program name/description | | `add_option()` | Add option with value (`--name value`) | |
+`add_flag()` | Add boolean flag (`--verbose`) | | `add_positional()` | Add positional argument | |
+`add_subcommand()` | Add subcommand | | `parse()` | Parse argc/argv, returns ParseResult |
 
 ## Option Syntax
 
-| Pattern | Description |
-|---------|-------------|
-| `-f` | Short flag |
-| `--flag` | Long flag |
-| `-abc` | Combined short flags |
-| `--opt=value` | Option with = |
-| `--opt value` | Option with space |
-| `-o value` | Short option with value |
+| Pattern | Description | |---------|-------------| | `-f` | Short flag | | `--flag` | Long flag | |
+`-abc` | Combined short flags | | `--opt=value` | Option with = | | `--opt value` | Option with
+space | | `-o value` | Short option with value |
 
 ## Building
 

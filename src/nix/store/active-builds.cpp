@@ -30,10 +30,8 @@ UserInfo UserInfo::fromUid(uid_t uid) {
 
 namespace nlohmann {
 
-using namespace nix;
-
-UserInfo adl_serializer<UserInfo>::from_json(const json& j) {
-  return UserInfo{
+nix::UserInfo adl_serializer<nix::UserInfo>::from_json(const json& j) {
+  return nix::UserInfo{
       .uid = j.at("uid").get<uid_t>(),
       .name = j.contains("name") && !j.at("name").is_null()
                   ? std::optional<std::string>(j.at("name").get<std::string>())
@@ -41,7 +39,7 @@ UserInfo adl_serializer<UserInfo>::from_json(const json& j) {
   };
 }
 
-void adl_serializer<UserInfo>::to_json(json& j, const UserInfo& info) {
+void adl_serializer<nix::UserInfo>::to_json(json& j, const nix::UserInfo& info) {
   j = nlohmann::json{
       {"uid", info.uid},
       {"name", info.name},
@@ -65,12 +63,12 @@ static nlohmann::json print_duration(const std::optional<std::chrono::microsecon
                   : nullptr;
 }
 
-ActiveBuildInfo::ProcessInfo
-adl_serializer<ActiveBuildInfo::ProcessInfo>::from_json(const json& j) {
-  return ActiveBuildInfo::ProcessInfo{
+nix::ActiveBuildInfo::ProcessInfo
+adl_serializer<nix::ActiveBuildInfo::ProcessInfo>::from_json(const json& j) {
+  return nix::ActiveBuildInfo::ProcessInfo{
       .pid = j.at("pid").get<::pid_t>(),
       .parent_pid = j.at("parentPid").get<::pid_t>(),
-      .user = j.at("user").get<UserInfo>(),
+      .user = j.at("user").get<nix::UserInfo>(),
       .argv = j.at("argv").get<std::vector<std::string>>(),
       .utime = parse_duration(j, "utime"),
       .stime = parse_duration(j, "stime"),
@@ -79,8 +77,8 @@ adl_serializer<ActiveBuildInfo::ProcessInfo>::from_json(const json& j) {
   };
 }
 
-void adl_serializer<ActiveBuildInfo::ProcessInfo>::to_json(
-    json& j, const ActiveBuildInfo::ProcessInfo& process) {
+void adl_serializer<nix::ActiveBuildInfo::ProcessInfo>::to_json(
+    json& j, const nix::ActiveBuildInfo::ProcessInfo& process) {
   j = nlohmann::json{
       {"pid", process.pid},
       {"parentPid", process.parent_pid},
@@ -93,23 +91,23 @@ void adl_serializer<ActiveBuildInfo::ProcessInfo>::to_json(
   };
 }
 
-ActiveBuild adl_serializer<ActiveBuild>::from_json(const json& j) {
+nix::ActiveBuild adl_serializer<nix::ActiveBuild>::from_json(const json& j) {
   auto type = j.at("type").get<std::string>();
   if (type != "build")
-    throw Error("invalid active build JSON: expected type 'build' but got '%s'", type);
-  return ActiveBuild{
+    throw nix::Error("invalid active build JSON: expected type 'build' but got '%s'", type);
+  return nix::ActiveBuild{
       .nix_pid = j.at("nixPid").get<::pid_t>(),
       .client_pid = j.at("clientPid").get<std::optional<::pid_t>>(),
       .clientUid = j.at("clientUid").get<std::optional<uid_t>>(),
       .main_pid = j.at("mainPid").get<::pid_t>(),
-      .mainUser = j.at("mainUser").get<UserInfo>(),
-      .cgroup = j.at("cgroup").get<std::optional<Path>>(),
+      .mainUser = j.at("mainUser").get<nix::UserInfo>(),
+      .cgroup = j.at("cgroup").get<std::optional<nix::Path>>(),
       .start_time = (time_t)j.at("startTime").get<double>(),
-      .derivation = store_path_t{get_string(j.at("derivation"))},
+      .derivation = nix::store_path_t{nix::get_string(j.at("derivation"))},
   };
 }
 
-void adl_serializer<ActiveBuild>::to_json(json& j, const ActiveBuild& build) {
+void adl_serializer<nix::ActiveBuild>::to_json(json& j, const nix::ActiveBuild& build) {
   j = nlohmann::json{
       {"type", "build"},
       {"nixPid", build.nix_pid},
@@ -123,16 +121,16 @@ void adl_serializer<ActiveBuild>::to_json(json& j, const ActiveBuild& build) {
   };
 }
 
-ActiveBuildInfo adl_serializer<ActiveBuildInfo>::from_json(const json& j) {
-  ActiveBuildInfo info(adl_serializer<ActiveBuild>::from_json(j));
-  info.processes = j.at("processes").get<std::vector<ActiveBuildInfo::ProcessInfo>>();
+nix::ActiveBuildInfo adl_serializer<nix::ActiveBuildInfo>::from_json(const json& j) {
+  nix::ActiveBuildInfo info(adl_serializer<nix::ActiveBuild>::from_json(j));
+  info.processes = j.at("processes").get<std::vector<nix::ActiveBuildInfo::ProcessInfo>>();
   info.utime = parse_duration(j, "utime");
   info.stime = parse_duration(j, "stime");
   return info;
 }
 
-void adl_serializer<ActiveBuildInfo>::to_json(json& j, const ActiveBuildInfo& build) {
-  adl_serializer<ActiveBuild>::to_json(j, build);
+void adl_serializer<nix::ActiveBuildInfo>::to_json(json& j, const nix::ActiveBuildInfo& build) {
+  adl_serializer<nix::ActiveBuild>::to_json(j, build);
   j["processes"] = build.processes;
   j["utime"] = print_duration(build.utime);
   j["stime"] = print_duration(build.stime);

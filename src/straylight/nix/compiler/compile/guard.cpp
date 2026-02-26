@@ -16,7 +16,9 @@ scope_guard::scope_guard(compiler& c, lexical_scope& new_scope)
   compiler_.current_scope_ = &new_scope;
 }
 
-scope_guard::~scope_guard() { compiler_.current_scope_ = saved_scope_; }
+scope_guard::~scope_guard() {
+  compiler_.current_scope_ = saved_scope_;
+}
 
 // =============================================================================
 // lambda_context_guard
@@ -98,7 +100,9 @@ with_scope_guard::with_scope_guard(compiler& c, std::uint32_t namespace_local_in
   c.with_scopes_.push_back({namespace_local_index});
 }
 
-with_scope_guard::~with_scope_guard() { compiler_.with_scopes_.pop_back(); }
+with_scope_guard::~with_scope_guard() {
+  compiler_.with_scopes_.pop_back();
+}
 
 // =============================================================================
 // compilation_context_guard

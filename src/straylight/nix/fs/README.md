@@ -37,14 +37,10 @@ auto tmp_file = TempFile::create_in(tmp_dir.path());
 
 ## API Overview
 
-| Type/Function | Description |
-|---------------|-------------|
-| `file_lock::exclusive()` | Blocking exclusive lock |
-| `file_lock::shared()` | Blocking shared lock |
-| `file_lock::try_exclusive()` | Non-blocking exclusive lock |
-| `mmap_file()` | Memory-map a file |
-| `TempDir` | RAII temporary directory |
-| `TempFile` | RAII temporary file |
+| Type/Function | Description | |---------------|-------------| | `file_lock::exclusive()` |
+Blocking exclusive lock | | `file_lock::shared()` | Blocking shared lock | |
+`file_lock::try_exclusive()` | Non-blocking exclusive lock | | `mmap_file()` | Memory-map a file | |
+`TempDir` | RAII temporary directory | | `TempFile` | RAII temporary file |
 
 ## Building
 

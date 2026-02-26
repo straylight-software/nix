@@ -58,11 +58,11 @@ static lfs_api_info_t get_lfs_api(const parsed_url_t& url) {
     if (url.authority()->port())
       args.push_back(fmt("-p%d", *url.authority()->port()));
 
-    std::ostringstream hostname_and_user;
+    std::string hostname_and_user;
     if (url.authority()->user())
-      hostname_and_user << *url.authority()->user() << "@";
-    hostname_and_user << url.authority()->host();
-    args.push_back(std::move(hostname_and_user).str());
+      hostname_and_user += *url.authority()->user() + "@";
+    hostname_and_user += url.authority()->host();
+    args.push_back(std::move(hostname_and_user));
 
     args.push_back("--");
     args.push_back("git-lfs-authenticate");

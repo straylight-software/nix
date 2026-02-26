@@ -26,7 +26,7 @@
 #include <vector>
 
 namespace straylight::nix::compiler::ast {
-struct symbol;  // Forward declaration
+struct symbol; // Forward declaration
 }
 
 namespace straylight::nix::compiler::compile {

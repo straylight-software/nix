@@ -236,13 +236,13 @@
                 ''
                   cd ${inputs.self}
 
-                  # Run ast-grep and check for errors (not warnings/hints)
-                  error_count=$(ast-grep scan --config sgconfig.yml --json src/straylight/ 2>/dev/null | \
+                  # Run ast-grep on ALL of src/ (straylight + nix upstream)
+                  error_count=$(ast-grep scan --config sgconfig.yml --json src/ 2>/dev/null | \
                     jq '[.[] | select(.severity == "error")] | length')
 
                   if [ "$error_count" -gt 0 ]; then
                     echo "ast-grep found $error_count error(s):"
-                    ast-grep scan --config sgconfig.yml src/straylight/ 2>/dev/null | grep -A5 "^error\["
+                    ast-grep scan --config sgconfig.yml src/ 2>/dev/null | grep -A5 "^error\["
                     exit 1
                   fi
 
@@ -255,7 +255,7 @@
             cppcheck = pkgs.runCommand "cppcheck-lint" { nativeBuildInputs = [ pkgs.cppcheck ]; } ''
               cd ${inputs.self}
 
-              # Run cppcheck on src/straylight/ with error-exitcode
+              # Run cppcheck on ALL of src/ (straylight + nix upstream)
               # --error-exitcode=1 makes it fail on any error-level issue
               # Only enable 'error' severity for CI gate (not warning/performance/style)
               # Developers should run full analysis locally
@@ -269,7 +269,7 @@
                 --suppress=preprocessorErrorDirective \
                 --std=c++23 \
                 --quiet \
-                src/straylight/ 2>&1 || {
+                src/ 2>&1 || {
                   echo "cppcheck found errors"
                   exit 1
                 }

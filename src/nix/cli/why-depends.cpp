@@ -6,8 +6,6 @@
 #include "nix/store/store-api.h"
 #include "nix/util/source-accessor.h"
 
-using namespace nix;
-
 static std::string hilite(const std::string& s, size_t pos, size_t len,
                           const std::string& colour = ANSI_RED) {
   return std::string(s, 0, pos) + colour + std::string(s, pos, len) + ANSI_NORMAL +
@@ -21,7 +19,7 @@ static std::string filter_printable(const std::string& s) {
   return res;
 }
 
-struct cmd_why_depends_t : SourceExprCommand, MixOperateOnOptions {
+struct cmd_why_depends_t : nix::SourceExprCommand, nix::MixOperateOnOptions {
   std::string _package, _dependency;
   bool all = false;
   bool precise = false;
@@ -65,12 +63,12 @@ struct cmd_why_depends_t : SourceExprCommand, MixOperateOnOptions {
         ;
   }
 
-  category_t category() override { return catSecondary; }
+  nix::category_t category() override { return nix::catSecondary; }
 
-  void run(ref<store_t> store) override {
+  void run(nix::ref<nix::store_t> store) override {
     auto package = parseInstallable(store, _package);
     auto package_path =
-        Installable::toStorePath(getEvalStore(), store, Realise::Outputs, operateOn, package);
+        nix::Installable::toStorePath(getEvalStore(), store, Realise::Outputs, operateOn, package);
 
     /* We don't need to build `dependency`. We try to get the store
      * path if it's already known, and if not, then it's not a dependency.
@@ -83,20 +81,20 @@ struct cmd_why_depends_t : SourceExprCommand, MixOperateOnOptions {
      * to build.
      */
     auto dependency = parseInstallable(store, _dependency);
-    auto opt_dependency_path = [&]() -> std::optional<store_path_t> {
+    auto opt_dependency_path = [&]() -> std::optional<nix::store_path_t> {
       try {
-        return {Installable::toStorePath(getEvalStore(), store, Realise::derivation_t, operateOn,
-                                         dependency)};
-      } catch (MissingRealisation&) {
+        return {nix::Installable::toStorePath(getEvalStore(), store, Realise::derivation_t,
+                                              operateOn, dependency)};
+      } catch (nix::MissingRealisation&) {
         return std::nullopt;
       }
     }();
 
-    store_path_set_t closure;
+    nix::store_path_set_t closure;
     store->computeFSClosure({package_path}, closure, false, false);
 
     if (!opt_dependency_path.has_value() || !closure.count(*opt_dependency_path)) {
-      printError("'%s' does not depend on '%s'", package->what(), dependency->what());
+      nix::printError("'%s' does not depend on '%s'", package->what(), dependency->what());
       return;
     }
 
@@ -106,16 +104,16 @@ struct cmd_why_depends_t : SourceExprCommand, MixOperateOnOptions {
     auto const inf = std::numeric_limits<size_t>::max();
 
     struct Node {
-      store_path_t path;
-      store_path_set_t refs;
-      store_path_set_t rrefs;
+      nix::store_path_t path;
+      nix::store_path_set_t refs;
+      nix::store_path_set_t rrefs;
       size_t dist = inf;
       Node* prev = nullptr;
       bool queued = false;
       bool visited = false;
     };
 
-    std::map<store_path_t, Node> graph;
+    std::map<nix::store_path_t, Node> graph;
 
     for (auto& path : closure)
       graph.emplace(path, Node{.path = path,
@@ -162,8 +160,8 @@ struct cmd_why_depends_t : SourceExprCommand, MixOperateOnOptions {
     printNode = [&](Node& node, const std::string& firstPad, const std::string& tailPad) {
       assert(node.dist != inf);
       if (precise) {
-        logger->cout("%s%s%s%s" ANSI_NORMAL, firstPad, node.visited ? "\e[38;5;244m" : "",
-                     firstPad != "" ? "→ " : "", store->printStorePath(node.path));
+        nix::logger->cout("%s%s%s%s" ANSI_NORMAL, firstPad, node.visited ? "\e[38;5;244m" : "",
+                          firstPad != "" ? "→ " : "", store->printStorePath(node.path));
       }
 
       if (node.path == dependency_path && !all && package_path != dependency_path)
@@ -177,7 +175,7 @@ struct cmd_why_depends_t : SourceExprCommand, MixOperateOnOptions {
       /* Sort the references by distance to `dependency` to
          ensure that the shortest path is printed first. */
       std::multimap<size_t, Node*> refs;
-      store_path_set_t refPaths;
+      nix::store_path_set_t refPaths;
 
       for (auto& ref : node.refs) {
         if (ref == node.path && package_path != dependency_path)
@@ -191,7 +189,7 @@ struct cmd_why_depends_t : SourceExprCommand, MixOperateOnOptions {
 
       /* For each reference, find the files and symlinks that
          contain the reference. */
-      std::map<std::string, strings_t> hits;
+      std::map<std::string, nix::strings_t> hits;
 
       auto accessor = store->requireStoreObjectAccessor(node.path);
 
@@ -201,12 +199,12 @@ struct cmd_why_depends_t : SourceExprCommand, MixOperateOnOptions {
 
       if (precise) {
         // Use scanForReferencesDeep to find files containing references
-        scan_for_references_deep(
-            *accessor, canon_path_t::root, refPaths, [&](FileRefScanResult result) {
+        nix::scan_for_references_deep(
+            *accessor, nix::canon_path_t::root, refPaths, [&](nix::FileRefScanResult result) {
               auto p2 = result.filePath.is_root() ? result.filePath.abs() : result.filePath.rel();
               auto st = accessor->lstat(result.filePath);
 
-              if (st.type == source_accessor_t::Type::t_regular) {
+              if (st.type == nix::source_accessor_t::Type::t_regular) {
                 auto contents = accessor->read_file(result.filePath);
 
                 // For each reference found in this file, extract context
@@ -217,13 +215,13 @@ struct cmd_why_depends_t : SourceExprCommand, MixOperateOnOptions {
                     size_t margin = 32;
                     auto pos2 = pos >= margin ? pos - margin : 0;
                     hits[hash].emplace_back(
-                        fmt("%s: …%s…", p2,
-                            hilite(filter_printable(std::string(contents, pos2,
-                                                                pos - pos2 + hash.size() + margin)),
-                                   pos - pos2, store_path_t::HashLen, getColour(hash))));
+                        nix::fmt("%s: …%s…", p2,
+                                 hilite(filter_printable(std::string(
+                                            contents, pos2, pos - pos2 + hash.size() + margin)),
+                                        pos - pos2, nix::store_path_t::HashLen, getColour(hash))));
                   }
                 }
-              } else if (st.type == source_accessor_t::Type::t_symlink) {
+              } else if (st.type == nix::source_accessor_t::Type::t_symlink) {
                 auto target = accessor->read_link(result.filePath);
 
                 // For each reference found in this symlink, show it
@@ -232,8 +230,8 @@ struct cmd_why_depends_t : SourceExprCommand, MixOperateOnOptions {
                   auto pos = target.find(hash);
                   if (pos != std::string::npos)
                     hits[hash].emplace_back(
-                        fmt("%s -> %s", p2,
-                            hilite(target, pos, store_path_t::HashLen, getColour(hash))));
+                        nix::fmt("%s -> %s", p2,
+                                 hilite(target, pos, nix::store_path_t::HashLen, getColour(hash))));
                 }
               }
             });
@@ -246,28 +244,30 @@ struct cmd_why_depends_t : SourceExprCommand, MixOperateOnOptions {
 
         for (auto& hit : hits[hash]) {
           bool first = hit == *hits[hash].begin();
-          logger->cout("%s%s%s", tailPad,
-                       (first ? (last ? tree_last : tree_conn) : (last ? tree_null : tree_line)),
-                       hit);
+          nix::logger->cout("%s%s%s", tailPad,
+                            (first ? (last ? nix::tree_last : nix::tree_conn)
+                                   : (last ? nix::tree_null : nix::tree_line)),
+                            hit);
           if (!all)
             break;
         }
 
         if (!precise) {
-          logger->cout("%s%s%s%s" ANSI_NORMAL, firstPad, ref.second->visited ? "\e[38;5;244m" : "",
-                       last ? tree_last : tree_conn, store->printStorePath(ref.second->path));
+          nix::logger->cout(
+              "%s%s%s%s" ANSI_NORMAL, firstPad, ref.second->visited ? "\e[38;5;244m" : "",
+              last ? nix::tree_last : nix::tree_conn, store->printStorePath(ref.second->path));
           node.visited = true;
         }
 
-        printNode(*ref.second, tailPad + (last ? tree_null : tree_line),
-                  tailPad + (last ? tree_null : tree_line));
+        printNode(*ref.second, tailPad + (last ? nix::tree_null : nix::tree_line),
+                  tailPad + (last ? nix::tree_null : nix::tree_line));
       }
     };
 
-    RunPager pager;
+    nix::RunPager pager;
     try {
       if (!precise) {
-        logger->cout("%s", store->printStorePath(graph.at(package_path).path));
+        nix::logger->cout("%s", store->printStorePath(graph.at(package_path).path));
       }
       printNode(graph.at(package_path), "", "");
     } catch (bail_out_t&) {
@@ -275,4 +275,4 @@ struct cmd_why_depends_t : SourceExprCommand, MixOperateOnOptions {
   }
 };
 
-static auto r_cmd_why_depends = registerCommand<cmd_why_depends_t>("why-depends");
+static auto r_cmd_why_depends = nix::registerCommand<cmd_why_depends_t>("why-depends");

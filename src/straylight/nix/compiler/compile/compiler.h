@@ -2587,7 +2587,8 @@ private:
             value_expr = BinaryenIf(module_.get(), condition, selected_value, default_val);
           } else {
             // no default: just select (will error if not found)
-            auto arg_value = BinaryenLocalGet(module_.get(), arg_local_index, make_nix_value_type());
+            auto arg_value =
+                BinaryenLocalGet(module_.get(), arg_local_index, make_nix_value_type());
             value_expr = compile_select(arg_value, key_str, formal.position_);
           }
 
@@ -2867,203 +2868,203 @@ private:
     {
       let_bindings_guard let_offsets_g(*this, let_binding_offsets);
 
-    // Compile grouped attribute bindings as thunks for lazy evaluation
-    // All let bindings must be thunks to support forward/mutual references
-    offset_idx = 0;
-    for (const auto& info : grouped_bindings) {
-      BinaryenExpressionRef value;
+      // Compile grouped attribute bindings as thunks for lazy evaluation
+      // All let bindings must be thunks to support forward/mutual references
+      offset_idx = 0;
+      for (const auto& info : grouped_bindings) {
+        BinaryenExpressionRef value;
 
-      // Check if this is a single simple binding (one path segment, direct value)
-      if (info.slices.size() == 1 && info.slices[0].binding->path_.segments_.size() == 1) {
-        // Single simple binding - wrap the value expression in a thunk
-        // This is critical for forward references like: let x = y; y = 1; in x
-        // Use preserve_lazy because let bindings are mutually recursive
-        // and we don't want to force captured values during thunk creation.
-        // Example: let foo = { lib = self; }; in ... where self is a fixpoint.
-        value = compile_as_thunk(info.slices[0].binding->value_, capture_policy::preserve_lazy);
-      } else {
-        // Multi-segment path or merged binding - use normal merging logic
-        // This already wraps non-trivial sub-expressions in thunks
-        value = compile_merged_attrset_value(info.slices, 1);
-      }
-
-      // Store in shared memory (for closure captures to read from)
-      auto store_to_mem = BinaryenStore(module_.get(), 8, let_env_offset + offset_idx * 8, 0,
-                                        BinaryenConst(module_.get(), BinaryenLiteralInt32(0)),
-                                        value, BinaryenTypeInt64(), "memory");
-      binding_ops.push_back(store_to_mem);
-
-      // Also store in local (for direct access in the let body)
-      auto store_local = BinaryenLocalSet(module_.get(), info.local_index, value);
-      binding_ops.push_back(store_local);
-      offset_idx++;
-    }
-
-    // Compile inherit bindings
-    // Each inherit binding is wrapped in a thunk for lazy evaluation
-    // This is critical for circular dependencies like:
-    //   let inherit (lib.trivial) isFunction; lib = { trivial = ...; }; in ...
-    // The inherit must not be evaluated until isFunction is actually used.
-    for (const auto& info : inherit_bindings) {
-      BinaryenExpressionRef value;
-
-      if (info.inherit_binding->from_expression_.has_value()) {
-        // inherit (expr) x; -> create a thunk that does: (expr).x
-        // We can't just compile (expr) here because that would force it eagerly.
-        // Instead, create a select expression and wrap it in a thunk.
-        auto key_str = symbols_.lookup(info.sym);
-        auto key_offset = allocate_string(key_str);
-
-        // Generate a unique function name for this thunk
-        auto func_index = thunk_counter_++;
-        auto func_name = "__thunk_" + std::to_string(func_index);
-        thunk_function_names_.push_back(func_name);
-
-        // Thunk needs to capture variables from from_expression
-        std::vector<ast::symbol> bound_names;
-        auto free_vars =
-            free_variable_analyzer::analyze(*info.inherit_binding->from_expression_, bound_names);
-
-        // Filter captures (excluding let-bound vars, accessed via shared memory)
-        std::vector<ast::symbol> captures;
-        for (auto sym : free_vars) {
-          if (current_let_binding_offsets_.count(sym.index_) > 0)
-            continue;
-          if (current_rec_binding_offsets_.count(sym.index_) > 0)
-            continue;
-          if (outer_scope && outer_scope->lookup(sym).has_value())
-            captures.push_back(sym);
-        }
-
-        // Create thunk scope and compile body with RAII-guarded context
-        std::uint32_t new_depth = outer_scope ? outer_scope->depth() + 1 : 1;
-        lexical_scope thunk_scope(nullptr, new_depth);
-
-        // Compile thunk body in guarded context
-        {
-          scope_guard scope_g(*this, thunk_scope);
-          lambda_context_guard lambda_g(*this);
-
-          // Initialize lambda context with captures
-          current_lambda_context_->captures = captures;
-          for (std::uint32_t idx = 0; idx < captures.size(); ++idx) {
-            current_lambda_context_->capture_indices[captures[idx]] = idx;
-          }
-
-          // Thunk takes only env_ptr
-          current_lambda_context_->local_types.push_back(BinaryenTypeInt32());
-          current_lambda_context_->next_local_index = 1;
-
-          // Add captures to thunk scope
-          for (std::uint32_t idx = 0; idx < captures.size(); ++idx) {
-            thunk_scope.add_captured(captures[idx], idx);
-          }
-
-          // Compile: from_expr.attr_name
-          auto from_expr = compile_expression(*info.inherit_binding->from_expression_);
-          auto thunk_body = compile_select(
-              from_expr, key_str, info.inherit_binding->attributes_[info.attr_index].position_);
-
-          // Create the thunk function
-          BinaryenType param_types[] = {BinaryenTypeInt32()};
-          auto params = BinaryenTypeCreate(param_types, 1);
-
-          std::vector<BinaryenType> local_types;
-          for (std::size_t idx = 1; idx < current_lambda_context_->local_types.size(); ++idx) {
-            local_types.push_back(current_lambda_context_->local_types[idx]);
-          }
-
-          BinaryenAddFunction(module_.get(), func_name.c_str(), params, make_nix_value_type(),
-                              local_types.empty() ? nullptr : local_types.data(),
-                              static_cast<BinaryenIndex>(local_types.size()), thunk_body);
-
-          // Guards restore scope and context automatically
-        }
-
-        // Create the thunk value (captures available from outer scope)
-        if (captures.empty()) {
-          BinaryenExpressionRef make_thunk_args[] = {
-              BinaryenConst(module_.get(),
-                            BinaryenLiteralInt32(static_cast<std::int32_t>(func_index))),
-              BinaryenConst(module_.get(), BinaryenLiteralInt32(0)),
-              BinaryenConst(module_.get(), BinaryenLiteralInt32(0))};
-          value =
-              BinaryenCall(module_.get(), "__makeThunk", make_thunk_args, 3, make_nix_value_type());
+        // Check if this is a single simple binding (one path segment, direct value)
+        if (info.slices.size() == 1 && info.slices[0].binding->path_.segments_.size() == 1) {
+          // Single simple binding - wrap the value expression in a thunk
+          // This is critical for forward references like: let x = y; y = 1; in x
+          // Use preserve_lazy because let bindings are mutually recursive
+          // and we don't want to force captured values during thunk creation.
+          // Example: let foo = { lib = self; }; in ... where self is a fixpoint.
+          value = compile_as_thunk(info.slices[0].binding->value_, capture_policy::preserve_lazy);
         } else {
-          // Allocate and populate environment
-          auto capture_count = static_cast<std::uint32_t>(captures.size());
-          auto env_size = 4 + capture_count * 8;
-          auto env_offset = data_offset_;
-          data_offset_ += env_size;
-          data_offset_ = (data_offset_ + 7) & ~7u;
-
-          std::vector<BinaryenExpressionRef> store_ops;
-
-          // Store capture count
-          auto store_count = BinaryenStore(
-              module_.get(), 4, env_offset, 0,
-              BinaryenConst(module_.get(), BinaryenLiteralInt32(0)),
-              BinaryenConst(module_.get(),
-                            BinaryenLiteralInt32(static_cast<std::int32_t>(capture_count))),
-              BinaryenTypeInt32(), "memory");
-          store_ops.push_back(store_count);
-
-          // Store captured values using preserve_lazy semantics (don't force).
-          // This is critical for fixpoint patterns like:
-          //   fix (self: { trivial = let inherit (self.trivial) x; in {...}; })
-          // Here `self` is captured but must not be forced during thunk creation.
-          // Look up captures in outer_scope (the let scope's parent)
-          {
-            scope_guard capture_scope_g(*this, *outer_scope);
-            for (std::uint32_t idx = 0; idx < capture_count; ++idx) {
-              auto cap_value =
-                  compile_identifier_lookup(captures[idx], {0, 0, 0},
-                                            should_force_captures(capture_policy::preserve_lazy));
-              auto store_cap = BinaryenStore(module_.get(), 8, env_offset + 4 + idx * 8, 0,
-                                             BinaryenConst(module_.get(), BinaryenLiteralInt32(0)),
-                                             cap_value, BinaryenTypeInt64(), "memory");
-              store_ops.push_back(store_cap);
-            }
-          }
-
-          // Create thunk with environment
-          BinaryenExpressionRef make_thunk_args[] = {
-              BinaryenConst(module_.get(),
-                            BinaryenLiteralInt32(static_cast<std::int32_t>(func_index))),
-              BinaryenConst(module_.get(),
-                            BinaryenLiteralInt32(static_cast<std::int32_t>(env_offset))),
-              BinaryenConst(module_.get(),
-                            BinaryenLiteralInt32(static_cast<std::int32_t>(env_size)))};
-          auto make_thunk =
-              BinaryenCall(module_.get(), "__makeThunk", make_thunk_args, 3, make_nix_value_type());
-          store_ops.push_back(make_thunk);
-
-          value =
-              BinaryenBlock(module_.get(), nullptr, store_ops.data(),
-                            static_cast<BinaryenIndex>(store_ops.size()), make_nix_value_type());
+          // Multi-segment path or merged binding - use normal merging logic
+          // This already wraps non-trivial sub-expressions in thunks
+          value = compile_merged_attrset_value(info.slices, 1);
         }
-      } else {
-        // inherit x; -> look up x from outer scope (still wrap in thunk for consistency)
-        // For simple inherit without from, just read the identifier without forcing
-        // It may already be a thunk if the inherited var is a let binding
-        {
-          scope_guard outer_scope_g(*this, *outer_scope);
-          value = compile_identifier_lookup(
-              info.sym, info.inherit_binding->attributes_[info.attr_index].position_, false);
-        }
+
+        // Store in shared memory (for closure captures to read from)
+        auto store_to_mem = BinaryenStore(module_.get(), 8, let_env_offset + offset_idx * 8, 0,
+                                          BinaryenConst(module_.get(), BinaryenLiteralInt32(0)),
+                                          value, BinaryenTypeInt64(), "memory");
+        binding_ops.push_back(store_to_mem);
+
+        // Also store in local (for direct access in the let body)
+        auto store_local = BinaryenLocalSet(module_.get(), info.local_index, value);
+        binding_ops.push_back(store_local);
+        offset_idx++;
       }
 
-      // Store in shared memory
-      auto store_to_mem = BinaryenStore(module_.get(), 8, let_env_offset + offset_idx * 8, 0,
-                                        BinaryenConst(module_.get(), BinaryenLiteralInt32(0)),
-                                        value, BinaryenTypeInt64(), "memory");
-      binding_ops.push_back(store_to_mem);
+      // Compile inherit bindings
+      // Each inherit binding is wrapped in a thunk for lazy evaluation
+      // This is critical for circular dependencies like:
+      //   let inherit (lib.trivial) isFunction; lib = { trivial = ...; }; in ...
+      // The inherit must not be evaluated until isFunction is actually used.
+      for (const auto& info : inherit_bindings) {
+        BinaryenExpressionRef value;
 
-      // Also store in local
-      auto store_local = BinaryenLocalSet(module_.get(), info.local_index, value);
-      binding_ops.push_back(store_local);
-      offset_idx++;
-    }
+        if (info.inherit_binding->from_expression_.has_value()) {
+          // inherit (expr) x; -> create a thunk that does: (expr).x
+          // We can't just compile (expr) here because that would force it eagerly.
+          // Instead, create a select expression and wrap it in a thunk.
+          auto key_str = symbols_.lookup(info.sym);
+          auto key_offset = allocate_string(key_str);
+
+          // Generate a unique function name for this thunk
+          auto func_index = thunk_counter_++;
+          auto func_name = "__thunk_" + std::to_string(func_index);
+          thunk_function_names_.push_back(func_name);
+
+          // Thunk needs to capture variables from from_expression
+          std::vector<ast::symbol> bound_names;
+          auto free_vars =
+              free_variable_analyzer::analyze(*info.inherit_binding->from_expression_, bound_names);
+
+          // Filter captures (excluding let-bound vars, accessed via shared memory)
+          std::vector<ast::symbol> captures;
+          for (auto sym : free_vars) {
+            if (current_let_binding_offsets_.count(sym.index_) > 0)
+              continue;
+            if (current_rec_binding_offsets_.count(sym.index_) > 0)
+              continue;
+            if (outer_scope && outer_scope->lookup(sym).has_value())
+              captures.push_back(sym);
+          }
+
+          // Create thunk scope and compile body with RAII-guarded context
+          std::uint32_t new_depth = outer_scope ? outer_scope->depth() + 1 : 1;
+          lexical_scope thunk_scope(nullptr, new_depth);
+
+          // Compile thunk body in guarded context
+          {
+            scope_guard scope_g(*this, thunk_scope);
+            lambda_context_guard lambda_g(*this);
+
+            // Initialize lambda context with captures
+            current_lambda_context_->captures = captures;
+            for (std::uint32_t idx = 0; idx < captures.size(); ++idx) {
+              current_lambda_context_->capture_indices[captures[idx]] = idx;
+            }
+
+            // Thunk takes only env_ptr
+            current_lambda_context_->local_types.push_back(BinaryenTypeInt32());
+            current_lambda_context_->next_local_index = 1;
+
+            // Add captures to thunk scope
+            for (std::uint32_t idx = 0; idx < captures.size(); ++idx) {
+              thunk_scope.add_captured(captures[idx], idx);
+            }
+
+            // Compile: from_expr.attr_name
+            auto from_expr = compile_expression(*info.inherit_binding->from_expression_);
+            auto thunk_body = compile_select(
+                from_expr, key_str, info.inherit_binding->attributes_[info.attr_index].position_);
+
+            // Create the thunk function
+            BinaryenType param_types[] = {BinaryenTypeInt32()};
+            auto params = BinaryenTypeCreate(param_types, 1);
+
+            std::vector<BinaryenType> local_types;
+            for (std::size_t idx = 1; idx < current_lambda_context_->local_types.size(); ++idx) {
+              local_types.push_back(current_lambda_context_->local_types[idx]);
+            }
+
+            BinaryenAddFunction(module_.get(), func_name.c_str(), params, make_nix_value_type(),
+                                local_types.empty() ? nullptr : local_types.data(),
+                                static_cast<BinaryenIndex>(local_types.size()), thunk_body);
+
+            // Guards restore scope and context automatically
+          }
+
+          // Create the thunk value (captures available from outer scope)
+          if (captures.empty()) {
+            BinaryenExpressionRef make_thunk_args[] = {
+                BinaryenConst(module_.get(),
+                              BinaryenLiteralInt32(static_cast<std::int32_t>(func_index))),
+                BinaryenConst(module_.get(), BinaryenLiteralInt32(0)),
+                BinaryenConst(module_.get(), BinaryenLiteralInt32(0))};
+            value = BinaryenCall(module_.get(), "__makeThunk", make_thunk_args, 3,
+                                 make_nix_value_type());
+          } else {
+            // Allocate and populate environment
+            auto capture_count = static_cast<std::uint32_t>(captures.size());
+            auto env_size = 4 + capture_count * 8;
+            auto env_offset = data_offset_;
+            data_offset_ += env_size;
+            data_offset_ = (data_offset_ + 7) & ~7u;
+
+            std::vector<BinaryenExpressionRef> store_ops;
+
+            // Store capture count
+            auto store_count = BinaryenStore(
+                module_.get(), 4, env_offset, 0,
+                BinaryenConst(module_.get(), BinaryenLiteralInt32(0)),
+                BinaryenConst(module_.get(),
+                              BinaryenLiteralInt32(static_cast<std::int32_t>(capture_count))),
+                BinaryenTypeInt32(), "memory");
+            store_ops.push_back(store_count);
+
+            // Store captured values using preserve_lazy semantics (don't force).
+            // This is critical for fixpoint patterns like:
+            //   fix (self: { trivial = let inherit (self.trivial) x; in {...}; })
+            // Here `self` is captured but must not be forced during thunk creation.
+            // Look up captures in outer_scope (the let scope's parent)
+            {
+              scope_guard capture_scope_g(*this, *outer_scope);
+              for (std::uint32_t idx = 0; idx < capture_count; ++idx) {
+                auto cap_value = compile_identifier_lookup(
+                    captures[idx], {0, 0, 0}, should_force_captures(capture_policy::preserve_lazy));
+                auto store_cap =
+                    BinaryenStore(module_.get(), 8, env_offset + 4 + idx * 8, 0,
+                                  BinaryenConst(module_.get(), BinaryenLiteralInt32(0)), cap_value,
+                                  BinaryenTypeInt64(), "memory");
+                store_ops.push_back(store_cap);
+              }
+            }
+
+            // Create thunk with environment
+            BinaryenExpressionRef make_thunk_args[] = {
+                BinaryenConst(module_.get(),
+                              BinaryenLiteralInt32(static_cast<std::int32_t>(func_index))),
+                BinaryenConst(module_.get(),
+                              BinaryenLiteralInt32(static_cast<std::int32_t>(env_offset))),
+                BinaryenConst(module_.get(),
+                              BinaryenLiteralInt32(static_cast<std::int32_t>(env_size)))};
+            auto make_thunk = BinaryenCall(module_.get(), "__makeThunk", make_thunk_args, 3,
+                                           make_nix_value_type());
+            store_ops.push_back(make_thunk);
+
+            value =
+                BinaryenBlock(module_.get(), nullptr, store_ops.data(),
+                              static_cast<BinaryenIndex>(store_ops.size()), make_nix_value_type());
+          }
+        } else {
+          // inherit x; -> look up x from outer scope (still wrap in thunk for consistency)
+          // For simple inherit without from, just read the identifier without forcing
+          // It may already be a thunk if the inherited var is a let binding
+          {
+            scope_guard outer_scope_g(*this, *outer_scope);
+            value = compile_identifier_lookup(
+                info.sym, info.inherit_binding->attributes_[info.attr_index].position_, false);
+          }
+        }
+
+        // Store in shared memory
+        auto store_to_mem = BinaryenStore(module_.get(), 8, let_env_offset + offset_idx * 8, 0,
+                                          BinaryenConst(module_.get(), BinaryenLiteralInt32(0)),
+                                          value, BinaryenTypeInt64(), "memory");
+        binding_ops.push_back(store_to_mem);
+
+        // Also store in local
+        auto store_local = BinaryenLocalSet(module_.get(), info.local_index, value);
+        binding_ops.push_back(store_local);
+        offset_idx++;
+      }
 
     } // let_bindings_guard restores outer offsets here
 

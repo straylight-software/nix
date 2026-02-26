@@ -138,8 +138,7 @@ TEST_CASE("New command registration lookup performance", "[benchmark][cli][comma
 
 // A minimal root_args_t subclass for benchmarking argument parsing
 // We need root_args_t to get access to parse_cmdline()
-class BenchmarkArgs : public root_args_t {
-public:
+struct BenchmarkArgs : public root_args_t {
   bool verbose = false;
   bool quiet = false;
   std::string store_uri;
@@ -283,8 +282,7 @@ TEST_CASE("Help text generation performance", "[benchmark][cli][help]") {
 // =============================================================================
 
 // A simple completions collector for benchmarking
-class BenchmarkCompletions : public add_completions_t {
-public:
+struct BenchmarkCompletions : public add_completions_t {
   std::vector<std::pair<std::string, std::string>> completions;
   Type type = Type::normal;
 

@@ -484,21 +484,21 @@ std::string base_setting_t<std::optional<std::filesystem::path>>::to_string() co
   return value_ ? value_->string() : "";
 }
 
-template class base_setting_t<int>;
-template class base_setting_t<unsigned int>;
-template class base_setting_t<long>;
-template class base_setting_t<unsigned long>;
-template class base_setting_t<long long>;
-template class base_setting_t<unsigned long long>;
-template class base_setting_t<bool>;
-template class base_setting_t<std::string>;
-template class base_setting_t<std::list<std::filesystem::path>>;
-template class base_setting_t<strings_t>;
-template class base_setting_t<string_set_t>;
-template class base_setting_t<string_map_t>;
-template class base_setting_t<std::set<experimental_feature_t>>;
-template class base_setting_t<std::filesystem::path>;
-template class base_setting_t<std::optional<std::filesystem::path>>;
+template struct base_setting_t<int>;
+template struct base_setting_t<unsigned int>;
+template struct base_setting_t<long>;
+template struct base_setting_t<unsigned long>;
+template struct base_setting_t<long long>;
+template struct base_setting_t<unsigned long long>;
+template struct base_setting_t<bool>;
+template struct base_setting_t<std::string>;
+template struct base_setting_t<std::list<std::filesystem::path>>;
+template struct base_setting_t<strings_t>;
+template struct base_setting_t<string_set_t>;
+template struct base_setting_t<string_map_t>;
+template struct base_setting_t<std::set<experimental_feature_t>>;
+template struct base_setting_t<std::filesystem::path>;
+template struct base_setting_t<std::optional<std::filesystem::path>>;
 
 path_setting_t::path_setting_t(config_t* options, const Path& def, const std::string& name,
                                const std::string& description, const string_set_t& aliases)

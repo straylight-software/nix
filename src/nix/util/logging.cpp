@@ -58,8 +58,7 @@ auto logger_t::suspend_if(bool cond) -> std::optional<logger_t::suspension_t> {
   return {};
 }
 
-class simple_logger_t : public logger_t {
-public:
+struct simple_logger_t : public logger_t {
   bool systemd, tty;
   bool print_build_logs;
 
@@ -109,10 +108,10 @@ public:
   }
 
   void log_ei(const error_info_t& ei) override {
-    std::ostringstream oss;
+    string_sink_t oss;
     show_error_info(oss, ei, logger_settings.show_trace.get());
 
-    log(ei.level_, oss.view());
+    log(ei.level_, oss.str());
   }
 
   void start_activity(activity_id_t act, verbosity_t lvl, activity_type_t type,
@@ -170,9 +169,9 @@ void to_json(nlohmann::json& json, std::shared_ptr<const pos_t> pos) {
   if (pos) {
     json["line"] = pos->line;
     json["column"] = pos->column;
-    std::ostringstream str;
-    pos->print(str, true);
-    json["file"] = str.str();
+    string_sink_t sink;
+    pos->print(sink, true);
+    json["file"] = sink.str();
   } else {
     json["line"] = nullptr;
     json["column"] = nullptr;
@@ -241,7 +240,7 @@ struct json_logger_t : logger_t {
   }
 
   void log_ei(const error_info_t& ei) override {
-    std::ostringstream oss;
+    string_sink_t oss;
     show_error_info(oss, ei, logger_settings.show_trace.get());
 
     nlohmann::json json;

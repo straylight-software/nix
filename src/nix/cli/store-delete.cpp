@@ -5,10 +5,8 @@
 #include "nix/store/store-api.h"
 #include "nix/store/store-cast.h"
 
-using namespace nix;
-
-struct cmd_store_delete_t : StorePathsCommand {
-  GCOptions options{.action = GCOptions::gcDeleteSpecific};
+struct cmd_store_delete_t : nix::StorePathsCommand {
+  nix::GCOptions options{.action = nix::GCOptions::gcDeleteSpecific};
 
   cmd_store_delete_t() {
     add_flag({
@@ -26,16 +24,16 @@ struct cmd_store_delete_t : StorePathsCommand {
         ;
   }
 
-  void run(ref<store_t> store, store_paths_t&& store_paths) override {
-    auto& gc_store = require<GcStore>(*store);
+  void run(nix::ref<nix::store_t> store, nix::store_paths_t&& store_paths) override {
+    auto& gc_store = nix::require<nix::GcStore>(*store);
 
     for (auto& path : store_paths)
       options.pathsToDelete.insert(path);
 
-    GCResults results;
-    PrintFreed freed(true, results);
+    nix::GCResults results;
+    nix::PrintFreed freed(true, results);
     gc_store.collectGarbage(options, results);
   }
 };
 
-static auto r_cmd_store_delete = registerCommand2<cmd_store_delete_t>({"store", "delete"});
+static auto r_cmd_store_delete = nix::registerCommand2<cmd_store_delete_t>({"store", "delete"});

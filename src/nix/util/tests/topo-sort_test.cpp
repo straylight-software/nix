@@ -18,7 +18,6 @@
 
 #include "nix/util/topo-sort.h"
 
-using namespace nix;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helper types and functions
@@ -41,7 +40,7 @@ auto make_get_children(const dependency_graph& graph) {
 }
 
 // Verifies that all dependents come before their dependencies in the sorted output.
-// Note: nix's topoSort outputs items such that if A depends on B, then A appears
+// Note: nix's nix::topoSort outputs items such that if A depends on B, then A appears
 // BEFORE B in the output. This is the typical "build order" - you list what needs
 // to be built, and dependencies come after (they get built first when processing
 // the list in reverse).
@@ -81,7 +80,7 @@ TEST_CASE("topo sort empty graph", "[topo-sort]") {
   std::set<std::string> items;
   dependency_graph graph;
 
-  auto result = topoSort(items, make_get_children(graph));
+  auto result = nix::topoSort(items, make_get_children(graph));
 
   REQUIRE(std::holds_alternative<std::vector<std::string>>(result));
   auto sorted = std::get<std::vector<std::string>>(result);
@@ -92,7 +91,7 @@ TEST_CASE("topo sort single node no dependencies", "[topo-sort]") {
   std::set<std::string> items = {"a"};
   dependency_graph graph = {{"a", {}}};
 
-  auto result = topoSort(items, make_get_children(graph));
+  auto result = nix::topoSort(items, make_get_children(graph));
 
   REQUIRE(std::holds_alternative<std::vector<std::string>>(result));
   auto sorted = std::get<std::vector<std::string>>(result);
@@ -105,7 +104,7 @@ TEST_CASE("topo sort single node with self-reference ignored", "[topo-sort]") {
   std::set<std::string> items = {"a"};
   dependency_graph graph = {{"a", {"a"}}};
 
-  auto result = topoSort(items, make_get_children(graph));
+  auto result = nix::topoSort(items, make_get_children(graph));
 
   REQUIRE(std::holds_alternative<std::vector<std::string>>(result));
   auto sorted = std::get<std::vector<std::string>>(result);
@@ -127,7 +126,7 @@ TEST_CASE("topo sort linear chain", "[topo-sort]") {
       {"d", {}},
   };
 
-  auto result = topoSort(items, make_get_children(graph));
+  auto result = nix::topoSort(items, make_get_children(graph));
 
   REQUIRE(std::holds_alternative<std::vector<std::string>>(result));
   auto sorted = std::get<std::vector<std::string>>(result);
@@ -148,7 +147,7 @@ TEST_CASE("topo sort reverse linear chain", "[topo-sort]") {
       {"d", {"c"}},
   };
 
-  auto result = topoSort(items, make_get_children(graph));
+  auto result = nix::topoSort(items, make_get_children(graph));
 
   REQUIRE(std::holds_alternative<std::vector<std::string>>(result));
   auto sorted = std::get<std::vector<std::string>>(result);
@@ -178,7 +177,7 @@ TEST_CASE("topo sort diamond dependency", "[topo-sort]") {
       {"d", {}},
   };
 
-  auto result = topoSort(items, make_get_children(graph));
+  auto result = nix::topoSort(items, make_get_children(graph));
 
   REQUIRE(std::holds_alternative<std::vector<std::string>>(result));
   auto sorted = std::get<std::vector<std::string>>(result);
@@ -204,7 +203,7 @@ TEST_CASE("topo sort disconnected components", "[topo-sort]") {
       {"d", {}},
   };
 
-  auto result = topoSort(items, make_get_children(graph));
+  auto result = nix::topoSort(items, make_get_children(graph));
 
   REQUIRE(std::holds_alternative<std::vector<std::string>>(result));
   auto sorted = std::get<std::vector<std::string>>(result);
@@ -219,7 +218,7 @@ TEST_CASE("topo sort multiple independent nodes", "[topo-sort]") {
       {"a", {}}, {"b", {}}, {"c", {}}, {"d", {}}, {"e", {}},
   };
 
-  auto result = topoSort(items, make_get_children(graph));
+  auto result = nix::topoSort(items, make_get_children(graph));
 
   REQUIRE(std::holds_alternative<std::vector<std::string>>(result));
   auto sorted = std::get<std::vector<std::string>>(result);
@@ -232,7 +231,7 @@ TEST_CASE("topo sort multiple independent nodes", "[topo-sort]") {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// cycle_t detection tests
+// nix::cycle_t detection tests
 // ─────────────────────────────────────────────────────────────────────────────
 
 TEST_CASE("topo sort detects simple cycle", "[topo-sort][cycle]") {
@@ -243,10 +242,10 @@ TEST_CASE("topo sort detects simple cycle", "[topo-sort][cycle]") {
       {"b", {"a"}},
   };
 
-  auto result = topoSort(items, make_get_children(graph));
+  auto result = nix::topoSort(items, make_get_children(graph));
 
-  REQUIRE(std::holds_alternative<cycle_t<std::string>>(result));
-  auto cycle = std::get<cycle_t<std::string>>(result);
+  REQUIRE(std::holds_alternative<nix::cycle_t<std::string>>(result));
+  auto cycle = std::get<nix::cycle_t<std::string>>(result);
   // The cycle should involve both a and b
   REQUIRE((cycle.path == "a" || cycle.path == "b"));
 }
@@ -260,9 +259,9 @@ TEST_CASE("topo sort detects three node cycle", "[topo-sort][cycle]") {
       {"c", {"a"}},
   };
 
-  auto result = topoSort(items, make_get_children(graph));
+  auto result = nix::topoSort(items, make_get_children(graph));
 
-  REQUIRE(std::holds_alternative<cycle_t<std::string>>(result));
+  REQUIRE(std::holds_alternative<nix::cycle_t<std::string>>(result));
 }
 
 TEST_CASE("topo sort detects cycle with tail", "[topo-sort][cycle]") {
@@ -275,9 +274,9 @@ TEST_CASE("topo sort detects cycle with tail", "[topo-sort][cycle]") {
       {"d", {"a"}},
   };
 
-  auto result = topoSort(items, make_get_children(graph));
+  auto result = nix::topoSort(items, make_get_children(graph));
 
-  REQUIRE(std::holds_alternative<cycle_t<std::string>>(result));
+  REQUIRE(std::holds_alternative<nix::cycle_t<std::string>>(result));
 }
 
 TEST_CASE("topo sort cycle provides path and parent info", "[topo-sort][cycle]") {
@@ -288,10 +287,10 @@ TEST_CASE("topo sort cycle provides path and parent info", "[topo-sort][cycle]")
       {"y", {"x"}},
   };
 
-  auto result = topoSort(items, make_get_children(graph));
+  auto result = nix::topoSort(items, make_get_children(graph));
 
-  REQUIRE(std::holds_alternative<cycle_t<std::string>>(result));
-  auto cycle = std::get<cycle_t<std::string>>(result);
+  REQUIRE(std::holds_alternative<nix::cycle_t<std::string>>(result));
+  auto cycle = std::get<nix::cycle_t<std::string>>(result);
 
   // The cycle should have path and parent that are both in the item set
   REQUIRE(items.count(cycle.path) == 1);
@@ -312,7 +311,7 @@ TEST_CASE("topo sort ignores dependencies not in item set", "[topo-sort]") {
       {"b", {}},
   };
 
-  auto result = topoSort(items, make_get_children(graph));
+  auto result = nix::topoSort(items, make_get_children(graph));
 
   REQUIRE(std::holds_alternative<std::vector<std::string>>(result));
   auto sorted = std::get<std::vector<std::string>>(result);
@@ -338,7 +337,7 @@ TEST_CASE("topo sort complex dependency graph", "[topo-sort]") {
       {"e", {"h"}},           {"f", {"h"}}, {"g", {"h"}},      {"h", {}},
   };
 
-  auto result = topoSort(items, make_get_children(graph));
+  auto result = nix::topoSort(items, make_get_children(graph));
 
   REQUIRE(std::holds_alternative<std::vector<std::string>>(result));
   auto sorted = std::get<std::vector<std::string>>(result);
@@ -368,7 +367,7 @@ TEST_CASE("topo sort with integer keys", "[topo-sort]") {
     return it != graph.end() ? it->second : std::set<int>{};
   };
 
-  auto result = topoSort(items, get_children);
+  auto result = nix::topoSort(items, get_children);
 
   REQUIRE(std::holds_alternative<std::vector<int>>(result));
   auto sorted = std::get<std::vector<int>>(result);
@@ -411,7 +410,7 @@ TEST_CASE("topo sort property tests", "[topo-sort][property]") {
       }
     }
 
-    auto result = topoSort(items, make_get_children(graph));
+    auto result = nix::topoSort(items, make_get_children(graph));
 
     RC_ASSERT(std::holds_alternative<std::vector<std::string>>(result));
     auto sorted = std::get<std::vector<std::string>>(result);
@@ -439,7 +438,7 @@ TEST_CASE("topo sort property tests", "[topo-sort][property]") {
       }
     }
 
-    auto result = topoSort(items, make_get_children(graph));
+    auto result = nix::topoSort(items, make_get_children(graph));
 
     RC_ASSERT(std::holds_alternative<std::vector<std::string>>(result));
     auto sorted = std::get<std::vector<std::string>>(result);
@@ -460,10 +459,10 @@ TEST_CASE("topo sort property tests", "[topo-sort][property]") {
       graph[node] = {next};
     }
 
-    auto result = topoSort(items, make_get_children(graph));
+    auto result = nix::topoSort(items, make_get_children(graph));
 
-    RC_ASSERT(std::holds_alternative<cycle_t<std::string>>(result));
-    auto cycle = std::get<cycle_t<std::string>>(result);
+    RC_ASSERT(std::holds_alternative<nix::cycle_t<std::string>>(result));
+    auto cycle = std::get<nix::cycle_t<std::string>>(result);
     RC_ASSERT(items.count(cycle.path) == 1);
     RC_ASSERT(items.count(cycle.parent) == 1);
   });
@@ -480,7 +479,7 @@ TEST_CASE("topo sort property tests", "[topo-sort][property]") {
       graph[node] = {}; // No dependencies
     }
 
-    auto result = topoSort(items, make_get_children(graph));
+    auto result = nix::topoSort(items, make_get_children(graph));
 
     RC_ASSERT(std::holds_alternative<std::vector<std::string>>(result));
     auto sorted = std::get<std::vector<std::string>>(result);

@@ -143,8 +143,7 @@ struct important_first_attr_name_cmp_t {
 typedef std::set<const void*> values_seen_t;
 typedef std::vector<std::pair<std::string, value_t*>> AttrVec;
 
-class printer_t {
-private:
+struct printer_t {
   std::ostream& output;
   eval_state_t& state;
   PrintOptions options;
@@ -228,7 +227,7 @@ private:
   void print_string(value_t& v) {
     NixStringContext context;
     copy_context(v, context);
-    std::ostringstream s;
+    string_sink_t s;
     print_literal_string(s, v.string_view(), options.maxStringLength, options.ansi_colors);
     output << state.devirtualize(s.str(), context);
   }
@@ -432,9 +431,9 @@ private:
           output << " " << state.symbols[v.lambda().fun->name];
         }
 
-        std::ostringstream s;
+        string_sink_t s;
         s << state.positions[v.lambda().fun->pos];
-        output << " @ " << filter_ansi_escapes(s.view());
+        output << " @ " << filter_ansi_escapes(s.str());
       }
     } else if (v.isPrimOp()) {
       if (v.prim_op())
@@ -572,7 +571,6 @@ private:
     }
   }
 
-public:
   printer_t(std::ostream& output, eval_state_t& state, PrintOptions options)
       : output(output), state(state), options(options) {}
 

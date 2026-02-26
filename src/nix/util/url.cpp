@@ -84,7 +84,7 @@ std::ostream& operator<<(std::ostream& os, const parsed_url_t::authority_t& self
 }
 
 std::string parsed_url_t::authority_t::to_string() const {
-  std::ostringstream oss;
+  string_sink_t oss;
   oss << *this;
   return std::move(oss).str();
 }

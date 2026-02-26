@@ -3916,9 +3916,6 @@ namespace nix {
 struct LexerState;
 }
 
-using namespace nix;
-using namespace nix::lexer::internal;
-
 namespace nix {
 
 #define CUR_POS state->at(*yylloc)
@@ -3962,8 +3959,8 @@ static void require_experimental_feature(const experimental_feature_t& feature, 
   if (!experimental_feature_settings.is_enabled(feature))
     throw ParseError(error_info_t{
         .msg_ = hint_fmt_t("experimental Nix feature '%1%' is disabled; add "
-                          "'--extra-experimental-features %1%' to enable it",
-                          show_experimental_feature(feature)),
+                           "'--extra-experimental-features %1%' to enable it",
+                           show_experimental_feature(feature)),
         .pos_ = pos,
     });
 }
@@ -3977,8 +3974,8 @@ using YYLTYPE = nix::Parser::location_type;
 // yacc generates code that uses unannotated fallthrough.
 #pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
 
-#define YY_USER_INIT init_loc(yylloc)
-#define YY_USER_ACTION adjust_loc(yyscanner, yylloc, yytext, yyleng);
+#define YY_USER_INIT nix::lexer::internal::init_loc(yylloc)
+#define YY_USER_ACTION nix::lexer::internal::adjust_loc(yyscanner, yylloc, yytext, yyleng);
 
 #define PUSH_STATE(state) yy_push_state(state, yyscanner)
 #define POP_STATE() yy_pop_state(yyscanner)

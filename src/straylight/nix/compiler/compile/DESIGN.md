@@ -4,13 +4,15 @@
 
 **Make illegal states unrepresentable at compile time.**
 
-Every invariant that can be enforced by the C++23 type system MUST be. Runtime checks are failures of imagination.
+Every invariant that can be enforced by the C++23 type system MUST be. Runtime checks are failures
+of imagination.
 
 ## Core Abstractions
 
 ### 1. Value Provenance
 
 A Nix value during compilation can be in one of two states:
+
 - **Forced**: Definitely not a thunk. Safe to use directly.
 - **MaybeThunk**: Could be a thunk. Must be forced before use in strict contexts.
 
@@ -36,7 +38,8 @@ using maybe_value = wasm_value<false>;   // Might be a thunk
 
 ### 2. Capture Policy
 
-When creating a thunk, we capture variables from the enclosing scope. The capture policy determines whether those captures are forced at capture-time or stored as-is.
+When creating a thunk, we capture variables from the enclosing scope. The capture policy determines
+whether those captures are forced at capture-time or stored as-is.
 
 ```cpp
 // Strong enum - no implicit conversions, exhaustive switch required
@@ -51,7 +54,8 @@ enum class capture_policy : std::uint8_t {
 };
 ```
 
-**The invariant**: In recursive contexts, captures MUST use `preserve_lazy` to avoid infinite recursion during thunk construction.
+**The invariant**: In recursive contexts, captures MUST use `preserve_lazy` to avoid infinite
+recursion during thunk construction.
 
 ### 3. Variable Location
 
@@ -197,29 +201,34 @@ struct build_params {
 
 ### Compile-Time
 
-1. **Value provenance**: `forced_value` vs `maybe_value` types prevent passing unforced values where forced required
+1. **Value provenance**: `forced_value` vs `maybe_value` types prevent passing unforced values where
+   forced required
 2. **Capture policy**: Enum forces exhaustive handling, no bool confusion
 3. **Scope immutability**: `scope_ctx` is passed by value, modifications return new instances
 4. **No mutable global state**: All state either in `compiler_ctx` (output) or `scope_ctx` (input)
 
 ### Runtime
 
-1. **Thunk state machine**: PENDING → EVALUATING → EVALUATED (infinite recursion = EVALUATING→EVALUATING)
+1. **Thunk state machine**: PENDING → EVALUATING → EVALUATED (infinite recursion =
+   EVALUATING→EVALUATING)
 2. **Memory layout**: Static `constexpr` offsets with `static_assert` validation
 
 ## Migration
 
 ### Phase 1: Add Types
+
 - Add `wasm_value<bool>`, `capture_policy`, `scope_ctx`, `compiler_ctx`
 - Add `thunk::build()` wrapping existing logic
 - Add `expr::*` functions delegating to existing `compile_variant`
 
 ### Phase 2: Convert
+
 - One expression type at a time
 - Each PR converts one `compile_variant` overload to `expr::compile_*`
 - Tests unchanged (behavioral equivalence)
 
 ### Phase 3: Remove Old API
+
 - Delete `compile_variant` overloads
 - Delete `force_captures` parameter
 - Delete mutable state from `compiler` class

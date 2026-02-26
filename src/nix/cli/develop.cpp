@@ -335,27 +335,31 @@ struct common_t : InstallableCommand, MixProfile {
         "XDG_DATA_DIRS", // for loadable completion
     };
 
-    std::ostringstream out;
+    std::string out;
 
-    out << "unset shellHook\n";
+    out += "unset shellHook\n";
 
     for (auto& var : saved_vars) {
-      out << fmt("%s=${%s:-}\n", var, var);
-      out << fmt("nix_saved_%s=\"$%s\"\n", var, var);
+      out += fmt("%s=${%s:-}\n", var, var);
+      out += fmt("nix_saved_%s=\"$%s\"\n", var, var);
     }
 
-    build_environment.to_bash(out, ignore_vars);
+    {
+      string_sink_t sink;
+      build_environment.to_bash(sink, ignore_vars);
+      out += sink.str();
+    }
 
     for (auto& var : saved_vars)
-      out << fmt("%s=\"$%s${nix_saved_%s:+:$nix_saved_%s}\"\n", var, var, var, var);
+      out += fmt("%s=\"$%s${nix_saved_%s:+:$nix_saved_%s}\"\n", var, var, var, var);
 
-    out << "export NIX_BUILD_TOP=\"$(mktemp -d -t nix-shell.XXXXXX)\"\n";
+    out += "export NIX_BUILD_TOP=\"$(mktemp -d -t nix-shell.XXXXXX)\"\n";
     for (auto& i : {"TMP", "TMPDIR", "TEMP", "TEMPDIR"})
-      out << fmt("export %s=\"$NIX_BUILD_TOP\"\n", i);
+      out += fmt("export %s=\"$NIX_BUILD_TOP\"\n", i);
 
-    out << "eval \"${shellHook:-}\"\n";
+    out += "eval \"${shellHook:-}\"\n";
 
-    auto script = out.str();
+    auto script = out;
 
     /* Substitute occurrences of output paths. */
     auto outputs = build_environment.vars.find("outputs");

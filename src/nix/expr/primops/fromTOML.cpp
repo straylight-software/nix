@@ -1,5 +1,3 @@
-#include <sstream>
-
 #include <toml.hpp>
 
 #include "nix/expr/eval-inline.h"
@@ -88,7 +86,7 @@ static void prim_from_toml(eval_state_t& state, const pos_idx_t pos, value_t** a
   auto toml = state.forceStringNoCtx(*args[0], pos,
                                      "while evaluating the argument passed to builtins.fromTOML");
 
-  std::istringstream tomlStream(std::string{toml});
+  std::string tomlString{toml};
 
   auto visit = [&](this auto& self, value_t& v, toml::value t) -> void {
     switch (t.type()) {
@@ -135,9 +133,9 @@ static void prim_from_toml(eval_state_t& state, const pos_idx_t pos, value_t** a
 #endif
           auto attrs = state.buildBindings(2);
           attrs.alloc("_type").mkStringNoCopy("timestamp"_sds);
-          std::ostringstream s;
+          string_sink_t s;
           s << t;
-          auto str = s.view();
+          auto str = s.str();
           force_no_null_byte(str);
           attrs.alloc("value").mk_string(str, state.mem);
           v.mkAttrs(attrs);
@@ -153,7 +151,7 @@ static void prim_from_toml(eval_state_t& state, const pos_idx_t pos, value_t** a
 
   try {
     visit(val,
-          toml::parse(tomlStream, "fromTOML" /* the "filename" */
+          toml::parse(tomlString, "fromTOML" /* the "filename" */
 #if HAVE_TOML11_4
                       ,
                       toml::spec::v(

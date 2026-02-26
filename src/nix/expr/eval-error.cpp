@@ -91,16 +91,16 @@ void EvalErrorBuilder<T>::panic() {
   abort();
 }
 
-template class EvalErrorBuilder<EvalBaseError>;
-template class EvalErrorBuilder<EvalError>;
-template class EvalErrorBuilder<AssertionError>;
-template class EvalErrorBuilder<ThrownError>;
-template class EvalErrorBuilder<Abort>;
-template class EvalErrorBuilder<TypeError>;
-template class EvalErrorBuilder<UndefinedVarError>;
-template class EvalErrorBuilder<MissingArgumentError>;
-template class EvalErrorBuilder<InfiniteRecursionError>;
-template class EvalErrorBuilder<InvalidPathError>;
-template class EvalErrorBuilder<IFDError>;
+template struct EvalErrorBuilder<EvalBaseError>;
+template struct EvalErrorBuilder<EvalError>;
+template struct EvalErrorBuilder<AssertionError>;
+template struct EvalErrorBuilder<ThrownError>;
+template struct EvalErrorBuilder<Abort>;
+template struct EvalErrorBuilder<TypeError>;
+template struct EvalErrorBuilder<UndefinedVarError>;
+template struct EvalErrorBuilder<MissingArgumentError>;
+template struct EvalErrorBuilder<InfiniteRecursionError>;
+template struct EvalErrorBuilder<InvalidPathError>;
+template struct EvalErrorBuilder<IFDError>;
 
 } // namespace nix

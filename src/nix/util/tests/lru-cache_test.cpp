@@ -14,20 +14,19 @@
 
 #include "nix/util/lru-cache.h"
 
-using namespace nix;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Basic operations
 // ─────────────────────────────────────────────────────────────────────────────
 
 TEST_CASE("lru cache get on empty cache returns nullopt", "[lru-cache]") {
-  lru_cache_t<int, std::string> cache(10);
+  nix::lru_cache_t<int, std::string> cache(10);
   REQUIRE(cache.get(42) == std::nullopt);
   REQUIRE(cache.size() == 0);
 }
 
 TEST_CASE("lru cache upsert and get basic operation", "[lru-cache]") {
-  lru_cache_t<int, std::string> cache(10);
+  nix::lru_cache_t<int, std::string> cache(10);
 
   cache.upsert(1, "one");
   cache.upsert(2, "two");
@@ -40,7 +39,7 @@ TEST_CASE("lru cache upsert and get basic operation", "[lru-cache]") {
 }
 
 TEST_CASE("lru cache upsert overwrites existing value", "[lru-cache]") {
-  lru_cache_t<int, std::string> cache(10);
+  nix::lru_cache_t<int, std::string> cache(10);
 
   cache.upsert(1, "original");
   REQUIRE(cache.get(1) == "original");
@@ -51,7 +50,7 @@ TEST_CASE("lru cache upsert overwrites existing value", "[lru-cache]") {
 }
 
 TEST_CASE("lru cache getOrNullptr returns pointer or nullptr", "[lru-cache]") {
-  lru_cache_t<int, std::string> cache(10);
+  nix::lru_cache_t<int, std::string> cache(10);
 
   REQUIRE(cache.get_or_nullptr(1) == nullptr);
 
@@ -66,7 +65,7 @@ TEST_CASE("lru cache getOrNullptr returns pointer or nullptr", "[lru-cache]") {
 }
 
 TEST_CASE("lru cache erase removes element", "[lru-cache]") {
-  lru_cache_t<int, std::string> cache(10);
+  nix::lru_cache_t<int, std::string> cache(10);
 
   cache.upsert(1, "one");
   cache.upsert(2, "two");
@@ -82,7 +81,7 @@ TEST_CASE("lru cache erase removes element", "[lru-cache]") {
 }
 
 TEST_CASE("lru cache clear removes all elements", "[lru-cache]") {
-  lru_cache_t<int, std::string> cache(10);
+  nix::lru_cache_t<int, std::string> cache(10);
 
   cache.upsert(1, "one");
   cache.upsert(2, "two");
@@ -101,7 +100,7 @@ TEST_CASE("lru cache clear removes all elements", "[lru-cache]") {
 // ─────────────────────────────────────────────────────────────────────────────
 
 TEST_CASE("lru cache evicts oldest when capacity exceeded", "[lru-cache]") {
-  lru_cache_t<int, std::string> cache(3);
+  nix::lru_cache_t<int, std::string> cache(3);
 
   cache.upsert(1, "one");
   cache.upsert(2, "two");
@@ -118,7 +117,7 @@ TEST_CASE("lru cache evicts oldest when capacity exceeded", "[lru-cache]") {
 }
 
 TEST_CASE("lru cache get promotes item to most recently used", "[lru-cache]") {
-  lru_cache_t<int, std::string> cache(3);
+  nix::lru_cache_t<int, std::string> cache(3);
 
   cache.upsert(1, "one");
   cache.upsert(2, "two");
@@ -136,7 +135,7 @@ TEST_CASE("lru cache get promotes item to most recently used", "[lru-cache]") {
 }
 
 TEST_CASE("lru cache getOrNullptr promotes item to most recently used", "[lru-cache]") {
-  lru_cache_t<int, std::string> cache(3);
+  nix::lru_cache_t<int, std::string> cache(3);
 
   cache.upsert(1, "one");
   cache.upsert(2, "two");
@@ -152,7 +151,7 @@ TEST_CASE("lru cache getOrNullptr promotes item to most recently used", "[lru-ca
 }
 
 TEST_CASE("lru cache upsert existing key promotes to most recently used", "[lru-cache]") {
-  lru_cache_t<int, std::string> cache(3);
+  nix::lru_cache_t<int, std::string> cache(3);
 
   cache.upsert(1, "one");
   cache.upsert(2, "two");
@@ -174,7 +173,7 @@ TEST_CASE("lru cache upsert existing key promotes to most recently used", "[lru-
 // ─────────────────────────────────────────────────────────────────────────────
 
 TEST_CASE("lru cache with zero capacity ignores all inserts", "[lru-cache]") {
-  lru_cache_t<int, std::string> cache(0);
+  nix::lru_cache_t<int, std::string> cache(0);
 
   cache.upsert(1, "one");
   cache.upsert(2, "two");
@@ -185,7 +184,7 @@ TEST_CASE("lru cache with zero capacity ignores all inserts", "[lru-cache]") {
 }
 
 TEST_CASE("lru cache with capacity one evicts on every new insert", "[lru-cache]") {
-  lru_cache_t<int, std::string> cache(1);
+  nix::lru_cache_t<int, std::string> cache(1);
 
   cache.upsert(1, "one");
   REQUIRE(cache.size() == 1);
@@ -203,7 +202,7 @@ TEST_CASE("lru cache with capacity one evicts on every new insert", "[lru-cache]
 }
 
 TEST_CASE("lru cache thrashing with capacity smaller than working set", "[lru-cache]") {
-  lru_cache_t<int, int> cache(3);
+  nix::lru_cache_t<int, int> cache(3);
 
   // simulate thrashing: continuously access more keys than capacity
   for (int round = 0; round < 5; ++round) {
@@ -224,7 +223,7 @@ TEST_CASE("lru cache thrashing with capacity smaller than working set", "[lru-ca
 }
 
 TEST_CASE("lru cache complex eviction sequence", "[lru-cache]") {
-  lru_cache_t<int, int> cache(4);
+  nix::lru_cache_t<int, int> cache(4);
 
   // fill cache: order is 1, 2, 3, 4 (1 is oldest)
   cache.upsert(1, 100);
@@ -254,7 +253,7 @@ TEST_CASE("lru cache complex eviction sequence", "[lru-cache]") {
 }
 
 TEST_CASE("lru cache with string keys", "[lru-cache]") {
-  lru_cache_t<std::string, int> cache(3);
+  nix::lru_cache_t<std::string, int> cache(3);
 
   cache.upsert("alpha", 1);
   cache.upsert("beta", 2);
@@ -271,7 +270,7 @@ TEST_CASE("lru cache with string keys", "[lru-cache]") {
 }
 
 TEST_CASE("lru cache erase then reinsert same key", "[lru-cache]") {
-  lru_cache_t<int, std::string> cache(3);
+  nix::lru_cache_t<int, std::string> cache(3);
 
   cache.upsert(1, "one");
   cache.upsert(2, "two");
@@ -302,7 +301,7 @@ TEST_CASE("lru cache property tests", "[lru-cache][property]") {
     auto capacity = *rc::gen::inRange<size_t>(1, 100);
     auto operations = *rc::gen::inRange<size_t>(0, 500);
 
-    lru_cache_t<int, int> cache(capacity);
+    nix::lru_cache_t<int, int> cache(capacity);
 
     for (size_t i = 0; i < operations; ++i) {
       auto key = *rc::gen::inRange<int>(0, 200);
@@ -314,7 +313,7 @@ TEST_CASE("lru cache property tests", "[lru-cache][property]") {
 
   rc::prop("get returns value that was inserted", []() {
     auto capacity = *rc::gen::inRange<size_t>(1, 50);
-    lru_cache_t<int, int> cache(capacity);
+    nix::lru_cache_t<int, int> cache(capacity);
 
     auto key = *rc::gen::arbitrary<int>();
     auto value = *rc::gen::arbitrary<int>();
@@ -329,7 +328,7 @@ TEST_CASE("lru cache property tests", "[lru-cache][property]") {
 
   rc::prop("upsert overwrites previous value", []() {
     auto capacity = *rc::gen::inRange<size_t>(1, 50);
-    lru_cache_t<int, int> cache(capacity);
+    nix::lru_cache_t<int, int> cache(capacity);
 
     auto key = *rc::gen::arbitrary<int>();
     auto value_first = *rc::gen::arbitrary<int>();
@@ -346,7 +345,7 @@ TEST_CASE("lru cache property tests", "[lru-cache][property]") {
 
   rc::prop("erase removes element and get returns nullopt", []() {
     auto capacity = *rc::gen::inRange<size_t>(1, 50);
-    lru_cache_t<int, int> cache(capacity);
+    nix::lru_cache_t<int, int> cache(capacity);
 
     auto key = *rc::gen::arbitrary<int>();
     auto value = *rc::gen::arbitrary<int>();
@@ -362,7 +361,7 @@ TEST_CASE("lru cache property tests", "[lru-cache][property]") {
     auto capacity = *rc::gen::inRange<size_t>(1, 50);
     auto num_elements = *rc::gen::inRange<size_t>(0, 100);
 
-    lru_cache_t<int, int> cache(capacity);
+    nix::lru_cache_t<int, int> cache(capacity);
 
     std::vector<int> inserted_keys;
     for (size_t i = 0; i < num_elements; ++i) {
@@ -382,7 +381,7 @@ TEST_CASE("lru cache property tests", "[lru-cache][property]") {
 
   rc::prop("recently accessed elements survive eviction", []() {
     auto capacity = *rc::gen::inRange<size_t>(2, 20);
-    lru_cache_t<int, int> cache(capacity);
+    nix::lru_cache_t<int, int> cache(capacity);
 
     // fill cache to capacity with keys 0 to capacity-1
     for (size_t i = 0; i < capacity; ++i) {
@@ -405,7 +404,7 @@ TEST_CASE("lru cache property tests", "[lru-cache][property]") {
 TEST_CASE("lru cache eviction order property", "[lru-cache][property]") {
   rc::prop("oldest untouched element is evicted first", []() {
     auto capacity = *rc::gen::inRange<size_t>(3, 20);
-    lru_cache_t<int, int> cache(capacity);
+    nix::lru_cache_t<int, int> cache(capacity);
 
     // insert elements 0 through capacity-1
     for (size_t i = 0; i < capacity; ++i) {
@@ -430,7 +429,7 @@ TEST_CASE("lru cache stress test with mixed operations", "[lru-cache][property]"
     auto capacity = *rc::gen::inRange<size_t>(1, 30);
     auto num_operations = *rc::gen::inRange<size_t>(10, 200);
 
-    lru_cache_t<int, int> cache(capacity);
+    nix::lru_cache_t<int, int> cache(capacity);
 
     for (size_t op = 0; op < num_operations; ++op) {
       auto operation_type = *rc::gen::inRange<int>(0, 4);

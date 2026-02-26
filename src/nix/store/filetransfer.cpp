@@ -30,8 +30,6 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-using namespace std::string_literals;
-
 namespace nix {
 
 const unsigned int RETRY_TIME_MS_DEFAULT = 250;

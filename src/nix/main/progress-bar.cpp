@@ -32,8 +32,7 @@ static std::string_view store_path_to_name(std::string_view path) {
   return i == std::string::npos ? base.substr(0, 0) : base.substr(i + 1);
 }
 
-class progress_bar_t : public logger_t {
-private:
+struct progress_bar_t : public logger_t {
   struct act_info_t {
     std::string s, last_line, phase;
     activity_type_t type = act_unknown;
@@ -85,7 +84,6 @@ private:
   bool print_build_logs = false;
   bool is_tty;
 
-public:
   progress_bar_t(bool is_tty) : is_tty(is_tty) {
     state_.lock()->active = is_tty;
     updateThread = std::thread([&]() {

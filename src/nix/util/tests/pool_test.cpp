@@ -21,8 +21,6 @@
 #include "nix/util/pool.h"
 #include "nix/util/ref.h"
 
-using namespace nix;
-using namespace std::chrono_literals;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Test resource type
@@ -64,7 +62,7 @@ std::atomic<int> test_resource::destruction_count{0};
 TEST_CASE("pool get creates resource on first access", "[pool]") {
   test_resource::reset_counters();
 
-  pool_t<test_resource> pool(10, []() { return make_ref<test_resource>(); });
+  nix::pool_t<test_resource> pool(10, []() { return nix::make_ref<test_resource>(); });
 
   REQUIRE(test_resource::construction_count == 0);
 
@@ -75,7 +73,7 @@ TEST_CASE("pool get creates resource on first access", "[pool]") {
 }
 
 TEST_CASE("pool get returns same resource after release", "[pool]") {
-  pool_t<test_resource> pool(10, []() { return make_ref<test_resource>(); });
+  nix::pool_t<test_resource> pool(10, []() { return nix::make_ref<test_resource>(); });
 
   int first_id = 0;
   {
@@ -90,14 +88,14 @@ TEST_CASE("pool get returns same resource after release", "[pool]") {
 }
 
 TEST_CASE("pool handle provides access to resource via arrow operator", "[pool]") {
-  pool_t<test_resource> pool(10, []() { return make_ref<test_resource>(42); });
+  nix::pool_t<test_resource> pool(10, []() { return nix::make_ref<test_resource>(42); });
 
   auto handle = pool.get();
   REQUIRE(handle->id == 42);
 }
 
 TEST_CASE("pool handle provides access to resource via dereference operator", "[pool]") {
-  pool_t<test_resource> pool(10, []() { return make_ref<test_resource>(42); });
+  nix::pool_t<test_resource> pool(10, []() { return nix::make_ref<test_resource>(42); });
 
   auto handle = pool.get();
   test_resource& res = *handle;
@@ -105,7 +103,7 @@ TEST_CASE("pool handle provides access to resource via dereference operator", "[
 }
 
 TEST_CASE("pool count reflects active and idle resources", "[pool]") {
-  pool_t<test_resource> pool(10, []() { return make_ref<test_resource>(); });
+  nix::pool_t<test_resource> pool(10, []() { return nix::make_ref<test_resource>(); });
 
   REQUIRE(pool.count() == 0);
 
@@ -122,12 +120,12 @@ TEST_CASE("pool count reflects active and idle resources", "[pool]") {
 }
 
 TEST_CASE("pool capacity returns maximum size", "[pool]") {
-  pool_t<test_resource> pool(5, []() { return make_ref<test_resource>(); });
+  nix::pool_t<test_resource> pool(5, []() { return nix::make_ref<test_resource>(); });
   REQUIRE(pool.capacity() == 5);
 }
 
 TEST_CASE("pool incCapacity increases maximum", "[pool]") {
-  pool_t<test_resource> pool(5, []() { return make_ref<test_resource>(); });
+  nix::pool_t<test_resource> pool(5, []() { return nix::make_ref<test_resource>(); });
   REQUIRE(pool.capacity() == 5);
 
   pool.incCapacity();
@@ -138,7 +136,7 @@ TEST_CASE("pool incCapacity increases maximum", "[pool]") {
 }
 
 TEST_CASE("pool decCapacity decreases maximum", "[pool]") {
-  pool_t<test_resource> pool(5, []() { return make_ref<test_resource>(); });
+  nix::pool_t<test_resource> pool(5, []() { return nix::make_ref<test_resource>(); });
   REQUIRE(pool.capacity() == 5);
 
   pool.decCapacity();
@@ -148,7 +146,7 @@ TEST_CASE("pool decCapacity decreases maximum", "[pool]") {
 TEST_CASE("pool clear removes all idle resources", "[pool]") {
   test_resource::reset_counters();
 
-  pool_t<test_resource> pool(10, []() { return make_ref<test_resource>(); });
+  nix::pool_t<test_resource> pool(10, []() { return nix::make_ref<test_resource>(); });
 
   {
     auto h1 = pool.get();
@@ -168,7 +166,7 @@ TEST_CASE("pool clear removes all idle resources", "[pool]") {
 // ─────────────────────────────────────────────────────────────────────────────
 
 TEST_CASE("pool handle releases resource when going out of scope", "[pool][raii]") {
-  pool_t<test_resource> pool(10, []() { return make_ref<test_resource>(); });
+  nix::pool_t<test_resource> pool(10, []() { return nix::make_ref<test_resource>(); });
 
   int resource_id = 0;
   {
@@ -183,7 +181,7 @@ TEST_CASE("pool handle releases resource when going out of scope", "[pool][raii]
 }
 
 TEST_CASE("pool handle is moveable", "[pool][raii]") {
-  pool_t<test_resource> pool(10, []() { return make_ref<test_resource>(99); });
+  nix::pool_t<test_resource> pool(10, []() { return nix::make_ref<test_resource>(99); });
 
   auto handle1 = pool.get();
   auto handle2 = std::move(handle1);
@@ -192,7 +190,7 @@ TEST_CASE("pool handle is moveable", "[pool][raii]") {
 }
 
 TEST_CASE("pool handle move leaves source empty", "[pool][raii]") {
-  pool_t<test_resource> pool(10, []() { return make_ref<test_resource>(); });
+  nix::pool_t<test_resource> pool(10, []() { return nix::make_ref<test_resource>(); });
 
   auto handle1 = pool.get();
   REQUIRE(pool.count() == 1);
@@ -206,7 +204,7 @@ TEST_CASE("pool handle move leaves source empty", "[pool][raii]") {
 TEST_CASE("pool markBad prevents resource from being reused", "[pool][raii]") {
   test_resource::reset_counters();
 
-  pool_t<test_resource> pool(10, []() { return make_ref<test_resource>(); });
+  nix::pool_t<test_resource> pool(10, []() { return nix::make_ref<test_resource>(); });
 
   int first_id = 0;
   {
@@ -228,9 +226,9 @@ TEST_CASE("pool markBad prevents resource from being reused", "[pool][raii]") {
 TEST_CASE("pool validator filters out invalid resources on get", "[pool][validation]") {
   test_resource::reset_counters();
 
-  pool_t<test_resource> pool(
-      10, []() { return make_ref<test_resource>(); },
-      [](const ref<test_resource>& r) { return r->valid; });
+  nix::pool_t<test_resource> pool(
+      10, []() { return nix::make_ref<test_resource>(); },
+      [](const nix::ref<test_resource>& r) { return r->valid; });
 
   int first_id = 0;
   {
@@ -248,9 +246,9 @@ TEST_CASE("pool validator filters out invalid resources on get", "[pool][validat
 TEST_CASE("pool validator chains to skip multiple invalid resources", "[pool][validation]") {
   test_resource::reset_counters();
 
-  pool_t<test_resource> pool(
-      10, []() { return make_ref<test_resource>(); },
-      [](const ref<test_resource>& r) { return r->valid; });
+  nix::pool_t<test_resource> pool(
+      10, []() { return nix::make_ref<test_resource>(); },
+      [](const nix::ref<test_resource>& r) { return r->valid; });
 
   // create 3 resources
   {
@@ -270,9 +268,9 @@ TEST_CASE("pool validator chains to skip multiple invalid resources", "[pool][va
 }
 
 TEST_CASE("pool flushBad removes invalid idle resources", "[pool][validation]") {
-  pool_t<test_resource> pool(
-      10, []() { return make_ref<test_resource>(); },
-      [](const ref<test_resource>& r) { return r->valid; });
+  nix::pool_t<test_resource> pool(
+      10, []() { return nix::make_ref<test_resource>(); },
+      [](const nix::ref<test_resource>& r) { return r->valid; });
 
   {
     auto h1 = pool.get();
@@ -301,11 +299,11 @@ TEST_CASE("pool flushBad removes invalid idle resources", "[pool][validation]") 
 TEST_CASE("pool recovers from factory exception", "[pool][exception]") {
   std::atomic<int> call_count{0};
 
-  pool_t<test_resource> pool(10, [&]() -> ref<test_resource> {
+  nix::pool_t<test_resource> pool(10, [&]() -> nix::ref<test_resource> {
     if (call_count++ == 0) {
       throw std::runtime_error("factory failed");
     }
-    return make_ref<test_resource>();
+    return nix::make_ref<test_resource>();
   });
 
   // first call should throw
@@ -322,9 +320,9 @@ TEST_CASE("pool recovers from factory exception", "[pool][exception]") {
 TEST_CASE("pool exception in validator during get creates new resource", "[pool][exception]") {
   std::atomic<int> validation_count{0};
 
-  pool_t<test_resource> pool(
-      10, []() { return make_ref<test_resource>(); },
-      [&](const ref<test_resource>&) -> bool {
+  nix::pool_t<test_resource> pool(
+      10, []() { return nix::make_ref<test_resource>(); },
+      [&](const nix::ref<test_resource>&) -> bool {
         if (validation_count++ == 0) {
           throw std::runtime_error("validator failed");
         }
@@ -351,12 +349,12 @@ TEST_CASE("pool property tests", "[pool][property]") {
   rc::prop("count never exceeds in use plus idle", []() {
     auto capacity = *rc::gen::inRange<size_t>(1, 20);
 
-    pool_t<test_resource> pool(capacity, []() { return make_ref<test_resource>(); });
+    nix::pool_t<test_resource> pool(capacity, []() { return nix::make_ref<test_resource>(); });
 
     // IMPORTANT: num_acquisitions must not exceed capacity or pool.get() will block
     auto num_acquisitions = *rc::gen::inRange<size_t>(1, capacity + 1);
     // use deque since Handle is not copy-assignable
-    std::deque<pool_t<test_resource>::Handle> handles;
+    std::deque<nix::pool_t<test_resource>::Handle> handles;
 
     for (size_t i = 0; i < num_acquisitions; ++i) {
       handles.push_back(pool.get());
@@ -374,7 +372,7 @@ TEST_CASE("pool property tests", "[pool][property]") {
   });
 
   rc::prop("pool reuses resources when available", []() {
-    pool_t<test_resource> pool(100, []() { return make_ref<test_resource>(); });
+    nix::pool_t<test_resource> pool(100, []() { return nix::make_ref<test_resource>(); });
 
     auto num_iterations = *rc::gen::inRange<size_t>(1, 50);
     std::set<int> resource_ids;
@@ -391,7 +389,7 @@ TEST_CASE("pool property tests", "[pool][property]") {
   rc::prop("markBad resources are not reused", []() {
     test_resource::reset_counters();
 
-    pool_t<test_resource> pool(100, []() { return make_ref<test_resource>(); });
+    nix::pool_t<test_resource> pool(100, []() { return nix::make_ref<test_resource>(); });
 
     auto num_bad = *rc::gen::inRange<size_t>(1, 10);
     std::set<int> bad_ids;
@@ -410,12 +408,12 @@ TEST_CASE("pool property tests", "[pool][property]") {
   });
 
   rc::prop("clear removes all idle resources", []() {
-    pool_t<test_resource> pool(100, []() { return make_ref<test_resource>(); });
+    nix::pool_t<test_resource> pool(100, []() { return nix::make_ref<test_resource>(); });
 
     auto num_resources = *rc::gen::inRange<size_t>(0, 20);
 
     {
-      std::deque<pool_t<test_resource>::Handle> handles;
+      std::deque<nix::pool_t<test_resource>::Handle> handles;
       for (size_t i = 0; i < num_resources; ++i) {
         handles.push_back(pool.get());
       }
@@ -429,7 +427,8 @@ TEST_CASE("pool property tests", "[pool][property]") {
   rc::prop("capacity changes are reflected", []() {
     auto initial_capacity = *rc::gen::inRange<size_t>(1, 50);
 
-    pool_t<test_resource> pool(initial_capacity, []() { return make_ref<test_resource>(); });
+    nix::pool_t<test_resource> pool(initial_capacity,
+                                    []() { return nix::make_ref<test_resource>(); });
 
     RC_ASSERT(pool.capacity() == initial_capacity);
 
@@ -449,9 +448,9 @@ TEST_CASE("pool property tests", "[pool][property]") {
 
 TEST_CASE("pool validation property tests", "[pool][property][validation]") {
   rc::prop("invalid resources are filtered out on get", []() {
-    pool_t<test_resource> pool(
-        100, []() { return make_ref<test_resource>(); },
-        [](const ref<test_resource>& r) { return r->valid; });
+    nix::pool_t<test_resource> pool(
+        100, []() { return nix::make_ref<test_resource>(); },
+        [](const nix::ref<test_resource>& r) { return r->valid; });
 
     auto num_invalid = *rc::gen::inRange<size_t>(1, 10);
 
@@ -466,15 +465,15 @@ TEST_CASE("pool validation property tests", "[pool][property][validation]") {
   });
 
   rc::prop("flushBad removes exactly invalid resources", []() {
-    pool_t<test_resource> pool(
-        100, []() { return make_ref<test_resource>(); },
-        [](const ref<test_resource>& r) { return r->valid; });
+    nix::pool_t<test_resource> pool(
+        100, []() { return nix::make_ref<test_resource>(); },
+        [](const nix::ref<test_resource>& r) { return r->valid; });
 
     auto num_resources = *rc::gen::inRange<size_t>(1, 20);
     auto num_invalid = *rc::gen::inRange<size_t>(0, num_resources);
 
     {
-      std::deque<pool_t<test_resource>::Handle> handles;
+      std::deque<nix::pool_t<test_resource>::Handle> handles;
       for (size_t i = 0; i < num_resources; ++i) {
         handles.push_back(pool.get());
         if (i < num_invalid) {
@@ -504,12 +503,12 @@ TEST_CASE("pool fuzz test with random operations", "[pool][fuzz]") {
     auto capacity = *rc::gen::inRange<size_t>(1, 20);
     auto num_operations = *rc::gen::inRange<size_t>(10, 100);
 
-    pool_t<test_resource> pool(
-        capacity, []() { return make_ref<test_resource>(); },
-        [](const ref<test_resource>& r) { return r->valid; });
+    nix::pool_t<test_resource> pool(
+        capacity, []() { return nix::make_ref<test_resource>(); },
+        [](const nix::ref<test_resource>& r) { return r->valid; });
 
     // use deque for efficient pop from both ends without move assignment
-    std::deque<pool_t<test_resource>::Handle> active_handles;
+    std::deque<nix::pool_t<test_resource>::Handle> active_handles;
 
     for (size_t op = 0; op < num_operations; ++op) {
       auto operation = *rc::gen::inRange<int>(0, 10);
@@ -572,9 +571,10 @@ TEST_CASE("pool fuzz test with capacity changes", "[pool][fuzz]") {
     auto initial_capacity = *rc::gen::inRange<size_t>(5, 15);
     auto num_operations = *rc::gen::inRange<size_t>(10, 50);
 
-    pool_t<test_resource> pool(initial_capacity, []() { return make_ref<test_resource>(); });
+    nix::pool_t<test_resource> pool(initial_capacity,
+                                    []() { return nix::make_ref<test_resource>(); });
 
-    std::deque<pool_t<test_resource>::Handle> active_handles;
+    std::deque<nix::pool_t<test_resource>::Handle> active_handles;
     size_t current_capacity = initial_capacity;
 
     for (size_t op = 0; op < num_operations; ++op) {
@@ -626,7 +626,7 @@ TEST_CASE("pool fuzz test with capacity changes", "[pool][fuzz]") {
 // ─────────────────────────────────────────────────────────────────────────────
 
 TEST_CASE("pool with capacity one", "[pool][edge]") {
-  pool_t<test_resource> pool(1, []() { return make_ref<test_resource>(); });
+  nix::pool_t<test_resource> pool(1, []() { return nix::make_ref<test_resource>(); });
 
   int first_id = 0;
   {
@@ -642,7 +642,7 @@ TEST_CASE("pool with capacity one", "[pool][edge]") {
 
 TEST_CASE("pool with default factory", "[pool][edge]") {
   // test_resource has a default constructor
-  pool_t<test_resource> pool(10);
+  nix::pool_t<test_resource> pool(10);
 
   auto handle = pool.get();
   REQUIRE(handle->id >= 0);
@@ -651,9 +651,9 @@ TEST_CASE("pool with default factory", "[pool][edge]") {
 TEST_CASE("pool with always-invalid validator", "[pool][edge]") {
   test_resource::reset_counters();
 
-  pool_t<test_resource> pool(
-      10, []() { return make_ref<test_resource>(); },
-      [](const ref<test_resource>&) { return false; });
+  nix::pool_t<test_resource> pool(
+      10, []() { return nix::make_ref<test_resource>(); },
+      [](const nix::ref<test_resource>&) { return false; });
 
   // first get creates a resource
   {
@@ -668,7 +668,7 @@ TEST_CASE("pool with always-invalid validator", "[pool][edge]") {
 TEST_CASE("pool multiple handles same resource lifecycle", "[pool][edge]") {
   test_resource::reset_counters();
 
-  pool_t<test_resource> pool(10, []() { return make_ref<test_resource>(); });
+  nix::pool_t<test_resource> pool(10, []() { return nix::make_ref<test_resource>(); });
 
   // get, release, get, release - should reuse same resource
   for (int i = 0; i < 10; ++i) {
@@ -683,8 +683,8 @@ TEST_CASE("pool destruction with active handles", "[pool][edge]") {
   // NOTE: the pool asserts no resources are in use at destruction,
   // so we must ensure all handles are released before pool destruction
 
-  auto pool =
-      std::make_unique<pool_t<test_resource>>(10, []() { return make_ref<test_resource>(); });
+  auto pool = std::make_unique<nix::pool_t<test_resource>>(
+      10, []() { return nix::make_ref<test_resource>(); });
 
   {
     auto handle = pool->get();
@@ -696,7 +696,7 @@ TEST_CASE("pool destruction with active handles", "[pool][edge]") {
 }
 
 TEST_CASE("pool stress test rapid acquire release", "[pool][stress]") {
-  pool_t<test_resource> pool(5, []() { return make_ref<test_resource>(); });
+  nix::pool_t<test_resource> pool(5, []() { return nix::make_ref<test_resource>(); });
 
   for (int i = 0; i < 1000; ++i) {
     auto handle = pool.get();
@@ -713,10 +713,10 @@ TEST_CASE("pool stress test rapid acquire release", "[pool][stress]") {
 // ─────────────────────────────────────────────────────────────────────────────
 
 TEST_CASE("pool handle noexcept move constructor", "[pool][handle]") {
-  pool_t<test_resource> pool(10, []() { return make_ref<test_resource>(); });
+  nix::pool_t<test_resource> pool(10, []() { return nix::make_ref<test_resource>(); });
 
   // verify move constructor is noexcept (important for exception safety)
-  static_assert(std::is_nothrow_move_constructible_v<pool_t<test_resource>::Handle>);
+  static_assert(std::is_nothrow_move_constructible_v<nix::pool_t<test_resource>::Handle>);
 
   auto h1 = pool.get();
   auto h2 = std::move(h1);
@@ -726,14 +726,14 @@ TEST_CASE("pool handle noexcept move constructor", "[pool][handle]") {
 
 TEST_CASE("pool handle not copyable", "[pool][handle]") {
   // verify Handle is not copyable
-  static_assert(!std::is_copy_constructible_v<pool_t<test_resource>::Handle>);
-  static_assert(!std::is_copy_assignable_v<pool_t<test_resource>::Handle>);
+  static_assert(!std::is_copy_constructible_v<nix::pool_t<test_resource>::Handle>);
+  static_assert(!std::is_copy_assignable_v<nix::pool_t<test_resource>::Handle>);
 }
 
 TEST_CASE("pool interleaved acquire release pattern", "[pool][pattern]") {
-  pool_t<test_resource> pool(3, []() { return make_ref<test_resource>(); });
+  nix::pool_t<test_resource> pool(3, []() { return nix::make_ref<test_resource>(); });
 
-  std::deque<pool_t<test_resource>::Handle> handles;
+  std::deque<nix::pool_t<test_resource>::Handle> handles;
 
   // acquire 3
   handles.push_back(pool.get());

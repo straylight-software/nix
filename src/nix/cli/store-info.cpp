@@ -5,9 +5,7 @@
 #include "nix/store/store-api.h"
 #include "nix/util/finally.h"
 
-using namespace nix;
-
-struct cmd_info_store_t : StoreCommand, MixJSON {
+struct cmd_info_store_t : nix::StoreCommand, nix::MixJSON {
   std::string description() override { return "test whether a store can be accessed"; }
 
   std::string doc() override {
@@ -16,17 +14,17 @@ struct cmd_info_store_t : StoreCommand, MixJSON {
         ;
   }
 
-  void run(ref<store_t> store) override {
+  void run(nix::ref<nix::store_t> store) override {
     if (!json) {
-      notice("store_t URL: %s", store->config.getReference().render(/*withParams=*/true));
+      nix::notice("store_t URL: %s", store->config.getReference().render(/*withParams=*/true));
       store->connect();
       if (auto version = store->getVersion())
-        notice("Version: %s", *version);
+        nix::notice("Version: %s", *version);
       if (auto trusted = store->isTrustedClient())
-        notice("Trusted: %s", *trusted);
+        nix::notice("Trusted: %s", *trusted);
     } else {
       nlohmann::json res;
-      finally_t print_res([&]() { printJSON(res); });
+      nix::finally_t print_res([&]() { printJSON(res); });
 
       res["url"] = store->config.getReference().render(/*withParams=*/true);
       store->connect();
@@ -38,4 +36,4 @@ struct cmd_info_store_t : StoreCommand, MixJSON {
   }
 };
 
-static auto r_cmd_info_store = registerCommand2<cmd_info_store_t>({"store", "info"});
+static auto r_cmd_info_store = nix::registerCommand2<cmd_info_store_t>({"store", "info"});

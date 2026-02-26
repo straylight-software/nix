@@ -1,5 +1,3 @@
-#include <sstream>
-
 #include "nix/cmd/command.h"
 #include "nix/main/shared.h"
 #include "nix/store/globals.h"
@@ -82,11 +80,10 @@ struct cmd_config_check_t : StoreCommand {
     }
 
     if (dirs.size() != 1) {
-      std::ostringstream ss;
-      ss << "Multiple versions of nix found in PATH:\n";
+      std::string msg = "Multiple versions of nix found in PATH:\n";
       for (auto& dir : dirs)
-        ss << "  " << dir << "\n";
-      return check_fail(ss.view());
+        msg += "  " + dir.string() + "\n";
+      return check_fail(msg);
     }
 
     return check_pass("PATH contains only one nix version.");
@@ -122,14 +119,15 @@ struct cmd_config_check_t : StoreCommand {
     }
 
     if (!dirs.empty()) {
-      std::ostringstream ss;
-      ss << "Found profiles outside of " << settings.nixStateDir << "/profiles.\n"
-         << "The generation this profile points to might not have a gcroot and could be\n"
-         << "garbage collected, resulting in broken symlinks.\n\n";
+      std::string msg =
+          "Found profiles outside of " + settings.nixStateDir +
+          "/profiles.\n"
+          "The generation this profile points to might not have a gcroot and could be\n"
+          "garbage collected, resulting in broken symlinks.\n\n";
       for (auto& dir : dirs)
-        ss << "  " << dir << "\n";
-      ss << "\n";
-      return check_fail(ss.view());
+        msg += "  " + dir.string() + "\n";
+      msg += "\n";
+      return check_fail(msg);
     }
 
     return check_pass("All profiles are gcroots.");
@@ -142,13 +140,16 @@ struct cmd_config_check_t : StoreCommand {
             : PROTOCOL_VERSION;
 
     if (client_proto != store_proto) {
-      std::ostringstream ss;
-      ss << "Warning: protocol version of this client does not match the store.\n"
-         << "While this is not necessarily a problem it's recommended to keep the client in\n"
-         << "sync with the daemon.\n\n"
-         << "Client protocol: " << format_protocol(client_proto) << "\n"
-         << "store_t protocol: " << format_protocol(store_proto) << "\n\n";
-      return check_fail(ss.view());
+      std::string msg =
+          "Warning: protocol version of this client does not match the store.\n"
+          "While this is not necessarily a problem it's recommended to keep the client in\n"
+          "sync with the daemon.\n\n"
+          "Client protocol: " +
+          format_protocol(client_proto) +
+          "\n"
+          "store_t protocol: " +
+          format_protocol(store_proto) + "\n\n";
+      return check_fail(msg);
     }
 
     return check_pass("Client protocol matches store protocol.");

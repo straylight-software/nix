@@ -21,8 +21,9 @@ static constexpr uint64_t AWS_MIN_PART_SIZE = 5 * 1024 * 1024;           // 5MiB
 static constexpr uint64_t AWS_MAX_PART_SIZE = 5ULL * 1024 * 1024 * 1024; // 5GiB
 static constexpr uint64_t AWS_MAX_PART_COUNT = 10000;
 
-class s3_binary_cache_store_t : public virtual http_binary_cache_store {
-public:
+struct s3_binary_cache_store_t : public virtual http_binary_cache_store {
+  ref<S3BinaryCacheStoreConfig> s3_config;
+
   s3_binary_cache_store_t(ref<S3BinaryCacheStoreConfig> config)
       : store_t{*config},
         binary_cache_store{*config},
@@ -31,9 +32,6 @@ public:
 
   void upsert_file(const std::string& path, restartable_source_t& source,
                    const std::string& mime_type, uint64_t size_hint) override;
-
-private:
-  ref<S3BinaryCacheStoreConfig> s3_config;
 
   /**
    * Uploads a file to S3 using a regular (non-multipart) upload.

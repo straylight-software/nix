@@ -4,18 +4,16 @@
 
 namespace nlohmann {
 
-using namespace nix;
-
-ExternalBuilder adl_serializer<ExternalBuilder>::from_json(const json& json) {
-  auto obj = get_object(json);
+nix::ExternalBuilder adl_serializer<nix::ExternalBuilder>::from_json(const json& json) {
+  auto obj = nix::get_object(json);
   return {
-      .systems = value_at(obj, "systems"),
-      .program = value_at(obj, "program"),
-      .args = value_at(obj, "args"),
+      .systems = nix::value_at(obj, "systems"),
+      .program = nix::value_at(obj, "program"),
+      .args = nix::value_at(obj, "args"),
   };
 }
 
-void adl_serializer<ExternalBuilder>::to_json(json& json, const ExternalBuilder& eb) {
+void adl_serializer<nix::ExternalBuilder>::to_json(json& json, const nix::ExternalBuilder& eb) {
   json = {
       {"systems", eb.systems},
       {"program", eb.program},

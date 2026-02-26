@@ -5,9 +5,6 @@
 #include "nix/util/array-from-string-literal.h"
 #include "nix/util/util.h"
 
-using namespace std::literals;
-using namespace nix;
-
 namespace nix {
 
 constexpr static const std::array<char, 16> base16_chars = ARRAY_NO_NULL("0123456789abcdef");

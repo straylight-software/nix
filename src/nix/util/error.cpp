@@ -40,7 +40,7 @@ auto base_error_t::calc_what() const -> const std::string& {
   if (what_.has_value()) {
     return *what_;
   }
-  std::ostringstream oss;
+  string_sink_t oss;
   show_error_info(oss, err_, logger_settings.show_trace);
   what_ = oss.str();
   return *what_;
@@ -271,7 +271,7 @@ auto show_error_info(std::ostream& out, const error_info_t& einfo, bool show_tra
     prefix += ":" ANSI_NORMAL " ";
   }
 
-  std::ostringstream oss;
+  string_sink_t oss;
 
   /*
    * Traces

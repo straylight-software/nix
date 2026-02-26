@@ -6,17 +6,15 @@
 #include "nix/store/store-api.h"
 #include "nix/util/config-global.h"
 
-using namespace nix;
-
-struct cmd_config_t : NixMultiCommand {
-  cmd_config_t() : NixMultiCommand("config", RegisterCommand::getCommandsFor({"config"})) {}
+struct cmd_config_t : nix::NixMultiCommand {
+  cmd_config_t() : NixMultiCommand("config", nix::RegisterCommand::getCommandsFor({"config"})) {}
 
   std::string description() override { return "manipulate the Nix configuration"; }
 
-  category_t category() override { return catUtility; }
+  nix::category_t category() override { return nix::catUtility; }
 };
 
-struct cmd_config_show_t : command_t, MixJSON {
+struct cmd_config_show_t : nix::command_t, nix::MixJSON {
   std::optional<std::string> name;
 
   cmd_config_show_t() {
@@ -31,23 +29,23 @@ struct cmd_config_show_t : command_t, MixJSON {
     return "show the Nix configuration or the value of a specific setting";
   }
 
-  category_t category() override { return catUtility; }
+  nix::category_t category() override { return nix::catUtility; }
 
   void run() override {
     if (name) {
       if (json) {
-        throw UsageError("'--json' is not supported when specifying a setting name");
+        throw nix::UsageError("'--json' is not supported when specifying a setting name");
       }
 
-      std::map<std::string, config_t::setting_info_t> settings;
-      global_config.get_settings(settings);
+      std::map<std::string, nix::config_t::setting_info_t> settings;
+      nix::global_config.get_settings(settings);
       auto setting = settings.find(*name);
 
       if (setting == settings.end()) {
-        throw Error("could not find setting '%1%'", *name);
+        throw nix::Error("could not find setting '%1%'", *name);
       } else {
         const auto& value = setting->second.value_;
-        logger->cout("%s", value);
+        nix::logger->cout("%s", value);
       }
 
       return;
@@ -55,12 +53,12 @@ struct cmd_config_show_t : command_t, MixJSON {
 
     if (json) {
       // FIXME: use appropriate JSON types (bool, ints, etc).
-      printJSON(global_config.to_json());
+      nix::printJSON(nix::global_config.to_json());
     } else {
-      logger->cout("%s", global_config.to_key_value());
+      nix::logger->cout("%s", nix::global_config.to_key_value());
     }
   }
 };
 
-static auto r_cmd_config = registerCommand<cmd_config_t>("config");
-static auto r_show_config = registerCommand2<cmd_config_show_t>({"config", "show"});
+static auto r_cmd_config = nix::registerCommand<cmd_config_t>("config");
+static auto r_show_config = nix::registerCommand2<cmd_config_show_t>({"config", "show"});

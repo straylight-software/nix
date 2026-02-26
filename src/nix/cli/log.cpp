@@ -5,9 +5,7 @@
 #include "nix/store/log-store.h"
 #include "nix/store/store-open.h"
 
-using namespace nix;
-
-struct cmd_log_t : InstallableCommand {
+struct cmd_log_t : nix::InstallableCommand {
   std::string description() override {
     return "show the build log of the specified packages or paths, if available";
   }
@@ -18,33 +16,34 @@ struct cmd_log_t : InstallableCommand {
         ;
   }
 
-  category_t category() override { return catSecondary; }
+  nix::category_t category() override { return nix::catSecondary; }
 
-  void run(ref<store_t> store, ref<Installable> installable) override {
-    settings.readOnlyMode = true;
+  void run(nix::ref<nix::store_t> store, nix::ref<nix::Installable> installable) override {
+    nix::settings.readOnlyMode = true;
 
-    auto subs = get_default_substituters();
+    auto subs = nix::get_default_substituters();
 
     subs.push_front(store);
 
     auto b = installable->toDerivedPath();
 
     // For compat with CLI today, TODO revisit
-    auto one_up = std::visit(overloaded{
-                                 [&](const derived_path_t::opaque_t& bo) {
-                                   return make_ref<const SingleDerivedPath>(bo);
-                                 },
-                                 [&](const derived_path_t::Built& bfd) { return bfd.drv_path; },
-                             },
-                             b.path.raw());
-    auto path = resolve_derived_path(*store, *one_up);
+    auto one_up =
+        std::visit(nix::overloaded{
+                       [&](const nix::derived_path_t::opaque_t& bo) {
+                         return nix::make_ref<const nix::SingleDerivedPath>(bo);
+                       },
+                       [&](const nix::derived_path_t::Built& bfd) { return bfd.drv_path; },
+                   },
+                   b.path.raw());
+    auto path = nix::resolve_derived_path(*store, *one_up);
 
-    RunPager pager;
+    nix::RunPager pager;
     for (auto& sub : subs) {
-      auto* logSubP = dynamic_cast<LogStore*>(&*sub);
+      auto* logSubP = dynamic_cast<nix::LogStore*>(&*sub);
       if (!logSubP) {
-        printInfo("Skipped '%s' which does not support retrieving build logs",
-                  sub->config.getHumanReadableURI());
+        nix::printInfo("Skipped '%s' which does not support retrieving build logs",
+                       sub->config.getHumanReadableURI());
         continue;
       }
       auto& logSub = *logSubP;
@@ -52,15 +51,15 @@ struct cmd_log_t : InstallableCommand {
       auto log = logSub.getBuildLog(path);
       if (!log)
         continue;
-      logger->stop();
-      printInfo("got build log for '%s' from '%s'", installable->what(),
-                logSub.config.getHumanReadableURI());
-      write_full(get_standard_output(), *log);
+      nix::logger->stop();
+      nix::printInfo("got build log for '%s' from '%s'", installable->what(),
+                     logSub.config.getHumanReadableURI());
+      nix::write_full(nix::get_standard_output(), *log);
       return;
     }
 
-    throw Error("build log of '%s' is not available", installable->what());
+    throw nix::Error("build log of '%s' is not available", installable->what());
   }
 };
 
-static auto r_cmd_log = registerCommand<cmd_log_t>("log");
+static auto r_cmd_log = nix::registerCommand<cmd_log_t>("log");

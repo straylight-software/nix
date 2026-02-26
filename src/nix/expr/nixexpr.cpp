@@ -240,22 +240,24 @@ void ExprPos::show(const symbol_table_t& symbols, std::ostream& str) const {
 
 std::string show_attr_selection_path(const symbol_table_t& symbols,
                                      std::span<const AttrName> attr_path) {
-  std::ostringstream out;
+  std::string result;
   bool first = true;
   for (auto& i : attr_path) {
     if (!first)
-      out << '.';
+      result += '.';
     else
       first = false;
     if (i.symbol)
-      out << symbols[i.symbol];
+      result += symbols[i.symbol];
     else {
-      out << "\"${";
-      i.expr->show(symbols, out);
-      out << "}\"";
+      result += "\"${";
+      string_sink_t sink;
+      i.expr->show(symbols, sink);
+      result += sink.str();
+      result += "}\"";
     }
   }
-  return out.str();
+  return result;
 }
 
 /* Computing levels/displacements for variables. */
@@ -615,7 +617,7 @@ void ExprCall::resetCursedOr() {
 
 void ExprCall::warnIfCursedOr(const symbol_table_t& symbols, const pos_table_t& positions) {
   if (cursedOrEndPos.has_value()) {
-    std::ostringstream out;
+    string_sink_t out;
     out << "at " << positions[pos]
         << ": "
            "This expression uses `or` as an identifier in a way that will change in a future Nix "

@@ -2,15 +2,21 @@
 
 ## Executive Summary
 
-The compiler (`compiler.h`) has become a 3400-line monolith with scattered mutable state, no RAII guards, unused abstractions, and runtime checks where compile-time enforcement is possible. The existing `DESIGN.md` describes the _correct_ architecture - but it was never fully implemented. Files like `scope.h`, `value.h`, and `capture.h` contain the right abstractions that are **not used**.
+The compiler (`compiler.h`) has become a 3400-line monolith with scattered mutable state, no RAII
+guards, unused abstractions, and runtime checks where compile-time enforcement is possible. The
+existing `DESIGN.md` describes the _correct_ architecture - but it was never fully implemented.
+Files like `scope.h`, `value.h`, and `capture.h` contain the right abstractions that are **not
+used**.
 
 This document catalogs every design flaw with line numbers, then provides a concrete migration plan.
 
----
+______________________________________________________________________
 
 ## Design Philosophy: Learn from libevring
 
-The libevring library in this same codebase demonstrates how to **make illegal states unrepresentable at compile time**. Its `stable_ref<T>` / `stable_span<T>` pattern solves the pointer stability problem by:
+The libevring library in this same codebase demonstrates how to **make illegal states
+unrepresentable at compile time**. Its `stable_ref<T>` / `stable_span<T>` pattern solves the pointer
+stability problem by:
 
 1. **Private constructors** - Types can only be created through blessed paths
 2. **API enforcement** - Operations _require_ the safe types (won't compile otherwise)
@@ -37,7 +43,7 @@ auto compile_let(compiler_ctx&, scope_ctx, lambda_context&, const ast::expressio
 
 The goal is to shift invariant checking from runtime to compile-time wherever possible.
 
----
+______________________________________________________________________
 
 ## Flaw Catalog
 
@@ -45,19 +51,18 @@ The goal is to shift invariant checking from runtime to compile-time wherever po
 
 The compiler class has **11 mutable state fields** with implicit save/restore semantics:
 
-| Field                          | Line | Purpose                      | Problem                                        |
-| ------------------------------ | ---- | ---------------------------- | ---------------------------------------------- |
-| `current_scope_`               | 528  | Raw pointer to lexical scope | No RAII guard; early return = corruption       |
-| `current_lambda_context_`      | 547  | Optional lambda context      | save/restore via `std::move` at lines 757, 803 |
-| `current_rec_binding_offsets_` | 559  | rec attrset symbol→offset    | save/restore at lines 1047, 1054               |
-| `current_let_binding_offsets_` | 564  | let binding symbol→offset    | save/restore at lines 2887-2889                |
-| `with_scopes_`                 | 554  | Dynamic `with` scope stack   | push/pop without guard                         |
-| `data_offset_`                 | 525  | Data segment high water mark | Mutation interleaved with codegen              |
-| `lambda_counter_`              | 531  | Lambda function index        | Monotonic but global                           |
-| `thunk_counter_`               | 535  | Thunk function index         | Monotonic but global                           |
-| `lambda_function_names_`       | 532  | Function table names         | Append-only                                    |
-| `thunk_function_names_`        | 536  | Function table names         | Append-only                                    |
-| `string_offsets_`              | 524  | String intern cache          | Append-only                                    |
+| Field | Line | Purpose | Problem | | ------------------------------ | ---- |
+---------------------------- | ---------------------------------------------- | | `current_scope_` |
+528 | Raw pointer to lexical scope | No RAII guard; early return = corruption | |
+`current_lambda_context_` | 547 | Optional lambda context | save/restore via `std::move` at lines
+757, 803 | | `current_rec_binding_offsets_` | 559 | rec attrset symbol→offset | save/restore at
+lines 1047, 1054 | | `current_let_binding_offsets_` | 564 | let binding symbol→offset | save/restore
+at lines 2887-2889 | | `with_scopes_` | 554 | Dynamic `with` scope stack | push/pop without guard |
+| `data_offset_` | 525 | Data segment high water mark | Mutation interleaved with codegen | |
+`lambda_counter_` | 531 | Lambda function index | Monotonic but global | | `thunk_counter_` | 535 |
+Thunk function index | Monotonic but global | | `lambda_function_names_` | 532 | Function table
+names | Append-only | | `thunk_function_names_` | 536 | Function table names | Append-only | |
+`string_offsets_` | 524 | String intern cache | Append-only |
 
 **Evidence of the problem** (lines 757-803, 896-940, 1020-1072):
 
@@ -72,23 +77,22 @@ current_lambda_context_ = std::move(outer_lambda_context);
 
 If _any_ code path between save and restore throws or returns, state is corrupted.
 
----
+______________________________________________________________________
 
 ### 2. UNUSED TYPE-SAFE ABSTRACTIONS
 
 The `DESIGN.md` describes and `scope.h`, `value.h`, `capture.h` implement:
 
-| Abstraction                     | File              | Status                                                    |
-| ------------------------------- | ----------------- | --------------------------------------------------------- |
-| `scope_ctx`                     | `scope.h:134-206` | **UNUSED** - compiler still uses `current_scope_` pointer |
-| `var_ref`, `var_location`       | `scope.h:52-107`  | **UNUSED** - compiler uses `variable_binding` struct      |
-| `binding_entry`                 | `scope.h:114-117` | **UNUSED**                                                |
-| `forced_value`, `maybe_value`   | `value.h:117-122` | **UNUSED** - compiler returns raw `BinaryenExpressionRef` |
-| `wasm_value<Tag>`               | `value.h:70-113`  | **UNUSED**                                                |
-| `make_forced()`, `make_maybe()` | `value.h:130-138` | **UNUSED**                                                |
-| `force()`                       | `value.h:153-158` | **UNUSED** - compiler calls `compile_force()` directly    |
-| `capture_policy` enum           | `capture.h:41-66` | **PARTIALLY USED** - in function signatures only          |
-| `should_force_captures()`       | `capture.h:70-78` | Used but only as adapter to old `bool` code               |
+| Abstraction | File | Status | | ------------------------------- | ----------------- |
+--------------------------------------------------------- | | `scope_ctx` | `scope.h:134-206` |
+**UNUSED** - compiler still uses `current_scope_` pointer | | `var_ref`, `var_location` |
+`scope.h:52-107` | **UNUSED** - compiler uses `variable_binding` struct | | `binding_entry` |
+`scope.h:114-117` | **UNUSED** | | `forced_value`, `maybe_value` | `value.h:117-122` | **UNUSED** -
+compiler returns raw `BinaryenExpressionRef` | | `wasm_value<Tag>` | `value.h:70-113` | **UNUSED** |
+| `make_forced()`, `make_maybe()` | `value.h:130-138` | **UNUSED** | | `force()` | `value.h:153-158`
+| **UNUSED** - compiler calls `compile_force()` directly | | `capture_policy` enum |
+`capture.h:41-66` | **PARTIALLY USED** - in function signatures only | | `should_force_captures()` |
+`capture.h:70-78` | Used but only as adapter to old `bool` code |
 
 The compiler still uses:
 
@@ -96,7 +100,7 @@ The compiler still uses:
 - Raw `BinaryenExpressionRef` returns (line 716)
 - Manual scope pointer management (line 528)
 
----
+______________________________________________________________________
 
 ### 3. TYPE-UNSAFE MAPS
 
@@ -114,18 +118,18 @@ Should be:
 std::unordered_map<ast::symbol, std::uint32_t, symbol_hash> current_rec_binding_offsets_;
 ```
 
-**Why it matters**: Easy to accidentally pass wrong uint32_t (capture index, local index, symbol index - all uint32_t).
+**Why it matters**: Easy to accidentally pass wrong uint32_t (capture index, local index, symbol
+index - all uint32_t).
 
----
+______________________________________________________________________
 
 ### 4. RUNTIME CHECKS FOR COMPILE-TIME INVARIANTS
 
-| Line      | Runtime Check                               | Should Be                             |
-| --------- | ------------------------------------------- | ------------------------------------- |
-| 2826-2827 | `if (current_lambda_context_.has_value())`  | Function that takes `lambda_context&` |
-| 2856-2857 | Same for inherit bindings                   | Same                                  |
-| 3124-3125 | `with expressions require function context` | Same                                  |
-| 2797-2805 | Dynamic let binding name check              | AST type that forbids dynamic         |
+| Line | Runtime Check | Should Be | | --------- | ------------------------------------------- |
+------------------------------------- | | 2826-2827 | `if (current_lambda_context_.has_value())` |
+Function that takes `lambda_context&` | | 2856-2857 | Same for inherit bindings | Same | | 3124-3125
+| `with expressions require function context` | Same | | 2797-2805 | Dynamic let binding name check
+| AST type that forbids dynamic |
 
 Pattern repeated 4+ times:
 
@@ -139,20 +143,19 @@ if (current_lambda_context_.has_value()) {
 
 **Fix**: Functions that need lambda context should take `lambda_context&`, not check optional.
 
----
+______________________________________________________________________
 
 ### 5. MAGIC STRINGS
 
-| Line                                                  | String                             | Purpose              |
-| ----------------------------------------------------- | ---------------------------------- | -------------------- |
-| 474, 483                                              | `"main"`                           | Main function export |
-| 510, 512                                              | `"__lambda_count"`                 | Lambda count global  |
-| 569, 636, 642, 653, 659, 666, 677, 686, 689, 695, 703 | `"__add"`, `"__select"`, etc.      | Builtin imports      |
-| 732, 874, 999                                         | `"__thunk_" + std::to_string(...)` | Thunk function names |
+| Line | String | Purpose | | ----------------------------------------------------- |
+---------------------------------- | -------------------- | | 474, 483 | `"main"` | Main function
+export | | 510, 512 | `"__lambda_count"` | Lambda count global | | 569, 636, 642, 653, 659, 666,
+677, 686, 689, 695, 703 | `"__add"`, `"__select"`, etc. | Builtin imports | | 732, 874, 999 |
+`"__thunk_" + std::to_string(...)` | Thunk function names |
 
 **Fix**: Centralize in `constexpr` strings or strong types.
 
----
+______________________________________________________________________
 
 ### 6. MONOLITHIC FILE
 
@@ -187,7 +190,7 @@ compile/
     └── ...
 ```
 
----
+______________________________________________________________________
 
 ### 7. INCOMPLETE IMPLEMENTATION (Dead Code)
 
@@ -197,7 +200,7 @@ compile/
 (void)has_attr_is_true;  // DEAD CODE - variable computed but unused
 ```
 
----
+______________________________________________________________________
 
 ### 8. PHASE CONFUSION
 
@@ -214,7 +217,7 @@ thunk_setup.push_back(BinaryenStore(...));  // WASM codegen
 
 Should separate allocation (pure, returns offset) from codegen (uses offset).
 
----
+______________________________________________________________________
 
 ## Migration Plan
 
@@ -368,7 +371,7 @@ For functions that require lambda context:
                                const ast::expression_let& e) -> maybe_value;
 ```
 
----
+______________________________________________________________________
 
 ## File Structure After Refactoring
 
@@ -410,21 +413,23 @@ compile/
 └── compiler.h          # Public API: compiler class (thin wrapper)
 ```
 
----
+______________________________________________________________________
 
 ## Invariants to Enforce
 
 ### Compile-Time (Type System) - Following libevring's Pattern
 
-| Invariant                      | libevring Equivalent                            | Compiler Implementation                        |
-| ------------------------------ | ----------------------------------------------- | ---------------------------------------------- |
-| **Value provenance**           | `stable_span<T>` vs `std::span<T>`              | `forced_value` vs `maybe_value`                |
-| **Capture policy**             | N/A                                             | `capture_policy` enum (exhaustive switch)      |
-| **Scope immutability**         | Machine vs State separation                     | `scope_ctx` passed by value                    |
-| **Context separation**         | `machine_storage<T>` (stable) vs state (copied) | `compiler_ctx` (output) vs `scope_ctx` (input) |
-| **Lambda context requirement** | Operations require `stable_*` types             | Functions take `lambda_context&`               |
+| Invariant | libevring Equivalent | Compiler Implementation | | ------------------------------ |
+----------------------------------------------- | ---------------------------------------------- | |
+**Value provenance** | `stable_span<T>` vs `std::span<T>` | `forced_value` vs `maybe_value` | |
+**Capture policy** | N/A | `capture_policy` enum (exhaustive switch) | | **Scope immutability** |
+Machine vs State separation | `scope_ctx` passed by value | | **Context separation** |
+`machine_storage<T>` (stable) vs state (copied) | `compiler_ctx` (output) vs `scope_ctx` (input) | |
+**Lambda context requirement** | Operations require `stable_*` types | Functions take
+`lambda_context&` |
 
-**The libevring insight**: Make the _type system_ enforce the invariant. If you can write code that violates the invariant, the design is wrong.
+**The libevring insight**: Make the _type system_ enforce the invariant. If you can write code that
+violates the invariant, the design is wrong.
 
 ```cpp
 // libevring pattern:
@@ -447,21 +452,17 @@ class forced_value {
 2. **Memory layout**: Validated by `static_assert` in `memory_layout.h`
 3. **Type tags**: Runtime dispatch for dynamic Nix types
 
----
+______________________________________________________________________
 
 ## Test Coverage Gaps to Fill
 
-| Gap                          | New Test File             |
-| ---------------------------- | ------------------------- |
-| RAII guards                  | `guard_test.cpp`          |
-| Scope save/restore           | `scope_ctx_test.cpp`      |
-| forced_value/maybe_value     | `value_test.cpp`          |
-| Nested lambdas with captures | `lambda_capture_test.cpp` |
-| Let binding thunks           | `let_thunk_test.cpp`      |
-| Rec attrset thunks           | `rec_thunk_test.cpp`      |
-| Error paths                  | `compile_error_test.cpp`  |
+| Gap | New Test File | | ---------------------------- | ------------------------- | | RAII guards |
+`guard_test.cpp` | | Scope save/restore | `scope_ctx_test.cpp` | | forced_value/maybe_value |
+`value_test.cpp` | | Nested lambdas with captures | `lambda_capture_test.cpp` | | Let binding thunks
+| `let_thunk_test.cpp` | | Rec attrset thunks | `rec_thunk_test.cpp` | | Error paths |
+`compile_error_test.cpp` |
 
----
+______________________________________________________________________
 
 ## Migration Order
 

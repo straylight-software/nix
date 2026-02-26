@@ -229,18 +229,17 @@ ref<source_accessor_t> make_empty_source_accessor() {
 
 namespace nlohmann {
 
-using namespace nix;
-
-memory_source_accessor_t adl_serializer<memory_source_accessor_t>::from_json(const json& j) {
-  memory_source_accessor_t acc;
+nix::memory_source_accessor_t
+adl_serializer<nix::memory_source_accessor_t>::from_json(const json& j) {
+  nix::memory_source_accessor_t acc;
   if (!j.is_null() && j.contains("root") && !j["root"].is_null()) {
-    acc.root = j["root"].get<memory_source_accessor_t::file_t>();
+    acc.root = j["root"].get<nix::memory_source_accessor_t::file_t>();
   }
   return acc;
 }
 
-void adl_serializer<memory_source_accessor_t>::to_json(json& j,
-                                                       const memory_source_accessor_t& acc) {
+void adl_serializer<nix::memory_source_accessor_t>::to_json(
+    json& j, const nix::memory_source_accessor_t& acc) {
   j = json::object();
   if (acc.root.has_value()) {
     j["root"] = acc.root.value();

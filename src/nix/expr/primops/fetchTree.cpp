@@ -256,14 +256,19 @@ static RegisterPrimOp primop_fetch_tree({
 
       auto indentString = [](std::string const& str, std::string const& indent) {
         std::string result;
-        std::istringstream stream(str);
-        std::string line;
+        std::string_view sv = str;
         bool first = true;
-        while (std::getline(stream, line)) {
+        while (!sv.empty()) {
+          auto pos = sv.find('\n');
+          auto line = sv.substr(0, pos);
           if (!first)
             result += "\n";
-          result += indent + line;
+          result += indent;
+          result += line;
           first = false;
+          if (pos == std::string_view::npos)
+            break;
+          sv = sv.substr(pos + 1);
         }
         return result;
       };

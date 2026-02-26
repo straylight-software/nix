@@ -578,15 +578,19 @@ struct source_hut_input_scheme_t : git_archive_input_scheme_t {
         download_file(store, settings, fmt("%s/info/refs", base_url), "source", headers);
     auto contents = store.requireStoreObjectAccessor(downloadFileResult.store_path)
                         ->read_file(canon_path_t::root);
-    std::istringstream is(contents);
 
-    std::string line;
     std::optional<std::string> id;
-    while (!id && getline(is, line)) {
+    std::string_view remaining = contents;
+    while (!id && !remaining.empty()) {
+      auto pos = remaining.find('\n');
+      auto line = std::string(remaining.substr(0, pos));
       auto parsedLine = git::parse_ls_remote_line(line);
       if (parsedLine && parsedLine->reference &&
           std::regex_match(*parsedLine->reference, ref_regex))
         id = parsedLine->target;
+      if (pos == std::string_view::npos)
+        break;
+      remaining = remaining.substr(pos + 1);
     }
 
     if (!id)

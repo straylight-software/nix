@@ -9,8 +9,6 @@
 
 namespace nix {
 
-using namespace unix;
-
 std::atomic<bool> unix::is_interrupted = false;
 
 thread_local std::function<bool()> unix::interrupt_check;

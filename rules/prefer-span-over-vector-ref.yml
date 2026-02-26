@@ -7,7 +7,7 @@ message: "Consider std::span<const $TYPE> instead of const std::vector<$TYPE>&"
 note: |
   std::span is more flexible - it accepts vector, array, C arrays, etc.
   Use span for read-only views where you don't need vector-specific operations.
-  
+
   Before: void process(const std::vector<int>& items)
   After:  void process(std::span<const int> items)
 rule:

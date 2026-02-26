@@ -45,7 +45,7 @@
 #include "nix/util/util.h"
 
 namespace nix {
-class store_t;
+struct store_t;
 } // namespace nix
 
 namespace nix::flake {

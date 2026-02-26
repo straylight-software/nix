@@ -9,24 +9,22 @@
 #include "nix/util/serialise.h"
 #include "nix/util/source-accessor.h"
 
-using namespace nix;
-
-struct mix_cat_t : virtual args_t {
-  void cat(ref<source_accessor_t> accessor, canon_path_t path) {
+struct mix_cat_t : virtual nix::args_t {
+  void cat(nix::ref<nix::source_accessor_t> accessor, nix::canon_path_t path) {
     auto st = accessor->lstat(path);
-    if (st.type != source_accessor_t::Type::t_regular)
-      throw Error("path '%1%' is not a regular file", path.abs());
-    logger->stop();
+    if (st.type != nix::source_accessor_t::Type::t_regular)
+      throw nix::Error("path '%1%' is not a regular file", path.abs());
+    nix::logger->stop();
 
-    write_full(get_standard_output(), accessor->read_file(path));
+    nix::write_full(nix::get_standard_output(), accessor->read_file(path));
   }
 };
 
-struct cmd_cat_store_t : StoreCommand, mix_cat_t {
+struct cmd_cat_store_t : nix::StoreCommand, mix_cat_t {
   std::string path;
 
   cmd_cat_store_t() {
-    expect_args({.label = "path", .handler = {&path}, .completer = complete_path});
+    expect_args({.label = "path", .handler = {&path}, .completer = nix::complete_path});
   }
 
   std::string description() override {
@@ -39,19 +37,19 @@ struct cmd_cat_store_t : StoreCommand, mix_cat_t {
         ;
   }
 
-  void run(ref<store_t> store) override {
+  void run(nix::ref<nix::store_t> store) override {
     auto [store_path, rest] = store->toStorePath(path);
-    cat(store->requireStoreObjectAccessor(store_path), canon_path_t{rest});
+    cat(store->requireStoreObjectAccessor(store_path), nix::canon_path_t{rest});
   }
 };
 
-struct cmd_cat_nar_t : StoreCommand, mix_cat_t {
-  Path nar_path;
+struct cmd_cat_nar_t : nix::StoreCommand, mix_cat_t {
+  nix::Path nar_path;
 
   std::string path;
 
   cmd_cat_nar_t() {
-    expect_args({.label = "nar", .handler = {&nar_path}, .completer = complete_path});
+    expect_args({.label = "nar", .handler = {&nar_path}, .completer = nix::complete_path});
     expect_arg("path", &path);
   }
 
@@ -65,28 +63,28 @@ struct cmd_cat_nar_t : StoreCommand, mix_cat_t {
         ;
   }
 
-  void run(ref<store_t> store) override {
-    auto_close_fd_t fd = to_descriptor(open(nar_path.c_str(), O_RDONLY));
+  void run(nix::ref<nix::store_t> store) override {
+    nix::auto_close_fd_t fd = nix::to_descriptor(open(nar_path.c_str(), O_RDONLY));
     if (!fd)
-      throw sys_error_t("opening NAR file '%s'", nar_path);
-    auto source = fd_source_t{fd.get()};
+      throw nix::sys_error_t("opening NAR file '%s'", nar_path);
+    auto source = nix::fd_source_t{fd.get()};
 
-    struct cat_regular_file_sink_t : null_file_system_object_sink_t {
-      canon_path_t needed_path = canon_path_t::root;
+    struct cat_regular_file_sink_t : nix::null_file_system_object_sink_t {
+      nix::canon_path_t needed_path = nix::canon_path_t::root;
       bool found = false;
 
-      void create_regular_file(const canon_path_t& path,
-                               std::function<void(create_regular_file_sink_t&)> crf) override {
-        struct : create_regular_file_sink_t, fd_sink_t {
+      void create_regular_file(const nix::canon_path_t& path,
+                               std::function<void(nix::create_regular_file_sink_t&)> crf) override {
+        struct : nix::create_regular_file_sink_t, nix::fd_sink_t {
           void is_executable() override {}
         } crf_sink;
 
-        crf_sink.set_fd(INVALID_DESCRIPTOR);
+        crf_sink.set_fd(nix::INVALID_DESCRIPTOR);
 
         if (path == needed_path) {
-          logger->stop();
+          nix::logger->stop();
           crf_sink.skip_contents = false;
-          crf_sink.set_fd(get_standard_output());
+          crf_sink.set_fd(nix::get_standard_output());
           found = true;
         } else {
           crf_sink.skip_contents = true;
@@ -96,14 +94,14 @@ struct cmd_cat_nar_t : StoreCommand, mix_cat_t {
       }
     } sink;
 
-    sink.needed_path = canon_path_t(path);
+    sink.needed_path = nix::canon_path_t(path);
     /* NOTE: We still parse the whole file to validate that it's a correct NAR. */
-    parse_dump(sink, source);
+    nix::parse_dump(sink, source);
 
     if (!sink.found)
-      throw Error("NAR does not contain regular file '%1%'", path);
+      throw nix::Error("NAR does not contain regular file '%1%'", path);
   }
 };
 
-static auto r_cmd_cat_store = registerCommand2<cmd_cat_store_t>({"store", "cat"});
-static auto r_cmd_cat_nar = registerCommand2<cmd_cat_nar_t>({"nar", "cat"});
+static auto r_cmd_cat_store = nix::registerCommand2<cmd_cat_store_t>({"store", "cat"});
+static auto r_cmd_cat_nar = nix::registerCommand2<cmd_cat_nar_t>({"nar", "cat"});
