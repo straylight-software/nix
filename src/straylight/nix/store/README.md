@@ -50,12 +50,9 @@ Benefits:
 
 ## Store Implementations
 
-| Store | Description |
-|-------|-------------|
-| `two_tier_store` | Unified CA + Legacy (recommended) |
-| `ca_store` | Content-addressed blob storage |
-| `legacy_store` | SQLite-backed input-addressed store |
-| `log_store` | Experimental log-structured store |
+| Store | Description | |-------|-------------| | `two_tier_store` | Unified CA + Legacy
+(recommended) | | `ca_store` | Content-addressed blob storage | | `legacy_store` | SQLite-backed
+input-addressed store | | `log_store` | Experimental log-structured store |
 
 ## Building
 
@@ -67,4 +64,3 @@ buck2 test //src/straylight/nix/store/tests:...
 ## See Also
 
 - [Architecture](docs/ARCHITECTURE.md)
-- [Testing](docs/TESTING.md)

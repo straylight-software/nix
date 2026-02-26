@@ -30,19 +30,13 @@ $ buck2 test //src/nix/util/tests/...
 
 ## Build Targets
 
-| Target | Description |
-|--------|-------------|
-| `//src/nix/util:util` | Core utilities library |
-| `//src/nix/store:store` | Store operations |
-| `//src/nix/fetchers:fetchers` | Input fetchers (git, github, etc) |
-| `//src/nix/expr:expr` | Expression evaluator |
-| `//src/nix/flake:flake` | Flake support |
-| `//src/nix/main:main` | Main entry/logging |
-| `//src/nix/cmd:cmd` | Command infrastructure |
-| `//src/nix/cli:cli` | CLI commands |
-| `//src/straylight/evring:evring` | Deterministic async I/O |
-| `//src/straylight/nix/...:...` | Modernized utilities |
-| `//src/straylight/nix/compiler:compiler` | Nix → WASM compiler |
+| Target | Description | |--------|-------------| | `//src/nix/util:util` | Core utilities library |
+| `//src/nix/store:store` | Store operations | | `//src/nix/fetchers:fetchers` | Input fetchers
+(git, github, etc) | | `//src/nix/expr:expr` | Expression evaluator | | `//src/nix/flake:flake` |
+Flake support | | `//src/nix/main:main` | Main entry/logging | | `//src/nix/cmd:cmd` | Command
+infrastructure | | `//src/nix/cli:cli` | CLI commands | | `//src/straylight/evring:evring` |
+Deterministic async I/O | | `//src/straylight/nix/...:...` | Modernized utilities | |
+`//src/straylight/nix/compiler:compiler` | Nix → WASM compiler |
 
 ## Remote Execution
 
@@ -145,10 +139,12 @@ src/
 │   ├── main/         # Main/logging
 │   ├── cmd/          # Command infrastructure
 │   └── cli/          # CLI commands
-├── straylight/
-│   ├── evring/       # Async I/O (io_uring)
-│   └── nix/             # Modernized utilities (crypto, text, url, async, sync, etc.)
-└── nix-language/     # Nix → WASM compiler
+└── straylight/
+    ├── evring/       # Async I/O (io_uring)
+    └── nix/
+        ├── compiler/ # Nix → WASM compiler
+        ├── protocol/ # Formal protocol specs
+        └── {crypto,text,url,async,sync,store,...}/  # Modernized utilities
 ```
 
 ## Dependencies

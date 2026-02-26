@@ -7,7 +7,7 @@ Deterministic async I/O library built on Linux's io_uring with pure state machin
 ```cpp
 #include <straylight/evring/evring.h>
 
-using namespace straylight::evring;
+using namespace evring;
 
 // Create io_uring ring
 auto ring = make_io_uring_ring(256);
@@ -43,31 +43,23 @@ auto replayed_state = replay(machine, recorded_events);
 
 ## API Overview
 
-| Type/Function | Description |
-|---------------|-------------|
-| `ring` | Abstract I/O ring interface |
-| `make_io_uring_ring()` | Create io_uring-backed ring |
-| `handle` | Generational resource handle |
-| `handle_table<T>` | O(1) handle storage with generation checking |
-| `event` | Completion from kernel (result, data, handle) |
-| `operation` | Submission to kernel (make_read, make_write, ...) |
-| `machine` | State machine concept |
-| `generator_machine` | High-throughput batch machine concept |
-| `run()` | Execute machine with real I/O |
-| `run_traced()` | Execute with event capture |
-| `replay()` | Replay machine against events (no I/O) |
-| `run_generate()` | Execute generator machine |
-| `stable_span<T>` | Buffer span with stable address assertion |
-| `tls_handshake_machine` | TLS handshake state machine |
-| `http1_tls_client_machine` | HTTP/1.1 over TLS |
-| `http2_session` | HTTP/2 session management |
-| `http3_session` | HTTP/3 QUIC session |
+| Type/Function | Description | |---------------|-------------| | `ring` | Abstract I/O ring
+interface | | `make_io_uring_ring()` | Create io_uring-backed ring | | `handle` | Generational
+resource handle | | `handle_table<T>` | O(1) handle storage with generation checking | | `event` |
+Completion from kernel (result, data, handle) | | `operation` | Submission to kernel (make_read,
+make_write, ...) | | `machine` | State machine concept | | `generator_machine` | High-throughput
+batch machine concept | | `run()` | Execute machine with real I/O | | `run_traced()` | Execute with
+event capture | | `replay()` | Replay machine against events (no I/O) | | `run_generate()` | Execute
+generator machine | | `stable_span<T>` | Buffer span with stable address assertion | |
+`tls_handshake_machine` | TLS handshake state machine | | `http1_tls_client_machine` | HTTP/1.1 over
+TLS | | `http2_session` | HTTP/2 session management | | `http3_session` | HTTP/3 QUIC session |
 
 ## Building
 
 ```bash
 buck2 build //src/straylight/evring:evring
-buck2 test //src/straylight/evring/test:...
+buck2 test //src/straylight/evring:test_replay
+buck2 test //src/straylight/evring:test_io_uring
 ```
 
 ## See Also

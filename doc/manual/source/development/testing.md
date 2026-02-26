@@ -1,6 +1,30 @@
 # Running tests
 
-## Coverage analysis
+> **Note:** This document describes upstream Nix testing infrastructure which uses Meson.
+> The straylight fork uses **Buck2** instead. For straylight-specific testing, see below.
+
+## straylight Testing (Buck2)
+
+```bash
+# All straylight tests
+buck2 test //src/straylight/...
+
+# Specific component
+buck2 test //src/straylight/nix/compiler/tests:...
+buck2 test //src/straylight/nix/text/tests:...
+
+# Single test target
+buck2 test //src/straylight/nix/compiler/tests:execution_test
+
+# With verbose output
+buck2 test //src/straylight/nix/compiler/tests:execution_test -- --verbose
+```
+
+Test framework: Catch2 v3 + RapidCheck for property-based testing.
+
+---
+
+## Coverage analysis (upstream)
 
 A [coverage analysis report] is available online You can build it yourself:
 
@@ -310,7 +334,7 @@ We are free to change how they are displayed at any time.
 
 It may be surprising that we would test non-normative behavior like diagnostic outputs. Diagnostic
 outputs are indeed not a stable interface, but they still are important to users. By recording the
-expected output, the test suite guards against accidental changes, and ensure the *result* (not just
+expected output, the test suite guards against accidental changes, and ensure the _result_ (not just
 the code that implements it) of the diagnostic code paths are under code review. Regressions are
 caught, and improvements always show up in code review.
 
@@ -356,7 +380,6 @@ enables
 
 - The `installer` job generates installers for the platforms below and uploads them to your Cachix
   cache:
-
   - `x86_64-linux`
   - `armv6l-linux`
   - `armv7l-linux`

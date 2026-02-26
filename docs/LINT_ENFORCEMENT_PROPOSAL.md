@@ -1,27 +1,27 @@
 # lint enforcement parity: design doc
 
+**Status: PARTIALLY IMPLEMENTED** (see notes below)
+
 ## problem statement
 
 the codebase has excellent lint tooling and comprehensive style documentation, but there's a gap
-between what's *documented* and what's *mechanically enforced*. conventions exist that rely on human
+between what's _documented_ and what's _mechanically enforced_. conventions exist that rely on human
 discipline rather than CI gates. when a convention isn't enforced by tooling, it will eventually be
 violated — especially in an agent-heavy workflow.
 
-recent example: the iostring/sstream ban. we've decided that `<sstream>` and `std::ostringstream` are
-banned (performance, allocation patterns), but there's no ast-grep rule or clang-tidy check blocking
-it. result: 434 matches still exist in the codebase, and new code can introduce more.
+recent example: the iostring/sstream ban. we've decided that `<sstream>` and `std::ostringstream`
+are banned (performance, allocation patterns), but there's no ast-grep rule or clang-tidy check
+blocking it. result: 434 matches still exist in the codebase, and new code can introduce more.
 
 ## current state
 
 ### tools available
 
-| tool | config | integration | enforcement |
-|------|--------|-------------|-------------|
-| clang-format | `.clang-format` | `nix fmt`, treefmt | `nix flake check` |
-| clang-tidy | `.clang-tidy` | `scripts/lint` | manual only |
-| ast-grep | `sgconfig.yml`, `rules/` (19 rules) | `ast-grep scan` | manual only |
-| cppcheck | `.cppcheck`, `cppcheck.cfg` | available in devshell | manual only |
-| nixfmt/deadnix/statix | treefmt | `nix fmt` | `nix flake check` |
+| tool | config | integration | enforcement | |------|--------|-------------|-------------| |
+clang-format | `.clang-format` | `nix fmt`, treefmt | `nix flake check` | | clang-tidy |
+`.clang-tidy` | `scripts/lint` | pre-commit (push) | | ast-grep | `sgconfig.yml`, `rules/` (22 rules) |
+`ast-grep scan` | `nix flake check`, pre-commit | | cppcheck | `.cppcheck`, `cppcheck.cfg` | available in devshell |
+manual only | | nixfmt/deadnix/statix | treefmt | `nix fmt` | `nix flake check` |
 
 ### what's enforced automatically
 
@@ -37,15 +37,13 @@ it. result: 434 matches still exist in the codebase, and new code can introduce 
 
 ### documented conventions without mechanical enforcement
 
-| convention | documented in | enforcement |
-|------------|--------------|-------------|
-| no `<sstream>` | (recent decision) | none |
-| no `class` keyword | cpp-style-guide.md | ast-grep rule exists (warning) |
-| three-letter rule | cpp-style-guide.md | partial ast-grep (10 specific names) |
-| dangerous names | cpp-style-guide.md | none |
-| `_t` suffix for types | cpp-style-guide.md | clang-tidy (only runs manually) |
-| trailing return types | cpp-style-guide.md | clang-tidy + ast-grep (manual) |
-| struct-only exception | cpp-style-guide.md | none (can't distinguish valid uses) |
+| convention | documented in | enforcement | |------------|--------------|-------------| | no
+`<sstream>` | (recent decision) | none | | no `class` keyword | cpp-style-guide.md | ast-grep rule
+exists (warning) | | three-letter rule | cpp-style-guide.md | partial ast-grep (10 specific names) |
+| dangerous names | cpp-style-guide.md | none | | `_t` suffix for types | cpp-style-guide.md |
+clang-tidy (only runs manually) | | trailing return types | cpp-style-guide.md | clang-tidy +
+ast-grep (manual) | | struct-only exception | cpp-style-guide.md | none (can't distinguish valid
+uses) |
 
 ## proposal: perfect parity
 
@@ -61,24 +59,24 @@ add a new nix flake check that runs our lint tools:
 ```nix
 checks = {
   formatting = config.treefmt.build.check inputs.self;
-  
+
   # NEW: semantic lint checks
   lint-cpp = pkgs.runCommand "lint-cpp" {
     nativeBuildInputs = [ toolchain.llvm.clang-tools pkgs.ast-grep ];
     src = ./.;
   } ''
     cd $src
-    
+
     # ast-grep: pattern rules (errors only, not warnings/hints)
     ast-grep scan --config sgconfig.yml --json src/ | \
       jq -e 'map(select(.severity == "error")) | length == 0' || \
       { echo "ast-grep found errors"; exit 1; }
-    
+
     # clang-tidy: semantic lint on changed files or all src/straylight/
     # (full codebase tidy is expensive, start with straylight/)
     find src/straylight -name '*.cpp' -exec clang-tidy {} \; || \
       { echo "clang-tidy violations found"; exit 1; }
-    
+
     touch $out
   '';
 };
@@ -86,9 +84,9 @@ checks = {
 
 ### phase 2: add missing rules
 
-#### 2a. ban sstream/ostringstream/istringstream
+#### 2a. ban sstream/ostringstream/istringstream [IMPLEMENTED]
 
-create `rules/no-sstream.yml`:
+`rules/no-sstream.yml` exists:
 
 ```yaml
 id: no-sstream
@@ -109,9 +107,9 @@ note: |
 
 also add to `.clang-tidy` header filter or create custom check.
 
-#### 2b. ban dangerous generic names as members
+#### 2b. ban dangerous generic names as members [IMPLEMENTED]
 
-create `rules/no-dangerous-member-names.yml`:
+`rules/no-dangerous-member-names.yml` exists:
 
 ```yaml
 id: no-dangerous-member-names
@@ -138,9 +136,9 @@ the current `no-short-identifier.yml` only checks 10 specific abbreviations. exp
 - `str` → `string`
 - `err` → `error`
 
-### phase 3: pre-commit hooks
+### phase 3: pre-commit hooks [IMPLEMENTED]
 
-create `.pre-commit-config.yaml`:
+`.pre-commit-config.yaml` exists (generated from `dhall/pre-commit.dhall`):
 
 ```yaml
 repos:
@@ -151,13 +149,13 @@ repos:
         entry: nix fmt -- --fail-on-change
         language: system
         pass_filenames: false
-        
+
       - id: ast-grep-errors
         name: ast-grep (errors)
         entry: ast-grep scan --config sgconfig.yml --filter 'severity == "error"'
         language: system
         types: [c++]
-        
+
       - id: clang-tidy
         name: clang-tidy
         entry: scripts/lint
@@ -180,8 +178,8 @@ CompileFlags:
 
 Diagnostics:
   ClangTidy:
-    Add: ['*']
-    Remove: ['abseil-*', 'altera-*', 'android-*', ...]
+    Add: ["*"]
+    Remove: ["abseil-*", "altera-*", "android-*", ...]
 ```
 
 ### phase 5: fix existing violations
@@ -194,11 +192,9 @@ once enforcement is in place, systematic cleanup:
 
 ## severity model
 
-| severity | meaning | enforcement |
-|----------|---------|-------------|
-| **error** | hard block, cannot merge | CI fails |
-| **warning** | should fix, tracked | CI warns, accumulates tech debt |
-| **hint** | style preference | editor only, no CI |
+| severity | meaning | enforcement | |----------|---------|-------------| | **error** | hard block,
+cannot merge | CI fails | | **warning** | should fix, tracked | CI warns, accumulates tech debt | |
+**hint** | style preference | editor only, no CI |
 
 current ast-grep rules use mixed severities. proposal: promote core conventions to error:
 
@@ -207,17 +203,11 @@ current ast-grep rules use mixed severities. proposal: promote core conventions 
 - `no-sstream` → error (new)
 - `trailing-return-type` → warning → error (promotion)
 
-## configuration inconsistency fix
+## configuration inconsistency fix [IMPLEMENTED]
 
-current issue: `.editorconfig` says 4-space C++ indent, `.clang-format` says 2-space.
+~~current issue: `.editorconfig` says 4-space C++ indent, `.clang-format` says 2-space.~~
 
-resolution: clang-format is authoritative (it's what `nix fmt` uses). update `.editorconfig`:
-
-```diff
-[*.{cpp,h,hpp,cc,c}]
-- indent_size = 4
-+ indent_size = 2
-```
+Fixed: `.editorconfig` now uses 2-space indent for C++ to match `.clang-format`.
 
 ## open questions
 
@@ -259,39 +249,24 @@ resolution: clang-format is authoritative (it's what `nix fmt` uses). update `.e
 
 ## appendix: complete rule inventory
 
-### ast-grep rules (current 19)
+### ast-grep rules (current 22)
 
-| rule | severity | status |
-|------|----------|--------|
-| no-class-keyword | error | enforced |
-| no-using-namespace | error | enforced |
-| no-c-style-cast | warning | tracks |
-| no-raw-new | warning | tracks |
-| no-std-endl | warning | tracks |
-| no-typedef | warning | tracks |
-| no-short-identifier-* (10) | warning | tracks |
-| no-assert | warning | tracks |
-| no-magic-numbers-* | hint | editor |
-| prefer-nullptr | warning | tracks |
-| prefer-string-view | hint | editor |
-| prefer-span-* | warning | tracks |
-| trailing-return-type | warning | tracks |
-| uppercase-literal-suffix | warning | tracks |
-| aaa-make-shared | hint | editor |
-| aaa-make-unique | hint | editor |
-| aaa-static-cast | hint | editor |
-| no-implicit-bool-conversion | hint | editor |
-| no-nodiscard-missing | hint | editor |
+| rule | severity | status | |------|----------|--------| | no-class-keyword | error | enforced | |
+no-using-namespace | error | enforced | | no-c-style-cast | warning | tracks | | no-raw-new |
+warning | tracks | | no-std-endl | warning | tracks | | no-typedef | warning | tracks | |
+no-short-identifier-\* (10) | warning | tracks | | no-assert | warning | tracks | |
+no-magic-numbers-\* | hint | editor | | prefer-nullptr | warning | tracks | | prefer-string-view |
+hint | editor | | prefer-span-\* | warning | tracks | | trailing-return-type | warning | tracks | |
+uppercase-literal-suffix | warning | tracks | | aaa-make-shared | hint | editor | | aaa-make-unique
+| hint | editor | | aaa-static-cast | hint | editor | | no-implicit-bool-conversion | hint | editor
+| | no-nodiscard-missing | hint | editor |
 
 ### proposed new rules
 
-| rule | severity | purpose |
-|------|----------|---------|
-| no-sstream | error | ban ostringstream/istringstream |
-| no-dangerous-member-names | warning | ban generic names as members |
+| rule | severity | purpose | |------|----------|---------| | no-sstream | error | ban
+ostringstream/istringstream | | no-dangerous-member-names | warning | ban generic names as members |
 | no-short-identifier-expanded | warning | more three-letter abbreviations |
 
 ### clang-tidy enforcement
 
-current: manual via `scripts/lint`
-proposed: CI on `src/straylight/`, incremental on changed files
+current: manual via `scripts/lint` proposed: CI on `src/straylight/`, incremental on changed files

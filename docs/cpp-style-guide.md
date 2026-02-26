@@ -16,7 +16,7 @@ are not ready for design work in this codebase.
 
 ### rules exist to serve intentions
 
-style rules encode the *intentions* of the codebase maintainers. when applying a rule would violate
+style rules encode the _intentions_ of the codebase maintainers. when applying a rule would violate
 the intention it was meant to serve, you must recognize this and act accordingly:
 
 1. **stop and reason about consequences** — before mechanical application of any rule, ask: "what
@@ -24,13 +24,12 @@ the intention it was meant to serve, you must recognize this and act accordingly
 
 2. **the stable_ref precedent** — the rule "use struct, all members public" exists to reduce
    cognitive overhead and eliminate hidden state. but `stable_ref<T>` uses private constructors
-   specifically to *prevent* hidden state corruption (dangling pointers from copied buffers).
+   specifically to _prevent_ hidden state corruption (dangling pointers from copied buffers).
    applying the rule mechanically would have destroyed the safety invariant it was meant to protect.
    the correct action was to document an exception, not to blindly convert.
 
 3. **when you discover a conflict, document it** — if a rule's mechanical application would violate
    its own purpose, add an exception clause to this guide explaining:
-
    - what the conflict is
    - why the exception exists
    - how to recognize similar cases
@@ -47,7 +46,7 @@ the intention it was meant to serve, you must recognize this and act accordingly
 - run it again after changes — if it fails, fix it before proceeding
 - the build passing is not optional. a "style fix" that breaks the build is not a fix.
 
-______________________________________________________________________
+---
 
 this is the definitive style guide for c++ code in the straylight/nix codebase. it is derived from
 the straylight c++ guidelines but adapted for the nix codebase's specific needs.
@@ -242,7 +241,7 @@ auto local_store_t::query_path_info(const store_path_t& path)
 }  // namespace nix
 ```
 
-______________________________________________________________________
+---
 
 ## tier boundary: 8kb
 
@@ -259,7 +258,7 @@ trailing underscores to member variables.
 
 if you are unsure which tier applies to your task, read the whole document.
 
-______________________________________________________________________
+---
 
 ## modern c++23 patterns
 
@@ -361,12 +360,11 @@ the codebase uses a comprehensive lint pipeline with four tools, each covering d
 
 ### tool stack
 
-| tool | purpose | configuration |
-|------|---------|---------------|
-| **clang-format** | mechanical layout (indentation, spacing, braces) | `.clang-format` |
-| **clang-tidy** | semantic lint (naming, complexity, bugs) | `.clang-tidy` |
-| **ast-grep** | pattern-based rules clang-tidy can't express | `sgconfig.yml`, `rules/` |
-| **cppcheck** | deep static analysis, inter-procedural bugs | `.cppcheck`, `cppcheck.cfg` |
+| tool | purpose | configuration | |------|---------|---------------| | **clang-format** |
+mechanical layout (indentation, spacing, braces) | `.clang-format` | | **clang-tidy** | semantic
+lint (naming, complexity, bugs) | `.clang-tidy` | | **ast-grep** | pattern-based rules clang-tidy
+can't express | `sgconfig.yml`, `rules/` | | **cppcheck** | deep static analysis, inter-procedural
+bugs | `.cppcheck`, `cppcheck.cfg` |
 
 ### running the linters
 
@@ -386,30 +384,21 @@ cppcheck --suppressions-list=.cppcheck src/nix/ src/straylight/
 
 ### ast-grep rules (22 rules in `rules/`)
 
-| rule | severity | purpose |
-|------|----------|---------|
-| `no-class-keyword` | error | enforce `struct` over `class` |
-| `no-using-namespace-file-scope` | error | prevent namespace pollution |
-| `no-sstream` | error | ban stringstream (use fmt/to_string) |
-| `no-dangerous-member-names` | error | ban generic names (hash_, value_, state_, etc.) |
-| `no-c-style-cast` | warning | use C++ casts |
-| `no-raw-new` | warning | use `make_unique`/`make_shared` |
-| `no-std-endl` | warning | prefer `'\n'` (no flush) |
-| `no-typedef` | warning | use `using` instead |
-| `no-short-identifier` | warning | three-letter rule (cfg, conn, res, req, mgr, ptr, buf, tmp, str, err) |
-| `no-assert` | warning | proper error handling over assert |
-| `prefer-nullptr` | warning | use `nullptr` not `NULL` |
-| `prefer-span` | warning | `span` over pointer+size |
-| `prefer-span-over-vector-ref` | hint | `span` over `const vector&` |
-| `prefer-string-view` | hint | `string_view` for read-only params |
-| `trailing-return-type` | warning | `auto f() -> T` style |
-| `uppercase-literal-suffix` | warning | `1UL` not `1ul` |
-| `no-magic-numbers` | hint | name your constants (256, 1024, 4096) |
-| `aaa-make-shared` | hint | auto with make_shared |
-| `aaa-make-unique` | hint | auto with make_unique |
-| `aaa-static-cast` | hint | auto with static_cast |
-| `no-nodiscard-missing` | hint | consider `[[nodiscard]]` |
-| `no-implicit-bool-conversion` | hint | explicit nullptr comparison |
+| rule | severity | purpose | |------|----------|---------| | `no-class-keyword` | error | enforce
+`struct` over `class` | | `no-using-namespace-file-scope` | error | prevent namespace pollution | |
+`no-sstream` | error | ban stringstream (use fmt/to_string) | | `no-dangerous-member-names` | error
+| ban generic names (hash\_, value\_, state\_, etc.) | | `no-c-style-cast` | warning | use C++ casts
+| | `no-raw-new` | warning | use `make_unique`/`make_shared` | | `no-std-endl` | warning | prefer
+`'\n'` (no flush) | | `no-typedef` | warning | use `using` instead | | `no-short-identifier` |
+warning | three-letter rule (cfg, conn, res, req, mgr, ptr, buf, tmp, str, err) | | `no-assert` |
+warning | proper error handling over assert | | `prefer-nullptr` | warning | use `nullptr` not
+`NULL` | | `prefer-span` | warning | `span` over pointer+size | | `prefer-span-over-vector-ref` |
+hint | `span` over `const vector&` | | `prefer-string-view` | hint | `string_view` for read-only
+params | | `trailing-return-type` | warning | `auto f() -> T` style | | `uppercase-literal-suffix` |
+warning | `1UL` not `1ul` | | `no-magic-numbers` | hint | name your constants (256, 1024, 4096) | |
+`aaa-make-shared` | hint | auto with make_shared | | `aaa-make-unique` | hint | auto with
+make_unique | | `aaa-static-cast` | hint | auto with static_cast | | `no-nodiscard-missing` | hint |
+consider `[[nodiscard]]` | | `no-implicit-bool-conversion` | hint | explicit nullptr comparison |
 
 ### clang-tidy key rules
 
@@ -432,7 +421,7 @@ when fixing lint violations:
 
 ### configuration files
 
-- `.clang-format` - 166 lines, LLVM-based, 100 col, 2-space indent
+- `.clang-format` - 165 lines, LLVM-based, 100 col, 2-space indent
 - `.clang-tidy` - 252+ lines, `WarningsAsErrors: '*'`, maximum strictness
 - `sgconfig.yml` - ast-grep config pointing to `rules/`
 - `.cppcheck` - suppressions list

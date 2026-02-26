@@ -8,7 +8,7 @@
 
 This guide provides everything you need to understand, build, and contribute to straylight/nix.
 
-______________________________________________________________________
+---
 
 ## Table of Contents
 
@@ -21,7 +21,7 @@ ______________________________________________________________________
 7. [Troubleshooting](#troubleshooting)
 8. [Architecture Decision Records](#architecture-decision-records)
 
-______________________________________________________________________
+---
 
 ## Quick Start
 
@@ -60,7 +60,7 @@ ls compile_commands.json
 buck2 test //src/straylight/nix/text/tests:strings_test
 ```
 
-______________________________________________________________________
+---
 
 ## Understanding the Codebase
 
@@ -107,7 +107,7 @@ straylight/nix is a ground-up rethinking of Nix with four major innovations:
 ```
 src/
 ├── nix/                      # Core Nix fork (upstream + modifications)
-│   ├── util/                 # 144 utility files
+│   ├── util/                 # Utility files
 │   ├── store/                # Store implementations
 │   ├── expr/                 # Expression evaluator
 │   ├── fetchers/             # Git, GitHub, tarball fetchers
@@ -118,23 +118,23 @@ src/
 │
 └── straylight/               # straylight innovations
     ├── evring/               # Deterministic async I/O
-    ├── language/             # Nix → WASM compiler
-    ├── protocol/             # Formal protocol specs
-    └── nix/                  # Modern utility modules (crypto, text, url, async, sync, etc.)
+    └── nix/
+        ├── compiler/         # Nix → WASM compiler
+        ├── protocol/         # Formal protocol specs
+        └── {crypto,text,url,async,sync,store,...}/  # Modern utility modules
 ```
 
 ### Key Files to Read First
 
-| File | Description | Why Read It |
-|------|-------------|-------------|
-| `ARCHITECTURE.md` | Project overview | Understand the whole system |
-| `docs/cpp-style-guide.md` | Code conventions | Write conformant code |
-| `src/straylight/evring/ARCHITECTURE.md` | evring deep dive | Understand async I/O |
-| `src/straylight/nix/compiler/docs/ARCHITECTURE.md` | Compiler deep dive | Understand WASM compilation |
-| `src/straylight/nix/docs/NIH.md` | NIH replacement tracking | Understand modernization |
-| `src/straylight/nix/protocol/README.md` | Protocol specs | Understand daemon communication |
+| File | Description | Why Read It | |------|-------------|-------------| | `ARCHITECTURE.md` |
+Project overview | Understand the whole system | | `docs/cpp-style-guide.md` | Code conventions |
+Write conformant code | | `src/straylight/evring/ARCHITECTURE.md` | evring deep dive | Understand
+async I/O | | `src/straylight/nix/compiler/docs/ARCHITECTURE.md` | Compiler deep dive | Understand
+WASM compilation | | `src/straylight/nix/docs/NIH.md` | NIH replacement tracking | Understand
+modernization | | `src/straylight/nix/protocol/README.md` | Protocol specs | Understand daemon
+communication |
 
-______________________________________________________________________
+---
 
 ## Component Deep Dives
 
@@ -191,7 +191,7 @@ if (final_state.ok()) {
 
 **For more:** See `src/straylight/evring/ARCHITECTURE.md`
 
-______________________________________________________________________
+---
 
 ### 2. nix-language - Nix → WASM Compiler
 
@@ -261,7 +261,7 @@ assert(get_int_value(result.value) == 3);
 
 **For more:** See `src/straylight/nix/compiler/docs/ARCHITECTURE.md`
 
-______________________________________________________________________
+---
 
 ### 3. nix-protocol - Formal Protocol Specifications
 
@@ -300,7 +300,7 @@ Client                    Server
 
 **For more:** See `src/straylight/nix/protocol/README.md`
 
-______________________________________________________________________
+---
 
 ### 4. Modern Utility Modules
 
@@ -331,7 +331,7 @@ well-tested libraries.
 
 **For more:** See `src/straylight/nix/docs/NIH.md`
 
-______________________________________________________________________
+---
 
 ### 5. Nix2 Store - Daemonless Log-Structured Store
 
@@ -375,7 +375,7 @@ releases the lock. No daemon needed.
 
 **For more:** See `src/straylight/nix/store/docs/ARCHITECTURE.md`
 
-______________________________________________________________________
+---
 
 ## Development Workflow
 
@@ -448,27 +448,23 @@ nixfmt flake.nix
 
 ```bash
 # Install
-pre-commit-hooks-install
+pre-commit install --install-hooks
 
 # Run manually
 pre-commit run --all-files
 ```
 
-______________________________________________________________________
+---
 
 ## Testing
 
 ### Test Categories
 
-| Category | Framework | Purpose |
-|----------|-----------|---------|
-| Unit tests | Catch2 | Per-function correctness |
-| Property tests | RapidCheck | Algebraic invariants |
-| Adversarial tests | Catch2 | Edge cases (INT_MIN, overflow) |
-| Integration tests | Catch2 | Multi-component pipelines |
-| End-to-end tests | Catch2 | Full parse → execute |
-| Fuzzing | libFuzzer | Crash/undefined behavior |
-| Capture tests | Custom | Protocol validation |
+| Category | Framework | Purpose | |----------|-----------|---------| | Unit tests | Catch2 |
+Per-function correctness | | Property tests | RapidCheck | Algebraic invariants | | Adversarial
+tests | Catch2 | Edge cases (INT_MIN, overflow) | | Integration tests | Catch2 | Multi-component
+pipelines | | End-to-end tests | Catch2 | Full parse → execute | | Fuzzing | libFuzzer |
+Crash/undefined behavior | | Capture tests | Custom | Protocol validation |
 
 ### Writing Tests
 
@@ -501,13 +497,14 @@ TEST_CASE("handles INT_MIN division", "[adversarial]") {
 - Component tests: `src/straylight/<component>/tests/`
 - Nix core tests: `src/nix/<component>/tests/`
 
-______________________________________________________________________
+---
 
 ## Common Tasks
 
 ### Adding a New Utility Module
 
-1. Create header in appropriate `src/straylight/nix/<module>/` (crypto, text, url, async, sync, data, util, fs, cli, compat)
+1. Create header in appropriate `src/straylight/nix/<module>/` (crypto, text, url, async, sync,
+   data, util, fs, cli, compat)
 2. Add tests in `src/straylight/nix/<module>/tests/`
 3. Update `NIH.md` with the new module
 4. Add to `dhall/package.dhall` if needed
@@ -534,7 +531,7 @@ ______________________________________________________________________
 4. Add runtime support if needed
 5. Write tests at each level
 
-______________________________________________________________________
+---
 
 ## Troubleshooting
 
@@ -577,7 +574,7 @@ curl -s https://sense-scheduler.fly.dev/health
 buck2 build --no-remote //...
 ```
 
-______________________________________________________________________
+---
 
 ## Architecture Decision Records
 
@@ -641,7 +638,7 @@ ______________________________________________________________________
 - Test vectors ensure implementations agree
 - Some Kaitai limitations for complex protocols
 
-______________________________________________________________________
+---
 
 ## Further Reading
 

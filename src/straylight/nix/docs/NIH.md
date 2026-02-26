@@ -5,14 +5,14 @@ Replace Not-Invented-Here (NIH) utility implementations in Nix with high-quality
 ## Guidelines
 
 - Modern C++23, fully qualify all `std::` types
-- Namespace: `straylight::nix::primitives::`
+- Namespace: `straylight::nix::{module}::` (e.g., `straylight::nix::text::`, `straylight::nix::crypto::`)
 - Use `#define` to switch backends via `constexpr` where applicable
 - Tests: Catch2 v3 + rapidcheck (property-based)
 - Benchmarks: ankerl::nanobench
 - Build with `-march=znver5` (AVX-512, Zen 5)
 - Prefer `std::format` over `{fmt}`
 
-______________________________________________________________________
+---
 
 ## Completed Primitives
 
@@ -46,7 +46,7 @@ cases | | `args.h` | `util/args.hh` | Custom (CLI11-style) | 55 cases | | `sqlit
 
 **Total: 34 primitives, 1251 test cases**
 
-______________________________________________________________________
+---
 
 ## Full NIH Inventory
 
@@ -192,7 +192,7 @@ parsing | ~204 | LOW | Custom parsing | **DONE** | | `expr/symbol-table.h` | Str
 | LOW | Keep (Nix-specific) | - | | `cmd/markdown.h` | Terminal markdown | ~18 | MEDIUM | Custom |
 **DONE** |
 
-______________________________________________________________________
+---
 
 ## Priority Queue
 
@@ -210,7 +210,7 @@ ______________________________________________________________________
 All primitives are implemented and tested. Next step is integrating them into the Nix codebase to
 replace the original NIH implementations.
 
-______________________________________________________________________
+---
 
 ## Integration Status
 
@@ -225,7 +225,7 @@ ______________________________________________________________________
 | ✗ | | comparator | ✓ | ✓ | ✗ | | args | ✓ | ✓ | ✗ | | sqlite | ✓ | ✓ | ✗ | | git | ✓ | ✓ | ✗ | |
 markdown | ✓ | ✓ | ✗ | | serialise | ✓ | ✓ | ✗ |
 
-______________________________________________________________________
+---
 
 ## Notes
 

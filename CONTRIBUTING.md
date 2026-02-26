@@ -27,12 +27,12 @@ applies to the upstream project; straylight components (`src/straylight/`) build
 ```
 src/
 ├── nix/                      # core nix fork (C++23)
-├── nix-c/                    # C API bindings
 └── straylight/
     ├── evring/               # deterministic async I/O (io_uring)
-    ├── language/             # nix → wasm compiler
-    ├── nix/                  # modern utility modules (crypto, text, url, async, sync, etc.)
-    └── protocol/             # formal protocol specs (kaitai)
+    └── nix/
+        ├── compiler/         # nix → wasm compiler
+        ├── protocol/         # formal protocol specs (kaitai)
+        └── {crypto,text,url,async,sync,store,...}/  # modern utility modules
 ```
 
 ## // style

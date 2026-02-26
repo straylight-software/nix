@@ -37,16 +37,11 @@ auto nix = straylight::nix::crypto::nix32::encode(data);  // Nix store path form
 
 ## API Overview
 
-| Type/Function | Description |
-|---------------|-------------|
-| `Algorithm` | Hash algorithm enum (MD5, SHA1, SHA256, SHA512, BLAKE3) |
-| `Hash` | Fixed-size hash result with encoding methods |
-| `Hasher` | Streaming hash computation |
-| `sha256()` | One-shot SHA256 hash |
-| `blake3()` | One-shot BLAKE3 hash |
-| `base16::encode/decode` | Hexadecimal encoding |
-| `base64::encode/decode` | RFC 4648 base64 |
-| `nix32::encode/decode` | Nix store path base32 |
+| Type/Function | Description | |---------------|-------------| | `Algorithm` | Hash algorithm enum
+(MD5, SHA1, SHA256, SHA512, BLAKE3) | | `Hash` | Fixed-size hash result with encoding methods | |
+`Hasher` | Streaming hash computation | | `sha256()` | One-shot SHA256 hash | | `blake3()` |
+One-shot BLAKE3 hash | | `base16::encode/decode` | Hexadecimal encoding | | `base64::encode/decode`
+| RFC 4648 base64 | | `nix32::encode/decode` | Nix store path base32 |
 
 ## Building
 
@@ -57,5 +52,4 @@ buck2 test //src/straylight/nix/crypto/tests:...
 
 ## See Also
 
-- [Architecture](docs/ARCHITECTURE.md)
-- [Testing](docs/TESTING.md)
+- [NIH Tracking](../docs/NIH.md)
