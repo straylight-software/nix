@@ -717,27 +717,41 @@ derivation_t::unparse(const store_dir_config_t& store, bool mask_outputs,
   s += std::string_view{",["};
   first = true;
 
-  auto unparseEnv = [&](const string_pairs_t aterm_env) {
-    for (auto& i : aterm_env) {
-      if (first)
-        first = false;
-      else
-        s += ',';
-      s += '(';
-      print_string(s, i.first);
+  // Helper to output a single env entry
+  auto outputEnvEntry = [&](std::string_view key, std::string_view value) {
+    if (first)
+      first = false;
+    else
       s += ',';
-      print_string(s, mask_outputs && outputs.count(i.first) ? std::string_view{""} : i.second);
-      s += ')';
-    }
+    s += '(';
+    print_string(s, key);
+    s += ',';
+    print_string(s, mask_outputs && outputs.count(std::string{key}) ? std::string_view{""} : value);
+    s += ')';
   };
 
   StructuredAttrs::checkKeyNotInUse(env);
   if (structured_attrs) {
-    string_pairs_t scratch = env;
-    scratch.insert(structured_attrs->unparse());
-    unparseEnv(scratch);
+    // Merge structured_attrs entry into sorted env iteration without copying.
+    // Since maps are sorted, we just need to insert __json at the right position.
+    auto [sa_key, sa_value] = structured_attrs->unparse();
+    bool sa_emitted = false;
+    for (const auto& [key, value] : env) {
+      // Emit structured_attrs entry when we pass its sorted position
+      if (!sa_emitted && sa_key < key) {
+        outputEnvEntry(sa_key, sa_value);
+        sa_emitted = true;
+      }
+      outputEnvEntry(key, value);
+    }
+    // Emit at end if not yet emitted (sa_key sorts after all env keys)
+    if (!sa_emitted) {
+      outputEnvEntry(sa_key, sa_value);
+    }
   } else {
-    unparseEnv(env);
+    for (const auto& [key, value] : env) {
+      outputEnvEntry(key, value);
+    }
   }
 
   s += std::string_view{"])"};
