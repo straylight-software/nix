@@ -2,7 +2,6 @@
 
 #include <atomic>
 #include <iostream>
-#include <sstream>
 
 #include <fcntl.h>
 
@@ -108,10 +107,7 @@ struct simple_logger_t : public logger_t {
   }
 
   void log_ei(const error_info_t& ei) override {
-    string_sink_t oss;
-    show_error_info(oss, ei, logger_settings.show_trace.get());
-
-    log(ei.level_, oss.str());
+    log(ei.level_, format_error_info(ei, logger_settings.show_trace.get()));
   }
 
   void start_activity(activity_id_t act, verbosity_t lvl, activity_type_t type,
@@ -240,13 +236,10 @@ struct json_logger_t : logger_t {
   }
 
   void log_ei(const error_info_t& ei) override {
-    string_sink_t oss;
-    show_error_info(oss, ei, logger_settings.show_trace.get());
-
     nlohmann::json json;
     json["action"] = "msg";
     json["level"] = ei.level_;
-    json["msg"] = oss.str();
+    json["msg"] = format_error_info(ei, logger_settings.show_trace.get());
     json["raw_msg"] = ei.msg_.str();
     to_json(json, ei.pos_);
 

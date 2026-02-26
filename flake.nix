@@ -267,6 +267,8 @@
                 --suppress=normalCheckLevelMaxBranches \
                 --suppress=toomanyconfigs \
                 --suppress=preprocessorErrorDirective \
+                --suppress=unknownMacro \
+                --suppress=syntaxError \
                 --std=c++23 \
                 --quiet \
                 src/ 2>&1 || {

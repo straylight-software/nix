@@ -1,7 +1,7 @@
 # Backporting
 
-> **Note:** This document describes upstream NixOS/nix release process. The straylight fork
-> does not currently use GitHub Actions workflows for backporting.
+> **Note:** This document describes upstream NixOS/nix release process. The straylight fork does not
+> currently use GitHub Actions workflows for backporting.
 
 To
 [automatically backport a pull request](https://github.com/NixOS/nix/blob/master/.github/workflows/backport.yml)

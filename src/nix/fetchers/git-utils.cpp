@@ -1019,16 +1019,16 @@ struct git_export_ignore_source_accessor_t : CachingFilteringSourceAccessor {
   ref<git_repo_impl_t> repo;
   std::optional<Hash> rev;
 
-  git_export_ignore_source_accessor_t(ref<git_repo_impl_t> repo, ref<source_accessor_t> next,
-                                      std::optional<Hash> rev)
+  git_export_ignore_source_accessor_t(ref<git_repo_impl_t> repo_arg, ref<source_accessor_t> next,
+                                      std::optional<Hash> rev_arg)
       : CachingFilteringSourceAccessor(
             next,
             [&](const canon_path_t& path) {
               return RestrictedPathError(fmt(
                   "'%s' does not exist because it was fetched with exportIgnore enabled", path));
             }),
-        repo(repo),
-        rev(rev) {}
+        repo(repo_arg),
+        rev(rev_arg) {}
 
   bool gitAttrGet(const canon_path_t& path, const char* attr_name, const char*& valueOut) {
     const char* pathCStr = path.rel_c_str();

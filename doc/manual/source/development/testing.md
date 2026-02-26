@@ -1,7 +1,7 @@
 # Running tests
 
-> **Note:** This document describes upstream Nix testing infrastructure which uses Meson.
-> The straylight fork uses **Buck2** instead. For straylight-specific testing, see below.
+> **Note:** This document describes upstream Nix testing infrastructure which uses Meson. The
+> straylight fork uses **Buck2** instead. For straylight-specific testing, see below.
 
 ## straylight Testing (Buck2)
 
@@ -22,7 +22,7 @@ buck2 test //src/straylight/nix/compiler/tests:execution_test -- --verbose
 
 Test framework: Catch2 v3 + RapidCheck for property-based testing.
 
----
+______________________________________________________________________
 
 ## Coverage analysis (upstream)
 
@@ -380,6 +380,7 @@ enables
 
 - The `installer` job generates installers for the platforms below and uploads them to your Cachix
   cache:
+
   - `x86_64-linux`
   - `armv6l-linux`
   - `armv7l-linux`

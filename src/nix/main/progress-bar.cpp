@@ -4,7 +4,6 @@
 #include <chrono>
 #include <iostream>
 #include <map>
-#include <sstream>
 #include <thread>
 
 #include "nix/store/names.h"
@@ -161,11 +160,7 @@ struct progress_bar_t : public logger_t {
 
   void log_ei(const error_info_t& ei) override {
     auto state(state_.lock());
-
-    std::ostringstream oss;
-    show_error_info(oss, ei, logger_settings.show_trace.get());
-
-    log(*state, ei.level_, oss.view());
+    log(*state, ei.level_, format_error_info(ei, logger_settings.show_trace.get()));
   }
 
   void log(State& state, verbosity_t lvl, std::string_view s) {

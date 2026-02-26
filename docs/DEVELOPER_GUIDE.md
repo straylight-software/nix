@@ -8,7 +8,7 @@
 
 This guide provides everything you need to understand, build, and contribute to straylight/nix.
 
----
+______________________________________________________________________
 
 ## Table of Contents
 
@@ -21,7 +21,7 @@ This guide provides everything you need to understand, build, and contribute to 
 7. [Troubleshooting](#troubleshooting)
 8. [Architecture Decision Records](#architecture-decision-records)
 
----
+______________________________________________________________________
 
 ## Quick Start
 
@@ -60,7 +60,7 @@ ls compile_commands.json
 buck2 test //src/straylight/nix/text/tests:strings_test
 ```
 
----
+______________________________________________________________________
 
 ## Understanding the Codebase
 
@@ -134,7 +134,7 @@ WASM compilation | | `src/straylight/nix/docs/NIH.md` | NIH replacement tracking
 modernization | | `src/straylight/nix/protocol/README.md` | Protocol specs | Understand daemon
 communication |
 
----
+______________________________________________________________________
 
 ## Component Deep Dives
 
@@ -191,7 +191,7 @@ if (final_state.ok()) {
 
 **For more:** See `src/straylight/evring/ARCHITECTURE.md`
 
----
+______________________________________________________________________
 
 ### 2. nix-language - Nix → WASM Compiler
 
@@ -261,7 +261,7 @@ assert(get_int_value(result.value) == 3);
 
 **For more:** See `src/straylight/nix/compiler/docs/ARCHITECTURE.md`
 
----
+______________________________________________________________________
 
 ### 3. nix-protocol - Formal Protocol Specifications
 
@@ -300,7 +300,7 @@ Client                    Server
 
 **For more:** See `src/straylight/nix/protocol/README.md`
 
----
+______________________________________________________________________
 
 ### 4. Modern Utility Modules
 
@@ -331,7 +331,7 @@ well-tested libraries.
 
 **For more:** See `src/straylight/nix/docs/NIH.md`
 
----
+______________________________________________________________________
 
 ### 5. Nix2 Store - Daemonless Log-Structured Store
 
@@ -375,7 +375,7 @@ releases the lock. No daemon needed.
 
 **For more:** See `src/straylight/nix/store/docs/ARCHITECTURE.md`
 
----
+______________________________________________________________________
 
 ## Development Workflow
 
@@ -454,7 +454,7 @@ pre-commit install --install-hooks
 pre-commit run --all-files
 ```
 
----
+______________________________________________________________________
 
 ## Testing
 
@@ -497,7 +497,7 @@ TEST_CASE("handles INT_MIN division", "[adversarial]") {
 - Component tests: `src/straylight/<component>/tests/`
 - Nix core tests: `src/nix/<component>/tests/`
 
----
+______________________________________________________________________
 
 ## Common Tasks
 
@@ -531,7 +531,7 @@ TEST_CASE("handles INT_MIN division", "[adversarial]") {
 4. Add runtime support if needed
 5. Write tests at each level
 
----
+______________________________________________________________________
 
 ## Troubleshooting
 
@@ -574,7 +574,7 @@ curl -s https://sense-scheduler.fly.dev/health
 buck2 build --no-remote //...
 ```
 
----
+______________________________________________________________________
 
 ## Architecture Decision Records
 
@@ -638,7 +638,7 @@ buck2 build --no-remote //...
 - Test vectors ensure implementations agree
 - Some Kaitai limitations for complex protocols
 
----
+______________________________________________________________________
 
 ## Further Reading
 

@@ -40,9 +40,7 @@ auto base_error_t::calc_what() const -> const std::string& {
   if (what_.has_value()) {
     return *what_;
   }
-  string_sink_t oss;
-  show_error_info(oss, err_, logger_settings.show_trace);
-  what_ = oss.str();
+  what_ = format_error_info(err_, logger_settings.show_trace);
   return *what_;
 }
 
@@ -271,7 +269,7 @@ auto show_error_info(std::ostream& out, const error_info_t& einfo, bool show_tra
     prefix += ":" ANSI_NORMAL " ";
   }
 
-  string_sink_t oss;
+  std::ostringstream oss;
 
   /*
    * Traces
@@ -432,6 +430,12 @@ auto show_error_info(std::ostream& out, const error_info_t& einfo, bool show_tra
                 chomp(oss.str()));
 
   return out;
+}
+
+auto format_error_info(const error_info_t& einfo, bool show_trace) -> std::string {
+  std::ostringstream oss;
+  show_error_info(oss, einfo, show_trace);
+  return oss.str();
 }
 
 /** Write to stderr in a robust and minimal way, considering that the process

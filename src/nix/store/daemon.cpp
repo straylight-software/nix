@@ -24,8 +24,6 @@
 #  include "nix/util/monitor-fd.h"
 #endif
 
-#include <sstream>
-
 namespace nix::daemon {
 
 sink_t& operator<<(sink_t& sink, const logger_t::fields_t& fields) {
@@ -91,11 +89,8 @@ struct tunnel_logger_t : public logger_t {
     if (ei.level_ > verbosity)
       return;
 
-    std::ostringstream oss;
-    show_error_info(oss, ei, false);
-
     string_sink_t buf;
-    buf << STDERR_NEXT << oss.view();
+    buf << STDERR_NEXT << format_error_info(ei, false);
     enqueue_msg(buf.str());
   }
 

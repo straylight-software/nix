@@ -10,6 +10,12 @@ note: |
     - std::to_string() for simple numeric conversions
     - std::from_chars() / std::to_chars() for parsing/formatting
     - direct string concatenation with reserve()
+# Allow in test files that test operator<< (ostream interface)
+# Allow in error.cpp which implements format_error_info using internal ostream helpers
+ignores:
+  - "**/*_test.cpp"
+  - "**/*_bench.cpp"
+  - "**/error.cpp"
 rule:
   any:
     - pattern: std::ostringstream $$$

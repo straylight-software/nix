@@ -30,6 +30,7 @@ the intention it was meant to serve, you must recognize this and act accordingly
 
 3. **when you discover a conflict, document it** — if a rule's mechanical application would violate
    its own purpose, add an exception clause to this guide explaining:
+
    - what the conflict is
    - why the exception exists
    - how to recognize similar cases
@@ -46,7 +47,7 @@ the intention it was meant to serve, you must recognize this and act accordingly
 - run it again after changes — if it fails, fix it before proceeding
 - the build passing is not optional. a "style fix" that breaks the build is not a fix.
 
----
+______________________________________________________________________
 
 this is the definitive style guide for c++ code in the straylight/nix codebase. it is derived from
 the straylight c++ guidelines but adapted for the nix codebase's specific needs.
@@ -241,7 +242,7 @@ auto local_store_t::query_path_info(const store_path_t& path)
 }  // namespace nix
 ```
 
----
+______________________________________________________________________
 
 ## tier boundary: 8kb
 
@@ -258,7 +259,7 @@ trailing underscores to member variables.
 
 if you are unsure which tier applies to your task, read the whole document.
 
----
+______________________________________________________________________
 
 ## modern c++23 patterns
 

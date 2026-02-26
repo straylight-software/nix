@@ -126,6 +126,9 @@ struct error_info_t {
 [[nodiscard]] auto show_error_info(std::ostream& out, const error_info_t& einfo, bool show_trace)
     -> std::ostream&;
 
+// Returns formatted error info as a string (avoids need for ostringstream at call sites)
+[[nodiscard]] auto format_error_info(const error_info_t& einfo, bool show_trace) -> std::string;
+
 /**
  * base_error_t should generally not be caught, as it has Interrupted as
  * a subclass. Catch Error instead.

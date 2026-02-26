@@ -19,9 +19,10 @@ blocking it. result: 434 matches still exist in the codebase, and new code can i
 
 | tool | config | integration | enforcement | |------|--------|-------------|-------------| |
 clang-format | `.clang-format` | `nix fmt`, treefmt | `nix flake check` | | clang-tidy |
-`.clang-tidy` | `scripts/lint` | pre-commit (push) | | ast-grep | `sgconfig.yml`, `rules/` (22 rules) |
-`ast-grep scan` | `nix flake check`, pre-commit | | cppcheck | `.cppcheck`, `cppcheck.cfg` | available in devshell |
-manual only | | nixfmt/deadnix/statix | treefmt | `nix fmt` | `nix flake check` |
+`.clang-tidy` | `scripts/lint` | pre-commit (push) | | ast-grep | `sgconfig.yml`, `rules/` (22
+rules) | `ast-grep scan` | `nix flake check`, pre-commit | | cppcheck | `.cppcheck`, `cppcheck.cfg`
+| available in devshell | manual only | | nixfmt/deadnix/statix | treefmt | `nix fmt` |
+`nix flake check` |
 
 ### what's enforced automatically
 
@@ -213,6 +214,7 @@ Fixed: `.editorconfig` now uses 2-space indent for C++ to match `.clang-format`.
 
 1. **clang-tidy on full codebase?** running clang-tidy on all of `src/nix/` is expensive and will
    find thousands of violations in upstream code. options:
+
    - only lint `src/straylight/` (our code)
    - only lint changed files (incremental)
    - establish baseline, only fail on new violations
