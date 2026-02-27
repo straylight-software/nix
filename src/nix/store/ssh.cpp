@@ -103,6 +103,11 @@ void SSHMaster::addCommonSSHOpts(strings_t& args) {
   if (authority.port())
     args.push_back(fmt("-p%d", *authority.port()));
 
+  // Disable interactive authentication to prevent hangs when SSH keys are
+  // missing or not loaded in the agent. Without this, SSH would wait forever
+  // for password input that will never come. (issue #7505)
+  args.push_back("-oBatchMode=yes");
+
   // We use this to make ssh signal back to us that the connection is established.
   // It really does run locally; see createSSHEnv which sets up SHELL to make
   // it launch more reliably. The local command runs synchronously, so presumably

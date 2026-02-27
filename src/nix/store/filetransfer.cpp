@@ -142,7 +142,11 @@ struct curl_file_transfer_t : public FileTransfer {
       if (request_headers)
         curl_slist_free_all(request_headers);
       try {
-        if (!done)
+        // Only invoke the callback if we're not shutting down. During shutdown,
+        // invoking the callback can cause deadlocks if the callback tries to
+        // acquire locks held by threads waiting for the worker thread to finish.
+        // See: https://github.com/NixOS/nix/issues/3017
+        if (!done && !file_transfer.state_.lock()->is_quitting())
           fail(FileTransferError(Interrupted, {}, "%s of '%s' was interrupted",
                                  uncolored_t(request.noun()), request.uri));
       } catch (...) {
@@ -536,6 +540,14 @@ struct curl_file_transfer_t : public FileTransfer {
       if (code == CURLE_WRITE_ERROR && result.etag == request.expectedETag) {
         code = CURLE_OK;
         http_status = 304;
+      }
+
+      // Skip callback invocation during shutdown to prevent deadlocks.
+      // The callback might try to acquire locks held by threads waiting for
+      // the worker thread to finish. See: https://github.com/NixOS/nix/issues/3017
+      if (file_transfer.state_.lock()->is_quitting()) {
+        done = true; // Mark as done to prevent destructor from also invoking callback
+        return;
       }
 
       if (callback_exception)

@@ -39,7 +39,13 @@ public:
 
   void operator()(T&& val) noexcept {
     auto prev = done_.test_and_set();
-    assert(!prev);
+    // If the callback was already invoked (e.g., by an async operation that
+    // completed before we could handle an exception in the enqueuing code),
+    // silently ignore the second invocation. This can happen due to race
+    // conditions between async callback completion and exception handling.
+    // See: https://github.com/NixOS/nix/issues/13484
+    if (prev)
+      return;
     std::promise<T> promise;
     promise.set_value(std::move(val));
     fun_(promise.get_future());
@@ -47,7 +53,13 @@ public:
 
   void rethrow(const std::exception_ptr& exc = std::current_exception()) noexcept {
     auto prev = done_.test_and_set();
-    assert(!prev);
+    // If the callback was already invoked (e.g., by an async operation that
+    // completed before we could handle an exception in the enqueuing code),
+    // silently ignore the second invocation. This can happen due to race
+    // conditions between async callback completion and exception handling.
+    // See: https://github.com/NixOS/nix/issues/13484
+    if (prev)
+      return;
     std::promise<T> promise;
     promise.set_exception(exc);
     fun_(promise.get_future());
