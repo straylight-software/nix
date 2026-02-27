@@ -32,9 +32,17 @@ void poll_fd(int fd, int events) {
   struct pollfd pfd;
   pfd.fd = fd;
   pfd.events = events;
-  int ret = poll(&pfd, 1, -1);
-  if (ret == -1) {
-    throw sys_error_t("poll on file descriptor failed");
+  while (true) {
+    int ret = poll(&pfd, 1, -1);
+    if (ret == -1) {
+      if (errno == EINTR) {
+        // Signal received - check if we should terminate
+        check_interrupt();
+        continue;
+      }
+      throw sys_error_t("poll on file descriptor failed");
+    }
+    return;
   }
 }
 } // namespace

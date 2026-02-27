@@ -223,8 +223,30 @@ struct DarwinDerivationBuilder : derivation_builder_impl_t
             posix_spawnattr_setbinpref_np(&attrp, 1, &cpu, NULL);
         }
 
+        /* Set FD_CLOEXEC on the pty slave fds (stdout/stderr) so that background
+           processes forked by the builder don't inherit them. Without this, builds
+           that fork background processes (e.g., `sleep infinity &`) would hang
+           indefinitely because the pty slave fd remains open, preventing EOF on
+           the pty master. See https://github.com/NixOS/nix/issues/8232 */
+        if (fcntl(STDOUT_FILENO, F_SETFD, FD_CLOEXEC) == -1)
+            throw sys_error_t("failed to set FD_CLOEXEC on stdout");
+        if (fcntl(STDERR_FILENO, F_SETFD, FD_CLOEXEC) == -1)
+            throw sys_error_t("failed to set FD_CLOEXEC on stderr");
+
+        /* Use posix_spawn file actions to explicitly inherit stdout/stderr in the
+           builder, since we set FD_CLOEXEC above. The dup2 to itself clears the
+           close-on-exec flag for the spawned process. */
+        posix_spawn_file_actions_t file_actions;
+        if (posix_spawn_file_actions_init(&file_actions))
+            throw sys_error_t("failed to initialize file actions");
+
+        if (posix_spawn_file_actions_adddup2(&file_actions, STDOUT_FILENO, STDOUT_FILENO))
+            throw sys_error_t("failed to add dup2 file action for stdout");
+        if (posix_spawn_file_actions_adddup2(&file_actions, STDERR_FILENO, STDERR_FILENO))
+            throw sys_error_t("failed to add dup2 file action for stderr");
+
         posix_spawn(
-            NULL, drv.builder.c_str(), NULL, &attrp, strings_to_char_ptrs(args).data(), strings_to_char_ptrs(env_strs).data());
+            NULL, drv.builder.c_str(), &file_actions, &attrp, strings_to_char_ptrs(args).data(), strings_to_char_ptrs(env_strs).data());
     }
 
     /**

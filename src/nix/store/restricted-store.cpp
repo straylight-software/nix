@@ -1,9 +1,15 @@
 #include "nix/store/restricted-store.h"
 
+#include <sys/wait.h>
+#include <unistd.h>
+
 #include "nix/store/build-result.h"
 #include "nix/store/local-store.h"
 #include "nix/store/realisation.h"
 #include "nix/util/callback.h"
+#include "nix/util/file-descriptor.h"
+#include "nix/util/finally.h"
+#include "nix/util/serialise.h"
 
 namespace nix {
 
@@ -224,6 +230,127 @@ void restricted_store_t::build_paths(const std::vector<derived_path_t>& paths, B
       failureP->rethrow();
 }
 
+/**
+ * Helper to serialize build results to a sink for IPC.
+ *
+ * Format:
+ * - count: uint64
+ * - for each result:
+ *   - path: string (derived path in store format)
+ *   - timesBuilt: uint64
+ *   - start_time: uint64
+ *   - stopTime: uint64
+ *   - isSuccess: uint64 (1 = success, 0 = failure)
+ *   - if success:
+ *     - status: uint64
+ *     - outputCount: uint64
+ *     - for each output:
+ *       - name: string
+ *       - id: string (DrvOutput format)
+ *       - outPath: string (store path)
+ *       - dependentRealisationsCount: uint64
+ *       - for each dependent:
+ *         - depId: string (DrvOutput)
+ *         - depPath: string (store path)
+ *   - if failure:
+ *     - status: uint64
+ *     - errorMsg: string
+ *     - isNonDeterministic: uint64 (0 or 1)
+ */
+static void write_build_results(sink_t& sink, const store_t& store,
+                                const std::vector<keyed_build_result_t>& results) {
+  sink << (uint64_t)results.size();
+  for (const auto& result : results) {
+    // Serialize the path
+    sink << result.path.to_string(store);
+    // keyed_build_result_t inherits from build_result_t, so access directly
+    sink << (uint64_t)result.timesBuilt;
+    sink << (uint64_t)result.start_time;
+    sink << (uint64_t)result.stopTime;
+
+    // Serialize success/failure status
+    if (auto* successP = result.tryGetSuccess()) {
+      sink << (uint64_t)1; // success marker
+      sink << (uint64_t)static_cast<int>(successP->status);
+      sink << (uint64_t)successP->built_outputs.size();
+      for (const auto& [name, real] : successP->built_outputs) {
+        sink << name;
+        sink << real.id.to_string();
+        sink << store.printStorePath(real.out_path);
+        // Serialize dependentRealisations
+        sink << (uint64_t)real.dependentRealisations.size();
+        for (const auto& [depId, depPath] : real.dependentRealisations) {
+          sink << depId.to_string();
+          sink << store.printStorePath(depPath);
+        }
+      }
+    } else if (auto* failureP = result.tryGetFailure()) {
+      sink << (uint64_t)0; // failure marker
+      sink << (uint64_t)static_cast<int>(failureP->status);
+      sink << failureP->errorMsg;
+      sink << (uint64_t)(failureP->isNonDeterministic ? 1 : 0);
+    }
+  }
+}
+
+/**
+ * Helper to deserialize build results from a source for IPC.
+ */
+static std::vector<keyed_build_result_t> read_build_results(source_t& source, store_t& store) {
+  std::vector<keyed_build_result_t> results;
+  auto count = read_num<uint64_t>(source);
+  results.reserve(count);
+
+  for (uint64_t i = 0; i < count; ++i) {
+    // Deserialize the path
+    auto pathStr = read_string(source);
+    auto path = derived_path_t::parse(store, pathStr);
+
+    // Start building the build_result_t
+    build_result_t br;
+    br.timesBuilt = read_num<uint64_t>(source);
+    br.start_time = read_num<uint64_t>(source);
+    br.stopTime = read_num<uint64_t>(source);
+
+    auto isSuccess = read_num<uint64_t>(source);
+    if (isSuccess) {
+      build_result_t::Success success;
+      success.status = static_cast<build_result_t::Success::Status>(read_num<uint64_t>(source));
+      auto outputCount = read_num<uint64_t>(source);
+      for (uint64_t j = 0; j < outputCount; ++j) {
+        auto name = read_string(source);
+        auto idStr = read_string(source);
+        auto outPathStr = read_string(source);
+
+        // Read dependentRealisations
+        std::map<DrvOutput, store_path_t> depReals;
+        auto depCount = read_num<uint64_t>(source);
+        for (uint64_t k = 0; k < depCount; ++k) {
+          auto depIdStr = read_string(source);
+          auto depPathStr = read_string(source);
+          depReals.emplace(DrvOutput::parse(depIdStr), store.parseStorePath(depPathStr));
+        }
+
+        realisation_t real{
+            {store.parseStorePath(outPathStr), {}, std::move(depReals)},
+            DrvOutput::parse(idStr),
+        };
+        success.built_outputs.emplace(name, std::move(real));
+      }
+      br.inner = std::move(success);
+    } else {
+      build_result_t::Failure failure;
+      failure.status = static_cast<build_result_t::Failure::Status>(read_num<uint64_t>(source));
+      failure.errorMsg = read_string(source);
+      failure.isNonDeterministic = read_num<uint64_t>(source) != 0;
+      br.inner = std::move(failure);
+    }
+
+    results.emplace_back(std::move(br), std::move(path));
+  }
+  return results;
+}
+
 std::vector<keyed_build_result_t>
 restricted_store_t::build_paths_with_results(const std::vector<derived_path_t>& paths,
                                              BuildMode build_mode,
@@ -233,16 +360,113 @@ restricted_store_t::build_paths_with_results(const std::vector<derived_path_t>& 
   if (build_mode != bmNormal)
     throw Error("unsupported build mode");
 
-  store_path_set_t new_paths;
-  std::set<realisation_t> newRealisations;
-
   for (auto& req : paths) {
     if (!goal.is_allowed(req))
       throw InvalidPath("cannot build '%s' in recursive Nix because path is unknown",
                         req.to_string(*next));
   }
 
-  auto results = next->build_paths_with_results(paths, build_mode);
+  /*
+   * DEADLOCK FIX (NixOS/nix#4216):
+   *
+   * The recursive Nix daemon runs in threads spawned by the outer builder.
+   * If we call next->build_paths_with_results() directly, it creates a new
+   * Worker that blocks waiting for builds. But those builds may need the
+   * outer Worker to process them, and the outer Worker is blocked waiting
+   * for the builder output. This creates a circular wait = deadlock.
+   *
+   * Solution: Fork a child process to perform the build. The child has its
+   * own Worker that can run independently without blocking the outer daemon.
+   * Results are serialized back to the parent via a pipe.
+   */
+
+  // Create pipe for results
+  int result_pipe[2];
+  if (pipe(result_pipe) == -1)
+    throw sys_error_t("creating pipe for recursive Nix build");
+
+  auto_close_fd_t read_fd(result_pipe[0]);
+  auto_close_fd_t write_fd(result_pipe[1]);
+
+  pid_t pid = fork();
+  if (pid == -1)
+    throw sys_error_t("forking for recursive Nix build");
+
+  if (pid == 0) {
+    // Child process
+    try {
+      read_fd.close();
+
+      // Perform the actual build in the child process
+      // This creates a new Worker that won't deadlock because it's independent
+      auto results = next->build_paths_with_results(paths, build_mode);
+
+      // Serialize results back to parent
+      fd_sink_t sink(write_fd.get());
+      sink << (uint64_t)0; // success marker
+      write_build_results(sink, *next, results);
+      sink.flush();
+
+      _exit(0);
+    } catch (const std::exception& e) {
+      try {
+        fd_sink_t sink(write_fd.get());
+        sink << (uint64_t)1; // error marker
+        sink << std::string(e.what());
+        sink.flush();
+      } catch (...) {
+      }
+      _exit(1);
+    } catch (...) {
+      _exit(1);
+    }
+  }
+
+  // Parent process
+  write_fd.close();
+
+  // Read results from child
+  fd_source_t source(read_fd.get());
+
+  std::vector<keyed_build_result_t> results;
+  try {
+    auto status_marker = read_num<uint64_t>(source);
+    if (status_marker != 0) {
+      // Child reported an error
+      auto errMsg = read_string(source);
+      // Wait for child to exit
+      int status;
+      waitpid(pid, &status, 0);
+      throw Error("recursive Nix build failed: %s", errMsg);
+    }
+    results = read_build_results(source, *next);
+  } catch (EndOfFile&) {
+    // Child died unexpectedly, wait and report
+    int status;
+    waitpid(pid, &status, 0);
+    if (WIFEXITED(status))
+      throw Error("recursive Nix build process exited with status %d", WEXITSTATUS(status));
+    else if (WIFSIGNALED(status))
+      throw Error("recursive Nix build process killed by signal %d", WTERMSIG(status));
+    else
+      throw Error("recursive Nix build process terminated unexpectedly");
+  }
+
+  // Wait for child to finish
+  int status;
+  if (waitpid(pid, &status, 0) == -1)
+    throw sys_error_t("waiting for recursive Nix build process");
+
+  if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+    if (WIFEXITED(status))
+      throw Error("recursive Nix build process exited with status %d", WEXITSTATUS(status));
+    else if (WIFSIGNALED(status))
+      throw Error("recursive Nix build process killed by signal %d", WTERMSIG(status));
+  }
+
+  // Now update addedPaths and addedDrvOutputs in the parent process
+  store_path_set_t new_paths;
+  std::set<realisation_t> newRealisations;
 
   for (auto& result : results) {
     if (auto* successP = result.tryGetSuccess()) {

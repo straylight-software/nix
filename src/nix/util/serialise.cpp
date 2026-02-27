@@ -149,17 +149,35 @@ size_t fd_source_t::read_unbuffered(char* data, size_t len) {
   }
 #else
   ssize_t n;
-  do {
+  while (true) {
     check_interrupt();
     n = ::read(fd_, data, len);
-  } while (n == -1 && errno == EINTR);
-  if (n == -1) {
-    good_ = false;
-    throw sys_error_t("reading from file");
-  }
-  if (n == 0) {
-    good_ = false;
-    throw EndOfFile(std::string(*end_of_file_error_));
+    if (n == -1) {
+      if (errno == EINTR) {
+        continue;
+      }
+      // Handle EAGAIN/EWOULDBLOCK: poll until data is available.
+      // This can happen on macOS and other BSD-like systems even on
+      // blocking file descriptors in certain edge cases, and also when
+      // the fd is inadvertently set to non-blocking mode (e.g. buildhook).
+      if (errno == EAGAIN || errno == EWOULDBLOCK) {
+        struct pollfd pfd;
+        pfd.fd = fd_;
+        pfd.events = POLLIN;
+        if (poll(&pfd, 1, -1) == -1 && errno != EINTR) {
+          good_ = false;
+          throw sys_error_t("poll on file descriptor failed");
+        }
+        continue;
+      }
+      good_ = false;
+      throw sys_error_t("reading from file");
+    }
+    if (n == 0) {
+      good_ = false;
+      throw EndOfFile(std::string(*end_of_file_error_));
+    }
+    break;
   }
 #endif
   read_ += n;

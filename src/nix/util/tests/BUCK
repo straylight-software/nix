@@ -203,3 +203,16 @@ cxx_test(
     linker_flags = UTIL_LINKER_FLAGS,
     link_style = "static",
 )
+
+# ─────────────────────────────────────────────────────────────────────────────
+# process handling tests (ECHILD race conditions, concurrent wait/kill)
+# Tests for the bug: "cannot get exit status of PID: No child process"
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_test(
+    name = "processes_test",
+    srcs = ["processes_test.cpp"],
+    deps = UTIL_TEST_DEPS,
+    compiler_flags = UTIL_TEST_COMPILER_FLAGS,
+    linker_flags = UTIL_LINKER_FLAGS,
+    link_style = "static",
+)

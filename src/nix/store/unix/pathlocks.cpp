@@ -51,8 +51,7 @@ bool lock_file(descriptor_t desc, LockType lock_type, bool wait) {
       check_interrupt();
       if (errno != EINTR)
         throw sys_error_t("acquiring/releasing lock");
-      else
-        return false;
+      /* EINTR: retry the flock() call */
     }
   } else {
     while (flock(desc, type | LOCK_NB) != 0) {

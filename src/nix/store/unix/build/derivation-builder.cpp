@@ -7,6 +7,7 @@
 #include <sys/resource.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <sys/wait.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -435,7 +436,23 @@ bool derivation_builder_impl_t::kill_child() {
        condition: if we kill the build user before the child has
        done its setuid() to the build user uid, then it won't be
        killed, and we'll potentially lock up in pid.wait().  So
-       also send a conventional kill to the child. */
+       also send a conventional kill to the child. First try SIGTERM
+       for graceful shutdown, then SIGKILL if it doesn't respond. */
+    ::kill(-pid, SIGTERM); /* ignore the result */
+
+    /* Give the process a chance to exit gracefully (up to 5 seconds) */
+    for (int i = 0; i < 50; i++) {
+      int status;
+      if (waitpid(pid, &status, WNOHANG) > 0) {
+        pid.release();
+        kill_sandbox(true);
+        activeBuildHandle.reset();
+        return ret;
+      }
+      usleep(100000); /* 100ms */
+    }
+
+    /* Process didn't exit gracefully, force kill */
     ::kill(-pid, SIGKILL); /* ignore the result */
 
     kill_sandbox(true);
@@ -450,9 +467,22 @@ bool derivation_builder_impl_t::kill_child() {
 SingleDrvOutputs derivation_builder_impl_t::unprepare_build() {
   /* Since we got an EOF on the logger pipe, the builder is presumed
      to have terminated.  In fact, the builder could also have
-     simply have closed its end of the pipe, so just to be sure,
-     kill it. */
-  int status = pid.kill();
+     simply have closed its end of the pipe --- Loss of the pipe
+     doesn't mean the process has exited yet, so first check if it
+     has already exited and wait for it if still running. Only kill
+     as a last resort. */
+  int status;
+  pid_t ret = waitpid(pid, &status, WNOHANG);
+  if (ret == 0) {
+    /* Process is still running, wait for it to finish naturally. */
+    status = pid.wait();
+  } else if (ret == pid) {
+    /* Process already exited, release the handle without killing. */
+    pid.release();
+  } else {
+    /* Error or unexpected result, fall back to kill. */
+    status = pid.kill();
+  }
 
   debug("builder process for '%s' finished", store.printStorePath(drv_path));
 
@@ -1688,6 +1718,12 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
        will leave leave them where they are, for now, rather than move to
        their usual "final destination" */
     auto finalDestPath = store.printStorePath(newInfo.path);
+
+    /* Add a temp root for the output path to prevent GC from deleting
+       it between when we move/create it and when we register it as
+       valid. This fixes a race condition where GC could delete the
+       path during the registration window. */
+    store.addTempRoot(newInfo.path);
 
     /* lock_t final output path, if not already locked. This happens with
        floating CA derivations and hash-mismatching fixed-output

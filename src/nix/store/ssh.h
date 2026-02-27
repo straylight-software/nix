@@ -32,9 +32,11 @@ private:
     process_handle_t sshMaster;
 #endif
     Path socket_path;
+    bool starting = false; // True while SSH master is being started
   };
 
   sync_t<State> state_;
+  std::condition_variable state_cv_;
 
   void addCommonSSHOpts(strings_t& args);
   bool isMasterRunning();

@@ -429,6 +429,10 @@ void Worker::waitForInput() {
 #endif
       useTimeout ? (std::optional{timeout * 1000}) : std::nullopt);
 
+  /* Check for interrupts immediately after poll returns.
+     This handles the case where poll returned due to EINTR from a signal. */
+  check_interrupt();
+
   auto after = steady_time_point::clock::now();
 
   /* Process all available file descriptors. FIXME: this is

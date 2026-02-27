@@ -1,6 +1,7 @@
 #include "nix/store/local-store.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cstring>
 #include <iostream>
 #include <memory>
@@ -117,7 +118,14 @@ LocalStore::LocalStore(ref<const config_t> config)
       reservedPath(dbDir + "/reserved"),
       schemaPath(dbDir + "/schema"),
       tempRootsDir(config->stateDir + "/temproots"),
-      fnTempRoots(fmt("%s/%d", tempRootsDir, getpid())),
+      fnTempRoots([stateDir = config->stateDir.get()] {
+        // Use a process-wide counter to ensure each LocalStore instance
+        // gets a unique temp roots file. This prevents hangs when multiple
+        // LocalStore instances in the same process try to lock the same file.
+        // See: https://github.com/NixOS/nix/issues/11979
+        static std::atomic<uint64_t> instanceCounter{0};
+        return fmt("%s/temproots/%d-%d", stateDir, getpid(), instanceCounter++);
+      }()),
       activeBuildsDir(config->stateDir + "/active-builds") {
   auto state(_state->lock());
   state->stmts = std::make_unique<State::Stmts>();

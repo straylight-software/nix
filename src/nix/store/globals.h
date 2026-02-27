@@ -499,7 +499,7 @@ public:
                                "The number of UIDs/GIDs to use for dynamic ID allocation."};
 
 #ifdef __linux__
-  setting_t<bool> useCgroups{this, false, "use-cgroups",
+  setting_t<bool> useCgroups{this, true, "use-cgroups",
                              R"(
           Whether to execute builds inside cgroups.
           This is only supported on Linux.
@@ -548,6 +548,18 @@ public:
 
   setting_t<unsigned int> pollInterval{this, 5, "build-poll-interval",
                                        "How often (in seconds) to poll for locks."};
+
+  setting_t<unsigned int> sshTimeout{this, 60, "ssh-timeout",
+                                     R"(
+          The timeout (in seconds) for establishing SSH connections to remote
+          builders and stores. This applies to the SSH ControlMaster connection
+          setup. If the connection is not established within this time, Nix
+          aborts with an error.
+
+          A value of 0 means no timeout (wait indefinitely), which is not
+          recommended as it can cause Nix to hang forever if the remote host
+          is unresponsive.
+        )"};
 
   setting_t<bool> gcKeepOutputs{this,
                                 false,

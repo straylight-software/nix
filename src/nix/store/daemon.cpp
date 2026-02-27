@@ -19,6 +19,7 @@
 #include "nix/util/git.h"
 #include "nix/util/logging.h"
 #include "nix/util/signals.h"
+#include "nix/util/util.h"
 
 #ifndef _WIN32 // TODO need graceful async exit support on Windows?
 #  include "nix/util/monitor-fd.h"
@@ -1024,8 +1025,16 @@ void process_connection(ref<store_t> store, fd_source_t&& from, fd_sink_t&& to, 
   unsigned int op_count = 0;
 
   finally_t finally([&]() {
-    set_interrupted(false);
-    printMsgUsing(prev_logger, lvl_debug, "%d operations", op_count);
+    try {
+      set_interrupted(false);
+      printMsgUsing(prev_logger, lvl_debug, "%d operations", op_count);
+    } catch (...) {
+      // Use destructor-safe exception handling since this finally block
+      // may run during stack unwinding. If we allowed exceptions to
+      // propagate (especially Interrupted via ignore_exception_except_interrupt),
+      // it would cause std::terminate. See NixOS/nix#14758.
+      ignore_exception_in_destructor();
+    }
   });
 
   conn.postHandshake(

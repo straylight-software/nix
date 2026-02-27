@@ -170,7 +170,18 @@ void LocalStore::findTempRoots(Roots& tempRoots, bool censor) {
     }
     Path path = i.path().string();
 
-    ::pid_t pid = std::stoi(name);
+    /* Parse the PID from the filename. The filename format is either:
+       - "{pid}" (legacy format)
+       - "{pid}-{instance}" (new format to support multiple LocalStore instances per process)
+       See: https://github.com/NixOS/nix/issues/11979 */
+    ::pid_t pid;
+    try {
+      auto dashPos = name.find('-');
+      pid = std::stoi(dashPos != std::string::npos ? name.substr(0, dashPos) : name);
+    } catch (std::exception&) {
+      // Skip files with invalid names
+      continue;
+    }
 
     debug("reading temporary root file '%1%'", path);
     auto_close_fd_t fd(to_descriptor(open(path.c_str(),
@@ -531,7 +542,13 @@ void LocalStore::collectGarbage(const GCOptions& options, GCResults& results) {
       fds.push_back({.fd = shutdownPipe.read_side.get(), .events = POLLIN});
       fds.push_back({.fd = fdServer.get(), .events = POLLIN});
       auto count = poll(fds.data(), fds.size(), -1);
-      assert(count != -1);
+      if (count == -1) {
+        if (errno == EINTR) {
+          // Signal received - continue to check shutdown pipe
+          continue;
+        }
+        throw sys_error_t("GC roots server poll failed");
+      }
 
       if (fds[0].revents)
         /* Parent is asking us to quit. */

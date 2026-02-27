@@ -43,6 +43,15 @@ public:
   void operator=(auto_close_fd_t pid);
 #endif
   ~process_handle_t();
+
+  // Non-copyable to prevent double-wait on same PID
+  process_handle_t(const process_handle_t&) = delete;
+  process_handle_t& operator=(const process_handle_t&) = delete;
+
+  // Moveable
+  process_handle_t(process_handle_t&& other) noexcept;
+  process_handle_t& operator=(process_handle_t&& other) noexcept;
+
   int kill();
   int wait();
 

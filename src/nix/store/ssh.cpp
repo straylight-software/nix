@@ -1,11 +1,17 @@
 #include "nix/store/ssh.h"
 
+#include "nix/store/globals.h"
 #include "nix/util/base-n.h"
 #include "nix/util/current-process.h"
 #include "nix/util/environment-variables.h"
 #include "nix/util/exec.h"
 #include "nix/util/finally.h"
 #include "nix/util/util.h"
+
+#ifndef _WIN32
+#  include <poll.h>
+#  include <signal.h>
+#endif
 
 namespace nix {
 
@@ -114,6 +120,36 @@ bool SSHMaster::isMasterRunning() {
   return res.first == 0;
 }
 
+#ifndef _WIN32
+/**
+ * Wait for data to be available on a file descriptor with a timeout.
+ *
+ * @param fd The file descriptor to wait on.
+ * @param timeout_seconds The timeout in seconds. 0 means no timeout.
+ * @return true if data is available, false if timeout occurred.
+ * @throws sys_error_t if poll() fails.
+ */
+static bool wait_for_data(int fd, unsigned int timeout_seconds) {
+  if (timeout_seconds == 0)
+    return true; // No timeout, assume data will be available
+
+  struct pollfd pfd;
+  pfd.fd = fd;
+  pfd.events = POLLIN;
+
+  int timeout_ms = timeout_seconds * 1000;
+  int ret = poll(&pfd, 1, timeout_ms);
+
+  if (ret == -1) {
+    if (errno == EINTR)
+      return wait_for_data(fd, timeout_seconds); // Retry on interrupt
+    throw sys_error_t("poll() failed while waiting for SSH connection");
+  }
+
+  return ret > 0; // true if data available, false if timeout
+}
+#endif
+
 strings_t create_ssh_env() {
   // Copy the environment and set SHELL=/bin/sh
   string_map_t env = get_env();
@@ -142,9 +178,10 @@ std::unique_ptr<SSHMaster::Connection> SSHMaster::startCommand(strings_t&& comma
 #else
   Path socket_path = startMaster();
 
-  pipe_t in, out;
+  pipe_t in, out, err;
   in.create();
   out.create();
+  err.create();
 
   auto conn = std::make_unique<Connection>();
   process_options_t options;
@@ -161,12 +198,15 @@ std::unique_ptr<SSHMaster::Connection> SSHMaster::startCommand(strings_t&& comma
 
         close(in.write_side.get());
         close(out.read_side.get());
+        close(err.read_side.get());
 
         if (dup2(in.read_side.get(), STDIN_FILENO) == -1)
           throw sys_error_t("duping over stdin");
         if (dup2(out.write_side.get(), STDOUT_FILENO) == -1)
           throw sys_error_t("duping over stdout");
-        if (logFD != -1 && dup2(logFD, STDERR_FILENO) == -1)
+        if (logFD != INVALID_DESCRIPTOR && dup2(logFD, STDERR_FILENO) == -1)
+          throw sys_error_t("duping over stderr");
+        else if (logFD == INVALID_DESCRIPTOR && dup2(err.write_side.get(), STDERR_FILENO) == -1)
           throw sys_error_t("duping over stderr");
 
         strings_t args;
@@ -194,17 +234,47 @@ std::unique_ptr<SSHMaster::Connection> SSHMaster::startCommand(strings_t&& comma
 
   in.read_side = INVALID_DESCRIPTOR;
   out.write_side = INVALID_DESCRIPTOR;
+  err.write_side = INVALID_DESCRIPTOR;
 
   // Wait for the SSH connection to be established,
   // So that we don't overwrite the password prompt with our progress bar.
   if (!fakeSSH && !useMaster && !isMasterRunning()) {
+    // Helper to clean up SSH process on error
+    auto killSsh = [&]() {
+      if (conn->sshPid != INVALID_DESCRIPTOR) {
+        kill(conn->sshPid, SIGTERM);
+        conn->sshPid = INVALID_DESCRIPTOR;
+      }
+    };
+
+    // Wait for data with timeout to prevent hanging forever (issue #10645)
+    unsigned int timeout = settings.sshTimeout;
+    if (!wait_for_data(out.read_side.get(), timeout)) {
+      killSsh();
+      throw Error("SSH connection to '%s' timed out after %d seconds. "
+                  "Check network connectivity and SSH configuration. "
+                  "You can adjust the timeout with the 'ssh-timeout' setting.",
+                  authority.host(), timeout);
+    }
+
     std::string reply;
     try {
       reply = read_line(out.read_side.get());
     } catch (EndOfFile& e) {
+      killSsh();
+      std::string childStderr;
+      try {
+        childStderr = drain_fd(err.read_side.get(), false);
+      } catch (...) {
+      }
+      if (!childStderr.empty())
+        throw Error("failed to start SSH connection to '%s': %s", authority.host(),
+                    chomp(childStderr));
+      throw Error("failed to start SSH connection to '%s'", authority.host());
     }
 
     if (reply != "started") {
+      killSsh();
       printTalkative("SSH stdout first line: %s", reply);
       throw Error("failed to start SSH connection to '%s'", authority.host());
     }
@@ -223,34 +293,72 @@ Path SSHMaster::startMaster() {
   if (!useMaster)
     return "";
 
-  auto state(state_.lock());
+  Path socket_path;
+  process_handle_t sshMaster = INVALID_DESCRIPTOR;
 
-  if (state->sshMaster != INVALID_DESCRIPTOR)
-    return state->socket_path;
+  {
+    auto state(state_.lock());
 
-  state->socket_path = (Path)*tmp_dir + "/ssh.sock";
+    // If master is already running, return immediately
+    if (state->sshMaster != INVALID_DESCRIPTOR)
+      return state->socket_path;
 
-  pipe_t out;
+    // If another thread is starting the master, wait for it to complete.
+    // This prevents the deadlock in issue #14615 where multiple threads
+    // would block on the lock while one thread holds it during blocking I/O.
+    while (state->starting) {
+      state.wait(state_cv_);
+      // After waking up, check if master is now running
+      if (state->sshMaster != INVALID_DESCRIPTOR)
+        return state->socket_path;
+    }
+
+    // Mark that we're starting the master (prevents other threads from also trying)
+    state->starting = true;
+    state->socket_path = (Path)*tmp_dir + "/ssh.sock";
+    socket_path = state->socket_path;
+  }
+  // Lock is now released - other threads can check state->starting and wait
+
+  // Ensure we clear the 'starting' flag even on exceptions
+  auto cleanup = finally_t([&]() {
+    auto state(state_.lock());
+    state->starting = false;
+    state_cv_.notify_all();
+  });
+
+  auto suspension = logger->suspend();
+
+  // Check if a master is already running (e.g., from a previous process).
+  // This is done outside the lock since it runs an external command.
+  if (isMasterRunning()) {
+    auto state(state_.lock());
+    // Set sshMaster to a sentinel value to indicate external master is running.
+    // We use -1 (::pid_t) as a sentinel since we don't own the process.
+    state->sshMaster = (::pid_t)-1;
+    return socket_path;
+  }
+
+  pipe_t out, err;
   out.create();
+  err.create();
 
   process_options_t options;
   options.die_with_parent = false;
 
-  auto suspension = logger->suspend();
-
-  if (isMasterRunning())
-    return state->socket_path;
-
-  state->sshMaster = start_process(
+  sshMaster = start_process(
       [&]() {
         restore_process_context();
 
         close(out.read_side.get());
+        close(err.read_side.get());
 
         if (dup2(out.write_side.get(), STDOUT_FILENO) == -1)
           throw sys_error_t("duping over stdout");
+        if (dup2(err.write_side.get(), STDERR_FILENO) == -1)
+          throw sys_error_t("duping over stderr");
 
-        strings_t args = {"ssh", hostname_and_user.c_str(), "-M", "-N", "-S", state->socket_path};
+        strings_t args = {"ssh", hostname_and_user.c_str(), "-M", "-N", "-S", socket_path};
         if (verbosity >= lvl_chatty)
           args.push_back("-v");
         addCommonSSHOpts(args);
@@ -263,19 +371,59 @@ Path SSHMaster::startMaster() {
       options);
 
   out.write_side = INVALID_DESCRIPTOR;
+  err.write_side = INVALID_DESCRIPTOR;
+
+  // Helper to clean up SSH master process on error.
+  // Use process_handle_t's kill method which sends SIGKILL by default,
+  // but we set it to SIGTERM for graceful shutdown.
+  sshMaster.set_kill_signal(SIGTERM);
+  auto killMaster = [&]() {
+    if (sshMaster != INVALID_DESCRIPTOR) {
+      sshMaster.kill();
+      // Release ownership so destructor doesn't wait for the killed process
+      sshMaster.release();
+    }
+  };
+
+  // Wait for data with timeout to prevent hanging forever (issue #10645)
+  unsigned int timeout = settings.sshTimeout;
+  if (!wait_for_data(out.read_side.get(), timeout)) {
+    killMaster();
+    throw Error("SSH master connection to '%s' timed out after %d seconds. "
+                "Check network connectivity and SSH configuration. "
+                "You can adjust the timeout with the 'ssh-timeout' setting.",
+                authority.host(), timeout);
+  }
 
   std::string reply;
   try {
     reply = read_line(out.read_side.get());
   } catch (EndOfFile& e) {
+    killMaster();
+    std::string childStderr;
+    try {
+      childStderr = drain_fd(err.read_side.get(), false);
+    } catch (...) {
+    }
+    if (!childStderr.empty())
+      throw Error("failed to start SSH master connection to '%s': %s", authority.host(),
+                  chomp(childStderr));
+    throw Error("failed to start SSH master connection to '%s'", authority.host());
   }
 
   if (reply != "started") {
+    killMaster();
     printTalkative("SSH master stdout first line: %s", reply);
     throw Error("failed to start SSH master connection to '%s'", authority.host());
   }
 
-  return state->socket_path;
+  // Successfully started - store the master process handle
+  {
+    auto state(state_.lock());
+    state->sshMaster = std::move(sshMaster);
+  }
+
+  return socket_path;
 }
 
 #endif

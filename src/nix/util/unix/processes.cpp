@@ -49,6 +49,28 @@ process_handle_t::~process_handle_t() {
   }
 }
 
+process_handle_t::process_handle_t(process_handle_t&& other) noexcept
+    : pid_(other.pid_), separate_pg_(other.separate_pg_), kill_signal_(other.kill_signal_) {
+  other.pid_ = -1;
+}
+
+process_handle_t& process_handle_t::operator=(process_handle_t&& other) noexcept {
+  if (this != &other) {
+    if (pid_ != -1) {
+      try {
+        kill();
+      } catch (...) {
+        // Ignore exceptions during cleanup
+      }
+    }
+    pid_ = other.pid_;
+    separate_pg_ = other.separate_pg_;
+    kill_signal_ = other.kill_signal_;
+    other.pid_ = -1;
+  }
+  return *this;
+}
+
 void process_handle_t::operator=(::pid_t pid) {
   if (this->pid_ != -1 && this->pid_ != pid) {
     kill();
@@ -66,17 +88,63 @@ int process_handle_t::kill() {
 
   debug("killing process %1%", pid_);
 
+  pid_t target = separate_pg_ ? -pid_ : pid_;
+
+  /* First, try graceful termination with SIGTERM to give the process
+     a chance to clean up. Only do this if the requested kill signal
+     is SIGKILL (the default) - if the caller explicitly set a different
+     signal, honor that choice. */
+  if (kill_signal_ == SIGKILL) {
+    if (::kill(target, SIGTERM) == 0) {
+      /* Wait up to 5 seconds for the process to exit gracefully. */
+      for (int i = 0; i < 50; i++) {
+        int status;
+        pid_t ret = waitpid(pid_, &status, WNOHANG);
+        if (ret == pid_) {
+          pid_ = -1;
+          return status;
+        }
+        if (ret == -1 && errno != EINTR) {
+          /* ECHILD means process already reaped */
+          if (errno == ECHILD) {
+            pid_ = -1;
+            return 0;
+          }
+          break;
+        }
+        usleep(100000); /* 100ms */
+      }
+      debug("process %1% did not exit after SIGTERM, sending SIGKILL", pid_);
+    }
+  }
+
   /* Send the requested signal to the child.  If it has its own
      process group, send the signal to every process in the child
      process group (which hopefully includes *all* its children). */
-  if (::kill(separate_pg_ ? -pid_ : pid_, kill_signal_) != 0) {
+  if (::kill(target, kill_signal_) != 0) {
+    int saved_errno = errno;
     /* On BSDs, killing a process group will return EPERM if all
        processes in the group are zombies (or something like
        that). So try to detect and ignore that situation. */
 #if defined(__FreeBSD__) || defined(__APPLE__)
-    if (errno != EPERM || ::kill(pid_, 0) != 0)
+    if (saved_errno != EPERM || ::kill(pid_, 0) != 0)
 #endif
+    {
+      /* If the process doesn't exist (ESRCH), it has already exited
+         and may have been reaped elsewhere. This is a benign race condition,
+         not an error. Return a synthetic "killed by signal" status. */
+      if (saved_errno == ESRCH) {
+        debug("kill(%d) returned ESRCH - process already exited", pid_);
+        pid_ = -1;
+        /* Return a status indicating the process was killed by the signal.
+           On POSIX systems, the low 7 bits contain the signal number for
+           signal-terminated processes. */
+        return kill_signal_ & 0x7f;
+      }
+
+      /* Other errors (EPERM, EINVAL) are actual problems */
       logError(sys_error_t("killing process %d", pid_).info());
+    }
   }
 
   return wait();
@@ -91,10 +159,23 @@ int process_handle_t::wait() {
       pid_ = -1;
       return status;
     }
-    if (errno != EINTR) {
-      throw sys_error_t("cannot get exit status of PID %d", pid_);
+    int saved_errno = errno;
+    if (saved_errno == EINTR) {
+      check_interrupt();
+      continue;
     }
-    check_interrupt();
+    /* ECHILD means the process has already been reaped (by another thread,
+       a signal handler, or SA_NOCLDWAIT). This is not an error - the process
+       has exited, we just can't retrieve its status. Return a synthetic
+       status indicating normal exit with code 0. */
+    if (saved_errno == ECHILD) {
+      debug("waitpid(%d) returned ECHILD - process already reaped", pid_);
+      pid_ = -1;
+      /* Return a synthetic "exited normally with status 0" status.
+         WIFEXITED() will return true and WEXITSTATUS() will return 0. */
+      return 0;
+    }
+    throw sys_error_t("cannot get exit status of PID %d", pid_);
   }
 }
 
