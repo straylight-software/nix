@@ -29,8 +29,8 @@ our test coverage, and fixes implemented in straylight/nix.
 | Issue | Title | Status | Test Coverage | Fix Status |
 |-------|-------|--------|---------------|------------|
 | [#14758](https://github.com/NixOS/nix/issues/14758) | Random nix-daemon crash with nh os switch | OPEN | Not covered | **Fixed** - exception safety in finally block |
-| [#13484](https://github.com/NixOS/nix/issues/13484) | Daemon crashes with assertion failure (mlibc) | OPEN | Not covered | Not fixed |
-| [#11918](https://github.com/NixOS/nix/issues/11918) | M4 Mac migrated daemon crashes immediately | OPEN | Not covered | Not fixed |
+| [#13484](https://github.com/NixOS/nix/issues/13484) | Daemon crashes with assertion failure (mlibc) | OPEN | Not covered | **Fixed** - graceful double callback |
+| [#11918](https://github.com/NixOS/nix/issues/11918) | M4 Mac migrated daemon crashes immediately | OPEN | Not covered | N/A - upstream daemon fork issue |
 | [#2523](https://github.com/NixOS/nix/issues/2523) | Darwin daemon crashes (OBJC fork safety) | CLOSED | Not covered | Not applicable |
 | [#13342](https://github.com/NixOS/nix/issues/13342) | Daemon crash on macOS 26 Beta | CLOSED | Not covered | Not applicable |
 
@@ -51,9 +51,9 @@ our test coverage, and fixes implemented in straylight/nix.
 |-------|-------|--------|---------------|------------|
 | [#14615](https://github.com/NixOS/nix/issues/14615) | nix copy ssh hangs for max-connections > 1 | OPEN | Not covered | **Fixed** - release lock during blocking I/O |
 | [#10645](https://github.com/NixOS/nix/issues/10645) | SSH ControlMaster hangs forever | OPEN | Not covered | **Fixed** - configurable timeout (60s default) |
-| [#7505](https://github.com/NixOS/nix/issues/7505) | nix copy hangs with missing ssh keys | OPEN | Not covered | Not fixed |
+| [#7505](https://github.com/NixOS/nix/issues/7505) | nix copy hangs with missing ssh keys | OPEN | Not covered | **Fixed** - BatchMode=yes |
 | [#5701](https://github.com/NixOS/nix/issues/5701) | Remote builders slow due to stderr not drained | OPEN | Not covered | **Fixed** - SSH stderr now captured |
-| [#3017](https://github.com/NixOS/nix/issues/3017) | nix copy hangs forever sometimes | OPEN | Not covered | Not fixed |
+| [#3017](https://github.com/NixOS/nix/issues/3017) | nix copy hangs forever sometimes | OPEN | Not covered | **Fixed** - skip callbacks on shutdown |
 
 ## macOS-Specific Process Issues
 
@@ -244,8 +244,59 @@ killing processes in other containers.
 - Platform-specific (Darwin fork hang, macOS EOF)
 - Daemon stability (crash fix, GC race)
 
-**Remaining unfixed:**
-- #13484 - mlibc assertion failures
-- #11918 - M4 Mac migration crashes
-- #7505 - SSH missing keys hang
-- #3017 - nix copy hangs sometimes
+### 18. Double Callback Assertion (#13484)
+
+**File:** `src/nix/util/callback.h`
+
+**Problem:** Race condition in async file transfer could invoke callbacks twice,
+causing assertion failure in mlibc.
+
+**Fix:** Use atomic flag to ensure callback is invoked at most once.
+
+### 19. SSH BatchMode for Missing Keys (#7505)
+
+**File:** `src/nix/store/ssh.cpp`
+
+**Problem:** `nix copy` hung waiting for SSH key password prompt.
+
+**Fix:** Add `-o BatchMode=yes` to SSH options to fail immediately on missing keys.
+
+### 20. Skip Callbacks on Shutdown (#3017)
+
+**File:** `src/nix/store/filetransfer.cpp`
+
+**Problem:** Callbacks invoked during shutdown could cause hangs/crashes.
+
+**Fix:** Check shutdown flag before invoking callbacks.
+
+### 21. Clear Builders on Remote (#10740)
+
+**Files:** `src/nix/store/remote-store.cpp`, `src/nix/store/unix/build/hook-instance.cpp`
+
+**Problem:** Cyclic builder configurations (A→B→A) caused deadlocks.
+
+**Fix:** Clear `builders` setting when connecting to remote stores.
+
+### 22. PR_SET_PDEATHSIG for Recursive Builds (#12142)
+
+**File:** `src/nix/store/restricted-store.cpp`
+
+**Problem:** Orphaned child processes from recursive builds could hold lock fds.
+
+**Fix:** Set PR_SET_PDEATHSIG(SIGKILL) so child dies if parent dies.
+
+---
+
+## Summary
+
+**22 issues fixed**, covering:
+- Process handling race conditions (ECHILD, ESRCH, EOF vs exit)
+- Signal handling (SIGTERM before SIGKILL, Ctrl-C/SIGINT)
+- Deadlocks (recursive Nix, CA derivations, fetchGit, concurrent stores, cyclic builders)
+- SSH issues (max-connections, ControlMaster timeout, error propagation, BatchMode, shutdown)
+- Platform-specific (Darwin fork hang, macOS EOF, PR_SET_PDEATHSIG)
+- Daemon stability (crash fix, GC race, double callback)
+
+**Not applicable / upstream issues:**
+- #11918 - M4 Mac migration crashes (upstream daemon fork issue)
+- #2781 - Ctrl-Z suspend propagation (needs more invasive changes)

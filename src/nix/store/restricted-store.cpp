@@ -3,6 +3,10 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#ifdef __linux__
+#  include <sys/prctl.h>
+#endif
+
 #include "nix/store/build-result.h"
 #include "nix/store/local-store.h"
 #include "nix/store/realisation.h"
@@ -10,6 +14,7 @@
 #include "nix/util/file-descriptor.h"
 #include "nix/util/finally.h"
 #include "nix/util/serialise.h"
+#include "nix/util/signals.h"
 
 namespace nix {
 
@@ -380,13 +385,10 @@ restricted_store_t::build_paths_with_results(const std::vector<derived_path_t>& 
    * Results are serialized back to the parent via a pipe.
    */
 
-  // Create pipe for results
-  int result_pipe[2];
-  if (pipe(result_pipe) == -1)
-    throw sys_error_t("creating pipe for recursive Nix build");
-
-  auto_close_fd_t read_fd(result_pipe[0]);
-  auto_close_fd_t write_fd(result_pipe[1]);
+  // Create pipe for results. Use O_CLOEXEC to prevent pipe FDs from being
+  // inherited by grandchildren (e.g., builders spawned by the recursive build).
+  pipe_t result_pipe;
+  result_pipe.create(); // Uses pipe2(O_CLOEXEC)
 
   pid_t pid = fork();
   if (pid == -1)
@@ -395,14 +397,21 @@ restricted_store_t::build_paths_with_results(const std::vector<derived_path_t>& 
   if (pid == 0) {
     // Child process
     try {
-      read_fd.close();
+      // Ensure child dies if parent dies. This prevents orphaned processes
+      // from holding lock file descriptors indefinitely (NixOS/nix#12142).
+#ifdef __linux__
+      if (prctl(PR_SET_PDEATHSIG, SIGKILL) == -1)
+        throw sys_error_t("setting death signal for recursive Nix build");
+#endif
+
+      result_pipe.read_side.close();
 
       // Perform the actual build in the child process
       // This creates a new Worker that won't deadlock because it's independent
       auto results = next->build_paths_with_results(paths, build_mode);
 
       // Serialize results back to parent
-      fd_sink_t sink(write_fd.get());
+      fd_sink_t sink(result_pipe.write_side.get());
       sink << (uint64_t)0; // success marker
       write_build_results(sink, *next, results);
       sink.flush();
@@ -410,7 +419,7 @@ restricted_store_t::build_paths_with_results(const std::vector<derived_path_t>& 
       _exit(0);
     } catch (const std::exception& e) {
       try {
-        fd_sink_t sink(write_fd.get());
+        fd_sink_t sink(result_pipe.write_side.get());
         sink << (uint64_t)1; // error marker
         sink << std::string(e.what());
         sink.flush();
@@ -423,10 +432,10 @@ restricted_store_t::build_paths_with_results(const std::vector<derived_path_t>& 
   }
 
   // Parent process
-  write_fd.close();
+  result_pipe.write_side.close();
 
   // Read results from child
-  fd_source_t source(read_fd.get());
+  fd_source_t source(result_pipe.read_side.get());
 
   std::vector<keyed_build_result_t> results;
   try {

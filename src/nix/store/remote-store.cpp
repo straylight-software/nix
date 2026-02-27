@@ -122,6 +122,9 @@ void remote_store::setOptions(Connection& conn) {
   overrides.erase(logger_settings.show_trace.name);
   overrides.erase(experimental_feature_settings.experimental_features.name);
   overrides.erase("plugin-files");
+  // Prevent recursive remote building (NixOS/nix#10740): clear builders on remote
+  // to avoid deadlocks from cyclic builder configurations (A→B→A).
+  overrides[settings.builders.name] = {.value_ = "", .description_ = ""};
   conn.to << overrides.size();
   for (auto& i : overrides)
     conn.to << i.first << i.second.value_;

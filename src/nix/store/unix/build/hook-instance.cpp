@@ -73,13 +73,17 @@ HookInstance::HookInstance() {
   });
 
   pid.set_separate_pg(true);
+
   fromHook.write_side = -1;
   toHook.read_side = -1;
 
   sink = fd_sink_t(toHook.write_side.get());
-  std::map<std::string, config_t::setting_info_t> settings;
-  global_config.get_settings(settings);
-  for (auto& setting : settings)
+  std::map<std::string, config_t::setting_info_t> hook_settings;
+  global_config.get_settings(hook_settings);
+  // Prevent recursive remote building (NixOS/nix#10740): clear builders
+  // to avoid deadlocks from cyclic builder configurations (A→B→A).
+  hook_settings[nix::settings.builders.name] = {.value_ = "", .description_ = ""};
+  for (auto& setting : hook_settings)
     sink << 1 << setting.first << setting.second.value_;
   sink << 0;
 }
