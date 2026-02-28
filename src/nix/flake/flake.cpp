@@ -317,7 +317,7 @@ static flake_t read_flake(eval_state_t& state, const flake_ref_t& original_ref,
             state
                 .error<TypeError>("list element in flake configuration setting '%s' is %s while a "
                                   "string is expected",
-                                  state.symbols[setting.name], show_type(*setting.value))
+                                  state.symbols[setting.name], show_type(*elem))
                 .debugThrow();
           ss.emplace_back(state.forceStringNoCtx(*elem, setting.pos, ""));
         }

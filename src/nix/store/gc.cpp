@@ -732,6 +732,9 @@ void LocalStore::collectGarbage(const GCOptions& options, GCResults& results) {
       /* Bail out if we've previously discovered that this path
          is alive. */
       if (alive.count(*path)) {
+        if (options.action == GCOptions::gcDeleteSpecific)
+          throw Error("Cannot delete path '%s' because it is still alive (relative to '%s').",
+                      printStorePath(start), printStorePath(*path));
         alive.insert(start);
         return;
       }
@@ -832,7 +835,11 @@ void LocalStore::collectGarbage(const GCOptions& options, GCResults& results) {
   if (options.action == GCOptions::gcDeleteSpecific) {
     for (auto& i : options.pathsToDelete) {
       deleteReferrersClosure(i);
-      assert(dead.count(i));
+      /* deleteReferrersClosure should throw if the path cannot be deleted.
+         This check serves as a defensive guard against logic errors. */
+      if (!dead.count(i)) {
+        throw Error("Cannot delete path '%s' because it is still alive", printStorePath(i));
+      }
     }
 
   } else if (options.maxFreed > 0) {

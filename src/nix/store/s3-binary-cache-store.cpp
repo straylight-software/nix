@@ -321,8 +321,15 @@ void s3_binary_cache_store_t::abort_multipart_upload(std::string_view key,
     req.method = HttpMethod::Delete;
 
     get_file_transfer()->enqueueFileTransfer(req).get();
+  } catch (Error& e) {
+    warn("failed to abort S3 multipart upload for '%s' (upload ID: %s): %s", key, upload_id,
+         e.info().msg_);
+  } catch (std::exception& e) {
+    warn("failed to abort S3 multipart upload for '%s' (upload ID: %s): %s", key, upload_id,
+         e.what());
   } catch (...) {
-    ignore_exception_in_destructor();
+    warn("failed to abort S3 multipart upload for '%s' (upload ID: %s): unknown error", key,
+         upload_id);
   }
 }
 

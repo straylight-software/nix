@@ -420,7 +420,7 @@ auto_close_fd_t LocalStore::openGCLock() {
 #endif
                        ,
                        0600);
-  if (!fdGCLock)
+  if (fdGCLock == -1)
     throw sys_error_t("opening global GC lock '%1%'", fnGCLock);
   return to_descriptor(fdGCLock);
 }
@@ -1520,6 +1520,9 @@ void LocalStore::addSignatures(const store_path_t& store_path, const string_set_
 
     auto info =
         std::const_pointer_cast<valid_path_info_t>(queryPathInfoInternal(*state, store_path));
+
+    if (!info)
+      throw InvalidPath("path '%s' is not valid", printStorePath(store_path));
 
     info->sigs.insert(sigs.begin(), sigs.end());
 

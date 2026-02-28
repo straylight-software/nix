@@ -385,11 +385,43 @@ void binary_cache_store::nar_from_path(const store_path_t& store_path, sink_t& s
 
   uint64_t nar_size = 0;
 
+  // Compute hash of decompressed NAR for validation
+  hash_sink_t nar_hash_sink{info->nar_hash.algo()};
+
+  // Track whether validation has been done (to handle both sync and coroutine paths)
+  bool validated = false;
+
+  auto validate = [&]() {
+    if (validated)
+      return;
+    validated = true;
+
+    auto [computed_hash, computed_size] = nar_hash_sink.finish();
+
+    if (computed_hash != info->nar_hash)
+      throw Error("hash mismatch in NAR fetched from binary cache for path '%s';\n  expected: %s\n "
+                  " got:      %s",
+                  printStorePath(store_path), info->nar_hash.to_string(hash_format_t::nix32, true),
+                  computed_hash.to_string(hash_format_t::nix32, true));
+
+    if (info->nar_size && computed_size != info->nar_size)
+      throw Error("size mismatch in NAR fetched from binary cache for path '%s';\n  expected: %d\n "
+                  " got:      %d",
+                  printStorePath(store_path), info->nar_size, computed_size);
+  };
+
   lambda_sink_t uncompressedSink{[&](std::string_view data) {
                                    nar_size += data.size();
+                                   nar_hash_sink(data);
                                    sink(data);
                                  },
                                  [&]() {
+                                   // Validate hash before recording stats. In coroutine path,
+                                   // this runs in destructor - only validate if no exception
+                                   // is already unwinding to avoid std::terminate
+                                   if (!std::uncaught_exceptions()) {
+                                     validate();
+                                   }
                                    stats.narRead++;
                                    // stats.narReadCompressedBytes += nar->size(); // FIXME
                                    stats.narReadBytes += nar_size;
@@ -405,7 +437,8 @@ void binary_cache_store::nar_from_path(const store_path_t& store_path, sink_t& s
 
   decompressor->finish();
 
-  // Note: don't do anything here because it's never reached if we're called as a coroutine.
+  // For synchronous calls, validate here (coroutine calls will validate in cleanup)
+  validate();
 }
 
 void binary_cache_store::query_path_info_uncached(

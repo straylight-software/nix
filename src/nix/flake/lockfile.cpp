@@ -152,8 +152,14 @@ lock_file_t::lock_file_t(const fetchers::settings_t& fetch_settings, std::string
     }
   }();
   auto version = json.value("version", 0);
-  if (version < 5 || version > 7)
+  constexpr int max_supported_version = 7;
+  if (version < 5)
     throw Error("lock file '%s' has unsupported version %d", path, version);
+  if (version > max_supported_version)
+    throw Error(
+        "lock file '%s' requires a newer version of Nix (lock file version %d, supported: %d). "
+        "Please upgrade your Nix installation.",
+        path, version, max_supported_version);
 
   std::string rootKey = json["root"];
   std::map<std::string, ref<Node>> nodeMap{{rootKey, root}};
@@ -404,7 +410,9 @@ void lock_file_t::check() {
 
   for (auto& [inputAttrPath, input] : inputs) {
     if (auto follows = std::get_if<1>(&input)) {
-      if (!follows->empty() && !findInput(*follows))
+      if (follows->empty())
+        throw Error("input '%s' has an empty follows path", print_input_attr_path(inputAttrPath));
+      if (!findInput(*follows))
         throw Error("input '%s' follows a non-existent input '%s'",
                     print_input_attr_path(inputAttrPath), print_input_attr_path(*follows));
     }
