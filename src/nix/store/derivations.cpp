@@ -1038,9 +1038,21 @@ void write_derivation(sink_t& out, const store_dir_config_t& store, const basic_
 }
 
 std::string hash_placeholder(const OutputNameView output_name) {
-  // FIXME: memoize?
-  return "/" + hash_string(hash_algorithm_t::SHA256, concat_strings("nix-output:", output_name))
-                   .to_string(hash_format_t::nix32, false);
+  using cache_t =
+      boost::concurrent_flat_map<std::string, std::string, string_view_hash_t, std::equal_to<>>;
+  static cache_t cache;
+
+  std::optional<std::string> cached;
+  cache.cvisit(output_name, [&](const auto& entry) { cached = entry.second; });
+  if (cached)
+    return *cached;
+
+  auto result =
+      "/" + hash_string(hash_algorithm_t::SHA256, concat_strings("nix-output:", output_name))
+                .to_string(hash_format_t::nix32, false);
+
+  cache.emplace(std::string(output_name), result);
+  return result;
 }
 
 void basic_derivation_t::applyRewrites(const string_map_t& rewrites) {

@@ -95,6 +95,11 @@ void LocalStore::addTempRoot(const store_path_t& path) {
       *fdGCLock = openGCLock();
   }
 
+  /* Retry limit to prevent infinite loop if GC is perpetually restarting. */
+  constexpr int maxRetries = 10;
+  constexpr int initialBackoffMs = 100;
+  int retryCount = 0;
+
 restart:
   /* Try to acquire a shared global GC lock (non-blocking). This
      only succeeds if the garbage collector is not currently
@@ -119,7 +124,12 @@ restart:
         if (e.err_no() == ECONNREFUSED || e.err_no() == ENOENT) {
           debug("GC socket connection refused: %s", e.msg());
           fdRootsSocket->close();
-          std::this_thread::sleep_for(std::chrono::milliseconds(100));
+          if (++retryCount > maxRetries) {
+            throw Error("failed to connect to GC socket after %d retries: %s", maxRetries, e.msg());
+          }
+          int backoffMs = initialBackoffMs * (1 << std::min(retryCount - 1, 6));
+          debug("GC socket retry %d/%d, backing off %dms", retryCount, maxRetries, backoffMs);
+          std::this_thread::sleep_for(std::chrono::milliseconds(backoffMs));
           goto restart;
         }
         throw;
@@ -139,12 +149,24 @@ restart:
       if (e.err_no() == EPIPE || e.err_no() == ECONNRESET) {
         debug("GC socket disconnected");
         fdRootsSocket->close();
+        if (++retryCount > maxRetries) {
+          throw Error("GC socket disconnected after %d retries", maxRetries);
+        }
+        int backoffMs = initialBackoffMs * (1 << std::min(retryCount - 1, 6));
+        debug("GC socket retry %d/%d, backing off %dms", retryCount, maxRetries, backoffMs);
+        std::this_thread::sleep_for(std::chrono::milliseconds(backoffMs));
         goto restart;
       }
       throw;
     } catch (EndOfFile& e) {
       debug("GC socket disconnected");
       fdRootsSocket->close();
+      if (++retryCount > maxRetries) {
+        throw Error("GC socket disconnected (EOF) after %d retries", maxRetries);
+      }
+      int backoffMs = initialBackoffMs * (1 << std::min(retryCount - 1, 6));
+      debug("GC socket retry %d/%d, backing off %dms", retryCount, maxRetries, backoffMs);
+      std::this_thread::sleep_for(std::chrono::milliseconds(backoffMs));
       goto restart;
     }
   }

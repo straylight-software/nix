@@ -219,14 +219,25 @@ Goal::Co DerivationGoal::haveDerivation(bool storeDerivation) {
         status = build_result_t::Success::ResolvesToAlreadyValid;
 
       co_return doneSuccess(status, std::move(realisation));
-    } else if (resolvedResult.tryGetFailure()) {
+    } else if (auto* failureP = resolvedResult.tryGetFailure()) {
       co_return doneFailure({
           build_result_t::Failure::DependencyFailed,
-          "build of resolved derivation '%s' failed",
+          "build of resolved derivation '%s' failed: %s",
+          worker.store.printStorePath(pathResolved),
+          failureP->errorMsg.empty() ? build_result_t::Failure::status_to_string(failureP->status)
+                                     : failureP->errorMsg,
+      });
+    } else {
+      /* This case theoretically shouldn't happen since build_result_t::inner is
+         std::variant<Success, Failure>, but it can occur if the variant is in
+         a valueless_by_exception state or due to coroutine-related issues.
+         Treat it as a failure rather than crashing the daemon. */
+      co_return doneFailure({
+          build_result_t::Failure::MiscFailure,
+          "build of resolved derivation '%s' completed in an unexpected state",
           worker.store.printStorePath(pathResolved),
       });
-    } else
-      assert(false);
+    }
   }
 
   /* Give up on substitution for the output we want, actually build this derivation */

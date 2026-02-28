@@ -10,6 +10,7 @@
 #include <git2/blob.h>
 #include <git2/branch.h>
 #include <git2/commit.h>
+#include <git2/common.h>
 #include <git2/config.h>
 #include <git2/describe.h>
 #include <git2/errors.h>
@@ -102,6 +103,18 @@ static void init_lib_git2() {
   std::call_once(initialized, []() {
     if (git_libgit2_init() < 0)
       throw Error("initialising libgit2: %s", git_error_last()->message);
+
+    // Add support for the reftable ref storage format extension.
+    // Git 2.45+ can use reftable as the default ref format, which stores refs
+    // in a more efficient binary format instead of loose files/packed-refs.
+    // libgit2 doesn't natively support reftable, but we can tell it to accept
+    // the extension so that repos using reftable can be opened successfully.
+    // Note: This doesn't add full reftable functionality - libgit2 will
+    // fall back to its default ref handling, which works for read-only
+    // operations on the object database.
+    const char* extensions[] = {"refstorage"};
+    if (git_libgit2_opts(GIT_OPT_SET_EXTENSIONS, extensions, 1) < 0)
+      throw Error("setting libgit2 extensions: %s", git_error_last()->message);
   });
 }
 

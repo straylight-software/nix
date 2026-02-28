@@ -633,15 +633,45 @@ LockedFlake lock_flake(const settings_t& settings, eval_state_t& state, const fl
                                                   .is_flake = (*locked_node)->is_flake,
                                               });
                 } else if (auto follows = std::get_if<1>(&i.second)) {
-                  if (!trustLock) {
-                    // It is possible that the flake has changed,
-                    // so we must confirm all the follows that are in the lock file are also in the
-                    // flake.
-                    auto overridePath(inputAttrPath);
-                    overridePath.push_back(i.first);
-                    auto o = overrides.find(overridePath);
+                  auto overridePath(inputAttrPath);
+                  overridePath.push_back(i.first);
+                  auto o = overrides.find(overridePath);
+
+                  // Check if this follows declaration is still valid.
+                  // A follows can come from two sources:
+                  // 1. The nested flake's own flake.nix (internal follows)
+                  // 2. An ancestor's flake.nix as an override
+                  //
+                  // When trustLock=false, we've just fetched this flake, so any follows
+                  // should be in overrides (from the flake we just parsed).
+                  //
+                  // When trustLock=true, we haven't fetched this flake. Internal follows
+                  // can be trusted, but ancestor overrides may have been removed.
+                  // We detect ancestor overrides by checking if the follows target
+                  // points outside the current followsPrefix scope.
+                  auto absoluteFollows(followsPrefix);
+                  absoluteFollows.insert(absoluteFollows.end(), follows->begin(), follows->end());
+
+                  bool followsIsAncestorOverride = false;
+                  if (trustLock && o == overrides.end()) {
+                    // The follows is not in overrides. Check if it points outside
+                    // the current scope (followsPrefix), which would indicate it
+                    // must have been an ancestor override.
+                    // A follows that points to followsPrefix or below could be from
+                    // the nested flake's own flake.nix.
+                    if (absoluteFollows.size() < followsPrefix.size() ||
+                        !std::equal(followsPrefix.begin(), followsPrefix.end(),
+                                    absoluteFollows.begin())) {
+                      // The follows target is outside or diverges from followsPrefix,
+                      // so it must have been an ancestor override that was removed.
+                      followsIsAncestorOverride = true;
+                    }
+                  }
+
+                  if (!trustLock || followsIsAncestorOverride) {
+                    // We must confirm follows in the lock file are still valid.
                     // If the override disappeared, we have to refetch the flake,
-                    // since some of the inputs may not be present in the lock file.
+                    // since the follows may have changed.
                     if (o == overrides.end()) {
                       mustRefetch = true;
                       // There's no point populating the rest of the fake inputs,
@@ -649,8 +679,7 @@ LockedFlake lock_flake(const settings_t& settings, eval_state_t& state, const fl
                       break;
                     }
                   }
-                  auto absoluteFollows(followsPrefix);
-                  absoluteFollows.insert(absoluteFollows.end(), follows->begin(), follows->end());
+
                   fakeInputs.emplace(i.first, FlakeInput{
                                                   .follows = absoluteFollows,
                                               });

@@ -215,7 +215,7 @@ LocalStore::LocalStore(ref<const config_t> config)
 #if HAVE_POSIX_FALLOCATE
       res = posix_fallocate(fd.get(), 0, settings.reservedSize);
 #endif
-      if (res == -1) {
+      if (res != 0) {
         write_full(fd.get(), std::string(settings.reservedSize, 'X'));
         [[gnu::unused]] auto res2 =
 
@@ -294,34 +294,41 @@ LocalStore::LocalStore(ref<const config_t> config)
        have performed the upgrade already. */
     curSchema = getSchema();
 
-    openDB(*state, false);
+    if (curSchema >= nixSchemaVersion) {
+      /* Another process completed the migration while we were waiting
+         for the write lock. Downgrade to read lock and skip migration. */
+      lock_file(globalLock.get(), ltRead, true);
+      openDB(*state, false);
+    } else {
+      openDB(*state, false);
 
-    /* Legacy database schema migrations. Don't bump 'schema' for
-       new migrations; instead, add a migration to
-       upgradeDBSchema(). */
+      /* Legacy database schema migrations. Don't bump 'schema' for
+         new migrations; instead, add a migration to
+         upgradeDBSchema(). */
 
-    if (curSchema < 8) {
-      SQLiteTxn txn(state->db);
-      state->db.exec("alter table ValidPaths add column ultimate integer");
-      state->db.exec("alter table ValidPaths add column sigs text");
-      txn.commit();
+      if (curSchema < 8) {
+        SQLiteTxn txn(state->db);
+        state->db.exec("alter table ValidPaths add column ultimate integer");
+        state->db.exec("alter table ValidPaths add column sigs text");
+        txn.commit();
+      }
+
+      if (curSchema < 9) {
+        SQLiteTxn txn(state->db);
+        state->db.exec("drop table FailedPaths");
+        txn.commit();
+      }
+
+      if (curSchema < 10) {
+        SQLiteTxn txn(state->db);
+        state->db.exec("alter table ValidPaths add column ca text");
+        txn.commit();
+      }
+
+      write_file(schemaPath, fmt("%1%", nixSchemaVersion), 0666, fs_sync_t::yes);
+
+      lock_file(globalLock.get(), ltRead, true);
     }
-
-    if (curSchema < 9) {
-      SQLiteTxn txn(state->db);
-      state->db.exec("drop table FailedPaths");
-      txn.commit();
-    }
-
-    if (curSchema < 10) {
-      SQLiteTxn txn(state->db);
-      state->db.exec("alter table ValidPaths add column ca text");
-      txn.commit();
-    }
-
-    write_file(schemaPath, fmt("%1%", nixSchemaVersion), 0666, fs_sync_t::yes);
-
-    lock_file(globalLock.get(), ltRead, true);
   }
 
   else

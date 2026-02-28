@@ -103,21 +103,28 @@ static std::shared_ptr<Node> do_find(const ref<Node>& root, const InputAttrPath&
                                      std::vector<InputAttrPath>& visited) {
   auto pos = root;
 
-  auto found = std::find(visited.cbegin(), visited.cend(), path);
-
-  if (found != visited.end()) {
-    std::vector<std::string> cycle;
-    std::transform(found, visited.cend(), std::back_inserter(cycle), print_input_attr_path);
-    cycle.push_back(print_input_attr_path(path));
-    throw Error("follow cycle detected: [%s]", concat_strings_sep(" -> ", cycle));
-  }
-  visited.push_back(path);
+  // Track the current traversal position (prefix of path processed so far)
+  InputAttrPath currentPath;
 
   for (auto& elem : path) {
+    currentPath.push_back(elem);
+
     if (auto i = get(pos->inputs, elem)) {
       if (auto node = std::get_if<0>(&*i))
         pos = *node;
       else if (auto follows = std::get_if<1>(&*i)) {
+        // Check for cycle: the followed path should not already be in visited
+        auto found = std::find(visited.cbegin(), visited.cend(), *follows);
+        if (found != visited.end()) {
+          std::vector<std::string> cycle;
+          std::transform(found, visited.cend(), std::back_inserter(cycle), print_input_attr_path);
+          cycle.push_back(print_input_attr_path(*follows));
+          throw Error("follow cycle detected: [%s]", concat_strings_sep(" -> ", cycle));
+        }
+
+        // Add the current path to visited before recursing, to track this edge
+        visited.push_back(currentPath);
+
         if (auto p = do_find(root, *follows, visited))
           pos = ref(p);
         else
