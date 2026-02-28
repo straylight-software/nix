@@ -180,6 +180,9 @@ struct curl_file_transfer_t : public FileTransfer {
     std::exception_ptr callback_exception;
 
     size_t write_callback(void* contents, size_t size, size_t nmemb) noexcept try {
+      // Check for multiplication overflow before computing real_size
+      if (size != 0 && nmemb > SIZE_MAX / size)
+        throw nix::Error("file transfer size overflow");
       size_t real_size = size * nmemb;
       result.bodySize += real_size;
 

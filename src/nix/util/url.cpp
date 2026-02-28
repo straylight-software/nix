@@ -340,17 +340,19 @@ std::string parsed_url_t::render_path(bool encode) const {
 
 std::string parsed_url_t::render_authority_and_path() const {
   std::string res;
-  /* The following assertions correspond to 3.3. Path [rfc3986]. URL parser
-     will never violate these properties, but hand-constructed ParsedURLs might. */
+  /* The following checks correspond to 3.3. Path [rfc3986]. URL parser
+     will never violate these properties, but hand-constructed ParsedURLs might.
+     Instead of asserting, throw a descriptive error (NixOS/nix#14867). */
   if (authority_.has_value()) {
     /* If a URI contains an authority component, then the path component
        must either be empty or begin with a slash ("/") character. */
-    assert(path_.empty() || path_.front().empty());
+    if (!(path_.empty() || path_.front().empty()))
+      throw Error("invalid URL: path must be empty or start with '/' when authority is present");
     res += authority_->to_string();
   } else if (std::ranges::equal(std::views::take(path_, 3), std::views::repeat("", 3))) {
     /* If a URI does not contain an authority component, then the path cannot begin
        with two slash characters ("//") */
-    unreachable();
+    throw Error("invalid URL: path cannot start with '//' without an authority component");
   }
   res += encode_url_path(path_);
   return res;

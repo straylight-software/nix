@@ -148,7 +148,7 @@ auto evaluator::eval_file_raw(const std::filesystem::path& path)
     });
   }
 
-  std::string source(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
+  std::string source((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
 
   // Set the import base path for relative imports
   if constexpr (runtime::has_io()) {

@@ -19,6 +19,12 @@
 
 namespace ast = straylight::nix::compiler::ast;
 
+using ast::expression_identifier;
+using ast::expression_integer;
+using ast::expression_node;
+using ast::expression_string;
+using ast::expression_variant;
+
 // =============================================================================
 // symbol_table tests
 // =============================================================================

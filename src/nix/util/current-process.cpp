@@ -4,6 +4,7 @@
 #include <cstring>
 
 #include <math.h>
+#include <sys/stat.h>
 
 #include "nix/util/environment-variables.h"
 #include "nix/util/file-system.h"
@@ -64,6 +65,21 @@ unsigned int get_max_cpu() {
 
 #ifndef _WIN32
 size_t saved_stack_size = 0;
+static mode_t saved_umask = 0;
+static bool saved_umask_valid = false;
+
+void save_umask() {
+  // Get current umask by setting and restoring (there's no way to just read it)
+  saved_umask = ::umask(0);
+  ::umask(saved_umask);
+  saved_umask_valid = true;
+}
+
+void restore_umask() {
+  if (saved_umask_valid) {
+    ::umask(saved_umask);
+  }
+}
 
 void set_stack_size(size_t stack_size) {
   struct rlimit limit;
@@ -96,6 +112,10 @@ void set_stack_size(size_t stack_size) {
 void restore_process_context(bool restore_mounts) {
 #ifndef _WIN32
   unix::restore_signals();
+  // Restore the original umask (NixOS/nix#15306)
+  // nix sets umask(0022) for store operations, but we should restore the
+  // user's original umask when spawning user processes like nix-shell/develop
+  restore_umask();
 #endif
   if (restore_mounts) {
 #ifdef __linux__

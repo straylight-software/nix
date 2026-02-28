@@ -26,6 +26,15 @@ namespace parse = straylight::nix::compiler::parse;
 namespace compile = straylight::nix::compiler::compile;
 namespace runtime = straylight::nix::compiler::runtime;
 
+namespace constants = runtime::constants;
+using runtime::heap_allocator;
+using runtime::make_int;
+using runtime::rt_add;
+using runtime::rt_eq;
+using runtime::rt_not;
+using runtime::runtime_context;
+using runtime::wasm_executor;
+
 // =============================================================================
 // Parsing benchmarks
 // =============================================================================

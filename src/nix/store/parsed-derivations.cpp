@@ -168,6 +168,11 @@ std::string StructuredAttrs::writeShell(const nlohmann::json::object_t& json) {
       bool good = true;
 
       for (auto& [key2, value2] : value.items()) {
+        // Skip empty string keys - bash doesn't support them in associative arrays
+        // (NixOS/nix#14765). An alternative would be to throw an error, but silently
+        // skipping preserves backward compatibility for derivations that happen to work.
+        if (key2.empty())
+          continue;
         auto s3 = handleSimpleType(value2);
         if (!s3) {
           good = false;

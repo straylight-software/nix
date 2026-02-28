@@ -31,6 +31,18 @@ namespace parse = straylight::nix::compiler::parse;
 namespace compile = straylight::nix::compiler::compile;
 namespace runtime = straylight::nix::compiler::runtime;
 
+using runtime::get_bool_value;
+using runtime::get_int_value;
+using runtime::is_attrset;
+using runtime::is_bool;
+using runtime::is_int;
+using runtime::is_lambda;
+using runtime::is_list;
+using runtime::is_null;
+using runtime::is_string;
+using runtime::nix_value;
+using runtime::wasm_executor;
+
 // =============================================================================
 // Helpers
 // =============================================================================

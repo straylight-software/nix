@@ -13,6 +13,20 @@
 
 #include "nix/util/url.h"
 
+using nix::BadURL;
+using nix::decode_query;
+using nix::encode_query;
+using nix::fix_git_url;
+using nix::is_valid_scheme_name;
+using nix::parse_url;
+using nix::parse_url_relative;
+using nix::parse_url_scheme;
+using nix::parsed_url_t;
+using nix::percent_decode;
+using nix::percent_encode;
+using nix::render_url_path_ensure_legal;
+using nix::string_map_t;
+using nix::verbatim_url_t;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // parseURL basic tests

@@ -26,6 +26,27 @@
 #include "nix/store/worker-protocol.h"
 #include "nix/util/logging.h"
 
+// Namespace alias to avoid conflict with POSIX daemon() function
+namespace nix_daemon = nix::daemon;
+
+using nix::bmCheck;
+using nix::bmNormal;
+using nix::bmRepair;
+using nix::logger_t;
+using nix::lvl_chatty;
+using nix::lvl_debug;
+using nix::lvl_error;
+using nix::lvl_info;
+using nix::lvl_notice;
+using nix::lvl_talkative;
+using nix::lvl_vomit;
+using nix::lvl_warn;
+using nix::NotTrusted;
+using nix::ServeProto;
+using nix::Trusted;
+using nix::verbosity_t;
+using nix::WorkerProto;
+
 // =============================================================================
 // nix-daemon command registration
 // =============================================================================
@@ -190,46 +211,45 @@ TEST_CASE("Worker protocol constants are defined for daemon communication",
   SECTION("WORKER_MAGIC_1 is the client greeting") {
     // Client sends this first to identify itself as a Nix client
     // The value 0x6e697863 spells "nixc" in ASCII (little-endian)
-    REQUIRE(nix::WORKER_MAGIC_1 == 0x6e697863);
+    REQUIRE(WORKER_MAGIC_1 == 0x6e697863);
   }
 
   SECTION("WORKER_MAGIC_2 is the daemon response") {
     // Daemon responds with this to acknowledge a valid connection
     // The value 0x6478696f spells "dxio" in ASCII (little-endian)
-    REQUIRE(nix::WORKER_MAGIC_2 == 0x6478696f);
+    REQUIRE(WORKER_MAGIC_2 == 0x6478696f);
   }
 
   SECTION("Worker magic values are distinct") {
-    REQUIRE(nix::WORKER_MAGIC_1 != nix::WORKER_MAGIC_2);
+    REQUIRE(WORKER_MAGIC_1 != WORKER_MAGIC_2);
   }
 
   SECTION("Protocol version is defined") {
     // Protocol version uses major.minor encoding: (major << 8) | minor
-    REQUIRE(nix::GET_PROTOCOL_MAJOR(nix::PROTOCOL_VERSION) == 0x100); // major = 1
-    REQUIRE(nix::GET_PROTOCOL_MINOR(nix::PROTOCOL_VERSION) == 38);    // minor = 38
+    REQUIRE(GET_PROTOCOL_MAJOR(PROTOCOL_VERSION) == 0x100); // major = 1
+    REQUIRE(GET_PROTOCOL_MINOR(PROTOCOL_VERSION) == 38);    // minor = 38
   }
 
   SECTION("Protocol version encoding is correct") {
     // Verify the encoding formula: (major << 8) | minor
     unsigned int test_version = (1 << 8) | 38;
-    REQUIRE(test_version == nix::PROTOCOL_VERSION);
-    REQUIRE(nix::GET_PROTOCOL_MAJOR(test_version) == 0x100);
-    REQUIRE(nix::GET_PROTOCOL_MINOR(test_version) == 38);
+    REQUIRE(test_version == PROTOCOL_VERSION);
+    REQUIRE(GET_PROTOCOL_MAJOR(test_version) == 0x100);
+    REQUIRE(GET_PROTOCOL_MINOR(test_version) == 38);
   }
 
   SECTION("Minimum protocol version is defined") {
     // Clients below this version are rejected
-    REQUIRE(nix::GET_PROTOCOL_MAJOR(nix::MINIMUM_PROTOCOL_VERSION) == 0x100); // major = 1
-    REQUIRE(nix::GET_PROTOCOL_MINOR(nix::MINIMUM_PROTOCOL_VERSION) == 18);    // minor = 18
+    REQUIRE(GET_PROTOCOL_MAJOR(MINIMUM_PROTOCOL_VERSION) == 0x100); // major = 1
+    REQUIRE(GET_PROTOCOL_MINOR(MINIMUM_PROTOCOL_VERSION) == 18);    // minor = 18
   }
 
   SECTION("Current protocol version is greater than minimum") {
-    REQUIRE(nix::PROTOCOL_VERSION >= nix::MINIMUM_PROTOCOL_VERSION);
+    REQUIRE(PROTOCOL_VERSION >= MINIMUM_PROTOCOL_VERSION);
   }
 
   SECTION("Protocol major versions match between current and minimum") {
-    REQUIRE(nix::GET_PROTOCOL_MAJOR(nix::PROTOCOL_VERSION) ==
-            nix::GET_PROTOCOL_MAJOR(nix::MINIMUM_PROTOCOL_VERSION));
+    REQUIRE(GET_PROTOCOL_MAJOR(PROTOCOL_VERSION) == GET_PROTOCOL_MAJOR(MINIMUM_PROTOCOL_VERSION));
   }
 }
 
@@ -341,63 +361,63 @@ TEST_CASE("Stderr protocol constants are defined for daemon logging",
   INFO("TunnelLogger uses these constants to multiplex logging over the protocol");
 
   SECTION("Log message markers are defined") {
-    REQUIRE(nix::STDERR_NEXT == 0x6f6c6d67);  // More log messages follow
-    REQUIRE(nix::STDERR_LAST == 0x616c7473);  // Operation completed successfully
-    REQUIRE(nix::STDERR_ERROR == 0x63787470); // Operation failed with error
+    REQUIRE(STDERR_NEXT == 0x6f6c6d67);  // More log messages follow
+    REQUIRE(STDERR_LAST == 0x616c7473);  // Operation completed successfully
+    REQUIRE(STDERR_ERROR == 0x63787470); // Operation failed with error
   }
 
   SECTION("All stderr markers have distinct values") {
-    REQUIRE(nix::STDERR_NEXT != nix::STDERR_LAST);
-    REQUIRE(nix::STDERR_NEXT != nix::STDERR_ERROR);
-    REQUIRE(nix::STDERR_LAST != nix::STDERR_ERROR);
+    REQUIRE(STDERR_NEXT != STDERR_LAST);
+    REQUIRE(STDERR_NEXT != STDERR_ERROR);
+    REQUIRE(STDERR_LAST != STDERR_ERROR);
   }
 
   SECTION("Activity markers are defined for progress reporting") {
-    REQUIRE(nix::STDERR_START_ACTIVITY == 0x53545254); // "STRT"
-    REQUIRE(nix::STDERR_STOP_ACTIVITY == 0x53544f50);  // "STOP"
-    REQUIRE(nix::STDERR_RESULT == 0x52534c54);         // "RSLT"
+    REQUIRE(STDERR_START_ACTIVITY == 0x53545254); // "STRT"
+    REQUIRE(STDERR_STOP_ACTIVITY == 0x53544f50);  // "STOP"
+    REQUIRE(STDERR_RESULT == 0x52534c54);         // "RSLT"
   }
 
   SECTION("Activity markers are distinct from log markers") {
-    REQUIRE(nix::STDERR_START_ACTIVITY != nix::STDERR_NEXT);
-    REQUIRE(nix::STDERR_START_ACTIVITY != nix::STDERR_LAST);
-    REQUIRE(nix::STDERR_START_ACTIVITY != nix::STDERR_ERROR);
-    REQUIRE(nix::STDERR_STOP_ACTIVITY != nix::STDERR_NEXT);
-    REQUIRE(nix::STDERR_STOP_ACTIVITY != nix::STDERR_LAST);
-    REQUIRE(nix::STDERR_STOP_ACTIVITY != nix::STDERR_ERROR);
-    REQUIRE(nix::STDERR_RESULT != nix::STDERR_NEXT);
-    REQUIRE(nix::STDERR_RESULT != nix::STDERR_LAST);
-    REQUIRE(nix::STDERR_RESULT != nix::STDERR_ERROR);
+    REQUIRE(STDERR_START_ACTIVITY != STDERR_NEXT);
+    REQUIRE(STDERR_START_ACTIVITY != STDERR_LAST);
+    REQUIRE(STDERR_START_ACTIVITY != STDERR_ERROR);
+    REQUIRE(STDERR_STOP_ACTIVITY != STDERR_NEXT);
+    REQUIRE(STDERR_STOP_ACTIVITY != STDERR_LAST);
+    REQUIRE(STDERR_STOP_ACTIVITY != STDERR_ERROR);
+    REQUIRE(STDERR_RESULT != STDERR_NEXT);
+    REQUIRE(STDERR_RESULT != STDERR_LAST);
+    REQUIRE(STDERR_RESULT != STDERR_ERROR);
   }
 
   SECTION("Activity start/stop markers are distinct") {
-    REQUIRE(nix::STDERR_START_ACTIVITY != nix::STDERR_STOP_ACTIVITY);
-    REQUIRE(nix::STDERR_START_ACTIVITY != nix::STDERR_RESULT);
-    REQUIRE(nix::STDERR_STOP_ACTIVITY != nix::STDERR_RESULT);
+    REQUIRE(STDERR_START_ACTIVITY != STDERR_STOP_ACTIVITY);
+    REQUIRE(STDERR_START_ACTIVITY != STDERR_RESULT);
+    REQUIRE(STDERR_STOP_ACTIVITY != STDERR_RESULT);
   }
 
   SECTION("Data transfer markers are defined") {
-    REQUIRE(nix::STDERR_READ == 0x64617461);  // Daemon needs data from client
-    REQUIRE(nix::STDERR_WRITE == 0x64617416); // Daemon sending data to client
+    REQUIRE(STDERR_READ == 0x64617461);  // Daemon needs data from client
+    REQUIRE(STDERR_WRITE == 0x64617416); // Daemon sending data to client
   }
 
   SECTION("Data transfer markers are distinct") {
-    REQUIRE(nix::STDERR_READ != nix::STDERR_WRITE);
-    REQUIRE(nix::STDERR_READ != nix::STDERR_NEXT);
-    REQUIRE(nix::STDERR_READ != nix::STDERR_LAST);
-    REQUIRE(nix::STDERR_WRITE != nix::STDERR_NEXT);
-    REQUIRE(nix::STDERR_WRITE != nix::STDERR_LAST);
+    REQUIRE(STDERR_READ != STDERR_WRITE);
+    REQUIRE(STDERR_READ != STDERR_NEXT);
+    REQUIRE(STDERR_READ != STDERR_LAST);
+    REQUIRE(STDERR_WRITE != STDERR_NEXT);
+    REQUIRE(STDERR_WRITE != STDERR_LAST);
   }
 
   SECTION("All protocol markers fit in 32-bit values") {
-    REQUIRE(nix::STDERR_NEXT <= 0xFFFFFFFF);
-    REQUIRE(nix::STDERR_LAST <= 0xFFFFFFFF);
-    REQUIRE(nix::STDERR_ERROR <= 0xFFFFFFFF);
-    REQUIRE(nix::STDERR_START_ACTIVITY <= 0xFFFFFFFF);
-    REQUIRE(nix::STDERR_STOP_ACTIVITY <= 0xFFFFFFFF);
-    REQUIRE(nix::STDERR_RESULT <= 0xFFFFFFFF);
-    REQUIRE(nix::STDERR_READ <= 0xFFFFFFFF);
-    REQUIRE(nix::STDERR_WRITE <= 0xFFFFFFFF);
+    REQUIRE(STDERR_NEXT <= 0xFFFFFFFF);
+    REQUIRE(STDERR_LAST <= 0xFFFFFFFF);
+    REQUIRE(STDERR_ERROR <= 0xFFFFFFFF);
+    REQUIRE(STDERR_START_ACTIVITY <= 0xFFFFFFFF);
+    REQUIRE(STDERR_STOP_ACTIVITY <= 0xFFFFFFFF);
+    REQUIRE(STDERR_RESULT <= 0xFFFFFFFF);
+    REQUIRE(STDERR_READ <= 0xFFFFFFFF);
+    REQUIRE(STDERR_WRITE <= 0xFFFFFFFF);
   }
 }
 
@@ -602,33 +622,33 @@ TEST_CASE("RecursiveFlag values for daemon connection processing",
   INFO("This is relevant for forwarding store operations through multiple daemons");
 
   SECTION("NotRecursive is the default for direct connections") {
-    REQUIRE(static_cast<bool>(daemon::NotRecursive) == false);
+    REQUIRE(static_cast<bool>(nix_daemon::NotRecursive) == false);
   }
 
   SECTION("Recursive allows nested daemon connections") {
-    REQUIRE(static_cast<bool>(daemon::Recursive) == true);
+    REQUIRE(static_cast<bool>(nix_daemon::Recursive) == true);
   }
 
   SECTION("RecursiveFlag is a boolean enum") {
-    daemon::RecursiveFlag not_recursive = daemon::NotRecursive;
-    daemon::RecursiveFlag recursive = daemon::Recursive;
+    nix_daemon::RecursiveFlag not_recursive = nix_daemon::NotRecursive;
+    nix_daemon::RecursiveFlag recursive = nix_daemon::Recursive;
     REQUIRE(not_recursive == false);
     REQUIRE(recursive == true);
   }
 
   SECTION("RecursiveFlag values are mutually exclusive") {
-    REQUIRE(daemon::Recursive != daemon::NotRecursive);
+    REQUIRE(nix_daemon::Recursive != nix_daemon::NotRecursive);
   }
 
   SECTION("stdio mode uses NotRecursive") {
     // Direct stdin/stdout connections are not recursive
-    daemon::RecursiveFlag stdio_mode = daemon::NotRecursive;
+    nix_daemon::RecursiveFlag stdio_mode = nix_daemon::NotRecursive;
     REQUIRE(stdio_mode == false);
   }
 
   SECTION("Recursive mode enables nested protocol handling") {
     // Recursive mode is used when the daemon itself connects to another daemon
-    daemon::RecursiveFlag forwarding_mode = daemon::Recursive;
+    nix_daemon::RecursiveFlag forwarding_mode = nix_daemon::Recursive;
     REQUIRE(forwarding_mode == true);
   }
 }
@@ -696,53 +716,53 @@ TEST_CASE("Connection state machine for daemon protocol", "[daemon][state][integ
 
   SECTION("Initial state expects WORKER_MAGIC_1 from client") {
     // Client sends WORKER_MAGIC_1 to initiate connection
-    REQUIRE(nix::WORKER_MAGIC_1 == 0x6e697863);
+    REQUIRE(WORKER_MAGIC_1 == 0x6e697863);
   }
 
   SECTION("After receiving client magic, daemon responds with WORKER_MAGIC_2") {
     // Daemon responds with WORKER_MAGIC_2 and protocol version
-    REQUIRE(nix::WORKER_MAGIC_2 == 0x6478696f);
+    REQUIRE(WORKER_MAGIC_2 == 0x6478696f);
   }
 
   SECTION("Version negotiation uses minimum of client and server versions") {
     // Both sides advertise their version
     // The negotiated version is the minimum
-    unsigned int client_version = nix::PROTOCOL_VERSION;
-    unsigned int server_version = nix::PROTOCOL_VERSION;
+    unsigned int client_version = PROTOCOL_VERSION;
+    unsigned int server_version = PROTOCOL_VERSION;
     unsigned int negotiated = std::min(client_version, server_version);
-    REQUIRE(negotiated == nix::PROTOCOL_VERSION);
+    REQUIRE(negotiated == PROTOCOL_VERSION);
   }
 
   SECTION("Connection must be above minimum protocol version") {
     // Connections with versions below MINIMUM_PROTOCOL_VERSION are rejected
-    REQUIRE(nix::MINIMUM_PROTOCOL_VERSION > 0);
-    REQUIRE(nix::PROTOCOL_VERSION >= nix::MINIMUM_PROTOCOL_VERSION);
+    REQUIRE(MINIMUM_PROTOCOL_VERSION > 0);
+    REQUIRE(PROTOCOL_VERSION >= MINIMUM_PROTOCOL_VERSION);
   }
 
   SECTION("Post-handshake exchanges client info") {
     // After protocol version negotiation, client info is exchanged
     // This includes trust level and daemon version
-    nix::WorkerProto::ClientHandshakeInfo info;
+    WorkerProto::ClientHandshakeInfo info;
     REQUIRE(!info.daemonNixVersion.has_value());
     REQUIRE(!info.remoteTrustsUs.has_value());
   }
 
   SECTION("Ready state processes operation requests") {
     // After handshake, daemon processes operation codes
-    REQUIRE(static_cast<uint64_t>(nix::WorkerProto::Op::IsValidPath) > 0);
+    REQUIRE(static_cast<uint64_t>(WorkerProto::Op::IsValidPath) > 0);
   }
 
   SECTION("Operations are processed until connection closes") {
     // The daemon continuously processes operations until:
     // - Client closes connection
     // - Error occurs
-    // - nix::STDERR_LAST signals completion
-    REQUIRE(nix::STDERR_LAST == 0x616c7473);
+    // - STDERR_LAST signals completion
+    REQUIRE(STDERR_LAST == 0x616c7473);
   }
 
   SECTION("STDERR_ERROR indicates operation failure") {
-    // Errors are signaled with nix::STDERR_ERROR
-    REQUIRE(nix::STDERR_ERROR == 0x63787470);
+    // Errors are signaled with STDERR_ERROR
+    REQUIRE(STDERR_ERROR == 0x63787470);
   }
 }
 

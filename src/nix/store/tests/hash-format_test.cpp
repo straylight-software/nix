@@ -26,14 +26,14 @@
 #include "nix/util/base-nix-32.h"
 #include "nix/util/hash.h"
 
-using nix::base16;
-using nix::base64;
+namespace base16 = nix::base16;
+namespace base64 = nix::base64;
+namespace hash_sizes = nix::hash_sizes;
 using nix::base_nix32_t;
 using nix::content_address_method_t;
 using nix::content_address_t;
 using nix::hash_algorithm_t;
 using nix::hash_format_t;
-using nix::hash_sizes;
 using nix::hash_string;
 using nix::hash_t;
 using nix::parse_hash_algo;

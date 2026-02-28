@@ -16,6 +16,7 @@
 
 #include "nix/util/canon-path.h"
 
+using nix::canon_path_t;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Construction tests

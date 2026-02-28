@@ -74,7 +74,17 @@ struct git_archive_input_scheme_t : input_scheme_t {
         ref = value;
       } else if (name == "host")
         host_url = value;
-      // FIXME: barf on unsupported attributes
+      else if (name == "narHash")
+        ; // handled below
+      else {
+        // Reject unknown attributes to catch typos like 'tag=' instead of 'ref='
+        // (NixOS/nix#15304)
+        auto& allowed = allowed_attrs();
+        if (allowed.find(name) == allowed.end())
+          throw BadURL("URL '%s' contains unsupported attribute '%s'. "
+                       "Did you mean 'ref' instead of 'tag'?",
+                       url, name);
+      }
     }
 
     Attrs attrs;

@@ -165,6 +165,11 @@ void init_nix(bool load_config) {
   detectStackOverflow();
 #endif
 
+  /* Save the user's original umask before we modify it, so we can
+     restore it when spawning user processes like nix-shell/develop.
+     (NixOS/nix#15306) */
+  save_umask();
+
   /* There is no privacy in the Nix system ;-)  At least not for
      now.  In particular, store objects should be readable by
      everybody. */

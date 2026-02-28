@@ -17,6 +17,26 @@
 #include "nix/util/experimental-features.h"
 #include "nix/util/hash.h"
 
+using nix::BadHash;
+using nix::compress_hash;
+using nix::Error;
+using nix::experimental_feature_settings_t;
+using nix::Hash;
+using nix::hash_algorithm_t;
+using nix::hash_algorithms;
+using nix::hash_format_t;
+using nix::hash_formats;
+using nix::hash_sink_t;
+using nix::hash_string;
+using nix::new_hash_allow_empty;
+using nix::parse_hash_algo;
+using nix::parse_hash_algo_opt;
+using nix::parse_hash_format;
+using nix::parse_hash_format_opt;
+using nix::print_hash_algo;
+using nix::print_hash_format;
+using nix::regular_hash_size;
+using nix::UsageError;
 
 // =============================================================================
 // Helper to enable BLAKE3 for tests
@@ -171,6 +191,118 @@ TEST_CASE("hash_string blake3", "[hash][string][blake3]") {
   REQUIRE(hex.size() == 64); // 32 bytes * 2
   // BLAKE3("hello") is deterministic
   REQUIRE(hex == "ea8f163db38682925e4491c5e58d4bb3506ef8c14eb78a86e908c5624a67200f");
+}
+
+// =============================================================================
+// SHA256 test vectors - verified against external implementations (sha256sum, openssl)
+// These are critical for validating SHA-NI implementation correctness
+// =============================================================================
+
+TEST_CASE("sha256 test vectors", "[hash][sha256][testvector]") {
+  // SHA256("test") = 9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08
+  // Verified with: echo -n "test" | sha256sum
+  SECTION("SHA256 of 'test'") {
+    auto hash = hash_string(hash_algorithm_t::SHA256, "test");
+    auto hex = hash.to_string(hash_format_t::base16, false);
+    REQUIRE(hex == "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08");
+  }
+
+  // SHA256("") = e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+  SECTION("SHA256 of empty string") {
+    auto hash = hash_string(hash_algorithm_t::SHA256, "");
+    auto hex = hash.to_string(hash_format_t::base16, false);
+    REQUIRE(hex == "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
+  }
+
+  // SHA256("hello") = 2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824
+  SECTION("SHA256 of 'hello'") {
+    auto hash = hash_string(hash_algorithm_t::SHA256, "hello");
+    auto hex = hash.to_string(hash_format_t::base16, false);
+    REQUIRE(hex == "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824");
+  }
+
+  // SHA256("The quick brown fox jumps over the lazy dog")
+  // = d7a8fbb307d7809469ca9abcb0082e4f8d5651e46d3cdb762d02d0bf37c9e592
+  SECTION("SHA256 of 'The quick brown fox jumps over the lazy dog'") {
+    auto hash = hash_string(hash_algorithm_t::SHA256, "The quick brown fox jumps over the lazy dog");
+    auto hex = hash.to_string(hash_format_t::base16, false);
+    REQUIRE(hex == "d7a8fbb307d7809469ca9abcb0082e4f8d5651e46d3cdb762d02d0bf37c9e592");
+  }
+
+  // SHA256 of a 64-byte message (exactly one block)
+  // Verified with: echo -n '0123456789012345678901234567890123456789012345678901234567890123' | sha256sum
+  SECTION("SHA256 of exactly one block (64 bytes)") {
+    std::string one_block = "0123456789012345678901234567890123456789012345678901234567890123";
+    REQUIRE(one_block.size() == 64);
+    auto hash = hash_string(hash_algorithm_t::SHA256, one_block);
+    auto hex = hash.to_string(hash_format_t::base16, false);
+    REQUIRE(hex == "9674d9e078535b7cec43284387a6ee39956188e735a85452b0050b55341cda56");
+  }
+
+  // SHA256 of a 65-byte message (just over one block, tests padding across blocks)
+  // Verified with: echo -n '01234567890123456789012345678901234567890123456789012345678901234' | sha256sum
+  SECTION("SHA256 of 65 bytes (padding across blocks)") {
+    std::string msg = "01234567890123456789012345678901234567890123456789012345678901234";
+    REQUIRE(msg.size() == 65);
+    auto hash = hash_string(hash_algorithm_t::SHA256, msg);
+    auto hex = hash.to_string(hash_format_t::base16, false);
+    REQUIRE(hex == "52774b57c10e45040a61c14d35c1c8ebefe880082313aa0a21ebb077734cd067");
+  }
+
+  // SHA256 of binary data with null bytes
+  SECTION("SHA256 of binary data with nulls") {
+    std::string binary("\x00\x01\x02\x03", 4);
+    auto hash = hash_string(hash_algorithm_t::SHA256, binary);
+    auto hex = hash.to_string(hash_format_t::base16, false);
+    // Verified with: printf '\x00\x01\x02\x03' | sha256sum
+    REQUIRE(hex == "054edec1d0211f624fed0cbca9d4f9400b0e491c43742af2c5b0abebf0c990d8");
+  }
+}
+
+TEST_CASE("sha256 incremental matches whole", "[hash][sha256][testvector]") {
+  // Verify incremental hashing produces same result as whole-string hashing
+  // This tests the SHA-NI update() function
+  SECTION("incremental 'test' matches whole") {
+    auto whole = hash_string(hash_algorithm_t::SHA256, "test");
+
+    hash_sink_t sink(hash_algorithm_t::SHA256);
+    sink("te");
+    sink("st");
+    auto incremental = sink.finish();
+
+    REQUIRE(whole == incremental.hash);
+    REQUIRE(incremental.hash.to_string(hash_format_t::base16, false) ==
+            "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08");
+  }
+
+  SECTION("incremental byte-by-byte matches whole") {
+    std::string msg = "The quick brown fox";
+    auto whole = hash_string(hash_algorithm_t::SHA256, msg);
+
+    hash_sink_t sink(hash_algorithm_t::SHA256);
+    for (char c : msg) {
+      sink(std::string_view(&c, 1));
+    }
+    auto incremental = sink.finish();
+
+    REQUIRE(whole == incremental.hash);
+  }
+
+  SECTION("incremental across block boundary") {
+    // 63 bytes + 1 byte = crosses the 64-byte block boundary
+    std::string part1(63, 'a');
+    std::string part2 = "b";
+    std::string whole_str = part1 + part2;
+
+    auto whole = hash_string(hash_algorithm_t::SHA256, whole_str);
+
+    hash_sink_t sink(hash_algorithm_t::SHA256);
+    sink(part1);
+    sink(part2);
+    auto incremental = sink.finish();
+
+    REQUIRE(whole == incremental.hash);
+  }
 }
 
 // =============================================================================

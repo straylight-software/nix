@@ -666,11 +666,11 @@
         "treefmt-nix": "treefmt-nix"
       },
       "locked": {
-        "lastModified": 1771544074,
-        "narHash": "sha256-jwUBwEuMg/TucNTa5v44g2t4YimElG22pO2bY+2apUo=",
+        "lastModified": 1772051893,
+        "narHash": "sha256-cO75+cl8rhayY49JPt6P3WGHUOJoz5F82cn2YFYrtK8=",
         "ref": "dev",
-        "rev": "a3b97a259f69f845c5a35a097f4ecdbe13022e50",
-        "revCount": 56,
+        "rev": "7bc4529859329dd114335f65ece2974baf043743",
+        "revCount": 59,
         "type": "git",
         "url": "ssh://git@github.com/straylight-software/sensenet"
       },

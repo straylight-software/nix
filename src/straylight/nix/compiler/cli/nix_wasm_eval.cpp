@@ -82,7 +82,7 @@ auto main(int argc, char* argv[]) -> int {
   }
 
   // Read from stdin
-  std::string source(std::istreambuf_iterator<char>(std::cin), std::istreambuf_iterator<char>());
+  std::string source((std::istreambuf_iterator<char>(std::cin)), std::istreambuf_iterator<char>());
 
   if (source.empty()) {
     std::cerr << "error: no expression provided\n";

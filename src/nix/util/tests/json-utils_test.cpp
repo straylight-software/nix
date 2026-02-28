@@ -25,6 +25,22 @@
 
 #include "nix/util/json-utils.h"
 
+using nix::Error;
+using nix::get_array;
+using nix::get_boolean;
+using nix::get_integer;
+using nix::get_nullable;
+using nix::get_object;
+using nix::get_string;
+using nix::get_string_list;
+using nix::get_string_map;
+using nix::get_string_set;
+using nix::get_unsigned;
+using nix::optional_value_at;
+using nix::string_map_t;
+using nix::string_set_t;
+using nix::strings_t;
+using nix::value_at;
 
 using json = nlohmann::json;
 

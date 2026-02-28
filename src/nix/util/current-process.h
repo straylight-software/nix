@@ -29,6 +29,17 @@ unsigned int get_max_cpu();
  * Change the stack size.
  */
 void set_stack_size(size_t stack_size);
+
+/**
+ * Save the current umask for later restoration.
+ * Should be called early in main() before any umask changes.
+ */
+void save_umask();
+
+/**
+ * Restore the saved umask. Called by restore_process_context().
+ */
+void restore_umask();
 #endif
 
 /**

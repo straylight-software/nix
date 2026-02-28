@@ -20,6 +20,33 @@
 
 #include "nix/util/serialise.h"
 
+using nix::buffered_sink_t;
+using nix::buffered_source_t;
+using nix::chain_source_t;
+using nix::EndOfFile;
+using nix::framed_sink_t;
+using nix::framed_source_t;
+using nix::lambda_sink_t;
+using nix::lambda_source_t;
+using nix::length_sink_t;
+using nix::length_source_t;
+using nix::null_sink_t;
+using nix::read_int;
+using nix::read_long_long;
+using nix::read_num;
+using nix::read_padding;
+using nix::read_string;
+using nix::read_strings;
+using nix::SerialisationError;
+using nix::sized_source_t;
+using nix::stream_to_source_adapter_t;
+using nix::string_set_t;
+using nix::string_sink_t;
+using nix::string_source_t;
+using nix::strings_t;
+using nix::tee_sink_t;
+using nix::tee_source_t;
+using nix::write_padding;
 
 // =============================================================================
 // StringSink / StringSource basic tests

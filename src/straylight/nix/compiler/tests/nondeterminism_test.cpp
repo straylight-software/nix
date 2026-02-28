@@ -30,7 +30,7 @@
 
 struct eval_result_t {
   bool success;
-  straylight::nix::compiler::compile::nix_value value;
+  straylight::nix::compiler::runtime::nix_value value;
   std::string error;
   std::string formatted;
 };

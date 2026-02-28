@@ -18,6 +18,25 @@
 #include "nix/util/strings.h"
 #include "nix/util/util.h"
 
+using nix::chomp;
+using nix::concat_map_strings_sep;
+using nix::concat_strings_sep;
+using nix::escape_shell_arg_always;
+using nix::get_line;
+using nix::has_prefix;
+using nix::has_suffix;
+using nix::optional_bracket;
+using nix::quote_string;
+using nix::replace_strings;
+using nix::shell_split_string;
+using nix::split_prefix;
+using nix::split_prefix_to;
+using nix::split_string;
+using nix::string_set_t;
+using nix::strip_indentation;
+using nix::to_lower;
+using nix::tokenize_string;
+using nix::trim;
 
 // =============================================================================
 // tokenizeString tests
