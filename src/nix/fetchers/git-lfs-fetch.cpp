@@ -7,6 +7,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include "nix/fetchers/fetch-settings.h"
 #include "nix/fetchers/git-utils.h"
 #include "nix/store/filetransfer.h"
 #include "nix/store/ssh.h"
@@ -50,6 +51,77 @@ struct lfs_api_info_t {
 
 } // namespace
 
+/**
+ * Look up an access token for a given host/path from the global fetch settings.
+ * Returns nullopt if no matching token is found.
+ */
+static std::optional<std::string> get_access_token_for_url(const parsed_url_t& url) {
+  if (!url.authority().has_value())
+    return std::nullopt;
+
+  auto host = url.authority()->host();
+  auto path = url.render_path(/*encode=*/false);
+  // Remove leading slash from path for matching
+  if (!path.empty() && path[0] == '/')
+    path = path.substr(1);
+  // Remove trailing .git for matching
+  if (has_suffix(path, ".git"))
+    path = path.substr(0, path.length() - 4);
+
+  auto host_and_path = host + "/" + path;
+
+  auto tokens = fetch_settings.accessTokens.get();
+
+  // Search for the longest possible match starting from the beginning
+  std::string answer;
+  size_t answer_match_len = 0;
+  if (!host_and_path.empty()) {
+    for (auto& token : tokens) {
+      auto first = host_and_path.find(token.first);
+      if (first != std::string::npos && token.first.length() > answer_match_len && first == 0 &&
+          host_and_path.substr(0, token.first.length()) == token.first &&
+          (host_and_path.length() == token.first.length() ||
+           host_and_path[token.first.length()] == '/')) {
+        answer = token.second;
+        answer_match_len = token.first.length();
+      }
+    }
+    if (!answer.empty())
+      return answer;
+  }
+
+  // Fall back to host-only match
+  if (auto token = get(tokens, host))
+    return *token;
+
+  return std::nullopt;
+}
+
+/**
+ * Convert an access token to an Authorization header value.
+ * GitHub tokens use "token <value>" format.
+ */
+static std::optional<std::string> make_auth_header_from_token(const std::string& token,
+                                                              const std::string& host) {
+  // GitHub uses "token <value>" format for PATs and OAuth tokens
+  if (host == "github.com" || has_suffix(host, ".github.com"))
+    return fmt("token %s", token);
+
+  // GitLab supports OAuth2 and PAT tokens with type prefix
+  auto colon_pos = token.find(':');
+  if (colon_pos != std::string::npos) {
+    auto type = token.substr(0, colon_pos);
+    auto value = token.substr(colon_pos + 1);
+    if (type == "OAuth2")
+      return fmt("Bearer %s", value);
+    if (type == "PAT")
+      return fmt("Bearer %s", value); // GitLab PATs also work as Bearer tokens for LFS
+  }
+
+  // Default: use as Bearer token (works for most LFS servers)
+  return fmt("Bearer %s", token);
+}
+
 static lfs_api_info_t get_lfs_api(const parsed_url_t& url) {
   assert(url.authority().has_value());
   if (url.scheme() == "ssh") {
@@ -91,9 +163,24 @@ static lfs_api_info_t get_lfs_api(const parsed_url_t& url) {
   // we only append `/info/lfs`.
   // See: https://github.com/git-lfs/git-lfs/blob/main/docs/api/server-discovery.md
   auto url_str = url.to_string();
+  std::string endpoint;
   if (has_suffix(url_str, ".git"))
-    return {url_str + "/info/lfs", std::nullopt};
-  return {url_str + ".git/info/lfs", std::nullopt};
+    endpoint = url_str + "/info/lfs";
+  else
+    endpoint = url_str + ".git/info/lfs";
+
+  // For HTTPS URLs, look up access token from fetch settings
+  std::optional<std::string> auth_header;
+  if (url.scheme() == "https" || url.scheme() == "http") {
+    auto token = get_access_token_for_url(url);
+    if (token) {
+      auto host = url.authority()->host();
+      auth_header = make_auth_header_from_token(*token, host);
+      debug("Using access token for Git LFS endpoint: %s", endpoint);
+    }
+  }
+
+  return {endpoint, auth_header};
 }
 
 typedef std::unique_ptr<git_config, Deleter<git_config_free>> GitConfig;
@@ -216,7 +303,13 @@ std::vector<nlohmann::json> Fetch::fetchUrls(const std::vector<Pointer>& pointer
   headers.push_back({"Accept", "application/vnd.git-lfs+json"});
   request.headers = headers;
   nlohmann::json oidList = pointer_to_payload(pointers);
-  nlohmann::json data = {{"operation", "download"}};
+  // Build the batch request per Git LFS Batch API spec
+  // See: https://github.com/git-lfs/git-lfs/blob/main/docs/api/batch.md
+  nlohmann::json data = {
+      {"operation", "download"},
+      {"transfers", {"basic"}}, // Explicitly specify basic transfer adapter
+      {"hash_algo", "sha256"}   // LFS uses SHA-256 for object IDs
+  };
   data["objects"] = oidList;
   auto payload = data.dump();
   string_source_t source{payload};
@@ -232,15 +325,49 @@ std::vector<nlohmann::json> Fetch::fetchUrls(const std::vector<Pointer>& pointer
 
   try {
     auto resp = nlohmann::json::parse(responseString);
+
+    // Check for error response (LFS API returns errors in a specific format)
+    if (resp.contains("message") && !resp.contains("objects")) {
+      std::string message = resp.value("message", "Unknown error");
+      std::string request_id = resp.value("request_id", "");
+      std::string doc_url = resp.value("documentation_url", "");
+      throw Error("Git LFS batch API error: %s%s%s", message,
+                  request_id.empty() ? "" : fmt(" (request_id: %s)", request_id),
+                  doc_url.empty() ? "" : fmt(" - see %s", doc_url));
+    }
+
     if (resp.contains("objects"))
       objects.insert(objects.end(), resp["objects"].begin(), resp["objects"].end());
     else
-      throw Error("response does not contain 'objects'");
+      throw Error("Git LFS batch API response does not contain 'objects' field");
+
+    // Check for per-object errors
+    for (const auto& obj : objects) {
+      if (obj.contains("error")) {
+        auto oid = obj.value("oid", "unknown");
+        auto error = obj["error"];
+        auto code = error.value("code", 0);
+        auto message = error.value("message", "Unknown error");
+        throw Error("Git LFS error for object %s: %s (code %d)", oid, message, code);
+      }
+    }
 
     return objects;
   } catch (const nlohmann::json::parse_error& e) {
+    // If we can't parse JSON, it's likely an HTML error page from the server
+    // Check if it looks like HTML and provide a more helpful error
+    if (responseString.find("<!DOCTYPE") != std::string::npos ||
+        responseString.find("<html") != std::string::npos) {
+      throw Error("Git LFS batch API at '%s' returned an HTML error page instead of JSON.\n"
+                  "This usually means:\n"
+                  "  - The LFS endpoint URL is incorrect\n"
+                  "  - Authentication is required (set access-tokens in nix.conf)\n"
+                  "  - The repository does not exist or is not accessible\n"
+                  "Hint: For GitHub, add 'access-tokens = github.com=<your-token>' to nix.conf",
+                  url);
+    }
     printMsg(lvl_talkative, "Full response: '%1%'", responseString);
-    throw Error("response did not parse as json: %s", e.what());
+    throw Error("Git LFS batch API response is not valid JSON: %s", e.what());
   }
 }
 

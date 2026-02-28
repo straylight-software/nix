@@ -256,6 +256,18 @@ struct input_scheme_t {
 
   virtual std::optional<std::string> isRelative(const input_t& input) const { return std::nullopt; }
 
+  /**
+   * Return true if the input has content-affecting options (like git-lfs)
+   * that may not be reflected in the narHash. If true, the fetcher should
+   * not short-circuit to using an existing store path based on narHash alone,
+   * because the narHash may have been computed with different options.
+   *
+   * This is needed to fix issue NixOS/nix#15350: when a flake uses git-lfs,
+   * the narHash in the lock file may have been computed without LFS content.
+   * If we blindly reuse the store path, we'll get the wrong content.
+   */
+  virtual bool hasContentAffectingOptions(const input_t& input) const { return false; }
+
   virtual std::optional<std::string> getAccessToken(const fetchers::settings_t& settings,
                                                     const std::string& host,
                                                     const std::string& url) const {

@@ -292,7 +292,12 @@ std::pair<ref<source_accessor_t>, input_t> input_t::getAccessorUnchecked(const s
     throw Error("cannot fetch unsupported input '%s'", attrs_to_json(toAttrs()));
 
   std::optional<store_path_t> store_path;
-  if (isFinal() && getNarHash())
+  /* Compute the expected store path from the narHash, but only if the input
+     doesn't have content-affecting options (like git-lfs) that may not be
+     reflected in the narHash. This fixes NixOS/nix#15350: when a flake uses
+     git-lfs, the narHash may have been computed without LFS content, so we
+     need to go through the normal fetch path to ensure LFS files are fetched. */
+  if (isFinal() && getNarHash() && (!scheme || !scheme->hasContentAffectingOptions(*this)))
     store_path = computeStorePath(store);
 
   auto makeStoreAccessor = [&](bool updateCache) -> std::pair<ref<source_accessor_t>, input_t> {

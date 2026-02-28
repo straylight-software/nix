@@ -287,11 +287,13 @@ struct mercurial_input_scheme_t : input_scheme_t {
     }
 
     /* Fetch the remote rev or ref. */
+    auto ref_or_rev = input.getRev() ? input.getRev()->git_rev() : *input.getRef();
     auto tokens = tokenize_string<std::vector<std::string>>(
-        run_hg({"log", "-R", cache_dir.string(), "-r",
-                input.getRev() ? input.getRev()->git_rev() : *input.getRef(), "--template",
+        run_hg({"log", "-R", cache_dir.string(), "-r", ref_or_rev, "--template",
                 "{node} {rev} {branch}"}));
-    assert(tokens.size() == 3);
+    if (tokens.size() != 3)
+      throw Error("unexpected output from 'hg log' for ref '%s': expected 3 fields, got %d",
+                  ref_or_rev, tokens.size());
 
     auto rev = Hash::parse_any(tokens[0], hash_algorithm_t::SHA1);
     input.attrs.insert_or_assign("rev", rev.git_rev());

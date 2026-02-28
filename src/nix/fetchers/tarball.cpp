@@ -81,17 +81,21 @@ DownloadFileResult download_file(store_t& store, const settings_t& settings, con
   }
 
   /* cache_t metadata for all URLs in the redirect chain. */
+  if (res.urls.empty())
+    throw Error("file transfer for '%s' returned no URLs", url);
+
+  auto effectiveUrl = res.urls.back();
+  info_attrs.insert_or_assign("url", effectiveUrl);
+
   for (auto& url : res.urls) {
     key.second.insert_or_assign("url", url);
-    assert(!res.urls.empty());
-    info_attrs.insert_or_assign("url", *res.urls.rbegin());
     settings.get_cache()->upsert(key, store, info_attrs, *store_path);
   }
 
   return {
       .store_path = std::move(*store_path),
       .etag = res.etag,
-      .effectiveUrl = *res.urls.rbegin(),
+      .effectiveUrl = effectiveUrl,
       .immutableUrl = res.immutableUrl,
   };
 }

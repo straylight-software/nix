@@ -15,6 +15,7 @@
 #include "nix/util/tarfile.h"
 #include "nix/util/types.h"
 #include "nix/util/url-parts.h"
+#include "nix/util/url.h"
 
 namespace nix::fetchers {
 
@@ -476,6 +477,10 @@ struct git_lab_input_scheme_t : git_archive_input_scheme_t {
     // treating this simply has <HDRNAME>:<HDRVAL>.  See
     // https://docs.gitlab.com/12.10/ee/api/README.html#authentication
     auto fldsplit = token.find_first_of(':');
+    if (fldsplit == std::string::npos) {
+      warn("GitLab access token '%s' is missing ':' separator", token);
+      return std::nullopt;
+    }
     // n.b. C++20 would allow: if (token.starts_with("OAuth2:")) ...
     if ("OAuth2" == token.substr(0, fldsplit))
       return std::make_pair("Authorization", fmt("Bearer %s", token.substr(fldsplit + 1)));
@@ -491,7 +496,8 @@ struct git_lab_input_scheme_t : git_archive_input_scheme_t {
     // See rate limiting note below
     auto url =
         fmt("https://%s/api/v4/projects/%s%%2F%s/repository/commits?ref_name=%s", host,
-            get_str_attr(input.attrs, "owner"), get_str_attr(input.attrs, "repo"), *input.getRef());
+            percent_encode(get_str_attr(input.attrs, "owner")),
+            percent_encode(get_str_attr(input.attrs, "repo")), percent_encode(*input.getRef()));
 
     headers_t headers = make_headers_with_auth_tokens(settings, host, input);
 
@@ -517,8 +523,8 @@ struct git_lab_input_scheme_t : git_archive_input_scheme_t {
     // https://docs.gitlab.com/ee/user/gitlab_com/index.html#gitlabcom-specific-rate-limits
     auto host = maybe_get_str_attr(input.attrs, "host").value_or("gitlab.com");
     auto url = fmt("https://%s/api/v4/projects/%s%%2F%s/repository/archive.tar.gz?sha=%s", host,
-                   get_str_attr(input.attrs, "owner"), get_str_attr(input.attrs, "repo"),
-                   input.getRev()->git_rev());
+                   percent_encode(get_str_attr(input.attrs, "owner")),
+                   percent_encode(get_str_attr(input.attrs, "repo")), input.getRev()->git_rev());
 
     headers_t headers = make_headers_with_auth_tokens(settings, host, input);
     return download_url_t{parse_url(url), headers};
@@ -576,7 +582,7 @@ struct source_hut_input_scheme_t : git_archive_input_scheme_t {
 
       auto remoteLine = git::parse_ls_remote_line(get_line(contents).first);
       if (!remoteLine) {
-        throw BadURL("in '%d', couldn't resolve HEAD ref '%d'", input.to_string(), ref);
+        throw BadURL("in '%s', couldn't resolve HEAD ref '%s'", input.to_string(), ref);
       }
       refUri = remoteLine->target;
     } else {
@@ -604,7 +610,7 @@ struct source_hut_input_scheme_t : git_archive_input_scheme_t {
     }
 
     if (!id)
-      throw BadURL("in '%d', couldn't find ref '%d'", input.to_string(), ref);
+      throw BadURL("in '%s', couldn't find ref '%s'", input.to_string(), ref);
 
     return ref_info_t{.rev = Hash::parse_any(*id, hash_algorithm_t::SHA1)};
   }

@@ -424,8 +424,10 @@ struct git_input_scheme_t : input_scheme_t {
       res.attrs.insert_or_assign("rev", rev->git_rev());
     if (ref)
       res.attrs.insert_or_assign("ref", *ref);
-    if (!res.getRef() && res.getRev())
-      throw Error("Git input '%s' has a commit hash but no branch/tag name", res.to_string());
+    // Note: We no longer reject rev-only inputs here. The fetch code supports
+    // fetching by commit hash (via `git fetch <hash>`), and the clone code
+    // handles this case appropriately. This allows `nix flake clone` to work
+    // with locked inputs from `--inputs-from` that have a rev but no ref.
     return res;
   }
 
@@ -442,12 +444,16 @@ struct git_input_scheme_t : input_scheme_t {
       args.push_back(*ref);
     }
 
-    if (input.getRev())
-      throw UnimplementedError("cloning a specific revision is not implemented");
-
     args.push_back(dest_dir.string());
 
     run_program("git", true, args, {}, true);
+
+    // If a specific revision is requested, checkout that commit after cloning.
+    // This enables `nix flake clone` with `--inputs-from` where locked inputs
+    // have a rev but no ref.
+    if (auto rev = input.getRev()) {
+      run_program("git", true, {"-C", dest_dir.string(), "checkout", rev->git_rev()}, {}, true);
+    }
   }
 
   std::optional<std::filesystem::path> get_source_path(const input_t& input) const override {
@@ -1175,6 +1181,21 @@ struct git_input_scheme_t : input_scheme_t {
   bool isLocked(const settings_t& settings, const input_t& input) const override {
     auto rev = input.getRev();
     return rev && rev != null_rev;
+  }
+
+  /**
+   * Git inputs with LFS, submodules, or exportIgnore have content-affecting
+   * options that may not be reflected in the narHash. The narHash may have
+   * been computed with different options (e.g., without LFS), so we need to
+   * go through the normal fetch path to ensure the content is correct.
+   *
+   * This fixes NixOS/nix#15350: when a flake uses git-lfs but the consumer
+   * didn't specify lfs=1, the lock file gets a narHash without LFS content.
+   * Later when lfs=true is used, we must refetch with LFS instead of
+   * reusing the incorrect store path.
+   */
+  bool hasContentAffectingOptions(const input_t& input) const override {
+    return get_lfs_attr(input) || get_submodules_attr(input) || get_export_ignore_attr(input);
   }
 };
 
