@@ -86,7 +86,14 @@ static lfs_api_info_t get_lfs_api(const parsed_url_t& url) {
     return {query_resp.at("href").get<std::string>(), auth_it->get<std::string>()};
   }
 
-  return {url.to_string() + "/info/lfs", std::nullopt};
+  // Per Git LFS Server Discovery spec, the LFS endpoint is formed by appending
+  // `.git/info/lfs` to the remote URL. If the URL already ends with `.git`,
+  // we only append `/info/lfs`.
+  // See: https://github.com/git-lfs/git-lfs/blob/main/docs/api/server-discovery.md
+  auto url_str = url.to_string();
+  if (has_suffix(url_str, ".git"))
+    return {url_str + "/info/lfs", std::nullopt};
+  return {url_str + ".git/info/lfs", std::nullopt};
 }
 
 typedef std::unique_ptr<git_config, Deleter<git_config_free>> GitConfig;

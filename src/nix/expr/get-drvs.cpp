@@ -298,24 +298,16 @@ void PackageInfo::setMeta(const std::string& name, value_t* v) {
   meta = attrs.finish();
 }
 
-/* cache_t for already considered attrsets. */
-typedef std::set<const bindings_t*> done_t;
-
 /* Evaluate value `v'.  If it evaluates to a set of type `derivation',
-   then put information about it in `drvs' (unless it's already in `done').
+   then put information about it in `drvs'.
    The result boolean indicates whether it makes sense
    for the caller to recursively search for derivations in `v'. */
 static bool get_derivation(eval_state_t& state, value_t& v, const std::string& attr_path,
-                           PackageInfos& drvs, done_t& done, bool ignore_assertion_failures) {
+                           PackageInfos& drvs, bool ignore_assertion_failures) {
   try {
     state.forceValue(v, v.determinePos(no_pos));
     if (!state.is_derivation(v))
       return true;
-
-    /* Remove spurious duplicates (e.g., a set like `rec { x =
-       derivation {...}; y = x;}'. */
-    if (!done.insert(v.attrs()).second)
-      return false;
 
     PackageInfo drv(state, attr_path, v.attrs());
 
@@ -334,9 +326,8 @@ static bool get_derivation(eval_state_t& state, value_t& v, const std::string& a
 
 std::optional<PackageInfo> get_derivation(eval_state_t& state, value_t& v,
                                           bool ignore_assertion_failures) {
-  done_t done;
   PackageInfos drvs;
-  get_derivation(state, v, "", drvs, done, ignore_assertion_failures);
+  get_derivation(state, v, "", drvs, ignore_assertion_failures);
   if (drvs.size() != 1)
     return {};
   return std::move(drvs.front());
@@ -348,14 +339,13 @@ static std::string add_to_path(const std::string& s1, std::string_view s2) {
 
 static std::regex attr_regex("[A-Za-z_][A-Za-z0-9-_+]*");
 
-static void get_derivations(eval_state_t& state, value_t& v_in, const std::string& path_prefix,
-                            bindings_t& auto_args, PackageInfos& drvs, done_t& done,
-                            bool ignore_assertion_failures) {
+void get_derivations(eval_state_t& state, value_t& v_in, const std::string& path_prefix,
+                     bindings_t& auto_args, PackageInfos& drvs, bool ignore_assertion_failures) {
   value_t v;
   state.autoCallFunction(auto_args, v_in, v);
 
   /* Process the expression. */
-  if (!get_derivation(state, v, path_prefix, drvs, done, ignore_assertion_failures))
+  if (!get_derivation(state, v, path_prefix, drvs, ignore_assertion_failures))
     ;
 
   else if (v.type() == nAttrs) {
@@ -376,10 +366,9 @@ static void get_derivations(eval_state_t& state, value_t& v_in, const std::strin
           continue;
         std::string pathPrefix2 = add_to_path(path_prefix, symbol);
         if (combine_channels)
-          get_derivations(state, *i->value, pathPrefix2, auto_args, drvs, done,
+          get_derivations(state, *i->value, pathPrefix2, auto_args, drvs,
                           ignore_assertion_failures);
-        else if (get_derivation(state, *i->value, pathPrefix2, drvs, done,
-                                ignore_assertion_failures)) {
+        else if (get_derivation(state, *i->value, pathPrefix2, drvs, ignore_assertion_failures)) {
           /* If the value of this attribute is itself a set,
           should we recurse into it?  => Only if it has a
           `recurseForDerivations = true' attribute. */
@@ -387,7 +376,7 @@ static void get_derivations(eval_state_t& state, value_t& v_in, const std::strin
             auto j = i->value->attrs()->get(state.s.recurseForDerivations);
             if (j && state.forceBool(*j->value, j->pos,
                                      "while evaluating the attribute `recurseForDerivations`"))
-              get_derivations(state, *i->value, pathPrefix2, auto_args, drvs, done,
+              get_derivations(state, *i->value, pathPrefix2, auto_args, drvs,
                               ignore_assertion_failures);
           }
         }
@@ -402,9 +391,8 @@ static void get_derivations(eval_state_t& state, value_t& v_in, const std::strin
     auto list_view = v.list_view();
     for (auto [n, elem] : enumerate(list_view)) {
       std::string pathPrefix2 = add_to_path(path_prefix, fmt("%d", n));
-      if (get_derivation(state, *elem, pathPrefix2, drvs, done, ignore_assertion_failures))
-        get_derivations(state, *elem, pathPrefix2, auto_args, drvs, done,
-                        ignore_assertion_failures);
+      if (get_derivation(state, *elem, pathPrefix2, drvs, ignore_assertion_failures))
+        get_derivations(state, *elem, pathPrefix2, auto_args, drvs, ignore_assertion_failures);
     }
   }
 
@@ -413,12 +401,6 @@ static void get_derivations(eval_state_t& state, value_t& v_in, const std::strin
         .error<TypeError>(
             "expression does not evaluate to a derivation (or a set or list of those)")
         .debugThrow();
-}
-
-void get_derivations(eval_state_t& state, value_t& v, const std::string& path_prefix,
-                     bindings_t& auto_args, PackageInfos& drvs, bool ignore_assertion_failures) {
-  done_t done;
-  get_derivations(state, v, path_prefix, auto_args, drvs, done, ignore_assertion_failures);
 }
 
 } // namespace nix

@@ -67,8 +67,9 @@ NIX_GET_COMPLETIONS=2 nix build --log-form | grep -- "--log-format"
 # Config option completion
 ## With `--option`
 NIX_GET_COMPLETIONS=3 nix build --option allow-import-from | grep -- "allow-import-from-derivation"
-## As a cli flag – not working atm
-# NIX_GET_COMPLETIONS=2 nix build --allow-import-from | grep -- "allow-import-from-derivation"
+## As a cli flag (settings are now surfaced in completion)
+NIX_GET_COMPLETIONS=2 nix build --allow-import-from | grep -- "allow-import-from-derivation"
+NIX_GET_COMPLETIONS=2 nix build --access-tok | grep -- "--access-tokens"
 
 # Attr path completions
 [[ "$(NIX_GET_COMPLETIONS=2 nix eval ./foo\#sam)" == $'attrs\n./foo#sampleOutput\t' ]]

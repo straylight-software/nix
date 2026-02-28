@@ -436,8 +436,10 @@ auto args_t::process_flag(strings_t::iterator& pos, strings_t::iterator end) -> 
   if (std::string(*pos, 0, 2) == "--") {
     if (auto prefix = root_args.needs_completion(*pos)) {
       for (auto& [name, flag] : long_flags_) {
-        if (!hidden_categories_.count(flag->category) &&
-            has_prefix(name, std::string(*prefix, 2))) {
+        // Include all flags in completion, even those in hidden categories.
+        // Hidden categories are excluded from --help output but should still
+        // be discoverable via tab completion (e.g. settings like --access-tokens).
+        if (has_prefix(name, std::string(*prefix, 2))) {
           if (auto& feature = flag->experimental_feature) {
             root_args.flagExperimentalFeatures.insert(*feature);
           }

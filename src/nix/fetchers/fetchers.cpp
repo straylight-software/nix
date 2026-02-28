@@ -295,7 +295,7 @@ std::pair<ref<source_accessor_t>, input_t> input_t::getAccessorUnchecked(const s
   if (isFinal() && getNarHash())
     store_path = computeStorePath(store);
 
-  auto makeStoreAccessor = [&]() -> std::pair<ref<source_accessor_t>, input_t> {
+  auto makeStoreAccessor = [&](bool updateCache) -> std::pair<ref<source_accessor_t>, input_t> {
     auto accessor =
         make_ref<substituted_source_accessor_t>(store.requireStoreObjectAccessor(*store_path));
 
@@ -307,10 +307,16 @@ std::pair<ref<source_accessor_t>, input_t> input_t::getAccessorUnchecked(const s
             : get_fingerprint(store);
     cachedFingerprint = accessor->fingerprint;
 
-    // store_t a cache entry for the substituted tree so later fetches
+    // Store a cache entry for the substituted tree so later fetches
     // can reuse the existing nar instead of copying the unpacked
     // input back into the store on every evaluation.
-    if (accessor->fingerprint) {
+    //
+    // We only do this when updateCache is true (i.e., after substitution),
+    // not when reusing a store path found by narHash alone. This prevents
+    // cache poisoning when a user manually edits a lock file with an
+    // incorrect (rev, narHash) pair - we don't want to cache the wrong
+    // fingerprint -> hash association.
+    if (updateCache && accessor->fingerprint) {
       settings.get_cache()->upsert(
           make_source_path_to_hash_cache_key(*accessor->fingerprint,
                                              content_address_method_t::raw_t::nix_archive, "/"),
@@ -328,10 +334,17 @@ std::pair<ref<source_accessor_t>, input_t> input_t::getAccessorUnchecked(const s
   /* If a tree with the expected hash is already in the Nix store,
      reuse it. We only do this for final inputs, since otherwise
      there is a risk that we don't return the same attributes (like
-     `last_modified`) that the "real" fetcher would return. */
+     `last_modified`) that the "real" fetcher would return.
+
+     Note: we pass false to makeStoreAccessor() to avoid updating
+     the fingerprint->hash cache. The fingerprint is derived from
+     attributes like `rev`, but the store path was found by `narHash`
+     alone. If the user manually edited the lockfile with an incorrect
+     (rev, narHash) pair, caching fingerprint(rev) -> narHash would
+     poison the cache for that rev. */
   if (store_path && store.isValidPath(*store_path)) {
     debug("using input '%s' in '%s'", to_string(), store.printStorePath(*store_path));
-    return makeStoreAccessor();
+    return makeStoreAccessor(/*updateCache=*/false);
   }
 
   try {
@@ -351,7 +364,9 @@ std::pair<ref<source_accessor_t>, input_t> input_t::getAccessorUnchecked(const s
         warn("Successfully substituted input '%s' after failing to fetch it from its original "
              "location: %s",
              to_string(), e.info().msg_);
-        return makeStoreAccessor();
+        // After successful substitution, we can safely cache the fingerprint->hash
+        // mapping because the content has been verified through the binary cache.
+        return makeStoreAccessor(/*updateCache=*/true);
       }
       // Ignore any substitution error, rethrow the original error.
       catch (Error& e2) {
