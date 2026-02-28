@@ -69,13 +69,13 @@ TEST_CASE("ATerm derivation format structure", "[store][derivation][format]") {
   SECTION("Traditional format uses Derive prefix") {
     // derivations.cpp should generate "Derive(" for traditional derivations
     INFO("Traditional derivations must start with 'Derive('");
-    REQUIRE(contains_pattern(cpp_file, R"(s \+= "Derive\(")"));
+    REQUIRE(contains_pattern(cpp_file, R"(s \+= std::string_view\{"Derive\(")"));
   }
 
   SECTION("Dynamic derivations use DrvWithVersion prefix") {
     // For dynamic derivations with nested deps
     INFO("Dynamic derivations must start with 'DrvWithVersion('");
-    REQUIRE(contains_pattern(cpp_file, R"(s \+= "DrvWithVersion\(")"));
+    REQUIRE(contains_pattern(cpp_file, R"(s \+= std::string_view\{"DrvWithVersion\(")"));
   }
 
   SECTION("Version string for dynamic derivations is xp-dyn-drv") {
@@ -85,8 +85,8 @@ TEST_CASE("ATerm derivation format structure", "[store][derivation][format]") {
 
   SECTION("Derivation parsing expects Derive or DrvWithVersion") {
     // Parser should handle both formats
-    REQUIRE(contains_pattern(cpp_file, R"(expect\(str, "erive\(")"));
-    REQUIRE(contains_pattern(cpp_file, R"(expect\(str, "rvWithVersion\(")"));
+    REQUIRE(contains_pattern(cpp_file, R"(expect\(str, std::string_view\{"erive\(")"));
+    REQUIRE(contains_pattern(cpp_file, R"(expect\(str, std::string_view\{"rvWithVersion\(")"));
   }
 }
 
@@ -133,7 +133,8 @@ TEST_CASE("All derivation fields are serialized", "[store][derivation][format]")
 
   SECTION("Environment variables are serialized last") {
     INFO("Environment must be serialized as list of pairs");
-    REQUIRE(contains_pattern(cpp_file, R"(unparseEnv)"));
+    // The code uses outputEnvEntry lambda to serialize env entries
+    REQUIRE(contains_pattern(cpp_file, R"(outputEnvEntry)"));
   }
 }
 
@@ -215,9 +216,9 @@ TEST_CASE("Environment variable serialization", "[store][derivation][format]") {
 
   SECTION("Environment is serialized as list of (key, value) pairs") {
     INFO("Env vars must be (key, value) pairs");
-    REQUIRE(contains_pattern(cpp_file, R"(print_string\(s, i\.first\))"));
-    // i.second is printed with mask_outputs check: mask_outputs && outputs.count(i.first) ? ""sv :
-    // i.second
+    // Code uses print_string(s, key) for env var keys via outputEnvEntry lambda
+    REQUIRE(contains_pattern(cpp_file, R"(print_string\(s, key\))"));
+    // Value is printed with mask_outputs check
     REQUIRE(contains_pattern(cpp_file, R"(print_string\(s, mask_outputs)"));
   }
 
@@ -281,7 +282,8 @@ TEST_CASE("Content-addressed derivation format", "[store][derivation][format]") 
   SECTION("Fixed-output derivations have single 'out' output") {
     // Constraint: fixed output must be named "out"
     INFO("Fixed output must be named 'out'");
-    REQUIRE(contains_pattern(cpp_file, R"(output_name != "out")"));
+    // Code uses std::string_view{"out"} for the comparison
+    REQUIRE(contains_pattern(cpp_file, R"(output_name != std::string_view\{"out"\})"));
   }
 
   SECTION("CA derivations experimental feature is checked") {

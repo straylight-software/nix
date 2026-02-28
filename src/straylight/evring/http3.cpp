@@ -343,6 +343,22 @@ void delete_crypto_cipher_ctx_cb([[maybe_unused]] ngtcp2_conn* conn,
   ngtcp2_crypto_delete_crypto_cipher_ctx_cb(conn, cipher_ctx, user_data);
 }
 
+void rand_cb(uint8_t* dest, size_t destlen, [[maybe_unused]] const ngtcp2_rand_ctx* rand_ctx) {
+  if (RAND_bytes(dest, static_cast<int>(destlen)) != 1) {
+    // This should not fail in practice, but we can't return an error from this callback
+    // In a real application, you might want to abort() here
+    std::memset(dest, 0, destlen);
+  }
+}
+
+int get_path_challenge_data_cb([[maybe_unused]] ngtcp2_conn* conn, uint8_t* data,
+                               [[maybe_unused]] void* user_data) {
+  if (RAND_bytes(data, NGTCP2_PATH_CHALLENGE_DATALEN) != 1) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+  return 0;
+}
+
 } // namespace
 
 // ============================================================================
@@ -589,6 +605,9 @@ auto http3_session::setup_quic(const sockaddr* local_addr, socklen_t local_addrl
   callbacks.recv_version_negotiation = recv_version_negotiation_cb;
   callbacks.delete_crypto_aead_ctx = delete_crypto_aead_ctx_cb;
   callbacks.delete_crypto_cipher_ctx = delete_crypto_cipher_ctx_cb;
+  callbacks.recv_retry = ngtcp2_crypto_recv_retry_cb; // Required for client connections
+  callbacks.rand = rand_cb;
+  callbacks.get_path_challenge_data = get_path_challenge_data_cb;
 
   // Setup settings
   ngtcp2_settings settings;

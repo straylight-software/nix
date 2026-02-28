@@ -8,10 +8,12 @@
 #include "straylight/nix/compiler/ast/symbol_table.h"
 #include "straylight/nix/compiler/eval/eval.h"
 #include "straylight/nix/compiler/parse/parser.h"
+#include "straylight/nix/testing/temp_dir.h"
 
 namespace ast = straylight::nix::compiler::ast;
 namespace parse = straylight::nix::compiler::parse;
 namespace eval = straylight::nix::compiler::eval;
+namespace testing = straylight::nix::testing;
 
 // Helper to evaluate a string and return the printed result
 auto evaluate(const std::string& source) -> std::string {
@@ -307,8 +309,10 @@ auto evaluate_with_import(const std::string& source, const std::filesystem::path
   ast::symbol_table symbols;
   auto expr = parse::parse(source, symbols);
   eval::evaluator evaluator(symbols);
-  evaluator.set_file_parser([&symbols](const std::string& /* path */, const std::string& src) {
-    return parse::parse(src, symbols);
+  evaluator.set_file_parser([&symbols](const std::string& path, const std::string& src) {
+    // Use the file's directory as the base path for resolving relative paths within
+    auto base = std::filesystem::path(path).parent_path();
+    return parse::parse(src, symbols, base);
   });
   evaluator.set_base_path(base_path);
   auto result = evaluator.eval(expr);
@@ -330,7 +334,7 @@ TEST_CASE("eval builtins.dirOf", "[eval][builtins][path]") {
 
 TEST_CASE("eval import with temporary files", "[eval][import]") {
   // Create a temporary directory and file for testing
-  auto temp_dir = std::filesystem::temp_directory_path() / "nix_eval_test";
+  auto temp_dir = testing::temp_directory_path() / "nix_eval_test";
   std::filesystem::create_directories(temp_dir);
 
   // Write a simple library file
@@ -354,7 +358,7 @@ TEST_CASE("eval import with temporary files", "[eval][import]") {
 
 TEST_CASE("eval builtins.readFile", "[eval][builtins][import]") {
   // Create a temporary file
-  auto temp_dir = std::filesystem::temp_directory_path() / "nix_eval_test";
+  auto temp_dir = testing::temp_directory_path() / "nix_eval_test";
   std::filesystem::create_directories(temp_dir);
   auto test_file = temp_dir / "test_read.txt";
   {
@@ -370,7 +374,7 @@ TEST_CASE("eval builtins.readFile", "[eval][builtins][import]") {
 }
 
 TEST_CASE("eval builtins.pathExists", "[eval][builtins][import]") {
-  auto temp_dir = std::filesystem::temp_directory_path() / "nix_eval_test";
+  auto temp_dir = testing::temp_directory_path() / "nix_eval_test";
   std::filesystem::create_directories(temp_dir);
   auto existing_file = temp_dir / "exists.nix";
   {
@@ -390,7 +394,7 @@ TEST_CASE("eval builtins.pathExists", "[eval][builtins][import]") {
 
 TEST_CASE("eval nested imports", "[eval][import]") {
   // Create nested directory structure
-  auto temp_dir = std::filesystem::temp_directory_path() / "nix_eval_nested_test";
+  auto temp_dir = testing::temp_directory_path() / "nix_eval_nested_test";
   auto inner_dir = temp_dir / "inner";
   std::filesystem::create_directories(inner_dir);
 
