@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <fstream>
 
 #include <signal.h>
 
@@ -105,6 +106,21 @@ static int list_possible_callback(char* s, char*** avp) {
 }
 #endif
 
+// Workaround for editline's read_history() which uses a fixed 256-byte buffer,
+// causing lines longer than 255 chars to be split. (NixOS/nix#15162)
+// We implement our own history read that handles arbitrary line lengths.
+static void read_history_unlimited(const std::string& path) {
+  std::ifstream file(path);
+  if (!file)
+    return;
+
+  std::string line;
+  while (std::getline(file, line)) {
+    if (!line.empty())
+      add_history(line.c_str());
+  }
+}
+
 ReadlineLikeInteracter::Guard ReadlineLikeInteracter::init(detail::ReplCompleterMixin* repl) {
   // Allow nix-repl specific settings in .inputrc
   rl_readline_name = "nix-repl";
@@ -116,7 +132,12 @@ ReadlineLikeInteracter::Guard ReadlineLikeInteracter::init(detail::ReplCompleter
 #if !USE_READLINE
   el_hist_size = 1000;
 #endif
+#if USE_READLINE
   read_history(historyFile.c_str());
+#else
+  // Use our own implementation to avoid editline's 256-byte line limit
+  read_history_unlimited(historyFile);
+#endif
   auto oldRepl = cur_repl;
   cur_repl = repl;
   Guard restoreRepl([oldRepl] { cur_repl = oldRepl; });
