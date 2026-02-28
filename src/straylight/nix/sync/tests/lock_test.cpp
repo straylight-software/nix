@@ -13,9 +13,11 @@
 #include <unistd.h>
 
 #include "straylight/nix/sync/lock.h"
+#include "straylight/nix/testing/temp_dir.h"
 
 namespace fs = std::filesystem;
 namespace sync = straylight::nix::sync;
+namespace testing = straylight::nix::testing;
 
 // ============================================================================
 // Test helpers
@@ -317,7 +319,7 @@ TEST(stress_test) {
 
 int main() {
   // Create temp directory for tests
-  test_dir = fs::temp_directory_path() / ("lock_test_" + std::to_string(getpid()));
+  test_dir = testing::temp_directory_path() / ("lock_test_" + std::to_string(getpid()));
   fs::create_directories(test_dir);
 
   std::cout << "Test directory: " << test_dir << "\n\n";

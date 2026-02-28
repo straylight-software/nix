@@ -1,0 +1,15 @@
+# src/straylight/nix/testing/BUCK
+#
+# Test utilities: temp_dir with fallback for sandboxed builds
+
+cxx_library(
+    name = "testing",
+    exported_headers = ["temp_dir.h"],
+    header_namespace = "straylight/nix/testing",
+    compiler_flags = [
+        "-std=c++23",
+        "-Wall",
+        "-Wextra",
+    ],
+    visibility = ["PUBLIC"],
+)

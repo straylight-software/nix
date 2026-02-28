@@ -25,6 +25,7 @@ LANGUAGE_COMPILE_TEST_DEPS = LANGUAGE_TEST_DEPS + [
 
 LANGUAGE_EVAL_TEST_DEPS = LANGUAGE_PARSE_TEST_DEPS + [
     "//src/straylight/nix/compiler:eval",
+    "//src/straylight/nix/testing:testing",
 ]
 
 LANGUAGE_TEST_COMPILER_FLAGS = [
@@ -222,6 +223,7 @@ cxx_test(
     deps = [
         "//src/straylight/nix/compiler:evaluator",
         "//src/straylight/nix/compiler:runtime",
+        "//src/straylight/nix/testing:testing",
         "//third_party:catch2",
         "//third_party:wasmtime",
     ],

@@ -12,8 +12,10 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "straylight/nix/compat/sqlite.h"
+#include "straylight/nix/testing/temp_dir.h"
 
 namespace sqlite = straylight::nix::compat;
+namespace testing = straylight::nix::testing;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Database - Basic functionality
@@ -26,7 +28,7 @@ TEST_CASE("Database opens in-memory database", "[sqlite][database]") {
 }
 
 TEST_CASE("Database opens file database", "[sqlite][database]") {
-  std::filesystem::path temp_path = std::filesystem::temp_directory_path() / "sqlite_test.db";
+  std::filesystem::path temp_path = testing::temp_directory_path() / "sqlite_test.db";
 
   // Clean up if exists
   std::filesystem::remove(temp_path);
@@ -45,8 +47,7 @@ TEST_CASE("Database opens file database", "[sqlite][database]") {
 }
 
 TEST_CASE("Database fails to open non-existent file in read-only mode", "[sqlite][database]") {
-  std::filesystem::path temp_path =
-      std::filesystem::temp_directory_path() / "sqlite_nonexistent.db";
+  std::filesystem::path temp_path = testing::temp_directory_path() / "sqlite_nonexistent.db";
   std::filesystem::remove(temp_path);
 
   auto result = sqlite::Database::open(temp_path, sqlite::OpenMode::read_only);
@@ -785,7 +786,7 @@ TEST_CASE("Database set_busy_timeout works", "[sqlite][database][config]") {
 }
 
 TEST_CASE("Database enable_wal works for file database", "[sqlite][database][config]") {
-  std::filesystem::path temp_path = std::filesystem::temp_directory_path() / "sqlite_wal_test.db";
+  std::filesystem::path temp_path = testing::temp_directory_path() / "sqlite_wal_test.db";
   std::filesystem::remove(temp_path);
 
   {

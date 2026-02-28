@@ -86,7 +86,10 @@ cxx_test(
     name = "test_generator",
     srcs = ["test/test_generator.cpp"],
     compiler_flags = ["-std=c++23", "-O3"],
-    deps = [":evring"],
+    deps = [
+        ":evring",
+        "//src/straylight/nix/testing:testing",
+    ],
 )
 
 cxx_test(

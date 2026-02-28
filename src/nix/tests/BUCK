@@ -143,6 +143,7 @@ cxx_test(
     name = "eval_cache_fuzz_test",
     srcs = ["fuzz/eval_cache_fuzz_test.cpp"],
     deps = TEST_DEPS + [
+        "//src/straylight/nix/testing:testing",
         "//third_party:sqlite3",
     ],
     compiler_flags = TEST_COMPILER_FLAGS,

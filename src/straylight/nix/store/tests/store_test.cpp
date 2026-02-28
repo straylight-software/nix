@@ -8,10 +8,13 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_string.hpp>
 
+#include "straylight/nix/testing/temp_dir.h"
+
 #include "../store.h"
 
 namespace fs = std::filesystem;
 namespace store = straylight::nix::store;
+namespace testing = straylight::nix::testing;
 
 // Helper to create a vector of refs for passing to register_path
 template <typename... Args>
@@ -24,7 +27,8 @@ auto refs(Args&&... args) -> std::vector<std::string> {
 // ============================================================================
 
 struct temp_store {
-  temp_store() : path_(fs::temp_directory_path() / ("store_test_" + std::to_string(counter_++))) {
+  temp_store()
+      : path_(testing::temp_directory_path() / ("store_test_" + std::to_string(counter_++))) {
     fs::create_directories(path_);
   }
 

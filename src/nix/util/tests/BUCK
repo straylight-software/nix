@@ -126,7 +126,9 @@ cxx_test(
 cxx_test(
     name = "archive_test",
     srcs = ["archive_test.cpp"],
-    deps = UTIL_TEST_DEPS,
+    deps = UTIL_TEST_DEPS + [
+        "//src/straylight/nix/testing:testing",
+    ],
     compiler_flags = UTIL_TEST_COMPILER_FLAGS,
     linker_flags = UTIL_LINKER_FLAGS,
     link_style = "static",

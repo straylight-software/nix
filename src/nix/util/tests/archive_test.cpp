@@ -14,14 +14,16 @@
 #include <rapidcheck.h>
 #include <rapidcheck/catch.h>
 
+#include "straylight/nix/testing/temp_dir.h"
+
 #include "nix/util/archive.h"
 #include "nix/util/canon-path.h"
 #include "nix/util/file-system.h"
 #include "nix/util/fs-sink.h"
 #include "nix/util/serialise.h"
 
-
 namespace fs = std::filesystem;
+namespace testing = straylight::nix::testing;
 
 // =============================================================================
 // Test Utilities
@@ -34,7 +36,7 @@ struct TempDir {
   fs::path path;
 
   TempDir() {
-    auto temp = fs::temp_directory_path();
+    auto temp = testing::temp_directory_path();
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_int_distribution<> dis(0, 999999);

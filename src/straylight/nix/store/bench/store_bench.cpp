@@ -15,10 +15,12 @@
 #include <sqlite3.h>
 
 #include "straylight/evring/evring.h"
+#include "straylight/nix/testing/temp_dir.h"
 
 #include "../store.h"
 
 namespace fs = std::filesystem;
+namespace testing = straylight::nix::testing;
 
 // ============================================================================
 // Benchmark harness
@@ -191,7 +193,7 @@ void run_benchmarks() {
   const std::size_t large_n = 10000;
 
   // Create temp directories
-  auto tmp = fs::temp_directory_path() / "store_bench";
+  auto tmp = testing::temp_directory_path() / "store_bench";
   fs::remove_all(tmp);
   fs::create_directories(tmp);
 

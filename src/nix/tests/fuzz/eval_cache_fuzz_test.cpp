@@ -14,6 +14,8 @@
 
 #include <sqlite3.h>
 
+#include "straylight/nix/testing/temp_dir.h"
+
 #include "nix/expr/eval-cache.h"
 #include "nix/expr/eval.h"
 #include "nix/store/store-api.h"
@@ -248,7 +250,7 @@ TEST_CASE("fuzz: eval cache context parsing", "[fuzz][eval-cache]") {
 
 TEST_CASE("bug: malicious eval cache database causes crash", "[fuzz][eval-cache][bug]") {
   // Create a temporary directory for our malicious cache
-  auto temp_dir = ::std::filesystem::temp_directory_path() / "nix-eval-cache-fuzz-test";
+  auto temp_dir = ::straylight::nix::testing::temp_directory_path() / "nix-eval-cache-fuzz-test";
   ::std::filesystem::create_directories(temp_dir);
 
   auto db_path = temp_dir / "malicious.sqlite";

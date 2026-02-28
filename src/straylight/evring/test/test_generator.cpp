@@ -15,8 +15,10 @@
 #include <sys/stat.h>
 
 #include "straylight/evring/evring.h"
+#include "straylight/nix/testing/temp_dir.h"
 
 namespace fs = std::filesystem;
+namespace testing = straylight::nix::testing;
 using clock_type = std::chrono::high_resolution_clock;
 
 namespace {
@@ -187,7 +189,7 @@ void test_bulk_unlink_generator() {
   std::printf("test_bulk_unlink_generator: testing unlink machine...\n");
 
   // Create temp files to unlink
-  auto tmp_dir = fs::temp_directory_path() / "evring_test_unlink";
+  auto tmp_dir = testing::temp_directory_path() / "evring_test_unlink";
   fs::create_directories(tmp_dir);
 
   std::vector<std::string> string_paths;
@@ -224,7 +226,7 @@ void test_bulk_unlink_generator() {
 void test_bulk_mkdir_generator() {
   std::printf("test_bulk_mkdir_generator: testing mkdir machine...\n");
 
-  auto tmp_dir = fs::temp_directory_path() / "evring_test_mkdir";
+  auto tmp_dir = testing::temp_directory_path() / "evring_test_mkdir";
   fs::create_directories(tmp_dir);
 
   std::vector<std::string> string_paths;
@@ -260,7 +262,7 @@ void test_bulk_mkdir_generator() {
 void test_bulk_symlink_generator() {
   std::printf("test_bulk_symlink_generator: testing symlink machine...\n");
 
-  auto tmp_dir = fs::temp_directory_path() / "evring_test_symlink";
+  auto tmp_dir = testing::temp_directory_path() / "evring_test_symlink";
   fs::create_directories(tmp_dir);
 
   // Create target files

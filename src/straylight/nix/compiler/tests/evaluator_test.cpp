@@ -12,14 +12,17 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "straylight/nix/compiler/evaluator.h"
+#include "straylight/nix/testing/temp_dir.h"
 
 namespace {
+
+namespace testing = straylight::nix::testing;
 
 // Helper to create a temporary directory with test files
 struct test_directory {
   test_directory() {
     // Create a unique temp directory
-    temp_dir_ = std::filesystem::temp_directory_path() / ("nix_test_" + std::to_string(getpid()));
+    temp_dir_ = testing::temp_directory_path() / ("nix_test_" + std::to_string(getpid()));
     std::filesystem::create_directories(temp_dir_);
   }
 
