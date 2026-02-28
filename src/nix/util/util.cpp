@@ -3,6 +3,7 @@
 #include <array>
 #include <cctype>
 #include <iostream>
+#include <queue>
 #include <regex>
 
 #include <sodium.h>
@@ -85,17 +86,209 @@ std::string replace_strings(std::string res, std::string_view from, std::string_
   return res;
 }
 
-std::string rewrite_strings(std::string s, const string_map_t& rewrites) {
-  for (auto& i : rewrites) {
-    if (i.first == i.second) {
-      continue;
+/**
+ * Aho-Corasick automaton for efficient multi-pattern string matching.
+ *
+ * This implementation provides O(n + m*k + z) time complexity where:
+ * - n = length of input string
+ * - m = number of patterns
+ * - k = average pattern length
+ * - z = number of matches found
+ *
+ * The previous implementation was O(m * n^2 * k) in the worst case due to
+ * repeated find() and replace() calls for each pattern.
+ */
+namespace {
+
+struct AhoCorasickNode {
+  std::map<char, int> children;
+  int failure_link = 0;
+  int pattern_idx = -1; // -1 if not end of pattern, otherwise index into patterns
+};
+
+class AhoCorasickAutomaton {
+  std::vector<AhoCorasickNode> nodes;
+  std::vector<std::pair<std::string_view, std::string_view>> patterns; // (from, to)
+
+public:
+  AhoCorasickAutomaton() {
+    nodes.emplace_back(); // Root node
+  }
+
+  void add_pattern(std::string_view from, std::string_view to) {
+    if (from.empty() || from == to)
+      return;
+
+    int curr = 0;
+    for (char c : from) {
+      auto it = nodes[curr].children.find(c);
+      if (it == nodes[curr].children.end()) {
+        nodes[curr].children[c] = static_cast<int>(nodes.size());
+        curr = static_cast<int>(nodes.size());
+        nodes.emplace_back();
+      } else {
+        curr = it->second;
+      }
     }
-    size_t j = 0;
-    while ((j = s.find(i.first, j)) != s.npos) {
-      s.replace(j, i.first.size(), i.second);
+    // Only store first pattern if duplicates exist (preserves original behavior)
+    if (nodes[curr].pattern_idx == -1) {
+      nodes[curr].pattern_idx = static_cast<int>(patterns.size());
+      patterns.emplace_back(from, to);
     }
   }
-  return s;
+
+  void build_failure_links() {
+    std::queue<int> q;
+    // Initialize: children of root have failure link to root
+    for (auto& [c, child] : nodes[0].children) {
+      q.push(child);
+    }
+
+    while (!q.empty()) {
+      int curr = q.front();
+      q.pop();
+
+      for (auto& [c, child] : nodes[curr].children) {
+        q.push(child);
+        // Find failure link for child
+        int fall = nodes[curr].failure_link;
+        while (fall != 0 && nodes[fall].children.find(c) == nodes[fall].children.end()) {
+          fall = nodes[fall].failure_link;
+        }
+        auto it = nodes[fall].children.find(c);
+        nodes[child].failure_link =
+            (it != nodes[fall].children.end() && it->second != child) ? it->second : 0;
+      }
+    }
+  }
+
+  bool empty() const { return patterns.empty(); }
+
+  /**
+   * Find all non-overlapping matches, preferring leftmost-longest matches.
+   * Returns vector of (start_pos, pattern_idx) sorted by position.
+   *
+   * For overlapping patterns at same position, we prefer longer patterns.
+   * For overlapping matches at different positions, we prefer earlier matches.
+   */
+  std::vector<std::pair<size_t, size_t>> find_matches(std::string_view text) const {
+    std::vector<std::pair<size_t, size_t>> matches; // (start_pos, pattern_idx)
+
+    int state = 0;
+    for (size_t i = 0; i < text.size(); ++i) {
+      char c = text[i];
+
+      // Follow failure links until we find a transition or reach root
+      while (state != 0 && nodes[state].children.find(c) == nodes[state].children.end()) {
+        state = nodes[state].failure_link;
+      }
+
+      auto it = nodes[state].children.find(c);
+      if (it != nodes[state].children.end()) {
+        state = it->second;
+      }
+
+      // Check for pattern match at current state and all failure-linked states
+      int check = state;
+      while (check != 0) {
+        if (nodes[check].pattern_idx != -1) {
+          size_t pat_idx = nodes[check].pattern_idx;
+          size_t pat_len = patterns[pat_idx].first.size();
+          size_t start = i + 1 - pat_len;
+          matches.emplace_back(start, pat_idx);
+        }
+        check = nodes[check].failure_link;
+      }
+    }
+
+    // Filter to non-overlapping matches (leftmost wins, then longest)
+    if (matches.empty())
+      return matches;
+
+    // Sort by start position, then by pattern length (descending for longer = better)
+    std::sort(matches.begin(), matches.end(), [this](const auto& a, const auto& b) {
+      if (a.first != b.first)
+        return a.first < b.first;
+      return patterns[a.second].first.size() > patterns[b.second].first.size();
+    });
+
+    // Greedy selection: take each match that doesn't overlap with previous
+    std::vector<std::pair<size_t, size_t>> result;
+    size_t last_end = 0;
+    for (const auto& [start, pat_idx] : matches) {
+      if (start >= last_end) {
+        result.emplace_back(start, pat_idx);
+        last_end = start + patterns[pat_idx].first.size();
+      }
+    }
+
+    return result;
+  }
+
+  const std::pair<std::string_view, std::string_view>& get_pattern(size_t idx) const {
+    return patterns[idx];
+  }
+};
+
+} // namespace
+
+std::string rewrite_strings(std::string s, const string_map_t& rewrites) {
+  // Fast path: no rewrites
+  if (rewrites.empty()) {
+    return s;
+  }
+
+  // Fast path: single rewrite (original algorithm is fine)
+  if (rewrites.size() == 1) {
+    auto& [from, to] = *rewrites.begin();
+    if (from.empty() || from == to) {
+      return s;
+    }
+    size_t pos = 0;
+    while ((pos = s.find(from, pos)) != s.npos) {
+      s.replace(pos, from.size(), to);
+      pos += to.size();
+    }
+    return s;
+  }
+
+  // Build Aho-Corasick automaton
+  AhoCorasickAutomaton ac;
+  for (const auto& [from, to] : rewrites) {
+    ac.add_pattern(from, to);
+  }
+
+  if (ac.empty()) {
+    return s;
+  }
+
+  ac.build_failure_links();
+
+  // Find all non-overlapping matches in a single pass
+  auto matches = ac.find_matches(s);
+
+  if (matches.empty()) {
+    return s;
+  }
+
+  // Build result string in a single pass
+  std::string result;
+  // Estimate capacity: original size + some buffer for replacements
+  result.reserve(s.size());
+
+  size_t last_pos = 0;
+  for (const auto& [start, pat_idx] : matches) {
+    const auto& [from, to] = ac.get_pattern(pat_idx);
+    // Append unchanged portion
+    result.append(s, last_pos, start - last_pos);
+    // Append replacement
+    result.append(to);
+    last_pos = start + from.size();
+  }
+  // Append remaining portion
+  result.append(s, last_pos, s.size() - last_pos);
+
+  return result;
 }
 
 template <class N>

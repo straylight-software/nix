@@ -47,7 +47,12 @@ struct alignas(8) /* Work around ASAN failures on i686-linux. */
         config{config},
         master(config->createSSHMaster(
             // Use SSH master only if using more than 1 connection.
-            connections->capacity() > 1)) {}
+            connections->capacity() > 1)) {
+    // Eagerly start the SSH master connection before any pool connections are
+    // created. This prevents deadlocks where multiple threads from the pool
+    // block inside startMaster() while holding pool slots. (issue #14615)
+    master.ensureMaster();
+  }
 
   // FIXME extend daemon protocol, move implementation to RemoteStore
   std::optional<std::string> getBuildLogExact(const store_path_t& path) override {

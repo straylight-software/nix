@@ -1,9 +1,26 @@
+#include <array>
+
 #include <nlohmann/json.hpp>
 
 #include "nix/store/store-dir-config.h"
 #include "nix/util/json-utils.h"
 
 namespace nix {
+
+// Lookup table for O(1) store path name character validation.
+// Valid characters: a-z A-Z 0-9 + - . _ ? =
+static constexpr std::array<bool, 256> valid_name_chars = []() {
+  std::array<bool, 256> table{};
+  for (unsigned char c = '0'; c <= '9'; ++c)
+    table[c] = true;
+  for (unsigned char c = 'a'; c <= 'z'; ++c)
+    table[c] = true;
+  for (unsigned char c = 'A'; c <= 'Z'; ++c)
+    table[c] = true;
+  for (unsigned char c : {'+', '-', '.', '_', '?', '='})
+    table[c] = true;
+  return table;
+}();
 
 void check_name(std::string_view name) {
   if (name.empty())
@@ -28,8 +45,7 @@ void check_name(std::string_view name) {
     }
   }
   for (auto c : name)
-    if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '+' ||
-          c == '-' || c == '.' || c == '_' || c == '?' || c == '='))
+    if (!valid_name_chars[static_cast<unsigned char>(c)])
       throw BadStorePathName("name '%s' contains illegal character '%s'", name, c);
 }
 

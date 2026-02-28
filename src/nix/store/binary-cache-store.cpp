@@ -575,13 +575,49 @@ std::shared_ptr<source_accessor_t> binary_cache_store::getFSAccessor(const store
 }
 
 void binary_cache_store::addSignatures(const store_path_t& store_path, const string_set_t& sigs) {
-  /* Note: this is inherently racy since there is no locking on
-     binary caches. In particular, with S3 this unreliable, even
-     when addSignatures() is called sequentially on a path, because
-     S3 might return an outdated cached version. */
+  /* Note: This operation is inherently racy for remote binary caches since
+     there is no distributed locking mechanism. We mitigate the race by:
 
-  auto narInfo = make_ref<nar_info_t>((nar_info_t&)*queryPathInfo(store_path));
+     1. Reading current narinfo directly from remote (bypassing all caches)
+     2. Merging all existing signatures with new signatures
+     3. Writing the merged result
 
+     For S3 specifically, eventual consistency means we may still lose
+     signatures in rare cases if S3 returns a stale cached version. However,
+     by always fetching fresh and merging, we ensure monotonic progress:
+     signatures are never lost from the local perspective.
+
+     The only complete solution would require:
+     - Conditional writes (If-Match ETag) with retry-on-conflict, or
+     - A separate coordination service (e.g., DynamoDB for S3)
+     Neither is currently supported by the binary cache interface.
+
+     Since signatures are only additive (never removed), and signing is typically
+     done by a single trusted entity, the practical impact is minimal. Lost
+     signatures can always be re-added. */
+
+  // Helper to fetch path info bypassing all caches (memory and disk)
+  auto fetchFresh = [&]() -> std::shared_ptr<const valid_path_info_t> {
+    std::promise<std::shared_ptr<const valid_path_info_t>> promise;
+    query_path_info_uncached(store_path,
+                             {[&](std::future<std::shared_ptr<const valid_path_info_t>> result) {
+                               try {
+                                 promise.set_value(result.get());
+                               } catch (...) {
+                                 promise.set_exception(std::current_exception());
+                               }
+                             }});
+    return promise.get_future().get();
+  };
+
+  // Fetch fresh from remote, bypassing caches
+  auto currentInfo = fetchFresh();
+  if (!currentInfo)
+    throw InvalidPath("path '%s' is not valid", printStorePath(store_path));
+
+  auto narInfo = make_ref<nar_info_t>((nar_info_t&)*currentInfo);
+
+  // Add the new signatures (set merge is idempotent)
   narInfo->sigs.insert(sigs.begin(), sigs.end());
 
   writeNarInfo(narInfo);

@@ -858,9 +858,10 @@ void LocalStore::collectGarbage(const GCOptions& options, GCResults& results) {
 
   /* Unlink all files in /nix/store/.links that have a link count of 1,
      which indicates that there are no other links and so they can be
-     safely deleted.  FIXME: race condition with optimisePath(): we
-     might see a link count of 1 just before optimisePath() increases
-     the link count. */
+     safely deleted.  Note: there is a potential race with optimisePath()
+     where we might delete a link just as optimisePath() is about to
+     hard-link to it. This is handled in optimisePath() by catching
+     ENOENT and recreating the link from the source file. */
   if (options.action == GCOptions::gcDeleteDead || options.action == GCOptions::gcDeleteSpecific) {
     printInfo("deleting unused links...");
 

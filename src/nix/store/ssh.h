@@ -70,6 +70,17 @@ public:
   };
 
   /**
+   * Eagerly start the SSH master connection if not already running.
+   *
+   * This should be called before creating connections from a pool to avoid
+   * deadlocks where multiple pool threads block waiting for the master to start
+   * while holding pool slots. (issue #14615)
+   *
+   * If useMaster is false or the master is already running, this is a no-op.
+   */
+  void ensureMaster();
+
+  /**
    * @param command The command (arg vector) to execute.
    *
    * @param extraSshArgs Extra arguments to pass to SSH (not the command to

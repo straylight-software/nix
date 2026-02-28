@@ -755,3 +755,109 @@ TEST_CASE("concatStringsSep with very long separator", "[strings]") {
   auto result = concat_strings_sep(long_sep, parts);
   REQUIRE(result == "a" + long_sep + "b");
 }
+
+// =============================================================================
+// rewrite_strings tests (from util.h) - Aho-Corasick optimized implementation
+// =============================================================================
+
+using nix::rewrite_strings;
+using nix::string_map_t;
+
+TEST_CASE("rewrite_strings empty rewrites", "[util][rewrite]") {
+  string_map_t empty;
+  REQUIRE(rewrite_strings("hello world", empty) == "hello world");
+}
+
+TEST_CASE("rewrite_strings single pattern", "[util][rewrite]") {
+  string_map_t rewrites = {{"foo", "bar"}};
+  REQUIRE(rewrite_strings("foo baz foo", rewrites) == "bar baz bar");
+}
+
+TEST_CASE("rewrite_strings multiple patterns", "[util][rewrite]") {
+  string_map_t rewrites = {{"foo", "FOO"}, {"bar", "BAR"}};
+  REQUIRE(rewrite_strings("foo bar baz", rewrites) == "FOO BAR baz");
+}
+
+TEST_CASE("rewrite_strings overlapping patterns - longer wins", "[util][rewrite]") {
+  string_map_t rewrites = {{"ab", "X"}, {"abc", "Y"}};
+  // At position 0, both "ab" and "abc" match. Longer pattern "abc" should win.
+  REQUIRE(rewrite_strings("abcd", rewrites) == "Yd");
+}
+
+TEST_CASE("rewrite_strings no match", "[util][rewrite]") {
+  string_map_t rewrites = {{"xyz", "123"}};
+  REQUIRE(rewrite_strings("hello world", rewrites) == "hello world");
+}
+
+TEST_CASE("rewrite_strings same from and to", "[util][rewrite]") {
+  string_map_t rewrites = {{"foo", "foo"}};
+  REQUIRE(rewrite_strings("foo bar foo", rewrites) == "foo bar foo");
+}
+
+TEST_CASE("rewrite_strings empty from pattern", "[util][rewrite]") {
+  string_map_t rewrites = {{"", "should not match"}};
+  REQUIRE(rewrite_strings("hello", rewrites) == "hello");
+}
+
+TEST_CASE("rewrite_strings variable length replacement", "[util][rewrite]") {
+  string_map_t rewrites = {{"short", "verylongstring"}, {"long", "x"}};
+  REQUIRE(rewrite_strings("short and long", rewrites) == "verylongstring and x");
+}
+
+TEST_CASE("rewrite_strings derivation path rewrites", "[util][rewrite]") {
+  // Simulate Nix store path rewrites (common use case)
+  string_map_t rewrites = {{"/nix/store/aaaa-foo", "/nix/store/bbbb-foo"},
+                           {"/nix/store/cccc-bar", "/nix/store/dddd-bar"}};
+  std::string input = "export PATH=/nix/store/aaaa-foo/bin:/nix/store/cccc-bar/bin";
+  std::string expected = "export PATH=/nix/store/bbbb-foo/bin:/nix/store/dddd-bar/bin";
+  REQUIRE(rewrite_strings(input, rewrites) == expected);
+}
+
+TEST_CASE("rewrite_strings consecutive matches", "[util][rewrite]") {
+  string_map_t rewrites = {{"aa", "b"}};
+  REQUIRE(rewrite_strings("aaaa", rewrites) == "bb");
+}
+
+TEST_CASE("rewrite_strings nested patterns non-overlapping", "[util][rewrite]") {
+  // "ab" at position 0, "cd" at position 2, no overlap
+  string_map_t rewrites = {{"ab", "X"}, {"cd", "Y"}};
+  REQUIRE(rewrite_strings("abcd", rewrites) == "XY");
+}
+
+TEST_CASE("rewrite_strings hash-like patterns", "[util][rewrite]") {
+  // Simulate hash rewrites (32-char patterns common in Nix)
+  std::string hash1 = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  std::string hash2 = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+  std::string hash3 = "cccccccccccccccccccccccccccccccc";
+  string_map_t rewrites = {{hash1, hash2}};
+  std::string input = "/nix/store/" + hash1 + "-pkg";
+  std::string expected = "/nix/store/" + hash2 + "-pkg";
+  REQUIRE(rewrite_strings(input, rewrites) == expected);
+}
+
+TEST_CASE("rewrite_strings property: empty string", "[util][rewrite]") {
+  string_map_t rewrites = {{"foo", "bar"}};
+  REQUIRE(rewrite_strings("", rewrites) == "");
+}
+
+TEST_CASE("rewrite_strings property: single rewrite uses fast path", "[util][rewrite]") {
+  // Test that single rewrite works correctly (uses optimized path)
+  string_map_t rewrites = {{"needle", "replacement"}};
+  REQUIRE(rewrite_strings("find the needle in haystack", rewrites) ==
+          "find the replacement in haystack");
+}
+
+// Property-based test for rewrite_strings
+TEST_CASE("rewrite_strings property: non-matching patterns leave string unchanged",
+          "[util][rewrite][property]") {
+  rc::prop("patterns not in string don't change it", []() {
+    // Generate a string of lowercase letters
+    auto str = *rc::gen::container<std::string>(rc::gen::inRange('a', 'm'));
+    // Generate patterns using uppercase letters (won't match)
+    auto from = *rc::gen::nonEmpty(rc::gen::container<std::string>(rc::gen::inRange('N', 'Z')));
+    auto to = *rc::gen::string<std::string>();
+
+    string_map_t rewrites = {{from, to}};
+    RC_ASSERT(rewrite_strings(str, rewrites) == str);
+  });
+}

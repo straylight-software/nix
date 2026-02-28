@@ -145,12 +145,29 @@ void LocalStore::optimisePath_(activity_t* act, OptimiseStats& stats, const Path
 
      Also note that if `path' is a symlink, then we're hashing the
      contents of the symlink (i.e. the result of readlink()), not
-     the contents of the target (which may not even exist). */
+     the contents of the target (which may not even exist).
+
+     To prevent a race condition where we hash a file while another
+     process is still writing to it (see NixOS/nix#14599), we verify
+     that the file's metadata hasn't changed between before and after
+     hashing. If the file changed during hashing, we skip it - it will
+     be optimized on the next run when the write is complete. */
   Hash hash = ({
     hash_path({make_ref<posix_source_accessor_t>(), canon_path_t(path)},
               file_serialisation_method_t::nix_archive, hash_algorithm_t::SHA256)
         .hash;
   });
+
+  /* Re-stat the file to detect if it changed while we were hashing.
+     This mitigates the race condition where another process is writing
+     to this file concurrently. We check inode, size, and mtime. */
+  auto stAfterHash = lstat(path);
+  if (st.st_ino != stAfterHash.st_ino || st.st_size != stAfterHash.st_size ||
+      st.st_mtime != stAfterHash.st_mtime) {
+    debug("'%1%' changed while hashing, skipping optimization", path);
+    return;
+  }
+
   debug("'%1%' has hash '%2%'", path, hash.to_string(hash_format_t::nix32, true));
 
   /* Check if this is a known hash. */
@@ -224,19 +241,64 @@ void LocalStore::optimisePath_(activity_t* act, OptimiseStats& stats, const Path
 
   std::filesystem::path tempLink = make_temp_path(config->real_store_dir.get(), ".tmp-link");
 
-  try {
-    std::filesystem::create_hard_link(linkPath, tempLink);
-    inodeHash.insert(st.st_ino);
-  } catch (std::filesystem::filesystem_error& e) {
-    if (e.code() == std::errc::too_many_links) {
-      /* Too many links to the same file (>= 32000 on most file
-         systems).  This is likely to happen with empty files.
-         Just shrug and ignore. */
-      if (st.st_size)
-        printInfo("%1% has maximum number of links", linkPath);
+  /* Handle race condition with GC: GC may delete a link in .links/
+     just as we're about to hard-link to it. GC deletes links with
+     st_nlink == 1, but between GC's stat() and unlink(), we might
+     try to create a hard link. If GC wins the race and deletes the
+     link first, we get ENOENT. In that case, recreate the link from
+     our source file `path` and retry. */
+  for (int retries = 0;; ++retries) {
+    try {
+      std::filesystem::create_hard_link(linkPath, tempLink);
+      inodeHash.insert(st.st_ino);
+      break;
+    } catch (std::filesystem::filesystem_error& e) {
+      if (e.code() == std::errc::too_many_links) {
+        /* Too many links to the same file (>= 32000 on most file
+           systems).  This is likely to happen with empty files.
+           Just shrug and ignore. */
+        if (st.st_size)
+          printInfo("%1% has maximum number of links", linkPath);
+        return;
+      }
+
+      if (e.code() == std::errc::no_such_file_or_directory && retries < 3) {
+        /* The link in .links/ was deleted by GC between our check
+           for its existence and the hard link attempt. Recreate it
+           from the source file. */
+        debug("link '%s' was deleted by GC, recreating from '%s'", linkPath, path);
+        try {
+          std::filesystem::create_hard_link(path, linkPath);
+          /* Successfully recreated; retry the link to tempLink. */
+          continue;
+        } catch (std::filesystem::filesystem_error& e2) {
+          if (e2.code() == std::errc::file_exists) {
+            /* Another process recreated it; retry. */
+            continue;
+          }
+          throw;
+        }
+      }
+
+      throw;
+    }
+  }
+
+  /* Final safety check before replacing: verify that the link target
+     still has the expected content. This catches the case where another
+     optimization process incorrectly linked a file that was being written
+     to (see NixOS/nix#14599). If the link file has wrong content, we must
+     not link to it - instead we remove the corrupted link and abort. */
+  {
+    auto stLinkFinal = lstat(linkPath.string());
+    if (st.st_size != stLinkFinal.st_size) {
+      warn("link file '%s' has unexpected size (expected %d, got %d), removing corrupted link",
+           linkPath.string(), st.st_size, stLinkFinal.st_size);
+      std::error_code ec;
+      std::filesystem::remove(tempLink, ec);
+      std::filesystem::remove(linkPath, ec);
       return;
     }
-    throw;
   }
 
   /* Atomically replace the old file with the new hard link. */

@@ -717,11 +717,14 @@ LockedFlake lock_flake(const settings_t& settings, eval_state_t& state, const fl
 
               node->inputs.insert_or_assign(id, childNode);
 
-              /* Guard against circular flake imports. */
+              /* Guard against circular flake imports.
+                 Compare locked refs, not input refs, because two different
+                 refs (e.g. 'github:owner/repo' vs 'github:owner/repo?ref=main')
+                 can resolve to the same flake. */
               for (auto& parent : parents)
-                if (parent == *input.ref)
+                if (parent == inputFlake.locked_ref)
                   throw Error("found circular import of flake '%s'", parent);
-              parents.push_back(*input.ref);
+              parents.push_back(inputFlake.locked_ref);
               finally_t cleanup([&]() { parents.pop_back(); });
 
               /* Recursively process the inputs of this

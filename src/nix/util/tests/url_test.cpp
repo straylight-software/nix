@@ -250,6 +250,54 @@ TEST_CASE("parsed_url render_path with special characters", "[url][serialize]") 
   REQUIRE(url.render_path(true) == "/foo/bar%20baz/quux");
 }
 
+TEST_CASE("parsed_url render_path preserves RFC 3986 sub-delims", "[url][serialize][s3]") {
+  // This test verifies that RFC 3986 sub-delims are NOT percent-encoded in paths.
+  // This is critical for AWS S3 signing - see https://github.com/NixOS/nix/issues/15315
+  // Paths like "realisations/sha256:...!dist.drv" must keep "!" unencoded to avoid
+  // SignatureDoesNotMatch errors when using curl's CURLOPT_AWS_SIGV4.
+  parsed_url_t url;
+  url.set_scheme("https");
+  parsed_url_t::authority_t auth;
+  auth.set_host_type(parsed_url_t::authority_t::host_type_t::name);
+  auth.set_host("s3.example.com");
+  auth.set_user(std::nullopt);
+  auth.set_password(std::nullopt);
+  auth.set_port(std::nullopt);
+  url.set_authority(auth);
+
+  // Test realisation path with "!" character
+  url.set_path({"", "bucket", "realisations", "sha256:abcdef!dist.drv"});
+
+  // "!" is a sub-delim per RFC 3986 and should NOT be encoded
+  REQUIRE(url.render_path(false) == "/bucket/realisations/sha256:abcdef!dist.drv");
+  REQUIRE(url.render_path(true) == "/bucket/realisations/sha256:abcdef!dist.drv");
+
+  // Full URL should also preserve the "!"
+  auto full_url = url.to_string();
+  REQUIRE(full_url.find("!dist.drv") != std::string::npos);
+  REQUIRE(full_url.find("%21") == std::string::npos); // Should NOT contain encoded "!"
+}
+
+TEST_CASE("parsed_url render_path all sub-delims unencoded", "[url][serialize]") {
+  // All RFC 3986 sub-delims: ! $ & ' ( ) * + , ; =
+  // These should all be preserved unencoded in paths
+  parsed_url_t url;
+  url.set_scheme("https");
+  parsed_url_t::authority_t auth;
+  auth.set_host_type(parsed_url_t::authority_t::host_type_t::name);
+  auth.set_host("example.com");
+  auth.set_user(std::nullopt);
+  auth.set_password(std::nullopt);
+  auth.set_port(std::nullopt);
+  url.set_authority(auth);
+
+  url.set_path({"", "test", "!$&'()*+,;="});
+
+  auto encoded = url.render_path(true);
+  // All sub-delims should be preserved
+  REQUIRE(encoded == "/test/!$&'()*+,;=");
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // URL scheme validation tests
 // ─────────────────────────────────────────────────────────────────────────────

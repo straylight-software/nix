@@ -294,6 +294,16 @@ std::unique_ptr<SSHMaster::Connection> SSHMaster::startCommand(strings_t&& comma
 
 #ifndef _WIN32 // TODO re-enable on Windows, once we can start processes.
 
+void SSHMaster::ensureMaster() {
+  if (!useMaster)
+    return;
+
+  // Start the master connection eagerly. This is called before the connection
+  // pool starts creating connections to avoid deadlocks where multiple threads
+  // block inside startMaster() while holding pool slots. (issue #14615)
+  startMaster();
+}
+
 Path SSHMaster::startMaster() {
   if (!useMaster)
     return "";
@@ -429,6 +439,12 @@ Path SSHMaster::startMaster() {
   }
 
   return socket_path;
+}
+
+#else // _WIN32
+
+void SSHMaster::ensureMaster() {
+  // SSH master is not yet supported on Windows
 }
 
 #endif

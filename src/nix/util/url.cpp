@@ -293,7 +293,29 @@ string_map_t decode_query(std::string_view query, bool lenient) try {
 }
 
 const static std::string allowed_in_query = ":@/?";
-const static std::string allowed_in_path = ":@";
+/**
+ * Characters allowed unencoded in URL path segments per RFC 3986.
+ *
+ * RFC 3986 section 3.3 defines:
+ *   pchar = unreserved / pct-encoded / sub-delims / ":" / "@"
+ *   sub-delims = "!" / "$" / "&" / "'" / "(" / ")" / "*" / "+" / "," / ";" / "="
+ *
+ * The unreserved characters (A-Z, a-z, 0-9, -, ., _, ~) are already handled
+ * by percent_encode. This string adds the sub-delims and the ":" and "@"
+ * characters that are explicitly allowed in path segments.
+ *
+ * Note: Including sub-delims (especially "!") is critical for AWS S3 signing.
+ * AWS Signature V4 for S3 uses single URL encoding, and curl's CURLOPT_AWS_SIGV4
+ * expects paths to follow RFC 3986. If "!" is percent-encoded to "%21" in the URL
+ * but the server computes the signature with the decoded "!", you get a
+ * SignatureDoesNotMatch error. By not encoding "!" (and other sub-delims),
+ * both the HTTP request and signature computation use the same path representation.
+ *
+ * @see https://datatracker.ietf.org/doc/html/rfc3986#section-3.3
+ * @see https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-header-based-auth.html
+ * @see https://github.com/NixOS/nix/issues/15315
+ */
+const static std::string allowed_in_path = ":@!$&'()*+,;=";
 
 std::string encode_url_path(std::span<const std::string> url_path) {
   std::vector<std::string> encoded_path;
