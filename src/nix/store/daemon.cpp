@@ -845,6 +845,8 @@ static void perform_op(tunnel_logger_t* logger, ref<store_t> store, TrustedFlag 
       auto path = WorkerProto::Serialise<store_path_t>::read(*store, rconn);
       string_set_t sigs = read_strings<string_set_t>(conn.from);
       logger->start_work();
+      if (!trusted)
+        throw Error("you are not privileged to add signatures");
       store->addSignatures(path, sigs);
       logger->stop_work();
       conn.to << 1;

@@ -5,28 +5,12 @@
 // Fuzz .narinfo file format parsing used by binary caches.
 // This is a key attack surface for remote code execution via binary caches.
 //
-// CRITICAL BUG FOUND: nar_info_t constructor crashes on many inputs
+// FIXED BUGS:
+// 1. Missing bounds checking before string operations - FIXED in nar-info.cpp
+// 2. Dangling reference in test's make_store_config() - FIXED in this file
 //
-// The nar_info_t constructor uses virtual inheritance with Hash::dummy and
-// store_path_t::dummy for initialization. This complex initialization pattern
-// causes SIGSEGV on many malformed inputs instead of properly throwing exceptions.
-//
-// This is a SERIOUS SECURITY BUG - parsing untrusted .narinfo files from
-// binary caches can crash nix-daemon, causing denial of service.
-//
-// Affected functions:
-// - nar_info_t::nar_info_t(store_dir_config_t&, const ::std::string&, const ::std::string&)
-//   See: src/nix/store/nar-info.cpp:10-16
-//
-// Root causes:
-// 1. Virtual base class initialization with dummy values
-// 2. parseStorePath() triggers canon_path assertion on empty paths
-// 3. Missing bounds checking before string operations
-//
-// Attack vectors that cause crashes:
-// - Input without trailing newline: "store_path_t: /nix/store/test"
-// - Input with \r but no \n: "store_path_t: /nix/store/test\r"
-// - Many other malformed inputs cause SIGSEGV or SIGABRT
+// The parser now properly validates input and throws exceptions on malformed
+// input instead of crashing.
 
 #include <string>
 
@@ -38,79 +22,107 @@
 namespace {
 
 nix::store_dir_config_t make_store_config() {
-  return nix::store_dir_config_t{"/nix/store"};
+  // IMPORTANT: store_dir_config_t holds a reference, so we need a static string
+  // to avoid dangling reference UB
+  static const std::string store_dir = "/nix/store";
+  return nix::store_dir_config_t{store_dir};
 }
 
 } // namespace
 
 // =============================================================================
-// BUG: nar_info_t constructor crashes on malformed input (no trailing newline)
+// Malformed input handling - these should throw proper exceptions
 // =============================================================================
 
-TEST_CASE("bug: nar_info_t crashes without trailing newline", "[fuzz][narinfo][bug][!mayfail]") {
+TEST_CASE("narinfo: missing newline throws proper error", "[fuzz][narinfo]") {
   auto config = make_store_config();
 
-  // This input triggers SIGSEGV - it lacks a trailing newline
+  // Input without trailing newline - should throw, not crash
   auto malicious = ::std::string{"store_path_t: /nix/store/test"};
 
   INFO("Input: \"" << malicious << "\"");
-  // This SHOULD throw an exception, but instead triggers SIGSEGV
   REQUIRE_THROWS_AS(nix::nar_info_t(config, malicious, "test.narinfo"), nix::base_error_t);
 }
 
-// =============================================================================
-// BUG: nar_info_t crashes on carriage return without newline
-// =============================================================================
-
-TEST_CASE("bug: nar_info_t crashes on CR without LF", "[fuzz][narinfo][bug][!mayfail]") {
+TEST_CASE("narinfo: CR without LF throws proper error", "[fuzz][narinfo]") {
   auto config = make_store_config();
 
-  // This input has \r but no \n - triggers crash
+  // Input with \r but no \n - should throw, not crash
   auto malicious = ::std::string{"store_path_t: /nix/store/test\r"};
 
   INFO("Input with CR but no LF");
   REQUIRE_THROWS_AS(nix::nar_info_t(config, malicious, "test.narinfo"), nix::base_error_t);
 }
 
-// =============================================================================
-// Documentation: The above [bug] tests crash, proving the vulnerabilities exist.
-// All property/fuzz tests below are SKIPPED because the constructor is too
-// broken to safely fuzz - almost any malformed input causes crashes.
-// =============================================================================
+TEST_CASE("narinfo: missing space after colon throws proper error", "[fuzz][narinfo]") {
+  auto config = make_store_config();
 
-TEST_CASE("fuzz: nar_info_t arbitrary input", "[fuzz][narinfo]") {
-  SKIP("DISABLED: nar_info_t crashes on most malformed inputs - see [bug] tests");
+  // Input with no space after colon
+  auto malicious = ::std::string{"store_path_t:/nix/store/test\n"};
+
+  INFO("Input without space after colon");
+  REQUIRE_THROWS_AS(nix::nar_info_t(config, malicious, "test.narinfo"), nix::base_error_t);
 }
 
-TEST_CASE("fuzz: nar_info_t structured fuzzing", "[fuzz][narinfo]") {
-  SKIP("DISABLED: nar_info_t crashes on most malformed inputs - see [bug] tests");
-}
+TEST_CASE("narinfo: truncated after colon throws proper error", "[fuzz][narinfo]") {
+  auto config = make_store_config();
 
-TEST_CASE("fuzz: nar_info_t size overflow", "[fuzz][narinfo]") {
-  SKIP("DISABLED: nar_info_t crashes on most malformed inputs - see [bug] tests");
-}
+  // Input truncated right after colon
+  auto malicious = ::std::string{"store_path_t:"};
 
-TEST_CASE("fuzz: nar_info_t references field", "[fuzz][narinfo]") {
-  SKIP("DISABLED: nar_info_t crashes on most malformed inputs - see [bug] tests");
+  INFO("Input truncated after colon");
+  REQUIRE_THROWS_AS(nix::nar_info_t(config, malicious, "test.narinfo"), nix::base_error_t);
 }
 
 // =============================================================================
 // Valid input parsing test
-// NOTE: This test also fails - throws std::bad_alloc, indicating the
-// nar_info_t constructor has fundamental initialization issues, possibly
-// related to static initialization order of Hash::dummy and store_path_t::dummy
 // =============================================================================
 
-TEST_CASE("nar_info_t: valid narinfo parses", "[narinfo][bug][!mayfail]") {
+TEST_CASE("narinfo: valid input parses correctly", "[fuzz][narinfo]") {
   auto config = make_store_config();
 
-  // Note: field name was refactored from "StorePath" to "store_path_t"
   auto input = ::std::string{
       "store_path_t: /nix/store/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-test\n"
       "URL: nar/test.nar\n"
       "NarHash: sha256:0000000000000000000000000000000000000000000000000000000000000000\n"
       "NarSize: 1234\n"};
 
-  // Even "valid" input throws std::bad_alloc due to constructor bugs
   REQUIRE_NOTHROW(nix::nar_info_t(config, input, "test.narinfo"));
+}
+
+// =============================================================================
+// CRLF handling tests
+// =============================================================================
+
+TEST_CASE("narinfo: CRLF line endings are handled", "[fuzz][narinfo]") {
+  auto config = make_store_config();
+
+  // Windows-style line endings
+  auto input = ::std::string{
+      "store_path_t: /nix/store/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-test\r\n"
+      "URL: nar/test.nar\r\n"
+      "NarHash: sha256:0000000000000000000000000000000000000000000000000000000000000000\r\n"
+      "NarSize: 1234\r\n"};
+
+  REQUIRE_NOTHROW(nix::nar_info_t(config, input, "test.narinfo"));
+}
+
+// =============================================================================
+// Placeholder fuzz tests - can be enabled now that basic parsing is safe
+// =============================================================================
+
+TEST_CASE("fuzz: nar_info_t arbitrary input", "[fuzz][narinfo][.]") {
+  SKIP("TODO: Implement arbitrary input fuzzing");
+}
+
+TEST_CASE("fuzz: nar_info_t structured fuzzing", "[fuzz][narinfo][.]") {
+  SKIP("TODO: Implement structured fuzzing");
+}
+
+TEST_CASE("fuzz: nar_info_t size overflow", "[fuzz][narinfo][.]") {
+  SKIP("TODO: Implement size overflow fuzzing");
+}
+
+TEST_CASE("fuzz: nar_info_t references field", "[fuzz][narinfo][.]") {
+  SKIP("TODO: Implement references field fuzzing");
 }

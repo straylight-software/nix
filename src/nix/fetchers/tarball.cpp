@@ -235,7 +235,7 @@ struct curl_input_scheme_t : input_scheme_t {
   bool has_tarball_extension(const parsed_url_t& url) const {
     if (url.path().empty())
       return false;
-    const auto& path = url.path().back();
+    auto path = to_lower(url.path().back());
     return has_suffix(path, ".zip") || has_suffix(path, ".tar") || has_suffix(path, ".tgz") ||
            has_suffix(path, ".tar.gz") || has_suffix(path, ".tar.xz") ||
            has_suffix(path, ".tar.bz2") || has_suffix(path, ".tar.zst");

@@ -97,11 +97,31 @@ nar_info_t::nar_info_t(const store_dir_config_t& store, const std::string& s,
 
     std::string name(s, pos, colon - pos);
 
-    size_t eol = s.find('\n', colon + 2);
-    if (eol == s.npos)
-      throw corrupt("expecting '\\n'");
+    // Validate format: "Key: Value\n" - must have space after colon
+    // colon + 1 is where space should be, colon + 2 is where value starts
+    if (colon + 1 >= s.size())
+      throw corrupt("unexpected end of input after ':'");
 
-    std::string value(s, colon + 2, eol - colon - 2);
+    if (s[colon + 1] != ' ')
+      throw corrupt("expecting space after ':'");
+
+    size_t value_start = colon + 2;
+
+    // Find end of line - search from colon+1 to handle empty values
+    size_t eol = s.find('\n', colon + 1);
+    if (eol == s.npos)
+      throw corrupt("expecting '\\n' (missing newline at end of line)");
+
+    // Handle CRLF line endings by stripping trailing CR
+    size_t value_end = eol;
+    if (value_end > value_start && s[value_end - 1] == '\r')
+      value_end--;
+
+    // Extract value (may be empty if value_start >= value_end)
+    std::string value;
+    if (value_start < value_end)
+      value = std::string(s, value_start, value_end - value_start);
+    // else: empty value is allowed
 
     if (name == "store_path_t") {
       path = store.parseStorePath(value);

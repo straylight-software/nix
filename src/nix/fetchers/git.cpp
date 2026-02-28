@@ -72,12 +72,14 @@ std::optional<std::string> read_head(const std::filesystem::path& path) {
     switch (parse_result->kind) {
       case git::ls_remote_ref_line_t::Kind::symbolic:
         debug("resolved HEAD ref '%s' for repo '%s'", parse_result->target, path);
-        break;
+        return parse_result->target;
       case git::ls_remote_ref_line_t::Kind::Object:
-        debug("resolved HEAD rev '%s' for repo '%s'", parse_result->target, path);
-        break;
+        // HEAD is detached (pointing directly to a commit, not a branch).
+        // We cannot use a commit hash as a ref name, so return nullopt.
+        // The caller will fall back to "master" as the default ref.
+        debug("HEAD is detached at '%s' for repo '%s'", parse_result->target, path);
+        return std::nullopt;
     }
-    return parse_result->target;
   }
   return std::nullopt;
 }

@@ -382,8 +382,10 @@ Goal::Co DerivationGoal::repairClosure() {
   if (haveWaitees) {
     trace("closure repaired");
     if (nrFailed > 0)
-      throw Error("some paths in the output closure of derivation '%s' could not be repaired",
-                  worker.store.printStorePath(drv_path));
+      co_return doneFailure(
+          build_error_t(build_result_t::Failure::MiscFailure,
+                        "some paths in the output closure of derivation '%s' could not be repaired",
+                        worker.store.printStorePath(drv_path)));
   }
   co_return doneSuccess(build_result_t::Success::AlreadyValid, assertPathValidity());
 }

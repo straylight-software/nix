@@ -467,12 +467,16 @@ void remote_store::addMultipleToStore(PathsSource&& paths_to_copy, activity_t& a
 
 void remote_store::addMultipleToStore(source_t& source, RepairFlag repair,
                                       CheckSigsFlag check_sigs) {
-  if (GET_PROTOCOL_MINOR(getConnection()->protoVersion) >= 32) {
+  {
     auto conn(getConnection());
-    conn->to << WorkerProto::Op::AddMultipleToStore << repair << !check_sigs;
-    conn.withFramedSink([&](sink_t& sink) { source.drain_into(sink); });
-  } else
-    store_t::addMultipleToStore(source, repair, check_sigs);
+    if (GET_PROTOCOL_MINOR(conn->protoVersion) >= 32) {
+      conn->to << WorkerProto::Op::AddMultipleToStore << repair << !check_sigs;
+      conn.withFramedSink([&](sink_t& sink) { source.drain_into(sink); });
+      return;
+    }
+    // Connection released here when conn goes out of scope
+  }
+  store_t::addMultipleToStore(source, repair, check_sigs);
 }
 
 void remote_store::register_drv_output(const realisation_t& info) {

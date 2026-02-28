@@ -48,7 +48,7 @@ std::shared_ptr<G> Worker::initGoalIfNeeded(std::weak_ptr<G>& goal_weak, args_t&
   if (auto goal = goal_weak.lock())
     return goal;
 
-  auto goal = std::make_shared<G>(args...);
+  auto goal = std::make_shared<G>(std::forward<args_t>(args)...);
   goal_weak = goal;
   wakeUp(goal);
   return goal;
@@ -397,12 +397,17 @@ void Worker::waitForInput() {
   /* If we are polling goals that are waiting for a lock, then wake
      up after a few seconds at most. */
   if (!waitingForAWhile.empty()) {
-    useTimeout = true;
     if (lastWokenUp == steady_time_point::min() || lastWokenUp > before)
       lastWokenUp = before;
-    timeout = std::max(1L, (long)std::chrono::duration_cast<std::chrono::seconds>(
-                               lastWokenUp + std::chrono::seconds(settings.pollInterval) - before)
-                               .count());
+    auto pollTimeout =
+        std::max(1L, (long)std::chrono::duration_cast<std::chrono::seconds>(
+                         lastWokenUp + std::chrono::seconds(settings.pollInterval) - before)
+                         .count());
+    if (useTimeout)
+      timeout = std::min(timeout, pollTimeout);
+    else
+      timeout = pollTimeout;
+    useTimeout = true;
   } else
     lastWokenUp = steady_time_point::min();
 

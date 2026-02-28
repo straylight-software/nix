@@ -23,7 +23,8 @@ void CachedEvalError::force() {
   if (v.type() == nAttrs) {
     auto a = v.attrs()->get(this->attr);
 
-    state.forceValue(*a->value, a->pos);
+    if (a)
+      state.forceValue(*a->value, a->pos);
   }
 
   // Shouldn't happen.
@@ -142,7 +143,7 @@ struct attr_db_t {
         bool first = true;
         for (auto* elem : *context) {
           if (!first)
-            ctx.push_back(' ');
+            ctx.push_back(';');
           ctx.append(elem->view());
           first = false;
         }
