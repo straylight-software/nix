@@ -41,6 +41,22 @@
         "type": "github"
       }
     },
+    "buck2-prelude_2": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1747422168,
+        "narHash": "sha256-iO5DxMc0uBhQfCVYJ+gD4avIhqlect7QOaszyBcBtUI=",
+        "owner": "weyl-ai",
+        "repo": "straylight-buck2-prelude",
+        "rev": "b42171bedf69b18a3c9a8e5918e96e10c196062f",
+        "type": "github"
+      },
+      "original": {
+        "owner": "weyl-ai",
+        "repo": "straylight-buck2-prelude",
+        "type": "github"
+      }
+    },
     "crane": {
       "locked": {
         "lastModified": 1771121070,
@@ -581,6 +597,7 @@
     },
     "root": {
       "inputs": {
+        "buck2-prelude": "buck2-prelude",
         "flake-parts": "flake-parts",
         "nixpkgs": "nixpkgs",
         "sensenet": "sensenet",
@@ -633,7 +650,7 @@
     },
     "sensenet": {
       "inputs": {
-        "buck2-prelude": "buck2-prelude",
+        "buck2-prelude": "buck2-prelude_2",
         "crane": "crane",
         "flake-parts": "flake-parts_2",
         "ghc-source-gen-src": "ghc-source-gen-src",
