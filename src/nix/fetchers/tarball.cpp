@@ -137,7 +137,11 @@ static DownloadTarballResult download_tarball_(const settings_t& settings, const
     };
   };
 
-  if (cached && !settings.getTarballCache()->hasObject(get_rev_attr(cached->value, "treeHash")))
+  // Use hasCompleteTree to validate that all tree objects exist, not just the root.
+  // This prevents "object not found" errors from incomplete/corrupted Git trees
+  // that can result from interrupted fetches (see NixOS/nix#14954).
+  if (cached &&
+      !settings.getTarballCache()->hasCompleteTree(get_rev_attr(cached->value, "treeHash")))
     cached.reset();
 
   if (cached && !cached->expired)

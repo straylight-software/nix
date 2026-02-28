@@ -371,9 +371,11 @@ std::string parsed_url_t::render_authority_and_path() const {
     if (!(path_.empty() || path_.front().empty()))
       throw Error("invalid URL: path must be empty or start with '/' when authority is present");
     res += authority_->to_string();
-  } else if (std::ranges::equal(std::views::take(path_, 3), std::views::repeat("", 3))) {
+  } else if (path_.size() >= 2 && path_[0].empty() && path_[1].empty()) {
     /* If a URI does not contain an authority component, then the path cannot begin
-       with two slash characters ("//") */
+       with two slash characters ("//") because that would be ambiguous with authority.
+       A path like ["", "", "foo"] would render as "//foo" which would be parsed as
+       having authority "foo" and empty path. */
     throw Error("invalid URL: path cannot start with '//' without an authority component");
   }
   res += encode_url_path(path_);
@@ -426,14 +428,32 @@ parsed_url_scheme_t parse_url_scheme(std::string_view scheme) {
 }
 
 parsed_url_t fix_git_url(std::string url) {
-  std::regex scp_regex("([^/]*)@(.*):(.*)");
-  if (!has_prefix(url, "/") && std::regex_match(url, scp_regex))
-    url = std::regex_replace(url, scp_regex, "ssh://$1@$2/$3");
+  // Handle SCP-style URLs with username: user@host:path -> ssh://user@host/path
+  std::regex scp_with_user_regex("([^/]*)@(.*):(.*)");
+  if (!has_prefix(url, "/") && std::regex_match(url, scp_with_user_regex))
+    url = std::regex_replace(url, scp_with_user_regex, "ssh://$1@$2/$3");
+
+  // Handle SCP-style URLs without username: host:path -> ssh://host/path
+  // This matches URLs like "github.com:org/repo" or "server.local:/path/to/repo"
+  // but NOT local paths (which start with "/") or URLs that already have a scheme.
+  // The host part must not contain "/" (to distinguish from local paths with colons
+  // in directory names, which is rare but possible).
+  std::regex scp_no_user_regex("([^/:]+):(.+)");
+  if (!has_prefix(url, "/") && url.find("://") == std::string::npos &&
+      std::regex_match(url, scp_no_user_regex))
+    url = std::regex_replace(url, scp_no_user_regex, "ssh://$1/$2");
+
   if (!has_prefix(url, "file:") && !has_prefix(url, "git+file:") &&
       url.find("://") == std::string::npos) {
     parsed_url_t result;
     result.set_scheme("file");
-    result.set_authority(parsed_url_t::authority_t{});
+    // Only set authority (which produces file://) for absolute paths.
+    // Per RFC 3986, when authority is present, path must be empty or start with '/'.
+    // For absolute paths starting with '/', split produces ["", ...] which satisfies this.
+    // For relative paths, we must NOT set authority to avoid violating the invariant.
+    // (NixOS/nix#14867)
+    if (has_prefix(url, "/"))
+      result.set_authority(parsed_url_t::authority_t{});
     result.set_path(split_string<std::vector<std::string>>(url, "/"));
     return result;
   }

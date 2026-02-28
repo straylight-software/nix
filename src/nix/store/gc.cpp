@@ -790,8 +790,10 @@ void LocalStore::collectGarbage(const GCOptions& options, GCResults& results) {
         if (i == referrersCache.end()) {
           store_path_set_t referrers;
           queryGCReferrers(*path, referrers);
-          referrersCache.emplace(*path, std::move(referrers));
-          i = referrersCache.find(*path);
+          /* Note: we must re-lookup after emplace because the iterator
+             may be invalidated by rehashing during insertion. */
+          auto [insertedIt, _] = referrersCache.emplace(*path, std::move(referrers));
+          i = insertedIt;
         }
         for (auto& p : i->second)
           enqueue(p);
@@ -819,13 +821,27 @@ void LocalStore::collectGarbage(const GCOptions& options, GCResults& results) {
       if (shouldDelete) {
         try {
           invalidatePathChecked(path);
-          deleteFromStore(path.to_string());
-          referrersCache.erase(path);
         } catch (PathInUse& e) {
           // If we end up here, it's likely a new occurrence
           // of https://github.com/NixOS/nix/issues/11923
           printError("BUG: %s", e.what());
+          continue;
         }
+        /* Delete the filesystem path after invalidating the database.
+           If deleteFromStore fails, the database is already updated but
+           this is acceptable: the path becomes an orphan that will be
+           cleaned up on the next GC run. The alternative (deleting first)
+           risks leaving the database referencing non-existent paths if
+           invalidation fails, which is harder to recover from. */
+        try {
+          deleteFromStore(path.to_string());
+        } catch (sys_error_t& e) {
+          /* Log but continue - the path was already invalidated in the
+             database, so it won't cause referential integrity issues.
+             The orphaned filesystem entry will be cleaned up on next GC. */
+          printError("error deleting '%s': %s", printStorePath(path), e.what());
+        }
+        referrersCache.erase(path);
       }
     }
   };

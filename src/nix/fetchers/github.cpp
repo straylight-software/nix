@@ -301,11 +301,15 @@ struct git_archive_input_scheme_t : input_scheme_t {
       if (auto lastModifiedAttrs = cache->lookup(last_modified_key)) {
         auto tree_hash = get_rev_attr(*treeHashAttrs, "treeHash");
         auto last_modified = get_int_attr(*lastModifiedAttrs, "lastModified");
-        if (settings.getTarballCache()->hasObject(tree_hash))
+        // Use hasCompleteTree to validate that all tree objects exist, not just the root.
+        // This prevents "object not found" errors from incomplete/corrupted Git trees
+        // that can result from interrupted fetches (see NixOS/nix#14954).
+        if (settings.getTarballCache()->hasCompleteTree(tree_hash))
           return {std::move(input),
                   tarball_info_t{.tree_hash = tree_hash, .last_modified = (time_t)last_modified}};
         else
-          debug("Git tree with hash '%s' has disappeared from the cache, refetching...",
+          debug("Git tree with hash '%s' is incomplete or has disappeared from the cache, "
+                "refetching...",
                 tree_hash.git_rev());
       }
     }

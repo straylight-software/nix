@@ -4,6 +4,8 @@
 
 #include <atomic>
 #include <cassert>
+#include <cstdio>
+#include <cstdlib>
 #include <exception>
 #include <functional>
 #include <future>
@@ -48,7 +50,23 @@ public:
       return;
     std::promise<T> promise;
     promise.set_value(std::move(val));
-    fun_(promise.get_future());
+    try {
+      fun_(promise.get_future());
+    } catch (...) {
+      // If the callback handler itself throws, we cannot propagate the
+      // exception since this function is noexcept. This is a bug in the
+      // callback handler - it should handle all exceptions internally.
+      // We log and abort to make the bug visible rather than silently
+      // ignoring it. See NixOS/nix#14758.
+      try {
+        std::rethrow_exception(std::current_exception());
+      } catch (const std::exception& e) {
+        std::fprintf(stderr, "FATAL: Callback handler threw exception: %s\n", e.what());
+      } catch (...) {
+        std::fprintf(stderr, "FATAL: Callback handler threw unknown exception\n");
+      }
+      std::abort();
+    }
   }
 
   void rethrow(const std::exception_ptr& exc = std::current_exception()) noexcept {
@@ -62,7 +80,23 @@ public:
       return;
     std::promise<T> promise;
     promise.set_exception(exc);
-    fun_(promise.get_future());
+    try {
+      fun_(promise.get_future());
+    } catch (...) {
+      // If the callback handler itself throws, we cannot propagate the
+      // exception since this function is noexcept. This is a bug in the
+      // callback handler - it should handle all exceptions internally.
+      // We log and abort to make the bug visible rather than silently
+      // ignoring it. See NixOS/nix#14758.
+      try {
+        std::rethrow_exception(std::current_exception());
+      } catch (const std::exception& e) {
+        std::fprintf(stderr, "FATAL: Callback handler threw exception: %s\n", e.what());
+      } catch (...) {
+        std::fprintf(stderr, "FATAL: Callback handler threw unknown exception\n");
+      }
+      std::abort();
+    }
   }
 };
 

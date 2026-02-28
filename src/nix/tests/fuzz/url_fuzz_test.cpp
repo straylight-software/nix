@@ -111,7 +111,9 @@ TEST_CASE("fuzz: fix_git_url handles arbitrary input", "[fuzz][url]") {
   rc::prop("fix_git_url never crashes", []() {
     auto input = *rc::gen::arbitrary<::std::string>();
     try {
-      [[maybe_unused]] auto result = nix::fix_git_url(input);
+      auto result = nix::fix_git_url(input);
+      // NixOS/nix#14867: to_string() must not crash with assertion failure
+      [[maybe_unused]] auto str = result.to_string();
     } catch (const nix::base_error_t&) {
     } catch (const ::std::exception&) {
     }

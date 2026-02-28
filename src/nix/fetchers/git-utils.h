@@ -99,6 +99,16 @@ struct GitRepo {
 
   virtual bool hasObject(const Hash& oid) = 0;
 
+  /**
+   * Check if a tree object and all its descendants (subtrees and blobs)
+   * exist in the repository. This is a deep validation that ensures the
+   * entire tree is complete, not just the root object.
+   *
+   * This is important for detecting corrupted/incomplete Git trees that
+   * can result from interrupted fetches or shallow clones.
+   */
+  virtual bool hasCompleteTree(const Hash& oid) = 0;
+
   virtual ref<source_accessor_t> get_accessor(const Hash& rev, const GitAccessorOptions& options,
                                               std::string display_prefix) = 0;
 
@@ -155,7 +165,7 @@ struct Setter {
       t = T(p);
   }
 
-  operator typename T::pointer*() { return &p; }
+  operator typename T::pointer *() { return &p; }
 };
 
 /**

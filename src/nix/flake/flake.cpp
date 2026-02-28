@@ -348,6 +348,18 @@ static flake_ref_t apply_self_attrs(const flake_ref_t& ref, const flake_t& flake
   for (auto& attr : flake.selfAttrs) {
     if (!allowed_attrs.contains(attr.first))
       throw Error("flake 'self' attribute '%s' is not supported", attr.first);
+
+    // Check if the input scheme actually supports this attribute.
+    // For example, github: inputs don't support submodules - only git: inputs do.
+    if (new_ref.input.scheme) {
+      auto& scheme_allowed = new_ref.input.scheme->allowed_attrs();
+      if (scheme_allowed.find(attr.first) == scheme_allowed.end()) {
+        throw Error("input '%s' does not support the '%s' attribute. "
+                    "Consider using 'git+https://' instead of '%s:' to enable this feature.",
+                    new_ref.input.to_string(), attr.first, new_ref.input.getType());
+      }
+    }
+
     new_ref.input.attrs.insert_or_assign(attr.first, attr.second);
   }
 
@@ -693,8 +705,32 @@ LockedFlake lock_flake(const settings_t& settings, eval_state_t& state, const fl
               computeLocks(inputFlake.inputs, childNode, inputAttrPath, oldLock, followsPrefix,
                            inputFlake.path, false);
             } else {
+              /* Even when we don't refetch the flake, we need to get the correct
+                 source path for this input. Otherwise, any relative path inputs
+                 in nested subflakes would be resolved relative to the wrong
+                 directory (the parent's directory instead of this input's directory).
+                 See: https://github.com/NixOS/nix/issues/14762 */
+              auto getInputSourcePath = [&]() -> source_path_t {
+                if (auto relativePath = oldLock->locked_ref.input.isRelative()) {
+                  /* For relative path inputs, resolve relative to the parent's source path. */
+                  return source_path_t{
+                      source_path.accessor,
+                      canon_path_t(*relativePath, source_path.path.parent().value())};
+                } else {
+                  /* For non-relative inputs, fetch the accessor and compute the source path. */
+                  auto cached_input = state.inputCache->get_accessor(
+                      state.fetch_settings, *state.store, oldLock->locked_ref.input,
+                      fetchers::UseRegistries::No);
+                  return state.store_path(state.mountInput(oldLock->locked_ref.input,
+                                                           oldLock->original_ref.input,
+                                                           cached_input.accessor, true)) /
+                         canon_path_t(oldLock->locked_ref.subdir);
+                }
+              };
+              auto childSourcePath = getInputSourcePath();
+              nodePaths.emplace(childNode, childSourcePath);
               computeLocks(fakeInputs, childNode, inputAttrPath, oldLock, followsPrefix,
-                           source_path, true);
+                           childSourcePath / "flake.nix", true);
             }
 
           } else {

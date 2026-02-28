@@ -454,6 +454,55 @@ TEST_CASE("fix_git_url local path", "[url][git]") {
   REQUIRE(url.scheme() == "file");
 }
 
+TEST_CASE("fix_git_url scp style without user", "[url][git]") {
+  // This is the format used in .gitmodules for SSH submodules without a username
+  // e.g., "moserv.lan.home.arpa:/storage/src/nix-secrets.git"
+  // Note: The path starts with // because the original has an absolute path /path/...
+  // which becomes ssh://host//path/... when converted
+  auto url = fix_git_url("server.example.com:/path/to/repo.git");
+
+  REQUIRE(url.scheme() == "ssh");
+  REQUIRE(url.authority().has_value());
+  REQUIRE_FALSE(url.authority()->user().has_value());
+  REQUIRE(url.authority()->host() == "server.example.com");
+  // Path has leading double-slash since original was an absolute path
+  REQUIRE(url.render_path() == "//path/to/repo.git");
+}
+
+TEST_CASE("fix_git_url scp style without user relative path", "[url][git]") {
+  // SCP-style URL without leading slash (relative path on remote)
+  auto url = fix_git_url("github.com:org/repo");
+
+  REQUIRE(url.scheme() == "ssh");
+  REQUIRE(url.authority().has_value());
+  REQUIRE_FALSE(url.authority()->user().has_value());
+  REQUIRE(url.authority()->host() == "github.com");
+  REQUIRE(url.render_path() == "/org/repo");
+}
+
+TEST_CASE("fix_git_url relative path produces valid URL", "[url][git]") {
+  // Regression test for NixOS/nix#14867
+  // Relative paths should not have an authority, since that would violate
+  // RFC 3986: when authority is present, path must be empty or start with '/'
+  auto url = fix_git_url("relative/path");
+
+  REQUIRE(url.scheme() == "file");
+  REQUIRE_FALSE(url.authority().has_value());
+  REQUIRE(url.render_path() == "relative/path");
+  // Most importantly: to_string() should not crash
+  REQUIRE_NOTHROW(url.to_string());
+}
+
+TEST_CASE("fix_git_url absolute path has authority", "[url][git]") {
+  // Absolute paths should have an authority (empty) to produce file:///path
+  auto url = fix_git_url("/absolute/path");
+
+  REQUIRE(url.scheme() == "file");
+  REQUIRE(url.authority().has_value());
+  REQUIRE(url.render_path() == "/absolute/path");
+  REQUIRE_NOTHROW(url.to_string());
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // VerbatimURL tests
 // ─────────────────────────────────────────────────────────────────────────────
@@ -526,6 +575,26 @@ TEST_CASE("render_url_path_ensure_legal with slash throws", "[url][error]") {
 TEST_CASE("render_url_path_ensure_legal with nul throws", "[url][error]") {
   std::vector<std::string> path = {"foo", std::string("bar\0baz", 7), "quux"};
   REQUIRE_THROWS_AS(render_url_path_ensure_legal(path), BadURL);
+}
+
+TEST_CASE("to_string throws with authority and non-absolute path", "[url][error]") {
+  // RFC 3986: If authority is present, path must be empty or start with '/'
+  // NixOS/nix#14867: hand-constructed URLs might violate this
+  parsed_url_t url;
+  url.set_scheme("file");
+  url.set_authority(parsed_url_t::authority_t{});
+  url.set_path({"relative", "path"}); // Doesn't start with empty string (/)
+  REQUIRE_THROWS_AS(url.to_string(), nix::Error);
+}
+
+TEST_CASE("to_string throws with double-slash path and no authority", "[url][error]") {
+  // RFC 3986: If no authority, path cannot start with '//'
+  // Path ["", "", "foo"] would render as "//foo" which is ambiguous
+  parsed_url_t url;
+  url.set_scheme("scheme");
+  url.set_authority(std::nullopt);
+  url.set_path({"", "", "foo"}); // Starts with // (two empty strings)
+  REQUIRE_THROWS_AS(url.to_string(), nix::Error);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

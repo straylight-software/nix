@@ -104,16 +104,23 @@ static void init_lib_git2() {
     if (git_libgit2_init() < 0)
       throw Error("initialising libgit2: %s", git_error_last()->message);
 
-    // Add support for the reftable ref storage format extension.
-    // Git 2.45+ can use reftable as the default ref format, which stores refs
-    // in a more efficient binary format instead of loose files/packed-refs.
-    // libgit2 doesn't natively support reftable, but we can tell it to accept
-    // the extension so that repos using reftable can be opened successfully.
-    // Note: This doesn't add full reftable functionality - libgit2 will
-    // fall back to its default ref handling, which works for read-only
-    // operations on the object database.
-    const char* extensions[] = {"refstorage"};
-    if (git_libgit2_opts(GIT_OPT_SET_EXTENSIONS, extensions, 1) < 0)
+    // Tell libgit2 to accept certain git extensions that it doesn't natively
+    // support. This allows Nix to open repositories that use these features
+    // without libgit2 rejecting them with "unsupported extension" errors.
+    //
+    // - refstorage: Git 2.45+ can use reftable as the default ref format,
+    //   which stores refs in a more efficient binary format instead of loose
+    //   files/packed-refs. libgit2 will fall back to its default ref handling.
+    //
+    // - relativeworktrees: Git 2.48+ supports relative paths in worktrees
+    //   (via `git worktree add --relative-paths` or config
+    //   `worktree.useRelativePaths`). When enabled, git sets the extension
+    //   `extensions.relativeWorktrees=true` in the config. libgit2 doesn't
+    //   implement this feature, but we can tell it to accept repos that have
+    //   it enabled. Nix primarily uses the object database which is unaffected.
+    //   See: https://github.com/libgit2/libgit2/issues/7099
+    const char* extensions[] = {"refstorage", "relativeworktrees"};
+    if (git_libgit2_opts(GIT_OPT_SET_EXTENSIONS, extensions, 2) < 0)
       throw Error("setting libgit2 extensions: %s", git_error_last()->message);
   });
 }
@@ -599,6 +606,52 @@ struct git_repo_impl_t : GitRepo, std::enable_shared_from_this<git_repo_impl_t> 
         return false;
       auto err = git_error_last();
       throw Error("getting Git object '%s': %s", oid, err->message);
+    }
+
+    return true;
+  }
+
+  bool hasCompleteTree(const Hash& oid_) override {
+    auto oid = hash_to_oid(oid_);
+
+    Object obj;
+    if (auto err_code = git_object_lookup(Setter(obj), *this, &oid, GIT_OBJECT_ANY)) {
+      if (err_code == GIT_ENOTFOUND)
+        return false;
+      auto err = git_error_last();
+      throw Error("getting Git object '%s': %s", oid, err->message);
+    }
+
+    // If it's not a tree, just check that the object exists (which we already did)
+    if (git_object_type(obj.get()) != GIT_OBJECT_TREE)
+      return true;
+
+    // Recursively check all entries in the tree
+    auto tree = (git_tree*)obj.get();
+    auto count = git_tree_entrycount(tree);
+
+    for (size_t i = 0; i < count; ++i) {
+      auto entry = git_tree_entry_byindex(tree, i);
+      auto entry_oid = git_tree_entry_id(entry);
+      auto entry_type = git_tree_entry_type(entry);
+
+      // Check that the object exists
+      Object entry_obj;
+      if (auto err_code = git_object_lookup(Setter(entry_obj), *this, entry_oid, GIT_OBJECT_ANY)) {
+        if (err_code == GIT_ENOTFOUND) {
+          debug("incomplete Git tree: missing object '%s' (entry '%s')", *entry_oid,
+                git_tree_entry_name(entry));
+          return false;
+        }
+        auto err = git_error_last();
+        throw Error("getting Git object '%s': %s", *entry_oid, err->message);
+      }
+
+      // Recursively check subtrees
+      if (entry_type == GIT_OBJECT_TREE) {
+        if (!hasCompleteTree(to_hash(*entry_oid)))
+          return false;
+      }
     }
 
     return true;
