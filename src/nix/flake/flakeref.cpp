@@ -195,7 +195,12 @@ std::pair<flake_ref_t, std::string> parse_path_flake_ref_with_fragment(
 
   parsed_url_t path_url;
   path_url.set_scheme("path");
-  path_url.set_authority(parsed_url_t::authority_t{});
+  // Per RFC 3986, when authority is present, path must be empty or start with '/'.
+  // For absolute paths starting with '/', split produces ["", ...] which satisfies this.
+  // For relative paths (when preserve_relative_paths is true), we must NOT set authority
+  // to avoid violating the invariant.
+  if (is_absolute(path))
+    path_url.set_authority(parsed_url_t::authority_t{});
   path_url.set_path(split_string<std::vector<std::string>>(path, "/"));
   path_url.set_query(query);
   path_url.set_fragment(fragment);
