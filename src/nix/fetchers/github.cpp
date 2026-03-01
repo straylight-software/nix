@@ -50,8 +50,17 @@ struct git_archive_input_scheme_t : input_scheme_t {
    * Returns true if:
    * - prefer-ssh-for-git-forges is enabled, OR
    * - ssh-fallback-for-git-forges is enabled AND no access token is configured
+   *
+   * IMPORTANT: Returns false if the input already has a narHash, because
+   * git checkouts produce different NAR hashes than GitHub tarballs.
+   * Using SSH for an input locked with a tarball narHash would cause a mismatch.
    */
   bool shouldUseSsh(const settings_t& settings, const input_t& input) const {
+    // If the input already has a narHash, we must use the original fetch method
+    // (tarball) to get the same hash. Git checkouts have different NAR hashes.
+    if (input.getNarHash())
+      return false;
+
     if (settings.preferSshForGitForges)
       return true;
 
