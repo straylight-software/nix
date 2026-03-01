@@ -410,6 +410,56 @@
               echo "cppcheck: no errors found"
               touch $out
             '';
+
+            # coverage: test count threshold enforcement
+            # Verifies minimum number of test assertions exist.
+            # Full coverage measurement requires buck2 devshell (run ./scripts/coverage.sh).
+            #
+            # This check ensures we don't regress on test count.
+            coverage =
+              let
+                minTestFiles = 15; # minimum number of test files
+                minAssertions = 300; # minimum total assertions (from TEST_COVERAGE.md baseline)
+              in
+              pkgs.runCommand "coverage-check"
+                {
+                  nativeBuildInputs = [
+                    pkgs.coreutils
+                    pkgs.gnugrep
+                    pkgs.findutils
+                  ];
+                }
+                ''
+                  cd ${inputs.self}
+
+                  # Count test files
+                  TEST_FILE_COUNT=$(find src -name "*_test.cpp" -o -name "*_fuzz_test.cpp" | wc -l)
+                  echo "Test files found: $TEST_FILE_COUNT"
+                  echo "Minimum required: ${toString minTestFiles}"
+
+                  if [ "$TEST_FILE_COUNT" -lt ${toString minTestFiles} ]; then
+                    echo ""
+                    echo "FAIL: Test file count ($TEST_FILE_COUNT) is below minimum (${toString minTestFiles})"
+                    exit 1
+                  fi
+
+                  # Count test assertions (CHECK, REQUIRE, RC_ASSERT patterns)
+                  ASSERTION_COUNT=$(grep -r -E '(CHECK|REQUIRE|RC_ASSERT|SECTION)' src --include="*_test.cpp" --include="*_fuzz_test.cpp" 2>/dev/null | wc -l)
+                  echo "Test assertions found: $ASSERTION_COUNT"
+                  echo "Minimum required: ${toString minAssertions}"
+
+                  if [ "$ASSERTION_COUNT" -lt ${toString minAssertions} ]; then
+                    echo ""
+                    echo "FAIL: Assertion count ($ASSERTION_COUNT) is below minimum (${toString minAssertions})"
+                    exit 1
+                  fi
+
+                  echo ""
+                  echo "PASS: Test coverage meets minimum thresholds"
+                  echo "  - Test files: $TEST_FILE_COUNT >= ${toString minTestFiles}"
+                  echo "  - Assertions: $ASSERTION_COUNT >= ${toString minAssertions}"
+                  touch $out
+                '';
           };
 
           # ── Default devShell ──────────────────────────────────────────────────
