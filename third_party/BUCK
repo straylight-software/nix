@@ -11,8 +11,7 @@
 load(
     ":nix-deps.bzl",
     "ABSEIL_INCLUDE",
-    "ADA_INCLUDE",
-    "ADA_STATIC_LIB",
+    # ada now built from vendored source (third_party/ada/BUCK)
     # Binaryen now built from vendored source (vendor/binaryen/BUCK)
     # BLAKE3 now built from vendored source (vendor/blake3/BUCK)
     # Catch2 now built from vendored source (vendor/catch2/BUCK)
@@ -143,11 +142,12 @@ cxx_library(
     visibility = ["PUBLIC"],
 )
 
-# ada URL parser static (musl)
-nix_prebuilt_cxx_library(
+# ada URL parser (vendored, built from source)
+# Vendored to avoid nixpkgs build issues with fuzzer tests on musl static builds.
+alias(
     name = "ada",
-    static_lib = ADA_STATIC_LIB,
-    include_dir = ADA_INCLUDE,
+    actual = "//third_party/ada:ada",
+    visibility = ["PUBLIC"],
 )
 
 # Abseil (header-only for Buck2 - libs linked via -l flags)

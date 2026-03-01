@@ -44,10 +44,8 @@ let
     LIBRESSL_INCLUDE = "${devPath s.libressl-static}/include"
 
     # ════════════════════════════════════════════════════════════════════════════
-    # ada - WHATWG URL parser
+    # ada - WHATWG URL parser (vendored in third_party/ada, built with Buck2)
     # ════════════════════════════════════════════════════════════════════════════
-    ADA_STATIC_LIB = "${libPath s.ada-static}/lib/libada.a"
-    ADA_INCLUDE = "${libPath s.ada-static}/include"
 
     # ════════════════════════════════════════════════════════════════════════════
     # RE2 - fast regex

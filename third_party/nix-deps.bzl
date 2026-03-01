@@ -1,1 +1,1 @@
-/nix/store/537alzj7r0s0d3ps2bjra7qw4ja1jf47-nix-deps.bzl
+/nix/store/fh74p78rq84gscyalksskqsjihs272gy-nix-deps.bzl

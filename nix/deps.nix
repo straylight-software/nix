@@ -51,8 +51,9 @@ let
   # Static LibreSSL (musl)
   libressl-static = with-musl-flags pkgs.pkgsStatic.libressl;
 
-  # Static ada URL parser (musl)
-  ada-static = with-musl-flags pkgs.pkgsStatic.ada;
+  # Static ada URL parser (musl) - VENDORED in third_party/ada
+  # We build ada from source to avoid nixpkgs fuzzer test issues on musl static.
+  # ada-static = with-musl-flags pkgs.pkgsStatic.ada;
 
   # Static re2 regex (musl)
   re2-static = with-musl-flags pkgs.pkgsStatic.re2;
@@ -150,7 +151,7 @@ in
     # ACL/attr libs (transitive deps of libarchive)
     acl = acl-static;
     attr = attr-static;
-    ada = ada-static;
+    # ada: vendored in third_party/ada (built with Buck2)
     re2 = re2-static;
     abseil = abseil-static;
   };
@@ -230,7 +231,7 @@ in
   static = {
     inherit blake3-static;
     inherit libressl-static;
-    inherit ada-static;
+    # ada: vendored, built with Buck2
     inherit re2-static;
     inherit abseil-static;
     inherit catch2-static;
@@ -253,7 +254,7 @@ in
       ngtcp2-libressl
       blake3-static
       libressl-static
-      ada-static
+      # ada: vendored, built with Buck2
       re2-static
       catch2-static
       nanobench-static

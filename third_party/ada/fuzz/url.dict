@@ -1,0 +1,27 @@
+# Protocols
+"ftp:"
+"file:///"
+"file:"
+"http:"
+"https:"
+"ws:"
+"wss:"
+
+# Suffixes
+".com"
+
+# Full URLs
+"https://www.ada-url.com"
+
+# Encoded characters
+"%2f"
+"%40"
+"%26"
+
+# Misc
+"://"
+"//"
+"\\"
+"../"
+";type=a"
+"xn--"

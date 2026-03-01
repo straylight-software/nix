@@ -1,0 +1,48 @@
+# third_party/ada/BUCK
+#
+# WHATWG-compliant URL parser written in modern C++
+# https://github.com/ada-url/ada
+#
+# Vendored to avoid nixpkgs build issues with fuzzer tests on musl static builds.
+#
+# NOTE: Ada uses unity build - ada.cpp #includes all other .cpp files.
+# We only compile ada.cpp and ada_idna.cpp (separate TU for Unicode tables).
+
+cxx_library(
+    name = "ada",
+    # Unity build: ada.cpp includes all other implementation files
+    srcs = [
+        "src/ada.cpp",
+        "src/ada_idna.cpp",
+    ],
+    headers = glob([
+        "include/**/*.h",
+    ]),
+    header_namespace = "",
+    exported_headers = {
+        "ada.h": "include/ada.h",
+        "ada_c.h": "include/ada_c.h",
+    },
+    # C++20 required for ada
+    # -iquote to pick up vendored headers BEFORE -isystem (in case old ada in nix store)
+    # Include src/ directory since ada.cpp #includes other .cpp files from there
+    compiler_flags = [
+        "-std=c++20",
+        "-fPIC",
+        "-iquote",
+        "third_party/ada/include",
+        "-iquote",
+        "third_party/ada/src",
+        "-include",
+        "cstdint",
+        "-include",
+        "x86intrin.h",  # SSE/AVX intrinsics
+    ],
+    # For consumers of this library
+    exported_preprocessor_flags = [
+        "-iquote",
+        "third_party/ada/include",
+    ],
+    preferred_linkage = "static",
+    visibility = ["PUBLIC"],
+)
