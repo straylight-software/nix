@@ -188,3 +188,15 @@ cxx_test(
     linker_flags = STORE_LINKER_FLAGS,
     link_style = "static",
 )
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SSH agent discovery benchmarks - startup overhead for sudo nix operations
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_test(
+    name = "ssh_bench",
+    srcs = ["ssh_bench.cpp"],
+    deps = STORE_TEST_DEPS,
+    compiler_flags = STORE_TEST_COMPILER_FLAGS,
+    linker_flags = STORE_LINKER_FLAGS,
+    link_style = "static",
+)
