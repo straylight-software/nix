@@ -32,6 +32,42 @@ struct git_archive_input_scheme_t : input_scheme_t {
   virtual std::optional<std::pair<std::string, std::string>>
   accessHeaderFromToken(const std::string& token) const = 0;
 
+  // Virtual methods for SSH fallback support
+  virtual std::string getHost(const input_t& input) const = 0;
+  virtual std::string getOwner(const input_t& input) const = 0;
+  virtual std::string getRepo(const input_t& input) const = 0;
+
+  /**
+   * Get the SSH URL for this input. Override in subclasses if the
+   * SSH URL format differs from the default git@host:owner/repo.git
+   */
+  virtual std::string getSshUrl(const input_t& input) const {
+    return fmt("git+ssh://git@%s/%s/%s.git", getHost(input), getOwner(input), getRepo(input));
+  }
+
+  /**
+   * Check if we should use SSH instead of HTTPS for this input.
+   * Returns true if:
+   * - prefer-ssh-for-git-forges is enabled, OR
+   * - ssh-fallback-for-git-forges is enabled AND no access token is configured
+   */
+  bool shouldUseSsh(const settings_t& settings, const input_t& input) const {
+    if (settings.preferSshForGitForges)
+      return true;
+
+    if (settings.sshFallbackForGitForges) {
+      auto host = getHost(input);
+      auto owner = getOwner(input);
+      auto repo = getRepo(input);
+      auto host_and_path = fmt("%s/%s/%s", host, owner, repo);
+      auto access_token = getAccessToken(settings, host, host_and_path);
+      if (!access_token)
+        return true;
+    }
+
+    return false;
+  }
+
   std::optional<input_t> inputFromURL(const fetchers::settings_t& settings, const parsed_url_t& url,
                                       bool require_tree) const override {
     if (url.scheme() != schemeName())
@@ -355,6 +391,15 @@ struct git_archive_input_scheme_t : input_scheme_t {
 
   std::pair<ref<source_accessor_t>, input_t>
   get_accessor(const settings_t& settings, store_t& store, const input_t& _input) const override {
+    // Check if we should use SSH instead of HTTPS
+    if (shouldUseSsh(settings, _input)) {
+      auto ssh_url = getSshUrl(_input);
+      debug("using SSH for %s: %s", _input.to_string(), ssh_url);
+      auto ssh_input = input_t::fromURL(settings, ssh_url);
+      ssh_input = ssh_input.applyOverrides(_input.getRef(), _input.getRev());
+      return ssh_input.get_accessor(settings, store);
+    }
+
     auto [input, tarball_info] = download_archive(settings, store, _input);
 
 #if 0
@@ -411,13 +456,17 @@ struct git_hub_input_scheme_t : git_archive_input_scheme_t {
     return std::pair<std::string, std::string>("Authorization", fmt("token %s", token));
   }
 
-  std::string getHost(const input_t& input) const {
+  std::string getHost(const input_t& input) const override {
     return maybe_get_str_attr(input.attrs, "host").value_or("github.com");
   }
 
-  std::string getOwner(const input_t& input) const { return get_str_attr(input.attrs, "owner"); }
+  std::string getOwner(const input_t& input) const override {
+    return get_str_attr(input.attrs, "owner");
+  }
 
-  std::string getRepo(const input_t& input) const { return get_str_attr(input.attrs, "repo"); }
+  std::string getRepo(const input_t& input) const override {
+    return get_str_attr(input.attrs, "repo");
+  }
 
   ref_info_t get_rev_from_ref(const settings_t& settings, nix::store_t& store,
                               const input_t& input) const override {
@@ -469,6 +518,18 @@ struct git_lab_input_scheme_t : git_archive_input_scheme_t {
   std::string schemeDescription() const override {
     // TODO
     return "";
+  }
+
+  std::string getHost(const input_t& input) const override {
+    return maybe_get_str_attr(input.attrs, "host").value_or("gitlab.com");
+  }
+
+  std::string getOwner(const input_t& input) const override {
+    return get_str_attr(input.attrs, "owner");
+  }
+
+  std::string getRepo(const input_t& input) const override {
+    return get_str_attr(input.attrs, "repo");
   }
 
   std::optional<std::pair<std::string, std::string>>
@@ -552,6 +613,18 @@ struct source_hut_input_scheme_t : git_archive_input_scheme_t {
   std::string schemeDescription() const override {
     // TODO
     return "";
+  }
+
+  std::string getHost(const input_t& input) const override {
+    return maybe_get_str_attr(input.attrs, "host").value_or("git.sr.ht");
+  }
+
+  std::string getOwner(const input_t& input) const override {
+    return get_str_attr(input.attrs, "owner");
+  }
+
+  std::string getRepo(const input_t& input) const override {
+    return get_str_attr(input.attrs, "repo");
   }
 
   std::optional<std::pair<std::string, std::string>>

@@ -123,6 +123,24 @@ struct settings_t : public config_t {
           The resulting locks may not be compatible with Nix >= 2.20.
         )"};
 
+  setting_t<bool> preferSshForGitForges{this, false, "prefer-ssh-for-git-forges",
+                                        R"(
+          If enabled, Nix will prefer using SSH (git+ssh://) instead of HTTPS
+          for fetching from GitHub, GitLab, and SourceHut. This allows using
+          SSH keys from your agent for authentication instead of access tokens.
+
+          When enabled, inputs like `github:owner/repo` will be fetched using
+          `git+ssh://git@github.com/owner/repo.git` instead of the HTTPS API.
+        )"};
+
+  setting_t<bool> sshFallbackForGitForges{this, true, "ssh-fallback-for-git-forges",
+                                          R"(
+          If enabled (the default), Nix will automatically fall back to using
+          SSH for fetching from GitHub, GitLab, and SourceHut when no access
+          token is configured for the host. This allows private repositories
+          to be fetched using SSH keys from your agent.
+        )"};
+
   ref<cache_t> get_cache() const;
 
   ref<GitRepo> getTarballCache() const;

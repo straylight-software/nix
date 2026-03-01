@@ -228,3 +228,29 @@ cxx_test(
     linker_flags = TEST_LINKER_FLAGS,
     link_style = "static",
 )
+
+# =============================================================================
+# Fuzz tests - SSH authentication (SSH_AUTH_SOCK discovery)
+# =============================================================================
+
+cxx_test(
+    name = "ssh_auth_fuzz_test",
+    srcs = ["fuzz/ssh_auth_fuzz_test.cpp"],
+    deps = UTIL_TEST_DEPS,
+    compiler_flags = TEST_COMPILER_FLAGS,
+    linker_flags = TEST_LINKER_FLAGS,
+    link_style = "static",
+)
+
+# =============================================================================
+# Fuzz tests - GitHub/GitLab/SourceHut SSH fallback
+# =============================================================================
+
+cxx_test(
+    name = "github_ssh_fuzz_test",
+    srcs = ["fuzz/github_ssh_fuzz_test.cpp"],
+    deps = TEST_DEPS,
+    compiler_flags = TEST_COMPILER_FLAGS,
+    linker_flags = TEST_LINKER_FLAGS,
+    link_style = "static",
+)

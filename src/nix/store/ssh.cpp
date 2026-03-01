@@ -1,5 +1,7 @@
 #include "nix/store/ssh.h"
 
+#include <filesystem>
+
 #include "nix/store/globals.h"
 #include "nix/util/base-n.h"
 #include "nix/util/current-process.h"
@@ -10,7 +12,10 @@
 
 #ifndef _WIN32
 #  include <poll.h>
+#  include <pwd.h>
 #  include <signal.h>
+#  include <sys/stat.h>
+#  include <unistd.h>
 #endif
 
 namespace nix {
@@ -153,7 +158,87 @@ static bool wait_for_data(int fd, unsigned int timeout_seconds) {
 
   return ret > 0; // true if data available, false if timeout
 }
-#endif
+#endif // _WIN32 (wait_for_data)
+
+/**
+ * Try to find SSH_AUTH_SOCK for the invoking user when running as root.
+ * This handles the common case of `sudo nix ...` where the environment
+ * is sanitized but we want to use the user's SSH agent.
+ */
+static std::optional<std::string> find_ssh_auth_sock() {
+  // First, check if it's already set
+  if (auto sock = get_env("SSH_AUTH_SOCK"))
+    return sock;
+
+#ifndef _WIN32
+  // If we're not root, we can't probe other users' sockets
+  if (getuid() != 0)
+    return std::nullopt;
+
+  // Try to find the invoking user from SUDO_USER
+  auto sudo_user = get_env("SUDO_USER");
+  if (!sudo_user)
+    return std::nullopt;
+
+  // Get the UID of the original user
+  struct passwd* pw = getpwnam(sudo_user->c_str());
+  if (!pw)
+    return std::nullopt;
+
+  uid_t uid = pw->pw_uid;
+
+  // Common SSH agent socket locations to probe:
+  // 1. /run/user/<uid>/ssh-agent.socket (systemd user session)
+  // 2. /run/user/<uid>/gnome-keyring/ssh (GNOME keyring)
+  // 3. /run/user/<uid>/keyring/ssh (older GNOME keyring)
+  // 4. /tmp/ssh-*/agent.<pid> (ssh-agent started manually) - harder to find
+
+  std::vector<std::string> candidates = {
+      fmt("/run/user/%d/ssh-agent.socket", uid),
+      fmt("/run/user/%d/gnome-keyring/ssh", uid),
+      fmt("/run/user/%d/keyring/ssh", uid),
+  };
+
+  for (const auto& path : candidates) {
+    struct stat st;
+    if (stat(path.c_str(), &st) == 0 && S_ISSOCK(st.st_mode)) {
+      debug("found SSH_AUTH_SOCK for user '%s' at '%s'", *sudo_user, path);
+      return path;
+    }
+  }
+
+  // Try to find agent sockets in /tmp/ssh-*
+  // These are created by ssh-agent and have the form /tmp/ssh-XXXXXXXXXX/agent.<pid>
+  try {
+    for (const auto& entry : std::filesystem::directory_iterator("/tmp")) {
+      if (!entry.is_directory())
+        continue;
+      auto name = entry.path().filename().string();
+      if (!name.starts_with("ssh-"))
+        continue;
+
+      for (const auto& sock_entry : std::filesystem::directory_iterator(entry.path())) {
+        auto sock_name = sock_entry.path().filename().string();
+        if (!sock_name.starts_with("agent."))
+          continue;
+
+        struct stat st;
+        if (stat(sock_entry.path().c_str(), &st) == 0 && S_ISSOCK(st.st_mode)) {
+          // Check if the socket is owned by the sudo user
+          if (st.st_uid == uid) {
+            debug("found SSH_AUTH_SOCK for user '%s' at '%s'", *sudo_user, sock_entry.path());
+            return sock_entry.path().string();
+          }
+        }
+      }
+    }
+  } catch (const std::filesystem::filesystem_error&) {
+    // Ignore errors from directory iteration
+  }
+#endif // _WIN32
+
+  return std::nullopt;
+}
 
 strings_t create_ssh_env() {
   // Copy the environment and set SHELL=/bin/sh
@@ -166,6 +251,14 @@ strings_t create_ssh_env() {
   // "started". Self-reinvocation is tricky with library consumers, but mostly
   // solved; refer to the development history of nixExePath in libstore/globals.cc.
   env.insert_or_assign("SHELL", "/bin/sh");
+
+  // Ensure SSH_AUTH_SOCK is set if possible, even when running as root
+  // This allows `sudo nix ...` to use the invoking user's SSH agent
+  if (env.find("SSH_AUTH_SOCK") == env.end()) {
+    if (auto sock = find_ssh_auth_sock()) {
+      env.insert_or_assign("SSH_AUTH_SOCK", *sock);
+    }
+  }
 
   strings_t r;
   for (auto& [k, v] : env) {
