@@ -186,12 +186,14 @@ static std::optional<std::string> find_ssh_auth_sock() {
     return std::nullopt;
 
   uid_t uid = pw->pw_uid;
+  const char* home_dir = pw->pw_dir;
 
   // Common SSH agent socket locations to probe:
   // 1. /run/user/<uid>/ssh-agent.socket (systemd user session)
   // 2. /run/user/<uid>/gnome-keyring/ssh (GNOME keyring)
   // 3. /run/user/<uid>/keyring/ssh (older GNOME keyring)
-  // 4. /tmp/ssh-*/agent.<pid> (ssh-agent started manually) - harder to find
+  // 4. ~/.ssh/agent/* (custom agent socket directory, e.g. NixOS home-manager)
+  // 5. /tmp/ssh-*/agent.<pid> (ssh-agent started manually) - harder to find
 
   std::vector<std::string> candidates = {
       fmt("/run/user/%d/ssh-agent.socket", uid),
@@ -204,6 +206,26 @@ static std::optional<std::string> find_ssh_auth_sock() {
     if (stat(path.c_str(), &st) == 0 && S_ISSOCK(st.st_mode)) {
       debug("found SSH_AUTH_SOCK for user '%s' at '%s'", *sudo_user, path);
       return path;
+    }
+  }
+
+  // Try to find agent sockets in ~/.ssh/agent/
+  // This is used by some home-manager configurations and custom setups
+  if (home_dir) {
+    std::string agent_dir = std::string(home_dir) + "/.ssh/agent";
+    try {
+      for (const auto& sock_entry : std::filesystem::directory_iterator(agent_dir)) {
+        struct stat st;
+        if (stat(sock_entry.path().c_str(), &st) == 0 && S_ISSOCK(st.st_mode)) {
+          // Check if the socket is owned by the sudo user
+          if (st.st_uid == uid) {
+            debug("found SSH_AUTH_SOCK for user '%s' at '%s'", *sudo_user, sock_entry.path());
+            return sock_entry.path().string();
+          }
+        }
+      }
+    } catch (const std::filesystem::filesystem_error&) {
+      // ~/.ssh/agent doesn't exist or is inaccessible, continue to other probes
     }
   }
 
