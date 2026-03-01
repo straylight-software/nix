@@ -402,13 +402,16 @@ struct git_archive_input_scheme_t : input_scheme_t {
       // Map the git result back to a github/gitlab/sourcehut input to preserve
       // the original input type. This ensures lock files remain consistent
       // regardless of whether SSH or HTTPS was used for fetching.
+      //
+      // NOTE: We intentionally do NOT copy narHash from the git result because
+      // git checkouts have different NAR hashes than GitHub tarballs (different
+      // file contents - .git excluded, line endings, etc.). The rev is sufficient
+      // for locking and integrity verification.
       auto result = _input;
       if (auto rev = git_result.getRev())
         result.attrs.insert_or_assign("rev", rev->git_rev());
       if (auto lastModified = git_result.get_last_modified())
         result.attrs.insert_or_assign("lastModified", uint64_t(*lastModified));
-      if (auto narHash = git_result.getNarHash())
-        result.attrs.insert_or_assign("narHash", narHash->to_string(hash_format_t::sri, true));
 
       return {accessor, result};
     }
