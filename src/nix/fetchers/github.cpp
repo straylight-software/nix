@@ -397,7 +397,20 @@ struct git_archive_input_scheme_t : input_scheme_t {
       debug("using SSH for %s: %s", _input.to_string(), ssh_url);
       auto ssh_input = input_t::fromURL(settings, ssh_url);
       ssh_input = ssh_input.applyOverrides(_input.getRef(), _input.getRev());
-      return ssh_input.get_accessor(settings, store);
+      auto [accessor, git_result] = ssh_input.get_accessor(settings, store);
+
+      // Map the git result back to a github/gitlab/sourcehut input to preserve
+      // the original input type. This ensures lock files remain consistent
+      // regardless of whether SSH or HTTPS was used for fetching.
+      auto result = _input;
+      if (auto rev = git_result.getRev())
+        result.attrs.insert_or_assign("rev", rev->git_rev());
+      if (auto lastModified = git_result.get_last_modified())
+        result.attrs.insert_or_assign("lastModified", uint64_t(*lastModified));
+      if (auto narHash = git_result.getNarHash())
+        result.attrs.insert_or_assign("narHash", narHash->to_string(hash_format_t::sri, true));
+
+      return {accessor, result};
     }
 
     auto [input, tarball_info] = download_archive(settings, store, _input);
