@@ -196,9 +196,10 @@ static std::optional<std::string> find_ssh_auth_sock() {
   // 5. /tmp/ssh-*/agent.<pid> (ssh-agent started manually) - harder to find
 
   std::vector<std::string> candidates = {
-      fmt("/run/user/%d/ssh-agent.socket", uid),
-      fmt("/run/user/%d/gnome-keyring/ssh", uid),
-      fmt("/run/user/%d/keyring/ssh", uid),
+      fmt("/run/user/%d/ssh-agent.socket", uid),  // systemd user session (standard)
+      fmt("/run/user/%d/ssh-agent", uid),         // systemd user session (some distros)
+      fmt("/run/user/%d/gnome-keyring/ssh", uid), // GNOME keyring
+      fmt("/run/user/%d/keyring/ssh", uid),       // older GNOME keyring
   };
 
   for (const auto& path : candidates) {
@@ -264,16 +265,22 @@ static std::optional<std::string> find_ssh_auth_sock() {
 
 std::optional<string_map_t> get_ssh_agent_env() {
   // Check if SSH_AUTH_SOCK is already set
-  if (get_env("SSH_AUTH_SOCK"))
+  if (auto existing = get_env("SSH_AUTH_SOCK")) {
+    debug("SSH_AUTH_SOCK already set to '%s'", *existing);
     return std::nullopt;
+  }
+
+  debug("SSH_AUTH_SOCK not set, attempting to discover agent socket");
 
   // Try to find the SSH agent socket
   if (auto sock = find_ssh_auth_sock()) {
+    debug("discovered SSH_AUTH_SOCK='%s', injecting into environment", *sock);
     string_map_t env;
     env["SSH_AUTH_SOCK"] = *sock;
     return env;
   }
 
+  debug("could not find SSH agent socket");
   return std::nullopt;
 }
 
