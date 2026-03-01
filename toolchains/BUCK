@@ -13,7 +13,7 @@ load("@prelude//tests:test_toolchain.bzl", "noop_test_toolchain")
 load(":test.bzl", "noop_remote_test_execution_toolchain")
 
 # ════════════════════════════════════════════════════════════════════════════════
-# C++ (LLVM 22)
+# C++ (LLVM 22) - Default (no coverage)
 # ════════════════════════════════════════════════════════════════════════════════
 
 llvm_toolchain(
@@ -29,6 +29,45 @@ llvm_toolchain(
         "-Wextra",
     ],
     link_flags = [],
+    link_style = "static",
+    visibility = ["PUBLIC"],
+)
+
+# ════════════════════════════════════════════════════════════════════════════════
+# C++ (LLVM 22) - Coverage instrumentation
+# ════════════════════════════════════════════════════════════════════════════════
+#
+# Build with: buck2 build --config cxx.toolchain=toolchains//:cxx_coverage //...
+#
+# Coverage flags:
+#   -fprofile-instr-generate: Generate instrumentation for profile collection
+#   -fcoverage-mapping: Generate coverage mapping data for llvm-cov
+#
+# After running tests, use llvm-profdata + llvm-cov to generate reports:
+#   llvm-profdata merge -sparse *.profraw -o coverage.profdata
+#   llvm-cov report ./binary -instr-profile=coverage.profdata
+#   llvm-cov show ./binary -instr-profile=coverage.profdata -format=html -output-dir=coverage/
+
+llvm_toolchain(
+    name = "cxx_coverage",
+    c_extra_flags = [
+        "-std=c23",
+        "-Wall",
+        "-Wextra",
+        "-fprofile-instr-generate",
+        "-fcoverage-mapping",
+    ],
+    cxx_extra_flags = [
+        "-std=c++23",
+        "-Wall",
+        "-Wextra",
+        "-fprofile-instr-generate",
+        "-fcoverage-mapping",
+    ],
+    link_flags = [
+        "-fprofile-instr-generate",
+        "-fcoverage-mapping",
+    ],
     link_style = "static",
     visibility = ["PUBLIC"],
 )
