@@ -48,6 +48,9 @@
           # ── Dependencies ──────────────────────────────────────────────────────
           deps = import ./nix/deps.nix { inherit pkgs; };
 
+          # ── Generated nix-deps.bzl (pre-built, avoids nix-build in sandbox) ────
+          nix-deps-bzl = import ./nix/gen-buck-deps.nix { inherit pkgs; };
+
           # Flatten all deps for Buck2
           # EXCLUDE vendored deps (built with Buck2, not from nixpkgs):
           #   - catch2: vendor/catch2/ (avoids glibc __libc_single_threaded symbols)
@@ -196,7 +199,7 @@
                 pkgs.git
                 pkgs.cacert
                 pkgs.file
-                pkgs.nix # needed for nix-build to generate nix-deps.bzl
+
                 toolchain.llvm.clang
                 toolchain.llvm.lld
                 toolchain.llvm.llvm
@@ -224,8 +227,10 @@
                 rm -f nix/build/prelude
                 ln -s ${inputs.buck2-prelude} nix/build/prelude
 
-                # Generate nix-deps.bzl with correct store paths for this system
-                nix-build nix/gen-buck-deps.nix -o third_party/nix-deps.bzl
+                # Copy pre-generated nix-deps.bzl with correct store paths for this system
+                # (must be after cd to writable build dir)
+                rm -f third_party/nix-deps.bzl
+                cp ${nix-deps-bzl} third_party/nix-deps.bzl
 
                 # Generate buckconfig.local with musl static linking config
                 cat > .buckconfig.local << 'BUCKCONFIG'
