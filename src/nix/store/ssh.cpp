@@ -262,6 +262,21 @@ static std::optional<std::string> find_ssh_auth_sock() {
   return std::nullopt;
 }
 
+std::optional<string_map_t> get_ssh_agent_env() {
+  // Check if SSH_AUTH_SOCK is already set
+  if (get_env("SSH_AUTH_SOCK"))
+    return std::nullopt;
+
+  // Try to find the SSH agent socket
+  if (auto sock = find_ssh_auth_sock()) {
+    string_map_t env;
+    env["SSH_AUTH_SOCK"] = *sock;
+    return env;
+  }
+
+  return std::nullopt;
+}
+
 strings_t create_ssh_env() {
   // Copy the environment and set SHELL=/bin/sh
   string_map_t env = get_env();

@@ -11,6 +11,16 @@ namespace nix {
 
 strings_t get_nix_ssh_opts();
 
+/**
+ * Get an environment map with SSH_AUTH_SOCK set if possible.
+ * This handles the common case of `sudo nix ...` where the environment
+ * is sanitized but we want to use the user's SSH agent.
+ *
+ * @return An environment map with SSH_AUTH_SOCK set if found, or empty if
+ *         SSH_AUTH_SOCK is already set or no agent socket was found.
+ */
+std::optional<string_map_t> get_ssh_agent_env();
+
 class SSHMaster {
 private:
   parsed_url_t::authority_t authority;

@@ -15,6 +15,7 @@
 #include "nix/main/progress-bar.h"
 #include "nix/store/gc-store.h"
 #include "nix/store/globals.h"
+#include "nix/store/ssh.h"
 #include "nix/store/store-api.h"
 #include "nix/util/current-process.h"
 #include "nix/util/signals.h"
@@ -111,6 +112,16 @@ void init_nix(bool load_config) {
 #endif
 
   init_lib_store(load_config);
+
+  /* Try to discover SSH_AUTH_SOCK for the invoking user when running as root.
+     This handles the common case of `sudo nix ...` where the environment
+     is sanitized but we want child processes (like git) to use the user's
+     SSH agent. Setting it here ensures all child processes inherit it. */
+  if (auto ssh_env = get_ssh_agent_env()) {
+    for (const auto& [key, value] : *ssh_env) {
+      set_env(key.c_str(), value.c_str());
+    }
+  }
 
 #ifndef _WIN32
   unix::start_signal_handler_thread();
