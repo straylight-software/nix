@@ -347,7 +347,7 @@
       },
       "locked": {
         "lastModified": 1770985912,
-        "narHash": "sha256-npFnR1oUizj2KvU68SR1q1Y0osnPLTFMV3dfBufiDvI=",
+        "narHash": "sha256-4LKiuNOSkub8uXo1Vs+2iowszJlc06eElAQ0RLPNz18=",
         "owner": "straylight-software",
         "repo": "llvm-project",
         "rev": "de0f2ce98cfa7a052680e5a482b7ae52a3534e5b",
@@ -666,11 +666,11 @@
         "treefmt-nix": "treefmt-nix"
       },
       "locked": {
-        "lastModified": 1772051893,
-        "narHash": "sha256-cO75+cl8rhayY49JPt6P3WGHUOJoz5F82cn2YFYrtK8=",
+        "lastModified": 1772346590,
+        "narHash": "sha256-7F/zDfishqcS8xCuSI/2UZLo2mYllLDC/TszvVVNBuI=",
         "ref": "dev",
-        "rev": "7bc4529859329dd114335f65ece2974baf043743",
-        "revCount": 59,
+        "rev": "ca8a6c353619403fef6f303db135bdce4a109835",
+        "revCount": 60,
         "type": "git",
         "url": "ssh://git@github.com/straylight-software/sensenet"
       },
