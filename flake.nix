@@ -196,6 +196,7 @@
                 pkgs.git
                 pkgs.cacert
                 pkgs.file
+                pkgs.nix # needed for nix-build to generate nix-deps.bzl
                 toolchain.llvm.clang
                 toolchain.llvm.lld
                 toolchain.llvm.llvm
