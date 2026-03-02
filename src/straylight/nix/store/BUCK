@@ -70,9 +70,11 @@ cxx_library(
     ],
     header_namespace = "straylight/nix/store",
     compiler_flags = COMMON_FLAGS,
+    exported_deps = [
+        "//src/straylight/nix/data:serialise",
+    ],
     deps = [
         "//src/straylight/nix/crypto:hash",
-        "//src/straylight/nix/data:serialise",
         "//src/straylight/evring:evring",
         "//vendor:zpp_bits",
         "//vendor:blake3",

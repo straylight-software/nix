@@ -1,0 +1,74 @@
+# src/straylight/test/fuzz/BUCK
+#
+# Fuzz test harnesses for the nix-language compiler
+#
+# These are built as libraries (not tests) since they need special fuzzer
+# compilation flags and are run separately with libFuzzer.
+#
+# Build fuzz targets with:
+#   clang++ -std=c++23 -g -fsanitize=fuzzer,address,undefined ...
+
+COMPILER_FLAGS = ["-std=c++23"]
+
+# Common dependencies for fuzz targets
+FUZZ_PARSE_DEPS = [
+    "//src/straylight/nix/compiler:ast",
+    "//src/straylight/nix/compiler:parse",
+    "//vendor:pegtl",
+]
+
+FUZZ_COMPILE_DEPS = FUZZ_PARSE_DEPS + [
+    "//src/straylight/nix/compiler:compile",
+    "//vendor:binaryen",
+]
+
+FUZZ_EXECUTE_DEPS = FUZZ_COMPILE_DEPS + [
+    "//src/straylight/nix/compiler:runtime",
+    "//src/straylight/nix/compiler:wasm_executor",
+    "//vendor:wasmtime",
+]
+
+# Parser fuzz target
+cxx_library(
+    name = "compiler_parse",
+    srcs = ["compiler_parse.cpp"],
+    deps = FUZZ_PARSE_DEPS,
+    compiler_flags = COMPILER_FLAGS,
+    link_style = "static",
+    visibility = ["PUBLIC"],
+)
+
+# Compiler fuzz target
+cxx_library(
+    name = "compiler_compile",
+    srcs = ["compiler_compile.cpp"],
+    deps = FUZZ_COMPILE_DEPS,
+    compiler_flags = COMPILER_FLAGS,
+    link_style = "static",
+    visibility = ["PUBLIC"],
+)
+
+# Full execution fuzz target
+cxx_library(
+    name = "compiler_execute",
+    srcs = ["compiler_execute.cpp"],
+    deps = FUZZ_EXECUTE_DEPS,
+    compiler_flags = COMPILER_FLAGS,
+    link_style = "static",
+    visibility = ["PUBLIC"],
+)
+
+# WASM memory fuzz target
+# Note: This file also contains RapidCheck property tests for non-fuzzer builds
+cxx_library(
+    name = "wasm_memory",
+    srcs = ["wasm_memory.cpp"],
+    deps = [
+        "//src/straylight/nix/compiler:runtime",
+        "//vendor:catch2",
+        "//vendor:rapidcheck",
+    ],
+    compiler_flags = COMPILER_FLAGS,
+    link_style = "static",
+    visibility = ["PUBLIC"],
+)

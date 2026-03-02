@@ -1,0 +1,13 @@
+# src/straylight/test/unit/fs/BUCK
+
+cxx_test(
+    name = "filesystem_test",
+    srcs = ["filesystem_test.cpp"],
+    deps = [
+        "//src/straylight/nix/fs:filesystem",
+        "//vendor:catch2",
+        "//vendor:rapidcheck",
+    ],
+    compiler_flags = ["-std=c++23"],
+    link_style = "static",
+)

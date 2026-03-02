@@ -368,12 +368,45 @@ template <typename T, typename... Projections>
 /// Note: For simple cases where all members should be compared, prefer:
 ///   auto operator<=>(const Type&) const = default;
 ///   bool operator==(const Type&) const = default;
+// Internal macro helper - applies prefix to a single member
+#define STRAYLIGHT_COMPARE_MEMBER_(prefix, member) prefix.member
+
+// Internal macro helpers for member list expansion (up to 8 members)
+#define STRAYLIGHT_COMPARE_1_(p, m1) STRAYLIGHT_COMPARE_MEMBER_(p, m1)
+#define STRAYLIGHT_COMPARE_2_(p, m1, m2)                                                           \
+  STRAYLIGHT_COMPARE_MEMBER_(p, m1), STRAYLIGHT_COMPARE_MEMBER_(p, m2)
+#define STRAYLIGHT_COMPARE_3_(p, m1, m2, m3)                                                       \
+  STRAYLIGHT_COMPARE_2_(p, m1, m2), STRAYLIGHT_COMPARE_MEMBER_(p, m3)
+#define STRAYLIGHT_COMPARE_4_(p, m1, m2, m3, m4)                                                   \
+  STRAYLIGHT_COMPARE_3_(p, m1, m2, m3), STRAYLIGHT_COMPARE_MEMBER_(p, m4)
+#define STRAYLIGHT_COMPARE_5_(p, m1, m2, m3, m4, m5)                                               \
+  STRAYLIGHT_COMPARE_4_(p, m1, m2, m3, m4), STRAYLIGHT_COMPARE_MEMBER_(p, m5)
+#define STRAYLIGHT_COMPARE_6_(p, m1, m2, m3, m4, m5, m6)                                           \
+  STRAYLIGHT_COMPARE_5_(p, m1, m2, m3, m4, m5), STRAYLIGHT_COMPARE_MEMBER_(p, m6)
+#define STRAYLIGHT_COMPARE_7_(p, m1, m2, m3, m4, m5, m6, m7)                                       \
+  STRAYLIGHT_COMPARE_6_(p, m1, m2, m3, m4, m5, m6), STRAYLIGHT_COMPARE_MEMBER_(p, m7)
+#define STRAYLIGHT_COMPARE_8_(p, m1, m2, m3, m4, m5, m6, m7, m8)                                   \
+  STRAYLIGHT_COMPARE_7_(p, m1, m2, m3, m4, m5, m6, m7), STRAYLIGHT_COMPARE_MEMBER_(p, m8)
+
+// Count arguments macro
+#define STRAYLIGHT_COMPARE_COUNT_(_1, _2, _3, _4, _5, _6, _7, _8, N, ...) N
+#define STRAYLIGHT_COMPARE_NARGS_(...)                                                             \
+  STRAYLIGHT_COMPARE_COUNT_(__VA_ARGS__, 8, 7, 6, 5, 4, 3, 2, 1)
+
+// Select the appropriate expansion macro
+#define STRAYLIGHT_COMPARE_SELECT_(N) STRAYLIGHT_COMPARE_##N##_
+#define STRAYLIGHT_COMPARE_EXPAND_(N) STRAYLIGHT_COMPARE_SELECT_(N)
+#define STRAYLIGHT_COMPARE_MEMBERS_(prefix, ...)                                                   \
+  STRAYLIGHT_COMPARE_EXPAND_(STRAYLIGHT_COMPARE_NARGS_(__VA_ARGS__))(prefix, __VA_ARGS__)
+
 #define STRAYLIGHT_DEFINE_COMPARISON(Type, ...)                                                    \
   [[nodiscard]] friend constexpr auto operator<=>(const Type& lhs, const Type& rhs) noexcept {     \
-    return std::tie(lhs.__VA_ARGS__) <=> std::tie(rhs.__VA_ARGS__);                                \
+    return std::tie(STRAYLIGHT_COMPARE_MEMBERS_(lhs, __VA_ARGS__)) <=>                             \
+           std::tie(STRAYLIGHT_COMPARE_MEMBERS_(rhs, __VA_ARGS__));                                \
   }                                                                                                \
   [[nodiscard]] friend constexpr bool operator==(const Type& lhs, const Type& rhs) noexcept {      \
-    return std::tie(lhs.__VA_ARGS__) == std::tie(rhs.__VA_ARGS__);                                 \
+    return std::tie(STRAYLIGHT_COMPARE_MEMBERS_(lhs, __VA_ARGS__)) ==                              \
+           std::tie(STRAYLIGHT_COMPARE_MEMBERS_(rhs, __VA_ARGS__));                                \
   }
 
 /// Generate comparison operators for a type defined outside the class.
@@ -383,28 +416,31 @@ template <typename T, typename... Projections>
 ///   STRAYLIGHT_DEFINE_COMPARISON_EXT(MyNamespace::MyClass, name, value)
 #define STRAYLIGHT_DEFINE_COMPARISON_EXT(Type, ...)                                                \
   [[nodiscard]] inline constexpr auto operator<=>(const Type& lhs, const Type& rhs) noexcept {     \
-    return std::tie(lhs.__VA_ARGS__) <=> std::tie(rhs.__VA_ARGS__);                                \
+    return std::tie(STRAYLIGHT_COMPARE_MEMBERS_(lhs, __VA_ARGS__)) <=>                             \
+           std::tie(STRAYLIGHT_COMPARE_MEMBERS_(rhs, __VA_ARGS__));                                \
   }                                                                                                \
   [[nodiscard]] inline constexpr bool operator==(const Type& lhs, const Type& rhs) noexcept {      \
-    return std::tie(lhs.__VA_ARGS__) == std::tie(rhs.__VA_ARGS__);                                 \
+    return std::tie(STRAYLIGHT_COMPARE_MEMBERS_(lhs, __VA_ARGS__)) ==                              \
+           std::tie(STRAYLIGHT_COMPARE_MEMBERS_(rhs, __VA_ARGS__));                                \
   }
 
 /// Generate comparison using a key expression.
 ///
 /// Unlike STRAYLIGHT_DEFINE_COMPARISON which uses member names directly,
 /// this allows arbitrary expressions for computing the comparison key.
+/// Note: This macro only supports single-expression keys.
 ///
 /// Usage:
 ///   struct CaseInsensitiveString {
 ///     std::string value;
 ///     STRAYLIGHT_DEFINE_COMPARISON_BY_KEY(CaseInsensitiveString, to_lower(value))
 ///   };
-#define STRAYLIGHT_DEFINE_COMPARISON_BY_KEY(Type, ...)                                             \
+#define STRAYLIGHT_DEFINE_COMPARISON_BY_KEY(Type, key_expr)                                        \
   [[nodiscard]] friend constexpr auto operator<=>(const Type& lhs, const Type& rhs) noexcept(      \
-      noexcept(std::tie(lhs.__VA_ARGS__) <=> std::tie(rhs.__VA_ARGS__))) {                         \
-    return std::tie(lhs.__VA_ARGS__) <=> std::tie(rhs.__VA_ARGS__);                                \
+      noexcept(lhs.key_expr <=> rhs.key_expr)) {                                                   \
+    return lhs.key_expr <=> rhs.key_expr;                                                          \
   }                                                                                                \
   [[nodiscard]] friend constexpr bool operator==(const Type& lhs, const Type& rhs) noexcept(       \
-      noexcept(std::tie(lhs.__VA_ARGS__) == std::tie(rhs.__VA_ARGS__))) {                          \
-    return std::tie(lhs.__VA_ARGS__) == std::tie(rhs.__VA_ARGS__);                                 \
+      noexcept(lhs.key_expr == rhs.key_expr)) {                                                    \
+    return lhs.key_expr == rhs.key_expr;                                                           \
   }

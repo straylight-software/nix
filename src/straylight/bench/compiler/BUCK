@@ -1,0 +1,17 @@
+# NOTE: compiler_bench.cpp uses includes that reference wasm_executor.h
+# which doesn't exist in the current compiler library.
+# This target is commented out until the compiler library is complete.
+
+# cxx_binary(
+#     name = "compiler_bench",
+#     srcs = ["compiler_bench.cpp"],
+#     compiler_flags = ["-std=c++23", "-O3"],
+#     deps = [
+#         "//src/straylight/nix/compiler:ast",
+#         "//src/straylight/nix/compiler:compile",
+#         "//src/straylight/nix/compiler:parse",
+#         "//src/straylight/nix/compiler:runtime",
+#         "//vendor:nanobench",
+#     ],
+#     link_style = "static",
+# )

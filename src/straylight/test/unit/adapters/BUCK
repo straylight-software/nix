@@ -1,0 +1,13 @@
+# src/straylight/test/unit/adapters/BUCK
+
+cxx_test(
+    name = "nix_strings_adapter_test",
+    srcs = ["nix_strings_adapter_test.cpp"],
+    deps = [
+        "//src/straylight/nix/adapters:nix_strings_adapter",
+        "//vendor:catch2",
+        "//vendor:rapidcheck",
+    ],
+    compiler_flags = ["-std=c++23"],
+    link_style = "static",
+)

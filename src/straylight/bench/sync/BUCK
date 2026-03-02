@@ -1,0 +1,23 @@
+cxx_binary(
+    name = "pool_bench",
+    srcs = ["pool_bench.cpp"],
+    compiler_flags = ["-std=c++23", "-O3"],
+    deps = [
+        "//src/straylight/nix/sync:pool",
+        "//vendor:nanobench",
+    ],
+    link_style = "static",
+)
+
+# NOTE: sync_bench.cpp requires sync.h which doesn't exist yet.
+# Add this target once the Sync/SharedSync/SyncWithCV API is implemented.
+# cxx_binary(
+#     name = "sync_bench",
+#     srcs = ["sync_bench.cpp"],
+#     compiler_flags = ["-std=c++23", "-O3"],
+#     deps = [
+#         "//src/straylight/nix/sync:sync",
+#         "//vendor:nanobench",
+#     ],
+#     link_style = "static",
+# )

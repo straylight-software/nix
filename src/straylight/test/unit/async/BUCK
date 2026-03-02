@@ -1,0 +1,25 @@
+# src/straylight/test/unit/async/BUCK
+
+cxx_test(
+    name = "async_test",
+    srcs = ["async_test.cpp"],
+    deps = [
+        "//src/straylight/nix/async:async",
+        "//vendor:catch2",
+        "//vendor:rapidcheck",
+    ],
+    compiler_flags = ["-std=c++23"],
+    link_style = "static",
+)
+
+cxx_test(
+    name = "closure_test",
+    srcs = ["closure_test.cpp"],
+    deps = [
+        "//src/straylight/nix/async:closure",
+        "//vendor:catch2",
+        "//vendor:rapidcheck",
+    ],
+    compiler_flags = ["-std=c++23"],
+    link_style = "static",
+)

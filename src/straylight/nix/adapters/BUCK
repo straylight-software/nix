@@ -31,18 +31,4 @@ cxx_library(
     ],
 )
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Tests for adapters
-# ─────────────────────────────────────────────────────────────────────────────
-
-cxx_test(
-    name = "nix_strings_adapter_test",
-    srcs = ["tests/nix_strings_adapter_test.cpp"],
-    compiler_flags = ["-std=c++23"],
-    link_style = "static",
-    deps = [
-        ":nix_strings_adapter",
-        "//vendor:catch2",
-        "//vendor:rapidcheck",
-    ],
-)
+# Tests moved to //src/straylight/test/unit/adapters

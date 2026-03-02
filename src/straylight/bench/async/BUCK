@@ -1,0 +1,28 @@
+# NOTE: async_bench.cpp and closure_bench.cpp have incorrect include paths.
+# They use <straylight/nix/async/async/...> but should use <straylight/nix/async/...>
+# These targets are commented out until the source files are fixed.
+
+# cxx_binary(
+#     name = "async_bench",
+#     srcs = ["async_bench.cpp"],
+#     compiler_flags = ["-std=c++23", "-O3"],
+#     deps = [
+#         "//src/straylight/nix/async:executor",
+#         "//src/straylight/nix/async:parallel",
+#         "//src/straylight/nix/async:task_graph",
+#         "//vendor:nanobench",
+#     ],
+#     link_style = "static",
+# )
+
+# cxx_binary(
+#     name = "closure_bench",
+#     srcs = ["closure_bench.cpp"],
+#     compiler_flags = ["-std=c++23", "-O3"],
+#     deps = [
+#         "//src/straylight/nix/async:closure",
+#         "//src/straylight/nix/async:executor",
+#         "//vendor:nanobench",
+#     ],
+#     link_style = "static",
+# )

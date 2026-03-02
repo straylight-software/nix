@@ -1,0 +1,13 @@
+# NOTE: architectural_bench.cpp uses Catch2 benchmarks, not nanobench.
+# It also requires many dependencies (store, compiler, evring, etc.)
+# This is a higher-level architectural comparison benchmark.
+
+cxx_test(
+    name = "architectural_bench",
+    srcs = ["architectural_bench.cpp"],
+    compiler_flags = ["-std=c++23", "-O3"],
+    deps = [
+        "//vendor:catch2",
+    ],
+    link_style = "static",
+)

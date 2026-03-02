@@ -1,0 +1,47 @@
+# src/straylight/test/unit/util/BUCK
+
+cxx_test(
+    name = "checked_arithmetic_test",
+    srcs = ["checked_arithmetic_test.cpp"],
+    deps = [
+        "//src/straylight/nix/util:checked_arithmetic",
+        "//vendor:catch2",
+        "//vendor:rapidcheck",
+    ],
+    compiler_flags = ["-std=c++23"],
+    link_style = "static",
+)
+
+cxx_test(
+    name = "comparator_test",
+    srcs = ["comparator_test.cpp"],
+    deps = [
+        "//src/straylight/nix/util:comparator",
+        "//vendor:catch2",
+    ],
+    compiler_flags = ["-std=c++23"],
+    link_style = "static",
+)
+
+cxx_test(
+    name = "finally_test",
+    srcs = ["finally_test.cpp"],
+    deps = [
+        "//src/straylight/nix/util:finally",
+        "//vendor:catch2",
+    ],
+    compiler_flags = ["-std=c++23"],
+    link_style = "static",
+)
+
+cxx_test(
+    name = "ref_test",
+    srcs = ["ref_test.cpp"],
+    deps = [
+        "//src/straylight/nix/util:ref",
+        "//vendor:catch2",
+        "//vendor:rapidcheck",
+    ],
+    compiler_flags = ["-std=c++23"],
+    link_style = "static",
+)

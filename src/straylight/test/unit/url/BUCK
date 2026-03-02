@@ -1,0 +1,13 @@
+# src/straylight/test/unit/url/BUCK
+
+cxx_test(
+    name = "url_test",
+    srcs = ["url_test.cpp"],
+    deps = [
+        "//src/straylight/nix/url:url",
+        "//vendor:catch2",
+        "//vendor:rapidcheck",
+    ],
+    compiler_flags = ["-std=c++23"],
+    link_style = "static",
+)

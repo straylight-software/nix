@@ -1,0 +1,46 @@
+cxx_binary(
+    name = "format_bench",
+    srcs = ["format_bench.cpp"],
+    compiler_flags = ["-std=c++23", "-O3"],
+    deps = [
+        "//src/straylight/nix/text:format",
+        "//vendor:boost",
+        "//vendor:nanobench",
+    ],
+    link_style = "static",
+)
+
+cxx_binary(
+    name = "fuzzy_bench",
+    srcs = ["fuzzy_bench.cpp"],
+    compiler_flags = ["-std=c++23", "-O3"],
+    deps = [
+        "//src/straylight/nix/text:fuzzy",
+        "//vendor:nanobench",
+    ],
+    link_style = "static",
+)
+
+# DISABLED: re2/abseil static linking issue
+# cxx_binary(
+#     name = "regex_bench",
+#     srcs = ["regex_bench.cpp"],
+#     compiler_flags = ["-std=c++23", "-O3"],
+#     deps = [
+#         "//src/straylight/nix/text:regex",
+#         "//vendor:abseil",
+#         "//vendor:nanobench",
+#     ],
+#     link_style = "static",
+# )
+
+cxx_binary(
+    name = "strings_bench",
+    srcs = ["strings_bench.cpp"],
+    compiler_flags = ["-std=c++23", "-O3"],
+    deps = [
+        "//src/straylight/nix/text:strings",
+        "//vendor:nanobench",
+    ],
+    link_style = "static",
+)

@@ -1,0 +1,32 @@
+cxx_binary(
+    name = "chunked_vector_bench",
+    srcs = ["chunked_vector_bench.cpp"],
+    compiler_flags = ["-std=c++23", "-O3"],
+    deps = [
+        "//src/straylight/nix/data:chunked_vector",
+        "//vendor:nanobench",
+    ],
+    link_style = "static",
+)
+
+cxx_binary(
+    name = "lru_cache_bench",
+    srcs = ["lru_cache_bench.cpp"],
+    compiler_flags = ["-std=c++23", "-O3"],
+    deps = [
+        "//src/straylight/nix/data:lru_cache",
+        "//vendor:nanobench",
+    ],
+    link_style = "static",
+)
+
+cxx_binary(
+    name = "topo_sort_bench",
+    srcs = ["topo_sort_bench.cpp"],
+    compiler_flags = ["-std=c++23", "-O3"],
+    deps = [
+        "//src/straylight/nix/data:topo_sort",
+        "//vendor:nanobench",
+    ],
+    link_style = "static",
+)

@@ -1,0 +1,59 @@
+cxx_binary(
+    name = "encoding_cmp",
+    srcs = ["encoding_cmp.cpp"],
+    compiler_flags = ["-std=c++23", "-O3"],
+    deps = [
+        "//src/straylight/nix/crypto:encoding",
+        "//vendor:nanobench",
+    ],
+    link_style = "static",
+)
+
+cxx_binary(
+    name = "hash_cmp",
+    srcs = ["hash_cmp.cpp"],
+    compiler_flags = ["-std=c++23", "-O3"],
+    deps = [
+        "//src/straylight/nix/crypto:hash",
+        "//vendor:openssl",
+        "//vendor:nanobench",
+    ],
+    link_style = "static",
+)
+
+cxx_binary(
+    name = "format_cmp",
+    srcs = ["format_cmp.cpp"],
+    compiler_flags = ["-std=c++23", "-O3"],
+    deps = [
+        "//src/straylight/nix/text:format",
+        "//vendor:boost",
+        "//vendor:nanobench",
+    ],
+    link_style = "static",
+)
+
+# NOTE: regex_cmp needs re2 which has abseil linking issues with static builds.
+# Skipped until the vendor/BUCK abseil configuration is fixed.
+# cxx_binary(
+#     name = "regex_cmp",
+#     srcs = ["regex_cmp.cpp"],
+#     compiler_flags = ["-std=c++23", "-O3"],
+#     deps = [
+#         "//src/straylight/nix/text:regex",
+#         "//vendor:abseil",
+#         "//vendor:nanobench",
+#     ],
+#     link_style = "static",
+# )
+
+cxx_binary(
+    name = "strings_cmp",
+    srcs = ["strings_cmp.cpp"],
+    compiler_flags = ["-std=c++23", "-O3"],
+    deps = [
+        "//src/straylight/nix/text:strings",
+        "//vendor:nanobench",
+    ],
+    link_style = "static",
+)

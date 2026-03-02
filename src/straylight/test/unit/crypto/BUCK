@@ -1,0 +1,25 @@
+# src/straylight/test/unit/crypto/BUCK
+
+cxx_test(
+    name = "encoding_test",
+    srcs = ["encoding_test.cpp"],
+    deps = [
+        "//src/straylight/nix/crypto:encoding",
+        "//vendor:catch2",
+        "//vendor:rapidcheck",
+    ],
+    compiler_flags = ["-std=c++23"],
+    link_style = "static",
+)
+
+cxx_test(
+    name = "hash_test",
+    srcs = ["hash_test.cpp"],
+    deps = [
+        "//src/straylight/nix/crypto:hash",
+        "//vendor:catch2",
+        "//vendor:rapidcheck",
+    ],
+    compiler_flags = ["-std=c++23"],
+    link_style = "static",
+)
