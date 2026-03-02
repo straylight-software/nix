@@ -1,14 +1,14 @@
-// kaitai/tests/narinfo_roundtrip_test.cpp
+// src/continuity/tests/narinfo_roundtrip_test.cpp
 //
-// Roundtrip test: Compare Cornell narinfo parser/serializer to legacy.
-// This verifies that the new Cornell-based implementation produces
+// Roundtrip test: Compare Continuity narinfo parser/serializer to legacy.
+// This verifies that the new Continuity-based implementation produces
 // identical results to the existing Nix implementation.
 
 #include <cassert>
 #include <iostream>
 #include <string>
 
-#include "cornell/nix/nix_formats.h"
+#include "continuity/nix/nix_formats.h"
 
 namespace {
 
@@ -25,13 +25,13 @@ Deriver: jkl012-hello-1.0.drv
 Sig: cache.example.com:base64signaturehere
 )";
 
-  auto result = cornell::nix::parse_narinfo(input);
+  auto result = continuity::nix::parse_narinfo(input);
   assert(result.is_ok() && "parse should succeed");
 
   const auto& ni = result.value.value();
   assert(ni.store_path == "/nix/store/abc123-hello-1.0");
   assert(ni.url == "nar/abc123.nar.xz");
-  assert(ni.compression == cornell::nix::compression_t::xz);
+  assert(ni.compression == continuity::nix::compression_t::xz);
   assert(ni.file_size == 12345);
   assert(ni.nar_size == 54321);
   assert(ni.nar_hash == "sha256:abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890");
@@ -45,10 +45,10 @@ Sig: cache.example.com:base64signaturehere
   assert(ni.sigs[0].sig == "base64signaturehere");
 
   // Serialize back
-  auto serialized = cornell::nix::serialize_narinfo(ni);
+  auto serialized = continuity::nix::serialize_narinfo(ni);
 
   // Parse again
-  auto result2 = cornell::nix::parse_narinfo(serialized);
+  auto result2 = continuity::nix::parse_narinfo(serialized);
   assert(result2.is_ok() && "re-parse should succeed");
 
   const auto& ni2 = result2.value.value();
@@ -73,12 +73,12 @@ NarSize: 100
 NarHash: sha256:0000000000000000000000000000000000000000000000000000000000000000
 )";
 
-  auto result = cornell::nix::parse_narinfo(input);
+  auto result = continuity::nix::parse_narinfo(input);
   assert(result.is_ok() && "parse should succeed");
 
   const auto& ni = result.value.value();
   assert(ni.store_path == "/nix/store/abc-pkg");
-  assert(ni.compression == cornell::nix::compression_t::none);
+  assert(ni.compression == continuity::nix::compression_t::none);
   assert(ni.references.empty());
   assert(!ni.deriver.has_value());
   assert(!ni.ca.has_value());
@@ -96,7 +96,7 @@ NarHash: sha256:0000
 )";
   // Missing URL
 
-  auto result = cornell::nix::parse_narinfo(input);
+  auto result = continuity::nix::parse_narinfo(input);
   assert(result.is_error() && "should fail without URL");
   assert(result.error.value().find("URL") != std::string::npos);
 
@@ -108,14 +108,14 @@ void test_compression_types() {
   const char* compressions[] = {"none", "xz", "bzip2", "zstd", "lzip", "lz4", "br"};
 
   for (const char* comp : compressions) {
-    auto opt = cornell::nix::compression_from_string(comp);
+    auto opt = continuity::nix::compression_from_string(comp);
     assert(opt.has_value());
 
-    auto str = cornell::nix::compression_to_string(*opt);
+    auto str = continuity::nix::compression_to_string(*opt);
     assert(str == comp);
   }
 
-  assert(!cornell::nix::compression_from_string("invalid").has_value());
+  assert(!continuity::nix::compression_from_string("invalid").has_value());
 
   std::cout << "test_compression_types: PASSED\n";
 }
@@ -130,7 +130,7 @@ NarHash: sha256:0000000000000000000000000000000000000000000000000000000000000000
 CA: fixed:sha256:1111111111111111111111111111111111111111111111111111111111111111
 )";
 
-  auto result = cornell::nix::parse_narinfo(input);
+  auto result = continuity::nix::parse_narinfo(input);
   assert(result.is_ok());
 
   const auto& ni = result.value.value();

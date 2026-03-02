@@ -366,12 +366,12 @@
                   cd ${inputs.self}
 
                   # Run ast-grep on ALL of src/ (straylight + nix upstream)
-                  error_count=$(ast-grep scan --config sgconfig.yml --json src/ 2>/dev/null | \
+                  error_count=$(ast-grep scan --config build/sgconfig.yml --json src/ 2>/dev/null | \
                     jq '[.[] | select(.severity == "error")] | length')
 
                   if [ "$error_count" -gt 0 ]; then
                     echo "ast-grep found $error_count error(s):"
-                    ast-grep scan --config sgconfig.yml src/ 2>/dev/null | grep -A5 "^error\["
+                    ast-grep scan --config build/sgconfig.yml src/ 2>/dev/null | grep -A5 "^error\["
                     exit 1
                   fi
 

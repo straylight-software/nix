@@ -22,8 +22,8 @@
 #include "nix/util/sync.h"
 #include "nix/util/thread-pool.h"
 
-// Shadow parsing: Cornell verified parsers (Checkpoint 2)
-#include "cornell/nix/nix_formats.h"
+// Shadow parsing: Continuity verified parsers (Checkpoint 2)
+#include "continuity/nix/nix_formats.h"
 
 namespace nix {
 
@@ -485,22 +485,22 @@ void binary_cache_store::query_path_info_uncached(
               stats.narInfoRead++;
 
               // ═══════════════════════════════════════════════════════════════
-              // Checkpoint 3: Cornell verified parser is PRIMARY
+              // Checkpoint 3: Continuity verified parser is PRIMARY
               // Legacy parser shadows in debug builds for correctness assertion
               // ═══════════════════════════════════════════════════════════════
 
-              auto cornell_result = cornell::nix::parse_narinfo(*data);
-              if (!cornell_result.is_ok()) {
-                // Cornell parse failed - fall through to legacy for error handling
-                // TODO[b7r6]: !! clean this up !! - once we trust Cornell fully,
-                // this should throw directly with cornell_result.error
-                throw Error("Cornell narinfo parse failed for '%s': %s", narInfoFile,
-                            cornell_result.error.value_or("incomplete input"));
+              auto continuity_result = continuity::nix::parse_narinfo(*data);
+              if (!continuity_result.is_ok()) {
+                // Continuity parse failed - fall through to legacy for error handling
+                // TODO[b7r6]: !! clean this up !! - once we trust Continuity fully,
+                // this should throw directly with continuity_result.error
+                throw Error("Continuity narinfo parse failed for '%s': %s", narInfoFile,
+                            continuity_result.error.value_or("incomplete input"));
               }
 
-              // Convert Cornell result to legacy nar_info_t
-              auto info =
-                  std::make_shared<nar_info_t>(from_cornell_narinfo(*this, *cornell_result.value));
+              // Convert Continuity result to legacy nar_info_t
+              auto info = std::make_shared<nar_info_t>(
+                  from_continuity_narinfo(*this, *continuity_result.value));
 
 #ifndef NDEBUG
               // Shadow parse with legacy - assert equivalence

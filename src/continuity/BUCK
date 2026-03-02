@@ -1,13 +1,13 @@
-# kaitai/BUCK
+# src/continuity/BUCK
 #
-# Protocol specifications for Nix formats.
+# Continuity Codec - verified protocol parsers for Nix formats.
 #
 # These specs define the binary/text formats used by Nix:
 #   - NAR (Nix ARchive) - deterministic archive format
 #   - narinfo - binary cache metadata
 #   - drv - derivation ATerm format
 #
-# Parsers are generated from verified Lean specs (Cornell.Nix) and placed in
+# Parsers are generated from verified Lean specs (Continuity.Nix) and placed in
 # nix_formats.h. The Kaitai .ksy files serve as documentation.
 
 # Export the spec files for documentation/tooling
@@ -30,7 +30,7 @@ export_file(
 )
 
 # =============================================================================
-# Cornell-generated parsers (from verified Lean specs)
+# Continuity-generated parsers (from verified Lean specs)
 # =============================================================================
 
 cxx_library(
@@ -41,7 +41,7 @@ cxx_library(
     exported_headers = [
         "nix_formats.h",    # Generated from Cornell.ExtractNix
     ],
-    header_namespace = "cornell/nix",
+    header_namespace = "continuity/nix",
     visibility = ["PUBLIC"],
     compiler_flags = ["-std=c++23"],
     deps = [
@@ -69,7 +69,7 @@ cxx_library(
 )
 
 # =============================================================================
-# Roundtrip tests - verify Cornell parsers work correctly
+# Roundtrip tests - verify Continuity parsers work correctly
 # =============================================================================
 
 cxx_test(

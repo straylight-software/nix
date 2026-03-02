@@ -51,7 +51,7 @@ let local-hooks =
         Hook::{
         , id = "ast-grep"
         , name = "ast-grep (errors)"
-        , entry = "ast-grep scan --config sgconfig.yml"
+        , entry = "ast-grep scan --config build/sgconfig.yml"
         , language = "system"
         , types_or = Some [ "c", "c++" ]
         , files = Some "^src/straylight/"

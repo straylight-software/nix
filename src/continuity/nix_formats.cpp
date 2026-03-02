@@ -1,6 +1,6 @@
-// kaitai/nix_formats.cpp
+// src/continuity/nix_formats.cpp
 //
-// Parser implementations for Cornell-generated Nix format specs.
+// Parser implementations for Continuity-generated Nix format specs.
 // These functions implement the parsing logic declared in nix_formats.h.
 //
 // The serialization functions are all inline in the header (trivial).
@@ -12,7 +12,7 @@
 #include <charconv>
 #include <sstream>
 
-namespace cornell::nix {
+namespace continuity::nix {
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // NAR PARSER
@@ -697,4 +697,4 @@ auto parse_derivation(std::string_view text) -> parse_result_t<derivation_t> {
   return parse_result_t<derivation_t>::ok(std::move(drv), {});
 }
 
-} // namespace cornell::nix
+} // namespace continuity::nix
