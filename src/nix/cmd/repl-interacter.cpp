@@ -35,6 +35,46 @@ volatile sig_atomic_t g_signal_received = 0;
 void sigint_handler(int signo) {
   g_signal_received = signo;
 }
+
+void sigtstp_handler(int /* signo */) {
+#if USE_READLINE
+  /* Save readline state before suspending */
+  int saved_point = rl_point;
+  char* saved_line = rl_copy_text(0, rl_end);
+
+  /* Restore terminal settings and move to new line */
+  rl_free_line_state();
+  rl_cleanup_after_signal();
+#endif
+
+  /* Restore default SIGTSTP handler and re-raise to actually suspend */
+  struct sigaction sa_default{};
+  sa_default.sa_handler = SIG_DFL;
+  sigemptyset(&sa_default.sa_mask);
+  sigaction(SIGTSTP, &sa_default, nullptr);
+
+  raise(SIGTSTP);
+
+  /* After SIGCONT, restore our handler */
+  struct sigaction sa{};
+  sa.sa_handler = sigtstp_handler;
+  sigfillset(&sa.sa_mask);
+  sa.sa_flags = 0;
+  sigaction(SIGTSTP, &sa, nullptr);
+
+#if USE_READLINE
+  /* Restore readline state */
+  rl_reset_after_signal();
+  rl_replace_line(saved_line, 0);
+  rl_point = saved_point;
+  rl_redisplay();
+
+  free(saved_line);
+#else
+  /* For editline, just refresh the display */
+  rl_refresh_line(0, 0);
+#endif
+}
 }; // namespace
 
 static detail::ReplCompleterMixin* cur_repl; // ugly
@@ -160,27 +200,40 @@ static constexpr const char* prompt_for_type(ReplPromptType prompt_type) {
 
 bool ReadlineLikeInteracter::get_line(std::string& input, ReplPromptType prompt_type) {
 #ifndef _WIN32 // TODO use more signals.hh for this
-  struct sigaction act, old;
+  struct sigaction act_int, old_int;
+  struct sigaction act_tstp, old_tstp;
   sigset_t saved_signal_mask, set;
 
   auto setupSignals = [&]() {
-    act.sa_handler = sigint_handler;
-    sigfillset(&act.sa_mask);
-    act.sa_flags = 0;
-    if (sigaction(SIGINT, &act, &old))
+    /* Setup SIGINT handler */
+    act_int.sa_handler = sigint_handler;
+    sigfillset(&act_int.sa_mask);
+    act_int.sa_flags = 0;
+    if (sigaction(SIGINT, &act_int, &old_int))
       throw sys_error_t("installing handler for SIGINT");
+
+    /* Setup SIGTSTP handler for ctrl-z suspend */
+    act_tstp.sa_handler = sigtstp_handler;
+    sigfillset(&act_tstp.sa_mask);
+    act_tstp.sa_flags = 0;
+    if (sigaction(SIGTSTP, &act_tstp, &old_tstp))
+      throw sys_error_t("installing handler for SIGTSTP");
 
     sigemptyset(&set);
     sigaddset(&set, SIGINT);
+    sigaddset(&set, SIGTSTP);
     if (sigprocmask(SIG_UNBLOCK, &set, &saved_signal_mask))
-      throw sys_error_t("unblocking SIGINT");
+      throw sys_error_t("unblocking SIGINT/SIGTSTP");
   };
   auto restore_signals = [&]() {
     if (sigprocmask(SIG_SETMASK, &saved_signal_mask, nullptr))
       throw sys_error_t("restoring signals");
 
-    if (sigaction(SIGINT, &old, 0))
+    if (sigaction(SIGINT, &old_int, nullptr))
       throw sys_error_t("restoring handler for SIGINT");
+
+    if (sigaction(SIGTSTP, &old_tstp, nullptr))
+      throw sys_error_t("restoring handler for SIGTSTP");
   };
 
   setupSignals();

@@ -62,10 +62,54 @@ struct Child {
 struct HookInstance;
 #endif
 
+/* Forward declaration */
+class Worker;
+
+/**
+ * RAII guard for build slot acquisition.
+ *
+ * Ensures that build slots are properly released even when exceptions
+ * are thrown or goals are cancelled. This prevents build slot leaks
+ * that would permanently reduce parallelism.
+ */
+class BuildSlotGuard {
+public:
+  BuildSlotGuard(Worker& worker, JobCategory category);
+  BuildSlotGuard(BuildSlotGuard&& other) noexcept;
+  BuildSlotGuard& operator=(BuildSlotGuard&& other) noexcept;
+  ~BuildSlotGuard();
+
+  // Non-copyable
+  BuildSlotGuard(const BuildSlotGuard&) = delete;
+  BuildSlotGuard& operator=(const BuildSlotGuard&) = delete;
+
+  /**
+   * Acquire the build slot. Safe to call multiple times.
+   */
+  void acquire();
+
+  /**
+   * Release the build slot. Safe to call multiple times.
+   */
+  void release();
+
+  /**
+   * Check if the slot is currently acquired.
+   */
+  bool isAcquired() const { return acquired; }
+
+private:
+  Worker* worker;
+  JobCategory category;
+  bool acquired;
+};
+
 /**
  * Coordinates one or more realisations and their interdependencies.
  */
 class Worker {
+  friend class BuildSlotGuard;
+
 private:
   /* Note: the worker should only have strong pointers to the
      top-level goals. */
@@ -287,6 +331,16 @@ public:
    * or the hook would still say `postpone`).
    */
   void childTerminated(Goal* goal, bool wakeSleepers = true);
+
+  /**
+   * Release all build slots held by children.
+   *
+   * This is called during cleanup to ensure build slots are not leaked
+   * when goals are cancelled or when exceptions occur. It releases all
+   * slots without removing the children from the list (that happens
+   * when goals are destroyed).
+   */
+  void releaseAllBuildSlots();
 
   /**
    * Put `goal` to sleep until a build slot becomes available (which

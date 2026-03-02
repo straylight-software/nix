@@ -236,7 +236,15 @@ void LegacySSHStore::build_paths(const std::vector<derived_path_t>& drv_paths, B
         .status = (build_result_t::Failure::Status)status,
     };
     conn->from >> failure.errorMsg;
-    throw Error(failure.status, std::move(failure.errorMsg));
+    // Issue #13465: Ensure build failure reasons are properly propagated.
+    // Include both the status description and the error message from the remote.
+    if (failure.errorMsg.empty()) {
+      throw Error("build on '%s' failed: %s", config->authority.host(),
+                  build_result_t::Failure::status_to_string(failure.status));
+    } else {
+      throw Error("build on '%s' failed: %s (%s)", config->authority.host(), failure.errorMsg,
+                  build_result_t::Failure::status_to_string(failure.status));
+    }
   }
 }
 

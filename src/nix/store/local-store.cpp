@@ -590,6 +590,11 @@ void LocalStore::upgradeDBSchema(State& state) {
     doUpgrade("20220326-ca-derivations",
 #include "ca-specific-schema.sql.gen.h"
     );
+
+  // Issue #7572: Add deathTime column for time-based GC expiry.
+  // This tracks when a store path became unreferenced, enabling the
+  // gc-dead-after setting to keep recently-unreferenced paths around.
+  doUpgrade("20260301-gc-death-time", "alter table ValidPaths add column deathTime integer");
 }
 
 /* To improve purity, users may want to make the Nix store a read-only

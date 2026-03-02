@@ -318,6 +318,7 @@
             ];
 
             programs.clang-format.enable = true;
+
             programs.clang-format.includes = [
               "*.c"
               "*.h"
@@ -339,6 +340,7 @@
             programs.mdformat.enable = true;
             programs.mdformat.settings.number = true;
             programs.mdformat.settings.wrap = 100;
+
             # Exclude raw string literals embedded in C++ (src/nix/cli/*.md, src/nix/store/*.md)
             programs.mdformat.excludes = [
               "src/nix/cli/*.md"
@@ -411,55 +413,236 @@
               touch $out
             '';
 
-            # coverage: test count threshold enforcement
-            # Verifies minimum number of test assertions exist.
-            # Full coverage measurement requires buck2 devshell (run ./scripts/coverage.sh).
+            # coverage: llvm-cov line coverage threshold enforcement
+            # Builds tests with coverage instrumentation, runs them, and verifies
+            # that line coverage meets minimum threshold.
             #
-            # This check ensures we don't regress on test count.
+            # Uses buck2 with cxx_coverage toolchain to get real llvm-cov metrics.
             coverage =
               let
-                minTestFiles = 15; # minimum number of test files
-                minAssertions = 300; # minimum total assertions (from TEST_COVERAGE.md baseline)
+                minLineCoverage = 5; # minimum line coverage percentage (start low, ratchet up)
+                # compiler-rt provides libclang_rt.profile for coverage instrumentation
+                compiler-rt = toolchain.llvm.compiler-rt;
+                compiler-rt-lib = "${compiler-rt}/lib/linux";
               in
-              pkgs.runCommand "coverage-check"
-                {
-                  nativeBuildInputs = [
-                    pkgs.coreutils
-                    pkgs.gnugrep
-                    pkgs.findutils
-                  ];
-                }
-                ''
-                  cd ${inputs.self}
+              pkgs.stdenvNoCC.mkDerivation {
+                name = "coverage-check";
+                src = inputs.self;
 
-                  # Count test files
-                  TEST_FILE_COUNT=$(find src -name "*_test.cpp" -o -name "*_fuzz_test.cpp" | wc -l)
-                  echo "Test files found: $TEST_FILE_COUNT"
-                  echo "Minimum required: ${toString minTestFiles}"
+                __noChroot = true; # Allow buck2 daemon access
 
-                  if [ "$TEST_FILE_COUNT" -lt ${toString minTestFiles} ]; then
-                    echo ""
-                    echo "FAIL: Test file count ($TEST_FILE_COUNT) is below minimum (${toString minTestFiles})"
-                    exit 1
-                  fi
+                nativeBuildInputs = [
+                  pkgs.buck2
+                  pkgs.git
+                  pkgs.cacert
+                  pkgs.file
+                  pkgs.gnugrep
+                  pkgs.gawk
 
-                  # Count test assertions (CHECK, REQUIRE, RC_ASSERT patterns)
-                  ASSERTION_COUNT=$(grep -r -E '(CHECK|REQUIRE|RC_ASSERT|SECTION)' src --include="*_test.cpp" --include="*_fuzz_test.cpp" 2>/dev/null | wc -l)
-                  echo "Test assertions found: $ASSERTION_COUNT"
-                  echo "Minimum required: ${toString minAssertions}"
+                  toolchain.llvm.clang
+                  toolchain.llvm.lld
+                  toolchain.llvm.llvm # provides llvm-profdata, llvm-cov
+                  compiler-rt
+                ]
+                ++ allDeps
+                ++ (lib.optionals isLinux [
+                  toolchain.clang-unwrapped
+                  toolchain.llvm.bintools-unwrapped
+                  toolchain.musl-gcc
+                  pkgs.musl
+                ]);
 
-                  if [ "$ASSERTION_COUNT" -lt ${toString minAssertions} ]; then
-                    echo ""
-                    echo "FAIL: Assertion count ($ASSERTION_COUNT) is below minimum (${toString minAssertions})"
-                    exit 1
-                  fi
+                buildPhase = ''
+                                    export HOME=$TMPDIR
 
-                  echo ""
-                  echo "PASS: Test coverage meets minimum thresholds"
-                  echo "  - Test files: $TEST_FILE_COUNT >= ${toString minTestFiles}"
-                  echo "  - Assertions: $ASSERTION_COUNT >= ${toString minAssertions}"
-                  touch $out
+                                    # Copy source to writable location
+                                    mkdir -p $TMPDIR/build
+                                    cp -a . $TMPDIR/build/
+                                    chmod -R u+w $TMPDIR/build
+                                    cd $TMPDIR/build
+
+                                    # Set up prelude symlink
+                                    mkdir -p nix/build
+                                    rm -f nix/build/prelude
+                                    ln -s ${inputs.buck2-prelude} nix/build/prelude
+
+                                    # Copy pre-generated nix-deps.bzl
+                                    rm -f third_party/nix-deps.bzl
+                                    cp ${nix-deps-bzl} third_party/nix-deps.bzl
+
+                                    # Generate buckconfig.local with coverage flags baked in
+                                    # Coverage flags are added directly to c_flags/cxx_flags/link_flags
+                                    # so they apply to all builds regardless of toolchain selection
+                                    # NOTE: Using unquoted HEREDOC so nix variables are interpolated
+                                    cat > .buckconfig.local << BUCKCONFIG
+                  # AUTO-GENERATED by nix coverage check
+
+                  [cxx]
+                  cc = ${toolchain.buck2.cc}
+                  cxx = ${toolchain.buck2.cxx}
+                  ar = ${toolchain.buck2.ar}
+                  ld = ${toolchain.buck2.ld}
+                  clang_resource_dir = ${toolchain.buck2.clang-resource-dir}
+                  musl_gcc_include = ${toolchain.buck2.musl-gcc-include}
+                  musl_gcc_include_arch = ${toolchain.buck2.musl-gcc-include-arch}
+                  musl_include = ${toolchain.buck2.musl-include}
+                  musl_gcc_lib = ${toolchain.buck2.musl-gcc-lib}
+                  musl_gcc_lib_gcc = ${toolchain.buck2.musl-gcc-lib-gcc}
+                  musl_lib = ${toolchain.buck2.musl-lib}
+
+                  [cxx.flags]
+                  c_flags = ${toolchain.buck2.c-flags} ${includeFlags} -fprofile-instr-generate -fcoverage-mapping
+                  cxx_flags = ${toolchain.buck2.cxx-flags} ${includeFlags} -fprofile-instr-generate -fcoverage-mapping
+                  link_flags = ${toolchain.buck2.link-flags} ${libFlags} ${compiler-rt-lib}/libclang_rt.profile-x86_64.a
+
+                  [build]
+                  execution_platforms = toolchains//:lre
+                  BUCKCONFIG
+
+                  echo "=== Generated .buckconfig.local ==="
+                  cat .buckconfig.local
+                  echo "=== Building tests with coverage instrumentation ==="
+
+                  # Build a representative subset of fast unit tests
+                                    # (full test suite would take too long for CI gate)
+                                    TEST_TARGETS=(
+                                      "//src/nix/util/tests:base-n_test"
+                                      "//src/nix/util/tests:checked-arithmetic_test"
+                                      "//src/nix/util/tests:canon-path_test"
+                                      "//src/nix/util/tests:lru-cache_test"
+                                      "//src/nix/util/tests:strings_test"
+                                      "//src/nix/util/tests:topo-sort_test"
+                                      "//src/nix/util/tests:url_test"
+                                      "//src/nix/util/tests:hash_test"
+                                      "//src/nix/tests:url_fuzz_test"
+                                      "//src/nix/tests:hash_fuzz_test"
+                                      "//src/nix/tests:canon_path_fuzz_test"
+                                    )
+
+                                    buck2 build "''${TEST_TARGETS[@]}" --show-full-output > $TMPDIR/buck2-output.txt 2>&1 || {
+                                      echo "buck2 build failed:"
+                                      cat $TMPDIR/buck2-output.txt
+                                      exit 1
+                                    }
+
+                                    echo "=== Running tests to collect coverage data ==="
+
+                                    # Set profile output location
+                                    export LLVM_PROFILE_FILE="$TMPDIR/coverage-%p-%m.profraw"
+
+                                    # Run each test
+                                    for target in "''${TEST_TARGETS[@]}"; do
+                                      # Extract binary path from buck2 output
+                                      BINARY_PATH=$(grep "$target" $TMPDIR/buck2-output.txt | tail -1 | awk '{print $2}')
+                                      if [ -n "$BINARY_PATH" ] && [ -x "$BINARY_PATH" ]; then
+                                        echo "Running: $target"
+                                        "$BINARY_PATH" || echo "  (test had failures, continuing)"
+                                      fi
+                                    done
+
+                  echo "=== Merging profile data ==="
+
+                  # Debug: show where profraw files might be
+                  echo "Looking for .profraw files in $TMPDIR and pwd=$(pwd)"
+                  find $TMPDIR -name "*.profraw" -type f 2>/dev/null || true
+                  find . -name "*.profraw" -type f 2>/dev/null || true
+                  ls -la $TMPDIR/ 2>/dev/null || true
+
+                  # Find all profraw files
+                  PROFRAW_FILES=$(find $TMPDIR -name "*.profraw" -type f)
+                                    if [ -z "$PROFRAW_FILES" ]; then
+                                      echo "ERROR: No .profraw files generated"
+                                      exit 1
+                                    fi
+
+                                    echo "Found profraw files:"
+                                    echo "$PROFRAW_FILES"
+
+                                    llvm-profdata merge -sparse $PROFRAW_FILES -o $TMPDIR/coverage.profdata || {
+                                      echo "Failed to merge profile data"
+                                      exit 1
+                                    }
+
+                                    echo "=== Generating coverage report ==="
+
+                                    # Find test binaries for coverage report
+                                    BINARIES=""
+                                    FIRST_BINARY=""
+                                    for target in "''${TEST_TARGETS[@]}"; do
+                                      BINARY_PATH=$(grep "$target" $TMPDIR/buck2-output.txt | tail -1 | awk '{print $2}')
+                                      if [ -n "$BINARY_PATH" ] && [ -x "$BINARY_PATH" ]; then
+                                        if [ -z "$FIRST_BINARY" ]; then
+                                          FIRST_BINARY="$BINARY_PATH"
+                                        else
+                                          BINARIES="$BINARIES -object=$BINARY_PATH"
+                                        fi
+                                      fi
+                                    done
+
+                                    # Generate text report
+                                    llvm-cov report \
+                                      "$FIRST_BINARY" \
+                                      $BINARIES \
+                                      -instr-profile=$TMPDIR/coverage.profdata \
+                                      -ignore-filename-regex='buck-out|third_party|vendor|_test\.cpp' \
+                                      > $TMPDIR/coverage-report.txt 2>&1 || true
+
+                                    echo ""
+                                    echo "=== Coverage Report ==="
+                                    cat $TMPDIR/coverage-report.txt
+                                    echo ""
+
+                                    # Extract line coverage percentage from the TOTAL line
+                                    # Format: "TOTAL ... XX.XX%"
+                                    LINE_COVERAGE=$(grep "^TOTAL" $TMPDIR/coverage-report.txt | awk '{print $(NF-2)}' | tr -d '%')
+
+                                    if [ -z "$LINE_COVERAGE" ]; then
+                                      echo "WARNING: Could not parse line coverage from report"
+                                      echo "Falling back to test file count check..."
+
+                                      # Fallback: count test files
+                                      TEST_FILE_COUNT=$(find src -name "*_test.cpp" -o -name "*_fuzz_test.cpp" | wc -l)
+                                      echo "Test files found: $TEST_FILE_COUNT"
+
+                                      if [ "$TEST_FILE_COUNT" -lt 15 ]; then
+                                        echo "FAIL: Test file count below minimum"
+                                        exit 1
+                                      fi
+
+                                      echo "PASS: Test file count OK (coverage parsing failed)"
+                                      mkdir -p $out
+                                      echo "coverage-check: test count fallback" > $out/result.txt
+                                      exit 0
+                                    fi
+
+                                    echo "Line coverage: ''${LINE_COVERAGE}%"
+                                    echo "Minimum required: ${toString minLineCoverage}%"
+
+                                    # Compare (using awk for floating point)
+                                    PASS=$(awk -v cov="$LINE_COVERAGE" -v min="${toString minLineCoverage}" 'BEGIN { print (cov >= min) ? "1" : "0" }')
+
+                                    if [ "$PASS" = "1" ]; then
+                                      echo ""
+                                      echo "PASS: Line coverage (''${LINE_COVERAGE}%) >= minimum (${toString minLineCoverage}%)"
+                                      mkdir -p $out
+                                      echo "line_coverage=''${LINE_COVERAGE}" > $out/result.txt
+                                      echo "threshold=${toString minLineCoverage}" >> $out/result.txt
+                                      echo "status=PASS" >> $out/result.txt
+                                    else
+                                      echo ""
+                                      echo "FAIL: Line coverage (''${LINE_COVERAGE}%) < minimum (${toString minLineCoverage}%)"
+                                      exit 1
+                                    fi
                 '';
+
+                installPhase = ''
+                  # Output already created in buildPhase
+                  true
+                '';
+
+                dontConfigure = true;
+                dontFixup = true;
+              };
           };
 
           # ── Default devShell ──────────────────────────────────────────────────

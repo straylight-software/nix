@@ -437,7 +437,10 @@ struct git_input_scheme_t : input_scheme_t {
              const std::filesystem::path& dest_dir) const override {
     auto repo_info = get_repo_info(input);
 
-    strings_t args = {"clone"};
+    activity_t act(*logger, lvl_talkative, act_fetch_tree,
+                   fmt("cloning Git repository '%s'", repo_info.location_to_arg()));
+
+    strings_t args = {"clone", "--progress"};
 
     args.push_back(repo_info.location_to_arg());
 
@@ -448,7 +451,19 @@ struct git_input_scheme_t : input_scheme_t {
 
     args.push_back(dest_dir.string());
 
-    run_program("git", true, args, {}, true);
+    /* Forward git's stderr progress output to the activity (#5863).
+       This prevents Nix from appearing to hang during long clones. */
+    auto result = run_program(run_options_t{
+        .program = "git",
+        .lookup_path = true,
+        .args = args,
+        .stderr_line_callback =
+            [&](std::string_view line) { act.result(res_fetch_status, std::string(line)); },
+    });
+
+    if (!status_ok(result.first)) {
+      throw exec_error_t(result.first, "program '%1%' %2%", "git", status_to_string(result.first));
+    }
 
     // If a specific revision is requested, checkout that commit after cloning.
     // This enables `nix flake clone` with `--inputs-from` where locked inputs

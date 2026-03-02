@@ -685,9 +685,17 @@ struct git_repo_impl_t : GitRepo, std::enable_shared_from_this<git_repo_impl_t> 
         append(git_args, {"--depth", "1"});
       append(git_args, {std::string("--"), url, refspec});
 
-      auto status =
-          run_program(run_options_t{.program = "git", .args = git_args, .is_interactive = true})
-              .first;
+      /* Forward git's stderr progress output to the activity (#5863).
+         This prevents Nix from appearing to hang during long fetches. */
+      auto status = run_program(run_options_t{
+                                    .program = "git",
+                                    .args = git_args,
+                                    .stderr_line_callback =
+                                        [&](std::string_view line) {
+                                          act.result(res_fetch_status, std::string(line));
+                                        },
+                                })
+                        .first;
 
       if (status > 0)
         throw Error("Failed to fetch git repository '%s'", url);

@@ -394,6 +394,25 @@ public:
           This can drastically reduce build times if the network connection between the local machine and the remote build host is slow.
         )"};
 
+  setting_t<unsigned int> builderFailureBackoffInitial{this, 30, "builder-failure-backoff-initial",
+                                                       R"(
+          Initial backoff time in seconds after a remote builder connection fails.
+
+          When a remote builder fails to connect, Nix will skip that builder for this
+          duration before retrying. Subsequent failures double the backoff time up to
+          [`builder-failure-backoff-max`](#conf-builder-failure-backoff-max).
+
+          Set to 0 to disable builder failure tracking (always retry immediately).
+        )"};
+
+  setting_t<unsigned int> builderFailureBackoffMax{this, 1800, "builder-failure-backoff-max",
+                                                   R"(
+          Maximum backoff time in seconds for failed remote builders.
+
+          The backoff time doubles after each failure, but will not exceed this value.
+          Default is 1800 seconds (30 minutes).
+        )"};
+
   setting_t<off_t> reservedSize{this, 8 * 1024 * 1024, "gc-reserved-space",
                                 "Amount of reserved disk space for the garbage collector."};
 
@@ -594,6 +613,49 @@ public:
           turned on).
         )",
                                     {"gc-keep-derivations"}};
+
+  /**
+   * Issue #7572: Time-based GC expiry.
+   *
+   * When a store path becomes unreferenced (i.e., no longer reachable from
+   * any GC root), it becomes a candidate for garbage collection. This setting
+   * specifies a grace period in seconds after which unreferenced paths can
+   * actually be deleted.
+   *
+   * This is useful for keeping recently-built outputs around even if they
+   * are not currently rooted, allowing them to be reused without rebuilding
+   * if they become needed again soon.
+   *
+   * A value of 0 (the default) means paths are deleted immediately when
+   * they become unreferenced during GC.
+   */
+  setting_t<uint64_t> gcDeadAfter{this,
+                                  0,
+                                  "gc-dead-after",
+                                  R"(
+          Minimum time in seconds that an unreferenced store path must remain
+          unreferenced before it can be garbage collected.
+
+          When a store path is no longer reachable from any GC root, Nix records
+          the time it became "dead". The garbage collector will not delete the
+          path until at least this many seconds have passed since it became
+          unreferenced.
+
+          This is useful for keeping recently-built outputs around even when
+          they are temporarily not referenced, allowing them to be reused
+          without rebuilding.
+
+          A value of `0` (the default) means unreferenced paths are eligible
+          for immediate garbage collection.
+
+          > **Example**
+          >
+          > To keep unreferenced paths for at least 7 days:
+          > ```
+          > gc-dead-after = 604800
+          > ```
+        )",
+                                  {"gc-keep-unreferenced"}};
 
   setting_t<bool> autoOptimiseStore{this, false, "auto-optimise-store",
                                     R"(

@@ -26,8 +26,10 @@
 
 #include "nix/cmd/legacy.h"
 #include "nix/store/build-result.h"
+#include "nix/store/builder-health.h"
 #include "nix/store/common-protocol-impl.h"
 #include "nix/store/derivations.h"
+#include "nix/store/globals.h"
 #include "nix/store/machines.h"
 #include "nix/store/store-api.h"
 #include "nix/store/store-open.h"
@@ -85,14 +87,35 @@ std::optional<SelectedMachine> select_machine(const Machines& machines,
   // 2. Supports all required features
   // 3. Has mandatory features that are a subset of required features
   // 4. Is enabled
+  // 5. Is not in backoff period due to recent failures
+
+  auto& healthTracker = BuilderHealthTracker::instance();
+  unsigned int initialBackoff = settings.builderFailureBackoffInitial;
+  unsigned int maxBackoff = settings.builderFailureBackoffMax;
 
   // Sort by speed factor (descending) to prefer faster machines
   std::vector<const Machine*> candidates;
+  std::vector<const Machine*> skipped_machines;
+
   for (const auto& m : machines) {
     if (m.enabled && m.systemSupported(request.system) &&
         m.allSupported(request.required_features) && m.mandatoryMet(request.required_features)) {
-      candidates.push_back(&m);
+      auto uri = m.storeUri.render();
+
+      // Check if this builder should be skipped due to recent failures
+      if (healthTracker.shouldSkip(uri, initialBackoff, maxBackoff)) {
+        skipped_machines.push_back(&m);
+      } else {
+        candidates.push_back(&m);
+      }
     }
+  }
+
+  // If all suitable machines are in backoff, include them anyway
+  // (better to try a potentially-down machine than fail completely)
+  if (candidates.empty() && !skipped_machines.empty()) {
+    debug("all suitable builders are in backoff, trying them anyway");
+    candidates = std::move(skipped_machines);
   }
 
   if (candidates.empty()) {
@@ -106,12 +129,16 @@ std::optional<SelectedMachine> select_machine(const Machines& machines,
 
   // Try to connect to machines in order of preference
   for (const auto* machine : candidates) {
+    auto uri = machine->storeUri.render();
     try {
       auto store = machine->open_store();
+      // Connection succeeded - record success to reset backoff
+      healthTracker.recordSuccess(uri);
       return SelectedMachine{.machine = machine, .remote_store = store};
     } catch (Error& e) {
-      // Log and try next machine
-      printMsg(lvl_warn, "cannot connect to '%s': %s", machine->storeUri.render(), e.what());
+      // Record failure to trigger backoff
+      healthTracker.recordFailure(uri, initialBackoff, maxBackoff);
+      printMsg(lvl_warn, "cannot connect to '%s': %s", uri, e.what());
     }
   }
 

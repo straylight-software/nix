@@ -202,5 +202,6 @@ cxx_library(
         "//third_party:brotli",
         "//third_party:libsodium",
         "//third_party:libarchive",
+        "//src/straylight/nix/sync:synchronized",
     ],
 )

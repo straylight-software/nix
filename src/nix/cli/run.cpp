@@ -22,6 +22,12 @@
 #  include "nix/store/personality.h"
 #endif
 
+#ifndef _WIN32
+#  include <signal.h>
+#  include <termios.h>
+#  include <unistd.h>
+#endif
+
 #include <queue>
 
 extern char** environ __attribute__((weak));
@@ -41,6 +47,75 @@ strings_t to_envp(string_map_t env) {
   return env_strs;
 }
 
+#ifndef _WIN32
+/**
+ * Set up process group and terminal control for an interactive shell.
+ *
+ * This fixes issue #2141: processes started by shellHook inherit the shell's
+ * process group, causing signals (like SIGINT from Ctrl+C) to be delivered
+ * to them as well as the shell. By putting the shell in its own process group
+ * and giving it terminal control, background processes started by shellHook
+ * can create their own process groups and won't receive terminal signals.
+ *
+ * The key insight is that when a shell starts a background process (e.g.,
+ * `pg_ctl start` or `command &`), the shell puts it in a new process group.
+ * But shellHook commands run during shell initialization, before the shell
+ * has terminal control and before it can properly manage process groups.
+ * By ensuring the shell is in its own process group with terminal control
+ * from the start, background processes started by shellHook behave correctly.
+ */
+static void setup_interactive_process_group() {
+  /* Check if we have a controlling terminal */
+  int tty_fd = isatty(STDIN_FILENO)    ? STDIN_FILENO
+               : isatty(STDOUT_FILENO) ? STDOUT_FILENO
+               : isatty(STDERR_FILENO) ? STDERR_FILENO
+                                       : -1;
+
+  if (tty_fd < 0) {
+    /* No controlling terminal, nothing to do */
+    return;
+  }
+
+  pid_t shell_pgid = getpgrp();
+  pid_t fg_pgid = tcgetpgrp(tty_fd);
+
+  /* If we're not in the foreground process group, we shouldn't try to
+     take terminal control - the parent process is managing things */
+  if (fg_pgid != -1 && fg_pgid != shell_pgid) {
+    return;
+  }
+
+  /* Ignore SIGTTOU while we manipulate terminal settings.
+     SIGTTOU is sent to background processes that try to write to the terminal
+     or change terminal settings. During the brief window where we're setting
+     up our new process group, we might technically be "background" before
+     we call tcsetpgrp. */
+  struct sigaction sa_ignore{}, sa_old_ttou{}, sa_old_ttin{};
+  sa_ignore.sa_handler = SIG_IGN;
+  sigemptyset(&sa_ignore.sa_mask);
+
+  sigaction(SIGTTOU, &sa_ignore, &sa_old_ttou);
+  sigaction(SIGTTIN, &sa_ignore, &sa_old_ttin);
+
+  /* Create a new process group with this process as the leader.
+     This is the key fix: processes forked by shellHook will inherit
+     this process group initially, but when bash starts them as background
+     jobs, it will give them their own process groups. */
+  pid_t pid = getpid();
+  if (setpgid(pid, pid) == 0) {
+    /* Take control of the terminal. This makes our new process group
+       the foreground process group, so Ctrl+C sends SIGINT only to us
+       (and our foreground children), not to background daemons started
+       by shellHook that have their own process groups. */
+    tcsetpgrp(tty_fd, pid);
+  }
+
+  /* Restore original signal handlers */
+  sigaction(SIGTTOU, &sa_old_ttou, nullptr);
+  sigaction(SIGTTIN, &sa_old_ttin, nullptr);
+}
+#endif
+
 void exec_program_in_store(ref<store_t> store, use_lookup_path_t use_lookup_path,
                            const std::string& program, const strings_t& args,
                            std::optional<std::string_view> system,
@@ -59,6 +134,13 @@ void exec_program_in_store(ref<store_t> store, use_lookup_path_t use_lookup_path
   }
 
   restore_process_context();
+
+#ifndef _WIN32
+  /* Set up process group and terminal control for interactive shells.
+     This ensures that background processes started by shellHook can
+     properly detach from the shell's process group. See issue #2141. */
+  setup_interactive_process_group();
+#endif
 
   /* If this is a diverted store (i.e. its "logical" location
      (typically /nix/store) differs from its "physical" location

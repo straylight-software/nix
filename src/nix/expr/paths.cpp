@@ -72,6 +72,15 @@ store_path_t eval_state_t::mountInput(fetchers::input_t& input,
                                        : fetch_to_store(fetch_settings, *store, accessor,
                                                         FetchMode::Copy, input.get_name());
 
+  /* Fix for #8638: Register a temp root for the store path to prevent GC
+     from collecting it while the flake input is being evaluated. This is
+     critical for flake inputs that are fetched during evaluation - without
+     this, auto-GC could delete the store path while evaluation is still
+     using it. */
+  if (!settings.lazyTrees && store->isValidPath(store_path)) {
+    store->addTempRoot(store_path);
+  }
+
   allowPath(store_path); // FIXME: should just whitelist the entire virtual store
 
   std::optional<Hash> _narHash;

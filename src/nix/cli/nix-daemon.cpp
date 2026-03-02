@@ -9,6 +9,37 @@
  *
  * For the full Unix domain socket server mode, this implementation defers to
  * the main `nix daemon` command.
+ *
+ * ## systemd Service Configuration (Issue #10964)
+ *
+ * When running nix-daemon as a systemd service, it's important to configure
+ * the service correctly to avoid orphaned build processes. The recommended
+ * configuration is:
+ *
+ * ```ini
+ * [Service]
+ * # Use 'mixed' to send SIGTERM to the main process, then SIGKILL to remaining
+ * # processes in the cgroup after TimeoutStopSec. This ensures build processes
+ * # are properly cleaned up when the daemon stops.
+ * KillMode=mixed
+ *
+ * # Alternative: 'control-group' sends SIGTERM to all processes simultaneously.
+ * # This is more aggressive but ensures no orphans.
+ * # KillMode=control-group
+ *
+ * # Give builds time to finish before force-killing
+ * TimeoutStopSec=300
+ * ```
+ *
+ * **Why not KillMode=process?**
+ * Using `KillMode=process` only terminates the nix-daemon process itself,
+ * leaving any running builds as orphaned processes. These orphans can:
+ * - Continue consuming resources
+ * - Hold locks preventing new builds
+ * - Leave the store in an inconsistent state
+ *
+ * The daemon now handles SIGTERM gracefully and will attempt to finish
+ * in-progress operations before exiting.
  */
 
 #include <cstring>

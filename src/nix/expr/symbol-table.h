@@ -20,17 +20,35 @@ class SymbolValue : protected value_t {
   operator std::string_view() const noexcept { return string_view(); }
 };
 
+/**
+ * Thread-safe bump/arena allocator for symbol storage.
+ *
+ * Uses a pre-allocated contiguous memory region (via mmap with MAP_NORESERVE)
+ * and atomic bump pointer for lock-free allocation. The design ensures:
+ * - Lock-free allocation via atomic fetch_add on size
+ * - Cache-line separation between read-only `data` and write-heavy `size`
+ *   to avoid false sharing between symbol creation and symbol lookup
+ * - Pre-allocated virtual address space (1GB) with lazy physical allocation
+ *
+ * Thread-safety is achieved through:
+ * - Immutable `data` pointer (set once at construction)
+ * - Atomic `size` for allocation offset tracking
+ * - boost::concurrent_flat_set for the symbol lookup table (in symbol_table_t)
+ */
 struct ContiguousArena {
   const char* data;
   const size_t max_size;
 
-  // Put this in a separate cache line to ensure that a thread
-  // adding a symbol doesn't slow down threads dereferencing symbols
-  // by invalidating the read-only `data` field.
+  // Atomic bump pointer in separate cache line to prevent false sharing
+  // between threads creating symbols and threads dereferencing symbols.
   alignas(64) std::atomic<size_t> size{0};
 
   ContiguousArena(size_t max_size);
 
+  /**
+   * Allocate `bytes` from the arena. Thread-safe via atomic fetch_add.
+   * @throws Error if arena is exhausted
+   */
   size_t allocate(size_t bytes);
 };
 

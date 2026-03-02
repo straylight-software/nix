@@ -188,6 +188,36 @@ public:
   [[nodiscard]] auto list_all() -> ca_result<std::vector<std::string>>;
 
   // --------------------------------------------------------------------------
+  // Realisation support (#11748)
+  // --------------------------------------------------------------------------
+
+  /// Store a DrvOutput→Realisation mapping.
+  ///
+  /// The key format is "{drvHash}-{outputName}" and the value is JSON.
+  /// Stored under realisations/{key}.doi in the store.
+  ///
+  /// @param drv_output_key  DrvOutput key (e.g. "abc123...!out")
+  /// @param realisation_json  JSON representation of the realisation
+  /// @return Success or error
+  [[nodiscard]] auto put_realisation(std::string_view drv_output_key,
+                                     std::string_view realisation_json) -> ca_result<void>;
+
+  /// Retrieve a realisation by DrvOutput key.
+  ///
+  /// @param drv_output_key  DrvOutput key (e.g. "abc123...!out")
+  /// @return JSON string if found, not_found if missing
+  [[nodiscard]] auto get_realisation(std::string_view drv_output_key) -> ca_result<std::string>;
+
+  /// Check if a realisation exists.
+  [[nodiscard]] auto has_realisation(std::string_view drv_output_key) const -> bool;
+
+  /// Remove a realisation.
+  [[nodiscard]] auto remove_realisation(std::string_view drv_output_key) -> ca_result<bool>;
+
+  /// List all stored realisation keys.
+  [[nodiscard]] auto list_realisations() -> ca_result<std::vector<std::string>>;
+
+  // --------------------------------------------------------------------------
   // Direct access
   // --------------------------------------------------------------------------
 
@@ -196,6 +226,10 @@ public:
 
   /// Get path to a blob by hash (even if it doesn't exist).
   [[nodiscard]] auto blob_path(std::string_view hash) const -> std::filesystem::path;
+
+  /// Get path to a realisation by DrvOutput key (even if it doesn't exist).
+  [[nodiscard]] auto realisation_path(std::string_view drv_output_key) const
+      -> std::filesystem::path;
 
 private:
   // Path helpers

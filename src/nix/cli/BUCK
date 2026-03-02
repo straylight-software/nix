@@ -59,6 +59,7 @@ cxx_library(
         "nix-env.cpp",
         "nix-daemon.cpp",
         "nix-store.cpp",
+        "nix-channel.cpp",
         "build-remote.cpp",
 
         # nix-env/

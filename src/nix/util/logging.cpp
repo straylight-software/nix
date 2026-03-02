@@ -2,10 +2,14 @@
 
 #include <atomic>
 #include <iostream>
+#include <mutex>
+#include <variant>
 
 #include <fcntl.h>
 
 #include <nlohmann/json.hpp>
+
+#include "straylight/nix/sync/synchronized.h"
 
 #include "nix/util/config-global.h"
 #include "nix/util/environment-variables.h"
@@ -61,6 +65,11 @@ struct simple_logger_t : public logger_t {
   bool systemd, tty;
   bool print_build_logs;
 
+  // Mutex to synchronize stderr output, preventing race conditions when multiple
+  // threads write error messages or traces concurrently. This fixes issues #14294
+  // and #7298 where interleaved output could occur during concurrent error reporting.
+  mutable straylight::nix::sync::Sync<std::monostate> output_mutex_;
+
   simple_logger_t(bool print_build_logs) : print_build_logs(print_build_logs) {
     systemd = get_env("IN_SYSTEMD") == "1";
     tty = is_tty();
@@ -103,11 +112,51 @@ struct simple_logger_t : public logger_t {
       prefix = std::string("<") + c + ">";
     }
 
+    // Synchronize stderr writes to prevent interleaved output from concurrent threads
+    auto lock = output_mutex_.lock();
     write_to_stderr(prefix + filter_ansi_escapes(s, !tty) + "\n");
   }
 
   void log_ei(const error_info_t& ei) override {
-    log(ei.level_, format_error_info(ei, logger_settings.show_trace.get()));
+    // Format the error info (including traces if enabled) under the lock to ensure
+    // the entire error message with all its traces is written atomically
+    auto lock = output_mutex_.lock();
+    auto formatted = format_error_info(ei, logger_settings.show_trace.get());
+
+    if (ei.level_ > verbosity) {
+      return;
+    }
+
+    std::string prefix;
+    if (systemd) {
+      char c;
+      switch (ei.level_) {
+        case lvl_error:
+          c = '3';
+          break;
+        case lvl_warn:
+          c = '4';
+          break;
+        case lvl_notice:
+        case lvl_info:
+          c = '5';
+          break;
+        case lvl_talkative:
+        case lvl_chatty:
+          c = '6';
+          break;
+        case lvl_debug:
+        case lvl_vomit:
+          c = '7';
+          break;
+        default:
+          c = '7';
+          break;
+      }
+      prefix = std::string("<") + c + ">";
+    }
+
+    write_to_stderr(prefix + filter_ansi_escapes(formatted, !tty) + "\n");
   }
 
   void start_activity(activity_id_t act, verbosity_t lvl, activity_type_t type,

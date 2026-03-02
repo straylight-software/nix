@@ -1,5 +1,8 @@
 #include "nix/fetchers/registry.h"
 
+#include <mutex>
+#include <optional>
+
 #include <nlohmann/json.hpp>
 
 #include "nix/fetchers/fetch-settings.h"
@@ -138,15 +141,30 @@ void override_registry(const input_t& from, const input_t& to, const Attrs& extr
   get_flag_registry()->add(from, to, extra_attrs);
 }
 
-static std::shared_ptr<Registry> get_global_registry(const settings_t& settings, store_t& store) {
-  static auto reg = [&]() {
+/**
+ * Lazy global registry wrapper - defers download until first access.
+ * This fixes issue #6222: the global registry is only downloaded when
+ * we actually need to resolve an indirect flake reference that can't
+ * be resolved by local registries.
+ */
+struct LazyGlobalRegistry {
+  mutable std::optional<std::shared_ptr<Registry>> cached;
+  mutable std::mutex mutex;
+
+  std::shared_ptr<Registry> get(const settings_t& settings, store_t& store) const {
+    std::lock_guard lock(mutex);
+    if (cached)
+      return *cached;
+
+    debug("lazily fetching global flake registry");
     try {
       auto path = settings.flakeRegistry.get();
       if (path == "") {
-        return std::make_shared<Registry>(Registry::Global); // empty registry
+        cached = std::make_shared<Registry>(Registry::Global);
+        return *cached;
       }
 
-      return Registry::read(
+      cached = Registry::read(
           settings,
           [&] -> source_path_t {
             if (!is_absolute(path)) {
@@ -163,14 +181,18 @@ static std::shared_ptr<Registry> get_global_registry(const settings_t& settings,
     } catch (Error& e) {
       warn("cannot fetch global flake registry '%s', will use builtin fallback registry: %s",
            settings.flakeRegistry.get(), e.info().msg_);
-      // Use builtin registry as fallback
-      return Registry::read(settings, "builtin flake registry",
+      cached = Registry::read(settings, "builtin flake registry",
 #include "builtin-flake-registry.json.gen.h"
-                            , Registry::Global);
+                              , Registry::Global);
     }
-  }();
+    return *cached;
+  }
+};
 
-  return reg;
+static LazyGlobalRegistry lazyGlobalRegistry;
+
+static std::shared_ptr<Registry> get_global_registry(const settings_t& settings, store_t& store) {
+  return lazyGlobalRegistry.get(settings, store);
 }
 
 Registries get_registries(const settings_t& settings, store_t& store) {

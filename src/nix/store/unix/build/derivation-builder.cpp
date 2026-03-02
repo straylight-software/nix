@@ -1,5 +1,6 @@
 #include "nix/store/build/derivation-builder.h"
 
+#include <functional>
 #include <queue>
 
 #include <fcntl.h>
@@ -186,6 +187,12 @@ struct derivation_builder_impl_t : public DerivationBuilder, public DerivationBu
    * The daemon worker threads.
    */
   std::vector<std::thread> daemonWorkerThreads;
+
+  /**
+   * Callback to propagate SIGTSTP/SIGCONT to child build processes.
+   * This allows suspending builds with Ctrl+Z.
+   */
+  std::unique_ptr<suspend_callback_t> suspendCallback;
 
   const store_path_set_t& originalPaths() override { return inputPaths; }
 
@@ -432,6 +439,9 @@ void derivation_builder_impl_t::kill_sandbox(bool get_stats) {
 bool derivation_builder_impl_t::kill_child() {
   bool ret = pid != -1;
   if (ret) {
+    /* Deregister suspend callback since we're killing the child */
+    suspendCallback.reset();
+
     /* If we're using a build user, then there is a tricky race
        condition: if we kill the build user before the child has
        done its setuid() to the build user uid, then it won't be
@@ -491,6 +501,9 @@ SingleDrvOutputs derivation_builder_impl_t::unprepare_build() {
 
   /* So the child is gone now. */
   misc_methods->childTerminated();
+
+  /* Deregister suspend callback since child is gone */
+  suspendCallback.reset();
 
   /* Close the read side of the logger pipe. */
   builder_out.close();
@@ -808,6 +821,18 @@ std::optional<descriptor_t> derivation_builder_impl_t::start_build() {
   start_child();
 
   pid.set_separate_pg(true);
+
+  /* Register a callback to propagate SIGTSTP to the child process group.
+     This allows suspending builds with Ctrl+Z. When the parent receives
+     SIGTSTP (handled in the signal handler thread), this callback sends
+     SIGTSTP to the child's process group. The child will receive SIGCONT
+     automatically when the parent is resumed. */
+  suspendCallback = create_suspend_callback([this]() {
+    if (pid != -1) {
+      /* Send SIGTSTP to the child's process group */
+      ::kill(-pid, SIGTSTP);
+    }
+  });
 
   /* Make the build visible to `nix ps`. */
   if (auto tracker = dynamic_cast<TrackActiveBuildsStore*>(&store))
@@ -1547,7 +1572,19 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
       if (!rewrites.empty()) {
         debug("rewriting hashes in '%1%'; cross fingers", actualPath);
 
-        /* FIXME: Is this actually streaming? */
+        /* #8113: Hash rewriting can break NAR lexical order.
+         *
+         * NAR format requires directory entries to be sorted lexically.
+         * When we rewrite hashes in filenames, the sort order may change.
+         * For example: "aaa-abc123" < "bbb-xyz789" but after rewriting
+         * "aaa-xyz789" > "bbb-abc123".
+         *
+         * To fix this, we use a two-pass approach:
+         * 1. First pass: rewrite hashes in the NAR stream
+         * 2. Second pass: re-dump/restore to re-sort directory entries
+         *
+         * This guarantees correct sorting since dump_path always sorts entries.
+         */
         auto source = sink_to_source([&](sink_t& next_sink) {
           RewritingSink rsink(rewrites, next_sink);
           dump_path(actualPath, rsink);
@@ -1557,6 +1594,73 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
         restore_path(tmp_path, *source);
         delete_path(actualPath);
         move_path(tmp_path, actualPath);
+
+        /* Re-dump and restore to ensure NAR entries are properly sorted.
+         * This fixes #8113 where hash rewriting can break lexical order
+         * of directory entries, causing "NAR directory is not sorted" errors. */
+        auto resort_source =
+            sink_to_source([&](sink_t& next_sink) { dump_path(actualPath, next_sink); });
+        Path resort_tmp_path = actualPath + ".resort.tmp";
+        restore_path(resort_tmp_path, *resort_source);
+        delete_path(actualPath);
+        move_path(resort_tmp_path, actualPath);
+
+#ifdef __APPLE__
+        /* #6065: On aarch64-darwin, re-codesign binaries after hash rewriting.
+         *
+         * Apple Silicon (aarch64-darwin) requires all executables to be
+         * properly code-signed. When we rewrite hashes in Mach-O binaries,
+         * we invalidate any existing code signatures. The kernel will refuse
+         * to execute binaries with invalid signatures, causing "Killed: 9"
+         * or similar errors.
+         *
+         * We use `codesign -f -s -` to ad-hoc sign all Mach-O executables
+         * after rewriting. The `-s -` means "ad-hoc signing" (no identity).
+         * This is sufficient for local execution. */
+        if (drv.platform == "aarch64-darwin" || drv.platform == "x86_64-darwin") {
+          std::function<void(const Path&)> resignMachO = [&](const Path& path) {
+            auto st = lstat(path);
+
+            if (S_ISDIR(st.st_mode)) {
+              for (auto& entry : read_directory(path)) {
+                resignMachO(path + "/" + entry.name);
+              }
+            } else if (S_ISREG(st.st_mode) && (st.st_mode & S_IXUSR)) {
+              /* Check if this looks like a Mach-O binary by reading magic */
+              int fd = ::open(path.c_str(), O_RDONLY);
+              if (fd >= 0) {
+                uint32_t magic = 0;
+                if (::read(fd, &magic, sizeof(magic)) == sizeof(magic)) {
+                  /* Mach-O magic numbers (both endiannesses) */
+                  constexpr uint32_t MH_MAGIC_64 = 0xfeedfacf;
+                  constexpr uint32_t MH_CIGAM_64 = 0xcffaedfe;
+                  constexpr uint32_t MH_MAGIC = 0xfeedface;
+                  constexpr uint32_t MH_CIGAM = 0xcefaedfe;
+                  constexpr uint32_t FAT_MAGIC = 0xcafebabe;
+                  constexpr uint32_t FAT_CIGAM = 0xbebafeca;
+
+                  if (magic == MH_MAGIC_64 || magic == MH_CIGAM_64 || magic == MH_MAGIC ||
+                      magic == MH_CIGAM || magic == FAT_MAGIC || magic == FAT_CIGAM) {
+                    ::close(fd);
+                    debug("re-signing Mach-O binary after hash rewrite: %s", path);
+                    /* Use ad-hoc signing. Ignore failures for non-signable files. */
+                    run_program("codesign", true, {"-f", "-s", "-", path});
+                    return;
+                  }
+                }
+                ::close(fd);
+              }
+            }
+          };
+
+          try {
+            resignMachO(actualPath);
+          } catch (ExecError& e) {
+            /* codesign failures are not fatal - some files may not be signable */
+            debug("codesign warning: %s", e.what());
+          }
+        }
+#endif
 
         /* FIXME: set proper permissions in restore_path() so
            we don't have to do another traversal. */

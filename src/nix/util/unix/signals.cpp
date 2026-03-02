@@ -1,8 +1,11 @@
 #include "nix/util/signals.h"
 
+#include <chrono>
+#include <cstring>
 #include <thread>
 
 #include "nix/util/error.h"
+#include "nix/util/logging.h"
 #include "nix/util/sync.h"
 #include "nix/util/terminal.h"
 #include "nix/util/util.h"
@@ -10,6 +13,16 @@
 namespace nix {
 
 std::atomic<bool> unix::is_interrupted = false;
+
+/* Issue #10559: Graceful shutdown support.
+ * First Ctrl-C sets graceful_shutdown flag (finish current operation).
+ * Second Ctrl-C within 2 seconds forces immediate termination.
+ * Counter resets after 2 seconds of no interrupts.
+ */
+std::atomic<bool> unix::graceful_shutdown_requested = false;
+static std::atomic<int> interrupt_count{0};
+static std::atomic<std::chrono::steady_clock::time_point> last_interrupt_time{
+    std::chrono::steady_clock::time_point{}};
 
 thread_local std::function<bool()> unix::interrupt_check;
 
@@ -39,7 +52,58 @@ struct interrupt_callbacks_t {
   std::map<Token, std::function<void()>> callbacks;
 };
 
-static sync_t<interrupt_callbacks_t> interrupt_callbacks;
+/**
+ * Issue #14300: Use function-local static to avoid initialization order issues
+ * that can cause "mutex lock failed: Invalid argument" errors.
+ * The mutex inside sync_t must be fully initialized before any thread tries
+ * to lock it. By using a function-local static, we guarantee initialization
+ * on first use (which is thread-safe in C++11+) rather than relying on
+ * static initialization order.
+ */
+static sync_t<interrupt_callbacks_t>& get_interrupt_callbacks() {
+  static sync_t<interrupt_callbacks_t> instance;
+  return instance;
+}
+
+/* Suspend callbacks - invoked when SIGTSTP is received (before suspending) */
+struct suspend_callbacks_t {
+  typedef int64_t Token;
+  Token next_token = 0;
+  std::map<Token, std::function<void()>> callbacks;
+};
+
+/**
+ * Issue #14300: Use function-local static for suspend callbacks too.
+ */
+static sync_t<suspend_callbacks_t>& get_suspend_callbacks() {
+  static sync_t<suspend_callbacks_t> instance;
+  return instance;
+}
+
+static void invoke_suspend_callbacks() {
+  suspend_callbacks_t::Token i = 0;
+  while (true) {
+    std::function<void()> callback;
+    {
+      auto sc_lock(get_suspend_callbacks().lock());
+      auto lb = sc_lock->callbacks.lower_bound(i);
+      if (lb == sc_lock->callbacks.end()) {
+        break;
+      }
+      callback = lb->second;
+      i = lb->first + 1;
+    }
+
+    try {
+      callback();
+    } catch (...) {
+      ignore_exception_in_destructor();
+    }
+  }
+}
+
+/* Issue #10559: Timeout for double Ctrl-C detection (2 seconds) */
+static constexpr auto kGracefulShutdownTimeout = std::chrono::seconds(2);
 
 static void signal_handler_thread(sigset_t set) {
   while (true) {
@@ -47,10 +111,54 @@ static void signal_handler_thread(sigset_t set) {
     sigwait(&set, &signal);
 
     if (signal == SIGINT || signal == SIGTERM || signal == SIGHUP) {
+      auto now = std::chrono::steady_clock::now();
+      auto last_time = last_interrupt_time.load(std::memory_order_relaxed);
+      auto time_since_last = now - last_time;
+
+      /* Reset counter if more than 2 seconds have passed since last interrupt */
+      if (time_since_last > kGracefulShutdownTimeout) {
+        interrupt_count.store(0, std::memory_order_relaxed);
+      }
+
+      int count = interrupt_count.fetch_add(1, std::memory_order_relaxed) + 1;
+      last_interrupt_time.store(now, std::memory_order_relaxed);
+
+      if (count == 1) {
+        /* First interrupt: request graceful shutdown */
+        unix::graceful_shutdown_requested.store(true, std::memory_order_release);
+        /* Write directly to stderr to avoid heap allocation in signal context */
+        const char* msg = "\nInterrupt received, finishing current operation... "
+                          "(press Ctrl-C again to force quit)\n";
+        [[maybe_unused]] auto _ = write(STDERR_FILENO, msg, strlen(msg));
+      }
+
+      /* Always trigger interrupt - this sets is_interrupted and calls callbacks */
       unix::trigger_interrupt();
 
     } else if (signal == SIGWINCH) {
       update_window_size();
+
+    } else if (signal == SIGTSTP) {
+      /* Invoke suspend callbacks to propagate SIGTSTP to child processes */
+      invoke_suspend_callbacks();
+
+      /* Restore default SIGTSTP handler and re-raise to actually suspend.
+         After resuming, re-block SIGTSTP so we can catch it again. */
+      struct sigaction sa_default{}, sa_old{};
+      sa_default.sa_handler = SIG_DFL;
+      sigemptyset(&sa_default.sa_mask);
+      sigaction(SIGTSTP, &sa_default, &sa_old);
+
+      sigset_t unblock_set;
+      sigemptyset(&unblock_set);
+      sigaddset(&unblock_set, SIGTSTP);
+      pthread_sigmask(SIG_UNBLOCK, &unblock_set, nullptr);
+
+      raise(SIGTSTP);
+
+      /* After SIGCONT, re-block SIGTSTP */
+      pthread_sigmask(SIG_BLOCK, &unblock_set, nullptr);
+      sigaction(SIGTSTP, &sa_old, nullptr);
     }
   }
 }
@@ -63,7 +171,7 @@ void unix::trigger_interrupt() {
     while (true) {
       std::function<void()> callback;
       {
-        auto ic_lock(interrupt_callbacks.lock());
+        auto ic_lock(get_interrupt_callbacks().lock());
         auto lb = ic_lock->callbacks.lower_bound(i);
         if (lb == ic_lock->callbacks.end()) {
           break;
@@ -105,6 +213,7 @@ void unix::start_signal_handler_thread() {
   sigaddset(&set, SIGHUP);
   sigaddset(&set, SIGPIPE);
   sigaddset(&set, SIGWINCH);
+  sigaddset(&set, SIGTSTP);
   if (pthread_sigmask(SIG_BLOCK, &set, nullptr)) {
     throw sys_error_t("blocking signals");
   }
@@ -138,13 +247,13 @@ struct interrupt_callback_impl_t : interrupt_callback_t {
   interrupt_callbacks_t::Token token;
 
   ~interrupt_callback_impl_t() override {
-    auto ic_lock(interrupt_callbacks.lock());
+    auto ic_lock(get_interrupt_callbacks().lock());
     ic_lock->callbacks.erase(token);
   }
 };
 
 std::unique_ptr<interrupt_callback_t> create_interrupt_callback(std::function<void()> callback) {
-  auto ic_lock(interrupt_callbacks.lock());
+  auto ic_lock(get_interrupt_callbacks().lock());
   auto token = ic_lock->next_token++;
   ic_lock->callbacks.emplace(token, callback);
 
@@ -152,6 +261,33 @@ std::unique_ptr<interrupt_callback_t> create_interrupt_callback(std::function<vo
   res->token = token;
 
   return std::unique_ptr<interrupt_callback_t>(res.release());
+}
+
+/* RAII helper to automatically deregister a suspend callback. */
+struct suspend_callback_impl_t : suspend_callback_t {
+  suspend_callbacks_t::Token token;
+
+  ~suspend_callback_impl_t() override {
+    auto sc_lock(get_suspend_callbacks().lock());
+    sc_lock->callbacks.erase(token);
+  }
+};
+
+std::unique_ptr<suspend_callback_t> create_suspend_callback(std::function<void()> callback) {
+  auto sc_lock(get_suspend_callbacks().lock());
+  auto token = sc_lock->next_token++;
+  sc_lock->callbacks.emplace(token, callback);
+
+  std::unique_ptr<suspend_callback_impl_t> res{new suspend_callback_impl_t{}};
+  res->token = token;
+
+  return std::unique_ptr<suspend_callback_t>(res.release());
+}
+
+void unix::reset_graceful_shutdown() {
+  graceful_shutdown_requested.store(false, std::memory_order_release);
+  interrupt_count.store(0, std::memory_order_relaxed);
+  is_interrupted.store(false, std::memory_order_release);
 }
 
 } // namespace nix

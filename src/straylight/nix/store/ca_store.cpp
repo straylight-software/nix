@@ -379,4 +379,154 @@ auto ca_store::list_all() -> ca_result<std::vector<std::string>> {
   return hashes;
 }
 
+// ============================================================================
+// Realisation support (#11748 - S3 cache missing realisations endpoint)
+// ============================================================================
+
+auto ca_store::realisation_path(std::string_view drv_output_key) const -> std::filesystem::path {
+  return root_ / "realisations" / (std::string(drv_output_key) + ".doi");
+}
+
+auto ca_store::put_realisation(std::string_view drv_output_key, std::string_view realisation_json)
+    -> ca_result<void> {
+  namespace fs = std::filesystem;
+
+  auto final_path = realisation_path(drv_output_key);
+  auto parent = final_path.parent_path();
+
+  // Ensure realisations directory exists
+  std::error_code ec;
+  fs::create_directories(parent, ec);
+  if (ec) {
+    return std::unexpected(ca_error::io_error);
+  }
+
+  // Write to temp file first for atomicity
+  auto tmp = final_path;
+  tmp += ".tmp";
+
+  int fd = ::open(tmp.c_str(), O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
+  if (fd < 0) {
+    return std::unexpected(ca_error::io_error);
+  }
+
+  const auto* ptr = realisation_json.data();
+  std::size_t remaining = realisation_json.size();
+
+  while (remaining > 0) {
+    ssize_t written = ::write(fd, ptr, remaining);
+    if (written < 0) {
+      if (errno == EINTR) {
+        continue;
+      }
+      ::close(fd);
+      fs::remove(tmp, ec);
+      return std::unexpected(ca_error::io_error);
+    }
+    ptr += written;
+    remaining -= static_cast<std::size_t>(written);
+  }
+
+  if (::fsync(fd) < 0) {
+    ::close(fd);
+    fs::remove(tmp, ec);
+    return std::unexpected(ca_error::io_error);
+  }
+
+  ::close(fd);
+
+  // Atomic rename
+  if (::rename(tmp.c_str(), final_path.c_str()) < 0) {
+    fs::remove(tmp, ec);
+    return std::unexpected(ca_error::io_error);
+  }
+
+  return {};
+}
+
+auto ca_store::get_realisation(std::string_view drv_output_key) -> ca_result<std::string> {
+  auto path = realisation_path(drv_output_key);
+
+  int fd = ::open(path.c_str(), O_RDONLY | O_CLOEXEC);
+  if (fd < 0) {
+    if (errno == ENOENT) {
+      return std::unexpected(ca_error::not_found);
+    }
+    return std::unexpected(ca_error::io_error);
+  }
+
+  struct stat st{};
+  if (::fstat(fd, &st) < 0) {
+    ::close(fd);
+    return std::unexpected(ca_error::io_error);
+  }
+
+  std::string data(static_cast<std::size_t>(st.st_size), '\0');
+  auto* ptr = data.data();
+  std::size_t remaining = data.size();
+
+  while (remaining > 0) {
+    ssize_t n = ::read(fd, ptr, remaining);
+    if (n < 0) {
+      if (errno == EINTR) {
+        continue;
+      }
+      ::close(fd);
+      return std::unexpected(ca_error::io_error);
+    }
+    if (n == 0) {
+      break;
+    }
+    ptr += n;
+    remaining -= static_cast<std::size_t>(n);
+  }
+
+  ::close(fd);
+  return data;
+}
+
+auto ca_store::has_realisation(std::string_view drv_output_key) const -> bool {
+  std::error_code ec;
+  return std::filesystem::exists(realisation_path(drv_output_key), ec) && !ec;
+}
+
+auto ca_store::remove_realisation(std::string_view drv_output_key) -> ca_result<bool> {
+  auto path = realisation_path(drv_output_key);
+  std::error_code ec;
+
+  if (!std::filesystem::exists(path, ec)) {
+    return false;
+  }
+
+  if (!std::filesystem::remove(path, ec) || ec) {
+    return std::unexpected(ca_error::io_error);
+  }
+
+  return true;
+}
+
+auto ca_store::list_realisations() -> ca_result<std::vector<std::string>> {
+  namespace fs = std::filesystem;
+  std::vector<std::string> keys;
+
+  auto realisations_dir = root_ / "realisations";
+
+  std::error_code ec;
+  if (!fs::exists(realisations_dir, ec)) {
+    return keys; // Empty list if directory doesn't exist
+  }
+
+  for (const auto& entry : fs::directory_iterator(realisations_dir, ec)) {
+    if (entry.is_regular_file()) {
+      auto name = entry.path().filename().string();
+      // Remove .doi extension to get the key
+      if (name.size() > 4 && name.substr(name.size() - 4) == ".doi") {
+        keys.push_back(name.substr(0, name.size() - 4));
+      }
+    }
+  }
+
+  return keys;
+}
+
 } // namespace straylight::nix::store

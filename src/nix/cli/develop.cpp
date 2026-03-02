@@ -9,6 +9,7 @@
 #include "nix/store/outputs-spec.h"
 #include "nix/store/store-api.h"
 #include "nix/util/config-global.h"
+#include "nix/util/signals.h"
 
 #ifndef _WIN32 // TODO re-enable on Windows
 #  include "run.h"
@@ -224,11 +225,17 @@ const static std::string get_env_sh =
 static nix::store_path_t get_derivation_environment(nix::ref<nix::store_t> store,
                                                     nix::ref<nix::store_t> eval_store,
                                                     const nix::store_path_t& drv_path) {
+  // Check for interrupts early to allow Ctrl-C to work during print-dev-env (#9082)
+  nix::check_interrupt();
+
   auto drv = eval_store->derivationFromPath(drv_path);
 
   auto builder = nix::base_name_of(drv.builder);
   if (builder != "bash")
     throw nix::Error("'nix develop' only works on derivations that use 'bash' as their builder");
+
+  // Check for interrupts before starting store operations
+  nix::check_interrupt();
 
   auto get_env_sh_path = ({
     nix::string_source_t source{get_env_sh};
@@ -274,6 +281,9 @@ static nix::store_path_t get_derivation_environment(nix::ref<nix::store_t> store
   }
   drv.fillInOutputPaths(*eval_store);
 
+  // Check for interrupts before writing and building derivation
+  nix::check_interrupt();
+
   auto shell_drv_path = nix::write_derivation(*eval_store, drv);
 
   /* Build the derivation. */
@@ -283,9 +293,13 @@ static nix::store_path_t get_derivation_environment(nix::ref<nix::store_t> store
                      }},
                      nix::bmNormal, eval_store);
 
+  // Check for interrupts after build completes
+  nix::check_interrupt();
+
   // `get-env.sh` will write its JSON output to an arbitrary output
   // path, so return the first non-empty output path.
   for (auto& [_0, optPath] : eval_store->queryPartialDerivationOutputMap(shell_drv_path)) {
+    nix::check_interrupt();
     assert(optPath);
     auto accessor = eval_store->requireStoreObjectAccessor(*optPath);
     if (auto st = accessor->maybe_lstat(nix::canon_path_t::root); st && st->file_size.value_or(0))
@@ -447,10 +461,14 @@ struct common_t : nix::InstallableCommand, nix::MixProfile {
 
   nix::store_path_t get_shell_out_path(nix::ref<nix::store_t> store,
                                        nix::ref<nix::Installable> installable) {
+    // Check for interrupts to allow cancellation during print-dev-env (#9082)
+    nix::check_interrupt();
+
     auto path = installable->getStorePath();
     if (path && nix::has_suffix(path->to_string(), "-env"))
       return *path;
     else {
+      nix::check_interrupt();
       auto drvs = nix::Installable::toDerivations(store, {installable});
 
       if (drvs.size() != 1)
@@ -466,12 +484,17 @@ struct common_t : nix::InstallableCommand, nix::MixProfile {
 
   std::pair<build_environment_t, nix::store_path_t>
   get_build_environment(nix::ref<nix::store_t> store, nix::ref<nix::Installable> installable) {
+    // Check for interrupts to allow cancellation during print-dev-env (#9082)
+    nix::check_interrupt();
+
     auto shell_out_path = get_shell_out_path(store, installable);
 
+    nix::check_interrupt();
     updateProfile(shell_out_path);
 
     debug("reading environment file '%s'", store->printStorePath(shell_out_path));
 
+    nix::check_interrupt();
     return {
         build_environment_t::parse_json(
             store->requireStoreObjectAccessor(shell_out_path)->read_file(nix::canon_path_t::root)),
@@ -700,7 +723,13 @@ struct cmd_print_dev_env_t : common_t, nix::MixJSON {
   category_t category() override { return nix::catUtility; }
 
   void run(nix::ref<nix::store_t> store, nix::ref<nix::Installable> installable) override {
+    // Check for interrupts to prevent hangs during print-dev-env (#9082)
+    nix::check_interrupt();
+
     auto build_environment = get_build_environment(store, installable).first;
+
+    // Check for interrupts before stopping logger and outputting
+    nix::check_interrupt();
 
     nix::logger->stop();
 

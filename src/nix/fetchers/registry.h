@@ -54,6 +54,28 @@ std::shared_ptr<Registry> get_custom_registry(const settings_t& settings,
 
 std::filesystem::path get_user_registry_path();
 
+/**
+ * Lazy registry provider that defers global registry download until needed.
+ * This addresses issue #6222 by not downloading the global registry until
+ * an indirect flake reference actually requires registry lookup.
+ */
+struct LazyRegistries {
+  const settings_t& settings;
+  store_t& store;
+
+  /**
+   * Get registries, downloading global registry only if needed.
+   * The global registry is fetched lazily on first access.
+   */
+  Registries get() const;
+
+  /**
+   * Check if any registry (excluding global) can resolve the input.
+   * Used to avoid downloading global registry when not necessary.
+   */
+  bool canResolveWithoutGlobal(const input_t& input) const;
+};
+
 Registries get_registries(const settings_t& settings, store_t& store);
 
 void override_registry(const input_t& from, const input_t& to, const Attrs& extra_attrs);

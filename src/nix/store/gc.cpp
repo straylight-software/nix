@@ -14,12 +14,18 @@
 #  include "nix/util/processes.h"
 #endif
 
+#include <atomic>
 #include <queue>
 #include <thread>
 
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#ifndef _WIN32
+#  include <csignal>
+
+#  include <sys/wait.h>
+#endif
 
 #include <boost/regex.hpp>
 #include <boost/unordered/unordered_flat_map.hpp>
@@ -39,6 +45,106 @@ namespace nix {
 
 static std::string gc_socket_path = "/gc-socket/socket";
 static std::string gc_roots_dir = "gcroots";
+
+#ifndef _WIN32
+/**
+ * GC shutdown state for clean abort handling (#13740).
+ * This allows SIGABRT to trigger a clean shutdown instead of core dump.
+ */
+struct GCShutdownState {
+  std::atomic<bool> shutdown_requested{false};
+  std::atomic<bool> gc_active{false};
+  std::mutex state_mutex;
+  std::condition_variable shutdown_cv;
+
+  // File descriptors and paths that need cleanup on abort
+  std::atomic<int> gc_lock_fd{-1};
+  std::string socket_path;
+
+  void request_shutdown() {
+    shutdown_requested.store(true, std::memory_order_release);
+    shutdown_cv.notify_all();
+  }
+
+  bool should_shutdown() const { return shutdown_requested.load(std::memory_order_acquire); }
+};
+
+static GCShutdownState gc_shutdown_state;
+
+/**
+ * Reap any zombie child processes to prevent accumulation (#4382).
+ * Called periodically during GC operations.
+ */
+static void reap_zombie_children() {
+  int status;
+  pid_t pid;
+  // Non-blocking reap of any terminated children
+  while ((pid = waitpid(-1, &status, WNOHANG)) > 0) {
+    debug("reaped zombie child process %d", pid);
+  }
+}
+
+/**
+ * SIGABRT handler for clean GC shutdown (#13740).
+ * Releases locks and syncs state before exit.
+ */
+static void gc_sigabrt_handler(int sig) {
+  // Request shutdown - the GC loop will check this flag
+  gc_shutdown_state.request_shutdown();
+
+  // If GC is not active, we can exit immediately
+  if (!gc_shutdown_state.gc_active.load(std::memory_order_acquire)) {
+    // Restore default handler and re-raise
+    signal(SIGABRT, SIG_DFL);
+    raise(SIGABRT);
+    return;
+  }
+
+  // Give GC a chance to clean up (max 5 seconds)
+  // Use a simple spin-wait since we're in a signal handler
+  for (int i = 0; i < 50 && gc_shutdown_state.gc_active.load(std::memory_order_acquire); ++i) {
+    usleep(100000); // 100ms
+  }
+
+  // Release GC lock if held
+  int lock_fd = gc_shutdown_state.gc_lock_fd.load(std::memory_order_acquire);
+  if (lock_fd >= 0) {
+    // Release the lock by closing the fd
+    close(lock_fd);
+  }
+
+  // Remove socket file if it exists
+  if (!gc_shutdown_state.socket_path.empty()) {
+    unlink(gc_shutdown_state.socket_path.c_str());
+  }
+
+  // Restore default handler and re-raise for clean exit
+  signal(SIGABRT, SIG_DFL);
+  raise(SIGABRT);
+}
+
+/**
+ * Install SIGABRT handler for clean GC shutdown.
+ */
+static void install_gc_abort_handler() {
+  struct sigaction sa;
+  sa.sa_handler = gc_sigabrt_handler;
+  sa.sa_flags = 0;
+  sigemptyset(&sa.sa_mask);
+  sigaction(SIGABRT, &sa, nullptr);
+}
+
+/**
+ * RAII guard for GC active state tracking.
+ */
+struct GCActiveGuard {
+  GCActiveGuard() { gc_shutdown_state.gc_active.store(true, std::memory_order_release); }
+  ~GCActiveGuard() {
+    gc_shutdown_state.gc_active.store(false, std::memory_order_release);
+    gc_shutdown_state.shutdown_cv.notify_all();
+  }
+};
+#endif // _WIN32
 
 void LocalStore::addIndirectRoot(const Path& path) {
   std::string hash =
@@ -483,10 +589,27 @@ void LocalStore::findRuntimeRoots(Roots& roots, bool censor) {
 struct gc_limit_reached_t {};
 
 void LocalStore::collectGarbage(const GCOptions& options, GCResults& results) {
+#ifndef _WIN32
+  // Install SIGABRT handler for clean shutdown (#13740)
+  install_gc_abort_handler();
+
+  // Track GC active state for abort handler
+  GCActiveGuard gc_active_guard;
+
+  // Counter for periodic zombie reaping (#4382)
+  size_t operation_count = 0;
+  constexpr size_t reap_interval = 100; // Reap zombies every N operations
+#endif
+
   bool shouldDelete =
       options.action == GCOptions::gcDeleteDead || options.action == GCOptions::gcDeleteSpecific;
   bool gcKeepOutputs = settings.gcKeepOutputs;
   bool gcKeepDerivations = settings.gcKeepDerivations;
+
+  // Issue #7572: Time-based GC expiry. Paths must be dead for at least
+  // this many seconds before they can be deleted.
+  uint64_t gcDeadAfter = settings.gcDeadAfter;
+  time_t now = time(nullptr);
 
   Roots roots;
   boost::unordered_flat_set<store_path_t, std::hash<store_path_t>> dead, alive;
@@ -523,6 +646,13 @@ void LocalStore::collectGarbage(const GCOptions& options, GCResults& results) {
   auto fdGCLock = openGCLock();
   FdLock gcLock(fdGCLock.get(), ltWrite, true, "waiting for the big garbage collector lock...");
 
+#ifndef _WIN32
+  // Track lock fd for abort handler cleanup (#13740)
+  gc_shutdown_state.gc_lock_fd.store(fdGCLock.get(), std::memory_order_release);
+  finally_t clear_lock_fd(
+      [&]() { gc_shutdown_state.gc_lock_fd.store(-1, std::memory_order_release); });
+#endif
+
   /* Synchronisation point to test ENOENT handling in
      addTempRoot(), see tests/gc-non-blocking.sh. */
   if (auto p = get_env("_NIX_TEST_GC_SYNC_1"))
@@ -532,6 +662,12 @@ void LocalStore::collectGarbage(const GCOptions& options, GCResults& results) {
   auto socket_path = config->stateDir.get() + gc_socket_path;
   create_dirs(dir_of(socket_path));
   auto fdServer = create_unix_domain_socket(socket_path, 0666);
+
+#ifndef _WIN32
+  // Track socket path for abort handler cleanup (#13740)
+  gc_shutdown_state.socket_path = socket_path;
+  finally_t clear_socket_path([&]() { gc_shutdown_state.socket_path.clear(); });
+#endif
 
   // TODO nonblocking socket on windows?
 #ifdef _WIN32
@@ -729,6 +865,19 @@ void LocalStore::collectGarbage(const GCOptions& options, GCResults& results) {
     while (auto path = pop(todo)) {
       check_interrupt();
 
+#ifndef _WIN32
+      // Check for abort request (#13740)
+      if (gc_shutdown_state.should_shutdown()) {
+        debug("GC referrers closure interrupted by abort signal");
+        return;
+      }
+
+      // Periodically reap zombie children (#4382)
+      if (++operation_count % reap_interval == 0) {
+        reap_zombie_children();
+      }
+#endif
+
       /* Bail out if we've previously discovered that this path
          is alive. */
       if (alive.count(*path)) {
@@ -819,6 +968,25 @@ void LocalStore::collectGarbage(const GCOptions& options, GCResults& results) {
       if (!dead.insert(path).second)
         continue;
       if (shouldDelete) {
+        // Issue #7572: Time-based GC expiry. Check if this path has been
+        // unreferenced long enough to be eligible for deletion.
+        // We use registrationTime as a conservative proxy - if a path was
+        // registered recently, keep it even if it's currently unreferenced.
+        // A more complete implementation would track actual death time.
+        if (gcDeadAfter > 0) {
+          try {
+            auto info = queryPathInfo(path);
+            time_t age = now - info->registrationTime;
+            if (age < static_cast<time_t>(gcDeadAfter)) {
+              debug("keeping '%s' - only %d seconds old (gc-dead-after=%d)", printStorePath(path),
+                    age, gcDeadAfter);
+              continue;
+            }
+          } catch (InvalidPath&) {
+            // Path is already invalid, proceed with deletion
+          }
+        }
+
         try {
           invalidatePathChecked(path);
         } catch (PathInUse& e) {
@@ -876,6 +1044,20 @@ void LocalStore::collectGarbage(const GCOptions& options, GCResults& results) {
       struct dirent* dirent;
       while (errno = 0, dirent = readdir(dir.get())) {
         check_interrupt();
+
+#ifndef _WIN32
+        // Check for abort request (#13740)
+        if (gc_shutdown_state.should_shutdown()) {
+          printInfo("GC interrupted by abort signal, cleaning up...");
+          break;
+        }
+
+        // Periodically reap zombie children (#4382)
+        if (++operation_count % reap_interval == 0) {
+          reap_zombie_children();
+        }
+#endif
+
         std::string name = dirent->d_name;
         if (name == "." || name == ".." || name == linksName)
           continue;
@@ -1015,6 +1197,21 @@ void LocalStore::autoGC(bool sync) {
           state->lastGCCheck = std::chrono::steady_clock::now();
           promise.set_value();
         });
+
+        /* Fix for #2285: Before running GC, give concurrent build operations
+           a brief window to register their temp roots. This helps prevent the
+           race condition where auto-GC starts just as a build is creating
+           output paths but hasn't yet registered them as temp roots.
+
+           The collectGarbage() call already reads temp roots, but there's a
+           window between when a build creates a path and when it registers
+           the temp root. This small delay reduces that race window.
+
+           Note: This is a mitigation, not a complete fix. The fundamental
+           issue is that path creation and temp root registration aren't
+           atomic. A complete fix would require changes to the build system
+           to pre-register temp roots before creating paths. */
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
         GCOptions options;
         options.maxFreed = settings.maxFree - avail;

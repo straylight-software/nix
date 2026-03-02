@@ -368,10 +368,35 @@ std::pair<int, std::string> run_program(run_options_t&& options) {
   return {status, std::move(sink.str())};
 }
 
+// Output = status + stdout + stderr captured separately (#11040)
+run_program_result_t run_program_with_stderr(run_options_t&& options) {
+  string_sink_t stdout_sink;
+  string_sink_t stderr_sink;
+  options.standard_out = &stdout_sink;
+  options.standard_err = &stderr_sink;
+
+  int status = 0;
+
+  try {
+    run_program2(options);
+  } catch (exec_error_t& e) {
+    status = e.status;
+  }
+
+  return {
+      .status = status,
+      .stdout_output = std::move(stdout_sink.str()),
+      .stderr_output = std::move(stderr_sink.str()),
+  };
+}
+
 void run_program2(const run_options_t& options) {
   check_interrupt();
 
   assert(!(options.standard_in && options.input));
+  assert(!(options.standard_err && options.merge_stderr_to_stdout));
+  assert(!(options.standard_err && options.stderr_line_callback));
+  assert(!(options.merge_stderr_to_stdout && options.stderr_line_callback));
 
   std::unique_ptr<source_t> source_;
   source_t* source = options.standard_in;
@@ -381,13 +406,16 @@ void run_program2(const run_options_t& options) {
     source = source_.get();
   }
 
-  /* Create a pipe. */
-  pipe_t out, in;
+  /* Create pipes for stdout, stdin, and stderr (#11040). */
+  pipe_t out, in, err;
   if (options.standard_out) {
     out.create();
   }
   if (source) {
     in.create();
+  }
+  if (options.standard_err || options.stderr_line_callback) {
+    err.create();
   }
 
   process_options_t process_options;
@@ -410,6 +438,11 @@ void run_program2(const run_options_t& options) {
         if (options.merge_stderr_to_stdout) {
           if (dup2(STDOUT_FILENO, STDERR_FILENO) == -1) {
             throw sys_error_t("cannot dup stdout into stderr");
+          }
+        } else if (options.standard_err || options.stderr_line_callback) {
+          /* Capture stderr separately (#11040, #5863) */
+          if (dup2(err.write_side.get(), STDERR_FILENO) == -1) {
+            throw sys_error_t("dupping stderr");
           }
         }
         if (source && dup2(in.read_side.get(), STDIN_FILENO) == -1) {
@@ -448,14 +481,20 @@ void run_program2(const run_options_t& options) {
       process_options);
 
   out.write_side.close();
+  err.write_side.close();
 
   std::thread writer_thread;
+  std::thread stderr_reader_thread;
 
-  std::promise<void> promise;
+  std::promise<void> writer_promise;
+  std::promise<void> stderr_promise;
 
   finally_t do_join([&] {
     if (writer_thread.joinable()) {
       writer_thread.join();
+    }
+    if (stderr_reader_thread.joinable()) {
+      stderr_reader_thread.join();
     }
   });
 
@@ -473,11 +512,67 @@ void run_program2(const run_options_t& options) {
           }
           write_full(in.write_side.get(), {buf.data(), n});
         }
-        promise.set_value();
+        writer_promise.set_value();
       } catch (...) {
-        promise.set_exception(std::current_exception());
+        writer_promise.set_exception(std::current_exception());
       }
       in.write_side.close();
+    });
+  }
+
+  /* Read stderr in a separate thread (#11040, #5863) to avoid deadlock when
+     both stdout and stderr pipes fill up simultaneously. */
+  if (options.standard_err) {
+    stderr_reader_thread = std::thread([&] {
+      try {
+        drain_fd(err.read_side.get(), *options.standard_err);
+        stderr_promise.set_value();
+      } catch (...) {
+        stderr_promise.set_exception(std::current_exception());
+      }
+    });
+  } else if (options.stderr_line_callback) {
+    /* Real-time stderr line processing for progress output (#5863).
+       Read stderr and invoke the callback for each line (split on \n or \r
+       to handle progress indicators that use carriage returns). */
+    stderr_reader_thread = std::thread([&] {
+      try {
+        std::vector<char> buf(4096);
+        std::string line_buffer;
+
+        while (true) {
+          auto n = read(err.read_side.get(), buf.data(), buf.size());
+          if (n == 0)
+            break;
+          if (n < 0) {
+            if (errno == EINTR)
+              continue;
+            throw sys_error_t("reading from stderr");
+          }
+
+          /* Process the buffer, splitting on \n and \r */
+          for (size_t i = 0; i < static_cast<size_t>(n); ++i) {
+            char c = buf[i];
+            if (c == '\n' || c == '\r') {
+              if (!line_buffer.empty()) {
+                options.stderr_line_callback(line_buffer);
+                line_buffer.clear();
+              }
+            } else {
+              line_buffer += c;
+            }
+          }
+        }
+
+        /* Flush any remaining content */
+        if (!line_buffer.empty()) {
+          options.stderr_line_callback(line_buffer);
+        }
+
+        stderr_promise.set_value();
+      } catch (...) {
+        stderr_promise.set_exception(std::current_exception());
+      }
     });
   }
 
@@ -490,7 +585,12 @@ void run_program2(const run_options_t& options) {
 
   /* Wait for the writer thread to finish. */
   if (source) {
-    promise.get_future().get();
+    writer_promise.get_future().get();
+  }
+
+  /* Wait for stderr reader thread to finish. */
+  if (options.standard_err || options.stderr_line_callback) {
+    stderr_promise.get_future().get();
   }
 
   if (status) {

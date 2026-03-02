@@ -11,7 +11,11 @@ create table if not exists ValidPaths (
     narSize          integer,
     ultimate         integer, -- null implies "false"
     sigs             text, -- space-separated
-    ca               text -- if not null, an assertion that the path is content-addressed; see ValidPathInfo
+    ca               text, -- if not null, an assertion that the path is content-addressed; see ValidPathInfo
+    -- Issue #7572: Time when this path became unreferenced (dead).
+    -- NULL means the path is still referenced or was just added.
+    -- Used for time-based GC expiry via gc-dead-after setting.
+    deathTime        integer
 );
 
 create table if not exists Refs (

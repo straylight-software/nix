@@ -218,3 +218,29 @@ cxx_test(
     linker_flags = UTIL_LINKER_FLAGS,
     link_style = "static",
 )
+
+# ─────────────────────────────────────────────────────────────────────────────
+# signal handling tests (SIGTSTP, suspend callbacks, signal restoration)
+# Tests for signal handler registration and callback mechanisms
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_test(
+    name = "signals_test",
+    srcs = ["signals_test.cpp"],
+    deps = UTIL_TEST_DEPS,
+    compiler_flags = UTIL_TEST_COMPILER_FLAGS,
+    linker_flags = UTIL_LINKER_FLAGS,
+    link_style = "static",
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# logging synchronization tests (concurrent output, interleaving prevention)
+# Tests for issues #7298 and #14294 - concurrent log output synchronization
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_test(
+    name = "logging_test",
+    srcs = ["logging_test.cpp"],
+    deps = UTIL_TEST_DEPS,
+    compiler_flags = UTIL_TEST_COMPILER_FLAGS,
+    linker_flags = UTIL_LINKER_FLAGS,
+    link_style = "static",
+)

@@ -630,10 +630,10 @@ TEST_CASE("Document expected legacy commands status", "[cli][legacy][status]") {
     INFO("nix-copy-closure implemented: " << (has_nix_copy_closure ? "yes" : "no"));
   }
 
-  SECTION("Not implemented: nix-channel") {
-    // nix-channel is NOT implemented - use flakes instead
-    bool has_nix_channel = commands.contains("nix-channel");
-    INFO("nix-channel implemented: " << (has_nix_channel ? "yes" : "no"));
+  SECTION("Implemented: nix-channel") {
+    // nix-channel is now implemented with proper timeout handling (issue #3236)
+    // For new projects, flakes are still recommended
+    REQUIRE(commands.contains("nix-channel"));
   }
 }
 

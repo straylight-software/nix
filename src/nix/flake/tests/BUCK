@@ -1,0 +1,31 @@
+# // straylight // nix // flake // tests
+#
+# Unit tests for flake functionality
+
+FLAKE_TEST_DEPS = [
+    "//src/nix/flake:flake",
+    "//src/nix/util:util",
+    "//third_party:catch2",
+    "//third_party:rapidcheck",
+]
+
+FLAKE_TEST_COMPILER_FLAGS = [
+    "-std=c++23",
+]
+
+FLAKE_LINKER_FLAGS = [
+    "-lpthread",
+]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Flake caching tests - lock file caching, lazy registry, self-reference
+# Tests for issues #5551 (self optimization) and #9339 (lock file caching)
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_test(
+    name = "flake_test",
+    srcs = ["flake_test.cpp"],
+    deps = FLAKE_TEST_DEPS,
+    compiler_flags = FLAKE_TEST_COMPILER_FLAGS,
+    linker_flags = FLAKE_LINKER_FLAGS,
+    link_style = "static",
+)

@@ -38,6 +38,13 @@ namespace unix {
 
 extern std::atomic<bool> is_interrupted;
 
+/**
+ * Issue #10559: Graceful shutdown flag.
+ * Set on first Ctrl-C to signal that the current operation should finish
+ * gracefully. Second Ctrl-C within 2 seconds forces immediate termination.
+ */
+extern std::atomic<bool> graceful_shutdown_requested;
+
 extern thread_local std::function<bool()> interrupt_check;
 
 void _interrupted();
@@ -64,7 +71,28 @@ void restore_signals();
 
 void trigger_interrupt();
 
+/**
+ * Reset graceful shutdown state. Called when the operation completes
+ * or when starting a new operation.
+ */
+void reset_graceful_shutdown();
+
 } // namespace unix
+
+/**
+ * Check if graceful shutdown has been requested (first Ctrl-C).
+ * Use this to finish the current operation cleanly before exiting.
+ */
+static inline auto is_graceful_shutdown_requested() -> bool {
+  return unix::graceful_shutdown_requested;
+}
+
+/**
+ * Reset graceful shutdown state.
+ */
+static inline void reset_graceful_shutdown() {
+  unix::reset_graceful_shutdown();
+}
 
 static inline void set_interrupted(bool is_interrupted) {
   unix::is_interrupted = is_interrupted;

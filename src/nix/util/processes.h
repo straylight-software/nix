@@ -111,6 +111,25 @@ struct run_options_t {
   std::optional<std::string> input;
   source_t* standard_in = nullptr;
   sink_t* standard_out = nullptr;
+  /**
+   * Sink for capturing stderr separately (#11040).
+   * If set, stderr is captured to this sink instead of being discarded
+   * or merged to stdout. This is useful for capturing error output from
+   * hook processes and pre-build-hook.
+   */
+  sink_t* standard_err = nullptr;
+  /**
+   * Callback for processing stderr lines in real-time (#5863).
+   * If set, stderr is captured and each line (or partial line on \r) is
+   * passed to this callback as it arrives. This is useful for forwarding
+   * progress output from child processes (like git clone/fetch) to the
+   * Nix logger without buffering.
+   *
+   * The callback receives the line content (without the trailing newline/CR).
+   * Lines are split on both \n and \r to handle progress indicators that
+   * use carriage returns.
+   */
+  std::function<void(std::string_view)> stderr_line_callback;
   bool merge_stderr_to_stdout = false;
   bool is_interactive = false;
 };
@@ -118,6 +137,23 @@ struct run_options_t {
 std::pair<int, std::string> run_program(run_options_t&& options);
 
 void run_program2(const run_options_t& options);
+
+/**
+ * Result structure for run_program_with_stderr (#11040).
+ * Contains stdout, stderr, and exit status separately.
+ */
+struct run_program_result_t {
+  int status;
+  std::string stdout_output;
+  std::string stderr_output;
+};
+
+/**
+ * Run a program and capture both stdout and stderr separately (#11040).
+ * This is useful for capturing error output from non-interactive child
+ * processes like hook processes and pre-build-hook.
+ */
+run_program_result_t run_program_with_stderr(run_options_t&& options);
 
 class exec_error_t : public Error {
 public:

@@ -200,3 +200,29 @@ cxx_test(
     linker_flags = STORE_LINKER_FLAGS,
     link_style = "static",
 )
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GC coordination tests - temp roots, zombie reaping, time-based expiry
+# Tests for issues #4382, #7572, #8638, #13740
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_test(
+    name = "gc_test",
+    srcs = ["gc_test.cpp"],
+    deps = STORE_TEST_DEPS,
+    compiler_flags = STORE_TEST_COMPILER_FLAGS,
+    linker_flags = STORE_LINKER_FLAGS,
+    link_style = "static",
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Builder health tracking tests - exponential backoff for down remote builders
+# Tests for issue #13513
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_test(
+    name = "builder-health_test",
+    srcs = ["builder-health_test.cpp"],
+    deps = STORE_TEST_DEPS,
+    compiler_flags = STORE_TEST_COMPILER_FLAGS,
+    linker_flags = STORE_LINKER_FLAGS,
+    link_style = "static",
+)

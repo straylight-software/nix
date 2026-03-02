@@ -625,8 +625,10 @@ struct ExprPos : expr_t {
 };
 
 class Exprs {
-  // FIXME: use std::pmr::monotonic_buffer_resource when parallel
-  // eval is disabled?
+  // Thread-safe allocator for AST nodes. Uses synchronized_pool_resource
+  // which provides internal synchronization for multi-threaded evaluation.
+  // Potential optimization: use monotonic_buffer_resource when parallel
+  // eval is disabled, as it has lower overhead for single-threaded use.
   std::pmr::synchronized_pool_resource buffer;
 
 public:

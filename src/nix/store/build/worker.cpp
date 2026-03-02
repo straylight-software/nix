@@ -16,6 +16,73 @@
 
 namespace nix {
 
+BuildSlotGuard::BuildSlotGuard(Worker& worker, JobCategory category)
+    : worker(&worker), category(category), acquired(false) {}
+
+BuildSlotGuard::BuildSlotGuard(BuildSlotGuard&& other) noexcept
+    : worker(other.worker), category(other.category), acquired(other.acquired) {
+  other.acquired = false;
+  other.worker = nullptr;
+}
+
+BuildSlotGuard& BuildSlotGuard::operator=(BuildSlotGuard&& other) noexcept {
+  if (this != &other) {
+    release();
+    worker = other.worker;
+    category = other.category;
+    acquired = other.acquired;
+    other.acquired = false;
+    other.worker = nullptr;
+  }
+  return *this;
+}
+
+BuildSlotGuard::~BuildSlotGuard() {
+  release();
+}
+
+void BuildSlotGuard::acquire() {
+  if (acquired || !worker)
+    return;
+
+  switch (category) {
+    case JobCategory::Substitution:
+      worker->nrSubstitutions++;
+      break;
+    case JobCategory::Build:
+      worker->nrLocalBuilds++;
+      break;
+    case JobCategory::Administration:
+      /* Intentionally not limited */
+      break;
+    default:
+      unreachable();
+  }
+  acquired = true;
+}
+
+void BuildSlotGuard::release() {
+  if (!acquired || !worker)
+    return;
+
+  switch (category) {
+    case JobCategory::Substitution:
+      assert(worker->nrSubstitutions > 0);
+      worker->nrSubstitutions--;
+      break;
+    case JobCategory::Build:
+      assert(worker->nrLocalBuilds > 0);
+      worker->nrLocalBuilds--;
+      break;
+    case JobCategory::Administration:
+      /* Intentionally not limited */
+      break;
+    default:
+      unreachable();
+  }
+  acquired = false;
+}
+
 Worker::Worker(store_t& store, store_t& eval_store)
     : act(*logger, act_realise),
       actDerivations(*logger, act_builds),
@@ -169,6 +236,11 @@ void Worker::remove_goal(GoalPtr goal) {
   else
     assert(false);
 
+  /* Ensure any build slot held by this goal is released.
+     This is critical for cancellation paths where childTerminated
+     might not be called. */
+  childTerminated(goal.get(), false);
+
   if (topGoals.find(goal) != topGoals.end()) {
     topGoals.erase(goal);
     /* If a top-level goal failed, then kill all other goals
@@ -250,6 +322,7 @@ void Worker::childTerminated(Goal* goal, bool wakeSleepers) {
       default:
         unreachable();
     }
+    i->inBuildSlot = false; // Mark as released to prevent double-release
   }
 
   children.erase(i);
@@ -263,6 +336,34 @@ void Worker::childTerminated(Goal* goal, bool wakeSleepers) {
     }
 
     wantingToBuild.clear();
+  }
+}
+
+void Worker::releaseAllBuildSlots() {
+  for (auto& child : children) {
+    if (!child.inBuildSlot)
+      continue;
+
+    GoalPtr goal = child.goal.lock();
+    if (!goal)
+      continue;
+
+    switch (goal->jobCategory()) {
+      case JobCategory::Substitution:
+        assert(nrSubstitutions > 0);
+        nrSubstitutions--;
+        break;
+      case JobCategory::Build:
+        assert(nrLocalBuilds > 0);
+        nrLocalBuilds--;
+        break;
+      case JobCategory::Administration:
+        /* Intentionally not limited */
+        break;
+      default:
+        unreachable();
+    }
+    child.inBuildSlot = false; // Mark as released
   }
 }
 
@@ -305,6 +406,15 @@ void Worker::run(const Goals& _topGoals) {
   store.query_missing(topPaths);
 
   debug("entered goal loop");
+
+  /* RAII guard to ensure build slots are released on any exit path,
+     including exceptions and interrupts. This prevents slot leaks
+     that would permanently reduce parallelism. */
+  struct BuildSlotCleanup {
+    Worker& worker;
+    BuildSlotCleanup(Worker& w) : worker(w) {}
+    ~BuildSlotCleanup() { worker.releaseAllBuildSlots(); }
+  } slotCleanup(*this);
 
   while (1) {
     check_interrupt();

@@ -366,6 +366,33 @@ static flake_ref_t apply_self_attrs(const flake_ref_t& ref, const flake_t& flake
   return new_ref;
 }
 
+/**
+ * Check if the flake's outputs function references 'self'.
+ * This is used to optimize flake evaluation by avoiding copying the flake
+ * to the store when self is not used (issue #5551).
+ */
+static bool flake_uses_self(eval_state_t& state, const flake_t& flake,
+                            const source_path_t& root_dir) {
+  auto flake_dir = root_dir / canon_path_t(flake.resolved_ref.subdir);
+  auto flake_path = flake_dir / "flake.nix";
+
+  value_t v_info;
+  state.evalFile(flake_path, v_info, true);
+
+  auto s_outputs = state.symbols.create("outputs");
+  if (auto outputs = v_info.attrs()->get(s_outputs)) {
+    if (outputs->value->isLambda()) {
+      if (auto formals = outputs->value->lambda().fun->getFormals()) {
+        for (auto& formal : formals->formals) {
+          if (formal.name == state.s.self)
+            return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
 static flake_t get_flake(eval_state_t& state, const flake_ref_t& original_ref,
                          fetchers::UseRegistries use_registries,
                          const InputAttrPath& lock_root_attr_path, bool require_lockable) {
@@ -396,6 +423,18 @@ static flake_t get_flake(eval_state_t& state, const flake_ref_t& original_ref,
     locked_ref = flake_ref_t(std::move(cached_input2.lockedInput), new_locked_ref.subdir);
   }
 
+  // Issue #5551: Check if self is actually used before copying to store.
+  // If the flake's outputs function doesn't reference 'self', we can skip
+  // the expensive store copy and use the accessor directly.
+  bool uses_self = flake_uses_self(state, flake, {cached_input.accessor});
+
+  if (!uses_self && !require_lockable) {
+    // Optimization: skip copying to store when self is not referenced.
+    // This significantly speeds up evaluation of flakes that don't use self.
+    debug("skipping store copy for flake '%s' (self not referenced)", original_ref);
+    return flake;
+  }
+
   // Re-parse flake.nix from the store.
   return read_flake(state, original_ref, resolved_ref, locked_ref,
                     state.store_path(state.mountInput(locked_ref.input, original_ref.input,
@@ -408,6 +447,34 @@ flake_t get_flake(eval_state_t& state, const flake_ref_t& original_ref,
   return get_flake(state, original_ref, use_registries, {}, require_lockable);
 }
 
+/**
+ * Read and parse a lock file, with caching to avoid re-reading the same
+ * lock file multiple times during evaluation. This addresses issue #9339
+ * where sub-flake lock files were re-read and re-parsed on each evaluation.
+ */
+static lock_file_t read_lock_file(eval_state_t& state, const fetchers::settings_t& fetch_settings,
+                                  const source_path_t& lock_file_path) {
+  if (!lock_file_path.path_exists())
+    return lock_file_t();
+
+  auto path_str = fmt("%s", lock_file_path);
+
+  // Check the cache first (#9339)
+  if (auto cached = state.inputCache->lookupLockFile(path_str)) {
+    debug("lock file cache hit for '%s'", path_str);
+    return lock_file_t(fetch_settings, cached->content, cached->path);
+  }
+
+  // Cache miss - read and cache the lock file
+  auto content = lock_file_path.read_file();
+  state.inputCache->upsertLockFile(
+      path_str,
+      fetchers::InputCache::CachedLockFile{.content = std::string(content), .path = path_str});
+
+  return lock_file_t(fetch_settings, content, path_str);
+}
+
+// Overload for cases where we don't have eval_state (e.g., reference lock file)
 static lock_file_t read_lock_file(const fetchers::settings_t& fetch_settings,
                                   const source_path_t& lock_file_path) {
   return lock_file_path.path_exists()
@@ -438,8 +505,12 @@ LockedFlake lock_flake(const settings_t& settings, eval_state_t& state, const fl
           "reference lock file was provided, but the `allow-dirty` setting is set to false");
     }
 
-    auto old_lock_file = read_lock_file(
-        state.fetch_settings, lock_flags.referenceLockFilePath.value_or(flake.lock_file_path()));
+    // Use caching version for the flake's own lock file, but not for reference lock files
+    // (which are typically external and shouldn't be cached). This helps with #9339.
+    auto old_lock_file =
+        lock_flags.referenceLockFilePath
+            ? read_lock_file(state.fetch_settings, *lock_flags.referenceLockFilePath)
+            : read_lock_file(state, state.fetch_settings, flake.lock_file_path());
 
     debug("old lock file: %s", old_lock_file);
 
@@ -795,10 +866,11 @@ LockedFlake lock_flake(const settings_t& settings, eval_state_t& state, const fl
               /* Recursively process the inputs of this
                  flake, using its own lock file. */
               nodePaths.emplace(childNode, inputFlake.path.parent());
-              computeLocks(
-                  inputFlake.inputs, childNode, inputAttrPath,
-                  read_lock_file(state.fetch_settings, inputFlake.lock_file_path()).root.get_ptr(),
-                  inputAttrPath, inputFlake.path, false);
+              // Use the caching version to avoid re-reading lock files (#9339)
+              computeLocks(inputFlake.inputs, childNode, inputAttrPath,
+                           read_lock_file(state, state.fetch_settings, inputFlake.lock_file_path())
+                               .root.get_ptr(),
+                           inputAttrPath, inputFlake.path, false);
 
               warnRegistry(inputFlake.resolved_ref);
             }
