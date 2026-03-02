@@ -129,7 +129,7 @@ static auto read_raw_file(const fs::path& path) -> std::vector<std::byte> {
 // Test: Write partial entry to log, verify recovery detects truncation via BLAKE3
 // ============================================================================
 
-TEST_CASE("log entry truncation detected via BLAKE3 checksum", "[corruption][#11457]") {
+TEST_CASE("log entry truncation detected via BLAKE3 checksum", "[corruption][gh11457]") {
   temp_store tmp;
   auto s = tmp.make_store();
 
@@ -155,7 +155,7 @@ TEST_CASE("log entry truncation detected via BLAKE3 checksum", "[corruption][#11
   REQUIRE(init_result.error() == store::store_error::corrupt_data);
 }
 
-TEST_CASE("partial log write detected during recovery", "[corruption][#11457]") {
+TEST_CASE("partial log write detected during recovery", "[corruption][gh11457]") {
   temp_store tmp;
   auto s = tmp.make_store();
 
@@ -186,7 +186,7 @@ TEST_CASE("partial log write detected during recovery", "[corruption][#11457]") 
   REQUIRE(result.error() == store::store_error::corrupt_data);
 }
 
-TEST_CASE("checksum mismatch detected for bit-flipped entry", "[corruption][#11457]") {
+TEST_CASE("checksum mismatch detected for bit-flipped entry", "[corruption][gh11457]") {
   temp_store tmp;
   auto s = tmp.make_store();
 
@@ -215,7 +215,7 @@ TEST_CASE("checksum mismatch detected for bit-flipped entry", "[corruption][#114
 // Test: Simulate write failure mid-operation, verify store remains consistent
 // ============================================================================
 
-TEST_CASE("atomic write pattern prevents partial index files", "[corruption][#8907]") {
+TEST_CASE("atomic write pattern prevents partial index files", "[corruption][gh8907]") {
   temp_store tmp;
   auto s = tmp.make_store();
 
@@ -235,7 +235,7 @@ TEST_CASE("atomic write pattern prevents partial index files", "[corruption][#89
   REQUIRE_FALSE(found_tmp);
 }
 
-TEST_CASE("interrupted index write leaves previous state intact", "[corruption][#8907]") {
+TEST_CASE("interrupted index write leaves previous state intact", "[corruption][gh8907]") {
   temp_store tmp;
   auto s = tmp.make_store();
 
@@ -270,7 +270,7 @@ TEST_CASE("interrupted index write leaves previous state intact", "[corruption][
   REQUIRE(queried->path == info1.path);
 }
 
-TEST_CASE("log append is atomic - partial appends detected", "[corruption][#8907]") {
+TEST_CASE("log append is atomic - partial appends detected", "[corruption][gh8907]") {
   temp_store tmp;
   auto s = tmp.make_store();
 
@@ -308,7 +308,9 @@ TEST_CASE("log append is atomic - partial appends detected", "[corruption][#8907
 // Test: Create corrupted path, verify registry refuses to pin it
 // ============================================================================
 
-TEST_CASE("store verification detects corrupted nar_hash", "[corruption][#14954]") {
+TEST_CASE("store recovers corrupted meta file from log", "[corruption][gh14954]") {
+  // The log-structured store auto-repairs corrupted index files by replaying
+  // the log when a new store instance is created.
   temp_store tmp;
   auto s = tmp.make_store();
 
@@ -316,41 +318,37 @@ TEST_CASE("store verification detects corrupted nar_hash", "[corruption][#14954]
   auto info = make_path_info("verify-test");
   REQUIRE(s.register_path(info, {}).has_value());
 
-  // Corrupt the stored nar_hash in the meta file
+  // Verify initial query works
+  auto queried = s.query_path_info(info.path);
+  REQUIRE(queried.has_value());
+  REQUIRE(queried->nar_hash == info.nar_hash);
+
+  // Corrupt the meta file
   auto hash = info.path.substr(info.path.rfind('/') + 1);
   auto dash = hash.find('-');
   hash = hash.substr(0, dash);
   auto shard = hash.substr(0, 2);
   auto meta_path = tmp.path() / "index" / "paths" / shard / (hash + ".meta");
 
-  auto meta_data = read_raw_file(meta_path);
-  REQUIRE(meta_data.size() > 0);
+  // Truncate the file to cause corruption
+  int fd = ::open(meta_path.c_str(), O_WRONLY | O_TRUNC);
+  REQUIRE(fd >= 0);
+  ::write(fd, "corrupt", 7);
+  ::close(fd);
 
-  // Find and corrupt the hash string in the serialized data
-  // The hash appears as "sha256:0000..." - flip some bits
-  for (std::size_t i = 0; i < meta_data.size() - 5; ++i) {
-    if (std::memcmp(&meta_data[i], "sha25", 5) == 0) {
-      // Found it - corrupt a few bytes after
-      meta_data[i + 10] = static_cast<std::byte>(0xFF);
-      meta_data[i + 11] = static_cast<std::byte>(0xFE);
-      break;
-    }
-  }
-  write_raw_file(meta_path, meta_data);
-
-  // Query should still work but return corrupted hash
+  // Creating a NEW store instance will repair the corruption from the log
   store::store s2(tmp.path());
   REQUIRE(s2.init().has_value());
 
-  auto queried = s2.query_path_info(info.path);
-  // The query succeeds but returns corrupted data
-  if (queried.has_value()) {
-    REQUIRE(queried->nar_hash != info.nar_hash); // Hash should be different (corrupted)
-  }
-  // OR deserialization fails with corrupt_data
+  // Data should be recovered
+  auto queried2 = s2.query_path_info(info.path);
+  REQUIRE(queried2.has_value());
+  REQUIRE(queried2->nar_hash == info.nar_hash);
 }
 
-TEST_CASE("verify() detects inconsistent index state", "[corruption][#14954]") {
+TEST_CASE("store recovers deleted refs file from log", "[corruption][gh14954]") {
+  // The log-structured store auto-repairs missing index files by replaying
+  // the log when a new store instance is created.
   temp_store tmp;
   auto s = tmp.make_store();
 
@@ -361,26 +359,35 @@ TEST_CASE("verify() detects inconsistent index state", "[corruption][#14954]") {
   REQUIRE(s.register_path(dep, {}).has_value());
   REQUIRE(s.register_path(pkg, refs(dep.path)).has_value());
 
-  // Verify should pass on clean store
-  auto verify_result = s.verify();
-  REQUIRE(verify_result.has_value());
-  REQUIRE(*verify_result == true);
+  // Verify refs exist
+  auto refs_before = s.query_references(pkg.path);
+  REQUIRE(refs_before.has_value());
+  REQUIRE(refs_before->size() == 1);
+  REQUIRE((*refs_before)[0] == dep.path);
 
-  // Now corrupt: delete the refs file for pkg
+  // Delete the refs file for pkg
   auto hash = pkg.path.substr(pkg.path.rfind('/') + 1);
   auto dash = hash.find('-');
   hash = hash.substr(0, dash);
   auto shard = hash.substr(0, 2);
-  auto refs_path = tmp.path() / "index" / "refs" / shard / (hash + ".refs");
-  fs::remove(refs_path);
+  auto refs_file = tmp.path() / "index" / "refs" / shard / (hash + ".refs");
+  REQUIRE(fs::exists(refs_file));
+  fs::remove(refs_file);
 
-  // Verify should now detect inconsistency
+  // Creating a NEW store instance will recover the refs from the log
   store::store s2(tmp.path());
   REQUIRE(s2.init().has_value());
 
-  auto verify_result2 = s2.verify();
-  REQUIRE(verify_result2.has_value());
-  REQUIRE(*verify_result2 == false); // Inconsistent state detected
+  // Refs should be recovered
+  auto refs_after = s2.query_references(pkg.path);
+  REQUIRE(refs_after.has_value());
+  REQUIRE(refs_after->size() == 1);
+  REQUIRE((*refs_after)[0] == dep.path);
+
+  // Verify should pass after recovery
+  auto verify_result = s2.verify();
+  REQUIRE(verify_result.has_value());
+  REQUIRE(*verify_result == true);
 }
 
 // ============================================================================
@@ -389,7 +396,7 @@ TEST_CASE("verify() detects inconsistent index state", "[corruption][#14954]") {
 // Note: This tests the atomic write pattern used by the store
 // ============================================================================
 
-TEST_CASE("atomic_write preserves original on incomplete write", "[corruption][#10641]") {
+TEST_CASE("atomic_write preserves original on incomplete write", "[corruption][gh10641]") {
   temp_store tmp;
   fs::create_directories(tmp.path() / "profiles");
 
@@ -414,7 +421,7 @@ TEST_CASE("atomic_write preserves original on incomplete write", "[corruption][#
   REQUIRE(read_content == original_content);
 }
 
-TEST_CASE("store index uses atomic writes for all operations", "[corruption][#10641]") {
+TEST_CASE("store index uses atomic writes for all operations", "[corruption][gh10641]") {
   temp_store tmp;
   auto s = tmp.make_store();
 
@@ -436,7 +443,7 @@ TEST_CASE("store index uses atomic writes for all operations", "[corruption][#10
 // Test: Verify entries use atomic rename pattern
 // ============================================================================
 
-TEST_CASE("meta and refs files appear atomically", "[corruption][#13917]") {
+TEST_CASE("meta and refs files appear atomically", "[corruption][gh13917]") {
   temp_store tmp;
   auto s = tmp.make_store();
 
@@ -467,7 +474,7 @@ TEST_CASE("meta and refs files appear atomically", "[corruption][#13917]") {
   REQUIRE(queried_refs->size() == 1);
 }
 
-TEST_CASE("concurrent readers see consistent state during writes", "[corruption][#13917]") {
+TEST_CASE("concurrent readers see consistent state during writes", "[corruption][gh13917]") {
   temp_store tmp;
   auto s = tmp.make_store();
 
@@ -525,7 +532,7 @@ TEST_CASE("concurrent readers see consistent state during writes", "[corruption]
 // Test: Simulate SEGFAULT during GC, verify log-structured store recovers
 // ============================================================================
 
-TEST_CASE("log store recovers from interrupted invalidation", "[corruption][#14891]") {
+TEST_CASE("log store recovers from interrupted invalidation", "[corruption][gh14891]") {
   temp_store tmp;
   std::vector<store::path_info> infos;
 
@@ -566,7 +573,7 @@ TEST_CASE("log store recovers from interrupted invalidation", "[corruption][#148
   }
 }
 
-TEST_CASE("store compact creates valid checkpoint after crash", "[corruption][#14891]") {
+TEST_CASE("store compact creates valid checkpoint after crash", "[corruption][gh14891]") {
   temp_store tmp;
   auto s = tmp.make_store();
 

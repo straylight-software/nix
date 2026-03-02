@@ -337,15 +337,11 @@ private:
   [[nodiscard]] std::string align_text(std::string_view text, std::size_t width,
                                        Alignment alignment) const {
     std::size_t text_width = display_width(text);
-    if (text_width >= width) {
-      return std::string(text);
-    }
-
-    std::size_t total_padding = width - text_width;
+    std::size_t total_padding = (text_width >= width) ? 0 : (width - text_width);
     std::string result;
     result.reserve(width + padding_ * 2);
 
-    // Add left padding
+    // Add left padding (cell padding, always applied)
     result.append(padding_, ' ');
 
     switch (alignment) {
@@ -367,7 +363,7 @@ private:
       }
     }
 
-    // Add right padding
+    // Add right padding (cell padding, always applied)
     result.append(padding_, ' ');
 
     return result;

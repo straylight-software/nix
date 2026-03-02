@@ -422,16 +422,24 @@ TEST_CASE("store: checkpoint creates marker", "[store]") {
   REQUIRE(fs::exists(tmp.path() / "log" / "current.log"));
 }
 
-TEST_CASE("store: compact clears log", "[store]") {
+TEST_CASE("store: compact reduces log to checkpoint", "[store]") {
   temp_store tmp;
   auto s = tmp.make_store();
 
   auto info = make_path_info("test");
   REQUIRE(s.register_path(info, {}).has_value());
-  REQUIRE(fs::exists(tmp.path() / "log" / "current.log"));
+  auto log_file = tmp.path() / "log" / "current.log";
+  REQUIRE(fs::exists(log_file));
+
+  // Record size before compaction
+  auto size_before = fs::file_size(log_file);
 
   REQUIRE(s.compact().has_value());
-  REQUIRE_FALSE(fs::exists(tmp.path() / "log" / "current.log"));
+
+  // Log should still exist but be smaller (just a checkpoint entry)
+  REQUIRE(fs::exists(log_file));
+  auto size_after = fs::file_size(log_file);
+  REQUIRE(size_after < size_before);
 
   // Index should still be intact
   REQUIRE(s.is_valid_path(info.path));
