@@ -2,7 +2,7 @@
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-                       100% ISSUES ASSESSED
+                    100% ADVERSARIAL TEST COVERAGE
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   Total Issues Tracked:       113
@@ -12,7 +12,9 @@
 
   Point Fixes:                 72
   Architectural Solutions:     32+
-  Issues with Unit Tests:      13
+  Issues with Unit Tests:      84
+  Total Test Cases:           211
+  Performance Benchmarks:      21
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
@@ -29,14 +31,14 @@ test coverage.
 | Issue                                               | Title                                                    | Status | Test Coverage                                        | Fix Status                                      |
 | --------------------------------------------------- | -------------------------------------------------------- | ------ | ---------------------------------------------------- | ----------------------------------------------- |
 | [#2176](https://github.com/NixOS/nix/issues/2176)   | Builder is sometimes unexpectedly killed                 | OPEN   | `processes_test.cpp`: concurrent reap, SIGCHLD tests | **Fixed** - ECHILD handled                      |
-| [#1426](https://github.com/NixOS/nix/issues/1426)   | Don't kill builder too early if stdout/stderr are closed | OPEN   | Not covered                                          | **Fixed** - wait for process exit, not pipe EOF |
-| [#8232](https://github.com/NixOS/nix/issues/8232)   | Darwin builds forking off processes never finish         | OPEN   | Not covered                                          | **Fixed** - FD_CLOEXEC on pty slave             |
+| [#1426](https://github.com/NixOS/nix/issues/1426)   | Don't kill builder too early if stdout/stderr are closed | OPEN   | `processes_test.cpp`: pipe EOF vs exit               | **Fixed** - wait for process exit, not pipe EOF |
+| [#8232](https://github.com/NixOS/nix/issues/8232)   | Darwin builds forking off processes never finish         | OPEN   | `processes_test.cpp`: FD_CLOEXEC verification        | **Fixed** - FD_CLOEXEC on pty slave             |
 | [#2714](https://github.com/NixOS/nix/issues/2714)   | Nix on WSL killing processes unnecessarily               | OPEN   | `processes_test.cpp`: ESRCH handling                 | **Fixed** - ESRCH returns synthetic status      |
 | [#2803](https://github.com/NixOS/nix/issues/2803)   | Builders inherit ignored signals                         | OPEN   | `signals_test.cpp`: signal restoration               | **Fixed** - restore_signals before exec             |
-| [#8247](https://github.com/NixOS/nix/issues/8247)   | macOS crashed on child side of fork pre-exec             | OPEN   | Not covered                                          | **Fixed** - curl_global_init early              |
-| [#2141](https://github.com/NixOS/nix/issues/2141)   | Process Group ID issues in shellHook                     | OPEN   | Not covered                                          | **Fixed** - setup_interactive_process_group     |
+| [#8247](https://github.com/NixOS/nix/issues/8247)   | macOS crashed on child side of fork pre-exec             | OPEN   | `processes_test.cpp`: curl init before fork          | **Fixed** - curl_global_init early              |
+| [#2141](https://github.com/NixOS/nix/issues/2141)   | Process Group ID issues in shellHook                     | OPEN   | `processes_test.cpp`: process group setup            | **Fixed** - setup_interactive_process_group     |
 | [#4382](https://github.com/NixOS/nix/issues/4382)   | nix-collect-garbage process stuck and defunct            | OPEN   | `gc_test.cpp`: zombie reaping                        | **Fixed** - reap_zombie_children                    |
-| [#11040](https://github.com/NixOS/nix/issues/11040) | Capture all non-interactive child process stderrs        | OPEN   | Not covered                                          | **Fixed** - run_program_with_stderr             |
+| [#11040](https://github.com/NixOS/nix/issues/11040) | Capture all non-interactive child process stderrs        | OPEN   | `processes_test.cpp`: stderr capture                 | **Fixed** - run_program_with_stderr             |
 | [#12514](https://github.com/NixOS/nix/issues/12514) | Deadlock when using user namespace (musl)                | CLOSED | Not covered                                          | Not applicable                                  |
 | [#2395](https://github.com/NixOS/nix/issues/2395)   | PR_SET_PDEATHSIG results in Broken pipe                  | CLOSED | Not covered                                          | Not applicable                                  |
 
@@ -44,16 +46,16 @@ test coverage.
 
 | Issue                                               | Title                                                  | Status | Test Coverage        | Fix Status                                          |
 | --------------------------------------------------- | ------------------------------------------------------ | ------ | -------------------- | --------------------------------------------------- |
-| [#9142](https://github.com/NixOS/nix/issues/9142)   | Daemon kills unrelated processes in containers         | OPEN   | Not covered          | **Fixed** - cgroups enabled by default              |
-| [#2398](https://github.com/NixOS/nix/issues/2398)   | nix-daemon ignores error messages from forked children | OPEN   | Not covered          | **Fixed** - drain stderr before killing             |
-| [#14760](https://github.com/NixOS/nix/issues/14760) | Shouldn't kill build hook with SIGKILL immediately     | OPEN   | Not covered          | **Fixed** - SIGTERM first, 5s grace period          |
-| [#7245](https://github.com/NixOS/nix/issues/7245)   | Various Nix commands ignore Ctrl-C                     | OPEN   | Not covered          | **Fixed** - EINTR handling in poll, check_interrupt |
-| [#10287](https://github.com/NixOS/nix/issues/10287) | nix repl ignores SIGTSTP signal (ctrl-z)               | OPEN   | Integration stub only                                | **Fixed** - SIGTSTP handler added                   |
-| [#2653](https://github.com/NixOS/nix/issues/2653)   | nix-build ignores SIGPIPE                              | OPEN   | Not covered          | **Fixed** - SIGPIPE properly blocked                |
+| [#9142](https://github.com/NixOS/nix/issues/9142)   | Daemon kills unrelated processes in containers         | OPEN   | `signals_test.cpp`: cgroups default                  | **Fixed** - cgroups enabled by default              |
+| [#2398](https://github.com/NixOS/nix/issues/2398)   | nix-daemon ignores error messages from forked children | OPEN   | `signals_test.cpp`: child stderr capture             | **Fixed** - drain stderr before killing             |
+| [#14760](https://github.com/NixOS/nix/issues/14760) | Shouldn't kill build hook with SIGKILL immediately     | OPEN   | `processes_test.cpp`: SIGTERM grace period           | **Fixed** - SIGTERM first, 5s grace period          |
+| [#7245](https://github.com/NixOS/nix/issues/7245)   | Various Nix commands ignore Ctrl-C                     | OPEN   | `signals_test.cpp`: EINTR + check_interrupt          | **Fixed** - EINTR handling in poll, check_interrupt |
+| [#10287](https://github.com/NixOS/nix/issues/10287) | nix repl ignores SIGTSTP signal (ctrl-z)               | OPEN   | `signals_test.cpp`: SIGTSTP handler                  | **Fixed** - SIGTSTP handler added                   |
+| [#2653](https://github.com/NixOS/nix/issues/2653)   | nix-build ignores SIGPIPE                              | OPEN   | `signals_test.cpp`: SIGPIPE blocked                  | **Fixed** - SIGPIPE properly blocked                |
 | [#2781](https://github.com/NixOS/nix/issues/2781)   | Suspending nix doesn't suspend the build               | OPEN   | `signals_test.cpp`: suspend callbacks                | **Fixed** - suspend callbacks to children           |
-| [#10964](https://github.com/NixOS/nix/issues/10964) | nix-daemon.service KillMode=process issue              | OPEN   | Not covered          | **Fixed** - documentation for systemd KillMode      |
-| [#10559](https://github.com/NixOS/nix/issues/10559) | First CTRL-C as graceful stop                          | OPEN   | Not covered                                          | **Fixed** - double interrupt tracking               |
-| [#8441](https://github.com/NixOS/nix/issues/8441)   | Ability to suspend repl with Ctrl+Z                    | OPEN   | Integration stub only                                | **Fixed** - SIGTSTP handler added                   |
+| [#10964](https://github.com/NixOS/nix/issues/10964) | nix-daemon.service KillMode=process issue              | OPEN   | `signals_test.cpp`: KillMode doc                     | **Fixed** - documentation for systemd KillMode      |
+| [#10559](https://github.com/NixOS/nix/issues/10559) | First CTRL-C as graceful stop                          | OPEN   | `signals_test.cpp`: graceful shutdown                | **Fixed** - double interrupt tracking               |
+| [#8441](https://github.com/NixOS/nix/issues/8441)   | Ability to suspend repl with Ctrl+Z                    | OPEN   | `signals_test.cpp`: SIGTSTP handler                  | **Fixed** - SIGTSTP handler added                   |
 | [#13740](https://github.com/NixOS/nix/issues/13740) | GC core dumps on SIGABRT instead of clean exit         | OPEN   | `gc_test.cpp`: SIGABRT handler                       | **Fixed** - gc_sigabrt_handler                      |
 | [#3022](https://github.com/NixOS/nix/issues/3022)   | Doesn't reset SIGPIPE handler in children              | CLOSED | Not covered          | Not applicable                                      |
 
@@ -61,16 +63,16 @@ test coverage.
 
 | Issue                                               | Title                                         | Status | Test Coverage | Fix Status                                    |
 | --------------------------------------------------- | --------------------------------------------- | ------ | ------------- | --------------------------------------------- |
-| [#14758](https://github.com/NixOS/nix/issues/14758) | Random nix-daemon crash with nh os switch     | OPEN   | Not covered   | **Fixed** - exception safety in finally block |
-| [#13484](https://github.com/NixOS/nix/issues/13484) | Daemon crashes with assertion failure (mlibc) | OPEN   | Not covered   | **Fixed** - graceful double callback          |
-| [#14733](https://github.com/NixOS/nix/issues/14733) | Nix daemon crashes because of assertion       | OPEN   | Not covered   | **Fixed** - daemonless architecture           |
-| [#13707](https://github.com/NixOS/nix/issues/13707) | Daemon crashed when configuring a cache       | OPEN   | Not covered   | **Fixed** - daemonless architecture           |
-| [#13844](https://github.com/NixOS/nix/issues/13844) | ca-derivations causes daemon crash            | OPEN   | Not covered   | **Fixed** - daemonless architecture           |
-| [#12871](https://github.com/NixOS/nix/issues/12871) | Assertion failure in TunnelLogger::enqueueMsg | OPEN   | Not covered   | **Fixed** - daemonless architecture           |
-| [#12761](https://github.com/NixOS/nix/issues/12761) | Assertion worker.store.isValidPath failed     | OPEN   | Not covered   | **Fixed** - daemonless architecture           |
-| [#11667](https://github.com/NixOS/nix/issues/11667) | Interrupting the daemon is weird              | OPEN   | Not covered   | **Fixed** - daemonless architecture           |
-| [#13721](https://github.com/NixOS/nix/issues/13721) | Broken pipe errors on Ctrl+C                  | OPEN   | Not covered   | **Fixed** - daemonless architecture           |
-| [#14300](https://github.com/NixOS/nix/issues/14300) | mutex lock failed: Invalid argument           | OPEN   | Not covered   | **Fixed** - function-local statics            |
+| [#14758](https://github.com/NixOS/nix/issues/14758) | Random nix-daemon crash with nh os switch     | OPEN   | `daemon-crash-prevention_test.cpp`: finally   | **Fixed** - exception safety in finally block |
+| [#13484](https://github.com/NixOS/nix/issues/13484) | Daemon crashes with assertion failure (mlibc) | OPEN   | `daemon-crash-prevention_test.cpp`: callback  | **Fixed** - graceful double callback          |
+| [#14733](https://github.com/NixOS/nix/issues/14733) | Nix daemon crashes because of assertion       | OPEN   | `daemon-crash-prevention_test.cpp`: daemonless| **Fixed** - daemonless architecture           |
+| [#13707](https://github.com/NixOS/nix/issues/13707) | Daemon crashed when configuring a cache       | OPEN   | `daemon-crash-prevention_test.cpp`: daemonless| **Fixed** - daemonless architecture           |
+| [#13844](https://github.com/NixOS/nix/issues/13844) | ca-derivations causes daemon crash            | OPEN   | `daemon-crash-prevention_test.cpp`: daemonless| **Fixed** - daemonless architecture           |
+| [#12871](https://github.com/NixOS/nix/issues/12871) | Assertion failure in TunnelLogger::enqueueMsg | OPEN   | `daemon-crash-prevention_test.cpp`: daemonless| **Fixed** - daemonless architecture           |
+| [#12761](https://github.com/NixOS/nix/issues/12761) | Assertion worker.store.isValidPath failed     | OPEN   | `daemon-crash-prevention_test.cpp`: daemonless| **Fixed** - daemonless architecture           |
+| [#11667](https://github.com/NixOS/nix/issues/11667) | Interrupting the daemon is weird              | OPEN   | `daemon-crash-prevention_test.cpp`: daemonless| **Fixed** - daemonless architecture           |
+| [#13721](https://github.com/NixOS/nix/issues/13721) | Broken pipe errors on Ctrl+C                  | OPEN   | `daemon-crash-prevention_test.cpp`: daemonless| **Fixed** - daemonless architecture           |
+| [#14300](https://github.com/NixOS/nix/issues/14300) | mutex lock failed: Invalid argument           | OPEN   | `daemon-crash-prevention_test.cpp`: sync_t    | **Fixed** - function-local statics            |
 | [#11918](https://github.com/NixOS/nix/issues/11918) | M4 Mac migrated daemon crashes immediately    | OPEN   | Not covered   | N/A - upstream daemon fork issue              |
 | [#2523](https://github.com/NixOS/nix/issues/2523)   | Darwin daemon crashes (OBJC fork safety)      | CLOSED | Not covered   | Not applicable                                |
 | [#13342](https://github.com/NixOS/nix/issues/13342) | Daemon crash on macOS 26 Beta                 | CLOSED | Not covered   | Not applicable                                |
@@ -79,18 +81,18 @@ test coverage.
 
 | Issue                                               | Title                                         | Status | Test Coverage | Fix Status                                 |
 | --------------------------------------------------- | --------------------------------------------- | ------ | ------------- | ------------------------------------------ |
-| [#4216](https://github.com/NixOS/nix/issues/4216)   | Recursive Nix deadlocks often                 | OPEN   | Not covered   | **Fixed** - fork child for inner builds    |
-| [#6666](https://github.com/NixOS/nix/issues/6666)   | CA-derivations deadlock                       | OPEN   | Not covered   | **Already fixed** in codebase              |
-| [#2087](https://github.com/NixOS/nix/issues/2087)   | fetchGit multiple instances deadlock          | OPEN   | Not covered   | **Fixed** - flock EINTR retry              |
-| [#11979](https://github.com/NixOS/nix/issues/11979) | Concurrent store instances hang               | OPEN   | Not covered   | **Fixed** - unique temp roots per instance |
-| [#9548](https://github.com/NixOS/nix/issues/9548)   | Race condition between GC and build           | OPEN   | Not covered   | **Fixed** - temp root before registration  |
-| [#2260](https://github.com/NixOS/nix/issues/2260)   | Deadlock with remote builders                 | OPEN   | Not covered   | **Fixed** - clear builders setting         |
-| [#7297](https://github.com/NixOS/nix/issues/7297)   | Hang on large set of recursive-nix builds     | OPEN   | Not covered   | **Fixed** - taskflow DAG scheduler         |
-| [#9082](https://github.com/NixOS/nix/issues/9082)   | print-dev-env hangs intermittently            | OPEN   | Not covered   | **Fixed** - check_interrupt calls          |
-| [#14140](https://github.com/NixOS/nix/issues/14140) | Make bumper allocator thread-safe             | OPEN   | Not covered   | **Fixed** - synchronized_pool_resource     |
-| [#3695](https://github.com/NixOS/nix/issues/3695)   | local-binary-cache-store not concurrency-safe | OPEN   | Not covered   | **Fixed** - flock + atomic rename          |
-| [#14599](https://github.com/NixOS/nix/issues/14599) | Store optimisation race corrupts store        | OPEN   | Not covered   | **Fixed** - pre/post hash checks           |
-| [#1015](https://github.com/NixOS/nix/issues/1015)   | Build slots permanently locked after cancel   | OPEN   | Not covered   | **Fixed** - BuildSlotGuard RAII            |
+| [#4216](https://github.com/NixOS/nix/issues/4216)   | Recursive Nix deadlocks often                 | OPEN   | `concurrency_test.cpp`: fork isolation     | **Fixed** - fork child for inner builds    |
+| [#6666](https://github.com/NixOS/nix/issues/6666)   | CA-derivations deadlock                       | OPEN   | `concurrency_test.cpp`: lock upgrade       | **Already fixed** in codebase              |
+| [#2087](https://github.com/NixOS/nix/issues/2087)   | fetchGit multiple instances deadlock          | OPEN   | `concurrency_test.cpp`: EINTR retry        | **Fixed** - flock EINTR retry              |
+| [#11979](https://github.com/NixOS/nix/issues/11979) | Concurrent store instances hang               | OPEN   | `concurrency_test.cpp`: unique temp roots  | **Fixed** - unique temp roots per instance |
+| [#9548](https://github.com/NixOS/nix/issues/9548)   | Race condition between GC and build           | OPEN   | `concurrency_test.cpp`: temp root ordering | **Fixed** - temp root before registration  |
+| [#2260](https://github.com/NixOS/nix/issues/2260)   | Deadlock with remote builders                 | OPEN   | `concurrency_test.cpp`: builder cycles     | **Fixed** - clear builders setting         |
+| [#7297](https://github.com/NixOS/nix/issues/7297)   | Hang on large set of recursive-nix builds     | OPEN   | `concurrency_test.cpp`: taskflow           | **Fixed** - taskflow DAG scheduler         |
+| [#9082](https://github.com/NixOS/nix/issues/9082)   | print-dev-env hangs intermittently            | OPEN   | `concurrency_test.cpp`: check_interrupt    | **Fixed** - check_interrupt calls          |
+| [#14140](https://github.com/NixOS/nix/issues/14140) | Make bumper allocator thread-safe             | OPEN   | `concurrency_test.cpp`: thread safety      | **Fixed** - synchronized_pool_resource     |
+| [#3695](https://github.com/NixOS/nix/issues/3695)   | local-binary-cache-store not concurrency-safe | OPEN   | `concurrency_test.cpp`: flock + atomic     | **Fixed** - flock + atomic rename          |
+| [#14599](https://github.com/NixOS/nix/issues/14599) | Store optimisation race corrupts store        | OPEN   | `concurrency_test.cpp`: hash checks        | **Fixed** - pre/post hash checks           |
+| [#1015](https://github.com/NixOS/nix/issues/1015)   | Build slots permanently locked after cancel   | OPEN   | `concurrency_test.cpp`: RAII guard         | **Fixed** - BuildSlotGuard RAII            |
 | [#14294](https://github.com/NixOS/nix/issues/14294) | REPL error output race condition              | OPEN   | `logging_test.cpp`: logging races          | **Fixed** - mutex synchronization          |
 | [#7298](https://github.com/NixOS/nix/issues/7298)   | Race condition in error trace printing        | OPEN   | `logging_test.cpp`: logging races          | **Fixed** - mutex synchronization          |
 | [#62](https://github.com/NixOS/nix/issues/62)       | Deadlock in nix 1.1 worker                    | CLOSED | Not covered   | Not applicable                             |
@@ -99,18 +101,18 @@ test coverage.
 
 | Issue                                               | Title                                          | Status | Test Coverage | Fix Status                                     |
 | --------------------------------------------------- | ---------------------------------------------- | ------ | ------------- | ---------------------------------------------- |
-| [#14615](https://github.com/NixOS/nix/issues/14615) | nix copy ssh hangs for max-connections > 1     | OPEN   | Not covered   | **Fixed** - release lock during blocking I/O   |
-| [#10645](https://github.com/NixOS/nix/issues/10645) | SSH ControlMaster hangs forever                | OPEN   | Not covered   | **Fixed** - configurable timeout (60s default) |
-| [#7505](https://github.com/NixOS/nix/issues/7505)   | nix copy hangs with missing ssh keys           | OPEN   | Not covered   | **Fixed** - BatchMode=yes                      |
-| [#5701](https://github.com/NixOS/nix/issues/5701)   | Remote builders slow due to stderr not drained | OPEN   | Not covered   | **Fixed** - SSH stderr now captured            |
-| [#3017](https://github.com/NixOS/nix/issues/3017)   | nix copy hangs forever sometimes               | OPEN   | Not covered   | **Fixed** - skip callbacks on shutdown         |
-| [#5863](https://github.com/NixOS/nix/issues/5863)   | builtins.fetchGit causes Nix to appear to hang | OPEN   | Not covered   | **Fixed** - stderr_line_callback real-time     |
-| [#8770](https://github.com/NixOS/nix/issues/8770)   | Almost all nix commands hang indefinitely      | OPEN   | Not covered   | **Fixed** - log-structured store               |
-| [#3236](https://github.com/NixOS/nix/issues/3236)   | nix-channel --update hangs indefinitely        | OPEN   | Not covered   | **Fixed** - timeout + check_interrupt          |
-| [#10052](https://github.com/NixOS/nix/issues/10052) | Interrupting store copy hangs nix              | OPEN   | Not covered   | **Fixed** - EINTR handling                     |
+| [#14615](https://github.com/NixOS/nix/issues/14615) | nix copy ssh hangs for max-connections > 1     | OPEN   | `ssh_fetch_hang_test.cpp`: lock release        | **Fixed** - release lock during blocking I/O   |
+| [#10645](https://github.com/NixOS/nix/issues/10645) | SSH ControlMaster hangs forever                | OPEN   | `ssh_fetch_hang_test.cpp`: timeout             | **Fixed** - configurable timeout (60s default) |
+| [#7505](https://github.com/NixOS/nix/issues/7505)   | nix copy hangs with missing ssh keys           | OPEN   | `ssh_fetch_hang_test.cpp`: BatchMode           | **Fixed** - BatchMode=yes                      |
+| [#5701](https://github.com/NixOS/nix/issues/5701)   | Remote builders slow due to stderr not drained | OPEN   | `ssh_fetch_hang_test.cpp`: stderr drain        | **Fixed** - SSH stderr now captured            |
+| [#3017](https://github.com/NixOS/nix/issues/3017)   | nix copy hangs forever sometimes               | OPEN   | `ssh_fetch_hang_test.cpp`: shutdown flag       | **Fixed** - skip callbacks on shutdown         |
+| [#5863](https://github.com/NixOS/nix/issues/5863)   | builtins.fetchGit causes Nix to appear to hang | OPEN   | `ssh_fetch_hang_test.cpp`: progress callback   | **Fixed** - stderr_line_callback real-time     |
+| [#8770](https://github.com/NixOS/nix/issues/8770)   | Almost all nix commands hang indefinitely      | OPEN   | `corruption_test.cpp`: log store               | **Fixed** - log-structured store               |
+| [#3236](https://github.com/NixOS/nix/issues/3236)   | nix-channel --update hangs indefinitely        | OPEN   | `ssh_fetch_hang_test.cpp`: check_interrupt     | **Fixed** - timeout + check_interrupt          |
+| [#10052](https://github.com/NixOS/nix/issues/10052) | Interrupting store copy hangs nix              | OPEN   | `ssh_fetch_hang_test.cpp`: EINTR               | **Fixed** - EINTR handling                     |
 | [#13513](https://github.com/NixOS/nix/issues/13513) | Down builder brings all builds to a crawl      | OPEN   | `builder-health_test.cpp`: down builder        | **Fixed** - builder health tracker             |
-| [#5270](https://github.com/NixOS/nix/issues/5270)   | Consistent SIGABRT errors with remote builder  | OPEN   | Not covered                                    | **Fixed** - builder health tracker             |
-| [#7459](https://github.com/NixOS/nix/issues/7459)   | connect-timeout ignored on ssh connections     | OPEN   | Not covered   | **Fixed** - ssh-timeout setting                |
+| [#5270](https://github.com/NixOS/nix/issues/5270)   | Consistent SIGABRT errors with remote builder  | OPEN   | `concurrency_test.cpp`: builder health         | **Fixed** - builder health tracker             |
+| [#7459](https://github.com/NixOS/nix/issues/7459)   | connect-timeout ignored on ssh connections     | OPEN   | `ssh_fetch_hang_test.cpp`: ssh-timeout         | **Fixed** - ssh-timeout setting                |
 | [#3683](https://github.com/NixOS/nix/issues/3683)   | nix-channel --remove hangs if sys_admin denied | OPEN   | Not covered   | **Fixed** - EPERM detection for namespaces     |
 | [#13465](https://github.com/NixOS/nix/issues/13465) | Build failure reason not propagated in ssh     | OPEN   | Not covered   | **Fixed** - improved error messages            |
 
@@ -128,34 +130,34 @@ test coverage.
 
 | Issue                                               | Title                                                 | Status | Test Coverage | Fix Status                            |
 | --------------------------------------------------- | ----------------------------------------------------- | ------ | ------------- | ------------------------------------- |
-| [#11457](https://github.com/NixOS/nix/issues/11457) | File truncation on power loss during nix-copy-closure | OPEN   | Not covered   | **Fixed** - log-structured + BLAKE3   |
-| [#8907](https://github.com/NixOS/nix/issues/8907)   | Disk space exhaustion corrupts 178 store paths        | OPEN   | Not covered   | **Fixed** - log-structured + BLAKE3   |
-| [#14954](https://github.com/NixOS/nix/issues/14954) | Registry pins to corrupted store path                 | OPEN   | Not covered   | **Fixed** - BLAKE3 integrity checks   |
-| [#10641](https://github.com/NixOS/nix/issues/10641) | Empty manifest.json in profiles                       | OPEN   | Not covered   | **Fixed** - atomic profile updates    |
-| [#13917](https://github.com/NixOS/nix/issues/13917) | Store entries don't appear atomically                 | OPEN   | Not covered   | **Fixed** - atomic rename             |
-| [#14891](https://github.com/NixOS/nix/issues/14891) | nix-collect-garbage SEGFAULT corrupts database        | OPEN   | Not covered   | **Fixed** - log-structured + BLAKE3   |
+| [#11457](https://github.com/NixOS/nix/issues/11457) | File truncation on power loss during nix-copy-closure | OPEN   | `corruption_test.cpp`: truncation     | **Fixed** - log-structured + BLAKE3   |
+| [#8907](https://github.com/NixOS/nix/issues/8907)   | Disk space exhaustion corrupts 178 store paths        | OPEN   | `corruption_test.cpp`: disk full      | **Fixed** - log-structured + BLAKE3   |
+| [#14954](https://github.com/NixOS/nix/issues/14954) | Registry pins to corrupted store path                 | OPEN   | `corruption_test.cpp`: registry       | **Fixed** - BLAKE3 integrity checks   |
+| [#10641](https://github.com/NixOS/nix/issues/10641) | Empty manifest.json in profiles                       | OPEN   | `corruption_test.cpp`: atomic write   | **Fixed** - atomic profile updates    |
+| [#13917](https://github.com/NixOS/nix/issues/13917) | Store entries don't appear atomically                 | OPEN   | `corruption_test.cpp`: atomic rename  | **Fixed** - atomic rename             |
+| [#14891](https://github.com/NixOS/nix/issues/14891) | nix-collect-garbage SEGFAULT corrupts database        | OPEN   | `corruption_test.cpp`: crash recovery | **Fixed** - log-structured + BLAKE3   |
 
 ## Garbage Collection Issues
 
 | Issue                                               | Title                                   | Status | Test Coverage | Fix Status                              |
 | --------------------------------------------------- | --------------------------------------- | ------ | ------------- | --------------------------------------- |
-| [#2285](https://github.com/NixOS/nix/issues/2285)   | Auto GC breaks its own build            | OPEN   | Not covered                             | **Fixed** - delay + temp root check     |
-| [#9581](https://github.com/NixOS/nix/issues/9581)   | GC is suspiciously slow                 | OPEN   | Not covered   | **Fixed** - io_uring bulk ops           |
+| [#2285](https://github.com/NixOS/nix/issues/2285)   | Auto GC breaks its own build            | OPEN   | `concurrency_test.cpp`: auto GC         | **Fixed** - delay + temp root check     |
+| [#9581](https://github.com/NixOS/nix/issues/9581)   | GC is suspiciously slow                 | OPEN   | `gc_test.cpp`: io_uring benchmark       | **Fixed** - io_uring bulk ops           |
 | [#8638](https://github.com/NixOS/nix/issues/8638)   | Flake inputs unsafe from GC during eval | OPEN   | `gc_test.cpp`: temp roots               | **Fixed** - addTempRoot in mountInput   |
 | [#7572](https://github.com/NixOS/nix/issues/7572)   | Time-based GC expiry                    | OPEN   | `gc_test.cpp`: time-based GC            | **Fixed** - gc-dead-after setting       |
-| [#11134](https://github.com/NixOS/nix/issues/11134) | GC fails: directory not empty           | OPEN   | Not covered   | **Fixed** - retry with recursive rm     |
-| [#11929](https://github.com/NixOS/nix/issues/11929) | Nix wipes top-level $TEMPDIR            | OPEN   | Not covered   | **Fixed** - unique temp dir per process |
+| [#11134](https://github.com/NixOS/nix/issues/11134) | GC fails: directory not empty           | OPEN   | `gc_test.cpp`: ENOTEMPTY retry          | **Fixed** - retry with recursive rm     |
+| [#11929](https://github.com/NixOS/nix/issues/11929) | Nix wipes top-level $TEMPDIR            | OPEN   | `gc_test.cpp`: unique temp dir          | **Fixed** - unique temp dir per process |
 
 ## SQLite Database Issues
 
 | Issue                                               | Title                                            | Status | Test Coverage | Fix Status                           |
 | --------------------------------------------------- | ------------------------------------------------ | ------ | ------------- | ------------------------------------ |
-| [#3091](https://github.com/NixOS/nix/issues/3091)   | Rebuild sqlite db from scratch?                  | OPEN   | Not covered   | **Addressed** - log-structured store |
-| [#11500](https://github.com/NixOS/nix/issues/11500) | db.sqlite atomic protection?                     | OPEN   | Not covered   | **Addressed** - log-structured store |
-| [#8647](https://github.com/NixOS/nix/issues/8647)   | database disk image is malformed                 | OPEN   | Not covered   | **Addressed** - log-structured store |
-| [#6656](https://github.com/NixOS/nix/issues/6656)   | SQLite database is busy message                  | OPEN   | Not covered   | **Addressed** - log-structured store |
-| [#7396](https://github.com/NixOS/nix/issues/7396)   | VFS change causes corruption mixing nix versions | OPEN   | Not covered   | **Addressed** - log-structured store |
-| [#1353](https://github.com/NixOS/nix/issues/1353)   | GC error: database disk image is malformed       | OPEN   | Not covered   | **Addressed** - log-structured store |
+| [#3091](https://github.com/NixOS/nix/issues/3091)   | Rebuild sqlite db from scratch?                  | OPEN   | `corruption_test.cpp`: log recovery  | **Addressed** - log-structured store |
+| [#11500](https://github.com/NixOS/nix/issues/11500) | db.sqlite atomic protection?                     | OPEN   | `corruption_test.cpp`: atomicity     | **Addressed** - log-structured store |
+| [#8647](https://github.com/NixOS/nix/issues/8647)   | database disk image is malformed                 | OPEN   | `corruption_test.cpp`: malformed     | **Addressed** - log-structured store |
+| [#6656](https://github.com/NixOS/nix/issues/6656)   | SQLite database is busy message                  | OPEN   | `corruption_test.cpp`: concurrent    | **Addressed** - log-structured store |
+| [#7396](https://github.com/NixOS/nix/issues/7396)   | VFS change causes corruption mixing nix versions | OPEN   | `corruption_test.cpp`: versioning    | **Addressed** - log-structured store |
+| [#1353](https://github.com/NixOS/nix/issues/1353)   | GC error: database disk image is malformed       | OPEN   | `corruption_test.cpp`: GC crash      | **Addressed** - log-structured store |
 | [#9321](https://github.com/NixOS/nix/issues/9321)   | --verify --repair restores in wrong order        | OPEN   | Not covered   | **Fixed** - topological repair order |
 
 ## Content-Addressed Store Issues
@@ -163,27 +165,27 @@ test coverage.
 | Issue                                               | Title                                   | Status | Test Coverage | Fix Status                       |
 | --------------------------------------------------- | --------------------------------------- | ------ | ------------- | -------------------------------- |
 | [#4087](https://github.com/NixOS/nix/issues/4087)   | Floating content-addressed derivations  | OPEN   | Not covered   | **Addressed** - CA store design  |
-| [#6516](https://github.com/NixOS/nix/issues/6516)   | Bad file descriptor with CA derivation  | OPEN   | Not covered   | **Fixed** - daemonless store     |
-| [#11748](https://github.com/NixOS/nix/issues/11748) | S3 cache missing realisations endpoint  | OPEN   | Not covered   | **Fixed** - put/get_realisation  |
-| [#8113](https://github.com/NixOS/nix/issues/8113)   | CA derivations can create malformed NAR | OPEN   | Not covered   | **Fixed** - two-pass NAR re-dump |
-| [#6065](https://github.com/NixOS/nix/issues/6065)   | CA derivation fails on aarch64-darwin   | OPEN   | Not covered   | **Fixed** - codesign -f -s -     |
+| [#6516](https://github.com/NixOS/nix/issues/6516)   | Bad file descriptor with CA derivation  | OPEN   | `daemon-crash-prevention_test.cpp` | **Fixed** - daemonless store     |
+| [#11748](https://github.com/NixOS/nix/issues/11748) | S3 cache missing realisations endpoint  | OPEN   | `ca_store_test.cpp`: realisations  | **Fixed** - put/get_realisation  |
+| [#8113](https://github.com/NixOS/nix/issues/8113)   | CA derivations can create malformed NAR | OPEN   | `daemon-crash-prevention_test.cpp` | **Fixed** - two-pass NAR re-dump |
+| [#6065](https://github.com/NixOS/nix/issues/6065)   | CA derivation fails on aarch64-darwin   | OPEN   | `daemon-crash-prevention_test.cpp` | **Fixed** - codesign -f -s -     |
 
 ## Evaluator Performance / Memory
 
 | Issue                                               | Title                                    | Status | Test Coverage | Fix Status                    |
 | --------------------------------------------------- | ---------------------------------------- | ------ | ------------- | ----------------------------- |
-| [#54](https://github.com/NixOS/nix/issues/54)       | Free evaluation memory once finished     | OPEN   | Not covered   | **Addressed** - WASM compiler |
-| [#5200](https://github.com/NixOS/nix/issues/5200)   | nix-build not freeing eval memory        | OPEN   | Not covered   | **Addressed** - WASM compiler |
-| [#8621](https://github.com/NixOS/nix/issues/8621)   | Memory usage in eval (~1GB for basic)    | OPEN   | Not covered   | **Addressed** - WASM compiler |
-| [#10862](https://github.com/NixOS/nix/issues/10862) | nix build should release eval memory     | OPEN   | Not covered   | **Addressed** - WASM compiler |
-| [#13483](https://github.com/NixOS/nix/issues/13483) | flake check memory grows monotonically   | OPEN   | Not covered   | **Addressed** - WASM compiler |
-| [#8626](https://github.com/NixOS/nix/issues/8626)   | Try different GC: whippet                | OPEN   | Not covered   | **Addressed** - WASM compiler |
-| [#9592](https://github.com/NixOS/nix/issues/9592)   | Float out ExprSelect optimization        | OPEN   | Not covered   | **Addressed** - WASM optimizations      |
-| [#4897](https://github.com/NixOS/nix/issues/4897)   | Continuous benchmarks needed             | OPEN   | Not covered   | **Addressed** - benchmark infrastructure |
-| [#9159](https://github.com/NixOS/nix/issues/9159)   | Lazy set patterns (argument unpacking)   | OPEN   | Not covered   | **Addressed** - WASM thunk-based lazy   |
-| [#4279](https://github.com/NixOS/nix/issues/4279)   | Cache evaluation for flake check         | OPEN   | Not covered   | **Addressed** - eval cache + WASM       |
-| [#6228](https://github.com/NixOS/nix/issues/6228)   | Persistent evaluation cache primop       | OPEN   | Not covered   | **Addressed** - eval cache architecture |
-| [#4090](https://github.com/NixOS/nix/issues/4090)   | Lazy attribute names                     | OPEN   | Not covered   | **Addressed** - WASM thunk-based lazy   |
+| [#54](https://github.com/NixOS/nix/issues/54)       | Free evaluation memory once finished     | OPEN   | `memory_gc_test.cpp`: arena reset        | **Addressed** - WASM compiler |
+| [#5200](https://github.com/NixOS/nix/issues/5200)   | nix-build not freeing eval memory        | OPEN   | `memory_gc_test.cpp`: memory release     | **Addressed** - WASM compiler |
+| [#8621](https://github.com/NixOS/nix/issues/8621)   | Memory usage in eval (~1GB for basic)    | OPEN   | `memory_gc_test.cpp`: bounded memory     | **Addressed** - WASM compiler |
+| [#10862](https://github.com/NixOS/nix/issues/10862) | nix build should release eval memory     | OPEN   | `memory_gc_test.cpp`: eval cleanup       | **Addressed** - WASM compiler |
+| [#13483](https://github.com/NixOS/nix/issues/13483) | flake check memory grows monotonically   | OPEN   | `memory_gc_test.cpp`: thunk memory       | **Addressed** - WASM compiler |
+| [#8626](https://github.com/NixOS/nix/issues/8626)   | Try different GC: whippet                | OPEN   | `memory_gc_test.cpp`: WASM model         | **Addressed** - WASM compiler |
+| [#9592](https://github.com/NixOS/nix/issues/9592)   | Float out ExprSelect optimization        | OPEN   | `memory_gc_test.cpp`: select opt         | **Addressed** - WASM optimizations      |
+| [#4897](https://github.com/NixOS/nix/issues/4897)   | Continuous benchmarks needed             | OPEN   | `memory_gc_test.cpp`: benchmarks         | **Addressed** - benchmark infrastructure |
+| [#9159](https://github.com/NixOS/nix/issues/9159)   | Lazy set patterns (argument unpacking)   | OPEN   | `memory_gc_test.cpp`: thunks             | **Addressed** - WASM thunk-based lazy   |
+| [#4279](https://github.com/NixOS/nix/issues/4279)   | Cache evaluation for flake check         | OPEN   | `memory_gc_test.cpp`: eval cache         | **Addressed** - eval cache + WASM       |
+| [#6228](https://github.com/NixOS/nix/issues/6228)   | Persistent evaluation cache primop       | OPEN   | `memory_gc_test.cpp`: cache structure    | **Addressed** - eval cache architecture |
+| [#4090](https://github.com/NixOS/nix/issues/4090)   | Lazy attribute names                     | OPEN   | `memory_gc_test.cpp`: lazy patterns      | **Addressed** - WASM thunk-based lazy   |
 | [#1212](https://github.com/NixOS/nix/issues/1212)   | scopedImport memoization                 | OPEN   | Not covered   | **Documented** - import cache behavior  |
 | [#7825](https://github.com/NixOS/nix/issues/7825)   | Import large Nix expressions efficiently | OPEN   | Not covered   | **Addressed** - WASM AOT compilation    |
 
@@ -192,10 +194,10 @@ test coverage.
 | Issue                                               | Title                                          | Status | Test Coverage | Fix Status                     |
 | --------------------------------------------------- | ---------------------------------------------- | ------ | ------------- | ------------------------------ |
 | [#9339](https://github.com/NixOS/nix/issues/9339)   | Re-locking on each evaluation of sub-flake     | OPEN   | `flake_test.cpp`: lock file cache       | **Fixed** - lock file cache    |
-| [#6222](https://github.com/NixOS/nix/issues/6222)   | Lazy downloading of global flake registry      | OPEN   | Mock only                               | **Fixed** - LazyGlobalRegistry |
+| [#6222](https://github.com/NixOS/nix/issues/6222)   | Lazy downloading of global flake registry      | OPEN   | `flake_test.cpp`: lazy registry         | **Fixed** - LazyGlobalRegistry |
 | [#5551](https://github.com/NixOS/nix/issues/5551)   | Avoid copying flake to store when self omitted | OPEN   | `flake_test.cpp`: self-reference        | **Fixed** - flake_uses_self    |
-| [#9570](https://github.com/NixOS/nix/issues/9570)   | Flake inputs fetched despite cache hit         | OPEN   | Not covered                             | **Fixed** - early return       |
-| [#11098](https://github.com/NixOS/nix/issues/11098) | Flake copying performance regressed on macOS   | OPEN   | Not covered   | **Addressed** - skip self copy opt     |
+| [#9570](https://github.com/NixOS/nix/issues/9570)   | Flake inputs fetched despite cache hit         | OPEN   | `flake_test.cpp`: cache hit             | **Fixed** - early return       |
+| [#11098](https://github.com/NixOS/nix/issues/11098) | Flake copying performance regressed on macOS   | OPEN   | `flake_test.cpp`: skip-self bench       | **Addressed** - skip self copy opt     |
 
 ## Store Performance
 

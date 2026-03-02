@@ -444,6 +444,130 @@ TEST(verify_all) {
 }
 
 // ============================================================================
+// Realisation support tests (#11748 - S3 cache missing realisations endpoint)
+// ============================================================================
+
+TEST(put_realisation_basic) {
+  auto path = unique_test_path("realisation_put");
+  straylight::nix::store::ca_store store(path);
+  store.init();
+
+  std::string drv_output_key = "sha256:abcdef1234567890!out";
+  std::string realisation_json = R"({"outPath":"/nix/store/xyz-foo","signatures":[]})";
+
+  auto result = store.put_realisation(drv_output_key, realisation_json);
+  REQUIRE(result.has_value());
+
+  // Verify file exists
+  auto realisation_path = fs::path(path) / "realisations" / (drv_output_key + ".doi");
+  REQUIRE(fs::exists(realisation_path));
+}
+
+TEST(get_realisation_returns_content) {
+  auto path = unique_test_path("realisation_get");
+  straylight::nix::store::ca_store store(path);
+  store.init();
+
+  std::string drv_output_key = "sha256:test123!output";
+  std::string realisation_json = R"({"outPath":"/nix/store/abc-bar","signatures":["sig1"]})";
+
+  // Put first
+  auto put_result = store.put_realisation(drv_output_key, realisation_json);
+  REQUIRE(put_result.has_value());
+
+  // Get back
+  auto get_result = store.get_realisation(drv_output_key);
+  REQUIRE(get_result.has_value());
+  REQUIRE(*get_result == realisation_json);
+}
+
+TEST(get_realisation_not_found) {
+  auto path = unique_test_path("realisation_notfound");
+  straylight::nix::store::ca_store store(path);
+  store.init();
+
+  auto result = store.get_realisation("sha256:nonexistent!out");
+  REQUIRE(!result.has_value());
+  REQUIRE(result.error() == straylight::nix::store::ca_error::not_found);
+}
+
+TEST(put_realisation_idempotent) {
+  auto path = unique_test_path("realisation_idempotent");
+  straylight::nix::store::ca_store store(path);
+  store.init();
+
+  std::string drv_output_key = "sha256:idem123!out";
+  std::string realisation_json = R"({"outPath":"/nix/store/idem-test"})";
+
+  // Put twice
+  auto result1 = store.put_realisation(drv_output_key, realisation_json);
+  REQUIRE(result1.has_value());
+
+  auto result2 = store.put_realisation(drv_output_key, realisation_json);
+  REQUIRE(result2.has_value());
+
+  // Content should be unchanged
+  auto get_result = store.get_realisation(drv_output_key);
+  REQUIRE(get_result.has_value());
+  REQUIRE(*get_result == realisation_json);
+}
+
+TEST(put_realisation_overwrites) {
+  auto path = unique_test_path("realisation_overwrite");
+  straylight::nix::store::ca_store store(path);
+  store.init();
+
+  std::string drv_output_key = "sha256:overwrite!out";
+  std::string original = R"({"outPath":"/nix/store/original"})";
+  std::string updated = R"({"outPath":"/nix/store/updated"})";
+
+  // Put original
+  auto result1 = store.put_realisation(drv_output_key, original);
+  REQUIRE(result1.has_value());
+
+  // Overwrite with updated
+  auto result2 = store.put_realisation(drv_output_key, updated);
+  REQUIRE(result2.has_value());
+
+  // Should get updated content
+  auto get_result = store.get_realisation(drv_output_key);
+  REQUIRE(get_result.has_value());
+  REQUIRE(*get_result == updated);
+}
+
+TEST(realisation_concurrent_writes) {
+  auto path = unique_test_path("realisation_concurrent");
+  straylight::nix::store::ca_store store(path);
+  store.init();
+
+  constexpr int num_threads = 4;
+  std::atomic<int> success_count{0};
+  std::atomic<int> error_count{0};
+  std::vector<std::thread> threads;
+
+  for (int i = 0; i < num_threads; ++i) {
+    threads.emplace_back([&store, &success_count, &error_count, i]() {
+      std::string key = "sha256:concurrent" + std::to_string(i) + "!out";
+      std::string json = R"({"outPath":"/nix/store/concurrent-)" + std::to_string(i) + R"("})";
+
+      auto result = store.put_realisation(key, json);
+      if (result.has_value()) {
+        success_count.fetch_add(1);
+      } else {
+        error_count.fetch_add(1);
+      }
+    });
+  }
+
+  for (auto& t : threads) {
+    t.join();
+  }
+
+  REQUIRE(success_count.load() == num_threads);
+  REQUIRE(error_count.load() == 0);
+}
+
+// ============================================================================
 // Main
 // ============================================================================
 

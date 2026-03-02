@@ -254,3 +254,17 @@ cxx_test(
     linker_flags = TEST_LINKER_FLAGS,
     link_style = "static",
 )
+
+# =============================================================================
+# Adversarial tests - SSH/Fetch hang prevention
+# Tests for issues: #14615, #10645, #7505, #5701, #3017, #5863, #3236, #10052, #7459
+# =============================================================================
+
+cxx_test(
+    name = "ssh_fetch_hang_test",
+    srcs = ["ssh_fetch_hang_test.cpp"],
+    deps = STORE_TEST_DEPS,
+    compiler_flags = TEST_COMPILER_FLAGS,
+    linker_flags = TEST_LINKER_FLAGS,
+    link_style = "static",
+)

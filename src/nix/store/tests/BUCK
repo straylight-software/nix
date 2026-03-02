@@ -226,3 +226,31 @@ cxx_test(
     linker_flags = STORE_LINKER_FLAGS,
     link_style = "static",
 )
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Concurrency/Deadlock tests - thread safety and race condition fixes
+# Tests for issues #4216, #6666, #2087, #11979, #9548, #14140, #3695, #14599,
+# #1015, #2285
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_test(
+    name = "concurrency_test",
+    srcs = ["concurrency_test.cpp"],
+    deps = STORE_TEST_DEPS,
+    compiler_flags = STORE_TEST_COMPILER_FLAGS,
+    linker_flags = STORE_LINKER_FLAGS,
+    link_style = "static",
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Daemon crash prevention tests - fixes for crash-inducing bugs
+# Tests for issues #14758, #13484, #14300, #14733, #13707, #13844, #12871,
+# #12761, #11667, #13721, #6516, #8113, #6065, #11748
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_test(
+    name = "daemon-crash-prevention_test",
+    srcs = ["daemon-crash-prevention_test.cpp"],
+    deps = STORE_TEST_DEPS,
+    compiler_flags = STORE_TEST_COMPILER_FLAGS,
+    linker_flags = STORE_LINKER_FLAGS,
+    link_style = "static",
+)
