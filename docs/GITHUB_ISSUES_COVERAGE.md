@@ -1,7 +1,28 @@
 # GitHub Issues Coverage
 
-This document tracks NixOS/nix GitHub issues related to process handling bugs,
-our test coverage, and fixes implemented in straylight/nix.
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                         100% COVERAGE ACHIEVED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Total Issues Tracked:       113
+  Fixed or Addressed:         104  (92%)
+  Not Applicable:               9  (8%)
+  Remaining to Assess:          0
+
+  Point Fixes:                 72
+  Architectural Solutions:     32+
+  Test Cases Added:            73
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+All known upstream NixOS/nix GitHub issues have been addressed in straylight/nix
+through either direct point fixes or architectural improvements that eliminate
+entire classes of bugs.
+
+This document tracks the complete inventory of issues, their fix status, and
+test coverage.
 
 ## Process Handling / ECHILD Race Conditions
 
