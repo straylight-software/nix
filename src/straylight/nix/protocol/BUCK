@@ -18,7 +18,7 @@ cxx_library(
     header_namespace = "straylight/nix/protocol",
     visibility = ["PUBLIC"],
     deps = [
-        "//third_party:kaitai",
+        "//vendor:kaitai",
     ],
 )
 
@@ -27,8 +27,8 @@ cxx_test(
     srcs = ["test_serialize.cpp"],
     deps = [
         ":protocol",
-        "//third_party:catch2",
-        "//third_party:kaitai",
+        "//vendor:catch2",
+        "//vendor:kaitai",
     ],
 )
 
@@ -37,8 +37,8 @@ cxx_test(
     srcs = ["test_parser.cpp"],
     deps = [
         ":protocol",
-        "//third_party:catch2",
-        "//third_party:kaitai",
+        "//vendor:catch2",
+        "//vendor:kaitai",
     ],
 )
 
@@ -47,7 +47,7 @@ cxx_test(
     srcs = ["test_nar_serialize.cpp"],
     deps = [
         ":protocol",
-        "//third_party:catch2",
-        "//third_party:kaitai",
+        "//vendor:catch2",
+        "//vendor:kaitai",
     ],
 )

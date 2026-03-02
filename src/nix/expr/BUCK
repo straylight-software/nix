@@ -89,7 +89,7 @@ cxx_library(
         "//src/nix/util:util",
         "//src/nix/store:store",
         "//src/nix/fetchers:fetchers",
-        "//third_party:gc",
-        "//third_party:toml11",
+        "//vendor:gc",
+        "//vendor:toml11",
     ],
 )

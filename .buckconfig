@@ -5,8 +5,8 @@
 
 [cells]
 root = .
-prelude = nix/build/prelude
-toolchains = toolchains
+prelude = build/prelude
+toolchains = build/toolchains
 none = none
 
 [cell_aliases]

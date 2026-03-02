@@ -42,7 +42,7 @@ cxx_test(
     link_style = "static",
     deps = [
         ":nix_strings_adapter",
-        "//third_party:catch2",
-        "//third_party:rapidcheck",
+        "//vendor:catch2",
+        "//vendor:rapidcheck",
     ],
 )

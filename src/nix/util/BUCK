@@ -195,13 +195,13 @@ cxx_library(
 
     # Use exported_deps so transitive deps are available to dependents (tests, etc.)
     exported_deps = [
-        "//third_party:boost",
-        "//third_party:nlohmann_json",
-        "//third_party:openssl",
-        "//third_party:blake3",
-        "//third_party:brotli",
-        "//third_party:libsodium",
-        "//third_party:libarchive",
+        "//vendor:boost",
+        "//vendor:nlohmann_json",
+        "//vendor:openssl",
+        "//vendor:blake3",
+        "//vendor:brotli",
+        "//vendor:libsodium",
+        "//vendor:libarchive",
         "//src/straylight/nix/sync:synchronized",
     ],
 )

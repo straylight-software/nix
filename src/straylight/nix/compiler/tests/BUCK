@@ -3,24 +3,24 @@
 # Unit and property-based tests for nix-language module
 
 # Common linker flags for nix-language tests
-# All deps are now statically linked via //third_party (no manual -L/-rpath needed)
+# All deps are now statically linked via //vendor (no manual -L/-rpath needed)
 LANGUAGE_LINKER_FLAGS = []
 
 # Common test dependencies
 LANGUAGE_TEST_DEPS = [
     "//src/straylight/nix/compiler:ast",
-    "//third_party:catch2",
-    "//third_party:rapidcheck",
+    "//vendor:catch2",
+    "//vendor:rapidcheck",
 ]
 
 LANGUAGE_PARSE_TEST_DEPS = LANGUAGE_TEST_DEPS + [
     "//src/straylight/nix/compiler:parse",
-    "//third_party:pegtl",
+    "//vendor:pegtl",
 ]
 
 LANGUAGE_COMPILE_TEST_DEPS = LANGUAGE_TEST_DEPS + [
     "//src/straylight/nix/compiler:compile",
-    "//third_party:binaryen",
+    "//vendor:binaryen",
 ]
 
 LANGUAGE_EVAL_TEST_DEPS = LANGUAGE_PARSE_TEST_DEPS + [
@@ -76,7 +76,7 @@ cxx_test(
     srcs = ["wasm_types_test.cpp"],
     deps = [
         "//src/straylight/nix/compiler:compile",
-        "//third_party:catch2",
+        "//vendor:catch2",
     ],
     compiler_flags = LANGUAGE_TEST_COMPILER_FLAGS,
     linker_flags = LANGUAGE_LINKER_FLAGS,
@@ -116,22 +116,22 @@ cxx_test(
     deps = LANGUAGE_PARSE_TEST_DEPS + [
         "//src/straylight/nix/compiler:compile",
         "//src/straylight/nix/compiler:runtime",
-        "//third_party:binaryen",
+        "//vendor:binaryen",
     ],
     compiler_flags = LANGUAGE_TEST_COMPILER_FLAGS,
     linker_flags = LANGUAGE_LINKER_FLAGS,
     link_style = "static",
 )
 
-# Wasmtime is now statically linked via //third_party:wasmtime (no manual flags needed)
+# Wasmtime is now statically linked via //vendor:wasmtime (no manual flags needed)
 
 # Common deps for execution tests
 LANGUAGE_EXECUTION_TEST_DEPS = LANGUAGE_PARSE_TEST_DEPS + [
     "//src/straylight/nix/compiler:compile",
     "//src/straylight/nix/compiler:log",
     "//src/straylight/nix/compiler:wasm_executor",
-    "//third_party:binaryen",
-    "//third_party:wasmtime",
+    "//vendor:binaryen",
+    "//vendor:wasmtime",
 ]
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -193,7 +193,7 @@ cxx_test(
 #     deps = [
 #         "//src/straylight/nix/compiler:compile",
 #         "//src/straylight/nix/compiler:runtime",
-#         "//third_party:catch2",
+#         "//vendor:catch2",
 #     ],
 #     compiler_flags = LANGUAGE_TEST_COMPILER_FLAGS,
 #     linker_flags = LANGUAGE_LINKER_FLAGS,
@@ -207,7 +207,7 @@ cxx_binary(
     name = "bench",
     srcs = ["bench.cpp"],
     deps = LANGUAGE_EXECUTION_TEST_DEPS + [
-        "//third_party:nanobench",
+        "//vendor:nanobench",
     ],
     compiler_flags = LANGUAGE_TEST_COMPILER_FLAGS,
     linker_flags = LANGUAGE_LINKER_FLAGS,
@@ -224,8 +224,8 @@ cxx_test(
         "//src/straylight/nix/compiler:evaluator",
         "//src/straylight/nix/compiler:runtime",
         "//src/straylight/nix/testing:testing",
-        "//third_party:catch2",
-        "//third_party:wasmtime",
+        "//vendor:catch2",
+        "//vendor:wasmtime",
     ],
     compiler_flags = LANGUAGE_TEST_COMPILER_FLAGS + [
         "-DSTRAYLIGHT_EVAL_IO_SYNC=1",
@@ -280,10 +280,10 @@ cxx_library(
     srcs = ["fuzz_compile.cpp"],
     deps = LANGUAGE_PARSE_TEST_DEPS + [
         "//src/straylight/nix/compiler:compile",
-        "//third_party:binaryen",
+        "//vendor:binaryen",
     ],
     compiler_flags = LANGUAGE_TEST_COMPILER_FLAGS,
-    # binaryen is now statically linked via //third_party:binaryen
+    # binaryen is now statically linked via //vendor:binaryen
     visibility = ["PUBLIC"],
 )
 

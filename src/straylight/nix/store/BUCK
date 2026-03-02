@@ -21,7 +21,7 @@ cxx_library(
     compiler_flags = COMMON_FLAGS,
     exported_deps = [
         "//src/straylight/nix/crypto:hash",
-        "//third_party:blake3",
+        "//vendor:blake3",
     ],
     visibility = ["PUBLIC"],
 )
@@ -38,7 +38,7 @@ cxx_library(
     exported_deps = [
         "//src/straylight/nix/sync:lock",
         "//src/straylight/nix/compat:sqlite",
-        "//third_party:sqlite",
+        "//vendor:sqlite",
     ],
     visibility = ["PUBLIC"],
 )
@@ -74,8 +74,8 @@ cxx_library(
         "//src/straylight/nix/crypto:hash",
         "//src/straylight/nix/data:serialise",
         "//src/straylight/evring:evring",
-        "//third_party:zpp_bits",
-        "//third_party:blake3",
+        "//vendor:zpp_bits",
+        "//vendor:blake3",
     ],
     visibility = ["PUBLIC"],
 )

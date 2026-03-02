@@ -5,8 +5,8 @@
 STORE_TEST_DEPS = [
     "//src/nix/store:store",
     "//src/nix/util:util",
-    "//third_party:catch2",
-    "//third_party:rapidcheck",
+    "//vendor:catch2",
+    "//vendor:rapidcheck",
 ]
 
 STORE_TEST_COMPILER_FLAGS = [
@@ -168,8 +168,8 @@ cxx_test(
     name = "sqlite_bench",
     srcs = ["sqlite_bench.cpp"],
     deps = [
-        "//third_party:catch2",
-        "//third_party:sqlite3",
+        "//vendor:catch2",
+        "//vendor:sqlite3",
     ],
     compiler_flags = STORE_TEST_COMPILER_FLAGS,
     linker_flags = STORE_LINKER_FLAGS,

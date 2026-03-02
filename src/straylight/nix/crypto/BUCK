@@ -10,7 +10,7 @@ COMMON_FLAGS = [
     "-Wpedantic",
 ]
 
-# Note: blake3 and libcrypto are now statically linked via //third_party
+# Note: blake3 and libcrypto are now statically linked via //vendor
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Hash primitives (BLAKE3 + OpenSSL backends)
@@ -25,8 +25,8 @@ cxx_library(
     header_namespace = "straylight/nix/crypto",
     compiler_flags = COMMON_FLAGS,
     deps = [
-        "//third_party:blake3",
-        "//third_party:openssl",
+        "//vendor:blake3",
+        "//vendor:openssl",
     ],
     visibility = ["PUBLIC"],
 )

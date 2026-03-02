@@ -17,8 +17,8 @@ cxx_library(
         "nix/tests/property.h": "include/nix/tests/property.h",
     },
     exported_deps = [
-        "//third_party:catch2",
-        "//third_party:rapidcheck",
+        "//vendor:catch2",
+        "//vendor:rapidcheck",
     ],
     visibility = ["PUBLIC"],
 )
@@ -144,7 +144,7 @@ cxx_test(
     srcs = ["fuzz/eval_cache_fuzz_test.cpp"],
     deps = TEST_DEPS + [
         "//src/straylight/nix/testing:testing",
-        "//third_party:sqlite3",
+        "//vendor:sqlite3",
     ],
     compiler_flags = TEST_COMPILER_FLAGS,
     linker_flags = TEST_LINKER_FLAGS,
