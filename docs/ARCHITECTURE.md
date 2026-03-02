@@ -133,8 +133,7 @@ src/
     │   ├── compile/          # Binaryen codegen
     │   ├── eval/             # Tree-walking interpreter
     │   ├── runtime/          # WASM execution (wasmtime)
-    │   ├── cli/              # Evaluation CLI tools
-    │   └── tests/            # Property-based tests
+    │   └── cli/              # Evaluation CLI tools
     │
     ├── nix/                  # Modern utility modules (crypto, text, url, async, sync, data, etc.)
     │   ├── NIH.md            # NIH replacement tracking
@@ -145,12 +144,20 @@ src/
     │   ├── store.h           # Daemonless store
     │   └── async/            # taskflow-backed concurrency
     │
-    └── protocol/             # Formal protocol specs (Kaitai)
-        ├── README.md         # Protocol documentation
-        ├── nix_daemon.ksy    # Daemon protocol schema (48 ops)
-        ├── nar.ksy           # NAR format schema
-        ├── captures/         # Binary test vectors
-        └── hs/, src/         # Haskell, Rust implementations
+    ├── protocol/             # Formal protocol specs (Kaitai)
+    │   ├── README.md         # Protocol documentation
+    │   ├── nix_daemon.ksy    # Daemon protocol schema (48 ops)
+    │   ├── nar.ksy           # NAR format schema
+    │   ├── captures/         # Binary test vectors
+    │   └── hs/, src/         # Haskell, Rust implementations
+    │
+    ├── test/                 # Centralized tests
+    │   ├── unit/             # Unit tests by module
+    │   ├── fuzz/             # Fuzz targets
+    │   ├── property/         # Property-based tests
+    │   └── integration/      # Integration tests
+    │
+    └── bench/                # Benchmarks by module
 ```
 
 ______________________________________________________________________
@@ -459,7 +466,7 @@ buck2 build //src/nix/util:util
 buck2 test //src/straylight/...
 
 # Run specific test
-buck2 test //src/straylight/nix/compiler/tests:execution_test
+buck2 test //src/straylight/test/unit/compiler:compiler_test
 ```
 
 ### Build Targets
@@ -543,11 +550,11 @@ primitives | 34+ files | 1,251 | - | | protocol | 3 languages | 42+ | - | | evri
 buck2 test //src/straylight/...
 
 # Specific component
-buck2 test //src/straylight/nix/compiler/tests:...
-buck2 test //src/straylight/nix/...
+buck2 test //src/straylight/test/unit/compiler:...
+buck2 test //src/straylight/test/unit/...
 
 # Specific test file
-buck2 test //src/straylight/nix/compiler/tests:execution_test
+buck2 test //src/straylight/test/unit/compiler:compiler_test
 ```
 
 ______________________________________________________________________
@@ -698,7 +705,7 @@ ______________________________________________________________________
 `src/straylight/nix/protocol/README.md` | Protocol specifications | | NIH Tracking |
 `src/straylight/nix/docs/NIH.md` | Primitive replacement status | | Store Design |
 `src/straylight/nix/store/docs/ARCHITECTURE.md` | Log-structured store | | C++ Style Guide |
-`docs/cpp-style-guide.md` | Code conventions | | Contributing | `CONTRIBUTING.md` | Development
+`docs/cpp-style-guide.md` | Code conventions | | Contributing | `docs/CONTRIBUTING.md` | Development
 workflow |
 
 ______________________________________________________________________

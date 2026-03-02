@@ -29,10 +29,15 @@ src/
 ├── nix/                      # core nix fork (C++23)
 └── straylight/
     ├── evring/               # deterministic async I/O (io_uring)
-    └── nix/
-        ├── compiler/         # nix → wasm compiler
-        ├── protocol/         # formal protocol specs (kaitai)
-        └── {crypto,text,url,async,sync,store,...}/  # modern utility modules
+    ├── nix/
+    │   ├── compiler/         # nix → wasm compiler
+    │   ├── protocol/         # formal protocol specs (kaitai)
+    │   └── {crypto,text,url,async,sync,store,...}/  # modern utility modules
+    └── test/                 # all straylight tests
+        ├── unit/
+        ├── integration/
+        ├── property/
+        └── fuzz/
 ```
 
 ## // style
@@ -57,7 +62,7 @@ Key points:
 buck2 test //src/straylight/...
 
 # run specific test target
-buck2 test //src/straylight/nix/compiler/tests:execution_test
+buck2 test //src/straylight/test/unit:compiler_test
 ```
 
 ## // commits

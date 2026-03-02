@@ -20,9 +20,9 @@ ______________________________________________________________________
 
 Write Kaitai specs for existing formats alongside current parsers:
 
-- `kaitai/nar.ksy` — NAR archive format
-- `kaitai/narinfo.ksy` — binary cache metadata
-- `kaitai/drv.ksy` — derivation ATerm
+- `src/continuity/nar.ksy` — NAR archive format
+- `src/continuity/narinfo.ksy` — binary cache metadata
+- `src/continuity/drv.ksy` — derivation ATerm
 
 **Correctness proof:**
 
@@ -31,7 +31,7 @@ Write Kaitai specs for existing formats alongside current parsers:
 buck2 run //src/nix/cli:nix -- derivation show nixpkgs#hello > hello.drv.json
 
 # Parse with Kaitai-generated parser
-buck2 test //kaitai:drv_roundtrip_test
+buck2 test //src/continuity:drv_roundtrip_test
 ```
 
 Fuzz both parsers with same inputs. They must agree.

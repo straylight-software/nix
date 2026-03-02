@@ -19,7 +19,7 @@ The restructure is complete. All files have been moved, namespaces updated, and 
 
 ### Separate issue (not restructure-related):
 
-- Hardcoded nix store paths in BUCK files (third_party deps) - should read from buckconfig instead
+- Hardcoded nix store paths in BUCK files (vendor deps) - should read from buckconfig instead
 
 ______________________________________________________________________
 
