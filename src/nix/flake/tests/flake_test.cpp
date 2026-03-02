@@ -341,7 +341,7 @@ bool has_self_reference(const std::map<std::string, std::string>& inputs) {
 // Issue #9570 - Flake inputs fetched despite cache hit
 // ─────────────────────────────────────────────────────────────────────────────
 
-TEST_CASE("Issue #9570: Cache hit returns early without re-fetching", "[flake][cache][#9570]") {
+TEST_CASE("Issue #9570: Cache hit returns early without re-fetching", "[flake][cache][gh9570]") {
   MockInputCache cache;
   int fetch_call_count = 0;
 
@@ -407,7 +407,8 @@ TEST_CASE("Issue #9570: Cache hit returns early without re-fetching", "[flake][c
   }
 }
 
-TEST_CASE("Issue #9570: Cache hit returns immediately for locked inputs", "[flake][cache][#9570]") {
+TEST_CASE("Issue #9570: Cache hit returns immediately for locked inputs",
+          "[flake][cache][gh9570]") {
   MockInputCache cache;
   std::atomic<int> slow_fetch_count{0};
 
@@ -440,7 +441,7 @@ TEST_CASE("Issue #9570: Cache hit returns immediately for locked inputs", "[flak
 // ─────────────────────────────────────────────────────────────────────────────
 
 TEST_CASE("Issue #6222: Global registry not downloaded until first access",
-          "[flake][registry][#6222]") {
+          "[flake][registry][gh6222]") {
   std::atomic<int> download_count{0};
 
   auto downloader = [&]() -> LazyRegistry::RegistryData {
@@ -497,7 +498,7 @@ TEST_CASE("Issue #6222: Global registry not downloaded until first access",
 }
 
 TEST_CASE("Issue #6222: Direct flake refs don't trigger registry download",
-          "[flake][registry][#6222]") {
+          "[flake][registry][gh6222]") {
   std::atomic<int> download_count{0};
 
   auto downloader = [&]() -> LazyRegistry::RegistryData {
@@ -543,7 +544,7 @@ TEST_CASE("Issue #6222: Direct flake refs don't trigger registry download",
 // Issue #11098 - Flake copying performance regressed on macOS
 // ─────────────────────────────────────────────────────────────────────────────
 
-TEST_CASE("Issue #11098: Skip store copy when self is not used", "[flake][self][#11098]") {
+TEST_CASE("Issue #11098: Skip store copy when self is not used", "[flake][self][gh11098]") {
   auto copy_duration = std::chrono::milliseconds(100);
 
   SECTION("Flake without self: copy skipped") {
@@ -570,7 +571,7 @@ TEST_CASE("Issue #11098: Skip store copy when self is not used", "[flake][self][
   }
 }
 
-TEST_CASE("Issue #11098: flake_uses_self detection accuracy", "[flake][self][#11098]") {
+TEST_CASE("Issue #11098: flake_uses_self detection accuracy", "[flake][self][gh11098]") {
   SECTION("Detects self in simple outputs") {
     REQUIRE(flake_uses_self(FLAKE_NIX_SIMPLE));
   }
@@ -605,7 +606,7 @@ TEST_CASE("Issue #11098: flake_uses_self detection accuracy", "[flake][self][#11
 // Lock file caching tests - Issue #9339
 // ─────────────────────────────────────────────────────────────────────────────
 
-TEST_CASE("Issue #9339: Lock file cache avoids re-reads", "[flake][cache][#9339]") {
+TEST_CASE("Issue #9339: Lock file cache avoids re-reads", "[flake][cache][gh9339]") {
   MockLockFileCache cache;
 
   SECTION("First read is cache miss") {
@@ -672,7 +673,7 @@ TEST_CASE("Issue #9339: Lock file cache avoids re-reads", "[flake][cache][#9339]
 // Self-reference detection tests - Issue #5551
 // ─────────────────────────────────────────────────────────────────────────────
 
-TEST_CASE("Issue #5551: Self-reference in inputs detection", "[flake][self][#5551]") {
+TEST_CASE("Issue #5551: Self-reference in inputs detection", "[flake][self][gh5551]") {
   std::map<std::string, std::string> inputs_without_self = {{"nixpkgs", "github:NixOS/nixpkgs"}};
 
   std::map<std::string, std::string> inputs_with_self = {{"nixpkgs", "github:NixOS/nixpkgs"},
@@ -682,7 +683,7 @@ TEST_CASE("Issue #5551: Self-reference in inputs detection", "[flake][self][#555
   REQUIRE(has_self_reference(inputs_with_self));
 }
 
-TEST_CASE("Issue #5551: Self optimization skip logic", "[flake][self][optimization][#5551]") {
+TEST_CASE("Issue #5551: Self optimization skip logic", "[flake][self][optimization][gh5551]") {
   SECTION("Can skip store copy when self not used") {
     bool uses_self = flake_uses_self(FLAKE_NIX_NO_SELF);
     bool require_lockable = false;
@@ -854,7 +855,7 @@ TEST_CASE("Flake cache performance", "[flake][benchmark]") {
   };
 }
 
-TEST_CASE("Skip-self optimization performance", "[flake][benchmark][#11098]") {
+TEST_CASE("Skip-self optimization performance", "[flake][benchmark][gh11098]") {
   auto copy_duration = std::chrono::milliseconds(100);
 
   BENCHMARK("Evaluate flake without self (skips copy)") {
@@ -870,7 +871,7 @@ TEST_CASE("Skip-self optimization performance", "[flake][benchmark][#11098]") {
   };
 }
 
-TEST_CASE("Lazy registry performance", "[flake][benchmark][#6222]") {
+TEST_CASE("Lazy registry performance", "[flake][benchmark][gh6222]") {
   int load_count = 0;
   LazyRegistry registry([&]() -> LazyRegistry::RegistryData {
     ++load_count;

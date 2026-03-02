@@ -85,7 +85,7 @@ struct TestException : std::runtime_error {
 // Reference: src/nix/store/daemon.cpp:1029-1040
 
 TEST_CASE("finally block with ignore_exception_in_destructor survives nested exceptions",
-          "[daemon][crash][#14758]") {
+          "[daemon][crash][gh14758]") {
   INFO("#14758: Finally block must not propagate exceptions during stack unwinding");
 
   // This simulates what daemon.cpp does:
@@ -176,7 +176,7 @@ TEST_CASE("finally block with ignore_exception_in_destructor survives nested exc
 //
 // Reference: src/nix/util/callback.h:31,43,73
 
-TEST_CASE("callback atomic flag ensures single invocation", "[daemon][crash][#13484]") {
+TEST_CASE("callback atomic flag ensures single invocation", "[daemon][crash][gh13484]") {
   INFO("#13484: Callback must execute at most once even with concurrent invocations");
 
   SECTION("single invocation succeeds") {
@@ -296,7 +296,7 @@ TEST_CASE("callback atomic flag ensures single invocation", "[daemon][crash][#13
 //
 // Reference: src/nix/util/sync.h
 
-TEST_CASE("sync_t concurrent access does not cause mutex errors", "[daemon][crash][#14300]") {
+TEST_CASE("sync_t concurrent access does not cause mutex errors", "[daemon][crash][gh14300]") {
   INFO("#14300: sync_t must handle concurrent access without mutex initialization failures");
 
   SECTION("basic sync_t lock/unlock") {
@@ -520,7 +520,7 @@ TEST_CASE("flock-based coordination works without daemon", "[daemon][daemonless]
 //
 // Fix: Proper file descriptor handling in CA store implementation.
 
-TEST_CASE("CA store operations work in daemonless mode", "[ca][daemonless][#6516]") {
+TEST_CASE("CA store operations work in daemonless mode", "[ca][daemonless][gh6516]") {
   INFO("#6516: CA store must handle file descriptors properly without daemon");
 
   TestTempDir tmp;
@@ -580,7 +580,7 @@ TEST_CASE("CA store operations work in daemonless mode", "[ca][daemonless][#6516
 //
 // Reference: src/nix/store/unix/build/derivation-builder.cpp:1575-1606
 
-TEST_CASE("NAR directory entries must be sorted lexicographically", "[ca][nar][#8113]") {
+TEST_CASE("NAR directory entries must be sorted lexicographically", "[ca][nar][gh8113]") {
   INFO("#8113: Hash rewriting must preserve NAR lexical order via two-pass re-dump");
 
   SECTION("unsorted entries are detected as malformed") {
@@ -594,31 +594,31 @@ TEST_CASE("NAR directory entries must be sorted lexicographically", "[ca][nar][#
   }
 
   SECTION("hash rewrite can break sort order") {
-    // Simulate the problem: filenames containing hashes that change order after rewrite
-    // Before: "aaa-abc123" < "bbb-xyz789" (sorted)
-    // After:  "aaa-xyz789" > "bbb-abc123" (unsorted!)
+    // Simulate the problem: filenames containing hashes where rewriting breaks order
+    // Before: "abc123-lib" < "xyz789-bin" (sorted, because 'a' < 'x')
+    // After:  "xyz789-lib" > "abc123-bin" (unsorted, because 'x' > 'a')
 
-    std::vector<std::string> before_rewrite = {"aaa-abc123", "bbb-xyz789"};
+    std::vector<std::string> before_rewrite = {"abc123-lib", "xyz789-bin"};
     REQUIRE(std::is_sorted(before_rewrite.begin(), before_rewrite.end()));
 
     // Simulate hash rewrite: abc123 -> xyz789 and xyz789 -> abc123
-    std::vector<std::string> after_rewrite = {"aaa-xyz789", "bbb-abc123"};
+    std::vector<std::string> after_rewrite = {"xyz789-lib", "abc123-bin"};
 
-    // After rewriting, "bbb-abc123" < "aaa-xyz789", so the order is now wrong
+    // After rewriting, "abc123-bin" < "xyz789-lib", so the order is now wrong
     REQUIRE(after_rewrite[1] < after_rewrite[0]); // Demonstrates the problem
     REQUIRE_FALSE(std::is_sorted(after_rewrite.begin(), after_rewrite.end()));
   }
 
   SECTION("re-sorting fixes the order") {
-    std::vector<std::string> after_rewrite = {"aaa-xyz789", "bbb-abc123"};
+    std::vector<std::string> after_rewrite = {"xyz789-lib", "abc123-bin"};
     REQUIRE_FALSE(std::is_sorted(after_rewrite.begin(), after_rewrite.end()));
 
     // The two-pass approach: dump -> restore -> dump again (which sorts)
     std::sort(after_rewrite.begin(), after_rewrite.end());
 
     REQUIRE(std::is_sorted(after_rewrite.begin(), after_rewrite.end()));
-    REQUIRE(after_rewrite[0] == "bbb-abc123");
-    REQUIRE(after_rewrite[1] == "aaa-xyz789");
+    REQUIRE(after_rewrite[0] == "abc123-bin");
+    REQUIRE(after_rewrite[1] == "xyz789-lib");
   }
 }
 
@@ -632,7 +632,7 @@ TEST_CASE("NAR directory entries must be sorted lexicographically", "[ca][nar][#
 //
 // Reference: src/nix/store/unix/build/derivation-builder.cpp:1608-1662
 
-TEST_CASE("Darwin code signing requirements for CA derivations", "[ca][darwin][#6065]") {
+TEST_CASE("Darwin code signing requirements for CA derivations", "[ca][darwin][gh6065]") {
   INFO("#6065: Modified Mach-O executables must be re-signed on darwin");
 
   SECTION("Mach-O magic numbers are correctly defined") {
@@ -691,7 +691,7 @@ TEST_CASE("Darwin code signing requirements for CA derivations", "[ca][darwin][#
 //
 // Reference: src/straylight/nix/store/ca_store.cpp:390-479
 
-TEST_CASE("CA store realisation operations", "[ca][s3][#11748]") {
+TEST_CASE("CA store realisation operations", "[ca][s3][gh11748]") {
   INFO("#11748: CA store must support put_realisation and get_realisation");
 
   TestTempDir tmp;

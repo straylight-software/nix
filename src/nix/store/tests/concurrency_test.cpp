@@ -167,7 +167,7 @@ public:
 // Test: Verify inner builds use forked child process
 // ============================================================================
 
-TEST_CASE("recursive-nix: inner build in forked child doesn't deadlock", "[concurrency][#4216]") {
+TEST_CASE("recursive-nix: inner build in forked child doesn't deadlock", "[concurrency][gh4216]") {
   // The fix for #4216 is that restricted_store_t::build_paths_with_results()
   // forks a child process to perform the actual build. This test verifies
   // that fork-based isolation works correctly.
@@ -214,7 +214,7 @@ TEST_CASE("recursive-nix: inner build in forked child doesn't deadlock", "[concu
   REQUIRE(WEXITSTATUS(status) == 0);
 }
 
-TEST_CASE("recursive-nix: child process cleanup on parent death", "[concurrency][#4216]") {
+TEST_CASE("recursive-nix: child process cleanup on parent death", "[concurrency][gh4216]") {
   // Test that PR_SET_PDEATHSIG is used correctly (Linux-specific)
 #ifdef __linux__
   // Fork a grandparent that will fork a parent that sets PR_SET_PDEATHSIG
@@ -251,7 +251,7 @@ TEST_CASE("recursive-nix: child process cleanup on parent death", "[concurrency]
 // Test: Verify shared lock released before exclusive lock acquired
 // ============================================================================
 
-TEST_CASE("CA-derivations: lock upgrade pattern doesn't deadlock", "[concurrency][#6666]") {
+TEST_CASE("CA-derivations: lock upgrade pattern doesn't deadlock", "[concurrency][gh6666]") {
   // The fix requires releasing shared lock before acquiring exclusive lock
   // to prevent A-B / B-A deadlock between concurrent processes.
 
@@ -284,7 +284,7 @@ TEST_CASE("CA-derivations: lock upgrade pattern doesn't deadlock", "[concurrency
   close(fd);
 }
 
-TEST_CASE("CA-derivations: concurrent lock upgrade is safe", "[concurrency][#6666]") {
+TEST_CASE("CA-derivations: concurrent lock upgrade is safe", "[concurrency][gh6666]") {
   TempDir tmpdir;
   fs::path lock_file = tmpdir.path / "concurrent-lock";
 
@@ -370,7 +370,7 @@ TEST_CASE("CA-derivations: concurrent lock upgrade is safe", "[concurrency][#666
 // Test: Verify flock retries on EINTR
 // ============================================================================
 
-TEST_CASE("flock: EINTR handling in lock_file", "[concurrency][#2087]") {
+TEST_CASE("flock: EINTR handling in lock_file", "[concurrency][gh2087]") {
   TempDir tmpdir;
   fs::path lock_path = tmpdir.path / "eintr.lock";
 
@@ -406,7 +406,7 @@ TEST_CASE("flock: EINTR handling in lock_file", "[concurrency][#2087]") {
   close(fd);
 }
 
-TEST_CASE("flock: non-blocking with EINTR handling", "[concurrency][#2087]") {
+TEST_CASE("flock: non-blocking with EINTR handling", "[concurrency][gh2087]") {
   TempDir tmpdir;
   fs::path lock_path = tmpdir.path / "eintr_nb.lock";
 
@@ -433,7 +433,7 @@ TEST_CASE("flock: non-blocking with EINTR handling", "[concurrency][#2087]") {
 // Test: Create two store instances, verify unique temp root paths
 // ============================================================================
 
-TEST_CASE("store instances: unique temp root paths per instance", "[concurrency][#11979]") {
+TEST_CASE("store instances: unique temp root paths per instance", "[concurrency][gh11979]") {
   // The fix uses an atomic counter to ensure each LocalStore instance
   // gets a unique temp roots file path: {pid}-{instance}
 
@@ -462,7 +462,7 @@ TEST_CASE("store instances: unique temp root paths per instance", "[concurrency]
   REQUIRE(path3.find(pid_str) != std::string::npos);
 }
 
-TEST_CASE("store instances: concurrent store creation", "[concurrency][#11979]") {
+TEST_CASE("store instances: concurrent store creation", "[concurrency][gh11979]") {
   static std::atomic<uint64_t> testCounter{0};
   std::set<std::string> paths;
   std::mutex paths_mutex;
@@ -498,7 +498,7 @@ TEST_CASE("store instances: concurrent store creation", "[concurrency][#11979]")
 // Test: Verify addTempRoot called BEFORE output moved to final location
 // ============================================================================
 
-TEST_CASE("build: addTempRoot before output move", "[concurrency][#9548]") {
+TEST_CASE("build: addTempRoot before output move", "[concurrency][gh9548]") {
   // The fix in derivation-builder.cpp calls addTempRoot() before moving
   // the output to its final location. This test verifies the ordering.
 
@@ -541,7 +541,7 @@ TEST_CASE("build: addTempRoot before output move", "[concurrency][#9548]") {
   REQUIRE(fs::exists(final_output));
 }
 
-TEST_CASE("build: GC cannot delete temp-rooted path", "[concurrency][#9548]") {
+TEST_CASE("build: GC cannot delete temp-rooted path", "[concurrency][gh9548]") {
   TempDir tmpdir;
   fs::path store_path = tmpdir.path / "store_path";
   fs::path temp_roots_file = tmpdir.path / "temproots";
@@ -575,7 +575,7 @@ TEST_CASE("build: GC cannot delete temp-rooted path", "[concurrency][#9548]") {
 // Test: Concurrent allocations from multiple threads
 // ============================================================================
 
-TEST_CASE("allocator: thread-safe concurrent allocations", "[concurrency][#14140]") {
+TEST_CASE("allocator: thread-safe concurrent allocations", "[concurrency][gh14140]") {
   // This tests the general pattern of thread-safe allocation.
   // The actual fix involves synchronized_pool_resource or atomic arena.
 
@@ -627,7 +627,7 @@ TEST_CASE("allocator: thread-safe concurrent allocations", "[concurrency][#14140
 // Test: Concurrent writes to binary cache, verify flock used
 // ============================================================================
 
-TEST_CASE("binary-cache: concurrent writes use flock", "[concurrency][#3695]") {
+TEST_CASE("binary-cache: concurrent writes use flock", "[concurrency][gh3695]") {
   TempDir tmpdir;
   fs::path cache_dir = tmpdir.path / "cache";
   fs::path lock_file = cache_dir / ".cache.lock";
@@ -694,7 +694,7 @@ TEST_CASE("binary-cache: concurrent writes use flock", "[concurrency][#3695]") {
   REQUIRE_FALSE(race_detected);
 }
 
-TEST_CASE("binary-cache: content-addressed files are idempotent", "[concurrency][#3695]") {
+TEST_CASE("binary-cache: content-addressed files are idempotent", "[concurrency][gh3695]") {
   TempDir tmpdir;
   fs::path cache_dir = tmpdir.path / "cache";
   fs::create_directories(cache_dir);
@@ -729,7 +729,7 @@ TEST_CASE("binary-cache: content-addressed files are idempotent", "[concurrency]
 // Test: Verify pre/post hash checks during optimization
 // ============================================================================
 
-TEST_CASE("optimise: file change detection during hashing", "[concurrency][#14599]") {
+TEST_CASE("optimise: file change detection during hashing", "[concurrency][gh14599]") {
   TempDir tmpdir;
   fs::path test_file = tmpdir.path / "test_file";
 
@@ -747,7 +747,7 @@ TEST_CASE("optimise: file change detection during hashing", "[concurrency][#1459
   REQUIRE(stat_before == stat_after);
 }
 
-TEST_CASE("optimise: skip file that changed during hashing", "[concurrency][#14599]") {
+TEST_CASE("optimise: skip file that changed during hashing", "[concurrency][gh14599]") {
   TempDir tmpdir;
   fs::path test_file = tmpdir.path / "changing_file";
 
@@ -770,7 +770,7 @@ TEST_CASE("optimise: skip file that changed during hashing", "[concurrency][#145
   REQUIRE(should_skip);
 }
 
-TEST_CASE("optimise: final size check before linking", "[concurrency][#14599]") {
+TEST_CASE("optimise: final size check before linking", "[concurrency][gh14599]") {
   TempDir tmpdir;
   fs::path links_dir = tmpdir.path / ".links";
   fs::path store_file = tmpdir.path / "store_file";
@@ -801,7 +801,7 @@ TEST_CASE("optimise: final size check before linking", "[concurrency][#14599]") 
 // Test: Acquire slot, simulate crash/cancel, verify slot released
 // ============================================================================
 
-TEST_CASE("build-slot: RAII guard releases on destruction", "[concurrency][#1015]") {
+TEST_CASE("build-slot: RAII guard releases on destruction", "[concurrency][gh1015]") {
   std::atomic<int> slot_counter{0};
 
   {
@@ -815,7 +815,7 @@ TEST_CASE("build-slot: RAII guard releases on destruction", "[concurrency][#1015
   REQUIRE(slot_counter == 0);
 }
 
-TEST_CASE("build-slot: move semantics don't leak slots", "[concurrency][#1015]") {
+TEST_CASE("build-slot: move semantics don't leak slots", "[concurrency][gh1015]") {
   std::atomic<int> slot_counter{0};
 
   {
@@ -835,7 +835,7 @@ TEST_CASE("build-slot: move semantics don't leak slots", "[concurrency][#1015]")
   REQUIRE(slot_counter == 0);
 }
 
-TEST_CASE("build-slot: exception during work releases slot", "[concurrency][#1015]") {
+TEST_CASE("build-slot: exception during work releases slot", "[concurrency][gh1015]") {
   std::atomic<int> slot_counter{0};
 
   try {
@@ -853,7 +853,7 @@ TEST_CASE("build-slot: exception during work releases slot", "[concurrency][#101
   REQUIRE(slot_counter == 0);
 }
 
-TEST_CASE("build-slot: concurrent slot tracking", "[concurrency][#1015]") {
+TEST_CASE("build-slot: concurrent slot tracking", "[concurrency][gh1015]") {
   std::atomic<int> slot_counter{0};
   std::atomic<int> max_concurrent{0};
   constexpr int max_slots = 4;
@@ -890,7 +890,7 @@ TEST_CASE("build-slot: concurrent slot tracking", "[concurrency][#1015]") {
 // Test: Start build, trigger auto GC, verify build paths not deleted
 // ============================================================================
 
-TEST_CASE("auto-gc: build paths protected during auto-gc", "[concurrency][#2285]") {
+TEST_CASE("auto-gc: build paths protected during auto-gc", "[concurrency][gh2285]") {
   TempDir tmpdir;
   fs::path store_dir = tmpdir.path / "store";
   fs::path temp_roots_dir = tmpdir.path / "temproots";
@@ -927,7 +927,7 @@ TEST_CASE("auto-gc: build paths protected during auto-gc", "[concurrency][#2285]
   REQUIRE(fs::exists(build_output));
 }
 
-TEST_CASE("auto-gc: brief delay helps concurrent builds register roots", "[concurrency][#2285]") {
+TEST_CASE("auto-gc: brief delay helps concurrent builds register roots", "[concurrency][gh2285]") {
   // The fix adds a small delay before GC to allow concurrent builds
   // to register their temp roots.
 

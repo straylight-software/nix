@@ -483,7 +483,7 @@ TEST_CASE("GC handles invalid PID filenames", "[gc][temproots][edge]") {
 // Issue #9581: GC performance with io_uring bulk operations
 // ─────────────────────────────────────────────────────────────────────────────
 
-TEST_CASE("GC bulk delete performance baseline", "[gc][performance][#9581]") {
+TEST_CASE("GC bulk delete performance baseline", "[gc][performance][gh9581]") {
   // This test establishes a baseline for GC delete performance.
   // The fix for #9581 uses io_uring bulk operations for faster GC.
   // We measure delete operations to verify the optimization is effective.
@@ -527,7 +527,7 @@ TEST_CASE("GC bulk delete performance baseline", "[gc][performance][#9581]") {
   REQUIRE(duration_ms < 5000); // Should be well under 5 seconds
 }
 
-TEST_CASE("GC bulk stat performance for liveness check", "[gc][performance][#9581]") {
+TEST_CASE("GC bulk stat performance for liveness check", "[gc][performance][gh9581]") {
   // GC needs to stat many paths to check liveness.
   // io_uring bulk statx operations should accelerate this.
 
@@ -567,7 +567,7 @@ TEST_CASE("GC bulk stat performance for liveness check", "[gc][performance][#958
 // Issue #11134: GC fails with "directory not empty"
 // ─────────────────────────────────────────────────────────────────────────────
 
-TEST_CASE("GC delete directory with file - ENOTEMPTY retry", "[gc][delete][#11134]") {
+TEST_CASE("GC delete directory with file - ENOTEMPTY retry", "[gc][delete][gh11134]") {
   // Issue #11134: GC sometimes fails with "directory not empty" on NFS
   // or when files are created concurrently. The fix adds retry logic
   // with recursive rm fallback.
@@ -621,7 +621,7 @@ TEST_CASE("GC delete directory with file - ENOTEMPTY retry", "[gc][delete][#1113
   }
 }
 
-TEST_CASE("GC handles race condition: file created during delete", "[gc][race][#11134]") {
+TEST_CASE("GC handles race condition: file created during delete", "[gc][race][gh11134]") {
   // Simulates the race condition where a file is created in a directory
   // just as GC is trying to delete it.
 
@@ -681,7 +681,7 @@ TEST_CASE("GC handles race condition: file created during delete", "[gc][race][#
 // Issue #11929: Nix wipes top-level $TEMPDIR
 // ─────────────────────────────────────────────────────────────────────────────
 
-TEST_CASE("temp directory uses unique path per process", "[gc][tempdir][#11929]") {
+TEST_CASE("temp directory uses unique path per process", "[gc][tempdir][gh11929]") {
   // Issue #11929: Nix was using $TMPDIR directly instead of creating
   // a unique subdirectory, causing it to wipe other users' temp files.
   // The fix ensures each process gets a unique temp directory path
@@ -714,7 +714,7 @@ TEST_CASE("temp directory uses unique path per process", "[gc][tempdir][#11929]"
   REQUIRE(path2 != tmp_root);
 }
 
-TEST_CASE("temp directory is not /tmp itself", "[gc][tempdir][#11929]") {
+TEST_CASE("temp directory is not /tmp itself", "[gc][tempdir][gh11929]") {
   // Verify we never use /tmp directly as a temp directory
 
   TempDir tmpdir;
@@ -727,7 +727,7 @@ TEST_CASE("temp directory is not /tmp itself", "[gc][tempdir][#11929]") {
   REQUIRE(tmpdir.path.string().find("gc_test") != std::string::npos);
 }
 
-TEST_CASE("temp directory counter prevents collision", "[gc][tempdir][#11929]") {
+TEST_CASE("temp directory counter prevents collision", "[gc][tempdir][gh11929]") {
   // Verify that the counter mechanism prevents collisions even with same PID
 
   std::vector<std::string> paths;
@@ -747,7 +747,7 @@ TEST_CASE("temp directory counter prevents collision", "[gc][tempdir][#11929]") 
   REQUIRE(last == paths.end()); // No duplicates
 }
 
-TEST_CASE("temp roots file isolation per process", "[gc][temproots][#11929]") {
+TEST_CASE("temp roots file isolation per process", "[gc][temproots][gh11929]") {
   // Verify that temp roots files are isolated per process and instance
 
   TempDir tmpdir;
