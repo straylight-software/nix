@@ -76,8 +76,9 @@ public:
    * Get which hooks need to be invoked for this EvalProfiler instance.
    */
   Hooks getNeededHooks() {
-    if (neededHooks.has_value())
+    if (neededHooks.has_value()) {
       return *neededHooks;
+    }
     return *(neededHooks = getNeededHooksImpl());
   }
 };

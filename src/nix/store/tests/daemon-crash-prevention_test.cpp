@@ -251,7 +251,7 @@ TEST_CASE("callback atomic flag ensures single invocation", "[daemon][crash][#13
 
     for (int i = 0; i < kNumThreads; ++i) {
       threads.emplace_back([&cb, &success_count, i]() {
-        cb(i);
+        cb(int{i}); // Pass rvalue
         success_count.fetch_add(1);
       });
     }
@@ -775,7 +775,7 @@ TEST_CASE("stress test: concurrent operations do not crash", "[daemon][stress]")
   std::vector<std::thread> threads;
 
   for (int t = 0; t < kNumThreads; ++t) {
-    threads.emplace_back([&, t]() {
+    threads.emplace_back([&]() {
       for (int i = 0; i < kIterations; ++i) {
         // Test callback one-shot semantics
         {
@@ -785,8 +785,8 @@ TEST_CASE("stress test: concurrent operations do not crash", "[daemon][stress]")
             [[maybe_unused]] auto v = f.get();
           });
 
-          cb(i);
-          cb(i + 1); // Second should be ignored
+          cb(int{i});
+          cb(int{i + 1}); // Second should be ignored
 
           if (count.load() == 1) {
             callback_successes.fetch_add(1);

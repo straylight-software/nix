@@ -1010,8 +1010,9 @@ TEST_CASE("RE2 ReDoS resistance", "[regex][property][redos]") {
 
     for (const auto& pattern : evil_patterns) {
       auto re = regex::Regex::compile(pattern);
-      if (!re.has_value())
+      if (!re.has_value()) {
         continue;
+      }
 
       auto start = std::chrono::steady_clock::now();
       [[maybe_unused]] bool result = re->test(evil_input);

@@ -49,11 +49,13 @@ struct profile_element_t {
   int priority = default_priority;
 
   std::string identifier() const {
-    if (source)
+    if (source) {
       return source->to_string();
+    }
     string_set_t names;
-    for (auto& path : store_paths)
+    for (auto& path : store_paths) {
       names.insert(DrvName(path.name()).name);
+    }
     return drop_empty_init_then_concat_strings_sep(", ", names);
   }
 
@@ -62,18 +64,21 @@ struct profile_element_t {
    * element, either a flakeref or a plain store path
    */
   string_set_t to_installables(store_t& store) {
-    if (source)
+    if (source) {
       return {source->to_string()};
+    }
     string_set_t raw_paths;
-    for (auto& path : store_paths)
+    for (auto& path : store_paths) {
       raw_paths.insert(store.printStorePath(path));
+    }
     return raw_paths;
   }
 
   std::string versions() const {
     string_set_t versions;
-    for (auto& path : store_paths)
+    for (auto& path : store_paths) {
       versions.insert(DrvName(path.name()).version);
+    }
     return show_versions(versions);
   }
 
@@ -84,8 +89,9 @@ struct profile_element_t {
       std::visit(overloaded{
                      [&](const BuiltPath::opaque_t& bo) { store_paths.insert(bo.path); },
                      [&](const BuiltPath::Built& bfd) {
-                       for (auto& output : bfd.outputs)
+                       for (auto& output : bfd.outputs) {
                          store_paths.insert(output.second);
+                       }
                      },
                  },
                  buildable.raw());
@@ -136,8 +142,9 @@ struct profile_manifest_t {
       for (auto& elem : elems.items()) {
         auto& e = elem.value();
         profile_element_t element;
-        for (auto& p : e["storePaths"])
+        for (auto& p : e["storePaths"]) {
           element.store_paths.insert(state.store->parseStorePath((std::string)p));
+        }
         element.active = e["active"];
         if (e.contains("priority")) {
           element.priority = e["priority"];
@@ -150,12 +157,14 @@ struct profile_manifest_t {
         }
 
         std::string name = [&] {
-          if (elems.is_object())
+          if (elems.is_object()) {
             return elem.key();
+          }
           if (element.source) {
             if (auto optName =
-                    get_name_from_url(parse_url(element.source->to_string(), /*lenient=*/true)))
+                    get_name_from_url(parse_url(element.source->to_string(), /*lenient=*/true))) {
               return *optName;
+            }
           }
           return element.identifier();
         }();
@@ -182,8 +191,9 @@ struct profile_manifest_t {
 
   void add_element(std::string_view name_candidate, profile_element_t element) {
     std::string finalName(name_candidate);
-    for (int i = 1; elements.contains(finalName); ++i)
+    for (int i = 1; elements.contains(finalName); ++i) {
       finalName = name_candidate + "-" + std::to_string(i);
+    }
 
     elements.insert_or_assign(finalName, std::move(element));
   }
@@ -197,8 +207,9 @@ struct profile_manifest_t {
     auto es = nlohmann::json::object();
     for (auto& [name, element] : elements) {
       auto paths = nlohmann::json::array();
-      for (auto& path : element.store_paths)
+      for (auto& path : element.store_paths) {
         paths.push_back(store.printStorePath(path));
+      }
       nlohmann::json obj;
       obj["storePaths"] = paths;
       obj["active"] = element.active;
@@ -227,8 +238,9 @@ struct profile_manifest_t {
     Packages pkgs;
     for (auto& [name, element] : elements) {
       for (auto& path : element.store_paths) {
-        if (element.active)
+        if (element.active) {
           pkgs.emplace_back(store->printStorePath(path), true, element.priority);
+        }
         references.insert(path);
       }
     }
@@ -291,8 +303,9 @@ struct profile_manifest_t {
       }
     }
 
-    if (!changes)
+    if (!changes) {
       logger->cout("%sNo changes.", indent);
+    }
   }
 };
 
@@ -350,8 +363,9 @@ struct cmd_profile_add_t : InstallablesCommand, MixDefaultProfile {
       profile_element_t element;
 
       auto iter = built_paths.find(&*installable);
-      if (iter == built_paths.end())
+      if (iter == built_paths.end()) {
         continue;
+      }
       auto& [res, info] = iter->second;
 
       if (auto* info2 = dynamic_cast<ExtraPathInfoFlake*>(&*info)) {
@@ -661,16 +675,18 @@ struct cmd_profile_upgrade_t : virtual SourceExprCommand,
           element.source->outputs, strings_t{element.source->attr_path}, strings_t{}, lock_flags);
 
       auto derivedPaths = installable->to_derived_paths();
-      if (derivedPaths.empty())
+      if (derivedPaths.empty()) {
         continue;
+      }
       auto* infop = dynamic_cast<ExtraPathInfoFlake*>(&*derivedPaths[0].info);
       // `InstallableFlake` should use `ExtraPathInfoFlake`.
       assert(infop);
       auto& info = *infop;
 
       if (info.flake.locked_ref.input.isLocked(getEvalState()->fetch_settings) &&
-          element.source->locked_ref == info.flake.locked_ref)
+          element.source->locked_ref == info.flake.locked_ref) {
         continue;
+      }
 
       printInfo("upgrading '%s' from flake '%s' to '%s'", element.source->attr_path,
                 element.source->locked_ref, info.flake.locked_ref);
@@ -725,8 +741,9 @@ struct cmd_profile_list_t : virtual EvalCommand, virtual StoreCommand, MixDefaul
     } else {
       for (const auto& [i, e] : enumerate(manifest.elements)) {
         auto& [name, element] = e;
-        if (i)
+        if (i) {
           logger->cout("");
+        }
         logger->cout("Name:               " ANSI_BOLD "%s" ANSI_NORMAL "%s", name,
                      element.active ? "" : " " ANSI_RED "(inactive)" ANSI_NORMAL);
         if (element.source) {
@@ -761,8 +778,9 @@ struct cmd_profile_diff_closures_t : virtual StoreCommand, MixDefaultProfile {
 
     for (auto& gen : gens) {
       if (prevGen) {
-        if (!first)
+        if (!first) {
           logger->cout("");
+        }
         first = false;
         logger->cout("Version %d -> %d:", prevGen->number, gen.number);
         print_closure_diff(store, store->followLinksToStorePath(prevGen->path.string()),
@@ -792,8 +810,9 @@ struct cmd_profile_history_t : virtual StoreCommand, EvalCommand, MixDefaultProf
     for (auto& gen : gens) {
       profile_manifest_t manifest(*getEvalState(), gen.path);
 
-      if (!first)
+      if (!first) {
         logger->cout("");
+      }
       first = false;
 
       logger->cout(
@@ -860,8 +879,9 @@ struct cmd_profile_wipe_history_t : virtual StoreCommand, MixDefaultProfile, Mix
     if (min_age) {
       auto t = parse_older_than_time_spec(*min_age);
       delete_generations_older_than(*profile, t, dry_run);
-    } else
+    } else {
       delete_old_generations(*profile, dry_run);
+    }
   }
 };
 

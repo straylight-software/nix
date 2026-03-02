@@ -84,8 +84,9 @@ struct curl_file_transfer_t : public FileTransfer {
       long http_status = 0;
       long protocol = 0;
       curl_easy_getinfo(req, CURLINFO_PROTOCOL, &protocol);
-      if (protocol == CURLPROTO_HTTP || protocol == CURLPROTO_HTTPS)
+      if (protocol == CURLPROTO_HTTP || protocol == CURLPROTO_HTTPS) {
         curl_easy_getinfo(req, CURLINFO_RESPONSE_CODE, &http_status);
+      }
       return http_status;
     }
 
@@ -114,19 +115,22 @@ struct curl_file_transfer_t : public FileTransfer {
                   paused = true;
                 }
               }
-            } else
+            } else {
               this->result.data.append(data);
+            }
           }) {
       result.urls.push_back(request.uri.to_string());
 
       request_headers =
           curl_slist_append(request_headers, "Accept-Encoding: zstd, br, gzip, deflate, bzip2, xz");
-      if (!request.expectedETag.empty())
+      if (!request.expectedETag.empty()) {
         request_headers =
             curl_slist_append(request_headers, ("If-None-Match: " + request.expectedETag).c_str());
-      if (!request.mime_type.empty())
+      }
+      if (!request.mime_type.empty()) {
         request_headers =
             curl_slist_append(request_headers, ("Content-Type: " + request.mime_type).c_str());
+      }
       for (auto it = request.headers.begin(); it != request.headers.end(); ++it) {
         request_headers =
             curl_slist_append(request_headers, fmt("%s: %s", it->first, it->second).c_str());
@@ -135,20 +139,23 @@ struct curl_file_transfer_t : public FileTransfer {
 
     ~transfer_item_t() {
       if (req) {
-        if (active)
+        if (active) {
           curl_multi_remove_handle(file_transfer.curlm, req);
+        }
         curl_easy_cleanup(req);
       }
-      if (request_headers)
+      if (request_headers) {
         curl_slist_free_all(request_headers);
+      }
       try {
         // Only invoke the callback if we're not shutting down. During shutdown,
         // invoking the callback can cause deadlocks if the callback tries to
         // acquire locks held by threads waiting for the worker thread to finish.
         // See: https://github.com/NixOS/nix/issues/3017
-        if (!done && !file_transfer.state_.lock()->is_quitting())
+        if (!done && !file_transfer.state_.lock()->is_quitting()) {
           fail(FileTransferError(Interrupted, {}, "%s of '%s' was interrupted",
                                  uncolored_t(request.noun()), request.uri));
+        }
       } catch (...) {
         ignore_exception_in_destructor();
       }
@@ -181,8 +188,9 @@ struct curl_file_transfer_t : public FileTransfer {
 
     size_t write_callback(void* contents, size_t size, size_t nmemb) noexcept try {
       // Check for multiplication overflow before computing real_size
-      if (size != 0 && nmemb > SIZE_MAX / size)
+      if (size != 0 && nmemb > SIZE_MAX / size) {
         throw nix::Error("file transfer size overflow");
+      }
       size_t real_size = size * nmemb;
       result.bodySize += real_size;
 
@@ -220,8 +228,9 @@ struct curl_file_transfer_t : public FileTransfer {
     void append_current_url() {
       char* effective_uri_c_str = nullptr;
       curl_easy_getinfo(req, CURLINFO_EFFECTIVE_URL, &effective_uri_c_str);
-      if (effective_uri_c_str && *result.urls.rbegin() != effective_uri_c_str)
+      if (effective_uri_c_str && *result.urls.rbegin() != effective_uri_c_str) {
         result.urls.push_back(effective_uri_c_str);
+      }
     }
 
     size_t header_callback(void* contents, size_t size, size_t nmemb) noexcept try {
@@ -259,20 +268,23 @@ struct curl_file_transfer_t : public FileTransfer {
             }
           }
 
-          else if (name == "content-encoding")
+          else if (name == "content-encoding") {
             encoding = trim(line.substr(i + 1));
+          }
 
-          else if (name == "accept-ranges" && to_lower(trim(line.substr(i + 1))) == "bytes")
+          else if (name == "accept-ranges" && to_lower(trim(line.substr(i + 1))) == "bytes") {
             accept_ranges = true;
+          }
 
           else if (name == "link" || name == "x-amz-meta-link") {
             auto value = trim(line.substr(i + 1));
             static std::regex linkRegex("<([^>]*)>; rel=\"immutable\"",
                                         std::regex::extended | std::regex::icase);
-            if (std::smatch match; std::regex_match(value, match, linkRegex))
+            if (std::smatch match; std::regex_match(value, match, linkRegex)) {
               result.immutableUrl = match.str(1);
-            else
+            } else {
               debug("got invalid link header '%s'", value);
+            }
           }
         }
       }
@@ -329,8 +341,9 @@ struct curl_file_transfer_t : public FileTransfer {
 
     static int debug_callback(CURL* handle, curl_infotype type, char* data, size_t size,
                               void* userptr) noexcept try {
-      if (type == CURLINFO_TEXT)
+      if (type == CURLINFO_TEXT) {
         vomit("curl: %s", chomp(std::string(data, size)));
+      }
       return 0;
     } catch (...) {
       /* Swallow the exception. Nothing left to do. */
@@ -398,8 +411,9 @@ struct curl_file_transfer_t : public FileTransfer {
     }
 
     void init() {
-      if (!req)
+      if (!req) {
         req = curl_easy_init();
+      }
 
       curl_easy_reset(req);
 
@@ -423,10 +437,11 @@ struct curl_file_transfer_t : public FileTransfer {
       curl_easy_setopt(req, CURLOPT_PIPEWAIT, 1);
 #endif
 #if LIBCURL_VERSION_NUM >= 0x072f00
-      if (file_transfer_settings.enableHttp2)
+      if (file_transfer_settings.enableHttp2) {
         curl_easy_setopt(req, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2TLS);
-      else
+      } else {
         curl_easy_setopt(req, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
+      }
 #endif
       curl_easy_setopt(req, CURLOPT_WRITEFUNCTION, transfer_item_t::write_callback_wrapper);
       curl_easy_setopt(req, CURLOPT_WRITEDATA, this);
@@ -439,15 +454,18 @@ struct curl_file_transfer_t : public FileTransfer {
 
       curl_easy_setopt(req, CURLOPT_HTTPHEADER, request_headers);
 
-      if (settings.downloadSpeed.get() > 0)
+      if (settings.downloadSpeed.get() > 0) {
         curl_easy_setopt(req, CURLOPT_MAX_RECV_SPEED_LARGE,
                          (curl_off_t)(settings.downloadSpeed.get() * 1024));
+      }
 
-      if (request.method == HttpMethod::Head)
+      if (request.method == HttpMethod::Head) {
         curl_easy_setopt(req, CURLOPT_NOBODY, 1);
+      }
 
-      if (request.method == HttpMethod::Delete)
+      if (request.method == HttpMethod::Delete) {
         curl_easy_setopt(req, CURLOPT_CUSTOMREQUEST, "DELETE");
+      }
 
       if (request.data) {
         if (request.method == HttpMethod::Post) {
@@ -465,8 +483,9 @@ struct curl_file_transfer_t : public FileTransfer {
         curl_easy_setopt(req, CURLOPT_SEEKDATA, this);
       }
 
-      if (settings.ca_file != "")
+      if (settings.ca_file != "") {
         curl_easy_setopt(req, CURLOPT_CAINFO, settings.ca_file.get().c_str());
+      }
 
 #if !defined(_WIN32) && LIBCURL_VERSION_NUM >= 0x071000
       curl_easy_setopt(req, CURLOPT_SOCKOPTFUNCTION, cloexec_callback);
@@ -483,8 +502,9 @@ struct curl_file_transfer_t : public FileTransfer {
       curl_easy_setopt(req, CURLOPT_NETRC_FILE, settings.netrcFile.get().c_str());
       curl_easy_setopt(req, CURLOPT_NETRC, CURL_NETRC_OPTIONAL);
 
-      if (written_to_sink)
+      if (written_to_sink) {
         curl_easy_setopt(req, CURLOPT_RESUME_FROM_LARGE, written_to_sink);
+      }
 
       curl_easy_setopt(req, CURLOPT_ERRORBUFFER, errbuf);
       errbuf[0] = 0;
@@ -553,8 +573,9 @@ struct curl_file_transfer_t : public FileTransfer {
         return;
       }
 
-      if (callback_exception)
+      if (callback_exception) {
         fail_ex(callback_exception);
+      }
 
       else if (code == CURLE_OK && successful_statuses.count(http_status)) {
         result.cached = http_status == 304;
@@ -562,8 +583,9 @@ struct curl_file_transfer_t : public FileTransfer {
         // In 2021, GitHub responds to If-None-Match with 304,
         // but omits ETag. We just use the If-None-Match etag
         // since 304 implies they are the same.
-        if (http_status == 304 && result.etag == "")
+        if (http_status == 304 && result.etag == "") {
           result.etag = request.expectedETag;
+        }
 
         act().progress(result.bodySize, result.bodySize);
         done = true;
@@ -625,8 +647,9 @@ struct curl_file_transfer_t : public FileTransfer {
         attempt++;
 
         std::optional<std::string> response;
-        if (error_sink)
+        if (error_sink) {
           response = std::move(error_sink->str());
+        }
         auto exc =
             code == CURLE_ABORTED_BY_CALLBACK && get_interrupted()
                 ? FileTransferError(Interrupted, std::move(response), "%s of '%s' was interrupted",
@@ -651,10 +674,11 @@ struct curl_file_transfer_t : public FileTransfer {
               retry_time_ms *
               std::pow(2.0f, attempt - 1 +
                                  std::uniform_real_distribution<>(0.0, 0.5)(file_transfer.mt19937));
-          if (written_to_sink)
+          if (written_to_sink) {
             warn("%s; retrying from offset %d in %d ms", exc.what(), written_to_sink, ms);
-          else
+          } else {
             warn("%s; retrying in %d ms", exc.what(), ms);
+          }
           decompression_sink.reset();
           error_sink.reset();
           embargo = std::chrono::steady_clock::now() + std::chrono::milliseconds(ms);
@@ -666,8 +690,9 @@ struct curl_file_transfer_t : public FileTransfer {
             // and cause the destructor to attempt a second callback invocation
             fail(std::move(exc));
           }
-        } else
+        } else {
           fail(std::move(exc));
+        }
       }
     }
   };
@@ -691,8 +716,9 @@ struct curl_file_transfer_t : public FileTransfer {
     void quit() {
       quitting = true;
       /* We will not be processing any more incoming requests */
-      while (!incoming.empty())
+      while (!incoming.empty()) {
         incoming.pop();
+      }
       unpause.clear();
     }
 
@@ -739,8 +765,9 @@ struct curl_file_transfer_t : public FileTransfer {
 
     worker_thread.join();
 
-    if (curlm)
+    if (curlm) {
       curl_multi_cleanup(curlm);
+    }
   }
 
   void stop_worker_thread() {
@@ -781,8 +808,9 @@ struct curl_file_transfer_t : public FileTransfer {
       /* Let curl do its thing. */
       int running;
       CURLMcode mc = curl_multi_perform(curlm, &running);
-      if (mc != CURLM_OK)
+      if (mc != CURLM_OK) {
         throw nix::Error("unexpected error from curl_multi_perform(): %s", curl_multi_strerror(mc));
+      }
 
       /* Set the promises of any finished requests. */
       CURLMsg* msg;
@@ -815,8 +843,9 @@ struct curl_file_transfer_t : public FileTransfer {
               : max_sleep_time_ms;
       vomit("download thread waiting for %d ms", sleep_time_ms);
       mc = curl_multi_wait(curlm, extra_f_ds, 1, sleep_time_ms, &numfds);
-      if (mc != CURLM_OK)
+      if (mc != CURLM_OK) {
         throw nix::Error("unexpected error from curl_multi_wait(): %s", curl_multi_strerror(mc));
+      }
 
       next_wakeup = std::chrono::steady_clock::time_point();
 
@@ -826,8 +855,9 @@ struct curl_file_transfer_t : public FileTransfer {
       if (extra_f_ds[0].revents & CURL_WAIT_POLLIN) {
         char buf[1024];
         auto res = read(extra_f_ds[0].fd, buf, sizeof(buf));
-        if (res == -1 && errno != EINTR)
+        if (res == -1 && errno != EINTR) {
           throw sys_error_t("reading curl wakeup socket");
+        }
       }
 
       std::vector<std::shared_ptr<transfer_item_t>> incoming;
@@ -839,8 +869,9 @@ struct curl_file_transfer_t : public FileTransfer {
           /* Limit the number of active curl handles, since curl doesn't scale well. */
           if (items.size() + incoming.size() >= max_queue_size) {
             auto t = now + std::chrono::milliseconds(100);
-            if (next_wakeup == std::chrono::steady_clock::time_point() || t < next_wakeup)
+            if (next_wakeup == std::chrono::steady_clock::time_point() || t < next_wakeup) {
               next_wakeup = t;
+            }
             break;
           }
           auto item = state->incoming.top();
@@ -849,8 +880,9 @@ struct curl_file_transfer_t : public FileTransfer {
             state->incoming.pop();
           } else {
             if (next_wakeup == std::chrono::steady_clock::time_point() ||
-                item->embargo < next_wakeup)
+                item->embargo < next_wakeup) {
               next_wakeup = item->embargo;
+            }
             break;
           }
         }
@@ -873,8 +905,9 @@ struct curl_file_transfer_t : public FileTransfer {
         return res;
       }();
 
-      for (auto& item : unpause)
+      for (auto& item : unpause) {
         item->unpause();
+      }
     }
 
     debug("download thread shutting down");
@@ -900,14 +933,16 @@ struct curl_file_transfer_t : public FileTransfer {
 
   ItemHandle enqueue_item(ref<transfer_item_t> item) {
     if (item->request.data && item->request.uri.scheme() != "http" &&
-        item->request.uri.scheme() != "https" && item->request.uri.scheme() != "s3")
+        item->request.uri.scheme() != "https" && item->request.uri.scheme() != "s3") {
       throw nix::Error("uploading to '%s' is not supported", item->request.uri.to_string());
+    }
 
     {
       auto state(state_.lock());
-      if (state->is_quitting())
+      if (state->is_quitting()) {
         throw nix::Error(
             "cannot enqueue download request because the download thread is shutting down");
+      }
       state->incoming.push(item);
     }
 #ifndef _WIN32 // TODO need graceful async exit support on Windows?
@@ -948,8 +983,9 @@ static sync_t<std::shared_ptr<curl_file_transfer_t>> _fileTransfer;
 ref<FileTransfer> get_file_transfer() {
   auto file_transfer(_fileTransfer.lock());
 
-  if (!*file_transfer || (*file_transfer)->state_.lock()->is_quitting())
+  if (!*file_transfer || (*file_transfer)->state_.lock()->is_quitting()) {
     *file_transfer = std::make_shared<curl_file_transfer_t>();
+  }
 
   return ref<FileTransfer>(*file_transfer);
 }
@@ -986,8 +1022,9 @@ void FileTransferRequest::setupForS3() {
     };
     sessionToken = creds->sessionToken;
   }
-  if (sessionToken)
+  if (sessionToken) {
     headers.emplace_back("x-amz-security-token", *sessionToken);
+  }
 #else
   // When built without AWS support, just try as public bucket
   debug("S3 request without authentication (built without AWS support)");
@@ -1052,22 +1089,25 @@ void FileTransfer::download(FileTransferRequest&& request, sink_t& sink,
                           uri = request.uri.to_string()](std::string_view data) -> PauseTransfer {
     auto state(_state->lock());
 
-    if (state->quit)
+    if (state->quit) {
       return PauseTransfer::No;
+    }
 
     /* Append data to the buffer and wake up the calling
        thread. */
     state->data.append(data);
     state->avail.notify_one();
 
-    if (state->data.size() <= file_transfer_settings.downloadBufferSize)
+    if (state->data.size() <= file_transfer_settings.downloadBufferSize) {
       return PauseTransfer::No;
+    }
 
     /* dataCallback gets called multiple times by an intermediate sink. Only
        issue the debug message the first time around. */
-    if (!state->paused)
+    if (!state->paused) {
       debug("pausing transfer for '%s': download buffer is full (%d > %d)", uri, state->data.size(),
             file_transfer_settings.downloadBufferSize);
+    }
 
     state->paused = true;
 
@@ -1083,8 +1123,9 @@ void FileTransfer::download(FileTransferRequest&& request, sink_t& sink,
                                       state->quit = true;
                                       try {
                                         auto res = fut.get();
-                                        if (resultCallback)
+                                        if (resultCallback) {
                                           resultCallback(std::move(res));
+                                        }
                                       } catch (...) {
                                         state->exc = std::current_exception();
                                       }
@@ -1104,8 +1145,9 @@ void FileTransfer::download(FileTransferRequest&& request, sink_t& sink,
 
       if (state->data.empty()) {
         if (state->quit) {
-          if (state->exc)
+          if (state->exc) {
             std::rethrow_exception(state->exc);
+          }
           return;
         }
 
@@ -1115,8 +1157,9 @@ void FileTransfer::download(FileTransferRequest&& request, sink_t& sink,
         }
         state.wait(state->avail);
 
-        if (state->data.empty())
+        if (state->data.empty()) {
           continue;
+        }
       }
 
       chunk = std::move(state->data);
@@ -1142,10 +1185,11 @@ FileTransferError::FileTransferError(FileTransfer::Error error, std::optional<st
   // FIXME: Due to https://github.com/NixOS/nix/issues/3841 we don't know how
   // to print different messages for different verbosity levels. For now
   // we add some heuristics for detecting when we want to show the response.
-  if (response && (response->size() < 1024 || response->find("<html>") != std::string::npos))
+  if (response && (response->size() < 1024 || response->find("<html>") != std::string::npos)) {
     err_.msg_ = hint_fmt_t("%1%\n\nresponse body:\n\n%2%", uncolored_t(hf.str()), chomp(*response));
-  else
+  } else {
     err_.msg_ = hf;
+  }
 }
 
 } // namespace nix

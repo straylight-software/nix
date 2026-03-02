@@ -58,10 +58,11 @@ file_ingestion_method_to_content_address_method(file_ingestion_method_t m) {
 }
 
 content_address_method_t content_address_method_t::parse(std::string_view m) {
-  if (m == "text")
+  if (m == "text") {
     return content_address_method_t::raw_t::Text;
-  else
+  } else {
     return file_ingestion_method_to_content_address_method(parse_file_ingestion_method(m));
+  }
 }
 
 std::string_view content_address_method_t::renderPrefix() const {
@@ -140,17 +141,19 @@ parse_content_address_method_prefix(std::string_view& rest) {
   std::string_view prefix;
   {
     auto opt_prefix = split_prefix_to(rest, ':');
-    if (!opt_prefix)
+    if (!opt_prefix) {
       throw UsageError("not a content address because it is not in the form '<prefix>:<rest>': %s",
                        whole_input);
+    }
     prefix = *opt_prefix;
   }
 
   auto parse_hash_algorithm_ = [&]() {
     auto hash_algo_raw = split_prefix_to(rest, ':');
-    if (!hash_algo_raw)
+    if (!hash_algo_raw) {
       throw UsageError("content address hash must be in form '<algo>:<hash>', but found: %s",
                        whole_input);
+    }
     hash_algorithm_t hash_algo = parse_hash_algo(*hash_algo_raw);
     return hash_algo;
   };
@@ -166,9 +169,9 @@ parse_content_address_method_prefix(std::string_view& rest) {
   } else if (prefix == "fixed") {
     // Parse method
     auto method = content_address_method_t::raw_t::flat;
-    if (split_prefix(rest, "r:"))
+    if (split_prefix(rest, "r:")) {
       method = content_address_method_t::raw_t::nix_archive;
-    else if (split_prefix(rest, "git:")) {
+    } else if (split_prefix(rest, "git:")) {
       experimental_feature_settings.require(xp_t::git_hashing);
       method = content_address_method_t::raw_t::git;
     }
@@ -177,10 +180,11 @@ parse_content_address_method_prefix(std::string_view& rest) {
         std::move(method),
         std::move(hash_algo),
     };
-  } else
+  } else {
     throw UsageError(
         "content address prefix '%s' is unrecognized. Recogonized prefixes are 'text' or 'fixed'",
         prefix);
+  }
 }
 
 content_address_t content_address_t::parse(std::string_view rawCa) {
@@ -248,8 +252,9 @@ ContentAddressWithReferences::fromParts(content_address_method_t method, Hash ha
                                         store_references_t refs) {
   switch (method.raw) {
     case content_address_method_t::raw_t::Text:
-      if (refs.self)
+      if (refs.self) {
         throw Error("self-reference not allowed with text hashing");
+      }
       return TextInfo{
           .hash = std::move(hash),
           .references = std::move(refs.others),

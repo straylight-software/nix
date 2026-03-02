@@ -163,8 +163,9 @@ struct nar_info_disk_cache_impl_t : public NarInfoDiskCache {
 
   cache_t& get_cache(State& state, const std::string& uri) {
     auto i = state.caches.find(uri);
-    if (i == state.caches.end())
+    if (i == state.caches.end()) {
       unreachable();
+    }
     return i->second;
   }
 
@@ -172,8 +173,9 @@ struct nar_info_disk_cache_impl_t : public NarInfoDiskCache {
     auto i = state.caches.find(uri);
     if (i == state.caches.end()) {
       auto query_cache(state.query_cache.use()(uri)(time(0) - cache_info_ttl));
-      if (!query_cache.next())
+      if (!query_cache.next()) {
         return std::nullopt;
+      }
       auto cache = cache_t{
           .id = (int)query_cache.getInt(0),
           .store_dir = query_cache.getStr(1),
@@ -195,8 +197,9 @@ struct nar_info_disk_cache_impl_t : public NarInfoDiskCache {
       // the cache for this URI in the meantime.
       auto cache(query_cache_raw(*state, uri));
 
-      if (cache)
+      if (cache) {
         return cache->id;
+      }
 
       cache_t ret{
           .id = -1, // set below
@@ -224,8 +227,9 @@ struct nar_info_disk_cache_impl_t : public NarInfoDiskCache {
     return retrySQLite<std::optional<CacheInfo>>([&]() -> std::optional<CacheInfo> {
       auto state(_state.lock());
       auto cache(query_cache_raw(*state, uri));
-      if (!cache)
+      if (!cache) {
         return std::nullopt;
+      }
       return CacheInfo{
           .id = cache->id, .want_mass_query = cache->want_mass_query, .priority = cache->priority};
     });
@@ -245,11 +249,13 @@ struct nar_info_disk_cache_impl_t : public NarInfoDiskCache {
               state->query_nar.use()(cache.id)(hash_part)(now - settings.ttlNegativeNarInfoCache)(
                   now - settings.ttlPositiveNarInfoCache));
 
-          if (!query_nar.next())
+          if (!query_nar.next()) {
             return {oUnknown, 0};
+          }
 
-          if (!query_nar.getInt(0))
+          if (!query_nar.getInt(0)) {
             return {oInvalid, 0};
+          }
 
           auto name_part = query_nar.getStr(1);
           auto narInfo =
@@ -257,16 +263,20 @@ struct nar_info_disk_cache_impl_t : public NarInfoDiskCache {
                                    Hash::parse_any_prefixed(query_nar.getStr(6)));
           narInfo->url = query_nar.getStr(2);
           narInfo->compression = query_nar.getStr(3);
-          if (!query_nar.isNull(4))
+          if (!query_nar.isNull(4)) {
             narInfo->fileHash = Hash::parse_any_prefixed(query_nar.getStr(4));
+          }
           narInfo->file_size = query_nar.getInt(5);
           narInfo->nar_size = query_nar.getInt(7);
-          for (auto& r : tokenize_string<strings_t>(query_nar.getStr(8), " "))
+          for (auto& r : tokenize_string<strings_t>(query_nar.getStr(8), " ")) {
             narInfo->references.insert(store_path_t(r));
-          if (!query_nar.isNull(9))
+          }
+          if (!query_nar.isNull(9)) {
             narInfo->deriver = store_path_t(query_nar.getStr(9));
-          for (auto& sig : tokenize_string<strings_t>(query_nar.getStr(10), " "))
+          }
+          for (auto& sig : tokenize_string<strings_t>(query_nar.getStr(10), " ")) {
             narInfo->sigs.insert(sig);
+          }
           narInfo->ca = content_address_t::parseOpt(query_nar.getStr(11));
 
           return {oValid, narInfo};
@@ -286,11 +296,13 @@ struct nar_info_disk_cache_impl_t : public NarInfoDiskCache {
           auto query_realisation(state->query_realisation.use()(cache.id)(id.to_string())(
               now - settings.ttlNegativeNarInfoCache)(now - settings.ttlPositiveNarInfoCache));
 
-          if (!query_realisation.next())
+          if (!query_realisation.next()) {
             return {oUnknown, 0};
+          }
 
-          if (query_realisation.isNull(0))
+          if (query_realisation.isNull(0)) {
             return {oInvalid, 0};
+          }
 
           try {
             return {

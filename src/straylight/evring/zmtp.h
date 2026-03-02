@@ -418,18 +418,19 @@ struct command {
 
   // Lean: dispatch on known commands
   command_type type = command_type::unknown;
-  if (name == "READY")
+  if (name == "READY") {
     type = command_type::ready;
-  else if (name == "ERROR")
+  } else if (name == "ERROR") {
     type = command_type::error;
-  else if (name == "SUBSCRIBE")
+  } else if (name == "SUBSCRIBE") {
     type = command_type::subscribe;
-  else if (name == "CANCEL")
+  } else if (name == "CANCEL") {
     type = command_type::cancel;
-  else if (name == "PING")
+  } else if (name == "PING") {
     type = command_type::ping;
-  else if (name == "PONG")
+  } else if (name == "PONG") {
     type = command_type::pong;
+  }
 
   return parse_result<command>::ok(command{type, std::move(name), std::move(data)}, body.size());
 }

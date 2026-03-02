@@ -15,9 +15,10 @@ namespace nix {
 template <typename T>
 T& require(store_t& store) {
   auto* castedStore = dynamic_cast<T*>(&store);
-  if (!castedStore)
+  if (!castedStore) {
     throw UsageError("%s not supported by store '%s'", T::operation_name,
                      store.config.getHumanReadableURI());
+  }
   return *castedStore;
 }
 

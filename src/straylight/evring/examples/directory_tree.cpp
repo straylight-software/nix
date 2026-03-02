@@ -67,22 +67,23 @@ auto format_mode(mode_t mode) -> std::string {
   char buf[11];
 
   // File type
-  if (S_ISDIR(mode))
+  if (S_ISDIR(mode)) {
     buf[0] = 'd';
-  else if (S_ISLNK(mode))
+  } else if (S_ISLNK(mode)) {
     buf[0] = 'l';
-  else if (S_ISREG(mode))
+  } else if (S_ISREG(mode)) {
     buf[0] = '-';
-  else if (S_ISBLK(mode))
+  } else if (S_ISBLK(mode)) {
     buf[0] = 'b';
-  else if (S_ISCHR(mode))
+  } else if (S_ISCHR(mode)) {
     buf[0] = 'c';
-  else if (S_ISFIFO(mode))
+  } else if (S_ISFIFO(mode)) {
     buf[0] = 'p';
-  else if (S_ISSOCK(mode))
+  } else if (S_ISSOCK(mode)) {
     buf[0] = 's';
-  else
+  } else {
     buf[0] = '?';
+  }
 
   // Owner permissions
   buf[1] = (mode & S_IRUSR) ? 'r' : '-';

@@ -180,8 +180,9 @@ void pipe_t::create() {
     throw sys_error_t("creating pipe");
   }
 #else
-  if (pipe(fds) != 0)
+  if (pipe(fds) != 0) {
     throw sys_error_t("creating pipe");
+  }
   unix::close_on_exec(fds[0]);
   unix::close_on_exec(fds[1]);
 #endif

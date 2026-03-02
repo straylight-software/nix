@@ -422,7 +422,7 @@
               let
                 minLineCoverage = 5; # minimum line coverage percentage (start low, ratchet up)
                 # compiler-rt provides libclang_rt.profile for coverage instrumentation
-                compiler-rt = toolchain.llvm.compiler-rt;
+                inherit (toolchain.llvm) compiler-rt;
                 compiler-rt-lib = "${compiler-rt}/lib/linux";
               in
               pkgs.stdenvNoCC.mkDerivation {

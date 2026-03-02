@@ -230,11 +230,13 @@ void adl_serializer<fso::regular<RegularContents>>::to_json(
     json& j, const fso::regular<RegularContents>& r) {
   j = json::object();
   j["type"] = "regular";
-  if (r.executable)
+  if (r.executable) {
     j["executable"] = true;
+  }
   if constexpr (std::is_same_v<RegularContents, std::string>) {
-    if (!r.contents.empty())
+    if (!r.contents.empty()) {
       j["contents"] = r.contents;
+    }
   }
 }
 

@@ -41,10 +41,11 @@ struct cmd_realisation_info_t : nix::BuiltPathsCommand, nix::MixJSON {
       nlohmann::json res = nlohmann::json::array();
       for (auto& path : realisations) {
         nlohmann::json currentPath;
-        if (auto realisation = std::get_if<nix::realisation_t>(&path.raw))
+        if (auto realisation = std::get_if<nix::realisation_t>(&path.raw)) {
           currentPath = *realisation;
-        else
+        } else {
           currentPath["opaquePath"] = store->printStorePath(path.path());
+        }
 
         res.push_back(currentPath);
       }
@@ -54,8 +55,9 @@ struct cmd_realisation_info_t : nix::BuiltPathsCommand, nix::MixJSON {
         if (auto realisation = std::get_if<nix::realisation_t>(&path.raw)) {
           nix::logger->cout("%s %s", realisation->id.to_string(),
                             store->printStorePath(realisation->out_path));
-        } else
+        } else {
           nix::logger->cout("%s", store->printStorePath(path.path()));
+        }
       }
     }
   }

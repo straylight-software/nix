@@ -38,8 +38,9 @@ char** saved_argv;
 static bool gc_warning = true;
 
 void print_gc_warning() {
-  if (!gc_warning)
+  if (!gc_warning) {
     return;
+  }
   static bool have_warned = false;
   warnOnce(have_warned, "you did not specify '--add-root'; "
                         "the result might be removed by the garbage collector");
@@ -51,14 +52,16 @@ void print_missing(ref<store_t> store, const std::vector<derived_path_t>& paths,
 
 void print_missing(ref<store_t> store, const MissingPaths& missing, verbosity_t lvl) {
   if (!missing.willBuild.empty()) {
-    if (missing.willBuild.size() == 1)
+    if (missing.willBuild.size() == 1) {
       printMsg(lvl, "this derivation will be built:");
-    else
+    } else {
       printMsg(lvl, "these %d derivations will be built:", missing.willBuild.size());
+    }
     auto sorted = store->topoSortPaths(missing.willBuild);
     reverse(sorted.begin(), sorted.end());
-    for (auto& i : sorted)
+    for (auto& i : sorted) {
       printMsg(lvl, "  %s", store->printStorePath(i));
+    }
   }
 
   if (!missing.willSubstitute.empty()) {
@@ -75,28 +78,32 @@ void print_missing(ref<store_t> store, const MissingPaths& missing, verbosity_t 
                   [&](const store_path_t& p) { willSubstituteSorted.push_back(&p); });
     std::sort(willSubstituteSorted.begin(), willSubstituteSorted.end(),
               [](const store_path_t* lhs, const store_path_t* rhs) {
-                if (lhs->name() == rhs->name())
+                if (lhs->name() == rhs->name()) {
                   return lhs->to_string() < rhs->to_string();
-                else
+                } else {
                   return lhs->name() < rhs->name();
+                }
               });
-    for (auto p : willSubstituteSorted)
+    for (auto p : willSubstituteSorted) {
       printMsg(lvl, "  %s", store->printStorePath(*p));
+    }
   }
 
   if (!missing.unknown.empty()) {
     printMsg(lvl, "don't know how to build these paths%s:",
              (settings.readOnlyMode ? " (may be caused by read-only store access)" : ""));
-    for (auto& i : missing.unknown)
+    for (auto& i : missing.unknown) {
       printMsg(lvl, "  %s", store->printStorePath(i));
+    }
   }
 }
 
 std::string get_arg(const std::string& opt, strings_t::iterator& i,
                     const strings_t::iterator& end) {
   ++i;
-  if (i == end)
+  if (i == end) {
     throw UsageError("'%1%' requires an argument", opt);
+  }
   return *i;
 }
 
@@ -132,13 +139,15 @@ void init_nix(bool load_config) {
   act.sa_flags = 0;
 
   act.sa_handler = SIG_DFL;
-  if (sigaction(SIGCHLD, &act, 0))
+  if (sigaction(SIGCHLD, &act, 0)) {
     throw sys_error_t("resetting SIGCHLD");
+  }
 
   /* Install a dummy SIGUSR1 handler for use with pthread_kill(). */
   act.sa_handler = sig_handler;
-  if (sigaction(SIGUSR1, &act, 0))
+  if (sigaction(SIGUSR1, &act, 0)) {
     throw sys_error_t("handling SIGUSR1");
+  }
 #endif
 
 #ifdef __APPLE__
@@ -146,26 +155,33 @@ void init_nix(bool load_config) {
    * Instead, add a dummy sigaction handler, and signal_handler_thread
    * can handle the rest. */
   act.sa_handler = sig_handler;
-  if (sigaction(SIGWINCH, &act, 0))
+  if (sigaction(SIGWINCH, &act, 0)) {
     throw sys_error_t("handling SIGWINCH");
+  }
 
   /* Disable SA_RESTART for interrupts, so that system calls on this thread
    * error with EINTR like they do on Linux.
    * Most signals on BSD systems default to SA_RESTART on, but Nix
    * expects EINTR from syscalls to properly exit. */
   act.sa_handler = SIG_DFL;
-  if (sigaction(SIGINT, &act, 0))
+  if (sigaction(SIGINT, &act, 0)) {
     throw sys_error_t("handling SIGINT");
-  if (sigaction(SIGTERM, &act, 0))
+  }
+  if (sigaction(SIGTERM, &act, 0)) {
     throw sys_error_t("handling SIGTERM");
-  if (sigaction(SIGHUP, &act, 0))
+  }
+  if (sigaction(SIGHUP, &act, 0)) {
     throw sys_error_t("handling SIGHUP");
-  if (sigaction(SIGPIPE, &act, 0))
+  }
+  if (sigaction(SIGPIPE, &act, 0)) {
     throw sys_error_t("handling SIGPIPE");
-  if (sigaction(SIGQUIT, &act, 0))
+  }
+  if (sigaction(SIGQUIT, &act, 0)) {
     throw sys_error_t("handling SIGQUIT");
-  if (sigaction(SIGTRAP, &act, 0))
+  }
+  if (sigaction(SIGTRAP, &act, 0)) {
     throw sys_error_t("handling SIGTRAP");
+  }
 #endif
 
 #ifndef _WIN32
@@ -258,22 +274,26 @@ LegacyArgs::LegacyArgs(
 }
 
 bool LegacyArgs::process_flag(strings_t::iterator& pos, strings_t::iterator end) {
-  if (MixCommonArgs::process_flag(pos, end))
+  if (MixCommonArgs::process_flag(pos, end)) {
     return true;
+  }
   bool res = parse_arg(pos, end);
-  if (res)
+  if (res) {
     ++pos;
+  }
   return res;
 }
 
 bool LegacyArgs::process_args(const strings_t& args, bool finish) {
-  if (args.empty())
+  if (args.empty()) {
     return true;
+  }
   assert(args.size() == 1);
   strings_t ss(args);
   auto pos = ss.begin();
-  if (!parse_arg(pos, ss.end()))
+  if (!parse_arg(pos, ss.end())) {
     throw UsageError("unexpected argument '%1%'", args.front());
+  }
   return true;
 }
 
@@ -344,13 +364,16 @@ int handle_exceptions(const std::string& program_name, std::function<void()> fun
 }
 
 RunPager::RunPager() {
-  if (!isatty(STDOUT_FILENO))
+  if (!isatty(STDOUT_FILENO)) {
     return;
+  }
   char* pager = getenv("NIX_PAGER");
-  if (!pager)
+  if (!pager) {
     pager = getenv("PAGER");
-  if (pager && ((std::string)pager == "" || (std::string)pager == "cat"))
+  }
+  if (pager && ((std::string)pager == "" || (std::string)pager == "cat")) {
     return;
+  }
 
   logger->stop();
 
@@ -361,13 +384,16 @@ RunPager::RunPager() {
   throw Error("Commit signature verification not implemented on Windows yet");
 #else
   pid = start_process([&]() {
-    if (dup2(toPager.read_side.get(), STDIN_FILENO) == -1)
+    if (dup2(toPager.read_side.get(), STDIN_FILENO) == -1) {
       throw sys_error_t("dupping stdin");
-    if (!getenv("LESS"))
+    }
+    if (!getenv("LESS")) {
       set_env("LESS", "FRSXMK");
+    }
     restore_process_context();
-    if (pager)
+    if (pager) {
       execl("/bin/sh", "sh", "-c", pager, nullptr);
+    }
     execlp("pager", "pager", nullptr);
     execlp("less", "less", nullptr);
     execlp("more", "more", nullptr);
@@ -376,8 +402,9 @@ RunPager::RunPager() {
 
   pid.set_kill_signal(SIGINT);
   std_out = fcntl(STDOUT_FILENO, F_DUPFD_CLOEXEC, 0);
-  if (dup2(toPager.write_side.get(), STDOUT_FILENO) == -1)
+  if (dup2(toPager.write_side.get(), STDOUT_FILENO) == -1) {
     throw sys_error_t("dupping standard output");
+  }
 #endif
 }
 
@@ -396,9 +423,10 @@ RunPager::~RunPager() {
 }
 
 PrintFreed::~PrintFreed() {
-  if (show)
+  if (show) {
     std::cout << fmt("%d store paths deleted, %s freed\n", results.paths.size(),
                      render_size(results.bytes_freed));
+  }
 }
 
 #ifndef _WIN32

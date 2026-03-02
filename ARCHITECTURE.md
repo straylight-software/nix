@@ -124,15 +124,17 @@ src/
     │   ├── http3.h           # HTTP/3 (QUIC) state machines
     │   └── tls.h             # TLS state machines (libtls)
     │
-    ├── language/             # Nix → WASM compiler
-    │   ├── ARCHITECTURE.md   # Detailed compiler documentation
-    │   ├── MEMORY.md         # Memory layout documentation
-    │   ├── ast/              # AST types (variant-based)
+    ├── compiler/             # Nix → WASM compiler
+    │   ├── docs/
+    │   │   ├── ARCHITECTURE.md   # Detailed compiler documentation
+    │   │   └── MEMORY.md         # Memory layout documentation
+    │   ├── ast/              # AST types (expression.h, symbol_table.h)
     │   ├── parse/            # PEGTL grammar + parsing
     │   ├── compile/          # Binaryen codegen
-    │   ├── eval/             # Tree-walking interpreter (reference)
+    │   ├── eval/             # Tree-walking interpreter
     │   ├── runtime/          # WASM execution (wasmtime)
-    │   └── tests/            # 8,200+ lines of tests
+    │   ├── cli/              # Evaluation CLI tools
+    │   └── tests/            # Property-based tests
     │
     ├── nix/                  # Modern utility modules (crypto, text, url, async, sync, data, etc.)
     │   ├── NIH.md            # NIH replacement tracking

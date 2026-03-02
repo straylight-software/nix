@@ -89,8 +89,9 @@ struct progress_bar_t : public logger_t {
       auto state(state_.lock());
       auto next_wakeup = std::chrono::milliseconds::max();
       while (state->active) {
-        if (!state->have_update)
+        if (!state->have_update) {
           state.wait_for(updateCV, next_wakeup);
+        }
         next_wakeup = draw(*state);
         state.wait_for(quitCV, std::chrono::milliseconds(50));
       }
@@ -110,8 +111,9 @@ struct progress_bar_t : public logger_t {
         quitCV.notify_one();
       }
     }
-    if (updateThread.joinable())
+    if (updateThread.joinable()) {
       updateThread.join();
+    }
   }
 
   void pause() override {
@@ -127,8 +129,9 @@ struct progress_bar_t : public logger_t {
       /* Show activities that were previously only shown on the
          progress bar. Otherwise the user won't know what's
          happening. */
-      for (auto& act : state->activities)
+      for (auto& act : state->activities) {
         log_activity(*state, lvl_notice, act);
+      }
     }
   }
 
@@ -142,8 +145,9 @@ struct progress_bar_t : public logger_t {
       state->suspensions--;
     }
     if (state->suspensions == 0) {
-      if (state->active)
+      if (state->active) {
         write_to_stderr("\r\e[K");
+      }
       state->have_update = true;
       updateCV.notify_one();
     }
@@ -152,8 +156,9 @@ struct progress_bar_t : public logger_t {
   bool is_verbose() override { return print_build_logs; }
 
   void log(verbosity_t lvl, std::string_view s) override {
-    if (lvl > verbosity)
+    if (lvl > verbosity) {
       return;
+    }
     auto state(state_.lock());
     log(*state, lvl, s);
   }
@@ -193,12 +198,14 @@ struct progress_bar_t : public logger_t {
 
     if (type == act_build) {
       std::string name(store_path_to_name(get_s(fields, 0)));
-      if (has_suffix(name, ".drv"))
+      if (has_suffix(name, ".drv")) {
         name = name.substr(0, name.size() - 4);
+      }
       i->s = fmt("building " ANSI_BOLD "%s" ANSI_NORMAL, name);
       auto machine_name = get_s(fields, 1);
-      if (machine_name != "")
+      if (machine_name != "") {
         i->s += fmt(" on " ANSI_BOLD "%s" ANSI_NORMAL, machine_name);
+      }
 
       // Used to be curRound and nrRounds, but the
       // implementation was broken for a long time.
@@ -219,8 +226,9 @@ struct progress_bar_t : public logger_t {
 
     if (type == act_post_build_hook) {
       auto name = store_path_to_name(get_s(fields, 0));
-      if (has_suffix(name, ".drv"))
+      if (has_suffix(name, ".drv")) {
         name = name.substr(0, name.size() - 4);
+      }
       i->s = fmt("post-build " ANSI_BOLD "%s" ANSI_NORMAL, name);
       i->name = DrvName(name).name;
     }
@@ -232,8 +240,9 @@ struct progress_bar_t : public logger_t {
 
     if ((type == act_file_transfer && has_ancestor(*state, act_copy_path, parent)) ||
         (type == act_file_transfer && has_ancestor(*state, act_query_path_info, parent)) ||
-        (type == act_copy_path && has_ancestor(*state, act_substitute, parent)))
+        (type == act_copy_path && has_ancestor(*state, act_substitute, parent))) {
       i->visible = false;
+    }
 
     update(*state);
   }
@@ -243,10 +252,12 @@ struct progress_bar_t : public logger_t {
   bool has_ancestor(State& state, activity_type_t type, activity_id_t act) {
     while (act != 0) {
       auto i = state.its.find(act);
-      if (i == state.its.end())
+      if (i == state.its.end()) {
         break;
-      if (i->second->type == type)
+      }
+      if (i->second->type == type) {
         return true;
+      }
       act = i->second->parent;
     }
     return false;
@@ -261,8 +272,9 @@ struct progress_bar_t : public logger_t {
       act_by_type.done += i->second->done;
       act_by_type.failed += i->second->failed;
 
-      for (auto& j : i->second->expected_by_type)
+      for (auto& j : i->second->expected_by_type) {
         state->activities_by_type[j.first].expected -= j.second;
+      }
 
       act_by_type.its.erase(act);
       state->activities.erase(i->second);
@@ -375,8 +387,9 @@ struct progress_bar_t : public logger_t {
     auto next_wakeup = std::chrono::milliseconds::max();
 
     state.have_update = false;
-    if (state.is_paused() || !state.active)
+    if (state.is_paused() || !state.active) {
       return next_wakeup;
+    }
 
     std::string line;
 
@@ -390,8 +403,9 @@ struct progress_bar_t : public logger_t {
     auto now = std::chrono::steady_clock::now();
 
     if (!state.activities.empty()) {
-      if (!status.empty())
+      if (!status.empty()) {
         line += " ";
+      }
       auto i = state.activities.rbegin();
 
       while (i != state.activities.rend()) {
@@ -400,12 +414,13 @@ struct progress_bar_t : public logger_t {
              passed, to avoid displaying very short
              activities. */
           auto delay = std::chrono::milliseconds(10);
-          if (i->start_time + delay < now)
+          if (i->start_time + delay < now) {
             break;
-          else
+          } else {
             next_wakeup =
                 std::min(next_wakeup, std::chrono::duration_cast<std::chrono::milliseconds>(
                                           delay - (now - i->start_time)));
+          }
         }
         ++i;
       }
@@ -418,8 +433,9 @@ struct progress_bar_t : public logger_t {
           line += ")";
         }
         if (!i->last_line.empty()) {
-          if (!i->s.empty())
+          if (!i->s.empty()) {
             line += ": ";
+          }
           line += i->last_line;
         }
       }
@@ -450,26 +466,30 @@ struct progress_bar_t : public logger_t {
       std::string s;
 
       if (running || done || expected || failed) {
-        if (running)
-          if (expected != 0)
+        if (running) {
+          if (expected != 0) {
             s = fmt(ANSI_BLUE + number_fmt + ANSI_NORMAL "/" ANSI_GREEN + number_fmt +
                         ANSI_NORMAL "/" + number_fmt,
                     running / unit, done / unit, expected / unit);
-          else
+          } else {
             s = fmt(ANSI_BLUE + number_fmt + ANSI_NORMAL "/" ANSI_GREEN + number_fmt + ANSI_NORMAL,
                     running / unit, done / unit);
-        else if (expected != done)
-          if (expected != 0)
+          }
+        } else if (expected != done) {
+          if (expected != 0) {
             s = fmt(ANSI_GREEN + number_fmt + ANSI_NORMAL "/" + number_fmt, done / unit,
                     expected / unit);
-          else
+          } else {
             s = fmt(ANSI_GREEN + number_fmt + ANSI_NORMAL, done / unit);
-        else
+          }
+        } else {
           s = fmt(done ? ANSI_GREEN + number_fmt + ANSI_NORMAL : number_fmt, done / unit);
+        }
         s = fmt(item_fmt, s);
 
-        if (failed)
+        if (failed) {
           s += fmt(" (" ANSI_RED "%d failed" ANSI_NORMAL ")", failed / unit);
+        }
       }
 
       return s;
@@ -492,7 +512,7 @@ struct progress_bar_t : public logger_t {
       std::string s;
 
       if (running || done || expected || failed) {
-        if (running)
+        if (running) {
           if (expected != 0) {
             commonUnit = get_common_size_unit({(int64_t)running, (int64_t)done, (int64_t)expected});
             s = fmt(ANSI_BLUE "%s" ANSI_NORMAL "/" ANSI_GREEN "%s" ANSI_NORMAL "/%s",
@@ -508,7 +528,7 @@ struct progress_bar_t : public logger_t {
                                : render_size(running),
                     commonUnit ? render_size_without_unit(done, *commonUnit) : render_size(done));
           }
-        else if (expected != done)
+        } else if (expected != done) {
           if (expected != 0) {
             commonUnit = get_common_size_unit({(int64_t)done, (int64_t)expected});
             s = fmt(ANSI_GREEN "%s" ANSI_NORMAL "/%s",
@@ -519,29 +539,33 @@ struct progress_bar_t : public logger_t {
             commonUnit = get_size_unit(done);
             s = fmt(ANSI_GREEN "%s" ANSI_NORMAL, render_size_without_unit(done, *commonUnit));
           }
-        else {
+        } else {
           commonUnit = get_size_unit(done);
           s = fmt(done ? ANSI_GREEN "%s" ANSI_NORMAL : "%s",
                   render_size_without_unit(done, *commonUnit));
         }
 
-        if (commonUnit)
+        if (commonUnit) {
           s = fmt("%s %siB", s, get_size_unit_suffix(*commonUnit));
+        }
 
         s = fmt(item_fmt, s);
 
-        if (failed)
+        if (failed) {
           s += fmt(" (" ANSI_RED "%s failed" ANSI_NORMAL ")", render_size(failed));
+        }
       }
 
       return s;
     };
 
     auto maybe_append_to_result = [&](std::string_view s) {
-      if (s.empty())
+      if (s.empty()) {
         return;
-      if (!res.empty())
+      }
+      if (!res.empty()) {
         res += ", ";
+      }
       res += s;
     };
 
@@ -556,12 +580,14 @@ struct progress_bar_t : public logger_t {
     auto s2 = render_size_activity(act_copy_path);
 
     if (!s1.empty() || !s2.empty()) {
-      if (!res.empty())
+      if (!res.empty()) {
         res += ", ";
-      if (s1.empty())
+      }
+      if (s1.empty()) {
         res += "0 copied";
-      else
+      } else {
         res += s1;
+      }
       if (!s2.empty()) {
         res += " (";
         res += s2;
@@ -575,8 +601,9 @@ struct progress_bar_t : public logger_t {
       auto s = render_activity(act_optimise_store, "%s paths optimised");
       if (s != "") {
         s += fmt(", %s / %d inodes freed", render_size(state.bytes_linked), state.files_linked);
-        if (!res.empty())
+        if (!res.empty()) {
           res += ", ";
+        }
         res += s;
       }
     }
@@ -585,14 +612,16 @@ struct progress_bar_t : public logger_t {
     show_activity(act_verify_paths, "%s paths verified");
 
     if (state.corrupted_paths) {
-      if (!res.empty())
+      if (!res.empty()) {
         res += ", ";
+      }
       res += fmt(ANSI_RED "%d corrupted" ANSI_NORMAL, state.corrupted_paths);
     }
 
     if (state.untrusted_paths) {
-      if (!res.empty())
+      if (!res.empty()) {
         res += ", ";
+      }
       res += fmt(ANSI_RED "%d untrusted" ANSI_NORMAL, state.untrusted_paths);
     }
 
@@ -612,12 +641,14 @@ struct progress_bar_t : public logger_t {
 
   std::optional<char> ask(std::string_view msg) override {
     auto state(state_.lock());
-    if (!state->active)
+    if (!state->active) {
       return {};
+    }
     std::cerr << fmt("\r\e[K%s ", msg);
     auto s = trim(read_line(get_standard_input(), true));
-    if (s.size() != 1)
+    if (s.size() != 1) {
       return {};
+    }
     draw(*state);
     return s[0];
   }

@@ -17,8 +17,13 @@
 //   #10052 - Interrupting store copy hangs nix
 //   #7459  - connect-timeout ignored on ssh connections
 
+// clang-format off
 // Catch2 must be included before rapidcheck/catch.h
 #include <catch2/catch_test_macros.hpp>
+
+#include <rapidcheck.h>
+#include <rapidcheck/catch.h>
+// clang-format on
 
 #include <atomic>
 #include <chrono>
@@ -27,9 +32,6 @@
 #include <string>
 #include <thread>
 #include <vector>
-
-#include <rapidcheck.h>
-#include <rapidcheck/catch.h>
 
 #include "nix/store/globals.h"
 #include "nix/store/ssh.h"
@@ -56,18 +58,22 @@ TEST_CASE("Issue #14615: SSH master lock released during blocking I/O", "[ssh][h
     // verify the ensureMaster() method exists which is the fix entry point
     nix::parsed_url_t url;
     url.set_scheme("ssh");
-    url.set_authority_host("example.com");
+    nix::parsed_url_t::authority_t url_auth;
+    url_auth.set_host("example.com");
+    url.set_authority(url_auth);
 
     // The constructor should not hang (no actual SSH connection)
     // because localhost detection happens first
     nix::parsed_url_t localhost_url;
     localhost_url.set_scheme("ssh");
-    localhost_url.set_authority_host("localhost");
+    nix::parsed_url_t::authority_t localhost_auth;
+    localhost_auth.set_host("localhost");
+    localhost_url.set_authority(localhost_auth);
 
     // This verifies ensureMaster exists and can be called
     // The fix adds ensureMaster() to eagerly start the master connection
     // before pool threads start acquiring connections
-    nix::SSHMaster master(localhost_url.authority(), "", "", false, false);
+    nix::SSHMaster master(*localhost_url.authority(), "", "", false, false);
 
     // ensureMaster should be a no-op when useMaster is false
     master.ensureMaster();
@@ -85,7 +91,7 @@ TEST_CASE("Issue #14615: SSH master lock released during blocking I/O", "[ssh][h
     };
 
     nix::sync_t<MockState> state;
-    std::condition_variable_any cv;
+    std::condition_variable cv;
 
     std::atomic<int> threads_proceeded{0};
     std::atomic<bool> master_started{false};
@@ -184,10 +190,12 @@ TEST_CASE("Issue #7505: SSH BatchMode prevents key hang", "[ssh][hang][7505]") {
 
     nix::parsed_url_t url;
     url.set_scheme("ssh");
-    url.set_authority_host("localhost");
+    nix::parsed_url_t::authority_t url_auth;
+    url_auth.set_host("localhost");
+    url.set_authority(url_auth);
 
     // Creating SSHMaster with fakeSSH (localhost) bypasses SSH entirely
-    nix::SSHMaster master(url.authority(), "", "", false, false);
+    nix::SSHMaster master(*url.authority(), "", "", false, false);
 
     // The fix is verified by code inspection: ssh.cpp:114 adds BatchMode=yes
     SUCCEED("BatchMode=yes verified at ssh.cpp:114");
@@ -483,9 +491,11 @@ TEST_CASE("Concurrent SSH master access doesn't deadlock", "[ssh][stress][14615]
     // If there's a deadlock, this will hang
     nix::parsed_url_t url;
     url.set_scheme("ssh");
-    url.set_authority_host("localhost");
+    nix::parsed_url_t::authority_t url_auth;
+    url_auth.set_host("localhost");
+    url.set_authority(url_auth);
 
-    nix::SSHMaster master(url.authority(), "", "", false, false);
+    nix::SSHMaster master(*url.authority(), "", "", false, false);
     master.ensureMaster();
 
     completed++;

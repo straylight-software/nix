@@ -59,8 +59,9 @@ static flake_ref_t get_flake_ref(const fetchers::settings_t& fetch_settings,
     if (info) {
       auto j = json.find(info);
       if (j != json.end()) {
-        for (auto k : fetchers::json_to_attrs(*j))
+        for (auto k : fetchers::json_to_attrs(*j)) {
           attrs.insert_or_assign(k.first, k.second);
+        }
       }
     }
     return flake_ref_t::fromAttrs(fetch_settings, attrs);
@@ -79,15 +80,16 @@ LockedNode::LockedNode(const fetchers::settings_t& fetch_settings, const nlohman
                                  ? (std::optional<InputAttrPath>)json["parent"]
                                  : std::nullopt) {
   if (!locked_ref.input.isLocked(fetch_settings) && !locked_ref.input.isRelative()) {
-    if (locked_ref.input.getNarHash())
+    if (locked_ref.input.getNarHash()) {
       warn("Lock file entry '%s' is unlocked (e.g. lacks a Git revision) but is checked by NAR "
            "hash. "
            "This is not reproducible and will break after garbage collection or when shared.",
            locked_ref.to_string());
-    else
+    } else {
       throw Error("Lock file contains unlocked input '%s'. Use '--allow-dirty-locks' to accept "
                   "this lock file.",
                   fetchers::attrs_to_json(locked_ref.input.toAttrs()));
+    }
   }
 
   // For backward compatibility, lock file entries are implicitly final.
@@ -110,9 +112,9 @@ static std::shared_ptr<Node> do_find(const ref<Node>& root, const InputAttrPath&
     currentPath.push_back(elem);
 
     if (auto i = get(pos->inputs, elem)) {
-      if (auto node = std::get_if<0>(&*i))
+      if (auto node = std::get_if<0>(&*i)) {
         pos = *node;
-      else if (auto follows = std::get_if<1>(&*i)) {
+      } else if (auto follows = std::get_if<1>(&*i)) {
         // Check for cycle: the followed path should not already be in visited
         auto found = std::find(visited.cbegin(), visited.cend(), *follows);
         if (found != visited.end()) {
@@ -125,13 +127,15 @@ static std::shared_ptr<Node> do_find(const ref<Node>& root, const InputAttrPath&
         // Add the current path to visited before recursing, to track this edge
         visited.push_back(currentPath);
 
-        if (auto p = do_find(root, *follows, visited))
+        if (auto p = do_find(root, *follows, visited)) {
           pos = ref(p);
-        else
+        } else {
           return {};
+        }
       }
-    } else
+    } else {
       return {};
+    }
   }
 
   return pos;
@@ -153,25 +157,29 @@ lock_file_t::lock_file_t(const fetchers::settings_t& fetch_settings, std::string
   }();
   auto version = json.value("version", 0);
   constexpr int max_supported_version = 7;
-  if (version < 5)
+  if (version < 5) {
     throw Error("lock file '%s' has unsupported version %d", path, version);
-  if (version > max_supported_version)
+  }
+  if (version > max_supported_version) {
     throw Error(
         "lock file '%s' requires a newer version of Nix (lock file version %d, supported: %d). "
         "Please upgrade your Nix installation.",
         path, version, max_supported_version);
+  }
 
   std::string rootKey = json["root"];
   std::map<std::string, ref<Node>> nodeMap{{rootKey, root}};
 
   [&](this const auto& getInputs, Node& node, const nlohmann::json& jsonNode) {
-    if (jsonNode.find("inputs") == jsonNode.end())
+    if (jsonNode.find("inputs") == jsonNode.end()) {
       return;
+    }
     for (auto& i : jsonNode["inputs"].items()) {
       if (i.value().is_array()) { // FIXME: remove, obsolete
         InputAttrPath path;
-        for (auto& j : i.value())
+        for (auto& j : i.value()) {
           path.push_back(j);
+        }
         node.inputs.insert_or_assign(i.key(), path);
       } else {
         std::string inputKey = i.value();
@@ -179,17 +187,19 @@ lock_file_t::lock_file_t(const fetchers::settings_t& fetch_settings, std::string
         if (k == nodeMap.end()) {
           auto& nodes = json["nodes"];
           auto jsonNode2 = nodes.find(inputKey);
-          if (jsonNode2 == nodes.end())
+          if (jsonNode2 == nodes.end()) {
             throw Error("lock file references missing node '%s'", inputKey);
+          }
           auto input = make_ref<LockedNode>(fetch_settings, *jsonNode2);
           k = nodeMap.insert_or_assign(inputKey, input).first;
           getInputs(*input, *jsonNode2);
         }
-        if (auto child = k->second.dynamic_pointer_cast<LockedNode>())
+        if (auto child = k->second.dynamic_pointer_cast<LockedNode>()) {
           node.inputs.insert_or_assign(i.key(), ref(child));
-        else
+        } else {
           // FIXME: replace by follows node
           throw Error("lock file contains cycle to root node");
+        }
       }
     }
   }(*root, json["nodes"][rootKey]);
@@ -207,8 +217,9 @@ std::pair<nlohmann::json, lock_file_t::KeyMap> lock_file_t::to_json() const {
 
   auto dumpNode = [&](this auto& dumpNode, std::string key, ref<const Node> node) -> std::string {
     auto k = nodeKeys.find(node);
-    if (k != nodeKeys.end())
+    if (k != nodeKeys.end()) {
       return k->second;
+    }
 
     if (!keys.insert(key).second) {
       for (int n = 2;; ++n) {
@@ -231,8 +242,9 @@ std::pair<nlohmann::json, lock_file_t::KeyMap> lock_file_t::to_json() const {
           inputs[i.first] = dumpNode(i.first, *child);
         } else if (auto follows = std::get_if<1>(&i.second)) {
           auto arr = nlohmann::json::array();
-          for (auto& x : *follows)
+          for (auto& x : *follows) {
             arr.push_back(x);
+          }
           inputs[i.first] = std::move(arr);
         }
       }
@@ -247,12 +259,15 @@ std::pair<nlohmann::json, lock_file_t::KeyMap> lock_file_t::to_json() const {
          anyway. */
       assert(locked_node->locked_ref.input.isFinal() || locked_node->locked_ref.input.isRelative());
       n["locked"].erase("__final");
-      if (!locked_node->is_flake)
+      if (!locked_node->is_flake) {
         n["flake"] = false;
-      if (locked_node->buildTime)
+      }
+      if (locked_node->buildTime) {
         n["buildTime"] = true;
-      if (locked_node->parent_input_attr_path)
+      }
+      if (locked_node->parent_input_attr_path) {
         n["parent"] = *locked_node->parent_input_attr_path;
+      }
     }
 
     nodes[key] = std::move(n);
@@ -283,11 +298,14 @@ lock_file_t::isUnlocked(const fetchers::settings_t& fetch_settings) const {
   std::set<ref<const Node>> nodes;
 
   [&](this const auto& visit, ref<const Node> node) {
-    if (!nodes.insert(node).second)
+    if (!nodes.insert(node).second) {
       return;
-    for (auto& i : node->inputs)
-      if (auto child = std::get_if<0>(&i.second))
+    }
+    for (auto& i : node->inputs) {
+      if (auto child = std::get_if<0>(&i.second)) {
         visit(*child);
+      }
+    }
   }(root);
 
   /* Return whether the input is either locked, or, if
@@ -299,13 +317,15 @@ lock_file_t::isUnlocked(const fetchers::settings_t& fetch_settings) const {
   };
 
   for (auto& i : nodes) {
-    if (i == ref<const Node>(root))
+    if (i == ref<const Node>(root)) {
       continue;
+    }
     auto node = i.dynamic_pointer_cast<const LockedNode>();
     if (node &&
         (!isConsideredLocked(node->locked_ref.input) || !node->locked_ref.input.isFinal()) &&
-        !node->locked_ref.input.isRelative())
+        !node->locked_ref.input.isRelative()) {
       return node->locked_ref;
+    }
   }
 
   return {};
@@ -320,8 +340,9 @@ InputAttrPath parse_input_attr_path(std::string_view s) {
   InputAttrPath path;
 
   for (auto& elem : tokenize_string<std::vector<std::string>>(s, "/")) {
-    if (!std::regex_match(elem, flake_id_regex))
+    if (!std::regex_match(elem, flake_id_regex)) {
       throw UsageError("invalid flake input attribute path element '%s'", elem);
+    }
     path.push_back(elem);
   }
 
@@ -333,15 +354,17 @@ std::map<InputAttrPath, Node::Edge> lock_file_t::getAllInputs() const {
   std::map<InputAttrPath, Node::Edge> res;
 
   [&](this const auto& recurse, const InputAttrPath& prefix, ref<Node> node) {
-    if (!done.insert(node).second)
+    if (!done.insert(node).second) {
       return;
+    }
 
     for (auto& [id, input] : node->inputs) {
       auto inputAttrPath(prefix);
       inputAttrPath.push_back(id);
       res.emplace(inputAttrPath, input);
-      if (auto child = std::get_if<0>(&input))
+      if (auto child = std::get_if<0>(&input)) {
         recurse(inputAttrPath, *child);
+      }
     }
   }({}, root);
 
@@ -351,27 +374,33 @@ std::map<InputAttrPath, Node::Edge> lock_file_t::getAllInputs() const {
 static std::string describe(const flake_ref_t& flake_ref) {
   auto s = fmt("'%s'", flake_ref.to_string(true));
 
-  if (auto last_modified = flake_ref.input.get_last_modified())
+  if (auto last_modified = flake_ref.input.get_last_modified()) {
     s += fmt(" (%s)", std::put_time(std::gmtime(&*last_modified), "%Y-%m-%d"));
+  }
 
   return s;
 }
 
 std::ostream& operator<<(std::ostream& stream, const Node::Edge& edge) {
-  if (auto node = std::get_if<0>(&edge))
+  if (auto node = std::get_if<0>(&edge)) {
     stream << describe((*node)->locked_ref);
-  else if (auto follows = std::get_if<1>(&edge))
+  } else if (auto follows = std::get_if<1>(&edge)) {
     stream << fmt("follows '%s'", print_input_attr_path(*follows));
+  }
   return stream;
 }
 
 static bool equals(const Node::Edge& e1, const Node::Edge& e2) {
-  if (auto n1 = std::get_if<0>(&e1))
-    if (auto n2 = std::get_if<0>(&e2))
+  if (auto n1 = std::get_if<0>(&e1)) {
+    if (auto n2 = std::get_if<0>(&e2)) {
       return (*n1)->locked_ref == (*n2)->locked_ref;
-  if (auto f1 = std::get_if<1>(&e1))
-    if (auto f2 = std::get_if<1>(&e2))
+    }
+  }
+  if (auto f1 = std::get_if<1>(&e1)) {
+    if (auto f2 = std::get_if<1>(&e2)) {
       return *f1 == *f2;
+    }
+  }
   return false;
 }
 
@@ -410,11 +439,13 @@ void lock_file_t::check() {
 
   for (auto& [inputAttrPath, input] : inputs) {
     if (auto follows = std::get_if<1>(&input)) {
-      if (follows->empty())
+      if (follows->empty()) {
         throw Error("input '%s' has an empty follows path", print_input_attr_path(inputAttrPath));
-      if (!findInput(*follows))
+      }
+      if (!findInput(*follows)) {
         throw Error("input '%s' follows a non-existent input '%s'",
                     print_input_attr_path(inputAttrPath), print_input_attr_path(*follows));
+      }
     }
   }
 }

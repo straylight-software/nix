@@ -59,17 +59,20 @@ DerivedPathsWithInfo InstallableAttrPath::to_derived_paths() {
 
   for (auto& package_info : package_infos) {
     auto drv_path = package_info.queryDrvPath();
-    if (!drv_path)
+    if (!drv_path) {
       throw Error("'%s' is not a derivation", what());
+    }
 
     auto newOutputs =
         std::visit(overloaded{
                        [&](const ExtendedOutputsSpec::Default& d) -> OutputsSpec {
                          string_set_t outputsToInstall;
-                         for (auto& output : package_info.queryOutputs(false, true))
+                         for (auto& output : package_info.queryOutputs(false, true)) {
                            outputsToInstall.insert(output.first);
-                         if (outputsToInstall.empty())
+                         }
+                         if (outputsToInstall.empty()) {
                            outputsToInstall.insert("out");
+                         }
                          return OutputsSpec::Names{std::move(outputsToInstall)};
                        },
                        [&](const ExtendedOutputsSpec::explicit_t& e) -> OutputsSpec { return e; },
@@ -78,8 +81,9 @@ DerivedPathsWithInfo InstallableAttrPath::to_derived_paths() {
 
     auto [iter, didInsert] = byDrvPath.emplace(*drv_path, newOutputs);
 
-    if (!didInsert)
+    if (!didInsert) {
       iter->second = iter->second.union_(newOutputs);
+    }
   }
 
   DerivedPathsWithInfo res;

@@ -612,12 +612,13 @@ class alignas(16) ValueStorage<ptrSize, std::enable_if_t<detail::useBitPackedVal
     if (pd == pdPending)
       // Nothing to do; no thread is waiting on this thunk.
       ;
-    else if (pd == pdAwaited)
+    else if (pd == pdAwaited) {
       // Slow path: wake up the threads that are waiting on this
       // thunk.
       notifyWaiters();
-    else if (pd == pdThunk)
+    } else if (pd == pdThunk) {
       unreachable();
+    }
   }
 
   template <InternalType type>
@@ -796,8 +797,9 @@ protected:
     auto p0_ = v.p0.load(std::memory_order_acquire);
     auto p1_ = v.p1; // must be loaded after p0
     auto pd = static_cast<PrimaryDiscriminator>(p0_ & discriminatorMask);
-    if (pd == pdThunk || pd == pdPending || pd == pdAwaited)
+    if (pd == pdThunk || pd == pdPending || pd == pdAwaited) {
       unreachable();
+    }
     finish(p0_, p1_);
     return *this;
   }
@@ -1018,8 +1020,9 @@ private:
 
   template <typename T>
   T getStorage() const noexcept {
-    if (getInternalType() != detail::payloadTypeToInternalType<T>) [[unlikely]]
+    if (getInternalType() != detail::payloadTypeToInternalType<T>) [[unlikely]] {
       unreachable();
+    }
     T out;
     ValueStorage::getStorage(out);
     return out;

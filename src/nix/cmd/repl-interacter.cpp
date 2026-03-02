@@ -85,27 +85,31 @@ static char* completion_callback(char* s, int* match) {
   if (possible.size() == 1) {
     *match = 1;
     auto* res = strdup(possible.begin()->c_str() + strlen(s));
-    if (!res)
+    if (!res) {
       throw Error("allocation failure");
+    }
     return res;
   } else if (possible.size() > 1) {
     auto check_all_have_same_at = [&](size_t pos) {
       auto& first = *possible.begin();
       for (auto& p : possible) {
-        if (p.size() <= pos || p[pos] != first[pos])
+        if (p.size() <= pos || p[pos] != first[pos]) {
           return false;
+        }
       }
       return true;
     };
     size_t start = strlen(s);
     size_t len = 0;
-    while (check_all_have_same_at(start + len))
+    while (check_all_have_same_at(start + len)) {
       ++len;
+    }
     if (len > 0) {
       *match = 1;
       auto* res = strdup(std::string(*possible.begin(), start, len).c_str());
-      if (!res)
+      if (!res) {
         throw Error("allocation failure");
+      }
       return res;
     }
   }
@@ -117,8 +121,9 @@ static char* completion_callback(char* s, int* match) {
 static int list_possible_callback(char* s, char*** avp) {
   auto possible = cur_repl->complete_prefix(s);
 
-  if (possible.size() > (std::numeric_limits<int>::max() / sizeof(char*)))
+  if (possible.size() > (std::numeric_limits<int>::max() / sizeof(char*))) {
     throw Error("too many completions");
+  }
 
   int ac = 0;
   char** vp = nullptr;
@@ -126,8 +131,9 @@ static int list_possible_callback(char* s, char*** avp) {
   auto check = [&](auto* p) {
     if (!p) {
       if (vp) {
-        while (--ac >= 0)
+        while (--ac >= 0) {
           free(vp[ac]);
+        }
         free(vp);
       }
       throw Error("allocation failure");
@@ -137,8 +143,9 @@ static int list_possible_callback(char* s, char*** avp) {
 
   vp = check((char**)malloc(possible.size() * sizeof(char*)));
 
-  for (auto& p : possible)
+  for (auto& p : possible) {
     vp[ac++] = check(strdup(p.c_str()));
+  }
 
   *avp = vp;
 
@@ -151,13 +158,15 @@ static int list_possible_callback(char* s, char*** avp) {
 // We implement our own history read that handles arbitrary line lengths.
 static void read_history_unlimited(const std::string& path) {
   std::ifstream file(path);
-  if (!file)
+  if (!file) {
     return;
+  }
 
   std::string line;
   while (std::getline(file, line)) {
-    if (!line.empty())
+    if (!line.empty()) {
       add_history(line.c_str());
+    }
   }
 }
 
@@ -209,31 +218,37 @@ bool ReadlineLikeInteracter::get_line(std::string& input, ReplPromptType prompt_
     act_int.sa_handler = sigint_handler;
     sigfillset(&act_int.sa_mask);
     act_int.sa_flags = 0;
-    if (sigaction(SIGINT, &act_int, &old_int))
+    if (sigaction(SIGINT, &act_int, &old_int)) {
       throw sys_error_t("installing handler for SIGINT");
+    }
 
     /* Setup SIGTSTP handler for ctrl-z suspend */
     act_tstp.sa_handler = sigtstp_handler;
     sigfillset(&act_tstp.sa_mask);
     act_tstp.sa_flags = 0;
-    if (sigaction(SIGTSTP, &act_tstp, &old_tstp))
+    if (sigaction(SIGTSTP, &act_tstp, &old_tstp)) {
       throw sys_error_t("installing handler for SIGTSTP");
+    }
 
     sigemptyset(&set);
     sigaddset(&set, SIGINT);
     sigaddset(&set, SIGTSTP);
-    if (sigprocmask(SIG_UNBLOCK, &set, &saved_signal_mask))
+    if (sigprocmask(SIG_UNBLOCK, &set, &saved_signal_mask)) {
       throw sys_error_t("unblocking SIGINT/SIGTSTP");
+    }
   };
   auto restore_signals = [&]() {
-    if (sigprocmask(SIG_SETMASK, &saved_signal_mask, nullptr))
+    if (sigprocmask(SIG_SETMASK, &saved_signal_mask, nullptr)) {
       throw sys_error_t("restoring signals");
+    }
 
-    if (sigaction(SIGINT, &old_int, nullptr))
+    if (sigaction(SIGINT, &old_int, nullptr)) {
       throw sys_error_t("restoring handler for SIGINT");
+    }
 
-    if (sigaction(SIGTSTP, &old_tstp, nullptr))
+    if (sigaction(SIGTSTP, &old_tstp, nullptr)) {
       throw sys_error_t("restoring handler for SIGTSTP");
+    }
   };
 
   setupSignals();
@@ -261,8 +276,9 @@ bool ReadlineLikeInteracter::get_line(std::string& input, ReplPromptType prompt_
 #endif
   }
 
-  if (!s)
+  if (!s) {
     return false;
+  }
   input += s;
   input += '\n';
 

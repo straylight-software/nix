@@ -2928,12 +2928,15 @@ private:
           // Filter captures (excluding let-bound vars, accessed via shared memory)
           std::vector<ast::symbol> captures;
           for (auto sym : free_vars) {
-            if (current_let_binding_offsets_.count(sym.index_) > 0)
+            if (current_let_binding_offsets_.count(sym.index_) > 0) {
               continue;
-            if (current_rec_binding_offsets_.count(sym.index_) > 0)
+            }
+            if (current_rec_binding_offsets_.count(sym.index_) > 0) {
               continue;
-            if (outer_scope && outer_scope->lookup(sym).has_value())
+            }
+            if (outer_scope && outer_scope->lookup(sym).has_value()) {
               captures.push_back(sym);
+            }
           }
 
           // Create thunk scope and compile body with RAII-guarded context

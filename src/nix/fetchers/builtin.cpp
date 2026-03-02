@@ -14,14 +14,17 @@ static void builtin_fetch_tree(const BuiltinBuilderContext& ctx) {
   experimental_feature_settings.require(xp_t::build_time_fetch_tree);
 
   auto out = get(ctx.drv.outputs, "out");
-  if (!out)
+  if (!out) {
     throw Error("'builtin:fetch-tree' requires an 'out' output");
+  }
 
-  if (!(ctx.drv.type().isFixed() || ctx.drv.type().is_impure()))
+  if (!(ctx.drv.type().isFixed() || ctx.drv.type().is_impure())) {
     throw Error("'builtin:fetch-tree' must be a fixed-output or impure derivation");
+  }
 
-  if (!ctx.drv.structured_attrs)
+  if (!ctx.drv.structured_attrs) {
     throw Error("'builtin:fetch-tree' must have '__structuredAttrs = true'");
+  }
 
   setenv("NIX_CACHE_HOME", ctx.tmp_dir_in_sandbox.c_str(), 1);
 

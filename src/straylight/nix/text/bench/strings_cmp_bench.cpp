@@ -47,8 +47,9 @@ C tokenize_string(std::string_view s, std::string_view separators = " \t\n\r") {
   std::string::size_type pos = s.find_first_not_of(separators, 0);
   while (pos != std::string_view::npos) {
     std::string::size_type end = s.find_first_of(separators, pos + 1);
-    if (end == std::string_view::npos)
+    if (end == std::string_view::npos) {
       end = s.size();
+    }
     result.emplace(result.end(), s.substr(pos, end - pos));
     pos = s.find_first_not_of(separators, end);
   }
@@ -84,8 +85,9 @@ std::string concat_strings_sep(std::string_view sep, const C& ss) {
   size_t size = 0;
   bool tail = false;
   for (const auto& s : ss) {
-    if (tail)
+    if (tail) {
       size += sep.size();
+    }
     size += s.size();
     tail = true;
   }
@@ -93,8 +95,9 @@ std::string concat_strings_sep(std::string_view sep, const C& ss) {
   s.reserve(size);
   tail = false;
   for (const auto& i : ss) {
-    if (tail)
+    if (tail) {
       s += sep;
+    }
     s += i;
     tail = true;
   }
@@ -167,8 +170,9 @@ std::vector<std::string> generate_store_paths(std::size_t count) {
 std::string generate_path_env(std::size_t components) {
   std::string result;
   for (std::size_t i = 0; i < components; ++i) {
-    if (i > 0)
+    if (i > 0) {
       result += ":";
+    }
     result += "/nix/store/abc" + std::to_string(i) + "-pkg-" + std::to_string(i) + "/bin";
   }
   return result;
@@ -195,11 +199,13 @@ std::vector<std::string> generate_trimable_strings(std::size_t count) {
     std::string s;
     int l = leading(rng);
     int t = trailing(rng);
-    for (int j = 0; j < l; ++j)
+    for (int j = 0; j < l; ++j) {
       s += "  \t";
+    }
     s += "content-" + std::to_string(i);
-    for (int j = 0; j < t; ++j)
+    for (int j = 0; j < t; ++j) {
       s += " \n\t";
+    }
     result.push_back(std::move(s));
   }
   return result;

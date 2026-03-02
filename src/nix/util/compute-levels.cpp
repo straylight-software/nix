@@ -22,12 +22,15 @@ string_set_t compute_levels() {
       {FEATURE_LEVEL_X86_64_V4, "x86_64-v4"},
   };
 
-  if (cpu_identify(NULL, &data) < 0)
+  if (cpu_identify(NULL, &data) < 0) {
     return levels;
+  }
 
-  for (auto& [level, levelString] : feature_strings)
-    if (data.feature_level >= level)
+  for (auto& [level, levelString] : feature_strings) {
+    if (data.feature_level >= level) {
       levels.insert(levelString);
+    }
+  }
 
   return levels;
 }

@@ -10,26 +10,31 @@ namespace nix::fetchers {
 struct path_input_scheme_t : input_scheme_t {
   std::optional<input_t> inputFromURL(const settings_t& settings, const parsed_url_t& url,
                                       bool require_tree) const override {
-    if (url.scheme() != "path")
+    if (url.scheme() != "path") {
       return {};
+    }
 
-    if (url.authority() && url.authority()->host().size())
+    if (url.authority() && url.authority()->host().size()) {
       throw Error("path URL '%s' should not have an authority ('%s')", url, *url.authority());
+    }
 
     input_t input{};
     input.attrs.insert_or_assign("type", "path");
     input.attrs.insert_or_assign("path", render_url_path_ensure_legal(url.path()));
 
-    for (auto& [name, value] : url.query())
-      if (name == "rev" || name == "narHash")
+    for (auto& [name, value] : url.query()) {
+      if (name == "rev" || name == "narHash") {
         input.attrs.insert_or_assign(name, value);
-      else if (name == "revCount" || name == "lastModified") {
-        if (auto n = string2_int<uint64_t>(value))
+      } else if (name == "revCount" || name == "lastModified") {
+        if (auto n = string2_int<uint64_t>(value)) {
           input.attrs.insert_or_assign(name, *n);
-        else
+        } else {
           throw Error("path URL '%s' has invalid parameter '%s'", url, name);
-      } else
+        }
+      } else {
         throw Error("path URL '%s' has unsupported parameter '%s'", url, name);
+      }
+    }
 
     return input;
   }
@@ -104,10 +109,11 @@ struct path_input_scheme_t : input_scheme_t {
 
   std::optional<std::string> isRelative(const input_t& input) const override {
     auto path = get_str_attr(input.attrs, "path");
-    if (is_absolute(path))
+    if (is_absolute(path)) {
       return std::nullopt;
-    else
+    } else {
       return path;
+    }
   }
 
   bool isLocked(const settings_t& settings, const input_t& input) const override {
@@ -117,8 +123,9 @@ struct path_input_scheme_t : input_scheme_t {
   std::filesystem::path get_abs_path(const input_t& input) const {
     auto path = get_str_attr(input.attrs, "path");
 
-    if (is_absolute(path))
+    if (is_absolute(path)) {
       return canon_path(path);
+    }
 
     throw Error("cannot fetch input '%s' because it uses a relative path", input.to_string());
   }

@@ -35,12 +35,13 @@ static nlohmann::json to_json(nix::store_t& store, const nix::SingleDerivedPath:
       store.queryPartialDerivationOutputMap(nix::resolve_derived_path(store, *sdpb.drv_path));
   res["output"] = sdpb.output;
   auto output_path_iter = output_map.find(sdpb.output);
-  if (output_path_iter == output_map.end())
+  if (output_path_iter == output_map.end()) {
     res["outputPath"] = nullptr;
-  else if (std::optional p = output_path_iter->second)
+  } else if (std::optional p = output_path_iter->second) {
     res["outputPath"] = store.printStorePath(*p);
-  else
+  } else {
     res["outputPath"] = nullptr;
+  }
   return res;
 }
 
@@ -53,12 +54,14 @@ static nlohmann::json to_json(nix::store_t& store, const nix::derived_path_t::Bu
   const auto output_map =
       store.queryPartialDerivationOutputMap(nix::resolve_derived_path(store, *dpb.drv_path));
   for (const auto& [output, outputPathOpt] : output_map) {
-    if (!dpb.outputs.contains(output))
+    if (!dpb.outputs.contains(output)) {
       continue;
-    if (outputPathOpt)
+    }
+    if (outputPathOpt) {
       res["outputs"][output] = store.printStorePath(*outputPathOpt);
-    else
+    } else {
       res["outputs"][output] = nullptr;
+    }
   }
   return res;
 }
@@ -86,14 +89,18 @@ built_paths_with_result_to_json(const std::vector<nix::BuiltPathWithResult>& bui
   for (auto& b : buildables) {
     auto j = b.path.to_json(store);
     if (b.result) {
-      if (b.result->start_time)
+      if (b.result->start_time) {
         j["startTime"] = b.result->start_time;
-      if (b.result->stopTime)
+      }
+      if (b.result->stopTime) {
         j["stopTime"] = b.result->stopTime;
-      if (b.result->cpu_user)
+      }
+      if (b.result->cpu_user) {
         j["cpuUser"] = ((double)b.result->cpu_user->count()) / 1000000;
-      if (b.result->cpu_system)
+      }
+      if (b.result->cpu_system) {
         j["cpuSystem"] = ((double)b.result->cpu_system->count()) / 1000000;
+      }
     }
     res.push_back(j);
   }
@@ -135,14 +142,17 @@ struct cmd_build_t : nix::InstallablesCommand,
     if (dry_run) {
       std::vector<nix::derived_path_t> pathsToBuild;
 
-      for (auto& i : installables)
-        for (auto& b : i->to_derived_paths())
+      for (auto& i : installables) {
+        for (auto& b : i->to_derived_paths()) {
           pathsToBuild.push_back(b.path);
+        }
+      }
 
       nix::print_missing(store, pathsToBuild, nix::lvl_error);
 
-      if (json)
+      if (json) {
         printJSON(derived_paths_to_json(pathsToBuild, *store));
+      }
 
       return;
     }
@@ -150,8 +160,9 @@ struct cmd_build_t : nix::InstallablesCommand,
     auto buildables = nix::Installable::build(getEvalStore(), store, nix::Realise::Outputs,
                                               installables, repair ? nix::bmRepair : build_mode);
 
-    if (json)
+    if (json) {
       nix::logger->cout("%s", built_paths_with_result_to_json(buildables, *store).dump());
+    }
 
     createOutLinksMaybe(buildables, store);
 
@@ -173,8 +184,9 @@ struct cmd_build_t : nix::InstallablesCommand,
     }
 
     nix::BuiltPaths buildables2;
-    for (auto& b : buildables)
+    for (auto& b : buildables) {
       buildables2.push_back(b.path);
+    }
     updateProfile(buildables2);
   }
 };

@@ -42,8 +42,9 @@ BuildSlotGuard::~BuildSlotGuard() {
 }
 
 void BuildSlotGuard::acquire() {
-  if (acquired || !worker)
+  if (acquired || !worker) {
     return;
+  }
 
   switch (category) {
     case JobCategory::Substitution:
@@ -62,8 +63,9 @@ void BuildSlotGuard::acquire() {
 }
 
 void BuildSlotGuard::release() {
-  if (!acquired || !worker)
+  if (!acquired || !worker) {
     return;
+  }
 
   switch (category) {
     case JobCategory::Substitution:
@@ -112,8 +114,9 @@ Worker::~Worker() {
 
 template <class G, typename... args_t>
 std::shared_ptr<G> Worker::initGoalIfNeeded(std::weak_ptr<G>& goal_weak, args_t&&... args) {
-  if (auto goal = goal_weak.lock())
+  if (auto goal = goal_weak.lock()) {
     return goal;
+  }
 
   auto goal = std::make_shared<G>(std::forward<args_t>(args)...);
   goal_weak = goal;
@@ -205,10 +208,11 @@ template <typename K, typename G, typename Inner>
 static bool remove_goal(std::shared_ptr<G> goal, std::map<K, Inner>& goalMap) {
   /* !!! inefficient */
   for (auto i = goalMap.begin(); i != goalMap.end();) {
-    if (!remove_goal(goal, i->second))
+    if (!remove_goal(goal, i->second)) {
       i = goalMap.erase(i);
-    else
+    } else {
       ++i;
+    }
   }
   return !goalMap.empty();
 }
@@ -221,20 +225,21 @@ remove_goal(std::shared_ptr<G> goal,
 }
 
 void Worker::remove_goal(GoalPtr goal) {
-  if (auto drvGoal = std::dynamic_pointer_cast<DerivationTrampolineGoal>(goal))
+  if (auto drvGoal = std::dynamic_pointer_cast<DerivationTrampolineGoal>(goal)) {
     nix::remove_goal(drvGoal, derivationTrampolineGoals.map);
-  else if (auto drvGoal = std::dynamic_pointer_cast<DerivationGoal>(goal))
+  } else if (auto drvGoal = std::dynamic_pointer_cast<DerivationGoal>(goal)) {
     nix::remove_goal(drvGoal, derivationGoals);
-  else if (auto drvResolutionGoal = std::dynamic_pointer_cast<DerivationResolutionGoal>(goal))
+  } else if (auto drvResolutionGoal = std::dynamic_pointer_cast<DerivationResolutionGoal>(goal)) {
     nix::remove_goal(drvResolutionGoal, derivationResolutionGoals);
-  else if (auto drvBuildingGoal = std::dynamic_pointer_cast<DerivationBuildingGoal>(goal))
+  } else if (auto drvBuildingGoal = std::dynamic_pointer_cast<DerivationBuildingGoal>(goal)) {
     nix::remove_goal(drvBuildingGoal, derivationBuildingGoals);
-  else if (auto subGoal = std::dynamic_pointer_cast<PathSubstitutionGoal>(goal))
+  } else if (auto subGoal = std::dynamic_pointer_cast<PathSubstitutionGoal>(goal)) {
     nix::remove_goal(subGoal, substitutionGoals);
-  else if (auto subGoal = std::dynamic_pointer_cast<DrvOutputSubstitutionGoal>(goal))
+  } else if (auto subGoal = std::dynamic_pointer_cast<DrvOutputSubstitutionGoal>(goal)) {
     nix::remove_goal(subGoal, drvOutputSubstitutionGoals);
-  else
+  } else {
     assert(false);
+  }
 
   /* Ensure any build slot held by this goal is released.
      This is critical for cancellation paths where childTerminated
@@ -245,15 +250,17 @@ void Worker::remove_goal(GoalPtr goal) {
     topGoals.erase(goal);
     /* If a top-level goal failed, then kill all other goals
        (unless keep_going was set). */
-    if (goal->exit_code == Goal::ecFailed && !settings.keep_going)
+    if (goal->exit_code == Goal::ecFailed && !settings.keep_going) {
       topGoals.clear();
+    }
   }
 
   /* Wake up goals waiting for any goal to finish. */
   for (auto& i : waitingForAnyGoal) {
     GoalPtr goal = i.lock();
-    if (goal)
+    if (goal) {
       wakeUp(goal);
+    }
   }
 
   waitingForAnyGoal.clear();
@@ -303,8 +310,9 @@ void Worker::childStarted(GoalPtr goal,
 void Worker::childTerminated(Goal* goal, bool wakeSleepers) {
   auto i = std::find_if(children.begin(), children.end(),
                         [&](const Child& child) { return child.goal2 == goal; });
-  if (i == children.end())
+  if (i == children.end()) {
     return;
+  }
 
   if (i->inBuildSlot) {
     switch (goal->jobCategory()) {
@@ -331,8 +339,9 @@ void Worker::childTerminated(Goal* goal, bool wakeSleepers) {
     /* Wake up goals waiting for a build slot. */
     for (auto& j : wantingToBuild) {
       GoalPtr goal = j.lock();
-      if (goal)
+      if (goal) {
         wakeUp(goal);
+      }
     }
 
     wantingToBuild.clear();
@@ -341,12 +350,14 @@ void Worker::childTerminated(Goal* goal, bool wakeSleepers) {
 
 void Worker::releaseAllBuildSlots() {
   for (auto& child : children) {
-    if (!child.inBuildSlot)
+    if (!child.inBuildSlot) {
       continue;
+    }
 
     GoalPtr goal = child.goal.lock();
-    if (!goal)
+    if (!goal) {
       continue;
+    }
 
     switch (goal->jobCategory()) {
       case JobCategory::Substitution:
@@ -371,10 +382,11 @@ void Worker::waitForBuildSlot(GoalPtr goal) {
   goal->trace("wait for build slot");
   bool isSubstitutionGoal = goal->jobCategory() == JobCategory::Substitution;
   if ((!isSubstitutionGoal && getNrLocalBuilds() < settings.max_build_jobs) ||
-      (isSubstitutionGoal && getNrSubstitutions() < settings.maxSubstitutionJobs))
+      (isSubstitutionGoal && getNrSubstitutions() < settings.maxSubstitutionJobs)) {
     wakeUp(goal); /* we can do it right away */
-  else
+  } else {
     add_to_weak_goals(wantingToBuild, goal);
+  }
 }
 
 void Worker::waitForAnyGoal(GoalPtr goal) {
@@ -420,8 +432,9 @@ void Worker::run(const Goals& _topGoals) {
     check_interrupt();
 
     // TODO GC interface?
-    if (auto localStore = dynamic_cast<LocalStore*>(&store))
+    if (auto localStore = dynamic_cast<LocalStore*>(&store)) {
       localStore->autoGC(false);
+    }
 
     /* Call every wake goal (in the ordering established by
        CompareGoalPtrs). */
@@ -429,37 +442,42 @@ void Worker::run(const Goals& _topGoals) {
       Goals awake2;
       for (auto& i : awake) {
         GoalPtr goal = i.lock();
-        if (goal)
+        if (goal) {
           awake2.insert(goal);
+        }
       }
       awake.clear();
       for (auto& goal : awake2) {
         check_interrupt();
         goal->work();
-        if (topGoals.empty())
+        if (topGoals.empty()) {
           break; // stuff may have been cancelled
+        }
       }
     }
 
-    if (topGoals.empty())
+    if (topGoals.empty()) {
       break;
+    }
 
     /* Wait for input. */
-    if (!children.empty() || !waitingForAWhile.empty())
+    if (!children.empty() || !waitingForAWhile.empty()) {
       waitForInput();
-    else if (awake.empty() && 0U == settings.max_build_jobs) {
-      if (get_machines().empty())
+    } else if (awake.empty() && 0U == settings.max_build_jobs) {
+      if (get_machines().empty()) {
         throw Error(
             "Unable to start any build; either increase '--max-jobs' or enable remote builds.\n"
             "\n"
             "For more information run 'man nix.conf' and search for '/machines'.");
-      else
+      } else {
         throw Error("Unable to start any build; remote machines may not have all required system "
                     "features.\n"
                     "\n"
                     "For more information run 'man nix.conf' and search for '/machines'.");
-    } else
+      }
+    } else {
       assert(!awake.empty());
+    }
   }
 
   /* If --keep-going is not set, it's possible that the main goal
@@ -487,16 +505,20 @@ void Worker::waitForInput() {
      is a build timeout, then wait for input until the first
      deadline for any child. */
   auto nearest = steady_time_point::max(); // nearest deadline
-  if (settings.minFree.get() != 0)
+  if (settings.minFree.get() != 0) {
     // Periodicallty wake up to see if we need to run the garbage collector.
     nearest = before + std::chrono::seconds(10);
+  }
   for (auto& i : children) {
-    if (!i.respectTimeouts)
+    if (!i.respectTimeouts) {
       continue;
-    if (0 != settings.max_silent_time)
+    }
+    if (0 != settings.max_silent_time) {
       nearest = std::min(nearest, i.last_output + std::chrono::seconds(settings.max_silent_time));
-    if (0 != settings.buildTimeout)
+    }
+    if (0 != settings.buildTimeout) {
       nearest = std::min(nearest, i.timeStarted + std::chrono::seconds(settings.buildTimeout));
+    }
   }
   if (nearest != steady_time_point::max()) {
     timeout = std::max(
@@ -507,22 +529,26 @@ void Worker::waitForInput() {
   /* If we are polling goals that are waiting for a lock, then wake
      up after a few seconds at most. */
   if (!waitingForAWhile.empty()) {
-    if (lastWokenUp == steady_time_point::min() || lastWokenUp > before)
+    if (lastWokenUp == steady_time_point::min() || lastWokenUp > before) {
       lastWokenUp = before;
+    }
     auto pollTimeout =
         std::max(1L, (long)std::chrono::duration_cast<std::chrono::seconds>(
                          lastWokenUp + std::chrono::seconds(settings.pollInterval) - before)
                          .count());
-    if (useTimeout)
+    if (useTimeout) {
       timeout = std::min(timeout, pollTimeout);
-    else
+    } else {
       timeout = pollTimeout;
+    }
     useTimeout = true;
-  } else
+  } else {
     lastWokenUp = steady_time_point::min();
+  }
 
-  if (useTimeout)
+  if (useTimeout) {
     vomit("sleeping %d seconds", timeout);
+  }
 
   muxable_pipe_poll_state_t state;
 
@@ -591,8 +617,9 @@ void Worker::waitForInput() {
     lastWokenUp = after;
     for (auto& i : waitingForAWhile) {
       GoalPtr goal = i.lock();
-      if (goal)
+      if (goal) {
         wakeUp(goal);
+      }
     }
     waitingForAWhile.clear();
   }
@@ -602,25 +629,30 @@ unsigned int Worker::failingExitStatus() {
   // See API docs in header for explanation
   unsigned int mask = 0;
   bool buildFailure = permanentFailure || timedOut || hashMismatch;
-  if (buildFailure)
+  if (buildFailure) {
     mask |= 0x04; // 100
-  if (timedOut)
+  }
+  if (timedOut) {
     mask |= 0x01; // 101
-  if (hashMismatch)
+  }
+  if (hashMismatch) {
     mask |= 0x02; // 102
+  }
   if (checkMismatch) {
     mask |= 0x08; // 104
   }
 
-  if (mask)
+  if (mask) {
     mask |= 0x60;
+  }
   return mask ? mask : 1;
 }
 
 bool Worker::pathContentsGood(const store_path_t& path) {
   auto i = pathContentsGoodCache.find(path);
-  if (i != pathContentsGoodCache.end())
+  if (i != pathContentsGoodCache.end()) {
     return i->second;
+  }
   printInfo("checking path '%s'...", store.printStorePath(path));
   auto info = store.queryPathInfo(path);
   bool res = false;
@@ -632,8 +664,9 @@ bool Worker::pathContentsGood(const store_path_t& path) {
     res = info->nar_hash == nullHash || info->nar_hash == current;
   }
   pathContentsGoodCache.insert_or_assign(path, res);
-  if (!res)
+  if (!res) {
     printError("path '%s' is corrupted or missing!", store.printStorePath(path));
+  }
   return res;
 }
 

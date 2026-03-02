@@ -90,8 +90,9 @@ auto tls_client_config::operator=(tls_client_config&& other) noexcept -> tls_cli
 }
 
 auto tls_client_config::set_alpn(std::string_view protocols) -> bool {
-  if (!config_)
+  if (!config_) {
     return false;
+  }
   // tls_config_set_alpn expects null-terminated string
   std::string proto_str{protocols};
   return tls_config_set_alpn(config_, proto_str.c_str()) == 0;
@@ -162,8 +163,9 @@ auto tls_server_config::operator=(tls_server_config&& other) noexcept -> tls_ser
 }
 
 auto tls_server_config::set_alpn(std::string_view protocols) -> bool {
-  if (!config_)
+  if (!config_) {
     return false;
+  }
   std::string proto_str{protocols};
   return tls_config_set_alpn(config_, proto_str.c_str()) == 0;
 }
@@ -208,38 +210,44 @@ auto tls_connection::operator=(tls_connection&& other) noexcept -> tls_connectio
 }
 
 auto tls_connection::alpn_selected() const -> const char* {
-  if (!ctx_)
+  if (!ctx_) {
     return nullptr;
+  }
   return tls_conn_alpn_selected(ctx_);
 }
 
 auto tls_connection::version() const -> const char* {
-  if (!ctx_)
+  if (!ctx_) {
     return nullptr;
+  }
   return tls_conn_version(ctx_);
 }
 
 auto tls_connection::cipher() const -> const char* {
-  if (!ctx_)
+  if (!ctx_) {
     return nullptr;
+  }
   return tls_conn_cipher(ctx_);
 }
 
 auto tls_connection::cipher_strength() const -> int {
-  if (!ctx_)
+  if (!ctx_) {
     return 0;
+  }
   return tls_conn_cipher_strength(ctx_);
 }
 
 auto tls_connection::peer_cn() const -> const char* {
-  if (!ctx_)
+  if (!ctx_) {
     return nullptr;
+  }
   return tls_peer_cert_subject(ctx_);
 }
 
 auto tls_connection::error() const -> const char* {
-  if (!ctx_)
+  if (!ctx_) {
     return "no context";
+  }
   return tls_error(ctx_);
 }
 

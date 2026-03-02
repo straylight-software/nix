@@ -62,26 +62,30 @@ struct cmd_search_t : nix::InstallableValueCommand, nix::MixJSON {
     nix::eval_settings.enableImportFromDerivation.set_default(false);
 
     // Recommend "^" here instead of ".*" due to differences in resulting highlighting
-    if (res.empty())
+    if (res.empty()) {
       throw nix::UsageError("Must provide at least one regex! To match all packages, use '%s'.",
                             "nix search <installable> ^");
+    }
 
     std::vector<std::regex> regexes;
     std::vector<std::regex> excludeRegexes;
     regexes.reserve(res.size());
     excludeRegexes.reserve(exclude_res.size());
 
-    for (auto& re : res)
+    for (auto& re : res) {
       regexes.push_back(std::regex(re, std::regex::extended | std::regex::icase));
+    }
 
-    for (auto& re : exclude_res)
+    for (auto& re : exclude_res) {
       excludeRegexes.emplace_back(re, std::regex::extended | std::regex::icase);
+    }
 
     auto state = getEvalState();
 
     std::optional<nix::sync_t<nlohmann::json>> jsonOut;
-    if (json)
+    if (json) {
       jsonOut.emplace(json::object());
+    }
 
     std::atomic<uint64_t> results = 0;
 
@@ -130,8 +134,9 @@ struct cmd_search_t : nix::InstallableValueCommand, nix::MixJSON {
 
           for (auto& regex : excludeRegexes) {
             if (std::regex_search(attrPathStr, regex) || std::regex_search(name.name, regex) ||
-                std::regex_search(description, regex))
+                std::regex_search(description, regex)) {
               return;
+            }
           }
 
           for (auto& regex : regexes) {
@@ -150,8 +155,9 @@ struct cmd_search_t : nix::InstallableValueCommand, nix::MixJSON {
             addAll(std::sregex_iterator(description.begin(), description.end(), regex),
                    descriptionMatches);
 
-            if (!found)
+            if (!found) {
               break;
+            }
           }
 
           if (found) {
@@ -167,9 +173,10 @@ struct cmd_search_t : nix::InstallableValueCommand, nix::MixJSON {
                                   wrap("\e[0;1m", nix::hilite_matches(attrPathStr, attrPathMatches,
                                                                       ANSI_GREEN, "\e[0;1m")),
                                   nix::optional_bracket(" (", name.version, ")"));
-              if (description != "")
+              if (description != "") {
                 out += nix::fmt("\n  %s", nix::hilite_matches(description, descriptionMatches,
                                                               ANSI_GREEN, ANSI_NORMAL));
+              }
               nix::logger->cout(out);
             }
           }
@@ -177,21 +184,25 @@ struct cmd_search_t : nix::InstallableValueCommand, nix::MixJSON {
 
         else if (attr_path.size() == 0 ||
                  (attrPathS[0] == "legacyPackages" && attr_path.size() <= 2) ||
-                 (attrPathS[0] == "packages" && attr_path.size() <= 2))
+                 (attrPathS[0] == "packages" && attr_path.size() <= 2)) {
           recurse();
+        }
 
-        else if (initialRecurse)
+        else if (initialRecurse) {
           recurse();
+        }
 
         else if (attrPathS[0] == "legacyPackages" && attr_path.size() > 2) {
           auto attr = cursor.maybeGetAttr(state->s.recurseForDerivations);
-          if (attr && attr->getBool())
+          if (attr && attr->getBool()) {
             recurse();
+          }
         }
 
       } catch (nix::EvalError& e) {
-        if (!(attr_path.size() > 0 && attrPathS[0] == "legacyPackages"))
+        if (!(attr_path.size() > 0 && attrPathS[0] == "legacyPackages")) {
           throw;
+        }
       }
     };
 
@@ -203,11 +214,13 @@ struct cmd_search_t : nix::InstallableValueCommand, nix::MixJSON {
     futures.spawn(std::move(work));
     futures.finishAll();
 
-    if (json)
+    if (json) {
       printJSON(*(jsonOut->lock()));
+    }
 
-    if (!json && !results)
+    if (!json && !results) {
       throw nix::Error("no results for the given search term(s)!");
+    }
 
     notice("Found %d matching packages.", results);
   }

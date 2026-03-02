@@ -400,8 +400,9 @@ void property_generator_monotonicity() {
         }
       }
 
-      if (ring->pending() == 0)
+      if (ring->pending() == 0) {
         break;
+      }
 
       auto events = ring->submit_and_wait(1);
       for (const auto& e : events) {

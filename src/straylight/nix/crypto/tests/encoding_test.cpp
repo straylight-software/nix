@@ -468,8 +468,9 @@ TEST_CASE("encoded length properties", "[encoding][property][length]") {
 TEST_CASE("base16 malformed input handling", "[encoding][property][malformed]") {
   rc::prop("base16 decode rejects odd-length strings", []() {
     auto odd_len = *rc::gen::inRange<std::size_t>(1, 100);
-    if (odd_len % 2 == 0)
+    if (odd_len % 2 == 0) {
       odd_len += 1;
+    }
 
     // Generate valid hex chars but odd length
     std::string hex;
@@ -492,8 +493,9 @@ TEST_CASE("base16 malformed input handling", "[encoding][property][malformed]") 
     auto valid_hex = *rc::gen::nonEmpty(rc::gen::container<std::string>(rc::gen::element(
         '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f')));
     // Ensure even length
-    if (valid_hex.size() % 2 != 0)
+    if (valid_hex.size() % 2 != 0) {
       valid_hex += '0';
+    }
 
     // Insert an invalid character
     auto pos = *rc::gen::inRange<std::size_t>(0, valid_hex.size());
@@ -580,8 +582,9 @@ TEST_CASE("nix32 malformed input handling", "[encoding][property][malformed]") {
       }
     }
 
-    if (!has_alpha)
+    if (!has_alpha) {
       return; // Skip if no letters
+    }
 
     std::string invalid_nix32 = valid_nix32;
     invalid_nix32[alpha_pos] = static_cast<char>(invalid_nix32[alpha_pos] - 'a' + 'A');

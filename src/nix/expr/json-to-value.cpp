@@ -30,8 +30,9 @@ struct json_sax_t : nlohmann::json_sax<json> {
     json_state_t(json_state_t& p) = delete;
 
     value_t& value(eval_state_t& state) {
-      if (!v)
+      if (!v) {
         v = alloc_root_value(state.allocValue());
+      }
       return **v;
     }
 
@@ -46,8 +47,9 @@ struct json_sax_t : nlohmann::json_sax<json> {
 
     std::unique_ptr<json_state_t> resolve(eval_state_t& state) override {
       auto attrs2 = state.buildBindings(attrs.size());
-      for (auto& i : attrs)
+      for (auto& i : attrs) {
         attrs2.insert(i.first, i.second);
+      }
       parent->value(state).mkAttrs(attrs2);
       return std::move(parent);
     }
@@ -65,8 +67,9 @@ struct json_sax_t : nlohmann::json_sax<json> {
 
     std::unique_ptr<json_state_t> resolve(eval_state_t& state) override {
       auto list = state.buildList(values.size());
-      for (const auto& [n, v2] : enumerate(list))
+      for (const auto& [n, v2] : enumerate(list)) {
         v2 = values[n];
+      }
       parent->value(state).mkList(list);
       return std::move(parent);
     }
@@ -169,8 +172,9 @@ struct json_sax_t : nlohmann::json_sax<json> {
 void parse_json(eval_state_t& state, const std::string_view& s_, value_t& v) {
   json_sax_t parser(state, v);
   bool res = json::sax_parse(s_, &parser);
-  if (!res)
+  if (!res) {
     throw JSONParseError("Invalid JSON value_t");
+  }
 }
 
 } // namespace nix

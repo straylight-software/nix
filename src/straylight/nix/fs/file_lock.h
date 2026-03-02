@@ -270,10 +270,12 @@ public:
 
   /// Upgrade shared lock to exclusive (blocking)
   [[nodiscard]] std::expected<void, LockError> upgrade() noexcept {
-    if (fd_ < 0)
+    if (fd_ < 0) {
       return std::unexpected(LockError::InvalidDescriptor);
-    if (mode_ == LockMode::Exclusive)
+    }
+    if (mode_ == LockMode::Exclusive) {
       return {}; // Already exclusive
+    }
 
     while (::flock(fd_, LOCK_EX) != 0) {
       if (errno != EINTR) {
@@ -286,10 +288,12 @@ public:
 
   /// Downgrade exclusive lock to shared
   [[nodiscard]] std::expected<void, LockError> downgrade() noexcept {
-    if (fd_ < 0)
+    if (fd_ < 0) {
       return std::unexpected(LockError::InvalidDescriptor);
-    if (mode_ == LockMode::Shared)
+    }
+    if (mode_ == LockMode::Shared) {
       return {}; // Already shared
+    }
 
     while (::flock(fd_, LOCK_SH) != 0) {
       if (errno != EINTR) {

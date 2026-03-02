@@ -10,7 +10,14 @@
 // - Signal delivery during wait
 // - Move semantics correctness under concurrent access
 
+// clang-format off
 // Catch2 must be included before rapidcheck/catch.h
+#include <catch2/catch_test_macros.hpp>
+
+#include <rapidcheck.h>
+#include <rapidcheck/catch.h>
+// clang-format on
+
 #include <atomic>
 #include <cerrno>
 #include <chrono>
@@ -23,12 +30,8 @@
 #include <vector>
 
 #include <fcntl.h>
-#include <rapidcheck.h>
-#include <rapidcheck/catch.h>
 #include <sys/wait.h>
 #include <unistd.h>
-
-#include <catch2/catch_test_macros.hpp>
 
 #include "nix/util/processes.h"
 

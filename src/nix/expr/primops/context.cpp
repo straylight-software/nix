@@ -14,9 +14,11 @@ static void prim_unsafe_discard_string_context(eval_state_t& state, const pos_id
       pos, *args[0], context,
       "while evaluating the argument passed to builtins.unsafeDiscardStringContext");
 
-  for (auto& c : context)
-    if (auto* p = std::get_if<NixStringContextElem::Path>(&c.raw))
+  for (auto& c : context) {
+    if (auto* p = std::get_if<NixStringContextElem::Path>(&c.raw)) {
       filtered.insert(*p);
+    }
+  }
 
   v.mk_string(*s, filtered, state.mem);
 }
@@ -31,9 +33,11 @@ static RegisterPrimOp primop_unsafe_discard_string_context({
 });
 
 bool has_context(const NixStringContext& context) {
-  for (auto& c : context)
-    if (!std::get_if<NixStringContextElem::Path>(&c.raw))
+  for (auto& c : context) {
+    if (!std::get_if<NixStringContextElem::Path>(&c.raw)) {
       return true;
+    }
+  }
   return false;
 }
 
@@ -240,14 +244,17 @@ static void prim_get_context(eval_state_t& state, const pos_idx_t pos, value_t**
   auto s_all_outputs = state.symbols.create("allOutputs");
   for (const auto& info : context_infos) {
     auto info_attrs = state.buildBindings(3);
-    if (info.second.path)
+    if (info.second.path) {
       info_attrs.alloc(s_path).mkBool(true);
-    if (info.second.all_outputs)
+    }
+    if (info.second.all_outputs) {
       info_attrs.alloc(s_all_outputs).mkBool(true);
+    }
     if (!info.second.outputs.empty()) {
       auto list = state.buildList(info.second.outputs.size());
-      for (const auto& [i, output] : enumerate(info.second.outputs))
+      for (const auto& [i, output] : enumerate(info.second.outputs)) {
         (list[i] = state.allocValue())->mk_string(output, state.mem);
+      }
       info_attrs.alloc(state.s.outputs).mkList(list);
     }
     attrs.alloc(state.store->printStorePath(info.first)).mkAttrs(info_attrs);
@@ -298,21 +305,24 @@ static void prim_append_context(eval_state_t& state, const pos_idx_t pos, value_
   auto s_all_outputs = state.symbols.create("allOutputs");
   for (auto& i : *args[1]->attrs()) {
     const auto& name = state.symbols[i.name];
-    if (!state.store->isStorePath(name))
+    if (!state.store->isStorePath(name)) {
       state.error<EvalError>("context key '%s' is not a store path", name)
           .at_pos(i.pos)
           .debugThrow();
+    }
     auto namePath = state.store->parseStorePath(name);
-    if (!settings.readOnlyMode)
+    if (!settings.readOnlyMode) {
       state.store->ensure_path(namePath);
+    }
     state.forceAttrs(*i.value, i.pos, "while evaluating the value of a string context");
 
     if (auto attr = i.value->attrs()->get(s_path)) {
       if (state.forceBool(*attr->value, attr->pos,
-                          "while evaluating the `path` attribute of a string context"))
+                          "while evaluating the `path` attribute of a string context")) {
         context.emplace(NixStringContextElem::opaque_t{
             .path = namePath,
         });
+      }
     }
 
     if (auto attr = i.value->attrs()->get(s_all_outputs)) {

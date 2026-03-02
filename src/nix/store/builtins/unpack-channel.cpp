@@ -6,8 +6,9 @@ namespace nix {
 static void builtin_unpack_channel(const BuiltinBuilderContext& ctx) {
   auto get_attr = [&](const std::string& name) -> const std::string& {
     auto i = ctx.drv.env.find(name);
-    if (i == ctx.drv.env.end())
+    if (i == ctx.drv.env.end()) {
       throw Error("attribute '%s' missing", name);
+    }
     return i->second;
   };
 
@@ -30,8 +31,9 @@ static void builtin_unpack_channel(const BuiltinBuilderContext& ctx) {
   file_name = entries->path().string();
   file_count = std::distance(entries.begin(), entries.end());
 
-  if (file_count != 1)
+  if (file_count != 1) {
     throw Error("channel tarball '%s' contains more than one file", src);
+  }
 
   auto target = out / channel_name;
   try {

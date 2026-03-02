@@ -27,13 +27,15 @@ using nix::logger;
 /* If 'url' starts with 'mirror://', then resolve it using the list of
    mirrors defined in Nixpkgs. */
 std::string resolve_mirror_url(nix::eval_state_t& state, const std::string& url) {
-  if (url.substr(0, 9) != "mirror://")
+  if (url.substr(0, 9) != "mirror://") {
     return url;
+  }
 
   std::string s(url, 9);
   auto p = s.find('/');
-  if (p == std::string::npos)
+  if (p == std::string::npos) {
     throw nix::Error("invalid mirror URL '%s'", url);
+  }
   std::string mirrorName(s, 0, p);
 
   nix::value_t v_mirrors;
@@ -44,12 +46,14 @@ std::string resolve_mirror_url(nix::eval_state_t& state, const std::string& url)
   state.forceAttrs(v_mirrors, nix::no_pos, "while evaluating the set of all mirrors");
 
   auto mirror_list = v_mirrors.attrs()->get(state.symbols.create(mirrorName));
-  if (!mirror_list)
+  if (!mirror_list) {
     throw nix::Error("unknown mirror name '%s'", mirrorName);
+  }
   state.forceList(*mirror_list->value, nix::no_pos, "while evaluating one mirror configuration");
 
-  if (mirror_list->value->list_size() < 1)
+  if (mirror_list->value->list_size() < 1) {
     throw nix::Error("mirror URL '%s' did not expand to anything", url);
+  }
 
   std::string mirror(state.forceString(*mirror_list->value->list_view()[0], nix::no_pos,
                                        "while evaluating the first available mirror"));
@@ -69,8 +73,9 @@ prefetch_file(nix::ref<nix::store_t> store, const nix::verbatim_url_t& url,
           .or_else([&]() {
             /* Figure out a name in the Nix store. */
             auto derived_from_url = url.last_path_segment();
-            if (!derived_from_url || derived_from_url->empty())
+            if (!derived_from_url || derived_from_url->empty()) {
               throw nix::Error("cannot figure out file name for '%s'", url.to_string());
+            }
             return derived_from_url;
           })
           .value();
@@ -78,8 +83,9 @@ prefetch_file(nix::ref<nix::store_t> store, const nix::verbatim_url_t& url,
   try {
     nix::check_name(name);
   } catch (nix::BadStorePathName& e) {
-    if (!maybe_name)
+    if (!maybe_name) {
       e.add_trace({}, "file name '%s' was extracted from URL '%s'", name, url.to_string());
+    }
     throw;
   }
 
@@ -92,10 +98,11 @@ prefetch_file(nix::ref<nix::store_t> store, const nix::verbatim_url_t& url,
     hash_algo = expected_hash->algo();
     store_path = store->makeFixedOutputPathFromCA(
         name, nix::ContentAddressWithReferences::fromParts(method, *expected_hash, {}));
-    if (store->isValidPath(*store_path))
+    if (store->isValidPath(*store_path)) {
       hash = expected_hash;
-    else
+    } else {
       store_path.reset();
+    }
   }
 
   if (!store_path) {
@@ -105,13 +112,15 @@ prefetch_file(nix::ref<nix::store_t> store, const nix::verbatim_url_t& url,
     /* Download the file. */
     {
       auto mode = 0600;
-      if (executable)
+      if (executable) {
         mode = 0700;
+      }
 
       nix::auto_close_fd_t fd =
           nix::to_descriptor(open(tmp_file.string().c_str(), O_WRONLY | O_CREAT | O_EXCL, mode));
-      if (!fd)
+      if (!fd) {
         throw nix::sys_error_t("creating temporary file '%s'", tmp_file);
+      }
 
       nix::fd_sink_t sink(fd.get());
 
@@ -169,35 +178,37 @@ static int main_nix_prefetch_url(int argc, char** argv) {
 
     my_args_t my_args(std::string(nix::base_name_of(argv[0])),
                       [&](nix::strings_t::iterator& arg, const nix::strings_t::iterator& end) {
-                        if (*arg == "--help")
+                        if (*arg == "--help") {
                           nix::show_man_page("nix-prefetch-url");
-                        else if (*arg == "--version")
+                        } else if (*arg == "--version") {
                           nix::print_version("nix-prefetch-url");
-                        else if (*arg == "--type") {
+                        } else if (*arg == "--type") {
                           auto s = nix::get_arg(*arg, arg, end);
                           ha = nix::parse_hash_algo(s);
-                        } else if (*arg == "--print-path")
+                        } else if (*arg == "--print-path") {
                           print_path = true;
-                        else if (*arg == "--attr" || *arg == "-A") {
+                        } else if (*arg == "--attr" || *arg == "-A") {
                           from_expr = true;
                           attr_path = nix::get_arg(*arg, arg, end);
-                        } else if (*arg == "--unpack")
+                        } else if (*arg == "--unpack") {
                           unpack = true;
-                        else if (*arg == "--executable")
+                        } else if (*arg == "--executable") {
                           executable = true;
-                        else if (*arg == "--name")
+                        } else if (*arg == "--name") {
                           name = nix::get_arg(*arg, arg, end);
-                        else if (*arg != "" && arg->at(0) == '-')
+                        } else if (*arg != "" && arg->at(0) == '-') {
                           return false;
-                        else
+                        } else {
                           args.push_back(*arg);
+                        }
                         return true;
                       });
 
     my_args.parse_cmdline(nix::argv_to_strings(argc, argv));
 
-    if (args.size() > 2)
+    if (args.size() > 2) {
       throw nix::UsageError("too many arguments");
+    }
 
     nix::set_log_format("bar");
 
@@ -211,8 +222,9 @@ static int main_nix_prefetch_url(int argc, char** argv) {
        expression. */
     std::string url;
     if (!from_expr) {
-      if (args.empty())
+      if (args.empty()) {
         throw nix::UsageError("you must specify a URL");
+      }
       url = args[0];
     } else {
       nix::value_t v_root;
@@ -224,44 +236,50 @@ static int main_nix_prefetch_url(int argc, char** argv) {
 
       /* Extract the URL. */
       auto* attr = v.attrs()->get(state->symbols.create("urls"));
-      if (!attr)
+      if (!attr) {
         throw nix::Error("attribute 'urls' missing");
+      }
       state->forceList(*attr->value, nix::no_pos, "while evaluating the urls to prefetch");
-      if (attr->value->list_size() < 1)
+      if (attr->value->list_size() < 1) {
         throw nix::Error("'urls' list is empty");
+      }
       url = state->forceString(*attr->value->list_view()[0], nix::no_pos,
                                "while evaluating the first url from the urls list");
 
       /* Extract the hash mode. */
       auto attr2 = v.attrs()->get(state->symbols.create("outputHashMode"));
-      if (!attr2)
+      if (!attr2) {
         printInfo("warning: this does not look like a fetchurl call");
-      else
+      } else {
         unpack =
             state->forceString(*attr2->value, nix::no_pos,
                                "while evaluating the outputHashMode of the source to prefetch") ==
             "recursive";
+      }
 
       /* Extract the name. */
       if (!name) {
         auto attr3 = v.attrs()->get(state->symbols.create("name"));
-        if (!attr3)
+        if (!attr3) {
           name = state->forceString(*attr3->value, nix::no_pos,
                                     "while evaluating the name of the source to prefetch");
+        }
       }
     }
 
     std::optional<nix::Hash> expected_hash;
-    if (args.size() == 2)
+    if (args.size() == 2) {
       expected_hash = nix::Hash::parse_any(args[1], ha);
+    }
 
     auto [store_path, hash] = prefetch_file(store, resolve_mirror_url(*state, url), name, ha,
                                             expected_hash, unpack, executable);
 
     nix::logger->stop();
 
-    if (!print_path)
+    if (!print_path) {
       printInfo("path is '%s'", store->printStorePath(store_path));
+    }
 
     assert(static_cast<char>(hash.algo()));
     nix::logger->cout(hash.to_string(hash.algo() == nix::hash_algorithm_t::MD5
@@ -269,8 +287,9 @@ static int main_nix_prefetch_url(int argc, char** argv) {
                                          : nix::hash_format_t::nix32,
                                      false));
 
-    if (print_path)
+    if (print_path) {
       nix::logger->cout(store->printStorePath(store_path));
+    }
 
     return 0;
   }

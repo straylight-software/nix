@@ -19,8 +19,9 @@ UserInfo UserInfo::fromUid(uid_t uid) {
   struct passwd pwd;
   struct passwd* result;
   std::vector<char> buf(16384);
-  if (getpwuid_r(uid, &pwd, buf.data(), buf.size(), &result) == 0 && result)
+  if (getpwuid_r(uid, &pwd, buf.data(), buf.size(), &result) == 0 && result) {
     info.name = result->pw_name;
+  }
 #endif
 
   return info;
@@ -48,11 +49,12 @@ void adl_serializer<nix::UserInfo>::to_json(json& j, const nix::UserInfo& info) 
 
 // Durations are serialized as floats representing seconds.
 static std::optional<std::chrono::microseconds> parse_duration(const json& j, const char* key) {
-  if (j.contains(key) && !j.at(key).is_null())
+  if (j.contains(key) && !j.at(key).is_null()) {
     return std::chrono::duration_cast<std::chrono::microseconds>(
         std::chrono::duration<float, std::chrono::seconds::period>(j.at(key).get<double>()));
-  else
+  } else {
     return std::nullopt;
+  }
 }
 
 static nlohmann::json print_duration(const std::optional<std::chrono::microseconds>& duration) {
@@ -93,8 +95,9 @@ void adl_serializer<nix::ActiveBuildInfo::ProcessInfo>::to_json(
 
 nix::ActiveBuild adl_serializer<nix::ActiveBuild>::from_json(const json& j) {
   auto type = j.at("type").get<std::string>();
-  if (type != "build")
+  if (type != "build") {
     throw nix::Error("invalid active build JSON: expected type 'build' but got '%s'", type);
+  }
   return nix::ActiveBuild{
       .nix_pid = j.at("nixPid").get<::pid_t>(),
       .client_pid = j.at("clientPid").get<std::optional<::pid_t>>(),

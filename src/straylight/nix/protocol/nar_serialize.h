@@ -452,16 +452,19 @@ public:
   /// Read a complete node (file, directory, or symlink)
   NarResult<FsObject> read_node() {
     auto r1 = expect("(");
-    if (is_error(r1))
+    if (is_error(r1)) {
       return get_error(r1);
+    }
 
     auto r2 = expect("type");
-    if (is_error(r2))
+    if (is_error(r2)) {
       return get_error(r2);
+    }
 
     auto type_result = read_str();
-    if (is_error(type_result))
+    if (is_error(type_result)) {
       return get_error(type_result);
+    }
     auto& type_name = get_value(type_result);
 
     if (type_name == "regular") {
@@ -490,8 +493,9 @@ private:
   NarResult<FsObject> read_regular_file() {
     // Next token is either "executable" or "contents"
     auto first_result = read_str();
-    if (is_error(first_result))
+    if (is_error(first_result)) {
       return get_error(first_result);
+    }
     auto& first = get_value(first_result);
 
     bool executable = (first == "executable");
@@ -499,23 +503,27 @@ private:
     if (executable) {
       // Read empty executable marker
       auto r1 = expect("");
-      if (is_error(r1))
+      if (is_error(r1)) {
         return get_error(r1);
+      }
       // Then "contents"
       auto r2 = expect("contents");
-      if (is_error(r2))
+      if (is_error(r2)) {
         return get_error(r2);
+      }
     } else if (first != "contents") {
       return NarError::expected_token("contents", first);
     }
 
     auto contents_result = read_bytes();
-    if (is_error(contents_result))
+    if (is_error(contents_result)) {
       return get_error(contents_result);
+    }
 
     auto r3 = expect(")");
-    if (is_error(r3))
+    if (is_error(r3)) {
       return get_error(r3);
+    }
 
     return FsObject{FsObject::RegularFile{.contents_ = std::move(get_value(contents_result)),
                                           .executable_ = executable}};
@@ -527,8 +535,9 @@ private:
 
     while (true) {
       auto tag_result = read_str();
-      if (is_error(tag_result))
+      if (is_error(tag_result)) {
         return get_error(tag_result);
+      }
       auto& tag = get_value(tag_result);
 
       if (tag == ")") {
@@ -540,27 +549,33 @@ private:
 
       // Read entry: "(" "name" <name> "node" <node> ")"
       auto r1 = expect("(");
-      if (is_error(r1))
+      if (is_error(r1)) {
         return get_error(r1);
+      }
       auto r2 = expect("name");
-      if (is_error(r2))
+      if (is_error(r2)) {
         return get_error(r2);
+      }
 
       auto name_result = read_str();
-      if (is_error(name_result))
+      if (is_error(name_result)) {
         return get_error(name_result);
+      }
 
       auto r3 = expect("node");
-      if (is_error(r3))
+      if (is_error(r3)) {
         return get_error(r3);
+      }
 
       auto child_result = read_node();
-      if (is_error(child_result))
+      if (is_error(child_result)) {
         return get_error(child_result);
+      }
 
       auto r4 = expect(")");
-      if (is_error(r4))
+      if (is_error(r4)) {
         return get_error(r4);
+      }
 
       entries.emplace_back(std::move(get_value(name_result)), std::move(get_value(child_result)));
     }
@@ -571,16 +586,19 @@ private:
   /// Read a symlink node (after "type" "symlink")
   NarResult<FsObject> read_symlink() {
     auto r1 = expect("target");
-    if (is_error(r1))
+    if (is_error(r1)) {
       return get_error(r1);
+    }
 
     auto target_result = read_str();
-    if (is_error(target_result))
+    if (is_error(target_result)) {
       return get_error(target_result);
+    }
 
     auto r2 = expect(")");
-    if (is_error(r2))
+    if (is_error(r2)) {
       return get_error(r2);
+    }
 
     return FsObject{FsObject::Symlink{.target_ = std::move(get_value(target_result))}};
   }

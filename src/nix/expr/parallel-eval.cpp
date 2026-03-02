@@ -23,13 +23,15 @@ Executor::Executor(const eval_settings_t& eval_settings)
     : evalCores(getEvalCores(eval_settings)),
       enabled(evalCores > 1),
       interruptCallback(create_interrupt_callback([&]() {
-        for (auto& domain : waiter_domains)
+        for (auto& domain : waiter_domains) {
           domain.lock()->cv.notify_all();
+        }
       })) {
   debug("executor using %d threads", evalCores);
   auto state(state_.lock());
-  for (size_t n = 0; n < evalCores; ++n)
+  for (size_t n = 0; n < evalCores; ++n) {
     createWorker(*state);
+  }
 }
 
 Executor::~Executor() {
@@ -43,8 +45,9 @@ Executor::~Executor() {
 
   wakeup.notify_all();
 
-  for (auto& thr : threads)
+  for (auto& thr : threads) {
     thr.join();
+  }
 }
 
 void Executor::createWorker(State& state) {
@@ -80,8 +83,9 @@ void Executor::worker() {
         // we get a nicer error than "std::future_error:
         // Broken promise".
         auto ex = std::make_exception_ptr(Interrupted("interrupted by the user"));
-        for (auto& item : state->queue)
+        for (auto& item : state->queue) {
           item.second.promise.set_exception(ex);
+        }
         state->queue.clear();
         return;
       }
@@ -106,8 +110,9 @@ void Executor::worker() {
 }
 
 std::vector<std::future<void>> Executor::spawn(std::vector<std::pair<work_t, uint8_t>>&& items) {
-  if (items.empty())
+  if (items.empty()) {
     return {};
+  }
 
   std::vector<std::future<void>> futures;
 
@@ -123,10 +128,11 @@ std::vector<std::future<void>> Executor::spawn(std::vector<std::pair<work_t, uin
     }
   }
 
-  if (items.size() == 1)
+  if (items.size() == 1) {
     wakeup.notify_one();
-  else
+  } else {
     wakeup.notify_all();
+  }
 
   return futures;
 }
@@ -142,8 +148,9 @@ FutureVector::~FutureVector() {
 void FutureVector::spawn(std::vector<std::pair<Executor::work_t, uint8_t>>&& work) {
   auto futures = executor.spawn(std::move(work));
   auto state(state_.lock());
-  for (auto& future : futures)
+  for (auto& future : futures) {
     state->futures.push_back(std::move(future));
+  }
 }
 
 void FutureVector::finishAll() {
@@ -155,21 +162,26 @@ void FutureVector::finishAll() {
       std::swap(futures, state->futures);
     }
     debug("got %d futures", futures.size());
-    if (futures.empty())
+    if (futures.empty()) {
       break;
-    for (auto& future : futures)
+    }
+    for (auto& future : futures) {
       try {
         future.get();
       } catch (...) {
         if (ex) {
-          if (!get_interrupted())
+          if (!get_interrupted()) {
             ignore_exception_except_interrupt();
-        } else
+          }
+        } else {
           ex = std::current_exception();
+        }
       }
+    }
   }
-  if (ex)
+  if (ex) {
     std::rethrow_exception(ex);
+  }
 }
 
 static sync_t<waiter_domain_t>& get_waiter_domain(detail::ValueBase& v) {
@@ -219,10 +231,11 @@ ValueStorage<sizeof(void*)>::waitOnThunk(eval_state_t& state, PackedPointer expe
   }
 
   /* Wait for another thread to finish this value. */
-  if (threadId == my_eval_thread_id)
+  if (threadId == my_eval_thread_id) {
     state.error<InfiniteRecursionError>("infinite recursion encountered")
         .at_pos(((value_t&)*this).determinePos(no_pos))
         .debugThrow();
+  }
 
   state.nrThunksAwaitedSlow++;
   state.currentlyWaiting++;
@@ -259,10 +272,12 @@ static void prim_parallel(eval_state_t& state, const pos_idx_t pos, value_t** ar
 
   if (state.executor->evalCores > 1) {
     std::vector<std::pair<Executor::work_t, uint8_t>> work;
-    for (auto value : args[0]->list_view())
-      if (!value->isFinished())
+    for (auto value : args[0]->list_view()) {
+      if (!value->isFinished()) {
         work.emplace_back(
             [value(alloc_root_value(value)), &state, pos]() { state.forceValue(**value, pos); }, 0);
+      }
+    }
     state.executor->spawn(std::move(work));
   }
 

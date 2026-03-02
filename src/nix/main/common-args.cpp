@@ -53,8 +53,9 @@ MixCommonArgs::MixCommonArgs(const std::string& program_name) : program_name(pro
         try {
           global_config.set(name, value);
         } catch (UsageError& e) {
-          if (!get_root().completions)
+          if (!get_root().completions) {
             warn(e.what());
+          }
         }
       }},
       .completer =
@@ -62,9 +63,11 @@ MixCommonArgs::MixCommonArgs(const std::string& program_name) : program_name(pro
             if (index == 0) {
               std::map<std::string, config_t::setting_info_t> settings;
               global_config.get_settings(settings);
-              for (auto& s : settings)
-                if (has_prefix(s.first, prefix))
+              for (auto& s : settings) {
+                if (has_prefix(s.first, prefix)) {
                   completions.add(s.first, fmt("Set the `%s` setting.", s.first));
+                }
+              }
             }
           },
   });

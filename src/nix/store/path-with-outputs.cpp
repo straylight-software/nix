@@ -32,8 +32,9 @@ derived_path_t StorePathWithOutputs::toDerivedPath() const {
 std::vector<derived_path_t> to_derived_paths(const std::vector<StorePathWithOutputs> ss) {
   std::vector<derived_path_t> reqs;
   reqs.reserve(ss.size());
-  for (auto& s : ss)
+  for (auto& s : ss) {
     reqs.push_back(s.toDerivedPath());
+  }
   return reqs;
 }
 

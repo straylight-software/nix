@@ -58,10 +58,11 @@ struct cmd_copy_t : virtual nix::CopyCommand,
     updateProfile(root_paths);
 
     if (out_link) {
-      if (auto store2 = dst_store.dynamic_pointer_cast<nix::local_fs_store>())
+      if (auto store2 = dst_store.dynamic_pointer_cast<nix::local_fs_store>()) {
         nix::create_out_links(*out_link, root_paths, *store2);
-      else
+      } else {
         throw nix::Error("'--out-link' is not supported for this Nix store");
+      }
     }
   }
 };

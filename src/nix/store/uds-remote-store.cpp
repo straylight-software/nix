@@ -51,11 +51,12 @@ StoreReference UDSRemoteStoreConfig::getReference() const {
   /* We specifically return "daemon" here instead of "unix://" or "unix://${path}"
    * to be more compatible with older versions of nix. Some tooling out there
    * tries hard to parse store references and it might not be able to handle "unix://". */
-  if (path == settings.nixDaemonSocketFile)
+  if (path == settings.nixDaemonSocketFile) {
     return {
         .variant = StoreReference::Daemon{},
         .params = getQueryParams(),
     };
+  }
   return {
       .variant =
           StoreReference::Specified{

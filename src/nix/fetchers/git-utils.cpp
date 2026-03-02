@@ -101,8 +101,9 @@ static Hash to_hash(const git_oid& oid) {
 static void init_lib_git2() {
   static std::once_flag initialized;
   std::call_once(initialized, []() {
-    if (git_libgit2_init() < 0)
+    if (git_libgit2_init() < 0) {
       throw Error("initialising libgit2: %s", git_error_last()->message);
+    }
 
     // Tell libgit2 to accept certain git extensions that it doesn't natively
     // support. This allows Nix to open repositories that use these features
@@ -120,8 +121,9 @@ static void init_lib_git2() {
     //   it enabled. Nix primarily uses the object database which is unaffected.
     //   See: https://github.com/libgit2/libgit2/issues/7099
     const char* extensions[] = {"refstorage", "relativeworktrees"};
-    if (git_libgit2_opts(GIT_OPT_SET_EXTENSIONS, extensions, 2) < 0)
+    if (git_libgit2_opts(GIT_OPT_SET_EXTENSIONS, extensions, 2) < 0) {
       throw Error("setting libgit2 extensions: %s", git_error_last()->message);
+    }
   });
 }
 
@@ -159,9 +161,10 @@ static T peel_object(git_object* obj, git_object_t type) {
 template <typename T>
 static T dup_object(typename T::pointer obj) {
   T obj2;
-  if (git_object_dup((git_object**)(typename T::pointer*)Setter(obj2), (git_object*)obj))
+  if (git_object_dup((git_object**)(typename T::pointer*)Setter(obj2), (git_object*)obj)) {
     throw Error("duplicating object '%s': %s", *git_object_id((git_object*)obj),
                 git_error_last()->message);
+  }
   return obj2;
 }
 
@@ -172,10 +175,11 @@ static T dup_object(typename T::pointer obj) {
 static Object peel_to_tree_or_blob(git_object* obj) {
   /* git_object_peel() doesn't handle blob objects, so handle those
      specially. */
-  if (git_object_type(obj) == GIT_OBJECT_BLOB)
+  if (git_object_type(obj) == GIT_OBJECT_BLOB) {
     return dup_object<Object>(obj);
-  else
+  } else {
     return peel_object<Object>(obj, GIT_OBJECT_TREE);
+  }
 }
 
 struct pack_builder_context_t {
@@ -186,8 +190,9 @@ struct pack_builder_context_t {
       case GIT_OK:
         break;
       case GIT_EUSER:
-        if (!exception)
+        if (!exception) {
           panic("PackBuilderContext::handleException: user error, but exception was not set");
+        }
 
         std::rethrow_exception(exception);
       default:
@@ -219,18 +224,21 @@ static git_packbuilder_progress PACKBUILDER_PROGRESS_CHECK_INTERRUPT =
 } // extern "C"
 
 static void init_repo_atomically(std::filesystem::path& path, GitRepo::Options options) {
-  if (path_exists(path.string()))
+  if (path_exists(path.string())) {
     return;
+  }
 
-  if (!options.create)
+  if (!options.create) {
     throw Error("Git repository %s does not exist.", path);
+  }
 
   std::filesystem::path tmp_dir = create_temp_dir(path.parent_path());
   auto_delete_t del_tmp_dir(tmp_dir, true);
   Repository tmp_repo;
 
-  if (git_repository_init(Setter(tmp_repo), tmp_dir.string().c_str(), options.bare))
+  if (git_repository_init(Setter(tmp_repo), tmp_dir.string().c_str(), options.bare)) {
     throw Error("creating Git repository %s: %s", path, git_error_last()->message);
+  }
   try {
     std::filesystem::rename(tmp_dir, path);
   } catch (std::filesystem::filesystem_error& e) {
@@ -239,8 +247,9 @@ static void init_repo_atomically(std::filesystem::path& path, GitRepo::Options o
         // `path` may be attempted to be deleted by s::f::rename, in which case the code is:
         || e.code() == std::errc::directory_not_empty) {
       return;
-    } else
+    } else {
       throw sys_error_t("moving temporary git repository from %s to %s", tmp_dir, path);
+    }
   }
   // we successfully moved the repository, so the temporary directory no longer exists.
   del_tmp_dir.cancel();
@@ -276,8 +285,9 @@ struct git_repo_impl_t : GitRepo, std::enable_shared_from_this<git_repo_impl_t> 
     init_lib_git2();
 
     init_repo_atomically(path, options);
-    if (git_repository_open(Setter(repo), path.string().c_str()))
+    if (git_repository_open(Setter(repo), path.string().c_str())) {
       throw Error("opening Git repository %s: %s", path, git_error_last()->message);
+    }
 
     ObjectDb odb;
     if (options.packfilesOnly) {
@@ -303,23 +313,28 @@ struct git_repo_impl_t : GitRepo, std::enable_shared_from_this<git_repo_impl_t> 
 #endif
         throw Error("creating pack backend: %s", git_error_last()->message);
 
-      if (git_odb_add_backend(odb.get(), pack_backend, 1))
+      if (git_odb_add_backend(odb.get(), pack_backend, 1)) {
         throw Error("adding pack backend to Git object database: %s", git_error_last()->message);
+      }
     } else {
-      if (git_repository_odb(Setter(odb), repo.get()))
+      if (git_repository_odb(Setter(odb), repo.get())) {
         throw Error("getting Git object database: %s", git_error_last()->message);
+      }
     }
 
     // mempack_backend will be owned by the repository, so we are not expected to free it ourselves.
-    if (git_mempack_new(&mempack_backend))
+    if (git_mempack_new(&mempack_backend)) {
       throw Error("creating mempack backend: %s", git_error_last()->message);
+    }
 
-    if (git_odb_add_backend(odb.get(), mempack_backend, 999))
+    if (git_odb_add_backend(odb.get(), mempack_backend, 999)) {
       throw Error("adding mempack backend to Git object database: %s", git_error_last()->message);
+    }
 
     if (options.packfilesOnly) {
-      if (git_repository_set_odb(repo.get(), odb.get()))
+      if (git_repository_set_odb(repo.get(), odb.get())) {
         throw Error("setting Git object database: %s", git_error_last()->message);
+      }
     }
   }
 
@@ -345,8 +360,9 @@ struct git_repo_impl_t : GitRepo, std::enable_shared_from_this<git_repo_impl_t> 
     check_interrupt();
 
     std::string repo_path = std::string(git_repository_path(repo.get()));
-    while (!repo_path.empty() && repo_path.back() == '/')
+    while (!repo_path.empty() && repo_path.back() == '/') {
       repo_path.pop_back();
+    }
     std::string pack_dir_path = repo_path + "/objects/pack";
 
     // TODO (performance): could the indexing be done in a separate thread?
@@ -369,16 +385,19 @@ struct git_repo_impl_t : GitRepo, std::enable_shared_from_this<git_repo_impl_t> 
     constexpr size_t chunk_size = 128 * 1024;
     for (size_t offset = 0; offset < buf.size; offset += chunk_size) {
       if (git_indexer_append(indexer.get(), buf.ptr + offset,
-                             std::min(chunk_size, buf.size - offset), &stats))
+                             std::min(chunk_size, buf.size - offset), &stats)) {
         throw Error("appending to git packfile index: %s", git_error_last()->message);
+      }
       check_interrupt();
     }
 
-    if (git_indexer_commit(indexer.get(), &stats))
+    if (git_indexer_commit(indexer.get(), &stats)) {
       throw Error("committing git packfile index: %s", git_error_last()->message);
+    }
 
-    if (git_mempack_reset(mempack_backend))
+    if (git_mempack_reset(mempack_backend)) {
       throw Error("resetting git mempack backend: %s", git_error_last()->message);
+    }
 
     check_interrupt();
   }
@@ -411,8 +430,9 @@ struct git_repo_impl_t : GitRepo, std::enable_shared_from_this<git_repo_impl_t> 
                                         cache at the same time, but that's a very unrealistic
                                         scenario).
                                      */
-                                     if (auto* backend = repo->pack_backend)
+                                     if (auto* backend = repo->pack_backend) {
                                        backend->refresh = nullptr;
+                                     }
 
                                      return repo;
                                    });
@@ -448,8 +468,9 @@ struct git_repo_impl_t : GitRepo, std::enable_shared_from_this<git_repo_impl_t> 
               "or fetch the complete history for this branch.",
               *git_commit_id(commit), git_error_last()->message);
         }
-        if (done.insert(*parentOid))
+        if (done.insert(*parentOid)) {
           pool.enqueue(std::bind(process, *parentOid));
+        }
       }
     };
 
@@ -470,8 +491,9 @@ struct git_repo_impl_t : GitRepo, std::enable_shared_from_this<git_repo_impl_t> 
   bool is_shallow() override { return git_repository_is_shallow(*this); }
 
   void setRemote(const std::string& name, const std::string& url) override {
-    if (git_remote_set_url(*this, name.c_str(), url.c_str()))
+    if (git_remote_set_url(*this, name.c_str(), url.c_str())) {
       throw Error("setting remote '%s' URL to '%s': %s", name, url, git_error_last()->message);
+    }
   }
 
   Hash resolveRef(std::string ref) override {
@@ -482,29 +504,33 @@ struct git_repo_impl_t : GitRepo, std::enable_shared_from_this<git_repo_impl_t> 
     // This is to handle the case where it may be an annotated tag which itself has
     // an object_id.
     std::string peeledRef = ref + "^{commit}";
-    if (git_revparse_single(Setter(object), *this, peeledRef.c_str()))
+    if (git_revparse_single(Setter(object), *this, peeledRef.c_str())) {
       throw Error("resolving Git reference '%s': %s", ref, git_error_last()->message);
+    }
     auto oid = git_object_id(object.get());
     return to_hash(*oid);
   }
 
   std::vector<submodule_t> parseSubmodules(const std::filesystem::path& configFile) {
     GitConfig config;
-    if (git_config_open_ondisk(Setter(config), configFile.string().c_str()))
+    if (git_config_open_ondisk(Setter(config), configFile.string().c_str())) {
       throw Error("parsing .gitmodules file: %s", git_error_last()->message);
+    }
 
     ConfigIterator it;
     if (git_config_iterator_glob_new(Setter(it), config.get(),
-                                     "^submodule\\..*\\.(path|url|branch)$"))
+                                     "^submodule\\..*\\.(path|url|branch)$")) {
       throw Error("iterating over .gitmodules: %s", git_error_last()->message);
+    }
 
     string_map_t entries;
 
     while (true) {
       git_config_entry* entry = nullptr;
       if (auto err = git_config_next(&entry, it.get())) {
-        if (err == GIT_ITEROVER)
+        if (err == GIT_ITEROVER) {
           break;
+        }
         throw Error("iterating over .gitmodules: %s", git_error_last()->message);
       }
       entries.emplace(entry->name + 10, entry->value);
@@ -513,8 +539,9 @@ struct git_repo_impl_t : GitRepo, std::enable_shared_from_this<git_repo_impl_t> 
     std::vector<submodule_t> result;
 
     for (auto& [key, value] : entries) {
-      if (!has_suffix(key, ".path"))
+      if (!has_suffix(key, ".path")) {
         continue;
+      }
       std::string key2(key, 0, key.size() - 5);
       auto path = canon_path_t(value);
       result.push_back(submodule_t{
@@ -539,10 +566,12 @@ struct git_repo_impl_t : GitRepo, std::enable_shared_from_this<git_repo_impl_t> 
     /* Get the head revision, if any. */
     git_oid headRev;
     if (auto err = git_reference_name_to_id(&headRev, *this, "HEAD")) {
-      if (err != GIT_ENOTFOUND)
+      if (err != GIT_ENOTFOUND) {
         throw Error("resolving HEAD: %s", git_error_last()->message);
-    } else
+      }
+    } else {
       info.headRev = to_hash(headRev);
+    }
 
     /* Get all tracked files and determine whether the working
        directory is dirty. */
@@ -550,36 +579,43 @@ struct git_repo_impl_t : GitRepo, std::enable_shared_from_this<git_repo_impl_t> 
         [&](const char* path, unsigned int statusFlags) {
           if (!(statusFlags & GIT_STATUS_INDEX_DELETED) && !(statusFlags & GIT_STATUS_WT_DELETED)) {
             info.files.insert(canon_path_t(path));
-            if (statusFlags != GIT_STATUS_CURRENT)
+            if (statusFlags != GIT_STATUS_CURRENT) {
               info.dirtyFiles.insert(canon_path_t(path));
-          } else
+            }
+          } else {
             info.deletedFiles.insert(canon_path_t(path));
-          if (statusFlags != GIT_STATUS_CURRENT)
+          }
+          if (statusFlags != GIT_STATUS_CURRENT) {
             info.isDirty = true;
+          }
           return 0;
         };
 
     git_status_options options = GIT_STATUS_OPTIONS_INIT;
     options.flags |= GIT_STATUS_OPT_INCLUDE_UNMODIFIED;
     options.flags |= GIT_STATUS_OPT_EXCLUDE_SUBMODULES;
-    if (git_status_foreach_ext(*this, &options, &statusCallbackTrampoline, &statusCallback))
+    if (git_status_foreach_ext(*this, &options, &statusCallbackTrampoline, &statusCallback)) {
       throw Error("getting working directory status: %s", git_error_last()->message);
+    }
 
     /* Get submodule info. */
     auto modulesFile = path / ".gitmodules";
-    if (path_exists(modulesFile.string()))
+    if (path_exists(modulesFile.string())) {
       info.submodules = parseSubmodules(modulesFile);
+    }
 
     return info;
   }
 
   std::optional<std::string> getWorkdirRef() override {
     Reference ref;
-    if (git_reference_lookup(Setter(ref), *this, "HEAD"))
+    if (git_reference_lookup(Setter(ref), *this, "HEAD")) {
       throw Error("looking up HEAD: %s", git_error_last()->message);
+    }
 
-    if (auto target = git_reference_symbolic_target(ref.get()))
+    if (auto target = git_reference_symbolic_target(ref.get())) {
       return target;
+    }
 
     return std::nullopt;
   }
@@ -589,8 +625,9 @@ struct git_repo_impl_t : GitRepo, std::enable_shared_from_this<git_repo_impl_t> 
 
   std::string resolveSubmoduleUrl(const std::string& url) override {
     git_buf buf = GIT_BUF_INIT;
-    if (git_submodule_resolve_url(&buf, *this, url.c_str()))
+    if (git_submodule_resolve_url(&buf, *this, url.c_str())) {
       throw Error("resolving Git submodule URL '%s'", url);
+    }
     finally_t cleanup = [&]() { git_buf_dispose(&buf); };
 
     std::string res(buf.ptr);
@@ -602,8 +639,9 @@ struct git_repo_impl_t : GitRepo, std::enable_shared_from_this<git_repo_impl_t> 
 
     Object obj;
     if (auto err_code = git_object_lookup(Setter(obj), *this, &oid, GIT_OBJECT_ANY)) {
-      if (err_code == GIT_ENOTFOUND)
+      if (err_code == GIT_ENOTFOUND) {
         return false;
+      }
       auto err = git_error_last();
       throw Error("getting Git object '%s': %s", oid, err->message);
     }
@@ -616,15 +654,17 @@ struct git_repo_impl_t : GitRepo, std::enable_shared_from_this<git_repo_impl_t> 
 
     Object obj;
     if (auto err_code = git_object_lookup(Setter(obj), *this, &oid, GIT_OBJECT_ANY)) {
-      if (err_code == GIT_ENOTFOUND)
+      if (err_code == GIT_ENOTFOUND) {
         return false;
+      }
       auto err = git_error_last();
       throw Error("getting Git object '%s': %s", oid, err->message);
     }
 
     // If it's not a tree, just check that the object exists (which we already did)
-    if (git_object_type(obj.get()) != GIT_OBJECT_TREE)
+    if (git_object_type(obj.get()) != GIT_OBJECT_TREE) {
       return true;
+    }
 
     // Recursively check all entries in the tree
     auto tree = (git_tree*)obj.get();
@@ -649,8 +689,9 @@ struct git_repo_impl_t : GitRepo, std::enable_shared_from_this<git_repo_impl_t> 
 
       // Recursively check subtrees
       if (entry_type == GIT_OBJECT_TREE) {
-        if (!hasCompleteTree(to_hash(*entry_oid)))
+        if (!hasCompleteTree(to_hash(*entry_oid))) {
           return false;
+        }
       }
     }
 
@@ -681,8 +722,9 @@ struct git_repo_impl_t : GitRepo, std::enable_shared_from_this<git_repo_impl_t> 
     if (executable_path_t::load().find_name("git")) {
       auto dir = this->path;
       strings_t git_args{"-C", dir.string(), "--git-dir", ".", "fetch", "--progress", "--force"};
-      if (shallow)
+      if (shallow) {
         append(git_args, {"--depth", "1"});
+      }
       append(git_args, {std::string("--"), url, refspec});
 
       /* Forward git's stderr progress output to the activity (#5863).
@@ -697,15 +739,17 @@ struct git_repo_impl_t : GitRepo, std::enable_shared_from_this<git_repo_impl_t> 
                                 })
                         .first;
 
-      if (status > 0)
+      if (status > 0) {
         throw Error("Failed to fetch git repository '%s'", url);
+      }
     } else {
       // Fall back to using libgit2 for fetching. This does not
       // support SSH very well.
       Remote remote;
 
-      if (git_remote_create_anonymous(Setter(remote), *this, url.c_str()))
+      if (git_remote_create_anonymous(Setter(remote), *this, url.c_str())) {
         throw Error("cannot create Git remote '%s': %s", url, git_error_last()->message);
+      }
 
       char* refspecs[] = {(char*)refspec.c_str()};
       git_strarray refspecs2{.strings = refspecs, .count = 1};
@@ -716,8 +760,9 @@ struct git_repo_impl_t : GitRepo, std::enable_shared_from_this<git_repo_impl_t> 
       opts.depth = shallow && parse_url(url).scheme() != "ssh" ? 1 : GIT_FETCH_DEPTH_FULL;
       opts.callbacks.payload = &act;
 
-      if (git_remote_fetch(remote.get(), &refspecs2, &opts, nullptr))
+      if (git_remote_fetch(remote.get(), &refspecs2, &opts, nullptr)) {
         throw Error("fetching '%s' from '%s': %s", refspec, url, git_error_last()->message);
+      }
     }
   }
 
@@ -783,10 +828,11 @@ struct git_repo_impl_t : GitRepo, std::enable_shared_from_this<git_repo_impl_t> 
       re += "(" + escaped_fingerprint + ")";
     }
     re += "]";
-    if (status == 0 && std::regex_search(output, std::regex(re)))
+    if (status == 0 && std::regex_search(output, std::regex(re))) {
       printTalkative("Signature verification on commit %s succeeded.", rev.git_rev());
-    else
+    } else {
       throw Error("Commit signature verification on commit %s failed: %s", rev.git_rev(), output);
+    }
   }
 
   Hash treeHashToNarHash(const fetchers::settings_t& settings, const Hash& tree_hash) override {
@@ -794,8 +840,9 @@ struct git_repo_impl_t : GitRepo, std::enable_shared_from_this<git_repo_impl_t> 
 
     fetchers::cache_t::Key cache_key{"treeHashToNarHash", {{"treeHash", tree_hash.git_rev()}}};
 
-    if (auto res = settings.get_cache()->lookup(cache_key))
+    if (auto res = settings.get_cache()->lookup(cache_key)) {
       return Hash::parse_any(fetchers::get_str_attr(*res, "narHash"), hash_algorithm_t::SHA256);
+    }
 
     auto nar_hash = accessor->hash_path(canon_path_t::root);
 
@@ -814,8 +861,9 @@ struct git_repo_impl_t : GitRepo, std::enable_shared_from_this<git_repo_impl_t> 
     if (git_tree_entrycount(tree) == 1) {
       auto entry = git_tree_entry_byindex(tree, 0);
       auto mode = git_tree_entry_filemode(entry);
-      if (mode == GIT_FILEMODE_TREE)
+      if (mode == GIT_FILEMODE_TREE) {
         oid = *git_tree_entry_id(entry);
+      }
     }
 
     return to_hash(oid);
@@ -892,34 +940,42 @@ struct git_source_accessor_t : source_accessor_t {
   std::optional<stat_t> maybe_lstat(const canon_path_t& path) override {
     auto state(state_.lock());
 
-    if (path.is_root())
+    if (path.is_root()) {
       return stat_t{.type = git_object_type(state->root.get()) == GIT_OBJECT_TREE ? t_directory
                                                                                   : t_regular};
+    }
 
     auto entry = lookup(*state, path);
-    if (!entry)
+    if (!entry) {
       return std::nullopt;
+    }
 
     auto mode = git_tree_entry_filemode(entry);
 
-    if (mode == GIT_FILEMODE_TREE)
+    if (mode == GIT_FILEMODE_TREE) {
       return stat_t{.type = t_directory};
+    }
 
-    else if (mode == GIT_FILEMODE_BLOB)
+    else if (mode == GIT_FILEMODE_BLOB) {
       return stat_t{.type = t_regular};
+    }
 
-    else if (mode == GIT_FILEMODE_BLOB_EXECUTABLE)
+    else if (mode == GIT_FILEMODE_BLOB_EXECUTABLE) {
       return stat_t{.type = t_regular, .is_executable = true};
+    }
 
-    else if (mode == GIT_FILEMODE_LINK)
+    else if (mode == GIT_FILEMODE_LINK) {
       return stat_t{.type = t_symlink};
+    }
 
-    else if (mode == GIT_FILEMODE_COMMIT)
+    else if (mode == GIT_FILEMODE_COMMIT) {
       // Treat submodules as an empty directory.
       return stat_t{.type = t_directory};
+    }
 
-    else
+    else {
       throw Error("file '%s' has an unsupported Git file type");
+    }
   }
 
   dir_entries_t read_directory(const canon_path_t& path) override {
@@ -954,8 +1010,9 @@ struct git_source_accessor_t : source_accessor_t {
 
     auto entry = lookup(*state, path);
 
-    if (!entry || git_tree_entry_type(entry) != GIT_OBJECT_COMMIT)
+    if (!entry || git_tree_entry_type(entry) != GIT_OBJECT_COMMIT) {
       return std::nullopt;
+    }
 
     return to_hash(*git_tree_entry_id(entry));
   }
@@ -965,18 +1022,21 @@ struct git_source_accessor_t : source_accessor_t {
   /* Recursively look up 'path' relative to the root. */
   git_tree_entry* lookup(State& state, const canon_path_t& path) {
     auto i = lookupCache.find(path);
-    if (i != lookupCache.end())
+    if (i != lookupCache.end()) {
       return i->second.get();
+    }
 
     auto parent = path.parent();
-    if (!parent)
+    if (!parent) {
       return nullptr;
+    }
 
     auto name = path.base_name().value();
 
     auto parent_tree = lookup_tree(state, *parent);
-    if (!parent_tree)
+    if (!parent_tree) {
       return nullptr;
+    }
 
     auto count = git_tree_entrycount(parent_tree->get());
 
@@ -988,13 +1048,15 @@ struct git_source_accessor_t : source_accessor_t {
       auto entry = git_tree_entry_byindex(parent_tree->get(), n);
 
       tree_entry copy;
-      if (git_tree_entry_dup(Setter(copy), entry))
+      if (git_tree_entry_dup(Setter(copy), entry)) {
         throw Error("dupping tree entry: %s", git_error_last()->message);
+      }
 
       auto entry_name = std::string_view(git_tree_entry_name(entry));
 
-      if (entry_name == name)
+      if (entry_name == name) {
         res = copy.get();
+      }
 
       auto path2 = *parent;
       path2.push(entry_name);
@@ -1006,27 +1068,31 @@ struct git_source_accessor_t : source_accessor_t {
 
   std::optional<tree_t> lookup_tree(State& state, const canon_path_t& path) {
     if (path.is_root()) {
-      if (git_object_type(state.root.get()) == GIT_OBJECT_TREE)
+      if (git_object_type(state.root.get()) == GIT_OBJECT_TREE) {
         return dup_object<tree_t>((git_tree*)&*state.root);
-      else
+      } else {
         return std::nullopt;
+      }
     }
 
     auto entry = lookup(state, path);
-    if (!entry || git_tree_entry_type(entry) != GIT_OBJECT_TREE)
+    if (!entry || git_tree_entry_type(entry) != GIT_OBJECT_TREE) {
       return std::nullopt;
+    }
 
     tree_t tree;
-    if (git_tree_entry_to_object((git_object**)(git_tree**)Setter(tree), *state.repo, entry))
+    if (git_tree_entry_to_object((git_object**)(git_tree**)Setter(tree), *state.repo, entry)) {
       throw Error("looking up directory '%s': %s", show_path(path), git_error_last()->message);
+    }
 
     return tree;
   }
 
   git_tree_entry* need(State& state, const canon_path_t& path) {
     auto entry = lookup(state, path);
-    if (!entry)
+    if (!entry) {
       throw Error("'%s' does not exist", show_path(path));
+    }
     return entry;
   }
 
@@ -1034,56 +1100,66 @@ struct git_source_accessor_t : source_accessor_t {
 
   std::variant<tree_t, submodule_t> get_tree(State& state, const canon_path_t& path) {
     if (path.is_root()) {
-      if (git_object_type(state.root.get()) == GIT_OBJECT_TREE)
+      if (git_object_type(state.root.get()) == GIT_OBJECT_TREE) {
         return dup_object<tree_t>((git_tree*)&*state.root);
-      else
+      } else {
         throw Error("Git root object '%s' is not a directory", *git_object_id(state.root.get()));
+      }
     }
 
     auto entry = need(state, path);
 
-    if (git_tree_entry_type(entry) == GIT_OBJECT_COMMIT)
+    if (git_tree_entry_type(entry) == GIT_OBJECT_COMMIT) {
       return submodule_t();
+    }
 
-    if (git_tree_entry_type(entry) != GIT_OBJECT_TREE)
+    if (git_tree_entry_type(entry) != GIT_OBJECT_TREE) {
       throw Error("'%s' is not a directory", show_path(path));
+    }
 
     tree_t tree;
-    if (git_tree_entry_to_object((git_object**)(git_tree**)Setter(tree), *state.repo, entry))
+    if (git_tree_entry_to_object((git_object**)(git_tree**)Setter(tree), *state.repo, entry)) {
       throw Error("looking up directory '%s': %s", show_path(path), git_error_last()->message);
+    }
 
     return tree;
   }
 
   blob get_blob(State& state, const canon_path_t& path, bool expect_symlink) {
-    if (!expect_symlink && git_object_type(state.root.get()) == GIT_OBJECT_BLOB)
+    if (!expect_symlink && git_object_type(state.root.get()) == GIT_OBJECT_BLOB) {
       return dup_object<blob>((git_blob*)&*state.root);
+    }
 
     auto not_expected = [&]() {
       throw Error(expect_symlink ? "'%s' is not a symlink" : "'%s' is not a regular file",
                   show_path(path));
     };
 
-    if (path.is_root())
+    if (path.is_root()) {
       not_expected();
+    }
 
     auto entry = need(state, path);
 
-    if (git_tree_entry_type(entry) != GIT_OBJECT_BLOB)
+    if (git_tree_entry_type(entry) != GIT_OBJECT_BLOB) {
       not_expected();
+    }
 
     auto mode = git_tree_entry_filemode(entry);
     if (expect_symlink) {
-      if (mode != GIT_FILEMODE_LINK)
+      if (mode != GIT_FILEMODE_LINK) {
         not_expected();
+      }
     } else {
-      if (mode != GIT_FILEMODE_BLOB && mode != GIT_FILEMODE_BLOB_EXECUTABLE)
+      if (mode != GIT_FILEMODE_BLOB && mode != GIT_FILEMODE_BLOB_EXECUTABLE) {
         not_expected();
+      }
     }
 
     blob blob;
-    if (git_tree_entry_to_object((git_object**)(git_blob**)Setter(blob), *state.repo, entry))
+    if (git_tree_entry_to_object((git_object**)(git_blob**)Setter(blob), *state.repo, entry)) {
       throw Error("looking up file '%s': %s", show_path(path), git_error_last()->message);
+    }
 
     return blob;
   }
@@ -1128,10 +1204,11 @@ struct git_export_ignore_source_accessor_t : CachingFilteringSourceAccessor {
     // > (if an index has been specified for the bare repo).
     // -- https://github.com/libgit2/libgit2/blob/HEAD/include/git2/attr.h#L113C62-L115C48
     if (gitAttrGet(path, "export-ignore", exportIgnoreEntry)) {
-      if (git_error_last()->klass == GIT_ENOTFOUND)
+      if (git_error_last()->klass == GIT_ENOTFOUND) {
         return false;
-      else
+      } else {
         throw Error("looking up '%s': %s", show_path(path), git_error_last()->message);
+      }
     } else {
       // Official git will silently reject export-ignore lines that have
       // values. We do the same.
@@ -1178,17 +1255,20 @@ struct git_file_system_object_sink_impl_t : GitFileSystemObjectSink {
       auto cur = this;
       for (auto& name : *parent) {
         auto i = cur->children.find(std::string(name));
-        if (i == cur->children.end())
+        if (i == cur->children.end()) {
           throw Error("path '%s' does not exist", path);
+        }
         auto dir = std::get_if<directory_t>(&i->second.file);
-        if (!dir)
+        if (!dir) {
           throw Error("path '%s' has a non-directory parent", path);
+        }
         cur = dir;
       }
 
       auto i = cur->children.find(std::string(*path.base_name()));
-      if (i == cur->children.end())
+      if (i == cur->children.end()) {
         throw Error("path '%s' does not exist", path);
+      }
       return i->second;
     }
   };
@@ -1228,8 +1308,9 @@ struct git_file_system_object_sink_impl_t : GitFileSystemObjectSink {
     std::string name(*path.base_name());
 
     if (auto prev = cur->children.find(name);
-        prev == cur->children.end() || prev->second.id < child.id)
+        prev == cur->children.end() || prev->second.id < child.id) {
       cur->children.insert_or_assign(name, std::move(child));
+    }
   }
 
   void create_regular_file(const canon_path_t& path,
@@ -1241,8 +1322,9 @@ struct git_file_system_object_sink_impl_t : GitFileSystemObjectSink {
        data in flight exceeds a threshold, we switch to writing directly to a git write stream. */
 
     using WriteStream = std::unique_ptr<::git_writestream, decltype([](::git_writestream* stream) {
-                                          if (stream)
+                                          if (stream) {
                                             stream->free(stream);
+                                          }
                                         })>;
 
     struct CRF : create_regular_file_sink_t {
@@ -1267,20 +1349,23 @@ struct git_file_system_object_sink_impl_t : GitFileSystemObjectSink {
           if (parent.total_buf_size > parent.max_buf_size) {
             repo.emplace(parent.repo_pool.get());
 
-            if (git_blob_create_from_stream(Setter(stream), **repo, nullptr))
+            if (git_blob_create_from_stream(Setter(stream), **repo, nullptr)) {
               throw Error("creating a blob stream object: %s", git_error_last()->message);
+            }
 
-            if (stream->write(stream.get(), contents.data(), contents.size()))
+            if (stream->write(stream.get(), contents.data(), contents.size())) {
               throw Error("writing a blob for tarball member '%s': %s", path,
                           git_error_last()->message);
+            }
 
             parent.total_buf_size -= contents.size();
             contents.clear();
           }
         } else {
-          if (stream->write(stream.get(), data.data(), data.size()))
+          if (stream->write(stream.get(), data.data(), data.size())) {
             throw Error("writing a blob for tarball member '%s': %s", path,
                         git_error_last()->message);
+          }
         }
       }
 
@@ -1298,8 +1383,9 @@ struct git_file_system_object_sink_impl_t : GitFileSystemObjectSink {
          Call .release(), since git_blob_create_from_stream_commit
          acquires ownership and frees the stream. */
       git_oid oid;
-      if (git_blob_create_from_stream_commit(&oid, crf->stream.release()))
+      if (git_blob_create_from_stream_commit(&oid, crf->stream.release())) {
         throw Error("creating a blob object for '%s': %s", path, git_error_last()->message);
+      }
       add_node(*_state.lock(), crf->path,
                Child{crf->executable ? GIT_FILEMODE_BLOB_EXECUTABLE : GIT_FILEMODE_BLOB, oid, id});
       return;
@@ -1310,9 +1396,10 @@ struct git_file_system_object_sink_impl_t : GitFileSystemObjectSink {
       auto repo(repo_pool.get());
 
       git_oid oid;
-      if (git_blob_create_from_buffer(&oid, *repo, crf->contents.data(), crf->contents.size()))
+      if (git_blob_create_from_buffer(&oid, *repo, crf->contents.data(), crf->contents.size())) {
         throw Error("creating a blob object for '%s' from in-memory buffer: %s", crf->path,
                     git_error_last()->message);
+      }
 
       add_node(*_state.lock(), crf->path,
                Child{crf->executable ? GIT_FILEMODE_BLOB_EXECUTABLE : GIT_FILEMODE_BLOB, oid, id});
@@ -1320,8 +1407,9 @@ struct git_file_system_object_sink_impl_t : GitFileSystemObjectSink {
   }
 
   void create_directory(const canon_path_t& path) override {
-    if (path.is_root())
+    if (path.is_root()) {
       return;
+    }
     auto state(_state.lock());
     add_node(*state, path, {GIT_FILEMODE_TREE, directory_t()});
   }
@@ -1331,9 +1419,10 @@ struct git_file_system_object_sink_impl_t : GitFileSystemObjectSink {
       auto repo(repo_pool.get());
 
       git_oid oid;
-      if (git_blob_create_from_buffer(&oid, *repo, target.c_str(), target.size()))
+      if (git_blob_create_from_buffer(&oid, *repo, target.c_str(), target.size())) {
         throw Error("creating a blob object for tarball symlink member '%s': %s", path,
                     git_error_last()->message);
+      }
 
       auto state(_state.lock());
       add_node(*state, path, Child{GIT_FILEMODE_LINK, oid});
@@ -1353,13 +1442,15 @@ struct git_file_system_object_sink_impl_t : GitFileSystemObjectSink {
     {
       auto state(_state.lock());
       for (auto& [path, target] : hard_links) {
-        if (target.is_root())
+        if (target.is_root()) {
           continue;
+        }
         try {
           auto child = state->root.lookup(target);
           auto oid = std::get_if<git_oid>(&child.file);
-          if (!oid)
+          if (!oid) {
             throw Error("cannot create a hard link to a directory");
+          }
           add_node(*state, path, {child.mode, *oid});
         } catch (Error& e) {
           e.add_trace(nullptr, "while creating a hard link from '%s' to '%s'", path, target);
@@ -1372,8 +1463,9 @@ struct git_file_system_object_sink_impl_t : GitFileSystemObjectSink {
     {
       auto repos = repo_pool.clear();
       thread_pool_t workers{repos.size()};
-      for (auto& repo : repos)
+      for (auto& repo : repos) {
         workers.enqueue([repo]() { repo->flush(); });
+      }
       workers.process();
     }
 
@@ -1386,26 +1478,31 @@ struct git_file_system_object_sink_impl_t : GitFileSystemObjectSink {
       check_interrupt();
 
       // Write the child directories.
-      for (auto& child : node.children)
-        if (auto dir = std::get_if<directory_t>(&child.second.file))
+      for (auto& child : node.children) {
+        if (auto dir = std::get_if<directory_t>(&child.second.file)) {
           visit(*dir);
+        }
+      }
 
       // Write this directory.
       git_treebuilder* b;
-      if (git_treebuilder_new(&b, *repo, nullptr))
+      if (git_treebuilder_new(&b, *repo, nullptr)) {
         throw Error("creating a tree builder: %s", git_error_last()->message);
+      }
       TreeBuilder builder(b);
 
       for (auto& [name, child] : node.children) {
         auto oid_p = std::get_if<git_oid>(&child.file);
         auto oid = oid_p ? *oid_p : std::get<directory_t>(child.file).oid.value();
-        if (git_treebuilder_insert(nullptr, builder.get(), name.c_str(), &oid, child.mode))
+        if (git_treebuilder_insert(nullptr, builder.get(), name.c_str(), &oid, child.mode)) {
           throw Error("adding a file to a tree builder: %s", git_error_last()->message);
+        }
       }
 
       git_oid oid;
-      if (git_treebuilder_write(&oid, builder.get()))
+      if (git_treebuilder_write(&oid, builder.get())) {
         throw Error("creating a tree object: %s", git_error_last()->message);
+      }
       node.oid = oid;
     }(_state.lock()->root);
 
@@ -1427,10 +1524,11 @@ ref<source_accessor_t> git_repo_impl_t::get_accessor(const Hash& rev,
   auto self = ref<git_repo_impl_t>(shared_from_this());
   ref<git_source_accessor_t> raw_git_accessor = get_raw_accessor(rev, options);
   raw_git_accessor->set_path_display(std::move(display_prefix));
-  if (options.export_ignore)
+  if (options.export_ignore) {
     return make_ref<git_export_ignore_source_accessor_t>(self, raw_git_accessor, rev);
-  else
+  } else {
     return raw_git_accessor;
+  }
 }
 
 ref<source_accessor_t> git_repo_impl_t::get_accessor(const WorkdirInfo& wd,
@@ -1444,9 +1542,10 @@ ref<source_accessor_t> git_repo_impl_t::get_accessor(const WorkdirInfo& wd,
                                       boost::unordered_flat_set<canon_path_t>{canon_path_t::root},
                                       std::move(make_not_allowed_error))
           .cast<source_accessor_t>();
-  if (options.export_ignore)
+  if (options.export_ignore) {
     file_accessor =
         make_ref<git_export_ignore_source_accessor_t>(self, file_accessor, std::nullopt);
+  }
   return file_accessor;
 }
 
@@ -1460,8 +1559,9 @@ git_repo_impl_t::getSubmodules(const Hash& rev, bool export_ignore) {
   canon_path_t modulesFile(".gitmodules");
 
   auto accessor = get_accessor(rev, {.export_ignore = export_ignore}, "");
-  if (!accessor->path_exists(modulesFile))
+  if (!accessor->path_exists(modulesFile)) {
     return {};
+  }
 
   /* Parse it and get the revision of each submodule. */
   auto configS = accessor->read_file(modulesFile);
@@ -1481,8 +1581,9 @@ git_repo_impl_t::getSubmodules(const Hash& rev, bool export_ignore) {
   for (auto& submodule : parseSubmodules(pathTemp)) {
     /* Filter out .gitmodules entries that don't exist or are not
        submodules. */
-    if (auto rev = rawAccessor->getSubmoduleRev(submodule.path))
+    if (auto rev = rawAccessor->getSubmoduleRev(submodule.path)) {
       result.push_back({std::move(submodule), *rev});
+    }
   }
 
   return result;
@@ -1497,9 +1598,10 @@ ref<GitRepo> settings_t::getTarballCache() const {
    */
   static auto repo_dir = std::filesystem::path(get_cache_dir()) / "tarball-cache-v2";
   auto tarball_cache(_tarballCache.lock());
-  if (!*tarball_cache)
+  if (!*tarball_cache) {
     *tarball_cache =
         GitRepo::openRepo(repo_dir, {.create = true, .bare = true, .packfilesOnly = true});
+  }
   return ref<GitRepo>(*tarball_cache);
 }
 
@@ -1510,8 +1612,9 @@ GitRepo::WorkdirInfo GitRepo::getCachedWorkdirInfo(const std::filesystem::path& 
   {
     auto cache(_cache.lock());
     auto i = cache->find(path);
-    if (i != cache->end())
+    if (i != cache->end()) {
       return i->second;
+    }
   }
   auto workdir_info = GitRepo::openRepo(path, {})->getWorkdirInfo();
   _cache.lock()->emplace(path, workdir_info);
@@ -1523,13 +1626,15 @@ bool is_legal_ref_name(const std::string& ref_name) {
 
   /* Check for cases that don't get rejected by libgit2.
    * FIXME: libgit2 should reject this. */
-  if (ref_name == "@")
+  if (ref_name == "@") {
     return false;
+  }
 
   /* libgit2 doesn't barf on DEL symbol.
    * FIXME: libgit2 should reject this. */
-  if (ref_name.find('\177') != ref_name.npos)
+  if (ref_name.find('\177') != ref_name.npos) {
     return false;
+  }
 
   for (auto* func : {
            git_reference_name_is_valid,
@@ -1537,10 +1642,12 @@ bool is_legal_ref_name(const std::string& ref_name) {
            git_tag_name_is_valid,
        }) {
     int valid = 0;
-    if (func(&valid, ref_name.c_str()))
+    if (func(&valid, ref_name.c_str())) {
       throw Error("checking git reference '%s': %s", ref_name, git_error_last()->message);
-    if (valid)
+    }
+    if (valid) {
       return true;
+    }
   }
 
   return false;

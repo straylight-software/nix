@@ -232,8 +232,9 @@ template <typename T>
 void processGraph(const std::set<T>& nodes, std::function<std::set<T>(const T&)> getEdges,
                   std::function<void(const T&)> processNode, bool discoverNodes = false,
                   std::size_t maxThreads = 0) {
-  if (nodes.empty())
+  if (nodes.empty()) {
     return;
+  }
 
   // Create a temporary executor with the specified thread count
   async::Executor exec(maxThreads);
@@ -249,8 +250,9 @@ template <typename T>
 void processGraphGc(const std::set<T>& nodes, std::function<std::set<T>(const T&)> getEdges,
                     std::function<void(const T&)> processNode, bool discoverNodes = false,
                     std::size_t maxThreads = 0) {
-  if (nodes.empty())
+  if (nodes.empty()) {
     return;
+  }
 
   async::GcExecutor exec(maxThreads);
   async::process_graph<T>(nodes, std::move(getEdges), std::move(processNode), exec, discoverNodes);

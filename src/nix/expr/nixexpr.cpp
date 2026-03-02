@@ -70,8 +70,9 @@ void ExprOpHasAttr::show(const symbol_table_t& symbols, std::ostream& str) const
 void ExprAttrs::showBindings(const symbol_table_t& symbols, std::ostream& str) const {
   typedef const AttrDefs::value_type* attr_t;
   std::vector<attr_t> sorted;
-  for (auto& i : *attrs)
+  for (auto& i : *attrs) {
     sorted.push_back(&i);
+  }
   std::sort(sorted.begin(), sorted.end(), [&](attr_t a, attr_t b) {
     std::string_view sa = symbols[a->first], sb = symbols[b->first];
     return sa < sb;
@@ -97,16 +98,18 @@ void ExprAttrs::showBindings(const symbol_table_t& symbols, std::ostream& str) c
   }
   if (!inherits.empty()) {
     str << "inherit";
-    for (auto sym : inherits)
+    for (auto sym : inherits) {
       str << " " << symbols[sym];
+    }
     str << "; ";
   }
   for (const auto& [from, syms] : inheritsFrom) {
     str << "inherit (";
     (*inheritFromExprs)[from]->show(symbols, str);
     str << ")";
-    for (auto sym : syms)
+    for (auto sym : syms) {
       str << " " << symbols[sym];
+    }
     str << "; ";
   }
   for (auto& i : sorted) {
@@ -126,8 +129,9 @@ void ExprAttrs::showBindings(const symbol_table_t& symbols, std::ostream& str) c
 }
 
 void ExprAttrs::show(const symbol_table_t& symbols, std::ostream& str) const {
-  if (recursive)
+  if (recursive) {
     str << "rec ";
+  }
   str << "{ ";
   showBindings(symbols, str);
   str << "}";
@@ -152,10 +156,11 @@ void ExprLambda::show(const symbol_table_t& symbols, std::ostream& str) const {
     // same expression being printed in two different ways depending on its
     // context. always use lexicographic ordering to avoid this.
     for (auto& i : formals->lexicographicOrder(symbols)) {
-      if (first)
+      if (first) {
         first = false;
-      else
+      } else {
         str << ", ";
+      }
       str << symbols[i.name];
       if (i.def) {
         str << " ? ";
@@ -163,16 +168,19 @@ void ExprLambda::show(const symbol_table_t& symbols, std::ostream& str) const {
       }
     }
     if (ellipsis) {
-      if (!first)
+      if (!first) {
         str << ", ";
+      }
       str << "...";
     }
     str << " }";
-    if (arg)
+    if (arg) {
       str << " @ ";
+    }
   }
-  if (arg)
+  if (arg) {
     str << symbols[arg];
+  }
   str << ": ";
   body->show(symbols, str);
   str << ")";
@@ -231,10 +239,11 @@ void ExprConcatStrings::show(const symbol_table_t& symbols, std::ostream& str) c
   bool first = true;
   str << "(";
   for (auto& i : es) {
-    if (first)
+    if (first) {
       first = false;
-    else
+    } else {
       str << " + ";
+    }
     i.second->show(symbols, str);
   }
   str << ")";
@@ -249,13 +258,14 @@ std::string show_attr_selection_path(const symbol_table_t& symbols,
   std::string result;
   bool first = true;
   for (auto& i : attr_path) {
-    if (!first)
+    if (!first) {
       result += '.';
-    else
+    } else {
       first = false;
-    if (i.symbol)
+    }
+    if (i.symbol) {
       result += symbols[i.symbol];
-    else {
+    } else {
       result += "\"${";
       result += i.expr->show_str(symbols);
       result += "}\"";
@@ -271,28 +281,33 @@ void expr_t::bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>& 
 }
 
 void ExprInt::bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>& env) {
-  if (es.debugRepl)
+  if (es.debugRepl) {
     es.exprEnvs.insert(std::make_pair(this, env));
+  }
 }
 
 void ExprFloat::bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>& env) {
-  if (es.debugRepl)
+  if (es.debugRepl) {
     es.exprEnvs.insert(std::make_pair(this, env));
+  }
 }
 
 void ExprString::bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>& env) {
-  if (es.debugRepl)
+  if (es.debugRepl) {
     es.exprEnvs.insert(std::make_pair(this, env));
+  }
 }
 
 void ExprPath::bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>& env) {
-  if (es.debugRepl)
+  if (es.debugRepl) {
     es.exprEnvs.insert(std::make_pair(this, env));
+  }
 }
 
 void ExprVar::bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>& env) {
-  if (es.debugRepl)
+  if (es.debugRepl) {
     es.exprEnvs.insert(std::make_pair(this, env));
+  }
 
   fromWith = nullptr;
 
@@ -303,8 +318,9 @@ void ExprVar::bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>&
   int withLevel = -1;
   for (curEnv = env.get(), level = 0; curEnv; curEnv = curEnv->up.get(), level++) {
     if (curEnv->isWith) {
-      if (withLevel == -1)
+      if (withLevel == -1) {
         withLevel = level;
+      }
     } else {
       auto i = curEnv->find(name);
       if (i != curEnv->vars.end()) {
@@ -318,46 +334,57 @@ void ExprVar::bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>&
   /* Otherwise, the variable must be obtained from the nearest
      enclosing `with'.  If there is no `with', then we can issue an
      "undefined variable" error now. */
-  if (withLevel == -1)
+  if (withLevel == -1) {
     es.error<UndefinedVarError>("undefined variable '%1%'", es.symbols[name])
         .at_pos(pos)
         .debugThrow();
-  for (auto* e = env.get(); e && !fromWith; e = e->up.get())
+  }
+  for (auto* e = env.get(); e && !fromWith; e = e->up.get()) {
     fromWith = e->isWith;
+  }
   this->level = withLevel;
 }
 
 void ExprInheritFrom::bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>& env) {
-  if (es.debugRepl)
+  if (es.debugRepl) {
     es.exprEnvs.insert(std::make_pair(this, env));
+  }
 }
 
 void ExprSelect::bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>& env) {
-  if (es.debugRepl)
+  if (es.debugRepl) {
     es.exprEnvs.insert(std::make_pair(this, env));
+  }
 
   e->bindVars(es, env);
-  if (def)
+  if (def) {
     def->bindVars(es, env);
-  for (auto& i : getAttrPath())
-    if (!i.symbol)
+  }
+  for (auto& i : getAttrPath()) {
+    if (!i.symbol) {
       i.expr->bindVars(es, env);
+    }
+  }
 }
 
 void ExprOpHasAttr::bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>& env) {
-  if (es.debugRepl)
+  if (es.debugRepl) {
     es.exprEnvs.insert(std::make_pair(this, env));
+  }
 
   e->bindVars(es, env);
-  for (auto& i : attr_path)
-    if (!i.symbol)
+  for (auto& i : attr_path) {
+    if (!i.symbol) {
       i.expr->bindVars(es, env);
+    }
+  }
 }
 
 std::shared_ptr<const StaticEnv>
 ExprAttrs::bindInheritSources(eval_state_t& es, const std::shared_ptr<const StaticEnv>& env) {
-  if (!inheritFromExprs)
+  if (!inheritFromExprs) {
     return nullptr;
+  }
 
   // the inherit (from) source values are inserted into an env of its own, which
   // does not introduce any variable names.
@@ -368,8 +395,9 @@ ExprAttrs::bindInheritSources(eval_state_t& es, const std::shared_ptr<const Stat
   // not even *have* an expr that grabs anything from this env since it's fully
   // invisible, but the evaluator does not allow for this yet.
   auto inner = std::make_shared<StaticEnv>(nullptr, env, 0);
-  for (auto from : *inheritFromExprs)
+  for (auto from : *inheritFromExprs) {
     from->bindVars(es, env);
+  }
 
   return inner;
 }
@@ -379,32 +407,36 @@ void ExprAttrs::moveDataToAllocator(std::pmr::polymorphic_allocator<char>& alloc
   attrs.emplace(std::move(newAttrs), alloc);
   DynamicAttrDefs newDynamicAttrs{std::move(*dynamicAttrs), alloc};
   dynamicAttrs.emplace(std::move(newDynamicAttrs), alloc);
-  if (inheritFromExprs)
+  if (inheritFromExprs) {
     inheritFromExprs =
         std::make_unique<std::pmr::vector<expr_t*>>(std::move(*inheritFromExprs), alloc);
+  }
 }
 
 void ExprAttrs::bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>& env) {
   moveDataToAllocator(es.mem.exprs.alloc);
 
-  if (es.debugRepl)
+  if (es.debugRepl) {
     es.exprEnvs.insert(std::make_pair(this, env));
+  }
 
   if (recursive) {
     auto new_env = [&]() -> std::shared_ptr<const StaticEnv> {
       auto new_env = std::make_shared<StaticEnv>(nullptr, env, attrs->size());
 
       Displacement displ = 0;
-      for (auto& i : *attrs)
+      for (auto& i : *attrs) {
         new_env->vars.emplace_back(i.first, i.second.displ = displ++);
+      }
       return new_env;
     }();
 
     // No need to sort newEnv since attrs is in sorted order.
 
     auto inheritFromEnv = bindInheritSources(es, new_env);
-    for (auto& i : *attrs)
+    for (auto& i : *attrs) {
       i.second.e->bindVars(es, i.second.chooseByKind(new_env, env, inheritFromEnv));
+    }
 
     for (auto& i : *dynamicAttrs) {
       i.nameExpr->bindVars(es, new_env);
@@ -413,8 +445,9 @@ void ExprAttrs::bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv
   } else {
     auto inheritFromEnv = bindInheritSources(es, env);
 
-    for (auto& i : *attrs)
+    for (auto& i : *attrs) {
       i.second.e->bindVars(es, i.second.chooseByKind(env, env, inheritFromEnv));
+    }
 
     for (auto& i : *dynamicAttrs) {
       i.nameExpr->bindVars(es, env);
@@ -424,34 +457,41 @@ void ExprAttrs::bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv
 }
 
 void ExprList::bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>& env) {
-  if (es.debugRepl)
+  if (es.debugRepl) {
     es.exprEnvs.insert(std::make_pair(this, env));
+  }
 
-  for (auto& i : elems)
+  for (auto& i : elems) {
     i->bindVars(es, env);
+  }
 }
 
 void ExprLambda::bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>& env) {
-  if (es.debugRepl)
+  if (es.debugRepl) {
     es.exprEnvs.insert(std::make_pair(this, env));
+  }
 
   auto new_env = std::make_shared<StaticEnv>(
       nullptr, env, (getFormals() ? getFormals()->formals.size() : 0) + (!arg ? 0 : 1));
 
   Displacement displ = 0;
 
-  if (arg)
+  if (arg) {
     new_env->vars.emplace_back(arg, displ++);
+  }
 
   if (auto formals = getFormals()) {
-    for (auto& i : formals->formals)
+    for (auto& i : formals->formals) {
       new_env->vars.emplace_back(i.name, displ++);
+    }
 
     new_env->sort();
 
-    for (auto& i : formals->formals)
-      if (i.def)
+    for (auto& i : formals->formals) {
+      if (i.def) {
         i.def->bindVars(es, new_env);
+      }
+    }
   }
 
   body->bindVars(es, new_env);
@@ -464,12 +504,14 @@ void ExprCall::moveDataToAllocator(std::pmr::polymorphic_allocator<char>& alloc)
 
 void ExprCall::bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>& env) {
   moveDataToAllocator(es.mem.exprs.alloc);
-  if (es.debugRepl)
+  if (es.debugRepl) {
     es.exprEnvs.insert(std::make_pair(this, env));
+  }
 
   fun->bindVars(es, env);
-  for (auto e : *args)
+  for (auto e : *args) {
     e->bindVars(es, env);
+  }
 }
 
 void ExprLet::bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>& env) {
@@ -478,30 +520,35 @@ void ExprLet::bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>&
     auto new_env = std::make_shared<StaticEnv>(nullptr, env, attrs->attrs->size());
 
     Displacement displ = 0;
-    for (auto& i : *attrs->attrs)
+    for (auto& i : *attrs->attrs) {
       new_env->vars.emplace_back(i.first, i.second.displ = displ++);
+    }
     return new_env;
   }();
 
   // No need to sort newEnv since attrs->attrs is in sorted order.
 
   auto inheritFromEnv = attrs->bindInheritSources(es, new_env);
-  for (auto& i : *attrs->attrs)
+  for (auto& i : *attrs->attrs) {
     i.second.e->bindVars(es, i.second.chooseByKind(new_env, env, inheritFromEnv));
+  }
 
-  if (es.debugRepl)
+  if (es.debugRepl) {
     es.exprEnvs.insert(std::make_pair(this, new_env));
+  }
 
   body->bindVars(es, new_env);
 }
 
 void ExprWith::bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>& env) {
-  if (es.debugRepl)
+  if (es.debugRepl) {
     es.exprEnvs.insert(std::make_pair(this, env));
+  }
 
   parentWith = nullptr;
-  for (auto* e = env.get(); e && !parentWith; e = e->up.get())
+  for (auto* e = env.get(); e && !parentWith; e = e->up.get()) {
     parentWith = e->isWith;
+  }
 
   /* Does this `with' have an enclosing `with'?  If so, record its
      level so that `lookupVar' can look up variables in the previous
@@ -509,12 +556,13 @@ void ExprWith::bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>
   const StaticEnv* curEnv;
   Level level;
   prevWith = 0;
-  for (curEnv = env.get(), level = 1; curEnv; curEnv = curEnv->up.get(), level++)
+  for (curEnv = env.get(), level = 1; curEnv; curEnv = curEnv->up.get(), level++) {
     if (curEnv->isWith) {
       assert(level <= std::numeric_limits<uint32_t>::max());
       prevWith = level;
       break;
     }
+  }
 
   attrs->bindVars(es, env);
   auto new_env = std::make_shared<StaticEnv>(this, env);
@@ -522,8 +570,9 @@ void ExprWith::bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>
 }
 
 void ExprIf::bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>& env) {
-  if (es.debugRepl)
+  if (es.debugRepl) {
     es.exprEnvs.insert(std::make_pair(this, env));
+  }
 
   cond->bindVars(es, env);
   then->bindVars(es, env);
@@ -531,31 +580,36 @@ void ExprIf::bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>& 
 }
 
 void ExprAssert::bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>& env) {
-  if (es.debugRepl)
+  if (es.debugRepl) {
     es.exprEnvs.insert(std::make_pair(this, env));
+  }
 
   cond->bindVars(es, env);
   body->bindVars(es, env);
 }
 
 void ExprOpNot::bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>& env) {
-  if (es.debugRepl)
+  if (es.debugRepl) {
     es.exprEnvs.insert(std::make_pair(this, env));
+  }
 
   e->bindVars(es, env);
 }
 
 void ExprConcatStrings::bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>& env) {
-  if (es.debugRepl)
+  if (es.debugRepl) {
     es.exprEnvs.insert(std::make_pair(this, env));
+  }
 
-  for (auto& i : this->es)
+  for (auto& i : this->es) {
     i.second->bindVars(es, env);
+  }
 }
 
 void ExprPos::bindVars(eval_state_t& es, const std::shared_ptr<const StaticEnv>& env) {
-  if (es.debugRepl)
+  if (es.debugRepl) {
     es.exprEnvs.insert(std::make_pair(this, env));
+  }
 }
 
 /* Storing function names. */
@@ -598,8 +652,9 @@ std::string DocComment::getInnerText(const pos_table_t& positions) const {
   constexpr size_t suffixLen = 2;
   std::string docStr =
       docCommentStr.substr(prefixLen, docCommentStr.size() - prefixLen - suffixLen);
-  if (docStr.empty())
+  if (docStr.empty()) {
     return {};
+  }
   // Turn the now missing "/**" into indentation
   docStr = "   " + docStr;
   // Strip indentation (for the whole, potentially multi-line string)

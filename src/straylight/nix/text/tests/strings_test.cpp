@@ -733,8 +733,9 @@ TEST_CASE("split edge cases", "[strings][property][split]") {
     // Reconstruct
     std::string reconstructed;
     for (std::size_t i = 0; i < parts.size(); ++i) {
-      if (i > 0)
+      if (i > 0) {
         reconstructed += sep;
+      }
       reconstructed += parts[i];
     }
 
@@ -778,14 +779,16 @@ TEST_CASE("tokenize vs split properties", "[strings][property][tokenize]") {
         rc::gen::nonEmpty(rc::gen::container<std::string>(
             rc::gen::suchThat<char>(rc::gen::inRange<char>('a', 'z'), [](char) { return true; }))));
 
-    if (tokens_in.empty())
+    if (tokens_in.empty()) {
       return;
+    }
 
     // Join with spaces
     std::string s;
     for (std::size_t i = 0; i < tokens_in.size(); ++i) {
-      if (i > 0)
+      if (i > 0) {
         s += " ";
+      }
       s += tokens_in[i];
     }
 
@@ -982,8 +985,9 @@ TEST_CASE("pathological string inputs", "[strings][property][pathological]") {
     auto num_parts = *rc::gen::inRange(100, 1000);
     std::string s;
     for (int i = 0; i < num_parts; ++i) {
-      if (i > 0)
+      if (i > 0) {
         s += ",";
+      }
       s += "x";
     }
 

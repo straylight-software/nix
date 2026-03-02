@@ -242,8 +242,9 @@ TEST_CASE("fuzz: canon_path invariants", "[fuzz][canon-path]") {
         [](const ::std::vector<::std::string>& components) {
           auto path = ::std::string{"/"};
           for (auto idx = ::std::size_t{0}; idx < components.size(); ++idx) {
-            if (idx > 0)
+            if (idx > 0) {
               path += "/";
+            }
             path += components[idx];
           }
           return path;

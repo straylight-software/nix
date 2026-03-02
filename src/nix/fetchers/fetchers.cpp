@@ -22,8 +22,9 @@ static InputSchemeMap& input_schemes() {
 
 void register_input_scheme(std::shared_ptr<input_scheme_t>&& inputScheme) {
   auto schemeName = inputScheme->schemeName();
-  if (!input_schemes().emplace(schemeName, std::move(inputScheme)).second)
+  if (!input_schemes().emplace(schemeName, std::move(inputScheme)).second) {
     throw Error("input_t scheme with name %s already registered", schemeName);
+  }
 }
 
 const InputSchemeMap& get_all_input_schemes() {
@@ -65,8 +66,9 @@ input_t input_t::fromURL(const settings_t& settings, const parsed_url_t& url, bo
 input_t input_t::fromAttrs(const settings_t& settings, Attrs&& attrs) {
   auto schemeName = ({
     auto schemeNameOpt = maybe_get_str_attr(attrs, "type");
-    if (!schemeNameOpt)
+    if (!schemeNameOpt) {
       throw Error("'type' attribute to specify input scheme is required but not provided");
+    }
     *std::move(schemeNameOpt);
   });
 
@@ -86,31 +88,37 @@ input_t input_t::fromAttrs(const settings_t& settings, Attrs&& attrs) {
     i ? *i : nullptr;
   });
 
-  if (!inputScheme)
+  if (!inputScheme) {
     return raw();
+  }
 
   experimental_feature_settings.require(inputScheme->experimental_feature());
 
   auto allowed_attrs = inputScheme->allowed_attrs();
 
-  for (auto& [name, _] : attrs)
-    if (name != "type" && name != "__final" && allowed_attrs.count(name) == 0)
+  for (auto& [name, _] : attrs) {
+    if (name != "type" && name != "__final" && allowed_attrs.count(name) == 0) {
       throw Error("input attribute '%s' not supported by scheme '%s'", name, schemeName);
+    }
+  }
 
   auto res = inputScheme->inputFromAttrs(settings, attrs);
-  if (!res)
+  if (!res) {
     return raw();
+  }
   res->scheme = inputScheme;
   fixup_input(*res);
   return std::move(*res);
 }
 
 std::optional<std::string> input_t::get_fingerprint(store_t& store) const {
-  if (!scheme)
+  if (!scheme) {
     return std::nullopt;
+  }
 
-  if (cachedFingerprint)
+  if (cachedFingerprint) {
     return *cachedFingerprint;
+  }
 
   auto fingerprint = scheme->get_fingerprint(store, *this);
 
@@ -120,21 +128,24 @@ std::optional<std::string> input_t::get_fingerprint(store_t& store) const {
 }
 
 parsed_url_t input_t::toURL(bool abbreviate) const {
-  if (!scheme)
+  if (!scheme) {
     throw Error("cannot show unsupported input '%s'", attrs_to_json(attrs));
+  }
 
   auto url = scheme->toURL(*this, abbreviate);
 
-  if (abbreviate)
+  if (abbreviate) {
     url.query().erase("narHash");
+  }
 
   return url;
 }
 
 std::string input_t::toURLString(const string_map_t& extraQuery, bool abbreviate) const {
   auto url = toURL(abbreviate);
-  for (auto& attr : extraQuery)
+  for (auto& attr : extraQuery) {
     url.query().insert(attr);
+  }
   return url.to_string();
 }
 
@@ -168,21 +179,24 @@ bool input_t::operator==(const input_t& other) const noexcept {
 }
 
 bool input_t::contains(const input_t& other) const {
-  if (*this == other)
+  if (*this == other) {
     return true;
+  }
   auto other2(other);
   other2.attrs.erase("ref");
   other2.attrs.erase("rev");
-  if (*this == other2)
+  if (*this == other2) {
     return true;
+  }
   return false;
 }
 
 // FIXME: remove
 std::tuple<store_path_t, ref<source_accessor_t>, input_t>
 input_t::fetch_to_store(const settings_t& settings, store_t& store) const {
-  if (!scheme)
+  if (!scheme) {
     throw Error("cannot fetch unsupported input '%s'", attrs_to_json(toAttrs()));
+  }
 
   try {
     auto [accessor, result] = getAccessorUnchecked(settings, store);
@@ -216,17 +230,20 @@ void input_t::checkLocks(input_t specified, input_t& result) {
        past that 'narHash' fields with incorrect base-64
        formatting (lacking the trailing '=', e.g. 'sha256-ri...Mw'
        instead of ''sha256-ri...Mw='). So fix that. */
-    if (auto prevNarHash = specified.getNarHash())
+    if (auto prevNarHash = specified.getNarHash()) {
       specified.attrs.insert_or_assign("narHash", prevNarHash->to_string(hash_format_t::sri, true));
+    }
 
-    if (auto nar_hash = result.getNarHash())
+    if (auto nar_hash = result.getNarHash()) {
       result.attrs.insert_or_assign("narHash", nar_hash->to_string(hash_format_t::sri, true));
+    }
 
     for (auto& field : specified.attrs) {
       auto field2 = result.attrs.find(field.first);
-      if (field2 != result.attrs.end() && field.second != field2->second)
+      if (field2 != result.attrs.end() && field.second != field2->second) {
         throw Error("mismatch in field '%s' of input '%s', got '%s'", field.first,
                     attrs_to_json(specified.attrs), attrs_to_json(result.attrs));
+      }
     }
 
     result.attrs = specified.attrs;
@@ -236,22 +253,24 @@ void input_t::checkLocks(input_t specified, input_t& result) {
 
   if (auto prevNarHash = specified.getNarHash()) {
     if (result.getNarHash() != prevNarHash) {
-      if (result.getNarHash())
+      if (result.getNarHash()) {
         throw Error((unsigned int)102,
                     "NAR hash mismatch in input '%s', expected '%s' but got '%s'",
                     specified.to_string(), prevNarHash->to_string(hash_format_t::sri, true),
                     result.getNarHash()->to_string(hash_format_t::sri, true));
-      else
+      } else {
         throw Error((unsigned int)102,
                     "NAR hash mismatch in input '%s', expected '%s' but got none",
                     specified.to_string(), prevNarHash->to_string(hash_format_t::sri, true));
+      }
     }
   }
 
   if (auto prevRev = specified.getRev()) {
-    if (result.getRev() != prevRev)
+    if (result.getRev() != prevRev) {
       throw Error("'rev' attribute mismatch in input '%s', expected %s", result.to_string(),
                   prevRev->git_rev());
+    }
   }
 }
 
@@ -288,8 +307,9 @@ std::pair<ref<source_accessor_t>, input_t> input_t::getAccessorUnchecked(const s
                                                                          store_t& store) const {
   // FIXME: cache the accessor
 
-  if (!scheme)
+  if (!scheme) {
     throw Error("cannot fetch unsupported input '%s'", attrs_to_json(toAttrs()));
+  }
 
   std::optional<store_path_t> store_path;
   /* Compute the expected store path from the narHash, but only if the input
@@ -297,8 +317,9 @@ std::pair<ref<source_accessor_t>, input_t> input_t::getAccessorUnchecked(const s
      reflected in the narHash. This fixes NixOS/nix#15350: when a flake uses
      git-lfs, the narHash may have been computed without LFS content, so we
      need to go through the normal fetch path to ensure LFS files are fetched. */
-  if (isFinal() && getNarHash() && (!scheme || !scheme->hasContentAffectingOptions(*this)))
+  if (isFinal() && getNarHash() && (!scheme || !scheme->hasContentAffectingOptions(*this))) {
     store_path = computeStorePath(store);
+  }
 
   auto makeStoreAccessor = [&](bool updateCache) -> std::pair<ref<source_accessor_t>, input_t> {
     auto accessor =
@@ -355,10 +376,11 @@ std::pair<ref<source_accessor_t>, input_t> input_t::getAccessorUnchecked(const s
   try {
     auto [accessor, result] = scheme->get_accessor(settings, store, *this);
 
-    if (auto fp = accessor->get_fingerprint(canon_path_t::root).second)
+    if (auto fp = accessor->get_fingerprint(canon_path_t::root).second) {
       result.cachedFingerprint = *fp;
-    else
+    } else {
       accessor->fingerprint = result.get_fingerprint(store);
+    }
 
     return {accessor, std::move(result)};
   } catch (Error& e) {
@@ -384,8 +406,9 @@ std::pair<ref<source_accessor_t>, input_t> input_t::getAccessorUnchecked(const s
 }
 
 input_t input_t::applyOverrides(std::optional<std::string> ref, std::optional<Hash> rev) const {
-  if (!scheme)
+  if (!scheme) {
     return *this;
+  }
   return scheme->applyOverrides(*this, ref, rev);
 }
 
@@ -412,8 +435,9 @@ std::string input_t::get_name() const {
 
 store_path_t input_t::computeStorePath(store_t& store) const {
   auto nar_hash = getNarHash();
-  if (!nar_hash)
+  if (!nar_hash) {
     throw Error("cannot compute store path for unlocked input '%s'", to_string());
+  }
   return store.makeFixedOutputPath(get_name(), FixedOutputInfo{
                                                    .method = file_ingestion_method_t::nix_archive,
                                                    .hash = *nar_hash,
@@ -428,16 +452,18 @@ std::string input_t::getType() const {
 std::optional<Hash> input_t::getNarHash() const {
   if (auto s = maybe_get_str_attr(attrs, "narHash")) {
     auto hash = s->empty() ? Hash(hash_algorithm_t::SHA256) : Hash::parse_sri(*s);
-    if (hash.algo() != hash_algorithm_t::SHA256)
+    if (hash.algo() != hash_algorithm_t::SHA256) {
       throw UsageError("narHash must use SHA-256");
+    }
     return hash;
   }
   return {};
 }
 
 std::optional<std::string> input_t::getRef() const {
-  if (auto s = maybe_get_str_attr(attrs, "ref"))
+  if (auto s = maybe_get_str_attr(attrs, "ref")) {
     return *s;
+  }
   return {};
 }
 
@@ -458,14 +484,16 @@ std::optional<Hash> input_t::getRev() const {
 }
 
 std::optional<uint64_t> input_t::get_rev_count() const {
-  if (auto n = maybe_get_int_attr(attrs, "revCount"))
+  if (auto n = maybe_get_int_attr(attrs, "revCount")) {
     return *n;
+  }
   return {};
 }
 
 std::optional<time_t> input_t::get_last_modified() const {
-  if (auto n = maybe_get_int_attr(attrs, "lastModified"))
+  if (auto n = maybe_get_int_attr(attrs, "lastModified")) {
     return *n;
+  }
   return {};
 }
 
@@ -475,12 +503,14 @@ parsed_url_t input_scheme_t::toURL(const input_t& input, bool abbreviate) const 
 
 input_t input_scheme_t::applyOverrides(const input_t& input, std::optional<std::string> ref,
                                        std::optional<Hash> rev) const {
-  if (ref)
+  if (ref) {
     throw Error("don't know how to set branch/tag name of input '%s' to '%s'", input.to_string(),
                 *ref);
-  if (rev)
+  }
+  if (rev) {
     throw Error("don't know how to set revision of input '%s' to '%s'", input.to_string(),
                 rev->git_rev());
+  }
   return input;
 }
 
@@ -496,8 +526,9 @@ void input_scheme_t::putFile(const input_t& input, const canon_path_t& path,
 
 void input_scheme_t::clone(const settings_t& settings, store_t& store, const input_t& input,
                            const std::filesystem::path& dest_dir) const {
-  if (std::filesystem::exists(dest_dir))
+  if (std::filesystem::exists(dest_dir)) {
     throw Error("cannot clone into existing path %s", dest_dir);
+  }
 
   auto [accessor, input2] = get_accessor(settings, store, input);
 
@@ -527,8 +558,9 @@ nix::fetchers::public_key_t
 adl_serializer<nix::fetchers::public_key_t>::from_json(const json& json) {
   nix::fetchers::public_key_t res = {};
   auto& obj = nix::get_object(json);
-  if (auto* type = nix::optional_value_at(obj, "type"))
+  if (auto* type = nix::optional_value_at(obj, "type")) {
     res.type = nix::get_string(*type);
+  }
 
   res.key = nix::get_string(nix::value_at(obj, "key"));
 

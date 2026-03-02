@@ -34,11 +34,13 @@ std::vector<std::string> InstallableFlake::getActualAttrPaths() {
     return res;
   }
 
-  for (auto& prefix : prefixes)
+  for (auto& prefix : prefixes) {
     res.push_back(prefix + *attrPaths.begin());
+  }
 
-  for (auto& s : attrPaths)
+  for (auto& s : attrPaths) {
     res.push_back(s);
+  }
 
   return res;
 }
@@ -46,8 +48,9 @@ std::vector<std::string> InstallableFlake::getActualAttrPaths() {
 static std::string show_attr_paths(const std::vector<std::string>& paths) {
   std::string s;
   for (const auto& [n, i] : enumerate(paths)) {
-    if (n > 0)
+    if (n > 0) {
       s += n + 1 == paths.size() ? " or " : ", ";
+    }
     s += '\'';
     s += i;
     s += '\'';
@@ -65,8 +68,9 @@ InstallableFlake::InstallableFlake(SourceExprCommand* cmd, ref<eval_state_t> sta
       prefixes(fragment == "" ? strings_t{} : prefixes),
       extendedOutputsSpec(std::move(extendedOutputsSpec)),
       lock_flags(lock_flags) {
-  if (cmd && cmd->getAutoArgs(*state)->size())
+  if (cmd && cmd->getAutoArgs(*state)->size()) {
     throw UsageError("'--arg' and '--argstr' are incompatible with flakes");
+  }
 }
 
 DerivedPathsWithInfo InstallableFlake::to_derived_paths() {
@@ -97,8 +101,9 @@ DerivedPathsWithInfo InstallableFlake::to_derived_paths() {
 
   if (attr->maybeGetAttr(state->s.outputSpecified)) {
   } else if (auto aMeta = attr->maybeGetAttr(state->s.meta)) {
-    if (auto aPriority = aMeta->maybeGetAttr("priority"))
+    if (auto aPriority = aMeta->maybeGetAttr("priority")) {
       priority = aPriority->getInt().value;
+    }
   }
 
   return {{
@@ -111,17 +116,21 @@ DerivedPathsWithInfo InstallableFlake::to_derived_paths() {
                         string_set_t outputsToInstall;
                         if (auto aOutputSpecified = attr->maybeGetAttr(state->s.outputSpecified)) {
                           if (aOutputSpecified->getBool()) {
-                            if (auto aOutputName = attr->maybeGetAttr("outputName"))
+                            if (auto aOutputName = attr->maybeGetAttr("outputName")) {
                               outputsToInstall = {aOutputName->get_string()};
+                            }
                           }
                         } else if (auto aMeta = attr->maybeGetAttr(state->s.meta)) {
-                          if (auto aOutputsToInstall = aMeta->maybeGetAttr("outputsToInstall"))
-                            for (auto& s : aOutputsToInstall->getListOfStrings())
+                          if (auto aOutputsToInstall = aMeta->maybeGetAttr("outputsToInstall")) {
+                            for (auto& s : aOutputsToInstall->getListOfStrings()) {
                               outputsToInstall.insert(s);
+                            }
+                          }
                         }
 
-                        if (outputsToInstall.empty())
+                        if (outputsToInstall.empty()) {
                           outputsToInstall.insert("out");
+                        }
 
                         return OutputsSpec::Names{std::move(outputsToInstall)};
                       },
@@ -167,9 +176,10 @@ std::vector<ref<eval_cache::AttrCursor>> InstallableFlake::getCursors(eval_state
     }
   }
 
-  if (res.size() == 0)
+  if (res.size() == 0) {
     throw Error(suggestions, "flake '%s' does not provide attribute %s", flake_ref,
                 show_attr_paths(attrPaths));
+  }
 
   return res;
 }

@@ -40,8 +40,9 @@ LookupPath::Elem LookupPath::Elem::parse(std::string_view rawElem) {
 
 LookupPath LookupPath::parse(const strings_t& rawElems) {
   LookupPath res;
-  for (auto& rawElem : rawElems)
+  for (auto& rawElem : rawElems) {
     res.elements.emplace_back(LookupPath::Elem::parse(rawElem));
+  }
   return res;
 }
 

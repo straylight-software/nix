@@ -32,13 +32,15 @@ struct cmd_copy_sigs_t : nix::StorePathsCommand {
   }
 
   void run(nix::ref<nix::store_t> store, nix::store_paths_t&& store_paths) override {
-    if (substituter_uris.empty())
+    if (substituter_uris.empty()) {
       throw nix::UsageError("you must specify at least one substituter using '-s'");
+    }
 
     // FIXME: factor out commonality with MixVerify.
     std::vector<nix::ref<nix::store_t>> substituters;
-    for (auto& s : substituter_uris)
+    for (auto& s : substituter_uris) {
       substituters.push_back(nix::open_store(s));
+    }
 
     nix::thread_pool_t pool{nix::file_transfer_settings.httpConnections};
 
@@ -64,12 +66,15 @@ struct cmd_copy_sigs_t : nix::StorePathsCommand {
           /* Don't import signatures that don't match this
              binary. */
           if (info->nar_hash != info2->nar_hash || info->nar_size != info2->nar_size ||
-              info->references != info2->references)
+              info->references != info2->references) {
             continue;
+          }
 
-          for (auto& sig : info2->sigs)
-            if (!info->sigs.count(sig))
+          for (auto& sig : info2->sigs) {
+            if (!info->sigs.count(sig)) {
               new_sigs.insert(sig);
+            }
+          }
         } catch (nix::InvalidPath&) {
         }
       }
@@ -82,8 +87,9 @@ struct cmd_copy_sigs_t : nix::StorePathsCommand {
       // logger->incProgress(doneLabel);
     };
 
-    for (auto& store_path : store_paths)
+    for (auto& store_path : store_paths) {
       pool.enqueue(std::bind(do_path, store->printStorePath(store_path)));
+    }
 
     pool.process();
 

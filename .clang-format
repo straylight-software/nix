@@ -36,6 +36,7 @@ AccessModifierOffset: -2
 
 BreakBeforeBraces: Attach
 Cpp11BracedListStyle: true
+InsertBraces: true
 AllowShortBlocksOnASingleLine: Never
 AllowShortIfStatementsOnASingleLine: Never
 AllowShortLoopsOnASingleLine: false

@@ -25,21 +25,24 @@ static void download_to_sink(const std::string& url, const std::optional<std::st
                              size_t size_expected) {
   FileTransferRequest request(parse_url(url));
   headers_t headers;
-  if (auth_header.has_value())
+  if (auth_header.has_value()) {
     headers.push_back({"Authorization", *auth_header});
+  }
   request.headers = headers;
   get_file_transfer()->download(std::move(request), sink);
 
   auto size_actual = sink.str().length();
-  if (size_expected != size_actual)
+  if (size_expected != size_actual) {
     throw Error("size mismatch while fetching %s: expected %d but got %d", url, size_expected,
                 size_actual);
+  }
 
   auto sha256_actual =
       hash_string(hash_algorithm_t::SHA256, sink.str()).to_string(hash_format_t::base16, false);
-  if (sha256_actual != sha256_expected)
+  if (sha256_actual != sha256_expected) {
     throw Error("hash mismatch while fetching %s: expected sha256:%s but got sha256:%s", url,
                 sha256_expected, sha256_actual);
+  }
 }
 
 namespace {
@@ -56,17 +59,20 @@ struct lfs_api_info_t {
  * Returns nullopt if no matching token is found.
  */
 static std::optional<std::string> get_access_token_for_url(const parsed_url_t& url) {
-  if (!url.authority().has_value())
+  if (!url.authority().has_value()) {
     return std::nullopt;
+  }
 
   auto host = url.authority()->host();
   auto path = url.render_path(/*encode=*/false);
   // Remove leading slash from path for matching
-  if (!path.empty() && path[0] == '/')
+  if (!path.empty() && path[0] == '/') {
     path = path.substr(1);
+  }
   // Remove trailing .git for matching
-  if (has_suffix(path, ".git"))
+  if (has_suffix(path, ".git")) {
     path = path.substr(0, path.length() - 4);
+  }
 
   auto host_and_path = host + "/" + path;
 
@@ -86,13 +92,15 @@ static std::optional<std::string> get_access_token_for_url(const parsed_url_t& u
         answer_match_len = token.first.length();
       }
     }
-    if (!answer.empty())
+    if (!answer.empty()) {
       return answer;
+    }
   }
 
   // Fall back to host-only match
-  if (auto token = get(tokens, host))
+  if (auto token = get(tokens, host)) {
     return *token;
+  }
 
   return std::nullopt;
 }
@@ -104,18 +112,21 @@ static std::optional<std::string> get_access_token_for_url(const parsed_url_t& u
 static std::optional<std::string> make_auth_header_from_token(const std::string& token,
                                                               const std::string& host) {
   // GitHub uses "token <value>" format for PATs and OAuth tokens
-  if (host == "github.com" || has_suffix(host, ".github.com"))
+  if (host == "github.com" || has_suffix(host, ".github.com")) {
     return fmt("token %s", token);
+  }
 
   // GitLab supports OAuth2 and PAT tokens with type prefix
   auto colon_pos = token.find(':');
   if (colon_pos != std::string::npos) {
     auto type = token.substr(0, colon_pos);
     auto value = token.substr(colon_pos + 1);
-    if (type == "OAuth2")
+    if (type == "OAuth2") {
       return fmt("Bearer %s", value);
-    if (type == "PAT")
+    }
+    if (type == "PAT") {
       return fmt("Bearer %s", value); // GitLab PATs also work as Bearer tokens for LFS
+    }
   }
 
   // Default: use as Bearer token (works for most LFS servers)
@@ -127,12 +138,14 @@ static lfs_api_info_t get_lfs_api(const parsed_url_t& url) {
   if (url.scheme() == "ssh") {
     auto args = get_nix_ssh_opts();
 
-    if (url.authority()->port())
+    if (url.authority()->port()) {
       args.push_back(fmt("-p%d", *url.authority()->port()));
+    }
 
     std::string hostname_and_user;
-    if (url.authority()->user())
+    if (url.authority()->user()) {
       hostname_and_user += *url.authority()->user() + "@";
+    }
     hostname_and_user += url.authority()->host();
     args.push_back(std::move(hostname_and_user));
 
@@ -144,16 +157,19 @@ static lfs_api_info_t get_lfs_api(const parsed_url_t& url) {
 
     auto [status, output] = run_program({.program = "ssh", .args = args});
 
-    if (output.empty())
+    if (output.empty()) {
       throw Error("git-lfs-authenticate: no output (cmd: 'ssh %s')", concat_strings_sep(" ", args));
+    }
 
     auto query_resp = nlohmann::json::parse(output);
     auto header_it = query_resp.find("header");
-    if (header_it == query_resp.end())
+    if (header_it == query_resp.end()) {
       throw Error("no header in git-lfs-authenticate response");
+    }
     auto auth_it = header_it->find("Authorization");
-    if (auth_it == header_it->end())
+    if (auth_it == header_it->end()) {
       throw Error("no Authorization in git-lfs-authenticate response");
+    }
 
     return {query_resp.at("href").get<std::string>(), auth_it->get<std::string>()};
   }
@@ -164,10 +180,11 @@ static lfs_api_info_t get_lfs_api(const parsed_url_t& url) {
   // See: https://github.com/git-lfs/git-lfs/blob/main/docs/api/server-discovery.md
   auto url_str = url.to_string();
   std::string endpoint;
-  if (has_suffix(url_str, ".git"))
+  if (has_suffix(url_str, ".git")) {
     endpoint = url_str + "/info/lfs";
-  else
+  } else {
     endpoint = url_str + ".git/info/lfs";
+  }
 
   // For HTTPS URLs, look up access token from fetch settings
   std::optional<std::string> auth_header;
@@ -200,12 +217,14 @@ static std::string get_lfs_endpoint_url(git_repository* repo) {
   }
 
   git_remote* remote = nullptr;
-  if (git_remote_lookup(&remote, repo, "origin"))
+  if (git_remote_lookup(&remote, repo, "origin")) {
     return "";
+  }
 
   const char* url_c_str = git_remote_url(remote);
-  if (!url_c_str)
+  if (!url_c_str) {
     return "";
+  }
 
   return std::string(url_c_str);
 }
@@ -277,16 +296,18 @@ bool Fetch::shouldFetch(const canon_path_t& path) const {
   git_attr_options opts = GIT_ATTR_OPTIONS_INIT;
   opts.attr_commit_id = this->rev;
   opts.flags = GIT_ATTR_CHECK_INCLUDE_COMMIT | GIT_ATTR_CHECK_NO_SYSTEM;
-  if (git_attr_get_ext(&attr, (git_repository*)(this->repo), &opts, path.rel_c_str(), "filter"))
+  if (git_attr_get_ext(&attr, (git_repository*)(this->repo), &opts, path.rel_c_str(), "filter")) {
     throw Error("cannot get git-lfs attribute: %s", git_error_last()->message);
+  }
   debug("Git filter for '%s' is '%s'", path, attr ? attr : "null");
   return attr != nullptr && !std::string(attr).compare("lfs");
 }
 
 static nlohmann::json pointer_to_payload(const std::vector<Pointer>& items) {
   nlohmann::json j_array = nlohmann::json::array();
-  for (const auto& pointer : items)
+  for (const auto& pointer : items) {
     j_array.push_back({{"oid", pointer.oid}, {"size", pointer.size}});
+  }
   return j_array;
 }
 
@@ -297,8 +318,9 @@ std::vector<nlohmann::json> Fetch::fetchUrls(const std::vector<Pointer>& pointer
   FileTransferRequest request(parse_url(url));
   request.method = HttpMethod::Post;
   headers_t headers;
-  if (auth_header.has_value())
+  if (auth_header.has_value()) {
     headers.push_back({"Authorization", *auth_header});
+  }
   headers.push_back({"Content-Type", "application/vnd.git-lfs+json"});
   headers.push_back({"Accept", "application/vnd.git-lfs+json"});
   request.headers = headers;
@@ -336,10 +358,11 @@ std::vector<nlohmann::json> Fetch::fetchUrls(const std::vector<Pointer>& pointer
                   doc_url.empty() ? "" : fmt(" - see %s", doc_url));
     }
 
-    if (resp.contains("objects"))
+    if (resp.contains("objects")) {
       objects.insert(objects.end(), resp["objects"].begin(), resp["objects"].end());
-    else
+    } else {
       throw Error("Git LFS batch API response does not contain 'objects' field");
+    }
 
     // Check for per-object errors
     for (const auto& obj : objects) {
@@ -415,11 +438,13 @@ void Fetch::fetch(const std::string& content, const canon_path_t& pointerFilePat
     auto auth_header = [&]() -> std::optional<std::string> {
       const auto& download = obj.at("actions").at("download");
       auto header_it = download.find("header");
-      if (header_it == download.end())
+      if (header_it == download.end()) {
         return std::nullopt;
+      }
       auto auth_it = header_it->find("Authorization");
-      if (auth_it == header_it->end())
+      if (auth_it == header_it->end()) {
         return std::nullopt;
+      }
       return std::string(*auth_it);
     }();
     const uint64_t size = obj.at("size");
@@ -427,8 +452,9 @@ void Fetch::fetch(const std::string& content, const canon_path_t& pointerFilePat
     download_to_sink(ourl, auth_header, sink, sha256, size);
 
     debug("creating cache entry %s -> %s", key, cachePath);
-    if (!path_exists(cachePath.parent_path()))
+    if (!path_exists(cachePath.parent_path())) {
       create_dirs(cachePath.parent_path());
+    }
     write_file(cachePath, sink.str());
 
     debug("%s fetched with git-lfs", pointerFilePath);

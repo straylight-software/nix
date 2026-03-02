@@ -1610,8 +1610,9 @@ private:
 
     /// Pop elements from the stack.
     void pop(std::ptrdiff_t n = 1) YY_NOEXCEPT {
-      for (; 0 < n; --n)
+      for (; 0 < n; --n) {
         seq_.pop_back();
+      }
     }
 
     /// Pop all elements from the stack.

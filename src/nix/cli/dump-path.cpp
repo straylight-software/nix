@@ -8,8 +8,9 @@ using nix::logger;
 
 static nix::fd_sink_t get_nar_sink() {
   auto fd = nix::get_standard_output();
-  if (nix::is_tty(fd))
+  if (nix::is_tty(fd)) {
     throw nix::UsageError("refusing to write NAR to a terminal");
+  }
   return nix::fd_sink_t(std::move(fd));
 }
 

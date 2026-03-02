@@ -20,8 +20,9 @@ store_path_t store_dir_config_t::parseStorePath(std::string_view path) const {
       canon_path(std::string(path))
 #endif
       ;
-  if (dir_of(p) != store_dir)
+  if (dir_of(p) != store_dir) {
     throw BadStorePath("path '%s' is not in the Nix store", p);
+  }
   return store_path_t(base_name_of(p));
 }
 
@@ -39,8 +40,9 @@ bool store_dir_config_t::isStorePath(std::string_view path) const {
 
 store_path_set_t store_dir_config_t::parseStorePathSet(const path_set_t& paths) const {
   store_path_set_t res;
-  for (auto& i : paths)
+  for (auto& i : paths) {
     res.insert(parseStorePath(i));
+  }
   return res;
 }
 
@@ -50,8 +52,9 @@ std::string store_dir_config_t::printStorePath(const store_path_t& path) const {
 
 path_set_t store_dir_config_t::printStorePathSet(const store_path_set_t& paths) const {
   path_set_t res;
-  for (auto& i : paths)
+  for (auto& i : paths) {
     res.insert(printStorePath(i));
+  }
   return res;
 }
 
@@ -91,8 +94,9 @@ static std::string make_type(const store_dir_config_t& store, std::string&& type
     type += ":";
     type += store.printStorePath(i);
   }
-  if (references.self)
+  if (references.self) {
     type += ":self";
+  }
   return std::move(type);
 }
 
@@ -145,8 +149,9 @@ std::pair<store_path_t, Hash> store_dir_config_t::computeStorePath(
     std::string_view name, const source_path_t& path, content_address_method_t method,
     hash_algorithm_t hash_algo, const store_path_set_t& references, path_filter_t& filter) const {
   auto [h, size] = hash_path(path, method.getFileIngestionMethod(), hash_algo, filter);
-  if (settings.warnLargePathThreshold && size && *size >= settings.warnLargePathThreshold)
+  if (settings.warnLargePathThreshold && size && *size >= settings.warnLargePathThreshold) {
     warn("hashed large path '%s' (%s)", path, render_size(*size));
+  }
   return {
       makeFixedOutputPathFromCA(name,
                                 ContentAddressWithReferences::fromParts(method, h,

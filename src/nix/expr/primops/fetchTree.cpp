@@ -29,12 +29,14 @@ void emit_tree_attrs(eval_state_t& state, const store_path_t& store_path,
 
   // FIXME: support arbitrary input attributes.
 
-  if (auto nar_hash = input.getNarHash())
+  if (auto nar_hash = input.getNarHash()) {
     attrs.alloc("narHash").mk_string(nar_hash->to_string(hash_format_t::sri, true), state.mem);
+  }
 
-  if (input.getType() == "git")
+  if (input.getType() == "git") {
     attrs.alloc("submodules")
         .mkBool(fetchers::maybe_get_bool_attr(input.attrs, "submodules").value_or(false));
+  }
 
   if (!force_dirty) {
     if (auto rev = input.getRev()) {
@@ -47,10 +49,11 @@ void emit_tree_attrs(eval_state_t& state, const store_path_t& store_path,
       attrs.alloc("shortRev").mk_string(empty_hash.git_short_rev(), state.mem);
     }
 
-    if (auto rev_count = input.get_rev_count())
+    if (auto rev_count = input.get_rev_count()) {
       attrs.alloc("revCount").mkInt(*rev_count);
-    else if (empty_rev_fallback)
+    } else if (empty_rev_fallback) {
       attrs.alloc("revCount").mkInt(0);
+    }
   }
 
   if (auto dirtyRev = fetchers::maybe_get_str_attr(input.attrs, "dirtyRev")) {
@@ -81,8 +84,9 @@ static void fetch_tree(eval_state_t& state, const pos_idx_t pos, value_t** args,
   NixStringContext context;
   std::optional<std::string> type;
   auto fetcher = params.is_fetch_git ? "fetchGit" : "fetchTree";
-  if (params.is_fetch_git)
+  if (params.is_fetch_git) {
     type = "git";
+  }
 
   state.forceValue(*args[0], pos);
 
@@ -92,21 +96,24 @@ static void fetch_tree(eval_state_t& state, const pos_idx_t pos, value_t** args,
     fetchers::Attrs attrs;
 
     if (auto aType = args[0]->attrs()->get(state.s.type)) {
-      if (type)
+      if (type) {
         state.error<EvalError>("unexpected argument 'type'").at_pos(pos).debugThrow();
+      }
       type = state.forceStringNoCtx(
           *aType->value, aType->pos,
           fmt("while evaluating the `type` argument passed to '%s'", fetcher));
-    } else if (!type)
+    } else if (!type) {
       state.error<EvalError>("argument 'type' is missing in call to '%s'", fetcher)
           .at_pos(pos)
           .debugThrow();
+    }
 
     attrs.emplace("type", type.value());
 
     for (auto& attr : *args[0]->attrs()) {
-      if (attr.name == state.s.type)
+      if (attr.name == state.s.type) {
         continue;
+      }
       state.forceValue(*attr.value, attr.pos);
       if (attr.value->type() == nPath || attr.value->type() == nString) {
         auto s = state.coerceToString(attr.pos, *attr.value, context, "", false, false).to_owned();
@@ -114,29 +121,31 @@ static void fetch_tree(eval_state_t& state, const pos_idx_t pos, value_t** args,
                       params.is_fetch_git && state.symbols[attr.name] == "url"
                           ? fix_git_url(s).to_string()
                           : s);
-      } else if (attr.value->type() == nBool)
+      } else if (attr.value->type() == nBool) {
         attrs.emplace(state.symbols[attr.name], explicit_t<bool>{attr.value->boolean()});
-      else if (attr.value->type() == nInt) {
+      } else if (attr.value->type() == nInt) {
         auto int_value = attr.value->integer().value;
 
-        if (int_value < 0)
+        if (int_value < 0) {
           state
               .error<EvalError>("negative value given for '%s' argument '%s': %d", fetcher,
                                 state.symbols[attr.name], int_value)
               .at_pos(pos)
               .debugThrow();
+        }
 
         attrs.emplace(state.symbols[attr.name], uint64_t(int_value));
       } else if (state.symbols[attr.name] == "publicKeys") {
         experimental_feature_settings.require(xp_t::verified_fetches);
         attrs.emplace(state.symbols[attr.name],
                       print_value_as_json(state, true, *attr.value, pos, context).dump());
-      } else
+      } else {
         state
             .error<TypeError>(
                 "argument '%s' to '%s' is %s while a string, Boolean or integer is expected",
                 state.symbols[attr.name], fetcher, show_type(*attr.value))
             .debugThrow();
+      }
     }
 
     if (params.is_fetch_git && !attrs.contains("exportIgnore") &&
@@ -144,11 +153,13 @@ static void fetch_tree(eval_state_t& state, const pos_idx_t pos, value_t** args,
       attrs.emplace("exportIgnore", explicit_t<bool>{true});
     }
 
-    if (!params.allow_name_argument)
-      if (auto nameIter = attrs.find("name"); nameIter != attrs.end())
+    if (!params.allow_name_argument) {
+      if (auto nameIter = attrs.find("name"); nameIter != attrs.end()) {
         state.error<EvalError>("argument 'name' isn’t supported in call to '%s'", fetcher)
             .at_pos(pos)
             .debugThrow();
+      }
+    }
 
     input = fetchers::input_t::fromAttrs(state.fetch_settings, std::move(attrs));
   } else {
@@ -173,28 +184,31 @@ static void fetch_tree(eval_state_t& state, const pos_idx_t pos, value_t** args,
     }
   }
 
-  if (!state.settings.pureEval && !input.isDirect())
+  if (!state.settings.pureEval && !input.isDirect()) {
     input = lookup_in_registries(state.fetch_settings, *state.store, input,
                                  fetchers::UseRegistries::Limited)
                 .first;
+  }
 
   if (state.settings.pureEval && !input.isLocked(state.fetch_settings)) {
-    if (input.getNarHash())
+    if (input.getNarHash()) {
       warn("input_t '%s' is unlocked (e.g. lacks a Git revision) but is checked by NAR hash. "
            "This is not reproducible and will break after garbage collection or when shared.",
            input.to_string());
-    else
+    } else {
       state
           .error<EvalError>("in pure evaluation mode, '%s' doesn't fetch unlocked input '%s'",
                             fetcher, input.to_string())
           .at_pos(pos)
           .debugThrow();
+    }
   }
 
   state.checkURI(input.toURLString());
 
-  if (input.getNarHash())
+  if (input.getNarHash()) {
     input.attrs.insert_or_assign("__final", explicit_t<bool>(true));
+  }
 
   auto cached_input = state.inputCache->get_accessor(state.fetch_settings, *state.store, input,
                                                      fetchers::UseRegistries::No);
@@ -261,13 +275,15 @@ static RegisterPrimOp primop_fetch_tree({
         while (!sv.empty()) {
           auto pos = sv.find('\n');
           auto line = sv.substr(0, pos);
-          if (!first)
+          if (!first) {
             result += "\n";
+          }
           result += indent;
           result += line;
           first = false;
-          if (pos == std::string_view::npos)
+          if (pos == std::string_view::npos) {
             break;
+          }
           sv = sv.substr(pos + 1);
         }
         return result;
@@ -276,15 +292,17 @@ static RegisterPrimOp primop_fetch_tree({
       for (const auto& [schemeName, scheme] : fetchers::get_all_input_schemes()) {
         doc += "\n- `" + quote_string(schemeName, '"') + "`\n\n";
         doc += indentString(scheme->schemeDescription(), "  ");
-        if (!doc.empty() && doc.back() != '\n')
+        if (!doc.empty() && doc.back() != '\n') {
           doc += "\n";
+        }
 
         for (const auto& [attr_name, attribute] : scheme->allowed_attrs()) {
           doc += "\n  - `" + attr_name + "` (" + attribute.type + ", " +
                  (attribute.required ? "required" : "optional") + ")\n\n";
           doc += indentString(strip_indentation(attribute.doc), "    ");
-          if (!doc.empty() && doc.back() != '\n')
+          if (!doc.empty() && doc.back() != '\n') {
             doc += "\n";
+          }
         }
       }
 
@@ -352,36 +370,41 @@ static void fetch(eval_state_t& state, const pos_idx_t pos, value_t** args, valu
   if (is_arg_attrs) {
     for (auto& attr : *args[0]->attrs()) {
       std::string_view n(state.symbols[attr.name]);
-      if (n == "url")
+      if (n == "url") {
         url = state.forceStringNoCtx(*attr.value, attr.pos,
                                      "while evaluating the url we should fetch");
-      else if (n == "sha256")
+      } else if (n == "sha256") {
         expected_hash = new_hash_allow_empty(
             state.forceStringNoCtx(*attr.value, attr.pos,
                                    "while evaluating the sha256 of the content we should fetch"),
             hash_algorithm_t::SHA256);
-      else if (n == "name") {
+      } else if (n == "name") {
         name_attr_passed = true;
         name = state.forceStringNoCtx(*attr.value, attr.pos,
                                       "while evaluating the name of the content we should fetch");
-      } else
+      } else {
         state.error<EvalError>("unsupported argument '%s' to '%s'", n, who)
             .at_pos(pos)
             .debugThrow();
+      }
     }
 
-    if (!url)
+    if (!url) {
       state.error<EvalError>("'url' argument required").at_pos(pos).debugThrow();
-  } else
+    }
+  } else {
     url = state.forceStringNoCtx(*args[0], pos, "while evaluating the url we should fetch");
+  }
 
-  if (who == "fetchTarball")
+  if (who == "fetchTarball") {
     url = state.settings.resolvePseudoUrl(*url);
+  }
 
   state.checkURI(*url);
 
-  if (name == "")
+  if (name == "") {
     name = base_name_of(*url);
+  }
 
   try {
     check_name(name);
@@ -406,10 +429,11 @@ static void fetch(eval_state_t& state, const pos_idx_t pos, value_t** args, valu
         .debugThrow();
   }
 
-  if (state.settings.pureEval && !expected_hash)
+  if (state.settings.pureEval && !expected_hash) {
     state.error<EvalError>("in pure evaluation mode, '%s' requires a 'sha256' argument", who)
         .at_pos(pos)
         .debugThrow();
+  }
 
   // early exit if pinned and already in the store
   if (expected_hash && expected_hash->algo() == hash_algorithm_t::SHA256) {

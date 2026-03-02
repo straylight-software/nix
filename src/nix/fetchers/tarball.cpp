@@ -33,13 +33,15 @@ DownloadFileResult download_file(store_t& store, const settings_t& settings, con
     };
   };
 
-  if (cached && !cached->expired)
+  if (cached && !cached->expired) {
     return use_cached();
+  }
 
   FileTransferRequest request(verbatim_url_t{url});
   request.headers = headers;
-  if (cached)
+  if (cached) {
     request.expectedETag = get_str_attr(cached->value, "etag");
+  }
   FileTransferResult res;
   try {
     res = get_file_transfer()->download(request);
@@ -47,16 +49,18 @@ DownloadFileResult download_file(store_t& store, const settings_t& settings, con
     if (cached) {
       warn("%s; using cached version", e.msg());
       return use_cached();
-    } else
+    } else {
       throw;
+    }
   }
 
   Attrs info_attrs({
       {"etag", res.etag},
   });
 
-  if (res.immutableUrl)
+  if (res.immutableUrl) {
     info_attrs.emplace("immutableUrl", *res.immutableUrl);
+  }
 
   std::optional<store_path_t> store_path;
 
@@ -81,8 +85,9 @@ DownloadFileResult download_file(store_t& store, const settings_t& settings, con
   }
 
   /* cache_t metadata for all URLs in the redirect chain. */
-  if (res.urls.empty())
+  if (res.urls.empty()) {
     throw Error("file transfer for '%s' returned no URLs", url);
+  }
 
   auto effectiveUrl = res.urls.back();
   info_attrs.insert_or_assign("url", effectiveUrl);
@@ -141,13 +146,15 @@ static DownloadTarballResult download_tarball_(const settings_t& settings, const
   // This prevents "object not found" errors from incomplete/corrupted Git trees
   // that can result from interrupted fetches (see NixOS/nix#14954).
   if (cached &&
-      !settings.getTarballCache()->hasCompleteTree(get_rev_attr(cached->value, "treeHash")))
+      !settings.getTarballCache()->hasCompleteTree(get_rev_attr(cached->value, "treeHash"))) {
     cached.reset();
+  }
 
-  if (cached && !cached->expired)
+  if (cached && !cached->expired) {
     /* We previously downloaded this tarball and it's younger than
        `tarballTtl`, so no need to check the server. */
     return attrs_to_result(cached->value);
+  }
 
   auto _res = std::make_shared<sync_t<FileTransferResult>>();
 
@@ -203,8 +210,9 @@ static DownloadTarballResult download_tarball_(const settings_t& settings, const
     info_attrs.insert_or_assign("treeHash",
                                 tarball_cache->dereferenceSingletonDirectory(tree).git_rev());
     info_attrs.insert_or_assign("lastModified", uint64_t(last_modified));
-    if (res->immutableUrl)
+    if (res->immutableUrl) {
       info_attrs.insert_or_assign("immutableUrl", *res->immutableUrl);
+    }
   }
 
   /* Insert a cache entry for every URL in the redirect chain. */
@@ -237,8 +245,9 @@ struct curl_input_scheme_t : input_scheme_t {
   const string_set_t transport_url_schemes = {"file", "http", "https"};
 
   bool has_tarball_extension(const parsed_url_t& url) const {
-    if (url.path().empty())
+    if (url.path().empty()) {
       return false;
+    }
     auto path = to_lower(url.path().back());
     return has_suffix(path, ".zip") || has_suffix(path, ".tar") || has_suffix(path, ".tgz") ||
            has_suffix(path, ".tar.gz") || has_suffix(path, ".tar.xz") ||
@@ -251,8 +260,9 @@ struct curl_input_scheme_t : input_scheme_t {
 
   std::optional<input_t> inputFromURL(const settings_t& settings, const parsed_url_t& _url,
                                       bool require_tree) const override {
-    if (!is_valid_url(_url, require_tree))
+    if (!is_valid_url(_url, require_tree)) {
       return std::nullopt;
+    }
 
     input_t input{};
 
@@ -261,27 +271,34 @@ struct curl_input_scheme_t : input_scheme_t {
     url.set_scheme(std::string{parse_url_scheme(url.scheme()).transport()});
 
     auto nar_hash = url.query().find("narHash");
-    if (nar_hash != url.query().end())
+    if (nar_hash != url.query().end()) {
       input.attrs.insert_or_assign("narHash", nar_hash->second);
+    }
 
-    if (auto i = get(url.query(), "rev"))
+    if (auto i = get(url.query(), "rev")) {
       input.attrs.insert_or_assign("rev", *i);
+    }
 
-    if (auto i = get(url.query(), "revCount"))
-      if (auto n = string2_int<uint64_t>(*i))
+    if (auto i = get(url.query(), "revCount")) {
+      if (auto n = string2_int<uint64_t>(*i)) {
         input.attrs.insert_or_assign("revCount", *n);
+      }
+    }
 
-    if (auto i = get(url.query(), "lastModified"))
-      if (auto n = string2_int<uint64_t>(*i))
+    if (auto i = get(url.query(), "lastModified")) {
+      if (auto n = string2_int<uint64_t>(*i)) {
         input.attrs.insert_or_assign("lastModified", *n);
+      }
+    }
 
     /* The URL query parameters serve two roles: specifying fetch
        settings for Nix itself, and arbitrary data as part of the
        HTTP request. Now that we've processed the Nix-specific
        attributes above, remove them so we don't also send them as
        part of the HTTP request. */
-    for (auto& [param, _] : allowed_attrs())
+    for (auto& [param, _] : allowed_attrs()) {
       url.query().erase(param);
+    }
 
     input.attrs.insert_or_assign("type", std::string{schemeName()});
     input.attrs.insert_or_assign("url", url.to_string());
@@ -378,8 +395,9 @@ struct curl_input_scheme_t : input_scheme_t {
     auto url = parse_url(get_str_attr(input.attrs, "url"));
     // NAR hashes are preferred over file hashes since tar/zip
     // files don't have a canonical representation.
-    if (auto nar_hash = input.getNarHash())
+    if (auto nar_hash = input.getNarHash()) {
       url.query().insert_or_assign("narHash", nar_hash->to_string(hash_format_t::sri, true));
+    }
     return url;
   }
 
@@ -476,13 +494,15 @@ struct tarball_input_scheme_t : curl_input_scheme_t {
       auto immutable_input = input_t::fromURL(settings, *result.immutableUrl);
       // FIXME: would be nice to support arbitrary flakerefs
       // here, e.g. git flakes.
-      if (immutable_input.getType() != "tarball")
+      if (immutable_input.getType() != "tarball") {
         throw Error("tarball 'Link' headers that redirect to non-tarball URLs are not supported");
+      }
       input = immutable_input;
     }
 
-    if (result.last_modified && !input.attrs.contains("lastModified"))
+    if (result.last_modified && !input.attrs.contains("lastModified")) {
       input.attrs.insert_or_assign("lastModified", uint64_t(result.last_modified));
+    }
 
     input.attrs.insert_or_assign("narHash", settings.getTarballCache()
                                                 ->treeHashToNarHash(settings, result.tree_hash)
@@ -492,12 +512,13 @@ struct tarball_input_scheme_t : curl_input_scheme_t {
   }
 
   std::optional<std::string> get_fingerprint(store_t& store, const input_t& input) const override {
-    if (auto nar_hash = input.getNarHash())
+    if (auto nar_hash = input.getNarHash()) {
       return "tarball:" + nar_hash->to_string(hash_format_t::sri, true);
-    else if (auto rev = input.getRev())
+    } else if (auto rev = input.getRev()) {
       return "tarball:" + rev->git_rev();
-    else
+    } else {
       return std::nullopt;
+    }
   }
 };
 

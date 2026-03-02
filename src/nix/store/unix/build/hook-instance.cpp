@@ -14,8 +14,9 @@ HookInstance::HookInstance() {
 
   auto buildHookArgs = settings.buildHook.get();
 
-  if (buildHookArgs.empty())
+  if (buildHookArgs.empty()) {
     throw Error("'build-hook' setting is empty");
+  }
 
   std::filesystem::path buildHook = buildHookArgs.front();
   buildHookArgs.pop_front();
@@ -30,8 +31,9 @@ HookInstance::HookInstance() {
   strings_t args;
   args.push_back(buildHook.filename().string());
 
-  for (auto& arg : buildHookArgs)
+  for (auto& arg : buildHookArgs) {
     args.push_back(arg);
+  }
 
   args.push_back(std::to_string(static_cast<std::underlying_type_t<verbosity_t>>(verbosity)));
 
@@ -46,26 +48,31 @@ HookInstance::HookInstance() {
 
   /* Fork the hook. */
   pid = start_process([&]() {
-    if (dup2(fromHook.write_side.get(), STDERR_FILENO) == -1)
+    if (dup2(fromHook.write_side.get(), STDERR_FILENO) == -1) {
       throw sys_error_t("cannot pipe standard error into log file");
+    }
 
     common_child_init();
 
-    if (chdir("/") == -1)
+    if (chdir("/") == -1) {
       throw sys_error_t("changing into /");
+    }
 
     /* Dup the communication pipes. */
-    if (dup2(toHook.read_side.get(), STDIN_FILENO) == -1)
+    if (dup2(toHook.read_side.get(), STDIN_FILENO) == -1) {
       throw sys_error_t("dupping to-hook read side");
+    }
 
     /* use fd 4 for the builder's stdout/stderr. */
-    if (dup2(builder_out.write_side.get(), 4) == -1)
+    if (dup2(builder_out.write_side.get(), 4) == -1) {
       throw sys_error_t("dupping builder's stdout/stderr");
+    }
 
     /* Hack: pass the read side of that fd to allow build-remote
        to read SSH error messages. */
-    if (dup2(builder_out.read_side.get(), 5) == -1)
+    if (dup2(builder_out.read_side.get(), 5) == -1) {
       throw sys_error_t("dupping builder's stdout/stderr");
+    }
 
     execv(buildHook.native().c_str(), strings_to_char_ptrs(args).data());
 
@@ -83,16 +90,18 @@ HookInstance::HookInstance() {
   // Prevent recursive remote building (NixOS/nix#10740): clear builders
   // to avoid deadlocks from cyclic builder configurations (A→B→A).
   hook_settings[nix::settings.builders.name] = {.value_ = "", .description_ = ""};
-  for (auto& setting : hook_settings)
+  for (auto& setting : hook_settings) {
     sink << 1 << setting.first << setting.second.value_;
+  }
   sink << 0;
 }
 
 HookInstance::~HookInstance() {
   try {
     toHook.write_side = -1;
-    if (pid != -1)
+    if (pid != -1) {
       pid.kill();
+    }
   } catch (...) {
     ignore_exception_in_destructor();
   }

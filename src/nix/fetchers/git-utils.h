@@ -161,11 +161,12 @@ struct Setter {
   Setter(T& t) : t(t) {}
 
   ~Setter() {
-    if (p)
+    if (p) {
       t = T(p);
+    }
   }
 
-  operator typename T::pointer *() { return &p; }
+  operator typename T::pointer*() { return &p; }
 };
 
 /**

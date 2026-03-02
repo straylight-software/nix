@@ -147,7 +147,7 @@ merge_profiles() {
 generate_report() {
   info "Generating coverage report..."
 
-  if [[ ! -f "$PROFDATA" ]]; then
+  if [[ ! -f $PROFDATA ]]; then
     error "No profile data found at $PROFDATA"
     error "Run './scripts/coverage.sh' to build and run tests first"
     exit 1

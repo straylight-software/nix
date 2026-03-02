@@ -75,8 +75,9 @@ void test_random_operation_order() {
   std::size_t path_idx = 0;
 
   for (auto op : operations) {
-    if (path_idx >= paths.size())
+    if (path_idx >= paths.size()) {
       break;
+    }
 
     switch (op) {
       case op_type::stat: {

@@ -53,8 +53,9 @@ private:
   shared_sync_t<State> state_;
 
   const origin_t* resolve(pos_idx_t p) const {
-    if (p.id == 0)
+    if (p.id == 0) {
       return nullptr;
+    }
 
     auto state(state_.read_lock());
     const auto idx = p.id - 1;
@@ -71,19 +72,22 @@ public:
   origin_t add_origin(pos_t::origin_t origin, size_t size) {
     auto state(state_.lock());
     uint32_t offset = 0;
-    if (auto it = state->origins.rbegin(); it != state->origins.rend())
+    if (auto it = state->origins.rbegin(); it != state->origins.rend()) {
       offset = it->first + it->second.size;
+    }
     // +1 because all PosIdx are offset by 1 to begin with, and
     // another +1 to ensure that all origins can point to EOF, eg
     // on (invalid) empty inputs.
-    if (2 + offset + size < offset)
+    if (2 + offset + size < offset) {
       return origin_t{origin, offset, 0};
+    }
     return state->origins.emplace(offset, origin_t{origin, offset, size}).first->second;
   }
 
   pos_idx_t add(const origin_t& origin, size_t offset) {
-    if (offset > origin.size)
+    if (offset > origin.size) {
       return pos_idx_t();
+    }
     return pos_idx_t(1 + origin.offset + offset);
   }
 
@@ -101,8 +105,9 @@ public:
   pos_t operator[](pos_idx_t p) const;
 
   pos_t::origin_t origin_of(pos_idx_t p) const {
-    if (auto o = resolve(p))
+    if (auto o = resolve(p)) {
       return o->origin;
+    }
     return std::monostate{};
   }
 

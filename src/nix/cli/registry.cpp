@@ -23,8 +23,9 @@ struct registry_command_t : virtual nix::args_t {
   }
 
   std::shared_ptr<nix::fetchers::Registry> get_registry() {
-    if (registry)
+    if (registry) {
       return registry;
+    }
     if (registry_path.empty()) {
       registry = nix::fetchers::get_user_registry(nix::fetch_settings);
     } else {
@@ -90,8 +91,9 @@ struct cmd_registry_add_t : nix::MixEvalArgs, nix::command_t, registry_command_t
     auto to_ref = nix::parse_flake_ref(nix::fetch_settings, to_url);
     auto registry = get_registry();
     nix::fetchers::Attrs extra_attrs;
-    if (to_ref.subdir != "")
+    if (to_ref.subdir != "") {
       extra_attrs["dir"] = to_ref.subdir;
+    }
     registry->remove(from_ref.input);
     registry->add(from_ref.input, to_ref.input, extra_attrs);
     registry->write(get_registry_path());
@@ -146,18 +148,21 @@ struct cmd_registry_pin_t : registry_command_t, nix::EvalCommand {
   }
 
   void run(nix::ref<nix::store_t> store) override {
-    if (locked.empty())
+    if (locked.empty()) {
       locked = url;
+    }
     auto registry = get_registry();
     auto ref = nix::parse_flake_ref(nix::fetch_settings, url);
     auto locked_ref = nix::parse_flake_ref(nix::fetch_settings, locked);
     auto resolved_input = locked_ref.resolve(nix::fetch_settings, *store).input;
     auto resolved = resolved_input.get_accessor(nix::fetch_settings, *store).second;
-    if (!resolved.isLocked(nix::fetch_settings))
+    if (!resolved.isLocked(nix::fetch_settings)) {
       nix::warn("flake '%s' is not locked", resolved.to_string());
+    }
     nix::fetchers::Attrs extra_attrs;
-    if (ref.subdir != "")
+    if (ref.subdir != "") {
       extra_attrs["dir"] = ref.subdir;
+    }
     registry->remove(ref.input);
     registry->add(ref.input, resolved, extra_attrs);
     registry->write(get_registry_path());

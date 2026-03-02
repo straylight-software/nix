@@ -29,16 +29,18 @@ static constexpr std::array<std::pair<build_result_t::Success::Status, std::stri
 
 std::string_view build_result_t::Success::status_to_string(build_result_t::Success::Status status) {
   for (const auto& [enumVal, str] : successStatusStrings) {
-    if (enumVal == status)
+    if (enumVal == status) {
       return str;
+    }
   }
   throw Error("unknown success status: %d", static_cast<int>(status));
 }
 
 static build_result_t::Success::Status successStatusFromString(std::string_view str) {
   for (const auto& [enumVal, enumStr] : successStatusStrings) {
-    if (enumStr == str)
+    if (enumStr == str) {
       return enumVal;
+    }
   }
   throw Error("unknown built result success status '%s'", str);
 }
@@ -64,16 +66,18 @@ static constexpr std::array<std::pair<build_result_t::Failure::Status, std::stri
 
 std::string_view build_result_t::Failure::status_to_string(build_result_t::Failure::Status status) {
   for (const auto& [enumVal, str] : failureStatusStrings) {
-    if (enumVal == status)
+    if (enumVal == status) {
       return str;
+    }
   }
   throw Error("unknown failure status: %d", static_cast<int>(status));
 }
 
 static build_result_t::Failure::Status failureStatusFromString(std::string_view str) {
   for (const auto& [enumVal, enumStr] : failureStatusStrings) {
-    if (enumStr == str)
+    if (enumStr == str) {
       return enumVal;
+    }
   }
   throw Error("unknown built result failure status '%s'", str);
 }

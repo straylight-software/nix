@@ -27,11 +27,12 @@ void export_paths(store_t& store, const store_path_set_t& paths, sink_t& sink,
        filesystem corruption from spreading to other machines.
        Don't complain if the stored hash is zero (unknown). */
     Hash hash = hash_sink.current_hash().hash;
-    if (hash != info.nar_hash && info.nar_hash != Hash(info.nar_hash.algo()))
+    if (hash != info.nar_hash && info.nar_hash != Hash(info.nar_hash.algo())) {
       throw Error("hash of path '%s' has changed from '%s' to '%s'!",
                   store.printStorePath(info.path),
                   info.nar_hash.to_string(hash_format_t::nix32, true),
                   hash.to_string(hash_format_t::nix32, true));
+    }
   };
 
   switch (version) {
@@ -97,8 +98,9 @@ store_paths_t import_paths(store_t& store, source_t& source, CheckSigsFlag check
         parse_dump(ether, tee);
 
         uint32_t magic = read_int(source);
-        if (magic != export_magic_v1)
+        if (magic != export_magic_v1) {
           throw Error("nario cannot be imported; wrong format");
+        }
 
         auto path = store.parseStorePath(read_string(source));
 
@@ -107,15 +109,17 @@ store_paths_t import_paths(store_t& store, source_t& source, CheckSigsFlag check
         auto deriver = read_string(source);
 
         // Ignore optional legacy signature.
-        if (read_int(source) == 1)
+        if (read_int(source) == 1) {
           read_string(source);
+        }
 
         if (!store.isValidPath(path)) {
           auto nar_hash = hash_string(hash_algorithm_t::SHA256, saved.str());
 
           valid_path_info_t info{path, {store, nar_hash}};
-          if (deriver != "")
+          if (deriver != "") {
             info.deriver = store.parseStorePath(deriver);
+          }
           info.references = references;
           info.nar_size = saved.str().size();
 
@@ -127,10 +131,12 @@ store_paths_t import_paths(store_t& store, source_t& source, CheckSigsFlag check
         res.push_back(path);
 
         auto n = read_num<uint64_t>(source);
-        if (n == 0)
+        if (n == 0) {
           break;
-        if (n != 1)
+        }
+        if (n != 1) {
           throw Error("input doesn't look like a nario");
+        }
       }
       break;
     }
@@ -138,10 +144,12 @@ store_paths_t import_paths(store_t& store, source_t& source, CheckSigsFlag check
     case export_magic_v2:
       while (true) {
         auto n = read_num<uint64_t>(source);
-        if (n == 0)
+        if (n == 0) {
           break;
-        if (n != 1)
+        }
+        if (n != 1) {
           throw Error("input doesn't look like a nario");
+        }
 
         auto info = WorkerProto::Serialise<valid_path_info_t>::read(
             store, WorkerProto::ReadConn{.from = source, .version = 16, .shortStorePaths = true});
@@ -151,8 +159,9 @@ store_paths_t import_paths(store_t& store, source_t& source, CheckSigsFlag check
                          fmt("importing path '%s'", store.printStorePath(info.path)));
 
           store.add_to_store(info, source, NoRepair, check_sigs);
-        } else
+        } else {
           source.skip(info.nar_size);
+        }
 
         res.push_back(info.path);
       }

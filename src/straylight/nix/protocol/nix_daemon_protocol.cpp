@@ -2313,8 +2313,9 @@ nix_daemon_protocol_t::optional_store_path_t::~optional_store_path_t() {
 void nix_daemon_protocol_t::optional_store_path_t::_clean_up() {}
 
 bool nix_daemon_protocol_t::optional_store_path_t::is_present() {
-  if (f_is_present)
+  if (f_is_present) {
     return m_is_present;
+  }
   m_is_present = path()->len() > 0;
   f_is_present = true;
   return m_is_present;

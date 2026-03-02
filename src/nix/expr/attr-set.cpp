@@ -12,10 +12,12 @@ bindings_t bindings_t::emptyBindings;
    capacity. The space is implicitly reserved after the bindings_t
    structure. */
 bindings_t* EvalMemory::allocBindings(size_t capacity) {
-  if (capacity == 0)
+  if (capacity == 0) {
     return &bindings_t::emptyBindings;
-  if (capacity > std::numeric_limits<bindings_t::size_type>::max())
+  }
+  if (capacity > std::numeric_limits<bindings_t::size_type>::max()) {
     throw Error("attribute set of size %d is too big", capacity);
+  }
   stats.nrAttrsets++;
   stats.nrAttrsInAttrsets += capacity;
   return new (allocBytes(sizeof(bindings_t) + sizeof(attr_t) * capacity)) bindings_t();

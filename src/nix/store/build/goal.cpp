@@ -106,8 +106,9 @@ bool CompareGoalPtrs::operator()(const GoalPtr& a, const GoalPtr& b) const {
 }
 
 void add_to_weak_goals(WeakGoals& goals, GoalPtr p) {
-  if (goals.find(p) != goals.end())
+  if (goals.find(p) != goals.end()) {
     return;
+  }
   goals.insert(p);
 }
 
@@ -132,10 +133,11 @@ Goal::done_t Goal::amDone(ExitCode result, std::optional<Error> ex) {
   exit_code = result;
 
   if (ex) {
-    if (!preserveException && !waiters.empty())
+    if (!preserveException && !waiters.empty()) {
       logError(ex->info());
-    else
+    } else {
       this->ex = std::move(*ex);
+    }
   }
 
   for (auto& i : waiters) {
@@ -147,11 +149,13 @@ Goal::done_t Goal::amDone(ExitCode result, std::optional<Error> ex) {
 
       goal->trace(fmt("waitee '%s' done; %d left", name, goal->waitees.size()));
 
-      if (result == ecFailed || result == ecNoSubstituters)
+      if (result == ecFailed || result == ecNoSubstituters) {
         ++goal->nrFailed;
+      }
 
-      if (result == ecNoSubstituters)
+      if (result == ecNoSubstituters) {
         ++goal->nrNoSubstituters;
+      }
 
       if (goal->waitees.empty()) {
         worker.wakeUp(goal);

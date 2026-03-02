@@ -70,10 +70,12 @@ public:
   void add_node(const T& key, Work work) {
     nodes_[key] = std::move(work);
     // Ensure adjacency entries exist
-    if (!deps_.contains(key))
+    if (!deps_.contains(key)) {
       deps_[key] = {};
-    if (!rdeps_.contains(key))
+    }
+    if (!rdeps_.contains(key)) {
       rdeps_[key] = {};
+    }
   }
 
   /// Add an edge: `from` must complete before `to` can start.
@@ -88,8 +90,9 @@ public:
 
   /// Check if adding an edge would create a cycle.
   [[nodiscard]] bool would_create_cycle(const T& from, const T& to) const {
-    if (from == to)
+    if (from == to) {
       return true;
+    }
 
     // DFS from `to` to see if we can reach `from`
     std::set<T> visited;
@@ -99,11 +102,13 @@ public:
       T current = stack.back();
       stack.pop_back();
 
-      if (current == from)
+      if (current == from) {
         return true;
+      }
 
-      if (visited.contains(current))
+      if (visited.contains(current)) {
         continue;
+      }
       visited.insert(current);
 
       auto it = rdeps_.find(current);
@@ -125,8 +130,9 @@ public:
   /// Build and execute the graph on the given executor.
   /// Throws CycleError if the graph contains cycles.
   void execute(Executor& exec) {
-    if (nodes_.empty())
+    if (nodes_.empty()) {
       return;
+    }
 
     tf::Taskflow taskflow;
     std::map<T, tf::Task> tasks;
@@ -184,8 +190,9 @@ template <typename T>
 void process_graph(const std::set<T>& nodes, std::function<std::set<T>(const T&)> get_deps,
                    std::function<void(const T&)> process_node, Executor& exec,
                    bool discover = false) {
-  if (nodes.empty())
+  if (nodes.empty()) {
     return;
+  }
 
   struct SharedState {
     std::mutex mutex;
@@ -210,8 +217,9 @@ void process_graph(const std::set<T>& nodes, std::function<std::set<T>(const T&)
   std::function<void(const T&)> worker;
 
   worker = [&, state](const T& node) {
-    if (state->should_stop.load())
+    if (state->should_stop.load()) {
       return;
+    }
 
     // Phase 1: Get dependencies
     std::set<T> node_deps;

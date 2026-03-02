@@ -404,8 +404,9 @@ struct experimental_feature_settings_t : config_t {
     requires std::invocable<GetReason> &&
              std::convertible_to<std::invoke_result_t<GetReason>, std::string>
   void require(const experimental_feature_t& feature, GetReason&& get_reason) const {
-    if (is_enabled(feature))
+    if (is_enabled(feature)) {
       return;
+    }
     require(feature, get_reason());
   }
 

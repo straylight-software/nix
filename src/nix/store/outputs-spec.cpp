@@ -31,12 +31,14 @@ std::optional<OutputsSpec> OutputsSpec::parseOpt(std::string_view s) {
 OutputsSpec OutputsSpec::parse(std::string_view s) {
   using namespace std::string_view_literals;
 
-  if (s == "*"sv)
+  if (s == "*"sv) {
     return OutputsSpec::All{};
+  }
 
   auto names = split_string<string_set_t>(s, ",");
-  for (const auto& name : names)
+  for (const auto& name : names) {
     check_name(name);
+  }
 
   return OutputsSpec::Names{std::move(names)};
 }
@@ -45,19 +47,22 @@ std::optional<std::pair<std::string_view, ExtendedOutputsSpec>>
 ExtendedOutputsSpec::parseOpt(std::string_view s) {
   auto found = s.rfind('^');
 
-  if (found == std::string::npos)
+  if (found == std::string::npos) {
     return std::pair{s, ExtendedOutputsSpec::Default{}};
+  }
 
   auto specOpt = OutputsSpec::parseOpt(s.substr(found + 1));
-  if (!specOpt)
+  if (!specOpt) {
     return std::nullopt;
+  }
   return std::pair{s.substr(0, found), ExtendedOutputsSpec::explicit_t{std::move(*specOpt)}};
 }
 
 std::pair<std::string_view, ExtendedOutputsSpec> ExtendedOutputsSpec::parse(std::string_view s) {
   std::optional spec = parseOpt(s);
-  if (!spec)
+  if (!spec) {
     throw Error("invalid extended outputs specifier '%s'", s);
+  }
   return *spec;
 }
 
@@ -109,9 +114,11 @@ bool OutputsSpec::isSubsetOf(const OutputsSpec& that) const {
                                                 [&](const OutputsSpec::All&) { return false; },
                                                 [&](const OutputsSpec::Names& theseNames) {
                                                   bool ret = true;
-                                                  for (auto& o : theseNames)
-                                                    if (thoseNames.count(o) == 0)
+                                                  for (auto& o : theseNames) {
+                                                    if (thoseNames.count(o) == 0) {
                                                       ret = false;
+                                                    }
+                                                  }
                                                   return ret;
                                                 },
                                             },
@@ -129,10 +136,11 @@ namespace nlohmann {
 
 nix::OutputsSpec adl_serializer<nix::OutputsSpec>::from_json(const json& json) {
   auto names = json.get<nix::string_set_t>();
-  if (names == nix::string_set_t({"*"}))
+  if (names == nix::string_set_t({"*"})) {
     return nix::OutputsSpec::All{};
-  else
+  } else {
     return nix::OutputsSpec::Names{std::move(names)};
+  }
 }
 
 void adl_serializer<nix::OutputsSpec>::to_json(json& json, const nix::OutputsSpec& t) {
@@ -144,9 +152,9 @@ void adl_serializer<nix::OutputsSpec>::to_json(json& json, const nix::OutputsSpe
 }
 
 nix::ExtendedOutputsSpec adl_serializer<nix::ExtendedOutputsSpec>::from_json(const json& json) {
-  if (json.is_null())
+  if (json.is_null()) {
     return nix::ExtendedOutputsSpec::Default{};
-  else {
+  } else {
     return nix::ExtendedOutputsSpec::explicit_t{json.get<nix::OutputsSpec>()};
   }
 }

@@ -72,13 +72,14 @@ struct build_environment_t {
 
     for (auto& [name, info] : json["variables"].items()) {
       std::string type = info["type"];
-      if (type == "var" || type == "exported")
+      if (type == "var" || type == "exported") {
         res.vars.insert({name, build_environment_t::String{.exported = type == "exported",
                                                            .value = info["value"]}});
-      else if (type == "array")
+      } else if (type == "array") {
         res.vars.insert({name, (Array)info["value"]});
-      else if (type == "associative")
+      } else if (type == "associative") {
         res.vars.insert({name, (Associative)info["value"]});
+      }
     }
 
     for (auto& [name, def] : json["bashFunctions"].items()) {
@@ -150,18 +151,21 @@ struct build_environment_t {
       if (!ignore_vars.count(name)) {
         if (auto str = std::get_if<String>(&value)) {
           out << nix::fmt("%s=%s\n", name, nix::escape_shell_arg_always(str->value));
-          if (str->exported)
+          if (str->exported) {
             out << nix::fmt("export %s\n", name);
+          }
         } else if (auto arr = std::get_if<Array>(&value)) {
           out << "declare -a " << name << "=(";
-          for (auto& s : *arr)
+          for (auto& s : *arr) {
             out << nix::escape_shell_arg_always(s) << " ";
+          }
           out << ")\n";
         } else if (auto arr = std::get_if<Associative>(&value)) {
           out << "declare -A " << name << "=(";
-          for (auto& [n, v] : *arr)
+          for (auto& [n, v] : *arr) {
             out << "[" << nix::escape_shell_arg_always(n) << "]=" << nix::escape_shell_arg_always(v)
                 << " ";
+          }
           out << ")\n";
         }
       }
@@ -173,30 +177,33 @@ struct build_environment_t {
   }
 
   static std::string get_string(const value_t& value) {
-    if (auto str = std::get_if<String>(&value))
+    if (auto str = std::get_if<String>(&value)) {
       return str->value;
-    else
+    } else {
       throw nix::Error("bash variable is not a string");
+    }
   }
 
   static Associative get_associative(const value_t& value) {
-    if (auto assoc = std::get_if<Associative>(&value))
+    if (auto assoc = std::get_if<Associative>(&value)) {
       return *assoc;
-    else
+    } else {
       throw nix::Error("bash variable is not an associative array");
+    }
   }
 
   static Array get_strings(const value_t& value) {
-    if (auto str = std::get_if<String>(&value))
+    if (auto str = std::get_if<String>(&value)) {
       return nix::tokenize_string<Array>(str->value);
-    else if (auto arr = std::get_if<Array>(&value)) {
+    } else if (auto arr = std::get_if<Array>(&value)) {
       return *arr;
     } else if (auto assoc = std::get_if<Associative>(&value)) {
       Array assoc_keys;
       std::for_each(assoc->begin(), assoc->end(), [&](auto& n) { assoc_keys.push_back(n.first); });
       return assoc_keys;
-    } else
+    } else {
       throw nix::Error("bash variable is not a string or array");
+    }
   }
 
   bool operator==(const build_environment_t& other) const {
@@ -204,10 +211,11 @@ struct build_environment_t {
   }
 
   std::string get_system() const {
-    if (auto v = nix::get(vars, "system"))
+    if (auto v = nix::get(vars, "system")) {
       return get_string(*v);
-    else
+    } else {
       return nix::settings.thisSystem;
+    }
   }
 };
 
@@ -231,8 +239,9 @@ static nix::store_path_t get_derivation_environment(nix::ref<nix::store_t> store
   auto drv = eval_store->derivationFromPath(drv_path);
 
   auto builder = nix::base_name_of(drv.builder);
-  if (builder != "bash")
+  if (builder != "bash") {
     throw nix::Error("'nix develop' only works on derivations that use 'bash' as their builder");
+  }
 
   // Check for interrupts before starting store operations
   nix::check_interrupt();
@@ -302,8 +311,9 @@ static nix::store_path_t get_derivation_environment(nix::ref<nix::store_t> store
     nix::check_interrupt();
     assert(optPath);
     auto accessor = eval_store->requireStoreObjectAccessor(*optPath);
-    if (auto st = accessor->maybe_lstat(nix::canon_path_t::root); st && st->file_size.value_or(0))
+    if (auto st = accessor->maybe_lstat(nix::canon_path_t::root); st && st->file_size.value_or(0)) {
       return *optPath;
+    }
   }
 
   throw nix::Error("get-env.sh failed to produce an environment");
@@ -364,12 +374,14 @@ struct common_t : nix::InstallableCommand, nix::MixProfile {
       out += sink.str();
     }
 
-    for (auto& var : saved_vars)
+    for (auto& var : saved_vars) {
       out += nix::fmt("%s=\"$%s${nix_saved_%s:+:$nix_saved_%s}\"\n", var, var, var, var);
+    }
 
     out += "export NIX_BUILD_TOP=\"$(mktemp -d -t nix-shell.XXXXXX)\"\n";
-    for (auto& i : {"TMP", "TMPDIR", "TEMP", "TEMPDIR"})
+    for (auto& i : {"TMP", "TMPDIR", "TEMP", "TEMPDIR"}) {
       out += nix::fmt("export %s=\"$NIX_BUILD_TOP\"\n", i);
+    }
 
     out += "eval \"${shellHook:-}\"\n";
 
@@ -403,10 +415,10 @@ struct common_t : nix::InstallableCommand, nix::MixProfile {
           getEvalStore(), store, nix::Realise::Nothing, nix::OperateOn::Output, {installable});
       for (auto& path : built_paths) {
         auto from = store->printStorePath(path);
-        if (script.find(from) == std::string::npos)
+        if (script.find(from) == std::string::npos) {
           nix::warn("'%s' (path '%s') is not used by this build environment", installable->what(),
                     from);
-        else {
+        } else {
           printInfo("redirecting '%s' to '%s'", from, dir);
           rewrites.insert({from, dir});
         }
@@ -448,8 +460,9 @@ struct common_t : nix::InstallableCommand, nix::MixProfile {
         "devShells." + nix::settings.thisSystem.get() + ".default",
         "devShell." + nix::settings.thisSystem.get(),
     };
-    for (auto& p : SourceExprCommand::getDefaultFlakeAttrPaths())
+    for (auto& p : SourceExprCommand::getDefaultFlakeAttrPaths()) {
       paths.push_back(p);
+    }
     return paths;
   }
 
@@ -465,16 +478,17 @@ struct common_t : nix::InstallableCommand, nix::MixProfile {
     nix::check_interrupt();
 
     auto path = installable->getStorePath();
-    if (path && nix::has_suffix(path->to_string(), "-env"))
+    if (path && nix::has_suffix(path->to_string(), "-env")) {
       return *path;
-    else {
+    } else {
       nix::check_interrupt();
       auto drvs = nix::Installable::toDerivations(store, {installable});
 
-      if (drvs.size() != 1)
+      if (drvs.size() != 1) {
         throw nix::Error(
             "'%s' needs to evaluate to a single derivation, but it evaluated to %d derivations",
             installable->what(), drvs.size());
+      }
 
       auto& drv_path = *drvs.begin();
 
@@ -515,8 +529,9 @@ struct cmd_develop_t : common_t, nix::MixEnvironment {
             "Instead of starting an interactive shell, start the specified command and arguments.",
         .labels = {"command", "args"},
         .handler = {[&](std::vector<std::string> ss) {
-          if (ss.empty())
+          if (ss.empty()) {
             throw nix::UsageError("--command requires at least one argument");
+          }
           command = ss;
         }},
     });
@@ -584,14 +599,16 @@ struct cmd_develop_t : common_t, nix::MixEnvironment {
 
     auto script = make_rc_script(store, build_environment, tmp_dir);
 
-    if (nix::verbosity >= nix::lvl_debug)
+    if (nix::verbosity >= nix::lvl_debug) {
       script += "set -x\n";
+    }
 
     script += nix::fmt("command rm -f '%s'\n", rcFilePath);
 
     if (phase) {
-      if (!command.empty())
+      if (!command.empty()) {
         throw nix::UsageError("you cannot use both '--command' and '--phase'");
+      }
       // FIXME: foundMakefile is set by buildPhase, need to get
       // rid of that.
       script += nix::fmt("foundMakefile=1\n");
@@ -601,8 +618,9 @@ struct cmd_develop_t : common_t, nix::MixEnvironment {
     else if (!command.empty()) {
       std::vector<std::string> args;
       args.reserve(command.size());
-      for (const auto& s : command)
+      for (const auto& s : command) {
         args.push_back(nix::escape_shell_arg_always(s));
+      }
       script += nix::fmt("exec %s\n", nix::concat_strings_sep(" ", args));
     }
 
@@ -610,15 +628,18 @@ struct cmd_develop_t : common_t, nix::MixEnvironment {
       script =
           "[ -n \"$PS1\" ] && [ -e ~/.bashrc ] && source ~/.bashrc;\nshopt -u expand_aliases\n" +
           script + "\nshopt -s expand_aliases\n";
-      if (develop_settings.bash_prompt != "")
+      if (develop_settings.bash_prompt != "") {
         script += nix::fmt("[ -n \"$PS1\" ] && PS1=%s;\n",
                            nix::escape_shell_arg_always(develop_settings.bash_prompt.get()));
-      if (develop_settings.bash_prompt_prefix != "")
+      }
+      if (develop_settings.bash_prompt_prefix != "") {
         script += nix::fmt("[ -n \"$PS1\" ] && PS1=%s\"$PS1\";\n",
                            nix::escape_shell_arg_always(develop_settings.bash_prompt_prefix.get()));
-      if (develop_settings.bash_prompt_suffix != "")
+      }
+      if (develop_settings.bash_prompt_suffix != "") {
         script += nix::fmt("[ -n \"$PS1\" ] && PS1+=%s;\n",
                            nix::escape_shell_arg_always(develop_settings.bash_prompt_suffix.get()));
+      }
     }
 
     setEnviron();
@@ -636,8 +657,9 @@ struct cmd_develop_t : common_t, nix::MixEnvironment {
       nixpkgs_lock_flags.inputUpdates = {};
 
       auto nixpkgs = defaultNixpkgsFlakeRef();
-      if (auto* i = dynamic_cast<const nix::InstallableFlake*>(&*installable))
+      if (auto* i = dynamic_cast<const nix::InstallableFlake*>(&*installable)) {
         nixpkgs = i->nixpkgsFlakeRef();
+      }
 
       auto bash_installable = nix::make_ref<nix::InstallableFlake>(
           nullptr, //< Don't barf when the command is run with --arg/--argstr
@@ -657,8 +679,9 @@ struct cmd_develop_t : common_t, nix::MixEnvironment {
         }
       }
 
-      if (!found_interactive)
+      if (!found_interactive) {
         throw nix::Error("package 'nixpkgs#bashInteractive' does not provide a 'bin/bash'");
+      }
 
     } catch (nix::Error&) {
       nix::ignore_exception_except_interrupt();
@@ -669,9 +692,10 @@ struct cmd_develop_t : common_t, nix::MixEnvironment {
     nix::set_env("SHELL", shell.c_str());
     // https://github.com/NixOS/nix/issues/5873
     script += nix::fmt("SHELL=\"%s\"\n", shell);
-    if (found_interactive)
+    if (found_interactive) {
       script +=
           nix::fmt("PATH=\"%s${PATH:+:$PATH}\"\n", std::filesystem::path(shell).parent_path());
+    }
     nix::write_full(rcFileFd.get(), script);
 
 #ifdef _WIN32 // TODO re-enable on Windows

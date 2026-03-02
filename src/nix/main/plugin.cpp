@@ -24,9 +24,10 @@ struct plugin_files_setting_t : public base_setting_t<std::list<std::filesystem:
 };
 
 std::list<std::filesystem::path> plugin_files_setting_t::parse(const std::string& str) const {
-  if (plugins_loaded)
+  if (plugins_loaded) {
     throw UsageError("plugin-files set after plugins were loaded, you may need to move the flag "
                      "before the subcommand");
+  }
   return base_setting_t<std::list<std::filesystem::path>>::parse(str);
 }
 
@@ -75,8 +76,9 @@ void init_plugins() {
         plugin_files.emplace_back(ent.path());
       }
     } catch (sys_error_t& e) {
-      if (e.err_no() != ENOTDIR)
+      if (e.err_no() != ENOTDIR) {
         throw;
+      }
       plugin_files.emplace_back(pluginFile);
     }
     for (const auto& file : plugin_files) {
@@ -85,14 +87,16 @@ void init_plugins() {
          DSO needed by the action of the plugin. */
 #ifndef _WIN32 // TODO implement via DLL loading on Windows
       void* handle = dlopen(file.c_str(), RTLD_LAZY | RTLD_LOCAL);
-      if (!handle)
+      if (!handle) {
         throw Error("could not dynamically open plugin file '%s': %s", file, dlerror());
+      }
 
       /* Older plugins use a statically initialized object to run their code.
          Newer plugins can also export nix_plugin_entry() */
       void (*nix_plugin_entry)() = (void (*)())dlsym(handle, "nix_plugin_entry");
-      if (nix_plugin_entry)
+      if (nix_plugin_entry) {
         nix_plugin_entry();
+      }
 #else
       throw Error("could not dynamically open plugin file '%s'", file);
 #endif

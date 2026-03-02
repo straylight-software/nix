@@ -10,8 +10,9 @@ std::regex flake_regex("[a-zA-Z][a-zA-Z0-9_-]*", std::regex::ECMAScript);
 struct indirect_input_scheme_t : input_scheme_t {
   std::optional<input_t> inputFromURL(const settings_t& settings, const parsed_url_t& url,
                                       bool require_tree) const override {
-    if (url.scheme() != "flake")
+    if (url.scheme() != "flake") {
       return {};
+    }
 
     /* This ignores empty path segments for back-compat. Older versions used a tokenize_string here.
      */
@@ -23,36 +24,43 @@ struct indirect_input_scheme_t : input_scheme_t {
 
     if (path.size() == 1) {
     } else if (path.size() == 2) {
-      if (std::regex_match(path[1], rev_regex))
+      if (std::regex_match(path[1], rev_regex)) {
         rev = Hash::parse_any(path[1], hash_algorithm_t::SHA1);
-      else if (is_legal_ref_name(path[1]))
+      } else if (is_legal_ref_name(path[1])) {
         ref = path[1];
-      else
+      } else {
         throw BadURL("in flake URL '%s', '%s' is not a commit hash or branch/tag name", url,
                      path[1]);
+      }
     } else if (path.size() == 3) {
-      if (!is_legal_ref_name(path[1]))
+      if (!is_legal_ref_name(path[1])) {
         throw BadURL("in flake URL '%s', '%s' is not a branch/tag name", url, path[1]);
+      }
       ref = path[1];
-      if (!std::regex_match(path[2], rev_regex))
+      if (!std::regex_match(path[2], rev_regex)) {
         throw BadURL("in flake URL '%s', '%s' is not a commit hash", url, path[2]);
+      }
       rev = Hash::parse_any(path[2], hash_algorithm_t::SHA1);
-    } else
+    } else {
       throw BadURL("GitHub URL '%s' is invalid", url);
+    }
 
     std::string id = path[0];
-    if (!std::regex_match(id, flake_regex))
+    if (!std::regex_match(id, flake_regex)) {
       throw BadURL("'%s' is not a valid flake ID", id);
+    }
 
     // FIXME: forbid query params?
 
     input_t input{};
     input.attrs.insert_or_assign("type", "indirect");
     input.attrs.insert_or_assign("id", id);
-    if (rev)
+    if (rev) {
       input.attrs.insert_or_assign("rev", rev->git_rev());
-    if (ref)
+    }
+    if (ref) {
       input.attrs.insert_or_assign("ref", *ref);
+    }
 
     return input;
   }
@@ -89,8 +97,9 @@ struct indirect_input_scheme_t : input_scheme_t {
   std::optional<input_t> inputFromAttrs(const settings_t& settings,
                                         const Attrs& attrs) const override {
     auto id = get_str_attr(attrs, "id");
-    if (!std::regex_match(id, flake_regex))
+    if (!std::regex_match(id, flake_regex)) {
       throw BadURL("'%s' is not a valid flake ID", id);
+    }
 
     input_t input{};
     input.attrs = attrs;
@@ -113,10 +122,12 @@ struct indirect_input_scheme_t : input_scheme_t {
   input_t applyOverrides(const input_t& _input, std::optional<std::string> ref,
                          std::optional<Hash> rev) const override {
     auto input(_input);
-    if (rev)
+    if (rev) {
       input.attrs.insert_or_assign("rev", rev->git_rev());
-    if (ref)
+    }
+    if (ref) {
       input.attrs.insert_or_assign("ref", *ref);
+    }
     return input;
   }
 

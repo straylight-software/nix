@@ -49,8 +49,9 @@ public:
    */
   template <typename K>
   void upsert(const K& key, const value_t& value) {
-    if (capacity == 0)
+    if (capacity == 0) {
       return;
+    }
 
     erase(key);
 
@@ -75,8 +76,9 @@ public:
   template <typename K>
   bool erase(const K& key) {
     auto i = data.find(key);
-    if (i == data.end())
+    if (i == data.end()) {
       return false;
+    }
     lru.erase(i->second.first.it);
     data.erase(i);
     return true;
@@ -91,8 +93,9 @@ public:
   template <typename K>
   std::optional<value_t> get(const K& key) {
     auto i = data.find(key);
-    if (i == data.end())
+    if (i == data.end()) {
       return {};
+    }
 
     auto& [it, value] = i->second;
     promote(it.it);
@@ -109,8 +112,9 @@ public:
   template <typename K>
   value_t* get_or_nullptr(const K& key) {
     auto i = data.find(key);
-    if (i == data.end())
+    if (i == data.end()) {
       return nullptr;
+    }
 
     auto& [it, value] = i->second;
     promote(it.it);

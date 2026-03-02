@@ -32,8 +32,9 @@ struct cmd_shell_t : nix::InstallablesCommand, nix::MixEnvironment {
         .description = "Command and arguments to be executed, defaulting to `$SHELL`",
         .labels = {"command", "args"},
         .handler = {[&](std::vector<std::string> ss) {
-          if (ss.empty())
+          if (ss.empty()) {
             throw nix::UsageError("--command requires at least one argument");
+          }
           command = ss;
         }},
     });
@@ -57,8 +58,9 @@ struct cmd_shell_t : nix::InstallablesCommand, nix::MixEnvironment {
 
     boost::unordered_flat_set<nix::store_path_t, std::hash<nix::store_path_t>> done;
     std::queue<nix::store_path_t> todo;
-    for (auto& path : out_paths)
+    for (auto& path : out_paths) {
       todo.push(path);
+    }
 
     setEnviron();
 
@@ -67,13 +69,15 @@ struct cmd_shell_t : nix::InstallablesCommand, nix::MixEnvironment {
     while (!todo.empty()) {
       auto path = todo.front();
       todo.pop();
-      if (!done.insert(path).second)
+      if (!done.insert(path).second) {
         continue;
+      }
 
       auto bin_dir =
           state->storeFS->resolve_symlinks(nix::canon_path_t(store->printStorePath(path)) / "bin");
-      if (!store->isInStore(bin_dir.abs()))
+      if (!store->isInStore(bin_dir.abs())) {
         throw nix::Error("path '%s' is not in the Nix store", bin_dir);
+      }
 
       pathAdditions.push_back(bin_dir.abs());
 
@@ -82,8 +86,9 @@ struct cmd_shell_t : nix::InstallablesCommand, nix::MixEnvironment {
                                            "nix-support" / "propagated-user-env-packages");
       if (auto st = state->storeFS->maybe_lstat(prop_path);
           st && st->type == nix::source_accessor_t::t_regular) {
-        for (auto& p : nix::tokenize_string<nix::Paths>(state->storeFS->read_file(prop_path)))
+        for (auto& p : nix::tokenize_string<nix::Paths>(state->storeFS->read_file(prop_path))) {
           todo.push(store->parseStorePath(p));
+        }
       }
     }
 
@@ -95,8 +100,9 @@ struct cmd_shell_t : nix::InstallablesCommand, nix::MixEnvironment {
     nix::set_env_os(OS_STR("PATH"), unix_path_string.c_str());
 
     nix::strings_t args;
-    for (auto& arg : command)
+    for (auto& arg : command) {
       args.push_back(arg);
+    }
 
     // Release our references to eval caches to ensure they are persisted to disk, because
     // we are about to exec out of this process without running C++ destructors.

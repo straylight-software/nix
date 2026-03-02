@@ -688,8 +688,9 @@ TEST_CASE("computeClosure large graph performance", "[closure][.benchmark]") {
   std::map<int, std::set<int>> edges;
   int nextId = 1;
   std::function<void(int, int)> buildTree = [&](int node, int depth) {
-    if (depth >= 6)
+    if (depth >= 6) {
       return;
+    }
     for (int i = 0; i < 3; ++i) {
       int child = nextId++;
       edges[node].insert(child);
@@ -718,8 +719,9 @@ TEST_CASE("computeClosureAsync large graph performance", "[closure][async][.benc
   std::map<int, std::set<int>> edges;
   int nextId = 1;
   std::function<void(int, int)> buildTree = [&](int node, int depth) {
-    if (depth >= 6)
+    if (depth >= 6) {
       return;
+    }
     for (int i = 0; i < 3; ++i) {
       int child = nextId++;
       edges[node].insert(child);

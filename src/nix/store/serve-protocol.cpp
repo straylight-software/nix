@@ -23,13 +23,15 @@ build_result_t ServeProto::Serialise<build_result_t>::read(const store_dir_confi
   auto rawStatus = read_int(conn.from);
   conn.from >> failure.errorMsg;
 
-  if (GET_PROTOCOL_MINOR(conn.version) >= 3)
+  if (GET_PROTOCOL_MINOR(conn.version) >= 3) {
     conn.from >> status.timesBuilt >> failure.isNonDeterministic >> status.start_time >>
         status.stopTime;
+  }
   if (GET_PROTOCOL_MINOR(conn.version) >= 6) {
     auto built_outputs = ServeProto::Serialise<DrvOutputs>::read(store, conn);
-    for (auto&& [output, realisation] : built_outputs)
+    for (auto&& [output, realisation] : built_outputs) {
       success.built_outputs.insert_or_assign(std::move(output.output_name), std::move(realisation));
+    }
   }
 
   if (build_result_t::Success::statusIs(rawStatus)) {
@@ -53,12 +55,14 @@ void ServeProto::Serialise<build_result_t>::write(const store_dir_config_t& stor
      default value for the fields that don't exist in that case. */
   auto common = [&](std::string_view errorMsg, bool isNonDeterministic, const auto& built_outputs) {
     conn.to << errorMsg;
-    if (GET_PROTOCOL_MINOR(conn.version) >= 3)
+    if (GET_PROTOCOL_MINOR(conn.version) >= 3) {
       conn.to << res.timesBuilt << isNonDeterministic << res.start_time << res.stopTime;
+    }
     if (GET_PROTOCOL_MINOR(conn.version) >= 6) {
       DrvOutputs builtOutputsFullKey;
-      for (auto& [output, realisation] : built_outputs)
+      for (auto& [output, realisation] : built_outputs) {
         builtOutputsFullKey.insert_or_assign(realisation.id, realisation);
+      }
       ServeProto::write(store, conn, builtOutputsFullKey);
     }
   };
@@ -83,8 +87,9 @@ ServeProto::Serialise<UnkeyedValidPathInfo>::read(const store_dir_config_t& stor
   UnkeyedValidPathInfo info{store, Hash::dummy};
 
   auto deriver = read_string(conn.from);
-  if (deriver != "")
+  if (deriver != "") {
     info.deriver = store.parseStorePath(deriver);
+  }
   info.references = ServeProto::Serialise<store_path_set_t>::read(store, conn);
 
   read_long_long(conn.from); // download size, unused
@@ -92,8 +97,9 @@ ServeProto::Serialise<UnkeyedValidPathInfo>::read(const store_dir_config_t& stor
 
   if (GET_PROTOCOL_MINOR(conn.version) >= 4) {
     auto s = read_string(conn.from);
-    if (!s.empty())
+    if (!s.empty()) {
       info.nar_hash = Hash::parse_any_prefixed(s);
+    }
     info.ca = content_address_t::parseOpt(read_string(conn.from));
     info.sigs = read_strings<string_set_t>(conn.from);
   }
@@ -110,9 +116,10 @@ void ServeProto::Serialise<UnkeyedValidPathInfo>::write(const store_dir_config_t
   // !!! Maybe we want compression?
   conn.to << info.nar_size // downloadSize, lie a little
           << info.nar_size;
-  if (GET_PROTOCOL_MINOR(conn.version) >= 4)
+  if (GET_PROTOCOL_MINOR(conn.version) >= 4) {
     conn.to << info.nar_hash.to_string(hash_format_t::nix32, true)
             << render_content_address(info.ca) << info.sigs;
+  }
 }
 
 ServeProto::BuildOptions
@@ -121,8 +128,9 @@ ServeProto::Serialise<ServeProto::BuildOptions>::read(const store_dir_config_t& 
   BuildOptions options;
   options.max_silent_time = read_int(conn.from);
   options.buildTimeout = read_int(conn.from);
-  if (GET_PROTOCOL_MINOR(conn.version) >= 2)
+  if (GET_PROTOCOL_MINOR(conn.version) >= 2) {
     options.maxLogSize = read_num<unsigned long>(conn.from);
+  }
   if (GET_PROTOCOL_MINOR(conn.version) >= 3) {
     options.nrRepeats = read_int(conn.from);
     options.enforceDeterminism = read_int(conn.from);
@@ -136,10 +144,12 @@ ServeProto::Serialise<ServeProto::BuildOptions>::read(const store_dir_config_t& 
 void ServeProto::Serialise<ServeProto::BuildOptions>::write(
     const store_dir_config_t& store, WriteConn conn, const ServeProto::BuildOptions& options) {
   conn.to << options.max_silent_time << options.buildTimeout;
-  if (GET_PROTOCOL_MINOR(conn.version) >= 2)
+  if (GET_PROTOCOL_MINOR(conn.version) >= 2) {
     conn.to << options.maxLogSize;
-  if (GET_PROTOCOL_MINOR(conn.version) >= 3)
+  }
+  if (GET_PROTOCOL_MINOR(conn.version) >= 3) {
     conn.to << options.nrRepeats << options.enforceDeterminism;
+  }
 
   if (GET_PROTOCOL_MINOR(conn.version) >= 7) {
     conn.to << ((int)options.keep_failed);

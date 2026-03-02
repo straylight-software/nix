@@ -57,27 +57,31 @@ static bool have_internet() {
 #ifndef _WIN32
   struct ifaddrs* addrs;
 
-  if (getifaddrs(&addrs))
+  if (getifaddrs(&addrs)) {
     return true;
+  }
 
   finally_t free([&]() { freeifaddrs(addrs); });
 
   for (auto i = addrs; i; i = i->ifa_next) {
-    if (!i->ifa_addr)
+    if (!i->ifa_addr) {
       continue;
+    }
     if (i->ifa_addr->sa_family == AF_INET) {
       if (ntohl(((sockaddr_in*)i->ifa_addr)->sin_addr.s_addr) != INADDR_LOOPBACK) {
         return true;
       }
     } else if (i->ifa_addr->sa_family == AF_INET6) {
       if (!IN6_IS_ADDR_LOOPBACK(&((sockaddr_in6*)i->ifa_addr)->sin6_addr) &&
-          !IN6_IS_ADDR_LINKLOCAL(&((sockaddr_in6*)i->ifa_addr)->sin6_addr))
+          !IN6_IS_ADDR_LINKLOCAL(&((sockaddr_in6*)i->ifa_addr)->sin6_addr)) {
         return true;
+      }
     }
   }
 
-  if (have_network_proxy_connection())
+  if (have_network_proxy_connection()) {
     return true;
+  }
 
   return false;
 #else
@@ -88,15 +92,19 @@ static bool have_internet() {
 
 static void disable_net() {
   // FIXME: should check for command line overrides only.
-  if (!settings.use_substitutes.overridden)
+  if (!settings.use_substitutes.overridden) {
     // FIXME: should not disable local substituters (like file:///).
     settings.use_substitutes = false;
-  if (!settings.tarballTtl.overridden)
+  }
+  if (!settings.tarballTtl.overridden) {
     settings.tarballTtl = std::numeric_limits<unsigned int>::max();
-  if (!file_transfer_settings.tries.overridden)
+  }
+  if (!file_transfer_settings.tries.overridden) {
     file_transfer_settings.tries = 0;
-  if (!file_transfer_settings.connectTimeout.overridden)
+  }
+  if (!file_transfer_settings.connectTimeout.overridden) {
     file_transfer_settings.connectTimeout = 1;
+  }
 }
 
 std::string program_path;
@@ -276,8 +284,9 @@ static void show_help(std::vector<std::string> subcommand, nix_args_t& toplevel)
   state.callFunction(*vGenerateManpage, args, *v_res, no_pos);
 
   auto attr = v_res->attrs()->get(state.symbols.create(mdName + ".md"));
-  if (!attr)
+  if (!attr) {
     throw UsageError("Nix has no subcommand '%s'", concat_strings_sep("", subcommand));
+  }
 
   auto markdown = state.forceString(*attr->value, no_pos, "while evaluating the lowdown help text");
 
@@ -312,8 +321,9 @@ struct cmd_help_t : command_t {
   void run() override {
     assert(get_parent());
     multi_command_t* toplevel = get_parent();
-    while (toplevel->get_parent())
+    while (toplevel->get_parent()) {
       toplevel = toplevel->get_parent();
+    }
     show_help(subcommand, get_nix_args(*this));
   }
 };
@@ -369,8 +379,9 @@ void main_wrapped(int argc, char** argv) {
   if (is_root_user()) {
     try {
       save_mount_namespace();
-      if (unshare(CLONE_NEWNS) == -1)
+      if (unshare(CLONE_NEWNS) == -1) {
         throw sys_error_t("setting up a private mount namespace");
+      }
     } catch (Error& e) {
     }
   }
@@ -379,8 +390,9 @@ void main_wrapped(int argc, char** argv) {
   program_path = argv[0];
   auto program_name = std::string(base_name_of(program_path));
   auto extension_pos = program_name.find_last_of(".");
-  if (extension_pos != std::string::npos)
+  if (extension_pos != std::string::npos) {
     program_name.erase(extension_pos);
+  }
 
   if (argc > 1 && std::string_view(argv[1]) == "__build-remote") {
     program_name = "build-remote";
@@ -390,8 +402,9 @@ void main_wrapped(int argc, char** argv) {
 
   {
     auto legacy = RegisterLegacyCommand::commands()[program_name];
-    if (legacy)
+    if (legacy) {
       return legacy(argc, argv);
+    }
   }
 
   eval_settings.pureEval = true;
@@ -425,25 +438,30 @@ void main_wrapped(int argc, char** argv) {
     for (auto& builtinPtr : state.getBuiltins().attrs()->lexicographicOrder(state.symbols)) {
       auto& builtin = *builtinPtr;
       auto b = nlohmann::json::object();
-      if (!builtin.value->isPrimOp())
+      if (!builtin.value->isPrimOp()) {
         continue;
+      }
       auto prim_op = builtin.value->prim_op();
-      if (!prim_op->doc)
+      if (!prim_op->doc) {
         continue;
+      }
       b["args"] = prim_op->args;
       b["doc"] = trim(strip_indentation(*prim_op->doc));
-      if (prim_op->experimental_feature)
+      if (prim_op->experimental_feature) {
         b["experimental-feature"] = prim_op->experimental_feature;
+      }
       builtins_json.emplace(state.symbols[builtin.name], std::move(b));
     }
     for (auto& [name, info] : state.constantInfos) {
       auto b = nlohmann::json::object();
-      if (!info.doc)
+      if (!info.doc) {
         continue;
+      }
       b["doc"] = trim(strip_indentation(info.doc));
       b["type"] = show_type(info.type, false);
-      if (info.impureOnly)
+      if (info.impureOnly) {
         b["impure-only"] = true;
+      }
       builtins_json[name] = std::move(b);
     }
     logger->cout("%s", builtins_json);
@@ -468,24 +486,27 @@ void main_wrapped(int argc, char** argv) {
           logger->cout("attrs");
           break;
       }
-      for (auto& s : args.completions->completions)
+      for (auto& s : args.completions->completions) {
         logger->cout(s.get_completion() + "\t" + trim(s.get_description()));
+      }
     }
   });
 
-  if (get_env("NIX_GET_COMPLETIONS"))
+  if (get_env("NIX_GET_COMPLETIONS")) {
     /* Avoid fetching stuff during tab completion. We have to this
        early because we haven't checked `have_internet()` yet
        (below). */
     disable_net();
+  }
 
   try {
     auto is_nix_command = std::regex_search(program_name, std::regex("nix$"));
     auto allow_shebang = is_nix_command && argc > 1;
     args.parse_cmdline(argv_to_strings(argc, argv), allow_shebang);
   } catch (UsageError&) {
-    if (!args.help_requested && !args.completions)
+    if (!args.help_requested && !args.completions) {
       throw;
+    }
   }
 
   apply_json_logger();
@@ -499,23 +520,26 @@ void main_wrapped(int argc, char** argv) {
       if (command && command->get_command()) {
         subcommand.push_back(command->get_command()->first);
         command = dynamic_cast<multi_command_t*>(&*command->get_command()->second);
-      } else
+      } else {
         break;
+      }
     }
     show_help(subcommand, args);
     return;
   }
 
-  if (args.completions)
+  if (args.completions) {
     return;
+  }
 
   if (args.show_version) {
     print_version(program_name);
     return;
   }
 
-  if (!args.get_command())
+  if (!args.get_command()) {
     throw UsageError("no subcommand specified");
+  }
 
   experimental_feature_settings.require(args.get_command()->second->experimental_feature());
 
@@ -524,8 +548,9 @@ void main_wrapped(int argc, char** argv) {
     args.use_net = false;
   }
 
-  if (!args.use_net)
+  if (!args.use_net) {
     disable_net();
+  }
 
   if (args.refresh) {
     settings.tarballTtl = 0;

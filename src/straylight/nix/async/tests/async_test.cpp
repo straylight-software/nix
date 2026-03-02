@@ -251,10 +251,12 @@ TEST_CASE("process_graph respects dependencies", "[task_graph]") {
 
   // 1 depends on 2, 2 depends on 3
   auto get_deps = [](const int& n) -> std::set<int> {
-    if (n == 1)
+    if (n == 1) {
       return {2};
-    if (n == 2)
+    }
+    if (n == 2) {
       return {3};
+    }
     return {};
   };
 
@@ -282,12 +284,15 @@ TEST_CASE("process_graph detects cycle", "[task_graph]") {
 
   // Cyclic: 1 -> 2 -> 3 -> 1
   auto get_deps = [](const int& n) -> std::set<int> {
-    if (n == 1)
+    if (n == 1) {
       return {2};
-    if (n == 2)
+    }
+    if (n == 2) {
       return {3};
-    if (n == 3)
+    }
+    if (n == 3) {
       return {1};
+    }
     return {};
   };
 

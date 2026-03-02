@@ -57,18 +57,22 @@ std::string encode(std::span<const std::byte> input) {
 }
 
 uint8_t hex_char_to_int(char c) {
-  if (c >= '0' && c <= '9')
+  if (c >= '0' && c <= '9') {
     return c - '0';
-  if (c >= 'a' && c <= 'f')
+  }
+  if (c >= 'a' && c <= 'f') {
     return c - 'a' + 10;
-  if (c >= 'A' && c <= 'F')
+  }
+  if (c >= 'A' && c <= 'F') {
     return c - 'A' + 10;
+  }
   return 0; // error
 }
 
 std::string decode(std::string_view s) {
-  if (s.size() % 2 != 0)
+  if (s.size() % 2 != 0) {
     throw std::runtime_error("invalid hex string length");
+  }
 
   std::string result;
   result.reserve(s.size() / 2);
@@ -127,8 +131,9 @@ namespace nix32 {
 constexpr const char nix32_chars[33] = "0123456789abcdfghijklmnpqrsvwxyz";
 
 std::string encode(std::span<const std::byte> input) {
-  if (input.empty())
+  if (input.empty()) {
     return "";
+  }
 
   // Reverse the input (nix32 is LSB-first)
   std::vector<std::byte> reversed(input.rbegin(), input.rend());
@@ -158,26 +163,34 @@ std::string encode(std::span<const std::byte> input) {
 }
 
 uint8_t nix32_char_to_int(char c) {
-  if (c >= '0' && c <= '9')
+  if (c >= '0' && c <= '9') {
     return c - '0';
-  if (c >= 'a' && c <= 'd')
+  }
+  if (c >= 'a' && c <= 'd') {
     return 10 + (c - 'a');
-  if (c == 'f')
+  }
+  if (c == 'f') {
     return 14;
-  if (c >= 'g' && c <= 'n')
+  }
+  if (c >= 'g' && c <= 'n') {
     return 15 + (c - 'g');
-  if (c >= 'p' && c <= 's')
+  }
+  if (c >= 'p' && c <= 's') {
     return 23 + (c - 'p');
-  if (c == 'v')
+  }
+  if (c == 'v') {
     return 27;
-  if (c >= 'w' && c <= 'z')
+  }
+  if (c >= 'w' && c <= 'z') {
     return 28 + (c - 'w');
+  }
   return 0xFF; // invalid
 }
 
 std::string decode(std::string_view s) {
-  if (s.empty())
+  if (s.empty()) {
     return "";
+  }
 
   std::size_t out_len = (s.size() * 5) / 8;
   std::vector<std::byte> result(out_len, std::byte{0});
@@ -185,8 +198,9 @@ std::string decode(std::string_view s) {
   std::size_t bit_pos = 0;
   for (std::size_t i = s.size(); i > 0; --i) {
     uint8_t val = nix32_char_to_int(s[i - 1]);
-    if (val == 0xFF)
+    if (val == 0xFF) {
       throw std::runtime_error("invalid nix32 character");
+    }
 
     std::size_t byte_pos = bit_pos / 8;
     std::size_t bit_offset = bit_pos % 8;
@@ -209,8 +223,9 @@ std::string decode(std::string_view s) {
 
 bool is_valid(std::string_view s) {
   for (char c : s) {
-    if (nix32_char_to_int(c) == 0xFF)
+    if (nix32_char_to_int(c) == 0xFF) {
       return false;
+    }
   }
   return true;
 }

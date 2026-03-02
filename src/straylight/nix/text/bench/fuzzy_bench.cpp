@@ -99,10 +99,12 @@ std::size_t naive_levenshtein(std::string_view s1, std::string_view s2) {
 
   std::vector<std::vector<std::size_t>> dp(m + 1, std::vector<std::size_t>(n + 1));
 
-  for (std::size_t i = 0; i <= m; ++i)
+  for (std::size_t i = 0; i <= m; ++i) {
     dp[i][0] = i;
-  for (std::size_t j = 0; j <= n; ++j)
+  }
+  for (std::size_t j = 0; j <= n; ++j) {
     dp[0][j] = j;
+  }
 
   for (std::size_t i = 1; i <= m; ++i) {
     for (std::size_t j = 1; j <= n; ++j) {

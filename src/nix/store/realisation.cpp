@@ -13,8 +13,9 @@ make_error(InvalidDerivationOutputId, Error);
 
 DrvOutput DrvOutput::parse(const std::string& strRep) {
   size_t n = strRep.find("!");
-  if (n == strRep.npos)
+  if (n == strRep.npos) {
     throw InvalidDerivationOutputId("Invalid derivation output id %s", strRep);
+  }
 
   return DrvOutput{
       .drvHash = Hash::parse_any_prefixed(strRep.substr(0, n)),
@@ -38,10 +39,11 @@ void realisation_t::closure(store_t& store, const std::set<realisation_t>& start
   auto getDeps = [&](const realisation_t& current) -> std::set<realisation_t> {
     std::set<realisation_t> res;
     for (auto& [currentDep, _] : current.dependentRealisations) {
-      if (auto currentRealisation = store.query_realisation(currentDep))
+      if (auto currentRealisation = store.query_realisation(currentDep)) {
         res.insert({*currentRealisation, currentDep});
-      else
+      } else {
         throw Error("Unrealised derivation '%s'", currentDep.to_string());
+      }
     }
     return res;
   };
@@ -83,9 +85,11 @@ size_t UnkeyedRealisation::checkSignatures(const DrvOutput& key,
   // it − but we can't know that here.
 
   size_t good = 0;
-  for (auto& sig : signatures)
-    if (checkSignature(key, public_keys, sig))
+  for (auto& sig : signatures) {
+    if (checkSignature(key, public_keys, sig)) {
       good++;
+    }
+  }
   return good;
 }
 
@@ -113,8 +117,9 @@ void RealisedPath::closure(store_t& store, const RealisedPath::Set& startPaths,
   // FIXME: This only builds the store-path closure, not the real realisation
   // closure
   store_path_set_t initialStorePaths, pathsClosure;
-  for (auto& path : startPaths)
+  for (auto& path : startPaths) {
     initialStorePaths.insert(path.path());
+  }
   store.computeFSClosure(initialStorePaths, pathsClosure);
   ret.insert(startPaths.begin(), startPaths.end());
   ret.insert(pathsClosure.begin(), pathsClosure.end());
@@ -146,13 +151,16 @@ nix::UnkeyedRealisation adl_serializer<nix::UnkeyedRealisation>::from_json(const
   auto json = nix::get_object(json0);
 
   nix::string_set_t signatures;
-  if (auto signaturesOpt = nix::optional_value_at(json, "signatures"))
+  if (auto signaturesOpt = nix::optional_value_at(json, "signatures")) {
     signatures = *signaturesOpt;
+  }
 
   std::map<nix::DrvOutput, nix::store_path_t> dependentRealisations;
-  if (auto jsonDependencies = nix::optional_value_at(json, "dependentRealisations"))
-    for (auto& [jsonDepId, jsonDepOutPath] : nix::get_object(*jsonDependencies))
+  if (auto jsonDependencies = nix::optional_value_at(json, "dependentRealisations")) {
+    for (auto& [jsonDepId, jsonDepOutPath] : nix::get_object(*jsonDependencies)) {
       dependentRealisations.insert({nix::DrvOutput::parse(jsonDepId), jsonDepOutPath});
+    }
+  }
 
   return nix::UnkeyedRealisation{
       .out_path = nix::value_at(json, "outPath"),
@@ -164,8 +172,9 @@ nix::UnkeyedRealisation adl_serializer<nix::UnkeyedRealisation>::from_json(const
 void adl_serializer<nix::UnkeyedRealisation>::to_json(json& json,
                                                       const nix::UnkeyedRealisation& r) {
   auto jsonDependentRealisations = nlohmann::json::object();
-  for (auto& [depId, depOutPath] : r.dependentRealisations)
+  for (auto& [depId, depOutPath] : r.dependentRealisations) {
     jsonDependentRealisations.emplace(depId.to_string(), depOutPath);
+  }
   json = {
       {"outPath", r.out_path},
       {"signatures", r.signatures},

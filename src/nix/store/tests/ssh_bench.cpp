@@ -139,8 +139,9 @@ TEST_CASE("SSH agent discovery benchmarks", "[bench][ssh]") {
       try {
         for (const auto& entry : std::filesystem::directory_iterator(home_agent_dir)) {
           count++;
-          if (count > 100)
+          if (count > 100) {
             break; // Limit iteration
+          }
         }
       } catch (...) {
         // Ignore errors

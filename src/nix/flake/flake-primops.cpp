@@ -40,10 +40,11 @@ PrimOp get_flake(const settings_t& settings) {
     std::string flake_ref_s(state.forceStringNoCtx(
         *args[0], pos, "while evaluating the argument passed to builtins.getFlake"));
     auto flake_ref = nix::parse_flake_ref(state.fetch_settings, flake_ref_s, {}, true);
-    if (state.settings.pureEval && !flake_ref.input.isLocked(state.fetch_settings))
+    if (state.settings.pureEval && !flake_ref.input.isLocked(state.fetch_settings)) {
       throw Error("cannot call 'getFlake' on unlocked flake reference '%s', at %s (use --impure to "
                   "override)",
                   flake_ref_s, state.positions[pos]);
+    }
 
     call_flake(state,
                lock_flake(settings, state, flake_ref,

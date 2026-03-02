@@ -317,11 +317,13 @@ struct bulk_refs_query_machine {
 private:
   static auto extract_hash(std::string_view path) -> std::string_view {
     auto slash = path.rfind('/');
-    if (slash != std::string_view::npos)
+    if (slash != std::string_view::npos) {
       path = path.substr(slash + 1);
+    }
     auto dash = path.find('-');
-    if (dash != std::string_view::npos)
+    if (dash != std::string_view::npos) {
       return path.substr(0, dash);
+    }
     return path;
   }
 };
@@ -480,11 +482,13 @@ private:
 
   static auto extract_hash(std::string_view path) -> std::string_view {
     auto slash = path.rfind('/');
-    if (slash != std::string_view::npos)
+    if (slash != std::string_view::npos) {
       path = path.substr(slash + 1);
+    }
     auto dash = path.find('-');
-    if (dash != std::string_view::npos)
+    if (dash != std::string_view::npos) {
       return path.substr(0, dash);
+    }
     return path;
   }
 };
@@ -561,11 +565,13 @@ struct bulk_check_valid_machine {
 private:
   static auto extract_hash(std::string_view path) -> std::string_view {
     auto slash = path.rfind('/');
-    if (slash != std::string_view::npos)
+    if (slash != std::string_view::npos) {
       path = path.substr(slash + 1);
+    }
     auto dash = path.find('-');
-    if (dash != std::string_view::npos)
+    if (dash != std::string_view::npos) {
       return path.substr(0, dash);
+    }
     return path;
   }
 };

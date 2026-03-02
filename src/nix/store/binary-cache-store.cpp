@@ -28,9 +28,10 @@
 namespace nix {
 
 binary_cache_store::binary_cache_store(config_t& config) : config{config} {
-  if (config.secret_key_file != "")
+  if (config.secret_key_file != "") {
     signers.push_back(
         std::make_unique<local_signer_t>(secret_key_t{read_file(config.secret_key_file)}));
+  }
 
   if (config.secretKeyFiles.get() != "") {
     for (const auto& keyPath : tokenize_string<strings_t>(config.secretKeyFiles.get(), ",")) {
@@ -50,14 +51,16 @@ void binary_cache_store::init() {
   } else {
     for (auto& line : tokenize_string<strings_t>(*cacheInfo, "\n")) {
       size_t colon = line.find(':');
-      if (colon == std::string::npos)
+      if (colon == std::string::npos) {
         continue;
+      }
       auto name = line.substr(0, colon);
       auto value = trim(line.substr(colon + 1, std::string::npos));
       if (name == "StoreDir") {
-        if (value != store_dir)
+        if (value != store_dir) {
           throw Error("binary cache '%s' is for Nix stores with prefix '%s', not '%s'",
                       config.getHumanReadableURI(), value, store_dir);
+        }
       } else if (name == "WantMassQuery") {
         config.want_mass_query.set_default(value == "1");
       } else if (name == "Priority") {
@@ -120,10 +123,11 @@ void binary_cache_store::writeNarInfo(ref<nar_info_t> narInfo) {
   pathInfoCache->lock()->upsert(narInfo->path,
                                 PathInfoCacheValue{.value = std::shared_ptr<nar_info_t>(narInfo)});
 
-  if (diskCache)
+  if (diskCache) {
     diskCache->upsertNarInfo(config.getReference().render(/*FIXME withParams=*/false),
                              std::string(narInfo->path.hash_part()),
                              std::shared_ptr<nar_info_t>(narInfo));
+  }
 }
 
 ref<const valid_path_info_t>
@@ -177,14 +181,16 @@ binary_cache_store::addToStoreCommon(source_t& nar_source, RepairFlag repair,
 
   /* Verify that all references are valid. This may do some .narinfo
      reads, but typically they'll already be cached. */
-  for (auto& ref : info.references)
+  for (auto& ref : info.references) {
     try {
-      if (ref != info.path)
+      if (ref != info.path) {
         queryPathInfo(ref);
+      }
     } catch (InvalidPath&) {
       throw Error("cannot add '%s' to the binary cache because the reference '%s' is not valid",
                   printStorePath(info.path), printStorePath(ref));
     }
+  }
 
   /* Optionally write a JSON file containing a listing of the
      contents of the NAR. */
@@ -216,8 +222,9 @@ binary_cache_store::addToStoreCommon(source_t& nar_source, RepairFlag repair,
 
         // FIXME: or should we overwrite? The previous link may point
         // to a GC'ed file, so overwriting might be useful...
-        if (file_exists(key))
+        if (file_exists(key)) {
           return;
+        }
 
         printMsg(lvl_talkative, "creating debuginfo link from '%s' to '%s'", key, target);
 
@@ -231,15 +238,17 @@ binary_cache_store::addToStoreCommon(source_t& nar_source, RepairFlag repair,
         auto dir = buildIdDir / s1;
 
         if (narAccessor->lstat(dir).type != source_accessor_t::t_directory ||
-            !std::regex_match(s1, regex1))
+            !std::regex_match(s1, regex1)) {
           continue;
+        }
 
         for (auto& [s2, _type] : narAccessor->read_directory(dir)) {
           auto debugPath = dir / s2;
 
           if (narAccessor->lstat(debugPath).type != source_accessor_t::t_regular ||
-              !std::regex_match(s2, regex2))
+              !std::regex_match(s2, regex2)) {
             continue;
+          }
 
           auto buildId = s1 + s2;
 
@@ -260,8 +269,9 @@ binary_cache_store::addToStoreCommon(source_t& nar_source, RepairFlag repair,
     source.restart(); /* Seek back to the start of the file. */
     stats.narWrite++;
     upsert_file(narInfo->url, source, "application/x-nix-nar", narInfo->file_size);
-  } else
+  } else {
     stats.narWriteAverted++;
+  }
 
   stats.narWriteBytes += info.nar_size;
   stats.narWriteCompressedBytes += file_size;
@@ -306,8 +316,9 @@ store_path_t binary_cache_store::add_to_store_from_dump(source_t& dump, std::str
   // Calculating Git hash from NAR stream not yet implemented. May not
   // be possible to implement in single-pass if the NAR is in an
   // inconvenient order. Could fetch after uploading, however.
-  if (hash_method.getFileIngestionMethod() == file_ingestion_method_t::git)
+  if (hash_method.getFileIngestionMethod() == file_ingestion_method_t::git) {
     unsupported("addToStoreFromDump");
+  }
 
   if (auto* dump2p = dynamic_cast<string_source_t*>(&dump)) {
     auto& dump2 = *dump2p;
@@ -315,8 +326,9 @@ store_path_t binary_cache_store::add_to_store_from_dump(source_t& dump, std::str
     // multiple hashes more easily.
     //
     // Only calculate if the dump is in the right format, however.
-    if (static_cast<file_ingestion_method_t>(dump_method) == hash_method.getFileIngestionMethod())
+    if (static_cast<file_ingestion_method_t>(dump_method) == hash_method.getFileIngestionMethod()) {
       caHash = hash_string(hash_algorithm_t::SHA256, dump2.view());
+    }
     switch (dump_method) {
       case file_serialisation_method_t::nix_archive:
         // The dump is already NAR in this case, just use it.
@@ -335,8 +347,9 @@ store_path_t binary_cache_store::add_to_store_from_dump(source_t& dump, std::str
     // Otherwise, we have to do th same hashing as NAR so our single
     // hash will suffice for both purposes.
     if (dump_method != file_serialisation_method_t::nix_archive ||
-        hash_algo != hash_algorithm_t::SHA256)
+        hash_algo != hash_algorithm_t::SHA256) {
       unsupported("addToStoreFromDump");
+    }
   }
   string_source_t narDump{nar};
 
@@ -392,22 +405,25 @@ void binary_cache_store::nar_from_path(const store_path_t& store_path, sink_t& s
   bool validated = false;
 
   auto validate = [&]() {
-    if (validated)
+    if (validated) {
       return;
+    }
     validated = true;
 
     auto [computed_hash, computed_size] = nar_hash_sink.finish();
 
-    if (computed_hash != info->nar_hash)
+    if (computed_hash != info->nar_hash) {
       throw Error("hash mismatch in NAR fetched from binary cache for path '%s';\n  expected: %s\n "
                   " got:      %s",
                   printStorePath(store_path), info->nar_hash.to_string(hash_format_t::nix32, true),
                   computed_hash.to_string(hash_format_t::nix32, true));
+    }
 
-    if (info->nar_size && computed_size != info->nar_size)
+    if (info->nar_size && computed_size != info->nar_size) {
       throw Error("size mismatch in NAR fetched from binary cache for path '%s';\n  expected: %d\n "
                   " got:      %d",
                   printStorePath(store_path), info->nar_size, computed_size);
+    }
   };
 
   lambda_sink_t uncompressedSink{[&](std::string_view data) {
@@ -566,8 +582,9 @@ void binary_cache_store::query_realisation_uncached(
       [=](std::future<std::optional<std::string>> fut) {
         try {
           auto data = fut.get();
-          if (!data)
+          if (!data) {
             return (*callbackPtr)({});
+          }
 
           std::shared_ptr<const UnkeyedRealisation> realisation;
           try {
@@ -587,8 +604,9 @@ void binary_cache_store::query_realisation_uncached(
 }
 
 void binary_cache_store::register_drv_output(const realisation_t& info) {
-  if (diskCache)
+  if (diskCache) {
     diskCache->upsertRealisation(config.getReference().render(/*FIXME withParams=*/false), info);
+  }
   upsert_file(makeRealisationPath(info.id), static_cast<nlohmann::json>(info).dump(),
               "application/json");
 }
@@ -645,8 +663,9 @@ void binary_cache_store::addSignatures(const store_path_t& store_path, const str
 
   // Fetch fresh from remote, bypassing caches
   auto currentInfo = fetchFresh();
-  if (!currentInfo)
+  if (!currentInfo) {
     throw InvalidPath("path '%s' is not valid", printStorePath(store_path));
+  }
 
   auto narInfo = make_ref<nar_info_t>((nar_info_t&)*currentInfo);
 

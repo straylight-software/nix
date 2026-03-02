@@ -53,8 +53,9 @@ template <class N>
 N getIntArg(const std::string& opt, strings_t::iterator& i, const strings_t::iterator& end,
             bool allowUnit) {
   ++i;
-  if (i == end)
+  if (i == end) {
     throw UsageError("'%1%' requires an argument", opt);
+  }
   return string2_int_with_unit_prefix<N>(*i);
 }
 

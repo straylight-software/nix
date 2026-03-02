@@ -196,8 +196,9 @@ auto parse_events(const std::uint8_t* data, std::size_t size)
   std::size_t offset = 0;
   while (offset < size && events.size() < 10000) {
     // Each event starts with a 2-byte length
-    if (offset + 2 > size)
+    if (offset + 2 > size) {
       break;
+    }
 
     std::uint16_t event_len = 0;
     std::memcpy(&event_len, data + offset, 2);
@@ -307,8 +308,9 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
     std::vector<std::byte> expected_data;
     for (const auto& e : events) {
       expected_data.insert(expected_data.end(), e.data.begin(), e.data.end());
-      if (expected_data.size() > 1024 * 1024)
+      if (expected_data.size() > 1024 * 1024) {
         break;
+      }
       if (e.data.size() >= 2 && e.data[0] == std::byte{0xCA} && e.data[1] == std::byte{0xFE}) {
         break;
       }

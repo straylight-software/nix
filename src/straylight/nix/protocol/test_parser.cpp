@@ -45,8 +45,9 @@ void hexdump(const std::vector<uint8_t>& data, size_t max_bytes = 64) {
   for (size_t idx = 0; idx < std::min(data.size(), max_bytes); ++idx) {
     std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(data[idx])
               << " ";
-    if ((idx + 1) % 16 == 0)
+    if ((idx + 1) % 16 == 0) {
       std::cout << "\n";
+    }
   }
   if (data.size() > max_bytes) {
     std::cout << "... (" << std::dec << (data.size() - max_bytes) << " more bytes)\n";

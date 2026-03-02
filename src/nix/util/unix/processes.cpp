@@ -542,11 +542,13 @@ void run_program2(const run_options_t& options) {
 
         while (true) {
           auto n = read(err.read_side.get(), buf.data(), buf.size());
-          if (n == 0)
+          if (n == 0) {
             break;
+          }
           if (n < 0) {
-            if (errno == EINTR)
+            if (errno == EINTR) {
               continue;
+            }
             throw sys_error_t("reading from stderr");
           }
 

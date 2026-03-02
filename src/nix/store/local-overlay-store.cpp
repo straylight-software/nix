@@ -73,8 +73,9 @@ local_overlay_store::local_overlay_store(ref<const config_t> config)
 void local_overlay_store::register_drv_output(const realisation_t& info) {
   // First do queryRealisation on lower layer to populate DB
   auto res = lowerStore->query_realisation(info.id);
-  if (res)
+  if (res) {
     LocalStore::register_drv_output({*res, info.id});
+  }
 
   LocalStore::register_drv_output(info);
 }
@@ -88,8 +89,9 @@ void local_overlay_store::query_path_info_uncached(
       path, {[this, path, callbackPtr](std::future<std::shared_ptr<const valid_path_info_t>> fut) {
         try {
           auto info = fut.get();
-          if (info)
+          if (info) {
             return (*callbackPtr)(std::move(info));
+          }
         } catch (...) {
           return callbackPtr->rethrow();
         }
@@ -115,8 +117,9 @@ void local_overlay_store::query_realisation_uncached(
       {[this, drvOutput, callbackPtr](std::future<std::shared_ptr<const UnkeyedRealisation>> fut) {
         try {
           auto info = fut.get();
-          if (info)
+          if (info) {
             return (*callbackPtr)(std::move(info));
+          }
         } catch (...) {
           return callbackPtr->rethrow();
         }
@@ -134,16 +137,19 @@ void local_overlay_store::query_realisation_uncached(
 
 bool local_overlay_store::isValidPathUncached(const store_path_t& path) {
   auto res = LocalStore::isValidPathUncached(path);
-  if (res)
+  if (res) {
     return res;
+  }
   res = lowerStore->isValidPath(path);
   if (res) {
     // Get path info from lower store so upper DB genuinely has it.
     auto p = lowerStore->queryPathInfo(path);
     // recur on references, syncing entire closure.
-    for (auto& r : p->references)
-      if (r != path)
+    for (auto& r : p->references) {
+      if (r != path) {
         isValidPath(r);
+      }
+    }
     LocalStore::registerValidPath(*p);
   }
   return res;
@@ -160,31 +166,36 @@ void local_overlay_store::queryGCReferrers(const store_path_t& path, store_path_
 
 store_path_set_t local_overlay_store::queryValidDerivers(const store_path_t& path) {
   auto res = LocalStore::queryValidDerivers(path);
-  for (const auto& p : lowerStore->queryValidDerivers(path))
+  for (const auto& p : lowerStore->queryValidDerivers(path)) {
     res.insert(p);
+  }
   return res;
 }
 
 std::optional<store_path_t>
 local_overlay_store::queryPathFromHashPart(const std::string& hash_part) {
   auto res = LocalStore::queryPathFromHashPart(hash_part);
-  if (res)
+  if (res) {
     return res;
-  else
+  } else {
     return lowerStore->queryPathFromHashPart(hash_part);
+  }
 }
 
 void local_overlay_store::registerValidPaths(const ValidPathInfos& infos) {
   // First, get any from lower store so we merge
   {
     store_path_set_t notInUpper;
-    for (auto& [p, _] : infos)
-      if (!LocalStore::isValidPathUncached(p)) // avoid divergence
+    for (auto& [p, _] : infos) {
+      if (!LocalStore::isValidPathUncached(p)) { // avoid divergence
         notInUpper.insert(p);
+      }
+    }
     auto pathsInLower = lowerStore->queryValidPaths(notInUpper);
     ValidPathInfos inLower;
-    for (auto& p : pathsInLower)
+    for (auto& p : pathsInLower) {
       inLower.insert_or_assign(p, *lowerStore->queryPathInfo(p));
+    }
     LocalStore::registerValidPaths(inLower);
   }
   // Then do original request
@@ -256,8 +267,9 @@ LocalStore::VerificationResult local_overlay_store::verifyAllValidPaths(RepairFl
   bool errors = false;
   store_path_set_t validPaths;
 
-  for (auto& i : query_all_valid_paths())
+  for (auto& i : query_all_valid_paths()) {
     verifyPath(i, existsInStoreDir, done, validPaths, repair, errors);
+  }
 
   return {
       .errors = errors,
@@ -266,8 +278,9 @@ LocalStore::VerificationResult local_overlay_store::verifyAllValidPaths(RepairFl
 }
 
 void local_overlay_store::remountIfNecessary() {
-  if (!_remountRequired)
+  if (!_remountRequired) {
     return;
+  }
 
   if (config->remountHook.get().empty()) {
     warn("'%s' needs remounting, set remount-hook to do this automatically",

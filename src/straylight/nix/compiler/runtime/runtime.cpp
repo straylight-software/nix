@@ -329,8 +329,9 @@ static auto rt_apply_partial_primop_3arg(runtime_context& ctx, std::uint32_t par
 auto rt_apply(runtime_context& ctx, nix_value fn, nix_value arg) -> rt_result {
   // force the function in case it's a thunk
   auto fn_result = rt_force(ctx, fn);
-  if (!fn_result)
+  if (!fn_result) {
     return fn_result;
+  }
   fn = *fn_result;
 
   // Handle primop (builtin function)
@@ -659,8 +660,9 @@ auto rt_eq(runtime_context& ctx, nix_value a, nix_value b) -> rt_result {
       auto a_ptr = get_payload(a);
       auto b_ptr = get_payload(b);
       // Handle empty lists (pointer 0)
-      if (a_ptr == 0 && b_ptr == 0)
+      if (a_ptr == 0 && b_ptr == 0) {
         return constants::bool_true;
+      }
       if (a_ptr == 0 || b_ptr == 0) {
         // One empty, one not - check counts
         auto a_count = a_ptr == 0 ? 0 : ctx.read_u32(a_ptr + mem::LIST_COUNT_OFFSET);
@@ -669,8 +671,9 @@ auto rt_eq(runtime_context& ctx, nix_value a, nix_value b) -> rt_result {
       }
       auto a_count = ctx.read_u32(a_ptr + mem::LIST_COUNT_OFFSET);
       auto b_count = ctx.read_u32(b_ptr + mem::LIST_COUNT_OFFSET);
-      if (a_count != b_count)
+      if (a_count != b_count) {
         return constants::bool_false;
+      }
       for (std::uint32_t idx = 0; idx < a_count; ++idx) {
         auto elem_a = ctx.read_value(a_ptr + mem::LIST_ELEMENTS_OFFSET + idx * mem::VALUE_SIZE);
         auto elem_b = ctx.read_value(b_ptr + mem::LIST_ELEMENTS_OFFSET + idx * mem::VALUE_SIZE);
@@ -685,8 +688,9 @@ auto rt_eq(runtime_context& ctx, nix_value a, nix_value b) -> rt_result {
       auto a_ptr = get_payload(a);
       auto b_ptr = get_payload(b);
       // Handle empty attrsets (pointer 0)
-      if (a_ptr == 0 && b_ptr == 0)
+      if (a_ptr == 0 && b_ptr == 0) {
         return constants::bool_true;
+      }
       if (a_ptr == 0 || b_ptr == 0) {
         auto a_count = a_ptr == 0 ? 0 : ctx.read_u32(a_ptr + mem::ATTRSET_COUNT_OFFSET);
         auto b_count = b_ptr == 0 ? 0 : ctx.read_u32(b_ptr + mem::ATTRSET_COUNT_OFFSET);
@@ -694,8 +698,9 @@ auto rt_eq(runtime_context& ctx, nix_value a, nix_value b) -> rt_result {
       }
       auto a_count = ctx.read_u32(a_ptr + mem::ATTRSET_COUNT_OFFSET);
       auto b_count = ctx.read_u32(b_ptr + mem::ATTRSET_COUNT_OFFSET);
-      if (a_count != b_count)
+      if (a_count != b_count) {
         return constants::bool_false;
+      }
       // For each attr in a, check it exists in b with same value
       for (std::uint32_t idx = 0; idx < a_count; ++idx) {
         auto entry_a = a_ptr + mem::ATTRSET_ENTRIES_OFFSET + idx * mem::ATTRSET_ENTRY_SIZE;
@@ -921,10 +926,12 @@ auto rt_update(runtime_context& ctx, nix_value a, nix_value b) -> rt_result {
   auto b_ptr = get_payload(b);
 
   // Handle empty cases
-  if (a_ptr == 0)
+  if (a_ptr == 0) {
     return b;
-  if (b_ptr == 0)
+  }
+  if (b_ptr == 0) {
     return a;
+  }
 
   auto a_count = ctx.read_u32(a_ptr + mem::ATTRSET_COUNT_OFFSET);
   auto b_count = ctx.read_u32(b_ptr + mem::ATTRSET_COUNT_OFFSET);
@@ -2421,18 +2428,22 @@ auto rt_compare_versions(runtime_context& ctx, nix_value a, nix_value b) -> rt_r
     if (a_numeric && b_numeric) {
       auto na = std::stol(a_str);
       auto nb = std::stol(b_str);
-      if (na < nb)
+      if (na < nb) {
         return -1;
-      if (na > nb)
+      }
+      if (na > nb) {
         return 1;
+      }
       return 0;
     }
 
     // Fall back to string comparison
-    if (a_str < b_str)
+    if (a_str < b_str) {
       return -1;
-    if (a_str > b_str)
+    }
+    if (a_str > b_str) {
       return 1;
+    }
     return 0;
   };
 
@@ -3772,8 +3783,9 @@ auto rt_concat_lists(runtime_context& ctx, nix_value lists) -> rt_result {
     auto inner = ctx.read_value(lists_ptr + mem::LIST_ELEMENTS_OFFSET + idx * mem::VALUE_SIZE);
     inner = RT_TRY(rt_force(ctx, inner));
     auto inner_ptr = get_payload(inner);
-    if (inner_ptr == 0)
+    if (inner_ptr == 0) {
       continue;
+    }
     auto inner_count = ctx.read_u32(inner_ptr + mem::LIST_COUNT_OFFSET);
     for (std::uint32_t jdx = 0; jdx < inner_count; ++jdx) {
       auto elem = ctx.read_value(inner_ptr + mem::LIST_ELEMENTS_OFFSET + jdx * mem::VALUE_SIZE);
@@ -3818,8 +3830,9 @@ auto rt_sort(runtime_context& ctx, nix_value comparator, nix_value list) -> rt_r
   std::optional<rt_error_t> sort_error;
   std::stable_sort(elements.begin(), elements.end(),
                    [&ctx, comparator, &sort_error](nix_value a, nix_value b) -> bool {
-                     if (sort_error)
+                     if (sort_error) {
                        return false; // Short-circuit if already errored
+                     }
                      // Apply comparator to a, then to b
                      auto partial = rt_apply(ctx, comparator, a);
                      if (!partial) {
@@ -3866,8 +3879,9 @@ auto rt_sort(runtime_context& ctx, nix_value comparator, nix_value list) -> rt_r
 
 auto rt_throw_error(runtime_context& ctx, nix_value msg) -> rt_result {
   auto msg_result = rt_force(ctx, msg);
-  if (!msg_result)
+  if (!msg_result) {
     return msg_result;
+  }
   msg = *msg_result;
 
   std::string error_msg;
@@ -3981,8 +3995,9 @@ auto deep_force(runtime_context& ctx, nix_value v) -> rt_result_t<void> {
 
   if (is_list(v)) {
     auto ptr = get_payload(v);
-    if (ptr == 0)
+    if (ptr == 0) {
       return {};
+    }
     auto count = ctx.read_u32(ptr + mem::LIST_COUNT_OFFSET);
     for (std::uint32_t idx = 0; idx < count; ++idx) {
       auto elem = ctx.read_value(ptr + mem::LIST_ELEMENTS_OFFSET + idx * mem::VALUE_SIZE);
@@ -3990,8 +4005,9 @@ auto deep_force(runtime_context& ctx, nix_value v) -> rt_result_t<void> {
     }
   } else if (is_attrset(v)) {
     auto ptr = get_payload(v);
-    if (ptr == 0)
+    if (ptr == 0) {
       return {};
+    }
     auto count = ctx.read_u32(ptr + mem::ATTRSET_COUNT_OFFSET);
     for (std::uint32_t idx = 0; idx < count; ++idx) {
       auto entry = ptr + mem::ATTRSET_ENTRIES_OFFSET + idx * mem::ATTRSET_ENTRY_SIZE;
@@ -5154,8 +5170,9 @@ void rt_init_builtins(runtime_context& ctx) {
           start = colon_pos + 1;
         }
 
-        if (entry_str.empty())
+        if (entry_str.empty()) {
           continue;
+        }
 
         // Check for name=path format
         auto eq_pos = entry_str.find('=');

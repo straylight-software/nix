@@ -30,8 +30,9 @@ private:
    */
   [[gnu::noinline]]
   auto& addChunk() {
-    if (size_ >= std::numeric_limits<uint32_t>::max() - ChunkSize)
+    if (size_ >= std::numeric_limits<uint32_t>::max() - ChunkSize) {
       unreachable();
+    }
     chunks.emplace_back();
     chunks.back().reserve(ChunkSize);
     return chunks.back();
@@ -49,8 +50,9 @@ public:
   std::pair<T&, uint32_t> add(args_t&&... args) {
     const auto idx = size_++;
     auto& chunk = [&]() -> auto& {
-      if (auto& back = chunks.back(); back.size() < ChunkSize)
+      if (auto& back = chunks.back(); back.size() < ChunkSize) {
         return back;
+      }
       return addChunk();
     }();
     auto& result = chunk.emplace_back(std::forward<args_t>(args)...);
@@ -68,9 +70,11 @@ public:
 
   template <typename Fn>
   void forEach(Fn fn) const {
-    for (const auto& c : chunks)
-      for (const auto& e : c)
+    for (const auto& c : chunks) {
+      for (const auto& e : c) {
         fn(e);
+      }
+    }
   }
 };
 } // namespace nix

@@ -39,20 +39,24 @@ struct async_path_writer_impl_t : AsyncPathWriter {
 
         {
           auto state(state_.lock());
-          while (!state->quit && state->items.empty())
+          while (!state->quit && state->items.empty()) {
             state.wait(wakeup_cv);
-          if (state->items.empty() && state->quit)
+          }
+          if (state->items.empty() && state->quit) {
             return;
+          }
           std::swap(items, state->items);
         }
 
         try {
           writePaths(items);
-          for (auto& item : items)
+          for (auto& item : items) {
             item.promise.set_value();
+          }
         } catch (...) {
-          for (auto& item : items)
+          for (auto& item : items) {
             item.promise.set_exception(std::current_exception());
+          }
         }
       }
     });
@@ -96,8 +100,9 @@ struct async_path_writer_impl_t : AsyncPathWriter {
     auto future = ({
       auto state = state_.lock();
       auto i = state->futures.find(path);
-      if (i == state->futures.end())
+      if (i == state->futures.end()) {
         return;
+      }
       i->second;
     });
     future.get();
@@ -108,8 +113,9 @@ struct async_path_writer_impl_t : AsyncPathWriter {
       auto state(state_.lock());
       std::move(state->futures);
     });
-    for (auto& future : futures)
+    for (auto& future : futures) {
       future.second.get();
+    }
   }
 
   void writePaths(const std::vector<Item>& items) {

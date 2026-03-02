@@ -517,8 +517,9 @@ TEST_CASE("Issue #6222: Direct flake refs don't trigger registry download",
     // Indirect ref - need registry
     const auto& data = registry.get();
     for (const auto& [from, to] : data.entries) {
-      if (from == ref)
+      if (from == ref) {
         return to;
+      }
     }
     return ref;
   };

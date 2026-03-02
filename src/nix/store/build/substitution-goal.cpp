@@ -64,9 +64,10 @@ Goal::Co PathSubstitutionGoal::init() {
     co_return doneSuccess(build_result_t::Success::AlreadyValid);
   }
 
-  if (settings.readOnlyMode)
+  if (settings.readOnlyMode) {
     throw Error("cannot substitute path '%s' - no write access to the Nix store",
                 worker.store.printStorePath(store_path));
+  }
 
   auto subs = settings.use_substitutes ? get_default_substituters() : std::list<ref<store_t>>();
 
@@ -92,8 +93,9 @@ Goal::Co PathSubstitutionGoal::init() {
     if (ca) {
       subPath = sub->makeFixedOutputPathFromCA(std::string{store_path.name()},
                                                ContentAddressWithReferences::withoutRefs(*ca));
-      if (sub->store_dir == worker.store.store_dir)
+      if (sub->store_dir == worker.store.store_dir) {
         assert(subPath == store_path);
+      }
     } else if (sub->store_dir != worker.store.store_dir) {
       continue;
     }
@@ -149,9 +151,11 @@ Goal::Co PathSubstitutionGoal::init() {
 
     /* To maintain the closure invariant, we first have to realise the
        paths referenced by this one. */
-    for (auto& i : info->references)
-      if (i != store_path) /* ignore self-references */
+    for (auto& i : info->references) {
+      if (i != store_path) { /* ignore self-references */
         waitees.insert(worker.makePathSubstitutionGoal(i));
+      }
+    }
 
     co_await await(std::move(waitees));
 
@@ -171,8 +175,9 @@ Goal::Co PathSubstitutionGoal::init() {
   if (lastStoresException.has_value()) {
     if (!settings.try_fallback) {
       throw *lastStoresException;
-    } else
+    } else {
       logError(lastStoresException->info());
+    }
   }
 
   /* Hack: don't indicate failure if there were no substituters.
@@ -196,7 +201,7 @@ Goal::Co PathSubstitutionGoal::tryToRun(store_path_t subPath, nix::ref<store_t> 
                               worker.store.printStorePath(store_path)));
   }
 
-  for (auto& i : info->references)
+  for (auto& i : info->references) {
     /* ignore self-references */
     if (i != store_path) {
       if (!worker.store.isValidPath(i)) {
@@ -204,6 +209,7 @@ Goal::Co PathSubstitutionGoal::tryToRun(store_path_t subPath, nix::ref<store_t> 
                     worker.store.printStorePath(i), worker.store.printStorePath(store_path));
       }
     }
+  }
 
   co_await yield();
 

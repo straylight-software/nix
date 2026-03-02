@@ -62,8 +62,9 @@ void parallel_for(Executor& exec, R&& range, F&& func, std::size_t chunk_size = 
   auto begin = std::ranges::begin(range);
   auto end = std::ranges::end(range);
 
-  if (begin == end)
+  if (begin == end) {
     return;
+  }
 
   auto size = std::ranges::distance(begin, end);
   if (static_cast<std::size_t>(size) < kParallelThreshold) {
@@ -82,8 +83,9 @@ template <typename F>
   requires std::invocable<F, std::size_t>
 void parallel_for_index(Executor& exec, std::size_t count, F&& func,
                         std::size_t chunk_size = kDefaultChunkSize) {
-  if (count == 0)
+  if (count == 0) {
     return;
+  }
 
   if (count < kParallelThreshold) {
     // Sequential fallback
@@ -110,8 +112,9 @@ void parallel_transform(Executor& exec, R&& input, O output, F&& func) {
   auto begin = std::ranges::begin(input);
   auto end = std::ranges::end(input);
 
-  if (begin == end)
+  if (begin == end) {
     return;
+  }
 
   auto size = std::ranges::distance(begin, end);
   if (static_cast<std::size_t>(size) < kParallelThreshold) {
@@ -132,8 +135,9 @@ void parallel_transform_inplace(Executor& exec, R&& range, F&& func) {
   auto begin = std::ranges::begin(range);
   auto end = std::ranges::end(range);
 
-  if (begin == end)
+  if (begin == end) {
     return;
+  }
 
   auto size = std::ranges::distance(begin, end);
   if (static_cast<std::size_t>(size) < kParallelThreshold) {
@@ -159,8 +163,9 @@ template <std::ranges::range R, typename T, typename BinaryOp>
   auto begin = std::ranges::begin(range);
   auto end = std::ranges::end(range);
 
-  if (begin == end)
+  if (begin == end) {
     return init;
+  }
 
   auto size = std::ranges::distance(begin, end);
   if (static_cast<std::size_t>(size) < kParallelThreshold) {
@@ -197,8 +202,9 @@ template <std::ranges::range R, typename Pred>
   auto begin = std::ranges::begin(range);
   auto end = std::ranges::end(range);
 
-  if (begin == end)
+  if (begin == end) {
     return {};
+  }
 
   auto size = std::ranges::distance(begin, end);
 
@@ -236,8 +242,9 @@ template <std::ranges::range R, typename Pred>
   auto begin = std::ranges::begin(range);
   auto end = std::ranges::end(range);
 
-  if (begin == end)
+  if (begin == end) {
     return false;
+  }
 
   auto size = std::ranges::distance(begin, end);
   if (static_cast<std::size_t>(size) < kParallelThreshold) {
@@ -281,8 +288,9 @@ template <std::ranges::range R, typename Pred>
   auto begin = std::ranges::begin(range);
   auto end = std::ranges::end(range);
 
-  if (begin == end)
+  if (begin == end) {
     return 0;
+  }
 
   auto size = std::ranges::distance(begin, end);
   if (static_cast<std::size_t>(size) < kParallelThreshold) {

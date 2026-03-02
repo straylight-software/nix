@@ -20,16 +20,19 @@ namespace nix {
  */
 static std::optional<GenerationNumber> parse_name(const std::string& profile_name,
                                                   const std::string& name) {
-  if (name.substr(0, profile_name.size() + 1) != profile_name + "-")
+  if (name.substr(0, profile_name.size() + 1) != profile_name + "-") {
     return {};
+  }
   auto s = name.substr(profile_name.size() + 1);
   auto p = s.find("-link");
-  if (p == std::string::npos)
+  if (p == std::string::npos) {
     return {};
-  if (auto n = string2_int<unsigned int>(s.substr(0, p)))
+  }
+  if (auto n = string2_int<unsigned int>(s.substr(0, p))) {
     return *n;
-  else
+  } else {
     return {};
+  }
 }
 
 std::pair<Generations, std::optional<GenerationNumber>>
@@ -123,9 +126,9 @@ void delete_generation(const std::filesystem::path& profile, GenerationNumber ge
  */
 static void delete_generation2(const std::filesystem::path& profile, GenerationNumber gen,
                                bool dry_run) {
-  if (dry_run)
+  if (dry_run) {
     notice("would remove profile version %1%", gen);
-  else {
+  } else {
     notice("removing profile version %1%", gen);
     delete_generation(profile, gen);
   }
@@ -138,12 +141,14 @@ void delete_generations(const std::filesystem::path& profile,
 
   auto [gens, cur_gen] = findGenerations(profile);
 
-  if (gens_to_delete.count(*cur_gen))
+  if (gens_to_delete.count(*cur_gen)) {
     throw Error("cannot delete current version of profile %1%'", profile);
+  }
 
   for (auto& i : gens) {
-    if (!gens_to_delete.count(i.number))
+    if (!gens_to_delete.count(i.number)) {
       continue;
+    }
     delete_generation2(profile, i.number, dry_run);
   }
 }
@@ -158,8 +163,9 @@ static inline void iter_drop_until(Generations& gens, auto&& i, auto&& cond) {
 
 void delete_generations_greater_than(const std::filesystem::path& profile, GenerationNumber max,
                                      bool dry_run) {
-  if (max == 0)
+  if (max == 0) {
     throw Error("Must keep at least one generation, otherwise the current one would be deleted");
+  }
 
   PathLocks lock;
   lock_profile(lock, profile);
@@ -177,8 +183,9 @@ void delete_generations_greater_than(const std::filesystem::path& profile, Gener
     ;
 
   // Delete the rest
-  for (; i != gens.rend(); ++i)
+  for (; i != gens.rend(); ++i) {
     delete_generation2(profile, i->number, dry_run);
+  }
 }
 
 void delete_old_generations(const std::filesystem::path& profile, bool dry_run) {
@@ -187,9 +194,11 @@ void delete_old_generations(const std::filesystem::path& profile, bool dry_run) 
 
   auto [gens, cur_gen] = findGenerations(profile);
 
-  for (auto& i : gens)
-    if (i.number != cur_gen)
+  for (auto& i : gens) {
+    if (i.number != cur_gen) {
       delete_generation2(profile, i.number, dry_run);
+    }
+  }
 }
 
 void delete_generations_older_than(const std::filesystem::path& profile, time_t t, bool dry_run) {
@@ -211,38 +220,43 @@ void delete_generations_older_than(const std::filesystem::path& profile, time_t 
      We don't want delete this one yet because it
      existed at the requested point in time, and
      we want to be able to roll back to it. */
-  if (i != gens.rend())
+  if (i != gens.rend()) {
     ++i;
+  }
 
   // Delete all previous generations (unless current).
   for (; i != gens.rend(); ++i) {
     /* Creating date and generations should be monotonic, so lower
        numbered derivations should also be older. */
     assert(older(*i));
-    if (i->number != cur_gen)
+    if (i->number != cur_gen) {
       delete_generation2(profile, i->number, dry_run);
+    }
   }
 }
 
 time_t parse_older_than_time_spec(std::string_view time_spec) {
-  if (time_spec.empty() || time_spec[time_spec.size() - 1] != 'd')
+  if (time_spec.empty() || time_spec[time_spec.size() - 1] != 'd') {
     throw UsageError("invalid number of days specifier '%1%', expected something like '14d'",
                      time_spec);
+  }
 
   time_t cur_time = time(0);
   auto str_days = time_spec.substr(0, time_spec.size() - 1);
   auto days = string2_int<int>(str_days);
 
-  if (!days || *days < 1)
+  if (!days || *days < 1) {
     throw UsageError("invalid number of days specifier '%1%'", time_spec);
+  }
 
   return cur_time - *days * 24 * 3600;
 }
 
 void switch_link(std::filesystem::path link, std::filesystem::path target) {
   /* Hacky. */
-  if (target.parent_path() == link.parent_path())
+  if (target.parent_path() == link.parent_path()) {
     target = target.filename();
+  }
 
   replace_symlink(target, link);
 }
@@ -255,21 +269,25 @@ void switch_generation(const std::filesystem::path& profile,
   auto [gens, cur_gen] = findGenerations(profile);
 
   std::optional<Generation> dst;
-  for (auto& i : gens)
-    if ((!dst_gen && i.number < cur_gen) || (dst_gen && i.number == *dst_gen))
+  for (auto& i : gens) {
+    if ((!dst_gen && i.number < cur_gen) || (dst_gen && i.number == *dst_gen)) {
       dst = i;
+    }
+  }
 
   if (!dst) {
-    if (dst_gen)
+    if (dst_gen) {
       throw Error("profile version %1% does not exist", *dst_gen);
-    else
+    } else {
       throw Error("no profile version older than the current (%1%) exists", cur_gen.value_or(0));
+    }
   }
 
   notice("switching profile from version %d to %d", cur_gen.value_or(0), dst->number);
 
-  if (dry_run)
+  if (dry_run) {
     return;
+  }
 
   switch_link(profile, dst->path);
 }

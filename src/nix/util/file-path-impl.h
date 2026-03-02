@@ -106,11 +106,13 @@ typename PathDict::String canon_path_inner(typename PathDict::string_view_t rema
 
   while (true) {
     /* Skip slashes. */
-    while (!remaining.empty() && PathDict::is_path_sep(remaining[0]))
+    while (!remaining.empty() && PathDict::is_path_sep(remaining[0])) {
       remaining.remove_prefix(1);
+    }
 
-    if (remaining.empty())
+    if (remaining.empty()) {
       break;
+    }
 
     auto next_comp = ({
       auto next_path_sep = PathDict::find_path_sep(remaining);
@@ -118,13 +120,15 @@ typename PathDict::String canon_path_inner(typename PathDict::string_view_t rema
     });
 
     /* Ignore `.'. */
-    if (next_comp == ".")
+    if (next_comp == ".") {
       remaining.remove_prefix(1);
+    }
 
     /* If `..', delete the last component. */
     else if (next_comp == "..") {
-      if (!result.empty())
+      if (!result.empty()) {
         result.erase(PathDict::rfind_path_sep(result));
+      }
       remaining.remove_prefix(2);
     }
 
@@ -143,8 +147,9 @@ typename PathDict::String canon_path_inner(typename PathDict::string_view_t rema
     }
   }
 
-  if (result.empty())
+  if (result.empty()) {
     result = typename PathDict::String{PathDict::preferred_sep};
+  }
 
   return result;
 }

@@ -24,11 +24,12 @@ struct cmd_copy_log_t : virtual nix::CopyCommand, virtual nix::InstallablesComma
     auto& dst_log_store = nix::require<nix::LogStore>(*dst_store);
 
     for (auto& drv_path : nix::Installable::toDerivations(getEvalStore(), installables, true)) {
-      if (auto log = src_log_store.getBuildLog(drv_path))
+      if (auto log = src_log_store.getBuildLog(drv_path)) {
         dst_log_store.addBuildLog(drv_path, *log);
-      else
+      } else {
         throw nix::Error("build log for '%s' is not available",
                          src_store->printStorePath(drv_path));
+      }
     }
   }
 };

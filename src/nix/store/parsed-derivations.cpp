@@ -27,8 +27,9 @@ std::optional<StructuredAttrs> StructuredAttrs::tryExtract(string_pairs_t& env) 
     auto encoded = std::move(jsonAttr->second);
     env.erase(jsonAttr);
     return parse(encoded);
-  } else
+  } else {
     return {};
+  }
 }
 
 std::pair<std::string_view, std::string> StructuredAttrs::unparse() const {
@@ -37,9 +38,10 @@ std::pair<std::string_view, std::string> StructuredAttrs::unparse() const {
 }
 
 void StructuredAttrs::checkKeyNotInUse(const string_pairs_t& env) {
-  if (env.count(envVarName))
+  if (env.count(envVarName)) {
     throw Error("Cannot have an environment variable named '__json'. This key is reserved for "
                 "encoding structured attrs");
+  }
 }
 
 static std::regex sh_var_name("[A-Za-z_][A-Za-z0-9_]*");
@@ -69,12 +71,14 @@ static nlohmann::json path_info_to_json(store_t& store, const store_path_set_t& 
 
     {
       auto& jsonRefs = jsonPath["references"] = json::array();
-      for (auto& ref : info->references)
+      for (auto& ref : info->references) {
         jsonRefs.emplace_back(store.printStorePath(ref));
+      }
     }
 
-    if (info->ca)
+    if (info->ca) {
       jsonPath["ca"] = render_content_address(info->ca);
+    }
 
     // Add the path to the object whose metadata we are including.
     jsonPath["path"] = store.printStorePath(store_path);
@@ -103,8 +107,9 @@ nlohmann::json::object_t StructuredAttrs::prepareStructuredAttrs(
 
   /* Add an "outputs" object containing the output paths. */
   nlohmann::json outputsJson;
-  for (auto& i : outputs)
+  for (auto& i : outputs) {
     outputsJson[i.first] = hash_placeholder(i.first);
+  }
   json["outputs"] = std::move(outputsJson);
 
   /* Handle exportReferencesGraph. */
@@ -117,20 +122,24 @@ nlohmann::json::object_t StructuredAttrs::prepareStructuredAttrs(
 
 std::string StructuredAttrs::writeShell(const nlohmann::json::object_t& json) {
   auto handleSimpleType = [](const nlohmann::json& value) -> std::optional<std::string> {
-    if (value.is_string())
+    if (value.is_string()) {
       return escape_shell_arg_always(value.get<std::string_view>());
+    }
 
     if (value.is_number()) {
       auto f = value.get<float>();
-      if (std::ceil(f) == f)
+      if (std::ceil(f) == f) {
         return std::to_string(value.get<int>());
+      }
     }
 
-    if (value.is_null())
+    if (value.is_null()) {
       return std::string("''");
+    }
 
-    if (value.is_boolean())
+    if (value.is_boolean()) {
       return value.get<bool>() ? std::string("1") : std::string("");
+    }
 
     return {};
   };
@@ -138,12 +147,14 @@ std::string StructuredAttrs::writeShell(const nlohmann::json::object_t& json) {
   std::string jsonSh;
 
   for (auto& [key, value] : json) {
-    if (!std::regex_match(key, sh_var_name))
+    if (!std::regex_match(key, sh_var_name)) {
       continue;
+    }
 
     auto s = handleSimpleType(value);
-    if (s)
+    if (s) {
       jsonSh += fmt("declare %s=%s\n", key, *s);
+    }
 
     else if (value.is_array()) {
       std::string s2;
@@ -159,8 +170,9 @@ std::string StructuredAttrs::writeShell(const nlohmann::json::object_t& json) {
         s2 += ' ';
       }
 
-      if (good)
+      if (good) {
         jsonSh += fmt("declare -a %s=(%s)\n", key, s2);
+      }
     }
 
     else if (value.is_object()) {
@@ -171,8 +183,9 @@ std::string StructuredAttrs::writeShell(const nlohmann::json::object_t& json) {
         // Skip empty string keys - bash doesn't support them in associative arrays
         // (NixOS/nix#14765). An alternative would be to throw an error, but silently
         // skipping preserves backward compatibility for derivations that happen to work.
-        if (key2.empty())
+        if (key2.empty()) {
           continue;
+        }
         auto s3 = handleSimpleType(value2);
         if (!s3) {
           good = false;
@@ -181,8 +194,9 @@ std::string StructuredAttrs::writeShell(const nlohmann::json::object_t& json) {
         s2 += fmt("[%s]=%s ", escape_shell_arg_always(key2), *s3);
       }
 
-      if (good)
+      if (good) {
         jsonSh += fmt("declare -A %s=(%s)\n", key, s2);
+      }
     }
   }
 

@@ -202,8 +202,9 @@ public:
     // Sets are sorted on wire
     std::vector<std::string_view> sorted;
     sorted.reserve(items.size());
-    for (const auto& s : items)
+    for (const auto& s : items) {
       sorted.push_back(s);
+    }
     std::sort(sorted.begin(), sorted.end());
     write_u64(sorted.size());
     for (const auto& s : sorted) {

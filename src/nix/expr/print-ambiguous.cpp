@@ -36,9 +36,9 @@ void print_ambiguous(eval_state_t& state, value_t& v, std::ostream& str,
       str << "null";
       break;
     case nAttrs: {
-      if (seen && !v.attrs()->empty() && !seen->insert(v.attrs()).second)
+      if (seen && !v.attrs()->empty() && !seen->insert(v.attrs()).second) {
         str << "«repeated»";
-      else {
+      } else {
         str << "{ ";
         for (auto& i : v.attrs()->lexicographicOrder(state.symbols)) {
           str << state.symbols[i->name] << " = ";
@@ -52,15 +52,16 @@ void print_ambiguous(eval_state_t& state, value_t& v, std::ostream& str,
     case nList:
       /* use pointer to the value_t instead of pointer to the elements, because
          that would need to explicitly handle the case of SmallList. */
-      if (seen && v.list_size() && !seen->insert(&v).second)
+      if (seen && v.list_size() && !seen->insert(&v).second) {
         str << "«repeated»";
-      else {
+      } else {
         str << "[ ";
         for (auto v2 : v.list_view()) {
-          if (v2)
+          if (v2) {
             print_ambiguous(state, *v2, str, seen, depth - 1);
-          else
+          } else {
             str << "(nullptr)";
+          }
           str << " ";
         }
         str << "]";

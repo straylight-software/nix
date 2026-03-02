@@ -41,8 +41,9 @@ source_accessor_t::dir_entries_t FilteringSourceAccessor::read_directory(const c
   checkAccess(path);
   dir_entries_t entries;
   for (auto& entry : next->read_directory(prefix / path)) {
-    if (is_allowed(path / entry.first))
+    if (is_allowed(path / entry.first)) {
       entries.insert(std::move(entry));
+    }
   }
   return entries;
 }
@@ -58,8 +59,9 @@ std::string FilteringSourceAccessor::show_path(const canon_path_t& path) {
 
 std::pair<canon_path_t, std::optional<std::string>>
 FilteringSourceAccessor::get_fingerprint(const canon_path_t& path) {
-  if (fingerprint)
+  if (fingerprint) {
     return {path, fingerprint};
+  }
   return next->get_fingerprint(prefix / path);
 }
 
@@ -68,10 +70,11 @@ void FilteringSourceAccessor::invalidate_cache(const canon_path_t& path) {
 }
 
 void FilteringSourceAccessor::checkAccess(const canon_path_t& path) {
-  if (!is_allowed(path))
+  if (!is_allowed(path)) {
     throw make_not_allowed_error
         ? make_not_allowed_error(path)
         : RestrictedPathError("access to path '%s' is forbidden", show_path(path));
+  }
 }
 
 struct allow_list_source_accessor_impl_t : AllowListSourceAccessor {
@@ -108,8 +111,9 @@ AllowListSourceAccessor::create(ref<source_accessor_t> next,
 
 bool CachingFilteringSourceAccessor::is_allowed(const canon_path_t& path) {
   auto i = cache.find(path);
-  if (i != cache.end())
+  if (i != cache.end()) {
     return i->second;
+  }
   auto res = isAllowedUncached(path);
   cache.emplace(path, res);
   return res;

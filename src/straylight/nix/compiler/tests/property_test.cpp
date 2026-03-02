@@ -34,8 +34,9 @@ auto gen_identifier() -> rc::Gen<std::string> {
       [](char first, const std::string& rest) {
         std::string id(1, first);
         for (char c : rest) {
-          if (id.size() < 20)
+          if (id.size() < 20) {
             id += c; // limit length
+          }
         }
         return id;
       },
@@ -61,8 +62,9 @@ auto gen_int_expr() -> rc::Gen<std::string> {
 
 TEST_CASE("property: value tag round-trip", "[property][wasm_types]") {
   rc::check("tag survives round-trip", [](std::uint8_t raw_tag) {
-    if (raw_tag > 10)
+    if (raw_tag > 10) {
       return; // only valid tags
+    }
     auto tag = static_cast<straylight::nix::compiler::compile::value_tag>(raw_tag);
     auto payload = *rc::gen::inRange<std::uint32_t>(0, 0xFFFFFFFF);
     auto packed = straylight::nix::compiler::runtime::make_value(tag, payload);

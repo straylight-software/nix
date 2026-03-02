@@ -21,13 +21,15 @@ class CacheLock {
 public:
   CacheLock(const std::filesystem::path& lockPath) {
     fd = ::open(lockPath.c_str(), O_RDWR | O_CREAT | O_CLOEXEC, 0600);
-    if (fd < 0)
+    if (fd < 0) {
       throw sys_error_t("opening lock file '%s'", lockPath);
+    }
 
     // Block until we acquire exclusive lock
     while (::flock(fd, LOCK_EX) != 0) {
-      if (errno != EINTR)
+      if (errno != EINTR) {
         throw sys_error_t("acquiring lock on '%s'", lockPath);
+      }
     }
   }
 
@@ -163,8 +165,9 @@ protected:
     try {
       read_file(config->binaryCacheDir + "/" + path, sink);
     } catch (sys_error_t& e) {
-      if (e.err_no() == ENOENT)
+      if (e.err_no() == ENOENT) {
         throw NoSuchBinaryCacheFile("file '%s' does not exist in binary cache", path);
+      }
       throw;
     }
   }
@@ -175,8 +178,9 @@ protected:
     for (auto& entry : directory_iterator_t{config->binaryCacheDir}) {
       check_interrupt();
       auto name = entry.path().filename().string();
-      if (name.size() != 40 || !has_suffix(name, ".narinfo"))
+      if (name.size() != 40 || !has_suffix(name, ".narinfo")) {
         continue;
+      }
       paths.insert(
           parseStorePath(store_dir + "/" + name.substr(0, name.size() - 8) + "-" + MissingName));
     }
@@ -190,8 +194,9 @@ protected:
 void local_binary_cache_store_t::init() {
   create_dirs(config->binaryCacheDir + "/nar");
   create_dirs(config->binaryCacheDir + "/" + realisationsPrefix);
-  if (config->writeDebugInfo)
+  if (config->writeDebugInfo) {
     create_dirs(config->binaryCacheDir + "/debuginfo");
+  }
   create_dirs(config->binaryCacheDir + "/log");
   binary_cache_store::init();
 }
@@ -201,10 +206,11 @@ bool local_binary_cache_store_t::file_exists(const std::string& path) {
 }
 
 string_set_t LocalBinaryCacheStoreConfig::uriSchemes() {
-  if (get_env("_NIX_FORCE_HTTP") == "1")
+  if (get_env("_NIX_FORCE_HTTP") == "1") {
     return {};
-  else
+  } else {
     return {"file"};
+  }
 }
 
 ref<store_t> LocalBinaryCacheStoreConfig::open_store() const {

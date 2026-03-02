@@ -302,8 +302,9 @@ TEST_CASE("CA-derivations: concurrent lock upgrade is safe", "[concurrency][#666
   auto worker = [&](int id) {
     for (int i = 0; i < iterations; ++i) {
       int fd = open(lock_file.c_str(), O_RDWR, 0600);
-      if (fd < 0)
+      if (fd < 0) {
         continue;
+      }
 
       // Acquire shared lock
       if (flock(fd, LOCK_SH) != 0) {
@@ -642,8 +643,9 @@ TEST_CASE("binary-cache: concurrent writes use flock", "[concurrency][#3695]") {
   auto write_to_cache = [&](int id) {
     // Open lock file
     int lock_fd = open(lock_file.c_str(), O_RDWR | O_CREAT | O_CLOEXEC, 0600);
-    if (lock_fd < 0)
+    if (lock_fd < 0) {
       return;
+    }
 
     // Acquire exclusive lock (as in CacheLock class)
     while (flock(lock_fd, LOCK_EX) != 0) {

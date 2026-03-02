@@ -85,8 +85,9 @@ struct pos_t {
     lines_iterator_t() : pastEnd(true) {}
 
     explicit lines_iterator_t(std::string_view input) : input(input), pastEnd(input.empty()) {
-      if (!pastEnd)
+      if (!pastEnd) {
         bump(true);
+      }
     }
 
     lines_iterator_t& operator++() {

@@ -63,9 +63,10 @@ struct simple_user_lock_t : UserLock {
 
     /* Get the members of the build-users-group. */
     struct group* gr = getgrnam(settings.buildUsersGroup.get().c_str());
-    if (!gr)
+    if (!gr) {
       throw Error("the group '%s' specified in 'build-users-group' does not exist",
                   settings.buildUsersGroup);
+    }
 
     /* Copy the result of getgrnam. */
     strings_t users;
@@ -74,8 +75,9 @@ struct simple_user_lock_t : UserLock {
       users.push_back(*p);
     }
 
-    if (users.empty())
+    if (users.empty()) {
       throw Error("the build users group '%s' has no members", settings.buildUsersGroup);
+    }
 
     /* Find a user account that isn't currently in use for another
        build. */
@@ -83,14 +85,16 @@ struct simple_user_lock_t : UserLock {
       debug("trying user '%s'", i);
 
       struct passwd* pw = getpwnam(i.c_str());
-      if (!pw)
+      if (!pw) {
         throw Error("the user '%s' in the group '%s' does not exist", i, settings.buildUsersGroup);
+      }
 
       auto fn_user_lock = fmt("%s/userpool/%s", settings.nixStateDir, pw->pw_uid);
 
       auto_close_fd_t fd = open(fn_user_lock.c_str(), O_RDWR | O_CREAT | O_CLOEXEC, 0600);
-      if (!fd)
+      if (!fd) {
         throw sys_error_t("opening user lock '%s'", fn_user_lock);
+      }
 
       if (lock_file(fd.get(), ltWrite, false)) {
         auto lock = std::make_unique<simple_user_lock_t>();
@@ -100,8 +104,9 @@ struct simple_user_lock_t : UserLock {
         lock->gid = gr->gr_gid;
 
         /* Sanity check... */
-        if (lock->uid == getuid() || lock->uid == geteuid())
+        if (lock->uid == getuid() || lock->uid == geteuid()) {
           throw Error("the Nix user should not be a member of '%s'", settings.buildUsersGroup);
+        }
 
 #ifdef __linux__
         /* Get the list of supplementary groups of this user. This is
@@ -109,8 +114,9 @@ struct simple_user_lock_t : UserLock {
 
         // Finally, trim back the GID list to its real size.
         for (auto gid : get_group_list(pw->pw_name, pw->pw_gid)) {
-          if (gid != lock->gid)
+          if (gid != lock->gid) {
             lock->supplementary_gi_ds.push_back(gid);
+          }
         }
 #endif
 
@@ -166,27 +172,30 @@ struct auto_user_lock_t : UserLock {
       auto fn_user_lock = fmt("%s/userpool2/slot-%d", settings.nixStateDir, i);
 
       auto_close_fd_t fd = open(fn_user_lock.c_str(), O_RDWR | O_CREAT | O_CLOEXEC, 0600);
-      if (!fd)
+      if (!fd) {
         throw sys_error_t("opening user lock '%s'", fn_user_lock);
+      }
 
       if (lock_file(fd.get(), ltWrite, false)) {
         auto first_uid = settings.startId + i * maxIdsPerBuild;
 
         auto pw = getpwuid(first_uid);
-        if (pw)
+        if (pw) {
           throw Error("auto-allocated UID %d clashes with existing user account '%s'", first_uid,
                       pw->pw_name);
+        }
 
         auto lock = std::make_unique<auto_user_lock_t>();
         lock->fd_user_lock = std::move(fd);
         lock->first_uid = first_uid;
-        if (use_user_namespace)
+        if (use_user_namespace) {
           lock->first_gid = first_uid;
-        else {
+        } else {
           struct group* gr = getgrnam(settings.buildUsersGroup.get().c_str());
-          if (!gr)
+          if (!gr) {
             throw Error("the group '%s' specified in 'build-users-group' does not exist",
                         settings.buildUsersGroup);
+          }
           lock->first_gid = gr->gr_gid;
         }
         lock->nr_ids = nr_ids;
@@ -199,10 +208,11 @@ struct auto_user_lock_t : UserLock {
 };
 
 std::unique_ptr<UserLock> acquire_user_lock(uid_t nr_ids, bool use_user_namespace) {
-  if (settings.autoAllocateUids)
+  if (settings.autoAllocateUids) {
     return auto_user_lock_t::acquire(nr_ids, use_user_namespace);
-  else
+  } else {
     return simple_user_lock_t::acquire();
+  }
 }
 
 bool use_build_users() {

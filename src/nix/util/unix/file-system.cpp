@@ -50,14 +50,16 @@ void set_write_time(const std::filesystem::path& path, time_t accessed_time,
       },
   };
 #  if HAVE_LUTIMES
-  if (lutimes(path.c_str(), times) == -1)
+  if (lutimes(path.c_str(), times) == -1) {
     throw sys_error_t("changing modification time of %s", path);
+  }
 #  else
   bool is_symlink = opt_is_symlink ? *opt_is_symlink : std::filesystem::is_symlink(path);
 
   if (!is_symlink) {
-    if (utimes(path.c_str(), times) == -1)
+    if (utimes(path.c_str(), times) == -1) {
       throw sys_error_t("changing modification time of %s (not a symlink)", path);
+    }
   } else {
     throw Error("Cannot change modification time of symlink %s", path);
   }

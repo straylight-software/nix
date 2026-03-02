@@ -26,8 +26,9 @@ static logger_t::fields_t read_fields(source_t& from) {
       fields.push_back(logger_t::field_t(read_num<uint64_t>(from)));
     } else if (type == logger_t::field_t::t_string) {
       fields.push_back(logger_t::field_t(read_string(from)));
-    } else
+    } else {
       throw Error("got unsupported field type %x from Nix daemon", (int)type);
+    }
   }
   return fields;
 }
@@ -35,27 +36,31 @@ static logger_t::fields_t read_fields(source_t& from) {
 std::exception_ptr WorkerProto::BasicClientConnection::processStderrReturn(sink_t* sink,
                                                                            source_t* source,
                                                                            bool flush, bool block) {
-  if (flush)
+  if (flush) {
     to.flush();
+  }
 
   std::exception_ptr ex;
 
   while (true) {
-    if (!block && !from.has_data())
+    if (!block && !from.has_data()) {
       break;
+    }
 
     auto msg = read_num<uint64_t>(from);
 
     if (msg == STDERR_WRITE) {
       auto s = read_string(from);
-      if (!sink)
+      if (!sink) {
         throw Error("no sink");
+      }
       (*sink)(s);
     }
 
     else if (msg == STDERR_READ) {
-      if (!source)
+      if (!source) {
         throw Error("no source");
+      }
       size_t len = read_num<size_t>(from);
       auto buf = std::make_unique<char[]>(len);
       write_string({(const char*)buf.get(), source->read(buf.get(), len)}, to);
@@ -73,8 +78,9 @@ std::exception_ptr WorkerProto::BasicClientConnection::processStderrReturn(sink_
       break;
     }
 
-    else if (msg == STDERR_NEXT)
+    else if (msg == STDERR_NEXT) {
       printError(chomp(read_string(from)));
+    }
 
     else if (msg == STDERR_START_ACTIVITY) {
       auto act = read_num<activity_id_t>(from);
@@ -103,8 +109,9 @@ std::exception_ptr WorkerProto::BasicClientConnection::processStderrReturn(sink_
       break;
     }
 
-    else
+    else {
       throw Error("got unknown message type %x from Nix daemon", msg);
+    }
   }
 
   if (!ex) {
@@ -125,11 +132,12 @@ std::exception_ptr WorkerProto::BasicClientConnection::processStderrReturn(sink_
         auto m = e.msg();
         if (m.find("parsing derivation") != std::string::npos &&
             m.find("expected string") != std::string::npos &&
-            m.find("Derive([") != std::string::npos)
+            m.find("Derive([") != std::string::npos) {
           return std::make_exception_ptr(
               Error("%s, this might be because the daemon is too old to understand dependencies on "
                     "dynamic derivations. Check to see if the raw derivation is in the form '%s'",
                     std::move(m), "Drv WithVersion(..)"));
+        }
       }
       return std::current_exception();
     }
@@ -148,9 +156,11 @@ void WorkerProto::BasicClientConnection::processStderr(bool* daemonException, si
 static WorkerProto::FeatureSet intersect_features(const WorkerProto::FeatureSet& a,
                                                   const WorkerProto::FeatureSet& b) {
   WorkerProto::FeatureSet res;
-  for (auto& x : a)
-    if (b.contains(x))
+  for (auto& x : a) {
+    if (b.contains(x)) {
       res.insert(x);
+    }
+  }
   return res;
 }
 
@@ -162,14 +172,17 @@ WorkerProto::BasicClientConnection::handshake(buffered_sink_t& to, source_t& fro
   to.flush();
 
   unsigned int magic = read_int(from);
-  if (magic != WORKER_MAGIC_2)
+  if (magic != WORKER_MAGIC_2) {
     throw Error("nix-daemon protocol mismatch from");
+  }
   auto daemonVersion = read_int(from);
 
-  if (GET_PROTOCOL_MAJOR(daemonVersion) != GET_PROTOCOL_MAJOR(PROTOCOL_VERSION))
+  if (GET_PROTOCOL_MAJOR(daemonVersion) != GET_PROTOCOL_MAJOR(PROTOCOL_VERSION)) {
     throw Error("Nix daemon protocol version not supported");
-  if (GET_PROTOCOL_MINOR(daemonVersion) < 10)
+  }
+  if (GET_PROTOCOL_MINOR(daemonVersion) < 10) {
     throw Error("the Nix daemon version is too old");
+  }
 
   auto protoVersion = std::min(daemonVersion, localVersion);
 
@@ -189,8 +202,9 @@ WorkerProto::BasicServerConnection::handshake(buffered_sink_t& to, source_t& fro
                                               WorkerProto::Version localVersion,
                                               const WorkerProto::FeatureSet& supportedFeatures) {
   unsigned int magic = read_int(from);
-  if (magic != WORKER_MAGIC_1)
+  if (magic != WORKER_MAGIC_1) {
     throw Error("protocol mismatch");
+  }
   to << WORKER_MAGIC_2 << localVersion;
   to.flush();
   auto client_version = read_int(from);
@@ -217,11 +231,13 @@ WorkerProto::BasicClientConnection::postHandshake(const store_dir_config_t& stor
     to << 0;
   }
 
-  if (GET_PROTOCOL_MINOR(protoVersion) >= 11)
+  if (GET_PROTOCOL_MINOR(protoVersion) >= 11) {
     to << false; // obsolete reserveSpace
+  }
 
-  if (GET_PROTOCOL_MINOR(protoVersion) >= 33)
+  if (GET_PROTOCOL_MINOR(protoVersion) >= 33) {
     to.flush();
+  }
 
   return WorkerProto::Serialise<ClientHandshakeInfo>::read(store, *this);
 }
@@ -233,8 +249,9 @@ void WorkerProto::BasicServerConnection::postHandshake(const store_dir_config_t&
     read_int(from);
   }
 
-  if (GET_PROTOCOL_MINOR(protoVersion) >= 11)
+  if (GET_PROTOCOL_MINOR(protoVersion) >= 11) {
     read_int(from); // obsolete reserveSpace
+  }
 
   WorkerProto::write(store, *this, info);
 }
@@ -247,15 +264,17 @@ WorkerProto::BasicClientConnection::queryPathInfo(const store_dir_config_t& stor
     processStderr(daemonException);
   } catch (Error& e) {
     // Ugly backwards compatibility hack.
-    if (e.msg().find("is not valid") != std::string::npos)
+    if (e.msg().find("is not valid") != std::string::npos) {
       return std::nullopt;
+    }
     throw;
   }
   if (GET_PROTOCOL_MINOR(protoVersion) >= 17) {
     bool valid;
     from >> valid;
-    if (!valid)
+    if (!valid) {
       return std::nullopt;
+    }
   }
   return WorkerProto::Serialise<UnkeyedValidPathInfo>::read(store, *this);
 }

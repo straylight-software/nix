@@ -11,8 +11,9 @@ C basic_tokenize_string(std::basic_string_view<char_t> s,
   auto pos = s.find_first_not_of(separators, 0);
   while (pos != s.npos) {
     auto end = s.find_first_of(separators, pos + 1);
-    if (end == s.npos)
+    if (end == s.npos) {
       end = s.size();
+    }
     result.insert(result.end(), std::basic_string<char_t>(s, pos, end - pos));
     pos = s.find_first_not_of(separators, end);
   }
@@ -30,8 +31,9 @@ void basic_split_string_into(C& accum, std::basic_string_view<char_t> s,
   size_t pos = 0;
   while (pos <= s.size()) {
     auto end = s.find_first_of(separators, pos);
-    if (end == s.npos)
+    if (end == s.npos) {
       end = s.size();
+    }
     accum.insert(accum.end(), typename C::value_type{s.substr(pos, end - pos)});
     pos = end + 1;
   }
@@ -61,8 +63,9 @@ std::basic_string<char_t> basic_concat_strings_sep(const std::basic_string_view<
   bool tail = false;
   // need a cast to string_view since this is also called with Symbols
   for (const auto& s : ss) {
-    if (tail)
+    if (tail) {
       size += sep.size();
+    }
     size += std::basic_string_view<char_t>{s}.size();
     tail = true;
   }
@@ -70,8 +73,9 @@ std::basic_string<char_t> basic_concat_strings_sep(const std::basic_string_view<
   s.reserve(size);
   tail = false;
   for (auto& i : ss) {
-    if (tail)
+    if (tail) {
       s += sep;
+    }
     s += i;
     tail = true;
   }
@@ -96,13 +100,15 @@ std::string drop_empty_init_then_concat_strings_sep(const std::string_view sep, 
   // }
 
   // need a cast to string_view since this is also called with Symbols
-  for (const auto& s : ss)
+  for (const auto& s : ss) {
     size += sep.size() + std::string_view(s).size();
+  }
   std::string s;
   s.reserve(size);
   for (auto& i : ss) {
-    if (s.size() != 0)
+    if (s.size() != 0) {
       s += sep;
+    }
     s += i;
   }
   return s;

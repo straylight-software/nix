@@ -41,13 +41,15 @@ bool store_dir_config_t::isInStore(path_view_t path) const {
 }
 
 std::pair<store_path_t, Path> store_dir_config_t::toStorePath(path_view_t path) const {
-  if (!isInStore(path))
+  if (!isInStore(path)) {
     throw Error("path '%1%' is not in the Nix store", path);
+  }
   auto slash = path.find('/', store_dir.size() + 1);
-  if (slash == Path::npos)
+  if (slash == Path::npos) {
     return {parseStorePath(path), ""};
-  else
+  } else {
     return {parseStorePath(path.substr(0, slash)), (Path)path.substr(slash)};
+  }
 }
 
 Path store_t::followLinksToStore(std::string_view _path) const {
@@ -58,18 +60,21 @@ Path store_t::followLinksToStore(std::string_view _path) const {
   const unsigned int max_follow = 1024;
 
   while (!isInStore(path)) {
-    if (!std::filesystem::is_symlink(path))
+    if (!std::filesystem::is_symlink(path)) {
       break;
+    }
 
-    if (++follow_count >= max_follow)
+    if (++follow_count >= max_follow) {
       throw Error("too many symbolic links encountered while resolving '%s'", _path);
+    }
 
     auto target = read_link(path);
     path = abs_path(target, dir_of(path));
   }
 
-  if (!isInStore(path))
+  if (!isInStore(path)) {
     throw BadStorePath("path '%1%' is not in the Nix store", path);
+  }
   return path;
 }
 
@@ -102,9 +107,10 @@ store_path_t store_t::add_to_store(std::string_view name, const source_path_t& p
     if (settings.warnLargePathThreshold &&
         lengthSource.total() >= settings.warnLargePathThreshold) {
       static bool failOnLargePath = get_env("_NIX_TEST_FAIL_ON_LARGE_PATH").value_or("") == "1";
-      if (failOnLargePath)
+      if (failOnLargePath) {
         throw Error("doesn't copy large path '%s' to the store (%d)", path,
                     render_size(lengthSource.total()));
+      }
       warn("copied large path '%s' to the store (%d)", path, render_size(lengthSource.total()));
     }
   });
@@ -173,8 +179,9 @@ void store_t::addMultipleToStore(PathsSource&& paths_to_copy, activity_t& act, R
             add_to_store(info, *source, repair, check_sigs);
           } catch (Error& e) {
             nrFailed++;
-            if (!settings.keep_going)
+            if (!settings.keep_going) {
               throw e;
+            }
             printMsg(lvl_error, "could not copy %s: %s", printStorePath(path), e.what());
             showProgress();
             return;
@@ -273,8 +280,9 @@ valid_path_info_t store_t::addToStoreSlow(std::string_view name, const source_pa
                   ? git::dump_hash(hash_algo, src_path).hash
                   : caHashSink.finish().hash;
 
-  if (expectedCAHash && expectedCAHash != hash)
+  if (expectedCAHash && expectedCAHash != hash) {
     throw Error("hash mismatch for '%s'", src_path);
+  }
 
   auto info = valid_path_info_t::makeFromCA(
       *this, name,
@@ -304,11 +312,13 @@ void store_t::nar_from_path(const store_path_t& path, sink_t& sink) {
 string_set_t store_t::config_t::getDefaultSystemFeatures() {
   auto res = settings.systemFeatures.get();
 
-  if (experimental_feature_settings.is_enabled(xp_t::ca_derivations))
+  if (experimental_feature_settings.is_enabled(xp_t::ca_derivations)) {
     res.insert("ca-derivations");
+  }
 
-  if (experimental_feature_settings.is_enabled(xp_t::recursive_nix))
+  if (experimental_feature_settings.is_enabled(xp_t::recursive_nix)) {
     res.insert("recursive-nix");
+  }
 
   return res;
 }
@@ -352,8 +362,9 @@ store_t::queryPartialDerivationOutputMap(const store_path_t& path, store_t* eval
 
   auto outputs = eval_store.queryStaticPartialDerivationOutputMap(path);
 
-  if (!experimental_feature_settings.is_enabled(xp_t::ca_derivations))
+  if (!experimental_feature_settings.is_enabled(xp_t::ca_derivations)) {
     return outputs;
+  }
 
   auto drv = eval_store.readInvalidDerivation(path);
   auto drv_hashes = static_output_hashes(*this, drv);
@@ -376,8 +387,9 @@ OutputPathMap store_t::queryDerivationOutputMap(const store_path_t& path, store_
   auto resp = queryPartialDerivationOutputMap(path, eval_store);
   OutputPathMap result;
   for (auto& [outName, optOutPath] : resp) {
-    if (!optOutPath)
+    if (!optOutPath) {
       throw MissingRealisation(printStorePath(path), outName);
+    }
     result.insert_or_assign(outName, *optOutPath);
   }
   return result;
@@ -394,8 +406,9 @@ store_path_set_t store_t::queryDerivationOutputs(const store_path_t& path) {
 
 void store_t::querySubstitutablePathInfos(const StorePathCAMap& paths,
                                           SubstitutablePathInfos& infos) {
-  if (!settings.use_substitutes)
+  if (!settings.use_substitutes) {
     return;
+  }
 
   for (auto& path : paths) {
     std::optional<Error> lastStoresException = std::nullopt;
@@ -411,13 +424,16 @@ void store_t::querySubstitutablePathInfos(const StorePathCAMap& paths,
       if (path.second) {
         subPath = makeFixedOutputPathFromCA(
             path.first.name(), ContentAddressWithReferences::withoutRefs(*path.second));
-        if (sub->store_dir == store_dir)
+        if (sub->store_dir == store_dir) {
           assert(subPath == path.first);
-        if (subPath != path.first)
+        }
+        if (subPath != path.first) {
           debug("replaced path '%s' with '%s' for substituter '%s'", printStorePath(path.first),
                 sub->printStorePath(subPath), sub->config.getHumanReadableURI());
-      } else if (sub->store_dir != store_dir)
+        }
+      } else if (sub->store_dir != store_dir) {
         continue;
+      }
 
       debug("checking substituter '%s' for path '%s'", sub->config.getHumanReadableURI(),
             sub->printStorePath(subPath));
@@ -425,8 +441,9 @@ void store_t::querySubstitutablePathInfos(const StorePathCAMap& paths,
         auto info = sub->queryPathInfo(subPath);
 
         if (sub->store_dir != store_dir &&
-            !(info->isContentAddressed(*sub) && info->references.empty()))
+            !(info->isContentAddressed(*sub) && info->references.empty())) {
           continue;
+        }
 
         auto narInfo = std::dynamic_pointer_cast<const nar_info_t>(
             std::shared_ptr<const valid_path_info_t>(info));
@@ -447,8 +464,9 @@ void store_t::querySubstitutablePathInfos(const StorePathCAMap& paths,
     if (lastStoresException.has_value()) {
       if (!settings.try_fallback) {
         throw *lastStoresException;
-      } else
+      } else {
         logError(lastStoresException->info());
+      }
     }
   }
 }
@@ -474,10 +492,11 @@ bool store_t::isValidPath(const store_path_t& store_path) {
 
   bool valid = isValidPathUncached(store_path);
 
-  if (diskCache && !valid)
+  if (diskCache && !valid) {
     // FIXME: handle valid = true case.
     diskCache->upsertNarInfo(config.getReference().render(/*FIXME withParams=*/false),
                              std::string(store_path.hash_part()), 0);
+  }
 
   return valid;
 }
@@ -536,10 +555,11 @@ store_t::queryPathInfoFromClientCache(const store_path_t& store_path) {
   auto res = pathInfoCache->lock()->get(store_path);
   if (res && res->isKnownNow()) {
     stats.narInfoReadAverted++;
-    if (res->didExist())
+    if (res->didExist()) {
       return std::make_optional(res->value);
-    else
+    } else {
       return std::make_optional(nullptr);
+    }
   }
 
   if (diskCache) {
@@ -550,8 +570,10 @@ store_t::queryPathInfoFromClientCache(const store_path_t& store_path) {
       pathInfoCache->lock()->upsert(store_path, res.first == NarInfoDiskCache::oInvalid
                                                     ? PathInfoCacheValue{}
                                                     : PathInfoCacheValue{.value = res.second});
-      if (res.first == NarInfoDiskCache::oInvalid || !good_store_path(store_path, res.second->path))
+      if (res.first == NarInfoDiskCache::oInvalid ||
+          !good_store_path(store_path, res.second->path)) {
         return std::make_optional(nullptr);
+      }
       assert(res.second);
       return std::make_optional(res.second);
     }
@@ -568,10 +590,11 @@ void store_t::queryPathInfo(const store_path_t& store_path,
     auto r = queryPathInfoFromClientCache(store_path);
     if (r.has_value()) {
       std::shared_ptr<const valid_path_info_t>& info = *r;
-      if (info)
+      if (info) {
         return callback(ref(info));
-      else
+      } else {
         throw InvalidPath("path '%s' is not valid", printStorePath(store_path));
+      }
     }
   } catch (...) {
     return callback.rethrow();
@@ -585,9 +608,10 @@ void store_t::queryPathInfo(const store_path_t& store_path,
         try {
           auto info = fut.get();
 
-          if (diskCache)
+          if (diskCache) {
             diskCache->upsertNarInfo(config.getReference().render(/*FIXME withParams=*/false),
                                      hash_part, info);
+          }
 
           pathInfoCache->lock()->upsert(store_path, PathInfoCacheValue{.value = info});
 
@@ -634,12 +658,13 @@ void store_t::query_realisation(
           auto info = fut.get();
 
           if (diskCache) {
-            if (info)
+            if (info) {
               diskCache->upsertRealisation(config.getReference().render(/*FIXME withParams=*/false),
                                            {*info, id});
-            else
+            } else {
               diskCache->upsertAbsentRealisation(
                   config.getReference().render(/*FIXME withParams=*/false), id);
+            }
           }
 
           (*callbackPtr)(std::shared_ptr<const UnkeyedRealisation>(info));
@@ -667,20 +692,24 @@ std::shared_ptr<const UnkeyedRealisation> store_t::query_realisation(const DrvOu
 
 void store_t::substitutePaths(const store_path_set_t& paths) {
   std::vector<derived_path_t> paths2;
-  for (auto& path : paths)
-    if (!path.is_derivation())
+  for (auto& path : paths) {
+    if (!path.is_derivation()) {
       paths2.emplace_back(derived_path_t::opaque_t{path});
+    }
+  }
   auto missing = query_missing(paths2);
 
-  if (!missing.willSubstitute.empty())
+  if (!missing.willSubstitute.empty()) {
     try {
       std::vector<derived_path_t> subs;
-      for (auto& p : missing.willSubstitute)
+      for (auto& p : missing.willSubstitute) {
         subs.emplace_back(derived_path_t::opaque_t{p});
+      }
       build_paths(subs);
     } catch (Error& e) {
       logWarning(e.info());
     }
+  }
 }
 
 store_path_set_t store_t::queryValidPaths(const store_path_set_t& paths,
@@ -712,28 +741,33 @@ store_path_set_t store_t::queryValidPaths(const store_path_set_t& paths,
 
                     auto state(state_.lock());
 
-                    if (exists)
+                    if (exists) {
                       state->valid.insert(path);
+                    }
 
-                    if (newExc)
+                    if (newExc) {
                       state->exc = newExc;
+                    }
 
                     assert(state->left);
-                    if (!--state->left)
+                    if (!--state->left) {
                       wakeup.notify_one();
+                    }
                   }});
   };
 
-  for (auto& path : paths)
+  for (auto& path : paths) {
     pool.enqueue(std::bind(doQuery, path));
+  }
 
   pool.process();
 
   while (true) {
     auto state(state_.lock());
     if (!state->left) {
-      if (state->exc)
+      if (state->exc) {
         std::rethrow_exception(state->exc);
+      }
       return std::move(state->valid);
     }
     state.wait(wakeup);
@@ -762,8 +796,9 @@ std::string store_t::makeValidityRegistration(const store_path_set_t& paths, boo
 
     s += fmt("%1%\n", info->references.size());
 
-    for (auto& j : info->references)
+    for (auto& j : info->references) {
       s += printStorePath(j) + "\n";
+    }
   }
 
   return s;
@@ -774,11 +809,12 @@ store_path_set_t store_t::exportReferences(const store_path_set_t& store_paths,
   store_path_set_t paths;
 
   for (auto& store_path : store_paths) {
-    if (!inputPaths.count(store_path))
+    if (!inputPaths.count(store_path)) {
       throw build_error_t(build_result_t::Failure::InputRejected,
                           "cannot export references of path '%s' because it is not in the input "
                           "closure of the derivation",
                           printStorePath(store_path));
+    }
 
     computeFSClosure({store_path}, paths);
   }
@@ -793,12 +829,13 @@ store_path_set_t store_t::exportReferences(const store_path_set_t& store_paths,
     if (j.is_derivation()) {
       derivation_t drv = derivationFromPath(j);
       for (auto& k : drv.outputsAndOptPaths(*this)) {
-        if (!k.second.second)
+        if (!k.second.second) {
           /* FIXME: I am confused why we are calling
              `computeFSClosure` on the output path, rather than
              derivation itself. That doesn't seem right to me, so I
              won't try to implemented this for CA derivations. */
           throw UnimplementedError("exportReferences on CA derivations is not yet implemented");
+        }
         computeFSClosure(*k.second.second, paths);
       }
     }
@@ -831,11 +868,13 @@ static std::string make_copy_path_message(const store_config_t& src_cfg,
     return (scheme == "local" || scheme == "unix") && specified.authority.empty();
   };
 
-  if (is_shorthand(src))
+  if (is_shorthand(src)) {
     return fmt("copying path '%s' to '%s'", store_path, dst_cfg.getHumanReadableURI());
+  }
 
-  if (is_shorthand(dst))
+  if (is_shorthand(dst)) {
     return fmt("copying path '%s' from '%s'", store_path, src_cfg.getHumanReadableURI());
+  }
 
   return fmt("copying path '%s' from '%s' to '%s'", store_path, src_cfg.getHumanReadableURI(),
              dst_cfg.getHumanReadableURI());
@@ -845,8 +884,9 @@ void copy_store_path(store_t& src_store, store_t& dst_store, const store_path_t&
                      RepairFlag repair, CheckSigsFlag check_sigs) {
   /* Bail out early (before starting a download from src_store) if
      dst_store already has this path. */
-  if (!repair && dst_store.isValidPath(store_path))
+  if (!repair && dst_store.isValidPath(store_path)) {
     return;
+  }
 
   const auto& src_cfg = src_store.config;
   const auto& dst_cfg = dst_store.config;
@@ -867,8 +907,9 @@ void copy_store_path(store_t& src_store, store_t& dst_store, const store_path_t&
     auto info2 = make_ref<valid_path_info_t>(*info);
     info2->path = dst_store.makeFixedOutputPathFromCA(info->path.name(),
                                                       info->contentAddressWithReferences().value());
-    if (dst_store.store_dir == src_store.store_dir)
+    if (dst_store.store_dir == src_store.store_dir) {
       assert(info->path == info2->path);
+    }
     info = info2;
   }
 
@@ -920,10 +961,11 @@ std::map<store_path_t, store_path_t> copy_paths(store_t& src_store, store_t& dst
           std::set<realisation_t> children;
           for (const auto& [drvOutput, _] : current.dependentRealisations) {
             auto currentChild = src_store.query_realisation(drvOutput);
-            if (!currentChild)
+            if (!currentChild) {
               throw Error("incomplete realisation closure: '%s' is a "
                           "dependency of '%s' but isn't registered",
                           drvOutput.to_string(), current.id.to_string());
+            }
             children.insert({*currentChild, drvOutput});
           }
           return children;
@@ -935,10 +977,11 @@ std::map<store_path_t, store_path_t> copy_paths(store_t& src_store, store_t& dst
     // Don't fail if the remote doesn't support CA derivations is it might
     // not be within our control to change that, and we might still want
     // to at least copy the output paths.
-    if (e.missing_feature == xp_t::ca_derivations)
+    if (e.missing_feature == xp_t::ca_derivations) {
       ignore_exception_except_interrupt();
-    else
+    } else {
       throw;
+    }
   }
 
   return paths_map;
@@ -951,9 +994,11 @@ std::map<store_path_t, store_path_t> copy_paths(store_t& src_store, store_t& dst
   auto valid = dst_store.queryValidPaths(store_paths, substitute);
 
   store_path_set_t missing;
-  for (auto& path : store_paths)
-    if (!valid.count(path))
+  for (auto& path : store_paths) {
+    if (!valid.count(path)) {
       missing.insert(path);
+    }
+  }
 
   activity_t act(*logger, lvl_info, act_copy_paths, fmt("copying %d paths", missing.size()));
 
@@ -963,8 +1008,9 @@ std::map<store_path_t, store_path_t> copy_paths(store_t& src_store, store_t& dst
   std::reverse(sorted_missing.begin(), sorted_missing.end());
 
   std::map<store_path_t, store_path_t> paths_map;
-  for (auto& path : store_paths)
+  for (auto& path : store_paths) {
     paths_map.insert_or_assign(path, path);
+  }
 
   store_t::PathsSource paths_to_copy;
 
@@ -974,12 +1020,14 @@ std::map<store_path_t, store_path_t> copy_paths(store_t& src_store, store_t& dst
     if (currentPathInfo.ca && currentPathInfo.references.empty()) {
       storePathForDst = dst_store.makeFixedOutputPathFromCA(
           currentPathInfo.path.name(), currentPathInfo.contentAddressWithReferences().value());
-      if (dst_store.store_dir == src_store.store_dir)
+      if (dst_store.store_dir == src_store.store_dir) {
         assert(storePathForDst == storePathForSrc);
-      if (storePathForDst != storePathForSrc)
+      }
+      if (storePathForDst != storePathForSrc) {
         debug("replaced path '%s' to '%s' for substituter '%s'",
               src_store.printStorePath(storePathForSrc), dst_store.printStorePath(storePathForDst),
               dst_store.config.getHumanReadableURI());
+      }
     }
     return storePathForDst;
   };
@@ -1025,8 +1073,9 @@ std::map<store_path_t, store_path_t> copy_paths(store_t& src_store, store_t& dst
 
 void copy_closure(store_t& src_store, store_t& dst_store, const RealisedPath::Set& paths,
                   RepairFlag repair, CheckSigsFlag check_sigs, SubstituteFlag substitute) {
-  if (&src_store == &dst_store)
+  if (&src_store == &dst_store) {
     return;
+  }
 
   RealisedPath::Set closure;
   RealisedPath::closure(src_store, paths, closure);
@@ -1036,8 +1085,9 @@ void copy_closure(store_t& src_store, store_t& dst_store, const RealisedPath::Se
 
 void copy_closure(store_t& src_store, store_t& dst_store, const store_path_set_t& store_paths,
                   RepairFlag repair, CheckSigsFlag check_sigs, SubstituteFlag substitute) {
-  if (&src_store == &dst_store)
+  if (&src_store == &dst_store) {
     return;
+  }
 
   store_path_set_t closure;
   src_store.computeFSClosure(store_paths, closure);
@@ -1057,35 +1107,40 @@ std::optional<valid_path_info_t> decode_valid_path_info(const store_t& store, st
     auto nar_hash = Hash::parse_any(s, hash_algorithm_t::SHA256);
     getline(str, s);
     auto nar_size = string2_int<uint64_t>(s);
-    if (!nar_size)
+    if (!nar_size) {
       throw Error("number expected");
+    }
     hash_given = {nar_hash, *nar_size};
   }
   valid_path_info_t info(store.parseStorePath(path), {store, hash_given->hash});
   info.nar_size = hash_given->num_bytes_digested;
   std::string deriver;
   getline(str, deriver);
-  if (deriver != "")
+  if (deriver != "") {
     info.deriver = store.parseStorePath(deriver);
+  }
   std::string s;
   getline(str, s);
   auto n = string2_int<int>(s);
-  if (!n)
+  if (!n) {
     throw Error("number expected");
+  }
   while ((*n)--) {
     getline(str, s);
     info.references.insert(store.parseStorePath(s));
   }
-  if (!str || str.eof())
+  if (!str || str.eof()) {
     throw Error("missing input");
+  }
   return std::optional<valid_path_info_t>(std::move(info));
 }
 
 std::string store_dir_config_t::show_paths(const store_path_set_t& paths) const {
   std::string s;
   for (auto& i : paths) {
-    if (s.size() != 0)
+    if (s.size() != 0) {
       s += ", ";
+    }
     s += "'" + printStorePath(i) + "'";
   }
   return s;
@@ -1119,24 +1174,27 @@ std::optional<store_path_t> store_t::getBuildDerivationPath(const store_path_t& 
   if (!path.is_derivation()) {
     try {
       auto info = queryPathInfo(path);
-      if (!info->deriver)
+      if (!info->deriver) {
         return std::nullopt;
+      }
       return *info->deriver;
     } catch (InvalidPath&) {
       return std::nullopt;
     }
   }
 
-  if (!experimental_feature_settings.is_enabled(xp_t::ca_derivations) || !isValidPath(path))
+  if (!experimental_feature_settings.is_enabled(xp_t::ca_derivations) || !isValidPath(path)) {
     return path;
+  }
 
   auto drv = read_derivation(path);
   if (!drv.type().hasKnownOutputPaths()) {
     // The build log is actually attached to the corresponding
     // resolved derivation, so we need to get it first
     auto resolvedDrv = drv.try_resolve(*this);
-    if (resolvedDrv)
+    if (resolvedDrv) {
       return ::nix::write_derivation(*this, *resolvedDrv, NoRepair, true);
+    }
   }
 
   return path;

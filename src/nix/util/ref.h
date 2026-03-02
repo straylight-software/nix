@@ -16,8 +16,9 @@ private:
   std::shared_ptr<T> p_{};
 
   void assert_non_null() {
-    if (!p_)
+    if (!p_) {
       throw std::invalid_argument("null pointer cast to ref");
+    }
   }
 
 public:

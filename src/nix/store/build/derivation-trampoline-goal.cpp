@@ -67,8 +67,9 @@ Goal::Co DerivationTrampolineGoal::init() {
      or merely substituted. We can make goal to get it and not worry
      about which method it takes to get the derivation. */
   if (auto optDrvPath = [this]() -> std::optional<store_path_t> {
-        if (build_mode != bmNormal)
+        if (build_mode != bmNormal) {
           return std::nullopt;
+        }
 
         auto drv_path = store_path_t::dummy;
         try {
@@ -109,9 +110,11 @@ Goal::Co DerivationTrampolineGoal::init() {
        - Dynamic derivations are built, and so are found in the main store.
    */
   auto drv = [&] {
-    for (auto* drvStore : {&worker.eval_store, &worker.store})
-      if (drvStore->isValidPath(drv_path))
+    for (auto* drvStore : {&worker.eval_store, &worker.store}) {
+      if (drvStore->isValidPath(drv_path)) {
         return drvStore->read_derivation(drv_path);
+      }
+    }
     assert(false);
   }();
 
@@ -126,8 +129,9 @@ Goal::Co DerivationTrampolineGoal::haveDerivation(store_path_t drv_path, derivat
                      [&](const OutputsSpec::Names& names) -> OutputsSpec::Names { return names; },
                      [&](const OutputsSpec::All&) -> OutputsSpec::Names {
                        string_set_t outputs;
-                       for (auto& [output_name, _] : drv.outputs)
+                       for (auto& [output_name, _] : drv.outputs) {
                          outputs.insert(output_name);
+                       }
                        return outputs;
                      },
                  },
@@ -151,11 +155,15 @@ Goal::Co DerivationTrampolineGoal::haveDerivation(store_path_t drv_path, derivat
 
   auto& g = *concreteDrvGoals.begin();
   buildResult = g->buildResult;
-  if (auto* successP = buildResult.tryGetSuccess())
-    for (auto& g2 : concreteDrvGoals)
-      if (auto* successP2 = g2->buildResult.tryGetSuccess())
-        for (auto&& [x, y] : successP2->built_outputs)
+  if (auto* successP = buildResult.tryGetSuccess()) {
+    for (auto& g2 : concreteDrvGoals) {
+      if (auto* successP2 = g2->buildResult.tryGetSuccess()) {
+        for (auto&& [x, y] : successP2->built_outputs) {
           successP->built_outputs.insert_or_assign(x, y);
+        }
+      }
+    }
+  }
 
   co_return amDone(g->exit_code, g->ex);
 }

@@ -57,8 +57,9 @@ struct cmd_verify_t : nix::StorePathsCommand {
 
   void run(nix::ref<nix::store_t> store, nix::store_paths_t&& store_paths) override {
     std::vector<nix::ref<nix::store_t>> substituters;
-    for (auto& s : substituter_uris)
+    for (auto& s : substituter_uris) {
       substituters.push_back(nix::open_store(s));
+    }
 
     auto public_keys = nix::get_default_public_keys();
 
@@ -109,8 +110,9 @@ struct cmd_verify_t : nix::StorePathsCommand {
         if (!no_trust) {
           bool good = false;
 
-          if (info->ultimate && !sigs_needed)
+          if (info->ultimate && !sigs_needed) {
             good = true;
+          }
 
           else {
             nix::string_set_t sigs_seen;
@@ -119,26 +121,31 @@ struct cmd_verify_t : nix::StorePathsCommand {
 
             auto do_sigs = [&](nix::string_set_t sigs) {
               for (const auto& sig : sigs) {
-                if (!sigs_seen.insert(sig).second)
+                if (!sigs_seen.insert(sig).second) {
                   continue;
+                }
                 if (valid_sigs < nix::valid_path_info_t::maxSigs &&
-                    info->checkSignature(*store, public_keys, sig))
+                    info->checkSignature(*store, public_keys, sig)) {
                   valid_sigs++;
+                }
               }
             };
 
-            if (info->isContentAddressed(*store))
+            if (info->isContentAddressed(*store)) {
               valid_sigs = nix::valid_path_info_t::maxSigs;
+            }
 
             do_sigs(info->sigs);
 
             for (auto& store2 : substituters) {
-              if (valid_sigs >= actual_sigs_needed)
+              if (valid_sigs >= actual_sigs_needed) {
                 break;
+              }
               try {
                 auto info2 = store2->queryPathInfo(info->path);
-                if (info2->isContentAddressed(*store))
+                if (info2->isContentAddressed(*store)) {
                   valid_sigs = nix::valid_path_info_t::maxSigs;
+                }
                 do_sigs(info2->sigs);
               } catch (nix::InvalidPath&) {
               } catch (nix::Error& e) {
@@ -146,8 +153,9 @@ struct cmd_verify_t : nix::StorePathsCommand {
               }
             }
 
-            if (valid_sigs >= actual_sigs_needed)
+            if (valid_sigs >= actual_sigs_needed) {
               good = true;
+            }
           }
 
           if (!good) {
@@ -167,8 +175,9 @@ struct cmd_verify_t : nix::StorePathsCommand {
       update();
     };
 
-    for (auto& store_path : store_paths)
+    for (auto& store_path : store_paths) {
       pool.enqueue(std::bind(do_path, store_path));
+    }
 
     pool.process();
 

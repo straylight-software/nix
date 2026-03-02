@@ -18,8 +18,9 @@ static std::string hilite(const std::string& s, size_t pos, size_t len,
 
 static std::string filter_printable(const std::string& s) {
   std::string res;
-  for (char c : s)
+  for (char c : s) {
     res += isprint(c) ? c : '.';
+  }
   return res;
 }
 
@@ -119,15 +120,18 @@ struct cmd_why_depends_t : nix::SourceExprCommand, nix::MixOperateOnOptions {
 
     std::map<nix::store_path_t, Node> graph;
 
-    for (auto& path : closure)
+    for (auto& path : closure) {
       graph.emplace(path, Node{.path = path,
                                .refs = store->queryPathInfo(path)->references,
                                .dist = path == dependency_path ? 0 : inf});
+    }
 
     // Transpose the graph.
-    for (auto& node : graph)
-      for (auto& ref : node.second.refs)
+    for (auto& node : graph) {
+      for (auto& ref : node.second.refs) {
         graph.find(ref)->second.rrefs.insert(node.first);
+      }
+    }
 
     /* Run Dijkstra's shortest path algorithm to get the distance
        of every path in the closure to 'dependency'. */
@@ -168,13 +172,16 @@ struct cmd_why_depends_t : nix::SourceExprCommand, nix::MixOperateOnOptions {
                           firstPad != "" ? "→ " : "", store->printStorePath(node.path));
       }
 
-      if (node.path == dependency_path && !all && package_path != dependency_path)
+      if (node.path == dependency_path && !all && package_path != dependency_path) {
         throw bail_out_t();
+      }
 
-      if (node.visited)
+      if (node.visited) {
         return;
-      if (precise)
+      }
+      if (precise) {
         node.visited = true;
+      }
 
       /* Sort the references by distance to `dependency` to
          ensure that the shortest path is printed first. */
@@ -182,11 +189,13 @@ struct cmd_why_depends_t : nix::SourceExprCommand, nix::MixOperateOnOptions {
       nix::store_path_set_t refPaths;
 
       for (auto& ref : node.refs) {
-        if (ref == node.path && package_path != dependency_path)
+        if (ref == node.path && package_path != dependency_path) {
           continue;
+        }
         auto& node2 = graph.at(ref);
-        if (node2.dist == inf)
+        if (node2.dist == inf) {
           continue;
+        }
         refs.emplace(node2.dist, &node2);
         refPaths.insert(node2.path);
       }
@@ -232,10 +241,11 @@ struct cmd_why_depends_t : nix::SourceExprCommand, nix::MixOperateOnOptions {
                 for (auto& foundRef : result.found_refs) {
                   std::string hash(foundRef.hash_part());
                   auto pos = target.find(hash);
-                  if (pos != std::string::npos)
+                  if (pos != std::string::npos) {
                     hits[hash].emplace_back(
                         nix::fmt("%s -> %s", p2,
                                  hilite(target, pos, nix::store_path_t::HashLen, getColour(hash))));
+                  }
                 }
               }
             });
@@ -252,8 +262,9 @@ struct cmd_why_depends_t : nix::SourceExprCommand, nix::MixOperateOnOptions {
                             (first ? (last ? nix::tree_last : nix::tree_conn)
                                    : (last ? nix::tree_null : nix::tree_line)),
                             hit);
-          if (!all)
+          if (!all) {
             break;
+          }
         }
 
         if (!precise) {

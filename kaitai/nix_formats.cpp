@@ -26,36 +26,42 @@ struct nar_parser_state_t {
 
   auto expect_string(std::string_view expected) -> bool {
     auto result = parse_nix_string(input);
-    if (!result.is_ok())
+    if (!result.is_ok()) {
       return false;
-    if (result.value.value() != expected)
+    }
+    if (result.value.value() != expected) {
       return false;
+    }
     input = result.remaining;
     return true;
   }
 
   auto read_string() -> std::optional<std::string> {
     auto result = parse_nix_string(input);
-    if (!result.is_ok())
+    if (!result.is_ok()) {
       return std::nullopt;
+    }
     input = result.remaining;
     return result.value;
   }
 
   auto read_contents() -> std::optional<std::vector<std::uint8_t>> {
     auto len_result = parse_u64le(input);
-    if (!len_result.is_ok())
+    if (!len_result.is_ok()) {
       return std::nullopt;
+    }
 
     const auto len = static_cast<std::size_t>(len_result.value.value());
-    if (len > max_file_size)
+    if (len > max_file_size) {
       return std::nullopt;
+    }
 
     const auto pad_len = pad_size(len);
     const auto total_len = len + pad_len;
 
-    if (len_result.remaining.size() < total_len)
+    if (len_result.remaining.size() < total_len) {
       return std::nullopt;
+    }
 
     std::vector<std::uint8_t> data(len_result.remaining.begin(),
                                    len_result.remaining.begin() + static_cast<std::ptrdiff_t>(len));
@@ -67,18 +73,22 @@ struct nar_parser_state_t {
 };
 
 auto nar_parser_state_t::parse_node() -> std::optional<nar_node_t> {
-  if (depth >= max_nar_depth)
+  if (depth >= max_nar_depth) {
     return std::nullopt;
+  }
   ++depth;
 
-  if (!expect_string("("))
+  if (!expect_string("(")) {
     return std::nullopt;
-  if (!expect_string("type"))
+  }
+  if (!expect_string("type")) {
     return std::nullopt;
+  }
 
   auto node_type = read_string();
-  if (!node_type)
+  if (!node_type) {
     return std::nullopt;
+  }
 
   nar_node_t result;
 
@@ -88,27 +98,32 @@ auto nar_parser_state_t::parse_node() -> std::optional<nar_node_t> {
 
     // Check for executable or contents
     auto next = read_string();
-    if (!next)
+    if (!next) {
       return std::nullopt;
+    }
 
     if (*next == "executable") {
       file.executable = true;
       // Read empty string marker
       auto empty = read_string();
-      if (!empty || !empty->empty())
+      if (!empty || !empty->empty()) {
         return std::nullopt;
+      }
       // Read "contents"
       next = read_string();
-      if (!next)
+      if (!next) {
         return std::nullopt;
+      }
     }
 
-    if (*next != "contents")
+    if (*next != "contents") {
       return std::nullopt;
+    }
 
     auto contents = read_contents();
-    if (!contents)
+    if (!contents) {
       return std::nullopt;
+    }
     file.contents = std::move(*contents);
 
     result.data = std::move(file);
@@ -119,8 +134,9 @@ auto nar_parser_state_t::parse_node() -> std::optional<nar_node_t> {
 
     while (true) {
       auto token = read_string();
-      if (!token)
+      if (!token) {
         return std::nullopt;
+      }
 
       if (*token == ")") {
         // Oops, we read too far. Need to handle this differently.
@@ -136,37 +152,46 @@ auto nar_parser_state_t::parse_node() -> std::optional<nar_node_t> {
         // But we already consumed it. Need to handle this at outer level.
         // Actually, restructure: peek at token before consuming.
         // For now, if it's ")", we're done.
-        if (*token == ")")
+        if (*token == ")") {
           break;
+        }
         return std::nullopt;
       }
 
       // Parse entry body
-      if (!expect_string("("))
+      if (!expect_string("(")) {
         return std::nullopt;
-      if (!expect_string("name"))
+      }
+      if (!expect_string("name")) {
         return std::nullopt;
+      }
 
       auto entry_name = read_string();
-      if (!entry_name)
+      if (!entry_name) {
         return std::nullopt;
-      if (entry_name->size() > max_entry_name_len)
+      }
+      if (entry_name->size() > max_entry_name_len) {
         return std::nullopt;
+      }
 
       // Enforce sorted order
-      if (!prev_name.empty() && *entry_name <= prev_name)
+      if (!prev_name.empty() && *entry_name <= prev_name) {
         return std::nullopt;
+      }
       prev_name = *entry_name;
 
-      if (!expect_string("node"))
+      if (!expect_string("node")) {
         return std::nullopt;
+      }
 
       auto child = parse_node();
-      if (!child)
+      if (!child) {
         return std::nullopt;
+      }
 
-      if (!expect_string(")"))
+      if (!expect_string(")")) {
         return std::nullopt;
+      }
 
       nar_entry_t entry;
       entry.name = std::move(*entry_name);
@@ -181,12 +206,14 @@ auto nar_parser_state_t::parse_node() -> std::optional<nar_node_t> {
     return result;
 
   } else if (*node_type == "symlink") {
-    if (!expect_string("target"))
+    if (!expect_string("target")) {
       return std::nullopt;
+    }
 
     auto target = read_string();
-    if (!target)
+    if (!target) {
       return std::nullopt;
+    }
 
     nar_node_t::symlink_t link;
     link.target = std::move(*target);
@@ -196,8 +223,9 @@ auto nar_parser_state_t::parse_node() -> std::optional<nar_node_t> {
     return std::nullopt;
   }
 
-  if (!expect_string(")"))
+  if (!expect_string(")")) {
     return std::nullopt;
+  }
 
   --depth;
   return result;
@@ -247,8 +275,9 @@ auto parse_narinfo(std::string_view text) -> parse_result_t<narinfo_t> {
   std::string line;
 
   while (std::getline(stream, line)) {
-    if (line.empty())
+    if (line.empty()) {
       continue;
+    }
 
     const auto colon_pos = line.find(':');
     if (colon_pos == std::string::npos) {
@@ -350,24 +379,27 @@ struct drv_parser_state_t {
 
   auto expect(char c) -> bool {
     skip_whitespace();
-    if (input.empty() || input[0] != c)
+    if (input.empty() || input[0] != c) {
       return false;
+    }
     input = input.substr(1);
     return true;
   }
 
   auto expect(std::string_view s) -> bool {
     skip_whitespace();
-    if (!input.starts_with(s))
+    if (!input.starts_with(s)) {
       return false;
+    }
     input = input.substr(s.size());
     return true;
   }
 
   auto parse_quoted_string() -> std::optional<std::string> {
     skip_whitespace();
-    if (input.empty() || input[0] != '"')
+    if (input.empty() || input[0] != '"') {
       return std::nullopt;
+    }
     input = input.substr(1);
 
     std::string result;
@@ -400,15 +432,17 @@ struct drv_parser_state_t {
       }
     }
 
-    if (input.empty() || input[0] != '"')
+    if (input.empty() || input[0] != '"') {
       return std::nullopt;
+    }
     input = input.substr(1);
     return result;
   }
 
   auto parse_string_list() -> std::optional<std::vector<std::string>> {
-    if (!expect('['))
+    if (!expect('[')) {
       return std::nullopt;
+    }
 
     std::vector<std::string> result;
     skip_whitespace();
@@ -420,21 +454,24 @@ struct drv_parser_state_t {
 
     while (true) {
       auto s = parse_quoted_string();
-      if (!s)
+      if (!s) {
         return std::nullopt;
+      }
       result.push_back(std::move(*s));
 
       skip_whitespace();
-      if (input.empty())
+      if (input.empty()) {
         return std::nullopt;
+      }
 
       if (input[0] == ']') {
         input = input.substr(1);
         return result;
       }
 
-      if (input[0] != ',')
+      if (input[0] != ',') {
         return std::nullopt;
+      }
       input = input.substr(1);
     }
   }
@@ -465,36 +502,44 @@ auto parse_derivation(std::string_view text) -> parse_result_t<derivation_t> {
 
     drv_output_t output;
     auto name = state.parse_quoted_string();
-    if (!name)
+    if (!name) {
       return parse_result_t<derivation_t>::fail("expected output name");
+    }
     output.name = std::move(*name);
 
-    if (!state.expect(','))
+    if (!state.expect(',')) {
       return parse_result_t<derivation_t>::fail("expected ','");
+    }
 
     auto path = state.parse_quoted_string();
-    if (!path)
+    if (!path) {
       return parse_result_t<derivation_t>::fail("expected output path");
+    }
     output.path = std::move(*path);
 
-    if (!state.expect(','))
+    if (!state.expect(',')) {
       return parse_result_t<derivation_t>::fail("expected ','");
+    }
 
     auto hash_algo = state.parse_quoted_string();
-    if (!hash_algo)
+    if (!hash_algo) {
       return parse_result_t<derivation_t>::fail("expected hash algo");
+    }
     output.hash_algo = std::move(*hash_algo);
 
-    if (!state.expect(','))
+    if (!state.expect(',')) {
       return parse_result_t<derivation_t>::fail("expected ','");
+    }
 
     auto hash = state.parse_quoted_string();
-    if (!hash)
+    if (!hash) {
       return parse_result_t<derivation_t>::fail("expected hash");
+    }
     output.hash = std::move(*hash);
 
-    if (!state.expect(')'))
+    if (!state.expect(')')) {
       return parse_result_t<derivation_t>::fail("expected ')'");
+    }
 
     drv.outputs.push_back(std::move(output));
 
@@ -505,10 +550,12 @@ auto parse_derivation(std::string_view text) -> parse_result_t<derivation_t> {
     state.skip_whitespace();
   }
 
-  if (!state.expect(']'))
+  if (!state.expect(']')) {
     return parse_result_t<derivation_t>::fail("expected ']'");
-  if (!state.expect(','))
+  }
+  if (!state.expect(',')) {
     return parse_result_t<derivation_t>::fail("expected ','");
+  }
 
   // Parse input derivations: [("path",["out"]),...]
   if (!state.expect('[')) {
@@ -523,20 +570,24 @@ auto parse_derivation(std::string_view text) -> parse_result_t<derivation_t> {
 
     drv_input_t drv_input;
     auto drv_path = state.parse_quoted_string();
-    if (!drv_path)
+    if (!drv_path) {
       return parse_result_t<derivation_t>::fail("expected drv path");
+    }
     drv_input.drv_path = std::move(*drv_path);
 
-    if (!state.expect(','))
+    if (!state.expect(',')) {
       return parse_result_t<derivation_t>::fail("expected ','");
+    }
 
     auto outputs = state.parse_string_list();
-    if (!outputs)
+    if (!outputs) {
       return parse_result_t<derivation_t>::fail("expected output list");
+    }
     drv_input.output_names = std::move(*outputs);
 
-    if (!state.expect(')'))
+    if (!state.expect(')')) {
       return parse_result_t<derivation_t>::fail("expected ')'");
+    }
 
     drv.input_drvs.push_back(std::move(drv_input));
 
@@ -547,46 +598,56 @@ auto parse_derivation(std::string_view text) -> parse_result_t<derivation_t> {
     state.skip_whitespace();
   }
 
-  if (!state.expect(']'))
+  if (!state.expect(']')) {
     return parse_result_t<derivation_t>::fail("expected ']'");
-  if (!state.expect(','))
+  }
+  if (!state.expect(',')) {
     return parse_result_t<derivation_t>::fail("expected ','");
+  }
 
   // Parse input sources
   auto input_srcs = state.parse_string_list();
-  if (!input_srcs)
+  if (!input_srcs) {
     return parse_result_t<derivation_t>::fail("expected inputSrcs");
+  }
   drv.input_srcs = std::move(*input_srcs);
 
-  if (!state.expect(','))
+  if (!state.expect(',')) {
     return parse_result_t<derivation_t>::fail("expected ','");
+  }
 
   // Platform
   auto platform = state.parse_quoted_string();
-  if (!platform)
+  if (!platform) {
     return parse_result_t<derivation_t>::fail("expected platform");
+  }
   drv.platform = std::move(*platform);
 
-  if (!state.expect(','))
+  if (!state.expect(',')) {
     return parse_result_t<derivation_t>::fail("expected ','");
+  }
 
   // Builder
   auto builder = state.parse_quoted_string();
-  if (!builder)
+  if (!builder) {
     return parse_result_t<derivation_t>::fail("expected builder");
+  }
   drv.builder = std::move(*builder);
 
-  if (!state.expect(','))
+  if (!state.expect(',')) {
     return parse_result_t<derivation_t>::fail("expected ','");
+  }
 
   // Args
   auto args = state.parse_string_list();
-  if (!args)
+  if (!args) {
     return parse_result_t<derivation_t>::fail("expected args");
+  }
   drv.args = std::move(*args);
 
-  if (!state.expect(','))
+  if (!state.expect(',')) {
     return parse_result_t<derivation_t>::fail("expected ','");
+  }
 
   // Environment: [("key","value"),...]
   if (!state.expect('[')) {
@@ -600,18 +661,22 @@ auto parse_derivation(std::string_view text) -> parse_result_t<derivation_t> {
     }
 
     auto key = state.parse_quoted_string();
-    if (!key)
+    if (!key) {
       return parse_result_t<derivation_t>::fail("expected env key");
+    }
 
-    if (!state.expect(','))
+    if (!state.expect(',')) {
       return parse_result_t<derivation_t>::fail("expected ','");
+    }
 
     auto value = state.parse_quoted_string();
-    if (!value)
+    if (!value) {
       return parse_result_t<derivation_t>::fail("expected env value");
+    }
 
-    if (!state.expect(')'))
+    if (!state.expect(')')) {
       return parse_result_t<derivation_t>::fail("expected ')'");
+    }
 
     drv.env.emplace_back(std::move(*key), std::move(*value));
 
@@ -622,10 +687,12 @@ auto parse_derivation(std::string_view text) -> parse_result_t<derivation_t> {
     state.skip_whitespace();
   }
 
-  if (!state.expect(']'))
+  if (!state.expect(']')) {
     return parse_result_t<derivation_t>::fail("expected ']'");
-  if (!state.expect(')'))
+  }
+  if (!state.expect(')')) {
     return parse_result_t<derivation_t>::fail("expected ')'");
+  }
 
   return parse_result_t<derivation_t>::ok(std::move(drv), {});
 }

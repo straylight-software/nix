@@ -286,14 +286,16 @@ private:
         // Skip the format specifier
         ++i;
         // Skip digits for %N% style
-        while (i < fmt.size() && fmt[i] >= '0' && fmt[i] <= '9')
+        while (i < fmt.size() && fmt[i] >= '0' && fmt[i] <= '9') {
           ++i;
-        if (i < fmt.size() && fmt[i] == '%')
+        }
+        if (i < fmt.size() && fmt[i] == '%') {
           ++i;
-        else {
+        } else {
           // Skip format chars like s, d, etc.
-          while (i < fmt.size() && std::isalpha(fmt[i]))
+          while (i < fmt.size() && std::isalpha(fmt[i])) {
             ++i;
+          }
         }
       } else {
         result += fmt[i++];

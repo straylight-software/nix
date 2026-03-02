@@ -18,8 +18,9 @@ std::shared_ptr<Registry> Registry::read(const settings_t& settings, const sourc
                                          RegistryType type) {
   debug("reading registry '%s'", path);
 
-  if (!path.path_exists())
+  if (!path.path_exists()) {
     return std::make_shared<Registry>(type);
+  }
 
   try {
     return read(settings, path.to_string(), path.read_file(), type);
@@ -56,8 +57,9 @@ std::shared_ptr<Registry> Registry::read(const settings_t& settings, std::string
       }
     }
 
-    else
+    else {
       warn("flake registry '%s' has unsupported version %d", whence, version);
+    }
 
   } catch (nlohmann::json::exception& e) {
     warn("cannot parse flake registry '%s': %s", whence, e.what());
@@ -72,10 +74,12 @@ void Registry::write(const std::filesystem::path& path) {
     nlohmann::json obj;
     obj["from"] = attrs_to_json(entry.from.toAttrs());
     obj["to"] = attrs_to_json(entry.to.toAttrs());
-    if (!entry.extra_attrs.empty())
+    if (!entry.extra_attrs.empty()) {
       obj["to"].update(attrs_to_json(entry.extra_attrs));
-    if (entry.exact)
+    }
+    if (entry.exact) {
       obj["exact"] = true;
+    }
     arr.emplace_back(std::move(obj));
   }
 
@@ -153,8 +157,9 @@ struct LazyGlobalRegistry {
 
   std::shared_ptr<Registry> get(const settings_t& settings, store_t& store) const {
     std::lock_guard lock(mutex);
-    if (cached)
+    if (cached) {
       return *cached;
+    }
 
     debug("lazily fetching global flake registry");
     try {
@@ -170,8 +175,9 @@ struct LazyGlobalRegistry {
             if (!is_absolute(path)) {
               auto store_path =
                   download_file(store, settings, path, "flake-registry.json").store_path;
-              if (auto store2 = dynamic_cast<local_fs_store*>(&store))
+              if (auto store2 = dynamic_cast<local_fs_store*>(&store)) {
                 store2->addPermRoot(store_path, (get_cache_dir() / "flake-registry.json").string());
+              }
               return {store.requireStoreObjectAccessor(store_path)};
             } else {
               return source_path_t{get_fs_source_accessor(), canon_path_t{path}}.resolve_symlinks();
@@ -211,20 +217,23 @@ std::pair<input_t, Attrs> lookup_in_registries(const settings_t& settings, store
   int n = 0;
   input_t input(_input);
 
-  if (use_registries == UseRegistries::No)
+  if (use_registries == UseRegistries::No) {
     return {input, extra_attrs};
+  }
 
 restart:
 
   n++;
-  if (n > 100)
+  if (n > 100) {
     throw Error("cycle detected in flake registry for '%s'", input.to_string());
+  }
 
   for (auto& registry : get_registries(settings, store)) {
     if (use_registries == UseRegistries::Limited &&
         !(registry->type == fetchers::Registry::flag_t ||
-          registry->type == fetchers::Registry::Global))
+          registry->type == fetchers::Registry::Global)) {
       continue;
+    }
     // FIXME: O(n)
     for (auto& entry : registry->entries) {
       if (entry.exact) {
@@ -249,8 +258,9 @@ restart:
     }
   }
 
-  if (!input.isDirect())
+  if (!input.isDirect()) {
     throw Error("cannot find flake '%s' in the flake registries", input.to_string());
+  }
 
   debug("looked up '%s' -> '%s'", _input.to_string(), input.to_string());
 

@@ -16,20 +16,23 @@ namespace nix {
 
 void print_elided(std::ostream& output, unsigned int value, const std::string_view single,
                   const std::string_view plural, bool ansi_colors) {
-  if (ansi_colors)
+  if (ansi_colors) {
     output << ANSI_FAINT;
+  }
   output << "«";
   pluralize(output, value, single, plural);
   output << " elided»";
-  if (ansi_colors)
+  if (ansi_colors) {
     output << ANSI_NORMAL;
+  }
 }
 
 std::ostream& print_literal_string(std::ostream& str, const std::string_view string,
                                    size_t max_length, bool ansi_colors) {
   size_t chars_printed = 0;
-  if (ansi_colors)
+  if (ansi_colors) {
     str << ANSI_MAGENTA;
+  }
   str << "\"";
   for (auto i = string.begin(); i != string.end(); ++i) {
     if (chars_printed >= max_length) {
@@ -38,23 +41,25 @@ std::ostream& print_literal_string(std::ostream& str, const std::string_view str
       return str;
     }
 
-    if (*i == '\"' || *i == '\\')
+    if (*i == '\"' || *i == '\\') {
       str << "\\" << *i;
-    else if (*i == '\n')
+    } else if (*i == '\n') {
       str << "\\n";
-    else if (*i == '\r')
+    } else if (*i == '\r') {
       str << "\\r";
-    else if (*i == '\t')
+    } else if (*i == '\t') {
       str << "\\t";
-    else if (*i == '$' && *(i + 1) == '{')
+    } else if (*i == '$' && *(i + 1) == '{') {
       str << "\\" << *i;
-    else
+    } else {
       str << *i;
+    }
     chars_printed++;
   }
   str << "\"";
-  if (ansi_colors)
+  if (ansi_colors) {
     str << ANSI_NORMAL;
+  }
   return str;
 }
 
@@ -81,47 +86,54 @@ bool is_reserved_keyword(const std::string_view str) {
 }
 
 std::ostream& print_identifier(std::ostream& str, std::string_view s) {
-  if (s.empty())
+  if (s.empty()) {
     str << "\"\"";
-  else if (is_reserved_keyword(s))
+  } else if (is_reserved_keyword(s)) {
     str << '"' << s << '"';
-  else {
+  } else {
     char c = s[0];
     if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_')) {
       print_literal_string(str, s);
       return str;
     }
-    for (auto c : s)
+    for (auto c : s) {
       if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
             c == '_' || c == '\'' || c == '-')) {
         print_literal_string(str, s);
         return str;
       }
+    }
     str << s;
   }
   return str;
 }
 
 static bool is_var_name(std::string_view s) {
-  if (s.size() == 0)
+  if (s.size() == 0) {
     return false;
-  if (is_reserved_keyword(s))
+  }
+  if (is_reserved_keyword(s)) {
     return false;
+  }
   char c = s[0];
-  if ((c >= '0' && c <= '9') || c == '-' || c == '\'')
+  if ((c >= '0' && c <= '9') || c == '-' || c == '\'') {
     return false;
-  for (auto& i : s)
+  }
+  for (auto& i : s) {
     if (!((i >= 'a' && i <= 'z') || (i >= 'A' && i <= 'Z') || (i >= '0' && i <= '9') || i == '_' ||
-          i == '-' || i == '\''))
+          i == '-' || i == '\'')) {
       return false;
+    }
+  }
   return true;
 }
 
 std::ostream& print_attribute_name(std::ostream& str, std::string_view name) {
-  if (is_var_name(name))
+  if (is_var_name(name)) {
     str << name;
-  else
+  } else {
     print_literal_string(str, name);
+  }
   return str;
 }
 
@@ -180,19 +192,23 @@ struct printer_t {
   }
 
   void print_repeated() {
-    if (options.ansi_colors)
+    if (options.ansi_colors) {
       output << ANSI_MAGENTA;
+    }
     output << "«repeated»";
-    if (options.ansi_colors)
+    if (options.ansi_colors) {
       output << ANSI_NORMAL;
+    }
   }
 
   void print_nullptr() {
-    if (options.ansi_colors)
+    if (options.ansi_colors) {
       output << ANSI_MAGENTA;
+    }
     output << "«nullptr»";
-    if (options.ansi_colors)
+    if (options.ansi_colors) {
       output << ANSI_NORMAL;
+    }
   }
 
   void print_elided(unsigned int value, const std::string_view single,
@@ -201,27 +217,33 @@ struct printer_t {
   }
 
   void print_int(value_t& v) {
-    if (options.ansi_colors)
+    if (options.ansi_colors) {
       output << ANSI_CYAN;
+    }
     output << v.integer();
-    if (options.ansi_colors)
+    if (options.ansi_colors) {
       output << ANSI_NORMAL;
+    }
   }
 
   void print_float(value_t& v) {
-    if (options.ansi_colors)
+    if (options.ansi_colors) {
       output << ANSI_CYAN;
+    }
     output << v.fpoint();
-    if (options.ansi_colors)
+    if (options.ansi_colors) {
       output << ANSI_NORMAL;
+    }
   }
 
   void print_bool(value_t& v) {
-    if (options.ansi_colors)
+    if (options.ansi_colors) {
       output << ANSI_CYAN;
+    }
     print_literal_bool(output, v.boolean());
-    if (options.ansi_colors)
+    if (options.ansi_colors) {
       output << ANSI_NORMAL;
+    }
   }
 
   void print_string(value_t& v) {
@@ -233,19 +255,23 @@ struct printer_t {
   }
 
   void print_path(value_t& v) {
-    if (options.ansi_colors)
+    if (options.ansi_colors) {
       output << ANSI_GREEN;
+    }
     output << v.path().to_string(); // !!! escaping?
-    if (options.ansi_colors)
+    if (options.ansi_colors) {
       output << ANSI_NORMAL;
+    }
   }
 
   void print_null() {
-    if (options.ansi_colors)
+    if (options.ansi_colors) {
       output << ANSI_CYAN;
+    }
     output << "null";
-    if (options.ansi_colors)
+    if (options.ansi_colors) {
       output << ANSI_NORMAL;
+    }
   }
 
   void print_derivation(value_t& v) {
@@ -266,15 +292,17 @@ struct printer_t {
                 state.store->printStorePath(*store_path));
 #endif
 
-    if (options.ansi_colors)
+    if (options.ansi_colors) {
       output << ANSI_GREEN;
+    }
     output << "«derivation";
     if (store_path) {
       output << " " << state.store->printStorePath(*store_path);
     }
     output << "»";
-    if (options.ansi_colors)
+    if (options.ansi_colors) {
       output << ANSI_NORMAL;
+    }
   }
 
   /**
@@ -317,13 +345,15 @@ struct printer_t {
       output << "{";
 
       AttrVec sorted;
-      for (auto& i : *v.attrs())
+      for (auto& i : *v.attrs()) {
         sorted.emplace_back(std::pair(state.symbols[i.name], i.value));
+      }
 
-      if (options.maxAttrs == std::numeric_limits<size_t>::max())
+      if (options.maxAttrs == std::numeric_limits<size_t>::max()) {
         std::sort(sorted.begin(), sorted.end());
-      else
+      } else {
         std::sort(sorted.begin(), sorted.end(), important_first_attr_name_cmp_t());
+      }
 
       auto pretty_print = should_pretty_print_attrs(sorted);
 
@@ -420,8 +450,9 @@ struct printer_t {
   }
 
   void print_function(value_t& v) {
-    if (options.ansi_colors)
+    if (options.ansi_colors) {
       output << ANSI_BLUE;
+    }
     output << "«";
 
     if (v.isLambda()) {
@@ -434,24 +465,27 @@ struct printer_t {
         output << " @ " << filter_ansi_escapes(state.positions[v.lambda().fun->pos].to_string());
       }
     } else if (v.isPrimOp()) {
-      if (v.prim_op())
+      if (v.prim_op()) {
         output << *v.prim_op();
-      else
+      } else {
         output << "primop";
+      }
     } else if (v.isPrimOpApp()) {
       output << "partially applied ";
       auto prim_op = v.primOpAppPrimOp();
-      if (prim_op)
+      if (prim_op) {
         output << *prim_op;
-      else
+      } else {
         output << "primop";
+      }
     } else {
       unreachable();
     }
 
     output << "»";
-    if (options.ansi_colors)
+    if (options.ansi_colors) {
       output << ANSI_NORMAL;
+    }
   }
 
   void print_thunk(value_t& v) {
@@ -462,17 +496,21 @@ struct printer_t {
       // as a definitive statement about the value, while in fact it may be
       // a valid value after `builtins.trace` and perhaps some other steps
       // have completed.
-      if (options.ansi_colors)
+      if (options.ansi_colors) {
         output << ANSI_RED;
+      }
       output << "«potential infinite recursion»";
-      if (options.ansi_colors)
+      if (options.ansi_colors) {
         output << ANSI_NORMAL;
+      }
     } else if (!v.isFinished()) {
-      if (options.ansi_colors)
+      if (options.ansi_colors) {
         output << ANSI_MAGENTA;
+      }
       output << "«thunk»";
-      if (options.ansi_colors)
+      if (options.ansi_colors) {
         output << ANSI_NORMAL;
+      }
     } else {
       unreachable();
     }
@@ -483,19 +521,23 @@ struct printer_t {
   void print_external(value_t& v) { v.external()->print(output); }
 
   void print_unknown() {
-    if (options.ansi_colors)
+    if (options.ansi_colors) {
       output << ANSI_RED;
+    }
     output << "«unknown»";
-    if (options.ansi_colors)
+    if (options.ansi_colors) {
       output << ANSI_NORMAL;
+    }
   }
 
   void print_error_(Error& e) {
-    if (options.ansi_colors)
+    if (options.ansi_colors) {
       output << ANSI_RED;
+    }
     output << "«error: " << filter_ansi_escapes(e.info().msg_.str(), true) << "»";
-    if (options.ansi_colors)
+    if (options.ansi_colors) {
       output << ANSI_NORMAL;
+    }
   }
 
   void print(value_t& v, size_t depth) {

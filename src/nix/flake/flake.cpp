@@ -73,16 +73,18 @@ struct source_accessor_t;
 namespace flake {
 
 static void force_trivial_value(eval_state_t& state, value_t& value, const pos_idx_t pos) {
-  if (value.isTrivial())
+  if (value.isTrivial()) {
     state.forceValue(value, pos);
+  }
 }
 
 static void expect_type(eval_state_t& state, ValueType type, value_t& value, const pos_idx_t pos) {
   force_trivial_value(state, value, pos);
   auto t = value.type();
-  if (t != type)
+  if (t != type) {
     throw Error("expected %s but got %s at %s", show_type(type), show_type(t),
                 state.positions[pos]);
+  }
 }
 
 static std::pair<std::map<FlakeId, FlakeInput>, fetchers::Attrs>
@@ -104,11 +106,12 @@ static void parse_flake_input_attr(eval_state_t& state, const nix::attr_t& attr,
       break;
     case nInt: {
       auto int_value = attr.value->integer().value;
-      if (int_value < 0)
+      if (int_value < 0) {
         state
             .error<EvalError>("negative value given for flake input attribute %1%: %2%",
                               state.symbols[attr.name], int_value)
             .debugThrow();
+      }
       attrs.emplace(state.symbols[attr.name], uint64_t(int_value));
       break;
     }
@@ -119,12 +122,13 @@ static void parse_flake_input_attr(eval_state_t& state, const nix::attr_t& attr,
         attrs.emplace(
             state.symbols[attr.name],
             print_value_as_json(state, true, *attr.value, attr.pos, empty_context).dump());
-      } else
+      } else {
         state
             .error<TypeError>(
                 "flake input attribute '%s' is %s while a string, Boolean, or integer is expected",
                 state.symbols[attr.name], show_type(*attr.value))
             .debugThrow();
+      }
   }
 #pragma GCC diagnostic pop
 }
@@ -149,17 +153,19 @@ static FlakeInput parse_flake_input(eval_state_t& state, value_t* value, const p
     try {
       if (attr.name == s_url) {
         force_trivial_value(state, *attr.value, pos);
-        if (attr.value->type() == nString)
+        if (attr.value->type() == nString) {
           url = attr.value->string_view();
-        else if (attr.value->type() == nPath) {
+        } else if (attr.value->type() == nPath) {
           auto path = attr.value->path();
-          if (path.accessor != flake_dir.accessor)
+          if (path.accessor != flake_dir.accessor) {
             throw Error("input attribute path '%s' at %s must be in the same source tree as %s",
                         path, state.positions[attr.pos], flake_dir);
+          }
           url = "path:" + flake_dir.path.make_relative(path.path);
-        } else
+        } else {
           throw Error("expected a string or a path but got %s at %s", show_type(attr.value->type()),
                       state.positions[attr.pos]);
+        }
         attrs.emplace("url", *url);
       } else if (attr.name == s_flake) {
         expect_type(state, nBool, *attr.value, attr.pos);
@@ -167,8 +173,9 @@ static FlakeInput parse_flake_input(eval_state_t& state, value_t* value, const p
       } else if (attr.name == s_build_time) {
         expect_type(state, nBool, *attr.value, attr.pos);
         input.buildTime = attr.value->boolean();
-        if (input.buildTime)
+        if (input.buildTime) {
           experimental_feature_settings.require(xp_t::build_time_fetch_tree);
+        }
       } else if (attr.name == s_inputs) {
         input.overrides =
             parseFlakeInputs(state, attr.value, attr.pos, lock_root_attr_path, flake_dir, false)
@@ -178,8 +185,9 @@ static FlakeInput parse_flake_input(eval_state_t& state, value_t* value, const p
         auto follows(parse_input_attr_path(attr.value->string_view()));
         follows.insert(follows.begin(), lock_root_attr_path.begin(), lock_root_attr_path.end());
         input.follows = follows;
-      } else
+      } else {
         parse_flake_input_attr(state, attr, attrs);
+      }
     } catch (Error& e) {
       e.add_trace(state.positions[attr.pos],
                   hint_fmt_t("while evaluating flake attribute '%s'", state.symbols[attr.name]));
@@ -187,25 +195,28 @@ static FlakeInput parse_flake_input(eval_state_t& state, value_t* value, const p
     }
   }
 
-  if (attrs.count("type"))
+  if (attrs.count("type")) {
     try {
       input.ref = flake_ref_t::fromAttrs(state.fetch_settings, attrs);
     } catch (Error& e) {
       e.add_trace(state.positions[pos], hint_fmt_t("while evaluating flake input"));
       throw;
     }
-  else {
+  } else {
     attrs.erase("url");
-    if (!attrs.empty())
+    if (!attrs.empty()) {
       throw Error("unexpected flake input attribute '%s', at %s", attrs.begin()->first,
                   state.positions[pos]);
-    if (url)
+    }
+    if (url) {
       input.ref = parse_flake_ref(state.fetch_settings, *url, {}, true, input.is_flake, true);
+    }
   }
 
-  if (input.ref && input.follows)
+  if (input.ref && input.follows) {
     throw Error("flake input has both a flake reference and a follows attribute, at %s",
                 state.positions[pos]);
+  }
 
   return input;
 }
@@ -222,11 +233,13 @@ parseFlakeInputs(eval_state_t& state, value_t* value, const pos_idx_t pos,
   for (auto& inputAttr : *value->attrs()) {
     auto inputName = state.symbols[inputAttr.name];
     if (inputName == "self") {
-      if (!allowSelf)
+      if (!allowSelf) {
         throw Error("'self' input attribute not allowed at %s", state.positions[inputAttr.pos]);
+      }
       expect_type(state, nAttrs, *inputAttr.value, inputAttr.pos);
-      for (auto& attr : *inputAttr.value->attrs())
+      for (auto& attr : *inputAttr.value->attrs()) {
         parse_flake_input_attr(state, attr, selfAttrs);
+      }
     } else {
       inputs.emplace(inputName, parse_flake_input(state, inputAttr.value, inputAttr.pos,
                                                   lock_root_attr_path, flake_dir));
@@ -275,17 +288,19 @@ static flake_t read_flake(eval_state_t& state, const flake_ref_t& original_ref,
     if (outputs->value->isLambda()) {
       if (auto formals = outputs->value->lambda().fun->getFormals()) {
         for (auto& formal : formals->formals) {
-          if (formal.name != state.s.self)
+          if (formal.name != state.s.self) {
             flake.inputs.emplace(
                 state.symbols[formal.name],
                 FlakeInput{.ref = parse_flake_ref(state.fetch_settings,
                                                   std::string(state.symbols[formal.name]))});
+          }
         }
       }
     }
 
-  } else
+  } else {
     throw Error("flake '%s' lacks attribute 'outputs'", resolved_ref);
+  }
 
   auto s_nix_config = state.symbols.create("nixConfig");
 
@@ -294,47 +309,50 @@ static flake_t read_flake(eval_state_t& state, const flake_ref_t& original_ref,
 
     for (auto& setting : *nixConfig->value->attrs()) {
       force_trivial_value(state, *setting.value, setting.pos);
-      if (setting.value->type() == nString)
+      if (setting.value->type() == nString) {
         flake.config.settings.emplace(
             state.symbols[setting.name],
             std::string(state.forceStringNoCtx(*setting.value, setting.pos, "")));
-      else if (setting.value->type() == nPath) {
+      } else if (setting.value->type() == nPath) {
         auto store_path = fetch_to_store(state.fetch_settings, *state.store, setting.value->path(),
                                          FetchMode::Copy);
         flake.config.settings.emplace(state.symbols[setting.name],
                                       state.store->printStorePath(store_path));
-      } else if (setting.value->type() == nInt)
+      } else if (setting.value->type() == nInt) {
         flake.config.settings.emplace(state.symbols[setting.name],
                                       state.forceInt(*setting.value, setting.pos, "").value);
-      else if (setting.value->type() == nBool)
+      } else if (setting.value->type() == nBool) {
         flake.config.settings.emplace(
             state.symbols[setting.name],
             explicit_t<bool>{state.forceBool(*setting.value, setting.pos, "")});
-      else if (setting.value->type() == nList) {
+      } else if (setting.value->type() == nList) {
         std::vector<std::string> ss;
         for (auto elem : setting.value->list_view()) {
-          if (elem->type() != nString)
+          if (elem->type() != nString) {
             state
                 .error<TypeError>("list element in flake configuration setting '%s' is %s while a "
                                   "string is expected",
                                   state.symbols[setting.name], show_type(*elem))
                 .debugThrow();
+          }
           ss.emplace_back(state.forceStringNoCtx(*elem, setting.pos, ""));
         }
         flake.config.settings.emplace(state.symbols[setting.name], ss);
-      } else
+      } else {
         state
             .error<TypeError>("flake configuration setting '%s' is %s", state.symbols[setting.name],
                               show_type(*setting.value))
             .debugThrow();
+      }
     }
   }
 
   for (auto& attr : *v_info.attrs()) {
     if (attr.name != state.s.description && attr.name != s_inputs && attr.name != s_outputs &&
-        attr.name != s_nix_config)
+        attr.name != s_nix_config) {
       throw Error("flake '%s' has an unsupported attribute '%s', at %s", resolved_ref,
                   state.symbols[attr.name], state.positions[attr.pos]);
+    }
   }
 
   return flake;
@@ -346,8 +364,9 @@ static flake_ref_t apply_self_attrs(const flake_ref_t& ref, const flake_t& flake
   string_set_t allowed_attrs{"submodules", "lfs"};
 
   for (auto& attr : flake.selfAttrs) {
-    if (!allowed_attrs.contains(attr.first))
+    if (!allowed_attrs.contains(attr.first)) {
       throw Error("flake 'self' attribute '%s' is not supported", attr.first);
+    }
 
     // Check if the input scheme actually supports this attribute.
     // For example, github: inputs don't support submodules - only git: inputs do.
@@ -384,8 +403,9 @@ static bool flake_uses_self(eval_state_t& state, const flake_t& flake,
     if (outputs->value->isLambda()) {
       if (auto formals = outputs->value->lambda().fun->getFormals()) {
         for (auto& formal : formals->formals) {
-          if (formal.name == state.s.self)
+          if (formal.name == state.s.self) {
             return true;
+          }
         }
       }
     }
@@ -454,8 +474,9 @@ flake_t get_flake(eval_state_t& state, const flake_ref_t& original_ref,
  */
 static lock_file_t read_lock_file(eval_state_t& state, const fetchers::settings_t& fetch_settings,
                                   const source_path_t& lock_file_path) {
-  if (!lock_file_path.path_exists())
+  if (!lock_file_path.path_exists()) {
     return lock_file_t();
+  }
 
   auto path_str = fmt("%s", lock_file_path);
 
@@ -574,11 +595,12 @@ LockedFlake lock_flake(const settings_t& settings, eval_state_t& state, const fl
         for (auto& [idOverride, inputOverride] : input.overrides) {
           auto inputAttrPath(prefix);
           inputAttrPath.push_back(idOverride);
-          if (inputOverride.ref || inputOverride.follows)
+          if (inputOverride.ref || inputOverride.follows) {
             overrides.emplace(inputAttrPath,
                               override_target_t{.input = inputOverride,
                                                 .source_path = source_path,
                                                 .parent_input_attr_path = inputAttrPathPrefix});
+          }
           addOverrides(inputOverride, inputAttrPath);
         }
       };
@@ -595,9 +617,10 @@ LockedFlake lock_flake(const settings_t& settings, eval_state_t& state, const fl
         auto inputAttrPath2(inputAttrPath);
         auto follow = inputAttrPath2.back();
         inputAttrPath2.pop_back();
-        if (inputAttrPath2 == inputAttrPathPrefix && !flakeInputs.count(follow))
+        if (inputAttrPath2 == inputAttrPathPrefix && !flakeInputs.count(follow)) {
           warn("input '%s' has an override for a non-existent input '%s'",
                print_input_attr_path(inputAttrPathPrefix), follow);
+        }
       }
 
       /* Go over the flake inputs, resolve/fetch them if
@@ -615,8 +638,9 @@ LockedFlake lock_flake(const settings_t& settings, eval_state_t& state, const fl
           auto i = overrides.find(inputAttrPath);
           bool hasOverride = i != overrides.end();
           bool hasCliOverride = explicitCliOverrides.contains(inputAttrPath);
-          if (hasOverride)
+          if (hasOverride) {
             overridesUsed.insert(inputAttrPath);
+          }
           auto input = hasOverride ? i->second.input : input2;
 
           /* Resolve relative 'path:' inputs relative to
@@ -625,8 +649,9 @@ LockedFlake lock_flake(const settings_t& settings, eval_state_t& state, const fl
 
           /* Respect the "flakeness" of the input even if we
              override it. */
-          if (hasOverride)
+          if (hasOverride) {
             input.is_flake = input2.is_flake;
+          }
 
           /* Resolve 'follows' later (since it may refer to an input
              path we haven't processed yet. */
@@ -640,9 +665,10 @@ LockedFlake lock_flake(const settings_t& settings, eval_state_t& state, const fl
             continue;
           }
 
-          if (!input.ref)
+          if (!input.ref) {
             input.ref = flake_ref_t::fromAttrs(state.fetch_settings,
                                                {{"type", "indirect"}, {"id", std::string(id)}});
+          }
 
           auto overriddenParentPath =
               input.ref->input.isRelative()
@@ -655,8 +681,9 @@ LockedFlake lock_flake(const settings_t& settings, eval_state_t& state, const fl
               return source_path_t{
                   overriddenSourcePath.accessor,
                   canon_path_t(*relativePath, overriddenSourcePath.path.parent().value())};
-            } else
+            } else {
               return std::nullopt;
+            }
           };
 
           /* Get the input flake, resolve 'path:./...'
@@ -676,10 +703,13 @@ LockedFlake lock_flake(const settings_t& settings, eval_state_t& state, const fl
 
           updatesUsed.insert(inputAttrPath);
 
-          if (oldNode && !lock_flags.inputUpdates.count(inputAttrPath))
-            if (auto oldLock2 = get(oldNode->inputs, id))
-              if (auto oldLock3 = std::get_if<0>(&*oldLock2))
+          if (oldNode && !lock_flags.inputUpdates.count(inputAttrPath)) {
+            if (auto oldLock2 = get(oldNode->inputs, id)) {
+              if (auto oldLock3 = std::get_if<0>(&*oldLock2)) {
                 oldLock = *oldLock3;
+              }
+            }
+          }
 
           if (oldLock && oldLock->original_ref.canonicalize() == input.ref->canonicalize() &&
               oldLock->parent_input_attr_path == overriddenParentPath && !hasCliOverride) {
@@ -810,8 +840,9 @@ LockedFlake lock_flake(const settings_t& settings, eval_state_t& state, const fl
             debug("creating new input '%s'", inputAttrPathS);
 
             if (!lock_flags.allowUnlocked && !input.ref->input.isLocked(state.fetch_settings) &&
-                !input.ref->input.isRelative())
+                !input.ref->input.isRelative()) {
               throw Error("cannot update unlocked flake input '%s' in pure mode", inputAttrPathS);
+            }
 
             /* Note: in case of an --override-input, we use
                 the *original* ref (input2.ref) for the
@@ -857,9 +888,11 @@ LockedFlake lock_flake(const settings_t& settings, eval_state_t& state, const fl
                  Compare locked refs, not input refs, because two different
                  refs (e.g. 'github:owner/repo' vs 'github:owner/repo?ref=main')
                  can resolve to the same flake. */
-              for (auto& parent : parents)
-                if (parent == inputFlake.locked_ref)
+              for (auto& parent : parents) {
+                if (parent == inputFlake.locked_ref) {
                   throw Error("found circular import of flake '%s'", parent);
+                }
+              }
               parents.push_back(inputFlake.locked_ref);
               finally_t cleanup([&]() { parents.pop_back(); });
 
@@ -919,14 +952,18 @@ LockedFlake lock_flake(const settings_t& settings, eval_state_t& state, const fl
                  lock_flags.recreateLockFile ? nullptr : old_lock_file.root.get_ptr(), {},
                  flake.path, false);
 
-    for (auto& i : lock_flags.inputOverrides)
-      if (!overridesUsed.count(i.first))
+    for (auto& i : lock_flags.inputOverrides) {
+      if (!overridesUsed.count(i.first)) {
         warn("the flag '--override-input %s %s' does not match any input",
              print_input_attr_path(i.first), i.second);
+      }
+    }
 
-    for (auto& i : lock_flags.inputUpdates)
-      if (!updatesUsed.count(i))
+    for (auto& i : lock_flags.inputUpdates) {
+      if (!updatesUsed.count(i)) {
         warn("'%s' does not match any input of this flake", print_input_attr_path(i));
+      }
+    }
 
     /* Check 'follows' inputs. */
     new_lock_file.check();
@@ -942,25 +979,29 @@ LockedFlake lock_flake(const settings_t& settings, eval_state_t& state, const fl
       if (lock_flags.writeLockFile) {
         if (source_path || lock_flags.output_lock_file_path) {
           if (auto unlockedInput = new_lock_file.isUnlocked(state.fetch_settings)) {
-            if (lock_flags.failOnUnlocked)
+            if (lock_flags.failOnUnlocked) {
               throw Error(
                   "Not writing lock file of flake '%s' because it has an unlocked input ('%s'). "
                   "Use '--allow-dirty-locks' to allow this anyway.",
                   top_ref, *unlockedInput);
-            if (state.fetch_settings.warn_dirty)
+            }
+            if (state.fetch_settings.warn_dirty) {
               warn("not writing lock file of flake '%s' because it has an unlocked input ('%s')",
                    top_ref, *unlockedInput);
+            }
           } else {
-            if (!lock_flags.updateLockFile)
+            if (!lock_flags.updateLockFile) {
               throw Error("flake '%s' requires lock file changes but they're not allowed due to "
                           "'--no-update-lock-file'",
                           top_ref);
+            }
 
             auto new_lock_file_s = fmt("%s\n", new_lock_file);
 
             if (lock_flags.output_lock_file_path) {
-              if (lock_flags.commitLockFile)
+              if (lock_flags.commitLockFile) {
                 throw Error("'--commit-lock-file' and '--output-lock-file' are incompatible");
+              }
               write_file(*lock_flags.output_lock_file_path, new_lock_file_s);
             } else {
               auto rel_path = (top_ref.subdir == "" ? "" : top_ref.subdir + "/") + "flake.lock";
@@ -970,12 +1011,14 @@ LockedFlake lock_flake(const settings_t& settings, eval_state_t& state, const fl
 
               auto s = chomp(diff);
               if (lock_file_exists) {
-                if (s.empty())
+                if (s.empty()) {
                   warn("updating lock file %s", output_lock_file_path);
-                else
+                } else {
                   warn("updating lock file %s:\n%s", output_lock_file_path, s);
-              } else
+                }
+              } else {
                 warn("creating lock file %s: \n%s", output_lock_file_path, s);
+              }
 
               std::optional<std::string> commitMessage = std::nullopt;
 
@@ -1007,13 +1050,15 @@ LockedFlake lock_flake(const settings_t& settings, eval_state_t& state, const fl
             flake = get_flake(state, top_ref, use_registries_top, lock_flags.require_lockable);
 
             if (lock_flags.commitLockFile && flake.locked_ref.input.getRev() &&
-                prev_locked_ref.input.getRev() != flake.locked_ref.input.getRev())
+                prev_locked_ref.input.getRev() != flake.locked_ref.input.getRev()) {
               warn("committed new revision '%s'", flake.locked_ref.input.getRev()->git_rev());
+            }
           }
-        } else
+        } else {
           throw Error("cannot write modified lock file of flake '%s' (use '--no-write-lock-file' "
                       "to ignore)",
                       top_ref);
+        }
       } else {
         warn("not writing modified lock file of flake '%s':\n%s", top_ref, chomp(diff));
         flake.force_dirty = true;
@@ -1088,22 +1133,26 @@ void call_flake(eval_state_t& state, const LockedFlake& locked_flake, value_t& v
 
 std::optional<Fingerprint>
 LockedFlake::get_fingerprint(store_t& store, const fetchers::settings_t& fetch_settings) const {
-  if (lock_file.isUnlocked(fetch_settings))
+  if (lock_file.isUnlocked(fetch_settings)) {
     return std::nullopt;
+  }
 
   auto fingerprint = flake.locked_ref.input.get_fingerprint(store);
-  if (!fingerprint)
+  if (!fingerprint) {
     return std::nullopt;
+  }
 
   *fingerprint += fmt(";%s;%s", flake.locked_ref.subdir, lock_file);
 
   /* Include rev_count and last_modified because they're not
      necessarily implied by the content fingerprint (e.g. for
      tarball flakes) but can influence the evaluation result. */
-  if (auto rev_count = flake.locked_ref.input.get_rev_count())
+  if (auto rev_count = flake.locked_ref.input.get_rev_count()) {
     *fingerprint += fmt(";revCount=%d", *rev_count);
-  if (auto last_modified = flake.locked_ref.input.get_last_modified())
+  }
+  if (auto last_modified = flake.locked_ref.input.get_last_modified()) {
     *fingerprint += fmt(";lastModified=%d", *last_modified);
+  }
 
   // FIXME: as an optimization, if the flake contains a lock file
   // and we haven't changed it, then it's sufficient to use
@@ -1121,8 +1170,9 @@ ref<eval_cache::EvalCache> open_eval_cache(eval_state_t& state,
   auto root_loader = [&state, locked_flake]() {
     /* For testing whether the evaluation cache is
        complete. */
-    if (get_env("NIX_ALLOW_EVAL").value_or("1") == "0")
+    if (get_env("NIX_ALLOW_EVAL").value_or("1") == "0") {
       throw Error("not everything is cached, but evaluation is not allowed");
+    }
 
     auto v_flake = state.allocValue();
     call_flake(state, *locked_flake, *v_flake);

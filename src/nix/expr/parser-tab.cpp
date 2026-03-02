@@ -430,10 +430,11 @@ void bison_parser_t ::by_state::move(by_state& that) {
 bison_parser_t ::by_state::by_state(state_type s) YY_NOEXCEPT : state(s) {}
 
 bison_parser_t ::symbol_kind_type bison_parser_t ::by_state::kind() const YY_NOEXCEPT {
-  if (state == empty_state)
+  if (state == empty_state) {
     return symbol_kind::S_YYEMPTY;
-  else
+  } else {
     return YY_CAST(symbol_kind_type, yystos_[+state]);
+  }
 }
 
 bison_parser_t ::stack_symbol_type::stack_symbol_type() {}
@@ -786,8 +787,9 @@ bison_parser_t ::stack_symbol_type::operator=(stack_symbol_type& that) {
 
 template <typename Base>
 void bison_parser_t ::yy_destroy_(const char* yymsg, basic_symbol<Base>& yysym) const {
-  if (yymsg)
+  if (yymsg) {
     YY_SYMBOL_PRINT(yymsg, yysym);
+  }
 }
 
 #if YYDEBUG
@@ -795,9 +797,9 @@ template <typename Base>
 void bison_parser_t ::yy_print_(std::ostream& yyo, const basic_symbol<Base>& yysym) const {
   std::ostream& yyoutput = yyo;
   YY_USE(yyoutput);
-  if (yysym.empty())
+  if (yysym.empty()) {
     yyo << "empty symbol";
-  else {
+  } else {
     symbol_kind_type yykind = yysym.kind();
     yyo << (yykind < YYNTOKENS ? "token" : "nterm") << ' ' << yysym.name() << " (" << yysym.location
         << ": ";
@@ -808,8 +810,9 @@ void bison_parser_t ::yy_print_(std::ostream& yyo, const basic_symbol<Base>& yys
 #endif
 
 void bison_parser_t ::yypush_(const char* m, YY_MOVE_REF(stack_symbol_type) sym) {
-  if (m)
+  if (m) {
     YY_SYMBOL_PRINT(m, sym);
+  }
   yystack_.push(YY_MOVE(sym));
 }
 
@@ -847,10 +850,11 @@ void bison_parser_t ::set_debug_level(debug_level_type l) {
 
 bison_parser_t ::state_type bison_parser_t ::yy_lr_goto_state_(state_type yystate, int yysym) {
   int yyr = yypgoto_[yysym - YYNTOKENS] + yystate;
-  if (0 <= yyr && yyr <= yylast_ && yycheck_[yyr] == yystate)
+  if (0 <= yyr && yyr <= yylast_ && yycheck_[yyr] == yystate) {
     return yytable_[yyr];
-  else
+  } else {
     return yydefgoto_[yysym - YYNTOKENS];
+  }
 }
 
 bool bison_parser_t ::yy_pact_value_is_default_(int yyvalue) YY_NOEXCEPT {
@@ -905,8 +909,9 @@ int bison_parser_t ::parse() {
     YY_STACK_PRINT();
 
     // Accept?
-    if (yystack_[0].state == yyfinal_)
+    if (yystack_[0].state == yyfinal_) {
       YYACCEPT;
+    }
 
     goto yybackup;
 
@@ -917,8 +922,9 @@ int bison_parser_t ::parse() {
   yybackup:
     // Try to take a decision without lookahead.
     yyn = yypact_[+yystack_[0].state];
-    if (yy_pact_value_is_default_(yyn))
+    if (yy_pact_value_is_default_(yyn)) {
       goto yydefault;
+    }
 
     // Read a lookahead token.
     if (yyla.empty()) {
@@ -958,15 +964,17 @@ int bison_parser_t ::parse() {
     // Reduce or error.
     yyn = yytable_[yyn];
     if (yyn <= 0) {
-      if (yy_table_value_is_error_(yyn))
+      if (yy_table_value_is_error_(yyn)) {
         goto yyerrlab;
+      }
       yyn = -yyn;
       goto yyreduce;
     }
 
     // Count tokens shifted since error; after three, turn off error status.
-    if (yyerrstatus_)
+    if (yyerrstatus_) {
       --yyerrstatus_;
+    }
 
     // Shift the lookahead token.
     yypush_("Shifting", state_type(yyn), YY_MOVE(yyla));
@@ -978,8 +986,9 @@ int bison_parser_t ::parse() {
   `-----------------------------------------------------------*/
   yydefault:
     yyn = yydefact_[+yystack_[0].state];
-    if (yyn == 0)
+    if (yyn == 0) {
       goto yyerrlab;
+    }
     goto yyreduce;
 
 
@@ -1181,9 +1190,10 @@ int bison_parser_t ::parse() {
           case 10: // expr_function: LET binds IN_KW expr_function
 #line 214 "parser.y"
           {
-            if (!yystack_[2].value.as<ExprAttrs*>()->dynamicAttrs->empty())
+            if (!yystack_[2].value.as<ExprAttrs*>()->dynamicAttrs->empty()) {
               throw ParseError({.msg_ = hint_fmt_t("dynamic attributes not allowed in let"),
                                 .pos_ = state->positions[CUR_POS]});
+            }
             yylhs.value.as<expr_t*>() = state->exprs.add<ExprLet>(
                 yystack_[2].value.as<ExprAttrs*>(), yystack_[0].value.as<expr_t*>());
           }
@@ -1523,11 +1533,12 @@ int bison_parser_t ::parse() {
           {
             std::string_view s = "__curPos";
             if (yystack_[0].value.as<StringToken>().l == s.size() &&
-                strncmp(yystack_[0].value.as<StringToken>().p, s.data(), s.size()) == 0)
+                strncmp(yystack_[0].value.as<StringToken>().p, s.data(), s.size()) == 0) {
               yylhs.value.as<expr_t*>() = state->exprs.add<ExprPos>(CUR_POS);
-            else
+            } else {
               yylhs.value.as<expr_t*>() = state->exprs.add<ExprVar>(
                   CUR_POS, state->symbols.create(yystack_[0].value.as<StringToken>()));
+            }
           }
 #line 1483 "parser-tab.cpp"
           break;
@@ -1609,9 +1620,10 @@ int bison_parser_t ::parse() {
           {
             static bool no_url_literals =
                 experimental_feature_settings.is_enabled(xp_t::no_url_literals);
-            if (no_url_literals)
+            if (no_url_literals) {
               throw ParseError({.msg_ = hint_fmt_t("URL literals are disabled"),
                                 .pos_ = state->positions[CUR_POS]});
+            }
             yylhs.value.as<expr_t*>() = state->exprs.add<ExprString>(
                 state->exprs.alloc, yystack_[0].value.as<StringToken>());
           }
@@ -1764,8 +1776,9 @@ int bison_parser_t ::parse() {
 
             Path path(abs_path(literal, state->base_path.path.abs()));
             /* add back in the trailing '/' to the first segment */
-            if (literal.size() > 1 && literal.back() == '/')
+            if (literal.size() > 1 && literal.back() == '/') {
               path += '/';
+            }
             yylhs.value.as<expr_t*>() =
                 /* Absolute paths are always interpreted relative to the
                    root filesystem accessor, rather than the accessor of the
@@ -1864,9 +1877,10 @@ int bison_parser_t ::parse() {
             for (auto& [i, iPos] :
                  yystack_[1].value.as<std::vector<std::pair<AttrName, pos_idx_t>>>()) {
               if (yystack_[3].value.as<ExprAttrs*>()->attrs->find(i.symbol) !=
-                  yystack_[3].value.as<ExprAttrs*>()->attrs->end())
+                  yystack_[3].value.as<ExprAttrs*>()->attrs->end()) {
                 state->dupAttr(i.symbol, iPos,
                                (*yystack_[3].value.as<ExprAttrs*>()->attrs)[i.symbol].pos);
+              }
               yystack_[3].value.as<ExprAttrs*>()->attrs->emplace(
                   i.symbol, ExprAttrs::AttrDef(state->exprs.add<ExprVar>(iPos, i.symbol), iPos,
                                                ExprAttrs::AttrDef::Kind::Inherited));
@@ -1879,9 +1893,10 @@ int bison_parser_t ::parse() {
 #line 419 "parser.y"
           {
             yylhs.value.as<ExprAttrs*>() = yystack_[6].value.as<ExprAttrs*>();
-            if (!yystack_[6].value.as<ExprAttrs*>()->inheritFromExprs)
+            if (!yystack_[6].value.as<ExprAttrs*>()->inheritFromExprs) {
               yystack_[6].value.as<ExprAttrs*>()->inheritFromExprs =
                   std::make_unique<std::pmr::vector<expr_t*>>();
+            }
             yystack_[6].value.as<ExprAttrs*>()->inheritFromExprs->push_back(
                 yystack_[3].value.as<expr_t*>());
             auto from = state->exprs.add<ExprInheritFrom>(
@@ -1890,9 +1905,10 @@ int bison_parser_t ::parse() {
             for (auto& [i, iPos] :
                  yystack_[1].value.as<std::vector<std::pair<AttrName, pos_idx_t>>>()) {
               if (yystack_[6].value.as<ExprAttrs*>()->attrs->find(i.symbol) !=
-                  yystack_[6].value.as<ExprAttrs*>()->attrs->end())
+                  yystack_[6].value.as<ExprAttrs*>()->attrs->end()) {
                 state->dupAttr(i.symbol, iPos,
                                (*yystack_[6].value.as<ExprAttrs*>()->attrs)[i.symbol].pos);
+              }
               yystack_[6].value.as<ExprAttrs*>()->attrs->emplace(
                   i.symbol, ExprAttrs::AttrDef(state->exprs.add<ExprSelect>(state->exprs.alloc,
                                                                             iPos, from, i.symbol),
@@ -2173,9 +2189,9 @@ int bison_parser_t ::parse() {
          error, discard it.  */
 
       // Return failure if at end of input.
-      if (yyla.kind() == symbol_kind::S_YYEOF)
+      if (yyla.kind() == symbol_kind::S_YYEOF) {
         YYABORT;
-      else if (!yyla.empty()) {
+      } else if (!yyla.empty()) {
         yy_destroy_("Error: discarding", yyla);
         yyla.clear();
       }
@@ -2191,8 +2207,9 @@ int bison_parser_t ::parse() {
   yyerrorlab:
     /* Pacify compilers when the user code never invokes YYERROR and
        the label yyerrorlab therefore never appears in user code.  */
-    if (false)
+    if (false) {
       YYERROR;
+    }
 
     /* Do not reclaim the symbols of the rule whose action triggered
        this YYERROR.  */
@@ -2214,14 +2231,16 @@ int bison_parser_t ::parse() {
         yyn += symbol_kind::s_y_yerror;
         if (0 <= yyn && yyn <= yylast_ && yycheck_[yyn] == symbol_kind::s_y_yerror) {
           yyn = yytable_[yyn];
-          if (0 < yyn)
+          if (0 < yyn) {
             break;
+          }
         }
       }
 
       // Pop the current state because it cannot handle the error token.
-      if (yystack_.size() == 1)
+      if (yystack_.size() == 1) {
         YYABORT;
+      }
 
       yyerror_range[1].location = yystack_[0].location;
       yy_destroy_("Error: popping", yystack_[0]);
@@ -2261,8 +2280,9 @@ int bison_parser_t ::parse() {
   | yyreturn -- parsing is finished, return the result.  |
   `-----------------------------------------------------*/
   yyreturn:
-    if (!yyla.empty())
+    if (!yyla.empty()) {
       yy_destroy_("Cleanup: discarding lookahead", yyla);
+    }
 
     /* Do not reclaim the symbols of the rule whose action triggered
        this YYABORT or YYACCEPT.  */
@@ -2280,8 +2300,9 @@ int bison_parser_t ::parse() {
     YYCDEBUG << "Exception caught: cleaning lookahead and stack\n";
     // Do not try to display the values of the reclaimed symbols,
     // as their printers might throw an exception.
-    if (!yyla.empty())
+    if (!yyla.empty()) {
       yy_destroy_(YY_NULLPTR, yyla);
+    }
 
     while (1 < yystack_.size()) {
       yy_destroy_(YY_NULLPTR, yystack_[0]);
@@ -2306,17 +2327,18 @@ std::string bison_parser_t ::yytnamerr_(const char* yystr) {
     std::string yyr;
     char const* yyp = yystr;
 
-    for (;;)
+    for (;;) {
       switch (*++yyp) {
         case '\'':
         case ',':
           goto do_not_strip_quotes;
 
         case '\\':
-          if (*++yyp != '\\')
+          if (*++yyp != '\\') {
             goto do_not_strip_quotes;
-          else
+          } else {
             goto append;
+          }
 
         append:
         default:
@@ -2326,6 +2348,7 @@ std::string bison_parser_t ::yytnamerr_(const char* yystr) {
         case '"':
           return yyr;
       }
+    }
   do_not_strip_quotes:;
   }
 
@@ -2354,20 +2377,23 @@ int bison_parser_t ::context::expected_tokens(symbol_kind_type yyarg[], int yyar
     // Stay within bounds of both yycheck and yytname.
     const int yychecklim = yylast_ - yyn + 1;
     const int yyxend = yychecklim < YYNTOKENS ? yychecklim : YYNTOKENS;
-    for (int yyx = yyxbegin; yyx < yyxend; ++yyx)
+    for (int yyx = yyxbegin; yyx < yyxend; ++yyx) {
       if (yycheck_[yyx + yyn] == yyx && yyx != symbol_kind::s_y_yerror &&
           !yy_table_value_is_error_(yytable_[yyx + yyn])) {
-        if (!yyarg)
+        if (!yyarg) {
           ++yycount;
-        else if (yycount == yyargn)
+        } else if (yycount == yyargn) {
           return 0;
-        else
+        } else {
           yyarg[yycount++] = YY_CAST(symbol_kind_type, yyx);
+        }
       }
+    }
   }
 
-  if (yyarg && yycount == 0 && 0 < yyargn)
+  if (yyarg && yycount == 0 && 0 < yyargn) {
     yyarg[0] = symbol_kind::S_YYEMPTY;
+  }
   return yycount;
 }
 
@@ -2400,8 +2426,9 @@ int bison_parser_t ::yy_syntax_error_arguments_(const context& yyctx, symbol_kin
   */
 
   if (!yyctx.lookahead().empty()) {
-    if (yyarg)
+    if (yyarg) {
       yyarg[0] = yyctx.token();
+    }
     int yyn = yyctx.expected_tokens(yyarg ? yyarg + 1 : yyarg, yyargn - 1);
     return yyn + 1;
   }
@@ -2435,12 +2462,14 @@ std::string bison_parser_t ::yysyntax_error_(const context& yyctx) const {
   std::string yyres;
   // Argument number.
   std::ptrdiff_t yyi = 0;
-  for (char const* yyp = yyformat; *yyp; ++yyp)
+  for (char const* yyp = yyformat; *yyp; ++yyp) {
     if (yyp[0] == '%' && yyp[1] == 's' && yyi < yycount) {
       yyres += symbol_name(yyarg[yyi++]);
       ++yyp;
-    } else
+    } else {
       yyres += *yyp;
+    }
+  }
   return yyres;
 }
 
@@ -2659,8 +2688,9 @@ const short bison_parser_t ::yyrline_[] = {
 
 void bison_parser_t ::yy_stack_print_() const {
   *yycdebug_ << "Stack now";
-  for (stack_type::const_iterator i = yystack_.begin(), i_end = yystack_.end(); i != i_end; ++i)
+  for (stack_type::const_iterator i = yystack_.begin(), i_end = yystack_.end(); i != i_end; ++i) {
     *yycdebug_ << ' ' << int(i->state);
+  }
   *yycdebug_ << '\n';
 }
 
@@ -2670,8 +2700,9 @@ void bison_parser_t ::yy_reduce_print_(int yyrule) const {
   // Print the symbols being reduced, and their result.
   *yycdebug_ << "Reducing stack by rule " << yyrule - 1 << " (line " << yylno << "):\n";
   // The symbols being reduced.
-  for (int yyi = 0; yyi < yynrhs; yyi++)
+  for (int yyi = 0; yyi < yynrhs; yyi++) {
     YY_SYMBOL_PRINT("   $" << yyi + 1 << " =", yystack_[(yynrhs) - (yyi + 1)]);
+  }
 }
 #endif // YYDEBUG
 
@@ -2695,12 +2726,13 @@ bison_parser_t ::symbol_kind_type bison_parser_t ::yytranslate_(int t) YY_NOEXCE
   // Last valid token kind.
   const int code_max = 294;
 
-  if (t <= 0)
+  if (t <= 0) {
     return symbol_kind::S_YYEOF;
-  else if (t <= code_max)
+  } else if (t <= code_max) {
     return static_cast<symbol_kind_type>(translate_table[t]);
-  else
+  } else {
     return symbol_kind::S_YYUNDEF;
+  }
 }
 
 #line 3 "parser.y"

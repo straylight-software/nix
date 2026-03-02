@@ -13,8 +13,9 @@ struct mounted_source_accessor_impl_t : mounted_source_accessor_t {
     // Currently we require a root filesystem. This could be relaxed.
     assert(_mounts.contains(canon_path_t::root));
 
-    for (auto& [path, accessor] : _mounts)
+    for (auto& [path, accessor] : _mounts) {
       mount(path, accessor);
+    }
 
     // FIXME: return dummy parent directories automatically?
   }
@@ -74,16 +75,18 @@ struct mounted_source_accessor_impl_t : mounted_source_accessor_t {
   }
 
   std::shared_ptr<source_accessor_t> get_mount(canon_path_t mount_point) override {
-    if (auto res = get_concurrent(mounts, mount_point))
+    if (auto res = get_concurrent(mounts, mount_point)) {
       return *res;
-    else
+    } else {
       return nullptr;
+    }
   }
 
   std::pair<canon_path_t, std::optional<std::string>>
   get_fingerprint(const canon_path_t& path) override {
-    if (fingerprint)
+    if (fingerprint) {
       return {path, fingerprint};
+    }
     auto [accessor, subpath] = resolve(path);
     return accessor->get_fingerprint(subpath);
   }

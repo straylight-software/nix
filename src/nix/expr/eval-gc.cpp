@@ -55,18 +55,21 @@ static size_t getFreeMem() {
     for (auto& line : tokenize_string<std::vector<std::string>>(
              read_file(std::filesystem::path("/proc/meminfo")), "\n")) {
       auto colon = line.find(':');
-      if (colon == line.npos)
+      if (colon == line.npos) {
         continue;
+      }
       fields.emplace(line.substr(0, colon), trim(line.substr(colon + 1)));
     }
 
     auto i = fields.find("MemAvailable");
-    if (i == fields.end())
+    if (i == fields.end()) {
       i = fields.find("MemFree");
+    }
     if (i != fields.end()) {
       auto kb = tokenize_string<std::vector<std::string>>(i->second, " ");
-      if (kb.size() == 2 && kb[1] == "kB")
+      if (kb.size() == 2 && kb[1] == "kB") {
         return string2_int<size_t>(kb[0]).value_or(0) * 1024;
+      }
     }
   }
 #  endif
@@ -74,8 +77,9 @@ static size_t getFreeMem() {
   /* On non-Linux systems, conservatively assume that 25% of memory is free. */
   long pageSize = sysconf(_SC_PAGESIZE);
   long pages = sysconf(_SC_PHYS_PAGES);
-  if (pageSize > 0 && pages > 0)
+  if (pageSize > 0 && pages > 0) {
     return (static_cast<size_t>(pageSize) * static_cast<size_t>(pages)) / 4;
+  }
   return 0;
 }
 
@@ -107,23 +111,28 @@ void fixupBoehmStackPointer(void** sp_ptr, void* _pthread_id) {
   osStackLo = osStackHi - osStackSize;
 #  else
   pthread_attr_t pattr;
-  if (pthread_attr_init(&pattr))
+  if (pthread_attr_init(&pattr)) {
     throw Error("fixupBoehmStackPointer: pthread_attr_init failed");
+  }
 #    ifdef HAVE_PTHREAD_GETATTR_NP
-  if (pthread_getattr_np(pthread_id, &pattr))
+  if (pthread_getattr_np(pthread_id, &pattr)) {
     throw Error("fixupBoehmStackPointer: pthread_getattr_np failed");
+  }
 #    else
 #      error "Need  `pthread_attr_get_np`"
 #    endif
-  if (pthread_attr_getstack(&pattr, (void**)&osStackLo, &osStackSize))
+  if (pthread_attr_getstack(&pattr, (void**)&osStackLo, &osStackSize)) {
     throw Error("fixupBoehmStackPointer: pthread_attr_getstack failed");
-  if (pthread_attr_destroy(&pattr))
+  }
+  if (pthread_attr_destroy(&pattr)) {
     throw Error("fixupBoehmStackPointer: pthread_attr_destroy failed");
+  }
   osStackHi = osStackLo + osStackSize;
 #  endif
 
-  if (sp >= osStackHi || sp < osStackLo) // sp is outside the os stack
+  if (sp >= osStackHi || sp < osStackLo) { // sp is outside the os stack
     sp = osStackLo;
+  }
 }
 
 static inline void initGCReal() {
@@ -149,9 +158,11 @@ static inline void initGCReal() {
   /* Register valid displacements in case we are using alignment niches
      for storing the type information. This way tagged pointers are considered
      to be valid, even when they are not aligned. */
-  if constexpr (detail::useBitPackedValueStorage<sizeof(void*)>)
-    for (std::size_t i = 1; i < sizeof(std::uintptr_t); ++i)
+  if constexpr (detail::useBitPackedValueStorage<sizeof(void*)>) {
+    for (std::size_t i = 1; i < sizeof(std::uintptr_t); ++i) {
       GC_register_displacement(i);
+    }
+  }
 
   GC_set_oom_fn(oomHandler);
 
@@ -190,8 +201,9 @@ size_t getGCCycles() {
 static bool gc_initialised = false;
 
 void init_gc() {
-  if (gc_initialised)
+  if (gc_initialised) {
     return;
+  }
 
 #if NIX_USE_BOEHMGC
   initGCReal();

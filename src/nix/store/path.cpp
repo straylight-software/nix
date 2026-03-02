@@ -11,42 +11,54 @@ namespace nix {
 // Valid characters: a-z A-Z 0-9 + - . _ ? =
 static constexpr std::array<bool, 256> valid_name_chars = []() {
   std::array<bool, 256> table{};
-  for (unsigned char c = '0'; c <= '9'; ++c)
+  for (unsigned char c = '0'; c <= '9'; ++c) {
     table[c] = true;
-  for (unsigned char c = 'a'; c <= 'z'; ++c)
+  }
+  for (unsigned char c = 'a'; c <= 'z'; ++c) {
     table[c] = true;
-  for (unsigned char c = 'A'; c <= 'Z'; ++c)
+  }
+  for (unsigned char c = 'A'; c <= 'Z'; ++c) {
     table[c] = true;
-  for (unsigned char c : {'+', '-', '.', '_', '?', '='})
+  }
+  for (unsigned char c : {'+', '-', '.', '_', '?', '='}) {
     table[c] = true;
+  }
   return table;
 }();
 
 void check_name(std::string_view name) {
-  if (name.empty())
+  if (name.empty()) {
     throw BadStorePathName("name must not be empty");
-  if (name.size() > store_path_t::MaxPathLen)
+  }
+  if (name.size() > store_path_t::MaxPathLen) {
     throw BadStorePathName("name '%s' must be no longer than %d characters", name,
                            store_path_t::MaxPathLen);
+  }
   // See nameRegexStr for the definition
   if (name[0] == '.') {
     // check against "." and "..", followed by end or dash
-    if (name.size() == 1)
+    if (name.size() == 1) {
       throw BadStorePathName("name '%s' is not valid", name);
-    if (name[1] == '-')
+    }
+    if (name[1] == '-') {
       throw BadStorePathName(
           "name '%s' is not valid: first dash-separated component must not be '%s'", name, ".");
+    }
     if (name[1] == '.') {
-      if (name.size() == 2)
+      if (name.size() == 2) {
         throw BadStorePathName("name '%s' is not valid", name);
-      if (name[2] == '-')
+      }
+      if (name[2] == '-') {
         throw BadStorePathName(
             "name '%s' is not valid: first dash-separated component must not be '%s'", name, "..");
+      }
     }
   }
-  for (auto c : name)
-    if (!valid_name_chars[static_cast<unsigned char>(c)])
+  for (auto c : name) {
+    if (!valid_name_chars[static_cast<unsigned char>(c)]) {
       throw BadStorePathName("name '%s' contains illegal character '%s'", name, c);
+    }
+  }
 }
 
 static void check_path_name(std::string_view path, std::string_view name) {
@@ -58,12 +70,15 @@ static void check_path_name(std::string_view path, std::string_view name) {
 }
 
 store_path_t::store_path_t(std::string_view _baseName) : base_name(_baseName) {
-  if (base_name.size() < HashLen + 1)
+  if (base_name.size() < HashLen + 1) {
     throw BadStorePath("'%s' is too short to be a valid store path", base_name);
-  for (auto c : hash_part())
+  }
+  for (auto c : hash_part()) {
     if (c == 'e' || c == 'o' || c == 'u' || c == 't' ||
-        !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'z')))
+        !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'z'))) {
       throw BadStorePath("store path '%s' contains illegal base-32 character '%s'", base_name, c);
+    }
+  }
   check_path_name(base_name, name());
 }
 
@@ -77,8 +92,9 @@ bool store_path_t::is_derivation() const noexcept {
 }
 
 void store_path_t::requireDerivation() const {
-  if (!is_derivation())
+  if (!is_derivation()) {
     throw FormatError("store path '%s' is not a valid derivation path", to_string());
+  }
 }
 
 store_path_t store_path_t::dummy("ffffffffffffffffffffffffffffffff-x");

@@ -71,11 +71,13 @@ bool schema_contains_trigger(const std::string& schema, const std::string& trigg
 // Extract just the SQL schema from a file containing R"sql( ... )sql";
 std::string extract_sql_schema(const std::string& content) {
   auto start = content.find("R\"sql(");
-  if (start == std::string::npos)
+  if (start == std::string::npos) {
     return "";
+  }
   auto end = content.find(")sql\"", start);
-  if (end == std::string::npos)
+  if (end == std::string::npos) {
     return "";
+  }
   return content.substr(start, end - start + 5);
 }
 

@@ -10,12 +10,13 @@ namespace nix {
 
 template <>
 EvalProfilerMode base_setting_t<EvalProfilerMode>::parse(const std::string& str) const {
-  if (str == "disabled")
+  if (str == "disabled") {
     return EvalProfilerMode::disabled;
-  else if (str == "flamegraph")
+  } else if (str == "flamegraph") {
     return EvalProfilerMode::flamegraph;
-  else
+  } else {
     throw UsageError("option '%s' has invalid value '%s'", name, str);
+  }
 }
 
 template <>
@@ -25,12 +26,13 @@ struct base_setting_t<EvalProfilerMode>::trait {
 
 template <>
 std::string base_setting_t<EvalProfilerMode>::to_string() const {
-  if (value_ == EvalProfilerMode::disabled)
+  if (value_ == EvalProfilerMode::disabled) {
     return "disabled";
-  else if (value_ == EvalProfilerMode::flamegraph)
+  } else if (value_ == EvalProfilerMode::flamegraph) {
     return "flamegraph";
-  else
+  } else {
     unreachable();
+  }
 }
 
 NLOHMANN_JSON_SERIALIZE_ENUM(EvalProfilerMode, {

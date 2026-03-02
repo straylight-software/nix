@@ -252,18 +252,19 @@ TEST_CASE("fuzz: parse_derivation structured fuzzing", "[fuzz][derivation]") {
     auto escape = [](const ::std::string& s) {
       auto result = ::std::string{};
       for (char c : s) {
-        if (c == '"')
+        if (c == '"') {
           result += "\\\"";
-        else if (c == '\\')
+        } else if (c == '\\') {
           result += "\\\\";
-        else if (c == '\n')
+        } else if (c == '\n') {
           result += "\\n";
-        else if (c == '\r')
+        } else if (c == '\r') {
           result += "\\r";
-        else if (c == '\t')
+        } else if (c == '\t') {
           result += "\\t";
-        else
+        } else {
           result += c;
+        }
       }
       return result;
     };

@@ -45,8 +45,9 @@ DerivationBuildingGoal::~DerivationBuildingGoal() {
   /* Careful: we should never ever throw an exception from a
      destructor. */
 #ifndef _WIN32 // TODO enable `DerivationBuilder` on Windows
-  if (builder)
+  if (builder) {
     builder.reset();
+  }
 #endif
   try {
     closeLogFile();
@@ -64,8 +65,9 @@ void DerivationBuildingGoal::kill_child() {
   hook.reset();
 #endif
 #ifndef _WIN32 // TODO enable `DerivationBuilder` on Windows
-  if (builder && builder->kill_child())
+  if (builder && builder->kill_child()) {
     worker.childTerminated(this);
+  }
 #endif
 }
 
@@ -79,13 +81,16 @@ void DerivationBuildingGoal::timedOut(Error&& ex) {
 std::string show_known_outputs(const store_dir_config_t& store, const derivation_t& drv) {
   std::string msg;
   store_path_set_t expected_output_paths;
-  for (auto& i : drv.outputsAndOptPaths(store))
-    if (i.second.second)
+  for (auto& i : drv.outputsAndOptPaths(store)) {
+    if (i.second.second) {
       expected_output_paths.insert(*i.second.second);
+    }
+  }
   if (!expected_output_paths.empty()) {
     msg += "\nOutput paths:";
-    for (auto& p : expected_output_paths)
+    for (auto& p : expected_output_paths) {
       msg += fmt("\n  %s", magenta_t(store.printStorePath(p)));
+    }
   }
   return msg;
 }
@@ -105,18 +110,22 @@ Goal::Co DerivationBuildingGoal::gaveUpOnSubstitution(bool storeDerivation) {
      are (resolved) derivation outputs in a resolved derivation. */
   if (&worker.eval_store != &worker.store) {
     RealisedPath::Set input_srcs;
-    for (auto& i : drv->input_srcs)
-      if (worker.eval_store.isValidPath(i))
+    for (auto& i : drv->input_srcs) {
+      if (worker.eval_store.isValidPath(i)) {
         input_srcs.insert(i);
+      }
+    }
     copy_closure(worker.eval_store, worker.store, input_srcs);
   }
 
   for (auto& i : drv->input_srcs) {
-    if (worker.store.isValidPath(i))
+    if (worker.store.isValidPath(i)) {
       continue;
-    if (!settings.use_substitutes)
+    }
+    if (!settings.use_substitutes) {
       throw Error("dependency '%s' of '%s' does not exist, and substitution is disabled",
                   worker.store.printStorePath(i), worker.store.printStorePath(drv_path));
+    }
     waitees.insert(upcast_goal(worker.makePathSubstitutionGoal(i)));
   }
 
@@ -155,9 +164,11 @@ Goal::Co DerivationBuildingGoal::gaveUpOnSubstitution(bool storeDerivation) {
            just use DB. This case only happens in the (older)
            input addressed and fixed output derivation cases. */
         auto outMap = [&] {
-          for (auto* drvStore : {&worker.eval_store, &worker.store})
-            if (drvStore->isValidPath(depDrvPath))
+          for (auto* drvStore : {&worker.eval_store, &worker.store}) {
+            if (drvStore->isValidPath(depDrvPath)) {
               return worker.store.queryDerivationOutputMap(depDrvPath, drvStore);
+            }
+          }
           assert(false);
         }();
 
@@ -304,10 +315,11 @@ Goal::Co DerivationBuildingGoal::tryToBuild() {
          a forking daemon with --store still won't farm out redundant builds.
          */
       for (auto& i : drv->outputsAndOptPaths(worker.store)) {
-        if (i.second.second)
+        if (i.second.second) {
           lockFiles.insert(localStore->toRealPath(*i.second.second));
-        else
+        } else {
           lockFiles.insert(localStore->toRealPath(drv_path) + "." + i.first);
+        }
       }
     }
 
@@ -343,8 +355,9 @@ Goal::Co DerivationBuildingGoal::tryToBuild() {
        them. */
     if (auto* localStore = dynamic_cast<local_fs_store*>(&worker.store)) {
       for (auto& [_, status] : initialOutputs) {
-        if (!status.known || status.known->isValid())
+        if (!status.known || status.known->isValid()) {
           continue;
+        }
         auto store_path = status.known->path;
         debug("removing invalid path '%s'", worker.store.printStorePath(status.known->path));
         delete_path(localStore->toRealPath(store_path));
@@ -370,11 +383,12 @@ Goal::Co DerivationBuildingGoal::tryToBuild() {
         case rpPostpone:
           /* Not now; wait until at least one child finishes or
              the wake-up timeout expires. */
-          if (!actLock)
+          if (!actLock) {
             actLock =
                 std::make_unique<activity_t>(*logger, lvl_warn, act_build_waiting,
                                              fmt("waiting for a machine to build '%s'",
                                                  magenta_t(worker.store.printStorePath(drv_path))));
+          }
           outputLocks.unlock();
           co_await waitForAWhile();
           continue;
@@ -403,10 +417,11 @@ Goal::Co DerivationBuildingGoal::tryToBuild() {
 
             // since aarch64-darwin has Rosetta 2, this user can actually run x86_64-darwin on their
             // hardware - we should tell them to run the command to install Darwin 2
-            if (drv->platform == "x86_64-darwin" && settings.thisSystem == "aarch64-darwin")
+            if (drv->platform == "x86_64-darwin" && settings.thisSystem == "aarch64-darwin") {
               msg += fmt("\nNote: run `%s` to run programs for x86_64-darwin",
                          magenta_t("/usr/sbin/softwareupdate --install-rosetta && launchctl stop "
                                    "org.nixos.nix-daemon"));
+            }
 
 #ifndef _WIN32 // TODO enable `DerivationBuilder` on Windows
             builder.reset();
@@ -489,14 +504,16 @@ Goal::Co DerivationBuildingGoal::tryToBuild() {
          */
         [&] {
           auto [allValid, validOutputs] = checkPathValidity(initialOutputs);
-          if (!allValid)
+          if (!allValid) {
             throw Error("some outputs are unexpectedly invalid");
+          }
           return validOutputs;
         }();
 
     store_path_set_t output_paths;
-    for (auto& [_, output] : built_outputs)
+    for (auto& [_, output] : built_outputs) {
       output_paths.insert(output.out_path);
+    }
     run_post_build_hook(worker.store, *logger, drv_path, output_paths);
 
     /* It is now safe to delete the lock files, since all future
@@ -567,15 +584,17 @@ Goal::Co DerivationBuildingGoal::tryToBuild() {
 
       /* Add the closure of store paths to the chroot. */
       store_path_set_t closure;
-      for (auto& i : defaultPathsInChroot)
+      for (auto& i : defaultPathsInChroot) {
         try {
-          if (worker.store.isInStore(i.second.source))
+          if (worker.store.isInStore(i.second.source)) {
             worker.store.computeFSClosure(worker.store.toStorePath(i.second.source).first, closure);
+          }
         } catch (InvalidPath& e) {
         } catch (Error& e) {
           e.add_trace({}, "while processing sandbox path '%s'", i.second.source);
           throw;
         }
+      }
       for (auto& i : closure) {
         auto p = worker.store.printStorePath(i);
         defaultPathsInChroot.insert_or_assign(p, ChrootPath{.source = p});
@@ -618,11 +637,12 @@ Goal::Co DerivationBuildingGoal::tryToBuild() {
     if (auto builderOutOpt = builder->start_build()) {
       builder_out = *std::move(builderOutOpt);
     } else {
-      if (!actLock)
+      if (!actLock) {
         actLock =
             std::make_unique<activity_t>(*logger, lvl_warn, act_build_waiting,
                                          fmt("waiting for a free build user ID for '%s'",
                                              magenta_t(worker.store.printStorePath(drv_path))));
+      }
       co_await waitForAWhile();
       continue;
     }
@@ -705,8 +725,9 @@ static void run_post_build_hook(const store_dir_config_t& store, logger_t& logge
                                 const store_path_t& drv_path,
                                 const store_path_set_t& output_paths) {
   auto hook = settings.postBuildHook;
-  if (hook == "")
+  if (hook == "") {
     return;
+  }
 
   activity_t act(logger, lvl_talkative, act_post_build_hook,
                  fmt("running post-build-hook '%s'", settings.postBuildHook),
@@ -795,11 +816,13 @@ DerivationBuildingGoal::tryBuildHook(const std::map<std::string, InitialOutput>&
   /* This should use `worker.eval_store`, but per #13179 the build hook
      doesn't work with eval store anyways. */
   if (settings.buildHook.get().empty() || !worker.tryBuildHook ||
-      !worker.store.isValidPath(drv_path))
+      !worker.store.isValidPath(drv_path)) {
     return rpDecline;
+  }
 
-  if (!worker.hook)
+  if (!worker.hook) {
     worker.hook = std::make_unique<HookInstance>();
+  }
 
   try {
     /* Send the request to the hook. */
@@ -833,16 +856,17 @@ DerivationBuildingGoal::tryBuildHook(const std::map<std::string, InitialOutput>&
 
     debug("hook reply is '%1%'", reply);
 
-    if (reply == "decline")
+    if (reply == "decline") {
       return rpDecline;
-    else if (reply == "decline-permanently") {
+    } else if (reply == "decline-permanently") {
       worker.tryBuildHook = false;
       worker.hook = 0;
       return rpDecline;
-    } else if (reply == "postpone")
+    } else if (reply == "postpone") {
       return rpPostpone;
-    else if (reply != "accept")
+    } else if (reply != "accept") {
       throw Error("bad hook reply '%s'", reply);
+    }
 
   } catch (sys_error_t& e) {
     if (e.err_no() == EPIPE) {
@@ -850,8 +874,9 @@ DerivationBuildingGoal::tryBuildHook(const std::map<std::string, InitialOutput>&
                  chomp(drain_fd(worker.hook->fromHook.read_side.get())));
       worker.hook = 0;
       return rpDecline;
-    } else
+    } else {
       throw;
+    }
   }
 
   hook = std::move(worker.hook);
@@ -875,8 +900,9 @@ DerivationBuildingGoal::tryBuildHook(const std::map<std::string, InitialOutput>&
     string_set_t missingOutputs;
     for (auto& [output_name, status] : initialOutputs) {
       // XXX: Does this include known CA outputs?
-      if (build_mode != bmCheck && status.known && status.known->isValid())
+      if (build_mode != bmCheck && status.known && status.known->isValid()) {
         continue;
+      }
       missingOutputs.insert(output_name);
     }
     CommonProto::write(worker.store, conn, missingOutputs);
@@ -900,17 +926,19 @@ DerivationBuildingGoal::tryBuildHook(const std::map<std::string, InitialOutput>&
 Path DerivationBuildingGoal::openLogFile() {
   logSize = 0;
 
-  if (!settings.keepLog)
+  if (!settings.keepLog) {
     return "";
+  }
 
   auto base_name = std::string(base_name_of(worker.store.printStorePath(drv_path)));
 
   /* Create a log file. */
   Path logDir;
-  if (auto localStore = dynamic_cast<LocalStore*>(&worker.store))
+  if (auto localStore = dynamic_cast<LocalStore*>(&worker.store)) {
     logDir = localStore->config->logDir;
-  else
+  } else {
     logDir = settings.nixLogDir;
+  }
   Path dir = fmt("%s/%s/%s/", logDir, local_fs_store::drvsLogDir, base_name.substr(0, 2));
   create_dirs(dir);
 
@@ -923,25 +951,29 @@ Path DerivationBuildingGoal::openLogFile() {
 #endif
                                  ,
                                  0666));
-  if (!fdLogFile)
+  if (!fdLogFile) {
     throw sys_error_t("creating log file '%1%'", logFileName);
+  }
 
   logFileSink = std::make_shared<fd_sink_t>(fdLogFile.get());
 
-  if (settings.compressLog)
+  if (settings.compressLog) {
     logSink = std::shared_ptr<compression_sink_t>(make_compression_sink("bzip2", *logFileSink));
-  else
+  } else {
     logSink = logFileSink;
+  }
 
   return logFileName;
 }
 
 void DerivationBuildingGoal::closeLogFile() {
   auto logSink2 = std::dynamic_pointer_cast<compression_sink_t>(logSink);
-  if (logSink2)
+  if (logSink2) {
     logSink2->finish();
-  if (logFileSink)
+  }
+  if (logFileSink) {
     logFileSink->flush();
+  }
   logSink = logFileSink = 0;
   fdLogFile.close();
 }
@@ -971,24 +1003,27 @@ void DerivationBuildingGoal::handleChildOutput(descriptor_t fd, std::string_view
       return;
     }
 
-    for (auto c : data)
-      if (c == '\r')
+    for (auto c : data) {
+      if (c == '\r') {
         currentLogLinePos = 0;
-      else if (c == '\n')
+      } else if (c == '\n') {
         flush_line();
-      else {
-        if (currentLogLinePos >= currentLogLine.size())
+      } else {
+        if (currentLogLinePos >= currentLogLine.size()) {
           currentLogLine.resize(currentLogLinePos + 1);
+        }
         currentLogLine[currentLogLinePos++] = c;
       }
+    }
 
-    if (logSink)
+    if (logSink) {
       (*logSink)(data);
+    }
   }
 
 #ifndef _WIN32 // TODO enable build hook on Windows
   if (hook && fd == hook->fromHook.read_side.get()) {
-    for (auto c : data)
+    for (auto c : data) {
       if (c == '\n') {
         auto json = parse_json_message(currentHookLine, "the derivation builder");
         if (json) {
@@ -1019,15 +1054,18 @@ void DerivationBuildingGoal::handleChildOutput(descriptor_t fd, std::string_view
           }
         }
         currentHookLine.clear();
-      } else
+      } else {
         currentHookLine += c;
+      }
+    }
   }
 #endif
 }
 
 void DerivationBuildingGoal::handle_eof(descriptor_t fd) {
-  if (!currentLogLine.empty())
+  if (!currentLogLine.empty()) {
     flush_line();
+  }
   worker.wakeUp(shared_from_this());
 }
 
@@ -1038,8 +1076,9 @@ void DerivationBuildingGoal::flush_line() {
 
   else {
     logTail.push_back(currentLogLine);
-    if (logTail.size() > settings.logLines)
+    if (logTail.size() > settings.logLines) {
       logTail.pop_front();
+    }
 
     act->result(res_build_log_line, currentLogLine);
   }
@@ -1052,31 +1091,36 @@ std::map<std::string, std::optional<store_path_t>>
 DerivationBuildingGoal::queryPartialDerivationOutputMap() {
   assert(!drv->type().is_impure());
 
-  for (auto* drvStore : {&worker.eval_store, &worker.store})
-    if (drvStore->isValidPath(drv_path))
+  for (auto* drvStore : {&worker.eval_store, &worker.store}) {
+    if (drvStore->isValidPath(drv_path)) {
       return worker.store.queryPartialDerivationOutputMap(drv_path, drvStore);
+    }
+  }
 
   /* In-memory derivation will naturally fall back on this case, where
      we do best-effort with static information. */
   std::map<std::string, std::optional<store_path_t>> res;
-  for (auto& [name, output] : drv->outputs)
+  for (auto& [name, output] : drv->outputs) {
     res.insert_or_assign(name, output.path(worker.store, drv->name, name));
+  }
   return res;
 }
 
 std::pair<bool, SingleDrvOutputs>
 DerivationBuildingGoal::checkPathValidity(std::map<std::string, InitialOutput>& initialOutputs) {
-  if (drv->type().is_impure())
+  if (drv->type().is_impure()) {
     return {false, {}};
+  }
 
   bool checkHash = build_mode == bmRepair;
   SingleDrvOutputs validOutputs;
 
   for (auto& i : queryPartialDerivationOutputMap()) {
     auto initialOutput = get(initialOutputs, i.first);
-    if (!initialOutput)
+    if (!initialOutput) {
       // this is an invalid output, gets caught with (!wantedOutputsLeft.empty())
       continue;
+    }
     auto& info = *initialOutput;
     if (i.second) {
       auto output_path = *i.second;
@@ -1110,13 +1154,14 @@ DerivationBuildingGoal::checkPathValidity(std::map<std::string, InitialOutput>& 
         });
       }
     }
-    if (info.known && info.known->isValid())
+    if (info.known && info.known->isValid()) {
       validOutputs.emplace(i.first, realisation_t{
                                         {
                                             .out_path = info.known->path,
                                         },
                                         drvOutput,
                                     });
+    }
   }
 
   bool allValid = true;
@@ -1145,8 +1190,9 @@ Goal::done_t DerivationBuildingGoal::doneSuccess(build_result_t::Success::Status
 
   mcRunningBuilds.reset();
 
-  if (status == build_result_t::Success::Built)
+  if (status == build_result_t::Success::Built) {
     worker.doneBuilds++;
+  }
 
   worker.updateProgress();
 
@@ -1167,12 +1213,15 @@ Goal::done_t DerivationBuildingGoal::doneFailure(build_error_t ex) {
 
   mcRunningBuilds.reset();
 
-  if (ex.status == build_result_t::Failure::TimedOut)
+  if (ex.status == build_result_t::Failure::TimedOut) {
     worker.timedOut = true;
-  if (ex.status == build_result_t::Failure::PermanentFailure)
+  }
+  if (ex.status == build_result_t::Failure::PermanentFailure) {
     worker.permanentFailure = true;
-  if (ex.status != build_result_t::Failure::DependencyFailed)
+  }
+  if (ex.status != build_result_t::Failure::DependencyFailed) {
     worker.failedBuilds++;
+  }
 
   worker.updateProgress();
 

@@ -20,11 +20,13 @@ static void builtin_fetchurl(const BuiltinBuilderContext& ctx) {
   write_file(settings.ca_file, ctx.caFileData, 0600);
 
   auto out = get(ctx.drv.outputs, "out");
-  if (!out)
+  if (!out) {
     throw Error("'builtin:fetchurl' requires an 'out' output");
+  }
 
-  if (!(ctx.drv.type().isFixed() || ctx.drv.type().is_impure()))
+  if (!(ctx.drv.type().isFixed() || ctx.drv.type().is_impure())) {
     throw Error("'builtin:fetchurl' must be a fixed-output or impure derivation");
+  }
 
   auto store_path = ctx.outputs.at("out");
   auto main_url = ctx.drv.env.at("url");
@@ -72,17 +74,20 @@ static void builtin_fetchurl(const BuiltinBuilderContext& ctx) {
 
   /* Try the hashed mirrors first. */
   auto dof = std::get_if<derivation_output_t::CAFixed>(&out->raw);
-  if (dof && dof->ca.method.getFileIngestionMethod() == file_ingestion_method_t::flat)
-    for (auto hashedMirror : settings.hashedMirrors.get())
+  if (dof && dof->ca.method.getFileIngestionMethod() == file_ingestion_method_t::flat) {
+    for (auto hashedMirror : settings.hashedMirrors.get()) {
       try {
-        if (!has_suffix(hashedMirror, "/"))
+        if (!has_suffix(hashedMirror, "/")) {
           hashedMirror += '/';
+        }
         fetch(hashedMirror + print_hash_algo(dof->ca.hash.algo()) + "/" +
               dof->ca.hash.to_string(hash_format_t::base16, false));
         return;
       } catch (Error& e) {
         debug(e.what());
       }
+    }
+  }
 
   /* Otherwise try the specified URL. */
   fetch(main_url);

@@ -305,12 +305,15 @@ TEST_CASE("narinfo: signature format - multiple signatures", "[store][narinfo][f
   // Signatures are stored in a set
   bool has_key1 = false, has_key2 = false, has_key3 = false;
   for (const auto& sig : info.sigs) {
-    if (sig.find("key1:") == 0)
+    if (sig.find("key1:") == 0) {
       has_key1 = true;
-    if (sig.find("key2:") == 0)
+    }
+    if (sig.find("key2:") == 0) {
       has_key2 = true;
-    if (sig.find("key3:") == 0)
+    }
+    if (sig.find("key3:") == 0) {
       has_key3 = true;
+    }
   }
   REQUIRE(has_key1);
   REQUIRE(has_key2);
@@ -655,8 +658,9 @@ TEST_CASE("narinfo: serialization format verification", "[store][narinfo][format
     // Count lines vs newlines
     size_t newline_count = 0;
     for (char c : output) {
-      if (c == '\n')
+      if (c == '\n') {
         newline_count++;
+      }
     }
     // Each field should end with newline, and output should end with newline
     REQUIRE(newline_count >= 7); // At least the required + optional fields

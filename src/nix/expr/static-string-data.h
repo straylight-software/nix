@@ -15,8 +15,9 @@ struct StringData::Static {
 
   consteval Static(const char (&str)[N]) {
     static_assert(N > 0);
-    if (str[size] != '\0')
+    if (str[size] != '\0') {
       throw;
+    }
     std::copy_n(str, N, data);
   }
 

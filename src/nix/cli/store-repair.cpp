@@ -11,8 +11,9 @@ struct cmd_store_repair_t : nix::StorePathsCommand {
   }
 
   void run(nix::ref<nix::store_t> store, nix::store_paths_t&& store_paths) override {
-    for (auto& path : store_paths)
+    for (auto& path : store_paths) {
       store->repairPath(path);
+    }
   }
 };
 

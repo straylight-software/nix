@@ -37,9 +37,11 @@ InputCache::CachedResult InputCache::get_accessor(const settings_t& settings, st
         fetched = lookup(resolved_input);
         if (fetched) {
           // Merge extra_attrs from registry resolution
-          for (auto& [k, v] : cachedResolution->extra_attrs)
-            if (!fetched->extra_attrs.contains(k))
+          for (auto& [k, v] : cachedResolution->extra_attrs) {
+            if (!fetched->extra_attrs.contains(k)) {
               fetched->extra_attrs.insert_or_assign(k, v);
+            }
+          }
         }
       }
 
@@ -56,9 +58,11 @@ InputCache::CachedResult InputCache::get_accessor(const settings_t& settings, st
           // Check if resolved input is cached
           fetched = lookup(resolved_input);
           if (fetched) {
-            for (auto& [k, v] : extra_attrs)
-              if (!fetched->extra_attrs.contains(k))
+            for (auto& [k, v] : extra_attrs) {
+              if (!fetched->extra_attrs.contains(k)) {
                 fetched->extra_attrs.insert_or_assign(k, v);
+              }
+            }
           }
         }
 
@@ -91,8 +95,9 @@ struct input_cache_impl_t : InputCache {
   std::optional<CachedInput> lookup(const input_t& original_input) const override {
     auto cache(cache_.read_lock());
     auto i = cache->find(original_input);
-    if (i == cache->end())
+    if (i == cache->end()) {
       return std::nullopt;
+    }
     debug("cache hit: mapping '%s' to previously seen input '%s' -> '%s'",
           original_input.to_string(), i->first.to_string(), i->second.lockedInput.to_string());
     return i->second;
@@ -112,8 +117,9 @@ struct input_cache_impl_t : InputCache {
   std::optional<CachedLockFile> lookupLockFile(const std::string& path) const override {
     auto cache(lockFileCache_.read_lock());
     auto i = cache->find(path);
-    if (i == cache->end())
+    if (i == cache->end()) {
       return std::nullopt;
+    }
     debug("lock file cache hit for '%s'", path);
     return i->second;
   }
@@ -127,8 +133,9 @@ struct input_cache_impl_t : InputCache {
   lookupRegistryResolution(const input_t& input) const override {
     auto cache(registryCache_.read_lock());
     auto i = cache->find(input);
-    if (i == cache->end())
+    if (i == cache->end()) {
       return std::nullopt;
+    }
     debug("registry resolution cache hit for '%s' -> '%s'", input.to_string(),
           i->second.resolved_input.to_string());
     return i->second;

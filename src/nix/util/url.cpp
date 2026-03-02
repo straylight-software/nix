@@ -18,8 +18,9 @@ std::regex rev_regex(rev_regex_s, std::regex::ECMAScript);
 
 parsed_url_t::authority_t parsed_url_t::authority_t::parse(std::string_view encoded_authority) {
   auto parsed = boost::urls::parse_authority(encoded_authority);
-  if (!parsed)
+  if (!parsed) {
     throw BadURL("invalid URL authority: '%s': %s", encoded_authority, parsed.error().message());
+  }
 
   auto host_type = [&]() {
     switch (parsed->host_type()) {
@@ -37,11 +38,13 @@ parsed_url_t::authority_t parsed_url_t::authority_t::parse(std::string_view enco
   }();
 
   auto port = [&]() -> std::optional<uint16_t> {
-    if (!parsed->has_port() || parsed->port() == "")
+    if (!parsed->has_port() || parsed->port() == "") {
       return std::nullopt;
+    }
     /* If the port number is non-zero and representable. */
-    if (auto portNumber = parsed->port_number())
+    if (auto portNumber = parsed->port_number()) {
       return portNumber;
+    }
     throw BadURL("port '%s' is invalid", parsed->port());
   }();
 
@@ -60,8 +63,9 @@ parsed_url_t::authority_t parsed_url_t::authority_t::parse(std::string_view enco
 std::ostream& operator<<(std::ostream& os, const parsed_url_t::authority_t& self) {
   if (self.user()) {
     os << percent_encode(*self.user());
-    if (self.password())
+    if (self.password()) {
       os << ":" << percent_encode(*self.password());
+    }
     os << "@";
   }
 
@@ -79,8 +83,9 @@ std::ostream& operator<<(std::ostream& os, const parsed_url_t::authority_t& self
       os << "[" << percent_encode(self.host(), ":") << "]";
   }
 
-  if (self.port())
+  if (self.port()) {
     os << ":" << *self.port();
+  }
 
   return os;
 }
@@ -104,10 +109,11 @@ static constexpr boost::urls::grammar::lut_chars extra_allowed_chars_in_query = 
 static std::string percent_encode_char_set(std::string_view s, auto char_set) {
   std::string res;
   for (auto c : s) {
-    if (char_set(c))
+    if (char_set(c)) {
       res += percent_encode(std::string_view{&c, &c + 1});
-    else
+    } else {
       res += c;
+    }
   }
   return res;
 }
@@ -160,13 +166,15 @@ parsed_url_t parse_url(std::string_view url, bool lenient) try {
 }
 
 static parsed_url_t from_boost_url_view(boost::urls::url_view url_view, bool lenient) {
-  if (!url_view.has_scheme())
+  if (!url_view.has_scheme()) {
     throw BadURL("'%s' doesn't have a scheme", url_view.buffer());
+  }
 
   auto scheme = url_view.scheme();
   auto authority = [&]() -> std::optional<parsed_url_t::authority_t> {
-    if (url_view.has_authority())
+    if (url_view.has_authority()) {
       return parsed_url_t::authority_t::parse(url_view.authority().buffer());
+    }
     return std::nullopt;
   }();
 
@@ -178,14 +186,16 @@ static parsed_url_t from_boost_url_view(boost::urls::url_view url_view, bool len
    * "localhost" all mean the end-user's machine, whereas the "http"
    * scheme considers a missing authority or empty host invalid. */
   auto transport_is_file = parse_url_scheme(scheme).transport() == "file";
-  if (authority && authority->host().size() && transport_is_file)
+  if (authority && authority->host().size() && transport_is_file) {
     throw BadURL("file:// URL '%s' has unexpected authority '%s'", url_view.buffer(), *authority);
+  }
 
   auto fragment = url_view.fragment(); /* Does pct-decoding */
 
   boost::core::string_view encoded_path = url_view.encoded_path();
-  if (transport_is_file && encoded_path.empty())
+  if (transport_is_file && encoded_path.empty()) {
     encoded_path = "/";
+  }
 
   auto path = std::views::transform(split_string<std::vector<std::string_view>>(encoded_path, "/"),
                                     percent_decode) |
@@ -212,12 +222,15 @@ parsed_url_t parse_url_relative(std::string_view url_s, const parsed_url_t& base
     if (base.authority()) {
       const auto& authority = *base.authority();
       resolved.set_host_address(authority.host());
-      if (authority.user())
+      if (authority.user()) {
         resolved.set_user(*authority.user());
-      if (authority.password())
+      }
+      if (authority.password()) {
         resolved.set_password(*authority.password());
-      if (authority.port())
+      }
+      if (authority.port()) {
         resolved.set_port_number(*authority.port());
+      }
     }
     resolved.set_encoded_path(encode_url_path(base.path()));
     resolved.set_encoded_query(encode_query(base.query()));
@@ -256,8 +269,9 @@ parsed_url_t parse_url_relative(std::string_view url_s, const parsed_url_t& base
 
 std::string percent_decode(std::string_view in) {
   auto pct_view = boost::urls::make_pct_string_view(in);
-  if (pct_view.has_value())
+  if (pct_view.has_value()) {
     return pct_view->decode();
+  }
   auto error = pct_view.error();
   throw BadURL("invalid URI parameter '%s': %s", in, error.message());
 }
@@ -319,8 +333,9 @@ const static std::string allowed_in_path = ":@!$&'()*+,;=";
 
 std::string encode_url_path(std::span<const std::string> url_path) {
   std::vector<std::string> encoded_path;
-  for (auto& p : url_path)
+  for (auto& p : url_path) {
     encoded_path.push_back(percent_encode(p, allowed_in_path));
+  }
   return concat_strings_sep("/", encoded_path);
 }
 
@@ -328,8 +343,9 @@ std::string encode_query(const string_map_t& ss) {
   std::string res;
   bool first = true;
   for (auto& [name, value] : ss) {
-    if (!first)
+    if (!first) {
       res += '&';
+    }
     first = false;
     res += percent_encode(name, allowed_in_query);
     res += '=';
@@ -341,9 +357,10 @@ std::string encode_query(const string_map_t& ss) {
 Path render_url_path_ensure_legal(const std::vector<std::string>& url_path) {
   for (const auto& comp : url_path) {
     /* This is only really valid for UNIX. Windows has more restrictions. */
-    if (comp.contains('/'))
+    if (comp.contains('/')) {
       throw BadURL("URL path component '%s' contains '/', which is not allowed in file names",
                    comp);
+    }
     if (comp.contains(char(0))) {
       using namespace std::string_view_literals;
       auto str = replace_strings(comp, "\0"sv, "␀"sv);
@@ -355,8 +372,9 @@ Path render_url_path_ensure_legal(const std::vector<std::string>& url_path) {
 }
 
 std::string parsed_url_t::render_path(bool encode) const {
-  if (encode)
+  if (encode) {
     return encode_url_path(path_);
+  }
   return concat_strings_sep("/", path_);
 }
 
@@ -368,8 +386,9 @@ std::string parsed_url_t::render_authority_and_path() const {
   if (authority_.has_value()) {
     /* If a URI contains an authority component, then the path component
        must either be empty or begin with a slash ("/") character. */
-    if (!(path_.empty() || path_.front().empty()))
+    if (!(path_.empty() || path_.front().empty())) {
       throw Error("invalid URL: path must be empty or start with '/' when authority is present");
+    }
     res += authority_->to_string();
   } else if (path_.size() >= 2 && path_[0].empty() && path_[1].empty()) {
     /* If a URI does not contain an authority component, then the path cannot begin
@@ -386,8 +405,9 @@ std::string parsed_url_t::to_string() const {
   std::string res;
   res += scheme_;
   res += ":";
-  if (authority_.has_value())
+  if (authority_.has_value()) {
     res += "//";
+  }
   res += render_authority_and_path();
   if (!query_.empty()) {
     res += "?";
@@ -430,8 +450,9 @@ parsed_url_scheme_t parse_url_scheme(std::string_view scheme) {
 parsed_url_t fix_git_url(std::string url) {
   // Handle SCP-style URLs with username: user@host:path -> ssh://user@host/path
   std::regex scp_with_user_regex("([^/]*)@(.*):(.*)");
-  if (!has_prefix(url, "/") && std::regex_match(url, scp_with_user_regex))
+  if (!has_prefix(url, "/") && std::regex_match(url, scp_with_user_regex)) {
     url = std::regex_replace(url, scp_with_user_regex, "ssh://$1@$2/$3");
+  }
 
   // Handle SCP-style URLs without username: host:path -> ssh://host/path
   // This matches URLs like "github.com:org/repo" or "server.local:/path/to/repo"
@@ -440,8 +461,9 @@ parsed_url_t fix_git_url(std::string url) {
   // in directory names, which is rare but possible).
   std::regex scp_no_user_regex("([^/:]+):(.+)");
   if (!has_prefix(url, "/") && url.find("://") == std::string::npos &&
-      std::regex_match(url, scp_no_user_regex))
+      std::regex_match(url, scp_no_user_regex)) {
     url = std::regex_replace(url, scp_no_user_regex, "ssh://$1/$2");
+  }
 
   if (!has_prefix(url, "file:") && !has_prefix(url, "git+file:") &&
       url.find("://") == std::string::npos) {
@@ -452,16 +474,18 @@ parsed_url_t fix_git_url(std::string url) {
     // For absolute paths starting with '/', split produces ["", ...] which satisfies this.
     // For relative paths, we must NOT set authority to avoid violating the invariant.
     // (NixOS/nix#14867)
-    if (has_prefix(url, "/"))
+    if (has_prefix(url, "/")) {
       result.set_authority(parsed_url_t::authority_t{});
+    }
     result.set_path(split_string<std::vector<std::string>>(url, "/"));
     return result;
   }
   auto parsed = parse_url(url);
   // Drop the superfluous "git+" from the scheme.
   auto scheme = parse_url_scheme(parsed.scheme());
-  if (scheme.application() == "git")
+  if (scheme.application() == "git") {
     parsed.set_scheme(std::string(scheme.transport()));
+  }
   return parsed;
 }
 
@@ -482,14 +506,16 @@ std::optional<std::string> verbatim_url_t::last_path_segment() const {
   try {
     auto parsed_url = parsed();
     auto segments = parsed_url.path_segments(/*skip_empty=*/true);
-    if (std::ranges::empty(segments))
+    if (std::ranges::empty(segments)) {
       return std::nullopt;
+    }
     return segments.back();
   } catch (BadURL&) {
     // Fall back to baseNameOf for unparsable URLs
     auto name = base_name_of(to_string());
-    if (name.empty())
+    if (name.empty()) {
       return std::nullopt;
+    }
     return std::string{name};
   }
 }

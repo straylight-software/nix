@@ -12,8 +12,9 @@
 struct mix_cat_t : virtual nix::args_t {
   void cat(nix::ref<nix::source_accessor_t> accessor, nix::canon_path_t path) {
     auto st = accessor->lstat(path);
-    if (st.type != nix::source_accessor_t::Type::t_regular)
+    if (st.type != nix::source_accessor_t::Type::t_regular) {
       throw nix::Error("path '%1%' is not a regular file", path.abs());
+    }
     nix::logger->stop();
 
     nix::write_full(nix::get_standard_output(), accessor->read_file(path));
@@ -65,8 +66,9 @@ struct cmd_cat_nar_t : nix::StoreCommand, mix_cat_t {
 
   void run(nix::ref<nix::store_t> store) override {
     nix::auto_close_fd_t fd = nix::to_descriptor(open(nar_path.c_str(), O_RDONLY));
-    if (!fd)
+    if (!fd) {
       throw nix::sys_error_t("opening NAR file '%s'", nar_path);
+    }
     auto source = nix::fd_source_t{fd.get()};
 
     struct cat_regular_file_sink_t : nix::null_file_system_object_sink_t {
@@ -98,8 +100,9 @@ struct cmd_cat_nar_t : nix::StoreCommand, mix_cat_t {
     /* NOTE: We still parse the whole file to validate that it's a correct NAR. */
     nix::parse_dump(sink, source);
 
-    if (!sink.found)
+    if (!sink.found) {
       throw nix::Error("NAR does not contain regular file '%1%'", path);
+    }
   }
 };
 

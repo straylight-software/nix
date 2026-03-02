@@ -13,8 +13,9 @@ namespace nix {
 static void* allocate_lazy_memory(size_t max_size) {
   auto p = mmap(nullptr, max_size, PROT_READ | PROT_WRITE,
                 MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
-  if (p == MAP_FAILED)
+  if (p == MAP_FAILED) {
     throw sys_error_t("allocating arena using mmap");
+  }
   return p;
 }
 
@@ -23,8 +24,9 @@ ContiguousArena::ContiguousArena(size_t max_size)
 
 size_t ContiguousArena::allocate(size_t bytes) {
   auto offset = size.fetch_add(bytes);
-  if (offset + bytes > max_size)
+  if (offset + bytes > max_size) {
     throw Error("arena ran out of space");
+  }
   return offset;
 }
 

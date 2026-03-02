@@ -145,10 +145,12 @@ ref<store_t> make_restricted_store(ref<LocalStore::config_t> config, ref<LocalSt
 
 store_path_set_t restricted_store_t::query_all_valid_paths() {
   store_path_set_t paths;
-  for (auto& p : goal.originalPaths())
+  for (auto& p : goal.originalPaths()) {
     paths.insert(p);
-  for (auto& p : goal.addedPaths)
+  }
+  for (auto& p : goal.addedPaths) {
     paths.insert(p);
+  }
   return paths;
 }
 
@@ -167,17 +169,19 @@ void restricted_store_t::query_path_info_uncached(
     } catch (InvalidPath&) {
       callback(nullptr);
     }
-  } else
+  } else {
     callback(nullptr);
+  }
 };
 
 void restricted_store_t::query_referrers(const store_path_t& path, store_path_set_t& referrers) {}
 
 std::map<std::string, std::optional<store_path_t>>
 restricted_store_t::queryPartialDerivationOutputMap(const store_path_t& path, store_t* eval_store) {
-  if (!goal.is_allowed(path))
+  if (!goal.is_allowed(path)) {
     throw InvalidPath("cannot query output map for unknown path '%s' in recursive Nix",
                       printStorePath(path));
+  }
   return next->queryPartialDerivationOutputMap(path, eval_store);
 }
 
@@ -200,14 +204,16 @@ store_path_t restricted_store_t::add_to_store_from_dump(source_t& dump, std::str
 }
 
 void restricted_store_t::nar_from_path(const store_path_t& path, sink_t& sink) {
-  if (!goal.is_allowed(path))
+  if (!goal.is_allowed(path)) {
     throw InvalidPath("cannot dump unknown path '%s' in recursive Nix", printStorePath(path));
+  }
   store_t::nar_from_path(path, sink);
 }
 
 void restricted_store_t::ensure_path(const store_path_t& path) {
-  if (!goal.is_allowed(path))
+  if (!goal.is_allowed(path)) {
     throw InvalidPath("cannot substitute unknown path '%s' in recursive Nix", printStorePath(path));
+  }
   /* Nothing to be done; 'path' must already be valid. */
 }
 
@@ -223,16 +229,19 @@ void restricted_store_t::query_realisation_uncached(
 // XXX: This should probably be allowed if the realisation corresponds to
 // an allowed derivation
 {
-  if (!goal.is_allowed(id))
+  if (!goal.is_allowed(id)) {
     callback(nullptr);
+  }
   next->query_realisation(id, std::move(callback));
 }
 
 void restricted_store_t::build_paths(const std::vector<derived_path_t>& paths, BuildMode build_mode,
                                      std::shared_ptr<store_t> eval_store) {
-  for (auto& result : build_paths_with_results(paths, build_mode, eval_store))
-    if (auto* failureP = result.tryGetFailure())
+  for (auto& result : build_paths_with_results(paths, build_mode, eval_store)) {
+    if (auto* failureP = result.tryGetFailure()) {
       failureP->rethrow();
+    }
+  }
 }
 
 /**
@@ -362,13 +371,15 @@ restricted_store_t::build_paths_with_results(const std::vector<derived_path_t>& 
                                              std::shared_ptr<store_t> eval_store) {
   assert(!eval_store);
 
-  if (build_mode != bmNormal)
+  if (build_mode != bmNormal) {
     throw Error("unsupported build mode");
+  }
 
   for (auto& req : paths) {
-    if (!goal.is_allowed(req))
+    if (!goal.is_allowed(req)) {
       throw InvalidPath("cannot build '%s' in recursive Nix because path is unknown",
                         req.to_string(*next));
+    }
   }
 
   /*
@@ -391,8 +402,9 @@ restricted_store_t::build_paths_with_results(const std::vector<derived_path_t>& 
   result_pipe.create(); // Uses pipe2(O_CLOEXEC)
 
   pid_t pid = fork();
-  if (pid == -1)
+  if (pid == -1) {
     throw sys_error_t("forking for recursive Nix build");
+  }
 
   if (pid == 0) {
     // Child process
@@ -400,8 +412,9 @@ restricted_store_t::build_paths_with_results(const std::vector<derived_path_t>& 
       // Ensure child dies if parent dies. This prevents orphaned processes
       // from holding lock file descriptors indefinitely (NixOS/nix#12142).
 #ifdef __linux__
-      if (prctl(PR_SET_PDEATHSIG, SIGKILL) == -1)
+      if (prctl(PR_SET_PDEATHSIG, SIGKILL) == -1) {
         throw sys_error_t("setting death signal for recursive Nix build");
+      }
 #endif
 
       result_pipe.read_side.close();
@@ -453,24 +466,27 @@ restricted_store_t::build_paths_with_results(const std::vector<derived_path_t>& 
     // Child died unexpectedly, wait and report
     int status;
     waitpid(pid, &status, 0);
-    if (WIFEXITED(status))
+    if (WIFEXITED(status)) {
       throw Error("recursive Nix build process exited with status %d", WEXITSTATUS(status));
-    else if (WIFSIGNALED(status))
+    } else if (WIFSIGNALED(status)) {
       throw Error("recursive Nix build process killed by signal %d", WTERMSIG(status));
-    else
+    } else {
       throw Error("recursive Nix build process terminated unexpectedly");
+    }
   }
 
   // Wait for child to finish
   int status;
-  if (waitpid(pid, &status, 0) == -1)
+  if (waitpid(pid, &status, 0) == -1) {
     throw sys_error_t("waiting for recursive Nix build process");
+  }
 
   if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-    if (WIFEXITED(status))
+    if (WIFEXITED(status)) {
       throw Error("recursive Nix build process exited with status %d", WEXITSTATUS(status));
-    else if (WIFSIGNALED(status))
+    } else if (WIFSIGNALED(status)) {
       throw Error("recursive Nix build process killed by signal %d", WTERMSIG(status));
+    }
   }
 
   // Now update addedPaths and addedDrvOutputs in the parent process
@@ -488,10 +504,12 @@ restricted_store_t::build_paths_with_results(const std::vector<derived_path_t>& 
 
   store_path_set_t closure;
   next->computeFSClosure(new_paths, closure);
-  for (auto& path : closure)
+  for (auto& path : closure) {
     goal.addDependency(path);
-  for (auto& real : realisation_t::closure(*next, newRealisations))
+  }
+  for (auto& real : realisation_t::closure(*next, newRealisations)) {
     goal.addedDrvOutputs.insert(real.id);
+  }
 
   return results;
 }
@@ -504,16 +522,18 @@ MissingPaths restricted_store_t::query_missing(const std::vector<derived_path_t>
   std::vector<derived_path_t> allowed;
   store_path_set_t unknown;
   for (auto& req : targets) {
-    if (goal.is_allowed(req))
+    if (goal.is_allowed(req)) {
       allowed.emplace_back(req);
-    else
+    } else {
       unknown.insert(path_part_of_req(req));
+    }
   }
 
   auto res = next->query_missing(allowed);
 
-  for (auto& p : unknown)
+  for (auto& p : unknown) {
     res.unknown.insert(p);
+  }
 
   return res;
 }

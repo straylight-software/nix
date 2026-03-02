@@ -17,14 +17,16 @@ static void search(std::string_view s, string_set_t& hashes, string_set_t& seen)
   for (size_t i = 0; i + ref_length <= s.size();) {
     int j;
     bool match = true;
-    for (j = ref_length - 1; j >= 0; --j)
+    for (j = ref_length - 1; j >= 0; --j) {
       if (!base_nix32_t::lookup_reverse(s[i + j])) {
         i += j + 1;
         match = false;
         break;
       }
-    if (!match)
+    }
+    if (!match) {
       continue;
+    }
     std::string ref(s.substr(i, ref_length));
     if (hashes.erase(ref)) {
       debug("found reference to '%1%' at offset '%2%'", ref, i);
@@ -46,8 +48,9 @@ void RefScanSink::operator()(std::string_view data) {
   search(data, hashes, seen);
 
   auto rest = ref_length - tailLen;
-  if (rest < tail.size())
+  if (rest < tail.size()) {
     tail = tail.substr(tail.size() - rest);
+  }
   tail.append(data.data() + data.size() - tailLen, tailLen);
 }
 
@@ -78,13 +81,15 @@ void RewritingSink::operator()(std::string_view data) {
 
   pos += consumed;
 
-  if (consumed)
+  if (consumed) {
     next_sink(s.substr(0, consumed));
+  }
 }
 
 void RewritingSink::flush() {
-  if (prev.empty())
+  if (prev.empty()) {
     return;
+  }
   pos += prev.size();
   next_sink(prev);
   prev.clear();
@@ -104,8 +109,9 @@ hash_result_t HashModuloSink::finish() {
      NAR with self-references and a NAR with some of the
      self-references already zeroed out do not produce a hash
      collision. FIXME: proof. */
-  for (auto& pos : rewritingSink.matches)
+  for (auto& pos : rewritingSink.matches) {
     hash_sink(fmt("|%d", pos));
+  }
 
   auto h = hash_sink.finish();
   return {.hash = h.hash, .num_bytes_digested = rewritingSink.pos};

@@ -402,8 +402,9 @@ reapi_digest parse_digest(std::span<const std::byte> data) {
 
   while (offset < data.size()) {
     auto [field, consumed] = parse_field(data.subspan(offset));
-    if (!field)
+    if (!field) {
       break;
+    }
     offset += consumed;
 
     switch (field->number) {
@@ -427,8 +428,9 @@ reapi_status parse_status(std::span<const std::byte> data) {
 
   while (offset < data.size()) {
     auto [field, consumed] = parse_field(data.subspan(offset));
-    if (!field)
+    if (!field) {
       break;
+    }
     offset += consumed;
 
     switch (field->number) {
@@ -452,8 +454,9 @@ std::vector<reapi_digest> parse_find_missing_blobs_response(std::span<const std:
 
   while (offset < data.size()) {
     auto [field, consumed] = parse_field(data.subspan(offset));
-    if (!field)
+    if (!field) {
       break;
+    }
     offset += consumed;
 
     if (field->number == 2) { // missing_blob_digests
@@ -472,8 +475,9 @@ parse_batch_update_blobs_response(std::span<const std::byte> data) {
 
   while (offset < data.size()) {
     auto [field, consumed] = parse_field(data.subspan(offset));
-    if (!field)
+    if (!field) {
       break;
+    }
     offset += consumed;
 
     if (field->number == 1) { // responses
@@ -483,8 +487,9 @@ parse_batch_update_blobs_response(std::span<const std::byte> data) {
       std::size_t sub_offset = 0;
       while (sub_offset < field->data.size()) {
         auto [sub_field, sub_consumed] = parse_field(field->data.subspan(sub_offset));
-        if (!sub_field)
+        if (!sub_field) {
           break;
+        }
         sub_offset += sub_consumed;
 
         switch (sub_field->number) {
@@ -511,8 +516,9 @@ std::vector<batch_read_result> parse_batch_read_blobs_response(std::span<const s
 
   while (offset < data.size()) {
     auto [field, consumed] = parse_field(data.subspan(offset));
-    if (!field)
+    if (!field) {
       break;
+    }
     offset += consumed;
 
     if (field->number == 1) { // responses
@@ -522,8 +528,9 @@ std::vector<batch_read_result> parse_batch_read_blobs_response(std::span<const s
       std::size_t sub_offset = 0;
       while (sub_offset < field->data.size()) {
         auto [sub_field, sub_consumed] = parse_field(field->data.subspan(sub_offset));
-        if (!sub_field)
+        if (!sub_field) {
           break;
+        }
         sub_offset += sub_consumed;
 
         switch (sub_field->number) {
@@ -553,8 +560,9 @@ std::vector<std::byte> parse_read_response(std::span<const std::byte> data) {
 
   while (offset < data.size()) {
     auto [field, consumed] = parse_field(data.subspan(offset));
-    if (!field)
+    if (!field) {
       break;
+    }
     offset += consumed;
 
     if (field->number == 10) { // data
@@ -571,8 +579,9 @@ std::int64_t parse_write_response(std::span<const std::byte> data) {
 
   while (offset < data.size()) {
     auto [field, consumed] = parse_field(data.subspan(offset));
-    if (!field)
+    if (!field) {
       break;
+    }
     offset += consumed;
 
     if (field->number == 1) { // committed_size

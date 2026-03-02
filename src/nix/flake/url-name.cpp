@@ -53,8 +53,9 @@ std::optional<std::string> get_name_from_url(const parsed_url_t& url) {
   std::smatch match;
 
   /* If there is a dir= argument, use its value */
-  if (url.query().count("dir") > 0)
+  if (url.query().count("dir") > 0) {
     return url.query().at("dir");
+  }
 
   /* If the fragment isn't a "default" and contains two attribute elements, use the last one */
   if (std::regex_match(url.fragment(), match, last_attribute_regex) &&
@@ -66,21 +67,24 @@ std::optional<std::string> get_name_from_url(const parsed_url_t& url) {
 
   /* If this is a github/gitlab/sourcehut flake, use the repo name (second path segment) */
   if (std::regex_match(url.scheme(), git_provider_regex)) {
-    if (auto name = get_second_valid_path_segment(path_segments))
+    if (auto name = get_second_valid_path_segment(path_segments)) {
       return name;
+    }
   }
 
   /* If it is a regular git flake, use the directory name (last valid segment) */
   if (std::regex_match(url.scheme(), git_scheme_regex)) {
-    if (auto name = get_last_valid_path_segment(path_segments))
+    if (auto name = get_last_valid_path_segment(path_segments)) {
       return name;
+    }
   }
 
   /* If there is no fragment, take the last valid element of the path.
      This handles edge cases like trailing slashes, double slashes, and paths
      ending with non-name characters. */
-  if (auto name = get_last_valid_path_segment(path_segments))
+  if (auto name = get_last_valid_path_segment(path_segments)) {
     return name;
+  }
 
   /* If even that didn't work, the URL does not contain enough info to determine a useful name */
   return {};

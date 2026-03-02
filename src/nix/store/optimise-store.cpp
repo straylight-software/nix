@@ -19,8 +19,9 @@ namespace nix {
 
 static void make_writable(const Path& path) {
   auto st = lstat(path);
-  if (chmod(path.c_str(), st.st_mode | S_IWUSR) == -1)
+  if (chmod(path.c_str(), st.st_mode | S_IWUSR) == -1) {
     throw sys_error_t("changing writability of '%1%'", path);
+  }
 }
 
 struct make_read_only_t {
@@ -31,8 +32,9 @@ struct make_read_only_t {
   ~make_read_only_t() {
     try {
       /* This will make the path read-only. */
-      if (path != "")
+      if (path != "") {
         canonicalise_timestamp_and_permissions(path);
+      }
     } catch (...) {
       ignore_exception_in_destructor();
     }
@@ -44,8 +46,9 @@ LocalStore::InodeHash LocalStore::loadInodeHash() {
   InodeHash inodeHash;
 
   auto_close_dir_t dir(opendir(linksDir.c_str()));
-  if (!dir)
+  if (!dir) {
     throw sys_error_t("opening directory '%1%'", linksDir);
+  }
 
   struct dirent* dirent;
   while (errno = 0, dirent = readdir(dir.get())) { /* sic */
@@ -53,8 +56,9 @@ LocalStore::InodeHash LocalStore::loadInodeHash() {
     // We don't care if we hit non-hash files, anything goes
     inodeHash.insert(dirent->d_ino);
   }
-  if (errno)
+  if (errno) {
     throw sys_error_t("reading directory '%1%'", linksDir);
+  }
 
   printMsg(lvl_talkative, "loaded %1% hash inodes", inodeHash.size());
 
@@ -65,8 +69,9 @@ strings_t LocalStore::readDirectoryIgnoringInodes(const Path& path, const InodeH
   strings_t names;
 
   auto_close_dir_t dir(opendir(path.c_str()));
-  if (!dir)
+  if (!dir) {
     throw sys_error_t("opening directory '%1%'", path);
+  }
 
   struct dirent* dirent;
   while (errno = 0, dirent = readdir(dir.get())) { /* sic */
@@ -78,12 +83,14 @@ strings_t LocalStore::readDirectoryIgnoringInodes(const Path& path, const InodeH
     }
 
     std::string name = dirent->d_name;
-    if (name == "." || name == "..")
+    if (name == "." || name == "..") {
       continue;
+    }
     names.push_back(name);
   }
-  if (errno)
+  if (errno) {
     throw sys_error_t("reading directory '%1%'", path);
+  }
 
   return names;
 }
@@ -109,8 +116,9 @@ void LocalStore::optimisePath_(activity_t* act, OptimiseStats& stats, const Path
 
   if (S_ISDIR(st.st_mode)) {
     strings_t names = readDirectoryIgnoringInodes(path, inodeHash);
-    for (auto& i : names)
+    for (auto& i : names) {
       optimisePath_(act, stats, path + "/" + i, inodeHash, repair);
+    }
     return;
   }
 
@@ -211,8 +219,9 @@ void LocalStore::optimisePath_(activity_t* act, OptimiseStats& stats, const Path
         return;
       }
 
-      else
+      else {
         throw;
+      }
     }
   }
 
@@ -232,8 +241,9 @@ void LocalStore::optimisePath_(activity_t* act, OptimiseStats& stats, const Path
      permissions). */
   const Path dirOfPath(dir_of(path));
   bool mustToggle = dirOfPath != config->real_store_dir.get();
-  if (mustToggle)
+  if (mustToggle) {
     make_writable(dirOfPath);
+  }
 
   /* When we're done, make the directory read-only again and reset
      its timestamp back to 0. */
@@ -257,8 +267,9 @@ void LocalStore::optimisePath_(activity_t* act, OptimiseStats& stats, const Path
         /* Too many links to the same file (>= 32000 on most file
            systems).  This is likely to happen with empty files.
            Just shrug and ignore. */
-        if (st.st_size)
+        if (st.st_size) {
           printInfo("%1% has maximum number of links", linkPath);
+        }
         return;
       }
 
@@ -308,8 +319,9 @@ void LocalStore::optimisePath_(activity_t* act, OptimiseStats& stats, const Path
     {
       std::error_code ec;
       remove(tempLink, ec); /* Clean up after ourselves. */
-      if (ec)
+      if (ec) {
         printError("unable to unlink %1%: %2%", tempLink, ec.message());
+      }
     }
     if (e.code() == std::errc::too_many_links) {
       /* Some filesystems generate too many links on the rename,
@@ -325,13 +337,14 @@ void LocalStore::optimisePath_(activity_t* act, OptimiseStats& stats, const Path
   stats.files_linked++;
   stats.bytes_freed += st.st_size;
 
-  if (act)
+  if (act) {
     act->result(res_file_linked, st.st_size
 #ifndef _WIN32
                 ,
                 st.st_blocks
 #endif
     );
+  }
 }
 
 void LocalStore::optimiseStore(OptimiseStats& stats) {
@@ -346,8 +359,9 @@ void LocalStore::optimiseStore(OptimiseStats& stats) {
 
   for (auto& i : paths) {
     addTempRoot(i);
-    if (!isValidPath(i))
+    if (!isValidPath(i)) {
       continue; /* path was GC'ed, probably */
+    }
     {
       activity_t act(*logger, lvl_talkative, act_unknown,
                      fmt("optimising path '%s'", printStorePath(i)));
@@ -372,8 +386,9 @@ void LocalStore::optimisePath(const Path& path, RepairFlag repair) {
   OptimiseStats stats;
   InodeHash inodeHash;
 
-  if (settings.autoOptimiseStore)
+  if (settings.autoOptimiseStore) {
     optimisePath_(nullptr, stats, path, inodeHash, repair);
+  }
 }
 
 } // namespace nix

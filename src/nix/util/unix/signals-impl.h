@@ -86,8 +86,9 @@ static inline bool is_interrupted() {
  * them as needed.
  */
 inline void check_interrupt() {
-  if (is_interrupted())
+  if (is_interrupted()) {
     unix::_interrupted();
+  }
 }
 
 /**

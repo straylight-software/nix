@@ -24,15 +24,17 @@ static UsageError non_value_installable(Installable& installable) {
 
 InstallableValue& InstallableValue::require(Installable& installable) {
   auto* castedInstallable = dynamic_cast<InstallableValue*>(&installable);
-  if (!castedInstallable)
+  if (!castedInstallable) {
     throw non_value_installable(installable);
+  }
   return *castedInstallable;
 }
 
 ref<InstallableValue> InstallableValue::require(ref<Installable> installable) {
   auto castedInstallable = installable.dynamic_pointer_cast<InstallableValue>();
-  if (!castedInstallable)
+  if (!castedInstallable) {
     throw non_value_installable(*installable);
+  }
   return ref{castedInstallable};
 }
 
@@ -59,8 +61,9 @@ InstallableValue::trySinglePathToDerivedPaths(value_t& v, const pos_idx_t pos,
     }};
   }
 
-  else
+  else {
     return std::nullopt;
+  }
 }
 
 } // namespace nix

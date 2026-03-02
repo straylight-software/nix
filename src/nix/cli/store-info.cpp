@@ -22,20 +22,24 @@ struct cmd_info_store_t : nix::StoreCommand, nix::MixJSON {
     if (!json) {
       notice("store_t URL: %s", store->config.getReference().render(/*withParams=*/true));
       store->connect();
-      if (auto version = store->getVersion())
+      if (auto version = store->getVersion()) {
         notice("Version: %s", *version);
-      if (auto trusted = store->isTrustedClient())
+      }
+      if (auto trusted = store->isTrustedClient()) {
         notice("Trusted: %s", *trusted);
+      }
     } else {
       nlohmann::json res;
       auto print_res = finally_t([&]() { printJSON(res); });
 
       res["url"] = store->config.getReference().render(/*withParams=*/true);
       store->connect();
-      if (auto version = store->getVersion())
+      if (auto version = store->getVersion()) {
         res["version"] = *version;
-      if (auto trusted = store->isTrustedClient())
+      }
+      if (auto trusted = store->isTrustedClient()) {
         res["trusted"] = *trusted;
+      }
     }
   }
 };

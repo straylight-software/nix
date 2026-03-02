@@ -189,9 +189,10 @@ public:
                    inputToUpdate, inputToUpdate);
               throw e;
             }
-            if (lock_flags.inputUpdates.contains(inputAttrPath))
+            if (lock_flags.inputUpdates.contains(inputAttrPath)) {
               warn("input_t '%s' was specified multiple times. You may have done this by accident.",
                    print_input_attr_path(inputAttrPath));
+            }
             lock_flags.inputUpdates.insert(inputAttrPath);
           }
         }},
@@ -267,12 +268,14 @@ static void enumerate_outputs(
   /* Hack: ensure that hydraJobs is evaluated before anything
      else. This way we can disable IFD for hydraJobs and then enable
      it for other outputs. */
-  if (auto attr = a_outputs->value->attrs()->get(sHydraJobs))
+  if (auto attr = a_outputs->value->attrs()->get(sHydraJobs)) {
     callback(state.symbols[attr->name], *attr->value, attr->pos);
+  }
 
   for (auto& attr : *a_outputs->value->attrs()) {
-    if (attr.name != sHydraJobs)
+    if (attr.name != sHydraJobs) {
       callback(state.symbols[attr.name], *attr.value, attr.pos);
+    }
   }
 }
 
@@ -294,14 +297,16 @@ struct cmd_flake_metadata_t : flake_command_t, MixJSON {
     std::optional<store_path_t> store_path;
     if (store->isInStore(flake.path.path.abs())) {
       auto path = store->toStorePath(flake.path.path.abs()).first;
-      if (store->isValidPath(path))
+      if (store->isValidPath(path)) {
         store_path = path;
+      }
     }
 
     if (json) {
       nlohmann::json j;
-      if (flake.description)
+      if (flake.description) {
         j["description"] = *flake.description;
+      }
       j["originalUrl"] = flake.original_ref.to_string();
       j["original"] = nix::fetchers::attrs_to_json(flake.original_ref.toAttrs());
       j["resolvedUrl"] = flake.resolved_ref.to_string();
@@ -310,45 +315,62 @@ struct cmd_flake_metadata_t : flake_command_t, MixJSON {
       // "locked" is a misnomer - this is the result of the
       // attempt to lock.
       j["locked"] = nix::fetchers::attrs_to_json(flake.locked_ref.toAttrs());
-      if (auto rev = flake.locked_ref.input.getRev())
+      if (auto rev = flake.locked_ref.input.getRev()) {
         j["revision"] = rev->to_string(hash_format_t::base16, false);
-      if (auto dirtyRev = nix::fetchers::maybe_get_str_attr(flake.locked_ref.toAttrs(), "dirtyRev"))
+      }
+      if (auto dirtyRev =
+              nix::fetchers::maybe_get_str_attr(flake.locked_ref.toAttrs(), "dirtyRev")) {
         j["dirtyRevision"] = *dirtyRev;
-      if (auto rev_count = flake.locked_ref.input.get_rev_count())
+      }
+      if (auto rev_count = flake.locked_ref.input.get_rev_count()) {
         j["revCount"] = *rev_count;
-      if (auto last_modified = flake.locked_ref.input.get_last_modified())
+      }
+      if (auto last_modified = flake.locked_ref.input.get_last_modified()) {
         j["lastModified"] = *last_modified;
-      if (store_path)
+      }
+      if (store_path) {
         j["path"] = store->printStorePath(*store_path);
+      }
       j["locks"] = locked_flake.lock_file.to_json().first;
-      if (auto fingerprint = locked_flake.get_fingerprint(*store, fetch_settings))
+      if (auto fingerprint = locked_flake.get_fingerprint(*store, fetch_settings)) {
         j["fingerprint"] = fingerprint->to_string(hash_format_t::base16, false);
+      }
       printJSON(j);
     } else {
       logger->cout(ANSI_BOLD "Resolved URL:" ANSI_NORMAL "  %s", flake.resolved_ref.to_string());
-      if (flake.locked_ref.input.isLocked(fetch_settings))
+      if (flake.locked_ref.input.isLocked(fetch_settings)) {
         logger->cout(ANSI_BOLD "Locked URL:" ANSI_NORMAL "    %s", flake.locked_ref.to_string());
-      if (flake.description)
+      }
+      if (flake.description) {
         logger->cout(ANSI_BOLD "Description:" ANSI_NORMAL "   %s", *flake.description);
-      if (store_path)
+      }
+      if (store_path) {
         logger->cout(ANSI_BOLD "Path:" ANSI_NORMAL "          %s",
                      store->printStorePath(*store_path));
-      if (auto rev = flake.locked_ref.input.getRev())
+      }
+      if (auto rev = flake.locked_ref.input.getRev()) {
         logger->cout(ANSI_BOLD "Revision:" ANSI_NORMAL "      %s",
                      rev->to_string(hash_format_t::base16, false));
-      if (auto dirtyRev = nix::fetchers::maybe_get_str_attr(flake.locked_ref.toAttrs(), "dirtyRev"))
+      }
+      if (auto dirtyRev =
+              nix::fetchers::maybe_get_str_attr(flake.locked_ref.toAttrs(), "dirtyRev")) {
         logger->cout(ANSI_BOLD "Revision:" ANSI_NORMAL "      %s", *dirtyRev);
-      if (auto rev_count = flake.locked_ref.input.get_rev_count())
+      }
+      if (auto rev_count = flake.locked_ref.input.get_rev_count()) {
         logger->cout(ANSI_BOLD "Revisions:" ANSI_NORMAL "     %s", *rev_count);
-      if (auto last_modified = flake.locked_ref.input.get_last_modified())
+      }
+      if (auto last_modified = flake.locked_ref.input.get_last_modified()) {
         logger->cout(ANSI_BOLD "Last modified:" ANSI_NORMAL " %s",
                      std::put_time(std::localtime(&*last_modified), "%F %T"));
-      if (auto fingerprint = locked_flake.get_fingerprint(*store, fetch_settings))
+      }
+      if (auto fingerprint = locked_flake.get_fingerprint(*store, fetch_settings)) {
         logger->cout(ANSI_BOLD "Fingerprint:" ANSI_NORMAL "   %s",
                      fingerprint->to_string(hash_format_t::base16, false));
+      }
 
-      if (!locked_flake.lock_file.root->inputs.empty())
+      if (!locked_flake.lock_file.root->inputs.empty()) {
         logger->cout(ANSI_BOLD "Inputs:" ANSI_NORMAL);
+      }
 
       std::set<ref<Node>> visited{locked_flake.lock_file.root};
 
@@ -358,16 +380,18 @@ struct cmd_flake_metadata_t : flake_command_t, MixJSON {
 
           if (auto locked_node = std::get_if<0>(&input.second)) {
             std::string lastModifiedStr = "";
-            if (auto last_modified = (*locked_node)->locked_ref.input.get_last_modified())
+            if (auto last_modified = (*locked_node)->locked_ref.input.get_last_modified()) {
               lastModifiedStr = fmt(" (%s)", std::put_time(std::gmtime(&*last_modified), "%F %T"));
+            }
             logger->cout("%s" ANSI_BOLD "%s" ANSI_NORMAL ": %s%s",
                          prefix + (last ? tree_last : tree_conn), input.first,
                          (*locked_node)->locked_ref.to_string(true), lastModifiedStr);
 
             bool firstVisit = visited.insert(*locked_node).second;
 
-            if (firstVisit)
+            if (firstVisit) {
               recurse(**locked_node, prefix + (last ? tree_null : tree_line));
+            }
           } else if (auto follows = std::get_if<1>(&input.second)) {
             logger->cout("%s" ANSI_BOLD "%s" ANSI_NORMAL " follows input '%s'",
                          prefix + (last ? tree_last : tree_conn), input.first,
@@ -435,8 +459,9 @@ struct cmd_flake_check_t : flake_command_t {
         if (settings.keep_going) {
           logError(e.info());
           has_errors = true;
-        } else
+        } else {
           throw;
+        }
       }
     };
 
@@ -456,8 +481,9 @@ struct cmd_flake_check_t : flake_command_t {
 
     auto check_system_name = [&](std::string_view system, const pos_idx_t pos) {
       // FIXME: what's the format of "system"?
-      if (system.find('-') == std::string::npos)
+      if (system.find('-') == std::string::npos) {
         report_error(Error("'%s' is not a valid system type, at %s", system, resolve(pos)));
+      }
     };
 
     auto check_system_type = [&](std::string_view system, const pos_idx_t pos) {
@@ -474,9 +500,9 @@ struct cmd_flake_check_t : flake_command_t {
       try {
         activity_t act(*logger, lvl_info, act_unknown, fmt("checking derivation %s", attr_path));
         auto package_info = get_derivation(*state, v, false);
-        if (!package_info)
+        if (!package_info) {
           throw Error("flake attribute '%s' is not a derivation", attr_path);
-        else {
+        } else {
           // FIXME: check meta attributes
           auto store_path = package_info->queryDrvPath();
           if (store_path) {
@@ -498,36 +524,41 @@ struct cmd_flake_check_t : flake_command_t {
       try {
         activity_t act(*logger, lvl_info, act_unknown, fmt("checking app '%s'", attr_path));
         state->forceAttrs(v, pos, "");
-        if (auto attr = v.attrs()->get(state->symbols.create("type")))
+        if (auto attr = v.attrs()->get(state->symbols.create("type"))) {
           state->forceStringNoCtx(*attr->value, attr->pos, "");
-        else
+        } else {
           throw Error("app '%s' lacks attribute 'type'", attr_path);
+        }
 
         if (auto attr = v.attrs()->get(state->symbols.create("program"))) {
           if (attr->name == state->symbols.create("program")) {
             NixStringContext context;
             state->forceString(*attr->value, context, attr->pos, "");
           }
-        } else
+        } else {
           throw Error("app '%s' lacks attribute 'program'", attr_path);
+        }
 
         if (auto attr = v.attrs()->get(state->symbols.create("meta"))) {
           state->forceAttrs(*attr->value, attr->pos, "");
-          if (auto dAttr = attr->value->attrs()->get(state->symbols.create("description")))
+          if (auto dAttr = attr->value->attrs()->get(state->symbols.create("description"))) {
             state->forceStringNoCtx(*dAttr->value, dAttr->pos, "");
-          else
+          } else {
             logWarning({
                 .msg_ = hint_fmt_t("app '%s' lacks attribute 'meta.description'", attr_path),
             });
-        } else
+          }
+        } else {
           logWarning({
               .msg_ = hint_fmt_t("app '%s' lacks attribute 'meta'", attr_path),
           });
+        }
 
         for (auto& attr : *v.attrs()) {
           std::string_view name(state->symbols[attr.name]);
-          if (name != "type" && name != "program" && name != "meta")
+          if (name != "type" && name != "program" && name != "meta") {
             throw Error("app '%s' has unsupported attribute '%s'", attr_path, name);
+          }
         }
       } catch (Error& e) {
         e.add_trace(resolve(pos), hint_fmt_t("while checking the app definition '%s'", attr_path));
@@ -542,8 +573,9 @@ struct cmd_flake_check_t : flake_command_t {
         if (!v.isLambda()) {
           throw Error("overlay is not a function, but %s instead", show_type(v));
         }
-        if (v.lambda().fun->getFormals() || !arg_has_name(v.lambda().fun->arg, "final"))
+        if (v.lambda().fun->getFormals() || !arg_has_name(v.lambda().fun->arg, "final")) {
           throw Error("overlay does not take an argument named 'final'");
+        }
         // FIXME: if we have a 'nixpkgs' input, use it to
         // evaluate the overlay.
       } catch (Error& e) {
@@ -571,10 +603,11 @@ struct cmd_flake_check_t : flake_command_t {
         activity_t act(*logger, lvl_info, act_unknown, fmt("checking Hydra job '%s'", attr_path));
         state->forceAttrs(v, pos, "");
 
-        if (state->is_derivation(v))
+        if (state->is_derivation(v)) {
           throw Error("jobset should not be a derivation at top-level");
+        }
 
-        for (auto& attr : *v.attrs())
+        for (auto& attr : *v.attrs()) {
           futures.spawn(1, [&, attr_path]() {
             state->forceAttrs(*attr.value, attr.pos, "");
             auto attrPath2 = concat_strings(attr_path, ".", state->symbols[attr.name]);
@@ -582,9 +615,11 @@ struct cmd_flake_check_t : flake_command_t {
               activity_t act(*logger, lvl_info, act_unknown,
                              fmt("checking Hydra job '%s'", attrPath2));
               check_derivation(attrPath2, *attr.value, attr.pos);
-            } else
+            } else {
               checkHydraJobs(attrPath2, *attr.value, attr.pos);
+            }
           });
+        }
 
       } catch (Error& e) {
         e.add_trace(resolve(pos), hint_fmt_t("while checking the Hydra jobset '%s'", attr_path));
@@ -601,8 +636,9 @@ struct cmd_flake_check_t : flake_command_t {
         auto v_toplevel =
             find_along_attr_path(*state, "config.system.build.toplevel", bindings, v).first;
         state->forceValue(*v_toplevel, pos);
-        if (!state->is_derivation(*v_toplevel))
+        if (!state->is_derivation(*v_toplevel)) {
           throw Error("attribute 'config.system.build.toplevel' is not a derivation");
+        }
       } catch (Error& e) {
         e.add_trace(resolve(pos),
                     hint_fmt_t("while checking the NixOS configuration '%s'", attr_path));
@@ -620,22 +656,26 @@ struct cmd_flake_check_t : flake_command_t {
           if (attr->name == state->symbols.create("path")) {
             NixStringContext context;
             auto path = state->coerceToPath(attr->pos, *attr->value, context, "");
-            if (!path.path_exists())
+            if (!path.path_exists()) {
               throw Error("template '%s' refers to a non-existent path '%s'", attr_path, path);
+            }
             // TODO: recursively check the flake in 'path'.
           }
-        } else
+        } else {
           throw Error("template '%s' lacks attribute 'path'", attr_path);
+        }
 
-        if (auto attr = v.attrs()->get(state->symbols.create("description")))
+        if (auto attr = v.attrs()->get(state->symbols.create("description"))) {
           state->forceStringNoCtx(*attr->value, attr->pos, "");
-        else
+        } else {
           throw Error("template '%s' lacks attribute 'description'", attr_path);
+        }
 
         for (auto& attr : *v.attrs()) {
           std::string_view name(state->symbols[attr.name]);
-          if (name != "path" && name != "description" && name != "welcomeText")
+          if (name != "path" && name != "description" && name != "welcomeText") {
             throw Error("template '%s' has unsupported attribute '%s'", attr_path, name);
+          }
         }
       } catch (Error& e) {
         e.add_trace(resolve(pos), hint_fmt_t("while checking the template '%s'", attr_path));
@@ -647,8 +687,9 @@ struct cmd_flake_check_t : flake_command_t {
       try {
         activity_t act(*logger, lvl_info, act_unknown, fmt("checking bundler '%s'", attr_path));
         state->forceValue(v, pos);
-        if (!v.isLambda())
+        if (!v.isLambda()) {
           throw Error("bundler must be a function");
+        }
         // TODO: check types of inputs/outputs?
       } catch (Error& e) {
         e.add_trace(resolve(pos), hint_fmt_t("while checking the template '%s'", attr_path));
@@ -682,13 +723,14 @@ struct cmd_flake_check_t : flake_command_t {
                     : name == "devShell"        ? "devShells.<system>.default"
                     : name == "nixosModule"     ? "nixosModules.default"
                                                 : "";
-                if (replacement != "")
+                if (replacement != "") {
                   warn("flake output attribute '%s' is deprecated; use '%s' instead", name,
                        replacement);
+                }
 
                 if (name == "checks") {
                   state->forceAttrs(v_output, pos, "");
-                  for (auto& attr : *v_output.attrs())
+                  for (auto& attr : *v_output.attrs()) {
                     futures.spawn(3, [&, name]() {
                       const auto& attr_name = state->symbols[attr.name];
                       check_system_name(attr_name, attr.pos);
@@ -710,6 +752,7 @@ struct cmd_flake_check_t : flake_command_t {
                         }
                       }
                     });
+                  }
                 }
 
                 else if (name == "formatter") {
@@ -725,18 +768,20 @@ struct cmd_flake_check_t : flake_command_t {
 
                 else if (name == "packages" || name == "devShells") {
                   state->forceAttrs(v_output, pos, "");
-                  for (auto& attr : *v_output.attrs())
+                  for (auto& attr : *v_output.attrs()) {
                     futures.spawn(3, [&, name]() {
                       const auto& attr_name = state->symbols[attr.name];
                       check_system_name(attr_name, attr.pos);
                       if (check_system_type(attr_name, attr.pos)) {
                         state->forceAttrs(*attr.value, attr.pos, "");
-                        for (auto& attr2 : *attr.value->attrs())
+                        for (auto& attr2 : *attr.value->attrs()) {
                           check_derivation(
                               fmt("%s.%s.%s", name, attr_name, state->symbols[attr2.name]),
                               *attr2.value, attr2.pos);
+                        }
                       };
                     });
+                  }
                 }
 
                 else if (name == "apps") {
@@ -746,9 +791,10 @@ struct cmd_flake_check_t : flake_command_t {
                     check_system_name(attr_name, attr.pos);
                     if (check_system_type(attr_name, attr.pos)) {
                       state->forceAttrs(*attr.value, attr.pos, "");
-                      for (auto& attr2 : *attr.value->attrs())
+                      for (auto& attr2 : *attr.value->attrs()) {
                         check_app(fmt("%s.%s.%s", name, attr_name, state->symbols[attr2.name]),
                                   *attr2.value, attr2.pos);
+                      }
                     };
                   }
                 }
@@ -784,44 +830,52 @@ struct cmd_flake_check_t : flake_command_t {
                   }
                 }
 
-                else if (name == "overlay")
+                else if (name == "overlay") {
                   check_overlay(name, v_output, pos);
+                }
 
                 else if (name == "overlays") {
                   state->forceAttrs(v_output, pos, "");
-                  for (auto& attr : *v_output.attrs())
+                  for (auto& attr : *v_output.attrs()) {
                     check_overlay(fmt("%s.%s", name, state->symbols[attr.name]), *attr.value,
                                   attr.pos);
+                  }
                 }
 
-                else if (name == "nixosModule")
+                else if (name == "nixosModule") {
                   check_module(name, v_output, pos);
+                }
 
                 else if (name == "nixosModules") {
                   state->forceAttrs(v_output, pos, "");
-                  for (auto& attr : *v_output.attrs())
+                  for (auto& attr : *v_output.attrs()) {
                     check_module(fmt("%s.%s", name, state->symbols[attr.name]), *attr.value,
                                  attr.pos);
+                  }
                 }
 
                 else if (name == "nixosConfigurations") {
                   state->forceAttrs(v_output, pos, "");
-                  for (auto& attr : *v_output.attrs())
+                  for (auto& attr : *v_output.attrs()) {
                     check_nix_os_configuration(fmt("%s.%s", name, state->symbols[attr.name]),
                                                *attr.value, attr.pos);
+                  }
                 }
 
-                else if (name == "hydraJobs")
+                else if (name == "hydraJobs") {
                   checkHydraJobs(std::string(name), v_output, pos);
+                }
 
-                else if (name == "defaultTemplate")
+                else if (name == "defaultTemplate") {
                   check_template(name, v_output, pos);
+                }
 
                 else if (name == "templates") {
                   state->forceAttrs(v_output, pos, "");
-                  for (auto& attr : *v_output.attrs())
+                  for (auto& attr : *v_output.attrs()) {
                     check_template(fmt("%s.%s", name, state->symbols[attr.name]), *attr.value,
                                    attr.pos);
+                  }
                 }
 
                 else if (name == "defaultBundler") {
@@ -858,8 +912,9 @@ struct cmd_flake_check_t : flake_command_t {
                   // Known but unchecked community attribute
                   ;
 
-                else
+                else {
                   warn("unknown flake output '%s'", name);
+                }
 
               } catch (Error& e) {
                 e.add_trace(resolve(pos), hint_fmt_t("while checking flake output '%s'", name));
@@ -901,12 +956,15 @@ struct cmd_flake_check_t : flake_command_t {
         toBuildSet.insert(std::move(derived_path));
       }
 
-      for (auto& [derived_path, attrPaths] : *derived_path_to_attr_paths)
-        if (!toBuildSet.contains(derived_path))
-          for (auto& attr_path : attrPaths)
+      for (auto& [derived_path, attrPaths] : *derived_path_to_attr_paths) {
+        if (!toBuildSet.contains(derived_path)) {
+          for (auto& attr_path : attrPaths) {
             notice("✅ " ANSI_BOLD "%s" ANSI_NORMAL ANSI_ITALIC ANSI_FAINT
                    " (previously built)" ANSI_NORMAL,
                    attr_path.to_string(*state));
+          }
+        }
+      }
 
       // FIXME: should start building while evaluating.
       activity_t act(*logger, lvl_info, act_unknown,
@@ -915,29 +973,38 @@ struct cmd_flake_check_t : flake_command_t {
       assert(build_results.size() == toBuild.size());
 
       // Report successes first.
-      for (auto& buildResult : build_results)
-        if (buildResult.tryGetSuccess())
-          for (auto& attr_path : (*derived_path_to_attr_paths)[buildResult.path])
+      for (auto& buildResult : build_results) {
+        if (buildResult.tryGetSuccess()) {
+          for (auto& attr_path : (*derived_path_to_attr_paths)[buildResult.path]) {
             notice("✅ " ANSI_BOLD "%s" ANSI_NORMAL, attr_path.to_string(*state));
+          }
+        }
+      }
 
       // Then cancelled builds.
-      for (auto& buildResult : build_results)
-        if (buildResult.isCancelled())
-          for (auto& attr_path : (*derived_path_to_attr_paths)[buildResult.path])
+      for (auto& buildResult : build_results) {
+        if (buildResult.isCancelled()) {
+          for (auto& attr_path : (*derived_path_to_attr_paths)[buildResult.path]) {
             notice("❓ " ANSI_BOLD "%s" ANSI_NORMAL ANSI_FAINT " (cancelled)",
                    attr_path.to_string(*state));
+          }
+        }
+      }
 
       // Then failures.
-      for (auto& buildResult : build_results)
-        if (auto failure = buildResult.tryGetFailure(); failure && !buildResult.isCancelled())
+      for (auto& buildResult : build_results) {
+        if (auto failure = buildResult.tryGetFailure(); failure && !buildResult.isCancelled()) {
           try {
             has_errors = true;
-            for (auto& attr_path : (*derived_path_to_attr_paths)[buildResult.path])
+            for (auto& attr_path : (*derived_path_to_attr_paths)[buildResult.path]) {
               printError("❌ " ANSI_RED "%s" ANSI_NORMAL, attr_path.to_string(*state));
+            }
             failure->rethrow();
           } catch (Error& e) {
             logError(e.info());
           }
+        }
+      }
     }
 
     if (!omittedSystems.lock()->empty()) {
@@ -947,8 +1014,9 @@ struct cmd_flake_check_t : flake_command_t {
            concat_strings_sep(", ", *omittedSystems.lock()));
     }
 
-    if (has_errors)
+    if (has_errors) {
       throw exit_t(1);
+    }
   };
 };
 
@@ -1008,9 +1076,9 @@ struct cmd_flake_init_common_t : virtual args_t, EvalCommand {
         auto to2 = to / name;
         auto st = from2.lstat();
         auto to_st = std::filesystem::symlink_status(to2);
-        if (st.type == source_accessor_t::t_directory)
+        if (st.type == source_accessor_t::t_directory) {
           copy_dir(from2, to2);
-        else if (st.type == source_accessor_t::t_regular) {
+        } else if (st.type == source_accessor_t::t_regular) {
           auto contents = from2.read_file();
           if (std::filesystem::exists(to_st)) {
             auto contents2 = read_file(to2.string());
@@ -1023,8 +1091,9 @@ struct cmd_flake_init_common_t : virtual args_t, EvalCommand {
               notice("skipping identical file: %s", from2);
             }
             continue;
-          } else
+          } else {
             write_file(to2, contents);
+          }
         } else if (st.type == source_accessor_t::t_symlink) {
           auto target = from2.read_link();
           if (std::filesystem::exists(to_st)) {
@@ -1037,11 +1106,13 @@ struct cmd_flake_init_common_t : virtual args_t, EvalCommand {
               notice("skipping identical file: %s", from2);
             }
             continue;
-          } else
+          } else {
             create_symlink(target, os_string_to_string(path_view_ng_t{to2}));
-        } else
+          }
+        } else {
           throw Error("path '%s' needs to be a symlink, file, or directory but instead is a %s",
                       from2, st.type_string());
+        }
         changedFiles.push_back(to2);
         notice("wrote: %s", to2);
       }
@@ -1050,8 +1121,9 @@ struct cmd_flake_init_common_t : virtual args_t, EvalCommand {
     if (!changedFiles.empty() &&
         std::filesystem::exists(std::filesystem::path{flake_dir} / ".git")) {
       strings_t args = {"-C", flake_dir, "add", "--intent-to-add", "--force", "--"};
-      for (auto& s : changedFiles)
+      for (auto& s : changedFiles) {
         args.emplace_back(s.string());
+      }
       run_program("git", true, args);
     }
 
@@ -1060,8 +1132,9 @@ struct cmd_flake_init_common_t : virtual args_t, EvalCommand {
       notice(render_markdown_to_terminal(welcomeText->get_string()));
     }
 
-    if (!conflictedFiles.empty())
+    if (!conflictedFiles.empty()) {
       throw Error("encountered %d conflicts - see above", conflictedFiles.size());
+    }
   }
 };
 
@@ -1117,8 +1190,9 @@ struct cmd_flake_clone_t : flake_command_t {
   }
 
   void run(nix::ref<nix::store_t> store) override {
-    if (dest_dir.empty())
+    if (dest_dir.empty()) {
       throw Error("missing flag '--dest'");
+    }
 
     get_flake_ref().resolve(fetch_settings, *store).input.clone(fetch_settings, *store, dest_dir);
   }
@@ -1174,11 +1248,13 @@ struct cmd_flake_archive_t : flake_command_t, MixJSON, MixDryRun, MixNoCheckSigs
           }
           if (json) {
             auto& jsonObj3 = jsonObj2[inputName];
-            if (store_path)
+            if (store_path) {
               jsonObj3["path"] = store->printStorePath(*store_path);
+            }
             jsonObj3["inputs"] = traverse(**input_node);
-          } else
+          } else {
             traverse(**input_node);
+          }
         }
       }
       return jsonObj2;
@@ -1263,11 +1339,12 @@ struct cmd_flake_show_t : flake_command_t, MixJSON {
           auto name = visitor.get_attr(state->s.name)->get_string();
           std::optional<std::string> description;
           if (auto aMeta = visitor.maybeGetAttr(state->s.meta)) {
-            if (auto aDescription = aMeta->maybeGetAttr(state->s.description))
+            if (auto aDescription = aMeta->maybeGetAttr(state->s.description)) {
               description = aDescription->get_string();
+            }
           }
           j.emplace("type", "derivation");
-          if (!json)
+          if (!json) {
             j.emplace("subtype", attr_path.size() == 2 && attrPathS[0] == "devShell"
                                      ? "development environment"
                                  : attr_path.size() >= 2 && attrPathS[0] == "devShells"
@@ -1276,15 +1353,17 @@ struct cmd_flake_show_t : flake_command_t, MixJSON {
                                  : attr_path.size() >= 1 && attrPathS[0] == "hydraJobs"
                                      ? "derivation"
                                      : "package");
+          }
           j.emplace("name", name);
-          if (description)
+          if (description) {
             j.emplace("description", *description);
+          }
         };
 
         auto omit = [&](std::string_view flag) {
-          if (json)
+          if (json) {
             logger->warn(fmt("%s omitted (use '%s' to show)", attr_path.to_string(*state), flag));
-          else {
+          } else {
             j.emplace("type", "omitted");
             j.emplace("message",
                       fmt(ANSI_WARNING "omitted" ANSI_NORMAL " (use '%s' to show)", flag));
@@ -1313,9 +1392,9 @@ struct cmd_flake_show_t : flake_command_t, MixJSON {
             omit("--all-systems");
           } else {
             try {
-              if (visitor.is_derivation())
+              if (visitor.is_derivation()) {
                 showDerivation();
-              else {
+              } else {
                 auto name = visitor.getAttrPathStr(state->s.name);
                 logger->warn(fmt("%s is not a derivation", name));
               }
@@ -1328,10 +1407,11 @@ struct cmd_flake_show_t : flake_command_t, MixJSON {
 
         else if (attr_path.size() > 0 && attrPathS[0] == "hydraJobs") {
           try {
-            if (visitor.is_derivation())
+            if (visitor.is_derivation()) {
               showDerivation();
-            else
+            } else {
               recurse();
+            }
           } catch (IFDError& e) {
             logger->warn(fmt("%s omitted due to use of import from derivation",
                              attr_path.to_string(*state)));
@@ -1339,19 +1419,20 @@ struct cmd_flake_show_t : flake_command_t, MixJSON {
         }
 
         else if (attr_path.size() > 0 && attrPathS[0] == "legacyPackages") {
-          if (attr_path.size() == 1)
+          if (attr_path.size() == 1) {
             recurse();
-          else if (!show_legacy) {
+          } else if (!show_legacy) {
             omit("--legacy");
           } else if (!show_all_systems && std::string(attrPathS[1]) != local_system) {
             omit("--all-systems");
           } else {
             try {
-              if (visitor.is_derivation())
+              if (visitor.is_derivation()) {
                 showDerivation();
-              else if (attr_path.size() <= 2)
+              } else if (attr_path.size() <= 2) {
                 // FIXME: handle recurseIntoAttrs
                 recurse();
+              }
             } catch (IFDError& e) {
               logger->warn(fmt("%s omitted due to use of import from derivation",
                                attr_path.to_string(*state)));
@@ -1364,14 +1445,17 @@ struct cmd_flake_show_t : flake_command_t, MixJSON {
           auto aType = visitor.maybeGetAttr("type");
           std::optional<std::string> description;
           if (auto aMeta = visitor.maybeGetAttr(state->s.meta)) {
-            if (auto aDescription = aMeta->maybeGetAttr(state->s.description))
+            if (auto aDescription = aMeta->maybeGetAttr(state->s.description)) {
               description = aDescription->get_string();
+            }
           }
-          if (!aType || aType->get_string() != "app")
+          if (!aType || aType->get_string() != "app") {
             state->error<EvalError>("not an app definition").debugThrow();
+          }
           j.emplace("type", "app");
-          if (description)
+          if (description) {
             j.emplace("description", *description);
+          }
         }
 
         else if ((attr_path.size() == 1 && attrPathS[0] == "defaultTemplate") ||
@@ -1396,17 +1480,18 @@ struct cmd_flake_show_t : flake_command_t, MixJSON {
           j.emplace("description", description);
         }
       } catch (EvalError& e) {
-        if (!(attr_path.size() > 0 && attrPathS[0] == "legacyPackages"))
+        if (!(attr_path.size() > 0 && attrPathS[0] == "legacyPackages")) {
           throw;
+        }
       }
     };
 
     futures.spawn(1, [&]() { visit(*cache->get_root(), j); });
     futures.finishAll();
 
-    if (json)
+    if (json) {
       printJSON(j);
-    else {
+    } else {
       // For frameworks it's important that structures are as
       // lazy as possible to prevent infinite recursions,
       // performance issues and errors that aren't related to
@@ -1417,12 +1502,14 @@ struct cmd_flake_show_t : flake_command_t, MixJSON {
       std::function<bool(const nlohmann::json& j)> hasContent;
 
       hasContent = [&](const nlohmann::json& j) -> bool {
-        if (j.find("type") != j.end())
+        if (j.find("type") != j.end()) {
           return true;
-        else {
-          for (auto& j2 : j)
-            if (hasContent(j2))
+        } else {
+          for (auto& j2 : j) {
+            if (hasContent(j2)) {
               return true;
+            }
+          }
           return false;
         }
       };
@@ -1454,8 +1541,9 @@ struct cmd_flake_show_t : flake_command_t, MixJSON {
 
         auto nonEmpty = nlohmann::json::object();
         for (const auto& j2 : j.items()) {
-          if (hasContent(j2.value()))
+          if (hasContent(j2.value())) {
             nonEmpty[j2.key()] = j2.value();
+          }
         }
 
         for (const auto& [i, j2] : enumerate(nonEmpty.items())) {
@@ -1518,10 +1606,11 @@ struct cmd_flake_prefetch_t : flake_command_t, MixJSON {
     }
 
     if (out_link) {
-      if (auto store2 = store.dynamic_pointer_cast<local_fs_store>())
+      if (auto store2 = store.dynamic_pointer_cast<local_fs_store>()) {
         create_out_links(*out_link, {BuiltPath::opaque_t{store_path}}, *store2);
-      else
+      } else {
         throw Error("'--out-link' is not supported for this Nix store");
+      }
     }
   }
 };

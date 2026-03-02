@@ -16,25 +16,30 @@ static strings_t parse_attr_path(std::string_view s) {
     } else if (*i == '"') {
       ++i;
       while (1) {
-        if (i == s.end())
+        if (i == s.end()) {
           throw ParseError("missing closing quote in selection path '%1%'", s);
-        if (*i == '"')
+        }
+        if (*i == '"') {
           break;
+        }
         cur.push_back(*i++);
       }
-    } else
+    } else {
       cur.push_back(*i);
+    }
     ++i;
   }
-  if (!cur.empty())
+  if (!cur.empty()) {
     res.push_back(cur);
+  }
   return res;
 }
 
 AttrPath AttrPath::parse(eval_state_t& state, std::string_view s) {
   AttrPath res;
-  for (auto& a : parse_attr_path(s))
+  for (auto& a : parse_attr_path(s)) {
     res.push_back(state.symbols.create(a));
+  }
   return res;
 }
 
@@ -68,20 +73,23 @@ std::pair<value_t*, pos_idx_t> find_along_attr_path(eval_state_t& state,
        according to what is specified in the attr_path. */
 
     if (!attrIndex) {
-      if (v->type() != nAttrs)
+      if (v->type() != nAttrs) {
         state
             .error<TypeError>(
                 "the expression selected by the selection path '%1%' should be a set but is %2%",
                 attr_path, show_type(*v))
             .debugThrow();
-      if (attr.empty())
+      }
+      if (attr.empty()) {
         throw Error("empty attribute name in selection path '%1%'", attr_path);
+      }
 
       auto a = v->attrs()->get(state.symbols.create(attr));
       if (!a) {
         string_set_t attrNames;
-        for (auto& attr : *v->attrs())
+        for (auto& attr : *v->attrs()) {
           attrNames.insert(std::string(state.symbols[attr.name]));
+        }
 
         auto suggestions = suggestions_t::best_matches(attrNames, attr);
         throw AttrPathNotFound(suggestions, "attribute '%1%' in selection path '%2%' not found",
@@ -92,15 +100,17 @@ std::pair<value_t*, pos_idx_t> find_along_attr_path(eval_state_t& state,
     }
 
     else {
-      if (!v->isList())
+      if (!v->isList()) {
         state
             .error<TypeError>(
                 "the expression selected by the selection path '%1%' should be a list but is %2%",
                 attr_path, show_type(*v))
             .debugThrow();
-      if (*attrIndex >= v->list_size())
+      }
+      if (*attrIndex >= v->list_size()) {
         throw AttrPathNotFound("list index %1% in selection path '%2%' is out of range", *attrIndex,
                                attr_path);
+      }
 
       v = v->list_view()[*attrIndex];
       pos = no_pos;
@@ -132,8 +142,9 @@ std::pair<source_path_t, uint32_t> find_package_filename(eval_state_t& state, va
 
   try {
     auto colon = fn.rfind(':');
-    if (colon == std::string::npos)
+    if (colon == std::string::npos) {
       fail();
+    }
     auto lineno = std::stoi(std::string(fn, colon + 1, std::string::npos));
     return {source_path_t{path.accessor, canon_path_t(fn.substr(0, colon))}, lineno};
   } catch (std::invalid_argument& e) {

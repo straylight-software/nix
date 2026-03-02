@@ -66,8 +66,9 @@ struct cmd_config_check_t : nix::StoreCommand {
     success &= check_store_protocol(store->getProtocol());
     check_trusted_user(store);
 
-    if (!success)
+    if (!success) {
       throw nix::exit_t(2);
+    }
   }
 
   bool check_nix_in_path() {
@@ -75,14 +76,16 @@ struct cmd_config_check_t : nix::StoreCommand {
 
     for (auto& dir : nix::executable_path_t::load().directories) {
       auto candidate = dir / "nix-env";
-      if (std::filesystem::exists(candidate))
+      if (std::filesystem::exists(candidate)) {
         dirs.insert(std::filesystem::canonical(candidate).parent_path());
+      }
     }
 
     if (dirs.size() != 1) {
       std::string msg = "Multiple versions of nix found in PATH:\n";
-      for (auto& dir : dirs)
+      for (auto& dir : dirs) {
         msg += "  " + dir.string() + "\n";
+      }
       return check_fail(msg);
     }
 
@@ -98,20 +101,24 @@ struct cmd_config_check_t : nix::StoreCommand {
         auto user_env = std::filesystem::weakly_canonical(profileDir);
 
         auto noContainsProfiles = [&] {
-          for (auto&& part : profileDir)
-            if (part == "profiles")
+          for (auto&& part : profileDir) {
+            if (part == "profiles") {
               return false;
+            }
+          }
           return true;
         };
 
         if (store->isStorePath(user_env.string()) &&
             nix::has_suffix(user_env.string(), "user-environment")) {
-          while (noContainsProfiles() && std::filesystem::is_symlink(profileDir))
+          while (noContainsProfiles() && std::filesystem::is_symlink(profileDir)) {
             profileDir = std::filesystem::weakly_canonical(
                 profileDir.parent_path() / std::filesystem::read_symlink(profileDir));
+          }
 
-          if (noContainsProfiles())
+          if (noContainsProfiles()) {
             dirs.insert(dir);
+          }
         }
       } catch (nix::SystemError&) {
       } catch (std::filesystem::filesystem_error&) {
@@ -124,8 +131,9 @@ struct cmd_config_check_t : nix::StoreCommand {
           "/profiles.\n"
           "The generation this profile points to might not have a gcroot and could be\n"
           "garbage collected, resulting in broken symlinks.\n\n";
-      for (auto& dir : dirs)
+      for (auto& dir : dirs) {
         msg += "  " + dir.string() + "\n";
+      }
       msg += "\n";
       return check_fail(msg);
     }

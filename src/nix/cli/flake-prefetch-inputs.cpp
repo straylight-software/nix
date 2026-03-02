@@ -32,20 +32,23 @@ struct cmd_flake_prefetch_inputs_t : nix::flake_command_t {
     std::atomic<size_t> nrFailed{0};
 
     auto visit = [&](this const auto& visit, const nix::flake::Node& node) {
-      if (!state_.lock()->done.insert(&node).second)
+      if (!state_.lock()->done.insert(&node).second) {
         return;
+      }
 
       if (auto locked_node = dynamic_cast<const nix::flake::LockedNode*>(&node)) {
-        if (locked_node->buildTime)
+        if (locked_node->buildTime) {
           return;
+        }
         try {
           nix::activity_t act(*nix::logger, nix::lvl_info, nix::act_unknown,
                               nix::fmt("fetching '%s'", locked_node->locked_ref));
           auto accessor =
               locked_node->locked_ref.input.get_accessor(nix::fetch_settings, *store).first;
-          if (!nix::eval_settings.lazyTrees)
+          if (!nix::eval_settings.lazyTrees) {
             nix::fetch_to_store(nix::fetch_settings, *store, accessor, nix::FetchMode::Copy,
                                 locked_node->locked_ref.input.get_name());
+          }
         } catch (nix::Error& e) {
           printError("%s", e.what());
           nrFailed++;
@@ -53,8 +56,9 @@ struct cmd_flake_prefetch_inputs_t : nix::flake_command_t {
       }
 
       for (auto& [inputName, input] : node.inputs) {
-        if (auto input_node = std::get_if<0>(&input))
+        if (auto input_node = std::get_if<0>(&input)) {
           pool.enqueue(std::bind(visit, **input_node));
+        }
       }
     };
 

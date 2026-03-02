@@ -323,8 +323,9 @@ int main() {
       async::process_graph<int>(
           nodes,
           [](const int& n) -> std::set<int> {
-            if (n > 0)
+            if (n > 0) {
               return {n - 1};
+            }
             return {};
           },
           [](const int&) { do_trivial_work(); }, exec);
@@ -339,8 +340,9 @@ int main() {
       async::process_graph<int>(
           nodes,
           [](const int& n) -> std::set<int> {
-            if (n > 0)
+            if (n > 0) {
               return {0}; // All depend on root
+            }
             return {};
           },
           [](const int&) { do_light_work(); }, exec);
@@ -355,8 +357,9 @@ int main() {
   std::iota(scale_data.begin(), scale_data.end(), 0);
 
   for (size_t threads : {1, 2, 4, 8}) {
-    if (threads > hw_threads)
+    if (threads > hw_threads) {
       continue;
+    }
 
     async::Executor exec(threads);
     std::string name = "parallel_reduce 100K (" + std::to_string(threads) + " threads)";

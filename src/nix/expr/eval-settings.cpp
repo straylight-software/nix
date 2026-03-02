@@ -19,14 +19,16 @@ strings_t eval_settings_t::parseNixPath(const std::string& s) {
     auto start2 = p;
 
     while (p != s.end() && *p != ':') {
-      if (*p == '=')
+      if (*p == '=') {
         start2 = p + 1;
+      }
       ++p;
     }
 
     if (p == s.end()) {
-      if (p != start)
+      if (p != start) {
         res.push_back(std::string(start, p));
+      }
       break;
     }
 
@@ -34,12 +36,14 @@ strings_t eval_settings_t::parseNixPath(const std::string& s) {
       auto prefix = std::string(start2, s.end());
       if (eval_settings_t::isPseudoUrl(prefix) || has_prefix(prefix, "flake:")) {
         ++p;
-        while (p != s.end() && *p != ':')
+        while (p != s.end() && *p != ':') {
           ++p;
+        }
       }
       res.push_back(std::string(start, p));
-      if (p == s.end())
+      if (p == s.end()) {
         break;
+      }
     }
 
     ++p;
@@ -52,8 +56,9 @@ eval_settings_t::eval_settings_t(bool& readOnlyMode,
                                  eval_settings_t::LookupPathHooks lookupPathHooks)
     : readOnlyMode{readOnlyMode}, lookupPathHooks{lookupPathHooks} {
   auto var = get_env("NIX_ABORT_ON_WARN");
-  if (var && (var == "1" || var == "yes" || var == "true"))
+  if (var && (var == "1" || var == "yes" || var == "true")) {
     builtinsAbortOnWarn = true;
+  }
 }
 
 strings_t eval_settings_t::getDefaultNixPath() {
@@ -76,11 +81,13 @@ strings_t eval_settings_t::getDefaultNixPath() {
 }
 
 bool eval_settings_t::isPseudoUrl(std::string_view s) {
-  if (s.compare(0, 8, "channel:") == 0)
+  if (s.compare(0, 8, "channel:") == 0) {
     return true;
+  }
   size_t pos = s.find("://");
-  if (pos == std::string::npos)
+  if (pos == std::string::npos) {
     return false;
+  }
   std::string scheme(s, 0, pos);
   return scheme == "http" || scheme == "https" || scheme == "file" || scheme == "channel" ||
          scheme == "git" || scheme == "s3" || scheme == "ssh";
@@ -98,8 +105,9 @@ std::string eval_settings_t::resolvePseudoUrl(std::string_view url) {
              "https://github.com/DeterminateSystems/nix-src/issues/34.",
              url, realUrl);
     return realUrl;
-  } else
+  } else {
     return std::string(url);
+  }
 }
 
 const std::string& eval_settings_t::getCurrentSystem() const {

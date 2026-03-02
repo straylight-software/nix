@@ -256,19 +256,21 @@ void adl_serializer<derived_path_t>::to_json(json& json, const derived_path_t& s
 SingleDerivedPath
 adl_serializer<SingleDerivedPath>::from_json(const json& json,
                                              const experimental_feature_settings_t& xp_settings) {
-  if (json.is_string())
+  if (json.is_string()) {
     return static_cast<SingleDerivedPath::opaque_t>(json);
-  else
+  } else {
     return adl_serializer<SingleDerivedPath::Built>::from_json(json, xp_settings);
+  }
 }
 
 derived_path_t
 adl_serializer<derived_path_t>::from_json(const json& json,
                                           const experimental_feature_settings_t& xp_settings) {
-  if (json.is_string())
+  if (json.is_string()) {
     return static_cast<derived_path_t::opaque_t>(json);
-  else
+  } else {
     return adl_serializer<derived_path_t::Built>::from_json(json, xp_settings);
+  }
 }
 
 } // namespace nlohmann

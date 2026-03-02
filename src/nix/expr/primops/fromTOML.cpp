@@ -26,8 +26,9 @@ static size_t normalizeSubsecondPrecision(toml::local_time lt) {
   auto nanos = lt.nanosecond;
   if (millis != 0 || micros != 0 || nanos != 0) {
     if (micros != 0 || nanos != 0) {
-      if (nanos != 0)
+      if (nanos != 0) {
         return 9;
+      }
       return 6;
     }
     return 3;
@@ -107,8 +108,9 @@ static void prim_from_toml(eval_state_t& state, const pos_idx_t pos, value_t** a
         auto array = toml::get<std::vector<toml::value>>(t);
 
         auto list = state.buildList(array.size());
-        for (const auto& [n, v] : enumerate(list))
+        for (const auto& [n, v] : enumerate(list)) {
           self(*(v = state.allocValue()), array[n]);
+        }
         v.mkList(list);
       } break;
       case toml::value_t::boolean:

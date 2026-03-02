@@ -59,15 +59,17 @@ struct cache_impl_t : cache_t {
   }
 
   std::optional<Attrs> lookup(const Key& key) override {
-    if (auto res = lookupExpired(key))
+    if (auto res = lookupExpired(key)) {
       return std::move(res->value);
+    }
     return {};
   }
 
   std::optional<Attrs> lookupWithTTL(const Key& key) override {
     if (auto res = lookupExpired(key)) {
-      if (!res->expired)
+      if (!res->expired) {
         return std::move(res->value);
+      }
       debug("ignoring expired cache entry '%s:%s'", key.first, attrs_to_json(key.second).dump());
     }
     return {};
@@ -110,8 +112,9 @@ struct cache_impl_t : cache_t {
     key.second.insert_or_assign("store", store.store_dir);
 
     auto res = lookupExpired(key);
-    if (!res)
+    if (!res) {
       return std::nullopt;
+    }
 
     auto store_path_s = get_str_attr(res->value, "storePath");
     res->value.erase("storePath");
@@ -140,8 +143,9 @@ struct cache_impl_t : cache_t {
 
 ref<cache_t> settings_t::get_cache() const {
   auto cache(_cache.lock());
-  if (!*cache)
+  if (!*cache) {
     *cache = std::make_shared<cache_impl_t>();
+  }
   return ref<cache_t>(*cache);
 }
 

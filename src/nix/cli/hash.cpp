@@ -73,10 +73,11 @@ struct cmd_hash_base_t : nix::command_t {
   void run() override {
     for (const auto& path : paths) {
       auto makeSink = [&]() -> std::unique_ptr<nix::abstract_hash_sink_t> {
-        if (modulus)
+        if (modulus) {
           return std::make_unique<nix::HashModuloSink>(hash_algo, *modulus);
-        else
+        } else {
           return std::make_unique<nix::hash_sink_t>(hash_algo);
+        }
       };
 
       auto makeSourcePath = [&]() -> nix::source_path_t {
@@ -121,8 +122,9 @@ struct cmd_hash_base_t : nix::command_t {
         }
       }
 
-      if (truncate && h.hash_size() > 20)
+      if (truncate && h.hash_size() > 20) {
         h = nix::compress_hash(h, 20);
+      }
       nix::logger->cout(h.to_string(hash_format, hash_format == nix::hash_format_t::sri));
     }
   }
@@ -181,13 +183,15 @@ struct cmd_to_base_t : nix::command_t {
   }
 
   void run() override {
-    if (!legacy_cli)
+    if (!legacy_cli) {
       nix::warn("The old format conversion subcommands of `nix hash` were deprecated in favor of "
                 "`nix "
                 "hash convert`.");
-    for (const auto& s : args)
+    }
+    for (const auto& s : args) {
       nix::logger->cout(nix::Hash::parse_any(s, hash_algo)
                             .to_string(hash_format, hash_format == nix::hash_format_t::sri));
+    }
   }
 };
 
@@ -272,23 +276,23 @@ static int compat_nix_hash(int argc, char** argv) {
 
   nix::parse_cmd_line(argc, argv,
                       [&](nix::strings_t::iterator& arg, const nix::strings_t::iterator& end) {
-                        if (*arg == "--help")
+                        if (*arg == "--help") {
                           nix::show_man_page("nix-hash");
-                        else if (*arg == "--version")
+                        } else if (*arg == "--version") {
                           nix::print_version("nix-hash");
-                        else if (*arg == "--flat")
+                        } else if (*arg == "--flat") {
                           flat = true;
-                        else if (*arg == "--base16")
+                        } else if (*arg == "--base16") {
                           hash_format = nix::hash_format_t::base16;
-                        else if (*arg == "--base32")
+                        } else if (*arg == "--base32") {
                           hash_format = nix::hash_format_t::nix32;
-                        else if (*arg == "--base64")
+                        } else if (*arg == "--base64") {
                           hash_format = nix::hash_format_t::base64;
-                        else if (*arg == "--sri")
+                        } else if (*arg == "--sri") {
                           hash_format = nix::hash_format_t::sri;
-                        else if (*arg == "--truncate")
+                        } else if (*arg == "--truncate") {
                           truncate = true;
-                        else if (*arg == "--type") {
+                        } else if (*arg == "--type") {
                           std::string s = nix::get_arg(*arg, arg, end);
                           hash_algo = nix::parse_hash_algo(s);
                         } else if (*arg == "--to-base16") {
@@ -303,18 +307,20 @@ static int compat_nix_hash(int argc, char** argv) {
                         } else if (*arg == "--to-sri") {
                           op = op_to;
                           hash_format = nix::hash_format_t::sri;
-                        } else if (*arg != "" && arg->at(0) == '-')
+                        } else if (*arg != "" && arg->at(0) == '-') {
                           return false;
-                        else
+                        } else {
                           ss.push_back(*arg);
+                        }
                         return true;
                       });
 
   if (op == opHash) {
     cmd_hash_base_t cmd(flat ? nix::file_ingestion_method_t::flat
                              : nix::file_ingestion_method_t::nix_archive);
-    if (!hash_algo.has_value())
+    if (!hash_algo.has_value()) {
       hash_algo = nix::hash_algorithm_t::MD5;
+    }
     cmd.hash_algo = hash_algo.value();
     cmd.hash_format = hash_format;
     cmd.truncate = truncate;
@@ -325,8 +331,9 @@ static int compat_nix_hash(int argc, char** argv) {
   else {
     cmd_to_base_t cmd(hash_format, true);
     cmd.args = ss;
-    if (hash_algo.has_value())
+    if (hash_algo.has_value()) {
       cmd.hash_algo = hash_algo;
+    }
     cmd.run();
   }
 

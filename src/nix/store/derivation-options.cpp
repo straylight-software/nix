@@ -22,19 +22,21 @@ static std::optional<std::string>
 get_string_attr(const string_map_t& env, const StructuredAttrs* parsed, const std::string& name) {
   if (parsed) {
     auto i = parsed->structured_attrs.find(name);
-    if (i == parsed->structured_attrs.end())
+    if (i == parsed->structured_attrs.end()) {
       return {};
-    else {
-      if (!i->second.is_string())
+    } else {
+      if (!i->second.is_string()) {
         throw Error("attribute '%s' of must be a string", name);
+      }
       return i->second.get<std::string>();
     }
   } else {
     auto i = env.find(name);
-    if (i == env.end())
+    if (i == env.end()) {
       return {};
-    else
+    } else {
       return i->second;
+    }
   }
 }
 
@@ -42,19 +44,21 @@ static bool get_bool_attr(const string_map_t& env, const StructuredAttrs* parsed
                           const std::string& name, bool def) {
   if (parsed) {
     auto i = parsed->structured_attrs.find(name);
-    if (i == parsed->structured_attrs.end())
+    if (i == parsed->structured_attrs.end()) {
       return def;
-    else {
-      if (!i->second.is_boolean())
+    } else {
+      if (!i->second.is_boolean()) {
         throw Error("attribute '%s' must be a Boolean", name);
+      }
       return i->second.get<bool>();
     }
   } else {
     auto i = env.find(name);
-    if (i == env.end())
+    if (i == env.end()) {
       return def;
-    else
+    } else {
       return i->second == "1";
+    }
   }
 }
 
@@ -62,26 +66,29 @@ static std::optional<strings_t>
 get_strings_attr(const string_map_t& env, const StructuredAttrs* parsed, const std::string& name) {
   if (parsed) {
     auto i = parsed->structured_attrs.find(name);
-    if (i == parsed->structured_attrs.end())
+    if (i == parsed->structured_attrs.end()) {
       return {};
-    else {
-      if (!i->second.is_array())
+    } else {
+      if (!i->second.is_array()) {
         throw Error("attribute '%s' must be a list of strings", name);
+      }
       auto& a = get_array(i->second);
       strings_t res;
       for (auto j = a.begin(); j != a.end(); ++j) {
-        if (!j->is_string())
+        if (!j->is_string()) {
           throw Error("attribute '%s' must be a list of strings", name);
+        }
         res.push_back(j->get<std::string>());
       }
       return res;
     }
   } else {
     auto i = env.find(name);
-    if (i == env.end())
+    if (i == env.end()) {
       return {};
-    else
+    } else {
       return tokenize_string<strings_t>(i->second);
+    }
   }
 }
 
@@ -126,13 +133,15 @@ derivation_options_from_structured_attrs(const store_dir_config_t& store, const 
 }
 
 static void flatten(const nlohmann::json& value, string_set_t& res) {
-  if (value.is_array())
-    for (auto& v : value)
+  if (value.is_array()) {
+    for (auto& v : value) {
       flatten(v, res);
-  else if (value.is_string())
+    }
+  } else if (value.is_string()) {
     res.insert(value);
-  else
+  } else {
     throw Error("'exportReferencesGraph' value is not an array or a string");
+  }
 }
 
 derivation_options_t<SingleDerivedPath> derivation_options_from_structured_attrs(
@@ -173,19 +182,22 @@ derivation_options_t<SingleDerivedPath> derivation_options_from_structured_attrs
   }
 
   auto parse_single_derived_path = [&](const std::string& path_s) -> SingleDerivedPath {
-    if (auto it = placeholders.find(path_s); it != placeholders.end())
+    if (auto it = placeholders.find(path_s); it != placeholders.end()) {
       return it->second;
-    else
+    } else {
       return SingleDerivedPath::opaque_t{store.toStorePath(path_s).first};
+    }
   };
 
   auto parse_ref = [&](const std::string& path_s) -> DrvRef<SingleDerivedPath> {
-    if (auto it = placeholders.find(path_s); it != placeholders.end())
+    if (auto it = placeholders.find(path_s); it != placeholders.end()) {
       return it->second;
-    if (store.isStorePath(path_s))
+    }
+    if (store.isStorePath(path_s)) {
       return SingleDerivedPath::opaque_t{store.toStorePath(path_s).first};
-    else
+    } else {
       return path_s;
+    }
   };
 
   if (should_warn && parsed) {
@@ -229,19 +241,22 @@ derivation_options_t<SingleDerivedPath> derivation_options_from_structured_attrs
 
               auto& output = get_object(output_);
 
-              if (auto max_size = get(output, "maxSize"))
+              if (auto max_size = get(output, "maxSize")) {
                 checks.max_size = max_size->get<uint64_t>();
+              }
 
-              if (auto maxClosureSize = get(output, "maxClosureSize"))
+              if (auto maxClosureSize = get(output, "maxClosureSize")) {
                 checks.maxClosureSize = maxClosureSize->get<uint64_t>();
+              }
 
               auto get_ = [&](const std::string& name)
                   -> std::optional<std::set<DrvRef<SingleDerivedPath>>> {
                 if (auto i = get(output, name)) {
                   std::set<DrvRef<SingleDerivedPath>> res;
                   for (auto j = i->begin(); j != i->end(); ++j) {
-                    if (!j->is_string())
+                    if (!j->is_string()) {
                       throw Error("attribute '%s' must be a list of strings", name);
+                    }
                     res.insert(parse_ref(j->get<std::string>()));
                   }
                   return res;
@@ -253,16 +268,18 @@ derivation_options_t<SingleDerivedPath> derivation_options_from_structured_attrs
                   output_name,
                   OutputChecks<SingleDerivedPath>{
                       .max_size = [&]() -> std::optional<uint64_t> {
-                        if (auto max_size = get(output, "maxSize"))
+                        if (auto max_size = get(output, "maxSize")) {
                           return max_size->get<uint64_t>();
-                        else
+                        } else {
                           return std::nullopt;
+                        }
                       }(),
                       .maxClosureSize = [&]() -> std::optional<uint64_t> {
-                        if (auto maxClosureSize = get(output, "maxClosureSize"))
+                        if (auto maxClosureSize = get(output, "maxClosureSize")) {
                           return maxClosureSize->get<uint64_t>();
-                        else
+                        } else {
                           return std::nullopt;
+                        }
                       }(),
                       .allowedReferences = get_("allowedReferences"),
                       .disallowedReferences = get_("disallowedReferences")
@@ -277,8 +294,9 @@ derivation_options_t<SingleDerivedPath> derivation_options_from_structured_attrs
         } else {
           auto parseRefSet = [&](const std::optional<string_set_t> optionalStringSet)
               -> std::optional<std::set<DrvRef<SingleDerivedPath>>> {
-            if (!optionalStringSet)
+            if (!optionalStringSet) {
               return std::nullopt;
+            }
             auto range = *optionalStringSet | std::views::transform(parse_ref);
             return std::set<DrvRef<SingleDerivedPath>>(range.begin(), range.end());
           };
@@ -307,9 +325,10 @@ derivation_options_t<SingleDerivedPath> derivation_options_from_structured_attrs
 
               if (auto* udr = get(structured_attrs, "unsafeDiscardReferences")) {
                 for (auto& [output_name, output] : get_object(*udr)) {
-                  if (!output.is_boolean())
+                  if (!output.is_boolean()) {
                     throw Error("attribute 'unsafeDiscardReferences.\"%s\"' must be a Boolean",
                                 output_name);
+                  }
                   res.insert_or_assign(output_name, output.get<bool>());
                 }
               }
@@ -338,26 +357,30 @@ derivation_options_t<SingleDerivedPath> derivation_options_from_structured_attrs
 
             if (parsed) {
               auto* e = optional_value_at(parsed->structured_attrs, "exportReferencesGraph");
-              if (!e || !e->is_object())
+              if (!e || !e->is_object()) {
                 return ret;
+              }
               for (auto& [key, storePathsJson] : get_object(*e)) {
                 string_set_t ss;
                 flatten(storePathsJson, ss);
                 std::set<SingleDerivedPath> store_paths;
-                for (auto& s : ss)
+                for (auto& s : ss) {
                   store_paths.insert(parse_single_derived_path(s));
+                }
                 ret.insert_or_assign(key, std::move(store_paths));
               }
             } else {
               auto s = get_or(env, "exportReferencesGraph", "");
               strings_t ss = tokenize_string<strings_t>(s);
-              if (ss.size() % 2 != 0)
+              if (ss.size() % 2 != 0) {
                 throw Error("odd number of tokens in 'exportReferencesGraph': '%1%'", s);
+              }
               for (strings_t::iterator i = ss.begin(); i != ss.end();) {
                 auto file_name = std::move(*i++);
                 static std::regex regex("[A-Za-z_][A-Za-z0-9_.-]*");
-                if (!std::regex_match(file_name, regex))
+                if (!std::regex_match(file_name, regex)) {
                   throw Error("invalid file name '%s' in 'exportReferencesGraph'", file_name);
+                }
 
                 auto& store_path_s = *i++;
                 ret.insert_or_assign(std::move(file_name),
@@ -387,10 +410,12 @@ string_set_t
 derivation_options_t<input_t>::getRequiredSystemFeatures(const basic_derivation_t& drv) const {
   // FIXME: cache this?
   string_set_t res;
-  for (auto& i : requiredSystemFeatures)
+  for (auto& i : requiredSystemFeatures) {
     res.insert(i);
-  if (!drv.type().hasKnownOutputPaths())
+  }
+  if (!drv.type().hasKnownOutputPaths()) {
     res.insert("ca-derivations");
+  }
   return res;
 }
 
@@ -398,15 +423,19 @@ template <typename input_t>
 bool derivation_options_t<input_t>::canBuildLocally(store_t& localStore,
                                                     const basic_derivation_t& drv) const {
   if (drv.platform != settings.thisSystem.get() && drv.platform != "wasm32-wasip1" &&
-      !settings.extraPlatforms.get().count(drv.platform) && !drv.isBuiltin())
+      !settings.extraPlatforms.get().count(drv.platform) && !drv.isBuiltin()) {
     return false;
+  }
 
-  if (settings.max_build_jobs.get() == 0 && !drv.isBuiltin())
+  if (settings.max_build_jobs.get() == 0 && !drv.isBuiltin()) {
     return false;
+  }
 
-  for (auto& feature : getRequiredSystemFeatures(drv))
-    if (!localStore.config.systemFeatures.get().count(feature))
+  for (auto& feature : getRequiredSystemFeatures(drv)) {
+    if (!localStore.config.systemFeatures.get().count(feature)) {
       return false;
+    }
+  }
 
   return true;
 }
@@ -460,8 +489,9 @@ try_resolve(const derivation_options_t<SingleDerivedPath>& drv_options,
     std::set<DrvRef<store_path_t>> resolvedSet;
     for (const auto& ref : refSet) {
       auto resolved_ref = try_resolve_ref(ref);
-      if (!resolved_ref)
+      if (!resolved_ref) {
         return std::nullopt;
+      }
       resolvedSet.insert(*resolved_ref);
     }
     return resolvedSet;
@@ -474,24 +504,28 @@ try_resolve(const derivation_options_t<SingleDerivedPath>& drv_options,
     std::optional<std::set<DrvRef<store_path_t>>> resolvedAllowedReferences;
     if (checks.allowedReferences) {
       resolvedAllowedReferences = try_resolve_ref_set(*checks.allowedReferences);
-      if (!resolvedAllowedReferences)
+      if (!resolvedAllowedReferences) {
         return std::nullopt;
+      }
     }
 
     std::optional<std::set<DrvRef<store_path_t>>> resolvedAllowedRequisites;
     if (checks.allowedRequisites) {
       resolvedAllowedRequisites = try_resolve_ref_set(*checks.allowedRequisites);
-      if (!resolvedAllowedRequisites)
+      if (!resolvedAllowedRequisites) {
         return std::nullopt;
+      }
     }
 
     auto resolvedDisallowedReferences = try_resolve_ref_set(checks.disallowedReferences);
-    if (!resolvedDisallowedReferences)
+    if (!resolvedDisallowedReferences) {
       return std::nullopt;
+    }
 
     auto resolvedDisallowedRequisites = try_resolve_ref_set(checks.disallowedRequisites);
-    if (!resolvedDisallowedRequisites)
+    if (!resolvedDisallowedRequisites) {
       return std::nullopt;
+    }
 
     return derivation_options_t<store_path_t>::OutputChecks{
         .ignoreSelfRefs = checks.ignoreSelfRefs,
@@ -513,8 +547,9 @@ try_resolve(const derivation_options_t<SingleDerivedPath>& drv_options,
       std::set<store_path_t> resolvedPaths;
       for (const auto& inputPath : inputPaths) {
         auto resolvedPath = try_resolve_path(inputPath);
-        if (!resolvedPath)
+        if (!resolvedPath) {
           return std::nullopt;
+        }
         resolvedPaths.insert(*resolvedPath);
       }
       resolved.emplace(name, std::move(resolvedPaths));
@@ -530,8 +565,9 @@ try_resolve(const derivation_options_t<SingleDerivedPath>& drv_options,
                   derivation_options_t<store_path_t>::OutputChecks,
                   std::map<std::string, derivation_options_t<store_path_t>::OutputChecks>>> {
             auto resolved = try_resolve_output_checks(checks);
-            if (!resolved)
+            if (!resolved) {
               return std::nullopt;
+            }
             return std::variant<
                 derivation_options_t<store_path_t>::OutputChecks,
                 std::map<std::string, derivation_options_t<store_path_t>::OutputChecks>>(*resolved);
@@ -544,8 +580,9 @@ try_resolve(const derivation_options_t<SingleDerivedPath>& drv_options,
             std::map<std::string, derivation_options_t<store_path_t>::OutputChecks> resolvedMap;
             for (const auto& [output_name, checks] : checksMap) {
               auto resolved = try_resolve_output_checks(checks);
-              if (!resolved)
+              if (!resolved) {
                 return std::nullopt;
+              }
               resolvedMap.emplace(output_name, *resolved);
             }
             return std::variant<
@@ -555,14 +592,16 @@ try_resolve(const derivation_options_t<SingleDerivedPath>& drv_options,
           }},
       drv_options.output_checks);
 
-  if (!resolved_output_checks)
+  if (!resolved_output_checks) {
     return std::nullopt;
+  }
 
   // Resolve exportReferencesGraph
   auto resolved_export_graph =
       try_resolve_export_references_graph(drv_options.exportReferencesGraph);
-  if (!resolved_export_graph)
+  if (!resolved_export_graph) {
     return std::nullopt;
+  }
 
   // Return resolved derivation_options_t using designated initializers
   return derivation_options_t<store_path_t>{

@@ -9,9 +9,10 @@ namespace nix {
 PackageInfos query_installed(eval_state_t& state, const Path& user_env) {
   PackageInfos elems;
   auto manifest_json = std::filesystem::path(user_env) / "manifest.json";
-  if (path_exists(manifest_json))
+  if (path_exists(manifest_json)) {
     throw Error("profile '%s' is incompatible with 'nix-env'; please use 'nix profile' instead",
                 user_env);
+  }
   auto manifest_file = std::filesystem::path(user_env) / "manifest.nix";
   if (path_exists(manifest_file)) {
     value_t v;

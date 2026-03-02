@@ -52,8 +52,9 @@ struct cmd_log_t : nix::InstallableCommand {
       auto& logSub = *logSubP;
 
       auto log = logSub.getBuildLog(path);
-      if (!log)
+      if (!log) {
         continue;
+      }
       nix::logger->stop();
       printInfo("got build log for '%s' from '%s'", installable->what(),
                 logSub.config.getHumanReadableURI());

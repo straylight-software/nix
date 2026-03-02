@@ -224,13 +224,15 @@ TEST_CASE("sha256 test vectors", "[hash][sha256][testvector]") {
   // SHA256("The quick brown fox jumps over the lazy dog")
   // = d7a8fbb307d7809469ca9abcb0082e4f8d5651e46d3cdb762d02d0bf37c9e592
   SECTION("SHA256 of 'The quick brown fox jumps over the lazy dog'") {
-    auto hash = hash_string(hash_algorithm_t::SHA256, "The quick brown fox jumps over the lazy dog");
+    auto hash =
+        hash_string(hash_algorithm_t::SHA256, "The quick brown fox jumps over the lazy dog");
     auto hex = hash.to_string(hash_format_t::base16, false);
     REQUIRE(hex == "d7a8fbb307d7809469ca9abcb0082e4f8d5651e46d3cdb762d02d0bf37c9e592");
   }
 
   // SHA256 of a 64-byte message (exactly one block)
-  // Verified with: echo -n '0123456789012345678901234567890123456789012345678901234567890123' | sha256sum
+  // Verified with: echo -n '0123456789012345678901234567890123456789012345678901234567890123' |
+  // sha256sum
   SECTION("SHA256 of exactly one block (64 bytes)") {
     std::string one_block = "0123456789012345678901234567890123456789012345678901234567890123";
     REQUIRE(one_block.size() == 64);
@@ -240,7 +242,8 @@ TEST_CASE("sha256 test vectors", "[hash][sha256][testvector]") {
   }
 
   // SHA256 of a 65-byte message (just over one block, tests padding across blocks)
-  // Verified with: echo -n '01234567890123456789012345678901234567890123456789012345678901234' | sha256sum
+  // Verified with: echo -n '01234567890123456789012345678901234567890123456789012345678901234' |
+  // sha256sum
   SECTION("SHA256 of 65 bytes (padding across blocks)") {
     std::string msg = "01234567890123456789012345678901234567890123456789012345678901234";
     REQUIRE(msg.size() == 65);

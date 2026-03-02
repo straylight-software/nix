@@ -39,33 +39,40 @@ bool DrvName::matches(const DrvName& n) {
       regex = std::make_unique<regex_t>();
       regex->regex = std::regex(name, std::regex::extended);
     }
-    if (!std::regex_match(n.name, regex->regex))
+    if (!std::regex_match(n.name, regex->regex)) {
       return false;
+    }
   }
-  if (version != "" && version != n.version)
+  if (version != "" && version != n.version) {
     return false;
+  }
   return true;
 }
 
 std::string_view next_component(std::string_view::const_iterator& p,
                                 const std::string_view::const_iterator end) {
   /* Skip any dots and dashes (component separators). */
-  while (p != end && (*p == '.' || *p == '-'))
+  while (p != end && (*p == '.' || *p == '-')) {
     ++p;
+  }
 
-  if (p == end)
+  if (p == end) {
     return "";
+  }
 
   /* If the first character is a digit, consume the longest sequence
      of digits.  Otherwise, consume the longest sequence of
      non-digit, non-separator characters. */
   auto s = p;
-  if (isdigit(*p))
-    while (p != end && isdigit(*p))
+  if (isdigit(*p)) {
+    while (p != end && isdigit(*p)) {
       p++;
-  else
-    while (p != end && (!isdigit(*p) && *p != '.' && *p != '-'))
+    }
+  } else {
+    while (p != end && (!isdigit(*p) && *p != '.' && *p != '-')) {
       p++;
+    }
+  }
 
   return {s, size_t(p - s)};
 }
@@ -74,21 +81,23 @@ static bool components_lt(const std::string_view c1, const std::string_view c2) 
   auto n1 = string2_int<int>(c1);
   auto n2 = string2_int<int>(c2);
 
-  if (n1 && n2)
+  if (n1 && n2) {
     return *n1 < *n2;
-  else if (c1 == "" && n2)
+  } else if (c1 == "" && n2) {
     return true;
-  else if (c1 == "pre" && c2 != "pre")
+  } else if (c1 == "pre" && c2 != "pre") {
     return true;
-  else if (c2 == "pre")
+  } else if (c2 == "pre") {
     return false;
+  }
   /* Assume that `2.3a' < `2.3.1'. */
-  else if (n2)
+  else if (n2) {
     return true;
-  else if (n1)
+  } else if (n1) {
     return false;
-  else
+  } else {
     return c1 < c2;
+  }
 }
 
 std::strong_ordering compare_versions(const std::string_view v1, const std::string_view v2) {
@@ -98,10 +107,11 @@ std::strong_ordering compare_versions(const std::string_view v1, const std::stri
   while (p1 != v1.end() || p2 != v2.end()) {
     auto c1 = next_component(p1, v1.end());
     auto c2 = next_component(p2, v2.end());
-    if (components_lt(c1, c2))
+    if (components_lt(c1, c2)) {
       return std::strong_ordering::less;
-    else if (components_lt(c2, c1))
+    } else if (components_lt(c2, c1)) {
       return std::strong_ordering::greater;
+    }
   }
 
   return std::strong_ordering::equal;
@@ -109,8 +119,9 @@ std::strong_ordering compare_versions(const std::string_view v1, const std::stri
 
 DrvNames drv_names_from_args(const strings_t& op_args) {
   DrvNames result;
-  for (auto& i : op_args)
+  for (auto& i : op_args) {
     result.emplace_back(i);
+  }
   return result;
 }
 

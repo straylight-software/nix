@@ -298,8 +298,9 @@ auto get(T&& map, const K& key) -> typename T::mapped_type* = delete;
 template <class T>
 std::optional<typename T::mapped_type> get_optional(const T& map, const typename T::key_type& key) {
   auto i = map.find(key);
-  if (i == map.end())
+  if (i == map.end()) {
     return std::nullopt;
+  }
   return {i->second};
 }
 

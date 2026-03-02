@@ -288,10 +288,12 @@ TEST(list_all) {
   // Both hashes should be in the list
   bool found1 = false, found2 = false;
   for (const auto& h : *all) {
-    if (h == *hash1)
+    if (h == *hash1) {
       found1 = true;
-    if (h == *hash2)
+    }
+    if (h == *hash2) {
       found2 = true;
+    }
   }
   REQUIRE(found1);
   REQUIRE(found2);

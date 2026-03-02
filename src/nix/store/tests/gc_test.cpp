@@ -81,8 +81,9 @@ pid_t create_zombie() {
 
 // Check if a process is a zombie
 bool is_zombie(pid_t pid) {
-  if (pid <= 0)
+  if (pid <= 0) {
     return false;
+  }
 
   char path[64];
   snprintf(path, sizeof(path), "/proc/%d/stat", pid);
@@ -720,7 +721,7 @@ TEST_CASE("temp directory is not /tmp itself", "[gc][tempdir][#11929]") {
 
   // TempDir should create a subdirectory, not use /tmp directly
   REQUIRE(tmpdir.path != "/tmp");
-  REQUIRE(tmpdir.path.string().find("/tmp/") == 0 || tmpdir.path.string().find("/var/") == 0);
+  REQUIRE((tmpdir.path.string().find("/tmp/") == 0 || tmpdir.path.string().find("/var/") == 0));
 
   // Should contain "gc_test" in the name
   REQUIRE(tmpdir.path.string().find("gc_test") != std::string::npos);

@@ -68,8 +68,9 @@ std::string generate_small_derivation() {
                                           "glibc-2.38",   "gnumake-4.4",   "gnutar-1.35",
                                           "stdenv-linux", "gzip-1.12"};
   for (size_t i = 0; i < input_names.size(); ++i) {
-    if (i > 0)
+    if (i > 0) {
       drv += ",";
+    }
     drv += "(\"" + make_store_path(200 + i, input_names[i]) + ".drv\",[\"out\"])";
   }
 
@@ -124,8 +125,9 @@ std::string generate_large_derivation(size_t num_input_drvs = 150) {
 
   drv += "Derive([";
   for (size_t i = 0; i < outputs.size(); ++i) {
-    if (i > 0)
+    if (i > 0) {
       drv += ",";
+    }
     drv += "(\"" + outputs[i].first + "\",\"" + outputs[i].second + "\",\"\",\"\")";
   }
   drv += "],[";
@@ -151,8 +153,9 @@ std::string generate_large_derivation(size_t num_input_drvs = 150) {
   };
 
   for (size_t i = 0; i < num_input_drvs; ++i) {
-    if (i > 0)
+    if (i > 0) {
       drv += ",";
+    }
     std::string name = (i < dep_names.size()) ? dep_names[i] + "-1.0" : "dep-" + std::to_string(i);
     // Mix of ["out"] and ["out", "dev", "lib"] outputs
     if (i % 4 == 0) {
@@ -167,8 +170,9 @@ std::string generate_large_derivation(size_t num_input_drvs = 150) {
 
   // Many input sources
   for (int i = 0; i < 20; ++i) {
-    if (i > 0)
+    if (i > 0) {
       drv += ",";
+    }
     drv += "\"" + make_store_path(3000 + i, "source-" + std::to_string(i)) + "\"";
   }
   drv += "],";
@@ -183,8 +187,9 @@ std::string generate_large_derivation(size_t num_input_drvs = 150) {
   // Build inputs with many paths
   drv += "(\"buildInputs\",\"";
   for (size_t i = 0; i < 30; ++i) {
-    if (i > 0)
+    if (i > 0) {
       drv += " ";
+    }
     drv += make_store_path(5000 + i, "input-" + std::to_string(i));
   }
   drv += "\"),";
@@ -192,8 +197,9 @@ std::string generate_large_derivation(size_t num_input_drvs = 150) {
   // Native build inputs
   drv += "(\"nativeBuildInputs\",\"";
   for (size_t i = 0; i < 20; ++i) {
-    if (i > 0)
+    if (i > 0) {
       drv += " ";
+    }
     drv += make_store_path(5100 + i, "native-" + std::to_string(i));
   }
   drv += "\"),";
@@ -201,8 +207,9 @@ std::string generate_large_derivation(size_t num_input_drvs = 150) {
   // Propagated build inputs
   drv += "(\"propagatedBuildInputs\",\"";
   for (size_t i = 0; i < 15; ++i) {
-    if (i > 0)
+    if (i > 0) {
       drv += " ";
+    }
     drv += make_store_path(5200 + i, "prop-" + std::to_string(i));
   }
   drv += "\"),";
@@ -258,8 +265,9 @@ std::string generate_structured_attrs_derivation() {
 
   // Input derivations
   for (int i = 0; i < 15; ++i) {
-    if (i > 0)
+    if (i > 0) {
       drv += ",";
+    }
     drv += "(\"" + make_store_path(7000 + i, "dep-" + std::to_string(i)) + ".drv\",[\"out\"])";
   }
   drv += "],[";

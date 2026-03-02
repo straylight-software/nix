@@ -92,73 +92,85 @@ nar_info_t::nar_info_t(const store_dir_config_t& store, const std::string& s,
   size_t pos = 0;
   while (pos < s.size()) {
     size_t colon = s.find(':', pos);
-    if (colon == s.npos)
+    if (colon == s.npos) {
       throw corrupt("expecting ':'");
+    }
 
     std::string name(s, pos, colon - pos);
 
     // Validate format: "Key: Value\n" - must have space after colon
     // colon + 1 is where space should be, colon + 2 is where value starts
-    if (colon + 1 >= s.size())
+    if (colon + 1 >= s.size()) {
       throw corrupt("unexpected end of input after ':'");
+    }
 
-    if (s[colon + 1] != ' ')
+    if (s[colon + 1] != ' ') {
       throw corrupt("expecting space after ':'");
+    }
 
     size_t value_start = colon + 2;
 
     // Find end of line - search from colon+1 to handle empty values
     size_t eol = s.find('\n', colon + 1);
-    if (eol == s.npos)
+    if (eol == s.npos) {
       throw corrupt("expecting '\\n' (missing newline at end of line)");
+    }
 
     // Handle CRLF line endings by stripping trailing CR
     size_t value_end = eol;
-    if (value_end > value_start && s[value_end - 1] == '\r')
+    if (value_end > value_start && s[value_end - 1] == '\r') {
       value_end--;
+    }
 
     // Extract value (may be empty if value_start >= value_end)
     std::string value;
-    if (value_start < value_end)
+    if (value_start < value_end) {
       value = std::string(s, value_start, value_end - value_start);
+    }
     // else: empty value is allowed
 
     if (name == "store_path_t") {
       path = store.parseStorePath(value);
       havePath = true;
-    } else if (name == "URL")
+    } else if (name == "URL") {
       url = value;
-    else if (name == "Compression")
+    } else if (name == "Compression") {
       compression = value;
-    else if (name == "FileHash")
+    } else if (name == "FileHash") {
       fileHash = parseHashField(value);
-    else if (name == "FileSize") {
+    } else if (name == "FileSize") {
       auto n = string2_int<decltype(file_size)>(value);
-      if (!n)
+      if (!n) {
         throw corrupt("invalid FileSize");
+      }
       file_size = *n;
     } else if (name == "NarHash") {
       nar_hash = parseHashField(value);
       haveNarHash = true;
     } else if (name == "NarSize") {
       auto n = string2_int<decltype(nar_size)>(value);
-      if (!n)
+      if (!n) {
         throw corrupt("invalid NarSize");
+      }
       nar_size = *n;
     } else if (name == "References") {
       auto refs = tokenize_string<strings_t>(value, " ");
-      if (!references.empty())
+      if (!references.empty()) {
         throw corrupt("extra References");
-      for (auto& r : refs)
+      }
+      for (auto& r : refs) {
         references.insert(store_path_t(r));
+      }
     } else if (name == "Deriver") {
-      if (value != "unknown-deriver")
+      if (value != "unknown-deriver") {
         deriver = store_path_t(value);
-    } else if (name == "Sig")
+      }
+    } else if (name == "Sig") {
       sigs.insert(value);
-    else if (name == "CA") {
-      if (ca)
+    } else if (name == "CA") {
+      if (ca) {
         throw corrupt("extra CA");
+      }
       // FIXME: allow blank ca or require skipping field?
       ca = content_address_t::parseOpt(value);
     }
@@ -167,8 +179,9 @@ nar_info_t::nar_info_t(const store_dir_config_t& store, const std::string& s,
     line += 1;
   }
 
-  if (compression == "")
+  if (compression == "") {
     compression = "bzip2";
+  }
 
   if (!havePath || !haveNarHash || url.empty() || nar_size == 0) {
     line = 0; // don't include line information in the error
@@ -195,14 +208,17 @@ std::string nar_info_t::to_string(const store_dir_config_t& store) const {
 
   res += "References: " + concat_strings_sep(" ", shortRefs()) + "\n";
 
-  if (deriver)
+  if (deriver) {
     res += "Deriver: " + std::string(deriver->to_string()) + "\n";
+  }
 
-  for (const auto& sig : sigs)
+  for (const auto& sig : sigs) {
     res += "Sig: " + sig + "\n";
+  }
 
-  if (ca)
+  if (ca) {
     res += "CA: " + render_content_address(*ca) + "\n";
+  }
 
   return res;
 }
@@ -214,18 +230,22 @@ nlohmann::json UnkeyedNarInfo::to_json(const store_dir_config_t* store, bool inc
   auto json_object = UnkeyedValidPathInfo::to_json(store, includeImpureInfo, format);
 
   if (includeImpureInfo) {
-    if (!url.empty())
+    if (!url.empty()) {
       json_object["url"] = url;
-    if (!compression.empty())
-      json_object["compression"] = compression;
-    if (fileHash) {
-      if (format == PathInfoJsonFormat::V1)
-        json_object["downloadHash"] = fileHash->to_string(hash_format_t::sri, true);
-      else
-        json_object["downloadHash"] = *fileHash;
     }
-    if (file_size)
+    if (!compression.empty()) {
+      json_object["compression"] = compression;
+    }
+    if (fileHash) {
+      if (format == PathInfoJsonFormat::V1) {
+        json_object["downloadHash"] = fileHash->to_string(hash_format_t::sri, true);
+      } else {
+        json_object["downloadHash"] = *fileHash;
+      }
+    }
+    if (file_size) {
       json_object["downloadSize"] = file_size;
+    }
   }
 
   return json_object;
@@ -238,24 +258,29 @@ UnkeyedNarInfo UnkeyedNarInfo::from_json(const store_dir_config_t* store,
   auto& obj = get_object(json);
 
   PathInfoJsonFormat format = PathInfoJsonFormat::V1;
-  if (auto* version = optional_value_at(obj, "version"))
+  if (auto* version = optional_value_at(obj, "version")) {
     format = *version;
-
-  if (auto* url = get(obj, "url"))
-    res.url = get_string(*url);
-
-  if (auto* compression = get(obj, "compression"))
-    res.compression = get_string(*compression);
-
-  if (auto* downloadHash = get(obj, "downloadHash")) {
-    if (format == PathInfoJsonFormat::V1)
-      res.fileHash = Hash::parse_sri(get_string(*downloadHash));
-    else
-      res.fileHash = *downloadHash;
   }
 
-  if (auto* downloadSize = get(obj, "downloadSize"))
+  if (auto* url = get(obj, "url")) {
+    res.url = get_string(*url);
+  }
+
+  if (auto* compression = get(obj, "compression")) {
+    res.compression = get_string(*compression);
+  }
+
+  if (auto* downloadHash = get(obj, "downloadHash")) {
+    if (format == PathInfoJsonFormat::V1) {
+      res.fileHash = Hash::parse_sri(get_string(*downloadHash));
+    } else {
+      res.fileHash = *downloadHash;
+    }
+  }
+
+  if (auto* downloadSize = get(obj, "downloadSize")) {
     res.file_size = get_unsigned(*downloadSize);
+  }
 
   return res;
 }

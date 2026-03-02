@@ -28,8 +28,9 @@ static std::string run_hg(const strings_t& args, const std::optional<std::string
 
   auto res = run_program(std::move(opts));
 
-  if (!status_ok(res.first))
+  if (!status_ok(res.first)) {
     throw exec_error_t(res.first, "hg %1%", status_to_string(res.first));
+  }
 
   return res.second;
 }
@@ -38,8 +39,9 @@ struct mercurial_input_scheme_t : input_scheme_t {
   std::optional<input_t> inputFromURL(const settings_t& settings, const parsed_url_t& url,
                                       bool require_tree) const override {
     if (url.scheme() != "hg+http" && url.scheme() != "hg+https" && url.scheme() != "hg+ssh" &&
-        url.scheme() != "hg+file")
+        url.scheme() != "hg+file") {
       return {};
+    }
 
     auto url2(url);
     url2.set_scheme(std::string(url2.scheme(), 3));
@@ -49,10 +51,11 @@ struct mercurial_input_scheme_t : input_scheme_t {
     attrs.emplace("type", "hg");
 
     for (auto& [name, value] : url.query()) {
-      if (name == "rev" || name == "ref")
+      if (name == "rev" || name == "ref") {
         attrs.emplace(name, value);
-      else
+      } else {
         url2.query().emplace(name, value);
+      }
     }
 
     attrs.emplace("url", url2.to_string());
@@ -102,8 +105,9 @@ struct mercurial_input_scheme_t : input_scheme_t {
     parse_url(get_str_attr(attrs, "url"));
 
     if (auto ref = maybe_get_str_attr(attrs, "ref")) {
-      if (!std::regex_match(*ref, ref_regex))
+      if (!std::regex_match(*ref, ref_regex)) {
         throw BadURL("invalid Mercurial branch/tag name '%s'", *ref);
+      }
     }
 
     input_t input{};
@@ -114,36 +118,42 @@ struct mercurial_input_scheme_t : input_scheme_t {
   parsed_url_t toURL(const input_t& input, bool abbreviate) const override {
     auto url = parse_url(get_str_attr(input.attrs, "url"));
     url.set_scheme("hg+" + url.scheme());
-    if (auto rev = input.getRev())
+    if (auto rev = input.getRev()) {
       url.query().insert_or_assign("rev", rev->git_rev());
-    if (auto ref = input.getRef())
+    }
+    if (auto ref = input.getRef()) {
       url.query().insert_or_assign("ref", *ref);
+    }
     return url;
   }
 
   input_t applyOverrides(const input_t& input, std::optional<std::string> ref,
                          std::optional<Hash> rev) const override {
     auto res(input);
-    if (rev)
+    if (rev) {
       res.attrs.insert_or_assign("rev", rev->git_rev());
-    if (ref)
+    }
+    if (ref) {
       res.attrs.insert_or_assign("ref", *ref);
+    }
     return res;
   }
 
   std::optional<std::filesystem::path> get_source_path(const input_t& input) const override {
     auto url = parse_url(get_str_attr(input.attrs, "url"));
-    if (url.scheme() == "file" && !input.getRef() && !input.getRev())
+    if (url.scheme() == "file" && !input.getRef() && !input.getRev()) {
       return render_url_path_ensure_legal(url.path());
+    }
     return {};
   }
 
   void putFile(const input_t& input, const canon_path_t& path, std::string_view contents,
                std::optional<std::string> commit_msg) const override {
     auto [is_local, repo_path] = get_actual_url(input);
-    if (!is_local)
+    if (!is_local) {
       throw Error("cannot commit '%s' to Mercurial repository '%s' because it's not a working tree",
                   path, input.to_string());
+    }
 
     auto abs_path = canon_path_t(repo_path) / path;
 
@@ -152,8 +162,9 @@ struct mercurial_input_scheme_t : input_scheme_t {
     // FIXME: shut up if file is already tracked.
     run_hg({"add", abs_path.abs()});
 
-    if (commit_msg)
+    if (commit_msg) {
       run_hg({"commit", abs_path.abs(), "-m", *commit_msg});
+    }
   }
 
   std::pair<bool, std::string> get_actual_url(const input_t& input) const {
@@ -181,11 +192,13 @@ struct mercurial_input_scheme_t : input_scheme_t {
         /* This is an unclean working tree. So copy all tracked
            files. */
 
-        if (!settings.allowDirty)
+        if (!settings.allowDirty) {
           throw Error("Mercurial tree '%s' is unclean", actual_url);
+        }
 
-        if (settings.warn_dirty)
+        if (settings.warn_dirty) {
           warn("Mercurial tree '%s' is unclean", actual_url);
+        }
 
         input.attrs.insert_or_assign("ref", chomp(run_hg({"branch", "-R", actual_url})));
 
@@ -219,13 +232,15 @@ struct mercurial_input_scheme_t : input_scheme_t {
       }
     }
 
-    if (!input.getRef())
+    if (!input.getRef()) {
       input.attrs.insert_or_assign("ref", "default");
+    }
 
     auto rev_info_key = [&](const Hash& rev) {
-      if (rev.algo() != hash_algorithm_t::SHA1)
+      if (rev.algo() != hash_algorithm_t::SHA1) {
         throw Error("Hash '%s' is not supported by Mercurial. Only sha1 is supported.",
                     rev.git_rev());
+      }
 
       return cache_t::Key{
           "hgRev",
@@ -244,14 +259,16 @@ struct mercurial_input_scheme_t : input_scheme_t {
     cache_t::Key ref_to_rev_key{"hgRefToRev", {{"url", actual_url}, {"ref", *input.getRef()}}};
 
     if (!input.getRev()) {
-      if (auto res = settings.get_cache()->lookupWithTTL(ref_to_rev_key))
+      if (auto res = settings.get_cache()->lookupWithTTL(ref_to_rev_key)) {
         input.attrs.insert_or_assign("rev", get_rev_attr(*res, "rev").git_rev());
+      }
     }
 
     /* If we have a rev, check if we have a cached store path. */
     if (auto rev = input.getRev()) {
-      if (auto res = settings.get_cache()->lookupStorePath(rev_info_key(*rev), store))
+      if (auto res = settings.get_cache()->lookupStorePath(rev_info_key(*rev), store)) {
         return make_result(res->value, res->store_path);
+      }
     }
 
     std::filesystem::path cache_dir =
@@ -291,9 +308,10 @@ struct mercurial_input_scheme_t : input_scheme_t {
     auto tokens = tokenize_string<std::vector<std::string>>(
         run_hg({"log", "-R", cache_dir.string(), "-r", ref_or_rev, "--template",
                 "{node} {rev} {branch}"}));
-    if (tokens.size() != 3)
+    if (tokens.size() != 3) {
       throw Error("unexpected output from 'hg log' for ref '%s': expected 3 fields, got %d",
                   ref_or_rev, tokens.size());
+    }
 
     auto rev = Hash::parse_any(tokens[0], hash_algorithm_t::SHA1);
     input.attrs.insert_or_assign("rev", rev.git_rev());
@@ -302,8 +320,9 @@ struct mercurial_input_scheme_t : input_scheme_t {
 
     /* Now that we have the rev, check the cache again for a
        cached store path. */
-    if (auto res = settings.get_cache()->lookupStorePath(rev_info_key(rev), store))
+    if (auto res = settings.get_cache()->lookupStorePath(rev_info_key(rev), store)) {
       return make_result(res->value, res->store_path);
+    }
 
     std::filesystem::path tmp_dir = create_temp_dir();
     auto_delete_t del_tmp_dir(tmp_dir, true);
@@ -319,8 +338,9 @@ struct mercurial_input_scheme_t : input_scheme_t {
         {"revCount", (uint64_t)rev_count},
     });
 
-    if (!orig_rev)
+    if (!orig_rev) {
       settings.get_cache()->upsert(ref_to_rev_key, {{"rev", rev.git_rev()}});
+    }
 
     settings.get_cache()->upsert(rev_info_key(rev), store, info_attrs, store_path);
 
@@ -344,10 +364,11 @@ struct mercurial_input_scheme_t : input_scheme_t {
   }
 
   std::optional<std::string> get_fingerprint(store_t& store, const input_t& input) const override {
-    if (auto rev = input.getRev())
+    if (auto rev = input.getRev()) {
       return "hg:" + rev->git_rev();
-    else
+    } else {
       return std::nullopt;
+    }
   }
 };
 

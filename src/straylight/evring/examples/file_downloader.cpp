@@ -122,12 +122,13 @@ void print_progress(std::size_t downloaded, std::size_t total) {
 
     std::printf("\r[");
     for (int i = 0; i < bar_width; ++i) {
-      if (i < filled)
+      if (i < filled) {
         std::printf("=");
-      else if (i == filled)
+      } else if (i == filled) {
         std::printf(">");
-      else
+      } else {
         std::printf(" ");
+      }
     }
     std::printf("] %3d%% (%zu / %zu bytes)", percent, downloaded, total);
   } else {

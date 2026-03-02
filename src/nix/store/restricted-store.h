@@ -52,8 +52,9 @@ struct RestrictionContext {
    * outputs, and make it appear in the sandbox.
    */
   void addDependency(const store_path_t& path) {
-    if (is_allowed(path))
+    if (is_allowed(path)) {
       return;
+    }
     add_dependency_impl(path);
   }
 

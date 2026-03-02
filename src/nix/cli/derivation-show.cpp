@@ -43,8 +43,9 @@ struct cmd_show_derivation_t : nix::InstallablesCommand, nix::MixPrintJSON {
     nlohmann::json json_root = nlohmann::json::object();
 
     for (auto& drv_path : drv_paths) {
-      if (!drv_path.is_derivation())
+      if (!drv_path.is_derivation()) {
         continue;
+      }
 
       json_root[drv_path.to_string()] = store->read_derivation(drv_path);
     }

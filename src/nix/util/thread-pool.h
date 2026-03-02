@@ -103,8 +103,9 @@ void process_graph(const std::set<T>& nodes, std::function<std::set<T>(const T&)
     {
       auto graph(graph_.lock());
       auto i = graph->refs.find(node);
-      if (i == graph->refs.end())
+      if (i == graph->refs.end()) {
         goto getRefs;
+      }
       goto do_work;
     }
 
@@ -127,8 +128,9 @@ void process_graph(const std::set<T>& nodes, std::function<std::set<T>(const T&)
           graph->rrefs[ref].insert(node);
         }
       }
-      if (graph->refs[node].empty())
+      if (graph->refs[node].empty()) {
         goto do_work;
+      }
     }
   }
 
@@ -146,8 +148,9 @@ void process_graph(const std::set<T>& nodes, std::function<std::set<T>(const T&)
         auto i = refs.find(node);
         assert(i != refs.end());
         refs.erase(i);
-        if (refs.empty())
+        if (refs.empty()) {
           pool.enqueue(std::bind(worker, rref));
+        }
       }
       graph->left.erase(node);
       graph->refs.erase(node);
@@ -168,8 +171,9 @@ void process_graph(const std::set<T>& nodes, std::function<std::set<T>(const T&)
 
   pool.process();
 
-  if (!graph_.lock()->left.empty())
+  if (!graph_.lock()->left.empty()) {
     throw Error("graph processing incomplete (cyclic reference?)");
+  }
 }
 
 } // namespace nix

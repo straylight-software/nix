@@ -47,8 +47,9 @@ struct cmd_eval_t : nix::MixJSON, nix::InstallableValueCommand, nix::MixReadOnly
   category_t category() override { return nix::catSecondary; }
 
   void run(nix::ref<nix::store_t> store, nix::ref<nix::InstallableValue> installable) override {
-    if (raw && json)
+    if (raw && json) {
       throw nix::UsageError("--raw and --json are mutually exclusive");
+    }
 
     auto state = getEvalState();
 
@@ -66,24 +67,26 @@ struct cmd_eval_t : nix::MixJSON, nix::InstallableValueCommand, nix::MixReadOnly
     if (write_to) {
       nix::logger->stop();
 
-      if (nix::path_exists(*write_to))
+      if (nix::path_exists(*write_to)) {
         throw nix::Error("path '%s' already exists", write_to->string());
+      }
 
       [&](this const auto& recurse, nix::value_t& v, const nix::pos_idx_t pos,
           const std::filesystem::path& path) -> void {
         state->forceValue(v, pos);
-        if (v.type() == nix::nString)
+        if (v.type() == nix::nString) {
           // FIXME: disallow strings with contexts?
           nix::write_file(path.string(), v.string_view());
-        else if (v.type() == nix::nAttrs) {
+        } else if (v.type() == nix::nAttrs) {
           [[maybe_unused]] bool directory_created = std::filesystem::create_directory(path);
           // Directory should not already exist
           assert(directory_created);
           for (auto& attr : *v.attrs()) {
             std::string_view name = state->symbols[attr.name];
             try {
-              if (name == "." || name == "..")
+              if (name == "." || name == "..") {
                 throw nix::Error("invalid file name '%s'", name);
+              }
               recurse(*attr.value, attr.pos, path / name);
             } catch (nix::Error& e) {
               e.add_trace(state->positions[attr.pos],
@@ -91,11 +94,12 @@ struct cmd_eval_t : nix::MixJSON, nix::InstallableValueCommand, nix::MixReadOnly
               throw;
             }
           }
-        } else
+        } else {
           state
               ->error<nix::TypeError>("value at '%s' is not a string or an attribute set",
                                       state->positions[pos])
               .debugThrow();
+        }
       }(*v, pos, *write_to);
     }
 

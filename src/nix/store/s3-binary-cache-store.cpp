@@ -149,10 +149,11 @@ void s3_binary_cache_store_t::upload(std::string_view path, restartable_source_t
                                      uint64_t size_hint, std::string_view mime_type,
                                      std::optional<headers_t> headers) {
   debug("using S3 regular upload for '%s' (%d bytes)", path, size_hint);
-  if (size_hint > AWS_MAX_PART_SIZE)
+  if (size_hint > AWS_MAX_PART_SIZE) {
     throw Error("file too large for S3 upload without multipart: %s would exceed maximum size of "
                 "%s. Consider enabling multipart-upload.",
                 render_size(size_hint), render_size(AWS_MAX_PART_SIZE));
+  }
 
   http_binary_cache_store::upload(path, source, size_hint, mime_type, std::move(headers));
 }
@@ -404,9 +405,11 @@ std::string S3BinaryCacheStoreConfig::getHumanReadableURI() const {
   auto reference = getReference();
   reference.params = [&]() {
     Params relevantParams;
-    for (auto& setting : s3UriSettings)
-      if (setting->overridden)
+    for (auto& setting : s3UriSettings) {
+      if (setting->overridden) {
         relevantParams.insert({setting->name, reference.params.at(setting->name)});
+      }
+    }
     return relevantParams;
   }();
   return reference.render();

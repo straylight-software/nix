@@ -191,8 +191,9 @@ struct BenchSource : public nix::source_t {
   size_t read(char* buf, size_t len) override {
     size_t available = data_.size() - pos_;
     size_t to_read = std::min(len, available);
-    if (to_read == 0)
+    if (to_read == 0) {
       return 0;
+    }
     std::memcpy(buf, data_.data() + pos_, to_read);
     pos_ += to_read;
     return to_read;
@@ -393,10 +394,12 @@ TEST_CASE("Protocol serialization: Large path sets", "[store][protocol][benchmar
 
   for (int i = 0; i < 5000; ++i) {
     auto path = make_store_path(i);
-    if (i < 100)
+    if (i < 100) {
       paths_100.insert(path);
-    if (i < 1000)
+    }
+    if (i < 1000) {
       paths_1000.insert(path);
+    }
     paths_5000.insert(path);
   }
 

@@ -39,8 +39,9 @@ std::filesystem::path trusted_list_path() {
 
 static TrustedList read_trusted_list() {
   auto path = trusted_list_path();
-  if (!path_exists(path))
+  if (!path_exists(path)) {
     return {};
+  }
   auto json = nlohmann::json::parse(read_file(path));
   return json;
 }
@@ -60,16 +61,17 @@ void ConfigFile::apply(const settings_t& flake_settings) {
 
     // FIXME: Move into libutil/config.cc.
     std::string valueS;
-    if (auto* s = std::get_if<std::string>(&value))
+    if (auto* s = std::get_if<std::string>(&value)) {
       valueS = *s;
-    else if (auto* n = std::get_if<int64_t>(&value))
+    } else if (auto* n = std::get_if<int64_t>(&value)) {
       valueS = fmt("%d", *n);
-    else if (auto* b = std::get_if<explicit_t<bool>>(&value))
+    } else if (auto* b = std::get_if<explicit_t<bool>>(&value)) {
       valueS = b->t_ ? "true" : "false";
-    else if (auto ss = std::get_if<std::vector<std::string>>(&value))
+    } else if (auto ss = std::get_if<std::vector<std::string>>(&value)) {
       valueS = drop_empty_init_then_concat_strings_sep(" ", *ss); // FIXME: evil
-    else
+    } else {
       assert(false);
+    }
 
     if (!whitelist.count(base_name) && !flake_settings.acceptFlakeConfig) {
       bool trusted = false;

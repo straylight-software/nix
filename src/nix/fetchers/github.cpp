@@ -58,11 +58,13 @@ struct git_archive_input_scheme_t : input_scheme_t {
   bool shouldUseSsh(const settings_t& settings, const input_t& input) const {
     // If the input already has a narHash, we must use the original fetch method
     // (tarball) to get the same hash. Git checkouts have different NAR hashes.
-    if (input.getNarHash())
+    if (input.getNarHash()) {
       return false;
+    }
 
-    if (settings.preferSshForGitForges)
+    if (settings.preferSshForGitForges) {
       return true;
+    }
 
     if (settings.sshFallbackForGitForges) {
       auto host = getHost(input);
@@ -70,8 +72,9 @@ struct git_archive_input_scheme_t : input_scheme_t {
       auto repo = getRepo(input);
       auto host_and_path = fmt("%s/%s/%s", host, owner, repo);
       auto access_token = getAccessToken(settings, host, host_and_path);
-      if (!access_token)
+      if (!access_token) {
         return true;
+      }
     }
 
     return false;
@@ -79,8 +82,9 @@ struct git_archive_input_scheme_t : input_scheme_t {
 
   std::optional<input_t> inputFromURL(const fetchers::settings_t& settings, const parsed_url_t& url,
                                       bool require_tree) const override {
-    if (url.scheme() != schemeName())
+    if (url.scheme() != schemeName()) {
       return {};
+    }
 
     /* This ignores empty path segments for back-compat. Older versions used a tokenize_string here.
      */
@@ -93,10 +97,11 @@ struct git_archive_input_scheme_t : input_scheme_t {
 
     auto size = path.size();
     if (size == 3) {
-      if (std::regex_match(path[2], rev_regex))
+      if (std::regex_match(path[2], rev_regex)) {
         rev = path[2];
-      else
+      } else {
         ref = path[2];
+      }
     } else if (size > 3) {
       std::string rs;
       for (auto i = std::next(path.begin(), 2); i != path.end(); i++) {
@@ -106,30 +111,34 @@ struct git_archive_input_scheme_t : input_scheme_t {
         }
       }
       ref = rs;
-    } else if (size < 2)
+    } else if (size < 2) {
       throw BadURL("URL '%s' is invalid", url);
+    }
 
     for (auto& [name, value] : url.query()) {
       if (name == "rev") {
-        if (rev)
+        if (rev) {
           throw BadURL("URL '%s' contains multiple commit hashes", url);
+        }
         rev = value;
       } else if (name == "ref") {
-        if (ref)
+        if (ref) {
           throw BadURL("URL '%s' contains multiple branch/tag names", url);
+        }
         ref = value;
-      } else if (name == "host")
+      } else if (name == "host") {
         host_url = value;
-      else if (name == "narHash")
+      } else if (name == "narHash")
         ; // handled below
       else {
         // Reject unknown attributes to catch typos like 'tag=' instead of 'ref='
         // (NixOS/nix#15304)
         auto& allowed = allowed_attrs();
-        if (allowed.find(name) == allowed.end())
+        if (allowed.find(name) == allowed.end()) {
           throw BadURL("URL '%s' contains unsupported attribute '%s'. "
                        "Did you mean 'ref' instead of 'tag'?",
                        url, name);
+        }
       }
     }
 
@@ -137,16 +146,20 @@ struct git_archive_input_scheme_t : input_scheme_t {
     attrs.insert_or_assign("type", std::string{schemeName()});
     attrs.insert_or_assign("owner", path[0]);
     attrs.insert_or_assign("repo", path[1]);
-    if (rev)
+    if (rev) {
       attrs.insert_or_assign("rev", *rev);
-    if (ref)
+    }
+    if (ref) {
       attrs.insert_or_assign("ref", *ref);
-    if (host_url)
+    }
+    if (host_url) {
       attrs.insert_or_assign("host", *host_url);
+    }
 
     auto nar_hash = url.query().find("narHash");
-    if (nar_hash != url.query().end())
+    if (nar_hash != url.query().end()) {
       attrs.insert_or_assign("narHash", nar_hash->second);
+    }
 
     return inputFromAttrs(settings, attrs);
   }
@@ -196,18 +209,23 @@ struct git_archive_input_scheme_t : input_scheme_t {
 
     auto ref = maybe_get_str_attr(attrs, "ref");
     auto rev = maybe_get_str_attr(attrs, "rev");
-    if (ref && rev)
+    if (ref && rev) {
       throw BadURL("input %s contains both a commit hash ('%s') and a branch/tag name ('%s')",
                    attrs_to_json(attrs), *rev, *ref);
+    }
 
-    if (rev)
+    if (rev) {
       Hash::parse_any(*rev, hash_algorithm_t::SHA1);
+    }
 
-    if (ref && !is_legal_ref_name(*ref))
+    if (ref && !is_legal_ref_name(*ref)) {
       throw BadURL("input %s contains an invalid branch/tag name", attrs_to_json(attrs));
+    }
 
-    if (auto host = maybe_get_str_attr(attrs, "host"); host && !std::regex_match(*host, host_regex))
+    if (auto host = maybe_get_str_attr(attrs, "host");
+        host && !std::regex_match(*host, host_regex)) {
       throw BadURL("input %s contains an invalid instance host", attrs_to_json(attrs));
+    }
 
     input_t input{};
     input.attrs = attrs;
@@ -221,28 +239,33 @@ struct git_archive_input_scheme_t : input_scheme_t {
     auto rev = input.getRev();
     std::vector<std::string> path{owner, repo};
     assert(!(ref && rev));
-    if (ref)
+    if (ref) {
       path.push_back(*ref);
-    if (rev)
+    }
+    if (rev) {
       path.push_back(abbreviate ? rev->git_short_rev() : rev->git_rev());
+    }
     parsed_url_t url;
     url.set_scheme(std::string{schemeName()});
     url.set_path(path);
-    if (auto nar_hash = input.getNarHash())
+    if (auto nar_hash = input.getNarHash()) {
       url.query().insert_or_assign("narHash", nar_hash->to_string(hash_format_t::sri, true));
+    }
     auto host = maybe_get_str_attr(input.attrs, "host");
-    if (host)
+    if (host) {
       url.query().insert_or_assign("host", *host);
+    }
     return url;
   }
 
   input_t applyOverrides(const input_t& _input, std::optional<std::string> ref,
                          std::optional<Hash> rev) const override {
     auto input(_input);
-    if (rev && ref)
+    if (rev && ref) {
       throw BadURL(
           "cannot apply both a commit hash (%s) and a branch/tag name ('%s') to input '%s'",
           rev->git_rev(), *ref, input.to_string());
+    }
     if (rev) {
       input.attrs.insert_or_assign("rev", rev->git_rev());
       input.attrs.erase("ref");
@@ -272,11 +295,13 @@ struct git_archive_input_scheme_t : input_scheme_t {
           answer_match_len = token.first.length();
         }
       }
-      if (!answer.empty())
+      if (!answer.empty()) {
         return answer;
+      }
     }
-    if (auto token = get(tokens, host))
+    if (auto token = get(tokens, host)) {
       return *token;
+    }
     return {};
   }
 
@@ -295,10 +320,11 @@ struct git_archive_input_scheme_t : input_scheme_t {
     auto access_token = getAccessToken(settings, host, host_and_path);
     if (access_token) {
       auto hdr = accessHeaderFromToken(*access_token);
-      if (hdr)
+      if (hdr) {
         headers.push_back(*hdr);
-      else
+      } else {
         warn("Unrecognized access token for host '%s'", host);
+      }
     }
     return headers;
   }
@@ -321,8 +347,9 @@ struct git_archive_input_scheme_t : input_scheme_t {
 
   std::pair<input_t, tarball_info_t> download_archive(const settings_t& settings, store_t& store,
                                                       input_t input) const {
-    if (!maybe_get_str_attr(input.attrs, "ref"))
+    if (!maybe_get_str_attr(input.attrs, "ref")) {
       input.attrs.insert_or_assign("ref", "HEAD");
+    }
 
     std::optional<Hash> upstreamTreeHash;
 
@@ -349,13 +376,14 @@ struct git_archive_input_scheme_t : input_scheme_t {
         // Use hasCompleteTree to validate that all tree objects exist, not just the root.
         // This prevents "object not found" errors from incomplete/corrupted Git trees
         // that can result from interrupted fetches (see NixOS/nix#14954).
-        if (settings.getTarballCache()->hasCompleteTree(tree_hash))
+        if (settings.getTarballCache()->hasCompleteTree(tree_hash)) {
           return {std::move(input),
                   tarball_info_t{.tree_hash = tree_hash, .last_modified = (time_t)last_modified}};
-        else
+        } else {
           debug("Git tree with hash '%s' is incomplete or has disappeared from the cache, "
                 "refetching...",
                 tree_hash.git_rev());
+        }
       }
     }
 
@@ -417,10 +445,12 @@ struct git_archive_input_scheme_t : input_scheme_t {
       // file contents - .git excluded, line endings, etc.). The rev is sufficient
       // for locking and integrity verification.
       auto result = _input;
-      if (auto rev = git_result.getRev())
+      if (auto rev = git_result.getRev()) {
         result.attrs.insert_or_assign("rev", rev->git_rev());
-      if (auto lastModified = git_result.get_last_modified())
+      }
+      if (auto lastModified = git_result.get_last_modified()) {
         result.attrs.insert_or_assign("lastModified", uint64_t(*lastModified));
+      }
 
       return {accessor, result};
     }
@@ -435,12 +465,13 @@ struct git_archive_input_scheme_t : input_scheme_t {
     auto accessor = settings.getTarballCache()->get_accessor(tarball_info.tree_hash, {},
                                                              "«" + input.to_string(true) + "»");
 
-    if (!settings.trustTarballsFromGitForges)
+    if (!settings.trustTarballsFromGitForges) {
       // FIXME: computing the NAR hash here is wasteful if
       // copyInputToStore() is just going to hash/copy it as
       // well.
       input.attrs.insert_or_assign(
           "narHash", accessor->hash_path(canon_path_t::root).to_string(hash_format_t::sri, true));
+    }
 
     return {accessor, input};
   }
@@ -455,10 +486,11 @@ struct git_archive_input_scheme_t : input_scheme_t {
   }
 
   std::optional<std::string> get_fingerprint(store_t& store, const input_t& input) const override {
-    if (auto rev = input.getRev())
+    if (auto rev = input.getRev()) {
       return "github:" + rev->git_rev();
-    else
+    } else {
       return std::nullopt;
+    }
   }
 };
 
@@ -572,10 +604,12 @@ struct git_lab_input_scheme_t : git_archive_input_scheme_t {
       return std::nullopt;
     }
     // n.b. C++20 would allow: if (token.starts_with("OAuth2:")) ...
-    if ("OAuth2" == token.substr(0, fldsplit))
+    if ("OAuth2" == token.substr(0, fldsplit)) {
       return std::make_pair("Authorization", fmt("Bearer %s", token.substr(fldsplit + 1)));
-    if ("PAT" == token.substr(0, fldsplit))
+    }
+    if ("PAT" == token.substr(0, fldsplit)) {
       return std::make_pair("Private-token", token.substr(fldsplit + 1));
+    }
     warn("Unrecognized GitLab token type %s", token.substr(0, fldsplit));
     return std::make_pair(token.substr(0, fldsplit), token.substr(fldsplit + 1));
   }
@@ -704,15 +738,18 @@ struct source_hut_input_scheme_t : git_archive_input_scheme_t {
       auto line = std::string(remaining.substr(0, pos));
       auto parsedLine = git::parse_ls_remote_line(line);
       if (parsedLine && parsedLine->reference &&
-          std::regex_match(*parsedLine->reference, ref_regex))
+          std::regex_match(*parsedLine->reference, ref_regex)) {
         id = parsedLine->target;
-      if (pos == std::string_view::npos)
+      }
+      if (pos == std::string_view::npos) {
         break;
+      }
       remaining = remaining.substr(pos + 1);
     }
 
-    if (!id)
+    if (!id) {
       throw BadURL("in '%s', couldn't find ref '%s'", input.to_string(), ref);
+    }
 
     return ref_info_t{.rev = Hash::parse_any(*id, hash_algorithm_t::SHA1)};
   }

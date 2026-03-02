@@ -23,27 +23,32 @@ store_path_t eval_state_t::devirtualize(const store_path_t& path, string_map_t* 
         fetch_to_store(fetch_settings, *store, source_path_t{ref(mount)},
                        settings.readOnlyMode ? FetchMode::DryRun : FetchMode::Copy, path.name());
     assert(store_path.name() == path.name());
-    if (rewrites)
+    if (rewrites) {
       rewrites->emplace(path.hash_part(), store_path.hash_part());
+    }
     return store_path;
-  } else
+  } else {
     return path;
+  }
 }
 
 SingleDerivedPath eval_state_t::devirtualize(const SingleDerivedPath& path,
                                              string_map_t* rewrites) {
-  if (auto o = std::get_if<SingleDerivedPath::opaque_t>(&path.raw()))
+  if (auto o = std::get_if<SingleDerivedPath::opaque_t>(&path.raw())) {
     return SingleDerivedPath::opaque_t{devirtualize(o->path, rewrites)};
-  else
+  } else {
     return path;
+  }
 }
 
 std::string eval_state_t::devirtualize(std::string_view s, const NixStringContext& context) {
   string_map_t rewrites;
 
-  for (auto& c : context)
-    if (auto o = std::get_if<NixStringContextElem::opaque_t>(&c.raw))
+  for (auto& c : context) {
+    if (auto o = std::get_if<NixStringContextElem::opaque_t>(&c.raw)) {
       devirtualize(o->path, &rewrites);
+    }
+  }
 
   return rewrite_strings(std::string(s), rewrites);
 }
@@ -87,12 +92,13 @@ store_path_t eval_state_t::mountInput(fetchers::input_t& input,
 
   auto getNarHash = [&]() {
     if (!_narHash) {
-      if (store->isValidPath(store_path))
+      if (store->isValidPath(store_path)) {
         _narHash = store->queryPathInfo(store_path)->nar_hash;
-      else
+      } else {
         _narHash =
             fetch_to_store2(fetch_settings, *store, accessor, FetchMode::DryRun, input.get_name())
                 .second;
+      }
     }
     return _narHash;
   };
@@ -102,13 +108,15 @@ store_path_t eval_state_t::mountInput(fetchers::input_t& input,
   if (forceNarHash ||
       (require_lockable &&
        (!settings.lazyTrees || !settings.lazyLocks || !input.isLocked(fetch_settings)) &&
-       !input.getNarHash()))
+       !input.getNarHash())) {
     input.attrs.insert_or_assign("narHash", getNarHash()->to_string(hash_format_t::sri, true));
+  }
 
-  if (original_input.getNarHash() && *getNarHash() != *original_input.getNarHash())
+  if (original_input.getNarHash() && *getNarHash() != *original_input.getNarHash()) {
     throw Error((unsigned int)102, "NAR hash mismatch in input '%s', expected '%s' but got '%s'",
                 original_input.to_string(), getNarHash()->to_string(hash_format_t::sri, true),
                 original_input.getNarHash()->to_string(hash_format_t::sri, true));
+  }
 
   return store_path;
 }

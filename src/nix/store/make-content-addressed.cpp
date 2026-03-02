@@ -27,15 +27,16 @@ std::map<store_path_t, store_path_t> make_content_addressed(store_t& src_store, 
 
     store_references_t refs;
     for (auto& ref : oldInfo->references) {
-      if (ref == path)
+      if (ref == path) {
         refs.self = true;
-      else {
+      } else {
         auto i = remappings.find(ref);
         auto replacement = i != remappings.end() ? i->second : ref;
         // FIXME: warn about unremapped paths?
-        if (replacement != ref)
+        if (replacement != ref) {
           rewrites.insert_or_assign(src_store.printStorePath(ref),
                                     src_store.printStorePath(replacement));
+        }
         refs.others.insert(std::move(replacement));
       }
     }

@@ -49,12 +49,14 @@ void posix_source_accessor_t::read_file(const canon_path_t& path, sink_t& sink,
                                                                    | O_NOFOLLOW | O_CLOEXEC
 #endif
                                           ));
-  if (!fd)
+  if (!fd) {
     throw sys_error_t("opening file '%1%'", ap.string());
+  }
 
   struct stat st;
-  if (fstat(from_descriptor_read_only(fd.get()), &st) == -1)
+  if (fstat(from_descriptor_read_only(fd.get()), &st) == -1) {
     throw sys_error_t("statting file");
+  }
 
   size_callback(st.st_size);
 
@@ -66,11 +68,12 @@ void posix_source_accessor_t::read_file(const canon_path_t& path, sink_t& sink,
     ssize_t rd = read(from_descriptor_read_only(fd.get()), buf.data(),
                       (size_t)std::min(left, (off_t)buf.size()));
     if (rd == -1) {
-      if (errno != EINTR)
+      if (errno != EINTR) {
         throw sys_error_t("reading from file '%s'", show_path(path));
-    } else if (rd == 0)
+      }
+    } else if (rd == 0) {
       throw sys_error_t("unexpected end-of-file reading '%s'", show_path(path));
-    else {
+    } else {
       assert(rd <= left);
       sink({(char*)buf.data(), (size_t)rd});
       left -= rd;
@@ -79,8 +82,9 @@ void posix_source_accessor_t::read_file(const canon_path_t& path, sink_t& sink,
 }
 
 bool posix_source_accessor_t::path_exists(const canon_path_t& path) {
-  if (auto parent = path.parent())
+  if (auto parent = path.parent()) {
     assert_no_symlinks(*parent);
+  }
   return nix::path_exists(make_abs_path(path).string());
 }
 
@@ -92,13 +96,15 @@ std::optional<struct stat> posix_source_accessor_t::cached_lstat(const canon_pat
   // former is not hashable on libc++.
   Path abs_path = make_abs_path(path).string();
 
-  if (auto res = get_concurrent(cache, abs_path))
+  if (auto res = get_concurrent(cache, abs_path)) {
     return *res;
+  }
 
   auto st = nix::maybe_lstat(abs_path.c_str());
 
-  if (cache.size() >= 16384)
+  if (cache.size() >= 16384) {
     cache.clear();
+  }
   cache.emplace(std::move(abs_path), st);
 
   return st;
@@ -110,16 +116,19 @@ void posix_source_accessor_t::invalidate_cache(const canon_path_t& path) {
 
 std::optional<source_accessor_t::stat_t>
 posix_source_accessor_t::maybe_lstat(const canon_path_t& path) {
-  if (auto parent = path.parent())
+  if (auto parent = path.parent()) {
     assert_no_symlinks(*parent);
+  }
   auto st = cached_lstat(path);
-  if (!st)
+  if (!st) {
     return std::nullopt;
+  }
 
   /* The contract is that track_last_modified implies that the caller uses the accessor
      from a single thread. Thus this is not a CAS loop. */
-  if (track_last_modified)
+  if (track_last_modified) {
     mtime = std::max(mtime, st->st_mtime);
+  }
 
   return stat_t{
       .type = S_ISREG(st->st_mode)   ? t_regular
@@ -160,30 +169,38 @@ source_accessor_t::dir_entries_t posix_source_accessor_t::read_directory(const c
          */
 
         /* Check for symlink first, because other getters follow symlinks. */
-        if (entry.is_symlink())
+        if (entry.is_symlink()) {
           return t_symlink;
-        if (entry.is_regular_file())
+        }
+        if (entry.is_regular_file()) {
           return t_regular;
-        if (entry.is_directory())
+        }
+        if (entry.is_directory()) {
           return t_directory;
-        if (entry.is_character_file())
+        }
+        if (entry.is_character_file()) {
           return t_char;
-        if (entry.is_block_file())
+        }
+        if (entry.is_block_file()) {
           return t_block;
-        if (entry.is_fifo())
+        }
+        if (entry.is_fifo()) {
           return t_fifo;
-        if (entry.is_socket())
+        }
+        if (entry.is_socket()) {
           return t_socket;
+        }
         return t_unknown;
       } catch (std::filesystem::filesystem_error& e) {
         // We cannot always stat the child. (Ideally there is no
         // stat because the native directory entry has the type
         // already, but this isn't always the case.)
         if (e.code() == std::errc::permission_denied ||
-            e.code() == std::errc::operation_not_permitted)
+            e.code() == std::errc::operation_not_permitted) {
           return std::nullopt;
-        else
+        } else {
           throw;
+        }
       }
     }();
     res.emplace(entry.path().filename().string(), type);
@@ -192,8 +209,9 @@ source_accessor_t::dir_entries_t posix_source_accessor_t::read_directory(const c
 }
 
 std::string posix_source_accessor_t::read_link(const canon_path_t& path) {
-  if (auto parent = path.parent())
+  if (auto parent = path.parent()) {
     assert_no_symlinks(*parent);
+  }
   return nix::read_link(make_abs_path(path).string());
 }
 
@@ -205,8 +223,9 @@ posix_source_accessor_t::get_physical_path(const canon_path_t& path) {
 void posix_source_accessor_t::assert_no_symlinks(canon_path_t path) {
   while (!path.is_root()) {
     auto st = cached_lstat(path);
-    if (st && S_ISLNK(st->st_mode))
+    if (st && S_ISLNK(st->st_mode)) {
       throw Error("path '%s' is a symlink", show_path(path));
+    }
     path.pop();
   }
 }

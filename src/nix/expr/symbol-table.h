@@ -246,8 +246,9 @@ public:
   std::vector<SymbolStr> resolve(const std::span<const symbol_t>& symbols) const {
     std::vector<SymbolStr> result;
     result.reserve(symbols.size());
-    for (auto& sym : symbols)
+    for (auto& sym : symbols) {
       result.push_back((*this)[sym]);
+    }
     return result;
   }
 
@@ -280,8 +281,9 @@ inline void StaticSymbolTable::copyIntoSymbolTable(symbol_table_t& symtab) const
   for (std::size_t i = 0; i < size; ++i) {
     auto [str, staticSym] = symbols[i];
     auto sym = symtab.create(str);
-    if (sym != staticSym) [[unlikely]]
+    if (sym != staticSym) [[unlikely]] {
       unreachable();
+    }
   }
 }
 

@@ -181,8 +181,9 @@ private:
       auto a = force(args[0]);
       auto b = force(args[1]);
       if (is_int(a) && is_int(b)) {
-        if (as_int(b) == 0)
+        if (as_int(b) == 0) {
           throw eval_error("division by zero");
+        }
         return value::make_int(as_int(a) / as_int(b));
       }
       throw eval_error("cannot divide non-numeric values");
@@ -191,22 +192,26 @@ private:
     // builtins.head
     builtins_map["head"] = value::make_builtin("head", 1, [this](std::vector<value_ptr>& args) {
       auto lst = force(args[0]);
-      if (!is_list(lst))
+      if (!is_list(lst)) {
         throw eval_error("head: expected list");
+      }
       const auto& l = as_list(lst);
-      if (l.elements.empty())
+      if (l.elements.empty()) {
         throw eval_error("head: empty list");
+      }
       return l.elements[0];
     });
 
     // builtins.tail
     builtins_map["tail"] = value::make_builtin("tail", 1, [this](std::vector<value_ptr>& args) {
       auto lst = force(args[0]);
-      if (!is_list(lst))
+      if (!is_list(lst)) {
         throw eval_error("tail: expected list");
+      }
       const auto& l = as_list(lst);
-      if (l.elements.empty())
+      if (l.elements.empty()) {
         throw eval_error("tail: empty list");
+      }
       std::vector<value_ptr> rest(l.elements.begin() + 1, l.elements.end());
       return value::make_list(std::move(rest));
     });
@@ -214,8 +219,9 @@ private:
     // builtins.length
     builtins_map["length"] = value::make_builtin("length", 1, [this](std::vector<value_ptr>& args) {
       auto lst = force(args[0]);
-      if (!is_list(lst))
+      if (!is_list(lst)) {
         throw eval_error("length: expected list");
+      }
       return value::make_int(static_cast<std::int64_t>(as_list(lst).elements.size()));
     });
 
@@ -223,8 +229,9 @@ private:
     builtins_map["attrNames"] =
         value::make_builtin("attrNames", 1, [this](std::vector<value_ptr>& args) {
           auto attrs = force(args[0]);
-          if (!is_attrs(attrs))
+          if (!is_attrs(attrs)) {
             throw eval_error("attrNames: expected attrset");
+          }
           std::vector<value_ptr> names;
           for (const auto& [key, val] : as_attrs(attrs).attrs) {
             names.push_back(value::make_string(key));
@@ -237,10 +244,12 @@ private:
         value::make_builtin("hasAttr", 2, [this](std::vector<value_ptr>& args) {
           auto name = force(args[0]);
           auto attrs = force(args[1]);
-          if (!is_string(name))
+          if (!is_string(name)) {
             throw eval_error("hasAttr: first arg must be string");
-          if (!is_attrs(attrs))
+          }
+          if (!is_attrs(attrs)) {
             throw eval_error("hasAttr: second arg must be attrset");
+          }
           return value::make_bool(as_attrs(attrs).attrs.count(as_string(name)) > 0);
         });
 
@@ -249,10 +258,12 @@ private:
         value::make_builtin("getAttr", 2, [this](std::vector<value_ptr>& args) {
           auto name = force(args[0]);
           auto attrs = force(args[1]);
-          if (!is_string(name))
+          if (!is_string(name)) {
             throw eval_error("getAttr: first arg must be string");
-          if (!is_attrs(attrs))
+          }
+          if (!is_attrs(attrs)) {
             throw eval_error("getAttr: second arg must be attrset");
+          }
           auto it = as_attrs(attrs).attrs.find(as_string(name));
           if (it == as_attrs(attrs).attrs.end()) {
             throw eval_error("attribute '" + as_string(name) + "' not found");
@@ -263,22 +274,30 @@ private:
     // builtins.typeOf
     builtins_map["typeOf"] = value::make_builtin("typeOf", 1, [this](std::vector<value_ptr>& args) {
       auto v = force(args[0]);
-      if (is_bool(v))
+      if (is_bool(v)) {
         return value::make_string("bool");
-      if (is_int(v))
+      }
+      if (is_int(v)) {
         return value::make_string("int");
-      if (is_float(v))
+      }
+      if (is_float(v)) {
         return value::make_string("float");
-      if (is_string(v))
+      }
+      if (is_string(v)) {
         return value::make_string("string");
-      if (is_path(v))
+      }
+      if (is_path(v)) {
         return value::make_string("path");
-      if (is_list(v))
+      }
+      if (is_list(v)) {
         return value::make_string("list");
-      if (is_attrs(v))
+      }
+      if (is_attrs(v)) {
         return value::make_string("set");
-      if (is_closure(v) || is_builtin(v))
+      }
+      if (is_closure(v) || is_builtin(v)) {
         return value::make_string("lambda");
+      }
       return value::make_string("null");
     });
 
@@ -286,16 +305,21 @@ private:
     builtins_map["toString"] =
         value::make_builtin("toString", 1, [this](std::vector<value_ptr>& args) {
           auto v = force(args[0]);
-          if (is_string(v))
+          if (is_string(v)) {
             return v;
-          if (is_int(v))
+          }
+          if (is_int(v)) {
             return value::make_string(std::to_string(as_int(v)));
-          if (is_float(v))
+          }
+          if (is_float(v)) {
             return value::make_string(std::to_string(as_float(v)));
-          if (is_bool(v))
+          }
+          if (is_bool(v)) {
             return value::make_string(as_bool(v) ? "1" : "");
-          if (is_path(v))
+          }
+          if (is_path(v)) {
             return value::make_string(as_path(v).path);
+          }
           throw eval_error("cannot coerce value to string");
         });
 
@@ -303,8 +327,9 @@ private:
     builtins_map["map"] = value::make_builtin("map", 2, [this](std::vector<value_ptr>& args) {
       auto func = args[0];
       auto lst = force(args[1]);
-      if (!is_list(lst))
+      if (!is_list(lst)) {
         throw eval_error("map: second arg must be list");
+      }
       std::vector<value_ptr> result;
       for (const auto& elem : as_list(lst).elements) {
         result.push_back(apply(func, elem));
@@ -316,8 +341,9 @@ private:
     builtins_map["filter"] = value::make_builtin("filter", 2, [this](std::vector<value_ptr>& args) {
       auto pred = args[0];
       auto lst = force(args[1]);
-      if (!is_list(lst))
+      if (!is_list(lst)) {
         throw eval_error("filter: second arg must be list");
+      }
       std::vector<value_ptr> result;
       for (const auto& elem : as_list(lst).elements) {
         auto cond = force(apply(pred, elem));
@@ -333,8 +359,9 @@ private:
       auto func = args[0];
       auto init = force(args[1]);
       auto lst = force(args[2]);
-      if (!is_list(lst))
+      if (!is_list(lst)) {
         throw eval_error("foldl': third arg must be list");
+      }
       auto acc = init;
       for (const auto& elem : as_list(lst).elements) {
         auto f1 = apply(func, acc);
@@ -347,11 +374,13 @@ private:
     builtins_map["elem"] = value::make_builtin("elem", 2, [this](std::vector<value_ptr>& args) {
       auto needle = force(args[0]);
       auto lst = force(args[1]);
-      if (!is_list(lst))
+      if (!is_list(lst)) {
         throw eval_error("elem: second arg must be list");
+      }
       for (const auto& elem : as_list(lst).elements) {
-        if (values_equal(needle, force(elem)))
+        if (values_equal(needle, force(elem))) {
           return value::make_bool(true);
+        }
       }
       return value::make_bool(false);
     });
@@ -360,14 +389,17 @@ private:
     builtins_map["all"] = value::make_builtin("all", 2, [this](std::vector<value_ptr>& args) {
       auto pred = args[0];
       auto lst = force(args[1]);
-      if (!is_list(lst))
+      if (!is_list(lst)) {
         throw eval_error("all: second arg must be list");
+      }
       for (const auto& elem : as_list(lst).elements) {
         auto result = force(apply(pred, elem));
-        if (!is_bool(result))
+        if (!is_bool(result)) {
           throw eval_error("all: predicate must return bool");
-        if (!as_bool(result))
+        }
+        if (!as_bool(result)) {
           return value::make_bool(false);
+        }
       }
       return value::make_bool(true);
     });
@@ -376,14 +408,17 @@ private:
     builtins_map["any"] = value::make_builtin("any", 2, [this](std::vector<value_ptr>& args) {
       auto pred = args[0];
       auto lst = force(args[1]);
-      if (!is_list(lst))
+      if (!is_list(lst)) {
         throw eval_error("any: second arg must be list");
+      }
       for (const auto& elem : as_list(lst).elements) {
         auto result = force(apply(pred, elem));
-        if (!is_bool(result))
+        if (!is_bool(result)) {
           throw eval_error("any: predicate must return bool");
-        if (as_bool(result))
+        }
+        if (as_bool(result)) {
           return value::make_bool(true);
+        }
       }
       return value::make_bool(false);
     });
@@ -392,13 +427,15 @@ private:
     builtins_map["concatLists"] =
         value::make_builtin("concatLists", 1, [this](std::vector<value_ptr>& args) {
           auto lists = force(args[0]);
-          if (!is_list(lists))
+          if (!is_list(lists)) {
             throw eval_error("concatLists: expected list of lists");
+          }
           std::vector<value_ptr> result;
           for (const auto& lst : as_list(lists).elements) {
             auto l = force(lst);
-            if (!is_list(l))
+            if (!is_list(l)) {
               throw eval_error("concatLists: element is not a list");
+            }
             for (const auto& elem : as_list(l).elements) {
               result.push_back(elem);
             }
@@ -411,13 +448,15 @@ private:
         value::make_builtin("concatMap", 2, [this](std::vector<value_ptr>& args) {
           auto func = args[0];
           auto lst = force(args[1]);
-          if (!is_list(lst))
+          if (!is_list(lst)) {
             throw eval_error("concatMap: second arg must be list");
+          }
           std::vector<value_ptr> result;
           for (const auto& elem : as_list(lst).elements) {
             auto mapped = force(apply(func, elem));
-            if (!is_list(mapped))
+            if (!is_list(mapped)) {
               throw eval_error("concatMap: function must return list");
+            }
             for (const auto& item : as_list(mapped).elements) {
               result.push_back(item);
             }
@@ -487,8 +526,9 @@ private:
     builtins_map["attrValues"] =
         value::make_builtin("attrValues", 1, [this](std::vector<value_ptr>& args) {
           auto attrs = force(args[0]);
-          if (!is_attrs(attrs))
+          if (!is_attrs(attrs)) {
             throw eval_error("attrValues: expected attrset");
+          }
           std::vector<value_ptr> values;
           for (const auto& [key, val] : as_attrs(attrs).attrs) {
             values.push_back(val);
@@ -500,21 +540,25 @@ private:
     builtins_map["listToAttrs"] =
         value::make_builtin("listToAttrs", 1, [this](std::vector<value_ptr>& args) {
           auto lst = force(args[0]);
-          if (!is_list(lst))
+          if (!is_list(lst)) {
             throw eval_error("listToAttrs: expected list");
+          }
           std::unordered_map<std::string, value_ptr> result;
           for (const auto& elem : as_list(lst).elements) {
             auto e = force(elem);
-            if (!is_attrs(e))
+            if (!is_attrs(e)) {
               throw eval_error("listToAttrs: element must be attrset");
+            }
             const auto& attrs = as_attrs(e).attrs;
             auto name_it = attrs.find("name");
             auto value_it = attrs.find("value");
-            if (name_it == attrs.end() || value_it == attrs.end())
+            if (name_it == attrs.end() || value_it == attrs.end()) {
               throw eval_error("listToAttrs: element must have 'name' and 'value'");
+            }
             auto name = force(name_it->second);
-            if (!is_string(name))
+            if (!is_string(name)) {
               throw eval_error("listToAttrs: 'name' must be string");
+            }
             // First occurrence wins (Nix behavior)
             if (result.find(as_string(name)) == result.end()) {
               result[as_string(name)] = value_it->second;
@@ -528,8 +572,9 @@ private:
         value::make_builtin("mapAttrs", 2, [this](std::vector<value_ptr>& args) {
           auto func = args[0];
           auto attrs = force(args[1]);
-          if (!is_attrs(attrs))
+          if (!is_attrs(attrs)) {
             throw eval_error("mapAttrs: second arg must be attrset");
+          }
           std::unordered_map<std::string, value_ptr> result;
           for (const auto& [key, val] : as_attrs(attrs).attrs) {
             auto f1 = apply(func, value::make_string(key));
@@ -543,11 +588,13 @@ private:
         value::make_builtin("genList", 2, [this](std::vector<value_ptr>& args) {
           auto func = args[0];
           auto len = force(args[1]);
-          if (!is_int(len))
+          if (!is_int(len)) {
             throw eval_error("genList: second arg must be int");
+          }
           auto n = as_int(len);
-          if (n < 0)
+          if (n < 0) {
             throw eval_error("genList: length must be non-negative");
+          }
           std::vector<value_ptr> result;
           result.reserve(static_cast<std::size_t>(n));
           for (std::int64_t idx = 0; idx < n; ++idx) {
@@ -560,15 +607,17 @@ private:
     builtins_map["sort"] = value::make_builtin("sort", 2, [this](std::vector<value_ptr>& args) {
       auto comparator = args[0];
       auto lst = force(args[1]);
-      if (!is_list(lst))
+      if (!is_list(lst)) {
         throw eval_error("sort: second arg must be list");
+      }
       std::vector<value_ptr> result = as_list(lst).elements;
       std::sort(result.begin(), result.end(),
                 [this, &comparator](const value_ptr& a, const value_ptr& b) {
                   auto f1 = apply(comparator, a);
                   auto cmp = force(apply(f1, b));
-                  if (!is_bool(cmp))
+                  if (!is_bool(cmp)) {
                     throw eval_error("sort: comparator must return bool");
+                  }
                   return as_bool(cmp);
                 });
       return value::make_list(std::move(result));
@@ -578,14 +627,17 @@ private:
     builtins_map["elemAt"] = value::make_builtin("elemAt", 2, [this](std::vector<value_ptr>& args) {
       auto lst = force(args[0]);
       auto idx = force(args[1]);
-      if (!is_list(lst))
+      if (!is_list(lst)) {
         throw eval_error("elemAt: first arg must be list");
-      if (!is_int(idx))
+      }
+      if (!is_int(idx)) {
         throw eval_error("elemAt: second arg must be int");
+      }
       auto i = as_int(idx);
       const auto& elements = as_list(lst).elements;
-      if (i < 0 || static_cast<std::size_t>(i) >= elements.size())
+      if (i < 0 || static_cast<std::size_t>(i) >= elements.size()) {
         throw eval_error("elemAt: index out of bounds");
+      }
       return elements[static_cast<std::size_t>(i)];
     });
 
@@ -593,8 +645,9 @@ private:
     builtins_map["stringLength"] =
         value::make_builtin("stringLength", 1, [this](std::vector<value_ptr>& args) {
           auto s = force(args[0]);
-          if (!is_string(s))
+          if (!is_string(s)) {
             throw eval_error("stringLength: expected string");
+          }
           return value::make_int(static_cast<std::int64_t>(as_string(s).size()));
         });
 
@@ -604,19 +657,24 @@ private:
           auto start = force(args[0]);
           auto len = force(args[1]);
           auto s = force(args[2]);
-          if (!is_int(start))
+          if (!is_int(start)) {
             throw eval_error("substring: first arg must be int");
-          if (!is_int(len))
+          }
+          if (!is_int(len)) {
             throw eval_error("substring: second arg must be int");
-          if (!is_string(s))
+          }
+          if (!is_string(s)) {
             throw eval_error("substring: third arg must be string");
+          }
           auto st = as_int(start);
           auto ln = as_int(len);
           const auto& str = as_string(s);
-          if (st < 0)
+          if (st < 0) {
             st = 0;
-          if (static_cast<std::size_t>(st) >= str.size())
+          }
+          if (static_cast<std::size_t>(st) >= str.size()) {
             return value::make_string("");
+          }
           return value::make_string(
               str.substr(static_cast<std::size_t>(st), static_cast<std::size_t>(ln)));
         });
@@ -627,21 +685,25 @@ private:
           auto from_list = force(args[0]);
           auto to_list = force(args[1]);
           auto s = force(args[2]);
-          if (!is_list(from_list) || !is_list(to_list))
+          if (!is_list(from_list) || !is_list(to_list)) {
             throw eval_error("replaceStrings: first two args must be lists");
-          if (!is_string(s))
+          }
+          if (!is_string(s)) {
             throw eval_error("replaceStrings: third arg must be string");
+          }
           const auto& froms = as_list(from_list).elements;
           const auto& tos = as_list(to_list).elements;
-          if (froms.size() != tos.size())
+          if (froms.size() != tos.size()) {
             throw eval_error("replaceStrings: lists must have same length");
+          }
 
           std::vector<std::string> from_strs, to_strs;
           for (std::size_t idx = 0; idx < froms.size(); ++idx) {
             auto f = force(froms[idx]);
             auto t = force(tos[idx]);
-            if (!is_string(f) || !is_string(t))
+            if (!is_string(f) || !is_string(t)) {
               throw eval_error("replaceStrings: list elements must be strings");
+            }
             from_strs.push_back(as_string(f));
             to_strs.push_back(as_string(t));
           }
@@ -1010,8 +1072,9 @@ private:
   // Helper to insert a value at a nested path, creating intermediate attrsets as needed
   void insert_nested_attr(std::unordered_map<std::string, value_ptr>& attrs,
                           const std::vector<std::string>& path, value_ptr value) {
-    if (path.empty())
+    if (path.empty()) {
       return;
+    }
 
     if (path.size() == 1) {
       attrs[path[0]] = value;
@@ -1071,12 +1134,14 @@ private:
       } else if (auto* inh = std::get_if<ast::binding_inherit>(&binding_var)) {
         if (inh->from_expression_) {
           auto src = force(eval_expr(*inh->from_expression_, env));
-          if (!is_attrs(src))
+          if (!is_attrs(src)) {
             throw eval_error("inherit source must be attrset");
+          }
           for (const auto& attr : inh->attributes_) {
             auto* sym = std::get_if<ast::symbol>(&attr.value_);
-            if (!sym)
+            if (!sym) {
               throw eval_error("dynamic attribute in inherit");
+            }
             std::string name(symbols_.lookup(*sym));
             auto it = as_attrs(src).attrs.find(name);
             if (it == as_attrs(src).attrs.end()) {
@@ -1087,12 +1152,14 @@ private:
         } else {
           for (const auto& attr : inh->attributes_) {
             auto* sym = std::get_if<ast::symbol>(&attr.value_);
-            if (!sym)
+            if (!sym) {
               throw eval_error("dynamic attribute in inherit");
+            }
             std::string name(symbols_.lookup(*sym));
             auto val = env->lookup(name);
-            if (!val)
+            if (!val) {
               throw eval_error("inherited variable '" + name + "' not found");
+            }
             attrs[name] = val;
           }
         }
@@ -1126,8 +1193,9 @@ private:
       } else {
         auto& dyn = std::get<ast::expression>(seg.value_);
         auto key = force(eval_expr(dyn, env));
-        if (!is_string(key))
+        if (!is_string(key)) {
           throw eval_error("dynamic attr key must be string");
+        }
         name = as_string(key);
       }
 
@@ -1157,8 +1225,9 @@ private:
       } else {
         auto& dyn = std::get<ast::expression>(seg.value_);
         auto key = force(eval_expr(dyn, env));
-        if (!is_string(key))
+        if (!is_string(key)) {
           return value::make_bool(false);
+        }
         name = as_string(key);
       }
 
@@ -1197,8 +1266,9 @@ private:
         new_env->bind(symbols_.lookup(simple->argument_name_), arg);
       } else if (auto* attrs_pat = std::get_if<ast::pattern_attrset>(&pattern)) {
         auto arg_val = force(arg);
-        if (!is_attrs(arg_val))
+        if (!is_attrs(arg_val)) {
           throw eval_error("function expects attrset argument");
+        }
 
         // Bind @name if present
         if (attrs_pat->argument_name_) {
@@ -1252,12 +1322,14 @@ private:
       } else if (auto* inh = std::get_if<ast::binding_inherit>(&binding_var)) {
         if (inh->from_expression_) {
           auto src = force(eval_expr(*inh->from_expression_, env));
-          if (!is_attrs(src))
+          if (!is_attrs(src)) {
             throw eval_error("inherit source must be attrset");
+          }
           for (const auto& attr : inh->attributes_) {
             auto* sym = std::get_if<ast::symbol>(&attr.value_);
-            if (!sym)
+            if (!sym) {
               throw eval_error("dynamic attribute in inherit");
+            }
             std::string name(symbols_.lookup(*sym));
             auto it = as_attrs(src).attrs.find(name);
             if (it == as_attrs(src).attrs.end()) {
@@ -1268,12 +1340,14 @@ private:
         } else {
           for (const auto& attr : inh->attributes_) {
             auto* sym = std::get_if<ast::symbol>(&attr.value_);
-            if (!sym)
+            if (!sym) {
               throw eval_error("dynamic attribute in inherit");
+            }
             std::string name(symbols_.lookup(*sym));
             auto val = env->lookup(name);
-            if (!val)
+            if (!val) {
               throw eval_error("inherited variable '" + name + "' not found");
+            }
             let_env->bind(name, val);
           }
         }
@@ -1285,8 +1359,9 @@ private:
 
   auto eval_variant(const ast::expression_with& expr, env_ptr env) -> value_ptr {
     auto ns = force(eval_expr(expr.namespace_expression_, env));
-    if (!is_attrs(ns))
+    if (!is_attrs(ns)) {
       throw eval_error("with: expected attrset");
+    }
 
     // Create a with_environment that checks the parent BEFORE the namespace.
     // In Nix, lexical bindings take precedence over `with` bindings.
@@ -1297,8 +1372,9 @@ private:
 
   auto eval_variant(const ast::expression_if& expr, env_ptr env) -> value_ptr {
     auto cond = force(eval_expr(expr.condition_, env));
-    if (!is_bool(cond))
+    if (!is_bool(cond)) {
       throw eval_error("if condition must be boolean");
+    }
 
     if (as_bool(cond)) {
       return eval_expr(expr.then_branch_, env);
@@ -1309,10 +1385,12 @@ private:
 
   auto eval_variant(const ast::expression_assert& expr, env_ptr env) -> value_ptr {
     auto cond = force(eval_expr(expr.condition_, env));
-    if (!is_bool(cond))
+    if (!is_bool(cond)) {
       throw eval_error("assert condition must be boolean");
-    if (!as_bool(cond))
+    }
+    if (!as_bool(cond)) {
       throw eval_error("assertion failed");
+    }
     return eval_expr(expr.body_, env);
   }
 
@@ -1320,28 +1398,34 @@ private:
     // Short-circuit operators
     if (expr.op_ == ast::binary_operator::logical_and) {
       auto left = force(eval_expr(expr.left_, env));
-      if (!is_bool(left))
+      if (!is_bool(left)) {
         throw eval_error("&& requires boolean");
-      if (!as_bool(left))
+      }
+      if (!as_bool(left)) {
         return value::make_bool(false);
+      }
       return eval_expr(expr.right_, env);
     }
 
     if (expr.op_ == ast::binary_operator::logical_or) {
       auto left = force(eval_expr(expr.left_, env));
-      if (!is_bool(left))
+      if (!is_bool(left)) {
         throw eval_error("|| requires boolean");
-      if (as_bool(left))
+      }
+      if (as_bool(left)) {
         return value::make_bool(true);
+      }
       return eval_expr(expr.right_, env);
     }
 
     if (expr.op_ == ast::binary_operator::logical_implies) {
       auto left = force(eval_expr(expr.left_, env));
-      if (!is_bool(left))
+      if (!is_bool(left)) {
         throw eval_error("-> requires boolean");
-      if (!as_bool(left))
+      }
+      if (!as_bool(left)) {
         return value::make_bool(true);
+      }
       return eval_expr(expr.right_, env);
     }
 
@@ -1380,8 +1464,9 @@ private:
 
       case ast::binary_operator::divide:
         if (is_int(left) && is_int(right)) {
-          if (as_int(right) == 0)
+          if (as_int(right) == 0) {
             throw eval_error("division by zero");
+          }
           return value::make_int(as_int(left) / as_int(right));
         }
         throw eval_error("cannot divide these values");
@@ -1448,15 +1533,18 @@ private:
 
     switch (expr.op_) {
       case ast::unary_operator::negate:
-        if (is_int(operand))
+        if (is_int(operand)) {
           return value::make_int(-as_int(operand));
-        if (is_float(operand))
+        }
+        if (is_float(operand)) {
           return value::make_float(-as_float(operand));
+        }
         throw eval_error("cannot negate non-numeric value");
 
       case ast::unary_operator::logical_not:
-        if (is_bool(operand))
+        if (is_bool(operand)) {
           return value::make_bool(!as_bool(operand));
+        }
         throw eval_error("cannot negate non-boolean value");
 
       default:
@@ -1468,30 +1556,38 @@ private:
     auto va = force(a);
     auto vb = force(b);
 
-    if (is_bool(va) && is_bool(vb))
+    if (is_bool(va) && is_bool(vb)) {
       return as_bool(va) == as_bool(vb);
-    if (is_int(va) && is_int(vb))
+    }
+    if (is_int(va) && is_int(vb)) {
       return as_int(va) == as_int(vb);
-    if (is_float(va) && is_float(vb))
+    }
+    if (is_float(va) && is_float(vb)) {
       return as_float(va) == as_float(vb);
-    if (is_string(va) && is_string(vb))
+    }
+    if (is_string(va) && is_string(vb)) {
       return as_string(va) == as_string(vb);
-    if (is_path(va) && is_path(vb))
+    }
+    if (is_path(va) && is_path(vb)) {
       return as_path(va).path == as_path(vb).path;
+    }
     if (is_list(va) && is_list(vb)) {
       auto& la = as_list(va);
       auto& lb = as_list(vb);
-      if (la.elements.size() != lb.elements.size())
+      if (la.elements.size() != lb.elements.size()) {
         return false;
+      }
       for (std::size_t idx = 0; idx < la.elements.size(); ++idx) {
-        if (!values_equal(la.elements[idx], lb.elements[idx]))
+        if (!values_equal(la.elements[idx], lb.elements[idx])) {
           return false;
+        }
       }
       return true;
     }
     if (std::holds_alternative<value_null>(va->data) &&
-        std::holds_alternative<value_null>(vb->data))
+        std::holds_alternative<value_null>(vb->data)) {
       return true;
+    }
 
     return false;
   }

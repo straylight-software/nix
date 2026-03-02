@@ -95,18 +95,22 @@ template <>
 struct adl_serializer<nix::nar_listing_regular_file_t> {
   static nix::nar_listing_regular_file_t from_json(const json& j) {
     nix::nar_listing_regular_file_t r;
-    if (j.contains("fileSize"))
+    if (j.contains("fileSize")) {
       r.file_size = j["fileSize"].get<uint64_t>();
-    if (j.contains("narOffset"))
+    }
+    if (j.contains("narOffset")) {
       r.nar_offset = j["narOffset"].get<uint64_t>();
+    }
     return r;
   }
   static void to_json(json& j, const nix::nar_listing_regular_file_t& r) {
     j = json::object();
-    if (r.file_size)
+    if (r.file_size) {
       j["fileSize"] = *r.file_size;
-    if (r.nar_offset)
+    }
+    if (r.nar_offset) {
       j["narOffset"] = *r.nar_offset;
+    }
   }
 };
 } // namespace nlohmann

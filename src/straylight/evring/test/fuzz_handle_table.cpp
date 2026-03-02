@@ -141,8 +141,9 @@ void fuzz_tracked_table(const std::uint8_t* data, std::size_t size) {
 
     switch (op) {
       case fuzz_op::insert: {
-        if (offset + 8 > size)
+        if (offset + 8 > size) {
           break;
+        }
         std::uint64_t id = 0;
         std::memcpy(&id, data + offset, 8);
         offset += 8;
@@ -156,10 +157,12 @@ void fuzz_tracked_table(const std::uint8_t* data, std::size_t size) {
       }
 
       case fuzz_op::remove: {
-        if (live_handles.empty())
+        if (live_handles.empty()) {
           break;
-        if (offset >= size)
+        }
+        if (offset >= size) {
           break;
+        }
 
         std::size_t idx = data[offset++] % live_handles.size();
         auto h = live_handles[idx];
@@ -176,10 +179,12 @@ void fuzz_tracked_table(const std::uint8_t* data, std::size_t size) {
       }
 
       case fuzz_op::get: {
-        if (live_handles.empty())
+        if (live_handles.empty()) {
           break;
-        if (offset >= size)
+        }
+        if (offset >= size) {
           break;
+        }
 
         std::size_t idx = data[offset++] % live_handles.size();
         auto h = live_handles[idx];
@@ -195,10 +200,12 @@ void fuzz_tracked_table(const std::uint8_t* data, std::size_t size) {
       }
 
       case fuzz_op::get_const: {
-        if (live_handles.empty())
+        if (live_handles.empty()) {
           break;
-        if (offset >= size)
+        }
+        if (offset >= size) {
           break;
+        }
 
         std::size_t idx = data[offset++] % live_handles.size();
         auto h = live_handles[idx];
@@ -213,8 +220,9 @@ void fuzz_tracked_table(const std::uint8_t* data, std::size_t size) {
       }
 
       case fuzz_op::valid: {
-        if (offset >= size)
+        if (offset >= size) {
           break;
+        }
 
         // Check random handle
         evring::handle h;
@@ -272,10 +280,12 @@ void fuzz_tracked_table(const std::uint8_t* data, std::size_t size) {
       }
 
       case fuzz_op::remove_stale: {
-        if (dead_handles.empty())
+        if (dead_handles.empty()) {
           break;
-        if (offset >= size)
+        }
+        if (offset >= size) {
           break;
+        }
 
         std::size_t idx = data[offset++] % dead_handles.size();
         auto stale = dead_handles[idx];
@@ -288,10 +298,12 @@ void fuzz_tracked_table(const std::uint8_t* data, std::size_t size) {
       }
 
       case fuzz_op::get_stale: {
-        if (dead_handles.empty())
+        if (dead_handles.empty()) {
           break;
-        if (offset >= size)
+        }
+        if (offset >= size) {
           break;
+        }
 
         std::size_t idx = data[offset++] % dead_handles.size();
         auto stale = dead_handles[idx];
@@ -304,8 +316,9 @@ void fuzz_tracked_table(const std::uint8_t* data, std::size_t size) {
       }
 
       case fuzz_op::insert_many: {
-        if (offset >= size)
+        if (offset >= size) {
           break;
+        }
         std::size_t count = (data[offset++] % 64) + 1;
 
         for (std::size_t i = 0; i < count && offset + 8 <= size; ++i) {
@@ -320,10 +333,12 @@ void fuzz_tracked_table(const std::uint8_t* data, std::size_t size) {
       }
 
       case fuzz_op::remove_many: {
-        if (live_handles.empty())
+        if (live_handles.empty()) {
           break;
-        if (offset >= size)
+        }
+        if (offset >= size) {
           break;
+        }
 
         std::size_t count = std::min<std::size_t>(data[offset++] % 32 + 1, live_handles.size());
 
@@ -341,8 +356,9 @@ void fuzz_tracked_table(const std::uint8_t* data, std::size_t size) {
       }
 
       case fuzz_op::churn: {
-        if (offset + 8 > size)
+        if (offset + 8 > size) {
           break;
+        }
         std::uint64_t id = 0;
         std::memcpy(&id, data + offset, 8);
         offset += 8;
@@ -357,8 +373,9 @@ void fuzz_tracked_table(const std::uint8_t* data, std::size_t size) {
       }
 
       case fuzz_op::stress_generation: {
-        if (offset >= size)
+        if (offset >= size) {
           break;
+        }
         std::size_t iterations = (data[offset++] % 32) + 1;
 
         // Repeatedly insert and remove at same slot to stress generation

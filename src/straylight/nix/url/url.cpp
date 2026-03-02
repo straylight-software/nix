@@ -26,12 +26,15 @@ constexpr std::array<char, 16> kHexDigits = {'0', '1', '2', '3', '4', '5', '6', 
                                              '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
 
 constexpr int hex_value(char c) noexcept {
-  if (c >= '0' && c <= '9')
+  if (c >= '0' && c <= '9') {
     return c - '0';
-  if (c >= 'A' && c <= 'F')
+  }
+  if (c >= 'A' && c <= 'F') {
     return c - 'A' + 10;
-  if (c >= 'a' && c <= 'f')
+  }
+  if (c >= 'a' && c <= 'f') {
     return c - 'a' + 10;
+  }
   return -1;
 }
 

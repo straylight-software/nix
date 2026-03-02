@@ -79,10 +79,11 @@ public:
     std::visit(overloaded{[&](std::string_view str) { f(str); },
                           [&](expr_t* expr) {
                             ExprString* str = dynamic_cast<ExprString*>(expr);
-                            if (str)
+                            if (str) {
                               f(str->v.string_view());
-                            else
+                            } else {
                               f(expr);
+                            }
                           },
                           [](std::monostate) { unreachable(); }},
                raw);
@@ -234,8 +235,9 @@ inline void ParserState::addAttr(ExprAttrs* attrs, AttrSelectionPath& attr_path,
     // `rec` marker on jAttrs will apply to the attributes in ae.
     // See https://github.com/NixOS/nix/issues/9020.
     if (jAttrs && ae) {
-      if (ae->inheritFromExprs && !jAttrs->inheritFromExprs)
+      if (ae->inheritFromExprs && !jAttrs->inheritFromExprs) {
         jAttrs->inheritFromExprs = std::make_unique<std::pmr::vector<expr_t*>>();
+      }
       for (auto& ad : *ae->attrs) {
         if (ad.second.kind == ExprAttrs::AttrDef::Kind::InheritedFrom) {
           auto& sel = dynamic_cast<ExprSelect&>(*ad.second.e);
@@ -274,25 +276,29 @@ inline void ParserState::validateFormals(FormalsBuilder& formals, pos_idx_t pos,
 
   std::optional<std::pair<symbol_t, pos_idx_t>> duplicate;
   for (size_t i = 0; i + 1 < formals.formals.size(); i++) {
-    if (formals.formals[i].name != formals.formals[i + 1].name)
+    if (formals.formals[i].name != formals.formals[i + 1].name) {
       continue;
+    }
     std::pair thisDup{formals.formals[i].name, formals.formals[i + 1].pos};
     duplicate = std::min(thisDup, duplicate.value_or(thisDup));
   }
-  if (duplicate)
+  if (duplicate) {
     throw ParseError(
         {.msg_ = hint_fmt_t("duplicate formal function argument '%1%'", symbols[duplicate->first]),
          .pos_ = positions[duplicate->second]});
+  }
 
-  if (arg && formals.has(arg))
+  if (arg && formals.has(arg)) {
     throw ParseError({.msg_ = hint_fmt_t("duplicate formal function argument '%1%'", symbols[arg]),
                       .pos_ = positions[pos]});
+  }
 }
 
 inline expr_t* ParserState::strip_indentation(
     const pos_idx_t pos, std::span<std::pair<pos_idx_t, std::variant<expr_t*, StringToken>>> es) {
-  if (es.empty())
+  if (es.empty()) {
     return exprs.add<ExprString>(""_sds);
+  }
 
   /* Figure out the minimum indentation.  Note that by design
      whitespace-only final lines are not taken into account.  (So
@@ -306,23 +312,25 @@ inline expr_t* ParserState::strip_indentation(
       /* Anti-quotations and escaped characters end the current start-of-line whitespace. */
       if (at_start_of_line) {
         at_start_of_line = false;
-        if (cur_indent < min_indent)
+        if (cur_indent < min_indent) {
           min_indent = cur_indent;
+        }
       }
       continue;
     }
     for (size_t j = 0; j < str->l; ++j) {
       if (at_start_of_line) {
-        if (str->p[j] == ' ')
+        if (str->p[j] == ' ') {
           cur_indent++;
-        else if (str->p[j] == '\n') {
+        } else if (str->p[j] == '\n') {
           /* Empty line, doesn't influence minimum
              indentation. */
           cur_indent = 0;
         } else {
           at_start_of_line = false;
-          if (cur_indent < min_indent)
+          if (cur_indent < min_indent) {
             min_indent = cur_indent;
+          }
         }
       } else if (str->p[j] == '\n') {
         at_start_of_line = true;
@@ -347,8 +355,9 @@ inline expr_t* ParserState::strip_indentation(
     for (size_t j = 0; j < t.l; ++j) {
       if (at_start_of_line) {
         if (t.p[j] == ' ') {
-          if (curDropped++ >= min_indent)
+          if (curDropped++ >= min_indent) {
             s2 += t.p[j];
+          }
         } else if (t.p[j] == '\n') {
           curDropped = 0;
           s2 += t.p[j];
@@ -359,8 +368,9 @@ inline expr_t* ParserState::strip_indentation(
         }
       } else {
         s2 += t.p[j];
-        if (t.p[j] == '\n')
+        if (t.p[j] == '\n') {
           at_start_of_line = true;
+        }
       }
     }
 
@@ -368,8 +378,9 @@ inline expr_t* ParserState::strip_indentation(
        spaces. */
     if (n == 1) {
       std::string::size_type p = s2.find_last_of('\n');
-      if (p != std::string::npos && s2.find_first_not_of(' ', p + 1) == std::string::npos)
+      if (p != std::string::npos && s2.find_first_not_of(' ', p + 1) == std::string::npos) {
         s2 = std::string(s2, 0, p + 1);
+      }
     }
 
     // Ignore empty strings for a minor optimisation and AST simplification

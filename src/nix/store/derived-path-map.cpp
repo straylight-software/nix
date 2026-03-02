@@ -34,8 +34,9 @@ typename DerivedPathMap<V>::ChildNode* DerivedPathMap<V>::findSlot(const SingleD
                           },
                           [&](const SingleDerivedPath::Built& bfd) {
                             auto* n = initIter(*bfd.drv_path);
-                            if (!n)
+                            if (!n) {
                               return (ChildNode*)nullptr;
+                            }
 
                             auto it = n->childMap.find(bfd.output);
                             return it != n->childMap.end() ? &it->second : nullptr;

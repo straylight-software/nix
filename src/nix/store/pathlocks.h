@@ -46,8 +46,9 @@ struct FdLock {
   FdLock(descriptor_t desc, LockType lock_type, bool wait, std::string_view waitMsg);
 
   ~FdLock() {
-    if (acquired)
+    if (acquired) {
       lock_file(desc, ltNone, false);
+    }
   }
 };
 

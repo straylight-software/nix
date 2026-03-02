@@ -79,8 +79,9 @@ Goal::Co DrvOutputSubstitutionGoal::init() {
       substituterFailed = true;
     }
 
-    if (!outputInfo)
+    if (!outputInfo) {
       continue;
+    }
 
     bool failed = false;
 
@@ -103,8 +104,9 @@ Goal::Co DrvOutputSubstitutionGoal::init() {
       }
     }
 
-    if (failed)
+    if (failed) {
       continue;
+    }
 
     waitees.insert(worker.makePathSubstitutionGoal(outputInfo->out_path));
 

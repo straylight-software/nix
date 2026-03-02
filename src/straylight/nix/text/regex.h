@@ -130,8 +130,9 @@ public:
 
   /// Get capture groups only (excluding full match)
   [[nodiscard]] std::span<const Group> captures() const noexcept {
-    if (groups_.size() <= 1)
+    if (groups_.size() <= 1) {
       return {};
+    }
     return std::span<const Group>(groups_).subspan(1);
   }
 
@@ -257,8 +258,9 @@ private:
 [[nodiscard]] inline std::expected<std::optional<Match>, Error> full_match(std::string_view pattern,
                                                                            std::string_view text) {
   auto re = Regex::compile(pattern);
-  if (!re)
+  if (!re) {
     return std::unexpected(re.error());
+  }
   return re->full_match(text);
 }
 
@@ -266,8 +268,9 @@ private:
 [[nodiscard]] inline std::expected<std::optional<Match>, Error>
 partial_match(std::string_view pattern, std::string_view text) {
   auto re = Regex::compile(pattern);
-  if (!re)
+  if (!re) {
     return std::unexpected(re.error());
+  }
   return re->partial_match(text);
 }
 
@@ -275,8 +278,9 @@ partial_match(std::string_view pattern, std::string_view text) {
 [[nodiscard]] inline std::expected<bool, Error> test(std::string_view pattern,
                                                      std::string_view text) {
   auto re = Regex::compile(pattern);
-  if (!re)
+  if (!re) {
     return std::unexpected(re.error());
+  }
   return re->test(text);
 }
 

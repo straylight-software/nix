@@ -33,13 +33,15 @@ static ActiveBuildInfo::ProcessInfo get_process_info(::pid_t pid) {
   auto stat_path = fmt("/proc/%d/stat", pid);
 
   auto_close_fd_t stat_fd = open(stat_path.c_str(), O_RDONLY | O_CLOEXEC);
-  if (!stat_fd)
+  if (!stat_fd) {
     throw sys_error_t("opening '%s'", stat_path);
+  }
 
   // Get the UID from the ownership of the stat file.
   struct stat st;
-  if (fstat(stat_fd.get(), &st) == -1)
+  if (fstat(stat_fd.get(), &st) == -1) {
     throw sys_error_t("getting ownership of '%s'", stat_path);
+  }
   info.user = UserInfo::fromUid(st.st_uid);
 
   // Read /proc/[pid]/stat for parent PID and CPU times.
@@ -48,25 +50,31 @@ static ActiveBuildInfo::ProcessInfo get_process_info(::pid_t pid) {
   auto stat_content = trim(read_file(stat_fd.get()));
   static std::regex stat_regex(R"((\d+) \(([^)]*)\) (.*))");
   std::smatch match;
-  if (!std::regex_match(stat_content, match, stat_regex))
+  if (!std::regex_match(stat_content, match, stat_regex)) {
     throw Error("failed to parse /proc/%d/stat", pid);
+  }
 
   // Parse the remaining fields after (comm).
   auto remaining_fields = tokenize_string<std::vector<std::string>>(match[3].str());
 
-  if (remaining_fields.size() > 1)
+  if (remaining_fields.size() > 1) {
     info.parent_pid = string2_int<::pid_t>(remaining_fields[1]).value_or(0);
+  }
 
   static long clk_tck = sysconf(_SC_CLK_TCK);
   if (remaining_fields.size() > 14 && clk_tck > 0) {
-    if (auto utime = string2_int<uint64_t>(remaining_fields[11]))
+    if (auto utime = string2_int<uint64_t>(remaining_fields[11])) {
       info.utime = std::chrono::microseconds((*utime * 1'000'000) / clk_tck);
-    if (auto stime = string2_int<uint64_t>(remaining_fields[12]))
+    }
+    if (auto stime = string2_int<uint64_t>(remaining_fields[12])) {
       info.stime = std::chrono::microseconds((*stime * 1'000'000) / clk_tck);
-    if (auto cutime = string2_int<uint64_t>(remaining_fields[13]))
+    }
+    if (auto cutime = string2_int<uint64_t>(remaining_fields[13])) {
       info.cutime = std::chrono::microseconds((*cutime * 1'000'000) / clk_tck);
-    if (auto cstime = string2_int<uint64_t>(remaining_fields[14]))
+    }
+    if (auto cstime = string2_int<uint64_t>(remaining_fields[14])) {
       info.cstime = std::chrono::microseconds((*cstime * 1'000'000) / clk_tck);
+    }
   }
 
   return info;
@@ -82,9 +90,11 @@ static std::set<::pid_t> get_descendant_pids(::pid_t pid) {
     try {
       descendants.insert(pid);
       for (const auto& childPidStr : tokenize_string<std::vector<std::string>>(
-               read_file(fmt("/proc/%d/task/%d/children", pid, pid))))
-        if (auto childPid = string2_int<::pid_t>(childPidStr))
+               read_file(fmt("/proc/%d/task/%d/children", pid, pid)))) {
+        if (auto childPid = string2_int<::pid_t>(childPidStr)) {
           self(*childPid);
+        }
+      }
     } catch (...) {
       // Process may have exited.
       ignore_exception_except_interrupt();
@@ -102,8 +112,9 @@ static ActiveBuildInfo::ProcessInfo get_process_info(::pid_t pid) {
 
   // Get basic process info including ppid and uid.
   struct proc_bsdinfo procInfo;
-  if (proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &procInfo, sizeof(procInfo)) != sizeof(procInfo))
+  if (proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &procInfo, sizeof(procInfo)) != sizeof(procInfo)) {
     throw sys_error_t("getting process info for pid %d", pid);
+  }
 
   info.parent_pid = procInfo.pbi_ppid;
   info.user = UserInfo::fromUid(procInfo.pbi_uid);
@@ -137,18 +148,21 @@ static ActiveBuildInfo::ProcessInfo get_process_info(::pid_t pid) {
 
         // Skip past argc and executable path (null-terminated).
         size_t pos = sizeof(int);
-        while (pos < size && buffer[pos] != '\0')
+        while (pos < size && buffer[pos] != '\0') {
           pos++;
+        }
         pos++; // Skip the null terminator
 
         // Parse the arguments.
         while (pos < size && info.argv.size() < (size_t)argc) {
           size_t argStart = pos;
-          while (pos < size && buffer[pos] != '\0')
+          while (pos < size && buffer[pos] != '\0') {
             pos++;
+          }
 
-          if (pos > argStart)
+          if (pos > argStart) {
             info.argv.emplace_back(buffer.data() + argStart, pos - argStart);
+          }
 
           pos++; // Skip the null terminator
         }
@@ -167,12 +181,14 @@ static std::set<::pid_t> get_descendant_pids(::pid_t startPid) {
   int mib[4] = {CTL_KERN, KERN_PROC, KERN_PROC_ALL, 0};
   size_t size = 0;
 
-  if (sysctl(mib, 4, nullptr, &size, nullptr, 0) == -1)
+  if (sysctl(mib, 4, nullptr, &size, nullptr, 0) == -1) {
     return {startPid};
+  }
 
   std::vector<struct kinfo_proc> procs(size / sizeof(struct kinfo_proc));
-  if (sysctl(mib, 4, procs.data(), &size, nullptr, 0) == -1)
+  if (sysctl(mib, 4, procs.data(), &size, nullptr, 0) == -1) {
     return {startPid};
+  }
 
   // Get the children of all processes.
   std::map<::pid_t, std::set<::pid_t>> children;
@@ -188,10 +204,12 @@ static std::set<::pid_t> get_descendant_pids(::pid_t startPid) {
   std::queue<::pid_t> todo;
   todo.push(startPid);
   while (auto pid = pop(todo)) {
-    if (!descendants.insert(*pid).second)
+    if (!descendants.insert(*pid).second) {
       continue;
-    for (auto& child : children[*pid])
+    }
+    for (auto& child : children[*pid]) {
       todo.push(child);
+    }
   }
 
   return descendants;
@@ -219,8 +237,9 @@ std::vector<ActiveBuildInfo> LocalStore::queryActiveBuilds() {
       try {
 #  ifdef __linux__
         if (info.cgroup) {
-          for (auto pid : get_pids_in_cgroup(*info.cgroup))
+          for (auto pid : get_pids_in_cgroup(*info.cgroup)) {
             info.processes.push_back(get_process_info(pid));
+          }
 
           /* Read CPU statistics from the cgroup. */
           auto stats = get_cgroup_stats(*info.cgroup);
@@ -229,8 +248,9 @@ std::vector<ActiveBuildInfo> LocalStore::queryActiveBuilds() {
         } else
 #  endif
         {
-          for (auto pid : get_descendant_pids(info.main_pid))
+          for (auto pid : get_descendant_pids(info.main_pid)) {
             info.processes.push_back(get_process_info(pid));
+          }
         }
       } catch (...) {
         ignore_exception_except_interrupt();

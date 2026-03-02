@@ -197,8 +197,9 @@ struct DebugTrace {
     return std::visit(overloaded{
                           [&](pos_idx_t idx) {
                             // Prefer direct pos, but if noPos then try the expr.
-                            if (!idx)
+                            if (!idx) {
                               idx = expr.getPos();
+                            }
                             return table[idx];
                           },
                           [&](pos_t pos) { return pos; },
@@ -409,11 +410,11 @@ public:
 
   const std::shared_ptr<const StaticEnv> getStaticEnv(const expr_t& expr) const {
     auto i = exprEnvs.find(&expr);
-    if (i != exprEnvs.end())
+    if (i != exprEnvs.end()) {
       return i->second;
-    else
+    } else {
       return std::shared_ptr<const StaticEnv>();
-    ;
+    };
   }
 
   /** Whether a debug repl can be started. If `false`, `runDebugRepl(error)` will return without

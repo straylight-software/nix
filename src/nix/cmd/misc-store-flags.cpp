@@ -36,9 +36,11 @@ args_t::flag_t hash_format_opt(std::string&& long_name, std::optional<hash_forma
 
 static void hash_algo_completer(add_completions_t& completions, size_t index,
                                 std::string_view prefix) {
-  for (auto& algo : hash_algorithms)
-    if (has_prefix(algo, prefix))
+  for (auto& algo : hash_algorithms) {
+    if (has_prefix(algo, prefix)) {
       completions.add(algo);
+    }
+  }
 }
 
 args_t::flag_t hash_algo(std::string&& long_name, hash_algorithm_t* ha) {

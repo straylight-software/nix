@@ -24,14 +24,17 @@ static void parallel_force_deep(eval_state_t& state, value_t& v, pos_idx_t pos) 
   switch (v.type()) {
     case nAttrs: {
       NixStringContext context;
-      if (state.tryAttrsToString(pos, v, context, false, false))
+      if (state.tryAttrsToString(pos, v, context, false, false)) {
         return;
-      if (v.attrs()->get(state.s.out_path))
+      }
+      if (v.attrs()->get(state.s.out_path)) {
         return;
-      for (auto& a : *v.attrs())
+      }
+      for (auto& a : *v.attrs()) {
         work.emplace_back([value(alloc_root_value(a.value)), pos(a.pos),
                            &state]() { parallel_force_deep(state, **value, pos); },
                           0);
+      }
       break;
     }
 
@@ -45,16 +48,18 @@ static void parallel_force_deep(eval_state_t& state, value_t& v, pos_idx_t pos) 
 // TODO: rename. It doesn't print.
 json print_value_as_json(eval_state_t& state, bool strict, value_t& v, const pos_idx_t pos,
                          NixStringContext& context, bool copy_to_store) {
-  if (strict && state.executor->enabled && !Executor::amWorkerThread)
+  if (strict && state.executor->enabled && !Executor::amWorkerThread) {
     parallel_force_deep(state, v, pos);
+  }
 
   auto recurse = [&](this const auto& recurse, json& res, value_t& v, pos_idx_t pos) -> void {
     check_interrupt();
 
     auto _level = state.addCallDepth(pos);
 
-    if (strict)
+    if (strict) {
       state.forceValue(v, pos);
+    }
 
     switch (v.type()) {
       case nInt:
@@ -72,11 +77,12 @@ json print_value_as_json(eval_state_t& state, bool strict, value_t& v, const pos
       }
 
       case nPath:
-        if (copy_to_store)
+        if (copy_to_store) {
           res = state.store->printStorePath(
               state.copyPathToStore(context, v.path(), v.determinePos(pos)));
-        else
+        } else {
           res = v.path().path.abs();
+        }
         break;
 
       case nNull:
@@ -89,9 +95,9 @@ json print_value_as_json(eval_state_t& state, bool strict, value_t& v, const pos
           res = *maybe_string;
           break;
         }
-        if (auto i = v.attrs()->get(state.s.out_path))
+        if (auto i = v.attrs()->get(state.s.out_path)) {
           return recurse(res, *i->value, i->pos);
-        else {
+        } else {
           res = json::object();
           for (auto& a : v.attrs()->lexicographicOrder(state.symbols)) {
             json& j = res.emplace(state.symbols[a->name], json()).first.value();

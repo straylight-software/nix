@@ -148,8 +148,9 @@ public:
       void increment() noexcept { ++current; }
 
       void consume(symbol_t name) noexcept {
-        while (!empty() && current->name <= name)
+        while (!empty() && current->name <= name) {
           ++current;
+        }
       }
 
       GENERATE_CMP(BindingsCursor, me->current->name, me->priority)
@@ -199,8 +200,9 @@ public:
       current = &cursor.get();
       cursor.increment();
 
-      if (!cursor.empty())
+      if (!cursor.empty()) {
         push(cursor);
+      }
     }
 
     std::optional<BindingsCursor> consumeAllUntilCurrentName() noexcept {
@@ -209,11 +211,13 @@ public:
 
       while (cursor->name <= lastHandledName) {
         cursor.consume(lastHandledName);
-        if (!cursor.empty())
+        if (!cursor.empty()) {
           push(cursor);
+        }
 
-        if (cursorHeap.empty())
+        if (cursorHeap.empty()) {
           return std::nullopt;
+        }
 
         cursor = pop();
       }
@@ -232,8 +236,9 @@ public:
       };
 
       if (!doMerge) {
-        if (attrs.empty())
+        if (attrs.empty()) {
           return;
+        }
 
         current = attrs.attrs;
         pushBindings(attrs);
@@ -243,13 +248,15 @@ public:
 
       const bindings_t* layer = &attrs;
       while (layer) {
-        if (layer->numAttrs != 0)
+        if (layer->numAttrs != 0) {
           pushBindings(*layer);
+        }
         layer = layer->baseLayer;
       }
 
-      if (cursorHeap.empty())
+      if (cursorHeap.empty()) {
         return;
+      }
 
       next(pop());
     }
@@ -264,17 +271,20 @@ public:
     iterator& operator++() noexcept {
       if (!doMerge) {
         ++current;
-        if (current == cursorHeap.front().end)
+        if (current == cursorHeap.front().end) {
           return finished();
+        }
         return *this;
       }
 
-      if (cursorHeap.empty())
+      if (cursorHeap.empty()) {
         return finished();
+      }
 
       auto cursor = consumeAllUntilCurrentName();
-      if (!cursor)
+      if (!cursor) {
         return finished();
+      }
 
       next(*cursor);
       return *this;
@@ -304,16 +314,18 @@ public:
       auto first = chunk.attrs;
       auto last = first + chunk.numAttrs;
       const attr_t* i = std::lower_bound(first, last, key);
-      if (i != last && i->name == key.name)
+      if (i != last && i->name == key.name) {
         return i;
+      }
       return nullptr;
     };
 
     const bindings_t* currentChunk = this;
     while (currentChunk) {
       const attr_t* maybeAttr = getInChunk(*currentChunk);
-      if (maybeAttr)
+      if (maybeAttr) {
         return maybeAttr;
+      }
       currentChunk = currentChunk->baseLayer;
     }
 
@@ -335,14 +347,16 @@ public:
   const_iterator end() const { return const_iterator(); }
 
   attr_t& operator[](size_type pos) {
-    if (isLayered()) [[unlikely]]
+    if (isLayered()) [[unlikely]] {
       unreachable();
+    }
     return attrs[pos];
   }
 
   const attr_t& operator[](size_type pos) const {
-    if (isLayered()) [[unlikely]]
+    if (isLayered()) [[unlikely]] {
       unreachable();
+    }
     return attrs[pos];
   }
 
@@ -401,8 +415,9 @@ private:
    * "layer".
    */
   void finishSizeIfNecessary() {
-    if (!hasBaseLayer())
+    if (!hasBaseLayer()) {
       return;
+    }
 
     auto& base = *bindings->baseLayer;
     auto attrs = std::span(bindings->attrs, bindings->numAttrs);
@@ -423,8 +438,9 @@ private:
           boost::make_function_output_iterator([&]([[maybe_unused]] auto&& _) { ++duplicates; }));
     } else {
       for (const auto& attr : attrs) {
-        if (base.get(attr.name))
+        if (base.get(attr.name)) {
           ++duplicates;
+        }
       }
     }
 
@@ -479,8 +495,9 @@ public:
   size_t capacity() const noexcept { return capacity_; }
 
   void grow(BindingsBuilder newBindings) {
-    for (auto& i : *bindings)
+    for (auto& i : *bindings) {
       newBindings.push_back(i);
+    }
     std::swap(*this, newBindings);
   }
 

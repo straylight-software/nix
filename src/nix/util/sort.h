@@ -106,8 +106,9 @@ auto merge_sorted_runs_in_place(Iter begin, Iter middle, Iter end, BufIter worki
 template <std::bidirectional_iterator Iter,
           typename Comparator = std::less<std::iter_value_t<Iter>>>
 auto insertion_sort(Iter begin, Iter end, Comparator comp = {}) -> void {
-  if (begin == end)
+  if (begin == end) {
     return;
+  }
   for (Iter current = std::next(begin); current != end; ++current) {
     for (Iter insertionPoint = current;
          insertionPoint != begin && comp(*insertionPoint, *std::prev(insertionPoint));
@@ -124,11 +125,13 @@ auto insertion_sort(Iter begin, Iter end, Comparator comp = {}) -> void {
 template <std::forward_iterator Iter, typename Comparator = std::less<std::iter_value_t<Iter>>>
 [[nodiscard]] auto strictly_decreasing_prefix(Iter begin, Iter end, Comparator&& comp = {})
     -> Iter {
-  if (begin == end)
+  if (begin == end) {
     return begin;
+  }
   while (std::next(begin) != end && /* *std::next(begin) < begin */
-         comp(*std::next(begin), *begin))
+         comp(*std::next(begin), *begin)) {
     ++begin;
+  }
   return std::next(begin);
 }
 
@@ -140,11 +143,13 @@ template <std::bidirectional_iterator Iter,
           typename Comparator = std::less<std::iter_value_t<Iter>>>
 [[nodiscard]] auto strictly_decreasing_suffix(Iter begin, Iter end, Comparator&& comp = {})
     -> Iter {
-  if (begin == end)
+  if (begin == end) {
     return end;
+  }
   while (std::prev(end) > begin && /* *std::prev(end) < *std::prev(end, 2) */
-         comp(*std::prev(end), *std::prev(end, 2)))
+         comp(*std::prev(end), *std::prev(end, 2))) {
     --end;
+  }
   return std::prev(end);
 }
 
@@ -224,8 +229,9 @@ auto peek_sort(Iter begin, Iter end, Comparator comp = {}) -> void {
     case 1:
       return;
     case 2:
-      if (comp(*--end, *begin)) /* [a, b], b < a */
+      if (comp(*--end, *begin)) { /* [a, b], b < a */
         std::swap(*begin, *end);
+      }
       return;
   }
 
@@ -240,8 +246,9 @@ auto peek_sort(Iter begin, Iter end, Comparator comp = {}) -> void {
    */
   auto peeksortImpl = [&workingBuffer, &comp](auto& peeksortImpl, Iter begin, Iter end,
                                               Iter leftRunEnd, Iter rightRunBegin) {
-    if (leftRunEnd == end || rightRunBegin == begin)
+    if (leftRunEnd == end || rightRunBegin == begin) {
       return;
+    }
 
     /* Dispatch to simpler insertion sort implementation for smaller cases
        Cut-off limit is the same as in libstdc++
@@ -249,8 +256,9 @@ auto peek_sort(Iter begin, Iter end, Comparator comp = {}) -> void {
      */
     static constexpr std::size_t insertionsortThreshold = 16;
     size_t length = std::distance(begin, end);
-    if (length <= insertionsortThreshold)
+    if (length <= insertionsortThreshold) {
       return insertion_sort(begin, end, comp);
+    }
 
     Iter middle = std::next(begin, (length / 2)); /* Middle split between m and m - 1 */
 
@@ -278,8 +286,9 @@ auto peek_sort(Iter begin, Iter end, Comparator comp = {}) -> void {
       std::reverse(i, j);
     }
 
-    if (i == begin && j == end)
+    if (i == begin && j == end) {
       return; /* single run */
+    }
 
     if (middle - i < j - middle) {
       /* |XX     x|xxxx   X| */

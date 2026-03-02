@@ -275,14 +275,18 @@ TEST_CASE("Nix32 encoding (the weird base32 nix uses)", "[store][hash][compatibi
     // Verify omitted characters
     bool has_e = false, has_o = false, has_u = false, has_t = false;
     for (char c : chars) {
-      if (c == 'e')
+      if (c == 'e') {
         has_e = true;
-      if (c == 'o')
+      }
+      if (c == 'o') {
         has_o = true;
-      if (c == 'u')
+      }
+      if (c == 'u') {
         has_u = true;
-      if (c == 't')
+      }
+      if (c == 't') {
         has_t = true;
+      }
     }
     REQUIRE_FALSE(has_e);
     REQUIRE_FALSE(has_o);

@@ -22,8 +22,9 @@ static void canonicalise_timestamp_and_permissions(const Path& path, const struc
     bool is_dir = S_ISDIR(st.st_mode);
     if ((mode != 0444 || is_dir) && mode != 0555) {
       mode = (st.st_mode & S_IFMT) | 0444 | (st.st_mode & S_IXUSR || is_dir ? 0111 : 0);
-      if (chmod(path.c_str(), mode) == -1)
+      if (chmod(path.c_str(), mode) == -1) {
         throw sys_error_t("changing mode of '%1%' to %2$o", path, mode);
+      }
     }
   }
 
@@ -51,36 +52,42 @@ static void canonicalise_path_meta_data_(const Path& path,
      the file from being garbage-collected. FIXME: use
      setattrlist() to remove other attributes as well. */
   if (lchflags(path.c_str(), 0)) {
-    if (errno != ENOTSUP)
+    if (errno != ENOTSUP) {
       throw sys_error_t("clearing flags of path '%1%'", path);
+    }
   }
 #endif
 
   auto st = lstat(path);
 
   /* Really make sure that the path is of a supported type. */
-  if (!(S_ISREG(st.st_mode) || S_ISDIR(st.st_mode) || S_ISLNK(st.st_mode)))
+  if (!(S_ISREG(st.st_mode) || S_ISDIR(st.st_mode) || S_ISLNK(st.st_mode))) {
     throw Error("file '%1%' has an unsupported type", path);
+  }
 
 #if NIX_SUPPORT_ACL
   /* Remove extended attributes / ACLs. */
   ssize_t eaSize = llistxattr(path.c_str(), nullptr, 0);
 
   if (eaSize < 0) {
-    if (errno != ENOTSUP && errno != ENODATA)
+    if (errno != ENOTSUP && errno != ENODATA) {
       throw sys_error_t("querying extended attributes of '%s'", path);
+    }
   } else if (eaSize > 0) {
     std::vector<char> eaBuf(eaSize);
 
-    if ((eaSize = llistxattr(path.c_str(), eaBuf.data(), eaBuf.size())) < 0)
+    if ((eaSize = llistxattr(path.c_str(), eaBuf.data(), eaBuf.size())) < 0) {
       throw sys_error_t("querying extended attributes of '%s'", path);
+    }
 
     for (auto& eaName :
          tokenize_string<strings_t>(std::string(eaBuf.data(), eaSize), std::string("\000", 1))) {
-      if (settings.ignoredAcls.get().count(eaName))
+      if (settings.ignoredAcls.get().count(eaName)) {
         continue;
-      if (lremovexattr(path.c_str(), eaName.c_str()) == -1)
+      }
+      if (lremovexattr(path.c_str(), eaName.c_str()) == -1) {
         throw sys_error_t("removing extended attribute '%s' from '%s'", eaName, path);
+      }
     }
   }
 #endif
@@ -93,9 +100,10 @@ static void canonicalise_path_meta_data_(const Path& path,
      ensure that we don't fail on hard links within the same build
      (i.e. "touch $out/foo; ln $out/foo $out/bar"). */
   if (uidRange && (st.st_uid < uidRange->first || st.st_uid > uidRange->second)) {
-    if (S_ISDIR(st.st_mode) || !inodes_seen.count(Inode(st.st_dev, st.st_ino)))
+    if (S_ISDIR(st.st_mode) || !inodes_seen.count(Inode(st.st_dev, st.st_ino))) {
       throw build_error_t(build_result_t::Failure::OutputRejected,
                           "invalid ownership on file '%1%'", path);
+    }
     mode_t mode = st.st_mode & ~S_IFMT;
     assert(S_ISLNK(st.st_mode) || (st.st_uid == geteuid() && (mode == 0444 || mode == 0555) &&
                                    st.st_mtime == mtime_store));

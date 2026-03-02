@@ -30,8 +30,9 @@ Machine::Machine(const std::string& storeUri, decltype(systemTypes) systemTypes,
       supportedFeatures(supportedFeatures),
       mandatoryFeatures(mandatoryFeatures),
       ssh_public_host_key(ssh_public_host_key) {
-  if (speedFactor < 0.0)
+  if (speedFactor < 0.0) {
     throw UsageError("speed factor must be >= 0");
+  }
 }
 
 bool Machine::systemSupported(const std::string& system) const {
@@ -60,18 +61,21 @@ StoreReference Machine::completeStoreReference() const {
   }
 
   if (generic && (generic->scheme == "ssh" || generic->scheme == "ssh-ng")) {
-    if (sshKey != "")
+    if (sshKey != "") {
       storeUri.params["ssh-key"] = sshKey;
-    if (ssh_public_host_key != "")
+    }
+    if (ssh_public_host_key != "") {
       storeUri.params["base64-ssh-public-host-key"] = ssh_public_host_key;
+    }
   }
 
   {
     auto& fs = storeUri.params["system-features"];
     auto append = [&](auto feats) {
       for (auto& f : feats) {
-        if (fs.size() > 0)
+        if (fs.size() > 0) {
           fs += ' ';
+        }
         fs += f;
       }
     };
@@ -101,8 +105,9 @@ static std::vector<std::string> expand_builder_lines(const std::string& builders
         try {
           text = read_file(path);
         } catch (const sys_error_t& e) {
-          if (e.err_no() != ENOENT)
+          if (e.err_no() != ENOENT) {
             throw;
+          }
           debug("cannot find machines file '%s'", path);
           continue;
         }
@@ -156,10 +161,11 @@ static Machine parse_builder_line(const string_set_t& default_systems, const std
     return str;
   };
 
-  if (!is_set(0))
+  if (!is_set(0)) {
     throw FormatError(
         "bad machine specification: store URL was not found at the first column of a row: '%s'",
         line);
+  }
 
   // TODO use designated initializers, once C++ supports those with
   // custom constructors.

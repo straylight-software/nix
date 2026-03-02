@@ -12,8 +12,9 @@ void store_t::build_paths(const std::vector<derived_path_t>& reqs, BuildMode bui
   Worker worker(*this, eval_store ? *eval_store : *this);
 
   Goals goals;
-  for (auto& br : reqs)
+  for (auto& br : reqs) {
     goals.insert(worker.makeGoal(br, build_mode));
+  }
 
   worker.run(goals);
 
@@ -21,16 +22,18 @@ void store_t::build_paths(const std::vector<derived_path_t>& reqs, BuildMode bui
   std::optional<Error> ex;
   for (auto& i : goals) {
     if (i->ex) {
-      if (ex)
+      if (ex) {
         logError(i->ex->info());
-      else
+      } else {
         ex = std::move(i->ex);
+      }
     }
     if (i->exit_code != Goal::ecSuccess) {
-      if (auto i2 = dynamic_cast<DerivationTrampolineGoal*>(i.get()))
+      if (auto i2 = dynamic_cast<DerivationTrampolineGoal*>(i.get())) {
         failed.insert(i2->drvReq->to_string(*this));
-      else if (auto i2 = dynamic_cast<PathSubstitutionGoal*>(i.get()))
+      } else if (auto i2 = dynamic_cast<PathSubstitutionGoal*>(i.get())) {
         failed.insert(printStorePath(i2->store_path));
+      }
     }
   }
 
@@ -38,8 +41,9 @@ void store_t::build_paths(const std::vector<derived_path_t>& reqs, BuildMode bui
     ex->with_exit_status(worker.failingExitStatus());
     throw std::move(*ex);
   } else if (!failed.empty()) {
-    if (ex)
+    if (ex) {
       logError(ex->info());
+    }
     throw Error(worker.failingExitStatus(), "build of %s failed",
                 concat_strings_sep(", ", quote_strings(failed)));
   }
@@ -64,11 +68,12 @@ store_t::build_paths_with_results(const std::vector<derived_path_t>& reqs, Build
   std::vector<keyed_build_result_t> results;
   results.reserve(state.size());
 
-  for (auto& [req, goalPtr] : state)
+  for (auto& [req, goalPtr] : state) {
     results.emplace_back(keyed_build_result_t{
         goalPtr->buildResult,
         /* .path = */ req,
     });
+  }
 
   return results;
 }
@@ -91,8 +96,9 @@ build_result_t store_t::buildDerivation(const store_path_t& drv_path, const basi
 
 void store_t::ensure_path(const store_path_t& path) {
   /* If the path is already valid, we're done. */
-  if (isValidPath(path))
+  if (isValidPath(path)) {
     return;
+  }
 
   Worker worker(*this, *this);
   GoalPtr goal = worker.makePathSubstitutionGoal(path);
@@ -104,9 +110,10 @@ void store_t::ensure_path(const store_path_t& path) {
     if (goal->ex) {
       goal->ex->with_exit_status(worker.failingExitStatus());
       throw std::move(*goal->ex);
-    } else
+    } else {
       throw Error(worker.failingExitStatus(), "path '%s' does not exist and cannot be created",
                   printStorePath(path));
+    }
   }
 }
 
@@ -131,8 +138,9 @@ void store_t::repairPath(const store_path_t& path) {
           },
           bmRepair));
       worker.run(goals);
-    } else
+    } else {
       throw Error(worker.failingExitStatus(), "cannot repair path '%s'", printStorePath(path));
+    }
   }
 }
 

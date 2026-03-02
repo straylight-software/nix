@@ -44,8 +44,9 @@ struct cmd_nario_export_t : nix::StorePathsCommand {
 
   void run(nix::ref<nix::store_t> store, nix::store_paths_t&& store_paths) override {
     auto fd = nix::get_standard_output();
-    if (isatty(fd))
+    if (isatty(fd)) {
       throw nix::UsageError("refusing to write nario to a terminal");
+    }
     nix::fd_sink_t sink(std::move(fd));
     nix::export_paths(*store, nix::store_path_set_t(store_paths.begin(), store_paths.end()), sink,
                       version);
@@ -56,8 +57,9 @@ static auto r_cmd_nario_export = nix::registerCommand2<cmd_nario_export_t>({"nar
 
 static nix::fd_source_t get_nario_source() {
   auto fd = nix::get_standard_input();
-  if (isatty(fd))
+  if (isatty(fd)) {
     throw nix::UsageError("refusing to read nario from a terminal");
+  }
   return nix::fd_source_t(std::move(fd));
 }
 
@@ -120,8 +122,9 @@ nlohmann::json list_nar(nix::source_t& source) {
 
       auto& j = make_object(path, "regular");
       j.emplace("size", crf.size.value());
-      if (crf.executable)
+      if (crf.executable) {
         j.emplace("executable", true);
+      }
     }
 
     void create_symlink(const nix::canon_path_t& path, const std::string& target) override {
@@ -149,11 +152,13 @@ void render_nar_listing(const nix::canon_path_t& prefix, const nlohmann::json& r
                                     : "dr-xr-xr-x";
       auto line =
           nix::fmt("%s %9d %s", tp, type == "regular" ? (uint64_t)json["size"] : 0, prefix / path);
-      if (type == "symlink")
+      if (type == "symlink") {
         line += " -> " + (std::string)json["target"];
+      }
       nix::logger->cout(line);
-    } else
+    } else {
       nix::logger->cout(nix::fmt("%s", prefix / path));
+    }
 
     if (type == "directory") {
       for (auto& entry : json["entries"].items()) {
@@ -215,23 +220,26 @@ struct cmd_nario_list_t : nix::command_t, nix::MixJSON, nix::mix_long_listing_t 
       void add_to_store(const nix::valid_path_info_t& info, nix::source_t& source,
                         nix::RepairFlag repair, nix::CheckSigsFlag check_sigs) override {
         std::optional<nlohmann::json> contents;
-        if (cmd.list_contents)
+        if (cmd.list_contents) {
           contents = list_nar(source);
-        else
+        } else {
           source.skip(info.nar_size);
+        }
 
         if (json) {
           // FIXME: make the JSON format configurable.
           auto obj = info.to_json(this, true, nix::PathInfoJsonFormat::V1);
-          if (contents)
+          if (contents) {
             obj.emplace("contents", *contents);
+          }
           json->emplace(printStorePath(info.path), std::move(obj));
         } else {
-          if (contents)
+          if (contents) {
             render_nar_listing(nix::canon_path_t(printStorePath(info.path)), *contents,
                                cmd.long_listing);
-          else
+          } else {
             nix::logger->cout(nix::fmt("%s: %d bytes", printStorePath(info.path), info.nar_size));
+          }
         }
       }
 
@@ -271,8 +279,9 @@ struct cmd_nario_list_t : nix::command_t, nix::MixJSON, nix::mix_long_listing_t 
     auto source{get_nario_source()};
     auto config = nix::make_ref<config_t>(nix::store_config_t::Params());
     listing_store_t lister(config, *this);
-    if (json)
+    if (json) {
       lister.json = nlohmann::json::object();
+    }
     nix::import_paths(lister, source, nix::NoCheckSigs);
     if (json) {
       auto j = nlohmann::json::object();

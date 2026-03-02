@@ -102,8 +102,9 @@ LegacySSHStore::queryPathInfosUncached(const store_path_set_t& paths) {
   auto infos = conn->queryPathInfos(*this, paths);
 
   for (const auto& [_, info] : infos) {
-    if (info.nar_hash == Hash::dummy)
+    if (info.nar_hash == Hash::dummy) {
       throw Error("NAR hash is now mandatory");
+    }
   }
 
   return infos;
@@ -153,9 +154,10 @@ void LegacySSHStore::add_to_store(const valid_path_info_t& info, source_t& sourc
   }
   conn->to.flush();
 
-  if (read_int(conn->from) != 1)
+  if (read_int(conn->from) != 1) {
     throw Error("failed to add path '%s' to remote host '%s'", printStorePath(info.path),
                 config->authority.host());
+  }
 }
 
 void LegacySSHStore::nar_from_path(const store_path_t& path, sink_t& sink) {
@@ -200,8 +202,9 @@ LegacySSHStore::buildDerivationAsync(const store_path_t& drv_path, const basic_d
 
 void LegacySSHStore::build_paths(const std::vector<derived_path_t>& drv_paths, BuildMode build_mode,
                                  std::shared_ptr<store_t> eval_store) {
-  if (eval_store && eval_store.get() != this)
+  if (eval_store && eval_store.get() != this) {
     throw Error("building on an SSH store is incompatible with '--eval-store'");
+  }
 
   auto conn(connections->get());
 
@@ -262,8 +265,9 @@ void LegacySSHStore::computeFSClosure(const store_path_set_t& paths, store_path_
   ServeProto::write(*this, *conn, paths);
   conn->to.flush();
 
-  for (auto& i : ServeProto::Serialise<store_path_set_t>::read(*this, *conn))
+  for (auto& i : ServeProto::Serialise<store_path_set_t>::read(*this, *conn)) {
     out.insert(i);
+  }
 }
 
 store_path_set_t LegacySSHStore::queryValidPaths(const store_path_set_t& paths,

@@ -46,15 +46,17 @@ struct local_store_accessor_t : posix_source_accessor_t {
 
   void requireStoreObject(const canon_path_t& path) {
     auto [store_path, rest] = store->toStorePath(store->store_dir + path.abs());
-    if (require_valid_path && !store->maybeQueryPathInfo(store_path))
+    if (require_valid_path && !store->maybeQueryPathInfo(store_path)) {
       throw InvalidPath("path '%1%' is not a valid store path", store->printStorePath(store_path));
+    }
   }
 
   std::optional<stat_t> maybe_lstat(const canon_path_t& path) override {
     /* Also allow `path` to point to the entire store, which is
        needed for resolving symlinks. */
-    if (path.is_root())
+    if (path.is_root()) {
       return stat_t{.type = t_directory};
+    }
 
     requireStoreObject(path);
     return posix_source_accessor_t::maybe_lstat(path);
@@ -89,13 +91,15 @@ std::shared_ptr<source_accessor_t> local_fs_store::getFSAccessor(const store_pat
   if (require_valid_path) {
     /* Only return non-null if the store object is a fully-valid
        member of the store. */
-    if (!isValidPath(path))
+    if (!isValidPath(path)) {
       return nullptr;
+    }
   } else {
     /* Return non-null as long as the some file system data exists,
        even if the store object is not fully registered. */
-    if (!path_exists(abs_path))
+    if (!path_exists(abs_path)) {
       return nullptr;
+    }
   }
   return std::make_shared<posix_source_accessor_t>(std::move(abs_path));
 }
@@ -111,8 +115,9 @@ std::optional<std::string> local_fs_store::getBuildLogExact(const store_path_t& 
                           : fmt("%s/%s/%s", config.logDir.get(), drvsLogDir, base_name);
     Path logBz2Path = logPath + ".bz2";
 
-    if (path_exists(logPath))
+    if (path_exists(logPath)) {
       return read_file(logPath);
+    }
 
     else if (path_exists(logBz2Path)) {
       try {

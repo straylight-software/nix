@@ -25,20 +25,22 @@ static void run_fetch_closure_with_rewrite(eval_state_t& state, const pos_idx_t 
 
   if (!to_path_maybe || !state.store->isValidPath(*to_path_maybe)) {
     auto rewritten_path = make_content_addressed(from_store, *state.store, from_path);
-    if (to_path_maybe && *to_path_maybe != rewritten_path)
+    if (to_path_maybe && *to_path_maybe != rewritten_path) {
       throw Error(
           {.msg_ = hint_fmt_t(
                "rewriting '%s' to content-addressed form yielded '%s', while '%s' was expected",
                state.store->printStorePath(from_path), state.store->printStorePath(rewritten_path),
                state.store->printStorePath(*to_path_maybe)),
            .pos_ = state.positions[pos]});
-    if (!to_path_maybe)
+    }
+    if (!to_path_maybe) {
       throw Error(
           {.msg_ = hint_fmt_t("rewriting '%s' to content-addressed form yielded '%s'\n"
                               "Use this value for the 'toPath' attribute passed to 'fetchClosure'",
                               state.store->printStorePath(from_path),
                               state.store->printStorePath(rewritten_path)),
            .pos_ = state.positions[pos]});
+    }
   }
 
   const auto& to_path = *to_path_maybe;
@@ -71,8 +73,9 @@ static void run_fetch_closure_with_content_addressed_path(eval_state_t& state, c
                                                           store_t& from_store,
                                                           const store_path_t& from_path,
                                                           value_t& v) {
-  if (!state.store->isValidPath(from_path))
+  if (!state.store->isValidPath(from_path)) {
     copy_closure(from_store, *state.store, RealisedPath::Set{from_path});
+  }
 
   auto info = state.store->queryPathInfo(from_path);
 
@@ -101,8 +104,9 @@ static void run_fetch_closure_with_content_addressed_path(eval_state_t& state, c
 static void run_fetch_closure_with_input_addressed_path(eval_state_t& state, const pos_idx_t pos,
                                                         store_t& from_store,
                                                         const store_path_t& from_path, value_t& v) {
-  if (!state.store->isValidPath(from_path))
+  if (!state.store->isValidPath(from_path)) {
     copy_closure(from_store, *state.store, RealisedPath::Set{from_path});
+  }
 
   auto info = state.store->queryPathInfo(from_path);
 
@@ -154,60 +158,69 @@ static void prim_fetch_closure(eval_state_t& state, const pos_idx_t pos, value_t
       }
     }
 
-    else if (attr_name == "fromStore")
+    else if (attr_name == "fromStore") {
       fromStoreUrl = state.forceStringNoCtx(*attr.value, attr.pos, attrHint());
+    }
 
-    else if (attr_name == "inputAddressed")
+    else if (attr_name == "inputAddressed") {
       inputAddressedMaybe = state.forceBool(*attr.value, attr.pos, attrHint());
+    }
 
-    else
+    else {
       throw Error({.msg_ = hint_fmt_t("attribute '%s' isn't supported in call to 'fetchClosure'",
                                       attr_name),
                    .pos_ = state.positions[pos]});
+    }
   }
 
-  if (!from_path)
+  if (!from_path) {
     throw Error(
         {.msg_ = hint_fmt_t("attribute '%s' is missing in call to 'fetchClosure'", "fromPath"),
          .pos_ = state.positions[pos]});
+  }
 
   bool input_addressed = inputAddressedMaybe.value_or(false);
 
   if (input_addressed) {
-    if (to_path)
+    if (to_path) {
       throw Error(
           {.msg_ = hint_fmt_t(
                "attribute '%s' is set to true, but '%s' is also set. Please remove one of them",
                "inputAddressed", "toPath"),
            .pos_ = state.positions[pos]});
+    }
   }
 
-  if (!fromStoreUrl)
+  if (!fromStoreUrl) {
     throw Error(
         {.msg_ = hint_fmt_t("attribute '%s' is missing in call to 'fetchClosure'", "fromStore"),
          .pos_ = state.positions[pos]});
+  }
 
   auto parsed_url = parse_url(*fromStoreUrl, /*lenient=*/true);
 
   if (parsed_url.scheme() != "http" && parsed_url.scheme() != "https" &&
-      !(get_env("_NIX_IN_TEST").has_value() && parsed_url.scheme() == "file"))
+      !(get_env("_NIX_IN_TEST").has_value() && parsed_url.scheme() == "file")) {
     throw Error({.msg_ = hint_fmt_t("'fetchClosure' only supports http:// and https:// stores"),
                  .pos_ = state.positions[pos]});
+  }
 
-  if (!parsed_url.query().empty())
+  if (!parsed_url.query().empty()) {
     throw Error(
         {.msg_ = hint_fmt_t("'fetchClosure' does not support URL query parameters (in '%s')",
                             *fromStoreUrl),
          .pos_ = state.positions[pos]});
+  }
 
   auto from_store = open_store(parsed_url.to_string());
 
-  if (to_path)
+  if (to_path) {
     run_fetch_closure_with_rewrite(state, pos, *from_store, *from_path, *to_path, v);
-  else if (input_addressed)
+  } else if (input_addressed) {
     run_fetch_closure_with_input_addressed_path(state, pos, *from_store, *from_path, v);
-  else
+  } else {
     run_fetch_closure_with_content_addressed_path(state, pos, *from_store, *from_path, v);
+  }
 }
 
 static RegisterPrimOp primop_fetch_closure({

@@ -46,24 +46,33 @@ auto http1_method_string(http1_method method) noexcept -> std::string_view {
 }
 
 auto http1_method_parse(std::string_view method) noexcept -> http1_method {
-  if (method == "GET")
+  if (method == "GET") {
     return http1_method::get;
-  if (method == "POST")
+  }
+  if (method == "POST") {
     return http1_method::post;
-  if (method == "PUT")
+  }
+  if (method == "PUT") {
     return http1_method::put;
-  if (method == "DELETE")
+  }
+  if (method == "DELETE") {
     return http1_method::del;
-  if (method == "HEAD")
+  }
+  if (method == "HEAD") {
     return http1_method::head;
-  if (method == "PATCH")
+  }
+  if (method == "PATCH") {
     return http1_method::patch;
-  if (method == "OPTIONS")
+  }
+  if (method == "OPTIONS") {
     return http1_method::options;
-  if (method == "CONNECT")
+  }
+  if (method == "CONNECT") {
     return http1_method::connect;
-  if (method == "TRACE")
+  }
+  if (method == "TRACE") {
     return http1_method::trace;
+  }
   return http1_method::get;
 }
 

@@ -71,9 +71,9 @@ void base_setting_t<T>::append_or_set(T new_value, bool append) {
 
 template <typename T>
 void base_setting_t<T>::set(const std::string& str, bool append) {
-  if (experimental_feature_settings.is_enabled(experimental_feature))
+  if (experimental_feature_settings.is_enabled(experimental_feature)) {
     append_or_set(parse(str), append);
-  else {
+  } else {
     assert(experimental_feature);
     warn("Ignoring setting '%s' because experimental feature '%s' is not enabled", name,
          show_experimental_feature(*experimental_feature));
@@ -98,7 +98,7 @@ void base_setting_t<T>::convert_to_arg(args_t& args, const std::string& category
       .experimental_feature = experimental_feature,
   });
 
-  if (is_appendable())
+  if (is_appendable()) {
     args.add_flag({
         .long_name = "extra-" + name,
         .aliases = aliases,
@@ -111,6 +111,7 @@ void base_setting_t<T>::convert_to_arg(args_t& args, const std::string& category
         }},
         .experimental_feature = experimental_feature,
     });
+  }
 }
 
 #define DECLARE_CONFIG_SERIALISER(TY)                                                              \

@@ -55,11 +55,13 @@ bool compare(std::span<const std::byte> generated, std::span<const std::byte> ex
 void hexdump(std::span<const std::byte> data, size_t limit = 64) {
   for (size_t idx = 0; idx < std::min(data.size(), limit); ++idx) {
     printf("%02x ", static_cast<uint8_t>(data[idx]));
-    if ((idx + 1) % 16 == 0)
+    if ((idx + 1) % 16 == 0) {
       printf("\n");
+    }
   }
-  if (data.size() > limit)
+  if (data.size() > limit) {
     printf("... (%zu more bytes)\n", data.size() - limit);
+  }
   printf("\n");
 }
 
@@ -78,9 +80,9 @@ int main() {
     nar::dump_string(w, "hello world\n");
 
     auto expected = read_file("src/straylight/nix/protocol/nar_captures/regular_file.nar");
-    if (compare(buf, expected, "regular_file"))
+    if (compare(buf, expected, "regular_file")) {
       ++passed;
-    else {
+    } else {
       ++failed;
       std::cout << "Generated:\n";
       hexdump(buf);
@@ -97,9 +99,9 @@ int main() {
     nar::dump_executable(w, "#!/bin/bash\n");
 
     auto expected = read_file("src/straylight/nix/protocol/nar_captures/executable_file.nar");
-    if (compare(buf, expected, "executable_file"))
+    if (compare(buf, expected, "executable_file")) {
       ++passed;
-    else {
+    } else {
       ++failed;
       std::cout << "Generated:\n";
       hexdump(buf);
@@ -116,9 +118,9 @@ int main() {
     nar::dump_symlink(w, "/etc/passwd");
 
     auto expected = read_file("src/straylight/nix/protocol/nar_captures/symlink.nar");
-    if (compare(buf, expected, "symlink"))
+    if (compare(buf, expected, "symlink")) {
       ++passed;
-    else {
+    } else {
       ++failed;
       std::cout << "Generated:\n";
       hexdump(buf);
@@ -135,9 +137,9 @@ int main() {
     nar::dump_string(w, "");
 
     auto expected = read_file("src/straylight/nix/protocol/nar_captures/empty_file.nar");
-    if (compare(buf, expected, "empty_file"))
+    if (compare(buf, expected, "empty_file")) {
       ++passed;
-    else {
+    } else {
       ++failed;
       std::cout << "Generated:\n";
       hexdump(buf);
@@ -154,9 +156,9 @@ int main() {
     nar::dump_empty_directory(w);
 
     auto expected = read_file("src/straylight/nix/protocol/nar_captures/empty_directory.nar");
-    if (compare(buf, expected, "empty_directory"))
+    if (compare(buf, expected, "empty_directory")) {
       ++passed;
-    else {
+    } else {
       ++failed;
       std::cout << "Generated:\n";
       hexdump(buf);
@@ -183,9 +185,9 @@ int main() {
     tree.to_nar(buf);
 
     auto expected = read_file("src/straylight/nix/protocol/nar_captures/directory.nar");
-    if (compare(buf, expected, "directory"))
+    if (compare(buf, expected, "directory")) {
       ++passed;
-    else {
+    } else {
       ++failed;
       std::cout << "Generated:\n";
       hexdump(buf, 256);

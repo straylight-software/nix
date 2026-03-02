@@ -150,8 +150,9 @@ struct store_config_t : public StoreConfigBase, public store_dir_config_t {
     auto queryParams = std::map<std::string, abstract_config_t::setting_info_t>{};
     get_settings(queryParams, /*overridden_only=*/true);
     string_map_t res;
-    for (const auto& [name, info] : queryParams)
+    for (const auto& [name, info] : queryParams) {
       res.insert({name, info.value_});
+    }
     return res;
   }
 

@@ -43,16 +43,18 @@ static void create_links(State& state, const Path& src_dir, const Path& dst_dir,
   for (const auto& ent : src_files) {
     check_interrupt();
     auto name = ent.path().filename();
-    if (name.string()[0] == '.')
+    if (name.string()[0] == '.') {
       /* not matched by glob */
       continue;
+    }
     auto srcFile = (std::filesystem::path{src_dir} / name).string();
     auto dstFile = (std::filesystem::path{dst_dir} / name).string();
 
     struct stat srcSt;
     try {
-      if (stat(srcFile.c_str(), &srcSt) == -1)
+      if (stat(srcFile.c_str(), &srcSt) == -1) {
         throw sys_error_t("getting status of '%1%'", srcFile);
+      }
     } catch (sys_error_t& e) {
       if (e.err_no() == ENOENT || e.err_no() == ENOTDIR) {
         warn("skipping dangling symlink '%s'", dstFile);
@@ -70,8 +72,9 @@ static void create_links(State& state, const Path& src_dir, const Path& dst_dir,
     if (has_suffix(srcFile, "/propagated-build-inputs") || has_suffix(srcFile, "/nix-support") ||
         has_suffix(srcFile, "/perllocal.pod") || has_suffix(srcFile, "/info/dir") ||
         has_suffix(srcFile, "/log") || has_suffix(srcFile, "/manifest.nix") ||
-        has_suffix(srcFile, "/manifest.json"))
+        has_suffix(srcFile, "/manifest.json")) {
       continue;
+    }
 
     else if (S_ISDIR(srcSt.st_mode)) {
       auto dstStOpt = maybe_lstat(dstFile.c_str());
@@ -82,10 +85,12 @@ static void create_links(State& state, const Path& src_dir, const Path& dst_dir,
           continue;
         } else if (S_ISLNK(dstSt.st_mode)) {
           auto target = canon_path(dstFile, true);
-          if (!S_ISDIR(lstat(target).st_mode))
+          if (!S_ISDIR(lstat(target).st_mode)) {
             throw Error("collision between '%1%' and non-directory '%2%'", srcFile, target);
-          if (unlink(dstFile.c_str()) == -1)
+          }
+          if (unlink(dstFile.c_str()) == -1) {
             throw sys_error_t("unlinking '%1%'", dstFile);
+          }
           if (mkdir(dstFile.c_str()
 #ifndef _WIN32 // TODO abstract mkdir perms for Windows
                         ,
@@ -106,15 +111,19 @@ static void create_links(State& state, const Path& src_dir, const Path& dst_dir,
         auto& dstSt = *dstStOpt;
         if (S_ISLNK(dstSt.st_mode)) {
           auto prevPriority = state.priorities[dstFile];
-          if (prevPriority == priority)
+          if (prevPriority == priority) {
             throw BuildEnvFileConflictError(read_link(dstFile), srcFile, priority);
-          if (prevPriority < priority)
+          }
+          if (prevPriority < priority) {
             continue;
-          if (unlink(dstFile.c_str()) == -1)
+          }
+          if (unlink(dstFile.c_str()) == -1) {
             throw sys_error_t("unlinking '%1%'", dstFile);
-        } else if (S_ISDIR(dstSt.st_mode))
+          }
+        } else if (S_ISDIR(dstSt.st_mode)) {
           throw Error("collision between non-directory '%1%' and directory '%2%'", srcFile,
                       dstFile);
+        }
       }
     }
 
@@ -130,18 +139,22 @@ void build_profile(const Path& out, Packages&& pkgs) {
   path_set_t done, postponed;
 
   auto add_pkg = [&](const Path& pkg_dir, int priority) {
-    if (!done.insert(pkg_dir).second)
+    if (!done.insert(pkg_dir).second) {
       return;
+    }
     create_links(state, pkg_dir, out, priority);
 
     try {
       for (const auto& p : tokenize_string<std::vector<std::string>>(
-               read_file(pkg_dir + "/nix-support/propagated-user-env-packages"), " \n"))
-        if (!done.count(p))
+               read_file(pkg_dir + "/nix-support/propagated-user-env-packages"), " \n")) {
+        if (!done.count(p)) {
           postponed.insert(p);
+        }
+      }
     } catch (sys_error_t& e) {
-      if (e.err_no() != ENOENT && e.err_no() != ENOTDIR)
+      if (e.err_no() != ENOENT && e.err_no() != ENOTDIR) {
         throw;
+      }
     }
   };
 
@@ -152,9 +165,11 @@ void build_profile(const Path& out, Packages&& pkgs) {
   std::sort(pkgs.begin(), pkgs.end(), [](const Package& a, const Package& b) {
     return a.priority < b.priority || (a.priority == b.priority && a.path < b.path);
   });
-  for (const auto& pkg : pkgs)
-    if (pkg.active)
+  for (const auto& pkg : pkgs) {
+    if (pkg.active) {
       add_pkg(pkg.path, pkg.priority);
+    }
+  }
 
   /* symlink to the packages that have been "propagated" by packages
    * installed by the user (i.e., package X declares that it wants Y
@@ -165,8 +180,9 @@ void build_profile(const Path& out, Packages&& pkgs) {
   while (!postponed.empty()) {
     path_set_t pkg_dirs;
     postponed.swap(pkg_dirs);
-    for (const auto& pkg_dir : pkg_dirs)
+    for (const auto& pkg_dir : pkg_dirs) {
       add_pkg(pkg_dir, priority_counter++);
+    }
   }
 
   debug("created %d symlinks in user environment", state.symlinks);
@@ -175,8 +191,9 @@ void build_profile(const Path& out, Packages&& pkgs) {
 static void builtin_buildenv(const BuiltinBuilderContext& ctx) {
   auto get_attr = [&](const std::string& name) {
     auto i = ctx.drv.env.find(name);
-    if (i == ctx.drv.env.end())
+    if (i == ctx.drv.env.end()) {
       throw Error("attribute '%s' missing", name);
+    }
     return i->second;
   };
 

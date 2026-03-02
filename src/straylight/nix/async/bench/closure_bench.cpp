@@ -41,8 +41,9 @@ std::map<int, std::set<int>> makeBinaryTree(int depth) {
   std::map<int, std::set<int>> edges;
   int nextId = 1;
   std::function<void(int, int)> build = [&](int node, int d) {
-    if (d >= depth)
+    if (d >= depth) {
       return;
+    }
     int left = nextId++;
     int right = nextId++;
     edges[node].insert(left);
@@ -126,8 +127,9 @@ void doWork(int microseconds) {
   while (true) {
     auto now = std::chrono::high_resolution_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(now - start).count();
-    if (elapsed >= microseconds)
+    if (elapsed >= microseconds) {
       break;
+    }
     g_sink += 1;
   }
 }
@@ -356,8 +358,9 @@ int main() {
     auto getDeps = [&](int n) { return edges[n]; };
 
     for (std::size_t threads : {1UL, 2UL, 4UL, 8UL, 16UL}) {
-      if (threads > hwThreads)
+      if (threads > hwThreads) {
         continue;
+      }
 
       async::Executor exec(threads);
       std::string name = "Binary tree " + std::to_string(nodeCount) + " nodes (" +

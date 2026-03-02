@@ -56,8 +56,9 @@ struct shadow_memory {
   }
 
   bool verify(std::uint32_t offset, const void* expected, std::size_t len) const {
-    if (offset + len > data_.size())
+    if (offset + len > data_.size()) {
       return false;
+    }
     // Only verify bytes we've written
     for (std::size_t idx = 0; idx < len; ++idx) {
       if (valid_[offset + idx]) {
@@ -96,8 +97,9 @@ private:
 /// Execute a sequence of operations from fuzzer input
 /// Returns true if no invariants were violated
 bool fuzz_memory_ops(const uint8_t* data, size_t size) {
-  if (size < 4)
+  if (size < 4) {
     return true; // Need at least some input
+  }
 
   // Configuration from first bytes
   uint32_t heap_base = (data[0] % 4) * 0x10000; // 0, 64K, 128K, or 192K
@@ -116,16 +118,18 @@ bool fuzz_memory_ops(const uint8_t* data, size_t size) {
 
   size_t pos = 0;
   while (pos < size) {
-    if (pos + 1 > size)
+    if (pos + 1 > size) {
       break;
+    }
 
     auto op = static_cast<Op>(data[pos] % static_cast<uint8_t>(Op::MAX_OP));
     pos++;
 
     switch (op) {
       case Op::Allocate: {
-        if (pos + 2 > size)
+        if (pos + 2 > size) {
           break;
+        }
         uint32_t alloc_size = data[pos] | (static_cast<uint32_t>(data[pos + 1]) << 8);
         alloc_size = alloc_size % 10000; // Cap at 10KB per allocation
         pos += 2;
@@ -140,8 +144,9 @@ bool fuzz_memory_ops(const uint8_t* data, size_t size) {
       }
 
       case Op::WriteU8: {
-        if (pos + 2 > size || allocations.empty())
+        if (pos + 2 > size || allocations.empty()) {
           break;
+        }
         size_t idx = data[pos] % allocations.size();
         uint8_t val = data[pos + 1];
         pos += 2;
@@ -160,8 +165,9 @@ bool fuzz_memory_ops(const uint8_t* data, size_t size) {
       }
 
       case Op::WriteU32: {
-        if (pos + 5 > size || allocations.empty())
+        if (pos + 5 > size || allocations.empty()) {
           break;
+        }
         size_t idx = data[pos] % allocations.size();
         uint32_t val;
         std::memcpy(&val, data + pos + 1, 4);
@@ -180,8 +186,9 @@ bool fuzz_memory_ops(const uint8_t* data, size_t size) {
       }
 
       case Op::WriteU64: {
-        if (pos + 9 > size || allocations.empty())
+        if (pos + 9 > size || allocations.empty()) {
           break;
+        }
         size_t idx = data[pos] % allocations.size();
         uint64_t val;
         std::memcpy(&val, data + pos + 1, 8);
@@ -200,8 +207,9 @@ bool fuzz_memory_ops(const uint8_t* data, size_t size) {
       }
 
       case Op::ReadU8: {
-        if (pos + 1 > size || allocations.empty())
+        if (pos + 1 > size || allocations.empty()) {
           break;
+        }
         size_t idx = data[pos] % allocations.size();
         pos += 1;
 
@@ -220,8 +228,9 @@ bool fuzz_memory_ops(const uint8_t* data, size_t size) {
       }
 
       case Op::ReadU32: {
-        if (pos + 1 > size || allocations.empty())
+        if (pos + 1 > size || allocations.empty()) {
           break;
+        }
         size_t idx = data[pos] % allocations.size();
         pos += 1;
 
@@ -240,8 +249,9 @@ bool fuzz_memory_ops(const uint8_t* data, size_t size) {
       }
 
       case Op::ReadU64: {
-        if (pos + 1 > size || allocations.empty())
+        if (pos + 1 > size || allocations.empty()) {
           break;
+        }
         size_t idx = data[pos] % allocations.size();
         pos += 1;
 
@@ -260,14 +270,16 @@ bool fuzz_memory_ops(const uint8_t* data, size_t size) {
       }
 
       case Op::WriteString: {
-        if (pos + 2 > size || allocations.empty())
+        if (pos + 2 > size || allocations.empty()) {
           break;
+        }
         size_t idx = data[pos] % allocations.size();
         size_t str_len = data[pos + 1] % 64; // Max 64 char string
         pos += 2;
 
-        if (pos + str_len > size)
+        if (pos + str_len > size) {
           str_len = size - pos;
+        }
 
         auto [off, sz] = allocations[idx];
         if (sz > str_len) {
@@ -276,8 +288,9 @@ bool fuzz_memory_ops(const uint8_t* data, size_t size) {
             // Remove any null bytes from the string
             std::string clean_str;
             for (char c : str) {
-              if (c != '\0')
+              if (c != '\0') {
                 clean_str += c;
+              }
             }
             mem.write_string(off, clean_str);
             // Invalidate shadow for bytes written (string + null terminator)
@@ -291,8 +304,9 @@ bool fuzz_memory_ops(const uint8_t* data, size_t size) {
       }
 
       case Op::ReadString: {
-        if (pos + 1 > size || allocations.empty())
+        if (pos + 1 > size || allocations.empty()) {
           break;
+        }
         size_t idx = data[pos] % allocations.size();
         pos += 1;
 
@@ -315,8 +329,9 @@ bool fuzz_memory_ops(const uint8_t* data, size_t size) {
       }
 
       case Op::Copy: {
-        if (pos + 3 > size || allocations.size() < 2)
+        if (pos + 3 > size || allocations.size() < 2) {
           break;
+        }
         size_t src_idx = data[pos] % allocations.size();
         size_t dst_idx = data[pos + 1] % allocations.size();
         size_t len = data[pos + 2];
@@ -512,8 +527,9 @@ TEST_CASE("wasm_memory: extended fuzz", "[memory][fuzz][stress]") {
   for (int idx = 0; idx < 100; ++idx) {
     rc::check("extended fuzz testing", []() {
       auto input = *rc::gen::container<std::vector<uint8_t>>(rc::gen::arbitrary<uint8_t>());
-      if (input.size() < 4)
+      if (input.size() < 4) {
         return;
+      }
 
       RC_ASSERT(fuzz_memory_ops(input.data(), input.size()));
     });

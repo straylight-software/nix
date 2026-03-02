@@ -67,8 +67,9 @@ template <typename... args_t>
 std::map<std::string, args_t...> get_map(const nlohmann::json::object_t& json_object, auto&& f) {
   std::map<std::string, args_t...> map;
 
-  for (const auto& [key, value] : json_object)
+  for (const auto& [key, value] : json_object) {
     map.insert_or_assign(key, f(value));
+  }
 
   return map;
 }
@@ -109,19 +110,21 @@ struct adl_serializer<std::optional<T>> {
   static void to_json(json& json, const std::optional<T>& t) {
     static_assert(nix::json_avoids_null<T>::value,
                   "null is already in use for underlying type's JSON");
-    if (t)
+    if (t) {
       json = *t;
-    else
+    } else {
       json = nullptr;
+    }
   }
 };
 
 template <typename T>
 static inline std::optional<T> ptr_to_owned(const json* ptr) {
-  if (ptr)
+  if (ptr) {
     return std::optional{*ptr};
-  else
+  } else {
     return std::nullopt;
+  }
 }
 
 } // namespace nlohmann

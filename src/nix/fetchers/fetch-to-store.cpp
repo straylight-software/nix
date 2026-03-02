@@ -48,8 +48,9 @@ std::pair<store_path_t, Hash> fetch_to_store2(const fetchers::settings_t& settin
   } else {
     static auto barf = get_env("_NIX_TEST_BARF_ON_UNCACHEABLE").value_or("") == "1";
     if (barf && !filter &&
-        !(path.to_string().starts_with("/") || path.to_string().starts_with("«path:/")))
+        !(path.to_string().starts_with("/") || path.to_string().starts_with("«path:/"))) {
       throw Error("source path '%s' is uncacheable (filter=%d)", path, (bool)filter);
+    }
     // FIXME: could still provide in-memory caching keyed on `SourcePath`.
     debug("source path '%s' is uncacheable", path);
   }
@@ -78,8 +79,9 @@ std::pair<store_path_t, Hash> fetch_to_store2(const fetchers::settings_t& settin
               assert(info->references.empty());
               auto hash =
                   method == content_address_method_t::raw_t::nix_archive ? info->nar_hash : ({
-                    if (!info->ca || info->ca->method != method)
+                    if (!info->ca || info->ca->method != method) {
                       throw Error("path '%s' lacks a CA field", store.printStorePath(store_path));
+                    }
                     info->ca->hash;
                   });
               debug("copied '%s' to '%s' (hash '%s')", path, store.printStorePath(store_path),
@@ -87,8 +89,9 @@ std::pair<store_path_t, Hash> fetch_to_store2(const fetchers::settings_t& settin
               std::make_pair(store_path, hash);
             });
 
-  if (cache_key)
+  if (cache_key) {
     settings.get_cache()->upsert(*cache_key, {{"hash", hash.to_string(hash_format_t::sri, true)}});
+  }
 
   return {store_path, hash};
 }

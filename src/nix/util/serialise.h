@@ -492,9 +492,10 @@ template <typename T>
 
   auto n = read_little_endian<uint64_t>(buf);
 
-  if (n > (uint64_t)std::numeric_limits<T>::max())
+  if (n > (uint64_t)std::numeric_limits<T>::max()) {
     throw SerialisationError("serialised integer %d is too large for type '%s'", n,
                              typeid(T).name());
+  }
 
   return (T)n;
 }

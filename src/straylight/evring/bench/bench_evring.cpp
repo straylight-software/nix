@@ -345,10 +345,12 @@ auto bench_copy_file_posix(std::string const& source, std::string const& dest) -
     int const dest_fd = open(dest.c_str(), O_CREAT | O_WRONLY | O_TRUNC, 0644);
 
     if (source_fd < 0 || dest_fd < 0) {
-      if (source_fd >= 0)
+      if (source_fd >= 0) {
         close(source_fd);
-      if (dest_fd >= 0)
+      }
+      if (dest_fd >= 0) {
         close(dest_fd);
+      }
       return;
     }
 
@@ -359,8 +361,9 @@ auto bench_copy_file_posix(std::string const& source, std::string const& dest) -
       while (total_written < bytes_read) {
         ssize_t written = write(dest_fd, buffer.data() + total_written,
                                 static_cast<std::size_t>(bytes_read - total_written));
-        if (written < 0)
+        if (written < 0) {
           break;
+        }
         total_written += written;
       }
     }
@@ -716,8 +719,9 @@ auto create_test_file(std::string const& path, std::size_t size_bytes) -> void {
   while (written < size_bytes) {
     std::size_t const chunk = std::min(buffer.size(), size_bytes - written);
     ssize_t const result = write(file_descriptor, buffer.data(), chunk);
-    if (result < 0)
+    if (result < 0) {
       break;
+    }
     written += static_cast<std::size_t>(result);
   }
 

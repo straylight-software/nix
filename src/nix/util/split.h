@@ -29,8 +29,9 @@ static inline std::optional<std::string_view> split_prefix_to(std::string_view& 
 
 static inline bool split_prefix(std::string_view& string, std::string_view prefix) {
   bool res = has_prefix(string, prefix);
-  if (res)
+  if (res) {
     string.remove_prefix(prefix.length());
+  }
   return res;
 }
 

@@ -14,11 +14,13 @@ ServeProto::Version ServeProto::BasicClientConnection::handshake(buffered_sink_t
   to.flush();
 
   unsigned int magic = read_int(from);
-  if (magic != SERVE_MAGIC_2)
+  if (magic != SERVE_MAGIC_2) {
     throw Error("'nix-store --serve' protocol mismatch from '%s'", host);
+  }
   auto remoteVersion = read_int(from);
-  if (GET_PROTOCOL_MAJOR(remoteVersion) != 0x200 || GET_PROTOCOL_MINOR(remoteVersion) < 5)
+  if (GET_PROTOCOL_MAJOR(remoteVersion) != 0x200 || GET_PROTOCOL_MINOR(remoteVersion) < 5) {
     throw Error("unsupported 'nix-store --serve' protocol version on '%s'", host);
+  }
   return std::min(remoteVersion, localVersion);
 }
 
@@ -26,8 +28,9 @@ ServeProto::Version ServeProto::BasicServerConnection::handshake(buffered_sink_t
                                                                  source_t& from,
                                                                  ServeProto::Version localVersion) {
   unsigned int magic = read_int(from);
-  if (magic != SERVE_MAGIC_1)
+  if (magic != SERVE_MAGIC_1) {
     throw Error("protocol mismatch");
+  }
   to << SERVE_MAGIC_2 << localVersion;
   to.flush();
   auto remoteVersion = read_int(from);
@@ -56,8 +59,9 @@ ServeProto::BasicClientConnection::queryPathInfos(const store_dir_config_t& stor
 
   while (true) {
     auto store_path_s = read_string(from);
-    if (store_path_s == "")
+    if (store_path_s == "") {
       break;
+    }
 
     auto store_path = store.parseStorePath(store_path_s);
     assert(paths.count(store_path) == 1);
@@ -99,8 +103,9 @@ void ServeProto::BasicClientConnection::import_paths(const store_dir_config_t& s
   fun(to);
   to.flush();
 
-  if (read_int(from) != 1)
+  if (read_int(from) != 1) {
     throw Error("remote machine failed to import closure");
+  }
 }
 
 } // namespace nix

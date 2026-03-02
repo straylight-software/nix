@@ -216,8 +216,9 @@ inline void exclusive_lock::release() noexcept {
 }
 
 inline void exclusive_lock::write_pid() noexcept {
-  if (fd_ < 0)
+  if (fd_ < 0) {
     return;
+  }
 
   ::ftruncate(fd_, 0);
   ::lseek(fd_, 0, SEEK_SET);
@@ -235,8 +236,9 @@ inline auto exclusive_lock::read_pid(int fd) noexcept -> pid_t {
 }
 
 inline auto exclusive_lock::is_process_alive(pid_t pid) noexcept -> bool {
-  if (pid <= 0)
+  if (pid <= 0) {
     return false;
+  }
   return ::kill(pid, 0) == 0 || errno != ESRCH;
 }
 

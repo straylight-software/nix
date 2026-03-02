@@ -20,10 +20,11 @@ struct cmd_path_from_hash_part_t : nix::StoreCommand {
   }
 
   void run(nix::ref<nix::store_t> store) override {
-    if (auto store_path = store->queryPathFromHashPart(hash_part))
+    if (auto store_path = store->queryPathFromHashPart(hash_part)) {
       nix::logger->cout(store->printStorePath(*store_path));
-    else
+    } else {
       throw nix::Error("there is no store path corresponding to '%s'", hash_part);
+    }
   }
 };
 

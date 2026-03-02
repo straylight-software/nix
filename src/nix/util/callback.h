@@ -46,8 +46,9 @@ public:
     // silently ignore the second invocation. This can happen due to race
     // conditions between async callback completion and exception handling.
     // See: https://github.com/NixOS/nix/issues/13484
-    if (prev)
+    if (prev) {
       return;
+    }
     std::promise<T> promise;
     promise.set_value(std::move(val));
     try {
@@ -76,8 +77,9 @@ public:
     // silently ignore the second invocation. This can happen due to race
     // conditions between async callback completion and exception handling.
     // See: https://github.com/NixOS/nix/issues/13484
-    if (prev)
+    if (prev) {
       return;
+    }
     std::promise<T> promise;
     promise.set_exception(exc);
     try {

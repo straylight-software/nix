@@ -56,11 +56,13 @@ bool compare(std::span<const std::byte> generated, std::span<const std::byte> ex
 void hexdump(std::span<const std::byte> data, size_t limit = 64) {
   for (size_t idx = 0; idx < std::min(data.size(), limit); ++idx) {
     printf("%02x ", static_cast<uint8_t>(data[idx]));
-    if ((idx + 1) % 16 == 0)
+    if ((idx + 1) % 16 == 0) {
       printf("\n");
+    }
   }
-  if (data.size() > limit)
+  if (data.size() > limit) {
     printf("... (%zu more bytes)\n", data.size() - limit);
+  }
   printf("\n");
 }
 
@@ -77,10 +79,11 @@ int main() {
     protocol::write_client_hello(w, 0x0126); // version 1.38
 
     auto expected = read_file("src/straylight/nix/protocol/captures/client_hello.bin");
-    if (compare(buf, expected, "client_hello"))
+    if (compare(buf, expected, "client_hello")) {
       ++passed;
-    else
+    } else {
       ++failed;
+    }
   }
 
   // Test 2: Server Hello
@@ -90,10 +93,11 @@ int main() {
     protocol::write_server_hello(w, 0x0126);
 
     auto expected = read_file("src/straylight/nix/protocol/captures/server_hello.bin");
-    if (compare(buf, expected, "server_hello"))
+    if (compare(buf, expected, "server_hello")) {
       ++passed;
-    else
+    } else {
       ++failed;
+    }
   }
 
   // Test 3: IsValidPath request
@@ -110,10 +114,11 @@ int main() {
       std::string path(reinterpret_cast<const char*>(captured.data() + 16), len);
 
       protocol::write_is_valid_path_request(w, path);
-      if (compare(buf, captured, "isvalidpath_request"))
+      if (compare(buf, captured, "isvalidpath_request")) {
         ++passed;
-      else
+      } else {
         ++failed;
+      }
     }
   }
 
@@ -129,10 +134,11 @@ int main() {
       std::string path(reinterpret_cast<const char*>(captured.data() + 16), len);
 
       protocol::write_query_path_info_request(w, path);
-      if (compare(buf, captured, "querypathinfo_request"))
+      if (compare(buf, captured, "querypathinfo_request")) {
         ++passed;
-      else
+      } else {
         ++failed;
+      }
     }
   }
 
@@ -148,10 +154,11 @@ int main() {
       std::string path(reinterpret_cast<const char*>(captured.data() + 16), len);
 
       protocol::write_query_referrers_request(w, path);
-      if (compare(buf, captured, "queryreferrers_request"))
+      if (compare(buf, captured, "queryreferrers_request")) {
         ++passed;
-      else
+      } else {
         ++failed;
+      }
     }
   }
 
@@ -167,10 +174,11 @@ int main() {
       std::string path(reinterpret_cast<const char*>(captured.data() + 16), len);
 
       protocol::write_add_temp_root_request(w, path);
-      if (compare(buf, captured, "addtemproot_request"))
+      if (compare(buf, captured, "addtemproot_request")) {
         ++passed;
-      else
+      } else {
         ++failed;
+      }
     }
   }
 
@@ -186,10 +194,11 @@ int main() {
       std::string path(reinterpret_cast<const char*>(captured.data() + 16), len);
 
       protocol::write_add_indirect_root_request(w, path);
-      if (compare(buf, captured, "addindirectroot_request"))
+      if (compare(buf, captured, "addindirectroot_request")) {
         ++passed;
-      else
+      } else {
         ++failed;
+      }
     }
   }
 
@@ -200,10 +209,11 @@ int main() {
     protocol::write_find_roots_request(w);
 
     auto captured = read_file("src/straylight/nix/protocol/captures/findroots_request.bin");
-    if (compare(buf, captured, "findroots_request"))
+    if (compare(buf, captured, "findroots_request")) {
       ++passed;
-    else
+    } else {
       ++failed;
+    }
   }
 
   // Test 9: NarFromPath request (synthetic)
@@ -218,10 +228,11 @@ int main() {
       std::string path(reinterpret_cast<const char*>(captured.data() + 16), len);
 
       protocol::write_nar_from_path_request(w, path);
-      if (compare(buf, captured, "narfrompath_request"))
+      if (compare(buf, captured, "narfrompath_request")) {
         ++passed;
-      else
+      } else {
         ++failed;
+      }
     }
   }
 
@@ -247,10 +258,11 @@ int main() {
       }
 
       protocol::write_query_missing_request(w, paths);
-      if (compare(buf, captured, "querymissing_request"))
+      if (compare(buf, captured, "querymissing_request")) {
         ++passed;
-      else
+      } else {
         ++failed;
+      }
     }
   }
 
@@ -279,10 +291,11 @@ int main() {
       std::memcpy(&mode, captured.data() + captured.size() - 8, 8);
 
       protocol::write_build_paths_request(w, paths, static_cast<protocol::BuildMode>(mode));
-      if (compare(buf, captured, "buildpaths_request"))
+      if (compare(buf, captured, "buildpaths_request")) {
         ++passed;
-      else
+      } else {
         ++failed;
+      }
     }
   }
 
@@ -312,10 +325,11 @@ int main() {
 
       protocol::write_build_paths_with_results_request(w, paths,
                                                        static_cast<protocol::BuildMode>(mode));
-      if (compare(buf, captured, "buildpathswithresults_request"))
+      if (compare(buf, captured, "buildpathswithresults_request")) {
         ++passed;
-      else
+      } else {
         ++failed;
+      }
     }
   }
 
@@ -347,9 +361,9 @@ int main() {
     protocol::write_set_options_request(w, settings, 38);
 
     auto captured = read_file("src/straylight/nix/protocol/captures/setoptions_request.bin");
-    if (compare(buf, captured, "setoptions_request"))
+    if (compare(buf, captured, "setoptions_request")) {
       ++passed;
-    else {
+    } else {
       ++failed;
       std::cout << "Generated:\n";
       hexdump(buf, 128);
@@ -379,9 +393,9 @@ int main() {
     protocol::write_add_to_store_nar_request(w, req);
 
     auto captured = read_file("src/straylight/nix/protocol/captures/addtostorenar_request.bin");
-    if (compare(buf, captured, "addtostorenar_request"))
+    if (compare(buf, captured, "addtostorenar_request")) {
       ++passed;
-    else {
+    } else {
       ++failed;
       std::cout << "Generated:\n";
       hexdump(buf, 128);

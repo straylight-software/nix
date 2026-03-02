@@ -19,8 +19,9 @@ static void print_value_as_xml(eval_state_t& state, bool strict, bool location, 
                                const pos_idx_t pos);
 
 static void pos_to_xml(eval_state_t& state, xml_attrs_t& xml_attrs, const pos_t& pos) {
-  if (auto path = std::get_if<source_path_t>(&pos.origin))
+  if (auto path = std::get_if<source_path_t>(&pos.origin)) {
     xml_attrs["path"] = path->path.abs();
+  }
   xml_attrs["line"] = fmt("%1%", pos.line);
   xml_attrs["column"] = fmt("%1%", pos.column);
 }
@@ -32,8 +33,9 @@ static void show_attrs(eval_state_t& state, bool strict, bool location, const bi
   for (auto& a : attrs.lexicographicOrder(state.symbols)) {
     xml_attrs_t xml_attrs;
     xml_attrs["name"] = state.symbols[a->name];
-    if (location && a->pos)
+    if (location && a->pos) {
       pos_to_xml(state, xml_attrs, state.positions[a->pos]);
+    }
 
     xml_open_element_t _(doc, "attr", xml_attrs);
     print_value_as_xml(state, strict, location, *a->value, doc, context, drvs_seen, a->pos);
@@ -45,8 +47,9 @@ static void print_value_as_xml(eval_state_t& state, bool strict, bool location, 
                                const pos_idx_t pos) {
   check_interrupt();
 
-  if (strict)
+  if (strict) {
     state.forceValue(v, pos);
+  }
 
   switch (v.type()) {
     case nInt:
@@ -77,25 +80,30 @@ static void print_value_as_xml(eval_state_t& state, bool strict, bool location, 
 
         Path drv_path;
         if (auto a = v.attrs()->get(state.s.drv_path)) {
-          if (strict)
+          if (strict) {
             state.forceValue(*a->value, a->pos);
-          if (a->value->type() == nString)
+          }
+          if (a->value->type() == nString) {
             xml_attrs["drvPath"] = drv_path = a->value->string_view();
+          }
         }
 
         if (auto a = v.attrs()->get(state.s.out_path)) {
-          if (strict)
+          if (strict) {
             state.forceValue(*a->value, a->pos);
-          if (a->value->type() == nString)
+          }
+          if (a->value->type() == nString) {
             xml_attrs["outPath"] = a->value->string_view();
+          }
         }
 
         xml_open_element_t _(doc, "derivation", xml_attrs);
 
-        if (drv_path != "" && drvs_seen.insert(drv_path).second)
+        if (drv_path != "" && drvs_seen.insert(drv_path).second) {
           show_attrs(state, strict, location, *v.attrs(), doc, context, drvs_seen);
-        else
+        } else {
           doc.write_empty_element("repeated");
+        }
       }
 
       else {
@@ -107,8 +115,9 @@ static void print_value_as_xml(eval_state_t& state, bool strict, bool location, 
 
     case nList: {
       xml_open_element_t _(doc, "list");
-      for (auto v2 : v.list_view())
+      for (auto v2 : v.list_view()) {
         print_value_as_xml(state, strict, location, *v2, doc, context, drvs_seen, pos);
+      }
       break;
     }
 
@@ -119,22 +128,27 @@ static void print_value_as_xml(eval_state_t& state, bool strict, bool location, 
         break;
       }
       xml_attrs_t xml_attrs;
-      if (location)
+      if (location) {
         pos_to_xml(state, xml_attrs, state.positions[v.lambda().fun->pos]);
+      }
       xml_open_element_t _(doc, "function", xml_attrs);
 
       if (auto formals = v.lambda().fun->getFormals()) {
         xml_attrs_t attrs;
-        if (v.lambda().fun->arg)
+        if (v.lambda().fun->arg) {
           attrs["name"] = state.symbols[v.lambda().fun->arg];
-        if (formals->ellipsis)
+        }
+        if (formals->ellipsis) {
           attrs["ellipsis"] = "1";
+        }
         xml_open_element_t _(doc, "attrspat", attrs);
-        for (auto& i : formals->lexicographicOrder(state.symbols))
+        for (auto& i : formals->lexicographicOrder(state.symbols)) {
           doc.write_empty_element("attr", singleton_attrs("name", state.symbols[i.name]));
-      } else
+        }
+      } else {
         doc.write_empty_element("varpat",
                                 singleton_attrs("name", state.symbols[v.lambda().fun->arg]));
+      }
 
       break;
     }

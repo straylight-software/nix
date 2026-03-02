@@ -31,8 +31,9 @@ struct cmd_add_to_store_t : nix::MixDryRun, nix::StoreCommand {
   }
 
   void run(nix::ref<nix::store_t> store) override {
-    if (!name_part)
+    if (!name_part) {
       name_part = nix::base_name_of(path);
+    }
 
     auto source_path =
         nix::posix_source_accessor_t::create_at_root(nix::make_parent_canonical(path));

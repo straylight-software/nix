@@ -73,11 +73,12 @@ static nlohmann::json path_info_to_json(nix::store_t& store,
           uint64_t totalDownloadSize = 0;
           for (auto& p : closure) {
             auto depInfo = store.queryPathInfo(p);
-            if (auto* depNarInfo = dynamic_cast<const nix::nar_info_t*>(&*depInfo))
+            if (auto* depNarInfo = dynamic_cast<const nix::nar_info_t*>(&*depInfo)) {
               totalDownloadSize += depNarInfo->file_size;
-            else
+            } else {
               throw nix::Error("Missing .narinfo for dep %s of %s", store.printStorePath(p),
                                store.printStorePath(store_path));
+            }
           }
           json_object["closureDownloadSize"] = totalDownloadSize;
         }
@@ -161,16 +162,18 @@ struct cmd_path_info_t : nix::StorePathsCommand, nix::MixJSON {
   category_t category() override { return nix::catSecondary; }
 
   void print_size(std::ostream& str, uint64_t value) {
-    if (human_readable)
+    if (human_readable) {
       str << nix::fmt("\t%s", nix::render_size((int64_t)value, true));
-    else
+    } else {
       str << nix::fmt("\t%11d", value);
+    }
   }
 
   void run(nix::ref<nix::store_t> store, nix::store_paths_t&& store_paths) override {
     size_t path_len = 0;
-    for (auto& store_path : store_paths)
+    for (auto& store_path : store_paths) {
       path_len = std::max(path_len, store->printStorePath(store_path).size());
+    }
 
     if (json) {
       printJSON(path_info_to_json(
@@ -194,8 +197,9 @@ struct cmd_path_info_t : nix::StorePathsCommand, nix::MixJSON {
 
         std::string result = store_path_s;
 
-        if (show_size || show_closure_size || show_sigs)
+        if (show_size || show_closure_size || show_sigs) {
           result += std::string(std::max(0, (int)path_len - (int)store_path_s.size()), ' ');
+        }
 
         if (show_size) {
           std::ostringstream sink;
@@ -214,12 +218,15 @@ struct cmd_path_info_t : nix::StorePathsCommand, nix::MixJSON {
         if (show_sigs) {
           result += '\t';
           nix::strings_t ss;
-          if (info->ultimate)
+          if (info->ultimate) {
             ss.push_back("ultimate");
-          if (info->ca)
+          }
+          if (info->ca) {
             ss.push_back("ca:" + nix::render_content_address(*info->ca));
-          for (auto& sig : info->sigs)
+          }
+          for (auto& sig : info->sigs) {
             ss.push_back(sig);
+          }
           result += nix::concat_strings_sep(" ", ss);
         }
 

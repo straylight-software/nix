@@ -27,8 +27,9 @@ struct cmd_store_delete_t : nix::StorePathsCommand {
   void run(nix::ref<nix::store_t> store, nix::store_paths_t&& store_paths) override {
     auto& gc_store = nix::require<nix::GcStore>(*store);
 
-    for (auto& path : store_paths)
+    for (auto& path : store_paths) {
       options.pathsToDelete.insert(path);
+    }
 
     nix::GCResults results;
     nix::PrintFreed freed(true, results);

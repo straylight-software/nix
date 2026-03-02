@@ -31,12 +31,13 @@ sink_t& operator<<(sink_t& sink, const logger_t::fields_t& fields) {
   sink << fields.size();
   for (auto& f : fields) {
     sink << f.type_;
-    if (f.type_ == logger_t::field_t::t_int)
+    if (f.type_ == logger_t::field_t::t_int) {
       sink << f.i_;
-    else if (f.type_ == logger_t::field_t::t_string)
+    } else if (f.type_ == logger_t::field_t::t_string) {
       sink << f.s_;
-    else
+    } else {
       unreachable();
+    }
   }
   return sink;
 }
@@ -73,13 +74,15 @@ struct tunnel_logger_t : public logger_t {
         state->can_send_stderr = false;
         throw;
       }
-    } else
+    } else {
       state->pending_msgs.push_back(s);
+    }
   }
 
   void log(verbosity_t lvl, std::string_view s) override {
-    if (lvl > verbosity)
+    if (lvl > verbosity) {
       return;
+    }
 
     string_sink_t buf;
     buf << STDERR_NEXT << (s + "\n");
@@ -87,8 +90,9 @@ struct tunnel_logger_t : public logger_t {
   }
 
   void log_ei(const error_info_t& ei) override {
-    if (ei.level_ > verbosity)
+    if (ei.level_ > verbosity) {
       return;
+    }
 
     string_sink_t buf;
     buf << STDERR_NEXT << format_error_info(ei, false);
@@ -101,8 +105,9 @@ struct tunnel_logger_t : public logger_t {
     auto state(state_.lock());
     state->can_send_stderr = true;
 
-    for (auto& msg : state->pending_msgs)
+    for (auto& msg : state->pending_msgs) {
       to(msg);
+    }
 
     state->pending_msgs.clear();
 
@@ -116,9 +121,9 @@ struct tunnel_logger_t : public logger_t {
 
     state->can_send_stderr = false;
 
-    if (!ex)
+    if (!ex) {
       to << STDERR_LAST;
-    else {
+    } else {
       if (GET_PROTOCOL_MINOR(client_version) >= 26) {
         to << STDERR_ERROR << *ex;
       } else {
@@ -130,8 +135,9 @@ struct tunnel_logger_t : public logger_t {
   void start_activity(activity_id_t act, verbosity_t lvl, activity_type_t type,
                       const std::string& s, const fields_t& fields, activity_id_t parent) override {
     if (GET_PROTOCOL_MINOR(client_version) < 20) {
-      if (!s.empty())
+      if (!s.empty()) {
         log(lvl, s + "...");
+      }
       return;
     }
 
@@ -142,16 +148,18 @@ struct tunnel_logger_t : public logger_t {
   }
 
   void stop_activity(activity_id_t act) override {
-    if (GET_PROTOCOL_MINOR(client_version) < 20)
+    if (GET_PROTOCOL_MINOR(client_version) < 20) {
       return;
+    }
     string_sink_t buf;
     buf << STDERR_STOP_ACTIVITY << act;
     enqueue_msg(buf.str());
   }
 
   void result(activity_id_t act, result_type_t type, const fields_t& fields) override {
-    if (GET_PROTOCOL_MINOR(client_version) < 20)
+    if (GET_PROTOCOL_MINOR(client_version) < 20) {
       return;
+    }
     string_sink_t buf;
     buf << STDERR_RESULT << act << type << fields;
     enqueue_msg(buf.str());
@@ -179,8 +187,9 @@ struct tunnel_source_t : buffered_source_t {
     to << STDERR_READ << len;
     to.flush();
     size_t n = read_string(data, len, from);
-    if (n == 0)
+    if (n == 0) {
       throw EndOfFile("unexpected end-of-file");
+    }
     return n;
   }
 };
@@ -213,23 +222,27 @@ struct client_settings_t {
       auto& value(i.second);
 
       auto setSubstituters = [&](setting_t<strings_t>& res) {
-        if (name != res.name && res.aliases.count(name) == 0)
+        if (name != res.name && res.aliases.count(name) == 0) {
           return false;
+        }
         string_set_t trusted = settings.trustedSubstituters;
-        for (auto& s : settings.substituters.get())
+        for (auto& s : settings.substituters.get()) {
           trusted.insert(s);
+        }
         strings_t subs;
         auto ss = tokenize_string<strings_t>(value);
-        for (auto& s : ss)
-          if (trusted.count(s))
+        for (auto& s : ss) {
+          if (trusted.count(s)) {
             subs.push_back(s);
-          else if (!has_suffix(s, "/") && trusted.count(s + "/"))
+          } else if (!has_suffix(s, "/") && trusted.count(s + "/")) {
             subs.push_back(s + "/");
-          else
+          } else {
             warn("ignoring untrusted substituter '%s', you are not a trusted user.\n"
                  "Run `man nix.conf` for more information on the `substituters` configuration "
                  "option.",
                  s);
+          }
+        }
         res = subs;
         return true;
       };
@@ -241,22 +254,24 @@ struct client_settings_t {
           // We don’t want to forward the experimental features to
           // the daemon, as that could cause some pretty weird stuff
           if (parse_features(tokenize_string<string_set_t>(value)) !=
-              experimental_feature_settings.experimental_features.get())
+              experimental_feature_settings.experimental_features.get()) {
             debug("Ignoring the client-specified experimental features");
+          }
         } else if (name == "plugin-files") {
           warn("Ignoring the client-specified plugin-files.\n"
                "The client specifying plugins to the daemon never made sense, and was removed in "
                "Nix >=2.14.");
         } else if (trusted || name == settings.buildTimeout.name ||
                    name == settings.max_silent_time.name || name == settings.pollInterval.name ||
-                   name == "connect-timeout" || (name == "builders" && value == ""))
+                   name == "connect-timeout" || (name == "builders" && value == "")) {
           settings.set(name, value);
-        else if (setSubstituters(settings.substituters))
+        } else if (setSubstituters(settings.substituters))
           ;
-        else
+        else {
           warn("ignoring the client-specified setting '%s', because it is a restricted setting and "
                "you are not a trusted user",
                name);
+        }
       } catch (UsageError& e) {
         warn(e.what());
       }
@@ -334,15 +349,17 @@ static void perform_op(tunnel_logger_t* logger, ref<store_t> store, TrustedFlag 
       auto path = WorkerProto::Serialise<store_path_t>::read(*store, rconn);
       logger->start_work();
       store_path_set_t paths;
-      if (op == WorkerProto::Op::QueryReferences)
-        for (auto& i : store->queryPathInfo(path)->references)
+      if (op == WorkerProto::Op::QueryReferences) {
+        for (auto& i : store->queryPathInfo(path)->references) {
           paths.insert(i);
-      else if (op == WorkerProto::Op::QueryReferrers)
+        }
+      } else if (op == WorkerProto::Op::QueryReferrers) {
         store->query_referrers(path, paths);
-      else if (op == WorkerProto::Op::QueryValidDerivers)
+      } else if (op == WorkerProto::Op::QueryValidDerivers) {
         paths = store->queryValidDerivers(path);
-      else
+      } else {
         paths = store->queryDerivationOutputs(path);
+      }
       logger->stop_work();
       WorkerProto::write(*store, wconn, paths);
       break;
@@ -435,10 +452,11 @@ static void perform_op(tunnel_logger_t* logger, ref<store_t> store, TrustedFlag 
           uint8_t recursive;
           std::string hash_algo_raw;
           conn.from >> base_name >> fixed /* obsolete */ >> recursive >> hash_algo_raw;
-          if (recursive > true)
+          if (recursive > true) {
             throw Error("unsupported FileIngestionMethod with value of %i; you may need to upgrade "
                         "nix-daemon",
                         recursive);
+          }
           method = recursive ? content_address_method_t::raw_t::nix_archive
                              : content_address_method_t::raw_t::flat;
           /* Compatibility hack. */
@@ -476,8 +494,9 @@ static void perform_op(tunnel_logger_t* logger, ref<store_t> store, TrustedFlag 
     case WorkerProto::Op::AddMultipleToStore: {
       bool repair, dont_check_sigs;
       conn.from >> repair >> dont_check_sigs;
-      if (!trusted && dont_check_sigs)
+      if (!trusted && dont_check_sigs) {
         dont_check_sigs = false;
+      }
 
       logger->start_work();
       {
@@ -519,8 +538,9 @@ static void perform_op(tunnel_logger_t* logger, ref<store_t> store, TrustedFlag 
          need not be getting the UID of the other end of a Unix Domain
          socket_t.
         */
-      if (mode == bmRepair && !trusted)
+      if (mode == bmRepair && !trusted) {
         throw Error("repairing is not allowed because you are not in 'trusted-users'");
+      }
       logger->start_work();
       store->build_paths(drvs, mode);
       logger->stop_work();
@@ -537,8 +557,9 @@ static void perform_op(tunnel_logger_t* logger, ref<store_t> store, TrustedFlag 
          clients.
 
          FIXME: layer violation; see above. */
-      if (mode == bmRepair && !trusted)
+      if (mode == bmRepair && !trusted) {
         throw Error("repairing is not allowed because you are not in 'trusted-users'");
+      }
 
       logger->start_work();
       auto results = store->build_paths_with_results(drvs, mode);
@@ -599,8 +620,9 @@ static void perform_op(tunnel_logger_t* logger, ref<store_t> store, TrustedFlag 
          derivations, we throw out the precomputed output paths and just
          store the hashes, so there aren't two competing sources of truth an
          attacker could exploit. */
-      if (!(drv_type.isCA() || trusted))
+      if (!(drv_type.isCA() || trusted)) {
         throw Error("you are not privileged to build input-addressed derivations");
+      }
 
       /* Make sure that the non-input-addressed derivations that got this far
          are in fact content-addressed if we don't trust them. */
@@ -645,10 +667,11 @@ static void perform_op(tunnel_logger_t* logger, ref<store_t> store, TrustedFlag 
     }
 
     case WorkerProto::Op::AddPermRoot: {
-      if (!trusted)
+      if (!trusted) {
         throw Error("you are not privileged to create perm roots\n\n"
                     "hint: you can just do this client-side without special privileges, and "
                     "probably want to do that instead.");
+      }
       auto store_path = WorkerProto::Serialise<store_path_t>::read(*store, rconn);
       Path gc_root = abs_path(read_string(conn.from));
       logger->start_work();
@@ -686,16 +709,18 @@ static void perform_op(tunnel_logger_t* logger, ref<store_t> store, TrustedFlag 
       logger->stop_work();
 
       size_t size = 0;
-      for (auto& i : roots)
+      for (auto& i : roots) {
         size += i.second.size();
+      }
 
       conn.to << size;
 
-      for (auto& [target, links] : roots)
+      for (auto& [target, links] : roots) {
         for (auto& link : links) {
           conn.to << link;
           WorkerProto::write(*store, wconn, target);
         }
+      }
 
       break;
     }
@@ -714,8 +739,9 @@ static void perform_op(tunnel_logger_t* logger, ref<store_t> store, TrustedFlag 
       GCResults results;
 
       logger->start_work();
-      if (options.ignoreLiveness && !get_env("_NIX_IN_TEST").has_value())
+      if (options.ignoreLiveness && !get_env("_NIX_IN_TEST").has_value()) {
         throw Error("you are not allowed to ignore liveness");
+      }
       auto& gc_store = require<GcStore>(*store);
       gc_store.collectGarbage(options, results);
       logger->stop_work();
@@ -752,8 +778,9 @@ static void perform_op(tunnel_logger_t* logger, ref<store_t> store, TrustedFlag 
 
       // FIXME: use some setting in recursive mode. Will need to use
       // non-global variables.
-      if (!recursive)
+      if (!recursive) {
         client_settings.apply(trusted);
+      }
 
       logger->stop_work();
       break;
@@ -766,9 +793,9 @@ static void perform_op(tunnel_logger_t* logger, ref<store_t> store, TrustedFlag 
       store->querySubstitutablePathInfos({{path, std::nullopt}}, infos);
       logger->stop_work();
       auto i = infos.find(path);
-      if (i == infos.end())
+      if (i == infos.end()) {
         conn.to << 0;
-      else {
+      } else {
         conn.to << 1;
         WorkerProto::write(*store, wconn, i->second.deriver);
         WorkerProto::write(*store, wconn, i->second.references);
@@ -782,10 +809,12 @@ static void perform_op(tunnel_logger_t* logger, ref<store_t> store, TrustedFlag 
       StorePathCAMap paths_map = {};
       if (GET_PROTOCOL_MINOR(conn.protoVersion) < 22) {
         auto paths = WorkerProto::Serialise<store_path_set_t>::read(*store, rconn);
-        for (auto& path : paths)
+        for (auto& path : paths) {
           paths_map.emplace(path, std::nullopt);
-      } else
+        }
+      } else {
         paths_map = WorkerProto::Serialise<StorePathCAMap>::read(*store, rconn);
+      }
       logger->start_work();
       store->querySubstitutablePathInfos(paths_map, infos);
       logger->stop_work();
@@ -833,8 +862,9 @@ static void perform_op(tunnel_logger_t* logger, ref<store_t> store, TrustedFlag 
       bool check_contents, repair;
       conn.from >> check_contents >> repair;
       logger->start_work();
-      if (repair && !trusted)
+      if (repair && !trusted) {
         throw Error("you are not privileged to repair paths");
+      }
       bool errors = store->verifyStore(check_contents, (RepairFlag)repair);
       logger->stop_work();
       conn.to << errors;
@@ -845,8 +875,9 @@ static void perform_op(tunnel_logger_t* logger, ref<store_t> store, TrustedFlag 
       auto path = WorkerProto::Serialise<store_path_t>::read(*store, rconn);
       string_set_t sigs = read_strings<string_set_t>(conn.from);
       logger->start_work();
-      if (!trusted)
+      if (!trusted) {
         throw Error("you are not privileged to add signatures");
+      }
       store->addSignatures(path, sigs);
       logger->stop_work();
       conn.to << 1;
@@ -873,10 +904,12 @@ static void perform_op(tunnel_logger_t* logger, ref<store_t> store, TrustedFlag 
       info.sigs = read_strings<string_set_t>(conn.from);
       info.ca = content_address_t::parseOpt(read_string(conn.from));
       conn.from >> repair >> dont_check_sigs;
-      if (!trusted && dont_check_sigs)
+      if (!trusted && dont_check_sigs) {
         dont_check_sigs = false;
-      if (!trusted)
+      }
+      if (!trusted) {
         info.ultimate = false;
+      }
 
       if (GET_PROTOCOL_MINOR(conn.protoVersion) >= 23) {
         logger->start_work();
@@ -891,9 +924,9 @@ static void perform_op(tunnel_logger_t* logger, ref<store_t> store, TrustedFlag 
       else {
         std::unique_ptr<source_t> source;
         string_sink_t saved;
-        if (GET_PROTOCOL_MINOR(conn.protoVersion) >= 21)
+        if (GET_PROTOCOL_MINOR(conn.protoVersion) >= 21) {
           source = std::make_unique<tunnel_source_t>(conn.from, conn.to);
-        else {
+        } else {
           tee_source_t tee{conn.from, saved};
           null_file_system_object_sink_t ether;
           parse_dump(ether, tee);
@@ -945,13 +978,15 @@ static void perform_op(tunnel_logger_t* logger, ref<store_t> store, TrustedFlag 
       logger->stop_work();
       if (GET_PROTOCOL_MINOR(conn.protoVersion) < 31) {
         std::set<store_path_t> out_paths;
-        if (info)
+        if (info) {
           out_paths.insert(info->out_path);
+        }
         WorkerProto::write(*store, wconn, out_paths);
       } else {
         std::set<realisation_t> realisations;
-        if (info)
+        if (info) {
           realisations.insert({*info, output_id});
+        }
         WorkerProto::write(*store, wconn, realisations);
       }
       break;
@@ -960,8 +995,9 @@ static void perform_op(tunnel_logger_t* logger, ref<store_t> store, TrustedFlag 
     case WorkerProto::Op::AddBuildLog: {
       store_path_t path{read_string(conn.from)};
       logger->start_work();
-      if (!trusted)
+      if (!trusted) {
         throw Error("you are not privileged to add logs");
+      }
       auto& log_store = require<LogStore>(*store);
       {
         framed_source_t source(conn.from);
@@ -1004,8 +1040,9 @@ void process_connection(ref<store_t> store, fd_source_t&& from, fd_sink_t&& to, 
   auto [protoVersion, features] = WorkerProto::BasicServerConnection::handshake(
       to, from, PROTOCOL_VERSION, WorkerProto::allFeatures);
 
-  if (protoVersion < MINIMUM_PROTOCOL_VERSION)
+  if (protoVersion < MINIMUM_PROTOCOL_VERSION) {
     throw Error("the Nix client version is too old");
+  }
 
   WorkerProto::BasicServerConnection conn;
   conn.to = std::move(to);
@@ -1081,8 +1118,9 @@ void process_connection(ref<store_t> store, fd_source_t&& from, fd_sink_t&& to, 
            happens, just send the error message and exit. */
         bool error_allowed = tunnel_logger->state_.lock()->can_send_stderr;
         tunnel_logger->stop_work(&e);
-        if (!error_allowed)
+        if (!error_allowed) {
           throw;
+        }
       } catch (std::bad_alloc& e) {
         auto ex = Error("Nix daemon out of memory");
         tunnel_logger->stop_work(&ex);

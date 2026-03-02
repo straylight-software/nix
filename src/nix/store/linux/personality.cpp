@@ -18,23 +18,26 @@ void setPersonality(std::string_view system) {
        (std::string_view(NIX_LOCAL_SYSTEM) == "x86_64-linux" ||
         (!strcmp(utsbuf.sysname, "Linux") && !strcmp(utsbuf.machine, "x86_64")))) ||
       system == "armv7l-linux" || system == "armv6l-linux" || system == "armv5tel-linux") {
-    if (personality(PER_LINUX32) == -1)
+    if (personality(PER_LINUX32) == -1) {
       throw sys_error_t("cannot set 32-bit personality");
+    }
   }
 
   /* Impersonate a Linux 2.6 machine to get some determinism in
      builds that depend on the kernel version. */
   if ((system == "i686-linux" || system == "x86_64-linux") && settings.impersonateLinux26) {
     int cur = personality(0xffffffff);
-    if (cur != -1)
+    if (cur != -1) {
       personality(cur | 0x0020000 /* == UNAME26 */);
+    }
   }
 
   /* Disable address space randomization for improved
      determinism. */
   int cur = personality(0xffffffff);
-  if (cur != -1)
+  if (cur != -1) {
     personality(cur | ADDR_NO_RANDOMIZE);
+  }
 }
 
 } // namespace nix::linux

@@ -49,11 +49,13 @@ GroupedPaths get_closure_info(ref<store_t> store, const store_path_t& toplevel) 
 }
 
 std::string show_versions(const string_set_t& versions) {
-  if (versions.empty())
+  if (versions.empty()) {
     return "(absent)";
+  }
   string_set_t versions2;
-  for (auto& version : versions)
+  for (auto& version : versions) {
     versions2.insert(version.empty() ? "(no version)" : version);
+  }
   return concat_strings_sep(", ", versions2);
 }
 
@@ -63,10 +65,12 @@ void print_closure_diff(ref<store_t> store, const store_path_t& before_path,
   auto after_closure = get_closure_info(store, after_path);
 
   string_set_t all_names;
-  for (auto& [name, _] : before_closure)
+  for (auto& [name, _] : before_closure) {
     all_names.insert(name);
-  for (auto& [name, _] : after_closure)
+  }
+  for (auto& [name, _] : after_closure) {
     all_names.insert(name);
+  }
 
   for (auto& name : all_names) {
     auto& beforeVersions = before_closure[name];
@@ -74,9 +78,11 @@ void print_closure_diff(ref<store_t> store, const store_path_t& before_path,
 
     auto totalSize = [&](const std::map<std::string, std::map<store_path_t, Info>>& versions) {
       uint64_t sum = 0;
-      for (auto& [_, paths] : versions)
-        for (auto& [path, _] : paths)
+      for (auto& [_, paths] : versions) {
+        for (auto& [path, _] : paths) {
           sum += store->queryPathInfo(path)->nar_size;
+        }
+      }
       return sum;
     };
 
@@ -86,16 +92,20 @@ void print_closure_diff(ref<store_t> store, const store_path_t& before_path,
     auto showDelta = std::abs(sizeDelta) >= 8 * 1024;
 
     string_set_t removed, unchanged;
-    for (auto& [version, _] : beforeVersions)
-      if (!afterVersions.count(version))
+    for (auto& [version, _] : beforeVersions) {
+      if (!afterVersions.count(version)) {
         removed.insert(version);
-      else
+      } else {
         unchanged.insert(version);
+      }
+    }
 
     string_set_t added;
-    for (auto& [version, _] : afterVersions)
-      if (!beforeVersions.count(version))
+    for (auto& [version, _] : afterVersions) {
+      if (!beforeVersions.count(version)) {
         added.insert(version);
+      }
+    }
 
     if (showDelta || !removed.empty() || !added.empty()) {
       std::vector<std::string> items;
@@ -106,9 +116,10 @@ void print_closure_diff(ref<store_t> store, const store_path_t& before_path,
       } else if (!added.empty()) {
         items.push_back(fmt("%s added", show_versions(added)));
       }
-      if (showDelta)
+      if (showDelta) {
         items.push_back(
             fmt("%s%s" ANSI_NORMAL, sizeDelta > 0 ? ANSI_RED : ANSI_GREEN, render_size(sizeDelta)));
+      }
       logger->cout("%s%s: %s", indent, name, concat_strings_sep(", ", items));
     }
   }

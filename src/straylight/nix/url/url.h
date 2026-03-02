@@ -155,12 +155,15 @@ struct scheme_parts {
 
 // Default port for special schemes (0 = no default)
 [[nodiscard]] constexpr std::uint16_t default_port(std::string_view scheme) noexcept {
-  if (scheme == "http" || scheme == "ws")
+  if (scheme == "http" || scheme == "ws") {
     return 80;
-  if (scheme == "https" || scheme == "wss")
+  }
+  if (scheme == "https" || scheme == "wss") {
     return 443;
-  if (scheme == "ftp")
+  }
+  if (scheme == "ftp") {
     return 21;
+  }
   return 0;
 }
 

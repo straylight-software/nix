@@ -57,8 +57,9 @@ struct scheme_and_authority_with_path_t {
 static std::optional<scheme_and_authority_with_path_t>
 split_scheme_prefix_to(std::string_view string) {
   auto scheme = split_prefix_to(string, ':');
-  if (!scheme)
+  if (!scheme) {
     return std::nullopt;
+  }
 
   split_prefix(string, "//");
   return scheme_and_authority_with_path_t{.scheme = *scheme, .authority = string};
@@ -89,15 +90,17 @@ StoreReference StoreReference::parse(const std::string& uri,
           .params = std::move(params),
       };
     } else if (baseURI == "daemon") {
-      if (params.empty())
+      if (params.empty()) {
         return {.variant = Daemon{}};
+      }
       return {
           .variant = Specified{.scheme = "unix", .authority = ""},
           .params = std::move(params),
       };
     } else if (baseURI == "local") {
-      if (params.empty())
+      if (params.empty()) {
         return {.variant = Local{}};
+      }
       return {
           .variant = Specified{.scheme = "local", .authority = ""},
           .params = std::move(params),

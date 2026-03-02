@@ -19,8 +19,9 @@ struct DummyStoreConfig : public std::enable_shared_from_this<DummyStoreConfig>,
 
   DummyStoreConfig(std::string_view scheme, std::string_view authority, const Params& params)
       : DummyStoreConfig(params) {
-    if (!authority.empty())
+    if (!authority.empty()) {
       throw UsageError("`%s` store URIs must not contain an authority part %s", scheme, authority);
+    }
   }
 
   setting_t<bool> read_only{this, true, "read-only",

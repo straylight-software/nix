@@ -8,16 +8,17 @@ namespace nix {
 LogFormat default_log_format = LogFormat::raw;
 
 LogFormat parse_log_format(const std::string& log_format_str) {
-  if (log_format_str == "raw" || get_env("NIX_GET_COMPLETIONS"))
+  if (log_format_str == "raw" || get_env("NIX_GET_COMPLETIONS")) {
     return LogFormat::raw;
-  else if (log_format_str == "raw-with-logs")
+  } else if (log_format_str == "raw-with-logs") {
     return LogFormat::rawWithLogs;
-  else if (log_format_str == "internal-json")
+  } else if (log_format_str == "internal-json") {
     return LogFormat::internalJSON;
-  else if (log_format_str == "bar")
+  } else if (log_format_str == "bar") {
     return LogFormat::bar;
-  else if (log_format_str == "bar-with-logs")
+  } else if (log_format_str == "bar-with-logs") {
     return LogFormat::barWithLogs;
+  }
   throw Error("option 'log-format' has an invalid value '%s'", log_format_str);
 }
 

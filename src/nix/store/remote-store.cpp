@@ -48,9 +48,10 @@ remote_store::remote_store(const config_t& config)
           })) {}
 
 ref<remote_store::Connection> remote_store::openConnectionWrapper() {
-  if (failed)
+  if (failed) {
     throw Error("opening a connection to remote store '%s' previously failed",
                 config.getHumanReadableURI());
+  }
   try {
     return open_connection();
   } catch (...) {
@@ -69,8 +70,9 @@ void remote_store::initConnection(Connection& conn) {
     try {
       auto [protoVersion, features] = WorkerProto::BasicClientConnection::handshake(
           conn.to, tee, PROTOCOL_VERSION, WorkerProto::allFeatures);
-      if (protoVersion < MINIMUM_PROTOCOL_VERSION)
+      if (protoVersion < MINIMUM_PROTOCOL_VERSION) {
         throw Error("the Nix daemon version is too old");
+      }
       conn.protoVersion = protoVersion;
       conn.features = features;
     } catch (SerialisationError& e) {
@@ -86,12 +88,14 @@ void remote_store::initConnection(Connection& conn) {
 
     static_cast<WorkerProto::ClientHandshakeInfo&>(conn) = conn.postHandshake(*this);
 
-    for (auto& feature : conn.features)
+    for (auto& feature : conn.features) {
       debug("negotiated feature '%s'", feature);
+    }
 
     auto ex = conn.processStderrReturn();
-    if (ex)
+    if (ex) {
       std::rethrow_exception(ex);
+    }
   } catch (Error& e) {
     throw Error("cannot open connection to remote store '%s': %s", config.getHumanReadableURI(),
                 e.what());
@@ -126,12 +130,14 @@ void remote_store::setOptions(Connection& conn) {
   // to avoid deadlocks from cyclic builder configurations (A→B→A).
   overrides[settings.builders.name] = {.value_ = "", .description_ = ""};
   conn.to << overrides.size();
-  for (auto& i : overrides)
+  for (auto& i : overrides) {
     conn.to << i.first << i.second.value_;
+  }
 
   auto ex = conn.processStderrReturn();
-  if (ex)
+  if (ex) {
     std::rethrow_exception(ex);
+  }
 }
 
 remote_store::ConnectionHandle::~ConnectionHandle() {
@@ -185,19 +191,22 @@ store_path_set_t remote_store::querySubstitutablePaths(const store_path_set_t& p
 
 void remote_store::querySubstitutablePathInfos(const StorePathCAMap& paths_map,
                                                SubstitutablePathInfos& infos) {
-  if (paths_map.empty())
+  if (paths_map.empty()) {
     return;
+  }
 
   auto conn(getConnection());
 
   conn->to << WorkerProto::Op::QuerySubstitutablePathInfos;
   if (GET_PROTOCOL_MINOR(conn->protoVersion) < 22) {
     store_path_set_t paths;
-    for (auto& path : paths_map)
+    for (auto& path : paths_map) {
       paths.insert(path.first);
+    }
     WorkerProto::write(*this, *conn, paths);
-  } else
+  } else {
     WorkerProto::write(*this, *conn, paths_map);
+  }
   conn.processStderr();
   size_t count = read_num<size_t>(conn->from);
   for (size_t n = 0; n < count; n++) {
@@ -217,10 +226,11 @@ void remote_store::query_path_info_uncached(
       auto conn(getConnection());
       conn->queryPathInfo(*this, &conn.daemonException, path);
     });
-    if (!info)
+    if (!info) {
       callback(nullptr);
-    else
+    } else {
       callback(std::make_shared<valid_path_info_t>(store_path_t{path}, *info));
+    }
   } catch (...) {
     callback.rethrow();
   }
@@ -231,8 +241,9 @@ void remote_store::query_referrers(const store_path_t& path, store_path_set_t& r
   conn->to << WorkerProto::Op::QueryReferrers;
   WorkerProto::write(*this, *conn, path);
   conn.processStderr();
-  for (auto& i : WorkerProto::Serialise<store_path_set_t>::read(*this, *conn))
+  for (auto& i : WorkerProto::Serialise<store_path_set_t>::read(*this, *conn)) {
     referrers.insert(i);
+  }
 }
 
 store_path_set_t remote_store::queryValidDerivers(const store_path_t& path) {
@@ -270,10 +281,11 @@ remote_store::queryPartialDerivationOutputMap(const store_path_t& path, store_t*
       // union with the first branch overriding the statically-known ones
       // when non-`std::nullopt`.
       for (auto&& [output_name, optPath] : queryPartialDerivationOutputMap(path, nullptr)) {
-        if (optPath)
+        if (optPath) {
           outputs.insert_or_assign(std::move(output_name), std::move(optPath));
-        else
+        } else {
           outputs.insert({std::move(output_name), std::nullopt});
+        }
       }
       return outputs;
     }
@@ -319,16 +331,18 @@ ref<const valid_path_info_t> remote_store::addCAToStore(source_t& dump, std::str
     return make_ref<valid_path_info_t>(
         WorkerProto::Serialise<valid_path_info_t>::read(*this, *conn));
   } else {
-    if (repair)
+    if (repair) {
       throw Error(
           "repairing is not supported when building through the Nix daemon protocol < 1.25");
+    }
 
     switch (ca_method.raw) {
       case content_address_method_t::raw_t::Text: {
-        if (hash_algo != hash_algorithm_t::SHA256)
+        if (hash_algo != hash_algorithm_t::SHA256) {
           throw UnimplementedError("When adding text-hashed data called '%s', only SHA-256 is "
                                    "supported but '%s' was given",
                                    name, print_hash_algo(hash_algo));
+        }
         std::string s = dump.drain();
         conn->to << WorkerProto::Op::AddTextToStore << name << s;
         WorkerProto::write(*this, *conn, references);
@@ -364,11 +378,12 @@ ref<const valid_path_info_t> remote_store::addCAToStore(source_t& dump, std::str
         } catch (sys_error_t& e) {
           /* Daemon closed while we were sending the path. Probably OOM
             or I/O error. */
-          if (e.err_no() == EPIPE)
+          if (e.err_no() == EPIPE) {
             try {
               conn.processStderr();
             } catch (EndOfFile& e) {
             }
+          }
           throw;
         }
         break;
@@ -403,9 +418,10 @@ store_path_t remote_store::add_to_store_from_dump(source_t& dump, std::string_vi
       throw Error("unsupported file ingestion method: %d",
                   static_cast<int>(hash_method.getFileIngestionMethod()));
   }
-  if (fsm != dump_method)
+  if (fsm != dump_method) {
     unsupported("RemoteStore::addToStoreFromDump doesn't support this `dumpMethod` `hashMethod` "
                 "combination");
+  }
   auto store_path = addCAToStore(dump, name, hash_method, hash_algo, references, repair)->path;
   invalidatePathInfoCacheFor(store_path);
   return store_path;
@@ -509,14 +525,16 @@ void remote_store::query_realisation_uncached(
     auto real = [&]() -> std::shared_ptr<const UnkeyedRealisation> {
       if (GET_PROTOCOL_MINOR(conn->protoVersion) < 31) {
         auto out_paths = WorkerProto::Serialise<std::set<store_path_t>>::read(*this, *conn);
-        if (out_paths.empty())
+        if (out_paths.empty()) {
           return nullptr;
+        }
         return std::make_shared<const UnkeyedRealisation>(
             UnkeyedRealisation{.out_path = *out_paths.begin()});
       } else {
         auto realisations = WorkerProto::Serialise<std::set<realisation_t>>::read(*this, *conn);
-        if (realisations.empty())
+        if (realisations.empty()) {
           return nullptr;
+        }
         return std::make_shared<const UnkeyedRealisation>(*realisations.begin());
       }
     }();
@@ -607,14 +625,16 @@ remote_store::build_paths_with_results(const std::vector<derived_path_t>& paths,
                        auto built = resolve_derived_path(*this, bfd, &*eval_store);
                        for (auto& [output, output_path] : built) {
                          auto outputHash = get(output_hashes, output);
-                         if (!outputHash)
+                         if (!outputHash) {
                            throw Error("the derivation '%s' doesn't have an output named '%s'",
                                        printStorePath(drv_path), output);
+                         }
                          auto output_id = DrvOutput{*outputHash, output};
                          if (experimental_feature_settings.is_enabled(xp_t::ca_derivations)) {
                            auto realisation = query_realisation(output_id);
-                           if (!realisation)
+                           if (!realisation) {
                              throw MissingRealisation(output_id);
+                           }
                            success.built_outputs.emplace(output,
                                                          realisation_t{*realisation, output_id});
                          } else {
@@ -719,10 +739,11 @@ void remote_store::addSignatures(const store_path_t& store_path, const string_se
 MissingPaths remote_store::query_missing(const std::vector<derived_path_t>& targets) {
   {
     auto conn(getConnection());
-    if (GET_PROTOCOL_MINOR(conn->protoVersion) < 19)
+    if (GET_PROTOCOL_MINOR(conn->protoVersion) < 19) {
       // Don't hold the connection handle in the fallback case
       // to prevent a deadlock.
       goto fallback;
+    }
     conn->to << WorkerProto::Op::QueryMissing;
     WorkerProto::write(*this, *conn, targets);
     conn.processStderr();
@@ -748,8 +769,9 @@ void remote_store::addBuildLog(const store_path_t& drv_path, std::string_view lo
 
 std::vector<ActiveBuildInfo> remote_store::queryActiveBuilds() {
   auto conn(getConnection());
-  if (!conn->features.count(WorkerProto::featureQueryActiveBuilds))
+  if (!conn->features.count(WorkerProto::featureQueryActiveBuilds)) {
     throw Error("remote store does not support querying active builds");
+  }
   conn->to << WorkerProto::Op::QueryActiveBuilds;
   conn.processStderr();
   return nlohmann::json::parse(read_string(conn->from)).get<std::vector<ActiveBuildInfo>>();

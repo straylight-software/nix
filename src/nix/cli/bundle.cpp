@@ -49,15 +49,17 @@ struct cmd_bundle_t : nix::InstallableValueCommand {
   nix::strings_t getDefaultFlakeAttrPaths() override {
     nix::strings_t res{"apps." + nix::settings.thisSystem.get() + ".default",
                        "defaultApp." + nix::settings.thisSystem.get()};
-    for (auto& s : SourceExprCommand::getDefaultFlakeAttrPaths())
+    for (auto& s : SourceExprCommand::getDefaultFlakeAttrPaths()) {
       res.push_back(s);
+    }
     return res;
   }
 
   nix::strings_t getDefaultFlakeAttrPathPrefixes() override {
     nix::strings_t res{"apps." + nix::settings.thisSystem.get() + "."};
-    for (auto& s : SourceExprCommand::getDefaultFlakeAttrPathPrefixes())
+    for (auto& s : SourceExprCommand::getDefaultFlakeAttrPathPrefixes()) {
       res.push_back(s);
+    }
     return res;
   }
 
@@ -83,12 +85,14 @@ struct cmd_bundle_t : nix::InstallableValueCommand {
     auto v_res = eval_state->allocValue();
     eval_state->callFunction(*bundler.toValue(*eval_state).first, *val, *v_res, nix::no_pos);
 
-    if (!eval_state->is_derivation(*v_res))
+    if (!eval_state->is_derivation(*v_res)) {
       throw nix::Error("the bundler '%s' does not produce a derivation", bundler.what());
+    }
 
     auto attr1 = v_res->attrs()->get(eval_state->s.drv_path);
-    if (!attr1)
+    if (!attr1) {
       throw nix::Error("the bundler '%s' does not produce a derivation", bundler.what());
+    }
 
     nix::NixStringContext context2;
     auto drv_path = eval_state->coerceToStorePath(attr1->pos, *attr1->value, context2, "");
@@ -98,8 +102,9 @@ struct cmd_bundle_t : nix::InstallableValueCommand {
     drv_path.requireDerivation();
 
     auto attr2 = v_res->attrs()->get(eval_state->s.out_path);
-    if (!attr2)
+    if (!attr2) {
       throw nix::Error("the bundler '%s' does not produce a derivation", bundler.what());
+    }
 
     auto out_path = eval_state->coerceToStorePath(attr2->pos, *attr2->value, context2, "");
 
@@ -114,8 +119,9 @@ struct cmd_bundle_t : nix::InstallableValueCommand {
 
     if (!out_link) {
       auto* attr = v_res->attrs()->get(eval_state->s.name);
-      if (!attr)
+      if (!attr) {
         throw nix::Error("attribute 'name' missing");
+      }
       out_link = eval_state->forceStringNoCtx(*attr->value, attr->pos, "");
     }
 

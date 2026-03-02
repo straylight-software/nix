@@ -32,8 +32,9 @@ store_path_set_t BuiltPath::out_paths() const {
                         [](const BuiltPath::opaque_t& p) { return store_path_set_t{p.path}; },
                         [](const BuiltPath::Built& b) {
                           store_path_set_t res;
-                          for (auto& [_, path] : b.outputs)
+                          for (auto& [_, path] : b.outputs) {
                             res.insert(path);
+                          }
                           return res;
                         },
                     },
@@ -105,10 +106,11 @@ RealisedPath::Set BuiltPath::toRealisedPaths(store_t& store) const {
                    for (auto& [output_name, output_path] : p.outputs) {
                      if (experimental_feature_settings.is_enabled(xp_t::ca_derivations)) {
                        auto drvOutput = get(drv_hashes, output_name);
-                       if (!drvOutput)
+                       if (!drvOutput) {
                          throw Error("the derivation '%s' has unrealised output '%s' "
                                      "(derived-path.cc/toRealisedPaths)",
                                      store.printStorePath(p.drv_path->out_path()), output_name);
+                       }
                        DrvOutput key{*drvOutput, output_name};
                        auto thisRealisation = store.query_realisation(key);
                        assert(thisRealisation); // We’ve built it, so we must

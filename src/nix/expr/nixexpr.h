@@ -426,10 +426,11 @@ private:
 
 public:
   std::optional<Formals> getFormals() const {
-    if (hasFormals)
+    if (hasFormals) {
       return Formals{{formalsStart, nFormals}, ellipsis};
-    else
+    } else {
       return std::nullopt;
+    }
   }
 
   expr_t* body;
@@ -447,8 +448,9 @@ public:
     if (formals.formals.size() > nFormals) [[unlikely]] {
       auto err = Error("too many formal arguments, implementation supports at most %1%",
                        std::numeric_limits<decltype(nFormals)>::max());
-      if (pos)
+      if (pos) {
         err.at_pos(positions[pos]);
+      }
       throw err;
     }
     std::uninitialized_copy_n(formals.formals.begin(), nFormals, formalsStart);
@@ -704,8 +706,9 @@ struct StaticEnv {
     auto it = vars.begin(), jt = it, end = vars.end();
     while (jt != end) {
       *it = *jt++;
-      while (jt != end && it->first == jt->first)
+      while (jt != end && it->first == jt->first) {
         *it = *jt++;
+      }
       it++;
     }
     vars.erase(it, end);
@@ -714,8 +717,9 @@ struct StaticEnv {
   Vars::const_iterator find(symbol_t name) const {
     Vars::value_type key(name, 0);
     auto i = std::lower_bound(vars.begin(), vars.end(), key);
-    if (i != vars.end() && i->first == name)
+    if (i != vars.end() && i->first == name) {
       return i;
+    }
     return vars.end();
   }
 };

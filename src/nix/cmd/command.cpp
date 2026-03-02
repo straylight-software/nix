@@ -29,15 +29,19 @@ RegisterLegacyCommand::commands_t& RegisterLegacyCommand::commands() {
 
 nix::commands_t RegisterCommand::getCommandsFor(const std::vector<std::string>& prefix) {
   nix::commands_t res;
-  for (auto& [name, command] : RegisterCommand::commands())
+  for (auto& [name, command] : RegisterCommand::commands()) {
     if (name.size() == prefix.size() + 1) {
       bool equal = true;
-      for (size_t i = 0; i < prefix.size(); ++i)
-        if (name[i] != prefix[i])
+      for (size_t i = 0; i < prefix.size(); ++i) {
+        if (name[i] != prefix[i]) {
           equal = false;
-      if (equal)
+        }
+      }
+      if (equal) {
         res.insert_or_assign(name[prefix.size()], command);
+      }
     }
+  }
   return res;
 }
 
@@ -63,8 +67,9 @@ void NixMultiCommand::run() {
 StoreCommand::StoreCommand() {}
 
 ref<store_t> StoreCommand::getStore() {
-  if (!_store)
+  if (!_store) {
     _store = createStore();
+  }
   return ref<store_t>(_store);
 }
 
@@ -97,8 +102,9 @@ ref<store_t> CopyCommand::createStore() {
 }
 
 ref<store_t> CopyCommand::getDstStore() {
-  if (srcUri.empty() && dst_uri.empty())
+  if (srcUri.empty() && dst_uri.empty()) {
     throw UsageError("you must pass '--from' and/or '--to'");
+  }
 
   return dst_uri.empty() ? open_store() : open_store(dst_uri);
 }
@@ -113,13 +119,15 @@ EvalCommand::EvalCommand() {
 }
 
 EvalCommand::~EvalCommand() {
-  if (eval_state)
+  if (eval_state) {
     eval_state->maybePrintStats();
+  }
 }
 
 ref<store_t> EvalCommand::getEvalStore() {
-  if (!eval_store)
+  if (!eval_store) {
     eval_store = evalStoreUrl ? open_store(*evalStoreUrl) : getStore();
+  }
   return ref<store_t>(eval_store);
 }
 
@@ -157,14 +165,14 @@ MixOperateOnOptions::MixOperateOnOptions() {
 }
 
 BuiltPathsCommand::BuiltPathsCommand(bool recursive) : recursive(recursive) {
-  if (recursive)
+  if (recursive) {
     add_flag({
         .long_name = "no-recursive",
         .description = "Apply operation to specified paths only.",
         .category = installablesCategory,
         .handler = {&this->recursive, false},
     });
-  else
+  } else {
     add_flag({
         .long_name = "recursive",
         .short_name = 'r',
@@ -172,6 +180,7 @@ BuiltPathsCommand::BuiltPathsCommand(bool recursive) : recursive(recursive) {
         .category = installablesCategory,
         .handler = {&this->recursive, true},
     });
+  }
 
   add_flag({
       .long_name = "all",
@@ -185,11 +194,13 @@ void BuiltPathsCommand::run(ref<store_t> store, Installables&& installables) {
   BuiltPaths root_paths, all_paths;
 
   if (all) {
-    if (installables.size())
+    if (installables.size()) {
       throw UsageError("'--all' does not expect arguments");
+    }
     // XXX: Only uses opaque paths, ignores all the realisations
-    for (auto& p : store->query_all_valid_paths())
+    for (auto& p : store->query_all_valid_paths()) {
       root_paths.emplace_back(BuiltPath::opaque_t{p});
+    }
     all_paths = root_paths;
   } else {
     root_paths =
@@ -205,8 +216,9 @@ void BuiltPathsCommand::run(ref<store_t> store, Installables&& installables) {
         pathsRoots.insert(rootFromThis.begin(), rootFromThis.end());
       }
       store->computeFSClosure(pathsRoots, pathsClosure);
-      for (auto& path : pathsClosure)
+      for (auto& path : pathsClosure) {
         all_paths.emplace_back(BuiltPath::opaque_t{path});
+      }
     }
   }
 
@@ -217,9 +229,11 @@ StorePathsCommand::StorePathsCommand(bool recursive) : BuiltPathsCommand(recursi
 
 void StorePathsCommand::run(ref<store_t> store, BuiltPaths&& all_paths, BuiltPaths&& root_paths) {
   store_path_set_t store_paths;
-  for (auto& builtPath : all_paths)
-    for (auto& p : builtPath.out_paths())
+  for (auto& builtPath : all_paths) {
+    for (auto& p : builtPath.out_paths()) {
       store_paths.insert(p);
+    }
+  }
 
   auto sorted = store->topoSortPaths(store_paths);
   std::reverse(sorted.begin(), sorted.end());
@@ -228,8 +242,9 @@ void StorePathsCommand::run(ref<store_t> store, BuiltPaths&& all_paths, BuiltPat
 }
 
 void StorePathCommand::run(ref<store_t> store, store_paths_t&& store_paths) {
-  if (store_paths.size() != 1)
+  if (store_paths.size() != 1) {
     throw UsageError("this command requires exactly one store path");
+  }
 
   run(store, *store_paths.begin());
 }
@@ -245,18 +260,21 @@ MixProfile::MixProfile() {
 }
 
 void MixProfile::updateProfile(const store_path_t& store_path) {
-  if (!profile)
+  if (!profile) {
     return;
+  }
   auto store = getDstStore().dynamic_pointer_cast<local_fs_store>();
-  if (!store)
+  if (!store) {
     throw Error("'--profile' is not supported for this Nix store");
+  }
   auto profile2 = abs_path(*profile);
   switch_link(profile2, create_generation(*store, profile2, store_path));
 }
 
 void MixProfile::updateProfile(const BuiltPaths& buildables) {
-  if (!profile)
+  if (!profile) {
     return;
+  }
 
   store_paths_t result;
 
@@ -272,10 +290,11 @@ void MixProfile::updateProfile(const BuiltPaths& buildables) {
                buildable.raw());
   }
 
-  if (result.size() != 1)
+  if (result.size() != 1) {
     throw UsageError(
         "'--profile' requires that the arguments produce a single store path, but there are %d",
         result.size());
+  }
 
   updateProfile(result[0]);
 }
@@ -313,9 +332,10 @@ MixEnvironment::MixEnvironment() : ignoreEnvironment(false) {
       .category = environment_variables_category,
       .labels = {"name"},
       .handler = {[&](std::string name) {
-        if (setVars.contains(name))
+        if (setVars.contains(name)) {
           throw UsageError("Cannot unset environment variable '%s' that is set with '%s'", name,
                            "--set-env-var");
+        }
 
         unsetVars.insert(name);
       }},
@@ -328,14 +348,16 @@ MixEnvironment::MixEnvironment() : ignoreEnvironment(false) {
       .category = environment_variables_category,
       .labels = {"name", "value"},
       .handler = {[&](std::string name, std::string value) {
-        if (unsetVars.contains(name))
+        if (unsetVars.contains(name)) {
           throw UsageError("Cannot set environment variable '%s' that is unset with '%s'", name,
                            "--unset-env-var");
+        }
 
-        if (setVars.contains(name))
+        if (setVars.contains(name)) {
           throw UsageError(
               "Duplicate definition of environment variable '%s' with '%s' is ambiguous", name,
               "--set-env-var");
+        }
 
         setVars.insert_or_assign(name, value);
       }},
@@ -343,22 +365,27 @@ MixEnvironment::MixEnvironment() : ignoreEnvironment(false) {
 }
 
 void MixEnvironment::setEnviron() {
-  if (ignoreEnvironment && !unsetVars.empty())
+  if (ignoreEnvironment && !unsetVars.empty()) {
     throw UsageError("--unset-env-var does not make sense with --ignore-env");
+  }
 
-  if (!ignoreEnvironment && !keepVars.empty())
+  if (!ignoreEnvironment && !keepVars.empty()) {
     throw UsageError("--keep-env-var does not make sense without --ignore-env");
+  }
 
   auto env = get_env();
 
-  if (ignoreEnvironment)
+  if (ignoreEnvironment) {
     std::erase_if(env, [&](const auto& var) { return !keepVars.contains(var.first); });
+  }
 
-  for (const auto& [name, value] : setVars)
+  for (const auto& [name, value] : setVars) {
     env[name] = value;
+  }
 
-  if (!unsetVars.empty())
+  if (!unsetVars.empty()) {
     std::erase_if(env, [&](const auto& var) { return unsetVars.contains(var.first); });
+  }
 
   replace_env(env);
 
@@ -372,17 +399,20 @@ void create_out_links(const std::filesystem::path& out_link, const BuiltPaths& b
     std::visit(overloaded{
                    [&](const BuiltPath::opaque_t& bo) {
                      auto symlink = out_link;
-                     if (i)
+                     if (i) {
                        symlink += fmt("-%d", i);
+                     }
                      store.addPermRoot(bo.path, abs_path(symlink).string());
                    },
                    [&](const BuiltPath::Built& bfd) {
                      for (auto& output : bfd.outputs) {
                        auto symlink = out_link;
-                       if (i)
+                       if (i) {
                          symlink += fmt("-%d", i);
-                       if (output.first != "out")
+                       }
+                       if (output.first != "out") {
                          symlink += fmt("-%s", output.first);
+                       }
                        store.addPermRoot(output.second, abs_path(symlink).string());
                      }
                    },
@@ -393,9 +423,11 @@ void create_out_links(const std::filesystem::path& out_link, const BuiltPaths& b
 
 void MixOutLinkBase::createOutLinksMaybe(const std::vector<BuiltPathWithResult>& buildables,
                                          ref<store_t>& store) {
-  if (out_link != "")
-    if (auto store2 = store.dynamic_pointer_cast<local_fs_store>())
+  if (out_link != "") {
+    if (auto store2 = store.dynamic_pointer_cast<local_fs_store>()) {
       create_out_links(out_link, to_built_paths(buildables), *store2);
+    }
+  }
 }
 
 } // namespace nix

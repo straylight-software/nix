@@ -213,13 +213,15 @@ struct with_environment : environment {
   auto lookup_lexical(std::string_view name) const -> value_ptr {
     // Check our own direct bindings (shouldn't have any for with_environment, but be safe)
     auto it = bindings.find(std::string(name));
-    if (it != bindings.end())
+    if (it != bindings.end()) {
       return it->second;
+    }
 
     // Check parent's lexical bindings
     if (parent) {
-      if (auto* with_parent = dynamic_cast<const with_environment*>(parent.get()))
+      if (auto* with_parent = dynamic_cast<const with_environment*>(parent.get())) {
         return with_parent->lookup_lexical(name);
+      }
       return parent->lookup(name); // Regular env: lookup checks bindings then parent
     }
     return nullptr;
@@ -231,20 +233,23 @@ struct with_environment : environment {
     if (is_attrs(namespace_)) {
       auto& attrs = as_attrs(namespace_).attrs;
       auto it = attrs.find(std::string(name));
-      if (it != attrs.end())
+      if (it != attrs.end()) {
         return it->second;
+      }
     }
     // Check parent's with namespace
-    if (auto* with_parent = dynamic_cast<const with_environment*>(parent.get()))
+    if (auto* with_parent = dynamic_cast<const with_environment*>(parent.get())) {
       return with_parent->lookup_with_namespaces(name);
+    }
     return nullptr;
   }
 
   auto lookup(std::string_view name) const -> value_ptr override {
     // 1. Lexical bindings take precedence over all with bindings
     auto result = lookup_lexical(name);
-    if (result)
+    if (result) {
       return result;
+    }
 
     // 2. Then check with namespaces (inner shadows outer)
     return lookup_with_namespaces(name);

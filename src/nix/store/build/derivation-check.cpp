@@ -12,8 +12,9 @@ void check_outputs(store_t& store, const store_path_t& drv_path,
                    const decltype(derivation_options_t<store_path_t>::output_checks)& output_checks,
                    const std::map<std::string, valid_path_info_t>& outputs, activity_t& act) {
   std::map<Path, const valid_path_info_t&> outputsByPath;
-  for (auto& output : outputs)
+  for (auto& output : outputs) {
     outputsByPath.emplace(store.printStorePath(output.second.path), output.second);
+  }
 
   for (auto& pair : outputs) {
     // We can't use auto destructuring here because
@@ -67,19 +68,22 @@ void check_outputs(store_t& store, const store_path_t& drv_path,
       while (!pathsLeft.empty()) {
         auto path = pathsLeft.front();
         pathsLeft.pop();
-        if (!pathsDone.insert(path).second)
+        if (!pathsDone.insert(path).second) {
           continue;
+        }
 
         auto i = outputsByPath.find(store.printStorePath(path));
         if (i != outputsByPath.end()) {
           closureSize += i->second.nar_size;
-          for (auto& ref : i->second.references)
+          for (auto& ref : i->second.references) {
             pathsLeft.push(ref);
+          }
         } else {
           auto info = store.queryPathInfo(path);
           closureSize += info->nar_size;
-          for (auto& ref : info->references)
+          for (auto& ref : info->references) {
             pathsLeft.push(ref);
+          }
         }
       }
 
@@ -87,17 +91,19 @@ void check_outputs(store_t& store, const store_path_t& drv_path,
     };
 
     auto applyChecks = [&](const derivation_options_t<store_path_t>::OutputChecks& checks) {
-      if (checks.max_size && info.nar_size > *checks.max_size)
+      if (checks.max_size && info.nar_size > *checks.max_size) {
         throw build_error_t(build_result_t::Failure::OutputRejected,
                             "path '%s' is too large at %d bytes; limit is %d bytes",
                             store.printStorePath(info.path), info.nar_size, *checks.max_size);
+      }
 
       if (checks.maxClosureSize) {
         uint64_t closureSize = getClosure(info.path).second;
-        if (closureSize > *checks.maxClosureSize)
+        if (closureSize > *checks.maxClosureSize) {
           throw build_error_t(build_result_t::Failure::OutputRejected,
                               "closure of path '%s' is too large at %d bytes; limit is %d bytes",
                               store.printStorePath(info.path), closureSize, *checks.maxClosureSize);
+        }
       }
 
       auto checkRefs = [&](const std::set<DrvRef<store_path_t>>& value, bool allowed,
@@ -110,9 +116,9 @@ void check_outputs(store_t& store, const store_path_t& drv_path,
           std::visit(
               overloaded{[&](const store_path_t& path) { spec.insert(path); },
                          [&](const OutputName& refOutputName) {
-                           if (auto output = get(outputs, refOutputName))
+                           if (auto output = get(outputs, refOutputName)) {
                              spec.insert(output->path);
-                           else {
+                           } else {
                              std::string outputsListing = concat_map_strings_sep(
                                  ", ", outputs, [](auto& o) { return o.first; });
                              throw build_error_t(
@@ -129,19 +135,23 @@ void check_outputs(store_t& store, const store_path_t& drv_path,
 
         auto used = recursive ? getClosure(info.path).first : info.references;
 
-        if (recursive && checks.ignoreSelfRefs)
+        if (recursive && checks.ignoreSelfRefs) {
           used.erase(info.path);
+        }
 
         store_path_set_t badPaths;
 
-        for (auto& i : used)
+        for (auto& i : used) {
           if (allowed) {
-            if (!spec.count(i))
+            if (!spec.count(i)) {
               badPaths.insert(i);
+            }
           } else {
-            if (spec.count(i))
+            if (spec.count(i)) {
               badPaths.insert(i);
+            }
           }
+        }
 
         if (!badPaths.empty()) {
           std::string badPathsStr;
@@ -181,9 +191,9 @@ void check_outputs(store_t& store, const store_path_t& drv_path,
             },
             [&](const std::map<std::string, derivation_options_t<store_path_t>::OutputChecks>&
                     checksPerOutput) {
-              if (auto output_checks = get(checksPerOutput, output_name))
-
+              if (auto output_checks = get(checksPerOutput, output_name)) {
                 applyChecks(*output_checks);
+              }
             },
         },
         output_checks);

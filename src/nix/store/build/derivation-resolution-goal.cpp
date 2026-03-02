@@ -54,10 +54,11 @@ Goal::Co DerivationResolutionGoal::resolveDerivation() {
         inputGoals.insert_or_assign(input_drv, g);
         waitees.insert(std::move(g));
       }
-      for (const auto& [output_name, childNode] : input_node.childMap)
+      for (const auto& [output_name, childNode] : input_node.childMap) {
         addWaiteeDerivedPath(
             make_ref<SingleDerivedPath>(SingleDerivedPath::Built{input_drv, output_name}),
             childNode);
+      }
     };
 
     for (const auto& [inputDrvPath, input_node] : drv->input_drvs.map) {
@@ -66,10 +67,11 @@ Goal::Co DerivationResolutionGoal::resolveDerivation() {
       if (experimental_feature_settings.is_enabled(xp_t::impure_derivations) &&
           !drv->type().is_impure() && !drv->type().isFixed()) {
         auto input_drv = worker.eval_store.read_derivation(inputDrvPath);
-        if (input_drv.type().is_impure())
+        if (input_drv.type().is_impure()) {
           throw Error("pure derivation '%s' depends on impure derivation '%s'",
                       worker.store.printStorePath(drv_path),
                       worker.store.printStorePath(inputDrvPath));
+        }
       }
 
       addWaiteeDerivedPath(makeConstantStorePathRef(inputDrvPath), input_node);
@@ -132,8 +134,9 @@ Goal::Co DerivationResolutionGoal::resolveDerivation() {
           [&](ref<const SingleDerivedPath> drv_path,
               const std::string& output_name) -> std::optional<store_path_t> {
             auto mEntry = get(inputGoals, drv_path);
-            if (!mEntry)
+            if (!mEntry) {
               return std::nullopt;
+            }
 
             auto& buildResult = (*mEntry)->buildResult;
             return std::visit(
@@ -143,8 +146,9 @@ Goal::Co DerivationResolutionGoal::resolveDerivation() {
                     },
                     [&](const build_result_t::Success& success) -> std::optional<store_path_t> {
                       auto i = get(success.built_outputs, output_name);
-                      if (!i)
+                      if (!i) {
                         return std::nullopt;
+                      }
 
                       return i->out_path;
                     },

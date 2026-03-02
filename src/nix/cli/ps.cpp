@@ -57,11 +57,12 @@ struct cmd_ps_t : nix::MixJSON, nix::StoreCommand {
       std::chrono::microseconds cpuTime =
           build.utime && build.stime ? *build.utime + *build.stime : [&]() {
             std::chrono::microseconds total{0};
-            for (const auto& process : build.processes)
+            for (const auto& process : build.processes) {
               total += process.utime.value_or(std::chrono::microseconds(0)) +
                        process.stime.value_or(std::chrono::microseconds(0)) +
                        process.cutime.value_or(std::chrono::microseconds(0)) +
                        process.cstime.value_or(std::chrono::microseconds(0));
+            }
             return total;
           }();
 
@@ -86,17 +87,19 @@ struct cmd_ps_t : nix::MixJSON, nix::StoreCommand {
       } else {
         /* Recover the tree structure of the processes. */
         std::set<::pid_t> pids;
-        for (auto& process : build.processes)
+        for (auto& process : build.processes) {
           pids.insert(process.pid);
+        }
 
         using Processes = std::set<const nix::ActiveBuildInfo::ProcessInfo*>;
         std::map<::pid_t, Processes> children;
         Processes rootProcesses;
         for (auto& process : build.processes) {
-          if (pids.contains(process.parent_pid))
+          if (pids.contains(process.parent_pid)) {
             children[process.parent_pid].insert(&process);
-          else
+          } else {
             rootProcesses.insert(&process);
+          }
         }
 
         /* Render the process tree. */

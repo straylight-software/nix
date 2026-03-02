@@ -13,8 +13,9 @@ make_error(UploadToHTTP, Error);
 string_set_t HttpBinaryCacheStoreConfig::uriSchemes() {
   static bool force_http = get_env("_NIX_FORCE_HTTP") == "1";
   auto ret = string_set_t{"http", "https"};
-  if (force_http)
+  if (force_http) {
     ret.insert("file");
+  }
   return ret;
 }
 
@@ -29,8 +30,9 @@ HttpBinaryCacheStoreConfig::HttpBinaryCacheStoreConfig(std::string_view scheme,
                ? _cacheUri
                : throw UsageError("`%s` store_t requires a non-empty authority in store_t URL",
                                   scheme)))) {
-  while (!cacheUri.path().empty() && cacheUri.path().back() == "")
+  while (!cacheUri.path().empty() && cacheUri.path().back() == "") {
     cacheUri.path().pop_back();
+  }
 }
 
 StoreReference HttpBinaryCacheStoreConfig::getReference() const {
@@ -79,14 +81,15 @@ void http_binary_cache_store::init() {
 
 std::optional<std::string>
 http_binary_cache_store::get_compression_method(const std::string& path) {
-  if (has_suffix(path, ".narinfo") && !config->narinfoCompression.get().empty())
+  if (has_suffix(path, ".narinfo") && !config->narinfoCompression.get().empty()) {
     return config->narinfoCompression;
-  else if (has_suffix(path, ".ls") && !config->lsCompression.get().empty())
+  } else if (has_suffix(path, ".ls") && !config->lsCompression.get().empty()) {
     return config->lsCompression;
-  else if (has_prefix(path, "log/") && !config->logCompression.get().empty())
+  } else if (has_prefix(path, "log/") && !config->logCompression.get().empty()) {
     return config->logCompression;
-  else
+  } else {
     return std::nullopt;
+  }
 }
 
 void http_binary_cache_store::maybeDisable() {
@@ -101,8 +104,9 @@ void http_binary_cache_store::maybeDisable() {
 
 void http_binary_cache_store::checkEnabled() {
   auto state(_state.lock());
-  if (state->enabled)
+  if (state->enabled) {
     return;
+  }
   if (std::chrono::steady_clock::now() > state->disabledUntil) {
     state->enabled = true;
     debug("re-enabling binary cache '%s'", config->getHumanReadableURI());
@@ -122,8 +126,9 @@ bool http_binary_cache_store::file_exists(const std::string& path) {
   } catch (FileTransferError& e) {
     /* S3 buckets return 403 if a file doesn't exist and the
        bucket is unlistable, so treat 403 as 404. */
-    if (e.error == FileTransfer::NotFound || e.error == FileTransfer::Forbidden)
+    if (e.error == FileTransfer::NotFound || e.error == FileTransfer::Forbidden) {
       return false;
+    }
     maybeDisable();
     throw;
   }
@@ -166,8 +171,9 @@ void http_binary_cache_store::upsert_file(const std::string& path, restartable_s
 FileTransferRequest http_binary_cache_store::makeRequest(std::string_view path) {
   /* Otherwise the last path fragment will get discarded. */
   auto cacheUriWithTrailingSlash = config->cacheUri;
-  if (!cacheUriWithTrailingSlash.path().empty())
+  if (!cacheUriWithTrailingSlash.path().empty()) {
     cacheUriWithTrailingSlash.path().push_back("");
+  }
 
   /* path is not a path, but a full relative or absolute
      URL, e.g. we've seen in the wild NARINFO files have a URL
@@ -192,9 +198,10 @@ void http_binary_cache_store::getFile(const std::string& path, sink_t& sink) {
   try {
     get_file_transfer()->download(std::move(request), sink);
   } catch (FileTransferError& e) {
-    if (e.error == FileTransfer::NotFound || e.error == FileTransfer::Forbidden)
+    if (e.error == FileTransfer::NotFound || e.error == FileTransfer::Forbidden) {
       throw NoSuchBinaryCacheFile("file '%s' does not exist in binary cache '%s'", path,
                                   config->getHumanReadableURI());
+    }
     maybeDisable();
     throw;
   }
@@ -214,8 +221,9 @@ void http_binary_cache_store::getFile(const std::string& path,
           try {
             (*callbackPtr)(std::move(result.get().data));
           } catch (FileTransferError& e) {
-            if (e.error == FileTransfer::NotFound || e.error == FileTransfer::Forbidden)
+            if (e.error == FileTransfer::NotFound || e.error == FileTransfer::Forbidden) {
               return (*callbackPtr)({});
+            }
             maybeDisable();
             callbackPtr->rethrow();
           } catch (...) {
@@ -234,8 +242,9 @@ std::optional<std::string> http_binary_cache_store::getNixCacheInfo() {
     auto result = get_file_transfer()->download(makeRequest(cacheInfoFile));
     return result.data;
   } catch (FileTransferError& e) {
-    if (e.error == FileTransfer::NotFound)
+    if (e.error == FileTransfer::NotFound) {
       return std::nullopt;
+    }
     maybeDisable();
     throw;
   }

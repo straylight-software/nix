@@ -19,8 +19,9 @@ inline void* EvalMemory::allocBytes(size_t n) {
 #else
   p = calloc(n, 1);
 #endif
-  if (!p)
+  if (!p) {
     throw std::bad_alloc();
+  }
   return p;
 }
 
@@ -36,8 +37,9 @@ value_t* EvalMemory::allocValue() {
 
   if (!*valueAllocCache) {
     *valueAllocCache = GC_malloc_many(sizeof(value_t));
-    if (!*valueAllocCache)
+    if (!*valueAllocCache) {
       throw std::bad_alloc();
+    }
   }
 
   /* GC_NEXT is a convenience macro for accessing the first word of an object.
@@ -68,8 +70,9 @@ Env& EvalMemory::allocEnv(size_t size) {
 
     if (!*env1AllocCache) {
       *env1AllocCache = GC_malloc_many(sizeof(Env) + sizeof(value_t*));
-      if (!*env1AllocCache)
+      if (!*env1AllocCache) {
         throw std::bad_alloc();
+      }
     }
 
     void* p = *env1AllocCache;
@@ -138,12 +141,14 @@ void ValueStorage<ptrSize, std::enable_if_t<detail::useBitPackedValueStorage<ptr
     }
   }
 
-  else if (pd == pdPending || pd == pdAwaited)
+  else if (pd == pdPending || pd == pdAwaited) {
     p0_ = waitOnThunk(state, p0_);
+  }
 
 done:
-  if (InternalType(p0_ & 0xff) == tFailed)
+  if (InternalType(p0_ & 0xff) == tFailed) {
     std::rethrow_exception((std::bit_cast<Failed*>(p1))->ex);
+  }
 }
 
 [[gnu::always_inline]]
@@ -177,8 +182,9 @@ inline void eval_state_t::forceList(value_t& v, const pos_idx_t pos, std::string
 
 [[gnu::always_inline]]
 inline CallDepth eval_state_t::addCallDepth(const pos_idx_t pos) {
-  if (callDepth > settings.maxCallDepth)
+  if (callDepth > settings.maxCallDepth) {
     error<EvalBaseError>("stack overflow; max-call-depth exceeded").at_pos(pos).debugThrow();
+  }
 
   return CallDepth(callDepth);
 };

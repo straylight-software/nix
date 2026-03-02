@@ -116,8 +116,9 @@ public:
   }
 
   void add_pattern(std::string_view from, std::string_view to) {
-    if (from.empty() || from == to)
+    if (from.empty() || from == to) {
       return;
+    }
 
     int curr = 0;
     for (char c : from) {
@@ -202,13 +203,15 @@ public:
     }
 
     // Filter to non-overlapping matches (leftmost wins, then longest)
-    if (matches.empty())
+    if (matches.empty()) {
       return matches;
+    }
 
     // Sort by start position, then by pattern length (descending for longer = better)
     std::sort(matches.begin(), matches.end(), [this](const auto& a, const auto& b) {
-      if (a.first != b.first)
+      if (a.first != b.first) {
         return a.first < b.first;
+      }
       return patterns[a.second].first.size() > patterns[b.second].first.size();
     });
 

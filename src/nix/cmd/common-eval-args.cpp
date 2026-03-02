@@ -126,8 +126,9 @@ MixEvalArgs::MixEvalArgs() {
             parse_flake_ref(fetch_settings, _from, std::filesystem::current_path().string());
         auto to = parse_flake_ref(fetch_settings, _to, std::filesystem::current_path().string());
         fetchers::Attrs extra_attrs;
-        if (to.subdir != "")
+        if (to.subdir != "") {
           extra_attrs["dir"] = to.subdir;
+        }
         fetchers::override_registry(from.input, to.input, extra_attrs);
       }},
       .completer = {[&](add_completions_t& completions, size_t, std::string_view prefix) {
@@ -197,8 +198,9 @@ source_path_t lookup_file_arg(eval_state_t& state, std::string_view s,
     return state.findFile(p);
   }
 
-  else
+  else {
     return state.root_path(abs_path(std::filesystem::path{s}, base_dir).string());
+  }
 }
 
 } // namespace nix

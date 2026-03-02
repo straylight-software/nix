@@ -38,7 +38,7 @@ TopoSortResult<T> topoSort(std::set<T, Compare> items, F&& getChildren) {
 
     auto&& references = std::invoke(getChildren, path);
 
-    for (auto& i : references)
+    for (auto& i : references) {
       /* Don't traverse into items that don't exist in our starting set. */
       if (i != path && items.count(i)) {
         auto result = dfsVisit(i, &path);
@@ -46,6 +46,7 @@ TopoSortResult<T> topoSort(std::set<T, Compare> items, F&& getChildren) {
           return result;
         }
       }
+    }
 
     sorted.push_back(path);
     parents.erase(path);

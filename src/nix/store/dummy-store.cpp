@@ -48,8 +48,9 @@ struct whole_store_view_accessor_t : public source_accessor_t {
   auto call_with_accessor_for_path(
       canon_path_t path,
       std::invocable<memory_source_accessor_t&, const canon_path_t&> auto callback) {
-    if (path.is_root())
+    if (path.is_root()) {
       return callback(rootPathAccessor, path);
+    }
 
     BaseName base_name(*path.begin());
     memory_source_accessor_t* res = nullptr;
@@ -59,8 +60,9 @@ struct whole_store_view_accessor_t : public source_accessor_t {
       res = &*kv.second;
     });
 
-    if (!res)
+    if (!res) {
       res = &emptyAccessor;
+    }
 
     return callback(*res, path);
   }
@@ -165,8 +167,9 @@ struct dummy_store_impl_t : dummy_store {
     } else {
       if (contents.cvisit(path, [&](const auto& kv) {
             callback(std::make_shared<valid_path_info_t>(store_path_t{kv.first}, kv.second.info));
-          }))
+          })) {
         return;
+      }
     }
 
     callback(nullptr);
@@ -191,15 +194,18 @@ struct dummy_store_impl_t : dummy_store {
 
   void add_to_store(const valid_path_info_t& info, source_t& source, RepairFlag repair,
                     CheckSigsFlag check_sigs) override {
-    if (config->read_only)
+    if (config->read_only) {
       unsupported("addToStore");
+    }
 
-    if (repair)
+    if (repair) {
       throw Error("repairing is not supported for '%s' store", config->getHumanReadableURI());
+    }
 
-    if (check_sigs)
+    if (check_sigs) {
       throw Error("checking signatures is not supported for '%s' store",
                   config->getHumanReadableURI());
+    }
 
     auto accessor = make_ref<memory_source_accessor_t>();
     memory_sink_t tempSink{*accessor};
@@ -230,14 +236,17 @@ struct dummy_store_impl_t : dummy_store {
       hash_algorithm_t hash_algo = hash_algorithm_t::SHA256,
       const store_path_set_t& references = store_path_set_t(),
       RepairFlag repair = NoRepair) override {
-    if (is_derivation(name))
+    if (is_derivation(name)) {
       throw Error("Do not insert derivation into dummy store with `addToStoreFromDump`");
+    }
 
-    if (config->read_only)
+    if (config->read_only) {
       unsupported("addToStoreFromDump");
+    }
 
-    if (repair)
+    if (repair) {
       throw Error("repairing is not supported for '%s' store", config->getHumanReadableURI());
+    }
 
     auto temp = make_ref<memory_source_accessor_t>();
 
@@ -297,8 +306,9 @@ struct dummy_store_impl_t : dummy_store {
     auto drv_path = ::nix::write_derivation(*this, drv, repair, /*readonly=*/true);
 
     if (!derivations.contains(drv_path) || repair) {
-      if (config->read_only)
+      if (config->read_only) {
         unsupported("writeDerivation");
+      }
       derivations.insert({drv_path, drv});
     }
 
@@ -306,10 +316,11 @@ struct dummy_store_impl_t : dummy_store {
   }
 
   derivation_t read_derivation(const store_path_t& drv_path) override {
-    if (std::optional res = get_concurrent(derivations, drv_path))
+    if (std::optional res = get_concurrent(derivations, drv_path)) {
       return *res;
-    else
+    } else {
       throw Error("derivation '%s' is not valid", printStorePath(drv_path));
+    }
   }
 
   /**
@@ -336,14 +347,15 @@ struct dummy_store_impl_t : dummy_store {
       }
     });
 
-    if (!visited)
+    if (!visited) {
       callback(nullptr);
+    }
   }
 
   std::shared_ptr<memory_source_accessor_t> getMemoryFSAccessor(const store_path_t& path,
                                                                 bool require_valid_path = true) {
     std::shared_ptr<memory_source_accessor_t> res;
-    if (path.is_derivation())
+    if (path.is_derivation()) {
       derivations.cvisit(path, [&](const auto& kv) {
         /* compute path info on demand */
         auto res2 = make_ref<memory_source_accessor_t>();
@@ -352,8 +364,9 @@ struct dummy_store_impl_t : dummy_store {
         };
         res = std::move(res2).get_ptr();
       });
-    else
+    } else {
       contents.cvisit(path, [&](const auto& kv) { res = kv.second.contents.get_ptr(); });
+    }
     return res;
   }
 
@@ -415,10 +428,12 @@ nix::ref<nix::dummy_store> adl_serializer<nix::ref<nix::dummy_store>>::from_json
   nix::ref<nix::dummy_store> res =
       adl_serializer<nix::ref<nix::DummyStoreConfig>>::from_json(nix::value_at(obj, "config"))
           ->openDummyStore();
-  for (auto& [k, v] : nix::get_object(nix::value_at(obj, "contents")))
+  for (auto& [k, v] : nix::get_object(nix::value_at(obj, "contents"))) {
     res->contents.insert({nix::store_path_t{k}, v});
-  for (auto& [k, v] : nix::get_object(nix::value_at(obj, "derivations")))
+  }
+  for (auto& [k, v] : nix::get_object(nix::value_at(obj, "derivations"))) {
     res->derivations.insert({nix::store_path_t{k}, v});
+  }
   for (auto& [k0, v] : nix::get_object(nix::value_at(obj, "buildTrace"))) {
     for (auto& [k1, v2] : nix::get_object(v)) {
       nix::UnkeyedRealisation realisation = v2;
@@ -461,8 +476,9 @@ void adl_serializer<nix::dummy_store>::to_json(json& json, const nix::dummy_stor
          val.buildTrace.cvisit_all([&](const auto& kv) {
            auto& [k, v] = kv;
            auto& obj2 = obj[k.to_string(nix::hash_format_t::base64, false)] = json::object();
-           for (auto& [k2, v2] : kv.second)
+           for (auto& [k2, v2] : kv.second) {
              obj2[k2] = v2;
+           }
          });
          return obj;
        }()},

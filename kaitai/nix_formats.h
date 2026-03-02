@@ -283,20 +283,27 @@ enum class compression_t : std::uint8_t {
 
 [[nodiscard]] inline auto compression_from_string(std::string_view s)
     -> std::optional<compression_t> {
-  if (s == "none")
+  if (s == "none") {
     return compression_t::none;
-  if (s == "xz")
+  }
+  if (s == "xz") {
     return compression_t::xz;
-  if (s == "bzip2")
+  }
+  if (s == "bzip2") {
     return compression_t::bzip2;
-  if (s == "zstd")
+  }
+  if (s == "zstd") {
     return compression_t::zstd;
-  if (s == "lzip")
+  }
+  if (s == "lzip") {
     return compression_t::lzip;
-  if (s == "lz4")
+  }
+  if (s == "lz4") {
     return compression_t::lz4;
-  if (s == "br")
+  }
+  if (s == "br") {
     return compression_t::br;
+  }
   return std::nullopt;
 }
 
@@ -477,8 +484,9 @@ enum class drv_error_t : std::uint8_t {
 [[nodiscard]] inline auto serialize_drv_input(const drv_input_t& i) -> std::string {
   std::string outputs = "[";
   for (std::size_t j = 0; j < i.output_names.size(); ++j) {
-    if (j > 0)
+    if (j > 0) {
       outputs += ",";
+    }
     outputs += quote_aterm(i.output_names[j]);
   }
   outputs += "]";
@@ -492,24 +500,27 @@ enum class drv_error_t : std::uint8_t {
 
   // Outputs
   for (std::size_t i = 0; i < drv.outputs.size(); ++i) {
-    if (i > 0)
+    if (i > 0) {
       result += ",";
+    }
     result += serialize_drv_output(drv.outputs[i]);
   }
   result += "],[";
 
   // Input derivations
   for (std::size_t i = 0; i < drv.input_drvs.size(); ++i) {
-    if (i > 0)
+    if (i > 0) {
       result += ",";
+    }
     result += serialize_drv_input(drv.input_drvs[i]);
   }
   result += "],[";
 
   // Input sources
   for (std::size_t i = 0; i < drv.input_srcs.size(); ++i) {
-    if (i > 0)
+    if (i > 0) {
       result += ",";
+    }
     result += quote_aterm(drv.input_srcs[i]);
   }
   result += "],";
@@ -519,16 +530,18 @@ enum class drv_error_t : std::uint8_t {
 
   // Args
   for (std::size_t i = 0; i < drv.args.size(); ++i) {
-    if (i > 0)
+    if (i > 0) {
       result += ",";
+    }
     result += quote_aterm(drv.args[i]);
   }
   result += "],[";
 
   // Environment
   for (std::size_t i = 0; i < drv.env.size(); ++i) {
-    if (i > 0)
+    if (i > 0) {
       result += ",";
+    }
     result += "(" + quote_aterm(drv.env[i].first) + "," + quote_aterm(drv.env[i].second) + ")";
   }
   result += "])";

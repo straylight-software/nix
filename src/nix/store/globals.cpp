@@ -75,15 +75,17 @@ settings_t::settings_t()
   allowSymlinkedStore = get_env("NIX_IGNORE_SYMLINK_STORE") == "1";
 
   auto sslOverride = get_env("NIX_SSL_CERT_FILE").value_or(get_env("SSL_CERT_FILE").value_or(""));
-  if (sslOverride != "")
+  if (sslOverride != "") {
     ca_file = sslOverride;
+  }
 
   /* Backwards compatibility. */
   auto s = get_env("NIX_REMOTE_SYSTEMS");
   if (s) {
     strings_t ss;
-    for (auto& p : tokenize_string<strings_t>(*s, ":"))
+    for (auto& p : tokenize_string<strings_t>(*s, ":")) {
       ss.push_back("@" + p);
+    }
     builders = concat_strings_sep("\n", ss);
   }
 
@@ -155,10 +157,11 @@ unsigned int settings_t::getDefaultCores() {
   const unsigned int concurrency = std::max(1U, std::thread::hardware_concurrency());
   const unsigned int maxCPU = get_max_cpu();
 
-  if (maxCPU > 0)
+  if (maxCPU > 0) {
     return maxCPU;
-  else
+  } else {
     return concurrency;
+  }
 }
 
 #ifdef __APPLE__
@@ -169,8 +172,9 @@ static bool hasVirt() {
 
   size = sizeof(hasVMM);
   if (sysctlbyname("kern.hv_vmm_present", &hasVMM, &size, NULL, 0) == 0) {
-    if (hasVMM)
+    if (hasVMM) {
       return false;
+    }
   }
 
   // whether the kernel and hardware supports virt
@@ -194,13 +198,15 @@ string_set_t settings_t::getDefaultSystemFeatures() {
 #endif
 
 #ifdef __linux__
-  if (access("/dev/kvm", R_OK | W_OK) == 0)
+  if (access("/dev/kvm", R_OK | W_OK) == 0) {
     features.insert("kvm");
+  }
 #endif
 
 #ifdef __APPLE__
-  if (hasVirt())
+  if (hasVirt()) {
     features.insert("apple-virt");
+  }
 #endif
 
   return features;
@@ -209,13 +215,15 @@ string_set_t settings_t::getDefaultSystemFeatures() {
 string_set_t settings_t::getDefaultExtraPlatforms() {
   string_set_t extraPlatforms;
 
-  if (std::string{NIX_LOCAL_SYSTEM} == "x86_64-linux" && !isWSL1())
+  if (std::string{NIX_LOCAL_SYSTEM} == "x86_64-linux" && !isWSL1()) {
     extraPlatforms.insert("i686-linux");
+  }
 
 #ifdef __linux__
   string_set_t levels = compute_levels();
-  for (auto iter = levels.begin(); iter != levels.end(); ++iter)
+  for (auto iter = levels.begin(); iter != levels.end(); ++iter) {
     extraPlatforms.insert(*iter + "-linux");
+  }
 #elif defined(__APPLE__)
   // Rosetta 2 emulation layer can run x86_64 binaries on aarch64
   // machines. Note that we can’t force processes from executing
@@ -225,8 +233,9 @@ string_set_t settings_t::getDefaultExtraPlatforms() {
       run_program(run_options_t{.program = "arch",
                                 .args = {"-arch", "x86_64", "/usr/bin/true"},
                                 .merge_stderr_to_stdout = true})
-              .first == 0)
+              .first == 0) {
     extraPlatforms.insert("x86_64-darwin");
+  }
 #endif
 
   return extraPlatforms;
@@ -246,9 +255,11 @@ bool settings_t::isWSL1() {
 
 Path settings_t::getDefaultSSLCertFile() {
   for (auto& fn : {"/etc/ssl/certs/ca-certificates.crt",
-                   "/nix/var/nix/profiles/default/etc/ssl/certs/ca-bundle.crt"})
-    if (path_accessible(fn))
+                   "/nix/var/nix/profiles/default/etc/ssl/certs/ca-bundle.crt"}) {
+    if (path_accessible(fn)) {
       return fn;
+    }
+  }
   return "";
 }
 
@@ -257,8 +268,9 @@ settings_t::findExternalDerivationBuilderIfSupported(const derivation_t& drv) {
   if (auto it = std::ranges::find_if(
           externalBuilders.get(),
           [&](const auto& handler) { return handler.systems.contains(drv.platform); });
-      it != externalBuilders.get().end())
+      it != externalBuilders.get().end()) {
     return &*it;
+  }
   return nullptr;
 }
 
@@ -274,14 +286,15 @@ NLOHMANN_JSON_SERIALIZE_ENUM(SandboxMode, {
 
 template <>
 SandboxMode base_setting_t<SandboxMode>::parse(const std::string& str) const {
-  if (str == "true")
+  if (str == "true") {
     return smEnabled;
-  else if (str == "relaxed")
+  } else if (str == "relaxed") {
     return smRelaxed;
-  else if (str == "false")
+  } else if (str == "false") {
     return smDisabled;
-  else
+  } else {
     throw UsageError("option '%s' has invalid value_ '%s'", name, str);
+  }
 }
 
 template <>
@@ -291,14 +304,15 @@ struct base_setting_t<SandboxMode>::trait {
 
 template <>
 std::string base_setting_t<SandboxMode>::to_string() const {
-  if (value_ == smEnabled)
+  if (value_ == smEnabled) {
     return "true";
-  else if (value_ == smRelaxed)
+  } else if (value_ == smRelaxed) {
     return "relaxed";
-  else if (value_ == smDisabled)
+  } else if (value_ == smDisabled) {
     return "false";
-  else
+  } else {
     unreachable();
+  }
 }
 
 template <>
@@ -332,8 +346,9 @@ template <>
 PathsInChroot base_setting_t<PathsInChroot>::parse(const std::string& str) const {
   PathsInChroot paths_in_chroot;
   for (auto i : tokenize_string<string_set_t>(str)) {
-    if (i.empty())
+    if (i.empty()) {
       continue;
+    }
     bool optional = false;
     if (i[i.size() - 1] == '?') {
       optional = true;
@@ -358,21 +373,23 @@ std::string base_setting_t<PathsInChroot>::to_string() const {
   std::vector<std::string> accum;
   for (auto& [name, cp] : value_) {
     std::string s = name == cp.source ? name : name + "=" + cp.source;
-    if (cp.optional)
+    if (cp.optional) {
       s += "?";
+    }
     accum.push_back(std::move(s));
   }
   return concat_strings_sep(" ", accum);
 }
 
 unsigned int MaxBuildJobsSetting::parse(const std::string& str) const {
-  if (str == "auto")
+  if (str == "auto") {
     return std::max(1U, std::thread::hardware_concurrency());
-  else {
-    if (auto n = string2_int<decltype(value_)>(str))
+  } else {
+    if (auto n = string2_int<decltype(value_)>(str)) {
       return *n;
-    else
+    } else {
       throw UsageError("configuration setting '%s' should be 'auto' or an integer", name);
+    }
   }
 }
 
@@ -393,8 +410,9 @@ std::string base_setting_t<settings_t::external_builders>::to_string() const {
 
 template <>
 void base_setting_t<PathsInChroot>::append_or_set(PathsInChroot new_value, bool append) {
-  if (!append)
+  if (!append) {
     value_.clear();
+  }
   value_.insert(std::make_move_iterator(new_value.begin()),
                 std::make_move_iterator(new_value.end()));
 }
@@ -445,13 +463,15 @@ void assert_lib_store_initialized() {
 }
 
 void init_lib_store(bool load_config) {
-  if (initLibStoreDone)
+  if (initLibStoreDone) {
     return;
+  }
 
   init_lib_util();
 
-  if (load_config)
+  if (load_config) {
     load_conf_file(global_config);
+  }
 
   preloadNSS();
 
@@ -471,8 +491,9 @@ void init_lib_store(bool load_config) {
   /* On macOS, don't use the per-session TMPDIR (as set e.g. by
      sshd). This breaks build users because they don't have access
      to the TMPDIR, in particular in ‘nix-store --serve’. */
-  if (has_prefix(default_temp_dir().string(), "/var/folders/"))
+  if (has_prefix(default_temp_dir().string(), "/var/folders/")) {
     unsetenv("TMPDIR");
+  }
 #endif
 
   initLibStoreDone = true;

@@ -43,19 +43,23 @@ struct invalid_ssh_authority_t : public Error {
  */
 static void check_valid_authority(const parsed_url_t::authority_t& authority) {
   if (const auto& user = authority.user()) {
-    if (user->empty())
+    if (user->empty()) {
       throw invalid_ssh_authority_t(authority, "user name must not be empty");
-    if (user->starts_with("-"))
+    }
+    if (user->starts_with("-")) {
       throw invalid_ssh_authority_t(authority,
                                     fmt("user name '%s' must not start with '-'", *user));
+    }
   }
 
   {
     std::string_view host = authority.host();
-    if (host.empty())
+    if (host.empty()) {
       throw invalid_ssh_authority_t(authority, "host name must not be empty");
-    if (host.starts_with("-"))
+    }
+    if (host.starts_with("-")) {
       throw invalid_ssh_authority_t(authority, fmt("host name '%s' must not start with '-'", host));
+    }
   }
 }
 
@@ -76,8 +80,9 @@ SSHMaster::SSHMaster(const parsed_url_t::authority_t& authority, std::string_vie
     : authority(authority),
       hostname_and_user([authority]() {
         std::string result;
-        if (authority.user())
+        if (authority.user()) {
           result = *authority.user() + "@";
+        }
         result += authority.host();
         return result;
       }()),
@@ -95,18 +100,21 @@ void SSHMaster::addCommonSSHOpts(strings_t& args) {
   auto sshArgs = get_nix_ssh_opts();
   args.insert(args.end(), sshArgs.begin(), sshArgs.end());
 
-  if (!keyFile.empty())
+  if (!keyFile.empty()) {
     args.insert(args.end(), {"-i", keyFile});
+  }
   if (!ssh_public_host_key.empty()) {
     std::filesystem::path file_name = tmp_dir->path() / "host-key";
     write_file(file_name.string(), authority.host() + " " + ssh_public_host_key + "\n");
     args.insert(args.end(), {"-oUserKnownHostsFile=" + file_name.string()});
   }
-  if (compress)
+  if (compress) {
     args.push_back("-C");
+  }
 
-  if (authority.port())
+  if (authority.port()) {
     args.push_back(fmt("-p%d", *authority.port()));
+  }
 
   // Disable interactive authentication to prevent hangs when SSH keys are
   // missing or not loaded in the agent. Without this, SSH would wait forever
@@ -140,8 +148,9 @@ bool SSHMaster::isMasterRunning() {
  * @throws sys_error_t if poll() fails.
  */
 static bool wait_for_data(int fd, unsigned int timeout_seconds) {
-  if (timeout_seconds == 0)
+  if (timeout_seconds == 0) {
     return true; // No timeout, assume data will be available
+  }
 
   struct pollfd pfd;
   pfd.fd = fd;
@@ -151,8 +160,9 @@ static bool wait_for_data(int fd, unsigned int timeout_seconds) {
   int ret = poll(&pfd, 1, timeout_ms);
 
   if (ret == -1) {
-    if (errno == EINTR)
+    if (errno == EINTR) {
       return wait_for_data(fd, timeout_seconds); // Retry on interrupt
+    }
     throw sys_error_t("poll() failed while waiting for SSH connection");
   }
 
@@ -167,23 +177,27 @@ static bool wait_for_data(int fd, unsigned int timeout_seconds) {
  */
 static std::optional<std::string> find_ssh_auth_sock() {
   // First, check if it's already set
-  if (auto sock = get_env("SSH_AUTH_SOCK"))
+  if (auto sock = get_env("SSH_AUTH_SOCK")) {
     return sock;
+  }
 
 #ifndef _WIN32
   // If we're not root, we can't probe other users' sockets
-  if (getuid() != 0)
+  if (getuid() != 0) {
     return std::nullopt;
+  }
 
   // Try to find the invoking user from SUDO_USER
   auto sudo_user = get_env("SUDO_USER");
-  if (!sudo_user)
+  if (!sudo_user) {
     return std::nullopt;
+  }
 
   // Get the UID of the original user
   struct passwd* pw = getpwnam(sudo_user->c_str());
-  if (!pw)
+  if (!pw) {
     return std::nullopt;
+  }
 
   uid_t uid = pw->pw_uid;
   const char* home_dir = pw->pw_dir;
@@ -234,16 +248,19 @@ static std::optional<std::string> find_ssh_auth_sock() {
   // These are created by ssh-agent and have the form /tmp/ssh-XXXXXXXXXX/agent.<pid>
   try {
     for (const auto& entry : std::filesystem::directory_iterator("/tmp")) {
-      if (!entry.is_directory())
+      if (!entry.is_directory()) {
         continue;
+      }
       auto name = entry.path().filename().string();
-      if (!name.starts_with("ssh-"))
+      if (!name.starts_with("ssh-")) {
         continue;
+      }
 
       for (const auto& sock_entry : std::filesystem::directory_iterator(entry.path())) {
         auto sock_name = sock_entry.path().filename().string();
-        if (!sock_name.starts_with("agent."))
+        if (!sock_name.starts_with("agent.")) {
           continue;
+        }
 
         struct stat st;
         if (stat(sock_entry.path().c_str(), &st) == 0 && S_ISSOCK(st.st_mode)) {
@@ -342,24 +359,29 @@ std::unique_ptr<SSHMaster::Connection> SSHMaster::startCommand(strings_t&& comma
         close(out.read_side.get());
         close(err.read_side.get());
 
-        if (dup2(in.read_side.get(), STDIN_FILENO) == -1)
+        if (dup2(in.read_side.get(), STDIN_FILENO) == -1) {
           throw sys_error_t("duping over stdin");
-        if (dup2(out.write_side.get(), STDOUT_FILENO) == -1)
+        }
+        if (dup2(out.write_side.get(), STDOUT_FILENO) == -1) {
           throw sys_error_t("duping over stdout");
-        if (logFD != INVALID_DESCRIPTOR && dup2(logFD, STDERR_FILENO) == -1)
+        }
+        if (logFD != INVALID_DESCRIPTOR && dup2(logFD, STDERR_FILENO) == -1) {
           throw sys_error_t("duping over stderr");
-        else if (logFD == INVALID_DESCRIPTOR && dup2(err.write_side.get(), STDERR_FILENO) == -1)
+        } else if (logFD == INVALID_DESCRIPTOR && dup2(err.write_side.get(), STDERR_FILENO) == -1) {
           throw sys_error_t("duping over stderr");
+        }
 
         strings_t args;
 
         if (!fakeSSH) {
           args = {"ssh", hostname_and_user.c_str(), "-x"};
           addCommonSSHOpts(args);
-          if (socket_path != "")
+          if (socket_path != "") {
             args.insert(args.end(), {"-S", socket_path});
-          if (verbosity >= lvl_chatty)
+          }
+          if (verbosity >= lvl_chatty) {
             args.push_back("-v");
+          }
           args.splice(args.end(), std::move(extraSshArgs));
           args.push_back("--");
         }
@@ -409,9 +431,10 @@ std::unique_ptr<SSHMaster::Connection> SSHMaster::startCommand(strings_t&& comma
         childStderr = drain_fd(err.read_side.get(), false);
       } catch (...) {
       }
-      if (!childStderr.empty())
+      if (!childStderr.empty()) {
         throw Error("failed to start SSH connection to '%s': %s", authority.host(),
                     chomp(childStderr));
+      }
       throw Error("failed to start SSH connection to '%s'", authority.host());
     }
 
@@ -432,8 +455,9 @@ std::unique_ptr<SSHMaster::Connection> SSHMaster::startCommand(strings_t&& comma
 #ifndef _WIN32 // TODO re-enable on Windows, once we can start processes.
 
 void SSHMaster::ensureMaster() {
-  if (!useMaster)
+  if (!useMaster) {
     return;
+  }
 
   // Start the master connection eagerly. This is called before the connection
   // pool starts creating connections to avoid deadlocks where multiple threads
@@ -442,8 +466,9 @@ void SSHMaster::ensureMaster() {
 }
 
 Path SSHMaster::startMaster() {
-  if (!useMaster)
+  if (!useMaster) {
     return "";
+  }
 
   Path socket_path;
   process_handle_t sshMaster = INVALID_DESCRIPTOR;
@@ -452,8 +477,9 @@ Path SSHMaster::startMaster() {
     auto state(state_.lock());
 
     // If master is already running, return immediately
-    if (state->sshMaster != INVALID_DESCRIPTOR)
+    if (state->sshMaster != INVALID_DESCRIPTOR) {
       return state->socket_path;
+    }
 
     // If another thread is starting the master, wait for it to complete.
     // This prevents the deadlock in issue #14615 where multiple threads
@@ -461,8 +487,9 @@ Path SSHMaster::startMaster() {
     while (state->starting) {
       state.wait(state_cv_);
       // After waking up, check if master is now running
-      if (state->sshMaster != INVALID_DESCRIPTOR)
+      if (state->sshMaster != INVALID_DESCRIPTOR) {
         return state->socket_path;
+      }
     }
 
     // Mark that we're starting the master (prevents other threads from also trying)
@@ -505,14 +532,17 @@ Path SSHMaster::startMaster() {
         close(out.read_side.get());
         close(err.read_side.get());
 
-        if (dup2(out.write_side.get(), STDOUT_FILENO) == -1)
+        if (dup2(out.write_side.get(), STDOUT_FILENO) == -1) {
           throw sys_error_t("duping over stdout");
-        if (dup2(err.write_side.get(), STDERR_FILENO) == -1)
+        }
+        if (dup2(err.write_side.get(), STDERR_FILENO) == -1) {
           throw sys_error_t("duping over stderr");
+        }
 
         strings_t args = {"ssh", hostname_and_user.c_str(), "-M", "-N", "-S", socket_path};
-        if (verbosity >= lvl_chatty)
+        if (verbosity >= lvl_chatty) {
           args.push_back("-v");
+        }
         addCommonSSHOpts(args);
         auto env = create_ssh_env();
         nix::execvpe(args.begin()->c_str(), strings_to_char_ptrs(args).data(),
@@ -557,9 +587,10 @@ Path SSHMaster::startMaster() {
       childStderr = drain_fd(err.read_side.get(), false);
     } catch (...) {
     }
-    if (!childStderr.empty())
+    if (!childStderr.empty()) {
       throw Error("failed to start SSH master connection to '%s': %s", authority.host(),
                   chomp(childStderr));
+    }
     throw Error("failed to start SSH master connection to '%s'", authority.host());
   }
 

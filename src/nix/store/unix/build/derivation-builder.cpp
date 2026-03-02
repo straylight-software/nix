@@ -411,12 +411,14 @@ void handle_diff_hook(uid_t uid, uid_t gid, const Path& try_a, const Path& try_b
                                                 .uid = uid,
                                                 .gid = gid,
                                                 .chdir = "/"});
-      if (!status_ok(diff_res.first))
+      if (!status_ok(diff_res.first)) {
         throw exec_error_t(diff_res.first, "diff-hook program '%1%' %2%", diff_hook,
                            status_to_string(diff_res.first));
+      }
 
-      if (diff_res.second != "")
+      if (diff_res.second != "") {
         printError(chomp(diff_res.second));
+      }
     } catch (Error& error) {
       error_info_t ei = error.info();
       // FIXME: wrap errors.
@@ -554,8 +556,9 @@ SingleDrvOutputs derivation_builder_impl_t::unprepare_build() {
 }
 
 static void chmod_(const Path& path, mode_t mode) {
-  if (chmod(path.c_str(), mode) == -1)
+  if (chmod(path.c_str(), mode) == -1) {
     throw sys_error_t("setting permissions on '%s'", path);
+  }
 }
 
 /* Move/rename path 'src' to 'dst'. Temporarily make 'src' writable if
@@ -566,13 +569,15 @@ static void move_path(const Path& src, const Path& dst) {
 
   bool change_perm = (geteuid() && S_ISDIR(st.st_mode) && !(st.st_mode & S_IWUSR));
 
-  if (change_perm)
+  if (change_perm) {
     chmod_(src, st.st_mode | S_IWUSR);
+  }
 
   std::filesystem::rename(src, dst);
 
-  if (change_perm)
+  if (change_perm) {
     chmod_(dst, st.st_mode);
+  }
 }
 
 static void replace_valid_path(const Path& store_path, const Path& tmp_path) {
@@ -598,15 +603,17 @@ static void replace_valid_path(const Path& store_path, const Path& tmp_path) {
   } catch (...) {
     try {
       // attempt to recover
-      if (!old_path.empty())
+      if (!old_path.empty()) {
         move_path(old_path, store_path);
+      }
     } catch (...) {
       ignore_exception_except_interrupt();
     }
     throw;
   }
-  if (!old_path.empty())
+  if (!old_path.empty()) {
     delete_path(old_path);
+  }
 }
 
 bool derivation_builder_impl_t::decide_whether_disk_full() {
@@ -622,10 +629,12 @@ bool derivation_builder_impl_t::decide_whether_disk_full() {
     uint64_t required = 8ULL * 1024 * 1024; // FIXME: make configurable
     struct statvfs st;
     if (statvfs(store.config->real_store_dir.get().c_str(), &st) == 0 &&
-        (uint64_t)st.f_bavail * st.f_bsize < required)
+        (uint64_t)st.f_bavail * st.f_bsize < required) {
       disk_full = true;
-    if (statvfs(tmp_dir.c_str(), &st) == 0 && (uint64_t)st.f_bavail * st.f_bsize < required)
+    }
+    if (statvfs(tmp_dir.c_str(), &st) == 0 && (uint64_t)st.f_bavail * st.f_bsize < required) {
       disk_full = true;
+    }
   }
 #endif
 
@@ -660,18 +669,21 @@ static void handle_child_exception(bool send_exception) {
       fd_sink_t sink(STDERR_FILENO);
       sink << e;
       sink.flush();
-    } else
+    } else {
       std::cerr << e.msg();
+    }
   }
 }
 
 static void check_not_world_writable(std::filesystem::path path) {
   while (true) {
     auto st = lstat(path);
-    if (st.st_mode & S_IWOTH)
+    if (st.st_mode & S_IWOTH) {
       throw Error("Path %s is world-writable or a symlink. That's not allowed for security.", path);
-    if (path == path.parent_path())
+    }
+    if (path == path.parent_path()) {
       break;
+    }
     path = path.parent_path();
   }
   return;
@@ -679,11 +691,13 @@ static void check_not_world_writable(std::filesystem::path path) {
 
 std::optional<descriptor_t> derivation_builder_impl_t::start_build() {
   if (use_build_users()) {
-    if (!buildUser)
+    if (!buildUser) {
       buildUser = get_build_user();
+    }
 
-    if (!buildUser)
+    if (!buildUser) {
       return std::nullopt;
+    }
   }
 
   /* Make sure that no other processes are executing under the
@@ -695,8 +709,9 @@ std::optional<descriptor_t> derivation_builder_impl_t::start_build() {
 
   create_dirs(build_dir);
 
-  if (buildUser)
+  if (buildUser) {
     check_not_world_writable(build_dir);
+  }
 
   /* Create a temporary directory where the build will take
      place. */
@@ -707,8 +722,9 @@ std::optional<descriptor_t> derivation_builder_impl_t::start_build() {
   /* The TOCTOU between the previous mkdir call and this open call is unavoidable due to
      POSIX semantics.*/
   tmpDirFd = auto_close_fd_t{open(tmp_dir.c_str(), O_RDONLY | O_NOFOLLOW | O_DIRECTORY)};
-  if (!tmpDirFd)
+  if (!tmpDirFd) {
     throw sys_error_t("failed to open the build temporary directory descriptor '%1%'", tmp_dir);
+  }
 
   chown_to_builder(tmpDirFd.get(), tmp_dir);
 
@@ -745,14 +761,16 @@ std::optional<descriptor_t> derivation_builder_impl_t::start_build() {
     input_rewrites[hash_placeholder(output_name)] = store.printStorePath(scratchPath);
 
     /* Additional tasks if we know the final path a priori. */
-    if (!status.known)
+    if (!status.known) {
       continue;
+    }
     auto fixedFinalPath = status.known->path;
 
     /* Additional tasks if the final and scratch are both known and
        differ. */
-    if (fixedFinalPath == scratchPath)
+    if (fixedFinalPath == scratchPath) {
       continue;
+    }
 
     /* Ensure scratch path is ours to use. */
     delete_path(store.printStorePath(scratchPath));
@@ -772,48 +790,56 @@ std::optional<descriptor_t> derivation_builder_impl_t::start_build() {
 
   prepare_sandbox();
 
-  if (needs_hash_rewrite() && path_exists(home_dir))
+  if (needs_hash_rewrite() && path_exists(home_dir)) {
     throw Error("home directory '%1%' exists; please remove it to assure purity of builds without "
                 "sandboxing",
                 home_dir);
+  }
 
   /* Fire up a Nix daemon to process recursive Nix calls from the
      builder. */
-  if (drv_options.getRequiredSystemFeatures(drv).count("recursive-nix"))
+  if (drv_options.getRequiredSystemFeatures(drv).count("recursive-nix")) {
     start_daemon();
+  }
 
   /* Run the builder. */
   printMsg(lvl_chatty, "executing builder '%1%'", drv.builder);
   printMsg(lvl_chatty, "using builder args '%1%'", concat_strings_sep(" ", drv.args));
-  for (auto& i : drv.env)
+  for (auto& i : drv.env) {
     printMsg(lvl_vomit, "setting builder env variable '%1%'='%2%'", i.first, i.second);
+  }
 
   /* Create the log file. */
   misc_methods->openLogFile();
 
   /* Create a pseudoterminal to get the output of the builder. */
   builder_out = posix_openpt(O_RDWR | O_NOCTTY);
-  if (!builder_out)
+  if (!builder_out) {
     throw sys_error_t("opening pseudoterminal master");
+  }
 
   std::string slave_name = get_pts_name(builder_out.get());
 
   if (buildUser) {
-    if (chmod(slave_name.c_str(), 0600))
+    if (chmod(slave_name.c_str(), 0600)) {
       throw sys_error_t("changing mode of pseudoterminal slave");
+    }
 
-    if (chown(slave_name.c_str(), buildUser->getUID(), 0))
+    if (chown(slave_name.c_str(), buildUser->getUID(), 0)) {
       throw sys_error_t("changing owner of pseudoterminal slave");
+    }
   }
 #ifdef __APPLE__
   else {
-    if (grantpt(builder_out.get()))
+    if (grantpt(builder_out.get())) {
       throw sys_error_t("granting access to pseudoterminal slave");
+    }
   }
 #endif
 
-  if (unlockpt(builder_out.get()))
+  if (unlockpt(builder_out.get())) {
     throw sys_error_t("unlocking pseudoterminal");
+  }
 
   buildResult.start_time = time(0);
 
@@ -835,8 +861,9 @@ std::optional<descriptor_t> derivation_builder_impl_t::start_build() {
   });
 
   /* Make the build visible to `nix ps`. */
-  if (auto tracker = dynamic_cast<TrackActiveBuildsStore*>(&store))
+  if (auto tracker = dynamic_cast<TrackActiveBuildsStore*>(&store)) {
     activeBuildHandle.emplace(tracker->buildStarted(get_active_build()));
+  }
 
   process_sandbox_setup_messages();
 
@@ -860,11 +887,13 @@ PathsInChroot derivation_builder_impl_t::get_paths_in_sandbox() {
      host file system. */
   PathsInChroot paths_in_chroot = defaultPathsInChroot;
 
-  for (auto& p : paths_in_chroot)
-    if (!p.second.optional && !maybe_lstat(p.second.source))
+  for (auto& p : paths_in_chroot) {
+    if (!p.second.optional && !maybe_lstat(p.second.source)) {
       throw sys_error_t(
           "path '%s' is configured as part of the `sandbox-paths` option, but is inaccessible",
           p.second.source);
+    }
+  }
 
   if (has_prefix(store.store_dir, tmp_dir_in_sandbox())) {
     throw Error("`sandbox-build-dir` must not contain the storeDir");
@@ -891,10 +920,11 @@ PathsInChroot derivation_builder_impl_t::get_paths_in_sandbox() {
         break;
       }
     }
-    if (!found)
+    if (!found) {
       throw Error(
           "derivation '%s' requested impure path '%s', but it was not in allowed-impure-host-deps",
           store.printStorePath(drv_path), i);
+    }
 
     /* Allow files in drv_options.impureHostDeps to be missing; e.g.
        macOS 11+ has no /usr/lib/libSystem*.dylib */
@@ -924,10 +954,11 @@ PathsInChroot derivation_builder_impl_t::get_paths_in_sandbox() {
           state = st_begin;
         } else {
           auto p = line.find('=');
-          if (p == std::string::npos)
+          if (p == std::string::npos) {
             paths_in_chroot[line] = {.source = line};
-          else
+          } else {
             paths_in_chroot[line.substr(0, p)] = {.source = line.substr(p + 1)};
+          }
         }
       }
     }
@@ -937,29 +968,34 @@ PathsInChroot derivation_builder_impl_t::get_paths_in_sandbox() {
 }
 
 void derivation_builder_impl_t::prepare_sandbox() {
-  if (drv_options.useUidRange(drv))
+  if (drv_options.useUidRange(drv)) {
     throw Error("feature 'uid-range' is not supported on this platform");
+  }
 }
 
 void derivation_builder_impl_t::open_slave() {
   std::string slave_name = get_pts_name(builder_out.get());
 
   auto_close_fd_t builder_out = open(slave_name.c_str(), O_RDWR | O_NOCTTY);
-  if (!builder_out)
+  if (!builder_out) {
     throw sys_error_t("opening pseudoterminal slave");
+  }
 
   // Put the pt into raw mode to prevent \n -> \r\n translation.
   struct termios term;
-  if (tcgetattr(builder_out.get(), &term))
+  if (tcgetattr(builder_out.get(), &term)) {
     throw sys_error_t("getting pseudoterminal attributes");
+  }
 
   cfmakeraw(&term);
 
-  if (tcsetattr(builder_out.get(), TCSANOW, &term))
+  if (tcsetattr(builder_out.get(), TCSANOW, &term)) {
     throw sys_error_t("putting pseudoterminal into raw mode");
+  }
 
-  if (dup2(builder_out.get(), STDERR_FILENO) == -1)
+  if (dup2(builder_out.get(), STDERR_FILENO) == -1) {
     throw sys_error_t("cannot pipe standard error into log file");
+  }
 }
 
 #if NIX_WITH_AWS_AUTH
@@ -1016,8 +1052,9 @@ void derivation_builder_impl_t::process_sandbox_setup_messages() {
         throw;
       }
     }();
-    if (msg.substr(0, 1) == "\2")
+    if (msg.substr(0, 1) == "\2") {
       break;
+    }
     if (msg.substr(0, 1) == "\1") {
       fd_source_t source(builder_out.get());
       auto ex = read_error(source);
@@ -1084,8 +1121,9 @@ void derivation_builder_impl_t::init_env() {
      derivation, tell the builder, so that for instance `fetchurl'
      can skip checking the output.  On older Nixes, this environment
      variable won't be set, so `fetchurl' will do the check. */
-  if (derivation_type.isFixed())
+  if (derivation_type.isFixed()) {
     env["NIX_OUTPUT_CHECKED"] = "1";
+  }
 
   /* *Only* if this is a fixed-output derivation, propagate the
      values of the environment variables specified in the
@@ -1098,8 +1136,9 @@ void derivation_builder_impl_t::init_env() {
      already know the cryptographic hash of the output). */
   if (!derivation_type.isSandboxed()) {
     auto& impure_env = settings.impure_env.get();
-    if (!impure_env.empty())
+    if (!impure_env.empty()) {
       experimental_feature_settings.require(xp_t::configurable_impure_env);
+    }
 
     for (auto& i : drv_options.impureEnvVars) {
       auto env_var = impure_env.find(i);
@@ -1153,10 +1192,12 @@ void derivation_builder_impl_t::start_daemon() {
       auto_close_fd_t remote =
           accept(daemonSocket.get(), (struct sockaddr*)&remoteAddr, &remoteAddrLen);
       if (!remote) {
-        if (errno == EINTR || errno == EAGAIN)
+        if (errno == EINTR || errno == EAGAIN) {
           continue;
-        if (errno == EINVAL || errno == ECONNABORTED)
+        }
+        if (errno == EINVAL || errno == ECONNABORTED) {
           break;
+        }
         throw sys_error_t("accepting connection");
       }
 
@@ -1201,13 +1242,15 @@ void derivation_builder_impl_t::stop_daemon() {
     }
   }
 
-  if (daemonThread.joinable())
+  if (daemonThread.joinable()) {
     daemonThread.join();
+  }
 
   // FIXME: should prune worker threads more quickly.
   // FIXME: shutdown the client socket to speed up worker termination.
-  for (auto& thread : daemonWorkerThreads)
+  for (auto& thread : daemonWorkerThreads) {
     thread.join();
+  }
   daemonWorkerThreads.clear();
 
   // release the socket.
@@ -1219,17 +1262,21 @@ void derivation_builder_impl_t::add_dependency_impl(const store_path_t& path) {
 }
 
 void derivation_builder_impl_t::chown_to_builder(const Path& path) {
-  if (!buildUser)
+  if (!buildUser) {
     return;
-  if (chown(path.c_str(), buildUser->getUID(), buildUser->getGID()) == -1)
+  }
+  if (chown(path.c_str(), buildUser->getUID(), buildUser->getGID()) == -1) {
     throw sys_error_t("cannot change ownership of '%1%'", path);
+  }
 }
 
 void derivation_builder_impl_t::chown_to_builder(int fd, const Path& path) {
-  if (!buildUser)
+  if (!buildUser) {
     return;
-  if (fchown(fd, buildUser->getUID(), buildUser->getGID()) == -1)
+  }
+  if (fchown(fd, buildUser->getUID(), buildUser->getGID()) == -1) {
     throw sys_error_t("cannot change ownership of file '%1%'", path);
+  }
 }
 
 void derivation_builder_impl_t::write_builder_file(const std::string& name,
@@ -1237,8 +1284,9 @@ void derivation_builder_impl_t::write_builder_file(const std::string& name,
   auto path = std::filesystem::path(tmp_dir) / name;
   auto_close_fd_t fd{openat(tmpDirFd.get(), name.c_str(),
                             O_WRONLY | O_TRUNC | O_CREAT | O_CLOEXEC | O_EXCL | O_NOFOLLOW, 0666)};
-  if (!fd)
+  if (!fd) {
     throw sys_error_t("creating file %s", path);
+  }
   write_file(fd, path, contents);
   chown_to_builder(fd.get(), path);
 }
@@ -1278,8 +1326,9 @@ void derivation_builder_impl_t::run_child(run_child_args_t args) {
 
     enter_chroot();
 
-    if (chdir(tmp_dir_in_sandbox().c_str()) == -1)
+    if (chdir(tmp_dir_in_sandbox().c_str()) == -1) {
       throw sys_error_t("changing into '%1%'", tmp_dir);
+    }
 
     /* Close all other file descriptors. */
     unix::close_extra_f_ds();
@@ -1302,15 +1351,17 @@ void derivation_builder_impl_t::run_child(run_child_args_t args) {
       try {
         logger = make_json_logger(get_standard_error());
 
-        for (auto& e : drv.outputs)
+        for (auto& e : drv.outputs) {
           ctx.outputs.insert_or_assign(e.first, store.printStorePath(scratchOutputs.at(e.first)));
+        }
 
         std::string builtin_name = drv.builder.substr(8);
         assert(RegisterBuiltinBuilder::builtinBuilders);
-        if (auto builtin = get(RegisterBuiltinBuilder::builtinBuilders(), builtin_name))
+        if (auto builtin = get(RegisterBuiltinBuilder::builtinBuilders(), builtin_name)) {
           (*builtin)(ctx);
-        else
+        } else {
           throw Error("unsupported builtin builder '%1%'", builtin_name);
+        }
         _exit(0);
       } catch (std::exception& e) {
         write_full(STDERR_FILENO, e.what() + std::string("\n"));
@@ -1323,12 +1374,14 @@ void derivation_builder_impl_t::run_child(run_child_args_t args) {
     strings_t args;
     args.push_back(std::string(base_name_of(drv.builder)));
 
-    for (auto& i : drv.args)
+    for (auto& i : drv.args) {
       args.push_back(rewrite_strings(i, input_rewrites));
+    }
 
     strings_t env_strs;
-    for (auto& i : env)
+    for (auto& i : env) {
       env_strs.push_back(rewrite_strings(i.first + "=" + i.second, input_rewrites));
+    }
 
     exec_builder(args, env_strs);
 
@@ -1351,16 +1404,19 @@ void derivation_builder_impl_t::set_user() {
     /* Preserve supplementary groups of the build user, to allow
        admins to specify groups such as "kvm".  */
     auto gids = buildUser->getSupplementaryGIDs();
-    if (setgroups(gids.size(), gids.data()) == -1)
+    if (setgroups(gids.size(), gids.data()) == -1) {
       throw sys_error_t("cannot set supplementary groups of build user");
+    }
 
     if (setgid(buildUser->getGID()) == -1 || getgid() != buildUser->getGID() ||
-        getegid() != buildUser->getGID())
+        getegid() != buildUser->getGID()) {
       throw sys_error_t("setgid failed");
+    }
 
     if (setuid(buildUser->getUID()) == -1 || getuid() != buildUser->getUID() ||
-        geteuid() != buildUser->getUID())
+        geteuid() != buildUser->getUID()) {
       throw sys_error_t("setuid failed");
+    }
   }
 }
 
@@ -1381,12 +1437,15 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
      output paths, and any paths that have been built via recursive
      Nix calls. */
   store_path_set_t referenceable_paths;
-  for (auto& p : inputPaths)
+  for (auto& p : inputPaths) {
     referenceable_paths.insert(p);
-  for (auto& i : scratchOutputs)
+  }
+  for (auto& i : scratchOutputs) {
     referenceable_paths.insert(i.second);
-  for (auto& p : addedPaths)
+  }
+  for (auto& p : addedPaths) {
     referenceable_paths.insert(p);
+  }
 
   /* Check whether the output paths were created, and make all
      output paths read-only.  Then get the references of each output (that we
@@ -1410,8 +1469,9 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
 
   /* inverse map of scratchOutputs for efficient lookup */
   std::map<store_path_t, std::string> scratchOutputsInverse;
-  for (auto& [output_name, path] : scratchOutputs)
+  for (auto& [output_name, path] : scratchOutputs) {
     scratchOutputsInverse.insert_or_assign(path, output_name);
+  }
 
   std::map<std::string, std::variant<already_registered_t, perhaps_need_to_register_t>>
       outputReferencesIfUnregistered;
@@ -1437,10 +1497,11 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
     }
 
     auto optSt = maybe_lstat(actualPath.c_str());
-    if (!optSt)
+    if (!optSt) {
       throw build_error_t(build_result_t::Failure::OutputRejected,
                           "builder for '%s' failed to produce output path for output '%s' at '%s'",
                           store.printStorePath(drv_path), output_name, actualPath);
+    }
     struct stat& st = *optSt;
 
 #ifndef __CYGWIN__
@@ -1449,11 +1510,12 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
        build.  Also, the output should be owned by the build
        user. */
     if ((!S_ISLNK(st.st_mode) && (st.st_mode & (S_IWGRP | S_IWOTH))) ||
-        (buildUser && st.st_uid != buildUser->getUID()))
+        (buildUser && st.st_uid != buildUser->getUID())) {
       throw build_error_t(
           build_result_t::Failure::OutputRejected,
           "suspicious ownership or permission on '%s' for output '%s'; rejecting this build output",
           actualPath, output_name);
+    }
 #endif
 
     /* Canonicalise first.  This ensures that the path we're
@@ -1469,9 +1531,9 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
     }
 
     store_path_set_t references;
-    if (discardReferences)
+    if (discardReferences) {
       debug("discarding references of output '%s'", output_name);
-    else {
+    } else {
       debug("scanning for references for output '%s' in temp location '%s'", output_name,
             actualPath);
 
@@ -1481,9 +1543,11 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
     }
 
     string_set_t referencedOutputs;
-    for (auto& r : references)
-      if (auto* o = get(scratchOutputsInverse, r))
+    for (auto& r : references) {
+      if (auto* o = get(scratchOutputsInverse, r)) {
         referencedOutputs.insert(*o);
+      }
+    }
 
     outputReferencesIfUnregistered.insert_or_assign(output_name,
                                                     perhaps_need_to_register_t{
@@ -1498,10 +1562,11 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
   auto topo_sort_result =
       topoSort(outputs_to_sort, [&](const std::string& name) -> const string_set_t& {
         auto* orifu = get(outputReferencesIfUnregistered, name);
-        if (!orifu)
+        if (!orifu) {
           throw build_error_t(build_result_t::Failure::OutputRejected,
                               "no output reference for '%s' in build of '%s'", name,
                               store.printStorePath(drv_path));
+        }
         return std::visit(
             overloaded{
                 /* Since we'll use the already installed versions of these, we
@@ -1543,9 +1608,10 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
       /* The rewrite rule will be used in downstream outputs that refer to
          use. This is why the topological sort is essential to do first
          before this for loop. */
-      if (*scratchPath != finalStorePath)
+      if (*scratchPath != finalStorePath) {
         outputRewrites[std::string{scratchPath->hash_part()}] =
             std::string{finalStorePath.hash_part()};
+      }
     };
 
     auto orifu = get(outputReferencesIfUnregistered, output_name);
@@ -1563,8 +1629,9 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
         },
         *orifu);
 
-    if (!referencesOpt)
+    if (!referencesOpt) {
       continue;
+    }
     auto references = *referencesOpt;
 
     auto rewriteOutput = [&](const string_map_t& rewrites) {
@@ -1696,17 +1763,19 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
     auto newInfoFromCA =
         [&](const derivation_output_t::CAFloating outputHash) -> valid_path_info_t {
       auto st = get(outputStats, output_name);
-      if (!st)
+      if (!st) {
         throw build_error_t(build_result_t::Failure::OutputRejected,
                             "output path %1% without valid stats info", actualPath);
+      }
       if (outputHash.method.getFileIngestionMethod() == file_ingestion_method_t::flat) {
         /* The output path should be a regular file without execute permission. */
-        if (!S_ISREG(st->st_mode) || (st->st_mode & S_IXUSR) != 0)
+        if (!S_ISREG(st->st_mode) || (st->st_mode & S_IXUSR) != 0) {
           throw build_error_t(
               build_result_t::Failure::OutputRejected,
               "output path '%1%' should be a non-executable regular file "
               "since recursive hashing is not enabled (one of outputHashMode={flat,text} is true)",
               actualPath);
+        }
       }
       rewriteOutput(outputRewrites);
       /* FIXME optimize and deduplicate with add_to_store */
@@ -1764,9 +1833,10 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
               auto requiredFinalPath = output.path;
               /* Preemptively add rewrite rule for final hash, as that is
                  what the NAR hash will use rather than normalized-self references */
-              if (*scratchPath != requiredFinalPath)
+              if (*scratchPath != requiredFinalPath) {
                 outputRewrites.insert_or_assign(std::string{scratchPath->hash_part()},
                                                 std::string{requiredFinalPath.hash_part()});
+              }
               rewriteOutput(outputRewrites);
               hash_result_t narHashAndSize =
                   hash_path({get_fs_source_accessor(), canon_path_t(actualPath)},
@@ -1775,8 +1845,9 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
               newInfo0.nar_size = narHashAndSize.num_bytes_digested;
               auto refs = rewriteRefs();
               newInfo0.references = std::move(refs.others);
-              if (refs.self)
+              if (refs.self) {
                 newInfo0.references.insert(newInfo0.path);
+              }
               return newInfo0;
             },
 
@@ -1879,10 +1950,11 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
             throw not_deterministic_t(
                 "derivation '%s' may not be deterministic: output '%s' differs from '%s'",
                 store.printStorePath(drv_path), store.toRealPath(finalDestPath), dst);
-          } else
+          } else {
             throw not_deterministic_t(
                 "derivation '%s' may not be deterministic: output '%s' differs",
                 store.printStorePath(drv_path), store.toRealPath(finalDestPath));
+          }
         }
 
         /* Since we verified the build, it's now ultimately trusted. */
@@ -1897,15 +1969,17 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
 
       /* For debugging, print out the referenced and unreferenced paths. */
       for (auto& i : inputPaths) {
-        if (references.count(i))
+        if (references.count(i)) {
           debug("referenced input: '%1%'", store.printStorePath(i));
-        else
+        } else {
           debug("unreferenced input: '%1%'", store.printStorePath(i));
+        }
       }
 
-      if (!store.isValidPath(newInfo.path))
+      if (!store.isValidPath(newInfo.path)) {
         store.optimisePath(store.toRealPath(finalDestPath),
                            NoRepair); // FIXME: combine with scanForReferences()
+      }
 
       newInfo.deriver = drv_path;
       newInfo.ultimate = true;
@@ -1923,8 +1997,9 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
          just changing the wanted hash, the redownload (or whateer
          possibly quite slow thing it was) doesn't have to be done
          again. */
-      if (newInfo.ca)
+      if (newInfo.ca) {
         store.registerValidPaths({{newInfo.path, newInfo}});
+      }
     }
 
     /* Do this in both the check and non-check cases, because we
@@ -1981,8 +2056,9 @@ SingleDrvOutputs derivation_builder_impl_t::register_outputs() {
 void derivation_builder_impl_t::cleanup_build(bool force) {
   if (force) {
     /* Delete unused redirected outputs (when doing hash rewriting). */
-    for (auto& i : redirectedOutputs)
+    for (auto& i : redirectedOutputs) {
       delete_path(store.toRealPath(i.second));
+    }
   }
 
   if (topTmpDir != "") {
@@ -2001,8 +2077,9 @@ void derivation_builder_impl_t::cleanup_build(bool force) {
       printError("note: keeping build directory '%s'", tmp_dir);
       chmod(topTmpDir.c_str(), 0755);
       chmod(tmp_dir.c_str(), 0755);
-    } else
+    } else {
       delete_path(topTmpDir);
+    }
     topTmpDir = "";
     tmp_dir = "";
   }
@@ -2050,27 +2127,31 @@ make_derivation_builder(LocalStore& store, std::unique_ptr<DerivationBuilderCall
   /* Are we doing a sandboxed build? */
   {
     if (settings.sandboxMode == smEnabled) {
-      if (params.drv_options.noChroot)
+      if (params.drv_options.noChroot) {
         throw Error("derivation '%s' has '__noChroot' set, "
                     "but that's not allowed when 'sandbox' is 'true'",
                     store.printStorePath(params.drv_path));
+      }
 #ifdef __APPLE__
-      if (params.drv_options.additionalSandboxProfile != "")
+      if (params.drv_options.additionalSandboxProfile != "") {
         throw Error("derivation '%s' specifies a sandbox profile, "
                     "but this is only allowed when 'sandbox' is 'relaxed'",
                     store.printStorePath(params.drv_path));
+      }
 #endif
       useSandbox = true;
-    } else if (settings.sandboxMode == smDisabled)
+    } else if (settings.sandboxMode == smDisabled) {
       useSandbox = false;
-    else if (settings.sandboxMode == smRelaxed)
+    } else if (settings.sandboxMode == smRelaxed) {
       // FIXME: cache derivationType
       useSandbox = params.drv.type().isSandboxed() && !params.drv_options.noChroot;
+    }
   }
 
-  if (params.drv.platform == "wasm32-wasip1")
+  if (params.drv.platform == "wasm32-wasip1") {
     return std::make_unique<wasi_derivation_builder_t>(store, std::move(misc_methods),
                                                        std::move(params));
+  }
 
   if (store.store_dir != store.config->real_store_dir.get()) {
 #ifdef __linux__
@@ -2082,31 +2163,35 @@ make_derivation_builder(LocalStore& store, std::unique_ptr<DerivationBuilderCall
 
 #ifdef __linux__
   if (useSandbox && !mount_and_pid_namespaces_supported()) {
-    if (!settings.sandboxFallback)
+    if (!settings.sandboxFallback) {
       throw Error("this system does not support the kernel namespaces that are required for "
                   "sandboxing; use '--no-sandbox' to disable sandboxing");
+    }
     debug("auto-disabling sandboxing because the prerequisite namespaces are not available");
     useSandbox = false;
   }
 
 #endif
 
-  if (!useSandbox && params.drv_options.useUidRange(params.drv))
+  if (!useSandbox && params.drv_options.useUidRange(params.drv)) {
     throw Error("feature 'uid-range' is only supported in sandboxed builds");
+  }
 
 #ifdef __APPLE__
   return std::make_unique<DarwinDerivationBuilder>(store, std::move(misc_methods),
                                                    std::move(params), useSandbox);
 #elif defined(__linux__)
-  if (useSandbox)
+  if (useSandbox) {
     return std::make_unique<chroot_linux_derivation_builder_t>(store, std::move(misc_methods),
                                                                std::move(params));
+  }
 
   return std::make_unique<linux_derivation_builder_t>(store, std::move(misc_methods),
                                                       std::move(params));
 #else
-  if (useSandbox)
+  if (useSandbox) {
     throw Error("sandboxing builds is not supported on this platform");
+  }
 
   return std::make_unique<derivation_builder_impl_t>(store, std::move(misc_methods),
                                                      std::move(params));

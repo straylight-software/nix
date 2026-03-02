@@ -108,9 +108,9 @@ WorkerProto::Serialise<std::optional<TrustedFlag>>::read(const store_dir_config_
 void WorkerProto::Serialise<std::optional<TrustedFlag>>::write(
     const store_dir_config_t& store, WorkerProto::WriteConn conn,
     const std::optional<TrustedFlag>& optTrusted) {
-  if (!optTrusted)
+  if (!optTrusted) {
     conn.to << uint8_t{0};
-  else {
+  } else {
     switch (*optTrusted) {
       case Trusted:
         conn.to << uint8_t{1};
@@ -223,8 +223,9 @@ build_result_t WorkerProto::Serialise<build_result_t>::read(const store_dir_conf
   }
   if (GET_PROTOCOL_MINOR(conn.version) >= 28) {
     auto built_outputs = WorkerProto::Serialise<DrvOutputs>::read(store, conn);
-    for (auto&& [output, realisation] : built_outputs)
+    for (auto&& [output, realisation] : built_outputs) {
       success.built_outputs.insert_or_assign(std::move(output.output_name), std::move(realisation));
+    }
   }
 
   if (build_result_t::Success::statusIs(rawStatus)) {
@@ -257,8 +258,9 @@ void WorkerProto::Serialise<build_result_t>::write(const store_dir_config_t& sto
     }
     if (GET_PROTOCOL_MINOR(conn.version) >= 28) {
       DrvOutputs builtOutputsFullKey;
-      for (auto& [output, realisation] : built_outputs)
+      for (auto& [output, realisation] : built_outputs) {
         builtOutputsFullKey.insert_or_assign(realisation.id, realisation);
+      }
       WorkerProto::write(store, conn, builtOutputsFullKey);
     }
   };

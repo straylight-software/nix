@@ -30,9 +30,10 @@ GENERATE_CMP_EXT(, std::weak_ordering, UnkeyedValidPathInfo, me->store_dir, me->
                  me->ultimate, me->sigs, me->ca);
 
 std::string valid_path_info_t::fingerprint(const store_dir_config_t& store) const {
-  if (nar_size == 0)
+  if (nar_size == 0) {
     throw Error("cannot calculate fingerprint of path '%s' because its size is not known",
                 store.printStorePath(path));
+  }
   return "1;" + store.printStorePath(path) + ";" + nar_hash.to_string(hash_format_t::nix32, true) +
          ";" + std::to_string(nar_size) + ";" +
          concat_strings_sep(",", store.printStorePathSet(references));
@@ -52,8 +53,9 @@ void valid_path_info_t::sign(const store_t& store,
 
 std::optional<ContentAddressWithReferences>
 valid_path_info_t::contentAddressWithReferences() const {
-  if (!ca)
+  if (!ca) {
     return std::nullopt;
+  }
 
   switch (ca->method.raw) {
     case content_address_method_t::raw_t::Text: {
@@ -90,29 +92,34 @@ valid_path_info_t::contentAddressWithReferences() const {
 bool valid_path_info_t::isContentAddressed(const store_dir_config_t& store) const {
   auto fullCaOpt = contentAddressWithReferences();
 
-  if (!fullCaOpt)
+  if (!fullCaOpt) {
     return false;
+  }
 
   auto caPath = store.makeFixedOutputPathFromCA(path.name(), *fullCaOpt);
 
   bool res = caPath == path;
 
-  if (!res)
+  if (!res) {
     printError("warning: path '%s' claims to be content-addressed but isn't",
                store.printStorePath(path));
+  }
 
   return res;
 }
 
 size_t valid_path_info_t::checkSignatures(const store_dir_config_t& store,
                                           const public_keys_t& public_keys) const {
-  if (isContentAddressed(store))
+  if (isContentAddressed(store)) {
     return maxSigs;
+  }
 
   size_t good = 0;
-  for (auto& sig : sigs)
-    if (checkSignature(store, public_keys, sig))
+  for (auto& sig : sigs) {
+    if (checkSignature(store, public_keys, sig)) {
       good++;
+    }
+  }
   return good;
 }
 
@@ -124,8 +131,9 @@ bool valid_path_info_t::checkSignature(const store_dir_config_t& store,
 
 strings_t valid_path_info_t::shortRefs() const {
   strings_t refs;
-  for (auto& r : references)
+  for (auto& r : references) {
     refs.push_back(std::string(r.to_string()));
+  }
   return refs;
 }
 
@@ -144,8 +152,9 @@ valid_path_info_t valid_path_info_t::makeFromCA(const store_dir_config_t& store,
                                   [&](TextInfo&& ti) { return std::move(ti.references); },
                                   [&](FixedOutputInfo&& foi) {
                                     auto references = std::move(foi.references.others);
-                                    if (foi.references.self)
+                                    if (foi.references.self) {
                                       references.insert(res.path);
+                                    }
                                     return references;
                                   },
                               },
@@ -158,8 +167,9 @@ nlohmann::json UnkeyedValidPathInfo::to_json(const store_dir_config_t* store,
                                              PathInfoJsonFormat format) const {
   using nlohmann::json;
 
-  if (format == PathInfoJsonFormat::V1)
+  if (format == PathInfoJsonFormat::V1) {
     assert(store);
+  }
 
   auto json_object = json::object();
 
@@ -175,17 +185,19 @@ nlohmann::json UnkeyedValidPathInfo::to_json(const store_dir_config_t* store,
 
   {
     auto& jsonRefs = json_object["references"] = json::array();
-    for (auto& ref : references)
+    for (auto& ref : references) {
       jsonRefs.emplace_back(format == PathInfoJsonFormat::V1
                                 ? static_cast<json>(store->printStorePath(ref))
                                 : static_cast<json>(ref));
+    }
   }
 
-  if (format == PathInfoJsonFormat::V1)
+  if (format == PathInfoJsonFormat::V1) {
     json_object["ca"] =
         ca ? static_cast<json>(render_content_address(*ca)) : static_cast<json>(nullptr);
-  else
+  } else {
     json_object["ca"] = ca;
+  }
 
   if (includeImpureInfo) {
     if (format == PathInfoJsonFormat::V1) {
@@ -200,8 +212,9 @@ nlohmann::json UnkeyedValidPathInfo::to_json(const store_dir_config_t* store,
     json_object["ultimate"] = ultimate;
 
     auto& sigsObj = json_object["signatures"] = json::array();
-    for (auto& sig : sigs)
+    for (auto& sig : sigs) {
       sigsObj.push_back(sig);
+    }
   }
 
   return json_object;
@@ -212,20 +225,23 @@ UnkeyedValidPathInfo UnkeyedValidPathInfo::from_json(const store_dir_config_t* s
   auto& json = get_object(_json);
 
   PathInfoJsonFormat format = PathInfoJsonFormat::V1;
-  if (auto* version = optional_value_at(json, "version"))
+  if (auto* version = optional_value_at(json, "version")) {
     format = *version;
+  }
 
-  if (format == PathInfoJsonFormat::V1)
+  if (format == PathInfoJsonFormat::V1) {
     assert(store);
+  }
 
   UnkeyedValidPathInfo res{
       [&] {
-        if (auto* rawStoreDir = optional_value_at(json, "storeDir"))
+        if (auto* rawStoreDir = optional_value_at(json, "storeDir")) {
           return get_string(*rawStoreDir);
-        else if (format == PathInfoJsonFormat::V1)
+        } else if (format == PathInfoJsonFormat::V1) {
           return store->store_dir;
-        else
+        } else {
           throw Error("'storeDir' field is required in path info JSON format version 2");
+        }
       }(),
       [&] {
         return format == PathInfoJsonFormat::V1
@@ -238,10 +254,11 @@ UnkeyedValidPathInfo UnkeyedValidPathInfo::from_json(const store_dir_config_t* s
 
   try {
     auto& references = get_array(value_at(json, "references"));
-    for (auto& input : references)
+    for (auto& input : references) {
       res.references.insert(format == PathInfoJsonFormat::V1
                                 ? store->parseStorePath(get_string(input))
                                 : static_cast<store_path_t>(input));
+    }
   } catch (Error& e) {
     e.add_trace({}, "while reading key 'references'");
     throw;
@@ -249,8 +266,9 @@ UnkeyedValidPathInfo UnkeyedValidPathInfo::from_json(const store_dir_config_t* s
 
   try {
     if (format == PathInfoJsonFormat::V1) {
-      if (auto* rawCa = get_nullable(value_at(json, "ca")))
+      if (auto* rawCa = get_nullable(value_at(json, "ca"))) {
         res.ca = content_address_t::parse(get_string(*rawCa));
+      }
     } else {
       res.ca = ptr_to_owned<content_address_t>(get_nullable(value_at(json, "ca")));
     }
@@ -261,22 +279,27 @@ UnkeyedValidPathInfo UnkeyedValidPathInfo::from_json(const store_dir_config_t* s
 
   if (auto* rawDeriver0 = optional_value_at(json, "deriver")) {
     if (format == PathInfoJsonFormat::V1) {
-      if (auto* rawDeriver = get_nullable(*rawDeriver0))
+      if (auto* rawDeriver = get_nullable(*rawDeriver0)) {
         res.deriver = store->parseStorePath(get_string(*rawDeriver));
+      }
     } else {
       res.deriver = ptr_to_owned<store_path_t>(get_nullable(*rawDeriver0));
     }
   }
 
-  if (auto* rawRegistrationTime0 = optional_value_at(json, "registrationTime"))
-    if (auto* rawRegistrationTime = get_nullable(*rawRegistrationTime0))
+  if (auto* rawRegistrationTime0 = optional_value_at(json, "registrationTime")) {
+    if (auto* rawRegistrationTime = get_nullable(*rawRegistrationTime0)) {
       res.registrationTime = get_integer<time_t>(*rawRegistrationTime);
+    }
+  }
 
-  if (auto* rawUltimate = optional_value_at(json, "ultimate"))
+  if (auto* rawUltimate = optional_value_at(json, "ultimate")) {
     res.ultimate = get_boolean(*rawUltimate);
+  }
 
-  if (auto* rawSignatures = optional_value_at(json, "signatures"))
+  if (auto* rawSignatures = optional_value_at(json, "signatures")) {
     res.sigs = get_string_set(*rawSignatures);
+  }
 
   return res;
 }

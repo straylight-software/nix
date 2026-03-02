@@ -18,8 +18,9 @@ auto_close_fd_t open_lock_file(const std::filesystem::path& path, bool create) {
   auto_close_fd_t fd;
 
   fd = open(path.c_str(), O_CLOEXEC | O_RDWR | (create ? O_CREAT : 0), 0600);
-  if (!fd && (create || errno != ENOENT))
+  if (!fd && (create || errno != ENOENT)) {
     throw sys_error_t("opening lock file %1%", path);
+  }
 
   return fd;
 }
@@ -37,29 +38,33 @@ void delete_lock_file(const std::filesystem::path& path, descriptor_t desc) {
 
 bool lock_file(descriptor_t desc, LockType lock_type, bool wait) {
   int type;
-  if (lock_type == ltRead)
+  if (lock_type == ltRead) {
     type = LOCK_SH;
-  else if (lock_type == ltWrite)
+  } else if (lock_type == ltWrite) {
     type = LOCK_EX;
-  else if (lock_type == ltNone)
+  } else if (lock_type == ltNone) {
     type = LOCK_UN;
-  else
+  } else {
     unreachable();
+  }
 
   if (wait) {
     while (flock(desc, type) != 0) {
       check_interrupt();
-      if (errno != EINTR)
+      if (errno != EINTR) {
         throw sys_error_t("acquiring/releasing lock");
+      }
       /* EINTR: retry the flock() call */
     }
   } else {
     while (flock(desc, type | LOCK_NB) != 0) {
       check_interrupt();
-      if (errno == EWOULDBLOCK)
+      if (errno == EWOULDBLOCK) {
         return false;
-      if (errno != EINTR)
+      }
+      if (errno != EINTR) {
         throw sys_error_t("acquiring/releasing lock");
+      }
     }
   }
 
@@ -91,8 +96,9 @@ bool PathLocks::lockPaths(const std::set<std::filesystem::path>& paths, const st
       /* Acquire an exclusive lock. */
       if (!lock_file(fd.get(), ltWrite, false)) {
         if (wait) {
-          if (waitMsg != "")
+          if (waitMsg != "") {
             printError(waitMsg);
+          }
           lock_file(fd.get(), ltWrite, true);
         } else {
           /* Failed to lock this path; release all other
@@ -107,16 +113,18 @@ bool PathLocks::lockPaths(const std::set<std::filesystem::path>& paths, const st
       /* Check that the lock file hasn't become stale (i.e.,
          hasn't been unlinked). */
       struct stat st;
-      if (fstat(fd.get(), &st) == -1)
+      if (fstat(fd.get(), &st) == -1) {
         throw sys_error_t("statting lock file %1%", lockPath);
-      if (st.st_size != 0)
+      }
+      if (st.st_size != 0) {
         /* This lock file has been unlinked, so we're holding
            a lock on a deleted file.  This means that other
            processes may create and acquire a lock on
            `lockPath', and proceed.  So we must retry. */
         debug("open lock file %1% has become stale", lockPath);
-      else
+      } else {
         break;
+      }
     }
 
     /* use borrow so that the descriptor isn't closed. */
@@ -128,11 +136,13 @@ bool PathLocks::lockPaths(const std::set<std::filesystem::path>& paths, const st
 
 void PathLocks::unlock() {
   for (auto& i : fds) {
-    if (deletePaths)
+    if (deletePaths) {
       delete_lock_file(i.second, i.first);
+    }
 
-    if (close(i.first) == -1)
+    if (close(i.first) == -1) {
       printError("error (ignored): cannot close lock file on %1%", i.second);
+    }
 
     debug("lock released on %1%", i.second);
   }
@@ -147,8 +157,9 @@ FdLock::FdLock(descriptor_t desc, LockType lock_type, bool wait, std::string_vie
       printInfo("%s", waitMsg);
       acquired = lock_file(desc, lock_type, true);
     }
-  } else
+  } else {
     acquired = lock_file(desc, lock_type, false);
+  }
 }
 
 } // namespace nix

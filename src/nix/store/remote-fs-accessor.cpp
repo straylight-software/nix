@@ -13,8 +13,9 @@ namespace nix {
 RemoteFSAccessor::RemoteFSAccessor(ref<store_t> store, bool require_valid_path,
                                    const Path& cache_dir)
     : store(store), require_valid_path(require_valid_path), cache_dir(cache_dir) {
-  if (cache_dir != "")
+  if (cache_dir != "") {
     create_dirs(cache_dir);
+  }
 }
 
 Path RemoteFSAccessor::makeCacheFile(std::string_view hash_part, const std::string& ext) {
@@ -49,15 +50,17 @@ ref<source_accessor_t> RemoteFSAccessor::addToCache(std::string_view hash_part, 
 
 std::pair<ref<source_accessor_t>, canon_path_t> RemoteFSAccessor::fetch(const canon_path_t& path) {
   auto [store_path, restPath] = store->toStorePath(store->store_dir + path.abs());
-  if (require_valid_path && !store->isValidPath(store_path))
+  if (require_valid_path && !store->isValidPath(store_path)) {
     throw InvalidPath("path '%1%' is not a valid store path", store->printStorePath(store_path));
+  }
   return {ref{accessObject(store_path)}, canon_path_t{restPath}};
 }
 
 std::shared_ptr<source_accessor_t> RemoteFSAccessor::accessObject(const store_path_t& store_path) {
   auto i = nars.find(std::string(store_path.hash_part()));
-  if (i != nars.end())
+  if (i != nars.end()) {
     return i->second;
+  }
 
   std::string listing;
   Path cacheFile;

@@ -42,8 +42,9 @@ struct cmd_edit_t : nix::InstallableValueCommand {
     execvp(args.front().c_str(), nix::strings_to_char_ptrs(args).data());
 
     std::string command;
-    for (const auto& arg : args)
+    for (const auto& arg : args) {
       command += " '" + arg + "'";
+    }
     throw nix::sys_error_t("cannot run command%s", command);
   }
 };
