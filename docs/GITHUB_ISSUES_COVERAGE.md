@@ -11,10 +11,10 @@ our test coverage, and fixes implemented in straylight/nix.
 | [#1426](https://github.com/NixOS/nix/issues/1426)   | Don't kill builder too early if stdout/stderr are closed | OPEN   | Not covered                                          | **Fixed** - wait for process exit, not pipe EOF |
 | [#8232](https://github.com/NixOS/nix/issues/8232)   | Darwin builds forking off processes never finish         | OPEN   | Not covered                                          | **Fixed** - FD_CLOEXEC on pty slave             |
 | [#2714](https://github.com/NixOS/nix/issues/2714)   | Nix on WSL killing processes unnecessarily               | OPEN   | `processes_test.cpp`: ESRCH handling                 | **Fixed** - ESRCH returns synthetic status      |
-| [#2803](https://github.com/NixOS/nix/issues/2803)   | Builders inherit ignored signals                         | OPEN   | Not covered                                          | **Fixed** - restore_signals before exec         |
+| [#2803](https://github.com/NixOS/nix/issues/2803)   | Builders inherit ignored signals                         | OPEN   | `signals_test.cpp`: signal restoration               | **Fixed** - restore_signals before exec             |
 | [#8247](https://github.com/NixOS/nix/issues/8247)   | macOS crashed on child side of fork pre-exec             | OPEN   | Not covered                                          | **Fixed** - curl_global_init early              |
 | [#2141](https://github.com/NixOS/nix/issues/2141)   | Process Group ID issues in shellHook                     | OPEN   | Not covered                                          | **Fixed** - setup_interactive_process_group     |
-| [#4382](https://github.com/NixOS/nix/issues/4382)   | nix-collect-garbage process stuck and defunct            | OPEN   | Not covered                                          | **Fixed** - reap_zombie_children                |
+| [#4382](https://github.com/NixOS/nix/issues/4382)   | nix-collect-garbage process stuck and defunct            | OPEN   | `gc_test.cpp`: zombie reaping                        | **Fixed** - reap_zombie_children                    |
 | [#11040](https://github.com/NixOS/nix/issues/11040) | Capture all non-interactive child process stderrs        | OPEN   | Not covered                                          | **Fixed** - run_program_with_stderr             |
 | [#12514](https://github.com/NixOS/nix/issues/12514) | Deadlock when using user namespace (musl)                | CLOSED | Not covered                                          | Not applicable                                  |
 | [#2395](https://github.com/NixOS/nix/issues/2395)   | PR_SET_PDEATHSIG results in Broken pipe                  | CLOSED | Not covered                                          | Not applicable                                  |
@@ -27,13 +27,13 @@ our test coverage, and fixes implemented in straylight/nix.
 | [#2398](https://github.com/NixOS/nix/issues/2398)   | nix-daemon ignores error messages from forked children | OPEN   | Not covered          | **Fixed** - drain stderr before killing             |
 | [#14760](https://github.com/NixOS/nix/issues/14760) | Shouldn't kill build hook with SIGKILL immediately     | OPEN   | `processes_test.cpp` | **Fixed** - SIGTERM first, 5s grace period          |
 | [#7245](https://github.com/NixOS/nix/issues/7245)   | Various Nix commands ignore Ctrl-C                     | OPEN   | Not covered          | **Fixed** - EINTR handling in poll, check_interrupt |
-| [#10287](https://github.com/NixOS/nix/issues/10287) | nix repl ignores SIGTSTP signal (ctrl-z)               | OPEN   | Not covered          | **Fixed** - SIGTSTP handler added                   |
+| [#10287](https://github.com/NixOS/nix/issues/10287) | nix repl ignores SIGTSTP signal (ctrl-z)               | OPEN   | `signals_test.cpp`: SIGTSTP                          | **Fixed** - SIGTSTP handler added                   |
 | [#2653](https://github.com/NixOS/nix/issues/2653)   | nix-build ignores SIGPIPE                              | OPEN   | Not covered          | **Fixed** - SIGPIPE properly blocked                |
-| [#2781](https://github.com/NixOS/nix/issues/2781)   | Suspending nix doesn't suspend the build               | OPEN   | Not covered          | **Fixed** - suspend callbacks to children           |
+| [#2781](https://github.com/NixOS/nix/issues/2781)   | Suspending nix doesn't suspend the build               | OPEN   | `signals_test.cpp`: suspend callbacks                | **Fixed** - suspend callbacks to children           |
 | [#10964](https://github.com/NixOS/nix/issues/10964) | nix-daemon.service KillMode=process issue              | OPEN   | Not covered          | **Fixed** - documentation for systemd KillMode      |
-| [#10559](https://github.com/NixOS/nix/issues/10559) | First CTRL-C as graceful stop                          | OPEN   | Not covered          | **Fixed** - double interrupt tracking               |
-| [#8441](https://github.com/NixOS/nix/issues/8441)   | Ability to suspend repl with Ctrl+Z                    | OPEN   | Not covered          | **Fixed** - SIGTSTP handler added                   |
-| [#13740](https://github.com/NixOS/nix/issues/13740) | GC core dumps on SIGABRT instead of clean exit         | OPEN   | Not covered          | **Fixed** - gc_sigabrt_handler                      |
+| [#10559](https://github.com/NixOS/nix/issues/10559) | First CTRL-C as graceful stop                          | OPEN   | `signals_test.cpp`: graceful interrupt               | **Fixed** - double interrupt tracking               |
+| [#8441](https://github.com/NixOS/nix/issues/8441)   | Ability to suspend repl with Ctrl+Z                    | OPEN   | `signals_test.cpp`: SIGTSTP                          | **Fixed** - SIGTSTP handler added                   |
+| [#13740](https://github.com/NixOS/nix/issues/13740) | GC core dumps on SIGABRT instead of clean exit         | OPEN   | `gc_test.cpp`: SIGABRT handler                       | **Fixed** - gc_sigabrt_handler                      |
 | [#3022](https://github.com/NixOS/nix/issues/3022)   | Doesn't reset SIGPIPE handler in children              | CLOSED | Not covered          | Not applicable                                      |
 
 ## Daemon Crashes
@@ -70,8 +70,8 @@ our test coverage, and fixes implemented in straylight/nix.
 | [#3695](https://github.com/NixOS/nix/issues/3695)   | local-binary-cache-store not concurrency-safe | OPEN   | Not covered   | **Fixed** - flock + atomic rename          |
 | [#14599](https://github.com/NixOS/nix/issues/14599) | Store optimisation race corrupts store        | OPEN   | Not covered   | **Fixed** - pre/post hash checks           |
 | [#1015](https://github.com/NixOS/nix/issues/1015)   | Build slots permanently locked after cancel   | OPEN   | Not covered   | **Fixed** - BuildSlotGuard RAII            |
-| [#14294](https://github.com/NixOS/nix/issues/14294) | REPL error output race condition              | OPEN   | Not covered   | **Fixed** - mutex synchronization          |
-| [#7298](https://github.com/NixOS/nix/issues/7298)   | Race condition in error trace printing        | OPEN   | Not covered   | **Fixed** - mutex synchronization          |
+| [#14294](https://github.com/NixOS/nix/issues/14294) | REPL error output race condition              | OPEN   | `logging_test.cpp`: logging races          | **Fixed** - mutex synchronization          |
+| [#7298](https://github.com/NixOS/nix/issues/7298)   | Race condition in error trace printing        | OPEN   | `logging_test.cpp`: logging races          | **Fixed** - mutex synchronization          |
 | [#62](https://github.com/NixOS/nix/issues/62)       | Deadlock in nix 1.1 worker                    | CLOSED | Not covered   | Not applicable                             |
 
 ## Fetch / SSH Process Issues
@@ -87,8 +87,8 @@ our test coverage, and fixes implemented in straylight/nix.
 | [#8770](https://github.com/NixOS/nix/issues/8770)   | Almost all nix commands hang indefinitely      | OPEN   | Not covered   | **Fixed** - log-structured store               |
 | [#3236](https://github.com/NixOS/nix/issues/3236)   | nix-channel --update hangs indefinitely        | OPEN   | Not covered   | **Fixed** - timeout + check_interrupt          |
 | [#10052](https://github.com/NixOS/nix/issues/10052) | Interrupting store copy hangs nix              | OPEN   | Not covered   | **Fixed** - EINTR handling                     |
-| [#13513](https://github.com/NixOS/nix/issues/13513) | Down builder brings all builds to a crawl      | OPEN   | Not covered   | **Fixed** - builder health tracker             |
-| [#5270](https://github.com/NixOS/nix/issues/5270)   | Consistent SIGABRT errors with remote builder  | OPEN   | Not covered   | **Fixed** - builder health tracker             |
+| [#13513](https://github.com/NixOS/nix/issues/13513) | Down builder brings all builds to a crawl      | OPEN   | `builder-health_test.cpp`: down builder        | **Fixed** - builder health tracker             |
+| [#5270](https://github.com/NixOS/nix/issues/5270)   | Consistent SIGABRT errors with remote builder  | OPEN   | `builder-health_test.cpp`: SIGABRT remote      | **Fixed** - builder health tracker             |
 | [#7459](https://github.com/NixOS/nix/issues/7459)   | connect-timeout ignored on ssh connections     | OPEN   | Not covered   | **Fixed** - ssh-timeout setting                |
 | [#3683](https://github.com/NixOS/nix/issues/3683)   | nix-channel --remove hangs if sys_admin denied | OPEN   | Not covered   | **Fixed** - EPERM detection for namespaces     |
 | [#13465](https://github.com/NixOS/nix/issues/13465) | Build failure reason not propagated in ssh     | OPEN   | Not covered   | **Fixed** - improved error messages            |
@@ -118,10 +118,10 @@ our test coverage, and fixes implemented in straylight/nix.
 
 | Issue                                               | Title                                   | Status | Test Coverage | Fix Status                              |
 | --------------------------------------------------- | --------------------------------------- | ------ | ------------- | --------------------------------------- |
-| [#2285](https://github.com/NixOS/nix/issues/2285)   | Auto GC breaks its own build            | OPEN   | Not covered   | **Fixed** - delay + temp root check     |
+| [#2285](https://github.com/NixOS/nix/issues/2285)   | Auto GC breaks its own build            | OPEN   | `gc_test.cpp`: auto GC race             | **Fixed** - delay + temp root check     |
 | [#9581](https://github.com/NixOS/nix/issues/9581)   | GC is suspiciously slow                 | OPEN   | Not covered   | **Fixed** - io_uring bulk ops           |
-| [#8638](https://github.com/NixOS/nix/issues/8638)   | Flake inputs unsafe from GC during eval | OPEN   | Not covered   | **Fixed** - addTempRoot in mountInput   |
-| [#7572](https://github.com/NixOS/nix/issues/7572)   | Time-based GC expiry                    | OPEN   | Not covered   | **Fixed** - gc-dead-after setting       |
+| [#8638](https://github.com/NixOS/nix/issues/8638)   | Flake inputs unsafe from GC during eval | OPEN   | `gc_test.cpp`: temp roots               | **Fixed** - addTempRoot in mountInput   |
+| [#7572](https://github.com/NixOS/nix/issues/7572)   | Time-based GC expiry                    | OPEN   | `gc_test.cpp`: time-based GC            | **Fixed** - gc-dead-after setting       |
 | [#11134](https://github.com/NixOS/nix/issues/11134) | GC fails: directory not empty           | OPEN   | Not covered   | **Fixed** - retry with recursive rm     |
 | [#11929](https://github.com/NixOS/nix/issues/11929) | Nix wipes top-level $TEMPDIR            | OPEN   | Not covered   | **Fixed** - unique temp dir per process |
 
@@ -170,10 +170,10 @@ our test coverage, and fixes implemented in straylight/nix.
 
 | Issue                                               | Title                                          | Status | Test Coverage | Fix Status                     |
 | --------------------------------------------------- | ---------------------------------------------- | ------ | ------------- | ------------------------------ |
-| [#9339](https://github.com/NixOS/nix/issues/9339)   | Re-locking on each evaluation of sub-flake     | OPEN   | Not covered   | **Fixed** - lock file cache    |
-| [#6222](https://github.com/NixOS/nix/issues/6222)   | Lazy downloading of global flake registry      | OPEN   | Not covered   | **Fixed** - LazyGlobalRegistry |
-| [#5551](https://github.com/NixOS/nix/issues/5551)   | Avoid copying flake to store when self omitted | OPEN   | Not covered   | **Fixed** - flake_uses_self    |
-| [#9570](https://github.com/NixOS/nix/issues/9570)   | Flake inputs fetched despite cache hit         | OPEN   | Not covered   | **Fixed** - early return       |
+| [#9339](https://github.com/NixOS/nix/issues/9339)   | Re-locking on each evaluation of sub-flake     | OPEN   | `flake_test.cpp`: lock file cache       | **Fixed** - lock file cache    |
+| [#6222](https://github.com/NixOS/nix/issues/6222)   | Lazy downloading of global flake registry      | OPEN   | `flake_test.cpp`: lazy registry         | **Fixed** - LazyGlobalRegistry |
+| [#5551](https://github.com/NixOS/nix/issues/5551)   | Avoid copying flake to store when self omitted | OPEN   | `flake_test.cpp`: self-reference        | **Fixed** - flake_uses_self    |
+| [#9570](https://github.com/NixOS/nix/issues/9570)   | Flake inputs fetched despite cache hit         | OPEN   | `flake_test.cpp`: cache hit             | **Fixed** - early return       |
 | [#11098](https://github.com/NixOS/nix/issues/11098) | Flake copying performance regressed on macOS   | OPEN   | Not covered   | **Addressed** - skip self copy opt     |
 
 ## Store Performance
