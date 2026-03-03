@@ -65,4 +65,40 @@ cxx_library(
     ],
 )
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Eval adapter (straylight evaluator -> nix CLI compatible interface)
+# ─────────────────────────────────────────────────────────────────────────────
+
+cxx_library(
+    name = "eval_adapter",
+
+    srcs = [
+        "eval_adapter.cpp",
+    ],
+
+    exported_headers = [
+        "eval_adapter.h",
+    ],
+
+    header_namespace = "straylight/nix/adapters",
+
+    visibility = ["PUBLIC"],
+
+    compiler_flags = [
+        "-std=c++23",
+    ],
+
+    exported_deps = [
+        "//src/nix/store:store",
+        "//src/nix/util:util",
+    ],
+
+    deps = [
+        "//src/nix/expr:expr",
+        "//src/straylight/nix/compiler:evaluator",
+        "//src/straylight/nix/compiler:runtime",
+        "//src/straylight/nix/core:component",
+    ],
+)
+
 # Tests moved to //src/straylight/test/unit/adapters
