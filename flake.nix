@@ -17,6 +17,12 @@
       url = "github:weyl-ai/straylight-buck2-prelude";
       flake = false;
     };
+
+    # Rust overlay for isospin (Firecracker) builds
+    rust-overlay = {
+      url = "github:oxalica/rust-overlay";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -97,6 +103,12 @@
 
           includeFlags = mkIncludeFlags allDeps;
           libFlags = mkLibFlags allDeps;
+
+          # ── Isospin (Firecracker + GPU broker) Rust vendor ──────────────────────
+          isospinRustVendor = import ./vendor/isospin/nix/vendor.nix { inherit pkgs; };
+
+          # ── Firecracker guest (kernel + initrd for build VMs) ────────────────────
+          firecrackerGuest = import ./nix/vm/guest.nix { inherit pkgs; };
         in
         {
           # ── sensenet project ──────────────────────────────────────────────────
@@ -176,7 +188,21 @@
               pkgs.dhall
               pkgs.dhall-json
               pkgs.pre-commit
+              # Firecracker build service dependencies
+              pkgs.firecracker # microVM hypervisor
+              pkgs.e2fsprogs # provides fuse2fs for unprivileged ext4 access
+              pkgs.fuse # FUSE support for image mounting
             ];
+
+            # Auto-link isospin Rust vendor on shell entry
+            devshellhook = ''
+              # Link isospin Rust vendor (Firecracker deps)
+              if [ ! -e vendor/isospin/third-party/rust/vendor ] || [ -L vendor/isospin/third-party/rust/vendor ]; then
+                rm -f vendor/isospin/third-party/rust/vendor
+                ln -sf ${isospinRustVendor} vendor/isospin/third-party/rust/vendor
+                echo "📦 Linked isospin vendor -> ${isospinRustVendor}"
+              fi
+            '';
           };
 
           # ── Custom packages ───────────────────────────────────────────────────
@@ -184,6 +210,20 @@
             inherit (deps.custom) stringzilla;
             inherit (deps.custom) zpp_bits;
             inherit (deps.custom) ngtcp2-libressl;
+
+            # Isospin Rust vendor (Firecracker + GPU broker deps)
+            inherit isospinRustVendor;
+
+            # Firecracker guest VM components (kernel + initrd)
+            firecracker-guest = firecrackerGuest.firecracker-guest;
+            nix-builder-init = firecrackerGuest.nixBuilderInit;
+
+            # Setup script for firecracker build service
+            setup-firecracker = pkgs.writeShellApplication {
+              name = "setup-firecracker";
+              runtimeInputs = [ pkgs.coreutils ];
+              text = builtins.readFile ./scripts/setup-firecracker.sh;
+            };
 
             # ── straylight-nix binary ─────────────────────────────────────────────
             # Direct buck2 build, bypassing sensenet flake module (which has a bug

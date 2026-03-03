@@ -1,0 +1,2 @@
+# zerocopy build script detects rustc version
+buildscript.run = false

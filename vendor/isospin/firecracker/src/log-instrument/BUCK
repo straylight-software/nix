@@ -1,0 +1,14 @@
+# log-instrument - Logging instrumentation
+# Depends on log-instrument-macros
+
+rust_library(
+    name = "log_instrument",
+    srcs = glob(["src/**/*.rs"]),
+    crate = "log_instrument",
+    edition = "2024",
+    deps = [
+        "//vendor/isospin/third-party/rust:log",
+        "//vendor/isospin/firecracker/src/log-instrument-macros:log_instrument_macros",
+    ],
+    visibility = ["PUBLIC"],
+)

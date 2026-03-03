@@ -1,0 +1,18 @@
+# zstd - Prebuilt static library from Nix
+# ZSTD_LIB_DIR is set by flake.nix shellHook
+#
+# This provides the zstd C library for the zstd-sys crate,
+# which provides FFI bindings for zstd compression.
+
+genrule(
+    name = "libzstd-lib",
+    out = "libzstd.a",
+    cmd = "ln -s $ZSTD_LIB_DIR/libzstd.a \"$OUT\"",
+)
+
+prebuilt_cxx_library(
+    name = "zstd",
+    static_lib = ":libzstd-lib",
+    preferred_linkage = "static",
+    visibility = ["PUBLIC"],
+)

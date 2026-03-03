@@ -1,0 +1,34 @@
+# pci - PCI device emulation
+# No internal dependencies
+
+rust_library(
+    name = "pci",
+    srcs = glob(["src/**/*.rs"]),
+    crate = "pci",
+    edition = "2024",
+    deps = [
+        "//vendor/isospin/third-party/rust:displaydoc",
+        "//vendor/isospin/third-party/rust:libc",
+        "//vendor/isospin/third-party/rust:log",
+        "//vendor/isospin/third-party/rust:serde",
+        "//vendor/isospin/third-party/rust:thiserror",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+rust_test(
+    name = "pci-test",
+    srcs = glob(["src/**/*.rs"]),
+    crate = "pci",
+    crate_root = "src/lib.rs",
+    edition = "2024",
+    deps = [
+        "//vendor/isospin/third-party/rust:displaydoc",
+        "//vendor/isospin/third-party/rust:libc",
+        "//vendor/isospin/third-party/rust:log",
+        "//vendor/isospin/third-party/rust:serde",
+        "//vendor/isospin/third-party/rust:serde_test",
+        "//vendor/isospin/third-party/rust:thiserror",
+        "//vendor/isospin/third-party/rust:vmm-sys-util",
+    ],
+)

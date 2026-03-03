@@ -1,0 +1,2 @@
+# winapi build script - not needed on Linux
+buildscript.run = false

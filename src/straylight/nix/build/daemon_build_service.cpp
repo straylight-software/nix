@@ -4,6 +4,8 @@
 // This is the current default - provides sandboxed builds via the
 // existing nix daemon infrastructure.
 
+#include <cstdlib>
+
 #include "build_service.h"
 #include "nix/store/globals.h"
 #include "nix/store/uds-remote-store.h"
@@ -88,7 +90,58 @@ struct daemon_build_service final : build_service {
 // ============================================================================
 
 std::unique_ptr<build_service> make_default_build_service() {
-  // For now, always use daemon. Future: check for REAPI endpoint.
+  // Check NIX_BUILD_SERVICE environment variable
+  // Values: "daemon" (default), "firecracker", "reapi"
+  const char* build_service_env = getenv("NIX_BUILD_SERVICE");
+  std::string_view service_type = build_service_env ? build_service_env : "";
+
+  // Explicit firecracker request
+  if (service_type == "firecracker") {
+    auto svc = make_firecracker_build_service();
+    if (svc && svc->is_available()) {
+      log_info("using firecracker build service (explicit)");
+      return svc;
+    }
+    log_warning("firecracker build service requested but not available, falling back to daemon");
+  }
+
+  // Explicit REAPI request
+  if (service_type == "reapi") {
+    const char* endpoint = getenv("NIX_REAPI_ENDPOINT");
+    const char* instance = getenv("NIX_REAPI_INSTANCE");
+    if (endpoint) {
+      auto svc = make_reapi_build_service(endpoint, instance ? instance : "main");
+      if (svc && svc->is_available()) {
+        log_info("using REAPI build service at %s", endpoint);
+        return svc;
+      }
+    }
+    log_warning("REAPI build service requested but not available, falling back to daemon");
+  }
+
+  // Auto-detect: prefer firecracker if available and no daemon running
+  if (service_type.empty() || service_type == "auto") {
+    // Check if daemon is available
+    auto daemon_svc = make_daemon_build_service();
+    bool daemon_available = daemon_svc && daemon_svc->is_available();
+
+    // If no daemon, try firecracker
+    if (!daemon_available) {
+      auto fc_svc = make_firecracker_build_service();
+      if (fc_svc && fc_svc->is_available()) {
+        log_info("using firecracker build service (auto-detected, no daemon)");
+        return fc_svc;
+      }
+    }
+
+    // Use daemon if available
+    if (daemon_available) {
+      log_info("using nix daemon build service");
+      return daemon_svc;
+    }
+  }
+
+  // Explicit daemon request or fallback
   return make_daemon_build_service();
 }
 

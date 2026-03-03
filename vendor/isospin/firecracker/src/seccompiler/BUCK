@@ -1,0 +1,41 @@
+# seccompiler - Seccomp BPF compiler library and CLI
+#
+# This crate compiles JSON seccomp policies into serialized BPF bytecode.
+# It links against libseccomp (C library) via FFI for the actual BPF compilation.
+
+rust_library(
+    name = "seccompiler",
+    srcs = glob(["src/**/*.rs"], exclude = ["src/bin.rs"]),
+    crate = "seccompiler",
+    edition = "2024",
+    deps = [
+        "//vendor/isospin/third-party/rust:bincode",
+        "//vendor/isospin/third-party/rust:displaydoc",
+        "//vendor/isospin/third-party/rust:libc",
+        "//vendor/isospin/third-party/rust:serde",
+        "//vendor/isospin/third-party/rust:serde_json",
+        "//vendor/isospin/third-party/rust:thiserror",
+        "//vendor/isospin/third-party/rust:zerocopy",
+        # Link against static libseccomp for FFI bindings in bindings.rs
+        "//third-party/rust/libseccomp:libseccomp",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+# CLI binary for compiling seccomp filters at build time
+# Used by firecracker's genrule to generate seccomp_filter.bpf
+rust_binary(
+    name = "seccompiler-bin",
+    srcs = ["src/bin.rs"],
+    crate = "seccompiler_bin",
+    crate_root = "src/bin.rs",
+    edition = "2024",
+    env = {
+        "CARGO_PKG_VERSION": "1.15.0-dev",
+    },
+    deps = [
+        ":seccompiler",
+        "//vendor/isospin/third-party/rust:clap",
+    ],
+    visibility = ["PUBLIC"],
+)

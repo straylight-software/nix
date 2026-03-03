@@ -1,0 +1,2 @@
+# zmij build script - skip
+buildscript.run = false

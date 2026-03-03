@@ -1,0 +1,17 @@
+# aws-lc-sys has pre-generated bindings for each platform
+# We'll include the right one based on the target
+buildscript.run = false
+
+# Use the pre-generated bindings for x86_64-unknown-linux-gnu
+extra_srcs = ["src/x86_64_unknown_linux_gnu_crypto.rs"]
+
+# Need platform cfg to select the right bindings
+cfgs = ["x86_64_unknown_linux_gnu"]
+
+# Link with the Nix-built aws-lc library
+extra_deps = ["//third-party/rust/aws-lc:aws-lc"]
+
+# Also need to export some env variables that the code expects
+[env]
+DEP_AWS_LC_SYS_ROOT = "vendor/aws-lc-sys-0.35.0"
+DEP_AWS_LC_SYS_INCLUDES = "vendor/aws-lc-sys-0.35.0/aws-lc/include:vendor/aws-lc-sys-0.35.0/generated-include"

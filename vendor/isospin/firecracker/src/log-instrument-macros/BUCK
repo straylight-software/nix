@@ -1,0 +1,16 @@
+# log-instrument-macros - pure proc-macro
+# Buck2 bundled prelude auto-loads rust_library
+
+rust_library(
+    name = "log_instrument_macros",
+    srcs = glob(["src/**/*.rs"]),
+    crate = "log_instrument_macros",
+    proc_macro = True,
+    edition = "2024",
+    deps = [
+        "//vendor/isospin/third-party/rust:proc-macro2",
+        "//vendor/isospin/third-party/rust:quote",
+        "//vendor/isospin/third-party/rust:syn",
+    ],
+    visibility = ["PUBLIC"],
+)

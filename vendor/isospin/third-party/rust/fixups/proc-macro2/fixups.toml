@@ -1,0 +1,9 @@
+# proc-macro2 build script does rustc version detection
+# Skip it - we're using rustc 1.89+ which has all the features we need
+# The build script is only needed for older rustc versions
+buildscript.run = false
+
+# Enable the features that proc-macro2's build script would detect for rustc 1.89
+# wrap_proc_macro: Use libproc_macro types directly
+# span_locations: Enable Span::start() and Span::end() methods
+cfgs = ["wrap_proc_macro", "proc_macro_span_location", "proc_macro_span_file", "span_locations"]

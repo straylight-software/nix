@@ -1,0 +1,8 @@
+# userfaultfd-sys generates bindings from Linux headers
+# We provide pre-generated stub bindings for now
+buildscript.run = false
+
+extra_srcs = ["out/bindings.rs"]
+
+[env]
+OUT_DIR = "vendor/userfaultfd-sys-0.6.0/out"

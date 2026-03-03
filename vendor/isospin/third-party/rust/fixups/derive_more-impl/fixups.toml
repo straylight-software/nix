@@ -1,0 +1,2 @@
+# derive_more-impl includes documentation files
+extra_srcs = ["README.md", "doc/**"]

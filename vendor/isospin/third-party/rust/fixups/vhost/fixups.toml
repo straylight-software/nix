@@ -1,0 +1,8 @@
+# Override to use vm-memory 0.18.x instead of 0.16.x
+omit_deps = ["vm-memory"]
+extra_deps = ["//third-party/rust:vm-memory-0.18.0"]
+
+# Add vhost-kern and vhost-vdpa features for Cloud Hypervisor
+[features]
+vhost-kern = []
+vhost-vdpa = []

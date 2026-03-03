@@ -400,3 +400,26 @@ nix_prebuilt_cxx_library(
     static_lib = NANOBENCH_STATIC_LIB,
     include_dir = NANOBENCH_INCLUDE,
 )
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Isospin microVM (Firecracker + GPU broker)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Firecracker VMM - for sandboxed build execution
+alias(
+    name = "firecracker",
+    actual = "//vendor/isospin:firecracker",
+    visibility = ["PUBLIC"],
+)
+
+alias(
+    name = "firecracker_lib",
+    actual = "//vendor/isospin:firecracker_lib",
+    visibility = ["PUBLIC"],
+)
+
+alias(
+    name = "vmm",
+    actual = "//vendor/isospin:vmm",
+    visibility = ["PUBLIC"],
+)

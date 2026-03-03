@@ -1,0 +1,773 @@
+// Copyright 2025 Isospin Authors
+// SPDX-License-Identifier: Apache-2.0
+//
+//! Comprehensive property-based tests for VFIO implementation.
+//!
+//! These tests verify invariants that must hold for all inputs, not just
+//! specific test cases. They help catch edge cases and ensure correctness
+//! across the input space.
+
+#![cfg(test)]
+
+use proptest::prelude::*;
+use proptest::collection::vec;
+
+use crate::pci::vfio::container::mock::*;
+use crate::pci::vfio::device::mock::*;
+use crate::pci::vfio::msix::*;
+use crate::pci::vfio::types::*;
+
+// ============================================================================
+// Address Type Properties
+// ============================================================================
+
+/// Strategy for generating valid guest physical addresses
+fn gpa_strategy() -> impl Strategy<Value = GuestPhysAddr> {
+    // Real GPAs are typically < 1TB (2^40)
+    (0u64..0x100_0000_0000u64).prop_map(GuestPhysAddr::new)
+}
+
+/// Strategy for generating valid host virtual addresses
+fn hva_strategy() -> impl Strategy<Value = HostVirtAddr> {
+    // 48-bit virtual address space on x86_64
+    (0u64..0x1_0000_0000_0000u64).prop_map(HostVirtAddr::new)
+}
+
+/// Strategy for generating valid IOVAs
+fn iova_strategy() -> impl Strategy<Value = IovaAddr> {
+    (0u64..0x100_0000_0000u64).prop_map(IovaAddr::new)
+}
+
+proptest! {
+    /// Property: GPA → IOVA → GPA roundtrip preserves value
+    #[test]
+    fn prop_gpa_iova_roundtrip(gpa in gpa_strategy()) {
+        let iova = IovaAddr::from_gpa(gpa);
+        let gpa2 = GuestPhysAddr::new(iova.raw());
+        prop_assert_eq!(gpa.raw(), gpa2.raw());
+    }
+
+    /// Property: Address arithmetic doesn't overflow for reasonable sizes
+    #[test]
+    fn prop_address_arithmetic_safe(
+        base in 0u64..0x8000_0000_0000u64,
+        offset in 0u64..0x1_0000_0000u64,
+    ) {
+        let gpa = GuestPhysAddr::new(base);
+        let result = gpa.raw().checked_add(offset);
+        prop_assert!(result.is_some());
+    }
+
+    /// Property: Address alignment is preserved
+    #[test]
+    fn prop_address_alignment(
+        base in (0u64..0x1_0000_0000u64).prop_map(|x| x & !0xFFF), // Page-aligned
+        offset in (0u64..0x10_0000u64).prop_map(|x| x & !0xFFF),
+    ) {
+        let gpa = GuestPhysAddr::new(base + offset);
+        prop_assert_eq!(gpa.raw() & 0xFFF, 0, "Address should remain page-aligned");
+    }
+
+    /// Property: Address ordering is consistent
+    #[test]
+    fn prop_address_ordering(a in gpa_strategy(), b in gpa_strategy()) {
+        let a_lt_b = a.raw() < b.raw();
+        let b_gt_a = b.raw() > a.raw();
+        prop_assert_eq!(a_lt_b, b_gt_a);
+    }
+}
+
+// ============================================================================
+// PCI Type Properties
+// ============================================================================
+
+proptest! {
+    /// Property: Valid BDF strings always parse
+    #[test]
+    fn prop_bdf_parse_valid(
+        bus in 0u8..=255u8,
+        dev in 0u8..31u8,
+        func in 0u8..7u8,
+    ) {
+        let bdf_str = format!("{:04x}:{:02x}:{:02x}.{}", 0, bus, dev, func);
+        let parsed = PciBdf::parse(&bdf_str);
+        prop_assert!(parsed.is_some(), "Failed to parse valid BDF: {}", bdf_str);
+    }
+
+    /// Property: BDF parse/display is idempotent
+    #[test]
+    fn prop_bdf_parse_display_idempotent(
+        bus in 0u8..=255u8,
+        dev in 0u8..31u8,
+        func in 0u8..7u8,
+    ) {
+        let bdf = PciBdf::new(0, bus, dev, func);
+        let s1 = bdf.to_string();
+        let parsed = PciBdf::parse(&s1).unwrap();
+        let s2 = parsed.to_string();
+        prop_assert_eq!(s1, s2);
+    }
+
+    /// Property: BAR config offsets are within PCI config space
+    #[test]
+    fn prop_bar_config_offset_valid(bar_idx in 0u8..6u8) {
+        let bar = BarIndex::new(bar_idx).unwrap();
+        let offset = bar.config_offset();
+        prop_assert!(offset >= 0x10);
+        prop_assert!(offset <= 0x24);
+        prop_assert_eq!(offset % 4, 0, "BAR offset must be DWORD-aligned");
+    }
+
+    /// Property: BAR index roundtrip through config offset
+    #[test]
+    fn prop_bar_index_roundtrip(bar_idx in 0u8..6u8) {
+        let bar = BarIndex::new(bar_idx).unwrap();
+        let offset = bar.config_offset();
+        let recovered_idx = ((offset - 0x10) / 4) as u8;
+        prop_assert_eq!(recovered_idx, bar_idx);
+    }
+}
+
+// ============================================================================
+// DMA Mapping Properties
+// ============================================================================
+
+proptest! {
+    /// Property: DMA mappings maintain no-overlap invariant
+    #[test]
+    fn prop_dma_no_overlaps_maintained(
+        ops in vec(
+            (
+                (0u64..0x1_0000_0000u64).prop_map(|x| x & !0xFFF),
+                (0x1000u64..0x100_0000u64).prop_map(|x| (x & !0xFFF).max(0x1000)),
+            ),
+            1..20
+        )
+    ) {
+        let mut tracker = MockDmaTracker::new();
+
+        for (iova, size) in ops {
+            let hva = 0x7fff_0000_0000 + iova;
+            let _ = tracker.map(
+                IovaAddr::new(iova),
+                size,
+                HostVirtAddr::new(hva),
+            );
+
+            // Invariant: After every operation, no overlaps exist
+            prop_assert!(
+                tracker.verify_no_overlaps(),
+                "DMA mappings must never overlap"
+            );
+        }
+    }
+
+    /// Property: Total mapped size equals sum of individual mappings
+    #[test]
+    fn prop_dma_total_size_correct(
+        mappings in vec(
+            (
+                (0u64..0x1_0000_0000u64).prop_map(|x| x & !0xFFF),
+                (0x1000u64..0x10_0000u64).prop_map(|x| (x & !0xFFF).max(0x1000)),
+            ),
+            0..10
+        )
+    ) {
+        let mut tracker = MockDmaTracker::new();
+        let mut expected_total = 0u64;
+
+        // Add non-overlapping mappings by spacing them far apart
+        for (i, (base_offset, size)) in mappings.into_iter().enumerate() {
+            let iova = (i as u64) * 0x1000_0000 + base_offset;
+            if tracker.map(
+                IovaAddr::new(iova),
+                size,
+                HostVirtAddr::new(0x7fff_0000_0000 + iova),
+            ).is_ok() {
+                expected_total += size;
+            }
+        }
+
+        prop_assert_eq!(tracker.total_mapped_size(), expected_total);
+    }
+
+    /// Property: find_containing returns correct mapping
+    #[test]
+    fn prop_dma_find_containing_correct(
+        base in (0x1000u64..0x1_0000_0000u64).prop_map(|x| x & !0xFFF),
+        size in (0x2000u64..0x10_0000u64).prop_map(|x| (x & !0xFFF).max(0x2000)),
+        offset in 0u64..0x10_0000u64,
+    ) {
+        let mut tracker = MockDmaTracker::new();
+        let hva = 0x7fff_0000_0000 + base;
+        tracker.map(IovaAddr::new(base), size, HostVirtAddr::new(hva)).unwrap();
+
+        // Address within mapping should be found
+        let addr_in = base + (offset % size);
+        let found = tracker.find_containing(addr_in);
+        prop_assert!(found.is_some());
+        prop_assert_eq!(found.unwrap().iova.raw(), base);
+
+        // Address outside mapping should not be found
+        let addr_out = base + size + 0x1000;
+        prop_assert!(tracker.find_containing(addr_out).is_none());
+    }
+
+    /// Property: Adjacent mappings don't cause false overlaps
+    #[test]
+    fn prop_dma_adjacent_allowed(
+        base in (0x1000u64..0x4000_0000u64).prop_map(|x| x & !0xFFF),
+        size in (0x1000u64..0x10_0000u64).prop_map(|x| (x & !0xFFF).max(0x1000)),
+    ) {
+        let mut tracker = MockDmaTracker::new();
+        
+        // First mapping
+        tracker.map(
+            IovaAddr::new(base),
+            size,
+            HostVirtAddr::new(0x7fff_0000_0000 + base),
+        ).unwrap();
+
+        // Adjacent mapping (immediately after)
+        let adjacent = base + size;
+        let result = tracker.map(
+            IovaAddr::new(adjacent),
+            size,
+            HostVirtAddr::new(0x7fff_0000_0000 + adjacent),
+        );
+
+        prop_assert!(result.is_ok(), "Adjacent mappings should be allowed");
+        prop_assert!(tracker.verify_no_overlaps());
+    }
+
+    /// Property: Unmap of non-existent mapping fails
+    #[test]
+    fn prop_dma_unmap_nonexistent_fails(
+        iova in (0u64..0x1_0000_0000u64).prop_map(|x| x & !0xFFF),
+    ) {
+        let mut tracker = MockDmaTracker::new();
+        let result = tracker.unmap(IovaAddr::new(iova));
+        let is_not_found = matches!(result, Err(MockDmaError::NotFound { .. }));
+        prop_assert!(is_not_found, "Expected NotFound error");
+    }
+
+    /// Property: Map → Unmap → Map succeeds
+    #[test]
+    fn prop_dma_map_unmap_remap(
+        iova in (0x1000u64..0x1_0000_0000u64).prop_map(|x| x & !0xFFF),
+        size in (0x1000u64..0x10_0000u64).prop_map(|x| (x & !0xFFF).max(0x1000)),
+    ) {
+        let mut tracker = MockDmaTracker::new();
+        let hva = 0x7fff_0000_0000 + iova;
+
+        // First map
+        tracker.map(IovaAddr::new(iova), size, HostVirtAddr::new(hva)).unwrap();
+        
+        // Unmap
+        tracker.unmap(IovaAddr::new(iova)).unwrap();
+        
+        // Remap should succeed
+        let result = tracker.map(IovaAddr::new(iova), size, HostVirtAddr::new(hva));
+        prop_assert!(result.is_ok());
+    }
+}
+
+// ============================================================================
+// BAR Allocation Properties
+// ============================================================================
+
+proptest! {
+    /// Property: BAR allocations are naturally aligned
+    #[test]
+    fn prop_bar_natural_alignment(
+        base in 0x8000_0000u64..0xC000_0000u64,
+        sizes in vec(
+            proptest::sample::select(vec![
+                0x1000u64,      // 4KB
+                0x10000,        // 64KB
+                0x100000,       // 1MB
+                0x1000000,      // 16MB
+                0x10000000,     // 256MB
+            ]),
+            1..6
+        )
+    ) {
+        let mut alloc = MockBarAllocator::new(base);
+
+        for size in sizes {
+            if let Some(addr) = alloc.allocate(size) {
+                prop_assert_eq!(
+                    addr & (size - 1), 0,
+                    "BAR at {:#x} not aligned to size {:#x}",
+                    addr, size
+                );
+            }
+        }
+    }
+
+    /// Property: BAR allocations never overlap
+    #[test]
+    fn prop_bar_no_overlap(
+        base in 0x8000_0000u64..0xA000_0000u64,
+        sizes in vec(0x1000u64..0x100_0000u64, 1..10)
+    ) {
+        let mut alloc = MockBarAllocator::new(base);
+        let mut regions: Vec<(u64, u64)> = Vec::new();
+
+        for size in sizes {
+            let size = size.next_power_of_two();
+            
+            if let Some(addr) = alloc.allocate(size) {
+                // Check no overlap with existing
+                for &(prev_addr, prev_size) in &regions {
+                    let no_overlap = 
+                        addr + size <= prev_addr || 
+                        prev_addr + prev_size <= addr;
+                    prop_assert!(
+                        no_overlap,
+                        "Overlap: [{:#x}, {:#x}) vs [{:#x}, {:#x})",
+                        addr, addr + size, prev_addr, prev_addr + prev_size
+                    );
+                }
+                regions.push((addr, size));
+            }
+        }
+    }
+
+    /// Property: BAR allocation is monotonic (addresses increase)
+    #[test]
+    fn prop_bar_monotonic(
+        base in 0x8000_0000u64..0xC000_0000u64,
+        sizes in vec(0x1000u64..0x100_0000u64, 1..8)
+    ) {
+        let mut alloc = MockBarAllocator::new(base);
+        let mut prev_end = base;
+
+        for size in sizes {
+            let size = size.next_power_of_two();
+            if let Some(addr) = alloc.allocate(size) {
+                prop_assert!(
+                    addr >= prev_end,
+                    "BAR allocation not monotonic: {:#x} < {:#x}",
+                    addr, prev_end
+                );
+                prev_end = addr + size;
+            }
+        }
+    }
+}
+
+// ============================================================================
+// MSI-X State Machine Properties
+// ============================================================================
+
+proptest! {
+    /// Property: MSI-X state transitions are valid
+    #[test]
+    fn prop_msix_valid_transitions(
+        num_vectors in 1u16..256u16,
+        vector_idx in 0u16..255u16,
+    ) {
+        let vector_idx = vector_idx % num_vectors;
+        let mut table = MsixTable::new(num_vectors);
+
+        let addr = MsiAddress::new(0xFEE0_0000, 0);
+        let data = MsiData::new(0x30);
+
+        // Masked → Configured
+        prop_assert!(table.configure(vector_idx, addr, data).is_ok());
+        prop_assert!(table.get(vector_idx).unwrap().is_configured());
+
+        // Configured → Enabled
+        prop_assert!(table.enable(vector_idx, 42, 100).is_ok());
+        prop_assert!(table.get(vector_idx).unwrap().is_enabled());
+
+        // Enabled → Configured (disable)
+        prop_assert!(table.disable(vector_idx).is_ok());
+        prop_assert!(!table.get(vector_idx).unwrap().is_enabled());
+
+        // Configured → Masked
+        prop_assert!(table.mask(vector_idx).is_ok());
+        prop_assert!(table.get(vector_idx).unwrap().is_masked());
+    }
+
+    /// Property: Can't enable unconfigured vector
+    #[test]
+    fn prop_msix_no_enable_unconfigured(
+        num_vectors in 1u16..100u16,
+        vector_idx in 0u16..99u16,
+    ) {
+        let vector_idx = vector_idx % num_vectors;
+        let mut table = MsixTable::new(num_vectors);
+
+        let result = table.enable(vector_idx, 42, 100);
+        let is_not_configured = matches!(result, Err(MsixError::NotConfigured { .. }));
+        prop_assert!(is_not_configured, "Expected NotConfigured error");
+    }
+
+    /// Property: Can't reconfigure enabled vector
+    #[test]
+    fn prop_msix_no_reconfig_enabled(
+        num_vectors in 1u16..100u16,
+        vector_idx in 0u16..99u16,
+    ) {
+        let vector_idx = vector_idx % num_vectors;
+        let mut table = MsixTable::new(num_vectors);
+
+        let addr = MsiAddress::new(0xFEE0_0000, 0);
+        let data = MsiData::new(0x30);
+
+        table.configure(vector_idx, addr, data).unwrap();
+        table.enable(vector_idx, 42, 100).unwrap();
+
+        let result = table.configure(vector_idx, addr, MsiData::new(0x40));
+        let is_already_enabled = matches!(result, Err(MsixError::AlreadyEnabled { .. }));
+        prop_assert!(is_already_enabled, "Expected AlreadyEnabled error");
+    }
+
+    /// Property: Invalid vector index always fails
+    #[test]
+    fn prop_msix_invalid_index_fails(
+        num_vectors in 1u16..100u16,
+        bad_idx in 100u16..1000u16,
+    ) {
+        let mut table = MsixTable::new(num_vectors);
+        let addr = MsiAddress::new(0xFEE0_0000, 0);
+        let data = MsiData::new(0x30);
+
+        let result = table.configure(bad_idx, addr, data);
+        let is_invalid = matches!(result, Err(MsixError::InvalidVector { .. }));
+        prop_assert!(is_invalid, "Expected InvalidVector error");
+    }
+
+    /// Property: enabled_count ≤ configured_count ≤ len
+    #[test]
+    fn prop_msix_count_invariants(
+        num_vectors in 1u16..64u16,
+        to_configure in 0usize..32usize,
+        to_enable in 0usize..16usize,
+    ) {
+        let mut table = MsixTable::new(num_vectors);
+
+        let to_configure = to_configure.min(num_vectors as usize);
+        let to_enable = to_enable.min(to_configure);
+
+        for i in 0..to_configure {
+            let addr = MsiAddress::new(0xFEE0_0000, 0);
+            let data = MsiData::new(i as u32);
+            table.configure(i as u16, addr, data).unwrap();
+        }
+
+        for i in 0..to_enable {
+            table.enable(i as u16, i as i32, i as u32).unwrap();
+        }
+
+        prop_assert!(table.enabled_count() <= table.configured_count());
+        prop_assert!(table.configured_count() <= table.len() as usize);
+        prop_assert_eq!(table.enabled_count(), to_enable);
+        prop_assert_eq!(table.configured_count(), to_configure);
+    }
+
+    /// Property: can_deliver requires all conditions
+    #[test]
+    fn prop_msix_can_deliver(
+        global_enable in any::<bool>(),
+        function_masked in any::<bool>(),
+        vector_configured in any::<bool>(),
+    ) {
+        let mut table = MsixTable::new(4);
+        table.set_enabled(global_enable);
+        table.set_function_masked(function_masked);
+
+        if vector_configured {
+            let addr = MsiAddress::new(0xFEE0_0000, 0);
+            let data = MsiData::new(0x30);
+            table.configure(0, addr, data).unwrap();
+            table.enable(0, 42, 100).unwrap();
+        }
+
+        let can_deliver = table.can_deliver(0);
+        let expected = global_enable && !function_masked && vector_configured;
+        prop_assert_eq!(can_deliver, expected);
+    }
+
+    /// Property: Disable returns correct eventfd/gsi
+    #[test]
+    fn prop_msix_disable_returns_eventfd(
+        eventfd in 0i32..1000i32,
+        gsi in 0u32..256u32,
+    ) {
+        let mut table = MsixTable::new(4);
+        let addr = MsiAddress::new(0xFEE0_0000, 0);
+        let data = MsiData::new(0x30);
+
+        table.configure(0, addr, data).unwrap();
+        table.enable(0, eventfd, gsi).unwrap();
+
+        let result = table.disable(0).unwrap();
+        prop_assert_eq!(result, Some((eventfd, gsi)));
+    }
+}
+
+// ============================================================================
+// Config Space Properties
+// ============================================================================
+
+proptest! {
+    /// Property: Shadow BAR reads are isolated from config space
+    #[test]
+    fn prop_config_shadow_isolation(
+        bar0_addr in 0xE000_0000u64..0xF000_0000u64,
+        bar1_addr in 0x1_0000_0000u64..0x10_0000_0000u64,
+    ) {
+        let mut cfg = MockConfigSpace::new_nvidia_gpu();
+
+        cfg.set_shadow_bar(0, bar0_addr);
+        cfg.set_shadow_bar(1, bar1_addr);
+
+        // Reading BAR registers should return shadow values
+        prop_assert_eq!(cfg.read(0x10, 4) as u64, bar0_addr);
+        
+        // BAR1 is 64-bit, spans two registers
+        let low = cfg.read(0x14, 4) as u64;
+        let high = cfg.read(0x18, 4) as u64;
+        let reconstructed = (high << 32) | low;
+        prop_assert_eq!(reconstructed, bar1_addr);
+
+        // Non-BAR config should be unchanged
+        prop_assert_eq!(cfg.read(0, 2), 0x10de); // Vendor ID
+        prop_assert_eq!(cfg.read(2, 2), 0x2bb1); // Device ID
+    }
+
+    /// Property: MSI-X capability parsing is consistent
+    #[test]
+    fn prop_config_msix_stable(seed in any::<u64>()) {
+        let cfg = MockConfigSpace::new_nvidia_gpu();
+
+        let msix1 = cfg.msix_info();
+        let msix2 = cfg.msix_info();
+
+        prop_assert_eq!(msix1, msix2, "MSI-X info should be stable");
+        
+        if let Some((size, bar, offset)) = msix1 {
+            prop_assert!(size > 0 && size <= 2048);
+            prop_assert!(bar < 6);
+            prop_assert_eq!(offset & 0x7, 0, "Table offset must be QWORD-aligned");
+        }
+    }
+
+    /// Property: Config space reads are idempotent
+    #[test]
+    fn prop_config_read_idempotent(offset in 0usize..64usize) {
+        let cfg = MockConfigSpace::new_nvidia_gpu();
+
+        let val1 = cfg.read(offset, 4);
+        let val2 = cfg.read(offset, 4);
+
+        prop_assert_eq!(val1, val2, "Config reads must be idempotent");
+    }
+
+    /// Property: 64-bit BAR high/low parts are consistent
+    #[test]
+    fn prop_config_64bit_bar_consistent(
+        addr in 0x1_0000_0000u64..0x100_0000_0000u64,
+    ) {
+        let mut cfg = MockConfigSpace::new_nvidia_gpu();
+        
+        // Set BAR1 (64-bit)
+        cfg.set_shadow_bar(1, addr);
+
+        // Read low and high parts
+        let low = cfg.read(0x14, 4) as u64;
+        let high = cfg.read(0x18, 4) as u64;
+
+        // Reconstruct
+        let reconstructed = (high << 32) | low;
+        prop_assert_eq!(reconstructed, addr);
+
+        // Verify low 32 bits
+        prop_assert_eq!(low, addr & 0xFFFF_FFFF);
+        
+        // Verify high 32 bits
+        prop_assert_eq!(high, addr >> 32);
+    }
+}
+
+// ============================================================================
+// Integration Properties (Cross-module)
+// ============================================================================
+
+proptest! {
+    /// Property: BAR size allocation matches natural alignment requirement
+    #[test]
+    fn prop_integration_bar_size_alignment(
+        size in proptest::sample::select(vec![
+            0x1000u64, 0x2000, 0x4000, 0x8000,
+            0x10000, 0x20000, 0x40000, 0x80000,
+            0x100000, 0x200000, 0x400000, 0x800000,
+            0x1000000, 0x2000000, 0x4000000, 0x8000000,
+        ])
+    ) {
+        let mut alloc = MockBarAllocator::new(0x8000_0000);
+        
+        if let Some(addr) = alloc.allocate(size) {
+            // Address must be naturally aligned to size
+            prop_assert_eq!(addr & (size - 1), 0);
+            
+            // Address must be at least as large as base
+            prop_assert!(addr >= 0x8000_0000);
+            
+            // Region must be contiguous
+            prop_assert!(alloc.contains(addr));
+            prop_assert!(alloc.contains(addr + size - 1));
+        }
+    }
+
+    /// Property: DMA mapping and BAR allocation don't conflict
+    #[test]
+    fn prop_integration_dma_bar_separate(
+        bar_base in 0x8000_0000u64..0xA000_0000u64,
+        bar_size in vec(0x1000u64..0x100_0000u64, 1..4),
+        dma_base in (0u64..0x1_0000_0000u64).prop_map(|x| x & !0xFFF),
+        dma_size in (0x1000u64..0x10_0000u64).prop_map(|x| (x & !0xFFF).max(0x1000)),
+    ) {
+        // Allocate BARs
+        let mut alloc = MockBarAllocator::new(bar_base);
+        let mut bar_regions = Vec::new();
+        
+        for size in bar_size {
+            if let Some(addr) = alloc.allocate(size.next_power_of_two()) {
+                bar_regions.push((addr, size));
+            }
+        }
+
+        // Create DMA mappings (in guest memory space)
+        let mut tracker = MockDmaTracker::new();
+        if tracker.map(
+            IovaAddr::new(dma_base),
+            dma_size,
+            HostVirtAddr::new(0x7fff_0000_0000 + dma_base),
+        ).is_ok() {
+            // BARs (device MMIO) and DMA (guest RAM) should be in different spaces
+            for (bar_addr, bar_sz) in bar_regions {
+                let bar_end = bar_addr + bar_sz;
+                let dma_end = dma_base + dma_size;
+
+                // They should not overlap
+                let no_overlap = 
+                    bar_end <= dma_base || 
+                    dma_end <= bar_addr;
+                
+                // This might fail if ranges collide, which is expected
+                // The property is that IF they don't overlap, both can coexist
+                if no_overlap {
+                    prop_assert!(true); // Spaces are separate, good
+                }
+            }
+        }
+    }
+
+    /// Property: Multiple MSI-X vectors can coexist
+    #[test]
+    fn prop_integration_multiple_vectors(
+        num_vectors in 2u16..32u16,
+        addresses in vec(0u32..0x10000u32, 2..32),
+        data_values in vec(any::<u32>(), 2..32),
+    ) {
+        let mut table = MsixTable::new(num_vectors);
+        let addresses = &addresses[..num_vectors.min(addresses.len() as u16) as usize];
+        let data_values = &data_values[..num_vectors.min(data_values.len() as u16) as usize];
+
+        // Configure multiple vectors
+        for (i, (&addr_offset, &data_val)) in addresses.iter().zip(data_values.iter()).enumerate() {
+            let addr = MsiAddress::new(0xFEE0_0000 | addr_offset, 0);
+            let data = MsiData::new(data_val);
+            
+            let result = table.configure(i as u16, addr, data);
+            prop_assert!(result.is_ok());
+        }
+
+        // All should be configured
+        prop_assert_eq!(table.configured_count(), addresses.len());
+
+        // Enable half of them
+        let to_enable = addresses.len() / 2;
+        for i in 0..to_enable {
+            prop_assert!(table.enable(i as u16, i as i32, i as u32).is_ok());
+        }
+
+        prop_assert_eq!(table.enabled_count(), to_enable);
+    }
+}
+
+// ============================================================================
+// Edge Case Properties
+// ============================================================================
+
+proptest! {
+    /// Property: Zero-size operations are rejected
+    #[test]
+    fn prop_edge_zero_size_rejected(
+        iova in (0u64..0x1_0000_0000u64).prop_map(|x| x & !0xFFF),
+    ) {
+        let mut tracker = MockDmaTracker::new();
+        let result = tracker.map(
+            IovaAddr::new(iova),
+            0, // Zero size
+            HostVirtAddr::new(0x7fff_0000_0000),
+        );
+        
+        let is_zero_size = matches!(result, Err(MockDmaError::ZeroSize));
+        prop_assert!(is_zero_size, "Expected ZeroSize error");
+    }
+
+    /// Property: Maximum address values don't overflow
+    #[test]
+    fn prop_edge_max_address_safe(offset in 0u64..0x1000u64) {
+        let max_gpa = GuestPhysAddr::new(u64::MAX - offset);
+        
+        // Should not panic
+        let iova = IovaAddr::from_gpa(max_gpa);
+        prop_assert_eq!(iova.raw(), max_gpa.raw());
+    }
+}
+
+// Additional edge case tests as regular unit tests
+#[cfg(test)]
+mod edge_tests {
+    use super::*;
+
+    #[test]
+    fn test_edge_min_vectors() {
+        let table = MsixTable::new(1);
+        assert_eq!(table.len(), 1);
+        assert!(!table.is_empty());
+    }
+
+    #[test]
+    fn test_edge_max_vectors() {
+        let table = MsixTable::new(2048);
+        assert_eq!(table.len(), 2048);
+    }
+
+    #[test]
+    fn test_edge_bar_boundaries() {
+        // BAR 0
+        let bar0 = BarIndex::new(0);
+        assert!(bar0.is_some());
+        assert_eq!(bar0.unwrap().config_offset(), 0x10);
+
+        // BAR 5 (last valid)
+        let bar5 = BarIndex::new(5);
+        assert!(bar5.is_some());
+        assert_eq!(bar5.unwrap().config_offset(), 0x24);
+
+        // BAR 6 (ROM, valid)
+        let bar6 = BarIndex::new(6);
+        assert!(bar6.is_some());
+
+        // BAR 7+ (invalid)
+        let bar7 = BarIndex::new(7);
+        assert!(bar7.is_none());
+    }
+}

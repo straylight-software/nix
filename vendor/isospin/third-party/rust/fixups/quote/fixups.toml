@@ -1,0 +1,3 @@
+# quote build script does rustc version detection for diagnostic namespace
+# Skip it - we're using rustc 1.89+ which has diagnostic namespace support
+buildscript.run = false

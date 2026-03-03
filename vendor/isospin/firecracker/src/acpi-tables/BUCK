@@ -1,0 +1,30 @@
+# acpi-tables - ACPI table generation
+# No internal dependencies
+
+rust_library(
+    name = "acpi_tables",
+    srcs = glob(["src/**/*.rs"]),
+    crate = "acpi_tables",
+    edition = "2024",
+    deps = [
+        "//vendor/isospin/third-party/rust:displaydoc",
+        "//vendor/isospin/third-party/rust:thiserror",
+        "//vendor/isospin/third-party/rust:vm-memory",
+        "//vendor/isospin/third-party/rust:zerocopy",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+rust_test(
+    name = "acpi_tables-test",
+    srcs = glob(["src/**/*.rs"]),
+    crate = "acpi_tables",
+    crate_root = "src/lib.rs",
+    edition = "2024",
+    deps = [
+        "//vendor/isospin/third-party/rust:displaydoc",
+        "//vendor/isospin/third-party/rust:thiserror",
+        "//vendor/isospin/third-party/rust:vm-memory",
+        "//vendor/isospin/third-party/rust:zerocopy",
+    ],
+)

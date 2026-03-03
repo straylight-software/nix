@@ -1,0 +1,6 @@
+# serde_json build script detects target arch for fast arithmetic
+# We set it manually for x86_64
+buildscript.run = false
+
+# Set fast_arithmetic cfg for x86_64
+rustc_flags = ["--cfg=fast_arithmetic=\"64\""]

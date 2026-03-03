@@ -1,0 +1,2 @@
+# bitfield-struct includes README.md in docs
+extra_srcs = ["README.md"]

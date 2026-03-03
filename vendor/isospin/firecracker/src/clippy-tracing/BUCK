@@ -1,0 +1,35 @@
+# clippy-tracing - Source code transformation tool for tracing instrumentation
+
+rust_binary(
+    name = "clippy-tracing",
+    srcs = glob(["src/**/*.rs"]),
+    crate = "clippy_tracing",
+    crate_root = "src/main.rs",
+    edition = "2024",
+    deps = [
+        "//vendor/isospin/third-party/rust:clap",
+        "//vendor/isospin/third-party/rust:itertools",
+        "//vendor/isospin/third-party/rust:proc-macro2",
+        "//vendor/isospin/third-party/rust:quote",
+        "//vendor/isospin/third-party/rust:syn",
+        "//vendor/isospin/third-party/rust:walkdir",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+rust_test(
+    name = "clippy-tracing-test",
+    srcs = glob(["src/**/*.rs", "tests/**/*.rs"]),
+    crate = "clippy_tracing",
+    crate_root = "src/main.rs",
+    edition = "2024",
+    deps = [
+        "//vendor/isospin/third-party/rust:clap",
+        "//vendor/isospin/third-party/rust:itertools",
+        "//vendor/isospin/third-party/rust:proc-macro2",
+        "//vendor/isospin/third-party/rust:quote",
+        "//vendor/isospin/third-party/rust:syn",
+        "//vendor/isospin/third-party/rust:uuid",
+        "//vendor/isospin/third-party/rust:walkdir",
+    ],
+)

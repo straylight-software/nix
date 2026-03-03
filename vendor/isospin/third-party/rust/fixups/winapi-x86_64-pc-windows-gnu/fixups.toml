@@ -1,0 +1,2 @@
+# Windows-only, skip
+buildscript.run = false

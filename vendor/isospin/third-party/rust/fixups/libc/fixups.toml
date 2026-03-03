@@ -1,0 +1,2 @@
+# libc build script detects platform
+buildscript.run = false

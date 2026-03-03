@@ -1,0 +1,8 @@
+# Override linux-loader to use vm-memory 0.18.x instead of 0.16.x
+# Note: reindeer omit_deps requires package name, not target name
+omit_deps = ["vm-memory"]
+extra_deps = ["//third-party/rust:vm-memory-0.18.0"]
+
+# Enable bzimage feature for x86_64 support
+[features]
+bzimage = []

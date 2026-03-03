@@ -1,0 +1,44 @@
+# cpu-template-helper - CPU template generation tool
+
+rust_binary(
+    name = "cpu-template-helper",
+    srcs = glob(["src/**/*.rs"]) + ["src/utils/mock_kernel/kernel.bin"],
+    crate = "cpu_template_helper",
+    crate_root = "src/main.rs",
+    edition = "2024",
+    env = {
+        "CARGO_PKG_VERSION": "1.15.0-dev",
+    },
+    deps = [
+        "//vendor/isospin/firecracker/src/vmm:vmm",
+        "//vendor/isospin/third-party/rust:clap",
+        "//vendor/isospin/third-party/rust:displaydoc",
+        "//vendor/isospin/third-party/rust:libc",
+        "//vendor/isospin/third-party/rust:serde",
+        "//vendor/isospin/third-party/rust:serde_json",
+        "//vendor/isospin/third-party/rust:thiserror",
+        "//vendor/isospin/third-party/rust:vmm-sys-util",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+rust_test(
+    name = "cpu-template-helper-test",
+    srcs = glob(["src/**/*.rs"]) + ["src/utils/mock_kernel/kernel.bin"],
+    crate = "cpu_template_helper",
+    crate_root = "src/main.rs",
+    edition = "2024",
+    env = {
+        "CARGO_PKG_VERSION": "1.15.0-dev",
+    },
+    deps = [
+        "//vendor/isospin/firecracker/src/vmm:vmm",
+        "//vendor/isospin/third-party/rust:clap",
+        "//vendor/isospin/third-party/rust:displaydoc",
+        "//vendor/isospin/third-party/rust:libc",
+        "//vendor/isospin/third-party/rust:serde",
+        "//vendor/isospin/third-party/rust:serde_json",
+        "//vendor/isospin/third-party/rust:thiserror",
+        "//vendor/isospin/third-party/rust:vmm-sys-util",
+    ],
+)

@@ -1,0 +1,10 @@
+# serde_core build script generates private.rs with version-specific module
+# We manually added private.rs to vendor/serde_core-1.0.228/out/
+buildscript.run = false
+
+# Include the generated out/private.rs file
+extra_srcs = ["out/private.rs"]
+
+# OUT_DIR must point to the out directory where private.rs is located
+[env]
+OUT_DIR = "vendor/serde_core-1.0.228/out"

@@ -366,7 +366,7 @@
         "git-hooks": "git-hooks",
         "nix2container": "nix2container",
         "nixpkgs": "nixpkgs_2",
-        "rust-overlay": "rust-overlay"
+        "rust-overlay": "rust-overlay_2"
       },
       "locked": {
         "lastModified": 1770034444,
@@ -600,12 +600,33 @@
         "buck2-prelude": "buck2-prelude",
         "flake-parts": "flake-parts",
         "nixpkgs": "nixpkgs",
+        "rust-overlay": "rust-overlay",
         "sensenet": "sensenet",
         "systems": "systems_4",
         "treefmt-nix": "treefmt-nix_2"
       }
     },
     "rust-overlay": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1772507320,
+        "narHash": "sha256-GdGXniFvtIfRiakc+ncdQYnoQjKbTCv9Imjfl4ggquI=",
+        "owner": "oxalica",
+        "repo": "rust-overlay",
+        "rev": "1775eafa1879ac098ee436849bc9c3d963206f89",
+        "type": "github"
+      },
+      "original": {
+        "owner": "oxalica",
+        "repo": "rust-overlay",
+        "type": "github"
+      }
+    },
+    "rust-overlay_2": {
       "inputs": {
         "nixpkgs": [
           "sensenet",
@@ -627,7 +648,7 @@
         "type": "github"
       }
     },
-    "rust-overlay_2": {
+    "rust-overlay_3": {
       "inputs": {
         "nixpkgs": [
           "sensenet",
@@ -661,7 +682,7 @@
         ],
         "nvidia-sdk": "nvidia-sdk",
         "purescript-overlay": "purescript-overlay",
-        "rust-overlay": "rust-overlay_2",
+        "rust-overlay": "rust-overlay_3",
         "systems": "systems_3",
         "treefmt-nix": "treefmt-nix"
       },

@@ -13,9 +13,14 @@ cxx_library(
     name = "build_service",
     srcs = [
         "daemon_build_service.cpp",
+        "firecracker_build_service.cpp",
         "reapi_build_service.cpp",
+        "vm_protocol.cpp",
     ],
-    exported_headers = ["build_service.h"],
+    exported_headers = [
+        "build_service.h",
+        "vm_protocol.h",
+    ],
     header_namespace = "straylight/nix/build",
     compiler_flags = COMMON_FLAGS,
     deps = [

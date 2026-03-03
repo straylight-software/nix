@@ -1,0 +1,40 @@
+# AWS-LC prebuilt library from Nix
+# The library is built via Nix and lives in the Nix store
+# We create symlinks to the actual library files
+# AWS_LC_LIB_DIR is set by the flake.nix shell
+
+genrule(
+    name = "aws-lc-crypto-lib",
+    cmd = "ln -s $AWS_LC_LIB_DIR/libaws_lc_0_35_0_crypto.a \"$OUT\"",
+    out = "libaws_lc_0_35_0_crypto.a",
+)
+
+genrule(
+    name = "aws-lc-ssl-lib",
+    cmd = "ln -s $AWS_LC_LIB_DIR/libaws_lc_0_35_0_ssl.a \"$OUT\"",
+    out = "libaws_lc_0_35_0_ssl.a",
+)
+
+prebuilt_cxx_library(
+    name = "aws-lc-crypto",
+    static_lib = ":aws-lc-crypto-lib",
+    preferred_linkage = "static",
+    visibility = ["PUBLIC"],
+)
+
+prebuilt_cxx_library(
+    name = "aws-lc-ssl", 
+    static_lib = ":aws-lc-ssl-lib",
+    preferred_linkage = "static",
+    visibility = ["PUBLIC"],
+)
+
+# Combined target for aws-lc-sys to link against
+cxx_library(
+    name = "aws-lc",
+    exported_deps = [
+        ":aws-lc-crypto",
+        ":aws-lc-ssl",
+    ],
+    visibility = ["PUBLIC"],
+)

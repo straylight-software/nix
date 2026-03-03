@@ -1,0 +1,2 @@
+# radium build script detects atomic support
+buildscript.run = false

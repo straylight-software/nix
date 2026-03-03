@@ -1,0 +1,5 @@
+# acpi_tables from rust-vmm (Cloud Hypervisor's ACPI library)
+# This is a no_std crate that generates ACPI tables
+
+# No build script needed
+buildscript.run = false

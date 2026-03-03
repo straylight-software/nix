@@ -1,0 +1,164 @@
+# Third-party Rust dependencies for isospin
+# Managed by reindeer - do not edit directly except to add/update dependencies
+# After modifying, run:
+#   reindeer --third-party-dir=third-party/rust vendor
+#   reindeer --third-party-dir=third-party/rust buckify
+
+[package]
+name = "isospin-third-party"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+# Dummy lib target (required by Cargo)
+[lib]
+path = "lib.rs"
+
+# All external crate dependencies needed by Firecracker and Cloud Hypervisor
+[dependencies]
+# Core proc-macro dependencies (for log-instrument-macros, clippy-tracing)
+proc-macro2 = { version = "1.0.103", features = ["span-locations"] }
+quote = "1.0.42"
+syn = { version = "2.0.111", features = ["full", "extra-traits", "visit", "visit-mut", "printing"] }
+
+# Common utilities
+displaydoc = "0.2.5"
+thiserror = "2.0.17"
+libc = "0.2.178"
+errno = "0.3.14"
+log = { version = "0.4.29", features = ["std", "serde"] }
+serde = { version = "1.0.228", features = ["derive", "rc"] }
+serde_json = "1.0.145"
+
+# VM/hypervisor related
+vm-memory = { version = "0.18.0", features = ["backend-mmap", "backend-bitmap", "backend-atomic"] }
+vmm-sys-util = { version = "0.15.0", features = ["with-serde"] }
+kvm-bindings = { version = "0.14.0", features = ["fam-wrappers", "serde"] }
+kvm-ioctls = "0.24.0"
+linux-loader = "0.13.2"
+
+# Data structures and serialization
+zerocopy = { version = "0.8.31", features = ["derive"] }
+bincode = { version = "2.0.1", features = ["serde"] }
+bitflags = "2.10.0"
+bitvec = { version = "1.0.1", features = ["atomic", "serde"] }
+byteorder = "1.5.0"
+base64 = "0.22.1"
+semver = { version = "1.0.27", features = ["serde"] }
+arrayvec = "0.7.6"
+
+# CLI and tools
+clap = { version = "4.5.53", features = ["derive", "string"] }
+walkdir = "2.5.0"
+itertools = "0.14.0"
+regex = { version = "1.12.2", default-features = false, features = ["std", "unicode-perl"] }
+
+# Event handling
+event-manager = "0.4.2"
+
+# Crypto
+aws-lc-rs = "1.15.1"
+crc64 = "2.0.0"
+
+# Memory
+memfd = "0.6.5"
+userfaultfd = "0.9.0"
+
+# VM devices and virtualization
+vhost = { version = "0.15.0", features = ["vhost-user-frontend"] }
+vm-allocator = { version = "0.1.3", features = ["serde"] }
+vm-superio = "0.8.1"
+vm-fdt = "0.3.0"
+
+# Data structures
+slab = "0.4.11"
+uuid = { version = "1.19.0", features = ["v4"] }
+
+# Misc
+derive_more = { version = "2.1.0", default-features = false, features = ["from", "display"] }
+micro_http = { git = "https://github.com/firecracker-microvm/micro-http" }
+getrandom = "0.3.4"
+crc-any = "2.5.0"
+flate2 = "1.1.2"
+io-uring = "0.7.7"
+num_enum = "0.7.5"
+remain = "0.2.15"
+smallvec = "1.15.0"
+zstd = "0.13.3"
+
+# ============================================================================
+# Dev/Test Dependencies
+# These are needed for running tests in the Firecracker crates
+# ============================================================================
+
+# vmm tests
+criterion = { version = "0.8.1", default-features = false }
+device_tree = "1.1.0"
+proptest = { version = "1.9.0", default-features = false, features = ["std"] }
+
+# pci tests
+serde_test = "1.0.177"
+
+# firecracker tests
+cargo_toml = "0.22.3"
+
+# log-instrument tests
+env_logger = "0.11.8"
+
+# clippy-tracing tests (uuid already included above with default features, add v4)
+# uuid with v4 feature - already have uuid above, update to include v4
+
+# ============================================================================
+# Cloud Hypervisor Dependencies
+# Additional crates needed for Cloud Hypervisor that aren't in Firecracker
+# ============================================================================
+
+# Error handling
+anyhow = "1.0.99"
+
+# Async/runtime (for vhost-user, dbus)
+epoll = "4.4.0"
+flume = "0.12.0"
+signal-hook = "0.4.1"
+
+# VFIO for GPU passthrough
+vfio-bindings = { version = "0.6.0", default-features = false }
+vfio-ioctls = { version = "0.5.1", default-features = false }
+vfio_user = { version = "0.1.1", default-features = false }
+
+# vhost-user backend support
+vhost-user-backend = { version = "0.20.0", default-features = false }
+
+# Virtio
+virtio-bindings = "0.2.6"
+virtio-queue = "0.16.0"
+
+# Microsoft Hypervisor (optional, for Azure)
+mshv-bindings = { version = "0.6.5", features = ["fam-wrappers", "with-serde"] }
+mshv-ioctls = "0.6.5"
+
+# Seccomp (CH uses the crate, FC has its own)
+seccompiler = "0.5.0"
+
+# Serialization extras
+serde_with = { version = "3.16.1", default-features = false, features = ["macros"] }
+
+# Misc CH deps
+arc-swap = "1.8.0"
+cfg-if = "1.0.4"
+dirs = "6.0.0"
+wait-timeout = "0.2.1"
+landlock = "0.4.4"
+dhat = { version = "0.3.3", optional = true }
+
+# For hypervisor crate
+bitfield-struct = "0.12.0"
+concat-idents = "1.1.5"
+open-enum = "0.5.2"
+
+# igvm (confidential VMs) - git deps, skip for now
+# igvm = { git = "https://github.com/microsoft/igvm", branch = "main" }
+# igvm_defs = { git = "https://github.com/microsoft/igvm", branch = "main" }
+
+# acpi_tables from rust-vmm (CH uses git, we'll use local FC version)
+# acpi_tables = { git = "https://github.com/rust-vmm/acpi_tables", branch = "main" }

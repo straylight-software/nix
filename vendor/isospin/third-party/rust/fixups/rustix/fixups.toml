@@ -1,0 +1,18 @@
+# rustix build script detects platform features
+buildscript.run = false
+
+# Use libc backend for simplicity
+cfgs = ["libc", "linux_kernel", "linux_like", "linux_libc"]
+
+# Add libc as a dependency since we're using the libc backend
+# Note: rustix refers to errno as libc_errno internally
+# We've added extern crate errno as libc_errno to the source files that need it
+extra_deps = ["//third-party/rust:libc-0.2.180", "//third-party/rust:errno-0.3.14"]
+
+# Add the backend/mod.rs file we created to help Buck find the module
+# The backend/mod.rs is a symlink to libc/mod.rs
+# No extra srcs needed since all libc files are already included
+
+# rustix expects these env vars from the build script
+[env]
+DEP_RUSTIX_VERSION = "1.1.3"

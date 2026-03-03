@@ -1,0 +1,4 @@
+# Enable KVM support for vfio-ioctls
+features = ["kvm"]
+extra_deps = ["//third-party/rust:kvm-ioctls", "//third-party/rust:kvm-bindings", "//third-party/rust:vm-memory-0.18.0"]
+omit_deps = ["vm-memory"]

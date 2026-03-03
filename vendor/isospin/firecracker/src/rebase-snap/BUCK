@@ -1,0 +1,38 @@
+# rebase-snap - Snapshot rebasing tool
+
+rust_binary(
+    name = "rebase-snap",
+    srcs = glob(["src/**/*.rs"]),
+    crate = "rebase_snap",
+    crate_root = "src/main.rs",
+    edition = "2024",
+    env = {
+        "CARGO_PKG_VERSION": "1.15.0-dev",
+    },
+    deps = [
+        "//vendor/isospin/firecracker/src/utils:utils",
+        "//vendor/isospin/third-party/rust:displaydoc",
+        "//vendor/isospin/third-party/rust:libc",
+        "//vendor/isospin/third-party/rust:thiserror",
+        "//vendor/isospin/third-party/rust:vmm-sys-util",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+rust_test(
+    name = "rebase-snap-test",
+    srcs = glob(["src/**/*.rs"]),
+    crate = "rebase_snap",
+    crate_root = "src/main.rs",
+    edition = "2024",
+    env = {
+        "CARGO_PKG_VERSION": "1.15.0-dev",
+    },
+    deps = [
+        "//vendor/isospin/firecracker/src/utils:utils",
+        "//vendor/isospin/third-party/rust:displaydoc",
+        "//vendor/isospin/third-party/rust:libc",
+        "//vendor/isospin/third-party/rust:thiserror",
+        "//vendor/isospin/third-party/rust:vmm-sys-util",
+    ],
+)

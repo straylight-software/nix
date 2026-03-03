@@ -1,0 +1,38 @@
+# jailer - Firecracker isolation binary
+
+rust_binary(
+    name = "jailer",
+    srcs = glob(["src/**/*.rs"]),
+    crate = "jailer",
+    crate_root = "src/main.rs",
+    edition = "2024",
+    env = {
+        "CARGO_PKG_VERSION": "1.15.0-dev",
+    },
+    deps = [
+        "//vendor/isospin/firecracker/src/utils:utils",
+        "//vendor/isospin/third-party/rust:libc",
+        "//vendor/isospin/third-party/rust:regex",
+        "//vendor/isospin/third-party/rust:thiserror",
+        "//vendor/isospin/third-party/rust:vmm-sys-util",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+rust_test(
+    name = "jailer-test",
+    srcs = glob(["src/**/*.rs"]),
+    crate = "jailer",
+    crate_root = "src/main.rs",
+    edition = "2024",
+    env = {
+        "CARGO_PKG_VERSION": "1.15.0-dev",
+    },
+    deps = [
+        "//vendor/isospin/firecracker/src/utils:utils",
+        "//vendor/isospin/third-party/rust:libc",
+        "//vendor/isospin/third-party/rust:regex",
+        "//vendor/isospin/third-party/rust:thiserror",
+        "//vendor/isospin/third-party/rust:vmm-sys-util",
+    ],
+)

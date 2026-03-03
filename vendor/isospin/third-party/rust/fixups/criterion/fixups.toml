@@ -1,0 +1,8 @@
+# criterion uses include_str! for HTML templates
+# These need to be included as extra_srcs for Buck to copy them
+extra_srcs = [
+    "src/html/benchmark_report.html.tt",
+    "src/html/index.html.tt",
+    "src/html/report_link.html.tt",
+    "src/html/summary_report.html.tt",
+]

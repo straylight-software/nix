@@ -1,0 +1,10 @@
+# rustversion build script detects rustc version
+# We pre-generate the version.expr file
+buildscript.run = false
+
+# Add the pre-generated version.expr to srcs so Buck2 copies it
+extra_srcs = ["out/version.expr"]
+
+[env]
+# Path relative to __srcs directory (vendor/crate-version/out)
+OUT_DIR = "vendor/rustversion-1.0.22/out"

@@ -1,0 +1,3 @@
+# Override virtio-queue to use vm-memory 0.18.x instead of 0.16.x
+omit_deps = ["vm-memory"]
+extra_deps = ["//third-party/rust:vm-memory-0.18.0"]

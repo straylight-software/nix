@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc b94923ae8d66fff3fbb3795aaa4ba6eecb2ed1da99d938d678b782fdfab5fbf5 # shrinks to ops_per_client = [(1, []), (1, [RegisterClient])]

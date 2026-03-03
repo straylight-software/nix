@@ -1,0 +1,2 @@
+# getrandom includes README
+extra_srcs = ["README.md"]

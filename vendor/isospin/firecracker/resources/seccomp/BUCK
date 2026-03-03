@@ -1,0 +1,24 @@
+# Seccomp filter JSON policy files
+#
+# These JSON files define the seccomp policies for different thread types
+# (vmm, api, vcpu). They are compiled to BPF bytecode at build time by
+# seccompiler-bin and embedded into the firecracker binary.
+
+export_file(
+    name = "unimplemented.json",
+    src = "unimplemented.json",
+    visibility = ["PUBLIC"],
+)
+
+# Production seccomp filters for musl targets
+export_file(
+    name = "x86_64-unknown-linux-musl.json",
+    src = "x86_64-unknown-linux-musl.json",
+    visibility = ["PUBLIC"],
+)
+
+export_file(
+    name = "aarch64-unknown-linux-musl.json",
+    src = "aarch64-unknown-linux-musl.json",
+    visibility = ["PUBLIC"],
+)
