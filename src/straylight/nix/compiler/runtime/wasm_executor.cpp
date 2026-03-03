@@ -14,10 +14,53 @@
 namespace straylight::nix::compiler::runtime {
 
 // =============================================================================
+// Engine Configuration
+// =============================================================================
+
+#ifdef WASMTIME_FEATURE_PARALLEL_COMPILATION
+inline constexpr bool has_parallel_compilation = true;
+#else
+inline constexpr bool has_parallel_compilation = false;
+#endif
+
+#ifdef WASMTIME_FEATURE_POOLING_ALLOCATOR
+inline constexpr bool has_pooling_allocator = true;
+#else
+inline constexpr bool has_pooling_allocator = false;
+#endif
+
+static auto make_optimized_engine() -> std::unique_ptr<wasmtime::Engine> {
+  wasmtime::Config config;
+
+  // Cranelift optimization - Speed over compilation time
+  // Nix evals are typically short-lived, but we want fast execution
+  config.cranelift_opt_level(wasmtime::OptLevel::Speed);
+
+  // Enable parallel compilation for modules with many functions
+  if constexpr (has_parallel_compilation) {
+    config.parallel_compilation(true);
+  }
+
+  // Memory configuration - Nix can allocate large attrsets
+  // Reserve 256 MB for linear memory (virtual address space, not physical)
+  config.memory_reservation(256 * 1024 * 1024);
+  // 2 MB guard pages for trap handling
+  config.memory_guard_size(2 * 1024 * 1024);
+
+  // Enable memory pooling for faster instantiation (reuses allocations)
+  if constexpr (has_pooling_allocator) {
+    wasmtime::PoolAllocationConfig pool_config;
+    config.pooling_allocation_strategy(pool_config);
+  }
+
+  return std::make_unique<wasmtime::Engine>(std::move(config));
+}
+
+// =============================================================================
 // Constructor/Destructor
 // =============================================================================
 
-wasm_executor::wasm_executor() : engine_(std::make_unique<wasmtime::Engine>()) {
+wasm_executor::wasm_executor() : engine_(make_optimized_engine()) {
   // Create default I/O backend based on compile-time config
   if constexpr (has_io()) {
     io_ = make_default_io_backend();
@@ -25,7 +68,7 @@ wasm_executor::wasm_executor() : engine_(std::make_unique<wasmtime::Engine>()) {
 }
 
 wasm_executor::wasm_executor(std::unique_ptr<io_backend_interface> io)
-    : engine_(std::make_unique<wasmtime::Engine>()), io_(std::move(io)) {
+    : engine_(make_optimized_engine()), io_(std::move(io)) {
   // Store will be created fresh for each execution
 }
 
