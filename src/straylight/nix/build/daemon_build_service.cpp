@@ -17,8 +17,10 @@ namespace {
 // Nix Daemon Build Service Implementation
 // ============================================================================
 
-class daemon_build_service final : public build_service {
-public:
+struct daemon_build_service final : build_service {
+  std::string socket_path_;
+  std::shared_ptr<::nix::store_t> daemon_store_;
+
   explicit daemon_build_service(std::string socket_path) : socket_path_(std::move(socket_path)) {}
 
   void build_paths(::nix::store_t& store, const std::vector<::nix::derived_path_t>& paths,
@@ -28,16 +30,17 @@ public:
     daemon.build_paths(paths, build_mode, daemon_store_);
   }
 
-  std::vector<::nix::keyed_build_result_t>
-  build_paths_with_results(::nix::store_t& store, const std::vector<::nix::derived_path_t>& paths,
-                           ::nix::BuildMode build_mode) override {
+  auto build_paths_with_results(::nix::store_t& store,
+                                const std::vector<::nix::derived_path_t>& paths,
+                                ::nix::BuildMode build_mode)
+      -> std::vector<::nix::keyed_build_result_t> override {
     auto& daemon = get_daemon();
     return daemon.build_paths_with_results(paths, build_mode, daemon_store_);
   }
 
-  ::nix::build_result_t build_derivation(::nix::store_t& store, const ::nix::store_path_t& drv_path,
-                                         const ::nix::basic_derivation_t& drv,
-                                         ::nix::BuildMode build_mode) override {
+  auto build_derivation(::nix::store_t& store, const ::nix::store_path_t& drv_path,
+                        const ::nix::basic_derivation_t& drv, ::nix::BuildMode build_mode)
+      -> ::nix::build_result_t override {
     auto& daemon = get_daemon();
     return daemon.buildDerivation(drv_path, drv, build_mode);
   }
@@ -52,15 +55,14 @@ public:
     daemon.ensure_path(path);
   }
 
-  std::string_view name() const override { return "nix-daemon"; }
+  auto name() const -> std::string_view override { return "nix-daemon"; }
 
-  bool is_available() const override {
+  auto is_available() const -> bool override {
     // Check if socket exists
     return ::nix::path_exists(socket_path_);
   }
 
-private:
-  ::nix::store_t& get_daemon() {
+  auto get_daemon() -> ::nix::store_t& {
     if (!daemon_store_) {
       ::nix::store_config_t::Params params;
       if (!socket_path_.empty() && socket_path_ != ::nix::settings.nixDaemonSocketFile) {
@@ -77,9 +79,6 @@ private:
     }
     return *daemon_store_;
   }
-
-  std::string socket_path_;
-  std::shared_ptr<::nix::store_t> daemon_store_;
 };
 
 } // namespace

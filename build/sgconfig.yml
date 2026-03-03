@@ -2,9 +2,3 @@
 # Hypermodern C++ house style enforcement
 ruleDirs:
   - lint
-# Exclude vendor and build directories
-ignores:
-  - vendor/
-  - buck-out/
-  - build/
-  - third_party/
