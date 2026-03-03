@@ -329,12 +329,11 @@ void store_adapter::add_to_store(const ::nix::valid_path_info_t& info, ::nix::so
   return dst_path;
 }
 
-void store_adapter::register_drv_output(const ::nix::realisation_t& output) {
-  auto result = impl_->add_derivation_output(output.id.strHash(), output.id.output_name,
-                                             printStorePath(output.out_path));
-  if (!result) {
-    throw_error(result.error(), "registering derivation output");
-  }
+void store_adapter::register_drv_output(const ::nix::realisation_t& /* output */) {
+  // CA derivation realisations use a different schema (Realisations table)
+  // than the old DerivationOutputs table. For now, we skip registration
+  // since the output path is already registered via add_to_store.
+  // TODO: Implement proper Realisations table support for CA derivations
 }
 
 // ============================================================================
@@ -368,10 +367,17 @@ void store_adapter::addTempRoot(const ::nix::store_path_t& path) {
 
 std::shared_ptr<::nix::source_accessor_t>
 store_adapter::getFSAccessor(const ::nix::store_path_t& path, bool require_valid_path) {
-  if (require_valid_path && !isValidPath(path)) {
-    return nullptr;
+  auto abs_path = fs::path{getRealStoreDir()} / path.to_string();
+  if (require_valid_path) {
+    if (!isValidPath(path)) {
+      return nullptr;
+    }
+  } else {
+    if (!fs::exists(abs_path)) {
+      return nullptr;
+    }
   }
-  return getFSAccessor(require_valid_path).get_ptr();
+  return ::nix::make_fs_source_accessor(std::move(abs_path)).get_ptr();
 }
 
 // ============================================================================
