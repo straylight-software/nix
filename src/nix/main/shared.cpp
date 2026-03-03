@@ -13,6 +13,7 @@
 
 #include "nix/main/loggers.h"
 #include "nix/main/progress-bar.h"
+#include "nix/store/filetransfer.h"
 #include "nix/store/gc-store.h"
 #include "nix/store/globals.h"
 #include "nix/store/ssh.h"
@@ -341,26 +342,31 @@ int handle_exceptions(const std::string& program_name, std::function<void()> fun
   error_info_t::program_name = base_name_of(program_name);
 
   std::string error = ANSI_RED "error:" ANSI_NORMAL " ";
+  int status = 0;
   try {
     fun();
   } catch (exit_t& e) {
-    return e.get_status();
+    status = e.get_status();
   } catch (UsageError& e) {
     logError(e.info());
     printError("\nTry '%1% --help' for more information.", program_name);
-    return 1;
+    status = 1;
   } catch (base_error_t& e) {
     logError(e.info());
-    return e.info().status_;
+    status = e.info().status_;
   } catch (std::bad_alloc& e) {
     printError(error + "out of memory");
-    return 1;
+    status = 1;
   } catch (std::exception& e) {
     printError(error + e.what());
-    return 1;
+    status = 1;
   }
 
-  return 0;
+  // Reset the FileTransfer singleton before static destruction runs.
+  // This ensures clean thread shutdown while curl/SSL are still valid.
+  reset_file_transfer();
+
+  return status;
 }
 
 RunPager::RunPager() {

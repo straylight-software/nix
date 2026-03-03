@@ -2,6 +2,11 @@
 
 #include <optional>
 
+// mimalloc thread cleanup workaround
+#if __has_include(<mimalloc.h>)
+#  include <mimalloc.h>
+#endif
+
 #include "nix/store/globals.h"
 #include "nix/store/s3-url.h"
 #include "nix/store/store-api.h"
@@ -734,7 +739,13 @@ struct curl_file_transfer_t : public FileTransfer {
   pipe_t wakeup_pipe;
 #endif
 
-  std::thread worker_thread;
+  // Use pthread directly for larger stack size (see constructor)
+  pthread_t worker_thread_handle{};
+
+  static void* worker_thread_entry_static(void* self) {
+    static_cast<curl_file_transfer_t*>(self)->worker_thread_entry();
+    return nullptr;
+  }
 
   const size_t max_queue_size = file_transfer_settings.httpConnections.get() * 5;
 
@@ -757,13 +768,25 @@ struct curl_file_transfer_t : public FileTransfer {
     fcntl(wakeup_pipe.read_side.get(), F_SETFL, O_NONBLOCK);
 #endif
 
-    worker_thread = std::thread([&]() { worker_thread_entry(); });
+    // Create worker thread with larger stack size (8MB) to handle deep recursion
+    // in libcurl/LibreSSL during TLS handshakes. Musl's default stack (128KB on some
+    // configs) is too small and causes stack overflow during flake registry fetch.
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    constexpr size_t stack_size = 8 * 1024 * 1024; // 8MB
+    pthread_attr_setstacksize(&attr, stack_size);
+
+    if (pthread_create(&worker_thread_handle, &attr, worker_thread_entry_static, this) != 0) {
+      pthread_attr_destroy(&attr);
+      throw sys_error_t("creating file transfer worker thread");
+    }
+    pthread_attr_destroy(&attr);
   }
 
   ~curl_file_transfer_t() {
     stop_worker_thread();
 
-    worker_thread.join();
+    pthread_join(worker_thread_handle, nullptr);
 
     if (curlm) {
       curl_multi_cleanup(curlm);
@@ -929,6 +952,14 @@ struct curl_file_transfer_t : public FileTransfer {
       auto state(state_.lock());
       state->quit();
     }
+
+    // Explicitly release mimalloc's thread-local state before pthread exit.
+    // This works around a hang in mimalloc's TSD destructor with musl libc
+    // where _mi_page_free_collect gets stuck in an infinite loop during
+    // thread cleanup.
+#if __has_include(<mimalloc.h>)
+    mi_thread_done();
+#endif
   }
 
   ItemHandle enqueue_item(ref<transfer_item_t> item) {

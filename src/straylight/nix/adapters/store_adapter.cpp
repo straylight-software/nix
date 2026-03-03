@@ -225,11 +225,21 @@ store_adapter::queryPathFromHashPart(const std::string& hash_part) {
 // ============================================================================
 
 void store_adapter::add_to_store(const ::nix::valid_path_info_t& info, ::nix::source_t& source,
-                                 ::nix::RepairFlag /* repair */,
-                                 ::nix::CheckSigsFlag /* check_sigs */) {
-  // First, write the NAR to the store
+                                 ::nix::RepairFlag repair, ::nix::CheckSigsFlag /* check_sigs */) {
+  // Skip if path is already valid (unless repair is requested)
+  if (!repair && isValidPath(info.path)) {
+    // Consume the source to keep the protocol in sync
+    source.skip(info.nar_size);
+    return;
+  }
+
   auto real_path = toRealPath(info.path);
   fs::create_directories(fs::path(real_path).parent_path());
+
+  // Remove existing path if present (for repair or if partially written)
+  if (fs::exists(real_path)) {
+    fs::remove_all(real_path);
+  }
 
   // Restore from NAR
   ::nix::restore_path(real_path, source);
@@ -341,13 +351,21 @@ void store_adapter::register_drv_output(const ::nix::realisation_t& /* output */
 // ============================================================================
 
 void store_adapter::addIndirectRoot(const ::nix::Path& path) {
-  // Add a symlink in gcRootsDir pointing to the indirect root
-  auto target = fs::weakly_canonical(path);
+  // Add a symlink in gcRootsDir pointing to the indirect root (the user-facing symlink).
+  // Important: Do NOT resolve symlinks - we want to point to the gc root itself,
+  // not the store path it points to. Use absolute() instead of weakly_canonical().
+  auto target = fs::absolute(path);
   auto hash = ::nix::hash_string(::nix::hash_algorithm_t::SHA256, path);
   auto linkPath = gcRootsDir + "/" + hash.to_string(::nix::hash_format_t::nix32, false);
 
   if (!fs::exists(linkPath)) {
-    fs::create_symlink(target, linkPath);
+    std::error_code ec;
+    fs::create_symlink(target, linkPath, ec);
+    // Silently ignore permission errors - we may not have write access to gcRootsDir
+    if (ec && ec != std::errc::permission_denied) {
+      throw std::filesystem::filesystem_error("creating indirect root symlink", target, linkPath,
+                                              ec);
+    }
   }
 }
 
