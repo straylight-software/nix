@@ -18,7 +18,6 @@
 #include <vector>
 
 #include <nanobench.h>
-
 #include <straylight/nix/text/strings.h>
 
 namespace sz = straylight::nix::text;

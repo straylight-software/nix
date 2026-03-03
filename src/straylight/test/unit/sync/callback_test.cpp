@@ -9,9 +9,9 @@
 #include <thread>
 #include <vector>
 
-#include <catch2/catch_test_macros.hpp>
-
 #include <straylight/nix/sync/callback.h>
+
+#include <catch2/catch_test_macros.hpp>
 
 namespace callback = straylight::nix::sync;
 

@@ -35,6 +35,13 @@ inline std::ostream& print_literal_string(std::ostream& o, const std::string& s)
   return print_literal_string(o, std::string_view(s));
 }
 
+/**
+ * Format a string as a Nix string literal.
+ *
+ * String-returning variant of print_literal_string.
+ */
+std::string format_literal_string(std::string_view s);
+
 /** Print `true` or `false`. */
 std::ostream& print_literal_bool(std::ostream& o, bool b);
 
@@ -61,6 +68,13 @@ bool is_reserved_keyword(const std::string_view str);
  *        `print*` functions instead.
  */
 std::ostream& print_identifier(std::ostream& o, std::string_view s);
+
+/**
+ * Format a string as an identifier in the Nix expression language syntax.
+ *
+ * String-returning variant of print_identifier.
+ */
+std::string format_identifier(std::string_view s);
 
 void print_value(eval_state_t& state, std::ostream& str, value_t& v,
                  PrintOptions options = PrintOptions{});

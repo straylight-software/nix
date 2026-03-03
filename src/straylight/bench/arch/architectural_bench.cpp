@@ -123,7 +123,7 @@ std::string serialize_path_info(const PathInfo& info) {
 // ============================================================================
 
 // Mock log-structured store (simplified version of log_store.h)
-class MockLogStore {
+struct MockLogStore {
 public:
   explicit MockLogStore(const fs::path& root) : root_(root) {
     fs::create_directories(root_ / "index" / "paths");
@@ -163,8 +163,16 @@ public:
     std::ifstream file(meta_path, std::ios::binary);
     std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
     // Simplified: just check file exists
-    PathInfo info;
-    info.path = path;
+    PathInfo info{
+        .path = path,
+        .nar_hash = {},
+        .registration_time = 0,
+        .deriver = {},
+        .nar_size = 0,
+        .ultimate = false,
+        .sigs = {},
+        .ca = {},
+    };
     return info;
   }
 
@@ -180,7 +188,7 @@ private:
 };
 
 // Mock SQLite store (simplified version of local-store.cpp pattern)
-class MockSQLiteStore {
+struct MockSQLiteStore {
 public:
   explicit MockSQLiteStore(const fs::path& db_path) : db_path_(db_path) {
     // In real implementation, this would use sqlite3_open and create tables
@@ -333,7 +341,7 @@ TEST_CASE("Log-structured store vs SQLite benchmarks", "[benchmark][store][archi
 
 // Mock AST node for interpreter
 struct ASTNode {
-  enum class Type { Int, Add, Mul, Let, Var, Lambda, Apply };
+  enum struct Type { Int, Add, Mul, Let, Var, Lambda, Apply };
   Type type;
   std::int64_t int_value{0};
   std::string name;
@@ -341,7 +349,7 @@ struct ASTNode {
 };
 
 // Mock AST interpreter (simulates traditional Nix evaluation)
-class ASTInterpreter {
+struct ASTInterpreter {
 public:
   std::int64_t evaluate(const ASTNode& node, std::unordered_map<std::string, std::int64_t>& env) {
     switch (node.type) {
@@ -391,7 +399,7 @@ struct WASMModule {
 };
 
 // Mock WASM executor
-class WASMExecutor {
+struct WASMExecutor {
 public:
   std::int64_t execute(const WASMModule& module) {
     // Simulate WASM execution by interpreting bytecode
@@ -592,7 +600,7 @@ TEST_CASE("WASM compiler vs AST interpreter benchmarks", "[benchmark][compiler][
 // ============================================================================
 
 // Mock traditional GC (synchronous stat/unlink per path)
-class TraditionalGC {
+struct TraditionalGC {
 public:
   int delete_paths(const std::vector<fs::path>& paths) {
     int deleted = 0;
@@ -620,7 +628,7 @@ public:
 };
 
 // Mock io_uring GC (batched operations)
-class IoUringGC {
+struct IoUringGC {
 public:
   int delete_paths_batch(const std::vector<fs::path>& paths) {
     // Simulate io_uring batching - in practice this submits all unlinks at once
@@ -717,7 +725,7 @@ TEST_CASE("io_uring GC vs traditional GC benchmarks", "[benchmark][gc][architect
 // ============================================================================
 
 // Mock daemon client (simulates IPC overhead)
-class DaemonClient {
+struct DaemonClient {
 public:
   explicit DaemonClient(const fs::path& socket_path) : socket_path_(socket_path) {
     // In real implementation: connect to Unix domain socket
@@ -760,7 +768,7 @@ private:
 };
 
 // Daemonless direct store access
-class DirectStore {
+struct DirectStore {
 public:
   explicit DirectStore(const fs::path& db_path) {
     // Direct database access, no IPC

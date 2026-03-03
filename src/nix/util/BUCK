@@ -157,6 +157,7 @@ cxx_library(
         "source-path.h",
         "split.h",
         "std-hash.h",
+        "string-ostream.h",
         "strings.h",
         "strings-inline.h",
         "suggestions.h",

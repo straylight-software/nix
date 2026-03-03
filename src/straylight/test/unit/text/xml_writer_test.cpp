@@ -6,9 +6,9 @@
 #include <string>
 #include <utility>
 
-#include <catch2/catch_test_macros.hpp>
-
 #include <straylight/nix/text/xml_writer.h>
+
+#include <catch2/catch_test_macros.hpp>
 namespace xml = straylight::nix::text;
 
 // ─────────────────────────────────────────────────────────────────────────────

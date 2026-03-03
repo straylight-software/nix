@@ -12,7 +12,6 @@
 #include <thread>
 #include <vector>
 
-
 #include "straylight/nix/async/executor.h"
 #include "straylight/nix/async/parallel.h"
 #include "straylight/nix/async/task_graph.h"

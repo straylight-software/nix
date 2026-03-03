@@ -7,7 +7,6 @@
 #include <cstdint>
 #include <string>
 
-
 #include "straylight/nix/compiler/ast/expression.h"
 #include "straylight/nix/compiler/ast/symbol_table.h"
 #include "straylight/nix/compiler/compile/compiler.h"

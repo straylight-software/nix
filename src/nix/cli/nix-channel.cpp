@@ -15,7 +15,6 @@
 #include <ctime>
 #include <fstream>
 #include <iostream>
-#include <sstream>
 
 #include <fcntl.h>
 
@@ -300,8 +299,7 @@ static void cmd_update(ref<store_t> store, const std::vector<std::string>& names
   }
 
   // Create a combined expression that imports all channels
-  std::ostringstream expr;
-  expr << "{ ";
+  std::string expr = "{ ";
 
   for (const auto& channel : to_update) {
     check_interrupt(); // Issue #3236: Allow interruption during loop
@@ -310,17 +308,17 @@ static void cmd_update(ref<store_t> store, const std::vector<std::string>& names
     auto store_path = fetch_channel(store, channel);
 
     // Add to expression
-    expr << channel.name << " = import " << store->printStorePath(store_path) << "; ";
+    expr += channel.name + " = import " + store->printStorePath(store_path) + "; ";
   }
 
-  expr << "}";
+  expr += "}";
 
   check_interrupt(); // Issue #3236: Check before profile update
 
   // Write the combined expression to a file and add to store
   auto_delete_t tmp_dir(create_temp_dir(), true);
   auto expr_file = tmp_dir.path() / "default.nix";
-  write_file(expr_file, expr.str());
+  write_file(expr_file, expr);
 
   auto accessor = make_fs_source_accessor(tmp_dir.path());
   source_path_t source_path{accessor, canon_path_t::root};

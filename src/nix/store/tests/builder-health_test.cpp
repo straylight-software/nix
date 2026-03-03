@@ -10,7 +10,7 @@
 
 #include "nix/store/builder-health.h"
 
-using namespace nix;
+using nix::BuilderHealthTracker;
 
 TEST_CASE("BuilderHealthTracker basics", "[builder-health]") {
   BuilderHealthTracker tracker;

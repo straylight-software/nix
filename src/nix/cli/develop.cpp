@@ -18,7 +18,6 @@
 #include <algorithm>
 #include <iterator>
 #include <memory>
-#include <sstream>
 
 #include <nlohmann/json.hpp>
 
@@ -146,34 +145,36 @@ struct build_environment_t {
     return structured_attrs->second;
   }
 
-  void to_bash(std::ostream& out, const nix::string_set_t& ignore_vars) const {
+  std::string to_bash(const nix::string_set_t& ignore_vars) const {
+    std::string out;
     for (auto& [name, value] : vars) {
       if (!ignore_vars.count(name)) {
         if (auto str = std::get_if<String>(&value)) {
-          out << nix::fmt("%s=%s\n", name, nix::escape_shell_arg_always(str->value));
+          out += nix::fmt("%s=%s\n", name, nix::escape_shell_arg_always(str->value));
           if (str->exported) {
-            out << nix::fmt("export %s\n", name);
+            out += nix::fmt("export %s\n", name);
           }
         } else if (auto arr = std::get_if<Array>(&value)) {
-          out << "declare -a " << name << "=(";
+          out += "declare -a " + name + "=(";
           for (auto& s : *arr) {
-            out << nix::escape_shell_arg_always(s) << " ";
+            out += nix::escape_shell_arg_always(s) + " ";
           }
-          out << ")\n";
+          out += ")\n";
         } else if (auto arr = std::get_if<Associative>(&value)) {
-          out << "declare -A " << name << "=(";
+          out += "declare -A " + name + "=(";
           for (auto& [n, v] : *arr) {
-            out << "[" << nix::escape_shell_arg_always(n) << "]=" << nix::escape_shell_arg_always(v)
-                << " ";
+            out += "[" + nix::escape_shell_arg_always(n) + "]=" + nix::escape_shell_arg_always(v) +
+                   " ";
           }
-          out << ")\n";
+          out += ")\n";
         }
       }
     }
 
     for (auto& [name, def] : bash_functions) {
-      out << name << " ()\n{\n" << def << "}\n";
+      out += name + " ()\n{\n" + def + "}\n";
     }
+    return out;
   }
 
   static std::string get_string(const value_t& value) {
@@ -368,11 +369,7 @@ struct common_t : nix::InstallableCommand, nix::MixProfile {
       out += nix::fmt("nix_saved_%s=\"$%s\"\n", var, var);
     }
 
-    {
-      std::ostringstream sink;
-      build_environment.to_bash(sink, ignore_vars);
-      out += sink.str();
-    }
+    out += build_environment.to_bash(ignore_vars);
 
     for (auto& var : saved_vars) {
       out += nix::fmt("%s=\"$%s${nix_saved_%s:+:$nix_saved_%s}\"\n", var, var, var, var);

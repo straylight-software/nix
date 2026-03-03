@@ -19,7 +19,6 @@
 #include <vector>
 
 #include <nanobench.h>
-
 #include <straylight/nix/crypto/hash.h>
 
 namespace hash = straylight::nix::crypto;

@@ -20,7 +20,6 @@
 
 #include <rapidcheck.h>
 #include <rapidcheck/catch.h>
-
 #include <straylight/nix/data/topo_sort.h>
 
 namespace topo = straylight::nix::data;

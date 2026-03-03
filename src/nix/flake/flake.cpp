@@ -9,7 +9,6 @@
 #include <optional>
 #include <set>
 #include <span>
-#include <sstream>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -31,6 +30,7 @@
 #include "nix/expr/eval-settings.h"
 #include "nix/expr/eval.h"
 #include "nix/expr/nixexpr.h"
+#include "nix/expr/print.h"
 #include "nix/expr/symbol-table.h"
 #include "nix/expr/value-to-json.h"
 #include "nix/expr/value.h"
@@ -860,8 +860,6 @@ LockedFlake lock_flake(const settings_t& settings, eval_state_t& state, const fl
                under their control). */
             auto warnRegistry = [&](const flake_ref_t& resolved_ref) {
               if (inputAttrPath.size() == 1 && !input.ref->input.isDirect()) {
-                std::ostringstream s;
-                print_literal_string(s, resolved_ref.to_string());
                 warn("flake_t input '%1%' uses the flake registry. "
                      "Using the registry in flake inputs is deprecated in Determinate Nix. "
                      "To make your flake future-proof, add the following to '%2%':\n"
@@ -870,7 +868,7 @@ LockedFlake lock_flake(const settings_t& settings, eval_state_t& state, const fl
                      "\n"
                      "For more information, see: "
                      "https://github.com/DeterminateSystems/nix-src/issues/37",
-                     inputAttrPathS, flake.path, s.str());
+                     inputAttrPathS, flake.path, format_literal_string(resolved_ref.to_string()));
               }
             };
 

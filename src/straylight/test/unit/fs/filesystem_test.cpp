@@ -8,7 +8,6 @@
 #include <fstream>
 #include <thread>
 
-
 #include "straylight/nix/fs/file_lock.h"
 #include "straylight/nix/fs/mmap.h"
 #include "straylight/nix/fs/temp.h"

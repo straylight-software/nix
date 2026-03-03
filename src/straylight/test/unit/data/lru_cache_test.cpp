@@ -15,7 +15,6 @@
 
 #include <rapidcheck.h>
 #include <rapidcheck/catch.h>
-
 #include <straylight/nix/data/lru_cache.h>
 
 namespace data = straylight::nix::data;

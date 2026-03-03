@@ -763,10 +763,11 @@ the code signature on Mach-O executables.
 
 **File:** `src/straylight/nix/store/log_store.cpp` (architectural replacement)
 
-**Problem:** "Bad file descriptor" errors with CA derivations through daemon. The daemon architecture
-required complex FD passing between processes.
+**Problem:** "Bad file descriptor" errors with CA derivations through daemon. The daemon
+architecture required complex FD passing between processes.
 
-**Fix:** Daemonless store architecture with direct file access eliminates FD passing issues entirely.
+**Fix:** Daemonless store architecture with direct file access eliminates FD passing issues
+entirely.
 
 ### 53. Daemon Crashes - Daemonless Architecture (#14733, #13707, #13844, #12871, #12761, #11667, #13721)
 
@@ -776,8 +777,8 @@ required complex FD passing between processes.
 configuration problems, and interrupt handling.
 
 **Fix:** Daemonless architecture with direct store access eliminates the daemon process entirely,
-avoiding all daemon-related crashes and assertion failures. The log-structured store uses flock-based
-coordination instead of IPC.
+avoiding all daemon-related crashes and assertion failures. The log-structured store uses
+flock-based coordination instead of IPC.
 
 ### 54. Systemd KillMode Documentation (#10964)
 

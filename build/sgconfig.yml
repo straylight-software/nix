@@ -1,7 +1,7 @@
 # ast-grep configuration for straylight/nix
 # Hypermodern C++ house style enforcement
 ruleDirs:
-  - build/lint
+  - lint
 # Exclude vendor and build directories
 ignores:
   - vendor/

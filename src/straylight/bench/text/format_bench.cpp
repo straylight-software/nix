@@ -5,9 +5,9 @@
 #include <cstdint>
 #include <string>
 
-#include <boost/format.hpp>
-
 #include <straylight/nix/text/format.h>
+
+#include <boost/format.hpp>
 
 #define ANKERL_NANOBENCH_IMPLEMENT
 #include <nanobench.h>

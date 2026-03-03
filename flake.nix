@@ -229,8 +229,8 @@
 
                 # Copy pre-generated nix-deps.bzl with correct store paths for this system
                 # (must be after cd to writable build dir)
-                rm -f third_party/nix-deps.bzl
-                cp ${nix-deps-bzl} third_party/nix-deps.bzl
+                rm -f vendor/nix-deps.bzl
+                cp ${nix-deps-bzl} vendor/nix-deps.bzl
 
                 # Generate buckconfig.local with musl static linking config
                 cat > .buckconfig.local << 'BUCKCONFIG'
@@ -422,7 +422,8 @@
               let
                 minLineCoverage = 5; # minimum line coverage percentage (start low, ratchet up)
                 # compiler-rt provides libclang_rt.profile for coverage instrumentation
-                inherit (toolchain.llvm) compiler-rt;
+                # Use pkgsMusl version to avoid glibc fortify function references
+                inherit (pkgs.pkgsMusl.llvmPackages_20) compiler-rt;
                 compiler-rt-lib = "${compiler-rt}/lib/linux";
               in
               pkgs.stdenvNoCC.mkDerivation {
@@ -467,8 +468,8 @@
                                     ln -s ${inputs.buck2-prelude} nix/build/prelude
 
                                     # Copy pre-generated nix-deps.bzl
-                                    rm -f third_party/nix-deps.bzl
-                                    cp ${nix-deps-bzl} third_party/nix-deps.bzl
+                                    rm -f vendor/nix-deps.bzl
+                                    cp ${nix-deps-bzl} vendor/nix-deps.bzl
 
                                     # Generate buckconfig.local with coverage flags baked in
                                     # Coverage flags are added directly to c_flags/cxx_flags/link_flags
@@ -493,7 +494,7 @@
                   [cxx.flags]
                   c_flags = ${toolchain.buck2.c-flags} ${includeFlags} -fprofile-instr-generate -fcoverage-mapping
                   cxx_flags = ${toolchain.buck2.cxx-flags} ${includeFlags} -fprofile-instr-generate -fcoverage-mapping
-                  link_flags = ${toolchain.buck2.link-flags} ${libFlags} ${compiler-rt-lib}/libclang_rt.profile-x86_64.a
+                  link_flags = ${toolchain.buck2.link-flags} ${libFlags} -Wl,--whole-archive ${compiler-rt-lib}/libclang_rt.profile-x86_64.a -Wl,--no-whole-archive
 
                   [build]
                   execution_platforms = toolchains//:lre
@@ -527,8 +528,9 @@
 
                                     echo "=== Running tests to collect coverage data ==="
 
-                                    # Set profile output location
-                                    export LLVM_PROFILE_FILE="$TMPDIR/coverage-%p-%m.profraw"
+                                    # Set profile output location - use pwd since TMPDIR may not work in sandbox
+                                    export LLVM_PROFILE_FILE="$(pwd)/coverage-%p-%m.profraw"
+                                    echo "LLVM_PROFILE_FILE=$LLVM_PROFILE_FILE"
 
                                     # Run each test
                                     for target in "''${TEST_TARGETS[@]}"; do
@@ -540,16 +542,15 @@
                                       fi
                                     done
 
-                  echo "=== Merging profile data ==="
+                                    echo "=== Merging profile data ==="
 
-                  # Debug: show where profraw files might be
-                  echo "Looking for .profraw files in $TMPDIR and pwd=$(pwd)"
-                  find $TMPDIR -name "*.profraw" -type f 2>/dev/null || true
-                  find . -name "*.profraw" -type f 2>/dev/null || true
-                  ls -la $TMPDIR/ 2>/dev/null || true
+                                    # Debug: show where profraw files might be
+                                    echo "Looking for .profraw files in pwd=$(pwd)"
+                                    find . -name "*.profraw" -type f 2>/dev/null || true
+                                    ls -la . 2>/dev/null || true
 
-                  # Find all profraw files
-                  PROFRAW_FILES=$(find $TMPDIR -name "*.profraw" -type f)
+                                    # Find all profraw files (search in current dir and TMPDIR)
+                                    PROFRAW_FILES=$(find . $TMPDIR -name "*.profraw" -type f 2>/dev/null)
                                     if [ -z "$PROFRAW_FILES" ]; then
                                       echo "ERROR: No .profraw files generated"
                                       exit 1

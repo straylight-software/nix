@@ -4,6 +4,7 @@
 
 #include "nix/expr/eval-inline.h"
 #include "nix/util/signals.h"
+#include "nix/util/string-ostream.h"
 #include "nix/util/xml-writer.h"
 
 namespace nix {
@@ -183,6 +184,13 @@ void print_value_as_xml(eval_state_t& state, bool strict, bool location, value_t
   xml_open_element_t root(doc, "expr");
   path_set_t drvs_seen;
   print_value_as_xml(state, strict, location, v, doc, context, drvs_seen, pos);
+}
+
+std::string print_value_as_xml_string(eval_state_t& state, bool strict, bool location, value_t& v,
+                                      NixStringContext& context, const pos_idx_t pos) {
+  string_ostream_t out;
+  print_value_as_xml(state, strict, location, v, out, context, pos);
+  return out.take();
 }
 
 } // namespace nix

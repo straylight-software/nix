@@ -15,7 +15,7 @@ namespace nix {
  * RAII wrapper for flock-based file locking.
  * Used to coordinate concurrent writes to the local binary cache.
  */
-class CacheLock {
+struct CacheLock {
   int fd = -1;
 
 public:

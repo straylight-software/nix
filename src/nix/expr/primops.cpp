@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <cstring>
 #include <regex>
-#include <sstream>
 
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -2537,10 +2536,9 @@ static RegisterPrimOp primop_output_of({
    representation returned in a string.  Not all Nix expressions can
    be sensibly or completely represented (e.g., functions). */
 static void prim_to_xml(eval_state_t& state, const pos_idx_t pos, value_t** args, value_t& v) {
-  std::ostringstream out;
   NixStringContext context;
-  print_value_as_xml(state, true, false, *args[0], out, context, pos);
-  v.mk_string(out.str(), context, state.mem);
+  auto xml = print_value_as_xml_string(state, true, false, *args[0], context, pos);
+  v.mk_string(xml, context, state.mem);
 }
 
 static RegisterPrimOp primop_to_xml({
@@ -2644,10 +2642,9 @@ static RegisterPrimOp primop_to_xml({
    string.  Not all Nix expressions can be sensibly or completely
    represented (e.g., functions). */
 static void prim_to_json(eval_state_t& state, const pos_idx_t pos, value_t** args, value_t& v) {
-  std::ostringstream out;
   NixStringContext context;
-  print_value_as_json(state, true, *args[0], pos, out, context);
-  v.mk_string(out.str(), context, state.mem);
+  auto json = print_value_as_json(state, true, *args[0], pos, context);
+  v.mk_string(json.dump(), context, state.mem);
 }
 
 static RegisterPrimOp primop_to_json({

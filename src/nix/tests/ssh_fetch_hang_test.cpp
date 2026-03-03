@@ -38,7 +38,8 @@
 #include "nix/util/signals.h"
 #include "nix/util/sync.h"
 
-using namespace std::chrono_literals;
+using std::chrono_literals::operator""s;
+using std::chrono_literals::operator""ms;
 
 // =============================================================================
 // Issue #14615: nix copy ssh hangs for max-connections > 1

@@ -10,8 +10,6 @@
 
 #include <rapidcheck.h>
 #include <rapidcheck/catch.h>
-
-
 #include <straylight/nix/text/fuzzy.h>
 namespace fuzzy = straylight::nix::text;
 

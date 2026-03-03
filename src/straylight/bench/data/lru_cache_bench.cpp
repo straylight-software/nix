@@ -18,7 +18,6 @@
 #include <vector>
 
 #include <nanobench.h>
-
 #include <straylight/nix/data/lru_cache.h>
 
 namespace lru = straylight::nix::data;

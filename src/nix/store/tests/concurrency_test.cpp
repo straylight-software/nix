@@ -118,7 +118,7 @@ FileStat get_file_stat(const fs::path& path) {
 // RAII helper for build slot (testing #1015)
 // ============================================================================
 
-class MockBuildSlotGuard {
+struct MockBuildSlotGuard {
   std::atomic<int>& slot_counter;
   bool acquired;
 

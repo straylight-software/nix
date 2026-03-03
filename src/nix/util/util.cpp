@@ -106,7 +106,7 @@ struct AhoCorasickNode {
   int pattern_idx = -1; // -1 if not end of pattern, otherwise index into patterns
 };
 
-class AhoCorasickAutomaton {
+struct AhoCorasickAutomaton {
   std::vector<AhoCorasickNode> nodes;
   std::vector<std::pair<std::string_view, std::string_view>> patterns; // (from, to)
 

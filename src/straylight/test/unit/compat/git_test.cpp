@@ -8,7 +8,7 @@
 #include <string_view>
 #include <vector>
 
-using namespace std::string_literals;
+using std::string_literals::operator""s;
 
 #include <catch2/catch_test_macros.hpp>
 

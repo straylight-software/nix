@@ -13,7 +13,6 @@
 
 #include <rapidcheck.h>
 #include <rapidcheck/catch.h>
-
 #include <straylight/nix/crypto/encoding.h>
 namespace encoding = straylight::nix::crypto;
 
@@ -49,17 +48,14 @@ TEST_CASE("base16 decode known values", "[encoding][base16]") {
   REQUIRE(decoded == std::vector<uint8_t>{0xde, 0xad, 0xbe, 0xef});
 
   // Case insensitive
-  REQUIRE(encoding::base16::decode("DEADBEEF") ==
-          std::vector<uint8_t>{0xde, 0xad, 0xbe, 0xef});
-  REQUIRE(encoding::base16::decode("DeAdBeEf") ==
-          std::vector<uint8_t>{0xde, 0xad, 0xbe, 0xef});
+  REQUIRE(encoding::base16::decode("DEADBEEF") == std::vector<uint8_t>{0xde, 0xad, 0xbe, 0xef});
+  REQUIRE(encoding::base16::decode("DeAdBeEf") == std::vector<uint8_t>{0xde, 0xad, 0xbe, 0xef});
 }
 
 TEST_CASE("base16 roundtrip", "[encoding][base16]") {
   // Edge cases
   std::vector<uint8_t> all_zeros(32, 0);
-  REQUIRE(encoding::base16::decode(encoding::base16::encode(all_zeros)) ==
-          all_zeros);
+  REQUIRE(encoding::base16::decode(encoding::base16::encode(all_zeros)) == all_zeros);
 
   std::vector<uint8_t> all_ff(32, 0xff);
   REQUIRE(encoding::base16::decode(encoding::base16::encode(all_ff)) == all_ff);
@@ -129,10 +125,10 @@ TEST_CASE("nix32 empty input", "[encoding][nix32]") {
 
 TEST_CASE("nix32 known values", "[encoding][nix32]") {
   // SHA256 of empty string (commonly seen in Nix)
-  std::vector<uint8_t> sha256_empty = {
-      0xe3, 0xb0, 0xc4, 0x42, 0x98, 0xfc, 0x1c, 0x14, 0x9a, 0xfb, 0xf4,
-      0xc8, 0x99, 0x6f, 0xb9, 0x24, 0x27, 0xae, 0x41, 0xe4, 0x64, 0x9b,
-      0x93, 0x4c, 0xa4, 0x95, 0x99, 0x1b, 0x78, 0x52, 0xb8, 0x55};
+  std::vector<uint8_t> sha256_empty = {0xe3, 0xb0, 0xc4, 0x42, 0x98, 0xfc, 0x1c, 0x14,
+                                       0x9a, 0xfb, 0xf4, 0xc8, 0x99, 0x6f, 0xb9, 0x24,
+                                       0x27, 0xae, 0x41, 0xe4, 0x64, 0x9b, 0x93, 0x4c,
+                                       0xa4, 0x95, 0x99, 0x1b, 0x78, 0x52, 0xb8, 0x55};
   auto encoded = encoding::nix32::encode(sha256_empty);
   // Nix32 encoding produces 52 characters for SHA256
   REQUIRE(encoded.length() == 52);
@@ -144,8 +140,7 @@ TEST_CASE("nix32 roundtrip", "[encoding][nix32]") {
   for (size_t i = 0; i < 20; ++i) {
     store_hash[i] = static_cast<uint8_t>(i * 13);
   }
-  REQUIRE(encoding::nix32::decode(encoding::nix32::encode(store_hash)) ==
-          store_hash);
+  REQUIRE(encoding::nix32::decode(encoding::nix32::encode(store_hash)) == store_hash);
 }
 
 TEST_CASE("nix32 alphabet validation", "[encoding][nix32]") {
@@ -154,8 +149,7 @@ TEST_CASE("nix32 alphabet validation", "[encoding][nix32]") {
   // Should only contain valid nix32 characters
   for (char c : encoded) {
     REQUIRE(((c >= '0' && c <= '9') ||
-             (c >= 'a' && c <= 'z' && c != 'e' && c != 'o' && c != 't' &&
-              c != 'u')));
+             (c >= 'a' && c <= 'z' && c != 'e' && c != 'o' && c != 't' && c != 'u')));
   }
 }
 

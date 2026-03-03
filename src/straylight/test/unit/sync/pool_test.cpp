@@ -20,7 +20,6 @@
 
 #include <rapidcheck.h>
 #include <rapidcheck/catch.h>
-
 #include <straylight/nix/sync/pool.h>
 
 namespace pool = straylight::nix::sync;

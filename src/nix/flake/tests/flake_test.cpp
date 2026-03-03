@@ -110,7 +110,7 @@ const char* FLAKE_NIX_WITH_INPUTS = R"({
  * Mock InputCache that tracks cache hits/misses and fetch attempts.
  * This exercises the actual cache behavior from input-cache.cpp.
  */
-class MockInputCache {
+struct MockInputCache {
 public:
   struct CachedInput {
     std::string locked_input;
@@ -185,7 +185,7 @@ private:
  * Simulated lock file cache for testing (#9339).
  * Caches lock file content to avoid re-reading during evaluation.
  */
-class MockLockFileCache {
+struct MockLockFileCache {
 public:
   struct CachedLockFile {
     std::string content;
@@ -228,7 +228,7 @@ private:
  * LazyGlobalRegistry implementation for testing #6222.
  * Defers download until first access.
  */
-class LazyRegistry {
+struct LazyRegistry {
 public:
   struct RegistryData {
     std::vector<std::pair<std::string, std::string>> entries;

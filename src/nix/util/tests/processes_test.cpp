@@ -35,7 +35,8 @@
 
 #include "nix/util/processes.h"
 
-using namespace std::chrono_literals;
+using std::chrono_literals::operator""s;
+using std::chrono_literals::operator""ms;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Test helpers

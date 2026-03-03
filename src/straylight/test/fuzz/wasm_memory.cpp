@@ -11,12 +11,12 @@
 /// Run fuzzer:
 ///   ./wasm_memory_fuzz -max_len=4096 corpus/
 
+#include "straylight/nix/compiler/runtime/wasm_memory.h"
+
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
 #include <vector>
-
-#include "straylight/nix/compiler/runtime/wasm_memory.h"
 
 namespace runtime = straylight::nix::compiler::runtime;
 

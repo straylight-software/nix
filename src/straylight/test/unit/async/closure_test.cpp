@@ -15,7 +15,6 @@
 #include <unordered_set>
 #include <vector>
 
-
 #include "straylight/nix/async/closure.h"
 
 namespace async = straylight::nix::async;

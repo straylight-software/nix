@@ -6,7 +6,6 @@
 // IMPORTANT: Catch2 v3 MUST be included BEFORE rapidcheck/catch.h
 #include <string>
 
-
 #include "straylight/nix/text/format.h"
 
 namespace fmt = straylight::nix::text;

@@ -1,7 +1,5 @@
 #include "nix/util/url.h"
 
-#include <sstream>
-
 #include <boost/url.hpp>
 
 #include "nix/util/canon-path.h"
@@ -91,9 +89,39 @@ std::ostream& operator<<(std::ostream& os, const parsed_url_t::authority_t& self
 }
 
 std::string parsed_url_t::authority_t::to_string() const {
-  std::ostringstream oss;
-  oss << *this;
-  return std::move(oss).str();
+  std::string result;
+
+  if (user()) {
+    result += percent_encode(*user());
+    if (password()) {
+      result += ":";
+      result += percent_encode(*password());
+    }
+    result += "@";
+  }
+
+  using host_type_t = parsed_url_t::authority_t::host_type_t;
+  switch (host_type()) {
+    case host_type_t::name:
+      result += percent_encode(host());
+      break;
+    case host_type_t::ipv4:
+      result += host();
+      break;
+    case host_type_t::ipv6:
+    case host_type_t::ipv_future:
+      /* Reencode percent sign for RFC4007 ScopeId literals. */
+      result += "[";
+      result += percent_encode(host(), ":");
+      result += "]";
+  }
+
+  if (port()) {
+    result += ":";
+    result += std::to_string(*port());
+  }
+
+  return result;
 }
 
 /**

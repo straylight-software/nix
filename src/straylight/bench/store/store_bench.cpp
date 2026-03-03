@@ -13,11 +13,10 @@
 #include <vector>
 
 #include <sqlite3.h>
+#include <straylight/nix/store/store.h>
 
 #include "straylight/evring/evring.h"
 #include "straylight/nix/testing/temp_dir.h"
-
-#include <straylight/nix/store/store.h>
 
 namespace fs = std::filesystem;
 namespace testing = straylight::nix::testing;

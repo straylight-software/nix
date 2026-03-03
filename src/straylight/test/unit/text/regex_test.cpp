@@ -13,8 +13,6 @@
 
 #include <rapidcheck.h>
 #include <rapidcheck/catch.h>
-
-
 #include <straylight/nix/text/regex.h>
 namespace regex = straylight::nix::text;
 

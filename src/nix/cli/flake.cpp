@@ -129,11 +129,6 @@ using nix::value_t;
 using nix::warn;
 using nix::write_file;
 
-// Namespaces
-using namespace nix::eval_cache;
-using namespace nix::fetchers;
-using namespace nix::flake;
-
 struct cmd_flake_update_t;
 
 flake_command_t::flake_command_t() {
@@ -151,7 +146,7 @@ flake_ref_t flake_command_t::get_flake_ref() {
 }
 
 LockedFlake flake_command_t::lock_flake() {
-  return flake::lock_flake(flake_settings, *getEvalState(), get_flake_ref(), lock_flags);
+  return nix::flake::lock_flake(flake_settings, *getEvalState(), get_flake_ref(), lock_flags);
 }
 
 std::vector<flake_ref_t> flake_command_t::get_flake_refs_for_completion() {
@@ -182,7 +177,7 @@ public:
           for (const auto& inputToUpdate : inputs_to_update) {
             InputAttrPath inputAttrPath;
             try {
-              inputAttrPath = parse_input_attr_path(inputToUpdate);
+              inputAttrPath = nix::flake::parse_input_attr_path(inputToUpdate);
             } catch (Error& e) {
               warn("Invalid flake input '%s'. To update a specific flake, use 'nix flake update "
                    "--flake %s' instead.",

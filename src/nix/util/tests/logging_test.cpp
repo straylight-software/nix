@@ -16,7 +16,7 @@
 namespace {
 
 // Mock synchronized output buffer for testing
-class SyncOutputBuffer {
+struct SyncOutputBuffer {
 public:
   void write(const std::string& msg) {
     std::lock_guard<std::mutex> lock(mutex_);

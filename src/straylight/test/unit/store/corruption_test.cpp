@@ -48,6 +48,8 @@ namespace crypto = straylight::nix::crypto;
 // Test fixtures
 // ============================================================================
 
+namespace {
+
 struct temp_store {
   temp_store()
       : path_(testing::temp_directory_path() / ("corruption_test_" + std::to_string(counter_++))) {
@@ -71,6 +73,8 @@ struct temp_store {
   fs::path path_;
   static inline int counter_ = 0;
 };
+
+} // namespace
 
 static inline std::atomic<int> path_counter{0};
 

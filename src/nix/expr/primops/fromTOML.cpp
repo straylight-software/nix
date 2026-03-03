@@ -1,5 +1,3 @@
-#include <sstream>
-
 #include <toml.hpp>
 
 #include "nix/expr/eval-inline.h"
@@ -137,9 +135,7 @@ static void prim_from_toml(eval_state_t& state, const pos_idx_t pos, value_t** a
 #endif
           auto attrs = state.buildBindings(2);
           attrs.alloc("_type").mkStringNoCopy("timestamp"_sds);
-          std::ostringstream s;
-          s << t;
-          auto str = s.str();
+          auto str = toml::format(t);
           force_no_null_byte(str);
           attrs.alloc("value").mk_string(str, state.mem);
           v.mkAttrs(attrs);

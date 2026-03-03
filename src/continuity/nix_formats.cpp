@@ -10,7 +10,8 @@
 
 #include <algorithm>
 #include <charconv>
-#include <sstream>
+
+#include "nix/util/strings.h"
 
 namespace continuity::nix {
 
@@ -271,10 +272,9 @@ auto parse_narinfo(std::string_view text) -> parse_result_t<narinfo_t> {
   bool has_nar_size = false;
   bool has_nar_hash = false;
 
-  std::istringstream stream{std::string{text}};
-  std::string line;
+  auto lines = ::nix::tokenize_string<std::vector<std::string>>(text, "\n");
 
-  while (std::getline(stream, line)) {
+  for (const auto& line : lines) {
     if (line.empty()) {
       continue;
     }
@@ -322,11 +322,7 @@ auto parse_narinfo(std::string_view text) -> parse_result_t<narinfo_t> {
       has_nar_hash = true;
     } else if (key == "References") {
       // Space-separated list
-      std::istringstream refs(value);
-      std::string ref;
-      while (refs >> ref) {
-        result.references.push_back(ref);
-      }
+      result.references = ::nix::tokenize_string<std::vector<std::string>>(value, " \t");
     } else if (key == "Deriver") {
       result.deriver = value;
     } else if (key == "Sig") {

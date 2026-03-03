@@ -12,8 +12,6 @@
 
 #include <rapidcheck.h>
 #include <rapidcheck/catch.h>
-
-
 #include <straylight/nix/util/checked_arithmetic.h>
 namespace arith = straylight::nix::util;
 

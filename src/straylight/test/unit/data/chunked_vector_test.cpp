@@ -18,7 +18,6 @@
 
 #include <rapidcheck.h>
 #include <rapidcheck/catch.h>
-
 #include <straylight/nix/data/chunked_vector.h>
 
 namespace chunked_vector = straylight::nix::data;

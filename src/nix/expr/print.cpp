@@ -67,6 +67,12 @@ std::ostream& print_literal_string(std::ostream& str, const std::string_view str
   return print_literal_string(str, string, std::numeric_limits<size_t>::max(), false);
 }
 
+std::string format_literal_string(std::string_view s) {
+  std::ostringstream out;
+  print_literal_string(out, s);
+  return out.str();
+}
+
 std::ostream& print_literal_bool(std::ostream& str, bool boolean) {
   str << (boolean ? "true" : "false");
   return str;
@@ -106,6 +112,34 @@ std::ostream& print_identifier(std::ostream& str, std::string_view s) {
     str << s;
   }
   return str;
+}
+
+std::string format_identifier(std::string_view s) {
+  std::string result;
+  if (s.empty()) {
+    result = "\"\"";
+  } else if (is_reserved_keyword(s)) {
+    result = "\"";
+    result += s;
+    result += "\"";
+  } else {
+    char c = s[0];
+    if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_')) {
+      std::ostringstream oss;
+      print_literal_string(oss, s);
+      return oss.str();
+    }
+    for (auto c : s) {
+      if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
+            c == '_' || c == '\'' || c == '-')) {
+        std::ostringstream oss;
+        print_literal_string(oss, s);
+        return oss.str();
+      }
+    }
+    result = s;
+  }
+  return result;
 }
 
 static bool is_var_name(std::string_view s) {
