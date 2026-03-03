@@ -1,0 +1,104 @@
+// straylight::nix::build::daemon_build_service
+//
+// Build service implementation that delegates to nix-daemon.
+// This is the current default - provides sandboxed builds via the
+// existing nix daemon infrastructure.
+
+#include "build_service.h"
+#include "nix/store/globals.h"
+#include "nix/store/uds-remote-store.h"
+#include "nix/util/logging.h"
+
+namespace straylight::nix::build {
+
+namespace {
+
+// ============================================================================
+// Nix Daemon Build Service Implementation
+// ============================================================================
+
+class daemon_build_service final : public build_service {
+public:
+  explicit daemon_build_service(std::string socket_path) : socket_path_(std::move(socket_path)) {}
+
+  void build_paths(::nix::store_t& store, const std::vector<::nix::derived_path_t>& paths,
+                   ::nix::BuildMode build_mode) override {
+    auto& daemon = get_daemon();
+    // Use the daemon as eval_store too - it can see all paths
+    daemon.build_paths(paths, build_mode, daemon_store_);
+  }
+
+  std::vector<::nix::keyed_build_result_t>
+  build_paths_with_results(::nix::store_t& store, const std::vector<::nix::derived_path_t>& paths,
+                           ::nix::BuildMode build_mode) override {
+    auto& daemon = get_daemon();
+    return daemon.build_paths_with_results(paths, build_mode, daemon_store_);
+  }
+
+  ::nix::build_result_t build_derivation(::nix::store_t& store, const ::nix::store_path_t& drv_path,
+                                         const ::nix::basic_derivation_t& drv,
+                                         ::nix::BuildMode build_mode) override {
+    auto& daemon = get_daemon();
+    return daemon.buildDerivation(drv_path, drv, build_mode);
+  }
+
+  void ensure_path(::nix::store_t& store, const ::nix::store_path_t& path) override {
+    // Check local store first
+    if (store.isValidPath(path)) {
+      return;
+    }
+    // Delegate to daemon
+    auto& daemon = get_daemon();
+    daemon.ensure_path(path);
+  }
+
+  std::string_view name() const override { return "nix-daemon"; }
+
+  bool is_available() const override {
+    // Check if socket exists
+    return ::nix::path_exists(socket_path_);
+  }
+
+private:
+  ::nix::store_t& get_daemon() {
+    if (!daemon_store_) {
+      ::nix::store_config_t::Params params;
+      if (!socket_path_.empty() && socket_path_ != ::nix::settings.nixDaemonSocketFile) {
+        // Custom socket path
+        auto config = std::make_shared<::nix::UDSRemoteStoreConfig>("unix", socket_path_, params);
+        daemon_store_ = config->open_store();
+      } else {
+        // Default socket
+        auto config = std::make_shared<::nix::UDSRemoteStoreConfig>(params);
+        daemon_store_ = config->open_store();
+      }
+      log_info("build service connected to nix daemon at %s",
+               socket_path_.empty() ? ::nix::settings.nixDaemonSocketFile : socket_path_);
+    }
+    return *daemon_store_;
+  }
+
+  std::string socket_path_;
+  std::shared_ptr<::nix::store_t> daemon_store_;
+};
+
+} // namespace
+
+// ============================================================================
+// Factory Functions
+// ============================================================================
+
+std::unique_ptr<build_service> make_default_build_service() {
+  // For now, always use daemon. Future: check for REAPI endpoint.
+  return make_daemon_build_service();
+}
+
+std::unique_ptr<build_service> make_daemon_build_service() {
+  return std::make_unique<daemon_build_service>("");
+}
+
+std::unique_ptr<build_service> make_daemon_build_service(const std::string& socket_path) {
+  return std::make_unique<daemon_build_service>(socket_path);
+}
+
+} // namespace straylight::nix::build

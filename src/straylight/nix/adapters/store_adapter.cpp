@@ -12,11 +12,12 @@
 #include <filesystem>
 #include <fstream>
 
+#include "straylight/nix/build/build_service.h"
+
 #include "nix/store/globals.h"
 #include "nix/store/make-content-addressed.h"
 #include "nix/store/realisation.h"
 #include "nix/store/store-registration.h"
-#include "nix/store/uds-remote-store.h"
 #include "nix/util/archive.h"
 #include "nix/util/finally.h"
 #include "nix/util/hash.h"
@@ -748,48 +749,45 @@ void register_store_adapter() {
 }
 
 // ============================================================================
-// Build operations (delegated to daemon)
+// Build operations (delegated via build_service abstraction)
 // ============================================================================
 
-::nix::store_t& store_adapter::getBuildStore() const {
-  if (!buildStore_) {
-    // Connect to the nix daemon for build operations
-    // This provides sandboxing without requiring root for straylight store
-    try {
-      ::nix::store_config_t::Params params;
-      auto daemon_config = ::nix::make_ref<::nix::UDSRemoteStoreConfig>(params);
-      buildStore_ = daemon_config->open_store();
-      log_info("connected to nix daemon for build operations");
-    } catch (::nix::Error& e) {
-      throw ::nix::Error("straylight store requires nix-daemon for builds: %s", e.what());
+build::build_service& store_adapter::get_build_service() const {
+  if (!build_service_) {
+    // Create default build service (currently nix-daemon, future: REAPI)
+    build_service_ = build::make_default_build_service();
+    if (!build_service_->is_available()) {
+      throw ::nix::Error("build service '%s' is not available", build_service_->name());
     }
+    log_info("using build service: %s", build_service_->name());
   }
-  return *buildStore_;
+  return *build_service_;
 }
 
 void store_adapter::build_paths(const std::vector<::nix::derived_path_t>& paths,
                                 ::nix::BuildMode build_mode,
-                                std::shared_ptr<::nix::store_t> eval_store) {
-  log_debug("delegating build_paths to daemon (%d paths)", paths.size());
-  auto& daemon = getBuildStore();
-  daemon.build_paths(paths, build_mode, eval_store ? eval_store : buildStore_);
+                                std::shared_ptr<::nix::store_t> /* eval_store */) {
+  log_debug("delegating build_paths via build service (%d paths)", paths.size());
+  // Pass 'this' as the store - the build service will use it for path info
+  // The build service connects to its own build backend (daemon/REAPI)
+  get_build_service().build_paths(*const_cast<store_adapter*>(this), paths, build_mode);
 }
 
 std::vector<::nix::keyed_build_result_t>
 store_adapter::build_paths_with_results(const std::vector<::nix::derived_path_t>& paths,
                                         ::nix::BuildMode build_mode,
-                                        std::shared_ptr<::nix::store_t> eval_store) {
-  log_debug("delegating build_paths_with_results to daemon (%d paths)", paths.size());
-  auto& daemon = getBuildStore();
-  return daemon.build_paths_with_results(paths, build_mode, eval_store ? eval_store : buildStore_);
+                                        std::shared_ptr<::nix::store_t> /* eval_store */) {
+  log_debug("delegating build_paths_with_results via build service (%d paths)", paths.size());
+  return get_build_service().build_paths_with_results(*const_cast<store_adapter*>(this), paths,
+                                                      build_mode);
 }
 
 ::nix::build_result_t store_adapter::buildDerivation(const ::nix::store_path_t& drv_path,
                                                      const ::nix::basic_derivation_t& drv,
                                                      ::nix::BuildMode build_mode) {
-  log_debug("delegating buildDerivation to daemon: %s", printStorePath(drv_path));
-  auto& daemon = getBuildStore();
-  return daemon.buildDerivation(drv_path, drv, build_mode);
+  log_debug("delegating buildDerivation via build service: %s", printStorePath(drv_path));
+  return get_build_service().build_derivation(*const_cast<store_adapter*>(this), drv_path, drv,
+                                              build_mode);
 }
 
 void store_adapter::ensure_path(const ::nix::store_path_t& path) {
@@ -798,9 +796,8 @@ void store_adapter::ensure_path(const ::nix::store_path_t& path) {
     return;
   }
 
-  // Delegate to daemon which can substitute or build
-  auto& daemon = getBuildStore();
-  daemon.ensure_path(path);
+  // Delegate to build service which can substitute or build
+  get_build_service().ensure_path(*const_cast<store_adapter*>(this), path);
 }
 
 } // namespace straylight::nix::adapters

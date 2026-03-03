@@ -29,8 +29,8 @@
 #include "nix/util/ref.h"
 
 // Forward declare for build delegation
-namespace nix {
-class remote_store;
+namespace straylight::nix::build {
+class build_service;
 }
 
 namespace straylight::nix::adapters {
@@ -213,11 +213,11 @@ private:
   // Cached public keys for signature verification
   std::unique_ptr<::nix::public_keys_t> publicKeys_;
 
-  // Daemon store for build operations (lazily initialized)
-  mutable std::shared_ptr<::nix::store_t> buildStore_;
+  // Build service for delegating builds (lazily initialized)
+  mutable std::unique_ptr<build::build_service> build_service_;
 
-  // Get or create daemon connection for builds
-  ::nix::store_t& getBuildStore() const;
+  // Get or create build service
+  build::build_service& get_build_service() const;
 };
 
 // ============================================================================

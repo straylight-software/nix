@@ -1,0 +1,26 @@
+# src/straylight/nix/build/BUCK
+#
+# Build service abstraction - delegates derivation building to backends
+
+COMMON_FLAGS = [
+    "-std=c++23",
+    "-Wall",
+    "-Wextra",
+    "-Wpedantic",
+]
+
+cxx_library(
+    name = "build_service",
+    srcs = [
+        "daemon_build_service.cpp",
+        "reapi_build_service.cpp",
+    ],
+    exported_headers = ["build_service.h"],
+    header_namespace = "straylight/nix/build",
+    compiler_flags = COMMON_FLAGS,
+    deps = [
+        "//src/nix/store:store",
+        "//src/nix/util:util",
+    ],
+    visibility = ["PUBLIC"],
+)
