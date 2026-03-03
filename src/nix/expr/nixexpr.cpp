@@ -1,11 +1,11 @@
 #include "nix/expr/nixexpr.h"
 
 #include <cstdlib>
-#include <sstream>
 
 #include "nix/expr/eval.h"
 #include "nix/expr/print.h"
 #include "nix/expr/symbol-table.h"
+#include "nix/util/string-ostream.h"
 #include "nix/util/strings-inline.h"
 #include "nix/util/util.h"
 
@@ -25,9 +25,9 @@ void expr_t::show(const symbol_table_t& symbols, std::ostream& str) const {
 }
 
 auto expr_t::show_str(const symbol_table_t& symbols) const -> std::string {
-  std::ostringstream oss;
+  string_ostream_t oss;
   show(symbols, oss);
-  return oss.str();
+  return oss.take();
 }
 
 void ExprInt::show(const symbol_table_t& symbols, std::ostream& str) const {

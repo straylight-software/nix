@@ -6,6 +6,7 @@
 
 #include "nix/expr/eval.h"
 #include "nix/expr/nixexpr.h"
+#include "nix/util/string-ostream.h"
 
 namespace nix {
 
@@ -321,7 +322,7 @@ void sample_stack_t::maybe_save_profile(
 }
 
 void sample_stack_t::save_profile() {
-  auto os = std::ostringstream{};
+  string_ostream_t os;
   for (auto& [stack, count] : callCount) {
     auto first = true;
     for (auto& pos : stack) {
@@ -335,9 +336,8 @@ void sample_stack_t::save_profile() {
     }
     os << " " << count;
     write_line(profileFd.get(), os.str());
-    /* Clear ostringstream. */
-    os.str("");
-    os.clear();
+    // Clear buffer for reuse
+    os.clear_buf();
   }
 }
 

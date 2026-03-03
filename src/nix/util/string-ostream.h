@@ -36,6 +36,12 @@ struct string_ostream_t : std::ostream {
   [[nodiscard]] const std::string& str() const { return str_; }
   [[nodiscard]] std::string take() { return std::move(str_); }
 
+  /// Clear the buffer for reuse
+  void clear_buf() {
+    str_.clear();
+    std::ostream::clear(); // clear error flags
+  }
+
 private:
   std::string str_;
   string_streambuf_t buf_;

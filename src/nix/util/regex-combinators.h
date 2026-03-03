@@ -1,31 +1,39 @@
 #pragma once
 ///@file
 
-#include <sstream>
 #include <string>
 #include <string_view>
 
 namespace nix::regex {
 
-// TODO use constexpr string building like
-// https://github.com/akrzemi1/static_string/blob/master/include/ak_toolkit/static_string.hpp
+// Simple string concatenation - no stringstream overhead
 
 static inline std::string either(std::string_view a, std::string_view b) {
-  std::stringstream ss;
-  ss << a << "|" << b;
-  return ss.str();
+  std::string result;
+  result.reserve(a.size() + 1 + b.size());
+  result.append(a);
+  result.push_back('|');
+  result.append(b);
+  return result;
 }
 
 static inline std::string group(std::string_view a) {
-  std::stringstream ss;
-  ss << "(" << a << ")";
-  return ss.str();
+  std::string result;
+  result.reserve(a.size() + 2);
+  result.push_back('(');
+  result.append(a);
+  result.push_back(')');
+  return result;
 }
 
 static inline std::string list(std::string_view a) {
-  std::stringstream ss;
-  ss << a << "(," << a << ")*";
-  return ss.str();
+  std::string result;
+  result.reserve(a.size() * 2 + 5); // "a(,a)*"
+  result.append(a);
+  result.append("(,");
+  result.append(a);
+  result.append(")*");
+  return result;
 }
 
 } // namespace nix::regex

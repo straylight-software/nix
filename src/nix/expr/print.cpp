@@ -1,7 +1,6 @@
 #include "nix/expr/print.h"
 
 #include <limits>
-#include <sstream>
 
 #include <boost/unordered/unordered_flat_set.hpp>
 
@@ -10,6 +9,7 @@
 #include "nix/util/ansicolor.h"
 #include "nix/util/english.h"
 #include "nix/util/signals.h"
+#include "nix/util/string-ostream.h"
 #include "nix/util/terminal.h"
 
 namespace nix {
@@ -68,9 +68,9 @@ std::ostream& print_literal_string(std::ostream& str, const std::string_view str
 }
 
 std::string format_literal_string(std::string_view s) {
-  std::ostringstream out;
+  string_ostream_t out;
   print_literal_string(out, s);
-  return out.str();
+  return out.take();
 }
 
 std::ostream& print_literal_bool(std::ostream& str, bool boolean) {
@@ -125,16 +125,16 @@ std::string format_identifier(std::string_view s) {
   } else {
     char c = s[0];
     if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_')) {
-      std::ostringstream oss;
+      string_ostream_t oss;
       print_literal_string(oss, s);
-      return oss.str();
+      return oss.take();
     }
     for (auto c : s) {
       if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
             c == '_' || c == '\'' || c == '-')) {
-        std::ostringstream oss;
+        string_ostream_t oss;
         print_literal_string(oss, s);
-        return oss.str();
+        return oss.take();
       }
     }
     result = s;
@@ -283,9 +283,9 @@ struct printer_t {
   void print_string(value_t& v) {
     NixStringContext context;
     copy_context(v, context);
-    std::ostringstream oss;
+    string_ostream_t oss;
     print_literal_string(oss, v.string_view(), options.maxStringLength, options.ansi_colors);
-    output << state.devirtualize(oss.str(), context);
+    output << state.devirtualize(oss.take(), context);
   }
 
   void print_path(value_t& v) {

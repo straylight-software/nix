@@ -9,7 +9,6 @@
 #include <iostream>
 #include <optional>
 #include <ranges>
-#include <sstream>
 
 #include <sys/time.h>
 #include <unistd.h>
@@ -44,6 +43,7 @@
 #include "nix/util/exit.h"
 #include "nix/util/memory-source-accessor.h"
 #include "nix/util/mounted-source-accessor.h"
+#include "nix/util/string-ostream.h"
 #include "nix/util/types.h"
 #include "nix/util/url.h"
 #include "nix/util/util.h"
@@ -119,9 +119,9 @@ std::ostream& operator<<(std::ostream& os, const ValueType t) {
 }
 
 std::string print_value(eval_state_t& state, value_t& v) {
-  std::ostringstream oss;
+  string_ostream_t oss;
   v.print(state, oss);
-  return oss.str();
+  return oss.take();
 }
 
 value_t* value_t::toPtr(SymbolStr str) noexcept {
