@@ -295,6 +295,9 @@ struct http2_connection_state {
   // Operation tracking
   std::uint64_t operation_id{0};
 
+  // Connection state tracking
+  bool settings_received{false}; // true once we've received server's SETTINGS
+
   [[nodiscard]] auto ok() const noexcept -> bool {
     return current_phase == phase::connected && error_code == http2_error_code::no_error;
   }

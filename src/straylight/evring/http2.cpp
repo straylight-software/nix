@@ -4,11 +4,30 @@
 
 #include "straylight/evring/http2.h"
 
+#include <cstdio>
 #include <cstring>
 
 #include <nghttp2/nghttp2.h>
 #include <poll.h>
 #include <tls.h>
+
+// Debug logging - enable by defining HTTP2_DEBUG=1 before including this file
+// or compile with -DHTTP2_DEBUG=1
+#ifndef HTTP2_DEBUG
+#  define HTTP2_DEBUG 0
+#endif
+
+#if HTTP2_DEBUG
+#  define H2_LOG(...) std::fprintf(stderr, "[H2] " __VA_ARGS__)
+#else
+#  define H2_LOG(...) ((void)0)
+#endif
+
+#if HTTP2_DEBUG
+#  define H2_LOG(...) std::fprintf(stderr, "[H2] " __VA_ARGS__)
+#else
+#  define H2_LOG(...) ((void)0)
+#endif
 
 namespace evring {
 
@@ -444,31 +463,49 @@ auto http2_connection_machine::initial() const -> state_type {
 }
 
 auto http2_connection_machine::do_tls_write(state_type s) const -> step_result<state_type> {
+  H2_LOG("conn::do_tls_write: phase=%d, send_buffer.size=%zu, settings_received=%d\n",
+         static_cast<int>(s.current_phase), s.send_buffer.size(), s.settings_received);
+
   // Write pending data via TLS
   if (s.send_buffer.empty()) {
     s.send_buffer = session_->get_pending_data();
+    H2_LOG("conn::do_tls_write: got pending data, size=%zu\n", s.send_buffer.size());
   }
 
   if (s.send_buffer.empty()) {
-    // Nothing to send, move to reading - poll for read readiness
-    s.current_phase = http2_connection_state::phase::waiting_read;
-    std::vector<operation> ops;
-    ops.push_back(operation::make_poll_add(s.socket_handle, POLLIN, ++s.operation_id));
-    return {std::move(s), std::move(ops)};
+    // Nothing to send.
+    // If we've already received server's SETTINGS and sent our ACK,
+    // the connection is ready - we don't need to wait for the server's ACK of our SETTINGS.
+    if (s.settings_received) {
+      H2_LOG("conn::do_tls_write: nothing to send, settings received -> connected!\n");
+      s.current_phase = http2_connection_state::phase::connected;
+      return {std::move(s), {}};
+    }
+    // Otherwise, try to read the server's SETTINGS
+    H2_LOG("conn::do_tls_write: nothing to send, calling do_tls_read\n");
+    return do_tls_read(std::move(s));
   }
 
+  H2_LOG("conn::do_tls_write: calling tls_write with %zu bytes\n", s.send_buffer.size());
   ssize_t written = tls_write(tls_conn_->raw(), s.send_buffer.data(), s.send_buffer.size());
+  H2_LOG("conn::do_tls_write: tls_write returned %zd\n", written);
 
   if (written > 0) {
     s.send_buffer.erase(s.send_buffer.begin(), s.send_buffer.begin() + written);
     if (s.send_buffer.empty()) {
-      // All sent, now read server response - poll for read readiness
-      s.current_phase = http2_connection_state::phase::waiting_read;
-      std::vector<operation> ops;
-      ops.push_back(operation::make_poll_add(s.socket_handle, POLLIN, ++s.operation_id));
-      return {std::move(s), std::move(ops)};
+      // All sent.
+      // If we've received server's SETTINGS and just sent our ACK, we're done.
+      if (s.settings_received) {
+        H2_LOG("conn::do_tls_write: all sent, settings received -> connected!\n");
+        s.current_phase = http2_connection_state::phase::connected;
+        return {std::move(s), {}};
+      }
+      // Otherwise, try to read the server's SETTINGS
+      H2_LOG("conn::do_tls_write: all sent, calling do_tls_read\n");
+      return do_tls_read(std::move(s));
     }
     // More to send - poll for write readiness
+    H2_LOG("conn::do_tls_write: partial write, polling for POLLOUT\n");
     s.current_phase = http2_connection_state::phase::waiting_write;
     std::vector<operation> ops;
     ops.push_back(operation::make_poll_add(s.socket_handle, POLLOUT, ++s.operation_id));
@@ -476,6 +513,7 @@ auto http2_connection_machine::do_tls_write(state_type s) const -> step_result<s
   }
 
   if (written == TLS_WANT_POLLIN || written == TLS_WANT_POLLOUT) {
+    H2_LOG("conn::do_tls_write: TLS_WANT_%s\n", written == TLS_WANT_POLLIN ? "POLLIN" : "POLLOUT");
     s.current_phase = http2_connection_state::phase::waiting_write;
     short poll_events = (written == TLS_WANT_POLLIN) ? POLLIN : POLLOUT;
     std::vector<operation> ops;
@@ -484,6 +522,7 @@ auto http2_connection_machine::do_tls_write(state_type s) const -> step_result<s
   }
 
   // Error
+  H2_LOG("conn::do_tls_write: ERROR - %s\n", tls_error(tls_conn_->raw()));
   s.current_phase = http2_connection_state::phase::error;
   s.error_code = http2_error_code::tls_error;
   s.error_message = tls_error(tls_conn_->raw());
@@ -491,21 +530,38 @@ auto http2_connection_machine::do_tls_write(state_type s) const -> step_result<s
 }
 
 auto http2_connection_machine::do_tls_read(state_type s) const -> step_result<state_type> {
+  H2_LOG("conn::do_tls_read: phase=%d, settings_received=%d\n", static_cast<int>(s.current_phase),
+         s.settings_received);
+
   // Read server SETTINGS
   std::byte buffer[4096];
+  H2_LOG("conn::do_tls_read: calling tls_read...\n");
   ssize_t nread = tls_read(tls_conn_->raw(), buffer, sizeof(buffer));
+  H2_LOG("conn::do_tls_read: tls_read returned %zd\n", nread);
 
   if (nread > 0) {
+    H2_LOG("conn::do_tls_read: received %zd bytes, passing to nghttp2\n", nread);
     auto consumed = session_->receive_data(std::span<const std::byte>(buffer, nread));
+    H2_LOG("conn::do_tls_read: nghttp2 consumed %ld bytes\n", consumed);
     if (consumed < 0) {
+      H2_LOG("conn::do_tls_read: nghttp2 receive error\n");
       s.current_phase = http2_connection_state::phase::error;
       s.error_code = http2_error_code::protocol_error;
       s.error_message = "nghttp2 receive error";
       return {std::move(s), {}};
     }
 
-    // Check if we have pending data to send (e.g., SETTINGS ACK)
+    // Mark that we've received server's SETTINGS (if we haven't already)
+    // This is detected by nghttp2 generating a SETTINGS ACK
     auto pending = session_->get_pending_data();
+    H2_LOG("conn::do_tls_read: pending data to send: %zu bytes\n", pending.size());
+
+    // If nghttp2 wants to send data (like SETTINGS ACK), the server sent us something
+    if (!pending.empty() && !s.settings_received) {
+      H2_LOG("conn::do_tls_read: marking settings_received=true\n");
+      s.settings_received = true;
+    }
+
     if (!pending.empty()) {
       s.send_buffer = std::move(pending);
       // Poll for write readiness to send the ACK
@@ -515,12 +571,24 @@ auto http2_connection_machine::do_tls_read(state_type s) const -> step_result<st
       return {std::move(s), std::move(ops)};
     }
 
-    // Connection established
-    s.current_phase = http2_connection_state::phase::connected;
-    return {std::move(s), {}};
+    // No pending data - if we've received SETTINGS, we're done
+    if (s.settings_received) {
+      H2_LOG("conn::do_tls_read: connection established!\n");
+      s.current_phase = http2_connection_state::phase::connected;
+      return {std::move(s), {}};
+    }
+
+    // Otherwise poll for more data (waiting for server's SETTINGS)
+    H2_LOG("conn::do_tls_read: waiting for more data...\n");
+    s.current_phase = http2_connection_state::phase::waiting_read;
+    std::vector<operation> ops;
+    ops.push_back(operation::make_poll_add(s.socket_handle, POLLIN, ++s.operation_id));
+    return {std::move(s), std::move(ops)};
   }
 
   if (nread == TLS_WANT_POLLIN || nread == TLS_WANT_POLLOUT) {
+    H2_LOG("conn::do_tls_read: TLS_WANT_%s - polling...\n",
+           nread == TLS_WANT_POLLIN ? "POLLIN" : "POLLOUT");
     s.current_phase = http2_connection_state::phase::waiting_read;
     short poll_events = (nread == TLS_WANT_POLLIN) ? POLLIN : POLLOUT;
     std::vector<operation> ops;
@@ -529,6 +597,7 @@ auto http2_connection_machine::do_tls_read(state_type s) const -> step_result<st
   }
 
   if (nread == 0) {
+    H2_LOG("conn::do_tls_read: connection closed by peer\n");
     s.current_phase = http2_connection_state::phase::error;
     s.error_code = http2_error_code::connection_closed;
     s.error_message = "connection closed by peer";
@@ -536,6 +605,7 @@ auto http2_connection_machine::do_tls_read(state_type s) const -> step_result<st
   }
 
   // Error
+  H2_LOG("conn::do_tls_read: ERROR - %s\n", tls_error(tls_conn_->raw()));
   s.current_phase = http2_connection_state::phase::error;
   s.error_code = http2_error_code::tls_error;
   s.error_message = tls_error(tls_conn_->raw());
@@ -543,18 +613,24 @@ auto http2_connection_machine::do_tls_read(state_type s) const -> step_result<st
 }
 
 auto http2_connection_machine::step(state_type s, const event& e) const -> step_result<state_type> {
+  H2_LOG("conn::step: phase=%d, event.ok=%d, event.result=%d\n", static_cast<int>(s.current_phase),
+         e.ok(), e.result);
+
   switch (s.current_phase) {
     case http2_connection_state::phase::initial: {
+      H2_LOG("conn::step: initial -> sending_preface\n");
       // Start sending preface + SETTINGS
       s.current_phase = http2_connection_state::phase::sending_preface;
       return do_tls_write(std::move(s));
     }
 
     case http2_connection_state::phase::sending_preface: {
+      H2_LOG("conn::step: sending_preface\n");
       return do_tls_write(std::move(s));
     }
 
     case http2_connection_state::phase::waiting_write: {
+      H2_LOG("conn::step: waiting_write, event.ok=%d\n", e.ok());
       if (!e.ok()) {
         s.current_phase = http2_connection_state::phase::error;
         s.error_code = http2_error_code::tls_error;
@@ -565,6 +641,7 @@ auto http2_connection_machine::step(state_type s, const event& e) const -> step_
     }
 
     case http2_connection_state::phase::waiting_read: {
+      H2_LOG("conn::step: waiting_read, event.ok=%d\n", e.ok());
       if (!e.ok()) {
         s.current_phase = http2_connection_state::phase::error;
         s.error_code = http2_error_code::tls_error;
@@ -575,7 +652,10 @@ auto http2_connection_machine::step(state_type s, const event& e) const -> step_
     }
 
     case http2_connection_state::phase::connected:
+      H2_LOG("conn::step: connected (done)\n");
+      return {std::move(s), {}};
     case http2_connection_state::phase::error:
+      H2_LOG("conn::step: error (done)\n");
       return {std::move(s), {}};
   }
 
@@ -608,11 +688,11 @@ auto http2_request_machine::do_tls_write(state_type s) const -> step_result<stat
   }
 
   if (s.send_buffer.empty()) {
-    // Nothing to send, wait for response - poll for read readiness
-    s.current_phase = http2_request_state::phase::waiting_read;
-    std::vector<operation> ops;
-    ops.push_back(operation::make_poll_add(s.socket_handle, POLLIN, ++s.operation_id));
-    return {std::move(s), std::move(ops)};
+    // Nothing to send - try to read immediately instead of polling.
+    // This is critical: libtls may have buffered data from a previous read,
+    // and poll(POLLIN) won't fire if data is already in the TLS buffer.
+    s.current_phase = http2_request_state::phase::receiving;
+    return do_tls_read(std::move(s));
   }
 
   ssize_t written = tls_write(tls_conn_->raw(), s.send_buffer.data(), s.send_buffer.size());
@@ -620,11 +700,10 @@ auto http2_request_machine::do_tls_write(state_type s) const -> step_result<stat
   if (written > 0) {
     s.send_buffer.erase(s.send_buffer.begin(), s.send_buffer.begin() + written);
     if (s.send_buffer.empty()) {
-      // All sent, poll for response
-      s.current_phase = http2_request_state::phase::waiting_read;
-      std::vector<operation> ops;
-      ops.push_back(operation::make_poll_add(s.socket_handle, POLLIN, ++s.operation_id));
-      return {std::move(s), std::move(ops)};
+      // All sent - try to read immediately instead of polling.
+      // libtls may have buffered data from a previous read.
+      s.current_phase = http2_request_state::phase::receiving;
+      return do_tls_read(std::move(s));
     }
     // More to send - poll for write readiness
     s.current_phase = http2_request_state::phase::waiting_write;

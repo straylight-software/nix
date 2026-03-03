@@ -205,3 +205,12 @@ cxx_binary(
     compiler_flags = ["-std=c++23"],
     deps = [":evring"],
 )
+
+# Parallel HTTP/2 test
+cxx_binary(
+    name = "h2_parallel_test",
+    srcs = ["bin/h2_parallel_test.cpp"],
+    deps = [":evring"],
+    compiler_flags = ["-std=c++23"],
+    visibility = ["PUBLIC"],
+)
