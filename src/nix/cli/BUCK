@@ -94,6 +94,8 @@ cxx_library(
         "//src/nix/flake:flake",
         "//src/nix/main:main",
         "//src/nix/cmd:cmd",
+        # Straylight two-tier store adapter (registers "straylight://" URI scheme)
+        "//src/straylight/nix/adapters:store_adapter",
     ],
 )
 

@@ -7,6 +7,7 @@
 
 #include "nix/store/globals.h"
 #include "nix/store/realisation.h"
+#include "nix/store/store-registration.h"
 #include "nix/util/archive.h"
 #include "nix/util/finally.h"
 #include "nix/util/logging.h"
@@ -493,9 +494,11 @@ auto make_store_adapter(const std::string& store_dir) -> ::nix::ref<store_adapte
 }
 
 void register_store_adapter() {
-  // Registration with nix's store registry would go here
-  // For now, this is a placeholder - full registration requires
-  // modifying nix's store registration system
+  ::nix::Implementations::add<StoreAdapterConfig>();
 }
 
 } // namespace straylight::nix::adapters
+
+// Static registration - the straylight:// URI scheme is registered at startup
+static ::nix::RegisterStoreImplementation<straylight::nix::adapters::StoreAdapterConfig>
+    register_straylight_store;
