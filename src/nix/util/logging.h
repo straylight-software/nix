@@ -282,29 +282,37 @@ extern verbosity_t verbosity;
  * level. Note that this has to be implemented as a macro to ensure that the
  * arguments are evaluated lazily.
  */
-#define printMsgUsing(loggerParam, level, args...)                                                 \
+#define log_to(loggerParam, level, args...)                                                        \
   do {                                                                                             \
     auto __lvl = level;                                                                            \
-    if (__lvl <= nix::verbosity) {                                                                 \
-      loggerParam->log(__lvl, fmt(args));                                                          \
+    if (__lvl <= ::nix::verbosity) {                                                               \
+      loggerParam->log(__lvl, ::nix::fmt(args));                                                   \
     }                                                                                              \
   } while (0)
-#define printMsg(level, args...) printMsgUsing(logger, level, args)
+#define log_msg(level, args...) log_to(::nix::logger, level, args)
 
-#define PRINT_ERROR(args...) printMsg(nix::lvl_error, args)
-#define NOTICE(args...) printMsg(nix::lvl_notice, args)
-#define PRINT_INFO(args...) printMsg(nix::lvl_info, args)
-#define PRINT_TALKATIVE(args...) printMsg(nix::lvl_talkative, args)
-#define DEBUG(args...) printMsg(nix::lvl_debug, args)
-#define VOMIT(args...) printMsg(nix::lvl_vomit, args)
+#define log_critical(args...) log_msg(::nix::lvl_error, args)
+#define log_error(args...) log_msg(::nix::lvl_error, args)
+#define log_warn(args...) log_msg(::nix::lvl_warn, args)
+#define log_info(args...) log_msg(::nix::lvl_info, args)
+#define log_debug(args...) log_msg(::nix::lvl_debug, args)
+#define log_trace(args...) log_msg(::nix::lvl_vomit, args)
 
 // Backward compatibility aliases
-#define printError(args...) PRINT_ERROR(args)
-#define notice(args...) NOTICE(args)
-#define printInfo(args...) PRINT_INFO(args)
-#define printTalkative(args...) PRINT_TALKATIVE(args)
-#define debug(args...) DEBUG(args)
-#define vomit(args...) VOMIT(args)
+#define printMsgUsing log_to
+#define printMsg log_msg
+#define PRINT_ERROR log_error
+#define NOTICE log_warn
+#define PRINT_INFO log_info
+#define PRINT_TALKATIVE log_debug
+#define DEBUG log_debug
+#define VOMIT log_trace
+#define printError log_error
+#define notice log_warn
+#define printInfo log_info
+#define printTalkative log_debug
+#define debug log_debug
+#define vomit log_trace
 
 /**
  * if verbosity >= lvl_warn, print a message with a yellow 'warning:' prefix.
