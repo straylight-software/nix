@@ -182,20 +182,19 @@ auto make_eval_adapter() -> std::unique_ptr<eval_adapter> {
 }
 
 auto try_straylight_eval(std::string_view expr) -> eval_result<std::string> {
-  // Check if straylight evaluator is enabled
-  if (core::active(core::Component::Evaluator) != core::Implementation::Straylight) {
+  // Compile-time check if straylight evaluator is enabled
+  if constexpr (!core::use_straylight_eval) {
     return std::unexpected(eval_error_info{
         .kind = eval_adapter_error::runtime_error,
-        .message = "straylight evaluator not enabled",
+        .message = "straylight evaluator not enabled (compile with -DSTRAYLIGHT_EVAL=1)",
         .file = "",
         .line = 0,
         .column = 0,
     });
+  } else {
+    eval_adapter adapter;
+    return adapter.eval_string(expr);
   }
-
-  // Try to evaluate with straylight
-  eval_adapter adapter;
-  return adapter.eval_string(expr);
 }
 
 } // namespace straylight::nix::adapters

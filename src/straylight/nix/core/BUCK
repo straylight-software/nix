@@ -3,27 +3,14 @@
 # Core infrastructure for straylight/nix component management.
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Component registry
+# Component registry (header-only, compile-time switching)
 # ─────────────────────────────────────────────────────────────────────────────
 
 cxx_library(
     name = "component",
-
-    srcs = [
-        "component.cpp",
-    ],
-
-    exported_headers = [
-        "component.h",
-    ],
-
+    exported_headers = ["component.h"],
     header_namespace = "straylight/nix/core",
-
     visibility = ["PUBLIC"],
-
-    compiler_flags = [
-        "-std=c++23",
-    ],
-
+    compiler_flags = ["-std=c++23"],
     # No external dependencies - this is intentionally minimal
 )
