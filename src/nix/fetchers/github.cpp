@@ -55,29 +55,62 @@ struct git_archive_input_scheme_t : input_scheme_t {
    * git checkouts produce different NAR hashes than GitHub tarballs.
    * Using SSH for an input locked with a tarball narHash would cause a mismatch.
    */
-  bool shouldUseSsh(const settings_t& settings, const input_t& input) const {
+  /**
+   * Check if we should prefer SSH over HTTPS for this input.
+   * Returns true only if prefer-ssh-for-git-forges is explicitly enabled.
+   *
+   * IMPORTANT: Returns false if the input already has a narHash, because
+   * git checkouts produce different NAR hashes than GitHub tarballs.
+   * Using SSH for an input locked with a tarball narHash would cause a mismatch.
+   *
+   * Note: ssh-fallback-for-git-forges is handled by trying tarball first and
+   * falling back to SSH on 404/403 errors (in get_accessor).
+   */
+  bool shouldPreferSsh(const settings_t& settings, const input_t& input) const {
     // If the input already has a narHash, we must use the original fetch method
     // (tarball) to get the same hash. Git checkouts have different NAR hashes.
     if (input.getNarHash()) {
       return false;
     }
 
-    if (settings.preferSshForGitForges) {
-      return true;
+    return settings.preferSshForGitForges;
+  }
+
+  /**
+   * Try to fetch using SSH. Returns nullopt if SSH fallback is disabled or fails.
+   */
+  std::optional<std::pair<ref<source_accessor_t>, input_t>>
+  tryFetchWithSsh(const settings_t& settings, store_t& store, const input_t& _input) const {
+    if (!settings.sshFallbackForGitForges) {
+      return std::nullopt;
     }
 
-    if (settings.sshFallbackForGitForges) {
-      auto host = getHost(input);
-      auto owner = getOwner(input);
-      auto repo = getRepo(input);
-      auto host_and_path = fmt("%s/%s/%s", host, owner, repo);
-      auto access_token = getAccessToken(settings, host, host_and_path);
-      if (!access_token) {
-        return true;
+    // Don't use SSH if narHash is present - need tarball for hash consistency
+    if (_input.getNarHash()) {
+      return std::nullopt;
+    }
+
+    try {
+      auto ssh_url = getSshUrl(_input);
+      debug("falling back to SSH for %s: %s", _input.to_string(), ssh_url);
+      auto ssh_input = input_t::fromURL(settings, ssh_url);
+      ssh_input = ssh_input.applyOverrides(_input.getRef(), _input.getRev());
+      auto [accessor, git_result] = ssh_input.get_accessor(settings, store);
+
+      // Map the git result back to preserve the original input type
+      auto result = _input;
+      if (auto rev = git_result.getRev()) {
+        result.attrs.insert_or_assign("rev", rev->git_rev());
       }
-    }
+      if (auto lastModified = git_result.get_last_modified()) {
+        result.attrs.insert_or_assign("lastModified", uint64_t(*lastModified));
+      }
 
-    return false;
+      return std::make_pair(accessor, result);
+    } catch (Error&) {
+      // SSH also failed, let the original error propagate
+      return std::nullopt;
+    }
   }
 
   std::optional<input_t> inputFromURL(const fetchers::settings_t& settings, const parsed_url_t& url,
@@ -428,22 +461,14 @@ struct git_archive_input_scheme_t : input_scheme_t {
 
   std::pair<ref<source_accessor_t>, input_t>
   get_accessor(const settings_t& settings, store_t& store, const input_t& _input) const override {
-    // Check if we should use SSH instead of HTTPS
-    if (shouldUseSsh(settings, _input)) {
+    // If user explicitly prefers SSH, use it directly
+    if (shouldPreferSsh(settings, _input)) {
       auto ssh_url = getSshUrl(_input);
-      debug("using SSH for %s: %s", _input.to_string(), ssh_url);
+      debug("using SSH (preferred) for %s: %s", _input.to_string(), ssh_url);
       auto ssh_input = input_t::fromURL(settings, ssh_url);
       ssh_input = ssh_input.applyOverrides(_input.getRef(), _input.getRev());
       auto [accessor, git_result] = ssh_input.get_accessor(settings, store);
 
-      // Map the git result back to a github/gitlab/sourcehut input to preserve
-      // the original input type. This ensures lock files remain consistent
-      // regardless of whether SSH or HTTPS was used for fetching.
-      //
-      // NOTE: We intentionally do NOT copy narHash from the git result because
-      // git checkouts have different NAR hashes than GitHub tarballs (different
-      // file contents - .git excluded, line endings, etc.). The rev is sufficient
-      // for locking and integrity verification.
       auto result = _input;
       if (auto rev = git_result.getRev()) {
         result.attrs.insert_or_assign("rev", rev->git_rev());
@@ -455,25 +480,36 @@ struct git_archive_input_scheme_t : input_scheme_t {
       return {accessor, result};
     }
 
-    auto [input, tarball_info] = download_archive(settings, store, _input);
+    // Try tarball first (works for public repos without auth)
+    // Fall back to SSH on failure (for private repos)
+    try {
+      auto [input, tarball_info] = download_archive(settings, store, _input);
 
 #if 0
         input.attrs.insert_or_assign("treeHash", tarball_info.tree_hash.git_rev());
 #endif
-    input.attrs.insert_or_assign("lastModified", uint64_t(tarball_info.last_modified));
+      input.attrs.insert_or_assign("lastModified", uint64_t(tarball_info.last_modified));
 
-    auto accessor = settings.getTarballCache()->get_accessor(tarball_info.tree_hash, {},
-                                                             "«" + input.to_string(true) + "»");
+      auto accessor = settings.getTarballCache()->get_accessor(tarball_info.tree_hash, {},
+                                                               "«" + input.to_string(true) + "»");
 
-    if (!settings.trustTarballsFromGitForges) {
-      // FIXME: computing the NAR hash here is wasteful if
-      // copyInputToStore() is just going to hash/copy it as
-      // well.
-      input.attrs.insert_or_assign(
-          "narHash", accessor->hash_path(canon_path_t::root).to_string(hash_format_t::sri, true));
+      if (!settings.trustTarballsFromGitForges) {
+        // FIXME: computing the NAR hash here is wasteful if
+        // copyInputToStore() is just going to hash/copy it as
+        // well.
+        input.attrs.insert_or_assign(
+            "narHash", accessor->hash_path(canon_path_t::root).to_string(hash_format_t::sri, true));
+      }
+
+      return {accessor, input};
+    } catch (Error& e) {
+      // Tarball fetch failed - try SSH fallback for private repos
+      if (auto ssh_result = tryFetchWithSsh(settings, store, _input)) {
+        return *ssh_result;
+      }
+      // SSH fallback disabled or also failed - rethrow original error
+      throw;
     }
-
-    return {accessor, input};
   }
 
   bool isLocked(const settings_t& settings, const input_t& input) const override {

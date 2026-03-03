@@ -15,22 +15,21 @@
 #include "nix/util/url.h"
 
 // =============================================================================
-// shouldUseSsh() logic tests
+// SSH fallback logic tests
 // =============================================================================
 
-TEST_CASE("github: shouldUseSsh returns false when narHash present", "[fetchers][github][ssh]") {
+TEST_CASE("github: narHash present forces tarball fetch", "[fetchers][github][ssh]") {
   nix::fetchers::settings_t settings;
   settings.sshFallbackForGitForges = true;
   settings.preferSshForGitForges = false;
 
-  // Input with narHash - should NOT use SSH
+  // Input with narHash - must use tarball (not SSH) to match hash
   auto url = nix::parse_url(
       "github:owner/repo/abc123?narHash=sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=");
   auto input = nix::fetchers::input_t::fromURL(settings, url);
 
   REQUIRE(input.getNarHash().has_value());
-  // The actual shouldUseSsh check happens inside get_accessor, but we can verify
-  // the narHash is correctly parsed and preserved
+  // Verify narHash is correctly parsed and preserved
   CHECK(input.getNarHash()->to_string(nix::hash_format_t::sri, true) ==
         "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=");
 }
@@ -40,7 +39,7 @@ TEST_CASE("github: input without narHash allows SSH fallback", "[fetchers][githu
   settings.sshFallbackForGitForges = true;
   settings.preferSshForGitForges = false;
 
-  // Input without narHash - should allow SSH
+  // Input without narHash - SSH fallback is allowed (on tarball failure)
   auto url = nix::parse_url("github:owner/repo/abc123");
   auto input = nix::fetchers::input_t::fromURL(settings, url);
 
