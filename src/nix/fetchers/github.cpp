@@ -1,7 +1,7 @@
 #include <fstream>
 #include <optional>
 
-#include <nlohmann/json.hpp>
+#include "straylight/nix/data/json.h"
 
 #include "nix/fetchers/cache.h"
 #include "nix/fetchers/fetch-settings.h"
@@ -535,12 +535,28 @@ struct git_hub_input_scheme_t : git_archive_input_scheme_t {
     headers_t headers = make_headers_with_auth_tokens(settings, host, input);
 
     auto downloadResult = download_file(store, settings, url, "source", headers);
-    auto json = nlohmann::json::parse(
+    auto json_result = straylight::nix::data::json::parse(
         store.requireStoreObjectAccessor(downloadResult.store_path)->read_file(canon_path_t::root));
+    if (json_result.err()) {
+      throw Error("GitHub API returned invalid JSON: %s", json_result.error().message);
+    }
+    auto& json = json_result.value();
 
-    return ref_info_t{.rev = Hash::parse_any(std::string{json["sha"]}, hash_algorithm_t::SHA1),
-                      .tree_hash = Hash::parse_any(std::string{json["commit"]["tree"]["sha"]},
-                                                   hash_algorithm_t::SHA1)};
+    auto* sha = json.get("sha");
+    auto* commit = json.get("commit");
+    auto* tree = commit ? commit->get("tree") : nullptr;
+    auto* tree_sha = tree ? tree->get("sha") : nullptr;
+
+    if (!sha || !sha->is_string()) {
+      throw Error("GitHub API response missing 'sha' field");
+    }
+    if (!tree_sha || !tree_sha->is_string()) {
+      throw Error("GitHub API response missing 'commit.tree.sha' field");
+    }
+
+    return ref_info_t{
+        .rev = Hash::parse_any(std::string{sha->as_string()}, hash_algorithm_t::SHA1),
+        .tree_hash = Hash::parse_any(std::string{tree_sha->as_string()}, hash_algorithm_t::SHA1)};
   }
 
   download_url_t get_download_url(const settings_t& settings, const input_t& input) const override {
@@ -626,16 +642,25 @@ struct git_lab_input_scheme_t : git_archive_input_scheme_t {
     headers_t headers = make_headers_with_auth_tokens(settings, host, input);
 
     auto downloadResult = download_file(store, settings, url, "source", headers);
-    auto json = nlohmann::json::parse(
+    auto json_result = straylight::nix::data::json::parse(
         store.requireStoreObjectAccessor(downloadResult.store_path)->read_file(canon_path_t::root));
-
-    if (json.is_array() && json.size() >= 1 && json[0]["id"] != nullptr) {
-      return ref_info_t{.rev = Hash::parse_any(std::string(json[0]["id"]), hash_algorithm_t::SHA1)};
+    if (json_result.err()) {
+      throw Error("GitLab API returned invalid JSON: %s", json_result.error().message);
     }
-    if (json.is_array() && json.size() == 0) {
+    auto& json = json_result.value();
+
+    if (json.is_array() && json.as_array().size() >= 1) {
+      auto* id = json.get(0)->get("id");
+      if (id && id->is_string()) {
+        return ref_info_t{
+            .rev = Hash::parse_any(std::string(id->as_string()), hash_algorithm_t::SHA1)};
+      }
+    }
+    if (json.is_array() && json.as_array().empty()) {
       throw Error("No commits returned by GitLab API -- does the git ref really exist?");
     } else {
-      throw Error("Unexpected response received from GitLab: %s", json);
+      throw Error("Unexpected response received from GitLab: %s",
+                  straylight::nix::data::json::to_string(json));
     }
   }
 
