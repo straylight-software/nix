@@ -236,8 +236,8 @@ cxx_library(
 
     deps = [
         "//src/nix/util:util",
-        "//third_party:sqlite3",
-        "//third_party:curl",
-        "//kaitai:nix_formats",  # Cornell verified parsers (shadow parsing)
+        "//vendor:sqlite3",
+        "//vendor:curl",
+        "//src/continuity:nix_formats",  # Continuity verified parsers (shadow parsing)
     ],
 )

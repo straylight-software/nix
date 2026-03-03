@@ -1,0 +1,26 @@
+# NOTE: url_shim.cpp has API mismatches with the current url library.
+# The shim expects url::parse(), url::url_view, etc. but the library has different APIs.
+# These targets are commented out until the shim is updated to match the library API.
+
+# cxx_library(
+#     name = "url_shim",
+#     srcs = ["url_shim.cpp"],
+#     exported_headers = ["url_shim.h"],
+#     compiler_flags = ["-std=c++23", "-O3"],
+#     deps = [
+#         "//src/straylight/nix/url:url",
+#         "//vendor:ada",
+#         "//vendor:boost",
+#     ],
+# )
+
+# cxx_binary(
+#     name = "url_bench",
+#     srcs = ["url_bench.cpp"],
+#     compiler_flags = ["-std=c++23", "-O3"],
+#     deps = [
+#         ":url_shim",
+#         "//vendor:nanobench",
+#     ],
+#     link_style = "static",
+# )

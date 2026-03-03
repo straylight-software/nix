@@ -1,0 +1,17 @@
+# NOTE: filesystem_bench.cpp uses includes like <straylight/nix/fs/filesystem/...>
+# but the fs library uses header_namespace "straylight/nix/fs".
+# The benchmark source needs to be fixed to use <straylight/nix/fs/...> instead.
+# This target is commented out until the include paths are fixed.
+
+# cxx_binary(
+#     name = "filesystem_bench",
+#     srcs = ["filesystem_bench.cpp"],
+#     compiler_flags = ["-std=c++23", "-O3"],
+#     deps = [
+#         "//src/straylight/nix/fs:file_lock",
+#         "//src/straylight/nix/fs:mmap",
+#         "//src/straylight/nix/fs:temp",
+#         "//vendor:nanobench",
+#     ],
+#     link_style = "static",
+# )

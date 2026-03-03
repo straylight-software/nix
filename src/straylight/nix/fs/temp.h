@@ -79,16 +79,29 @@ enum class TempError {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Get the system temp directory (TMPDIR, or /tmp as fallback)
+/// Validates that the directory exists, falling back to /tmp if it doesn't.
+/// This handles stale TMPDIR from exited nix-shell sessions.
 [[nodiscard]] inline std::filesystem::path temp_directory() noexcept {
-  if (const char* tmpdir = std::getenv("TMPDIR")) {
-    return tmpdir;
+  auto try_dir = [](const char* env_var) -> std::filesystem::path {
+    if (const char* val = std::getenv(env_var)) {
+      std::error_code ec;
+      if (std::filesystem::exists(val, ec) && !ec) {
+        return val;
+      }
+    }
+    return {};
+  };
+
+  if (auto p = try_dir("TMPDIR"); !p.empty()) {
+    return p;
   }
-  if (const char* tmp = std::getenv("TMP")) {
-    return tmp;
+  if (auto p = try_dir("TMP"); !p.empty()) {
+    return p;
   }
-  if (const char* temp = std::getenv("TEMP")) {
-    return temp;
+  if (auto p = try_dir("TEMP"); !p.empty()) {
+    return p;
   }
+
   return "/tmp";
 }
 

@@ -146,15 +146,8 @@ cxx_binary(
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Benchmarks
+# Benchmarks (moved to //src/straylight/bench/evring)
 # ─────────────────────────────────────────────────────────────────────────────
-
-cxx_binary(
-    name = "bench",
-    srcs = ["bench/bench_evring.cpp"],
-    compiler_flags = ["-std=c++23", "-O3"],
-    deps = [":evring"],
-)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Examples

@@ -1,0 +1,21 @@
+cxx_binary(
+    name = "encoding_bench",
+    srcs = ["encoding_bench.cpp"],
+    compiler_flags = ["-std=c++23", "-O3"],
+    deps = [
+        "//src/straylight/nix/crypto:encoding",
+        "//vendor:nanobench",
+    ],
+    link_style = "static",
+)
+
+cxx_binary(
+    name = "hash_bench",
+    srcs = ["hash_bench.cpp"],
+    compiler_flags = ["-std=c++23", "-O3"],
+    deps = [
+        "//src/straylight/nix/crypto:hash",
+        "//vendor:nanobench",
+    ],
+    link_style = "static",
+)

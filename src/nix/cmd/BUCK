@@ -53,7 +53,7 @@ cxx_library(
         "//src/nix/expr:expr",
         "//src/nix/flake:flake",
         "//src/nix/main:main",
-        "//third_party:editline",  # For repl-interacter.cpp
-        "//third_party:lowdown",   # For markdown.cpp
+        "//vendor:editline",  # For repl-interacter.cpp
+        "//vendor:lowdown",   # For markdown.cpp
     ],
 )

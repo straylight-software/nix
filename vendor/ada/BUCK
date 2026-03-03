@@ -1,0 +1,87 @@
+# vendor/ada/BUCK
+#
+# WHATWG-compliant URL parser written in modern C++
+# https://github.com/ada-url/ada
+#
+# Vendored to avoid nixpkgs build issues with fuzzer tests on musl static builds.
+#
+# NOTE: Ada uses unity build - ada.cpp #includes all other .cpp files.
+# We only compile ada.cpp and ada_idna.cpp (separate TU for Unicode tables).
+
+cxx_library(
+    name = "ada",
+    # Unity build: ada.cpp includes all other implementation files
+    srcs = [
+        "src/ada.cpp",
+        "src/ada_idna.cpp",
+    ],
+    headers = glob([
+        "include/**/*.h",
+    ]),
+    header_namespace = "",
+    # Explicit header mapping - no globs (lint: no-glob-headers)
+    exported_headers = {
+        "ada.h": "include/ada.h",
+        "ada_c.h": "include/ada_c.h",
+        "ada/ada_idna.h": "include/ada/ada_idna.h",
+        "ada/ada_version.h": "include/ada/ada_version.h",
+        "ada/character_sets-inl.h": "include/ada/character_sets-inl.h",
+        "ada/character_sets.h": "include/ada/character_sets.h",
+        "ada/checkers-inl.h": "include/ada/checkers-inl.h",
+        "ada/checkers.h": "include/ada/checkers.h",
+        "ada/common_defs.h": "include/ada/common_defs.h",
+        "ada/encoding_type.h": "include/ada/encoding_type.h",
+        "ada/errors.h": "include/ada/errors.h",
+        "ada/expected.h": "include/ada/expected.h",
+        "ada/helpers.h": "include/ada/helpers.h",
+        "ada/implementation-inl.h": "include/ada/implementation-inl.h",
+        "ada/implementation.h": "include/ada/implementation.h",
+        "ada/log.h": "include/ada/log.h",
+        "ada/parser-inl.h": "include/ada/parser-inl.h",
+        "ada/parser.h": "include/ada/parser.h",
+        "ada/scheme-inl.h": "include/ada/scheme-inl.h",
+        "ada/scheme.h": "include/ada/scheme.h",
+        "ada/serializers.h": "include/ada/serializers.h",
+        "ada/state.h": "include/ada/state.h",
+        "ada/unicode-inl.h": "include/ada/unicode-inl.h",
+        "ada/unicode.h": "include/ada/unicode.h",
+        "ada/url_aggregator-inl.h": "include/ada/url_aggregator-inl.h",
+        "ada/url_aggregator.h": "include/ada/url_aggregator.h",
+        "ada/url_base-inl.h": "include/ada/url_base-inl.h",
+        "ada/url_base.h": "include/ada/url_base.h",
+        "ada/url_components-inl.h": "include/ada/url_components-inl.h",
+        "ada/url_components.h": "include/ada/url_components.h",
+        "ada/url_pattern_helpers-inl.h": "include/ada/url_pattern_helpers-inl.h",
+        "ada/url_pattern_helpers.h": "include/ada/url_pattern_helpers.h",
+        "ada/url_pattern_init.h": "include/ada/url_pattern_init.h",
+        "ada/url_pattern_regex.h": "include/ada/url_pattern_regex.h",
+        "ada/url_pattern-inl.h": "include/ada/url_pattern-inl.h",
+        "ada/url_pattern.h": "include/ada/url_pattern.h",
+        "ada/url_search_params-inl.h": "include/ada/url_search_params-inl.h",
+        "ada/url_search_params.h": "include/ada/url_search_params.h",
+        "ada/url-inl.h": "include/ada/url-inl.h",
+        "ada/url.h": "include/ada/url.h",
+    },
+    # C++20 required for ada
+    # -iquote to pick up vendored headers BEFORE -isystem (in case old ada in nix store)
+    # Include src/ directory since ada.cpp #includes other .cpp files from there
+    compiler_flags = [
+        "-std=c++20",
+        "-fPIC",
+        "-iquote",
+        "vendor/ada/include",
+        "-iquote",
+        "vendor/ada/src",
+        "-include",
+        "cstdint",
+        "-include",
+        "x86intrin.h",  # SSE/AVX intrinsics
+    ],
+    # For consumers of this library
+    exported_preprocessor_flags = [
+        "-iquote",
+        "vendor/ada/include",
+    ],
+    preferred_linkage = "static",
+    visibility = ["PUBLIC"],
+)

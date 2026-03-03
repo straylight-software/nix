@@ -1,0 +1,10 @@
+cxx_binary(
+    name = "checked_arithmetic_bench",
+    srcs = ["checked_arithmetic_bench.cpp"],
+    compiler_flags = ["-std=c++23", "-O3"],
+    deps = [
+        "//src/straylight/nix/util:checked_arithmetic",
+        "//vendor:nanobench",
+    ],
+    link_style = "static",
+)

@@ -424,13 +424,13 @@ buck2 build --prefer-remote //...
 buck2 test //src/straylight/...
 
 # Specific component
-buck2 test //src/straylight/nix/compiler/tests:...
+buck2 test //src/straylight/test/unit/compiler:...
 
 # Single test file
-buck2 test //src/straylight/nix/compiler/tests:execution_test
+buck2 test //src/straylight/test/unit/compiler:compiler_test
 
 # Run with output
-buck2 test //src/straylight/nix/compiler/tests:execution_test -- --verbose
+buck2 test //src/straylight/test/unit/compiler:compiler_test -- --verbose
 ```
 
 ### Formatting

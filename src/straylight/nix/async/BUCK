@@ -20,7 +20,7 @@ cxx_library(
     header_namespace = "straylight/nix/async",
     compiler_flags = COMMON_FLAGS,
     deps = [
-        "//third_party:taskflow",
+        "//vendor:taskflow",
     ],
     # For Boehm GC support, users should link with -lgc and define NIX_USE_BOEHMGC=1
     visibility = ["PUBLIC"],
@@ -35,7 +35,7 @@ cxx_library(
     header_namespace = "straylight/nix/async",
     compiler_flags = COMMON_FLAGS,
     deps = [
-        "//third_party:taskflow",
+        "//vendor:taskflow",
     ],
     exported_deps = [
         ":executor",
@@ -52,7 +52,7 @@ cxx_library(
     header_namespace = "straylight/nix/async",
     compiler_flags = COMMON_FLAGS,
     deps = [
-        "//third_party:taskflow",
+        "//vendor:taskflow",
     ],
     exported_deps = [
         ":executor",
@@ -69,7 +69,7 @@ cxx_library(
     header_namespace = "straylight/nix/async",
     compiler_flags = COMMON_FLAGS,
     deps = [
-        "//third_party:taskflow",
+        "//vendor:taskflow",
     ],
     exported_deps = [
         ":executor",
@@ -91,7 +91,7 @@ cxx_library(
     header_namespace = "straylight/nix/async",
     compiler_flags = COMMON_FLAGS,
     deps = [
-        "//third_party:taskflow",
+        "//vendor:taskflow",
     ],
     exported_deps = [
         ":executor",
@@ -124,7 +124,7 @@ cxx_library(
     header_namespace = "straylight/nix/async",
     compiler_flags = COMMON_FLAGS + GC_FLAGS,
     deps = [
-        "//third_party:taskflow",
+        "//vendor:taskflow",
     ],
     linker_flags = GC_LINKER_FLAGS,
     exported_deps = [

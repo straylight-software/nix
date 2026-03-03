@@ -52,7 +52,7 @@ cxx_library(
     header_namespace = "straylight/nix/data",
     compiler_flags = COMMON_FLAGS,
     deps = [
-        "//third_party:zpp_bits",
+        "//vendor:zpp_bits",
     ],
     visibility = ["PUBLIC"],
 )

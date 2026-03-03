@@ -1,0 +1,16 @@
+# NOTE: store_bench.cpp uses <straylight/nix/store/store.h> which doesn't exist.
+# The store library uses different header names/paths.
+# This target is commented out until the include paths are fixed.
+
+# cxx_binary(
+#     name = "store_bench",
+#     srcs = ["store_bench.cpp"],
+#     compiler_flags = ["-std=c++23", "-O3"],
+#     deps = [
+#         "//src/straylight/nix/store:store",
+#         "//src/straylight/evring:evring",
+#         "//src/straylight/nix/testing:testing",
+#         "//vendor:sqlite",
+#     ],
+#     link_style = "static",
+# )

@@ -586,11 +586,13 @@ thread-safety requirements.
 
 ### 31. Zombie Prevention (#4382)
 
-**File:** `src/nix/util/unix/processes.cpp`
+**File:** `src/nix/store/gc.cpp:78` (function), `src/nix/store/gc.cpp:919,1101` (call sites)
 
 **Problem:** nix-collect-garbage could leave zombie processes.
 
-**Fix:** Add `reap_zombie_children()` to periodically wait for terminated children.
+**Fix:** Add `reap_zombie_children()` to periodically wait for terminated children during GC
+operations. The function is called at key points in garbage collection to clean up any zombie
+processes created during path deletion.
 
 ### 32. Stderr Capture (#11040)
 
@@ -675,11 +677,12 @@ cyclically.
 
 ### 42. Commands Hang Fix (#8770)
 
-**File:** `src/nix/store/local-store.cpp`
+**File:** `src/straylight/nix/store/log_store.cpp` (replaces `src/nix/store/local-store.cpp`)
 
-**Problem:** Various nix commands hung indefinitely due to store locking.
+**Problem:** Various nix commands hung indefinitely due to SQLite store locking.
 
-**Fix:** Log-structured store eliminates blocking lock contention.
+**Fix:** Log-structured store with flock-based coordination eliminates blocking lock contention.
+Lockless reads and append-only writes prevent the deadlocks that plagued SQLite.
 
 ### 43. SSH Error Propagation (#13465)
 
@@ -739,37 +742,42 @@ cyclically.
 
 ### 50. NAR Ordering Fix (#8113)
 
-**File:** `src/nix/cli/nar.cpp`
+**File:** `src/nix/store/unix/build/derivation-builder.cpp:1642-1673`
 
-**Problem:** CA derivations could create malformed NAR due to ordering issues.
+**Problem:** CA derivations could create malformed NAR due to ordering issues. Hash rewriting can
+break NAR lexical order when output paths in filenames/symlinks have different lengths.
 
-**Fix:** Two-pass NAR re-dump to ensure consistent ordering.
+**Fix:** Two-pass NAR re-dump: first pass rewrites hashes, second pass re-dumps to restore proper
+directory entry sorting required by NAR spec.
 
 ### 51. Darwin Codesign Fix (#6065)
 
-**File:** `src/nix/store/unix/build/darwin-derivation-builder.inc`
+**File:** `src/nix/store/unix/build/derivation-builder.cpp:1676-1727`
 
-**Problem:** CA derivation fails on aarch64-darwin due to code signing.
+**Problem:** CA derivation fails on aarch64-darwin due to code signing. Hash rewriting invalidates
+the code signature on Mach-O executables.
 
-**Fix:** Run `codesign -f -s -` to ad-hoc sign modified executables.
+**Fix:** Run `codesign -f -s -` to ad-hoc sign all modified Mach-O executables after hash rewriting.
 
 ### 52. Bad FD Fix for CA Derivations (#6516)
 
-**File:** `src/nix/store/local-store.cpp`
+**File:** `src/straylight/nix/store/log_store.cpp` (architectural replacement)
 
-**Problem:** "Bad file descriptor" errors with CA derivations through daemon.
+**Problem:** "Bad file descriptor" errors with CA derivations through daemon. The daemon architecture
+required complex FD passing between processes.
 
-**Fix:** Daemonless store architecture eliminates FD passing issues.
+**Fix:** Daemonless store architecture with direct file access eliminates FD passing issues entirely.
 
 ### 53. Daemon Crashes - Daemonless Architecture (#14733, #13707, #13844, #12871, #12761, #11667, #13721)
 
-**File:** `src/nix/store/local-store.cpp`
+**File:** `src/straylight/nix/store/log_store.cpp` (architectural replacement)
 
 **Problem:** Multiple daemon crash scenarios due to assertion failures, logger issues, cache
 configuration problems, and interrupt handling.
 
-**Fix:** Daemonless architecture eliminates the daemon process entirely, avoiding all daemon-related
-crashes and assertion failures.
+**Fix:** Daemonless architecture with direct store access eliminates the daemon process entirely,
+avoiding all daemon-related crashes and assertion failures. The log-structured store uses flock-based
+coordination instead of IPC.
 
 ### 54. Systemd KillMode Documentation (#10964)
 
@@ -788,12 +796,13 @@ architecture, making this moot for our implementation.
 
 ### 56. Store Corruption Prevention (#11457, #8907, #14891)
 
-**File:** `src/nix/store/log-store.cpp`
+**File:** `src/straylight/nix/store/log_store.h`, `src/straylight/nix/store/log_store.cpp`
 
 **Problem:** File truncation on power loss, disk exhaustion, and SEGFAULT could corrupt the store
 database.
 
-**Fix:** Log-structured store with BLAKE3 checksums detects and prevents corruption.
+**Fix:** Log-structured store with BLAKE3 checksums detects and prevents corruption. The store
+auto-repairs corrupted or missing index files by replaying the append-only log.
 
 ### 57. GC Performance (#9581)
 
@@ -832,16 +841,16 @@ progress output was buffered until completion.
 
 ### 60. Down Builder Slowdown Prevention (#13513)
 
-**File:** `src/nix/store/unix/build/hook-instance.cpp`
+**File:** `src/nix/store/builder-health.cpp`, `src/nix/cli/build-remote.cpp`
 
 **Problem:** A single down/unresponsive remote builder would cause all builds to slow to a crawl as
 connections queued up waiting for timeouts.
 
-**Fix:** Implement builder health tracker with exponential backoff:
+**Fix:** Implement `BuilderHealthTracker` with exponential backoff:
 
-- Track connection failures per builder
+- Track connection failures per builder via singleton tracker
 - Exponential backoff on consecutive failures (up to 5 minute max)
-- Skip unhealthy builders during scheduling
+- Skip unhealthy builders during scheduling in build-remote
 - Automatic recovery when builders come back online
 
 ### 61. Process Group ID for shellHook (#2141)
@@ -986,11 +995,11 @@ requiring manual intervention to recover.
 
 ### 72. Remote Builder Health (#5270)
 
-**File:** `src/nix/store/unix/build/hook-instance.cpp`
+**File:** `src/nix/store/builder-health.cpp`, `src/nix/cli/build-remote.cpp`
 
 **Problem:** SIGABRT errors with remote builders causing repeated failures.
 
-**Fix:** Builder health tracking prevents cascading failures:
+**Fix:** `BuilderHealthTracker` prevents cascading failures:
 
 - Detect SIGABRT patterns and mark builder unhealthy
 - Exponential backoff prevents thundering herd

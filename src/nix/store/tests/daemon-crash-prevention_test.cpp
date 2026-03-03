@@ -47,11 +47,22 @@ namespace fs = std::filesystem;
 
 namespace {
 
-class TestTempDir {
-public:
+// Get a reliable temp directory, falling back to /tmp if the environment's
+// TMPDIR points to a non-existent directory (e.g., stale nix-shell temp)
+auto get_temp_directory() -> fs::path {
+  std::error_code ec;
+  auto tmp = fs::temp_directory_path(ec);
+  if (!ec && fs::exists(tmp, ec) && !ec) {
+    return tmp;
+  }
+  // Fallback to /tmp which should always exist on Unix systems
+  return "/tmp";
+}
+
+struct TestTempDir {
   TestTempDir()
-      : path_(fs::temp_directory_path() / ("daemon_crash_test_" + std::to_string(getpid()) + "_" +
-                                           std::to_string(counter_++))) {
+      : path_(get_temp_directory() / ("daemon_crash_test_" + std::to_string(getpid()) + "_" +
+                                      std::to_string(counter_++))) {
     fs::create_directories(path_);
   }
 

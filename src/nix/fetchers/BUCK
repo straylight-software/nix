@@ -41,6 +41,6 @@ cxx_library(
     deps = [
         "//src/nix/util:util",
         "//src/nix/store:store",
-        "//third_party:libgit2",
+        "//vendor:libgit2",
     ],
 )

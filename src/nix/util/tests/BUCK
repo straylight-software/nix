@@ -3,13 +3,13 @@
 # Unit and property-based tests for libutil
 #
 # Dependencies are now handled via Buck2's dependency system.
-# All transitive deps come from //third_party with proper static linking.
+# All transitive deps come from //vendor with proper static linking.
 
 # Common test dependencies - util's deps are handled via exported_deps
 UTIL_TEST_DEPS = [
     "//src/nix/util:util",
-    "//third_party:catch2",
-    "//third_party:rapidcheck",
+    "//vendor:catch2",
+    "//vendor:rapidcheck",
 ]
 
 UTIL_TEST_COMPILER_FLAGS = [
@@ -113,7 +113,7 @@ cxx_test(
     name = "url_ada_comparison_test",
     srcs = ["url_ada_comparison_test.cpp"],
     deps = UTIL_TEST_DEPS + [
-        "//third_party:ada",
+        "//vendor:ada",
     ],
     compiler_flags = UTIL_TEST_COMPILER_FLAGS,
     linker_flags = UTIL_LINKER_FLAGS,

@@ -657,7 +657,15 @@ void auto_unmount_t::cancel() {
 //////////////////////////////////////////////////////////////////////
 
 std::filesystem::path default_temp_dir() {
-  return get_env_non_empty("TMPDIR").value_or("/tmp");
+  // Check TMPDIR, but fall back to /tmp if it points to a stale directory
+  // (e.g., from an exited nix-shell session)
+  if (auto tmpdir = get_env_non_empty("TMPDIR")) {
+    std::error_code ec;
+    if (std::filesystem::exists(*tmpdir, ec) && !ec) {
+      return *tmpdir;
+    }
+  }
+  return "/tmp";
 }
 
 std::filesystem::path create_temp_dir(const std::filesystem::path& tmp_root,

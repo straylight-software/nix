@@ -28,7 +28,7 @@ cxx_library(
     header_namespace = "straylight/nix/url",
     compiler_flags = COMMON_FLAGS,
     deps = [
-        "//third_party:ada",
+        "//vendor:ada",
     ],
     visibility = ["PUBLIC"],
 )

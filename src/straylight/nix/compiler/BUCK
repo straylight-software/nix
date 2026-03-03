@@ -35,7 +35,7 @@ cxx_library(
     visibility = ["PUBLIC"],
     deps = [
         ":ast",
-        "//third_party:pegtl",
+        "//vendor:pegtl",
     ],
 )
 
@@ -56,7 +56,7 @@ cxx_library(
     visibility = ["PUBLIC"],
     exported_deps = [
         ":ast",
-        "//third_party:binaryen",
+        "//vendor:binaryen",
     ],
 )
 
@@ -79,7 +79,7 @@ cxx_library(
     header_namespace = "straylight/nix/compiler",
     visibility = ["PUBLIC"],
     exported_deps = [
-        "//third_party:spdlog",
+        "//vendor:spdlog",
     ],
 )
 
@@ -131,7 +131,7 @@ cxx_library(
     deps = [
         ":log",
         "//src/straylight/nix/crypto:hash",
-        "//third_party:wasmtime",
+        "//vendor:wasmtime",
     ],
 )
 
@@ -152,7 +152,7 @@ cxx_library(
         ":compile",
         ":parse",
         ":wasm_executor",
-        "//third_party:wasmtime",
+        "//vendor:wasmtime",
     ],
 )
 

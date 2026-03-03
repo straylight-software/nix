@@ -1,0 +1,48 @@
+# src/straylight/test/unit/store/BUCK
+
+cxx_test(
+    name = "ca_store_machine_test",
+    srcs = ["ca_store_machine_test.cpp"],
+    deps = [
+        "//src/straylight/nix/store:store",
+        "//vendor:catch2",
+    ],
+    compiler_flags = ["-std=c++23"],
+    link_style = "static",
+)
+
+cxx_test(
+    name = "ca_store_test",
+    srcs = ["ca_store_test.cpp"],
+    deps = [
+        "//src/straylight/nix/store:store",
+        "//vendor:catch2",
+    ],
+    compiler_flags = ["-std=c++23"],
+    link_style = "static",
+)
+
+cxx_test(
+    name = "corruption_test",
+    srcs = ["corruption_test.cpp"],
+    deps = [
+        "//src/straylight/nix/crypto:hash",
+        "//src/straylight/nix/store:log_store",
+        "//src/straylight/nix/testing:testing",
+        "//vendor:catch2",
+    ],
+    compiler_flags = ["-std=c++23"],
+    link_style = "static",
+)
+
+cxx_test(
+    name = "store_test",
+    srcs = ["store_test.cpp"],
+    deps = [
+        "//src/straylight/nix/store:log_store",
+        "//src/straylight/nix/testing:testing",
+        "//vendor:catch2",
+    ],
+    compiler_flags = ["-std=c++23"],
+    link_style = "static",
+)

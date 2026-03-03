@@ -22,7 +22,7 @@ cxx_library(
     header_namespace = "straylight/nix/text",
     compiler_flags = COMMON_FLAGS,
     deps = [
-        "//third_party:stringzilla",
+        "//vendor:stringzilla",
     ],
     visibility = ["PUBLIC"],
 )
@@ -37,7 +37,7 @@ cxx_library(
     header_namespace = "straylight/nix/text",
     compiler_flags = COMMON_FLAGS,
     deps = [
-        "//third_party:re2",
+        "//vendor:re2",
     ],
     visibility = ["PUBLIC"],
 )
@@ -51,7 +51,7 @@ cxx_library(
     header_namespace = "straylight/nix/text",
     compiler_flags = COMMON_FLAGS,
     deps = [
-        "//third_party:rapidfuzz-cpp",
+        "//vendor:rapidfuzz-cpp",
     ],
     visibility = ["PUBLIC"],
 )

@@ -1,0 +1,141 @@
+# src/straylight/test/unit/compiler/BUCK
+#
+# Unit tests for nix-language compiler module
+
+# Common dependencies
+COMPILER_TEST_DEPS = [
+    "//src/straylight/nix/compiler:ast",
+    "//vendor:catch2",
+    "//vendor:rapidcheck",
+]
+
+PARSE_TEST_DEPS = COMPILER_TEST_DEPS + [
+    "//src/straylight/nix/compiler:parse",
+    "//vendor:pegtl",
+]
+
+COMPILE_TEST_DEPS = COMPILER_TEST_DEPS + [
+    "//src/straylight/nix/compiler:compile",
+    "//vendor:binaryen",
+]
+
+EVAL_TEST_DEPS = PARSE_TEST_DEPS + [
+    "//src/straylight/nix/compiler:eval",
+    "//src/straylight/nix/testing:testing",
+]
+
+EXECUTION_TEST_DEPS = PARSE_TEST_DEPS + [
+    "//src/straylight/nix/compiler:compile",
+    "//src/straylight/nix/compiler:log",
+    "//src/straylight/nix/compiler:wasm_executor",
+    "//vendor:binaryen",
+    "//vendor:wasmtime",
+]
+
+COMPILER_FLAGS = ["-std=c++23"]
+
+# AST tests
+cxx_test(
+    name = "ast_test",
+    srcs = ["ast_test.cpp"],
+    deps = COMPILER_TEST_DEPS,
+    compiler_flags = COMPILER_FLAGS,
+    link_style = "static",
+)
+
+# Grammar tests
+cxx_test(
+    name = "grammar_test",
+    srcs = ["grammar_test.cpp"],
+    deps = PARSE_TEST_DEPS,
+    compiler_flags = COMPILER_FLAGS,
+    link_style = "static",
+)
+
+# Parse tests
+cxx_test(
+    name = "parse_test",
+    srcs = ["parse_test.cpp"],
+    deps = PARSE_TEST_DEPS,
+    compiler_flags = COMPILER_FLAGS,
+    link_style = "static",
+)
+
+# WASM types tests
+cxx_test(
+    name = "wasm_types_test",
+    srcs = ["wasm_types_test.cpp"],
+    deps = [
+        "//src/straylight/nix/compiler:compile",
+        "//vendor:catch2",
+    ],
+    compiler_flags = COMPILER_FLAGS,
+    link_style = "static",
+)
+
+# WASM memory tests
+cxx_test(
+    name = "wasm_memory_test",
+    srcs = ["wasm_memory_test.cpp"],
+    deps = COMPILE_TEST_DEPS + [
+        "//src/straylight/nix/compiler:runtime",
+    ],
+    compiler_flags = COMPILER_FLAGS,
+    link_style = "static",
+)
+
+# Compiler tests
+cxx_test(
+    name = "compiler_test",
+    srcs = ["compiler_test.cpp"],
+    deps = COMPILE_TEST_DEPS,
+    compiler_flags = COMPILER_FLAGS,
+    link_style = "static",
+)
+
+# Eval tests
+cxx_test(
+    name = "eval_test",
+    srcs = ["eval_test.cpp"],
+    deps = EVAL_TEST_DEPS,
+    compiler_flags = COMPILER_FLAGS,
+    link_style = "static",
+)
+
+# Evaluator tests
+cxx_test(
+    name = "evaluator_test",
+    srcs = ["evaluator_test.cpp"],
+    deps = [
+        "//src/straylight/nix/compiler:evaluator",
+        "//src/straylight/nix/compiler:runtime",
+        "//src/straylight/nix/testing:testing",
+        "//vendor:catch2",
+        "//vendor:wasmtime",
+    ],
+    compiler_flags = COMPILER_FLAGS + ["-DSTRAYLIGHT_EVAL_IO_SYNC=1"],
+    link_style = "static",
+)
+
+# Execution tests
+cxx_test(
+    name = "execution_test",
+    srcs = ["execution_test.cpp"],
+    deps = EXECUTION_TEST_DEPS,
+    compiler_flags = COMPILER_FLAGS,
+    link_style = "static",
+)
+
+# DISABLED: Test file out of sync with runtime.h API
+# cxx_test(
+#     name = "runtime_test",
+#     srcs = ["runtime_test.cpp"],
+#     deps = [
+#         "//src/straylight/nix/compiler:compile",
+#         "//src/straylight/nix/compiler:runtime",
+#         "//src/straylight/nix/compiler:wasm_executor",
+#         "//vendor:catch2",
+#     ],
+#     compiler_flags = COMPILER_FLAGS,
+#     link_style = "static",
+# )

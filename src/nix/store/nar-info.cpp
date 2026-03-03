@@ -1,6 +1,6 @@
 #include "nix/store/nar-info.h"
 
-#include "cornell/nix/nix_formats.h"
+#include "continuity/nix/nix_formats.h"
 #include "nix/store/globals.h"
 #include "nix/store/store-api.h"
 #include "nix/util/json-utils.h"
@@ -9,12 +9,12 @@
 namespace nix {
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// Cornell Conversion (Checkpoint 3)
-// Convert verified Cornell narinfo_t to legacy nar_info_t
+// Continuity Conversion (Checkpoint 3)
+// Convert verified Continuity narinfo_t to legacy nar_info_t
 // ═══════════════════════════════════════════════════════════════════════════════
 
-[[nodiscard]] auto from_cornell_narinfo(const store_dir_config_t& store,
-                                        const cornell::nix::narinfo_t& cn) -> nar_info_t {
+[[nodiscard]] auto from_continuity_narinfo(const store_dir_config_t& store,
+                                           const continuity::nix::narinfo_t& cn) -> nar_info_t {
   // Parse store path
   auto path = store.parseStorePath(cn.store_path);
 
@@ -26,7 +26,7 @@ namespace nix {
 
   // URL and compression
   info.url = cn.url;
-  info.compression = std::string(cornell::nix::compression_to_string(cn.compression));
+  info.compression = std::string(continuity::nix::compression_to_string(cn.compression));
   if (info.compression.empty()) {
     info.compression = "bzip2"; // default per legacy parser
   }

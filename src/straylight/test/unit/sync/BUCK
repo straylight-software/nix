@@ -1,0 +1,59 @@
+# src/straylight/test/unit/sync/BUCK
+
+cxx_test(
+    name = "callback_test",
+    srcs = ["callback_test.cpp"],
+    deps = [
+        "//src/straylight/nix/sync:callback",
+        "//vendor:catch2",
+    ],
+    compiler_flags = ["-std=c++23"],
+    link_style = "static",
+)
+
+cxx_test(
+    name = "lock_test",
+    srcs = ["lock_test.cpp"],
+    deps = [
+        "//src/straylight/nix/sync:lock",
+        "//src/straylight/nix/testing:testing",
+        "//vendor:catch2",
+    ],
+    compiler_flags = ["-std=c++23"],
+    link_style = "static",
+)
+
+cxx_test(
+    name = "pool_test",
+    srcs = ["pool_test.cpp"],
+    deps = [
+        "//src/straylight/nix/sync:pool",
+        "//vendor:catch2",
+        "//vendor:rapidcheck",
+    ],
+    compiler_flags = ["-std=c++23"],
+    link_style = "static",
+)
+
+cxx_test(
+    name = "signals_test",
+    srcs = ["signals_test.cpp"],
+    deps = [
+        "//src/straylight/nix/sync:signals",
+        "//vendor:catch2",
+    ],
+    compiler_flags = ["-std=c++23"],
+    link_style = "static",
+)
+
+cxx_test(
+    name = "sync_test",
+    srcs = ["sync_test.cpp"],
+    deps = [
+        "//src/straylight/nix/sync:sync",
+        "//vendor:catch2",
+        "//vendor:rapidcheck",
+    ],
+    compiler_flags = ["-std=c++23"],
+    link_style = "static",
+)

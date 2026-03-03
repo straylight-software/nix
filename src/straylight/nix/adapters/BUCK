@@ -32,17 +32,73 @@ cxx_library(
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Tests for adapters
+# Store adapter (straylight store -> nix::store_t)
 # ─────────────────────────────────────────────────────────────────────────────
 
-cxx_test(
-    name = "nix_strings_adapter_test",
-    srcs = ["tests/nix_strings_adapter_test.cpp"],
-    compiler_flags = ["-std=c++23"],
-    link_style = "static",
+cxx_library(
+    name = "store_adapter",
+
+    srcs = [
+        "store_adapter.cpp",
+    ],
+
+    exported_headers = [
+        "store_adapter.h",
+    ],
+
+    header_namespace = "straylight/nix/adapters",
+
+    visibility = ["PUBLIC"],
+
+    compiler_flags = [
+        "-std=c++23",
+    ],
+
+    exported_deps = [
+        "//src/nix/store:store",
+        "//src/straylight/nix/store:two_tier_store",
+    ],
+
     deps = [
-        ":nix_strings_adapter",
-        "//third_party:catch2",
-        "//third_party:rapidcheck",
+        "//src/nix/util:util",
+        "//src/straylight/nix/core:component",
     ],
 )
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Eval adapter (straylight evaluator -> nix CLI compatible interface)
+# ─────────────────────────────────────────────────────────────────────────────
+
+cxx_library(
+    name = "eval_adapter",
+
+    srcs = [
+        "eval_adapter.cpp",
+    ],
+
+    exported_headers = [
+        "eval_adapter.h",
+    ],
+
+    header_namespace = "straylight/nix/adapters",
+
+    visibility = ["PUBLIC"],
+
+    compiler_flags = [
+        "-std=c++23",
+    ],
+
+    exported_deps = [
+        "//src/nix/store:store",
+        "//src/nix/util:util",
+    ],
+
+    deps = [
+        "//src/nix/expr:expr",
+        "//src/straylight/nix/compiler:evaluator",
+        "//src/straylight/nix/compiler:runtime",
+        "//src/straylight/nix/core:component",
+    ],
+)
+
+# Tests moved to //src/straylight/test/unit/adapters

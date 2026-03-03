@@ -1,0 +1,40 @@
+# src/straylight/test/property/BUCK
+#
+# Property-based tests using RapidCheck for the nix-language compiler
+#
+# These tests generate random inputs and verify invariants hold for ALL inputs,
+# catching edge cases that hand-picked examples miss.
+
+COMPILER_FLAGS = ["-std=c++23"]
+
+# Common dependencies for property tests
+PROPERTY_TEST_DEPS = [
+    "//src/straylight/nix/compiler:ast",
+    "//src/straylight/nix/compiler:parse",
+    "//src/straylight/nix/compiler:compile",
+    "//src/straylight/nix/compiler:runtime",
+    "//src/straylight/nix/compiler:wasm_executor",
+    "//vendor:catch2",
+    "//vendor:rapidcheck",
+    "//vendor:binaryen",
+    "//vendor:wasmtime",
+    "//vendor:pegtl",
+]
+
+# Property-based tests for compiler invariants
+cxx_test(
+    name = "compiler_property_test",
+    srcs = ["compiler_property.cpp"],
+    deps = PROPERTY_TEST_DEPS,
+    compiler_flags = COMPILER_FLAGS,
+    link_style = "static",
+)
+
+# Tests for nondeterminism bugs in AST iteration
+cxx_test(
+    name = "compiler_nondeterminism_test",
+    srcs = ["compiler_nondeterminism.cpp"],
+    deps = PROPERTY_TEST_DEPS,
+    compiler_flags = COMPILER_FLAGS,
+    link_style = "static",
+)

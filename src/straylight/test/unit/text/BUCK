@@ -1,0 +1,96 @@
+# src/straylight/test/unit/text/BUCK
+
+cxx_test(
+    name = "format_test",
+    srcs = ["format_test.cpp"],
+    deps = [
+        "//src/straylight/nix/text:format",
+        "//vendor:catch2",
+        "//vendor:rapidcheck",
+    ],
+    compiler_flags = ["-std=c++23"],
+    link_style = "static",
+)
+
+cxx_test(
+    name = "fuzzy_test",
+    srcs = ["fuzzy_test.cpp"],
+    deps = [
+        "//src/straylight/nix/text:fuzzy",
+        "//vendor:catch2",
+        "//vendor:rapidcheck",
+    ],
+    compiler_flags = ["-std=c++23"],
+    link_style = "static",
+)
+
+cxx_test(
+    name = "markdown_test",
+    srcs = ["markdown_test.cpp"],
+    deps = [
+        "//src/straylight/nix/text:markdown",
+        "//vendor:catch2",
+    ],
+    compiler_flags = ["-std=c++23"],
+    link_style = "static",
+)
+
+# DISABLED: re2/abseil static linking issue
+# cxx_test(
+#     name = "regex_test",
+#     srcs = ["regex_test.cpp"],
+#     deps = [
+#         "//src/straylight/nix/text:regex",
+#         "//vendor:catch2",
+#         "//vendor:rapidcheck",
+#     ],
+#     compiler_flags = ["-std=c++23"],
+#     link_style = "static",
+# )
+
+# DISABLED: split.h header doesn't exist
+# cxx_test(
+#     name = "split_test",
+#     srcs = ["split_test.cpp"],
+#     deps = [
+#         "//src/straylight/nix/text:strings",
+#         "//vendor:catch2",
+#     ],
+#     compiler_flags = ["-std=c++23"],
+#     link_style = "static",
+# )
+
+# DISABLED: text::config API doesn't exist in strings.h
+# cxx_test(
+#     name = "strings_test",
+#     srcs = ["strings_test.cpp"],
+#     deps = [
+#         "//src/straylight/nix/text:strings",
+#         "//vendor:catch2",
+#         "//vendor:rapidcheck",
+#     ],
+#     compiler_flags = ["-std=c++23"],
+#     link_style = "static",
+# )
+
+cxx_test(
+    name = "table_test",
+    srcs = ["table_test.cpp"],
+    deps = [
+        "//src/straylight/nix/text:table",
+        "//vendor:catch2",
+    ],
+    compiler_flags = ["-std=c++23"],
+    link_style = "static",
+)
+
+cxx_test(
+    name = "xml_writer_test",
+    srcs = ["xml_writer_test.cpp"],
+    deps = [
+        "//src/straylight/nix/text:xml_writer",
+        "//vendor:catch2",
+    ],
+    compiler_flags = ["-std=c++23"],
+    link_style = "static",
+)

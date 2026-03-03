@@ -1,0 +1,24 @@
+# src/straylight/test/unit/compat/BUCK
+
+cxx_test(
+    name = "git_test",
+    srcs = ["git_test.cpp"],
+    deps = [
+        "//src/straylight/nix/compat:git",
+        "//vendor:catch2",
+    ],
+    compiler_flags = ["-std=c++23"],
+    link_style = "static",
+)
+
+cxx_test(
+    name = "sqlite_test",
+    srcs = ["sqlite_test.cpp"],
+    deps = [
+        "//src/straylight/nix/compat:sqlite",
+        "//src/straylight/nix/testing:testing",
+        "//vendor:catch2",
+    ],
+    compiler_flags = ["-std=c++23"],
+    link_style = "static",
+)

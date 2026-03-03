@@ -1,0 +1,95 @@
+# src/continuity/BUCK
+#
+# Continuity Codec - verified protocol parsers for Nix formats.
+#
+# These specs define the binary/text formats used by Nix:
+#   - NAR (Nix ARchive) - deterministic archive format
+#   - narinfo - binary cache metadata
+#   - drv - derivation ATerm format
+#
+# Parsers are generated from verified Lean specs (Continuity.Nix) and placed in
+# nix_formats.h. The Kaitai .ksy files serve as documentation.
+
+# Export the spec files for documentation/tooling
+export_file(
+    name = "nar.ksy",
+    src = "nar.ksy",
+    visibility = ["PUBLIC"],
+)
+
+export_file(
+    name = "narinfo.ksy",
+    src = "narinfo.ksy",
+    visibility = ["PUBLIC"],
+)
+
+export_file(
+    name = "drv.ksy",
+    src = "drv.ksy",
+    visibility = ["PUBLIC"],
+)
+
+# =============================================================================
+# Continuity-generated parsers (from verified Lean specs)
+# =============================================================================
+
+cxx_library(
+    name = "nix_formats",
+    srcs = [
+        "nix_formats.cpp",  # Parser implementations
+    ],
+    exported_headers = [
+        "nix_formats.h",    # Generated from Cornell.ExtractNix
+    ],
+    header_namespace = "continuity/nix",
+    visibility = ["PUBLIC"],
+    compiler_flags = ["-std=c++23"],
+    deps = [
+        "//src/nix/util:util",
+    ],
+)
+
+# Legacy compatibility wrapper
+cxx_library(
+    name = "parsers",
+    srcs = [
+        "nar_parser.cpp",
+        "narinfo_parser.cpp",
+    ],
+    exported_headers = [
+        "nar_parser.h",
+        "narinfo_parser.h",
+    ],
+    header_namespace = "kaitai",
+    visibility = ["PUBLIC"],
+    deps = [
+        ":nix_formats",
+        "//src/nix/util:util",
+    ],
+)
+
+# =============================================================================
+# Roundtrip tests - verify Continuity parsers work correctly
+# =============================================================================
+
+cxx_test(
+    name = "narinfo_roundtrip_test",
+    srcs = ["tests/narinfo_roundtrip_test.cpp"],
+    deps = [
+        ":nix_formats",
+    ],
+    compiler_flags = ["-std=c++23"],
+    linker_flags = ["-lpthread"],
+    link_style = "static",
+)
+
+cxx_test(
+    name = "nar_roundtrip_test",
+    srcs = ["tests/nar_roundtrip_test.cpp"],
+    deps = [
+        ":nix_formats",
+    ],
+    compiler_flags = ["-std=c++23"],
+    linker_flags = ["-lpthread"],
+    link_style = "static",
+)

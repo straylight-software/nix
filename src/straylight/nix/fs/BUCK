@@ -30,7 +30,7 @@ cxx_library(
     header_namespace = "straylight/nix/fs",
     compiler_flags = COMMON_FLAGS,
     exported_deps = [
-        "//third_party:mio",
+        "//vendor:mio",
     ],
     visibility = ["PUBLIC"],
 )
