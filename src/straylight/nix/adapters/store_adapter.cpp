@@ -1,7 +1,13 @@
 // store_adapter.cpp - Implementation of straylight store to nix::store_t adapter
+//
+// User-space daemonless store that:
+//   - Stores data in ~/.local/share/nix (writable by user)
+//   - Falls back to system /nix/store for reads (shared packages)
+//   - No daemon required (kernel flock + atomic rename)
 
 #include "store_adapter.h"
 
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 
@@ -21,28 +27,77 @@ namespace straylight::nix::adapters {
 namespace fs = std::filesystem;
 
 // ============================================================================
+// Helper: Get user data directory
+// ============================================================================
+
+static fs::path get_user_nix_root() {
+  // Use XDG_DATA_HOME if set, otherwise ~/.local/share
+  if (const char* xdg = std::getenv("XDG_DATA_HOME")) {
+    return fs::path(xdg) / "nix";
+  }
+  if (const char* home = std::getenv("HOME")) {
+    return fs::path(home) / ".local" / "share" / "nix";
+  }
+  throw ::nix::Error("cannot determine user data directory: HOME not set");
+}
+
+// System store path for fallback reads
+static constexpr std::string_view SYSTEM_STORE_DIR = "/nix/store";
+static constexpr std::string_view SYSTEM_STATE_DIR = "/nix/var/nix";
+
+// Check if a path exists in the system store (physical file check)
+static bool path_exists_in_system_store(std::string_view store_path) {
+  // store_path is like "/nix/store/abc123-foo"
+  // System store is at /nix/store
+  if (!store_path.starts_with(SYSTEM_STORE_DIR)) {
+    return false;
+  }
+  return fs::exists(store_path);
+}
+
+// ============================================================================
 // StoreAdapterConfig
 // ============================================================================
 
 StoreAdapterConfig::StoreAdapterConfig(std::string_view /* scheme */, std::string_view authority,
                                        const ::nix::store_config_t::Params& params)
-    : ::nix::store_config_t(params), ::nix::LocalFSStoreConfig(authority, params) {}
+    : ::nix::store_config_t(params), ::nix::LocalFSStoreConfig(authority, params) {
+  // Set up user-space defaults if not explicitly configured
+  auto user_root = get_user_nix_root();
+
+  // real_store_dir: where store paths are actually stored (user-writable)
+  if (real_store_dir.get() == store_dir || real_store_dir.get() == "/nix/store") {
+    real_store_dir.assign(user_root / "store");
+  }
+
+  // stateDir: where database lives (user-writable)
+  if (stateDir.get() == "/nix/var/nix" || stateDir.get().find("/nix/var") == 0) {
+    stateDir.assign(user_root / "var" / "nix");
+  }
+
+  // logDir: build logs (user-writable)
+  if (logDir.get() == "/nix/var/log/nix" || logDir.get().find("/nix/var") == 0) {
+    logDir.assign(user_root / "var" / "log" / "nix");
+  }
+}
 
 std::string StoreAdapterConfig::doc() {
   return R"(
-    Straylight two-tier store with CA and legacy tiers.
+    Straylight user-space store - daemonless, no root required.
 
-    This store replaces SQLite database operations with:
-      - CA tier: Content-addressed blob storage (coordination-free)
-      - Legacy tier: SQLite for input-addressed paths (flock coordination)
+    Stores data in ~/.local/share/nix by default:
+      - ~/.local/share/nix/store   - store paths (writes)
+      - ~/.local/share/nix/var     - database and state
+      - System /nix/store          - fallback for reads
 
     Benefits:
-      - No daemon required for most operations
-      - CA paths are fully parallel
-      - Backwards compatible with existing nix stores
+      - No daemon required (kernel flock + atomic rename)
+      - No root access needed
+      - Shares packages with system store via fallback reads
+      - CA paths are fully parallel (no coordination)
       - Crash-safe via WAL and atomic rename
 
-    URI format: straylight:///nix/store
+    URI format: straylight://
   )";
 }
 
@@ -89,7 +144,15 @@ std::string store_adapter::getUri() {
 // ============================================================================
 
 bool store_adapter::isValidPathUncached(const ::nix::store_path_t& path) {
-  return impl_->is_valid_path(printStorePath(path));
+  auto path_str = printStorePath(path);
+
+  // Check user store first
+  if (impl_->is_valid_path(path_str)) {
+    return true;
+  }
+
+  // Fallback: check if path exists in system store
+  return path_exists_in_system_store(path_str);
 }
 
 ::nix::store_path_set_t
@@ -126,17 +189,39 @@ void store_adapter::query_path_info_uncached(
     ::nix::Callback<std::shared_ptr<const ::nix::valid_path_info_t>> callback) noexcept {
   try {
     auto path_str = printStorePath(path);
+
+    // Try user store first
     auto result = impl_->query_path_info(path_str);
 
-    if (!result) {
-      if (result.error() == store::store_tier_error::not_found) {
-        callback(nullptr);
-        return;
-      }
-      throw_error(result.error(), "querying path info for " + path_str);
+    if (result) {
+      callback(from_straylight(*result));
+      return;
     }
 
-    callback(from_straylight(*result));
+    // Not in user store, try system store fallback
+    if (path_exists_in_system_store(path_str)) {
+      // Path exists in system store - try to read from system store's database
+      // For now, construct minimal path info from the filesystem
+      // TODO: read from /nix/var/nix/db/db.sqlite for full metadata
+      auto hash_sink = ::nix::hash_sink_t(::nix::hash_algorithm_t::SHA256);
+      ::nix::dump_path(path_str, hash_sink);
+      auto [nar_hash, nar_size] = hash_sink.finish();
+
+      auto info = std::make_shared<::nix::valid_path_info_t>(
+          path, ::nix::UnkeyedValidPathInfo{store_dir, std::move(nar_hash)});
+      info->nar_size = nar_size;
+      info->registrationTime = 0; // Unknown
+
+      callback(info);
+      return;
+    }
+
+    // Not found anywhere
+    if (result.error() == store::store_tier_error::not_found) {
+      callback(nullptr);
+      return;
+    }
+    throw_error(result.error(), "querying path info for " + path_str);
   } catch (...) {
     callback.rethrow();
   }
@@ -379,23 +464,59 @@ void store_adapter::addTempRoot(const ::nix::store_path_t& path) {
 // Filesystem accessors
 // ============================================================================
 
+::nix::Path store_adapter::getRealStoreDir() {
+  // Return user store path for writes
+  return config->real_store_dir.get();
+}
+
+::nix::Path store_adapter::toRealPathForRead(const ::nix::store_path_t& path) {
+  auto path_str = path.to_string();
+
+  // Check user store first
+  auto user_path = fs::path{config->real_store_dir.get()} / path_str;
+  if (fs::exists(user_path)) {
+    return user_path.string();
+  }
+
+  // Fallback to system store
+  auto system_path = fs::path{SYSTEM_STORE_DIR} / path_str;
+  if (fs::exists(system_path)) {
+    return system_path.string();
+  }
+
+  // Not found - return user store path (for future writes)
+  return user_path.string();
+}
+
 ::nix::ref<::nix::source_accessor_t> store_adapter::getFSAccessor(bool /* require_valid_path */) {
+  // Return accessor for user store by default
+  // Individual path lookups will check system store as fallback
   return ::nix::make_fs_source_accessor(std::filesystem::path{getRealStoreDir()});
 }
 
 std::shared_ptr<::nix::source_accessor_t>
 store_adapter::getFSAccessor(const ::nix::store_path_t& path, bool require_valid_path) {
-  auto abs_path = fs::path{getRealStoreDir()} / path.to_string();
-  if (require_valid_path) {
-    if (!isValidPath(path)) {
-      return nullptr;
-    }
-  } else {
-    if (!fs::exists(abs_path)) {
-      return nullptr;
-    }
+  auto path_str = path.to_string();
+
+  // Check user store first
+  auto user_path = fs::path{getRealStoreDir()} / path_str;
+  if (fs::exists(user_path)) {
+    return ::nix::make_fs_source_accessor(std::move(user_path)).get_ptr();
   }
-  return ::nix::make_fs_source_accessor(std::move(abs_path)).get_ptr();
+
+  // Fallback to system store
+  auto system_path = fs::path{SYSTEM_STORE_DIR} / path_str;
+  if (fs::exists(system_path)) {
+    return ::nix::make_fs_source_accessor(std::move(system_path)).get_ptr();
+  }
+
+  // Not found in either
+  if (require_valid_path) {
+    return nullptr;
+  }
+
+  // Return user path anyway for non-existent paths (for writes)
+  return ::nix::make_fs_source_accessor(std::move(user_path)).get_ptr();
 }
 
 // ============================================================================

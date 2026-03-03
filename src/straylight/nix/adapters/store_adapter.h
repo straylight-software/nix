@@ -121,6 +121,13 @@ public:
 
   // --- Filesystem accessors ---
 
+  /// Get real store dir - returns user store by default
+  ::nix::Path getRealStoreDir() override;
+
+  /// Get the actual filesystem path for a store path.
+  /// Checks user store first, falls back to system store.
+  ::nix::Path toRealPathForRead(const ::nix::store_path_t& path);
+
   ::nix::ref<::nix::source_accessor_t> getFSAccessor(bool require_valid_path) override;
 
   std::shared_ptr<::nix::source_accessor_t> getFSAccessor(const ::nix::store_path_t& path,
