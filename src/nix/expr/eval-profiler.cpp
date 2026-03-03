@@ -2,9 +2,10 @@
 
 #include <fcntl.h>
 
+#include "straylight/nix/data/lru_cache.h"
+
 #include "nix/expr/eval.h"
 #include "nix/expr/nixexpr.h"
-#include "nix/util/lru-cache.h"
 
 namespace nix {
 
@@ -47,22 +48,20 @@ void MultiEvalProfiler::addProfiler(ref<EvalProfiler> profiler) {
 
 namespace {
 
-struct pos_cache_t : private lru_cache_t<pos_idx_t, pos_t> {
+struct pos_cache_t {
   const eval_state_t& state;
+  straylight::nix::data::LRUCache<pos_idx_t, pos_t, std::hash<pos_idx_t>> cache;
 
-  pos_cache_t(const eval_state_t& state)
-      : lru_cache_t(524288) /* ~40MiB */
-        ,
-        state(state) {}
+  pos_cache_t(const eval_state_t& state) : state(state), cache(524288) /* ~40MiB */ {}
 
   pos_t lookup(pos_idx_t pos_idx) {
-    auto pos_or_none = lru_cache_t::get(pos_idx);
+    auto pos_or_none = cache.get(pos_idx);
     if (pos_or_none) {
       return *pos_or_none;
     }
 
     auto pos = state.positions[pos_idx];
-    upsert(pos_idx, pos);
+    cache.put(pos_idx, pos);
     return pos;
   }
 };

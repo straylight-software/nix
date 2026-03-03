@@ -236,6 +236,7 @@ cxx_library(
 
     deps = [
         "//src/nix/util:util",
+        "//src/straylight/nix/data:lru_cache",
         "//vendor:sqlite3",
         "//vendor:curl",
         "//src/continuity:nix_formats",  # Continuity verified parsers (shadow parsing)

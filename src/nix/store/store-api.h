@@ -9,6 +9,8 @@
 
 #include <nlohmann/json_fwd.hpp>
 
+#include "straylight/nix/data/lru_cache.h"
+
 #include "nix/store/content-address.h"
 #include "nix/store/derived-path.h"
 #include "nix/store/path-info.h"
@@ -18,7 +20,6 @@
 #include "nix/util/callback.h"
 #include "nix/util/configuration.h"
 #include "nix/util/hash.h"
-#include "nix/util/lru-cache.h"
 #include "nix/util/repair-flag.h"
 #include "nix/util/serialise.h"
 #include "nix/util/source-path.h"
@@ -277,7 +278,8 @@ protected:
 
   // Note: this is a `ref` to avoid false sharing with immutable
   // bits of `store_t`.
-  ref<shared_sync_t<lru_cache_t<store_path_t, PathInfoCacheValue>>> pathInfoCache;
+  ref<shared_sync_t<straylight::nix::data::LRUCache<store_path_t, PathInfoCacheValue>>>
+      pathInfoCache;
 
   std::shared_ptr<NarInfoDiskCache> diskCache;
 

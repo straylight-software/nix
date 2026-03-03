@@ -510,7 +510,7 @@
                                       "//src/nix/util/tests:base-n_test"
                                       "//src/nix/util/tests:checked-arithmetic_test"
                                       "//src/nix/util/tests:canon-path_test"
-                                      "//src/nix/util/tests:lru-cache_test"
+                                      "//src/straylight/test/unit/data:lru_cache_test"
                                       "//src/nix/util/tests:strings_test"
                                       "//src/nix/util/tests:topo-sort_test"
                                       "//src/nix/util/tests:url_test"

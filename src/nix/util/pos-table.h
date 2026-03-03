@@ -4,7 +4,8 @@
 #include <cstdint>
 #include <vector>
 
-#include "nix/util/lru-cache.h"
+#include "straylight/nix/data/lru_cache.h"
+
 #include "nix/util/pos-idx.h"
 #include "nix/util/position.h"
 #include "nix/util/sync.h"
@@ -39,7 +40,7 @@ private:
   /**
    * cache_t from byte offset in the virtual buffer of Origins -> @ref lines_t in that origin.
    */
-  using lines_cache_t = lru_cache_t<uint32_t, lines_t>;
+  using lines_cache_t = straylight::nix::data::LRUCache<uint32_t, lines_t>;
 
   mutable sync_t<lines_cache_t> lines_cache;
 
@@ -67,7 +68,8 @@ private:
   }
 
 public:
-  pos_table_t(std::size_t linesCacheCapacity = 65536) : lines_cache(linesCacheCapacity) {}
+  pos_table_t(std::size_t linesCacheCapacity = 65536)
+      : lines_cache(lines_cache_t(linesCacheCapacity)) {}
 
   origin_t add_origin(pos_t::origin_t origin, size_t size) {
     auto state(state_.lock());

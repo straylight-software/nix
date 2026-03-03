@@ -326,8 +326,9 @@ string_set_t store_t::config_t::getDefaultSystemFeatures() {
 store_t::store_t(const store_t::config_t& config)
     : store_dir_config_t{config},
       config{config},
-      pathInfoCache(
-          make_ref<decltype(pathInfoCache)::element_type>((size_t)config.pathInfoCacheSize)) {
+      pathInfoCache(make_ref<decltype(pathInfoCache)::element_type>(
+          straylight::nix::data::LRUCache<store_path_t, PathInfoCacheValue>(
+              static_cast<std::size_t>(config.pathInfoCacheSize)))) {
   assert_lib_store_initialized();
 }
 
@@ -483,9 +484,9 @@ bool store_t::isValidPath(const store_path_t& store_path) {
                                         std::string(store_path.hash_part()));
     if (res.first != NarInfoDiskCache::oUnknown) {
       stats.narInfoReadAverted++;
-      pathInfoCache->lock()->upsert(store_path, res.first == NarInfoDiskCache::oInvalid
-                                                    ? PathInfoCacheValue{}
-                                                    : PathInfoCacheValue{.value = res.second});
+      pathInfoCache->lock()->put(store_path, res.first == NarInfoDiskCache::oInvalid
+                                                 ? PathInfoCacheValue{}
+                                                 : PathInfoCacheValue{.value = res.second});
       return res.first == NarInfoDiskCache::oValid;
     }
   }
@@ -567,9 +568,9 @@ store_t::queryPathInfoFromClientCache(const store_path_t& store_path) {
                                         hash_part);
     if (res.first != NarInfoDiskCache::oUnknown) {
       stats.narInfoReadAverted++;
-      pathInfoCache->lock()->upsert(store_path, res.first == NarInfoDiskCache::oInvalid
-                                                    ? PathInfoCacheValue{}
-                                                    : PathInfoCacheValue{.value = res.second});
+      pathInfoCache->lock()->put(store_path, res.first == NarInfoDiskCache::oInvalid
+                                                 ? PathInfoCacheValue{}
+                                                 : PathInfoCacheValue{.value = res.second});
       if (res.first == NarInfoDiskCache::oInvalid ||
           !good_store_path(store_path, res.second->path)) {
         return std::make_optional(nullptr);
@@ -613,7 +614,7 @@ void store_t::queryPathInfo(const store_path_t& store_path,
                                      hash_part, info);
           }
 
-          pathInfoCache->lock()->upsert(store_path, PathInfoCacheValue{.value = info});
+          pathInfoCache->lock()->put(store_path, PathInfoCacheValue{.value = info});
 
           if (!info || !good_store_path(store_path, info->path)) {
             stats.narInfoMissing++;

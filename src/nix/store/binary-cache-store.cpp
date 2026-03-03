@@ -120,8 +120,8 @@ void binary_cache_store::writeNarInfo(ref<nar_info_t> narInfo) {
 
   upsert_file(narInfoFile, narInfo->to_string(*this), "text/x-nix-narinfo");
 
-  pathInfoCache->lock()->upsert(narInfo->path,
-                                PathInfoCacheValue{.value = std::shared_ptr<nar_info_t>(narInfo)});
+  pathInfoCache->lock()->put(narInfo->path,
+                             PathInfoCacheValue{.value = std::shared_ptr<nar_info_t>(narInfo)});
 
   if (diskCache) {
     diskCache->upsertNarInfo(config.getReference().render(/*FIXME withParams=*/false),

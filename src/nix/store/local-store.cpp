@@ -743,7 +743,7 @@ uint64_t LocalStore::addValidPath(State& state, const valid_path_info_t& info, b
     }
   }
 
-  pathInfoCache->lock()->upsert(
+  pathInfoCache->lock()->put(
       info.path, PathInfoCacheValue{.value = std::make_shared<const valid_path_info_t>(info)});
 
   return id;

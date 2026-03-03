@@ -132,7 +132,6 @@ cxx_library(
         "json-utils.h",
         "linux-namespaces.h",
         "logging.h",
-        "lru-cache.h",
         "memory-source-accessor.h",
         "monitor-fd.h",
         "mounted-source-accessor.h",
@@ -203,6 +202,7 @@ cxx_library(
         "//vendor:brotli",
         "//vendor:libsodium",
         "//vendor:libarchive",
+        "//src/straylight/nix/data:lru_cache",
         "//src/straylight/nix/sync:synchronized",
     ],
 )

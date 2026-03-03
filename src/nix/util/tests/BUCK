@@ -59,18 +59,6 @@ cxx_test(
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
-# LRU cache tests
-# ─────────────────────────────────────────────────────────────────────────────
-cxx_test(
-    name = "lru-cache_test",
-    srcs = ["lru-cache_test.cpp"],
-    deps = UTIL_TEST_DEPS,
-    compiler_flags = UTIL_TEST_COMPILER_FLAGS,
-    linker_flags = UTIL_LINKER_FLAGS,
-    link_style = "static",
-)
-
-# ─────────────────────────────────────────────────────────────────────────────
 # string utilities tests
 # ─────────────────────────────────────────────────────────────────────────────
 cxx_test(

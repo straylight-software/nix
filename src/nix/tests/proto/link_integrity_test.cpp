@@ -14,6 +14,8 @@
 // util module headers
 // =============================================================================
 
+#include "straylight/nix/data/lru_cache.h"
+
 #include "nix/util/archive.h"
 #include "nix/util/canon-path.h"
 #include "nix/util/compression.h"
@@ -22,7 +24,6 @@
 #include "nix/util/hash.h"
 #include "nix/util/json-utils.h"
 #include "nix/util/logging.h"
-#include "nix/util/lru-cache.h"
 #include "nix/util/memory-source-accessor.h"
 #include "nix/util/nar-accessor.h"
 #include "nix/util/pool.h"
@@ -112,8 +113,8 @@ void instantiate_json_serializers() {
 }
 
 void instantiate_lru_cache() {
-  force_instantiation<nix::lru_cache_t<::std::string, int>>();
-  force_instantiation<nix::lru_cache_t<nix::hash_t, ::std::string>>();
+  force_instantiation<straylight::nix::data::LRUCache<::std::string, int>>();
+  force_instantiation<straylight::nix::data::LRUCache<nix::hash_t, ::std::string>>();
 }
 
 void instantiate_pool() {

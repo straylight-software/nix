@@ -18,7 +18,7 @@ pos_t pos_table_t::operator[](pos_idx_t p) const {
   auto lines_cache = this->lines_cache.lock();
 
   /* Try the origin's line cache */
-  const auto* lines_for_input = lines_cache->get_or_nullptr(origin->offset);
+  auto* lines_for_input = lines_cache->get_ptr(origin->offset);
 
   auto fill_cache_for_origin = [](std::string_view content) {
     auto content_lines = lines_t();
@@ -37,8 +37,8 @@ pos_t pos_table_t::operator[](pos_idx_t p) const {
   /* Calculate line offsets and fill the cache */
   if (!lines_for_input) {
     auto origin_content = result.get_source().value_or("");
-    lines_cache->upsert(origin->offset, fill_cache_for_origin(origin_content));
-    lines_for_input = lines_cache->get_or_nullptr(origin->offset);
+    lines_cache->put(origin->offset, fill_cache_for_origin(origin_content));
+    lines_for_input = lines_cache->get_ptr(origin->offset);
   }
 
   assert(lines_for_input);
