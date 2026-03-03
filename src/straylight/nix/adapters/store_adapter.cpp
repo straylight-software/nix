@@ -4,6 +4,7 @@
 //   - Stores data in ~/.local/share/nix (writable by user)
 //   - Falls back to system /nix/store for reads (shared packages)
 //   - No daemon required (kernel flock + atomic rename)
+//   - Delegates builds to nix daemon for sandboxing
 
 #include "store_adapter.h"
 
@@ -15,6 +16,7 @@
 #include "nix/store/make-content-addressed.h"
 #include "nix/store/realisation.h"
 #include "nix/store/store-registration.h"
+#include "nix/store/uds-remote-store.h"
 #include "nix/util/archive.h"
 #include "nix/util/finally.h"
 #include "nix/util/hash.h"
@@ -743,6 +745,62 @@ auto make_store_adapter(const std::string& store_dir) -> ::nix::ref<store_adapte
 
 void register_store_adapter() {
   ::nix::Implementations::add<StoreAdapterConfig>();
+}
+
+// ============================================================================
+// Build operations (delegated to daemon)
+// ============================================================================
+
+::nix::store_t& store_adapter::getBuildStore() const {
+  if (!buildStore_) {
+    // Connect to the nix daemon for build operations
+    // This provides sandboxing without requiring root for straylight store
+    try {
+      ::nix::store_config_t::Params params;
+      auto daemon_config = ::nix::make_ref<::nix::UDSRemoteStoreConfig>(params);
+      buildStore_ = daemon_config->open_store();
+      log_info("connected to nix daemon for build operations");
+    } catch (::nix::Error& e) {
+      throw ::nix::Error("straylight store requires nix-daemon for builds: %s", e.what());
+    }
+  }
+  return *buildStore_;
+}
+
+void store_adapter::build_paths(const std::vector<::nix::derived_path_t>& paths,
+                                ::nix::BuildMode build_mode,
+                                std::shared_ptr<::nix::store_t> eval_store) {
+  log_debug("delegating build_paths to daemon (%d paths)", paths.size());
+  auto& daemon = getBuildStore();
+  daemon.build_paths(paths, build_mode, eval_store ? eval_store : buildStore_);
+}
+
+std::vector<::nix::keyed_build_result_t>
+store_adapter::build_paths_with_results(const std::vector<::nix::derived_path_t>& paths,
+                                        ::nix::BuildMode build_mode,
+                                        std::shared_ptr<::nix::store_t> eval_store) {
+  log_debug("delegating build_paths_with_results to daemon (%d paths)", paths.size());
+  auto& daemon = getBuildStore();
+  return daemon.build_paths_with_results(paths, build_mode, eval_store ? eval_store : buildStore_);
+}
+
+::nix::build_result_t store_adapter::buildDerivation(const ::nix::store_path_t& drv_path,
+                                                     const ::nix::basic_derivation_t& drv,
+                                                     ::nix::BuildMode build_mode) {
+  log_debug("delegating buildDerivation to daemon: %s", printStorePath(drv_path));
+  auto& daemon = getBuildStore();
+  return daemon.buildDerivation(drv_path, drv, build_mode);
+}
+
+void store_adapter::ensure_path(const ::nix::store_path_t& path) {
+  // First check if we have it (in user store or visible in system store)
+  if (isValidPath(path)) {
+    return;
+  }
+
+  // Delegate to daemon which can substitute or build
+  auto& daemon = getBuildStore();
+  daemon.ensure_path(path);
 }
 
 } // namespace straylight::nix::adapters

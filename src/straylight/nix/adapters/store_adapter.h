@@ -15,6 +15,8 @@
 ///   - Full nix::store_t interface compatibility
 ///   - Runtime switchable via component registry
 ///   - Backwards compatible with existing nix stores
+///
+/// Build operations are delegated to a nix daemon for sandboxing.
 
 #include <memory>
 #include <string>
@@ -25,6 +27,11 @@
 #include "nix/store/keys.h"
 #include "nix/store/store-reference.h"
 #include "nix/util/ref.h"
+
+// Forward declare for build delegation
+namespace nix {
+class remote_store;
+}
 
 namespace straylight::nix::adapters {
 
@@ -164,6 +171,22 @@ public:
 
   void addBuildLog(const ::nix::store_path_t& path, std::string_view log) override;
 
+  // --- Build operations (delegated to daemon) ---
+
+  void build_paths(const std::vector<::nix::derived_path_t>& paths, ::nix::BuildMode build_mode,
+                   std::shared_ptr<::nix::store_t> eval_store) override;
+
+  std::vector<::nix::keyed_build_result_t>
+  build_paths_with_results(const std::vector<::nix::derived_path_t>& paths,
+                           ::nix::BuildMode build_mode,
+                           std::shared_ptr<::nix::store_t> eval_store) override;
+
+  ::nix::build_result_t buildDerivation(const ::nix::store_path_t& drv_path,
+                                        const ::nix::basic_derivation_t& drv,
+                                        ::nix::BuildMode build_mode) override;
+
+  void ensure_path(const ::nix::store_path_t& path) override;
+
   // --- Direct access to underlying store ---
 
   [[nodiscard]] auto underlying() -> store::two_tier_store& { return *impl_; }
@@ -189,6 +212,12 @@ private:
 
   // Cached public keys for signature verification
   std::unique_ptr<::nix::public_keys_t> publicKeys_;
+
+  // Daemon store for build operations (lazily initialized)
+  mutable std::shared_ptr<::nix::store_t> buildStore_;
+
+  // Get or create daemon connection for builds
+  ::nix::store_t& getBuildStore() const;
 };
 
 // ============================================================================
