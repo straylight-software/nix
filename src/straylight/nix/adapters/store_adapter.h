@@ -22,6 +22,8 @@
 #include "straylight/nix/store/two_tier_store.h"
 
 #include "nix/store/indirect-root-store.h"
+#include "nix/store/keys.h"
+#include "nix/store/store-reference.h"
 #include "nix/util/ref.h"
 
 namespace straylight::nix::adapters {
@@ -44,6 +46,8 @@ struct StoreAdapterConfig : std::enable_shared_from_this<StoreAdapterConfig>,
   static std::string doc();
 
   ::nix::ref<::nix::store_t> open_store() const override;
+
+  ::nix::StoreReference getReference() const override;
 };
 
 // ============================================================================
@@ -139,9 +143,16 @@ public:
 
   bool verifyStore(bool check_contents, ::nix::RepairFlag repair) override;
 
-  // --- Trust ---
+  // --- Trust and signature verification ---
 
   std::optional<::nix::TrustedFlag> isTrustedClient() override;
+
+  /// Check if path info is untrusted (lacks valid signature).
+  /// Overrides base class default which always returns true.
+  bool pathInfoIsUntrusted(const ::nix::valid_path_info_t& info) override;
+
+  /// Get the set of trusted public keys for signature verification.
+  const ::nix::public_keys_t& get_public_keys();
 
   // --- GC (GcStore) ---
 
@@ -175,6 +186,9 @@ private:
 
   // Path to indirect GC roots
   ::nix::Path gcRootsDir;
+
+  // Cached public keys for signature verification
+  std::unique_ptr<::nix::public_keys_t> publicKeys_;
 };
 
 // ============================================================================

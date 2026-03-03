@@ -108,6 +108,17 @@ std::string StoreAdapterConfig::doc() {
               const_cast<StoreAdapterConfig*>(this)->shared_from_this())))));
 }
 
+::nix::StoreReference StoreAdapterConfig::getReference() const {
+  auto params = getQueryParams();
+  return {
+      .variant =
+          ::nix::StoreReference::Specified{
+              .scheme = *uriSchemes().begin(),
+          },
+      .params = std::move(params),
+  };
+}
+
 // ============================================================================
 // store_adapter construction
 // ============================================================================
@@ -144,23 +155,22 @@ std::string store_adapter::getUri() {
 // ============================================================================
 
 bool store_adapter::isValidPathUncached(const ::nix::store_path_t& path) {
-  auto path_str = printStorePath(path);
-
-  // Check user store first
-  if (impl_->is_valid_path(path_str)) {
-    return true;
-  }
-
-  // Fallback: check if path exists in system store
-  return path_exists_in_system_store(path_str);
+  // Only check USER store for validity.
+  // This ensures builds/substitutions write to user store even if
+  // the path exists in system store. System store paths are still
+  // readable via query_path_info and getFSAccessor fallbacks.
+  return impl_->is_valid_path(printStorePath(path));
 }
 
 ::nix::store_path_set_t
 store_adapter::queryValidPaths(const ::nix::store_path_set_t& paths,
                                ::nix::SubstituteFlag /* maybeSubstitute */) {
+  // Only return paths that are in the USER store as "valid"
+  // This ensures that paths in system store get copied/migrated to user store
+  // when substitution or copy_paths is invoked
   ::nix::store_path_set_t result;
   for (const auto& path : paths) {
-    if (isValidPath(path)) {
+    if (impl_->is_valid_path(printStorePath(path))) {
       result.insert(path);
     }
   }
@@ -311,13 +321,15 @@ store_adapter::queryPathFromHashPart(const std::string& hash_part) {
 
 void store_adapter::add_to_store(const ::nix::valid_path_info_t& info, ::nix::source_t& source,
                                  ::nix::RepairFlag repair, ::nix::CheckSigsFlag /* check_sigs */) {
-  // Skip if path is already valid (unless repair is requested)
-  if (!repair && isValidPath(info.path)) {
+  // Skip only if path is already in USER store (not system store fallback)
+  // This ensures packages migrate from system to user store on first use
+  if (!repair && impl_->is_valid_path(printStorePath(info.path))) {
     // Consume the source to keep the protocol in sync
     source.skip(info.nar_size);
     return;
   }
 
+  // Always write to user store (getRealStoreDir returns user store path)
   auto real_path = toRealPath(info.path);
   fs::create_directories(fs::path(real_path).parent_path());
 
@@ -386,12 +398,13 @@ void store_adapter::add_to_store(const ::nix::valid_path_info_t& info, ::nix::so
 
   auto dst_path = makeFixedOutputPathFromCA(name, content_address_with_refs);
 
-  // 4. Check if already exists
-  if (!repair && isValidPath(dst_path)) {
+  // 4. Check if already exists in USER store (not system store fallback)
+  // This ensures packages migrate from system to user store
+  if (!repair && impl_->is_valid_path(printStorePath(dst_path))) {
     return dst_path;
   }
 
-  // 5. Write content to store
+  // 5. Write content to user store
   auto real_path = toRealPath(dst_path);
   fs::create_directories(fs::path(real_path).parent_path());
 
@@ -538,12 +551,25 @@ bool store_adapter::verifyStore(bool /* check_contents */, ::nix::RepairFlag /* 
 }
 
 // ============================================================================
-// Trust
+// Trust and signature verification
 // ============================================================================
 
 std::optional<::nix::TrustedFlag> store_adapter::isTrustedClient() {
   // Local store is always trusted
   return ::nix::Trusted;
+}
+
+const ::nix::public_keys_t& store_adapter::get_public_keys() {
+  if (!publicKeys_) {
+    publicKeys_ = std::make_unique<::nix::public_keys_t>(::nix::get_default_public_keys());
+  }
+  return *publicKeys_;
+}
+
+bool store_adapter::pathInfoIsUntrusted(const ::nix::valid_path_info_t& info) {
+  // Check if signatures are required and if the info has valid signatures
+  // Use global settings.requireSigs since we don't have a local config setting
+  return ::nix::settings.requireSigs && !info.checkSignatures(*this, get_public_keys());
 }
 
 // ============================================================================
