@@ -58,12 +58,28 @@ cxx_library(
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
+# JSON abstraction - swappable backend (currently nlohmann, future simdjson)
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_library(
+    name = "json",
+    srcs = ["json.cpp"],
+    exported_headers = ["json.h"],
+    header_namespace = "straylight/nix/data",
+    compiler_flags = COMMON_FLAGS,
+    deps = [
+        "//vendor:nlohmann_json",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Combined data target
 # ─────────────────────────────────────────────────────────────────────────────
 cxx_library(
     name = "data",
     exported_headers = [
         "chunked_vector.h",
+        "json.h",
         "lru_cache.h",
         "topo_sort.h",
         "serialise.h",
@@ -72,6 +88,7 @@ cxx_library(
     compiler_flags = COMMON_FLAGS,
     exported_deps = [
         ":chunked_vector",
+        ":json",
         ":lru_cache",
         ":topo_sort",
         ":serialise",
