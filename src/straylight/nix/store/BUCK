@@ -117,3 +117,18 @@ cxx_library(
     ],
     visibility = ["PUBLIC"],
 )
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Fuzz tests - Hammer the store with malformed inputs
+# ─────────────────────────────────────────────────────────────────────────────
+cxx_test(
+    name = "fuzz_store_test",
+    srcs = ["test/fuzz_store_test.cpp"],
+    compiler_flags = COMMON_FLAGS,
+    linker_flags = ["-lpthread"],
+    link_style = "static",
+    deps = [
+        ":two_tier_store",
+        "//src/nix/tests:test_utils",
+    ],
+)
