@@ -13,19 +13,27 @@ Test infrastructure using **Catch2** (unit tests) and **RapidCheck** (property-b
 | `src/straylight/bench/` | Benchmarks |
 | `src/nix/util/tests/` | Legacy util tests |
 
-## Test Summary - Legacy Util Tests
+## Test Summary
 
-| Test File | Target | Assertions | Test Cases | Status |
-|-----------|--------|:----------:|:----------:|:------:|
-| `base-n_test.cpp` | `//src/nix/util/tests:base-n_test` | 37 | 14 | PASS |
-| `checked-arithmetic_test.cpp` | `//src/nix/util/tests:checked-arithmetic_test` | 89 | 34 | PASS |
-| `canon-path_test.cpp` | `//src/nix/util/tests:canon-path_test` | 129 | 56 | PASS |
-| `lru-cache_test.cpp` | `//src/nix/util/tests:lru-cache_test` | 87 | 19 | PASS |
-| `strings_test.cpp` | `//src/nix/util/tests:strings_test` | 206 | 84 | 82/84 |
-| `topo-sort_test.cpp` | `//src/nix/util/tests:topo-sort_test` | 45 | 16 | 8/16 |
-| `url_test.cpp` | `//src/nix/util/tests:url_test` | 167 | 60 | 59/60 |
+**All 122 test targets pass.** Run with `buck2 test //...`
 
-**Totals: 760 assertions, 283 test cases, 272 passing**
+### Legacy Util Tests (src/nix/util/tests/)
+
+| Test File | Target | Status |
+|-----------|--------|:------:|
+| `base-n_test.cpp` | `//src/nix/util/tests:base-n_test` | PASS |
+| `checked-arithmetic_test.cpp` | `//src/nix/util/tests:checked-arithmetic_test` | PASS |
+| `hash_test.cpp` | `//src/nix/util/tests:hash_test` | PASS |
+| `json-utils_test.cpp` | `//src/nix/util/tests:json-utils_test` | PASS |
+| `logging_test.cpp` | `//src/nix/util/tests:logging_test` | PASS |
+| `lru-cache_test.cpp` | `//src/nix/util/tests:lru-cache_test` | PASS |
+| `pool_test.cpp` | `//src/nix/util/tests:pool_test` | PASS |
+| `serialise_test.cpp` | `//src/nix/util/tests:serialise_test` | PASS |
+| `signals_test.cpp` | `//src/nix/util/tests:signals_test` | PASS |
+| `strings_test.cpp` | `//src/nix/util/tests:strings_test` | PASS |
+| `topo-sort_test.cpp` | `//src/nix/util/tests:topo-sort_test` | PASS |
+| `url_test.cpp` | `//src/nix/util/tests:url_test` | PASS |
+| `url_ada_comparison_test.cpp` | `//src/nix/util/tests:url_ada_comparison_test` | PASS |
 
 ## Unit Tests (src/straylight/test/unit/)
 
@@ -90,57 +98,35 @@ Test infrastructure using **Catch2** (unit tests) and **RapidCheck** (property-b
 
 ## Coverage by Component
 
-| Library | Component | Unit Tests | Property Tests | Status |
-|---------|-----------|:----------:|:--------------:|:------:|
-| **util** | `base-n.h` (base16) | 6 | 3 | Done |
-| **util** | `base-n.h` (base64) | 5 | 1 | Done |
-| **util** | `checked-arithmetic.h` | 22 | 13 | Done |
-| **util** | `canon-path.h` | 37 | 10 | Done |
-| **util** | `lru-cache.h` | 12 | 8 | Done |
-| **util** | `strings.h` / `split.h` | 44 | 7 | Done (2 failures) |
-| **util** | `topo-sort.h` | 14 | 4 | Done (8 failures) |
-| **util** | `url.h` | 40 | 8 | Done (1 failure) |
-| **util** | `base-nix-32.h` | - | - | TODO |
-| **util** | `hash.h` | - | - | TODO |
-| **util** | `chunked-vector.h` | - | - | TODO |
-| **util** | `closure.h` | - | - | TODO |
-| **util** | `compression.h` | - | - | TODO |
-| **util** | `configuration.h` | - | - | TODO |
-| **util** | `english.h` | - | - | TODO |
-| **util** | `error.h` | - | - | TODO |
-| **util** | `executable-path.h` | - | - | TODO |
-| **util** | `experimental-features.h` | - | - | TODO |
-| **util** | `file-system.h` | - | - | TODO |
-| **util** | `git.h` | - | - | TODO |
-| **util** | `hilite.h` | - | - | TODO |
-| **util** | `json-utils.h` | - | - | TODO |
-| **util** | `logging.h` | - | - | TODO |
-| **util** | `pool.h` | - | - | TODO |
-| **util** | `references.h` | - | - | TODO |
-| **util** | `regex-combinators.h` | - | - | TODO |
-| **util** | `serialise.h` | - | - | TODO |
-| **util** | `suggestions.h` | - | - | TODO |
-| **util** | `sync.h` | - | - | TODO |
-| **util** | `tarfile.h` | - | - | TODO |
-| **util** | `thread-pool.h` | - | - | TODO |
-| **util** | `xml-writer.h` | - | - | TODO |
-| **store** | `path.h` | - | - | TODO |
-| **store** | `path-info.h` | - | - | TODO |
-| **store** | `content-address.h` | - | - | TODO |
-| **store** | `derivations.h` | - | - | TODO |
-| **store** | `nar-info.h` | - | - | TODO |
-| **store** | `outputs-spec.h` | - | - | TODO |
-| **store** | `realisation.h` | - | - | TODO |
-| **store** | `store-api.h` | - | - | TODO |
-| **expr** | `value.h` | - | - | TODO |
-| **expr** | `eval.h` | - | - | TODO |
-| **expr** | `nixexpr.h` | - | - | TODO |
-| **expr** | `attr-set.h` | - | - | TODO |
-| **expr** | `primops.h` | - | - | TODO |
-| **fetchers** | `fetchers.h` | - | - | TODO |
-| **fetchers** | `git.h` | - | - | TODO |
-| **flake** | `flake.h` | - | - | TODO |
-| **flake** | `lockfile.h` | - | - | TODO |
+| Library | Component | Status |
+|---------|-----------|:------:|
+| **util** | `base-n.h` | Done |
+| **util** | `checked-arithmetic.h` | Done |
+| **util** | `hash.h` | Done |
+| **util** | `json-utils.h` | Done |
+| **util** | `logging.h` | Done |
+| **util** | `lru-cache.h` | Done |
+| **util** | `pool.h` | Done |
+| **util** | `serialise.h` | Done |
+| **util** | `signals.h` | Done |
+| **util** | `strings.h` | Done |
+| **util** | `topo-sort.h` | Done |
+| **util** | `url.h` | Done |
+| **store** | `store-path-format` | Done |
+| **store** | `narinfo-format` | Done |
+| **store** | `derivation-format` | Done |
+| **store** | `hash-format` | Done |
+| **store** | `protocol-compatibility` | Done |
+| **store** | `schema-compatibility` | Done |
+| **store** | `authorization-settings` | Done |
+| **store** | `builder-health` | Done |
+| **store** | `daemon-crash-prevention` | Done |
+| **cli** | `build-remote` | Done |
+| **cli** | `legacy-commands` | Done |
+| **cli** | `nix-daemon-integration` | Done |
+| **cli** | `nix-env-operations` | Done |
+| **cli** | `nix-store-operations` | Done |
+| **fetchers** | `github` | Done |
 
 ## Running Tests
 
@@ -167,22 +153,6 @@ buck2 run //src/straylight/test/unit/text:strings_test
 # Run benchmarks (example)
 buck2 run //src/straylight/bench/crypto:encoding_bench
 ```
-
-## Known Test Failures
-
-### strings_test (2 failures)
-
-- `stripIndentation` tests have incorrect expected output - need to verify actual `stripIndentation`
-  behavior
-
-### topo-sort_test (8 failures)
-
-- API mismatch: tests assume different function signatures than actual implementation
-- Need to audit `topoSort()` function signature and return type
-
-### url_test (1 failure)
-
-- Test around line 158 has incorrect expectation for URL parsing
 
 ## Priority Queue for Next Tests
 
