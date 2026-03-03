@@ -104,4 +104,22 @@ cxx_library(
     ],
 )
 
-# Tests moved to //src/straylight/test/unit/adapters
+# ─────────────────────────────────────────────────────────────────────────────
+# Fuzz tests for store adapter
+# ─────────────────────────────────────────────────────────────────────────────
+
+cxx_test(
+    name = "fuzz_adapter_test",
+    srcs = ["test/fuzz_adapter_test.cpp"],
+    compiler_flags = [
+        "-std=c++23",
+    ],
+    linker_flags = ["-lpthread"],
+    link_style = "static",
+    deps = [
+        ":store_adapter",
+        "//src/nix/tests:test_utils",
+        "//src/nix/util:util",
+        "//src/nix/main:main",
+    ],
+)

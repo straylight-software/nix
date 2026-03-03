@@ -37,8 +37,7 @@ namespace fs = std::filesystem;
 
 namespace {
 
-class temp_store {
-public:
+struct temp_store {
   temp_store() {
     // Use random suffix to avoid collisions across parallel test processes
     auto pid = static_cast<std::uint64_t>(getpid());
