@@ -179,11 +179,15 @@
               pkgs.dhall
               pkgs.dhall-json
               pkgs.pre-commit
-              # Firecracker build service dependencies
-              pkgs.pkgsStatic.firecracker # static musl microVM hypervisor
+              # Firecracker build service dependencies (non-static tools)
               pkgs.e2fsprogs # ext4 utilities
               pkgs.fuse2fs # FUSE-based ext4 filesystem for unprivileged image mounting
               pkgs.fuse # FUSE support for image mounting
+            ];
+
+            # Static packages (not spliced - preserves pkgsStatic versions)
+            devshellBuildInputs = [
+              pkgs.pkgsStatic.firecracker # static musl microVM hypervisor
             ];
 
             # Auto-link isospin Rust vendor and copy nix-deps.bzl on shell entry
