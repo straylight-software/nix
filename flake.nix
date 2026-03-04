@@ -7,12 +7,7 @@
     flake-parts.url = "github:hercules-ci/flake-parts";
     treefmt-nix.url = "github:numtide/treefmt-nix";
 
-    sensenet = {
-      url = "git+ssh://git@github.com/straylight-software/sensenet?ref=dev";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    # Buck2 prelude - needed for direct buck2 builds (bypassing sensenet module)
+    # Buck2 prelude
     buck2-prelude = {
       url = "github:weyl-ai/straylight-buck2-prelude";
       flake = false;
@@ -38,7 +33,7 @@
 
       imports = [
         inputs.treefmt-nix.flakeModule
-        inputs.sensenet.flakeModules.sensenet
+        inputs.libmodern-cpp.flakeModules.buck2
       ];
 
       perSystem =
@@ -119,9 +114,10 @@
           firecrackerGuest = import ./nix/vm/guest.nix { inherit pkgs; };
         in
         {
-          # ── sensenet project ──────────────────────────────────────────────────
-          sensenet.projects.nix = {
+          # ── Buck2 project (libmodern-cpp module) ─────────────────────────────────
+          buck2.projects.nix = {
             src = ./.;
+            prelude = inputs.buck2-prelude;
 
             targets = [
               # Core nix libraries
@@ -142,54 +138,41 @@
 
             toolchain.cxx = {
               enable = true;
-              llvmpackages = toolchain.llvm;
+              llvmPackages = toolchain.llvm;
+              libraries = allDeps;
+              # Extra flags for third-party deps (appended to turing registry flags)
+              extraCFlags = includeFlags;
+              extraCxxFlags = includeFlags;
+              extraLdFlags = libFlags;
             };
 
-            remoteexecution = {
-              enable = true;
-              scheduler = "sense-scheduler.fly.dev";
-              schedulerport = 443;
-              cas = "sense-cas.fly.dev";
-              casport = 443;
-              tls = true;
-              instancename = "main";
-            };
+            extraPackages = lib.optionals isLinux [
+              # UNWRAPPED toolchain - no wrapper injection via NIX_CFLAGS_COMPILE
+              toolchain.clang-unwrapped
+              toolchain.llvm.bintools-unwrapped
+              toolchain.musl-gcc
+              pkgs.musl
+            ];
 
-            extrapackages =
-              allDeps
-              ++ (lib.optionals isLinux [
-                # UNWRAPPED toolchain - no wrapper injection via NIX_CFLAGS_COMPILE
-                # All include/library paths are explicit in buckconfig
-                toolchain.clang-unwrapped
-                toolchain.llvm.bintools-unwrapped
-                toolchain.musl-gcc
-                pkgs.musl
-              ]);
+            # Remote execution config
+            extraBuckconfigSections = ''
 
-            # Musl static linking configuration
-            # Turing registry flags + musl paths + third-party deps
-            extrabuckconfigsections = ''
+              [build]
+              execution_platforms = toolchains//:lre
 
-              [cxx]
-              cc = ${toolchain.buck2.cc}
-              cxx = ${toolchain.buck2.cxx}
-              ar = ${toolchain.buck2.ar}
-              ld = ${toolchain.buck2.ld}
-              clang_resource_dir = ${toolchain.buck2.clang-resource-dir}
-              musl_gcc_include = ${toolchain.buck2.musl-gcc-include}
-              musl_gcc_include_arch = ${toolchain.buck2.musl-gcc-include-arch}
-              musl_include = ${toolchain.buck2.musl-include}
-              musl_gcc_lib = ${toolchain.buck2.musl-gcc-lib}
-              musl_gcc_lib_gcc = ${toolchain.buck2.musl-gcc-lib-gcc}
-              musl_lib = ${toolchain.buck2.musl-lib}
+              [buck2_re_client]
+              engine_address = grpc://sense-scheduler.fly.dev:443
+              cas_address = grpc://sense-cas.fly.dev:443
+              action_cache_address = grpc://sense-cas.fly.dev:443
+              tls = true
+              instance_name = main
 
-              [cxx.flags]
-              c_flags = ${toolchain.buck2.c-flags} ${includeFlags}
-              cxx_flags = ${toolchain.buck2.cxx-flags} ${includeFlags}
-              link_flags = ${toolchain.buck2.link-flags} ${libFlags}
+              [buck2_re_client.platform_properties]
+              OSFamily = linux
+              container-image = nix-worker
             '';
 
-            devshellpackages = [
+            devshellPackages = [
               pkgs.cppcheck
               pkgs.include-what-you-use
               pkgs.ast-grep
@@ -197,13 +180,14 @@
               pkgs.dhall-json
               pkgs.pre-commit
               # Firecracker build service dependencies
-              pkgs.firecracker # microVM hypervisor
-              pkgs.e2fsprogs # provides fuse2fs for unprivileged ext4 access
+              pkgs.pkgsStatic.firecracker # static musl microVM hypervisor
+              pkgs.e2fsprogs # ext4 utilities
+              pkgs.fuse2fs # FUSE-based ext4 filesystem for unprivileged image mounting
               pkgs.fuse # FUSE support for image mounting
             ];
 
             # Auto-link isospin Rust vendor and copy nix-deps.bzl on shell entry
-            devshellhook = ''
+            devshellHook = ''
               # Copy pre-generated nix-deps.bzl with correct store paths
               rm -f vendor/nix-deps.bzl
               cp ${nix-deps-bzl} vendor/nix-deps.bzl
@@ -212,7 +196,7 @@
               if [ ! -e vendor/isospin/third-party/rust/vendor ] || [ -L vendor/isospin/third-party/rust/vendor ]; then
                 rm -f vendor/isospin/third-party/rust/vendor
                 ln -sf ${isospinRustVendor} vendor/isospin/third-party/rust/vendor
-                echo "📦 Linked isospin vendor -> ${isospinRustVendor}"
+                echo "Linked isospin vendor -> ${isospinRustVendor}"
               fi
             '';
           };
@@ -699,7 +683,7 @@
           };
 
           # ── Default devShell ──────────────────────────────────────────────────
-          devShells.default = config.devShells.sensenet-nix;
+          devShells.default = config.devShells.buck2-nix;
         };
     };
 }
