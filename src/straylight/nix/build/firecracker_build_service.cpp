@@ -37,6 +37,8 @@
 #include <unistd.h>
 
 #include "build_service.h"
+#include "nix/store/build/derivation-env-desugar.h"
+#include "nix/store/derivation-options.h"
 #include "nix/store/derivations.h"
 #include "nix/store/store-api.h"
 #include "nix/util/file-system.h"
@@ -160,59 +162,76 @@ struct vsock_client {
                         std::chrono::milliseconds timeout) -> bool {
     uds_path = uds_path_;
 
-    // Create Unix domain socket
-    fd = socket(AF_UNIX, SOCK_STREAM, 0);
-    if (fd < 0) {
-      log_error("vsock: socket() failed: %s", strerror(errno));
-      return false;
+    // Retry loop - guest might still be booting when we first try
+    auto deadline = std::chrono::steady_clock::now() + timeout;
+    int attempt = 0;
+
+    while (std::chrono::steady_clock::now() < deadline) {
+      attempt++;
+
+      // Create Unix domain socket
+      fd = socket(AF_UNIX, SOCK_STREAM, 0);
+      if (fd < 0) {
+        log_error("vsock: socket() failed: %s", strerror(errno));
+        return false;
+      }
+
+      // Connect to Firecracker's vsock UDS
+      struct sockaddr_un addr{};
+      addr.sun_family = AF_UNIX;
+      strncpy(addr.sun_path, uds_path.c_str(), sizeof(addr.sun_path) - 1);
+
+      if (connect(fd, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) < 0) {
+        log_debug("vsock: connect() attempt %d to %s failed: %s", attempt, uds_path.c_str(),
+                  strerror(errno));
+        close_connection();
+        usleep(100000); // 100ms
+        continue;
+      }
+
+      // Send CONNECT command to tell Firecracker which guest port we want
+      // Format: "CONNECT <port>\n"
+      std::string connect_cmd = "CONNECT " + std::to_string(port) + "\n";
+      if (write(fd, connect_cmd.c_str(), connect_cmd.size()) !=
+          static_cast<ssize_t>(connect_cmd.size())) {
+        log_debug("vsock: write CONNECT attempt %d failed: %s", attempt, strerror(errno));
+        close_connection();
+        usleep(100000);
+        continue;
+      }
+
+      // Read "OK <guest_port>\n" response
+      // Firecracker returns this once it successfully connects to the guest listener
+      char response[64];
+      struct pollfd pfd = {fd, POLLIN, 0};
+      if (poll(&pfd, 1, 500) <= 0) { // 500ms per attempt
+        log_debug("vsock: timeout on attempt %d waiting for CONNECT response", attempt);
+        close_connection();
+        continue;
+      }
+
+      ssize_t n = read(fd, response, sizeof(response) - 1);
+      if (n <= 0) {
+        log_debug("vsock: read CONNECT response attempt %d failed", attempt);
+        close_connection();
+        usleep(100000);
+        continue;
+      }
+      response[n] = '\0';
+
+      if (strncmp(response, "OK ", 3) != 0) {
+        log_debug("vsock: unexpected response on attempt %d: %s", attempt, response);
+        close_connection();
+        usleep(100000);
+        continue;
+      }
+
+      log_debug("vsock: connected to guest port %u after %d attempts", port, attempt);
+      return true;
     }
 
-    // Connect to Firecracker's vsock UDS
-    struct sockaddr_un addr{};
-    addr.sun_family = AF_UNIX;
-    strncpy(addr.sun_path, uds_path.c_str(), sizeof(addr.sun_path) - 1);
-
-    if (connect(fd, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) < 0) {
-      log_error("vsock: connect() to %s failed: %s", uds_path.c_str(), strerror(errno));
-      close_connection();
-      return false;
-    }
-
-    // Send CONNECT command to tell Firecracker which guest port we want
-    // Format: "CONNECT <port>\n"
-    std::string connect_cmd = "CONNECT " + std::to_string(port) + "\n";
-    if (write(fd, connect_cmd.c_str(), connect_cmd.size()) !=
-        static_cast<ssize_t>(connect_cmd.size())) {
-      log_error("vsock: write CONNECT failed: %s", strerror(errno));
-      close_connection();
-      return false;
-    }
-
-    // Read "OK <guest_port>\n" response
-    char response[64];
-    struct pollfd pfd = {fd, POLLIN, 0};
-    if (poll(&pfd, 1, static_cast<int>(timeout.count())) <= 0) {
-      log_error("vsock: timeout waiting for CONNECT response");
-      close_connection();
-      return false;
-    }
-
-    ssize_t n = read(fd, response, sizeof(response) - 1);
-    if (n <= 0) {
-      log_error("vsock: read CONNECT response failed");
-      close_connection();
-      return false;
-    }
-    response[n] = '\0';
-
-    if (strncmp(response, "OK ", 3) != 0) {
-      log_error("vsock: unexpected response: %s", response);
-      close_connection();
-      return false;
-    }
-
-    log_debug("vsock: connected to guest port %u", port);
-    return true;
+    log_error("vsock: failed to connect to guest port %u after %d attempts", port, attempt);
+    return false;
   }
 
   // Send a message with wire protocol header
@@ -373,14 +392,21 @@ struct firecracker_build_service final : build_service {
       std::visit(
           [&](const auto& p) {
             using T = std::decay_t<decltype(p)>;
-            if constexpr (std::is_same_v<T, ::nix::DerivedPath::Built>) {
+            if constexpr (std::is_same_v<T, ::nix::derived_path_t::Built>) {
               // Get the derivation and build it
               auto drv_path = resolve_derived_path_built(store, p);
               if (drv_path) {
-                auto drv = store.readDerivation(*drv_path);
-                build_derivation(store, *drv_path, drv, build_mode);
+                auto drv = store.read_derivation(*drv_path);
+                // Resolve input_drvs to input_srcs so we have all input paths
+                auto resolved = drv.try_resolve(store);
+                if (resolved) {
+                  build_derivation(store, *drv_path, *resolved, build_mode);
+                } else {
+                  log_error("firecracker: failed to resolve derivation %s",
+                            store.printStorePath(*drv_path));
+                }
               }
-            } else if constexpr (std::is_same_v<T, ::nix::DerivedPath::Opaque>) {
+            } else if constexpr (std::is_same_v<T, ::nix::derived_path_t::opaque_t>) {
               // Opaque path - just ensure it exists (substitution)
               ensure_path(store, p.path);
             }
@@ -400,18 +426,31 @@ struct firecracker_build_service final : build_service {
       std::visit(
           [&](const auto& p) {
             using T = std::decay_t<decltype(p)>;
-            if constexpr (std::is_same_v<T, ::nix::DerivedPath::Built>) {
+            if constexpr (std::is_same_v<T, ::nix::derived_path_t::Built>) {
               auto drv_path = resolve_derived_path_built(store, p);
               if (drv_path) {
-                auto drv = store.readDerivation(*drv_path);
-                auto result = build_derivation(store, *drv_path, drv, build_mode);
-                results.push_back(::nix::keyed_build_result_t{path, result});
+                auto drv = store.read_derivation(*drv_path);
+                // Resolve input_drvs to input_srcs so we have all input paths
+                auto resolved = drv.try_resolve(store);
+                if (resolved) {
+                  auto result = build_derivation(store, *drv_path, *resolved, build_mode);
+                  results.push_back(::nix::keyed_build_result_t{result, path});
+                } else {
+                  log_error("firecracker: failed to resolve derivation %s",
+                            store.printStorePath(*drv_path));
+                  ::nix::build_result_t fail_result;
+                  fail_result.inner = ::nix::build_result_t::Failure{
+                      .status = ::nix::build_result_t::Failure::MiscFailure,
+                      .errorMsg = "Failed to resolve derivation inputs"};
+                  results.push_back(::nix::keyed_build_result_t{fail_result, path});
+                }
               }
-            } else if constexpr (std::is_same_v<T, ::nix::DerivedPath::Opaque>) {
+            } else if constexpr (std::is_same_v<T, ::nix::derived_path_t::opaque_t>) {
               // Opaque paths don't have build results in the same sense
               ::nix::build_result_t result;
-              result.status = ::nix::build_result_t::Substituted;
-              results.push_back(::nix::keyed_build_result_t{path, result});
+              result.inner = ::nix::build_result_t::Success{
+                  .status = ::nix::build_result_t::Success::Substituted};
+              results.push_back(::nix::keyed_build_result_t{result, path});
             }
           },
           path.raw());
@@ -421,12 +460,11 @@ struct firecracker_build_service final : build_service {
   }
 
   auto build_derivation(::nix::store_t& store, const ::nix::store_path_t& drv_path,
-                        const ::nix::basic_derivation_t& drv, ::nix::BuildMode build_mode)
+                        const ::nix::basic_derivation_t& drv, ::nix::BuildMode /*build_mode*/)
       -> ::nix::build_result_t override {
     log_info("firecracker: building %s", store.printStorePath(drv_path));
 
     ::nix::build_result_t result;
-    result.status = ::nix::build_result_t::MiscFailure;
 
     try {
       // Create witness record
@@ -446,8 +484,8 @@ struct firecracker_build_service final : build_service {
 
     } catch (const std::exception& e) {
       log_error("firecracker build failed: %s", e.what());
-      result.status = ::nix::build_result_t::MiscFailure;
-      result.errorMsg = e.what();
+      result.inner = ::nix::build_result_t::Failure{
+          .status = ::nix::build_result_t::Failure::MiscFailure, .errorMsg = e.what()};
     }
 
     return result;
@@ -500,19 +538,19 @@ private:
     return true;
   }
 
-  auto resolve_derived_path_built(::nix::store_t& store, const ::nix::DerivedPath::Built& built)
+  auto resolve_derived_path_built(::nix::store_t& store, const ::nix::derived_path_t::Built& built)
       -> std::optional<::nix::store_path_t> {
     return std::visit(
         [&](const auto& d) -> std::optional<::nix::store_path_t> {
           using T = std::decay_t<decltype(d)>;
-          if constexpr (std::is_same_v<T, ::nix::DerivedPath::Opaque>) {
+          if constexpr (std::is_same_v<T, ::nix::derived_path_t::opaque_t>) {
             return d.path;
           } else {
             // Recursively resolve
             return std::nullopt;
           }
         },
-        built.drvPath->raw());
+        built.drv_path->raw());
   }
 
   auto execute_in_vm(::nix::store_t& store, const ::nix::store_path_t& drv_path,
@@ -543,8 +581,9 @@ private:
     // Start the VM
     auto vm = start_vm(vm_config);
     if (!vm || !vm->running) {
-      result.status = ::nix::build_result_t::MiscFailure;
-      result.errorMsg = "Failed to start Firecracker VM";
+      result.inner =
+          ::nix::build_result_t::Failure{.status = ::nix::build_result_t::Failure::MiscFailure,
+                                         .errorMsg = "Failed to start Firecracker VM"};
       return result;
     }
 
@@ -552,7 +591,7 @@ private:
     result = run_builder_in_vm(*vm, store, drv, witness);
 
     // Extract outputs if build succeeded
-    if (result.status == ::nix::build_result_t::Built) {
+    if (result.tryGetSuccess()) {
       extract_outputs(store, drv, work_dir, witness);
     }
 
@@ -591,16 +630,35 @@ private:
       -> categorized_inputs {
     categorized_inputs inputs;
 
-    // Resolve each input to its actual location
+    log_debug("firecracker: collecting inputs, input_srcs has %zu entries", drv.input_srcs.size());
+
+    // Collect all direct inputs (input_srcs + builder)
+    ::nix::store_path_set_t direct_inputs;
     for (const auto& src : drv.input_srcs) {
-      auto path_str = store.printStorePath(src);
-      auto real_path = resolve_store_path(path_str);
-      categorize_path(real_path, inputs);
+      direct_inputs.insert(src);
+      log_debug("firecracker: input_src: %s", store.printStorePath(src));
     }
 
     // Add builder if it's a store path
     if (drv.builder.starts_with("/nix/store")) {
-      auto real_path = resolve_store_path(drv.builder);
+      log_debug("firecracker: builder: %s", drv.builder);
+      // builder may be /nix/store/<hash>-<name>/bin/foo, extract base store path
+      auto [builder_path, _suffix] = store.toStorePath(drv.builder);
+      direct_inputs.insert(builder_path);
+    }
+
+    // Compute the closure of all inputs (includes all runtime dependencies)
+    ::nix::store_path_set_t closure;
+    store.computeFSClosure(direct_inputs, closure);
+
+    log_info("firecracker: closure has %zu paths (from %zu direct inputs)", closure.size(),
+             direct_inputs.size());
+
+    // Categorize each path in the closure
+    for (const auto& path : closure) {
+      auto path_str = store.printStorePath(path);
+      log_info("firecracker: closure path: %s", path_str);
+      auto real_path = resolve_store_path(path_str);
       categorize_path(real_path, inputs);
     }
 
@@ -752,7 +810,8 @@ private:
 
     // Mount image using fuse2fs (no root required) or fallback to loop mount
     bool mounted = false;
-    auto fuse_cmd = "fuse2fs -o rw " + image_path + " " + mount_point + " 2>/dev/null";
+    // fakeroot allows creating files as if we were root (they'll have root ownership in the image)
+    auto fuse_cmd = "fuse2fs -o rw,fakeroot " + image_path + " " + mount_point + " 2>/dev/null";
     if (system(fuse_cmd.c_str()) == 0) {
       mounted = true;
       log_debug("firecracker: mounted store image via fuse2fs");
@@ -769,8 +828,9 @@ private:
       throw ::nix::Error("failed to mount store image - need fuse2fs or root for loop mount");
     }
 
-    // Create /nix/store directory structure inside the image
-    auto store_dir = fs::path(mount_point) / "nix" / "store";
+    // Create /store directory structure inside the image
+    // The guest mounts this image at /nix, so paths end up at /nix/store
+    auto store_dir = fs::path(mount_point) / "store";
     fs::create_directories(store_dir);
 
     // Copy all input paths into the image
@@ -787,7 +847,7 @@ private:
         fs::copy(src_path, dst_path, fs::copy_options::recursive | fs::copy_options::copy_symlinks);
         copied++;
       } catch (const std::exception& e) {
-        log_warning("firecracker: failed to copy %s: %s", src_path, e.what());
+        log_warn("firecracker: failed to copy %s: %s", src_path, e.what());
       }
     };
 
@@ -804,7 +864,7 @@ private:
     // Unmount
     auto umount_cmd = "fusermount -u " + mount_point + " 2>/dev/null || umount " + mount_point;
     if (system(umount_cmd.c_str()) != 0) {
-      log_warning("firecracker: failed to unmount store image cleanly");
+      log_warn("firecracker: failed to unmount store image cleanly");
     }
 
     log_info("firecracker: store image populated with %zu paths", copied);
@@ -832,11 +892,27 @@ private:
     }
     close(fd);
 
-    // Format as ext4
-    auto cmd = "mkfs.ext4 -q -F " + path;
+    // Format as ext4 (-L "" removes lost+found which causes permission issues with fuse)
+    auto cmd = "mkfs.ext4 -q -F -L '' -m 0 " + path;
     if (system(cmd.c_str()) != 0) {
       throw ::nix::Error("failed to format image as ext4: " + path);
     }
+
+    // Remove lost+found directory by mounting briefly
+    // fuse2fs creates it on mount, we don't need it and it causes cleanup issues
+    auto tmp_mount = path + ".tmp_mount";
+    fs::create_directories(tmp_mount);
+    auto mount_cmd = "fuse2fs -o rw,fakeroot " + path + " " + tmp_mount + " 2>/dev/null";
+    if (system(mount_cmd.c_str()) == 0) {
+      auto lf_path = tmp_mount + "/lost+found";
+      if (fs::exists(lf_path)) {
+        fs::remove_all(lf_path);
+      }
+      auto umount_cmd = "fusermount -u " + tmp_mount + " 2>/dev/null || fusermount3 -u " +
+                        tmp_mount + " 2>/dev/null";
+      system(umount_cmd.c_str());
+    }
+    fs::remove_all(tmp_mount);
   }
 
   auto start_vm(const std::string& config_path) -> std::unique_ptr<vm_instance> {
@@ -898,7 +974,11 @@ private:
                          const ::nix::basic_derivation_t& drv, build_witness& witness)
       -> ::nix::build_result_t {
     ::nix::build_result_t result;
-    result.status = ::nix::build_result_t::MiscFailure;
+    // Default to failure
+    auto set_failure = [&](::nix::build_result_t::Failure::Status status, std::string msg) {
+      result.inner = ::nix::build_result_t::Failure{.status = status, .errorMsg = std::move(msg)};
+    };
+    set_failure(::nix::build_result_t::Failure::MiscFailure, "");
 
     log_info("firecracker: executing builder %s", drv.builder);
 
@@ -906,46 +986,76 @@ private:
     vsock_client vsock;
     if (!vsock.connect_to_guest(vm.vsock_uds_path, VM_VSOCK_BUILD_PORT,
                                 std::chrono::milliseconds(5000))) {
-      result.errorMsg = "Failed to connect to guest builder via vsock";
+      set_failure(::nix::build_result_t::Failure::MiscFailure,
+                  "Failed to connect to guest builder via vsock");
       return result;
     }
 
     // Prepare build request
     build_exec_request req;
     req.builder = drv.builder;
-    req.args = drv.args;
+    req.args = std::vector<std::string>(drv.args.begin(), drv.args.end());
     req.workdir = "/build"; // Standard build directory in guest
 
-    // Convert environment map to vector of pairs
-    for (const auto& [key, value] : drv.env) {
+    // Get expected output paths
+    auto outputs_and_paths = drv.outputsAndOptPaths(store);
+    for (const auto& [output_name, output_and_path] : outputs_and_paths) {
+      const auto& [output, opt_path] = output_and_path;
+      if (opt_path) {
+        req.outputs.push_back(store.printStorePath(*opt_path));
+      }
+    }
+
+    // Parse derivation options and create desugared environment
+    // This handles passAsFile, structuredAttrs, exportReferencesGraph, etc.
+    const ::nix::StructuredAttrs* structured_attrs_ptr =
+        drv.structured_attrs ? &*drv.structured_attrs : nullptr;
+    auto drv_options = ::nix::derivation_options_from_structured_attrs(
+        store, drv.env, structured_attrs_ptr, false /* don't warn about unknown attrs */);
+
+    // Collect input paths for DesugaredEnv::create
+    ::nix::store_path_set_t input_paths;
+    for (const auto& src : drv.input_srcs) {
+      input_paths.insert(src);
+    }
+
+    // Create desugared environment
+    auto desugared_env = ::nix::DesugaredEnv::create(store, drv, drv_options, input_paths);
+
+    // Add standard Nix build environment variables
+    // These are expected by stdenv and most builders
+    req.env.emplace_back("NIX_BUILD_TOP", req.workdir);
+    req.env.emplace_back("TMPDIR", req.workdir);
+    req.env.emplace_back("TEMPDIR", req.workdir);
+    req.env.emplace_back("TMP", req.workdir);
+    req.env.emplace_back("TEMP", req.workdir);
+    req.env.emplace_back("HOME", "/homeless-shelter");
+    req.env.emplace_back("PATH", "/path-not-set");
+    req.env.emplace_back("NIX_STORE", "/nix/store");
+    req.env.emplace_back("PWD", req.workdir);
+
+    // Convert desugared environment variables to request format
+    for (const auto& [key, entry] : desugared_env.variables) {
+      std::string value = entry.value;
+      if (entry.prependBuildDirectory) {
+        // Prepend the build directory to the value (for file references)
+        value = req.workdir + "/" + entry.value;
+      }
       req.env.emplace_back(key, value);
     }
 
-    // Add expected output paths
-    for (const auto& [name, output] : drv.outputs) {
-      // Get the output path string
-      auto output_path = std::visit(
-          [&](const auto& o) -> std::string {
-            using T = std::decay_t<decltype(o)>;
-            if constexpr (std::is_same_v<T, ::nix::DerivationOutput::InputAddressed>) {
-              return store.printStorePath(o.path);
-            } else if constexpr (std::is_same_v<T, ::nix::DerivationOutput::CAFixed>) {
-              return store.printStorePath(o.path);
-            } else {
-              // For floating outputs, we compute the path later
-              return "";
-            }
-          },
-          output.raw());
-      if (!output_path.empty()) {
-        req.outputs.push_back(output_path);
-      }
+    // Add extra files from desugared environment (passAsFile contents, structuredAttrs, etc.)
+    for (const auto& [filename, contents] : desugared_env.extraFiles) {
+      req.extra_files.emplace_back(filename, contents);
+      log_debug("firecracker: adding extra file '%s' (%zu bytes)", filename.c_str(),
+                contents.size());
     }
 
     // Send BUILD_EXEC
     auto payload = req.serialize();
     if (!vsock.send_message(vm_msg_type::BUILD_EXEC, std::span<const uint8_t>(payload))) {
-      result.errorMsg = "Failed to send build request to guest";
+      set_failure(::nix::build_result_t::Failure::MiscFailure,
+                  "Failed to send build request to guest");
       return result;
     }
 
@@ -958,13 +1068,15 @@ private:
     while (true) {
       auto hdr = vsock.recv_header(timeout);
       if (!hdr) {
-        result.errorMsg = "Lost connection to guest during build";
+        set_failure(::nix::build_result_t::Failure::MiscFailure,
+                    "Lost connection to guest during build");
         return result;
       }
 
       auto msg_payload = vsock.recv_payload(hdr->payload_len, timeout);
       if (msg_payload.empty() && hdr->payload_len > 0) {
-        result.errorMsg = "Failed to read message payload from guest";
+        set_failure(::nix::build_result_t::Failure::MiscFailure,
+                    "Failed to read message payload from guest");
         return result;
       }
 
@@ -990,14 +1102,15 @@ private:
         case vm_msg_type::BUILD_EXIT: {
           auto exit_resp = build_exit_response::deserialize(std::span<const uint8_t>(msg_payload));
           if (exit_resp.success && exit_resp.exit_code == 0) {
-            result.status = ::nix::build_result_t::Built;
+            result.inner =
+                ::nix::build_result_t::Success{.status = ::nix::build_result_t::Success::Built};
             log_info("firecracker: build succeeded");
           } else {
-            result.status = ::nix::build_result_t::BuildFailure;
-            result.errorMsg = exit_resp.error_msg.empty() ? "Builder exited with code " +
-                                                                std::to_string(exit_resp.exit_code)
-                                                          : exit_resp.error_msg;
-            log_error("firecracker: build failed: %s", result.errorMsg.c_str());
+            auto error_msg = exit_resp.error_msg.empty()
+                                 ? "Builder exited with code " + std::to_string(exit_resp.exit_code)
+                                 : exit_resp.error_msg;
+            set_failure(::nix::build_result_t::Failure::PermanentFailure, error_msg);
+            log_error("firecracker: build failed: %s", error_msg.c_str());
           }
           // Hash the build log for witness
           // TODO: Compute actual hash
@@ -1017,7 +1130,7 @@ private:
               break;
             case witness_event::event_type::NET_CONNECT:
               witness.network_attempts.push_back(evt.path);
-              log_warning("firecracker: build attempted network access: %s", evt.path);
+              log_warn("firecracker: build attempted network access: %s", evt.path);
               break;
             case witness_event::event_type::SYSCALL:
               witness.syscall_counts[evt.syscall]++;
@@ -1033,7 +1146,7 @@ private:
           break;
 
         default:
-          log_warning("firecracker: unexpected message type 0x%04x", static_cast<int>(msg_type));
+          log_warn("firecracker: unexpected message type 0x%04x", static_cast<int>(msg_type));
           break;
       }
     }
@@ -1075,25 +1188,15 @@ private:
 
     log_info("firecracker: mounted output image at %s", mount_point);
 
-    // Extract each output
-    for (const auto& [name, output] : drv.outputs) {
-      auto output_path = std::visit(
-          [&](const auto& o) -> std::string {
-            using T = std::decay_t<decltype(o)>;
-            if constexpr (std::is_same_v<T, ::nix::DerivationOutput::InputAddressed>) {
-              return store.printStorePath(o.path);
-            } else if constexpr (std::is_same_v<T, ::nix::DerivationOutput::CAFixed>) {
-              return store.printStorePath(o.path);
-            } else {
-              return "";
-            }
-          },
-          output.raw());
-
-      if (output_path.empty()) {
-        log_warning("firecracker: skipping output '%s' (floating/deferred)", name);
+    // Extract each output using the safer outputsAndOptPaths interface
+    auto outputs_and_paths = drv.outputsAndOptPaths(store);
+    for (const auto& [name, output_and_path] : outputs_and_paths) {
+      const auto& [output, opt_path] = output_and_path;
+      if (!opt_path) {
+        log_warn("firecracker: skipping output '%s' (floating/deferred)", name);
         continue;
       }
+      auto output_path = store.printStorePath(*opt_path);
 
       // Extract basename (e.g., "abc123-foo" from "/nix/store/abc123-foo")
       auto basename = fs::path(output_path).filename().string();

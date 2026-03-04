@@ -108,6 +108,13 @@ auto build_exec_request::serialize() const -> std::vector<uint8_t> {
     write_string(buf, output);
   }
 
+  // Extra files (filename -> contents pairs)
+  write_u32(buf, static_cast<uint32_t>(extra_files.size()));
+  for (const auto& [filename, contents] : extra_files) {
+    write_string(buf, filename);
+    write_string(buf, contents);
+  }
+
   return buf;
 }
 
@@ -142,6 +149,17 @@ auto build_exec_request::deserialize(std::span<const uint8_t> data) -> build_exe
   req.outputs.reserve(outputs_count);
   for (uint32_t i = 0; i < outputs_count; ++i) {
     req.outputs.push_back(read_string(data, offset));
+  }
+
+  // Extra files (if present - for backwards compatibility)
+  if (offset < data.size()) {
+    uint32_t extra_files_count = read_u32(data, offset);
+    req.extra_files.reserve(extra_files_count);
+    for (uint32_t i = 0; i < extra_files_count; ++i) {
+      std::string filename = read_string(data, offset);
+      std::string contents = read_string(data, offset);
+      req.extra_files.emplace_back(std::move(filename), std::move(contents));
+    }
   }
 
   return req;

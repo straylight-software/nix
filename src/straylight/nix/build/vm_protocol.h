@@ -33,6 +33,7 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -96,6 +97,10 @@ struct build_exec_request {
   std::vector<std::pair<std::string, std::string>> env; // Environment variables
   std::string workdir;                                  // Working directory
   std::vector<std::string> outputs;                     // Expected output paths
+
+  // Extra files to create in workdir before exec (filename -> contents)
+  // Used for passAsFile, structuredAttrs, exportReferencesGraph
+  std::vector<std::pair<std::string, std::string>> extra_files;
 
   // Serialize to wire format
   auto serialize() const -> std::vector<uint8_t>;

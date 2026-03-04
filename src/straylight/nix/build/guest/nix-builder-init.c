@@ -17,8 +17,29 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <linux/reboot.h>
-#include <linux/vm_sockets.h>
+#include <sys/socket.h>
+/*
+ * Define vsock constants and structures ourselves to avoid compatibility
+ * issues with linux/vm_sockets.h and musl's newer linux-headers.
+ * The linux/vm_sockets.h header uses sizeof(struct sockaddr) in a struct
+ * definition which doesn't work with musl.
+ */
+#ifndef AF_VSOCK
+#  define AF_VSOCK 40
+#endif
+#define VMADDR_CID_ANY ((unsigned int)-1)
+#define VMADDR_CID_HOST 2
+
+struct sockaddr_vm {
+  sa_family_t svm_family;
+  unsigned short svm_reserved1;
+  unsigned int svm_port;
+  unsigned int svm_cid;
+  unsigned char svm_zero[sizeof(struct sockaddr) - sizeof(sa_family_t) - sizeof(unsigned short) -
+                         sizeof(unsigned int) - sizeof(unsigned int)];
+};
 #include <signal.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -79,7 +100,6 @@ static void log_msg(const char* level, const char* fmt, ...) {
 
 #define log_info(...) log_msg("INFO", __VA_ARGS__)
 #define log_error(...) log_msg("ERROR", __VA_ARGS__)
-#define log_debug(...) log_msg("DEBUG", __VA_ARGS__)
 
 /* ============================================================================
  * Filesystem Setup
@@ -110,6 +130,18 @@ static void setup_filesystem(void) {
   mknod("/dev/vda", S_IFBLK | 0660, makedev(254, 0));  /* store image */
   mknod("/dev/vdb", S_IFBLK | 0660, makedev(254, 16)); /* output image */
 
+  /* Create /dev/fd and standard stream symlinks (needed by bash process substitution)
+   * These point to /proc/self/fd which provides per-process file descriptor access */
+  symlink("/proc/self/fd", "/dev/fd");
+  symlink("/proc/self/fd/0", "/dev/stdin");
+  symlink("/proc/self/fd/1", "/dev/stdout");
+  symlink("/proc/self/fd/2", "/dev/stderr");
+
+  /* Create /dev/ptmx for pseudo-terminals (some builds need this) */
+  mknod("/dev/ptmx", S_IFCHR | 0666, makedev(5, 2));
+  mkdir("/dev/pts", 0755);
+  mount("devpts", "/dev/pts", "devpts", 0, "newinstance,ptmxmode=0666");
+
   /* Mount sysfs */
   mkdir("/sys", 0755);
   mount("sysfs", "/sys", "sysfs", MS_NOEXEC | MS_NOSUID | MS_NODEV, NULL);
@@ -121,14 +153,16 @@ static void setup_filesystem(void) {
   /* Create /build directory for derivation builds */
   mkdir("/build", 0755);
 
-  /* Create /nix directory structure */
+  /* Create directory structure */
   mkdir("/nix", 0755);
   mkdir("/nix/store", 0755);
+  mkdir("/nix-lower", 0755); /* For overlay lowerdir */
+  mkdir("/output", 0755);
 
-  /* Mount store image (read-only) from /dev/vda
+  /* Mount store image (read-only) at /nix-lower for overlay lowerdir
    * The host populates this with all required input paths */
-  if (mount("/dev/vda", "/nix", "ext4", MS_RDONLY | MS_NOATIME, NULL) < 0) {
-    log_error("mount /nix (store) failed: %s", strerror(errno));
+  if (mount("/dev/vda", "/nix-lower", "ext4", MS_RDONLY | MS_NOATIME, NULL) < 0) {
+    log_error("mount /nix-lower (store inputs) failed: %s", strerror(errno));
     log_error("builds will fail without /nix/store access");
   } else {
     log_info("mounted /nix/store from /dev/vda (read-only)");
@@ -136,7 +170,6 @@ static void setup_filesystem(void) {
 
   /* Mount output image (read-write) from /dev/vdb
    * This is where build outputs are written */
-  mkdir("/output", 0755);
   if (mount("/dev/vdb", "/output", "ext4", MS_NOATIME, NULL) < 0) {
     log_error("mount /output failed: %s", strerror(errno));
     log_error("builds will fail without output storage");
@@ -145,27 +178,25 @@ static void setup_filesystem(void) {
     /* Create output directories */
     mkdir("/output/nix", 0755);
     mkdir("/output/nix/store", 0755);
+    mkdir("/output/work", 0755); /* overlay workdir - must be on same fs as upperdir */
   }
 
-  /* Set up overlay so writes to /nix/store go to /output
-   * This allows builders to write to /nix/store while keeping
-   * the base store read-only */
-  mkdir("/nix-work", 0755); /* overlay workdir */
+  /* Set up overlay so /nix/store shows inputs (read-only) but allows writes to /output
+   * lowerdir: read-only input paths from /dev/vda
+   * upperdir: writable output area on /dev/vdb
+   * workdir: overlay work directory on /dev/vdb (same fs as upperdir) */
   char overlay_opts[512];
   snprintf(overlay_opts, sizeof(overlay_opts),
-           "lowerdir=/nix/store,upperdir=/output/nix/store,workdir=/nix-work");
+           "lowerdir=/nix-lower/store,upperdir=/output/nix/store,workdir=/output/work");
 
-  /* Remount /nix/store as overlay */
-  if (umount("/nix") == 0 || errno == EINVAL) {
-    /* Create fresh /nix/store for overlay mount */
-    mkdir("/nix/store", 0755);
-    if (mount("overlay", "/nix/store", "overlay", 0, overlay_opts) < 0) {
-      log_error("overlay mount failed: %s - falling back to bind mount", strerror(errno));
-      /* Fallback: re-mount the store read-only and use /output directly */
-      mount("/dev/vda", "/nix", "ext4", MS_RDONLY | MS_NOATIME, NULL);
-    } else {
-      log_info("mounted /nix/store as overlay (writes go to /output)");
+  if (mount("overlay", "/nix/store", "overlay", 0, overlay_opts) < 0) {
+    log_error("overlay mount failed: %s - falling back to simple mount", strerror(errno));
+    /* Fallback: just mount the store read-only, outputs won't work */
+    if (mount("/dev/vda", "/nix", "ext4", MS_RDONLY | MS_NOATIME, NULL) < 0) {
+      log_error("fallback mount also failed: %s", strerror(errno));
     }
+  } else {
+    log_info("mounted /nix/store as overlay (inputs from vda, outputs to vdb)");
   }
 
   log_info("filesystem setup complete");
@@ -176,33 +207,57 @@ static void setup_filesystem(void) {
  * ============================================================================ */
 
 static int vsock_fd = -1;
+static int vsock_listen_fd = -1;
 
-static int vsock_connect(void) {
-  vsock_fd = socket(AF_VSOCK, SOCK_STREAM, 0);
-  if (vsock_fd < 0) {
+static int vsock_listen_and_accept(void) {
+  /* Create listening socket */
+  vsock_listen_fd = socket(AF_VSOCK, SOCK_STREAM, 0);
+  if (vsock_listen_fd < 0) {
     log_error("socket(AF_VSOCK) failed: %s", strerror(errno));
     return -1;
   }
 
+  /* Bind to VMADDR_CID_ANY so we accept from any CID (the host) */
   struct sockaddr_vm addr = {
       .svm_family = AF_VSOCK,
-      .svm_cid = VM_VSOCK_HOST_CID,
+      .svm_cid = VMADDR_CID_ANY,
       .svm_port = VM_VSOCK_BUILD_PORT,
   };
 
-  /* Retry connection - host might not be ready immediately */
-  for (int i = 0; i < 50; i++) {
-    if (connect(vsock_fd, (struct sockaddr*)&addr, sizeof(addr)) == 0) {
-      log_info("connected to host via vsock");
-      return 0;
-    }
-    usleep(100000); /* 100ms */
+  if (bind(vsock_listen_fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+    log_error("bind() failed: %s", strerror(errno));
+    close(vsock_listen_fd);
+    vsock_listen_fd = -1;
+    return -1;
   }
 
-  log_error("vsock connect failed after retries: %s", strerror(errno));
-  close(vsock_fd);
-  vsock_fd = -1;
-  return -1;
+  if (listen(vsock_listen_fd, 1) < 0) {
+    log_error("listen() failed: %s", strerror(errno));
+    close(vsock_listen_fd);
+    vsock_listen_fd = -1;
+    return -1;
+  }
+
+  log_info("listening on vsock port %d, waiting for host connection...", VM_VSOCK_BUILD_PORT);
+
+  /* Accept connection from host (via Firecracker's vsock proxy) */
+  struct sockaddr_vm peer_addr;
+  socklen_t peer_len = sizeof(peer_addr);
+  vsock_fd = accept(vsock_listen_fd, (struct sockaddr*)&peer_addr, &peer_len);
+  if (vsock_fd < 0) {
+    log_error("accept() failed: %s", strerror(errno));
+    close(vsock_listen_fd);
+    vsock_listen_fd = -1;
+    return -1;
+  }
+
+  log_info("accepted connection from host (CID %u)", peer_addr.svm_cid);
+
+  /* Close listening socket - we only handle one connection */
+  close(vsock_listen_fd);
+  vsock_listen_fd = -1;
+
+  return 0;
 }
 
 static ssize_t read_exact(void* buf, size_t len) {
@@ -290,6 +345,34 @@ static char* read_string(const uint8_t** ptr, const uint8_t* end) {
   return str;
 }
 
+/* Read a length-prefixed blob from buffer, returning both data and length.
+ * Used for file contents that may contain embedded NULs. */
+static char* read_blob(const uint8_t** ptr, const uint8_t* end, size_t* out_len) {
+  if (*ptr + 4 > end) {
+    return NULL;
+  }
+  uint32_t len = (*ptr)[0] | ((*ptr)[1] << 8) | ((*ptr)[2] << 16) | ((*ptr)[3] << 24);
+  *ptr += 4;
+  if (*ptr + len > end) {
+    return NULL;
+  }
+  char* data = malloc(len);
+  if (!data) {
+    return NULL;
+  }
+  memcpy(data, *ptr, len);
+  *ptr += len;
+  *out_len = len;
+  return data;
+}
+
+/* Extra file to create in workdir before exec */
+struct extra_file {
+  char* filename;
+  char* contents;
+  size_t contents_len;
+};
+
 /* Build request parsed from BUILD_EXEC payload */
 struct build_request {
   char* builder;
@@ -300,6 +383,8 @@ struct build_request {
   char* workdir;
   char** outputs;
   int output_count;
+  struct extra_file* extra_files;
+  int extra_file_count;
 };
 
 static void free_build_request(struct build_request* req) {
@@ -308,7 +393,8 @@ static void free_build_request(struct build_request* req) {
     free(req->args[i]);
   }
   free(req->args);
-  for (int i = 0; i < req->envc * 2; i++) {
+  /* env array has envc entries (each is "KEY=value"), NOT envc*2 */
+  for (int i = 0; i < req->envc; i++) {
     free(req->env[i]);
   }
   free(req->env);
@@ -317,6 +403,11 @@ static void free_build_request(struct build_request* req) {
     free(req->outputs[i]);
   }
   free(req->outputs);
+  for (int i = 0; i < req->extra_file_count; i++) {
+    free(req->extra_files[i].filename);
+    free(req->extra_files[i].contents);
+  }
+  free(req->extra_files);
 }
 
 static int parse_build_request(const uint8_t* data, size_t len, struct build_request* req) {
@@ -407,6 +498,30 @@ static int parse_build_request(const uint8_t* data, size_t len, struct build_req
     }
   }
 
+  /* Extra files (optional, for backwards compatibility) */
+  req->extra_files = NULL;
+  req->extra_file_count = 0;
+  if (ptr + 4 <= end) {
+    req->extra_file_count = ptr[0] | (ptr[1] << 8) | (ptr[2] << 16) | (ptr[3] << 24);
+    ptr += 4;
+    if (req->extra_file_count > 0) {
+      req->extra_files = calloc(req->extra_file_count, sizeof(struct extra_file));
+      if (!req->extra_files) {
+        return -1;
+      }
+      for (int i = 0; i < req->extra_file_count; i++) {
+        req->extra_files[i].filename = read_string(&ptr, end);
+        if (!req->extra_files[i].filename) {
+          return -1;
+        }
+        req->extra_files[i].contents = read_blob(&ptr, end, &req->extra_files[i].contents_len);
+        if (!req->extra_files[i].contents) {
+          return -1;
+        }
+      }
+    }
+  }
+
   return 0;
 }
 
@@ -429,7 +544,6 @@ static void* output_thread(void* arg) {
 
   return NULL;
 }
-
 static int execute_builder(struct build_request* req) {
   int stdout_pipe[2], stderr_pipe[2];
 
@@ -439,17 +553,39 @@ static int execute_builder(struct build_request* req) {
   }
 
   log_info("executing builder: %s", req->builder);
-  log_info("workdir: %s", req->workdir);
-  log_info("outputs: %d paths", req->output_count);
-
-  /* Ensure output directories exist in /nix/store (overlay upper layer)
-   * These will be written to /output/nix/store via the overlay */
-  for (int i = 0; i < req->output_count; i++) {
-    log_debug("expected output: %s", req->outputs[i]);
-  }
 
   /* Create build working directory */
   mkdir(req->workdir, 0755);
+
+  /* Write extra files to workdir (passAsFile, structuredAttrs, etc.) */
+  for (int i = 0; i < req->extra_file_count; i++) {
+    char filepath[PATH_MAX];
+    snprintf(filepath, sizeof(filepath), "%s/%s", req->workdir, req->extra_files[i].filename);
+
+    int fd = open(filepath, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (fd < 0) {
+      log_error("failed to create extra file %s: %s", filepath, strerror(errno));
+      return -1;
+    }
+
+    size_t written = 0;
+    while (written < req->extra_files[i].contents_len) {
+      ssize_t n = write(fd, req->extra_files[i].contents + written,
+                        req->extra_files[i].contents_len - written);
+      if (n < 0) {
+        if (errno == EINTR) {
+          continue;
+        }
+        log_error("failed to write extra file %s: %s", filepath, strerror(errno));
+        close(fd);
+        return -1;
+      }
+      written += n;
+    }
+    close(fd);
+    log_info("wrote extra file: %s (%zu bytes)", req->extra_files[i].filename,
+             req->extra_files[i].contents_len);
+  }
 
   pid_t pid = fork();
   if (pid < 0) {
@@ -460,9 +596,21 @@ static int execute_builder(struct build_request* req) {
   if (pid == 0) {
     /* Child process */
 
-    /* Redirect stdout/stderr to pipes */
+    /* Create new session */
+    setsid();
+
+    /* Set up file descriptors */
     close(stdout_pipe[0]);
     close(stderr_pipe[0]);
+
+    /* stdin from /dev/null */
+    int null_fd = open("/dev/null", O_RDONLY);
+    if (null_fd >= 0) {
+      dup2(null_fd, STDIN_FILENO);
+      close(null_fd);
+    }
+
+    /* stdout/stderr to pipes */
     dup2(stdout_pipe[1], STDOUT_FILENO);
     dup2(stderr_pipe[1], STDERR_FILENO);
     close(stdout_pipe[1]);
@@ -482,6 +630,8 @@ static int execute_builder(struct build_request* req) {
 
     /* Execute builder */
     execv(req->builder, req->args);
+
+    /* If we get here, execv failed */
     fprintf(stderr, "execv(%s) failed: %s\n", req->builder, strerror(errno));
     _exit(127);
   }
@@ -540,11 +690,24 @@ static int execute_builder(struct build_request* req) {
   close(stderr_pipe[0]);
 
   /* Wait for child */
-  int status;
-  waitpid(pid, &status, 0);
+  int status = 0;
+  if (waitpid(pid, &status, 0) < 0) {
+    log_error("waitpid failed: %s", strerror(errno));
+    return -1;
+  }
 
-  int exit_code = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
-  log_info("builder exited with code %d", exit_code);
+  int exit_code;
+  if (WIFEXITED(status)) {
+    exit_code = WEXITSTATUS(status);
+    log_info("builder exited with code %d", exit_code);
+  } else if (WIFSIGNALED(status)) {
+    int sig = WTERMSIG(status);
+    log_error("builder killed by signal %d", sig);
+    exit_code = -sig;
+  } else {
+    log_error("builder exited with unknown status 0x%x", status);
+    exit_code = -1;
+  }
 
   return exit_code;
 }
@@ -680,15 +843,17 @@ int main(int argc, char* argv[]) {
   signal(SIGTERM, signal_handler);
   signal(SIGINT, signal_handler);
 
-  /* Reap zombies */
-  signal(SIGCHLD, SIG_IGN);
+  /* NOTE: We do NOT set SIGCHLD to SIG_IGN because that causes the kernel
+   * to auto-reap children, which breaks our explicit waitpid() calls.
+   * Zombies shouldn't be an issue since we only spawn one child at a time
+   * and always wait for it. */
 
   /* Set up filesystem */
   setup_filesystem();
 
-  /* Connect to host */
-  if (vsock_connect() < 0) {
-    log_error("failed to connect to host");
+  /* Listen for connection from host */
+  if (vsock_listen_and_accept() < 0) {
+    log_error("failed to accept connection from host");
     return 1;
   }
 

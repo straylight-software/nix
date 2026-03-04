@@ -216,8 +216,14 @@ private:
   // Build service for delegating builds (lazily initialized)
   mutable std::unique_ptr<build::build_service> build_service_;
 
+  // System store for querying path info of system store paths (lazily initialized)
+  mutable std::shared_ptr<::nix::store_t> system_store_;
+
   // Get or create build service
   build::build_service& get_build_service() const;
+
+  // Get or create system store reference
+  ::nix::store_t& get_system_store() const;
 };
 
 // ============================================================================

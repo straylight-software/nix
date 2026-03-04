@@ -102,7 +102,7 @@ std::unique_ptr<build_service> make_default_build_service() {
       log_info("using firecracker build service (explicit)");
       return svc;
     }
-    log_warning("firecracker build service requested but not available, falling back to daemon");
+    log_warn("firecracker build service requested but not available, falling back to daemon");
   }
 
   // Explicit REAPI request
@@ -116,7 +116,7 @@ std::unique_ptr<build_service> make_default_build_service() {
         return svc;
       }
     }
-    log_warning("REAPI build service requested but not available, falling back to daemon");
+    log_warn("REAPI build service requested but not available, falling back to daemon");
   }
 
   // Auto-detect: prefer firecracker if available and no daemon running

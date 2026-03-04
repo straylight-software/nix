@@ -15,8 +15,10 @@
 #include "straylight/nix/build/build_service.h"
 
 #include "nix/store/globals.h"
+#include "nix/store/local-store.h"
 #include "nix/store/make-content-addressed.h"
 #include "nix/store/realisation.h"
+#include "nix/store/store-open.h"
 #include "nix/store/store-registration.h"
 #include "nix/util/archive.h"
 #include "nix/util/finally.h"
@@ -213,19 +215,12 @@ void store_adapter::query_path_info_uncached(
 
     // Not in user store, try system store fallback
     if (path_exists_in_system_store(path_str)) {
-      // Path exists in system store - try to read from system store's database
-      // For now, construct minimal path info from the filesystem
-      // TODO: read from /nix/var/nix/db/db.sqlite for full metadata
-      auto hash_sink = ::nix::hash_sink_t(::nix::hash_algorithm_t::SHA256);
-      ::nix::dump_path(path_str, hash_sink);
-      auto [nar_hash, nar_size] = hash_sink.finish();
-
-      auto info = std::make_shared<::nix::valid_path_info_t>(
-          path, ::nix::UnkeyedValidPathInfo{store_dir, std::move(nar_hash)});
-      info->nar_size = nar_size;
-      info->registrationTime = 0; // Unknown
-
-      callback(info);
+      // Query the system store's database for full path info including references
+      // This is essential for computeFSClosure to work correctly
+      auto& sys_store = get_system_store();
+      auto sys_info = sys_store.queryPathInfo(path);
+      // Return as shared_ptr (queryPathInfo returns ref<>)
+      callback(std::make_shared<::nix::valid_path_info_t>(*sys_info));
       return;
     }
 
@@ -762,6 +757,18 @@ build::build_service& store_adapter::get_build_service() const {
     log_info("using build service: %s", build_service_->name());
   }
   return *build_service_;
+}
+
+::nix::store_t& store_adapter::get_system_store() const {
+  if (!system_store_) {
+    // Open a reference to the system store for querying path info via daemon
+    // This gives us access to path info including references without needing
+    // direct database access or root permissions
+    // The "unix://" scheme connects to the nix daemon socket
+    system_store_ = ::nix::open_store("unix://");
+    log_debug("opened daemon store for system path info queries");
+  }
+  return *system_store_;
 }
 
 void store_adapter::build_paths(const std::vector<::nix::derived_path_t>& paths,
