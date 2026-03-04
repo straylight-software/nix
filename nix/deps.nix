@@ -4,91 +4,90 @@
 # Centralized definition for Buck2 builds.
 #
 # Static linking strategy:
-# - All static libs built with musl + turing registry flags
+# - Use libmodern-cpp for C++ deps (clang+musl with full DWARF-5 debug symbols)
+# - Use pkgsStatic for C deps (GCC+musl, no debug symbols)
 # - Header-only libs use regular pkgs
 # - Custom overrides for libs that need special handling
 #
-{ pkgs }:
+{ pkgs, libmodern }:
 let
 
   # ════════════════════════════════════════════════════════════════════════════
-  # Turing Registry - mandatory build flags
+  # libmodern-cpp packages (clang+musl, DWARF-5, zero hardening)
   # ════════════════════════════════════════════════════════════════════════════
+  # These are built with RelWithDebInfo, full debug symbols, frame pointers preserved.
+  # See: vendor/libmodern-cpp/nix/prelude/turing-registry.nix
 
   # ════════════════════════════════════════════════════════════════════════════
-  # Musl stdenv with turing registry flags
+  # pkgsStatic fallback for packages not yet in libmodern-cpp
   # ════════════════════════════════════════════════════════════════════════════
-
-  # NOTE: Turing flags are clang-specific (-fno-limit-debug-info, -fstandalone-debug)
-  # pkgsStatic/pkgsMusl use GCC, so we can't apply turing flags here.
-  # Turing flags are applied in Buck2 builds via toolchain config instead.
-  #
-  # Helper to build with musl (no turing flags - GCC doesn't support them)
-  # Just a passthrough for now, but keeps the structure for future clang builds
+  # Helper - just a passthrough, kept for migration
   with-musl-flags = drv: drv;
 
-  # Helper to build with musl
-
   # ════════════════════════════════════════════════════════════════════════════
-  # Custom packages not in nixpkgs
+  # Custom packages not in nixpkgs or libmodern-cpp
   # ════════════════════════════════════════════════════════════════════════════
   stringzilla = pkgs.callPackage ./packages/stringzilla.nix { };
   zpp_bits = pkgs.callPackage ./packages/zpp-bits.nix { };
-  ngtcp2-libressl = pkgs.callPackage ./packages/ngtcp2-libressl.nix { };
-  wasmtime-c-api = pkgs.callPackage ./packages/wasmtime-c-api.nix { };
 
   # ════════════════════════════════════════════════════════════════════════════
-  # Static library builds (musl + turing registry flags)
+  # libmodern-cpp packages (clang+musl, DWARF-5, zero hardening)
   # ════════════════════════════════════════════════════════════════════════════
+  # These replace the old pkgsStatic versions with properly debuggable builds.
 
-  # Static BLAKE3 without TBB (musl)
-  blake3-static = with-musl-flags (
-    (pkgs.libblake3.override { useTBB = false; }).overrideAttrs (old: {
-      cmakeFlags = old.cmakeFlags ++ [ "-DBUILD_SHARED_LIBS=OFF" ];
-    })
-  );
+  # Core
+  abseil-static = libmodern.abseil-cpp;
+  fmt-static = libmodern.fmt;
+  libsodium-static = libmodern.libsodium;
+  re2-static = libmodern.re2;
 
-  # Static LibreSSL (musl)
-  libressl-static = with-musl-flags pkgs.pkgsStatic.libressl;
+  # Crypto
+  blake3-static = libmodern.blake3;
+  libressl-static = libmodern.libressl;
 
-  # Static ada URL parser (musl) - VENDORED in third_party/ada
-  # We build ada from source to avoid nixpkgs fuzzer test issues on musl static.
-  # ada-static = with-musl-flags pkgs.pkgsStatic.ada;
+  # Data
+  sqlite-static = libmodern.sqlite;
+  libgit2-static = libmodern.libgit2;
+  ada-static = libmodern.ada;
 
-  # Static re2 regex (musl)
-  re2-static = with-musl-flags pkgs.pkgsStatic.re2;
+  # Allocator
+  mimalloc-static = libmodern.mimalloc;
 
-  # Static abseil (musl) - required by re2
-  abseil-static = with-musl-flags pkgs.pkgsStatic.abseil-cpp;
+  # Test/Bench
+  catch2-static = libmodern.catch2;
+  nanobench-static = libmodern.nanobench;
+  rapidcheck-static = libmodern.rapidcheck;
 
-  # Static catch2 (musl)
-  catch2-static = with-musl-flags pkgs.pkgsStatic.catch2_3;
+  # WASM
+  wasmtime-c-api = libmodern.wasmtime;
 
-  # Static nanobench (musl, needs -Wno-overflow for PERF_EVENT_IOC_ID)
-  nanobench-static = (with-musl-flags pkgs.pkgsStatic.nanobench).overrideAttrs (old: {
-    NIX_CFLAGS_COMPILE = (old.NIX_CFLAGS_COMPILE or "") + " -Wno-overflow";
-  });
+  # Async I/O
+  liburing-static = libmodern.liburing;
+  llhttp-static = libmodern.llhttp;
+  nghttp2-static = libmodern.nghttp2;
+  nghttp3-static = libmodern.nghttp3;
+  ngtcp2-static = libmodern.ngtcp2;
 
-  # Static rapidcheck (musl)
-  rapidcheck-static = with-musl-flags pkgs.pkgsStatic.rapidcheck;
+  # ════════════════════════════════════════════════════════════════════════════
+  # pkgsStatic fallbacks (packages not yet in libmodern-cpp)
+  # ════════════════════════════════════════════════════════════════════════════
 
   # Static boost (musl) - upstream nix uses extensively
+  # TODO: Add to libmodern-cpp
   boost-static = with-musl-flags pkgs.pkgsStatic.boost;
 
   # Static brotli (musl)
+  # TODO: Add to libmodern-cpp
   brotli-static = with-musl-flags pkgs.pkgsStatic.brotli;
 
-  # Static libsodium (musl)
-  libsodium-static = with-musl-flags pkgs.pkgsStatic.libsodium;
-
   # Static libarchive (musl) - override to use LibreSSL instead of OpenSSL
-  # Default pkgsStatic.libarchive uses OpenSSL 3.x which has EVP_MAC_* API
-  # that LibreSSL doesn't support. We override to use LibreSSL.
+  # TODO: Add to libmodern-cpp
   libarchive-static = with-musl-flags (
-    pkgs.pkgsStatic.libarchive.override { openssl = pkgs.pkgsStatic.libressl; }
+    pkgs.pkgsStatic.libarchive.override { openssl = libressl-static; }
   );
 
   # Static compression libs (transitive deps of libarchive)
+  # TODO: Add to libmodern-cpp
   zstd-static = with-musl-flags pkgs.pkgsStatic.zstd;
   xz-static = with-musl-flags pkgs.pkgsStatic.xz; # provides liblzma
   bzip2-static = with-musl-flags pkgs.pkgsStatic.bzip2;
@@ -96,26 +95,11 @@ let
   acl-static = with-musl-flags pkgs.pkgsStatic.acl;
   attr-static = with-musl-flags pkgs.pkgsStatic.attr;
 
-  # Binaryen - NOW BUILT WITH BUCK2 (vendor/binaryen/BUCK)
-  # This is kept for reference but not used - Buck2 build avoids glibc __isoc23_* symbols
-  binaryen-static = pkgs.binaryen;
-
-  # Static curl with minimal dependencies, built with LibreSSL instead of OpenSSL
-  # Disabled features to avoid transitive dependencies incompatible with LibreSSL:
-  # - http3Support=false: HTTP/3 requires ngtcp2_crypto_ossl (OpenSSL 3.x APIs)
-  # - idnSupport=false: libidn2 + libunistring adds significant complexity
-  # - pslSupport=false: libpsl requires libidn2 + libunistring
-  # - scpSupport=false: libssh2 adds another TLS stack dependency
-  # - gsaslSupport=false: SASL auth not needed for nix fetchers
-  # - ldapSupport=false: LDAP not needed for nix
-  # - gssSupport=false: Kerberos/GSSAPI not needed
-  # - rtmpSupport=false: RTMP streaming not needed
-  # - gnutlsSupport=false: We use LibreSSL, not GnuTLS
-  # - wolfsslSupport=false: We use LibreSSL, not wolfSSL
-  # - rustlsSupport=false: We use LibreSSL, not rustls
+  # Static curl with minimal dependencies, built with LibreSSL
+  # TODO: Add to libmodern-cpp with HTTP/3 support using ngtcp2
   curl-static = with-musl-flags (
     pkgs.pkgsStatic.curl.override {
-      openssl = pkgs.pkgsStatic.libressl; # Use LibreSSL instead of OpenSSL
+      openssl = libressl-static;
       http3Support = false;
       idnSupport = false;
       pslSupport = false;
@@ -129,8 +113,6 @@ let
       rustlsSupport = false;
     }
   );
-
-  # libpsl not needed - pslSupport=false in curl
 
 in
 {
@@ -180,7 +162,7 @@ in
   # ── Performance deps ────────────────────────────────────────────────────────
   perf = {
     # mimalloc - fast allocator to replace musl's malloc (reduces lock contention)
-    mimalloc = with-musl-flags pkgs.pkgsStatic.mimalloc;
+    mimalloc = mimalloc-static;
   };
 
   # ── Main deps ───────────────────────────────────────────────────────────────
@@ -199,19 +181,20 @@ in
   };
 
   # ── libevring deps (async I/O) ──────────────────────────────────────────────
+  # Now using libmodern-cpp static builds with full debug symbols
   evring = {
-    inherit (pkgs) nghttp2; # TODO: convert to static
-    inherit ngtcp2-libressl;
-    inherit (pkgs) nghttp3; # TODO: convert to static
-    inherit (pkgs) liburing; # TODO: convert to static
-    inherit (pkgs) llhttp; # TODO: convert to static
+    nghttp2 = nghttp2-static;
+    ngtcp2 = ngtcp2-static;
+    nghttp3 = nghttp3-static;
+    liburing = liburing-static;
+    llhttp = llhttp-static;
   };
 
   # ── nix-language deps (WASM) ────────────────────────────────────────────────
   language = {
     inherit (pkgs) pegtl; # header-only
-    binaryen = binaryen-static;
-    wasmtime = wasmtime-c-api; # pre-built static lib from GitHub releases
+    # binaryen: built with Buck2 (vendor/binaryen/) - libmodern-cpp build disabled
+    wasmtime = wasmtime-c-api;
   };
 
   # ── Test deps ───────────────────────────────────────────────────────────────
@@ -227,23 +210,32 @@ in
 
   # ── Static libs for Buck2 prebuilt_cxx_library ──────────────────────────────
   # These are used by gen-buck-deps.nix to generate nix-deps.bzl
-  # NOTE: binaryen, blake3, catch2 are now built with Buck2 directly (vendor/)
+  # Most C++ deps now come from libmodern-cpp (clang+musl, full debug symbols)
   static = {
+    # libmodern-cpp packages
     inherit blake3-static;
     inherit libressl-static;
-    # ada: vendored, built with Buck2
     inherit re2-static;
     inherit abseil-static;
     inherit catch2-static;
     inherit nanobench-static;
     inherit rapidcheck-static;
+    inherit libsodium-static;
+    inherit mimalloc-static;
+    inherit sqlite-static;
+    inherit libgit2-static;
+    inherit ada-static;
+    inherit wasmtime-c-api;
+    inherit liburing-static;
+    inherit llhttp-static;
+    inherit nghttp2-static;
+    inherit nghttp3-static;
+    inherit ngtcp2-static;
+    inherit fmt-static;
+    # pkgsStatic fallbacks
     inherit boost-static;
     inherit brotli-static;
-    inherit libsodium-static;
     inherit libarchive-static;
-    inherit wasmtime-c-api; # pre-built static lib from GitHub releases
-    # Performance allocator - replaces musl malloc to reduce lock contention
-    mimalloc-static = with-musl-flags pkgs.pkgsStatic.mimalloc;
   };
 
   # ── Custom packages (for export) ────────────────────────────────────────────
@@ -251,16 +243,15 @@ in
     inherit
       stringzilla
       zpp_bits
-      ngtcp2-libressl
       blake3-static
       libressl-static
-      # ada: vendored, built with Buck2
       re2-static
       catch2-static
       nanobench-static
       rapidcheck-static
-      # binaryen-static removed - built with Buck2 now
       wasmtime-c-api
       ;
+    # Alias for backward compatibility - libmodern ngtcp2 is built with libressl
+    ngtcp2-libressl = ngtcp2-static;
   };
 }

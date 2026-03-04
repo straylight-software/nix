@@ -202,6 +202,24 @@
         "nixpkgs-lib": "nixpkgs-lib_4"
       },
       "locked": {
+        "lastModified": 1769996383,
+        "narHash": "sha256-AnYjnFWgS49RlqX7LrC4uA+sCCDBj0Ry/WOJ5XWAsa0=",
+        "owner": "hercules-ci",
+        "repo": "flake-parts",
+        "rev": "57928607ea566b5db3ad13af0e57e921e6b12381",
+        "type": "github"
+      },
+      "original": {
+        "owner": "hercules-ci",
+        "repo": "flake-parts",
+        "type": "github"
+      }
+    },
+    "flake-parts_5": {
+      "inputs": {
+        "nixpkgs-lib": "nixpkgs-lib_5"
+      },
+      "locked": {
         "lastModified": 1743550720,
         "narHash": "sha256-hIshGgKZCgWh6AYJpJmRgFdR3WUbkY04o82X05xqQiY=",
         "owner": "hercules-ci",
@@ -215,9 +233,9 @@
         "type": "github"
       }
     },
-    "flake-parts_5": {
+    "flake-parts_6": {
       "inputs": {
-        "nixpkgs-lib": "nixpkgs-lib_5"
+        "nixpkgs-lib": "nixpkgs-lib_6"
       },
       "locked": {
         "lastModified": 1767602221,
@@ -337,9 +355,30 @@
         "type": "github"
       }
     },
+    "libmodern-cpp": {
+      "inputs": {
+        "flake-parts": "flake-parts_2",
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1772597215,
+        "narHash": "sha256-2dikuauxKysaCONJpIbdh5lviqYoJaKhfMGWRvev8+E=",
+        "owner": "straylight-software",
+        "repo": "libmodern-cpp",
+        "rev": "c44676455a58db21063da42847b35b2bff77a3a5",
+        "type": "github"
+      },
+      "original": {
+        "owner": "straylight-software",
+        "repo": "libmodern-cpp",
+        "type": "github"
+      }
+    },
     "llvm-project": {
       "inputs": {
-        "flake-parts": "flake-parts_3",
+        "flake-parts": "flake-parts_4",
         "nixpkgs": [
           "sensenet",
           "nixpkgs"
@@ -362,7 +401,7 @@
     "nativelink": {
       "inputs": {
         "crane": "crane_2",
-        "flake-parts": "flake-parts_4",
+        "flake-parts": "flake-parts_5",
         "git-hooks": "git-hooks",
         "nix2container": "nix2container",
         "nixpkgs": "nixpkgs_2",
@@ -469,6 +508,21 @@
     },
     "nixpkgs-lib_4": {
       "locked": {
+        "lastModified": 1769909678,
+        "narHash": "sha256-cBEymOf4/o3FD5AZnzC3J9hLbiZ+QDT/KDuyHXVJOpM=",
+        "owner": "nix-community",
+        "repo": "nixpkgs.lib",
+        "rev": "72716169fe93074c333e8d0173151350670b824c",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-community",
+        "repo": "nixpkgs.lib",
+        "type": "github"
+      }
+    },
+    "nixpkgs-lib_5": {
+      "locked": {
         "lastModified": 1743296961,
         "narHash": "sha256-b1EdN3cULCqtorQ4QeWgLMrd5ZGOjLSLemfa00heasc=",
         "owner": "nix-community",
@@ -482,7 +536,7 @@
         "type": "github"
       }
     },
-    "nixpkgs-lib_5": {
+    "nixpkgs-lib_6": {
       "locked": {
         "lastModified": 1765674936,
         "narHash": "sha256-k00uTP4JNfmejrCLJOwdObYC9jHRrr/5M/a/8L2EIdo=",
@@ -548,7 +602,7 @@
     "nvidia-sdk": {
       "inputs": {
         "agenix": "agenix",
-        "flake-parts": "flake-parts_5",
+        "flake-parts": "flake-parts_6",
         "llvm-project": [
           "sensenet",
           "llvm-project"
@@ -599,6 +653,7 @@
       "inputs": {
         "buck2-prelude": "buck2-prelude",
         "flake-parts": "flake-parts",
+        "libmodern-cpp": "libmodern-cpp",
         "nixpkgs": "nixpkgs",
         "rust-overlay": "rust-overlay",
         "sensenet": "sensenet",
@@ -673,7 +728,7 @@
       "inputs": {
         "buck2-prelude": "buck2-prelude_2",
         "crane": "crane",
-        "flake-parts": "flake-parts_2",
+        "flake-parts": "flake-parts_3",
         "ghc-source-gen-src": "ghc-source-gen-src",
         "llvm-project": "llvm-project",
         "nativelink": "nativelink",

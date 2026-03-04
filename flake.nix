@@ -23,6 +23,12 @@
       url = "github:oxalica/rust-overlay";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    # libmodern-cpp: static C++ libraries with clang+musl and full DWARF-5 debug symbols
+    libmodern-cpp = {
+      url = "github:straylight-software/libmodern-cpp";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -52,10 +58,12 @@
           toolchain = import ./nix/prelude/toolchain.nix { inherit lib pkgs turing-registry; };
 
           # ── Dependencies ──────────────────────────────────────────────────────
-          deps = import ./nix/deps.nix { inherit pkgs; };
+          # libmodern-cpp provides static C++ libs with clang+musl and full debug symbols
+          libmodern = inputs.libmodern-cpp.legacyPackages.${pkgs.system}.libmodern;
+          deps = import ./nix/deps.nix { inherit pkgs libmodern; };
 
           # ── Generated nix-deps.bzl (pre-built, avoids nix-build in sandbox) ────
-          nix-deps-bzl = import ./nix/gen-buck-deps.nix { inherit pkgs; };
+          nix-deps-bzl = import ./nix/gen-buck-deps.nix { inherit pkgs libmodern; };
 
           # Flatten all deps for Buck2
           # EXCLUDE vendored deps (built with Buck2, not from nixpkgs):
@@ -194,8 +202,12 @@
               pkgs.fuse # FUSE support for image mounting
             ];
 
-            # Auto-link isospin Rust vendor on shell entry
+            # Auto-link isospin Rust vendor and copy nix-deps.bzl on shell entry
             devshellhook = ''
+              # Copy pre-generated nix-deps.bzl with correct store paths
+              rm -f vendor/nix-deps.bzl
+              cp ${nix-deps-bzl} vendor/nix-deps.bzl
+
               # Link isospin Rust vendor (Firecracker deps)
               if [ ! -e vendor/isospin/third-party/rust/vendor ] || [ -L vendor/isospin/third-party/rust/vendor ]; then
                 rm -f vendor/isospin/third-party/rust/vendor

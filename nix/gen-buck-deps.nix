@@ -3,16 +3,20 @@
 # Generates a Starlark file with Nix store paths for prebuilt_cxx_library.
 # This avoids symlinks that break when store paths change.
 #
-# Usage: nix-build nix/gen-buck-deps.nix -o third_party/nix-deps.bzl
+# Usage (from flake): Automatically generated via nix-deps-bzl in flake.nix
+# Usage (standalone): nix-build nix/gen-buck-deps.nix -o vendor/nix-deps.bzl
 #
 # The generated file contains variable assignments for each static library's
-# paths. These are imported in third_party/BUCK and used with nix_prebuilt_cxx_library.
+# paths. These are imported in vendor/BUCK and used with nix_prebuilt_cxx_library.
 #
 {
   pkgs ? import <nixpkgs> { },
+  libmodern,
 }:
 let
-  deps = import ./deps.nix { inherit pkgs; };
+  deps = import ./deps.nix {
+    inherit pkgs libmodern;
+  };
   s = deps.static;
 
   # Helper to get lib path (handles multi-output derivations)
