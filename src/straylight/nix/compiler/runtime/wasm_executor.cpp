@@ -42,8 +42,9 @@ static auto make_optimized_engine() -> std::unique_ptr<wasmtime::Engine> {
   }
 
   // Memory configuration - Nix can allocate large attrsets
-  // Reserve 256 MB for linear memory (virtual address space, not physical)
-  config.memory_reservation(256 * 1024 * 1024);
+  // Reserve 4 GB for linear memory (virtual address space, not physical)
+  // Wasmtime 40+ requires reservation >= max memory size (which is 4GB for wasm32)
+  config.memory_reservation(4ULL * 1024 * 1024 * 1024);
   // 2 MB guard pages for trap handling
   config.memory_guard_size(2 * 1024 * 1024);
 
