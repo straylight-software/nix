@@ -22,3 +22,12 @@ export_file(
     src = "aarch64-unknown-linux-musl.json",
     visibility = ["PUBLIC"],
 )
+
+# Pre-generated BPF filter (avoids running seccompiler-bin at build time)
+# Generated from unimplemented.json which allows all syscalls.
+# This sidesteps glibc/musl toolchain issues with the seccompiler-bin genrule.
+export_file(
+    name = "seccomp_filter.bpf",
+    src = "prebuilt/seccomp_filter.bpf",
+    visibility = ["PUBLIC"],
+)

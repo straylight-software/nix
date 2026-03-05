@@ -1,26 +1,20 @@
 # firecracker - Main binary
 #
-# The seccomp filter is compiled at build time from JSON policy files
-# using seccompiler-bin, then embedded into the binary via include_bytes!.
+# The seccomp filter is embedded into the binary via include_bytes!.
+# We use a pre-generated BPF file to avoid running seccompiler-bin at build time,
+# which has glibc/musl toolchain issues (the glibc version segfaults).
 
-# Compile seccomp filter JSON to BPF bytecode at build time
-# For x86_64 builds. ARM64 support can be added with select() when needed.
-#
-# NOTE: We use unimplemented.json (allows all syscalls) for GNU libc builds.
-# The musl filters block syscalls like epoll_wait that GNU libc uses.
-# For production musl builds, switch to x86_64-unknown-linux-musl.json.
+# Copy pre-generated seccomp filter to OUT_DIR structure expected by build.rs
+# The prebuilt filter was generated from unimplemented.json (allows all syscalls).
 genrule(
     name = "seccomp_filter",
     srcs = [
-        "//vendor/isospin/firecracker/resources/seccomp:unimplemented.json",
+        "//vendor/isospin/firecracker/resources/seccomp:seccomp_filter.bpf",
     ],
     out = "out",
     cmd = """
         mkdir -p $OUT
-        $(exe //vendor/isospin/firecracker/src/seccompiler:seccompiler-bin) \
-            --target-arch x86_64 \
-            --input-file $(location //vendor/isospin/firecracker/resources/seccomp:unimplemented.json) \
-            --output-file $OUT/seccomp_filter.bpf
+        cp $(location //vendor/isospin/firecracker/resources/seccomp:seccomp_filter.bpf) $OUT/seccomp_filter.bpf
     """,
 )
 

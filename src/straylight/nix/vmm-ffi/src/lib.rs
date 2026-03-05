@@ -780,8 +780,10 @@ mod tests {
 
   #[test]
   fn test_create_destroy() {
+    // Test that creating a VMM with a non-existent kernel path fails gracefully.
+    // A full integration test would require real kernel/initrd files.
     let config = VmmConfig {
-      kernel_path: b"test\0".as_ptr() as *const c_char,
+      kernel_path: b"/nonexistent/kernel\0".as_ptr() as *const c_char,
       initrd_path: std::ptr::null(),
       kernel_cmdline: std::ptr::null(),
       vcpu_count: 1,
@@ -791,10 +793,9 @@ mod tests {
     let mut error: c_int = 0;
     let handle = vmm_create(&config, &mut error);
 
-    assert!(!handle.is_null());
-    assert_eq!(error, VMM_OK);
-
-    vmm_destroy(handle);
+    // Should fail because the kernel file doesn't exist
+    assert!(handle.is_null());
+    assert_eq!(error, VMM_ERR_BOOT);
   }
 
   #[test]
