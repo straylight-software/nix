@@ -45,8 +45,8 @@ CATCH2_INCLUDE = "/nix/store/hii0b4fvisf4ar5zjxb33ilryrmj899d-catch2-3.7.1/inclu
 # ════════════════════════════════════════════════════════════════════════════
 # nanobench - microbenchmark framework
 # ════════════════════════════════════════════════════════════════════════════
-NANOBENCH_STATIC_LIB = "/nix/store/pa6m94nm7kjxb6ls8r6wydwz9zhds4g9-nanobench-static-x86_64-unknown-linux-musl-4.3.11/lib/libnanobench.a"
-NANOBENCH_INCLUDE = "/nix/store/pa6m94nm7kjxb6ls8r6wydwz9zhds4g9-nanobench-static-x86_64-unknown-linux-musl-4.3.11/include"
+NANOBENCH_STATIC_LIB = "/nix/store/zp87prjcqgs4pjk8175nzsf54qcdcyma-nanobench-4.3.11/lib/libnanobench.a"
+NANOBENCH_INCLUDE = "/nix/store/zp87prjcqgs4pjk8175nzsf54qcdcyma-nanobench-4.3.11/include"
 
 # ════════════════════════════════════════════════════════════════════════════
 # rapidcheck - property-based testing framework
@@ -113,7 +113,7 @@ ZSTD_INCLUDE = "/nix/store/w2vqjygbywycx61jynmy58l70wkv0dbl-zstd-1.5.6/include"
 # ════════════════════════════════════════════════════════════════════════════
 # libseccomp - seccomp filter library (for Firecracker seccompiler)
 # ════════════════════════════════════════════════════════════════════════════
-LIBSECCOMP_STATIC_LIB = "/nix/store/g12lm22lmymf4rdj5v1h9irwr95pqk77-libseccomp-static-x86_64-unknown-linux-musl-2.6.0-lib/lib/libseccomp.a"
+LIBSECCOMP_STATIC_LIB = "/nix/store/a8ikrfgaq2q31fn3n1s48lyhrxg3h1c7-libseccomp-static-x86_64-unknown-linux-musl-2.6.0-lib/lib/libseccomp.a"
 
 # ════════════════════════════════════════════════════════════════════════════
 # Firecracker guest - kernel and initrd for build VMs
