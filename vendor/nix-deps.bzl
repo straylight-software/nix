@@ -111,6 +111,11 @@ ZSTD_STATIC_LIB = "/nix/store/w2vqjygbywycx61jynmy58l70wkv0dbl-zstd-1.5.6/lib/li
 ZSTD_INCLUDE = "/nix/store/w2vqjygbywycx61jynmy58l70wkv0dbl-zstd-1.5.6/include"
 
 # ════════════════════════════════════════════════════════════════════════════
+# libseccomp - seccomp filter library (for Firecracker seccompiler)
+# ════════════════════════════════════════════════════════════════════════════
+LIBSECCOMP_STATIC_LIB = "/nix/store/pnfxrvf1v8afia3xjhyjpz0bk9zkisxm-libseccomp-static-x86_64-unknown-linux-musl-2.6.0-lib/lib/libseccomp.a"
+
+# ════════════════════════════════════════════════════════════════════════════
 # Firecracker guest - kernel and initrd for build VMs
 # ════════════════════════════════════════════════════════════════════════════
 # These are the raw artifacts; Buck2 genrules compress and convert to .o files

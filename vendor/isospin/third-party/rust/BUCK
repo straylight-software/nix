@@ -7435,44 +7435,7 @@ rust_library(
     deps = [":vmm-sys-util-0.15.0"],
 )
 
-alias(
-    name = "vfio-ioctls",
-    actual = ":vfio-ioctls-0.5.2",
-    visibility = ["PUBLIC"],
-)
-
-rust_library(
-    name = "vfio-ioctls-0.5.2",
-    srcs = [
-        "vendor/vfio-ioctls-0.5.2/src/fam.rs",
-        "vendor/vfio-ioctls-0.5.2/src/lib.rs",
-        "vendor/vfio-ioctls-0.5.2/src/vfio_device.rs",
-        "vendor/vfio-ioctls-0.5.2/src/vfio_ioctls.rs",
-    ],
-    crate = "vfio_ioctls",
-    crate_root = "vendor/vfio-ioctls-0.5.2/src/lib.rs",
-    edition = "2018",
-    env = {
-        "CARGO_PKG_NAME": "vfio-ioctls",
-        "CARGO_PKG_VERSION": "0.5.2",
-        "CARGO_PKG_VERSION_MAJOR": "0",
-        "CARGO_PKG_VERSION_MINOR": "5",
-        "CARGO_PKG_VERSION_PATCH": "2",
-    },
-    features = ["kvm"],
-    visibility = [],
-    deps = [
-        ":byteorder-1.5.0",
-        ":libc-0.2.180",
-        ":log-0.4.29",
-        ":thiserror-2.0.17",
-        ":vfio-bindings-0.6.1",
-        ":vmm-sys-util-0.15.0",
-        "//vendor/isospin/third-party/rust:kvm-bindings",
-        "//vendor/isospin/third-party/rust:kvm-ioctls",
-        "//vendor/isospin/third-party/rust:vm-memory-0.18.0",
-    ],
-)
+# vfio-ioctls removed - VFIO is implemented directly in vendor/isospin/firecracker/src/vmm/src/pci/vfio/
 
 alias(
     name = "vfio_user",
@@ -7508,56 +7471,7 @@ rust_library(
     ],
 )
 
-rust_library(
-    name = "vhost-0.14.0",
-    srcs = [
-        "vendor/vhost-0.14.0/src/backend.rs",
-        "vendor/vhost-0.14.0/src/lib.rs",
-        "vendor/vhost-0.14.0/src/net.rs",
-        "vendor/vhost-0.14.0/src/vdpa.rs",
-        "vendor/vhost-0.14.0/src/vhost_kern/mod.rs",
-        "vendor/vhost-0.14.0/src/vhost_kern/net.rs",
-        "vendor/vhost-0.14.0/src/vhost_kern/vdpa.rs",
-        "vendor/vhost-0.14.0/src/vhost_kern/vhost_binding.rs",
-        "vendor/vhost-0.14.0/src/vhost_kern/vsock.rs",
-        "vendor/vhost-0.14.0/src/vhost_user/backend.rs",
-        "vendor/vhost-0.14.0/src/vhost_user/backend_req.rs",
-        "vendor/vhost-0.14.0/src/vhost_user/backend_req_handler.rs",
-        "vendor/vhost-0.14.0/src/vhost_user/connection.rs",
-        "vendor/vhost-0.14.0/src/vhost_user/dummy_backend.rs",
-        "vendor/vhost-0.14.0/src/vhost_user/frontend.rs",
-        "vendor/vhost-0.14.0/src/vhost_user/frontend_req_handler.rs",
-        "vendor/vhost-0.14.0/src/vhost_user/gpu_backend_req.rs",
-        "vendor/vhost-0.14.0/src/vhost_user/gpu_message.rs",
-        "vendor/vhost-0.14.0/src/vhost_user/message.rs",
-        "vendor/vhost-0.14.0/src/vhost_user/mod.rs",
-        "vendor/vhost-0.14.0/src/vsock.rs",
-    ],
-    crate = "vhost",
-    crate_root = "vendor/vhost-0.14.0/src/lib.rs",
-    edition = "2021",
-    env = {
-        "CARGO_PKG_NAME": "vhost",
-        "CARGO_PKG_VERSION": "0.14.0",
-        "CARGO_PKG_VERSION_MAJOR": "0",
-        "CARGO_PKG_VERSION_MINOR": "14",
-        "CARGO_PKG_VERSION_PATCH": "0",
-    },
-    features = [
-        "default",
-        "vhost-user",
-        "vhost-user-backend",
-        "vhost-user-frontend",  # Required by firecracker vmm
-    ],
-    visibility = ["PUBLIC"],  # Also exposed for Cloud Hypervisor's vhost-user backends
-    deps = [
-        ":bitflags-2.10.0",
-        ":libc-0.2.180",
-        ":uuid-1.19.0",
-        ":vmm-sys-util-0.15.0",  # Match vmm-sys-util version used by firecracker
-        "//vendor/isospin/third-party/rust:vm-memory-0.16.2",  # vhost-0.14.0 requires vm-memory 0.16.x
-    ],
-)
+# vhost-0.14.0 removed - using vhost-0.15.0 which is compatible with vm-memory 0.17.x
 
 alias(
     name = "vhost",
@@ -7617,43 +7531,7 @@ rust_library(
     ],
 )
 
-alias(
-    name = "vhost-user-backend",
-    actual = ":vhost-user-backend-0.20.0",
-    visibility = ["PUBLIC"],
-)
-
-rust_library(
-    name = "vhost-user-backend-0.20.0",
-    srcs = [
-        "vendor/vhost-user-backend-0.20.0/src/backend.rs",
-        "vendor/vhost-user-backend-0.20.0/src/bitmap.rs",
-        "vendor/vhost-user-backend-0.20.0/src/event_loop.rs",
-        "vendor/vhost-user-backend-0.20.0/src/handler.rs",
-        "vendor/vhost-user-backend-0.20.0/src/lib.rs",
-        "vendor/vhost-user-backend-0.20.0/src/vring.rs",
-    ],
-    crate = "vhost_user_backend",
-    crate_root = "vendor/vhost-user-backend-0.20.0/src/lib.rs",
-    edition = "2021",
-    env = {
-        "CARGO_PKG_NAME": "vhost-user-backend",
-        "CARGO_PKG_VERSION": "0.20.0",
-        "CARGO_PKG_VERSION_MAJOR": "0",
-        "CARGO_PKG_VERSION_MINOR": "20",
-        "CARGO_PKG_VERSION_PATCH": "0",
-    },
-    visibility = [],
-    deps = [
-        ":libc-0.2.180",
-        ":log-0.4.29",
-        ":vhost-0.14.0",
-        ":virtio-bindings-0.2.6",
-        ":virtio-queue-0.16.0",
-        ":vmm-sys-util-0.14.0",
-        "//vendor/isospin/third-party/rust:vm-memory-0.18.0",
-    ],
-)
+# vhost-user-backend removed - Cloud Hypervisor leftover, not used by Firecracker
 
 alias(
     name = "virtio-bindings",
@@ -7842,45 +7720,7 @@ rust_library(
     visibility = [],
 )
 
-alias(
-    name = "virtio-queue",
-    actual = ":virtio-queue-0.16.0",
-    visibility = ["PUBLIC"],
-)
-
-rust_library(
-    name = "virtio-queue-0.16.0",
-    srcs = [
-        "vendor/virtio-queue-0.16.0/src/chain.rs",
-        "vendor/virtio-queue-0.16.0/src/defs.rs",
-        "vendor/virtio-queue-0.16.0/src/desc/mod.rs",
-        "vendor/virtio-queue-0.16.0/src/desc/packed.rs",
-        "vendor/virtio-queue-0.16.0/src/desc/split.rs",
-        "vendor/virtio-queue-0.16.0/src/descriptor_utils.rs",
-        "vendor/virtio-queue-0.16.0/src/lib.rs",
-        "vendor/virtio-queue-0.16.0/src/mock.rs",
-        "vendor/virtio-queue-0.16.0/src/queue.rs",
-        "vendor/virtio-queue-0.16.0/src/queue_sync.rs",
-        "vendor/virtio-queue-0.16.0/src/state.rs",
-    ],
-    crate = "virtio_queue",
-    crate_root = "vendor/virtio-queue-0.16.0/src/lib.rs",
-    edition = "2021",
-    env = {
-        "CARGO_PKG_NAME": "virtio-queue",
-        "CARGO_PKG_VERSION": "0.16.0",
-        "CARGO_PKG_VERSION_MAJOR": "0",
-        "CARGO_PKG_VERSION_MINOR": "16",
-        "CARGO_PKG_VERSION_PATCH": "0",
-    },
-    visibility = [],
-    deps = [
-        ":log-0.4.29",
-        ":virtio-bindings-0.2.6",
-        ":vmm-sys-util-0.14.0",
-        "//vendor/isospin/third-party/rust:vm-memory-0.18.0",
-    ],
-)
+# virtio-queue removed - Cloud Hypervisor leftover, Firecracker has its own virtio implementation
 
 rust_library(
     name = "virtue-0.0.18",
@@ -8083,54 +7923,7 @@ rust_library(
     ],
 )
 
-# vm-memory-0.16.2: Compatible with vhost-0.14.0 (uses GuestMemory trait name)
-rust_library(
-    name = "vm-memory-0.16.2",
-    srcs = [
-        "vendor/vm-memory-0.16.2/src/address.rs",
-        "vendor/vm-memory-0.16.2/src/atomic.rs",
-        "vendor/vm-memory-0.16.2/src/atomic_integer.rs",
-        "vendor/vm-memory-0.16.2/src/bitmap/backend/atomic_bitmap.rs",
-        "vendor/vm-memory-0.16.2/src/bitmap/backend/atomic_bitmap_arc.rs",
-        "vendor/vm-memory-0.16.2/src/bitmap/backend/mod.rs",
-        "vendor/vm-memory-0.16.2/src/bitmap/backend/slice.rs",
-        "vendor/vm-memory-0.16.2/src/bitmap/mod.rs",
-        "vendor/vm-memory-0.16.2/src/bytes.rs",
-        "vendor/vm-memory-0.16.2/src/endian.rs",
-        "vendor/vm-memory-0.16.2/src/guest_memory.rs",
-        "vendor/vm-memory-0.16.2/src/io.rs",
-        "vendor/vm-memory-0.16.2/src/lib.rs",
-        "vendor/vm-memory-0.16.2/src/mmap.rs",
-        "vendor/vm-memory-0.16.2/src/mmap_unix.rs",
-        "vendor/vm-memory-0.16.2/src/mmap_windows.rs",
-        "vendor/vm-memory-0.16.2/src/mmap_xen.rs",
-        "vendor/vm-memory-0.16.2/src/volatile_memory.rs",
-    ],
-    crate = "vm_memory",
-    crate_root = "vendor/vm-memory-0.16.2/src/lib.rs",
-    edition = "2021",
-    env = {
-        "CARGO_PKG_NAME": "vm-memory",
-        "CARGO_PKG_VERSION": "0.16.2",
-        "CARGO_PKG_VERSION_MAJOR": "0",
-        "CARGO_PKG_VERSION_MINOR": "16",
-        "CARGO_PKG_VERSION_PATCH": "2",
-    },
-    features = [
-        "arc-swap",
-        "backend-atomic",
-        "backend-bitmap",
-        "backend-mmap",
-        "default",
-        "rawfd",
-    ],
-    visibility = [],
-    deps = [
-        ":arc-swap-1.8.0",
-        ":libc-0.2.180",
-        ":thiserror-2.0.17",
-    ],
-)
+# vm-memory-0.16.2 removed - only needed by removed vhost-0.14.0/vfio-ioctls
 
 alias(
     name = "vm-superio",
@@ -8159,50 +7952,7 @@ rust_library(
     visibility = [],
 )
 
-rust_library(
-    name = "vmm-sys-util-0.14.0",
-    srcs = [
-        "vendor/vmm-sys-util-0.14.0/src/align.rs",
-        "vendor/vmm-sys-util-0.14.0/src/errno.rs",
-        "vendor/vmm-sys-util-0.14.0/src/fam.rs",
-        "vendor/vmm-sys-util-0.14.0/src/lib.rs",
-        "vendor/vmm-sys-util-0.14.0/src/linux/aio.rs",
-        "vendor/vmm-sys-util-0.14.0/src/linux/epoll.rs",
-        "vendor/vmm-sys-util-0.14.0/src/linux/eventfd.rs",
-        "vendor/vmm-sys-util-0.14.0/src/linux/fallocate.rs",
-        "vendor/vmm-sys-util-0.14.0/src/linux/ioctl.rs",
-        "vendor/vmm-sys-util-0.14.0/src/linux/mod.rs",
-        "vendor/vmm-sys-util-0.14.0/src/linux/poll.rs",
-        "vendor/vmm-sys-util-0.14.0/src/linux/seek_hole.rs",
-        "vendor/vmm-sys-util-0.14.0/src/linux/signal.rs",
-        "vendor/vmm-sys-util-0.14.0/src/linux/sock_ctrl_msg.rs",
-        "vendor/vmm-sys-util-0.14.0/src/linux/timerfd.rs",
-        "vendor/vmm-sys-util-0.14.0/src/linux/write_zeroes.rs",
-        "vendor/vmm-sys-util-0.14.0/src/metric.rs",
-        "vendor/vmm-sys-util-0.14.0/src/rand.rs",
-        "vendor/vmm-sys-util-0.14.0/src/syscall.rs",
-        "vendor/vmm-sys-util-0.14.0/src/tempfile.rs",
-        "vendor/vmm-sys-util-0.14.0/src/unix/file_traits.rs",
-        "vendor/vmm-sys-util-0.14.0/src/unix/mod.rs",
-        "vendor/vmm-sys-util-0.14.0/src/unix/tempdir.rs",
-        "vendor/vmm-sys-util-0.14.0/src/unix/terminal.rs",
-    ],
-    crate = "vmm_sys_util",
-    crate_root = "vendor/vmm-sys-util-0.14.0/src/lib.rs",
-    edition = "2021",
-    env = {
-        "CARGO_PKG_NAME": "vmm-sys-util",
-        "CARGO_PKG_VERSION": "0.14.0",
-        "CARGO_PKG_VERSION_MAJOR": "0",
-        "CARGO_PKG_VERSION_MINOR": "14",
-        "CARGO_PKG_VERSION_PATCH": "0",
-    },
-    visibility = ["PUBLIC"],  # Also needed by Cloud Hypervisor vhost-user backends
-    deps = [
-        ":bitflags-1.3.2",
-        ":libc-0.2.180",
-    ],
-)
+# vmm-sys-util-0.14.0 removed - using 0.15.0 which is used by Firecracker
 
 alias(
     name = "vmm-sys-util",
@@ -8263,35 +8013,7 @@ rust_library(
     ],
 )
 
-alias(
-    name = "wait-timeout",
-    actual = ":wait-timeout-0.2.1",
-    visibility = ["PUBLIC"],
-)
-
-rust_library(
-    name = "wait-timeout-0.2.1",
-    srcs = [
-        "vendor/wait-timeout-0.2.1/src/bin/exit.rs",
-        "vendor/wait-timeout-0.2.1/src/bin/reader.rs",
-        "vendor/wait-timeout-0.2.1/src/bin/sleep.rs",
-        "vendor/wait-timeout-0.2.1/src/lib.rs",
-        "vendor/wait-timeout-0.2.1/src/unix.rs",
-        "vendor/wait-timeout-0.2.1/src/windows.rs",
-    ],
-    crate = "wait_timeout",
-    crate_root = "vendor/wait-timeout-0.2.1/src/lib.rs",
-    edition = "2015",
-    env = {
-        "CARGO_PKG_NAME": "wait-timeout",
-        "CARGO_PKG_VERSION": "0.2.1",
-        "CARGO_PKG_VERSION_MAJOR": "0",
-        "CARGO_PKG_VERSION_MINOR": "2",
-        "CARGO_PKG_VERSION_PATCH": "1",
-    },
-    visibility = [],
-    deps = [":libc-0.2.180"],
-)
+# wait-timeout removed - incompatible with newer rustc (lint error on function cast)
 
 alias(
     name = "walkdir",

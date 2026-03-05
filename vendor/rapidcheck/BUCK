@@ -39,11 +39,8 @@ cxx_library(
         "src/gen/detail/Recipe.cpp",
         "src/gen/detail/ScaleInteger.cpp",
     ],
-    exported_headers = subdir_glob([
-        ("include", "rapidcheck/**/*.h"),
-        ("include", "rapidcheck/**/*.hpp"),
-    ]),
-    header_namespace = "",
+    headers = glob(["include/**/*.h", "include/**/*.hpp"]),
+    include_directories = ["include"],
     compiler_flags = [
         "-std=c++17",
         "-O2",

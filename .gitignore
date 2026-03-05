@@ -64,6 +64,7 @@ flake-regressions
 # Test lock files
 *.lock
 !flake.lock
+!Cargo.lock
 
 # Generated toolchains (sensenet)
 /nix/build/toolchains/

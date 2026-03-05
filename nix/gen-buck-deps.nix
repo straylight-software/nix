@@ -141,6 +141,11 @@ let
     ZSTD_INCLUDE = "${devPath s.zstd-static}/include"
 
     # ════════════════════════════════════════════════════════════════════════════
+    # libseccomp - seccomp filter library (for Firecracker seccompiler)
+    # ════════════════════════════════════════════════════════════════════════════
+    LIBSECCOMP_STATIC_LIB = "${libPath s.libseccomp-static}/lib/libseccomp.a"
+
+    # ════════════════════════════════════════════════════════════════════════════
     # Firecracker guest - kernel and initrd for build VMs
     # ════════════════════════════════════════════════════════════════════════════
     # These are the raw artifacts; Buck2 genrules compress and convert to .o files

@@ -82,6 +82,9 @@ let
   editline-static = libmodern.editline;
   lowdown-static = libmodern.lowdown;
 
+  # Seccomp (for Firecracker seccompiler)
+  libseccomp-static = pkgs.pkgsStatic.libseccomp;
+
 in
 {
   # ── Core util deps ──────────────────────────────────────────────────────────
@@ -236,6 +239,9 @@ in
     inherit ncurses-static;
     inherit editline-static;
     inherit lowdown-static;
+
+    # Seccomp (for Firecracker seccompiler)
+    inherit libseccomp-static;
   };
 
   # ── Custom packages (for export) ────────────────────────────────────────────

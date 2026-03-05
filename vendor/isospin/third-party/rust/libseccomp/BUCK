@@ -1,18 +1,12 @@
-# libseccomp - Prebuilt static library from Nix
-# LIBSECCOMP_LIB_DIR is set by flake.nix shellHook
+# libseccomp - Prebuilt static library from Nix (musl static)
 #
 # This provides the libseccomp C library for the seccompiler crate,
 # which uses FFI bindings to compile JSON seccomp policies into BPF.
 
-genrule(
-    name = "libseccomp-lib",
-    out = "libseccomp.a",
-    cmd = "ln -s $LIBSECCOMP_LIB_DIR/libseccomp.a \"$OUT\"",
-)
+load("//vendor:nix-deps.bzl", "LIBSECCOMP_STATIC_LIB")
+load("//vendor:nix_prebuilt.bzl", "nix_prebuilt_cxx_library")
 
-prebuilt_cxx_library(
+nix_prebuilt_cxx_library(
     name = "libseccomp",
-    static_lib = ":libseccomp-lib",
-    preferred_linkage = "static",
-    visibility = ["PUBLIC"],
+    static_lib = LIBSECCOMP_STATIC_LIB,
 )

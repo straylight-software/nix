@@ -1,35 +1,23 @@
 # mimalloc - fast allocator
 # Built with Buck2 for musl static linking
+#
+# Using static.c which #includes all other .c files in the correct order.
+# This is the officially recommended way to build mimalloc for static linking.
 
 cxx_library(
     name = "mimalloc",
     srcs = [
-        "src/alloc.c",
-        "src/alloc-aligned.c",
-        "src/alloc-posix.c",
-        "src/arena.c",
-        "src/bitmap.c",
-        "src/free.c",
-        "src/heap.c",
-        "src/init.c",
-        "src/libc.c",
-        "src/options.c",
-        "src/os.c",
-        "src/page.c",
-        "src/page-queue.c",
-        "src/random.c",
-        "src/segment.c",
-        "src/segment-map.c",
-        "src/stats.c",
-        "src/prim/prim.c",
+        "src/static.c",  # Single-file build - includes all other .c files
     ],
     exported_headers = {
         "mimalloc.h": "include/mimalloc.h",
         "mimalloc-override.h": "include/mimalloc-override.h",
         "mimalloc-new-delete.h": "include/mimalloc-new-delete.h",
     },
-    headers = glob(["include/mimalloc/*.h"]),
+    # Include all .c and .h files as headers since static.c #includes them
+    headers = glob(["include/mimalloc/*.h", "src/*.h", "src/*.c", "src/prim/*.c", "src/prim/unix/*.c"]),
     header_namespace = "",
+    include_directories = ["include", "src"],
     compiler_flags = [
         "-std=c11",
         "-O3",
@@ -39,6 +27,10 @@ cxx_library(
         # Disable fortify source to avoid __memcpy_chk
         "-U_FORTIFY_SOURCE",
         "-D_FORTIFY_SOURCE=0",
+        # Use freestanding mode to prevent clang's stdatomic.h from
+        # include_next'ing GCC's C++ stdatomic.h which doesn't work for C code.
+        # This makes clang use its own C11 atomics implementation directly.
+        "-ffreestanding",
     ],
     # Link flags to ensure mimalloc overrides malloc
     exported_linker_flags = ["-Wl,--whole-archive", "-lpthread"],
