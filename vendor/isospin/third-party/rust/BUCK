@@ -8437,3 +8437,175 @@ rust_library(
     visibility = ["PUBLIC"],
     deps = [":zerocopy-0.8.33"],
 )
+
+# once_cell - Single assignment cells
+rust_library(
+    name = "once_cell-1.21.3",
+    srcs = [
+        "vendor/once_cell-1.21.3/src/imp_cs.rs",
+        "vendor/once_cell-1.21.3/src/imp_pl.rs",
+        "vendor/once_cell-1.21.3/src/imp_std.rs",
+        "vendor/once_cell-1.21.3/src/lib.rs",
+        "vendor/once_cell-1.21.3/src/race.rs",
+    ],
+    crate = "once_cell",
+    crate_root = "vendor/once_cell-1.21.3/src/lib.rs",
+    edition = "2021",
+    features = ["alloc", "race", "std"],
+    env = {
+        "CARGO_PKG_NAME": "once_cell",
+        "CARGO_PKG_VERSION": "1.21.3",
+        "CARGO_PKG_VERSION_MAJOR": "1",
+        "CARGO_PKG_VERSION_MINOR": "21",
+        "CARGO_PKG_VERSION_PATCH": "3",
+    },
+    visibility = ["PUBLIC"],
+)
+
+alias(
+    name = "once_cell",
+    actual = ":once_cell-1.21.3",
+    visibility = ["PUBLIC"],
+)
+
+# pin-project-lite - Lightweight pin projection
+rust_library(
+    name = "pin-project-lite-0.2.14",
+    srcs = ["vendor/pin-project-lite-0.2.14/src/lib.rs"],
+    crate = "pin_project_lite",
+    crate_root = "vendor/pin-project-lite-0.2.14/src/lib.rs",
+    edition = "2021",
+    env = {
+        "CARGO_PKG_NAME": "pin-project-lite",
+        "CARGO_PKG_VERSION": "0.2.14",
+        "CARGO_PKG_VERSION_MAJOR": "0",
+        "CARGO_PKG_VERSION_MINOR": "2",
+        "CARGO_PKG_VERSION_PATCH": "14",
+    },
+    visibility = ["PUBLIC"],
+)
+
+alias(
+    name = "pin-project-lite",
+    actual = ":pin-project-lite-0.2.14",
+    visibility = ["PUBLIC"],
+)
+
+# tracing-core - Core primitives for tracing
+rust_library(
+    name = "tracing-core-0.1.33",
+    srcs = [
+        "vendor/tracing-core-0.1.33/src/callsite.rs",
+        "vendor/tracing-core-0.1.33/src/dispatcher.rs",
+        "vendor/tracing-core-0.1.33/src/event.rs",
+        "vendor/tracing-core-0.1.33/src/field.rs",
+        "vendor/tracing-core-0.1.33/src/lazy.rs",
+        "vendor/tracing-core-0.1.33/src/lib.rs",
+        "vendor/tracing-core-0.1.33/src/metadata.rs",
+        "vendor/tracing-core-0.1.33/src/parent.rs",
+        "vendor/tracing-core-0.1.33/src/span.rs",
+        "vendor/tracing-core-0.1.33/src/stdlib.rs",
+        "vendor/tracing-core-0.1.33/src/subscriber.rs",
+    ],
+    crate = "tracing_core",
+    crate_root = "vendor/tracing-core-0.1.33/src/lib.rs",
+    edition = "2021",
+    features = ["once_cell", "std"],
+    env = {
+        "CARGO_PKG_NAME": "tracing-core",
+        "CARGO_PKG_VERSION": "0.1.33",
+        "CARGO_PKG_VERSION_MAJOR": "0",
+        "CARGO_PKG_VERSION_MINOR": "1",
+        "CARGO_PKG_VERSION_PATCH": "33",
+    },
+    visibility = ["PUBLIC"],
+    deps = [":once_cell-1.21.3"],
+)
+
+alias(
+    name = "tracing-core",
+    actual = ":tracing-core-0.1.33",
+    visibility = ["PUBLIC"],
+)
+
+# tracing - Application-level tracing
+rust_library(
+    name = "tracing-0.1.41",
+    srcs = [
+        "vendor/tracing-0.1.41/src/dispatcher.rs",
+        "vendor/tracing-0.1.41/src/field.rs",
+        "vendor/tracing-0.1.41/src/instrument.rs",
+        "vendor/tracing-0.1.41/src/level_filters.rs",
+        "vendor/tracing-0.1.41/src/lib.rs",
+        "vendor/tracing-0.1.41/src/macros.rs",
+        "vendor/tracing-0.1.41/src/span.rs",
+        "vendor/tracing-0.1.41/src/stdlib.rs",
+        "vendor/tracing-0.1.41/src/subscriber.rs",
+    ],
+    crate = "tracing",
+    crate_root = "vendor/tracing-0.1.41/src/lib.rs",
+    edition = "2021",
+    features = ["std"],
+    env = {
+        "CARGO_PKG_NAME": "tracing",
+        "CARGO_PKG_VERSION": "0.1.41",
+        "CARGO_PKG_VERSION_MAJOR": "0",
+        "CARGO_PKG_VERSION_MINOR": "1",
+        "CARGO_PKG_VERSION_PATCH": "41",
+    },
+    visibility = ["PUBLIC"],
+    deps = [
+        ":pin-project-lite-0.2.14",
+        ":tracing-core-0.1.33",
+    ],
+)
+
+alias(
+    name = "tracing",
+    actual = ":tracing-0.1.41",
+    visibility = ["PUBLIC"],
+)
+
+# tempfile - Temporary files and directories
+rust_library(
+    name = "tempfile-3.15.0",
+    srcs = [
+        "vendor/tempfile-3.15.0/src/dir/imp/any.rs",
+        "vendor/tempfile-3.15.0/src/dir/imp/mod.rs",
+        "vendor/tempfile-3.15.0/src/dir/imp/unix.rs",
+        "vendor/tempfile-3.15.0/src/dir/mod.rs",
+        "vendor/tempfile-3.15.0/src/env.rs",
+        "vendor/tempfile-3.15.0/src/error.rs",
+        "vendor/tempfile-3.15.0/src/file/imp/mod.rs",
+        "vendor/tempfile-3.15.0/src/file/imp/other.rs",
+        "vendor/tempfile-3.15.0/src/file/imp/unix.rs",
+        "vendor/tempfile-3.15.0/src/file/imp/windows.rs",
+        "vendor/tempfile-3.15.0/src/file/mod.rs",
+        "vendor/tempfile-3.15.0/src/lib.rs",
+        "vendor/tempfile-3.15.0/src/spooled.rs",
+        "vendor/tempfile-3.15.0/src/util.rs",
+    ],
+    crate = "tempfile",
+    crate_root = "vendor/tempfile-3.15.0/src/lib.rs",
+    edition = "2021",
+    env = {
+        "CARGO_PKG_NAME": "tempfile",
+        "CARGO_PKG_VERSION": "3.15.0",
+        "CARGO_PKG_VERSION_MAJOR": "3",
+        "CARGO_PKG_VERSION_MINOR": "15",
+        "CARGO_PKG_VERSION_PATCH": "0",
+    },
+    visibility = ["PUBLIC"],
+    deps = [
+        ":cfg-if-1.0.4",
+        ":fastrand-2.3.0",
+        ":once_cell-1.21.3",
+        ":rustix-1.1.3",
+    ],
+)
+
+alias(
+    name = "tempfile",
+    actual = ":tempfile-3.15.0",
+    visibility = ["PUBLIC"],
+)

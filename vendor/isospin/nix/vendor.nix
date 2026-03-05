@@ -31,11 +31,59 @@ let
     hash = "sha256-ykg3UFX/8r8uYlbBxHfRHElH7qGHQIfCJ8VTjxOD+Hk=";
   };
 
+  # ── Additional crates fetched directly (not in Cargo.lock) ──────────────────
+  # These bypass importCargoLock - add new deps here instead of editing Cargo.lock
+
+  fetchCrate =
+    {
+      name,
+      version,
+      sha256,
+    }:
+    pkgs.fetchzip {
+      url = "https://crates.io/api/v1/crates/${name}/${version}/download";
+      inherit sha256;
+      extension = "tar.gz";
+    };
+
+  # tracing ecosystem (for gpu-broker server modules)
+  tracing = fetchCrate {
+    name = "tracing";
+    version = "0.1.41";
+    sha256 = "sha256-HrJlejYvcVE7X11v4Tz97SXnrHBHKYiZyDisAswRMzM=";
+  };
+
+  tracingCore = fetchCrate {
+    name = "tracing-core";
+    version = "0.1.33";
+    sha256 = "sha256-xpoUclbJjvgzuB+nWgwr9zZa9qrzsRIO0piMradhFBk=";
+  };
+
+  pinProjectLite = fetchCrate {
+    name = "pin-project-lite";
+    version = "0.2.14";
+    sha256 = "sha256-JzfPvvBJLlbiibaYcL1t/7Wqr+F4HLrBqOJP3o7QZ/4=";
+  };
+
+  # tempfile (for tests)
+  tempfile = fetchCrate {
+    name = "tempfile";
+    version = "3.15.0";
+    sha256 = "sha256-ZO60fLB29FTA/2OiG/XQkf+Edon6EPHgxX4Zrv6Cedk=";
+  };
+
   # Patched vendor with vm-memory 0.18 fixes
   vendorPatched =
     pkgs.runCommand "isospin-rust-vendor-patched"
       {
-        inherit fixupsDir acpiTablesSrc;
+        inherit
+          fixupsDir
+          acpiTablesSrc
+          tracing
+          tracingCore
+          pinProjectLite
+          tempfile
+          ;
         nativeBuildInputs = [
           pkgs.perl
           pkgs.gnused
@@ -51,6 +99,14 @@ let
         cp -r $acpiTablesSrc/* $out/acpi_tables-0.1.0/
         chmod -R u+w $out/acpi_tables-0.1.0
         echo "Added acpi_tables from rust-vmm git"
+
+        # Add tracing ecosystem (fetched directly, not via Cargo.lock)
+        cp -r $tracing $out/tracing-0.1.41
+        cp -r $tracingCore $out/tracing-core-0.1.33
+        cp -r $pinProjectLite $out/pin-project-lite-0.2.14
+        cp -r $tempfile $out/tempfile-3.15.0
+        chmod -R u+w $out/tracing-0.1.41 $out/tracing-core-0.1.33 $out/pin-project-lite-0.2.14 $out/tempfile-3.15.0
+        echo "Added tracing ecosystem and tempfile"
 
         # Cargo.toml version constraint patches
         if [ -d $out/linux-loader-0.13.2 ]; then

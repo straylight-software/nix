@@ -1,0 +1,202 @@
+# vendor/isospin/gpu-broker/BUCK
+#
+# GPU Broker - Multiplexes NVIDIA RM API calls from multiple VMs
+#
+# Module hierarchy:
+#
+#   guest_protocol  - Pure, no_std protocol (wire format, client state)
+#                     Can be extracted for kernel module use
+#
+#   gpu_broker_lib  - Main library crate containing:
+#                     - handle_table: Client handle isolation
+#                     - rm_api: NVIDIA RM API definitions  
+#                     - broker: Pure functional state machine
+#                     - transport: Transport trait + simulation
+#                     - uring: io_uring event loop
+#                     - uring_transport: Shared memory transport
+#                     - driver: NVIDIA driver proxy
+#                     - proxy: BrokerProxy (coordination layer)
+#                     - fd_passing: Unix SCM_RIGHTS utilities
+#                     - server: Unix socket server
+#                     - vsock: VM vsock server
+#                     - nvml_server: nvidia-smi compatibility
+#                     - guest_shim: FUSE/CUSE device emulation
+#
+#   gpu-broker      - Main binary
+
+# =============================================================================
+# guest_protocol - Standalone no_std library
+# =============================================================================
+#
+# This is intentionally separate because it's designed to be:
+#   1. Used in userspace (broker + tests)
+#   2. Compiled as no_std for kernel module (nvidia-shim.ko)
+#
+# Wire format must stay in sync with kernel/nvidia-shim.c
+
+rust_library(
+    name = "guest_protocol",
+    srcs = [
+        "src/guest_protocol/client.rs",
+        "src/guest_protocol/invariants.rs",
+        "src/guest_protocol/mod.rs",
+        "src/guest_protocol/wire.rs",
+    ],
+    crate = "guest_protocol",
+    crate_root = "src/guest_protocol/mod.rs",
+    edition = "2021",
+    features = ["std"],
+    visibility = ["PUBLIC"],
+)
+
+rust_test(
+    name = "guest_protocol_test",
+    srcs = [
+        "src/guest_protocol/client.rs",
+        "src/guest_protocol/invariants.rs",
+        "src/guest_protocol/mod.rs",
+        "src/guest_protocol/tests.rs",
+        "src/guest_protocol/wire.rs",
+    ],
+    crate = "guest_protocol",
+    crate_root = "src/guest_protocol/mod.rs",
+    edition = "2021",
+    features = ["std"],
+    deps = [
+        "//vendor/isospin/third-party/rust:proptest",
+    ],
+)
+
+# =============================================================================
+# gpu_broker - Main library crate
+# =============================================================================
+#
+# All modules that use `crate::` imports must be in the same crate.
+# This is the full broker library with all features enabled.
+
+rust_library(
+    name = "gpu_broker_lib",
+    srcs = glob(
+        ["src/**/*.rs"],
+        exclude = [
+            "src/guest_protocol/**",
+            "src/main.rs",
+            "src/bin/**",
+        ],
+    ),
+    crate = "gpu_broker",
+    crate_root = "src/lib.rs",
+    edition = "2021",
+    features = ["tracing"],
+    deps = [
+        "//vendor/isospin/third-party/rust:io-uring",
+        "//vendor/isospin/third-party/rust:libc",
+        "//vendor/isospin/third-party/rust:thiserror",
+        "//vendor/isospin/third-party/rust:tracing",
+        "//vendor/isospin/third-party/rust:zerocopy",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+rust_test(
+    name = "gpu_broker_lib_test",
+    srcs = glob(
+        ["src/**/*.rs"],
+        exclude = [
+            "src/guest_protocol/**",
+            "src/main.rs",
+            "src/bin/**",
+        ],
+    ),
+    crate = "gpu_broker",
+    crate_root = "src/lib.rs",
+    edition = "2021",
+    features = ["tracing"],
+    deps = [
+        "//vendor/isospin/third-party/rust:io-uring",
+        "//vendor/isospin/third-party/rust:libc",
+        "//vendor/isospin/third-party/rust:proptest",
+        "//vendor/isospin/third-party/rust:tempfile",
+        "//vendor/isospin/third-party/rust:thiserror",
+        "//vendor/isospin/third-party/rust:tracing",
+        "//vendor/isospin/third-party/rust:zerocopy",
+    ],
+)
+
+# =============================================================================
+# gpu-broker - Main binary
+# =============================================================================
+#
+# NOTE: Requires tracing + tracing-subscriber to be added to third-party/rust.
+# Until then, this target will not build. The library targets work though.
+
+# rust_binary(
+#     name = "gpu-broker",
+#     srcs = ["src/main.rs"],
+#     crate = "gpu_broker_bin",
+#     crate_root = "src/main.rs",
+#     edition = "2021",
+#     deps = [
+#         ":gpu_broker_lib",
+#         "//vendor/isospin/third-party/rust:anyhow",
+#         "//vendor/isospin/third-party/rust:clap",
+#         "//vendor/isospin/third-party/rust:tracing",
+#         "//vendor/isospin/third-party/rust:tracing-subscriber",
+#     ],
+#     visibility = ["PUBLIC"],
+# )
+
+# =============================================================================
+# guest-shim - FUSE/CUSE binary for guest VMs
+# =============================================================================
+#
+# Self-contained binary that connects to broker via shared memory.
+# NOTE: Requires tracing + tracing-subscriber to be added to third-party/rust.
+
+# rust_binary(
+#     name = "guest-shim",
+#     srcs = ["src/bin/guest-shim.rs"],
+#     crate_root = "src/bin/guest-shim.rs",
+#     edition = "2021",
+#     deps = [
+#         "//vendor/isospin/third-party/rust:anyhow",
+#         "//vendor/isospin/third-party/rust:clap",
+#         "//vendor/isospin/third-party/rust:libc",
+#         "//vendor/isospin/third-party/rust:tracing",
+#         "//vendor/isospin/third-party/rust:tracing-subscriber",
+#     ],
+#     visibility = ["PUBLIC"],
+# )
+
+# =============================================================================
+# kernel/nvidia-shim.ko - Kernel module (built with kbuild)
+# =============================================================================
+#
+# This kernel module intercepts NVIDIA ioctls in guest VMs and forwards
+# them to the GPU broker on the host via vsock.
+#
+# Build: make -C kernel/ KDIR=/path/to/kernel/build
+#
+# NOTE: Wire protocol in nvidia-shim.c duplicates guest_protocol/wire.rs.
+# Keep them in sync! Future: compile guest_protocol as no_std static lib.
+
+export_file(
+    name = "nvidia-shim.c",
+    src = "kernel/nvidia-shim.c",
+    visibility = ["PUBLIC"],
+)
+
+export_file(
+    name = "kernel-makefile",
+    src = "kernel/Makefile",
+    visibility = ["PUBLIC"],
+)
+
+filegroup(
+    name = "kernel_sources",
+    srcs = [
+        "kernel/Makefile",
+        "kernel/nvidia-shim.c",
+    ],
+    visibility = ["PUBLIC"],
+)

@@ -102,7 +102,7 @@ MIMALLOC_INCLUDE = "/nix/store/9y39y8dvmvvflv2f8znm7f80bbj5zhry-mimalloc-2.1.7/i
 # AWS-LC - crypto library for aws-lc-rs (Firecracker TLS)
 # ════════════════════════════════════════════════════════════════════════════
 # Built from aws-lc-sys vendored source with version-prefixed symbols
-AWS_LC_LIB = "/nix/store/qxaky973g7cgh4j8q2kss1w97f63lw6w-aws-lc-sys-0.35.0/lib"
+AWS_LC_LIB = "/nix/store/z8jx69gv6n3p20fr5fsnljw6w9iazld6-aws-lc-sys-0.35.0/lib"
 
 # ════════════════════════════════════════════════════════════════════════════
 # zstd - compression library (for embedded kernel/initrd decompression)

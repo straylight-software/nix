@@ -42,16 +42,15 @@ alias(
     visibility = ["PUBLIC"],
 )
 
-# GPU broker is a separate Cargo project - needs its own BUCK setup
-# For now, export the source location
-filegroup(
-    name = "gpu-broker-src",
-    srcs = glob(["gpu-broker/src/**/*.rs"]),
+# GPU broker targets are in //vendor/isospin/gpu-broker:*
+alias(
+    name = "gpu_broker_lib",
+    actual = "//vendor/isospin/gpu-broker:gpu_broker_lib",
     visibility = ["PUBLIC"],
 )
 
-filegroup(
-    name = "nvidia-shim-src",
-    srcs = ["gpu-broker/kernel/nvidia-shim.c", "gpu-broker/kernel/Makefile"],
+alias(
+    name = "guest_protocol",
+    actual = "//vendor/isospin/gpu-broker:guest_protocol",
     visibility = ["PUBLIC"],
 )
