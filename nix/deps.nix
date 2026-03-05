@@ -47,7 +47,9 @@ let
   rapidcheck-static = libmodern.rapidcheck;
 
   # WASM
-  wasmtime-c-api = libmodern.wasmtime;
+  # Use local package for wasmtime 40.0.0 with C++ bindings (wasmtime.hh)
+  # libmodern.wasmtime is 29.0.0 which doesn't have C++ header
+  wasmtime-c-api = pkgs.callPackage ./packages/wasmtime-c-api.nix { };
 
   # Async I/O
   liburing-static = libmodern.liburing;

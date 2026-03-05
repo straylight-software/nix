@@ -89,8 +89,8 @@ LIBARCHIVE_INCLUDE = "/nix/store/4032xfa1j19qk2g632jm7v55zxy2l62f-libarchive-3.7
 # wasmtime - WebAssembly runtime (pre-built C API)
 # ════════════════════════════════════════════════════════════════════════════
 # Note: Static linking requires additional system libs: -lpthread -ldl -lm
-WASMTIME_STATIC_LIB = "/nix/store/6g9vk57ls2v33zqxffvsqc77jwbvnn3g-wasmtime-29.0.0/lib/libwasmtime.a"
-WASMTIME_INCLUDE = "/nix/store/6g9vk57ls2v33zqxffvsqc77jwbvnn3g-wasmtime-29.0.0/include"
+WASMTIME_STATIC_LIB = "/nix/store/0xizw2n5npy1xmhbw949lpqk35yl6cn8-wasmtime-c-api-40.0.0/lib/libwasmtime.a"
+WASMTIME_INCLUDE = "/nix/store/0xizw2n5npy1xmhbw949lpqk35yl6cn8-wasmtime-c-api-40.0.0/include"
 
 # ════════════════════════════════════════════════════════════════════════════
 # mimalloc - fast allocator (replaces musl malloc, reduces lock contention)
@@ -113,7 +113,7 @@ ZSTD_INCLUDE = "/nix/store/w2vqjygbywycx61jynmy58l70wkv0dbl-zstd-1.5.6/include"
 # ════════════════════════════════════════════════════════════════════════════
 # libseccomp - seccomp filter library (for Firecracker seccompiler)
 # ════════════════════════════════════════════════════════════════════════════
-LIBSECCOMP_STATIC_LIB = "/nix/store/pnfxrvf1v8afia3xjhyjpz0bk9zkisxm-libseccomp-static-x86_64-unknown-linux-musl-2.6.0-lib/lib/libseccomp.a"
+LIBSECCOMP_STATIC_LIB = "/nix/store/a1c8x4sh4xy7vchrrq316zv28d5z3pf1-libseccomp-static-x86_64-unknown-linux-musl-2.6.0/lib/libseccomp.a"
 
 # ════════════════════════════════════════════════════════════════════════════
 # Firecracker guest - kernel and initrd for build VMs
