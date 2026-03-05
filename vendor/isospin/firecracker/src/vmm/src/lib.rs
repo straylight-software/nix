@@ -106,8 +106,8 @@ pub mod signal_handler;
 pub mod snapshot;
 /// Utility functions for integration and benchmark testing
 pub mod test_utils;
-/// Utility functions and struct
-pub mod utils;
+/// Utility functions and struct (re-exported from vmm_utils crate)
+pub use vmm_utils as utils;
 /// Wrappers over structures used to configure the VMM.
 pub mod vmm_config;
 /// Module with virtual state structs.
