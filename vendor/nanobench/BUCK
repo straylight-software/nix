@@ -1,0 +1,14 @@
+# nanobench - microbenchmark framework
+# Header-only library
+
+cxx_library(
+    name = "nanobench",
+    exported_headers = {
+        "nanobench.h": "src/include/nanobench.h",
+    },
+    header_namespace = "",
+    exported_preprocessor_flags = [
+        "-DANKERL_NANOBENCH_IMPLEMENT",
+    ],
+    visibility = ["PUBLIC"],
+)

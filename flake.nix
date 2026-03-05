@@ -41,6 +41,7 @@
           config,
           pkgs,
           lib,
+          system,
           ...
         }:
         let
@@ -48,6 +49,17 @@
           inherit (pkgs.stdenv) isLinux;
           isX86 = pkgs.stdenv.hostPlatform.isx86_64;
           turing-registry = import ./nix/prelude/turing-registry.nix { inherit lib isX86; };
+
+          # ── Rust toolchain with musl target ────────────────────────────────────
+          # Use rust-overlay to get a toolchain with x86_64-unknown-linux-musl target
+          # for linking vmm-ffi (Firecracker) into the static musl nix binary.
+          rustOverlayPkgs = import inputs.nixpkgs {
+            inherit system;
+            overlays = [ inputs.rust-overlay.overlays.default ];
+          };
+          rustToolchain = rustOverlayPkgs.rust-bin.stable.latest.default.override {
+            targets = [ "x86_64-unknown-linux-musl" ];
+          };
 
           # ── Toolchain (musl static linking) ─────────────────────────────────────
           toolchain = import ./nix/prelude/toolchain.nix { inherit lib pkgs turing-registry; };
@@ -57,8 +69,12 @@
           libmodern = inputs.libmodern-cpp.legacyPackages.${pkgs.system}.libmodern;
           deps = import ./nix/deps.nix { inherit pkgs libmodern; };
 
+          # ── Isospin (Firecracker + GPU broker) Rust vendor ──────────────────────
+          # Defined early so it can be passed to gen-buck-deps.nix for aws-lc-sys
+          isospinRustVendor = import ./vendor/isospin/nix/vendor.nix { inherit pkgs; };
+
           # ── Generated nix-deps.bzl (pre-built, avoids nix-build in sandbox) ────
-          nix-deps-bzl = import ./nix/gen-buck-deps.nix { inherit pkgs libmodern; };
+          nix-deps-bzl = import ./nix/gen-buck-deps.nix { inherit pkgs libmodern isospinRustVendor; };
 
           # Flatten all deps for Buck2
           # EXCLUDE vendored deps (built with Buck2, not from nixpkgs):
@@ -107,8 +123,8 @@
           includeFlags = mkIncludeFlags allDeps;
           libFlags = mkLibFlags allDeps;
 
-          # ── Isospin (Firecracker + GPU broker) Rust vendor ──────────────────────
-          isospinRustVendor = import ./vendor/isospin/nix/vendor.nix { inherit pkgs; };
+          # ── aws-lc static libraries for aws-lc-rs ────────────────────────────────
+          awsLcSys = pkgs.callPackage ./nix/packages/aws-lc-sys.nix { inherit isospinRustVendor; };
 
           # ── Firecracker guest (kernel + initrd for build VMs) ────────────────────
           firecrackerGuest = import ./nix/vm/guest.nix { inherit pkgs; };
@@ -144,6 +160,8 @@
               extraCFlags = includeFlags;
               extraCxxFlags = includeFlags;
               extraLdFlags = libFlags;
+              # Enable glibc paths for Rust proc-macro linking (isospin/Firecracker deps)
+              enableGlibcForProcMacros = true;
             };
 
             extraPackages = lib.optionals isLinux [
@@ -183,25 +201,42 @@
               pkgs.e2fsprogs # ext4 utilities
               pkgs.fuse2fs # FUSE-based ext4 filesystem for unprivileged image mounting
               pkgs.fuse # FUSE support for image mounting
+              # Rust toolchain with musl target for vmm-ffi (Firecracker VMM)
+              rustToolchain
             ];
 
             # Static packages (not spliced - preserves pkgsStatic versions)
             devshellBuildInputs = [
               pkgs.pkgsStatic.firecracker # static musl microVM hypervisor
-            ];
-
-            # Auto-link isospin Rust vendor and copy nix-deps.bzl on shell entry
-            devshellHook = ''
-              # Copy pre-generated nix-deps.bzl with correct store paths
-              rm -f vendor/nix-deps.bzl
-              cp ${nix-deps-bzl} vendor/nix-deps.bzl
-
-              # Link isospin Rust vendor (Firecracker deps)
-              if [ ! -e vendor/isospin/third-party/rust/vendor ] || [ -L vendor/isospin/third-party/rust/vendor ]; then
+              # Wrapper scripts for vendor linking (avoids pure eval issues with store paths)
+              (pkgs.writeShellScriptBin "link-isospin-vendor" ''
                 rm -f vendor/isospin/third-party/rust/vendor
                 ln -sf ${isospinRustVendor} vendor/isospin/third-party/rust/vendor
                 echo "Linked isospin vendor -> ${isospinRustVendor}"
+              '')
+              (pkgs.writeShellScriptBin "copy-nix-deps-bzl" ''
+                rm -f vendor/nix-deps.bzl
+                cp ${nix-deps-bzl} vendor/nix-deps.bzl
+              '')
+              # Export AWS_LC_LIB_DIR - prints the path for sourcing
+              (pkgs.writeShellScriptBin "get-aws-lc-lib-dir" ''
+                echo "${awsLcSys}/lib"
+              '')
+            ];
+
+            # Auto-link isospin Rust vendor and copy nix-deps.bzl on shell entry
+            # Uses wrapper scripts from devshellBuildInputs to avoid pure eval issues
+            devshellHook = ''
+              # Copy pre-generated nix-deps.bzl with correct store paths
+              copy-nix-deps-bzl
+
+              # Link isospin Rust vendor (Firecracker deps)
+              if [ ! -e vendor/isospin/third-party/rust/vendor ] || [ -L vendor/isospin/third-party/rust/vendor ]; then
+                link-isospin-vendor
               fi
+
+              # Set AWS_LC_LIB_DIR for aws-lc-sys
+              export AWS_LC_LIB_DIR="$(get-aws-lc-lib-dir)"
             '';
           };
 

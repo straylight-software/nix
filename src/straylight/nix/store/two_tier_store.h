@@ -220,23 +220,37 @@ inline auto two_tier_store::is_ca_path(const legacy_path_info& info) -> bool {
   return !info.ca.empty();
 }
 
-inline auto two_tier_store::convert_legacy_error(legacy_error e) -> store_tier_error {
-  switch (e) {
-    case legacy_error::not_found:
+inline auto two_tier_store::convert_legacy_error(legacy_error error) -> store_tier_error {
+  switch (error) {
+  case legacy_error::not_found: {
       return store_tier_error::not_found;
-    case legacy_error::io_error:
+  } break;
+
+  case legacy_error::io_error: {
       return store_tier_error::io_error;
-    case legacy_error::database_error:
+  } break;
+
+  case legacy_error::database_error: {
       return store_tier_error::database_error;
-    case legacy_error::corrupt_data:
+  } break;
+
+  case legacy_error::corrupt_data: {
       return store_tier_error::corrupt_data;
-    case legacy_error::already_exists:
+  } break;
+
+  case legacy_error::already_exists: {
       return store_tier_error::already_exists;
-    case legacy_error::invalid_path:
+  } break;
+
+  case legacy_error::invalid_path: {
       return store_tier_error::invalid_path;
-    case legacy_error::lock_failed:
+  } break;
+
+  case legacy_error::lock_failed: {
       return store_tier_error::lock_failed;
+  } break;
   }
+
   return store_tier_error::io_error;
 }
 
@@ -292,9 +306,12 @@ inline auto two_tier_store::query_references(std::string_view store_path)
 
 inline auto two_tier_store::query_referrers(std::string_view store_path)
     -> tier_result<std::vector<std::string>> {
+
   auto result = legacy_->query_referrers(store_path);
+
   if (!result) {
     return std::unexpected(convert_legacy_error(result.error()));
+
   }
   return *result;
 }
@@ -302,10 +319,13 @@ inline auto two_tier_store::query_referrers(std::string_view store_path)
 inline auto two_tier_store::query_derivation_output(std::string_view drv_path,
                                                     std::string_view output_name)
     -> tier_result<std::string> {
+
   auto result = legacy_->query_derivation_output(drv_path, output_name);
+
   if (!result) {
     return std::unexpected(convert_legacy_error(result.error()));
   }
+
   return *result;
 }
 
@@ -320,19 +340,24 @@ inline auto two_tier_store::query_all_valid_paths() -> tier_result<std::vector<s
 inline auto two_tier_store::register_path(const legacy_path_info& info,
                                           std::span<const std::string> references)
     -> tier_result<void> {
+
   // Register in legacy store (for metadata and references)
   auto result = legacy_->register_path(info, references);
+
   if (!result) {
     return std::unexpected(convert_legacy_error(result.error()));
   }
+
   return {};
 }
 
 inline auto two_tier_store::invalidate_path(std::string_view store_path) -> tier_result<void> {
   auto result = legacy_->invalidate_path(store_path);
+
   if (!result) {
     return std::unexpected(convert_legacy_error(result.error()));
   }
+
   return {};
 }
 
@@ -340,26 +365,33 @@ inline auto two_tier_store::add_derivation_output(std::string_view drv_path,
                                                   std::string_view output_name,
                                                   std::string_view output_path)
     -> tier_result<void> {
+
   auto result = legacy_->add_derivation_output(drv_path, output_name, output_path);
+
   if (!result) {
     return std::unexpected(convert_legacy_error(result.error()));
   }
+
   return {};
 }
 
 inline auto two_tier_store::put_ca(std::span<const std::byte> data) -> tier_result<std::string> {
   auto result = ca_->put(data);
+
   if (!result) {
     return std::unexpected(convert_ca_error(result.error()));
   }
+
   return *result;
 }
 
 inline auto two_tier_store::get_ca(std::string_view hash) -> tier_result<std::vector<std::byte>> {
   auto result = ca_->get(hash);
+
   if (!result) {
     return std::unexpected(convert_ca_error(result.error()));
   }
+
   return *result;
 }
 
@@ -373,6 +405,7 @@ inline auto two_tier_store::verify() -> tier_result<bool> {
   if (!ca_result) {
     return std::unexpected(convert_ca_error(ca_result.error()));
   }
+
   if (*ca_result > 0) {
     return false; // CA corruption found
   }
@@ -382,14 +415,17 @@ inline auto two_tier_store::verify() -> tier_result<bool> {
   if (!legacy_result) {
     return std::unexpected(convert_legacy_error(legacy_result.error()));
   }
+
   return *legacy_result;
 }
 
 inline auto two_tier_store::vacuum() -> tier_result<void> {
   auto result = legacy_->vacuum();
+
   if (!result) {
     return std::unexpected(convert_legacy_error(result.error()));
   }
+
   return {};
 }
 

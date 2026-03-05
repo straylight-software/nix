@@ -33,6 +33,37 @@ let
 
   llvm = pkgs.llvmPackages_20; # TODO: move to llvm-git overlay for LLVM 22
 
+  # ──────────────────────────────────────────────────────────────────────────
+  #                     // glibc paths (for proc-macros) //
+  # ──────────────────────────────────────────────────────────────────────────
+  #
+  # Rust proc-macros are dynamically linked .so files that get loaded by rustc.
+  # Since rustc is glibc-based, proc-macros MUST link against glibc, not musl.
+  # We need:
+  #   - glibc's libc.so (from pkgs.glibc)
+  #   - libgcc_s.so (from pkgs.gcc.cc.libgcc or stdenv.cc.cc.libgcc)
+  #
+  # These paths are added BEFORE musl paths in the linker search order so that
+  # dynamic builds (proc-macros) find glibc first, while static builds still
+  # use musl via -static flag.
+
+  glibc = pkgs.glibc;
+  glibc-gcc-libgcc = pkgs.stdenv.cc.cc.libgcc or pkgs.gcc.cc.libgcc or null;
+
+  glibc-paths =
+    if isLinux then
+      {
+        # glibc's libc.so, libpthread.so, etc.
+        lib = "${glibc}/lib";
+        # libgcc_s.so (unwinding support for C++ exceptions)
+        gcc-lib = if glibc-gcc-libgcc != null then "${glibc-gcc-libgcc}/lib" else "";
+      }
+    else
+      {
+        lib = "";
+        gcc-lib = "";
+      };
+
   # UNWRAPPED clang - no NIX_CFLAGS_COMPILE injection
   inherit (llvm) clang-unwrapped;
   clang-version = lib.versions.major llvm.clang.version;
@@ -185,6 +216,9 @@ in
     musl-static-cflags
     musl-static-cxxflags
     musl-static-ldflags
+    glibc
+    glibc-gcc-libgcc
+    glibc-paths
     ;
 
   # ──────────────────────────────────────────────────────────────────────────
@@ -208,12 +242,19 @@ in
     musl-gcc-include-arch = musl-gcc-paths.include-arch;
     musl-include = "${pkgs.musl.dev}/include";
 
-    # Library directories
+    # Library directories (musl - for static linking)
     # lib-stdcxx: libstdc++.a (C++ standard library) - in gcc's top-level lib/
     musl-gcc-lib = musl-gcc-paths.lib-stdcxx;
     # lib-gcc: libgcc.a, crt*.o (compiler runtime) - in lib/gcc/<triple>/<version>/
     musl-gcc-lib-gcc = musl-gcc-paths.lib-gcc;
     musl-lib = "${pkgs.musl}/lib";
+
+    # Library directories (glibc - for proc-macros / dynamic .so files)
+    # Proc-macros are compiler plugins that MUST be dynamically linked .so files.
+    # They run inside rustc which is glibc-based, so they must link against glibc.
+    # These paths are added BEFORE musl paths in cxx.bzl so linker finds glibc first.
+    glibc-lib = glibc-paths.lib;
+    glibc-gcc-lib = glibc-paths.gcc-lib;
 
     # Pre-built flags strings (separate C and C++ flags for correct include order)
     c-flags = musl-static-cflags;

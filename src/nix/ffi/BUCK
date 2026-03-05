@@ -1,0 +1,43 @@
+# src/nix/ffi/BUCK
+#
+# C FFI for Nix - stable ABI for Haskell/Rust/etc consumers
+
+# Export the public C header
+export_file(
+    name = "nix.h",
+    visibility = ["PUBLIC"],
+)
+
+# FFI implementation library
+cxx_library(
+    name = "ffi",
+    srcs = [
+        "error.cpp",
+        "eval.cpp",
+        "init.cpp",
+        "store.cpp",
+        "value.cpp",
+    ],
+    headers = [
+        "internal.h",
+    ],
+    exported_headers = {
+        "nix/ffi/nix.h": "nix.h",
+    },
+    deps = [
+        "//src/nix/expr:expr",
+        "//src/nix/fetchers:fetchers",
+        "//src/nix/store:store",
+        "//src/nix/util:util",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+# Static library for embedding - combines all Nix functionality
+cxx_library(
+    name = "libnix",
+    exported_deps = [
+        ":ffi",
+    ],
+    visibility = ["PUBLIC"],
+)

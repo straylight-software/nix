@@ -60,11 +60,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1772647821,
-        "narHash": "sha256-dW8g7bJpegglBqc94MBQ9mhlfTynj832Qnw7C83+J0g=",
+        "lastModified": 1772660504,
+        "narHash": "sha256-vYWJDYl55Yn8OcxOt63lgT9R7t/2gXebyowgCb5dsmM=",
         "owner": "straylight-software",
         "repo": "libmodern-cpp",
-        "rev": "72ccf26b929502d78ed5bccd693019a9e1f427c6",
+        "rev": "c7b27bda72909b585fbb247bd0d1b0fbcbdcb529",
         "type": "github"
       },
       "original": {

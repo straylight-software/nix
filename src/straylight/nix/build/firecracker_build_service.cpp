@@ -5,7 +5,7 @@
 //
 // Architecture:
 //   1. Prepare VM rootfs with /nix/store inputs (virtiofs or block device)
-//   2. Boot Firecracker microVM (<100ms boot time)
+//   2. Boot Firecracker microVM (<100ms boot time) - EMBEDDED via vmm-ffi
 //   3. Execute builder inside VM via vsock command channel
 //   4. Stream build output via vsock
 //   5. Extract outputs back to host store
@@ -19,8 +19,10 @@
 //
 // Requirements:
 //   - /dev/kvm access (unprivileged with kvm group membership)
-//   - Firecracker binary (from vendor/isospin)
 //   - Minimal guest kernel + initrd
+//
+// Note: The Firecracker VMM is embedded directly via vmm-ffi, eliminating
+// the need for a separate firecracker binary and avoiding seccomp issues.
 
 #include <chrono>
 #include <filesystem>
@@ -36,7 +38,10 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include "straylight/nix/build/vmm_ffi.h"
+
 #include "build_service.h"
+#include "embedded_guest.h"
 #include "nix/store/build/derivation-env-desugar.h"
 #include "nix/store/derivation-options.h"
 #include "nix/store/derivations.h"
@@ -57,10 +62,9 @@ namespace {
 // ============================================================================
 
 struct firecracker_config {
-  // Paths
-  std::string firecracker_bin; // Path to firecracker binary
-  std::string kernel_path;     // Guest kernel (vmlinux)
-  std::string initrd_path;     // Guest initrd with builder
+  // Paths (VMM is embedded via vmm-ffi, no separate firecracker binary needed)
+  std::string kernel_path; // Guest kernel (vmlinux)
+  std::string initrd_path; // Guest initrd with builder
 
   // VM resources
   uint32_t vcpu_count = 1;
@@ -321,14 +325,12 @@ struct vsock_client {
 };
 
 // ============================================================================
-// VM Instance - manages a single Firecracker VM
+// VM Instance - manages a single Firecracker VM (embedded via vmm-ffi)
 // ============================================================================
 
 struct vm_instance {
-  pid_t pid = -1;
-  int api_socket = -1;
+  VmmHandle* vmm_handle = nullptr; // Embedded VMM handle
   int vsock_fd = -1;
-  std::string socket_path;
   std::string vsock_uds_path; // Path to vsock unix domain socket
   std::string work_dir;
   bool running = false;
@@ -340,27 +342,11 @@ struct vm_instance {
   }
 
   void shutdown() {
-    if (pid > 0) {
-      // Send SIGTERM first, then SIGKILL after timeout
-      kill(pid, SIGTERM);
-      int status;
-      auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
-      while (std::chrono::steady_clock::now() < deadline) {
-        if (waitpid(pid, &status, WNOHANG) > 0) {
-          break;
-        }
-        usleep(10000); // 10ms
-      }
-      // Force kill if still running
-      if (waitpid(pid, &status, WNOHANG) == 0) {
-        kill(pid, SIGKILL);
-        waitpid(pid, &status, 0);
-      }
-      pid = -1;
-    }
-    if (api_socket >= 0) {
-      close(api_socket);
-      api_socket = -1;
+    if (vmm_handle) {
+      // Shutdown and destroy the embedded VMM
+      vmm_shutdown(vmm_handle);
+      vmm_destroy(vmm_handle);
+      vmm_handle = nullptr;
     }
     if (vsock_fd >= 0) {
       close(vsock_fd);
@@ -517,24 +503,31 @@ struct firecracker_build_service final : build_service {
 
 private:
   auto check_availability() const -> bool {
-    // Check for /dev/kvm
+    // Check for /dev/kvm (required for KVM virtualization)
     if (access("/dev/kvm", R_OK | W_OK) != 0) {
       log_debug("firecracker: /dev/kvm not accessible");
       return false;
     }
 
-    // Check for firecracker binary
-    if (!config_.firecracker_bin.empty() && access(config_.firecracker_bin.c_str(), X_OK) != 0) {
-      log_debug("firecracker: binary not found at %s", config_.firecracker_bin);
-      return false;
+    // If embedded guest data is available, we don't need external kernel/initrd
+    if (embedded_guest::is_available()) {
+      log_debug("firecracker: using embedded kernel/initrd");
+      return true;
     }
 
-    // Check for kernel
-    if (!config_.kernel_path.empty() && !fs::exists(config_.kernel_path)) {
+    // Check for kernel (required for VM boot)
+    if (config_.kernel_path.empty() || !fs::exists(config_.kernel_path)) {
       log_debug("firecracker: kernel not found at %s", config_.kernel_path);
       return false;
     }
 
+    // Check for initrd (required for guest init)
+    if (config_.initrd_path.empty() || !fs::exists(config_.initrd_path)) {
+      log_debug("firecracker: initrd not found at %s", config_.initrd_path);
+      return false;
+    }
+
+    // Note: firecracker binary no longer required - VMM is embedded via vmm-ffi
     return true;
   }
 
@@ -575,11 +568,11 @@ private:
     log_debug("firecracker: %zu system store + %zu user store input paths",
               inputs.system_store.size(), inputs.user_store.size());
 
-    // Prepare the VM configuration
-    auto vm_config = prepare_vm_config(store, drv, work_dir, inputs);
+    // Prepare the VM images (store.ext4, output.ext4)
+    prepare_vm_config(store, drv, work_dir, inputs);
 
-    // Start the VM
-    auto vm = start_vm(vm_config);
+    // Start the VM (embedded VMM - no fork/exec)
+    auto vm = start_vm(work_dir, inputs);
     if (!vm || !vm->running) {
       result.inner =
           ::nix::build_result_t::Failure{.status = ::nix::build_result_t::Failure::MiscFailure,
@@ -915,48 +908,122 @@ private:
     fs::remove_all(tmp_mount);
   }
 
-  auto start_vm(const std::string& config_path) -> std::unique_ptr<vm_instance> {
+  auto start_vm(const std::string& work_dir, const categorized_inputs& /*inputs*/)
+      -> std::unique_ptr<vm_instance> {
     auto vm = std::make_unique<vm_instance>();
+    vm->work_dir = work_dir;
+    vm->vsock_uds_path = work_dir + "/vsock.sock";
 
-    // Extract work dir from config path
-    vm->work_dir = fs::path(config_path).parent_path().string();
-    vm->socket_path = vm->work_dir + "/firecracker.sock";
-    vm->vsock_uds_path = vm->work_dir + "/vsock.sock";
+    // Build kernel command line
+    // pci=off: disable PCI enumeration (not needed for virtio-mmio)
+    // acpi=off: disable ACPI to prevent PCI memory region reservation that conflicts with
+    // virtio-mmio
+    std::string kernel_cmdline = "console=ttyS0 reboot=k panic=1 pci=off acpi=off init=/init";
 
-    // Fork and exec firecracker
-    vm->pid = fork();
-    if (vm->pid < 0) {
-      throw ::nix::sys_error_t("fork failed");
+    int error = VMM_OK;
+
+    // Try to use embedded guest data if available
+    if (embedded_guest::is_available()) {
+      log_debug("firecracker: using embedded kernel/initrd");
+
+      auto kernel = embedded_guest::kernel_data();
+      auto initrd = embedded_guest::initrd_data();
+
+      VmmEmbeddedConfig embedded_config{};
+      embedded_config.kernel_data = kernel.data();
+      embedded_config.kernel_size = kernel.size();
+      embedded_config.initrd_data = initrd.data();
+      embedded_config.initrd_size = initrd.size();
+      embedded_config.kernel_cmdline = kernel_cmdline.c_str();
+      embedded_config.vcpu_count = config_.vcpu_count;
+      embedded_config.mem_size_mib = config_.mem_size_mib;
+      embedded_config.kernel_compression = embedded_guest::compression_format();
+      embedded_config.initrd_compression = VMM_COMPRESS_NONE; // initrd is already gzip for kernel
+
+      vm->vmm_handle = vmm_create_from_embedded(&embedded_config, &error);
+    } else {
+      // Fall back to file-based configuration
+      log_debug("firecracker: using file-based kernel/initrd");
+
+      VmmConfig vmm_config{};
+      vmm_config.kernel_path = config_.kernel_path.c_str();
+      vmm_config.initrd_path = config_.initrd_path.c_str();
+      vmm_config.kernel_cmdline = kernel_cmdline.c_str();
+      vmm_config.vcpu_count = config_.vcpu_count;
+      vmm_config.mem_size_mib = config_.mem_size_mib;
+
+      vm->vmm_handle = vmm_create(&vmm_config, &error);
     }
 
-    if (vm->pid == 0) {
-      // Child process - exec firecracker
-      execl(config_.firecracker_bin.c_str(), "firecracker", "--no-api", "--config-file",
-            config_path.c_str(), nullptr);
-      _exit(127);
+    if (!vm->vmm_handle) {
+      log_error("firecracker: vmm_create failed: %s", vmm_strerror(error));
+      return nullptr;
     }
 
-    // Parent - wait for VM to start and vsock socket to appear
+    // Add store block device (read-only)
+    std::string store_image = work_dir + "/store.ext4";
+    std::string store_id = "store";
+    VmmBlockDevice store_device{};
+    store_device.drive_id = store_id.c_str();
+    store_device.path = store_image.c_str();
+    store_device.is_read_only = 1;
+
+    error = vmm_add_block_device(vm->vmm_handle, &store_device);
+    if (error != VMM_OK) {
+      log_error("firecracker: vmm_add_block_device(store) failed: %s", vmm_strerror(error));
+      vmm_destroy(vm->vmm_handle);
+      vm->vmm_handle = nullptr;
+      return nullptr;
+    }
+
+    // Add output block device (read-write)
+    std::string output_image = work_dir + "/output.ext4";
+    std::string output_id = "output";
+    VmmBlockDevice output_device{};
+    output_device.drive_id = output_id.c_str();
+    output_device.path = output_image.c_str();
+    output_device.is_read_only = 0;
+
+    error = vmm_add_block_device(vm->vmm_handle, &output_device);
+    if (error != VMM_OK) {
+      log_error("firecracker: vmm_add_block_device(output) failed: %s", vmm_strerror(error));
+      vmm_destroy(vm->vmm_handle);
+      vm->vmm_handle = nullptr;
+      return nullptr;
+    }
+
+    // Configure vsock
+    VmmVsockConfig vsock_config{};
+    vsock_config.guest_cid = 3;
+    vsock_config.uds_path = vm->vsock_uds_path.c_str();
+
+    error = vmm_configure_vsock(vm->vmm_handle, &vsock_config);
+    if (error != VMM_OK) {
+      log_error("firecracker: vmm_configure_vsock failed: %s", vmm_strerror(error));
+      vmm_destroy(vm->vmm_handle);
+      vm->vmm_handle = nullptr;
+      return nullptr;
+    }
+
+    // Start the VM
+    error = vmm_start(vm->vmm_handle);
+    if (error != VMM_OK) {
+      log_error("firecracker: vmm_start failed: %s", vmm_strerror(error));
+      vmm_destroy(vm->vmm_handle);
+      vm->vmm_handle = nullptr;
+      return nullptr;
+    }
+
     vm->running = true;
 
-    // Poll for vsock socket to exist (indicates VM is ready)
+    // Wait for vsock socket to appear (indicates VM is ready for connections)
     auto deadline = std::chrono::steady_clock::now() + config_.boot_timeout;
     while (std::chrono::steady_clock::now() < deadline) {
-      // Check if VM crashed
-      int status;
-      if (waitpid(vm->pid, &status, WNOHANG) != 0) {
-        vm->running = false;
-        log_error("firecracker: VM exited during boot");
-        return nullptr;
-      }
-
-      // Check if vsock socket exists
       if (access(vm->vsock_uds_path.c_str(), F_OK) == 0) {
-        // Socket exists, but give it a moment to be ready
+        // Socket exists, give it a moment to be ready
         usleep(50000); // 50ms
         break;
       }
-
       usleep(10000); // 10ms
     }
 
@@ -966,7 +1033,7 @@ private:
       return nullptr;
     }
 
-    log_info("firecracker: VM started, pid=%d, vsock=%s", vm->pid, vm->vsock_uds_path);
+    log_info("firecracker: VM started (embedded), vsock=%s", vm->vsock_uds_path);
     return vm;
   }
 
@@ -1272,26 +1339,11 @@ private:
 std::unique_ptr<build_service> make_firecracker_build_service() {
   firecracker_config config;
 
-  // Check environment variables first
-  const char* fc_bin = getenv("NIX_FIRECRACKER_BIN");
+  // Note: firecracker binary no longer needed - VMM is embedded via vmm-ffi
+
+  // Check environment variables for kernel/initrd paths
   const char* fc_kernel = getenv("NIX_FIRECRACKER_KERNEL");
   const char* fc_initrd = getenv("NIX_FIRECRACKER_INITRD");
-
-  if (fc_bin) {
-    config.firecracker_bin = fc_bin;
-  } else {
-    // Try to find firecracker binary in common locations
-    for (const auto& path : {
-             "/usr/bin/firecracker",
-             "/usr/local/bin/firecracker",
-             "./result/bin/firecracker",
-         }) {
-      if (access(path, X_OK) == 0) {
-        config.firecracker_bin = path;
-        break;
-      }
-    }
-  }
 
   if (fc_kernel) {
     config.kernel_path = fc_kernel;
@@ -1345,10 +1397,8 @@ std::unique_ptr<build_service> make_firecracker_build_service() {
     config.user_store_dir = std::string(home) + "/.local/share/nix/store";
   }
 
-  // Log configuration
-  if (!config.firecracker_bin.empty()) {
-    log_debug("firecracker: binary = %s", config.firecracker_bin);
-  }
+  // Log configuration (note: VMM is embedded, no separate binary needed)
+  log_debug("firecracker: using embedded VMM (vmm-ffi)");
   if (!config.kernel_path.empty()) {
     log_debug("firecracker: kernel = %s", config.kernel_path);
   }
@@ -1359,11 +1409,9 @@ std::unique_ptr<build_service> make_firecracker_build_service() {
   return std::make_unique<firecracker_build_service>(std::move(config));
 }
 
-std::unique_ptr<build_service> make_firecracker_build_service(const std::string& firecracker_bin,
-                                                              const std::string& kernel_path,
+std::unique_ptr<build_service> make_firecracker_build_service(const std::string& kernel_path,
                                                               const std::string& initrd_path) {
   firecracker_config config;
-  config.firecracker_bin = firecracker_bin;
   config.kernel_path = kernel_path;
   config.initrd_path = initrd_path;
 

@@ -61,7 +61,10 @@ struct daemon_build_service final : build_service {
 
   auto is_available() const -> bool override {
     // Check if socket exists
-    return ::nix::path_exists(socket_path_);
+    // Use default socket path if none specified
+    auto socket =
+        socket_path_.empty() ? std::string(::nix::settings.nixDaemonSocketFile) : socket_path_;
+    return ::nix::path_exists(socket);
   }
 
   auto get_daemon() -> ::nix::store_t& {

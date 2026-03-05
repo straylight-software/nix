@@ -9,6 +9,7 @@ load(":cxx.bzl", "llvm_toolchain")
 load(":execution.bzl", "lre_execution_platform", "host_configuration")
 load("@prelude//toolchains:python.bzl", "system_python_bootstrap_toolchain")
 load("@prelude//toolchains:genrule.bzl", "system_genrule_toolchain")
+load("@prelude//toolchains:rust.bzl", "system_rust_toolchain")
 load("@prelude//tests:test_toolchain.bzl", "noop_test_toolchain")
 load(":test.bzl", "noop_remote_test_execution_toolchain")
 
@@ -103,6 +104,37 @@ lre_execution_platform(
     visibility = ["PUBLIC"],
 )
 
+# Local-only execution platform (used by .buckconfig default)
+lre_execution_platform(
+    name = "local",
+    cpu_configuration = host_configuration.cpu,
+    os_configuration = host_configuration.os,
+    local_enabled = True,
+    remote_enabled = False,
+    visibility = ["PUBLIC"],
+)
+
+# ════════════════════════════════════════════════════════════════════════════════
+# TARGET PLATFORMS
+# ════════════════════════════════════════════════════════════════════════════════
+
+# Musl target platform for static linking
+# Use with: buck2 build --target-platforms=toolchains//:musl //...
+#
+# This platform sets the musl ABI constraint, which causes the Rust toolchain
+# to use x86_64-unknown-linux-musl as the target triple. Proc-macros are still
+# built for glibc (via exec transition) because the execution platform (lre)
+# does NOT have the musl constraint.
+lre_execution_platform(
+    name = "musl",
+    cpu_configuration = host_configuration.cpu,
+    os_configuration = host_configuration.os,
+    abi_configuration = "prelude//abi/constraints:musl",
+    local_enabled = True,
+    remote_enabled = False,
+    visibility = ["PUBLIC"],
+)
+
 # ════════════════════════════════════════════════════════════════════════════════
 # TEST TOOLCHAIN (required for cxx_test)
 # ════════════════════════════════════════════════════════════════════════════════
@@ -115,5 +147,27 @@ noop_test_toolchain(
 # Stub for remote test execution (we run tests locally only)
 noop_remote_test_execution_toolchain(
     name = "remote_test_execution",
+    visibility = ["PUBLIC"],
+)
+
+# ════════════════════════════════════════════════════════════════════════════════
+# RUST TOOLCHAIN (for isospin/third-party rust deps)
+# ════════════════════════════════════════════════════════════════════════════════
+#
+# Uses select() to pick the target triple based on ABI constraint:
+# - Default (no ABI constraint): x86_64-unknown-linux-gnu (for proc-macros running in rustc)
+# - config//abi:musl: x86_64-unknown-linux-musl (for target builds linked into musl binary)
+#
+# This enables cross-compilation where:
+# - Proc-macros are built for the host (glibc) to run inside rustc
+# - Target libraries are built for musl to link into the final static binary
+
+system_rust_toolchain(
+    name = "rust",
+    default_edition = "2021",
+    rustc_target_triple = select({
+        "DEFAULT": "x86_64-unknown-linux-gnu",
+        "config//abi:musl": "x86_64-unknown-linux-musl",
+    }),
     visibility = ["PUBLIC"],
 )

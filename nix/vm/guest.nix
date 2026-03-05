@@ -6,16 +6,20 @@
 # 3. CPIO initrd containing init + minimal userspace
 #
 # The resulting derivation provides:
-#   $out/vmlinux      - Uncompressed kernel for Firecracker
-#   $out/initrd.img   - CPIO archive with init system
+#   $out/vmlinux      - Uncompressed kernel for Firecracker (~25MB stripped)
+#   $out/initrd.img   - CPIO archive with init system (~35KB)
 #   $out/bin/nix-builder-init - Static init binary (for debugging)
+#
+# Size targets for embedding in binary:
+#   - vmlinux: ~25-30MB (stripped, no debug info)
+#   - initrd.img: ~35KB (gzip compressed)
+#   - Total: ~30MB embedded data section
 
 { pkgs }:
 
 let
-  # Use the standard nixpkgs kernel - trying to heavily customize causes
-  # config conflicts. We'll use the default 6.1 LTS kernel with minimal
-  # additional options for virtio/vsock.
+  # Use standard kernel with required features for Firecracker
+  # Note: vmlinux is ~600MB with debug info, but we strip it to ~30MB at build time
   kernel = pkgs.linuxPackages_6_1.kernel.override {
     structuredExtraConfig = with pkgs.lib.kernel; {
       # Ensure virtio support for Firecracker
@@ -65,6 +69,7 @@ let
         nativeBuildInputs = [
           pkgs.cpio
           pkgs.gzip
+          pkgs.binutils # for strip
         ];
       }
       ''
@@ -86,11 +91,18 @@ let
         cd $TMPDIR/initrd
         find . -print0 | cpio --null -o --format=newc | gzip -9 > $out/initrd.img
 
-        # Copy kernel (vmlinux is in the dev output, not the main output)
+        # Copy kernel and strip debug info for smaller size
+        # vmlinux is in the dev output, not the main output
         cp ${kernel.dev}/vmlinux $out/vmlinux
+        chmod +w $out/vmlinux
+        strip --strip-debug $out/vmlinux || true
 
         # Also copy init binary for debugging
         cp ${nixBuilderInit}/bin/nix-builder-init $out/bin/
+
+        # Report sizes
+        echo "=== Artifact sizes ==="
+        ls -lh $out/vmlinux $out/initrd.img
       '';
 
 in

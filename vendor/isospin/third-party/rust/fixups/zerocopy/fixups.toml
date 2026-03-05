@@ -1,2 +1,9 @@
-# zerocopy build script detects rustc version
+# zerocopy build script detects rustc version and sets cfg flags.
+# We manually set the cfg flags since buildscript.run = false.
+# For Rust 1.88 (< 1.89), we need to disable AVX512 SIMD types.
 buildscript.run = false
+
+# Equivalent to what build.rs would emit for rustc 1.88.0
+# These cfg flags tell zerocopy "this feature is NOT available"
+# AVX512 SIMD support requires Rust 1.89.0
+rustc_flags = ["--cfg=no_zerocopy_simd_x86_avx12_1_89_0"]

@@ -80,15 +80,14 @@ make_reapi_build_service(const std::string& endpoint, const std::string& instanc
 
 /// Create a Firecracker build service (microVM sandbox)
 /// Provides daemonless builds with deep witnessing via Firecracker microVMs.
-/// @note Requires /dev/kvm access and firecracker binary.
+/// The VMM is embedded directly via vmm-ffi - no separate firecracker binary needed.
+/// @note Requires /dev/kvm access and guest kernel+initrd.
 [[nodiscard]] std::unique_ptr<build_service> make_firecracker_build_service();
 
 /// Create a Firecracker build service with explicit paths
-/// @param firecracker_bin Path to firecracker binary
 /// @param kernel_path Path to guest kernel (vmlinux)
 /// @param initrd_path Path to guest initrd
 [[nodiscard]] std::unique_ptr<build_service>
-make_firecracker_build_service(const std::string& firecracker_bin, const std::string& kernel_path,
-                               const std::string& initrd_path);
+make_firecracker_build_service(const std::string& kernel_path, const std::string& initrd_path);
 
 } // namespace straylight::nix::build

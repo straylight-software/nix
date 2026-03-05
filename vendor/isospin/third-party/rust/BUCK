@@ -522,7 +522,7 @@ rust_library(
     },
     rustc_flags = ["--cfg=x86_64_unknown_linux_gnu"],
     visibility = [],
-    deps = ["//third-party/rust/aws-lc:aws-lc"],
+    deps = ["//vendor/isospin/third-party/rust/aws-lc:aws-lc"],
 )
 
 alias(
@@ -5867,11 +5867,21 @@ rust_library(
         "std",
     ],
     rustc_flags = [
-        "--cfg=libc",
         "--cfg=linux_kernel",
-        "--cfg=linux_libc",
         "--cfg=linux_like",
-    ],
+    ] + select({
+        # For musl: use linux_raw backend (direct syscalls via linux-raw-sys)
+        # This avoids libc's missing STATX_* constants on musl
+        "config//abi:musl": [
+            "--cfg=linux_raw",
+            "--cfg=linux_raw_dep",
+        ],
+        # For glibc: use libc backend
+        "DEFAULT": [
+            "--cfg=libc",
+            "--cfg=linux_libc",
+        ],
+    }),
     visibility = [],
     deps = [
         ":bitflags-2.10.0",
@@ -7133,7 +7143,7 @@ rust_library(
         "std",
         "zdict_builder",
     ],
-    deps = ["//third-party/rust/zstd:zstd"],
+    deps = ["//vendor/isospin/third-party/rust/zstd:zstd"],
     visibility = [],
 )
 
@@ -7537,20 +7547,21 @@ rust_library(
         "default",
         "vhost-user",
         "vhost-user-backend",
+        "vhost-user-frontend",  # Required by firecracker vmm
     ],
     visibility = ["PUBLIC"],  # Also exposed for Cloud Hypervisor's vhost-user backends
     deps = [
         ":bitflags-2.10.0",
         ":libc-0.2.180",
         ":uuid-1.19.0",
-        ":vmm-sys-util-0.14.0",
-        "//vendor/isospin/third-party/rust:vm-memory-0.18.0",
+        ":vmm-sys-util-0.15.0",  # Match vmm-sys-util version used by firecracker
+        "//vendor/isospin/third-party/rust:vm-memory-0.16.2",  # vhost-0.14.0 requires vm-memory 0.16.x
     ],
 )
 
 alias(
     name = "vhost",
-    actual = ":vhost-0.15.0",
+    actual = ":vhost-0.15.0",  # Use 0.15.0 - need to fix vm-memory API compat separately
     visibility = ["PUBLIC"],
 )
 
@@ -7602,7 +7613,7 @@ rust_library(
         ":libc-0.2.180",
         ":uuid-1.19.0",
         ":vmm-sys-util-0.15.0",
-        "//vendor/isospin/third-party/rust:vm-memory-0.18.0",
+        "//vendor/isospin/third-party/rust:vm-memory-0.17.2",  # vhost-0.15.0 requires vm-memory 0.17.x API
     ],
 )
 
@@ -8025,6 +8036,102 @@ rust_library(
     ],
 )
 
+# vm-memory-0.17.2: Compatibility shim that re-exports vm-memory-0.18 as GuestMemory (not GuestMemoryBackend)
+# Required for vhost-0.15.0 which expects the older trait names
+rust_library(
+    name = "vm-memory-0.17.2",
+    srcs = [
+        "vendor/vm-memory-0.17.2/src/address.rs",
+        "vendor/vm-memory-0.17.2/src/atomic.rs",
+        "vendor/vm-memory-0.17.2/src/atomic_integer.rs",
+        "vendor/vm-memory-0.17.2/src/bitmap.rs",
+        "vendor/vm-memory-0.17.2/src/bytes.rs",
+        "vendor/vm-memory-0.17.2/src/endian.rs",
+        "vendor/vm-memory-0.17.2/src/guest_memory.rs",
+        "vendor/vm-memory-0.17.2/src/io.rs",
+        "vendor/vm-memory-0.17.2/src/lib.rs",
+        "vendor/vm-memory-0.17.2/src/mmap.rs",
+        "vendor/vm-memory-0.17.2/src/region.rs",
+        "vendor/vm-memory-0.17.2/src/volatile_memory.rs",
+    ],
+    crate = "vm_memory",
+    crate_root = "vendor/vm-memory-0.17.2/src/lib.rs",
+    edition = "2021",
+    env = {
+        "CARGO_PKG_NAME": "vm-memory",
+        "CARGO_PKG_VERSION": "0.17.2",
+        "CARGO_PKG_VERSION_MAJOR": "0",
+        "CARGO_PKG_VERSION_MINOR": "17",
+        "CARGO_PKG_VERSION_PATCH": "2",
+    },
+    features = [
+        "arc-swap",
+        "backend-atomic",
+        "backend-bitmap",
+        "backend-mmap",
+        "default",
+        "rawfd",
+    ],
+    visibility = [],
+    # vm-memory-0.17.2 re-exports from vm-memory-0.18.0 (renamed as vm_memory_new in Cargo)
+    named_deps = {
+        "vm_memory_new": ":vm-memory-0.18.0",
+    },
+    deps = [
+        ":arc-swap-1.8.0",
+        ":libc-0.2.180",
+    ],
+)
+
+# vm-memory-0.16.2: Compatible with vhost-0.14.0 (uses GuestMemory trait name)
+rust_library(
+    name = "vm-memory-0.16.2",
+    srcs = [
+        "vendor/vm-memory-0.16.2/src/address.rs",
+        "vendor/vm-memory-0.16.2/src/atomic.rs",
+        "vendor/vm-memory-0.16.2/src/atomic_integer.rs",
+        "vendor/vm-memory-0.16.2/src/bitmap/backend/atomic_bitmap.rs",
+        "vendor/vm-memory-0.16.2/src/bitmap/backend/atomic_bitmap_arc.rs",
+        "vendor/vm-memory-0.16.2/src/bitmap/backend/mod.rs",
+        "vendor/vm-memory-0.16.2/src/bitmap/backend/slice.rs",
+        "vendor/vm-memory-0.16.2/src/bitmap/mod.rs",
+        "vendor/vm-memory-0.16.2/src/bytes.rs",
+        "vendor/vm-memory-0.16.2/src/endian.rs",
+        "vendor/vm-memory-0.16.2/src/guest_memory.rs",
+        "vendor/vm-memory-0.16.2/src/io.rs",
+        "vendor/vm-memory-0.16.2/src/lib.rs",
+        "vendor/vm-memory-0.16.2/src/mmap.rs",
+        "vendor/vm-memory-0.16.2/src/mmap_unix.rs",
+        "vendor/vm-memory-0.16.2/src/mmap_windows.rs",
+        "vendor/vm-memory-0.16.2/src/mmap_xen.rs",
+        "vendor/vm-memory-0.16.2/src/volatile_memory.rs",
+    ],
+    crate = "vm_memory",
+    crate_root = "vendor/vm-memory-0.16.2/src/lib.rs",
+    edition = "2021",
+    env = {
+        "CARGO_PKG_NAME": "vm-memory",
+        "CARGO_PKG_VERSION": "0.16.2",
+        "CARGO_PKG_VERSION_MAJOR": "0",
+        "CARGO_PKG_VERSION_MINOR": "16",
+        "CARGO_PKG_VERSION_PATCH": "2",
+    },
+    features = [
+        "arc-swap",
+        "backend-atomic",
+        "backend-bitmap",
+        "backend-mmap",
+        "default",
+        "rawfd",
+    ],
+    visibility = [],
+    deps = [
+        ":arc-swap-1.8.0",
+        ":libc-0.2.180",
+        ":thiserror-2.0.17",
+    ],
+)
+
 alias(
     name = "vm-superio",
     actual = ":vm-superio-0.8.1",
@@ -8406,6 +8513,8 @@ rust_library(
         "simd",
         "zerocopy-derive",
     ],
+    # For Rust < 1.89, disable AVX512 SIMD types (requires unstable stdarch_x86_avx512)
+    rustc_flags = ["--cfg=no_zerocopy_simd_x86_avx12_1_89_0"],
     visibility = [],
     deps = [":zerocopy-derive-0.8.33"],
 )

@@ -1,18 +1,18 @@
 # AWS-LC prebuilt library from Nix
 # The library is built via Nix and lives in the Nix store
-# We create symlinks to the actual library files
-# AWS_LC_LIB_DIR is set by the flake.nix shell
+# Path from: nix-build -E 'with import <nixpkgs> {}; callPackage ./nix/packages/aws-lc-sys.nix {}'
+#
+# NOTE: We only build libcrypto (not libssl) because:
+# - libssl requires C++ and has libc++/musl compatibility issues
+# - aws-lc-rs only uses crypto primitives, not SSL/TLS
+# - Firecracker's TLS is handled by rustls, not aws-lc's SSL
+
+load("//vendor:nix-deps.bzl", "AWS_LC_LIB")
 
 genrule(
     name = "aws-lc-crypto-lib",
-    cmd = "ln -s $AWS_LC_LIB_DIR/libaws_lc_0_35_0_crypto.a \"$OUT\"",
+    cmd = "ln -s " + AWS_LC_LIB + "/libaws_lc_0_35_0_crypto.a \"$OUT\"",
     out = "libaws_lc_0_35_0_crypto.a",
-)
-
-genrule(
-    name = "aws-lc-ssl-lib",
-    cmd = "ln -s $AWS_LC_LIB_DIR/libaws_lc_0_35_0_ssl.a \"$OUT\"",
-    out = "libaws_lc_0_35_0_ssl.a",
 )
 
 prebuilt_cxx_library(
@@ -22,19 +22,12 @@ prebuilt_cxx_library(
     visibility = ["PUBLIC"],
 )
 
-prebuilt_cxx_library(
-    name = "aws-lc-ssl", 
-    static_lib = ":aws-lc-ssl-lib",
-    preferred_linkage = "static",
-    visibility = ["PUBLIC"],
-)
-
 # Combined target for aws-lc-sys to link against
+# Only crypto is needed - SSL/TLS is handled by rustls
 cxx_library(
     name = "aws-lc",
     exported_deps = [
         ":aws-lc-crypto",
-        ":aws-lc-ssl",
     ],
     visibility = ["PUBLIC"],
 )

@@ -17,7 +17,7 @@ rust_library(
         "//vendor/isospin/third-party/rust:thiserror",
         "//vendor/isospin/third-party/rust:zerocopy",
         # Link against static libseccomp for FFI bindings in bindings.rs
-        "//third-party/rust/libseccomp:libseccomp",
+        "//vendor/isospin/third-party/rust/libseccomp:libseccomp",
     ],
     visibility = ["PUBLIC"],
 )

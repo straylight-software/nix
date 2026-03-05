@@ -122,3 +122,126 @@ cxx_binary(
         ":cli",
     ],
 )
+
+# CLI library with embedded firecracker guest
+cxx_library(
+    name = "cli_embedded",
+
+    srcs = [
+        "add-to-store.cpp",
+        "app.cpp",
+        "build.cpp",
+        "bundle.cpp",
+        "cat.cpp",
+        "config-check.cpp",
+        "config.cpp",
+        "copy.cpp",
+        "crash-handler.cpp",
+        "derivation-add.cpp",
+        "derivation.cpp",
+        "derivation-show.cpp",
+        "develop.cpp",
+        "diff-closures.cpp",
+        "dump-path.cpp",
+        "edit.cpp",
+        "env.cpp",
+        "eval.cpp",
+        "flake.cpp",
+        "flake-prefetch-inputs.cpp",
+        "formatter.cpp",
+        "hash.cpp",
+        "log.cpp",
+        "ls.cpp",
+        "make-content-addressed.cpp",
+        "man-pages.cpp",
+        "nar.cpp",
+        "nario.cpp",
+        "optimise-store.cpp",
+        "path-from-hash-part.cpp",
+        "path-info.cpp",
+        "prefetch.cpp",
+        "profile.cpp",
+        "ps.cpp",
+        "realisation.cpp",
+        "registry.cpp",
+        "repl.cpp",
+        "run.cpp",
+        "search.cpp",
+        "self-exe.cpp",
+        "sigs.cpp",
+        "store-copy-log.cpp",
+        "store.cpp",
+        "store-delete.cpp",
+        "store-gc.cpp",
+        "store-info.cpp",
+        "store-repair.cpp",
+        "upgrade-nix.cpp",
+        "verify.cpp",
+        "why-depends.cpp",
+
+        # Legacy command support
+        "nix-env.cpp",
+        "nix-daemon.cpp",
+        "nix-store.cpp",
+        "nix-channel.cpp",
+        "build-remote.cpp",
+
+        # nix-env/
+        "nix-env/user-env.cpp",
+    ],
+
+    headers = [
+        "crash-handler.h",
+        "flake-command.h",
+        "ls.h",
+        "man-pages.h",
+        "run.h",
+        "self-exe.h",
+
+        # nix-env/
+        "nix-env/user-env.h",
+    ],
+
+    header_namespace = "nix/cli",
+
+    visibility = ["PUBLIC"],
+
+    link_whole = True,
+
+    exported_deps = [
+        "//src/nix/util:util",
+        "//src/nix/store:store",
+        "//src/nix/fetchers:fetchers",
+        "//src/nix/expr:expr",
+        "//src/nix/flake:flake",
+        "//src/nix/main:main",
+        "//src/nix/cmd:cmd",
+        # Straylight two-tier store adapter with embedded firecracker
+        "//src/straylight/nix/adapters:store_adapter_embedded",
+    ],
+)
+
+# Nix binary with embedded firecracker guest (self-contained builds)
+cxx_binary(
+    name = "nix-embedded",
+    srcs = ["main.cpp"],
+    headers = [
+        "cli-config-private.h",
+        "crash-handler.h",
+        "generate-manpage.nix.gen.h",
+        "generate-settings.nix.gen.h",
+        "generate-store-info.nix.gen.h",
+        "help.md",
+        "help-stores.md.gen.h",
+        "nix.md",
+        "utils.nix.gen.h",
+    ],
+    compiler_flags = [
+        "-DNIX_CLI_VERSION=\"2.29.0\"",
+    ],
+    visibility = ["PUBLIC"],
+    deps = [
+        "//vendor:mimalloc",
+        ":cli_embedded",
+    ],
+)

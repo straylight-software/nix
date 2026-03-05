@@ -1,0 +1,83 @@
+# src/straylight/nix/vmm-ffi/BUCK
+#
+# C FFI wrapper for Firecracker VMM library.
+# Builds as a static library that can be linked into C++ code.
+
+# Build the Rust library (rlib for now, we'll link via prebuilt_rust_library)
+#
+# NOTE: Full VMM integration is blocked on fixing isospin proc-macro linking
+# with musl toolchain. See: proc-macro needs libgcc_s which musl doesn't provide.
+#
+# For now, this is a stub that builds without the actual vmm dep.
+# Once the toolchain issue is fixed, uncomment the vmm deps below.
+rust_library(
+    name = "vmm_ffi",
+    srcs = ["src/lib.rs"],
+    crate = "vmm_ffi",
+    crate_root = "src/lib.rs",
+    edition = "2024",
+    deps = [
+        "//vendor/isospin:vmm",
+        "//vendor/isospin:utils",
+        "//vendor/isospin/third-party/rust:event-manager",
+        "//vendor/isospin/third-party/rust:libc",
+        "//vendor/isospin/third-party/rust:log",
+        "//vendor/isospin/third-party/rust:serde_json",
+        "//vendor/isospin/third-party/rust:zstd",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+# Unit tests for vmm-ffi (bus routing, MMIO transport)
+rust_test(
+    name = "vmm_ffi_test",
+    srcs = ["src/lib.rs"],
+    crate = "vmm_ffi",
+    crate_root = "src/lib.rs",
+    edition = "2024",
+    deps = [
+        "//vendor/isospin:vmm",
+        "//vendor/isospin:utils",
+        "//vendor/isospin/third-party/rust:event-manager",
+        "//vendor/isospin/third-party/rust:libc",
+        "//vendor/isospin/third-party/rust:log",
+        "//vendor/isospin/third-party/rust:serde_json",
+        "//vendor/isospin/third-party/rust:zstd",
+    ],
+)
+
+# Export the C header
+export_file(
+    name = "vmm_ffi.h",
+    src = "vmm_ffi.h",
+    visibility = ["PUBLIC"],
+)
+
+# Test binary for booting a VM
+rust_binary(
+    name = "boot_test",
+    srcs = ["examples/boot_test.rs"],
+    crate_root = "examples/boot_test.rs",
+    edition = "2024",
+    deps = [
+        ":vmm_ffi",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+# Integration test: Multi-device VM (2 block + vsock)
+# Tests that all virtio devices are properly registered on MMIO bus
+rust_binary(
+    name = "multi_device_test",
+    srcs = ["examples/multi_device_test.rs"],
+    crate_root = "examples/multi_device_test.rs",
+    edition = "2024",
+    deps = [
+        ":vmm_ffi",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+# Generate C header from Rust FFI
+# TODO: Use cbindgen to auto-generate header
+# For now, we manually maintain vmm_ffi.h

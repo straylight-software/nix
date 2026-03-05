@@ -9,7 +9,7 @@ extra_srcs = ["src/x86_64_unknown_linux_gnu_crypto.rs"]
 cfgs = ["x86_64_unknown_linux_gnu"]
 
 # Link with the Nix-built aws-lc library
-extra_deps = ["//third-party/rust/aws-lc:aws-lc"]
+extra_deps = ["//vendor/isospin/third-party/rust/aws-lc:aws-lc"]
 
 # Also need to export some env variables that the code expects
 [env]

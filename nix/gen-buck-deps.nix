@@ -12,6 +12,9 @@
 {
   pkgs ? import <nixpkgs> { },
   libmodern,
+  isospinRustVendor ? null,
+  awsLcSys ? pkgs.callPackage ./packages/aws-lc-sys.nix { inherit isospinRustVendor; },
+  firecrackerGuest ? (import ./vm/guest.nix { inherit pkgs; }).firecracker-guest,
 }:
 let
   deps = import ./deps.nix {
@@ -124,6 +127,25 @@ let
     # ════════════════════════════════════════════════════════════════════════════
     MIMALLOC_STATIC_LIB = "${libPath s.mimalloc-static}/lib/libmimalloc.a"
     MIMALLOC_INCLUDE = "${devPath s.mimalloc-static}/include"
+
+    # ════════════════════════════════════════════════════════════════════════════
+    # AWS-LC - crypto library for aws-lc-rs (Firecracker TLS)
+    # ════════════════════════════════════════════════════════════════════════════
+    # Built from aws-lc-sys vendored source with version-prefixed symbols
+    AWS_LC_LIB = "${awsLcSys}/lib"
+
+    # ════════════════════════════════════════════════════════════════════════════
+    # zstd - compression library (for embedded kernel/initrd decompression)
+    # ════════════════════════════════════════════════════════════════════════════
+    ZSTD_STATIC_LIB = "${libPath s.zstd-static}/lib/libzstd.a"
+    ZSTD_INCLUDE = "${devPath s.zstd-static}/include"
+
+    # ════════════════════════════════════════════════════════════════════════════
+    # Firecracker guest - kernel and initrd for build VMs
+    # ════════════════════════════════════════════════════════════════════════════
+    # These are the raw artifacts; Buck2 genrules compress and convert to .o files
+    FIRECRACKER_VMLINUX = "${firecrackerGuest}/vmlinux"
+    FIRECRACKER_INITRD = "${firecrackerGuest}/initrd.img"
   '';
 in
 pkgs.writeText "nix-deps.bzl" content

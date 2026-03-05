@@ -18,11 +18,13 @@ fbcode_macros = none
 buck = none
 
 [parser]
-target_platform_detector_spec = target:root//...->prelude//platforms:default
+# Use musl target platform by default - required for Rust/C++ ABI compatibility
+# Rust libraries target x86_64-unknown-linux-musl to match C++ musl toolchain
+target_platform_detector_spec = target:root//...->toolchains//:musl
 
 [buck2]
 materializations = deferred
 digest_algorithms = BLAKE3
 
 [build]
-execution_platforms = toolchains//:local
+execution_platforms = toolchains//:musl

@@ -2,12 +2,107 @@
 #
 # Build service abstraction - delegates derivation building to backends
 
+load("//vendor:nix-deps.bzl", "FIRECRACKER_VMLINUX", "FIRECRACKER_INITRD")
+
 COMMON_FLAGS = [
     "-std=c++23",
     "-Wall",
     "-Wextra",
     "-Wpedantic",
 ]
+
+# C wrapper library for vmm_ffi header (allows including from C++)
+cxx_library(
+    name = "vmm_ffi_cxx",
+    exported_headers = {
+        "vmm_ffi.h": "//src/straylight/nix/vmm-ffi:vmm_ffi.h",
+    },
+    header_namespace = "straylight/nix/build",
+    deps = [
+        "//src/straylight/nix/vmm-ffi:vmm_ffi",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+# Embedded guest data (stub version - no embedded kernel/initrd)
+# For the full version with embedded data, use :embedded_guest_full
+cxx_library(
+    name = "embedded_guest",
+    srcs = ["embedded_guest_stub.cpp"],
+    exported_headers = ["embedded_guest.h"],
+    header_namespace = "straylight/nix/build",
+    compiler_flags = COMMON_FLAGS,
+    visibility = ["PUBLIC"],
+)
+
+# ════════════════════════════════════════════════════════════════════════════
+# Guest data embedding pipeline (automated from Nix artifacts)
+# ════════════════════════════════════════════════════════════════════════════
+# Step 1: Compress kernel with zstd -19 (84MB -> 15MB)
+genrule(
+    name = "vmlinux_zst",
+    cmd = "zstd -19 -f -o \"$OUT\" " + FIRECRACKER_VMLINUX,
+    out = "vmlinux.zst",
+)
+
+# Step 2: Convert compressed kernel to linkable object file
+# objcopy creates symbols based on input filename, so we copy to a simple name first
+# Creates symbols: _binary_vmlinux_zst_start, _binary_vmlinux_zst_end, _binary_vmlinux_zst_size
+genrule(
+    name = "vmlinux_obj",
+    cmd = "mkdir -p $BUCK_SCRATCH_PATH && " +
+          "cp \"$(location :vmlinux_zst)\" $BUCK_SCRATCH_PATH/vmlinux.zst && " +
+          "cd $BUCK_SCRATCH_PATH && " +
+          "objcopy -I binary -O elf64-x86-64 " +
+          "--rename-section .data=.rodata,alloc,load,readonly,data,contents " +
+          "vmlinux.zst vmlinux.o && " +
+          "mv vmlinux.o \"$OLDPWD/$OUT\"",
+    out = "vmlinux.o",
+)
+
+# Step 3: Convert initrd to linkable object file (already gzip compressed in Nix build)
+# Creates symbols: _binary_initrd_img_start, _binary_initrd_img_end, _binary_initrd_img_size
+genrule(
+    name = "initrd_obj",
+    cmd = "mkdir -p $BUCK_SCRATCH_PATH && " +
+          "cp " + FIRECRACKER_INITRD + " $BUCK_SCRATCH_PATH/initrd.img && " +
+          "cd $BUCK_SCRATCH_PATH && " +
+          "objcopy -I binary -O elf64-x86-64 " +
+          "--rename-section .data=.rodata,alloc,load,readonly,data,contents " +
+          "initrd.img initrd.o && " +
+          "mv initrd.o \"$OLDPWD/$OUT\"",
+    out = "initrd.o",
+)
+
+# Prebuilt libraries wrapping the generated object files
+prebuilt_cxx_library(
+    name = "vmlinux_data",
+    static_lib = ":vmlinux_obj",
+    preferred_linkage = "static",
+    visibility = ["PUBLIC"],
+)
+
+prebuilt_cxx_library(
+    name = "initrd_data",
+    static_lib = ":initrd_obj",
+    preferred_linkage = "static",
+    visibility = ["PUBLIC"],
+)
+
+# Embedded guest data (full version - with embedded kernel/initrd)
+# Use this for self-contained firecracker builds without external files
+cxx_library(
+    name = "embedded_guest_full",
+    srcs = ["embedded_guest_data.cpp"],
+    exported_headers = ["embedded_guest.h"],
+    header_namespace = "straylight/nix/build",
+    compiler_flags = COMMON_FLAGS + ["-DSTRAYLIGHT_EMBED_GUEST_DATA"],
+    deps = [
+        ":vmlinux_data",
+        ":initrd_data",
+    ],
+    visibility = ["PUBLIC"],
+)
 
 cxx_library(
     name = "build_service",
@@ -24,6 +119,32 @@ cxx_library(
     header_namespace = "straylight/nix/build",
     compiler_flags = COMMON_FLAGS,
     deps = [
+        ":embedded_guest",
+        ":vmm_ffi_cxx",
+        "//src/nix/store:store",
+        "//src/nix/util:util",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+# Build service with embedded firecracker guest (self-contained builds)
+cxx_library(
+    name = "build_service_embedded",
+    srcs = [
+        "daemon_build_service.cpp",
+        "firecracker_build_service.cpp",
+        "reapi_build_service.cpp",
+        "vm_protocol.cpp",
+    ],
+    exported_headers = [
+        "build_service.h",
+        "vm_protocol.h",
+    ],
+    header_namespace = "straylight/nix/build",
+    compiler_flags = COMMON_FLAGS,
+    deps = [
+        ":embedded_guest_full",
+        ":vmm_ffi_cxx",
         "//src/nix/store:store",
         "//src/nix/util:util",
     ],

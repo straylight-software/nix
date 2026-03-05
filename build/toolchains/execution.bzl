@@ -10,6 +10,9 @@ def _lre_execution_platform_impl(ctx: AnalysisContext) -> list[Provider]:
     constraints = dict()
     constraints.update(ctx.attrs.cpu_configuration[ConfigurationInfo].constraints)
     constraints.update(ctx.attrs.os_configuration[ConfigurationInfo].constraints)
+    # Add ABI constraint if specified (e.g., for musl static linking)
+    if ctx.attrs.abi_configuration:
+        constraints.update(ctx.attrs.abi_configuration[ConfigurationInfo].constraints)
     cfg = ConfigurationInfo(constraints = constraints, values = {})
 
     name = ctx.label.raw_target()
@@ -54,6 +57,7 @@ lre_execution_platform = rule(
     attrs = {
         "cpu_configuration": attrs.dep(providers = [ConfigurationInfo]),
         "os_configuration": attrs.dep(providers = [ConfigurationInfo]),
+        "abi_configuration": attrs.option(attrs.dep(providers = [ConfigurationInfo]), default = None),
         "local_enabled": attrs.bool(default = True),
         "remote_enabled": attrs.bool(default = True),
     },

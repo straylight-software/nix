@@ -114,6 +114,49 @@ let
           echo "Patched linux-loader-0.13.2 for vm-memory 0.18"
         fi
 
+        # vm-memory-0.17.2: Export both GuestMemoryBackend AND the new GuestMemory trait
+        # The shim aliases GuestMemoryBackend as GuestMemory for compat.
+        # We also need to export the NEW GuestMemory trait as IommuMemory for code that
+        # needs to call physical_memory()
+        if [ -d $out/vm-memory-0.17.2 ]; then
+          # In guest_memory.rs, export GuestMemoryBackend and GuestMemory (new) as IommuMemory
+          ${sed} -i 's/GuestMemoryBackend as GuestMemory,$/GuestMemoryBackend as GuestMemory, GuestMemoryBackend, GuestMemory as IommuMemory,/g' \
+            $out/vm-memory-0.17.2/src/guest_memory.rs
+          # In lib.rs, re-export these
+          ${sed} -i 's/Error as GuestMemoryError, FileOffset, GuestAddress, GuestAddressSpace, GuestMemory,$/Error as GuestMemoryError, FileOffset, GuestAddress, GuestAddressSpace, GuestMemory, GuestMemoryBackend, IommuMemory,/g' \
+            $out/vm-memory-0.17.2/src/lib.rs
+          echo "Patched vm-memory-0.17.2 to export GuestMemoryBackend and IommuMemory"
+        fi
+
+        # vhost-0.15.0: Use physical_memory() to access GuestMemoryBackend methods
+        # The issue is GuestAddressSpace::M implements the NEW GuestMemory trait (IommuMemory),
+        # but the methods address_in_range() and get_host_address() are on GuestMemoryBackend.
+        # The blanket impl means any GuestMemoryBackend also implements IommuMemory with
+        # physical_memory() returning Some(self).
+        if [ -d $out/vhost-0.15.0 ]; then
+          # Import IommuMemory for physical_memory() access
+          ${sed} -i 's/use vm_memory::{Address, GuestAddress, GuestAddressSpace, GuestMemory, GuestUsize};/use vm_memory::{Address, GuestAddress, GuestAddressSpace, GuestMemory, GuestUsize, IommuMemory};/g' \
+            $out/vhost-0.15.0/src/vhost_kern/mod.rs
+
+          # Patch is_valid(): Replace m.address_in_range(v) with IommuMemory::physical_memory(&*m).unwrap().address_in_range(v)
+          ${sed} -i 's/!m\.address_in_range(v)/!IommuMemory::physical_memory(\&*m).unwrap().address_in_range(v)/g' \
+            $out/vhost-0.15.0/src/vhost_kern/mod.rs
+
+          # Patch to_vhost_vring_addr(): Need to get physical memory first
+          # Original: mem.memory().get_host_address(GuestAddress(...))
+          # New: IommuMemory::physical_memory(&*mem.memory()).unwrap().get_host_address(GuestAddress(...))
+          
+          # Use perl for multi-line replacements - need -0777 to slurp whole file
+          perl -i -0777 -pe 's/let desc_addr = mem\n            \.memory\(\)\n            \.get_host_address/let desc_addr = IommuMemory::physical_memory(\&*mem.memory()).unwrap()\n            .get_host_address/g' \
+            $out/vhost-0.15.0/src/vhost_kern/mod.rs
+          perl -i -0777 -pe 's/let avail_addr = mem\n            \.memory\(\)\n            \.get_host_address/let avail_addr = IommuMemory::physical_memory(\&*mem.memory()).unwrap()\n            .get_host_address/g' \
+            $out/vhost-0.15.0/src/vhost_kern/mod.rs
+          perl -i -0777 -pe 's/let used_addr = mem\n            \.memory\(\)\n            \.get_host_address/let used_addr = IommuMemory::physical_memory(\&*mem.memory()).unwrap()\n            .get_host_address/g' \
+            $out/vhost-0.15.0/src/vhost_kern/mod.rs
+
+          echo "Patched vhost-0.15.0 for vm-memory 0.18"
+        fi
+
         # Apply overlay files from fixups
         if [ -d "$fixupsDir" ]; then
           for fixup in $fixupsDir/*/overlay; do

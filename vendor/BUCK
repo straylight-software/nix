@@ -405,21 +405,23 @@ nix_prebuilt_cxx_library(
 # Isospin microVM (Firecracker + GPU broker)
 # ═══════════════════════════════════════════════════════════════════════════════
 
+# TODO: Firecracker requires Rust toolchain with musl support.
+# Stubbed out until Rust toolchain is properly configured.
 # Firecracker VMM - for sandboxed build execution
-alias(
-    name = "firecracker",
-    actual = "//vendor/isospin:firecracker",
-    visibility = ["PUBLIC"],
-)
-
-alias(
-    name = "firecracker_lib",
-    actual = "//vendor/isospin:firecracker_lib",
-    visibility = ["PUBLIC"],
-)
-
-alias(
-    name = "vmm",
-    actual = "//vendor/isospin:vmm",
-    visibility = ["PUBLIC"],
-)
+# alias(
+#     name = "firecracker",
+#     actual = "//vendor/isospin:firecracker",
+#     visibility = ["PUBLIC"],
+# )
+#
+# alias(
+#     name = "firecracker_lib",
+#     actual = "//vendor/isospin:firecracker_lib",
+#     visibility = ["PUBLIC"],
+# )
+#
+# alias(
+#     name = "vmm",
+#     actual = "//vendor/isospin:vmm",
+#     visibility = ["PUBLIC"],
+# )

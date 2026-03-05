@@ -1,0 +1,14 @@
+# wasmtime - WebAssembly runtime (prebuilt C API)
+# Static linking requires: -lpthread -ldl -lm
+
+prebuilt_cxx_library(
+    name = "wasmtime",
+    static_lib = "lib/libwasmtime.a",
+    exported_headers = subdir_glob([
+        ("include", "**/*.h"),
+        ("include", "**/*.hh"),
+    ]),
+    header_namespace = "",
+    exported_linker_flags = ["-lpthread", "-ldl", "-lm"],
+    visibility = ["PUBLIC"],
+)

@@ -97,7 +97,7 @@ def _llvm_toolchain_impl(ctx: AnalysisContext) -> list[Provider]:
         include_flags.append("-isystem" + musl_include)
 
     # ════════════════════════════════════════════════════════════════════════════
-    # Build link flags from config paths (musl static linking)
+    # Build link flags from config paths
     # ════════════════════════════════════════════════════════════════════════════
     # Get the bin directory from the linker path for -B
     # NOTE: -B must come BEFORE -fuse-ld so clang knows where to find lld
@@ -107,8 +107,32 @@ def _llvm_toolchain_impl(ctx: AnalysisContext) -> list[Provider]:
         extra_link_flags.append("-B" + llvm_bin_dir)
     extra_link_flags.append("-fuse-ld=lld")
 
-    # Musl static linking - no rpath needed
-    # musl_gcc_lib: contains libstdc++.a (C++ standard library)
+    # ────────────────────────────────────────────────────────────────────────────
+    # GLIBC paths (for Rust proc-macros / dynamic .so files)
+    # ────────────────────────────────────────────────────────────────────────────
+    # Proc-macros are compiler plugins that MUST be dynamically linked .so files.
+    # They run inside rustc which is glibc-based, so they must link against glibc.
+    # We add glibc paths BEFORE musl paths so linker finds glibc's libc.so first.
+    # The rpath ensures the .so can find glibc at runtime when loaded by rustc.
+    glibc_lib = read_root_config("cxx", "glibc_lib", None)
+    glibc_gcc_lib = read_root_config("cxx", "glibc_gcc_lib", None)
+    
+    if glibc_lib:
+        extra_link_flags.append("-L" + glibc_lib)
+        # Rpath so .so files can find glibc at runtime
+        extra_link_flags.append("-Wl,-rpath," + glibc_lib)
+    
+    if glibc_gcc_lib:
+        extra_link_flags.append("-L" + glibc_gcc_lib)
+        # Rpath for libgcc_s.so
+        extra_link_flags.append("-Wl,-rpath," + glibc_gcc_lib)
+
+    # ────────────────────────────────────────────────────────────────────────────
+    # Musl paths (for static linking)
+    # ────────────────────────────────────────────────────────────────────────────
+    # These come AFTER glibc paths. For static builds (-static flag present),
+    # linker will use static archives (.a files). For dynamic builds (proc-macros),
+    # glibc's libc.so will be found first due to search order above.
     musl_gcc_lib = read_root_config("cxx", "musl_gcc_lib", None)
     if musl_gcc_lib:
         extra_link_flags.append("-L" + musl_gcc_lib)
@@ -132,7 +156,12 @@ def _llvm_toolchain_impl(ctx: AnalysisContext) -> list[Provider]:
     c_flags = include_flags + config_c_flags + ctx.attrs.c_extra_flags
     cxx_flags = include_flags + config_cxx_flags + ctx.attrs.cxx_extra_flags
     # Link flags: extra (glibc, gcc_lib) + config (Nix dep -L paths) + attrs (project-specific)
-    link_flags = extra_link_flags + config_link_flags + ctx.attrs.link_flags
+    # NOTE: We filter out "-static" from linker_flags and move it to binary_linker_flags.
+    # This is critical for Rust proc-macro builds which MUST produce dynamic .so files.
+    # The -static flag prevents dynamic linking which breaks proc-macros.
+    all_link_flags = extra_link_flags + config_link_flags + ctx.attrs.link_flags
+    link_flags = [f for f in all_link_flags if f != "-static"]
+    binary_link_flags = ["-static"] if "-static" in all_link_flags else []
 
     # ════════════════════════════════════════════════════════════════════════════
     # Build the toolchain provider
@@ -144,6 +173,7 @@ def _llvm_toolchain_impl(ctx: AnalysisContext) -> list[Provider]:
             linker_info = LinkerInfo(
                 linker = _run_info(cxx),
                 linker_flags = link_flags,
+                binary_linker_flags = binary_link_flags,
                 post_linker_flags = [],
                 archiver = _run_info(ar),
                 archiver_type = "gnu",

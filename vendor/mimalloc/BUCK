@@ -1,0 +1,47 @@
+# mimalloc - fast allocator
+# Built with Buck2 for musl static linking
+
+cxx_library(
+    name = "mimalloc",
+    srcs = [
+        "src/alloc.c",
+        "src/alloc-aligned.c",
+        "src/alloc-posix.c",
+        "src/arena.c",
+        "src/bitmap.c",
+        "src/free.c",
+        "src/heap.c",
+        "src/init.c",
+        "src/libc.c",
+        "src/options.c",
+        "src/os.c",
+        "src/page.c",
+        "src/page-queue.c",
+        "src/random.c",
+        "src/segment.c",
+        "src/segment-map.c",
+        "src/stats.c",
+        "src/prim/prim.c",
+    ],
+    exported_headers = {
+        "mimalloc.h": "include/mimalloc.h",
+        "mimalloc-override.h": "include/mimalloc-override.h",
+        "mimalloc-new-delete.h": "include/mimalloc-new-delete.h",
+    },
+    headers = glob(["include/mimalloc/*.h"]),
+    header_namespace = "",
+    compiler_flags = [
+        "-std=c11",
+        "-O3",
+        "-w",
+        "-DMI_STATIC_LIB",
+        "-DMI_MALLOC_OVERRIDE",
+        # Disable fortify source to avoid __memcpy_chk
+        "-U_FORTIFY_SOURCE",
+        "-D_FORTIFY_SOURCE=0",
+    ],
+    # Link flags to ensure mimalloc overrides malloc
+    exported_linker_flags = ["-Wl,--whole-archive", "-lpthread"],
+    preferred_linkage = "static",
+    visibility = ["PUBLIC"],
+)

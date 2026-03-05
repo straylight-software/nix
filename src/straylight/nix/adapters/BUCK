@@ -69,6 +69,41 @@ cxx_library(
     ],
 )
 
+# Store adapter with embedded firecracker guest (self-contained)
+cxx_library(
+    name = "store_adapter_embedded",
+
+    srcs = [
+        "store_adapter.cpp",
+    ],
+
+    exported_headers = [
+        "store_adapter.h",
+    ],
+
+    header_namespace = "straylight/nix/adapters",
+
+    visibility = ["PUBLIC"],
+
+    # Preserve static initializer that registers "straylight://" URI scheme
+    link_whole = True,
+
+    compiler_flags = [
+        "-std=c++23",
+    ],
+
+    exported_deps = [
+        "//src/nix/store:store",
+        "//src/straylight/nix/store:two_tier_store",
+    ],
+
+    deps = [
+        "//src/nix/util:util",
+        "//src/straylight/nix/build:build_service_embedded",
+        "//src/straylight/nix/core:component",
+    ],
+)
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Eval adapter (straylight evaluator -> nix CLI compatible interface)
 # ─────────────────────────────────────────────────────────────────────────────
