@@ -36,31 +36,31 @@ use crate::devices::virtio::queue::{InvalidAvailIdx, QueueError};
 /// Enum representing the Net device queue types
 #[derive(Debug)]
 pub enum NetQueue {
-    /// The RX queue
-    Rx,
-    /// The TX queue
-    Tx,
+  /// The RX queue
+  Rx,
+  /// The TX queue
+  Tx,
 }
 
 /// Errors the network device can trigger.
 #[derive(Debug, thiserror::Error, displaydoc::Display)]
 pub enum NetError {
-    /// Open tap device failed: {0}
-    TapOpen(TapError),
-    /// Setting vnet header size failed: {0}
-    TapSetVnetHdrSize(TapError),
-    /// EventFd error: {0}
-    EventFd(io::Error),
-    /// IO error: {0}
-    IO(io::Error),
-    /// Error writing in guest memory: {0}
-    GuestMemoryError(#[from] VolatileMemoryError),
-    /// The VNET header is missing from the frame
-    VnetHeaderMissing,
-    /// IoVecBuffer(Mut) error: {0}
-    IoVecError(#[from] IoVecError),
-    /// virtio queue error: {0}
-    QueueError(#[from] QueueError),
-    /// {0}
-    InvalidAvailIdx(#[from] InvalidAvailIdx),
+  /// Open tap device failed: {0}
+  TapOpen(TapError),
+  /// Setting vnet header size failed: {0}
+  TapSetVnetHdrSize(TapError),
+  /// EventFd error: {0}
+  EventFd(io::Error),
+  /// IO error: {0}
+  IO(io::Error),
+  /// Error writing in guest memory: {0}
+  GuestMemoryError(#[from] VolatileMemoryError),
+  /// The VNET header is missing from the frame
+  VnetHeaderMissing,
+  /// IoVecBuffer(Mut) error: {0}
+  IoVecError(#[from] IoVecError),
+  /// virtio queue error: {0}
+  QueueError(#[from] QueueError),
+  /// {0}
+  InvalidAvailIdx(#[from] InvalidAvailIdx),
 }

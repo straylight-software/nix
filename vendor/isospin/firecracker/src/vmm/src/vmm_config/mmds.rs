@@ -11,34 +11,34 @@ use crate::mmds::data_store::MmdsVersion;
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct MmdsConfig {
-    /// MMDS version.
-    #[serde(default)]
-    pub version: MmdsVersion,
-    /// Network interfaces that allow forwarding packets to MMDS.
-    pub network_interfaces: Vec<String>,
-    /// MMDS IPv4 configured address.
-    pub ipv4_address: Option<Ipv4Addr>,
-    /// Compatibility with EC2 IMDS.
-    #[serde(default)]
-    pub imds_compat: bool,
+  /// MMDS version.
+  #[serde(default)]
+  pub version: MmdsVersion,
+  /// Network interfaces that allow forwarding packets to MMDS.
+  pub network_interfaces: Vec<String>,
+  /// MMDS IPv4 configured address.
+  pub ipv4_address: Option<Ipv4Addr>,
+  /// Compatibility with EC2 IMDS.
+  #[serde(default)]
+  pub imds_compat: bool,
 }
 
 impl MmdsConfig {
-    /// Returns the MMDS version configured.
-    pub fn version(&self) -> MmdsVersion {
-        self.version
-    }
+  /// Returns the MMDS version configured.
+  pub fn version(&self) -> MmdsVersion {
+    self.version
+  }
 
-    /// Returns the network interfaces that accept MMDS requests.
-    pub fn network_interfaces(&self) -> Vec<String> {
-        self.network_interfaces.clone()
-    }
+  /// Returns the network interfaces that accept MMDS requests.
+  pub fn network_interfaces(&self) -> Vec<String> {
+    self.network_interfaces.clone()
+  }
 
-    /// Returns the MMDS IPv4 address if one was configured.
-    /// Otherwise returns None.
-    pub fn ipv4_addr(&self) -> Option<Ipv4Addr> {
-        self.ipv4_address
-    }
+  /// Returns the MMDS IPv4 address if one was configured.
+  /// Otherwise returns None.
+  pub fn ipv4_addr(&self) -> Option<Ipv4Addr> {
+    self.ipv4_address
+  }
 }
 
 /// MMDS configuration related errors.

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::custom_cpu_template::{
-    CpuidLeafModifier, CpuidRegister, CpuidRegisterModifier, RegisterModifier,
+  CpuidLeafModifier, CpuidRegister, CpuidRegisterModifier, RegisterModifier,
 };
 use crate::cpu_config::templates::{CustomCpuTemplate, RegisterValueFilter};
 use crate::cpu_config::x86_64::cpuid::KvmCpuidFlags;
@@ -111,58 +111,58 @@ pub const TEST_INVALID_TEMPLATE_JSON: &str = r#"{
 
 /// Builds a sample custom CPU template
 pub fn build_test_template() -> CustomCpuTemplate {
-    CustomCpuTemplate {
-        cpuid_modifiers: vec![CpuidLeafModifier {
-            leaf: 0x3,
-            subleaf: 0x0,
-            flags: KvmCpuidFlags(kvm_bindings::KVM_CPUID_FLAG_STATEFUL_FUNC),
-            modifiers: vec![
-                CpuidRegisterModifier {
-                    register: CpuidRegister::Eax,
-                    bitmap: RegisterValueFilter {
-                        filter: 0b0111,
-                        value: 0b0101,
-                    },
-                },
-                CpuidRegisterModifier {
-                    register: CpuidRegister::Ebx,
-                    bitmap: RegisterValueFilter {
-                        filter: 0b0111,
-                        value: 0b0100,
-                    },
-                },
-                CpuidRegisterModifier {
-                    register: CpuidRegister::Ecx,
-                    bitmap: RegisterValueFilter {
-                        filter: 0b0111,
-                        value: 0b0111,
-                    },
-                },
-                CpuidRegisterModifier {
-                    register: CpuidRegister::Edx,
-                    bitmap: RegisterValueFilter {
-                        filter: 0b0111,
-                        value: 0b0001,
-                    },
-                },
-            ],
-        }],
-        msr_modifiers: vec![
-            RegisterModifier {
-                addr: 0x9999,
-                bitmap: RegisterValueFilter {
-                    filter: 0,
-                    value: 0,
-                },
-            },
-            RegisterModifier {
-                addr: 0x8000,
-                bitmap: RegisterValueFilter {
-                    filter: 0,
-                    value: 0,
-                },
-            },
-        ],
-        ..Default::default()
-    }
+  CustomCpuTemplate {
+    cpuid_modifiers: vec![CpuidLeafModifier {
+      leaf: 0x3,
+      subleaf: 0x0,
+      flags: KvmCpuidFlags(kvm_bindings::KVM_CPUID_FLAG_STATEFUL_FUNC),
+      modifiers: vec![
+        CpuidRegisterModifier {
+          register: CpuidRegister::Eax,
+          bitmap: RegisterValueFilter {
+            filter: 0b0111,
+            value: 0b0101,
+          },
+        },
+        CpuidRegisterModifier {
+          register: CpuidRegister::Ebx,
+          bitmap: RegisterValueFilter {
+            filter: 0b0111,
+            value: 0b0100,
+          },
+        },
+        CpuidRegisterModifier {
+          register: CpuidRegister::Ecx,
+          bitmap: RegisterValueFilter {
+            filter: 0b0111,
+            value: 0b0111,
+          },
+        },
+        CpuidRegisterModifier {
+          register: CpuidRegister::Edx,
+          bitmap: RegisterValueFilter {
+            filter: 0b0111,
+            value: 0b0001,
+          },
+        },
+      ],
+    }],
+    msr_modifiers: vec![
+      RegisterModifier {
+        addr: 0x9999,
+        bitmap: RegisterValueFilter {
+          filter: 0,
+          value: 0,
+        },
+      },
+      RegisterModifier {
+        addr: 0x8000,
+        bitmap: RegisterValueFilter {
+          filter: 0,
+          value: 0,
+        },
+      },
+    ],
+    ..Default::default()
+  }
 }

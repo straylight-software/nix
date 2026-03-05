@@ -45,9 +45,213 @@ rust_test(
     ],
 )
 
+# Extracted snapshot module - serialization/deserialization for VM state snapshots
+rust_library(
+    name = "vmm_snapshot",
+    srcs = [
+        "src/snapshot/mod.rs",
+        "src/snapshot/crc.rs",
+        "src/snapshot/persist.rs",
+    ],
+    crate = "vmm_snapshot",
+    crate_root = "src/snapshot/mod.rs",
+    edition = "2024",
+    deps = [
+        "//vendor/isospin/third-party/rust:bincode",
+        "//vendor/isospin/third-party/rust:crc64",
+        "//vendor/isospin/third-party/rust:displaydoc",
+        "//vendor/isospin/third-party/rust:semver",
+        "//vendor/isospin/third-party/rust:serde",
+        "//vendor/isospin/third-party/rust:thiserror",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+rust_test(
+    name = "vmm_snapshot-test",
+    srcs = [
+        "src/snapshot/mod.rs",
+        "src/snapshot/crc.rs",
+        "src/snapshot/persist.rs",
+    ],
+    crate = "vmm_snapshot",
+    crate_root = "src/snapshot/mod.rs",
+    edition = "2024",
+    deps = [
+        "//vendor/isospin/third-party/rust:bincode",
+        "//vendor/isospin/third-party/rust:crc64",
+        "//vendor/isospin/third-party/rust:displaydoc",
+        "//vendor/isospin/third-party/rust:semver",
+        "//vendor/isospin/third-party/rust:serde",
+        "//vendor/isospin/third-party/rust:thiserror",
+    ],
+)
+
+# Extracted io_uring module - high-level interface over Linux io_uring
+rust_library(
+    name = "vmm_io_uring",
+    srcs = [
+        "src/io_uring/mod.rs",
+        "src/io_uring/generated.rs",
+        "src/io_uring/probe.rs",
+        "src/io_uring/restriction.rs",
+        "src/io_uring/operation/mod.rs",
+        "src/io_uring/operation/cqe.rs",
+        "src/io_uring/operation/sqe.rs",
+        "src/io_uring/queue/mod.rs",
+        "src/io_uring/queue/completion.rs",
+        "src/io_uring/queue/mmap.rs",
+        "src/io_uring/queue/submission.rs",
+    ],
+    crate = "vmm_io_uring",
+    crate_root = "src/io_uring/mod.rs",
+    edition = "2024",
+    deps = [
+        "//vendor/isospin/third-party/rust:displaydoc",
+        "//vendor/isospin/third-party/rust:libc",
+        "//vendor/isospin/third-party/rust:slab",
+        "//vendor/isospin/third-party/rust:thiserror",
+        "//vendor/isospin/third-party/rust:vm-memory",
+        "//vendor/isospin/third-party/rust:vmm-sys-util",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+rust_test(
+    name = "vmm_io_uring-test",
+    srcs = [
+        "src/io_uring/mod.rs",
+        "src/io_uring/generated.rs",
+        "src/io_uring/probe.rs",
+        "src/io_uring/restriction.rs",
+        "src/io_uring/operation/mod.rs",
+        "src/io_uring/operation/cqe.rs",
+        "src/io_uring/operation/sqe.rs",
+        "src/io_uring/queue/mod.rs",
+        "src/io_uring/queue/completion.rs",
+        "src/io_uring/queue/mmap.rs",
+        "src/io_uring/queue/submission.rs",
+    ],
+    crate = "vmm_io_uring",
+    crate_root = "src/io_uring/mod.rs",
+    edition = "2024",
+    deps = [
+        "//vendor/isospin/third-party/rust:displaydoc",
+        "//vendor/isospin/third-party/rust:libc",
+        "//vendor/isospin/third-party/rust:proptest",
+        "//vendor/isospin/third-party/rust:slab",
+        "//vendor/isospin/third-party/rust:thiserror",
+        "//vendor/isospin/third-party/rust:vm-memory",
+        "//vendor/isospin/third-party/rust:vmm-sys-util",
+    ],
+)
+
+# Extracted rate_limiter module - IO throttling rate limiter
+rust_library(
+    name = "vmm_rate_limiter",
+    srcs = [
+        "src/rate_limiter/mod.rs",
+        "src/rate_limiter/persist.rs",
+    ],
+    crate = "vmm_rate_limiter",
+    crate_root = "src/rate_limiter/mod.rs",
+    edition = "2024",
+    deps = [
+        ":vmm_snapshot",
+        "//vendor/isospin/firecracker/src/utils:utils",
+        "//vendor/isospin/third-party/rust:displaydoc",
+        "//vendor/isospin/third-party/rust:log",
+        "//vendor/isospin/third-party/rust:serde",
+        "//vendor/isospin/third-party/rust:thiserror",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+rust_test(
+    name = "vmm_rate_limiter-test",
+    srcs = [
+        "src/rate_limiter/mod.rs",
+        "src/rate_limiter/persist.rs",
+    ],
+    crate = "vmm_rate_limiter",
+    crate_root = "src/rate_limiter/mod.rs",
+    edition = "2024",
+    deps = [
+        ":vmm_snapshot",
+        "//vendor/isospin/firecracker/src/utils:utils",
+        "//vendor/isospin/third-party/rust:displaydoc",
+        "//vendor/isospin/third-party/rust:log",
+        "//vendor/isospin/third-party/rust:semver",
+        "//vendor/isospin/third-party/rust:serde",
+        "//vendor/isospin/third-party/rust:thiserror",
+    ],
+)
+
+# Extracted dumbo module - minimalist TCP/IP stack for MMDS
+rust_library(
+    name = "vmm_dumbo",
+    srcs = [
+        "src/dumbo/mod.rs",
+        "src/dumbo/pdu/mod.rs",
+        "src/dumbo/pdu/arp.rs",
+        "src/dumbo/pdu/bytes.rs",
+        "src/dumbo/pdu/ethernet.rs",
+        "src/dumbo/pdu/ipv4.rs",
+        "src/dumbo/pdu/tcp.rs",
+        "src/dumbo/pdu/udp.rs",
+        "src/dumbo/tcp/mod.rs",
+        "src/dumbo/tcp/connection.rs",
+        "src/dumbo/tcp/endpoint.rs",
+        "src/dumbo/tcp/handler.rs",
+    ],
+    crate = "vmm_dumbo",
+    crate_root = "src/dumbo/mod.rs",
+    edition = "2024",
+    deps = [
+        ":vmm_utils",
+        "//vendor/isospin/firecracker/src/utils:utils",
+        "//vendor/isospin/third-party/rust:bitflags",
+        "//vendor/isospin/third-party/rust:displaydoc",
+        "//vendor/isospin/third-party/rust:micro_http",
+        "//vendor/isospin/third-party/rust:thiserror",
+        "//vendor/isospin/third-party/rust:vmm-sys-util",
+    ],
+    visibility = ["PUBLIC"],
+)
+
+rust_test(
+    name = "vmm_dumbo-test",
+    srcs = [
+        "src/dumbo/mod.rs",
+        "src/dumbo/pdu/mod.rs",
+        "src/dumbo/pdu/arp.rs",
+        "src/dumbo/pdu/bytes.rs",
+        "src/dumbo/pdu/ethernet.rs",
+        "src/dumbo/pdu/ipv4.rs",
+        "src/dumbo/pdu/tcp.rs",
+        "src/dumbo/pdu/udp.rs",
+        "src/dumbo/tcp/mod.rs",
+        "src/dumbo/tcp/connection.rs",
+        "src/dumbo/tcp/endpoint.rs",
+        "src/dumbo/tcp/handler.rs",
+    ],
+    crate = "vmm_dumbo",
+    crate_root = "src/dumbo/mod.rs",
+    edition = "2024",
+    deps = [
+        ":vmm_utils",
+        "//vendor/isospin/firecracker/src/utils:utils",
+        "//vendor/isospin/third-party/rust:bitflags",
+        "//vendor/isospin/third-party/rust:displaydoc",
+        "//vendor/isospin/third-party/rust:micro_http",
+        "//vendor/isospin/third-party/rust:thiserror",
+        "//vendor/isospin/third-party/rust:vmm-sys-util",
+    ],
+)
+
 rust_library(
     name = "vmm",
-    srcs = glob(["src/**/*.rs"], exclude = ["src/utils/**/*.rs"]),
+    srcs = glob(["src/**/*.rs"], exclude = ["src/utils/**/*.rs", "src/snapshot/**/*.rs", "src/io_uring/**/*.rs", "src/rate_limiter/**/*.rs", "src/dumbo/**/*.rs"]),
     crate = "vmm",
     crate_root = "src/lib.rs",
     edition = "2024",
@@ -58,6 +262,10 @@ rust_library(
         "default",
     ],
     deps = [
+        ":vmm_dumbo",
+        ":vmm_io_uring",
+        ":vmm_rate_limiter",
+        ":vmm_snapshot",
         ":vmm_utils",
         "//vendor/isospin/firecracker/src/acpi-tables:acpi_tables",
         "//vendor/isospin/firecracker/src/pci:pci",
@@ -100,7 +308,7 @@ rust_library(
 
 rust_test(
     name = "vmm-test",
-    srcs = glob(["src/**/*.rs"], exclude = ["src/utils/**/*.rs"]),
+    srcs = glob(["src/**/*.rs"], exclude = ["src/utils/**/*.rs", "src/snapshot/**/*.rs", "src/io_uring/**/*.rs", "src/rate_limiter/**/*.rs", "src/dumbo/**/*.rs"]),
     crate = "vmm",
     crate_root = "src/lib.rs",
     edition = "2024",
@@ -111,6 +319,10 @@ rust_test(
         "default",
     ],
     deps = [
+        ":vmm_dumbo",
+        ":vmm_io_uring",
+        ":vmm_rate_limiter",
+        ":vmm_snapshot",
         ":vmm_utils",
         "//vendor/isospin/firecracker/src/acpi-tables:acpi_tables",
         "//vendor/isospin/firecracker/src/pci:pci",

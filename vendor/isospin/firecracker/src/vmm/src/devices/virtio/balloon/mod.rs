@@ -76,50 +76,50 @@ const VIRTIO_BALLOON_S_DIRECT_RECLAIM: u16 = 15;
 /// Balloon device related errors.
 #[derive(Debug, thiserror::Error, displaydoc::Display)]
 pub enum BalloonError {
-    /// Device not activated yet.
-    DeviceNotActive,
-    /// Attempting to use hinting when not enabled
-    HintingNotEnabled,
-    /// EventFd error: {0}
-    EventFd(std::io::Error),
-    /// Received error while sending an interrupt: {0}
-    InterruptError(InterruptError),
-    /// Guest gave us a malformed descriptor.
-    MalformedDescriptor,
-    /// Guest gave us a malformed payload.
-    MalformedPayload,
-    /// Error restoring the balloon device queues.
-    QueueRestoreError,
-    /// Received stats query when stats are disabled.
-    StatisticsDisabled,
-    /// Statistics cannot be enabled/disabled after activation.
-    StatisticsStateChange,
-    /// Requested memory should be less than {0}MiB
-    TooMuchMemoryRequested(u32),
-    /// Error while processing the virt queues: {0}
-    Queue(#[from] QueueError),
-    /// {0}
-    InvalidAvailIdx(#[from] InvalidAvailIdx),
+  /// Device not activated yet.
+  DeviceNotActive,
+  /// Attempting to use hinting when not enabled
+  HintingNotEnabled,
+  /// EventFd error: {0}
+  EventFd(std::io::Error),
+  /// Received error while sending an interrupt: {0}
+  InterruptError(InterruptError),
+  /// Guest gave us a malformed descriptor.
+  MalformedDescriptor,
+  /// Guest gave us a malformed payload.
+  MalformedPayload,
+  /// Error restoring the balloon device queues.
+  QueueRestoreError,
+  /// Received stats query when stats are disabled.
+  StatisticsDisabled,
+  /// Statistics cannot be enabled/disabled after activation.
+  StatisticsStateChange,
+  /// Requested memory should be less than {0}MiB
+  TooMuchMemoryRequested(u32),
+  /// Error while processing the virt queues: {0}
+  Queue(#[from] QueueError),
+  /// {0}
+  InvalidAvailIdx(#[from] InvalidAvailIdx),
 }
 
 #[derive(Debug, thiserror::Error, displaydoc::Display)]
 pub enum RemoveRegionError {
-    /// Address translation error.
-    AddressTranslation,
-    /// Malformed guest address range.
-    MalformedRange,
-    /// Error calling madvise: {0}
-    MadviseFail(std::io::Error),
-    /// Error calling mmap: {0}
-    MmapFail(std::io::Error),
-    /// Region not found.
-    RegionNotFound,
+  /// Address translation error.
+  AddressTranslation,
+  /// Malformed guest address range.
+  MalformedRange,
+  /// Error calling madvise: {0}
+  MadviseFail(std::io::Error),
+  /// Error calling mmap: {0}
+  MmapFail(std::io::Error),
+  /// Region not found.
+  RegionNotFound,
 }
 
 pub(super) fn report_balloon_event_fail(err: BalloonError) {
-    if let BalloonError::InvalidAvailIdx(err) = err {
-        panic!("{}", err);
-    }
-    error!("{:?}", err);
-    METRICS.event_fails.inc();
+  if let BalloonError::InvalidAvailIdx(err) = err {
+    panic!("{}", err);
+  }
+  error!("{:?}", err);
+  METRICS.event_fails.inc();
 }

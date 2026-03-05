@@ -24,7 +24,7 @@ const GICC_APR3: SimpleReg = SimpleReg::new(0x00D8, 4);
 const GICC_APR4: SimpleReg = SimpleReg::new(0x00DC, 4);
 
 static MAIN_VGIC_ICC_REGS: &[SimpleReg] = &[
-    GICC_CTLR, GICC_PMR, GICC_BPR, GICC_APBR, GICC_APR1, GICC_APR2, GICC_APR3, GICC_APR4,
+  GICC_CTLR, GICC_PMR, GICC_BPR, GICC_APBR, GICC_APR1, GICC_APR2, GICC_APR3, GICC_APR4,
 ];
 
 const KVM_DEV_ARM_VGIC_CPUID_SHIFT: u32 = 32;
@@ -33,95 +33,94 @@ const KVM_DEV_ARM_VGIC_OFFSET_SHIFT: u32 = 0;
 struct VgicSysRegEngine {}
 
 impl VgicRegEngine for VgicSysRegEngine {
-    type Reg = SimpleReg;
-    type RegChunk = u64;
+  type Reg = SimpleReg;
+  type RegChunk = u64;
 
-    fn group() -> u32 {
-        KVM_DEV_ARM_VGIC_GRP_CPU_REGS
-    }
+  fn group() -> u32 {
+    KVM_DEV_ARM_VGIC_GRP_CPU_REGS
+  }
 
-    fn kvm_device_attr(offset: u64, val: &mut Self::RegChunk, cpuid: u64) -> kvm_device_attr {
-        kvm_device_attr {
-            group: Self::group(),
-            attr: ((cpuid << KVM_DEV_ARM_VGIC_CPUID_SHIFT)
-                & (0xff << KVM_DEV_ARM_VGIC_CPUID_SHIFT))
-                | ((offset << KVM_DEV_ARM_VGIC_OFFSET_SHIFT)
-                    & (0xffffffff << KVM_DEV_ARM_VGIC_OFFSET_SHIFT)),
-            addr: val as *mut Self::RegChunk as u64,
-            flags: 0,
-        }
+  fn kvm_device_attr(offset: u64, val: &mut Self::RegChunk, cpuid: u64) -> kvm_device_attr {
+    kvm_device_attr {
+      group: Self::group(),
+      attr: ((cpuid << KVM_DEV_ARM_VGIC_CPUID_SHIFT) & (0xff << KVM_DEV_ARM_VGIC_CPUID_SHIFT))
+        | ((offset << KVM_DEV_ARM_VGIC_OFFSET_SHIFT)
+          & (0xffffffff << KVM_DEV_ARM_VGIC_OFFSET_SHIFT)),
+      addr: val as *mut Self::RegChunk as u64,
+      flags: 0,
     }
+  }
 }
 
 pub(crate) fn get_icc_regs(fd: &DeviceFd, mpidr: u64) -> Result<VgicSysRegsState, GicError> {
-    let main_icc_regs =
-        VgicSysRegEngine::get_regs_data(fd, Box::new(MAIN_VGIC_ICC_REGS.iter()), mpidr)?;
+  let main_icc_regs =
+    VgicSysRegEngine::get_regs_data(fd, Box::new(MAIN_VGIC_ICC_REGS.iter()), mpidr)?;
 
-    Ok(VgicSysRegsState {
-        main_icc_regs,
-        ap_icc_regs: Vec::new(),
-    })
+  Ok(VgicSysRegsState {
+    main_icc_regs,
+    ap_icc_regs: Vec::new(),
+  })
 }
 
 pub(crate) fn set_icc_regs(
-    fd: &DeviceFd,
-    mpidr: u64,
-    state: &VgicSysRegsState,
+  fd: &DeviceFd,
+  mpidr: u64,
+  state: &VgicSysRegsState,
 ) -> Result<(), GicError> {
-    VgicSysRegEngine::set_regs_data(
-        fd,
-        Box::new(MAIN_VGIC_ICC_REGS.iter()),
-        &state.main_icc_regs,
-        mpidr,
-    )?;
+  VgicSysRegEngine::set_regs_data(
+    fd,
+    Box::new(MAIN_VGIC_ICC_REGS.iter()),
+    &state.main_icc_regs,
+    mpidr,
+  )?;
 
-    Ok(())
+  Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::undocumented_unsafe_blocks)]
-    use std::os::unix::io::AsRawFd;
+  #![allow(clippy::undocumented_unsafe_blocks)]
+  use std::os::unix::io::AsRawFd;
 
-    use kvm_ioctls::Kvm;
+  use kvm_ioctls::Kvm;
 
-    use super::*;
-    use crate::arch::aarch64::gic::{GICVersion, GicError, create_gic};
+  use super::*;
+  use crate::arch::aarch64::gic::{GICVersion, GicError, create_gic};
 
-    #[test]
-    fn test_access_icc_regs() {
-        let kvm = Kvm::new().unwrap();
-        let vm = kvm.create_vm().unwrap();
-        let _ = vm.create_vcpu(0).unwrap();
-        let gic_fd = match create_gic(&vm, 1, Some(GICVersion::GICV2)) {
-            Ok(gic_fd) => gic_fd,
-            Err(GicError::CreateGIC(_)) => return,
-            _ => panic!("Failed to open setup GICv2"),
-        };
+  #[test]
+  fn test_access_icc_regs() {
+    let kvm = Kvm::new().unwrap();
+    let vm = kvm.create_vm().unwrap();
+    let _ = vm.create_vcpu(0).unwrap();
+    let gic_fd = match create_gic(&vm, 1, Some(GICVersion::GICV2)) {
+      Ok(gic_fd) => gic_fd,
+      Err(GicError::CreateGIC(_)) => return,
+      _ => panic!("Failed to open setup GICv2"),
+    };
 
-        let cpu_id = 0;
-        let res = get_icc_regs(gic_fd.device_fd(), cpu_id);
-        let state = res.unwrap();
-        assert_eq!(state.main_icc_regs.len(), 8);
-        assert_eq!(state.ap_icc_regs.len(), 0);
+    let cpu_id = 0;
+    let res = get_icc_regs(gic_fd.device_fd(), cpu_id);
+    let state = res.unwrap();
+    assert_eq!(state.main_icc_regs.len(), 8);
+    assert_eq!(state.ap_icc_regs.len(), 0);
 
-        set_icc_regs(gic_fd.device_fd(), cpu_id, &state).unwrap();
+    set_icc_regs(gic_fd.device_fd(), cpu_id, &state).unwrap();
 
-        unsafe { libc::close(gic_fd.device_fd().as_raw_fd()) };
+    unsafe { libc::close(gic_fd.device_fd().as_raw_fd()) };
 
-        let res = set_icc_regs(gic_fd.device_fd(), cpu_id, &state);
-        assert_eq!(
-            format!("{:?}", res.unwrap_err()),
-            "DeviceAttribute(Error(9), true, 2)"
-        );
+    let res = set_icc_regs(gic_fd.device_fd(), cpu_id, &state);
+    assert_eq!(
+      format!("{:?}", res.unwrap_err()),
+      "DeviceAttribute(Error(9), true, 2)"
+    );
 
-        let res = get_icc_regs(gic_fd.device_fd(), cpu_id);
-        assert_eq!(
-            format!("{:?}", res.unwrap_err()),
-            "DeviceAttribute(Error(9), false, 2)"
-        );
+    let res = get_icc_regs(gic_fd.device_fd(), cpu_id);
+    assert_eq!(
+      format!("{:?}", res.unwrap_err()),
+      "DeviceAttribute(Error(9), false, 2)"
+    );
 
-        // dropping gic_fd would double close the gic fd, so leak it
-        std::mem::forget(gic_fd);
-    }
+    // dropping gic_fd would double close the gic fd, so leak it
+    std::mem::forget(gic_fd);
+  }
 }

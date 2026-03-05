@@ -43,75 +43,75 @@ pub(super) static METRICS: BalloonDeviceMetrics = BalloonDeviceMetrics::new();
 
 /// Called by METRICS.flush(), this function facilitates serialization of balloon device metrics.
 pub fn flush_metrics<S: Serializer>(serializer: S) -> Result<S::Ok, S::Error> {
-    let mut seq = serializer.serialize_map(Some(1))?;
-    seq.serialize_entry("balloon", &METRICS)?;
-    seq.end()
+  let mut seq = serializer.serialize_map(Some(1))?;
+  seq.serialize_entry("balloon", &METRICS)?;
+  seq.end()
 }
 
 /// Balloon Device associated metrics.
 #[derive(Debug, Serialize)]
 pub(super) struct BalloonDeviceMetrics {
-    /// Number of times when activate failed on a balloon device.
-    pub activate_fails: SharedIncMetric,
-    /// Number of balloon device inflations.
-    pub inflate_count: SharedIncMetric,
-    // Number of balloon statistics updates from the driver.
-    pub stats_updates_count: SharedIncMetric,
-    // Number of balloon statistics update failures.
-    pub stats_update_fails: SharedIncMetric,
-    /// Number of balloon device deflations.
-    pub deflate_count: SharedIncMetric,
-    /// Number of times when handling events on a balloon device failed.
-    pub event_fails: SharedIncMetric,
-    /// Number of times when free page repoting was triggered
-    pub free_page_report_count: SharedIncMetric,
-    /// Total memory freed by the reporting driver
-    pub free_page_report_freed: SharedIncMetric,
-    /// Number of errors occurred while reporting
-    pub free_page_report_fails: SharedIncMetric,
-    /// Number of times when free page hinting was triggered
-    pub free_page_hint_count: SharedIncMetric,
-    /// Total memory freed by the hinting driver
-    pub free_page_hint_freed: SharedIncMetric,
-    /// Number of errors occurred while hinting
-    pub free_page_hint_fails: SharedIncMetric,
+  /// Number of times when activate failed on a balloon device.
+  pub activate_fails: SharedIncMetric,
+  /// Number of balloon device inflations.
+  pub inflate_count: SharedIncMetric,
+  // Number of balloon statistics updates from the driver.
+  pub stats_updates_count: SharedIncMetric,
+  // Number of balloon statistics update failures.
+  pub stats_update_fails: SharedIncMetric,
+  /// Number of balloon device deflations.
+  pub deflate_count: SharedIncMetric,
+  /// Number of times when handling events on a balloon device failed.
+  pub event_fails: SharedIncMetric,
+  /// Number of times when free page repoting was triggered
+  pub free_page_report_count: SharedIncMetric,
+  /// Total memory freed by the reporting driver
+  pub free_page_report_freed: SharedIncMetric,
+  /// Number of errors occurred while reporting
+  pub free_page_report_fails: SharedIncMetric,
+  /// Number of times when free page hinting was triggered
+  pub free_page_hint_count: SharedIncMetric,
+  /// Total memory freed by the hinting driver
+  pub free_page_hint_freed: SharedIncMetric,
+  /// Number of errors occurred while hinting
+  pub free_page_hint_fails: SharedIncMetric,
 }
 impl BalloonDeviceMetrics {
-    /// Const default construction.
-    const fn new() -> Self {
-        Self {
-            activate_fails: SharedIncMetric::new(),
-            inflate_count: SharedIncMetric::new(),
-            stats_updates_count: SharedIncMetric::new(),
-            stats_update_fails: SharedIncMetric::new(),
-            deflate_count: SharedIncMetric::new(),
-            event_fails: SharedIncMetric::new(),
-            free_page_report_count: SharedIncMetric::new(),
-            free_page_report_freed: SharedIncMetric::new(),
-            free_page_report_fails: SharedIncMetric::new(),
-            free_page_hint_count: SharedIncMetric::new(),
-            free_page_hint_freed: SharedIncMetric::new(),
-            free_page_hint_fails: SharedIncMetric::new(),
-        }
+  /// Const default construction.
+  const fn new() -> Self {
+    Self {
+      activate_fails: SharedIncMetric::new(),
+      inflate_count: SharedIncMetric::new(),
+      stats_updates_count: SharedIncMetric::new(),
+      stats_update_fails: SharedIncMetric::new(),
+      deflate_count: SharedIncMetric::new(),
+      event_fails: SharedIncMetric::new(),
+      free_page_report_count: SharedIncMetric::new(),
+      free_page_report_freed: SharedIncMetric::new(),
+      free_page_report_fails: SharedIncMetric::new(),
+      free_page_hint_count: SharedIncMetric::new(),
+      free_page_hint_freed: SharedIncMetric::new(),
+      free_page_hint_fails: SharedIncMetric::new(),
     }
+  }
 }
 
 #[cfg(test)]
 pub mod tests {
-    use super::*;
-    use crate::logger::IncMetric;
+  use super::*;
+  use crate::logger::IncMetric;
 
-    #[test]
-    #[ignore = "flaky - shared metrics state"]
-    fn test_balloon_dev_metrics() {
-        let balloon_metrics: BalloonDeviceMetrics = BalloonDeviceMetrics::new();
-        let balloon_metrics_local: String = serde_json::to_string(&balloon_metrics).unwrap();
-        // the 1st serialize flushes the metrics and resets values to 0 so that
-        // we can compare the values with local metrics.
-        serde_json::to_string(&METRICS).unwrap();
-        let balloon_metrics_global: String = serde_json::to_string(&METRICS).unwrap();
-        assert_eq!(balloon_metrics_local, balloon_metrics_global);
-        balloon_metrics.inflate_count.inc();
-        assert_eq!(balloon_metrics.inflate_count.count(), 1);
-    }
+  #[test]
+  #[ignore = "flaky - shared metrics state"]
+  fn test_balloon_dev_metrics() {
+    let balloon_metrics: BalloonDeviceMetrics = BalloonDeviceMetrics::new();
+    let balloon_metrics_local: String = serde_json::to_string(&balloon_metrics).unwrap();
+    // the 1st serialize flushes the metrics and resets values to 0 so that
+    // we can compare the values with local metrics.
+    serde_json::to_string(&METRICS).unwrap();
+    let balloon_metrics_global: String = serde_json::to_string(&METRICS).unwrap();
+    assert_eq!(balloon_metrics_local, balloon_metrics_global);
+    balloon_metrics.inflate_count.inc();
+    assert_eq!(balloon_metrics.inflate_count.count(), 1);
+  }
 }

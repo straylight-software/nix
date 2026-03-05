@@ -43,59 +43,59 @@ pub(super) static METRICS: EntropyDeviceMetrics = EntropyDeviceMetrics::new();
 
 /// Called by METRICS.flush(), this function facilitates serialization of entropy device metrics.
 pub fn flush_metrics<S: Serializer>(serializer: S) -> Result<S::Ok, S::Error> {
-    let mut seq = serializer.serialize_map(Some(1))?;
-    seq.serialize_entry("entropy", &METRICS)?;
-    seq.end()
+  let mut seq = serializer.serialize_map(Some(1))?;
+  seq.serialize_entry("entropy", &METRICS)?;
+  seq.end()
 }
 
 #[derive(Debug, Serialize)]
 pub(super) struct EntropyDeviceMetrics {
-    /// Number of device activation failures
-    pub activate_fails: SharedIncMetric,
-    /// Number of entropy queue event handling failures
-    pub entropy_event_fails: SharedIncMetric,
-    /// Number of entropy requests handled
-    pub entropy_event_count: SharedIncMetric,
-    /// Number of entropy bytes provided to guest
-    pub entropy_bytes: SharedIncMetric,
-    /// Number of errors while getting random bytes on host
-    pub host_rng_fails: SharedIncMetric,
-    /// Number of times an entropy request was rate limited
-    pub entropy_rate_limiter_throttled: SharedIncMetric,
-    /// Number of events associated with the rate limiter
-    pub rate_limiter_event_count: SharedIncMetric,
+  /// Number of device activation failures
+  pub activate_fails: SharedIncMetric,
+  /// Number of entropy queue event handling failures
+  pub entropy_event_fails: SharedIncMetric,
+  /// Number of entropy requests handled
+  pub entropy_event_count: SharedIncMetric,
+  /// Number of entropy bytes provided to guest
+  pub entropy_bytes: SharedIncMetric,
+  /// Number of errors while getting random bytes on host
+  pub host_rng_fails: SharedIncMetric,
+  /// Number of times an entropy request was rate limited
+  pub entropy_rate_limiter_throttled: SharedIncMetric,
+  /// Number of events associated with the rate limiter
+  pub rate_limiter_event_count: SharedIncMetric,
 }
 impl EntropyDeviceMetrics {
-    /// Const default construction.
-    const fn new() -> Self {
-        Self {
-            activate_fails: SharedIncMetric::new(),
-            entropy_event_fails: SharedIncMetric::new(),
-            entropy_event_count: SharedIncMetric::new(),
-            entropy_bytes: SharedIncMetric::new(),
-            host_rng_fails: SharedIncMetric::new(),
-            entropy_rate_limiter_throttled: SharedIncMetric::new(),
-            rate_limiter_event_count: SharedIncMetric::new(),
-        }
+  /// Const default construction.
+  const fn new() -> Self {
+    Self {
+      activate_fails: SharedIncMetric::new(),
+      entropy_event_fails: SharedIncMetric::new(),
+      entropy_event_count: SharedIncMetric::new(),
+      entropy_bytes: SharedIncMetric::new(),
+      host_rng_fails: SharedIncMetric::new(),
+      entropy_rate_limiter_throttled: SharedIncMetric::new(),
+      rate_limiter_event_count: SharedIncMetric::new(),
     }
+  }
 }
 
 #[cfg(test)]
 pub mod tests {
-    use super::*;
-    use crate::logger::IncMetric;
+  use super::*;
+  use crate::logger::IncMetric;
 
-    #[test]
-    #[ignore = "flaky - shared metrics state"]
-    fn test_entropy_dev_metrics() {
-        let entropy_metrics: EntropyDeviceMetrics = EntropyDeviceMetrics::new();
-        let entropy_metrics_local: String = serde_json::to_string(&entropy_metrics).unwrap();
-        // the 1st serialize flushes the metrics and resets values to 0 so that
-        // we can compare the values with local metrics.
-        serde_json::to_string(&METRICS).unwrap();
-        let entropy_metrics_global: String = serde_json::to_string(&METRICS).unwrap();
-        assert_eq!(entropy_metrics_local, entropy_metrics_global);
-        entropy_metrics.entropy_event_count.inc();
-        assert_eq!(entropy_metrics.entropy_event_count.count(), 1);
-    }
+  #[test]
+  #[ignore = "flaky - shared metrics state"]
+  fn test_entropy_dev_metrics() {
+    let entropy_metrics: EntropyDeviceMetrics = EntropyDeviceMetrics::new();
+    let entropy_metrics_local: String = serde_json::to_string(&entropy_metrics).unwrap();
+    // the 1st serialize flushes the metrics and resets values to 0 so that
+    // we can compare the values with local metrics.
+    serde_json::to_string(&METRICS).unwrap();
+    let entropy_metrics_global: String = serde_json::to_string(&METRICS).unwrap();
+    assert_eq!(entropy_metrics_local, entropy_metrics_global);
+    entropy_metrics.entropy_event_count.inc();
+    assert_eq!(entropy_metrics.entropy_event_count.count(), 1);
+  }
 }

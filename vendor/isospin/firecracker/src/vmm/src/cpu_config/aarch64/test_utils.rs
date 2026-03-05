@@ -33,23 +33,23 @@ pub const TEST_INVALID_TEMPLATE_JSON: &str = r#"{
 
 /// Builds a sample custom CPU template
 pub fn build_test_template() -> CustomCpuTemplate {
-    CustomCpuTemplate {
-        reg_modifiers: vec![
-            RegisterModifier {
-                addr: ID_AA64PFR0_EL1,
-                bitmap: RegisterValueFilter {
-                    filter: 0b100010001,
-                    value: 0b100000001,
-                },
-            },
-            RegisterModifier {
-                addr: ID_AA64ISAR0_EL1,
-                bitmap: RegisterValueFilter {
-                    filter: 0b1110,
-                    value: 0b0110,
-                },
-            },
-        ],
-        ..Default::default()
-    }
+  CustomCpuTemplate {
+    reg_modifiers: vec![
+      RegisterModifier {
+        addr: ID_AA64PFR0_EL1,
+        bitmap: RegisterValueFilter {
+          filter: 0b100010001,
+          value: 0b100000001,
+        },
+      },
+      RegisterModifier {
+        addr: ID_AA64ISAR0_EL1,
+        bitmap: RegisterValueFilter {
+          filter: 0b1110,
+          value: 0b0110,
+        },
+      },
+    ],
+    ..Default::default()
+  }
 }

@@ -9,6 +9,6 @@ use serde::Deserialize;
 #[derive(Debug, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SerialConfig {
-    /// Named pipe or file used as output for guest serial console.
-    pub serial_out_path: Option<PathBuf>,
+  /// Named pipe or file used as output for guest serial console.
+  pub serial_out_path: Option<PathBuf>,
 }

@@ -33,34 +33,34 @@ pub const IO_URING_NUM_ENTRIES: u16 = 128;
 /// Errors the block device can trigger.
 #[derive(Debug, thiserror::Error, displaydoc::Display)]
 pub enum VirtioBlockError {
-    /// Cannot create config
-    Config,
-    /// Guest gave us too few descriptors in a descriptor chain.
-    DescriptorChainTooShort,
-    /// Guest gave us a descriptor that was too short to use.
-    DescriptorLengthTooSmall,
-    /// Getting a block's metadata fails for any reason.
-    GetFileMetadata(std::io::Error),
-    /// Guest gave us bad memory addresses.
-    GuestMemory(GuestMemoryError),
-    /// The data length is invalid.
-    InvalidDataLength,
-    /// The requested operation would cause a seek beyond disk end.
-    InvalidOffset,
-    /// Guest gave us a read only descriptor that protocol says to write to.
-    UnexpectedReadOnlyDescriptor,
-    /// Guest gave us a write only descriptor that protocol says to read from.
-    UnexpectedWriteOnlyDescriptor,
-    /// Error coming from the IO engine: {0}
-    FileEngine(io::BlockIoError),
-    /// Error manipulating the backing file: {0} {1}
-    BackingFile(std::io::Error, String),
-    /// Error opening eventfd: {0}
-    EventFd(std::io::Error),
-    /// Error creating an interrupt: {0}
-    Interrupt(std::io::Error),
-    /// Error coming from the rate limiter: {0}
-    RateLimiter(std::io::Error),
-    /// Persistence error: {0}
-    Persist(crate::devices::virtio::persist::PersistError),
+  /// Cannot create config
+  Config,
+  /// Guest gave us too few descriptors in a descriptor chain.
+  DescriptorChainTooShort,
+  /// Guest gave us a descriptor that was too short to use.
+  DescriptorLengthTooSmall,
+  /// Getting a block's metadata fails for any reason.
+  GetFileMetadata(std::io::Error),
+  /// Guest gave us bad memory addresses.
+  GuestMemory(GuestMemoryError),
+  /// The data length is invalid.
+  InvalidDataLength,
+  /// The requested operation would cause a seek beyond disk end.
+  InvalidOffset,
+  /// Guest gave us a read only descriptor that protocol says to write to.
+  UnexpectedReadOnlyDescriptor,
+  /// Guest gave us a write only descriptor that protocol says to read from.
+  UnexpectedWriteOnlyDescriptor,
+  /// Error coming from the IO engine: {0}
+  FileEngine(io::BlockIoError),
+  /// Error manipulating the backing file: {0} {1}
+  BackingFile(std::io::Error, String),
+  /// Error opening eventfd: {0}
+  EventFd(std::io::Error),
+  /// Error creating an interrupt: {0}
+  Interrupt(std::io::Error),
+  /// Error coming from the rate limiter: {0}
+  RateLimiter(std::io::Error),
+  /// Persistence error: {0}
+  Persist(crate::devices::virtio::persist::PersistError),
 }

@@ -15,29 +15,29 @@ use crate::snapshot::Persist;
 /// vhost-user block device state.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VhostUserBlockState {
-    id: String,
-    partuuid: Option<String>,
-    cache_type: CacheType,
-    root_device: bool,
-    socket_path: String,
-    vu_acked_protocol_features: u64,
-    config_space: Vec<u8>,
-    virtio_state: VirtioDeviceState,
+  id: String,
+  partuuid: Option<String>,
+  cache_type: CacheType,
+  root_device: bool,
+  socket_path: String,
+  vu_acked_protocol_features: u64,
+  config_space: Vec<u8>,
+  virtio_state: VirtioDeviceState,
 }
 
 impl Persist<'_> for VhostUserBlock {
-    type State = VhostUserBlockState;
-    type ConstructorArgs = BlockConstructorArgs;
-    type Error = VhostUserBlockError;
+  type State = VhostUserBlockState;
+  type ConstructorArgs = BlockConstructorArgs;
+  type Error = VhostUserBlockError;
 
-    fn save(&self) -> Self::State {
-        unimplemented!("VhostUserBlock does not support snapshotting yet");
-    }
+  fn save(&self) -> Self::State {
+    unimplemented!("VhostUserBlock does not support snapshotting yet");
+  }
 
-    fn restore(
-        _constructor_args: Self::ConstructorArgs,
-        _state: &Self::State,
-    ) -> Result<Self, Self::Error> {
-        Err(VhostUserBlockError::SnapshottingNotSupported)
-    }
+  fn restore(
+    _constructor_args: Self::ConstructorArgs,
+    _state: &Self::State,
+  ) -> Result<Self, Self::Error> {
+    Err(VhostUserBlockError::SnapshottingNotSupported)
+  }
 }

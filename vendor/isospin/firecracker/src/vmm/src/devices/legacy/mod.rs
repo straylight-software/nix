@@ -23,7 +23,7 @@ pub use self::i8042::{I8042Device, I8042Error as I8042DeviceError};
 #[cfg(target_arch = "aarch64")]
 pub use self::rtc_pl031::RTCDevice;
 pub use self::serial::{
-    IER_RDA_BIT, IER_RDA_OFFSET, SerialDevice, SerialEventsWrapper, SerialWrapper,
+  IER_RDA_BIT, IER_RDA_OFFSET, SerialDevice, SerialEventsWrapper, SerialWrapper,
 };
 
 /// Wrapper for implementing the trigger functionality for `EventFd`.
@@ -33,43 +33,43 @@ pub use self::serial::{
 pub struct EventFdTrigger(EventFd);
 
 impl Trigger for EventFdTrigger {
-    type E = io::Error;
+  type E = io::Error;
 
-    fn trigger(&self) -> io::Result<()> {
-        self.write(1)
-    }
+  fn trigger(&self) -> io::Result<()> {
+    self.write(1)
+  }
 }
 
 impl Deref for EventFdTrigger {
-    type Target = EventFd;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
+  type Target = EventFd;
+  fn deref(&self) -> &Self::Target {
+    &self.0
+  }
 }
 
 impl EventFdTrigger {
-    /// Clone an `EventFdTrigger`.
-    pub fn try_clone(&self) -> io::Result<Self> {
-        Ok(EventFdTrigger((**self).try_clone()?))
-    }
+  /// Clone an `EventFdTrigger`.
+  pub fn try_clone(&self) -> io::Result<Self> {
+    Ok(EventFdTrigger((**self).try_clone()?))
+  }
 
-    /// Create an `EventFdTrigger`.
-    pub fn new(evt: EventFd) -> Self {
-        Self(evt)
-    }
+  /// Create an `EventFdTrigger`.
+  pub fn new(evt: EventFd) -> Self {
+    Self(evt)
+  }
 
-    /// Get the associated event fd out of an `EventFdTrigger`.
-    pub fn get_event(&self) -> EventFd {
-        self.0.try_clone().unwrap()
-    }
+  /// Get the associated event fd out of an `EventFdTrigger`.
+  pub fn get_event(&self) -> EventFd {
+    self.0.try_clone().unwrap()
+  }
 }
 
 /// Called by METRICS.flush(), this function facilitates serialization of aggregated metrics.
 pub fn flush_metrics<S: Serializer>(serializer: S) -> Result<S::Ok, S::Error> {
-    let mut seq = serializer.serialize_map(Some(1))?;
-    seq.serialize_entry("i8042", &i8042::METRICS)?;
-    #[cfg(target_arch = "aarch64")]
-    seq.serialize_entry("rtc", &rtc_pl031::METRICS)?;
-    seq.serialize_entry("uart", &serial::METRICS)?;
-    seq.end()
+  let mut seq = serializer.serialize_map(Some(1))?;
+  seq.serialize_entry("i8042", &i8042::METRICS)?;
+  #[cfg(target_arch = "aarch64")]
+  seq.serialize_entry("rtc", &rtc_pl031::METRICS)?;
+  seq.serialize_entry("uart", &serial::METRICS)?;
+  seq.end()
 }

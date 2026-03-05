@@ -16,115 +16,116 @@ use crate::vstate::vm::VmError;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PmemState {
-    pub virtio_state: VirtioDeviceState,
-    pub config_space: ConfigSpace,
-    pub config: PmemConfig,
+  pub virtio_state: VirtioDeviceState,
+  pub config_space: ConfigSpace,
+  pub config: PmemConfig,
 }
 
 #[derive(Debug)]
 pub struct PmemConstructorArgs<'a> {
-    pub mem: &'a GuestMemoryMmap,
-    pub vm: &'a Vm,
+  pub mem: &'a GuestMemoryMmap,
+  pub vm: &'a Vm,
 }
 
 #[derive(Debug, thiserror::Error, displaydoc::Display)]
 pub enum PmemPersistError {
-    /// Error resetting VirtIO state: {0}
-    VirtioState(#[from] VirtioStateError),
-    /// Error creating Pmem devie: {0}
-    Pmem(#[from] PmemError),
-    /// Error registering memory region: {0}
-    Vm(#[from] VmError),
+  /// Error resetting VirtIO state: {0}
+  VirtioState(#[from] VirtioStateError),
+  /// Error creating Pmem devie: {0}
+  Pmem(#[from] PmemError),
+  /// Error registering memory region: {0}
+  Vm(#[from] VmError),
 }
 
 impl<'a> Persist<'a> for Pmem {
-    type State = PmemState;
-    type ConstructorArgs = PmemConstructorArgs<'a>;
-    type Error = PmemPersistError;
+  type State = PmemState;
+  type ConstructorArgs = PmemConstructorArgs<'a>;
+  type Error = PmemPersistError;
 
-    fn save(&self) -> Self::State {
-        PmemState {
-            virtio_state: VirtioDeviceState::from_device(self),
-            config_space: self.config_space,
-            config: self.config.clone(),
-        }
+  fn save(&self) -> Self::State {
+    PmemState {
+      virtio_state: VirtioDeviceState::from_device(self),
+      config_space: self.config_space,
+      config: self.config.clone(),
     }
+  }
 
-    fn restore(
-        constructor_args: Self::ConstructorArgs,
-        state: &Self::State,
-    ) -> Result<Self, Self::Error> {
-        let queues = state.virtio_state.build_queues_checked(
-            constructor_args.mem,
-            VirtioDeviceType::Pmem,
-            PMEM_NUM_QUEUES,
-            PMEM_QUEUE_SIZE,
-        )?;
+  fn restore(
+    constructor_args: Self::ConstructorArgs,
+    state: &Self::State,
+  ) -> Result<Self, Self::Error> {
+    let queues = state.virtio_state.build_queues_checked(
+      constructor_args.mem,
+      VirtioDeviceType::Pmem,
+      PMEM_NUM_QUEUES,
+      PMEM_QUEUE_SIZE,
+    )?;
 
-        let mut pmem = Pmem::new_with_queues(state.config.clone(), queues)?;
-        pmem.config_space = state.config_space;
-        pmem.avail_features = state.virtio_state.avail_features;
-        pmem.acked_features = state.virtio_state.acked_features;
+    let mut pmem = Pmem::new_with_queues(state.config.clone(), queues)?;
+    pmem.config_space = state.config_space;
+    pmem.avail_features = state.virtio_state.avail_features;
+    pmem.acked_features = state.virtio_state.acked_features;
 
-        pmem.set_mem_region(constructor_args.vm)?;
+    pmem.set_mem_region(constructor_args.vm)?;
 
-        Ok(pmem)
-    }
+    Ok(pmem)
+  }
 }
 
 #[cfg(test)]
 mod tests {
-    use vmm_sys_util::tempfile::TempFile;
+  use vmm_sys_util::tempfile::TempFile;
 
-    use super::*;
-    use crate::arch::Kvm;
-    use crate::devices::virtio::device::VirtioDevice;
-    use crate::devices::virtio::test_utils::default_mem;
-    use crate::snapshot::Snapshot;
+  use super::*;
+  use crate::arch::Kvm;
+  use crate::devices::virtio::device::VirtioDevice;
+  use crate::devices::virtio::test_utils::default_mem;
+  use crate::persist::SNAPSHOT_VERSION;
+  use crate::snapshot::Snapshot;
 
-    #[test]
-    fn test_persistence() {
-        // We create the backing file here so that it exists for the whole lifetime of the test.
-        let dummy_file = TempFile::new().unwrap();
-        dummy_file.as_file().set_len(0x20_0000);
-        let dummy_path = dummy_file.as_path().to_str().unwrap().to_string();
-        let config = PmemConfig {
-            id: "1".into(),
-            path_on_host: dummy_path,
-            root_device: true,
-            read_only: false,
-        };
-        let pmem = Pmem::new(config).unwrap();
-        let guest_mem = default_mem();
-        let kvm = Kvm::new(vec![]).unwrap();
-        let vm = Vm::new(&kvm).unwrap();
+  #[test]
+  fn test_persistence() {
+    // We create the backing file here so that it exists for the whole lifetime of the test.
+    let dummy_file = TempFile::new().unwrap();
+    dummy_file.as_file().set_len(0x20_0000);
+    let dummy_path = dummy_file.as_path().to_str().unwrap().to_string();
+    let config = PmemConfig {
+      id: "1".into(),
+      path_on_host: dummy_path,
+      root_device: true,
+      read_only: false,
+    };
+    let pmem = Pmem::new(config).unwrap();
+    let guest_mem = default_mem();
+    let kvm = Kvm::new(vec![]).unwrap();
+    let vm = Vm::new(&kvm).unwrap();
 
-        // Save the block device.
-        let mut mem = vec![0; 4096];
+    // Save the block device.
+    let mut mem = vec![0; 4096];
 
-        Snapshot::new(pmem.save())
-            .save(&mut mem.as_mut_slice())
-            .unwrap();
+    Snapshot::new(SNAPSHOT_VERSION.clone(), pmem.save())
+      .save(&mut mem.as_mut_slice())
+      .unwrap();
 
-        // Restore the block device.
-        let restored_pmem = Pmem::restore(
-            PmemConstructorArgs {
-                mem: &guest_mem,
-                vm: &vm,
-            },
-            &Snapshot::load_without_crc_check(mem.as_slice())
-                .unwrap()
-                .data,
-        )
-        .unwrap();
+    // Restore the block device.
+    let restored_pmem = Pmem::restore(
+      PmemConstructorArgs {
+        mem: &guest_mem,
+        vm: &vm,
+      },
+      &Snapshot::load_without_crc_check(mem.as_slice(), &SNAPSHOT_VERSION)
+        .unwrap()
+        .data,
+    )
+    .unwrap();
 
-        // Test that virtio specific fields are the same.
-        assert_eq!(restored_pmem.device_type(), VirtioDeviceType::Pmem);
-        assert_eq!(restored_pmem.avail_features(), pmem.avail_features());
-        assert_eq!(restored_pmem.acked_features(), pmem.acked_features());
-        assert_eq!(restored_pmem.queues(), pmem.queues());
-        assert!(!pmem.is_activated());
-        assert!(!restored_pmem.is_activated());
-        assert_eq!(restored_pmem.config, pmem.config);
-    }
+    // Test that virtio specific fields are the same.
+    assert_eq!(restored_pmem.device_type(), VirtioDeviceType::Pmem);
+    assert_eq!(restored_pmem.avail_features(), pmem.avail_features());
+    assert_eq!(restored_pmem.acked_features(), pmem.acked_features());
+    assert_eq!(restored_pmem.queues(), pmem.queues());
+    assert!(!pmem.is_activated());
+    assert!(!restored_pmem.is_activated());
+    assert_eq!(restored_pmem.config, pmem.config);
+  }
 }

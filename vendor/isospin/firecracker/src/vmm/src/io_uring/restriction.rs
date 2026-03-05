@@ -12,44 +12,41 @@
 
 use std::convert::From;
 
-use crate::io_uring::generated::{
-    io_uring_register_restriction_op, io_uring_restriction, io_uring_sqe_flags_bit,
+use crate::generated::{
+  io_uring_register_restriction_op, io_uring_restriction, io_uring_sqe_flags_bit,
 };
-use crate::io_uring::operation::OpCode;
+use crate::operation::OpCode;
 
 /// Adds support for restricting the operations allowed by io_uring.
 #[derive(Debug)]
 pub enum Restriction {
-    /// Allow an operation.
-    AllowOpCode(OpCode),
-    /// Only allow operations on pre-registered fds.
-    RequireFixedFds,
+  /// Allow an operation.
+  AllowOpCode(OpCode),
+  /// Only allow operations on pre-registered fds.
+  RequireFixedFds,
 }
 
 impl From<&Restriction> for io_uring_restriction {
-    fn from(restriction: &Restriction) -> Self {
-        use Restriction::*;
+  fn from(restriction: &Restriction) -> Self {
+    use Restriction::*;
 
-        // SAFETY: Safe because it only contains integer values.
-        let mut instance: Self = unsafe { std::mem::zeroed() };
+    // SAFETY: Safe because it only contains integer values.
+    let mut instance: Self = unsafe { std::mem::zeroed() };
 
-        match restriction {
-            AllowOpCode(opcode) => {
-                instance.opcode =
-                    u16::try_from(io_uring_register_restriction_op::IORING_RESTRICTION_SQE_OP)
-                        .unwrap();
-                instance.__bindgen_anon_1.sqe_op = *opcode as u8;
-            }
-            RequireFixedFds => {
-                instance.opcode = u16::try_from(
-                    io_uring_register_restriction_op::IORING_RESTRICTION_SQE_FLAGS_REQUIRED,
-                )
-                .unwrap();
-                instance.__bindgen_anon_1.sqe_flags =
-                    1 << io_uring_sqe_flags_bit::IOSQE_FIXED_FILE_BIT;
-            }
-        };
+    match restriction {
+      AllowOpCode(opcode) => {
+        instance.opcode =
+          u16::try_from(io_uring_register_restriction_op::IORING_RESTRICTION_SQE_OP).unwrap();
+        instance.__bindgen_anon_1.sqe_op = *opcode as u8;
+      }
+      RequireFixedFds => {
+        instance.opcode =
+          u16::try_from(io_uring_register_restriction_op::IORING_RESTRICTION_SQE_FLAGS_REQUIRED)
+            .unwrap();
+        instance.__bindgen_anon_1.sqe_flags = 1 << io_uring_sqe_flags_bit::IOSQE_FIXED_FILE_BIT;
+      }
+    };
 
-        instance
-    }
+    instance
+  }
 }

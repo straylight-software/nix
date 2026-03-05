@@ -16,66 +16,67 @@ use crate::utils::net::mac::{MAC_ADDR_LEN, MacAddr};
 /// State of a MmdsNetworkStack.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MmdsNetworkStackState {
-    mac_addr: [u8; MAC_ADDR_LEN as usize],
-    ipv4_addr: u32,
-    tcp_port: u16,
+  mac_addr: [u8; MAC_ADDR_LEN as usize],
+  ipv4_addr: u32,
+  tcp_port: u16,
 }
 
 impl Persist<'_> for MmdsNetworkStack {
-    type State = MmdsNetworkStackState;
-    type ConstructorArgs = Arc<Mutex<Mmds>>;
-    type Error = ();
+  type State = MmdsNetworkStackState;
+  type ConstructorArgs = Arc<Mutex<Mmds>>;
+  type Error = ();
 
-    fn save(&self) -> Self::State {
-        let mut mac_addr = [0; MAC_ADDR_LEN as usize];
-        mac_addr.copy_from_slice(self.mac_addr.get_bytes());
+  fn save(&self) -> Self::State {
+    let mut mac_addr = [0; MAC_ADDR_LEN as usize];
+    mac_addr.copy_from_slice(self.mac_addr.get_bytes());
 
-        MmdsNetworkStackState {
-            mac_addr,
-            ipv4_addr: self.ipv4_addr.into(),
-            tcp_port: self.tcp_handler.local_port(),
-        }
+    MmdsNetworkStackState {
+      mac_addr,
+      ipv4_addr: self.ipv4_addr.into(),
+      tcp_port: self.tcp_handler.local_port(),
     }
+  }
 
-    fn restore(mmds: Self::ConstructorArgs, state: &Self::State) -> Result<Self, Self::Error> {
-        Ok(MmdsNetworkStack::new(
-            MacAddr::from_bytes_unchecked(&state.mac_addr),
-            Ipv4Addr::from(state.ipv4_addr),
-            state.tcp_port,
-            mmds,
-        ))
-    }
+  fn restore(mmds: Self::ConstructorArgs, state: &Self::State) -> Result<Self, Self::Error> {
+    Ok(MmdsNetworkStack::new(
+      MacAddr::from_bytes_unchecked(&state.mac_addr),
+      Ipv4Addr::from(state.ipv4_addr),
+      state.tcp_port,
+      mmds,
+    ))
+  }
 }
 
 #[cfg(test)]
 mod tests {
 
-    use super::*;
-    use crate::snapshot::Snapshot;
+  use super::*;
+  use crate::persist::SNAPSHOT_VERSION;
+  use crate::snapshot::Snapshot;
 
-    #[test]
-    fn test_persistence() {
-        let ns = MmdsNetworkStack::new_with_defaults(None, Arc::new(Mutex::new(Mmds::default())));
+  #[test]
+  fn test_persistence() {
+    let ns = MmdsNetworkStack::new_with_defaults(None, Arc::new(Mutex::new(Mmds::default())));
 
-        let mut mem = vec![0; 4096];
+    let mut mem = vec![0; 4096];
 
-        Snapshot::new(ns.save())
-            .save(&mut mem.as_mut_slice())
-            .unwrap();
+    Snapshot::new(SNAPSHOT_VERSION.clone(), ns.save())
+      .save(&mut mem.as_mut_slice())
+      .unwrap();
 
-        let restored_ns = MmdsNetworkStack::restore(
-            Arc::new(Mutex::new(Mmds::default())),
-            &Snapshot::load_without_crc_check(mem.as_slice())
-                .unwrap()
-                .data,
-        )
-        .unwrap();
+    let restored_ns = MmdsNetworkStack::restore(
+      Arc::new(Mutex::new(Mmds::default())),
+      &Snapshot::load_without_crc_check(mem.as_slice(), &SNAPSHOT_VERSION)
+        .unwrap()
+        .data,
+    )
+    .unwrap();
 
-        assert_eq!(restored_ns.mac_addr, ns.mac_addr);
-        assert_eq!(restored_ns.ipv4_addr, ns.ipv4_addr);
-        assert_eq!(
-            restored_ns.tcp_handler.local_port(),
-            ns.tcp_handler.local_port()
-        );
-    }
+    assert_eq!(restored_ns.mac_addr, ns.mac_addr);
+    assert_eq!(restored_ns.ipv4_addr, ns.ipv4_addr);
+    assert_eq!(
+      restored_ns.tcp_handler.local_port(),
+      ns.tcp_handler.local_port()
+    );
+  }
 }

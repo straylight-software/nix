@@ -1,10 +1,10 @@
 // Copyright 2023 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 #![allow(
-    clippy::similar_names,
-    clippy::module_name_repetitions,
-    clippy::unreadable_literal,
-    clippy::unsafe_derive_deserialize
+  clippy::similar_names,
+  clippy::module_name_repetitions,
+  clippy::unreadable_literal,
+  clippy::unsafe_derive_deserialize
 )]
 
 /// CPUID normalize implementation.
@@ -21,72 +21,72 @@ use super::{CpuidEntry, CpuidKey, CpuidRegisters, CpuidTrait, KvmCpuidFlags};
 pub struct IntelCpuid(pub std::collections::BTreeMap<CpuidKey, CpuidEntry>);
 
 impl CpuidTrait for IntelCpuid {
-    /// Gets a given sub-leaf.
-    #[inline]
-    fn get(&self, key: &CpuidKey) -> Option<&CpuidEntry> {
-        self.0.get(key)
-    }
+  /// Gets a given sub-leaf.
+  #[inline]
+  fn get(&self, key: &CpuidKey) -> Option<&CpuidEntry> {
+    self.0.get(key)
+  }
 
-    /// Gets a given sub-leaf.
-    #[inline]
-    fn get_mut(&mut self, key: &CpuidKey) -> Option<&mut CpuidEntry> {
-        self.0.get_mut(key)
-    }
+  /// Gets a given sub-leaf.
+  #[inline]
+  fn get_mut(&mut self, key: &CpuidKey) -> Option<&mut CpuidEntry> {
+    self.0.get_mut(key)
+  }
 }
 
 impl From<kvm_bindings::CpuId> for IntelCpuid {
-    #[inline]
-    fn from(kvm_cpuid: kvm_bindings::CpuId) -> Self {
-        let map = kvm_cpuid
-            .as_slice()
-            .iter()
-            .map(|entry| {
-                (
-                    CpuidKey {
-                        leaf: entry.function,
-                        subleaf: entry.index,
-                    },
-                    CpuidEntry {
-                        flags: KvmCpuidFlags(entry.flags),
-                        result: CpuidRegisters {
-                            eax: entry.eax,
-                            ebx: entry.ebx,
-                            ecx: entry.ecx,
-                            edx: entry.edx,
-                        },
-                    },
-                )
-            })
-            .collect();
-        Self(map)
-    }
+  #[inline]
+  fn from(kvm_cpuid: kvm_bindings::CpuId) -> Self {
+    let map = kvm_cpuid
+      .as_slice()
+      .iter()
+      .map(|entry| {
+        (
+          CpuidKey {
+            leaf: entry.function,
+            subleaf: entry.index,
+          },
+          CpuidEntry {
+            flags: KvmCpuidFlags(entry.flags),
+            result: CpuidRegisters {
+              eax: entry.eax,
+              ebx: entry.ebx,
+              ecx: entry.ecx,
+              edx: entry.edx,
+            },
+          },
+        )
+      })
+      .collect();
+    Self(map)
+  }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+  use super::*;
 
-    #[test]
-    fn get() {
-        let cpuid = IntelCpuid(std::collections::BTreeMap::new());
-        assert_eq!(
-            cpuid.get(&CpuidKey {
-                leaf: 0,
-                subleaf: 0
-            }),
-            None
-        );
-    }
+  #[test]
+  fn get() {
+    let cpuid = IntelCpuid(std::collections::BTreeMap::new());
+    assert_eq!(
+      cpuid.get(&CpuidKey {
+        leaf: 0,
+        subleaf: 0
+      }),
+      None
+    );
+  }
 
-    #[test]
-    fn get_mut() {
-        let mut cpuid = IntelCpuid(std::collections::BTreeMap::new());
-        assert_eq!(
-            cpuid.get_mut(&CpuidKey {
-                leaf: 0,
-                subleaf: 0
-            }),
-            None
-        );
-    }
+  #[test]
+  fn get_mut() {
+    let mut cpuid = IntelCpuid(std::collections::BTreeMap::new());
+    assert_eq!(
+      cpuid.get_mut(&CpuidKey {
+        leaf: 0,
+        subleaf: 0
+      }),
+      None
+    );
+  }
 }

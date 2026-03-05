@@ -16,35 +16,35 @@ pub use muxer::VsockMuxer as VsockUnixBackend;
 use crate::devices::virtio::vsock::csm::VsockConnectionBackend;
 
 mod defs {
-    /// Maximum number of established connections that we can handle.
-    pub const MAX_CONNECTIONS: usize = 1023;
+  /// Maximum number of established connections that we can handle.
+  pub const MAX_CONNECTIONS: usize = 1023;
 
-    /// Size of the muxer RX packet queue.
-    pub const MUXER_RXQ_SIZE: u32 = 256;
+  /// Size of the muxer RX packet queue.
+  pub const MUXER_RXQ_SIZE: u32 = 256;
 
-    /// Size of the muxer connection kill queue.
-    pub const MUXER_KILLQ_SIZE: u32 = 128;
+  /// Size of the muxer connection kill queue.
+  pub const MUXER_KILLQ_SIZE: u32 = 128;
 }
 
 /// Vsock backend related errors.
 #[derive(Debug, thiserror::Error, displaydoc::Display)]
 pub enum VsockUnixBackendError {
-    /// Error registering a new epoll-listening FD: {0}
-    EpollAdd(std::io::Error),
-    /// Error creating an epoll FD: {0}
-    EpollFdCreate(std::io::Error),
-    /// The host made an invalid vsock port connection request.
-    InvalidPortRequest,
-    /// Error accepting a new connection from the host-side Unix socket: {0}
-    UnixAccept(std::io::Error),
-    /// Error binding to the host-side Unix socket: {0}
-    UnixBind(std::io::Error),
-    /// Error connecting to a host-side Unix socket: {0}
-    UnixConnect(std::io::Error),
-    /// Error reading from host-side Unix socket: {0}
-    UnixRead(std::io::Error),
-    /// Muxer connection limit reached.
-    TooManyConnections,
+  /// Error registering a new epoll-listening FD: {0}
+  EpollAdd(std::io::Error),
+  /// Error creating an epoll FD: {0}
+  EpollFdCreate(std::io::Error),
+  /// The host made an invalid vsock port connection request.
+  InvalidPortRequest,
+  /// Error accepting a new connection from the host-side Unix socket: {0}
+  UnixAccept(std::io::Error),
+  /// Error binding to the host-side Unix socket: {0}
+  UnixBind(std::io::Error),
+  /// Error connecting to a host-side Unix socket: {0}
+  UnixConnect(std::io::Error),
+  /// Error reading from host-side Unix socket: {0}
+  UnixRead(std::io::Error),
+  /// Muxer connection limit reached.
+  TooManyConnections,
 }
 
 type MuxerConnection = super::csm::VsockConnection<std::os::unix::net::UnixStream>;

@@ -33,34 +33,34 @@ use crate::logger::trace;
 /// After the connection has been established the function will start a new thread for handling
 /// communcation to the GDB server
 pub fn gdb_thread(
-    vmm: Arc<Mutex<Vmm>>,
-    gdb_event_receiver: Receiver<usize>,
-    entry_addr: GuestAddress,
-    socket_addr: &str,
+  vmm: Arc<Mutex<Vmm>>,
+  gdb_event_receiver: Receiver<usize>,
+  entry_addr: GuestAddress,
+  socket_addr: &str,
 ) -> Result<(), GdbTargetError> {
-    // We register a hw breakpoint at the entry point as GDB expects the application
-    // to be stopped as it connects. This also allows us to set breakpoints before kernel starts.
-    // This entry adddress is automatically used as it is not tracked inside the target state, so
-    // when resumed will be removed
-    {
-        let vmm = vmm.lock().unwrap();
-        vcpu_set_debug(&vmm.vcpus_handles[0].vcpu_fd, &[entry_addr], false)?;
-        for handle in &vmm.vcpus_handles[1..] {
-            vcpu_set_debug(&handle.vcpu_fd, &[], false)?;
-        }
+  // We register a hw breakpoint at the entry point as GDB expects the application
+  // to be stopped as it connects. This also allows us to set breakpoints before kernel starts.
+  // This entry adddress is automatically used as it is not tracked inside the target state, so
+  // when resumed will be removed
+  {
+    let vmm = vmm.lock().unwrap();
+    vcpu_set_debug(&vmm.vcpus_handles[0].vcpu_fd, &[entry_addr], false)?;
+    for handle in &vmm.vcpus_handles[1..] {
+      vcpu_set_debug(&handle.vcpu_fd, &[], false)?;
     }
+  }
 
-    let path = Path::new(socket_addr);
-    let listener = UnixListener::bind(path).map_err(GdbTargetError::ServerSocketError)?;
-    trace!("Waiting for GDB server connection on {}...", path.display());
-    let (connection, _addr) = listener
-        .accept()
-        .map_err(GdbTargetError::ServerSocketError)?;
+  let path = Path::new(socket_addr);
+  let listener = UnixListener::bind(path).map_err(GdbTargetError::ServerSocketError)?;
+  trace!("Waiting for GDB server connection on {}...", path.display());
+  let (connection, _addr) = listener
+    .accept()
+    .map_err(GdbTargetError::ServerSocketError)?;
 
-    std::thread::Builder::new()
-        .name("gdb".into())
-        .spawn(move || event_loop(connection, vmm, gdb_event_receiver, entry_addr))
-        .map_err(|_| GdbTargetError::GdbThreadError)?;
+  std::thread::Builder::new()
+    .name("gdb".into())
+    .spawn(move || event_loop(connection, vmm, gdb_event_receiver, entry_addr))
+    .map_err(|_| GdbTargetError::GdbThreadError)?;
 
-    Ok(())
+  Ok(())
 }

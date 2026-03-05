@@ -34,61 +34,61 @@ use crate::devices::virtio::iovec::IoVecError;
 use crate::devices::virtio::persist::PersistError as VirtioStateError;
 
 mod defs {
-    use crate::devices::virtio::queue::FIRECRACKER_MAX_QUEUE_SIZE;
+  use crate::devices::virtio::queue::FIRECRACKER_MAX_QUEUE_SIZE;
 
-    /// Device ID used in MMIO device identification.
-    /// Because Vsock is unique per-vm, this ID can be hardcoded.
-    pub const VSOCK_DEV_ID: &str = "vsock";
+  /// Device ID used in MMIO device identification.
+  /// Because Vsock is unique per-vm, this ID can be hardcoded.
+  pub const VSOCK_DEV_ID: &str = "vsock";
 
-    /// Number of virtio queues.
-    pub const VSOCK_NUM_QUEUES: usize = 3;
+  /// Number of virtio queues.
+  pub const VSOCK_NUM_QUEUES: usize = 3;
 
-    /// Virtio queue sizes, in number of descriptor chain heads.
-    /// There are 3 queues for a virtio device (in this order): RX, TX, Event
-    pub const VSOCK_QUEUE_SIZES: [u16; VSOCK_NUM_QUEUES] = [
-        FIRECRACKER_MAX_QUEUE_SIZE,
-        FIRECRACKER_MAX_QUEUE_SIZE,
-        FIRECRACKER_MAX_QUEUE_SIZE,
-    ];
+  /// Virtio queue sizes, in number of descriptor chain heads.
+  /// There are 3 queues for a virtio device (in this order): RX, TX, Event
+  pub const VSOCK_QUEUE_SIZES: [u16; VSOCK_NUM_QUEUES] = [
+    FIRECRACKER_MAX_QUEUE_SIZE,
+    FIRECRACKER_MAX_QUEUE_SIZE,
+    FIRECRACKER_MAX_QUEUE_SIZE,
+  ];
 
-    /// Max vsock packet data/buffer size.
-    pub const MAX_PKT_BUF_SIZE: u32 = 64 * 1024;
+  /// Max vsock packet data/buffer size.
+  pub const MAX_PKT_BUF_SIZE: u32 = 64 * 1024;
 
-    pub mod uapi {
-        /// Vsock packet operation IDs.
-        /// Defined in `/include/uapi/linux/virtio_vsock.h`.
-        ///
-        /// Connection request.
-        pub const VSOCK_OP_REQUEST: u16 = 1;
-        /// Connection response.
-        pub const VSOCK_OP_RESPONSE: u16 = 2;
-        /// Connection reset.
-        pub const VSOCK_OP_RST: u16 = 3;
-        /// Connection clean shutdown.
-        pub const VSOCK_OP_SHUTDOWN: u16 = 4;
-        /// Connection data (read/write).
-        pub const VSOCK_OP_RW: u16 = 5;
-        /// Flow control credit update.
-        pub const VSOCK_OP_CREDIT_UPDATE: u16 = 6;
-        /// Flow control credit update request.
-        pub const VSOCK_OP_CREDIT_REQUEST: u16 = 7;
+  pub mod uapi {
+    /// Vsock packet operation IDs.
+    /// Defined in `/include/uapi/linux/virtio_vsock.h`.
+    ///
+    /// Connection request.
+    pub const VSOCK_OP_REQUEST: u16 = 1;
+    /// Connection response.
+    pub const VSOCK_OP_RESPONSE: u16 = 2;
+    /// Connection reset.
+    pub const VSOCK_OP_RST: u16 = 3;
+    /// Connection clean shutdown.
+    pub const VSOCK_OP_SHUTDOWN: u16 = 4;
+    /// Connection data (read/write).
+    pub const VSOCK_OP_RW: u16 = 5;
+    /// Flow control credit update.
+    pub const VSOCK_OP_CREDIT_UPDATE: u16 = 6;
+    /// Flow control credit update request.
+    pub const VSOCK_OP_CREDIT_REQUEST: u16 = 7;
 
-        /// Vsock packet flags.
-        /// Defined in `/include/uapi/linux/virtio_vsock.h`.
-        ///
-        /// Valid with a VSOCK_OP_SHUTDOWN packet: the packet sender will receive no more data.
-        pub const VSOCK_FLAGS_SHUTDOWN_RCV: u32 = 1;
-        /// Valid with a VSOCK_OP_SHUTDOWN packet: the packet sender will send no more data.
-        pub const VSOCK_FLAGS_SHUTDOWN_SEND: u32 = 2;
+    /// Vsock packet flags.
+    /// Defined in `/include/uapi/linux/virtio_vsock.h`.
+    ///
+    /// Valid with a VSOCK_OP_SHUTDOWN packet: the packet sender will receive no more data.
+    pub const VSOCK_FLAGS_SHUTDOWN_RCV: u32 = 1;
+    /// Valid with a VSOCK_OP_SHUTDOWN packet: the packet sender will send no more data.
+    pub const VSOCK_FLAGS_SHUTDOWN_SEND: u32 = 2;
 
-        /// Vsock packet type.
-        /// Defined in `/include/uapi/linux/virtio_vsock.h`.
-        ///
-        /// Stream / connection-oriented packet (the only currently valid type).
-        pub const VSOCK_TYPE_STREAM: u16 = 1;
+    /// Vsock packet type.
+    /// Defined in `/include/uapi/linux/virtio_vsock.h`.
+    ///
+    /// Stream / connection-oriented packet (the only currently valid type).
+    pub const VSOCK_TYPE_STREAM: u16 = 1;
 
-        pub const VSOCK_HOST_CID: u64 = 2;
-    }
+    pub const VSOCK_HOST_CID: u64 = 2;
+  }
 }
 
 /// Vsock device related errors.
@@ -131,16 +131,16 @@ pub enum VsockError {
 }
 
 impl From<IoVecError> for VsockError {
-    fn from(value: IoVecError) -> Self {
-        match value {
-            IoVecError::WriteOnlyDescriptor => VsockError::UnreadableDescriptor,
-            IoVecError::ReadOnlyDescriptor => VsockError::UnwritableDescriptor,
-            IoVecError::GuestMemory(err) => VsockError::GuestMemoryMmap(err),
-            IoVecError::OverflowedDescriptor => VsockError::DescChainOverflow,
-            IoVecError::IovDeque(err) => VsockError::IovDeque(err),
-            IoVecError::IovDequeOverflow => VsockError::IovDequeOverflow,
-        }
+  fn from(value: IoVecError) -> Self {
+    match value {
+      IoVecError::WriteOnlyDescriptor => VsockError::UnreadableDescriptor,
+      IoVecError::ReadOnlyDescriptor => VsockError::UnwritableDescriptor,
+      IoVecError::GuestMemory(err) => VsockError::GuestMemoryMmap(err),
+      IoVecError::OverflowedDescriptor => VsockError::DescChainOverflow,
+      IoVecError::IovDeque(err) => VsockError::IovDeque(err),
+      IoVecError::IovDequeOverflow => VsockError::IovDequeOverflow,
     }
+  }
 }
 
 /// A passive, event-driven object, that needs to be notified whenever an epoll-able event occurs.
@@ -148,11 +148,11 @@ impl From<IoVecError> for VsockError {
 /// the listener for the file descriptor and the set of events it's interested in. When such an
 /// event occurs, the control loop will route the event to the listener via `notify()`.
 pub trait VsockEpollListener: AsRawFd {
-    /// Get the set of events for which the listener wants to be notified.
-    fn get_polled_evset(&self) -> EventSet;
+  /// Get the set of events for which the listener wants to be notified.
+  fn get_polled_evset(&self) -> EventSet;
 
-    /// Notify the listener that one ore more events have occurred.
-    fn notify(&mut self, evset: EventSet);
+  /// Notify the listener that one ore more events have occurred.
+  fn notify(&mut self, evset: EventSet);
 }
 
 /// Any channel that handles vsock packet traffic: sending and receiving packets. Since we're
@@ -165,15 +165,15 @@ pub trait VsockEpollListener: AsRawFd {
 ///       - `recv_pkt(&mut pkt)` will read data from the channel, and place it into `pkt`; and
 ///       - `send_pkt(&pkt)` will fetch data from `pkt`, and place it into the channel.
 pub trait VsockChannel {
-    /// Read/receive an incoming packet from the channel.
-    fn recv_pkt(&mut self, pkt: &mut VsockPacketRx) -> Result<(), VsockError>;
+  /// Read/receive an incoming packet from the channel.
+  fn recv_pkt(&mut self, pkt: &mut VsockPacketRx) -> Result<(), VsockError>;
 
-    /// Write/send a packet through the channel.
-    fn send_pkt(&mut self, pkt: &VsockPacketTx) -> Result<(), VsockError>;
+  /// Write/send a packet through the channel.
+  fn send_pkt(&mut self, pkt: &VsockPacketTx) -> Result<(), VsockError>;
 
-    /// Checks whether there is pending incoming data inside the channel, meaning that a subsequent
-    /// call to `recv_pkt()` won't fail.
-    fn has_pending_rx(&self) -> bool;
+  /// Checks whether there is pending incoming data inside the channel, meaning that a subsequent
+  /// call to `recv_pkt()` won't fail.
+  fn has_pending_rx(&self) -> bool;
 }
 
 /// The vsock backend, which is basically an epoll-event-driven vsock channel.

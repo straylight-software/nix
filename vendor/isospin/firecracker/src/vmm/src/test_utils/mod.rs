@@ -24,151 +24,151 @@ pub mod mock_resources;
 /// Creates a [`GuestMemoryMmap`] with a single region of the given size starting at guest
 /// physical address 0 and without dirty tracking.
 pub fn single_region_mem(region_size: usize) -> GuestMemoryMmap {
-    single_region_mem_at(0, region_size)
+  single_region_mem_at(0, region_size)
 }
 
 pub fn single_region_mem_raw(region_size: usize) -> Vec<GuestRegionMmap> {
-    single_region_mem_at_raw(0, region_size)
+  single_region_mem_at_raw(0, region_size)
 }
 
 /// Creates a [`GuestMemoryMmap`] with a single region of the given size starting at the given
 /// guest physical address `at` and without dirty tracking.
 pub fn single_region_mem_at(at: u64, size: usize) -> GuestMemoryMmap {
-    multi_region_mem(&[(GuestAddress(at), size)])
+  multi_region_mem(&[(GuestAddress(at), size)])
 }
 
 pub fn single_region_mem_at_raw(at: u64, size: usize) -> Vec<GuestRegionMmap> {
-    multi_region_mem_raw(&[(GuestAddress(at), size)])
+  multi_region_mem_raw(&[(GuestAddress(at), size)])
 }
 
 /// Creates a [`GuestMemoryMmap`] with multiple regions and without dirty page tracking.
 pub fn multi_region_mem(regions: &[(GuestAddress, usize)]) -> GuestMemoryMmap {
-    GuestRegionCollection::from_regions(
-        memory::anonymous(regions.iter().copied(), false, HugePageConfig::None)
-            .expect("Cannot initialize memory")
-            .into_iter()
-            .map(|region| GuestRegionMmapExt::dram_from_mmap_region(region, 0))
-            .collect(),
-    )
-    .unwrap()
+  GuestRegionCollection::from_regions(
+    memory::anonymous(regions.iter().copied(), false, HugePageConfig::None)
+      .expect("Cannot initialize memory")
+      .into_iter()
+      .map(|region| GuestRegionMmapExt::dram_from_mmap_region(region, 0))
+      .collect(),
+  )
+  .unwrap()
 }
 
 pub fn multi_region_mem_raw(regions: &[(GuestAddress, usize)]) -> Vec<GuestRegionMmap> {
-    memory::anonymous(regions.iter().copied(), false, HugePageConfig::None)
-        .expect("Cannot initialize memory")
+  memory::anonymous(regions.iter().copied(), false, HugePageConfig::None)
+    .expect("Cannot initialize memory")
 }
 
 /// Creates a [`GuestMemoryMmap`] of the given size with the contained regions laid out in
 /// accordance with the requirements of the architecture on which the tests are being run.
 pub fn arch_mem(mem_size_bytes: usize) -> GuestMemoryMmap {
-    multi_region_mem(&crate::arch::arch_memory_regions(mem_size_bytes))
+  multi_region_mem(&crate::arch::arch_memory_regions(mem_size_bytes))
 }
 
 pub fn arch_mem_raw(mem_size_bytes: usize) -> Vec<GuestRegionMmap> {
-    multi_region_mem_raw(&crate::arch::arch_memory_regions(mem_size_bytes))
+  multi_region_mem_raw(&crate::arch::arch_memory_regions(mem_size_bytes))
 }
 
 pub fn create_vmm(
-    _kernel_image: Option<&str>,
-    is_diff: bool,
-    boot_microvm: bool,
-    pci_enabled: bool,
-    memory_hotplug_enabled: bool,
+  _kernel_image: Option<&str>,
+  is_diff: bool,
+  boot_microvm: bool,
+  pci_enabled: bool,
+  memory_hotplug_enabled: bool,
 ) -> (Arc<Mutex<Vmm>>, EventManager) {
-    let mut event_manager = EventManager::new().unwrap();
-    let empty_seccomp_filters = get_empty_filters();
+  let mut event_manager = EventManager::new().unwrap();
+  let empty_seccomp_filters = get_empty_filters();
 
-    let boot_source_cfg = MockBootSourceConfig::new().with_default_boot_args();
-    #[cfg(target_arch = "aarch64")]
-    let boot_source_cfg: BootSourceConfig = boot_source_cfg.into();
-    #[cfg(target_arch = "x86_64")]
-    let boot_source_cfg: BootSourceConfig = match _kernel_image {
-        Some(kernel) => boot_source_cfg.with_kernel(kernel).into(),
-        None => boot_source_cfg.into(),
-    };
-    let mock_vm_res = MockVmResources::new().with_boot_source(boot_source_cfg);
-    let mut resources: VmResources = if is_diff {
-        mock_vm_res
-            .with_vm_config(MockVmConfig::new().with_dirty_page_tracking().into())
-            .into()
-    } else {
-        mock_vm_res.into()
-    };
+  let boot_source_cfg = MockBootSourceConfig::new().with_default_boot_args();
+  #[cfg(target_arch = "aarch64")]
+  let boot_source_cfg: BootSourceConfig = boot_source_cfg.into();
+  #[cfg(target_arch = "x86_64")]
+  let boot_source_cfg: BootSourceConfig = match _kernel_image {
+    Some(kernel) => boot_source_cfg.with_kernel(kernel).into(),
+    None => boot_source_cfg.into(),
+  };
+  let mock_vm_res = MockVmResources::new().with_boot_source(boot_source_cfg);
+  let mut resources: VmResources = if is_diff {
+    mock_vm_res
+      .with_vm_config(MockVmConfig::new().with_dirty_page_tracking().into())
+      .into()
+  } else {
+    mock_vm_res.into()
+  };
 
-    resources.pci_enabled = pci_enabled;
+  resources.pci_enabled = pci_enabled;
 
-    if memory_hotplug_enabled {
-        resources.memory_hotplug = Some(MemoryHotplugConfig {
-            total_size_mib: 1024,
-            block_size_mib: 2,
-            slot_size_mib: 128,
-        });
-    }
+  if memory_hotplug_enabled {
+    resources.memory_hotplug = Some(MemoryHotplugConfig {
+      total_size_mib: 1024,
+      block_size_mib: 2,
+      slot_size_mib: 128,
+    });
+  }
 
-    let vmm = build_microvm_for_boot(
-        &InstanceInfo::default(),
-        &resources,
-        &mut event_manager,
-        &empty_seccomp_filters,
-    )
-    .unwrap();
+  let vmm = build_microvm_for_boot(
+    &InstanceInfo::default(),
+    &resources,
+    &mut event_manager,
+    &empty_seccomp_filters,
+  )
+  .unwrap();
 
-    if boot_microvm {
-        vmm.lock().unwrap().resume_vm().unwrap();
-    }
+  if boot_microvm {
+    vmm.lock().unwrap().resume_vm().unwrap();
+  }
 
-    (vmm, event_manager)
+  (vmm, event_manager)
 }
 
 pub fn default_vmm(kernel_image: Option<&str>) -> (Arc<Mutex<Vmm>>, EventManager) {
-    create_vmm(kernel_image, false, true, false, false)
+  create_vmm(kernel_image, false, true, false, false)
 }
 
 pub fn default_vmm_no_boot(kernel_image: Option<&str>) -> (Arc<Mutex<Vmm>>, EventManager) {
-    create_vmm(kernel_image, false, false, false, false)
+  create_vmm(kernel_image, false, false, false, false)
 }
 
 pub fn dirty_tracking_vmm(kernel_image: Option<&str>) -> (Arc<Mutex<Vmm>>, EventManager) {
-    create_vmm(kernel_image, true, true, false, false)
+  create_vmm(kernel_image, true, true, false, false)
 }
 
 #[allow(clippy::undocumented_unsafe_blocks)]
 #[allow(clippy::cast_possible_truncation)]
 pub fn create_tmp_socket() -> (TempDir, String) {
-    let tmp_dir = TempDir::new().unwrap();
-    let tmp_dir_path_str = tmp_dir.as_path().to_str().unwrap();
-    let tmp_socket_path = format!("{tmp_dir_path_str}/tmp_socket");
+  let tmp_dir = TempDir::new().unwrap();
+  let tmp_dir_path_str = tmp_dir.as_path().to_str().unwrap();
+  let tmp_socket_path = format!("{tmp_dir_path_str}/tmp_socket");
 
-    unsafe {
-        let socketfd = libc::socket(libc::AF_UNIX, libc::SOCK_STREAM, 0);
-        if socketfd < 0 {
-            panic!("Cannot create socket");
-        }
-        let mut socket_addr = libc::sockaddr_un {
-            sun_family: libc::AF_UNIX as u16,
-            sun_path: [0; 108],
-        };
+  unsafe {
+    let socketfd = libc::socket(libc::AF_UNIX, libc::SOCK_STREAM, 0);
+    if socketfd < 0 {
+      panic!("Cannot create socket");
+    }
+    let mut socket_addr = libc::sockaddr_un {
+      sun_family: libc::AF_UNIX as u16,
+      sun_path: [0; 108],
+    };
 
-        std::ptr::copy(
-            tmp_socket_path.as_ptr().cast(),
-            socket_addr.sun_path.as_mut_ptr(),
-            tmp_socket_path.len(),
-        );
+    std::ptr::copy(
+      tmp_socket_path.as_ptr().cast(),
+      socket_addr.sun_path.as_mut_ptr(),
+      tmp_socket_path.len(),
+    );
 
-        let bind = libc::bind(
-            socketfd,
-            (&socket_addr as *const libc::sockaddr_un).cast(),
-            std::mem::size_of::<libc::sockaddr_un>() as u32,
-        );
-        if bind < 0 {
-            panic!("Cannot bind socket");
-        }
-
-        let listen = libc::listen(socketfd, 1);
-        if listen < 0 {
-            panic!("Cannot listen on socket");
-        }
+    let bind = libc::bind(
+      socketfd,
+      (&socket_addr as *const libc::sockaddr_un).cast(),
+      std::mem::size_of::<libc::sockaddr_un>() as u32,
+    );
+    if bind < 0 {
+      panic!("Cannot bind socket");
     }
 
-    (tmp_dir, tmp_socket_path)
+    let listen = libc::listen(socketfd, 1);
+    if listen < 0 {
+      panic!("Cannot listen on socket");
+    }
+  }
+
+  (tmp_dir, tmp_socket_path)
 }

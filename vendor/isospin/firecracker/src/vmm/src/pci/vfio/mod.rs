@@ -10,13 +10,13 @@
 //! - `MsixTable`: MSI-X interrupt state machine
 //! - Type-safe address handling to prevent GPA/HVA/IOVA confusion
 
-mod types;
-mod error;
 mod container;
 mod device;
+mod error;
+mod mmap;
 mod msi;
 mod msix;
-mod mmap;
+mod types;
 
 #[cfg(test)]
 mod proptests;
@@ -24,9 +24,9 @@ mod proptests;
 #[cfg(test)]
 mod msix_routing_proptests;
 
-pub use types::*;
-pub use error::*;
 pub use container::*;
 pub use device::*;
-pub use msix::*;
+pub use error::*;
 pub use mmap::*;
+pub use msix::*;
+pub use types::*;

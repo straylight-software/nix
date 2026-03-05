@@ -34,141 +34,141 @@ const GICD_IROUTER: DistReg = DistReg::shared_irq(0x6000, 64);
 // when affinity routing is enabled. Affinity routing GICv3 is enabled by default unless Firecracker
 // clears the ICD_CTLR.ARE bit which it does not do.
 static VGIC_DIST_REGS: &[DistReg] = &[
-    GICD_CTLR,
-    GICD_STATUSR,
-    GICD_ICENABLER,
-    GICD_ISENABLER,
-    GICD_IGROUPR,
-    GICD_IROUTER,
-    GICD_ICFGR,
-    GICD_ICPENDR,
-    GICD_ISPENDR,
-    GICD_ICACTIVER,
-    GICD_ISACTIVER,
-    GICD_IPRIORITYR,
+  GICD_CTLR,
+  GICD_STATUSR,
+  GICD_ICENABLER,
+  GICD_ISENABLER,
+  GICD_IGROUPR,
+  GICD_IROUTER,
+  GICD_ICFGR,
+  GICD_ICPENDR,
+  GICD_ISPENDR,
+  GICD_ICACTIVER,
+  GICD_ISACTIVER,
+  GICD_IPRIORITYR,
 ];
 
 /// Some registers have variable lengths since they dedicate a specific number of bits to
 /// each interrupt. So, their length depends on the number of interrupts.
 /// (i.e the ones that are represented as GICD_REG<n>) in the documentation mentioned above.
 pub struct SharedIrqReg {
-    /// The offset from the component address. The register is memory mapped here.
-    offset: u64,
-    /// Number of bits per interrupt.
-    bits_per_irq: u8,
+  /// The offset from the component address. The register is memory mapped here.
+  offset: u64,
+  /// Number of bits per interrupt.
+  bits_per_irq: u8,
 }
 
 impl MmioReg for SharedIrqReg {
-    fn range(&self) -> Range<u64> {
-        // The ARM® TrustZone® implements a protection logic which contains a
-        // read-as-zero/write-ignore (RAZ/WI) policy.
-        // The first part of a shared-irq register, the one corresponding to the
-        // SGI and PPI IRQs (0-32) is RAZ/WI, so we skip it.
-        let start = self.offset + u64::from(SPI_START) * u64::from(self.bits_per_irq) / 8;
+  fn range(&self) -> Range<u64> {
+    // The ARM® TrustZone® implements a protection logic which contains a
+    // read-as-zero/write-ignore (RAZ/WI) policy.
+    // The first part of a shared-irq register, the one corresponding to the
+    // SGI and PPI IRQs (0-32) is RAZ/WI, so we skip it.
+    let start = self.offset + u64::from(SPI_START) * u64::from(self.bits_per_irq) / 8;
 
-        let size_in_bits = u64::from(self.bits_per_irq) * u64::from(GSI_LEGACY_NUM);
-        let mut size_in_bytes = size_in_bits / 8;
-        if size_in_bits % 8 > 0 {
-            size_in_bytes += 1;
-        }
-
-        start..start + size_in_bytes
+    let size_in_bits = u64::from(self.bits_per_irq) * u64::from(GSI_LEGACY_NUM);
+    let mut size_in_bytes = size_in_bits / 8;
+    if size_in_bits % 8 > 0 {
+      size_in_bytes += 1;
     }
+
+    start..start + size_in_bytes
+  }
 }
 
 enum DistReg {
-    Simple(SimpleReg),
-    SharedIrq(SharedIrqReg),
+  Simple(SimpleReg),
+  SharedIrq(SharedIrqReg),
 }
 
 impl DistReg {
-    const fn simple(offset: u64, size: u16) -> DistReg {
-        DistReg::Simple(SimpleReg::new(offset, size))
-    }
+  const fn simple(offset: u64, size: u16) -> DistReg {
+    DistReg::Simple(SimpleReg::new(offset, size))
+  }
 
-    const fn shared_irq(offset: u64, bits_per_irq: u8) -> DistReg {
-        DistReg::SharedIrq(SharedIrqReg {
-            offset,
-            bits_per_irq,
-        })
-    }
+  const fn shared_irq(offset: u64, bits_per_irq: u8) -> DistReg {
+    DistReg::SharedIrq(SharedIrqReg {
+      offset,
+      bits_per_irq,
+    })
+  }
 }
 
 impl MmioReg for DistReg {
-    fn range(&self) -> Range<u64> {
-        match self {
-            DistReg::Simple(reg) => reg.range(),
-            DistReg::SharedIrq(reg) => reg.range(),
-        }
+  fn range(&self) -> Range<u64> {
+    match self {
+      DistReg::Simple(reg) => reg.range(),
+      DistReg::SharedIrq(reg) => reg.range(),
     }
+  }
 }
 
 struct DistRegEngine {}
 
 impl VgicRegEngine for DistRegEngine {
-    type Reg = DistReg;
-    type RegChunk = u32;
+  type Reg = DistReg;
+  type RegChunk = u32;
 
-    fn group() -> u32 {
-        KVM_DEV_ARM_VGIC_GRP_DIST_REGS
-    }
+  fn group() -> u32 {
+    KVM_DEV_ARM_VGIC_GRP_DIST_REGS
+  }
 
-    fn mpidr_mask() -> u64 {
-        0
-    }
+  fn mpidr_mask() -> u64 {
+    0
+  }
 }
 
 pub(crate) fn get_dist_regs(fd: &DeviceFd) -> Result<Vec<GicRegState<u32>>, GicError> {
-    DistRegEngine::get_regs_data(fd, Box::new(VGIC_DIST_REGS.iter()), 0)
+  DistRegEngine::get_regs_data(fd, Box::new(VGIC_DIST_REGS.iter()), 0)
 }
 
 pub(crate) fn set_dist_regs(fd: &DeviceFd, state: &[GicRegState<u32>]) -> Result<(), GicError> {
-    DistRegEngine::set_regs_data(fd, Box::new(VGIC_DIST_REGS.iter()), state, 0)
+  DistRegEngine::set_regs_data(fd, Box::new(VGIC_DIST_REGS.iter()), state, 0)
 }
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::undocumented_unsafe_blocks)]
-    use std::os::unix::io::AsRawFd;
+  #![allow(clippy::undocumented_unsafe_blocks)]
+  use std::os::unix::io::AsRawFd;
 
-    use kvm_ioctls::Kvm;
+  use kvm_ioctls::Kvm;
 
-    use super::*;
-    use crate::arch::aarch64::gic::{GICVersion, create_gic};
+  use super::*;
+  use crate::arch::aarch64::gic::{GICVersion, create_gic};
 
-    #[test]
-    fn test_access_dist_regs() {
-        let kvm = Kvm::new().unwrap();
-        let vm = kvm.create_vm().unwrap();
-        let _ = vm.create_vcpu(0).unwrap();
-        let gic_fd = create_gic(&vm, 1, Some(GICVersion::GICV3)).expect("Cannot create gic");
+  #[test]
+  fn test_access_dist_regs() {
+    let kvm = Kvm::new().unwrap();
+    let vm = kvm.create_vm().unwrap();
+    let _ = vm.create_vcpu(0).unwrap();
+    let gic_fd = create_gic(&vm, 1, Some(GICVersion::GICV3)).expect("Cannot create gic");
 
-        let res = get_dist_regs(gic_fd.device_fd());
-        let state = res.unwrap();
-        assert_eq!(state.len(), 12);
-        // Check GICD_CTLR size.
-        assert_eq!(state[0].chunks.len(), 1);
+    let res = get_dist_regs(gic_fd.device_fd());
+    let state = res.unwrap();
+    assert_eq!(state.len(), 12);
+    // Check GICD_CTLR size.
+    assert_eq!(state[0].chunks.len(), 1);
 
-        let res = set_dist_regs(gic_fd.device_fd(), &state);
-        res.unwrap();
+    let res = set_dist_regs(gic_fd.device_fd(), &state);
+    res.unwrap();
 
-        unsafe { libc::close(gic_fd.device_fd().as_raw_fd()) };
+    unsafe { libc::close(gic_fd.device_fd().as_raw_fd()) };
 
-        let res = get_dist_regs(gic_fd.device_fd());
-        assert_eq!(
-            format!("{:?}", res.unwrap_err()),
-            "DeviceAttribute(Error(9), false, 1)"
-        );
+    let res = get_dist_regs(gic_fd.device_fd());
+    assert_eq!(
+      format!("{:?}", res.unwrap_err()),
+      "DeviceAttribute(Error(9), false, 1)"
+    );
 
-        // dropping gic_fd would double close the gic fd, so leak it
-        std::mem::forget(gic_fd);
-    }
+    // dropping gic_fd would double close the gic fd, so leak it
+    std::mem::forget(gic_fd);
+  }
 
-    #[test]
-    fn test_dist_constructors() {
-        let simple_dist_reg = DistReg::simple(0, 4);
-        let shared_dist_reg = DistReg::shared_irq(0x0010, 2);
-        assert_eq!(simple_dist_reg.range(), Range { start: 0, end: 4 });
-        assert_eq!(shared_dist_reg.range(), Range { start: 24, end: 48 });
-    }
+  #[test]
+  fn test_dist_constructors() {
+    let simple_dist_reg = DistReg::simple(0, 4);
+    let shared_dist_reg = DistReg::shared_irq(0x0010, 2);
+    assert_eq!(simple_dist_reg.range(), Range { start: 0, end: 4 });
+    assert_eq!(shared_dist_reg.range(), Range { start: 24, end: 48 });
+  }
 }

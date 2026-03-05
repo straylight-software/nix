@@ -68,83 +68,83 @@ use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 
-use crate::utils::byte_order;
+use vmm_utils::byte_order;
 
 /// Represents an immutable view into a sequence of bytes which stands for different values packed
 /// together using network byte ordering.
 pub trait NetworkBytes: Deref<Target = [u8]> {
-    /// Reads an `u16` value from the specified offset, converting it to host byte ordering.
-    ///
-    /// # Panics
-    ///
-    /// This method will panic if `offset` is invalid.
-    #[inline]
-    fn ntohs_unchecked(&self, offset: usize) -> u16 {
-        // The unwrap() can fail when the offset is invalid, or there aren't enough bytes (2 in this
-        // case) left until the end of the slice. The caller must ensure this doesn't happen (hence
-        // the `unchecked` suffix).
-        byte_order::read_be_u16(&self[offset..])
-    }
+  /// Reads an `u16` value from the specified offset, converting it to host byte ordering.
+  ///
+  /// # Panics
+  ///
+  /// This method will panic if `offset` is invalid.
+  #[inline]
+  fn ntohs_unchecked(&self, offset: usize) -> u16 {
+    // The unwrap() can fail when the offset is invalid, or there aren't enough bytes (2 in this
+    // case) left until the end of the slice. The caller must ensure this doesn't happen (hence
+    // the `unchecked` suffix).
+    byte_order::read_be_u16(&self[offset..])
+  }
 
-    /// Reads an `u32` value from the specified offset, converting it to host byte ordering.
-    ///
-    /// # Panics
-    ///
-    /// This method will panic if `offset` is invalid.
-    #[inline]
-    fn ntohl_unchecked(&self, offset: usize) -> u32 {
-        byte_order::read_be_u32(&self[offset..])
-    }
+  /// Reads an `u32` value from the specified offset, converting it to host byte ordering.
+  ///
+  /// # Panics
+  ///
+  /// This method will panic if `offset` is invalid.
+  #[inline]
+  fn ntohl_unchecked(&self, offset: usize) -> u32 {
+    byte_order::read_be_u32(&self[offset..])
+  }
 
-    /// Shrinks the current slice to the given `len`.
-    ///
-    /// Does not check whether `len` is actually smaller than `self.len()`.
-    ///
-    /// # Panics
-    ///
-    /// This method will panic if `len` is greater than `self.len()`.
-    fn shrink_unchecked(&mut self, len: usize);
+  /// Shrinks the current slice to the given `len`.
+  ///
+  /// Does not check whether `len` is actually smaller than `self.len()`.
+  ///
+  /// # Panics
+  ///
+  /// This method will panic if `len` is greater than `self.len()`.
+  fn shrink_unchecked(&mut self, len: usize);
 }
 
 /// Offers mutable access to a sequence of bytes which stands for different values packed
 /// together using network byte ordering.
 pub trait NetworkBytesMut: NetworkBytes + DerefMut<Target = [u8]> {
-    /// Writes the given `u16` value at the specified `offset` using network byte ordering.
-    ///
-    /// # Panics
-    ///
-    /// If `value` cannot be written into `self` at the given `offset`
-    /// (e.g. if `offset > self.len() - size_of::<u16>()`).
-    #[inline]
-    fn htons_unchecked(&mut self, offset: usize, value: u16) {
-        assert!(offset <= self.len() - std::mem::size_of::<u16>());
-        byte_order::write_be_u16(&mut self[offset..], value)
-    }
+  /// Writes the given `u16` value at the specified `offset` using network byte ordering.
+  ///
+  /// # Panics
+  ///
+  /// If `value` cannot be written into `self` at the given `offset`
+  /// (e.g. if `offset > self.len() - size_of::<u16>()`).
+  #[inline]
+  fn htons_unchecked(&mut self, offset: usize, value: u16) {
+    assert!(offset <= self.len() - std::mem::size_of::<u16>());
+    byte_order::write_be_u16(&mut self[offset..], value)
+  }
 
-    /// Writes the given `u32` value at the specified `offset` using network byte ordering.
-    ///
-    /// # Panics
-    ///
-    /// If `value` cannot be written into `self` at the given `offset`
-    /// (e.g. if `offset > self.len() - size_of::<u32>()`).
-    #[inline]
-    fn htonl_unchecked(&mut self, offset: usize, value: u32) {
-        assert!(offset <= self.len() - std::mem::size_of::<u32>());
-        byte_order::write_be_u32(&mut self[offset..], value)
-    }
+  /// Writes the given `u32` value at the specified `offset` using network byte ordering.
+  ///
+  /// # Panics
+  ///
+  /// If `value` cannot be written into `self` at the given `offset`
+  /// (e.g. if `offset > self.len() - size_of::<u32>()`).
+  #[inline]
+  fn htonl_unchecked(&mut self, offset: usize, value: u32) {
+    assert!(offset <= self.len() - std::mem::size_of::<u32>());
+    byte_order::write_be_u32(&mut self[offset..], value)
+  }
 }
 
 impl NetworkBytes for &[u8] {
-    #[inline]
-    fn shrink_unchecked(&mut self, len: usize) {
-        *self = &self[..len];
-    }
+  #[inline]
+  fn shrink_unchecked(&mut self, len: usize) {
+    *self = &self[..len];
+  }
 }
 impl NetworkBytes for &mut [u8] {
-    #[inline]
-    fn shrink_unchecked(&mut self, len: usize) {
-        *self = &mut std::mem::take(self)[..len];
-    }
+  #[inline]
+  fn shrink_unchecked(&mut self, len: usize) {
+    *self = &mut std::mem::take(self)[..len];
+  }
 }
 
 impl NetworkBytesMut for &mut [u8] {}
@@ -154,93 +154,93 @@ impl NetworkBytesMut for &mut [u8] {}
 // use pub(super) here because we only want this to be usable by the child modules of `pdu`.
 #[derive(Debug)]
 pub(super) struct InnerBytes<'a, T: 'a> {
-    bytes: T,
-    phantom: PhantomData<&'a T>,
+  bytes: T,
+  phantom: PhantomData<&'a T>,
 }
 
 impl<T: Debug> InnerBytes<'_, T> {
-    /// Creates a new instance as a wrapper around `bytes`.
-    #[inline]
-    pub fn new(bytes: T) -> Self {
-        InnerBytes {
-            bytes,
-            phantom: PhantomData,
-        }
+  /// Creates a new instance as a wrapper around `bytes`.
+  #[inline]
+  pub fn new(bytes: T) -> Self {
+    InnerBytes {
+      bytes,
+      phantom: PhantomData,
     }
+  }
 }
 
 impl<T: Deref<Target = [u8]> + Debug> Deref for InnerBytes<'_, T> {
-    type Target = [u8];
+  type Target = [u8];
 
-    #[inline]
-    fn deref(&self) -> &[u8] {
-        self.bytes.deref()
-    }
+  #[inline]
+  fn deref(&self) -> &[u8] {
+    self.bytes.deref()
+  }
 }
 
 impl<T: DerefMut<Target = [u8]> + Debug> DerefMut for InnerBytes<'_, T> {
-    #[inline]
-    fn deref_mut(&mut self) -> &mut [u8] {
-        self.bytes.deref_mut()
-    }
+  #[inline]
+  fn deref_mut(&mut self) -> &mut [u8] {
+    self.bytes.deref_mut()
+  }
 }
 
 impl<T: NetworkBytes + Debug> NetworkBytes for InnerBytes<'_, T> {
-    #[inline]
-    fn shrink_unchecked(&mut self, len: usize) {
-        self.bytes.shrink_unchecked(len);
-    }
+  #[inline]
+  fn shrink_unchecked(&mut self, len: usize) {
+    self.bytes.shrink_unchecked(len);
+  }
 }
 
 impl<T: NetworkBytesMut + Debug> NetworkBytesMut for InnerBytes<'_, T> {}
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+  use super::*;
 
-    #[test]
-    #[should_panic]
-    fn test_htons_unchecked() {
-        let mut buf = [u8::default(); std::mem::size_of::<u16>()];
-        let mut a = buf.as_mut();
-        a.htons_unchecked(1, u16::default());
+  #[test]
+  #[should_panic]
+  fn test_htons_unchecked() {
+    let mut buf = [u8::default(); std::mem::size_of::<u16>()];
+    let mut a = buf.as_mut();
+    a.htons_unchecked(1, u16::default());
+  }
+
+  #[test]
+  #[should_panic]
+  fn test_htonl_unchecked() {
+    let mut buf = [u8::default(); std::mem::size_of::<u32>()];
+    let mut a = buf.as_mut();
+    a.htonl_unchecked(1, u32::default());
+  }
+
+  #[test]
+  fn test_network_bytes() {
+    let mut buf = [0u8; 1000];
+
+    {
+      let mut a = buf.as_mut();
+
+      a.htons_unchecked(1, 123);
+      a.htonl_unchecked(100, 1234);
+
+      assert_eq!(a.ntohs_unchecked(1), 123);
+      assert_eq!(a.ntohl_unchecked(100), 1234);
+
+      a.shrink_unchecked(500);
+
+      assert_eq!(a.len(), 500);
+      assert_eq!(a.ntohs_unchecked(1), 123);
+      assert_eq!(a.ntohl_unchecked(100), 1234);
     }
 
-    #[test]
-    #[should_panic]
-    fn test_htonl_unchecked() {
-        let mut buf = [u8::default(); std::mem::size_of::<u32>()];
-        let mut a = buf.as_mut();
-        a.htonl_unchecked(1, u32::default());
+    {
+      let mut b = buf.as_ref();
+      b.shrink_unchecked(500);
+
+      assert_eq!(b.len(), 500);
+      assert_eq!(b.ntohs_unchecked(1), 123);
+      assert_eq!(b.ntohl_unchecked(100), 1234);
     }
-
-    #[test]
-    fn test_network_bytes() {
-        let mut buf = [0u8; 1000];
-
-        {
-            let mut a = buf.as_mut();
-
-            a.htons_unchecked(1, 123);
-            a.htonl_unchecked(100, 1234);
-
-            assert_eq!(a.ntohs_unchecked(1), 123);
-            assert_eq!(a.ntohl_unchecked(100), 1234);
-
-            a.shrink_unchecked(500);
-
-            assert_eq!(a.len(), 500);
-            assert_eq!(a.ntohs_unchecked(1), 123);
-            assert_eq!(a.ntohl_unchecked(100), 1234);
-        }
-
-        {
-            let mut b = buf.as_ref();
-            b.shrink_unchecked(500);
-
-            assert_eq!(b.len(), 500);
-            assert_eq!(b.ntohs_unchecked(1), 123);
-            assert_eq!(b.ntohl_unchecked(100), 1234);
-        }
-    }
+  }
 }
