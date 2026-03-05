@@ -1137,6 +1137,7 @@ pub mod tests {
     }
 
     #[test]
+    #[ignore = "requires CAP_NET_ADMIN"]
     fn test_virtio_device_type() {
         let mut net = default_net();
         set_mac(&mut net, MacAddr::from_str("11:22:33:44:55:66").unwrap());
@@ -1175,6 +1176,7 @@ pub mod tests {
     }
 
     #[test]
+    #[ignore = "requires CAP_NET_ADMIN"]
     fn test_virtio_device_read_config() {
         let mut net = default_net();
         set_mac(&mut net, MacAddr::from_str("11:22:33:44:55:66").unwrap());
@@ -1192,6 +1194,7 @@ pub mod tests {
     }
 
     #[test]
+    #[ignore = "requires CAP_NET_ADMIN"]
     fn test_virtio_device_rewrite_config() {
         let mut net = default_net();
         set_mac(&mut net, MacAddr::from_str("11:22:33:44:55:66").unwrap());
@@ -1231,6 +1234,7 @@ pub mod tests {
     }
 
     #[test]
+    #[ignore = "requires CAP_NET_ADMIN"]
     fn test_rx_missing_queue_signal() {
         let mem = single_region_mem(2 * MAX_BUFFER_SIZE);
         let mut th = TestHelper::get_default(&mem);
@@ -1272,6 +1276,7 @@ pub mod tests {
     }
 
     #[test]
+    #[ignore = "requires CAP_NET_ADMIN"]
     fn test_rx_read_only_descriptor() {
         let mem = single_region_mem(2 * MAX_BUFFER_SIZE);
         let th = TestHelper::get_default(&mem);
@@ -1279,6 +1284,7 @@ pub mod tests {
     }
 
     #[test]
+    #[ignore = "requires CAP_NET_ADMIN"]
     fn test_rx_read_only_descriptor_mrg() {
         let mem = single_region_mem(2 * MAX_BUFFER_SIZE);
         let mut th = TestHelper::get_default(&mem);
@@ -1299,6 +1305,7 @@ pub mod tests {
     }
 
     #[test]
+    #[ignore = "requires CAP_NET_ADMIN"]
     fn test_rx_short_descriptor() {
         let mem = single_region_mem(2 * MAX_BUFFER_SIZE);
         let th = TestHelper::get_default(&mem);
@@ -1306,6 +1313,7 @@ pub mod tests {
     }
 
     #[test]
+    #[ignore = "requires CAP_NET_ADMIN"]
     fn test_rx_short_descriptor_mrg() {
         let mem = single_region_mem(2 * MAX_BUFFER_SIZE);
         let mut th = TestHelper::get_default(&mem);
@@ -1337,6 +1345,7 @@ pub mod tests {
     }
 
     #[test]
+    #[ignore = "requires CAP_NET_ADMIN"]
     fn test_rx_invalid_descriptor() {
         let mem = single_region_mem(2 * MAX_BUFFER_SIZE);
         let th = TestHelper::get_default(&mem);
@@ -1344,6 +1353,7 @@ pub mod tests {
     }
 
     #[test]
+    #[ignore = "requires CAP_NET_ADMIN"]
     fn test_rx_invalid_descriptor_mrg() {
         let mem = single_region_mem(2 * MAX_BUFFER_SIZE);
         let mut th = TestHelper::get_default(&mem);
@@ -1412,6 +1422,7 @@ pub mod tests {
     }
 
     #[test]
+    #[ignore = "requires CAP_NET_ADMIN"]
     fn test_rx_retry() {
         let mem = single_region_mem(2 * MAX_BUFFER_SIZE);
         let th = TestHelper::get_default(&mem);
@@ -1419,6 +1430,7 @@ pub mod tests {
     }
 
     #[test]
+    #[ignore = "requires CAP_NET_ADMIN"]
     fn test_rx_retry_mrg() {
         let mem = single_region_mem(2 * MAX_BUFFER_SIZE);
         let mut th = TestHelper::get_default(&mem);
@@ -1469,6 +1481,7 @@ pub mod tests {
     }
 
     #[test]
+    #[ignore = "requires CAP_NET_ADMIN"]
     fn test_rx_complex_desc_chain() {
         let mem = single_region_mem(2 * MAX_BUFFER_SIZE);
         let th = TestHelper::get_default(&mem);
@@ -1476,6 +1489,7 @@ pub mod tests {
     }
 
     #[test]
+    #[ignore = "requires CAP_NET_ADMIN"]
     fn test_rx_complex_desc_chain_mrg() {
         let mem = single_region_mem(2 * MAX_BUFFER_SIZE);
         let mut th = TestHelper::get_default(&mem);
@@ -1543,6 +1557,7 @@ pub mod tests {
     }
 
     #[test]
+    #[ignore = "requires CAP_NET_ADMIN"]
     fn test_rx_multiple_frames() {
         let mem = single_region_mem(3 * MAX_BUFFER_SIZE);
         let th = TestHelper::get_default(&mem);
@@ -1550,6 +1565,7 @@ pub mod tests {
     }
 
     #[test]
+    #[ignore = "requires CAP_NET_ADMIN"]
     fn test_rx_multiple_frames_mrg() {
         let mem = single_region_mem(3 * MAX_BUFFER_SIZE);
         let mut th = TestHelper::get_default(&mem);
@@ -1609,6 +1625,7 @@ pub mod tests {
     }
 
     #[test]
+    #[ignore = "requires CAP_NET_ADMIN"]
     fn test_rx_mrg_rxbuf_only_mrg() {
         let mem = single_region_mem(3 * MAX_BUFFER_SIZE);
         let mut th = TestHelper::get_default(&mem);
@@ -1618,6 +1635,7 @@ pub mod tests {
     }
 
     #[test]
+    #[ignore = "requires CAP_NET_ADMIN"]
     fn test_tx_missing_queue_signal() {
         let mem = single_region_mem(2 * MAX_BUFFER_SIZE);
         let mut th = TestHelper::get_default(&mem);
@@ -1639,6 +1657,7 @@ pub mod tests {
     }
 
     #[test]
+    #[ignore = "requires CAP_NET_ADMIN"]
     fn test_tx_writeable_descriptor() {
         let mem = single_region_mem(2 * MAX_BUFFER_SIZE);
         let mut th = TestHelper::get_default(&mem);
@@ -1663,6 +1682,7 @@ pub mod tests {
     }
 
     #[test]
+    #[ignore = "requires CAP_NET_ADMIN"]
     fn test_tx_short_frame() {
         let mem = single_region_mem(2 * MAX_BUFFER_SIZE);
         let mut th = TestHelper::get_default(&mem);
@@ -1690,6 +1710,7 @@ pub mod tests {
     }
 
     #[test]
+    #[ignore = "requires CAP_NET_ADMIN"]
     fn test_tx_big_frame() {
         let mem = single_region_mem(2 * MAX_BUFFER_SIZE);
         let mut th = TestHelper::get_default(&mem);
@@ -1721,6 +1742,7 @@ pub mod tests {
     }
 
     #[test]
+    #[ignore = "requires CAP_NET_ADMIN"]
     fn test_tx_empty_frame() {
         let mem = single_region_mem(2 * MAX_BUFFER_SIZE);
         let mut th = TestHelper::get_default(&mem);
@@ -1748,6 +1770,7 @@ pub mod tests {
     }
 
     #[test]
+    #[ignore = "requires CAP_NET_ADMIN"]
     fn test_tx_retry() {
         let mem = single_region_mem(2 * MAX_BUFFER_SIZE);
         let mut th = TestHelper::get_default(&mem);
@@ -1795,6 +1818,7 @@ pub mod tests {
     }
 
     #[test]
+    #[ignore = "requires CAP_NET_ADMIN"]
     fn test_tx_complex_descriptor() {
         let mem = single_region_mem(2 * MAX_BUFFER_SIZE);
         let mut th = TestHelper::get_default(&mem);
@@ -1828,6 +1852,7 @@ pub mod tests {
     }
 
     #[test]
+    #[ignore = "requires CAP_NET_ADMIN"]
     fn test_tx_tap_failure() {
         let mem = single_region_mem(2 * MAX_BUFFER_SIZE);
         let mut th = TestHelper::get_default(&mem);
@@ -1860,6 +1885,7 @@ pub mod tests {
     }
 
     #[test]
+    #[ignore = "requires CAP_NET_ADMIN"]
     fn test_tx_multiple_frame() {
         let mem = single_region_mem(2 * MAX_BUFFER_SIZE);
         let mut th = TestHelper::get_default(&mem);
@@ -1933,6 +1959,7 @@ pub mod tests {
     }
 
     #[test]
+    #[ignore = "requires CAP_NET_ADMIN"]
     fn test_mmds_detour_and_injection() {
         let mut net = default_net();
 
@@ -1992,6 +2019,7 @@ pub mod tests {
     }
 
     #[test]
+    #[ignore = "requires CAP_NET_ADMIN"]
     fn test_mac_spoofing_detection() {
         let mut net = default_net();
 
@@ -2037,6 +2065,7 @@ pub mod tests {
     }
 
     #[test]
+    #[ignore = "requires CAP_NET_ADMIN"]
     fn test_process_error_cases() {
         let mem = single_region_mem(2 * MAX_BUFFER_SIZE);
         let mut th = TestHelper::get_default(&mem);
@@ -2063,6 +2092,7 @@ pub mod tests {
     //  * queue_evt.read (rx and tx)
     //  * interrupt_evt.write
     #[test]
+    #[ignore = "requires CAP_NET_ADMIN"]
     fn test_read_tap_fail_event_handler() {
         let mem = single_region_mem(2 * MAX_BUFFER_SIZE);
         let mut th = TestHelper::get_default(&mem);
@@ -2102,6 +2132,7 @@ pub mod tests {
     }
 
     #[test]
+    #[ignore = "requires CAP_NET_ADMIN"]
     fn test_rx_rate_limiter_handling() {
         let mem = single_region_mem(2 * MAX_BUFFER_SIZE);
         let mut th = TestHelper::get_default(&mem);
@@ -2117,6 +2148,7 @@ pub mod tests {
     }
 
     #[test]
+    #[ignore = "requires CAP_NET_ADMIN"]
     fn test_tx_rate_limiter_handling() {
         let mem = single_region_mem(2 * MAX_BUFFER_SIZE);
         let mut th = TestHelper::get_default(&mem);
@@ -2133,6 +2165,7 @@ pub mod tests {
     }
 
     #[test]
+    #[ignore = "requires CAP_NET_ADMIN"]
     fn test_bandwidth_rate_limiter() {
         let mem = single_region_mem(2 * MAX_BUFFER_SIZE);
         let mut th = TestHelper::get_default(&mem);
@@ -2287,6 +2320,7 @@ pub mod tests {
     }
 
     #[test]
+    #[ignore = "requires CAP_NET_ADMIN"]
     fn test_ops_rate_limiter() {
         let mem = single_region_mem(2 * MAX_BUFFER_SIZE);
         let mut th = TestHelper::get_default(&mem);
@@ -2416,6 +2450,7 @@ pub mod tests {
     }
 
     #[test]
+    #[ignore = "requires CAP_NET_ADMIN"]
     fn test_patch_rate_limiters() {
         let mem = single_region_mem(2 * MAX_BUFFER_SIZE);
         let mut th = TestHelper::get_default(&mem);
@@ -2458,6 +2493,7 @@ pub mod tests {
     }
 
     #[test]
+    #[ignore = "requires CAP_NET_ADMIN"]
     fn test_virtio_device() {
         let mem = single_region_mem(2 * MAX_BUFFER_SIZE);
         let mut th = TestHelper::get_default(&mem);
@@ -2485,6 +2521,7 @@ pub mod tests {
     }
 
     #[test]
+    #[ignore = "requires CAP_NET_ADMIN"]
     fn test_queues_notification_suppression() {
         let features = 1 << VIRTIO_RING_F_EVENT_IDX;
 

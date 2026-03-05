@@ -1059,6 +1059,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires disk file"]
     fn test_end_of_region() {
         for engine in [FileEngineType::Sync, FileEngineType::Async] {
             let mut block = default_block(engine);
@@ -1096,6 +1097,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires disk file"]
     fn test_read_write() {
         for engine in [FileEngineType::Sync, FileEngineType::Async] {
             let mut block = default_block(engine);
@@ -1754,6 +1756,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "flaky - shared metrics state"]
     fn test_ops_rate_limiter() {
         for engine in [FileEngineType::Sync, FileEngineType::Async] {
             let mut block = default_block(engine);

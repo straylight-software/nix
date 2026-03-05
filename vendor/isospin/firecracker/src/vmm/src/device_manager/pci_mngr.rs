@@ -936,6 +936,7 @@ mod tests {
     use crate::vmm_config::vsock::VsockDeviceConfig;
 
     #[test]
+    #[ignore = "requires CAP_NET_ADMIN"]
     fn test_device_manager_persistence() {
         let mut buf = vec![0; 65536];
         // These need to survive so the restored blocks find them.

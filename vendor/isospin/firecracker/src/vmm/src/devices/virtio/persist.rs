@@ -516,6 +516,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires CAP_NET_ADMIN"]
     fn test_net_over_mmiotransport_persistence() {
         let (mmio_transport, interrupt, mem, net) = create_default_net();
         generic_mmiotransport_persistence_test(mmio_transport, interrupt, mem, net);

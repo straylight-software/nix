@@ -207,6 +207,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires CAP_NET_ADMIN"]
     fn test_insert() {
         let mut net_builder = NetBuilder::new();
 
@@ -234,6 +235,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires CAP_NET_ADMIN"]
     fn test_insert_error_cases() {
         let mut net_builder = NetBuilder::new();
 
@@ -301,6 +303,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires CAP_NET_ADMIN"]
     fn test_net_config() {
         let net_id = "id";
         let host_dev_name = "dev";
@@ -322,6 +325,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires CAP_NET_ADMIN"]
     fn test_add_device() {
         let mut net_builder = NetBuilder::new();
         let net_id = "test_id";

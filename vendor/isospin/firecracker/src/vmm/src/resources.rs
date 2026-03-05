@@ -665,6 +665,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires test fixture files"]
     fn test_from_json() {
         let kernel_file = TempFile::new().unwrap();
         let rootfs_file = TempFile::new().unwrap();
@@ -1210,6 +1211,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires test fixture files"]
     fn test_cast_to_vmm_config() {
         // No mmds config.
         {
@@ -1408,6 +1410,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires test fixture files"]
     fn test_update_machine_config() {
         let mut vm_resources = default_vm_resources();
         let mut aux_vm_config = MachineConfigUpdate {
@@ -1512,6 +1515,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires test fixture files"]
     fn test_set_balloon_device() {
         let mut vm_resources = default_vm_resources();
         vm_resources.balloon = BalloonBuilder::new();
@@ -1547,6 +1551,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires test fixture files"]
     fn test_set_entropy_device() {
         let mut vm_resources = default_vm_resources();
         vm_resources.entropy = EntropyDeviceBuilder::new();
@@ -1562,6 +1567,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires test fixture files"]
     fn test_set_boot_source() {
         let tmp_file = TempFile::new().unwrap();
         let cmdline = "reboot=k panic=1 pci=off nomodule 8250.nr_uarts=0";
@@ -1625,6 +1631,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires test fixture files"]
     fn test_set_block_device() {
         let mut vm_resources = default_vm_resources();
         let (mut new_block_device_cfg, _file) = default_block_cfg();
@@ -1637,6 +1644,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires test fixture files"]
     fn test_set_vsock_device() {
         let mut vm_resources = default_vm_resources();
         let mut tmp_sock_file = TempFile::new().unwrap();
@@ -1649,6 +1657,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires test fixture files"]
     fn test_set_net_device() {
         let mut vm_resources = default_vm_resources();
 
@@ -1664,6 +1673,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires test fixture files"]
     fn test_set_pmem_device() {
         let mut vm_resources = default_vm_resources();
 

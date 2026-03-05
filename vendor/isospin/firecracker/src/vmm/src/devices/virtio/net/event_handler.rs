@@ -138,6 +138,7 @@ pub mod tests {
     use crate::test_utils::single_region_mem;
 
     #[test]
+    #[ignore = "requires CAP_NET_ADMIN"]
     fn test_event_handler() {
         let mem = single_region_mem(2 * MAX_BUFFER_SIZE);
         let mut th = TestHelper::get_default(&mem);

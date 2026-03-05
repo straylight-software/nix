@@ -1315,6 +1315,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires socket permissions"]
     fn test_muxer_killq() {
         let mut ctx = MuxerTestContext::new("muxer_killq");
         let local_port = 1026;
@@ -1467,6 +1468,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires socket permissions"]
     fn test_vsock_basic_metrics() {
         // Save the metrics values that we need tested.
         let mut tx_packets_count = METRICS.tx_packets_count.count();

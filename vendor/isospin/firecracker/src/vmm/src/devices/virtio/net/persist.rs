@@ -201,6 +201,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires CAP_NET_ADMIN"]
     fn test_persistence() {
         let mmds = Some(Arc::new(Mutex::new(Mmds::default())));
         validate_save_and_restore(default_net(), mmds.as_ref().cloned());

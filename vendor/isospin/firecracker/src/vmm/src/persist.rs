@@ -679,6 +679,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires CAP_NET_ADMIN"]
     fn test_microvm_state_snapshot() {
         let vmm = default_vmm_with_devices();
         let states = vmm.device_manager.save();

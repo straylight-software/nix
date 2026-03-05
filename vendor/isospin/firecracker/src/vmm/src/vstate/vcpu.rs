@@ -1023,6 +1023,7 @@ pub(crate) mod tests {
     }
 
     #[test]
+    #[ignore = "requires KVM"]
     fn test_vcpu_pause_resume() {
         let (_vm, mut vcpu_handle, vcpu_exit_evt) = vcpu_configured_for_boot();
 
@@ -1055,6 +1056,7 @@ pub(crate) mod tests {
     }
 
     #[test]
+    #[ignore = "requires KVM"]
     fn test_vcpu_save_state_events() {
         let (_vm, mut vcpu_handle, _vcpu_exit_evt) = vcpu_configured_for_boot();
 
@@ -1088,6 +1090,7 @@ pub(crate) mod tests {
     }
 
     #[test]
+    #[ignore = "requires KVM"]
     fn test_vcpu_dump_cpu_config() {
         let (_vm, mut vcpu_handle, _) = vcpu_configured_for_boot();
 

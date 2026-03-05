@@ -599,6 +599,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires KVM"]
     fn test_access_table() {
         let mut config = MsixConfig::new(msix_vector_group(2), 0x42);
         // enabled and not masked
