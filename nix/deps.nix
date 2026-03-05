@@ -85,7 +85,8 @@ let
   lowdown-static = libmodern.lowdown;
 
   # Seccomp (for Firecracker seccompiler)
-  libseccomp-static = pkgs.pkgsStatic.libseccomp;
+  # Note: pkgsStatic.libseccomp has multiple outputs; use .lib for the static library
+  libseccomp-static = pkgs.pkgsStatic.libseccomp.lib;
 
 in
 {
