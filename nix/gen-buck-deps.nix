@@ -23,8 +23,10 @@ let
   s = deps.static;
 
   # Helper to get lib path (handles multi-output derivations)
-  libPath = pkg: pkg.out or pkg;
-  devPath = pkg: pkg.dev or pkg;
+  # Note: When passing a specific output like pkg.lib, it still has .out pointing
+  # to default output. So we use outPath directly which gives us the correct path.
+  libPath = pkg: pkg.outPath;
+  devPath = pkg: pkg.dev.outPath or pkg.outPath;
 
   # Generate the .bzl content
   content = ''
