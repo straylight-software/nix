@@ -394,12 +394,10 @@ nix_prebuilt_cxx_library(
 # Benchmark dependencies
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# nanobench static (musl)
-nix_prebuilt_cxx_library(
-    name = "nanobench",
-    static_lib = NANOBENCH_STATIC_LIB,
-    include_dir = NANOBENCH_INCLUDE,
-)
+# nanobench (header-only microbenchmarking library)
+# Note: nanobench is used in header-only mode with ANKERL_NANOBENCH_IMPLEMENT
+# defined in one translation unit per benchmark. Headers come from toolchain.
+filegroup(name = "nanobench", srcs = [], visibility = ["PUBLIC"])  # header-only
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Isospin microVM (Firecracker + GPU broker)
