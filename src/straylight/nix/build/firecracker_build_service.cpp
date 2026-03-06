@@ -1305,9 +1305,15 @@ private:
         continue;
       }
 
-      // Destination in system store (for build-hook compatibility)
-      // The build hook protocol expects outputs to be in /nix/store after the build
-      auto dst_path = fs::path("/nix/store") / basename;
+      // Destination: prefer user store (writable), fallback to system store
+      // The user store at ~/.local/share/nix/store is always writable
+      fs::path dst_path;
+      if (!config_.user_store_dir.empty()) {
+        fs::create_directories(config_.user_store_dir);
+        dst_path = fs::path(config_.user_store_dir) / basename;
+      } else {
+        dst_path = fs::path("/nix/store") / basename;
+      }
 
       log_info("firecracker: extracting output '%s': %s -> %s", name, src_path.c_str(),
                dst_path.c_str());
