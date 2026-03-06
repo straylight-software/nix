@@ -102,7 +102,7 @@ The worker protocol enables communication between nix clients and the nix-daemon
 ### Protocol Version
 
 - **Current:** 1.38
-- **Minimum:** 1.18
+- **Minimum:** 1.10
 
 ### Magic Numbers
 

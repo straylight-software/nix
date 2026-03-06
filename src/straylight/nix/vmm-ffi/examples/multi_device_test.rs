@@ -184,9 +184,24 @@ fn main() {
   }
   println!("  OK: VM started");
 
+  // CRITICAL: The VM needs the event loop running to process virtio device events.
+  // Without this, the guest kernel will hang waiting for device responses.
+  // Run vmm_wait in a background thread while we wait.
+  let handle_ptr = handle as *mut _ as usize; // Convert to usize for Send
+  let wait_thread = std::thread::spawn(move || {
+    let handle = handle_ptr as *mut VmmHandle;
+    eprintln!("  [event loop thread] Starting event loop...");
+    let result = vmm_wait(handle);
+    eprintln!(
+      "  [event loop thread] Event loop exited with code: {}",
+      result
+    );
+    result
+  });
+
   // Wait for kernel to boot and probe devices
-  println!("\n[Step 6] Waiting for kernel to boot (10s)...");
-  std::thread::sleep(std::time::Duration::from_secs(10));
+  println!("\n[Step 6] Waiting for kernel to boot (20s)...");
+  std::thread::sleep(std::time::Duration::from_secs(20));
 
   // The kernel output should be visible on the console
   // We can check /tmp/fc-debug.log if configured
@@ -194,6 +209,10 @@ fn main() {
   // Shutdown
   println!("\n[Step 7] Shutting down VM...");
   vmm_shutdown(handle);
+
+  // Wait for event loop thread to finish
+  let _ = wait_thread.join();
+
   vmm_destroy(handle);
   println!("  OK: VM destroyed");
 

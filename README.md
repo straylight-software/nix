@@ -57,20 +57,17 @@ libressl (not openssl), blake3, ada, re2, binaryen, wasmtime, liburing, nghttp2,
 
 ### // `documentation`
 
-| document | description | |
-\------------------------------------------------------------------------------------------------------
-| ------------------------------ | | [ARCHITECTURE.md](./ARCHITECTURE.md) | comprehensive project
-overview | | [docs/DEVELOPER_GUIDE.md](./docs/DEVELOPER_GUIDE.md) | developer onboarding | |
-[docs/cpp-style-guide.md](./docs/cpp-style-guide.md) | c++ code conventions | |
-[src/straylight/evring/ARCHITECTURE.md](./src/straylight/evring/ARCHITECTURE.md) | io_uring state
-machines | |
-[src/straylight/nix/compiler/docs/ARCHITECTURE.md](./src/straylight/nix/compiler/docs/ARCHITECTURE.md)
-| nix → wasm compiler | |
-[src/straylight/nix/protocol/README.md](./src/straylight/nix/protocol/README.md) | formal protocol
-specs | | [src/straylight/nix/docs/NIH.md](./src/straylight/nix/docs/NIH.md) | nih replacement
-tracking | |
-[src/straylight/nix/store/docs/ARCHITECTURE.md](./src/straylight/nix/store/docs/ARCHITECTURE.md) |
-daemonless store design |
+| document | description |
+|----------|-------------|
+| [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | comprehensive project overview |
+| [docs/DEVELOPER_GUIDE.md](./docs/DEVELOPER_GUIDE.md) | developer onboarding |
+| [docs/cpp-style-guide.md](./docs/cpp-style-guide.md) | c++ code conventions |
+| [docs/firecracker-build-service.md](./docs/firecracker-build-service.md) | firecracker vm builds |
+| [src/straylight/evring/ARCHITECTURE.md](./src/straylight/evring/ARCHITECTURE.md) | io_uring state machines |
+| [src/straylight/nix/compiler/docs/ARCHITECTURE.md](./src/straylight/nix/compiler/docs/ARCHITECTURE.md) | nix → wasm compiler |
+| [src/straylight/nix/protocol/README.md](./src/straylight/nix/protocol/README.md) | formal protocol specs |
+| [src/straylight/nix/docs/NIH.md](./src/straylight/nix/docs/NIH.md) | nih replacement tracking |
+| [src/straylight/nix/store/docs/ARCHITECTURE.md](./src/straylight/nix/store/docs/ARCHITECTURE.md) | daemonless store design |
 
 ### // `license`
 

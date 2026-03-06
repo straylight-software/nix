@@ -299,6 +299,14 @@ pub fn build_microvm_for_boot(
     log::warn!("Vcpus do not support pvtime, steal time will not be reported to guest");
   }
 
+  // Debug: print final boot cmdline with virtio_mmio device entries
+  if let Ok(cmdline_cstr) = boot_cmdline.as_cstring() {
+    eprintln!(
+      "firecracker-builder: final boot cmdline: {:?}",
+      cmdline_cstr.to_string_lossy()
+    );
+  }
+
   configure_system_for_boot(
     &kvm,
     &vm,

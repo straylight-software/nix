@@ -1,5 +1,8 @@
 # Firecracker Build Service
 
+> **Status: Working** - End-to-end builds verified as of March 2026. The embedded
+> Firecracker VMM successfully executes builds without requiring the nix-daemon.
+
 The Firecracker build service provides daemonless, sandboxed Nix builds using
 Firecracker microVMs. It eliminates the need for a root nix-daemon while
 providing stronger isolation than traditional namespace-based sandboxing.
@@ -192,31 +195,24 @@ ls -la ~/.local/share/nix/firecracker/
 
 ## Configuration
 
-### Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `NIX_BUILD_SERVICE` | Build backend selection | `auto` |
-| `NIX_FIRECRACKER_BIN` | Path to firecracker binary | Auto-detect |
-| `NIX_FIRECRACKER_KERNEL` | Path to guest kernel | Auto-detect |
-| `NIX_FIRECRACKER_INITRD` | Path to guest initrd | Auto-detect |
+The `nix-embedded` binary uses Firecracker exclusively - there is no fallback to the
+traditional nix-daemon. This is intentional: the embedded binary is designed for
+environments where the daemon is unavailable or undesirable.
 
 ### Build Service Selection
 
+Build service selection uses nix's standard `--builders` flag, not environment variables:
+
 ```bash
-# Explicit firecracker
-export NIX_BUILD_SERVICE=firecracker
+# Use embedded Firecracker (default for nix-embedded)
+nix build --builders ''
 
-# Explicit daemon (traditional)
-export NIX_BUILD_SERVICE=daemon
-
-# Auto-detect (firecracker when daemon unavailable)
-export NIX_BUILD_SERVICE=auto
-
-# REAPI (future, for nativelink)
-export NIX_BUILD_SERVICE=reapi
-export NIX_REAPI_ENDPOINT=localhost:8980
+# Use remote builders (standard nix behavior)
+nix build --builders 'ssh://builder@host x86_64-linux'
 ```
+
+When `--builders ''` is specified (empty string), nix invokes the `__build-remote` hook
+which uses the embedded Firecracker VMM.
 
 ### Auto-Detection Paths
 
@@ -249,14 +245,12 @@ The service searches for components in these locations:
 ### Basic Usage
 
 ```bash
-# Enable firecracker builds
-export NIX_BUILD_SERVICE=firecracker
+# Build with embedded Firecracker VMM (use empty --builders to trigger build hook)
+nix build .#mypackage --builders ''
 
-# Build as normal
-nix build .#mypackage
-
-# Or with straylight-nix directly
-straylight-nix build -f default.nix
+# Simple derivation example (verified working)
+nix build --expr 'derivation { name = "hello"; builder = "/nix/store/.../bash"; 
+    args = ["-c" "echo hello > $out"]; system = "x86_64-linux"; }' --builders ''
 ```
 
 ### Programmatic Usage

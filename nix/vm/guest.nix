@@ -20,25 +20,32 @@
 let
   # Use standard kernel with required features for Firecracker
   # Note: vmlinux is ~600MB with debug info, but we strip it to ~30MB at build time
+  #
+  # IMPORTANT: We use `lib.kernel.yes` to force built-in (=y) instead of module (=m).
+  # Our initrd has no modules, so everything must be compiled into the kernel.
   kernel = pkgs.linuxPackages_6_1.kernel.override {
     structuredExtraConfig = with pkgs.lib.kernel; {
-      # Ensure virtio support for Firecracker
+      # Virtio support for Firecracker - must be built-in, not modules
       VIRTIO = yes;
       VIRTIO_PCI = yes;
       VIRTIO_MMIO = yes;
       VIRTIO_BLK = yes;
       VIRTIO_CONSOLE = yes;
 
-      # Enable vsock for host communication
+      # vsock for host communication - MUST be built-in (=y), not module (=m)
+      # The base kernel has these as modules, but our initrd has no module loader
       VSOCKETS = yes;
       VIRTIO_VSOCKETS = yes;
       VIRTIO_VSOCKETS_COMMON = yes;
 
-      # Enable overlay filesystem for /nix/store
+      # Overlay filesystem for /nix/store
       OVERLAY_FS = yes;
 
-      # Enable ext4 for store images (likely already enabled)
+      # ext4 for store images
       EXT4_FS = yes;
+
+      # UNIX domain sockets (for local socket operations in builders)
+      UNIX = yes;
     };
   };
 

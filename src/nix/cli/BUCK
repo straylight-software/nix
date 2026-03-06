@@ -218,6 +218,8 @@ cxx_library(
         "//src/nix/cmd:cmd",
         # Straylight two-tier store adapter with embedded firecracker
         "//src/straylight/nix/adapters:store_adapter_embedded",
+        # Build service for firecracker builds (used by build-remote.cpp)
+        "//src/straylight/nix/build:build_service_embedded",
     ],
 )
 

@@ -128,9 +128,20 @@ int vmm_configure_vsock(VmmHandle* handle, const VmmVsockConfig* config);
 /// Start the VM.
 ///
 /// This boots the VM and starts vCPU threads.
-/// The VM runs asynchronously; use vmm_wait() to block until completion.
+/// The VM runs asynchronously; use vmm_wait() to block until completion,
+/// or vmm_start_event_loop() to run the event loop in a background thread.
 /// Returns VMM_OK on success.
 int vmm_start(VmmHandle* handle);
+
+/// Start the event loop in a background thread.
+///
+/// This function spawns a thread that runs the event loop, allowing virtio
+/// devices to function. Must be called after vmm_start() and before
+/// interacting with the VM via vsock.
+///
+/// The event loop thread will run until the VM is shutdown via vmm_shutdown().
+/// Returns VMM_OK on success.
+int vmm_start_event_loop(VmmHandle* handle);
 
 /// Wait for the VM to exit.
 ///

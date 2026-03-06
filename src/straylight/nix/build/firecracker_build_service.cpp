@@ -604,7 +604,29 @@ private:
     auto name = drv_path.name();
     auto work = base / name;
     if (fs::exists(work)) {
-      fs::remove_all(work);
+      // Unmount any stale FUSE mounts before cleanup
+      // These can be left behind if a previous build crashed
+      auto store_mount = work / "store-mount";
+      auto output_mount = work / "output-mount";
+      if (fs::exists(store_mount)) {
+        auto cmd = "fusermount -u " + store_mount.string() + " 2>/dev/null";
+        system(cmd.c_str());
+      }
+      if (fs::exists(output_mount)) {
+        auto cmd = "fusermount -u " + output_mount.string() + " 2>/dev/null";
+        system(cmd.c_str());
+      }
+
+      // Try to remove - if it fails due to permissions, just use a unique suffix
+      std::error_code ec;
+      fs::remove_all(work, ec);
+      if (ec) {
+        // Failed to clean up (likely root-owned files from fakeroot mount)
+        // Use a unique directory instead
+        auto unique_work = work.string() + "." + std::to_string(getpid());
+        log_debug("firecracker: using unique work dir due to stale files: %s", unique_work);
+        work = unique_work;
+      }
     }
     fs::create_directories(work);
     fs::create_directories(work / "rootfs");
@@ -1014,6 +1036,18 @@ private:
       return nullptr;
     }
 
+    // Start the event loop in a background thread.
+    // This is CRITICAL - without the event loop running, virtio devices
+    // won't function because MMIO accesses and interrupts aren't processed.
+    error = vmm_start_event_loop(vm->vmm_handle);
+    if (error != VMM_OK) {
+      log_error("firecracker: vmm_start_event_loop failed: %s", vmm_strerror(error));
+      vmm_shutdown(vm->vmm_handle);
+      vmm_destroy(vm->vmm_handle);
+      vm->vmm_handle = nullptr;
+      return nullptr;
+    }
+
     vm->running = true;
 
     // Wait for vsock socket to appear (indicates VM is ready for connections)
@@ -1051,8 +1085,10 @@ private:
 
     // Connect to guest via vsock
     vsock_client vsock;
+    // Wait up to 30s for guest to boot and start listening
+    // Boot is fast (~100ms) but init needs to mount filesystems and start vsock listener
     if (!vsock.connect_to_guest(vm.vsock_uds_path, VM_VSOCK_BUILD_PORT,
-                                std::chrono::milliseconds(5000))) {
+                                std::chrono::milliseconds(30000))) {
       set_failure(::nix::build_result_t::Failure::MiscFailure,
                   "Failed to connect to guest builder via vsock");
       return result;
@@ -1238,12 +1274,14 @@ private:
     fs::create_directories(mount_point);
 
     // Try to mount using fuse2fs (ext4 FUSE driver) - no root required
-    auto mount_cmd = "fuse2fs -o ro " + output_image + " " + mount_point + " 2>/dev/null";
+    // Note: ext4 images may need rw mount first if journal is dirty
+    auto mount_cmd = "fuse2fs " + output_image + " " + mount_point + " 2>/dev/null";
     bool mounted = (system(mount_cmd.c_str()) == 0);
 
     if (!mounted) {
       // Fallback: try loop mount (requires privileges)
-      mount_cmd = "mount -o ro,loop " + output_image + " " + mount_point + " 2>/dev/null";
+      // Use rw mount - ext4 from guest may have dirty journal that prevents ro mount
+      mount_cmd = "mount -o loop " + output_image + " " + mount_point + " 2>/dev/null";
       mounted = (system(mount_cmd.c_str()) == 0);
     }
 
@@ -1276,8 +1314,9 @@ private:
         continue;
       }
 
-      // Destination in user store
-      auto dst_path = fs::path(config_.user_store_dir) / basename;
+      // Destination in system store (for build-hook compatibility)
+      // The build hook protocol expects outputs to be in /nix/store after the build
+      auto dst_path = fs::path("/nix/store") / basename;
 
       log_info("firecracker: extracting output '%s': %s -> %s", name, src_path.c_str(),
                dst_path.c_str());

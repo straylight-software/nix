@@ -78,6 +78,20 @@ rust_binary(
     visibility = ["PUBLIC"],
 )
 
+# Integration test: vsock communication
+# Tests full vsock path: VM boot -> guest listen -> host connect -> PING/PONG
+# NOTE: Uncomment to enable vsock_test binary (requires examples/vsock_test.rs)
+# rust_binary(
+#     name = "vsock_test",
+#     srcs = ["examples/vsock_test.rs"],
+#     crate_root = "examples/vsock_test.rs",
+#     edition = "2024",
+#     deps = [
+#         ":vmm_ffi",
+#     ],
+#     visibility = ["PUBLIC"],
+# )
+
 # Generate C header from Rust FFI
 # TODO: Use cbindgen to auto-generate header
 # For now, we manually maintain vmm_ffi.h

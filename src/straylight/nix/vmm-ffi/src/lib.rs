@@ -50,6 +50,8 @@ pub struct VmmHandle {
   vm_resources: VmResources,
   /// Instance info
   instance_info: InstanceInfo,
+  /// Event loop thread handle (if started asynchronously)
+  event_loop_thread: Option<std::thread::JoinHandle<c_int>>,
 }
 
 /// VM configuration passed from C++
@@ -265,6 +267,7 @@ pub extern "C" fn vmm_create(config: *const VmmConfig, error_out: *mut c_int) ->
     event_manager: None,
     vm_resources,
     instance_info,
+    event_loop_thread: None,
   });
   set_error(VMM_OK);
   Box::into_raw(handle)
@@ -408,6 +411,7 @@ pub extern "C" fn vmm_create_from_embedded(
     event_manager: None,
     vm_resources,
     instance_info,
+    event_loop_thread: None,
   });
   set_error(VMM_OK);
   Box::into_raw(handle)
@@ -573,6 +577,16 @@ pub extern "C" fn vmm_start(handle: *mut VmmHandle) -> c_int {
     );
   }
 
+  // Print the original boot cmdline before build
+  if let Some(boot_cfg) = &handle.vm_resources.boot_source.builder {
+    if let Ok(cmdline_cstr) = boot_cfg.cmdline.as_cstring() {
+      eprintln!(
+        "vmm-ffi: original boot cmdline: {:?}",
+        cmdline_cstr.to_string_lossy()
+      );
+    }
+  }
+
   // Build the microVM
   eprintln!("vmm-ffi: calling build_microvm_for_boot...");
   let vmm = match builder::build_microvm_for_boot(
@@ -690,6 +704,69 @@ pub extern "C" fn vmm_wait(handle: *mut VmmHandle) -> c_int {
   VMM_OK
 }
 
+/// Start the event loop in a background thread.
+///
+/// This function spawns a thread that runs the event loop, allowing virtio
+/// devices to function. Must be called after vmm_start() and before
+/// interacting with the VM via vsock.
+///
+/// The event loop thread will run until the VM is shutdown via vmm_shutdown().
+/// Returns VMM_OK on success.
+#[unsafe(no_mangle)]
+pub extern "C" fn vmm_start_event_loop(handle: *mut VmmHandle) -> c_int {
+  if handle.is_null() {
+    return VMM_ERR_INVALID_ARG;
+  }
+
+  // We need to access the handle from the thread, so we pass the raw pointer
+  // This is safe because the handle outlives the thread (we join on destroy)
+  let handle_ptr = handle as usize;
+
+  let thread = std::thread::spawn(move || {
+    let handle = handle_ptr as *mut VmmHandle;
+    if handle.is_null() {
+      return VMM_ERR_INVALID_ARG;
+    }
+
+    let handle = unsafe { &mut *handle };
+
+    let event_manager = match &mut handle.event_manager {
+      Some(em) => em,
+      None => return VMM_ERR_INTERNAL,
+    };
+
+    let vmm = match &handle.vmm {
+      Some(vmm) => vmm.clone(),
+      None => return VMM_ERR_INTERNAL,
+    };
+
+    // Run the event loop until VM exits
+    loop {
+      // Check if VM has been told to shutdown
+      {
+        let vmm_guard = vmm.lock().unwrap();
+        if vmm_guard.shutdown_exit_code().is_some() {
+          break;
+        }
+      }
+
+      // Process events with a short timeout
+      match event_manager.run_with_timeout(100) {
+        Ok(_) => {}
+        Err(_) => break,
+      }
+    }
+
+    VMM_OK
+  });
+
+  // Store the thread handle
+  let handle = unsafe { &mut *handle };
+  handle.event_loop_thread = Some(thread);
+
+  VMM_OK
+}
+
 /// Shutdown the VM.
 ///
 /// Forcibly terminates the VM if it's still running.
@@ -705,6 +782,11 @@ pub extern "C" fn vmm_shutdown(handle: *mut VmmHandle) -> c_int {
     let mut vmm_guard = vmm.lock().unwrap();
     // Stop the VM
     vmm_guard.stop(vmm::FcExitCode::Ok);
+  }
+
+  // Wait for event loop thread to finish
+  if let Some(thread) = handle.event_loop_thread.take() {
+    let _ = thread.join();
   }
 
   VMM_OK

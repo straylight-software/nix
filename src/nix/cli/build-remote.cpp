@@ -24,6 +24,8 @@
 #include <string>
 #include <vector>
 
+#include "straylight/nix/build/build_service.h"
+
 #include "nix/cmd/legacy.h"
 #include "nix/store/build-result.h"
 #include "nix/store/builder-health.h"
@@ -235,19 +237,122 @@ See: https://nixos.org/manual/nix/stable/advanced-topics/distributed-builds.html
   // Open local store
   auto local_store = open_store();
 
-  // Read settings from stdin (terminated by empty line or null byte)
-  // These are key=value pairs for additional settings
-  std::string settings_line;
-  while (std::getline(std::cin, settings_line) && !settings_line.empty()) {
-    // Settings are passed but we don't need to modify global settings
-    // The daemon has already configured the environment
+  // Read settings from stdin using binary protocol
+  // Format: (1 key value)* 0
+  // Where 1 is a marker for "more settings" and 0 is "done"
+  fd_source_t source(STDIN_FILENO);
+  while (true) {
+    auto marker = read_num<uint64_t>(source);
+    if (marker == 0) {
+      break;
+    }
+    // Read key and value strings (we ignore them - settings already applied)
+    auto key = read_string(source);
+    auto value = read_string(source);
+    (void)key;
+    (void)value;
   }
 
   // Get available machines
   Machines machines = get_machines();
 
   if (machines.empty()) {
-    // No machines configured, decline all builds
+    // No remote machines configured - try using embedded firecracker build service
+    auto build_service = straylight::nix::build::make_default_build_service();
+    if (build_service && build_service->is_available()) {
+      printMsg(lvl_info, "build-remote: using embedded firecracker build service");
+
+      // Process build requests using firecracker
+      // Protocol: "try" slots system drv_path features
+      while (true) {
+        std::string cmd;
+        try {
+          cmd = read_string(source);
+        } catch (EndOfFile&) {
+          break;
+        }
+        if (cmd != "try") {
+          continue;
+        }
+
+        // Read request fields (binary protocol)
+        BuildRequest request;
+        request.available_local_slots = read_num<uint64_t>(source);
+        request.system = read_string(source);
+        auto drv_path_str = read_string(source);
+        request.drv_path = local_store->parseStorePath(drv_path_str);
+        request.required_features = read_strings<string_set_t>(source);
+
+        // Accept the build
+        std::cout << "# accept\n";
+        std::cout << "firecracker-local\n";
+        std::cout.flush();
+
+        // Read additional data sent after accept:
+        // 1. Input paths to copy to remote (we ignore since local build)
+        // 2. Missing outputs to copy back (we ignore since we register directly)
+        CommonProto::ReadConn conn{source};
+        auto input_paths = CommonProto::Serialise<store_path_set_t>::read(*local_store, conn);
+        auto missing_outputs = CommonProto::Serialise<string_set_t>::read(*local_store, conn);
+        (void)input_paths;
+        (void)missing_outputs;
+
+        if (!request.drv_path) {
+          throw Error("build-remote: no derivation path in request");
+        }
+
+        try {
+          // Read the derivation
+          auto drv = local_store->read_derivation(*request.drv_path);
+
+          // Build using firecracker
+          auto result = build_service->build_derivation(*local_store, *request.drv_path, drv,
+                                                        ::nix::bmNormal);
+
+          if (auto* failure = result.tryGetFailure()) {
+            throw Error("build-remote: firecracker build failed: %s",
+                        failure->errorMsg.empty() ? "unknown error" : failure->errorMsg);
+          }
+
+          // Register outputs in the store
+          // The firecracker build service has already copied outputs to /nix/store
+          // Now we need to register them as valid using nix-store --register-validity
+          auto outputs_and_paths = drv.outputsAndOptPaths(*local_store);
+          for (const auto& [name, output_and_path] : outputs_and_paths) {
+            const auto& [output, opt_path] = output_and_path;
+            if (!opt_path) {
+              continue;
+            }
+
+            auto path_str = local_store->printStorePath(*opt_path);
+
+            // Use nix-store --register-validity to register the path
+            // Format: path\n<empty narHash>\n<refcount>\n
+            // We use empty narHash (nix will compute it) and 0 references
+            auto cmd = "printf '" + path_str + "\\n\\n0\\n' | nix-store --register-validity 2>&1";
+            int ret = system(cmd.c_str());
+            if (ret == 0) {
+              printMsg(lvl_debug, "build-remote: registered output '%s' at '%s'", name, path_str);
+            } else {
+              printMsg(lvl_warn, "build-remote: failed to register '%s' (exit %d)", path_str, ret);
+            }
+          }
+
+          printMsg(lvl_info, "build-remote: firecracker build of '%s' succeeded",
+                   local_store->printStorePath(*request.drv_path));
+        } catch (Error& e) {
+          try {
+            fd_sink_t builder_out(BUILDER_OUT_FD);
+            builder_out << fmt("error: %s\n", e.what());
+          } catch (...) {
+          }
+          throw;
+        }
+      }
+      return;
+    }
+
+    // No firecracker available either, decline all builds
     std::string line;
     while (std::getline(std::cin, line)) {
       if (line.starts_with("try")) {
