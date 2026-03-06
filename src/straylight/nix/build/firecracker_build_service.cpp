@@ -48,6 +48,7 @@
 #include "nix/store/derivation-options.h"
 #include "nix/store/derivations.h"
 #include "nix/store/store-api.h"
+#include "nix/store/store-open.h"
 #include "nix/util/file-system.h"
 #include "nix/util/logging.h"
 #include "nix/util/serialise.h"
@@ -390,6 +391,8 @@ struct firecracker_build_service final : build_service {
               auto drv_path = resolve_derived_path_built(store, p);
               if (drv_path) {
                 auto drv = store.read_derivation(*drv_path);
+                // Ensure all input derivation outputs are available (substitute if needed)
+                ensure_input_drv_outputs(store, drv);
                 // Resolve input_drvs to input_srcs so we have all input paths
                 auto resolved = drv.try_resolve(store);
                 if (resolved) {
@@ -423,6 +426,8 @@ struct firecracker_build_service final : build_service {
               auto drv_path = resolve_derived_path_built(store, p);
               if (drv_path) {
                 auto drv = store.read_derivation(*drv_path);
+                // Ensure all input derivation outputs are available (substitute if needed)
+                ensure_input_drv_outputs(store, drv);
                 // Resolve input_drvs to input_srcs so we have all input paths
                 auto resolved = drv.try_resolve(store);
                 if (resolved) {
@@ -488,10 +493,102 @@ struct firecracker_build_service final : build_service {
     if (store.isValidPath(path)) {
       return;
     }
-    // Try substitution first
-    // TODO: implement substitution
-    throw ::nix::Error("firecracker_build_service: substitution not yet implemented for %s",
+
+    // Try substitution from configured binary caches
+    log_info("firecracker: substituting %s", store.printStorePath(path));
+
+    auto substituters = ::nix::get_default_substituters();
+    if (substituters.empty()) {
+      throw ::nix::Error("firecracker: no substituters configured, cannot fetch %s",
+                         store.printStorePath(path));
+    }
+
+    for (const auto& sub : substituters) {
+      try {
+        // Query path info from substituter
+        auto info = sub->queryPathInfo(path);
+
+        // Recursively ensure all references are available first
+        for (const auto& ref : info->references) {
+          if (ref != path) { // Skip self-references
+            ensure_path(store, ref);
+          }
+        }
+
+        // Copy the path from substituter to local store
+        log_debug("firecracker: copying %s from %s", store.printStorePath(path),
+                  sub->config.getHumanReadableURI());
+        ::nix::copy_store_path(*sub, store, path, ::nix::NoRepair,
+                               sub->config.isTrusted ? ::nix::NoCheckSigs : ::nix::CheckSigs);
+
+        log_info("firecracker: substituted %s", store.printStorePath(path));
+        return;
+
+      } catch (::nix::InvalidPath&) {
+        // This substituter doesn't have it, try next
+        continue;
+      } catch (::nix::SubstituterDisabled&) {
+        continue;
+      } catch (::nix::Error& e) {
+        log_debug("firecracker: substituter %s failed: %s", sub->config.getHumanReadableURI(),
+                  e.what());
+        continue;
+      }
+    }
+
+    throw ::nix::Error("firecracker: path %s not available and no substituter has it",
                        store.printStorePath(path));
+  }
+
+  // Ensure all input derivation outputs are available (substitute if needed)
+  // This must be called before try_resolve() which requires outputs to exist
+  void ensure_input_drv_outputs(::nix::store_t& store, const ::nix::derivation_t& drv) {
+    for (const auto& [input_drv_path, input_node] : drv.input_drvs.map) {
+      // For each output requested from this input derivation
+      for (const auto& output_name : input_node.value) {
+        // Get the expected output path
+        auto input_drv = store.read_derivation(input_drv_path);
+        auto output_it = input_drv.outputs.find(output_name);
+        if (output_it == input_drv.outputs.end()) {
+          throw ::nix::Error("firecracker: derivation %s does not have output '%s'",
+                             store.printStorePath(input_drv_path), output_name);
+        }
+
+        // Get the output path (for input-addressed derivations)
+        auto output_path_opt = std::visit(
+            [&](const auto& o) -> std::optional<::nix::store_path_t> {
+              using T = std::decay_t<decltype(o)>;
+              if constexpr (std::is_same_v<T, ::nix::derivation_output_t::InputAddressed>) {
+                return o.path;
+              } else if constexpr (std::is_same_v<T, ::nix::derivation_output_t::CAFixed>) {
+                return o.path(store, input_drv.name, output_name);
+              } else {
+                // Floating CA or deferred - need to build, can't just substitute
+                return std::nullopt;
+              }
+            },
+            output_it->second.raw);
+
+        if (output_path_opt) {
+          // Try to substitute this output if it's not already available
+          if (!store.isValidPath(*output_path_opt)) {
+            log_info("firecracker: need input %s (output '%s' of %s)",
+                     store.printStorePath(*output_path_opt), output_name,
+                     store.printStorePath(input_drv_path));
+            ensure_path(store, *output_path_opt);
+          }
+        } else {
+          // For CA derivations with floating outputs, we need to build or look up realization
+          // For now, try to query if there's a realization registered
+          log_debug("firecracker: input %s:%s has floating output, checking realizations",
+                    store.printStorePath(input_drv_path), output_name);
+          // TODO: handle CA derivations properly
+        }
+      }
+
+      // Recursively handle nested inputs (childMap)
+      // TODO: handle nested derivation inputs if needed
+    }
   }
 
   auto name() const -> std::string_view override { return "firecracker"; }
@@ -673,6 +770,11 @@ private:
 
     log_info("firecracker: closure has %zu paths (from %zu direct inputs)", closure.size(),
              direct_inputs.size());
+
+    // Ensure all paths in the closure are available (substitute if needed)
+    for (const auto& path : closure) {
+      ensure_path(store, path);
+    }
 
     // Categorize each path in the closure
     for (const auto& path : closure) {
