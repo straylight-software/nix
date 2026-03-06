@@ -18,8 +18,10 @@ without requiring the nix daemon.
 5. [Wire Protocol](#wire-protocol)
 6. [Embedding Strategy](#embedding-strategy)
 7. [Current Status](#current-status)
-8. [Known Issues](#known-issues)
-9. [File Reference](#file-reference)
+8. [Security Model](#security-model)
+9. [Known Issues](#known-issues)
+10. [File Reference](#file-reference)
+11. [Next Steps](#next-steps)
 
 ______________________________________________________________________
 
@@ -322,12 +324,16 @@ ______________________________________________________________________
 
 ### Message Types
 
-| Type | Value | Direction | Description | |------|-------|-----------|-------------| | BUILD_EXEC |
-0x0001 | Host→Guest | Execute builder | | BUILD_ABORT | 0x0002 | Host→Guest | Cancel build | | PING
-| 0x0003 | Host→Guest | Health check | | BUILD_STDOUT | 0x0101 | Guest→Host | Builder stdout | |
-BUILD_STDERR | 0x0102 | Guest→Host | Builder stderr | | BUILD_EXIT | 0x0103 | Guest→Host | Build
-complete | | PONG | 0x0104 | Guest→Host | Ping response | | WITNESS_EVENT | 0x0105 | Guest→Host |
-FS/syscall event |
+| Type | Value | Direction | Description |
+|------|-------|-----------|-------------|
+| BUILD_EXEC | 0x0001 | Host→Guest | Execute builder |
+| BUILD_ABORT | 0x0002 | Host→Guest | Cancel build |
+| PING | 0x0003 | Host→Guest | Health check |
+| BUILD_STDOUT | 0x0101 | Guest→Host | Builder stdout |
+| BUILD_STDERR | 0x0102 | Guest→Host | Builder stderr |
+| BUILD_EXIT | 0x0103 | Guest→Host | Build complete |
+| PONG | 0x0104 | Guest→Host | Ping response |
+| WITNESS_EVENT | 0x0105 | Guest→Host | FS/syscall event |
 
 ### BUILD_EXEC Payload
 
@@ -448,7 +454,7 @@ $ nix build --expr 'derivation {
 # Full NixOS configuration (92 derivations, 4.1 seconds)
 $ nix build -f /tmp/nixos-test.nix --builders ''
 
-# Parallel stress test (10 concurrent, 50/50 success)
+# Parallel stress test (10 concurrent builds, all pass)
 $ PARALLEL_COUNT=10 ./scripts/stress-test-firecracker.sh parallel
 ```
 
@@ -463,6 +469,58 @@ $ PARALLEL_COUNT=10 ./scripts/stress-test-firecracker.sh parallel
 3. **fuse2fs mounting**: Store images mounted via fuse2fs (no root required)
 
 4. **vsock communication**: ~144µs RTT for host-guest protocol messages
+
+______________________________________________________________________
+
+## Security Model
+
+### Isolation Guarantees
+
+The Firecracker build service provides **stronger isolation than Linux namespace-based sandboxing**:
+
+| Property | Firecracker (nix-embedded) | Namespace sandbox (nix-daemon) |
+|----------|----------------------------|--------------------------------|
+| Kernel isolation | Separate guest kernel | Shared host kernel |
+| Syscall surface | ~30 KVM ioctls | Full Linux syscall table |
+| Root required | No (just `/dev/kvm`) | Yes (or setuid helper) |
+| Network isolation | No network device | iptables/netns rules |
+| Filesystem isolation | Block device images | bind mounts + chroot |
+| Memory isolation | Hardware-enforced | Cgroups (software) |
+| CPU isolation | Separate vCPUs | Cgroups (software) |
+
+### Attack Surface
+
+**Host attack surface** (what a malicious build can reach):
+- KVM hypercalls (minimal, well-audited)
+- virtio-blk device (read-only for inputs)
+- virtio-vsock (protocol-limited)
+
+**Not exposed to builds**:
+- Host filesystem (except explicit inputs)
+- Host network
+- Other processes
+- Other builds (each gets its own VM)
+
+### Threat Model
+
+**In scope**:
+- Malicious build scripts attempting host escape
+- Builds attempting to exfiltrate data via covert channels
+- Builds attempting to interfere with other concurrent builds
+
+**Out of scope**:
+- Physical attacks
+- Attacks on the nix expression evaluator (runs on host)
+- Supply chain attacks on build inputs (trust model unchanged)
+
+### Comparison with Alternatives
+
+| Approach | Pros | Cons |
+|----------|------|------|
+| **Firecracker** | Strongest isolation, no root | ~13% overhead, requires KVM |
+| **bubblewrap** | Fast, no kernel | Weaker isolation, needs setuid or userns |
+| **Docker** | Familiar tooling | Daemon required, root or rootless complexity |
+| **systemd-nspawn** | Systemd integration | Root required |
 
 ______________________________________________________________________
 
@@ -508,36 +566,46 @@ ______________________________________________________________________
 
 ### C++ Build Service
 
-| File | Purpose | |------|---------| | `src/straylight/nix/build/firecracker_build_service.cpp` |
-Main build orchestrator | | `src/straylight/nix/build/daemon_build_service.cpp` | Build service
-factory (returns firecracker) | | `src/straylight/nix/build/build_service.h` | Build service
-interface | | `src/straylight/nix/build/vm_protocol.h` | Wire protocol definitions | |
-`src/straylight/nix/build/vm_protocol.cpp` | Message serialization | |
-`src/straylight/nix/build/embedded_guest.h` | Embedded data access | |
-`src/straylight/nix/build/embedded_guest_data.cpp` | Embedded data (with symbols) | |
-`src/straylight/nix/build/embedded_guest_stub.cpp` | Stub (no embedded data) |
+| File | Purpose |
+|------|---------|
+| `src/straylight/nix/build/firecracker_build_service.cpp` | Main build orchestrator |
+| `src/straylight/nix/build/daemon_build_service.cpp` | Build service factory |
+| `src/straylight/nix/build/build_service.h` | Build service interface |
+| `src/straylight/nix/build/vm_protocol.h` | Wire protocol definitions |
+| `src/straylight/nix/build/vm_protocol.cpp` | Message serialization |
+| `src/straylight/nix/build/embedded_guest.h` | Embedded data access |
+| `src/straylight/nix/build/embedded_guest_data.cpp` | Embedded data (with symbols) |
+| `src/straylight/nix/build/embedded_guest_stub.cpp` | Stub (no embedded data) |
 
 ### Guest Components
 
-| File | Purpose | |------|---------| | `src/straylight/nix/build/guest/nix-builder-init.c` | Guest
-init program | | `nix/vm/guest.nix` | Kernel/initrd derivation |
+| File | Purpose |
+|------|---------|
+| `src/straylight/nix/build/guest/nix-builder-init.c` | Guest init program |
+| `nix/vm/guest.nix` | Kernel/initrd derivation |
 
 ### VMM FFI
 
-| File | Purpose | |------|---------| | `src/straylight/nix/vmm-ffi/src/lib.rs` | Rust FFI
-implementation | | `src/straylight/nix/vmm-ffi/vmm_ffi.h` | C header | |
-`src/straylight/nix/vmm-ffi/BUCK` | Build rules |
+| File | Purpose |
+|------|---------|
+| `src/straylight/nix/vmm-ffi/src/lib.rs` | Rust FFI implementation |
+| `src/straylight/nix/vmm-ffi/vmm_ffi.h` | C header |
+| `src/straylight/nix/vmm-ffi/BUCK` | Build rules |
 
 ### Build System
 
-| File | Purpose | |------|---------| | `src/nix/cli/BUCK` | CLI binary targets (nix, nix-embedded)
-| | `flake.nix` | Nix derivation for nix-embedded | | `toolchains/BUCK` | Buck2 toolchain
-configuration |
+| File | Purpose |
+|------|---------|
+| `src/nix/cli/BUCK` | CLI binary targets (nix, nix-embedded) |
+| `flake.nix` | Nix derivation for nix-embedded |
+| `toolchains/BUCK` | Buck2 toolchain configuration |
 
 ### Extracted VMM Modules
 
-| File | Purpose | |------|---------| | `vendor/isospin/firecracker/src/vmm/BUCK` | VMM module
-targets | | `vendor/isospin/firecracker/src/vmm/src/` | VMM source code |
+| File | Purpose |
+|------|---------|
+| `vendor/isospin/firecracker/src/vmm/BUCK` | VMM module targets |
+| `vendor/isospin/firecracker/src/vmm/src/` | VMM source code |
 
 ### Test Suite
 
