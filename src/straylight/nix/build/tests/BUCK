@@ -30,3 +30,15 @@ cxx_test(
         "//vendor:catch2",
     ],
 )
+
+# Firecracker Build Service integration tests
+# These require /dev/kvm access and are skipped in CI without KVM
+cxx_test(
+    name = "firecracker_build_service_test",
+    srcs = ["firecracker_build_service_test.cpp"],
+    compiler_flags = COMMON_FLAGS,
+    deps = [
+        "//src/straylight/nix/build:build_service",
+        "//vendor:catch2",
+    ],
+)
