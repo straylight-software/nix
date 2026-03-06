@@ -42,3 +42,16 @@ cxx_test(
         "//vendor:catch2",
     ],
 )
+
+# CA Floating Output Adversarial Tests
+# Property-based and fuzz tests targeting CA floating output extraction
+cxx_test(
+    name = "ca_floating_adversarial_test",
+    srcs = ["ca_floating_adversarial_test.cpp"],
+    compiler_flags = COMMON_FLAGS,
+    deps = [
+        "//src/straylight/nix/build:build_service",
+        "//vendor:catch2",
+        "//vendor:rapidcheck",
+    ],
+)

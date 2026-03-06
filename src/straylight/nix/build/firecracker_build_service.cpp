@@ -1489,31 +1489,59 @@ private:
       } else {
         // CA floating or deferred: need to find the output by name pattern
         // The builder writes to $out which the guest sets up based on drv.env
-        // Look for paths matching the expected output name
+        //
+        // IMPORTANT: Suffix matching is ambiguous! For example:
+        //   drv="foo", output="bar" -> suffix "-foo-bar"
+        //   drv="foo-bar", output="out" -> suffix "-foo-bar" (SAME!)
+        //
+        // We collect ALL matches and pick the most recently modified, which
+        // is likely the one we just built. This is a heuristic - for full
+        // correctness we should compute the CA hash and verify.
         auto store_dir = fs::path(mount_point) / "nix" / "store";
+        std::vector<std::pair<fs::path, fs::file_time_type>> candidates;
+
         if (fs::exists(store_dir)) {
+          std::string suffix = "-" + drv.name;
+          if (name != "out") {
+            suffix += "-" + name;
+          }
+
           for (const auto& entry : fs::directory_iterator(store_dir)) {
             auto entry_name = entry.path().filename().string();
-            // Match by derivation name suffix (e.g., "*-foo" for output "out" of drv "foo")
-            // For non-default outputs, look for "*-foo-<output_name>"
-            std::string suffix = "-" + drv.name;
-            if (name != "out") {
-              suffix += "-" + name;
-            }
             if (entry_name.size() > suffix.size() &&
                 entry_name.substr(entry_name.size() - suffix.size()) == suffix) {
-              src_path = entry.path();
-              basename = entry_name;
-              log_info("firecracker: found CA floating output '%s' at %s", name, src_path.c_str());
-              break;
+              // Record candidate with its modification time
+              auto mtime = fs::last_write_time(entry.path());
+              candidates.emplace_back(entry.path(), mtime);
             }
           }
         }
 
-        if (src_path.empty()) {
+        if (candidates.empty()) {
           log_warn("firecracker: could not find output '%s' (floating/deferred)", name);
           continue;
         }
+
+        if (candidates.size() > 1) {
+          // AMBIGUOUS: Multiple paths match the suffix
+          // This is the bug demonstrated by adversarial tests
+          // Pick the most recently modified as a heuristic
+          log_warn("firecracker: AMBIGUOUS - found %zu candidates for output '%s':",
+                   candidates.size(), name);
+          for (const auto& [path, mtime] : candidates) {
+            log_warn("  - %s", path.filename().c_str());
+          }
+
+          // Sort by mtime descending (newest first)
+          std::sort(candidates.begin(), candidates.end(),
+                    [](const auto& a, const auto& b) { return a.second > b.second; });
+
+          log_warn("firecracker: selecting newest: %s", candidates[0].first.filename().c_str());
+        }
+
+        src_path = candidates[0].first;
+        basename = src_path.filename().string();
+        log_info("firecracker: found CA floating output '%s' at %s", name, src_path.c_str());
       }
 
       if (!fs::exists(src_path)) {
