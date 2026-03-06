@@ -1,0 +1,32 @@
+# src/straylight/nix/build/tests/BUCK
+#
+# Unit tests for the build service and VM protocol
+
+COMMON_FLAGS = [
+    "-std=c++23",
+    "-Wall",
+    "-Wextra",
+    "-Wpedantic",
+]
+
+# VM Protocol tests - wire format serialization/deserialization
+cxx_test(
+    name = "vm_protocol_test",
+    srcs = ["vm_protocol_test.cpp"],
+    compiler_flags = COMMON_FLAGS,
+    deps = [
+        "//src/straylight/nix/build:build_service",
+        "//vendor:catch2",
+    ],
+)
+
+# Build Service tests - factory functions and interface
+cxx_test(
+    name = "build_service_test",
+    srcs = ["build_service_test.cpp"],
+    compiler_flags = COMMON_FLAGS,
+    deps = [
+        "//src/straylight/nix/build:build_service",
+        "//vendor:catch2",
+    ],
+)

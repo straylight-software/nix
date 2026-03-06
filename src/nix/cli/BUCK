@@ -96,6 +96,8 @@ cxx_library(
         "//src/nix/cmd:cmd",
         # Straylight two-tier store adapter (registers "straylight://" URI scheme)
         "//src/straylight/nix/adapters:store_adapter",
+        # Straylight Firecracker build service (used by build-remote.cpp)
+        "//src/straylight/nix/build:build_service",
     ],
 )
 

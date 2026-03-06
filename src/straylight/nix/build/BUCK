@@ -121,6 +121,8 @@ cxx_library(
     deps = [
         ":embedded_guest",
         ":vmm_ffi_cxx",
+    ],
+    exported_deps = [
         "//src/nix/store:store",
         "//src/nix/util:util",
     ],
@@ -145,6 +147,8 @@ cxx_library(
     deps = [
         ":embedded_guest_full",
         ":vmm_ffi_cxx",
+    ],
+    exported_deps = [
         "//src/nix/store:store",
         "//src/nix/util:util",
     ],
