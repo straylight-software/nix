@@ -47,8 +47,10 @@
 #include "nix/store/build/derivation-env-desugar.h"
 #include "nix/store/derivation-options.h"
 #include "nix/store/derivations.h"
+#include "nix/store/realisation.h"
 #include "nix/store/store-api.h"
 #include "nix/store/store-open.h"
+#include "nix/util/experimental-features.h"
 #include "nix/util/file-system.h"
 #include "nix/util/logging.h"
 #include "nix/util/serialise.h"
@@ -554,7 +556,7 @@ struct firecracker_build_service final : build_service {
                              store.printStorePath(input_drv_path), output_name);
         }
 
-        // Get the output path (for input-addressed derivations)
+        // Get the output path based on derivation output type
         auto output_path_opt = std::visit(
             [&](const auto& o) -> std::optional<::nix::store_path_t> {
               using T = std::decay_t<decltype(o)>;
@@ -562,8 +564,38 @@ struct firecracker_build_service final : build_service {
                 return o.path;
               } else if constexpr (std::is_same_v<T, ::nix::derivation_output_t::CAFixed>) {
                 return o.path(store, input_drv.name, output_name);
+              } else if constexpr (std::is_same_v<T, ::nix::derivation_output_t::CAFloating>) {
+                // Floating CA - check if we have a realisation for this output
+                auto drv_hashes = ::nix::static_output_hashes(store, input_drv);
+                auto hash_it = drv_hashes.find(output_name);
+                if (hash_it != drv_hashes.end()) {
+                  auto drv_output = ::nix::DrvOutput{hash_it->second, output_name};
+                  auto realisation = store.query_realisation(drv_output);
+                  if (realisation) {
+                    log_debug("firecracker: found realisation for CA floating output %s:%s -> %s",
+                              store.printStorePath(input_drv_path), output_name,
+                              store.printStorePath(realisation->out_path));
+                    return realisation->out_path;
+                  }
+                }
+                // No realisation found - this derivation needs to be built first
+                log_debug("firecracker: no realisation for CA floating output %s:%s",
+                          store.printStorePath(input_drv_path), output_name);
+                return std::nullopt;
+              } else if constexpr (std::is_same_v<T, ::nix::derivation_output_t::Deferred>) {
+                // Deferred outputs - similar to floating, check realisations
+                auto drv_hashes = ::nix::static_output_hashes(store, input_drv);
+                auto hash_it = drv_hashes.find(output_name);
+                if (hash_it != drv_hashes.end()) {
+                  auto drv_output = ::nix::DrvOutput{hash_it->second, output_name};
+                  auto realisation = store.query_realisation(drv_output);
+                  if (realisation) {
+                    return realisation->out_path;
+                  }
+                }
+                return std::nullopt;
               } else {
-                // Floating CA or deferred - need to build, can't just substitute
+                // Impure or unknown - cannot substitute
                 return std::nullopt;
               }
             },
@@ -578,11 +610,10 @@ struct firecracker_build_service final : build_service {
             ensure_path(store, *output_path_opt);
           }
         } else {
-          // For CA derivations with floating outputs, we need to build or look up realization
-          // For now, try to query if there's a realization registered
-          log_debug("firecracker: input %s:%s has floating output, checking realizations",
-                    store.printStorePath(input_drv_path), output_name);
-          // TODO: handle CA derivations properly
+          // No output path determined - either CA floating without realisation, or impure
+          // The caller will need to build this derivation first
+          log_warn("firecracker: cannot determine output path for %s:%s - may need to build",
+                   store.printStorePath(input_drv_path), output_name);
         }
       }
 
@@ -1397,10 +1428,8 @@ private:
     // Strategy:
     // 1. Mount the output.ext4 image (requires privileges or FUSE)
     // 2. For each output, copy from mount to user store
-    // 3. Register in store database
-    //
-    // For now, we use a simple approach: call out to helper scripts
-    // that can use FUSE or privileged mounts.
+    // 3. For CA floating outputs, hash content and compute final path
+    // 4. Register in store database (and realisations for CA)
 
     auto output_image = work_dir + "/output.ext4";
     auto mount_point = work_dir + "/output-mount";
@@ -1428,21 +1457,64 @@ private:
 
     log_info("firecracker: mounted output image at %s", mount_point);
 
-    // Extract each output using the safer outputsAndOptPaths interface
+    // Compute output hashes for CA derivation support
+    // We need this to create DrvOutput keys for realisation registration
+    std::map<std::string, ::nix::Hash> output_hashes;
+    try {
+      // Cast to derivation_t to access static_output_hashes
+      // This is safe because basic_derivation_t is a base of derivation_t
+      // and we're only using it for hash computation
+      output_hashes =
+          ::nix::static_output_hashes(store, static_cast<const ::nix::derivation_t&>(drv));
+    } catch (...) {
+      // If this fails (e.g., drv is truly just a basic_derivation_t), continue without CA support
+      log_debug("firecracker: could not compute output hashes (non-CA derivation)");
+    }
+
+    // Extract each output
     auto outputs_and_paths = drv.outputsAndOptPaths(store);
     for (const auto& [name, output_and_path] : outputs_and_paths) {
       const auto& [output, opt_path] = output_and_path;
-      if (!opt_path) {
-        log_warn("firecracker: skipping output '%s' (floating/deferred)", name);
-        continue;
+
+      // For CA floating outputs, we need to find the output in the VM's store
+      // by scanning for outputs matching the derivation name pattern
+      fs::path src_path;
+      std::string basename;
+
+      if (opt_path) {
+        // Input-addressed or CA fixed: path is known
+        auto output_path = store.printStorePath(*opt_path);
+        basename = fs::path(output_path).filename().string();
+        src_path = fs::path(mount_point) / "nix" / "store" / basename;
+      } else {
+        // CA floating or deferred: need to find the output by name pattern
+        // The builder writes to $out which the guest sets up based on drv.env
+        // Look for paths matching the expected output name
+        auto store_dir = fs::path(mount_point) / "nix" / "store";
+        if (fs::exists(store_dir)) {
+          for (const auto& entry : fs::directory_iterator(store_dir)) {
+            auto entry_name = entry.path().filename().string();
+            // Match by derivation name suffix (e.g., "*-foo" for output "out" of drv "foo")
+            // For non-default outputs, look for "*-foo-<output_name>"
+            std::string suffix = "-" + drv.name;
+            if (name != "out") {
+              suffix += "-" + name;
+            }
+            if (entry_name.size() > suffix.size() &&
+                entry_name.substr(entry_name.size() - suffix.size()) == suffix) {
+              src_path = entry.path();
+              basename = entry_name;
+              log_info("firecracker: found CA floating output '%s' at %s", name, src_path.c_str());
+              break;
+            }
+          }
+        }
+
+        if (src_path.empty()) {
+          log_warn("firecracker: could not find output '%s' (floating/deferred)", name);
+          continue;
+        }
       }
-      auto output_path = store.printStorePath(*opt_path);
-
-      // Extract basename (e.g., "abc123-foo" from "/nix/store/abc123-foo")
-      auto basename = fs::path(output_path).filename().string();
-
-      // Source path in the mounted output image
-      auto src_path = fs::path(mount_point) / "nix" / "store" / basename;
 
       if (!fs::exists(src_path)) {
         log_error("firecracker: output '%s' not found at %s", name, src_path.c_str());
@@ -1450,7 +1522,6 @@ private:
       }
 
       // Destination: prefer user store (writable), fallback to system store
-      // The user store at ~/.local/share/nix/store is always writable
       fs::path dst_path;
       if (!config_.user_store_dir.empty()) {
         fs::create_directories(config_.user_store_dir);
@@ -1471,7 +1542,34 @@ private:
         // Copy the output
         fs::copy(src_path, dst_path, fs::copy_options::recursive);
 
-        witness.outputs_written.push_back(output_path);
+        // Register the realisation for CA derivations
+        auto hash_it = output_hashes.find(name);
+        if (hash_it != output_hashes.end() &&
+            ::nix::experimental_feature_settings.is_enabled(::nix::xp_t::ca_derivations)) {
+          // Parse the output path from basename
+          auto out_path = store.parseStorePath("/nix/store/" + basename);
+
+          // Create and register the realisation
+          // realisation_t = { UnkeyedRealisation{out_path, sigs, deps}, id }
+          ::nix::realisation_t realisation{
+              {
+                  .out_path = out_path,
+                  .signatures = {},
+                  .dependentRealisations = {},
+              },
+              ::nix::DrvOutput{hash_it->second, name},
+          };
+
+          try {
+            store.register_drv_output(realisation);
+            log_info("firecracker: registered realisation for %s:%s -> %s", drv.name, name,
+                     store.printStorePath(out_path));
+          } catch (const std::exception& e) {
+            log_warn("firecracker: could not register realisation: %s", e.what());
+          }
+        }
+
+        witness.outputs_written.push_back(dst_path.string());
         log_info("firecracker: extracted output '%s' (%zu bytes)", name, calculate_size(dst_path));
 
       } catch (const std::exception& e) {
