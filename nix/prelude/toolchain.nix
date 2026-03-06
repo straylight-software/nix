@@ -47,7 +47,7 @@ let
   # dynamic builds (proc-macros) find glibc first, while static builds still
   # use musl via -static flag.
 
-  glibc = pkgs.glibc;
+  inherit (pkgs) glibc;
   glibc-gcc-libgcc = pkgs.stdenv.cc.cc.libgcc or pkgs.gcc.cc.libgcc or null;
 
   glibc-paths =

@@ -66,7 +66,7 @@
 
           # ── Dependencies ──────────────────────────────────────────────────────
           # libmodern-cpp provides static C++ libs with clang+musl and full debug symbols
-          libmodern = inputs.libmodern-cpp.legacyPackages.${pkgs.system}.libmodern;
+          inherit (inputs.libmodern-cpp.legacyPackages.${pkgs.system}) libmodern;
           deps = import ./nix/deps.nix { inherit pkgs libmodern; };
 
           # ── Isospin (Firecracker + GPU broker) Rust vendor ──────────────────────
@@ -250,7 +250,7 @@
             inherit isospinRustVendor;
 
             # Firecracker guest VM components (kernel + initrd)
-            firecracker-guest = firecrackerGuest.firecracker-guest;
+            inherit (firecrackerGuest) firecracker-guest;
             nix-builder-init = firecrackerGuest.nixBuilderInit;
 
             # Setup script for firecracker build service
@@ -591,6 +591,7 @@
               # Suppressed false positives:
               # - unknownMacro: ANSI_* color codes, LIBCURL_VERSION, bison YY_* macros
               # - syntaxError: flex/bison generated code, C++23 syntax cppcheck doesn't parse
+              # - subtractPointers: linker-embedded symbols (_binary_*_start/_end) are valid
               cppcheck \
                 --error-exitcode=1 \
                 --inline-suppr \
@@ -601,6 +602,7 @@
                 --suppress=preprocessorErrorDirective \
                 --suppress=unknownMacro \
                 --suppress=syntaxError \
+                --suppress=subtractPointers \
                 --std=c++23 \
                 --quiet \
                 src/ 2>&1 || {

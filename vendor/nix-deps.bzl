@@ -119,5 +119,5 @@ LIBSECCOMP_STATIC_LIB = "/nix/store/a8ikrfgaq2q31fn3n1s48lyhrxg3h1c7-libseccomp-
 # Firecracker guest - kernel and initrd for build VMs
 # ════════════════════════════════════════════════════════════════════════════
 # These are the raw artifacts; Buck2 genrules compress and convert to .o files
-FIRECRACKER_VMLINUX = "/nix/store/qy6q5h235bimsvada2gqdpnmkw5pd0nn-firecracker-initrd/vmlinux"
-FIRECRACKER_INITRD = "/nix/store/qy6q5h235bimsvada2gqdpnmkw5pd0nn-firecracker-initrd/initrd.img"
+FIRECRACKER_VMLINUX = "/nix/store/nw7k6qlx65dkdpd4xl8n8jd81959qsx3-firecracker-initrd/vmlinux"
+FIRECRACKER_INITRD = "/nix/store/nw7k6qlx65dkdpd4xl8n8jd81959qsx3-firecracker-initrd/initrd.img"

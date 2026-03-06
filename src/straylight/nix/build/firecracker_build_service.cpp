@@ -26,8 +26,8 @@
 
 #include <chrono>
 #include <filesystem>
+#include <format>
 #include <fstream>
-#include <sstream>
 
 #include <fcntl.h>
 #include <linux/vm_sockets.h>
@@ -115,30 +115,35 @@ struct build_witness {
 
   // Serialize to JSON for attestation
   auto to_json() const -> std::string {
-    std::ostringstream ss;
-    ss << "{\n";
-    ss << "  \"drv_path\": \"" << drv_path << "\",\n";
-    ss << "  \"start_time\": " << std::chrono::system_clock::to_time_t(start_time) << ",\n";
-    ss << "  \"end_time\": " << std::chrono::system_clock::to_time_t(end_time) << ",\n";
-    ss << "  \"inputs_read\": [";
+    // Format inputs array
+    std::string inputs_json;
     for (size_t i = 0; i < inputs_read.size(); ++i) {
       if (i > 0) {
-        ss << ", ";
+        inputs_json += ", ";
       }
-      ss << "\"" << inputs_read[i] << "\"";
+      inputs_json += std::format("\"{}\"", inputs_read[i]);
     }
-    ss << "],\n";
-    ss << "  \"outputs_written\": [";
+
+    // Format outputs array
+    std::string outputs_json;
     for (size_t i = 0; i < outputs_written.size(); ++i) {
       if (i > 0) {
-        ss << ", ";
+        outputs_json += ", ";
       }
-      ss << "\"" << outputs_written[i] << "\"";
+      outputs_json += std::format("\"{}\"", outputs_written[i]);
     }
-    ss << "],\n";
-    ss << "  \"log_hash\": \"" << log_hash << "\"\n";
-    ss << "}";
-    return ss.str();
+
+    return std::format(
+        R"({{
+  "drv_path": "{}",
+  "start_time": {},
+  "end_time": {},
+  "inputs_read": [{}],
+  "outputs_written": [{}],
+  "log_hash": "{}"
+}})",
+        drv_path, std::chrono::system_clock::to_time_t(start_time),
+        std::chrono::system_clock::to_time_t(end_time), inputs_json, outputs_json, log_hash);
   }
 };
 
@@ -720,59 +725,45 @@ private:
     //   - Use overlay filesystem in guest for outputs
     //   - Extract outputs from the overlay after build
 
-    std::ostringstream config;
-    config << "{\n";
-
-    // Boot source - using initrd, no root device
-    config << "  \"boot-source\": {\n";
-    config << "    \"kernel_image_path\": \"" << config_.kernel_path << "\",\n";
-    config << "    \"initrd_path\": \"" << config_.initrd_path << "\",\n";
-    // Boot args: init=/init, no root= since we boot from initrd
-    // Pass store mount info via kernel cmdline
-    config << "    \"boot_args\": \"console=ttyS0 reboot=k panic=1 pci=off init=/init\"\n";
-    config << "  },\n";
-
-    // Machine config
-    config << "  \"machine-config\": {\n";
-    config << "    \"vcpu_count\": " << config_.vcpu_count << ",\n";
-    config << "    \"mem_size_mib\": " << config_.mem_size_mib << "\n";
-    config << "  },\n";
-
-    // Drives:
-    //   vda: /nix/store inputs (read-only, sparse image with hardlinks)
-    //   vdb: /build output area (read-write)
-    config << "  \"drives\": [\n";
-
-    // Store inputs drive (read-only)
-    config << "    {\n";
-    config << "      \"drive_id\": \"store\",\n";
-    config << "      \"path_on_host\": \"" << work_dir << "/store.ext4\",\n";
-    config << "      \"is_root_device\": false,\n";
-    config << "      \"is_read_only\": true\n";
-    config << "    },\n";
-
-    // Output drive (read-write)
-    config << "    {\n";
-    config << "      \"drive_id\": \"output\",\n";
-    config << "      \"path_on_host\": \"" << work_dir << "/output.ext4\",\n";
-    config << "      \"is_root_device\": false,\n";
-    config << "      \"is_read_only\": false\n";
-    config << "    }\n";
-
-    config << "  ],\n";
-
-    // vsock for communication
-    config << "  \"vsock\": {\n";
-    config << "    \"guest_cid\": 3,\n";
-    config << "    \"uds_path\": \"" << work_dir << "/vsock.sock\"\n";
-    config << "  }\n";
-
-    config << "}\n";
+    // Generate Firecracker VM config JSON using std::format
+    auto config_json = std::format(
+        R"({{
+  "boot-source": {{
+    "kernel_image_path": "{}",
+    "initrd_path": "{}",
+    "boot_args": "console=ttyS0 reboot=k panic=1 pci=off init=/init"
+  }},
+  "machine-config": {{
+    "vcpu_count": {},
+    "mem_size_mib": {}
+  }},
+  "drives": [
+    {{
+      "drive_id": "store",
+      "path_on_host": "{}/store.ext4",
+      "is_root_device": false,
+      "is_read_only": true
+    }},
+    {{
+      "drive_id": "output",
+      "path_on_host": "{}/output.ext4",
+      "is_root_device": false,
+      "is_read_only": false
+    }}
+  ],
+  "vsock": {{
+    "guest_cid": 3,
+    "uds_path": "{}/vsock.sock"
+  }}
+}}
+)",
+        config_.kernel_path, config_.initrd_path, config_.vcpu_count, config_.mem_size_mib,
+        work_dir, work_dir, work_dir);
 
     // Write config to file
     auto config_path = work_dir + "/vm-config.json";
     std::ofstream config_file(config_path);
-    config_file << config.str();
+    config_file << config_json;
     config_file.close();
 
     // Create the store and output images

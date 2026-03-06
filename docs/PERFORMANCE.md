@@ -193,20 +193,18 @@ ______________________________________________________________________
 
 ## Benchmark Files
 
-| File | Coverage |
-|------|----------|
-| `src/nix/store/tests/store-path_bench.cpp` | Path parsing, validation, comparison |
-| `src/nix/store/tests/hash_bench.cpp` | SHA256, encoding, content address |
-| `src/nix/store/tests/narinfo_bench.cpp` | Parse/serialize cache format |
-| `src/nix/store/tests/derivation_bench.cpp` | ATerm parsing, serialization |
-| `src/nix/store/tests/protocol_bench.cpp` | Worker protocol messages |
-| `src/nix/store/tests/sqlite_bench.cpp` | Store database operations |
-| `src/nix/store/tests/nar_bench.cpp` | Archive serialization, hashing |
-| `src/nix/cli/tests/cli_bench.cpp` | Command dispatch, arg parsing |
+| File | Coverage | |------|----------| | `src/nix/store/tests/store-path_bench.cpp` | Path parsing,
+validation, comparison | | `src/nix/store/tests/hash_bench.cpp` | SHA256, encoding, content address
+| | `src/nix/store/tests/narinfo_bench.cpp` | Parse/serialize cache format | |
+`src/nix/store/tests/derivation_bench.cpp` | ATerm parsing, serialization | |
+`src/nix/store/tests/protocol_bench.cpp` | Worker protocol messages | |
+`src/nix/store/tests/sqlite_bench.cpp` | Store database operations | |
+`src/nix/store/tests/nar_bench.cpp` | Archive serialization, hashing | |
+`src/nix/cli/tests/cli_bench.cpp` | Command dispatch, arg parsing |
 
-> **Note:** The numbers in this document were collected on a specific test system. Results
-> vary by hardware. Run the benchmarks yourself to get accurate numbers for your system.
-> No stored result files are maintained to avoid stale data - always regenerate.
+> **Note:** The numbers in this document were collected on a specific test system. Results vary by
+> hardware. Run the benchmarks yourself to get accurate numbers for your system. No stored result
+> files are maintained to avoid stale data - always regenerate.
 
 ______________________________________________________________________
 

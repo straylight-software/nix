@@ -4,8 +4,8 @@ Comprehensive documentation of the Buck2 + Nix build system.
 
 ## Overview
 
-This project uses **Buck2** as the build system with **Nix** providing hermetic toolchains.
-All tool paths are absolute Nix store paths - no PATH lookup, fully reproducible.
+This project uses **Buck2** as the build system with **Nix** providing hermetic toolchains. All tool
+paths are absolute Nix store paths - no PATH lookup, fully reproducible.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -60,6 +60,7 @@ execution_platforms = toolchains//:musl
 ```
 
 This means:
+
 - Rust targets use `x86_64-unknown-linux-musl`
 - C++ targets link against musl libc
 - Final binaries are fully static
@@ -88,17 +89,12 @@ cxx = /nix/store/xxx-clang/bin/clang++
 
 ### Toolchain Definitions (`build/toolchains/BUCK`)
 
-| Target | Purpose |
-|--------|---------|
-| `:cxx` | Default C++ toolchain (LLVM, C23/C++23) |
-| `:cxx_coverage` | C++ with coverage instrumentation |
-| `:rust` | Rust toolchain (uses prelude's `system_rust_toolchain`) |
-| `:python_bootstrap` | Required by Buck2 internals |
-| `:genrule` | For custom build rules |
-| `:test` | Test execution (noop - runs locally) |
-| `:local` | Local-only execution platform |
-| `:lre` | Local execution platform |
-| `:musl` | Musl target platform (default) |
+| Target | Purpose | |--------|---------| | `:cxx` | Default C++ toolchain (LLVM, C23/C++23) | |
+`:cxx_coverage` | C++ with coverage instrumentation | | `:rust` | Rust toolchain (uses prelude's
+`system_rust_toolchain`) | | `:python_bootstrap` | Required by Buck2 internals | | `:genrule` | For
+custom build rules | | `:test` | Test execution (noop - runs locally) | | `:local` | Local-only
+execution platform | | `:lre` | Local execution platform | | `:musl` | Musl target platform
+(default) |
 
 ## Rust Build Rules
 
@@ -121,12 +117,14 @@ rust_toolchain  # Toolchain definition (not used by custom rules)
 ```
 
 **How they work:**
+
 - First source file = crate root
 - Other sources = hidden deps (tracked for rebuilds)
 - Deps can provide either `RustLibraryInfo` or `RustCrateInfo`
 - Transitive deps propagated via `-Ldependency=` flags
 
 **Attributes:**
+
 ```python
 rust_library(
     name = "foo",
@@ -142,6 +140,7 @@ rust_library(
 #### 2. Prelude Rules (`build/prelude/rust/`)
 
 Full-featured rules from Buck2 prelude:
+
 - `rust_library` - with metadata pipelining, split debuginfo, etc.
 - `rust_binary` - with resources, env, run info
 - `rust_test` - test execution with framework support
@@ -241,6 +240,7 @@ alias(
 ### Using Third-Party Deps
 
 Reference by alias name:
+
 ```python
 rust_library(
     name = "my_lib",
@@ -253,19 +253,15 @@ rust_library(
 
 ### Available Crates (Partial List)
 
-| Crate | Version | Notes |
-|-------|---------|-------|
-| libc | 0.2.180 | System bindings |
-| thiserror | 2.0.17 | Error derive |
-| zerocopy | 0.8.24 | Zero-copy parsing |
-| io-uring | 0.7.7 | Linux io_uring |
-| proptest | 1.6.0 | Property testing |
-| bitflags | 2.10.0 | Bitflag macros |
-| cfg-if | 1.0.4 | Conditional compilation |
+| Crate | Version | Notes | |-------|---------|-------| | libc | 0.2.180 | System bindings | |
+thiserror | 2.0.17 | Error derive | | zerocopy | 0.8.24 | Zero-copy parsing | | io-uring | 0.7.7 |
+Linux io_uring | | proptest | 1.6.0 | Property testing | | bitflags | 2.10.0 | Bitflag macros | |
+cfg-if | 1.0.4 | Conditional compilation |
 
 ### Missing Crates
 
 Not yet in third-party (blocking some targets):
+
 - `tracing` - Logging/tracing framework
 - `tracing-subscriber` - Subscriber implementation
 - `nix` (0.27.1 vendored but no BUCK target) - Unix API bindings
@@ -400,18 +396,20 @@ rust_library(
 )
 ```
 
-**Challenge:** Rust's `crate::` imports require modules to be in the same crate.
-Breaking into separate crates requires changing to `extern crate` / `use other_crate::`.
+**Challenge:** Rust's `crate::` imports require modules to be in the same crate. Breaking into
+separate crates requires changing to `extern crate` / `use other_crate::`.
 
 ## Musl Cross-Compilation
 
 The default platform is musl, which means:
 
 1. **Target platform** (`toolchains//:musl`):
+
    - Has `abi_configuration = "prelude//abi/constraints:musl"`
    - Rust uses `x86_64-unknown-linux-musl`
 
 2. **Execution platform** (also `toolchains//:musl`):
+
    - Runs on the host (glibc)
    - Proc-macros built for host via exec transition
 
@@ -433,6 +431,7 @@ system_rust_toolchain(
 ### "unresolved module or unlinked crate"
 
 Missing dependency. Add to `deps`:
+
 ```python
 deps = [
     "//vendor/isospin/third-party/rust:missing_crate",
@@ -440,6 +439,7 @@ deps = [
 ```
 
 If crate not in third-party, either:
+
 1. Add BUCK target for vendored crate
 2. Inline the functionality
 3. Add to Cargo.toml and re-run reindeer
@@ -447,6 +447,7 @@ If crate not in third-party, either:
 ### Type Mismatches (musl)
 
 Musl has different type sizes than glibc:
+
 - `msg_controllen`: `u32` (musl) vs `usize` (glibc)
 - `cmsg_len`: `u32` (musl) vs `usize` (glibc)
 
@@ -455,29 +456,26 @@ Fix with explicit casts or `#[cfg(target_env = "musl")]`.
 ### "command not found: buck2"
 
 Run inside nix shell:
+
 ```bash
 nix develop
 buck2 build //...
 ```
 
 Or prefix command:
+
 ```bash
 nix develop --command buck2 build //...
 ```
 
 ## File Locations
 
-| Path | Purpose |
-|------|---------|
-| `.buckconfig` | Main Buck2 config |
-| `.buckconfig.local` | Generated Nix paths (gitignored) |
-| `build/prelude/` | Buck2 prelude (git submodule) |
-| `build/toolchains/BUCK` | Toolchain definitions |
-| `build/toolchains/rust.bzl` | Custom Rust rules |
-| `build/toolchains/rust_crate.bzl` | Crate fetching rules |
-| `build/toolchains/cxx.bzl` | C++ toolchain rules |
-| `vendor/isospin/third-party/rust/BUCK` | Third-party Rust deps |
-| `vendor/isospin/third-party/rust/vendor/` | Vendored sources (Nix symlink) |
+| Path | Purpose | |------|---------| | `.buckconfig` | Main Buck2 config | | `.buckconfig.local` |
+Generated Nix paths (gitignored) | | `build/prelude/` | Buck2 prelude (git submodule) | |
+`build/toolchains/BUCK` | Toolchain definitions | | `build/toolchains/rust.bzl` | Custom Rust rules
+| | `build/toolchains/rust_crate.bzl` | Crate fetching rules | | `build/toolchains/cxx.bzl` | C++
+toolchain rules | | `vendor/isospin/third-party/rust/BUCK` | Third-party Rust deps | |
+`vendor/isospin/third-party/rust/vendor/` | Vendored sources (Nix symlink) |
 
 ## Regenerating Third-Party
 

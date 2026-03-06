@@ -1,11 +1,11 @@
 # Firecracker Build Service
 
-> **Status: Working** - End-to-end builds verified as of March 2026. The embedded
-> Firecracker VMM successfully executes builds without requiring the nix-daemon.
+> **Status: Working** - End-to-end builds verified as of March 2026. The embedded Firecracker VMM
+> successfully executes builds without requiring the nix-daemon.
 
-The Firecracker build service provides daemonless, sandboxed Nix builds using
-Firecracker microVMs. It eliminates the need for a root nix-daemon while
-providing stronger isolation than traditional namespace-based sandboxing.
+The Firecracker build service provides daemonless, sandboxed Nix builds using Firecracker microVMs.
+It eliminates the need for a root nix-daemon while providing stronger isolation than traditional
+namespace-based sandboxing.
 
 ## Overview
 
@@ -51,7 +51,7 @@ providing stronger isolation than traditional namespace-based sandboxing.
 1. **No root required** - Just `/dev/kvm` access (kvm group membership)
 2. **Hardware isolation** - Each build in its own VM with separate kernel
 3. **Deep witnessing** - Full visibility into filesystem access, syscalls
-4. **Fast boot** - <100ms VM startup time
+4. **Fast boot** - \<100ms VM startup time
 5. **Two-tier store** - Works with straylight's user + system store architecture
 
 ## Architecture
@@ -143,17 +143,20 @@ Message Types:
 ### Prerequisites
 
 1. **KVM access** - Add user to kvm group:
+
    ```bash
    sudo usermod -aG kvm $USER
    # Log out and back in
    ```
 
 2. **Firecracker binary** - Install from:
+
    - Package manager: `apt install firecracker`
    - GitHub releases: https://github.com/firecracker-microvm/firecracker/releases
    - Or set `NIX_FIRECRACKER_BIN` environment variable
 
 3. **FUSE support** - For unprivileged image mounting:
+
    ```bash
    # Usually already available, but if not:
    sudo apt install fuse
@@ -175,6 +178,7 @@ nix run .#setup-firecracker
 ```
 
 This installs:
+
 - `vmlinux` - Minimal Linux kernel for Firecracker
 - `initrd.img` - Init system with nix-builder-init
 - `bin/nix-builder-init` - Standalone init binary (for debugging)
@@ -195,9 +199,9 @@ ls -la ~/.local/share/nix/firecracker/
 
 ## Configuration
 
-The `nix-embedded` binary uses Firecracker exclusively - there is no fallback to the
-traditional nix-daemon. This is intentional: the embedded binary is designed for
-environments where the daemon is unavailable or undesirable.
+The `nix-embedded` binary uses Firecracker exclusively - there is no fallback to the traditional
+nix-daemon. This is intentional: the embedded binary is designed for environments where the daemon
+is unavailable or undesirable.
 
 ### Build Service Selection
 
@@ -211,20 +215,22 @@ nix build --builders ''
 nix build --builders 'ssh://builder@host x86_64-linux'
 ```
 
-When `--builders ''` is specified (empty string), nix invokes the `__build-remote` hook
-which uses the embedded Firecracker VMM.
+When `--builders ''` is specified (empty string), nix invokes the `__build-remote` hook which uses
+the embedded Firecracker VMM.
 
 ### Auto-Detection Paths
 
 The service searches for components in these locations:
 
 **Firecracker binary:**
+
 1. `$NIX_FIRECRACKER_BIN` (if set)
 2. `/usr/bin/firecracker`
 3. `/usr/local/bin/firecracker`
 4. `./result/bin/firecracker`
 
 **Guest kernel:**
+
 1. `$NIX_FIRECRACKER_KERNEL` (if set)
 2. `./result/vmlinux`
 3. `./.firecracker-guest/vmlinux`
@@ -233,6 +239,7 @@ The service searches for components in these locations:
 6. `/nix/var/nix/firecracker/vmlinux`
 
 **Guest initrd:**
+
 1. `$NIX_FIRECRACKER_INITRD` (if set)
 2. `./result/initrd.img`
 3. `./.firecracker-guest/initrd.img`
@@ -282,8 +289,8 @@ if (fc_svc->is_available()) {
 
 ## Deep Witnessing
 
-The Firecracker build service records detailed information about what each
-build does, enabling reproducibility verification and build attestation.
+The Firecracker build service records detailed information about what each build does, enabling
+reproducibility verification and build attestation.
 
 ### Witness Record
 
@@ -314,6 +321,7 @@ Each build produces a witness record (JSON):
 ### Witness Events
 
 The guest init sends witness events for:
+
 - `FILE_READ` - File read access
 - `FILE_WRITE` - File write access
 - `FILE_STAT` - File stat operations
@@ -330,8 +338,7 @@ config.witness_log_dir = "/var/log/nix-witness/";
 
 ## Two-Tier Store Support
 
-The Firecracker build service fully supports straylight's two-tier store
-architecture:
+The Firecracker build service fully supports straylight's two-tier store architecture:
 
 ```
 User Store:    ~/.local/share/nix/store/   (writable)
@@ -340,17 +347,18 @@ System Store:  /nix/store/                  (read-only fallback)
 
 ### How It Works
 
-1. **Input Resolution**: When collecting build inputs, the service checks
-   both stores and resolves each path to its actual location.
+1. **Input Resolution**: When collecting build inputs, the service checks both stores and resolves
+   each path to its actual location.
 
-2. **Image Population**: All resolved inputs are copied into the store.ext4
-   image, preserving their original `/nix/store/...` paths.
+2. **Image Population**: All resolved inputs are copied into the store.ext4 image, preserving their
+   original `/nix/store/...` paths.
 
-3. **Output Extraction**: After a successful build, outputs are extracted
-   from the VM and written to the user store.
+3. **Output Extraction**: After a successful build, outputs are extracted from the VM and written to
+   the user store.
 
-4. **Overlay Filesystem**: Inside the VM, an overlay filesystem allows
-   writes to `/nix/store` while keeping the base store read-only:
+4. **Overlay Filesystem**: Inside the VM, an overlay filesystem allows writes to `/nix/store` while
+   keeping the base store read-only:
+
    ```
    /nix/store = overlay(
      lower=/dev/vda/nix/store,   # Input paths (read-only)
@@ -361,8 +369,7 @@ System Store:  /nix/store/                  (read-only fallback)
 
 ## Guest Init (nix-builder-init)
 
-The guest init program runs as PID 1 inside the microVM. It's a minimal
-C program (~700 lines) that:
+The guest init program runs as PID 1 inside the microVM. It's a minimal C program (~700 lines) that:
 
 1. Sets up the filesystem hierarchy
 2. Mounts the store and output block devices
@@ -399,6 +406,7 @@ The init binary is also installed standalone for debugging:
 The guest kernel is a minimal Linux kernel configured for Firecracker:
 
 ### Key Features Enabled
+
 - `CONFIG_VIRTIO_*` - Virtio drivers for block, console
 - `CONFIG_VSOCKETS` - vsock for host communication
 - `CONFIG_EXT4_FS` - ext4 filesystem support
@@ -406,6 +414,7 @@ The guest kernel is a minimal Linux kernel configured for Firecracker:
 - `CONFIG_FUSE_FS` - FUSE support (optional)
 
 ### Key Features Disabled
+
 - `CONFIG_NET` - No networking (builds are hermetic)
 - `CONFIG_MODULES` - No loadable modules
 - `CONFIG_DEBUG_*` - No debugging overhead
@@ -504,26 +513,25 @@ firecracker --no-api --config-file /tmp/firecracker-build/*/vm-config.json
 
 ### Typical Timings
 
-| Operation | Time |
-|-----------|------|
-| VM boot | ~50-100ms |
-| vsock connect | ~10ms |
-| Image creation (100MB) | ~500ms |
-| Small build | ~2-5s overhead |
+| Operation | Time | |-----------|------| | VM boot | ~50-100ms | | vsock connect | ~10ms | | Image
+creation (100MB) | ~500ms | | Small build | ~2-5s overhead |
 
 ### Optimization Tips
 
 1. **Increase memory** for large builds:
+
    ```cpp
    config.mem_size_mib = 2048;  // 2GB
    ```
 
 2. **Increase CPUs** for parallel builds:
+
    ```cpp
    config.vcpu_count = 4;
    ```
 
 3. **Keep work directories** for debugging:
+
    ```cpp
    // In execute_in_vm(), don't delete work_dir
    ```

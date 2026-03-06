@@ -1,12 +1,12 @@
 # Firecracker Build Service Architecture
 
-This document describes the design and implementation of the embedded Firecracker
-build service for nix-embedded, a self-contained nix binary that performs sandboxed
-builds using Firecracker microVMs without requiring the nix daemon.
+This document describes the design and implementation of the embedded Firecracker build service for
+nix-embedded, a self-contained nix binary that performs sandboxed builds using Firecracker microVMs
+without requiring the nix daemon.
 
-> **Status (2026-03-06)**: The Firecracker build service is **WORKING**. VM boot,
-> vsock communication, build execution, and output registration are all functional.
-> See [Current Status](#current-status) for details.
+> **Status (2026-03-06)**: The Firecracker build service is **WORKING**. VM boot, vsock
+> communication, build execution, and output registration are all functional. See
+> [Current Status](#current-status) for details.
 
 ## Table of Contents
 
@@ -20,13 +20,14 @@ builds using Firecracker microVMs without requiring the nix daemon.
 8. [Known Issues](#known-issues)
 9. [File Reference](#file-reference)
 
----
+______________________________________________________________________
 
 ## Overview
 
 ### Goal
 
 Build a statically linked nix binary (~375MB) that:
+
 - Embeds the Firecracker VMM as a linked library (not a separate process)
 - Embeds the guest kernel and initrd as zstd-compressed blobs in the DATA section
 - Performs sandboxed builds in microVMs without requiring root or the nix daemon
@@ -46,7 +47,7 @@ Build a statically linked nix binary (~375MB) that:
 3. **Stateless VMs**: Each build gets a fresh VM; no persistent VM pool
 4. **vsock communication**: Host-guest communication via virtio-vsock
 
----
+______________________________________________________________________
 
 ## Architecture
 
@@ -106,7 +107,7 @@ Build a statically linked nix binary (~375MB) that:
           └──────────────────┘
 ```
 
----
+______________________________________________________________________
 
 ## Components
 
@@ -115,6 +116,7 @@ Build a statically linked nix binary (~375MB) that:
 **Location**: `src/straylight/nix/build/firecracker_build_service.cpp`
 
 The main orchestrator that:
+
 1. Computes the closure of input paths needed for a derivation
 2. Creates ext4 images containing the inputs
 3. Configures and starts the Firecracker VM via vmm_ffi
@@ -125,6 +127,7 @@ The main orchestrator that:
 8. Shuts down the VM
 
 **Key methods**:
+
 - `build_derivation()`: Entry point for building a single derivation
 - `execute_in_vm()`: Creates work directory, prepares images, runs VM
 - `create_store_image()`: Builds ext4 image with input closure
@@ -160,6 +163,7 @@ void vmm_destroy(VmmHandle* handle);
 ```
 
 **Key implementation details**:
+
 - Creates memfds from embedded data (avoids temp files)
 - Uses `/proc/self/fd/N` paths to pass memfds to VMM
 - Decompresses zstd-compressed kernel on the fly
@@ -188,6 +192,7 @@ Boot sequence:
 ```
 
 **Wire protocol handling**:
+
 - Parses BUILD_EXEC payload (builder, args, env, workdir, outputs, extra_files)
 - Writes extra_files to workdir (for passAsFile, structuredAttrs)
 - Forks and execs the builder
@@ -200,14 +205,17 @@ Boot sequence:
 **Location**: `src/straylight/nix/build/embedded_guest*.cpp`
 
 Two build variants:
+
 - `embedded_guest_data.cpp`: Links binary blobs via objcopy symbols
 - `embedded_guest_stub.cpp`: Stub for non-embedded builds
 
 The embedded data is:
+
 - **vmlinux.zst**: Zstd-compressed kernel (~15MB compressed, ~88MB uncompressed)
 - **initrd.img**: Gzip-compressed CPIO archive (~9KB)
 
 Symbols created by objcopy:
+
 ```c
 extern const uint8_t _binary_vmlinux_zst_start[];
 extern const uint8_t _binary_vmlinux_zst_end[];
@@ -220,10 +228,12 @@ extern const uint8_t _binary_initrd_img_end[];
 **Location**: `nix/vm/guest.nix`
 
 Nix derivation that produces:
+
 - `vmlinux`: Stripped kernel with virtio, vsock, overlay support
 - `initrd.img`: CPIO archive containing just /init
 
 Kernel config requirements:
+
 ```nix
 VIRTIO = yes;
 VIRTIO_PCI = yes;
@@ -236,7 +246,7 @@ OVERLAY_FS = yes;
 EXT4_FS = yes;
 ```
 
----
+______________________________________________________________________
 
 ## Build Flow
 
@@ -296,7 +306,7 @@ EXT4_FS = yes;
 4. Cleanup work directory
 ```
 
----
+______________________________________________________________________
 
 ## Wire Protocol
 
@@ -311,16 +321,12 @@ EXT4_FS = yes;
 
 ### Message Types
 
-| Type | Value | Direction | Description |
-|------|-------|-----------|-------------|
-| BUILD_EXEC | 0x0001 | Host→Guest | Execute builder |
-| BUILD_ABORT | 0x0002 | Host→Guest | Cancel build |
-| PING | 0x0003 | Host→Guest | Health check |
-| BUILD_STDOUT | 0x0101 | Guest→Host | Builder stdout |
-| BUILD_STDERR | 0x0102 | Guest→Host | Builder stderr |
-| BUILD_EXIT | 0x0103 | Guest→Host | Build complete |
-| PONG | 0x0104 | Guest→Host | Ping response |
-| WITNESS_EVENT | 0x0105 | Guest→Host | FS/syscall event |
+| Type | Value | Direction | Description | |------|-------|-----------|-------------| | BUILD_EXEC |
+0x0001 | Host→Guest | Execute builder | | BUILD_ABORT | 0x0002 | Host→Guest | Cancel build | | PING
+| 0x0003 | Host→Guest | Health check | | BUILD_STDOUT | 0x0101 | Guest→Host | Builder stdout | |
+BUILD_STDERR | 0x0102 | Guest→Host | Builder stderr | | BUILD_EXIT | 0x0103 | Guest→Host | Build
+complete | | PONG | 0x0104 | Guest→Host | Ping response | | WITNESS_EVENT | 0x0105 | Guest→Host |
+FS/syscall event |
 
 ### BUILD_EXEC Payload
 
@@ -351,7 +357,7 @@ EXT4_FS = yes;
 [error_msg_len: u32][error_msg: utf8]
 ```
 
----
+______________________________________________________________________
 
 ## Embedding Strategy
 
@@ -394,7 +400,7 @@ objcopy -I binary -O elf64-x86-64 \
 # (handled by Buck2 BUCK rules)
 ```
 
----
+______________________________________________________________________
 
 ## Current Status
 
@@ -411,25 +417,22 @@ objcopy -I binary -O elf64-x86-64 \
 
 The following components are now **fully functional**:
 
-1. **VM boot and event loop**: The `vmm_start_event_loop()` function runs the
-   VMM event loop in a background thread, which is required for virtio devices
-   to process MMIO accesses and interrupts.
+1. **VM boot and event loop**: The `vmm_start_event_loop()` function runs the VMM event loop in a
+   background thread, which is required for virtio devices to process MMIO accesses and interrupts.
 
-2. **vsock communication**: The host successfully connects to the guest's vsock
-   listener on port 5000. PING/PONG test shows ~144µs RTT.
+2. **vsock communication**: The host successfully connects to the guest's vsock listener on port
+   5000\. PING/PONG test shows ~144µs RTT.
 
-3. **Build execution**: Builders execute in the guest with proper environment
-   variables and output to the overlay filesystem.
+3. **Build execution**: Builders execute in the guest with proper environment variables and output
+   to the overlay filesystem.
 
-4. **Output extraction**: Outputs are extracted from the VM's ext4 image and
-   copied to `/nix/store`.
+4. **Output extraction**: Outputs are extracted from the VM's ext4 image and copied to `/nix/store`.
 
-5. **Store registration**: Outputs are registered in the nix store database
-   via `nix-store --register-validity`.
+5. **Store registration**: Outputs are registered in the nix store database via
+   `nix-store --register-validity`.
 
-6. **Build hook integration**: The `nix build` command properly invokes
-   `__build-remote` which uses the firecracker build service when no remote
-   machines are configured.
+6. **Build hook integration**: The `nix build` command properly invokes `__build-remote` which uses
+   the firecracker build service when no remote machines are configured.
 
 ### Verified Test
 
@@ -446,22 +449,26 @@ $ nix build --expr 'derivation {
 ### Key Fixes Applied
 
 1. **Event loop for virtio** (`vmm-ffi/src/lib.rs`):
+
    - Added `vmm_start_event_loop()` to spawn background thread
    - Event loop checks `shutdown_exit_code()` for proper termination
 
 2. **Binary protocol handling** (`build-remote.cpp`):
+
    - Settings read via `read_num`/`read_string` (binary, not text)
    - Build requests parsed via CommonProto serialization
    - Additional input_paths/missing_outputs read after accept
 
 3. **Output registration** (`build-remote.cpp`):
+
    - Uses `nix-store --register-validity` to register outputs
    - Format: `printf 'path\n\n0\n' | nix-store --register-validity`
 
 4. **Mount mode** (`firecracker_build_service.cpp`):
+
    - Changed output mount from read-only to read-write (ext4 journal)
 
----
+______________________________________________________________________
 
 ## Known Issues
 
@@ -469,9 +476,8 @@ $ nix build --expr 'derivation {
 
 **Symptom**: `filesystem error: cannot remove all: Permission denied`
 
-**Cause**: fuse2fs with `fakeroot` option creates files that appear root-owned.
-When the build fails or is interrupted, these files cannot be removed by the
-non-root user.
+**Cause**: fuse2fs with `fakeroot` option creates files that appear root-owned. When the build fails
+or is interrupted, these files cannot be removed by the non-root user.
 
 **Workaround**: The code now falls back to a unique directory name if cleanup fails.
 
@@ -481,22 +487,23 @@ non-root user.
 
 **Symptom**: `error: failed to mount store image - need fuse2fs or root for loop mount`
 
-**Cause**: Creating ext4 images requires mounting them to copy files. Without
-root, we need fuse2fs (from e2fsprogs).
+**Cause**: Creating ext4 images requires mounting them to copy files. Without root, we need fuse2fs
+(from e2fsprogs).
 
 **Workaround**: Run with fuse2fs in PATH: `nix-shell -p fuse2fs --run 'nix build ...'`
 
-**Proper fix**: Bundle fuse2fs into the binary, or use a different image format
-(e.g., erofs, squashfs) that can be created without mounting.
+**Proper fix**: Bundle fuse2fs into the binary, or use a different image format (e.g., erofs,
+squashfs) that can be created without mounting.
 
 ### 3. vsock Connection Failure (CURRENT BLOCKER)
 
 **Symptom**: `vsock: failed to connect to guest port 5000 after 10 attempts`
 
-**Cause**: Under investigation. The VM boots and kernel initializes virtio devices,
-but the connection to the guest's vsock listener fails.
+**Cause**: Under investigation. The VM boots and kernel initializes virtio devices, but the
+connection to the guest's vsock listener fails.
 
 **Debug info from last run**:
+
 ```
 vmm-ffi: MMIO[2] @ 0xc0003000: found=true, magic=0x74726976, version=2, device_id=19
 firecracker: VM started (embedded), vsock=/tmp/.../vsock.sock
@@ -504,85 +511,80 @@ firecracker: VM started (embedded), vsock=/tmp/.../vsock.sock
 vsock: failed to connect to guest port 5000 after 10 attempts
 ```
 
-The vsock device (device_id=19) is registered at the correct MMIO address.
-The kernel sees the block device. But we never see output from nix-builder-init,
-suggesting it either:
+The vsock device (device_id=19) is registered at the correct MMIO address. The kernel sees the block
+device. But we never see output from nix-builder-init, suggesting it either:
+
 - Doesn't start (init= not found)
 - Crashes early (before reaching vsock listen)
 - Is blocked on something (filesystem mount failure)
 
----
+______________________________________________________________________
 
 ## File Reference
 
 ### C++ Build Service
 
-| File | Purpose |
-|------|---------|
-| `src/straylight/nix/build/firecracker_build_service.cpp` | Main build orchestrator |
-| `src/straylight/nix/build/daemon_build_service.cpp` | Build service factory (returns firecracker) |
-| `src/straylight/nix/build/build_service.h` | Build service interface |
-| `src/straylight/nix/build/vm_protocol.h` | Wire protocol definitions |
-| `src/straylight/nix/build/vm_protocol.cpp` | Message serialization |
-| `src/straylight/nix/build/embedded_guest.h` | Embedded data access |
-| `src/straylight/nix/build/embedded_guest_data.cpp` | Embedded data (with symbols) |
-| `src/straylight/nix/build/embedded_guest_stub.cpp` | Stub (no embedded data) |
+| File | Purpose | |------|---------| | `src/straylight/nix/build/firecracker_build_service.cpp` |
+Main build orchestrator | | `src/straylight/nix/build/daemon_build_service.cpp` | Build service
+factory (returns firecracker) | | `src/straylight/nix/build/build_service.h` | Build service
+interface | | `src/straylight/nix/build/vm_protocol.h` | Wire protocol definitions | |
+`src/straylight/nix/build/vm_protocol.cpp` | Message serialization | |
+`src/straylight/nix/build/embedded_guest.h` | Embedded data access | |
+`src/straylight/nix/build/embedded_guest_data.cpp` | Embedded data (with symbols) | |
+`src/straylight/nix/build/embedded_guest_stub.cpp` | Stub (no embedded data) |
 
 ### Guest Components
 
-| File | Purpose |
-|------|---------|
-| `src/straylight/nix/build/guest/nix-builder-init.c` | Guest init program |
-| `nix/vm/guest.nix` | Kernel/initrd derivation |
+| File | Purpose | |------|---------| | `src/straylight/nix/build/guest/nix-builder-init.c` | Guest
+init program | | `nix/vm/guest.nix` | Kernel/initrd derivation |
 
 ### VMM FFI
 
-| File | Purpose |
-|------|---------|
-| `src/straylight/nix/vmm-ffi/src/lib.rs` | Rust FFI implementation |
-| `src/straylight/nix/vmm-ffi/vmm_ffi.h` | C header |
-| `src/straylight/nix/vmm-ffi/BUCK` | Build rules |
+| File | Purpose | |------|---------| | `src/straylight/nix/vmm-ffi/src/lib.rs` | Rust FFI
+implementation | | `src/straylight/nix/vmm-ffi/vmm_ffi.h` | C header | |
+`src/straylight/nix/vmm-ffi/BUCK` | Build rules |
 
 ### Build System
 
-| File | Purpose |
-|------|---------|
-| `src/nix/cli/BUCK` | CLI binary targets (nix, nix-embedded) |
-| `flake.nix` | Nix derivation for nix-embedded |
-| `toolchains/BUCK` | Buck2 toolchain configuration |
+| File | Purpose | |------|---------| | `src/nix/cli/BUCK` | CLI binary targets (nix, nix-embedded)
+| | `flake.nix` | Nix derivation for nix-embedded | | `toolchains/BUCK` | Buck2 toolchain
+configuration |
 
 ### Extracted VMM Modules
 
-| File | Purpose |
-|------|---------|
-| `vendor/isospin/firecracker/src/vmm/BUCK` | VMM module targets |
-| `vendor/isospin/firecracker/src/vmm/src/` | VMM source code |
+| File | Purpose | |------|---------| | `vendor/isospin/firecracker/src/vmm/BUCK` | VMM module
+targets | | `vendor/isospin/firecracker/src/vmm/src/` | VMM source code |
 
----
+______________________________________________________________________
 
 ## Next Steps
 
 1. **Debug vsock connection issue**
+
    - Add serial console output capture
    - Verify guest init actually runs
    - Check vsock device initialization in guest
 
 2. **Add integration tests**
+
    - Test vsock protocol separately
    - Test image creation/extraction
    - End-to-end build test with trivial derivation
 
 3. **Improve error handling**
+
    - Better error messages when VM fails
    - Capture guest kernel logs on failure
    - Timeout handling for hung builds
 
 4. **Performance optimization**
+
    - Reuse store images across builds when possible
    - Parallel image population
    - Memory-mapped I/O for large builds
 
 5. **Documentation**
+
    - API documentation for vmm_ffi
    - User guide for nix-embedded
    - Troubleshooting guide

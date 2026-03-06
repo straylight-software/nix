@@ -68,9 +68,7 @@ muslStdenv.mkDerivation {
   ];
 
   # musl needs explicit pthread
-  buildInputs = [
-    muslPkgs.musl
-  ];
+  buildInputs = [ muslPkgs.musl ];
 
   # Use clang with musl target
   CC = "${llvmPackages.clang}/bin/clang";

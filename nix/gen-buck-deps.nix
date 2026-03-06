@@ -17,9 +17,7 @@
   firecrackerGuest ? (import ./vm/guest.nix { inherit pkgs; }).firecracker-guest,
 }:
 let
-  deps = import ./deps.nix {
-    inherit pkgs libmodern;
-  };
+  deps = import ./deps.nix { inherit pkgs libmodern; };
   s = deps.static;
 
   # Helper to get lib path (handles multi-output derivations)

@@ -6,7 +6,7 @@ severity: error
 message: "std::stringstream/ostringstream/istringstream banned"
 note: |
   sstream is slow due to allocations and type erasure. alternatives:
-    - fmt::format("{}", value) or std::format for string building
+    - std::format("{}", value) for string building (C++20, preferred)
     - std::to_string() for simple numeric conversions
     - std::from_chars() / std::to_chars() for parsing/formatting
     - direct string concatenation with reserve()

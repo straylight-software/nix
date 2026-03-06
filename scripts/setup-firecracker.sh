@@ -57,7 +57,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Determine install directory
-if [[ "$INSTALL_MODE" == "user" ]]; then
+if [[ $INSTALL_MODE == "user" ]]; then
   INSTALL_DIR="${HOME}/.local/share/nix/firecracker"
   SUDO=""
 else
@@ -120,13 +120,13 @@ fi
 info "Checking for firecracker binary..."
 FC_BIN=""
 for path in /usr/bin/firecracker /usr/local/bin/firecracker; do
-  if [[ -x "$path" ]]; then
+  if [[ -x $path ]]; then
     FC_BIN="$path"
     break
   fi
 done
 
-if [[ -z "$FC_BIN" ]]; then
+if [[ -z $FC_BIN ]]; then
   warn "firecracker binary not found in PATH"
   warn "You may need to install firecracker separately:"
   warn "  - From your package manager (e.g., apt install firecracker)"
@@ -167,6 +167,6 @@ echo ""
 echo "Or to auto-detect (uses firecracker when daemon unavailable):"
 echo "  export NIX_BUILD_SERVICE=auto"
 echo ""
-if [[ -z "$FC_BIN" ]]; then
+if [[ -z $FC_BIN ]]; then
   echo "Remember to install the firecracker binary!"
 fi
