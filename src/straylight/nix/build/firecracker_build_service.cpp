@@ -24,10 +24,12 @@
 // Note: The Firecracker VMM is embedded directly via vmm-ffi, eliminating
 // the need for a separate firecracker binary and avoiding seccomp issues.
 
+#include <atomic>
 #include <chrono>
 #include <filesystem>
 #include <format>
 #include <fstream>
+#include <thread>
 
 #include <fcntl.h>
 #include <linux/vm_sockets.h>
@@ -606,11 +608,17 @@ private:
     auto base = fs::temp_directory_path() / "firecracker-build";
     fs::create_directories(base);
 
-    auto name = drv_path.name();
-    auto work = base / name;
+    // Always use a unique directory per build to support concurrent builds of
+    // the same derivation. Using just the derivation name caused race conditions
+    // where multiple builds would corrupt each other's work directories.
+    auto name = std::string(drv_path.name());
+    static std::atomic<uint64_t> counter{0};
+    auto unique_id = std::to_string(getpid()) + "." + std::to_string(counter++);
+    auto work = base / (name + "." + unique_id);
+
+    // Clean up any stale directory with the same name (shouldn't happen with unique IDs)
     if (fs::exists(work)) {
       // Unmount any stale FUSE mounts before cleanup
-      // These can be left behind if a previous build crashed
       auto store_mount = work / "store-mount";
       auto output_mount = work / "output-mount";
       if (fs::exists(store_mount)) {
@@ -621,18 +629,10 @@ private:
         auto cmd = "fusermount -u " + output_mount.string() + " 2>/dev/null";
         system(cmd.c_str());
       }
-
-      // Try to remove - if it fails due to permissions, just use a unique suffix
       std::error_code ec;
       fs::remove_all(work, ec);
-      if (ec) {
-        // Failed to clean up (likely root-owned files from fakeroot mount)
-        // Use a unique directory instead
-        auto unique_work = work.string() + "." + std::to_string(getpid());
-        log_debug("firecracker: using unique work dir due to stale files: %s", unique_work);
-        work = unique_work;
-      }
     }
+
     fs::create_directories(work);
     fs::create_directories(work / "rootfs");
     fs::create_directories(work / "outputs");
@@ -817,21 +817,49 @@ private:
     // Mount image using fuse2fs (no root required) or fallback to loop mount
     bool mounted = false;
     // fakeroot allows creating files as if we were root (they'll have root ownership in the image)
-    auto fuse_cmd = "fuse2fs -o rw,fakeroot " + image_path + " " + mount_point + " 2>/dev/null";
-    if (system(fuse_cmd.c_str()) == 0) {
-      mounted = true;
-      log_debug("firecracker: mounted store image via fuse2fs");
-    } else {
-      // Fallback to loop mount (requires privileges)
-      auto loop_cmd = "mount -o loop " + image_path + " " + mount_point + " 2>/dev/null";
-      if (system(loop_cmd.c_str()) == 0) {
+    auto fuse_cmd = "fuse2fs -o rw,fakeroot " + image_path + " " + mount_point;
+
+    // Capture fuse2fs stderr for debugging mount failures
+    std::string fuse_error;
+    auto fuse_cmd_capture = fuse_cmd + " 2>&1";
+    FILE* pipe = popen(fuse_cmd_capture.c_str(), "r");
+    if (pipe) {
+      char buffer[256];
+      while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+        fuse_error += buffer;
+      }
+      int status = pclose(pipe);
+      if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
         mounted = true;
-        log_debug("firecracker: mounted store image via loop");
+        log_debug("firecracker: mounted store image via fuse2fs");
+      } else {
+        log_debug("firecracker: fuse2fs failed with status %d: %s",
+                  WIFEXITED(status) ? WEXITSTATUS(status) : -1, fuse_error);
       }
     }
 
     if (!mounted) {
-      throw ::nix::Error("failed to mount store image - need fuse2fs or root for loop mount");
+      // Fallback to loop mount (requires privileges)
+      auto loop_cmd = "mount -o loop " + image_path + " " + mount_point + " 2>&1";
+      std::string loop_error;
+      pipe = popen(loop_cmd.c_str(), "r");
+      if (pipe) {
+        char buffer[256];
+        while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+          loop_error += buffer;
+        }
+        int status = pclose(pipe);
+        if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+          mounted = true;
+          log_debug("firecracker: mounted store image via loop");
+        } else {
+          log_debug("firecracker: loop mount failed: %s", loop_error);
+        }
+      }
+    }
+
+    if (!mounted) {
+      throw ::nix::Error("failed to mount store image - fuse2fs error: " + fuse_error);
     }
 
     // Create /store directory structure inside the image
@@ -908,15 +936,29 @@ private:
     // fuse2fs creates it on mount, we don't need it and it causes cleanup issues
     auto tmp_mount = path + ".tmp_mount";
     fs::create_directories(tmp_mount);
-    auto mount_cmd = "fuse2fs -o rw,fakeroot " + path + " " + tmp_mount + " 2>/dev/null";
+    auto mount_cmd = "fuse2fs -o rw,fakeroot " + path + " " + tmp_mount;
+    log_debug("firecracker: create_ext4_image mounting %s at %s", path, tmp_mount);
     if (system(mount_cmd.c_str()) == 0) {
       auto lf_path = tmp_mount + "/lost+found";
       if (fs::exists(lf_path)) {
         fs::remove_all(lf_path);
       }
-      auto umount_cmd = "fusermount -u " + tmp_mount + " 2>/dev/null || fusermount3 -u " +
-                        tmp_mount + " 2>/dev/null";
-      system(umount_cmd.c_str());
+      auto umount_cmd = "fusermount -u " + tmp_mount;
+      int umount_status = system(umount_cmd.c_str());
+      if (umount_status != 0) {
+        log_debug("firecracker: create_ext4_image unmount failed with %d, trying fusermount3",
+                  umount_status);
+        umount_cmd = "fusermount3 -u " + tmp_mount;
+        umount_status = system(umount_cmd.c_str());
+      }
+      // Ensure unmount completed before returning - wait for mountpoint to become available
+      if (umount_status == 0) {
+        // Give kernel time to release the mount
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+      }
+      log_debug("firecracker: create_ext4_image unmount status: %d", umount_status);
+    } else {
+      log_debug("firecracker: create_ext4_image mount failed for lost+found cleanup");
     }
     fs::remove_all(tmp_mount);
   }
