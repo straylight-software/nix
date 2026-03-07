@@ -190,36 +190,101 @@ TEST_CASE("property: suffix matching finds correct output", "[property][ca][adve
   });
 }
 
-TEST_CASE("property: suffix matching FALSE POSITIVE rate", "[property][ca][adversarial]") {
-  // NOTE: This test documents that suffix matching HAS false positives.
-  // The original assertion "wrong drv name never matches" was PROVEN FALSE
-  // by RapidCheck, finding cases like:
-  //   drv1="x-b", drv2="b", output="lib"
-  //   Entry "hash-x-b-lib" matches BOTH because "-b-lib" is suffix of "-x-b-lib"
-  //
-  // This is the fundamental bug with suffix matching.
+// =============================================================================
+// CLOSED-FORM COLLISION CONDITION
+//
+// Suffix matching produces a collision IFF:
+//
+//   suffix(drv1, out1) is a suffix of suffix(drv2, out2)
+//
+// Where suffix(drv, out) = "-" + drv + ("-" + out if out != "out" else "")
+//
+// This happens when:
+//   1. out1 == out2 (same output name), AND
+//   2. drv1 ends with "-" + drv2 (drv2 is a dash-suffix of drv1)
+//
+// Example: drv1="foo-bar", drv2="bar", out="lib"
+//   suffix1 = "-foo-bar-lib"
+//   suffix2 = "-bar-lib"
+//   suffix2 is a suffix of suffix1 -> COLLISION
+//
+// This is NOT probabilistic - it's a deterministic structural property.
+// =============================================================================
 
-  rc::check("classify false positive rate", []() {
-    auto drv_name1 = *gen_drv_name_adversarial();
-    auto drv_name2 = *gen_drv_name_adversarial();
-    auto output_name = *gen_output_name_adversarial();
+namespace {
 
-    RC_PRE(!drv_name1.empty());
-    RC_PRE(!drv_name2.empty());
-    RC_PRE(!output_name.empty());
-    RC_PRE(drv_name1 != drv_name2);
+// Check if drv2 is a proper dash-suffix of drv1
+// i.e., drv1 = X + "-" + drv2 for some non-empty X
+auto is_dash_suffix(const std::string& drv1, const std::string& drv2) -> bool {
+  if (drv2.size() >= drv1.size()) {
+    return false;
+  }
+  // drv1 must end with "-" + drv2
+  std::string needle = "-" + drv2;
+  if (drv1.size() < needle.size()) {
+    return false;
+  }
+  return drv1.substr(drv1.size() - needle.size()) == needle;
+}
 
-    // Generate entry for drv_name1
-    auto entry = *gen_store_entry(drv_name1, output_name);
+// Closed-form predicate: does entry for (drv1, out1) also match (drv2, out2)?
+auto collides(const std::string& drv1, const std::string& out1, const std::string& drv2,
+              const std::string& out2) -> bool {
+  // Collision occurs iff:
+  // 1. Same output name, AND
+  // 2. drv2 is a dash-suffix of drv1
+  return out1 == out2 && is_dash_suffix(drv1, drv2);
+}
 
-    // Check if drv_name2 ALSO matches (false positive)
-    bool false_positive = matches_output_suffix(entry, drv_name2, output_name);
+} // namespace
 
-    // Classify to track false positive rate
-    RC_CLASSIFY(false_positive, "FALSE POSITIVE - suffix matching is broken");
-    RC_CLASSIFY(!false_positive, "correctly rejected");
+TEST_CASE("closed-form: collision condition is exact", "[ca][adversarial][closed-form]") {
+  SECTION("collision when drv2 is dash-suffix of drv1") {
+    // drv1="foo-bar", drv2="bar", out="lib"
+    CHECK(collides("foo-bar", "lib", "bar", "lib"));
+    CHECK(collides("x-y-z", "out", "z", "out"));
+    CHECK(collides("x-y-z", "out", "y-z", "out"));
+    CHECK(collides("prefix-hello-world", "dev", "world", "dev"));
+    CHECK(collides("prefix-hello-world", "dev", "hello-world", "dev"));
+  }
 
-    // We don't assert - we're just measuring the bug
+  SECTION("no collision when outputs differ") {
+    CHECK_FALSE(collides("foo-bar", "lib", "bar", "dev"));
+    CHECK_FALSE(collides("foo-bar", "out", "bar", "lib"));
+  }
+
+  SECTION("no collision when drv2 is not a dash-suffix") {
+    CHECK_FALSE(collides("foobar", "lib", "bar", "lib"));    // no dash before bar
+    CHECK_FALSE(collides("foo-bar", "lib", "foo", "lib"));   // foo is prefix, not suffix
+    CHECK_FALSE(collides("foo-bar", "lib", "o-bar", "lib")); // o-bar not a suffix
+    CHECK_FALSE(collides("foo", "lib", "foo", "lib"));       // same drv, not proper suffix
+  }
+}
+
+TEST_CASE("closed-form: collision predicate matches suffix matching",
+          "[ca][adversarial][closed-form]") {
+  // Verify our closed-form predicate exactly predicts suffix matching behavior
+  rc::check("closed-form predicate is equivalent to suffix matching", []() {
+    auto drv1 = *gen_drv_name_adversarial();
+    auto drv2 = *gen_drv_name_adversarial();
+    auto out = *gen_output_name_adversarial();
+
+    RC_PRE(!drv1.empty());
+    RC_PRE(!drv2.empty());
+    RC_PRE(!out.empty());
+    RC_PRE(drv1 != drv2);
+
+    // Generate entry for (drv1, out)
+    auto entry = *gen_store_entry(drv1, out);
+
+    // Does suffix matching think (drv2, out) matches this entry?
+    bool suffix_matches = matches_output_suffix(entry, drv2, out);
+
+    // Does our closed-form predicate predict collision?
+    bool predicted_collision = collides(drv1, out, drv2, out);
+
+    // They MUST be equivalent
+    RC_ASSERT(suffix_matches == predicted_collision);
   });
 }
 
